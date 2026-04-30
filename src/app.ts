@@ -412,7 +412,7 @@ function landingPage(
     },
     countdown_title: {
       type: "text",
-      props: { content: "🕒 Price increases, supply decreases in...", weight: "bold" },
+      props: { content: "⌛ Price increases, supply decreases in...", weight: "bold" },
     },
     countdown_badges: {
       type: "cell_grid",
