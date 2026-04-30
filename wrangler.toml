@@ -20,3 +20,18 @@ id = "3f55e9bea2534955b833521a2f5b55e7"
 binding       = "DB"
 database_name = "warplets"
 database_id   = "45a4cc4c-788e-48dd-89bf-7b504b17655d"
+
+[env.dev]
+main = "src/index.dev.ts"
+
+[env.dev.vars]
+SNAP_PUBLIC_BASE_URL = "https://api-dev.10x.meme"
+
+[[env.dev.kv_namespaces]]
+binding = "POLL_KV"
+id = "3f55e9bea2534955b833521a2f5b55e7"
+
+[[env.dev.d1_databases]]
+binding       = "DB"
+database_name = "warplets"
+database_id   = "45a4cc4c-788e-48dd-89bf-7b504b17655d"

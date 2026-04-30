@@ -6,6 +6,8 @@
   "packageManager": "pnpm@9.15.4",
   "scripts": {
     "dev": "SKIP_JFS_VERIFICATION=true tsx watch src/server.ts",
+    "dev:snap": "wrangler dev --env dev --port 8789",
+    "dev:tunnel": "node scripts/dev-tunnel.mjs",
     "build": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
     "deploy": "wrangler deploy"
