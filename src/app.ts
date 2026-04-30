@@ -435,6 +435,38 @@ function snapBaseUrl(request: Request): string {
   return `${url.protocol}//${url.host}`.replace(/\/$/, "");
 }
 
+function currentSnapUrl(request: Request): string {
+  const requestUrl = new URL(request.url);
+  const pathAndQuery = `${requestUrl.pathname}${requestUrl.search}`;
+  const baseUrl = new URL(snapBaseUrl(request));
+
+  // Cast embeds should use HTTPS for public URLs; keep localhost HTTP for local dev.
+  const isLocalHost =
+    baseUrl.hostname === "localhost" ||
+    baseUrl.hostname === "127.0.0.1" ||
+    baseUrl.hostname === "::1";
+  if (!isLocalHost && baseUrl.protocol === "http:") {
+    baseUrl.protocol = "https:";
+  }
+
+  return `${baseUrl.toString().replace(/\/$/, "")}${pathAndQuery}`;
+}
+
+function currentRootSnapUrl(request: Request): string {
+  const requestUrl = new URL(request.url);
+  const baseUrl = new URL(snapBaseUrl(request));
+
+  const isLocalHost =
+    baseUrl.hostname === "localhost" ||
+    baseUrl.hostname === "127.0.0.1" ||
+    baseUrl.hostname === "::1";
+  if (!isLocalHost && baseUrl.protocol === "http:") {
+    baseUrl.protocol = "https:";
+  }
+
+  return `${baseUrl.toString().replace(/\/$/, "")}/${requestUrl.search}`;
+}
+
 function actionFid(action: unknown): number | undefined {
   if (!action || typeof action !== "object") return undefined;
   const maybeFid = (action as { fid?: unknown }).fid;
@@ -716,7 +748,17 @@ function landingPage(
   landingStats: LandingStats,
   fullUrl: string,
 ): SnapHandlerResult {
-  const claimTarget = forceNoMatch ? `${base}/claim?match=false` : `${base}/claim`;
+  const claimTargetUrl = new URL(`${base}/claim`);
+  try {
+    const sourceUrl = new URL(fullUrl);
+    sourceUrl.searchParams.forEach((value, key) => {
+      claimTargetUrl.searchParams.set(key, value);
+    });
+  } catch {
+    // Keep default /claim target when fullUrl is unexpectedly invalid.
+  }
+  if (forceNoMatch) claimTargetUrl.searchParams.set("match", "false");
+  const claimTarget = claimTargetUrl.toString();
   const counterValues = [
     String(landingStats.clicks),
     String(landingStats.matches),
@@ -844,7 +886,7 @@ function landingPage(
   };
   elements["share_title"] = {
     type: "text",
-    props: { content: "🔁 Share This Snap!", weight: "bold" },
+    props: { content: "🫰 Share this Snap!", weight: "bold" },
   };
   elements["share_button"] = {
     type: "button",
@@ -854,7 +896,7 @@ function landingPage(
         action: "compose_cast",
         params: {
           text: "🟢 Take the green pill.",
-          embeds: [{ url: fullUrl }],
+          embeds: [fullUrl],
           channelKey: "10xmeme",
         },
       },
@@ -891,7 +933,7 @@ function landingPage(
         { row: 0, col: 2, content: "Buys" },
         { row: 1, col: 0, content: counterValues[0] },
         { row: 1, col: 1, content: counterValues[1] },
-        { row: 1, col: 2, content: counterValues[2] },
+        { row: 1, col: 2, content: counterValues[2] ?? "?" },
       ],
     },
   };
@@ -980,6 +1022,7 @@ function landingPage(
 
 function claimResultPage(
   isMatch: boolean,
+  fullRootUrl: string,
   fidValue?: number,
   rarityValue?: number,
 ): SnapHandlerResult {
@@ -1000,8 +1043,8 @@ function claimResultPage(
           type: "stack",
           props: {},
           children: showWinnerUi
-            ? ["heading", "image", "claim"]
-            : ["heading", "image", "claim"],
+            ? ["heading", "image", "claim", "claim_share"]
+            : ["heading", "image", "claim", "claim_share"],
         },
         heading: {
           type: "text",
@@ -1026,8 +1069,8 @@ function claimResultPage(
           type: "button",
           props: { 
             label: isMatch
-              ? "Buy on OpenSea (login to see listing)"
-              : "Visit OpenSea to find out why...",
+              ? "👉 Buy on OpenSea (login to see listing)"
+              : "👉 Visit OpenSea to find out why...",
             variant: "primary" },
           on: {
             press: {
@@ -1036,6 +1079,30 @@ function claimResultPage(
                 target: isMatch
                   ? `https://opensea.io/item/base/0x780446dd12e080ae0db762fcd4daf313f3e359de/${rarityValue}`
                   : "https://opensea.io/collection/10xwarplets/overview",
+              },
+            },
+          },
+        },
+        claim_share: {
+          type: "button",
+          props: {
+            label: "Share on Farcaster",
+            variant: "secondary",
+          },
+          on: {
+            press: {
+              action: "compose_cast",
+              params: {
+                text: isMatch
+                      ? "🎉 I'm on the list...\n\n💸 Shut up and take my money!\n\n...before the price goes up - every 10 days for 100 days."
+                  : "😭 I'm not on the list...\n\n🧹 Looking to sweep the floor!\n\n...ready for public listings - every 10 days for 100 days.",
+                channelKey: "10xmeme",
+                embeds: [
+                  fullRootUrl,
+                  isMatch
+                    ? `https://warplets.10x.meme/${rarityValue}.avif`
+                    : "https://warplets.10x.meme/3081.png",
+                ],
               },
             },
           },
@@ -1073,6 +1140,8 @@ const snap: SnapFunction = async (ctx) => {
   // recent=false or absent loads dynamically from warplets_users.
   const loadStaticPreview = recentParam === "true";
   const base = snapBaseUrl(ctx.request);
+  const fullCurrentUrl = currentSnapUrl(ctx.request);
+  const fullRootUrl = currentRootSnapUrl(ctx.request);
   const { WARPLETS, WARPLETS_KV } = envBindings!;
   const fid = actionFid(ctx.action);
 
@@ -1087,7 +1156,7 @@ const snap: SnapFunction = async (ctx) => {
           }))
         : getLandingImageSections(WARPLETS, seedImages, base),
     ]);
-    return landingPage(base, forceNoMatch, imageSections, landingStats, ctx.request.url);
+    return landingPage(base, forceNoMatch, imageSections, landingStats, fullCurrentUrl);
   }
 
   if (pathname === "/claim") {
@@ -1096,12 +1165,12 @@ const snap: SnapFunction = async (ctx) => {
     }
 
     if (ctx.action.type !== "post" || !fid) {
-      return claimResultPage(false);
+      return claimResultPage(false, fullRootUrl, undefined, undefined);
     }
 
     const rarityValue = await getWarpletRarityByFid(WARPLETS, fid);
     const isMatch = !forceNoMatch && typeof rarityValue === "number";
-    return claimResultPage(isMatch, fid, rarityValue);
+    return claimResultPage(isMatch, fullRootUrl, fid, rarityValue);
   }
 
   if (pathname !== "/poll") {
@@ -1115,7 +1184,7 @@ const snap: SnapFunction = async (ctx) => {
           }))
         : getLandingImageSections(WARPLETS, seedImages, base),
     ]);
-    return landingPage(base, forceNoMatch, imageSections, landingStats, ctx.request.url);
+    return landingPage(base, forceNoMatch, imageSections, landingStats, fullCurrentUrl);
   }
 
   if (ctx.action.type === "post" && colour !== null && VALID_OPTIONS.has(colour)) {
