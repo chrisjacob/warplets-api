@@ -4,39 +4,39 @@ A Farcaster [Snap](https://docs.farcaster.xyz/snap) hosted on Cloudflare Workers
 
 ## What it does
 
-**Favourite Colour Poll** — an interactive Farcaster snap that:
-1. Shows a poll asking users to pick their favourite colour (?? Red, ?? Blue, ?? Green, ?? Yellow, ?? Purple)
+**Favourite Colour Poll** - an interactive Farcaster snap that:
+1. Shows a poll asking users to pick their favourite colour (Red, Blue, Green, Yellow, Purple)
 2. Records the vote durably in Cloudflare D1 (SQL) and updates an aggregated total in Cloudflare KV
 3. Displays live poll results as a bar chart with total vote count (read from KV) and a list of all voter usernames (read from D1)
 4. Lets users vote again
 
 ## Stack
 
-- **[Hono](https://hono.dev/)** — lightweight web framework
-- **[@farcaster/snap-hono](https://www.npmjs.com/package/@farcaster/snap-hono)** — `registerSnapHandler` for GET/POST handling and JFS validation
-- **[Cloudflare Workers](https://workers.cloudflare.com/)** — edge deployment target
-- **[Cloudflare D1](https://developers.cloudflare.com/d1/)** — durable SQLite database (binding: `WARPLETS`)
-- **[Cloudflare Workers KV](https://developers.cloudflare.com/kv/)** — edge key-value cache for aggregated poll totals (binding: `WARPLETS_KV`)
-- **[GitHub Actions](https://github.com/features/actions)** — CI/CD via `cloudflare/wrangler-action`
-- **[Localflare](https://localflare.dev/)** — local dashboard for inspecting D1 and KV during development
+- **[Hono](https://hono.dev/)** - lightweight web framework
+- **[@farcaster/snap-hono](https://www.npmjs.com/package/@farcaster/snap-hono)** - `registerSnapHandler` for GET/POST handling and JFS validation
+- **[Cloudflare Workers](https://workers.cloudflare.com/)** - edge deployment target
+- **[Cloudflare D1](https://developers.cloudflare.com/d1/)** - durable SQLite database (binding: `WARPLETS`)
+- **[Cloudflare Workers KV](https://developers.cloudflare.com/kv/)** - edge key-value cache for aggregated poll totals (binding: `WARPLETS_KV`)
+- **[GitHub Actions](https://github.com/features/actions)** - CI/CD via `cloudflare/wrangler-action`
+- **[Localflare](https://localflare.dev/)** - local dashboard for inspecting D1 and KV during development
 
 ## How votes are stored
 
 ```
 User presses a colour button
-        ¦
-        ?
+        |
+        v
 POST /  (FID included in signed payload)
-        ¦
-        +-? D1: upsert user (fid + username looked up from Farcaster API)
-        +-? D1: insert vote row  (user_id, poll_option, timestamp)
-        +-? D1: SELECT COUNT(*) per option  --?  KV: write poll_results JSON
-        ¦
-        ?
+        |
+        +- D1: upsert user (fid + username looked up from Farcaster API)
+        +- D1: insert vote row  (user_id, poll_option, timestamp)
+        +- D1: SELECT COUNT(*) per option  --> KV: write poll_results JSON
+        |
+        v
 Results page
-  • Bar chart      ? aggregated counts from KV  (fast, edge-local)
-  • Total votes    ? sum of KV values
-  • Voter list     ? DISTINCT usernames from D1  (always consistent)
+  - Bar chart   <- aggregated counts from KV (fast, edge-local)
+  - Total votes <- sum of KV values
+  - Voter list  <- DISTINCT usernames from D1 (always consistent)
 ```
 
 **Why two stores?**
@@ -52,15 +52,15 @@ Results page
 
 ```
 src/
-  app.ts          # Shared snap logic — D1 helpers, KV helpers, Hono app
+  app.ts          # Shared snap logic - D1 helpers, KV helpers, Hono app
   index.ts        # Production entrypoint (thin wrapper)
-  index.dev.ts    # Dev entrypoint — skips JFS verification, pins base URL
+  index.dev.ts    # Dev entrypoint - skips JFS verification, pins base URL
 scripts/
   dev-tunnel.mjs  # One-command dev workflow (wrangler + cloudflared + localflare)
 migrations/
   0001_init.sql   # Creates users and votes tables
 .github/workflows/
-  deploy.yml      # CI/CD — applies D1 migrations and deploys on push to main
+  deploy.yml      # CI/CD - applies D1 migrations and deploys on push to main
 ```
 
 ## Local development
@@ -72,9 +72,9 @@ pnpm dev:tunnel
 ```
 
 This starts three processes in parallel:
-- **`wrangler dev --env dev`** on port 8789 — your Worker with local D1 + KV bindings
-- **Cloudflare Tunnel** (`api-dev`) ? stable URL `https://api-dev.10x.meme` — required for Farcaster JFS signature verification
-- **Localflare dashboard** ? `http://localhost:8790` (also at `https://studio.localflare.dev?port=8790`) — live UI for browsing D1 tables and KV keys
+- **`wrangler dev --env dev`** on port 8789 - your Worker with local D1 + KV bindings
+- **Cloudflare Tunnel** (`api-dev`) -> stable URL `https://api-dev.10x.meme` - required for Farcaster JFS signature verification
+- **Localflare dashboard** -> `http://localhost:8790` (also at `https://studio.localflare.dev?port=8790`) - live UI for browsing D1 tables and KV keys
 
 ### Farcaster Snap emulator
 
@@ -137,7 +137,7 @@ wrangler d1 migrations apply warplets --remote
 
 ### GitHub Secrets
 
-Add the following secrets to your GitHub repository (`Settings ? Secrets and variables ? Actions ? Repository secrets`):
+Add the following secrets to your GitHub repository (`Settings -> Secrets and variables -> Actions -> Repository secrets`):
 
 | Secret | Description |
 |--------|-------------|
@@ -146,18 +146,18 @@ Add the following secrets to your GitHub repository (`Settings ? Secrets and var
 
 ### Cloudflare API token permissions
 
-Create a token at **My Profile ? API Tokens ? Create Token** (custom token) with:
+Create a token at **My Profile -> API Tokens -> Create Token** (custom token) with:
 
 | Resource | Permission |
 |---|---|
-| Account ? Workers Scripts | Edit |
-| Account ? Workers KV Storage | Edit |
-| Account ? D1 | Edit |
-| Zone ? Workers Routes | Edit |
+| Account -> Workers Scripts | Edit |
+| Account -> Workers KV Storage | Edit |
+| Account -> D1 | Edit |
+| Zone -> Workers Routes | Edit |
 
 ### Deployment
 
-Push to `main` — GitHub Actions will automatically:
+Push to `main` - GitHub Actions will automatically:
 1. Apply D1 migrations (`wrangler d1 migrations apply warplets --remote`)
 2. Deploy the Worker (`wrangler deploy`)
 
@@ -166,7 +166,7 @@ Manual deploy:
 pnpm deploy
 ```
 
-Or trigger via the **Actions** tab ? **Deploy to Cloudflare Workers** ? **Run workflow**.
+Or trigger via the **Actions** tab -> **Deploy to Cloudflare Workers** -> **Run workflow**.
 
 **Production URL:** `https://api.10x.meme`
 
