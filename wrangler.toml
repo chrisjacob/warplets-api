@@ -1,0 +1,24 @@
+name = "snapflare"
+main = "src/index.ts"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+# Set this to your deployed worker URL once known, e.g.:
+# SNAP_PUBLIC_BASE_URL = "https://snapflare.<your-subdomain>.workers.dev"
+# You can also set this as a secret: wrangler secret put SNAP_PUBLIC_BASE_URL
+
+# Workers KV — stores aggregated poll totals for fast edge reads.
+# Create with: wrangler kv namespace create POLL_KV
+# Then replace the id below with the one printed by that command.
+[[kv_namespaces]]
+binding = "POLL_KV"
+id = "a0481bf82c9849d1a40af210add07bf4"
+
+# Cloudflare D1 — durable SQL store for users and individual vote rows.
+# Create with: wrangler d1 create snapflare
+# Then replace the database_id below with the one printed by that command.
+[[d1_databases]]
+binding     = "DB"
+database_name = "snapflare"
+database_id = "13ce4af3-e255-4562-9271-5989b61e1e86"
