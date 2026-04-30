@@ -13,16 +13,12 @@ custom_domain = true
 # You can also set this as a secret: wrangler secret put SNAP_PUBLIC_BASE_URL
 
 # Workers KV — stores aggregated poll totals for fast edge reads.
-# Create with: wrangler kv namespace create POLL_KV
-# Then replace the id below with the one printed by that command.
 [[kv_namespaces]]
 binding = "POLL_KV"
-id = "a0481bf82c9849d1a40af210add07bf4"
+id = "3f55e9bea2534955b833521a2f5b55e7"
 
 # Cloudflare D1 — durable SQL store for users and individual vote rows.
-# Create with: wrangler d1 create snapflare
-# Then replace the database_id below with the one printed by that command.
 [[d1_databases]]
-binding     = "DB"
-database_name = "snapflare"
-database_id = "13ce4af3-e255-4562-9271-5989b61e1e86"
+binding       = "DB"
+database_name = "warplets"
+database_id   = "45a4cc4c-788e-48dd-89bf-7b504b17655d"
