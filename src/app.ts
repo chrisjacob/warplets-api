@@ -165,11 +165,21 @@ function snapBaseUrl(request: Request): string {
   return `${url.protocol}//${url.host}`.replace(/\/$/, "");
 }
 
+function actionFid(action: unknown): number | undefined {
+  if (!action || typeof action !== "object") return undefined;
+  const maybeFid = (action as { fid?: unknown }).fid;
+  return typeof maybeFid === "number" ? maybeFid : undefined;
+}
+
 // ---------------------------------------------------------------------------
 // Snap page builders
 // ---------------------------------------------------------------------------
 
-function pollPage(base: string): SnapHandlerResult {
+function pollPage(base: string, viewerName?: string): SnapHandlerResult {
+  const heading = viewerName
+    ? `What's your favourite colour, ${viewerName}?`
+    : "What's your favourite colour?";
+
   return {
     version: "2.0",
     theme: { accent: "purple" },
@@ -191,7 +201,7 @@ function pollPage(base: string): SnapHandlerResult {
         },
         heading: {
           type: "text",
-          props: { content: "What's your favourite colour?", weight: "bold" },
+          props: { content: heading, weight: "bold" },
         },
         subtext: {
           type: "text",
@@ -326,6 +336,7 @@ const snap: SnapFunction = async (ctx) => {
   const colour = url.searchParams.get("colour");
   const base = snapBaseUrl(ctx.request);
   const { WARPLETS, WARPLETS_KV } = envBindings!;
+  const fid = actionFid(ctx.action);
 
   if (ctx.action.type === "post" && colour !== null && VALID_OPTIONS.has(colour)) {
     // 1. Ensure the voter exists in D1 (look up username on first visit)
@@ -343,7 +354,8 @@ const snap: SnapFunction = async (ctx) => {
     return resultsPage(base, voteCounts, voters);
   }
 
-  return pollPage(base);
+  const viewerName = fid ? await fetchUsername(fid) : undefined;
+  return pollPage(base, viewerName);
 };
 
 // ---------------------------------------------------------------------------
