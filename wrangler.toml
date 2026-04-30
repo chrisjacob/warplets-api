@@ -7,9 +7,6 @@ compatibility_flags = ["nodejs_compat"]
 pattern = "api.10x.meme"
 custom_domain = true
 
-[vars]
-SNAP_PUBLIC_BASE_URL = "https://api.10x.meme"
-
 # Workers KV — stores aggregated poll totals for fast edge reads.
 [[kv_namespaces]]
 binding = "POLL_KV"
