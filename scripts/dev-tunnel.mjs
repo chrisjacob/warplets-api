@@ -39,17 +39,30 @@ function spawnCloudflared() {
   });
 }
 
+function spawnLocalflare() {
+  return spawn("pnpm", ["localflare", "--port", "8790"], {
+    cwd: repoRoot,
+    shell: true,
+    stdio: "inherit",
+    env: process.env,
+  });
+}
+
 async function main() {
-  console.log("Stable dev URL: https://api-dev.10x.meme");
+  console.log("Stable dev URL:  https://api-dev.10x.meme");
+  console.log("Local dashboard: http://localhost:8790");
   console.log("Starting wrangler dev --env dev...");
 
   const wrangler = spawnWrangler();
   console.log("Starting Cloudflare Tunnel api-dev...");
   const tunnel = spawnCloudflared();
+  console.log("Starting Localflare dashboard on :8790...");
+  const localflare = spawnLocalflare();
 
   const shutdown = () => {
     wrangler.kill();
     tunnel.kill();
+    localflare.kill();
   };
 
   process.on("SIGINT", shutdown);
@@ -58,6 +71,7 @@ async function main() {
 
   wrangler.on("exit", (code) => {
     tunnel.kill();
+    localflare.kill();
     process.exit(code ?? 0);
   });
 }

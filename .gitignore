@@ -12,3 +12,6 @@ node-dev.out.log
 node-dev.err.log
 wrangler-dev.out.log
 wrangler-dev.err.log
+
+# Localflare generated files
+.localflare/
