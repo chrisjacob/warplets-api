@@ -309,15 +309,11 @@ async function refreshLandingStatsKV(
   WARPLETS: D1Database,
   WARPLETS_KV: KVNamespace,
 ): Promise<LandingStats> {
-  const clicksRow = await WARPLETS.prepare(
-    "SELECT COUNT(*) AS count FROM warplets_users",
-  ).first<{ count: number }>();
-  const matchesRow = await WARPLETS.prepare(
-    "SELECT COUNT(*) AS count FROM warplets_users WHERE matched_on IS NOT NULL",
-  ).first<{ count: number }>();
-  const buysRow = await WARPLETS.prepare(
-    "SELECT COUNT(*) AS count FROM warplets_users WHERE buy_on IS NOT NULL",
-  ).first<{ count: number }>();
+  const [clicksRow, matchesRow, buysRow] = await Promise.all([
+    WARPLETS.prepare("SELECT COUNT(*) AS count FROM warplets_users").first<{ count: number }>(),
+    WARPLETS.prepare("SELECT COUNT(*) AS count FROM warplets_users WHERE matched_on IS NOT NULL").first<{ count: number }>(),
+    WARPLETS.prepare("SELECT COUNT(*) AS count FROM warplets_users WHERE buy_on IS NOT NULL").first<{ count: number }>(),
+  ]);
 
   const stats: LandingStats = {
     clicks: clicksRow?.count ?? 0,
@@ -1013,16 +1009,16 @@ const snap: SnapFunction = async (ctx) => {
   const pathname = url.pathname;
   const colour = url.searchParams.get("colour");
   const forceNoMatch = url.searchParams.get("match") === "false";
-  const loadRecentPreview = url.searchParams.get("recent") === "false";
+  const loadRecentPreview = url.searchParams.get("recent") === "true";
   const base = snapBaseUrl(ctx.request);
   const { WARPLETS, WARPLETS_KV } = envBindings!;
   const fid = actionFid(ctx.action);
 
   if (pathname === "/") {
-    const landingStats = await getLandingStatsFromKV(WARPLETS, WARPLETS_KV);
-    const recentMatches = loadRecentPreview
-      ? await getRecentMatchPreview(WARPLETS)
-      : [];
+    const [landingStats, recentMatches] = await Promise.all([
+      getLandingStatsFromKV(WARPLETS, WARPLETS_KV),
+      loadRecentPreview ? getRecentMatchPreview(WARPLETS) : Promise.resolve([]),
+    ]);
     return landingPage(base, forceNoMatch, recentMatches, landingStats);
   }
 
@@ -1041,10 +1037,10 @@ const snap: SnapFunction = async (ctx) => {
   }
 
   if (pathname !== "/poll") {
-    const landingStats = await getLandingStatsFromKV(WARPLETS, WARPLETS_KV);
-    const recentMatches = loadRecentPreview
-      ? await getRecentMatchPreview(WARPLETS)
-      : [];
+    const [landingStats, recentMatches] = await Promise.all([
+      getLandingStatsFromKV(WARPLETS, WARPLETS_KV),
+      loadRecentPreview ? getRecentMatchPreview(WARPLETS) : Promise.resolve([]),
+    ]);
     return landingPage(base, forceNoMatch, recentMatches, landingStats);
   }
 
