@@ -6,7 +6,8 @@
 # Optional: -ChunkSize <rows_per_batch>  (default: 200)
 
 param(
-    [int]$ChunkSize = 200
+    [int]$ChunkSize = 200,
+    [int]$StartToken = 1
 )
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
@@ -26,6 +27,17 @@ Write-Host "Reading CSV..."
 $rows = Import-Csv -Path $csvPath
 $total = $rows.Count
 Write-Host "Total rows: $total"
+
+# Filter to rows at or after StartToken
+if ($StartToken -gt 1) {
+    Write-Host "Resuming from token_id >= $StartToken ..."
+    $rows = $rows | Where-Object {
+        $m = [regex]::Match($_.Name, "#(\d+)")
+        $m.Success -and ([int]$m.Groups[1].Value) -ge $StartToken
+    }
+    Write-Host "Rows to insert: $($rows.Count)"
+    $total = $rows.Count
+}
 
 function SqlText([object]$value) {
     if ($null -eq $value) { return "NULL" }
