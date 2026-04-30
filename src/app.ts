@@ -647,10 +647,9 @@ function landingPage(
       children: [
         "top_section",
         "countdown_section",
-        "list_yes_title",
-        "list_yes_block",
-        "list_no_title",
-        "list_no_block",
+        "list_no_section",
+        "list_yes_section",
+        "list_buyer_section",
         "insights_section",
       ],
     },
@@ -703,31 +702,32 @@ function landingPage(
         ],
       },
     },
-    list_yes_title: {
-      type: "text",
-      props: { content: "🎉 You're on the list", weight: "bold" },
-    },
-    list_yes_block: {
+    list_no_section: {
       type: "stack",
       props: { gap: "md" },
-      children: [
-        "list_yes_row_0",
-        "list_yes_row_1",
-        "list_yes_row_2",
-      ],
+      children: ["list_no_title", "list_no_row_0", "list_no_row_1"],
     },
     list_no_title: {
       type: "text",
       props: { content: "😭 You're not on the list", weight: "bold" },
     },
-    list_no_block: {
+    list_yes_section: {
       type: "stack",
       props: { gap: "md" },
-      children: [
-        "list_no_row_0",
-        "list_no_row_1",
-        "list_no_row_2",
-      ],
+      children: ["list_yes_title", "list_yes_row_0", "list_yes_row_1"],
+    },
+    list_yes_title: {
+      type: "text",
+      props: { content: "🎉 You're on the list", weight: "bold" },
+    },
+    list_buyer_section: {
+      type: "stack",
+      props: { gap: "md" },
+      children: ["list_buyer_title", "list_buyer_row_0", "list_buyer_row_1"],
+    },
+    list_buyer_title: {
+      type: "text",
+      props: { content: "👏 You're a buyer!", weight: "bold" },
     },
     insights_section: {
       type: "stack",
@@ -850,7 +850,7 @@ function landingPage(
     },
   };
 
-  for (let row = 0; row < 3; row++) {
+  for (let row = 0; row < 2; row++) {
     const yesRowChildren: string[] = [];
     elements[`list_yes_row_${row}`] = {
       type: "stack",
@@ -877,7 +877,7 @@ function landingPage(
     }
   }
 
-  for (let row = 0; row < 3; row++) {
+  for (let row = 0; row < 2; row++) {
     const noRowChildren: string[] = [];
     elements[`list_no_row_${row}`] = {
       type: "stack",
@@ -886,13 +886,40 @@ function landingPage(
     };
 
     for (let col = 0; col < 4; col++) {
-      const index = 12 + row * 4 + col;
+      const index = 8 + row * 4 + col;
       const item = recentMatches[index];
       const imageId = `list_no_item_image_${index}`;
 
       if (!item) continue;
 
       noRowChildren.push(imageId);
+      elements[imageId] = {
+        type: "image",
+        props: {
+          url: item.jpg_url,
+          aspect: "1:1",
+          alt: item.warplet_username_farcaster,
+        },
+      };
+    }
+  }
+
+  for (let row = 0; row < 2; row++) {
+    const buyerRowChildren: string[] = [];
+    elements[`list_buyer_row_${row}`] = {
+      type: "stack",
+      props: { direction: "horizontal", gap: "md" },
+      children: buyerRowChildren,
+    };
+
+    for (let col = 0; col < 4; col++) {
+      const index = 16 + row * 4 + col;
+      const item = recentMatches[index];
+      const imageId = `list_buyer_item_image_${index}`;
+
+      if (!item) continue;
+
+      buyerRowChildren.push(imageId);
       elements[imageId] = {
         type: "image",
         props: {
@@ -1003,7 +1030,10 @@ const snap: SnapFunction = async (ctx) => {
   const pathname = url.pathname;
   const colour = url.searchParams.get("colour");
   const forceNoMatch = url.searchParams.get("match") === "false";
-  const loadRecentPreview = url.searchParams.get("recent") === "true";
+  const recentParam = url.searchParams.get("recent");
+  // Backward compatibility: older shared links used recent=false to force
+  // preview loading due to an inverted check.
+  const loadRecentPreview = recentParam === "true" || recentParam === "false";
   const base = snapBaseUrl(ctx.request);
   const { WARPLETS, WARPLETS_KV } = envBindings!;
   const fid = actionFid(ctx.action);
