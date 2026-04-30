@@ -39,6 +39,16 @@ const COLOURS = [
 ] as const;
 
 const VALID_OPTIONS = new Set<string>(COLOURS.map((c) => c.id));
+const SUPPORTED_IMAGE_EXTS = /\.(jpg|jpeg|png|gif|webp)(\?.*)?$/i;
+
+function hasSupportedImageExt(url: string): boolean {
+  try {
+    const path = new URL(url).pathname;
+    return SUPPORTED_IMAGE_EXTS.test(path);
+  } catch {
+    return false;
+  }
+}
 const KV_POLL_RESULTS_KEY = "poll_results";
 const KV_STATS_CLICKS_KEY = "stats_clicks";
 const KV_STATS_MATCHES_KEY = "stats_matches";
@@ -189,6 +199,17 @@ type LandingStats = {
   clicks: number;
   matches: number;
   buys: number;
+};
+
+type LandingImageEntry = {
+  url: string;
+  alt: string;
+};
+
+type LandingImageSections = {
+  noList: LandingImageEntry[];
+  yesList: LandingImageEntry[];
+  buyers: LandingImageEntry[];
 };
 
 function asObject(value: unknown): Record<string, unknown> | undefined {
@@ -470,6 +491,64 @@ async function getRecentMatchPreview(
     }));
 }
 
+async function getLandingImageSections(
+  WARPLETS: D1Database,
+  seed: boolean,
+  base: string,
+): Promise<LandingImageSections> {
+  const toEntry = (row: {
+    pfp_url: string;
+    username: string | null;
+    display_name: string | null;
+  }): LandingImageEntry => ({
+    url: `${base}/img-proxy.jpg?url=${encodeURIComponent(row.pfp_url)}`,
+    alt: row.display_name ?? row.username ?? "unknown",
+  });
+
+  const [noRows, yesRows, buyerRows] = await Promise.all([
+    WARPLETS.prepare(
+      "SELECT pfp_url, username, display_name FROM warplets_users WHERE matched_on IS NULL AND pfp_url IS NOT NULL ORDER BY created_on DESC LIMIT 24",
+    ).all<{ pfp_url: string; username: string | null; display_name: string | null }>(),
+    WARPLETS.prepare(
+      "SELECT pfp_url, username, display_name FROM warplets_users WHERE matched_on IS NOT NULL AND pfp_url IS NOT NULL ORDER BY matched_on DESC LIMIT 24",
+    ).all<{ pfp_url: string; username: string | null; display_name: string | null }>(),
+    WARPLETS.prepare(
+      "SELECT pfp_url, username, display_name FROM warplets_users WHERE buy_on IS NOT NULL AND pfp_url IS NOT NULL ORDER BY buy_on DESC LIMIT 24",
+    ).all<{ pfp_url: string; username: string | null; display_name: string | null }>(),
+  ]);
+
+  const noList = noRows.results.map(toEntry).slice(0, 8);
+  const yesList = yesRows.results.map(toEntry).slice(0, 8);
+  const buyers = buyerRows.results.map(toEntry).slice(0, 8);
+
+  if (seed) {
+    const needNo = Math.max(0, 8 - noList.length);
+    const needYes = Math.max(0, 8 - yesList.length);
+    const needBuyers = Math.max(0, 8 - buyers.length);
+    const neededTotal = needNo + needYes + needBuyers;
+
+    if (neededTotal > 0) {
+      const seedRows = await WARPLETS.prepare(
+        "SELECT jpg_url, warplet_username_farcaster FROM warplets_metadata WHERE jpg_url IS NOT NULL ORDER BY RANDOM() LIMIT ?",
+      )
+        .bind(neededTotal)
+        .all<{ jpg_url: string; warplet_username_farcaster: string | null }>();
+
+      const seeds: LandingImageEntry[] = seedRows.results.map((r) => ({
+        url: r.jpg_url,
+        alt: r.warplet_username_farcaster ?? "unknown",
+      }));
+
+      let si = 0;
+      while (noList.length < 8 && si < seeds.length) noList.push(seeds[si++]);
+      while (yesList.length < 8 && si < seeds.length) yesList.push(seeds[si++]);
+      while (buyers.length < 8 && si < seeds.length) buyers.push(seeds[si++]);
+    }
+  }
+
+  return { noList, yesList, buyers };
+}
+
 // ---------------------------------------------------------------------------
 // Snap page builders
 // ---------------------------------------------------------------------------
@@ -629,7 +708,7 @@ function resultsPage(
 function landingPage(
   base: string,
   forceNoMatch = false,
-  recentMatches: RecentMatchEntry[] = [],
+  imageSections: LandingImageSections,
   landingStats: LandingStats,
 ): SnapHandlerResult {
   const claimTarget = forceNoMatch ? `${base}/claim?match=false` : `${base}/claim`;
@@ -640,296 +719,225 @@ function landingPage(
   ];
   const countdown = getNextPriceChangeCountdown(Date.now());
 
-  const elements: Record<string, SnapElementInput> = {
-    page: {
-      type: "stack",
-      props: {},
-      children: [
-        "top_section",
-        "countdown_section",
-        "list_no_section",
-        "list_yes_section",
-        "list_buyer_section",
-        "insights_section",
-      ],
-    },
-    top_section: {
-      type: "stack",
-      props: {},
-      children: ["banner", "image", "claim"],
-    },
-    banner: {
-      type: "text",
-      props: { content: "🟢 10X Warplets - Private 10K NFT Drop", weight: "bold" },
-    },
-    image: {
-      type: "image",
-      props: {
-        url: "https://files.10x.meme/warplets-snap-preview.webp", //"https://warplets.10x.meme/760.gif",
-        aspect: "1:1",
-        alt: "Loading...",
-      },
-    },
-    claim: {
-      type: "button",
-      props: { label: "👉 Don't miss out (click here)", variant: "primary" },
-      on: {
-        press: {
-          action: "submit",
-          params: { target: claimTarget },
-        },
-      },
-    },
-    countdown_section: {
-      type: "stack",
-      props: { gap: "md" },
-      children: ["countdown_title", "countdown_badges"],
-    },
-    countdown_title: {
-      type: "text",
-      props: { content: "⌛ Price increases, supply decreases in...", weight: "bold" },
-    },
-    countdown_badges: {
-      type: "cell_grid",
-      props: {
-        cols: 3,
-        rows: 1,
-        gap: "md",
-        cells: [
-          { row: 0, col: 0, content: `${countdown.days} Days` },
-          { row: 0, col: 1, content: `${countdown.hours} Hours` },
-          { row: 0, col: 2, content: `${countdown.minutes} Minutes` },
-        ],
-      },
-    },
-    list_no_section: {
-      type: "stack",
-      props: { gap: "md" },
-      children: ["list_no_title", "list_no_row_0", "list_no_row_1"],
-    },
-    list_no_title: {
-      type: "text",
-      props: { content: "😭 You're not on the list", weight: "bold" },
-    },
-    list_yes_section: {
-      type: "stack",
-      props: { gap: "md" },
-      children: ["list_yes_title", "list_yes_row_0", "list_yes_row_1"],
-    },
-    list_yes_title: {
-      type: "text",
-      props: { content: "🎉 You're on the list", weight: "bold" },
-    },
-    list_buyer_section: {
-      type: "stack",
-      props: { gap: "md" },
-      children: ["list_buyer_title", "list_buyer_row_0", "list_buyer_row_1"],
-    },
-    list_buyer_title: {
-      type: "text",
-      props: { content: "👏 You're a buyer!", weight: "bold" },
-    },
-    insights_section: {
-      type: "stack",
-      props: { gap: "md" },
-      children: [
-        "list_no_metrics_title",
-        "list_no_metrics",
-        "opensea_block",
-        "twitter_block",
-        "farcaster_block",
-      ],
-    },
-    opensea_block: {
-      type: "stack",
-      props: { gap: "md" },
-      children: ["menu_opensea_title", "menu_about_10x_warplets", "menu_about_1m_warplet"],
-    },
-    twitter_block: {
-      type: "stack",
-      props: { gap: "md" },
-      children: ["menu_twitter_title", "menu_follow_10x_meme_x", "menu_follow_10x_chris_x"],
-    },
-    farcaster_block: {
-      type: "stack",
-      props: { gap: "md" },
-      children: ["menu_farcaster_title", "menu_follow_10x_meme_fc", "menu_follow_10x_chris_fc"],
-    },
-    list_no_metrics_title: {
-      type: "text",
-      props: { content: "🤓 Numbers go up", weight: "bold" },
-    },
-    list_no_metrics: {
-      type: "cell_grid",
-      props: {
-        cols: 3,
-        rows: 2,
-        gap: "md",
-        cells: [
-          { row: 0, col: 0, content: "Clicks" },
-          { row: 0, col: 1, content: "Matches" },
-          { row: 0, col: 2, content: "Buys(?)" },
-          { row: 1, col: 0, content: counterValues[0] },
-          { row: 1, col: 1, content: counterValues[1] },
-          { row: 1, col: 2, content: counterValues[2] },
-        ],
-      },
-    },
-    menu_opensea_title: {
-      type: "text",
-      props: { content: "🛳️ OpenSea", weight: "bold" },
-    },
-    menu_twitter_title: {
-      type: "text",
-      props: { content: "𝕏 Twitter", weight: "bold" },
-    },
-    menu_farcaster_title: {
-      type: "text",
-      props: { content: "⛩️ Farcaster", weight: "bold" },
-    },
+  const elements: Record<string, SnapElementInput> = {};
+  const pageChildren: string[] = ["top_section", "countdown_section"];
 
-    menu_about_10x_warplets: {
-      type: "button",
-      props: { label: "10X Warplets → About page" },
-      on: {
-        press: {
-          action: "open_url",
-          params: { target: "https://opensea.io/collection/10xwarplets/overview" },
-        },
-      },
+  // Build an image section only if it has items; hide it otherwise.
+  function buildImageSection(
+    prefix: string,
+    title: string,
+    items: LandingImageEntry[],
+  ): void {
+    if (items.length === 0) return;
+    pageChildren.push(`${prefix}_section`);
+    const rowCount = items.length > 4 ? 2 : 1;
+    elements[`${prefix}_section`] = {
+      type: "stack",
+      props: { gap: "md" },
+      children: [
+        `${prefix}_title`,
+        ...Array.from({ length: rowCount }, (_, i) => `${prefix}_row_${i}`),
+      ],
+    };
+    elements[`${prefix}_title`] = {
+      type: "text",
+      props: { content: title, weight: "bold" },
+    };
+    for (let row = 0; row < rowCount; row++) {
+      const rowChildren: string[] = [];
+      elements[`${prefix}_row_${row}`] = {
+        type: "stack",
+        props: { direction: "horizontal", gap: "md" },
+        children: rowChildren,
+      };
+      for (let col = 0; col < 4; col++) {
+        const index = row * 4 + col;
+        const item = items[index];
+        if (!item) continue;
+        const imageId = `${prefix}_item_image_${index}`;
+        rowChildren.push(imageId);
+        elements[imageId] = {
+          type: "image",
+          props: { url: item.url, aspect: "1:1", alt: item.alt },
+        };
+      }
+    }
+  }
+
+  buildImageSection("list_no", "😭 You're not on the list", imageSections.noList);
+  buildImageSection("list_yes", "🎉 You're on the list", imageSections.yesList);
+  buildImageSection("list_buyer", "👏 You're a buyer!", imageSections.buyers);
+  pageChildren.push("insights_section");
+
+  elements["page"] = { type: "stack", props: {}, children: pageChildren };
+
+  elements["top_section"] = {
+    type: "stack",
+    props: {},
+    children: ["banner", "image", "claim"],
+  };
+  elements["banner"] = {
+    type: "text",
+    props: { content: "🟢 10X Warplets - Private 10K NFT Drop", weight: "bold" },
+  };
+  elements["image"] = {
+    type: "image",
+    props: {
+      url: "https://files.10x.meme/warplets-snap-preview.webp",
+      aspect: "1:1",
+      alt: "Loading...",
     },
-    menu_about_1m_warplet: {
-      type: "button",
-      props: { label: "$1M Warplet → About page" },
-      on: {
-        press: {
-          action: "open_url",
-          params: { target: "https://opensea.io/collection/1m-warplet-1-the-one/overview" },
-        },
-      },
-    },
-    menu_follow_10x_meme_fc: {
-      type: "button",
-      props: { label: "Follow @10XMeme.eth" },
-      on: {
-        press: {
-          action: "view_profile",
-          params: { fid: 1313340 },
-        },
-      },
-    },
-    menu_follow_10x_meme_x: {
-      type: "button",
-      props: { label: "Follow @10XMemeX" },
-      on: {
-        press: {
-          action: "open_url",
-          params: { target: "https://twitter.com/intent/follow?user_id=3275559396" },
-        },
-      },
-    },
-    menu_follow_10x_chris_fc: {
-      type: "button",
-      props: { label: "Follow @10XChris.eth" },
-      on: {
-        press: {
-          action: "view_profile",
-          params: { fid: 1129138 },
-        },
-      },
-    },
-    menu_follow_10x_chris_x: {
-      type: "button",
-      props: { label: "Follow @10XChrisX" },
-      on: {
-        press: {
-          action: "open_url",
-          params: { target: "https://twitter.com/intent/follow?user_id=18302782" },
-        },
+  };
+  elements["claim"] = {
+    type: "button",
+    props: { label: "👉 Don't miss out (click here)", variant: "primary" },
+    on: {
+      press: {
+        action: "submit",
+        params: { target: claimTarget },
       },
     },
   };
-
-  for (let row = 0; row < 2; row++) {
-    const yesRowChildren: string[] = [];
-    elements[`list_yes_row_${row}`] = {
-      type: "stack",
-      props: { direction: "horizontal", gap: "md" },
-      children: yesRowChildren,
-    };
-
-    for (let col = 0; col < 4; col++) {
-      const index = row * 4 + col;
-      const item = recentMatches[index];
-      const imageId = `list_yes_item_image_${index}`;
-
-      if (!item) continue;
-
-      yesRowChildren.push(imageId);
-      elements[imageId] = {
-        type: "image",
-        props: {
-          url: item.jpg_url,
-          aspect: "1:1",
-          alt: item.warplet_username_farcaster,
-        },
-      };
-    }
-  }
-
-  for (let row = 0; row < 2; row++) {
-    const noRowChildren: string[] = [];
-    elements[`list_no_row_${row}`] = {
-      type: "stack",
-      props: { direction: "horizontal", gap: "md" },
-      children: noRowChildren,
-    };
-
-    for (let col = 0; col < 4; col++) {
-      const index = 8 + row * 4 + col;
-      const item = recentMatches[index];
-      const imageId = `list_no_item_image_${index}`;
-
-      if (!item) continue;
-
-      noRowChildren.push(imageId);
-      elements[imageId] = {
-        type: "image",
-        props: {
-          url: item.jpg_url,
-          aspect: "1:1",
-          alt: item.warplet_username_farcaster,
-        },
-      };
-    }
-  }
-
-  for (let row = 0; row < 2; row++) {
-    const buyerRowChildren: string[] = [];
-    elements[`list_buyer_row_${row}`] = {
-      type: "stack",
-      props: { direction: "horizontal", gap: "md" },
-      children: buyerRowChildren,
-    };
-
-    for (let col = 0; col < 4; col++) {
-      const index = 16 + row * 4 + col;
-      const item = recentMatches[index];
-      const imageId = `list_buyer_item_image_${index}`;
-
-      if (!item) continue;
-
-      buyerRowChildren.push(imageId);
-      elements[imageId] = {
-        type: "image",
-        props: {
-          url: item.jpg_url,
-          aspect: "1:1",
-          alt: item.warplet_username_farcaster,
-        },
-      };
-    }
-  }
+  elements["countdown_section"] = {
+    type: "stack",
+    props: { gap: "md" },
+    children: ["countdown_title", "countdown_badges"],
+  };
+  elements["countdown_title"] = {
+    type: "text",
+    props: { content: "⌛ Price increases, supply decreases in...", weight: "bold" },
+  };
+  elements["countdown_badges"] = {
+    type: "cell_grid",
+    props: {
+      cols: 3,
+      rows: 1,
+      gap: "md",
+      cells: [
+        { row: 0, col: 0, content: `${countdown.days} Days` },
+        { row: 0, col: 1, content: `${countdown.hours} Hours` },
+        { row: 0, col: 2, content: `${countdown.minutes} Minutes` },
+      ],
+    },
+  };
+  elements["insights_section"] = {
+    type: "stack",
+    props: { gap: "md" },
+    children: [
+      "list_no_metrics_title",
+      "list_no_metrics",
+      "opensea_block",
+      "twitter_block",
+      "farcaster_block",
+    ],
+  };
+  elements["opensea_block"] = {
+    type: "stack",
+    props: { gap: "md" },
+    children: ["menu_opensea_title", "menu_about_10x_warplets", "menu_about_1m_warplet"],
+  };
+  elements["twitter_block"] = {
+    type: "stack",
+    props: { gap: "md" },
+    children: ["menu_twitter_title", "menu_follow_10x_meme_x", "menu_follow_10x_chris_x"],
+  };
+  elements["farcaster_block"] = {
+    type: "stack",
+    props: { gap: "md" },
+    children: ["menu_farcaster_title", "menu_follow_10x_meme_fc", "menu_follow_10x_chris_fc"],
+  };
+  elements["list_no_metrics_title"] = {
+    type: "text",
+    props: { content: "🤓 Numbers go up", weight: "bold" },
+  };
+  elements["list_no_metrics"] = {
+    type: "cell_grid",
+    props: {
+      cols: 3,
+      rows: 2,
+      gap: "md",
+      cells: [
+        { row: 0, col: 0, content: "Clicks" },
+        { row: 0, col: 1, content: "Matches" },
+        { row: 0, col: 2, content: "Buys" },
+        { row: 1, col: 0, content: counterValues[0] },
+        { row: 1, col: 1, content: counterValues[1] },
+        { row: 1, col: 2, content: counterValues[2] },
+      ],
+    },
+  };
+  elements["menu_opensea_title"] = {
+    type: "text",
+    props: { content: "🛳️ OpenSea", weight: "bold" },
+  };
+  elements["menu_twitter_title"] = {
+    type: "text",
+    props: { content: "𝕏 Twitter", weight: "bold" },
+  };
+  elements["menu_farcaster_title"] = {
+    type: "text",
+    props: { content: "⛩️ Farcaster", weight: "bold" },
+  };
+  elements["menu_about_10x_warplets"] = {
+    type: "button",
+    props: { label: "10X Warplets → About page" },
+    on: {
+      press: {
+        action: "open_url",
+        params: { target: "https://opensea.io/collection/10xwarplets/overview" },
+      },
+    },
+  };
+  elements["menu_about_1m_warplet"] = {
+    type: "button",
+    props: { label: "$1M Warplet → About page" },
+    on: {
+      press: {
+        action: "open_url",
+        params: { target: "https://opensea.io/collection/1m-warplet-1-the-one/overview" },
+      },
+    },
+  };
+  elements["menu_follow_10x_meme_fc"] = {
+    type: "button",
+    props: { label: "Follow @10XMeme.eth" },
+    on: {
+      press: {
+        action: "view_profile",
+        params: { fid: 1313340 },
+      },
+    },
+  };
+  elements["menu_follow_10x_meme_x"] = {
+    type: "button",
+    props: { label: "Follow @10XMemeX" },
+    on: {
+      press: {
+        action: "open_url",
+        params: { target: "https://twitter.com/intent/follow?user_id=3275559396" },
+      },
+    },
+  };
+  elements["menu_follow_10x_chris_fc"] = {
+    type: "button",
+    props: { label: "Follow @10XChris.eth" },
+    on: {
+      press: {
+        action: "view_profile",
+        params: { fid: 1129138 },
+      },
+    },
+  };
+  elements["menu_follow_10x_chris_x"] = {
+    type: "button",
+    props: { label: "Follow @10XChrisX" },
+    on: {
+      press: {
+        action: "open_url",
+        params: { target: "https://twitter.com/intent/follow?user_id=18302782" },
+      },
+    },
+  };
 
   return {
     version: "2.0",
@@ -1031,19 +1039,26 @@ const snap: SnapFunction = async (ctx) => {
   const colour = url.searchParams.get("colour");
   const forceNoMatch = url.searchParams.get("match") === "false";
   const recentParam = url.searchParams.get("recent");
-  // Backward compatibility: older shared links used recent=false to force
-  // preview loading due to an inverted check.
-  const loadRecentPreview = recentParam === "true" || recentParam === "false";
+  const seedImages = url.searchParams.get("seed") === "true";
+  // recent=true uses the old static warplets_metadata preview.
+  // recent=false or absent loads dynamically from warplets_users.
+  const loadStaticPreview = recentParam === "true";
   const base = snapBaseUrl(ctx.request);
   const { WARPLETS, WARPLETS_KV } = envBindings!;
   const fid = actionFid(ctx.action);
 
   if (pathname === "/") {
-    const [landingStats, recentMatches] = await Promise.all([
+    const [landingStats, imageSections] = await Promise.all([
       getLandingStatsFromKV(WARPLETS, WARPLETS_KV),
-      loadRecentPreview ? getRecentMatchPreview(WARPLETS) : Promise.resolve([]),
+      loadStaticPreview
+        ? getRecentMatchPreview(WARPLETS).then((ms) => ({
+            noList: ms.slice(8, 16).map((m) => ({ url: m.jpg_url, alt: m.warplet_username_farcaster })),
+            yesList: ms.slice(0, 8).map((m) => ({ url: m.jpg_url, alt: m.warplet_username_farcaster })),
+            buyers: ms.slice(16, 24).map((m) => ({ url: m.jpg_url, alt: m.warplet_username_farcaster })),
+          }))
+        : getLandingImageSections(WARPLETS, seedImages, base),
     ]);
-    return landingPage(base, forceNoMatch, recentMatches, landingStats);
+    return landingPage(base, forceNoMatch, imageSections, landingStats);
   }
 
   if (pathname === "/claim") {
@@ -1061,11 +1076,17 @@ const snap: SnapFunction = async (ctx) => {
   }
 
   if (pathname !== "/poll") {
-    const [landingStats, recentMatches] = await Promise.all([
+    const [landingStats, imageSections] = await Promise.all([
       getLandingStatsFromKV(WARPLETS, WARPLETS_KV),
-      loadRecentPreview ? getRecentMatchPreview(WARPLETS) : Promise.resolve([]),
+      loadStaticPreview
+        ? getRecentMatchPreview(WARPLETS).then((ms) => ({
+            noList: ms.slice(8, 16).map((m) => ({ url: m.jpg_url, alt: m.warplet_username_farcaster })),
+            yesList: ms.slice(0, 8).map((m) => ({ url: m.jpg_url, alt: m.warplet_username_farcaster })),
+            buyers: ms.slice(16, 24).map((m) => ({ url: m.jpg_url, alt: m.warplet_username_farcaster })),
+          }))
+        : getLandingImageSections(WARPLETS, seedImages, base),
     ]);
-    return landingPage(base, forceNoMatch, recentMatches, landingStats);
+    return landingPage(base, forceNoMatch, imageSections, landingStats);
   }
 
   if (ctx.action.type === "post" && colour !== null && VALID_OPTIONS.has(colour)) {
@@ -1100,6 +1121,40 @@ export function createApp(options: AppOptions = {}): Hono {
       return c.json({ ok: true, token: options.devTunnelToken });
     });
   }
+
+  // Image proxy: rewrites arbitrary upstream image URLs to a path ending in
+  // .jpg so the snap framework's URL extension check is satisfied. Only HTTPS
+  // upstream URLs are allowed to prevent SSRF against internal services.
+  app.get("/img-proxy.jpg", async (c) => {
+    const rawUrl = c.req.query("url");
+    if (!rawUrl) return c.text("Missing url parameter", 400);
+
+    let parsed: URL;
+    try {
+      parsed = new URL(rawUrl);
+    } catch {
+      return c.text("Invalid URL", 400);
+    }
+
+    if (parsed.protocol !== "https:") {
+      return c.text("Only HTTPS URLs are allowed", 400);
+    }
+
+    const upstream = await fetch(rawUrl, {
+      headers: { "User-Agent": "Warplets-ImageProxy/1.0" },
+    });
+    if (!upstream.ok) {
+      return c.text("Failed to fetch image", 502);
+    }
+
+    const contentType = upstream.headers.get("content-type") ?? "image/jpeg";
+    return new Response(upstream.body, {
+      headers: {
+        "content-type": contentType,
+        "cache-control": "public, max-age=86400",
+      },
+    });
+  });
 
   // Capture env bindings on the first request (safe: bindings are constant per isolate)
   app.use("*", async (c, next) => {
