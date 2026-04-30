@@ -8,9 +8,7 @@ pattern = "api.10x.meme"
 custom_domain = true
 
 [vars]
-# Set this to your deployed worker URL once known, e.g.:
-# SNAP_PUBLIC_BASE_URL = "https://snapflare.<your-subdomain>.workers.dev"
-# You can also set this as a secret: wrangler secret put SNAP_PUBLIC_BASE_URL
+SNAP_PUBLIC_BASE_URL = "https://api.10x.meme"
 
 # Workers KV — stores aggregated poll totals for fast edge reads.
 [[kv_namespaces]]
