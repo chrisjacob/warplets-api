@@ -714,6 +714,7 @@ function landingPage(
   forceNoMatch = false,
   imageSections: LandingImageSections,
   landingStats: LandingStats,
+  fullUrl: string,
 ): SnapHandlerResult {
   const claimTarget = forceNoMatch ? `${base}/claim?match=false` : `${base}/claim`;
   const counterValues = [
@@ -772,6 +773,7 @@ function landingPage(
   buildImageSection("list_yes", "🎉 You're on the list", imageSections.yesList);
   buildImageSection("list_buyer", "👏 You're a buyer!", imageSections.buyers);
   pageChildren.push("insights_section");
+  pageChildren.push("share_section");
 
   elements["page"] = { type: "stack", props: {}, children: pageChildren };
 
@@ -834,6 +836,29 @@ function landingPage(
       "twitter_block",
       "farcaster_block",
     ],
+  };
+  elements["share_section"] = {
+    type: "stack",
+    props: { gap: "md" },
+    children: ["share_title", "share_button"],
+  };
+  elements["share_title"] = {
+    type: "text",
+    props: { content: "🔁 Share This Snap!", weight: "bold" },
+  };
+  elements["share_button"] = {
+    type: "button",
+    props: { label: "Share on Farcaster", variant: "primary" },
+    on: {
+      press: {
+        action: "compose_cast",
+        params: {
+          text: "🟢 Take the green pill.",
+          embeds: [{ url: fullUrl }],
+          channelKey: "10xmeme",
+        },
+      },
+    },
   };
   elements["opensea_block"] = {
     type: "stack",
@@ -1062,7 +1087,7 @@ const snap: SnapFunction = async (ctx) => {
           }))
         : getLandingImageSections(WARPLETS, seedImages, base),
     ]);
-    return landingPage(base, forceNoMatch, imageSections, landingStats);
+    return landingPage(base, forceNoMatch, imageSections, landingStats, ctx.request.url);
   }
 
   if (pathname === "/claim") {
@@ -1090,7 +1115,7 @@ const snap: SnapFunction = async (ctx) => {
           }))
         : getLandingImageSections(WARPLETS, seedImages, base),
     ]);
-    return landingPage(base, forceNoMatch, imageSections, landingStats);
+    return landingPage(base, forceNoMatch, imageSections, landingStats, ctx.request.url);
   }
 
   if (ctx.action.type === "post" && colour !== null && VALID_OPTIONS.has(colour)) {
