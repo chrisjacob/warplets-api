@@ -74,7 +74,8 @@ pnpm dev:tunnel
 This starts three processes in parallel:
 - **`wrangler dev --env dev`** on port 8789 - your Worker with local D1 + KV bindings
 - **Cloudflare Tunnel** (`api-dev`) -> stable URL `https://api-dev.10x.meme` - required for Farcaster JFS signature verification
-- **Localflare dashboard** -> `http://localhost:8790` (also at `https://studio.localflare.dev?port=8790`) - live UI for browsing D1 tables and KV keys
+- **Localflare dashboard API** -> `http://localhost:8790`
+- **Localflare dashboard UI** -> `https://studio.localflare.dev?port=8790` - live UI for browsing D1 tables and KV keys
 
 ### Farcaster Snap emulator
 

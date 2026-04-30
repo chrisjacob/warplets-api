@@ -50,7 +50,8 @@ function spawnLocalflare() {
 
 async function main() {
   console.log("Stable dev URL:  https://api-dev.10x.meme");
-  console.log("Local dashboard: http://localhost:8790");
+  console.log("Local dashboard API: http://localhost:8790");
+  console.log("Local dashboard UI:  https://studio.localflare.dev?port=8790");
   console.log("Starting wrangler dev --env dev...");
 
   const wrangler = spawnWrangler();

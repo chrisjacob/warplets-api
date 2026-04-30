@@ -17,6 +17,8 @@ interface Env {
   WARPLETS_KV: KVNamespace;
   /** Optional: override the public base URL (e.g. https://snapflare.xyz.workers.dev). */
   SNAP_PUBLIC_BASE_URL?: string;
+  /** Optional: Neynar API key used for claim-click user enrichment. */
+  NEYNAR_API_KEY?: string;
 }
 
 type AppOptions = {
@@ -37,6 +39,10 @@ const COLOURS = [
 
 const VALID_OPTIONS = new Set<string>(COLOURS.map((c) => c.id));
 const KV_POLL_RESULTS_KEY = "poll_results";
+const KV_STATS_CLICKS_KEY = "stats_clicks";
+const KV_STATS_MATCHES_KEY = "stats_matches";
+const KV_STATS_BUYS_KEY = "stats_buys";
+const NEYNAR_VIEWER_FID = 1129138;
 const LAUNCH_AT_UTC_MS = Date.UTC(2026, 4, 1, 0, 1, 0); // 1 May 2026, 00:01:00 UTC
 const CHANGE_PERIOD_MS = 10 * 24 * 60 * 60 * 1000;
 const CHANGE_PERIOD_COUNT = 10;
@@ -157,6 +163,237 @@ async function getVoterUsernames(WARPLETS: D1Database): Promise<string[]> {
       " ORDER BY u.username",
   ).all<{ username: string }>();
   return rows.results.map((r) => r.username);
+}
+
+type NeynarUserRecord = {
+  fid: number;
+  username?: string;
+  display_name?: string;
+  pfp_url?: string;
+  registered_at?: string;
+  pro_status?: string;
+  profile_bio_text?: string;
+  follower_count?: number;
+  following_count?: number;
+  primary_eth_address?: string;
+  primary_sol_address?: string;
+  x_username?: string;
+  url?: string;
+  viewer_following?: boolean;
+  viewer_followed_by?: boolean;
+  score?: number;
+};
+
+type LandingStats = {
+  clicks: number;
+  matches: number;
+  buys: number;
+};
+
+function asObject(value: unknown): Record<string, unknown> | undefined {
+  return value && typeof value === "object"
+    ? (value as Record<string, unknown>)
+    : undefined;
+}
+
+function asString(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim().length > 0 ? value : undefined;
+}
+
+function asNumber(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+
+function asBoolean(value: unknown): boolean | undefined {
+  return typeof value === "boolean" ? value : undefined;
+}
+
+function boolToInt(value: boolean | undefined): number | null {
+  if (typeof value !== "boolean") return null;
+  return value ? 1 : 0;
+}
+
+function getNeynarApiKey(): string | undefined {
+  const key = (envBindings?.NEYNAR_API_KEY ?? process.env.NEYNAR_API_KEY)?.trim();
+  return key && key.length > 0 ? key : undefined;
+}
+
+async function fetchNeynarUserByFid(fid: number): Promise<NeynarUserRecord | undefined> {
+  const apiKey = getNeynarApiKey();
+  if (!apiKey) return undefined;
+
+  try {
+    const endpoint = `https://api.neynar.com/v2/farcaster/user/bulk?viewer_fid=${NEYNAR_VIEWER_FID}&fids=${fid}`;
+    const res = await fetch(endpoint, {
+      headers: {
+        "x-api-key": apiKey,
+      },
+    });
+    if (!res.ok) return undefined;
+
+    const payload = (await res.json()) as Record<string, unknown>;
+    const users = payload.users;
+    if (!Array.isArray(users) || users.length === 0) return undefined;
+
+    const user = asObject(users[0]);
+    if (!user) return undefined;
+
+    const pro = asObject(user.pro);
+    const profile = asObject(user.profile);
+    const bio = asObject(profile?.bio);
+    const verifiedAddresses = asObject(user.verified_addresses);
+    const primaryAddresses = asObject(verifiedAddresses?.primary);
+    const viewerContext = asObject(user.viewer_context);
+
+    let xUsername: string | undefined;
+    const verifiedAccounts = user.verified_accounts;
+    if (Array.isArray(verifiedAccounts)) {
+      for (const account of verifiedAccounts) {
+        const verifiedAccount = asObject(account);
+        if (!verifiedAccount) continue;
+        if (verifiedAccount.platform === "x") {
+          xUsername = asString(verifiedAccount.username);
+          break;
+        }
+      }
+    }
+
+    return {
+      fid,
+      username: asString(user.username),
+      display_name: asString(user.display_name),
+      pfp_url: asString(user.pfp_url),
+      registered_at: asString(user.registered_at),
+      pro_status: asString(pro?.status),
+      profile_bio_text: asString(bio?.text),
+      follower_count: asNumber(user.follower_count),
+      following_count: asNumber(user.following_count),
+      primary_eth_address: asString(primaryAddresses?.eth_address),
+      primary_sol_address: asString(primaryAddresses?.sol_address),
+      x_username: xUsername,
+      url: asString(user.url),
+      viewer_following: asBoolean(viewerContext?.following),
+      viewer_followed_by: asBoolean(viewerContext?.followed_by),
+      score: asNumber(user.score),
+    };
+  } catch {
+    return undefined;
+  }
+}
+
+async function hasWarpletMatchByFid(
+  WARPLETS: D1Database,
+  fid: number,
+): Promise<boolean> {
+  const match = await WARPLETS.prepare(
+    "SELECT 1 AS matched FROM warplets_metadata WHERE fid_value = ? LIMIT 1",
+  )
+    .bind(fid)
+    .first<{ matched: number }>();
+
+  return Boolean(match);
+}
+
+async function refreshLandingStatsKV(
+  WARPLETS: D1Database,
+  WARPLETS_KV: KVNamespace,
+): Promise<LandingStats> {
+  const clicksRow = await WARPLETS.prepare(
+    "SELECT COUNT(*) AS count FROM warplets_users",
+  ).first<{ count: number }>();
+  const matchesRow = await WARPLETS.prepare(
+    "SELECT COUNT(*) AS count FROM warplets_users WHERE matched_on IS NOT NULL",
+  ).first<{ count: number }>();
+  const buysRow = await WARPLETS.prepare(
+    "SELECT COUNT(*) AS count FROM warplets_users WHERE buy_on IS NOT NULL",
+  ).first<{ count: number }>();
+
+  const stats: LandingStats = {
+    clicks: clicksRow?.count ?? 0,
+    matches: matchesRow?.count ?? 0,
+    buys: buysRow?.count ?? 0,
+  };
+
+  await Promise.all([
+    WARPLETS_KV.put(KV_STATS_CLICKS_KEY, String(stats.clicks)),
+    WARPLETS_KV.put(KV_STATS_MATCHES_KEY, String(stats.matches)),
+    WARPLETS_KV.put(KV_STATS_BUYS_KEY, String(stats.buys)),
+  ]);
+
+  return stats;
+}
+
+async function getLandingStatsFromKV(
+  WARPLETS: D1Database,
+  WARPLETS_KV: KVNamespace,
+): Promise<LandingStats> {
+  const [clicksRaw, matchesRaw, buysRaw] = await Promise.all([
+    WARPLETS_KV.get(KV_STATS_CLICKS_KEY),
+    WARPLETS_KV.get(KV_STATS_MATCHES_KEY),
+    WARPLETS_KV.get(KV_STATS_BUYS_KEY),
+  ]);
+
+  const clicks = Number.parseInt(clicksRaw ?? "", 10);
+  const matches = Number.parseInt(matchesRaw ?? "", 10);
+  const buys = Number.parseInt(buysRaw ?? "", 10);
+
+  if ([clicks, matches, buys].every((n) => Number.isInteger(n) && n >= 0)) {
+    return { clicks, matches, buys };
+  }
+
+  return refreshLandingStatsKV(WARPLETS, WARPLETS_KV);
+}
+
+async function trackClaimClick(
+  WARPLETS: D1Database,
+  WARPLETS_KV: KVNamespace,
+  fid: number,
+): Promise<void> {
+  const existing = await WARPLETS.prepare(
+    "SELECT id FROM warplets_users WHERE fid = ? LIMIT 1",
+  )
+    .bind(fid)
+    .first<{ id: number }>();
+  if (existing) return;
+
+  const [neynarUser, isMatch] = await Promise.all([
+    fetchNeynarUserByFid(fid),
+    hasWarpletMatchByFid(WARPLETS, fid),
+  ]);
+  const now = new Date().toISOString();
+
+  await WARPLETS.prepare(
+    "INSERT INTO warplets_users (" +
+      "fid, username, display_name, pfp_url, registered_at, pro_status, profile_bio_text, " +
+      "follower_count, following_count, primary_eth_address, primary_sol_address, x_username, " +
+      "url, viewer_following, viewer_followed_by, score, matched_on, buy_on, created_on, updated_on" +
+      ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+  )
+    .bind(
+      fid,
+      neynarUser?.username ?? null,
+      neynarUser?.display_name ?? null,
+      neynarUser?.pfp_url ?? null,
+      neynarUser?.registered_at ?? null,
+      neynarUser?.pro_status ?? null,
+      neynarUser?.profile_bio_text ?? null,
+      neynarUser?.follower_count ?? null,
+      neynarUser?.following_count ?? null,
+      neynarUser?.primary_eth_address ?? null,
+      neynarUser?.primary_sol_address ?? null,
+      neynarUser?.x_username ?? null,
+      neynarUser?.url ?? null,
+      boolToInt(neynarUser?.viewer_following),
+      boolToInt(neynarUser?.viewer_followed_by),
+      neynarUser?.score ?? null,
+      isMatch ? now : null,
+      null,
+      now,
+      now,
+    )
+    .run();
+
+  await refreshLandingStatsKV(WARPLETS, WARPLETS_KV);
 }
 
 // ---------------------------------------------------------------------------
@@ -392,10 +629,14 @@ function landingPage(
   base: string,
   forceNoMatch = false,
   recentMatches: RecentMatchEntry[] = [],
-  showRecentPreview = false,
+  landingStats: LandingStats,
 ): SnapHandlerResult {
   const claimTarget = forceNoMatch ? `${base}/claim?match=false` : `${base}/claim`;
-  const counterValues = showRecentPreview ? ["100", "75", "20"] : ["-", "-", "-"];
+  const counterValues = [
+    String(landingStats.clicks),
+    String(landingStats.matches),
+    String(landingStats.buys),
+  ];
   const countdown = getNextPriceChangeCountdown(Date.now());
 
   const elements: Record<string, SnapElementInput> = {
@@ -767,13 +1008,18 @@ const snap: SnapFunction = async (ctx) => {
   const fid = actionFid(ctx.action);
 
   if (pathname === "/") {
+    const landingStats = await getLandingStatsFromKV(WARPLETS, WARPLETS_KV);
     const recentMatches = loadRecentPreview
       ? await getRecentMatchPreview(WARPLETS)
       : [];
-    return landingPage(base, forceNoMatch, recentMatches, loadRecentPreview);
+    return landingPage(base, forceNoMatch, recentMatches, landingStats);
   }
 
   if (pathname === "/claim") {
+    if (ctx.action.type === "post" && fid) {
+      await trackClaimClick(WARPLETS, WARPLETS_KV, fid);
+    }
+
     if (ctx.action.type !== "post" || !fid) {
       return claimResultPage(false);
     }
@@ -784,10 +1030,11 @@ const snap: SnapFunction = async (ctx) => {
   }
 
   if (pathname !== "/poll") {
+    const landingStats = await getLandingStatsFromKV(WARPLETS, WARPLETS_KV);
     const recentMatches = loadRecentPreview
       ? await getRecentMatchPreview(WARPLETS)
       : [];
-    return landingPage(base, forceNoMatch, recentMatches, loadRecentPreview);
+    return landingPage(base, forceNoMatch, recentMatches, landingStats);
   }
 
   if (ctx.action.type === "post" && colour !== null && VALID_OPTIONS.has(colour)) {
