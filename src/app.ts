@@ -1,5 +1,9 @@
 import { Hono } from "hono";
-import { type SnapFunction, type SnapHandlerResult } from "@farcaster/snap";
+import {
+  type SnapElementInput,
+  type SnapFunction,
+  type SnapHandlerResult,
+} from "@farcaster/snap";
 import { registerSnapHandler } from "@farcaster/snap-hono";
 
 // ---------------------------------------------------------------------------
@@ -171,6 +175,30 @@ function actionFid(action: unknown): number | undefined {
   return typeof maybeFid === "number" ? maybeFid : undefined;
 }
 
+type RecentMatchEntry = {
+  jpg_url: string;
+  warplet_username_farcaster: string;
+};
+
+async function getRecentMatchPreview(
+  WARPLETS: D1Database,
+): Promise<RecentMatchEntry[]> {
+  const rows = await WARPLETS.prepare(
+    "SELECT jpg_url, warplet_username_farcaster FROM warplets_metadata ORDER BY token_id ASC LIMIT 24",
+  ).all<{
+    jpg_url: string | null;
+    warplet_username_farcaster: string | null;
+  }>();
+
+  return rows.results
+    .filter((row) => typeof row.jpg_url === "string" && row.jpg_url.length > 0)
+    .map((row) => ({
+      jpg_url: row.jpg_url as string,
+      warplet_username_farcaster:
+        row.warplet_username_farcaster?.trim() || "unknown",
+    }));
+}
+
 // ---------------------------------------------------------------------------
 // Snap page builders
 // ---------------------------------------------------------------------------
@@ -327,42 +355,285 @@ function resultsPage(
   };
 }
 
-function landingPage(base: string, forceNoMatch = false): SnapHandlerResult {
+function landingPage(
+  base: string,
+  forceNoMatch = false,
+  recentMatches: RecentMatchEntry[] = [],
+  showRecentPreview = false,
+): SnapHandlerResult {
   const claimTarget = forceNoMatch ? `${base}/claim?match=false` : `${base}/claim`;
+  const counterValues = showRecentPreview ? ["100", "75", "20"] : ["-", "-", "-"];
+
+  const elements: Record<string, SnapElementInput> = {
+    page: {
+      type: "stack",
+      props: {},
+      children: [
+        "top_section",
+        "countdown_section",
+        "list_yes_title",
+        "list_yes_block",
+        "list_no_title",
+        "list_no_block",
+        "insights_section",
+      ],
+    },
+    top_section: {
+      type: "stack",
+      props: {},
+      children: ["banner", "image", "claim"],
+    },
+    banner: {
+      type: "text",
+      props: { content: "🟢 10X Warplets - Private 10K NFT Drop", weight: "bold" },
+    },
+    image: {
+      type: "image",
+      props: {
+        url: "https://files.10x.meme/warplets-snap-preview.webp", //"https://warplets.10x.meme/760.gif",
+        aspect: "1:1",
+        alt: "Loading...",
+      },
+    },
+    claim: {
+      type: "button",
+      props: { label: "👉 Don't miss out (click here)", variant: "primary" },
+      on: {
+        press: {
+          action: "submit",
+          params: { target: claimTarget },
+        },
+      },
+    },
+    countdown_section: {
+      type: "stack",
+      props: { gap: "md" },
+      children: ["countdown_title", "countdown_badges"],
+    },
+    countdown_title: {
+      type: "text",
+      props: { content: "🕒 Price increases, supply decreases in...", weight: "bold" },
+    },
+    countdown_badges: {
+      type: "cell_grid",
+      props: {
+        cols: 3,
+        rows: 1,
+        gap: "md",
+        cells: [
+          { row: 0, col: 0, content: "7 Days" },
+          { row: 0, col: 1, content: "12 Hours" },
+          { row: 0, col: 2, content: "25 Minutes" },
+        ],
+      },
+    },
+    list_yes_title: {
+      type: "text",
+      props: { content: "🎉 You're on the list", weight: "bold" },
+    },
+    list_yes_block: {
+      type: "stack",
+      props: { gap: "md" },
+      children: [
+        "list_yes_row_0",
+        "list_yes_row_1",
+        "list_yes_row_2",
+      ],
+    },
+    list_no_title: {
+      type: "text",
+      props: { content: "😭 You're not on the list", weight: "bold" },
+    },
+    list_no_block: {
+      type: "stack",
+      props: { gap: "md" },
+      children: [
+        "list_no_row_0",
+        "list_no_row_1",
+        "list_no_row_2",
+      ],
+    },
+    insights_section: {
+      type: "stack",
+      props: { gap: "md" },
+      children: [
+        "list_no_metrics_title",
+        "list_no_metrics",
+        "opensea_block",
+        "twitter_block",
+        "farcaster_block",
+      ],
+    },
+    opensea_block: {
+      type: "stack",
+      props: { gap: "md" },
+      children: ["menu_opensea_title", "menu_about_10x_warplets", "menu_about_1m_warplet"],
+    },
+    twitter_block: {
+      type: "stack",
+      props: { gap: "md" },
+      children: ["menu_twitter_title", "menu_follow_10x_meme_x", "menu_follow_10x_chris_x"],
+    },
+    farcaster_block: {
+      type: "stack",
+      props: { gap: "md" },
+      children: ["menu_farcaster_title", "menu_follow_10x_meme_fc", "menu_follow_10x_chris_fc"],
+    },
+    list_no_metrics_title: {
+      type: "text",
+      props: { content: "🤓 Numbers go up", weight: "bold" },
+    },
+    list_no_metrics: {
+      type: "cell_grid",
+      props: {
+        cols: 3,
+        rows: 2,
+        gap: "md",
+        cells: [
+          { row: 0, col: 0, content: "Clicks" },
+          { row: 0, col: 1, content: "Matches" },
+          { row: 0, col: 2, content: "Buys(?)" },
+          { row: 1, col: 0, content: counterValues[0] },
+          { row: 1, col: 1, content: counterValues[1] },
+          { row: 1, col: 2, content: counterValues[2] },
+        ],
+      },
+    },
+    menu_opensea_title: {
+      type: "text",
+      props: { content: "🛳️ OpenSea", weight: "bold" },
+    },
+    menu_twitter_title: {
+      type: "text",
+      props: { content: "𝕏 Twitter", weight: "bold" },
+    },
+    menu_farcaster_title: {
+      type: "text",
+      props: { content: "⛩️ Farcaster", weight: "bold" },
+    },
+
+    menu_about_10x_warplets: {
+      type: "button",
+      props: { label: "10X Warplets → About page" },
+      on: {
+        press: {
+          action: "open_url",
+          params: { target: "https://opensea.io/collection/10xwarplets/overview" },
+        },
+      },
+    },
+    menu_about_1m_warplet: {
+      type: "button",
+      props: { label: "$1M Warplet → About page" },
+      on: {
+        press: {
+          action: "open_url",
+          params: { target: "https://opensea.io/collection/1m-warplet-1-the-one/overview" },
+        },
+      },
+    },
+    menu_follow_10x_meme_fc: {
+      type: "button",
+      props: { label: "Follow @10XMeme.eth" },
+      on: {
+        press: {
+          action: "view_profile",
+          params: { fid: 1313340 },
+        },
+      },
+    },
+    menu_follow_10x_meme_x: {
+      type: "button",
+      props: { label: "Follow @10XMemeX" },
+      on: {
+        press: {
+          action: "open_url",
+          params: { target: "https://twitter.com/intent/follow?user_id=3275559396" },
+        },
+      },
+    },
+    menu_follow_10x_chris_fc: {
+      type: "button",
+      props: { label: "Follow @10XChris.eth" },
+      on: {
+        press: {
+          action: "view_profile",
+          params: { fid: 1129138 },
+        },
+      },
+    },
+    menu_follow_10x_chris_x: {
+      type: "button",
+      props: { label: "Follow @10XChrisX" },
+      on: {
+        press: {
+          action: "open_url",
+          params: { target: "https://twitter.com/intent/follow?user_id=18302782" },
+        },
+      },
+    },
+  };
+
+  for (let row = 0; row < 3; row++) {
+    const yesRowChildren: string[] = [];
+    elements[`list_yes_row_${row}`] = {
+      type: "stack",
+      props: { direction: "horizontal", gap: "md" },
+      children: yesRowChildren,
+    };
+
+    for (let col = 0; col < 4; col++) {
+      const index = row * 4 + col;
+      const item = recentMatches[index];
+      const imageId = `list_yes_item_image_${index}`;
+
+      if (!item) continue;
+
+      yesRowChildren.push(imageId);
+      elements[imageId] = {
+        type: "image",
+        props: {
+          url: item.jpg_url,
+          aspect: "1:1",
+          alt: item.warplet_username_farcaster,
+        },
+      };
+    }
+  }
+
+  for (let row = 0; row < 3; row++) {
+    const noRowChildren: string[] = [];
+    elements[`list_no_row_${row}`] = {
+      type: "stack",
+      props: { direction: "horizontal", gap: "md" },
+      children: noRowChildren,
+    };
+
+    for (let col = 0; col < 4; col++) {
+      const index = 12 + row * 4 + col;
+      const item = recentMatches[index];
+      const imageId = `list_no_item_image_${index}`;
+
+      if (!item) continue;
+
+      noRowChildren.push(imageId);
+      elements[imageId] = {
+        type: "image",
+        props: {
+          url: item.jpg_url,
+          aspect: "1:1",
+          alt: item.warplet_username_farcaster,
+        },
+      };
+    }
+  }
+
   return {
     version: "2.0",
     theme: { accent: "green" },
     ui: {
       root: "page",
-      elements: {
-        page: {
-          type: "stack",
-          props: {},
-          children: ["banner","image","claim"],
-        },
-        banner: {
-          type: "text",
-          props: { content: "🟢 10X Warplets — Private 10K NFT Drop", weight: "bold" },
-        },
-        image: {
-          type: "image",
-          props: {
-            url: "https://warplets.10x.meme/760.gif",
-            aspect: "1:1",
-            alt: "Loading...",
-          },
-        },
-        claim: {
-          type: "button",
-          props: { label: "👉 Don't miss out (price + supply urgency)", variant: "primary" },
-          on: {
-            press: {
-              action: "submit",
-              params: { target: claimTarget },
-            },
-          },
-        },
-      },
+      elements,
     },
   };
 }
@@ -415,7 +686,7 @@ function claimResultPage(
           type: "button",
           props: { 
             label: isMatch
-              ? "Login on OpenSea (to see private offer)"
+              ? "Login on OpenSea (to see private listing)"
               : "Visit OpenSea to find out why...",
             variant: "primary" },
           on: {
@@ -456,12 +727,16 @@ const snap: SnapFunction = async (ctx) => {
   const pathname = url.pathname;
   const colour = url.searchParams.get("colour");
   const forceNoMatch = url.searchParams.get("match") === "false";
+  const loadRecentPreview = url.searchParams.get("recent") === "false";
   const base = snapBaseUrl(ctx.request);
   const { WARPLETS, WARPLETS_KV } = envBindings!;
   const fid = actionFid(ctx.action);
 
   if (pathname === "/") {
-    return landingPage(base, forceNoMatch);
+    const recentMatches = loadRecentPreview
+      ? await getRecentMatchPreview(WARPLETS)
+      : [];
+    return landingPage(base, forceNoMatch, recentMatches, loadRecentPreview);
   }
 
   if (pathname === "/claim") {
@@ -475,7 +750,10 @@ const snap: SnapFunction = async (ctx) => {
   }
 
   if (pathname !== "/poll") {
-    return landingPage(base, forceNoMatch);
+    const recentMatches = loadRecentPreview
+      ? await getRecentMatchPreview(WARPLETS)
+      : [];
+    return landingPage(base, forceNoMatch, recentMatches, loadRecentPreview);
   }
 
   if (ctx.action.type === "post" && colour !== null && VALID_OPTIONS.has(colour)) {
