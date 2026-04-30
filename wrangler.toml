@@ -9,12 +9,12 @@ custom_domain = true
 
 # Workers KV — stores aggregated poll totals for fast edge reads.
 [[kv_namespaces]]
-binding = "POLL_KV"
+binding = "WARPLETS_KV"
 id = "3f55e9bea2534955b833521a2f5b55e7"
 
 # Cloudflare D1 — durable SQL store for users and individual vote rows.
 [[d1_databases]]
-binding       = "DB"
+binding       = "WARPLETS"
 database_name = "warplets"
 database_id   = "45a4cc4c-788e-48dd-89bf-7b504b17655d"
 
@@ -25,10 +25,10 @@ main = "src/index.dev.ts"
 SNAP_PUBLIC_BASE_URL = "https://api-dev.10x.meme"
 
 [[env.dev.kv_namespaces]]
-binding = "POLL_KV"
+binding = "WARPLETS_KV"
 id = "3f55e9bea2534955b833521a2f5b55e7"
 
 [[env.dev.d1_databases]]
-binding       = "DB"
+binding       = "WARPLETS"
 database_name = "warplets"
 database_id   = "45a4cc4c-788e-48dd-89bf-7b504b17655d"

@@ -8,9 +8,9 @@ import { registerSnapHandler } from "@farcaster/snap-hono";
 
 interface Env {
   /** Cloudflare D1 database — stores users and individual vote rows. */
-  DB: D1Database;
+  WARPLETS: D1Database;
   /** Workers KV namespace — caches aggregated poll totals for fast edge reads. */
-  POLL_KV: KVNamespace;
+  WARPLETS_KV: KVNamespace;
   /** Optional: override the public base URL (e.g. https://snapflare.xyz.workers.dev). */
   SNAP_PUBLIC_BASE_URL?: string;
 }
@@ -71,14 +71,14 @@ async function fetchUsername(fid: number): Promise<string> {
  * Ensure a row exists in `users` for the given FID, creating one (with a
  * username lookup) if it doesn't. Returns the row's `id`.
  */
-async function upsertUser(DB: D1Database, fid: number): Promise<number> {
-  const existing = await DB.prepare("SELECT id FROM users WHERE fid = ?")
+async function upsertUser(WARPLETS: D1Database, fid: number): Promise<number> {
+  const existing = await WARPLETS.prepare("SELECT id FROM users WHERE fid = ?")
     .bind(fid)
     .first<{ id: number }>();
   if (existing) return existing.id;
 
   const username = await fetchUsername(fid);
-  const inserted = await DB.prepare(
+  const inserted = await WARPLETS.prepare(
     "INSERT INTO users (fid, username) VALUES (?, ?) RETURNING id",
   )
     .bind(fid, username)
@@ -89,11 +89,11 @@ async function upsertUser(DB: D1Database, fid: number): Promise<number> {
 
 /** Append a new vote row to `votes`. */
 async function recordVote(
-  DB: D1Database,
+  WARPLETS: D1Database,
   userId: number,
   option: string,
 ): Promise<void> {
-  await DB.prepare("INSERT INTO votes (user_id, poll_option) VALUES (?, ?)")
+  await WARPLETS.prepare("INSERT INTO votes (user_id, poll_option) VALUES (?, ?)")
     .bind(userId, option)
     .run();
 }
@@ -103,10 +103,10 @@ async function recordVote(
  * Returns the fresh totals so they can be used in the same request.
  */
 async function refreshPollResultsKV(
-  DB: D1Database,
-  POLL_KV: KVNamespace,
+  WARPLETS: D1Database,
+  WARPLETS_KV: KVNamespace,
 ): Promise<Record<string, number>> {
-  const rows = await DB.prepare(
+  const rows = await WARPLETS.prepare(
     "SELECT poll_option, COUNT(*) as count FROM votes GROUP BY poll_option",
   ).all<{ poll_option: string; count: number }>();
 
@@ -117,7 +117,7 @@ async function refreshPollResultsKV(
     if (row.poll_option in results) results[row.poll_option] = row.count;
   }
 
-  await POLL_KV.put(KV_POLL_RESULTS_KEY, JSON.stringify(results));
+  await WARPLETS_KV.put(KV_POLL_RESULTS_KEY, JSON.stringify(results));
   return results;
 }
 
@@ -126,9 +126,9 @@ async function refreshPollResultsKV(
  * Falls back to all-zero counts if the key has not been written yet.
  */
 async function getPollResultsFromKV(
-  POLL_KV: KVNamespace,
+  WARPLETS_KV: KVNamespace,
 ): Promise<Record<string, number>> {
-  const cached = await POLL_KV.get(KV_POLL_RESULTS_KEY);
+  const cached = await WARPLETS_KV.get(KV_POLL_RESULTS_KEY);
   if (cached) {
     try {
       return JSON.parse(cached) as Record<string, number>;
@@ -143,8 +143,8 @@ async function getPollResultsFromKV(
  * Return a deduplicated, sorted list of usernames of everyone who has voted
  * (queried from D1 so it is always consistent).
  */
-async function getVoterUsernames(DB: D1Database): Promise<string[]> {
-  const rows = await DB.prepare(
+async function getVoterUsernames(WARPLETS: D1Database): Promise<string[]> {
+  const rows = await WARPLETS.prepare(
     "SELECT DISTINCT u.username" +
       " FROM votes v JOIN users u ON v.user_id = u.id" +
       " ORDER BY u.username",
@@ -325,20 +325,20 @@ const snap: SnapFunction = async (ctx) => {
   const url = new URL(ctx.request.url);
   const colour = url.searchParams.get("colour");
   const base = snapBaseUrl(ctx.request);
-  const { DB, POLL_KV } = envBindings!;
+  const { WARPLETS, WARPLETS_KV } = envBindings!;
 
   if (ctx.action.type === "post" && colour !== null && VALID_OPTIONS.has(colour)) {
     // 1. Ensure the voter exists in D1 (look up username on first visit)
-    const userId = await upsertUser(DB, ctx.action.fid);
+    const userId = await upsertUser(WARPLETS, ctx.action.fid);
 
     // 2. Persist the vote in D1
-    await recordVote(DB, userId, colour);
+    await recordVote(WARPLETS, userId, colour);
 
     // 3. Recalculate aggregated totals and push to KV cache
-    const voteCounts = await refreshPollResultsKV(DB, POLL_KV);
+    const voteCounts = await refreshPollResultsKV(WARPLETS, WARPLETS_KV);
 
     // 4. Fetch distinct voter usernames from D1 for display
-    const voters = await getVoterUsernames(DB);
+    const voters = await getVoterUsernames(WARPLETS);
 
     return resultsPage(base, voteCounts, voters);
   }
