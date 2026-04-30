@@ -4,6 +4,12 @@ account_id = "3f3a7e7d6b29f0389b841af63623becd"
 compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
 
+# Run the OpenSea event sync every 5 minutes.
+# Set the API key as a secret: pnpm wrangler secret put OPENSEA_API_KEY
+[triggers]
+crons = ["*/5 * * * *"]
+
+
 [[routes]]
 pattern = "api.10x.meme"
 custom_domain = true

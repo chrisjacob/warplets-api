@@ -19,6 +19,8 @@ interface Env {
   SNAP_PUBLIC_BASE_URL?: string;
   /** Optional: Neynar API key used for claim-click user enrichment. */
   NEYNAR_API_KEY?: string;
+  /** Optional: OpenSea API key used by the cron-triggered event sync. */
+  OPENSEA_API_KEY?: string;
 }
 
 type AppOptions = {
@@ -53,6 +55,8 @@ const KV_POLL_RESULTS_KEY = "poll_results";
 const KV_STATS_CLICKS_KEY = "stats_clicks";
 const KV_STATS_MATCHES_KEY = "stats_matches";
 const KV_STATS_BUYS_KEY = "stats_buys";
+// Tracks the ISO timestamp of the last OpenSea event processed (used by opensea-sync.ts for resumption)
+export const KV_OPENSEA_LAST_SYNC_KEY = "opensea_last_sync_at";
 const NEYNAR_VIEWER_FID = 1129138;
 const LAUNCH_AT_UTC_MS = Date.UTC(2026, 4, 1, 0, 1, 0); // 1 May 2026, 00:01:00 UTC
 const CHANGE_PERIOD_MS = 10 * 24 * 60 * 60 * 1000;
@@ -997,7 +1001,7 @@ function claimResultPage(
           type: "button",
           props: { 
             label: isMatch
-              ? "Login on OpenSea (to see private listing)"
+              ? "Buy on OpenSea (login to see listing)"
               : "Visit OpenSea to find out why...",
             variant: "primary" },
           on: {
