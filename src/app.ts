@@ -762,7 +762,7 @@ function landingPage(
   const counterValues = [
     String(landingStats.clicks),
     String(landingStats.matches),
-    String(landingStats.buys),
+    String(landingStats.buys ? landingStats.buys : "?"),
   ];
   const countdown = getNextPriceChangeCountdown(Date.now());
 
@@ -933,7 +933,7 @@ function landingPage(
         { row: 0, col: 2, content: "Buys" },
         { row: 1, col: 0, content: counterValues[0] },
         { row: 1, col: 1, content: counterValues[1] },
-        { row: 1, col: 2, content: counterValues[2] ?? "?" },
+        { row: 1, col: 2, content: counterValues[2] },
       ],
     },
   };
@@ -1094,8 +1094,8 @@ function claimResultPage(
               action: "compose_cast",
               params: {
                 text: isMatch
-                      ? "🎉 I'm on the list...\n\n💸 Shut up and take my money!\n\n...before the price goes up - every 10 days for 100 days."
-                  : "😭 I'm not on the list...\n\n🧹 Looking to sweep the floor!\n\n...ready for public listings - every 10 days for 100 days.",
+                      ? "🎉 I'm on the list...\n\n💸 Shut up and take my money!\n\n...before the price goes up, $10 every 10 days for 100 days."
+                  : "😭 I'm not on the list...\n\n🧹 Looking to sweep the floor!\n\n...ready for public listings, every 10 days for 100 days.",
                 channelKey: "10xmeme",
                 embeds: [
                   fullRootUrl,
