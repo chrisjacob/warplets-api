@@ -213,7 +213,7 @@ function pollPage(base: string, viewerName?: string): SnapHandlerResult {
           on: {
             press: {
               action: "submit",
-              params: { target: `${base}/?colour=red` },
+              params: { target: `${base}/poll?colour=red` },
             },
           },
         },
@@ -223,7 +223,7 @@ function pollPage(base: string, viewerName?: string): SnapHandlerResult {
           on: {
             press: {
               action: "submit",
-              params: { target: `${base}/?colour=blue` },
+              params: { target: `${base}/poll?colour=blue` },
             },
           },
         },
@@ -233,7 +233,7 @@ function pollPage(base: string, viewerName?: string): SnapHandlerResult {
           on: {
             press: {
               action: "submit",
-              params: { target: `${base}/?colour=green` },
+              params: { target: `${base}/poll?colour=green` },
             },
           },
         },
@@ -243,7 +243,7 @@ function pollPage(base: string, viewerName?: string): SnapHandlerResult {
           on: {
             press: {
               action: "submit",
-              params: { target: `${base}/?colour=yellow` },
+              params: { target: `${base}/poll?colour=yellow` },
             },
           },
         },
@@ -253,7 +253,7 @@ function pollPage(base: string, viewerName?: string): SnapHandlerResult {
           on: {
             press: {
               action: "submit",
-              params: { target: `${base}/?colour=purple` },
+              params: { target: `${base}/poll?colour=purple` },
             },
           },
         },
@@ -318,7 +318,7 @@ function resultsPage(
           on: {
             press: {
               action: "submit",
-              params: { target: `${base}/` },
+              params: { target: `${base}/poll` },
             },
           },
         },
@@ -327,16 +327,156 @@ function resultsPage(
   };
 }
 
+function landingPage(base: string, forceNoMatch = false): SnapHandlerResult {
+  const claimTarget = forceNoMatch ? `${base}/claim?match=false` : `${base}/claim`;
+  return {
+    version: "2.0",
+    theme: { accent: "green" },
+    ui: {
+      root: "page",
+      elements: {
+        page: {
+          type: "stack",
+          props: {},
+          children: ["banner","image","claim"],
+        },
+        banner: {
+          type: "text",
+          props: { content: "🟢 10X Warplets — Private 10K NFT Drop", weight: "bold" },
+        },
+        image: {
+          type: "image",
+          props: {
+            url: "https://warplets.10x.meme/760.gif",
+            aspect: "1:1",
+            alt: "Loading...",
+          },
+        },
+        claim: {
+          type: "button",
+          props: { label: "👉 Don't miss out (price + supply urgency)", variant: "primary" },
+          on: {
+            press: {
+              action: "submit",
+              params: { target: claimTarget },
+            },
+          },
+        },
+      },
+    },
+  };
+}
+
+function claimResultPage(
+  isMatch: boolean,
+  fidValue?: number,
+  rarityValue?: number,
+): SnapHandlerResult {
+  let showWinnerUi =
+    isMatch && typeof fidValue === "number" && typeof rarityValue === "number";
+  
+  // isMatch = false; // for testing
+  // showWinnerUi = false; // Disable winner UI for now since the rarity metadata is not fully ready yet. This will be re-enabled in the future once the metadata is ready.
+  
+  return {
+    version: "2.0",
+    effects: showWinnerUi ? ["confetti"] : undefined,
+    theme: { accent: "green"},
+    ui: {
+      root: "page",
+      elements: {
+        page: {
+          type: "stack",
+          props: {},
+          children: showWinnerUi
+            ? ["heading", "image", "claim"]
+            : ["heading", "image", "claim"],
+        },
+        heading: {
+          type: "text",
+          props: {
+            content: isMatch
+              ? "🎉 Congratulations! You're on the list..."
+              : "😭 Oh Snap... You're not on the list.",
+            weight: "bold",
+          },
+        },
+        image: {
+          type: "image",
+          props: {
+            url: isMatch
+              ? `https://warplets.10x.meme/${rarityValue}.gif`
+              : `https://warplets.10x.meme/3081.png`,
+            aspect: "1:1",
+            alt: "Loading...",
+          },
+        },
+        claim: {
+          type: "button",
+          props: { 
+            label: isMatch
+              ? "Login on OpenSea (to see private offer)"
+              : "Visit OpenSea to find out why...",
+            variant: "primary" },
+          on: {
+            press: {
+              action: "open_url",
+              params: {
+                target: isMatch
+                  ? `https://opensea.io/item/base/0x780446dd12e080ae0db762fcd4daf313f3e359de/${rarityValue}`
+                  : "https://opensea.io/collection/10xwarplets/overview",
+              },
+            },
+          },
+        },
+      },
+    },
+  };
+}
+
+async function getWarpletRarityByFid(
+  WARPLETS: D1Database,
+  fid: number,
+): Promise<number | undefined> {
+  const row = await WARPLETS.prepare(
+    "SELECT x10_rarity FROM warplets_metadata WHERE fid_value = ? LIMIT 1",
+  )
+    .bind(fid)
+    .first<{ x10_rarity: number | null }>();
+
+  return typeof row?.x10_rarity === "number" ? row.x10_rarity : undefined;
+}
+
 // ---------------------------------------------------------------------------
 // Snap handler
 // ---------------------------------------------------------------------------
 
 const snap: SnapFunction = async (ctx) => {
   const url = new URL(ctx.request.url);
+  const pathname = url.pathname;
   const colour = url.searchParams.get("colour");
+  const forceNoMatch = url.searchParams.get("match") === "false";
   const base = snapBaseUrl(ctx.request);
   const { WARPLETS, WARPLETS_KV } = envBindings!;
   const fid = actionFid(ctx.action);
+
+  if (pathname === "/") {
+    return landingPage(base, forceNoMatch);
+  }
+
+  if (pathname === "/claim") {
+    if (ctx.action.type !== "post" || !fid) {
+      return claimResultPage(false);
+    }
+
+    const rarityValue = await getWarpletRarityByFid(WARPLETS, fid);
+    const isMatch = !forceNoMatch && typeof rarityValue === "number";
+    return claimResultPage(isMatch, fid, rarityValue);
+  }
+
+  if (pathname !== "/poll") {
+    return landingPage(base, forceNoMatch);
+  }
 
   if (ctx.action.type === "post" && colour !== null && VALID_OPTIONS.has(colour)) {
     // 1. Ensure the voter exists in D1 (look up username on first visit)
@@ -371,16 +511,41 @@ export function createApp(options: AppOptions = {}): Hono {
     await next();
   });
 
-  registerSnapHandler(app, snap, {
+  const sharedSnapOptions = {
     skipJFSVerification: options.skipJFSVerification,
-    // OG image generation (PNG) is disabled here because @resvg/resvg-wasm may
-    // behave differently on Cloudflare Workers edge runtime. The `openGraph`
-    // option below still sets the <title> and <meta> tags on the browser fallback
-    // HTML page (shown when visiting the URL in a regular browser).
+  };
+
+  // OG image generation (PNG) is disabled here because @resvg/resvg-wasm may
+  // behave differently on Cloudflare Workers edge runtime. The `openGraph`
+  // option below still sets the <title> and <meta> tags on the browser fallback
+  // HTML page (shown when visiting the URL in a regular browser).
+  registerSnapHandler(app, snap, {
+    ...sharedSnapOptions,
+    path: "/",
     og: false,
     openGraph: {
-      title: "Favourite Colour Poll",
-      description: "Pick your favourite colour and see the results!",
+      title: "10X Warplets",
+      description: "Builders, capital, and signal - aligned.",
+    },
+  });
+
+  registerSnapHandler(app, snap, {
+    ...sharedSnapOptions,
+    path: "/poll",
+    og: false,
+    openGraph: {
+      title: "10X Warplets",
+      description: "Builders, capital, and signal - aligned.",
+    },
+  });
+
+  registerSnapHandler(app, snap, {
+    ...sharedSnapOptions,
+    path: "/claim",
+    og: false,
+    openGraph: {
+      title: "10X Warplets",
+      description: "Builders, capital, and signal - aligned.",
     },
   });
 
