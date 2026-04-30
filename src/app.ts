@@ -37,6 +37,9 @@ const COLOURS = [
 
 const VALID_OPTIONS = new Set<string>(COLOURS.map((c) => c.id));
 const KV_POLL_RESULTS_KEY = "poll_results";
+const LAUNCH_AT_UTC_MS = Date.UTC(2026, 4, 1, 0, 1, 0); // 1 May 2026, 00:01:00 UTC
+const CHANGE_PERIOD_MS = 10 * 24 * 60 * 60 * 1000;
+const CHANGE_PERIOD_COUNT = 10;
 
 // ---------------------------------------------------------------------------
 // Env capture
@@ -173,6 +176,36 @@ function actionFid(action: unknown): number | undefined {
   if (!action || typeof action !== "object") return undefined;
   const maybeFid = (action as { fid?: unknown }).fid;
   return typeof maybeFid === "number" ? maybeFid : undefined;
+}
+
+function getNextPriceChangeCountdown(nowMs: number): {
+  days: number;
+  hours: number;
+  minutes: number;
+} {
+  const firstChangeMs = LAUNCH_AT_UTC_MS + CHANGE_PERIOD_MS;
+  const lastChangeMs = LAUNCH_AT_UTC_MS + CHANGE_PERIOD_MS * CHANGE_PERIOD_COUNT;
+
+  let nextChangeMs = firstChangeMs;
+  if (nowMs >= firstChangeMs) {
+    nextChangeMs = 0;
+    for (let period = 1; period <= CHANGE_PERIOD_COUNT; period++) {
+      const candidate = LAUNCH_AT_UTC_MS + CHANGE_PERIOD_MS * period;
+      if (nowMs < candidate) {
+        nextChangeMs = candidate;
+        break;
+      }
+    }
+  }
+
+  const remainingMs =
+    nowMs >= lastChangeMs ? 0 : Math.max(0, nextChangeMs - nowMs);
+  const totalSeconds = Math.floor(remainingMs / 1000);
+  const days = Math.floor(totalSeconds / 86400);
+  const hours = Math.floor((totalSeconds % 86400) / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+
+  return { days, hours, minutes };
 }
 
 type RecentMatchEntry = {
@@ -363,6 +396,7 @@ function landingPage(
 ): SnapHandlerResult {
   const claimTarget = forceNoMatch ? `${base}/claim?match=false` : `${base}/claim`;
   const counterValues = showRecentPreview ? ["100", "75", "20"] : ["-", "-", "-"];
+  const countdown = getNextPriceChangeCountdown(Date.now());
 
   const elements: Record<string, SnapElementInput> = {
     page: {
@@ -421,9 +455,9 @@ function landingPage(
         rows: 1,
         gap: "md",
         cells: [
-          { row: 0, col: 0, content: "7 Days" },
-          { row: 0, col: 1, content: "12 Hours" },
-          { row: 0, col: 2, content: "25 Minutes" },
+          { row: 0, col: 0, content: `${countdown.days} Days` },
+          { row: 0, col: 1, content: `${countdown.hours} Hours` },
+          { row: 0, col: 2, content: `${countdown.minutes} Minutes` },
         ],
       },
     },
