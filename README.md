@@ -77,6 +77,12 @@ This starts three processes in parallel:
 - **Localflare dashboard API** -> `http://localhost:8790`
 - **Localflare dashboard UI** -> `https://studio.localflare.dev?port=8790` - live UI for browsing D1 tables and KV keys
 
+On startup, the tunnel script now performs a fail-fast probe against both `http://127.0.0.1:8789/__dev/health` and `https://api-dev.10x.meme/__dev/health`. If the public hostname is not serving the same local Wrangler instance, `pnpm dev:tunnel` exits with an error instead of silently writing to remote Cloudflare bindings.
+
+`api-dev.10x.meme` is reserved for local tunnel-backed development. Do not attach a deployed Worker route to that hostname, or requests will bypass local Wrangler state and write to the remote Cloudflare D1/KV bindings instead.
+
+The `dev` Wrangler environment is local-only. It intentionally has no deployed route and no `workers.dev` endpoint.
+
 ### Farcaster Snap emulator
 
 With the tunnel running, open the snap in the Farcaster developer emulator:

@@ -23,6 +23,7 @@ interface Env {
 
 type AppOptions = {
   skipJFSVerification?: boolean;
+  devTunnelToken?: string;
 };
 
 // ---------------------------------------------------------------------------
@@ -221,28 +222,22 @@ function getNeynarApiKey(): string | undefined {
 async function fetchNeynarUserByFid(fid: number): Promise<NeynarUserRecord | undefined> {
   const apiKey = getNeynarApiKey();
   if (!apiKey) {
-    console.log("[neynar] no API key available");
     return undefined;
   }
 
   try {
     const endpoint = `https://api.neynar.com/v2/farcaster/user/bulk?viewer_fid=${NEYNAR_VIEWER_FID}&fids=${fid}`;
-    console.log(`[neynar] GET ${endpoint}`);
     const res = await fetch(endpoint, {
       headers: {
         "x-api-key": apiKey,
       },
     });
-    console.log(`[neynar] response status=${res.status}`);
     if (!res.ok) {
-      const body = await res.text().catch(() => "(unreadable)");
-      console.log(`[neynar] error body=${body.slice(0, 500)}`);
       return undefined;
     }
 
     const payload = (await res.json()) as Record<string, unknown>;
     const users = payload.users;
-    console.log(`[neynar] users array length=${Array.isArray(users) ? users.length : "not-array"}`);
     if (!Array.isArray(users) || users.length === 0) return undefined;
 
     const user = asObject(users[0]);
@@ -287,7 +282,6 @@ async function fetchNeynarUserByFid(fid: number): Promise<NeynarUserRecord | und
       score: asNumber(user.score),
     };
   } catch (err) {
-    console.log(`[neynar] caught exception: ${String(err)}`);
     return undefined;
   }
 }
@@ -1070,6 +1064,12 @@ const snap: SnapFunction = async (ctx) => {
 
 export function createApp(options: AppOptions = {}): Hono {
   const app = new Hono();
+
+  if (options.devTunnelToken) {
+    app.get("/__dev/health", (c) => {
+      return c.json({ ok: true, token: options.devTunnelToken });
+    });
+  }
 
   // Capture env bindings on the first request (safe: bindings are constant per isolate)
   app.use("*", async (c, next) => {

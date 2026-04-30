@@ -4,6 +4,7 @@ dist/
 *.tgz
 .env
 .dev.vars
+.dev.vars.*
 
 # Local test server logs
 dev-server.out.log

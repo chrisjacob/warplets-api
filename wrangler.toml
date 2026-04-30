@@ -22,10 +22,8 @@ database_id   = "45a4cc4c-788e-48dd-89bf-7b504b17655d"
 [env.dev]
 name = "api-dev"
 main = "src/index.dev.ts"
-
-[[env.dev.routes]]
-pattern = "api-dev.10x.meme/*"
-zone_name = "10x.meme"
+routes = []
+workers_dev = false
 
 [env.dev.vars]
 SNAP_PUBLIC_BASE_URL = "https://api-dev.10x.meme"
