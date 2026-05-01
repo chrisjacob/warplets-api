@@ -1098,10 +1098,7 @@ function claimResultPage(
                   : "😭 I'm not on the list...\n\n🧹 Looking to sweep the floor!\n\n...ready for public listings, every 10 days for 100 days.",
                 channelKey: "10xmeme",
                 embeds: [
-                  fullRootUrl,
-                  isMatch
-                    ? `https://warplets.10x.meme/${rarityValue}.avif`
-                    : "https://warplets.10x.meme/3081.png",
+                  fullRootUrl
                 ],
               },
             },
