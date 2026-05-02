@@ -172,7 +172,7 @@ async function updatePrimaryEthAddress(
 async function fetchPrivateListings(
   tokenId: string,
   buyerAddress: string,
-  openseaApiKey?: string
+  openseaApiKey: string
 ): Promise<OpenSeaListing[]> {
   const params = new URLSearchParams({
     asset_contract_address: COLLECTION_CONTRACT,
@@ -186,7 +186,8 @@ async function fetchPrivateListings(
   const res = await fetch(`${OPENSEA_API_BASE}/orders/${BASE_CHAIN}/seaport/listings?${params}`, {
     headers: {
       accept: "application/json",
-      ...(openseaApiKey?.trim() ? { "x-api-key": openseaApiKey.trim() } : {}),
+      "x-api-key": openseaApiKey,
+      "X-API-KEY": openseaApiKey,
     },
     signal: AbortSignal.timeout(10000),
   });
@@ -294,8 +295,16 @@ async function handleRequest(context: Parameters<PagesFunction<Env>>[0]): Promis
   }
 
   let listing: OpenSeaListing | null;
+  const openseaApiKey = context.env.OPENSEA_API_KEY?.trim();
+  if (!openseaApiKey) {
+    return Response.json(
+      { error: "OpenSea API key is not configured in this Pages environment" },
+      { status: 503 }
+    );
+  }
+
   try {
-    const listings = await fetchPrivateListings(String(rarityValue), buyerAddress, context.env.OPENSEA_API_KEY);
+    const listings = await fetchPrivateListings(String(rarityValue), buyerAddress, openseaApiKey);
     listing = selectCheapestActiveListing(listings);
   } catch (error) {
     return Response.json(
