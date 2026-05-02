@@ -19,6 +19,9 @@
 
 const OPENSEA_API_BASE = "https://api.opensea.io/api/v2";
 const COLLECTION_SLUG = "10xwarplets";
+// Only sales originating from this wallet count as legitimate distribution buys.
+// 10xchris.eth pre-minted all tokens and distributes via private listings and accepted offers.
+const DISTRIBUTION_WALLET = "0x4709a4b12daf0eedae0ef48a28a056640dee0846";
 const KV_LAST_SYNC_KEY = "opensea_last_sync_at";
 const KV_STATS_BUYS_KEY = "stats_buys";
 
@@ -188,9 +191,15 @@ export async function runOpenseaSync(env: OpenseaSyncEnv): Promise<SyncResult> {
       }
 
       // -------------------------------------------------------------------
-      // 4. If sale: attempt to match buyer → warplets_users.buy_on
+      // 4. If sale from distribution wallet: match buyer → warplets_users.buy_on
+      //    Only sales where 10xchris.eth is the seller count (direct listings
+      //    and accepted offers both have wallet_from = distribution wallet).
       // -------------------------------------------------------------------
-      if (ev.event_type === "sale" && walletTo) {
+      if (
+        ev.event_type === "sale" &&
+        walletFrom?.toLowerCase() === DISTRIBUTION_WALLET.toLowerCase() &&
+        walletTo
+      ) {
         try {
           const userRow = await env.WARPLETS.prepare(
             `SELECT id, buy_on FROM warplets_users
