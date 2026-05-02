@@ -326,6 +326,31 @@ function getErrorMessage(error: unknown): string {
   return "Something went wrong while opening the Farcaster Wallet flow.";
 }
 
+function isUnsupportedMethodError(error: unknown): boolean {
+  const rpcError = error as RpcError | undefined;
+  const msg = (rpcError?.message || "").toLowerCase();
+  return msg.includes("does not support the requested method") || msg.includes("method not found");
+}
+
+async function getWalletAccounts(provider: EthereumProvider): Promise<string[]> {
+  try {
+    const requested = (await provider.request({ method: "eth_requestAccounts" })) as string[];
+    if (Array.isArray(requested) && requested.length > 0) {
+      return requested;
+    }
+  } catch (error) {
+    if (!isUnsupportedMethodError(error)) {
+      throw error;
+    }
+  }
+
+  const existing = (await provider.request({ method: "eth_accounts" })) as string[];
+  if (!Array.isArray(existing) || existing.length === 0) {
+    throw new Error("No wallet account is connected.");
+  }
+  return existing;
+}
+
 async function readErrorResponse(response: Response): Promise<string> {
   try {
     const payload = (await response.json()) as { error?: string };
@@ -341,8 +366,17 @@ async function readErrorResponse(response: Response): Promise<string> {
 }
 
 async function ensureChain(provider: EthereumProvider, chainIdHex: string): Promise<void> {
-  const currentChainId = (await provider.request({ method: "eth_chainId" })) as string;
-  if (currentChainId?.toLowerCase() === chainIdHex.toLowerCase()) {
+  let currentChainId: string | undefined;
+  try {
+    currentChainId = (await provider.request({ method: "eth_chainId" })) as string;
+    if (currentChainId?.toLowerCase() === chainIdHex.toLowerCase()) {
+      return;
+    }
+  } catch (error) {
+    if (!isUnsupportedMethodError(error)) {
+      throw error;
+    }
+    // Some embedded providers do not expose chain methods; continue and let sendTransaction surface any chain mismatch.
     return;
   }
 
@@ -352,15 +386,25 @@ async function ensureChain(provider: EthereumProvider, chainIdHex: string): Prom
       params: [{ chainId: chainIdHex }],
     });
   } catch (error) {
+    if (isUnsupportedMethodError(error)) {
+      return;
+    }
+
     const rpcError = error as RpcError;
     if (rpcError.code !== 4902) {
       throw error;
     }
 
-    await provider.request({
-      method: "wallet_addEthereumChain",
-      params: [BASE_CHAIN_CONFIG],
-    });
+    try {
+      await provider.request({
+        method: "wallet_addEthereumChain",
+        params: [BASE_CHAIN_CONFIG],
+      });
+    } catch (addError) {
+      if (!isUnsupportedMethodError(addError)) {
+        throw addError;
+      }
+    }
   }
 }
 
@@ -523,7 +567,7 @@ export default function App() {
           throw new Error("Farcaster Wallet is unavailable in this client.");
         }
 
-        const accounts = (await provider.request({ method: "eth_requestAccounts" })) as string[];
+        const accounts = await getWalletAccounts(provider);
         const activeAccount = getAddress(accounts?.[0] ?? "");
 
         if (activeAccount.toLowerCase() !== quote.buyerAddress.toLowerCase()) {
