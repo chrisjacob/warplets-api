@@ -89,6 +89,7 @@ export const onRequestGet: PagesFunction = () => {
       <div class="stat-box"><div class="num" id="statDispatches">—</div><div class="lbl">Total sends</div></div>
       <div class="stat-box"><div class="num" id="statDelivered">—</div><div class="lbl">Delivered</div></div>
       <div class="stat-box"><div class="num" id="statOpens">—</div><div class="lbl">Opens</div></div>
+      <div class="stat-box"><div class="num" id="statAvgOpen">—</div><div class="lbl">Avg Open %</div></div>
     </div>
     <table id="statsTable">
       <thead><tr>
@@ -195,10 +196,16 @@ export const onRequestGet: PagesFunction = () => {
       const totDispatches = rows.reduce((s, r) => s + r.dispatches, 0);
       const totDelivered  = rows.reduce((s, r) => s + r.delivered, 0);
       const totOpens      = rows.reduce((s, r) => s + r.opens, 0);
+      const openRateRows  = rows.filter(r => r.openRate != null);
+      const avgOpenRate   = openRateRows.length
+        ? openRateRows.reduce((s, r) => s + r.openRate, 0) / openRateRows.length
+        : null;
 
       document.getElementById('statDispatches').textContent = totDispatches;
       document.getElementById('statDelivered').textContent  = totDelivered;
       document.getElementById('statOpens').textContent      = totOpens;
+      document.getElementById('statAvgOpen').textContent    =
+        avgOpenRate != null ? (avgOpenRate * 100).toFixed(1) + '%' : '—';
 
       const tbody = document.getElementById('statsBody');
       if (!rows.length) {
