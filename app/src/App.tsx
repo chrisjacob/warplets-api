@@ -80,9 +80,17 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white flex items-center justify-center px-4 py-8">
-      <div className="w-full max-w-md text-center space-y-4">
-        <Text className="text-2xl font-bold">10X Warplets</Text>
+    <div className="relative min-h-screen bg-black text-white flex items-center justify-center px-4 py-8 overflow-hidden">
+      {/* Animated background */}
+      <img
+        src="/bg2.gif"
+        alt=""
+        aria-hidden="true"
+        className="absolute inset-0 w-full h-full object-cover opacity-20 pointer-events-none select-none"
+      />
+
+      <div className="relative z-10 w-full max-w-md text-center space-y-4">
+        <Text className="text-2xl font-bold text-white">10X Warplets</Text>
         {fid && <Text className="text-sm text-gray-400">FID: {fid}</Text>}
 
         {loading && <Text className="text-sm text-gray-300">Loading your Warplet status...</Text>}
@@ -93,7 +101,7 @@ export default function App() {
 
         {!loading && !error && (
           <>
-            <Text className="text-lg font-semibold">{title}</Text>
+            <Text className="text-lg font-semibold text-white">{title}</Text>
             <img
               src={imageUrl}
               alt="Warplet preview"
