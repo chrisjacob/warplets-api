@@ -2,12 +2,14 @@
  * POST /api/warplet-buy-quote
  *
  * Resolves the matched viewer's private OpenSea listing and returns the
- * transaction details needed to fulfill it from Farcaster Wallet on Base.
+ * raw listing data needed to build the Seaport matchOrders transaction.
+ * ABI encoding is intentionally left to the frontend (App.tsx) so that
+ * this function has zero npm dependencies and runs reliably on Pages.
  *
  * Body: { fid: number }
  */
 
-import { encodeFunctionData, getAddress, toHex } from "viem";
+// NO npm imports — this function is dependency-free.
 
 interface Env {
   WARPLETS: D1Database;
@@ -79,40 +81,6 @@ type OpenSeaListingsResponse = {
   orders?: OpenSeaListing[];
 };
 
-type MatchOrdersFulfillment = {
-  offerComponents: Array<{ orderIndex: bigint; itemIndex: bigint }>;
-  considerationComponents: Array<{ orderIndex: bigint; itemIndex: bigint }>;
-};
-
-type ContractOfferItem = {
-  itemType: number;
-  token: `0x${string}`;
-  identifierOrCriteria: bigint;
-  startAmount: bigint;
-  endAmount: bigint;
-};
-
-type ContractConsiderationItem = ContractOfferItem & {
-  recipient: `0x${string}`;
-};
-
-type ContractOrder = {
-  parameters: {
-    offerer: `0x${string}`;
-    zone: `0x${string}`;
-    offer: ContractOfferItem[];
-    consideration: ContractConsiderationItem[];
-    orderType: number;
-    startTime: bigint;
-    endTime: bigint;
-    zoneHash: `0x${string}`;
-    salt: bigint;
-    conduitKey: `0x${string}`;
-    totalOriginalConsiderationItems: bigint;
-  };
-  signature: `0x${string}`;
-};
-
 const NEYNAR_VIEWER_FID = 1129138;
 const OPENSEA_API_BASE = "https://api.opensea.io/api/v2";
 const BASE_CHAIN = "base";
@@ -120,85 +88,7 @@ const BASE_CHAIN_ID_HEX = "0x2105";
 const COLLECTION_CONTRACT = "0x780446dd12e080ae0db762fcd4daf313f3e359de";
 const DISTRIBUTION_WALLET = "0x4709a4b12daf0eedae0ef48a28a056640dee0846";
 const BASE_USDC = "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913";
-const ZERO_BYTES32 = `0x${"0".repeat(64)}` as const;
 
-const matchOrdersAbi = [
-  {
-    type: "function",
-    name: "matchOrders",
-    stateMutability: "payable",
-    inputs: [
-      {
-        name: "orders",
-        type: "tuple[]",
-        components: [
-          {
-            name: "parameters",
-            type: "tuple",
-            components: [
-              { name: "offerer", type: "address" },
-              { name: "zone", type: "address" },
-              {
-                name: "offer",
-                type: "tuple[]",
-                components: [
-                  { name: "itemType", type: "uint8" },
-                  { name: "token", type: "address" },
-                  { name: "identifierOrCriteria", type: "uint256" },
-                  { name: "startAmount", type: "uint256" },
-                  { name: "endAmount", type: "uint256" },
-                ],
-              },
-              {
-                name: "consideration",
-                type: "tuple[]",
-                components: [
-                  { name: "itemType", type: "uint8" },
-                  { name: "token", type: "address" },
-                  { name: "identifierOrCriteria", type: "uint256" },
-                  { name: "startAmount", type: "uint256" },
-                  { name: "endAmount", type: "uint256" },
-                  { name: "recipient", type: "address" },
-                ],
-              },
-              { name: "orderType", type: "uint8" },
-              { name: "startTime", type: "uint256" },
-              { name: "endTime", type: "uint256" },
-              { name: "zoneHash", type: "bytes32" },
-              { name: "salt", type: "uint256" },
-              { name: "conduitKey", type: "bytes32" },
-              { name: "totalOriginalConsiderationItems", type: "uint256" },
-            ],
-          },
-          { name: "signature", type: "bytes" },
-        ],
-      },
-      {
-        name: "fulfillments",
-        type: "tuple[]",
-        components: [
-          {
-            name: "offerComponents",
-            type: "tuple[]",
-            components: [
-              { name: "orderIndex", type: "uint256" },
-              { name: "itemIndex", type: "uint256" },
-            ],
-          },
-          {
-            name: "considerationComponents",
-            type: "tuple[]",
-            components: [
-              { name: "orderIndex", type: "uint256" },
-              { name: "itemIndex", type: "uint256" },
-            ],
-          },
-        ],
-      },
-    ],
-    outputs: [],
-  },
-] as const;
 
 function asObject(value: unknown): Record<string, unknown> | undefined {
   return value && typeof value === "object"
@@ -210,12 +100,21 @@ function asString(value: unknown): string | undefined {
   return typeof value === "string" && value.trim().length > 0 ? value : undefined;
 }
 
-function asNumber(value: unknown): number | undefined {
-  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
-}
-
 function toPositiveInteger(value: unknown): number | null {
   return typeof value === "number" && Number.isInteger(value) && value > 0 ? value : null;
+}
+
+/** Return a lowercase address string; throws if missing or malformed. */
+function normalizeAddress(value: string | undefined, label: string): string {
+  const addr = value?.trim();
+  if (!addr || !/^0x[0-9a-fA-F]{40}$/.test(addr)) {
+    throw new Error(`${label} is missing or invalid`);
+  }
+  return addr.toLowerCase();
+}
+
+function isCurrencyItem(itemType: number): boolean {
+  return itemType === 0 || itemType === 1;
 }
 
 function toBigIntValue(value: string | number | bigint | undefined, fallback = 0n): bigint {
@@ -223,29 +122,6 @@ function toBigIntValue(value: string | number | bigint | undefined, fallback = 0
   if (typeof value === "number") return BigInt(value);
   if (typeof value === "string" && value.length > 0) return BigInt(value);
   return fallback;
-}
-
-function toAddress(value: string | undefined, label: string): `0x${string}` {
-  const address = asString(value);
-  if (!address) {
-    throw new Error(`${label} is missing`);
-  }
-  return getAddress(address);
-}
-
-function normalizeHex32(value: string | undefined, label: string): `0x${string}` {
-  const hex = asString(value);
-  if (!hex || !/^0x[0-9a-fA-F]{64}$/.test(hex)) {
-    throw new Error(`${label} is invalid`);
-  }
-  return hex.toLowerCase() as `0x${string}`;
-}
-
-function randomSalt(): bigint {
-  const bytes = new Uint8Array(32);
-  crypto.getRandomValues(bytes);
-  const hex = Array.from(bytes, byte => byte.toString(16).padStart(2, "0")).join("");
-  return BigInt(`0x${hex}`);
 }
 
 async function fetchNeynarUserByFid(
@@ -354,140 +230,6 @@ function selectCheapestActiveListing(listings: OpenSeaListing[]): OpenSeaListing
   );
 }
 
-function isCurrencyItem(itemType: number): boolean {
-  return itemType === 0 || itemType === 1;
-}
-
-function toContractOfferItem(item: OpenSeaOfferItem): ContractOfferItem {
-  return {
-    itemType: Number(item.itemType ?? 0),
-    token: toAddress(item.token, "Offer item token"),
-    identifierOrCriteria: toBigIntValue(item.identifierOrCriteria),
-    startAmount: toBigIntValue(item.startAmount),
-    endAmount: toBigIntValue(item.endAmount),
-  };
-}
-
-function toContractConsiderationItem(item: OpenSeaConsiderationItem): ContractConsiderationItem {
-  return {
-    ...toContractOfferItem(item),
-    recipient: toAddress(item.recipient, "Consideration recipient"),
-  };
-}
-
-function toContractOrder(protocolData: OpenSeaProtocolData | undefined): ContractOrder {
-  const parameters = protocolData?.parameters;
-  if (!parameters) {
-    throw new Error("Listing protocol data is missing parameters");
-  }
-
-  return {
-    parameters: {
-      offerer: toAddress(parameters.offerer, "Order offerer"),
-      zone: toAddress(parameters.zone, "Order zone"),
-      offer: (parameters.offer ?? []).map(toContractOfferItem),
-      consideration: (parameters.consideration ?? []).map(toContractConsiderationItem),
-      orderType: Number(parameters.orderType ?? 0),
-      startTime: toBigIntValue(parameters.startTime),
-      endTime: toBigIntValue(parameters.endTime),
-      zoneHash: normalizeHex32(parameters.zoneHash, "Order zoneHash"),
-      salt: toBigIntValue(parameters.salt),
-      conduitKey: normalizeHex32(parameters.conduitKey, "Order conduitKey"),
-      totalOriginalConsiderationItems: toBigIntValue(parameters.totalOriginalConsiderationItems),
-    },
-    signature: (asString(protocolData?.signature) ?? "0x") as `0x${string}`,
-  };
-}
-
-function constructPrivateListingCounterOrder(
-  order: ContractOrder,
-  buyerAddress: `0x${string}`
-): { counterOrder: ContractOrder; paymentItems: ContractConsiderationItem[] } {
-  const paymentItems = order.parameters.consideration.filter(
-    item => item.recipient.toLowerCase() !== buyerAddress.toLowerCase()
-  );
-
-  if (paymentItems.length > 0) {
-    if (!paymentItems.every(item => isCurrencyItem(item.itemType))) {
-      throw new Error("Private listing consideration contains non-currency payment items");
-    }
-    if (!paymentItems.every(item => item.itemType === paymentItems[0].itemType)) {
-      throw new Error("Private listing payment items do not share the same item type");
-    }
-    if (!paymentItems.every(item => item.token.toLowerCase() === paymentItems[0].token.toLowerCase())) {
-      throw new Error("Private listing payment items do not share the same token");
-    }
-  }
-
-  const aggregatedStartAmount = paymentItems.reduce((sum, item) => sum + item.startAmount, 0n);
-  const aggregatedEndAmount = paymentItems.reduce((sum, item) => sum + item.endAmount, 0n);
-
-  const counterOrder: ContractOrder = {
-    parameters: {
-      offerer: buyerAddress,
-      zone: order.parameters.zone,
-      offer:
-        paymentItems.length > 0
-          ? [
-              {
-                itemType: paymentItems[0].itemType,
-                token: paymentItems[0].token,
-                identifierOrCriteria: paymentItems[0].identifierOrCriteria,
-                startAmount: aggregatedStartAmount,
-                endAmount: aggregatedEndAmount,
-              },
-            ]
-          : [],
-      consideration: [],
-      orderType: order.parameters.orderType,
-      startTime: order.parameters.startTime,
-      endTime: order.parameters.endTime,
-      zoneHash: order.parameters.zoneHash,
-      salt: randomSalt(),
-      conduitKey: order.parameters.conduitKey,
-      totalOriginalConsiderationItems: 0n,
-    },
-    signature: "0x",
-  };
-
-  return { counterOrder, paymentItems };
-}
-
-function getPrivateListingFulfillments(order: ContractOrder): MatchOrdersFulfillment[] {
-  const nftRelatedFulfillments: MatchOrdersFulfillment[] = [];
-
-  order.parameters.offer.forEach((offerItem, offerIndex) => {
-    const considerationIndex = order.parameters.consideration.findIndex(
-      considerationItem =>
-        considerationItem.itemType === offerItem.itemType &&
-        considerationItem.token.toLowerCase() === offerItem.token.toLowerCase() &&
-        considerationItem.identifierOrCriteria === offerItem.identifierOrCriteria
-    );
-
-    if (considerationIndex === -1) {
-      throw new Error("Could not match offered NFT item to private listing consideration");
-    }
-
-    nftRelatedFulfillments.push({
-      offerComponents: [{ orderIndex: 0n, itemIndex: BigInt(offerIndex) }],
-      considerationComponents: [{ orderIndex: 0n, itemIndex: BigInt(considerationIndex) }],
-    });
-  });
-
-  const currencyRelatedFulfillments: MatchOrdersFulfillment[] = [];
-  order.parameters.consideration.forEach((considerationItem, considerationIndex) => {
-    if (!isCurrencyItem(considerationItem.itemType)) {
-      return;
-    }
-
-    currencyRelatedFulfillments.push({
-      offerComponents: [{ orderIndex: 1n, itemIndex: 0n }],
-      considerationComponents: [{ orderIndex: 0n, itemIndex: BigInt(considerationIndex) }],
-    });
-  });
-
-  return [...nftRelatedFulfillments, ...currencyRelatedFulfillments];
-}
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
   let body: RequestBody = {};
@@ -523,14 +265,14 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     return Response.json({ error: "Viewer record not found. Refresh status first." }, { status: 404 });
   }
 
-  let buyerAddress = userRow.primary_eth_address ?? undefined;
+  let buyerAddress = userRow.primary_eth_address?.toLowerCase() ?? undefined;
   const neynarUser = await fetchNeynarUserByFid(fid, context.env.NEYNAR_API_KEY);
   if (neynarUser?.primary_eth_address) {
-    const normalized = getAddress(neynarUser.primary_eth_address);
-    if (buyerAddress?.toLowerCase() !== normalized.toLowerCase()) {
-      await updatePrimaryEthAddress(context.env, userRow.id, normalized);
+    const fresh = neynarUser.primary_eth_address.toLowerCase();
+    if (buyerAddress !== fresh) {
+      await updatePrimaryEthAddress(context.env, userRow.id, neynarUser.primary_eth_address);
     }
-    buyerAddress = normalized;
+    buyerAddress = fresh;
   }
 
   if (!buyerAddress) {
@@ -556,67 +298,62 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     return Response.json({ error: "The matching listing is not a private listing" }, { status: 409 });
   }
 
-  try {
-    const normalizedBuyerAddress = getAddress(buyerAddress);
-    const order = toContractOrder(listing.protocol_data ?? undefined);
-    const { counterOrder, paymentItems } = constructPrivateListingCounterOrder(order, normalizedBuyerAddress);
-    const fulfillments = getPrivateListingFulfillments(order);
+  // Validate USDC payment items without viem — sum consideration items going to non-buyer
+  const consideration = listing.protocol_data?.parameters?.consideration ?? [];
+  const paymentItems = consideration.filter(item => {
+    const recipient = (item.recipient ?? "").toLowerCase();
+    const itemType = Number(item.itemType ?? 0);
+    return recipient !== buyerAddress && isCurrencyItem(itemType);
+  });
 
-    if (paymentItems.length === 0) {
-      return Response.json({ error: "The private listing has no payment items" }, { status: 409 });
-    }
-
-    if (paymentItems[0].itemType !== 1) {
-      return Response.json({ error: "The private listing is not denominated in an ERC20 token" }, { status: 409 });
-    }
-
-    const paymentToken = getAddress(paymentItems[0].token);
-    if (paymentToken.toLowerCase() !== BASE_USDC.toLowerCase()) {
-      return Response.json({ error: "The private listing is not priced in Base USDC" }, { status: 409 });
-    }
-
-    const approvalAmount = paymentItems.reduce((sum, item) => sum + item.startAmount, 0n);
-    const data = encodeFunctionData({
-      abi: matchOrdersAbi,
-      functionName: "matchOrders",
-      args: [[order, counterOrder], fulfillments],
-    });
-
-    return Response.json({
-      fid,
-      rarityValue,
-      buyerAddress: normalizedBuyerAddress,
-      listing: {
-        orderHash: listing.order_hash ?? null,
-        tokenId: String(rarityValue),
-        makerAddress: listing.maker?.address ?? null,
-        takerAddress: listing.taker?.address ?? null,
-        price: approvalAmount.toString(),
-        currencyAddress: paymentToken,
-        openseaUrl: `https://opensea.io/item/base/${COLLECTION_CONTRACT}/${rarityValue}`,
-      },
-      approval: {
-        tokenAddress: paymentToken,
-        spender: getAddress(listing.protocol_address ?? order.parameters.zone),
-        amount: approvalAmount.toString(),
-      },
-      transaction: {
-        chainIdHex: BASE_CHAIN_ID_HEX,
-        to: getAddress(listing.protocol_address ?? order.parameters.zone),
-        data,
-        value: toHex(0n),
-      },
-    });
-  } catch (error) {
-    console.error("[warplet-buy-quote] failed to build transaction", error);
-    return Response.json(
-      {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Failed to build the private listing purchase transaction",
-      },
-      { status: 500 }
-    );
+  if (paymentItems.length === 0) {
+    return Response.json({ error: "The private listing has no payment items" }, { status: 409 });
   }
+
+  const paymentItemType = Number(paymentItems[0].itemType ?? 0);
+  if (paymentItemType !== 1) {
+    return Response.json({ error: "The private listing is not denominated in an ERC20 token" }, { status: 409 });
+  }
+
+  const paymentToken = (paymentItems[0].token ?? "").toLowerCase();
+  if (paymentToken !== BASE_USDC) {
+    return Response.json({ error: "The private listing is not priced in Base USDC" }, { status: 409 });
+  }
+
+  const approvalAmount = paymentItems.reduce((sum, item) => sum + toBigIntValue(item.startAmount), 0n);
+
+  let seaportAddress: string;
+  try {
+    seaportAddress = normalizeAddress(listing.protocol_address, "Seaport protocol address");
+  } catch {
+    return Response.json({ error: "Listing is missing the Seaport protocol address" }, { status: 409 });
+  }
+
+  // Return raw listing data — ABI encoding (matchOrders calldata) is done client-side in App.tsx
+  return Response.json({
+    fid,
+    rarityValue,
+    buyerAddress,
+    listing: {
+      orderHash: listing.order_hash ?? null,
+      tokenId: String(rarityValue),
+      makerAddress: listing.maker?.address ?? null,
+      takerAddress: listing.taker?.address ?? null,
+      price: approvalAmount.toString(),
+      currencyAddress: paymentToken,
+      openseaUrl: `https://opensea.io/item/base/${COLLECTION_CONTRACT}/${rarityValue}`,
+      seaportAddress,
+      protocolData: listing.protocol_data ?? null,
+    },
+    approval: {
+      tokenAddress: paymentToken,
+      spender: seaportAddress,
+      amount: approvalAmount.toString(),
+    },
+    transaction: {
+      chainIdHex: BASE_CHAIN_ID_HEX,
+      to: seaportAddress,
+      value: "0x0",
+    },
+  });
 };

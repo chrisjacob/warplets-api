@@ -11,26 +11,56 @@ type WarpletStatus = {
   rarityValue: number | null;
 };
 
+type RawOfferItem = {
+  itemType: number | string;
+  token: string;
+  identifierOrCriteria: string;
+  startAmount: string;
+  endAmount: string;
+};
+
+type RawConsiderationItem = RawOfferItem & {
+  recipient: string;
+};
+
+type RawOrderParameters = {
+  offerer: string;
+  zone: string;
+  offer: RawOfferItem[];
+  consideration: RawConsiderationItem[];
+  orderType: number | string;
+  startTime: string;
+  endTime: string;
+  zoneHash: string;
+  salt: string;
+  conduitKey: string;
+  totalOriginalConsiderationItems: number | string;
+};
+
 type BuyQuoteResponse = {
-  buyerAddress: Address;
+  buyerAddress: string;
   listing: {
     orderHash: string | null;
     tokenId: string;
     makerAddress: string | null;
     takerAddress: string | null;
     price: string;
-    currencyAddress: Address;
+    currencyAddress: string;
     openseaUrl: string;
+    seaportAddress: string;
+    protocolData: {
+      parameters: RawOrderParameters;
+      signature: string;
+    } | null;
   };
   approval: {
-    tokenAddress: Address;
-    spender: Address;
+    tokenAddress: string;
+    spender: string;
     amount: string;
   };
   transaction: {
     chainIdHex: string;
-    to: Address;
-    data: `0x${string}`;
+    to: string;
     value: `0x${string}`;
   };
 };
@@ -43,6 +73,233 @@ type RpcError = {
   code?: number;
   message?: string;
 };
+
+// ---------------------------------------------------------------------------
+// Seaport matchOrders encoding (moved from Pages Function to avoid viem in CF Pages)
+// ---------------------------------------------------------------------------
+
+type ContractOfferItem = {
+  itemType: number;
+  token: Address;
+  identifierOrCriteria: bigint;
+  startAmount: bigint;
+  endAmount: bigint;
+};
+
+type ContractConsiderationItem = ContractOfferItem & { recipient: Address };
+
+type ContractOrder = {
+  parameters: {
+    offerer: Address;
+    zone: Address;
+    offer: ContractOfferItem[];
+    consideration: ContractConsiderationItem[];
+    orderType: number;
+    startTime: bigint;
+    endTime: bigint;
+    zoneHash: `0x${string}`;
+    salt: bigint;
+    conduitKey: `0x${string}`;
+    totalOriginalConsiderationItems: bigint;
+  };
+  signature: `0x${string}`;
+};
+
+type MatchOrdersFulfillment = {
+  offerComponents: Array<{ orderIndex: bigint; itemIndex: bigint }>;
+  considerationComponents: Array<{ orderIndex: bigint; itemIndex: bigint }>;
+};
+
+const MATCH_ORDERS_ABI = [
+  {
+    type: "function",
+    name: "matchOrders",
+    stateMutability: "payable",
+    inputs: [
+      {
+        name: "orders",
+        type: "tuple[]",
+        components: [
+          {
+            name: "parameters",
+            type: "tuple",
+            components: [
+              { name: "offerer", type: "address" },
+              { name: "zone", type: "address" },
+              {
+                name: "offer",
+                type: "tuple[]",
+                components: [
+                  { name: "itemType", type: "uint8" },
+                  { name: "token", type: "address" },
+                  { name: "identifierOrCriteria", type: "uint256" },
+                  { name: "startAmount", type: "uint256" },
+                  { name: "endAmount", type: "uint256" },
+                ],
+              },
+              {
+                name: "consideration",
+                type: "tuple[]",
+                components: [
+                  { name: "itemType", type: "uint8" },
+                  { name: "token", type: "address" },
+                  { name: "identifierOrCriteria", type: "uint256" },
+                  { name: "startAmount", type: "uint256" },
+                  { name: "endAmount", type: "uint256" },
+                  { name: "recipient", type: "address" },
+                ],
+              },
+              { name: "orderType", type: "uint8" },
+              { name: "startTime", type: "uint256" },
+              { name: "endTime", type: "uint256" },
+              { name: "zoneHash", type: "bytes32" },
+              { name: "salt", type: "uint256" },
+              { name: "conduitKey", type: "bytes32" },
+              { name: "totalOriginalConsiderationItems", type: "uint256" },
+            ],
+          },
+          { name: "signature", type: "bytes" },
+        ],
+      },
+      {
+        name: "fulfillments",
+        type: "tuple[]",
+        components: [
+          {
+            name: "offerComponents",
+            type: "tuple[]",
+            components: [
+              { name: "orderIndex", type: "uint256" },
+              { name: "itemIndex", type: "uint256" },
+            ],
+          },
+          {
+            name: "considerationComponents",
+            type: "tuple[]",
+            components: [
+              { name: "orderIndex", type: "uint256" },
+              { name: "itemIndex", type: "uint256" },
+            ],
+          },
+        ],
+      },
+    ],
+    outputs: [],
+  },
+] as const;
+
+function toBigInt(value: string | number | bigint | undefined, fallback = 0n): bigint {
+  if (typeof value === "bigint") return value;
+  if (typeof value === "number") return BigInt(value);
+  if (typeof value === "string" && value.length > 0) return BigInt(value);
+  return fallback;
+}
+
+function randomSalt(): bigint {
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  const hex = Array.from(bytes, b => b.toString(16).padStart(2, "0")).join("");
+  return BigInt(`0x${hex}`);
+}
+
+function isCurrencyItemType(itemType: number): boolean {
+  return itemType === 0 || itemType === 1;
+}
+
+function rawToContractOrder(params: RawOrderParameters, signature: string): ContractOrder {
+  return {
+    parameters: {
+      offerer: getAddress(params.offerer),
+      zone: getAddress(params.zone),
+      offer: params.offer.map(item => ({
+        itemType: Number(item.itemType),
+        token: getAddress(item.token),
+        identifierOrCriteria: toBigInt(item.identifierOrCriteria),
+        startAmount: toBigInt(item.startAmount),
+        endAmount: toBigInt(item.endAmount),
+      })),
+      consideration: params.consideration.map(item => ({
+        itemType: Number(item.itemType),
+        token: getAddress(item.token),
+        identifierOrCriteria: toBigInt(item.identifierOrCriteria),
+        startAmount: toBigInt(item.startAmount),
+        endAmount: toBigInt(item.endAmount),
+        recipient: getAddress(item.recipient),
+      })),
+      orderType: Number(params.orderType),
+      startTime: toBigInt(params.startTime),
+      endTime: toBigInt(params.endTime),
+      zoneHash: params.zoneHash as `0x${string}`,
+      salt: toBigInt(params.salt),
+      conduitKey: params.conduitKey as `0x${string}`,
+      totalOriginalConsiderationItems: toBigInt(params.totalOriginalConsiderationItems),
+    },
+    signature: (signature || "0x") as `0x${string}`,
+  };
+}
+
+function buildCounterOrder(order: ContractOrder, buyerAddress: Address): ContractOrder {
+  const buyer = buyerAddress.toLowerCase();
+  const paymentItems = order.parameters.consideration.filter(
+    item => item.recipient.toLowerCase() !== buyer
+  );
+  const totalStart = paymentItems.reduce((s, item) => s + item.startAmount, 0n);
+  const totalEnd = paymentItems.reduce((s, item) => s + item.endAmount, 0n);
+
+  return {
+    parameters: {
+      offerer: buyerAddress,
+      zone: order.parameters.zone,
+      offer:
+        paymentItems.length > 0
+          ? [{
+              itemType: paymentItems[0].itemType,
+              token: paymentItems[0].token,
+              identifierOrCriteria: paymentItems[0].identifierOrCriteria,
+              startAmount: totalStart,
+              endAmount: totalEnd,
+            }]
+          : [],
+      consideration: [],
+      orderType: order.parameters.orderType,
+      startTime: order.parameters.startTime,
+      endTime: order.parameters.endTime,
+      zoneHash: order.parameters.zoneHash,
+      salt: randomSalt(),
+      conduitKey: order.parameters.conduitKey,
+      totalOriginalConsiderationItems: 0n,
+    },
+    signature: "0x",
+  };
+}
+
+function buildFulfillments(order: ContractOrder): MatchOrdersFulfillment[] {
+  const nftFulfillments: MatchOrdersFulfillment[] = [];
+  order.parameters.offer.forEach((offerItem, offerIdx) => {
+    const considerationIdx = order.parameters.consideration.findIndex(
+      c =>
+        c.itemType === offerItem.itemType &&
+        c.token.toLowerCase() === offerItem.token.toLowerCase() &&
+        c.identifierOrCriteria === offerItem.identifierOrCriteria
+    );
+    if (considerationIdx === -1) throw new Error("Could not match NFT offer item to consideration");
+    nftFulfillments.push({
+      offerComponents: [{ orderIndex: 0n, itemIndex: BigInt(offerIdx) }],
+      considerationComponents: [{ orderIndex: 0n, itemIndex: BigInt(considerationIdx) }],
+    });
+  });
+
+  const currencyFulfillments: MatchOrdersFulfillment[] = [];
+  order.parameters.consideration.forEach((item, idx) => {
+    if (!isCurrencyItemType(item.itemType)) return;
+    currencyFulfillments.push({
+      offerComponents: [{ orderIndex: 1n, itemIndex: 0n }],
+      considerationComponents: [{ orderIndex: 0n, itemIndex: BigInt(idx) }],
+    });
+  });
+
+  return [...nftFulfillments, ...currencyFulfillments];
+}
 
 const BASE_CHAIN_CONFIG = {
   chainId: "0x2105",
@@ -256,6 +513,11 @@ export default function App() {
         }
 
         const quote = (await quoteRes.json()) as BuyQuoteResponse;
+
+        if (!quote.listing.protocolData?.parameters) {
+          throw new Error("The listing is missing Seaport order data.");
+        }
+
         const provider = (await sdk.wallet.getEthereumProvider()) as EthereumProvider | null;
         if (!provider) {
           throw new Error("Farcaster Wallet is unavailable in this client.");
@@ -270,10 +532,20 @@ export default function App() {
 
         await ensureChain(provider, quote.transaction.chainIdHex || BASE_CHAIN_CONFIG.chainId);
 
+        // Encode matchOrders calldata client-side (viem is bundled by Vite, not the Pages Function)
+        const order = rawToContractOrder(quote.listing.protocolData.parameters, quote.listing.protocolData.signature ?? "0x");
+        const counterOrder = buildCounterOrder(order, activeAccount);
+        const fulfillments = buildFulfillments(order);
+        const matchOrdersData = encodeFunctionData({
+          abi: MATCH_ORDERS_ABI,
+          functionName: "matchOrders",
+          args: [[order, counterOrder], fulfillments],
+        });
+
         const allowanceCallData = encodeFunctionData({
           abi: erc20Abi,
           functionName: "allowance",
-          args: [activeAccount, quote.approval.spender],
+          args: [activeAccount, getAddress(quote.approval.spender)],
         });
 
         const allowanceResult = (await provider.request({
@@ -294,7 +566,7 @@ export default function App() {
           const approvalData = encodeFunctionData({
             abi: erc20Abi,
             functionName: "approve",
-            args: [quote.approval.spender, requiredAllowance],
+            args: [getAddress(quote.approval.spender), requiredAllowance],
           });
 
           const approvalHash = (await provider.request({
@@ -318,7 +590,7 @@ export default function App() {
             {
               from: activeAccount,
               to: quote.transaction.to,
-              data: quote.transaction.data,
+              data: matchOrdersData,
               value: quote.transaction.value,
             },
           ],
