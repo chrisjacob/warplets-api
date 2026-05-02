@@ -1,0 +1,13 @@
+@import "@neynar/ui/styles";
+@import "@neynar/ui/themes/purple-dawn";
+
+:root {
+  --splash-bg: #000000;
+}
+
+body {
+  background-color: #000000;
+  color: #ffffff;
+  margin: 0;
+  padding: 0;
+}

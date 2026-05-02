@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/png" href="/icon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>10X</title>
+    <!--
+      fc:miniapp embed metatag.
+      imageUrl must be 3:2 ratio (e.g. 1200x800).
+      splashImageUrl must be 200x200.
+      Update these URLs once assets are deployed to app.10x.meme.
+    -->
+    <meta
+      name="fc:miniapp"
+      content="{&quot;version&quot;:&quot;1&quot;,&quot;imageUrl&quot;:&quot;%VITE_MINIAPP_BASE_URL%/embed.png&quot;,&quot;button&quot;:{&quot;title&quot;:&quot;Open 10X&quot;,&quot;action&quot;:{&quot;type&quot;:&quot;launch_miniapp&quot;,&quot;name&quot;:&quot;10X&quot;,&quot;url&quot;:&quot;%VITE_MINIAPP_BASE_URL%&quot;,&quot;splashImageUrl&quot;:&quot;%VITE_MINIAPP_BASE_URL%/splash.png&quot;,&quot;splashBackgroundColor&quot;:&quot;#000000&quot;}}}"
+    />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
