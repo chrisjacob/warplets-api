@@ -17,18 +17,18 @@
     "splashBackgroundColor": "#000000",
     "webhookUrl": "https://app.10x.meme/webhook",
     "castShareUrl": "https://app.10x.meme",
-    "subtitle": "Builders, capital and signal",
-    "description": "10X Warplets. 1M Warplet. 10X Meme.",
+    "subtitle": "Don't miss out.",
+    "description": "10X Network. 10X Warplets. 10X Memecoins.",
     "primaryCategory": "social",
     "screenshotUrls": [
       "https://app.10x.meme/screenshots/1.jpg",
       "https://app.10x.meme/screenshots/2.jpg",
       "https://app.10x.meme/screenshots/3.jpg"
     ],
-    "tags": ["warplets", "farcaster", "nft", "10x"],
-    "tagline": "Aligned builders and capital",
+    "tags": ["10x", "warplets", "farcaster", "nft", "memecoins"],
+    "tagline": "Don't miss out.",
     "ogTitle": "10X",
-    "ogDescription": "Builders, capital and signal aligned.",
+    "ogDescription": "Builders, capital and signal - aligned.",
     "ogImageUrl": "https://app.10x.meme/embed.png"
   }
 }
