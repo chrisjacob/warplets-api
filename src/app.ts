@@ -1270,8 +1270,8 @@ export function createApp(options: AppOptions = {}): Hono {
     path: "/",
     og: false,
     openGraph: {
-      title: "10X Warplets",
-      description: "Builders, capital, and signal - aligned.",
+      title: "🟢 10X Warplets - Private 10K NFT Drop",
+      description: "Builders, capital, and signal - aligned. Don't miss out.",
     },
   });
 
@@ -1280,8 +1280,8 @@ export function createApp(options: AppOptions = {}): Hono {
     path: "/poll",
     og: false,
     openGraph: {
-      title: "10X Warplets",
-      description: "Builders, capital, and signal - aligned.",
+      title: "🟢 10X Warplets - Private 10K NFT Drop",
+      description: "Builders, capital, and signal - aligned. Don't miss out.",
     },
   });
 
@@ -1290,8 +1290,8 @@ export function createApp(options: AppOptions = {}): Hono {
     path: "/claim",
     og: false,
     openGraph: {
-      title: "10X Warplets",
-      description: "Builders, capital, and signal - aligned.",
+      title: "🟢 10X Warplets - Private 10K NFT Drop",
+      description: "Builders, capital, and signal - aligned. Don't miss out.",
     },
   });
 
