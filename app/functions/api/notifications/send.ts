@@ -15,12 +15,10 @@
  *   { total, results: { fid, state }[] }
  */
 
-import { getNotificationToken } from "../../_lib/kv.js";
 import { dispatchNotification } from "../../_lib/dispatch.js";
 
 interface Env {
   WARPLETS: D1Database;
-  WARPLETS_KV: KVNamespace;
   ADMIN_NOTIFY_TEST_TOKEN?: string;
 }
 
@@ -102,20 +100,15 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   const results: { fid: number; state: string }[] = [];
 
   for (const row of rows) {
-    // Prefer KV token if available (may have fresher token than D1 for recent subscribers)
-    const kv = await getNotificationToken(context.env.WARPLETS_KV, row.fid);
-    const notificationUrl = kv?.url ?? row.notification_url;
-    const notificationToken = kv?.token ?? row.notification_token;
-
     const result = await dispatchNotification(context.env.WARPLETS, {
       fid: row.fid,
-      notificationUrl,
-      notificationToken,
+      notificationUrl: row.notification_url,
+      notificationToken: row.notification_token,
       notificationId,
       title,
       body,
       targetUrl,
-    }, context.env.WARPLETS_KV);
+    });
 
     results.push({ fid: row.fid, state: result.state });
   }

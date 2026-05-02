@@ -1,9 +1,7 @@
-import { getNotificationToken } from "../_lib/kv.js";
 import { dispatchNotification } from "../_lib/dispatch.js";
 
 interface Env {
   WARPLETS: D1Database;
-  WARPLETS_KV: KVNamespace;
   ADMIN_NOTIFY_TEST_TOKEN?: string;
 }
 
@@ -31,38 +29,30 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
   const json = (await context.request.json().catch(() => ({}))) as RequestBody;
 
-  // Resolve token: prefer KV (fast) for specific FID, fall back to D1 for latest enabled
+  // Resolve token from D1
   let notificationUrl: string;
   let notificationToken: string;
   let resolvedFid: number;
 
   if (typeof json.fid === "number") {
-    const kv = await getNotificationToken(context.env.WARPLETS_KV, json.fid);
-    if (kv) {
-      notificationUrl = kv.url;
-      notificationToken = kv.token;
-      resolvedFid = json.fid;
-    } else {
-      // Fall back to D1 (token may not be in KV yet if added before migration)
-      const row = (await context.env.WARPLETS.prepare(
-        `SELECT fid, notification_url, notification_token
-         FROM miniapp_notification_tokens
-         WHERE enabled = 1 AND fid = ?
-         ORDER BY updated_at DESC LIMIT 1`
-      )
-        .bind(json.fid)
-        .first()) as TokenRow | null;
+    const row = (await context.env.WARPLETS.prepare(
+      `SELECT fid, notification_url, notification_token
+       FROM miniapp_notification_tokens
+       WHERE enabled = 1 AND fid = ?
+       ORDER BY updated_at DESC LIMIT 1`
+    )
+      .bind(json.fid)
+      .first()) as TokenRow | null;
 
-      if (!row) {
-        return Response.json(
-          { error: "No enabled notification token found for this FID" },
-          { status: 404 }
-        );
-      }
-      notificationUrl = row.notification_url;
-      notificationToken = row.notification_token;
-      resolvedFid = row.fid;
+    if (!row) {
+      return Response.json(
+        { error: "No enabled notification token found for this FID" },
+        { status: 404 }
+      );
     }
+    notificationUrl = row.notification_url;
+    notificationToken = row.notification_token;
+    resolvedFid = row.fid;
   } else {
     // No FID specified — grab latest enabled from D1
     const row = (await context.env.WARPLETS.prepare(
@@ -99,7 +89,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     title,
     body,
     targetUrl,
-  }, context.env.WARPLETS_KV);
+  });
 
   if (result.state === "validation_error") {
     return Response.json({ error: result.message }, { status: 400 });

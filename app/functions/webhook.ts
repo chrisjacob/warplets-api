@@ -3,8 +3,7 @@
  *
  * Receives Farcaster Mini App webhook events, verifies the JFS signature
  * using @farcaster/miniapp-node (via Neynar hub), persists token lifecycle
- * changes to both KV (fast reads) and D1 (audit trail), and logs every
- * raw event for forensic debugging and replay.
+ * changes to D1, and logs every raw event for audit and replay.
  *
  * Handles: miniapp_added, miniapp_removed, notifications_enabled, notifications_disabled
  */
@@ -14,15 +13,11 @@ import {
   parseWebhookEvent,
   createVerifyAppKeyWithHub,
 } from "@farcaster/miniapp-node";
-import {
-  setNotificationToken,
-  deleteNotificationToken,
-  type NotificationDetails,
-} from "./_lib/kv.js";
+
+interface NotificationDetails { token: string; url: string; }
 
 interface Env {
   WARPLETS: D1Database;
-  WARPLETS_KV: KVNamespace;
   NEYNAR_API_KEY: string;
 }
 
@@ -75,10 +70,6 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     case "notifications_enabled": {
       const details = (event as { notificationDetails?: NotificationDetails }).notificationDetails;
       if (details?.token && details?.url) {
-        // Write to KV for fast lookups
-        await setNotificationToken(env.WARPLETS_KV, fid, details);
-
-        // Upsert into D1 token registry
         await env.WARPLETS.prepare(
           `INSERT INTO miniapp_notification_tokens (fid, notification_url, notification_token, enabled)
            VALUES (?, ?, ?, 1)
@@ -96,10 +87,6 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
     case "miniapp_removed":
     case "notifications_disabled": {
-      // Remove from KV
-      await deleteNotificationToken(env.WARPLETS_KV, fid);
-
-      // Disable in D1
       await env.WARPLETS.prepare(
         `UPDATE miniapp_notification_tokens
          SET enabled = 0, updated_at = datetime('now')
