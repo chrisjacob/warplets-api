@@ -1,7 +1,6 @@
 interface Env {
   WARPLETS: D1Database;
   ADMIN_NOTIFY_TEST_TOKEN?: string;
-  NEYNAR_API_KEY?: string;
 }
 
 interface TokenRow {
@@ -24,11 +23,6 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
   if (!configuredToken || suppliedToken !== configuredToken) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const apiKey = context.env.NEYNAR_API_KEY;
-  if (!apiKey) {
-    return Response.json({ error: "NEYNAR_API_KEY not configured" }, { status: 500 });
   }
 
   const json = (await context.request.json().catch(() => ({}))) as RequestBody;
@@ -56,7 +50,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     return Response.json(
       {
         error: "No enabled notification token found",
-        hint: "Open the Mini App and enable notifications, then retry.",
+        hint: "Open the Mini App and add/enable notifications, then retry.",
       },
       { status: 404 }
     );
@@ -67,31 +61,30 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   const body = (json.body ?? "Push notifications are working.").slice(0, 128);
   const targetUrl = json.targetUrl ?? `https://app.10x.meme/?notificationId=${notificationId}`;
 
-  // Send via Neynar API
-  const neynarSendUrl = "https://api.neynar.com/v2/notifications/send";
-  const neynarResp = await fetch(neynarSendUrl, {
+  const upstreamBody = {
+    notificationId,
+    title,
+    body,
+    targetUrl,
+    tokens: [row.notification_token],
+  };
+
+  const upstream = await fetch(row.notification_url, {
     method: "POST",
     headers: {
       "content-type": "application/json",
-      "x-api-key": apiKey,
     },
-    body: JSON.stringify({
-      notificationId,
-      title,
-      body,
-      targetUrl,
-      tokens: [row.notification_token],
-    }),
+    body: JSON.stringify(upstreamBody),
   });
 
-  const neynarText = await neynarResp.text();
+  const upstreamText = await upstream.text();
 
-  if (!neynarResp.ok) {
+  if (!upstream.ok) {
     return Response.json(
       {
         error: "Notification provider rejected request",
-        neynarStatus: neynarResp.status,
-        neynarBody: neynarText,
+        upstreamStatus: upstream.status,
+        upstreamBody: upstreamText,
       },
       { status: 502 }
     );
@@ -100,8 +93,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   return Response.json({
     ok: true,
     sentToFid: row.fid,
-    neynarStatus: neynarResp.status,
-    neynarBody: neynarText,
-    usedToken: row.notification_token,
+    upstreamStatus: upstream.status,
+    upstreamBody: upstreamText,
+    usedNotificationUrl: row.notification_url,
   });
 };

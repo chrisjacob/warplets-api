@@ -4,7 +4,7 @@ import { Text } from "@neynar/ui/typography";
 
 export default function App() {
   const [fid, setFid] = useState<number | null>(null);
-  const [isRegistering, setIsRegistering] = useState(false);
+  const [isAdding, setIsAdding] = useState(false);
   const [status, setStatus] = useState<string>("");
 
   useEffect(() => {
@@ -23,45 +23,16 @@ export default function App() {
 
   const handleEnableNotifications = async () => {
     try {
-      setIsRegistering(true);
-      setStatus("Requesting permission...");
+      setIsAdding(true);
+      setStatus("Prompting add flow in host...");
 
-      const result = await sdk.actions.requestNotificationPermission();
-
-      if (!result.success) {
-        setStatus("Permission denied");
-        return;
-      }
-
-      if (!fid) {
-        setStatus("Could not get user FID");
-        return;
-      }
-
-      setStatus("Registering with Neynar...");
-
-      const registerResp = await fetch("/register-notification", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          fid,
-          notificationToken: result.notificationToken,
-        }),
-      });
-
-      if (!registerResp.ok) {
-        const error = await registerResp.json();
-        setStatus(`Registration failed: ${error.error}`);
-        return;
-      }
-
-      setStatus("✓ Notifications enabled!");
-      setTimeout(() => setStatus(""), 3000);
+      await sdk.actions.addMiniApp();
+      setStatus("If you added the app, webhook events should now be sent by the host.");
     } catch (err) {
-      console.error("Error enabling notifications:", err);
+      console.error("Error adding mini app:", err);
       setStatus("Error: " + (err instanceof Error ? err.message : String(err)));
     } finally {
-      setIsRegistering(false);
+      setIsAdding(false);
     }
   };
 
@@ -72,11 +43,14 @@ export default function App() {
         {fid && <Text className="text-sm text-gray-400">FID: {fid}</Text>}
         <button
           onClick={handleEnableNotifications}
-          disabled={isRegistering || !fid}
+          disabled={isAdding || !fid}
           className="px-6 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-600 text-white rounded-lg font-medium transition"
         >
-          {isRegistering ? "Loading..." : "Enable Notifications"}
+          {isAdding ? "Loading..." : "Enable Notifications"}
         </button>
+        <Text className="text-xs text-gray-500">
+          Notification tokens are delivered via webhook events from the host.
+        </Text>
         {status && <Text className="text-sm text-purple-400">{status}</Text>}
       </div>
     </div>
