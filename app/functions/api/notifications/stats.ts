@@ -1,7 +1,7 @@
 /**
  * GET /api/notifications/stats
  *
- * Returns per-notification aggregates: dispatches, deliveries, opens, clicks.
+ * Returns per-notification aggregates: dispatches, deliveries, opens.
  * Auth: x-admin-token header.
  */
 
@@ -17,7 +17,6 @@ interface StatsRow {
   dispatches: number;
   delivered: number;
   opens: number;
-  clicks: number;
   first_sent: string;
   last_sent: string;
 }
@@ -38,12 +37,10 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
        COUNT(DISTINCT d.id)                                          AS dispatches,
        SUM(CASE WHEN d.status = 'delivered' THEN 1 ELSE 0 END)      AS delivered,
        COUNT(DISTINCT o.id)                                          AS opens,
-       COUNT(DISTINCT c.id)                                          AS clicks,
        MIN(d.created_at)  AS first_sent,
        MAX(d.created_at)  AS last_sent
      FROM notification_dispatches d
      LEFT JOIN notification_opens  o ON o.notification_id = d.notification_id
-     LEFT JOIN notification_clicks c ON c.notification_id = d.notification_id
      GROUP BY d.notification_id
      ORDER BY last_sent DESC
      LIMIT 50`
@@ -56,9 +53,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     dispatches: r.dispatches,
     delivered: r.delivered,
     opens: r.opens,
-    clicks: r.clicks,
     openRate: r.delivered > 0 ? +(r.opens / r.delivered).toFixed(4) : null,
-    clickRate: r.delivered > 0 ? +(r.clicks / r.delivered).toFixed(4) : null,
     firstSent: r.first_sent,
     lastSent: r.last_sent,
   }));

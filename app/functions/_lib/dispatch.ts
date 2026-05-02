@@ -83,11 +83,6 @@ export async function dispatchNotification(
   let errorMessage: string | null = null;
 
   try {
-    // Wrap targetUrl through click-tracking redirect, carrying fid for attribution
-    const trackingUrl =
-      `https://app.10x.meme/n/${encodeURIComponent(notificationId)}` +
-      `?t=${encodeURIComponent(targetUrl)}&fid=${fid}`;
-
     const response = await fetch(notificationUrl, {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -95,7 +90,7 @@ export async function dispatchNotification(
         notificationId,
         title: title.slice(0, 32),
         body: body.slice(0, 128),
-        targetUrl: trackingUrl,
+        targetUrl,
         tokens: [notificationToken],
       }),
     });

@@ -6,7 +6,7 @@
  *
  * Features:
  *  - Send broadcast or targeted (up to 100 FIDs) notification
- *  - Live analytics table (per notification_id: dispatched / delivered / opens / clicks)
+ *  - Live analytics table (per notification_id: dispatched / delivered / opens)
  *  - Active token count
  *
  * Security: all data operations go through existing admin-token-gated API endpoints.
@@ -89,13 +89,12 @@ export const onRequestGet: PagesFunction = () => {
       <div class="stat-box"><div class="num" id="statDispatches">—</div><div class="lbl">Total sends</div></div>
       <div class="stat-box"><div class="num" id="statDelivered">—</div><div class="lbl">Delivered</div></div>
       <div class="stat-box"><div class="num" id="statOpens">—</div><div class="lbl">Opens</div></div>
-      <div class="stat-box"><div class="num" id="statClicks">—</div><div class="lbl">Clicks</div></div>
     </div>
     <table id="statsTable">
       <thead><tr>
-        <th>Notification ID</th><th>Title</th><th>Sent</th><th>Delivered</th><th>Opens</th><th>Clicks</th><th>Open %</th><th>Click %</th><th>Last sent</th>
+        <th>Notification ID</th><th>Title</th><th>Sent</th><th>Delivered</th><th>Opens</th><th>Open %</th><th>Last sent</th>
       </tr></thead>
-      <tbody id="statsBody"><tr><td colspan="9" style="color:#555;text-align:center;padding:1rem">Loading…</td></tr></tbody>
+      <tbody id="statsBody"><tr><td colspan="7" style="color:#555;text-align:center;padding:1rem">Loading…</td></tr></tbody>
     </table>
   </section>
 
@@ -196,16 +195,14 @@ export const onRequestGet: PagesFunction = () => {
       const totDispatches = rows.reduce((s, r) => s + r.dispatches, 0);
       const totDelivered  = rows.reduce((s, r) => s + r.delivered, 0);
       const totOpens      = rows.reduce((s, r) => s + r.opens, 0);
-      const totClicks     = rows.reduce((s, r) => s + r.clicks, 0);
 
       document.getElementById('statDispatches').textContent = totDispatches;
       document.getElementById('statDelivered').textContent  = totDelivered;
       document.getElementById('statOpens').textContent      = totOpens;
-      document.getElementById('statClicks').textContent     = totClicks;
 
       const tbody = document.getElementById('statsBody');
       if (!rows.length) {
-        tbody.innerHTML = '<tr><td colspan="9" style="color:#555;text-align:center;padding:1rem">No data yet</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" style="color:#555;text-align:center;padding:1rem">No data yet</td></tr>';
         return;
       }
       tbody.innerHTML = rows.map(r => \`
@@ -215,9 +212,7 @@ export const onRequestGet: PagesFunction = () => {
           <td>\${r.dispatches}</td>
           <td>\${r.delivered}</td>
           <td>\${r.opens}</td>
-          <td>\${r.clicks}</td>
           <td>\${r.openRate != null ? (r.openRate * 100).toFixed(1) + '%' : '—'}</td>
-          <td>\${r.clickRate != null ? (r.clickRate * 100).toFixed(1) + '%' : '—'}</td>
           <td style="color:#666;font-size:.75rem">\${r.lastSent?.replace('T',' ').slice(0,16) || r.lastSent}</td>
         </tr>\`).join('');
     } catch (e) { if (e.message !== 'Unauthorized') console.error(e); }
