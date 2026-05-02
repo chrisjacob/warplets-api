@@ -62,6 +62,7 @@ type BuyQuoteResponse = {
     chainIdHex: string;
     to: string;
     value: `0x${string}`;
+    inputData?: unknown;
   };
 };
 
@@ -88,32 +89,72 @@ type ContractOfferItem = {
 
 type ContractConsiderationItem = ContractOfferItem & { recipient: Address };
 
-type ContractOrder = {
-  parameters: {
-    offerer: Address;
-    zone: Address;
-    offer: ContractOfferItem[];
-    consideration: ContractConsiderationItem[];
-    orderType: number;
-    startTime: bigint;
-    endTime: bigint;
-    zoneHash: `0x${string}`;
-    salt: bigint;
-    conduitKey: `0x${string}`;
-    totalOriginalConsiderationItems: bigint;
-  };
+type ContractOrderParameters = {
+  offerer: Address;
+  zone: Address;
+  offer: ContractOfferItem[];
+  consideration: ContractConsiderationItem[];
+  orderType: number;
+  startTime: bigint;
+  endTime: bigint;
+  zoneHash: `0x${string}`;
+  salt: bigint;
+  conduitKey: `0x${string}`;
+  totalOriginalConsiderationItems: bigint;
+};
+
+type AdvancedOrder = {
+  parameters: ContractOrderParameters;
+  numerator: bigint;
+  denominator: bigint;
   signature: `0x${string}`;
+  extraData: `0x${string}`;
 };
 
-type MatchOrdersFulfillment = {
-  offerComponents: Array<{ orderIndex: bigint; itemIndex: bigint }>;
-  considerationComponents: Array<{ orderIndex: bigint; itemIndex: bigint }>;
+type CriteriaResolver = {
+  orderIndex: bigint;
+  side: number;
+  index: bigint;
+  identifier: bigint;
+  criteriaProof: `0x${string}`[];
 };
 
-const MATCH_ORDERS_ABI = [
+type FulfillmentComponent = {
+  orderIndex: bigint;
+  itemIndex: bigint;
+};
+
+type Fulfillment = {
+  offerComponents: FulfillmentComponent[];
+  considerationComponents: FulfillmentComponent[];
+};
+
+type RawFulfillmentInput = {
+  orders: Array<{
+    parameters: RawOrderParameters;
+    numerator: number | string;
+    denominator: number | string;
+    signature: string;
+    extraData: string;
+  }>;
+  criteriaResolvers: Array<{
+    orderIndex: number | string;
+    side: number | string;
+    index: number | string;
+    identifier: number | string;
+    criteriaProof: string[];
+  }>;
+  fulfillments: Array<{
+    offerComponents: Array<{ orderIndex: number | string; itemIndex: number | string }>;
+    considerationComponents: Array<{ orderIndex: number | string; itemIndex: number | string }>;
+  }>;
+  recipient?: string;
+};
+
+const MATCH_ADVANCED_ORDERS_ABI = [
   {
     type: "function",
-    name: "matchOrders",
+    name: "matchAdvancedOrders",
     stateMutability: "payable",
     inputs: [
       {
@@ -158,7 +199,21 @@ const MATCH_ORDERS_ABI = [
               { name: "totalOriginalConsiderationItems", type: "uint256" },
             ],
           },
+          { name: "numerator", type: "uint120" },
+          { name: "denominator", type: "uint120" },
           { name: "signature", type: "bytes" },
+          { name: "extraData", type: "bytes" },
+        ],
+      },
+      {
+        name: "criteriaResolvers",
+        type: "tuple[]",
+        components: [
+          { name: "orderIndex", type: "uint256" },
+          { name: "side", type: "uint8" },
+          { name: "index", type: "uint256" },
+          { name: "identifier", type: "uint256" },
+          { name: "criteriaProof", type: "bytes32[]" },
         ],
       },
       {
@@ -183,6 +238,7 @@ const MATCH_ORDERS_ABI = [
           },
         ],
       },
+      { name: "recipient", type: "address" },
     ],
     outputs: [],
   },
@@ -195,110 +251,68 @@ function toBigInt(value: string | number | bigint | undefined, fallback = 0n): b
   return fallback;
 }
 
-function randomSalt(): bigint {
-  const bytes = new Uint8Array(32);
-  crypto.getRandomValues(bytes);
-  const hex = Array.from(bytes, b => b.toString(16).padStart(2, "0")).join("");
-  return BigInt(`0x${hex}`);
-}
-
-function isCurrencyItemType(itemType: number): boolean {
-  return itemType === 0 || itemType === 1;
-}
-
-function rawToContractOrder(params: RawOrderParameters, signature: string): ContractOrder {
+function rawToContractOrderParameters(params: RawOrderParameters): ContractOrderParameters {
   return {
-    parameters: {
-      offerer: getAddress(params.offerer),
-      zone: getAddress(params.zone),
-      offer: params.offer.map(item => ({
-        itemType: Number(item.itemType),
-        token: getAddress(item.token),
-        identifierOrCriteria: toBigInt(item.identifierOrCriteria),
-        startAmount: toBigInt(item.startAmount),
-        endAmount: toBigInt(item.endAmount),
-      })),
-      consideration: params.consideration.map(item => ({
-        itemType: Number(item.itemType),
-        token: getAddress(item.token),
-        identifierOrCriteria: toBigInt(item.identifierOrCriteria),
-        startAmount: toBigInt(item.startAmount),
-        endAmount: toBigInt(item.endAmount),
-        recipient: getAddress(item.recipient),
-      })),
-      orderType: Number(params.orderType),
-      startTime: toBigInt(params.startTime),
-      endTime: toBigInt(params.endTime),
-      zoneHash: params.zoneHash as `0x${string}`,
-      salt: toBigInt(params.salt),
-      conduitKey: params.conduitKey as `0x${string}`,
-      totalOriginalConsiderationItems: toBigInt(params.totalOriginalConsiderationItems),
-    },
-    signature: (signature || "0x") as `0x${string}`,
+    offerer: getAddress(params.offerer),
+    zone: getAddress(params.zone),
+    offer: params.offer.map(item => ({
+      itemType: Number(item.itemType),
+      token: getAddress(item.token),
+      identifierOrCriteria: toBigInt(item.identifierOrCriteria),
+      startAmount: toBigInt(item.startAmount),
+      endAmount: toBigInt(item.endAmount),
+    })),
+    consideration: params.consideration.map(item => ({
+      itemType: Number(item.itemType),
+      token: getAddress(item.token),
+      identifierOrCriteria: toBigInt(item.identifierOrCriteria),
+      startAmount: toBigInt(item.startAmount),
+      endAmount: toBigInt(item.endAmount),
+      recipient: getAddress(item.recipient),
+    })),
+    orderType: Number(params.orderType),
+    startTime: toBigInt(params.startTime),
+    endTime: toBigInt(params.endTime),
+    zoneHash: params.zoneHash as `0x${string}`,
+    salt: toBigInt(params.salt),
+    conduitKey: params.conduitKey as `0x${string}`,
+    totalOriginalConsiderationItems: toBigInt(params.totalOriginalConsiderationItems),
   };
 }
 
-function buildCounterOrder(order: ContractOrder, buyerAddress: Address): ContractOrder {
-  const buyer = buyerAddress.toLowerCase();
-  const paymentItems = order.parameters.consideration.filter(
-    item => item.recipient.toLowerCase() !== buyer
-  );
-  const totalStart = paymentItems.reduce((s, item) => s + item.startAmount, 0n);
-  const totalEnd = paymentItems.reduce((s, item) => s + item.endAmount, 0n);
+function buildMatchAdvancedOrdersArgs(
+  inputData: RawFulfillmentInput,
+  fallbackRecipient: Address
+): [AdvancedOrder[], CriteriaResolver[], Fulfillment[], Address] {
+  const orders: AdvancedOrder[] = inputData.orders.map(order => ({
+    parameters: rawToContractOrderParameters(order.parameters),
+    numerator: toBigInt(order.numerator, 1n),
+    denominator: toBigInt(order.denominator, 1n),
+    signature: (order.signature || "0x") as `0x${string}`,
+    extraData: (order.extraData || "0x") as `0x${string}`,
+  }));
 
-  return {
-    parameters: {
-      offerer: buyerAddress,
-      zone: order.parameters.zone,
-      offer:
-        paymentItems.length > 0
-          ? [{
-              itemType: paymentItems[0].itemType,
-              token: paymentItems[0].token,
-              identifierOrCriteria: paymentItems[0].identifierOrCriteria,
-              startAmount: totalStart,
-              endAmount: totalEnd,
-            }]
-          : [],
-      consideration: [],
-      orderType: order.parameters.orderType,
-      startTime: order.parameters.startTime,
-      endTime: order.parameters.endTime,
-      zoneHash: order.parameters.zoneHash,
-      salt: randomSalt(),
-      conduitKey: order.parameters.conduitKey,
-      totalOriginalConsiderationItems: 0n,
-    },
-    signature: "0x",
-  };
-}
+  const criteriaResolvers: CriteriaResolver[] = (inputData.criteriaResolvers ?? []).map(resolver => ({
+    orderIndex: toBigInt(resolver.orderIndex),
+    side: Number(resolver.side),
+    index: toBigInt(resolver.index),
+    identifier: toBigInt(resolver.identifier),
+    criteriaProof: (resolver.criteriaProof ?? []) as `0x${string}`[],
+  }));
 
-function buildFulfillments(order: ContractOrder): MatchOrdersFulfillment[] {
-  const nftFulfillments: MatchOrdersFulfillment[] = [];
-  order.parameters.offer.forEach((offerItem, offerIdx) => {
-    const considerationIdx = order.parameters.consideration.findIndex(
-      c =>
-        c.itemType === offerItem.itemType &&
-        c.token.toLowerCase() === offerItem.token.toLowerCase() &&
-        c.identifierOrCriteria === offerItem.identifierOrCriteria
-    );
-    if (considerationIdx === -1) throw new Error("Could not match NFT offer item to consideration");
-    nftFulfillments.push({
-      offerComponents: [{ orderIndex: 0n, itemIndex: BigInt(offerIdx) }],
-      considerationComponents: [{ orderIndex: 0n, itemIndex: BigInt(considerationIdx) }],
-    });
-  });
+  const fulfillments: Fulfillment[] = (inputData.fulfillments ?? []).map(f => ({
+    offerComponents: (f.offerComponents ?? []).map(c => ({
+      orderIndex: toBigInt(c.orderIndex),
+      itemIndex: toBigInt(c.itemIndex),
+    })),
+    considerationComponents: (f.considerationComponents ?? []).map(c => ({
+      orderIndex: toBigInt(c.orderIndex),
+      itemIndex: toBigInt(c.itemIndex),
+    })),
+  }));
 
-  const currencyFulfillments: MatchOrdersFulfillment[] = [];
-  order.parameters.consideration.forEach((item, idx) => {
-    if (!isCurrencyItemType(item.itemType)) return;
-    currencyFulfillments.push({
-      offerComponents: [{ orderIndex: 1n, itemIndex: 0n }],
-      considerationComponents: [{ orderIndex: 0n, itemIndex: BigInt(idx) }],
-    });
-  });
-
-  return [...nftFulfillments, ...currencyFulfillments];
+  const recipient = getAddress(inputData.recipient || fallbackRecipient);
+  return [orders, criteriaResolvers, fulfillments, recipient];
 }
 
 const BASE_CHAIN_CONFIG = {
@@ -567,8 +581,8 @@ export default function App() {
 
         const quote = (await quoteRes.json()) as BuyQuoteResponse;
 
-        if (!quote.listing.protocolData?.parameters) {
-          throw new Error("The listing is missing Seaport order data.");
+        if (!quote.transaction.inputData) {
+          throw new Error("The listing is missing OpenSea fulfillment data.");
         }
 
         const provider = (await sdk.wallet.getEthereumProvider()) as EthereumProvider | null;
@@ -585,14 +599,16 @@ export default function App() {
 
         await ensureChain(provider, quote.transaction.chainIdHex || BASE_CHAIN_CONFIG.chainId);
 
-        // Encode matchOrders calldata client-side (viem is bundled by Vite, not the Pages Function)
-        const order = rawToContractOrder(quote.listing.protocolData.parameters, quote.listing.protocolData.signature ?? "0x");
-        const counterOrder = buildCounterOrder(order, activeAccount);
-        const fulfillments = buildFulfillments(order);
+        const fulfillmentInput = quote.transaction.inputData as RawFulfillmentInput | undefined;
+        if (!fulfillmentInput?.orders?.length) {
+          throw new Error("OpenSea fulfillment payload is missing for this listing.");
+        }
+
+        const matchAdvancedOrdersArgs = buildMatchAdvancedOrdersArgs(fulfillmentInput, activeAccount);
         const matchOrdersData = encodeFunctionData({
-          abi: MATCH_ORDERS_ABI,
-          functionName: "matchOrders",
-          args: [[order, counterOrder], fulfillments],
+          abi: MATCH_ADVANCED_ORDERS_ABI,
+          functionName: "matchAdvancedOrders",
+          args: matchAdvancedOrdersArgs,
         });
 
         const allowanceCallData = encodeFunctionData({

@@ -81,6 +81,16 @@ type OpenSeaListingsResponse = {
   orders?: OpenSeaListing[];
 };
 
+type OpenSeaFulfillmentResponse = {
+  fulfillment_data?: {
+    transaction?: {
+      to?: string;
+      value?: string | number;
+      input_data?: unknown;
+    };
+  };
+};
+
 const NEYNAR_VIEWER_FID = 1129138;
 const OPENSEA_API_BASE = "https://api.opensea.io/api/v2";
 const BASE_CHAIN = "base";
@@ -204,6 +214,41 @@ async function fetchPrivateListings(
     const taker = order.taker?.address?.toLowerCase();
     return maker === DISTRIBUTION_WALLET.toLowerCase() && taker === buyerAddress.toLowerCase();
   });
+}
+
+async function fetchListingFulfillmentData(
+  orderHash: string,
+  protocolAddress: string,
+  buyerAddress: string,
+  openseaApiKey: string
+): Promise<OpenSeaFulfillmentResponse> {
+  const res = await fetch(`${OPENSEA_API_BASE}/listings/fulfillment_data`, {
+    method: "POST",
+    headers: {
+      accept: "application/json",
+      "content-type": "application/json",
+      "x-api-key": openseaApiKey,
+      "X-API-KEY": openseaApiKey,
+    },
+    body: JSON.stringify({
+      listing: {
+        hash: orderHash,
+        chain: BASE_CHAIN,
+        protocol_address: protocolAddress,
+      },
+      fulfiller: {
+        address: buyerAddress,
+      },
+    }),
+    signal: AbortSignal.timeout(10000),
+  });
+
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(`OpenSea fulfillment lookup failed (${res.status}): ${body || "unknown error"}`);
+  }
+
+  return (await res.json()) as OpenSeaFulfillmentResponse;
 }
 
 function getListingPrice(listing: OpenSeaListing): bigint {
@@ -352,13 +397,32 @@ async function handleRequest(context: Parameters<PagesFunction<Env>>[0]): Promis
     return Response.json({ error: "Listing is missing the Seaport protocol address" }, { status: 409 });
   }
 
-  // Return raw listing data — ABI encoding (matchOrders calldata) is done client-side in App.tsx
+  const orderHash = listing.order_hash?.trim();
+  if (!orderHash) {
+    return Response.json({ error: "Listing is missing order hash" }, { status: 409 });
+  }
+
+  let fulfillmentData: OpenSeaFulfillmentResponse;
+  try {
+    fulfillmentData = await fetchListingFulfillmentData(orderHash, seaportAddress, buyerAddress, openseaApiKey);
+  } catch (error) {
+    return Response.json(
+      { error: error instanceof Error ? error.message : "Failed to build fulfillment data" },
+      { status: 503 }
+    );
+  }
+
+  const fulfillmentTx = fulfillmentData.fulfillment_data?.transaction;
+  const fulfillmentTo = fulfillmentTx?.to?.trim().toLowerCase() || seaportAddress;
+  const fulfillmentValue = toBigIntValue(fulfillmentTx?.value, 0n);
+
+  // Return OpenSea fulfillment input_data so the frontend can encode matchAdvancedOrders with the maker signature.
   return Response.json({
     fid,
     rarityValue,
     buyerAddress,
     listing: {
-      orderHash: listing.order_hash ?? null,
+      orderHash,
       tokenId: String(rarityValue),
       makerAddress: listing.maker?.address ?? null,
       takerAddress: listing.taker?.address ?? null,
@@ -375,8 +439,9 @@ async function handleRequest(context: Parameters<PagesFunction<Env>>[0]): Promis
     },
     transaction: {
       chainIdHex: BASE_CHAIN_ID_HEX,
-      to: seaportAddress,
-      value: "0x0",
+      to: fulfillmentTo,
+      value: `0x${fulfillmentValue.toString(16)}`,
+      inputData: fulfillmentTx?.input_data ?? null,
     },
   });
 }
