@@ -67,11 +67,19 @@ export type SyncResult = {
   skipped: number;
 };
 
+export type OpenseaSyncOptions = {
+  // When provided, bypass KV resume and force a lookback window.
+  occurredAfterSec?: number;
+};
+
 // ---------------------------------------------------------------------------
 // Main sync function
 // ---------------------------------------------------------------------------
 
-export async function runOpenseaSync(env: OpenseaSyncEnv): Promise<SyncResult> {
+export async function runOpenseaSync(
+  env: OpenseaSyncEnv,
+  options: OpenseaSyncOptions = {},
+): Promise<SyncResult> {
   const apiKey = env.OPENSEA_API_KEY?.trim();
   if (!apiKey) {
     console.warn("[opensea-sync] OPENSEA_API_KEY not configured — skipping");
@@ -82,13 +90,16 @@ export async function runOpenseaSync(env: OpenseaSyncEnv): Promise<SyncResult> {
   // 1. Determine resume point
   // -------------------------------------------------------------------------
   const lastSyncAt = await env.WARPLETS_KV.get(KV_LAST_SYNC_KEY);
-  const occurredAfterSec = lastSyncAt
-    ? Math.floor(new Date(lastSyncAt).getTime() / 1000)
-    // First run: look back 24 hours so we don't miss recent activity
-    : Math.floor(Date.now() / 1000) - 86400;
+  const occurredAfterSec =
+    typeof options.occurredAfterSec === "number"
+      ? options.occurredAfterSec
+      : lastSyncAt
+        ? Math.floor(new Date(lastSyncAt).getTime() / 1000)
+        // First run: look back 24 hours so we don't miss recent activity
+        : Math.floor(Date.now() / 1000) - 86400;
 
   console.log(
-    `[opensea-sync] resuming from ${lastSyncAt ?? "(first run, -24h)"} (unix=${occurredAfterSec})`,
+    `[opensea-sync] resuming from ${lastSyncAt ?? "(first run, -24h)"} (unix=${occurredAfterSec})${typeof options.occurredAfterSec === "number" ? " [manual window override]" : ""}`,
   );
 
   // -------------------------------------------------------------------------
@@ -153,6 +164,7 @@ export async function runOpenseaSync(env: OpenseaSyncEnv): Promise<SyncResult> {
       const eventTs = ev.event_timestamp;
 
       // Insert into opensea table; ON CONFLICT DO NOTHING handles dedup
+      let isDuplicate = false;
       try {
         const result = await env.WARPLETS.prepare(
           `INSERT OR IGNORE INTO opensea
@@ -175,15 +187,17 @@ export async function runOpenseaSync(env: OpenseaSyncEnv): Promise<SyncResult> {
 
         // `changes === 0` means the UNIQUE constraint fired — already stored
         if (result.meta.changes === 0) {
+          isDuplicate = true;
           skipped++;
-          continue;
         }
       } catch (err) {
         console.error("[opensea-sync] insert error for event:", eventTs, err);
         continue;
       }
 
-      processed++;
+      if (!isDuplicate) {
+        processed++;
+      }
 
       // Track latest timestamp for KV resume
       if (!latestTimestamp || eventTs > latestTimestamp) {

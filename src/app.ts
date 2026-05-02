@@ -5,6 +5,7 @@ import {
   type SnapHandlerResult,
 } from "@farcaster/snap";
 import { registerSnapHandler } from "@farcaster/snap-hono";
+import { runOpenseaSync, type OpenseaSyncEnv } from "./opensea-sync";
 
 // ---------------------------------------------------------------------------
 // Environment bindings (Cloudflare Workers)
@@ -21,6 +22,8 @@ interface Env {
   NEYNAR_API_KEY?: string;
   /** Optional: OpenSea API key used by the cron-triggered event sync. */
   OPENSEA_API_KEY?: string;
+  /** Optional: token required to run manual OpenSea backfill endpoint. */
+  OPENSEA_MANUAL_SYNC_TOKEN?: string;
 }
 
 type AppOptions = {
@@ -1210,6 +1213,38 @@ const snap: SnapFunction = async (ctx) => {
 
 export function createApp(options: AppOptions = {}): Hono {
   const app = new Hono();
+
+  // Manually trigger OpenSea sync with a lookback window (default: 48h).
+  // Protected by OPENSEA_MANUAL_SYNC_TOKEN to avoid public abuse.
+  app.post("/__admin/opensea-sync", async (c) => {
+    const env = c.env as Env;
+    const configuredToken = env.OPENSEA_MANUAL_SYNC_TOKEN?.trim();
+    if (!configuredToken) {
+      return c.json({ ok: false, error: "manual sync token is not configured" }, 503);
+    }
+
+    const providedToken = (c.req.header("x-sync-token") ?? c.req.query("token") ?? "").trim();
+    if (!providedToken || providedToken !== configuredToken) {
+      return c.json({ ok: false, error: "unauthorized" }, 401);
+    }
+
+    const lookbackRaw = c.req.query("hours") ?? "48";
+    const parsed = Number.parseInt(lookbackRaw, 10);
+    const lookbackHours = Number.isFinite(parsed)
+      ? Math.min(168, Math.max(1, parsed))
+      : 48;
+    const occurredAfterSec = Math.floor(Date.now() / 1000) - lookbackHours * 60 * 60;
+
+    const result = await runOpenseaSync(env as unknown as OpenseaSyncEnv, {
+      occurredAfterSec,
+    });
+    return c.json({
+      ok: true,
+      lookbackHours,
+      occurredAfterSec,
+      result,
+    });
+  });
 
   if (options.devTunnelToken) {
     app.get("/__dev/health", (c) => {
