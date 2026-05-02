@@ -1,12 +1,10 @@
+import { getNotificationToken } from "../_lib/kv.js";
+import { dispatchNotification } from "../_lib/dispatch.js";
+
 interface Env {
   WARPLETS: D1Database;
+  WARPLETS_KV: KVNamespace;
   ADMIN_NOTIFY_TEST_TOKEN?: string;
-}
-
-interface TokenRow {
-  fid: number;
-  notification_url: string;
-  notification_token: string;
 }
 
 interface RequestBody {
@@ -15,6 +13,12 @@ interface RequestBody {
   body?: string;
   targetUrl?: string;
   notificationId?: string;
+}
+
+interface TokenRow {
+  fid: number;
+  notification_url: string;
+  notification_token: string;
 }
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
@@ -27,33 +31,59 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
   const json = (await context.request.json().catch(() => ({}))) as RequestBody;
 
-  const stmt =
-    typeof json.fid === "number"
-      ? context.env.WARPLETS.prepare(
-          `SELECT fid, notification_url, notification_token
-           FROM miniapp_notification_tokens
-           WHERE enabled = 1 AND fid = ?
-           ORDER BY updated_at DESC
-           LIMIT 1`
-        ).bind(json.fid)
-      : context.env.WARPLETS.prepare(
-          `SELECT fid, notification_url, notification_token
-           FROM miniapp_notification_tokens
-           WHERE enabled = 1
-           ORDER BY updated_at DESC
-           LIMIT 1`
+  // Resolve token: prefer KV (fast) for specific FID, fall back to D1 for latest enabled
+  let notificationUrl: string;
+  let notificationToken: string;
+  let resolvedFid: number;
+
+  if (typeof json.fid === "number") {
+    const kv = await getNotificationToken(context.env.WARPLETS_KV, json.fid);
+    if (kv) {
+      notificationUrl = kv.url;
+      notificationToken = kv.token;
+      resolvedFid = json.fid;
+    } else {
+      // Fall back to D1 (token may not be in KV yet if added before migration)
+      const row = (await context.env.WARPLETS.prepare(
+        `SELECT fid, notification_url, notification_token
+         FROM miniapp_notification_tokens
+         WHERE enabled = 1 AND fid = ?
+         ORDER BY updated_at DESC LIMIT 1`
+      )
+        .bind(json.fid)
+        .first()) as TokenRow | null;
+
+      if (!row) {
+        return Response.json(
+          { error: "No enabled notification token found for this FID" },
+          { status: 404 }
         );
+      }
+      notificationUrl = row.notification_url;
+      notificationToken = row.notification_token;
+      resolvedFid = row.fid;
+    }
+  } else {
+    // No FID specified — grab latest enabled from D1
+    const row = (await context.env.WARPLETS.prepare(
+      `SELECT fid, notification_url, notification_token
+       FROM miniapp_notification_tokens
+       WHERE enabled = 1
+       ORDER BY updated_at DESC LIMIT 1`
+    ).first()) as TokenRow | null;
 
-  const row = (await stmt.first()) as TokenRow | null;
-
-  if (!row) {
-    return Response.json(
-      {
-        error: "No enabled notification token found",
-        hint: "Open the Mini App and add/enable notifications, then retry.",
-      },
-      { status: 404 }
-    );
+    if (!row) {
+      return Response.json(
+        {
+          error: "No enabled notification token found",
+          hint: "Open the Mini App and add/enable notifications, then retry.",
+        },
+        { status: 404 }
+      );
+    }
+    notificationUrl = row.notification_url;
+    notificationToken = row.notification_token;
+    resolvedFid = row.fid;
   }
 
   const notificationId = json.notificationId ?? `test-${Date.now()}`;
@@ -61,40 +91,24 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   const body = (json.body ?? "Push notifications are working.").slice(0, 128);
   const targetUrl = json.targetUrl ?? `https://app.10x.meme/?notificationId=${notificationId}`;
 
-  const upstreamBody = {
+  const result = await dispatchNotification(context.env.WARPLETS, {
+    fid: resolvedFid,
+    notificationUrl,
+    notificationToken,
     notificationId,
     title,
     body,
     targetUrl,
-    tokens: [row.notification_token],
-  };
-
-  const upstream = await fetch(row.notification_url, {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-    },
-    body: JSON.stringify(upstreamBody),
   });
 
-  const upstreamText = await upstream.text();
-
-  if (!upstream.ok) {
-    return Response.json(
-      {
-        error: "Notification provider rejected request",
-        upstreamStatus: upstream.status,
-        upstreamBody: upstreamText,
-      },
-      { status: 502 }
-    );
+  if (result.state === "validation_error") {
+    return Response.json({ error: result.message }, { status: 400 });
   }
 
   return Response.json({
-    ok: true,
-    sentToFid: row.fid,
-    upstreamStatus: upstream.status,
-    upstreamBody: upstreamText,
-    usedNotificationUrl: row.notification_url,
+    ok: result.state === "success",
+    state: result.state,
+    sentToFid: resolvedFid,
+    ...(result.state === "failed" ? { error: String(result.error) } : {}),
   });
 };

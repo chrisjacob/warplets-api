@@ -13,6 +13,7 @@
     "deploy:dev": "vite build --mode development && wrangler pages deploy dist --branch dev"
   },
   "dependencies": {
+    "@farcaster/miniapp-node": "^0.2.0",
     "@farcaster/miniapp-sdk": "^0.3.0",
     "@neynar/ui": "^1",
     "react": "^19",

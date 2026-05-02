@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@farcaster/miniapp-node':
+        specifier: ^0.2.0
+        version: 0.2.0(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6)
       '@farcaster/miniapp-sdk':
         specifier: ^0.3.0
         version: 0.3.0(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@4.4.2)
@@ -532,6 +535,9 @@ packages:
 
   '@farcaster/miniapp-core@0.6.0':
     resolution: {integrity: sha512-sgDQdU6fQDXYbNbjuvvwhww1rwf/S0JCnKsp/o2K+ubtboA3SOiy3Wrc+taBnAh56CCxVbZN9Hck3OpYh9wINw==}
+
+  '@farcaster/miniapp-node@0.2.0':
+    resolution: {integrity: sha512-KNEz7i799iWsZDKFbCXgLL4w6iYbAbI2T00OnqDZSz/dpZpPFAX6Dv9YrA1aZbb42OPokJnM/oivgDRVw3/76A==}
 
   '@farcaster/miniapp-sdk@0.3.0':
     resolution: {integrity: sha512-mxze24B5SSLwqpPqUmzthfsGGPeevJvDuOEbLJay1DDgPS/B0LswA0XXfz4d6pViA7Y4TkbeAPMAfuVZ9nIqgQ==}
@@ -2282,6 +2288,18 @@ snapshots:
       - typescript
       - utf-8-validate
 
+  '@farcaster/miniapp-node@0.2.0(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6)':
+    dependencies:
+      '@farcaster/miniapp-core': 0.6.0(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6)
+      '@noble/curves': 1.9.7
+      ox: 0.14.20(typescript@5.9.3)(zod@4.4.2)
+      zod: 4.4.2
+    transitivePeerDependencies:
+      - bufferutil
+      - encoding
+      - typescript
+      - utf-8-validate
+
   '@farcaster/miniapp-sdk@0.3.0(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@4.4.2)':
     dependencies:
       '@farcaster/miniapp-core': 0.6.0(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6)
@@ -2879,7 +2897,7 @@ snapshots:
 
   '@types/connect@3.4.38':
     dependencies:
-      '@types/node': 12.20.55
+      '@types/node': 25.6.0
 
   '@types/estree@1.0.8': {}
 
@@ -2901,7 +2919,7 @@ snapshots:
 
   '@types/ws@7.4.7':
     dependencies:
-      '@types/node': 12.20.55
+      '@types/node': 25.6.0
 
   '@types/ws@8.18.1':
     dependencies:
