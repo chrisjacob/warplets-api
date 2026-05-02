@@ -416,10 +416,19 @@ async function waitForTransactionReceipt(
   const startedAt = Date.now();
 
   while (Date.now() - startedAt < timeoutMs) {
-    const receipt = (await provider.request({
-      method: "eth_getTransactionReceipt",
-      params: [hash],
-    })) as { status?: string } | null;
+    let receipt: { status?: string } | null;
+    try {
+      receipt = (await provider.request({
+        method: "eth_getTransactionReceipt",
+        params: [hash],
+      })) as { status?: string } | null;
+    } catch (error) {
+      if (isUnsupportedMethodError(error)) {
+        // Embedded wallets may not expose receipt polling.
+        return;
+      }
+      throw error;
+    }
 
     if (receipt?.status === "0x1") {
       return;
@@ -592,18 +601,27 @@ export default function App() {
           args: [activeAccount, getAddress(quote.approval.spender)],
         });
 
-        const allowanceResult = (await provider.request({
-          method: "eth_call",
-          params: [
-            {
-              to: quote.approval.tokenAddress,
-              data: allowanceCallData,
-            },
-            "latest",
-          ],
-        })) as string;
+        let currentAllowance = 0n;
+        try {
+          const allowanceResult = (await provider.request({
+            method: "eth_call",
+            params: [
+              {
+                to: quote.approval.tokenAddress,
+                data: allowanceCallData,
+              },
+              "latest",
+            ],
+          })) as string;
+          currentAllowance = BigInt(allowanceResult || "0x0");
+        } catch (error) {
+          if (!isUnsupportedMethodError(error)) {
+            throw error;
+          }
+          // If eth_call is unsupported, proceed with approval to avoid blocking purchase.
+          currentAllowance = 0n;
+        }
 
-        const currentAllowance = BigInt(allowanceResult || "0x0");
         const requiredAllowance = BigInt(quote.approval.amount);
 
         if (currentAllowance < requiredAllowance) {
