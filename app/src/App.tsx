@@ -12,6 +12,19 @@ export default function App() {
       try {
         const context = await sdk.context;
         setFid(context.user.fid);
+
+        // If launched from a notification, record the open for analytics
+        const loc = context.location as { type?: string; notification?: { notificationId?: string } } | undefined;
+        if (loc?.type === "notification" && loc.notification?.notificationId) {
+          fetch("/api/notifications/open", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({
+              notificationId: loc.notification.notificationId,
+              fid: context.user.fid,
+            }),
+          }).catch(() => {}); // fire-and-forget; never block UX
+        }
       } catch (err) {
         console.error("Failed to get user context:", err);
       }
