@@ -232,6 +232,18 @@ function selectCheapestActiveListing(listings: OpenSeaListing[]): OpenSeaListing
 
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
+  try {
+    return await handleRequest(context);
+  } catch (err) {
+    console.error("[warplet-buy-quote] unhandled error", err);
+    return Response.json(
+      { error: err instanceof Error ? err.message : "Internal server error" },
+      { status: 500 }
+    );
+  }
+};
+
+async function handleRequest(context: Parameters<PagesFunction<Env>>[0]): Promise<Response> {
   let body: RequestBody = {};
   try {
     body = (await context.request.json()) as RequestBody;
@@ -356,4 +368,4 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       value: "0x0",
     },
   });
-};
+}
