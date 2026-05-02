@@ -16,6 +16,7 @@ import {
   sendNotificationResponseSchema,
   type SendNotificationResponse,
 } from "@farcaster/miniapp-sdk";
+import { deleteNotificationToken } from "./kv.js";
 
 export type DispatchResult =
   | { state: "success" }
@@ -38,10 +39,12 @@ export interface DispatchOptions {
 /**
  * Validates payload constraints and sends one notification.
  * Logs the attempt to D1 and returns a typed result.
+ * Pass `kv` to also evict stale tokens from KV when Farcaster reports them invalid.
  */
 export async function dispatchNotification(
   db: D1Database,
-  opts: DispatchOptions
+  opts: DispatchOptions,
+  kv?: KVNamespace
 ): Promise<DispatchResult> {
   const { fid, notificationUrl, notificationToken, notificationId, title, body, targetUrl } = opts;
 
@@ -169,14 +172,17 @@ export async function dispatchNotification(
       .run(),
   ]);
 
-  // If token is invalid, mark it disabled in the tokens table
+  // If token is invalid, disable in D1 and evict from KV
   if (result.state === "invalid_token") {
-    await db
-      .prepare(
-        `UPDATE miniapp_notification_tokens SET enabled = 0, updated_at = datetime('now') WHERE fid = ?`
-      )
-      .bind(fid)
-      .run();
+    await Promise.all([
+      db
+        .prepare(
+          `UPDATE miniapp_notification_tokens SET enabled = 0, updated_at = datetime('now') WHERE fid = ?`
+        )
+        .bind(fid)
+        .run(),
+      kv ? deleteNotificationToken(kv, fid) : Promise.resolve(),
+    ]);
   }
 
   return result;

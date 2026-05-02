@@ -99,7 +99,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     title,
     body,
     targetUrl,
-  });
+  }, context.env.WARPLETS_KV);
 
   if (result.state === "validation_error") {
     return Response.json({ error: result.message }, { status: 400 });

@@ -66,6 +66,11 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     return Response.json({ error: "targetUrl must be https" }, { status: 400 });
   }
 
+  // Hard cap: max 100 FIDs per request (Farcaster tokens-per-request limit)
+  if (Array.isArray(json.fids) && json.fids.length > 100) {
+    return Response.json({ error: "fids array exceeds max of 100" }, { status: 400 });
+  }
+
   // Resolve target tokens from D1
   let rows: TokenRow[];
   if (Array.isArray(json.fids) && json.fids.length > 0) {
@@ -110,7 +115,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       title,
       body,
       targetUrl,
-    });
+    }, context.env.WARPLETS_KV);
 
     results.push({ fid: row.fid, state: result.state });
   }
