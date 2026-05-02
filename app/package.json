@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "deploy": "vite build && wrangler pages deploy dist",
-    "deploy:dev": "vite build --mode development && wrangler pages deploy dist --branch dev"
+    "deploy:dev": "vite build --mode development && wrangler pages deploy dist --project-name 10x-app-dev --branch dev",
+    "deploy:prod": "vite build && wrangler pages deploy dist --project-name 10x-app"
   },
   "dependencies": {
     "@farcaster/miniapp-node": "^0.2.0",

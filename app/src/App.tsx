@@ -2,10 +2,18 @@ import { useEffect, useState } from "react";
 import sdk from "@farcaster/miniapp-sdk";
 import { Text } from "@neynar/ui/typography";
 
+type WarpletStatus = {
+  fid: number;
+  exists: boolean;
+  matched: boolean;
+  rarityValue: number | null;
+};
+
 export default function App() {
   const [fid, setFid] = useState<number | null>(null);
-  const [isAdding, setIsAdding] = useState(false);
-  const [status, setStatus] = useState<string>("");
+  const [status, setStatus] = useState<WarpletStatus | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string>("");
 
   useEffect(() => {
     const init = async () => {
@@ -25,8 +33,25 @@ export default function App() {
             }),
           }).catch(() => {}); // fire-and-forget; never block UX
         }
+
+        const res = await fetch("/api/warplet-status", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ fid: context.user.fid }),
+        });
+
+        if (!res.ok) {
+          const text = await res.text();
+          throw new Error(`Failed to load status (${res.status}): ${text}`);
+        }
+
+        const data = (await res.json()) as WarpletStatus;
+        setStatus(data);
       } catch (err) {
         console.error("Failed to get user context:", err);
+        setError(err instanceof Error ? err.message : String(err));
+      } finally {
+        setLoading(false);
       }
       // Hide the splash screen once the app is ready
       sdk.actions.ready();
@@ -34,37 +59,55 @@ export default function App() {
     init();
   }, []);
 
-  const handleEnableNotifications = async () => {
-    try {
-      setIsAdding(true);
-      setStatus("Prompting add flow in host...");
+  const isMatched = Boolean(status?.matched && typeof status.rarityValue === "number");
+  const imageUrl = isMatched
+    ? `https://warplets.10x.meme/${status?.rarityValue}.avif`
+    : "https://warplets.10x.meme/3081.png";
+  const title = isMatched
+    ? "🎉 Congratulations! You're on the list..."
+    : "😭 Oh Snap... You're not on the list.";
+  const buttonLabel = isMatched
+    ? "👉 Buy in Farcaster Wallet"
+    : "👉 Visit OpenSea to find out why...";
 
-      await sdk.actions.addMiniApp();
-      setStatus("If you added the app, webhook events should now be sent by the host.");
-    } catch (err) {
-      console.error("Error adding mini app:", err);
-      setStatus("Error: " + (err instanceof Error ? err.message : String(err)));
-    } finally {
-      setIsAdding(false);
+  const handlePrimaryAction = async () => {
+    if (isMatched) {
+      // Placeholder until wallet purchase flow is implemented.
+      return;
     }
+
+    await sdk.actions.openUrl("https://opensea.io/collection/10xwarplets/overview");
   };
 
   return (
-    <div className="flex items-center justify-center h-screen">
-      <div className="text-center space-y-4">
-        <Text className="text-2xl font-bold">10X</Text>
+    <div className="min-h-screen bg-black text-white flex items-center justify-center px-4 py-8">
+      <div className="w-full max-w-md text-center space-y-4">
+        <Text className="text-2xl font-bold">10X Warplets</Text>
         {fid && <Text className="text-sm text-gray-400">FID: {fid}</Text>}
-        <button
-          onClick={handleEnableNotifications}
-          disabled={isAdding || !fid}
-          className="px-6 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-600 text-white rounded-lg font-medium transition"
-        >
-          {isAdding ? "Loading..." : "Enable Notifications"}
-        </button>
-        <Text className="text-xs text-gray-500">
-          Notification tokens are delivered via webhook events from the host.
-        </Text>
-        {status && <Text className="text-sm text-purple-400">{status}</Text>}
+
+        {loading && <Text className="text-sm text-gray-300">Loading your Warplet status...</Text>}
+
+        {!loading && error && (
+          <Text className="text-sm text-red-400">{error}</Text>
+        )}
+
+        {!loading && !error && (
+          <>
+            <Text className="text-lg font-semibold">{title}</Text>
+            <img
+              src={imageUrl}
+              alt="Warplet preview"
+              className="w-full rounded-xl border border-white/15"
+              loading="eager"
+            />
+            <button
+              onClick={handlePrimaryAction}
+              className="w-full px-5 py-3 bg-emerald-600 hover:bg-emerald-500 disabled:bg-gray-700 text-white rounded-lg font-medium transition"
+            >
+              {buttonLabel}
+            </button>
+          </>
+        )}
       </div>
     </div>
   );
