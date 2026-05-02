@@ -135,6 +135,7 @@ async function fetchNeynarUserByFid(
     const endpoint = `https://api.neynar.com/v2/farcaster/user/bulk?viewer_fid=${NEYNAR_VIEWER_FID}&fids=${fid}`;
     const res = await fetch(endpoint, {
       headers: { "x-api-key": apiKey },
+      signal: AbortSignal.timeout(8000),
     });
     if (!res.ok) return undefined;
 
@@ -187,6 +188,7 @@ async function fetchPrivateListings(
       accept: "application/json",
       ...(openseaApiKey?.trim() ? { "x-api-key": openseaApiKey.trim() } : {}),
     },
+    signal: AbortSignal.timeout(10000),
   });
 
   if (!res.ok) {
@@ -298,7 +300,7 @@ async function handleRequest(context: Parameters<PagesFunction<Env>>[0]): Promis
   } catch (error) {
     return Response.json(
       { error: error instanceof Error ? error.message : "Failed to look up the private listing" },
-      { status: 502 }
+      { status: 503 }
     );
   }
 
