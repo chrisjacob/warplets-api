@@ -559,6 +559,8 @@ export default function App() {
   const debugEnabled =
     typeof window !== "undefined" &&
     new URLSearchParams(window.location.search).get("debug") === "1";
+  const currentHost = typeof window !== "undefined" ? window.location.host : "";
+  const showDebugChip = debugEnabled;
   const isMatched = !forceNoMatch && Boolean(status?.matched && typeof status.rarityValue === "number");
   const hasPurchased = Boolean(purchasedTokenId);
   const displayTokenId = purchasedTokenId ?? (typeof status?.rarityValue === "number" ? String(status.rarityValue) : null);
@@ -893,16 +895,19 @@ export default function App() {
         </div>
       )}
 
-      {debugEnabled && (
-        <div className="fixed left-3 bottom-3 z-30 max-w-[90vw] rounded-lg border border-cyan-300/60 bg-black/85 px-3 py-2 text-left shadow-xl backdrop-blur-sm">
+      {showDebugChip && (
+        <div className="fixed left-3 top-[76px] z-30 max-w-[92vw] rounded-lg border border-cyan-300/70 bg-black/90 px-3 py-2 text-left shadow-xl backdrop-blur-sm">
           <Text className="text-[11px] leading-tight" style={{ color: "#67e8f9" }}>
-            {`debug host=${typeof window !== "undefined" ? window.location.host : "n/a"}`}
+            {`debug host=${currentHost || "n/a"}`}
           </Text>
           <Text className="text-[11px] leading-tight" style={{ color: "#67e8f9" }}>
             {`fid=${fid ?? "null"} rawMatched=${status?.matched ?? "null"} rarity=${status?.rarityValue ?? "null"}`}
           </Text>
           <Text className="text-[11px] leading-tight" style={{ color: "#67e8f9" }}>
-            {`forceNoMatch=${forceNoMatch} computedMatched=${isMatched} error=${error || "none"}`}
+            {`forceNoMatch=${forceNoMatch} computedMatched=${isMatched} debugParam=${debugEnabled}`}
+          </Text>
+          <Text className="text-[11px] leading-tight" style={{ color: "#67e8f9" }}>
+            {`error=${error || "none"}`}
           </Text>
         </div>
       )}
