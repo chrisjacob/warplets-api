@@ -484,6 +484,7 @@ export default function App() {
   const [purchasedTokenId, setPurchasedTokenId] = useState<string | null>(null);
   const [hasShared, setHasShared] = useState(false);
   const [showOpenInFarcaster, setShowOpenInFarcaster] = useState(false);
+  const [showAddAppPrompt, setShowAddAppPrompt] = useState(false);
 
   const launchTopConfetti = () => {
     const colors = ["#ff4d4d", "#ffd93d", "#57e389", "#4da3ff", "#b07bff", "#ff7ac8"];
@@ -521,6 +522,13 @@ export default function App() {
         shouldCallReady = true;
         const context = await sdk.context;
         setFid(context.user.fid);
+
+        const isProdHost = typeof window !== "undefined" && window.location.host === "app.10x.meme";
+        const addParamSet = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("add") === "1";
+        const shouldPromptAddApp =
+          (isProdHost || addParamSet) &&
+          (!context.client.added || !context.client.notificationDetails);
+        setShowAddAppPrompt(shouldPromptAddApp);
 
         // If launched from a notification, record the open for analytics
         const loc = context.location as { type?: string; notification?: { notificationId?: string } } | undefined;
@@ -580,12 +588,9 @@ export default function App() {
     init();
   }, []);
 
-  const forceNoMatch =
-    typeof window !== "undefined" &&
-    new URLSearchParams(window.location.search).get("match") === "false";
-  const debugEnabled =
-    typeof window !== "undefined" &&
-    new URLSearchParams(window.location.search).get("debug") === "1";
+  const searchParams = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : new URLSearchParams();
+  const forceNoMatch = typeof window !== "undefined" && searchParams.get("match") === "false";
+  const debugEnabled = typeof window !== "undefined" && searchParams.get("debug") === "1";
   const currentHost = typeof window !== "undefined" ? window.location.host : "";
   const showDebugChip = debugEnabled;
   const isMatched = !forceNoMatch && Boolean(status?.matched && typeof status.rarityValue === "number");
@@ -799,6 +804,16 @@ export default function App() {
     await sdk.actions.openUrl("https://10x.meme");
   };
 
+  const handleConfirmAddAppPrompt = async () => {
+    setShowAddAppPrompt(false);
+    try {
+      await sdk.actions.addMiniApp();
+    } catch (err) {
+      console.error("Failed to open add mini app prompt:", err);
+      setActionError(getErrorMessage(err));
+    }
+  };
+
   useEffect(() => {
     if (!actionError) return;
 
@@ -928,6 +943,29 @@ export default function App() {
                 onClick={() => setActionError("")}
               >
                 ✕
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showAddAppPrompt && !loading && !showOpenInFarcaster && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center px-4 bg-black/70 backdrop-blur-[2px]">
+          <div className="w-full max-w-sm rounded-2xl border border-[#00FF00]/45 bg-[#041204] p-5 shadow-[0_0_40px_rgba(0,255,0,0.15)]">
+            <Text className="text-xl font-bold text-left" style={{ color: "#00FF00" }}>
+              🟢 Don&apos;t miss out
+            </Text>
+            <Text className="mt-3 text-sm text-left" style={{ color: "#b7ffb7" }}>
+              Please Add Mini App so you don&apos;t miss out on important updates.
+            </Text>
+            <div className="mt-5 grid grid-cols-1 gap-3">
+              <button
+                type="button"
+                onClick={handleConfirmAddAppPrompt}
+                className="w-full px-4 py-3 rounded-[14px] border border-[#009900] bg-[#00FF00] hover:bg-[#33ff33] font-bold transition-colors cursor-pointer"
+                style={{ color: "rgb(0, 80, 0)" }}
+              >
+                Ok, let&apos;s go!
               </button>
             </div>
           </div>
