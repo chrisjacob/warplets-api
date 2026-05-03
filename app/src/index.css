@@ -11,3 +11,17 @@ body {
   margin: 0;
   padding: 0;
 }
+
+@keyframes share-cta-pulse-x {
+  0%,
+  100% {
+    transform: scaleX(1);
+  }
+  50% {
+    transform: scaleX(1.035);
+  }
+}
+
+.share-cta-pulse-x {
+  animation: share-cta-pulse-x 460ms ease-in-out 3;
+}

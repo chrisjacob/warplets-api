@@ -9,6 +9,8 @@ type WarpletStatus = {
   exists: boolean;
   matched: boolean;
   rarityValue: number | null;
+  buyTransactionOn: string | null;
+  sharedOn: string | null;
 };
 
 type RawOfferItem = {
@@ -379,6 +381,18 @@ async function readErrorResponse(response: Response): Promise<string> {
   return text || `Request failed with status ${response.status}`;
 }
 
+async function postTrackingUpdate(path: string, fid: number): Promise<void> {
+  const res = await fetch(path, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ fid }),
+  });
+
+  if (!res.ok) {
+    throw new Error(await readErrorResponse(res));
+  }
+}
+
 async function ensureChain(provider: EthereumProvider, chainIdHex: string): Promise<void> {
   let currentChainId: string | undefined;
   try {
@@ -466,6 +480,8 @@ export default function App() {
   const [actionError, setActionError] = useState<string>("");
   const [didCelebrate, setDidCelebrate] = useState(false);
   const [isPurchasing, setIsPurchasing] = useState(false);
+  const [purchasedTokenId, setPurchasedTokenId] = useState<string | null>(null);
+  const [hasShared, setHasShared] = useState(false);
 
   const launchTopConfetti = () => {
     const colors = ["#ff4d4d", "#ffd93d", "#57e389", "#4da3ff", "#b07bff", "#ff7ac8"];
@@ -519,6 +535,12 @@ export default function App() {
 
         const data = (await res.json()) as WarpletStatus;
         setStatus(data);
+
+        if (typeof data.rarityValue === "number" && data.buyTransactionOn) {
+          setPurchasedTokenId(String(data.rarityValue));
+        }
+
+        setHasShared(Boolean(data.sharedOn));
       } catch (err) {
         console.error("Failed to get user context:", err);
         setError(err instanceof Error ? err.message : String(err));
@@ -534,7 +556,16 @@ export default function App() {
   const forceNoMatch =
     typeof window !== "undefined" &&
     new URLSearchParams(window.location.search).get("match") === "false";
+  const debugEnabled =
+    typeof window !== "undefined" &&
+    new URLSearchParams(window.location.search).get("debug") === "1";
   const isMatched = !forceNoMatch && Boolean(status?.matched && typeof status.rarityValue === "number");
+  const hasPurchased = Boolean(purchasedTokenId);
+  const displayTokenId = purchasedTokenId ?? (typeof status?.rarityValue === "number" ? String(status.rarityValue) : null);
+  const formattedTokenId =
+    displayTokenId && Number.isFinite(Number(displayTokenId))
+      ? Number(displayTokenId).toLocaleString("en-US")
+      : displayTokenId;
 
   useEffect(() => {
     if (loading || error || !isMatched || didCelebrate) return;
@@ -543,22 +574,55 @@ export default function App() {
     setDidCelebrate(true);
   }, [loading, error, isMatched, didCelebrate]);
 
-  const imageUrl = isMatched
-    ? `https://warplets.10x.meme/${status?.rarityValue}.avif`
-    : "https://warplets.10x.meme/3081.png";
-  const title = isMatched
-    ? "Congratulations! You're on the list..."
-    : "Oh Snap... You're not on the list.";
-  const badgeLabel = isMatched
-    ? "🔓 Private 10K NFT Drop"
-    : "🔒 Private 10K NFT Drop";
-  const buttonLabel = isMatched
-    ? isPurchasing
-      ? "Processing in Wallet..."
-      : "Buy in Farcaster Wallet"
-    : "Visit OpenSea to find out why...";
+  const imageUrl = hasPurchased
+    ? `https://warplets.10x.meme/${purchasedTokenId}.gif`
+    : isMatched
+      ? `https://warplets.10x.meme/${status?.rarityValue}.avif`
+      : "https://warplets.10x.meme/3081.png";
+  const title = hasPurchased
+    ? "Purchased! Welcome to 10X."
+    : isMatched
+      ? "Congratulations! You're on the list..."
+      : "Oh Snap... You're not on the list.";
+  const badgeLabel = hasPurchased
+    ? "🎉 NFT Drop Claimed"
+    : isMatched
+      ? "🔓 Private 10K NFT Drop"
+      : "🔒 Private 10K NFT Drop";
+  const buttonLabel = hasPurchased
+    ? "Share your 10X Warplet!"
+    : isMatched
+      ? isPurchasing
+        ? "Processing in Wallet..."
+        : "Buy in Farcaster Wallet"
+      : "Visit OpenSea to find out why...";
+  const shareButtonPulseClass = hasPurchased && !hasShared ? "share-cta-pulse-x" : "";
 
   const handlePrimaryAction = async () => {
+    if (hasPurchased && purchasedTokenId) {
+      setActionError("");
+      launchTopConfetti();
+
+      try {
+        const castResult = await sdk.actions.composeCast({
+          text:
+            `🎉 Claimed my 10X Warplet\n\n🟢 10X Rarity #${Number(purchasedTokenId).toLocaleString("en-US")} of 10,000.\n\n🟢 Private sale increases by $10 every 10 days.\n\n🟢 Bottom ~1K supply goes public every 10 days.\n\n💚 Don't miss out.`,
+          embeds: ["https://app.10x.meme", `https://warplets.10x.meme/${purchasedTokenId}.gif`],
+        });
+
+        if (castResult?.cast?.hash && fid) {
+          await postTrackingUpdate("/api/warplet-share", fid);
+          setHasShared(true);
+          setStatus(prev => (prev ? { ...prev, sharedOn: new Date().toISOString() } : prev));
+        }
+      } catch (err) {
+        console.error("Failed to open cast composer:", err);
+        setActionError(getErrorMessage(err));
+      }
+
+      return;
+    }
+
     if (isMatched) {
       if (!fid) {
         setActionError("Your Farcaster account is not ready yet.");
@@ -675,7 +739,16 @@ export default function App() {
         })) as string;
 
         await waitForTransactionReceipt(provider, purchaseHash);
+        setPurchasedTokenId(quote.listing.tokenId);
+        setStatus(prev => (prev ? { ...prev, buyTransactionOn: new Date().toISOString() } : prev));
         launchTopConfetti();
+
+        try {
+          await postTrackingUpdate("/api/warplet-purchase-complete", fid);
+        } catch (persistError) {
+          console.error("Failed to persist purchase tracking state:", persistError);
+          setActionError("Purchase succeeded, but persisting claim state failed. Please refresh in a moment.");
+        }
       } catch (err) {
         console.error("Failed to complete Warplet purchase:", err);
         setActionError(getErrorMessage(err));
@@ -697,6 +770,18 @@ export default function App() {
     await sdk.actions.openUrl("https://10x.meme");
   };
 
+  useEffect(() => {
+    if (!actionError) return;
+
+    const timeoutId = window.setTimeout(() => {
+      setActionError("");
+    }, 5000);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [actionError]);
+
   return (
     <div
       className="relative min-h-screen bg-black text-white flex flex-col items-center pb-8 overflow-hidden"
@@ -710,17 +795,17 @@ export default function App() {
         className="absolute inset-0 w-full h-full object-cover opacity-25 pointer-events-none select-none"
       />
 
-      <div className="relative z-10 w-full h-[80px] bg-black flex items-start justify-between">
+      <div className="relative z-10 w-full h-[60px] bg-black flex items-start justify-between">
         <button
           type="button"
           aria-label="Open 10X website"
           onClick={handleSplashAction}
-          className="h-full cursor-pointer"
+          className="h-[60px] w-[76px] pl-4 cursor-pointer"
         >
           <img
             src="/splash.png"
             alt="10X Warplets"
-            className="h-full w-auto object-contain pl-[15px]"
+            className="h-[60px] w-[60px] object-contain"
             loading="eager"
           />
         </button>
@@ -728,20 +813,20 @@ export default function App() {
           type="button"
           aria-label="Open 10X Warplets on OpenSea"
           onClick={handleOpenSeaAction}
-          className="pl-5 pr-4 py-5 flex items-start cursor-pointer"
+          className="pt-[15px] pr-[18px] pb-[15px] pl-[15px] flex items-start cursor-pointer"
         >
           <img
             src="/opensea.png"
             alt="OpenSea"
-            className="w-[40px] h-[40px]"
+            className="w-[30px] h-[30px]"
             loading="eager"
           />
         </button>
       </div>
 
       <div className="relative z-10 w-full max-w-md text-center space-y-2 px-4 pt-2">
-        <div className="relative px-4 pt-2 pb-4 text-center">
-          <Text className="text-5xl font-bold leading-tight" style={{ color: "#00FF00" }}>10X Warplets</Text>
+        <div className="relative px-4 text-center mb-4">
+          <Text className="text-[2.7rem] font-bold leading-tight" style={{ color: "#00FF00" }}>10X Warplets</Text>
           <Text
             className="inline-flex mt-3 px-3 py-1 text-sm font-semibold leading-tight border border-[#00FF00]/70 rounded-full"
             style={{ color: "#00FF00", backgroundColor: "rgba(0, 255, 0, 0.12)" }}
@@ -762,29 +847,65 @@ export default function App() {
               <Text className="text-lg font-semibold" style={{ color: "#00FF00" }}>
                 {title}
               </Text>
-              <img
-                src={imageUrl}
-                alt="Loading..."
-                className="w-full rounded-[20px] p-[2px] bg-[#00FF00]/20 border border-[#00FF00]/45"
-                loading="eager"
-              />
+              <div className="w-full rounded-[20px] p-[2px] bg-[#00FF00]/20 border border-[#00FF00]/45">
+                <img
+                  src={imageUrl}
+                  alt="Loading..."
+                  className="w-full rounded-[18px]"
+                  loading="eager"
+                />
+                {isMatched && displayTokenId && (
+                  <Text className="py-2 text-base font-bold" style={{ color: "#00FF00" }}>
+                    {`10X Rarity #${formattedTokenId} of 10,000`}
+                  </Text>
+                )}
+              </div>
             </div>
             <div className="px-4">
               <button
                 onClick={handlePrimaryAction}
                 disabled={isPurchasing}
-                className="w-full mt-0 px-5 py-3 rounded-[20px] border border-[#009900] bg-[#00FF00] hover:bg-[#33ff33] font-bold text-lg transition-all duration-100 shadow-[3px_6px_0_#008000] active:translate-x-[1px] active:translate-y-[3px] active:shadow-[1px_3px_0_#008000] disabled:bg-gray-700 disabled:border-gray-700 disabled:shadow-none disabled:translate-x-0 disabled:translate-y-0 cursor-pointer"
-                style={{ color: "rgb(0, 80, 0)" }}
+                className={`w-full mt-0 px-5 py-3 rounded-[20px] border border-[#009900] bg-[#00FF00] hover:bg-[#33ff33] font-bold text-lg transition-all duration-100 shadow-[3px_6px_0_#008000] active:translate-x-[1px] active:translate-y-[3px] active:shadow-[1px_3px_0_#008000] disabled:bg-gray-700 disabled:border-gray-700 disabled:shadow-none disabled:translate-x-0 disabled:translate-y-0 cursor-pointer ${shareButtonPulseClass}`}
+                style={{ color: isPurchasing ? "#ffffff" : "rgb(0, 80, 0)" }}
               >
                 {buttonLabel}
               </button>
-              {actionError && (
-                <Text className="pt-3 text-sm text-red-400">{actionError}</Text>
-              )}
             </div>
           </div>
         )}
       </div>
+
+      {actionError && (
+        <div className="fixed bottom-4 left-4 right-4 z-20 max-w-md mx-auto">
+          <div className="rounded-xl border border-red-300/70 bg-red-950/90 px-4 py-3 shadow-lg backdrop-blur-sm">
+            <div className="flex items-start justify-between gap-3">
+              <Text className="text-sm text-red-100 text-left">{actionError}</Text>
+              <button
+                type="button"
+                aria-label="Dismiss error message"
+                className="text-red-200 hover:text-white text-sm font-bold leading-none cursor-pointer"
+                onClick={() => setActionError("")}
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {debugEnabled && (
+        <div className="fixed left-3 bottom-3 z-30 max-w-[90vw] rounded-lg border border-cyan-300/60 bg-black/85 px-3 py-2 text-left shadow-xl backdrop-blur-sm">
+          <Text className="text-[11px] leading-tight" style={{ color: "#67e8f9" }}>
+            {`debug host=${typeof window !== "undefined" ? window.location.host : "n/a"}`}
+          </Text>
+          <Text className="text-[11px] leading-tight" style={{ color: "#67e8f9" }}>
+            {`fid=${fid ?? "null"} rawMatched=${status?.matched ?? "null"} rarity=${status?.rarityValue ?? "null"}`}
+          </Text>
+          <Text className="text-[11px] leading-tight" style={{ color: "#67e8f9" }}>
+            {`forceNoMatch=${forceNoMatch} computedMatched=${isMatched} error=${error || "none"}`}
+          </Text>
+        </div>
+      )}
     </div>
   );
 }

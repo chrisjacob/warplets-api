@@ -136,10 +136,10 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   }
 
   const existing = await context.env.WARPLETS.prepare(
-    "SELECT id, matched_on FROM warplets_users WHERE fid = ? LIMIT 1"
+    "SELECT id, matched_on, buy_transaction_on, shared_on FROM warplets_users WHERE fid = ? LIMIT 1"
   )
     .bind(fid)
-    .first<{ id: number; matched_on: string | null }>();
+    .first<{ id: number; matched_on: string | null; buy_transaction_on: string | null; shared_on: string | null }>();
 
   const matchRow = await context.env.WARPLETS.prepare(
     "SELECT x10_rarity FROM warplets_metadata WHERE fid_value = ? LIMIT 1"
@@ -158,8 +158,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       "INSERT INTO warplets_users (" +
         "fid, username, display_name, pfp_url, registered_at, pro_status, profile_bio_text, " +
         "follower_count, following_count, primary_eth_address, primary_sol_address, x_username, " +
-        "url, viewer_following, viewer_followed_by, score, matched_on, buy_on, created_on, updated_on" +
-        ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+        "url, viewer_following, viewer_followed_by, score, matched_on, buy_on, buy_transaction_on, shared_on, created_on, updated_on" +
+        ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
     )
       .bind(
         fid,
@@ -180,6 +180,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         neynarUser?.score ?? null,
         isMatch ? now : null,
         null,
+        null,
+        null,
         now,
         now
       )
@@ -190,6 +192,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       exists: false,
       matched: isMatch,
       rarityValue,
+      buyTransactionOn: null,
+      sharedOn: null,
     });
   }
 
@@ -198,5 +202,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     exists: true,
     matched: isMatch,
     rarityValue,
+    buyTransactionOn: existing.buy_transaction_on,
+    sharedOn: existing.shared_on,
   });
 };
