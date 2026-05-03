@@ -485,6 +485,7 @@ export default function App() {
   const [hasShared, setHasShared] = useState(false);
   const [showOpenInFarcaster, setShowOpenInFarcaster] = useState(false);
   const [showAddAppPrompt, setShowAddAppPrompt] = useState(false);
+  const [notificationsOnlyPrompt, setNotificationsOnlyPrompt] = useState(false);
 
   const launchTopConfetti = () => {
     const colors = ["#ff4d4d", "#ffd93d", "#57e389", "#4da3ff", "#b07bff", "#ff7ac8"];
@@ -528,7 +529,9 @@ export default function App() {
         const shouldPromptAddApp =
           (isProdHost || addParamSet) &&
           (!context.client.added || !context.client.notificationDetails);
+        const isNotificationsOnly = shouldPromptAddApp && context.client.added && !context.client.notificationDetails;
         setShowAddAppPrompt(shouldPromptAddApp);
+        setNotificationsOnlyPrompt(isNotificationsOnly);
 
         // If launched from a notification, record the open for analytics
         const loc = context.location as { type?: string; notification?: { notificationId?: string } } | undefined;
@@ -956,7 +959,9 @@ export default function App() {
               🟢 Don&apos;t miss out
             </Text>
             <Text className="mt-3 text-sm text-left" style={{ color: "#b7ffb7" }}>
-              Please Add Mini App so you don&apos;t miss out on important updates.
+              {notificationsOnlyPrompt
+                ? "Please turn on notifications so you don\u2019t miss out on important updates."
+                : "Please Add Mini App and enable notifications so you don\u2019t miss out on important updates."}
             </Text>
             <div className="mt-5 grid grid-cols-1 gap-3">
               <button
