@@ -15,32 +15,6 @@
       name="fc:miniapp"
       content="{&quot;version&quot;:&quot;1&quot;,&quot;imageUrl&quot;:&quot;%VITE_MINIAPP_BASE_URL%/embed.png&quot;,&quot;button&quot;:{&quot;title&quot;:&quot;Open 10X&quot;,&quot;action&quot;:{&quot;type&quot;:&quot;launch_miniapp&quot;,&quot;name&quot;:&quot;10X&quot;,&quot;url&quot;:&quot;%VITE_MINIAPP_BASE_URL%&quot;,&quot;splashImageUrl&quot;:&quot;%VITE_MINIAPP_BASE_URL%/splash.png&quot;,&quot;splashBackgroundColor&quot;:&quot;#000000&quot;}}}"
     />
-    <script>
-      (function () {
-        var baseUrl = "%VITE_MINIAPP_BASE_URL%";
-        var query = window.location.search || "";
-        var launchUrl = "" + baseUrl + query;
-        var meta = document.querySelector('meta[name="fc:miniapp"]');
-        if (!meta) return;
-
-        var payload = {
-          version: "1",
-          imageUrl: baseUrl + "/embed.png",
-          button: {
-            title: "Open 10X",
-            action: {
-              type: "launch_miniapp",
-              name: "10X",
-              url: launchUrl,
-              splashImageUrl: baseUrl + "/splash.png",
-              splashBackgroundColor: "#000000",
-            },
-          },
-        };
-
-        meta.setAttribute("content", JSON.stringify(payload));
-      })();
-    </script>
   </head>
   <body>
     <div id="root"></div>
