@@ -473,6 +473,7 @@ async function waitForTransactionReceipt(
 }
 
 export default function App() {
+  const FARCASTER_MINIAPP_URL = "https://farcaster.xyz/miniapps/uR3Rzs-k6AnV/10x";
   const [fid, setFid] = useState<number | null>(null);
   const [status, setStatus] = useState<WarpletStatus | null>(null);
   const [loading, setLoading] = useState(true);
@@ -482,6 +483,7 @@ export default function App() {
   const [isPurchasing, setIsPurchasing] = useState(false);
   const [purchasedTokenId, setPurchasedTokenId] = useState<string | null>(null);
   const [hasShared, setHasShared] = useState(false);
+  const [showOpenInFarcaster, setShowOpenInFarcaster] = useState(false);
 
   const launchTopConfetti = () => {
     const colors = ["#ff4d4d", "#ffd93d", "#57e389", "#4da3ff", "#b07bff", "#ff7ac8"];
@@ -505,7 +507,18 @@ export default function App() {
 
   useEffect(() => {
     const init = async () => {
+      let shouldCallReady = false;
+
       try {
+        const inMiniApp =
+          typeof sdk.isInMiniApp === "function" ? await sdk.isInMiniApp() : true;
+
+        if (!inMiniApp) {
+          setShowOpenInFarcaster(true);
+          return;
+        }
+
+        shouldCallReady = true;
         const context = await sdk.context;
         setFid(context.user.fid);
 
@@ -543,12 +556,26 @@ export default function App() {
         setHasShared(Boolean(data.sharedOn));
       } catch (err) {
         console.error("Failed to get user context:", err);
-        setError(err instanceof Error ? err.message : String(err));
+        const message = err instanceof Error ? err.message : String(err);
+        const normalized = message.toLowerCase();
+        const looksLikeBrowserLaunch =
+          normalized.includes("context is undefined") ||
+          normalized.includes("can't access property \"user\"") ||
+          normalized.includes("cannot read properties of undefined");
+
+        if (looksLikeBrowserLaunch) {
+          setShowOpenInFarcaster(true);
+          setError("");
+        } else {
+          setError(message);
+        }
       } finally {
         setLoading(false);
       }
       // Hide the splash screen once the app is ready
-      sdk.actions.ready();
+      if (shouldCallReady) {
+        sdk.actions.ready();
+      }
     };
     init();
   }, []);
@@ -843,7 +870,19 @@ export default function App() {
           <Text className="text-sm text-red-400">{error}</Text>
         )}
 
-        {!loading && !error && (
+        {!loading && showOpenInFarcaster && (
+          <div className="px-4 pb-2 pt-3 flex justify-center">
+            <a
+              href={FARCASTER_MINIAPP_URL}
+              className="inline-block w-[329px] max-w-full px-5 py-3 rounded-[20px] border border-[#009900] bg-[#00FF00] hover:bg-[#33ff33] font-bold text-lg transition-all duration-100 shadow-[3px_6px_0_#008000] active:translate-x-[1px] active:translate-y-[3px] active:shadow-[1px_3px_0_#008000]"
+              style={{ color: "rgb(0, 80, 0)" }}
+            >
+              Open mini app in Farcaster
+            </a>
+          </div>
+        )}
+
+        {!loading && !error && !showOpenInFarcaster && (
           <div className="space-y-0">
             <div className="px-4 pb-5 pt-0 space-y-3">
               <Text className="text-lg font-semibold" style={{ color: "#00FF00" }}>
