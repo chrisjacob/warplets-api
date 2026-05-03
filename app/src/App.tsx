@@ -608,7 +608,7 @@ export default function App() {
       try {
         const castResult = await sdk.actions.composeCast({
           text:
-            `🎉 Claimed my 10X Warplet\n\n🟢 10X Rarity #${Number(purchasedTokenId).toLocaleString("en-US")} of 10,000.\n\n🟢 Private sale increases by $10 every 10 days.\n\n🟢 Bottom ~1K supply goes public every 10 days.\n\n💚 Don't miss out.`,
+            `🎉 Claimed my 10X Warplet!\n\n10X Rarity #${Number(purchasedTokenId).toLocaleString("en-US")} of 10,000.\n\nPrice increases every 10 days.\n\nSupply decreases every 10 days.\n\n💚 Don't miss out...`,
           embeds: ["https://app.10x.meme", `https://warplets.10x.meme/${purchasedTokenId}.gif`],
         });
 

@@ -834,7 +834,7 @@ function landingPage(
   elements["image"] = {
     type: "image",
     props: {
-      url: "https://files.10x.meme/warplets-snap-preview.webp",
+      url: "https://files.10x.meme/optimised_warplet.webp",
       aspect: "1:1",
       alt: "Loading...",
     },
