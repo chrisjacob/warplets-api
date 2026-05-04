@@ -44,7 +44,7 @@ function asBoolean(value: unknown): boolean {
   return value === true;
 }
 
-function buildVerifyEmailHtml(verifyUrl: string): string {
+function buildVerifyEmailHtml(verifyUrl: string, unsubscribeUrl: string): string {
   return `
   <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;padding:20px;color:#111;">
     <h2 style="margin:0 0 14px;">Welcome to 10X Meme</h2>
@@ -54,6 +54,8 @@ function buildVerifyEmailHtml(verifyUrl: string): string {
       <a href="${verifyUrl}" style="display:inline-block;background:#00FF00;color:#053505;text-decoration:none;padding:10px 16px;border-radius:8px;font-weight:700;">Verify Email</a>
     </p>
     <p style="margin:0;color:#555;font-size:12px;word-break:break-all;">If the button doesn't work, use this link: ${verifyUrl}</p>
+    <hr style="margin:20px 0;border:none;border-top:1px solid #eee;" />
+    <p style="margin:0;color:#999;font-size:11px;">You received this email because you signed up at 10x.meme. <a href="${unsubscribeUrl}" style="color:#999;">Unsubscribe</a></p>
   </div>
   `;
 }
@@ -127,6 +129,12 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     verifyUrl.search = "";
     verifyUrl.searchParams.set("token", row.verify_token);
 
+    const unsubscribeUrl = new URL(context.request.url);
+    unsubscribeUrl.pathname = "/api/email/unsubscribe";
+    unsubscribeUrl.search = "";
+    unsubscribeUrl.searchParams.set("email", email);
+    unsubscribeUrl.searchParams.set("token", row.verify_token);
+
     const resendResponse = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
@@ -137,7 +145,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         from: fromEmail,
         to: [email],
         subject: "Verify your 10X Meme email",
-        html: buildVerifyEmailHtml(verifyUrl.toString()),
+        html: buildVerifyEmailHtml(verifyUrl.toString(), unsubscribeUrl.toString()),
       }),
     });
 

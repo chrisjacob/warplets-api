@@ -134,6 +134,33 @@ export const onRequestGet: PagesFunction = () => {
       <tbody id="dispatchBody"><tr><td colspan="6" style="color:#555;text-align:center;padding:1rem">Loading…</td></tr></tbody>
     </table>
   </section>
+
+  <!-- EMAIL WAITLIST -->
+  <section>
+    <h2>Email Waitlist <button class="secondary" id="emailRefreshBtn" style="padding:.25rem .75rem;font-size:.75rem;margin-top:0;margin-left:.5rem">Refresh</button></h2>
+    <div class="stat-grid" id="emailStatGrid">
+      <div class="stat-box"><div class="num" id="emailStatTotal">—</div><div class="lbl">Total</div></div>
+      <div class="stat-box"><div class="num" id="emailStatVerified">—</div><div class="lbl">Verified</div></div>
+      <div class="stat-box"><div class="num" id="emailStatUnverified">—</div><div class="lbl">Pending verify</div></div>
+      <div class="stat-box"><div class="num" id="emailStatMatched">—</div><div class="lbl">Warplet matched</div></div>
+      <div class="stat-box"><div class="num" id="emailStatUnsub">—</div><div class="lbl">Unsubscribed</div></div>
+    </div>
+    <div style="display:flex;gap:.5rem;margin-bottom:.75rem;flex-wrap:wrap">
+      <select id="emailFilter" style="background:#111;border:1px solid #333;border-radius:6px;color:#e5e5e5;padding:.4rem .75rem;font-size:.85rem">
+        <option value="all">All</option>
+        <option value="verified">Verified</option>
+        <option value="unverified">Pending verify</option>
+        <option value="unsubscribed">Unsubscribed</option>
+      </select>
+      <button class="secondary" id="emailExportBtn" style="margin-top:0;padding:.4rem .9rem;font-size:.85rem">Export CSV</button>
+    </div>
+    <table>
+      <thead><tr>
+        <th>Email</th><th>FID</th><th>Username</th><th>Token ID</th><th>Matched</th><th>Verified</th><th>Subscribed</th>
+      </tr></thead>
+      <tbody id="emailBody"><tr><td colspan="7" style="color:#555;text-align:center;padding:1rem">Loading…</td></tr></tbody>
+    </table>
+  </section>
 </div>
 
 <script>
@@ -250,7 +277,7 @@ export const onRequestGet: PagesFunction = () => {
     } catch (e) { if (e.message !== 'Unauthorized') console.error(e); }
   }
 
-  function loadAll() { loadStats(); loadInspect(); }
+  function loadAll() { loadStats(); loadInspect(); loadEmail(); }
 
   document.getElementById('refreshBtn').addEventListener('click', loadAll);
 
@@ -308,6 +335,59 @@ export const onRequestGet: PagesFunction = () => {
   function esc(s) {
     return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   }
+
+  // --- EMAIL WAITLIST ---
+  let emailCache = [];
+
+  async function loadEmail() {
+    try {
+      const filter = document.getElementById('emailFilter').value;
+      const r = await api('/api/email/list?limit=200&filter=' + filter);
+      const data = await r.json();
+      emailCache = data.rows || [];
+
+      const s = data.stats || {};
+      document.getElementById('emailStatTotal').textContent     = s.total ?? '—';
+      document.getElementById('emailStatVerified').textContent  = s.verified ?? '—';
+      document.getElementById('emailStatUnverified').textContent = s.unverified ?? '—';
+      document.getElementById('emailStatMatched').textContent   = s.matched ?? '—';
+      document.getElementById('emailStatUnsub').textContent     = s.unsubscribed ?? '—';
+
+      const tbody = document.getElementById('emailBody');
+      if (!emailCache.length) {
+        tbody.innerHTML = '<tr><td colspan="7" style="color:#555;text-align:center;padding:1rem">No subscribers yet</td></tr>';
+        return;
+      }
+      tbody.innerHTML = emailCache.map(row => \`
+        <tr>
+          <td class="mono" style="font-size:.78rem">\${esc(row.email)}</td>
+          <td>\${row.fid ?? '—'}</td>
+          <td>\${esc(row.username || '—')}</td>
+          <td>\${row.token_id ?? '—'}</td>
+          <td>\${row.matched ? '<span class="pill delivered">yes</span>' : '<span style="color:#555">no</span>'}</td>
+          <td>\${row.verified ? '<span class="pill delivered">yes</span>' : '<span class="pill pending">pending</span>'}</td>
+          <td style="color:#666;font-size:.75rem">\${(row.subscribed_at || '').replace('T',' ').slice(0,16)}</td>
+        </tr>\`).join('');
+    } catch (e) { if (e.message !== 'Unauthorized') console.error(e); }
+  }
+
+  document.getElementById('emailRefreshBtn').addEventListener('click', loadEmail);
+  document.getElementById('emailFilter').addEventListener('change', loadEmail);
+
+  document.getElementById('emailExportBtn').addEventListener('click', () => {
+    if (!emailCache.length) return;
+    const header = 'email,fid,username,token_id,matched,verified,subscribed_at,verified_at,unsubscribed_at';
+    const rows = emailCache.map(r =>
+      [r.email, r.fid ?? '', r.username ?? '', r.token_id ?? '', r.matched ? 1 : 0,
+       r.verified ? 1 : 0, r.subscribed_at ?? '', r.verified_at ?? '', r.unsubscribed_at ?? '']
+      .map(v => JSON.stringify(String(v ?? ''))).join(',')
+    );
+    const csv = [header, ...rows].join('\\n');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+    a.download = 'email-waitlist-' + new Date().toISOString().slice(0,10) + '.csv';
+    a.click();
+  });
 </script>
 </body>
 </html>`;
