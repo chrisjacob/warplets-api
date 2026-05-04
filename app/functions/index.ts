@@ -12,18 +12,79 @@ function normalizeBase(origin: string): string {
   return origin.endsWith("/") ? origin.slice(0, -1) : origin;
 }
 
-function buildMiniAppMetaContent(origin: string, search: string): string {
+type RouteKey = "root" | "drop" | "find" | "million";
+
+function getRouteKey(hostname: string, pathname: string): RouteKey {
+  const cleanPath = pathname.replace(/\/+$/, "") || "/";
+  if (hostname === "drop.10x.meme") return "drop";
+  if (hostname === "find.10x.meme") return "find";
+  if (hostname === "million.10x.meme") return "million";
+  if (cleanPath === "/drop" || cleanPath.startsWith("/drop/")) return "drop";
+  if (cleanPath === "/find" || cleanPath.startsWith("/find/")) return "find";
+  if (cleanPath === "/million" || cleanPath.startsWith("/million/")) return "million";
+  return "root";
+}
+
+function getMiniAppConfig(routeKey: RouteKey): { title: string; name: string; path: string } {
+  if (routeKey === "drop") {
+    return {
+      title: "Open 10X Warplets Drop",
+      name: "10X Warplets Drop",
+      path: "/drop",
+    };
+  }
+
+  if (routeKey === "find") {
+    return {
+      title: "Open 10X Warplets Find",
+      name: "10X Warplets Find",
+      path: "/find",
+    };
+  }
+
+  if (routeKey === "million") {
+    return {
+      title: "Open $1M Warplet",
+      name: "$1M Warplet",
+      path: "/million",
+    };
+  }
+
+  return {
+    title: "Open 10X",
+    name: "10X",
+    path: "/",
+  };
+}
+
+function getLaunchPath(routeKey: RouteKey, hostname: string): string {
+  if (hostname === "drop.10x.meme" || hostname === "find.10x.meme" || hostname === "million.10x.meme") {
+    return "/";
+  }
+
+  if (routeKey === "drop") return "/drop";
+  if (routeKey === "find") return "/find";
+  if (routeKey === "million") return "/million";
+  return "/";
+}
+
+function buildMiniAppMetaContent(origin: string, pathname: string, search: string): string {
   const base = normalizeBase(origin);
-  const launchUrl = `${base}/${search}`;
+  const hostname = new URL(origin).hostname;
+  const routeKey = getRouteKey(hostname, pathname);
+  const config = getMiniAppConfig(routeKey);
+  const launchPath = getLaunchPath(routeKey, hostname);
+  const launchBase = launchPath === "/" ? `${base}/` : `${base}${launchPath}`;
+  const launchUrl = `${launchBase}${search}`;
 
   return JSON.stringify({
     version: "1",
     imageUrl: `${base}/embed.png`,
     button: {
-      title: "Open 10X",
+      title: config.title,
       action: {
         type: "launch_miniapp",
-        name: "10X",
+        name: config.name,
         url: launchUrl,
         splashImageUrl: `${base}/splash.png`,
         splashBackgroundColor: "#000000",
@@ -41,7 +102,7 @@ export const onRequestGet: PagesFunction = async (context) => {
   }
 
   const url = new URL(context.request.url);
-  const metaContent = escapeHtmlAttr(buildMiniAppMetaContent(url.origin, url.search));
+  const metaContent = escapeHtmlAttr(buildMiniAppMetaContent(url.origin, url.pathname, url.search));
   const metaTag = `<meta name="fc:miniapp" content="${metaContent}" />`;
 
   let html = await response.text();
