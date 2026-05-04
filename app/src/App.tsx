@@ -1,3 +1,5 @@
+import { useEffect, useState } from "react";
+import sdk from "@farcaster/miniapp-sdk";
 import { Text } from "@neynar/ui/typography";
 
 const APPS = [
@@ -27,6 +29,78 @@ function launch(path: string) {
 }
 
 export default function App() {
+  const [showAddAppPrompt, setShowAddAppPrompt] = useState(false);
+  const [notificationsOnlyPrompt, setNotificationsOnlyPrompt] = useState(false);
+  const [showOpenInFarcaster, setShowOpenInFarcaster] = useState(false);
+  const [actionError, setActionError] = useState("");
+
+  useEffect(() => {
+    let shouldCallReady = false;
+
+    const init = async () => {
+      try {
+        const inMiniApp =
+          typeof sdk.isInMiniApp === "function" ? await sdk.isInMiniApp() : true;
+
+        if (!inMiniApp) {
+          setShowOpenInFarcaster(true);
+          return;
+        }
+
+        shouldCallReady = true;
+        const context = await sdk.context;
+
+        const isProdHost =
+          typeof window !== "undefined" &&
+          window.location.host === "app.10x.meme" &&
+          (window.location.pathname === "/" || window.location.pathname === "");
+        const addParamSet =
+          typeof window !== "undefined" &&
+          new URLSearchParams(window.location.search).get("add") === "1";
+        const shouldPromptAddApp =
+          (isProdHost || addParamSet) &&
+          (!context.client.added || !context.client.notificationDetails);
+        const isNotificationsOnly =
+          shouldPromptAddApp && context.client.added && !context.client.notificationDetails;
+        setShowAddAppPrompt(shouldPromptAddApp);
+        setNotificationsOnlyPrompt(isNotificationsOnly);
+      } catch (err) {
+        console.error("Hub init error:", err);
+        const message = err instanceof Error ? err.message : String(err);
+        const normalized = message.toLowerCase();
+        const looksLikeBrowserLaunch =
+          normalized.includes("context is undefined") ||
+          normalized.includes("can't access property \"user\"") ||
+          normalized.includes("cannot read properties of undefined");
+        if (looksLikeBrowserLaunch) {
+          setShowOpenInFarcaster(true);
+        }
+      } finally {
+        if (shouldCallReady) {
+          sdk.actions.ready();
+        }
+      }
+    };
+
+    init();
+  }, []);
+
+  useEffect(() => {
+    if (!actionError) return;
+    const id = window.setTimeout(() => setActionError(""), 5000);
+    return () => window.clearTimeout(id);
+  }, [actionError]);
+
+  const handleConfirmAddAppPrompt = async () => {
+    setShowAddAppPrompt(false);
+    try {
+      await sdk.actions.addMiniApp();
+    } catch (err) {
+      console.error("Failed to add mini app:", err);
+      setActionError(err instanceof Error ? err.message : String(err));
+    }
+  };
+
   return (
     <div
       className="relative min-h-screen bg-black text-white flex flex-col items-center px-4 py-8"
@@ -62,7 +136,58 @@ export default function App() {
             </button>
           ))}
         </div>
+
+        {showOpenInFarcaster && (
+          <div className="mt-8 rounded-2xl border border-[#00FF0040] bg-black/60 px-4 py-5 text-center">
+            <Text className="text-sm font-bold" style={{ color: "#00FF00" }}>
+              Open in Farcaster
+            </Text>
+            <Text className="mt-2 text-xs" style={{ color: "#b7ffb7" }}>
+              10X mini apps are designed for Farcaster. Open this link inside the Farcaster app to get started.
+            </Text>
+          </div>
+        )}
+
+        {actionError && (
+          <div className="mt-4 rounded-xl border border-red-500/40 bg-red-900/20 px-3 py-2">
+            <Text className="text-xs text-red-400">{actionError}</Text>
+          </div>
+        )}
       </div>
+
+      {showAddAppPrompt && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 px-4 pb-8">
+          <div
+            className="w-full max-w-sm rounded-2xl border bg-black px-5 py-6 shadow-2xl"
+            style={{ borderColor: "#00FF0060" }}
+          >
+            <Text className="text-lg font-bold text-center" style={{ color: "#00FF00" }}>
+              {notificationsOnlyPrompt ? "Enable Notifications" : "Don't Miss Out"}
+            </Text>
+            <Text className="mt-3 text-sm text-center" style={{ color: "#d9d9d9" }}>
+              {notificationsOnlyPrompt
+                ? "Turn on notifications to get alerts for drops, price updates, and more."
+                : "Add 10X to your Farcaster home screen and get notified about drops and price moves."}
+            </Text>
+            <button
+              type="button"
+              onClick={handleConfirmAddAppPrompt}
+              className="mt-5 w-full rounded-xl py-3 font-bold text-black cursor-pointer"
+              style={{ background: "#00FF00" }}
+            >
+              {notificationsOnlyPrompt ? "Enable Notifications" : "Add 10X"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowAddAppPrompt(false)}
+              className="mt-3 w-full rounded-xl py-2 text-sm cursor-pointer"
+              style={{ color: "#9ca3af" }}
+            >
+              Maybe later
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
