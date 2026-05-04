@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import sdk from "@farcaster/miniapp-sdk";
 import confetti from "canvas-confetti";
 import { Text } from "@neynar/ui/typography";
@@ -472,6 +472,57 @@ async function waitForTransactionReceipt(
   throw new Error("Timed out waiting for the wallet transaction to confirm.");
 }
 
+const LAUNCH_AT_UTC_MS = Date.UTC(2026, 4, 1, 0, 1, 0);
+const CHANGE_PERIOD_MS = 10 * 24 * 60 * 60 * 1000;
+const SHARE_IMAGE_EXTENSION = "avif";
+
+function formatUrgencyCountdown(remainingMs: number): string {
+  const clamped = Math.max(0, remainingMs);
+  const totalSeconds = Math.floor(clamped / 1000);
+  const days = Math.floor(totalSeconds / 86400);
+  const hours = Math.floor((totalSeconds % 86400) / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+
+  if (days > 0) {
+    return `${days} Day${days === 1 ? "" : "s"} ${hours} Hour${hours === 1 ? "" : "s"}`;
+  }
+
+  if (hours > 0) {
+    return `${hours} Hour${hours === 1 ? "" : "s"} ${minutes} Minute${minutes === 1 ? "" : "s"}`;
+  }
+
+  return `${minutes} Minute${minutes === 1 ? "" : "s"}`;
+}
+
+function getUrgencyMessage(tokenId: number | null, nowMs: number): string | null {
+  if (!tokenId || tokenId <= 0) return null;
+
+  const elapsedMs = Math.max(0, nowMs - LAUNCH_AT_UTC_MS);
+  const tierIndex = Math.min(9, Math.floor(elapsedMs / CHANGE_PERIOD_MS));
+  const currentPrice = (tierIndex + 1) * 10;
+  const nextPrice = currentPrice + 10;
+
+  if (tierIndex >= 9) {
+    return "Final price: $100. Last chance.";
+  }
+
+  const nextChangeMs = LAUNCH_AT_UTC_MS + CHANGE_PERIOD_MS * (tierIndex + 1);
+  const countdown = formatUrgencyCountdown(nextChangeMs - nowMs);
+
+  const alreadyPublicThreshold = 10001 - tierIndex * 1000;
+  const nextBatchMin = 10001 - (tierIndex + 1) * 1000;
+
+  if (tokenId >= alreadyPublicThreshold) {
+    return "Listed for public sale. Don't miss out!";
+  }
+
+  if (tokenId >= nextBatchMin) {
+    return `Supply goes public in ${countdown}.`;
+  }
+
+  return `Price increases $${currentPrice}->$${nextPrice} in ${countdown}.`;
+}
+
 export default function App() {
   const FARCASTER_MINIAPP_URL = "https://farcaster.xyz/miniapps/uR3Rzs-k6AnV/10x";
   const [fid, setFid] = useState<number | null>(null);
@@ -486,6 +537,13 @@ export default function App() {
   const [showOpenInFarcaster, setShowOpenInFarcaster] = useState(false);
   const [showAddAppPrompt, setShowAddAppPrompt] = useState(false);
   const [notificationsOnlyPrompt, setNotificationsOnlyPrompt] = useState(false);
+  const [nowMs, setNowMs] = useState(Date.now());
+  const [hasClickedOpenSea, setHasClickedOpenSea] = useState(false);
+  const [waitlistEmail, setWaitlistEmail] = useState("");
+  const [waitlistSubmitting, setWaitlistSubmitting] = useState(false);
+  const [waitlistSubmitted, setWaitlistSubmitted] = useState(false);
+  const [hasFollowedX, setHasFollowedX] = useState(false);
+  const [viewerUsername, setViewerUsername] = useState("");
 
   const launchTopConfetti = () => {
     const colors = ["#ff4d4d", "#ffd93d", "#57e389", "#4da3ff", "#b07bff", "#ff7ac8"];
@@ -523,6 +581,11 @@ export default function App() {
         shouldCallReady = true;
         const context = await sdk.context;
         setFid(context.user.fid);
+        const username =
+          typeof (context.user as { username?: unknown } | undefined)?.username === "string"
+            ? String((context.user as { username?: string }).username)
+            : "";
+        setViewerUsername(username);
 
         const isProdHost =
           typeof window !== "undefined" &&
@@ -615,6 +678,16 @@ export default function App() {
     setDidCelebrate(true);
   }, [loading, error, isMatched, didCelebrate]);
 
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      setNowMs(Date.now());
+    }, 1000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, []);
+
   const imageUrl = hasPurchased
     ? `https://warplets.10x.meme/${purchasedTokenId}.gif`
     : isMatched
@@ -631,13 +704,17 @@ export default function App() {
       ? "🔓 Private 10K NFT Drop"
       : "🔒 Private 10K NFT Drop";
   const buttonLabel = hasPurchased
-    ? "Share your 10X Warplet!"
+    ? "Share & Claim Yours"
     : isMatched
       ? isPurchasing
         ? "Processing in Wallet..."
         : "Buy in Farcaster Wallet"
       : "Visit OpenSea to find out why...";
   const shareButtonPulseClass = hasPurchased && !hasShared ? "share-cta-pulse-x" : "";
+  const urgencyMessage = isMatched && !hasPurchased
+    ? getUrgencyMessage(typeof status?.rarityValue === "number" ? status.rarityValue : null, nowMs)
+    : null;
+  const showWaitlistCta = hasShared || (!isMatched && hasClickedOpenSea);
 
   const handlePrimaryAction = async () => {
     if (hasPurchased && purchasedTokenId) {
@@ -647,8 +724,8 @@ export default function App() {
       try {
         const castResult = await sdk.actions.composeCast({
           text:
-            `🎉 Claimed my 10X Warplet!\n\n10X Rarity #${Number(purchasedTokenId).toLocaleString("en-US")} of 10,000.\n\nPrice increases every 10 days.\n\nSupply decreases every 10 days.\n\n💚 Don't miss out...`,
-          embeds: ["https://drop.10x.meme", `https://warplets.10x.meme/${purchasedTokenId}.gif`],
+            `💚 Claim your 10X Warplet!\n\n10X Rarity #${Number(purchasedTokenId).toLocaleString("en-US")} of 10,000.\n\nPrice increases every 10 days.\n\nSupply decreases every 10 days.\n\nDon't miss out...`,
+          embeds: ["https://drop.10x.meme", `https://warplets.10x.meme/${purchasedTokenId}.${SHARE_IMAGE_EXTENSION}`],
         });
 
         if (castResult?.cast?.hash && fid) {
@@ -800,10 +877,12 @@ export default function App() {
       return;
     }
 
+    setHasClickedOpenSea(true);
     await sdk.actions.openUrl("https://opensea.io/collection/10xwarplets/overview");
   };
 
   const handleOpenSeaAction = async () => {
+    setHasClickedOpenSea(true);
     await sdk.actions.openUrl("https://opensea.io/collection/10xwarplets/overview");
   };
 
@@ -819,6 +898,52 @@ export default function App() {
       console.error("Failed to open add mini app prompt:", err);
       setActionError(getErrorMessage(err));
     }
+  };
+
+  const handleWaitlistSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (!waitlistEmail.trim()) {
+      setActionError("Please enter a valid email.");
+      return;
+    }
+
+    setWaitlistSubmitting(true);
+    setActionError("");
+
+    try {
+      const response = await fetch("/api/email/subscribe", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          email: waitlistEmail.trim(),
+          fid,
+          username: viewerUsername || undefined,
+          tokenId: typeof status?.rarityValue === "number" ? status.rarityValue : null,
+          matched: Boolean(isMatched),
+        }),
+      });
+
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(text || "Failed to join waitlist.");
+      }
+
+      setWaitlistSubmitted(true);
+    } catch (err) {
+      setActionError(getErrorMessage(err));
+    } finally {
+      setWaitlistSubmitting(false);
+    }
+  };
+
+  const handleFollowX = async () => {
+    await sdk.actions.openUrl("https://x.com/10XMemeX");
+    setHasFollowedX(true);
+  };
+
+  const handleJoinTelegram = async () => {
+    await sdk.actions.openUrl("https://t.me/X10XMeme");
   };
 
   useEffect(() => {
@@ -936,6 +1061,68 @@ export default function App() {
               >
                 {buttonLabel}
               </button>
+
+              {urgencyMessage && (
+                <Text className="mt-3 text-sm font-semibold" style={{ color: "#b7ffb7" }}>
+                  {urgencyMessage}
+                </Text>
+              )}
+
+              {showWaitlistCta && (
+                <div className="mt-5 rounded-2xl border border-[#00FF00]/35 bg-[#041204]/85 px-4 py-4 text-left">
+                  {!waitlistSubmitted ? (
+                    <form onSubmit={handleWaitlistSubmit} className="space-y-3">
+                      <Text className="text-sm font-bold" style={{ color: "#00FF00" }}>
+                        Join 10X Meme Waitlist
+                      </Text>
+                      <input
+                        type="email"
+                        value={waitlistEmail}
+                        onChange={(event) => setWaitlistEmail(event.target.value)}
+                        placeholder="Email"
+                        required
+                        className="w-full rounded-xl border border-[#00FF00]/35 bg-black/70 px-3 py-2 text-sm text-white outline-none"
+                      />
+                      <button
+                        type="submit"
+                        disabled={waitlistSubmitting}
+                        className="w-full rounded-xl px-4 py-2 font-bold border border-[#009900] bg-[#00FF00] hover:bg-[#33ff33] disabled:bg-gray-700 disabled:border-gray-700 cursor-pointer"
+                        style={{ color: waitlistSubmitting ? "#ffffff" : "rgb(0, 80, 0)" }}
+                      >
+                        {waitlistSubmitting ? "Joining..." : "Join Waitlist"}
+                      </button>
+                    </form>
+                  ) : (
+                    <div className="space-y-3">
+                      <Text className="text-sm font-bold" style={{ color: "#00FF00" }}>
+                        You're on the list.
+                      </Text>
+                      <Text className="text-xs" style={{ color: "#b7ffb7" }}>
+                        Check your inbox for a verification email.
+                      </Text>
+                      {!hasFollowedX ? (
+                        <button
+                          type="button"
+                          onClick={handleFollowX}
+                          className="w-full rounded-xl px-4 py-2 font-bold border border-[#009900] bg-[#00FF00] hover:bg-[#33ff33] cursor-pointer"
+                          style={{ color: "rgb(0, 80, 0)" }}
+                        >
+                          Follow 10X on X
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={handleJoinTelegram}
+                          className="w-full rounded-xl px-4 py-2 font-bold border border-[#009900] bg-[#00FF00] hover:bg-[#33ff33] cursor-pointer"
+                          style={{ color: "rgb(0, 80, 0)" }}
+                        >
+                          Join 10X on Telegram
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         )}
