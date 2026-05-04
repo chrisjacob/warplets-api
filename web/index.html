@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>10X Meme</title>
+    <meta name="description" content="Don't miss out. Join the 10X Meme waitlist." />
+    <style>
+      :root {
+        --bg: #000000;
+        --surface: rgba(4, 18, 4, 0.88);
+        --text: #f5fff5;
+        --muted: #b7ffb7;
+        --accent: #00ff00;
+        --accent-dark: #008000;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: "Roboto Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        color: var(--text);
+        background: var(--bg);
+        min-height: 100vh;
+        overflow-x: hidden;
+      }
+
+      .bg-video {
+        position: fixed;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        opacity: 0.24;
+        pointer-events: none;
+        z-index: -2;
+      }
+
+      .bg-overlay {
+        position: fixed;
+        inset: 0;
+        background: radial-gradient(circle at top, rgba(0, 255, 0, 0.16), rgba(0, 0, 0, 0.94) 62%);
+        z-index: -1;
+      }
+
+      .page {
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+      }
+
+      header {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 24px 16px 12px;
+      }
+
+      .logo {
+        width: 72px;
+        height: 72px;
+      }
+
+      main {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
+      }
+
+      .card {
+        width: min(560px, 100%);
+        border: 1px solid rgba(0, 255, 0, 0.35);
+        background: var(--surface);
+        border-radius: 24px;
+        padding: 24px;
+        text-align: center;
+        box-shadow: 0 24px 64px rgba(0, 0, 0, 0.45);
+      }
+
+      .hero-img {
+        width: min(300px, 76vw);
+        border-radius: 20px;
+        border: 1px solid rgba(0, 255, 0, 0.35);
+      }
+
+      h1 {
+        margin: 16px 0 8px;
+        color: var(--accent);
+        font-size: clamp(1.75rem, 5vw, 2.25rem);
+        line-height: 1.1;
+      }
+
+      .sub {
+        margin: 0 0 16px;
+        color: var(--muted);
+        font-size: 0.95rem;
+      }
+
+      .form {
+        display: flex;
+        gap: 10px;
+        margin-top: 10px;
+      }
+
+      .form input {
+        flex: 1;
+        border-radius: 12px;
+        border: 1px solid rgba(0, 255, 0, 0.3);
+        background: rgba(0, 0, 0, 0.72);
+        color: #fff;
+        padding: 12px;
+        font-size: 14px;
+      }
+
+      .form button {
+        border: 1px solid var(--accent-dark);
+        border-radius: 12px;
+        background: var(--accent);
+        color: #054005;
+        font-weight: 700;
+        font-size: 14px;
+        padding: 12px 16px;
+        cursor: pointer;
+      }
+
+      .status {
+        margin-top: 12px;
+        min-height: 20px;
+        font-size: 13px;
+        color: var(--muted);
+      }
+
+      footer {
+        padding: 18px 16px 24px;
+      }
+
+      .social {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 10px;
+      }
+
+      .social a {
+        text-decoration: none;
+        color: var(--text);
+        border: 1px solid rgba(0, 255, 0, 0.32);
+        background: rgba(0, 0, 0, 0.55);
+        border-radius: 999px;
+        padding: 9px 14px;
+        font-size: 12px;
+      }
+
+      @media (max-width: 640px) {
+        .card {
+          padding: 18px;
+          border-radius: 18px;
+        }
+
+        .form {
+          flex-direction: column;
+        }
+
+        .form button {
+          width: 100%;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <video class="bg-video" src="https://app.10x.meme/matrix_bg_1080x1080.mp4" autoplay muted loop playsinline aria-hidden="true"></video>
+    <div class="bg-overlay" aria-hidden="true"></div>
+
+    <div class="page">
+      <header>
+        <img class="logo" src="https://app.10x.meme/splash.png" alt="10X" />
+      </header>
+
+      <main>
+        <section class="card">
+          <img class="hero-img" src="https://warplets.10x.meme/760.avif" alt="10X Warplet" />
+          <h1>Don't miss out.</h1>
+          <p class="sub">10,000 Warplets. Price increases every 10 days.</p>
+
+          <form id="waitlist-form" class="form">
+            <input id="email" type="email" required placeholder="Email" autocomplete="email" />
+            <button type="submit">Join Waitlist</button>
+          </form>
+
+          <p id="status" class="status"></p>
+        </section>
+      </main>
+
+      <footer>
+        <nav class="social">
+          <a href="https://farcaster.xyz/miniapps/uR3Rzs-k6AnV/10x" target="_blank" rel="noopener noreferrer">Farcaster</a>
+          <a href="https://x.com/10XMemeX" target="_blank" rel="noopener noreferrer">X</a>
+          <a href="https://t.me/X10XMeme" target="_blank" rel="noopener noreferrer">Telegram</a>
+          <a href="https://opensea.io/collection/10xwarplets" target="_blank" rel="noopener noreferrer">OpenSea (10X Warplets)</a>
+          <a href="https://opensea.io/collection/1mwarplet" target="_blank" rel="noopener noreferrer">OpenSea ($1M Warplet)</a>
+        </nav>
+      </footer>
+    </div>
+
+    <script>
+      const form = document.getElementById("waitlist-form");
+      const emailInput = document.getElementById("email");
+      const status = document.getElementById("status");
+
+      form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const email = emailInput.value.trim();
+        if (!email) return;
+
+        status.textContent = "Joining...";
+
+        try {
+          const res = await fetch("https://app.10x.meme/api/email/subscribe", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ email, matched: false }),
+          });
+
+          if (!res.ok) {
+            const text = await res.text();
+            throw new Error(text || "Failed to subscribe.");
+          }
+
+          status.textContent = "You're in. Check your inbox to verify your email.";
+          form.reset();
+        } catch (err) {
+          status.textContent = err && err.message ? err.message : "Something went wrong. Please try again.";
+        }
+      });
+    </script>
+
+    <!-- Replace G-XXXXXXXXXX with your GA4 measurement ID when ready. -->
+    <script>
+      const measurementId = "G-XXXXXXXXXX";
+      if (measurementId && measurementId !== "G-XXXXXXXXXX") {
+        const gtagScript = document.createElement("script");
+        gtagScript.async = true;
+        gtagScript.src = `https://www.googletagmanager.com/gtag/js?id=${measurementId}`;
+        document.head.appendChild(gtagScript);
+
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);} // eslint-disable-line no-unused-vars
+        gtag("js", new Date());
+        gtag("config", measurementId);
+      }
+    </script>
+  </body>
+</html>

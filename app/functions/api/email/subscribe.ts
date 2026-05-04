@@ -13,6 +13,24 @@ interface SubscribeBody {
 }
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const ALLOWED_ORIGINS = new Set([
+  "https://10x.meme",
+  "https://www.10x.meme",
+  "https://app.10x.meme",
+  "https://drop.10x.meme",
+  "https://drop-dev.10x.meme",
+]);
+
+function buildCorsHeaders(request: Request): Headers {
+  const headers = new Headers();
+  const origin = request.headers.get("origin") ?? "";
+  if (ALLOWED_ORIGINS.has(origin)) {
+    headers.set("access-control-allow-origin", origin);
+  }
+  headers.set("access-control-allow-methods", "POST,OPTIONS");
+  headers.set("access-control-allow-headers", "content-type");
+  return headers;
+}
 
 function asString(value: unknown): string | null {
   return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
@@ -40,18 +58,24 @@ function buildVerifyEmailHtml(verifyUrl: string): string {
   `;
 }
 
+export const onRequestOptions: PagesFunction<Env> = async (context) => {
+  return new Response(null, { status: 204, headers: buildCorsHeaders(context.request) });
+};
+
 export const onRequestPost: PagesFunction<Env> = async (context) => {
+  const corsHeaders = buildCorsHeaders(context.request);
+
   let body: SubscribeBody;
   try {
     body = (await context.request.json()) as SubscribeBody;
   } catch {
-    return Response.json({ error: "Invalid JSON body" }, { status: 400 });
+    return Response.json({ error: "Invalid JSON body" }, { status: 400, headers: corsHeaders });
   }
 
   const rawEmail = asString(body.email);
   const email = rawEmail?.toLowerCase() ?? "";
   if (!email || !EMAIL_REGEX.test(email)) {
-    return Response.json({ error: "A valid email is required" }, { status: 400 });
+    return Response.json({ error: "A valid email is required" }, { status: 400, headers: corsHeaders });
   }
 
   const fid = asPositiveInteger(body.fid);
@@ -88,7 +112,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     .first<{ verified: number; verify_token: string }>();
 
   if (!row) {
-    return Response.json({ error: "Failed to persist waitlist record" }, { status: 500 });
+    return Response.json({ error: "Failed to persist waitlist record" }, { status: 500, headers: corsHeaders });
   }
 
   const alreadyVerified = row.verified === 1;
@@ -129,5 +153,5 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     email,
     alreadyVerified,
     verificationEmailSent,
-  });
+  }, { headers: corsHeaders });
 };
