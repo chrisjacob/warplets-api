@@ -16,6 +16,11 @@
  */
 
 import { dispatchNotification } from "../../_lib/dispatch.js";
+import {
+  getDefaultLaunchUrl,
+  normalizeAppSlug,
+  type AppSlug,
+} from "../../_lib/appSlug.js";
 
 interface Env {
   WARPLETS: D1Database;
@@ -28,12 +33,24 @@ interface RequestBody {
   body: string;
   targetUrl?: string;
   notificationId?: string;
+  appSlug?: string;
 }
 
 interface TokenRow {
   fid: number;
   notification_url: string;
   notification_token: string;
+}
+
+function withQueryParam(url: string, key: string, value: string): string {
+  const parsed = new URL(url);
+  parsed.searchParams.set(key, value);
+  return parsed.toString();
+}
+
+function buildNotificationId(appSlug: AppSlug, rawNotificationId?: string): string {
+  const base = (rawNotificationId ?? `campaign-${Date.now()}`).slice(0, 120);
+  return `${appSlug}:${base}`.slice(0, 128);
 }
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
@@ -57,8 +74,10 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
   const title = json.title.slice(0, 32);
   const body = json.body.slice(0, 128);
-  const notificationId = (json.notificationId ?? `campaign-${Date.now()}`).slice(0, 128);
-  const targetUrl = json.targetUrl ?? `https://app.10x.meme/?notificationId=${notificationId}`;
+  const appSlug = normalizeAppSlug(json.appSlug, "drop");
+  const notificationId = buildNotificationId(appSlug, json.notificationId);
+  const targetBase = json.targetUrl ?? getDefaultLaunchUrl(appSlug);
+  const targetUrl = withQueryParam(targetBase, "notificationId", notificationId);
 
   if (!targetUrl.startsWith("https://")) {
     return Response.json({ error: "targetUrl must be https" }, { status: 400 });
@@ -102,6 +121,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   for (const row of rows) {
     const result = await dispatchNotification(context.env.WARPLETS, {
       fid: row.fid,
+      appSlug,
       notificationUrl: row.notification_url,
       notificationToken: row.notification_token,
       notificationId,

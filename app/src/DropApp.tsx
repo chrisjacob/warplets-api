@@ -545,6 +545,7 @@ export default function App() {
             body: JSON.stringify({
               notificationId: loc.notification.notificationId,
               fid: context.user.fid,
+              appSlug: "drop",
             }),
           }).catch(() => {}); // fire-and-forget; never block UX
         }

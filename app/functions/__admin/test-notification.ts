@@ -7,6 +7,7 @@ interface Env {
 
 interface RequestBody {
   fid?: number;
+  appSlug?: string;
   title?: string;
   body?: string;
   targetUrl?: string;
@@ -77,12 +78,14 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   }
 
   const notificationId = json.notificationId ?? `test-${Date.now()}`;
+  const appSlug = typeof json.appSlug === "string" ? json.appSlug : "drop";
   const title = (json.title ?? "10X Test").slice(0, 32);
   const body = (json.body ?? "Push notifications are working.").slice(0, 128);
-  const targetUrl = json.targetUrl ?? `https://app.10x.meme/?notificationId=${notificationId}`;
+  const targetUrl = json.targetUrl ?? `https://drop.10x.meme/?notificationId=${notificationId}`;
 
   const result = await dispatchNotification(context.env.WARPLETS, {
     fid: resolvedFid,
+    appSlug,
     notificationUrl,
     notificationToken,
     notificationId,

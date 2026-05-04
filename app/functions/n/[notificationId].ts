@@ -8,6 +8,8 @@
  * Security: `t` param is validated to be an https URL to prevent open redirect.
  */
 
+import { normalizeAppSlug, resolveAppSlugFromUrl } from "../_lib/appSlug.js";
+
 interface Env {
   WARPLETS: D1Database;
 }
@@ -17,6 +19,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   const url = new URL(context.request.url);
   const target = url.searchParams.get("t");
   const fidParam = url.searchParams.get("fid");
+  const appSlugParam = url.searchParams.get("app");
 
   // Validate target is a safe https URL (prevents open redirect to arbitrary schemes)
   if (!target) {
@@ -35,13 +38,14 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   }
 
   const fid = fidParam !== null && /^\d+$/.test(fidParam) ? parseInt(fidParam, 10) : null;
+  const appSlug = normalizeAppSlug(appSlugParam, resolveAppSlugFromUrl(targetUrl));
 
   // Log click fire-and-forget (don't block the redirect)
   context.waitUntil(
     context.env.WARPLETS.prepare(
-      `INSERT INTO notification_clicks (notification_id, fid, target_url) VALUES (?, ?, ?)`
+      `INSERT INTO notification_clicks (notification_id, fid, target_url, app_slug) VALUES (?, ?, ?, ?)`
     )
-      .bind(notificationId, fid, targetUrl.toString())
+      .bind(notificationId, fid, targetUrl.toString(), appSlug)
       .run()
   );
 

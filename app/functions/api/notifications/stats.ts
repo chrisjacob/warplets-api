@@ -11,6 +11,7 @@ interface Env {
 }
 
 interface StatsRow {
+  app_slug: string;
   notification_id: string;
   title: string;
   body: string;
@@ -31,6 +32,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
   const { results } = await context.env.WARPLETS.prepare(
     `SELECT
+       COALESCE(d.app_slug, 'drop') AS app_slug,
        d.notification_id,
        MAX(d.title)       AS title,
        MAX(d.body)        AS body,
@@ -40,13 +42,16 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
        MIN(d.created_at)  AS first_sent,
        MAX(d.created_at)  AS last_sent
      FROM notification_dispatches d
-     LEFT JOIN notification_opens  o ON o.notification_id = d.notification_id
-     GROUP BY d.notification_id
+     LEFT JOIN notification_opens  o
+       ON o.notification_id = d.notification_id
+      AND COALESCE(o.app_slug, 'drop') = COALESCE(d.app_slug, 'drop')
+     GROUP BY COALESCE(d.app_slug, 'drop'), d.notification_id
      ORDER BY last_sent DESC
      LIMIT 50`
   ).all<StatsRow>();
 
   const rows = results.map((r) => ({
+    appSlug: r.app_slug,
     notificationId: r.notification_id,
     title: r.title,
     body: r.body,

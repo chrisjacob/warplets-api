@@ -27,6 +27,7 @@ export type DispatchResult =
 
 export interface DispatchOptions {
   fid: number;
+  appSlug: string;
   notificationUrl: string;
   notificationToken: string;
   notificationId: string;
@@ -43,7 +44,7 @@ export async function dispatchNotification(
   db: D1Database,
   opts: DispatchOptions
 ): Promise<DispatchResult> {
-  const { fid, notificationUrl, notificationToken, notificationId, title, body, targetUrl } = opts;
+  const { fid, appSlug, notificationUrl, notificationToken, notificationId, title, body, targetUrl } = opts;
 
   // Validate constraints
   if (notificationId.length > 128)
@@ -58,14 +59,14 @@ export async function dispatchNotification(
   // Upsert dispatch record (idempotency: ignore if already delivered)
   const dispatch = await db
     .prepare(
-      `INSERT INTO notification_dispatches (fid, notification_id, title, body, target_url, status, attempt_count)
-       VALUES (?, ?, ?, ?, ?, 'pending', 0)
+      `INSERT INTO notification_dispatches (fid, app_slug, notification_id, title, body, target_url, status, attempt_count)
+       VALUES (?, ?, ?, ?, ?, ?, 'pending', 0)
        ON CONFLICT(fid, notification_id) DO UPDATE SET
          attempt_count = attempt_count + 1,
          updated_at = datetime('now')
        RETURNING id, status, attempt_count`
     )
-    .bind(fid, notificationId, title.slice(0, 32), body.slice(0, 128), targetUrl)
+    .bind(fid, appSlug, notificationId, title.slice(0, 32), body.slice(0, 128), targetUrl)
     .first<{ id: number; status: string; attempt_count: number }>();
 
   if (!dispatch) {

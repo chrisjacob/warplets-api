@@ -8,6 +8,8 @@
  * No auth required — source is trusted miniapp context.
  */
 
+import { normalizeAppSlug, resolveAppSlugFromUrl } from "../../_lib/appSlug.js";
+
 interface Env {
   WARPLETS: D1Database;
 }
@@ -15,6 +17,7 @@ interface Env {
 interface RequestBody {
   notificationId?: unknown;
   fid?: unknown;
+  appSlug?: unknown;
 }
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
@@ -31,11 +34,12 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   }
 
   const fid = typeof body.fid === "number" ? body.fid : null;
+  const appSlug = normalizeAppSlug(body.appSlug, resolveAppSlugFromUrl(new URL(context.request.url)));
 
   await context.env.WARPLETS.prepare(
-    `INSERT INTO notification_opens (notification_id, fid) VALUES (?, ?)`
+    `INSERT INTO notification_opens (notification_id, fid, app_slug) VALUES (?, ?, ?)`
   )
-    .bind(notificationId, fid)
+    .bind(notificationId, fid, appSlug)
     .run();
 
   return Response.json({ ok: true });

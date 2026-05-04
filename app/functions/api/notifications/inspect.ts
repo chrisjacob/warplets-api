@@ -36,7 +36,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     ).all(),
 
     context.env.WARPLETS.prepare(
-      `SELECT id, fid, notification_id, title, status, attempt_count, created_at, updated_at
+      `SELECT id, fid, app_slug, notification_id, title, status, attempt_count, created_at, updated_at
        FROM notification_dispatches
        ORDER BY created_at DESC
        LIMIT 20`
