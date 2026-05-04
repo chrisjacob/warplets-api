@@ -14,11 +14,15 @@ function normalizeBase(origin: string): string {
 
 type RouteKey = "root" | "drop" | "find" | "million";
 
+function matchesHost(hostname: string, ...candidates: string[]): boolean {
+  return candidates.includes(hostname);
+}
+
 function getRouteKey(hostname: string, pathname: string): RouteKey {
   const cleanPath = pathname.replace(/\/+$/, "") || "/";
-  if (hostname === "drop.10x.meme") return "drop";
-  if (hostname === "find.10x.meme") return "find";
-  if (hostname === "million.10x.meme") return "million";
+  if (matchesHost(hostname, "drop.10x.meme", "drop-dev.10x.meme", "drop-local.10x.meme")) return "drop";
+  if (matchesHost(hostname, "find.10x.meme", "find-dev.10x.meme", "find-local.10x.meme")) return "find";
+  if (matchesHost(hostname, "million.10x.meme", "million-dev.10x.meme", "million-local.10x.meme")) return "million";
   if (cleanPath === "/drop" || cleanPath.startsWith("/drop/")) return "drop";
   if (cleanPath === "/find" || cleanPath.startsWith("/find/")) return "find";
   if (cleanPath === "/million" || cleanPath.startsWith("/million/")) return "million";
@@ -58,7 +62,20 @@ function getMiniAppConfig(routeKey: RouteKey): { title: string; name: string; pa
 }
 
 function getLaunchPath(routeKey: RouteKey, hostname: string): string {
-  if (hostname === "drop.10x.meme" || hostname === "find.10x.meme" || hostname === "million.10x.meme") {
+  if (
+    matchesHost(
+      hostname,
+      "drop.10x.meme",
+      "drop-dev.10x.meme",
+      "drop-local.10x.meme",
+      "find.10x.meme",
+      "find-dev.10x.meme",
+      "find-local.10x.meme",
+      "million.10x.meme",
+      "million-dev.10x.meme",
+      "million-local.10x.meme"
+    )
+  ) {
     return "/";
   }
 
