@@ -1,5 +1,81 @@
 const FC_MINIAPP_META_REGEX = /<meta\s+name="fc:miniapp"[^>]*>/i;
 
+const APP_ASSOCIATION = {
+  header:
+    "eyJmaWQiOjExMjkxMzgsInR5cGUiOiJhdXRoIiwia2V5IjoiMHg0NzA5YTRCMTJEQWYwZUVEYUUwZWY0OEEyOGEwNTY2NDBEZWUwODQ2In0",
+  payload: "eyJkb21haW4iOiJhcHAuMTB4Lm1lbWUifQ",
+  signature:
+    "JstfeHToe/7YhAoEZbwRmzOcwWnH5F1muSdJ+n4q0fB4JrJOtwN61xpIszl2XzbC9bQZd8+oOnUI2CchshE9XRs=",
+};
+
+const DROP_ASSOCIATION = {
+  header:
+    "eyJmaWQiOjExMjkxMzgsInR5cGUiOiJhdXRoIiwia2V5IjoiMHg0NzA5YTRCMTJEQWYwZUVEYUUwZWY0OEEyOGEwNTY2NDBEZWUwODQ2In0",
+  payload: "eyJkb21haW4iOiJkcm9wLjEweC5tZW1lIn0",
+  signature: "EYVGQ7agQ+KoXvdu9vu4zsrEXk97yRwrMIeeVr9DqW11L748hmLKwCRMLL91N8nFOZRPQHr4dcQ52HM0Ds9yixw=",
+};
+
+function buildFarcasterManifest(hostname: string) {
+  if (hostname === "drop.10x.meme" || hostname === "drop-dev.10x.meme") {
+    return {
+      accountAssociation: DROP_ASSOCIATION,
+      miniapp: {
+        version: "1",
+        name: "10X Warplets Drop",
+        canonicalDomain: hostname,
+        homeUrl: `https://${hostname}`,
+        iconUrl: "https://drop.10x.meme/icon.png",
+        imageUrl: "https://drop.10x.meme/embed.png",
+        heroImageUrl: "https://drop.10x.meme/hero.png",
+        buttonTitle: "Claim Your Warplet",
+        splashImageUrl: "https://drop.10x.meme/splash.png",
+        splashBackgroundColor: "#000000",
+        webhookUrl: "https://app.10x.meme/webhook",
+        castShareUrl: `https://${hostname}`,
+        subtitle: "Don't miss out.",
+        description: "Claim your 10X Warplet NFT before it's gone.",
+        primaryCategory: "social",
+        tags: ["10x", "warplets", "farcaster", "nft", "drop"],
+        tagline: "Your Warplet is waiting.",
+        ogTitle: "10X Warplets Drop",
+        ogDescription: "Claim your 10X Warplet NFT before it's gone.",
+        ogImageUrl: "https://drop.10x.meme/embed.png",
+      },
+    };
+  }
+
+  return {
+    accountAssociation: APP_ASSOCIATION,
+    miniapp: {
+      version: "1",
+      name: "10X",
+      canonicalDomain: "app.10x.meme",
+      homeUrl: "https://app.10x.meme",
+      iconUrl: "https://app.10x.meme/icon.png",
+      imageUrl: "https://app.10x.meme/embed.png",
+      heroImageUrl: "https://app.10x.meme/hero.png",
+      buttonTitle: "Open 10X",
+      splashImageUrl: "https://app.10x.meme/splash.png",
+      splashBackgroundColor: "#000000",
+      webhookUrl: "https://app.10x.meme/webhook",
+      castShareUrl: "https://app.10x.meme",
+      subtitle: "Don't miss out.",
+      description: "10X Network. 10X Warplets. 10X Memecoins.",
+      primaryCategory: "social",
+      screenshotUrls: [
+        "https://app.10x.meme/screenshots/1.jpg",
+        "https://app.10x.meme/screenshots/2.jpg",
+        "https://app.10x.meme/screenshots/3.jpg",
+      ],
+      tags: ["10x", "warplets", "farcaster", "nft", "memecoins"],
+      tagline: "Don't miss out.",
+      ogTitle: "10X",
+      ogDescription: "Builders, capital and signal - aligned.",
+      ogImageUrl: "https://app.10x.meme/embed.png",
+    },
+  };
+}
+
 function escapeHtmlAttr(value: string): string {
   return value
     .replace(/&/g, "&amp;")
@@ -111,6 +187,16 @@ function buildMiniAppMetaContent(origin: string, pathname: string, search: strin
 }
 
 export const onRequestGet: PagesFunction = async (context) => {
+  const requestUrl = new URL(context.request.url);
+
+  if (requestUrl.pathname === "/.well-known/farcaster.json") {
+    return Response.json(buildFarcasterManifest(requestUrl.hostname), {
+      headers: {
+        "cache-control": "no-store",
+      },
+    });
+  }
+
   const response = await context.next();
   const contentType = response.headers.get("content-type") || "";
 
@@ -118,8 +204,9 @@ export const onRequestGet: PagesFunction = async (context) => {
     return response;
   }
 
-  const url = new URL(context.request.url);
-  const metaContent = escapeHtmlAttr(buildMiniAppMetaContent(url.origin, url.pathname, url.search));
+  const metaContent = escapeHtmlAttr(
+    buildMiniAppMetaContent(requestUrl.origin, requestUrl.pathname, requestUrl.search)
+  );
   const metaTag = `<meta name="fc:miniapp" content="${metaContent}" />`;
 
   let html = await response.text();
