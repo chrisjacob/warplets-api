@@ -4,8 +4,15 @@ import tailwindcss from "@tailwindcss/vite";
 
 type RouteKey = "root" | "drop" | "find" | "million";
 
-function getRouteKey(pathname: string): RouteKey {
+function matchesHost(hostname: string, ...candidates: string[]): boolean {
+  return candidates.includes(hostname);
+}
+
+function getRouteKey(pathname: string, hostname?: string): RouteKey {
   const cleanPath = pathname.replace(/\/+$/, "") || "/";
+  if (hostname && matchesHost(hostname, "drop-local.10x.meme", "drop-dev.10x.meme", "drop.10x.meme")) return "drop";
+  if (hostname && matchesHost(hostname, "find-local.10x.meme", "find-dev.10x.meme", "find.10x.meme")) return "find";
+  if (hostname && matchesHost(hostname, "million-local.10x.meme", "million-dev.10x.meme", "million.10x.meme")) return "million";
   if (cleanPath === "/drop" || cleanPath.startsWith("/drop/")) return "drop";
   if (cleanPath === "/find" || cleanPath.startsWith("/find/")) return "find";
   if (cleanPath === "/million" || cleanPath.startsWith("/million/")) return "million";
@@ -57,7 +64,8 @@ export default defineConfig({
         const query = reqUrl.includes("?") ? reqUrl.slice(reqUrl.indexOf("?")) : "";
         const baseUrl = process.env.VITE_MINIAPP_BASE_URL?.replace(/\/$/, "") || "";
         if (!baseUrl) return html;
-        const routeKey = getRouteKey(reqPath);
+        const baseHostname = new URL(baseUrl).hostname;
+        const routeKey = getRouteKey(reqPath, baseHostname);
         const config = getMiniAppConfig(routeKey);
         const launchBase = config.path === "/" ? `${baseUrl}/` : `${baseUrl}${config.path}`;
 
@@ -83,7 +91,12 @@ export default defineConfig({
     },
   ],
   server: {
-    allowedHosts: ["app-local.10x.meme"],
+    allowedHosts: [
+      "app-local.10x.meme",
+      "drop-local.10x.meme",
+      "find-local.10x.meme",
+      "million-local.10x.meme",
+    ],
     proxy: {
       // Proxy API calls to the deployed dev environment so functions work locally
       "/api": "https://app-dev.10x.meme",

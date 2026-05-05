@@ -11,6 +11,7 @@
     "typecheck": "tsc --noEmit",
     "deploy": "vite build && wrangler pages deploy dist",
     "local:tunnel": "node ../scripts/dev-tunnel-app.mjs",
+    "local:tunnel:drop": "node ../scripts/dev-tunnel-drop.mjs",
     "deploy:dev": "vite build --mode development && wrangler pages deploy dist --project-name 10x-app-dev --branch dev",
     "deploy:prod": "vite build && wrangler pages deploy dist --project-name 10x-app"
   },
