@@ -1,0 +1,12 @@
+{
+  "name": "10x-web",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "packageManager": "pnpm@9.15.4",
+  "scripts": {
+    "dev": "pnpm dlx wrangler pages dev . --port 4174",
+    "deploy:dev": "pnpm dlx wrangler pages deploy . --project-name 10x-web-dev --branch dev",
+    "deploy:prod": "pnpm dlx wrangler pages deploy . --project-name 10x-web --branch main"
+  }
+}
