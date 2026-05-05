@@ -24,9 +24,9 @@ const APP_ASSOCIATION = {
 // Enter domain: drop.10x.meme  →  copy the resulting JSON here
 // --------------------------------------------------------------------------
 const DROP_ASSOCIATION = {
-  header: "REPLACE_WITH_DROP_HEADER",
-  payload: "REPLACE_WITH_DROP_PAYLOAD",
-  signature: "REPLACE_WITH_DROP_SIGNATURE",
+    "header": "eyJmaWQiOjExMjkxMzgsInR5cGUiOiJhdXRoIiwia2V5IjoiMHg0NzA5YTRCMTJEQWYwZUVEYUUwZWY0OEEyOGEwNTY2NDBEZWUwODQ2In0",
+    "payload": "eyJkb21haW4iOiJkcm9wLjEweC5tZW1lIn0",
+    "signature": "EYVGQ7agQ+KoXvdu9vu4zsrEXk97yRwrMIeeVr9DqW11L748hmLKwCRMLL91N8nFOZRPQHr4dcQ52HM0Ds9yixw="
 };
 
 const DROP_ASSOCIATION_READY =
