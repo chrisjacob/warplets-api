@@ -52,8 +52,8 @@ export function getDefaultLaunchUrl(appSlug: AppSlug): string {
 export function resolveAppSlugFromAppFid(
   appFid: number | null | undefined,
   mapping: Partial<Record<AppSlug, number>> = {}
-): AppSlug {
-  if (typeof appFid !== "number") return "app";
+): AppSlug | null {
+  if (typeof appFid !== "number") return null;
 
   if (mapping.app != null && appFid === mapping.app) return "app";
   if (mapping.drop != null && appFid === mapping.drop) return "drop";
@@ -63,5 +63,5 @@ export function resolveAppSlugFromAppFid(
   // Current observed app_fid in production webhook events.
   if (appFid === 9152) return "app";
 
-  return "app";
+  return null;
 }

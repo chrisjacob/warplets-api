@@ -165,13 +165,15 @@ export async function dispatchNotification(
       .run(),
   ]);
 
-  // If token is invalid, disable in D1
+  // If token is invalid, disable only this app-scoped token row.
   if (result.state === "invalid_token") {
     await db
       .prepare(
-        `UPDATE miniapp_notification_tokens SET enabled = 0, updated_at = datetime('now') WHERE fid = ?`
+        `UPDATE miniapp_notification_tokens
+         SET enabled = 0, updated_at = datetime('now')
+         WHERE fid = ? AND app_slug = ?`
       )
-      .bind(fid)
+      .bind(fid, appSlug)
       .run();
   }
 
