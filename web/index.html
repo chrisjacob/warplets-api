@@ -220,7 +220,11 @@
         status.textContent = "Joining...";
 
         try {
-          const res = await fetch("https://app.10x.meme/api/email/subscribe", {
+          // Route to dev or prod API based on hostname
+          const apiBase = location.hostname === "web-dev.10x.meme"
+            ? "https://app-dev.10x.meme"
+            : "https://app.10x.meme";
+          const res = await fetch(`${apiBase}/api/email/subscribe`, {
             method: "POST",
             headers: { "content-type": "application/json" },
             body: JSON.stringify({ email, matched: false }),
@@ -239,20 +243,13 @@
       });
     </script>
 
-    <!-- Replace G-9YW8LVZKWJ with your GA4 measurement ID when ready. -->
+    <!-- Google Analytics -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-9YW8LVZKWJ"></script>
     <script>
-      const measurementId = "G-9YW8LVZKWJ";
-      if (measurementId && measurementId !== "G-9YW8LVZKWJ") {
-        const gtagScript = document.createElement("script");
-        gtagScript.async = true;
-        gtagScript.src = `https://www.googletagmanager.com/gtag/js?id=${measurementId}`;
-        document.head.appendChild(gtagScript);
-
-        window.dataLayer = window.dataLayer || [];
-        function gtag(){dataLayer.push(arguments);} // eslint-disable-line no-unused-vars
-        gtag("js", new Date());
-        gtag("config", measurementId);
-      }
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-9YW8LVZKWJ');
     </script>
   </body>
 </html>

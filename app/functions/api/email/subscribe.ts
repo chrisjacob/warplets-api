@@ -19,6 +19,7 @@ const ALLOWED_ORIGINS = new Set([
   "https://app.10x.meme",
   "https://drop.10x.meme",
   "https://drop-dev.10x.meme",
+  "https://web-dev.10x.meme",
 ]);
 
 function buildCorsHeaders(request: Request): Headers {
