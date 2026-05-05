@@ -22,7 +22,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
   const [tokens, webhookEvents, dispatches, attempts] = await Promise.all([
     context.env.WARPLETS.prepare(
-      `SELECT id, fid, notification_url, notification_token, enabled, created_at, updated_at
+      `SELECT id, fid, app_fid, app_slug, notification_url, notification_token, enabled, created_at, updated_at
        FROM miniapp_notification_tokens
        ORDER BY updated_at DESC
        LIMIT 50`

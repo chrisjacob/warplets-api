@@ -104,6 +104,7 @@ export const onRequestGet: PagesFunction = () => {
     <h2>Send notification</h2>
     <label>App <span style="color:#555;font-size:.75rem">(notification audience)</span></label>
     <select id="sendApp">
+      <option value="all">All</option>
       <option value="app">10X</option>
       <option value="drop">Drop</option>
     </select>
@@ -172,6 +173,7 @@ export const onRequestGet: PagesFunction = () => {
 <script>
   const SESSION_KEY = 'admin_token_10x';
   const SEND_APP_DEFAULTS = {
+    all: 'https://app.10x.meme/',
     app: 'https://app.10x.meme/',
     drop: 'https://drop.10x.meme/',
   };

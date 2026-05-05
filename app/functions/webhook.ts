@@ -13,12 +13,23 @@ import {
   parseWebhookEvent,
   createVerifyAppKeyWithHub,
 } from "@farcaster/miniapp-node";
+import { resolveAppSlugFromAppFid } from "./_lib/appSlug.js";
 
 interface NotificationDetails { token: string; url: string; }
 
 interface Env {
   WARPLETS: D1Database;
   NEYNAR_API_KEY: string;
+  APP_APP_FID?: string;
+  DROP_APP_FID?: string;
+  FIND_APP_FID?: string;
+  MILLION_APP_FID?: string;
+}
+
+function parseOptionalInt(value: string | undefined): number | undefined {
+  if (!value) return undefined;
+  const parsed = Number.parseInt(value, 10);
+  return Number.isFinite(parsed) ? parsed : undefined;
 }
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
@@ -55,6 +66,12 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   }
 
   const { fid, appFid, event } = data;
+  const appSlug = resolveAppSlugFromAppFid(appFid, {
+    app: parseOptionalInt(env.APP_APP_FID),
+    drop: parseOptionalInt(env.DROP_APP_FID),
+    find: parseOptionalInt(env.FIND_APP_FID),
+    million: parseOptionalInt(env.MILLION_APP_FID),
+  });
 
   // Log raw event to D1 for audit/replay (fire-and-forget, don't block response)
   const logEvent = env.WARPLETS.prepare(
@@ -71,15 +88,16 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       const details = (event as { notificationDetails?: NotificationDetails }).notificationDetails;
       if (details?.token && details?.url) {
         await env.WARPLETS.prepare(
-          `INSERT INTO miniapp_notification_tokens (fid, notification_url, notification_token, enabled)
-           VALUES (?, ?, ?, 1)
-           ON CONFLICT(fid) DO UPDATE SET
+          `INSERT INTO miniapp_notification_tokens (fid, app_fid, app_slug, notification_url, notification_token, enabled)
+           VALUES (?, ?, ?, ?, ?, 1)
+           ON CONFLICT(fid, app_slug) DO UPDATE SET
+             app_fid = excluded.app_fid,
              notification_url = excluded.notification_url,
              notification_token = excluded.notification_token,
              enabled = 1,
              updated_at = datetime('now')`
         )
-          .bind(fid, details.url, details.token)
+          .bind(fid, appFid ?? null, appSlug, details.url, details.token)
           .run();
       }
       break;
@@ -90,9 +108,9 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       await env.WARPLETS.prepare(
         `UPDATE miniapp_notification_tokens
          SET enabled = 0, updated_at = datetime('now')
-         WHERE fid = ?`
+         WHERE fid = ? AND app_slug = ?`
       )
-        .bind(fid)
+        .bind(fid, appSlug)
         .run();
       break;
     }
