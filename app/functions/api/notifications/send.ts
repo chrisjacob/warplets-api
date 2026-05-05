@@ -74,7 +74,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
   const title = json.title.slice(0, 32);
   const body = json.body.slice(0, 128);
-  const appSlug = normalizeAppSlug(json.appSlug, "drop");
+  const appSlug = normalizeAppSlug(json.appSlug, "app");
   const notificationId = buildNotificationId(appSlug, json.notificationId);
   const targetBase = json.targetUrl ?? getDefaultLaunchUrl(appSlug);
   const targetUrl = withQueryParam(targetBase, "notificationId", notificationId);

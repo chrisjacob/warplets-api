@@ -28,8 +28,8 @@ export const onRequestGet: PagesFunction = () => {
     section { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 8px; padding: 1.25rem; margin-bottom: 1.5rem; }
     label { display: block; font-size: .8rem; color: #999; margin-bottom: .25rem; margin-top: .75rem; }
     label:first-of-type { margin-top: 0; }
-    input, textarea { width: 100%; background: #111; border: 1px solid #333; border-radius: 6px; color: #e5e5e5; padding: .5rem .75rem; font-size: .9rem; outline: none; }
-    input:focus, textarea:focus { border-color: #7c3aed; }
+    input, textarea, select { width: 100%; background: #111; border: 1px solid #333; border-radius: 6px; color: #e5e5e5; padding: .5rem .75rem; font-size: .9rem; outline: none; }
+    input:focus, textarea:focus, select:focus { border-color: #7c3aed; }
     textarea { resize: vertical; min-height: 4rem; }
     button { background: #7c3aed; color: #fff; border: none; border-radius: 6px; padding: .5rem 1.25rem; font-size: .9rem; cursor: pointer; margin-top: .75rem; }
     button:hover { background: #6d28d9; }
@@ -102,13 +102,19 @@ export const onRequestGet: PagesFunction = () => {
   <!-- SEND NOTIFICATION -->
   <section>
     <h2>Send notification</h2>
+    <label>App <span style="color:#555;font-size:.75rem">(notification audience)</span></label>
+    <select id="sendApp">
+      <option value="app">10X</option>
+      <option value="drop">Drop</option>
+    </select>
+
     <label>Title <span style="color:#555;font-size:.75rem">(max 32 chars)</span></label>
     <input id="sendTitle" maxlength="32" placeholder="10X Update" />
 
     <label>Body <span style="color:#555;font-size:.75rem">(max 128 chars)</span></label>
     <textarea id="sendBody" maxlength="128" placeholder="Something exciting is happening…"></textarea>
 
-    <label>Target URL <span style="color:#555;font-size:.75rem">(optional — defaults to app.10x.meme)</span></label>
+    <label>Target URL <span id="sendTargetHint" style="color:#555;font-size:.75rem">(optional — defaults to https://app.10x.meme)</span></label>
     <input id="sendTarget" type="url" placeholder="https://app.10x.meme" />
 
     <label>Notification ID <span style="color:#555;font-size:.75rem">(optional — leave blank to auto-generate)</span></label>
@@ -165,7 +171,22 @@ export const onRequestGet: PagesFunction = () => {
 
 <script>
   const SESSION_KEY = 'admin_token_10x';
+  const SEND_APP_DEFAULTS = {
+    app: 'https://app.10x.meme/',
+    drop: 'https://drop.10x.meme/',
+  };
   let token = sessionStorage.getItem(SESSION_KEY) || '';
+
+  function getDefaultTargetUrlForAppSlug(appSlug) {
+    return SEND_APP_DEFAULTS[appSlug] || SEND_APP_DEFAULTS.app;
+  }
+
+  function updateSendTargetUiFromApp() {
+    const appSlug = document.getElementById('sendApp').value;
+    const defaultUrl = getDefaultTargetUrlForAppSlug(appSlug);
+    document.getElementById('sendTargetHint').textContent = '(optional — defaults to ' + defaultUrl + ')';
+    document.getElementById('sendTarget').placeholder = defaultUrl;
+  }
 
   // --- AUTH ---
   function showApp() {
@@ -280,14 +301,18 @@ export const onRequestGet: PagesFunction = () => {
   function loadAll() { loadStats(); loadInspect(); loadEmail(); }
 
   document.getElementById('refreshBtn').addEventListener('click', loadAll);
+  document.getElementById('sendApp').addEventListener('change', updateSendTargetUiFromApp);
+  updateSendTargetUiFromApp();
 
   // --- SEND ---
   document.getElementById('sendBtn').addEventListener('click', async () => {
+    const appSlug = document.getElementById('sendApp').value;
     const title = document.getElementById('sendTitle').value.trim();
     const body  = document.getElementById('sendBody').value.trim();
     if (!title || !body) { showStatus('Title and body are required', false); return; }
 
-    const target     = document.getElementById('sendTarget').value.trim() || undefined;
+    const defaultTarget = getDefaultTargetUrlForAppSlug(appSlug);
+    const target     = document.getElementById('sendTarget').value.trim() || defaultTarget;
     const notifId    = document.getElementById('sendId').value.trim() || undefined;
     const fidsRaw    = document.getElementById('sendFids').value.trim();
     const fids       = fidsRaw
@@ -297,7 +322,7 @@ export const onRequestGet: PagesFunction = () => {
     if (fids && fids.length > 100) { showStatus('Max 100 FIDs per send', false); return; }
     if (target && !target.startsWith('https://')) { showStatus('targetUrl must be https', false); return; }
 
-    const payload = { title, body, ...(target && { targetUrl: target }), ...(notifId && { notificationId: notifId }), ...(fids && { fids }) };
+    const payload = { title, body, appSlug, targetUrl: target, ...(notifId && { notificationId: notifId }), ...(fids && { fids }) };
 
     const btn = document.getElementById('sendBtn');
     btn.disabled = true;
