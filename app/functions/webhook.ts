@@ -82,6 +82,19 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     .run()
     .catch((err) => console.error("Failed to log webhook event:", err));
 
+  // Strict isolation: ignore token lifecycle events when app_fid can't be mapped.
+  const isTokenLifecycleEvent =
+    event.event === "miniapp_added" ||
+    event.event === "notifications_enabled" ||
+    event.event === "miniapp_removed" ||
+    event.event === "notifications_disabled";
+
+  if (isTokenLifecycleEvent && !appSlug) {
+    await logEvent;
+    console.error("Ignoring webhook token lifecycle event with unknown app_fid", { fid, appFid, event: event.event });
+    return Response.json({ success: true, ignored: true, reason: "unknown_app_fid" });
+  }
+
   switch (event.event) {
     case "miniapp_added":
     case "notifications_enabled": {
