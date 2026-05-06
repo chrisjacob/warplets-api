@@ -140,15 +140,57 @@ function getRootPath(appSlug: AppSlug, location: Location): string {
   return normalizePath(getAppBasePath(appSlug, location));
 }
 
-function getCanGoBack(rootPath: string): boolean {
-  if (typeof window === "undefined") return false;
+type MiniAppHistoryState = {
+  miniAppChrome?: {
+    appSlug: AppSlug;
+    depth: number;
+  };
+};
 
-  const navigation = (window as Window & { navigation?: { canGoBack?: boolean } }).navigation;
-  if (typeof navigation?.canGoBack === "boolean") {
-    return navigation.canGoBack;
-  }
+function getMiniAppHistoryDepth(appSlug: AppSlug): number {
+  if (typeof window === "undefined") return 0;
+  const state = window.history.state as MiniAppHistoryState | null;
+  const miniAppState = state?.miniAppChrome;
+  if (miniAppState?.appSlug !== appSlug) return 0;
+  return Number.isInteger(miniAppState.depth) && miniAppState.depth > 0 ? miniAppState.depth : 0;
+}
 
-  return window.history.length > 1 && normalizePath(window.location.pathname) !== normalizePath(rootPath);
+function markCurrentHistoryEntry(appSlug: AppSlug, rootPath: string, depth = 0) {
+  if (typeof window === "undefined") return;
+  const state = (window.history.state ?? {}) as MiniAppHistoryState;
+  const isRootPath = normalizePath(window.location.pathname) === normalizePath(rootPath);
+  if (state.miniAppChrome?.appSlug === appSlug && !isRootPath) return;
+
+  window.history.replaceState(
+    {
+      ...state,
+      miniAppChrome: {
+        appSlug,
+        depth,
+      },
+    },
+    "",
+    window.location.href
+  );
+}
+
+function pushMiniAppRoute(appSlug: AppSlug, path: string) {
+  const depth = getMiniAppHistoryDepth(appSlug) + 1;
+  window.history.pushState(
+    {
+      ...(window.history.state ?? {}),
+      miniAppChrome: {
+        appSlug,
+        depth,
+      },
+    },
+    "",
+    path
+  );
+}
+
+function getCanGoBack(appSlug: AppSlug): boolean {
+  return getMiniAppHistoryDepth(appSlug) > 0;
 }
 
 function notifyLocationChange() {
@@ -187,14 +229,14 @@ async function runMenuCardAction(card: MenuCard) {
 
 export function useMiniAppChrome(appSlug: AppSlug) {
   const [isMenuRoute, setIsMenuRoute] = useState(() => isMenuPath(appSlug, window.location));
-  const [canGoBack, setCanGoBack] = useState(() => getCanGoBack(getRootPath(appSlug, window.location)));
+  const [canGoBack, setCanGoBack] = useState(() => getCanGoBack(appSlug));
 
   useEffect(() => {
     let cleanup: (() => void) | undefined;
 
     const syncRouteState = () => {
       setIsMenuRoute(isMenuPath(appSlug, window.location));
-      setCanGoBack(getCanGoBack(getRootPath(appSlug, window.location)));
+      setCanGoBack(getCanGoBack(appSlug));
     };
 
     const initBack = async () => {
@@ -217,6 +259,7 @@ export function useMiniAppChrome(appSlug: AppSlug) {
       };
     }).navigation;
 
+    markCurrentHistoryEntry(appSlug, getRootPath(appSlug, window.location));
     syncRouteState();
     initBack();
 
@@ -232,28 +275,49 @@ export function useMiniAppChrome(appSlug: AppSlug) {
 
   const actions = useMemo(() => ({
     goBack: () => {
-      window.history.back();
+      if (getCanGoBack(appSlug)) {
+        window.history.back();
+        return;
+      }
+
+      const rootPath = getRootPath(appSlug, window.location);
+      if (normalizePath(window.location.pathname) !== normalizePath(rootPath)) {
+        window.history.replaceState(
+          {
+            ...(window.history.state ?? {}),
+            miniAppChrome: {
+              appSlug,
+              depth: 0,
+            },
+          },
+          "",
+          rootPath
+        );
+        notifyLocationChange();
+      }
     },
     openMenu: () => {
       const menuPath = getMenuPath(appSlug, window.location);
       if (normalizePath(window.location.pathname) === normalizePath(menuPath)) {
-        window.history.back();
+        if (getCanGoBack(appSlug)) {
+          window.history.back();
+        }
         return;
       }
-      window.history.pushState({}, "", menuPath);
+      pushMiniAppRoute(appSlug, menuPath);
       notifyLocationChange();
     },
     goToCurrentRoot: () => {
       const rootPath = getRootPath(appSlug, window.location);
       if (normalizePath(window.location.pathname) === normalizePath(rootPath)) return;
-      window.history.pushState({}, "", rootPath);
+      pushMiniAppRoute(appSlug, rootPath);
       notifyLocationChange();
     },
     openHubRoot: async () => {
       if (appSlug === "app") {
         const rootPath = getRootPath("app", window.location);
         if (normalizePath(window.location.pathname) !== normalizePath(rootPath)) {
-          window.history.pushState({}, "", rootPath);
+          pushMiniAppRoute("app", rootPath);
           notifyLocationChange();
         }
         return;

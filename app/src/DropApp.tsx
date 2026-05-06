@@ -3,6 +3,7 @@ import sdk from "@farcaster/miniapp-sdk";
 import confetti from "canvas-confetti";
 import { Text } from "@neynar/ui/typography";
 import { encodeFunctionData, erc20Abi, getAddress, type Address } from "viem";
+import MiniAppShell from "./MiniAppShell";
 import {
   MiniAppHeader,
   MiniAppMenuPage,
@@ -17,12 +18,24 @@ type WarpletStatus = {
   rarityValue: number | null;
   buyTransactionOn: string | null;
   sharedOn: string | null;
+  recentBuys?: unknown;
+};
+
+type RecentBuysResponse = {
+  buyers?: unknown;
+  bestFriends?: unknown;
 };
 
 type RecentBuyer = {
   fid: number;
   pfpUrl: string;
   score: number | null;
+};
+
+type BestFriend = {
+  fid: number;
+  mutualAffinityScore: number;
+  username: string;
 };
 
 type RawOfferItem = {
@@ -529,10 +542,10 @@ function getUrgencyMessage(tokenId: number | null, nowMs: number): string | null
   }
 
   if (tokenId >= nextBatchMin) {
-    return `Supply goes public in ${countdown}.`;
+    return `⚠️ Supply goes public in ${countdown}.`;
   }
 
-  return `Price increases $${currentPrice} → $${nextPrice} in ${countdown}.`;
+  return `⚠️ Price increases $${currentPrice} → $${nextPrice} in ${countdown}.`;
 }
 
 function formatTopPercent(tokenId: number): string {
@@ -550,6 +563,72 @@ function formatTopPercent(tokenId: number): string {
   }
 
   return topPercent.toFixed(0);
+}
+
+function normalizeRecentBuys(rows: unknown): RecentBuyer[] {
+  if (!Array.isArray(rows)) return [];
+
+  return rows
+    .map((item) => {
+      if (!item || typeof item !== "object") return null;
+      const row = item as { fid?: unknown; pfpUrl?: unknown; score?: unknown };
+      if (typeof row.fid !== "number" || !Number.isFinite(row.fid)) return null;
+      if (typeof row.pfpUrl !== "string" || row.pfpUrl.trim().length === 0) return null;
+
+      return {
+        fid: row.fid,
+        pfpUrl: row.pfpUrl,
+        score: typeof row.score === "number" && Number.isFinite(row.score) ? row.score : null,
+      } satisfies RecentBuyer;
+    })
+    .filter((item): item is RecentBuyer => item !== null)
+    .slice(0, 10);
+}
+
+function normalizeBestFriends(rows: unknown): BestFriend[] {
+  if (!Array.isArray(rows)) return [];
+
+  return rows
+    .map((item) => {
+      if (!item || typeof item !== "object") return null;
+      const row = item as { fid?: unknown; mutualAffinityScore?: unknown; username?: unknown };
+      if (typeof row.fid !== "number" || !Number.isFinite(row.fid)) return null;
+      if (typeof row.mutualAffinityScore !== "number" || !Number.isFinite(row.mutualAffinityScore)) return null;
+      if (typeof row.username !== "string" || row.username.trim().length === 0) return null;
+
+      return {
+        fid: row.fid,
+        mutualAffinityScore: row.mutualAffinityScore,
+        username: row.username,
+      } satisfies BestFriend;
+    })
+    .filter((item): item is BestFriend => item !== null);
+}
+
+function rankBuyersWithBestFriends(buyers: RecentBuyer[], bestFriends: BestFriend[]): RecentBuyer[] {
+  if (bestFriends.length === 0) return buyers.slice(0, 10);
+
+  const bestFriendsByFid = new Map<number, BestFriend>();
+  bestFriends.forEach((friend) => bestFriendsByFid.set(friend.fid, friend));
+
+  const friendBuyers: RecentBuyer[] = [];
+  const otherBuyers: RecentBuyer[] = [];
+
+  buyers.forEach((buyer) => {
+    if (bestFriendsByFid.has(buyer.fid)) {
+      friendBuyers.push(buyer);
+    } else {
+      otherBuyers.push(buyer);
+    }
+  });
+
+  friendBuyers.sort((a, b) => {
+    const aScore = bestFriendsByFid.get(a.fid)?.mutualAffinityScore ?? 0;
+    const bScore = bestFriendsByFid.get(b.fid)?.mutualAffinityScore ?? 0;
+    return bScore - aScore;
+  });
+
+  return [...friendBuyers, ...otherBuyers].slice(0, 10);
 }
 
 export default function App() {
@@ -575,6 +654,7 @@ export default function App() {
   const [hasFollowedX, setHasFollowedX] = useState(false);
   const [viewerUsername, setViewerUsername] = useState("");
   const [recentBuys, setRecentBuys] = useState<RecentBuyer[]>([]);
+  const [bestFriends, setBestFriends] = useState<BestFriend[]>([]);
 
   const launchTopConfetti = () => {
     const colors = ["#ff4d4d", "#ffd93d", "#57e389", "#4da3ff", "#b07bff", "#ff7ac8"];
@@ -599,29 +679,14 @@ export default function App() {
   useEffect(() => {
     const loadRecentBuys = async () => {
       try {
-        const recentRes = await fetch("/api/recent-buys");
-        if (!recentRes.ok) return;
+        const res = await fetch("/api/warplet-status");
+        if (!res.ok) return;
 
-        const recentPayload = (await recentRes.json()) as { buyers?: unknown };
-        if (!Array.isArray(recentPayload.buyers)) return;
-
-        const normalized = recentPayload.buyers
-          .map((item) => {
-            if (!item || typeof item !== "object") return null;
-            const row = item as { fid?: unknown; pfpUrl?: unknown; score?: unknown };
-            if (typeof row.fid !== "number" || !Number.isFinite(row.fid)) return null;
-            if (typeof row.pfpUrl !== "string" || row.pfpUrl.trim().length === 0) return null;
-
-            return {
-              fid: row.fid,
-              pfpUrl: row.pfpUrl,
-              score: typeof row.score === "number" && Number.isFinite(row.score) ? row.score : null,
-            } satisfies RecentBuyer;
-          })
-          .filter((item): item is RecentBuyer => item !== null)
-          .slice(0, 10);
-
-        setRecentBuys(normalized);
+        const data = (await res.json()) as RecentBuysResponse;
+        const buyers = normalizeRecentBuys(data.buyers);
+        const friends = normalizeBestFriends(data.bestFriends);
+        setBestFriends(friends);
+        setRecentBuys(rankBuyersWithBestFriends(buyers, friends));
       } catch {
         // Ignore non-critical social proof errors.
       }
@@ -691,6 +756,23 @@ export default function App() {
 
         const data = (await res.json()) as WarpletStatus;
         setStatus(data);
+        const buyers = normalizeRecentBuys(data.recentBuys);
+
+        try {
+          const friendsRes = await fetch(`/api/warplet-status?fid=${context.user.fid}`);
+          if (friendsRes.ok) {
+            const friendsData = (await friendsRes.json()) as RecentBuysResponse;
+            const friends = normalizeBestFriends(friendsData.bestFriends);
+            setBestFriends(friends);
+            setRecentBuys(rankBuyersWithBestFriends(buyers, friends));
+          } else if (buyers.length > 0) {
+            setRecentBuys(buyers);
+          }
+        } catch {
+          if (buyers.length > 0) {
+            setRecentBuys(buyers);
+          }
+        }
 
         if (typeof data.rarityValue === "number" && data.buyTransactionOn) {
           setPurchasedTokenId(String(data.rarityValue));
@@ -1029,22 +1111,7 @@ export default function App() {
   }, [actionError]);
 
   return (
-    <div
-      className="relative min-h-screen bg-black text-white flex flex-col items-center pb-8 overflow-hidden"
-      style={{ fontFamily: '"Roboto Mono", system-ui, sans-serif' }}
-    >
-      {/* Animated background */}
-      <video
-        src="/matrix_bg_1080x1080.mp4"
-        autoPlay
-        loop
-        muted
-        playsInline
-        aria-hidden="true"
-        className="brand-bg-video"
-      />
-      <div className="brand-bg-overlay" aria-hidden="true" />
-
+    <MiniAppShell>
       <div className="relative z-10 w-full">
         <MiniAppHeader
           appSlug="drop"
@@ -1057,11 +1124,11 @@ export default function App() {
       </div>
 
       {isMenuRoute ? (
-        <div className="relative z-10 w-full max-w-5xl mx-auto">
+        <div className="relative z-10 w-full">
           <MiniAppMenuPage appSlug="drop" />
         </div>
       ) : (
-        <div className="relative z-10 w-full max-w-md text-center space-y-2 px-4 pt-2">
+        <div className="relative z-10 w-full max-w-md mx-auto text-center space-y-2 px-4 pt-2">
           <div className="relative px-4 pt-2 text-center mb-4">
             <Text className="text-[clamp(1.6rem,5vw,1.6rem)] font-bold leading-tight whitespace-nowrap" style={{ color: "#00FF00" }}>
               {badgeLabel}
@@ -1123,17 +1190,17 @@ export default function App() {
                 )}
 
                 {recentBuys.length > 0 && (
-                  <div className="mt-3 text-left">
-                    <Text className="text-xs font-semibold" style={{ color: "#b7ffb7" }}>
-                      Recent Buys:
+                  <div className="mt-4 flex items-center justify-center gap-2">
+                    <Text className="text-sm font-semibold whitespace-nowrap" style={{ color: "#b7ffb7" }}>
+                      Buyers:
                     </Text>
-                    <div className="mt-2 flex flex-nowrap gap-2 overflow-x-auto pb-1">
+                    <div className="flex flex-nowrap overflow-x-auto pb-1">
                       {recentBuys.map((buyer) => (
                         <button
                           key={buyer.fid}
                           type="button"
-                          className="h-8 w-8 rounded-full overflow-hidden cursor-pointer"
-                          style={{ border: "1px solid #00FF00" }}
+                          className="h-8 w-8 min-h-8 min-w-8 shrink-0 rounded-full overflow-hidden cursor-pointer -ml-2 first:ml-0"
+                          style={{ border: "2px solid #00FF00" }}
                           title={`View profile ${buyer.fid}`}
                           onClick={() => {
                             sdk.actions.viewProfile({ fid: buyer.fid }).catch(() => {});
@@ -1271,6 +1338,6 @@ export default function App() {
           </Text>
         </div>
       )}
-    </div>
+    </MiniAppShell>
   );
 }
