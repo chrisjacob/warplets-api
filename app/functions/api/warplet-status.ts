@@ -303,10 +303,10 @@ async function loadOrFetchBestFriends(
     .prepare(
       `SELECT best_friend_fid, mutual_affinity_score, username
        FROM warplets_user_best_friends
-       WHERE user_id = ? AND fetched_at > ?
+       WHERE user_fid = ? AND fetched_at > ?
        ORDER BY mutual_affinity_score DESC`
     )
-    .bind(userId, staleThreshold)
+    .bind(userFid, staleThreshold)
     .all<{ best_friend_fid: number; mutual_affinity_score: number; username: string }>();
 
   if (cached.results && cached.results.length > 0) {
@@ -327,14 +327,15 @@ async function loadOrFetchBestFriends(
       db
         .prepare(
           `INSERT INTO warplets_user_best_friends 
-           (user_id, best_friend_fid, mutual_affinity_score, username, fetched_at)
-           VALUES (?, ?, ?, ?, ?)
+           (user_id, user_fid, best_friend_fid, mutual_affinity_score, username, fetched_at)
+           VALUES (?, ?, ?, ?, ?, ?)
            ON CONFLICT(user_id, best_friend_fid) DO UPDATE SET
+             user_fid = excluded.user_fid,
              mutual_affinity_score = excluded.mutual_affinity_score,
              username = excluded.username,
              fetched_at = excluded.fetched_at`
         )
-        .bind(userId, friend.fid, friend.mutualAffinityScore, friend.username, now)
+        .bind(userId, userFid, friend.fid, friend.mutualAffinityScore, friend.username, now)
         .run()
     )
   );
