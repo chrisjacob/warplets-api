@@ -24,33 +24,33 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   }
 
   const userRow = await context.env.WARPLETS.prepare(
-    "SELECT id, rewarded_on FROM warplets_users WHERE fid = ? LIMIT 1"
+    "SELECT id, shared_on FROM warplets_users WHERE fid = ? LIMIT 1"
   )
     .bind(fid)
-    .first<{ id: number; rewarded_on: string | null }>();
+    .first<{ id: number; shared_on: string | null }>();
 
   if (!userRow) {
     return Response.json({ error: "Viewer record not found" }, { status: 404 });
   }
 
-  if (userRow.rewarded_on) {
+  if (userRow.shared_on) {
     return Response.json({
       fid,
-      rewardedOn: userRow.rewarded_on,
+      sharedOn: userRow.shared_on,
       updated: false,
     });
   }
 
   const now = new Date().toISOString();
   await context.env.WARPLETS.prepare(
-    "UPDATE warplets_users SET rewarded_on = ?, updated_on = ? WHERE id = ?"
+    "UPDATE warplets_users SET shared_on = ?, updated_on = ? WHERE id = ?"
   )
     .bind(now, now, userRow.id)
     .run();
 
   return Response.json({
     fid,
-    rewardedOn: now,
+    sharedOn: now,
     updated: true,
   });
 };

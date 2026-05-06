@@ -1,0 +1,104 @@
+interface Env {
+  WARPLETS: D1Database;
+}
+
+interface RequestBody {
+  fid?: unknown;
+  actionSlug?: unknown;
+  verification?: unknown;
+}
+
+function asPositiveInt(value: unknown): number | null {
+  return typeof value === "number" && Number.isInteger(value) && value > 0 ? value : null;
+}
+
+function asNonEmptyString(value: unknown): string | null {
+  return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
+}
+
+export const onRequestPost: PagesFunction<Env> = async (context) => {
+  let body: RequestBody = {};
+  try {
+    body = (await context.request.json()) as RequestBody;
+  } catch {
+    return Response.json({ error: "Invalid JSON" }, { status: 400 });
+  }
+
+  const fid = asPositiveInt(body.fid);
+  const actionSlug = asNonEmptyString(body.actionSlug)?.toLowerCase();
+  const verification = asNonEmptyString(body.verification);
+
+  if (!fid || !actionSlug) {
+    return Response.json({ error: "fid and actionSlug are required" }, { status: 400 });
+  }
+
+  const user = await context.env.WARPLETS.prepare(
+    "SELECT id, shared_on FROM warplets_users WHERE fid = ? LIMIT 1"
+  )
+    .bind(fid)
+    .first<{ id: number; shared_on: string | null }>();
+
+  if (!user) {
+    return Response.json({ error: "Viewer record not found" }, { status: 404 });
+  }
+
+  const action = await context.env.WARPLETS.prepare(
+    "SELECT id, slug, app_slug FROM actions WHERE slug = ? LIMIT 1"
+  )
+    .bind(actionSlug)
+    .first<{ id: number; slug: string; app_slug: string }>();
+
+  if (!action) {
+    return Response.json({ error: "Action not found" }, { status: 404 });
+  }
+
+  const now = new Date().toISOString();
+
+  await context.env.WARPLETS.prepare(
+    `INSERT OR IGNORE INTO actions_completed (
+       action_id, action_slug, user_id, user_fid, verification, created_on
+     ) VALUES (?, ?, ?, ?, ?, ?)`
+  )
+    .bind(action.id, action.slug, user.id, fid, verification, now)
+    .run();
+
+  if (action.slug === "drop-cast" && verification && !user.shared_on) {
+    await context.env.WARPLETS.prepare(
+      "UPDATE warplets_users SET shared_on = ?, updated_on = ? WHERE id = ?"
+    )
+      .bind(now, now, user.id)
+      .run();
+  }
+
+  const totals = await context.env.WARPLETS.prepare(
+    `SELECT
+       (SELECT COUNT(*) FROM actions WHERE app_slug = ?) AS total_actions,
+       (SELECT COUNT(*)
+          FROM actions_completed ac
+          JOIN actions a ON a.id = ac.action_id
+         WHERE ac.user_id = ?
+           AND a.app_slug = ?) AS completed_actions`
+  )
+    .bind(action.app_slug, user.id, action.app_slug)
+    .first<{ total_actions: number; completed_actions: number }>();
+
+  const totalActions = Number(totals?.total_actions ?? 0);
+  const completedActions = Number(totals?.completed_actions ?? 0);
+  const allActionsCompleted = totalActions > 0 && completedActions >= totalActions;
+
+  if (allActionsCompleted) {
+    await context.env.WARPLETS.prepare(
+      "UPDATE warplets_users SET rewarded_on = COALESCE(rewarded_on, ?), updated_on = ? WHERE id = ?"
+    )
+      .bind(now, now, user.id)
+      .run();
+  }
+
+  return Response.json({
+    ok: true,
+    fid,
+    actionSlug: action.slug,
+    verification: verification ?? null,
+    allActionsCompleted,
+  });
+};

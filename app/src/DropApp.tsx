@@ -29,6 +29,22 @@ type RecentBuysResponse = {
   rewardedUsers?: unknown;
 };
 
+type RewardAction = {
+  id: number;
+  slug: string;
+  name: string;
+  description: string;
+  appAction: string | null;
+  appActionContent: string | null;
+  appActionEmbeds: string[];
+  url: string | null;
+  image: string | null;
+  verificationMethod: string;
+  appSlug: string;
+  completed: boolean;
+  verification: string | null;
+};
+
 type RecentBuyer = {
   fid: number;
   pfpUrl: string;
@@ -634,6 +650,15 @@ function rankBuyersWithBestFriends(buyers: RecentBuyer[], bestFriends: BestFrien
   return [...friendBuyers, ...otherBuyers].slice(0, 10);
 }
 
+function buildCastVerificationUrl(hash: string, username: string): string {
+  const cleanHash = hash.trim();
+  const cleanUsername = username.trim();
+  if (cleanUsername.length > 0) {
+    return `https://farcaster.xyz/${cleanUsername}/${cleanHash}`;
+  }
+  return `https://farcaster.xyz/~/conversations/${cleanHash}`;
+}
+
 export default function App() {
   const FARCASTER_MINIAPP_URL = "https://farcaster.xyz/miniapps/uR3Rzs-k6AnV/10x";
   const { isMenuRoute, canGoBack, actions } = useMiniAppChrome("drop");
@@ -659,6 +684,11 @@ export default function App() {
   const [recentBuys, setRecentBuys] = useState<RecentBuyer[]>([]);
   const [rewardedUsers, setRewardedUsers] = useState<RecentBuyer[]>([]);
   const [bestFriends, setBestFriends] = useState<BestFriend[]>([]);
+  const [showUnlockRewardPage, setShowUnlockRewardPage] = useState(false);
+  const [rewardActions, setRewardActions] = useState<RewardAction[]>([]);
+  const [rewardActionsLoading, setRewardActionsLoading] = useState(false);
+  const [runningActionSlug, setRunningActionSlug] = useState<string | null>(null);
+  const [didUnlockCelebrate, setDidUnlockCelebrate] = useState(false);
 
   const launchTopConfetti = () => {
     const colors = ["#ff4d4d", "#ffd93d", "#57e389", "#4da3ff", "#b07bff", "#ff7ac8"];
@@ -875,6 +905,94 @@ export default function App() {
   const showWaitlistCta = hasRewarded || (!isMatched && hasClickedOpenSea);
   const avatarUsers = hasPurchased ? rewardedUsers : recentBuys;
   const avatarLabel = hasPurchased ? "Rewarded:" : "Buyers:";
+  const unlockedRewards = Boolean(status?.rewardedOn);
+  const rewardTokenId = purchasedTokenId ?? (typeof status?.rarityValue === "number" ? String(status.rarityValue) : null);
+  const headerTitle = showUnlockRewardPage && !isMenuRoute
+    ? "Unlock Reward"
+    : getHeaderTitle("drop", isMenuRoute);
+
+  const fetchRewardActions = async (currentFid: number) => {
+    setRewardActionsLoading(true);
+    try {
+      const response = await fetch(`/api/actions?appSlug=drop&fid=${currentFid}`);
+      if (!response.ok) {
+        throw new Error(await readErrorResponse(response));
+      }
+      const data = (await response.json()) as { actions?: RewardAction[] };
+      if (Array.isArray(data.actions)) {
+        setRewardActions(data.actions);
+      } else {
+        setRewardActions([]);
+      }
+    } catch (err) {
+      console.error("Failed to load reward actions:", err);
+      setActionError(getErrorMessage(err));
+      setRewardActions([]);
+    } finally {
+      setRewardActionsLoading(false);
+    }
+  };
+
+  const completeRewardAction = async (actionSlug: string, verification: string | null) => {
+    if (!fid) return;
+
+    const response = await fetch("/api/actions-complete", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        fid,
+        actionSlug,
+        verification: verification ?? undefined,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(await readErrorResponse(response));
+    }
+  };
+
+  const refreshStatusForRewardPage = async (currentFid: number) => {
+    const statusRes = await fetch("/api/warplet-status", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ fid: currentFid }),
+    });
+    if (!statusRes.ok) return;
+    const nextStatus = (await statusRes.json()) as WarpletStatus;
+    setStatus(nextStatus);
+  };
+
+  const runRewardAction = async (action: RewardAction) => {
+    if (!fid || action.completed || runningActionSlug) return;
+
+    setRunningActionSlug(action.slug);
+    setActionError("");
+
+    try {
+      if (action.slug === "drop-cast" && purchasedTokenId) {
+        const castResult = await sdk.actions.composeCast({
+          text:
+            `💚 Claim your 10X Warplet!\n\n10X Rarity #${Number(purchasedTokenId).toLocaleString("en-US")} of 10,000.\n\nPrice increases every 10 days.\n\nSupply decreases every 10 days.\n\nDon't miss out...`,
+          embeds: ["https://drop.10x.meme", `https://warplets.10x.meme/${purchasedTokenId}.${SHARE_IMAGE_EXTENSION}`],
+        });
+
+        if (castResult?.cast?.hash) {
+          const verification = buildCastVerificationUrl(castResult.cast.hash, viewerUsername);
+          await completeRewardAction(action.slug, verification);
+        }
+      } else if (action.url) {
+        await sdk.actions.openUrl(action.url);
+      }
+
+      await fetchRewardActions(fid);
+      await refreshStatusForRewardPage(fid);
+    } catch (err) {
+      console.error("Failed to run reward action:", err);
+      setActionError(getErrorMessage(err));
+    } finally {
+      setRunningActionSlug(null);
+    }
+  };
 
   const handlePrimaryAction = async () => {
     if (hasPurchased && purchasedTokenId) {
@@ -889,18 +1007,24 @@ export default function App() {
         });
 
         if (castResult?.cast?.hash && fid) {
-          await postTrackingUpdate("/api/warplet-share", fid);
-          setHasRewarded(true);
-          setStatus(prev => (prev ? { ...prev, rewardedOn: new Date().toISOString() } : prev));
+          const verification = buildCastVerificationUrl(castResult.cast.hash, viewerUsername);
+          await completeRewardAction("drop-cast", verification);
+          await fetchRewardActions(fid);
+          await refreshStatusForRewardPage(fid);
         }
       } catch (err) {
         console.error("Failed to open cast composer:", err);
-        setActionError(getErrorMessage(err));
+        const message = getErrorMessage(err).toLowerCase();
+        const userRejected = message.includes("rejected by user");
+        if (!userRejected) {
+          setActionError(getErrorMessage(err));
+        }
+      } finally {
+        setShowUnlockRewardPage(true);
       }
 
       return;
     }
-
     if (isMatched) {
       if (!fid) {
         setActionError("Your Farcaster account is not ready yet.");
@@ -1118,12 +1242,23 @@ export default function App() {
     };
   }, [actionError]);
 
+  useEffect(() => {
+    if (!showUnlockRewardPage || !fid) return;
+    fetchRewardActions(fid).catch(() => {});
+  }, [showUnlockRewardPage, fid]);
+
+  useEffect(() => {
+    if (!showUnlockRewardPage || !unlockedRewards || didUnlockCelebrate) return;
+    launchTopConfetti();
+    setDidUnlockCelebrate(true);
+  }, [showUnlockRewardPage, unlockedRewards, didUnlockCelebrate]);
+
   return (
     <MiniAppShell>
       <div className="relative z-10 w-full">
         <MiniAppHeader
           appSlug="drop"
-          title={getHeaderTitle("drop", isMenuRoute)}
+          title={headerTitle}
           canGoBack={canGoBack}
           onBack={actions.goBack}
           onLogo={actions.openHubRoot}
@@ -1164,7 +1299,152 @@ export default function App() {
             </div>
           )}
 
-          {!loading && !error && !showOpenInFarcaster && (
+          {!loading && !error && !showOpenInFarcaster && showUnlockRewardPage && (
+            <div className="space-y-4 px-4 pb-4">
+              <div className="rounded-2xl border border-[#00FF00]/35 bg-[#041204]/85 px-4 py-5 text-center">
+                <Text className="text-[1.45rem] font-bold leading-tight" style={{ color: "#00FF00" }}>
+                  Help 10X Warplets Go Viral!
+                </Text>
+                <Text className="mt-2 text-sm font-semibold" style={{ color: "#b7ffb7" }}>
+                  🙏 Every action makes an impact.
+                </Text>
+              </div>
+
+              {rewardActionsLoading && (
+                <Text className="text-sm text-center" style={{ color: "#b7ffb7" }}>
+                  Loading reward tasks...
+                </Text>
+              )}
+
+              {!rewardActionsLoading && rewardActions.length === 0 && (
+                <Text className="text-sm text-center" style={{ color: "#b7ffb7" }}>
+                  Reward tasks will appear here soon.
+                </Text>
+              )}
+
+              {!rewardActionsLoading && rewardActions.length > 0 && (
+                <div className="space-y-3">
+                  {rewardActions.map((action) => (
+                    <div
+                      key={action.id}
+                      className="rounded-2xl border border-[#00FF00]/35 bg-[#041204]/85 px-4 py-4 text-left"
+                    >
+                      <Text className="text-base font-bold" style={{ color: "#00FF00" }}>
+                        {action.name}
+                      </Text>
+                      <Text className="mt-1 text-sm" style={{ color: "#b7ffb7" }}>
+                        {action.description}
+                      </Text>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          runRewardAction(action).catch(() => {});
+                        }}
+                        disabled={action.completed || runningActionSlug === action.slug}
+                        className="mt-4 w-full rounded-[16px] border border-[#009900] bg-[#00FF00] px-4 py-2.5 text-base font-bold shadow-[3px_6px_0_#008000] transition-all duration-100 active:translate-x-[1px] active:translate-y-[3px] active:shadow-[1px_3px_0_#008000] disabled:translate-x-0 disabled:translate-y-0 disabled:shadow-none disabled:bg-gray-700 disabled:border-gray-700 cursor-pointer"
+                        style={{ color: action.completed ? "#d1d5db" : "rgb(0, 80, 0)" }}
+                      >
+                        {action.completed ? "Done" : runningActionSlug === action.slug ? "Working..." : "Do it"}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="mt-2 space-y-3">
+                <Text className="text-lg font-bold text-left" style={{ color: "#00FF00" }}>
+                  {unlockedRewards ? "🎁 Unlocked Rewards" : "🔒 Locked Rewards"}
+                </Text>
+
+                {!unlockedRewards && (
+                  <div className="rounded-2xl border border-[#00FF00]/35 bg-black px-4 py-5 text-center">
+                    <Text className="text-sm font-semibold" style={{ color: "#b7ffb7" }}>
+                      Complete all the actions to unlock rewards (don't miss out).
+                    </Text>
+                  </div>
+                )}
+
+                {unlockedRewards && (
+                  <div className="space-y-4">
+                    <div className="rounded-2xl border border-[#00FF00]/35 bg-[#041204]/85 px-4 py-4 text-left">
+                      <Text className="text-base font-bold" style={{ color: "#00FF00" }}>
+                        Reward #1 More Warplets!
+                      </Text>
+                      <Text className="mt-1 text-sm" style={{ color: "#b7ffb7" }}>
+                        Download your 10X Warplet in a variety of image and video formats.
+                      </Text>
+
+                      {rewardTokenId && (
+                        <div className="mt-4 grid grid-cols-2 gap-3">
+                          {[
+                            { ext: "gif", label: ".GIF 500x500 ~5MB" },
+                            { ext: "mp4", label: ".MP4 1024x1024 ~2MB" },
+                            { ext: "avif", label: ".AVIF 1024x1024 ~0.5MB" },
+                            { ext: "webp", label: ".WEBP 1024x1024 ~0.25MB" },
+                            { ext: "png", label: ".PNG 1024x1024 ~1MB" },
+                            { ext: "jpg", label: ".JPG 256x256 ~0.01MB" },
+                          ].map((item) => (
+                            <button
+                              key={item.ext}
+                              type="button"
+                              onClick={() => {
+                                const url = `https://warplets.10x.meme/${rewardTokenId}.${item.ext}`;
+                                sdk.actions.openUrl(url).catch(() => {});
+                              }}
+                              className="rounded-[14px] border border-[#009900] bg-[#00FF00] px-3 py-2 text-xs font-bold text-center shadow-[3px_6px_0_#008000] transition-all duration-100 active:translate-x-[1px] active:translate-y-[3px] active:shadow-[1px_3px_0_#008000] cursor-pointer"
+                              style={{ color: "rgb(0, 80, 0)" }}
+                            >
+                              {item.label}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="rounded-2xl border border-[#00FF00]/35 bg-[#041204]/85 px-4 py-4 text-left">
+                      <Text className="text-base font-bold" style={{ color: "#00FF00" }}>
+                        Reward #2 Fuel for Builders
+                      </Text>
+                      <Text className="mt-1 text-sm leading-relaxed" style={{ color: "#b7ffb7" }}>
+                        The $1M Warplet is in a Dutch Auction, with the listing price dropping from $1,000,000 to $100 over 30 days. From the sale of that NFT, 50% of the funds will be airdroped in $USDC. The actions you've completed here will award you Bonus entries into a competition to win this prize (if you choose to enter). The mini app for entering is still being built. You are early! Learn more about the $1M Warplet and Fuel for Builder airdrop on OpenSea:{" "}
+                        <button
+                          type="button"
+                          className="underline cursor-pointer"
+                          style={{ color: "#00FF00" }}
+                          onClick={() => {
+                            sdk.actions.openUrl("https://opensea.io/collection/1m-warplet-1-the-one").catch(() => {});
+                          }}
+                        >
+                          https://opensea.io/collection/1m-warplet-1-the-one
+                        </button>
+                      </Text>
+                    </div>
+
+                    <div className="rounded-2xl border border-[#00FF00]/35 bg-[#041204]/85 px-4 py-4 text-left">
+                      <Text className="text-base font-bold" style={{ color: "#00FF00" }}>
+                        Reward #3 The Matrix Uploaded
+                      </Text>
+                      <Text className="mt-1 text-sm leading-relaxed" style={{ color: "#b7ffb7" }}>
+                        10X Warplets are all about having FUN! Checkout this hillarious playlist of videos on YouTube:{" "}
+                        <button
+                          type="button"
+                          className="underline cursor-pointer"
+                          style={{ color: "#00FF00" }}
+                          onClick={() => {
+                            sdk.actions.openUrl("https://www.youtube.com/watch?v=ug2aoVZYgaU&list=PLj-tHdTcFWloQkdL1Ps-JOSSPW-_VwQWx").catch(() => {});
+                          }}
+                        >
+                          https://www.youtube.com/watch?v=ug2aoVZYgaU&list=PLj-tHdTcFWloQkdL1Ps-JOSSPW-_VwQWx
+                        </button>
+                      </Text>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {!loading && !error && !showOpenInFarcaster && !showUnlockRewardPage && (
             <div className="space-y-0">
               <div className="px-4 pb-5 pt-0 space-y-3">
                 <div className="w-full rounded-[20px] p-[2px] bg-[#00FF00]/20 border border-[#00FF00]/45">
