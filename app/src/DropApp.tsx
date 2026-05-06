@@ -19,6 +19,12 @@ type WarpletStatus = {
   sharedOn: string | null;
 };
 
+type RecentBuyer = {
+  fid: number;
+  pfpUrl: string;
+  score: number | null;
+};
+
 type RawOfferItem = {
   itemType: number | string;
   token: string;
@@ -526,7 +532,24 @@ function getUrgencyMessage(tokenId: number | null, nowMs: number): string | null
     return `Supply goes public in ${countdown}.`;
   }
 
-  return `Price increases $${currentPrice}->$${nextPrice} in ${countdown}.`;
+  return `Price increases $${currentPrice} → $${nextPrice} in ${countdown}.`;
+}
+
+function formatTopPercent(tokenId: number): string {
+  const rawPercent = (tokenId / 10000) * 100;
+
+  let topPercent: number;
+  if (rawPercent >= 10) {
+    topPercent = Math.ceil(rawPercent / 10) * 10;
+  } else if (rawPercent >= 1) {
+    topPercent = Math.ceil(rawPercent);
+  } else if (rawPercent >= 0.1) {
+    topPercent = Math.ceil(rawPercent * 10) / 10;
+  } else {
+    topPercent = rawPercent;
+  }
+
+  return topPercent.toFixed(0);
 }
 
 export default function App() {
@@ -551,6 +574,7 @@ export default function App() {
   const [waitlistSubmitted, setWaitlistSubmitted] = useState(false);
   const [hasFollowedX, setHasFollowedX] = useState(false);
   const [viewerUsername, setViewerUsername] = useState("");
+  const [recentBuys, setRecentBuys] = useState<RecentBuyer[]>([]);
 
   const launchTopConfetti = () => {
     const colors = ["#ff4d4d", "#ffd93d", "#57e389", "#4da3ff", "#b07bff", "#ff7ac8"];
@@ -571,6 +595,40 @@ export default function App() {
       }, index * 160);
     }
   };
+
+  useEffect(() => {
+    const loadRecentBuys = async () => {
+      try {
+        const recentRes = await fetch("/api/recent-buys");
+        if (!recentRes.ok) return;
+
+        const recentPayload = (await recentRes.json()) as { buyers?: unknown };
+        if (!Array.isArray(recentPayload.buyers)) return;
+
+        const normalized = recentPayload.buyers
+          .map((item) => {
+            if (!item || typeof item !== "object") return null;
+            const row = item as { fid?: unknown; pfpUrl?: unknown; score?: unknown };
+            if (typeof row.fid !== "number" || !Number.isFinite(row.fid)) return null;
+            if (typeof row.pfpUrl !== "string" || row.pfpUrl.trim().length === 0) return null;
+
+            return {
+              fid: row.fid,
+              pfpUrl: row.pfpUrl,
+              score: typeof row.score === "number" && Number.isFinite(row.score) ? row.score : null,
+            } satisfies RecentBuyer;
+          })
+          .filter((item): item is RecentBuyer => item !== null)
+          .slice(0, 10);
+
+        setRecentBuys(normalized);
+      } catch {
+        // Ignore non-critical social proof errors.
+      }
+    };
+
+    loadRecentBuys();
+  }, []);
 
   useEffect(() => {
     const init = async () => {
@@ -639,6 +697,7 @@ export default function App() {
         }
 
         setHasShared(Boolean(data.sharedOn));
+
       } catch (err) {
         console.error("Failed to get user context:", err);
         const message = err instanceof Error ? err.message : String(err);
@@ -677,6 +736,10 @@ export default function App() {
     displayTokenId && Number.isFinite(Number(displayTokenId))
       ? Number(displayTokenId).toLocaleString("en-US")
       : displayTokenId;
+  const topPercentLabel =
+    displayTokenId && Number.isFinite(Number(displayTokenId))
+      ? formatTopPercent(Number(displayTokenId))
+      : null;
 
   useEffect(() => {
     if (loading || error || !isMatched || didCelebrate) return;
@@ -999,13 +1062,12 @@ export default function App() {
         </div>
       ) : (
         <div className="relative z-10 w-full max-w-md text-center space-y-2 px-4 pt-2">
-          <div className="relative px-4 text-center mb-4">
-            <Text className="text-[2.7rem] font-bold leading-tight" style={{ color: "#00FF00" }}>10X Warplets</Text>
-            <Text
-              className="inline-flex mt-3 px-3 py-1 text-sm font-semibold leading-tight border border-[#00FF00]/70 rounded-full"
-              style={{ color: "#00FF00", backgroundColor: "rgba(0, 255, 0, 0.12)" }}
-            >
+          <div className="relative px-4 pt-2 text-center mb-4">
+            <Text className="text-[clamp(1.6rem,5vw,1.6rem)] font-bold leading-tight whitespace-nowrap" style={{ color: "#00FF00" }}>
               {badgeLabel}
+            </Text>
+            <Text className="mt-3 text-lg font-semibold" style={{ color: "#00FF00" }}>
+              {title}
             </Text>
           </div>
 
@@ -1030,9 +1092,6 @@ export default function App() {
           {!loading && !error && !showOpenInFarcaster && (
             <div className="space-y-0">
               <div className="px-4 pb-5 pt-0 space-y-3">
-                <Text className="text-lg font-semibold" style={{ color: "#00FF00" }}>
-                  {title}
-                </Text>
                 <div className="w-full rounded-[20px] p-[2px] bg-[#00FF00]/20 border border-[#00FF00]/45">
                   <img
                     src={imageUrl}
@@ -1040,9 +1099,9 @@ export default function App() {
                     className="w-full rounded-[18px]"
                     loading="eager"
                   />
-                  {isMatched && displayTokenId && (
-                    <Text className="py-2 text-base font-bold" style={{ color: "#00FF00" }}>
-                      {`10X Rarity #${formattedTokenId} of 10,000`}
+                  {isMatched && displayTokenId && topPercentLabel && (
+                    <Text className="pt-1 pb-1 text-base font-bold text-center" style={{ color: "#00FF00" }}>
+                      {`Rarity #${formattedTokenId} of 10,000 👀 Top ${topPercentLabel}%!`}
                     </Text>
                   )}
                 </div>
@@ -1052,7 +1111,7 @@ export default function App() {
                   onClick={handlePrimaryAction}
                   disabled={isPurchasing}
                   className={`w-full mt-0 px-5 py-3 rounded-[20px] border border-[#009900] bg-[#00FF00] hover:bg-[#33ff33] font-bold text-lg transition-all duration-100 shadow-[3px_6px_0_#008000] active:translate-x-[1px] active:translate-y-[3px] active:shadow-[1px_3px_0_#008000] disabled:bg-gray-700 disabled:border-gray-700 disabled:shadow-none disabled:translate-x-0 disabled:translate-y-0 cursor-pointer ${shareButtonPulseClass}`}
-                  style={{ color: isPurchasing ? "#ffffff" : "rgb(0, 80, 0)" }}
+                  style={{ color: isPurchasing ? "#ffffff" : "rgb(0, 80, 0)", fontWeight: 700 }}
                 >
                   {buttonLabel}
                 </button>
@@ -1061,6 +1120,35 @@ export default function App() {
                   <Text className="mt-3 text-sm font-semibold" style={{ color: "#b7ffb7" }}>
                     {urgencyMessage}
                   </Text>
+                )}
+
+                {recentBuys.length > 0 && (
+                  <div className="mt-3 text-left">
+                    <Text className="text-xs font-semibold" style={{ color: "#b7ffb7" }}>
+                      Recent Buys:
+                    </Text>
+                    <div className="mt-2 flex flex-nowrap gap-2 overflow-x-auto pb-1">
+                      {recentBuys.map((buyer) => (
+                        <button
+                          key={buyer.fid}
+                          type="button"
+                          className="h-8 w-8 rounded-full overflow-hidden cursor-pointer"
+                          style={{ border: "1px solid #00FF00" }}
+                          title={`View profile ${buyer.fid}`}
+                          onClick={() => {
+                            sdk.actions.viewProfile({ fid: buyer.fid }).catch(() => {});
+                          }}
+                        >
+                          <img
+                            src={buyer.pfpUrl}
+                            alt={`Buyer ${buyer.fid}`}
+                            className="h-full w-full object-cover"
+                            loading="lazy"
+                          />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 )}
 
                 {showWaitlistCta && (
