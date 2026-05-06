@@ -6,8 +6,10 @@ type RecentBuyerRow = {
   fid: number | null;
   pfp_url: string | null;
   score: number | null;
-  buy_transaction_on: string | null;
+  buy_in_opensea_on?: string | null;
+  buy_in_farcaster_wallet_on?: string | null;
   matched_on?: string | null;
+  buyer_on?: string | null;
 };
 
 type RecentBuyer = {
@@ -16,7 +18,7 @@ type RecentBuyer = {
   score: number | null;
 };
 
-function normalizeAndRank(rows: RecentBuyerRow[], recencyField: "buy_transaction_on" | "matched_on"): RecentBuyer[] {
+function normalizeAndRank(rows: RecentBuyerRow[], recencyField: "buyer_on" | "matched_on"): RecentBuyer[] {
   return rows
     .filter((row) => typeof row.fid === "number" && typeof row.pfp_url === "string" && row.pfp_url.trim().length > 0)
     .sort((a, b) => {
@@ -83,14 +85,14 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   }
 
   const buyersQuery = await context.env.WARPLETS.prepare(
-    "SELECT fid, pfp_url, score, buy_transaction_on " +
+    "SELECT fid, pfp_url, score, COALESCE(buy_in_opensea_on, buy_in_farcaster_wallet_on) AS buyer_on " +
       "FROM warplets_users " +
-      "WHERE buy_transaction_on IS NOT NULL AND pfp_url IS NOT NULL AND fid IS NOT NULL " +
-      "ORDER BY buy_transaction_on DESC LIMIT 100"
+      "WHERE (buy_in_opensea_on IS NOT NULL OR buy_in_farcaster_wallet_on IS NOT NULL) AND pfp_url IS NOT NULL AND fid IS NOT NULL " +
+      "ORDER BY buyer_on DESC LIMIT 100"
   ).all<RecentBuyerRow>();
 
   const buyerRows = Array.isArray(buyersQuery.results) ? buyersQuery.results : [];
-  const rankedBuyers = normalizeAndRank(buyerRows, "buy_transaction_on");
+  const rankedBuyers = normalizeAndRank(buyerRows, "buyer_on");
   if (rankedBuyers.length > 0) {
     return Response.json({ buyers: rankedBuyers });
   }

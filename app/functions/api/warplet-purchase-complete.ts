@@ -24,33 +24,33 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   }
 
   const userRow = await context.env.WARPLETS.prepare(
-    "SELECT id, buy_transaction_on FROM warplets_users WHERE fid = ? LIMIT 1"
+    "SELECT id, buy_in_farcaster_wallet_on FROM warplets_users WHERE fid = ? LIMIT 1"
   )
     .bind(fid)
-    .first<{ id: number; buy_transaction_on: string | null }>();
+    .first<{ id: number; buy_in_farcaster_wallet_on: string | null }>();
 
   if (!userRow) {
     return Response.json({ error: "Viewer record not found" }, { status: 404 });
   }
 
-  if (userRow.buy_transaction_on) {
+  if (userRow.buy_in_farcaster_wallet_on) {
     return Response.json({
       fid,
-      buyTransactionOn: userRow.buy_transaction_on,
+      buyInFarcasterWalletOn: userRow.buy_in_farcaster_wallet_on,
       updated: false,
     });
   }
 
   const now = new Date().toISOString();
   await context.env.WARPLETS.prepare(
-    "UPDATE warplets_users SET buy_transaction_on = ?, updated_on = ? WHERE id = ?"
+    "UPDATE warplets_users SET buy_in_farcaster_wallet_on = ?, updated_on = ? WHERE id = ?"
   )
     .bind(now, now, userRow.id)
     .run();
 
   return Response.json({
     fid,
-    buyTransactionOn: now,
+    buyInFarcasterWalletOn: now,
     updated: true,
   });
 };

@@ -16,7 +16,8 @@ type WarpletStatus = {
   exists: boolean;
   matched: boolean;
   rarityValue: number | null;
-  buyTransactionOn: string | null;
+  buyInOpenseaOn: string | null;
+  buyInFarcasterWalletOn: string | null;
   sharedOn: string | null;
   recentBuys?: unknown;
 };
@@ -774,7 +775,7 @@ export default function App() {
           }
         }
 
-        if (typeof data.rarityValue === "number" && data.buyTransactionOn) {
+        if (typeof data.rarityValue === "number" && (data.buyInOpenseaOn || data.buyInFarcasterWalletOn)) {
           setPurchasedTokenId(String(data.rarityValue));
         }
 
@@ -1010,7 +1011,7 @@ export default function App() {
 
         await waitForTransactionReceipt(provider, purchaseHash);
         setPurchasedTokenId(quote.listing.tokenId);
-        setStatus(prev => (prev ? { ...prev, buyTransactionOn: new Date().toISOString() } : prev));
+        setStatus(prev => (prev ? { ...prev, buyInFarcasterWalletOn: new Date().toISOString() } : prev));
         launchTopConfetti();
 
         try {

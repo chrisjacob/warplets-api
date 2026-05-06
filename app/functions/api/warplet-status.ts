@@ -49,7 +49,7 @@ type NeynarUserRecord = {
 
 const NEYNAR_VIEWER_FID = 1129138;
 const RECENT_BUYS_CACHE_TTL_SECONDS = 600;
-const RECENT_BUYS_CACHE_PREFIX = "recent-buys-v1";
+const RECENT_BUYS_CACHE_PREFIX = "recent-buys-v2";
 const BEST_FRIENDS_CACHE_STALE_SECONDS = 2592000;
 
 function normalizeAndRankBuyers(rows: Array<{ fid: unknown; pfp_url: unknown; score: unknown }>): RecentBuyer[] {
@@ -79,10 +79,10 @@ async function loadRecentBuys(db: D1Database): Promise<RecentBuyer[]> {
     .prepare(
       `SELECT fid, pfp_url, score
        FROM warplets_users
-       WHERE buy_transaction_on IS NOT NULL
+       WHERE (buy_in_opensea_on IS NOT NULL OR buy_in_farcaster_wallet_on IS NOT NULL)
          AND pfp_url IS NOT NULL
          AND TRIM(pfp_url) <> ''
-       ORDER BY buy_transaction_on DESC
+       ORDER BY COALESCE(buy_in_opensea_on, buy_in_farcaster_wallet_on) DESC
        LIMIT 100`
     )
     .all<{ fid: unknown; pfp_url: unknown; score: unknown }>();
@@ -389,10 +389,16 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   }
 
   const existing = await context.env.WARPLETS.prepare(
-    "SELECT id, matched_on, buy_transaction_on, shared_on FROM warplets_users WHERE fid = ? LIMIT 1"
+    "SELECT id, matched_on, buy_in_opensea_on, buy_in_farcaster_wallet_on, shared_on FROM warplets_users WHERE fid = ? LIMIT 1"
   )
     .bind(fid)
-    .first<{ id: number; matched_on: string | null; buy_transaction_on: string | null; shared_on: string | null }>();
+    .first<{
+      id: number;
+      matched_on: string | null;
+      buy_in_opensea_on: string | null;
+      buy_in_farcaster_wallet_on: string | null;
+      shared_on: string | null;
+    }>();
 
   const matchRow = await context.env.WARPLETS.prepare(
     "SELECT x10_rarity FROM warplets_metadata WHERE fid_value = ? LIMIT 1"
@@ -416,7 +422,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       "INSERT INTO warplets_users (" +
         "fid, username, display_name, pfp_url, registered_at, pro_status, profile_bio_text, " +
         "follower_count, following_count, primary_eth_address, primary_sol_address, x_username, " +
-        "url, viewer_following, viewer_followed_by, score, matched_on, buy_on, buy_transaction_on, shared_on, created_on, updated_on" +
+        "url, viewer_following, viewer_followed_by, score, matched_on, buy_in_opensea_on, buy_in_farcaster_wallet_on, shared_on, created_on, updated_on" +
         ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
     )
       .bind(
@@ -465,7 +471,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       exists: false,
       matched: isMatch,
       rarityValue,
-      buyTransactionOn: null,
+      buyInOpenseaOn: null,
+      buyInFarcasterWalletOn: null,
       sharedOn: null,
       recentBuys,
     });
@@ -476,7 +483,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     exists: true,
     matched: isMatch,
     rarityValue,
-    buyTransactionOn: existing.buy_transaction_on,
+    buyInOpenseaOn: existing.buy_in_opensea_on,
+    buyInFarcasterWalletOn: existing.buy_in_farcaster_wallet_on,
     sharedOn: existing.shared_on,
     recentBuys,
   });

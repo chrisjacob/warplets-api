@@ -205,7 +205,7 @@ export async function runOpenseaSync(
       }
 
       // -------------------------------------------------------------------
-      // 4. If sale from distribution wallet: match buyer → warplets_users.buy_on
+      // 4. If sale from distribution wallet: match buyer → warplets_users.buy_in_opensea_on
       //    Only sales where 10xchris.eth is the seller count (direct listings
       //    and accepted offers both have wallet_from = distribution wallet).
       // -------------------------------------------------------------------
@@ -216,16 +216,16 @@ export async function runOpenseaSync(
       ) {
         try {
           const userRow = await env.WARPLETS.prepare(
-            `SELECT id, buy_on FROM warplets_users
+            `SELECT id, buy_in_opensea_on FROM warplets_users
              WHERE LOWER(primary_eth_address) = LOWER(?) LIMIT 1`,
           )
             .bind(walletTo)
-            .first<{ id: number; buy_on: string | null }>();
+            .first<{ id: number; buy_in_opensea_on: string | null }>();
 
-          if (userRow && !userRow.buy_on) {
+          if (userRow && !userRow.buy_in_opensea_on) {
             const now = new Date().toISOString();
             await env.WARPLETS.prepare(
-              "UPDATE warplets_users SET buy_on = ?, updated_on = ? WHERE id = ?",
+              "UPDATE warplets_users SET buy_in_opensea_on = ?, updated_on = ? WHERE id = ?",
             )
               .bind(now, now, userRow.id)
               .run();
@@ -258,7 +258,7 @@ export async function runOpenseaSync(
   if (buyMatchFound) {
     try {
       const buysRow = await env.WARPLETS.prepare(
-        "SELECT COUNT(*) AS count FROM warplets_users WHERE buy_on IS NOT NULL",
+        "SELECT COUNT(*) AS count FROM warplets_users WHERE buy_in_opensea_on IS NOT NULL OR buy_in_farcaster_wallet_on IS NOT NULL",
       ).first<{ count: number }>();
       await env.WARPLETS_KV.put(KV_STATS_BUYS_KEY, String(buysRow?.count ?? 0));
     } catch (err) {

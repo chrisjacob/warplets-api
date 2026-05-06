@@ -334,7 +334,7 @@ async function refreshLandingStatsKV(
   const [clicksRow, matchesRow, buysRow] = await Promise.all([
     WARPLETS.prepare("SELECT COUNT(*) AS count FROM warplets_users").first<{ count: number }>(),
     WARPLETS.prepare("SELECT COUNT(*) AS count FROM warplets_users WHERE matched_on IS NOT NULL").first<{ count: number }>(),
-    WARPLETS.prepare("SELECT COUNT(*) AS count FROM warplets_users WHERE buy_on IS NOT NULL").first<{ count: number }>(),
+    WARPLETS.prepare("SELECT COUNT(*) AS count FROM warplets_users WHERE buy_in_opensea_on IS NOT NULL OR buy_in_farcaster_wallet_on IS NOT NULL").first<{ count: number }>(),
   ]);
 
   const stats: LandingStats = {
@@ -395,7 +395,7 @@ async function trackClaimClick(
     "INSERT INTO warplets_users (" +
       "fid, username, display_name, pfp_url, registered_at, pro_status, profile_bio_text, " +
       "follower_count, following_count, primary_eth_address, primary_sol_address, x_username, " +
-      "url, viewer_following, viewer_followed_by, score, matched_on, buy_on, created_on, updated_on" +
+      "url, viewer_following, viewer_followed_by, score, matched_on, buy_in_opensea_on, created_on, updated_on" +
       ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
   )
     .bind(
@@ -552,7 +552,7 @@ async function getLandingImageSections(
       "SELECT pfp_url, username, display_name FROM warplets_users WHERE matched_on IS NOT NULL AND pfp_url IS NOT NULL ORDER BY matched_on DESC LIMIT 24",
     ).all<{ pfp_url: string; username: string | null; display_name: string | null }>(),
     WARPLETS.prepare(
-      "SELECT pfp_url, username, display_name FROM warplets_users WHERE buy_on IS NOT NULL AND pfp_url IS NOT NULL ORDER BY buy_on DESC LIMIT 24",
+      "SELECT pfp_url, username, display_name FROM warplets_users WHERE (buy_in_opensea_on IS NOT NULL OR buy_in_farcaster_wallet_on IS NOT NULL) AND pfp_url IS NOT NULL ORDER BY COALESCE(buy_in_opensea_on, buy_in_farcaster_wallet_on) DESC LIMIT 24",
     ).all<{ pfp_url: string; username: string | null; display_name: string | null }>(),
   ]);
 
