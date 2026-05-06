@@ -248,7 +248,7 @@ button {
   flex: 1;
   flex-direction: column;
   gap: 10px;
-  padding: 12px 12px 0;
+  padding: 0;
 }
 
 .menu-card__title {
@@ -271,9 +271,9 @@ button {
   align-items: center;
   justify-content: center;
   min-height: 42px;
-  width: calc(100% + 24px);
-  margin-left: -12px;
-  margin-right: -12px;
+  width: 100%;
+  margin-left: 0;
+  margin-right: 0;
   margin-bottom: 0;
   padding: 10px 12px;
   border: 0;
@@ -298,7 +298,7 @@ button {
   }
 
   .menu-card__body {
-    padding: 10px 10px 0;
+    padding: 0;
     gap: 8px;
   }
 

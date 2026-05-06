@@ -78,6 +78,43 @@ const HOSTS_BY_APP: Record<AppSlug, string[]> = {
   million: ["million.10x.meme", "million-dev.10x.meme", "million-local.10x.meme"],
 };
 
+type EnvTier = "local" | "dev" | "prod";
+
+function getEnvTier(hostname: string): EnvTier {
+  const h = hostname.toLowerCase();
+  if (h.includes("-local.")) return "local";
+  if (h.includes("-dev.")) return "dev";
+  return "prod";
+}
+
+const APP_URLS: Record<AppSlug, Record<EnvTier, string>> = {
+  app: {
+    prod: "https://app.10x.meme/",
+    dev: "https://app-dev.10x.meme/",
+    local: "https://app-local.10x.meme/",
+  },
+  drop: {
+    prod: "https://drop.10x.meme/",
+    dev: "https://drop-dev.10x.meme/",
+    local: "https://drop-local.10x.meme/",
+  },
+  find: {
+    prod: "https://find.10x.meme/",
+    dev: "https://find-dev.10x.meme/",
+    local: "https://find-local.10x.meme/",
+  },
+  million: {
+    prod: "https://million.10x.meme/",
+    dev: "https://million-dev.10x.meme/",
+    local: "https://million-local.10x.meme/",
+  },
+};
+
+function getAppUrl(appSlug: AppSlug): string {
+  const tier = getEnvTier(window.location.hostname);
+  return APP_URLS[appSlug][tier];
+}
+
 function getAppBasePath(appSlug: AppSlug, location: Location): string {
   if (HOSTS_BY_APP[appSlug].includes(location.hostname.toLowerCase())) {
     return "/";
@@ -119,13 +156,13 @@ function notifyLocationChange() {
 }
 
 async function openApp(appSlug: AppSlug) {
-  const target = APP_CONFIGS[appSlug];
+  const url = getAppUrl(appSlug);
 
   try {
-    await sdk.actions.openMiniApp({ url: target.absoluteUrl });
+    await sdk.actions.openMiniApp({ url });
     return;
   } catch {
-    window.location.href = target.absoluteUrl;
+    window.location.href = url;
   }
 }
 
@@ -199,7 +236,10 @@ export function useMiniAppChrome(appSlug: AppSlug) {
     },
     openMenu: () => {
       const menuPath = getMenuPath(appSlug, window.location);
-      if (normalizePath(window.location.pathname) === normalizePath(menuPath)) return;
+      if (normalizePath(window.location.pathname) === normalizePath(menuPath)) {
+        window.history.back();
+        return;
+      }
       window.history.pushState({}, "", menuPath);
       notifyLocationChange();
     },
@@ -369,7 +409,6 @@ function MenuSection({
               loading="eager"
             />
             <div className="menu-card__body">
-              <Text className="menu-card__title">{card.title}</Text>
               <span className={`menu-card__cta ${card.disabled ? "menu-card__cta--disabled" : ""}`}>
                 {card.ctaLabel}
               </span>
@@ -396,8 +435,8 @@ export function MiniAppMenuPage({ appSlug }: { appSlug: AppSlug }) {
             : config.slug === "million"
               ? "Dedicated mission for the $1M Warplet campaign."
               : "Find rare Warplets faster once discovery tools go live.",
-      imageUrl: config.imageUrl,
-      ctaLabel: isCurrent ? "You are here!" : config.ctaLabel,
+      imageUrl: config.slug === "app" ? "/menu/menu-10x-app.png" : "/menu/menu-drop-app.jpg",
+      ctaLabel: isCurrent ? "You are here!" : config.slug === "drop" ? "10X Warplet Drop" : config.ctaLabel,
       kind: "miniapp",
       appSlug: config.slug,
       disabled: isCurrent || !config.available,
@@ -409,7 +448,7 @@ export function MiniAppMenuPage({ appSlug }: { appSlug: AppSlug }) {
       id: "fc-10xmeme",
       title: "Farcaster 10X Meme",
       description: "Follow the 10X Meme account on Farcaster.",
-      imageUrl: APP_CONFIGS.app.imageUrl,
+      imageUrl: "/menu/menu-farcaster-10xmeme.jpg",
       ctaLabel: "Follow @10XMeme.eth",
       kind: "viewProfile",
       fid: 1313340,
@@ -418,7 +457,7 @@ export function MiniAppMenuPage({ appSlug }: { appSlug: AppSlug }) {
       id: "fc-10xchris",
       title: "Farcaster 10X Chris",
       description: "Follow Chris on Farcaster for launches and updates.",
-      imageUrl: APP_CONFIGS.drop.imageUrl,
+      imageUrl: "/menu/menu-farcaster-10xchris.jpg",
       ctaLabel: "Follow @10XChris.eth",
       kind: "viewProfile",
       fid: 1129138,
@@ -427,7 +466,7 @@ export function MiniAppMenuPage({ appSlug }: { appSlug: AppSlug }) {
       id: "x-10xmeme",
       title: "Twitter 10X Meme",
       description: "Follow @10XMemeX on X.",
-      imageUrl: APP_CONFIGS.app.imageUrl,
+      imageUrl: "/menu/menu-twitter-10xmeme.jpg",
       ctaLabel: "Follow @10XMemeX",
       kind: "openUrl",
       href: "https://twitter.com/intent/follow?user_id=3275559396",
@@ -436,7 +475,7 @@ export function MiniAppMenuPage({ appSlug }: { appSlug: AppSlug }) {
       id: "x-10xchris",
       title: "Twitter 10X Chris",
       description: "Follow @10XChrisX on X.",
-      imageUrl: APP_CONFIGS.drop.imageUrl,
+      imageUrl: "/menu/menu-twitter-10xchris.jpg",
       ctaLabel: "Follow @10XChrisX",
       kind: "openUrl",
       href: "https://twitter.com/intent/follow?user_id=18302782",
@@ -445,7 +484,7 @@ export function MiniAppMenuPage({ appSlug }: { appSlug: AppSlug }) {
       id: "fc-channel",
       title: "Farcaster Channel",
       description: "Join the 10X Meme Farcaster channel.",
-      imageUrl: APP_CONFIGS.app.imageUrl,
+      imageUrl: "/menu/menu-farcaster-channels.jpg",
       ctaLabel: "Join Farcaster Channel",
       kind: "openUrl",
       href: "https://farcaster.xyz/~/channel/10xmeme",
@@ -454,7 +493,7 @@ export function MiniAppMenuPage({ appSlug }: { appSlug: AppSlug }) {
       id: "telegram",
       title: "Telegram",
       description: "Join the 10X Telegram community.",
-      imageUrl: APP_CONFIGS.drop.imageUrl,
+      imageUrl: "/menu/menu-telegram-channel.jpg",
       ctaLabel: "Join Telegram Channel",
       kind: "openUrl",
       href: "https://t.me/X10XMeme",
@@ -466,25 +505,25 @@ export function MiniAppMenuPage({ appSlug }: { appSlug: AppSlug }) {
       id: "opensea-10x",
       title: "OpenSea 10X Warplets",
       description: "View the 10X Warplets collection on OpenSea.",
-      imageUrl: "https://app.10x.meme/opensea.png",
+      imageUrl: "/menu/menu-opensea-10xwarplets.jpg",
       ctaLabel: "OpenSea 10X Warplets",
       kind: "openUrl",
-      href: "https://opensea.io/collection/10xwarplets",
+      href: "https://link.10x.meme/10xwarplets",
     },
     {
       id: "opensea-1m",
       title: "OpenSea $1M Warplet",
       description: "View the $1M Warplet collection on OpenSea.",
-      imageUrl: "https://app.10x.meme/opensea.png",
+      imageUrl: "/menu/menu-opensea-1mwarplet.jpg",
       ctaLabel: "OpenSea $1M Warplet",
       kind: "openUrl",
-      href: "https://opensea.io/collection/1mwarplet",
+      href: "https://link.10x.meme/1mwarplet",
     },
     {
       id: "site-10x",
       title: "10X Website",
       description: "Visit the main 10X website.",
-      imageUrl: APP_CONFIGS.app.imageUrl,
+      imageUrl: "/menu/menu-10x-website.png",
       ctaLabel: "Visit 10x.meme",
       kind: "openUrl",
       href: "https://10x.meme/",
@@ -493,7 +532,7 @@ export function MiniAppMenuPage({ appSlug }: { appSlug: AppSlug }) {
       id: "site-warplets",
       title: "The Warplets (Original)",
       description: "Visit the original Warplets project by @SayAngel.",
-      imageUrl: APP_CONFIGS.drop.imageUrl,
+      imageUrl: "/menu/menu-warplets-website.jpg",
       ctaLabel: "Visit warplets.ai",
       kind: "openUrl",
       href: "https://www.warplets.ai/",
