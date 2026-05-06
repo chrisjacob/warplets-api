@@ -54,6 +54,24 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
   const now = new Date().toISOString();
 
+  if (action.slug === "drop-waitlist-email") {
+    const verifiedRow = await context.env.WARPLETS.prepare(
+      `SELECT email, verified
+       FROM email_waitlist
+       WHERE fid = ?
+         AND verified = 1
+         AND unsubscribed_at IS NULL
+       ORDER BY subscribed_at DESC
+       LIMIT 1`
+    )
+      .bind(fid)
+      .first<{ email: string; verified: number }>();
+
+    if (!verifiedRow) {
+      return Response.json({ error: "Waitlist email is not verified yet" }, { status: 409 });
+    }
+  }
+
   await context.env.WARPLETS.prepare(
     `INSERT OR IGNORE INTO actions_completed (
        action_id, action_slug, user_id, user_fid, verification, created_on
@@ -83,7 +101,41 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     .first<{ total_actions: number; completed_actions: number }>();
 
   const totalActions = Number(totals?.total_actions ?? 0);
-  const completedActions = Number(totals?.completed_actions ?? 0);
+  let completedActions = Number(totals?.completed_actions ?? 0);
+
+  const hasVerifiedWaitlist = await context.env.WARPLETS.prepare(
+    `SELECT 1
+     FROM email_waitlist
+     WHERE fid = ?
+       AND verified = 1
+       AND unsubscribed_at IS NULL
+     LIMIT 1`
+  )
+    .bind(fid)
+    .first<{ 1: number }>();
+
+  const hasWaitlistAction = await context.env.WARPLETS.prepare(
+    "SELECT 1 FROM actions WHERE app_slug = ? AND slug = 'drop-waitlist-email' LIMIT 1"
+  )
+    .bind(action.app_slug)
+    .first<{ 1: number }>();
+
+  if (hasWaitlistAction && hasVerifiedWaitlist) {
+    const hasCompletionRow = await context.env.WARPLETS.prepare(
+      `SELECT 1
+       FROM actions_completed
+       WHERE user_id = ?
+         AND action_slug = 'drop-waitlist-email'
+       LIMIT 1`
+    )
+      .bind(user.id)
+      .first<{ 1: number }>();
+
+    if (!hasCompletionRow) {
+      completedActions += 1;
+    }
+  }
+
   const allActionsCompleted = totalActions > 0 && completedActions >= totalActions;
 
   if (allActionsCompleted) {

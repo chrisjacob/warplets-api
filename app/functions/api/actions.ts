@@ -31,6 +31,11 @@ type CachedAction = {
   appSlug: string;
 };
 
+type WaitlistCompletion = {
+  completed: boolean;
+  verification: string | null;
+};
+
 function asPositiveInt(value: string | null): number | null {
   if (!value) return null;
   const parsed = Number(value);
@@ -124,10 +129,29 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     (completions.results ?? []).map((row) => [row.action_slug, row.verification] as const)
   );
 
+  const waitlistRow = await context.env.WARPLETS.prepare(
+    `SELECT email, verified
+     FROM email_waitlist
+     WHERE fid = ?
+       AND unsubscribed_at IS NULL
+     ORDER BY subscribed_at DESC
+     LIMIT 1`
+  )
+    .bind(fid)
+    .first<{ email: string; verified: number }>();
+
+  const waitlistCompletion: WaitlistCompletion = waitlistRow && waitlistRow.verified === 1
+    ? { completed: true, verification: `email:${waitlistRow.email}` }
+    : { completed: false, verification: null };
+
   const actionsWithCompletion = actions.map((action) => ({
     ...action,
-    completed: completionBySlug.has(action.slug),
-    verification: completionBySlug.get(action.slug) ?? null,
+    completed: action.slug === "drop-waitlist-email"
+      ? waitlistCompletion.completed
+      : completionBySlug.has(action.slug),
+    verification: action.slug === "drop-waitlist-email"
+      ? waitlistCompletion.verification
+      : (completionBySlug.get(action.slug) ?? null),
   }));
 
   return Response.json({ actions: actionsWithCompletion });

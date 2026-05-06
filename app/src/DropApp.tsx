@@ -681,6 +681,7 @@ export default function App() {
   const [waitlistSubmitted, setWaitlistSubmitted] = useState(false);
   const [hasFollowedX, setHasFollowedX] = useState(false);
   const [viewerUsername, setViewerUsername] = useState("");
+  const [waitlistStatusMessage, setWaitlistStatusMessage] = useState("");
   const [recentBuys, setRecentBuys] = useState<RecentBuyer[]>([]);
   const [rewardedUsers, setRewardedUsers] = useState<RecentBuyer[]>([]);
   const [bestFriends, setBestFriends] = useState<BestFriend[]>([]);
@@ -980,6 +981,8 @@ export default function App() {
           const verification = buildCastVerificationUrl(castResult.cast.hash, viewerUsername);
           await completeRewardAction(action.slug, verification);
         }
+      } else if (action.slug === "drop-waitlist-email") {
+        // Waitlist action uses email submit flow below.
       } else if (action.url) {
         await sdk.actions.openUrl(action.url);
       }
@@ -990,6 +993,61 @@ export default function App() {
       console.error("Failed to run reward action:", err);
       setActionError(getErrorMessage(err));
     } finally {
+      setRunningActionSlug(null);
+    }
+  };
+
+  const handleWaitlistRewardAction = async (action: RewardAction) => {
+    if (!fid) {
+      setActionError("Your Farcaster account is not ready yet.");
+      return;
+    }
+
+    if (!waitlistEmail.trim()) {
+      setActionError("Please enter a valid email.");
+      return;
+    }
+
+    setRunningActionSlug(action.slug);
+    setWaitlistSubmitting(true);
+    setActionError("");
+    setWaitlistStatusMessage("");
+
+    try {
+      const response = await fetch("/api/email/subscribe", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          email: waitlistEmail.trim(),
+          fid,
+          username: viewerUsername || undefined,
+          tokenId: typeof status?.rarityValue === "number" ? status.rarityValue : null,
+          matched: Boolean(isMatched),
+        }),
+      });
+
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(text || "Failed to join waitlist.");
+      }
+
+      const payload = (await response.json()) as { alreadyVerified?: boolean; verificationEmailSent?: boolean };
+      setWaitlistSubmitted(true);
+      if (payload.alreadyVerified) {
+        await completeRewardAction(action.slug, `email:${waitlistEmail.trim().toLowerCase()}`);
+        setWaitlistStatusMessage("Email already verified. Action completed.");
+      } else {
+        setWaitlistStatusMessage(payload.verificationEmailSent
+          ? "Verification email sent. Verify your email to unlock this action."
+          : "Subscribed. Please verify your email to unlock this action.");
+      }
+
+      await fetchRewardActions(fid);
+      await refreshStatusForRewardPage(fid);
+    } catch (err) {
+      setActionError(getErrorMessage(err));
+    } finally {
+      setWaitlistSubmitting(false);
       setRunningActionSlug(null);
     }
   };
@@ -1335,17 +1393,45 @@ export default function App() {
                       <Text className="mt-1 text-sm" style={{ color: "#b7ffb7" }}>
                         {action.description}
                       </Text>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          runRewardAction(action).catch(() => {});
-                        }}
-                        disabled={action.completed || runningActionSlug === action.slug}
-                        className="mt-4 w-full rounded-[16px] border border-[#009900] bg-[#00FF00] px-4 py-2.5 text-base font-bold shadow-[3px_6px_0_#008000] transition-all duration-100 active:translate-x-[1px] active:translate-y-[3px] active:shadow-[1px_3px_0_#008000] disabled:translate-x-0 disabled:translate-y-0 disabled:shadow-none disabled:bg-gray-700 disabled:border-gray-700 cursor-pointer"
-                        style={{ color: action.completed ? "#d1d5db" : "rgb(0, 80, 0)" }}
-                      >
-                        {action.completed ? "Done" : runningActionSlug === action.slug ? "Working..." : "Do it"}
-                      </button>
+                      {action.slug === "drop-waitlist-email" && !action.completed ? (
+                        <div className="mt-4 space-y-2">
+                          <input
+                            type="email"
+                            value={waitlistEmail}
+                            onChange={(event) => setWaitlistEmail(event.target.value)}
+                            placeholder="Email"
+                            className="w-full rounded-xl border border-[#00FF00]/35 bg-black/70 px-3 py-2 text-sm text-white outline-none"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              handleWaitlistRewardAction(action).catch(() => {});
+                            }}
+                            disabled={waitlistSubmitting || runningActionSlug === action.slug}
+                            className="w-full rounded-[16px] border border-[#009900] bg-[#00FF00] px-4 py-2.5 text-base font-bold shadow-[3px_6px_0_#008000] transition-all duration-100 active:translate-x-[1px] active:translate-y-[3px] active:shadow-[1px_3px_0_#008000] disabled:translate-x-0 disabled:translate-y-0 disabled:shadow-none disabled:bg-gray-700 disabled:border-gray-700 cursor-pointer"
+                            style={{ color: "rgb(0, 80, 0)" }}
+                          >
+                            {runningActionSlug === action.slug ? "Working..." : "Do it"}
+                          </button>
+                          {waitlistStatusMessage && (
+                            <Text className="text-xs" style={{ color: "#b7ffb7" }}>
+                              {waitlistStatusMessage}
+                            </Text>
+                          )}
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            runRewardAction(action).catch(() => {});
+                          }}
+                          disabled={action.completed || runningActionSlug === action.slug}
+                          className="mt-4 w-full rounded-[16px] border border-[#009900] bg-[#00FF00] px-4 py-2.5 text-base font-bold shadow-[3px_6px_0_#008000] transition-all duration-100 active:translate-x-[1px] active:translate-y-[3px] active:shadow-[1px_3px_0_#008000] disabled:translate-x-0 disabled:translate-y-0 disabled:shadow-none disabled:bg-gray-700 disabled:border-gray-700 cursor-pointer"
+                          style={{ color: action.completed ? "#d1d5db" : "rgb(0, 80, 0)" }}
+                        >
+                          {action.completed ? "Done" : runningActionSlug === action.slug ? "Working..." : "Do it"}
+                        </button>
+                      )}
                     </div>
                   ))}
                 </div>

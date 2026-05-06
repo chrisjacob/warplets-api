@@ -2,6 +2,52 @@ interface Env {
   WARPLETS: D1Database;
 }
 
+async function syncWaitlistActionCompletion(db: D1Database, fid: number, email: string): Promise<void> {
+  const user = await db
+    .prepare("SELECT id FROM warplets_users WHERE fid = ? LIMIT 1")
+    .bind(fid)
+    .first<{ id: number }>();
+  if (!user) return;
+
+  const action = await db
+    .prepare("SELECT id, slug, app_slug FROM actions WHERE slug = 'drop-waitlist-email' LIMIT 1")
+    .first<{ id: number; slug: string; app_slug: string }>();
+  if (!action) return;
+
+  const now = new Date().toISOString();
+  await db
+    .prepare(
+      `INSERT OR IGNORE INTO actions_completed (
+         action_id, action_slug, user_id, user_fid, verification, created_on
+       ) VALUES (?, ?, ?, ?, ?, ?)`
+    )
+    .bind(action.id, action.slug, user.id, fid, `email:${email}`, now)
+    .run();
+
+  const totals = await db
+    .prepare(
+      `SELECT
+         (SELECT COUNT(*) FROM actions WHERE app_slug = ?) AS total_actions,
+         (SELECT COUNT(*)
+            FROM actions_completed ac
+            JOIN actions a ON a.id = ac.action_id
+           WHERE ac.user_id = ?
+             AND a.app_slug = ?) AS completed_actions`
+    )
+    .bind(action.app_slug, user.id, action.app_slug)
+    .first<{ total_actions: number; completed_actions: number }>();
+
+  const totalActions = Number(totals?.total_actions ?? 0);
+  const completedActions = Number(totals?.completed_actions ?? 0);
+
+  if (totalActions > 0 && completedActions >= totalActions) {
+    await db
+      .prepare("UPDATE warplets_users SET rewarded_on = COALESCE(rewarded_on, ?), updated_on = ? WHERE id = ?")
+      .bind(now, now, user.id)
+      .run();
+  }
+}
+
 function htmlResponse(status: number, title: string, message: string): Response {
   return new Response(
     `<!DOCTYPE html>
@@ -40,10 +86,10 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   }
 
   const row = await context.env.WARPLETS.prepare(
-    `SELECT id, verified FROM email_waitlist WHERE verify_token = ? LIMIT 1`
+    `SELECT id, verified, fid, email FROM email_waitlist WHERE verify_token = ? LIMIT 1`
   )
     .bind(token)
-    .first<{ id: number; verified: number }>();
+    .first<{ id: number; verified: number; fid: number | null; email: string }>();
 
   if (!row) {
     return htmlResponse(404, "Invalid link", "This verification link is invalid or has expired.");
@@ -61,6 +107,10 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   )
     .bind(now, now, row.id)
     .run();
+
+  if (typeof row.fid === "number" && row.fid > 0) {
+    await syncWaitlistActionCompletion(context.env.WARPLETS, row.fid, row.email);
+  }
 
   return htmlResponse(200, "Email verified", "Success. Your email is verified and your waitlist spot is confirmed.");
 };
