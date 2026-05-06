@@ -164,6 +164,41 @@ async function loadRecentBuysCached(env: Env, enableMatchedTopUp: boolean): Prom
   return recentBuys;
 }
 
+async function loadRewardedUsers(
+  db: D1Database,
+  topUpUsers: RecentBuyer[],
+  enableTopUp: boolean
+): Promise<RecentBuyer[]> {
+  const rewardedResult = await db
+    .prepare(
+      `SELECT fid, pfp_url, score
+       FROM warplets_users
+       WHERE rewarded_on IS NOT NULL
+         AND pfp_url IS NOT NULL
+         AND TRIM(pfp_url) <> ''
+       ORDER BY rewarded_on DESC
+       LIMIT 100`
+    )
+    .all<{ fid: unknown; pfp_url: unknown; score: unknown }>();
+
+  const rewardedUsers = normalizeAndRankBuyers(rewardedResult.results ?? []);
+  if (!enableTopUp || rewardedUsers.length >= 10) {
+    return rewardedUsers;
+  }
+
+  const seen = new Set<number>(rewardedUsers.map((user) => user.fid));
+  const toppedUp = [...rewardedUsers];
+
+  for (const user of topUpUsers) {
+    if (toppedUp.length >= 10) break;
+    if (seen.has(user.fid)) continue;
+    toppedUp.push(user);
+    seen.add(user.fid);
+  }
+
+  return toppedUp;
+}
+
 function asObject(value: unknown): Record<string, unknown> | undefined {
   return value && typeof value === "object"
     ? (value as Record<string, unknown>)
@@ -351,6 +386,11 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     context.env,
     allowMatchedTopUp(hostname)
   );
+  const rewardedUsers = await loadRewardedUsers(
+    context.env.WARPLETS,
+    recentBuys,
+    allowMatchedTopUp(hostname)
+  );
 
   let bestFriends: BestFriend[] = [];
   if (fid) {
@@ -373,7 +413,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     }
   }
 
-  return Response.json({ buyers: recentBuys, bestFriends });
+  return Response.json({ buyers: recentBuys, bestFriends, rewardedUsers });
 };
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
@@ -390,7 +430,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   }
 
   const existing = await context.env.WARPLETS.prepare(
-    "SELECT id, matched_on, buy_in_opensea_on, buy_in_farcaster_wallet_on, shared_on FROM warplets_users WHERE fid = ? LIMIT 1"
+    "SELECT id, matched_on, buy_in_opensea_on, buy_in_farcaster_wallet_on, rewarded_on FROM warplets_users WHERE fid = ? LIMIT 1"
   )
     .bind(fid)
     .first<{
@@ -398,7 +438,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       matched_on: string | null;
       buy_in_opensea_on: string | null;
       buy_in_farcaster_wallet_on: string | null;
-      shared_on: string | null;
+      rewarded_on: string | null;
     }>();
 
   const matchRow = await context.env.WARPLETS.prepare(
@@ -414,6 +454,11 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     context.env,
     allowMatchedTopUp(hostname)
   );
+  const rewardedUsers = await loadRewardedUsers(
+    context.env.WARPLETS,
+    recentBuys,
+    allowMatchedTopUp(hostname)
+  );
 
   if (!existing) {
     const neynarUser = await fetchNeynarUserByFid(fid, context.env.NEYNAR_API_KEY);
@@ -423,7 +468,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       "INSERT INTO warplets_users (" +
         "fid, username, display_name, pfp_url, registered_at, pro_status, profile_bio_text, " +
         "follower_count, following_count, primary_eth_address, primary_sol_address, x_username, " +
-        "url, viewer_following, viewer_followed_by, score, matched_on, buy_in_opensea_on, buy_in_farcaster_wallet_on, shared_on, created_on, updated_on" +
+        "url, viewer_following, viewer_followed_by, score, matched_on, buy_in_opensea_on, buy_in_farcaster_wallet_on, rewarded_on, created_on, updated_on" +
         ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
     )
       .bind(
@@ -474,8 +519,9 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       rarityValue,
       buyInOpenseaOn: null,
       buyInFarcasterWalletOn: null,
-      sharedOn: null,
+      rewardedOn: null,
       recentBuys,
+      rewardedUsers,
     });
   }
 
@@ -486,7 +532,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     rarityValue,
     buyInOpenseaOn: existing.buy_in_opensea_on,
     buyInFarcasterWalletOn: existing.buy_in_farcaster_wallet_on,
-    sharedOn: existing.shared_on,
+    rewardedOn: existing.rewarded_on,
     recentBuys,
+    rewardedUsers,
   });
 };

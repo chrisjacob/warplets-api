@@ -18,13 +18,15 @@ type WarpletStatus = {
   rarityValue: number | null;
   buyInOpenseaOn: string | null;
   buyInFarcasterWalletOn: string | null;
-  sharedOn: string | null;
+  rewardedOn: string | null;
   recentBuys?: unknown;
+  rewardedUsers?: unknown;
 };
 
 type RecentBuysResponse = {
   buyers?: unknown;
   bestFriends?: unknown;
+  rewardedUsers?: unknown;
 };
 
 type RecentBuyer = {
@@ -643,7 +645,7 @@ export default function App() {
   const [didCelebrate, setDidCelebrate] = useState(false);
   const [isPurchasing, setIsPurchasing] = useState(false);
   const [purchasedTokenId, setPurchasedTokenId] = useState<string | null>(null);
-  const [hasShared, setHasShared] = useState(false);
+  const [hasRewarded, setHasRewarded] = useState(false);
   const [showOpenInFarcaster, setShowOpenInFarcaster] = useState(false);
   const [showAddAppPrompt, setShowAddAppPrompt] = useState(false);
   const [notificationsOnlyPrompt, setNotificationsOnlyPrompt] = useState(false);
@@ -655,6 +657,7 @@ export default function App() {
   const [hasFollowedX, setHasFollowedX] = useState(false);
   const [viewerUsername, setViewerUsername] = useState("");
   const [recentBuys, setRecentBuys] = useState<RecentBuyer[]>([]);
+  const [rewardedUsers, setRewardedUsers] = useState<RecentBuyer[]>([]);
   const [bestFriends, setBestFriends] = useState<BestFriend[]>([]);
 
   const launchTopConfetti = () => {
@@ -688,6 +691,7 @@ export default function App() {
         const friends = normalizeBestFriends(data.bestFriends);
         setBestFriends(friends);
         setRecentBuys(rankBuyersWithBestFriends(buyers, friends));
+        setRewardedUsers(normalizeRecentBuys(data.rewardedUsers));
       } catch {
         // Ignore non-critical social proof errors.
       }
@@ -758,6 +762,7 @@ export default function App() {
         const data = (await res.json()) as WarpletStatus;
         setStatus(data);
         const buyers = normalizeRecentBuys(data.recentBuys);
+        setRewardedUsers(normalizeRecentBuys(data.rewardedUsers));
 
         try {
           const friendsRes = await fetch(`/api/warplet-status?fid=${context.user.fid}`);
@@ -779,7 +784,7 @@ export default function App() {
           setPurchasedTokenId(String(data.rarityValue));
         }
 
-        setHasShared(Boolean(data.sharedOn));
+        setHasRewarded(Boolean(data.rewardedOn));
 
       } catch (err) {
         console.error("Failed to get user context:", err);
@@ -842,12 +847,12 @@ export default function App() {
   }, []);
 
   const imageUrl = hasPurchased
-    ? `https://warplets.10x.meme/${purchasedTokenId}.gif`
+    ? `https://warplets.10x.meme/${purchasedTokenId}.webp`
     : isMatched
       ? `https://warplets.10x.meme/${status?.rarityValue}.avif`
       : "https://warplets.10x.meme/3081.png";
   const title = hasPurchased
-    ? "Purchased! Welcome to 10X."
+    ? "Welcome to 10X! Want a reward?"
     : isMatched
       ? "Congratulations! You're on the list..."
       : "Oh Snap... You're not on the list.";
@@ -857,17 +862,19 @@ export default function App() {
       ? "🔓 Private 10K NFT Drop"
       : "🔒 Private 10K NFT Drop";
   const buttonLabel = hasPurchased
-    ? "Share & Claim Yours"
+    ? "🎁 Unlock Reward"
     : isMatched
       ? isPurchasing
         ? "Processing in Wallet..."
         : "Buy in Farcaster Wallet"
       : "Visit OpenSea to find out why...";
-  const shareButtonPulseClass = hasPurchased && !hasShared ? "share-cta-pulse-x" : "";
+  const shareButtonPulseClass = hasPurchased && !hasRewarded ? "share-cta-pulse-x" : "";
   const urgencyMessage = isMatched && !hasPurchased
     ? getUrgencyMessage(typeof status?.rarityValue === "number" ? status.rarityValue : null, nowMs)
     : null;
-  const showWaitlistCta = hasShared || (!isMatched && hasClickedOpenSea);
+  const showWaitlistCta = hasRewarded || (!isMatched && hasClickedOpenSea);
+  const avatarUsers = hasPurchased ? rewardedUsers : recentBuys;
+  const avatarLabel = hasPurchased ? "Rewarded:" : "Buyers:";
 
   const handlePrimaryAction = async () => {
     if (hasPurchased && purchasedTokenId) {
@@ -883,8 +890,8 @@ export default function App() {
 
         if (castResult?.cast?.hash && fid) {
           await postTrackingUpdate("/api/warplet-share", fid);
-          setHasShared(true);
-          setStatus(prev => (prev ? { ...prev, sharedOn: new Date().toISOString() } : prev));
+          setHasRewarded(true);
+          setStatus(prev => (prev ? { ...prev, rewardedOn: new Date().toISOString() } : prev));
         }
       } catch (err) {
         console.error("Failed to open cast composer:", err);
@@ -1167,7 +1174,7 @@ export default function App() {
                     className="w-full rounded-[18px]"
                     loading="eager"
                   />
-                  {isMatched && displayTokenId && topPercentLabel && (
+                  {!hasPurchased && isMatched && displayTokenId && topPercentLabel && (
                     <Text className="pt-1 pb-1 text-base font-bold text-center" style={{ color: "#00FF00" }}>
                       {`Rarity #${formattedTokenId} of 10,000 👀 Top ${topPercentLabel}%!`}
                     </Text>
@@ -1190,26 +1197,26 @@ export default function App() {
                   </Text>
                 )}
 
-                {recentBuys.length > 0 && (
+                {avatarUsers.length > 0 && (
                   <div className="mt-4 flex items-center justify-center gap-2">
                     <Text className="text-sm font-semibold whitespace-nowrap" style={{ color: "#b7ffb7" }}>
-                      Buyers:
+                      {avatarLabel}
                     </Text>
                     <div className="flex flex-nowrap overflow-x-auto pb-1">
-                      {recentBuys.map((buyer) => (
+                      {avatarUsers.map((user) => (
                         <button
-                          key={buyer.fid}
+                          key={user.fid}
                           type="button"
                           className="h-8 w-8 min-h-8 min-w-8 shrink-0 rounded-full overflow-hidden cursor-pointer -ml-2 first:ml-0"
                           style={{ border: "2px solid #00FF00" }}
-                          title={`View profile ${buyer.fid}`}
+                          title={`View profile ${user.fid}`}
                           onClick={() => {
-                            sdk.actions.viewProfile({ fid: buyer.fid }).catch(() => {});
+                            sdk.actions.viewProfile({ fid: user.fid }).catch(() => {});
                           }}
                         >
                           <img
-                            src={buyer.pfpUrl}
-                            alt={`Buyer ${buyer.fid}`}
+                            src={user.pfpUrl}
+                            alt={`User ${user.fid}`}
                             className="h-full w-full object-cover"
                             loading="lazy"
                           />
