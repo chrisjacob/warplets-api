@@ -1,9 +1,16 @@
 import { useEffect, useState } from "react";
 import sdk from "@farcaster/miniapp-sdk";
 import { Text } from "@neynar/ui/typography";
+import {
+  MiniAppHeader,
+  MiniAppMenuPage,
+  getHeaderTitle,
+  useMiniAppChrome,
+} from "./miniAppChrome.tsx";
 
 export default function FindApp() {
   const [showOpenInFarcaster, setShowOpenInFarcaster] = useState(false);
+  const { isMenuRoute, canGoBack, actions } = useMiniAppChrome("find");
 
   useEffect(() => {
     let shouldCallReady = false;
@@ -44,11 +51,33 @@ export default function FindApp() {
 
   return (
     <div
-      className="relative min-h-screen bg-black text-white flex flex-col items-center justify-center px-6"
+      className="relative min-h-screen bg-black text-white"
       style={{ fontFamily: '"Roboto Mono", system-ui, sans-serif' }}
     >
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(0,255,0,0.16),_rgba(0,0,0,0.92)_60%)]" aria-hidden="true" />
-      <div className="relative z-10 w-full max-w-md rounded-2xl border border-[#00FF00]/40 bg-[#041204]/90 p-6 text-center">
+      <video
+        src="/matrix_bg_1080x1080.mp4"
+        autoPlay
+        loop
+        muted
+        playsInline
+        aria-hidden="true"
+        className="brand-bg-video"
+      />
+      <div className="brand-bg-overlay" aria-hidden="true" />
+      <div className="relative z-10 w-full">
+        <MiniAppHeader
+          appSlug="find"
+          title={getHeaderTitle("find", isMenuRoute)}
+          canGoBack={canGoBack}
+          onBack={actions.goBack}
+          onLogo={actions.openHubRoot}
+          onMenu={actions.openMenu}
+        />
+
+        {isMenuRoute ? (
+          <MiniAppMenuPage appSlug="find" />
+        ) : (
+          <div className="mx-auto mt-10 w-auto max-w-md rounded-2xl border border-[#00FF00]/40 bg-[#041204]/90 p-6 text-center mx-6">
         <Text className="text-3xl font-bold" style={{ color: "#00FF00" }}>
           10X Warplets Find
         </Text>
@@ -59,6 +88,8 @@ export default function FindApp() {
           <Text className="mt-5 text-xs" style={{ color: "#7ddf7d" }}>
             Open this mini app inside Farcaster to preview the full experience.
           </Text>
+        )}
+          </div>
         )}
       </div>
     </div>

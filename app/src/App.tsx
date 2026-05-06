@@ -1,6 +1,12 @@
 import { useEffect, useState } from "react";
 import sdk from "@farcaster/miniapp-sdk";
 import { Text } from "@neynar/ui/typography";
+import {
+  MiniAppHeader,
+  MiniAppMenuPage,
+  getHeaderTitle,
+  useMiniAppChrome,
+} from "./miniAppChrome.tsx";
 
 const APPS = [
   {
@@ -33,6 +39,7 @@ export default function App() {
   const [notificationsOnlyPrompt, setNotificationsOnlyPrompt] = useState(false);
   const [showOpenInFarcaster, setShowOpenInFarcaster] = useState(false);
   const [actionError, setActionError] = useState("");
+  const { isMenuRoute, canGoBack, actions } = useMiniAppChrome("app");
 
   useEffect(() => {
     let shouldCallReady = false;
@@ -103,11 +110,33 @@ export default function App() {
 
   return (
     <div
-      className="relative min-h-screen bg-black text-white flex flex-col items-center px-4 py-8"
+      className="relative min-h-screen bg-black text-white"
       style={{ fontFamily: '"Roboto Mono", system-ui, sans-serif' }}
     >
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(0,255,0,0.15),_rgba(0,0,0,0.95)_60%)]" aria-hidden="true" />
-      <div className="relative z-10 w-full max-w-md">
+      <video
+        src="/matrix_bg_1080x1080.mp4"
+        autoPlay
+        loop
+        muted
+        playsInline
+        aria-hidden="true"
+        className="brand-bg-video"
+      />
+      <div className="brand-bg-overlay" aria-hidden="true" />
+      <div className="relative z-10 w-full">
+        <MiniAppHeader
+          appSlug="app"
+          title={getHeaderTitle("app", isMenuRoute)}
+          canGoBack={canGoBack}
+          onBack={actions.goBack}
+          onLogo={actions.goToCurrentRoot}
+          onMenu={actions.openMenu}
+        />
+
+        {isMenuRoute ? (
+          <MiniAppMenuPage appSlug="app" />
+        ) : (
+          <div className="mx-auto w-full max-w-md px-4 pt-8">
         <Text className="text-[2.4rem] font-bold text-center" style={{ color: "#00FF00" }}>
           10X
         </Text>
@@ -151,6 +180,8 @@ export default function App() {
         {actionError && (
           <div className="mt-4 rounded-xl border border-red-500/40 bg-red-900/20 px-3 py-2">
             <Text className="text-xs text-red-400">{actionError}</Text>
+          </div>
+        )}
           </div>
         )}
       </div>

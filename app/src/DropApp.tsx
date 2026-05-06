@@ -3,6 +3,12 @@ import sdk from "@farcaster/miniapp-sdk";
 import confetti from "canvas-confetti";
 import { Text } from "@neynar/ui/typography";
 import { encodeFunctionData, erc20Abi, getAddress, type Address } from "viem";
+import {
+  MiniAppHeader,
+  MiniAppMenuPage,
+  getHeaderTitle,
+  useMiniAppChrome,
+} from "./miniAppChrome.tsx";
 
 type WarpletStatus = {
   fid: number;
@@ -525,6 +531,7 @@ function getUrgencyMessage(tokenId: number | null, nowMs: number): string | null
 
 export default function App() {
   const FARCASTER_MINIAPP_URL = "https://farcaster.xyz/miniapps/uR3Rzs-k6AnV/10x";
+  const { isMenuRoute, canGoBack, actions } = useMiniAppChrome("drop");
   const [fid, setFid] = useState<number | null>(null);
   const [status, setStatus] = useState<WarpletStatus | null>(null);
   const [loading, setLoading] = useState(true);
@@ -971,162 +978,151 @@ export default function App() {
         muted
         playsInline
         aria-hidden="true"
-        className="absolute inset-0 w-full h-full object-cover opacity-25 pointer-events-none select-none"
+        className="brand-bg-video"
       />
+      <div className="brand-bg-overlay" aria-hidden="true" />
 
-      <div className="relative z-10 w-full h-[60px] bg-black flex items-start justify-between">
-        <button
-          type="button"
-          aria-label="Open 10X website"
-          onClick={handleSplashAction}
-          className="h-[60px] w-[76px] pl-4 cursor-pointer"
-        >
-          <img
-            src="/splash.png"
-            alt="10X Warplets"
-            className="h-[60px] w-[60px] object-contain"
-            loading="eager"
-          />
-        </button>
-        <button
-          type="button"
-          aria-label="Open 10X Warplets on OpenSea"
-          onClick={handleOpenSeaAction}
-          className="pt-[15px] pr-[18px] pb-[15px] pl-[15px] flex items-start cursor-pointer"
-        >
-          <img
-            src="/opensea.png"
-            alt="OpenSea"
-            className="w-[30px] h-[30px]"
-            loading="eager"
-          />
-        </button>
+      <div className="relative z-10 w-full">
+        <MiniAppHeader
+          appSlug="drop"
+          title={getHeaderTitle("drop", isMenuRoute)}
+          canGoBack={canGoBack}
+          onBack={actions.goBack}
+          onLogo={actions.openHubRoot}
+          onMenu={actions.openMenu}
+        />
       </div>
 
-      <div className="relative z-10 w-full max-w-md text-center space-y-2 px-4 pt-2">
-        <div className="relative px-4 text-center mb-4">
-          <Text className="text-[2.7rem] font-bold leading-tight" style={{ color: "#00FF00" }}>10X Warplets</Text>
-          <Text
-            className="inline-flex mt-3 px-3 py-1 text-sm font-semibold leading-tight border border-[#00FF00]/70 rounded-full"
-            style={{ color: "#00FF00", backgroundColor: "rgba(0, 255, 0, 0.12)" }}
-          >
-            {badgeLabel}
-          </Text>
+      {isMenuRoute ? (
+        <div className="relative z-10 w-full max-w-5xl mx-auto">
+          <MiniAppMenuPage appSlug="drop" />
         </div>
-
-        {loading && <Text className="text-sm" style={{ color: "#00FF00" }}>Loading your 10X Warplet status...</Text>}
-
-        {!loading && error && (
-          <Text className="text-sm text-red-400">{error}</Text>
-        )}
-
-        {!loading && showOpenInFarcaster && (
-          <div className="px-4 pb-2 pt-3 flex justify-center">
-            <a
-              href={FARCASTER_MINIAPP_URL}
-              className="inline-block w-[329px] max-w-full px-5 py-3 rounded-[20px] border border-[#009900] bg-[#00FF00] hover:bg-[#33ff33] font-bold text-lg transition-all duration-100 shadow-[3px_6px_0_#008000] active:translate-x-[1px] active:translate-y-[3px] active:shadow-[1px_3px_0_#008000]"
-              style={{ color: "rgb(0, 80, 0)" }}
+      ) : (
+        <div className="relative z-10 w-full max-w-md text-center space-y-2 px-4 pt-2">
+          <div className="relative px-4 text-center mb-4">
+            <Text className="text-[2.7rem] font-bold leading-tight" style={{ color: "#00FF00" }}>10X Warplets</Text>
+            <Text
+              className="inline-flex mt-3 px-3 py-1 text-sm font-semibold leading-tight border border-[#00FF00]/70 rounded-full"
+              style={{ color: "#00FF00", backgroundColor: "rgba(0, 255, 0, 0.12)" }}
             >
-              Open mini app in Farcaster
-            </a>
+              {badgeLabel}
+            </Text>
           </div>
-        )}
 
-        {!loading && !error && !showOpenInFarcaster && (
-          <div className="space-y-0">
-            <div className="px-4 pb-5 pt-0 space-y-3">
-              <Text className="text-lg font-semibold" style={{ color: "#00FF00" }}>
-                {title}
-              </Text>
-              <div className="w-full rounded-[20px] p-[2px] bg-[#00FF00]/20 border border-[#00FF00]/45">
-                <img
-                  src={imageUrl}
-                  alt="Loading..."
-                  className="w-full rounded-[18px]"
-                  loading="eager"
-                />
-                {isMatched && displayTokenId && (
-                  <Text className="py-2 text-base font-bold" style={{ color: "#00FF00" }}>
-                    {`10X Rarity #${formattedTokenId} of 10,000`}
+          {loading && <Text className="text-sm" style={{ color: "#00FF00" }}>Loading your 10X Warplet status...</Text>}
+
+          {!loading && error && (
+            <Text className="text-sm text-red-400">{error}</Text>
+          )}
+
+          {!loading && showOpenInFarcaster && (
+            <div className="px-4 pb-2 pt-3 flex justify-center">
+              <a
+                href={FARCASTER_MINIAPP_URL}
+                className="inline-block w-[329px] max-w-full px-5 py-3 rounded-[20px] border border-[#009900] bg-[#00FF00] hover:bg-[#33ff33] font-bold text-lg transition-all duration-100 shadow-[3px_6px_0_#008000] active:translate-x-[1px] active:translate-y-[3px] active:shadow-[1px_3px_0_#008000]"
+                style={{ color: "rgb(0, 80, 0)" }}
+              >
+                Open mini app in Farcaster
+              </a>
+            </div>
+          )}
+
+          {!loading && !error && !showOpenInFarcaster && (
+            <div className="space-y-0">
+              <div className="px-4 pb-5 pt-0 space-y-3">
+                <Text className="text-lg font-semibold" style={{ color: "#00FF00" }}>
+                  {title}
+                </Text>
+                <div className="w-full rounded-[20px] p-[2px] bg-[#00FF00]/20 border border-[#00FF00]/45">
+                  <img
+                    src={imageUrl}
+                    alt="Loading..."
+                    className="w-full rounded-[18px]"
+                    loading="eager"
+                  />
+                  {isMatched && displayTokenId && (
+                    <Text className="py-2 text-base font-bold" style={{ color: "#00FF00" }}>
+                      {`10X Rarity #${formattedTokenId} of 10,000`}
+                    </Text>
+                  )}
+                </div>
+              </div>
+              <div className="px-4">
+                <button
+                  onClick={handlePrimaryAction}
+                  disabled={isPurchasing}
+                  className={`w-full mt-0 px-5 py-3 rounded-[20px] border border-[#009900] bg-[#00FF00] hover:bg-[#33ff33] font-bold text-lg transition-all duration-100 shadow-[3px_6px_0_#008000] active:translate-x-[1px] active:translate-y-[3px] active:shadow-[1px_3px_0_#008000] disabled:bg-gray-700 disabled:border-gray-700 disabled:shadow-none disabled:translate-x-0 disabled:translate-y-0 cursor-pointer ${shareButtonPulseClass}`}
+                  style={{ color: isPurchasing ? "#ffffff" : "rgb(0, 80, 0)" }}
+                >
+                  {buttonLabel}
+                </button>
+
+                {urgencyMessage && (
+                  <Text className="mt-3 text-sm font-semibold" style={{ color: "#b7ffb7" }}>
+                    {urgencyMessage}
                   </Text>
+                )}
+
+                {showWaitlistCta && (
+                  <div className="mt-5 rounded-2xl border border-[#00FF00]/35 bg-[#041204]/85 px-4 py-4 text-left">
+                    {!waitlistSubmitted ? (
+                      <form onSubmit={handleWaitlistSubmit} className="space-y-3">
+                        <Text className="text-sm font-bold" style={{ color: "#00FF00" }}>
+                          Join 10X Meme Waitlist
+                        </Text>
+                        <input
+                          type="email"
+                          value={waitlistEmail}
+                          onChange={(event) => setWaitlistEmail(event.target.value)}
+                          placeholder="Email"
+                          required
+                          className="w-full rounded-xl border border-[#00FF00]/35 bg-black/70 px-3 py-2 text-sm text-white outline-none"
+                        />
+                        <button
+                          type="submit"
+                          disabled={waitlistSubmitting}
+                          className="w-full rounded-xl px-4 py-2 font-bold border border-[#009900] bg-[#00FF00] hover:bg-[#33ff33] disabled:bg-gray-700 disabled:border-gray-700 cursor-pointer"
+                          style={{ color: waitlistSubmitting ? "#ffffff" : "rgb(0, 80, 0)" }}
+                        >
+                          {waitlistSubmitting ? "Joining..." : "Join Waitlist"}
+                        </button>
+                      </form>
+                    ) : (
+                      <div className="space-y-3">
+                        <Text className="text-sm font-bold" style={{ color: "#00FF00" }}>
+                          You're on the list.
+                        </Text>
+                        <Text className="text-xs" style={{ color: "#b7ffb7" }}>
+                          Check your inbox for a verification email.
+                        </Text>
+                        {!hasFollowedX ? (
+                          <button
+                            type="button"
+                            onClick={handleFollowX}
+                            className="w-full rounded-xl px-4 py-2 font-bold border border-[#009900] bg-[#00FF00] hover:bg-[#33ff33] cursor-pointer"
+                            style={{ color: "rgb(0, 80, 0)" }}
+                          >
+                            Follow 10X on X
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={handleJoinTelegram}
+                            className="w-full rounded-xl px-4 py-2 font-bold border border-[#009900] bg-[#00FF00] hover:bg-[#33ff33] cursor-pointer"
+                            style={{ color: "rgb(0, 80, 0)" }}
+                          >
+                            Join 10X on Telegram
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
             </div>
-            <div className="px-4">
-              <button
-                onClick={handlePrimaryAction}
-                disabled={isPurchasing}
-                className={`w-full mt-0 px-5 py-3 rounded-[20px] border border-[#009900] bg-[#00FF00] hover:bg-[#33ff33] font-bold text-lg transition-all duration-100 shadow-[3px_6px_0_#008000] active:translate-x-[1px] active:translate-y-[3px] active:shadow-[1px_3px_0_#008000] disabled:bg-gray-700 disabled:border-gray-700 disabled:shadow-none disabled:translate-x-0 disabled:translate-y-0 cursor-pointer ${shareButtonPulseClass}`}
-                style={{ color: isPurchasing ? "#ffffff" : "rgb(0, 80, 0)" }}
-              >
-                {buttonLabel}
-              </button>
-
-              {urgencyMessage && (
-                <Text className="mt-3 text-sm font-semibold" style={{ color: "#b7ffb7" }}>
-                  {urgencyMessage}
-                </Text>
-              )}
-
-              {showWaitlistCta && (
-                <div className="mt-5 rounded-2xl border border-[#00FF00]/35 bg-[#041204]/85 px-4 py-4 text-left">
-                  {!waitlistSubmitted ? (
-                    <form onSubmit={handleWaitlistSubmit} className="space-y-3">
-                      <Text className="text-sm font-bold" style={{ color: "#00FF00" }}>
-                        Join 10X Meme Waitlist
-                      </Text>
-                      <input
-                        type="email"
-                        value={waitlistEmail}
-                        onChange={(event) => setWaitlistEmail(event.target.value)}
-                        placeholder="Email"
-                        required
-                        className="w-full rounded-xl border border-[#00FF00]/35 bg-black/70 px-3 py-2 text-sm text-white outline-none"
-                      />
-                      <button
-                        type="submit"
-                        disabled={waitlistSubmitting}
-                        className="w-full rounded-xl px-4 py-2 font-bold border border-[#009900] bg-[#00FF00] hover:bg-[#33ff33] disabled:bg-gray-700 disabled:border-gray-700 cursor-pointer"
-                        style={{ color: waitlistSubmitting ? "#ffffff" : "rgb(0, 80, 0)" }}
-                      >
-                        {waitlistSubmitting ? "Joining..." : "Join Waitlist"}
-                      </button>
-                    </form>
-                  ) : (
-                    <div className="space-y-3">
-                      <Text className="text-sm font-bold" style={{ color: "#00FF00" }}>
-                        You're on the list.
-                      </Text>
-                      <Text className="text-xs" style={{ color: "#b7ffb7" }}>
-                        Check your inbox for a verification email.
-                      </Text>
-                      {!hasFollowedX ? (
-                        <button
-                          type="button"
-                          onClick={handleFollowX}
-                          className="w-full rounded-xl px-4 py-2 font-bold border border-[#009900] bg-[#00FF00] hover:bg-[#33ff33] cursor-pointer"
-                          style={{ color: "rgb(0, 80, 0)" }}
-                        >
-                          Follow 10X on X
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={handleJoinTelegram}
-                          className="w-full rounded-xl px-4 py-2 font-bold border border-[#009900] bg-[#00FF00] hover:bg-[#33ff33] cursor-pointer"
-                          style={{ color: "rgb(0, 80, 0)" }}
-                        >
-                          Join 10X on Telegram
-                        </button>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      )}
 
       {actionError && (
         <div className="fixed bottom-4 left-4 right-4 z-20 max-w-md mx-auto">

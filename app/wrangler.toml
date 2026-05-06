@@ -3,6 +3,12 @@ pages_build_output_dir = "dist"
 compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
 
+[vars]
+# Farcaster FID of each registered mini-app — used to scope notification tokens
+# to the correct app_slug. Not sensitive (public Farcaster account IDs).
+APP_APP_FID = "9152"
+# DROP_APP_FID = "?????"    # add once observed in webhook events for Drop
+
 # Production bindings (app.10x.meme)
 [[kv_namespaces]]
 binding = "WARPLETS_KV"

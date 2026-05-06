@@ -52,6 +52,9 @@ function getMiniAppConfig(routeKey: RouteKey): { title: string; name: string; pa
 }
 
 export default defineConfig({
+  build: {
+    chunkSizeWarningLimit: 700,
+  },
   plugins: [
     react(),
     tailwindcss(),

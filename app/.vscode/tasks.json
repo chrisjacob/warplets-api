@@ -1,0 +1,26 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "typecheck app header redesign",
+			"type": "shell",
+			"command": "pnpm",
+			"args": [
+				"exec",
+				"tsc",
+				"--noEmit"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "build app header redesign",
+			"type": "shell",
+			"command": "pnpm",
+			"args": [
+				"run",
+				"build"
+			],
+			"isBackground": false
+		}
+	]
+}

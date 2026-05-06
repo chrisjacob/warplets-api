@@ -1,5 +1,5 @@
 /**
- * POST /webhook
+ * POST /webhook and /webhook/:appSlug
  *
  * Receives Farcaster Mini App webhook events, verifies the JFS signature
  * using @farcaster/miniapp-node (via Neynar hub), persists token lifecycle
@@ -13,11 +13,11 @@ import {
   parseWebhookEvent,
   createVerifyAppKeyWithHub,
 } from "@farcaster/miniapp-node";
-import { resolveAppSlugFromAppFid } from "./_lib/appSlug.js";
+import { AppSlug, normalizeAppSlug, resolveAppSlugFromAppFid } from "./_lib/appSlug.js";
 
 interface NotificationDetails { token: string; url: string; }
 
-interface Env {
+export interface Env {
   WARPLETS: D1Database;
   NEYNAR_API_KEY: string;
   APP_APP_FID?: string;
@@ -32,8 +32,30 @@ function parseOptionalInt(value: string | undefined): number | undefined {
   return Number.isFinite(parsed) ? parsed : undefined;
 }
 
-export const onRequestPost: PagesFunction<Env> = async (context) => {
+function resolveAppSlugFromWebhookPath(url: URL): AppSlug | null {
+  const segments = url.pathname
+    .split("/")
+    .filter(Boolean)
+    .map((segment) => segment.toLowerCase());
+
+  if (segments.length < 2 || segments[0] !== "webhook") {
+    return null;
+  }
+
+  const rawSlug = segments[1];
+  if (!["app", "drop", "find", "million"].includes(rawSlug)) {
+    return null;
+  }
+
+  return normalizeAppSlug(rawSlug);
+}
+
+export async function handleWebhookRequest(
+  context: Parameters<PagesFunction<Env>>[0],
+  appSlugFromPath?: AppSlug
+): Promise<Response> {
   const { env } = context;
+  const requestUrl = new URL(context.request.url);
 
   // Build a per-request Neynar verifier using the runtime secret (not process.env).
   const verifyAppKey = createVerifyAppKeyWithHub("https://hub-api.neynar.com", {
@@ -66,7 +88,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   }
 
   const { fid, appFid, event } = data;
-  const appSlug = resolveAppSlugFromAppFid(appFid, {
+  const pathScopedAppSlug = appSlugFromPath ?? resolveAppSlugFromWebhookPath(requestUrl);
+  const appSlug = pathScopedAppSlug ?? resolveAppSlugFromAppFid(appFid, {
     app: parseOptionalInt(env.APP_APP_FID),
     drop: parseOptionalInt(env.DROP_APP_FID),
     find: parseOptionalInt(env.FIND_APP_FID),
@@ -75,10 +98,10 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
   // Log raw event to D1 for audit/replay (fire-and-forget, don't block response)
   const logEvent = env.WARPLETS.prepare(
-    `INSERT INTO notification_webhook_events (fid, app_fid, event, raw_payload)
-     VALUES (?, ?, ?, ?)`
+    `INSERT INTO notification_webhook_events (fid, app_fid, app_slug, event, raw_payload)
+     VALUES (?, ?, ?, ?, ?)`
   )
-    .bind(fid, appFid ?? null, event.event, JSON.stringify(requestJson))
+    .bind(fid, appFid ?? null, appSlug, event.event, JSON.stringify(requestJson))
     .run()
     .catch((err) => console.error("Failed to log webhook event:", err));
 
@@ -91,7 +114,12 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
   if (isTokenLifecycleEvent && !appSlug) {
     await logEvent;
-    console.error("Ignoring webhook token lifecycle event with unknown app_fid", { fid, appFid, event: event.event });
+    console.error("Ignoring webhook token lifecycle event with unknown app identity", {
+      fid,
+      appFid,
+      event: event.event,
+      path: requestUrl.pathname,
+    });
     return Response.json({ success: true, ignored: true, reason: "unknown_app_fid" });
   }
 
@@ -136,4 +164,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   await logEvent;
 
   return Response.json({ success: true });
+};
+
+export const onRequestPost: PagesFunction<Env> = async (context) => {
+  return handleWebhookRequest(context);
 };
