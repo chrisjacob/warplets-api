@@ -49,3 +49,19 @@ Before the next 1,000 NFTs move from private sale to public sale:
 ### Future Build Surface
 
 These ideas could become campaigns in the notifications admin area, and later expand to email campaigns as well.
+
+## Warplets EVERYWHERE
+
+A mini app where users can create Warplet-themed GIFs and upload them to Giphy and Tenor.
+
+This should support GIFs for both 10X Warplets and the original The Warplets collection. Use the Emerge mini app on Farcaster to generate the image, animation, and GIF output.
+
+This would turn fans into creators and create user-generated content that helps Warplets spread across social media. Pudgy Penguins used a similar strategy and now have thousands of GIFs that people use every day across social platforms.
+
+## Mini App Haptics
+
+The Farcaster SDK supports haptic feedback for user interactions:
+
+https://miniapps.farcaster.xyz/docs/sdk/haptics
+
+Use haptics to bring a more tactile feeling to the mini app experience. Good moments for this include success states, error states, ticking off reward tasks, completing a purchase, unlocking a reward, or any interaction where a subtle physical response would make the app feel more alive.
