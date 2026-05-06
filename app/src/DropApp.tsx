@@ -883,7 +883,7 @@ export default function App() {
       ? `https://warplets.10x.meme/${status?.rarityValue}.avif`
       : "https://warplets.10x.meme/3081.png";
   const title = hasPurchased
-    ? "Welcome to 10X! Want a reward?"
+    ? "Welcome to 10X! Want rewards?"
     : isMatched
       ? "Congratulations! You're on the list..."
       : "Oh Snap... You're not on the list.";
@@ -893,7 +893,7 @@ export default function App() {
       ? "🔓 Private 10K NFT Drop"
       : "🔒 Private 10K NFT Drop";
   const buttonLabel = hasPurchased
-    ? "🎁 Unlock Reward"
+    ? "🎁 Unlock Rewards"
     : isMatched
       ? isPurchasing
         ? "Processing in Wallet..."
@@ -911,6 +911,8 @@ export default function App() {
   const headerTitle = showUnlockRewardPage && !isMenuRoute
     ? "Unlock Reward"
     : getHeaderTitle("drop", isMenuRoute);
+  const pageBadgeLabel = showUnlockRewardPage ? "Help 10X Warplets Go Viral!" : badgeLabel;
+  const pageTitle = showUnlockRewardPage ? "🙏 Complete actions. Unlock rewards." : title;
 
   const fetchRewardActions = async (currentFid: number) => {
     setRewardActionsLoading(true);
@@ -971,9 +973,12 @@ export default function App() {
 
     try {
       if (action.slug === "drop-cast" && purchasedTokenId) {
+        const castRarityLine = formattedTokenId && topPercentLabel
+          ? `My 10X Warplets rarity #${formattedTokenId} of 10,000 👀 Top ${topPercentLabel}%!`
+          : "My 10X Warplets rarity of 10,000!";
         const castResult = await sdk.actions.composeCast({
           text:
-            `💚 Claim your 10X Warplet!\n\n10X Rarity #${Number(purchasedTokenId).toLocaleString("en-US")} of 10,000.\n\nPrice increases every 10 days.\n\nSupply decreases every 10 days.\n\nDon't miss out...`,
+            `💚 Claim your 10X Warplet!\n\n${castRarityLine}\n\nPrice increases every 10 days.\n\nSupply decreases every 10 days.\n\nDon't miss out...`,
           embeds: ["https://drop.10x.meme", `https://warplets.10x.meme/${purchasedTokenId}.${SHARE_IMAGE_EXTENSION}`],
         });
 
@@ -1058,9 +1063,12 @@ export default function App() {
       launchTopConfetti();
 
       try {
+        const castRarityLine = formattedTokenId && topPercentLabel
+          ? `My 10X Warplets rarity #${formattedTokenId} of 10,000 👀 Top ${topPercentLabel}%!`
+          : "My 10X Warplets rarity of 10,000!";
         const castResult = await sdk.actions.composeCast({
           text:
-            `💚 Claim your 10X Warplet!\n\n10X Rarity #${Number(purchasedTokenId).toLocaleString("en-US")} of 10,000.\n\nPrice increases every 10 days.\n\nSupply decreases every 10 days.\n\nDon't miss out...`,
+            `💚 Claim your 10X Warplet!\n\n${castRarityLine}\n\nPrice increases every 10 days.\n\nSupply decreases every 10 days.\n\nDon't miss out...`,
           embeds: ["https://drop.10x.meme", `https://warplets.10x.meme/${purchasedTokenId}.${SHARE_IMAGE_EXTENSION}`],
         });
 
@@ -1332,10 +1340,10 @@ export default function App() {
         <div className="relative z-10 w-full max-w-md mx-auto text-center space-y-2 px-4 pt-2">
           <div className="relative px-4 pt-2 text-center mb-4">
             <Text className="text-[clamp(1.6rem,5vw,1.6rem)] font-bold leading-tight whitespace-nowrap" style={{ color: "#00FF00" }}>
-              {badgeLabel}
+              {pageBadgeLabel}
             </Text>
             <Text className="mt-3 text-lg font-semibold" style={{ color: "#00FF00" }}>
-              {title}
+              {pageTitle}
             </Text>
           </div>
 
@@ -1359,15 +1367,6 @@ export default function App() {
 
           {!loading && !error && !showOpenInFarcaster && showUnlockRewardPage && (
             <div className="space-y-4 px-4 pb-4">
-              <div className="rounded-2xl border border-[#00FF00]/35 bg-[#041204]/85 px-4 py-5 text-center">
-                <Text className="text-[1.45rem] font-bold leading-tight" style={{ color: "#00FF00" }}>
-                  Help 10X Warplets Go Viral!
-                </Text>
-                <Text className="mt-2 text-sm font-semibold" style={{ color: "#b7ffb7" }}>
-                  🙏 Every action makes an impact.
-                </Text>
-              </div>
-
               {rewardActionsLoading && (
                 <Text className="text-sm text-center" style={{ color: "#b7ffb7" }}>
                   Loading reward tasks...
@@ -1470,18 +1469,41 @@ export default function App() {
                             { ext: "png", label: ".PNG 1024x1024 ~1MB" },
                             { ext: "jpg", label: ".JPG 256x256 ~0.01MB" },
                           ].map((item) => (
-                            <button
+                            <div
                               key={item.ext}
-                              type="button"
-                              onClick={() => {
-                                const url = `https://warplets.10x.meme/${rewardTokenId}.${item.ext}`;
-                                sdk.actions.openUrl(url).catch(() => {});
-                              }}
-                              className="rounded-[14px] border border-[#009900] bg-[#00FF00] px-3 py-2 text-xs font-bold text-center shadow-[3px_6px_0_#008000] transition-all duration-100 active:translate-x-[1px] active:translate-y-[3px] active:shadow-[1px_3px_0_#008000] cursor-pointer"
-                              style={{ color: "rgb(0, 80, 0)" }}
+                              className="rounded-2xl border border-[#00FF00]/35 bg-[#031103] p-2"
                             >
-                              {item.label}
-                            </button>
+                              <div className="w-full aspect-square overflow-hidden rounded-xl border border-[#00FF00]/20 bg-black">
+                                {item.ext === "mp4" ? (
+                                  <video
+                                    src={`https://warplets.10x.meme/${rewardTokenId}.${item.ext}`}
+                                    className="h-full w-full object-cover"
+                                    muted
+                                    loop
+                                    autoPlay
+                                    playsInline
+                                  />
+                                ) : (
+                                  <img
+                                    src={`https://warplets.10x.meme/${rewardTokenId}.${item.ext}`}
+                                    alt={item.label}
+                                    className="h-full w-full object-cover"
+                                    loading="lazy"
+                                  />
+                                )}
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const url = `https://warplets.10x.meme/${rewardTokenId}.${item.ext}`;
+                                  sdk.actions.openUrl(url).catch(() => {});
+                                }}
+                                className="mt-2 w-full rounded-[12px] border border-[#009900] bg-[#00FF00] px-2 py-2 text-[11px] font-bold text-center shadow-[2px_4px_0_#008000] transition-all duration-100 active:translate-x-[1px] active:translate-y-[2px] active:shadow-[1px_2px_0_#008000] cursor-pointer"
+                                style={{ color: "rgb(0, 80, 0)" }}
+                              >
+                                {item.label}
+                              </button>
+                            </div>
                           ))}
                         </div>
                       )}
@@ -1592,61 +1614,6 @@ export default function App() {
                   </div>
                 )}
 
-                {showWaitlistCta && (
-                  <div className="mt-5 rounded-2xl border border-[#00FF00]/35 bg-[#041204]/85 px-4 py-4 text-left">
-                    {!waitlistSubmitted ? (
-                      <form onSubmit={handleWaitlistSubmit} className="space-y-3">
-                        <Text className="text-sm font-bold" style={{ color: "#00FF00" }}>
-                          Join 10X Meme Waitlist
-                        </Text>
-                        <input
-                          type="email"
-                          value={waitlistEmail}
-                          onChange={(event) => setWaitlistEmail(event.target.value)}
-                          placeholder="Email"
-                          required
-                          className="w-full rounded-xl border border-[#00FF00]/35 bg-black/70 px-3 py-2 text-sm text-white outline-none"
-                        />
-                        <button
-                          type="submit"
-                          disabled={waitlistSubmitting}
-                          className="w-full rounded-xl px-4 py-2 font-bold border border-[#009900] bg-[#00FF00] hover:bg-[#33ff33] disabled:bg-gray-700 disabled:border-gray-700 cursor-pointer"
-                          style={{ color: waitlistSubmitting ? "#ffffff" : "rgb(0, 80, 0)" }}
-                        >
-                          {waitlistSubmitting ? "Joining..." : "Join Waitlist"}
-                        </button>
-                      </form>
-                    ) : (
-                      <div className="space-y-3">
-                        <Text className="text-sm font-bold" style={{ color: "#00FF00" }}>
-                          You're on the list.
-                        </Text>
-                        <Text className="text-xs" style={{ color: "#b7ffb7" }}>
-                          Check your inbox for a verification email.
-                        </Text>
-                        {!hasFollowedX ? (
-                          <button
-                            type="button"
-                            onClick={handleFollowX}
-                            className="w-full rounded-xl px-4 py-2 font-bold border border-[#009900] bg-[#00FF00] hover:bg-[#33ff33] cursor-pointer"
-                            style={{ color: "rgb(0, 80, 0)" }}
-                          >
-                            Follow 10X on X
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={handleJoinTelegram}
-                            className="w-full rounded-xl px-4 py-2 font-bold border border-[#009900] bg-[#00FF00] hover:bg-[#33ff33] cursor-pointer"
-                            style={{ color: "rgb(0, 80, 0)" }}
-                          >
-                            Join 10X on Telegram
-                          </button>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )}
               </div>
             </div>
           )}
