@@ -47,6 +47,12 @@ type RewardAction = {
   verification: string | null;
 };
 
+type VerifyActionState = {
+  mode: "do" | "verify";
+  failedVerifications: number;
+  waitingUntilMs: number;
+};
+
 type RecentBuyer = {
   fid: number;
   pfpUrl: string;
@@ -737,6 +743,7 @@ export default function App() {
   const [rewardActionsLoading, setRewardActionsLoading] = useState(false);
   const [runningActionSlug, setRunningActionSlug] = useState<string | null>(null);
   const [didUnlockCelebrate, setDidUnlockCelebrate] = useState(false);
+  const [verifyActionState, setVerifyActionState] = useState<Record<string, VerifyActionState>>({});
 
   const launchTopConfetti = () => {
     const colors = ["#ff4d4d", "#ffd93d", "#57e389", "#4da3ff", "#b07bff", "#ff7ac8"];
@@ -1010,6 +1017,42 @@ export default function App() {
     }
   };
 
+  const getVerifyState = (slug: string): VerifyActionState => (
+    verifyActionState[slug] ?? { mode: "do", failedVerifications: 0, waitingUntilMs: 0 }
+  );
+
+  const setVerifyState = (slug: string, next: VerifyActionState) => {
+    setVerifyActionState((prev) => ({ ...prev, [slug]: next }));
+  };
+
+  const isVerifyActionSlug = (slug: string): boolean => (
+    slug === "drop-follow-fc-10xmeme" ||
+    slug === "drop-follow-fc-10xchris" ||
+    slug === "drop-join-fc-channel"
+  );
+
+  const isAssumeSuccessActionSlug = (slug: string): boolean => (
+    slug === "drop-follow-x-10xmeme" ||
+    slug === "drop-follow-x-10xchris" ||
+    slug === "drop-join-telegram" ||
+    slug === "drop-email-10x"
+  );
+
+  const verifyRewardAction = async (action: RewardAction) => {
+    if (!fid) return;
+
+    const response = await fetch("/api/actions-verify", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ fid, actionSlug: action.slug }),
+    });
+    if (!response.ok) {
+      return false;
+    }
+    const payload = (await response.json()) as { verified?: boolean };
+    return Boolean(payload.verified);
+  };
+
   const refreshStatusForRewardPage = async (currentFid: number) => {
     const statusRes = await fetch("/api/warplet-status", {
       method: "POST",
@@ -1029,7 +1072,54 @@ export default function App() {
     setActionError("");
 
     try {
-      if (action.slug === "drop-cast" && purchasedTokenId) {
+      if (isVerifyActionSlug(action.slug)) {
+        const current = getVerifyState(action.slug);
+
+        if (current.mode === "do") {
+          if (action.slug === "drop-follow-fc-10xmeme") {
+            await sdk.actions.viewProfile({ fid: 1313340 });
+          } else if (action.slug === "drop-follow-fc-10xchris") {
+            await sdk.actions.viewProfile({ fid: 1129138 });
+          } else if (action.slug === "drop-join-fc-channel") {
+            await sdk.actions.openUrl("https://farcaster.xyz/~/channel/10xmeme");
+          }
+
+          setVerifyState(action.slug, { ...current, mode: "verify" });
+          return;
+        }
+
+        if (current.waitingUntilMs > Date.now()) {
+          return;
+        }
+
+        const verified = await verifyRewardAction(action);
+        if (verified) {
+          await completeRewardAction(action.slug, `verified:${new Date().toISOString()}`);
+          setVerifyState(action.slug, { mode: "verify", failedVerifications: 0, waitingUntilMs: 0 });
+        } else if (current.failedVerifications === 0) {
+          const waitingUntilMs = Date.now() + 10000;
+          setVerifyState(action.slug, { mode: "verify", failedVerifications: 1, waitingUntilMs });
+          setActionError("Try again in 10 seconds");
+          window.setTimeout(() => {
+            setVerifyActionState((prev) => {
+              const latest = prev[action.slug];
+              if (!latest) return prev;
+              if (latest.waitingUntilMs <= Date.now()) {
+                return { ...prev, [action.slug]: { ...latest, waitingUntilMs: 0 } };
+              }
+              return prev;
+            });
+          }, 10050);
+        } else {
+          setVerifyState(action.slug, { mode: "do", failedVerifications: 0, waitingUntilMs: 0 });
+          setActionError("Try to follow again");
+        }
+      } else if (isAssumeSuccessActionSlug(action.slug)) {
+        if (action.url) {
+          await sdk.actions.openUrl(action.url);
+        }
+        await completeRewardAction(action.slug, `opened:${new Date().toISOString()}`);
+      } else if (action.slug === "drop-cast" && purchasedTokenId) {
         const urgency = getUrgencyDetails(nowMs);
         const castRarityLine = formattedTokenId && topPercentLabel
           ? `My 10X Warplets rarity #${formattedTokenId} of 10,000 👀 Top ${topPercentLabel}%!`
@@ -1501,11 +1591,26 @@ export default function App() {
                           onClick={() => {
                             runRewardAction(action).catch(() => {});
                           }}
-                          disabled={action.completed || runningActionSlug === action.slug}
+                          disabled={
+                            action.completed ||
+                            runningActionSlug === action.slug ||
+                            (isVerifyActionSlug(action.slug) && getVerifyState(action.slug).mode === "verify" && getVerifyState(action.slug).waitingUntilMs > Date.now())
+                          }
                           className="mt-4 w-full rounded-[16px] border border-[#009900] bg-[#00FF00] px-4 py-2.5 text-base font-bold shadow-[3px_6px_0_#008000] transition-all duration-100 active:translate-x-[1px] active:translate-y-[3px] active:shadow-[1px_3px_0_#008000] disabled:translate-x-0 disabled:translate-y-0 disabled:shadow-none disabled:bg-gray-700 disabled:border-gray-700 cursor-pointer"
                           style={{ color: action.completed ? "#d1d5db" : "rgb(0, 80, 0)" }}
                         >
-                          {action.completed ? "Done" : runningActionSlug === action.slug ? "Working..." : "Do it"}
+                          {action.completed ? "Done" : (
+                            runningActionSlug === action.slug ? "Working..." : (
+                              isVerifyActionSlug(action.slug) && getVerifyState(action.slug).mode === "verify" ? (
+                                <>
+                                  Verify
+                                  {getVerifyState(action.slug).waitingUntilMs > Date.now() && (
+                                    <span className="ml-2 inline-block h-3.5 w-3.5 rounded-full border-2 border-[rgb(0,80,0)] border-r-transparent align-middle animate-spin" />
+                                  )}
+                                </>
+                              ) : "Do it"
+                            )
+                          )}
                         </button>
                       )}
                     </div>
@@ -1530,7 +1635,7 @@ export default function App() {
                   <div className="space-y-4">
                     <div className="rounded-2xl border border-[#00FF00]/35 bg-[#041204]/85 px-4 py-4 text-left">
                       <Text className="text-base font-bold" style={{ color: "#00FF00" }}>
-                        Reward #1 More Warplets!
+                        🖼️ Reward #1 More Warplets!
                       </Text>
                       <Text className="mt-1 text-sm" style={{ color: "#b7ffb7" }}>
                         Download your 10X Warplet in a variety of image and video formats.
@@ -1588,26 +1693,58 @@ export default function App() {
 
                     <div className="rounded-2xl border border-[#00FF00]/35 bg-[#041204]/85 px-4 py-4 text-left">
                       <Text className="text-base font-bold" style={{ color: "#00FF00" }}>
-                        Reward #2 Fuel for Builders
+                        🤓 Reward #2 10X Warplets Cheatsheet
                       </Text>
                       <Text className="mt-1 text-sm leading-relaxed" style={{ color: "#b7ffb7" }}>
-                        The $1M Warplet is in a Dutch Auction, with the listing price dropping from $1,000,000 to $100 over 30 days. From the sale of that NFT, 50% of the funds will be airdroped in $USDC. The actions you've completed here will award you Bonus entries into a competition to win this prize (if you choose to enter). The mini app for entering is still being built. You are early! Learn more about the $1M Warplet and Fuel for Builder airdrop on OpenSea:{" "}
+                        Download the full 10X Warplets metadata spreadsheet. Use this to dig deep into the collections data points that formed each NFTs rarity. Filter, Sort, Search with ease. It's your cheatsheet to finding the best warplets on the market!{" "}
                         <button
                           type="button"
                           className="underline cursor-pointer"
                           style={{ color: "#00FF00" }}
                           onClick={() => {
-                            sdk.actions.openUrl("https://opensea.io/collection/1m-warplet-1-the-one").catch(() => {});
+                            sdk.actions.openUrl("https://link.10x.meme/csv").catch(() => {});
                           }}
                         >
-                          https://opensea.io/collection/1m-warplet-1-the-one
+                          https://link.10x.meme/csv
                         </button>
                       </Text>
                     </div>
 
                     <div className="rounded-2xl border border-[#00FF00]/35 bg-[#041204]/85 px-4 py-4 text-left">
                       <Text className="text-base font-bold" style={{ color: "#00FF00" }}>
-                        Reward #3 The Matrix Uploaded
+                        🤯 Reward #3 The Matrix Explained
+                      </Text>
+                      <Text className="mt-1 text-sm leading-relaxed" style={{ color: "#b7ffb7" }}>
+                        The Matrix lore is weaved into the 10X Warplets. Revisits the iconic red pill scene: choice, control, and waking up from comforting illusions.
+                      </Text>
+                      <button
+                        type="button"
+                        className="mt-2 underline cursor-pointer"
+                        style={{ color: "#00FF00" }}
+                        onClick={() => {
+                          sdk.actions.openUrl("https://www.youtube.com/watch?v=6rrPP-QOF3k").catch(() => {});
+                        }}
+                      >
+                        https://www.youtube.com/watch?v=6rrPP-QOF3k
+                      </button>
+                      <Text className="mt-2 text-sm leading-relaxed" style={{ color: "#b7ffb7" }}>
+                        Go deep into the making of The Matrix. Philosophy, cycles of control, simulated freedom, and the terrifying idea that even escaping the system may still be part of the system.
+                      </Text>
+                      <button
+                        type="button"
+                        className="mt-2 underline cursor-pointer"
+                        style={{ color: "#00FF00" }}
+                        onClick={() => {
+                          sdk.actions.openUrl("https://www.youtube.com/watch?v=kK0JtvYg5-s").catch(() => {});
+                        }}
+                      >
+                        https://www.youtube.com/watch?v=kK0JtvYg5-s
+                      </button>
+                    </div>
+
+                    <div className="rounded-2xl border border-[#00FF00]/35 bg-[#041204]/85 px-4 py-4 text-left">
+                      <Text className="text-base font-bold" style={{ color: "#00FF00" }}>
+                        🤣 Reward #4 The Matrix Uploaded
                       </Text>
                       <Text className="mt-1 text-sm leading-relaxed" style={{ color: "#b7ffb7" }}>
                         10X Warplets are all about having FUN! Checkout this hillarious playlist of videos on YouTube:{" "}
@@ -1620,6 +1757,25 @@ export default function App() {
                           }}
                         >
                           https://www.youtube.com/watch?v=ug2aoVZYgaU&list=PLj-tHdTcFWloQkdL1Ps-JOSSPW-_VwQWx
+                        </button>
+                      </Text>
+                    </div>
+
+                    <div className="rounded-2xl border border-[#00FF00]/35 bg-[#041204]/85 px-4 py-4 text-left">
+                      <Text className="text-base font-bold" style={{ color: "#00FF00" }}>
+                        💰 Reward #5 Fuel for Builders
+                      </Text>
+                      <Text className="mt-1 text-sm leading-relaxed" style={{ color: "#b7ffb7" }}>
+                        The $1M Warplet is in a Dutch Auction, with the listing price dropping from $1,000,000 to $100 over 30 days. From the sale of that NFT, 50% of the funds will be airdroped in $USDC. The actions you've completed here will award you Bonus entries into a competition to win this prize (if you choose to enter). The mini app for entering is still being built. You are early! Learn more about the $1M Warplet and Fuel for Builder airdrop on OpenSea:{" "}
+                        <button
+                          type="button"
+                          className="underline cursor-pointer"
+                          style={{ color: "#00FF00" }}
+                          onClick={() => {
+                            sdk.actions.openUrl("https://opensea.io/collection/1m-warplet-1-the-one").catch(() => {});
+                          }}
+                        >
+                          https://opensea.io/collection/1m-warplet-1-the-one
                         </button>
                       </Text>
                     </div>
@@ -1664,7 +1820,7 @@ export default function App() {
 
                 {hasPurchased && (
                   <Text className="mt-3 text-sm font-semibold" style={{ color: "#b7ffb7" }}>
-                    The rewards include: 🖼️→🤓→💰→▶→🤣!️
+                    The rewards include: 🖼️→🤓→🤯→🤣→💰!️
                   </Text>
                 )}
 

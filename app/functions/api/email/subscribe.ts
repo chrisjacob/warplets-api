@@ -208,7 +208,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
   const alreadyVerified = row.verified === 1;
   const resendApiKey = context.env.RESEND_API_KEY?.trim();
-  const fromEmail = context.env.RESEND_FROM_EMAIL?.trim() || "10X Meme <hello@10x.meme>";
+  const fromEmail = context.env.RESEND_FROM_EMAIL?.trim() || "10X Meme <10x@10x.meme>";
 
   let verificationEmailSent = false;
 
