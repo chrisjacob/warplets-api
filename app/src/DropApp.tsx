@@ -962,7 +962,9 @@ export default function App() {
   const showWaitlistCta = hasRewarded || (!isMatched && hasClickedOpenSea);
   const avatarUsers = hasPurchased ? rewardedUsers : recentBuys;
   const avatarLabel = hasPurchased ? "Rewarded:" : "Buyers:";
-  const unlockedRewards = Boolean(status?.rewardedOn);
+  const completedActionsCount = rewardActions.reduce((count, action) => (action.completed ? count + 1 : count), 0);
+  const unlockedRewardCount = Math.min(5, Math.floor(completedActionsCount / 2));
+  const hasAnyUnlockedRewards = unlockedRewardCount > 0;
   const rewardTokenId = purchasedTokenId ?? (typeof status?.rarityValue === "number" ? String(status.rarityValue) : null);
   const castOutreach = outreachCandidates.farcasterUsernames.slice(0, 10).join(" ");
   const tweetOutreach = outreachCandidates.xUsernames.slice(0, 10).join(" ");
@@ -1481,10 +1483,10 @@ export default function App() {
   }, [showUnlockRewardPage, fid]);
 
   useEffect(() => {
-    if (!showUnlockRewardPage || !unlockedRewards || didUnlockCelebrate) return;
+    if (!showUnlockRewardPage || !hasAnyUnlockedRewards || didUnlockCelebrate) return;
     launchTopConfetti();
     setDidUnlockCelebrate(true);
-  }, [showUnlockRewardPage, unlockedRewards, didUnlockCelebrate]);
+  }, [showUnlockRewardPage, hasAnyUnlockedRewards, didUnlockCelebrate]);
 
   return (
     <MiniAppShell>
@@ -1620,22 +1622,23 @@ export default function App() {
 
               <div className="mt-2 space-y-3">
                 <Text className="text-lg font-bold text-left" style={{ color: "#00FF00" }}>
-                  {unlockedRewards ? "🎁 Unlocked Rewards" : "🔒 Locked Rewards"}
+                  {hasAnyUnlockedRewards ? "?? Unlocked Rewards" : "?? Locked Rewards"}
                 </Text>
 
-                {!unlockedRewards && (
+                {unlockedRewardCount < 5 && (
                   <div className="rounded-2xl border border-[#00FF00]/35 bg-black px-4 py-5 text-center">
                     <Text className="text-sm font-semibold" style={{ color: "#b7ffb7" }}>
-                      Complete all the actions to unlock rewards (don't miss out).
+                      {`Complete actions to unlock rewards (${completedActionsCount}/10 complete).`}
                     </Text>
                   </div>
                 )}
 
-                {unlockedRewards && (
+                {hasAnyUnlockedRewards && (
                   <div className="space-y-4">
+                    {unlockedRewardCount >= 1 && (
                     <div className="rounded-2xl border border-[#00FF00]/35 bg-[#041204]/85 px-4 py-4 text-left">
                       <Text className="text-base font-bold" style={{ color: "#00FF00" }}>
-                        🖼️ Reward #1 More Warplets!
+                        😍 Reward #1 More Warplets!
                       </Text>
                       <Text className="mt-1 text-sm" style={{ color: "#b7ffb7" }}>
                         Download your 10X Warplet in a variety of image and video formats.
@@ -1690,7 +1693,9 @@ export default function App() {
                         </div>
                       )}
                     </div>
+                    )}
 
+                    {unlockedRewardCount >= 2 && (
                     <div className="rounded-2xl border border-[#00FF00]/35 bg-[#041204]/85 px-4 py-4 text-left">
                       <Text className="text-base font-bold" style={{ color: "#00FF00" }}>
                         🤓 Reward #2 10X Warplets Cheatsheet
@@ -1709,7 +1714,9 @@ export default function App() {
                         </button>
                       </Text>
                     </div>
+                    )}
 
+                    {unlockedRewardCount >= 3 && (
                     <div className="rounded-2xl border border-[#00FF00]/35 bg-[#041204]/85 px-4 py-4 text-left">
                       <Text className="text-base font-bold" style={{ color: "#00FF00" }}>
                         🤯 Reward #3 The Matrix Explained
@@ -1741,7 +1748,9 @@ export default function App() {
                         https://www.youtube.com/watch?v=kK0JtvYg5-s
                       </button>
                     </div>
+                    )}
 
+                    {unlockedRewardCount >= 4 && (
                     <div className="rounded-2xl border border-[#00FF00]/35 bg-[#041204]/85 px-4 py-4 text-left">
                       <Text className="text-base font-bold" style={{ color: "#00FF00" }}>
                         🤣 Reward #4 The Matrix Uploaded
@@ -1760,10 +1769,12 @@ export default function App() {
                         </button>
                       </Text>
                     </div>
+                    )}
 
+                    {unlockedRewardCount >= 5 && (
                     <div className="rounded-2xl border border-[#00FF00]/35 bg-[#041204]/85 px-4 py-4 text-left">
                       <Text className="text-base font-bold" style={{ color: "#00FF00" }}>
-                        💰 Reward #5 Fuel for Builders
+                        🤑 Reward #5 Fuel for Builders
                       </Text>
                       <Text className="mt-1 text-sm leading-relaxed" style={{ color: "#b7ffb7" }}>
                         The $1M Warplet is in a Dutch Auction, with the listing price dropping from $1,000,000 to $100 over 30 days. From the sale of that NFT, 50% of the funds will be airdroped in $USDC. The actions you've completed here will award you Bonus entries into a competition to win this prize (if you choose to enter). The mini app for entering is still being built. You are early! Learn more about the $1M Warplet and Fuel for Builder airdrop on OpenSea:{" "}
@@ -1779,6 +1790,7 @@ export default function App() {
                         </button>
                       </Text>
                     </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -1820,7 +1832,7 @@ export default function App() {
 
                 {hasPurchased && (
                   <Text className="mt-3 text-sm font-semibold" style={{ color: "#b7ffb7" }}>
-                    The rewards include: 🖼️→🤓→🤯→🤣→💰!️
+                    The rewards include: 😍→🤓→🤯→🤣→🤑!️
                   </Text>
                 )}
 
@@ -1921,5 +1933,6 @@ export default function App() {
     </MiniAppShell>
   );
 }
+
 
 
