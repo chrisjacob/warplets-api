@@ -60,7 +60,8 @@ type BestFriend = {
 };
 
 type OutreachCandidate = {
-  usernames: string[];
+  farcasterUsernames: string[];
+  xUsernames: string[];
   tokenIds: number[];
 };
 
@@ -669,12 +670,18 @@ function rankBuyersWithBestFriends(buyers: RecentBuyer[], bestFriends: BestFrien
 
 function normalizeOutreachCandidates(value: unknown): OutreachCandidate {
   if (!value || typeof value !== "object") {
-    return { usernames: [], tokenIds: [] };
+    return { farcasterUsernames: [], xUsernames: [], tokenIds: [] };
   }
 
-  const raw = value as { usernames?: unknown; tokenIds?: unknown };
-  const usernames = Array.isArray(raw.usernames)
-    ? raw.usernames
+  const raw = value as { farcasterUsernames?: unknown; xUsernames?: unknown; tokenIds?: unknown };
+  const farcasterUsernames = Array.isArray(raw.farcasterUsernames)
+    ? raw.farcasterUsernames
+      .filter((item): item is string => typeof item === "string" && item.trim().length > 0)
+      .map((item) => item.trim())
+      .slice(0, 10)
+    : [];
+  const xUsernames = Array.isArray(raw.xUsernames)
+    ? raw.xUsernames
       .filter((item): item is string => typeof item === "string" && item.trim().length > 0)
       .map((item) => item.trim())
       .slice(0, 10)
@@ -686,7 +693,7 @@ function normalizeOutreachCandidates(value: unknown): OutreachCandidate {
       .slice(0, 10)
     : [];
 
-  return { usernames, tokenIds };
+  return { farcasterUsernames, xUsernames, tokenIds };
 }
 
 function buildCastVerificationUrl(hash: string, username: string): string {
@@ -724,7 +731,7 @@ export default function App() {
   const [recentBuys, setRecentBuys] = useState<RecentBuyer[]>([]);
   const [rewardedUsers, setRewardedUsers] = useState<RecentBuyer[]>([]);
   const [bestFriends, setBestFriends] = useState<BestFriend[]>([]);
-  const [outreachCandidates, setOutreachCandidates] = useState<OutreachCandidate>({ usernames: [], tokenIds: [] });
+  const [outreachCandidates, setOutreachCandidates] = useState<OutreachCandidate>({ farcasterUsernames: [], xUsernames: [], tokenIds: [] });
   const [showUnlockRewardPage, setShowUnlockRewardPage] = useState(false);
   const [rewardActions, setRewardActions] = useState<RewardAction[]>([]);
   const [rewardActionsLoading, setRewardActionsLoading] = useState(false);
@@ -950,7 +957,8 @@ export default function App() {
   const avatarLabel = hasPurchased ? "Rewarded:" : "Buyers:";
   const unlockedRewards = Boolean(status?.rewardedOn);
   const rewardTokenId = purchasedTokenId ?? (typeof status?.rarityValue === "number" ? String(status.rarityValue) : null);
-  const castOutreach = outreachCandidates.usernames.slice(0, 10).join(" ");
+  const castOutreach = outreachCandidates.farcasterUsernames.slice(0, 10).join(" ");
+  const tweetOutreach = outreachCandidates.xUsernames.slice(0, 10).join(" ");
   const headerTitle = showUnlockRewardPage && !isMenuRoute
     ? "Unlock Reward"
     : getHeaderTitle("drop", isMenuRoute);
@@ -1037,6 +1045,22 @@ export default function App() {
           const verification = buildCastVerificationUrl(castResult.cast.hash, viewerUsername);
           await completeRewardAction(action.slug, verification, outreachCandidates.tokenIds);
         }
+      } else if (action.slug === "drop-tweet" && purchasedTokenId) {
+        const urgency = getUrgencyDetails(nowMs);
+        const castRarityLine = formattedTokenId && topPercentLabel
+          ? `My 10X Warplets rarity #${formattedTokenId} of 10,000 👀 Top ${topPercentLabel}%!`
+          : "My 10X Warplets rarity of 10,000!";
+        const outreachLine = tweetOutreach.length > 0 ? tweetOutreach : "@10XMemeX";
+        const text = `🟢 10X Warplets - Private 10K NFT Drop\n\nPrice goes up $${urgency.currentPrice} → $${urgency.nextPrice} in ${urgency.countdown}.\nSupply goes private → public every 10 days.\nAre you on the list?\nDon't miss out.\n\n${castRarityLine}\n\np.s. you're on the list ${outreachLine} - what's your rarity score?`;
+        const intentUrl = `https://x.com/intent/post?${new URLSearchParams({
+          text,
+          url: "https://farcaster.xyz/miniapps/cSNbxgFkuFRi/10x-warplets-drop",
+          hashtags: "10XWarplets",
+          via: "10XMemeX",
+          in_reply_to: "2050005149146640823",
+        }).toString()}`;
+        await sdk.actions.openUrl(intentUrl);
+        await completeRewardAction(action.slug, intentUrl, outreachCandidates.tokenIds);
       } else if (action.slug === "drop-waitlist-email") {
         // Waitlist action uses email submit flow below.
       } else if (action.url) {
@@ -1640,7 +1664,7 @@ export default function App() {
 
                 {hasPurchased && (
                   <Text className="mt-3 text-sm font-semibold" style={{ color: "#b7ffb7" }}>
-                    The rewards include: 🖼️,🤓,💰,🤣,▶️
+                    The rewards include: 🖼️→🤓→💰→▶→🤣!️
                   </Text>
                 )}
 

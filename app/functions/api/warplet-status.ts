@@ -30,7 +30,8 @@ type BestFriend = {
 };
 
 type OutreachCandidate = {
-  usernames: string[];
+  farcasterUsernames: string[];
+  xUsernames: string[];
   tokenIds: number[];
 };
 
@@ -439,40 +440,57 @@ async function loadOutreachCandidates(db: D1Database, userId: number): Promise<O
 
   const friendRows = await db
     .prepare(
-      `SELECT wubfw.username, wubfw.warplet_token_id
+      `SELECT wubfw.username, wubfw.warplet_token_id, wm.warplet_username_x
        FROM warplets_user_best_friends_warplet wubfw
        JOIN warplets_metadata wm
          ON wm.token_id = wubfw.warplet_token_id
        WHERE wubfw.user_id = ?
          AND (wm.last_outreach_on IS NULL OR wm.last_outreach_on <= ?)
+         AND NOT EXISTS (
+           SELECT 1
+           FROM warplets_users wu
+           WHERE wu.fid = wm.fid_value
+             AND (wu.buy_in_opensea_on IS NOT NULL OR wu.buy_in_farcaster_wallet_on IS NOT NULL)
+         )
        ORDER BY wubfw.mutual_affinity_score DESC
        LIMIT 10`
     )
     .bind(userId, cutoff)
-    .all<{ username: unknown; warplet_token_id: unknown }>();
+    .all<{ username: unknown; warplet_token_id: unknown; warplet_username_x: unknown }>();
 
-  const usernames: string[] = [];
+  const farcasterUsernames: string[] = [];
+  const xUsernames: string[] = [];
   const tokenIds: number[] = [];
   const seenTokens = new Set<number>();
 
   for (const row of friendRows.results ?? []) {
-    const mention = normalizeUsernameForMention(row.username);
+    const fcMention = normalizeUsernameForMention(row.username);
+    const xMention = normalizeUsernameForMention(row.warplet_username_x);
     const tokenId = typeof row.warplet_token_id === "number" ? row.warplet_token_id : null;
-    if (!mention || !tokenId || seenTokens.has(tokenId)) continue;
-    usernames.push(mention);
+    if (!fcMention || !xMention || !tokenId || seenTokens.has(tokenId)) continue;
+    farcasterUsernames.push(fcMention);
+    xUsernames.push(xMention);
     tokenIds.push(tokenId);
     seenTokens.add(tokenId);
   }
 
-  if (usernames.length < 10) {
-    const needed = 10 - usernames.length;
+  if (farcasterUsernames.length < 10) {
+    const needed = 10 - farcasterUsernames.length;
     const nonFriendRows = await db
       .prepare(
-        `SELECT wm.warplet_username_farcaster, wm.token_id
+        `SELECT wm.warplet_username_farcaster, wm.warplet_username_x, wm.token_id
          FROM warplets_metadata wm
          WHERE (wm.last_outreach_on IS NULL OR wm.last_outreach_on <= ?)
            AND wm.warplet_username_farcaster IS NOT NULL
            AND TRIM(wm.warplet_username_farcaster) <> ''
+           AND wm.warplet_username_x IS NOT NULL
+           AND TRIM(wm.warplet_username_x) <> ''
+           AND NOT EXISTS (
+             SELECT 1
+             FROM warplets_users wu
+             WHERE wu.fid = wm.fid_value
+               AND (wu.buy_in_opensea_on IS NOT NULL OR wu.buy_in_farcaster_wallet_on IS NOT NULL)
+           )
            AND wm.token_id NOT IN (
              SELECT warplet_token_id
              FROM warplets_user_best_friends_warplet
@@ -482,20 +500,26 @@ async function loadOutreachCandidates(db: D1Database, userId: number): Promise<O
          LIMIT ?`
       )
       .bind(cutoff, userId, needed)
-      .all<{ warplet_username_farcaster: unknown; token_id: unknown }>();
+      .all<{ warplet_username_farcaster: unknown; warplet_username_x: unknown; token_id: unknown }>();
 
     for (const row of nonFriendRows.results ?? []) {
-      const mention = normalizeUsernameForMention(row.warplet_username_farcaster);
+      const fcMention = normalizeUsernameForMention(row.warplet_username_farcaster);
+      const xMention = normalizeUsernameForMention(row.warplet_username_x);
       const tokenId = typeof row.token_id === "number" ? row.token_id : null;
-      if (!mention || !tokenId || seenTokens.has(tokenId)) continue;
-      usernames.push(mention);
+      if (!fcMention || !xMention || !tokenId || seenTokens.has(tokenId)) continue;
+      farcasterUsernames.push(fcMention);
+      xUsernames.push(xMention);
       tokenIds.push(tokenId);
       seenTokens.add(tokenId);
-      if (usernames.length >= 10) break;
+      if (farcasterUsernames.length >= 10) break;
     }
   }
 
-  return { usernames: usernames.slice(0, 10), tokenIds: tokenIds.slice(0, 10) };
+  return {
+    farcasterUsernames: farcasterUsernames.slice(0, 10),
+    xUsernames: xUsernames.slice(0, 10),
+    tokenIds: tokenIds.slice(0, 10),
+  };
 }
 
 export const onRequestGet: PagesFunction<Env> = async (context) => {
@@ -513,7 +537,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   );
 
   let bestFriends: BestFriend[] = [];
-  let outreachCandidates: OutreachCandidate = { usernames: [], tokenIds: [] };
+  let outreachCandidates: OutreachCandidate = { farcasterUsernames: [], xUsernames: [], tokenIds: [] };
   if (fid) {
     const fidNum = parseInt(fid, 10);
     if (Number.isFinite(fidNum) && fidNum > 0) {
@@ -588,7 +612,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     recentBuys,
     allowMatchedTopUp(hostname)
   );
-  let outreachCandidates: OutreachCandidate = { usernames: [], tokenIds: [] };
+  let outreachCandidates: OutreachCandidate = { farcasterUsernames: [], xUsernames: [], tokenIds: [] };
 
   if (!existing) {
     const neynarUser = await fetchNeynarUserByFid(fid, context.env.NEYNAR_API_KEY);

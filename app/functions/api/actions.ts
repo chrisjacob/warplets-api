@@ -54,7 +54,7 @@ function parseEmbeds(raw: string | null): string[] {
 }
 
 async function loadActionsCached(env: Env, appSlug: string): Promise<CachedAction[]> {
-  const cacheKey = `reward-actions:v1:${appSlug}`;
+  const cacheKey = `reward-actions:v2:${appSlug}`;
   const cached = await env.WARPLETS_KV.get(cacheKey, "json");
 
   if (Array.isArray(cached)) {
@@ -66,7 +66,13 @@ async function loadActionsCached(env: Env, appSlug: string): Promise<CachedActio
             url, image, verification_method, app_slug
      FROM actions
      WHERE app_slug = ?
-     ORDER BY id ASC`
+     ORDER BY CASE slug
+       WHEN 'drop-cast' THEN 1
+       WHEN 'drop-tweet' THEN 2
+       WHEN 'drop-waitlist-email' THEN 3
+       ELSE 999
+     END,
+     id ASC`
   )
     .bind(appSlug)
     .all<ActionRow>();
