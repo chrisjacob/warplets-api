@@ -1124,12 +1124,12 @@ export default function App() {
       } else if (action.slug === "drop-cast" && purchasedTokenId) {
         const urgency = getUrgencyDetails(nowMs);
         const castRarityLine = formattedTokenId && topPercentLabel
-          ? `My 10X Warplets rarity #${formattedTokenId} of 10,000 👀 Top ${topPercentLabel}%!`
-          : "My 10X Warplets rarity of 10,000!";
+          ? `My rarity is #${formattedTokenId} of 10,000 👀 Top ${topPercentLabel}%!`
+          : "My rarity is 10,000!";
         const outreachLine = castOutreach.length > 0 ? castOutreach : "@warplets";
         const castResult = await sdk.actions.composeCast({
           text:
-            `🟢 10X Warplets - Private 10K NFT Drop\n\nPrice goes up $${urgency.currentPrice} → $${urgency.nextPrice} in ${urgency.countdown}.\nSupply goes private → public every 10 days.\nAre you on the list?\nDon't miss out.\n\n${castRarityLine}\n\np.s. you're on the list ${outreachLine} - what's your rarity score?`,
+            `🟢 10X Warplets - Private 10K NFT Drop\n\nPrice goes up $${urgency.currentPrice} → $${urgency.nextPrice} in ${urgency.countdown}.\nSupply goes private → public every 10 days.\nAre you on the list? Don't miss out.\n\n${castRarityLine}\n\np.s. you're on the list ${outreachLine} - what's your rarity?`,
           embeds: ["https://drop.10x.meme", `https://warplets.10x.meme/${purchasedTokenId}.${SHARE_IMAGE_EXTENSION}`],
         });
 
@@ -1140,10 +1140,10 @@ export default function App() {
       } else if (action.slug === "drop-tweet" && purchasedTokenId) {
         const urgency = getUrgencyDetails(nowMs);
         const castRarityLine = formattedTokenId && topPercentLabel
-          ? `My 10X Warplets rarity #${formattedTokenId} of 10,000 👀 Top ${topPercentLabel}%!`
-          : "My 10X Warplets rarity of 10,000!";
+          ? `My rarity is #${formattedTokenId} of 10,000 👀 Top ${topPercentLabel}%!`
+          : "My rarity is 10,000!";
         const outreachLine = tweetOutreach.length > 0 ? tweetOutreach : "@10XMemeX";
-        const text = `🟢 10X Warplets - Private 10K NFT Drop\n\nPrice goes up $${urgency.currentPrice} → $${urgency.nextPrice} in ${urgency.countdown}.\nSupply goes private → public every 10 days.\nAre you on the list?\nDon't miss out.\n\n${castRarityLine}\n\np.s. you're on the list ${outreachLine} - what's your rarity score?`;
+        const text = `🟢 10X Warplets - Private 10K NFT Drop\n\nPrice goes up $${urgency.currentPrice} → $${urgency.nextPrice} in ${urgency.countdown}.\nSupply goes private → public every 10 days.\nAre you on the list? Don't miss out.\n\n${castRarityLine}\n\np.s. you're on the list ${outreachLine} - what's your rarity?`;
         const intentUrl = `https://x.com/intent/post?${new URLSearchParams({
           text,
           url: "https://farcaster.xyz/miniapps/cSNbxgFkuFRi/10x-warplets-drop",
@@ -1232,12 +1232,12 @@ export default function App() {
       try {
         const urgency = getUrgencyDetails(nowMs);
         const castRarityLine = formattedTokenId && topPercentLabel
-          ? `My 10X Warplets rarity #${formattedTokenId} of 10,000 👀 Top ${topPercentLabel}%!`
-          : "My 10X Warplets rarity of 10,000!";
+          ? `My rarity is #${formattedTokenId} of 10,000 👀 Top ${topPercentLabel}%!`
+          : "My rarity is 10,000!";
         const outreachLine = castOutreach.length > 0 ? castOutreach : "@warplets";
         const castResult = await sdk.actions.composeCast({
           text:
-            `🟢 10X Warplets - Private 10K NFT Drop\n\nPrice goes up $${urgency.currentPrice} → $${urgency.nextPrice} in ${urgency.countdown}.\nSupply goes private → public every 10 days.\nAre you on the list?\nDon't miss out.\n\n${castRarityLine}\n\np.s. you're on the list ${outreachLine} - what's your rarity score?`,
+            `🟢 10X Warplets - Private 10K NFT Drop\n\nPrice goes up $${urgency.currentPrice} → $${urgency.nextPrice} in ${urgency.countdown}.\nSupply goes private → public every 10 days.\nAre you on the list? Don't miss out.\n\n${castRarityLine}\n\np.s. you're on the list ${outreachLine} - what's your rarity?`,
           embeds: ["https://drop.10x.meme", `https://warplets.10x.meme/${purchasedTokenId}.${SHARE_IMAGE_EXTENSION}`],
         });
 
@@ -1832,7 +1832,7 @@ export default function App() {
 
                 {hasPurchased && (
                   <Text className="mt-3 text-sm font-semibold" style={{ color: "#b7ffb7" }}>
-                    The rewards include: 😍→🤓→🤯→🤣→🤑!️
+                    Rewards... 😍→🤓→🤯→🤣→🤑!️
                   </Text>
                 )}
 
