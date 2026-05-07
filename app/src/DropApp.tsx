@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+﻿import { useEffect, useState, type FormEvent } from "react";
 import sdk from "@farcaster/miniapp-sdk";
 import confetti from "canvas-confetti";
 import { Text } from "@neynar/ui/typography";
@@ -711,6 +711,10 @@ function buildCastVerificationUrl(hash: string, username: string): string {
   return `https://farcaster.xyz/~/conversations/${cleanHash}`;
 }
 
+function waitMs(ms: number): Promise<void> {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
 export default function App() {
   const FARCASTER_MINIAPP_URL = "https://farcaster.xyz/miniapps/uR3Rzs-k6AnV/10x";
   const { isMenuRoute, canGoBack, actions } = useMiniAppChrome("drop");
@@ -734,6 +738,7 @@ export default function App() {
   const [hasFollowedX, setHasFollowedX] = useState(false);
   const [viewerUsername, setViewerUsername] = useState("");
   const [waitlistStatusMessage, setWaitlistStatusMessage] = useState("");
+  const [showWaitlistModal, setShowWaitlistModal] = useState(false);
   const [recentBuys, setRecentBuys] = useState<RecentBuyer[]>([]);
   const [rewardedUsers, setRewardedUsers] = useState<RecentBuyer[]>([]);
   const [bestFriends, setBestFriends] = useState<BestFriend[]>([]);
@@ -973,10 +978,10 @@ export default function App() {
   const castOutreach = outreachCandidates.farcasterUsernames.slice(0, 10).join(" ");
   const tweetOutreach = outreachCandidates.xUsernames.slice(0, 10).join(" ");
   const headerTitle = showUnlockRewardPage && !isMenuRoute
-    ? "Unlock Reward"
+    ? "Unlock Rewards"
     : getHeaderTitle("drop", isMenuRoute);
   const pageBadgeLabel = showUnlockRewardPage ? "Help 10X Warplets Go Viral!" : badgeLabel;
-  const pageTitle = showUnlockRewardPage ? "Complete actions 🟢 Unlock rewards" : title;
+  const pageTitle = showUnlockRewardPage ? "Complete actions 👉 Unlock rewards" : title;
 
   const fetchRewardActions = async (currentFid: number) => {
     setRewardActionsLoading(true);
@@ -1044,6 +1049,16 @@ export default function App() {
     slug === "drop-email-10x"
   );
 
+  const getActionDisplayName = (action: RewardAction): string => {
+    if (action.slug === "drop-cast") return "Post on Farcaster";
+    if (action.slug === "drop-follow-fc-10xmeme") return "Follow @10XMeme.eth";
+    if (action.slug === "drop-follow-fc-10xchris") return "Follow @10XChris.eth";
+    if (action.slug === "drop-follow-x-10xmeme") return "Follow @10XMemeX on X";
+    if (action.slug === "drop-follow-x-10xchris") return "Follow @10XChrisX on X";
+    if (action.slug === "drop-email-10x") return "Email 10x@10x.meme";
+    return action.name;
+  };
+
   const verifyRewardAction = async (action: RewardAction) => {
     if (!fid) return;
 
@@ -1076,6 +1091,7 @@ export default function App() {
 
     setRunningActionSlug(action.slug);
     setActionError("");
+    const startedAtMs = Date.now();
 
     try {
       if (isVerifyActionSlug(action.slug)) {
@@ -1169,6 +1185,10 @@ export default function App() {
       console.error("Failed to run reward action:", err);
       setActionError(getErrorMessage(err));
     } finally {
+      const elapsedMs = Date.now() - startedAtMs;
+      if (elapsedMs < 3000) {
+        await waitMs(3000 - elapsedMs);
+      }
       setRunningActionSlug(null);
     }
   };
@@ -1217,6 +1237,7 @@ export default function App() {
           ? "Verification email sent. Verify your email to unlock this action."
           : "Subscribed. Please verify your email to unlock this action.");
       }
+      setShowWaitlistModal(false);
 
       await fetchRewardActions(fid);
       await refreshStatusForRewardPage(fid);
@@ -1558,7 +1579,7 @@ export default function App() {
               )}
 
               {!rewardActionsLoading && displayRewardActions.length > 0 && (
-                <div className="space-y-3">
+                <div className="rounded-2xl border border-[#00FF00]/35 bg-[#041204]/85 px-3 py-0">
                   {[
                     "drop-cast",
                     "drop-tweet",
@@ -1576,51 +1597,42 @@ export default function App() {
                     .map((action, index) => (
                     <div
                       key={action.id}
-                      className="rounded-2xl border border-[#00FF00]/35 bg-[#041204]/85 px-4 py-4 text-left"
+                      onClick={() => {
+                        if (action.completed || runningActionSlug === action.slug) return;
+                        if (isVerifyActionSlug(action.slug) && getVerifyState(action.slug).mode === "verify" && getVerifyState(action.slug).waitingUntilMs > Date.now()) return;
+                        if (action.slug === "drop-waitlist-email" && !action.completed) {
+                          setShowWaitlistModal(true);
+                          return;
+                        }
+                        runRewardAction(action).catch(() => {});
+                      }}
+                      className={`px-2 py-2 text-left cursor-pointer ${index > 0 ? "border-t border-[#00FF00]/15" : ""}`}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(event) => {
+                        if (event.key !== "Enter" && event.key !== " ") return;
+                        event.preventDefault();
+                        if (action.completed || runningActionSlug === action.slug) return;
+                        if (isVerifyActionSlug(action.slug) && getVerifyState(action.slug).mode === "verify" && getVerifyState(action.slug).waitingUntilMs > Date.now()) return;
+                        if (action.slug === "drop-waitlist-email" && !action.completed) {
+                          setShowWaitlistModal(true);
+                          return;
+                        }
+                        runRewardAction(action).catch(() => {});
+                      }}
                     >
-                      <div className="flex items-center gap-2">
-                        <span
-                          className={`inline-flex h-5 w-5 items-center justify-center rounded-full border text-xs font-bold ${action.completed ? "border-[#00FF00] text-[#00FF00]" : "border-[#00FF00]/40 text-[#7bd47b]"}`}
-                        >
-                          {action.completed ? "✓" : "○"}
-                        </span>
+                      <div className="flex items-center justify-between gap-3">
                         <Text className="text-base font-bold" style={{ color: "#00FF00" }}>
-                          {action.name}
+                          {getActionDisplayName(action)}
                         </Text>
-                      </div>
-                      <Text className="mt-1 text-sm" style={{ color: "#b7ffb7" }}>
-                        {action.description}
-                      </Text>
-                      {action.slug === "drop-waitlist-email" && !action.completed ? (
-                        <div className="mt-4 space-y-2">
-                          <input
-                            type="email"
-                            value={waitlistEmail}
-                            onChange={(event) => setWaitlistEmail(event.target.value)}
-                            placeholder="Email"
-                            className="w-full rounded-xl border border-[#00FF00]/35 bg-black/70 px-3 py-2 text-sm text-white outline-none"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => {
-                              handleWaitlistRewardAction(action).catch(() => {});
-                            }}
-                            disabled={waitlistSubmitting || runningActionSlug === action.slug}
-                            className="w-full rounded-[16px] border border-[#009900] bg-[#00FF00] px-4 py-2.5 text-base font-bold shadow-[3px_6px_0_#008000] transition-all duration-100 active:translate-x-[1px] active:translate-y-[3px] active:shadow-[1px_3px_0_#008000] disabled:translate-x-0 disabled:translate-y-0 disabled:shadow-none disabled:bg-gray-700 disabled:border-gray-700 cursor-pointer"
-                            style={{ color: "rgb(0, 80, 0)" }}
-                          >
-                            {runningActionSlug === action.slug ? "Working..." : "Do it"}
-                          </button>
-                          {waitlistStatusMessage && (
-                            <Text className="text-xs" style={{ color: "#b7ffb7" }}>
-                              {waitlistStatusMessage}
-                            </Text>
-                          )}
-                        </div>
-                      ) : (
                         <button
                           type="button"
-                          onClick={() => {
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            if (action.slug === "drop-waitlist-email" && !action.completed) {
+                              setShowWaitlistModal(true);
+                              return;
+                            }
                             runRewardAction(action).catch(() => {});
                           }}
                           disabled={
@@ -1628,31 +1640,22 @@ export default function App() {
                             runningActionSlug === action.slug ||
                             (isVerifyActionSlug(action.slug) && getVerifyState(action.slug).mode === "verify" && getVerifyState(action.slug).waitingUntilMs > Date.now())
                           }
-                          className="mt-4 w-full rounded-[16px] border border-[#009900] bg-[#00FF00] px-4 py-2.5 text-base font-bold shadow-[3px_6px_0_#008000] transition-all duration-100 active:translate-x-[1px] active:translate-y-[3px] active:shadow-[1px_3px_0_#008000] disabled:translate-x-0 disabled:translate-y-0 disabled:shadow-none disabled:bg-gray-700 disabled:border-gray-700 cursor-pointer"
+                          className="h-10 w-10 shrink-0 rounded-[10px] border border-[#009900] bg-[#00FF00] text-4xl leading-none font-black shadow-[2px_4px_0_#008000] transition-all duration-100 active:translate-x-[1px] active:translate-y-[2px] active:shadow-[1px_2px_0_#008000] disabled:translate-x-0 disabled:translate-y-0 disabled:shadow-none disabled:bg-gray-700 disabled:border-gray-700 cursor-pointer"
                           style={{ color: action.completed ? "#d1d5db" : "rgb(0, 80, 0)" }}
                         >
-                          {action.completed ? "Done" : (
-                            runningActionSlug === action.slug ? "Working..." : (
+                          {action.completed ? "✓" : (
+                            runningActionSlug === action.slug ? (
+                              <span className="inline-block h-5 w-5 rounded-full border-2 border-white border-r-transparent align-middle animate-spin" />
+                            ) : (
                               isVerifyActionSlug(action.slug) && getVerifyState(action.slug).mode === "verify" ? (
-                                <>
-                                  Verify
-                                  {getVerifyState(action.slug).waitingUntilMs > Date.now() && (
-                                    <span className="ml-2 inline-block h-3.5 w-3.5 rounded-full border-2 border-[rgb(0,80,0)] border-r-transparent align-middle animate-spin" />
-                                  )}
-                                </>
-                              ) : "Do it"
+                                getVerifyState(action.slug).waitingUntilMs > Date.now() ? (
+                                  <span className="inline-block h-5 w-5 rounded-full border-2 border-white border-r-transparent align-middle animate-spin" />
+                                ) : "✓"
+                              ) : "›"
                             )
                           )}
                         </button>
-                      )}
-
-                      {(index + 1) % 2 === 0 && (
-                        <div className="mt-4 rounded-xl border border-[#00FF00]/35 bg-black/60 px-3 py-2 text-center">
-                          <Text className="text-sm font-semibold" style={{ color: "#b7ffb7" }}>
-                            {`Reward ${(index + 1) / 2} ${unlockedRewardCount >= (index + 1) / 2 ? "Unlocked" : "Locked"}`}
-                          </Text>
-                        </div>
-                      )}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -1660,21 +1663,13 @@ export default function App() {
 
               <div className="mt-2 space-y-3">
                 <Text className="text-lg font-bold text-left" style={{ color: "#00FF00" }}>
-                  {hasAnyUnlockedRewards ? "?? Unlocked Rewards" : "?? Locked Rewards"}
+                  {hasAnyUnlockedRewards ? "🔓 Unlocked Rewards" : "🔒 Locked Rewards"}
                 </Text>
 
-                {unlockedRewardCount < 5 && (
-                  <div className="rounded-2xl border border-[#00FF00]/35 bg-black px-4 py-5 text-center">
-                    <Text className="text-sm font-semibold" style={{ color: "#b7ffb7" }}>
-                      {`Complete actions to unlock rewards (${completedActionsCount}/10 complete).`}
-                    </Text>
-                  </div>
-                )}
-
                 {hasAnyUnlockedRewards && (
-                  <div className="space-y-4">
+                  <div className="rounded-2xl border border-[#00FF00]/35 bg-[#041204]/85 px-4 py-4 space-y-4">
                     {unlockedRewardCount >= 1 && (
-                    <div className="rounded-2xl border border-[#00FF00]/35 bg-[#041204]/85 px-4 py-4 text-left">
+                    <div className="text-left">
                       <Text className="text-base font-bold" style={{ color: "#00FF00" }}>
                         😍 Reward #1 More Warplets!
                       </Text>
@@ -1684,24 +1679,31 @@ export default function App() {
 
                       {rewardTokenId && (
                         <div className="mt-4 grid grid-cols-2 gap-3">
-                          {[
-                            { ext: "gif", label: ".GIF 500x500 ~5MB" },
-                            { ext: "mp4", label: ".MP4 1024x1024 ~2MB" },
-                            { ext: "avif", label: ".AVIF 1024x1024 ~0.5MB" },
-                            { ext: "webp", label: ".WEBP 1024x1024 ~0.25MB" },
-                            { ext: "png", label: ".PNG 1024x1024 ~1MB" },
-                            { ext: "jpg", label: ".JPG 256x256 ~0.01MB" },
-                          ].map((item) => (
-                            <div
-                              key={item.ext}
-                              className="rounded-2xl border border-[#00FF00]/35 bg-[#031103] p-2"
-                            >
-                              <div className="w-full aspect-square overflow-hidden rounded-xl border border-[#00FF00]/20 bg-black">
-                                {item.ext === "mp4" ? (
-                                  <video
-                                    src={`https://warplets.10x.meme/${rewardTokenId}.${item.ext}`}
-                                    className="h-full w-full object-cover"
-                                    muted
+                            {[
+                              { ext: "gif", label: ".GIF 500x500 ~5MB" },
+                              { ext: "mp4", label: ".MP4 1024x1024 ~2MB" },
+                              { ext: "avif", label: ".AVIF 1024x1024 ~0.5MB" },
+                              { ext: "webp", label: ".WEBP 1024x1024 ~0.25MB" },
+                              { ext: "png", label: ".PNG 1024x1024 ~1MB" },
+                              { ext: "jpg", label: ".JPG 256x256 ~0.01MB" },
+                            ].map((item) => (
+                              <div
+                                key={item.ext}
+                                className="rounded-2xl border border-[#00FF00]/35 bg-[#031103] p-0 overflow-hidden"
+                              >
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const url = `https://warplets.10x.meme/${rewardTokenId}.${item.ext}`;
+                                    sdk.actions.openUrl(url).catch(() => {});
+                                  }}
+                                  className="w-full aspect-square overflow-hidden rounded-t-xl rounded-b-none bg-black cursor-pointer block"
+                                >
+                                  {item.ext === "mp4" ? (
+                                    <video
+                                      src={`https://warplets.10x.meme/${rewardTokenId}.${item.ext}`}
+                                      className="h-full w-full object-cover"
+                                      muted
                                     loop
                                     autoPlay
                                     playsInline
@@ -1711,21 +1713,25 @@ export default function App() {
                                     src={`https://warplets.10x.meme/${rewardTokenId}.${item.ext}`}
                                     alt={item.label}
                                     className="h-full w-full object-cover"
-                                    loading="lazy"
-                                  />
-                                )}
-                              </div>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const url = `https://warplets.10x.meme/${rewardTokenId}.${item.ext}`;
-                                  sdk.actions.openUrl(url).catch(() => {});
-                                }}
-                                className="mt-2 w-full rounded-[12px] border border-[#009900] bg-[#00FF00] px-2 py-2 text-[11px] font-bold text-center shadow-[2px_4px_0_#008000] transition-all duration-100 active:translate-x-[1px] active:translate-y-[2px] active:shadow-[1px_2px_0_#008000] cursor-pointer"
-                                style={{ color: "rgb(0, 80, 0)" }}
-                              >
-                                {item.label}
-                              </button>
+                                      loading="lazy"
+                                    />
+                                  )}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const url = `https://warplets.10x.meme/${rewardTokenId}.${item.ext}`;
+                                    sdk.actions.openUrl(url).catch(() => {});
+                                  }}
+                                  className="w-full rounded-none border-0 bg-[#00FF00] px-2 py-2 text-[11px] font-bold text-center transition-all duration-100 cursor-pointer"
+                                  style={{ color: "rgb(0, 80, 0)" }}
+                                >
+                                  <span className="flex flex-col leading-tight">
+                                    {item.label.split(" ").map((part) => (
+                                      <span key={`${item.ext}-${part}`}>{part}</span>
+                                    ))}
+                                  </span>
+                                </button>
                             </div>
                           ))}
                         </div>
@@ -1734,7 +1740,7 @@ export default function App() {
                     )}
 
                     {unlockedRewardCount >= 2 && (
-                    <div className="rounded-2xl border border-[#00FF00]/35 bg-[#041204]/85 px-4 py-4 text-left">
+                    <div className="text-left border-t border-[#00FF00]/20 pt-4">
                       <Text className="text-base font-bold" style={{ color: "#00FF00" }}>
                         🤓 Reward #2 10X Warplets Cheatsheet
                       </Text>
@@ -1755,7 +1761,7 @@ export default function App() {
                     )}
 
                     {unlockedRewardCount >= 3 && (
-                    <div className="rounded-2xl border border-[#00FF00]/35 bg-[#041204]/85 px-4 py-4 text-left">
+                    <div className="text-left border-t border-[#00FF00]/20 pt-4">
                       <Text className="text-base font-bold" style={{ color: "#00FF00" }}>
                         🤯 Reward #3 The Matrix Explained
                       </Text>
@@ -1789,7 +1795,7 @@ export default function App() {
                     )}
 
                     {unlockedRewardCount >= 4 && (
-                    <div className="rounded-2xl border border-[#00FF00]/35 bg-[#041204]/85 px-4 py-4 text-left">
+                    <div className="text-left border-t border-[#00FF00]/20 pt-4">
                       <Text className="text-base font-bold" style={{ color: "#00FF00" }}>
                         🤣 Reward #4 The Matrix Uploaded
                       </Text>
@@ -1810,9 +1816,9 @@ export default function App() {
                     )}
 
                     {unlockedRewardCount >= 5 && (
-                    <div className="rounded-2xl border border-[#00FF00]/35 bg-[#041204]/85 px-4 py-4 text-left">
+                    <div className="text-left border-t border-[#00FF00]/20 pt-4">
                       <Text className="text-base font-bold" style={{ color: "#00FF00" }}>
-                        🤑 Reward #5 Fuel for Builders
+                        💰 Reward #5 Fuel for Builders
                       </Text>
                       <Text className="mt-1 text-sm leading-relaxed" style={{ color: "#b7ffb7" }}>
                         The $1M Warplet is in a Dutch Auction, with the listing price dropping from $1,000,000 to $100 over 30 days. From the sale of that NFT, 50% of the funds will be airdroped in $USDC. The actions you've completed here will award you Bonus entries into a competition to win this prize (if you choose to enter). The mini app for entering is still being built. You are early! Learn more about the $1M Warplet and Fuel for Builder airdrop on OpenSea:{" "}
@@ -1844,6 +1850,67 @@ export default function App() {
                 <Text className="mt-1 text-sm font-bold text-center" style={{ color: "#00FF00" }}>
                   {`Progress: ${completedActionsCount}/10 actions • ${unlockedRewardCount}/5 rewards`}
                 </Text>
+              </div>
+            </div>
+          )}
+
+          {!loading && !error && !showOpenInFarcaster && showUnlockRewardPage && showWaitlistModal && (
+            <div
+              className="fixed inset-0 z-40 flex items-center justify-center px-4 bg-black/70 backdrop-blur-[2px]"
+              onClick={() => setShowWaitlistModal(false)}
+            >
+              <div
+                className="w-full max-w-sm rounded-2xl border border-[#00FF00]/45 bg-[#041204] p-5 shadow-[0_0_40px_rgba(0,255,0,0.15)]"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <Text className="text-xl font-bold text-left" style={{ color: "#00FF00" }}>
+                      Join 10X Meme Waitlist
+                    </Text>
+                    <Text className="mt-2 text-sm text-left" style={{ color: "#b7ffb7" }}>
+                      Get in early. Don&apos;t miss out.
+                    </Text>
+                  </div>
+                  <button
+                    type="button"
+                    aria-label="Close waitlist popup"
+                    className="text-[#b7ffb7] hover:text-white text-lg font-bold leading-none cursor-pointer"
+                    onClick={() => setShowWaitlistModal(false)}
+                  >
+                    Ã—
+                  </button>
+                </div>
+
+                <div className="mt-4 space-y-3">
+                  <input
+                    type="email"
+                    value={waitlistEmail}
+                    onChange={(event) => setWaitlistEmail(event.target.value)}
+                    placeholder="Email"
+                    className="w-full rounded-xl border border-[#00FF00]/35 bg-black/70 px-3 py-2 text-sm text-white outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const waitlistAction = displayRewardActions.find((item) => item.slug === "drop-waitlist-email");
+                      if (!waitlistAction) return;
+                      handleWaitlistRewardAction(waitlistAction).catch(() => {});
+                    }}
+                    disabled={waitlistSubmitting || runningActionSlug === "drop-waitlist-email"}
+                    className="w-full rounded-[14px] border border-[#009900] bg-[#00FF00] px-4 py-2.5 text-base font-bold shadow-[3px_6px_0_#008000] transition-all duration-100 active:translate-x-[1px] active:translate-y-[3px] active:shadow-[1px_3px_0_#008000] disabled:translate-x-0 disabled:translate-y-0 disabled:shadow-none disabled:bg-gray-700 disabled:border-gray-700 cursor-pointer"
+                    style={{ color: "rgb(0, 80, 0)" }}
+                  >
+                    {waitlistSubmitting ? (
+                      <span className="inline-block h-4 w-4 rounded-full border-2 border-[rgb(0,80,0)] border-r-transparent align-middle animate-spin" />
+                    ) : "Continue"}
+                  </button>
+                  {waitlistStatusMessage && (
+                    <Text className="text-xs text-left" style={{ color: "#b7ffb7" }}>
+                      {waitlistStatusMessage}
+                    </Text>
+                  )}
+                </div>
               </div>
             </div>
           )}
@@ -1883,7 +1950,7 @@ export default function App() {
 
                 {hasPurchased && (
                   <Text className="mt-3 text-md font-semibold" style={{ color: "#b7ffb7" }}>
-                    Rewards... 😍→🤓→🤯→🤣→🤑!️
+                    Rewards... 😍→🤓→🤯→🤣→💰!️
                   </Text>
                 )}
 
@@ -1984,6 +2051,8 @@ export default function App() {
     </MiniAppShell>
   );
 }
+
+
 
 
 
