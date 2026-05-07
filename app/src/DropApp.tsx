@@ -902,6 +902,7 @@ export default function App() {
   const searchParams = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : new URLSearchParams();
   const forceNoMatch = typeof window !== "undefined" && searchParams.get("match") === "false";
   const debugEnabled = typeof window !== "undefined" && searchParams.get("debug") === "1";
+  const forceUnlock = typeof window !== "undefined" && searchParams.get("unlock") === "1";
   const currentHost = typeof window !== "undefined" ? window.location.host : "";
   const showDebugChip = debugEnabled;
   const isMatched = !forceNoMatch && Boolean(status?.matched && typeof status.rarityValue === "number");
@@ -962,8 +963,11 @@ export default function App() {
   const showWaitlistCta = hasRewarded || (!isMatched && hasClickedOpenSea);
   const avatarUsers = hasPurchased ? rewardedUsers : recentBuys;
   const avatarLabel = hasPurchased ? "Rewarded:" : "Buyers:";
-  const completedActionsCount = rewardActions.reduce((count, action) => (action.completed ? count + 1 : count), 0);
-  const unlockedRewardCount = Math.min(5, Math.floor(completedActionsCount / 2));
+  const displayRewardActions = forceUnlock
+    ? rewardActions.map((action) => ({ ...action, completed: true }))
+    : rewardActions;
+  const completedActionsCount = displayRewardActions.reduce((count, action) => (action.completed ? count + 1 : count), 0);
+  const unlockedRewardCount = forceUnlock ? 5 : Math.min(5, Math.floor(completedActionsCount / 2));
   const hasAnyUnlockedRewards = unlockedRewardCount > 0;
   const rewardTokenId = purchasedTokenId ?? (typeof status?.rarityValue === "number" ? String(status.rarityValue) : null);
   const castOutreach = outreachCandidates.farcasterUsernames.slice(0, 10).join(" ");
@@ -972,7 +976,7 @@ export default function App() {
     ? "Unlock Reward"
     : getHeaderTitle("drop", isMenuRoute);
   const pageBadgeLabel = showUnlockRewardPage ? "Help 10X Warplets Go Viral!" : badgeLabel;
-  const pageTitle = showUnlockRewardPage ? "🙏 Complete actions. Unlock rewards." : title;
+  const pageTitle = showUnlockRewardPage ? "Complete actions 🟢 Unlock rewards" : title;
 
   const fetchRewardActions = async (currentFid: number) => {
     setRewardActionsLoading(true);
@@ -1483,6 +1487,11 @@ export default function App() {
   }, [showUnlockRewardPage, fid]);
 
   useEffect(() => {
+    if (!forceUnlock) return;
+    setShowUnlockRewardPage(true);
+  }, [forceUnlock]);
+
+  useEffect(() => {
     if (!showUnlockRewardPage || !hasAnyUnlockedRewards || didUnlockCelebrate) return;
     launchTopConfetti();
     setDidUnlockCelebrate(true);
@@ -1535,29 +1544,50 @@ export default function App() {
           )}
 
           {!loading && !error && !showOpenInFarcaster && showUnlockRewardPage && (
-            <div className="space-y-4 px-4 pb-4">
+            <div className="space-y-4 px-4 pb-28">
               {rewardActionsLoading && (
                 <Text className="text-sm text-center" style={{ color: "#b7ffb7" }}>
                   Loading reward tasks...
                 </Text>
               )}
 
-              {!rewardActionsLoading && rewardActions.length === 0 && (
+              {!rewardActionsLoading && displayRewardActions.length === 0 && (
                 <Text className="text-sm text-center" style={{ color: "#b7ffb7" }}>
                   Reward tasks will appear here soon.
                 </Text>
               )}
 
-              {!rewardActionsLoading && rewardActions.length > 0 && (
+              {!rewardActionsLoading && displayRewardActions.length > 0 && (
                 <div className="space-y-3">
-                  {rewardActions.map((action) => (
+                  {[
+                    "drop-cast",
+                    "drop-tweet",
+                    "drop-follow-fc-10xmeme",
+                    "drop-follow-fc-10xchris",
+                    "drop-follow-x-10xmeme",
+                    "drop-follow-x-10xchris",
+                    "drop-join-fc-channel",
+                    "drop-join-telegram",
+                    "drop-waitlist-email",
+                    "drop-email-10x",
+                  ]
+                    .map((slug) => displayRewardActions.find((action) => action.slug === slug))
+                    .filter((action): action is RewardAction => Boolean(action))
+                    .map((action, index) => (
                     <div
                       key={action.id}
                       className="rounded-2xl border border-[#00FF00]/35 bg-[#041204]/85 px-4 py-4 text-left"
                     >
-                      <Text className="text-base font-bold" style={{ color: "#00FF00" }}>
-                        {action.name}
-                      </Text>
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`inline-flex h-5 w-5 items-center justify-center rounded-full border text-xs font-bold ${action.completed ? "border-[#00FF00] text-[#00FF00]" : "border-[#00FF00]/40 text-[#7bd47b]"}`}
+                        >
+                          {action.completed ? "✓" : "○"}
+                        </span>
+                        <Text className="text-base font-bold" style={{ color: "#00FF00" }}>
+                          {action.name}
+                        </Text>
+                      </div>
                       <Text className="mt-1 text-sm" style={{ color: "#b7ffb7" }}>
                         {action.description}
                       </Text>
@@ -1614,6 +1644,14 @@ export default function App() {
                             )
                           )}
                         </button>
+                      )}
+
+                      {(index + 1) % 2 === 0 && (
+                        <div className="mt-4 rounded-xl border border-[#00FF00]/35 bg-black/60 px-3 py-2 text-center">
+                          <Text className="text-sm font-semibold" style={{ color: "#b7ffb7" }}>
+                            {`Reward ${(index + 1) / 2} ${unlockedRewardCount >= (index + 1) / 2 ? "Unlocked" : "Locked"}`}
+                          </Text>
+                        </div>
                       )}
                     </div>
                   ))}
@@ -1797,6 +1835,19 @@ export default function App() {
             </div>
           )}
 
+          {!loading && !error && !showOpenInFarcaster && showUnlockRewardPage && (
+            <div className="fixed bottom-3 left-0 right-0 z-30 px-4">
+              <div className="mx-auto w-full max-w-md rounded-xl border border-[#00FF00]/45 bg-black/85 px-4 py-3 backdrop-blur-sm">
+                <Text className="text-xs font-semibold text-center" style={{ color: "#b7ffb7" }}>
+                  Complete 2 Actions = Unlock Reward
+                </Text>
+                <Text className="mt-1 text-sm font-bold text-center" style={{ color: "#00FF00" }}>
+                  {`Progress: ${completedActionsCount}/10 actions • ${unlockedRewardCount}/5 rewards`}
+                </Text>
+              </div>
+            </div>
+          )}
+
           {!loading && !error && !showOpenInFarcaster && !showUnlockRewardPage && (
             <div className="space-y-0">
               <div className="px-4 pb-5 pt-0 space-y-3">
@@ -1831,7 +1882,7 @@ export default function App() {
                 )}
 
                 {hasPurchased && (
-                  <Text className="mt-3 text-sm font-semibold" style={{ color: "#b7ffb7" }}>
+                  <Text className="mt-3 text-md font-semibold" style={{ color: "#b7ffb7" }}>
                     Rewards... 😍→🤓→🤯→🤣→🤑!️
                   </Text>
                 )}
