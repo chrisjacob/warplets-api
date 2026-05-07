@@ -6,6 +6,7 @@ interface RequestBody {
   fid?: unknown;
   actionSlug?: unknown;
   verification?: unknown;
+  outreachTokenIds?: unknown;
 }
 
 function asPositiveInt(value: unknown): number | null {
@@ -14,6 +15,13 @@ function asPositiveInt(value: unknown): number | null {
 
 function asNonEmptyString(value: unknown): string | null {
   return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
+}
+
+function asTokenIdList(value: unknown): number[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((item): item is number => typeof item === "number" && Number.isInteger(item) && item > 0)
+    .slice(0, 10);
 }
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
@@ -27,6 +35,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   const fid = asPositiveInt(body.fid);
   const actionSlug = asNonEmptyString(body.actionSlug)?.toLowerCase();
   const verification = asNonEmptyString(body.verification);
+  const outreachTokenIds = asTokenIdList(body.outreachTokenIds);
 
   if (!fid || !actionSlug) {
     return Response.json({ error: "fid and actionSlug are required" }, { status: 400 });
@@ -85,6 +94,17 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       "UPDATE warplets_users SET shared_on = ?, updated_on = ? WHERE id = ?"
     )
       .bind(now, now, user.id)
+      .run();
+  }
+
+  if (action.slug === "drop-cast" && verification && outreachTokenIds.length > 0) {
+    const placeholders = outreachTokenIds.map(() => "?").join(", ");
+    await context.env.WARPLETS.prepare(
+      `UPDATE warplets_metadata
+       SET last_outreach_on = ?
+       WHERE token_id IN (${placeholders})`
+    )
+      .bind(now, ...outreachTokenIds)
       .run();
   }
 

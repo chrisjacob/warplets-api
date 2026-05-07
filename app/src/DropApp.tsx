@@ -21,12 +21,14 @@ type WarpletStatus = {
   rewardedOn: string | null;
   recentBuys?: unknown;
   rewardedUsers?: unknown;
+  outreachCandidates?: unknown;
 };
 
 type RecentBuysResponse = {
   buyers?: unknown;
   bestFriends?: unknown;
   rewardedUsers?: unknown;
+  outreachCandidates?: unknown;
 };
 
 type RewardAction = {
@@ -55,6 +57,11 @@ type BestFriend = {
   fid: number;
   mutualAffinityScore: number;
   username: string;
+};
+
+type OutreachCandidate = {
+  usernames: string[];
+  tokenIds: number[];
 };
 
 type RawOfferItem = {
@@ -567,6 +574,16 @@ function getUrgencyMessage(tokenId: number | null, nowMs: number): string | null
   return `⚠️ Price increases $${currentPrice} → $${nextPrice} in ${countdown}.`;
 }
 
+function getUrgencyDetails(nowMs: number): { currentPrice: number; nextPrice: number; countdown: string } {
+  const elapsedMs = Math.max(0, nowMs - LAUNCH_AT_UTC_MS);
+  const tierIndex = Math.min(9, Math.floor(elapsedMs / CHANGE_PERIOD_MS));
+  const currentPrice = (tierIndex + 1) * 10;
+  const nextPrice = Math.min(100, currentPrice + 10);
+  const nextChangeMs = LAUNCH_AT_UTC_MS + CHANGE_PERIOD_MS * (tierIndex + 1);
+  const countdown = tierIndex >= 9 ? "0 Minutes" : formatUrgencyCountdown(nextChangeMs - nowMs);
+  return { currentPrice, nextPrice, countdown };
+}
+
 function formatTopPercent(tokenId: number): string {
   const rawPercent = (tokenId / 10000) * 100;
 
@@ -650,6 +667,28 @@ function rankBuyersWithBestFriends(buyers: RecentBuyer[], bestFriends: BestFrien
   return [...friendBuyers, ...otherBuyers].slice(0, 10);
 }
 
+function normalizeOutreachCandidates(value: unknown): OutreachCandidate {
+  if (!value || typeof value !== "object") {
+    return { usernames: [], tokenIds: [] };
+  }
+
+  const raw = value as { usernames?: unknown; tokenIds?: unknown };
+  const usernames = Array.isArray(raw.usernames)
+    ? raw.usernames
+      .filter((item): item is string => typeof item === "string" && item.trim().length > 0)
+      .map((item) => item.trim())
+      .slice(0, 10)
+    : [];
+
+  const tokenIds = Array.isArray(raw.tokenIds)
+    ? raw.tokenIds
+      .filter((item): item is number => typeof item === "number" && Number.isInteger(item) && item > 0)
+      .slice(0, 10)
+    : [];
+
+  return { usernames, tokenIds };
+}
+
 function buildCastVerificationUrl(hash: string, username: string): string {
   const cleanHash = hash.trim();
   const cleanUsername = username.trim();
@@ -685,6 +724,7 @@ export default function App() {
   const [recentBuys, setRecentBuys] = useState<RecentBuyer[]>([]);
   const [rewardedUsers, setRewardedUsers] = useState<RecentBuyer[]>([]);
   const [bestFriends, setBestFriends] = useState<BestFriend[]>([]);
+  const [outreachCandidates, setOutreachCandidates] = useState<OutreachCandidate>({ usernames: [], tokenIds: [] });
   const [showUnlockRewardPage, setShowUnlockRewardPage] = useState(false);
   const [rewardActions, setRewardActions] = useState<RewardAction[]>([]);
   const [rewardActionsLoading, setRewardActionsLoading] = useState(false);
@@ -723,6 +763,7 @@ export default function App() {
         setBestFriends(friends);
         setRecentBuys(rankBuyersWithBestFriends(buyers, friends));
         setRewardedUsers(normalizeRecentBuys(data.rewardedUsers));
+        setOutreachCandidates(normalizeOutreachCandidates(data.outreachCandidates));
       } catch {
         // Ignore non-critical social proof errors.
       }
@@ -794,6 +835,7 @@ export default function App() {
         setStatus(data);
         const buyers = normalizeRecentBuys(data.recentBuys);
         setRewardedUsers(normalizeRecentBuys(data.rewardedUsers));
+        setOutreachCandidates(normalizeOutreachCandidates(data.outreachCandidates));
 
         try {
           const friendsRes = await fetch(`/api/warplet-status?fid=${context.user.fid}`);
@@ -849,7 +891,7 @@ export default function App() {
   const currentHost = typeof window !== "undefined" ? window.location.host : "";
   const showDebugChip = debugEnabled;
   const isMatched = !forceNoMatch && Boolean(status?.matched && typeof status.rarityValue === "number");
-  const hasPurchased = Boolean(purchasedTokenId);
+  const hasPurchased = !forceNoMatch && Boolean(purchasedTokenId);
   const displayTokenId = purchasedTokenId ?? (typeof status?.rarityValue === "number" ? String(status.rarityValue) : null);
   const formattedTokenId =
     displayTokenId && Number.isFinite(Number(displayTokenId))
@@ -908,6 +950,7 @@ export default function App() {
   const avatarLabel = hasPurchased ? "Rewarded:" : "Buyers:";
   const unlockedRewards = Boolean(status?.rewardedOn);
   const rewardTokenId = purchasedTokenId ?? (typeof status?.rarityValue === "number" ? String(status.rarityValue) : null);
+  const castOutreach = outreachCandidates.usernames.slice(0, 10).join(" ");
   const headerTitle = showUnlockRewardPage && !isMenuRoute
     ? "Unlock Reward"
     : getHeaderTitle("drop", isMenuRoute);
@@ -936,7 +979,11 @@ export default function App() {
     }
   };
 
-  const completeRewardAction = async (actionSlug: string, verification: string | null) => {
+  const completeRewardAction = async (
+    actionSlug: string,
+    verification: string | null,
+    outreachTokenIds?: number[]
+  ) => {
     if (!fid) return;
 
     const response = await fetch("/api/actions-complete", {
@@ -946,6 +993,7 @@ export default function App() {
         fid,
         actionSlug,
         verification: verification ?? undefined,
+        outreachTokenIds: outreachTokenIds && outreachTokenIds.length > 0 ? outreachTokenIds : undefined,
       }),
     });
 
@@ -963,6 +1011,7 @@ export default function App() {
     if (!statusRes.ok) return;
     const nextStatus = (await statusRes.json()) as WarpletStatus;
     setStatus(nextStatus);
+    setOutreachCandidates(normalizeOutreachCandidates(nextStatus.outreachCandidates));
   };
 
   const runRewardAction = async (action: RewardAction) => {
@@ -973,18 +1022,20 @@ export default function App() {
 
     try {
       if (action.slug === "drop-cast" && purchasedTokenId) {
+        const urgency = getUrgencyDetails(nowMs);
         const castRarityLine = formattedTokenId && topPercentLabel
           ? `My 10X Warplets rarity #${formattedTokenId} of 10,000 👀 Top ${topPercentLabel}%!`
           : "My 10X Warplets rarity of 10,000!";
+        const outreachLine = castOutreach.length > 0 ? castOutreach : "@warplets";
         const castResult = await sdk.actions.composeCast({
           text:
-            `💚 Claim your 10X Warplet!\n\n${castRarityLine}\n\nPrice increases every 10 days.\n\nSupply decreases every 10 days.\n\nDon't miss out...`,
+            `🟢 10X Warplets - Private 10K NFT Drop\n\nPrice goes up $${urgency.currentPrice} → $${urgency.nextPrice} in ${urgency.countdown}.\nSupply goes private → public every 10 days.\nAre you on the list?\nDon't miss out.\n\n${castRarityLine}\n\np.s. you're on the list ${outreachLine} - what's your rarity score?`,
           embeds: ["https://drop.10x.meme", `https://warplets.10x.meme/${purchasedTokenId}.${SHARE_IMAGE_EXTENSION}`],
         });
 
         if (castResult?.cast?.hash) {
           const verification = buildCastVerificationUrl(castResult.cast.hash, viewerUsername);
-          await completeRewardAction(action.slug, verification);
+          await completeRewardAction(action.slug, verification, outreachCandidates.tokenIds);
         }
       } else if (action.slug === "drop-waitlist-email") {
         // Waitlist action uses email submit flow below.
@@ -1063,18 +1114,20 @@ export default function App() {
       launchTopConfetti();
 
       try {
+        const urgency = getUrgencyDetails(nowMs);
         const castRarityLine = formattedTokenId && topPercentLabel
           ? `My 10X Warplets rarity #${formattedTokenId} of 10,000 👀 Top ${topPercentLabel}%!`
           : "My 10X Warplets rarity of 10,000!";
+        const outreachLine = castOutreach.length > 0 ? castOutreach : "@warplets";
         const castResult = await sdk.actions.composeCast({
           text:
-            `💚 Claim your 10X Warplet!\n\n${castRarityLine}\n\nPrice increases every 10 days.\n\nSupply decreases every 10 days.\n\nDon't miss out...`,
+            `🟢 10X Warplets - Private 10K NFT Drop\n\nPrice goes up $${urgency.currentPrice} → $${urgency.nextPrice} in ${urgency.countdown}.\nSupply goes private → public every 10 days.\nAre you on the list?\nDon't miss out.\n\n${castRarityLine}\n\np.s. you're on the list ${outreachLine} - what's your rarity score?`,
           embeds: ["https://drop.10x.meme", `https://warplets.10x.meme/${purchasedTokenId}.${SHARE_IMAGE_EXTENSION}`],
         });
 
         if (castResult?.cast?.hash && fid) {
           const verification = buildCastVerificationUrl(castResult.cast.hash, viewerUsername);
-          await completeRewardAction("drop-cast", verification);
+          await completeRewardAction("drop-cast", verification, outreachCandidates.tokenIds);
           await fetchRewardActions(fid);
           await refreshStatusForRewardPage(fid);
         }
@@ -1585,6 +1638,12 @@ export default function App() {
                   </Text>
                 )}
 
+                {hasPurchased && (
+                  <Text className="mt-3 text-sm font-semibold" style={{ color: "#b7ffb7" }}>
+                    The rewards include: 🖼️,🤓,💰,🤣,▶️
+                  </Text>
+                )}
+
                 {avatarUsers.length > 0 && (
                   <div className="mt-4 flex items-center justify-center gap-2">
                     <Text className="text-sm font-semibold whitespace-nowrap" style={{ color: "#b7ffb7" }}>
@@ -1682,3 +1741,5 @@ export default function App() {
     </MiniAppShell>
   );
 }
+
+
