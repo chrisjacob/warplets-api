@@ -255,3 +255,16 @@ Suggested scopes include:
 3. Temporarily block admin routes if abuse is active.
 4. Review `security_audit_events` and request logs.
 5. Roll back to last known-good deploy if needed.
+
+### Security telemetry endpoint
+
+Admin users with `security:stats` scope can query:
+
+- `GET /api/security/stats`
+
+This returns:
+
+- 24h/7d security event counts
+- admin auth failure outcomes
+- rate-limit signal outcomes
+- top routes, IPs, and event types in the last 24h

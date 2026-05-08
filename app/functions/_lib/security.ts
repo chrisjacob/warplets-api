@@ -275,6 +275,30 @@ export async function readJsonBody<T>(request: Request): Promise<{ ok: true; val
   }
 }
 
+export async function readJsonBodyWithLimit<T>(
+  request: Request,
+  maxBytes: number
+): Promise<{ ok: true; value: T } | { ok: false; response: Response }> {
+  const contentLengthHeader = request.headers.get("content-length");
+  if (contentLengthHeader) {
+    const contentLength = Number.parseInt(contentLengthHeader, 10);
+    if (Number.isFinite(contentLength) && contentLength > maxBytes) {
+      return { ok: false, response: jsonSecure({ error: "Payload too large" }, { status: 413 }) };
+    }
+  }
+
+  try {
+    const raw = await request.text();
+    if (new TextEncoder().encode(raw).length > maxBytes) {
+      return { ok: false, response: jsonSecure({ error: "Payload too large" }, { status: 413 }) };
+    }
+    const parsed = JSON.parse(raw) as T;
+    return { ok: true, value: parsed };
+  } catch {
+    return { ok: false, response: jsonSecure({ error: "Invalid JSON" }, { status: 400 }) };
+  }
+}
+
 function arrayBufferToBase64Url(buffer: ArrayBuffer): string {
   const bytes = new Uint8Array(buffer);
   let binary = "";

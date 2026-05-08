@@ -27,7 +27,7 @@ import {
   jsonSecure,
   logSecurityEvent,
   rateLimit,
-  readJsonBody,
+  readJsonBodyWithLimit,
   requireAdminScope,
 } from "../../_lib/security.js";
 
@@ -109,7 +109,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     return response;
   }
 
-  const parsedBody = await readJsonBody<unknown>(context.request);
+  const parsedBody = await readJsonBodyWithLimit<unknown>(context.request, 16 * 1024);
   if (!parsedBody.ok) {
     return parsedBody.response;
   }

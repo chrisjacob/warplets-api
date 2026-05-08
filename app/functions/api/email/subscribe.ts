@@ -4,7 +4,7 @@ interface Env {
   RESEND_FROM_EMAIL?: string;
   WARPLETS_KV?: KVNamespace;
 }
-import { getClientIp, jsonSecure, logSecurityEvent, rateLimit, readJsonBody } from "../../_lib/security.js";
+import { getClientIp, jsonSecure, logSecurityEvent, rateLimit, readJsonBodyWithLimit } from "../../_lib/security.js";
 import { outboundFetch } from "../../_lib/outbound.js";
 
 interface SubscribeBody {
@@ -185,7 +185,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     return response;
   }
 
-  const parsedBody = await readJsonBody<unknown>(context.request);
+  const parsedBody = await readJsonBodyWithLimit<unknown>(context.request, 8 * 1024);
   if (!parsedBody.ok) {
     const response = parsedBody.response;
     const headers = new Headers(response.headers);

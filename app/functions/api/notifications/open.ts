@@ -9,7 +9,7 @@
  */
 
 import { normalizeAppSlug, resolveAppSlugFromUrl } from "../../_lib/appSlug.js";
-import { getClientIp, jsonSecure, logSecurityEvent, rateLimit, readJsonBody } from "../../_lib/security.js";
+import { getClientIp, jsonSecure, logSecurityEvent, rateLimit, readJsonBodyWithLimit } from "../../_lib/security.js";
 
 interface Env {
   WARPLETS: D1Database;
@@ -46,7 +46,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     return response;
   }
 
-  const parsed = await readJsonBody<unknown>(context.request);
+  const parsed = await readJsonBodyWithLimit<unknown>(context.request, 4 * 1024);
   if (!parsed.ok) {
     return parsed.response;
   }

@@ -17,7 +17,7 @@ import {
   jsonSecure,
   logSecurityEvent,
   rateLimit,
-  readJsonBody,
+  readJsonBodyWithLimit,
   verifyActionSessionToken,
 } from "../_lib/security.js";
 
@@ -56,7 +56,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     return response;
   }
 
-  const parsed = await readJsonBody<unknown>(context.request);
+  const parsed = await readJsonBodyWithLimit<unknown>(context.request, 8 * 1024);
   if (!parsed.ok) return parsed.response;
   if (!isPlainObject(parsed.value)) {
     return jsonSecure({ error: "Invalid JSON payload" }, { status: 400 });

@@ -10,7 +10,7 @@ interface RequestBody {
   sessionToken?: unknown;
   fid?: unknown;
 }
-import { getClientIp, jsonSecure, logSecurityEvent, rateLimit, readJsonBody, verifyActionSessionToken } from "../_lib/security.js";
+import { getClientIp, jsonSecure, logSecurityEvent, rateLimit, readJsonBodyWithLimit, verifyActionSessionToken } from "../_lib/security.js";
 import { outboundFetch } from "../_lib/outbound.js";
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
@@ -79,7 +79,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     return response;
   }
 
-  const parsed = await readJsonBody<unknown>(context.request);
+  const parsed = await readJsonBodyWithLimit<unknown>(context.request, 4 * 1024);
   if (!parsed.ok) return parsed.response;
   if (!isPlainObject(parsed.value)) {
     return jsonSecure({ error: "Invalid JSON payload" }, { status: 400 });

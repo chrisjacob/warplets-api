@@ -14,7 +14,7 @@ import {
   createVerifyAppKeyWithHub,
 } from "@farcaster/miniapp-node";
 import { AppSlug, normalizeAppSlug, resolveAppSlugFromAppFid } from "./_lib/appSlug.js";
-import { jsonSecure } from "./_lib/security.js";
+import { jsonSecure, logSecurityEvent } from "./_lib/security.js";
 
 interface NotificationDetails { token: string; url: string; }
 
@@ -128,10 +128,25 @@ export async function handleWebhookRequest(
 
   const eventTimestamp = extractWebhookTimestamp(requestJson);
   if (eventTimestamp && !isTimestampFresh(eventTimestamp)) {
+    await logSecurityEvent(env.WARPLETS, {
+      eventType: "webhook_guard",
+      outcome: "stale_event",
+      actorType: "ip",
+      ipAddress: context.request.headers.get("cf-connecting-ip"),
+      route: requestUrl.pathname,
+      details: eventTimestamp,
+    });
     return jsonSecure({ success: true, ignored: true, reason: "stale_event" });
   }
 
   if (await isDuplicateWebhookEvent(env.WARPLETS_KV, requestJson)) {
+    await logSecurityEvent(env.WARPLETS, {
+      eventType: "webhook_guard",
+      outcome: "duplicate_event",
+      actorType: "ip",
+      ipAddress: context.request.headers.get("cf-connecting-ip"),
+      route: requestUrl.pathname,
+    });
     return jsonSecure({ success: true, ignored: true, reason: "duplicate_event" });
   }
 
