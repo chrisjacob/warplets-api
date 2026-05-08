@@ -225,7 +225,8 @@ The check fails if:
 ### Admin API auth model
 
 - Use `ADMIN_API_KEYS_JSON` (Cloudflare secret) for scoped admin keys.
-- `ADMIN_NOTIFY_TEST_TOKEN` is legacy fallback only and should be removed once scoped keys are configured.
+- `ADMIN_NOTIFY_TEST_TOKEN` is legacy fallback only.
+- Legacy fallback is disabled by default; it only works when `ADMIN_ALLOW_LEGACY_TOKEN=1`.
 
 Example `ADMIN_API_KEYS_JSON`:
 

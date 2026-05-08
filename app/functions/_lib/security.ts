@@ -25,6 +25,7 @@ export interface SecurityEnv {
   WARPLETS_KV?: KVNamespace;
   ADMIN_NOTIFY_TEST_TOKEN?: string;
   ADMIN_API_KEYS_JSON?: string;
+  ADMIN_ALLOW_LEGACY_TOKEN?: string;
   ACTION_SESSION_SECRET?: string;
 }
 
@@ -239,9 +240,10 @@ export async function requireAdminScope<T extends SecurityEnv>(
     return { ok: true, keyId: validKey.id };
   }
 
-  // Backward compatibility: single global token remains full-access if explicitly set.
+  // Backward compatibility: allow legacy token only when explicitly enabled.
   const legacyToken = context.env.ADMIN_NOTIFY_TEST_TOKEN?.trim();
-  if (legacyToken && suppliedToken === legacyToken) {
+  const allowLegacyToken = (context.env.ADMIN_ALLOW_LEGACY_TOKEN ?? "").trim() === "1";
+  if (allowLegacyToken && legacyToken && suppliedToken === legacyToken) {
     return { ok: true, keyId: "legacy-admin-token" };
   }
 

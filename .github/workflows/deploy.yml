@@ -38,6 +38,9 @@ jobs:
       - name: Type check
         run: pnpm typecheck
 
+      - name: Security preflight
+        run: pnpm security:preflight
+
       - name: Run D1 migrations
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -74,6 +77,14 @@ jobs:
       - name: Install dependencies
         working-directory: app
         run: pnpm install --frozen-lockfile
+
+      - name: Security preflight
+        working-directory: app
+        run: pnpm security:preflight
+
+      - name: Type check
+        working-directory: app
+        run: pnpm typecheck
 
       - name: Build
         working-directory: app
