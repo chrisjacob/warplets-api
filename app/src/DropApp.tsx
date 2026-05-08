@@ -1025,7 +1025,7 @@ export default function App() {
       ? isPurchasing
         ? "Processing in Wallet..."
         : "Buy in Farcaster Wallet"
-      : "🎁 But! You Can Still Unlock Rewards";
+      : "🎁 But! Click Here To Unlock Rewards";
   const shareButtonPulseClass = hasPurchased && !hasRewarded ? "share-cta-pulse-x" : "";
   const urgencyMessage = isMatched && !hasPurchased
     ? getUrgencyMessage(typeof status?.rarityValue === "number" ? status.rarityValue : null, nowMs)
@@ -1246,12 +1246,12 @@ export default function App() {
         const castRarityLine = formattedTokenId && topPercentLabel
           ? `My rarity #${formattedTokenId} of 10,000! 👀`
           : "My rarity is 10,000! 👀";
-        const outreachLine = tweetOutreach.length > 0 ? `FYI you're on the list ${tweetOutreach}` : "";
+        const outreachLine = tweetOutreach.length > 0 ? `FYI you're on the list ${tweetOutreach}\n\n` : "";
         const raritySection = isMatched ? `${castRarityLine}\n\n...what's your rarity?\n\n` : "";
-        const text = `🟢 10X Warplets (Private 10K NFT Drop)\n\nPrice $${urgency.currentPrice} → $${urgency.nextPrice} in ${urgency.countdown}.\nSupply private → public every 10 days.\nAre you on the list? Don't miss out.\n\nJoin Farcaster for access: https://farcaster.xyz/~/code/RUZLHN\n\n${raritySection}${outreachLine}`;
+        const text = `🟢 10X Warplets (Private 10K NFT Drop)\n\nPrice $${urgency.currentPrice} → $${urgency.nextPrice} in ${urgency.countdown}.\nSupply private → public every 10 days.\nAre you on the list? Don't miss out.\n\nJoin Farcaster first: https://farcaster.xyz/~/code/RUZLHN\n\nThen access the mini-app: https://farcaster.xyz/miniapps/cSNbxgFkuFRi/10x-warplets-drop${raritySection}${outreachLine}`;
         const intentUrl = `https://x.com/intent/post?${new URLSearchParams({
           text,
-          url: "https://farcaster.xyz/miniapps/cSNbxgFkuFRi/10x-warplets-drop",
+          url: "",
           hashtags: "10XWarplets",
           via: "10XMemeX",
         }).toString()}`;
