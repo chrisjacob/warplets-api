@@ -14,17 +14,22 @@ import {
   createVerifyAppKeyWithHub,
 } from "@farcaster/miniapp-node";
 import { AppSlug, normalizeAppSlug, resolveAppSlugFromAppFid } from "./_lib/appSlug.js";
+import { jsonSecure } from "./_lib/security.js";
 
 interface NotificationDetails { token: string; url: string; }
 
 export interface Env {
   WARPLETS: D1Database;
+  WARPLETS_KV?: KVNamespace;
   NEYNAR_API_KEY: string;
   APP_APP_FID?: string;
   DROP_APP_FID?: string;
   FIND_APP_FID?: string;
   MILLION_APP_FID?: string;
 }
+
+const WEBHOOK_MAX_AGE_MS = 10 * 60 * 1000;
+const WEBHOOK_DEDUPE_TTL_SECONDS = 10 * 60;
 
 function parseOptionalInt(value: string | undefined): number | undefined {
   if (!value) return undefined;
@@ -50,6 +55,58 @@ function resolveAppSlugFromWebhookPath(url: URL): AppSlug | null {
   return normalizeAppSlug(rawSlug);
 }
 
+function asObject(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+function asIsoString(value: unknown): string | null {
+  return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
+}
+
+function extractWebhookTimestamp(payload: unknown): string | null {
+  const root = asObject(payload);
+  if (!root) return null;
+
+  const direct = asIsoString(root.timestamp)
+    ?? asIsoString(root.createdAt)
+    ?? asIsoString(root.created_at)
+    ?? asIsoString(root.eventTimestamp);
+  if (direct) return direct;
+
+  const data = asObject(root.data);
+  if (!data) return null;
+  return asIsoString(data.timestamp)
+    ?? asIsoString(data.createdAt)
+    ?? asIsoString(data.created_at);
+}
+
+function isTimestampFresh(timestampIso: string): boolean {
+  const timestampMs = Date.parse(timestampIso);
+  if (!Number.isFinite(timestampMs)) return true; // do not block if format is unknown
+  return Math.abs(Date.now() - timestampMs) <= WEBHOOK_MAX_AGE_MS;
+}
+
+async function sha256Hex(input: string): Promise<string> {
+  const payload = new TextEncoder().encode(input);
+  const digest = await crypto.subtle.digest("SHA-256", payload);
+  return Array.from(new Uint8Array(digest))
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+async function isDuplicateWebhookEvent(kv: KVNamespace | undefined, requestJson: unknown): Promise<boolean> {
+  if (!kv) return false;
+  const payload = JSON.stringify(requestJson);
+  const hash = await sha256Hex(payload);
+  const key = `webhook:event:v1:${hash}`;
+  const existing = await kv.get(key);
+  if (existing) return true;
+  await kv.put(key, "1", { expirationTtl: WEBHOOK_DEDUPE_TTL_SECONDS });
+  return false;
+}
+
 export async function handleWebhookRequest(
   context: Parameters<PagesFunction<Env>>[0],
   appSlugFromPath?: AppSlug
@@ -66,7 +123,16 @@ export async function handleWebhookRequest(
   try {
     requestJson = await context.request.json();
   } catch {
-    return Response.json({ success: false, error: "Invalid JSON body" }, { status: 400 });
+    return jsonSecure({ success: false, error: "Invalid JSON body" }, { status: 400 });
+  }
+
+  const eventTimestamp = extractWebhookTimestamp(requestJson);
+  if (eventTimestamp && !isTimestampFresh(eventTimestamp)) {
+    return jsonSecure({ success: true, ignored: true, reason: "stale_event" });
+  }
+
+  if (await isDuplicateWebhookEvent(env.WARPLETS_KV, requestJson)) {
+    return jsonSecure({ success: true, ignored: true, reason: "duplicate_event" });
   }
 
   let data: Awaited<ReturnType<typeof parseWebhookEvent>>;
@@ -77,13 +143,13 @@ export async function handleWebhookRequest(
     switch (error.name) {
       case "VerifyJsonFarcasterSignature.InvalidDataError":
       case "VerifyJsonFarcasterSignature.InvalidEventDataError":
-        return Response.json({ success: false, error: error.message }, { status: 400 });
+        return jsonSecure({ success: false, error: error.message }, { status: 400 });
       case "VerifyJsonFarcasterSignature.InvalidAppKeyError":
-        return Response.json({ success: false, error: error.message }, { status: 401 });
+        return jsonSecure({ success: false, error: error.message }, { status: 401 });
       case "VerifyJsonFarcasterSignature.VerifyAppKeyError":
-        return Response.json({ success: false, error: error.message }, { status: 500 });
+        return jsonSecure({ success: false, error: error.message }, { status: 500 });
       default:
-        return Response.json({ success: false, error: String(e) }, { status: 500 });
+        return jsonSecure({ success: false, error: String(e) }, { status: 500 });
     }
   }
 
@@ -163,7 +229,7 @@ export async function handleWebhookRequest(
   // Await the log write last so it doesn't delay the 200 response
   await logEvent;
 
-  return Response.json({ success: true });
+  return jsonSecure({ success: true });
 };
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
