@@ -247,6 +247,7 @@ Suggested scopes include:
 - `notify:stats`
 - `email:list`
 - `security:stats`
+- `security:manage`
 
 Optional hardening secret:
 
@@ -275,9 +276,9 @@ This returns:
 
 ### Security retention run
 
-Admin users with `security:stats` scope can trigger:
+Admin users with `security:manage` scope can trigger:
 
-- `POST /api/security/retention-run`
+- `POST /api/security/retention-run` (optional JSON: `{ "days": 30, "dryRun": false }`)
 
 Current policy in code: remove `security_audit_events` rows older than 30 days.
 
