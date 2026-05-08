@@ -1059,8 +1059,10 @@ export default function App() {
   const pageBadgeLabel = showUnlockRewardPage ? "Help 10X Warplets Go Viral!" : badgeLabel;
   const pageTitle = showUnlockRewardPage ? "Complete actions 👉 Unlock rewards" : title;
 
-  const fetchRewardActions = async () => {
-    setRewardActionsLoading(true);
+  const fetchRewardActions = async (showLoading = true): Promise<RewardAction[]> => {
+    if (showLoading) {
+      setRewardActionsLoading(true);
+    }
     try {
       const query = actionSessionToken
         ? `?appSlug=drop&sessionToken=${encodeURIComponent(actionSessionToken)}`
@@ -1072,15 +1074,20 @@ export default function App() {
       const data = (await response.json()) as { actions?: RewardAction[] };
       if (Array.isArray(data.actions)) {
         setRewardActions(data.actions);
+        return data.actions;
       } else {
         setRewardActions([]);
+        return [];
       }
     } catch (err) {
       console.error("Failed to load reward actions:", err);
       setActionError(getErrorMessage(err));
       setRewardActions([]);
+      return [];
     } finally {
-      setRewardActionsLoading(false);
+      if (showLoading) {
+        setRewardActionsLoading(false);
+      }
     }
   };
 
@@ -1617,6 +1624,18 @@ export default function App() {
     if (!showUnlockRewardPage || !fid) return;
     fetchRewardActions().catch(() => {});
   }, [showUnlockRewardPage, fid, actionSessionToken]);
+
+  useEffect(() => {
+    if (loading || error || !fid || !actionSessionToken || showUnlockRewardPage || forceUnlock || forceActionsPage) return;
+
+    fetchRewardActions(false)
+      .then((actions) => {
+        if (actions.some((action) => action.completed)) {
+          setShowUnlockRewardPage(true);
+        }
+      })
+      .catch(() => {});
+  }, [loading, error, fid, actionSessionToken, showUnlockRewardPage, forceUnlock, forceActionsPage]);
 
   useEffect(() => {
     if (!forceUnlock && !forceActionsPage) return;
