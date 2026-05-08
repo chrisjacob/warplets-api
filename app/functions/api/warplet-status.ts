@@ -14,6 +14,7 @@ interface Env {
   ACTION_SESSION_SECRET?: string;
 }
 import { createActionSessionToken, jsonSecure } from "../_lib/security.js";
+import { readJsonBodyWithLimit } from "../_lib/security.js";
 import { outboundFetch } from "../_lib/outbound.js";
 
 interface RequestBody {
@@ -577,16 +578,20 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 };
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
-  let body: RequestBody = {};
-  try {
-    body = (await context.request.json()) as RequestBody;
-  } catch {
-    return Response.json({ error: "Invalid JSON" }, { status: 400 });
+  const parsed = await readJsonBodyWithLimit<unknown>(context.request, 8 * 1024);
+  if (!parsed.ok) return parsed.response;
+  if (!parsed.value || typeof parsed.value !== "object" || Array.isArray(parsed.value)) {
+    return jsonSecure({ error: "Invalid JSON payload" }, { status: 400 });
   }
+  const payload = parsed.value as Record<string, unknown>;
+  if (!Object.keys(payload).every((key) => key === "fid")) {
+    return jsonSecure({ error: "Unexpected fields in payload" }, { status: 400 });
+  }
+  const body = payload as RequestBody;
 
   const fid = typeof body.fid === "number" && Number.isInteger(body.fid) ? body.fid : null;
   if (!fid || fid <= 0) {
-    return Response.json({ error: "fid is required" }, { status: 400 });
+    return jsonSecure({ error: "fid is required" }, { status: 400 });
   }
 
   const existing = await context.env.WARPLETS.prepare(
