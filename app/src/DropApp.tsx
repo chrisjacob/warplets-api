@@ -1246,15 +1246,14 @@ export default function App() {
         const castRarityLine = formattedTokenId && topPercentLabel
           ? `My rarity #${formattedTokenId} of 10,000! 👀`
           : "My rarity is 10,000! 👀";
-        const outreachLine = tweetOutreach.length > 0 ? `\n\nFYI you're on the list ${tweetOutreach}` : "";
-        const raritySection = isMatched ? `\n\n${castRarityLine}\n\n...what's your rarity?` : "";
-        const text = `🟢 10X Warplets (Private 10K NFT Drop)\n\nPrice $${urgency.currentPrice} → $${urgency.nextPrice} in ${urgency.countdown}.\nSupply private → public every 10 days.\nAre you on the list? Don't miss out.\n\nJoin Farcaster for access: https://farcaster.xyz/~/code/RUZLHN${raritySection}${outreachLine}`;
+        const outreachLine = tweetOutreach.length > 0 ? `FYI you're on the list ${tweetOutreach}` : "";
+        const raritySection = isMatched ? `${castRarityLine}\n\n...what's your rarity?\n\n` : "";
+        const text = `🟢 10X Warplets (Private 10K NFT Drop)\n\nPrice $${urgency.currentPrice} → $${urgency.nextPrice} in ${urgency.countdown}.\nSupply private → public every 10 days.\nAre you on the list? Don't miss out.\n\nJoin Farcaster for access: https://farcaster.xyz/~/code/RUZLHN\n\n${raritySection}${outreachLine}`;
         const intentUrl = `https://x.com/intent/post?${new URLSearchParams({
           text,
           url: "https://farcaster.xyz/miniapps/cSNbxgFkuFRi/10x-warplets-drop",
           hashtags: "10XWarplets",
           via: "10XMemeX",
-          in_reply_to: "2050005149146640823",
         }).toString()}`;
         await sdk.actions.openUrl(intentUrl);
         await completeRewardAction(action.slug, intentUrl, outreachCandidates.tokenIds);
