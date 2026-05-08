@@ -2,7 +2,7 @@ interface Env {
   WARPLETS: D1Database;
   WARPLETS_KV?: KVNamespace;
 }
-import { applySecurityHeaders, getClientIp, rateLimit } from "../../_lib/security.js";
+import { applySecurityHeaders, getClientIp, logSecurityEvent, rateLimit } from "../../_lib/security.js";
 
 const ALLOWED_PROTOCOLS = new Set(["https:", "http:"]);
 
@@ -10,6 +10,13 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   const ip = getClientIp(context.request);
   const ipRate = await rateLimit(context.env.WARPLETS_KV, "email-click-ip", ip, 120, 60);
   if (!ipRate.allowed) {
+    await logSecurityEvent(context.env.WARPLETS, {
+      eventType: "rate_limit",
+      outcome: "email_click_rate_limited",
+      actorType: "ip",
+      ipAddress: ip,
+      route: new URL(context.request.url).pathname,
+    });
     const response = new Response("Too many requests", { status: 429 });
     response.headers.set("retry-after", String(ipRate.retryAfterSeconds));
     return applySecurityHeaders(response);

@@ -13,7 +13,7 @@ interface Env {
   WARPLETS: D1Database;
   WARPLETS_KV?: KVNamespace;
 }
-import { applySecurityHeaders, getClientIp, rateLimit } from "../../_lib/security.js";
+import { applySecurityHeaders, getClientIp, logSecurityEvent, rateLimit } from "../../_lib/security.js";
 
 function htmlResponse(status: number, title: string, message: string): Response {
   return applySecurityHeaders(new Response(
@@ -46,6 +46,13 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   const ip = getClientIp(context.request);
   const ipRate = await rateLimit(context.env.WARPLETS_KV, "email-unsubscribe-ip", ip, 45, 60);
   if (!ipRate.allowed) {
+    await logSecurityEvent(context.env.WARPLETS, {
+      eventType: "rate_limit",
+      outcome: "email_unsubscribe_rate_limited",
+      actorType: "ip",
+      ipAddress: ip,
+      route: new URL(context.request.url).pathname,
+    });
     const response = htmlResponse(429, "Try again soon", "Too many unsubscribe attempts from this IP.");
     response.headers.set("retry-after", String(ipRate.retryAfterSeconds));
     return response;
