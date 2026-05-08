@@ -19,6 +19,7 @@
     "inspect:kv:poll": "wrangler kv key get poll_results --namespace-id 3f55e9bea2534955b833521a2f5b55e7 --local",
     "build": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
+    "security:preflight": "node scripts/security-preflight.mjs",
     "deploy": "wrangler deploy"
   },
   "dependencies": {

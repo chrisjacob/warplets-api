@@ -13,14 +13,15 @@
 interface Env {
   WARPLETS: D1Database;
   ADMIN_NOTIFY_TEST_TOKEN?: string;
+  ADMIN_API_KEYS_JSON?: string;
+  WARPLETS_KV?: KVNamespace;
 }
+import { jsonSecure, requireAdminScope } from "../../_lib/security.js";
 
 export const onRequestGet: PagesFunction<Env> = async (context) => {
-  const configuredToken = context.env.ADMIN_NOTIFY_TEST_TOKEN;
-  const suppliedToken = context.request.headers.get("x-admin-token");
-
-  if (!configuredToken || suppliedToken !== configuredToken) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  const auth = await requireAdminScope(context, { scope: "email:list" });
+  if (!auth.ok) {
+    return auth.response;
   }
 
   const url = new URL(context.request.url);
@@ -53,7 +54,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     ).first<{ total: number; verified: number; unverified: number; unsubscribed: number; matched: number }>(),
   ]);
 
-  return Response.json({
+  return jsonSecure({
     stats,
     rows: rows.results,
     pagination: { limit, offset, returned: rows.results.length },

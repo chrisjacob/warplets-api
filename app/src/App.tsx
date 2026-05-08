@@ -7,6 +7,7 @@ import {
   getHeaderTitle,
   useMiniAppChrome,
 } from "./miniAppChrome.tsx";
+import MiniAppShell from "./MiniAppShell";
 
 const APPS = [
   {
@@ -109,20 +110,7 @@ export default function App() {
   };
 
   return (
-    <div
-      className="relative min-h-screen bg-black text-white"
-      style={{ fontFamily: '"Roboto Mono", system-ui, sans-serif' }}
-    >
-      <video
-        src="/matrix_bg_1080x1080.mp4"
-        autoPlay
-        loop
-        muted
-        playsInline
-        aria-hidden="true"
-        className="brand-bg-video"
-      />
-      <div className="brand-bg-overlay" aria-hidden="true" />
+    <MiniAppShell>
       <div className="relative z-10 w-full">
         <MiniAppHeader
           appSlug="app"
@@ -219,6 +207,6 @@ export default function App() {
           </div>
         </div>
       )}
-    </div>
+    </MiniAppShell>
   );
 }

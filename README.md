@@ -206,3 +206,43 @@ CREATE TABLE votes (
 | `poll_results` | `{"red":12,"blue":8,"green":5,"yellow":3,"purple":7}` |
 
 The KV entry is written (or refreshed) after every vote so results page reads are always fast.
+
+## Security Operations
+
+### Pre-deploy security checks
+
+Run this before `deploy`, `app deploy:dev`, or `app deploy:prod`:
+
+```bash
+pnpm security:preflight
+```
+
+The check fails if:
+
+- any Wrangler binding ID is still a `REPLACE_WITH_...` placeholder
+- preview/dev and prod reuse the same KV/D1 binding IDs
+
+### Admin API auth model
+
+- Use `ADMIN_API_KEYS_JSON` (Cloudflare secret) for scoped admin keys.
+- `ADMIN_NOTIFY_TEST_TOKEN` is legacy fallback only and should be removed once scoped keys are configured.
+
+Example `ADMIN_API_KEYS_JSON`:
+
+```json
+[
+  {
+    "id": "ops-1",
+    "key": "replace-with-long-random-secret",
+    "scopes": ["notify:send", "notify:inspect", "notify:stats", "email:list"]
+  }
+]
+```
+
+### Incident response runbook (minimum)
+
+1. Revoke affected admin keys by updating `ADMIN_API_KEYS_JSON`.
+2. Rotate `ACTION_SESSION_SECRET`.
+3. Temporarily block admin routes if abuse is active.
+4. Review `security_audit_events` and request logs.
+5. Roll back to last known-good deploy if needed.

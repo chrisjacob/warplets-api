@@ -36,6 +36,69 @@ button {
   z-index: 1;
 }
 
+.miniapp-shell {
+  position: relative;
+  min-height: 100vh;
+  overflow-x: hidden;
+  background: #000000;
+  color: #ffffff;
+}
+
+.miniapp-shell__outer-glow {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: radial-gradient(circle at top, rgba(0, 255, 0, 0.16), rgba(0, 0, 0, 0.92) 60%);
+}
+
+.miniapp-shell__inner {
+  position: relative;
+  z-index: 1;
+  min-height: 100vh;
+  width: 100%;
+  max-width: 500px;
+  margin: 0 auto;
+  overflow: hidden;
+  background: #000000;
+}
+
+.miniapp-shell__video {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 0;
+  width: 100%;
+  height: auto;
+  opacity: 0.25;
+  pointer-events: none;
+  user-select: none;
+}
+
+.miniapp-shell__inner-glow {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: radial-gradient(circle at top, rgba(0, 255, 0, 0.2), rgba(0, 0, 0, 0.88) 62%);
+}
+
+.miniapp-shell__content {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  min-height: 100vh;
+}
+
+@media (min-width: 501px) {
+  .miniapp-shell__inner {
+    box-shadow:
+      -24px 0 40px -26px rgba(0, 0, 0, 0.95),
+      24px 0 40px -26px rgba(0, 0, 0, 0.95),
+      0 0 0 1px rgba(0, 255, 0, 0.14);
+  }
+}
+
 .miniapp-header {
   box-sizing: content-box;
   position: relative;

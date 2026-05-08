@@ -9,12 +9,33 @@
 
 interface Env {
   WARPLETS: D1Database;
+  WARPLETS_KV: KVNamespace;
   NEYNAR_API_KEY?: string;
+  ACTION_SESSION_SECRET?: string;
 }
+import { createActionSessionToken, jsonSecure } from "../_lib/security.js";
 
 interface RequestBody {
   fid?: unknown;
 }
+
+type RecentBuyer = {
+  fid: number;
+  pfpUrl: string;
+  score: number | null;
+};
+
+type BestFriend = {
+  fid: number;
+  mutualAffinityScore: number;
+  username: string;
+};
+
+type OutreachCandidate = {
+  farcasterUsernames: string[];
+  xUsernames: string[];
+  tokenIds: number[];
+};
 
 type NeynarUserRecord = {
   username?: string;
@@ -35,6 +56,157 @@ type NeynarUserRecord = {
 };
 
 const NEYNAR_VIEWER_FID = 1129138;
+const RECENT_BUYS_CACHE_TTL_SECONDS = 600;
+const RECENT_BUYS_CACHE_PREFIX = "recent-buys-v2";
+const BEST_FRIENDS_CACHE_STALE_SECONDS = 2592000;
+const OUTREACH_COOLDOWN_MS = 4 * 60 * 60 * 1000;
+
+function normalizeAndRankBuyers(rows: Array<{ fid: unknown; pfp_url: unknown; score: unknown }>): RecentBuyer[] {
+  return rows
+    .map((row) => {
+      if (typeof row.fid !== "number" || !Number.isFinite(row.fid)) return null;
+      if (typeof row.pfp_url !== "string" || row.pfp_url.trim().length === 0) return null;
+
+      return {
+        fid: row.fid,
+        pfpUrl: row.pfp_url,
+        score: typeof row.score === "number" && Number.isFinite(row.score) ? row.score : null,
+      } satisfies RecentBuyer;
+    })
+    .filter((row): row is RecentBuyer => row !== null)
+    .sort((a, b) => {
+      const aScore = a.score ?? -1;
+      const bScore = b.score ?? -1;
+      if (bScore !== aScore) return bScore - aScore;
+      return b.fid - a.fid;
+    })
+    .slice(0, 10);
+}
+
+async function loadRecentBuys(db: D1Database): Promise<RecentBuyer[]> {
+  const buyersResult = await db
+    .prepare(
+      `SELECT fid, pfp_url, score
+       FROM warplets_users
+       WHERE (buy_in_opensea_on IS NOT NULL OR buy_in_farcaster_wallet_on IS NOT NULL)
+         AND pfp_url IS NOT NULL
+         AND TRIM(pfp_url) <> ''
+       ORDER BY COALESCE(buy_in_opensea_on, buy_in_farcaster_wallet_on) DESC
+       LIMIT 100`
+    )
+    .all<{ fid: unknown; pfp_url: unknown; score: unknown }>();
+
+  return normalizeAndRankBuyers(buyersResult.results ?? []);
+}
+
+function allowMatchedTopUp(hostname: string): boolean {
+  const host = hostname.toLowerCase();
+  return (
+    host.includes("-dev.") ||
+    host.includes("-local.") ||
+    host.endsWith(".pages.dev")
+  );
+}
+
+async function loadRecentBuysWithOptionalTopUp(
+  db: D1Database,
+  enableMatchedTopUp: boolean
+): Promise<RecentBuyer[]> {
+  const buyers = await loadRecentBuys(db);
+  if (!enableMatchedTopUp || buyers.length >= 10) {
+    return buyers;
+  }
+
+  const matchedResult = await db
+    .prepare(
+      `SELECT fid, pfp_url, score
+       FROM warplets_users
+       WHERE matched_on IS NOT NULL
+         AND pfp_url IS NOT NULL
+         AND TRIM(pfp_url) <> ''
+       ORDER BY matched_on DESC
+       LIMIT 100`
+    )
+    .all<{ fid: unknown; pfp_url: unknown; score: unknown }>();
+
+  const matched = normalizeAndRankBuyers(matchedResult.results ?? []);
+  const seen = new Set<number>(buyers.map((buyer) => buyer.fid));
+  const toppedUp = [...buyers];
+
+  for (const candidate of matched) {
+    if (toppedUp.length >= 10) break;
+    if (seen.has(candidate.fid)) continue;
+    toppedUp.push(candidate);
+    seen.add(candidate.fid);
+  }
+
+  return toppedUp;
+}
+
+function makeRecentBuysCacheKey(enableMatchedTopUp: boolean): string {
+  return `${RECENT_BUYS_CACHE_PREFIX}:${enableMatchedTopUp ? "topup" : "buys-only"}`;
+}
+
+function isRecentBuyer(value: unknown): value is RecentBuyer {
+  if (!value || typeof value !== "object") return false;
+  const row = value as { fid?: unknown; pfpUrl?: unknown; score?: unknown };
+  if (typeof row.fid !== "number" || !Number.isFinite(row.fid)) return false;
+  if (typeof row.pfpUrl !== "string" || row.pfpUrl.trim().length === 0) return false;
+  if (!(row.score === null || (typeof row.score === "number" && Number.isFinite(row.score)))) return false;
+  return true;
+}
+
+async function loadRecentBuysCached(env: Env, enableMatchedTopUp: boolean): Promise<RecentBuyer[]> {
+  const cacheKey = makeRecentBuysCacheKey(enableMatchedTopUp);
+
+  const cached = await env.WARPLETS_KV.get(cacheKey, "json");
+  if (Array.isArray(cached)) {
+    const normalized = cached.filter(isRecentBuyer).slice(0, 10);
+    if (normalized.length > 0) return normalized;
+  }
+
+  const recentBuys = await loadRecentBuysWithOptionalTopUp(env.WARPLETS, enableMatchedTopUp);
+  await env.WARPLETS_KV.put(cacheKey, JSON.stringify(recentBuys), {
+    expirationTtl: RECENT_BUYS_CACHE_TTL_SECONDS,
+  });
+
+  return recentBuys;
+}
+
+async function loadRewardedUsers(
+  db: D1Database,
+  topUpUsers: RecentBuyer[],
+  enableTopUp: boolean
+): Promise<RecentBuyer[]> {
+  const rewardedResult = await db
+    .prepare(
+      `SELECT fid, pfp_url, score
+       FROM warplets_users
+       WHERE rewarded_on IS NOT NULL
+         AND pfp_url IS NOT NULL
+         AND TRIM(pfp_url) <> ''
+       ORDER BY rewarded_on DESC
+       LIMIT 100`
+    )
+    .all<{ fid: unknown; pfp_url: unknown; score: unknown }>();
+
+  const rewardedUsers = normalizeAndRankBuyers(rewardedResult.results ?? []);
+  if (!enableTopUp || rewardedUsers.length >= 10) {
+    return rewardedUsers;
+  }
+
+  const seen = new Set<number>(rewardedUsers.map((user) => user.fid));
+  const toppedUp = [...rewardedUsers];
+
+  for (const user of topUpUsers) {
+    if (toppedUp.length >= 10) break;
+    if (seen.has(user.fid)) continue;
+    toppedUp.push(user);
+    seen.add(user.fid);
+  }
+
+  return toppedUp;
+}
 
 function asObject(value: unknown): Record<string, unknown> | undefined {
   return value && typeof value === "object"
@@ -122,6 +294,287 @@ async function fetchNeynarUserByFid(
   }
 }
 
+async function fetchBestFriendsFromNeynar(
+  fid: number,
+  neynarApiKey?: string
+): Promise<BestFriend[] | undefined> {
+  const apiKey = neynarApiKey?.trim();
+  if (!apiKey) return undefined;
+
+  try {
+    const endpoint = `https://api.neynar.com/v2/farcaster/user/best_friends?fid=${fid}&limit=100`;
+    const res = await fetch(endpoint, {
+      headers: { "x-api-key": apiKey },
+    });
+    if (!res.ok) return undefined;
+
+    const payload = (await res.json()) as Record<string, unknown>;
+    const users = payload.users;
+    if (!Array.isArray(users)) return undefined;
+
+    return users
+      .map((user) => {
+        const u = asObject(user);
+        if (!u) return null;
+        const fid = asNumber(u.fid);
+        const username = asString(u.username);
+        const score = asNumber(u.mutual_affinity_score);
+
+        if (!fid || !username || score === undefined) return null;
+
+        return {
+          fid,
+          mutualAffinityScore: score,
+          username,
+        } satisfies BestFriend;
+      })
+      .filter((item): item is BestFriend => item !== null);
+  } catch {
+    return undefined;
+  }
+}
+
+async function loadOrFetchBestFriends(
+  db: D1Database,
+  userId: number,
+  userFid: number,
+  neynarApiKey?: string
+): Promise<BestFriend[]> {
+  const now = new Date().toISOString();
+  const staleThreshold = new Date(Date.now() - BEST_FRIENDS_CACHE_STALE_SECONDS * 1000).toISOString();
+
+  const cached = await db
+    .prepare(
+      `SELECT best_friend_fid, mutual_affinity_score, username
+       FROM warplets_user_best_friends
+       WHERE user_fid = ? AND fetched_at > ?
+       ORDER BY mutual_affinity_score DESC`
+    )
+    .bind(userFid, staleThreshold)
+    .all<{ best_friend_fid: number; mutual_affinity_score: number; username: string }>();
+
+  if (cached.results && cached.results.length > 0) {
+    return cached.results.map((row) => ({
+      fid: row.best_friend_fid,
+      mutualAffinityScore: row.mutual_affinity_score,
+      username: row.username,
+    }));
+  }
+
+  const fetched = await fetchBestFriendsFromNeynar(userFid, neynarApiKey);
+  if (!fetched || fetched.length === 0) {
+    return [];
+  }
+
+  await Promise.all(
+    fetched.map((friend) =>
+      db
+        .prepare(
+          `INSERT INTO warplets_user_best_friends 
+           (user_id, user_fid, best_friend_fid, mutual_affinity_score, username, fetched_at)
+           VALUES (?, ?, ?, ?, ?, ?)
+           ON CONFLICT(user_id, best_friend_fid) DO UPDATE SET
+             user_fid = excluded.user_fid,
+             mutual_affinity_score = excluded.mutual_affinity_score,
+             username = excluded.username,
+             fetched_at = excluded.fetched_at`
+        )
+        .bind(userId, userFid, friend.fid, friend.mutualAffinityScore, friend.username, now)
+        .run()
+    )
+  );
+
+  return fetched;
+}
+
+async function ensureBestFriendsWarpletMatches(
+  db: D1Database,
+  userId: number,
+  userFid: number,
+  bestFriendsWarpletsOn: string | null
+): Promise<void> {
+  if (bestFriendsWarpletsOn) return;
+
+  const now = new Date().toISOString();
+
+  await db
+    .prepare("DELETE FROM warplets_user_best_friends_warplet WHERE user_id = ?")
+    .bind(userId)
+    .run();
+
+  await db
+    .prepare(
+      `INSERT INTO warplets_user_best_friends_warplet (
+         user_id, user_fid, best_friend_fid, warplet_token_id, mutual_affinity_score, username, created_on
+       )
+       SELECT
+         bf.user_id,
+         bf.user_fid,
+         bf.best_friend_fid,
+         wm.token_id,
+         bf.mutual_affinity_score,
+         bf.username,
+         ?
+       FROM warplets_user_best_friends bf
+       JOIN warplets_metadata wm
+         ON wm.fid_value = bf.best_friend_fid
+       WHERE bf.user_id = ?
+       LIMIT 100`
+    )
+    .bind(now, userId)
+    .run();
+
+  await db
+    .prepare("UPDATE warplets_users SET best_friends_warplets_on = ?, updated_on = ? WHERE id = ?")
+    .bind(now, now, userId)
+    .run();
+}
+
+function normalizeUsernameForMention(raw: unknown): string | null {
+  if (typeof raw !== "string") return null;
+  const trimmed = raw.trim().replace(/^@+/, "");
+  if (!trimmed) return null;
+  return `@${trimmed}`;
+}
+
+async function loadOutreachCandidates(db: D1Database, userId: number): Promise<OutreachCandidate> {
+  const cutoff = new Date(Date.now() - OUTREACH_COOLDOWN_MS).toISOString();
+
+  const friendRows = await db
+    .prepare(
+      `SELECT wubfw.username, wubfw.warplet_token_id, wm.warplet_username_x
+       FROM warplets_user_best_friends_warplet wubfw
+       JOIN warplets_metadata wm
+         ON wm.token_id = wubfw.warplet_token_id
+       WHERE wubfw.user_id = ?
+         AND (wm.last_outreach_on IS NULL OR wm.last_outreach_on <= ?)
+         AND NOT EXISTS (
+           SELECT 1
+           FROM warplets_users wu
+           WHERE wu.fid = wm.fid_value
+             AND (wu.buy_in_opensea_on IS NOT NULL OR wu.buy_in_farcaster_wallet_on IS NOT NULL)
+         )
+       ORDER BY wubfw.mutual_affinity_score DESC
+       LIMIT 10`
+    )
+    .bind(userId, cutoff)
+    .all<{ username: unknown; warplet_token_id: unknown; warplet_username_x: unknown }>();
+
+  const farcasterUsernames: string[] = [];
+  const xUsernames: string[] = [];
+  const tokenIds: number[] = [];
+  const seenTokens = new Set<number>();
+
+  for (const row of friendRows.results ?? []) {
+    const fcMention = normalizeUsernameForMention(row.username);
+    const xMention = normalizeUsernameForMention(row.warplet_username_x);
+    const tokenId = typeof row.warplet_token_id === "number" ? row.warplet_token_id : null;
+    if (!fcMention || !xMention || !tokenId || seenTokens.has(tokenId)) continue;
+    farcasterUsernames.push(fcMention);
+    xUsernames.push(xMention);
+    tokenIds.push(tokenId);
+    seenTokens.add(tokenId);
+  }
+
+  if (farcasterUsernames.length < 10) {
+    const needed = 10 - farcasterUsernames.length;
+    const nonFriendRows = await db
+      .prepare(
+        `SELECT wm.warplet_username_farcaster, wm.warplet_username_x, wm.token_id
+         FROM warplets_metadata wm
+         WHERE (wm.last_outreach_on IS NULL OR wm.last_outreach_on <= ?)
+           AND wm.warplet_username_farcaster IS NOT NULL
+           AND TRIM(wm.warplet_username_farcaster) <> ''
+           AND wm.warplet_username_x IS NOT NULL
+           AND TRIM(wm.warplet_username_x) <> ''
+           AND NOT EXISTS (
+             SELECT 1
+             FROM warplets_users wu
+             WHERE wu.fid = wm.fid_value
+               AND (wu.buy_in_opensea_on IS NOT NULL OR wu.buy_in_farcaster_wallet_on IS NOT NULL)
+           )
+           AND wm.token_id NOT IN (
+             SELECT warplet_token_id
+             FROM warplets_user_best_friends_warplet
+             WHERE user_id = ?
+           )
+         ORDER BY wm.token_id DESC
+         LIMIT ?`
+      )
+      .bind(cutoff, userId, needed)
+      .all<{ warplet_username_farcaster: unknown; warplet_username_x: unknown; token_id: unknown }>();
+
+    for (const row of nonFriendRows.results ?? []) {
+      const fcMention = normalizeUsernameForMention(row.warplet_username_farcaster);
+      const xMention = normalizeUsernameForMention(row.warplet_username_x);
+      const tokenId = typeof row.token_id === "number" ? row.token_id : null;
+      if (!fcMention || !xMention || !tokenId || seenTokens.has(tokenId)) continue;
+      farcasterUsernames.push(fcMention);
+      xUsernames.push(xMention);
+      tokenIds.push(tokenId);
+      seenTokens.add(tokenId);
+      if (farcasterUsernames.length >= 10) break;
+    }
+  }
+
+  return {
+    farcasterUsernames: farcasterUsernames.slice(0, 10),
+    xUsernames: xUsernames.slice(0, 10),
+    tokenIds: tokenIds.slice(0, 10),
+  };
+}
+
+export const onRequestGet: PagesFunction<Env> = async (context) => {
+  const url = new URL(context.request.url);
+  const hostname = url.hostname;
+  const fid = url.searchParams.get("fid");
+  const recentBuys = await loadRecentBuysCached(
+    context.env,
+    allowMatchedTopUp(hostname)
+  );
+  const rewardedUsers = await loadRewardedUsers(
+    context.env.WARPLETS,
+    recentBuys,
+    allowMatchedTopUp(hostname)
+  );
+
+  let bestFriends: BestFriend[] = [];
+  let outreachCandidates: OutreachCandidate = { farcasterUsernames: [], xUsernames: [], tokenIds: [] };
+  if (fid) {
+    const fidNum = parseInt(fid, 10);
+    if (Number.isFinite(fidNum) && fidNum > 0) {
+      const user = await context.env.WARPLETS.prepare(
+        "SELECT id, best_friends_warplets_on FROM warplets_users WHERE fid = ? LIMIT 1"
+      )
+        .bind(fidNum)
+        .first<{ id: number; best_friends_warplets_on: string | null }>();
+
+      if (user) {
+        bestFriends = await loadOrFetchBestFriends(
+          context.env.WARPLETS,
+          user.id,
+          fidNum,
+          context.env.NEYNAR_API_KEY
+        );
+        await ensureBestFriendsWarpletMatches(
+          context.env.WARPLETS,
+          user.id,
+          fidNum,
+          user.best_friends_warplets_on
+        );
+        outreachCandidates = await loadOutreachCandidates(context.env.WARPLETS, user.id);
+      }
+    }
+  }
+
+  const actionSessionToken =
+    fid && Number.isFinite(Number(fid)) && Number(fid) > 0
+      ? await createActionSessionToken(context.env.ACTION_SESSION_SECRET, Number(fid), 3600)
+      : null;
+
+  return jsonSecure({ buyers: recentBuys, bestFriends, rewardedUsers, outreachCandidates, actionSessionToken });
+};
+
 export const onRequestPost: PagesFunction<Env> = async (context) => {
   let body: RequestBody = {};
   try {
@@ -136,10 +589,17 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   }
 
   const existing = await context.env.WARPLETS.prepare(
-    "SELECT id, matched_on, buy_transaction_on, shared_on FROM warplets_users WHERE fid = ? LIMIT 1"
+    "SELECT id, matched_on, buy_in_opensea_on, buy_in_farcaster_wallet_on, rewarded_on, best_friends_warplets_on FROM warplets_users WHERE fid = ? LIMIT 1"
   )
     .bind(fid)
-    .first<{ id: number; matched_on: string | null; buy_transaction_on: string | null; shared_on: string | null }>();
+    .first<{
+      id: number;
+      matched_on: string | null;
+      buy_in_opensea_on: string | null;
+      buy_in_farcaster_wallet_on: string | null;
+      rewarded_on: string | null;
+      best_friends_warplets_on: string | null;
+    }>();
 
   const matchRow = await context.env.WARPLETS.prepare(
     "SELECT x10_rarity FROM warplets_metadata WHERE fid_value = ? LIMIT 1"
@@ -149,6 +609,17 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
   const rarityValue = typeof matchRow?.x10_rarity === "number" ? matchRow.x10_rarity : null;
   const isMatch = rarityValue !== null;
+  const hostname = new URL(context.request.url).hostname;
+  const recentBuys = await loadRecentBuysCached(
+    context.env,
+    allowMatchedTopUp(hostname)
+  );
+  const rewardedUsers = await loadRewardedUsers(
+    context.env.WARPLETS,
+    recentBuys,
+    allowMatchedTopUp(hostname)
+  );
+  let outreachCandidates: OutreachCandidate = { farcasterUsernames: [], xUsernames: [], tokenIds: [] };
 
   if (!existing) {
     const neynarUser = await fetchNeynarUserByFid(fid, context.env.NEYNAR_API_KEY);
@@ -158,8 +629,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       "INSERT INTO warplets_users (" +
         "fid, username, display_name, pfp_url, registered_at, pro_status, profile_bio_text, " +
         "follower_count, following_count, primary_eth_address, primary_sol_address, x_username, " +
-        "url, viewer_following, viewer_followed_by, score, matched_on, buy_on, buy_transaction_on, shared_on, created_on, updated_on" +
-        ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+        "url, viewer_following, viewer_followed_by, score, matched_on, buy_in_opensea_on, buy_in_farcaster_wallet_on, rewarded_on, best_friends_warplets_on, created_on, updated_on" +
+        ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
     )
       .bind(
         fid,
@@ -182,27 +653,72 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         null,
         null,
         null,
+        null,
         now,
         now
       )
       .run();
 
-    return Response.json({
+    const newUser = await context.env.WARPLETS.prepare(
+      "SELECT id FROM warplets_users WHERE fid = ? LIMIT 1"
+    )
+      .bind(fid)
+      .first<{ id: number }>();
+
+    if (newUser) {
+      const freshFriends = await loadOrFetchBestFriends(
+        context.env.WARPLETS,
+        newUser.id,
+        fid,
+        context.env.NEYNAR_API_KEY
+      );
+      if (freshFriends.length > 0) {
+        await ensureBestFriendsWarpletMatches(
+          context.env.WARPLETS,
+          newUser.id,
+          fid,
+          null
+        );
+      }
+      outreachCandidates = await loadOutreachCandidates(context.env.WARPLETS, newUser.id);
+    }
+
+    const actionSessionToken = await createActionSessionToken(context.env.ACTION_SESSION_SECRET, fid, 3600);
+    return jsonSecure({
       fid,
       exists: false,
       matched: isMatch,
       rarityValue,
-      buyTransactionOn: null,
-      sharedOn: null,
+      buyInOpenseaOn: null,
+      buyInFarcasterWalletOn: null,
+      rewardedOn: null,
+      recentBuys,
+      rewardedUsers,
+      outreachCandidates,
+      actionSessionToken,
     });
   }
 
-  return Response.json({
+  await ensureBestFriendsWarpletMatches(
+    context.env.WARPLETS,
+    existing.id,
+    fid,
+    existing.best_friends_warplets_on
+  );
+  outreachCandidates = await loadOutreachCandidates(context.env.WARPLETS, existing.id);
+
+  const actionSessionToken = await createActionSessionToken(context.env.ACTION_SESSION_SECRET, fid, 3600);
+  return jsonSecure({
     fid,
     exists: true,
     matched: isMatch,
     rarityValue,
-    buyTransactionOn: existing.buy_transaction_on,
-    sharedOn: existing.shared_on,
+    buyInOpenseaOn: existing.buy_in_opensea_on,
+    buyInFarcasterWalletOn: existing.buy_in_farcaster_wallet_on,
+    rewardedOn: existing.rewarded_on,
+    recentBuys,
+    rewardedUsers,
+    outreachCandidates,
+    actionSessionToken,
   });
 };

@@ -9,9 +9,11 @@
  */
 
 import { normalizeAppSlug, resolveAppSlugFromUrl } from "../../_lib/appSlug.js";
+import { getClientIp, jsonSecure, rateLimit, readJsonBody } from "../../_lib/security.js";
 
 interface Env {
   WARPLETS: D1Database;
+  WARPLETS_KV?: KVNamespace;
 }
 
 interface RequestBody {
@@ -21,20 +23,33 @@ interface RequestBody {
 }
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
-  let body: RequestBody = {};
-  try {
-    body = (await context.request.json()) as RequestBody;
-  } catch {
-    return Response.json({ error: "Invalid JSON" }, { status: 400 });
+  const ip = getClientIp(context.request);
+  const ipRate = await rateLimit(context.env.WARPLETS_KV, "notification-open-ip", ip, 90, 60);
+  if (!ipRate.allowed) {
+    const response = jsonSecure({ error: "Rate limit exceeded" }, { status: 429 });
+    response.headers.set("retry-after", String(ipRate.retryAfterSeconds));
+    return response;
   }
+
+  const parsed = await readJsonBody<RequestBody>(context.request);
+  if (!parsed.ok) {
+    return parsed.response;
+  }
+  const body = parsed.value;
 
   const notificationId = typeof body.notificationId === "string" ? body.notificationId.trim() : null;
   if (!notificationId) {
-    return Response.json({ error: "notificationId is required" }, { status: 400 });
+    return jsonSecure({ error: "notificationId is required" }, { status: 400 });
   }
 
   const fid = typeof body.fid === "number" ? body.fid : null;
   const appSlug = normalizeAppSlug(body.appSlug, resolveAppSlugFromUrl(new URL(context.request.url)));
+
+  const idempotencyKey = `${notificationId}:${fid ?? "anon"}:${appSlug ?? "app"}`;
+  const openKeyRate = await rateLimit(context.env.WARPLETS_KV, "notification-open-idempotency", idempotencyKey, 1, 600);
+  if (!openKeyRate.allowed) {
+    return jsonSecure({ ok: true, deduplicated: true });
+  }
 
   await context.env.WARPLETS.prepare(
     `INSERT INTO notification_opens (notification_id, fid, app_slug) VALUES (?, ?, ?)`
@@ -42,5 +57,5 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     .bind(notificationId, fid, appSlug)
     .run();
 
-  return Response.json({ ok: true });
+  return jsonSecure({ ok: true });
 };

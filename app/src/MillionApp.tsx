@@ -7,6 +7,7 @@ import {
   getHeaderTitle,
   useMiniAppChrome,
 } from "./miniAppChrome.tsx";
+import MiniAppShell from "./MiniAppShell";
 
 export default function MillionApp() {
   const [showOpenInFarcaster, setShowOpenInFarcaster] = useState(false);
@@ -50,20 +51,7 @@ export default function MillionApp() {
   }, []);
 
   return (
-    <div
-      className="relative min-h-screen bg-black text-white"
-      style={{ fontFamily: '"Roboto Mono", system-ui, sans-serif' }}
-    >
-      <video
-        src="/matrix_bg_1080x1080.mp4"
-        autoPlay
-        loop
-        muted
-        playsInline
-        aria-hidden="true"
-        className="brand-bg-video"
-      />
-      <div className="brand-bg-overlay" aria-hidden="true" />
+    <MiniAppShell>
       <div className="relative z-10 w-full">
         <MiniAppHeader
           appSlug="million"
@@ -90,6 +78,6 @@ export default function MillionApp() {
           </div>
         )}
       </div>
-    </div>
+    </MiniAppShell>
   );
 }

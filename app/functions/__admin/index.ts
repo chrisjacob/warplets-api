@@ -2,7 +2,7 @@
  * GET /__admin/
  *
  * Self-contained admin UI. Serves a standalone HTML page protected by the
- * admin token (entered in-browser, stored in sessionStorage — never in a URL).
+ * admin token (entered in-browser, kept in-memory only — never in a URL).
  *
  * Features:
  *  - Send broadcast or targeted (up to 100 FIDs) notification
@@ -171,13 +171,12 @@ export const onRequestGet: PagesFunction = () => {
 </div>
 
 <script>
-  const SESSION_KEY = 'admin_token_10x';
   const SEND_APP_DEFAULTS = {
     all: 'https://app.10x.meme/',
     app: 'https://app.10x.meme/',
     drop: 'https://drop.10x.meme/',
   };
-  let token = sessionStorage.getItem(SESSION_KEY) || '';
+  let token = '';
 
   function getDefaultTargetUrlForAppSlug(appSlug) {
     return SEND_APP_DEFAULTS[appSlug] || SEND_APP_DEFAULTS.app;
@@ -208,7 +207,6 @@ export const onRequestGet: PagesFunction = () => {
     const r = await fetch('/api/notifications/inspect', { headers: { 'x-admin-token': t } });
     if (r.ok) {
       token = t;
-      sessionStorage.setItem(SESSION_KEY, token);
       document.getElementById('loginErr').style.display = 'none';
       showApp();
     } else {
@@ -219,7 +217,6 @@ export const onRequestGet: PagesFunction = () => {
     if (e.key === 'Enter') document.getElementById('loginBtn').click();
   });
   document.getElementById('logoutBtn').addEventListener('click', () => {
-    sessionStorage.removeItem(SESSION_KEY);
     token = '';
     showLogin();
   });

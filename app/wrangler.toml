@@ -23,11 +23,14 @@ database_id   = "45a4cc4c-788e-48dd-89bf-7b504b17655d"
 [env.preview]
 name = "10x-app-dev"
 
+[env.preview.vars]
+APP_APP_FID = "9152"
+
 [[env.preview.kv_namespaces]]
 binding = "WARPLETS_KV"
-id = "3f55e9bea2534955b833521a2f5b55e7"
+id = "bb4b4762d0de4266bcccb0b2e1bdedbc"
 
 [[env.preview.d1_databases]]
 binding       = "WARPLETS"
-database_name = "warplets"
-database_id   = "45a4cc4c-788e-48dd-89bf-7b504b17655d"
+database_name = "warplets_preview"
+database_id   = "4ed108bd-9477-4109-930c-bc57b6c11b1f"

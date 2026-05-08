@@ -13,6 +13,8 @@ node-dev.out.log
 node-dev.err.log
 wrangler-dev.out.log
 wrangler-dev.err.log
+drop-tunnel.log
+drop-tunnel.err.log
 
 # Localflare generated files
 .localflare/

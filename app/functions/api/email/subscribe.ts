@@ -2,7 +2,9 @@ interface Env {
   WARPLETS: D1Database;
   RESEND_API_KEY?: string;
   RESEND_FROM_EMAIL?: string;
+  WARPLETS_KV?: KVNamespace;
 }
+import { getClientIp, jsonSecure, rateLimit, readJsonBody } from "../../_lib/security.js";
 
 interface SubscribeBody {
   email?: unknown;
@@ -13,6 +15,8 @@ interface SubscribeBody {
 }
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const RESEND_SEGMENT_ID = "e52bdc31-4f3c-4ec6-a623-9bc3977042e2";
+const RESEND_TOPIC_ID = "c3e8d591-73e6-4e98-a873-5e197a8581ee";
 const ALLOWED_ORIGINS = new Set([
   "https://10x.meme",
   "https://www.10x.meme",
@@ -61,24 +65,119 @@ function buildVerifyEmailHtml(verifyUrl: string, unsubscribeUrl: string): string
   `;
 }
 
+function toPropertyValue(value: unknown): string {
+  if (value === null || value === undefined) return "";
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  return JSON.stringify(value);
+}
+
+async function loadWarpletsUserProperties(
+  db: D1Database,
+  fid: number
+): Promise<{ properties: Record<string, string>; username: string; fidString: string } | null> {
+  const schema = await db.prepare(`PRAGMA table_info("warplets_users")`).all<{ name: string }>();
+  const columnNames = (schema.results ?? [])
+    .map((row) => row.name)
+    .filter((name): name is string => typeof name === "string" && name.length > 0);
+
+  if (columnNames.length === 0) return null;
+
+  const userRow = await db
+    .prepare("SELECT * FROM warplets_users WHERE fid = ? LIMIT 1")
+    .bind(fid)
+    .first<Record<string, unknown>>();
+
+  if (!userRow) return null;
+
+  const properties: Record<string, string> = {};
+  for (const columnName of columnNames) {
+    properties[columnName] = toPropertyValue(userRow[columnName]);
+  }
+
+  const username = typeof userRow.username === "string" ? userRow.username : "";
+  const fidString = typeof userRow.fid === "number" ? String(userRow.fid) : String(fid);
+
+  return { properties, username, fidString };
+}
+
+async function upsertResendContact(
+  resendApiKey: string,
+  email: string,
+  firstName: string,
+  lastName: string,
+  properties: Record<string, string>
+): Promise<void> {
+  const createResponse = await fetch("https://api.resend.com/contacts", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      Authorization: `Bearer ${resendApiKey}`,
+    },
+    body: JSON.stringify({
+      email,
+      firstName,
+      lastName,
+      unsubscribed: false,
+      properties,
+      segments: [{ id: RESEND_SEGMENT_ID }],
+      topics: [{ id: RESEND_TOPIC_ID, subscription: "opt_in" }],
+    }),
+  });
+
+  if (createResponse.ok) return;
+
+  const updateResponse = await fetch("https://api.resend.com/contacts", {
+    method: "PATCH",
+    headers: {
+      "content-type": "application/json",
+      Authorization: `Bearer ${resendApiKey}`,
+    },
+    body: JSON.stringify({
+      email,
+      firstName,
+      lastName,
+      unsubscribed: false,
+      properties,
+      segments: [{ id: RESEND_SEGMENT_ID }],
+      topics: [{ id: RESEND_TOPIC_ID, subscription: "opt_in" }],
+    }),
+  });
+
+  if (!updateResponse.ok) {
+    const createText = await createResponse.text().catch(() => "");
+    const updateText = await updateResponse.text().catch(() => "");
+    console.error("Resend contact upsert failed:", createText || createResponse.statusText, updateText || updateResponse.statusText);
+  }
+}
+
 export const onRequestOptions: PagesFunction<Env> = async (context) => {
   return new Response(null, { status: 204, headers: buildCorsHeaders(context.request) });
 };
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
   const corsHeaders = buildCorsHeaders(context.request);
-
-  let body: SubscribeBody;
-  try {
-    body = (await context.request.json()) as SubscribeBody;
-  } catch {
-    return Response.json({ error: "Invalid JSON body" }, { status: 400, headers: corsHeaders });
+  const ip = getClientIp(context.request);
+  const ipRate = await rateLimit(context.env.WARPLETS_KV, "email-subscribe-ip", ip, 30, 60);
+  if (!ipRate.allowed) {
+    const response = jsonSecure({ error: "Rate limit exceeded" }, { status: 429, headers: corsHeaders });
+    response.headers.set("retry-after", String(ipRate.retryAfterSeconds));
+    return response;
   }
+
+  const parsedBody = await readJsonBody<SubscribeBody>(context.request);
+  if (!parsedBody.ok) {
+    const response = parsedBody.response;
+    const headers = new Headers(response.headers);
+    corsHeaders.forEach((value, key) => headers.set(key, value));
+    return new Response(response.body, { status: response.status, headers });
+  }
+  const body = parsedBody.value;
 
   const rawEmail = asString(body.email);
   const email = rawEmail?.toLowerCase() ?? "";
   if (!email || !EMAIL_REGEX.test(email)) {
-    return Response.json({ error: "A valid email is required" }, { status: 400, headers: corsHeaders });
+    return jsonSecure({ error: "A valid email is required" }, { status: 400, headers: corsHeaders });
   }
 
   const fid = asPositiveInteger(body.fid);
@@ -115,14 +214,23 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     .first<{ verified: number; verify_token: string }>();
 
   if (!row) {
-    return Response.json({ error: "Failed to persist waitlist record" }, { status: 500, headers: corsHeaders });
+    return jsonSecure({ error: "Failed to persist waitlist record" }, { status: 500, headers: corsHeaders });
   }
 
   const alreadyVerified = row.verified === 1;
   const resendApiKey = context.env.RESEND_API_KEY?.trim();
-  const fromEmail = context.env.RESEND_FROM_EMAIL?.trim() || "10X Meme <hello@10x.meme>";
+  const fromEmail = context.env.RESEND_FROM_EMAIL?.trim() || "10X Meme <10x@10x.meme>";
 
   let verificationEmailSent = false;
+
+  if (resendApiKey) {
+    const userProps = fid ? await loadWarpletsUserProperties(context.env.WARPLETS, fid) : null;
+    const firstName = userProps?.username || username || "";
+    const lastName = userProps?.fidString || (fid ? String(fid) : "");
+    const properties = userProps?.properties ?? {};
+
+    await upsertResendContact(resendApiKey, email, firstName, lastName, properties);
+  }
 
   if (!alreadyVerified && resendApiKey) {
     const verifyUrl = new URL(context.request.url);
@@ -157,7 +265,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     }
   }
 
-  return Response.json({
+  return jsonSecure({
     success: true,
     email,
     alreadyVerified,

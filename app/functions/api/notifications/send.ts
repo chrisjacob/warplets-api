@@ -21,12 +21,21 @@ import {
   normalizeNotificationAudienceSlug,
   normalizeAppSlug,
   type AppSlug,
-  type NotificationAudienceSlug,
 } from "../../_lib/appSlug.js";
+import {
+  getClientIp,
+  jsonSecure,
+  logSecurityEvent,
+  rateLimit,
+  readJsonBody,
+  requireAdminScope,
+} from "../../_lib/security.js";
 
 interface Env {
   WARPLETS: D1Database;
+  WARPLETS_KV: KVNamespace;
   ADMIN_NOTIFY_TEST_TOKEN?: string;
+  ADMIN_API_KEYS_JSON?: string;
 }
 
 interface RequestBody {
@@ -57,22 +66,34 @@ function buildNotificationId(appSlug: string, rawNotificationId?: string): strin
 }
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
-  const configuredToken = context.env.ADMIN_NOTIFY_TEST_TOKEN;
-  const suppliedToken = context.request.headers.get("x-admin-token");
-
-  if (!configuredToken || suppliedToken !== configuredToken) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  const auth = await requireAdminScope(context, { scope: "notify:send" });
+  if (!auth.ok) {
+    return auth.response;
   }
 
-  let json: RequestBody;
-  try {
-    json = (await context.request.json()) as RequestBody;
-  } catch {
-    return Response.json({ error: "Invalid JSON body" }, { status: 400 });
+  const ip = getClientIp(context.request);
+  const adminRate = await rateLimit(context.env.WARPLETS_KV, "admin-send", auth.keyId, 12, 60);
+  if (!adminRate.allowed) {
+    const response = jsonSecure({ error: "Rate limit exceeded" }, { status: 429 });
+    response.headers.set("retry-after", String(adminRate.retryAfterSeconds));
+    return response;
   }
+
+  const ipRate = await rateLimit(context.env.WARPLETS_KV, "admin-send-ip", ip, 25, 60);
+  if (!ipRate.allowed) {
+    const response = jsonSecure({ error: "Rate limit exceeded" }, { status: 429 });
+    response.headers.set("retry-after", String(ipRate.retryAfterSeconds));
+    return response;
+  }
+
+  const parsedBody = await readJsonBody<RequestBody>(context.request);
+  if (!parsedBody.ok) {
+    return parsedBody.response;
+  }
+  const json = parsedBody.value;
 
   if (!json.title || !json.body) {
-    return Response.json({ error: "title and body are required" }, { status: 400 });
+    return jsonSecure({ error: "title and body are required" }, { status: 400 });
   }
 
   const title = json.title.slice(0, 32);
@@ -83,12 +104,12 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   const targetUrl = withQueryParam(targetBase, "notificationId", notificationId);
 
   if (!targetUrl.startsWith("https://")) {
-    return Response.json({ error: "targetUrl must be https" }, { status: 400 });
+    return jsonSecure({ error: "targetUrl must be https" }, { status: 400 });
   }
 
   // Hard cap: max 100 FIDs per request (Farcaster tokens-per-request limit)
   if (Array.isArray(json.fids) && json.fids.length > 100) {
-    return Response.json({ error: "fids array exceeds max of 100" }, { status: 400 });
+    return jsonSecure({ error: "fids array exceeds max of 100" }, { status: 400 });
   }
 
   // Resolve target tokens from D1
@@ -172,7 +193,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   }
 
   if (rows.length === 0) {
-    return Response.json({ total: 0, results: [], message: "No enabled tokens found" });
+    return jsonSecure({ total: 0, results: [], message: "No enabled tokens found" });
   }
 
   // Dispatch to each FID sequentially (could be batched for scale, fine for now)
@@ -202,7 +223,21 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     return acc;
   }, {});
 
-  return Response.json({
+  await logSecurityEvent(context.env.WARPLETS, {
+    eventType: "notification_send",
+    outcome: "ok",
+    actorType: "admin_key",
+    actorId: auth.keyId,
+    ipAddress: ip,
+    route: new URL(context.request.url).pathname,
+    details: JSON.stringify({
+      audienceSlug,
+      totalRows: rows.length,
+      notificationId,
+    }),
+  });
+
+  return jsonSecure({
     total: rows.length,
     notificationId,
     summary,
