@@ -12,6 +12,14 @@ interface RequestBody {
 }
 import { getClientIp, jsonSecure, rateLimit, readJsonBody, verifyActionSessionToken } from "../_lib/security.js";
 
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function hasOnlyAllowedKeys(value: Record<string, unknown>, allowedKeys: string[]): boolean {
+  return Object.keys(value).every((key) => allowedKeys.includes(key));
+}
+
 function asNonEmptyString(value: unknown): string | null {
   return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
 }
@@ -63,9 +71,15 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     return response;
   }
 
-  const parsed = await readJsonBody<RequestBody>(context.request);
+  const parsed = await readJsonBody<unknown>(context.request);
   if (!parsed.ok) return parsed.response;
-  const body = parsed.value;
+  if (!isPlainObject(parsed.value)) {
+    return jsonSecure({ error: "Invalid JSON payload" }, { status: 400 });
+  }
+  if (!hasOnlyAllowedKeys(parsed.value, ["actionSlug", "sessionToken", "fid"])) {
+    return jsonSecure({ error: "Unexpected fields in payload" }, { status: 400 });
+  }
+  const body = parsed.value as RequestBody;
 
   const requestUrl = new URL(context.request.url);
   const sessionToken = asNonEmptyString(body.sessionToken);

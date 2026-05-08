@@ -22,6 +22,14 @@ interface RequestBody {
   appSlug?: unknown;
 }
 
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function hasOnlyAllowedKeys(value: Record<string, unknown>, allowedKeys: string[]): boolean {
+  return Object.keys(value).every((key) => allowedKeys.includes(key));
+}
+
 export const onRequestPost: PagesFunction<Env> = async (context) => {
   const ip = getClientIp(context.request);
   const ipRate = await rateLimit(context.env.WARPLETS_KV, "notification-open-ip", ip, 90, 60);
@@ -31,11 +39,17 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     return response;
   }
 
-  const parsed = await readJsonBody<RequestBody>(context.request);
+  const parsed = await readJsonBody<unknown>(context.request);
   if (!parsed.ok) {
     return parsed.response;
   }
-  const body = parsed.value;
+  if (!isPlainObject(parsed.value)) {
+    return jsonSecure({ error: "Invalid JSON payload" }, { status: 400 });
+  }
+  if (!hasOnlyAllowedKeys(parsed.value, ["notificationId", "fid", "appSlug"])) {
+    return jsonSecure({ error: "Unexpected fields in payload" }, { status: 400 });
+  }
+  const body = parsed.value as RequestBody;
 
   const notificationId = typeof body.notificationId === "string" ? body.notificationId.trim() : null;
   if (!notificationId) {

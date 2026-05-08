@@ -26,6 +26,14 @@ const ALLOWED_ORIGINS = new Set([
   "https://web-dev.10x.meme",
 ]);
 
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function hasOnlyAllowedKeys(value: Record<string, unknown>, allowedKeys: string[]): boolean {
+  return Object.keys(value).every((key) => allowedKeys.includes(key));
+}
+
 function buildCorsHeaders(request: Request): Headers {
   const headers = new Headers();
   const origin = request.headers.get("origin") ?? "";
@@ -165,14 +173,20 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     return response;
   }
 
-  const parsedBody = await readJsonBody<SubscribeBody>(context.request);
+  const parsedBody = await readJsonBody<unknown>(context.request);
   if (!parsedBody.ok) {
     const response = parsedBody.response;
     const headers = new Headers(response.headers);
     corsHeaders.forEach((value, key) => headers.set(key, value));
     return new Response(response.body, { status: response.status, headers });
   }
-  const body = parsedBody.value;
+  if (!isPlainObject(parsedBody.value)) {
+    return jsonSecure({ error: "Invalid JSON payload" }, { status: 400, headers: corsHeaders });
+  }
+  if (!hasOnlyAllowedKeys(parsedBody.value, ["email", "fid", "username", "tokenId", "matched"])) {
+    return jsonSecure({ error: "Unexpected fields in payload" }, { status: 400, headers: corsHeaders });
+  }
+  const body = parsedBody.value as SubscribeBody;
 
   const rawEmail = asString(body.email);
   const email = rawEmail?.toLowerCase() ?? "";

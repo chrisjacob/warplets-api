@@ -54,6 +54,14 @@ interface TokenRow {
   notification_token: string;
 }
 
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function hasOnlyAllowedKeys(value: Record<string, unknown>, allowedKeys: string[]): boolean {
+  return Object.keys(value).every((key) => allowedKeys.includes(key));
+}
+
 function withQueryParam(url: string, key: string, value: string): string {
   const parsed = new URL(url);
   parsed.searchParams.set(key, value);
@@ -86,11 +94,17 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     return response;
   }
 
-  const parsedBody = await readJsonBody<RequestBody>(context.request);
+  const parsedBody = await readJsonBody<unknown>(context.request);
   if (!parsedBody.ok) {
     return parsedBody.response;
   }
-  const json = parsedBody.value;
+  if (!isPlainObject(parsedBody.value)) {
+    return jsonSecure({ error: "Invalid JSON payload" }, { status: 400 });
+  }
+  if (!hasOnlyAllowedKeys(parsedBody.value, ["fids", "title", "body", "targetUrl", "notificationId", "appSlug"])) {
+    return jsonSecure({ error: "Unexpected fields in payload" }, { status: 400 });
+  }
+  const json = parsedBody.value as unknown as RequestBody;
 
   if (!json.title || !json.body) {
     return jsonSecure({ error: "title and body are required" }, { status: 400 });
