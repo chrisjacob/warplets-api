@@ -1248,7 +1248,7 @@ export default function App() {
           : "My rarity is 10,000! 👀";
         const outreachLine = tweetOutreach.length > 0 ? `\n\nFYI you're on the list ${tweetOutreach}` : "";
         const raritySection = isMatched ? `\n\n${castRarityLine}\n\n...what's your rarity?` : "";
-        const text = `🟢 10X Warplets (Private 10K NFT Drop)\n\nPrice $${urgency.currentPrice} → $${urgency.nextPrice} in ${urgency.countdown}.\nSupply private → public every 10 days.\nAre you on the list? Don't miss out.${raritySection}${outreachLine}`;
+        const text = `🟢 10X Warplets (Private 10K NFT Drop)\n\nPrice $${urgency.currentPrice} → $${urgency.nextPrice} in ${urgency.countdown}.\nSupply private → public every 10 days.\nAre you on the list? Don't miss out.\n\nJoin Farcaster for access: https://farcaster.xyz/~/code/RUZLHN${raritySection}${outreachLine}`;
         const intentUrl = `https://x.com/intent/post?${new URLSearchParams({
           text,
           url: "https://farcaster.xyz/miniapps/cSNbxgFkuFRi/10x-warplets-drop",

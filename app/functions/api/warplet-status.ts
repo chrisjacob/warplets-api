@@ -468,6 +468,13 @@ function normalizeUsernameForMention(raw: unknown): string | null {
   return `@${trimmed}`;
 }
 
+function normalizeXUsernameForMention(raw: unknown): string | null {
+  if (typeof raw !== "string") return null;
+  const trimmed = raw.trim().replace(/^@+/, "");
+  if (!trimmed || trimmed === "-") return null;
+  return `@${trimmed}`;
+}
+
 async function loadOutreachCandidates(db: D1Database, userId: number): Promise<OutreachCandidate> {
   const cutoff = new Date(Date.now() - OUTREACH_COOLDOWN_MS).toISOString();
 
@@ -498,7 +505,7 @@ async function loadOutreachCandidates(db: D1Database, userId: number): Promise<O
 
   for (const row of friendRows.results ?? []) {
     const fcMention = normalizeUsernameForMention(row.username);
-    const xMention = normalizeUsernameForMention(row.warplet_username_x);
+    const xMention = normalizeXUsernameForMention(row.warplet_username_x);
     const tokenId = typeof row.warplet_token_id === "number" ? row.warplet_token_id : null;
     if (!fcMention || !xMention || !tokenId || seenTokens.has(tokenId)) continue;
     farcasterUsernames.push(fcMention);
@@ -537,7 +544,7 @@ async function loadOutreachCandidates(db: D1Database, userId: number): Promise<O
 
     for (const row of nonFriendRows.results ?? []) {
       const fcMention = normalizeUsernameForMention(row.warplet_username_farcaster);
-      const xMention = normalizeUsernameForMention(row.warplet_username_x);
+      const xMention = normalizeXUsernameForMention(row.warplet_username_x);
       const tokenId = typeof row.token_id === "number" ? row.token_id : null;
       if (!fcMention || !xMention || !tokenId || seenTokens.has(tokenId)) continue;
       farcasterUsernames.push(fcMention);
