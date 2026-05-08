@@ -11,10 +11,12 @@
 
 interface Env {
   WARPLETS: D1Database;
+  WARPLETS_KV?: KVNamespace;
 }
+import { applySecurityHeaders, getClientIp, rateLimit } from "../../_lib/security.js";
 
 function htmlResponse(status: number, title: string, message: string): Response {
-  return new Response(
+  return applySecurityHeaders(new Response(
     `<!DOCTYPE html>
 <html lang="en">
   <head>
@@ -37,10 +39,18 @@ function htmlResponse(status: number, title: string, message: string): Response 
   </body>
 </html>`,
     { status, headers: { "content-type": "text/html; charset=utf-8" } }
-  );
+  ), { isHtml: true });
 }
 
 export const onRequestGet: PagesFunction<Env> = async (context) => {
+  const ip = getClientIp(context.request);
+  const ipRate = await rateLimit(context.env.WARPLETS_KV, "email-unsubscribe-ip", ip, 45, 60);
+  if (!ipRate.allowed) {
+    const response = htmlResponse(429, "Try again soon", "Too many unsubscribe attempts from this IP.");
+    response.headers.set("retry-after", String(ipRate.retryAfterSeconds));
+    return response;
+  }
+
   const url = new URL(context.request.url);
   const email = url.searchParams.get("email")?.trim().toLowerCase();
   const token = url.searchParams.get("token")?.trim();

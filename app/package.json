@@ -12,8 +12,9 @@
     "deploy": "vite build && wrangler pages deploy dist",
     "local:tunnel": "node ../scripts/dev-tunnel-app.mjs",
     "local:tunnel:drop": "node ../scripts/dev-tunnel-drop.mjs",
-    "deploy:dev": "vite build --mode development && wrangler pages deploy dist --project-name 10x-app-dev --branch dev",
-    "deploy:prod": "vite build && wrangler pages deploy dist --project-name 10x-app"
+    "security:preflight": "node ../scripts/security-preflight.mjs",
+    "deploy:dev": "pnpm security:preflight && vite build --mode development && wrangler pages deploy dist --project-name 10x-app-dev --branch dev",
+    "deploy:prod": "pnpm security:preflight && vite build && wrangler pages deploy dist --project-name 10x-app"
   },
   "dependencies": {
     "@farcaster/miniapp-node": "^0.2.0",

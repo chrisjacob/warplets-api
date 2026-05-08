@@ -1,17 +1,24 @@
 interface Env {
   WARPLETS: D1Database;
+  WARPLETS_KV?: KVNamespace;
+  NEYNAR_API_KEY?: string;
+  ACTION_SESSION_SECRET?: string;
 }
 
 interface RequestBody {
-  fid?: unknown;
   actionSlug?: unknown;
   verification?: unknown;
   outreachTokenIds?: unknown;
+  sessionToken?: unknown;
 }
-
-function asPositiveInt(value: unknown): number | null {
-  return typeof value === "number" && Number.isInteger(value) && value > 0 ? value : null;
-}
+import {
+  getClientIp,
+  jsonSecure,
+  logSecurityEvent,
+  rateLimit,
+  readJsonBody,
+  verifyActionSessionToken,
+} from "../_lib/security.js";
 
 function asNonEmptyString(value: unknown): string | null {
   return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
@@ -25,20 +32,39 @@ function asTokenIdList(value: unknown): number[] {
 }
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
-  let body: RequestBody = {};
-  try {
-    body = (await context.request.json()) as RequestBody;
-  } catch {
-    return Response.json({ error: "Invalid JSON" }, { status: 400 });
+  const ip = getClientIp(context.request);
+  const ipRate = await rateLimit(context.env.WARPLETS_KV, "actions-complete-ip", ip, 60, 60);
+  if (!ipRate.allowed) {
+    const response = jsonSecure({ error: "Rate limit exceeded" }, { status: 429 });
+    response.headers.set("retry-after", String(ipRate.retryAfterSeconds));
+    return response;
   }
 
-  const fid = asPositiveInt(body.fid);
+  const parsed = await readJsonBody<RequestBody>(context.request);
+  if (!parsed.ok) return parsed.response;
+  const body = parsed.value;
+
+  const sessionToken = asNonEmptyString(body.sessionToken);
+  const session = await verifyActionSessionToken(context.env.ACTION_SESSION_SECRET, sessionToken);
+  if (!session.valid) {
+    await logSecurityEvent(context.env.WARPLETS, {
+      eventType: "actions_complete_auth",
+      outcome: session.reason,
+      actorType: "ip",
+      ipAddress: ip,
+      route: new URL(context.request.url).pathname,
+      details: "invalid_action_session",
+    });
+    return jsonSecure({ error: "Unauthorized action session" }, { status: 401 });
+  }
+
+  const fid = session.fid;
   const actionSlug = asNonEmptyString(body.actionSlug)?.toLowerCase();
   const verification = asNonEmptyString(body.verification);
   const outreachTokenIds = asTokenIdList(body.outreachTokenIds);
 
-  if (!fid || !actionSlug) {
-    return Response.json({ error: "fid and actionSlug are required" }, { status: 400 });
+  if (!actionSlug) {
+    return jsonSecure({ error: "actionSlug is required" }, { status: 400 });
   }
 
   const user = await context.env.WARPLETS.prepare(
@@ -48,7 +74,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     .first<{ id: number; shared_on: string | null }>();
 
   if (!user) {
-    return Response.json({ error: "Viewer record not found" }, { status: 404 });
+    return jsonSecure({ error: "Viewer record not found" }, { status: 404 });
   }
 
   const action = await context.env.WARPLETS.prepare(
@@ -58,7 +84,33 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     .first<{ id: number; slug: string; app_slug: string }>();
 
   if (!action) {
-    return Response.json({ error: "Action not found" }, { status: 404 });
+    return jsonSecure({ error: "Action not found" }, { status: 404 });
+  }
+
+  if (
+    action.slug === "drop-follow-fc-10xmeme" ||
+    action.slug === "drop-follow-fc-10xchris" ||
+    action.slug === "drop-join-fc-channel"
+  ) {
+    const apiKey = context.env.NEYNAR_API_KEY?.trim();
+    if (!apiKey) {
+      return jsonSecure({ error: "Verification service unavailable" }, { status: 503 });
+    }
+
+    const verifyRes = await fetch(new URL("/api/actions-verify", context.request.url).toString(), {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ fid, actionSlug, sessionToken }),
+    });
+
+    if (!verifyRes.ok) {
+      return jsonSecure({ error: "Verification failed" }, { status: 409 });
+    }
+
+    const verifyPayload = (await verifyRes.json()) as { verified?: boolean };
+    if (!verifyPayload.verified) {
+      return jsonSecure({ error: "Action verification not complete yet" }, { status: 409 });
+    }
   }
 
   const now = new Date().toISOString();
@@ -77,7 +129,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       .first<{ email: string; verified: number }>();
 
     if (!verifiedRow) {
-      return Response.json({ error: "Waitlist email is not verified yet" }, { status: 409 });
+      return jsonSecure({ error: "Waitlist email is not verified yet" }, { status: 409 });
     }
   }
 
@@ -166,7 +218,17 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       .run();
   }
 
-  return Response.json({
+  await logSecurityEvent(context.env.WARPLETS, {
+    eventType: "actions_complete",
+    outcome: "ok",
+    actorType: "fid",
+    actorId: String(fid),
+    ipAddress: ip,
+    route: new URL(context.request.url).pathname,
+    details: action.slug,
+  });
+
+  return jsonSecure({
     ok: true,
     fid,
     actionSlug: action.slug,

@@ -2,7 +2,9 @@ interface Env {
   WARPLETS: D1Database;
   RESEND_API_KEY?: string;
   RESEND_FROM_EMAIL?: string;
+  WARPLETS_KV?: KVNamespace;
 }
+import { getClientIp, jsonSecure, rateLimit, readJsonBody } from "../../_lib/security.js";
 
 interface SubscribeBody {
   email?: unknown;
@@ -155,18 +157,27 @@ export const onRequestOptions: PagesFunction<Env> = async (context) => {
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
   const corsHeaders = buildCorsHeaders(context.request);
-
-  let body: SubscribeBody;
-  try {
-    body = (await context.request.json()) as SubscribeBody;
-  } catch {
-    return Response.json({ error: "Invalid JSON body" }, { status: 400, headers: corsHeaders });
+  const ip = getClientIp(context.request);
+  const ipRate = await rateLimit(context.env.WARPLETS_KV, "email-subscribe-ip", ip, 30, 60);
+  if (!ipRate.allowed) {
+    const response = jsonSecure({ error: "Rate limit exceeded" }, { status: 429, headers: corsHeaders });
+    response.headers.set("retry-after", String(ipRate.retryAfterSeconds));
+    return response;
   }
+
+  const parsedBody = await readJsonBody<SubscribeBody>(context.request);
+  if (!parsedBody.ok) {
+    const response = parsedBody.response;
+    const headers = new Headers(response.headers);
+    corsHeaders.forEach((value, key) => headers.set(key, value));
+    return new Response(response.body, { status: response.status, headers });
+  }
+  const body = parsedBody.value;
 
   const rawEmail = asString(body.email);
   const email = rawEmail?.toLowerCase() ?? "";
   if (!email || !EMAIL_REGEX.test(email)) {
-    return Response.json({ error: "A valid email is required" }, { status: 400, headers: corsHeaders });
+    return jsonSecure({ error: "A valid email is required" }, { status: 400, headers: corsHeaders });
   }
 
   const fid = asPositiveInteger(body.fid);
@@ -203,7 +214,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     .first<{ verified: number; verify_token: string }>();
 
   if (!row) {
-    return Response.json({ error: "Failed to persist waitlist record" }, { status: 500, headers: corsHeaders });
+    return jsonSecure({ error: "Failed to persist waitlist record" }, { status: 500, headers: corsHeaders });
   }
 
   const alreadyVerified = row.verified === 1;
@@ -254,7 +265,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     }
   }
 
-  return Response.json({
+  return jsonSecure({
     success: true,
     email,
     alreadyVerified,

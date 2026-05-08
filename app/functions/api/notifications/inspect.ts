@@ -10,14 +10,14 @@ interface Env {
   WARPLETS: D1Database;
   WARPLETS_KV: KVNamespace;
   ADMIN_NOTIFY_TEST_TOKEN?: string;
+  ADMIN_API_KEYS_JSON?: string;
 }
+import { jsonSecure, requireAdminScope } from "../../_lib/security.js";
 
 export const onRequestGet: PagesFunction<Env> = async (context) => {
-  const configuredToken = context.env.ADMIN_NOTIFY_TEST_TOKEN;
-  const suppliedToken = context.request.headers.get("x-admin-token");
-
-  if (!configuredToken || suppliedToken !== configuredToken) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  const auth = await requireAdminScope(context, { scope: "notify:inspect" });
+  if (!auth.ok) {
+    return auth.response;
   }
 
   const [tokens, webhookEvents, dispatches, attempts] = await Promise.all([
@@ -50,7 +50,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     ).all(),
   ]);
 
-  return Response.json({
+  return jsonSecure({
     tokens: {
       total: tokens.results.length,
       enabled: tokens.results.filter((r: any) => r.enabled === 1).length,

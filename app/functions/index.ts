@@ -1,4 +1,5 @@
 const FC_MINIAPP_META_REGEX = /<meta\s+name="fc:miniapp"[^>]*>/i;
+import { applySecurityHeaders } from "./_lib/security.js";
 
 const APP_ASSOCIATION = {
   header:
@@ -190,18 +191,18 @@ export const onRequestGet: PagesFunction = async (context) => {
   const requestUrl = new URL(context.request.url);
 
   if (requestUrl.pathname === "/.well-known/farcaster.json") {
-    return Response.json(buildFarcasterManifest(requestUrl.hostname), {
+    return applySecurityHeaders(Response.json(buildFarcasterManifest(requestUrl.hostname), {
       headers: {
         "cache-control": "no-store",
       },
-    });
+    }));
   }
 
   const response = await context.next();
   const contentType = response.headers.get("content-type") || "";
 
   if (!contentType.includes("text/html")) {
-    return response;
+    return applySecurityHeaders(response);
   }
 
   const metaContent = escapeHtmlAttr(
@@ -220,9 +221,9 @@ export const onRequestGet: PagesFunction = async (context) => {
   headers.set("content-type", "text/html; charset=utf-8");
   headers.delete("content-length");
 
-  return new Response(html, {
+  return applySecurityHeaders(new Response(html, {
     status: response.status,
     statusText: response.statusText,
     headers,
-  });
+  }), { isHtml: true });
 };

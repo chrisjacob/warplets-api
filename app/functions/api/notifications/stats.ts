@@ -8,7 +8,10 @@
 interface Env {
   WARPLETS: D1Database;
   ADMIN_NOTIFY_TEST_TOKEN?: string;
+  ADMIN_API_KEYS_JSON?: string;
+  WARPLETS_KV?: KVNamespace;
 }
+import { jsonSecure, requireAdminScope } from "../../_lib/security.js";
 
 interface StatsRow {
   app_slug: string;
@@ -23,11 +26,9 @@ interface StatsRow {
 }
 
 export const onRequestGet: PagesFunction<Env> = async (context) => {
-  const configuredToken = context.env.ADMIN_NOTIFY_TEST_TOKEN;
-  const suppliedToken = context.request.headers.get("x-admin-token");
-
-  if (!configuredToken || suppliedToken !== configuredToken) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  const auth = await requireAdminScope(context, { scope: "notify:stats" });
+  if (!auth.ok) {
+    return auth.response;
   }
 
   const { results } = await context.env.WARPLETS.prepare(
@@ -63,5 +64,5 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     lastSent: r.last_sent,
   }));
 
-  return Response.json({ total: rows.length, rows });
+  return jsonSecure({ total: rows.length, rows });
 };

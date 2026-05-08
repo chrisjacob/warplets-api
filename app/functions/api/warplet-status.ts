@@ -11,7 +11,9 @@ interface Env {
   WARPLETS: D1Database;
   WARPLETS_KV: KVNamespace;
   NEYNAR_API_KEY?: string;
+  ACTION_SESSION_SECRET?: string;
 }
+import { createActionSessionToken, jsonSecure } from "../_lib/security.js";
 
 interface RequestBody {
   fid?: unknown;
@@ -565,7 +567,12 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     }
   }
 
-  return Response.json({ buyers: recentBuys, bestFriends, rewardedUsers, outreachCandidates });
+  const actionSessionToken =
+    fid && Number.isFinite(Number(fid)) && Number(fid) > 0
+      ? await createActionSessionToken(context.env.ACTION_SESSION_SECRET, Number(fid), 3600)
+      : null;
+
+  return jsonSecure({ buyers: recentBuys, bestFriends, rewardedUsers, outreachCandidates, actionSessionToken });
 };
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
@@ -676,7 +683,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       outreachCandidates = await loadOutreachCandidates(context.env.WARPLETS, newUser.id);
     }
 
-    return Response.json({
+    const actionSessionToken = await createActionSessionToken(context.env.ACTION_SESSION_SECRET, fid, 3600);
+    return jsonSecure({
       fid,
       exists: false,
       matched: isMatch,
@@ -687,6 +695,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       recentBuys,
       rewardedUsers,
       outreachCandidates,
+      actionSessionToken,
     });
   }
 
@@ -698,7 +707,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   );
   outreachCandidates = await loadOutreachCandidates(context.env.WARPLETS, existing.id);
 
-  return Response.json({
+  const actionSessionToken = await createActionSessionToken(context.env.ACTION_SESSION_SECRET, fid, 3600);
+  return jsonSecure({
     fid,
     exists: true,
     matched: isMatch,
@@ -709,5 +719,6 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     recentBuys,
     rewardedUsers,
     outreachCandidates,
+    actionSessionToken,
   });
 };

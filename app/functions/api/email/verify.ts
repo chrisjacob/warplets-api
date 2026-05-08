@@ -1,6 +1,8 @@
 interface Env {
   WARPLETS: D1Database;
+  WARPLETS_KV?: KVNamespace;
 }
+import { applySecurityHeaders, getClientIp, rateLimit } from "../../_lib/security.js";
 
 async function syncWaitlistActionCompletion(db: D1Database, fid: number, email: string): Promise<void> {
   const user = await db
@@ -49,7 +51,7 @@ async function syncWaitlistActionCompletion(db: D1Database, fid: number, email: 
 }
 
 function htmlResponse(status: number, title: string, message: string): Response {
-  return new Response(
+  return applySecurityHeaders(new Response(
     `<!DOCTYPE html>
 <html lang="en">
   <head>
@@ -70,14 +72,19 @@ function htmlResponse(status: number, title: string, message: string): Response 
     </div>
   </body>
 </html>`,
-    {
-      status,
-      headers: { "content-type": "text/html; charset=utf-8" },
-    }
-  );
+    { status, headers: { "content-type": "text/html; charset=utf-8" } }
+  ), { isHtml: true });
 }
 
 export const onRequestGet: PagesFunction<Env> = async (context) => {
+  const ip = getClientIp(context.request);
+  const ipRate = await rateLimit(context.env.WARPLETS_KV, "email-verify-ip", ip, 45, 60);
+  if (!ipRate.allowed) {
+    const response = htmlResponse(429, "Try again soon", "Too many verification attempts from this IP.");
+    response.headers.set("retry-after", String(ipRate.retryAfterSeconds));
+    return response;
+  }
+
   const url = new URL(context.request.url);
   const token = url.searchParams.get("token")?.trim();
 

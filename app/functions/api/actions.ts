@@ -1,7 +1,9 @@
 interface Env {
   WARPLETS: D1Database;
   WARPLETS_KV: KVNamespace;
+  ACTION_SESSION_SECRET?: string;
 }
+import { jsonSecure, verifyActionSessionToken } from "../_lib/security.js";
 
 type ActionRow = {
   id: number;
@@ -108,16 +110,18 @@ async function loadActionsCached(env: Env, appSlug: string): Promise<CachedActio
 export const onRequestGet: PagesFunction<Env> = async (context) => {
   const url = new URL(context.request.url);
   const appSlug = (url.searchParams.get("appSlug") || "").trim().toLowerCase();
-  const fid = asPositiveInt(url.searchParams.get("fid"));
+  const sessionToken = (url.searchParams.get("sessionToken") || "").trim() || null;
+  const session = await verifyActionSessionToken(context.env.ACTION_SESSION_SECRET, sessionToken);
+  const fid = session.valid ? session.fid : null;
 
   if (!appSlug) {
-    return Response.json({ error: "appSlug is required" }, { status: 400 });
+    return jsonSecure({ error: "appSlug is required" }, { status: 400 });
   }
 
   const actions = await loadActionsCached(context.env, appSlug);
 
   if (!fid) {
-    return Response.json({ actions });
+    return jsonSecure({ actions });
   }
 
   const user = await context.env.WARPLETS.prepare(
@@ -127,7 +131,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     .first<{ id: number }>();
 
   if (!user) {
-    return Response.json({ actions });
+    return jsonSecure({ actions });
   }
 
   const completions = await context.env.WARPLETS.prepare(
@@ -167,5 +171,5 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       : (completionBySlug.get(action.slug) ?? null),
   }));
 
-  return Response.json({ actions: actionsWithCompletion });
+  return jsonSecure({ actions: actionsWithCompletion });
 };

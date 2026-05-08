@@ -22,6 +22,7 @@ type WarpletStatus = {
   recentBuys?: unknown;
   rewardedUsers?: unknown;
   outreachCandidates?: unknown;
+  actionSessionToken?: string | null;
 };
 
 type RecentBuysResponse = {
@@ -29,6 +30,7 @@ type RecentBuysResponse = {
   bestFriends?: unknown;
   rewardedUsers?: unknown;
   outreachCandidates?: unknown;
+  actionSessionToken?: string | null;
 };
 
 type RewardAction = {
@@ -749,6 +751,7 @@ export default function App() {
   const [runningActionSlug, setRunningActionSlug] = useState<string | null>(null);
   const [didUnlockCelebrate, setDidUnlockCelebrate] = useState(false);
   const [verifyActionState, setVerifyActionState] = useState<Record<string, VerifyActionState>>({});
+  const [actionSessionToken, setActionSessionToken] = useState<string>("");
 
   const launchTopConfetti = () => {
     const colors = ["#ff4d4d", "#ffd93d", "#57e389", "#4da3ff", "#b07bff", "#ff7ac8"];
@@ -783,6 +786,7 @@ export default function App() {
         setRecentBuys(rankBuyersWithBestFriends(buyers, friends));
         setRewardedUsers(normalizeRecentBuys(data.rewardedUsers));
         setOutreachCandidates(normalizeOutreachCandidates(data.outreachCandidates));
+        setActionSessionToken(typeof data.actionSessionToken === "string" ? data.actionSessionToken : "");
       } catch {
         // Ignore non-critical social proof errors.
       }
@@ -852,6 +856,7 @@ export default function App() {
 
         const data = (await res.json()) as WarpletStatus;
         setStatus(data);
+        setActionSessionToken(typeof data.actionSessionToken === "string" ? data.actionSessionToken : "");
         const buyers = normalizeRecentBuys(data.recentBuys);
         setRewardedUsers(normalizeRecentBuys(data.rewardedUsers));
         setOutreachCandidates(normalizeOutreachCandidates(data.outreachCandidates));
@@ -860,6 +865,9 @@ export default function App() {
           const friendsRes = await fetch(`/api/warplet-status?fid=${context.user.fid}`);
           if (friendsRes.ok) {
             const friendsData = (await friendsRes.json()) as RecentBuysResponse;
+            if (typeof friendsData.actionSessionToken === "string" && friendsData.actionSessionToken.length > 0) {
+              setActionSessionToken(friendsData.actionSessionToken);
+            }
             const friends = normalizeBestFriends(friendsData.bestFriends);
             setBestFriends(friends);
             setRecentBuys(rankBuyersWithBestFriends(buyers, friends));
@@ -983,10 +991,11 @@ export default function App() {
   const pageBadgeLabel = showUnlockRewardPage ? "Help 10X Warplets Go Viral!" : badgeLabel;
   const pageTitle = showUnlockRewardPage ? "Complete actions 👉 Unlock rewards" : title;
 
-  const fetchRewardActions = async (currentFid: number) => {
+  const fetchRewardActions = async () => {
+    if (!actionSessionToken) return;
     setRewardActionsLoading(true);
     try {
-      const response = await fetch(`/api/actions?appSlug=drop&fid=${currentFid}`);
+      const response = await fetch(`/api/actions?appSlug=drop&sessionToken=${encodeURIComponent(actionSessionToken)}`);
       if (!response.ok) {
         throw new Error(await readErrorResponse(response));
       }
@@ -1010,16 +1019,16 @@ export default function App() {
     verification: string | null,
     outreachTokenIds?: number[]
   ) => {
-    if (!fid) return;
+    if (!fid || !actionSessionToken) return;
 
     const response = await fetch("/api/actions-complete", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        fid,
         actionSlug,
         verification: verification ?? undefined,
         outreachTokenIds: outreachTokenIds && outreachTokenIds.length > 0 ? outreachTokenIds : undefined,
+        sessionToken: actionSessionToken,
       }),
     });
 
@@ -1060,12 +1069,12 @@ export default function App() {
   };
 
   const verifyRewardAction = async (action: RewardAction) => {
-    if (!fid) return;
+    if (!fid || !actionSessionToken) return;
 
     const response = await fetch("/api/actions-verify", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ fid, actionSlug: action.slug }),
+      body: JSON.stringify({ actionSlug: action.slug, sessionToken: actionSessionToken }),
     });
     if (!response.ok) {
       return false;
@@ -1083,6 +1092,7 @@ export default function App() {
     if (!statusRes.ok) return;
     const nextStatus = (await statusRes.json()) as WarpletStatus;
     setStatus(nextStatus);
+    setActionSessionToken(typeof nextStatus.actionSessionToken === "string" ? nextStatus.actionSessionToken : "");
     setOutreachCandidates(normalizeOutreachCandidates(nextStatus.outreachCandidates));
   };
 
@@ -1144,12 +1154,12 @@ export default function App() {
       } else if (action.slug === "drop-cast" && purchasedTokenId) {
         const urgency = getUrgencyDetails(nowMs);
         const castRarityLine = formattedTokenId && topPercentLabel
-          ? `My rarity is #${formattedTokenId} of 10,000 👀 Top ${topPercentLabel}%!`
-          : "My rarity is 10,000!";
+          ? `My rarity #${formattedTokenId} of 10,000! 👀`
+          : "My rarity is 10,000! 👀";
         const outreachLine = castOutreach.length > 0 ? castOutreach : "@warplets";
         const castResult = await sdk.actions.composeCast({
           text:
-            `🟢 10X Warplets - Private 10K NFT Drop\n\nPrice goes up $${urgency.currentPrice} → $${urgency.nextPrice} in ${urgency.countdown}.\nSupply goes private → public every 10 days.\nAre you on the list? Don't miss out.\n\n${castRarityLine}\n\np.s. you're on the list ${outreachLine} - what's your rarity?`,
+            `🟢 10X Warplets Private 10K NFT Drop\n\nPrice $${urgency.currentPrice} → $${urgency.nextPrice} in ${urgency.countdown}.\nSupply private → public every 10 days.\nAre you on the list? Don't miss out.\n\n${castRarityLine}\n\np.s. you're on the list ${outreachLine}\n...what's your rarity?`,
           embeds: ["https://drop.10x.meme", `https://warplets.10x.meme/${purchasedTokenId}.${SHARE_IMAGE_EXTENSION}`],
         });
 
@@ -1160,10 +1170,10 @@ export default function App() {
       } else if (action.slug === "drop-tweet" && purchasedTokenId) {
         const urgency = getUrgencyDetails(nowMs);
         const castRarityLine = formattedTokenId && topPercentLabel
-          ? `My rarity is #${formattedTokenId} of 10,000 👀 Top ${topPercentLabel}%!`
-          : "My rarity is 10,000!";
+          ? `My rarity #${formattedTokenId} of 10,000! 👀`
+          : "My rarity is 10,000! 👀";
         const outreachLine = tweetOutreach.length > 0 ? tweetOutreach : "@10XMemeX";
-        const text = `🟢 10X Warplets - Private 10K NFT Drop\n\nPrice goes up $${urgency.currentPrice} → $${urgency.nextPrice} in ${urgency.countdown}.\nSupply goes private → public every 10 days.\nAre you on the list? Don't miss out.\n\n${castRarityLine}\n\np.s. you're on the list ${outreachLine} - what's your rarity?`;
+        const text = `🟢 10X Warplets Private 10K NFT Drop\n\nPrice $${urgency.currentPrice} → $${urgency.nextPrice} in ${urgency.countdown}.\nSupply private → public every 10 days.\nAre you on the list? Don't miss out.\n\n${castRarityLine}\n\np.s. you're on the list ${outreachLine}\n...what's your rarity?`;
         const intentUrl = `https://x.com/intent/post?${new URLSearchParams({
           text,
           url: "https://farcaster.xyz/miniapps/cSNbxgFkuFRi/10x-warplets-drop",
@@ -1179,7 +1189,7 @@ export default function App() {
         await sdk.actions.openUrl(action.url);
       }
 
-      await fetchRewardActions(fid);
+      await fetchRewardActions();
       await refreshStatusForRewardPage(fid);
     } catch (err) {
       console.error("Failed to run reward action:", err);
@@ -1239,7 +1249,7 @@ export default function App() {
       }
       setShowWaitlistModal(false);
 
-      await fetchRewardActions(fid);
+      await fetchRewardActions();
       await refreshStatusForRewardPage(fid);
     } catch (err) {
       setActionError(getErrorMessage(err));
@@ -1257,19 +1267,19 @@ export default function App() {
       try {
         const urgency = getUrgencyDetails(nowMs);
         const castRarityLine = formattedTokenId && topPercentLabel
-          ? `My rarity is #${formattedTokenId} of 10,000 👀 Top ${topPercentLabel}%!`
-          : "My rarity is 10,000!";
+          ? `My rarity #${formattedTokenId} of 10,000! 👀`
+          : "My rarity is 10,000! 👀";
         const outreachLine = castOutreach.length > 0 ? castOutreach : "@warplets";
         const castResult = await sdk.actions.composeCast({
           text:
-            `🟢 10X Warplets - Private 10K NFT Drop\n\nPrice goes up $${urgency.currentPrice} → $${urgency.nextPrice} in ${urgency.countdown}.\nSupply goes private → public every 10 days.\nAre you on the list? Don't miss out.\n\n${castRarityLine}\n\np.s. you're on the list ${outreachLine} - what's your rarity?`,
+            `🟢 10X Warplets Private 10K NFT Drop\n\nPrice $${urgency.currentPrice} → $${urgency.nextPrice} in ${urgency.countdown}.\nSupply private → public every 10 days.\nAre you on the list? Don't miss out.\n\n${castRarityLine}\n\np.s. you're on the list ${outreachLine}\n...what's your rarity?`,
           embeds: ["https://drop.10x.meme", `https://warplets.10x.meme/${purchasedTokenId}.${SHARE_IMAGE_EXTENSION}`],
         });
 
         if (castResult?.cast?.hash && fid) {
           const verification = buildCastVerificationUrl(castResult.cast.hash, viewerUsername);
           await completeRewardAction("drop-cast", verification, outreachCandidates.tokenIds);
-          await fetchRewardActions(fid);
+          await fetchRewardActions();
           await refreshStatusForRewardPage(fid);
         }
       } catch (err) {
@@ -1503,9 +1513,9 @@ export default function App() {
   }, [actionError]);
 
   useEffect(() => {
-    if (!showUnlockRewardPage || !fid) return;
-    fetchRewardActions(fid).catch(() => {});
-  }, [showUnlockRewardPage, fid]);
+    if (!showUnlockRewardPage || !fid || !actionSessionToken) return;
+    fetchRewardActions().catch(() => {});
+  }, [showUnlockRewardPage, fid, actionSessionToken]);
 
   useEffect(() => {
     if (!forceUnlock) return;

@@ -1,15 +1,15 @@
 interface Env {
   NEYNAR_API_KEY?: string;
+  ACTION_SESSION_SECRET?: string;
+  WARPLETS?: D1Database;
+  WARPLETS_KV?: KVNamespace;
 }
 
 interface RequestBody {
-  fid?: unknown;
   actionSlug?: unknown;
+  sessionToken?: unknown;
 }
-
-function asPositiveInt(value: unknown): number | null {
-  return typeof value === "number" && Number.isInteger(value) && value > 0 ? value : null;
-}
+import { getClientIp, jsonSecure, rateLimit, readJsonBody, verifyActionSessionToken } from "../_lib/security.js";
 
 function asNonEmptyString(value: unknown): string | null {
   return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
@@ -54,40 +54,50 @@ async function isFollowingChannel(apiKey: string, fid: number, channelId: string
 }
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
-  let body: RequestBody = {};
-  try {
-    body = (await context.request.json()) as RequestBody;
-  } catch {
-    return Response.json({ error: "Invalid JSON" }, { status: 400 });
+  const ip = getClientIp(context.request);
+  const ipRate = await rateLimit(context.env.WARPLETS_KV, "actions-verify-ip", ip, 90, 60);
+  if (!ipRate.allowed) {
+    const response = jsonSecure({ error: "Rate limit exceeded" }, { status: 429 });
+    response.headers.set("retry-after", String(ipRate.retryAfterSeconds));
+    return response;
   }
 
-  const fid = asPositiveInt(body.fid);
+  const parsed = await readJsonBody<RequestBody>(context.request);
+  if (!parsed.ok) return parsed.response;
+  const body = parsed.value;
+
+  const sessionToken = asNonEmptyString(body.sessionToken);
+  const session = await verifyActionSessionToken(context.env.ACTION_SESSION_SECRET, sessionToken);
+  if (!session.valid) {
+    return jsonSecure({ error: "Unauthorized action session" }, { status: 401 });
+  }
+  const fid = session.fid;
   const actionSlug = asNonEmptyString(body.actionSlug)?.toLowerCase();
-  if (!fid || !actionSlug) {
-    return Response.json({ error: "fid and actionSlug are required" }, { status: 400 });
+  if (!actionSlug) {
+    return jsonSecure({ error: "actionSlug is required" }, { status: 400 });
   }
 
   const apiKey = context.env.NEYNAR_API_KEY?.trim();
   if (!apiKey) {
-    return Response.json({ error: "Missing NEYNAR_API_KEY" }, { status: 500 });
+    return jsonSecure({ error: "Missing NEYNAR_API_KEY" }, { status: 500 });
   }
 
   try {
     if (actionSlug === "drop-follow-fc-10xmeme") {
       const verified = await isFollowingFid(apiKey, fid, 1313340);
-      return Response.json({ verified });
+      return jsonSecure({ verified });
     }
     if (actionSlug === "drop-follow-fc-10xchris") {
       const verified = await isFollowingFid(apiKey, fid, 1129138);
-      return Response.json({ verified });
+      return jsonSecure({ verified });
     }
     if (actionSlug === "drop-join-fc-channel") {
       const verified = await isFollowingChannel(apiKey, fid, "10xmeme");
-      return Response.json({ verified });
+      return jsonSecure({ verified });
     }
   } catch {
-    return Response.json({ verified: false });
+    return jsonSecure({ verified: false });
   }
 
-  return Response.json({ error: "Unsupported actionSlug" }, { status: 400 });
+  return jsonSecure({ error: "Unsupported actionSlug" }, { status: 400 });
 };

@@ -1,8 +1,11 @@
 import { dispatchNotification } from "../_lib/dispatch.js";
+import { jsonSecure, requireAdminScope } from "../_lib/security.js";
 
 interface Env {
   WARPLETS: D1Database;
   ADMIN_NOTIFY_TEST_TOKEN?: string;
+  ADMIN_API_KEYS_JSON?: string;
+  WARPLETS_KV?: KVNamespace;
 }
 
 interface RequestBody {
@@ -21,11 +24,9 @@ interface TokenRow {
 }
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
-  const configuredToken = context.env.ADMIN_NOTIFY_TEST_TOKEN;
-  const suppliedToken = context.request.headers.get("x-admin-token");
-
-  if (!configuredToken || suppliedToken !== configuredToken) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  const auth = await requireAdminScope(context, { scope: "notify:send" });
+  if (!auth.ok) {
+    return auth.response;
   }
 
   const json = (await context.request.json().catch(() => ({}))) as RequestBody;
@@ -46,7 +47,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       .first()) as TokenRow | null;
 
     if (!row) {
-      return Response.json(
+      return jsonSecure(
         { error: "No enabled notification token found for this FID" },
         { status: 404 }
       );
@@ -64,7 +65,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     ).first()) as TokenRow | null;
 
     if (!row) {
-      return Response.json(
+      return jsonSecure(
         {
           error: "No enabled notification token found",
           hint: "Open the Mini App and add/enable notifications, then retry.",
@@ -95,10 +96,10 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   });
 
   if (result.state === "validation_error") {
-    return Response.json({ error: result.message }, { status: 400 });
+    return jsonSecure({ error: result.message }, { status: 400 });
   }
 
-  return Response.json({
+  return jsonSecure({
     ok: result.state === "success",
     state: result.state,
     sentToFid: resolvedFid,

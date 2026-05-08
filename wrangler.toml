@@ -36,9 +36,9 @@ SNAP_PUBLIC_BASE_URL = "https://api-dev.10x.meme"
 
 [[env.dev.kv_namespaces]]
 binding = "WARPLETS_KV"
-id = "3f55e9bea2534955b833521a2f5b55e7"
+id = "635a084da4ba40e99c3289127178c0a8"
 
 [[env.dev.d1_databases]]
 binding       = "WARPLETS"
-database_name = "warplets"
-database_id   = "45a4cc4c-788e-48dd-89bf-7b504b17655d"
+database_name = "warplets_dev"
+database_id   = "e828c5a0-ba86-47c4-93ce-1b34d45a50b0"
