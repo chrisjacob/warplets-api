@@ -268,3 +268,13 @@ This returns:
 - admin auth failure outcomes
 - rate-limit signal outcomes
 - top routes, IPs, and event types in the last 24h
+
+### Local/dev action fallback (explicit opt-in)
+
+By default, action APIs require a valid signed action session token.
+
+For local/dev troubleshooting only, you may enable `fid` fallback by setting:
+
+- `ALLOW_INSECURE_ACTION_FID_FALLBACK=1`
+
+This fallback is only considered on `-local`, `-dev`, and `.pages.dev` hosts.

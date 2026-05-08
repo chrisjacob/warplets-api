@@ -3,6 +3,7 @@ interface Env {
   WARPLETS_KV?: KVNamespace;
   NEYNAR_API_KEY?: string;
   ACTION_SESSION_SECRET?: string;
+  ALLOW_INSECURE_ACTION_FID_FALLBACK?: string;
 }
 
 interface RequestBody {
@@ -71,9 +72,12 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   const bodyFid = typeof body.fid === "number" && Number.isInteger(body.fid) && body.fid > 0 ? body.fid : null;
   const session = await verifyActionSessionToken(context.env.ACTION_SESSION_SECRET, sessionToken);
   const allowInsecureFallback =
-    requestUrl.hostname.includes("-local.") ||
-    requestUrl.hostname.includes("-dev.") ||
-    requestUrl.hostname.endsWith(".pages.dev");
+    context.env.ALLOW_INSECURE_ACTION_FID_FALLBACK === "1" &&
+    (
+      requestUrl.hostname.includes("-local.") ||
+      requestUrl.hostname.includes("-dev.") ||
+      requestUrl.hostname.endsWith(".pages.dev")
+    );
   const fid = session.valid ? session.fid : (allowInsecureFallback ? bodyFid : null);
   if (!fid) {
     const authOutcome = session.valid ? "missing_fid_fallback" : session.reason;
