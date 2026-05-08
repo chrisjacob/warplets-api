@@ -244,6 +244,15 @@ export async function requireAdminScope<T extends SecurityEnv>(
   const legacyToken = context.env.ADMIN_NOTIFY_TEST_TOKEN?.trim();
   const allowLegacyToken = (context.env.ADMIN_ALLOW_LEGACY_TOKEN ?? "").trim() === "1";
   if (allowLegacyToken && legacyToken && suppliedToken === legacyToken) {
+    await logSecurityEvent(context.env.WARPLETS, {
+      eventType: "admin_auth",
+      outcome: "legacy_token_used",
+      actorType: "admin_key",
+      actorId: "legacy-admin-token",
+      ipAddress: ip,
+      route: requestUrl.pathname,
+      details: options.scope,
+    });
     return { ok: true, keyId: "legacy-admin-token" };
   }
 
