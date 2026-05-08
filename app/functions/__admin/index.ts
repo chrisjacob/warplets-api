@@ -99,6 +99,33 @@ export const onRequestGet: PagesFunction = () => {
     </table>
   </section>
 
+  <!-- SECURITY -->
+  <section>
+    <h2>Security</h2>
+    <div class="stat-grid">
+      <div class="stat-box"><div class="num" id="sec24h">â€”</div><div class="lbl">Security events 24h</div></div>
+      <div class="stat-box"><div class="num" id="sec7d">â€”</div><div class="lbl">Security events 7d</div></div>
+    </div>
+    <table>
+      <thead><tr>
+        <th>Event</th><th>Count (24h)</th>
+      </tr></thead>
+      <tbody id="secEventsBody"><tr><td colspan="2" style="color:#555;text-align:center;padding:1rem">Loadingâ€¦</td></tr></tbody>
+    </table>
+    <table style="margin-top:.75rem">
+      <thead><tr>
+        <th>Route</th><th>Count (24h)</th>
+      </tr></thead>
+      <tbody id="secRoutesBody"><tr><td colspan="2" style="color:#555;text-align:center;padding:1rem">Loadingâ€¦</td></tr></tbody>
+    </table>
+    <table style="margin-top:.75rem">
+      <thead><tr>
+        <th>IP</th><th>Count (24h)</th>
+      </tr></thead>
+      <tbody id="secIpsBody"><tr><td colspan="2" style="color:#555;text-align:center;padding:1rem">Loadingâ€¦</td></tr></tbody>
+    </table>
+  </section>
+
   <!-- SEND NOTIFICATION -->
   <section>
     <h2>Send notification</h2>
@@ -297,7 +324,36 @@ export const onRequestGet: PagesFunction = () => {
     } catch (e) { if (e.message !== 'Unauthorized') console.error(e); }
   }
 
-  function loadAll() { loadStats(); loadInspect(); loadEmail(); }
+  async function loadSecurity() {
+    try {
+      const r = await api('/api/security/stats');
+      const data = await r.json();
+
+      document.getElementById('sec24h').textContent = String(data?.windows?.last24h ?? 'â€”');
+      document.getElementById('sec7d').textContent = String(data?.windows?.last7d ?? 'â€”');
+
+      const eventRows = Array.isArray(data?.topEvents24h) ? data.topEvents24h : [];
+      const routeRows = Array.isArray(data?.topRoutes24h) ? data.topRoutes24h : [];
+      const ipRows = Array.isArray(data?.topIps24h) ? data.topIps24h : [];
+
+      const secEventsBody = document.getElementById('secEventsBody');
+      secEventsBody.innerHTML = eventRows.length
+        ? eventRows.map(row => \`<tr><td class="mono">\${esc(row.event_type)}</td><td>\${row.count}</td></tr>\`).join('')
+        : '<tr><td colspan="2" style="color:#555;text-align:center;padding:1rem">No data yet</td></tr>';
+
+      const secRoutesBody = document.getElementById('secRoutesBody');
+      secRoutesBody.innerHTML = routeRows.length
+        ? routeRows.map(row => \`<tr><td class="mono">\${esc(row.route || 'n/a')}</td><td>\${row.count}</td></tr>\`).join('')
+        : '<tr><td colspan="2" style="color:#555;text-align:center;padding:1rem">No data yet</td></tr>';
+
+      const secIpsBody = document.getElementById('secIpsBody');
+      secIpsBody.innerHTML = ipRows.length
+        ? ipRows.map(row => \`<tr><td class="mono">\${esc(row.ip_address || 'n/a')}</td><td>\${row.count}</td></tr>\`).join('')
+        : '<tr><td colspan="2" style="color:#555;text-align:center;padding:1rem">No data yet</td></tr>';
+    } catch (e) { if (e.message !== 'Unauthorized') console.error(e); }
+  }
+
+  function loadAll() { loadStats(); loadInspect(); loadSecurity(); loadEmail(); }
 
   document.getElementById('refreshBtn').addEventListener('click', loadAll);
   document.getElementById('sendApp').addEventListener('change', updateSendTargetUiFromApp);
