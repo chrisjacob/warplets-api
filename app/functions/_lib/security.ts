@@ -37,7 +37,7 @@ const DEFAULT_CSP = [
   "style-src 'self' 'unsafe-inline'",
   "script-src 'self' 'unsafe-inline'",
   "connect-src 'self' https:",
-  "frame-ancestors 'none'",
+  "frame-ancestors 'self' https://farcaster.xyz https://*.farcaster.xyz https://warpcast.com https://*.warpcast.com",
   "base-uri 'self'",
 ].join("; ");
 
@@ -52,12 +52,16 @@ export function applySecurityHeaders(
   const headers = cloneHeaders(response.headers);
   headers.set("x-content-type-options", "nosniff");
   headers.set("referrer-policy", "strict-origin-when-cross-origin");
-  headers.set("x-frame-options", "DENY");
   headers.set("permissions-policy", "camera=(), microphone=(), geolocation=()");
   headers.set("cache-control", headers.get("cache-control") ?? "no-store");
 
   const contentType = headers.get("content-type") ?? "";
   const shouldSetCsp = options?.isHtml || contentType.includes("text/html");
+  if (!shouldSetCsp) {
+    headers.set("x-frame-options", "DENY");
+  } else {
+    headers.delete("x-frame-options");
+  }
   if (shouldSetCsp) {
     headers.set("content-security-policy", options?.csp ?? DEFAULT_CSP);
   }

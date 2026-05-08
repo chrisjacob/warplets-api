@@ -1230,7 +1230,7 @@ export default function App() {
         const outreachLine = castOutreach.length > 0 ? castOutreach : "@warplets";
         const castResult = await sdk.actions.composeCast({
           text:
-            `🟢 10X Warplets (Private 10K NFT Drop)\n\nPrice $${urgency.currentPrice} → $${urgency.nextPrice} in ${urgency.countdown}.\nSupply private → public every 10 days.\nAre you on the list? Don't miss out.\n\n${castRarityLine}\n...what's your rarity?\n\nFYI you're on the list ${outreachLine}\n`,
+            `🟢 10X Warplets (Private 10K NFT Drop)\n\nPrice $${urgency.currentPrice} → $${urgency.nextPrice} in ${urgency.countdown}.\nSupply private → public every 10 days.\nAre you on the list? Don't miss out.\n\n${castRarityLine}\n\n...what's your rarity?\n\nFYI you're on the list ${outreachLine}`,
           embeds: ["https://drop.10x.meme", `https://warplets.10x.meme/${purchasedTokenId}.${SHARE_IMAGE_EXTENSION}`],
         });
 
@@ -1244,7 +1244,7 @@ export default function App() {
           ? `My rarity #${formattedTokenId} of 10,000! 👀`
           : "My rarity is 10,000! 👀";
         const outreachLine = tweetOutreach.length > 0 ? tweetOutreach : "@10XMemeX";
-        const text = `🟢 10X Warplets (Private 10K NFT Drop)\n\nPrice $${urgency.currentPrice} → $${urgency.nextPrice} in ${urgency.countdown}.\nSupply private → public every 10 days.\nAre you on the list? Don't miss out.\n\n${castRarityLine}\n...what's your rarity?\n\nFYI you're on the list ${outreachLine}\n`;
+        const text = `🟢 10X Warplets (Private 10K NFT Drop)\n\nPrice $${urgency.currentPrice} → $${urgency.nextPrice} in ${urgency.countdown}.\nSupply private → public every 10 days.\nAre you on the list? Don't miss out.\n\n${castRarityLine}\n\n...what's your rarity?\n\nFYI you're on the list ${outreachLine}`;
         const intentUrl = `https://x.com/intent/post?${new URLSearchParams({
           text,
           url: "https://farcaster.xyz/miniapps/cSNbxgFkuFRi/10x-warplets-drop",
@@ -1344,7 +1344,7 @@ export default function App() {
         const outreachLine = castOutreach.length > 0 ? castOutreach : "@warplets";
         const castResult = await sdk.actions.composeCast({
           text:
-            `🟢 10X Warplets (Private 10K NFT Drop)\n\nPrice $${urgency.currentPrice} → $${urgency.nextPrice} in ${urgency.countdown}.\nSupply private → public every 10 days.\nAre you on the list? Don't miss out.\n\n${castRarityLine}\n...what's your rarity?\n\nFYI you're on the list ${outreachLine}\n`,
+            `🟢 10X Warplets (Private 10K NFT Drop)\n\nPrice $${urgency.currentPrice} → $${urgency.nextPrice} in ${urgency.countdown}.\nSupply private → public every 10 days.\nAre you on the list? Don't miss out.\n\n${castRarityLine}\n\n...what's your rarity?\n\nFYI you're on the list ${outreachLine}`,
           embeds: ["https://drop.10x.meme", `https://warplets.10x.meme/${purchasedTokenId}.${SHARE_IMAGE_EXTENSION}`],
         });
 
