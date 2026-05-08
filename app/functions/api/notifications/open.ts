@@ -14,6 +14,7 @@ import { getClientIp, jsonSecure, logSecurityEvent, rateLimit, readJsonBodyWithL
 interface Env {
   WARPLETS: D1Database;
   WARPLETS_KV?: KVNamespace;
+  SECURITY_LOG_SALT?: string;
 }
 
 interface RequestBody {
@@ -34,7 +35,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   const ip = getClientIp(context.request);
   const ipRate = await rateLimit(context.env.WARPLETS_KV, "notification-open-ip", ip, 90, 60);
   if (!ipRate.allowed) {
-    await logSecurityEvent(context.env.WARPLETS, {
+    await logSecurityEvent(context.env.WARPLETS, { logSalt: context.env.SECURITY_LOG_SALT }, {
       eventType: "rate_limit",
       outcome: "notification_open_rate_limited",
       actorType: "ip",

@@ -1,6 +1,7 @@
 interface Env {
   WARPLETS: D1Database;
   WARPLETS_KV?: KVNamespace;
+  SECURITY_LOG_SALT?: string;
 }
 import { applySecurityHeaders, getClientIp, logSecurityEvent, rateLimit } from "../../_lib/security.js";
 
@@ -10,7 +11,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   const ip = getClientIp(context.request);
   const ipRate = await rateLimit(context.env.WARPLETS_KV, "email-click-ip", ip, 120, 60);
   if (!ipRate.allowed) {
-    await logSecurityEvent(context.env.WARPLETS, {
+    await logSecurityEvent(context.env.WARPLETS, { logSalt: context.env.SECURITY_LOG_SALT }, {
       eventType: "rate_limit",
       outcome: "email_click_rate_limited",
       actorType: "ip",

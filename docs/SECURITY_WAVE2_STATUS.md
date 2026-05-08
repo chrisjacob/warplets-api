@@ -36,3 +36,9 @@ Last updated: 2026-05-08
 - Signed context verification expansion for more endpoints
 - Data retention and PII minimization policy enforcement
 - Periodic automated abuse tests + dependency/SAST checks
+
+## Wave 3 progress
+
+- [x] Security audit PII minimization: IP addresses are now stored as salted SHA-256 hashes in `security_audit_events`.
+- [x] Security audit text sanitization + bounded field lengths for safer log ingestion.
+- [x] Admin retention run endpoint added: `POST /api/security/retention-run` (currently purges security audit records older than 30 days).

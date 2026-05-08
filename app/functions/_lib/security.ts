@@ -27,6 +27,7 @@ export interface SecurityEnv {
   ADMIN_API_KEYS_JSON?: string;
   ADMIN_ALLOW_LEGACY_TOKEN?: string;
   ACTION_SESSION_SECRET?: string;
+  SECURITY_LOG_SALT?: string;
 }
 
 const DEFAULT_CSP = [
@@ -87,6 +88,25 @@ async function sha256Hex(input: string): Promise<string> {
   return Array.from(new Uint8Array(digest))
     .map((byte) => byte.toString(16).padStart(2, "0"))
     .join("");
+}
+
+function compactWhitespace(value: string): string {
+  return value.replace(/\s+/g, " ").trim();
+}
+
+function sanitizeAuditText(value: string | null | undefined, maxLength: number): string | null {
+  if (!value) return null;
+  const cleaned = compactWhitespace(value.replace(/[\u0000-\u001F\u007F]/g, ""));
+  if (!cleaned) return null;
+  return cleaned.slice(0, maxLength);
+}
+
+async function hashAuditIp(ipAddress: string | null | undefined, salt?: string): Promise<string | null> {
+  if (!ipAddress) return null;
+  const normalizedIp = sanitizeAuditText(ipAddress, 128);
+  if (!normalizedIp) return null;
+  const pepper = (salt ?? "").trim();
+  return sha256Hex(`audit-ip:v1:${pepper}:${normalizedIp}`);
 }
 
 function parseAdminKeyConfig(raw?: string): AdminKeyRecord[] {
@@ -176,6 +196,7 @@ export async function rateLimit(
 
 export async function logSecurityEvent(
   db: D1Database | undefined,
+  options: { logSalt?: string } | undefined,
   payload: {
     eventType: string;
     outcome: string;
@@ -189,6 +210,14 @@ export async function logSecurityEvent(
   if (!db) return;
   const now = new Date().toISOString();
   try {
+    const hashedIp = await hashAuditIp(payload.ipAddress ?? null, options?.logSalt);
+    const safeEventType = sanitizeAuditText(payload.eventType, 80) ?? "unknown";
+    const safeOutcome = sanitizeAuditText(payload.outcome, 80) ?? "unknown";
+    const safeActorType = sanitizeAuditText(payload.actorType ?? "system", 40) ?? "system";
+    const safeActorId = sanitizeAuditText(payload.actorId ?? null, 120);
+    const safeRoute = sanitizeAuditText(payload.route ?? null, 180);
+    const safeDetails = sanitizeAuditText(payload.details ?? null, 1024);
+
     await db
       .prepare(
         `INSERT INTO security_audit_events (
@@ -196,13 +225,13 @@ export async function logSecurityEvent(
          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
       )
       .bind(
-        payload.eventType,
-        payload.outcome,
-        payload.actorType ?? "system",
-        payload.actorId ?? null,
-        payload.ipAddress ?? null,
-        payload.route ?? null,
-        payload.details ?? null,
+        safeEventType,
+        safeOutcome,
+        safeActorType,
+        safeActorId,
+        hashedIp,
+        safeRoute,
+        safeDetails,
         now
       )
       .run();
@@ -220,7 +249,7 @@ export async function requireAdminScope<T extends SecurityEnv>(
   const ip = getClientIp(context.request);
 
   if (!suppliedToken) {
-    await logSecurityEvent(context.env.WARPLETS, {
+    await logSecurityEvent(context.env.WARPLETS, { logSalt: context.env.SECURITY_LOG_SALT }, {
       eventType: "admin_auth",
       outcome: "missing_token",
       actorType: "admin_key",
@@ -244,7 +273,7 @@ export async function requireAdminScope<T extends SecurityEnv>(
   const legacyToken = context.env.ADMIN_NOTIFY_TEST_TOKEN?.trim();
   const allowLegacyToken = (context.env.ADMIN_ALLOW_LEGACY_TOKEN ?? "").trim() === "1";
   if (allowLegacyToken && legacyToken && suppliedToken === legacyToken) {
-    await logSecurityEvent(context.env.WARPLETS, {
+    await logSecurityEvent(context.env.WARPLETS, { logSalt: context.env.SECURITY_LOG_SALT }, {
       eventType: "admin_auth",
       outcome: "legacy_token_used",
       actorType: "admin_key",
@@ -263,7 +292,7 @@ export async function requireAdminScope<T extends SecurityEnv>(
     return { ok: false, response };
   }
 
-  await logSecurityEvent(context.env.WARPLETS, {
+  await logSecurityEvent(context.env.WARPLETS, { logSalt: context.env.SECURITY_LOG_SALT }, {
     eventType: "admin_auth",
     outcome: "invalid_token",
     actorType: "admin_key",

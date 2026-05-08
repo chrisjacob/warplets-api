@@ -3,6 +3,7 @@ interface Env {
   RESEND_API_KEY?: string;
   RESEND_FROM_EMAIL?: string;
   WARPLETS_KV?: KVNamespace;
+  SECURITY_LOG_SALT?: string;
 }
 import { getClientIp, jsonSecure, logSecurityEvent, rateLimit, readJsonBodyWithLimit } from "../../_lib/security.js";
 import { outboundFetch } from "../../_lib/outbound.js";
@@ -173,7 +174,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   const ip = getClientIp(context.request);
   const ipRate = await rateLimit(context.env.WARPLETS_KV, "email-subscribe-ip", ip, 30, 60);
   if (!ipRate.allowed) {
-    await logSecurityEvent(context.env.WARPLETS, {
+    await logSecurityEvent(context.env.WARPLETS, { logSalt: context.env.SECURITY_LOG_SALT }, {
       eventType: "rate_limit",
       outcome: "email_subscribe_rate_limited",
       actorType: "ip",

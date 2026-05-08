@@ -22,6 +22,7 @@ export interface Env {
   WARPLETS: D1Database;
   WARPLETS_KV?: KVNamespace;
   NEYNAR_API_KEY: string;
+  SECURITY_LOG_SALT?: string;
   APP_APP_FID?: string;
   DROP_APP_FID?: string;
   FIND_APP_FID?: string;
@@ -128,7 +129,7 @@ export async function handleWebhookRequest(
 
   const eventTimestamp = extractWebhookTimestamp(requestJson);
   if (eventTimestamp && !isTimestampFresh(eventTimestamp)) {
-    await logSecurityEvent(env.WARPLETS, {
+    await logSecurityEvent(env.WARPLETS, { logSalt: env.SECURITY_LOG_SALT }, {
       eventType: "webhook_guard",
       outcome: "stale_event",
       actorType: "ip",
@@ -140,7 +141,7 @@ export async function handleWebhookRequest(
   }
 
   if (await isDuplicateWebhookEvent(env.WARPLETS_KV, requestJson)) {
-    await logSecurityEvent(env.WARPLETS, {
+    await logSecurityEvent(env.WARPLETS, { logSalt: env.SECURITY_LOG_SALT }, {
       eventType: "webhook_guard",
       outcome: "duplicate_event",
       actorType: "ip",

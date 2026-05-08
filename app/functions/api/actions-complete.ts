@@ -4,6 +4,7 @@ interface Env {
   NEYNAR_API_KEY?: string;
   ACTION_SESSION_SECRET?: string;
   ALLOW_INSECURE_ACTION_FID_FALLBACK?: string;
+  SECURITY_LOG_SALT?: string;
 }
 
 interface RequestBody {
@@ -45,7 +46,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   const ip = getClientIp(context.request);
   const ipRate = await rateLimit(context.env.WARPLETS_KV, "actions-complete-ip", ip, 60, 60);
   if (!ipRate.allowed) {
-    await logSecurityEvent(context.env.WARPLETS, {
+    await logSecurityEvent(context.env.WARPLETS, { logSalt: context.env.SECURITY_LOG_SALT }, {
       eventType: "rate_limit",
       outcome: "actions_complete_rate_limited",
       actorType: "ip",
@@ -81,7 +82,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   const fid = session.valid ? session.fid : (allowInsecureFallback ? bodyFid : null);
   if (!fid) {
     const authOutcome = session.valid ? "missing_fid_fallback" : session.reason;
-    await logSecurityEvent(context.env.WARPLETS, {
+    await logSecurityEvent(context.env.WARPLETS, { logSalt: context.env.SECURITY_LOG_SALT }, {
       eventType: "actions_complete_auth",
       outcome: authOutcome,
       actorType: "ip",
@@ -250,7 +251,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       .run();
   }
 
-  await logSecurityEvent(context.env.WARPLETS, {
+  await logSecurityEvent(context.env.WARPLETS, { logSalt: context.env.SECURITY_LOG_SALT }, {
     eventType: "actions_complete",
     outcome: "ok",
     actorType: "fid",

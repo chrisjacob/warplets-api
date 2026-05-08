@@ -36,6 +36,7 @@ interface Env {
   WARPLETS_KV: KVNamespace;
   ADMIN_NOTIFY_TEST_TOKEN?: string;
   ADMIN_API_KEYS_JSON?: string;
+  SECURITY_LOG_SALT?: string;
 }
 
 interface RequestBody {
@@ -82,7 +83,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   const ip = getClientIp(context.request);
   const adminRate = await rateLimit(context.env.WARPLETS_KV, "admin-send", auth.keyId, 12, 60);
   if (!adminRate.allowed) {
-    await logSecurityEvent(context.env.WARPLETS, {
+    await logSecurityEvent(context.env.WARPLETS, { logSalt: context.env.SECURITY_LOG_SALT }, {
       eventType: "rate_limit",
       outcome: "admin_send_key_rate_limited",
       actorType: "admin_key",
@@ -97,7 +98,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
   const ipRate = await rateLimit(context.env.WARPLETS_KV, "admin-send-ip", ip, 25, 60);
   if (!ipRate.allowed) {
-    await logSecurityEvent(context.env.WARPLETS, {
+    await logSecurityEvent(context.env.WARPLETS, { logSalt: context.env.SECURITY_LOG_SALT }, {
       eventType: "rate_limit",
       outcome: "admin_send_ip_rate_limited",
       actorType: "ip",
@@ -252,7 +253,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     return acc;
   }, {});
 
-  await logSecurityEvent(context.env.WARPLETS, {
+  await logSecurityEvent(context.env.WARPLETS, { logSalt: context.env.SECURITY_LOG_SALT }, {
     eventType: "notification_send",
     outcome: "ok",
     actorType: "admin_key",

@@ -248,6 +248,10 @@ Suggested scopes include:
 - `email:list`
 - `security:stats`
 
+Optional hardening secret:
+
+- `SECURITY_LOG_SALT` (used to salt-hash IP addresses in `security_audit_events`)
+
 ### Incident response runbook (minimum)
 
 1. Revoke affected admin keys by updating `ADMIN_API_KEYS_JSON`.
@@ -268,6 +272,14 @@ This returns:
 - admin auth failure outcomes
 - rate-limit signal outcomes
 - top routes, IPs, and event types in the last 24h
+
+### Security retention run
+
+Admin users with `security:stats` scope can trigger:
+
+- `POST /api/security/retention-run`
+
+Current policy in code: remove `security_audit_events` rows older than 30 days.
 
 ### Local/dev action fallback (explicit opt-in)
 
