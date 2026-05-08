@@ -28,6 +28,10 @@ function asNonEmptyString(value: unknown): string | null {
 }
 
 async function isFollowingFid(apiKey: string, viewerFid: number, targetFid: number): Promise<boolean> {
+  if (viewerFid === targetFid) {
+    return true;
+  }
+
   const endpoint = `https://api.neynar.com/v2/farcaster/user/bulk?viewer_fid=${viewerFid}&fids=${targetFid}`;
   const response = await outboundFetch(endpoint, { headers: { "x-api-key": apiKey } });
   if (!response.ok) return false;
