@@ -20,6 +20,7 @@
     "build": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
     "security:preflight": "node scripts/security-preflight.mjs",
+    "security:smoke": "node scripts/security-smoke.mjs",
     "deploy": "wrangler deploy"
   },
   "dependencies": {

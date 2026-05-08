@@ -222,6 +222,18 @@ The check fails if:
 - any Wrangler binding ID is still a `REPLACE_WITH_...` placeholder
 - preview/dev and prod reuse the same KV/D1 binding IDs
 
+Quick smoke checks (authz + headers + trust boundaries):
+
+```bash
+pnpm security:smoke
+```
+
+Optional target host:
+
+```bash
+pnpm security:smoke -- https://drop-dev.10x.meme
+```
+
 ### Admin API auth model
 
 - Use `ADMIN_API_KEYS_JSON` (Cloudflare secret) for scoped admin keys.
