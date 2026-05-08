@@ -100,6 +100,24 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   }
   const appSlug = normalizeAppSlug(body.appSlug, resolveAppSlugFromUrl(new URL(context.request.url)));
 
+  if (fid) {
+    const fidRate = await rateLimit(context.env.WARPLETS_KV, "notification-open-fid", String(fid), 45, 60);
+    if (!fidRate.allowed) {
+      const response = jsonSecure({ error: "Rate limit exceeded" }, { status: 429 });
+      response.headers.set("retry-after", String(fidRate.retryAfterSeconds));
+      return response;
+    }
+  }
+
+  if (sessionToken) {
+    const sessionRate = await rateLimit(context.env.WARPLETS_KV, "notification-open-session", sessionToken, 60, 60);
+    if (!sessionRate.allowed) {
+      const response = jsonSecure({ error: "Rate limit exceeded" }, { status: 429 });
+      response.headers.set("retry-after", String(sessionRate.retryAfterSeconds));
+      return response;
+    }
+  }
+
   const idempotencyKey = `${notificationId}:${fid ?? "anon"}:${appSlug ?? "app"}`;
   const openKeyRate = await rateLimit(context.env.WARPLETS_KV, "notification-open-idempotency", idempotencyKey, 1, 600);
   if (!openKeyRate.allowed) {

@@ -59,7 +59,9 @@ type NeynarUserRecord = {
 const NEYNAR_VIEWER_FID = 1129138;
 const RECENT_BUYS_CACHE_TTL_SECONDS = 600;
 const RECENT_BUYS_CACHE_PREFIX = "recent-buys-v2";
-const BEST_FRIENDS_CACHE_STALE_SECONDS = 2592000;
+const REWARDED_USERS_CACHE_PREFIX = "rewarded-users-v1";
+const RECENT_BUYS_CACHE_LOCK_TTL_SECONDS = 15;
+const OUTREACH_CANDIDATES_CACHE_TTL_SECONDS = 600;
 const OUTREACH_COOLDOWN_MS = 4 * 60 * 60 * 1000;
 
 function normalizeAndRankBuyers(rows: Array<{ fid: unknown; pfp_url: unknown; score: unknown }>): RecentBuyer[] {
@@ -159,6 +161,7 @@ function isRecentBuyer(value: unknown): value is RecentBuyer {
 
 async function loadRecentBuysCached(env: Env, enableMatchedTopUp: boolean): Promise<RecentBuyer[]> {
   const cacheKey = makeRecentBuysCacheKey(enableMatchedTopUp);
+  const lockKey = `${cacheKey}:lock`;
 
   const cached = await env.WARPLETS_KV.get(cacheKey, "json");
   if (Array.isArray(cached)) {
@@ -166,12 +169,17 @@ async function loadRecentBuysCached(env: Env, enableMatchedTopUp: boolean): Prom
     if (normalized.length > 0) return normalized;
   }
 
-  const recentBuys = await loadRecentBuysWithOptionalTopUp(env.WARPLETS, enableMatchedTopUp);
-  await env.WARPLETS_KV.put(cacheKey, JSON.stringify(recentBuys), {
-    expirationTtl: RECENT_BUYS_CACHE_TTL_SECONDS,
-  });
+  const lockRate = await env.WARPLETS_KV.get(lockKey);
+  if (!lockRate) {
+    await env.WARPLETS_KV.put(lockKey, "1", { expirationTtl: RECENT_BUYS_CACHE_LOCK_TTL_SECONDS });
+    const recentBuys = await loadRecentBuysWithOptionalTopUp(env.WARPLETS, enableMatchedTopUp);
+    await env.WARPLETS_KV.put(cacheKey, JSON.stringify(recentBuys), {
+      expirationTtl: RECENT_BUYS_CACHE_TTL_SECONDS,
+    });
+    return recentBuys;
+  }
 
-  return recentBuys;
+  return loadRecentBuysWithOptionalTopUp(env.WARPLETS, enableMatchedTopUp);
 }
 
 async function loadRewardedUsers(
@@ -207,6 +215,29 @@ async function loadRewardedUsers(
   }
 
   return toppedUp;
+}
+
+function makeRewardedUsersCacheKey(enableTopUp: boolean): string {
+  return `${REWARDED_USERS_CACHE_PREFIX}:${enableTopUp ? "topup" : "rewarded-only"}`;
+}
+
+async function loadRewardedUsersCached(
+  env: Env,
+  topUpUsers: RecentBuyer[],
+  enableTopUp: boolean
+): Promise<RecentBuyer[]> {
+  const cacheKey = makeRewardedUsersCacheKey(enableTopUp);
+  const cached = await env.WARPLETS_KV.get(cacheKey, "json");
+  if (Array.isArray(cached)) {
+    const normalized = cached.filter(isRecentBuyer).slice(0, 10);
+    if (normalized.length > 0) return normalized;
+  }
+
+  const users = await loadRewardedUsers(env.WARPLETS, topUpUsers, enableTopUp);
+  await env.WARPLETS_KV.put(cacheKey, JSON.stringify(users), {
+    expirationTtl: RECENT_BUYS_CACHE_TTL_SECONDS,
+  });
+  return users;
 }
 
 function asObject(value: unknown): Record<string, unknown> | undefined {
@@ -342,16 +373,15 @@ async function loadOrFetchBestFriends(
   neynarApiKey?: string
 ): Promise<BestFriend[]> {
   const now = new Date().toISOString();
-  const staleThreshold = new Date(Date.now() - BEST_FRIENDS_CACHE_STALE_SECONDS * 1000).toISOString();
 
   const cached = await db
     .prepare(
       `SELECT best_friend_fid, mutual_affinity_score, username
        FROM warplets_user_best_friends
-       WHERE user_fid = ? AND fetched_at > ?
+       WHERE user_fid = ?
        ORDER BY mutual_affinity_score DESC`
     )
-    .bind(userFid, staleThreshold)
+    .bind(userFid)
     .all<{ best_friend_fid: number; mutual_affinity_score: number; username: string }>();
 
   if (cached.results && cached.results.length > 0) {
@@ -525,6 +555,31 @@ async function loadOutreachCandidates(db: D1Database, userId: number): Promise<O
   };
 }
 
+function makeOutreachCacheKey(userId: number): string {
+  return `outreach-candidates-v1:${userId}`;
+}
+
+async function loadOutreachCandidatesCached(env: Env, userId: number): Promise<OutreachCandidate> {
+  const cacheKey = makeOutreachCacheKey(userId);
+  const cached = await env.WARPLETS_KV.get(cacheKey, "json");
+  if (cached && typeof cached === "object") {
+    const record = cached as OutreachCandidate;
+    if (Array.isArray(record.farcasterUsernames) && Array.isArray(record.xUsernames) && Array.isArray(record.tokenIds)) {
+      return {
+        farcasterUsernames: record.farcasterUsernames.slice(0, 10),
+        xUsernames: record.xUsernames.slice(0, 10),
+        tokenIds: record.tokenIds.slice(0, 10),
+      };
+    }
+  }
+
+  const candidates = await loadOutreachCandidates(env.WARPLETS, userId);
+  await env.WARPLETS_KV.put(cacheKey, JSON.stringify(candidates), {
+    expirationTtl: OUTREACH_CANDIDATES_CACHE_TTL_SECONDS,
+  });
+  return candidates;
+}
+
 export const onRequestGet: PagesFunction<Env> = async (context) => {
   const url = new URL(context.request.url);
   const hostname = url.hostname;
@@ -533,8 +588,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     context.env,
     allowMatchedTopUp(hostname)
   );
-  const rewardedUsers = await loadRewardedUsers(
-    context.env.WARPLETS,
+  const rewardedUsers = await loadRewardedUsersCached(
+    context.env,
     recentBuys,
     allowMatchedTopUp(hostname)
   );
@@ -563,7 +618,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
           fidNum,
           user.best_friends_warplets_on
         );
-        outreachCandidates = await loadOutreachCandidates(context.env.WARPLETS, user.id);
+        outreachCandidates = await loadOutreachCandidatesCached(context.env, user.id);
       }
     }
   }
@@ -614,8 +669,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     context.env,
     allowMatchedTopUp(hostname)
   );
-  const rewardedUsers = await loadRewardedUsers(
-    context.env.WARPLETS,
+  const rewardedUsers = await loadRewardedUsersCached(
+    context.env,
     recentBuys,
     allowMatchedTopUp(hostname)
   );
@@ -680,7 +735,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
           null
         );
       }
-      outreachCandidates = await loadOutreachCandidates(context.env.WARPLETS, newUser.id);
+      outreachCandidates = await loadOutreachCandidatesCached(context.env, newUser.id);
     }
 
     const actionSessionToken = await createActionSessionToken(context.env.ACTION_SESSION_SECRET, fid, 3600);
@@ -705,7 +760,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     fid,
     existing.best_friends_warplets_on
   );
-  outreachCandidates = await loadOutreachCandidates(context.env.WARPLETS, existing.id);
+  outreachCandidates = await loadOutreachCandidatesCached(context.env, existing.id);
 
   const actionSessionToken = await createActionSessionToken(context.env.ACTION_SESSION_SECRET, fid, 3600);
   return jsonSecure({

@@ -110,6 +110,29 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   if (!actionSlug) {
     return jsonSecure({ error: "actionSlug is required" }, { status: 400 });
   }
+  const fidRate = await rateLimit(context.env.WARPLETS_KV, "actions-verify-fid", String(fid), 30, 60);
+  if (!fidRate.allowed) {
+    const response = jsonSecure({ error: "Rate limit exceeded" }, { status: 429 });
+    response.headers.set("retry-after", String(fidRate.retryAfterSeconds));
+    return response;
+  }
+
+  if (sessionToken) {
+    const sessionRate = await rateLimit(context.env.WARPLETS_KV, "actions-verify-session", sessionToken, 40, 60);
+    if (!sessionRate.allowed) {
+      const response = jsonSecure({ error: "Rate limit exceeded" }, { status: 429 });
+      response.headers.set("retry-after", String(sessionRate.retryAfterSeconds));
+      return response;
+    }
+  }
+
+  const cooldownKey = `${fid}:${actionSlug}`;
+  const actionCooldownRate = await rateLimit(context.env.WARPLETS_KV, "actions-verify-cooldown", cooldownKey, 1, 3);
+  if (!actionCooldownRate.allowed) {
+    const response = jsonSecure({ error: "Please try again shortly" }, { status: 429 });
+    response.headers.set("retry-after", String(actionCooldownRate.retryAfterSeconds));
+    return response;
+  }
 
   const apiKey = context.env.NEYNAR_API_KEY?.trim();
   if (!apiKey) {

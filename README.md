@@ -310,6 +310,12 @@ Admin users with `security:manage` scope can trigger:
 
 Current policy in code: remove `security_audit_events` rows older than 30 days.
 
+### Performance safe testing
+
+For low-risk performance validation (no production spam/junk data), follow:
+
+- [docs/PERFORMANCE_SAFE_TESTING.md](docs/PERFORMANCE_SAFE_TESTING.md)
+
 ### Local/dev action fallback (explicit opt-in)
 
 By default, action APIs require a valid signed action session token.

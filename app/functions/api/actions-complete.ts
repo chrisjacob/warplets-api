@@ -99,6 +99,33 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   if (!actionSlug) {
     return jsonSecure({ error: "actionSlug is required" }, { status: 400 });
   }
+  const fidRate = await rateLimit(context.env.WARPLETS_KV, "actions-complete-fid", String(fid), 40, 60);
+  if (!fidRate.allowed) {
+    const response = jsonSecure({ error: "Rate limit exceeded" }, { status: 429 });
+    response.headers.set("retry-after", String(fidRate.retryAfterSeconds));
+    return response;
+  }
+
+  if (sessionToken) {
+    const sessionRate = await rateLimit(context.env.WARPLETS_KV, "actions-complete-session", sessionToken, 50, 60);
+    if (!sessionRate.allowed) {
+      const response = jsonSecure({ error: "Rate limit exceeded" }, { status: 429 });
+      response.headers.set("retry-after", String(sessionRate.retryAfterSeconds));
+      return response;
+    }
+  }
+
+  const idempotencyKey = `actions-complete:${fid}:${actionSlug}:${verification ?? "none"}`;
+  const idempotencyRate = await rateLimit(context.env.WARPLETS_KV, "actions-complete-idempotency", idempotencyKey, 1, 10);
+  if (!idempotencyRate.allowed) {
+    return jsonSecure({
+      ok: true,
+      fid,
+      actionSlug,
+      verification: verification ?? null,
+      deduplicated: true,
+    });
+  }
 
   const user = await context.env.WARPLETS.prepare(
     "SELECT id, shared_on FROM warplets_users WHERE fid = ? LIMIT 1"
@@ -191,6 +218,9 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     )
       .bind(now, ...outreachTokenIds)
       .run();
+    if (context.env.WARPLETS_KV) {
+      await context.env.WARPLETS_KV.delete(`outreach-candidates-v1:${user.id}`);
+    }
   }
 
   const totals = await context.env.WARPLETS.prepare(
@@ -249,6 +279,12 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     )
       .bind(now, now, user.id)
       .run();
+    if (context.env.WARPLETS_KV) {
+      await Promise.all([
+        context.env.WARPLETS_KV.delete("rewarded-users-v1:topup"),
+        context.env.WARPLETS_KV.delete("rewarded-users-v1:rewarded-only"),
+      ]);
+    }
   }
 
   await logSecurityEvent(context.env.WARPLETS, { logSalt: context.env.SECURITY_LOG_SALT }, {

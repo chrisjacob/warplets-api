@@ -243,6 +243,24 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   const tokenId = asPositiveInteger(body.tokenId);
   const matched = asBoolean(body.matched) ? 1 : 0;
 
+  if (fid) {
+    const fidRate = await rateLimit(context.env.WARPLETS_KV, "email-subscribe-fid", String(fid), 8, 300);
+    if (!fidRate.allowed) {
+      const response = jsonSecure({ error: "Rate limit exceeded" }, { status: 429, headers: corsHeaders });
+      response.headers.set("retry-after", String(fidRate.retryAfterSeconds));
+      return response;
+    }
+  }
+
+  if (sessionToken) {
+    const sessionRate = await rateLimit(context.env.WARPLETS_KV, "email-subscribe-session", sessionToken, 12, 300);
+    if (!sessionRate.allowed) {
+      const response = jsonSecure({ error: "Rate limit exceeded" }, { status: 429, headers: corsHeaders });
+      response.headers.set("retry-after", String(sessionRate.retryAfterSeconds));
+      return response;
+    }
+  }
+
   const now = new Date().toISOString();
   const verifyToken = crypto.randomUUID().replace(/-/g, "");
 
