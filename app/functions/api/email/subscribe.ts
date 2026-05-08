@@ -5,6 +5,7 @@ interface Env {
   WARPLETS_KV?: KVNamespace;
 }
 import { getClientIp, jsonSecure, rateLimit, readJsonBody } from "../../_lib/security.js";
+import { outboundFetch } from "../../_lib/outbound.js";
 
 interface SubscribeBody {
   email?: unknown;
@@ -116,46 +117,50 @@ async function upsertResendContact(
   lastName: string,
   properties: Record<string, string>
 ): Promise<void> {
-  const createResponse = await fetch("https://api.resend.com/contacts", {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      Authorization: `Bearer ${resendApiKey}`,
-    },
-    body: JSON.stringify({
-      email,
-      firstName,
-      lastName,
-      unsubscribed: false,
-      properties,
-      segments: [{ id: RESEND_SEGMENT_ID }],
-      topics: [{ id: RESEND_TOPIC_ID, subscription: "opt_in" }],
-    }),
-  });
+  try {
+    const createResponse = await outboundFetch("https://api.resend.com/contacts", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        Authorization: `Bearer ${resendApiKey}`,
+      },
+      body: JSON.stringify({
+        email,
+        firstName,
+        lastName,
+        unsubscribed: false,
+        properties,
+        segments: [{ id: RESEND_SEGMENT_ID }],
+        topics: [{ id: RESEND_TOPIC_ID, subscription: "opt_in" }],
+      }),
+    });
 
-  if (createResponse.ok) return;
+    if (createResponse.ok) return;
 
-  const updateResponse = await fetch("https://api.resend.com/contacts", {
-    method: "PATCH",
-    headers: {
-      "content-type": "application/json",
-      Authorization: `Bearer ${resendApiKey}`,
-    },
-    body: JSON.stringify({
-      email,
-      firstName,
-      lastName,
-      unsubscribed: false,
-      properties,
-      segments: [{ id: RESEND_SEGMENT_ID }],
-      topics: [{ id: RESEND_TOPIC_ID, subscription: "opt_in" }],
-    }),
-  });
+    const updateResponse = await outboundFetch("https://api.resend.com/contacts", {
+      method: "PATCH",
+      headers: {
+        "content-type": "application/json",
+        Authorization: `Bearer ${resendApiKey}`,
+      },
+      body: JSON.stringify({
+        email,
+        firstName,
+        lastName,
+        unsubscribed: false,
+        properties,
+        segments: [{ id: RESEND_SEGMENT_ID }],
+        topics: [{ id: RESEND_TOPIC_ID, subscription: "opt_in" }],
+      }),
+    });
 
-  if (!updateResponse.ok) {
-    const createText = await createResponse.text().catch(() => "");
-    const updateText = await updateResponse.text().catch(() => "");
-    console.error("Resend contact upsert failed:", createText || createResponse.statusText, updateText || updateResponse.statusText);
+    if (!updateResponse.ok) {
+      const createText = await createResponse.text().catch(() => "");
+      const updateText = await updateResponse.text().catch(() => "");
+      console.error("Resend contact upsert failed:", createText || createResponse.statusText, updateText || updateResponse.statusText);
+    }
+  } catch (error) {
+    console.error("Resend contact upsert failed:", error);
   }
 }
 
@@ -258,24 +263,29 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     unsubscribeUrl.searchParams.set("email", email);
     unsubscribeUrl.searchParams.set("token", row.verify_token);
 
-    const resendResponse = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        Authorization: `Bearer ${resendApiKey}`,
-      },
-      body: JSON.stringify({
-        from: fromEmail,
-        to: [email],
-        subject: "Verify your 10X Meme email",
-        html: buildVerifyEmailHtml(verifyUrl.toString(), unsubscribeUrl.toString()),
-      }),
-    });
+    try {
+      const resendResponse = await outboundFetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          Authorization: `Bearer ${resendApiKey}`,
+        },
+        body: JSON.stringify({
+          from: fromEmail,
+          to: [email],
+          subject: "Verify your 10X Meme email",
+          html: buildVerifyEmailHtml(verifyUrl.toString(), unsubscribeUrl.toString()),
+        }),
+      });
 
-    verificationEmailSent = resendResponse.ok;
-    if (!resendResponse.ok) {
-      const text = await resendResponse.text().catch(() => "");
-      console.error("Resend verification email failed:", text || resendResponse.statusText);
+      verificationEmailSent = resendResponse.ok;
+      if (!resendResponse.ok) {
+        const text = await resendResponse.text().catch(() => "");
+        console.error("Resend verification email failed:", text || resendResponse.statusText);
+      }
+    } catch (error) {
+      verificationEmailSent = false;
+      console.error("Resend verification email failed:", error);
     }
   }
 

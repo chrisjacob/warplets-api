@@ -14,6 +14,7 @@ interface Env {
   ACTION_SESSION_SECRET?: string;
 }
 import { createActionSessionToken, jsonSecure } from "../_lib/security.js";
+import { outboundFetch } from "../_lib/outbound.js";
 
 interface RequestBody {
   fid?: unknown;
@@ -240,7 +241,7 @@ async function fetchNeynarUserByFid(
 
   try {
     const endpoint = `https://api.neynar.com/v2/farcaster/user/bulk?viewer_fid=${NEYNAR_VIEWER_FID}&fids=${fid}`;
-    const res = await fetch(endpoint, {
+    const res = await outboundFetch(endpoint, {
       headers: { "x-api-key": apiKey },
     });
     if (!res.ok) return undefined;
@@ -303,7 +304,7 @@ async function fetchBestFriendsFromNeynar(
 
   try {
     const endpoint = `https://api.neynar.com/v2/farcaster/user/best_friends?fid=${fid}&limit=100`;
-    const res = await fetch(endpoint, {
+    const res = await outboundFetch(endpoint, {
       headers: { "x-api-key": apiKey },
     });
     if (!res.ok) return undefined;

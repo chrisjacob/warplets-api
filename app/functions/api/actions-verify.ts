@@ -11,6 +11,7 @@ interface RequestBody {
   fid?: unknown;
 }
 import { getClientIp, jsonSecure, rateLimit, readJsonBody, verifyActionSessionToken } from "../_lib/security.js";
+import { outboundFetch } from "../_lib/outbound.js";
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -26,7 +27,7 @@ function asNonEmptyString(value: unknown): string | null {
 
 async function isFollowingFid(apiKey: string, viewerFid: number, targetFid: number): Promise<boolean> {
   const endpoint = `https://api.neynar.com/v2/farcaster/user/bulk?viewer_fid=${viewerFid}&fids=${targetFid}`;
-  const response = await fetch(endpoint, { headers: { "x-api-key": apiKey } });
+  const response = await outboundFetch(endpoint, { headers: { "x-api-key": apiKey } });
   if (!response.ok) return false;
 
   const payload = (await response.json()) as { users?: Array<{ viewer_context?: { following?: boolean } }> };
@@ -44,7 +45,7 @@ async function isFollowingChannel(apiKey: string, fid: number, channelId: string
       url.searchParams.set("cursor", cursor);
     }
 
-    const response = await fetch(url.toString(), { headers: { "x-api-key": apiKey } });
+    const response = await outboundFetch(url.toString(), { headers: { "x-api-key": apiKey } });
     if (!response.ok) return false;
 
     const payload = (await response.json()) as {
