@@ -10,6 +10,7 @@ interface RequestBody {
   verification?: unknown;
   outreachTokenIds?: unknown;
   sessionToken?: unknown;
+  fid?: unknown;
 }
 import {
   getClientIp,
@@ -44,21 +45,27 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   if (!parsed.ok) return parsed.response;
   const body = parsed.value;
 
+  const requestUrl = new URL(context.request.url);
   const sessionToken = asNonEmptyString(body.sessionToken);
+  const bodyFid = typeof body.fid === "number" && Number.isInteger(body.fid) && body.fid > 0 ? body.fid : null;
   const session = await verifyActionSessionToken(context.env.ACTION_SESSION_SECRET, sessionToken);
-  if (!session.valid) {
+  const allowInsecureFallback =
+    requestUrl.hostname.includes("-local.") ||
+    requestUrl.hostname.includes("-dev.") ||
+    requestUrl.hostname.endsWith(".pages.dev");
+  const fid = session.valid ? session.fid : (allowInsecureFallback ? bodyFid : null);
+  if (!fid) {
+    const authOutcome = session.valid ? "missing_fid_fallback" : session.reason;
     await logSecurityEvent(context.env.WARPLETS, {
       eventType: "actions_complete_auth",
-      outcome: session.reason,
+      outcome: authOutcome,
       actorType: "ip",
       ipAddress: ip,
-      route: new URL(context.request.url).pathname,
+      route: requestUrl.pathname,
       details: "invalid_action_session",
     });
     return jsonSecure({ error: "Unauthorized action session" }, { status: 401 });
   }
-
-  const fid = session.fid;
   const actionSlug = asNonEmptyString(body.actionSlug)?.toLowerCase();
   const verification = asNonEmptyString(body.verification);
   const outreachTokenIds = asTokenIdList(body.outreachTokenIds);
@@ -224,7 +231,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     actorType: "fid",
     actorId: String(fid),
     ipAddress: ip,
-    route: new URL(context.request.url).pathname,
+    route: requestUrl.pathname,
     details: action.slug,
   });
 

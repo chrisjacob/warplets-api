@@ -717,6 +717,48 @@ function waitMs(ms: number): Promise<void> {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
+function ActionChevronRightIcon() {
+  return (
+    <svg
+      className="h-6 w-6"
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path
+        d="M9.5 5L16 12L9.5 19"
+        stroke="currentColor"
+        strokeWidth="2.2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function ActionCheckIcon() {
+  return (
+    <svg
+      className="h-6 w-6"
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path
+        d="M5 12.5L10 17L19 8"
+        stroke="currentColor"
+        strokeWidth="2.2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 export default function App() {
   const FARCASTER_MINIAPP_URL = "https://farcaster.xyz/miniapps/uR3Rzs-k6AnV/10x";
   const { isMenuRoute, canGoBack, actions } = useMiniAppChrome("drop");
@@ -916,6 +958,7 @@ export default function App() {
   const forceNoMatch = typeof window !== "undefined" && searchParams.get("match") === "false";
   const debugEnabled = typeof window !== "undefined" && searchParams.get("debug") === "1";
   const forceUnlock = typeof window !== "undefined" && searchParams.get("unlock") === "1";
+  const forceActionsPage = typeof window !== "undefined" && searchParams.get("actions") === "1";
   const currentHost = typeof window !== "undefined" ? window.location.host : "";
   const showDebugChip = debugEnabled;
   const isMatched = !forceNoMatch && Boolean(status?.matched && typeof status.rarityValue === "number");
@@ -982,6 +1025,17 @@ export default function App() {
   const completedActionsCount = displayRewardActions.reduce((count, action) => (action.completed ? count + 1 : count), 0);
   const unlockedRewardCount = forceUnlock ? 5 : Math.min(5, Math.floor(completedActionsCount / 2));
   const hasAnyUnlockedRewards = unlockedRewardCount > 0;
+  const rewardChecklistRows = [
+    { emoji: "😍", index: 1, title: "More Warplets!" },
+    { emoji: "🤓", index: 2, title: "10X Warplets Cheatsheet" },
+    { emoji: "🤯", index: 3, title: "The Matrix Explained" },
+    { emoji: "🤣", index: 4, title: "The Matrix Uploaded" },
+    { emoji: "💰", index: 5, title: "Fuel for Builders" },
+  ];
+  const actionsNeededForReward = (rewardIndex: number): number => {
+    const requiredActions = rewardIndex * 2;
+    return Math.max(0, requiredActions - completedActionsCount);
+  };
   const rewardTokenId = purchasedTokenId ?? (typeof status?.rarityValue === "number" ? String(status.rarityValue) : null);
   const castOutreach = outreachCandidates.farcasterUsernames.slice(0, 10).join(" ");
   const tweetOutreach = outreachCandidates.xUsernames.slice(0, 10).join(" ");
@@ -992,10 +1046,12 @@ export default function App() {
   const pageTitle = showUnlockRewardPage ? "Complete actions 👉 Unlock rewards" : title;
 
   const fetchRewardActions = async () => {
-    if (!actionSessionToken) return;
     setRewardActionsLoading(true);
     try {
-      const response = await fetch(`/api/actions?appSlug=drop&sessionToken=${encodeURIComponent(actionSessionToken)}`);
+      const query = actionSessionToken
+        ? `?appSlug=drop&sessionToken=${encodeURIComponent(actionSessionToken)}`
+        : "?appSlug=drop";
+      const response = await fetch(`/api/actions${query}`);
       if (!response.ok) {
         throw new Error(await readErrorResponse(response));
       }
@@ -1025,6 +1081,7 @@ export default function App() {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
+        fid,
         actionSlug,
         verification: verification ?? undefined,
         outreachTokenIds: outreachTokenIds && outreachTokenIds.length > 0 ? outreachTokenIds : undefined,
@@ -1074,7 +1131,7 @@ export default function App() {
     const response = await fetch("/api/actions-verify", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ actionSlug: action.slug, sessionToken: actionSessionToken }),
+      body: JSON.stringify({ fid, actionSlug: action.slug, sessionToken: actionSessionToken }),
     });
     if (!response.ok) {
       return false;
@@ -1513,14 +1570,14 @@ export default function App() {
   }, [actionError]);
 
   useEffect(() => {
-    if (!showUnlockRewardPage || !fid || !actionSessionToken) return;
+    if (!showUnlockRewardPage || !fid) return;
     fetchRewardActions().catch(() => {});
   }, [showUnlockRewardPage, fid, actionSessionToken]);
 
   useEffect(() => {
-    if (!forceUnlock) return;
+    if (!forceUnlock && !forceActionsPage) return;
     setShowUnlockRewardPage(true);
-  }, [forceUnlock]);
+  }, [forceUnlock, forceActionsPage]);
 
   useEffect(() => {
     if (!showUnlockRewardPage || !hasAnyUnlockedRewards || didUnlockCelebrate) return;
@@ -1650,18 +1707,18 @@ export default function App() {
                             runningActionSlug === action.slug ||
                             (isVerifyActionSlug(action.slug) && getVerifyState(action.slug).mode === "verify" && getVerifyState(action.slug).waitingUntilMs > Date.now())
                           }
-                          className="h-10 w-10 shrink-0 rounded-[10px] border border-[#009900] bg-[#00FF00] text-4xl leading-none font-black shadow-[2px_4px_0_#008000] transition-all duration-100 active:translate-x-[1px] active:translate-y-[2px] active:shadow-[1px_2px_0_#008000] disabled:translate-x-0 disabled:translate-y-0 disabled:shadow-none disabled:bg-gray-700 disabled:border-gray-700 cursor-pointer"
+                          className="h-10 w-10 shrink-0 rounded-[10px] border border-[#009900] bg-[#00FF00] text-4xl leading-none font-black shadow-[2px_4px_0_#008000] transition-all duration-100 active:translate-x-[1px] active:translate-y-[2px] active:shadow-[1px_2px_0_#008000] disabled:translate-x-0 disabled:translate-y-0 disabled:shadow-none disabled:bg-gray-700 disabled:border-gray-700 cursor-pointer inline-flex items-center justify-center"
                           style={{ color: action.completed ? "#d1d5db" : "rgb(0, 80, 0)" }}
                         >
-                          {action.completed ? "✓" : (
+                          {action.completed ? <ActionCheckIcon /> : (
                             runningActionSlug === action.slug ? (
                               <span className="inline-block h-5 w-5 rounded-full border-2 border-white border-r-transparent align-middle animate-spin" />
                             ) : (
                               isVerifyActionSlug(action.slug) && getVerifyState(action.slug).mode === "verify" ? (
                                 getVerifyState(action.slug).waitingUntilMs > Date.now() ? (
                                   <span className="inline-block h-5 w-5 rounded-full border-2 border-white border-r-transparent align-middle animate-spin" />
-                                ) : "✓"
-                              ) : "›"
+                                ) : <ActionChevronRightIcon />
+                              ) : <ActionChevronRightIcon />
                             )
                           )}
                         </button>
@@ -1671,18 +1728,14 @@ export default function App() {
                 </div>
               )}
 
-              <div className="mt-2 space-y-3">
-                <Text className="text-lg font-bold text-left" style={{ color: "#00FF00" }}>
-                  {hasAnyUnlockedRewards ? "🔓 Unlocked Rewards" : "🔒 Locked Rewards"}
-                </Text>
-
-                {hasAnyUnlockedRewards && (
+              <div className="mt-2 space-y-5">
+                <div className="space-y-3">
+                  <Text className="text-lg font-bold text-left" style={{ color: "#00FF00" }}>
+                    {unlockedRewardCount >= 1 ? "😍 Reward #1 More Warplets!" : "😍 Reward #1"}
+                  </Text>
                   <div className="rounded-2xl border border-[#00FF00]/35 bg-[#041204]/85 px-4 py-4 space-y-4">
-                    {unlockedRewardCount >= 1 && (
+                    {unlockedRewardCount >= 1 ? (
                     <div className="text-left">
-                      <Text className="text-base font-bold" style={{ color: "#00FF00" }}>
-                        😍 Reward #1 More Warplets!
-                      </Text>
                       <Text className="mt-1 text-sm" style={{ color: "#b7ffb7" }}>
                         Download your 10X Warplet in a variety of image and video formats.
                       </Text>
@@ -1747,13 +1800,21 @@ export default function App() {
                         </div>
                       )}
                     </div>
-                    )}
-
-                    {unlockedRewardCount >= 2 && (
-                    <div className="text-left border-t border-[#00FF00]/20 pt-4">
-                      <Text className="text-base font-bold" style={{ color: "#00FF00" }}>
-                        🤓 Reward #2 10X Warplets Cheatsheet
+                    ) : (
+                      <Text className="text-sm font-semibold text-left" style={{ color: "#b7ffb7" }}>
+                        {`🔒 ${actionsNeededForReward(1)} actions needed to unlock.`}
                       </Text>
+                    )}
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <Text className="text-lg font-bold text-left" style={{ color: "#00FF00" }}>
+                    {unlockedRewardCount >= 2 ? "🤓 Reward #2 10X Warplets Cheatsheet" : "🤓 Reward #2"}
+                  </Text>
+                  <div className="rounded-2xl border border-[#00FF00]/35 bg-[#041204]/85 px-4 py-4 space-y-4">
+                    {unlockedRewardCount >= 2 ? (
+                    <div className="text-left">
                       <Text className="mt-1 text-sm leading-relaxed" style={{ color: "#b7ffb7" }}>
                         Download the full 10X Warplets metadata spreadsheet. Use this to dig deep into the collections data points that formed each NFTs rarity. Filter, Sort, Search with ease. It's your cheatsheet to finding the best warplets on the market!{" "}
                         <button
@@ -1768,13 +1829,21 @@ export default function App() {
                         </button>
                       </Text>
                     </div>
-                    )}
-
-                    {unlockedRewardCount >= 3 && (
-                    <div className="text-left border-t border-[#00FF00]/20 pt-4">
-                      <Text className="text-base font-bold" style={{ color: "#00FF00" }}>
-                        🤯 Reward #3 The Matrix Explained
+                    ) : (
+                      <Text className="text-sm font-semibold text-left" style={{ color: "#b7ffb7" }}>
+                        {`🔒 ${actionsNeededForReward(2)} actions needed to unlock.`}
                       </Text>
+                    )}
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <Text className="text-lg font-bold text-left" style={{ color: "#00FF00" }}>
+                    {unlockedRewardCount >= 3 ? "🤯 Reward #3 The Matrix Explained" : "🤯 Reward #3"}
+                  </Text>
+                  <div className="rounded-2xl border border-[#00FF00]/35 bg-[#041204]/85 px-4 py-4 space-y-4">
+                    {unlockedRewardCount >= 3 ? (
+                    <div className="text-left">
                       <Text className="mt-1 text-sm leading-relaxed" style={{ color: "#b7ffb7" }}>
                         The Matrix lore is weaved into the 10X Warplets. Revisits the iconic red pill scene: choice, control, and waking up from comforting illusions.
                       </Text>
@@ -1802,13 +1871,21 @@ export default function App() {
                         https://www.youtube.com/watch?v=kK0JtvYg5-s
                       </button>
                     </div>
-                    )}
-
-                    {unlockedRewardCount >= 4 && (
-                    <div className="text-left border-t border-[#00FF00]/20 pt-4">
-                      <Text className="text-base font-bold" style={{ color: "#00FF00" }}>
-                        🤣 Reward #4 The Matrix Uploaded
+                    ) : (
+                      <Text className="text-sm font-semibold text-left" style={{ color: "#b7ffb7" }}>
+                        {`🔒 ${actionsNeededForReward(3)} actions needed to unlock.`}
                       </Text>
+                    )}
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <Text className="text-lg font-bold text-left" style={{ color: "#00FF00" }}>
+                    {unlockedRewardCount >= 4 ? "🤣 Reward #4 The Matrix Uploaded" : "🤣 Reward #4"}
+                  </Text>
+                  <div className="rounded-2xl border border-[#00FF00]/35 bg-[#041204]/85 px-4 py-4 space-y-4">
+                    {unlockedRewardCount >= 4 ? (
+                    <div className="text-left">
                       <Text className="mt-1 text-sm leading-relaxed" style={{ color: "#b7ffb7" }}>
                         10X Warplets are all about having FUN! Checkout this hillarious playlist of videos on YouTube:{" "}
                         <button
@@ -1823,13 +1900,21 @@ export default function App() {
                         </button>
                       </Text>
                     </div>
-                    )}
-
-                    {unlockedRewardCount >= 5 && (
-                    <div className="text-left border-t border-[#00FF00]/20 pt-4">
-                      <Text className="text-base font-bold" style={{ color: "#00FF00" }}>
-                        💰 Reward #5 Fuel for Builders
+                    ) : (
+                      <Text className="text-sm font-semibold text-left" style={{ color: "#b7ffb7" }}>
+                        {`🔒 ${actionsNeededForReward(4)} actions needed to unlock.`}
                       </Text>
+                    )}
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <Text className="text-lg font-bold text-left" style={{ color: "#00FF00" }}>
+                    {unlockedRewardCount >= 5 ? "💰 Reward #5 Fuel for Builders" : "💰 Reward #5"}
+                  </Text>
+                  <div className="rounded-2xl border border-[#00FF00]/35 bg-[#041204]/85 px-4 py-4 space-y-4">
+                    {unlockedRewardCount >= 5 ? (
+                    <div className="text-left">
                       <Text className="mt-1 text-sm leading-relaxed" style={{ color: "#b7ffb7" }}>
                         The $1M Warplet is in a Dutch Auction, with the listing price dropping from $1,000,000 to $100 over 30 days. From the sale of that NFT, 50% of the funds will be airdroped in $USDC. The actions you've completed here will award you Bonus entries into a competition to win this prize (if you choose to enter). The mini app for entering is still being built. You are early! Learn more about the $1M Warplet and Fuel for Builder airdrop on OpenSea:{" "}
                         <button
@@ -1844,9 +1929,13 @@ export default function App() {
                         </button>
                       </Text>
                     </div>
+                    ) : (
+                      <Text className="text-sm font-semibold text-left" style={{ color: "#b7ffb7" }}>
+                        {`🔒 ${actionsNeededForReward(5)} actions needed to unlock.`}
+                      </Text>
                     )}
                   </div>
-                )}
+                </div>
               </div>
             </div>
           )}
