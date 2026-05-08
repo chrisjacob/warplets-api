@@ -261,6 +261,12 @@ Suggested scopes include:
 - `security:stats`
 - `security:manage`
 
+Security alert email integration:
+
+- `RESEND_API_KEY` (existing)
+- `RESEND_FROM_EMAIL` (existing)
+- `SECURITY_ALERT_EMAIL_TO` (optional; defaults to `chris@10x.meme`)
+
 Optional hardening secret:
 
 - `SECURITY_LOG_SALT` (used to salt-hash IP addresses in `security_audit_events`)
@@ -285,6 +291,16 @@ This returns:
 - admin auth failure outcomes
 - rate-limit signal outcomes
 - top routes, IPs, and event types in the last 24h
+
+If active alerts are present, `/api/security/alerts` can send a Resend email notification
+with a 4-hour dedupe window (same alert fingerprint will not resend within that window).
+
+Optional automation:
+
+- In GitHub Actions secrets, set:
+  - `SECURITY_ALERTS_URL` (e.g. `https://drop.10x.meme/api/security/alerts`)
+  - `SECURITY_ALERTS_TOKEN` (admin key with `security:stats`)
+- `security-nightly.yml` will call this endpoint when those secrets are configured.
 
 ### Security retention run
 
