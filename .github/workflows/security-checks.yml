@@ -1,0 +1,54 @@
+name: Security Checks
+
+on:
+  pull_request:
+    branches:
+      - dev
+      - main
+  workflow_dispatch:
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  security-checks:
+    name: Security Checks
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v5
+        with:
+          version: 9.15.4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+          cache: "pnpm"
+
+      - name: Install dependencies (root)
+        run: pnpm install --frozen-lockfile
+
+      - name: Root typecheck
+        run: pnpm typecheck
+
+      - name: Root security preflight
+        run: pnpm security:preflight
+
+      - name: Install dependencies (app)
+        working-directory: app
+        run: pnpm install --frozen-lockfile
+
+      - name: App typecheck
+        working-directory: app
+        run: pnpm typecheck
+
+      - name: App security preflight
+        working-directory: app
+        run: pnpm security:preflight
