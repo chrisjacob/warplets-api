@@ -1,0 +1,54 @@
+name: CodeQL
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+  schedule:
+    - cron: "0 18 * * 0" # Monday 04:00 Australia/Sydney (UTC+10 standard)
+
+permissions:
+  actions: read
+  contents: read
+  security-events: write
+
+jobs:
+  analyze:
+    name: Analyze (javascript-typescript)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: javascript-typescript
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies (root)
+        run: pnpm install --frozen-lockfile
+
+      - name: Install dependencies (app)
+        run: pnpm --dir app install --frozen-lockfile
+
+      - name: Root typecheck
+        run: pnpm typecheck
+
+      - name: App typecheck
+        run: pnpm --dir app typecheck
+
+      - name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@v3
