@@ -299,6 +299,23 @@ export async function readJsonBodyWithLimit<T>(
   }
 }
 
+export function parseObjectPayload<T extends object>(
+  value: unknown,
+  allowedKeys: string[]
+): { ok: true; payload: T } | { ok: false; response: Response } {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return { ok: false, response: jsonSecure({ error: "Invalid JSON payload" }, { status: 400 }) };
+  }
+
+  const payload = value as Record<string, unknown>;
+  const hasUnexpectedKeys = Object.keys(payload).some((key) => !allowedKeys.includes(key));
+  if (hasUnexpectedKeys) {
+    return { ok: false, response: jsonSecure({ error: "Unexpected fields in payload" }, { status: 400 }) };
+  }
+
+  return { ok: true, payload: payload as T };
+}
+
 function arrayBufferToBase64Url(buffer: ArrayBuffer): string {
   const bytes = new Uint8Array(buffer);
   let binary = "";

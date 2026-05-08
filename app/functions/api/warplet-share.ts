@@ -1,7 +1,7 @@
 interface Env {
   WARPLETS: D1Database;
 }
-import { jsonSecure, readJsonBodyWithLimit } from "../_lib/security.js";
+import { jsonSecure, parseObjectPayload, readJsonBodyWithLimit } from "../_lib/security.js";
 
 interface RequestBody {
   fid?: unknown;
@@ -14,14 +14,9 @@ function toPositiveInteger(value: unknown): number | null {
 export const onRequestPost: PagesFunction<Env> = async (context) => {
   const parsed = await readJsonBodyWithLimit<unknown>(context.request, 4 * 1024);
   if (!parsed.ok) return parsed.response;
-  if (!parsed.value || typeof parsed.value !== "object" || Array.isArray(parsed.value)) {
-    return jsonSecure({ error: "Invalid JSON payload" }, { status: 400 });
-  }
-  const payload = parsed.value as Record<string, unknown>;
-  if (!Object.keys(payload).every((key) => key === "fid")) {
-    return jsonSecure({ error: "Unexpected fields in payload" }, { status: 400 });
-  }
-  const body = payload as RequestBody;
+  const payload = parseObjectPayload<RequestBody>(parsed.value, ["fid"]);
+  if (!payload.ok) return payload.response;
+  const body = payload.payload;
 
   const fid = toPositiveInteger(body.fid);
   if (!fid) {
