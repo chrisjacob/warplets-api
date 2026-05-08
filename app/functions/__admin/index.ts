@@ -124,6 +124,12 @@ export const onRequestGet: PagesFunction = () => {
       </tr></thead>
       <tbody id="secIpsBody"><tr><td colspan="2" style="color:#555;text-align:center;padding:1rem">Loadingâ€¦</td></tr></tbody>
     </table>
+    <table style="margin-top:.75rem">
+      <thead><tr>
+        <th>Alert</th><th>Status</th><th>Value</th>
+      </tr></thead>
+      <tbody id="secAlertsBody"><tr><td colspan="3" style="color:#555;text-align:center;padding:1rem">Loadingâ€¦</td></tr></tbody>
+    </table>
   </section>
 
   <!-- SEND NOTIFICATION -->
@@ -350,6 +356,19 @@ export const onRequestGet: PagesFunction = () => {
       secIpsBody.innerHTML = ipRows.length
         ? ipRows.map(row => \`<tr><td class="mono">\${esc(row.ip_address || 'n/a')}</td><td>\${row.count}</td></tr>\`).join('')
         : '<tr><td colspan="2" style="color:#555;text-align:center;padding:1rem">No data yet</td></tr>';
+
+      const alertRes = await api('/api/security/alerts');
+      const alertData = await alertRes.json();
+      const alerts = Array.isArray(alertData?.alerts) ? alertData.alerts : [];
+      const secAlertsBody = document.getElementById('secAlertsBody');
+      secAlertsBody.innerHTML = alerts.length
+        ? alerts.map((a) => \`
+          <tr>
+            <td class="mono">\${esc(a.description)}</td>
+            <td>\${a.active ? '<span class="pill failed">active</span>' : '<span class="pill delivered">ok</span>'}</td>
+            <td>\${a.value} / \${a.threshold}</td>
+          </tr>\`).join('')
+        : '<tr><td colspan="3" style="color:#555;text-align:center;padding:1rem">No alerts configured</td></tr>';
     } catch (e) { if (e.message !== 'Unauthorized') console.error(e); }
   }
 
