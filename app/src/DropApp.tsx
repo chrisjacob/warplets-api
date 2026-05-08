@@ -1025,14 +1025,14 @@ export default function App() {
       ? isPurchasing
         ? "Processing in Wallet..."
         : "Buy in Farcaster Wallet"
-      : "Visit OpenSea to find out why...";
+      : "🎁 But! You Can Still Unlock Rewards";
   const shareButtonPulseClass = hasPurchased && !hasRewarded ? "share-cta-pulse-x" : "";
   const urgencyMessage = isMatched && !hasPurchased
     ? getUrgencyMessage(typeof status?.rarityValue === "number" ? status.rarityValue : null, nowMs)
     : null;
   const showWaitlistCta = hasRewarded || (!isMatched && hasClickedOpenSea);
-  const avatarUsers = hasPurchased ? rewardedUsers : recentBuys;
-  const avatarLabel = hasPurchased ? "Rewarded:" : "Buyers:";
+  const avatarUsers = hasPurchased || !isMatched ? rewardedUsers : recentBuys;
+  const avatarLabel = hasPurchased || !isMatched ? "Rewarded:" : "Buyers:";
   const displayRewardActions = forceUnlock
     ? rewardActions.map((action) => ({ ...action, completed: true }))
     : rewardActions;
@@ -1222,29 +1222,33 @@ export default function App() {
           await sdk.actions.openUrl(action.url);
         }
         await completeRewardAction(action.slug, `opened:${new Date().toISOString()}`);
-      } else if (action.slug === "drop-cast" && purchasedTokenId) {
+      } else if (action.slug === "drop-cast") {
         const urgency = getUrgencyDetails(nowMs);
         const castRarityLine = formattedTokenId && topPercentLabel
           ? `My rarity #${formattedTokenId} of 10,000! 👀`
           : "My rarity is 10,000! 👀";
         const outreachLine = castOutreach.length > 0 ? `\n\nFYI you're on the list ${castOutreach}` : "";
+        const raritySection = isMatched ? `\n\n${castRarityLine}\n\n...what's your rarity?` : "";
         const castResult = await sdk.actions.composeCast({
           text:
-            `🟢 10X Warplets (Private 10K NFT Drop)\n\nPrice $${urgency.currentPrice} → $${urgency.nextPrice} in ${urgency.countdown}.\nSupply private → public every 10 days.\nAre you on the list? Don't miss out.\n\n${castRarityLine}\n\n...what's your rarity?${outreachLine}`,
-          embeds: ["https://drop.10x.meme", `https://warplets.10x.meme/${purchasedTokenId}.${SHARE_IMAGE_EXTENSION}`],
+            `🟢 10X Warplets (Private 10K NFT Drop)\n\nPrice $${urgency.currentPrice} → $${urgency.nextPrice} in ${urgency.countdown}.\nSupply private → public every 10 days.\nAre you on the list? Don't miss out.${raritySection}${outreachLine}`,
+          embeds: purchasedTokenId
+            ? ["https://drop.10x.meme", `https://warplets.10x.meme/${purchasedTokenId}.${SHARE_IMAGE_EXTENSION}`]
+            : ["https://drop.10x.meme"],
         });
 
         if (castResult?.cast?.hash) {
           const verification = buildCastVerificationUrl(castResult.cast.hash, viewerUsername);
           await completeRewardAction(action.slug, verification, outreachCandidates.tokenIds);
         }
-      } else if (action.slug === "drop-tweet" && purchasedTokenId) {
+      } else if (action.slug === "drop-tweet") {
         const urgency = getUrgencyDetails(nowMs);
         const castRarityLine = formattedTokenId && topPercentLabel
           ? `My rarity #${formattedTokenId} of 10,000! 👀`
           : "My rarity is 10,000! 👀";
         const outreachLine = tweetOutreach.length > 0 ? `\n\nFYI you're on the list ${tweetOutreach}` : "";
-        const text = `🟢 10X Warplets (Private 10K NFT Drop)\n\nPrice $${urgency.currentPrice} → $${urgency.nextPrice} in ${urgency.countdown}.\nSupply private → public every 10 days.\nAre you on the list? Don't miss out.\n\n${castRarityLine}\n\n...what's your rarity?${outreachLine}`;
+        const raritySection = isMatched ? `\n\n${castRarityLine}\n\n...what's your rarity?` : "";
+        const text = `🟢 10X Warplets (Private 10K NFT Drop)\n\nPrice $${urgency.currentPrice} → $${urgency.nextPrice} in ${urgency.countdown}.\nSupply private → public every 10 days.\nAre you on the list? Don't miss out.${raritySection}${outreachLine}`;
         const intentUrl = `https://x.com/intent/post?${new URLSearchParams({
           text,
           url: "https://farcaster.xyz/miniapps/cSNbxgFkuFRi/10x-warplets-drop",
@@ -1503,8 +1507,33 @@ export default function App() {
       return;
     }
 
-    setHasClickedOpenSea(true);
-    await sdk.actions.openUrl("https://opensea.io/collection/10xwarplets/overview");
+    setActionError("");
+
+    try {
+      const urgency = getUrgencyDetails(nowMs);
+      const outreachLine = castOutreach.length > 0 ? `\n\nFYI you're on the list ${castOutreach}` : "";
+      const castResult = await sdk.actions.composeCast({
+        text:
+          `🟢 10X Warplets (Private 10K NFT Drop)\n\nPrice $${urgency.currentPrice} → $${urgency.nextPrice} in ${urgency.countdown}.\nSupply private → public every 10 days.\nAre you on the list? Don't miss out.${outreachLine}`,
+        embeds: ["https://drop.10x.meme"],
+      });
+
+      if (castResult?.cast?.hash && fid) {
+        const verification = buildCastVerificationUrl(castResult.cast.hash, viewerUsername);
+        await completeRewardAction("drop-cast", verification, outreachCandidates.tokenIds);
+        await fetchRewardActions();
+        await refreshStatusForRewardPage(fid);
+      }
+    } catch (err) {
+      console.error("Failed to open cast composer:", err);
+      const message = getErrorMessage(err).toLowerCase();
+      const userRejected = message.includes("rejected by user");
+      if (!userRejected) {
+        setActionError(getErrorMessage(err));
+      }
+    } finally {
+      setShowUnlockRewardPage(true);
+    }
   };
 
   const handleOpenSeaAction = async () => {
@@ -2063,8 +2092,8 @@ export default function App() {
                   </Text>
                 )}
 
-                {hasPurchased && (
-                  <Text className="mt-3 text-md font-semibold" style={{ color: "#b7ffb7" }}>
+                {(hasPurchased || !isMatched) && (
+                  <Text className="mt-3 text-lg font-semibold" style={{ color: "#b7ffb7" }}>
                     Rewards... 😍→🤓→🤯→🤣→💰!️
                   </Text>
                 )}

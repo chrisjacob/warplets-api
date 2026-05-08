@@ -644,11 +644,14 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   }
 
   const existing = await context.env.WARPLETS.prepare(
-    "SELECT id, matched_on, buy_in_opensea_on, buy_in_farcaster_wallet_on, rewarded_on, best_friends_warplets_on FROM warplets_users WHERE fid = ? LIMIT 1"
+    "SELECT id, username, pfp_url, score, matched_on, buy_in_opensea_on, buy_in_farcaster_wallet_on, rewarded_on, best_friends_warplets_on FROM warplets_users WHERE fid = ? LIMIT 1"
   )
     .bind(fid)
     .first<{
       id: number;
+      username: string | null;
+      pfp_url: string | null;
+      score: number | null;
       matched_on: string | null;
       buy_in_opensea_on: string | null;
       buy_in_farcaster_wallet_on: string | null;
@@ -753,6 +756,65 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       actionSessionToken,
     });
   }
+
+  const shouldHydrateProfile =
+    !existing.username ||
+    !existing.pfp_url ||
+    existing.score === null;
+
+  if (shouldHydrateProfile) {
+    const neynarUser = await fetchNeynarUserByFid(fid, context.env.NEYNAR_API_KEY);
+    if (neynarUser) {
+      const now = new Date().toISOString();
+      await context.env.WARPLETS.prepare(
+        `UPDATE warplets_users SET
+           username = COALESCE(username, ?),
+           display_name = COALESCE(display_name, ?),
+           pfp_url = COALESCE(pfp_url, ?),
+           registered_at = COALESCE(registered_at, ?),
+           pro_status = COALESCE(pro_status, ?),
+           profile_bio_text = COALESCE(profile_bio_text, ?),
+           follower_count = COALESCE(follower_count, ?),
+           following_count = COALESCE(following_count, ?),
+           primary_eth_address = COALESCE(primary_eth_address, ?),
+           primary_sol_address = COALESCE(primary_sol_address, ?),
+           x_username = COALESCE(x_username, ?),
+           url = COALESCE(url, ?),
+           viewer_following = COALESCE(viewer_following, ?),
+           viewer_followed_by = COALESCE(viewer_followed_by, ?),
+           score = COALESCE(score, ?),
+           updated_on = ?
+         WHERE id = ?`
+      )
+        .bind(
+          neynarUser.username ?? null,
+          neynarUser.display_name ?? null,
+          neynarUser.pfp_url ?? null,
+          neynarUser.registered_at ?? null,
+          neynarUser.pro_status ?? null,
+          neynarUser.profile_bio_text ?? null,
+          neynarUser.follower_count ?? null,
+          neynarUser.following_count ?? null,
+          neynarUser.primary_eth_address ?? null,
+          neynarUser.primary_sol_address ?? null,
+          neynarUser.x_username ?? null,
+          neynarUser.url ?? null,
+          boolToInt(neynarUser.viewer_following),
+          boolToInt(neynarUser.viewer_followed_by),
+          neynarUser.score ?? null,
+          now,
+          existing.id
+        )
+        .run();
+    }
+  }
+
+  await loadOrFetchBestFriends(
+    context.env.WARPLETS,
+    existing.id,
+    fid,
+    context.env.NEYNAR_API_KEY
+  );
 
   await ensureBestFriendsWarpletMatches(
     context.env.WARPLETS,
