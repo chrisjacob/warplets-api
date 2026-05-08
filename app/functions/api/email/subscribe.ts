@@ -4,8 +4,17 @@ interface Env {
   RESEND_FROM_EMAIL?: string;
   WARPLETS_KV?: KVNamespace;
   SECURITY_LOG_SALT?: string;
+  ACTION_SESSION_SECRET?: string;
+  ALLOW_INSECURE_ACTION_FID_FALLBACK?: string;
 }
-import { getClientIp, jsonSecure, logSecurityEvent, rateLimit, readJsonBodyWithLimit } from "../../_lib/security.js";
+import {
+  getClientIp,
+  jsonSecure,
+  logSecurityEvent,
+  rateLimit,
+  readJsonBodyWithLimit,
+  verifyActionSessionToken,
+} from "../../_lib/security.js";
 import { outboundFetch } from "../../_lib/outbound.js";
 
 interface SubscribeBody {
@@ -14,6 +23,7 @@ interface SubscribeBody {
   username?: unknown;
   tokenId?: unknown;
   matched?: unknown;
+  sessionToken?: unknown;
 }
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -196,7 +206,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   if (!isPlainObject(parsedBody.value)) {
     return jsonSecure({ error: "Invalid JSON payload" }, { status: 400, headers: corsHeaders });
   }
-  if (!hasOnlyAllowedKeys(parsedBody.value, ["email", "fid", "username", "tokenId", "matched"])) {
+  if (!hasOnlyAllowedKeys(parsedBody.value, ["email", "fid", "username", "tokenId", "matched", "sessionToken"])) {
     return jsonSecure({ error: "Unexpected fields in payload" }, { status: 400, headers: corsHeaders });
   }
   const body = parsedBody.value as SubscribeBody;
@@ -207,7 +217,28 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     return jsonSecure({ error: "A valid email is required" }, { status: 400, headers: corsHeaders });
   }
 
-  const fid = asPositiveInteger(body.fid);
+  const requestUrl = new URL(context.request.url);
+  const sessionToken = asString(body.sessionToken);
+  const session = await verifyActionSessionToken(context.env.ACTION_SESSION_SECRET, sessionToken);
+  const bodyFid = asPositiveInteger(body.fid);
+  const allowInsecureFallback =
+    context.env.ALLOW_INSECURE_ACTION_FID_FALLBACK === "1" &&
+    (
+      requestUrl.hostname.includes("-local.") ||
+      requestUrl.hostname.includes("-dev.") ||
+      requestUrl.hostname.endsWith(".pages.dev")
+    );
+  const fid = session.valid ? session.fid : (allowInsecureFallback ? bodyFid : null);
+  if (!session.valid && bodyFid && !allowInsecureFallback) {
+    await logSecurityEvent(context.env.WARPLETS, { logSalt: context.env.SECURITY_LOG_SALT }, {
+      eventType: "email_subscribe_auth",
+      outcome: session.reason,
+      actorType: "ip",
+      ipAddress: ip,
+      route: requestUrl.pathname,
+      details: "fid_rejected_without_valid_session",
+    });
+  }
   const username = asString(body.username);
   const tokenId = asPositiveInteger(body.tokenId);
   const matched = asBoolean(body.matched) ? 1 : 0;

@@ -1297,6 +1297,7 @@ export default function App() {
         body: JSON.stringify({
           email: waitlistEmail.trim(),
           fid,
+          sessionToken: actionSessionToken || undefined,
           username: viewerUsername || undefined,
           tokenId: typeof status?.rarityValue === "number" ? status.rarityValue : null,
           matched: Boolean(isMatched),
@@ -1543,6 +1544,7 @@ export default function App() {
         body: JSON.stringify({
           email: waitlistEmail.trim(),
           fid,
+          sessionToken: actionSessionToken || undefined,
           username: viewerUsername || undefined,
           tokenId: typeof status?.rarityValue === "number" ? status.rarityValue : null,
           matched: Boolean(isMatched),
