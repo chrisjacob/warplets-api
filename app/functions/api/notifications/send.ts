@@ -82,6 +82,14 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   const ip = getClientIp(context.request);
   const adminRate = await rateLimit(context.env.WARPLETS_KV, "admin-send", auth.keyId, 12, 60);
   if (!adminRate.allowed) {
+    await logSecurityEvent(context.env.WARPLETS, {
+      eventType: "rate_limit",
+      outcome: "admin_send_key_rate_limited",
+      actorType: "admin_key",
+      actorId: auth.keyId,
+      ipAddress: ip,
+      route: new URL(context.request.url).pathname,
+    });
     const response = jsonSecure({ error: "Rate limit exceeded" }, { status: 429 });
     response.headers.set("retry-after", String(adminRate.retryAfterSeconds));
     return response;
@@ -89,6 +97,13 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
   const ipRate = await rateLimit(context.env.WARPLETS_KV, "admin-send-ip", ip, 25, 60);
   if (!ipRate.allowed) {
+    await logSecurityEvent(context.env.WARPLETS, {
+      eventType: "rate_limit",
+      outcome: "admin_send_ip_rate_limited",
+      actorType: "ip",
+      ipAddress: ip,
+      route: new URL(context.request.url).pathname,
+    });
     const response = jsonSecure({ error: "Rate limit exceeded" }, { status: 429 });
     response.headers.set("retry-after", String(ipRate.retryAfterSeconds));
     return response;

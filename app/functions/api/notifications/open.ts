@@ -9,7 +9,7 @@
  */
 
 import { normalizeAppSlug, resolveAppSlugFromUrl } from "../../_lib/appSlug.js";
-import { getClientIp, jsonSecure, rateLimit, readJsonBody } from "../../_lib/security.js";
+import { getClientIp, jsonSecure, logSecurityEvent, rateLimit, readJsonBody } from "../../_lib/security.js";
 
 interface Env {
   WARPLETS: D1Database;
@@ -34,6 +34,13 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   const ip = getClientIp(context.request);
   const ipRate = await rateLimit(context.env.WARPLETS_KV, "notification-open-ip", ip, 90, 60);
   if (!ipRate.allowed) {
+    await logSecurityEvent(context.env.WARPLETS, {
+      eventType: "rate_limit",
+      outcome: "notification_open_rate_limited",
+      actorType: "ip",
+      ipAddress: ip,
+      route: new URL(context.request.url).pathname,
+    });
     const response = jsonSecure({ error: "Rate limit exceeded" }, { status: 429 });
     response.headers.set("retry-after", String(ipRate.retryAfterSeconds));
     return response;

@@ -240,6 +240,14 @@ Example `ADMIN_API_KEYS_JSON`:
 ]
 ```
 
+Suggested scopes include:
+
+- `notify:send`
+- `notify:inspect`
+- `notify:stats`
+- `email:list`
+- `security:stats`
+
 ### Incident response runbook (minimum)
 
 1. Revoke affected admin keys by updating `ADMIN_API_KEYS_JSON`.

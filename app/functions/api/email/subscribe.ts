@@ -4,7 +4,7 @@ interface Env {
   RESEND_FROM_EMAIL?: string;
   WARPLETS_KV?: KVNamespace;
 }
-import { getClientIp, jsonSecure, rateLimit, readJsonBody } from "../../_lib/security.js";
+import { getClientIp, jsonSecure, logSecurityEvent, rateLimit, readJsonBody } from "../../_lib/security.js";
 import { outboundFetch } from "../../_lib/outbound.js";
 
 interface SubscribeBody {
@@ -173,6 +173,13 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   const ip = getClientIp(context.request);
   const ipRate = await rateLimit(context.env.WARPLETS_KV, "email-subscribe-ip", ip, 30, 60);
   if (!ipRate.allowed) {
+    await logSecurityEvent(context.env.WARPLETS, {
+      eventType: "rate_limit",
+      outcome: "email_subscribe_rate_limited",
+      actorType: "ip",
+      ipAddress: ip,
+      route: new URL(context.request.url).pathname,
+    });
     const response = jsonSecure({ error: "Rate limit exceeded" }, { status: 429, headers: corsHeaders });
     response.headers.set("retry-after", String(ipRate.retryAfterSeconds));
     return response;
