@@ -42,3 +42,4 @@ Last updated: 2026-05-08
 - [x] Security audit PII minimization: IP addresses are now stored as salted SHA-256 hashes in `security_audit_events`.
 - [x] Security audit text sanitization + bounded field lengths for safer log ingestion.
 - [x] Admin retention run endpoint added: `POST /api/security/retention-run` with dedicated `security:manage` scope, bounded retention windows, dry-run mode, and rate limiting.
+- [x] Automated dependency/security upkeep enabled with Dependabot (`.github/dependabot.yml`) and scheduled nightly security workflow (`.github/workflows/security-nightly.yml`).
