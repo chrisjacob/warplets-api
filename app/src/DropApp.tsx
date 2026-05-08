@@ -794,6 +794,8 @@ export default function App() {
   const [didUnlockCelebrate, setDidUnlockCelebrate] = useState(false);
   const [verifyActionState, setVerifyActionState] = useState<Record<string, VerifyActionState>>({});
   const [actionSessionToken, setActionSessionToken] = useState<string>("");
+  const [pendingNotificationId, setPendingNotificationId] = useState<string | null>(null);
+  const [notificationOpenSent, setNotificationOpenSent] = useState(false);
 
   const launchTopConfetti = () => {
     const colors = ["#ff4d4d", "#ffd93d", "#57e389", "#4da3ff", "#b07bff", "#ff7ac8"];
@@ -871,18 +873,10 @@ export default function App() {
         setShowAddAppPrompt(shouldPromptAddApp);
         setNotificationsOnlyPrompt(isNotificationsOnly);
 
-        // If launched from a notification, record the open for analytics
+        // If launched from a notification, stage open-tracking until we have a signed action session token.
         const loc = context.location as { type?: string; notification?: { notificationId?: string } } | undefined;
         if (loc?.type === "notification" && loc.notification?.notificationId) {
-          fetch("/api/notifications/open", {
-            method: "POST",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify({
-              notificationId: loc.notification.notificationId,
-              fid: context.user.fid,
-              appSlug: "drop",
-            }),
-          }).catch(() => {}); // fire-and-forget; never block UX
+          setPendingNotificationId(loc.notification.notificationId);
         }
 
         const res = await fetch("/api/warplet-status", {
@@ -953,6 +947,26 @@ export default function App() {
     };
     init();
   }, []);
+
+  useEffect(() => {
+    if (!pendingNotificationId || notificationOpenSent || !actionSessionToken) return;
+
+    fetch("/api/notifications/open", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        notificationId: pendingNotificationId,
+        sessionToken: actionSessionToken,
+        appSlug: "drop",
+      }),
+    })
+      .then(() => {
+        setNotificationOpenSent(true);
+      })
+      .catch(() => {
+        // Fire-and-forget telemetry; never block UX.
+      });
+  }, [actionSessionToken, notificationOpenSent, pendingNotificationId]);
 
   const searchParams = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : new URLSearchParams();
   const forceNoMatch = typeof window !== "undefined" && searchParams.get("match") === "false";
@@ -1216,7 +1230,7 @@ export default function App() {
         const outreachLine = castOutreach.length > 0 ? castOutreach : "@warplets";
         const castResult = await sdk.actions.composeCast({
           text:
-            `🟢 10X Warplets Private 10K NFT Drop\n\nPrice $${urgency.currentPrice} → $${urgency.nextPrice} in ${urgency.countdown}.\nSupply private → public every 10 days.\nAre you on the list? Don't miss out.\n\n${castRarityLine}\n\np.s. you're on the list ${outreachLine}\n...what's your rarity?`,
+            `🟢 10X Warplets (Private 10K NFT Drop)\n\nPrice $${urgency.currentPrice} → $${urgency.nextPrice} in ${urgency.countdown}.\nSupply private → public every 10 days.\nAre you on the list? Don't miss out.\n\n${castRarityLine}\n...what's your rarity?\n\nFYI you're on the list ${outreachLine}\n`,
           embeds: ["https://drop.10x.meme", `https://warplets.10x.meme/${purchasedTokenId}.${SHARE_IMAGE_EXTENSION}`],
         });
 
@@ -1230,7 +1244,7 @@ export default function App() {
           ? `My rarity #${formattedTokenId} of 10,000! 👀`
           : "My rarity is 10,000! 👀";
         const outreachLine = tweetOutreach.length > 0 ? tweetOutreach : "@10XMemeX";
-        const text = `🟢 10X Warplets Private 10K NFT Drop\n\nPrice $${urgency.currentPrice} → $${urgency.nextPrice} in ${urgency.countdown}.\nSupply private → public every 10 days.\nAre you on the list? Don't miss out.\n\n${castRarityLine}\n\np.s. you're on the list ${outreachLine}\n...what's your rarity?`;
+        const text = `🟢 10X Warplets (Private 10K NFT Drop)\n\nPrice $${urgency.currentPrice} → $${urgency.nextPrice} in ${urgency.countdown}.\nSupply private → public every 10 days.\nAre you on the list? Don't miss out.\n\n${castRarityLine}\n...what's your rarity?\n\nFYI you're on the list ${outreachLine}\n`;
         const intentUrl = `https://x.com/intent/post?${new URLSearchParams({
           text,
           url: "https://farcaster.xyz/miniapps/cSNbxgFkuFRi/10x-warplets-drop",
@@ -1329,7 +1343,7 @@ export default function App() {
         const outreachLine = castOutreach.length > 0 ? castOutreach : "@warplets";
         const castResult = await sdk.actions.composeCast({
           text:
-            `🟢 10X Warplets Private 10K NFT Drop\n\nPrice $${urgency.currentPrice} → $${urgency.nextPrice} in ${urgency.countdown}.\nSupply private → public every 10 days.\nAre you on the list? Don't miss out.\n\n${castRarityLine}\n\np.s. you're on the list ${outreachLine}\n...what's your rarity?`,
+            `🟢 10X Warplets (Private 10K NFT Drop)\n\nPrice $${urgency.currentPrice} → $${urgency.nextPrice} in ${urgency.countdown}.\nSupply private → public every 10 days.\nAre you on the list? Don't miss out.\n\n${castRarityLine}\n...what's your rarity?\n\nFYI you're on the list ${outreachLine}\n`,
           embeds: ["https://drop.10x.meme", `https://warplets.10x.meme/${purchasedTokenId}.${SHARE_IMAGE_EXTENSION}`],
         });
 

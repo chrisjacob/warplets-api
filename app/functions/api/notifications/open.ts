@@ -9,18 +9,28 @@
  */
 
 import { normalizeAppSlug, resolveAppSlugFromUrl } from "../../_lib/appSlug.js";
-import { getClientIp, jsonSecure, logSecurityEvent, rateLimit, readJsonBodyWithLimit } from "../../_lib/security.js";
+import {
+  getClientIp,
+  jsonSecure,
+  logSecurityEvent,
+  rateLimit,
+  readJsonBodyWithLimit,
+  verifyActionSessionToken,
+} from "../../_lib/security.js";
 
 interface Env {
   WARPLETS: D1Database;
   WARPLETS_KV?: KVNamespace;
   SECURITY_LOG_SALT?: string;
+  ACTION_SESSION_SECRET?: string;
+  ALLOW_INSECURE_ACTION_FID_FALLBACK?: string;
 }
 
 interface RequestBody {
   notificationId?: unknown;
   fid?: unknown;
   appSlug?: unknown;
+  sessionToken?: unknown;
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
@@ -54,7 +64,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   if (!isPlainObject(parsed.value)) {
     return jsonSecure({ error: "Invalid JSON payload" }, { status: 400 });
   }
-  if (!hasOnlyAllowedKeys(parsed.value, ["notificationId", "fid", "appSlug"])) {
+  if (!hasOnlyAllowedKeys(parsed.value, ["notificationId", "fid", "appSlug", "sessionToken"])) {
     return jsonSecure({ error: "Unexpected fields in payload" }, { status: 400 });
   }
   const body = parsed.value as RequestBody;
@@ -64,7 +74,30 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     return jsonSecure({ error: "notificationId is required" }, { status: 400 });
   }
 
-  const fid = typeof body.fid === "number" ? body.fid : null;
+  const requestUrl = new URL(context.request.url);
+  const allowInsecureFallback =
+    context.env.ALLOW_INSECURE_ACTION_FID_FALLBACK === "1" &&
+    (
+      requestUrl.hostname.includes("-local.") ||
+      requestUrl.hostname.includes("-dev.") ||
+      requestUrl.hostname.endsWith(".pages.dev")
+    );
+  const sessionToken = typeof body.sessionToken === "string" && body.sessionToken.trim().length > 0
+    ? body.sessionToken.trim()
+    : null;
+  const session = await verifyActionSessionToken(context.env.ACTION_SESSION_SECRET, sessionToken);
+  const bodyFid = typeof body.fid === "number" && Number.isInteger(body.fid) && body.fid > 0 ? body.fid : null;
+  const fid = session.valid ? session.fid : (allowInsecureFallback ? bodyFid : null);
+  if (!session.valid && bodyFid && !allowInsecureFallback) {
+    await logSecurityEvent(context.env.WARPLETS, { logSalt: context.env.SECURITY_LOG_SALT }, {
+      eventType: "notification_open_auth",
+      outcome: session.reason,
+      actorType: "ip",
+      ipAddress: ip,
+      route: requestUrl.pathname,
+      details: "fid_rejected_without_valid_session",
+    });
+  }
   const appSlug = normalizeAppSlug(body.appSlug, resolveAppSlugFromUrl(new URL(context.request.url)));
 
   const idempotencyKey = `${notificationId}:${fid ?? "anon"}:${appSlug ?? "app"}`;
