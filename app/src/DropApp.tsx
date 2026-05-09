@@ -1876,8 +1876,8 @@ export default function App() {
                       <Text className="mt-2 text-sm leading-relaxed" style={{ color: "#b7ffb7" }}>
                         Filter, sort, and search with ease.
                       </Text>
-                      <Text className="mt-2 text-sm leading-relaxed" style={{ color: "#b7ffb7" }}>
-                        It's your guide to finding 💎 Warplets!
+                      <Text className="mt-2 text-md font-bold leading-relaxed" style={{ color: "#b7ffb7" }}>
+                        Find your 💎 Warplets!
                       </Text>
                       <button
                         type="button"
@@ -1887,7 +1887,7 @@ export default function App() {
                           sdk.actions.openUrl("https://link.10x.meme/csv").catch(() => {});
                         }}
                       >
-                        Get The Cheatsheet
+                        📕 Get The Cheatsheet
                       </button>
                     </div>
                     ) : (
@@ -1905,31 +1905,49 @@ export default function App() {
                   <div className="rounded-2xl border border-[#00FF00]/35 bg-[#041204]/85 px-4 py-4 space-y-4">
                     {unlockedRewardCount >= 3 ? (
                     <div className="text-left">
+                      <div className="mt-3 overflow-hidden rounded-xl bg-black">
+                        <iframe
+                          src="https://www.youtube-nocookie.com/embed/6rrPP-QOF3k?rel=0&modestbranding=1&playsinline=1&iv_load_policy=3"
+                          title="The Matrix red pill scene"
+                          className="w-full aspect-video"
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; web-share"
+                          referrerPolicy="strict-origin-when-cross-origin"
+                          allowFullScreen
+                        />
+                      </div>
                       <Text className="mt-1 text-sm leading-relaxed" style={{ color: "#b7ffb7" }}>
-                        The Matrix lore is weaved into the 10X Warplets. Revisits the iconic red pill scene: choice, control, and waking up from comforting illusions.
+                        The Matrix lore is in the 10X Warplets DNA.
                       </Text>
-                      <button
-                        type="button"
-                        className="mt-2 underline cursor-pointer"
-                        style={{ color: "#00FF00" }}
-                        onClick={() => {
-                          sdk.actions.openUrl("https://www.youtube.com/watch?v=6rrPP-QOF3k").catch(() => {});
-                        }}
-                      >
-                        https://www.youtube.com/watch?v=6rrPP-QOF3k
-                      </button>
+                      <Text className="mt-1 text-sm leading-relaxed" style={{ color: "#b7ffb7" }}>
+                        You can choose between:
+                      </Text>
+                      <Text className="mt-1 text-sm leading-relaxed" style={{ color: "#b7ffb7" }}>
+                        🔵 Blue pill - comforting illusions.
+                      </Text>
+                      <Text className="mt-1 text-sm leading-relaxed" style={{ color: "#b7ffb7" }}>
+                        🔴 Red pill - painful reality.
+                      </Text>
+                      <Text className="mt-1 text-sm leading-relaxed" style={{ color: "#b7ffb7" }}>
+                        Or, you can choose to Think 10X.
+                      </Text>
+                      <Text className="mt-1 text-sm leading-relaxed" style={{ color: "#b7ffb7" }}>
+                        🟢 Take the green pill.
+                      </Text>
                       <Text className="mt-2 text-sm leading-relaxed" style={{ color: "#b7ffb7" }}>
-                        Go deep into the making of The Matrix. Philosophy, cycles of control, simulated freedom, and the terrifying idea that even escaping the system may still be part of the system.
+                        Choose agency.
+                      </Text>
+                      <Text className="mt-2 text-md font-bold leading-relaxed" style={{ color: "#b7ffb7" }}>
+                        Build your future.
                       </Text>
                       <button
                         type="button"
-                        className="mt-2 underline cursor-pointer"
-                        style={{ color: "#00FF00" }}
+                        className="mt-3 w-full max-w-full rounded-[20px] border border-[#009900] bg-[#00FF00] px-5 py-3 text-md font-bold shadow-[3px_6px_0_#008000] transition-all duration-100 active:translate-x-[1px] active:translate-y-[3px] active:shadow-[1px_3px_0_#008000] cursor-pointer"
+                        style={{ color: "rgb(0, 80, 0)" }}
                         onClick={() => {
                           sdk.actions.openUrl("https://www.youtube.com/watch?v=kK0JtvYg5-s").catch(() => {});
                         }}
                       >
-                        https://www.youtube.com/watch?v=kK0JtvYg5-s
+                        🐇 Follow The White Rabbit
                       </button>
                     </div>
                     ) : (
@@ -1942,24 +1960,45 @@ export default function App() {
 
                 <div className="space-y-3">
                   <Text className="text-lg font-bold text-left" style={{ color: "#00FF00" }}>
-                    {unlockedRewardCount >= 4 ? "🤣 Reward #4 The Matrix Uploaded" : "🤣 Reward #4"}
+                    {unlockedRewardCount >= 4 ? "🤣 Reward #4 The Matrix Memes" : "🤣 Reward #4"}
                   </Text>
                   <div className="rounded-2xl border border-[#00FF00]/35 bg-[#041204]/85 px-4 py-4 space-y-4">
                     {unlockedRewardCount >= 4 ? (
                     <div className="text-left">
+                      <img
+                        src="/matrix-payphones.jpg"
+                        alt="Matrix payphones"
+                        className="w-full rounded-xl mb-3"
+                        loading="lazy"
+                      />
                       <Text className="mt-1 text-sm leading-relaxed" style={{ color: "#b7ffb7" }}>
-                        10X Warplets are all about having FUN! Checkout this hillarious playlist of videos on YouTube:{" "}
-                        <button
-                          type="button"
-                          className="underline cursor-pointer"
-                          style={{ color: "#00FF00" }}
-                          onClick={() => {
-                            sdk.actions.openUrl("https://www.youtube.com/watch?v=ug2aoVZYgaU&list=PLj-tHdTcFWloQkdL1Ps-JOSSPW-_VwQWx").catch(() => {});
-                          }}
-                        >
-                          https://www.youtube.com/watch?v=ug2aoVZYgaU&list=PLj-tHdTcFWloQkdL1Ps-JOSSPW-_VwQWx
-                        </button>
+                        The Matrix... why so serious?
                       </Text>
+                      <Text className="mt-1 text-sm leading-relaxed" style={{ color: "#b7ffb7" }}>
+                        Don't worry we're not.
+                      </Text>
+                      <Text className="mt-1 text-sm leading-relaxed" style={{ color: "#b7ffb7" }}>
+                        The Matrix is a meme.
+                      </Text>
+                      <Text className="mt-1 text-sm leading-relaxed" style={{ color: "#b7ffb7" }}>
+                        Memes spread ideas.
+                      </Text>
+                      <Text className="mt-1 text-sm leading-relaxed" style={{ color: "#b7ffb7" }}>
+                        But above all... memes should be fun!
+                      </Text>
+                      <Text className="mt-2 text-md font-bold leading-relaxed" style={{ color: "#b7ffb7" }}>
+                        10X is the meme.
+                      </Text>
+                      <button
+                        type="button"
+                        className="mt-3 w-full rounded-[20px] border border-[#009900] bg-[#00FF00] px-5 py-3 text-md font-bold shadow-[3px_6px_0_#008000] transition-all duration-100 active:translate-x-[1px] active:translate-y-[3px] active:shadow-[1px_3px_0_#008000] cursor-pointer"
+                        style={{ color: "rgb(0, 80, 0)" }}
+                        onClick={() => {
+                          sdk.actions.openUrl("https://www.youtube.com/watch?v=ug2aoVZYgaU&list=PLj-tHdTcFWloQkdL1Ps-JOSSPW-_VwQWx").catch(() => {});
+                        }}
+                      >
+                        😹 Watch The Matrix Uploaded
+                      </button>
                     </div>
                     ) : (
                       <Text className="text-sm font-semibold text-left" style={{ color: "#b7ffb7" }}>
