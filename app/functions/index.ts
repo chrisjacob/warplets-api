@@ -6,9 +6,9 @@ type PagesEnv = {
   WARPLETS?: D1Database;
 };
 
-const DROP_SHARE_TITLE = "🟢 10X Warplets (Private 10K NFT Drop)";
+const DROP_SHARE_TITLE = "10X Warplets (10K NFT Drop)";
 const DROP_SHARE_DESCRIPTION =
-  "Price increases by $10 every 10 days. Private supply goes public every 10 days. Are you on the list? Don't miss out. ";
+  "Price increases 10 USD every 10 days. Private supply goes public every 10 days. Don't miss out. ";
 const DEFAULT_DROP_SHARE_IMAGE_URL = "https://warplets.10x.meme/760.gif";
 const DROP_ICON_URL = "https://drop.10x.meme/icon_drop.png";
 const DROP_SPLASH_URL = "https://drop.10x.meme/splash_drop.png";

@@ -1290,13 +1290,13 @@ export default function App() {
         const castRarityLine = formattedTokenId && topPercentLabel
           ? `My rarity #${formattedTokenId} of 10,000! 👀`
           : "My rarity is 10,000! 👀";
-        const outreachLine = castOutreach.length > 0 ? `\n\nFYI you're on the list ${castOutreach}` : "";
+        const outreachLine = castOutreach.length > 0 ? `\n\n🏆 You're on the list ${castOutreach}` : "";
         const raritySection = isMatched ? `\n\n${castRarityLine}\n\n...what's your rarity?` : "";
         const castResult = await sdk.actions.composeCast({
           text:
             `🟢 10X Warplets (Private 10K NFT Drop)\n\nPrice $${urgency.currentPrice} → $${urgency.nextPrice} in ${urgency.countdown}.\nSupply private → public every 10 days.\nAre you on the list? Don't miss out.${raritySection}${outreachLine}`,
           embeds: purchasedTokenId
-            ? [referralDropUrl, `https://warplets.10x.meme/${purchasedTokenId}.${SHARE_IMAGE_EXTENSION}`]
+            ? [referralDropUrl]
             : [referralDropUrl],
         });
         if (!alreadyCompleted) {
@@ -1310,12 +1310,12 @@ export default function App() {
         const castRarityLine = formattedTokenId && topPercentLabel
           ? `My rarity #${formattedTokenId} of 10,000! 👀`
           : "My rarity is 10,000! 👀";
-        const outreachLine = tweetOutreach.length > 0 ? `FYI you're on the list ${tweetOutreach}\n\n` : "";
+        const outreachLine = tweetOutreach.length > 0 ? `🏆 You're on the list ${tweetOutreach}\n\n` : "";
         const raritySection = isMatched ? `${castRarityLine}\n\n...what's your rarity?\n\n` : "";
-        const text = `🟢 10X Warplets (Private 10K NFT Drop)\n\nPrice $${urgency.currentPrice} → $${urgency.nextPrice} in ${urgency.countdown}.\nSupply private → public every 10 days.\nAre you on the list? Don't miss out.\n\n1️⃣ Join Farcaster: https://farcaster.xyz/~/code/RUZLHN\n2️⃣ Visit mini-app: https://farcaster.xyz/miniapps/cSNbxgFkuFRi/10x-warplets-drop\n\n${raritySection}${outreachLine}`;
+        const text = `🟢 10X Warplets (Private 10K NFT Drop)\n\nPrice $${urgency.currentPrice} → $${urgency.nextPrice} in ${urgency.countdown}.\nSupply private → public every 10 days.\nAre you on the list? Don't miss out.\n\n1️⃣ Join Farcaster: https://farcaster.xyz/~/code/RUZLHN\n2️⃣ Visit mini-app: ${referralDropUrl}\n\n${raritySection}${outreachLine}`;
         const intentUrl = `https://x.com/intent/post?${new URLSearchParams({
           text,
-          url: referralDropUrl,
+          url: "",
           hashtags: "10XWarplets",
           via: "10XMemeX",
         }).toString()}`;
@@ -1406,11 +1406,11 @@ export default function App() {
         const castRarityLine = formattedTokenId && topPercentLabel
           ? `My rarity #${formattedTokenId} of 10,000! 👀`
           : "My rarity is 10,000! 👀";
-        const outreachLine = castOutreach.length > 0 ? `\n\nFYI you're on the list ${castOutreach}` : "";
+        const outreachLine = castOutreach.length > 0 ? `\n\n🏆 You're on the list ${castOutreach}` : "";
         const castResult = await sdk.actions.composeCast({
           text:
             `🟢 10X Warplets (Private 10K NFT Drop)\n\nPrice $${urgency.currentPrice} → $${urgency.nextPrice} in ${urgency.countdown}.\nSupply private → public every 10 days.\nAre you on the list? Don't miss out.\n\n${castRarityLine}\n\n...what's your rarity?${outreachLine}`,
-          embeds: [referralDropUrl, `https://warplets.10x.meme/${purchasedTokenId}.${SHARE_IMAGE_EXTENSION}`],
+          embeds: [referralDropUrl],
         });
 
         if (castResult?.cast?.hash && fid) {
@@ -1572,7 +1572,7 @@ export default function App() {
 
     try {
       const urgency = getUrgencyDetails(nowMs);
-      const outreachLine = castOutreach.length > 0 ? `\n\nFYI you're on the list ${castOutreach}` : "";
+      const outreachLine = castOutreach.length > 0 ? `\n\n🏆 You're on the list ${castOutreach}` : "";
       const castResult = await sdk.actions.composeCast({
         text:
           `🟢 10X Warplets (Private 10K NFT Drop)\n\nPrice $${urgency.currentPrice} → $${urgency.nextPrice} in ${urgency.countdown}.\nSupply private → public every 10 days.\nAre you on the list? Don't miss out.${outreachLine}`,
