@@ -5,6 +5,19 @@ interface Env {
 }
 import { applySecurityHeaders, getClientIp, logSecurityEvent, rateLimit } from "../../_lib/security.js";
 
+const DROP_UNLOCK_ACTION_SLUGS = [
+  "drop-cast",
+  "drop-tweet",
+  "drop-follow-fc-10xmeme",
+  "drop-follow-fc-10xchris",
+  "drop-follow-x-10xmeme",
+  "drop-follow-x-10xchris",
+  "drop-join-fc-channel",
+  "drop-join-telegram",
+  "drop-waitlist-email",
+  "drop-email-10x",
+] as const;
+
 async function syncWaitlistActionCompletion(db: D1Database, fid: number, email: string): Promise<void> {
   const user = await db
     .prepare("SELECT id FROM warplets_users WHERE fid = ? LIMIT 1")
@@ -27,21 +40,37 @@ async function syncWaitlistActionCompletion(db: D1Database, fid: number, email: 
     .bind(action.id, action.slug, user.id, fid, `email:${email}`, now)
     .run();
 
-  const totals = await db
-    .prepare(
-      `SELECT
-         (SELECT COUNT(*) FROM actions WHERE app_slug = ?) AS total_actions,
-         (SELECT COUNT(*)
-            FROM actions_completed ac
-            JOIN actions a ON a.id = ac.action_id
-           WHERE ac.user_id = ?
-             AND a.app_slug = ?) AS completed_actions`
-    )
-    .bind(action.app_slug, user.id, action.app_slug)
-    .first<{ total_actions: number; completed_actions: number }>();
-
-  const totalActions = Number(totals?.total_actions ?? 0);
-  const completedActions = Number(totals?.completed_actions ?? 0);
+  let totalActions = 0;
+  let completedActions = 0;
+  if (action.app_slug === "drop") {
+    totalActions = DROP_UNLOCK_ACTION_SLUGS.length;
+    const placeholders = DROP_UNLOCK_ACTION_SLUGS.map(() => "?").join(", ");
+    const completed = await db
+      .prepare(
+        `SELECT COUNT(DISTINCT action_slug) AS completed_actions
+         FROM actions_completed
+         WHERE user_id = ?
+           AND action_slug IN (${placeholders})`
+      )
+      .bind(user.id, ...DROP_UNLOCK_ACTION_SLUGS)
+      .first<{ completed_actions: number }>();
+    completedActions = Number(completed?.completed_actions ?? 0);
+  } else {
+    const totals = await db
+      .prepare(
+        `SELECT
+           (SELECT COUNT(*) FROM actions WHERE app_slug = ?) AS total_actions,
+           (SELECT COUNT(*)
+              FROM actions_completed ac
+              JOIN actions a ON a.id = ac.action_id
+             WHERE ac.user_id = ?
+               AND a.app_slug = ?) AS completed_actions`
+      )
+      .bind(action.app_slug, user.id, action.app_slug)
+      .first<{ total_actions: number; completed_actions: number }>();
+    totalActions = Number(totals?.total_actions ?? 0);
+    completedActions = Number(totals?.completed_actions ?? 0);
+  }
 
   if (totalActions > 0 && completedActions >= totalActions) {
     await db
