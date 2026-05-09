@@ -194,10 +194,6 @@ function getCanGoBack(appSlug: AppSlug): boolean {
   return getMiniAppHistoryDepth(appSlug) > 0;
 }
 
-function notifyLocationChange() {
-  window.dispatchEvent(new PopStateEvent("popstate"));
-}
-
 async function openApp(appSlug: AppSlug) {
   const url = getAppUrl(appSlug);
 
@@ -244,6 +240,9 @@ export function useMiniAppChrome(appSlug: AppSlug) {
 
     const initBack = async () => {
       try {
+        const hostname = window.location.hostname.toLowerCase();
+        const isLocalMiniAppHost = hostname.includes("-local.");
+        if (isLocalMiniAppHost) return;
         const inMiniApp = typeof sdk.isInMiniApp === "function" ? await sdk.isInMiniApp() : true;
         if (!inMiniApp) return;
         await sdk.back.enableWebNavigation();
@@ -276,6 +275,11 @@ export function useMiniAppChrome(appSlug: AppSlug) {
     };
   }, [appSlug]);
 
+  const syncRouteStateNow = () => {
+    setIsMenuRoute(isMenuPath(appSlug, window.location));
+    setCanGoBack(getCanGoBack(appSlug));
+  };
+
   const actions = useMemo(() => ({
     goBack: () => {
       if (getCanGoBack(appSlug)) {
@@ -296,7 +300,7 @@ export function useMiniAppChrome(appSlug: AppSlug) {
           "",
           rootPath
         );
-        notifyLocationChange();
+        syncRouteStateNow();
       }
     },
     openMenu: () => {
@@ -307,20 +311,20 @@ export function useMiniAppChrome(appSlug: AppSlug) {
         return;
       }
       pushMiniAppRoute(appSlug, menuPath);
-      notifyLocationChange();
+      syncRouteStateNow();
     },
     goToCurrentRoot: () => {
       const rootPath = getRootPath(appSlug, window.location);
       if (normalizePath(window.location.pathname) === normalizePath(rootPath)) return;
       pushMiniAppRoute(appSlug, rootPath);
-      notifyLocationChange();
+      syncRouteStateNow();
     },
     openHubRoot: async () => {
       if (appSlug === "app") {
         const rootPath = getRootPath("app", window.location);
         if (normalizePath(window.location.pathname) !== normalizePath(rootPath)) {
           pushMiniAppRoute("app", rootPath);
-          notifyLocationChange();
+          syncRouteStateNow();
         }
         return;
       }

@@ -32,6 +32,7 @@ type WarpletStatus = {
   referralCount?: number;
   topReferrers?: unknown;
   actionSessionToken?: string | null;
+  completedActionsCount?: number;
 };
 
 type RecentBuysResponse = {
@@ -991,6 +992,9 @@ export default function App() {
         }
 
         setHasRewarded(Boolean(data.rewardedOn));
+        if (Number(data.completedActionsCount ?? 0) > 0) {
+          setShowUnlockRewardPage(true);
+        }
 
       } catch (err) {
         console.error("Failed to get user context:", err);
@@ -1070,11 +1074,11 @@ export default function App() {
     : FARCASTER_MINIAPP_BASE_URL;
 
   useEffect(() => {
-    if (loading || error || !isMatched || didCelebrate) return;
+    if (loading || error || !isMatched || didCelebrate || isMenuRoute) return;
 
     launchTopConfetti();
     setDidCelebrate(true);
-  }, [loading, error, isMatched, didCelebrate]);
+  }, [loading, error, isMatched, didCelebrate, isMenuRoute]);
 
   useEffect(() => {
     const intervalId = window.setInterval(() => {
@@ -1185,9 +1189,9 @@ export default function App() {
     verification: string | null,
     outreachTokenIds?: number[]
   ) => {
-    if (!fid || !actionSessionToken) return;
+    if (!fid) return;
 
-    const response = await fetch("/api/actions-complete", {
+    const submitCompletion = async (sessionToken?: string) => fetch("/api/actions-complete", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
@@ -1195,9 +1199,30 @@ export default function App() {
         actionSlug,
         verification: verification ?? undefined,
         outreachTokenIds: outreachTokenIds && outreachTokenIds.length > 0 ? outreachTokenIds : undefined,
-        sessionToken: actionSessionToken,
+        sessionToken: sessionToken || undefined,
       }),
     });
+
+    let response = await submitCompletion(actionSessionToken || undefined);
+
+    if (response.status === 401) {
+      const statusRes = await fetch("/api/warplet-status", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ fid, referrerFid: parsedReferralFid }),
+      });
+
+      if (statusRes.ok) {
+        const refreshed = (await statusRes.json()) as WarpletStatus;
+        const refreshedToken = typeof refreshed.actionSessionToken === "string"
+          ? refreshed.actionSessionToken
+          : "";
+        if (refreshedToken) {
+          setActionSessionToken(refreshedToken);
+          response = await submitCompletion(refreshedToken);
+        }
+      }
+    }
 
     if (!response.ok) {
       throw new Error(await readErrorResponse(response));
@@ -1237,6 +1262,9 @@ export default function App() {
     setOutreachCandidates(normalizeOutreachCandidates(nextStatus.outreachCandidates));
     setReferralCount(typeof nextStatus.referralCount === "number" ? nextStatus.referralCount : 0);
     setTopReferrers(normalizeTopReferrers(nextStatus.topReferrers));
+    if (Number(nextStatus.completedActionsCount ?? 0) > 0) {
+      setShowUnlockRewardPage(true);
+    }
 
     if (forceReferralTest) {
       const testRes = await fetch("/api/warplet-status?referrals=1");
@@ -1278,26 +1306,26 @@ export default function App() {
 
     try {
       if (action.slug === "drop-follow-fc-10xmeme") {
+        if (!alreadyCompleted) {
+          await completeRewardAction(action.slug, `opened:${new Date().toISOString()}`);
+        }
         await sdk.actions.viewProfile({ fid: 1313340 });
-        if (!alreadyCompleted) {
-          completeRewardAction(action.slug, `opened:${new Date().toISOString()}`).catch(() => {});
-        }
       } else if (action.slug === "drop-follow-fc-10xchris") {
+        if (!alreadyCompleted) {
+          await completeRewardAction(action.slug, `opened:${new Date().toISOString()}`);
+        }
         await sdk.actions.viewProfile({ fid: 1129138 });
-        if (!alreadyCompleted) {
-          completeRewardAction(action.slug, `opened:${new Date().toISOString()}`).catch(() => {});
-        }
       } else if (action.slug === "drop-join-fc-channel") {
-        await sdk.actions.openUrl("https://farcaster.xyz/~/channel/10xmeme");
         if (!alreadyCompleted) {
-          completeRewardAction(action.slug, `opened:${new Date().toISOString()}`).catch(() => {});
+          await completeRewardAction(action.slug, `opened:${new Date().toISOString()}`);
         }
+        await sdk.actions.openUrl("https://farcaster.xyz/~/channel/10xmeme");
       } else if (isAssumeSuccessActionSlug(action.slug)) {
+        if (!alreadyCompleted) {
+          await completeRewardAction(action.slug, `opened:${new Date().toISOString()}`);
+        }
         if (action.url) {
           await sdk.actions.openUrl(action.url);
-        }
-        if (!alreadyCompleted) {
-          completeRewardAction(action.slug, `opened:${new Date().toISOString()}`).catch(() => {});
         }
       } else if (action.slug === "drop-cast") {
         const urgency = getUrgencyDetails(nowMs);
@@ -1314,10 +1342,10 @@ export default function App() {
             : [referralDropUrl],
         });
         if (!alreadyCompleted) {
-          const verification = castResult?.cast?.hash
-            ? buildCastVerificationUrl(castResult.cast.hash, viewerUsername)
-            : `dismissed:${new Date().toISOString()}`;
-          completeRewardAction(action.slug, verification, outreachCandidates.tokenIds).catch(() => {});
+          if (castResult?.cast?.hash) {
+            const verification = buildCastVerificationUrl(castResult.cast.hash, viewerUsername);
+            await completeRewardAction(action.slug, verification, outreachCandidates.tokenIds);
+          }
         }
       } else if (action.slug === "drop-tweet") {
         const urgency = getUrgencyDetails(nowMs);
@@ -1333,10 +1361,10 @@ export default function App() {
           hashtags: "10XWarplets",
           via: "10XMemeX",
         }).toString()}`;
-        await sdk.actions.openUrl(intentUrl);
         if (!alreadyCompleted) {
-          completeRewardAction(action.slug, intentUrl, outreachCandidates.tokenIds).catch(() => {});
+          await completeRewardAction(action.slug, intentUrl, outreachCandidates.tokenIds);
         }
+        await sdk.actions.openUrl(intentUrl);
       } else if (action.slug === "drop-waitlist-email") {
         // Waitlist action uses email submit flow below.
       } else if (action.url) {
@@ -1720,10 +1748,10 @@ export default function App() {
   }, [forceUnlock, forceActionsPage]);
 
   useEffect(() => {
-    if (!showUnlockRewardPage || !hasAnyUnlockedRewards || didUnlockCelebrate) return;
+    if (!showUnlockRewardPage || !hasAnyUnlockedRewards || didUnlockCelebrate || isMenuRoute) return;
     launchTopConfetti();
     setDidUnlockCelebrate(true);
-  }, [showUnlockRewardPage, hasAnyUnlockedRewards, didUnlockCelebrate]);
+  }, [showUnlockRewardPage, hasAnyUnlockedRewards, didUnlockCelebrate, isMenuRoute]);
 
   return (
     <MiniAppShell>

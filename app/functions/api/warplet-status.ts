@@ -1053,6 +1053,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         referralCount: 0,
         topReferrers,
         actionSessionToken,
+        completedActionsCount: 0,
       });
     }
 
@@ -1149,6 +1150,15 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       logEnrichmentError("post_existing_user_friends_outreach", error, { fid, userId: existing.id, hostname });
     }
 
+    const completedActionsRow = await context.env.WARPLETS.prepare(
+      `SELECT COUNT(DISTINCT action_slug) AS completed_actions
+       FROM actions_completed
+       WHERE user_id = ?`
+    )
+      .bind(existing.id)
+      .first<{ completed_actions: number }>();
+    const completedActionsCount = Number(completedActionsRow?.completed_actions ?? 0);
+
     const actionSessionToken = await createActionSessionToken(context.env.ACTION_SESSION_SECRET, fid, 3600);
     return jsonSecure({
       fid,
@@ -1164,6 +1174,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       referralCount,
       topReferrers,
       actionSessionToken,
+      completedActionsCount,
     });
   } catch (error) {
     console.error("warplet-status POST failed:", error);
@@ -1181,6 +1192,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       referralCount: 0,
       topReferrers: [],
       actionSessionToken: null,
+      completedActionsCount: 0,
     });
   }
 };

@@ -90,13 +90,13 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   const sessionToken = asNonEmptyString(body.sessionToken);
   const bodyFid = typeof body.fid === "number" && Number.isInteger(body.fid) && body.fid > 0 ? body.fid : null;
   const session = await verifyActionSessionToken(context.env.ACTION_SESSION_SECRET, sessionToken);
+  const isLocalDevHost =
+    requestUrl.hostname.includes("-local.") ||
+    requestUrl.hostname.includes("-dev.") ||
+    requestUrl.hostname.endsWith(".pages.dev");
   const allowInsecureFallback =
-    context.env.ALLOW_INSECURE_ACTION_FID_FALLBACK === "1" &&
-    (
-      requestUrl.hostname.includes("-local.") ||
-      requestUrl.hostname.includes("-dev.") ||
-      requestUrl.hostname.endsWith(".pages.dev")
-    );
+    isLocalDevHost &&
+    (context.env.ALLOW_INSECURE_ACTION_FID_FALLBACK === "1" || isLocalDevHost);
   const fid = session.valid ? session.fid : (allowInsecureFallback ? bodyFid : null);
   if (!fid) {
     const authOutcome = session.valid ? "missing_fid_fallback" : session.reason;
