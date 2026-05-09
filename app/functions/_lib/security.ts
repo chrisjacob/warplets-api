@@ -36,6 +36,7 @@ const DEFAULT_CSP = [
   "media-src 'self' https: blob:",
   "style-src 'self' 'unsafe-inline'",
   "script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' https://www.googletagmanager.com https://www.google-analytics.com https://static.cloudflareinsights.com https://challenges.cloudflare.com https://ph.neynar.com",
+  "frame-src 'self' https://www.youtube-nocookie.com https://www.youtube.com",
   "worker-src 'self' blob:",
   "connect-src 'self' https:",
   "frame-ancestors 'self' https://farcaster.xyz https://*.farcaster.xyz https://warpcast.com https://*.warpcast.com",

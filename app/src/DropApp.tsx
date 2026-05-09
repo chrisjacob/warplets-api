@@ -785,7 +785,7 @@ function ActionCheckIcon() {
 }
 
 export default function App() {
-  const FARCASTER_MINIAPP_URL = "https://farcaster.xyz/miniapps/uR3Rzs-k6AnV/10x";
+  const FARCASTER_MINIAPP_BASE_URL = "https://farcaster.xyz/miniapps/cSNbxgFkuFRi/10x-warplets-drop";
   const { isMenuRoute, canGoBack, actions } = useMiniAppChrome("drop");
   const [fid, setFid] = useState<number | null>(null);
   const [status, setStatus] = useState<WarpletStatus | null>(null);
@@ -808,6 +808,7 @@ export default function App() {
   const [viewerUsername, setViewerUsername] = useState("");
   const [waitlistStatusMessage, setWaitlistStatusMessage] = useState("");
   const [showWaitlistModal, setShowWaitlistModal] = useState(false);
+  const [copyToastVisible, setCopyToastVisible] = useState(false);
   const [recentBuys, setRecentBuys] = useState<RecentBuyer[]>([]);
   const [rewardedUsers, setRewardedUsers] = useState<RecentBuyer[]>([]);
   const [bestFriends, setBestFriends] = useState<BestFriend[]>([]);
@@ -1027,14 +1028,17 @@ export default function App() {
   const searchParams = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : new URLSearchParams();
   const referralFidParam = searchParams.get("fid");
   const parsedReferralFid = referralFidParam && /^\d+$/.test(referralFidParam) ? Number(referralFidParam) : null;
-  const forceNoMatch = typeof window !== "undefined" && searchParams.get("match") === "0";
+  const rawMatchParam = typeof window !== "undefined" ? searchParams.get("match") : null;
+  const normalizedMatchParam = rawMatchParam?.trim().toLowerCase() ?? null;
+  const forceNoMatch = normalizedMatchParam === "0" || normalizedMatchParam === "false";
+  const forceMatch = normalizedMatchParam === "1" || normalizedMatchParam === "true";
   const forceReferralTest = typeof window !== "undefined" && searchParams.get("referrals") === "1";
   const debugEnabled = typeof window !== "undefined" && searchParams.get("debug") === "1";
   const forceUnlock = typeof window !== "undefined" && searchParams.get("unlock") === "1";
   const forceActionsPage = typeof window !== "undefined" && searchParams.get("actions") === "1";
   const currentHost = typeof window !== "undefined" ? window.location.host : "";
   const showDebugChip = debugEnabled;
-  const isMatched = !forceNoMatch && Boolean(status?.matched && typeof status.rarityValue === "number");
+  const isMatched = forceMatch || (!forceNoMatch && Boolean(status?.matched && typeof status.rarityValue === "number"));
   const hasPurchased = !forceNoMatch && Boolean(purchasedTokenId);
   const displayTokenId = purchasedTokenId ?? (typeof status?.rarityValue === "number" ? String(status.rarityValue) : null);
   const formattedTokenId =
@@ -1045,7 +1049,12 @@ export default function App() {
     displayTokenId && Number.isFinite(Number(displayTokenId))
       ? formatTopPercent(Number(displayTokenId))
       : null;
+  const effectiveMatchedTokenId =
+    displayTokenId ?? (forceMatch ? "1358" : null);
   const referralDropUrl = fid ? `https://drop.10x.meme/?fid=${fid}` : "https://drop.10x.meme/";
+  const farcasterLaunchUrl = parsedReferralFid
+    ? `${FARCASTER_MINIAPP_BASE_URL}?fid=${parsedReferralFid}`
+    : FARCASTER_MINIAPP_BASE_URL;
 
   useEffect(() => {
     if (loading || error || !isMatched || didCelebrate) return;
@@ -1067,9 +1076,11 @@ export default function App() {
   const imageUrl = hasPurchased
     ? `https://warplets.10x.meme/${purchasedTokenId}.webp`
     : isMatched
-      ? `https://warplets.10x.meme/${status?.rarityValue}.avif`
+      ? `https://warplets.10x.meme/${effectiveMatchedTokenId}.avif`
       : "https://warplets.10x.meme/3081.png";
-  const title = hasPurchased
+  const title = showOpenInFarcaster && !hasPurchased && !isMatched
+    ? ""
+    : hasPurchased
     ? "Welcome to 10X! Want rewards?"
     : isMatched
       ? "Congratulations! You're on the list..."
@@ -1224,6 +1235,11 @@ export default function App() {
         }
       }
     }
+  };
+
+  const showCopyToast = () => {
+    setCopyToastVisible(true);
+    window.setTimeout(() => setCopyToastVisible(false), 1800);
   };
 
   const setActionPendingThenComplete = (slug: string) => {
@@ -1724,7 +1740,7 @@ export default function App() {
           {!loading && showOpenInFarcaster && (
             <div className="px-4 pb-2 pt-3 flex justify-center">
               <a
-                href={FARCASTER_MINIAPP_URL}
+                href={farcasterLaunchUrl}
                 className="inline-block w-[329px] max-w-full px-5 py-3 rounded-[20px] border border-[#009900] bg-[#00FF00] hover:bg-[#33ff33] font-bold text-lg transition-all duration-100 shadow-[3px_6px_0_#008000] active:translate-x-[1px] active:translate-y-[3px] active:shadow-[1px_3px_0_#008000]"
                 style={{ color: "rgb(0, 80, 0)" }}
               >
@@ -2165,7 +2181,9 @@ export default function App() {
                       style={{ color: "rgb(0, 80, 0)" }}
                       onClick={() => {
                         if (navigator.clipboard?.writeText) {
-                          navigator.clipboard.writeText(referralDropUrl).catch(() => {});
+                          navigator.clipboard.writeText(referralDropUrl).then(() => {
+                            showCopyToast();
+                          }).catch(() => {});
                         }
                       }}
                     >
@@ -2409,6 +2427,16 @@ export default function App() {
         </div>
       )}
 
+      {copyToastVisible && (
+        <div className="fixed bottom-6 left-1/2 z-30 -translate-x-1/2">
+          <div className="rounded-xl border border-[#00FF00]/45 bg-black/90 px-4 py-2 shadow-lg backdrop-blur-sm">
+            <Text className="text-sm font-semibold text-center" style={{ color: "#00FF00" }}>
+              Link copied to clipboard
+            </Text>
+          </div>
+        </div>
+      )}
+
       {showAddAppPrompt && !loading && !showOpenInFarcaster && (
         <div className="fixed inset-0 z-40 flex items-center justify-center px-4 bg-black/70 backdrop-blur-[2px]">
           <div className="w-full max-w-sm rounded-2xl border border-[#00FF00]/45 bg-[#041204] p-5 shadow-[0_0_40px_rgba(0,255,0,0.15)]">
@@ -2443,7 +2471,7 @@ export default function App() {
             {`fid=${fid ?? "null"} rawMatched=${status?.matched ?? "null"} rarity=${status?.rarityValue ?? "null"}`}
           </Text>
           <Text className="text-[11px] leading-tight" style={{ color: "#67e8f9" }}>
-            {`forceNoMatch=${forceNoMatch} computedMatched=${isMatched} debugParam=${debugEnabled}`}
+            {`forceNoMatch=${forceNoMatch} forceMatch=${forceMatch} computedMatched=${isMatched} debugParam=${debugEnabled}`}
           </Text>
           <Text className="text-[11px] leading-tight" style={{ color: "#67e8f9" }}>
             {`error=${error || "none"}`}
