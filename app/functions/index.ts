@@ -56,7 +56,7 @@ function buildFarcasterManifest(hostname: string) {
           "https://drop.10x.meme/screenshots/3.jpg",
         ],
         tags: ["10x", "warplets", "farcaster", "nft", "drop"],
-        tagline: "Your Warplet is waiting.",
+        tagline: "🟢 Take the green pill.",
         ogTitle: DROP_SHARE_TITLE,
         ogDescription: DROP_SHARE_DESCRIPTION,
         ogImageUrl: DEFAULT_DROP_SHARE_IMAGE_URL,
