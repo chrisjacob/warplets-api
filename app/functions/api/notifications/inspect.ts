@@ -9,7 +9,6 @@
 interface Env {
   WARPLETS: D1Database;
   WARPLETS_KV: KVNamespace;
-  ADMIN_NOTIFY_TEST_TOKEN?: string;
   ADMIN_API_KEYS_JSON?: string;
 }
 import { jsonSecure, requireAdminScope } from "../../_lib/security.js";
@@ -70,3 +69,4 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     },
   });
 };
+

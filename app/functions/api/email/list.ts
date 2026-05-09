@@ -12,7 +12,6 @@
 
 interface Env {
   WARPLETS: D1Database;
-  ADMIN_NOTIFY_TEST_TOKEN?: string;
   ADMIN_API_KEYS_JSON?: string;
   WARPLETS_KV?: KVNamespace;
 }
@@ -60,3 +59,4 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     pagination: { limit, offset, returned: rows.results.length },
   });
 };
+

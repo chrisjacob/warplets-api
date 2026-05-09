@@ -2,7 +2,7 @@
  * POST /api/notifications/send
  *
  * Admin endpoint to dispatch notifications to one or more FIDs.
- * Requires x-admin-token header matching ADMIN_NOTIFY_TEST_TOKEN secret.
+ * Requires x-admin-token header matching a scoped admin key in ADMIN_API_KEYS_JSON.
  *
  * Request body:
  *   fids?:           number[]  — specific FIDs to target (omit for all enabled)
@@ -34,7 +34,6 @@ import {
 interface Env {
   WARPLETS: D1Database;
   WARPLETS_KV: KVNamespace;
-  ADMIN_NOTIFY_TEST_TOKEN?: string;
   ADMIN_API_KEYS_JSON?: string;
   SECURITY_LOG_SALT?: string;
 }
@@ -274,3 +273,4 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     results,
   });
 };
+

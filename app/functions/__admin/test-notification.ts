@@ -3,7 +3,6 @@ import { jsonSecure, requireAdminScope } from "../_lib/security.js";
 
 interface Env {
   WARPLETS: D1Database;
-  ADMIN_NOTIFY_TEST_TOKEN?: string;
   ADMIN_API_KEYS_JSON?: string;
   WARPLETS_KV?: KVNamespace;
 }
@@ -106,3 +105,4 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     ...(result.state === "failed" ? { error: String(result.error) } : {}),
   });
 };
+

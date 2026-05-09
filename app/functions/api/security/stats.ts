@@ -10,9 +10,7 @@ import { jsonSecure, requireAdminScope } from "../../_lib/security.js";
 interface Env {
   WARPLETS: D1Database;
   WARPLETS_KV?: KVNamespace;
-  ADMIN_NOTIFY_TEST_TOKEN?: string;
   ADMIN_API_KEYS_JSON?: string;
-  ADMIN_ALLOW_LEGACY_TOKEN?: string;
 }
 
 type CountRow = { count: number };
@@ -99,3 +97,4 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     topEvents24h: topEvents.results ?? [],
   });
 };
+

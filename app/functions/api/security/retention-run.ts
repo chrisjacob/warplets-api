@@ -18,9 +18,7 @@ import {
 interface Env {
   WARPLETS: D1Database;
   WARPLETS_KV?: KVNamespace;
-  ADMIN_NOTIFY_TEST_TOKEN?: string;
   ADMIN_API_KEYS_JSON?: string;
-  ADMIN_ALLOW_LEGACY_TOKEN?: string;
   SECURITY_LOG_SALT?: string;
 }
 
@@ -108,3 +106,4 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     deleted,
   });
 };
+

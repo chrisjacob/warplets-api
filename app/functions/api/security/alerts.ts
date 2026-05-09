@@ -11,9 +11,7 @@ import { outboundFetch } from "../../_lib/outbound.js";
 interface Env {
   WARPLETS: D1Database;
   WARPLETS_KV?: KVNamespace;
-  ADMIN_NOTIFY_TEST_TOKEN?: string;
   ADMIN_API_KEYS_JSON?: string;
-  ADMIN_ALLOW_LEGACY_TOKEN?: string;
   RESEND_API_KEY?: string;
   RESEND_FROM_EMAIL?: string;
   SECURITY_ALERT_EMAIL_TO?: string;
@@ -195,3 +193,4 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     alerts,
   });
 };
+

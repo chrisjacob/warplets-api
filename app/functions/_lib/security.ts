@@ -23,9 +23,7 @@ interface RateLimitResult {
 export interface SecurityEnv {
   WARPLETS?: D1Database;
   WARPLETS_KV?: KVNamespace;
-  ADMIN_NOTIFY_TEST_TOKEN?: string;
   ADMIN_API_KEYS_JSON?: string;
-  ADMIN_ALLOW_LEGACY_TOKEN?: string;
   ACTION_SESSION_SECRET?: string;
   SECURITY_LOG_SALT?: string;
 }
@@ -273,22 +271,6 @@ export async function requireAdminScope<T extends SecurityEnv>(
 
   if (validKey) {
     return { ok: true, keyId: validKey.id };
-  }
-
-  // Backward compatibility: allow legacy token only when explicitly enabled.
-  const legacyToken = context.env.ADMIN_NOTIFY_TEST_TOKEN?.trim();
-  const allowLegacyToken = (context.env.ADMIN_ALLOW_LEGACY_TOKEN ?? "").trim() === "1";
-  if (allowLegacyToken && legacyToken && suppliedToken === legacyToken) {
-    await logSecurityEvent(context.env.WARPLETS, { logSalt: context.env.SECURITY_LOG_SALT }, {
-      eventType: "admin_auth",
-      outcome: "legacy_token_used",
-      actorType: "admin_key",
-      actorId: "legacy-admin-token",
-      ipAddress: ip,
-      route: requestUrl.pathname,
-      details: options.scope,
-    });
-    return { ok: true, keyId: "legacy-admin-token" };
   }
 
   const authRate = await rateLimit(context.env.WARPLETS_KV, "admin-auth", ip, 20, 60);

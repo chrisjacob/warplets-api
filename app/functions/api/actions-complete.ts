@@ -233,111 +233,120 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     .bind(action.id, action.slug, user.id, fid, verification, now)
     .run();
 
-  if (action.slug === "drop-cast" && isSuccessfulCastVerification(verification) && !user.shared_on) {
-    await context.env.WARPLETS.prepare(
-      "UPDATE warplets_users SET shared_on = ?, updated_on = ? WHERE id = ?"
-    )
-      .bind(now, now, user.id)
-      .run();
-  }
-
-  if (action.slug === "drop-cast" && isSuccessfulCastVerification(verification) && outreachTokenIds.length > 0) {
-    const placeholders = outreachTokenIds.map(() => "?").join(", ");
-    await context.env.WARPLETS.prepare(
-      `UPDATE warplets_metadata
-       SET last_outreach_on = ?
-       WHERE token_id IN (${placeholders})`
-    )
-      .bind(now, ...outreachTokenIds)
-      .run();
-    if (context.env.WARPLETS_KV) {
-      await context.env.WARPLETS_KV.delete(`outreach-candidates-v1:${user.id}`);
+  let allActionsCompleted = false;
+  try {
+    if (action.slug === "drop-cast" && isSuccessfulCastVerification(verification) && !user.shared_on) {
+      await context.env.WARPLETS.prepare(
+        "UPDATE warplets_users SET shared_on = ?, updated_on = ? WHERE id = ?"
+      )
+        .bind(now, now, user.id)
+        .run();
     }
-  }
 
-  let totalActions = 0;
-  let completedActions = 0;
+    if (action.slug === "drop-cast" && isSuccessfulCastVerification(verification) && outreachTokenIds.length > 0) {
+      const placeholders = outreachTokenIds.map(() => "?").join(", ");
+      await context.env.WARPLETS.prepare(
+        `UPDATE warplets_metadata
+         SET last_outreach_on = ?
+         WHERE token_id IN (${placeholders})`
+      )
+        .bind(now, ...outreachTokenIds)
+        .run();
+      if (context.env.WARPLETS_KV) {
+        await context.env.WARPLETS_KV.delete(`outreach-candidates-v1:${user.id}`);
+      }
+    }
 
-  if (action.app_slug === "drop") {
-    totalActions = DROP_UNLOCK_ACTION_SLUGS.length;
-    const placeholders = DROP_UNLOCK_ACTION_SLUGS.map(() => "?").join(", ");
-    const completed = await context.env.WARPLETS.prepare(
-      `SELECT COUNT(DISTINCT action_slug) AS completed_actions
-       FROM actions_completed
-       WHERE user_id = ?
-         AND action_slug IN (${placeholders})`
-    )
-      .bind(user.id, ...DROP_UNLOCK_ACTION_SLUGS)
-      .first<{ completed_actions: number }>();
-    completedActions = Number(completed?.completed_actions ?? 0);
-  } else {
-    const totals = await context.env.WARPLETS.prepare(
-      `SELECT
-         (SELECT COUNT(*) FROM actions WHERE app_slug = ?) AS total_actions,
-         (SELECT COUNT(*)
-            FROM actions_completed ac
-            JOIN actions a ON a.id = ac.action_id
-           WHERE ac.user_id = ?
-             AND a.app_slug = ?) AS completed_actions`
-    )
-      .bind(action.app_slug, user.id, action.app_slug)
-      .first<{ total_actions: number; completed_actions: number }>();
-    totalActions = Number(totals?.total_actions ?? 0);
-    completedActions = Number(totals?.completed_actions ?? 0);
-  }
+    let totalActions = 0;
+    let completedActions = 0;
 
-  const hasVerifiedWaitlist = await context.env.WARPLETS.prepare(
-    `SELECT 1
-     FROM email_waitlist
-     WHERE fid = ?
-       AND verified = 1
-       AND unsubscribed_at IS NULL
-     LIMIT 1`
-  )
-    .bind(fid)
-    .first<{ 1: number }>();
+    if (action.app_slug === "drop") {
+      totalActions = DROP_UNLOCK_ACTION_SLUGS.length;
+      const placeholders = DROP_UNLOCK_ACTION_SLUGS.map(() => "?").join(", ");
+      const completed = await context.env.WARPLETS.prepare(
+        `SELECT COUNT(DISTINCT action_slug) AS completed_actions
+         FROM actions_completed
+         WHERE user_id = ?
+           AND action_slug IN (${placeholders})`
+      )
+        .bind(user.id, ...DROP_UNLOCK_ACTION_SLUGS)
+        .first<{ completed_actions: number }>();
+      completedActions = Number(completed?.completed_actions ?? 0);
+    } else {
+      const totals = await context.env.WARPLETS.prepare(
+        `SELECT
+           (SELECT COUNT(*) FROM actions WHERE app_slug = ?) AS total_actions,
+           (SELECT COUNT(*)
+              FROM actions_completed ac
+              JOIN actions a ON a.id = ac.action_id
+             WHERE ac.user_id = ?
+               AND a.app_slug = ?) AS completed_actions`
+      )
+        .bind(action.app_slug, user.id, action.app_slug)
+        .first<{ total_actions: number; completed_actions: number }>();
+      totalActions = Number(totals?.total_actions ?? 0);
+      completedActions = Number(totals?.completed_actions ?? 0);
+    }
 
-  const hasWaitlistAction =
-    action.app_slug === "drop"
-      ? true
-      : Boolean(
-          await context.env.WARPLETS.prepare(
-            "SELECT 1 FROM actions WHERE app_slug = ? AND slug = 'drop-waitlist-email' LIMIT 1"
-          )
-            .bind(action.app_slug)
-            .first<{ 1: number }>()
-        );
-
-  if (hasWaitlistAction && hasVerifiedWaitlist) {
-    const hasCompletionRow = await context.env.WARPLETS.prepare(
+    const hasVerifiedWaitlist = await context.env.WARPLETS.prepare(
       `SELECT 1
-       FROM actions_completed
-       WHERE user_id = ?
-         AND action_slug = 'drop-waitlist-email'
+       FROM email_waitlist
+       WHERE fid = ?
+         AND verified = 1
+         AND unsubscribed_at IS NULL
        LIMIT 1`
     )
-      .bind(user.id)
+      .bind(fid)
       .first<{ 1: number }>();
 
-    if (!hasCompletionRow) {
-      completedActions += 1;
-    }
-  }
+    const hasWaitlistAction =
+      action.app_slug === "drop"
+        ? true
+        : Boolean(
+            await context.env.WARPLETS.prepare(
+              "SELECT 1 FROM actions WHERE app_slug = ? AND slug = 'drop-waitlist-email' LIMIT 1"
+            )
+              .bind(action.app_slug)
+              .first<{ 1: number }>()
+          );
 
-  const allActionsCompleted = totalActions > 0 && completedActions >= totalActions;
+    if (hasWaitlistAction && hasVerifiedWaitlist) {
+      const hasCompletionRow = await context.env.WARPLETS.prepare(
+        `SELECT 1
+         FROM actions_completed
+         WHERE user_id = ?
+           AND action_slug = 'drop-waitlist-email'
+         LIMIT 1`
+      )
+        .bind(user.id)
+        .first<{ 1: number }>();
 
-  if (allActionsCompleted) {
-    await context.env.WARPLETS.prepare(
-      "UPDATE warplets_users SET rewarded_on = COALESCE(rewarded_on, ?), updated_on = ? WHERE id = ?"
-    )
-      .bind(now, now, user.id)
-      .run();
-    if (context.env.WARPLETS_KV) {
-      await Promise.all([
-        context.env.WARPLETS_KV.delete("rewarded-users-v1:topup"),
-        context.env.WARPLETS_KV.delete("rewarded-users-v1:rewarded-only"),
-      ]);
+      if (!hasCompletionRow) {
+        completedActions += 1;
+      }
     }
+
+    allActionsCompleted = totalActions > 0 && completedActions >= totalActions;
+
+    if (allActionsCompleted) {
+      await context.env.WARPLETS.prepare(
+        "UPDATE warplets_users SET rewarded_on = COALESCE(rewarded_on, ?), updated_on = ? WHERE id = ?"
+      )
+        .bind(now, now, user.id)
+        .run();
+      if (context.env.WARPLETS_KV) {
+        await Promise.all([
+          context.env.WARPLETS_KV.delete("rewarded-users-v1:topup"),
+          context.env.WARPLETS_KV.delete("rewarded-users-v1:rewarded-only"),
+        ]);
+      }
+    }
+  } catch (error) {
+    console.error("actions-complete post-insert bookkeeping failed", {
+      fid,
+      actionSlug: action.slug,
+      error: error instanceof Error ? error.message : String(error),
+    });
   }
 
   await logSecurityEvent(context.env.WARPLETS, { logSalt: context.env.SECURITY_LOG_SALT }, {
