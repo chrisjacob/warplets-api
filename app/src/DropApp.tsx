@@ -49,12 +49,6 @@ type RewardAction = {
   verification: string | null;
 };
 
-type VerifyActionState = {
-  mode: "do" | "verify";
-  failedVerifications: number;
-  waitingUntilMs: number;
-};
-
 type RecentBuyer = {
   fid: number;
   pfpUrl: string;
@@ -713,10 +707,6 @@ function buildCastVerificationUrl(hash: string, username: string): string {
   return `https://farcaster.xyz/~/conversations/${cleanHash}`;
 }
 
-function waitMs(ms: number): Promise<void> {
-  return new Promise((resolve) => window.setTimeout(resolve, ms));
-}
-
 function ActionChevronRightIcon() {
   return (
     <svg
@@ -792,7 +782,8 @@ export default function App() {
   const [rewardActionsLoading, setRewardActionsLoading] = useState(false);
   const [runningActionSlug, setRunningActionSlug] = useState<string | null>(null);
   const [didUnlockCelebrate, setDidUnlockCelebrate] = useState(false);
-  const [verifyActionState, setVerifyActionState] = useState<Record<string, VerifyActionState>>({});
+  const [pendingActionUntilMs, setPendingActionUntilMs] = useState<Record<string, number>>({});
+  const [optimisticCompletedActions, setOptimisticCompletedActions] = useState<Record<string, boolean>>({});
   const [actionSessionToken, setActionSessionToken] = useState<string>("");
   const [pendingNotificationId, setPendingNotificationId] = useState<string | null>(null);
   const [notificationOpenSent, setNotificationOpenSent] = useState(false);
@@ -1013,7 +1004,7 @@ export default function App() {
     ? "Welcome to 10X! Want rewards?"
     : isMatched
       ? "Congratulations! You're on the list..."
-      : "Oh Snap... You're not on the list.";
+      : "Aw Snap... You're not on the list.";
   const badgeLabel = hasPurchased
     ? "🎉 NFT Drop Claimed"
     : isMatched
@@ -1115,19 +1106,8 @@ export default function App() {
     }
   };
 
-  const getVerifyState = (slug: string): VerifyActionState => (
-    verifyActionState[slug] ?? { mode: "do", failedVerifications: 0, waitingUntilMs: 0 }
-  );
-
-  const setVerifyState = (slug: string, next: VerifyActionState) => {
-    setVerifyActionState((prev) => ({ ...prev, [slug]: next }));
-  };
-
-  const isVerifyActionSlug = (slug: string): boolean => (
-    slug === "drop-follow-fc-10xmeme" ||
-    slug === "drop-follow-fc-10xchris" ||
-    slug === "drop-join-fc-channel"
-  );
+  const isActionPending = (slug: string): boolean => (pendingActionUntilMs[slug] ?? 0) > Date.now();
+  const isActionCompleted = (action: RewardAction): boolean => action.completed || optimisticCompletedActions[action.slug] === true;
 
   const isAssumeSuccessActionSlug = (slug: string): boolean => (
     slug === "drop-follow-x-10xmeme" ||
@@ -1146,21 +1126,6 @@ export default function App() {
     return action.name;
   };
 
-  const verifyRewardAction = async (action: RewardAction) => {
-    if (!fid || !actionSessionToken) return;
-
-    const response = await fetch("/api/actions-verify", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ fid, actionSlug: action.slug, sessionToken: actionSessionToken }),
-    });
-    if (!response.ok) {
-      return false;
-    }
-    const payload = (await response.json()) as { verified?: boolean };
-    return Boolean(payload.verified);
-  };
-
   const refreshStatusForRewardPage = async (currentFid: number) => {
     const statusRes = await fetch("/api/warplet-status", {
       method: "POST",
@@ -1174,61 +1139,49 @@ export default function App() {
     setOutreachCandidates(normalizeOutreachCandidates(nextStatus.outreachCandidates));
   };
 
+  const setActionPendingThenComplete = (slug: string) => {
+    const completeAtMs = Date.now() + 10000;
+    setPendingActionUntilMs((prev) => ({ ...prev, [slug]: completeAtMs }));
+    window.setTimeout(() => {
+      setPendingActionUntilMs((prev) => ({ ...prev, [slug]: 0 }));
+      setOptimisticCompletedActions((prev) => ({ ...prev, [slug]: true }));
+    }, 10000);
+  };
+
   const runRewardAction = async (action: RewardAction) => {
-    if (!fid || action.completed || runningActionSlug) return;
+    if (!fid || runningActionSlug) return;
+    if (isActionPending(action.slug)) return;
 
     setRunningActionSlug(action.slug);
     setActionError("");
-    const startedAtMs = Date.now();
+    const alreadyCompleted = isActionCompleted(action);
+    if (!alreadyCompleted) {
+      setActionPendingThenComplete(action.slug);
+    }
 
     try {
-      if (isVerifyActionSlug(action.slug)) {
-        const current = getVerifyState(action.slug);
-
-        if (current.mode === "do") {
-          if (action.slug === "drop-follow-fc-10xmeme") {
-            await sdk.actions.viewProfile({ fid: 1313340 });
-          } else if (action.slug === "drop-follow-fc-10xchris") {
-            await sdk.actions.viewProfile({ fid: 1129138 });
-          } else if (action.slug === "drop-join-fc-channel") {
-            await sdk.actions.openUrl("https://farcaster.xyz/~/channel/10xmeme");
-          }
-
-          setVerifyState(action.slug, { ...current, mode: "verify" });
-          return;
+      if (action.slug === "drop-follow-fc-10xmeme") {
+        await sdk.actions.viewProfile({ fid: 1313340 });
+        if (!alreadyCompleted) {
+          completeRewardAction(action.slug, `opened:${new Date().toISOString()}`).catch(() => {});
         }
-
-        if (current.waitingUntilMs > Date.now()) {
-          return;
+      } else if (action.slug === "drop-follow-fc-10xchris") {
+        await sdk.actions.viewProfile({ fid: 1129138 });
+        if (!alreadyCompleted) {
+          completeRewardAction(action.slug, `opened:${new Date().toISOString()}`).catch(() => {});
         }
-
-        const verified = await verifyRewardAction(action);
-        if (verified) {
-          await completeRewardAction(action.slug, `verified:${new Date().toISOString()}`);
-          setVerifyState(action.slug, { mode: "verify", failedVerifications: 0, waitingUntilMs: 0 });
-        } else if (current.failedVerifications === 0) {
-          const waitingUntilMs = Date.now() + 10000;
-          setVerifyState(action.slug, { mode: "verify", failedVerifications: 1, waitingUntilMs });
-          setActionError("Try again in 10 seconds");
-          window.setTimeout(() => {
-            setVerifyActionState((prev) => {
-              const latest = prev[action.slug];
-              if (!latest) return prev;
-              if (latest.waitingUntilMs <= Date.now()) {
-                return { ...prev, [action.slug]: { ...latest, waitingUntilMs: 0 } };
-              }
-              return prev;
-            });
-          }, 10050);
-        } else {
-          setVerifyState(action.slug, { mode: "do", failedVerifications: 0, waitingUntilMs: 0 });
-          setActionError("Try to follow again");
+      } else if (action.slug === "drop-join-fc-channel") {
+        await sdk.actions.openUrl("https://farcaster.xyz/~/channel/10xmeme");
+        if (!alreadyCompleted) {
+          completeRewardAction(action.slug, `opened:${new Date().toISOString()}`).catch(() => {});
         }
       } else if (isAssumeSuccessActionSlug(action.slug)) {
         if (action.url) {
           await sdk.actions.openUrl(action.url);
         }
-        await completeRewardAction(action.slug, `opened:${new Date().toISOString()}`);
+        if (!alreadyCompleted) {
+          completeRewardAction(action.slug, `opened:${new Date().toISOString()}`).catch(() => {});
+        }
       } else if (action.slug === "drop-cast") {
         const urgency = getUrgencyDetails(nowMs);
         const castRarityLine = formattedTokenId && topPercentLabel
@@ -1243,10 +1196,11 @@ export default function App() {
             ? ["https://drop.10x.meme", `https://warplets.10x.meme/${purchasedTokenId}.${SHARE_IMAGE_EXTENSION}`]
             : ["https://drop.10x.meme"],
         });
-
-        if (castResult?.cast?.hash) {
-          const verification = buildCastVerificationUrl(castResult.cast.hash, viewerUsername);
-          await completeRewardAction(action.slug, verification, outreachCandidates.tokenIds);
+        if (!alreadyCompleted) {
+          const verification = castResult?.cast?.hash
+            ? buildCastVerificationUrl(castResult.cast.hash, viewerUsername)
+            : `dismissed:${new Date().toISOString()}`;
+          completeRewardAction(action.slug, verification, outreachCandidates.tokenIds).catch(() => {});
         }
       } else if (action.slug === "drop-tweet") {
         const urgency = getUrgencyDetails(nowMs);
@@ -1255,7 +1209,7 @@ export default function App() {
           : "My rarity is 10,000! 👀";
         const outreachLine = tweetOutreach.length > 0 ? `FYI you're on the list ${tweetOutreach}\n\n` : "";
         const raritySection = isMatched ? `${castRarityLine}\n\n...what's your rarity?\n\n` : "";
-        const text = `🟢 10X Warplets (Private 10K NFT Drop)\n\nPrice $${urgency.currentPrice} → $${urgency.nextPrice} in ${urgency.countdown}.\nSupply private → public every 10 days.\nAre you on the list? Don't miss out.\n\nJoin Farcaster first: https://farcaster.xyz/~/code/RUZLHN\n\nThen access the mini-app: https://farcaster.xyz/miniapps/cSNbxgFkuFRi/10x-warplets-drop${raritySection}${outreachLine}`;
+        const text = `🟢 10X Warplets (Private 10K NFT Drop)\n\nPrice $${urgency.currentPrice} → $${urgency.nextPrice} in ${urgency.countdown}.\nSupply private → public every 10 days.\nAre you on the list? Don't miss out.\n\n1️⃣ Join Farcaster: https://farcaster.xyz/~/code/RUZLHN\n2️⃣ Visit mini-app: https://farcaster.xyz/miniapps/cSNbxgFkuFRi/10x-warplets-drop\n\n${raritySection}${outreachLine}`;
         const intentUrl = `https://x.com/intent/post?${new URLSearchParams({
           text,
           url: "",
@@ -1263,23 +1217,21 @@ export default function App() {
           via: "10XMemeX",
         }).toString()}`;
         await sdk.actions.openUrl(intentUrl);
-        await completeRewardAction(action.slug, intentUrl, outreachCandidates.tokenIds);
+        if (!alreadyCompleted) {
+          completeRewardAction(action.slug, intentUrl, outreachCandidates.tokenIds).catch(() => {});
+        }
       } else if (action.slug === "drop-waitlist-email") {
         // Waitlist action uses email submit flow below.
       } else if (action.url) {
         await sdk.actions.openUrl(action.url);
       }
 
-      await fetchRewardActions();
-      await refreshStatusForRewardPage(fid);
+      fetchRewardActions(false).catch(() => {});
+      refreshStatusForRewardPage(fid).catch(() => {});
     } catch (err) {
       console.error("Failed to run reward action:", err);
       setActionError(getErrorMessage(err));
     } finally {
-      const elapsedMs = Date.now() - startedAtMs;
-      if (elapsedMs < 3000) {
-        await waitMs(3000 - elapsedMs);
-      }
       setRunningActionSlug(null);
     }
   };
@@ -1724,13 +1676,17 @@ export default function App() {
                   ]
                     .map((slug) => displayRewardActions.find((action) => action.slug === slug))
                     .filter((action): action is RewardAction => Boolean(action))
-                    .map((action, index) => (
+                    .map((action, index) => {
+                      const actionCompleted = isActionCompleted(action);
+                      const actionPending = isActionPending(action.slug);
+                      const actionFlat = actionCompleted || actionPending;
+
+                      return (
                     <div
                       key={action.id}
                       onClick={() => {
-                        if (action.completed || runningActionSlug === action.slug) return;
-                        if (isVerifyActionSlug(action.slug) && getVerifyState(action.slug).mode === "verify" && getVerifyState(action.slug).waitingUntilMs > Date.now()) return;
-                        if (action.slug === "drop-waitlist-email" && !action.completed) {
+                        if (actionPending || runningActionSlug === action.slug) return;
+                        if (action.slug === "drop-waitlist-email" && !actionCompleted) {
                           setShowWaitlistModal(true);
                           return;
                         }
@@ -1742,9 +1698,8 @@ export default function App() {
                       onKeyDown={(event) => {
                         if (event.key !== "Enter" && event.key !== " ") return;
                         event.preventDefault();
-                        if (action.completed || runningActionSlug === action.slug) return;
-                        if (isVerifyActionSlug(action.slug) && getVerifyState(action.slug).mode === "verify" && getVerifyState(action.slug).waitingUntilMs > Date.now()) return;
-                        if (action.slug === "drop-waitlist-email" && !action.completed) {
+                        if (actionPending || runningActionSlug === action.slug) return;
+                        if (action.slug === "drop-waitlist-email" && !actionCompleted) {
                           setShowWaitlistModal(true);
                           return;
                         }
@@ -1759,35 +1714,33 @@ export default function App() {
                           type="button"
                           onClick={(event) => {
                             event.stopPropagation();
-                            if (action.slug === "drop-waitlist-email" && !action.completed) {
+                            if (actionPending || runningActionSlug === action.slug) return;
+                            if (action.slug === "drop-waitlist-email" && !actionCompleted) {
                               setShowWaitlistModal(true);
                               return;
                             }
                             runRewardAction(action).catch(() => {});
                           }}
-                          disabled={
-                            action.completed ||
-                            runningActionSlug === action.slug ||
-                            (isVerifyActionSlug(action.slug) && getVerifyState(action.slug).mode === "verify" && getVerifyState(action.slug).waitingUntilMs > Date.now())
-                          }
-                          className="h-10 w-10 shrink-0 rounded-[10px] border border-[#009900] bg-[#00FF00] text-4xl leading-none font-black shadow-[2px_4px_0_#008000] transition-all duration-100 active:translate-x-[1px] active:translate-y-[2px] active:shadow-[1px_2px_0_#008000] disabled:translate-x-0 disabled:translate-y-0 disabled:shadow-none disabled:bg-gray-700 disabled:border-gray-700 cursor-pointer inline-flex items-center justify-center"
-                          style={{ color: action.completed ? "#d1d5db" : "rgb(0, 80, 0)" }}
+                          disabled={actionPending || runningActionSlug === action.slug}
+                          className={`h-10 w-10 shrink-0 rounded-[10px] text-4xl leading-none font-black transition-all duration-100 cursor-pointer inline-flex items-center justify-center ${
+                            actionFlat
+                              ? "border border-gray-700 shadow-none active:translate-x-0 active:translate-y-0 active:shadow-none"
+                              : "border border-[#009900] bg-[#00FF00] shadow-[2px_4px_0_#008000] active:translate-x-[1px] active:translate-y-[2px] active:shadow-[1px_2px_0_#008000]"
+                          }`}
+                          style={{
+                            backgroundColor: actionCompleted ? "rgb(0, 80, 0)" : (actionPending ? "#374151" : undefined),
+                            color: "white",
+                          }}
                         >
-                          {action.completed ? <ActionCheckIcon /> : (
-                            runningActionSlug === action.slug ? (
+                          {actionCompleted ? <ActionCheckIcon /> : (
+                            actionPending || runningActionSlug === action.slug ? (
                               <span className="inline-block h-5 w-5 rounded-full border-2 border-white border-r-transparent align-middle animate-spin" />
-                            ) : (
-                              isVerifyActionSlug(action.slug) && getVerifyState(action.slug).mode === "verify" ? (
-                                getVerifyState(action.slug).waitingUntilMs > Date.now() ? (
-                                  <span className="inline-block h-5 w-5 rounded-full border-2 border-white border-r-transparent align-middle animate-spin" />
-                                ) : <ActionChevronRightIcon />
-                              ) : <ActionChevronRightIcon />
-                            )
+                            ) : <ActionChevronRightIcon />
                           )}
                         </button>
                       </div>
                     </div>
-                  ))}
+                  )})}
                 </div>
               )}
 
@@ -2040,7 +1993,7 @@ export default function App() {
                     className="text-[#b7ffb7] hover:text-white text-lg font-bold leading-none cursor-pointer"
                     onClick={() => setShowWaitlistModal(false)}
                   >
-                    Ã—
+                    X
                   </button>
                 </div>
 
