@@ -50,6 +50,11 @@ function buildFarcasterManifest(hostname: string) {
         subtitle: "Don't miss out.",
         description: DROP_SHARE_DESCRIPTION,
         primaryCategory: "social",
+        screenshotUrls: [
+          "https://drop.10x.meme/screenshots/1.jpg",
+          "https://drop.10x.meme/screenshots/2.jpg",
+          "https://drop.10x.meme/screenshots/3.jpg",
+        ],
         tags: ["10x", "warplets", "farcaster", "nft", "drop"],
         tagline: "Your Warplet is waiting.",
         ogTitle: DROP_SHARE_TITLE,
