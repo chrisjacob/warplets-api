@@ -1,5 +1,19 @@
 const FC_MINIAPP_META_REGEX = /<meta\s+name="fc:miniapp"[^>]*>/i;
+const TITLE_REGEX = /<title>[\s\S]*?<\/title>/i;
 import { applySecurityHeaders } from "./_lib/security.js";
+
+type PagesEnv = {
+  WARPLETS?: D1Database;
+};
+
+const DROP_SHARE_TITLE = "🟢 10X Warplets (Private 10K NFT Drop)";
+const DROP_SHARE_DESCRIPTION =
+  "Price increases by $10 every 10 days. Private supply goes public every 10 days. Are you on the list? Don't miss out. ";
+const DEFAULT_DROP_SHARE_IMAGE_URL = "https://warplets.10x.meme/760.gif";
+const DROP_ICON_URL = "https://drop.10x.meme/icon_drop.png";
+const DROP_SPLASH_URL = "https://drop.10x.meme/splash_drop.png";
+const DROP_EMBED_URL = "https://drop.10x.meme/embed_drop.png";
+const DROP_HERO_URL = "https://drop.10x.meme/hero_drop.png";
 
 const APP_ASSOCIATION = {
   header:
@@ -25,22 +39,22 @@ function buildFarcasterManifest(hostname: string) {
         name: "10X Warplets Drop",
         canonicalDomain: hostname,
         homeUrl: `https://${hostname}`,
-        iconUrl: "https://drop.10x.meme/icon.png",
-        imageUrl: "https://drop.10x.meme/embed.png",
-        heroImageUrl: "https://drop.10x.meme/hero.png",
+        iconUrl: DROP_ICON_URL,
+        imageUrl: DROP_EMBED_URL,
+        heroImageUrl: DROP_HERO_URL,
         buttonTitle: "Claim Your Warplet",
-        splashImageUrl: "https://drop.10x.meme/splash.png",
+        splashImageUrl: DROP_SPLASH_URL,
         splashBackgroundColor: "#000000",
         webhookUrl: "https://app.10x.meme/webhook/drop",
         castShareUrl: `https://${hostname}`,
         subtitle: "Don't miss out.",
-        description: "Claim your 10X Warplet NFT before it's gone.",
+        description: DROP_SHARE_DESCRIPTION,
         primaryCategory: "social",
         tags: ["10x", "warplets", "farcaster", "nft", "drop"],
         tagline: "Your Warplet is waiting.",
-        ogTitle: "10X Warplets Drop",
-        ogDescription: "Claim your 10X Warplet NFT before it's gone.",
-        ogImageUrl: "https://drop.10x.meme/embed.png",
+        ogTitle: DROP_SHARE_TITLE,
+        ogDescription: DROP_SHARE_DESCRIPTION,
+        ogImageUrl: DEFAULT_DROP_SHARE_IMAGE_URL,
       },
     };
   }
@@ -81,6 +95,13 @@ function escapeHtmlAttr(value: string): string {
   return value
     .replace(/&/g, "&amp;")
     .replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+function escapeHtmlText(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
 }
@@ -138,6 +159,36 @@ function getMiniAppConfig(routeKey: RouteKey): { title: string; name: string; pa
   };
 }
 
+function getReferralFid(searchParams: URLSearchParams): number | undefined {
+  const rawFid = searchParams.get("fid")?.trim();
+  if (!rawFid || !/^\d+$/.test(rawFid)) return undefined;
+
+  const fid = Number.parseInt(rawFid, 10);
+  return Number.isSafeInteger(fid) && fid > 0 ? fid : undefined;
+}
+
+async function getDropShareImageUrl(
+  env: PagesEnv,
+  searchParams: URLSearchParams,
+): Promise<string> {
+  const fid = getReferralFid(searchParams);
+  if (!fid || !env.WARPLETS) return DEFAULT_DROP_SHARE_IMAGE_URL;
+
+  try {
+    const row = await env.WARPLETS.prepare(
+      "SELECT token_id FROM warplets_metadata WHERE fid_value = ? LIMIT 1",
+    )
+      .bind(fid)
+      .first<{ token_id: number | null }>();
+
+    return typeof row?.token_id === "number" && Number.isInteger(row.token_id)
+      ? `https://warplets.10x.meme/${row.token_id}.gif`
+      : DEFAULT_DROP_SHARE_IMAGE_URL;
+  } catch {
+    return DEFAULT_DROP_SHARE_IMAGE_URL;
+  }
+}
+
 function getLaunchPath(routeKey: RouteKey, hostname: string): string {
   if (
     matchesHost(
@@ -162,7 +213,12 @@ function getLaunchPath(routeKey: RouteKey, hostname: string): string {
   return "/";
 }
 
-function buildMiniAppMetaContent(origin: string, pathname: string, search: string): string {
+function buildMiniAppMetaContent(
+  origin: string,
+  pathname: string,
+  search: string,
+  imageUrl?: string,
+): string {
   const base = normalizeBase(origin);
   const hostname = new URL(origin).hostname;
   const routeKey = getRouteKey(hostname, pathname);
@@ -170,24 +226,48 @@ function buildMiniAppMetaContent(origin: string, pathname: string, search: strin
   const launchPath = getLaunchPath(routeKey, hostname);
   const launchBase = launchPath === "/" ? `${base}/` : `${base}${launchPath}`;
   const launchUrl = `${launchBase}${search}`;
+  const splashImageUrl =
+    routeKey === "drop" ? `${base}/splash_drop.png` : `${base}/splash.png`;
 
   return JSON.stringify({
     version: "1",
-    imageUrl: `${base}/embed.png`,
+    imageUrl: imageUrl ?? `${base}/embed.png`,
     button: {
       title: config.title,
       action: {
         type: "launch_miniapp",
         name: config.name,
         url: launchUrl,
-        splashImageUrl: `${base}/splash.png`,
+        splashImageUrl,
         splashBackgroundColor: "#000000",
       },
     },
   });
 }
 
-export const onRequestGet: PagesFunction = async (context) => {
+function buildDropOpenGraphTags(imageUrl: string, pageUrl: string): string {
+  const title = escapeHtmlAttr(DROP_SHARE_TITLE);
+  const description = escapeHtmlAttr(DROP_SHARE_DESCRIPTION);
+  const image = escapeHtmlAttr(imageUrl);
+  const url = escapeHtmlAttr(pageUrl);
+  const logo = escapeHtmlAttr(DROP_ICON_URL);
+
+  return [
+    `<meta property="og:title" content="${title}" />`,
+    `<meta property="og:description" content="${description}" />`,
+    `<meta property="og:url" content="${url}" />`,
+    `<meta property="og:type" content="website" />`,
+    `<meta property="og:logo" content="${logo}" />`,
+    `<meta property="og:image" content="${image}" />`,
+    `<meta property="og:image:secure_url" content="${image}" />`,
+    `<meta name="twitter:card" content="summary_large_image" />`,
+    `<meta name="twitter:title" content="${title}" />`,
+    `<meta name="twitter:description" content="${description}" />`,
+    `<meta name="twitter:image" content="${image}" />`,
+  ].join("\n  ");
+}
+
+export const onRequestGet: PagesFunction<PagesEnv> = async (context) => {
   const requestUrl = new URL(context.request.url);
 
   if (requestUrl.pathname === "/.well-known/farcaster.json") {
@@ -205,8 +285,18 @@ export const onRequestGet: PagesFunction = async (context) => {
     return applySecurityHeaders(response);
   }
 
+  const routeKey = getRouteKey(requestUrl.hostname, requestUrl.pathname);
+  const dropShareImageUrl =
+    routeKey === "drop"
+      ? await getDropShareImageUrl(context.env, requestUrl.searchParams)
+      : undefined;
   const metaContent = escapeHtmlAttr(
-    buildMiniAppMetaContent(requestUrl.origin, requestUrl.pathname, requestUrl.search)
+    buildMiniAppMetaContent(
+      requestUrl.origin,
+      requestUrl.pathname,
+      requestUrl.search,
+      dropShareImageUrl,
+    )
   );
   const metaTag = `<meta name="fc:miniapp" content="${metaContent}" />`;
 
@@ -215,6 +305,14 @@ export const onRequestGet: PagesFunction = async (context) => {
     html = html.replace(FC_MINIAPP_META_REGEX, metaTag);
   } else {
     html = html.replace("</head>", `  ${metaTag}\n  </head>`);
+  }
+
+  if (routeKey === "drop" && dropShareImageUrl) {
+    const titleTag = `<title>${escapeHtmlText(DROP_SHARE_TITLE)}</title>`;
+    html = TITLE_REGEX.test(html)
+      ? html.replace(TITLE_REGEX, titleTag)
+      : html.replace("</head>", `  ${titleTag}\n  </head>`);
+    html = html.replace("</head>", `  ${buildDropOpenGraphTags(dropShareImageUrl, requestUrl.href)}\n  </head>`);
   }
 
   const headers = new Headers(response.headers);
