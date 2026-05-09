@@ -2065,7 +2065,7 @@ export default function App() {
 
                 {(hasPurchased || !isMatched) && (
                   <Text className="mt-3 text-lg font-semibold" style={{ color: "#b7ffb7" }}>
-                    Rewards... 😍→🤓→🤯→🤣→💰!️
+                    5 Rewards... 😍→🤓→🤯→🤣→💰!️
                   </Text>
                 )}
 
