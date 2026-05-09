@@ -203,6 +203,8 @@ function buildDropOpenGraphTags(imageUrl: string, pageUrl: string): string {
   ].join("\n    ");
 }
 
+const localApiTarget = process.env.VITE_LOCAL_API_TARGET?.trim() || "http://127.0.0.1:8789";
+
 export default defineConfig({
   build: {
     chunkSizeWarningLimit: 700,
@@ -271,8 +273,11 @@ export default defineConfig({
       "million-local.10x.meme",
     ],
     proxy: {
-      // Proxy API calls to the deployed dev environment so functions work locally
-      "/api": "https://app-dev.10x.meme",
+      // In local tunnel mode, route API to local worker so D1/KV are local.
+      "/api": {
+        target: localApiTarget,
+        changeOrigin: true,
+      },
     },
   },
 });

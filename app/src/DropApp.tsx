@@ -1836,13 +1836,14 @@ export default function App() {
                       const actionCompleted = isActionCompleted(action);
                       const actionPending = isActionPending(action.slug);
                       const actionFlat = actionCompleted || actionPending;
+                      const actionBusy = !actionCompleted && (actionPending || runningActionSlug === action.slug);
 
                       return (
                     <div
                       key={action.id}
                       onClick={() => {
                         void hapticTap();
-                        if (actionPending || runningActionSlug === action.slug) return;
+                        if (actionBusy) return;
                         if (action.slug === "drop-waitlist-email" && !actionCompleted) {
                           setShowWaitlistModal(true);
                           return;
@@ -1856,7 +1857,7 @@ export default function App() {
                         if (event.key !== "Enter" && event.key !== " ") return;
                         void hapticTap();
                         event.preventDefault();
-                        if (actionPending || runningActionSlug === action.slug) return;
+                        if (actionBusy) return;
                         if (action.slug === "drop-waitlist-email" && !actionCompleted) {
                           setShowWaitlistModal(true);
                           return;
@@ -1873,14 +1874,14 @@ export default function App() {
                           onClick={(event) => {
                             void hapticTap();
                             event.stopPropagation();
-                            if (actionPending || runningActionSlug === action.slug) return;
+                            if (actionBusy) return;
                             if (action.slug === "drop-waitlist-email" && !actionCompleted) {
                               setShowWaitlistModal(true);
                               return;
                             }
                             runRewardAction(action).catch(() => {});
                           }}
-                          disabled={actionPending || runningActionSlug === action.slug}
+                          disabled={actionBusy}
                           className={`h-10 w-10 shrink-0 rounded-[10px] text-4xl leading-none font-black transition-all duration-100 cursor-pointer inline-flex items-center justify-center ${
                             actionFlat
                               ? actionCompleted
@@ -1894,7 +1895,7 @@ export default function App() {
                           }}
                         >
                           {actionCompleted ? <ActionCheckIcon /> : (
-                            actionPending || runningActionSlug === action.slug ? (
+                            actionBusy ? (
                               <span className="inline-block h-5 w-5 rounded-full border-2 border-white border-r-transparent align-middle animate-spin" />
                             ) : <ActionChevronRightIcon />
                           )}
