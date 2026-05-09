@@ -664,6 +664,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   try {
     const url = new URL(context.request.url);
     const hostname = url.hostname;
+    const useReferralTestData = url.searchParams.get("referrals") === "1";
     const fid = url.searchParams.get("fid");
     const recentBuys = await loadRecentBuysCached(
       context.env,
@@ -674,7 +675,30 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       recentBuys,
       allowMatchedTopUp(hostname)
     );
-    const topReferrers = await loadTopReferrersCached(context.env);
+    let topReferrers = await loadTopReferrersCached(context.env);
+    if (useReferralTestData) {
+      const seeds = await context.env.WARPLETS.prepare(
+        `SELECT fid, username, pfp_url
+         FROM warplets_users
+         WHERE username IS NOT NULL
+           AND TRIM(username) <> ''
+           AND pfp_url IS NOT NULL
+           AND TRIM(pfp_url) <> ''
+         ORDER BY updated_on DESC, fid DESC
+         LIMIT 25`
+      ).all<{ fid: unknown; username: unknown; pfp_url: unknown }>();
+      const normalized = normalizeTopReferrers(
+        (seeds.results ?? []).map((row, index) => ({
+          fid: row.fid,
+          username: row.username,
+          pfp_url: row.pfp_url,
+          referrals_count: 250 - index * 7,
+        }))
+      );
+      if (normalized.length > 0) {
+        topReferrers = normalized;
+      }
+    }
     let referralCount = 0;
 
     let bestFriends: BestFriend[] = [];

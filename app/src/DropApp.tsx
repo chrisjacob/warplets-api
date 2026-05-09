@@ -78,6 +78,7 @@ type TopReferrer = {
   referrals: number;
 };
 
+
 type RawOfferItem = {
   itemType: number | string;
   token: string;
@@ -847,7 +848,7 @@ export default function App() {
   useEffect(() => {
     const loadRecentBuys = async () => {
       try {
-        const res = await fetch("/api/warplet-status");
+        const res = await fetch(forceReferralTest ? "/api/warplet-status?referrals=1" : "/api/warplet-status");
         if (!res.ok) return;
 
         const data = (await res.json()) as RecentBuysResponse;
@@ -858,7 +859,22 @@ export default function App() {
         setRewardedUsers(normalizeRecentBuys(data.rewardedUsers));
         setOutreachCandidates(normalizeOutreachCandidates(data.outreachCandidates));
         setReferralCount(typeof data.referralCount === "number" ? data.referralCount : 0);
-        setTopReferrers(normalizeTopReferrers(data.topReferrers));
+        const localTopReferrers = normalizeTopReferrers(data.topReferrers);
+        setTopReferrers(localTopReferrers);
+        if (forceReferralTest && localTopReferrers.length < 25) {
+          try {
+            const prodRes = await fetch("https://drop.10x.meme/api/warplet-status?referrals=1");
+            if (prodRes.ok) {
+              const prodData = (await prodRes.json()) as RecentBuysResponse;
+              const prodTopReferrers = normalizeTopReferrers(prodData.topReferrers);
+              if (prodTopReferrers.length > 0) {
+                setTopReferrers(prodTopReferrers.slice(0, 25));
+              }
+            }
+          } catch {
+            // Keep local results when prod fallback is unavailable.
+          }
+        }
         setActionSessionToken(typeof data.actionSessionToken === "string" ? data.actionSessionToken : "");
       } catch {
         // Ignore non-critical social proof errors.
@@ -929,7 +945,9 @@ export default function App() {
         setTopReferrers(normalizeTopReferrers(data.topReferrers));
 
         try {
-          const friendsRes = await fetch(`/api/warplet-status?fid=${context.user.fid}`);
+          const friendsRes = await fetch(
+            `/api/warplet-status?fid=${context.user.fid}${forceReferralTest ? "&referrals=1" : ""}`
+          );
           if (friendsRes.ok) {
             const friendsData = (await friendsRes.json()) as RecentBuysResponse;
             if (typeof friendsData.actionSessionToken === "string" && friendsData.actionSessionToken.length > 0) {
@@ -1010,6 +1028,7 @@ export default function App() {
   const referralFidParam = searchParams.get("fid");
   const parsedReferralFid = referralFidParam && /^\d+$/.test(referralFidParam) ? Number(referralFidParam) : null;
   const forceNoMatch = typeof window !== "undefined" && searchParams.get("match") === "0";
+  const forceReferralTest = typeof window !== "undefined" && searchParams.get("referrals") === "1";
   const debugEnabled = typeof window !== "undefined" && searchParams.get("debug") === "1";
   const forceUnlock = typeof window !== "undefined" && searchParams.get("unlock") === "1";
   const forceActionsPage = typeof window !== "undefined" && searchParams.get("actions") === "1";
@@ -1194,6 +1213,17 @@ export default function App() {
     setOutreachCandidates(normalizeOutreachCandidates(nextStatus.outreachCandidates));
     setReferralCount(typeof nextStatus.referralCount === "number" ? nextStatus.referralCount : 0);
     setTopReferrers(normalizeTopReferrers(nextStatus.topReferrers));
+
+    if (forceReferralTest) {
+      const testRes = await fetch("/api/warplet-status?referrals=1");
+      if (testRes.ok) {
+        const testData = (await testRes.json()) as RecentBuysResponse;
+        const seeded = normalizeTopReferrers(testData.topReferrers);
+        if (seeded.length > 0) {
+          setTopReferrers(seeded);
+        }
+      }
+    }
   };
 
   const setActionPendingThenComplete = (slug: string) => {
@@ -1749,7 +1779,7 @@ export default function App() {
                         }
                         runRewardAction(action).catch(() => {});
                       }}
-                      className={`px-2 py-2 text-left cursor-pointer ${index > 0 ? "border-t border-[#00FF00]/15" : ""}`}
+                      className={`px-2 py-3 text-left cursor-pointer ${index > 0 ? "border-t border-[#00FF00]/15" : ""}`}
                       role="button"
                       tabIndex={0}
                       onKeyDown={(event) => {
@@ -2127,7 +2157,7 @@ export default function App() {
                       type="text"
                       readOnly
                       value={referralDropUrl}
-                      className="w-full rounded-xl border border-[#00FF00] bg-black/70 px-3 py-2 text-sm text-white outline-none"
+                      className="h-11 w-full rounded-xl border border-[#00FF00] bg-black/70 px-3 text-sm text-white outline-none"
                     />
                     <button
                       type="button"
@@ -2158,22 +2188,31 @@ export default function App() {
                 <Text className="text-lg font-bold text-left" style={{ color: "#00FF00" }}>
                   🏆 Top Referrers
                 </Text>
-                <div className="rounded-2xl border border-[#00FF00]/35 bg-[#041204]/85 px-2 py-2">
-                  <table className="w-full border-collapse text-left">
+                <div className="rounded-2xl overflow-hidden border border-[#00FF00]/35 bg-[#041204]/85 p-0">
+                  <table className="w-full border-separate border-spacing-0 text-left">
                     <thead>
                       <tr>
-                        <th className="border border-[#00FF00]/35 px-2 py-2 text-xs" style={{ color: "#00FF00" }}>Rank</th>
-                        <th className="border border-[#00FF00]/35 px-2 py-2 text-xs" style={{ color: "#00FF00" }}>Username</th>
-                        <th className="border border-[#00FF00]/35 px-2 py-2 text-xs" style={{ color: "#00FF00" }}>Referrals</th>
-                        <th className="border border-[#00FF00]/35 px-2 py-2 text-xs" style={{ color: "#00FF00" }}>Profile</th>
+                        <th className="border-b border-r border-[#00FF00]/25 px-2 py-2 text-xs" style={{ color: "#00FF00" }}>Rank</th>
+                        <th className="border-b border-r border-[#00FF00]/25 px-2 py-2 text-xs" style={{ color: "#00FF00" }}>Referrals</th>
+                        <th className="border-b border-[#00FF00]/25 px-2 py-2 text-xs" style={{ color: "#00FF00" }}>Username</th>
                       </tr>
                     </thead>
                     <tbody>
                       {topReferrers.slice(0, 25).map((referrer, index) => (
                         <tr key={referrer.fid}>
-                          <td className="border border-[#00FF00]/25 px-2 py-2 text-sm" style={{ color: "#b7ffb7" }}>{index + 1}</td>
-                          <td className="border border-[#00FF00]/25 px-2 py-2">
-                            <div className="flex items-center gap-2">
+                          <td className="border-b border-r border-[#00FF00]/20 px-2 py-2 text-sm" style={{ color: "#b7ffb7" }}>{index + 1}</td>
+                          <td className="border-b border-r border-[#00FF00]/20 px-2 py-2 text-sm font-semibold" style={{ color: "#b7ffb7" }}>
+                            {referrer.referrals}
+                          </td>
+                          <td className="border-b border-[#00FF00]/20 px-2 py-2">
+                            <button
+                              type="button"
+                              className="flex items-center gap-2 text-left cursor-pointer"
+                              style={{ color: "#b7ffb7" }}
+                              onClick={() => {
+                                sdk.actions.viewProfile({ fid: referrer.fid }).catch(() => {});
+                              }}
+                            >
                               <img
                                 src={referrer.pfpUrl}
                                 alt={referrer.username}
@@ -2181,22 +2220,7 @@ export default function App() {
                                 style={{ border: "2px solid #00FF00" }}
                                 loading="lazy"
                               />
-                              <span className="text-sm" style={{ color: "#b7ffb7" }}>{referrer.username}</span>
-                            </div>
-                          </td>
-                          <td className="border border-[#00FF00]/25 px-2 py-2 text-sm font-semibold" style={{ color: "#b7ffb7" }}>
-                            {referrer.referrals}
-                          </td>
-                          <td className="border border-[#00FF00]/25 px-2 py-2">
-                            <button
-                              type="button"
-                              className="rounded-[10px] border border-[#009900] bg-[#00FF00] px-3 py-1 text-sm font-bold shadow-[2px_3px_0_#008000] transition-all duration-100 active:translate-x-[1px] active:translate-y-[2px] active:shadow-[1px_1px_0_#008000] cursor-pointer"
-                              style={{ color: "rgb(0, 80, 0)" }}
-                              onClick={() => {
-                                sdk.actions.viewProfile({ fid: referrer.fid }).catch(() => {});
-                              }}
-                            >
-                              View
+                              <span className="text-sm underline underline-offset-2">{referrer.username}</span>
                             </button>
                           </td>
                         </tr>
@@ -2204,9 +2228,9 @@ export default function App() {
                       {topReferrers.length === 0 && (
                         <tr>
                           <td
-                            className="border border-[#00FF00]/25 px-2 py-3 text-sm text-center"
+                            className="px-2 py-3 text-sm text-center"
                             style={{ color: "#b7ffb7" }}
-                            colSpan={4}
+                            colSpan={3}
                           >
                             No referrers yet.
                           </td>
