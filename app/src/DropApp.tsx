@@ -1829,7 +1829,7 @@ export default function App() {
                                     const url = `https://warplets.10x.meme/${rewardTokenId}.${item.ext}`;
                                     sdk.actions.openUrl(url).catch(() => {});
                                   }}
-                                  className="w-full rounded-none border-0 bg-[#00FF00] px-2 py-2 text-[11px] font-bold text-center transition-all duration-100 cursor-pointer"
+                                  className="w-full rounded-none border-0 bg-[#00FF00] px-2 py-2 text-xs font-bold text-center transition-all duration-100 cursor-pointer"
                                   style={{ color: "rgb(0, 80, 0)" }}
                                 >
                                   <span className="flex flex-col leading-tight">
@@ -1858,19 +1858,37 @@ export default function App() {
                   <div className="rounded-2xl border border-[#00FF00]/35 bg-[#041204]/85 px-4 py-4 space-y-4">
                     {unlockedRewardCount >= 2 ? (
                     <div className="text-left">
+                      <img
+                        src="/i-cant-lose.webp"
+                        alt="I can't lose"
+                        className="w-full rounded-xl mb-3"
+                        loading="lazy"
+                      />
                       <Text className="mt-1 text-sm leading-relaxed" style={{ color: "#b7ffb7" }}>
-                        Download the full 10X Warplets metadata spreadsheet. Use this to dig deep into the collections data points that formed each NFTs rarity. Filter, Sort, Search with ease. It's your cheatsheet to finding the best warplets on the market!{" "}
-                        <button
-                          type="button"
-                          className="underline cursor-pointer"
-                          style={{ color: "#00FF00" }}
-                          onClick={() => {
-                            sdk.actions.openUrl("https://link.10x.meme/csv").catch(() => {});
-                          }}
-                        >
-                          https://link.10x.meme/csv
-                        </button>
+                        Access the collections metadata spreadsheet.
                       </Text>
+                      <Text className="mt-2 text-sm leading-relaxed" style={{ color: "#b7ffb7" }}>
+                        Rarity isn’t visual. It’s earned.
+                      </Text>
+                      <Text className="mt-2 text-sm leading-relaxed" style={{ color: "#b7ffb7" }}>
+                        Discover the onchain social, capital and conviction data used to calculate NFT rarity.
+                      </Text>
+                      <Text className="mt-2 text-sm leading-relaxed" style={{ color: "#b7ffb7" }}>
+                        Filter, sort, and search with ease.
+                      </Text>
+                      <Text className="mt-2 text-sm leading-relaxed" style={{ color: "#b7ffb7" }}>
+                        It's your guide to finding 💎 Warplets!
+                      </Text>
+                      <button
+                        type="button"
+                        className="mt-3 w-full rounded-[20px] border border-[#009900] bg-[#00FF00] px-5 py-3 text-md font-bold shadow-[3px_6px_0_#008000] transition-all duration-100 active:translate-x-[1px] active:translate-y-[3px] active:shadow-[1px_3px_0_#008000] cursor-pointer"
+                        style={{ color: "rgb(0, 80, 0)" }}
+                        onClick={() => {
+                          sdk.actions.openUrl("https://link.10x.meme/csv").catch(() => {});
+                        }}
+                      >
+                        Get The Cheatsheet
+                      </button>
                     </div>
                     ) : (
                       <Text className="text-sm font-semibold text-left" style={{ color: "#b7ffb7" }}>
@@ -2078,7 +2096,7 @@ export default function App() {
                 <button
                   onClick={handlePrimaryAction}
                   disabled={isPurchasing}
-                  className={`w-full mt-0 px-5 py-3 rounded-[20px] border border-[#009900] bg-[#00FF00] hover:bg-[#33ff33] font-bold text-lg transition-all duration-100 shadow-[3px_6px_0_#008000] active:translate-x-[1px] active:translate-y-[3px] active:shadow-[1px_3px_0_#008000] disabled:bg-gray-700 disabled:border-gray-700 disabled:shadow-none disabled:translate-x-0 disabled:translate-y-0 cursor-pointer ${shareButtonPulseClass}`}
+                  className={`w-full mt-0 px-5 py-3 rounded-[20px] border border-[#009900] bg-[#00FF00] hover:bg-[#33ff33] font-bold text-base whitespace-nowrap transition-all duration-100 shadow-[3px_6px_0_#008000] active:translate-x-[1px] active:translate-y-[3px] active:shadow-[1px_3px_0_#008000] disabled:bg-gray-700 disabled:border-gray-700 disabled:shadow-none disabled:translate-x-0 disabled:translate-y-0 cursor-pointer ${shareButtonPulseClass}`}
                   style={{ color: isPurchasing ? "#ffffff" : "rgb(0, 80, 0)", fontWeight: 700 }}
                 >
                   {buttonLabel}

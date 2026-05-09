@@ -13,7 +13,7 @@ body {
 }
 
 button {
-  font: inherit;
+  font-family: inherit;
 }
 
 .brand-bg-video {
