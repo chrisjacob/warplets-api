@@ -170,24 +170,38 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     action.slug === "drop-follow-fc-10xchris" ||
     action.slug === "drop-join-fc-channel"
   ) {
+    // Verification is best-effort only; never block completion persistence.
     const apiKey = context.env.NEYNAR_API_KEY?.trim();
-    if (!apiKey) {
-      return jsonSecure({ error: "Verification service unavailable" }, { status: 503 });
-    }
+    if (apiKey) {
+      try {
+        const verifyRes = await fetch(new URL("/api/actions-verify", context.request.url).toString(), {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ fid, actionSlug, sessionToken }),
+        });
 
-    const verifyRes = await fetch(new URL("/api/actions-verify", context.request.url).toString(), {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ fid, actionSlug, sessionToken }),
-    });
-
-    if (!verifyRes.ok) {
-      return jsonSecure({ error: "Verification failed" }, { status: 409 });
-    }
-
-    const verifyPayload = (await verifyRes.json()) as { verified?: boolean };
-    if (!verifyPayload.verified) {
-      return jsonSecure({ error: "Action verification not complete yet" }, { status: 409 });
+        if (!verifyRes.ok) {
+          await logSecurityEvent(context.env.WARPLETS, { logSalt: context.env.SECURITY_LOG_SALT }, {
+            eventType: "actions_complete_verify",
+            outcome: "verification_failed_non_blocking",
+            actorType: "fid",
+            actorId: String(fid),
+            ipAddress: ip,
+            route: requestUrl.pathname,
+            details: action.slug,
+          });
+        }
+      } catch {
+        await logSecurityEvent(context.env.WARPLETS, { logSalt: context.env.SECURITY_LOG_SALT }, {
+          eventType: "actions_complete_verify",
+          outcome: "verification_error_non_blocking",
+          actorType: "fid",
+          actorId: String(fid),
+          ipAddress: ip,
+          route: requestUrl.pathname,
+          details: action.slug,
+        });
+      }
     }
   }
 
