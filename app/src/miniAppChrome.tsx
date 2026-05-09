@@ -338,11 +338,13 @@ function HeaderActionButton({
   label,
   ariaLabel,
   onClick,
+  className,
   children,
 }: {
   label: string;
   ariaLabel: string;
   onClick: () => void;
+  className?: string;
   children: ReactNode;
 }) {
   return (
@@ -350,7 +352,7 @@ function HeaderActionButton({
       type="button"
       aria-label={ariaLabel}
       onClick={onClick}
-      className="header-action-button"
+      className={`header-action-button${className ? ` ${className}` : ""}`}
       title={label}
     >
       {children}
@@ -428,6 +430,7 @@ export function MiniAppHeader({
           label="Menu"
           ariaLabel="Open menu"
           onClick={onMenu}
+          className="header-action-button--menu"
         >
           <span className="header-icon-hamburger" aria-hidden="true">
             <span />

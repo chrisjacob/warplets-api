@@ -232,6 +232,15 @@ button {
   pointer-events: none;
 }
 
+.header-action-button--menu {
+  background: #000;
+  color: #0f0;
+}
+
+.header-action-button--menu:hover {
+  background: #000;
+}
+
 .header-icon-chevron {
   display: block;
   width: 30px;
