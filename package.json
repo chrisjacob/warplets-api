@@ -12,7 +12,7 @@
     "web:deploy:dev": "pnpm --dir web deploy:dev",
     "web:deploy:prod": "pnpm --dir web deploy:prod",
     "web:local:tunnel": "node scripts/dev-tunnel-web.mjs",
-    "dev:dashboard": "localflare --port 8890",
+    "dev:dashboard": "localflare attach app/wrangler.toml --port 8890 --persist-to app/.wrangler/state --no-open",
     "inspect:d1:users": "wrangler d1 execute warplets --local --command \"SELECT id,fid,username,created_at FROM users ORDER BY id DESC LIMIT 50;\"",
     "inspect:d1:votes": "wrangler d1 execute warplets --local --command \"SELECT id,user_id,poll_option,created_at FROM votes ORDER BY id DESC LIMIT 100;\"",
     "inspect:kv:list": "wrangler kv key list --namespace-id 3f55e9bea2534955b833521a2f5b55e7 --local",

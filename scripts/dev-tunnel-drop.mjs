@@ -55,16 +55,6 @@ function spawnApiWorker(port) {
   });
 }
 
-function spawnLocalflare() {
-  const command = process.platform === "win32" ? "pnpm" : "pnpm";
-  return spawn(command, ["exec", "localflare", "--port", String(LOCALFLARE_PORT)], {
-    cwd: path.resolve(appDir, ".."),
-    shell: process.platform === "win32",
-    stdio: "inherit",
-    env: process.env,
-  });
-}
-
 function spawnCloudflared(port) {
   const executable =
     process.platform === "win32"
@@ -120,18 +110,15 @@ async function waitForApi(port) {
 async function main() {
   await ensurePortAvailable(VITE_PORT, "Vite");
   await ensurePortAvailable(API_PORT, "API");
-  await ensurePortAvailable(LOCALFLARE_PORT, "Localflare");
 
   console.log(`Stable dev URL: ${PUBLIC_URL}`);
   console.log(`Local dev URL:  http://localhost:${VITE_PORT}`);
   console.log(`Local API URL:  http://localhost:${API_PORT}`);
-  console.log(`Localflare UI:  https://studio.localflare.dev?port=${LOCALFLARE_PORT}`);
+  console.log(`Localflare UI:  https://studio.localflare.dev?port=${LOCALFLARE_PORT} (run: pnpm dev:dashboard)`);
   console.log(`Embed launch URL: ${LOCAL_MINIAPP_BASE_URL}`);
   console.log("Starting app API worker...");
 
   const api = spawnApiWorker(API_PORT);
-  console.log(`Starting Localflare on :${LOCALFLARE_PORT}...`);
-  const localflare = spawnLocalflare();
   console.log("Starting vite dev...");
   const vite = spawnViteDev(VITE_PORT, API_PORT);
   console.log("Starting Cloudflare Tunnel drop-local...");
@@ -139,7 +126,6 @@ async function main() {
 
   const shutdown = () => {
     api.kill();
-    localflare.kill();
     vite.kill();
     tunnel.kill();
   };

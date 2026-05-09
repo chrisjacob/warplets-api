@@ -2,6 +2,7 @@ interface Env {
   WARPLETS: D1Database;
   WARPLETS_KV: KVNamespace;
   ACTION_SESSION_SECRET?: string;
+  ALLOW_INSECURE_ACTION_FID_FALLBACK?: string;
 }
 import { jsonSecure, verifyActionSessionToken } from "../_lib/security.js";
 
@@ -111,8 +112,19 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   const url = new URL(context.request.url);
   const appSlug = (url.searchParams.get("appSlug") || "").trim().toLowerCase();
   const sessionToken = (url.searchParams.get("sessionToken") || "").trim() || null;
+  const bodyFid = asPositiveInt(url.searchParams.get("fid"));
   const session = await verifyActionSessionToken(context.env.ACTION_SESSION_SECRET, sessionToken);
-  const fid = session.valid ? session.fid : null;
+  const isLocalDevHost =
+    url.hostname.includes("-local.") ||
+    url.hostname.includes("-dev.") ||
+    url.hostname.endsWith(".pages.dev") ||
+    url.hostname === "127.0.0.1" ||
+    url.hostname === "localhost" ||
+    url.hostname === "::1";
+  const allowInsecureFallback =
+    isLocalDevHost &&
+    (context.env.ALLOW_INSECURE_ACTION_FID_FALLBACK === "1" || isLocalDevHost);
+  const fid = session.valid ? session.fid : (allowInsecureFallback ? bodyFid : null);
 
   if (!appSlug) {
     return jsonSecure({ error: "appSlug is required" }, { status: 400 });
