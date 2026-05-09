@@ -75,6 +75,30 @@ const TOP_REFERRERS_CACHE_PREFIX = "top-referrers-v1";
 const TOP_REFERRERS_CACHE_TTL_SECONDS = 600;
 let usersColumnSetPromise: Promise<Set<string>> | null = null;
 
+function toErrorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (typeof error === "string") return error;
+  try {
+    return JSON.stringify(error);
+  } catch {
+    return "unknown_error";
+  }
+}
+
+function logEnrichmentError(
+  scope: string,
+  error: unknown,
+  context?: { fid?: number; userId?: number; hostname?: string }
+): void {
+  console.error("warplet-status enrichment failed", {
+    marker: `enrichment:${scope}`,
+    message: toErrorMessage(error),
+    fid: context?.fid ?? null,
+    userId: context?.userId ?? null,
+    hostname: context?.hostname ?? null,
+  });
+}
+
 async function getWarpletsUsersColumnSet(db: D1Database): Promise<Set<string>> {
   if (!usersColumnSetPromise) {
     usersColumnSetPromise = db
@@ -714,7 +738,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         allowMatchedTopUp(hostname)
       );
     } catch (error) {
-      console.error("warplet-status GET recentBuys failed:", error);
+      logEnrichmentError("get_recent_buys", error, { hostname });
     }
 
     let rewardedUsers: RecentBuyer[] = [];
@@ -725,14 +749,14 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         allowMatchedTopUp(hostname)
       );
     } catch (error) {
-      console.error("warplet-status GET rewardedUsers failed:", error);
+      logEnrichmentError("get_rewarded_users", error, { hostname });
     }
 
     let topReferrers: TopReferrer[] = [];
     try {
       topReferrers = await loadTopReferrersCached(context.env);
     } catch (error) {
-      console.error("warplet-status GET topReferrers failed:", error);
+      logEnrichmentError("get_top_referrers", error, { hostname });
     }
     if (useReferralTestData) {
       try {
@@ -765,7 +789,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
           topReferrers = seededRows;
         }
       } catch (error) {
-        console.error("warplet-status GET referral test seeding failed:", error);
+        logEnrichmentError("get_referral_test_seed", error, { hostname });
       }
     }
     let referralCount = 0;
@@ -806,7 +830,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
             outreachCandidates = await loadOutreachCandidatesCached(context.env, user.id);
           }
         } catch (error) {
-          console.error("warplet-status GET fid-specific load failed:", error);
+          logEnrichmentError("get_fid_specific_load", error, { fid: fidNum, hostname });
         }
       }
     }
@@ -905,7 +929,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         allowMatchedTopUp(hostname)
       );
     } catch (error) {
-      console.error("warplet-status POST recentBuys skipped:", error);
+      logEnrichmentError("post_recent_buys", error, { fid, hostname });
     }
     let rewardedUsers: RecentBuyer[] = [];
     try {
@@ -915,13 +939,13 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         allowMatchedTopUp(hostname)
       );
     } catch (error) {
-      console.error("warplet-status POST rewardedUsers skipped:", error);
+      logEnrichmentError("post_rewarded_users", error, { fid, hostname });
     }
     let topReferrers: TopReferrer[] = [];
     try {
       topReferrers = await loadTopReferrersCached(context.env);
     } catch (error) {
-      console.error("warplet-status POST topReferrers skipped:", error);
+      logEnrichmentError("post_top_referrers", error, { fid, hostname });
     }
     let outreachCandidates: OutreachCandidate = { farcasterUsernames: [], xUsernames: [], tokenIds: [] };
 
@@ -1010,7 +1034,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
           }
           outreachCandidates = await loadOutreachCandidatesCached(context.env, newUser.id);
         } catch (error) {
-          console.error("warplet-status POST new-user friends/outreach skipped:", error);
+          logEnrichmentError("post_new_user_friends_outreach", error, { fid, userId: newUser.id, hostname });
         }
       }
 
@@ -1122,7 +1146,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       );
       outreachCandidates = await loadOutreachCandidatesCached(context.env, existing.id);
     } catch (error) {
-      console.error("warplet-status POST existing-user friends/outreach skipped:", error);
+      logEnrichmentError("post_existing_user_friends_outreach", error, { fid, userId: existing.id, hostname });
     }
 
     const actionSessionToken = await createActionSessionToken(context.env.ACTION_SESSION_SECRET, fid, 3600);
