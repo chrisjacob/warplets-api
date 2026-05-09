@@ -1035,7 +1035,7 @@ export default function App() {
   const hasAnyUnlockedRewards = unlockedRewardCount > 0;
   const rewardChecklistRows = [
     { emoji: "😍", index: 1, title: "More Warplets!" },
-    { emoji: "🤓", index: 2, title: "10X Warplets Cheatsheet" },
+    { emoji: "🤓", index: 2, title: "Buyers Cheatsheet" },
     { emoji: "🤯", index: 3, title: "The Matrix Explained" },
     { emoji: "🤣", index: 4, title: "The Matrix Uploaded" },
     { emoji: "💰", index: 5, title: "Fuel for Builders" },
@@ -1044,7 +1044,9 @@ export default function App() {
     const requiredActions = rewardIndex * 2;
     return Math.max(0, requiredActions - completedActionsCount);
   };
-  const rewardTokenId = purchasedTokenId ?? (typeof status?.rarityValue === "number" ? String(status.rarityValue) : null);
+  const rewardTokenId = !isMatched
+    ? "760"
+    : (purchasedTokenId ?? (typeof status?.rarityValue === "number" ? String(status.rarityValue) : null));
   const castOutreach = outreachCandidates.farcasterUsernames.slice(0, 10).join(" ");
   const tweetOutreach = outreachCandidates.xUsernames.slice(0, 10).join(" ");
   const headerTitle = showUnlockRewardPage && !isMenuRoute
@@ -1758,9 +1760,29 @@ export default function App() {
                     {unlockedRewardCount >= 1 ? (
                     <div className="text-left">
                       <Text className="mt-1 text-sm" style={{ color: "#b7ffb7" }}>
-                        Download your 10X Warplet in a variety of image and video formats.
+                        {!isMatched
+                          ? "Each 10X Warplet NFT has 6 formats available!"
+                          : "Each 10X Warplet NFT has 6 formats available!"}
                       </Text>
-
+                      <Text className="mt-1 text-sm" style={{ color: "#b7ffb7" }}>
+                        {!isMatched
+                          ? "Download our collections mascot Warplet #760 in a variety of image and video formats."
+                          : "Download your Warplet in a variety of image and video formats."}
+                      </Text>
+                      <Text className="mt-1 text-sm" style={{ color: "#b7ffb7" }}>
+                        {!isMatched
+                          ? "Perfect for sharing on social media, articles, videos and memes!"
+                          : "Perfect for sharing on social media, using as your profile picture, or just flexing your NFT!"}
+                      </Text>
+                      <Text className="mt-1 text-sm" style={{ color: "#b7ffb7" }}>
+                        CC0 (Creative Commons Zero) licensed.
+                      </Text>
+                      <Text className="mt-1 text-sm" style={{ color: "#b7ffb7" }}>
+                        Expand the Warplets universe.
+                      </Text>
+                      <Text className="mt-1 text-md font-bold" style={{ color: "#b7ffb7" }}>
+                        Build. Remix. Have fun!
+                      </Text>
                       {rewardTokenId && (
                         <div className="mt-4 grid grid-cols-2 gap-3">
                             {[
@@ -1831,7 +1853,7 @@ export default function App() {
 
                 <div className="space-y-3">
                   <Text className="text-lg font-bold text-left" style={{ color: "#00FF00" }}>
-                    {unlockedRewardCount >= 2 ? "🤓 Reward #2 10X Warplets Cheatsheet" : "🤓 Reward #2"}
+                    {unlockedRewardCount >= 2 ? "🤓 Reward #2 Buyers Cheatsheet" : "🤓 Reward #2"}
                   </Text>
                   <div className="rounded-2xl border border-[#00FF00]/35 bg-[#041204]/85 px-4 py-4 space-y-4">
                     {unlockedRewardCount >= 2 ? (
