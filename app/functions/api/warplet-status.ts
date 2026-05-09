@@ -588,261 +588,283 @@ async function loadOutreachCandidatesCached(env: Env, userId: number): Promise<O
 }
 
 export const onRequestGet: PagesFunction<Env> = async (context) => {
-  const url = new URL(context.request.url);
-  const hostname = url.hostname;
-  const fid = url.searchParams.get("fid");
-  const recentBuys = await loadRecentBuysCached(
-    context.env,
-    allowMatchedTopUp(hostname)
-  );
-  const rewardedUsers = await loadRewardedUsersCached(
-    context.env,
-    recentBuys,
-    allowMatchedTopUp(hostname)
-  );
+  try {
+    const url = new URL(context.request.url);
+    const hostname = url.hostname;
+    const fid = url.searchParams.get("fid");
+    const recentBuys = await loadRecentBuysCached(
+      context.env,
+      allowMatchedTopUp(hostname)
+    );
+    const rewardedUsers = await loadRewardedUsersCached(
+      context.env,
+      recentBuys,
+      allowMatchedTopUp(hostname)
+    );
 
-  let bestFriends: BestFriend[] = [];
-  let outreachCandidates: OutreachCandidate = { farcasterUsernames: [], xUsernames: [], tokenIds: [] };
-  if (fid) {
-    const fidNum = parseInt(fid, 10);
-    if (Number.isFinite(fidNum) && fidNum > 0) {
-      const user = await context.env.WARPLETS.prepare(
-        "SELECT id, best_friends_warplets_on FROM warplets_users WHERE fid = ? LIMIT 1"
-      )
-        .bind(fidNum)
-        .first<{ id: number; best_friends_warplets_on: string | null }>();
+    let bestFriends: BestFriend[] = [];
+    let outreachCandidates: OutreachCandidate = { farcasterUsernames: [], xUsernames: [], tokenIds: [] };
+    if (fid) {
+      const fidNum = parseInt(fid, 10);
+      if (Number.isFinite(fidNum) && fidNum > 0) {
+        const user = await context.env.WARPLETS.prepare(
+          "SELECT id, best_friends_warplets_on FROM warplets_users WHERE fid = ? LIMIT 1"
+        )
+          .bind(fidNum)
+          .first<{ id: number; best_friends_warplets_on: string | null }>();
 
-      if (user) {
-        bestFriends = await loadOrFetchBestFriends(
-          context.env.WARPLETS,
-          user.id,
-          fidNum,
-          context.env.NEYNAR_API_KEY
-        );
-        await ensureBestFriendsWarpletMatches(
-          context.env.WARPLETS,
-          user.id,
-          fidNum,
-          user.best_friends_warplets_on
-        );
-        outreachCandidates = await loadOutreachCandidatesCached(context.env, user.id);
+        if (user) {
+          bestFriends = await loadOrFetchBestFriends(
+            context.env.WARPLETS,
+            user.id,
+            fidNum,
+            context.env.NEYNAR_API_KEY
+          );
+          await ensureBestFriendsWarpletMatches(
+            context.env.WARPLETS,
+            user.id,
+            fidNum,
+            user.best_friends_warplets_on
+          );
+          outreachCandidates = await loadOutreachCandidatesCached(context.env, user.id);
+        }
       }
     }
+
+    const actionSessionToken =
+      fid && Number.isFinite(Number(fid)) && Number(fid) > 0
+        ? await createActionSessionToken(context.env.ACTION_SESSION_SECRET, Number(fid), 3600)
+        : null;
+
+    return jsonSecure({ buyers: recentBuys, bestFriends, rewardedUsers, outreachCandidates, actionSessionToken });
+  } catch (error) {
+    console.error("warplet-status GET failed:", error);
+    return jsonSecure({ buyers: [], bestFriends: [], rewardedUsers: [], outreachCandidates: { farcasterUsernames: [], xUsernames: [], tokenIds: [] }, actionSessionToken: null });
   }
-
-  const actionSessionToken =
-    fid && Number.isFinite(Number(fid)) && Number(fid) > 0
-      ? await createActionSessionToken(context.env.ACTION_SESSION_SECRET, Number(fid), 3600)
-      : null;
-
-  return jsonSecure({ buyers: recentBuys, bestFriends, rewardedUsers, outreachCandidates, actionSessionToken });
 };
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
-  const parsed = await readJsonBodyWithLimit<unknown>(context.request, 8 * 1024);
-  if (!parsed.ok) return parsed.response;
-  const payload = parseObjectPayload<RequestBody>(parsed.value, ["fid"]);
-  if (!payload.ok) return payload.response;
-  const body = payload.payload;
+  try {
+    const parsed = await readJsonBodyWithLimit<unknown>(context.request, 8 * 1024);
+    if (!parsed.ok) return parsed.response;
+    const payload = parseObjectPayload<RequestBody>(parsed.value, ["fid"]);
+    if (!payload.ok) return payload.response;
+    const body = payload.payload;
 
-  const fid = typeof body.fid === "number" && Number.isInteger(body.fid) ? body.fid : null;
-  if (!fid || fid <= 0) {
-    return jsonSecure({ error: "fid is required" }, { status: 400 });
-  }
+    const fid = typeof body.fid === "number" && Number.isInteger(body.fid) ? body.fid : null;
+    if (!fid || fid <= 0) {
+      return jsonSecure({ error: "fid is required" }, { status: 400 });
+    }
 
-  const existing = await context.env.WARPLETS.prepare(
-    "SELECT id, username, pfp_url, score, matched_on, buy_in_opensea_on, buy_in_farcaster_wallet_on, rewarded_on, best_friends_warplets_on FROM warplets_users WHERE fid = ? LIMIT 1"
-  )
-    .bind(fid)
-    .first<{
-      id: number;
-      username: string | null;
-      pfp_url: string | null;
-      score: number | null;
-      matched_on: string | null;
-      buy_in_opensea_on: string | null;
-      buy_in_farcaster_wallet_on: string | null;
-      rewarded_on: string | null;
-      best_friends_warplets_on: string | null;
-    }>();
-
-  const matchRow = await context.env.WARPLETS.prepare(
-    "SELECT x10_rarity FROM warplets_metadata WHERE fid_value = ? LIMIT 1"
-  )
-    .bind(fid)
-    .first<{ x10_rarity: number | null }>();
-
-  const rarityValue = typeof matchRow?.x10_rarity === "number" ? matchRow.x10_rarity : null;
-  const isMatch = rarityValue !== null;
-  const hostname = new URL(context.request.url).hostname;
-  const recentBuys = await loadRecentBuysCached(
-    context.env,
-    allowMatchedTopUp(hostname)
-  );
-  const rewardedUsers = await loadRewardedUsersCached(
-    context.env,
-    recentBuys,
-    allowMatchedTopUp(hostname)
-  );
-  let outreachCandidates: OutreachCandidate = { farcasterUsernames: [], xUsernames: [], tokenIds: [] };
-
-  if (!existing) {
-    const neynarUser = await fetchNeynarUserByFid(fid, context.env.NEYNAR_API_KEY);
-    const now = new Date().toISOString();
-
-    await context.env.WARPLETS.prepare(
-      "INSERT INTO warplets_users (" +
-        "fid, username, display_name, pfp_url, registered_at, pro_status, profile_bio_text, " +
-        "follower_count, following_count, primary_eth_address, primary_sol_address, x_username, " +
-        "url, viewer_following, viewer_followed_by, score, matched_on, buy_in_opensea_on, buy_in_farcaster_wallet_on, rewarded_on, best_friends_warplets_on, created_on, updated_on" +
-        ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
-    )
-      .bind(
-        fid,
-        neynarUser?.username ?? null,
-        neynarUser?.display_name ?? null,
-        neynarUser?.pfp_url ?? null,
-        neynarUser?.registered_at ?? null,
-        neynarUser?.pro_status ?? null,
-        neynarUser?.profile_bio_text ?? null,
-        neynarUser?.follower_count ?? null,
-        neynarUser?.following_count ?? null,
-        neynarUser?.primary_eth_address ?? null,
-        neynarUser?.primary_sol_address ?? null,
-        neynarUser?.x_username ?? null,
-        neynarUser?.url ?? null,
-        boolToInt(neynarUser?.viewer_following),
-        boolToInt(neynarUser?.viewer_followed_by),
-        neynarUser?.score ?? null,
-        isMatch ? now : null,
-        null,
-        null,
-        null,
-        null,
-        now,
-        now
-      )
-      .run();
-
-    const newUser = await context.env.WARPLETS.prepare(
-      "SELECT id FROM warplets_users WHERE fid = ? LIMIT 1"
+    const existing = await context.env.WARPLETS.prepare(
+      "SELECT id, username, pfp_url, score, matched_on, buy_in_opensea_on, buy_in_farcaster_wallet_on, rewarded_on, best_friends_warplets_on FROM warplets_users WHERE fid = ? LIMIT 1"
     )
       .bind(fid)
-      .first<{ id: number }>();
+      .first<{
+        id: number;
+        username: string | null;
+        pfp_url: string | null;
+        score: number | null;
+        matched_on: string | null;
+        buy_in_opensea_on: string | null;
+        buy_in_farcaster_wallet_on: string | null;
+        rewarded_on: string | null;
+        best_friends_warplets_on: string | null;
+      }>();
 
-    if (newUser) {
-      const freshFriends = await loadOrFetchBestFriends(
-        context.env.WARPLETS,
-        newUser.id,
-        fid,
-        context.env.NEYNAR_API_KEY
-      );
-      if (freshFriends.length > 0) {
-        await ensureBestFriendsWarpletMatches(
+    const matchRow = await context.env.WARPLETS.prepare(
+      "SELECT x10_rarity FROM warplets_metadata WHERE fid_value = ? LIMIT 1"
+    )
+      .bind(fid)
+      .first<{ x10_rarity: number | null }>();
+
+    const rarityValue = typeof matchRow?.x10_rarity === "number" ? matchRow.x10_rarity : null;
+    const isMatch = rarityValue !== null;
+    const hostname = new URL(context.request.url).hostname;
+    const recentBuys = await loadRecentBuysCached(
+      context.env,
+      allowMatchedTopUp(hostname)
+    );
+    const rewardedUsers = await loadRewardedUsersCached(
+      context.env,
+      recentBuys,
+      allowMatchedTopUp(hostname)
+    );
+    let outreachCandidates: OutreachCandidate = { farcasterUsernames: [], xUsernames: [], tokenIds: [] };
+
+    if (!existing) {
+      const neynarUser = await fetchNeynarUserByFid(fid, context.env.NEYNAR_API_KEY);
+      const now = new Date().toISOString();
+
+      await context.env.WARPLETS.prepare(
+        "INSERT INTO warplets_users (" +
+          "fid, username, display_name, pfp_url, registered_at, pro_status, profile_bio_text, " +
+          "follower_count, following_count, primary_eth_address, primary_sol_address, x_username, " +
+          "url, viewer_following, viewer_followed_by, score, matched_on, buy_in_opensea_on, buy_in_farcaster_wallet_on, rewarded_on, best_friends_warplets_on, created_on, updated_on" +
+          ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+      )
+        .bind(
+          fid,
+          neynarUser?.username ?? null,
+          neynarUser?.display_name ?? null,
+          neynarUser?.pfp_url ?? null,
+          neynarUser?.registered_at ?? null,
+          neynarUser?.pro_status ?? null,
+          neynarUser?.profile_bio_text ?? null,
+          neynarUser?.follower_count ?? null,
+          neynarUser?.following_count ?? null,
+          neynarUser?.primary_eth_address ?? null,
+          neynarUser?.primary_sol_address ?? null,
+          neynarUser?.x_username ?? null,
+          neynarUser?.url ?? null,
+          boolToInt(neynarUser?.viewer_following),
+          boolToInt(neynarUser?.viewer_followed_by),
+          neynarUser?.score ?? null,
+          isMatch ? now : null,
+          null,
+          null,
+          null,
+          null,
+          now,
+          now
+        )
+        .run();
+
+      const newUser = await context.env.WARPLETS.prepare(
+        "SELECT id FROM warplets_users WHERE fid = ? LIMIT 1"
+      )
+        .bind(fid)
+        .first<{ id: number }>();
+
+      if (newUser) {
+        const freshFriends = await loadOrFetchBestFriends(
           context.env.WARPLETS,
           newUser.id,
           fid,
-          null
+          context.env.NEYNAR_API_KEY
         );
+        if (freshFriends.length > 0) {
+          await ensureBestFriendsWarpletMatches(
+            context.env.WARPLETS,
+            newUser.id,
+            fid,
+            null
+          );
+        }
+        outreachCandidates = await loadOutreachCandidatesCached(context.env, newUser.id);
       }
-      outreachCandidates = await loadOutreachCandidatesCached(context.env, newUser.id);
+
+      const actionSessionToken = await createActionSessionToken(context.env.ACTION_SESSION_SECRET, fid, 3600);
+      return jsonSecure({
+        fid,
+        exists: false,
+        matched: isMatch,
+        rarityValue,
+        buyInOpenseaOn: null,
+        buyInFarcasterWalletOn: null,
+        rewardedOn: null,
+        recentBuys,
+        rewardedUsers,
+        outreachCandidates,
+        actionSessionToken,
+      });
     }
+
+    const shouldHydrateProfile =
+      !existing.username ||
+      !existing.pfp_url ||
+      existing.score === null;
+
+    if (shouldHydrateProfile) {
+      const neynarUser = await fetchNeynarUserByFid(fid, context.env.NEYNAR_API_KEY);
+      if (neynarUser) {
+        const now = new Date().toISOString();
+        await context.env.WARPLETS.prepare(
+          `UPDATE warplets_users SET
+             username = COALESCE(username, ?),
+             display_name = COALESCE(display_name, ?),
+             pfp_url = COALESCE(pfp_url, ?),
+             registered_at = COALESCE(registered_at, ?),
+             pro_status = COALESCE(pro_status, ?),
+             profile_bio_text = COALESCE(profile_bio_text, ?),
+             follower_count = COALESCE(follower_count, ?),
+             following_count = COALESCE(following_count, ?),
+             primary_eth_address = COALESCE(primary_eth_address, ?),
+             primary_sol_address = COALESCE(primary_sol_address, ?),
+             x_username = COALESCE(x_username, ?),
+             url = COALESCE(url, ?),
+             viewer_following = COALESCE(viewer_following, ?),
+             viewer_followed_by = COALESCE(viewer_followed_by, ?),
+             score = COALESCE(score, ?),
+             updated_on = ?
+           WHERE id = ?`
+        )
+          .bind(
+            neynarUser.username ?? null,
+            neynarUser.display_name ?? null,
+            neynarUser.pfp_url ?? null,
+            neynarUser.registered_at ?? null,
+            neynarUser.pro_status ?? null,
+            neynarUser.profile_bio_text ?? null,
+            neynarUser.follower_count ?? null,
+            neynarUser.following_count ?? null,
+            neynarUser.primary_eth_address ?? null,
+            neynarUser.primary_sol_address ?? null,
+            neynarUser.x_username ?? null,
+            neynarUser.url ?? null,
+            boolToInt(neynarUser.viewer_following),
+            boolToInt(neynarUser.viewer_followed_by),
+            neynarUser.score ?? null,
+            now,
+            existing.id
+          )
+          .run();
+      }
+    }
+
+    await loadOrFetchBestFriends(
+      context.env.WARPLETS,
+      existing.id,
+      fid,
+      context.env.NEYNAR_API_KEY
+    );
+
+    await ensureBestFriendsWarpletMatches(
+      context.env.WARPLETS,
+      existing.id,
+      fid,
+      existing.best_friends_warplets_on
+    );
+    outreachCandidates = await loadOutreachCandidatesCached(context.env, existing.id);
 
     const actionSessionToken = await createActionSessionToken(context.env.ACTION_SESSION_SECRET, fid, 3600);
     return jsonSecure({
       fid,
-      exists: false,
+      exists: true,
       matched: isMatch,
       rarityValue,
-      buyInOpenseaOn: null,
-      buyInFarcasterWalletOn: null,
-      rewardedOn: null,
+      buyInOpenseaOn: existing.buy_in_opensea_on,
+      buyInFarcasterWalletOn: existing.buy_in_farcaster_wallet_on,
+      rewardedOn: existing.rewarded_on,
       recentBuys,
       rewardedUsers,
       outreachCandidates,
       actionSessionToken,
     });
+  } catch (error) {
+    console.error("warplet-status POST failed:", error);
+    return jsonSecure({
+      error: "Failed to load status",
+      exists: false,
+      matched: false,
+      rarityValue: null,
+      buyInOpenseaOn: null,
+      buyInFarcasterWalletOn: null,
+      rewardedOn: null,
+      recentBuys: [],
+      rewardedUsers: [],
+      outreachCandidates: { farcasterUsernames: [], xUsernames: [], tokenIds: [] },
+      actionSessionToken: null,
+    });
   }
-
-  const shouldHydrateProfile =
-    !existing.username ||
-    !existing.pfp_url ||
-    existing.score === null;
-
-  if (shouldHydrateProfile) {
-    const neynarUser = await fetchNeynarUserByFid(fid, context.env.NEYNAR_API_KEY);
-    if (neynarUser) {
-      const now = new Date().toISOString();
-      await context.env.WARPLETS.prepare(
-        `UPDATE warplets_users SET
-           username = COALESCE(username, ?),
-           display_name = COALESCE(display_name, ?),
-           pfp_url = COALESCE(pfp_url, ?),
-           registered_at = COALESCE(registered_at, ?),
-           pro_status = COALESCE(pro_status, ?),
-           profile_bio_text = COALESCE(profile_bio_text, ?),
-           follower_count = COALESCE(follower_count, ?),
-           following_count = COALESCE(following_count, ?),
-           primary_eth_address = COALESCE(primary_eth_address, ?),
-           primary_sol_address = COALESCE(primary_sol_address, ?),
-           x_username = COALESCE(x_username, ?),
-           url = COALESCE(url, ?),
-           viewer_following = COALESCE(viewer_following, ?),
-           viewer_followed_by = COALESCE(viewer_followed_by, ?),
-           score = COALESCE(score, ?),
-           updated_on = ?
-         WHERE id = ?`
-      )
-        .bind(
-          neynarUser.username ?? null,
-          neynarUser.display_name ?? null,
-          neynarUser.pfp_url ?? null,
-          neynarUser.registered_at ?? null,
-          neynarUser.pro_status ?? null,
-          neynarUser.profile_bio_text ?? null,
-          neynarUser.follower_count ?? null,
-          neynarUser.following_count ?? null,
-          neynarUser.primary_eth_address ?? null,
-          neynarUser.primary_sol_address ?? null,
-          neynarUser.x_username ?? null,
-          neynarUser.url ?? null,
-          boolToInt(neynarUser.viewer_following),
-          boolToInt(neynarUser.viewer_followed_by),
-          neynarUser.score ?? null,
-          now,
-          existing.id
-        )
-        .run();
-    }
-  }
-
-  await loadOrFetchBestFriends(
-    context.env.WARPLETS,
-    existing.id,
-    fid,
-    context.env.NEYNAR_API_KEY
-  );
-
-  await ensureBestFriendsWarpletMatches(
-    context.env.WARPLETS,
-    existing.id,
-    fid,
-    existing.best_friends_warplets_on
-  );
-  outreachCandidates = await loadOutreachCandidatesCached(context.env, existing.id);
-
-  const actionSessionToken = await createActionSessionToken(context.env.ACTION_SESSION_SECRET, fid, 3600);
-  return jsonSecure({
-    fid,
-    exists: true,
-    matched: isMatch,
-    rarityValue,
-    buyInOpenseaOn: existing.buy_in_opensea_on,
-    buyInFarcasterWalletOn: existing.buy_in_farcaster_wallet_on,
-    rewardedOn: existing.rewarded_on,
-    recentBuys,
-    rewardedUsers,
-    outreachCandidates,
-    actionSessionToken,
-  });
 };

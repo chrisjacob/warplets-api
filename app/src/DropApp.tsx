@@ -960,7 +960,7 @@ export default function App() {
   }, [actionSessionToken, notificationOpenSent, pendingNotificationId]);
 
   const searchParams = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : new URLSearchParams();
-  const forceNoMatch = typeof window !== "undefined" && searchParams.get("match") === "false";
+  const forceNoMatch = typeof window !== "undefined" && searchParams.get("match") === "0";
   const debugEnabled = typeof window !== "undefined" && searchParams.get("debug") === "1";
   const forceUnlock = typeof window !== "undefined" && searchParams.get("unlock") === "1";
   const forceActionsPage = typeof window !== "undefined" && searchParams.get("actions") === "1";
