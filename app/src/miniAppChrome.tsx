@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import sdk from "@farcaster/miniapp-sdk";
 import { Text } from "@neynar/ui/typography";
+import { hapticSelectionChanged, hapticTap } from "./haptics";
 
 export type AppSlug = "app" | "drop" | "find" | "million";
 
@@ -210,6 +211,8 @@ async function openApp(appSlug: AppSlug) {
 
 async function runMenuCardAction(card: MenuCard) {
   if (card.disabled) return;
+  void hapticTap();
+  void hapticSelectionChanged();
 
   if (card.kind === "miniapp" && card.appSlug) {
     await openApp(card.appSlug);
@@ -351,7 +354,10 @@ function HeaderActionButton({
     <button
       type="button"
       aria-label={ariaLabel}
-      onClick={onClick}
+      onClick={() => {
+        void hapticTap();
+        onClick();
+      }}
       className={`header-action-button${className ? ` ${className}` : ""}`}
       title={label}
     >
@@ -410,7 +416,10 @@ export function MiniAppHeader({
             className="miniapp-header__logo-link"
             aria-label={logoLabel}
             title={logoLabel}
-            onClick={onLogo}
+            onClick={() => {
+              void hapticTap();
+              onLogo();
+            }}
           >
             <img src="/icon.png" alt="10X" className="miniapp-header__logo" loading="eager" />
           </button>

@@ -10,6 +10,13 @@ import {
   getHeaderTitle,
   useMiniAppChrome,
 } from "./miniAppChrome.tsx";
+import {
+  hapticError,
+  hapticPrimaryTap,
+  hapticStrongTap,
+  hapticSuccess,
+  hapticTap,
+} from "./haptics";
 
 type WarpletStatus = {
   fid: number;
@@ -827,6 +834,7 @@ export default function App() {
   const [notificationOpenSent, setNotificationOpenSent] = useState(false);
 
   const launchTopConfetti = () => {
+    void hapticSuccess();
     const colors = ["#ff4d4d", "#ffd93d", "#57e389", "#4da3ff", "#b07bff", "#ff7ac8"];
     const bursts = [0.12, 0.3, 0.5, 0.7, 0.88];
 
@@ -844,6 +852,11 @@ export default function App() {
         });
       }, index * 160);
     }
+  };
+
+  const showActionError = (message: string) => {
+    void hapticError();
+    setActionError(message);
   };
 
   useEffect(() => {
@@ -1157,7 +1170,7 @@ export default function App() {
       }
     } catch (err) {
       console.error("Failed to load reward actions:", err);
-      setActionError(getErrorMessage(err));
+      showActionError(getErrorMessage(err));
       setRewardActions([]);
       return [];
     } finally {
@@ -1252,6 +1265,7 @@ export default function App() {
   };
 
   const runRewardAction = async (action: RewardAction) => {
+    void hapticTap();
     if (!fid || runningActionSlug) return;
     if (isActionPending(action.slug)) return;
 
@@ -1333,20 +1347,21 @@ export default function App() {
       refreshStatusForRewardPage(fid).catch(() => {});
     } catch (err) {
       console.error("Failed to run reward action:", err);
-      setActionError(getErrorMessage(err));
+      showActionError(getErrorMessage(err));
     } finally {
       setRunningActionSlug(null);
     }
   };
 
   const handleWaitlistRewardAction = async (action: RewardAction) => {
+    void hapticPrimaryTap();
     if (!fid) {
-      setActionError("Your Farcaster account is not ready yet.");
+      showActionError("Your Farcaster account is not ready yet.");
       return;
     }
 
     if (!waitlistEmail.trim()) {
-      setActionError("Please enter a valid email.");
+      showActionError("Please enter a valid email.");
       return;
     }
 
@@ -1389,7 +1404,7 @@ export default function App() {
       await fetchRewardActions();
       await refreshStatusForRewardPage(fid);
     } catch (err) {
-      setActionError(getErrorMessage(err));
+      showActionError(getErrorMessage(err));
     } finally {
       setWaitlistSubmitting(false);
       setRunningActionSlug(null);
@@ -1397,6 +1412,7 @@ export default function App() {
   };
 
   const handlePrimaryAction = async () => {
+    void hapticStrongTap();
     if (hasPurchased && purchasedTokenId) {
       setActionError("");
       launchTopConfetti();
@@ -1424,7 +1440,7 @@ export default function App() {
         const message = getErrorMessage(err).toLowerCase();
         const userRejected = message.includes("rejected by user");
         if (!userRejected) {
-          setActionError(getErrorMessage(err));
+          showActionError(getErrorMessage(err));
         }
       } finally {
         setShowUnlockRewardPage(true);
@@ -1434,7 +1450,7 @@ export default function App() {
     }
     if (isMatched) {
       if (!fid) {
-        setActionError("Your Farcaster account is not ready yet.");
+        showActionError("Your Farcaster account is not ready yet.");
         return;
       }
 
@@ -1556,11 +1572,11 @@ export default function App() {
           await postTrackingUpdate("/api/warplet-purchase-complete", fid);
         } catch (persistError) {
           console.error("Failed to persist purchase tracking state:", persistError);
-          setActionError("Purchase succeeded, but persisting claim state failed. Please refresh in a moment.");
+          showActionError("Purchase succeeded, but persisting claim state failed. Please refresh in a moment.");
         }
       } catch (err) {
         console.error("Failed to complete Warplet purchase:", err);
-        setActionError(getErrorMessage(err));
+        showActionError(getErrorMessage(err));
       } finally {
         setIsPurchasing(false);
       }
@@ -1590,7 +1606,7 @@ export default function App() {
       const message = getErrorMessage(err).toLowerCase();
       const userRejected = message.includes("rejected by user");
       if (!userRejected) {
-        setActionError(getErrorMessage(err));
+        showActionError(getErrorMessage(err));
       }
     } finally {
       setShowUnlockRewardPage(true);
@@ -1598,29 +1614,33 @@ export default function App() {
   };
 
   const handleOpenSeaAction = async () => {
+    void hapticTap();
     setHasClickedOpenSea(true);
     await sdk.actions.openUrl("https://opensea.io/collection/10xwarplets/overview");
   };
 
   const handleSplashAction = async () => {
+    void hapticTap();
     await sdk.actions.openUrl("https://10x.meme");
   };
 
   const handleConfirmAddAppPrompt = async () => {
+    void hapticPrimaryTap();
     setShowAddAppPrompt(false);
     try {
       await sdk.actions.addMiniApp();
     } catch (err) {
       console.error("Failed to open add mini app prompt:", err);
-      setActionError(getErrorMessage(err));
+      showActionError(getErrorMessage(err));
     }
   };
 
   const handleWaitlistSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    void hapticPrimaryTap();
     event.preventDefault();
 
     if (!waitlistEmail.trim()) {
-      setActionError("Please enter a valid email.");
+      showActionError("Please enter a valid email.");
       return;
     }
 
@@ -1648,18 +1668,20 @@ export default function App() {
 
       setWaitlistSubmitted(true);
     } catch (err) {
-      setActionError(getErrorMessage(err));
+      showActionError(getErrorMessage(err));
     } finally {
       setWaitlistSubmitting(false);
     }
   };
 
   const handleFollowX = async () => {
+    void hapticTap();
     await sdk.actions.openUrl("https://x.com/10XMemeX");
     setHasFollowedX(true);
   };
 
   const handleJoinTelegram = async () => {
+    void hapticTap();
     await sdk.actions.openUrl("https://t.me/X10XMeme");
   };
 
@@ -1741,6 +1763,9 @@ export default function App() {
             <div className="px-4 pb-2 pt-3 flex justify-center">
               <a
                 href={farcasterLaunchUrl}
+                onClick={() => {
+                  void hapticPrimaryTap();
+                }}
                 className="inline-block w-[329px] max-w-full px-5 py-3 rounded-[20px] border border-[#009900] bg-[#00FF00] hover:bg-[#33ff33] font-bold text-lg transition-all duration-100 shadow-[3px_6px_0_#008000] active:translate-x-[1px] active:translate-y-[3px] active:shadow-[1px_3px_0_#008000]"
                 style={{ color: "rgb(0, 80, 0)" }}
               >
@@ -1788,6 +1813,7 @@ export default function App() {
                     <div
                       key={action.id}
                       onClick={() => {
+                        void hapticTap();
                         if (actionPending || runningActionSlug === action.slug) return;
                         if (action.slug === "drop-waitlist-email" && !actionCompleted) {
                           setShowWaitlistModal(true);
@@ -1800,6 +1826,7 @@ export default function App() {
                       tabIndex={0}
                       onKeyDown={(event) => {
                         if (event.key !== "Enter" && event.key !== " ") return;
+                        void hapticTap();
                         event.preventDefault();
                         if (actionPending || runningActionSlug === action.slug) return;
                         if (action.slug === "drop-waitlist-email" && !actionCompleted) {
@@ -1816,6 +1843,7 @@ export default function App() {
                         <button
                           type="button"
                           onClick={(event) => {
+                            void hapticTap();
                             event.stopPropagation();
                             if (actionPending || runningActionSlug === action.slug) return;
                             if (action.slug === "drop-waitlist-email" && !actionCompleted) {
@@ -1898,6 +1926,7 @@ export default function App() {
                                 <button
                                   type="button"
                                   onClick={() => {
+                                    void hapticTap();
                                     const url = `https://warplets.10x.meme/${rewardTokenId}.${item.ext}`;
                                     sdk.actions.openUrl(url).catch(() => {});
                                   }}
@@ -1924,6 +1953,7 @@ export default function App() {
                                 <button
                                   type="button"
                                   onClick={() => {
+                                    void hapticTap();
                                     const url = `https://warplets.10x.meme/${rewardTokenId}.${item.ext}`;
                                     sdk.actions.openUrl(url).catch(() => {});
                                   }}
@@ -1982,6 +2012,7 @@ export default function App() {
                         className="mt-3 w-full rounded-[20px] border border-[#009900] bg-[#00FF00] px-5 py-3 text-md font-bold shadow-[3px_6px_0_#008000] transition-all duration-100 active:translate-x-[1px] active:translate-y-[3px] active:shadow-[1px_3px_0_#008000] cursor-pointer"
                         style={{ color: "rgb(0, 80, 0)" }}
                         onClick={() => {
+                          void hapticTap();
                           sdk.actions.openUrl("https://link.10x.meme/csv").catch(() => {});
                         }}
                       >
@@ -2042,6 +2073,7 @@ export default function App() {
                         className="mt-3 w-full max-w-full rounded-[20px] border border-[#009900] bg-[#00FF00] px-5 py-3 text-md font-bold shadow-[3px_6px_0_#008000] transition-all duration-100 active:translate-x-[1px] active:translate-y-[3px] active:shadow-[1px_3px_0_#008000] cursor-pointer"
                         style={{ color: "rgb(0, 80, 0)" }}
                         onClick={() => {
+                          void hapticTap();
                           sdk.actions.openUrl("https://www.youtube.com/watch?v=kK0JtvYg5-s").catch(() => {});
                         }}
                       >
@@ -2092,6 +2124,7 @@ export default function App() {
                         className="mt-3 w-full rounded-[20px] border border-[#009900] bg-[#00FF00] px-5 py-3 text-md font-bold shadow-[3px_6px_0_#008000] transition-all duration-100 active:translate-x-[1px] active:translate-y-[3px] active:shadow-[1px_3px_0_#008000] cursor-pointer"
                         style={{ color: "rgb(0, 80, 0)" }}
                         onClick={() => {
+                          void hapticTap();
                           sdk.actions.openUrl("https://www.youtube.com/watch?v=ug2aoVZYgaU&list=PLj-tHdTcFWloQkdL1Ps-JOSSPW-_VwQWx").catch(() => {});
                         }}
                       >
@@ -2148,6 +2181,7 @@ export default function App() {
                         className="mt-3 w-full rounded-[20px] border border-[#009900] bg-[#00FF00] px-5 py-3 text-md font-bold shadow-[3px_6px_0_#008000] transition-all duration-100 active:translate-x-[1px] active:translate-y-[3px] active:shadow-[1px_3px_0_#008000] cursor-pointer"
                         style={{ color: "rgb(0, 80, 0)" }}
                         onClick={() => {
+                          void hapticTap();
                           sdk.actions.openUrl("https://link.10x.meme/1mwarplet").catch(() => {});
                         }}
                       >
@@ -2180,6 +2214,7 @@ export default function App() {
                       className="h-10 w-10 shrink-0 rounded-[10px] border border-[#009900] bg-[#00FF00] text-xl font-bold shadow-[2px_4px_0_#008000] transition-all duration-100 active:translate-x-[1px] active:translate-y-[2px] active:shadow-[1px_2px_0_#008000] cursor-pointer"
                       style={{ color: "rgb(0, 80, 0)" }}
                       onClick={() => {
+                        void hapticTap();
                         if (navigator.clipboard?.writeText) {
                           navigator.clipboard.writeText(referralDropUrl).then(() => {
                             showCopyToast();
@@ -2228,6 +2263,7 @@ export default function App() {
                               className="flex items-center gap-2 text-left cursor-pointer"
                               style={{ color: "#b7ffb7" }}
                               onClick={() => {
+                                void hapticTap();
                                 sdk.actions.viewProfile({ fid: referrer.fid }).catch(() => {});
                               }}
                             >
@@ -2277,7 +2313,10 @@ export default function App() {
           {!loading && !error && !showOpenInFarcaster && showUnlockRewardPage && showWaitlistModal && (
             <div
               className="fixed inset-0 z-40 flex items-center justify-center px-4 bg-black/70 backdrop-blur-[2px]"
-              onClick={() => setShowWaitlistModal(false)}
+              onClick={() => {
+                void hapticTap();
+                setShowWaitlistModal(false);
+              }}
             >
               <div
                 className="w-full max-w-sm rounded-2xl border border-[#00FF00]/45 bg-[#041204] p-5 shadow-[0_0_40px_rgba(0,255,0,0.15)]"
@@ -2296,7 +2335,10 @@ export default function App() {
                     type="button"
                     aria-label="Close waitlist popup"
                     className="text-[#b7ffb7] hover:text-white text-lg font-bold leading-none cursor-pointer"
-                    onClick={() => setShowWaitlistModal(false)}
+                    onClick={() => {
+                      void hapticTap();
+                      setShowWaitlistModal(false);
+                    }}
                   >
                     X
                   </button>
@@ -2313,6 +2355,7 @@ export default function App() {
                   <button
                     type="button"
                     onClick={() => {
+                      void hapticPrimaryTap();
                       const waitlistAction = displayRewardActions.find((item) => item.slug === "drop-waitlist-email");
                       if (!waitlistAction) return;
                       handleWaitlistRewardAction(waitlistAction).catch(() => {});
@@ -2388,6 +2431,7 @@ export default function App() {
                           style={{ border: "2px solid #00FF00" }}
                           title={`View profile ${user.fid}`}
                           onClick={() => {
+                            void hapticTap();
                             sdk.actions.viewProfile({ fid: user.fid }).catch(() => {});
                           }}
                         >
@@ -2418,7 +2462,10 @@ export default function App() {
                 type="button"
                 aria-label="Dismiss error message"
                 className="text-red-200 hover:text-white text-sm font-bold leading-none cursor-pointer"
-                onClick={() => setActionError("")}
+                onClick={() => {
+                  void hapticTap();
+                  setActionError("");
+                }}
               >
                 ✕
               </button>
