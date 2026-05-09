@@ -302,9 +302,8 @@ export function useMiniAppChrome(appSlug: AppSlug) {
     openMenu: () => {
       const menuPath = getMenuPath(appSlug, window.location);
       if (normalizePath(window.location.pathname) === normalizePath(menuPath)) {
-        if (getCanGoBack(appSlug)) {
-          window.history.back();
-        }
+        // Keep menu action idempotent to avoid accidental back navigation on
+        // clients that may fire duplicate tap/click sequences.
         return;
       }
       pushMiniAppRoute(appSlug, menuPath);
