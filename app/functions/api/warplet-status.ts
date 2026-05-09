@@ -920,7 +920,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     } catch (error) {
       console.error("warplet-status POST match lookup skipped:", error);
     }
-    const isMatch = rarityValue !== null;
+    const isMatch = rarityValue !== null || Boolean(existing?.matched_on);
     const hostname = new URL(context.request.url).hostname;
     let recentBuys: RecentBuyer[] = [];
     try {

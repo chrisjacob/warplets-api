@@ -1055,7 +1055,7 @@ export default function App() {
   const forceActionsPage = typeof window !== "undefined" && searchParams.get("actions") === "1";
   const currentHost = typeof window !== "undefined" ? window.location.host : "";
   const showDebugChip = debugEnabled;
-  const isMatched = forceMatch || (!forceNoMatch && Boolean(status?.matched && typeof status.rarityValue === "number"));
+  const isMatched = forceMatch || (!forceNoMatch && Boolean(status?.matched));
   const hasPurchased = !forceNoMatch && Boolean(purchasedTokenId);
   const displayTokenId = purchasedTokenId ?? (typeof status?.rarityValue === "number" ? String(status.rarityValue) : null);
   const formattedTokenId =
@@ -1067,7 +1067,7 @@ export default function App() {
       ? formatTopPercent(Number(displayTokenId))
       : null;
   const effectiveMatchedTokenId =
-    displayTokenId ?? (forceMatch ? "1358" : null);
+    displayTokenId ?? (isMatched ? "1358" : null);
   const referralDropUrl = fid ? `https://drop.10x.meme/?fid=${fid}` : "https://drop.10x.meme/";
   const farcasterLaunchUrl = parsedReferralFid
     ? `${FARCASTER_MINIAPP_BASE_URL}?fid=${parsedReferralFid}`
@@ -1157,9 +1157,14 @@ export default function App() {
       setRewardActionsLoading(true);
     }
     try {
-      const query = actionSessionToken
-        ? `?appSlug=drop&sessionToken=${encodeURIComponent(actionSessionToken)}`
-        : "?appSlug=drop";
+      const params = new URLSearchParams({ appSlug: "drop" });
+      if (actionSessionToken) {
+        params.set("sessionToken", actionSessionToken);
+      }
+      if (typeof fid === "number" && Number.isFinite(fid) && fid > 0) {
+        params.set("fid", String(fid));
+      }
+      const query = `?${params.toString()}`;
       const response = await fetch(`/api/actions${query}`);
       if (!response.ok) {
         throw new Error(await readErrorResponse(response));
