@@ -9,7 +9,7 @@
 
 interface Env {
   WARPLETS: D1Database;
-  WARPLETS_KV: KVNamespace;
+  WARPLETS_KV?: KVNamespace;
   NEYNAR_API_KEY?: string;
   ACTION_SESSION_SECRET?: string;
 }
@@ -73,6 +73,31 @@ const OUTREACH_CANDIDATES_CACHE_TTL_SECONDS = 600;
 const OUTREACH_COOLDOWN_MS = 4 * 60 * 60 * 1000;
 const TOP_REFERRERS_CACHE_PREFIX = "top-referrers-v1";
 const TOP_REFERRERS_CACHE_TTL_SECONDS = 600;
+let usersColumnSetPromise: Promise<Set<string>> | null = null;
+
+async function getWarpletsUsersColumnSet(db: D1Database): Promise<Set<string>> {
+  if (!usersColumnSetPromise) {
+    usersColumnSetPromise = db
+      .prepare("PRAGMA table_info(warplets_users)")
+      .all<{ name: unknown }>()
+      .then((result) => {
+        const cols = new Set<string>();
+        for (const row of result.results ?? []) {
+          if (typeof row.name === "string" && row.name.trim().length > 0) {
+            cols.add(row.name.trim());
+          }
+        }
+        return cols;
+      })
+      .catch(() => new Set<string>());
+  }
+  return usersColumnSetPromise;
+}
+
+async function hasWarpletsUsersColumn(db: D1Database, name: string): Promise<boolean> {
+  const cols = await getWarpletsUsersColumnSet(db);
+  return cols.has(name);
+}
 
 function normalizeAndRankBuyers(rows: Array<{ fid: unknown; pfp_url: unknown; score: unknown }>): RecentBuyer[] {
   return rows
@@ -170,6 +195,9 @@ function isRecentBuyer(value: unknown): value is RecentBuyer {
 }
 
 async function loadRecentBuysCached(env: Env, enableMatchedTopUp: boolean): Promise<RecentBuyer[]> {
+  if (!env.WARPLETS_KV) {
+    return loadRecentBuysWithOptionalTopUp(env.WARPLETS, enableMatchedTopUp);
+  }
   const cacheKey = makeRecentBuysCacheKey(enableMatchedTopUp);
   const lockKey = `${cacheKey}:lock`;
 
@@ -236,6 +264,9 @@ async function loadRewardedUsersCached(
   topUpUsers: RecentBuyer[],
   enableTopUp: boolean
 ): Promise<RecentBuyer[]> {
+  if (!env.WARPLETS_KV) {
+    return loadRewardedUsers(env.WARPLETS, topUpUsers, enableTopUp);
+  }
   const cacheKey = makeRewardedUsersCacheKey(enableTopUp);
   const cached = await env.WARPLETS_KV.get(cacheKey, "json");
   if (Array.isArray(cached)) {
@@ -601,6 +632,9 @@ function makeOutreachCacheKey(userId: number): string {
 }
 
 async function loadOutreachCandidatesCached(env: Env, userId: number): Promise<OutreachCandidate> {
+  if (!env.WARPLETS_KV) {
+    return loadOutreachCandidates(env.WARPLETS, userId);
+  }
   const cacheKey = makeOutreachCacheKey(userId);
   const cached = await env.WARPLETS_KV.get(cacheKey, "json");
   if (cached && typeof cached === "object") {
@@ -622,6 +656,10 @@ async function loadOutreachCandidatesCached(env: Env, userId: number): Promise<O
 }
 
 async function loadTopReferrers(db: D1Database): Promise<TopReferrer[]> {
+  const hasReferralsCount = await hasWarpletsUsersColumn(db, "referrals_count");
+  if (!hasReferralsCount) {
+    return [];
+  }
   const result = await db
     .prepare(
       `SELECT fid, username, pfp_url, referrals_count
@@ -640,6 +678,9 @@ async function loadTopReferrers(db: D1Database): Promise<TopReferrer[]> {
 }
 
 async function loadTopReferrersCached(env: Env): Promise<TopReferrer[]> {
+  if (!env.WARPLETS_KV) {
+    return loadTopReferrers(env.WARPLETS);
+  }
   const cacheKey = TOP_REFERRERS_CACHE_PREFIX;
   const cached = await env.WARPLETS_KV.get(cacheKey, "json");
   if (Array.isArray(cached)) {
@@ -666,44 +707,65 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     const hostname = url.hostname;
     const useReferralTestData = url.searchParams.get("referrals") === "1";
     const fid = url.searchParams.get("fid");
-    const recentBuys = await loadRecentBuysCached(
-      context.env,
-      allowMatchedTopUp(hostname)
-    );
-    const rewardedUsers = await loadRewardedUsersCached(
-      context.env,
-      recentBuys,
-      allowMatchedTopUp(hostname)
-    );
-    let topReferrers = await loadTopReferrersCached(context.env);
+    let recentBuys: RecentBuyer[] = [];
+    try {
+      recentBuys = await loadRecentBuysCached(
+        context.env,
+        allowMatchedTopUp(hostname)
+      );
+    } catch (error) {
+      console.error("warplet-status GET recentBuys failed:", error);
+    }
+
+    let rewardedUsers: RecentBuyer[] = [];
+    try {
+      rewardedUsers = await loadRewardedUsersCached(
+        context.env,
+        recentBuys,
+        allowMatchedTopUp(hostname)
+      );
+    } catch (error) {
+      console.error("warplet-status GET rewardedUsers failed:", error);
+    }
+
+    let topReferrers: TopReferrer[] = [];
+    try {
+      topReferrers = await loadTopReferrersCached(context.env);
+    } catch (error) {
+      console.error("warplet-status GET topReferrers failed:", error);
+    }
     if (useReferralTestData) {
-      const seeds = await context.env.WARPLETS.prepare(
-        `SELECT fid, username, pfp_url
-         FROM warplets_users
-         WHERE username IS NOT NULL
-           AND TRIM(username) <> ''
-           AND pfp_url IS NOT NULL
-           AND TRIM(pfp_url) <> ''
-         ORDER BY updated_on DESC, fid DESC
-         LIMIT 25`
-      ).all<{ fid: unknown; username: unknown; pfp_url: unknown }>();
-      const seededRows = (seeds.results ?? [])
-        .map((row, index) => {
-          const fid = typeof row.fid === "number" && Number.isFinite(row.fid) ? row.fid : null;
-          const username = typeof row.username === "string" && row.username.trim().length > 0 ? row.username : null;
-          const pfpUrl = typeof row.pfp_url === "string" && row.pfp_url.trim().length > 0 ? row.pfp_url : null;
-          if (!fid || !username || !pfpUrl) return null;
-          return {
-            fid,
-            username,
-            pfpUrl,
-            referrals: Math.max(1, 250 - index * 7),
-          } satisfies TopReferrer;
-        })
-        .filter((row): row is TopReferrer => row !== null)
-        .slice(0, 25);
-      if (seededRows.length > 0) {
-        topReferrers = seededRows;
+      try {
+        const seeds = await context.env.WARPLETS.prepare(
+          `SELECT fid, username, pfp_url
+           FROM warplets_users
+           WHERE username IS NOT NULL
+             AND TRIM(username) <> ''
+             AND pfp_url IS NOT NULL
+             AND TRIM(pfp_url) <> ''
+           ORDER BY updated_on DESC, fid DESC
+           LIMIT 25`
+        ).all<{ fid: unknown; username: unknown; pfp_url: unknown }>();
+        const seededRows = (seeds.results ?? [])
+          .map((row, index) => {
+            const fid = typeof row.fid === "number" && Number.isFinite(row.fid) ? row.fid : null;
+            const username = typeof row.username === "string" && row.username.trim().length > 0 ? row.username : null;
+            const pfpUrl = typeof row.pfp_url === "string" && row.pfp_url.trim().length > 0 ? row.pfp_url : null;
+            if (!fid || !username || !pfpUrl) return null;
+            return {
+              fid,
+              username,
+              pfpUrl,
+              referrals: Math.max(1, 250 - index * 7),
+            } satisfies TopReferrer;
+          })
+          .filter((row): row is TopReferrer => row !== null)
+          .slice(0, 25);
+        if (seededRows.length > 0) {
+          topReferrers = seededRows;
+        }
+      } catch (error) {
+        console.error("warplet-status GET referral test seeding failed:", error);
       }
     }
     let referralCount = 0;
@@ -713,27 +775,38 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     if (fid) {
       const fidNum = parseInt(fid, 10);
       if (Number.isFinite(fidNum) && fidNum > 0) {
-        const user = await context.env.WARPLETS.prepare(
-          "SELECT id, best_friends_warplets_on, referrals_count FROM warplets_users WHERE fid = ? LIMIT 1"
-        )
-          .bind(fidNum)
-          .first<{ id: number; best_friends_warplets_on: string | null; referrals_count: number | null }>();
+        try {
+          const hasBestFriendsWarpletsOn = await hasWarpletsUsersColumn(context.env.WARPLETS, "best_friends_warplets_on");
+          const hasReferralsCount = await hasWarpletsUsersColumn(context.env.WARPLETS, "referrals_count");
+          const userSelect = [
+            "id",
+            hasBestFriendsWarpletsOn ? "best_friends_warplets_on" : "NULL AS best_friends_warplets_on",
+            hasReferralsCount ? "referrals_count" : "0 AS referrals_count",
+          ].join(", ");
+          const user = await context.env.WARPLETS.prepare(
+            `SELECT ${userSelect} FROM warplets_users WHERE fid = ? LIMIT 1`
+          )
+            .bind(fidNum)
+            .first<{ id: number; best_friends_warplets_on: string | null; referrals_count: number | null }>();
 
-        if (user) {
-          referralCount = Math.max(0, Number(user.referrals_count ?? 0));
-          bestFriends = await loadOrFetchBestFriends(
-            context.env.WARPLETS,
-            user.id,
-            fidNum,
-            context.env.NEYNAR_API_KEY
-          );
-          await ensureBestFriendsWarpletMatches(
-            context.env.WARPLETS,
-            user.id,
-            fidNum,
-            user.best_friends_warplets_on
-          );
-          outreachCandidates = await loadOutreachCandidatesCached(context.env, user.id);
+          if (user) {
+            referralCount = Math.max(0, Number(user.referrals_count ?? 0));
+            bestFriends = await loadOrFetchBestFriends(
+              context.env.WARPLETS,
+              user.id,
+              fidNum,
+              context.env.NEYNAR_API_KEY
+            );
+            await ensureBestFriendsWarpletMatches(
+              context.env.WARPLETS,
+              user.id,
+              fidNum,
+              user.best_friends_warplets_on
+            );
+            outreachCandidates = await loadOutreachCandidatesCached(context.env, user.id);
+          }
+        } catch (error) {
+          console.error("warplet-status GET fid-specific load failed:", error);
         }
       }
     }
@@ -767,6 +840,9 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       ? body.referrerFid
       : null;
     let validReferrerFid: number | null = null;
+    const hasBestFriendsWarpletsOn = await hasWarpletsUsersColumn(context.env.WARPLETS, "best_friends_warplets_on");
+    const hasReferrerFid = await hasWarpletsUsersColumn(context.env.WARPLETS, "referrer_fid");
+    const hasReferralsCount = await hasWarpletsUsersColumn(context.env.WARPLETS, "referrals_count");
     if (requestedReferrerFid && requestedReferrerFid > 0 && requestedReferrerFid !== fid) {
       const referrer = await context.env.WARPLETS.prepare(
         "SELECT fid FROM warplets_users WHERE fid = ? LIMIT 1"
@@ -778,8 +854,21 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       }
     }
 
+    const existingSelect = [
+      "id",
+      "username",
+      "pfp_url",
+      "score",
+      "matched_on",
+      "buy_in_opensea_on",
+      "buy_in_farcaster_wallet_on",
+      "rewarded_on",
+      hasBestFriendsWarpletsOn ? "best_friends_warplets_on" : "NULL AS best_friends_warplets_on",
+      hasReferrerFid ? "referrer_fid" : "NULL AS referrer_fid",
+      hasReferralsCount ? "referrals_count" : "0 AS referrals_count",
+    ].join(", ");
     const existing = await context.env.WARPLETS.prepare(
-      "SELECT id, username, pfp_url, score, matched_on, buy_in_opensea_on, buy_in_farcaster_wallet_on, rewarded_on, best_friends_warplets_on, referrer_fid, referrals_count FROM warplets_users WHERE fid = ? LIMIT 1"
+      `SELECT ${existingSelect} FROM warplets_users WHERE fid = ? LIMIT 1`
     )
       .bind(fid)
       .first<{
@@ -796,74 +885,104 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         referrals_count: number | null;
       }>();
 
-    const matchRow = await context.env.WARPLETS.prepare(
-      "SELECT x10_rarity FROM warplets_metadata WHERE fid_value = ? LIMIT 1"
-    )
-      .bind(fid)
-      .first<{ x10_rarity: number | null }>();
-
-    const rarityValue = typeof matchRow?.x10_rarity === "number" ? matchRow.x10_rarity : null;
+    let rarityValue: number | null = null;
+    try {
+      const matchRow = await context.env.WARPLETS.prepare(
+        "SELECT x10_rarity FROM warplets_metadata WHERE fid_value = ? LIMIT 1"
+      )
+        .bind(fid)
+        .first<{ x10_rarity: number | null }>();
+      rarityValue = typeof matchRow?.x10_rarity === "number" ? matchRow.x10_rarity : null;
+    } catch (error) {
+      console.error("warplet-status POST match lookup skipped:", error);
+    }
     const isMatch = rarityValue !== null;
     const hostname = new URL(context.request.url).hostname;
-    const recentBuys = await loadRecentBuysCached(
-      context.env,
-      allowMatchedTopUp(hostname)
-    );
-    const rewardedUsers = await loadRewardedUsersCached(
-      context.env,
-      recentBuys,
-      allowMatchedTopUp(hostname)
-    );
-    let topReferrers = await loadTopReferrersCached(context.env);
+    let recentBuys: RecentBuyer[] = [];
+    try {
+      recentBuys = await loadRecentBuysCached(
+        context.env,
+        allowMatchedTopUp(hostname)
+      );
+    } catch (error) {
+      console.error("warplet-status POST recentBuys skipped:", error);
+    }
+    let rewardedUsers: RecentBuyer[] = [];
+    try {
+      rewardedUsers = await loadRewardedUsersCached(
+        context.env,
+        recentBuys,
+        allowMatchedTopUp(hostname)
+      );
+    } catch (error) {
+      console.error("warplet-status POST rewardedUsers skipped:", error);
+    }
+    let topReferrers: TopReferrer[] = [];
+    try {
+      topReferrers = await loadTopReferrersCached(context.env);
+    } catch (error) {
+      console.error("warplet-status POST topReferrers skipped:", error);
+    }
     let outreachCandidates: OutreachCandidate = { farcasterUsernames: [], xUsernames: [], tokenIds: [] };
 
     if (!existing) {
       const neynarUser = await fetchNeynarUserByFid(fid, context.env.NEYNAR_API_KEY);
       const now = new Date().toISOString();
+      const insertColumns = [
+        "fid, username, display_name, pfp_url, registered_at, pro_status, profile_bio_text, ",
+        "follower_count, following_count, primary_eth_address, primary_sol_address, x_username, ",
+        "url, viewer_following, viewer_followed_by, score, matched_on, buy_in_opensea_on, buy_in_farcaster_wallet_on, rewarded_on",
+        hasBestFriendsWarpletsOn ? ", best_friends_warplets_on" : "",
+        hasReferrerFid ? ", referrer_fid" : "",
+        hasReferralsCount ? ", referrals_count" : "",
+        ", created_on, updated_on",
+      ].join("");
+      const placeholderCount = 21 + (hasBestFriendsWarpletsOn ? 1 : 0) + (hasReferrerFid ? 1 : 0) + (hasReferralsCount ? 1 : 0) + 2;
+      const placeholders = new Array(placeholderCount).fill("?").join(", ");
+      const insertValues: Array<unknown> = [
+        fid,
+        neynarUser?.username ?? null,
+        neynarUser?.display_name ?? null,
+        neynarUser?.pfp_url ?? null,
+        neynarUser?.registered_at ?? null,
+        neynarUser?.pro_status ?? null,
+        neynarUser?.profile_bio_text ?? null,
+        neynarUser?.follower_count ?? null,
+        neynarUser?.following_count ?? null,
+        neynarUser?.primary_eth_address ?? null,
+        neynarUser?.primary_sol_address ?? null,
+        neynarUser?.x_username ?? null,
+        neynarUser?.url ?? null,
+        boolToInt(neynarUser?.viewer_following),
+        boolToInt(neynarUser?.viewer_followed_by),
+        neynarUser?.score ?? null,
+        isMatch ? now : null,
+        null,
+        null,
+        null,
+      ];
+      if (hasBestFriendsWarpletsOn) insertValues.push(null);
+      if (hasReferrerFid) insertValues.push(validReferrerFid);
+      if (hasReferralsCount) insertValues.push(0);
+      insertValues.push(now, now);
 
       await context.env.WARPLETS.prepare(
         "INSERT INTO warplets_users (" +
-          "fid, username, display_name, pfp_url, registered_at, pro_status, profile_bio_text, " +
-          "follower_count, following_count, primary_eth_address, primary_sol_address, x_username, " +
-          "url, viewer_following, viewer_followed_by, score, matched_on, buy_in_opensea_on, buy_in_farcaster_wallet_on, rewarded_on, best_friends_warplets_on, referrer_fid, referrals_count, created_on, updated_on" +
-          ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+          insertColumns +
+          `) VALUES (${placeholders})`
       )
-        .bind(
-          fid,
-          neynarUser?.username ?? null,
-          neynarUser?.display_name ?? null,
-          neynarUser?.pfp_url ?? null,
-          neynarUser?.registered_at ?? null,
-          neynarUser?.pro_status ?? null,
-          neynarUser?.profile_bio_text ?? null,
-          neynarUser?.follower_count ?? null,
-          neynarUser?.following_count ?? null,
-          neynarUser?.primary_eth_address ?? null,
-          neynarUser?.primary_sol_address ?? null,
-          neynarUser?.x_username ?? null,
-          neynarUser?.url ?? null,
-          boolToInt(neynarUser?.viewer_following),
-          boolToInt(neynarUser?.viewer_followed_by),
-          neynarUser?.score ?? null,
-          isMatch ? now : null,
-          null,
-          null,
-          null,
-          null,
-          validReferrerFid,
-          0,
-          now,
-          now
-        )
+        .bind(...insertValues)
         .run();
 
-      if (validReferrerFid) {
+      if (validReferrerFid && hasReferralsCount) {
         await context.env.WARPLETS.prepare(
           "UPDATE warplets_users SET referrals_count = COALESCE(referrals_count, 0) + 1, updated_on = ? WHERE fid = ?"
         )
           .bind(now, validReferrerFid)
           .run();
-        await context.env.WARPLETS_KV.delete(TOP_REFERRERS_CACHE_PREFIX);
+        if (context.env.WARPLETS_KV) {
+          await context.env.WARPLETS_KV.delete(TOP_REFERRERS_CACHE_PREFIX);
+        }
         topReferrers = await loadTopReferrersCached(context.env);
       }
 
@@ -874,21 +993,25 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         .first<{ id: number }>();
 
       if (newUser) {
-        const freshFriends = await loadOrFetchBestFriends(
-          context.env.WARPLETS,
-          newUser.id,
-          fid,
-          context.env.NEYNAR_API_KEY
-        );
-        if (freshFriends.length > 0) {
-          await ensureBestFriendsWarpletMatches(
+        try {
+          const freshFriends = await loadOrFetchBestFriends(
             context.env.WARPLETS,
             newUser.id,
             fid,
-            null
+            context.env.NEYNAR_API_KEY
           );
+          if (freshFriends.length > 0) {
+            await ensureBestFriendsWarpletMatches(
+              context.env.WARPLETS,
+              newUser.id,
+              fid,
+              null
+            );
+          }
+          outreachCandidates = await loadOutreachCandidatesCached(context.env, newUser.id);
+        } catch (error) {
+          console.error("warplet-status POST new-user friends/outreach skipped:", error);
         }
-        outreachCandidates = await loadOutreachCandidatesCached(context.env, newUser.id);
       }
 
       const actionSessionToken = await createActionSessionToken(context.env.ACTION_SESSION_SECRET, fid, 3600);
@@ -915,7 +1038,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       existing.score === null;
     let referralCount = Math.max(0, Number(existing.referrals_count ?? 0));
 
-    if (validReferrerFid && !existing.referrer_fid) {
+    if (validReferrerFid && hasReferrerFid && !existing.referrer_fid) {
       const now = new Date().toISOString();
       const setReferrer = await context.env.WARPLETS.prepare(
         "UPDATE warplets_users SET referrer_fid = ?, updated_on = ? WHERE id = ? AND referrer_fid IS NULL"
@@ -923,13 +1046,15 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         .bind(validReferrerFid, now, existing.id)
         .run();
 
-      if (Number(setReferrer.meta.changes ?? 0) > 0) {
+      if (Number(setReferrer.meta.changes ?? 0) > 0 && hasReferralsCount) {
         await context.env.WARPLETS.prepare(
           "UPDATE warplets_users SET referrals_count = COALESCE(referrals_count, 0) + 1, updated_on = ? WHERE fid = ?"
         )
           .bind(now, validReferrerFid)
           .run();
-        await context.env.WARPLETS_KV.delete(TOP_REFERRERS_CACHE_PREFIX);
+        if (context.env.WARPLETS_KV) {
+          await context.env.WARPLETS_KV.delete(TOP_REFERRERS_CACHE_PREFIX);
+        }
         topReferrers = await loadTopReferrersCached(context.env);
       }
     }
@@ -981,20 +1106,24 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       }
     }
 
-    await loadOrFetchBestFriends(
-      context.env.WARPLETS,
-      existing.id,
-      fid,
-      context.env.NEYNAR_API_KEY
-    );
+    try {
+      await loadOrFetchBestFriends(
+        context.env.WARPLETS,
+        existing.id,
+        fid,
+        context.env.NEYNAR_API_KEY
+      );
 
-    await ensureBestFriendsWarpletMatches(
-      context.env.WARPLETS,
-      existing.id,
-      fid,
-      existing.best_friends_warplets_on
-    );
-    outreachCandidates = await loadOutreachCandidatesCached(context.env, existing.id);
+      await ensureBestFriendsWarpletMatches(
+        context.env.WARPLETS,
+        existing.id,
+        fid,
+        existing.best_friends_warplets_on
+      );
+      outreachCandidates = await loadOutreachCandidatesCached(context.env, existing.id);
+    } catch (error) {
+      console.error("warplet-status POST existing-user friends/outreach skipped:", error);
+    }
 
     const actionSessionToken = await createActionSessionToken(context.env.ACTION_SESSION_SECRET, fid, 3600);
     return jsonSecure({
