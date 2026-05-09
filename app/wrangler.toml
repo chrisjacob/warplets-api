@@ -18,6 +18,7 @@ id = "3f55e9bea2534955b833521a2f5b55e7"
 binding       = "WARPLETS"
 database_name = "warplets"
 database_id   = "45a4cc4c-788e-48dd-89bf-7b504b17655d"
+migrations_dir = "../migrations"
 
 # Preview environment (app-dev.10x.meme)
 [env.preview]
@@ -34,3 +35,4 @@ id = "bb4b4762d0de4266bcccb0b2e1bdedbc"
 binding       = "WARPLETS"
 database_name = "warplets_preview"
 database_id   = "4ed108bd-9477-4109-930c-bc57b6c11b1f"
+migrations_dir = "../migrations"

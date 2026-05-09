@@ -48,7 +48,10 @@ jobs:
         run: pnpm --dir app security:preflight
 
       - name: Trigger security alerts email check
-        if: ${{ secrets.SECURITY_ALERTS_URL != '' && secrets.SECURITY_ALERTS_TOKEN != '' }}
+        env:
+          SECURITY_ALERTS_URL: ${{ secrets.SECURITY_ALERTS_URL }}
+          SECURITY_ALERTS_TOKEN: ${{ secrets.SECURITY_ALERTS_TOKEN }}
+        if: ${{ env.SECURITY_ALERTS_URL != '' && env.SECURITY_ALERTS_TOKEN != '' }}
         run: |
-          curl -fsS "${{ secrets.SECURITY_ALERTS_URL }}" \
-            -H "x-admin-token: ${{ secrets.SECURITY_ALERTS_TOKEN }}"
+          curl -fsS "$SECURITY_ALERTS_URL" \
+            -H "x-admin-token: $SECURITY_ALERTS_TOKEN"
