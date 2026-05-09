@@ -153,49 +153,54 @@ export async function rateLimit(
     return { allowed: true, remaining: Math.max(0, limit - 1), retryAfterSeconds: 0 };
   }
 
-  const now = Date.now();
-  const keyHash = await sha256Hex(`${namespace}:${subject}`);
-  const key = `rl:v1:${namespace}:${keyHash}`;
-  const raw = await kv.get(key, "json");
-  const current = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
-  const count = typeof current.count === "number" ? current.count : 0;
-  const resetAt = typeof current.resetAt === "number" ? current.resetAt : now + windowSeconds * 1000;
+  try {
+    const now = Date.now();
+    const keyHash = await sha256Hex(`${namespace}:${subject}`);
+    const key = `rl:v1:${namespace}:${keyHash}`;
+    const raw = await kv.get(key, "json");
+    const current = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+    const count = typeof current.count === "number" ? current.count : 0;
+    const resetAt = typeof current.resetAt === "number" ? current.resetAt : now + windowSeconds * 1000;
 
-  if (now > resetAt) {
+    if (now > resetAt) {
+      await kv.put(
+        key,
+        JSON.stringify({
+          count: 1,
+          resetAt: now + windowSeconds * 1000,
+        }),
+        { expirationTtl: windowSeconds }
+      );
+      return { allowed: true, remaining: Math.max(0, limit - 1), retryAfterSeconds: 0 };
+    }
+
+    const nextCount = count + 1;
     await kv.put(
       key,
       JSON.stringify({
-        count: 1,
-        resetAt: now + windowSeconds * 1000,
+        count: nextCount,
+        resetAt,
       }),
-      { expirationTtl: windowSeconds }
+      { expirationTtl: Math.max(1, Math.ceil((resetAt - now) / 1000)) }
     );
+
+    if (nextCount > limit) {
+      return {
+        allowed: false,
+        remaining: 0,
+        retryAfterSeconds: Math.max(1, Math.ceil((resetAt - now) / 1000)),
+      };
+    }
+
+    return {
+      allowed: true,
+      remaining: Math.max(0, limit - nextCount),
+      retryAfterSeconds: 0,
+    };
+  } catch {
+    // Never hard-fail request handling due to KV availability/config issues.
     return { allowed: true, remaining: Math.max(0, limit - 1), retryAfterSeconds: 0 };
   }
-
-  const nextCount = count + 1;
-  await kv.put(
-    key,
-    JSON.stringify({
-      count: nextCount,
-      resetAt,
-    }),
-    { expirationTtl: Math.max(1, Math.ceil((resetAt - now) / 1000)) }
-  );
-
-  if (nextCount > limit) {
-    return {
-      allowed: false,
-      remaining: 0,
-      retryAfterSeconds: Math.max(1, Math.ceil((resetAt - now) / 1000)),
-    };
-  }
-
-  return {
-    allowed: true,
-    remaining: Math.max(0, limit - nextCount),
-    retryAfterSeconds: 0,
-  };
 }
 
 export async function logSecurityEvent(

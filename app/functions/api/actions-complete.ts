@@ -145,11 +145,13 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     });
   }
 
+  // Keep this lookup backward-compatible with local DBs that may not yet
+  // include newer optional columns like `shared_on`.
   const user = await context.env.WARPLETS.prepare(
-    "SELECT id, shared_on FROM warplets_users WHERE fid = ? LIMIT 1"
+    "SELECT id FROM warplets_users WHERE fid = ? LIMIT 1"
   )
     .bind(fid)
-    .first<{ id: number; shared_on: string | null }>();
+    .first<{ id: number }>();
 
   if (!user) {
     return jsonSecure({ error: "Viewer record not found" }, { status: 404 });
@@ -235,12 +237,17 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
   let allActionsCompleted = false;
   try {
-    if (action.slug === "drop-cast" && isSuccessfulCastVerification(verification) && !user.shared_on) {
-      await context.env.WARPLETS.prepare(
-        "UPDATE warplets_users SET shared_on = ?, updated_on = ? WHERE id = ?"
-      )
-        .bind(now, now, user.id)
-        .run();
+    if (action.slug === "drop-cast" && isSuccessfulCastVerification(verification)) {
+      // Best-effort only: older local schemas can miss `shared_on`.
+      try {
+        await context.env.WARPLETS.prepare(
+          "UPDATE warplets_users SET shared_on = COALESCE(shared_on, ?), updated_on = ? WHERE id = ?"
+        )
+          .bind(now, now, user.id)
+          .run();
+      } catch {
+        // Non-blocking for action completion.
+      }
     }
 
     if (action.slug === "drop-cast" && isSuccessfulCastVerification(verification) && outreachTokenIds.length > 0) {
