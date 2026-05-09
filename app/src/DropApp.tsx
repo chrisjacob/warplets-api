@@ -2015,19 +2015,46 @@ export default function App() {
                   <div className="rounded-2xl border border-[#00FF00]/35 bg-[#041204]/85 px-4 py-4 space-y-4">
                     {unlockedRewardCount >= 5 ? (
                     <div className="text-left">
+                      <img
+                        src="/1mwarplet-1-2500x2500.jpg"
+                        alt="$1M Warplet"
+                        className="w-full rounded-xl mb-3"
+                        loading="lazy"
+                      />
                       <Text className="mt-1 text-sm leading-relaxed" style={{ color: "#b7ffb7" }}>
-                        The $1M Warplet is in a Dutch Auction, with the listing price dropping from $1,000,000 to $100 over 30 days. From the sale of that NFT, 50% of the funds will be airdroped in $USDC. The actions you've completed here will award you Bonus entries into a competition to win this prize (if you choose to enter). The mini app for entering is still being built. You are early! Learn more about the $1M Warplet and Fuel for Builder airdrop on OpenSea:{" "}
-                        <button
-                          type="button"
-                          className="underline cursor-pointer"
-                          style={{ color: "#00FF00" }}
-                          onClick={() => {
-                            sdk.actions.openUrl("https://opensea.io/collection/1m-warplet-1-the-one").catch(() => {});
-                          }}
-                        >
-                          https://opensea.io/collection/1m-warplet-1-the-one
-                        </button>
+                        The $1M Warplet is a 30-day Dutch Auction.
                       </Text>
+                      <Text className="mt-1 text-sm leading-relaxed" style={{ color: "#b7ffb7" }}>
+                        Price starts a $1,000,000 and ends at $100.
+                      </Text>
+                      <Text className="mt-1 text-sm leading-relaxed" style={{ color: "#b7ffb7" }}>
+                        The price drops every 15 minutes.
+                      </Text>
+                      <Text className="mt-1 text-sm leading-relaxed" style={{ color: "#b7ffb7" }}>
+                        50% of the sale funds Fuel For Builds.
+                      </Text>
+                      <Text className="mt-1 text-sm leading-relaxed" style={{ color: "#b7ffb7" }}>
+                        Airdroping $USDC every month to entrants.
+                      </Text>
+                      <Text className="mt-1 text-sm leading-relaxed" style={{ color: "#b7ffb7" }}>
+                        The actions you've completed today will award you BONUS entries towards winning prizes.
+                      </Text>
+                      <Text className="mt-1 text-sm leading-relaxed" style={{ color: "#b7ffb7" }}>
+                        The mini app for entering is still being built.
+                      </Text>
+                      <Text className="mt-2 text-md font-bold leading-relaxed" style={{ color: "#b7ffb7" }}>
+                        You are soooo early!
+                      </Text>
+                      <button
+                        type="button"
+                        className="mt-3 w-full rounded-[20px] border border-[#009900] bg-[#00FF00] px-5 py-3 text-md font-bold shadow-[3px_6px_0_#008000] transition-all duration-100 active:translate-x-[1px] active:translate-y-[3px] active:shadow-[1px_3px_0_#008000] cursor-pointer"
+                        style={{ color: "rgb(0, 80, 0)" }}
+                        onClick={() => {
+                          sdk.actions.openUrl("https://opensea.io/collection/1m-warplet-1-the-one").catch(() => {});
+                        }}
+                      >
+                        🦄 Learn About $1M Warplet
+                      </button>
                     </div>
                     ) : (
                       <Text className="text-sm font-semibold text-left" style={{ color: "#b7ffb7" }}>
