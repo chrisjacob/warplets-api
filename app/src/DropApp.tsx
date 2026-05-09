@@ -1024,9 +1024,12 @@ export default function App() {
   const showWaitlistCta = hasRewarded || (!isMatched && hasClickedOpenSea);
   const avatarUsers = hasPurchased || !isMatched ? rewardedUsers : recentBuys;
   const avatarLabel = hasPurchased || !isMatched ? "Rewarded:" : "Buyers:";
-  const displayRewardActions = forceUnlock
+  const displayRewardActions = (forceUnlock
     ? rewardActions.map((action) => ({ ...action, completed: true }))
-    : rewardActions;
+    : rewardActions.map((action) => ({
+        ...action,
+        completed: action.completed || optimisticCompletedActions[action.slug] === true,
+      })));
   const completedActionsCount = displayRewardActions.reduce((count, action) => (action.completed ? count + 1 : count), 0);
   const unlockedRewardCount = forceUnlock ? 5 : Math.min(5, Math.floor(completedActionsCount / 2));
   const hasAnyUnlockedRewards = unlockedRewardCount > 0;
@@ -1724,12 +1727,14 @@ export default function App() {
                           disabled={actionPending || runningActionSlug === action.slug}
                           className={`h-10 w-10 shrink-0 rounded-[10px] text-4xl leading-none font-black transition-all duration-100 cursor-pointer inline-flex items-center justify-center ${
                             actionFlat
-                              ? "border border-gray-700 shadow-none active:translate-x-0 active:translate-y-0 active:shadow-none"
+                              ? actionCompleted
+                                ? "border border-[#00FF00] shadow-none active:translate-x-0 active:translate-y-0 active:shadow-none"
+                                : "border border-gray-700 shadow-none active:translate-x-0 active:translate-y-0 active:shadow-none"
                               : "border border-[#009900] bg-[#00FF00] shadow-[2px_4px_0_#008000] active:translate-x-[1px] active:translate-y-[2px] active:shadow-[1px_2px_0_#008000]"
                           }`}
                           style={{
                             backgroundColor: actionCompleted ? "rgb(0, 80, 0)" : (actionPending ? "#374151" : undefined),
-                            color: "white",
+                            color: actionCompleted ? "#00FF00" : (actionPending ? "white" : "rgb(0, 80, 0)"),
                           }}
                         >
                           {actionCompleted ? <ActionCheckIcon /> : (
