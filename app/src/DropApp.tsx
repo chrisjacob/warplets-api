@@ -2192,16 +2192,16 @@ export default function App() {
                   <table className="w-full border-separate border-spacing-0 text-left">
                     <thead>
                       <tr>
-                        <th className="border-b border-r border-[#00FF00]/25 px-2 py-2 text-xs" style={{ color: "#00FF00" }}>Rank</th>
-                        <th className="border-b border-r border-[#00FF00]/25 px-2 py-2 text-xs" style={{ color: "#00FF00" }}>Referrals</th>
+                        <th className="border-b border-r border-[#00FF00]/25 px-2 py-2 text-xs text-center" style={{ color: "#00FF00" }}>Rank</th>
+                        <th className="border-b border-r border-[#00FF00]/25 px-2 py-2 text-xs text-center" style={{ color: "#00FF00" }}>Referrals</th>
                         <th className="border-b border-[#00FF00]/25 px-2 py-2 text-xs" style={{ color: "#00FF00" }}>Username</th>
                       </tr>
                     </thead>
                     <tbody>
                       {topReferrers.slice(0, 25).map((referrer, index) => (
                         <tr key={referrer.fid}>
-                          <td className="border-b border-r border-[#00FF00]/20 px-2 py-2 text-sm" style={{ color: "#b7ffb7" }}>{index + 1}</td>
-                          <td className="border-b border-r border-[#00FF00]/20 px-2 py-2 text-sm font-semibold" style={{ color: "#b7ffb7" }}>
+                          <td className="border-b border-r border-[#00FF00]/20 px-2 py-2 text-sm text-center" style={{ color: "#b7ffb7" }}>{index + 1}</td>
+                          <td className="border-b border-r border-[#00FF00]/20 px-2 py-2 text-sm font-semibold text-center" style={{ color: "#b7ffb7" }}>
                             {referrer.referrals}
                           </td>
                           <td className="border-b border-[#00FF00]/20 px-2 py-2">
