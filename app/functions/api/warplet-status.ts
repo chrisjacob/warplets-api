@@ -687,16 +687,23 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
          ORDER BY updated_on DESC, fid DESC
          LIMIT 25`
       ).all<{ fid: unknown; username: unknown; pfp_url: unknown }>();
-      const normalized = normalizeTopReferrers(
-        (seeds.results ?? []).map((row, index) => ({
-          fid: row.fid,
-          username: row.username,
-          pfp_url: row.pfp_url,
-          referrals_count: 250 - index * 7,
-        }))
-      );
-      if (normalized.length > 0) {
-        topReferrers = normalized;
+      const seededRows = (seeds.results ?? [])
+        .map((row, index) => {
+          const fid = typeof row.fid === "number" && Number.isFinite(row.fid) ? row.fid : null;
+          const username = typeof row.username === "string" && row.username.trim().length > 0 ? row.username : null;
+          const pfpUrl = typeof row.pfp_url === "string" && row.pfp_url.trim().length > 0 ? row.pfp_url : null;
+          if (!fid || !username || !pfpUrl) return null;
+          return {
+            fid,
+            username,
+            pfpUrl,
+            referrals: Math.max(1, 250 - index * 7),
+          } satisfies TopReferrer;
+        })
+        .filter((row): row is TopReferrer => row !== null)
+        .slice(0, 25);
+      if (seededRows.length > 0) {
+        topReferrers = seededRows;
       }
     }
     let referralCount = 0;
