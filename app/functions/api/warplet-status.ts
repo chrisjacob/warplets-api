@@ -68,7 +68,7 @@ const NEYNAR_VIEWER_FID = 1129138;
 const RECENT_BUYS_CACHE_TTL_SECONDS = 600;
 const RECENT_BUYS_CACHE_PREFIX = "recent-buys-v2";
 const REWARDED_USERS_CACHE_PREFIX = "rewarded-users-v1";
-const RECENT_BUYS_CACHE_LOCK_TTL_SECONDS = 15;
+const RECENT_BUYS_CACHE_LOCK_TTL_SECONDS = 60;
 const OUTREACH_CANDIDATES_CACHE_TTL_SECONDS = 600;
 const OUTREACH_COOLDOWN_MS = 4 * 60 * 60 * 1000;
 const TOP_REFERRERS_CACHE_PREFIX = "top-referrers-v1";
@@ -961,7 +961,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         hasReferralsCount ? ", referrals_count" : "",
         ", created_on, updated_on",
       ].join("");
-      const placeholderCount = 21 + (hasBestFriendsWarpletsOn ? 1 : 0) + (hasReferrerFid ? 1 : 0) + (hasReferralsCount ? 1 : 0) + 2;
+      const placeholderCount = 20 + (hasBestFriendsWarpletsOn ? 1 : 0) + (hasReferrerFid ? 1 : 0) + (hasReferralsCount ? 1 : 0) + 2;
       const placeholders = new Array(placeholderCount).fill("?").join(", ");
       const insertValues: Array<unknown> = [
         fid,

@@ -93,7 +93,10 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   const isLocalDevHost =
     requestUrl.hostname.includes("-local.") ||
     requestUrl.hostname.includes("-dev.") ||
-    requestUrl.hostname.endsWith(".pages.dev");
+    requestUrl.hostname.endsWith(".pages.dev") ||
+    requestUrl.hostname === "127.0.0.1" ||
+    requestUrl.hostname === "localhost" ||
+    requestUrl.hostname === "::1";
   const allowInsecureFallback =
     isLocalDevHost &&
     (context.env.ALLOW_INSECURE_ACTION_FID_FALLBACK === "1" || isLocalDevHost);

@@ -4,7 +4,9 @@ import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 
-const DEFAULT_PORT = 5174;
+const VITE_PORT = 5174;
+const API_PORT = 8789;
+const LOCALFLARE_PORT = 8890;
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const appDir = path.resolve(__dirname, "../app");
 
@@ -22,19 +24,14 @@ function isPortAvailable(port) {
   });
 }
 
-async function findAvailablePort(startPort) {
-  let port = startPort;
-  while (port < startPort + 100) {
-    // eslint-disable-next-line no-await-in-loop
-    const available = await isPortAvailable(port);
-    if (available) return port;
-    port += 1;
+async function ensurePortAvailable(port, label) {
+  const available = await isPortAvailable(port);
+  if (!available) {
+    throw new Error(`${label} port ${port} is already in use. Stop the conflicting process and retry.`);
   }
-
-  throw new Error(`Could not find an available port starting at ${startPort}`);
 }
 
-function spawnViteDev(port) {
+function spawnViteDev(port, apiPort) {
   const command = process.platform === "win32" ? "pnpm" : "pnpm";
   return spawn(command, ["vite", "--host", "127.0.0.1", "--port", String(port), "--strictPort"], {
     cwd: appDir,
@@ -43,7 +40,28 @@ function spawnViteDev(port) {
     env: {
       ...process.env,
       VITE_MINIAPP_BASE_URL: LOCAL_MINIAPP_BASE_URL,
+      VITE_LOCAL_API_TARGET: `http://127.0.0.1:${apiPort}`,
     },
+  });
+}
+
+function spawnApiWorker(port) {
+  const command = process.platform === "win32" ? "pnpm" : "pnpm";
+  return spawn(command, ["wrangler", "pages", "dev", ".", "--port", String(port)], {
+    cwd: appDir,
+    shell: process.platform === "win32",
+    stdio: "inherit",
+    env: process.env,
+  });
+}
+
+function spawnLocalflare() {
+  const command = process.platform === "win32" ? "pnpm" : "pnpm";
+  return spawn(command, ["exec", "localflare", "--port", String(LOCALFLARE_PORT)], {
+    cwd: path.resolve(appDir, ".."),
+    shell: process.platform === "win32",
+    stdio: "inherit",
+    env: process.env,
   });
 }
 
@@ -85,32 +103,61 @@ async function waitForVite(port) {
   throw new Error(`Vite did not start on port ${port} within 30s`);
 }
 
+async function waitForApi(port) {
+  const deadline = Date.now() + 45_000;
+  while (Date.now() < deadline) {
+    try {
+      const res = await fetch(`http://127.0.0.1:${port}/api/actions`);
+      if (res.status >= 200 && res.status < 500) return;
+    } catch {
+      // not ready yet
+    }
+    await sleep(500);
+  }
+  throw new Error(`API worker did not start on port ${port} within 45s`);
+}
+
 async function main() {
-  const port = await findAvailablePort(DEFAULT_PORT);
+  await ensurePortAvailable(VITE_PORT, "Vite");
+  await ensurePortAvailable(API_PORT, "API");
+  await ensurePortAvailable(LOCALFLARE_PORT, "Localflare");
 
   console.log(`Stable dev URL: ${PUBLIC_URL}`);
-  console.log(`Local dev URL:  http://localhost:${port}`);
+  console.log(`Local dev URL:  http://localhost:${VITE_PORT}`);
+  console.log(`Local API URL:  http://localhost:${API_PORT}`);
+  console.log(`Localflare UI:  https://studio.localflare.dev?port=${LOCALFLARE_PORT}`);
   console.log(`Embed launch URL: ${LOCAL_MINIAPP_BASE_URL}`);
-  console.log("Starting vite dev...");
+  console.log("Starting app API worker...");
 
-  const vite = spawnViteDev(port);
+  const api = spawnApiWorker(API_PORT);
+  console.log(`Starting Localflare on :${LOCALFLARE_PORT}...`);
+  const localflare = spawnLocalflare();
+  console.log("Starting vite dev...");
+  const vite = spawnViteDev(VITE_PORT, API_PORT);
   console.log("Starting Cloudflare Tunnel drop-local...");
-  const tunnel = spawnCloudflared(port);
+  const tunnel = spawnCloudflared(VITE_PORT);
 
   const shutdown = () => {
+    api.kill();
+    localflare.kill();
     vite.kill();
     tunnel.kill();
   };
 
   process.on("SIGINT", shutdown);
   process.on("SIGTERM", shutdown);
-  tunnel.on("exit", () => vite.kill());
+  tunnel.on("exit", shutdown);
+  api.on("exit", shutdown);
 
   try {
-    await waitForVite(port);
-    console.log(`✓ Vite is up. Tunnel routing ${PUBLIC_URL} → http://localhost:${port}`);
+    await waitForApi(API_PORT);
+    await waitForVite(VITE_PORT);
+    console.log(`OK Vite is up. Tunnel routing ${PUBLIC_URL} -> http://localhost:${VITE_PORT}`);
+    console.log(`OK API worker is up on http://localhost:${API_PORT} and proxied from Vite /api`);
   } catch (error) {
-    console.error("✗", error.message);
+    console.error("X", error.message);
+    shutdown();
+    process.exit(1);
   }
 }
 
