@@ -1905,7 +1905,7 @@ export default function App() {
                   <div className="rounded-2xl border border-[#00FF00]/35 bg-[#041204]/85 px-4 py-4 space-y-4">
                     {unlockedRewardCount >= 3 ? (
                     <div className="text-left">
-                      <div className="mt-3 overflow-hidden rounded-xl bg-black">
+                      <div className="overflow-hidden rounded-xl bg-black">
                         <iframe
                           src="https://www.youtube-nocookie.com/embed/6rrPP-QOF3k?rel=0&modestbranding=1&playsinline=1&iv_load_policy=3"
                           title="The Matrix red pill scene"
@@ -2050,7 +2050,7 @@ export default function App() {
                         className="mt-3 w-full rounded-[20px] border border-[#009900] bg-[#00FF00] px-5 py-3 text-md font-bold shadow-[3px_6px_0_#008000] transition-all duration-100 active:translate-x-[1px] active:translate-y-[3px] active:shadow-[1px_3px_0_#008000] cursor-pointer"
                         style={{ color: "rgb(0, 80, 0)" }}
                         onClick={() => {
-                          sdk.actions.openUrl("https://opensea.io/collection/1m-warplet-1-the-one").catch(() => {});
+                          sdk.actions.openUrl("https://link.10x.meme/1mwarplet").catch(() => {});
                         }}
                       >
                         🦄 Learn About $1M Warplet

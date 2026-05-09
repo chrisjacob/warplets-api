@@ -958,7 +958,7 @@ function landingPage(
     on: {
       press: {
         action: "open_url",
-        params: { target: "https://opensea.io/collection/10xwarplets/overview" },
+        params: { target: "https://link.10x.meme/10xwarplets" },
       },
     },
   };
@@ -968,7 +968,7 @@ function landingPage(
     on: {
       press: {
         action: "open_url",
-        params: { target: "https://opensea.io/collection/1m-warplet-1-the-one/overview" },
+        params: { target: "https://link.10x.meme/1mwarplet" },
       },
     },
   };
