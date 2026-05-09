@@ -13,11 +13,12 @@ interface Env {
   NEYNAR_API_KEY?: string;
   ACTION_SESSION_SECRET?: string;
 }
-import { createActionSessionToken, jsonSecure, parseObjectPayload, readJsonBodyWithLimit } from "../_lib/security.js";
+import { createActionSessionToken, jsonSecure, readJsonBodyWithLimit } from "../_lib/security.js";
 import { outboundFetch } from "../_lib/outbound.js";
 
 interface RequestBody {
   fid?: unknown;
+  referrerFid?: unknown;
 }
 
 type RecentBuyer = {
@@ -36,6 +37,13 @@ type OutreachCandidate = {
   farcasterUsernames: string[];
   xUsernames: string[];
   tokenIds: number[];
+};
+
+type TopReferrer = {
+  fid: number;
+  username: string;
+  pfpUrl: string;
+  referrals: number;
 };
 
 type NeynarUserRecord = {
@@ -63,6 +71,8 @@ const REWARDED_USERS_CACHE_PREFIX = "rewarded-users-v1";
 const RECENT_BUYS_CACHE_LOCK_TTL_SECONDS = 15;
 const OUTREACH_CANDIDATES_CACHE_TTL_SECONDS = 600;
 const OUTREACH_COOLDOWN_MS = 4 * 60 * 60 * 1000;
+const TOP_REFERRERS_CACHE_PREFIX = "top-referrers-v1";
+const TOP_REFERRERS_CACHE_TTL_SECONDS = 600;
 
 function normalizeAndRankBuyers(rows: Array<{ fid: unknown; pfp_url: unknown; score: unknown }>): RecentBuyer[] {
   return rows
@@ -261,6 +271,30 @@ function asBoolean(value: unknown): boolean | undefined {
 function boolToInt(value: boolean | undefined): number | null {
   if (typeof value !== "boolean") return null;
   return value ? 1 : 0;
+}
+
+function toPositiveInt(value: unknown): number | null {
+  if (typeof value !== "number" || !Number.isInteger(value) || value <= 0) return null;
+  return value;
+}
+
+function normalizeTopReferrers(rows: Array<{ fid: unknown; username: unknown; pfp_url: unknown; referrals_count: unknown }>): TopReferrer[] {
+  return rows
+    .map((row) => {
+      const fid = toPositiveInt(row.fid);
+      const referrals = toPositiveInt(row.referrals_count);
+      if (!fid || !referrals) return null;
+      if (typeof row.username !== "string" || row.username.trim().length === 0) return null;
+      if (typeof row.pfp_url !== "string" || row.pfp_url.trim().length === 0) return null;
+      return {
+        fid,
+        username: row.username,
+        pfpUrl: row.pfp_url,
+        referrals,
+      } satisfies TopReferrer;
+    })
+    .filter((row): row is TopReferrer => row !== null)
+    .slice(0, 25);
 }
 
 async function fetchNeynarUserByFid(
@@ -587,6 +621,45 @@ async function loadOutreachCandidatesCached(env: Env, userId: number): Promise<O
   return candidates;
 }
 
+async function loadTopReferrers(db: D1Database): Promise<TopReferrer[]> {
+  const result = await db
+    .prepare(
+      `SELECT fid, username, pfp_url, referrals_count
+       FROM warplets_users
+       WHERE referrals_count > 0
+         AND username IS NOT NULL
+         AND TRIM(username) <> ''
+         AND pfp_url IS NOT NULL
+         AND TRIM(pfp_url) <> ''
+       ORDER BY referrals_count DESC, score DESC, fid ASC
+       LIMIT 25`
+    )
+    .all<{ fid: unknown; username: unknown; pfp_url: unknown; referrals_count: unknown }>();
+
+  return normalizeTopReferrers(result.results ?? []);
+}
+
+async function loadTopReferrersCached(env: Env): Promise<TopReferrer[]> {
+  const cacheKey = TOP_REFERRERS_CACHE_PREFIX;
+  const cached = await env.WARPLETS_KV.get(cacheKey, "json");
+  if (Array.isArray(cached)) {
+    return normalizeTopReferrers(
+      cached.map((row) => ({
+        fid: (row as { fid?: unknown }).fid,
+        username: (row as { username?: unknown }).username,
+        pfp_url: (row as { pfpUrl?: unknown }).pfpUrl,
+        referrals_count: (row as { referrals?: unknown }).referrals,
+      }))
+    );
+  }
+
+  const topReferrers = await loadTopReferrers(env.WARPLETS);
+  await env.WARPLETS_KV.put(cacheKey, JSON.stringify(topReferrers), {
+    expirationTtl: TOP_REFERRERS_CACHE_TTL_SECONDS,
+  });
+  return topReferrers;
+}
+
 export const onRequestGet: PagesFunction<Env> = async (context) => {
   try {
     const url = new URL(context.request.url);
@@ -601,6 +674,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       recentBuys,
       allowMatchedTopUp(hostname)
     );
+    const topReferrers = await loadTopReferrersCached(context.env);
+    let referralCount = 0;
 
     let bestFriends: BestFriend[] = [];
     let outreachCandidates: OutreachCandidate = { farcasterUsernames: [], xUsernames: [], tokenIds: [] };
@@ -608,12 +683,13 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       const fidNum = parseInt(fid, 10);
       if (Number.isFinite(fidNum) && fidNum > 0) {
         const user = await context.env.WARPLETS.prepare(
-          "SELECT id, best_friends_warplets_on FROM warplets_users WHERE fid = ? LIMIT 1"
+          "SELECT id, best_friends_warplets_on, referrals_count FROM warplets_users WHERE fid = ? LIMIT 1"
         )
           .bind(fidNum)
-          .first<{ id: number; best_friends_warplets_on: string | null }>();
+          .first<{ id: number; best_friends_warplets_on: string | null; referrals_count: number | null }>();
 
         if (user) {
+          referralCount = Math.max(0, Number(user.referrals_count ?? 0));
           bestFriends = await loadOrFetchBestFriends(
             context.env.WARPLETS,
             user.id,
@@ -636,10 +712,10 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         ? await createActionSessionToken(context.env.ACTION_SESSION_SECRET, Number(fid), 3600)
         : null;
 
-    return jsonSecure({ buyers: recentBuys, bestFriends, rewardedUsers, outreachCandidates, actionSessionToken });
+    return jsonSecure({ buyers: recentBuys, bestFriends, rewardedUsers, outreachCandidates, actionSessionToken, referralCount, topReferrers });
   } catch (error) {
     console.error("warplet-status GET failed:", error);
-    return jsonSecure({ buyers: [], bestFriends: [], rewardedUsers: [], outreachCandidates: { farcasterUsernames: [], xUsernames: [], tokenIds: [] }, actionSessionToken: null });
+    return jsonSecure({ buyers: [], bestFriends: [], rewardedUsers: [], outreachCandidates: { farcasterUsernames: [], xUsernames: [], tokenIds: [] }, actionSessionToken: null, referralCount: 0, topReferrers: [] });
   }
 };
 
@@ -647,17 +723,32 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   try {
     const parsed = await readJsonBodyWithLimit<unknown>(context.request, 8 * 1024);
     if (!parsed.ok) return parsed.response;
-    const payload = parseObjectPayload<RequestBody>(parsed.value, ["fid"]);
-    if (!payload.ok) return payload.response;
-    const body = payload.payload;
+    if (!parsed.value || typeof parsed.value !== "object" || Array.isArray(parsed.value)) {
+      return jsonSecure({ error: "Invalid JSON payload" }, { status: 400 });
+    }
+    const body = parsed.value as RequestBody;
 
     const fid = typeof body.fid === "number" && Number.isInteger(body.fid) ? body.fid : null;
     if (!fid || fid <= 0) {
       return jsonSecure({ error: "fid is required" }, { status: 400 });
     }
+    const requestedReferrerFid = typeof body.referrerFid === "number" && Number.isInteger(body.referrerFid)
+      ? body.referrerFid
+      : null;
+    let validReferrerFid: number | null = null;
+    if (requestedReferrerFid && requestedReferrerFid > 0 && requestedReferrerFid !== fid) {
+      const referrer = await context.env.WARPLETS.prepare(
+        "SELECT fid FROM warplets_users WHERE fid = ? LIMIT 1"
+      )
+        .bind(requestedReferrerFid)
+        .first<{ fid: number }>();
+      if (referrer) {
+        validReferrerFid = requestedReferrerFid;
+      }
+    }
 
     const existing = await context.env.WARPLETS.prepare(
-      "SELECT id, username, pfp_url, score, matched_on, buy_in_opensea_on, buy_in_farcaster_wallet_on, rewarded_on, best_friends_warplets_on FROM warplets_users WHERE fid = ? LIMIT 1"
+      "SELECT id, username, pfp_url, score, matched_on, buy_in_opensea_on, buy_in_farcaster_wallet_on, rewarded_on, best_friends_warplets_on, referrer_fid, referrals_count FROM warplets_users WHERE fid = ? LIMIT 1"
     )
       .bind(fid)
       .first<{
@@ -670,6 +761,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         buy_in_farcaster_wallet_on: string | null;
         rewarded_on: string | null;
         best_friends_warplets_on: string | null;
+        referrer_fid: number | null;
+        referrals_count: number | null;
       }>();
 
     const matchRow = await context.env.WARPLETS.prepare(
@@ -690,6 +783,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       recentBuys,
       allowMatchedTopUp(hostname)
     );
+    let topReferrers = await loadTopReferrersCached(context.env);
     let outreachCandidates: OutreachCandidate = { farcasterUsernames: [], xUsernames: [], tokenIds: [] };
 
     if (!existing) {
@@ -700,8 +794,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         "INSERT INTO warplets_users (" +
           "fid, username, display_name, pfp_url, registered_at, pro_status, profile_bio_text, " +
           "follower_count, following_count, primary_eth_address, primary_sol_address, x_username, " +
-          "url, viewer_following, viewer_followed_by, score, matched_on, buy_in_opensea_on, buy_in_farcaster_wallet_on, rewarded_on, best_friends_warplets_on, created_on, updated_on" +
-          ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+          "url, viewer_following, viewer_followed_by, score, matched_on, buy_in_opensea_on, buy_in_farcaster_wallet_on, rewarded_on, best_friends_warplets_on, referrer_fid, referrals_count, created_on, updated_on" +
+          ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
       )
         .bind(
           fid,
@@ -725,10 +819,22 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
           null,
           null,
           null,
+          validReferrerFid,
+          0,
           now,
           now
         )
         .run();
+
+      if (validReferrerFid) {
+        await context.env.WARPLETS.prepare(
+          "UPDATE warplets_users SET referrals_count = COALESCE(referrals_count, 0) + 1, updated_on = ? WHERE fid = ?"
+        )
+          .bind(now, validReferrerFid)
+          .run();
+        await context.env.WARPLETS_KV.delete(TOP_REFERRERS_CACHE_PREFIX);
+        topReferrers = await loadTopReferrersCached(context.env);
+      }
 
       const newUser = await context.env.WARPLETS.prepare(
         "SELECT id FROM warplets_users WHERE fid = ? LIMIT 1"
@@ -766,6 +872,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         recentBuys,
         rewardedUsers,
         outreachCandidates,
+        referralCount: 0,
+        topReferrers,
         actionSessionToken,
       });
     }
@@ -774,6 +882,26 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       !existing.username ||
       !existing.pfp_url ||
       existing.score === null;
+    let referralCount = Math.max(0, Number(existing.referrals_count ?? 0));
+
+    if (validReferrerFid && !existing.referrer_fid) {
+      const now = new Date().toISOString();
+      const setReferrer = await context.env.WARPLETS.prepare(
+        "UPDATE warplets_users SET referrer_fid = ?, updated_on = ? WHERE id = ? AND referrer_fid IS NULL"
+      )
+        .bind(validReferrerFid, now, existing.id)
+        .run();
+
+      if (Number(setReferrer.meta.changes ?? 0) > 0) {
+        await context.env.WARPLETS.prepare(
+          "UPDATE warplets_users SET referrals_count = COALESCE(referrals_count, 0) + 1, updated_on = ? WHERE fid = ?"
+        )
+          .bind(now, validReferrerFid)
+          .run();
+        await context.env.WARPLETS_KV.delete(TOP_REFERRERS_CACHE_PREFIX);
+        topReferrers = await loadTopReferrersCached(context.env);
+      }
+    }
 
     if (shouldHydrateProfile) {
       const neynarUser = await fetchNeynarUserByFid(fid, context.env.NEYNAR_API_KEY);
@@ -849,6 +977,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       recentBuys,
       rewardedUsers,
       outreachCandidates,
+      referralCount,
+      topReferrers,
       actionSessionToken,
     });
   } catch (error) {
@@ -864,6 +994,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       recentBuys: [],
       rewardedUsers: [],
       outreachCandidates: { farcasterUsernames: [], xUsernames: [], tokenIds: [] },
+      referralCount: 0,
+      topReferrers: [],
       actionSessionToken: null,
     });
   }

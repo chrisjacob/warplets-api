@@ -22,6 +22,8 @@ type WarpletStatus = {
   recentBuys?: unknown;
   rewardedUsers?: unknown;
   outreachCandidates?: unknown;
+  referralCount?: number;
+  topReferrers?: unknown;
   actionSessionToken?: string | null;
 };
 
@@ -30,6 +32,8 @@ type RecentBuysResponse = {
   bestFriends?: unknown;
   rewardedUsers?: unknown;
   outreachCandidates?: unknown;
+  referralCount?: number;
+  topReferrers?: unknown;
   actionSessionToken?: string | null;
 };
 
@@ -65,6 +69,13 @@ type OutreachCandidate = {
   farcasterUsernames: string[];
   xUsernames: string[];
   tokenIds: number[];
+};
+
+type TopReferrer = {
+  fid: number;
+  username: string;
+  pfpUrl: string;
+  referrals: number;
 };
 
 type RawOfferItem = {
@@ -644,6 +655,29 @@ function normalizeBestFriends(rows: unknown): BestFriend[] {
     .filter((item): item is BestFriend => item !== null);
 }
 
+function normalizeTopReferrers(rows: unknown): TopReferrer[] {
+  if (!Array.isArray(rows)) return [];
+
+  return rows
+    .map((item) => {
+      if (!item || typeof item !== "object") return null;
+      const row = item as { fid?: unknown; username?: unknown; pfpUrl?: unknown; referrals?: unknown };
+      if (typeof row.fid !== "number" || !Number.isFinite(row.fid)) return null;
+      if (typeof row.username !== "string" || row.username.trim().length === 0) return null;
+      if (typeof row.pfpUrl !== "string" || row.pfpUrl.trim().length === 0) return null;
+      if (typeof row.referrals !== "number" || !Number.isFinite(row.referrals)) return null;
+
+      return {
+        fid: row.fid,
+        username: row.username,
+        pfpUrl: row.pfpUrl,
+        referrals: row.referrals,
+      } satisfies TopReferrer;
+    })
+    .filter((item): item is TopReferrer => item !== null)
+    .slice(0, 25);
+}
+
 function rankBuyersWithBestFriends(buyers: RecentBuyer[], bestFriends: BestFriend[]): RecentBuyer[] {
   if (bestFriends.length === 0) return buyers.slice(0, 10);
 
@@ -777,6 +811,8 @@ export default function App() {
   const [rewardedUsers, setRewardedUsers] = useState<RecentBuyer[]>([]);
   const [bestFriends, setBestFriends] = useState<BestFriend[]>([]);
   const [outreachCandidates, setOutreachCandidates] = useState<OutreachCandidate>({ farcasterUsernames: [], xUsernames: [], tokenIds: [] });
+  const [referralCount, setReferralCount] = useState(0);
+  const [topReferrers, setTopReferrers] = useState<TopReferrer[]>([]);
   const [showUnlockRewardPage, setShowUnlockRewardPage] = useState(false);
   const [rewardActions, setRewardActions] = useState<RewardAction[]>([]);
   const [rewardActionsLoading, setRewardActionsLoading] = useState(false);
@@ -821,6 +857,8 @@ export default function App() {
         setRecentBuys(rankBuyersWithBestFriends(buyers, friends));
         setRewardedUsers(normalizeRecentBuys(data.rewardedUsers));
         setOutreachCandidates(normalizeOutreachCandidates(data.outreachCandidates));
+        setReferralCount(typeof data.referralCount === "number" ? data.referralCount : 0);
+        setTopReferrers(normalizeTopReferrers(data.topReferrers));
         setActionSessionToken(typeof data.actionSessionToken === "string" ? data.actionSessionToken : "");
       } catch {
         // Ignore non-critical social proof errors.
@@ -873,7 +911,7 @@ export default function App() {
         const res = await fetch("/api/warplet-status", {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ fid: context.user.fid }),
+          body: JSON.stringify({ fid: context.user.fid, referrerFid: parsedReferralFid }),
         });
 
         if (!res.ok) {
@@ -887,6 +925,8 @@ export default function App() {
         const buyers = normalizeRecentBuys(data.recentBuys);
         setRewardedUsers(normalizeRecentBuys(data.rewardedUsers));
         setOutreachCandidates(normalizeOutreachCandidates(data.outreachCandidates));
+        setReferralCount(typeof data.referralCount === "number" ? data.referralCount : 0);
+        setTopReferrers(normalizeTopReferrers(data.topReferrers));
 
         try {
           const friendsRes = await fetch(`/api/warplet-status?fid=${context.user.fid}`);
@@ -898,6 +938,13 @@ export default function App() {
             const friends = normalizeBestFriends(friendsData.bestFriends);
             setBestFriends(friends);
             setRecentBuys(rankBuyersWithBestFriends(buyers, friends));
+            if (typeof friendsData.referralCount === "number") {
+              setReferralCount(friendsData.referralCount);
+            }
+            const normalizedReferrers = normalizeTopReferrers(friendsData.topReferrers);
+            if (normalizedReferrers.length > 0) {
+              setTopReferrers(normalizedReferrers);
+            }
           } else if (buyers.length > 0) {
             setRecentBuys(buyers);
           }
@@ -960,6 +1007,8 @@ export default function App() {
   }, [actionSessionToken, notificationOpenSent, pendingNotificationId]);
 
   const searchParams = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : new URLSearchParams();
+  const referralFidParam = searchParams.get("fid");
+  const parsedReferralFid = referralFidParam && /^\d+$/.test(referralFidParam) ? Number(referralFidParam) : null;
   const forceNoMatch = typeof window !== "undefined" && searchParams.get("match") === "0";
   const debugEnabled = typeof window !== "undefined" && searchParams.get("debug") === "1";
   const forceUnlock = typeof window !== "undefined" && searchParams.get("unlock") === "1";
@@ -977,6 +1026,7 @@ export default function App() {
     displayTokenId && Number.isFinite(Number(displayTokenId))
       ? formatTopPercent(Number(displayTokenId))
       : null;
+  const referralDropUrl = fid ? `https://drop.10x.meme/?fid=${fid}` : "https://drop.10x.meme/";
 
   useEffect(() => {
     if (loading || error || !isMatched || didCelebrate) return;
@@ -1135,13 +1185,15 @@ export default function App() {
     const statusRes = await fetch("/api/warplet-status", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ fid: currentFid }),
+      body: JSON.stringify({ fid: currentFid, referrerFid: parsedReferralFid }),
     });
     if (!statusRes.ok) return;
     const nextStatus = (await statusRes.json()) as WarpletStatus;
     setStatus(nextStatus);
     setActionSessionToken(typeof nextStatus.actionSessionToken === "string" ? nextStatus.actionSessionToken : "");
     setOutreachCandidates(normalizeOutreachCandidates(nextStatus.outreachCandidates));
+    setReferralCount(typeof nextStatus.referralCount === "number" ? nextStatus.referralCount : 0);
+    setTopReferrers(normalizeTopReferrers(nextStatus.topReferrers));
   };
 
   const setActionPendingThenComplete = (slug: string) => {
@@ -1198,8 +1250,8 @@ export default function App() {
           text:
             `🟢 10X Warplets (Private 10K NFT Drop)\n\nPrice $${urgency.currentPrice} → $${urgency.nextPrice} in ${urgency.countdown}.\nSupply private → public every 10 days.\nAre you on the list? Don't miss out.${raritySection}${outreachLine}`,
           embeds: purchasedTokenId
-            ? ["https://drop.10x.meme", `https://warplets.10x.meme/${purchasedTokenId}.${SHARE_IMAGE_EXTENSION}`]
-            : ["https://drop.10x.meme"],
+            ? [referralDropUrl, `https://warplets.10x.meme/${purchasedTokenId}.${SHARE_IMAGE_EXTENSION}`]
+            : [referralDropUrl],
         });
         if (!alreadyCompleted) {
           const verification = castResult?.cast?.hash
@@ -1217,7 +1269,7 @@ export default function App() {
         const text = `🟢 10X Warplets (Private 10K NFT Drop)\n\nPrice $${urgency.currentPrice} → $${urgency.nextPrice} in ${urgency.countdown}.\nSupply private → public every 10 days.\nAre you on the list? Don't miss out.\n\n1️⃣ Join Farcaster: https://farcaster.xyz/~/code/RUZLHN\n2️⃣ Visit mini-app: https://farcaster.xyz/miniapps/cSNbxgFkuFRi/10x-warplets-drop\n\n${raritySection}${outreachLine}`;
         const intentUrl = `https://x.com/intent/post?${new URLSearchParams({
           text,
-          url: "",
+          url: referralDropUrl,
           hashtags: "10XWarplets",
           via: "10XMemeX",
         }).toString()}`;
@@ -1312,7 +1364,7 @@ export default function App() {
         const castResult = await sdk.actions.composeCast({
           text:
             `🟢 10X Warplets (Private 10K NFT Drop)\n\nPrice $${urgency.currentPrice} → $${urgency.nextPrice} in ${urgency.countdown}.\nSupply private → public every 10 days.\nAre you on the list? Don't miss out.\n\n${castRarityLine}\n\n...what's your rarity?${outreachLine}`,
-          embeds: ["https://drop.10x.meme", `https://warplets.10x.meme/${purchasedTokenId}.${SHARE_IMAGE_EXTENSION}`],
+          embeds: [referralDropUrl, `https://warplets.10x.meme/${purchasedTokenId}.${SHARE_IMAGE_EXTENSION}`],
         });
 
         if (castResult?.cast?.hash && fid) {
@@ -1478,7 +1530,7 @@ export default function App() {
       const castResult = await sdk.actions.composeCast({
         text:
           `🟢 10X Warplets (Private 10K NFT Drop)\n\nPrice $${urgency.currentPrice} → $${urgency.nextPrice} in ${urgency.countdown}.\nSupply private → public every 10 days.\nAre you on the list? Don't miss out.${outreachLine}`,
-        embeds: ["https://drop.10x.meme"],
+        embeds: [referralDropUrl],
       });
 
       if (castResult?.cast?.hash && fid) {
@@ -2062,6 +2114,106 @@ export default function App() {
                       </Text>
                     )}
                   </div>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <Text className="text-lg font-bold text-left" style={{ color: "#00FF00" }}>
+                  📣 Earn Referral Points.
+                </Text>
+                <div className="rounded-2xl border border-[#00FF00]/35 bg-[#041204]/85 px-4 py-4 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      readOnly
+                      value={referralDropUrl}
+                      className="w-full rounded-xl border border-[#00FF00] bg-black/70 px-3 py-2 text-sm text-white outline-none"
+                    />
+                    <button
+                      type="button"
+                      className="h-10 w-10 shrink-0 rounded-[10px] border border-[#009900] bg-[#00FF00] text-xl font-bold shadow-[2px_4px_0_#008000] transition-all duration-100 active:translate-x-[1px] active:translate-y-[2px] active:shadow-[1px_2px_0_#008000] cursor-pointer"
+                      style={{ color: "rgb(0, 80, 0)" }}
+                      onClick={() => {
+                        if (navigator.clipboard?.writeText) {
+                          navigator.clipboard.writeText(referralDropUrl).catch(() => {});
+                        }
+                      }}
+                    >
+                      📋
+                    </button>
+                  </div>
+                  <Text className="text-sm leading-relaxed text-left" style={{ color: "#b7ffb7" }}>
+                    Share your 10X Warplets referral link to earn referral points and street cred.
+                  </Text>
+                  <Text className="text-sm leading-relaxed text-left" style={{ color: "#b7ffb7" }}>
+                    Help Farcaster and the Warplets universe grow!
+                  </Text>
+                  <Text className="text-sm font-bold text-left" style={{ color: "#00FF00" }}>
+                    {`Your referrals: ${referralCount}`}
+                  </Text>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <Text className="text-lg font-bold text-left" style={{ color: "#00FF00" }}>
+                  🏆 Top Referrers
+                </Text>
+                <div className="rounded-2xl border border-[#00FF00]/35 bg-[#041204]/85 px-2 py-2">
+                  <table className="w-full border-collapse text-left">
+                    <thead>
+                      <tr>
+                        <th className="border border-[#00FF00]/35 px-2 py-2 text-xs" style={{ color: "#00FF00" }}>Rank</th>
+                        <th className="border border-[#00FF00]/35 px-2 py-2 text-xs" style={{ color: "#00FF00" }}>Username</th>
+                        <th className="border border-[#00FF00]/35 px-2 py-2 text-xs" style={{ color: "#00FF00" }}>Referrals</th>
+                        <th className="border border-[#00FF00]/35 px-2 py-2 text-xs" style={{ color: "#00FF00" }}>Profile</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {topReferrers.slice(0, 25).map((referrer, index) => (
+                        <tr key={referrer.fid}>
+                          <td className="border border-[#00FF00]/25 px-2 py-2 text-sm" style={{ color: "#b7ffb7" }}>{index + 1}</td>
+                          <td className="border border-[#00FF00]/25 px-2 py-2">
+                            <div className="flex items-center gap-2">
+                              <img
+                                src={referrer.pfpUrl}
+                                alt={referrer.username}
+                                className="h-8 w-8 rounded-full object-cover"
+                                style={{ border: "2px solid #00FF00" }}
+                                loading="lazy"
+                              />
+                              <span className="text-sm" style={{ color: "#b7ffb7" }}>{referrer.username}</span>
+                            </div>
+                          </td>
+                          <td className="border border-[#00FF00]/25 px-2 py-2 text-sm font-semibold" style={{ color: "#b7ffb7" }}>
+                            {referrer.referrals}
+                          </td>
+                          <td className="border border-[#00FF00]/25 px-2 py-2">
+                            <button
+                              type="button"
+                              className="rounded-[10px] border border-[#009900] bg-[#00FF00] px-3 py-1 text-sm font-bold shadow-[2px_3px_0_#008000] transition-all duration-100 active:translate-x-[1px] active:translate-y-[2px] active:shadow-[1px_1px_0_#008000] cursor-pointer"
+                              style={{ color: "rgb(0, 80, 0)" }}
+                              onClick={() => {
+                                sdk.actions.viewProfile({ fid: referrer.fid }).catch(() => {});
+                              }}
+                            >
+                              View
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                      {topReferrers.length === 0 && (
+                        <tr>
+                          <td
+                            className="border border-[#00FF00]/25 px-2 py-3 text-sm text-center"
+                            style={{ color: "#b7ffb7" }}
+                            colSpan={4}
+                          >
+                            No referrers yet.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
                 </div>
               </div>
             </div>
