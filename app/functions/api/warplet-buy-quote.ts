@@ -87,6 +87,25 @@ type OpenSeaFulfillmentResponse = {
   };
 };
 
+type OpenSeaFulfillmentOrder = {
+  parameters?: {
+    offerer?: string;
+    offer?: OpenSeaOfferItem[];
+    conduitKey?: string;
+  };
+};
+
+type OpenSeaFulfillmentInputData = {
+  orders?: OpenSeaFulfillmentOrder[];
+};
+
+type ApprovalRequirement = {
+  tokenAddress: string;
+  spender: string;
+  amount: string;
+  conduitKey: string;
+};
+
 const NEYNAR_VIEWER_FID = 1129138;
 const OPENSEA_API_BASE = "https://api.opensea.io/api/v2";
 const BASE_CHAIN = "base";
@@ -94,6 +113,9 @@ const BASE_CHAIN_ID_HEX = "0x2105";
 const COLLECTION_SLUG = "10xwarplets";
 const COLLECTION_CONTRACT = "0x780446dd12e080ae0db762fcd4daf313f3e359de";
 const BASE_USDC = "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913";
+const ZERO_CONDUIT_KEY = "0x0000000000000000000000000000000000000000000000000000000000000000";
+const OPENSEA_CONDUIT_KEY = "0x0000007b02230091a7ed01230072f7006a004d60a8d4e71d599b8104250f0000";
+const OPENSEA_CONDUIT_ADDRESS = "0x1e0049783f008a0085193e00003d00cd54003c71";
 
 
 function asObject(value: unknown): Record<string, unknown> | undefined {
@@ -121,6 +143,14 @@ function normalizeAddress(value: string | undefined, label: string): string {
 
 function isCurrencyItem(itemType: number): boolean {
   return itemType === 0 || itemType === 1;
+}
+
+function normalizeBytes32(value: string | undefined, label: string): string {
+  const bytes = value?.trim().toLowerCase();
+  if (!bytes || !/^0x[0-9a-f]{64}$/.test(bytes)) {
+    throw new Error(`${label} is missing or invalid`);
+  }
+  return bytes;
 }
 
 function toBigIntValue(value: string | number | bigint | undefined, fallback = 0n): bigint {
@@ -313,6 +343,91 @@ function selectCheapestActiveListing(listings: OpenSeaListing[]): OpenSeaListing
   );
 }
 
+function resolveApprovalSpender(conduitKey: string, seaportAddress: string): string {
+  if (conduitKey === ZERO_CONDUIT_KEY) {
+    return seaportAddress;
+  }
+
+  if (conduitKey === OPENSEA_CONDUIT_KEY) {
+    return OPENSEA_CONDUIT_ADDRESS;
+  }
+
+  throw new Error(`Unsupported OpenSea conduit key: ${conduitKey}`);
+}
+
+function getFulfillmentApprovals(
+  inputData: unknown,
+  buyerAddress: string,
+  seaportAddress: string
+): ApprovalRequirement[] {
+  const fulfillmentInput = asObject(inputData) as OpenSeaFulfillmentInputData | undefined;
+  const orders = fulfillmentInput?.orders;
+  if (!Array.isArray(orders)) {
+    throw new Error("OpenSea fulfillment payload is missing orders");
+  }
+
+  const buyer = buyerAddress.toLowerCase();
+  const approvals = new Map<string, ApprovalRequirement & { amountBigInt: bigint }>();
+
+  for (const order of orders) {
+    const parameters = asObject(order?.parameters);
+    const offerer = asString(parameters?.offerer)?.toLowerCase();
+    if (offerer !== buyer) continue;
+
+    const conduitKey = normalizeBytes32(
+      asString(parameters?.conduitKey) ?? ZERO_CONDUIT_KEY,
+      "Fulfillment conduit key"
+    );
+    const spender = resolveApprovalSpender(conduitKey, seaportAddress);
+    const offer = parameters?.offer;
+    if (!Array.isArray(offer)) continue;
+
+    for (const item of offer) {
+      const offerItem = asObject(item);
+      if (!offerItem) continue;
+
+      const itemType = Number(offerItem.itemType ?? 0);
+      if (!isCurrencyItem(itemType)) continue;
+      if (itemType !== 1) {
+        throw new Error("The OpenSea fulfillment payment item is not an ERC20 token");
+      }
+
+      const tokenAddress = normalizeAddress(asString(offerItem.token), "Payment token");
+      if (tokenAddress !== BASE_USDC) {
+        throw new Error("The OpenSea fulfillment payment item is not Base USDC");
+      }
+
+      const amount = toBigIntValue(
+        asString(offerItem.startAmount) ?? asString(offerItem.endAmount),
+        0n
+      );
+      if (amount <= 0n) continue;
+
+      const key = `${tokenAddress}:${spender}:${conduitKey}`;
+      const existing = approvals.get(key);
+      if (existing) {
+        existing.amountBigInt += amount;
+        existing.amount = existing.amountBigInt.toString();
+      } else {
+        approvals.set(key, {
+          tokenAddress,
+          spender,
+          amount: amount.toString(),
+          conduitKey,
+          amountBigInt: amount,
+        });
+      }
+    }
+  }
+
+  const result = Array.from(approvals.values()).map(({ amountBigInt, ...approval }) => approval);
+  if (result.length === 0) {
+    throw new Error("OpenSea fulfillment payload has no buyer USDC approval items");
+  }
+
+  return result;
+}
+
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
   try {
@@ -446,6 +561,15 @@ async function handleRequest(context: Parameters<PagesFunction<Env>>[0]): Promis
   const fulfillmentTx = fulfillmentData.fulfillment_data?.transaction;
   const fulfillmentTo = fulfillmentTx?.to?.trim().toLowerCase() || seaportAddress;
   const fulfillmentValue = toBigIntValue(fulfillmentTx?.value, 0n);
+  let approvals: ApprovalRequirement[];
+  try {
+    approvals = getFulfillmentApprovals(fulfillmentTx?.input_data, buyerAddress, seaportAddress);
+  } catch (error) {
+    return Response.json(
+      { error: error instanceof Error ? error.message : "Unsupported OpenSea fulfillment approval path" },
+      { status: 409 }
+    );
+  }
 
   // Return OpenSea fulfillment input_data so the frontend can encode matchAdvancedOrders with the maker signature.
   return Response.json({
@@ -464,10 +588,12 @@ async function handleRequest(context: Parameters<PagesFunction<Env>>[0]): Promis
       protocolData: listing.protocol_data ?? null,
     },
     approval: {
-      tokenAddress: paymentToken,
-      spender: seaportAddress,
-      amount: approvalAmount.toString(),
+      tokenAddress: approvals[0].tokenAddress,
+      spender: approvals[0].spender,
+      amount: approvals[0].amount,
+      conduitKey: approvals[0].conduitKey,
     },
+    approvals,
     transaction: {
       chainIdHex: BASE_CHAIN_ID_HEX,
       to: fulfillmentTo,

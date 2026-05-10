@@ -139,7 +139,14 @@ type BuyQuoteResponse = {
     tokenAddress: string;
     spender: string;
     amount: string;
+    conduitKey?: string;
   };
+  approvals?: Array<{
+    tokenAddress: string;
+    spender: string;
+    amount: string;
+    conduitKey?: string;
+  }>;
   transaction: {
     chainIdHex: string;
     to: string;
@@ -555,6 +562,109 @@ async function waitForTransactionReceipt(
   }
 
   throw new Error("Timed out waiting for the wallet transaction to confirm.");
+}
+
+type TokenApprovalRequirement = {
+  tokenAddress: string;
+  spender: string;
+  amount: string;
+  conduitKey?: string;
+};
+
+async function readTokenAllowance(
+  provider: EthereumProvider,
+  tokenAddress: string,
+  owner: string,
+  spender: string
+): Promise<bigint> {
+  const allowanceCallData = encodeFunctionData({
+    abi: erc20Abi,
+    functionName: "allowance",
+    args: [getAddress(owner), getAddress(spender)],
+  });
+
+  try {
+    const allowanceResult = (await provider.request({
+      method: "eth_call",
+      params: [
+        {
+          to: getAddress(tokenAddress),
+          data: allowanceCallData,
+        },
+        "latest",
+      ],
+    })) as string;
+    return BigInt(allowanceResult || "0x0");
+  } catch (error) {
+    if (isUnsupportedMethodError(error)) {
+      throw new Error("Farcaster Wallet cannot verify USDC approval. Please try again.");
+    }
+    throw error;
+  }
+}
+
+async function waitForTokenAllowance(
+  provider: EthereumProvider,
+  approval: TokenApprovalRequirement,
+  owner: string,
+  timeoutMs = 60000
+): Promise<void> {
+  const requiredAllowance = BigInt(approval.amount);
+  const startedAt = Date.now();
+
+  while (Date.now() - startedAt < timeoutMs) {
+    const currentAllowance = await readTokenAllowance(
+      provider,
+      approval.tokenAddress,
+      owner,
+      approval.spender
+    );
+    if (currentAllowance >= requiredAllowance) {
+      return;
+    }
+    await new Promise(resolve => window.setTimeout(resolve, 1500));
+  }
+
+  throw new Error("USDC approval is still confirming. Please wait a few seconds and try again.");
+}
+
+async function ensureTokenApproval(
+  provider: EthereumProvider,
+  owner: string,
+  approval: TokenApprovalRequirement
+): Promise<void> {
+  const requiredAllowance = BigInt(approval.amount);
+  const currentAllowance = await readTokenAllowance(
+    provider,
+    approval.tokenAddress,
+    owner,
+    approval.spender
+  );
+
+  if (currentAllowance >= requiredAllowance) {
+    return;
+  }
+
+  const approvalData = encodeFunctionData({
+    abi: erc20Abi,
+    functionName: "approve",
+    args: [getAddress(approval.spender), requiredAllowance],
+  });
+
+  const approvalHash = (await provider.request({
+    method: "eth_sendTransaction",
+    params: [
+      {
+        from: getAddress(owner),
+        to: getAddress(approval.tokenAddress),
+        data: approvalData,
+        value: "0x0",
+      },
+    ],
+  })) as string;
+
+  await waitForTransactionReceipt(provider, approvalHash);
+  await waitForTokenAllowance(provider, approval, owner);
 }
 
 const LAUNCH_AT_UTC_MS = Date.UTC(2026, 4, 1, 0, 1, 0);
@@ -1698,55 +1808,12 @@ export default function App() {
           args: matchAdvancedOrdersArgs,
         });
 
-        const allowanceCallData = encodeFunctionData({
-          abi: erc20Abi,
-          functionName: "allowance",
-          args: [activeAccount, getAddress(quote.approval.spender)],
-        });
-
-        let currentAllowance = 0n;
-        try {
-          const allowanceResult = (await provider.request({
-            method: "eth_call",
-            params: [
-              {
-                to: quote.approval.tokenAddress,
-                data: allowanceCallData,
-              },
-              "latest",
-            ],
-          })) as string;
-          currentAllowance = BigInt(allowanceResult || "0x0");
-        } catch (error) {
-          if (!isUnsupportedMethodError(error)) {
-            throw error;
-          }
-          // If eth_call is unsupported, proceed with approval to avoid blocking purchase.
-          currentAllowance = 0n;
-        }
-
-        const requiredAllowance = BigInt(quote.approval.amount);
-
-        if (currentAllowance < requiredAllowance) {
-          const approvalData = encodeFunctionData({
-            abi: erc20Abi,
-            functionName: "approve",
-            args: [getAddress(quote.approval.spender), requiredAllowance],
-          });
-
-          const approvalHash = (await provider.request({
-            method: "eth_sendTransaction",
-            params: [
-              {
-                from: activeAccount,
-                to: quote.approval.tokenAddress,
-                data: approvalData,
-                value: "0x0",
-              },
-            ],
-          })) as string;
-
-          await waitForTransactionReceipt(provider, approvalHash);
+        const approvals =
+          Array.isArray(quote.approvals) && quote.approvals.length > 0
+            ? quote.approvals
+            : [quote.approval];
+        for (const approval of approvals) {
+          await ensureTokenApproval(provider, activeAccount, approval);
         }
 
         purchaseHash = (await provider.request({
