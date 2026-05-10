@@ -91,7 +91,7 @@ const NEYNAR_VIEWER_FID = 1129138;
 const OPENSEA_API_BASE = "https://api.opensea.io/api/v2";
 const BASE_CHAIN = "base";
 const BASE_CHAIN_ID_HEX = "0x2105";
-const COLLECTION_SLUG = "warplets";
+const COLLECTION_SLUG = "10xwarplets";
 const COLLECTION_CONTRACT = "0x780446dd12e080ae0db762fcd4daf313f3e359de";
 const BASE_USDC = "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913";
 
