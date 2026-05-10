@@ -63,6 +63,7 @@ const DROP_UNLOCK_ACTION_SLUGS = [
   "drop-waitlist-email",
   "drop-email-10x",
 ] as const;
+const DROP_REWARD_REQUIRED_ACTIONS = 10;
 
 function isSuccessfulCastVerification(verification: string | null): boolean {
   if (!verification) return false;
@@ -279,7 +280,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     let completedActions = 0;
 
     if (action.app_slug === "drop") {
-      totalActions = DROP_UNLOCK_ACTION_SLUGS.length;
+      totalActions = DROP_REWARD_REQUIRED_ACTIONS;
       const placeholders = DROP_UNLOCK_ACTION_SLUGS.map(() => "?").join(", ");
       const completed = await context.env.WARPLETS.prepare(
         `SELECT COUNT(DISTINCT action_slug) AS completed_actions

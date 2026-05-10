@@ -17,6 +17,7 @@ const DROP_UNLOCK_ACTION_SLUGS = [
   "drop-waitlist-email",
   "drop-email-10x",
 ] as const;
+const DROP_REWARD_REQUIRED_ACTIONS = 10;
 
 async function syncWaitlistActionCompletion(db: D1Database, fid: number, email: string): Promise<void> {
   const user = await db
@@ -43,7 +44,7 @@ async function syncWaitlistActionCompletion(db: D1Database, fid: number, email: 
   let totalActions = 0;
   let completedActions = 0;
   if (action.app_slug === "drop") {
-    totalActions = DROP_UNLOCK_ACTION_SLUGS.length;
+    totalActions = DROP_REWARD_REQUIRED_ACTIONS;
     const placeholders = DROP_UNLOCK_ACTION_SLUGS.map(() => "?").join(", ");
     const completed = await db
       .prepare(
