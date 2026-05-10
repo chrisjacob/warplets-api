@@ -133,47 +133,71 @@ async function upsertResendContact(
   lastName: string,
   properties: Record<string, string>
 ): Promise<void> {
+  const contactPath = `https://api.resend.com/contacts/${encodeURIComponent(email)}`;
+  const headers = {
+    "content-type": "application/json",
+    Authorization: `Bearer ${resendApiKey}`,
+  };
+  const contactBody = {
+    email,
+    firstName,
+    lastName,
+    unsubscribed: false,
+    properties,
+    segments: [{ id: RESEND_SEGMENT_ID }],
+    topics: [{ id: RESEND_TOPIC_ID, subscription: "opt_in" }],
+  };
+
   try {
     const createResponse = await outboundFetch("https://api.resend.com/contacts", {
       method: "POST",
-      headers: {
-        "content-type": "application/json",
-        Authorization: `Bearer ${resendApiKey}`,
-      },
-      body: JSON.stringify({
-        email,
-        firstName,
-        lastName,
-        unsubscribed: false,
-        properties,
-        segments: [{ id: RESEND_SEGMENT_ID }],
-        topics: [{ id: RESEND_TOPIC_ID, subscription: "opt_in" }],
-      }),
+      headers,
+      body: JSON.stringify(contactBody),
     });
 
-    if (createResponse.ok) return;
+    if (!createResponse.ok) {
+      const updateResponse = await outboundFetch(contactPath, {
+        method: "PATCH",
+        headers,
+        body: JSON.stringify({
+          firstName,
+          lastName,
+          unsubscribed: false,
+          properties,
+        }),
+      });
 
-    const updateResponse = await outboundFetch("https://api.resend.com/contacts", {
+      if (!updateResponse.ok) {
+        const createText = await createResponse.text().catch(() => "");
+        const updateText = await updateResponse.text().catch(() => "");
+        console.error("Resend contact upsert failed:", createText || createResponse.statusText, updateText || updateResponse.statusText);
+        return;
+      }
+    }
+
+    const segmentResponse = await outboundFetch(
+      `${contactPath}/segments/${RESEND_SEGMENT_ID}`,
+      {
+        method: "POST",
+        headers,
+      }
+    );
+    if (!segmentResponse.ok && segmentResponse.status !== 409) {
+      const text = await segmentResponse.text().catch(() => "");
+      console.error("Resend segment add failed:", text || segmentResponse.statusText);
+    }
+
+    const topicResponse = await outboundFetch(`${contactPath}/topics`, {
       method: "PATCH",
-      headers: {
-        "content-type": "application/json",
-        Authorization: `Bearer ${resendApiKey}`,
-      },
+      headers,
       body: JSON.stringify({
-        email,
-        firstName,
-        lastName,
-        unsubscribed: false,
-        properties,
-        segments: [{ id: RESEND_SEGMENT_ID }],
         topics: [{ id: RESEND_TOPIC_ID, subscription: "opt_in" }],
       }),
     });
 
-    if (!updateResponse.ok) {
-      const createText = await createResponse.text().catch(() => "");
-      const updateText = await updateResponse.text().catch(() => "");
-      console.error("Resend contact upsert failed:", createText || createResponse.statusText, updateText || updateResponse.statusText);
+    if (!topicResponse.ok) {
+      const text = await topicResponse.text().catch(() => "");
+      console.error("Resend topic opt-in failed:", text || topicResponse.statusText);
     }
   } catch (error) {
     console.error("Resend contact upsert failed:", error);

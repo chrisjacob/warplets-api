@@ -88,6 +88,10 @@ type TopReferrer = {
   referrals: number;
 };
 
+function getEmailFromVerification(verification: string | null): string {
+  const value = verification?.trim() ?? "";
+  return value.startsWith("email:") ? value.slice("email:".length).trim() : "";
+}
 
 type RawOfferItem = {
   itemType: number | string;
@@ -1196,6 +1200,9 @@ export default function App() {
         ...action,
         completed: action.completed || optimisticCompletedActions[action.slug] === true,
       })));
+  const waitlistRewardAction = displayRewardActions.find((action) => action.slug === "drop-waitlist-email") ?? null;
+  const waitlistActionCompleted = Boolean(waitlistRewardAction?.completed);
+  const waitlistCompletedEmail = getEmailFromVerification(waitlistRewardAction?.verification ?? null);
   const completedActionsCount = displayRewardActions.reduce((count, action) => (action.completed ? count + 1 : count), 0);
   const unlockedRewardCount = forceUnlock ? 5 : Math.min(5, Math.floor(completedActionsCount / 2));
   const hasAnyUnlockedRewards = unlockedRewardCount > 0;
@@ -1376,6 +1383,19 @@ export default function App() {
     }, 10000);
   };
 
+  const openWaitlistModal = (action: RewardAction) => {
+    const completedEmail = getEmailFromVerification(action.verification);
+    if (completedEmail) {
+      setWaitlistEmail(completedEmail);
+      setWaitlistSubmitted(true);
+      setWaitlistStatusMessage("You are on the waitlist.");
+    } else {
+      setWaitlistSubmitted(false);
+      setWaitlistStatusMessage("");
+    }
+    setShowWaitlistModal(true);
+  };
+
   const runRewardAction = async (action: RewardAction) => {
     void hapticTap();
     if (!fid) return;
@@ -1547,8 +1567,8 @@ export default function App() {
         setWaitlistStatusMessage("Email already verified. Action completed.");
       } else {
         setWaitlistStatusMessage(payload.verificationEmailSent
-          ? "Verification sent. Verify your email to unlock this action."
-          : "Subscribed. Please verify your email to unlock this action.");
+          ? "Verification sent. Check your email to confirm your waitlist spot."
+          : "Subscribed. Check your email to confirm your waitlist spot.");
 
         if (payload.verificationEmailSent) {
           setWaitlistVerificationPolling(true);
@@ -1570,7 +1590,11 @@ export default function App() {
                 ? actionData.actions.find((item) => item.slug === "drop-waitlist-email")
                 : null;
               if (waitlistAction?.completed) {
-                setWaitlistStatusMessage("Verification sent. Unlocking this action.");
+                const completedEmail = getEmailFromVerification(waitlistAction.verification);
+                if (completedEmail) {
+                  setWaitlistEmail(completedEmail);
+                }
+                setWaitlistStatusMessage("You are on the waitlist.");
                 break;
               }
             }
@@ -2010,8 +2034,8 @@ export default function App() {
                       onClick={() => {
                         void hapticTap();
                         if (actionBusy) return;
-                        if (action.slug === "drop-waitlist-email" && !actionCompleted) {
-                          setShowWaitlistModal(true);
+                        if (action.slug === "drop-waitlist-email") {
+                          openWaitlistModal(action);
                           return;
                         }
                         runRewardAction(action).catch(() => {});
@@ -2024,8 +2048,8 @@ export default function App() {
                         void hapticTap();
                         event.preventDefault();
                         if (actionBusy) return;
-                        if (action.slug === "drop-waitlist-email" && !actionCompleted) {
-                          setShowWaitlistModal(true);
+                        if (action.slug === "drop-waitlist-email") {
+                          openWaitlistModal(action);
                           return;
                         }
                         runRewardAction(action).catch(() => {});
@@ -2041,8 +2065,8 @@ export default function App() {
                             void hapticTap();
                             event.stopPropagation();
                             if (actionBusy) return;
-                            if (action.slug === "drop-waitlist-email" && !actionCompleted) {
-                              setShowWaitlistModal(true);
+                            if (action.slug === "drop-waitlist-email") {
+                              openWaitlistModal(action);
                               return;
                             }
                             runRewardAction(action).catch(() => {});
@@ -2586,18 +2610,18 @@ export default function App() {
                   className="mt-4 space-y-3"
                   onSubmit={(event) => {
                     event.preventDefault();
-                    const waitlistAction = displayRewardActions.find((item) => item.slug === "drop-waitlist-email");
-                    if (waitlistAction) {
-                      handleWaitlistRewardAction(waitlistAction).catch(() => {});
+                    if (!waitlistActionCompleted && waitlistRewardAction) {
+                      handleWaitlistRewardAction(waitlistRewardAction).catch(() => {});
                     }
                   }}
                 >
                   <input
                     type="email"
-                    value={waitlistEmail}
+                    value={waitlistCompletedEmail || waitlistEmail}
                     onChange={(event) => setWaitlistEmail(event.target.value)}
                     placeholder="you@example.com"
                     autoComplete="email"
+                    disabled={waitlistActionCompleted || waitlistSubmitted}
                     className="h-11 w-full rounded-xl border border-[#00FF00] bg-black/70 px-3 text-sm text-white outline-none"
                   />
                   {waitlistStatusMessage && (
@@ -2607,13 +2631,13 @@ export default function App() {
                   )}
                   <button
                     type="submit"
-                    disabled={waitlistSubmitting || waitlistVerificationPolling}
+                    disabled={waitlistActionCompleted || waitlistSubmitted || waitlistSubmitting || waitlistVerificationPolling}
                     className="w-full rounded-[14px] border border-[#009900] bg-[#00FF00] px-4 py-2.5 text-base font-bold shadow-[3px_6px_0_#008000] transition-all duration-100 active:translate-x-[1px] active:translate-y-[3px] active:shadow-[1px_3px_0_#008000] disabled:translate-x-0 disabled:translate-y-0 disabled:shadow-none disabled:bg-gray-700 disabled:border-gray-700 cursor-pointer"
-                    style={{ color: waitlistSubmitting || waitlistVerificationPolling ? "#fff" : "rgb(0, 80, 0)" }}
+                    style={{ color: waitlistActionCompleted || waitlistSubmitted || waitlistSubmitting || waitlistVerificationPolling ? "#fff" : "rgb(0, 80, 0)" }}
                   >
                     {waitlistSubmitting || waitlistVerificationPolling ? (
                       <span className="inline-block h-4 w-4 rounded-full border-2 border-[#FFF] border-r-transparent align-middle animate-spin" />
-                    ) : "Join Waitlist"}
+                    ) : waitlistActionCompleted || waitlistSubmitted ? "Joined Waitlist" : "Join Waitlist"}
                   </button>
                 </form>
               </div>
