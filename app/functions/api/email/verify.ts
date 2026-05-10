@@ -74,7 +74,7 @@ async function syncWaitlistActionCompletion(db: D1Database, fid: number, email: 
 
   if (totalActions > 0 && completedActions >= totalActions) {
     await db
-      .prepare("UPDATE warplets_users SET rewarded_on = COALESCE(rewarded_on, ?), updated_on = ? WHERE id = ?")
+      .prepare("UPDATE warplets_users SET rewarded_on = COALESCE(NULLIF(rewarded_on, ''), ?), updated_on = ? WHERE id = ?")
       .bind(now, now, user.id)
       .run();
   }

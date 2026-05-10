@@ -347,7 +347,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
     if (allActionsCompleted) {
       await context.env.WARPLETS.prepare(
-        "UPDATE warplets_users SET rewarded_on = COALESCE(rewarded_on, ?), updated_on = ? WHERE id = ?"
+        "UPDATE warplets_users SET rewarded_on = COALESCE(NULLIF(rewarded_on, ''), ?), updated_on = ? WHERE id = ?"
       )
         .bind(now, now, user.id)
         .run();
