@@ -143,7 +143,6 @@ async function upsertResendContact(
     firstName,
     lastName,
     unsubscribed: false,
-    properties,
     segments: [{ id: RESEND_SEGMENT_ID }],
     topics: [{ id: RESEND_TOPIC_ID, subscription: "opt_in" }],
   };
@@ -163,7 +162,6 @@ async function upsertResendContact(
           firstName,
           lastName,
           unsubscribed: false,
-          properties,
         }),
       });
 
@@ -172,6 +170,18 @@ async function upsertResendContact(
         const updateText = await updateResponse.text().catch(() => "");
         console.error("Resend contact upsert failed:", createText || createResponse.statusText, updateText || updateResponse.statusText);
         return;
+      }
+    }
+
+    if (Object.keys(properties).length > 0) {
+      const propertiesResponse = await outboundFetch(contactPath, {
+        method: "PATCH",
+        headers,
+        body: JSON.stringify({ properties }),
+      });
+      if (!propertiesResponse.ok) {
+        const text = await propertiesResponse.text().catch(() => "");
+        console.error("Resend contact properties update failed:", text || propertiesResponse.statusText);
       }
     }
 
