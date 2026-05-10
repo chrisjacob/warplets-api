@@ -2426,7 +2426,7 @@ export default function App() {
                       type="text"
                       readOnly
                       value={referralDropUrl}
-                      className="h-11 w-full rounded-xl border border-[#00FF00] bg-black/70 px-3 text-sm text-white outline-none"
+                      className="h-11 w-full rounded-xl border border-[#00FF00] bg-black/70 px-3 text-[16px] text-white outline-none"
                     />
                     <button
                       type="button"
@@ -2622,7 +2622,7 @@ export default function App() {
                     placeholder="you@example.com"
                     autoComplete="email"
                     disabled={waitlistActionCompleted || waitlistSubmitted}
-                    className="h-11 w-full rounded-xl border border-[#00FF00] bg-black/70 px-3 text-sm text-white outline-none"
+                    className="h-11 w-full rounded-xl border border-[#00FF00] bg-black/70 px-3 text-[16px] text-white outline-none"
                   />
                   {waitlistStatusMessage && (
                     <Text className="text-sm text-left" style={{ color: "#b7ffb7" }}>
@@ -2688,7 +2688,7 @@ export default function App() {
                       type="text"
                       readOnly
                       value="10x@10x.meme"
-                      className="h-11 w-full rounded-xl border border-[#00FF00] bg-black/70 px-3 text-sm text-white outline-none"
+                      className="h-11 w-full rounded-xl border border-[#00FF00] bg-black/70 px-3 text-[16px] text-white outline-none"
                     />
                     <button
                       type="button"
