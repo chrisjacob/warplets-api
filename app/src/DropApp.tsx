@@ -1403,7 +1403,7 @@ export default function App() {
 
     setActionError("");
     const alreadyCompleted = isActionCompleted(action);
-    if (!alreadyCompleted) {
+    if (!alreadyCompleted && action.slug !== "drop-email-10x") {
       setActionPendingThenComplete(action.slug);
     }
 
@@ -1503,12 +1503,13 @@ export default function App() {
 
     try {
       const emailAction = displayRewardActions.find((item) => item.slug === "drop-email-10x");
-      const alreadyCompleted = emailAction ? isActionCompleted(emailAction) : false;
+      const alreadyCompleted = Boolean(emailAction?.completed);
 
       if (!alreadyCompleted) {
         await completeRewardAction("drop-email-10x", `opened:${new Date().toISOString()}`);
       }
 
+      setOptimisticCompletedActions((prev) => ({ ...prev, "drop-email-10x": true }));
       setShowEmail10xModal(false);
       await fetchRewardActions(false);
       await refreshStatusForRewardPage(fid);
