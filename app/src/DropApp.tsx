@@ -880,7 +880,6 @@ export default function App() {
   const [waitlistSubmitting, setWaitlistSubmitting] = useState(false);
   const [waitlistSubmitted, setWaitlistSubmitted] = useState(false);
   const [waitlistVerificationPolling, setWaitlistVerificationPolling] = useState(false);
-  const [waitlistFeedbackSubmitting, setWaitlistFeedbackSubmitting] = useState(false);
   const [hasFollowedX, setHasFollowedX] = useState(false);
   const [viewerUsername, setViewerUsername] = useState("");
   const [waitlistStatusMessage, setWaitlistStatusMessage] = useState("");
@@ -1503,31 +1502,6 @@ export default function App() {
       showActionError(getErrorMessage(err));
     } finally {
       setEmailFeedbackSubmitting(false);
-    }
-  };
-
-  const handleWaitlistFeedbackDone = async () => {
-    void hapticPrimaryTap();
-    if (!fid || waitlistFeedbackSubmitting) return;
-
-    setWaitlistFeedbackSubmitting(true);
-    setActionError("");
-
-    try {
-      const waitlistAction = displayRewardActions.find((item) => item.slug === "drop-waitlist-email");
-      const alreadyCompleted = waitlistAction ? isActionCompleted(waitlistAction) : false;
-
-      if (!alreadyCompleted) {
-        await completeRewardAction("drop-waitlist-email", `email_feedback:${new Date().toISOString()}`);
-      }
-
-      setShowWaitlistModal(false);
-      await fetchRewardActions(false);
-      await refreshStatusForRewardPage(fid);
-    } catch (err) {
-      showActionError(getErrorMessage(err));
-    } finally {
-      setWaitlistFeedbackSubmitting(false);
     }
   };
 
@@ -2608,47 +2582,40 @@ export default function App() {
                   </button>
                 </div>
 
-                <div className="mt-4 space-y-3">
-                  <Text className="text-sm text-left" style={{ color: "#b7ffb7" }}>
-                    Copy our email, send your feedback, then come back and confirm below.
-                  </Text>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      readOnly
-                      value="10x@10x.meme"
-                      className="h-11 w-full rounded-xl border border-[#00FF00] bg-black/70 px-3 text-sm text-white outline-none"
-                    />
-                    <button
-                      type="button"
-                      className="h-10 w-10 shrink-0 rounded-[10px] border border-[#009900] bg-[#00FF00] text-xl font-bold shadow-[2px_4px_0_#008000] transition-all duration-100 active:translate-x-[1px] active:translate-y-[2px] active:shadow-[1px_2px_0_#008000] cursor-pointer"
-                      style={{ color: "rgb(0, 80, 0)" }}
-                      onClick={() => {
-                        void hapticTap();
-                        if (navigator.clipboard?.writeText) {
-                          navigator.clipboard.writeText("10x@10x.meme").then(() => {
-                            showCopyToast();
-                          }).catch(() => {});
-                        }
-                      }}
-                    >
-                      📋
-                    </button>
-                  </div>
+                <form
+                  className="mt-4 space-y-3"
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    const waitlistAction = displayRewardActions.find((item) => item.slug === "drop-waitlist-email");
+                    if (waitlistAction) {
+                      handleWaitlistRewardAction(waitlistAction).catch(() => {});
+                    }
+                  }}
+                >
+                  <input
+                    type="email"
+                    value={waitlistEmail}
+                    onChange={(event) => setWaitlistEmail(event.target.value)}
+                    placeholder="you@example.com"
+                    autoComplete="email"
+                    className="h-11 w-full rounded-xl border border-[#00FF00] bg-black/70 px-3 text-sm text-white outline-none"
+                  />
+                  {waitlistStatusMessage && (
+                    <Text className="text-sm text-left" style={{ color: "#b7ffb7" }}>
+                      {waitlistStatusMessage}
+                    </Text>
+                  )}
                   <button
-                    type="button"
-                    onClick={() => {
-                      handleWaitlistFeedbackDone().catch(() => {});
-                    }}
-                    disabled={waitlistFeedbackSubmitting}
+                    type="submit"
+                    disabled={waitlistSubmitting || waitlistVerificationPolling}
                     className="w-full rounded-[14px] border border-[#009900] bg-[#00FF00] px-4 py-2.5 text-base font-bold shadow-[3px_6px_0_#008000] transition-all duration-100 active:translate-x-[1px] active:translate-y-[3px] active:shadow-[1px_3px_0_#008000] disabled:translate-x-0 disabled:translate-y-0 disabled:shadow-none disabled:bg-gray-700 disabled:border-gray-700 cursor-pointer"
-                    style={{ color: waitlistFeedbackSubmitting ? "#fff" : "rgb(0, 80, 0)" }}
+                    style={{ color: waitlistSubmitting || waitlistVerificationPolling ? "#fff" : "rgb(0, 80, 0)" }}
                   >
-                    {waitlistFeedbackSubmitting ? (
+                    {waitlistSubmitting || waitlistVerificationPolling ? (
                       <span className="inline-block h-4 w-4 rounded-full border-2 border-[#FFF] border-r-transparent align-middle animate-spin" />
-                    ) : "I've sent feedback"}
+                    ) : "Join Waitlist"}
                   </button>
-                </div>
+                </form>
               </div>
             </div>
           )}
