@@ -37,7 +37,13 @@ interface NotificationBuckets {
   successfulTokens: string[];
   invalidTokens: string[];
   rateLimitedTokens: string[];
-  failedTokens: string[];
+  failedTokens: FailedToken[];
+}
+
+interface FailedToken {
+  token: string;
+  reason?: string;
+  fid?: number;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -48,6 +54,31 @@ function readTokenArray(value: unknown): string[] | null {
   if (value === undefined) return [];
   if (!Array.isArray(value)) return null;
   return value.every((item) => typeof item === "string") ? value : null;
+}
+
+function readFailedTokens(value: unknown): FailedToken[] | null {
+  if (value === undefined) return [];
+  if (!Array.isArray(value)) return null;
+
+  const failedTokens: FailedToken[] = [];
+  for (const item of value) {
+    if (typeof item === "string") {
+      failedTokens.push({ token: item });
+      continue;
+    }
+
+    if (!isRecord(item) || typeof item.token !== "string") {
+      return null;
+    }
+
+    failedTokens.push({
+      token: item.token,
+      reason: typeof item.reason === "string" ? item.reason : undefined,
+      fid: typeof item.fid === "number" ? item.fid : undefined,
+    });
+  }
+
+  return failedTokens;
 }
 
 function readNotificationBuckets(responseJson: unknown): NotificationBuckets | null {
@@ -62,7 +93,7 @@ function readNotificationBuckets(responseJson: unknown): NotificationBuckets | n
   const successfulTokens = readTokenArray(source.successfulTokens);
   const invalidTokens = readTokenArray(source.invalidTokens);
   const rateLimitedTokens = readTokenArray(source.rateLimitedTokens);
-  const failedTokens = readTokenArray(source.failedTokens);
+  const failedTokens = readFailedTokens(source.failedTokens);
 
   if (!successfulTokens || !invalidTokens || !rateLimitedTokens || !failedTokens) {
     return null;
@@ -77,11 +108,18 @@ function readNotificationBuckets(responseJson: unknown): NotificationBuckets | n
 }
 
 function summarizeBuckets(buckets: NotificationBuckets): string {
+  const failedReasons = buckets.failedTokens.reduce<Record<string, number>>((acc, item) => {
+    const reason = item.reason ?? "unknown";
+    acc[reason] = (acc[reason] ?? 0) + 1;
+    return acc;
+  }, {});
+
   return JSON.stringify({
     successfulTokens: buckets.successfulTokens.length,
     invalidTokens: buckets.invalidTokens.length,
     rateLimitedTokens: buckets.rateLimitedTokens.length,
     failedTokens: buckets.failedTokens.length,
+    failedReasons,
   });
 }
 
@@ -171,7 +209,7 @@ export async function dispatchNotification(
         } else if (data.successfulTokens.includes(notificationToken)) {
           result = { state: "success" };
           attemptResult = "success";
-        } else if (data.failedTokens.includes(notificationToken)) {
+        } else if (data.failedTokens.some((item) => item.token === notificationToken)) {
           const bucketSummary = summarizeBuckets(data);
           result = { state: "failed", error: `failed_token:${bucketSummary}` };
           attemptResult = "error";
