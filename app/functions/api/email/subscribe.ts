@@ -62,7 +62,12 @@ function asString(value: unknown): string | null {
 }
 
 function asPositiveInteger(value: unknown): number | null {
-  return typeof value === "number" && Number.isInteger(value) && value > 0 ? value : null;
+  if (typeof value === "number" && Number.isInteger(value) && value > 0) return value;
+  if (typeof value === "string" && /^\d+$/.test(value.trim())) {
+    const parsed = Number.parseInt(value.trim(), 10);
+    return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+  }
+  return null;
 }
 
 function asBoolean(value: unknown): boolean {
@@ -266,6 +271,21 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
   const now = new Date().toISOString();
   const verifyToken = crypto.randomUUID().replace(/-/g, "");
+  const existingRow = await context.env.WARPLETS.prepare(
+    `SELECT verified, verify_token, unsubscribed_at
+     FROM email_waitlist
+     WHERE email = ?
+     LIMIT 1`
+  )
+    .bind(email)
+    .first<{ verified: number; verify_token: string; unsubscribed_at: string | null }>();
+  const hadPendingUnverifiedBefore =
+    Boolean(existingRow) &&
+    existingRow?.verified === 0 &&
+    existingRow?.unsubscribed_at === null;
+  const tokenToPersist = hadPendingUnverifiedBefore
+    ? existingRow?.verify_token ?? verifyToken
+    : verifyToken;
 
   await context.env.WARPLETS.prepare(
     `INSERT INTO email_waitlist (
@@ -278,12 +298,13 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         matched = excluded.matched,
         verify_token = CASE
           WHEN email_waitlist.verified = 1 THEN email_waitlist.verify_token
+          WHEN email_waitlist.unsubscribed_at IS NULL THEN email_waitlist.verify_token
           ELSE excluded.verify_token
         END,
         unsubscribed_at = NULL,
         updated_at = excluded.updated_at`
   )
-    .bind(email, fid, username, tokenId, matched, verifyToken, now, now)
+    .bind(email, fid, username, tokenId, matched, tokenToPersist, now, now)
     .run();
 
   const row = await context.env.WARPLETS.prepare(
@@ -311,7 +332,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     await upsertResendContact(resendApiKey, email, firstName, lastName, properties);
   }
 
-  if (!alreadyVerified && resendApiKey) {
+  if (!alreadyVerified && resendApiKey && !hadPendingUnverifiedBefore) {
     const verifyUrl = new URL(context.request.url);
     verifyUrl.pathname = "/api/email/verify";
     verifyUrl.search = "";

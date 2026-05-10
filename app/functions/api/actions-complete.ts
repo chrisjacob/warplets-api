@@ -35,6 +35,15 @@ function asNonEmptyString(value: unknown): string | null {
   return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
 }
 
+function asPositiveInteger(value: unknown): number | null {
+  if (typeof value === "number" && Number.isInteger(value) && value > 0) return value;
+  if (typeof value === "string" && /^\d+$/.test(value.trim())) {
+    const parsed = Number.parseInt(value.trim(), 10);
+    return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+  }
+  return null;
+}
+
 function asTokenIdList(value: unknown): number[] {
   if (!Array.isArray(value)) return [];
   return value
@@ -88,7 +97,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
   const requestUrl = new URL(context.request.url);
   const sessionToken = asNonEmptyString(body.sessionToken);
-  const bodyFid = typeof body.fid === "number" && Number.isInteger(body.fid) && body.fid > 0 ? body.fid : null;
+  const bodyFid = asPositiveInteger(body.fid);
   const session = await verifyActionSessionToken(context.env.ACTION_SESSION_SECRET, sessionToken);
   const isLocalDevHost =
     requestUrl.hostname.includes("-local.") ||
@@ -213,20 +222,19 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   const now = new Date().toISOString();
 
   if (action.slug === "drop-waitlist-email") {
-    const verifiedRow = await context.env.WARPLETS.prepare(
-      `SELECT email, verified
+    const waitlistRow = await context.env.WARPLETS.prepare(
+      `SELECT email
        FROM email_waitlist
        WHERE fid = ?
-         AND verified = 1
          AND unsubscribed_at IS NULL
        ORDER BY subscribed_at DESC
        LIMIT 1`
     )
       .bind(fid)
-      .first<{ email: string; verified: number }>();
+      .first<{ email: string }>();
 
-    if (!verifiedRow) {
-      return jsonSecure({ error: "Waitlist email is not verified yet" }, { status: 409 });
+    if (!waitlistRow) {
+      return jsonSecure({ error: "Waitlist email has not been submitted yet" }, { status: 409 });
     }
   }
 
@@ -298,11 +306,10 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       completedActions = Number(totals?.completed_actions ?? 0);
     }
 
-    const hasVerifiedWaitlist = await context.env.WARPLETS.prepare(
+    const hasWaitlistEntry = await context.env.WARPLETS.prepare(
       `SELECT 1
        FROM email_waitlist
        WHERE fid = ?
-         AND verified = 1
          AND unsubscribed_at IS NULL
        LIMIT 1`
     )
@@ -320,7 +327,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
               .first<{ 1: number }>()
           );
 
-    if (hasWaitlistAction && hasVerifiedWaitlist) {
+    if (hasWaitlistAction && hasWaitlistEntry) {
       const hasCompletionRow = await context.env.WARPLETS.prepare(
         `SELECT 1
          FROM actions_completed

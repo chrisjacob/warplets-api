@@ -77,10 +77,6 @@ type OpenSeaListing = {
   protocol_data?: OpenSeaProtocolData | null;
 };
 
-type OpenSeaListingsResponse = {
-  orders?: OpenSeaListing[];
-};
-
 type OpenSeaFulfillmentResponse = {
   fulfillment_data?: {
     transaction?: {
@@ -184,35 +180,44 @@ async function fetchPrivateListings(
   buyerAddress: string,
   openseaApiKey: string
 ): Promise<OpenSeaListing[]> {
-  const params = new URLSearchParams({
-    asset_contract_address: COLLECTION_CONTRACT,
-    token_ids: tokenId,
-    maker: DISTRIBUTION_WALLET,
-    taker: buyerAddress,
-    limit: "50",
-    include_private_listings: "true",
-  });
+  const listings: OpenSeaListing[] = [];
+  let cursor: string | undefined;
 
-  const res = await fetch(`${OPENSEA_API_BASE}/orders/${BASE_CHAIN}/seaport/listings?${params}`, {
-    headers: {
-      accept: "application/json",
-      "x-api-key": openseaApiKey,
-      "X-API-KEY": openseaApiKey,
-    },
-    signal: AbortSignal.timeout(10000),
-  });
+  // Legacy GET /orders/{chain}/{protocol}/listings now returns 405.
+  // Use collection listings with taker + pagination and filter locally.
+  for (let page = 0; page < 6; page += 1) {
+    const params = new URLSearchParams({
+      taker: buyerAddress,
+      limit: "200",
+    });
+    if (cursor) params.set("next", cursor);
 
-  if (!res.ok) {
-    const body = await res.text().catch(() => "");
-    throw new Error(`OpenSea listing lookup failed (${res.status}): ${body || "unknown error"}`);
+    const res = await fetch(`${OPENSEA_API_BASE}/listings/collection/warplets/all?${params.toString()}`, {
+      headers: {
+        accept: "application/json",
+        "x-api-key": openseaApiKey,
+        "X-API-KEY": openseaApiKey,
+      },
+      signal: AbortSignal.timeout(10000),
+    });
+
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      throw new Error(`OpenSea listing lookup failed (${res.status}): ${body || "unknown error"}`);
+    }
+
+    const data = (await res.json()) as { listings?: OpenSeaListing[]; next?: string };
+    const pageListings = Array.isArray(data.listings) ? data.listings : [];
+    listings.push(...pageListings);
+
+    if (!data.next || pageListings.length === 0) break;
+    cursor = data.next;
   }
 
-  const data = (await res.json()) as OpenSeaListingsResponse;
-  const orders = data.orders ?? [];
-  return orders.filter(order => {
-    const maker = order.maker?.address?.toLowerCase();
-    const taker = order.taker?.address?.toLowerCase();
-    return maker === DISTRIBUTION_WALLET.toLowerCase() && taker === buyerAddress.toLowerCase();
+  return listings.filter((order) => {
+    const maker = order.protocol_data?.parameters?.offerer?.toLowerCase();
+    const offeredTokenId = order.protocol_data?.parameters?.offer?.[0]?.identifierOrCriteria;
+    return maker === DISTRIBUTION_WALLET.toLowerCase() && String(offeredTokenId) === tokenId;
   });
 }
 
@@ -362,10 +367,6 @@ async function handleRequest(context: Parameters<PagesFunction<Env>>[0]): Promis
     return Response.json({ error: "No active private listing was found for this user" }, { status: 404 });
   }
 
-  if (!listing.taker?.address) {
-    return Response.json({ error: "The matching listing is not a private listing" }, { status: 409 });
-  }
-
   // Validate USDC payment items without viem — sum consideration items going to non-buyer
   const consideration = listing.protocol_data?.parameters?.consideration ?? [];
   const paymentItems = consideration.filter(item => {
@@ -424,8 +425,8 @@ async function handleRequest(context: Parameters<PagesFunction<Env>>[0]): Promis
     listing: {
       orderHash,
       tokenId: String(rarityValue),
-      makerAddress: listing.maker?.address ?? null,
-      takerAddress: listing.taker?.address ?? null,
+      makerAddress: listing.maker?.address ?? listing.protocol_data?.parameters?.offerer ?? null,
+      takerAddress: listing.taker?.address ?? buyerAddress,
       price: approvalAmount.toString(),
       currencyAddress: paymentToken,
       openseaUrl: `https://opensea.io/item/base/${COLLECTION_CONTRACT}/${rarityValue}`,

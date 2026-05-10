@@ -169,7 +169,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     .bind(fid)
     .first<{ email: string; verified: number }>();
 
-  const waitlistCompletion: WaitlistCompletion = waitlistRow && waitlistRow.verified === 1
+  const waitlistCompletion: WaitlistCompletion = waitlistRow
     ? { completed: true, verification: `email:${waitlistRow.email}` }
     : { completed: false, verification: null };
 

@@ -574,6 +574,9 @@ async function loadOutreachCandidates(db: D1Database, userId: number): Promise<O
        JOIN warplets_metadata wm
          ON wm.token_id = wubfw.warplet_token_id
        WHERE wubfw.user_id = ?
+         AND wm.warplet_username_x IS NOT NULL
+         AND TRIM(wm.warplet_username_x) <> ''
+         AND TRIM(wm.warplet_username_x) <> '-'
          AND (wm.last_outreach_on IS NULL OR wm.last_outreach_on <= ?)
          AND NOT EXISTS (
            SELECT 1
@@ -614,6 +617,7 @@ async function loadOutreachCandidates(db: D1Database, userId: number): Promise<O
            AND TRIM(wm.warplet_username_farcaster) <> ''
            AND wm.warplet_username_x IS NOT NULL
            AND TRIM(wm.warplet_username_x) <> ''
+           AND TRIM(wm.warplet_username_x) <> '-'
            AND NOT EXISTS (
              SELECT 1
              FROM warplets_users wu

@@ -750,6 +750,66 @@ function buildCastVerificationUrl(hash: string, username: string): string {
   return `https://farcaster.xyz/~/conversations/${cleanHash}`;
 }
 
+function toWebComposeUrl(rawUrl: string): string {
+  const url = rawUrl.trim();
+  if (!url.toLowerCase().startsWith("mailto:")) return url;
+
+  try {
+    const parsed = new URL(url);
+    const to = parsed.pathname || "";
+    const subject = parsed.searchParams.get("subject") ?? "";
+    const body = parsed.searchParams.get("body") ?? "";
+    const gmailParams = new URLSearchParams({
+      view: "cm",
+      fs: "1",
+      to,
+      su: subject,
+      body,
+    });
+    return `https://mail.google.com/mail/?${gmailParams.toString()}`;
+  } catch {
+    return "https://mail.google.com/mail/u/0/#inbox?compose=new";
+  }
+}
+
+function isMailtoUrl(rawUrl: string): boolean {
+  return rawUrl.trim().toLowerCase().startsWith("mailto:");
+}
+
+function isLikelyDesktopClient(): boolean {
+  if (typeof navigator === "undefined") return false;
+  const ua = navigator.userAgent.toLowerCase();
+  const mobileSignals = ["iphone", "ipad", "android", "mobile"];
+  return !mobileSignals.some((signal) => ua.includes(signal));
+}
+
+function wait(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    window.setTimeout(resolve, ms);
+  });
+}
+
+async function openExternalUrlWithMailtoFallback(rawUrl: string): Promise<void> {
+  const url = rawUrl.trim();
+  if (!isMailtoUrl(url)) {
+    await sdk.actions.openUrl(url);
+    return;
+  }
+
+  if (isLikelyDesktopClient()) {
+    await sdk.actions.openUrl(toWebComposeUrl(url));
+    return;
+  }
+
+  try {
+    // Prefer native/default email client routing first.
+    await sdk.actions.openUrl(url);
+  } catch {
+    // Fallback for clients that do not support mailto through openUrl.
+    await sdk.actions.openUrl(toWebComposeUrl(url));
+  }
+}
+
 function ActionChevronRightIcon() {
   return (
     <svg
@@ -812,10 +872,14 @@ export default function App() {
   const [waitlistEmail, setWaitlistEmail] = useState("");
   const [waitlistSubmitting, setWaitlistSubmitting] = useState(false);
   const [waitlistSubmitted, setWaitlistSubmitted] = useState(false);
+  const [waitlistVerificationPolling, setWaitlistVerificationPolling] = useState(false);
+  const [waitlistFeedbackSubmitting, setWaitlistFeedbackSubmitting] = useState(false);
   const [hasFollowedX, setHasFollowedX] = useState(false);
   const [viewerUsername, setViewerUsername] = useState("");
   const [waitlistStatusMessage, setWaitlistStatusMessage] = useState("");
   const [showWaitlistModal, setShowWaitlistModal] = useState(false);
+  const [showEmail10xModal, setShowEmail10xModal] = useState(false);
+  const [emailFeedbackSubmitting, setEmailFeedbackSubmitting] = useState(false);
   const [copyToastVisible, setCopyToastVisible] = useState(false);
   const [recentBuys, setRecentBuys] = useState<RecentBuyer[]>([]);
   const [rewardedUsers, setRewardedUsers] = useState<RecentBuyer[]>([]);
@@ -826,7 +890,6 @@ export default function App() {
   const [showUnlockRewardPage, setShowUnlockRewardPage] = useState(false);
   const [rewardActions, setRewardActions] = useState<RewardAction[]>([]);
   const [rewardActionsLoading, setRewardActionsLoading] = useState(false);
-  const [runningActionSlug, setRunningActionSlug] = useState<string | null>(null);
   const [didUnlockCelebrate, setDidUnlockCelebrate] = useState(false);
   const [pendingActionUntilMs, setPendingActionUntilMs] = useState<Record<string, number>>({});
   const [optimisticCompletedActions, setOptimisticCompletedActions] = useState<Record<string, boolean>>({});
@@ -1196,6 +1259,19 @@ export default function App() {
   ) => {
     if (!fid) return;
 
+    const refreshSessionToken = async (): Promise<string> => {
+      const statusRes = await fetch("/api/warplet-status", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ fid, referrerFid: parsedReferralFid }),
+      });
+      if (!statusRes.ok) return "";
+      const refreshed = (await statusRes.json()) as WarpletStatus;
+      const token = typeof refreshed.actionSessionToken === "string" ? refreshed.actionSessionToken : "";
+      if (token) setActionSessionToken(token);
+      return token;
+    };
+
     const submitCompletion = async (sessionToken?: string) => fetch("/api/actions-complete", {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -1208,25 +1284,16 @@ export default function App() {
       }),
     });
 
-    let response = await submitCompletion(actionSessionToken || undefined);
+    let token = actionSessionToken || "";
+    if (!token) {
+      token = await refreshSessionToken();
+    }
+
+    let response = await submitCompletion(token || undefined);
 
     if (response.status === 401) {
-      const statusRes = await fetch("/api/warplet-status", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ fid, referrerFid: parsedReferralFid }),
-      });
-
-      if (statusRes.ok) {
-        const refreshed = (await statusRes.json()) as WarpletStatus;
-        const refreshedToken = typeof refreshed.actionSessionToken === "string"
-          ? refreshed.actionSessionToken
-          : "";
-        if (refreshedToken) {
-          setActionSessionToken(refreshedToken);
-          response = await submitCompletion(refreshedToken);
-        }
-      }
+      token = await refreshSessionToken();
+      response = await submitCompletion(token || undefined);
     }
 
     if (!response.ok) {
@@ -1299,10 +1366,9 @@ export default function App() {
 
   const runRewardAction = async (action: RewardAction) => {
     void hapticTap();
-    if (!fid || runningActionSlug) return;
+    if (!fid) return;
     if (isActionPending(action.slug)) return;
 
-    setRunningActionSlug(action.slug);
     setActionError("");
     const alreadyCompleted = isActionCompleted(action);
     if (!alreadyCompleted) {
@@ -1311,26 +1377,32 @@ export default function App() {
 
     try {
       if (action.slug === "drop-follow-fc-10xmeme") {
-        if (!alreadyCompleted) {
-          await completeRewardAction(action.slug, `opened:${new Date().toISOString()}`);
-        }
         await sdk.actions.viewProfile({ fid: 1313340 });
+        if (!alreadyCompleted) {
+          await wait(10000);
+          await completeRewardAction(action.slug, `opened:${new Date().toISOString()}`);
+        }
       } else if (action.slug === "drop-follow-fc-10xchris") {
-        if (!alreadyCompleted) {
-          await completeRewardAction(action.slug, `opened:${new Date().toISOString()}`);
-        }
         await sdk.actions.viewProfile({ fid: 1129138 });
+        if (!alreadyCompleted) {
+          await wait(10000);
+          await completeRewardAction(action.slug, `opened:${new Date().toISOString()}`);
+        }
       } else if (action.slug === "drop-join-fc-channel") {
-        if (!alreadyCompleted) {
-          await completeRewardAction(action.slug, `opened:${new Date().toISOString()}`);
-        }
         await sdk.actions.openUrl("https://farcaster.xyz/~/channel/10xmeme");
-      } else if (isAssumeSuccessActionSlug(action.slug)) {
         if (!alreadyCompleted) {
+          await wait(10000);
           await completeRewardAction(action.slug, `opened:${new Date().toISOString()}`);
         }
+      } else if (action.slug === "drop-email-10x") {
+        setShowEmail10xModal(true);
+      } else if (isAssumeSuccessActionSlug(action.slug)) {
         if (action.url) {
-          await sdk.actions.openUrl(action.url);
+          await openExternalUrlWithMailtoFallback(action.url);
+        }
+        if (!alreadyCompleted) {
+          await wait(10000);
+          await completeRewardAction(action.slug, `opened:${new Date().toISOString()}`);
         }
       } else if (action.slug === "drop-cast") {
         const urgency = getUrgencyDetails(nowMs);
@@ -1350,6 +1422,13 @@ export default function App() {
           if (castResult?.cast?.hash) {
             const verification = buildCastVerificationUrl(castResult.cast.hash, viewerUsername);
             await completeRewardAction(action.slug, verification, outreachCandidates.tokenIds);
+          } else {
+            // Rewards-page retry: treat composer dismiss as completion so rewards can unlock.
+            await completeRewardAction(
+              action.slug,
+              `dismissed:${new Date().toISOString()}`,
+              outreachCandidates.tokenIds,
+            );
           }
         }
       } else if (action.slug === "drop-tweet") {
@@ -1366,14 +1445,15 @@ export default function App() {
           hashtags: "10XWarplets",
           via: "10XMemeX",
         }).toString()}`;
+        await sdk.actions.openUrl(intentUrl);
         if (!alreadyCompleted) {
+          await wait(10000);
           await completeRewardAction(action.slug, intentUrl, outreachCandidates.tokenIds);
         }
-        await sdk.actions.openUrl(intentUrl);
       } else if (action.slug === "drop-waitlist-email") {
         // Waitlist action uses email submit flow below.
       } else if (action.url) {
-        await sdk.actions.openUrl(action.url);
+        await openExternalUrlWithMailtoFallback(action.url);
       }
 
       fetchRewardActions(false).catch(() => {});
@@ -1382,7 +1462,62 @@ export default function App() {
       console.error("Failed to run reward action:", err);
       showActionError(getErrorMessage(err));
     } finally {
-      setRunningActionSlug(null);
+    }
+  };
+
+  const handleEmailFeedbackDone = async () => {
+    void hapticPrimaryTap();
+    if (!fid || emailFeedbackSubmitting) return;
+
+    setEmailFeedbackSubmitting(true);
+    setActionError("");
+
+    try {
+      const emailAction = displayRewardActions.find((item) => item.slug === "drop-email-10x");
+      const alreadyCompleted = emailAction ? isActionCompleted(emailAction) : false;
+
+      if (!alreadyCompleted) {
+        await completeRewardAction("drop-email-10x", `opened:${new Date().toISOString()}`);
+      }
+
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText("10x@10x.meme");
+        showCopyToast();
+      }
+
+      setShowEmail10xModal(false);
+      await openExternalUrlWithMailtoFallback("mailto:10x@10x.meme");
+      await fetchRewardActions(false);
+      await refreshStatusForRewardPage(fid);
+    } catch (err) {
+      showActionError(getErrorMessage(err));
+    } finally {
+      setEmailFeedbackSubmitting(false);
+    }
+  };
+
+  const handleWaitlistFeedbackDone = async () => {
+    void hapticPrimaryTap();
+    if (!fid || waitlistFeedbackSubmitting) return;
+
+    setWaitlistFeedbackSubmitting(true);
+    setActionError("");
+
+    try {
+      const waitlistAction = displayRewardActions.find((item) => item.slug === "drop-waitlist-email");
+      const alreadyCompleted = waitlistAction ? isActionCompleted(waitlistAction) : false;
+
+      if (!alreadyCompleted) {
+        await completeRewardAction("drop-waitlist-email", `email_feedback:${new Date().toISOString()}`);
+      }
+
+      setShowWaitlistModal(false);
+      await fetchRewardActions(false);
+      await refreshStatusForRewardPage(fid);
+    } catch (err) {
+      showActionError(getErrorMessage(err));
+    } finally {
+      setWaitlistFeedbackSubmitting(false);
     }
   };
 
@@ -1398,7 +1533,6 @@ export default function App() {
       return;
     }
 
-    setRunningActionSlug(action.slug);
     setWaitlistSubmitting(true);
     setActionError("");
     setWaitlistStatusMessage("");
@@ -1429,10 +1563,38 @@ export default function App() {
         setWaitlistStatusMessage("Email already verified. Action completed.");
       } else {
         setWaitlistStatusMessage(payload.verificationEmailSent
-          ? "Verification email sent. Verify your email to unlock this action."
+          ? "Verification sent. Verify your email to unlock this action."
           : "Subscribed. Please verify your email to unlock this action.");
+
+        if (payload.verificationEmailSent) {
+          setWaitlistVerificationPolling(true);
+          try {
+            for (let attempt = 0; attempt < 120; attempt += 1) {
+              await wait(2500);
+              const params = new URLSearchParams({ appSlug: "drop" });
+              if (typeof fid === "number" && Number.isFinite(fid) && fid > 0) {
+                params.set("fid", String(fid));
+              }
+              if (actionSessionToken) {
+                params.set("sessionToken", actionSessionToken);
+              }
+
+              const actionRes = await fetch(`/api/actions?${params.toString()}`);
+              if (!actionRes.ok) continue;
+              const actionData = (await actionRes.json()) as { actions?: RewardAction[] };
+              const waitlistAction = Array.isArray(actionData.actions)
+                ? actionData.actions.find((item) => item.slug === "drop-waitlist-email")
+                : null;
+              if (waitlistAction?.completed) {
+                setWaitlistStatusMessage("Verification sent. Unlocking this action.");
+                break;
+              }
+            }
+          } finally {
+            setWaitlistVerificationPolling(false);
+          }
+        }
       }
-      setShowWaitlistModal(false);
 
       await fetchRewardActions();
       await refreshStatusForRewardPage(fid);
@@ -1440,7 +1602,6 @@ export default function App() {
       showActionError(getErrorMessage(err));
     } finally {
       setWaitlistSubmitting(false);
-      setRunningActionSlug(null);
     }
   };
 
@@ -1841,7 +2002,7 @@ export default function App() {
                       const actionCompleted = isActionCompleted(action);
                       const actionPending = isActionPending(action.slug);
                       const actionFlat = actionCompleted || actionPending;
-                      const actionBusy = !actionCompleted && (actionPending || runningActionSlug === action.slug);
+                      const actionBusy = !actionCompleted && actionPending;
 
                       return (
                     <div
@@ -2379,34 +2540,125 @@ export default function App() {
                 </div>
 
                 <div className="mt-4 space-y-3">
-                  <input
-                    type="email"
-                    value={waitlistEmail}
-                    onChange={(event) => setWaitlistEmail(event.target.value)}
-                    placeholder="Email"
-                    className="w-full rounded-xl border border-[#00FF00]/35 bg-black/70 px-3 py-2 text-sm text-white outline-none"
-                  />
+                  <Text className="text-sm text-left" style={{ color: "#b7ffb7" }}>
+                    Copy our email, send your feedback, then come back and confirm below.
+                  </Text>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      readOnly
+                      value="10x@10x.meme"
+                      className="h-11 w-full rounded-xl border border-[#00FF00] bg-black/70 px-3 text-sm text-white outline-none"
+                    />
+                    <button
+                      type="button"
+                      className="h-10 w-10 shrink-0 rounded-[10px] border border-[#009900] bg-[#00FF00] text-xl font-bold shadow-[2px_4px_0_#008000] transition-all duration-100 active:translate-x-[1px] active:translate-y-[2px] active:shadow-[1px_2px_0_#008000] cursor-pointer"
+                      style={{ color: "rgb(0, 80, 0)" }}
+                      onClick={() => {
+                        void hapticTap();
+                        if (navigator.clipboard?.writeText) {
+                          navigator.clipboard.writeText("10x@10x.meme").then(() => {
+                            showCopyToast();
+                          }).catch(() => {});
+                        }
+                      }}
+                    >
+                      📋
+                    </button>
+                  </div>
                   <button
                     type="button"
                     onClick={() => {
-                      void hapticPrimaryTap();
-                      const waitlistAction = displayRewardActions.find((item) => item.slug === "drop-waitlist-email");
-                      if (!waitlistAction) return;
-                      handleWaitlistRewardAction(waitlistAction).catch(() => {});
+                      handleWaitlistFeedbackDone().catch(() => {});
                     }}
-                    disabled={waitlistSubmitting || runningActionSlug === "drop-waitlist-email"}
+                    disabled={waitlistFeedbackSubmitting}
                     className="w-full rounded-[14px] border border-[#009900] bg-[#00FF00] px-4 py-2.5 text-base font-bold shadow-[3px_6px_0_#008000] transition-all duration-100 active:translate-x-[1px] active:translate-y-[3px] active:shadow-[1px_3px_0_#008000] disabled:translate-x-0 disabled:translate-y-0 disabled:shadow-none disabled:bg-gray-700 disabled:border-gray-700 cursor-pointer"
-                    style={{ color: "rgb(0, 80, 0)" }}
+                    style={{ color: waitlistFeedbackSubmitting ? "#fff" : "rgb(0, 80, 0)" }}
                   >
-                    {waitlistSubmitting ? (
-                      <span className="inline-block h-4 w-4 rounded-full border-2 border-[rgb(0,80,0)] border-r-transparent align-middle animate-spin" />
-                    ) : "Continue"}
+                    {waitlistFeedbackSubmitting ? (
+                      <span className="inline-block h-4 w-4 rounded-full border-2 border-[#FFF] border-r-transparent align-middle animate-spin" />
+                    ) : "I've sent feedback"}
                   </button>
-                  {waitlistStatusMessage && (
-                    <Text className="text-xs text-left" style={{ color: "#b7ffb7" }}>
-                      {waitlistStatusMessage}
-                    </Text>
-                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {!loading && !error && !showOpenInFarcaster && showUnlockRewardPage && showEmail10xModal && (
+            <div
+              className="fixed inset-0 z-40 flex items-center justify-center px-4 bg-black/70 backdrop-blur-[2px]"
+              onClick={() => {
+                void hapticTap();
+                setShowEmail10xModal(false);
+              }}
+            >
+              <div
+                className="w-full max-w-sm rounded-2xl border border-[#00FF00]/45 bg-[#041204] p-5 shadow-[0_0_40px_rgba(0,255,0,0.15)]"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <Text className="text-xl font-bold text-left" style={{ color: "#00FF00" }}>
+                    Email us your feedback
+                  </Text>
+                  <button
+                    type="button"
+                    aria-label="Close email popup"
+                    className="text-[#b7ffb7] hover:text-white text-lg font-bold leading-none cursor-pointer"
+                    onClick={() => {
+                      void hapticTap();
+                      setShowEmail10xModal(false);
+                    }}
+                  >
+                    X
+                  </button>
+                </div>
+
+                <div className="mt-4 space-y-3">
+                  <Text className="text-sm text-left" style={{ color: "#b7ffb7" }}>
+                    Help us make 10X better!
+                  </Text>
+                  <Text className="text-sm text-left" style={{ color: "#b7ffb7" }}>
+                    What do you like?
+                  </Text>
+                  <Text className="text-sm text-left" style={{ color: "#b7ffb7" }}>
+                    What do you not like?
+                  </Text>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      readOnly
+                      value="10x@10x.meme"
+                      className="h-11 w-full rounded-xl border border-[#00FF00] bg-black/70 px-3 text-sm text-white outline-none"
+                    />
+                    <button
+                      type="button"
+                      className="h-10 w-10 shrink-0 rounded-[10px] border border-[#009900] bg-[#00FF00] text-xl font-bold shadow-[2px_4px_0_#008000] transition-all duration-100 active:translate-x-[1px] active:translate-y-[2px] active:shadow-[1px_2px_0_#008000] cursor-pointer"
+                      style={{ color: "rgb(0, 80, 0)" }}
+                      onClick={() => {
+                        void hapticTap();
+                        if (navigator.clipboard?.writeText) {
+                          navigator.clipboard.writeText("10x@10x.meme").then(() => {
+                            showCopyToast();
+                          }).catch(() => {});
+                        }
+                      }}
+                    >
+                      📋
+                    </button>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleEmailFeedbackDone().catch(() => {});
+                    }}
+                    disabled={emailFeedbackSubmitting}
+                    className="mt-1 w-full rounded-[14px] border border-[#009900] bg-[#00FF00] px-4 py-2.5 text-base font-bold shadow-[3px_6px_0_#008000] transition-all duration-100 active:translate-x-[1px] active:translate-y-[3px] active:shadow-[1px_3px_0_#008000] disabled:translate-x-0 disabled:translate-y-0 disabled:shadow-none disabled:bg-gray-700 disabled:border-gray-700 cursor-pointer"
+                    style={{ color: emailFeedbackSubmitting ? "#fff" : "rgb(0, 80, 0)" }}
+                  >
+                    {emailFeedbackSubmitting ? (
+                      <span className="inline-block h-4 w-4 rounded-full border-2 border-[#FFF] border-r-transparent align-middle animate-spin" />
+                    ) : "I've sent feedback"}
+                  </button>
                 </div>
               </div>
             </div>
