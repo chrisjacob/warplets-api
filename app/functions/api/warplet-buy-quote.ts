@@ -91,8 +91,8 @@ const NEYNAR_VIEWER_FID = 1129138;
 const OPENSEA_API_BASE = "https://api.opensea.io/api/v2";
 const BASE_CHAIN = "base";
 const BASE_CHAIN_ID_HEX = "0x2105";
+const COLLECTION_SLUG = "warplets";
 const COLLECTION_CONTRACT = "0x780446dd12e080ae0db762fcd4daf313f3e359de";
-const DISTRIBUTION_WALLET = "0x4709a4b12daf0eedae0ef48a28a056640dee0846";
 const BASE_USDC = "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913";
 
 
@@ -182,17 +182,47 @@ async function fetchPrivateListings(
 ): Promise<OpenSeaListing[]> {
   const listings: OpenSeaListing[] = [];
   let cursor: string | undefined;
+  const buyer = buyerAddress.toLowerCase();
+
+  const bestParams = new URLSearchParams({
+    include_private_listings: "true",
+  });
+  const bestRes = await fetch(
+    `${OPENSEA_API_BASE}/listings/collection/${COLLECTION_SLUG}/nfts/${encodeURIComponent(tokenId)}/best?${bestParams.toString()}`,
+    {
+      headers: {
+        accept: "application/json",
+        "x-api-key": openseaApiKey,
+        "X-API-KEY": openseaApiKey,
+      },
+      signal: AbortSignal.timeout(10000),
+    }
+  );
+
+  if (bestRes.ok) {
+    const data = (await bestRes.json()) as unknown;
+    const responseObject = asObject(data);
+    const nestedListing = asObject(responseObject?.listing) as OpenSeaListing | undefined;
+    const listing = nestedListing ?? (responseObject as OpenSeaListing | undefined);
+    if (listing?.protocol_data) {
+      listings.push(listing);
+    }
+  } else if (bestRes.status !== 404) {
+    const body = await bestRes.text().catch(() => "");
+    throw new Error(`OpenSea best listing lookup failed (${bestRes.status}): ${body || "unknown error"}`);
+  }
 
   // Legacy GET /orders/{chain}/{protocol}/listings now returns 405.
   // Use collection listings with taker + pagination and filter locally.
   for (let page = 0; page < 6; page += 1) {
     const params = new URLSearchParams({
       taker: buyerAddress,
+      include_private_listings: "true",
       limit: "200",
     });
     if (cursor) params.set("next", cursor);
 
-    const res = await fetch(`${OPENSEA_API_BASE}/listings/collection/warplets/all?${params.toString()}`, {
+    const res = await fetch(`${OPENSEA_API_BASE}/listings/collection/${COLLECTION_SLUG}/all?${params.toString()}`, {
       headers: {
         accept: "application/json",
         "x-api-key": openseaApiKey,
@@ -215,9 +245,9 @@ async function fetchPrivateListings(
   }
 
   return listings.filter((order) => {
-    const maker = order.protocol_data?.parameters?.offerer?.toLowerCase();
+    const taker = order.taker?.address?.toLowerCase();
     const offeredTokenId = order.protocol_data?.parameters?.offer?.[0]?.identifierOrCriteria;
-    return maker === DISTRIBUTION_WALLET.toLowerCase() && String(offeredTokenId) === tokenId;
+    return String(offeredTokenId) === tokenId && (!taker || taker === buyer);
   });
 }
 
