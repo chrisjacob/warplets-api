@@ -1509,13 +1509,7 @@ export default function App() {
         await completeRewardAction("drop-email-10x", `opened:${new Date().toISOString()}`);
       }
 
-      if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText("10x@10x.meme");
-        showCopyToast();
-      }
-
       setShowEmail10xModal(false);
-      await openExternalUrlWithMailtoFallback("mailto:10x@10x.meme");
       await fetchRewardActions(false);
       await refreshStatusForRewardPage(fid);
     } catch (err) {

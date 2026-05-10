@@ -140,8 +140,8 @@ async function upsertResendContact(
   };
   const contactBody = {
     email,
-    firstName,
-    lastName,
+    first_name: firstName,
+    last_name: lastName,
     unsubscribed: false,
     segments: [{ id: RESEND_SEGMENT_ID }],
     topics: [{ id: RESEND_TOPIC_ID, subscription: "opt_in" }],
@@ -159,8 +159,8 @@ async function upsertResendContact(
         method: "PATCH",
         headers,
         body: JSON.stringify({
-          firstName,
-          lastName,
+          first_name: firstName,
+          last_name: lastName,
           unsubscribed: false,
         }),
       });
