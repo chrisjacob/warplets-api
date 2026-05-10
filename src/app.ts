@@ -1031,10 +1031,10 @@ function claimResultPage(
 ): SnapHandlerResult {
   let showWinnerUi =
     isMatch && typeof fidValue === "number" && typeof rarityValue === "number";
-  
+
   // isMatch = false; // for testing
   // showWinnerUi = false; // Disable winner UI for now since the rarity metadata is not fully ready yet. This will be re-enabled in the future once the metadata is ready.
-  
+
   return {
     version: "2.0",
     effects: showWinnerUi ? ["confetti"] : undefined,
@@ -1054,7 +1054,7 @@ function claimResultPage(
           props: {
             content: isMatch
               ? "🎉 Congratulations! You're on the list..."
-              : "😭 Oh Snap... You're not on the list.",
+              : "😭 Aw Snap... You're not on the list.",
             weight: "bold",
           },
         },
@@ -1070,18 +1070,19 @@ function claimResultPage(
         },
         claim: {
           type: "button",
-          props: { 
+          props: {
             label: isMatch
-              ? "👉 Buy on OpenSea (login to see listing)"
-              : "👉 Visit OpenSea to find out why...",
-            variant: "primary" },
+              ? "👉 View Rarity, Buy & Unlock Rewards in Mini App"
+              : "👉 Visit Mini App to Unlock Rewards",
+            variant: "primary",
+          },
           on: {
             press: {
-              action: "open_url",
+              action: "open_mini_app",
               params: {
                 target: isMatch
-                  ? `https://opensea.io/item/base/0x780446dd12e080ae0db762fcd4daf313f3e359de/${rarityValue}`
-                  : "https://opensea.io/collection/10xwarplets/overview",
+                  ? `https://drop.10x.meme/?fid=1129138`
+                  : "https://drop.10x.meme/?fid=1129138",
               },
             },
           },
