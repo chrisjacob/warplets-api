@@ -815,7 +815,11 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
             `SELECT ${userSelect} FROM warplets_users WHERE fid = ? LIMIT 1`
           )
             .bind(fidNum)
-            .first<{ id: number; best_friends_warplets_on: string | null; referrals_count: number | null }>();
+            .first<{
+              id: number;
+              best_friends_warplets_on: string | null;
+              referrals_count: number | null;
+            }>();
 
           if (user) {
             referralCount = Math.max(0, Number(user.referrals_count ?? 0));
@@ -871,6 +875,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     const hasBestFriendsWarpletsOn = await hasWarpletsUsersColumn(context.env.WARPLETS, "best_friends_warplets_on");
     const hasReferrerFid = await hasWarpletsUsersColumn(context.env.WARPLETS, "referrer_fid");
     const hasReferralsCount = await hasWarpletsUsersColumn(context.env.WARPLETS, "referrals_count");
+    const hasBuyTransactionId = await hasWarpletsUsersColumn(context.env.WARPLETS, "buy_transaction_id");
+    const hasTransactionError = await hasWarpletsUsersColumn(context.env.WARPLETS, "transaction_error");
     if (requestedReferrerFid && requestedReferrerFid > 0 && requestedReferrerFid !== fid) {
       const referrer = await context.env.WARPLETS.prepare(
         "SELECT fid FROM warplets_users WHERE fid = ? LIMIT 1"
@@ -894,6 +900,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       hasBestFriendsWarpletsOn ? "best_friends_warplets_on" : "NULL AS best_friends_warplets_on",
       hasReferrerFid ? "referrer_fid" : "NULL AS referrer_fid",
       hasReferralsCount ? "referrals_count" : "0 AS referrals_count",
+      hasBuyTransactionId ? "buy_transaction_id" : "NULL AS buy_transaction_id",
+      hasTransactionError ? "transaction_error" : "NULL AS transaction_error",
     ].join(", ");
     const existing = await context.env.WARPLETS.prepare(
       `SELECT ${existingSelect} FROM warplets_users WHERE fid = ? LIMIT 1`
@@ -911,6 +919,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         best_friends_warplets_on: string | null;
         referrer_fid: number | null;
         referrals_count: number | null;
+        buy_transaction_id: string | null;
+        transaction_error: string | null;
       }>();
 
     let rarityValue: number | null = null;
@@ -1050,6 +1060,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         rarityValue,
         buyInOpenseaOn: null,
         buyInFarcasterWalletOn: null,
+        buyTransactionId: null,
+        transactionError: null,
         rewardedOn: null,
         recentBuys,
         rewardedUsers,
@@ -1171,6 +1183,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       rarityValue,
       buyInOpenseaOn: existing.buy_in_opensea_on,
       buyInFarcasterWalletOn: existing.buy_in_farcaster_wallet_on,
+      buyTransactionId: existing.buy_transaction_id,
+      transactionError: existing.transaction_error,
       rewardedOn: existing.rewarded_on,
       recentBuys,
       rewardedUsers,
@@ -1189,6 +1203,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       rarityValue: null,
       buyInOpenseaOn: null,
       buyInFarcasterWalletOn: null,
+      buyTransactionId: null,
+      transactionError: null,
       rewardedOn: null,
       recentBuys: [],
       rewardedUsers: [],

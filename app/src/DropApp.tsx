@@ -25,6 +25,8 @@ type WarpletStatus = {
   rarityValue: number | null;
   buyInOpenseaOn: string | null;
   buyInFarcasterWalletOn: string | null;
+  buyTransactionId: string | null;
+  transactionError: string | null;
   rewardedOn: string | null;
   recentBuys?: unknown;
   rewardedUsers?: unknown;
@@ -402,6 +404,7 @@ const BASE_CHAIN_CONFIG = {
   rpcUrls: ["https://mainnet.base.org"],
   blockExplorerUrls: ["https://basescan.org"],
 };
+const WARPLETS_COLLECTION_CONTRACT = "0x780446dd12e080ae0db762fcd4daf313f3e359de";
 
 function getErrorMessage(error: unknown): string {
   if (error instanceof Error && error.message) {
@@ -455,11 +458,15 @@ async function readErrorResponse(response: Response): Promise<string> {
   return text || `Request failed with status ${response.status}`;
 }
 
-async function postTrackingUpdate(path: string, fid: number): Promise<void> {
+async function postTrackingUpdate(
+  path: string,
+  fid: number,
+  extras: Record<string, unknown> = {}
+): Promise<void> {
   const res = await fetch(path, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ fid }),
+    body: JSON.stringify({ fid, ...extras }),
   });
 
   if (!res.ok) {
@@ -1207,6 +1214,12 @@ export default function App() {
   const rewardTokenId = !isMatched
     ? "760"
     : (purchasedTokenId ?? (typeof status?.rarityValue === "number" ? String(status.rarityValue) : null));
+  const yourWarpletTokenId = purchasedTokenId ?? (hasPurchased && typeof status?.rarityValue === "number" ? String(status.rarityValue) : null);
+  const yourWarpletImageUrl = yourWarpletTokenId ? `https://warplets.10x.meme/${yourWarpletTokenId}.avif` : null;
+  const yourWarpletBaseScanUrl = status?.buyTransactionId ? `https://basescan.org/tx/${status.buyTransactionId}` : null;
+  const yourWarpletOpenSeaUrl = yourWarpletTokenId
+    ? `https://opensea.io/item/base/${WARPLETS_COLLECTION_CONTRACT}/${yourWarpletTokenId}`
+    : null;
   const castOutreach = outreachCandidates.farcasterUsernames.slice(0, 10).join(" ");
   const tweetOutreach = outreachCandidates.xUsernames.slice(0, 10).join(" ");
   const headerTitle = showUnlockRewardPage && !isMenuRoute
@@ -1650,6 +1663,7 @@ export default function App() {
 
       setActionError("");
       setIsPurchasing(true);
+      let purchaseHash: string | null = null;
 
       try {
         const quoteRes = await fetch("/api/warplet-buy-quote", {
@@ -1745,7 +1759,7 @@ export default function App() {
           await waitForTransactionReceipt(provider, approvalHash);
         }
 
-        const purchaseHash = (await provider.request({
+        purchaseHash = (await provider.request({
           method: "eth_sendTransaction",
           params: [
             {
@@ -1759,18 +1773,33 @@ export default function App() {
 
         await waitForTransactionReceipt(provider, purchaseHash);
         setPurchasedTokenId(quote.listing.tokenId);
-        setStatus(prev => (prev ? { ...prev, buyInFarcasterWalletOn: new Date().toISOString() } : prev));
+        setStatus(prev => (prev ? {
+          ...prev,
+          buyInFarcasterWalletOn: new Date().toISOString(),
+          buyTransactionId: purchaseHash,
+          transactionError: null,
+        } : prev));
         launchTopConfetti();
 
         try {
-          await postTrackingUpdate("/api/warplet-purchase-complete", fid);
+          await postTrackingUpdate("/api/warplet-purchase-complete", fid, { transactionId: purchaseHash });
         } catch (persistError) {
           console.error("Failed to persist purchase tracking state:", persistError);
           showActionError("Purchase succeeded, but persisting claim state failed. Please refresh in a moment.");
         }
       } catch (err) {
         console.error("Failed to complete Warplet purchase:", err);
-        showActionError(getErrorMessage(err));
+        const transactionError = getErrorMessage(err);
+        showActionError(transactionError);
+        setStatus(prev => (prev ? { ...prev, transactionError, buyTransactionId: purchaseHash ?? prev.buyTransactionId } : prev));
+        try {
+          await postTrackingUpdate("/api/warplet-purchase-complete", fid, {
+            transactionId: purchaseHash ?? undefined,
+            transactionError,
+          });
+        } catch (persistError) {
+          console.error("Failed to persist purchase error state:", persistError);
+        }
       } finally {
         setIsPurchasing(false);
       }
@@ -2489,6 +2518,49 @@ export default function App() {
                   </table>
                 </div>
               </div>
+
+              {yourWarpletTokenId && yourWarpletImageUrl && yourWarpletOpenSeaUrl && (
+                <div className="space-y-3">
+                  <Text className="text-lg font-bold text-left" style={{ color: "#00FF00" }}>
+                    🟢 Your 10X Warplet
+                  </Text>
+                  <div className="rounded-2xl border border-[#00FF00]/35 bg-[#041204]/85 px-4 py-4 space-y-4">
+                    <img
+                      src={yourWarpletImageUrl}
+                      alt={`10X Warplet #${yourWarpletTokenId}`}
+                      className="w-full rounded-xl bg-black object-cover"
+                      loading="lazy"
+                    />
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      <button
+                        type="button"
+                        disabled={!yourWarpletBaseScanUrl}
+                        onClick={() => {
+                          void hapticTap();
+                          if (yourWarpletBaseScanUrl) {
+                            sdk.actions.openUrl(yourWarpletBaseScanUrl).catch(() => {});
+                          }
+                        }}
+                        className="w-full rounded-xl border border-[#009900] bg-[#00FF00] px-4 py-3 text-sm font-bold shadow-[2px_4px_0_#008000] transition-all duration-100 active:translate-x-[1px] active:translate-y-[2px] active:shadow-[1px_2px_0_#008000] disabled:cursor-not-allowed disabled:opacity-45 cursor-pointer"
+                        style={{ color: "rgb(0, 80, 0)" }}
+                      >
+                        View on BaseScan
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          void hapticTap();
+                          sdk.actions.openUrl(yourWarpletOpenSeaUrl).catch(() => {});
+                        }}
+                        className="w-full rounded-xl border border-[#009900] bg-[#00FF00] px-4 py-3 text-sm font-bold shadow-[2px_4px_0_#008000] transition-all duration-100 active:translate-x-[1px] active:translate-y-[2px] active:shadow-[1px_2px_0_#008000] cursor-pointer"
+                        style={{ color: "rgb(0, 80, 0)" }}
+                      >
+                        View on OpenSea
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

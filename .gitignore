@@ -7,6 +7,9 @@ dist/
 .dev.vars.*
 
 # Local test server logs
+*.log
+*.out.log
+*.err.log
 dev-server.out.log
 dev-server.err.log
 node-dev.out.log
@@ -15,6 +18,7 @@ wrangler-dev.out.log
 wrangler-dev.err.log
 drop-tunnel.log
 drop-tunnel.err.log
+.tmp-pages-worker.mjs
 
 # Localflare generated files
 .localflare/
