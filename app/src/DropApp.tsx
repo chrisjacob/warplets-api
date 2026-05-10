@@ -416,6 +416,7 @@ const BASE_CHAIN_CONFIG = {
   blockExplorerUrls: ["https://basescan.org"],
 };
 const WARPLETS_COLLECTION_CONTRACT = "0x780446dd12e080ae0db762fcd4daf313f3e359de";
+const BASE_RPC_URL = BASE_CHAIN_CONFIG.rpcUrls[0];
 
 function getErrorMessage(error: unknown): string {
   if (error instanceof Error && error.message) {
@@ -544,10 +545,13 @@ async function waitForTransactionReceipt(
       })) as { status?: string } | null;
     } catch (error) {
       if (isUnsupportedMethodError(error)) {
-        // Embedded wallets may not expose receipt polling.
-        return;
+        receipt = await publicRpcRequest<{ status?: string } | null>(
+          "eth_getTransactionReceipt",
+          [hash]
+        );
+      } else {
+        throw error;
       }
-      throw error;
     }
 
     if (receipt?.status === "0x1") {
@@ -562,6 +566,33 @@ async function waitForTransactionReceipt(
   }
 
   throw new Error("Timed out waiting for the wallet transaction to confirm.");
+}
+
+async function publicRpcRequest<T>(method: string, params: unknown[]): Promise<T> {
+  const response = await fetch(BASE_RPC_URL, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      jsonrpc: "2.0",
+      id: Date.now(),
+      method,
+      params,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Base RPC request failed with status ${response.status}.`);
+  }
+
+  const payload = (await response.json()) as {
+    result?: T;
+    error?: { message?: string };
+  };
+  if (payload.error) {
+    throw new Error(payload.error.message || "Base RPC request failed.");
+  }
+
+  return payload.result as T;
 }
 
 type TokenApprovalRequirement = {
@@ -597,7 +628,14 @@ async function readTokenAllowance(
     return BigInt(allowanceResult || "0x0");
   } catch (error) {
     if (isUnsupportedMethodError(error)) {
-      throw new Error("Farcaster Wallet cannot verify USDC approval. Please try again.");
+      const allowanceResult = await publicRpcRequest<string>("eth_call", [
+        {
+          to: getAddress(tokenAddress),
+          data: allowanceCallData,
+        },
+        "latest",
+      ]);
+      return BigInt(allowanceResult || "0x0");
     }
     throw error;
   }
