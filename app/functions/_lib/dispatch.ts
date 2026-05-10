@@ -12,10 +12,7 @@
  *   - targetUrl must be a valid https URL
  */
 
-import {
-  sendNotificationResponseSchema,
-  type SendNotificationResponse,
-} from "@farcaster/miniapp-sdk";
+import { sendNotificationResponseSchema } from "@farcaster/miniapp-sdk";
 
 export type DispatchResult =
   | { state: "success" }
@@ -34,6 +31,58 @@ export interface DispatchOptions {
   title: string;
   body: string;
   targetUrl: string;
+}
+
+interface NotificationBuckets {
+  successfulTokens: string[];
+  invalidTokens: string[];
+  rateLimitedTokens: string[];
+  failedTokens: string[];
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function readTokenArray(value: unknown): string[] | null {
+  if (value === undefined) return [];
+  if (!Array.isArray(value)) return null;
+  return value.every((item) => typeof item === "string") ? value : null;
+}
+
+function readNotificationBuckets(responseJson: unknown): NotificationBuckets | null {
+  const source = isRecord(responseJson) && isRecord(responseJson.result)
+    ? responseJson.result
+    : isRecord(responseJson)
+    ? responseJson
+    : null;
+
+  if (!source) return null;
+
+  const successfulTokens = readTokenArray(source.successfulTokens);
+  const invalidTokens = readTokenArray(source.invalidTokens);
+  const rateLimitedTokens = readTokenArray(source.rateLimitedTokens);
+  const failedTokens = readTokenArray(source.failedTokens);
+
+  if (!successfulTokens || !invalidTokens || !rateLimitedTokens || !failedTokens) {
+    return null;
+  }
+
+  return {
+    successfulTokens,
+    invalidTokens,
+    rateLimitedTokens,
+    failedTokens,
+  };
+}
+
+function summarizeBuckets(buckets: NotificationBuckets): string {
+  return JSON.stringify({
+    successfulTokens: buckets.successfulTokens.length,
+    invalidTokens: buckets.invalidTokens.length,
+    rateLimitedTokens: buckets.rateLimitedTokens.length,
+    failedTokens: buckets.failedTokens.length,
+  });
 }
 
 /**
@@ -101,28 +150,38 @@ export async function dispatchNotification(
 
     if (response.status === 200) {
       const parsed = sendNotificationResponseSchema.safeParse(responseJson);
+      const buckets = readNotificationBuckets(responseJson);
 
-      if (!parsed.success) {
+      if (!parsed.success && !buckets) {
         result = { state: "failed", error: parsed.error.issues };
         attemptResult = "error";
         errorMessage = JSON.stringify(parsed.error.issues);
       } else {
-        const data: SendNotificationResponse = parsed.data;
+        const data = buckets ?? {
+          ...parsed.data!.result,
+          failedTokens: [],
+        };
 
-        if (data.result.invalidTokens.includes(notificationToken)) {
+        if (data.invalidTokens.includes(notificationToken)) {
           result = { state: "invalid_token" };
           attemptResult = "invalid";
-        } else if (data.result.rateLimitedTokens.includes(notificationToken)) {
+        } else if (data.rateLimitedTokens.includes(notificationToken)) {
           result = { state: "rate_limited" };
           attemptResult = "rate_limited";
-        } else if (data.result.successfulTokens.includes(notificationToken)) {
+        } else if (data.successfulTokens.includes(notificationToken)) {
           result = { state: "success" };
           attemptResult = "success";
+        } else if (data.failedTokens.includes(notificationToken)) {
+          const bucketSummary = summarizeBuckets(data);
+          result = { state: "failed", error: `failed_token:${bucketSummary}` };
+          attemptResult = "error";
+          errorMessage = `failed_token:${bucketSummary}`;
         } else {
           // Token appeared in unknown bucket
-          result = { state: "failed", error: "unknown_bucket" };
+          const bucketSummary = summarizeBuckets(data);
+          result = { state: "failed", error: `unknown_bucket:${bucketSummary}` };
           attemptResult = "error";
-          errorMessage = "unknown_bucket";
+          errorMessage = `unknown_bucket:${bucketSummary}`;
         }
       }
     } else {
