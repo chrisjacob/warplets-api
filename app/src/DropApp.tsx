@@ -1390,17 +1390,15 @@ export default function App() {
 
     try {
       if (action.slug === "drop-follow-fc-10xmeme") {
+        if (!alreadyCompleted) {
+          await completeRewardAction(action.slug, `opened:${new Date().toISOString()}`);
+        }
         await sdk.actions.viewProfile({ fid: 1313340 });
-        if (!alreadyCompleted) {
-          await wait(10000);
-          await completeRewardAction(action.slug, `opened:${new Date().toISOString()}`);
-        }
       } else if (action.slug === "drop-follow-fc-10xchris") {
-        await sdk.actions.viewProfile({ fid: 1129138 });
         if (!alreadyCompleted) {
-          await wait(10000);
           await completeRewardAction(action.slug, `opened:${new Date().toISOString()}`);
         }
+        await sdk.actions.viewProfile({ fid: 1129138 });
       } else if (action.slug === "drop-join-fc-channel") {
         await sdk.actions.openUrl("https://farcaster.xyz/~/channel/10xmeme");
         if (!alreadyCompleted) {
