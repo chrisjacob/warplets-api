@@ -83,21 +83,30 @@ type OpenSeaFulfillmentResponse = {
       function?: string;
       to?: string;
       value?: string | number;
+      data?: string;
+      input?: string;
       input_data?: unknown;
     };
   };
 };
 
+type OpenSeaFulfillmentTransaction = NonNullable<
+  NonNullable<OpenSeaFulfillmentResponse["fulfillment_data"]>["transaction"]
+>;
+
 type OpenSeaFulfillmentOrder = {
   parameters?: {
     offerer?: string;
     offer?: OpenSeaOfferItem[];
+    consideration?: OpenSeaConsiderationItem[];
     conduitKey?: string;
   };
 };
 
 type OpenSeaFulfillmentInputData = {
   orders?: OpenSeaFulfillmentOrder[];
+  fulfillerConduitKey?: string;
+  conduitKey?: string;
 };
 
 type OpenSeaBasicOrderInputData = {
@@ -368,6 +377,70 @@ function resolveApprovalSpender(conduitKey: string, seaportAddress: string): str
   throw new Error(`Unsupported OpenSea conduit key: ${conduitKey}`);
 }
 
+function getBasicOrderParameters(inputData: unknown): Record<string, unknown> | undefined {
+  const input = asObject(inputData);
+  const nested = asObject(input?.parameters);
+  if (nested && asString(nested.considerationToken)) return nested;
+  if (input && asString(input.considerationToken)) return input;
+  return undefined;
+}
+
+function getDirectFulfillmentOrder(inputData: unknown): {
+  parameters: Record<string, unknown>;
+  fulfillerConduitKey: string;
+} | undefined {
+  const input = asObject(inputData);
+  if (!input) return undefined;
+
+  const order = asObject(input.order);
+  const advancedOrder = asObject(input.advancedOrder);
+  const parameters = asObject(order?.parameters) ?? asObject(advancedOrder?.parameters);
+  if (!parameters || !Array.isArray(parameters.consideration)) return undefined;
+
+  return {
+    parameters,
+    fulfillerConduitKey: asString(input.fulfillerConduitKey) ?? asString(input.conduitKey) ?? ZERO_CONDUIT_KEY,
+  };
+}
+
+function addConsiderationApprovals(
+  consideration: unknown,
+  conduitKeyInput: string | undefined,
+  seaportAddress: string,
+  addApproval: (tokenAddress: string, spender: string, conduitKey: string, amount: bigint) => void
+): boolean {
+  if (!Array.isArray(consideration)) return false;
+
+  const conduitKey = normalizeBytes32(conduitKeyInput ?? ZERO_CONDUIT_KEY, "Fulfillment conduit key");
+  const spender = resolveApprovalSpender(conduitKey, seaportAddress);
+  let added = false;
+
+  for (const item of consideration) {
+    const considerationItem = asObject(item);
+    if (!considerationItem) continue;
+
+    const itemType = Number(considerationItem.itemType ?? 0);
+    if (!isCurrencyItem(itemType)) continue;
+    if (itemType !== 1) {
+      throw new Error("The OpenSea fulfillment payment item is not an ERC20 token");
+    }
+
+    const tokenAddress = normalizeAddress(asString(considerationItem.token), "Payment token");
+    if (tokenAddress !== BASE_USDC) {
+      throw new Error("The OpenSea fulfillment payment item is not Base USDC");
+    }
+
+    const amount = toBigIntValue(
+      asString(considerationItem.startAmount) ?? asString(considerationItem.endAmount),
+      0n
+    );
+    addApproval(tokenAddress, spender, conduitKey, amount);
+    if (amount > 0n) added = true;
+  }
+
+  return added;
+}
+
 function getFulfillmentApprovals(
   inputData: unknown,
   buyerAddress: string,
@@ -398,6 +471,8 @@ function getFulfillmentApprovals(
   };
 
   if (Array.isArray(orders)) {
+    let hasBuyerOfferApprovals = false;
+
     for (const order of orders) {
       const parameters = asObject(order?.parameters);
       const offerer = asString(parameters?.offerer)?.toLowerCase();
@@ -431,39 +506,68 @@ function getFulfillmentApprovals(
           0n
         );
         addApproval(tokenAddress, spender, conduitKey, amount);
+        if (amount > 0n) hasBuyerOfferApprovals = true;
       }
     }
-  } else {
-    const basicInput = asObject(inputData) as OpenSeaBasicOrderInputData | undefined;
-    const parameters = asObject(basicInput?.parameters);
-    if (!parameters) {
-      throw new Error("OpenSea fulfillment payload is missing supported order parameters");
-    }
 
-    const tokenAddress = normalizeAddress(asString(parameters.considerationToken), "Payment token");
-    if (tokenAddress !== BASE_USDC) {
-      throw new Error("The OpenSea fulfillment payment item is not Base USDC");
-    }
+    if (!hasBuyerOfferApprovals) {
+      const fulfillerConduitKey =
+        asString((fulfillmentInput as OpenSeaFulfillmentInputData | undefined)?.fulfillerConduitKey) ??
+        asString((fulfillmentInput as OpenSeaFulfillmentInputData | undefined)?.conduitKey) ??
+        ZERO_CONDUIT_KEY;
 
-    const conduitKey = normalizeBytes32(
-      asString(parameters.fulfillerConduitKey) ?? ZERO_CONDUIT_KEY,
-      "Fulfillment conduit key"
-    );
-    const spender = resolveApprovalSpender(conduitKey, seaportAddress);
-    let amount = toBigIntValue(
-      asString(parameters.considerationAmount) ?? (typeof parameters.considerationAmount === "number" ? parameters.considerationAmount : undefined),
-      0n
-    );
-    const additionalRecipients = parameters.additionalRecipients;
-    if (Array.isArray(additionalRecipients)) {
-      for (const recipient of additionalRecipients) {
-        amount += toBigIntValue(
-          asString(recipient.amount) ?? (typeof recipient.amount === "number" ? recipient.amount : undefined),
-          0n
+      for (const order of orders) {
+        const parameters = asObject(order?.parameters);
+        addConsiderationApprovals(
+          parameters?.consideration,
+          fulfillerConduitKey,
+          seaportAddress,
+          addApproval
         );
       }
     }
-    addApproval(tokenAddress, spender, conduitKey, amount);
+  } else {
+    const parameters = getBasicOrderParameters(inputData);
+    if (parameters) {
+      const tokenAddress = normalizeAddress(asString(parameters.considerationToken), "Payment token");
+      if (tokenAddress !== BASE_USDC) {
+        throw new Error("The OpenSea fulfillment payment item is not Base USDC");
+      }
+
+      const conduitKey = normalizeBytes32(
+        asString(parameters.fulfillerConduitKey) ?? ZERO_CONDUIT_KEY,
+        "Fulfillment conduit key"
+      );
+      const spender = resolveApprovalSpender(conduitKey, seaportAddress);
+      let amount = toBigIntValue(
+        asString(parameters.considerationAmount) ?? (typeof parameters.considerationAmount === "number" ? parameters.considerationAmount : undefined),
+        0n
+      );
+      const additionalRecipients = parameters.additionalRecipients;
+      if (Array.isArray(additionalRecipients)) {
+        for (const recipient of additionalRecipients) {
+          const recipientObject = asObject(recipient);
+          if (!recipientObject) continue;
+          amount += toBigIntValue(
+            asString(recipientObject.amount) ?? (typeof recipientObject.amount === "number" ? recipientObject.amount : undefined),
+            0n
+          );
+        }
+      }
+      addApproval(tokenAddress, spender, conduitKey, amount);
+    } else {
+      const directOrder = getDirectFulfillmentOrder(inputData);
+      if (!directOrder) {
+        throw new Error("OpenSea fulfillment payload is missing supported order parameters");
+      }
+
+      addConsiderationApprovals(
+        directOrder.parameters.consideration,
+        directOrder.fulfillerConduitKey,
+        seaportAddress,
+        addApproval
+      );
+    }
   }
 
   const result = Array.from(approvals.values()).map(({ amountBigInt, ...approval }) => approval);
@@ -472,6 +576,15 @@ function getFulfillmentApprovals(
   }
 
   return result;
+}
+
+function getFulfillmentCalldata(transaction: OpenSeaFulfillmentTransaction | undefined): string | null {
+  const direct = asString(transaction?.data) ?? asString(transaction?.input);
+  if (direct?.startsWith("0x")) return direct;
+
+  const inputData = asObject(transaction?.input_data);
+  const nested = asString(inputData?.data) ?? asString(inputData?.input);
+  return nested?.startsWith("0x") ? nested : null;
 }
 
 
@@ -607,6 +720,7 @@ async function handleRequest(context: Parameters<PagesFunction<Env>>[0]): Promis
   const fulfillmentTx = fulfillmentData.fulfillment_data?.transaction;
   const fulfillmentTo = fulfillmentTx?.to?.trim().toLowerCase() || seaportAddress;
   const fulfillmentValue = toBigIntValue(fulfillmentTx?.value, 0n);
+  const fulfillmentCalldata = getFulfillmentCalldata(fulfillmentTx);
   let approvals: ApprovalRequirement[];
   try {
     approvals = getFulfillmentApprovals(fulfillmentTx?.input_data, buyerAddress, seaportAddress);
@@ -645,6 +759,7 @@ async function handleRequest(context: Parameters<PagesFunction<Env>>[0]): Promis
       to: fulfillmentTo,
       value: `0x${fulfillmentValue.toString(16)}`,
       function: fulfillmentTx?.function ?? null,
+      data: fulfillmentCalldata,
       inputData: fulfillmentTx?.input_data ?? null,
     },
   });

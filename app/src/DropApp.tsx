@@ -162,6 +162,7 @@ type BuyQuoteResponse = {
     to: string;
     value: `0x${string}`;
     function?: string | null;
+    data?: `0x${string}` | null;
     inputData?: unknown;
   };
 };
@@ -201,6 +202,11 @@ type ContractOrderParameters = {
   salt: bigint;
   conduitKey: `0x${string}`;
   totalOriginalConsiderationItems: bigint;
+};
+
+type ContractOrder = {
+  parameters: ContractOrderParameters;
+  signature: `0x${string}`;
 };
 
 type AdvancedOrder = {
@@ -275,6 +281,29 @@ type RawBasicOrderInput = {
     }>;
     signature: string;
   };
+};
+
+type RawFulfillOrderInput = {
+  order?: {
+    parameters: RawOrderParameters;
+    signature: string;
+  };
+  fulfillerConduitKey?: string;
+  conduitKey?: string;
+};
+
+type RawFulfillAdvancedOrderInput = {
+  advancedOrder?: {
+    parameters: RawOrderParameters;
+    numerator: number | string;
+    denominator: number | string;
+    signature: string;
+    extraData: string;
+  };
+  criteriaResolvers?: RawFulfillmentInput["criteriaResolvers"];
+  fulfillerConduitKey?: string;
+  conduitKey?: string;
+  recipient?: string;
 };
 
 type BasicOrderParameters = {
@@ -436,6 +465,135 @@ const FULFILL_BASIC_ORDER_ABI = [
   },
 ] as const;
 
+const FULFILL_ORDER_ABI = [
+  {
+    type: "function",
+    name: "fulfillOrder",
+    stateMutability: "payable",
+    inputs: [
+      {
+        name: "order",
+        type: "tuple",
+        components: [
+          {
+            name: "parameters",
+            type: "tuple",
+            components: [
+              { name: "offerer", type: "address" },
+              { name: "zone", type: "address" },
+              {
+                name: "offer",
+                type: "tuple[]",
+                components: [
+                  { name: "itemType", type: "uint8" },
+                  { name: "token", type: "address" },
+                  { name: "identifierOrCriteria", type: "uint256" },
+                  { name: "startAmount", type: "uint256" },
+                  { name: "endAmount", type: "uint256" },
+                ],
+              },
+              {
+                name: "consideration",
+                type: "tuple[]",
+                components: [
+                  { name: "itemType", type: "uint8" },
+                  { name: "token", type: "address" },
+                  { name: "identifierOrCriteria", type: "uint256" },
+                  { name: "startAmount", type: "uint256" },
+                  { name: "endAmount", type: "uint256" },
+                  { name: "recipient", type: "address" },
+                ],
+              },
+              { name: "orderType", type: "uint8" },
+              { name: "startTime", type: "uint256" },
+              { name: "endTime", type: "uint256" },
+              { name: "zoneHash", type: "bytes32" },
+              { name: "salt", type: "uint256" },
+              { name: "conduitKey", type: "bytes32" },
+              { name: "totalOriginalConsiderationItems", type: "uint256" },
+            ],
+          },
+          { name: "signature", type: "bytes" },
+        ],
+      },
+      { name: "fulfillerConduitKey", type: "bytes32" },
+    ],
+    outputs: [{ name: "fulfilled", type: "bool" }],
+  },
+] as const;
+
+const FULFILL_ADVANCED_ORDER_ABI = [
+  {
+    type: "function",
+    name: "fulfillAdvancedOrder",
+    stateMutability: "payable",
+    inputs: [
+      {
+        name: "advancedOrder",
+        type: "tuple",
+        components: [
+          {
+            name: "parameters",
+            type: "tuple",
+            components: [
+              { name: "offerer", type: "address" },
+              { name: "zone", type: "address" },
+              {
+                name: "offer",
+                type: "tuple[]",
+                components: [
+                  { name: "itemType", type: "uint8" },
+                  { name: "token", type: "address" },
+                  { name: "identifierOrCriteria", type: "uint256" },
+                  { name: "startAmount", type: "uint256" },
+                  { name: "endAmount", type: "uint256" },
+                ],
+              },
+              {
+                name: "consideration",
+                type: "tuple[]",
+                components: [
+                  { name: "itemType", type: "uint8" },
+                  { name: "token", type: "address" },
+                  { name: "identifierOrCriteria", type: "uint256" },
+                  { name: "startAmount", type: "uint256" },
+                  { name: "endAmount", type: "uint256" },
+                  { name: "recipient", type: "address" },
+                ],
+              },
+              { name: "orderType", type: "uint8" },
+              { name: "startTime", type: "uint256" },
+              { name: "endTime", type: "uint256" },
+              { name: "zoneHash", type: "bytes32" },
+              { name: "salt", type: "uint256" },
+              { name: "conduitKey", type: "bytes32" },
+              { name: "totalOriginalConsiderationItems", type: "uint256" },
+            ],
+          },
+          { name: "numerator", type: "uint120" },
+          { name: "denominator", type: "uint120" },
+          { name: "signature", type: "bytes" },
+          { name: "extraData", type: "bytes" },
+        ],
+      },
+      {
+        name: "criteriaResolvers",
+        type: "tuple[]",
+        components: [
+          { name: "orderIndex", type: "uint256" },
+          { name: "side", type: "uint8" },
+          { name: "index", type: "uint256" },
+          { name: "identifier", type: "uint256" },
+          { name: "criteriaProof", type: "bytes32[]" },
+        ],
+      },
+      { name: "fulfillerConduitKey", type: "bytes32" },
+      { name: "recipient", type: "address" },
+    ],
+    outputs: [{ name: "fulfilled", type: "bool" }],
+  },
+] as const;
+
 function toBigInt(value: string | number | bigint | undefined, fallback = 0n): bigint {
   if (typeof value === "bigint") return value;
   if (typeof value === "number") return BigInt(value);
@@ -472,25 +630,45 @@ function rawToContractOrderParameters(params: RawOrderParameters): ContractOrder
   };
 }
 
-function buildMatchAdvancedOrdersArgs(
-  inputData: RawFulfillmentInput,
-  fallbackRecipient: Address
-): [AdvancedOrder[], CriteriaResolver[], Fulfillment[], Address] {
-  const orders: AdvancedOrder[] = inputData.orders.map(order => ({
+function rawToContractOrder(order: { parameters: RawOrderParameters; signature: string }): ContractOrder {
+  return {
+    parameters: rawToContractOrderParameters(order.parameters),
+    signature: (order.signature || "0x") as `0x${string}`,
+  };
+}
+
+function rawToAdvancedOrder(order: {
+  parameters: RawOrderParameters;
+  numerator?: number | string;
+  denominator?: number | string;
+  signature?: string;
+  extraData?: string;
+}): AdvancedOrder {
+  return {
     parameters: rawToContractOrderParameters(order.parameters),
     numerator: toBigInt(order.numerator, 1n),
     denominator: toBigInt(order.denominator, 1n),
     signature: (order.signature || "0x") as `0x${string}`,
     extraData: (order.extraData || "0x") as `0x${string}`,
-  }));
+  };
+}
 
-  const criteriaResolvers: CriteriaResolver[] = (inputData.criteriaResolvers ?? []).map(resolver => ({
+function rawToCriteriaResolvers(resolvers: RawFulfillmentInput["criteriaResolvers"] | undefined): CriteriaResolver[] {
+  return (resolvers ?? []).map(resolver => ({
     orderIndex: toBigInt(resolver.orderIndex),
     side: Number(resolver.side),
     index: toBigInt(resolver.index),
     identifier: toBigInt(resolver.identifier),
     criteriaProof: (resolver.criteriaProof ?? []) as `0x${string}`[],
   }));
+}
+
+function buildMatchAdvancedOrdersArgs(
+  inputData: RawFulfillmentInput,
+  fallbackRecipient: Address
+): [AdvancedOrder[], CriteriaResolver[], Fulfillment[], Address] {
+  const orders: AdvancedOrder[] = inputData.orders.map(rawToAdvancedOrder);
+  const criteriaResolvers = rawToCriteriaResolvers(inputData.criteriaResolvers);
 
   const fulfillments: Fulfillment[] = (inputData.fulfillments ?? []).map(f => ({
     offerComponents: (f.offerComponents ?? []).map(c => ({
@@ -672,7 +850,8 @@ async function waitForTransactionReceipt(
 }
 
 function buildBasicOrderParameters(inputData: RawBasicOrderInput): BasicOrderParameters {
-  const params = inputData.parameters;
+  const unwrapped = inputData as RawBasicOrderInput["parameters"] | undefined;
+  const params = inputData.parameters ?? (unwrapped?.considerationToken ? unwrapped : undefined);
   if (!params) {
     throw new Error("OpenSea fulfillment payload is missing basic order parameters.");
   }
@@ -710,6 +889,32 @@ function buildOpenSeaFulfillmentData(inputData: unknown, fallbackRecipient: Addr
       abi: MATCH_ADVANCED_ORDERS_ABI,
       functionName: "matchAdvancedOrders",
       args: matchAdvancedOrdersArgs,
+    });
+  }
+
+  const fulfillOrderInput = inputData as RawFulfillOrderInput | undefined;
+  if (fulfillOrderInput?.order?.parameters) {
+    return encodeFunctionData({
+      abi: FULFILL_ORDER_ABI,
+      functionName: "fulfillOrder",
+      args: [
+        rawToContractOrder(fulfillOrderInput.order),
+        (fulfillOrderInput.fulfillerConduitKey || fulfillOrderInput.conduitKey || "0x0000000000000000000000000000000000000000000000000000000000000000") as `0x${string}`,
+      ],
+    });
+  }
+
+  const fulfillAdvancedOrderInput = inputData as RawFulfillAdvancedOrderInput | undefined;
+  if (fulfillAdvancedOrderInput?.advancedOrder?.parameters) {
+    return encodeFunctionData({
+      abi: FULFILL_ADVANCED_ORDER_ABI,
+      functionName: "fulfillAdvancedOrder",
+      args: [
+        rawToAdvancedOrder(fulfillAdvancedOrderInput.advancedOrder),
+        rawToCriteriaResolvers(fulfillAdvancedOrderInput.criteriaResolvers),
+        (fulfillAdvancedOrderInput.fulfillerConduitKey || fulfillAdvancedOrderInput.conduitKey || "0x0000000000000000000000000000000000000000000000000000000000000000") as `0x${string}`,
+        getAddress(fulfillAdvancedOrderInput.recipient || fallbackRecipient),
+      ],
     });
   }
 
@@ -2034,7 +2239,7 @@ export default function App() {
 
         const quote = (await quoteRes.json()) as BuyQuoteResponse;
 
-        if (!quote.transaction.inputData) {
+        if (!quote.transaction.data && !quote.transaction.inputData) {
           throw new Error("The listing is missing OpenSea fulfillment data.");
         }
 
@@ -2052,7 +2257,10 @@ export default function App() {
 
         await ensureChain(provider, quote.transaction.chainIdHex || BASE_CHAIN_CONFIG.chainId);
 
-        const fulfillmentData = buildOpenSeaFulfillmentData(quote.transaction.inputData, activeAccount);
+        const fulfillmentData =
+          quote.transaction.data && quote.transaction.data.startsWith("0x")
+            ? quote.transaction.data
+            : buildOpenSeaFulfillmentData(quote.transaction.inputData, activeAccount);
 
         const approvals =
           Array.isArray(quote.approvals) && quote.approvals.length > 0
