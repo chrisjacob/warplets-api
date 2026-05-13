@@ -11,6 +11,7 @@ import {
 
 const FARCASTER_MINI_APP_URL = "https://farcaster.xyz/miniapps/uR3Rzs-k6AnV/10x/stop";
 const CRYING_WARPLET_URL = "https://warplets.10x.meme/3081.png";
+const QUICK_AUTH_TIMEOUT_MS = 12000;
 
 type StopStatus = {
   fid: number;
@@ -35,6 +36,19 @@ async function readError(response: Response): Promise<string> {
   return `Request failed with ${response.status}`;
 }
 
+async function withTimeout<T>(promise: Promise<T>, message: string, timeoutMs = QUICK_AUTH_TIMEOUT_MS): Promise<T> {
+  let timeoutId: number | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timeoutId = window.setTimeout(() => reject(new Error(message)), timeoutMs);
+  });
+
+  try {
+    return await Promise.race([promise, timeout]);
+  } finally {
+    if (timeoutId !== undefined) window.clearTimeout(timeoutId);
+  }
+}
+
 export default function StopApp() {
   const [inMiniApp, setInMiniApp] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -45,7 +59,10 @@ export default function StopApp() {
 
   const loadStatus = async () => {
     setError("");
-    const response = await sdk.quickAuth.fetch("/api/outreach/stop");
+    const response = await withTimeout(
+      sdk.quickAuth.fetch("/api/outreach/stop"),
+      "Farcaster verification did not finish. Please close and reopen the Mini App, then try again."
+    );
     if (!response.ok) throw new Error(await readError(response));
     setStatus((await response.json()) as StopStatus);
   };
@@ -77,11 +94,14 @@ export default function StopApp() {
     setSubmitting(true);
     setError("");
     try {
-      const response = await sdk.quickAuth.fetch("/api/outreach/stop", {
-        method: nextOptedOut ? "POST" : "DELETE",
-        headers: nextOptedOut ? { "content-type": "application/json" } : undefined,
-        body: nextOptedOut ? JSON.stringify({}) : undefined,
-      });
+      const response = await withTimeout(
+        sdk.quickAuth.fetch("/api/outreach/stop", {
+          method: nextOptedOut ? "POST" : "DELETE",
+          headers: nextOptedOut ? { "content-type": "application/json" } : undefined,
+          body: nextOptedOut ? JSON.stringify({}) : undefined,
+        }),
+        "Farcaster verification did not finish. Please close and reopen the Mini App, then try again."
+      );
       if (!response.ok) throw new Error(await readError(response));
       setStatus((await response.json()) as StopStatus);
     } catch (err) {
@@ -176,7 +196,7 @@ export default function StopApp() {
                 Check @mention settings
               </button>
               <Text className="mt-4 text-sm leading-relaxed" style={{ color: "#b7ffb7" }}>
-                Open in Farcaster so we can verify your FID before changing @mention settings.
+                Tap to verify your FID before changing @mention settings.
               </Text>
             </>
           ) : status.optedOut ? (
