@@ -83,6 +83,10 @@ const OUTREACH_CANDIDATES_CACHE_TTL_SECONDS = 600;
 const OUTREACH_LIMIT = 5;
 const OUTREACH_POOL_LIMIT = 25;
 const OUTREACH_COOLDOWN_MS = 24 * 60 * 60 * 1000;
+const WARPLETS_DROP_LIVE_AT_MS = Date.UTC(2026, 4, 1, 0, 1, 0);
+const WARPLETS_PUBLIC_TRANCHE_MS = 10 * 24 * 60 * 60 * 1000;
+const WARPLETS_PUBLIC_TRANCHE_SIZE = 1000;
+const WARPLETS_TOTAL_SUPPLY = 10000;
 const TOP_REFERRERS_CACHE_PREFIX = "top-referrers-v1";
 const TOP_REFERRERS_CACHE_TTL_SECONDS = 600;
 let usersColumnSetPromise: Promise<Set<string>> | null = null;
@@ -576,8 +580,25 @@ function normalizeXUsernameForMention(raw: unknown): string | null {
   return `@${trimmed}`;
 }
 
+function getOutreachTokenRange(nowMs = Date.now()): { minTokenId: number; maxTokenId: number } {
+  const elapsedMs = Math.max(0, nowMs - WARPLETS_DROP_LIVE_AT_MS);
+  const publicTranches = Math.min(
+    Math.floor(elapsedMs / WARPLETS_PUBLIC_TRANCHE_MS),
+    WARPLETS_TOTAL_SUPPLY / WARPLETS_PUBLIC_TRANCHE_SIZE
+  );
+  // Public release starts from the highest token IDs: day 10 makes 9001-10000 public.
+  const maxPrivateTokenId = WARPLETS_TOTAL_SUPPLY - publicTranches * WARPLETS_PUBLIC_TRANCHE_SIZE;
+
+  if (maxPrivateTokenId <= 0) {
+    return { minTokenId: 1, maxTokenId: WARPLETS_TOTAL_SUPPLY };
+  }
+
+  return { minTokenId: 1, maxTokenId: maxPrivateTokenId };
+}
+
 async function loadOutreachCandidates(db: D1Database, userId: number): Promise<OutreachCandidate> {
   const cutoff = new Date(Date.now() - OUTREACH_COOLDOWN_MS).toISOString();
+  const outreachTokenRange = getOutreachTokenRange();
 
   const friendRows = await db
     .prepare(
@@ -590,10 +611,11 @@ async function loadOutreachCandidates(db: D1Database, userId: number): Promise<O
        FROM warplets_user_best_friends_warplet wubfw
        JOIN warplets_metadata wm
          ON wm.token_id = wubfw.warplet_token_id
-       WHERE wubfw.user_id = ?
-         AND wubfw.username IS NOT NULL
-         AND TRIM(wubfw.username) <> ''
-         AND (wm.last_outreach_on IS NULL OR wm.last_outreach_on <= ?)
+        WHERE wubfw.user_id = ?
+          AND wubfw.username IS NOT NULL
+          AND TRIM(wubfw.username) <> ''
+          AND wm.token_id BETWEEN ? AND ?
+          AND (wm.last_outreach_on IS NULL OR wm.last_outreach_on <= ?)
          AND NOT EXISTS (
            SELECT 1
            FROM warplets_outreach_opt_outs oo
@@ -607,9 +629,9 @@ async function loadOutreachCandidates(db: D1Database, userId: number): Promise<O
              AND (wu.buy_in_opensea_on IS NOT NULL OR wu.buy_in_farcaster_wallet_on IS NOT NULL)
          )
        ORDER BY wubfw.mutual_affinity_score DESC
-       LIMIT ?`
+        LIMIT ?`
     )
-    .bind(userId, cutoff, OUTREACH_POOL_LIMIT)
+    .bind(userId, outreachTokenRange.minTokenId, outreachTokenRange.maxTokenId, cutoff, OUTREACH_POOL_LIMIT)
     .all<{
       username: unknown;
       warplet_token_id: unknown;
@@ -645,6 +667,7 @@ async function loadOutreachCandidates(db: D1Database, userId: number): Promise<O
         `SELECT wm.warplet_username_farcaster, wm.warplet_username_x, wm.token_id, wm.fid_value
          FROM warplets_metadata wm
          WHERE (wm.last_outreach_on IS NULL OR wm.last_outreach_on <= ?)
+           AND wm.token_id BETWEEN ? AND ?
            AND wm.warplet_username_farcaster IS NOT NULL
            AND TRIM(wm.warplet_username_farcaster) <> ''
            AND wm.fid_value IS NOT NULL
@@ -666,9 +689,9 @@ async function loadOutreachCandidates(db: D1Database, userId: number): Promise<O
              WHERE user_id = ?
            )
          ORDER BY wm.token_id DESC
-         LIMIT ?`
+          LIMIT ?`
       )
-      .bind(cutoff, userId, needed)
+      .bind(cutoff, outreachTokenRange.minTokenId, outreachTokenRange.maxTokenId, userId, needed)
       .all<{ warplet_username_farcaster: unknown; warplet_username_x: unknown; token_id: unknown; fid_value: unknown }>();
 
     for (const row of nonFriendRows.results ?? []) {
@@ -741,11 +764,13 @@ async function revalidateCachedOutreachRecipients(db: D1Database, recipients: Ou
   const tokenIds = limitedRecipients.map((recipient) => recipient.tokenId);
   const placeholders = tokenIds.map(() => "?").join(", ");
   const cutoff = new Date(Date.now() - OUTREACH_COOLDOWN_MS).toISOString();
+  const outreachTokenRange = getOutreachTokenRange();
   const allowedRows = await db
     .prepare(
       `SELECT wm.token_id
        FROM warplets_metadata wm
        WHERE wm.token_id IN (${placeholders})
+         AND wm.token_id BETWEEN ? AND ?
          AND (wm.last_outreach_on IS NULL OR wm.last_outreach_on <= ?)
          AND NOT EXISTS (
            SELECT 1
@@ -760,7 +785,7 @@ async function revalidateCachedOutreachRecipients(db: D1Database, recipients: Ou
              AND (wu.buy_in_opensea_on IS NOT NULL OR wu.buy_in_farcaster_wallet_on IS NOT NULL)
          )`
     )
-    .bind(...tokenIds, cutoff)
+    .bind(...tokenIds, outreachTokenRange.minTokenId, outreachTokenRange.maxTokenId, cutoff)
     .all<{ token_id: unknown }>();
 
   const allowedTokenIds = new Set(
