@@ -80,6 +80,7 @@ type OpenSeaListing = {
 type OpenSeaFulfillmentResponse = {
   fulfillment_data?: {
     transaction?: {
+      function?: string;
       to?: string;
       value?: string | number;
       input_data?: unknown;
@@ -97,6 +98,18 @@ type OpenSeaFulfillmentOrder = {
 
 type OpenSeaFulfillmentInputData = {
   orders?: OpenSeaFulfillmentOrder[];
+};
+
+type OpenSeaBasicOrderInputData = {
+  parameters?: {
+    considerationToken?: string;
+    considerationAmount?: string | number;
+    fulfillerConduitKey?: string;
+    additionalRecipients?: Array<{
+      amount?: string | number;
+      recipient?: string;
+    }>;
+  };
 };
 
 type ApprovalRequirement = {
@@ -362,62 +375,95 @@ function getFulfillmentApprovals(
 ): ApprovalRequirement[] {
   const fulfillmentInput = asObject(inputData) as OpenSeaFulfillmentInputData | undefined;
   const orders = fulfillmentInput?.orders;
-  if (!Array.isArray(orders)) {
-    throw new Error("OpenSea fulfillment payload is missing orders");
-  }
 
   const buyer = buyerAddress.toLowerCase();
   const approvals = new Map<string, ApprovalRequirement & { amountBigInt: bigint }>();
 
-  for (const order of orders) {
-    const parameters = asObject(order?.parameters);
-    const offerer = asString(parameters?.offerer)?.toLowerCase();
-    if (offerer !== buyer) continue;
+  const addApproval = (tokenAddress: string, spender: string, conduitKey: string, amount: bigint) => {
+    if (amount <= 0n) return;
+    const key = `${tokenAddress}:${spender}:${conduitKey}`;
+    const existing = approvals.get(key);
+    if (existing) {
+      existing.amountBigInt += amount;
+      existing.amount = existing.amountBigInt.toString();
+    } else {
+      approvals.set(key, {
+        tokenAddress,
+        spender,
+        amount: amount.toString(),
+        conduitKey,
+        amountBigInt: amount,
+      });
+    }
+  };
+
+  if (Array.isArray(orders)) {
+    for (const order of orders) {
+      const parameters = asObject(order?.parameters);
+      const offerer = asString(parameters?.offerer)?.toLowerCase();
+      if (offerer !== buyer) continue;
+
+      const conduitKey = normalizeBytes32(
+        asString(parameters?.conduitKey) ?? ZERO_CONDUIT_KEY,
+        "Fulfillment conduit key"
+      );
+      const spender = resolveApprovalSpender(conduitKey, seaportAddress);
+      const offer = parameters?.offer;
+      if (!Array.isArray(offer)) continue;
+
+      for (const item of offer) {
+        const offerItem = asObject(item);
+        if (!offerItem) continue;
+
+        const itemType = Number(offerItem.itemType ?? 0);
+        if (!isCurrencyItem(itemType)) continue;
+        if (itemType !== 1) {
+          throw new Error("The OpenSea fulfillment payment item is not an ERC20 token");
+        }
+
+        const tokenAddress = normalizeAddress(asString(offerItem.token), "Payment token");
+        if (tokenAddress !== BASE_USDC) {
+          throw new Error("The OpenSea fulfillment payment item is not Base USDC");
+        }
+
+        const amount = toBigIntValue(
+          asString(offerItem.startAmount) ?? asString(offerItem.endAmount),
+          0n
+        );
+        addApproval(tokenAddress, spender, conduitKey, amount);
+      }
+    }
+  } else {
+    const basicInput = asObject(inputData) as OpenSeaBasicOrderInputData | undefined;
+    const parameters = asObject(basicInput?.parameters);
+    if (!parameters) {
+      throw new Error("OpenSea fulfillment payload is missing supported order parameters");
+    }
+
+    const tokenAddress = normalizeAddress(asString(parameters.considerationToken), "Payment token");
+    if (tokenAddress !== BASE_USDC) {
+      throw new Error("The OpenSea fulfillment payment item is not Base USDC");
+    }
 
     const conduitKey = normalizeBytes32(
-      asString(parameters?.conduitKey) ?? ZERO_CONDUIT_KEY,
+      asString(parameters.fulfillerConduitKey) ?? ZERO_CONDUIT_KEY,
       "Fulfillment conduit key"
     );
     const spender = resolveApprovalSpender(conduitKey, seaportAddress);
-    const offer = parameters?.offer;
-    if (!Array.isArray(offer)) continue;
-
-    for (const item of offer) {
-      const offerItem = asObject(item);
-      if (!offerItem) continue;
-
-      const itemType = Number(offerItem.itemType ?? 0);
-      if (!isCurrencyItem(itemType)) continue;
-      if (itemType !== 1) {
-        throw new Error("The OpenSea fulfillment payment item is not an ERC20 token");
-      }
-
-      const tokenAddress = normalizeAddress(asString(offerItem.token), "Payment token");
-      if (tokenAddress !== BASE_USDC) {
-        throw new Error("The OpenSea fulfillment payment item is not Base USDC");
-      }
-
-      const amount = toBigIntValue(
-        asString(offerItem.startAmount) ?? asString(offerItem.endAmount),
-        0n
-      );
-      if (amount <= 0n) continue;
-
-      const key = `${tokenAddress}:${spender}:${conduitKey}`;
-      const existing = approvals.get(key);
-      if (existing) {
-        existing.amountBigInt += amount;
-        existing.amount = existing.amountBigInt.toString();
-      } else {
-        approvals.set(key, {
-          tokenAddress,
-          spender,
-          amount: amount.toString(),
-          conduitKey,
-          amountBigInt: amount,
-        });
+    let amount = toBigIntValue(
+      asString(parameters.considerationAmount) ?? (typeof parameters.considerationAmount === "number" ? parameters.considerationAmount : undefined),
+      0n
+    );
+    const additionalRecipients = parameters.additionalRecipients;
+    if (Array.isArray(additionalRecipients)) {
+      for (const recipient of additionalRecipients) {
+        amount += toBigIntValue(
+          asString(recipient.amount) ?? (typeof recipient.amount === "number" ? recipient.amount : undefined),
+          0n
+        );
       }
     }
+    addApproval(tokenAddress, spender, conduitKey, amount);
   }
 
   const result = Array.from(approvals.values()).map(({ amountBigInt, ...approval }) => approval);
@@ -598,6 +644,7 @@ async function handleRequest(context: Parameters<PagesFunction<Env>>[0]): Promis
       chainIdHex: BASE_CHAIN_ID_HEX,
       to: fulfillmentTo,
       value: `0x${fulfillmentValue.toString(16)}`,
+      function: fulfillmentTx?.function ?? null,
       inputData: fulfillmentTx?.input_data ?? null,
     },
   });

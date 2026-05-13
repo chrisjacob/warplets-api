@@ -205,12 +205,20 @@ async function openApp(appSlug: AppSlug) {
   }
 }
 
+async function openMiniAppUrl(url: string) {
+  window.location.href = url;
+}
+
 async function runMenuCardAction(card: MenuCard) {
   if (card.disabled) return;
   void hapticTap();
   void hapticSelectionChanged();
 
   if (card.kind === "miniapp" && card.appSlug) {
+    if (card.href) {
+      await openMiniAppUrl(card.href);
+      return;
+    }
     await openApp(card.appSlug);
     return;
   }
@@ -500,6 +508,7 @@ function MenuSection({
 }
 
 export function MiniAppMenuPage({ appSlug }: { appSlug: AppSlug }) {
+  const appBaseUrl = getAppUrl("app").replace(/\/$/, "");
   const miniAppCards: MenuCard[] = ["app", "drop"].map((slug) => {
     const config = APP_CONFIGS[slug as AppSlug];
     const isCurrent = appSlug === config.slug;
@@ -618,11 +627,35 @@ export function MiniAppMenuPage({ appSlug }: { appSlug: AppSlug }) {
     },
   ];
 
+  const optOutCards: MenuCard[] = [
+    {
+      id: "site-10x-stop",
+      title: "Stop @Mentions",
+      description: "Stop getting @mentions in 10X outreach casts/tweets.",
+      imageUrl: "/menu/menu-10x-website.png",
+      ctaLabel: "Stop @Mentions",
+      kind: "miniapp",
+      appSlug: "app",
+      href: `${appBaseUrl}/stop`,
+    },
+    {
+      id: "site-10x-unsubscribe",
+      title: "Unsubscribe from Emails",
+      description: "Stop getting emails from us.",
+      imageUrl: "/menu/menu-10x-website.png",
+      ctaLabel: "Unsubscribe from Emails",
+      kind: "miniapp",
+      appSlug: "app",
+      href: `${appBaseUrl}/unsubscribe`,
+    },
+  ];
+
   return (
     <div className="miniapp-menu-page">
       <MenuSection title="Mini Apps" cards={miniAppCards} />
       <MenuSection title="Social" cards={socialCards} />
       <MenuSection title="Links" cards={linkCards} />
+      <MenuSection title="Settings" cards={optOutCards} />
     </div>
   );
 }

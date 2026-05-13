@@ -11,12 +11,15 @@ const DROP_SHARE_DESCRIPTION =
   "Price increases by $10 every 10 days. Private supply goes public every 10 days. Are you on the list? Don't miss out. ";
 const DEFAULT_DROP_SHARE_IMAGE_URL = "https://warplets.10x.meme/760.gif";
 const DROP_ICON_URL = "https://drop.10x.meme/icon_drop.png";
+const STOP_SHARE_TITLE = "@Mention Settings";
+const STOP_SHARE_DESCRIPTION = "Opt out of 10X outreach mentions in the Farcaster Mini App.";
+const STOP_IMAGE_URL = "https://warplets.10x.meme/3081.png";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, "..");
 
 let localFidToTokenId: Map<string, string> | undefined;
 
-type RouteKey = "root" | "drop" | "find" | "million";
+type RouteKey = "root" | "drop" | "find" | "million" | "stop";
 
 function matchesHost(hostname: string, ...candidates: string[]): boolean {
   return candidates.includes(hostname);
@@ -30,6 +33,7 @@ function getRouteKey(pathname: string, hostname?: string): RouteKey {
   if (cleanPath === "/drop" || cleanPath.startsWith("/drop/")) return "drop";
   if (cleanPath === "/find" || cleanPath.startsWith("/find/")) return "find";
   if (cleanPath === "/million" || cleanPath.startsWith("/million/")) return "million";
+  if (cleanPath === "/stop" || cleanPath.startsWith("/stop/")) return "stop";
   return "root";
 }
 
@@ -55,6 +59,14 @@ function getMiniAppConfig(routeKey: RouteKey): { title: string; name: string; pa
       title: "Open $1M Warplet",
       name: "$1M Warplet",
       path: "/million",
+    };
+  }
+
+  if (routeKey === "stop") {
+    return {
+      title: "Open 10X",
+      name: "10X",
+      path: "/stop",
     };
   }
 
@@ -178,6 +190,7 @@ function getLaunchPath(routeKey: RouteKey, hostname: string): string {
   if (routeKey === "drop") return "/drop";
   if (routeKey === "find") return "/find";
   if (routeKey === "million") return "/million";
+  if (routeKey === "stop") return "/stop";
   return "/";
 }
 
@@ -203,7 +216,34 @@ function buildDropOpenGraphTags(imageUrl: string, pageUrl: string): string {
   ].join("\n    ");
 }
 
+function buildStopOpenGraphTags(pageUrl: string): string {
+  const title = escapeHtmlAttr(STOP_SHARE_TITLE);
+  const description = escapeHtmlAttr(STOP_SHARE_DESCRIPTION);
+  const image = escapeHtmlAttr(STOP_IMAGE_URL);
+  const url = escapeHtmlAttr(pageUrl);
+
+  return [
+    `<meta property="og:title" content="${title}" />`,
+    `<meta property="og:description" content="${description}" />`,
+    `<meta property="og:url" content="${url}" />`,
+    `<meta property="og:type" content="website" />`,
+    `<meta property="og:image" content="${image}" />`,
+    `<meta property="og:image:secure_url" content="${image}" />`,
+    `<meta name="twitter:card" content="summary_large_image" />`,
+    `<meta name="twitter:title" content="${title}" />`,
+    `<meta name="twitter:description" content="${description}" />`,
+    `<meta name="twitter:image" content="${image}" />`,
+  ].join("\n    ");
+}
+
 const localApiTarget = process.env.VITE_LOCAL_API_TARGET?.trim() || "http://127.0.0.1:8789";
+const MINIAPP_FRAME_ANCESTORS = [
+  "'self'",
+  "https://farcaster.xyz",
+  "https://*.farcaster.xyz",
+  "https://warpcast.com",
+  "https://*.warpcast.com",
+].join(" ");
 
 export default defineConfig({
   build: {
@@ -215,6 +255,20 @@ export default defineConfig({
     {
       name: "miniapp-meta-query-pass-through",
       apply: "serve",
+      configureServer(server) {
+        server.middlewares.use((_, res, next) => {
+          res.removeHeader("x-frame-options");
+          res.removeHeader("X-Frame-Options");
+          const originalWriteHead = res.writeHead;
+          res.writeHead = function writeHeadWithoutXFrameOptions(...args: Parameters<typeof originalWriteHead>) {
+            res.removeHeader("x-frame-options");
+            res.removeHeader("X-Frame-Options");
+            res.setHeader("content-security-policy", `frame-ancestors ${MINIAPP_FRAME_ANCESTORS}`);
+            return originalWriteHead.apply(this, args);
+          };
+          next();
+        });
+      },
       transformIndexHtml(html, ctx) {
         const reqUrl = ctx?.originalUrl ?? ctx?.path ?? "/";
         const reqPath = reqUrl.includes("?") ? reqUrl.slice(0, reqUrl.indexOf("?")) : reqUrl;
@@ -228,12 +282,13 @@ export default defineConfig({
         const launchBase = launchPath === "/" ? `${baseUrl}/` : `${baseUrl}${launchPath}`;
         const dropShareImageUrl =
           routeKey === "drop" ? getLocalDropShareImageUrl(query) : undefined;
+        const routeImageUrl = routeKey === "stop" ? STOP_IMAGE_URL : dropShareImageUrl;
         const splashImageUrl =
           routeKey === "drop" ? `${baseUrl}/splash_drop.png` : `${baseUrl}/splash.png`;
 
         const payload = {
           version: "1",
-          imageUrl: dropShareImageUrl ?? `${baseUrl}/embed.png`,
+          imageUrl: routeImageUrl ?? `${baseUrl}/embed.png`,
           button: {
             title: config.title,
             action: {
@@ -258,6 +313,17 @@ export default defineConfig({
           nextHtml = nextHtml.replace(
             "</head>",
             `    ${buildDropOpenGraphTags(dropShareImageUrl, `${baseUrl}${reqUrl}`)}\n  </head>`,
+          );
+        }
+
+        if (routeKey === "stop") {
+          const titleTag = `<title>${escapeHtmlText(STOP_SHARE_TITLE)}</title>`;
+          nextHtml = TITLE_REGEX.test(nextHtml)
+            ? nextHtml.replace(TITLE_REGEX, titleTag)
+            : nextHtml.replace("</head>", `    ${titleTag}\n  </head>`);
+          nextHtml = nextHtml.replace(
+            "</head>",
+            `    ${buildStopOpenGraphTags(`${baseUrl}${reqUrl}`)}\n  </head>`,
           );
         }
 

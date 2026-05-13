@@ -75,10 +75,20 @@ type BestFriend = {
   username: string;
 };
 
+type OutreachRecipient = {
+  tokenId: number;
+  fid: number;
+  farcasterUsername: string;
+  xUsername: string | null;
+  mutualAffinityScore: number | null;
+  source: "best_friend" | "fallback";
+};
+
 type OutreachCandidate = {
   farcasterUsernames: string[];
   xUsernames: string[];
   tokenIds: number[];
+  recipients: OutreachRecipient[];
 };
 
 type TopReferrer = {
@@ -151,6 +161,7 @@ type BuyQuoteResponse = {
     chainIdHex: string;
     to: string;
     value: `0x${string}`;
+    function?: string | null;
     inputData?: unknown;
   };
 };
@@ -238,6 +249,56 @@ type RawFulfillmentInput = {
     considerationComponents: Array<{ orderIndex: number | string; itemIndex: number | string }>;
   }>;
   recipient?: string;
+};
+
+type RawBasicOrderInput = {
+  parameters?: {
+    considerationToken: string;
+    considerationIdentifier: number | string;
+    considerationAmount: number | string;
+    offerer: string;
+    zone: string;
+    offerToken: string;
+    offerIdentifier: number | string;
+    offerAmount: number | string;
+    basicOrderType: number | string;
+    startTime: number | string;
+    endTime: number | string;
+    zoneHash: string;
+    salt: number | string;
+    offererConduitKey: string;
+    fulfillerConduitKey: string;
+    totalOriginalAdditionalRecipients: number | string;
+    additionalRecipients: Array<{
+      amount: number | string;
+      recipient: string;
+    }>;
+    signature: string;
+  };
+};
+
+type BasicOrderParameters = {
+  considerationToken: Address;
+  considerationIdentifier: bigint;
+  considerationAmount: bigint;
+  offerer: Address;
+  zone: Address;
+  offerToken: Address;
+  offerIdentifier: bigint;
+  offerAmount: bigint;
+  basicOrderType: number;
+  startTime: bigint;
+  endTime: bigint;
+  zoneHash: `0x${string}`;
+  salt: bigint;
+  offererConduitKey: `0x${string}`;
+  fulfillerConduitKey: `0x${string}`;
+  totalOriginalAdditionalRecipients: bigint;
+  additionalRecipients: Array<{
+    amount: bigint;
+    recipient: Address;
+  }>;
+  signature: `0x${string}`;
 };
 
 const MATCH_ADVANCED_ORDERS_ABI = [
@@ -330,6 +391,48 @@ const MATCH_ADVANCED_ORDERS_ABI = [
       { name: "recipient", type: "address" },
     ],
     outputs: [],
+  },
+] as const;
+
+const FULFILL_BASIC_ORDER_ABI = [
+  {
+    type: "function",
+    name: "fulfillBasicOrder_efficient_6GL6yc",
+    stateMutability: "payable",
+    inputs: [
+      {
+        name: "parameters",
+        type: "tuple",
+        components: [
+          { name: "considerationToken", type: "address" },
+          { name: "considerationIdentifier", type: "uint256" },
+          { name: "considerationAmount", type: "uint256" },
+          { name: "offerer", type: "address" },
+          { name: "zone", type: "address" },
+          { name: "offerToken", type: "address" },
+          { name: "offerIdentifier", type: "uint256" },
+          { name: "offerAmount", type: "uint256" },
+          { name: "basicOrderType", type: "uint8" },
+          { name: "startTime", type: "uint256" },
+          { name: "endTime", type: "uint256" },
+          { name: "zoneHash", type: "bytes32" },
+          { name: "salt", type: "uint256" },
+          { name: "offererConduitKey", type: "bytes32" },
+          { name: "fulfillerConduitKey", type: "bytes32" },
+          { name: "totalOriginalAdditionalRecipients", type: "uint256" },
+          {
+            name: "additionalRecipients",
+            type: "tuple[]",
+            components: [
+              { name: "amount", type: "uint256" },
+              { name: "recipient", type: "address" },
+            ],
+          },
+          { name: "signature", type: "bytes" },
+        ],
+      },
+    ],
+    outputs: [{ name: "fulfilled", type: "bool" }],
   },
 ] as const;
 
@@ -566,6 +669,56 @@ async function waitForTransactionReceipt(
   }
 
   throw new Error("Timed out waiting for the wallet transaction to confirm.");
+}
+
+function buildBasicOrderParameters(inputData: RawBasicOrderInput): BasicOrderParameters {
+  const params = inputData.parameters;
+  if (!params) {
+    throw new Error("OpenSea fulfillment payload is missing basic order parameters.");
+  }
+
+  return {
+    considerationToken: getAddress(params.considerationToken),
+    considerationIdentifier: toBigInt(params.considerationIdentifier),
+    considerationAmount: toBigInt(params.considerationAmount),
+    offerer: getAddress(params.offerer),
+    zone: getAddress(params.zone),
+    offerToken: getAddress(params.offerToken),
+    offerIdentifier: toBigInt(params.offerIdentifier),
+    offerAmount: toBigInt(params.offerAmount),
+    basicOrderType: Number(params.basicOrderType),
+    startTime: toBigInt(params.startTime),
+    endTime: toBigInt(params.endTime),
+    zoneHash: params.zoneHash as `0x${string}`,
+    salt: toBigInt(params.salt),
+    offererConduitKey: params.offererConduitKey as `0x${string}`,
+    fulfillerConduitKey: params.fulfillerConduitKey as `0x${string}`,
+    totalOriginalAdditionalRecipients: toBigInt(params.totalOriginalAdditionalRecipients),
+    additionalRecipients: (params.additionalRecipients ?? []).map((recipient) => ({
+      amount: toBigInt(recipient.amount),
+      recipient: getAddress(recipient.recipient),
+    })),
+    signature: (params.signature || "0x") as `0x${string}`,
+  };
+}
+
+function buildOpenSeaFulfillmentData(inputData: unknown, fallbackRecipient: Address): `0x${string}` {
+  const advancedInput = inputData as RawFulfillmentInput | undefined;
+  if (advancedInput?.orders?.length) {
+    const matchAdvancedOrdersArgs = buildMatchAdvancedOrdersArgs(advancedInput, fallbackRecipient);
+    return encodeFunctionData({
+      abi: MATCH_ADVANCED_ORDERS_ABI,
+      functionName: "matchAdvancedOrders",
+      args: matchAdvancedOrdersArgs,
+    });
+  }
+
+  const basicOrderParameters = buildBasicOrderParameters(inputData as RawBasicOrderInput);
+  return encodeFunctionData({
+    abi: FULFILL_BASIC_ORDER_ABI,
+    functionName: "fulfillBasicOrder_efficient_6GL6yc",
+    args: [basicOrderParameters],
+  });
 }
 
 async function publicRpcRequest<T>(method: string, params: unknown[]): Promise<T> {
@@ -873,31 +1026,66 @@ function rankBuyersWithBestFriends(buyers: RecentBuyer[], bestFriends: BestFrien
 }
 
 function normalizeOutreachCandidates(value: unknown): OutreachCandidate {
+  const empty: OutreachCandidate = { farcasterUsernames: [], xUsernames: [], tokenIds: [], recipients: [] };
   if (!value || typeof value !== "object") {
-    return { farcasterUsernames: [], xUsernames: [], tokenIds: [] };
+    return empty;
   }
 
-  const raw = value as { farcasterUsernames?: unknown; xUsernames?: unknown; tokenIds?: unknown };
+  const raw = value as {
+    farcasterUsernames?: unknown;
+    xUsernames?: unknown;
+    tokenIds?: unknown;
+    recipients?: unknown;
+  };
   const farcasterUsernames = Array.isArray(raw.farcasterUsernames)
     ? raw.farcasterUsernames
       .filter((item): item is string => typeof item === "string" && item.trim().length > 0)
       .map((item) => item.trim())
-      .slice(0, 10)
+      .slice(0, 5)
     : [];
   const xUsernames = Array.isArray(raw.xUsernames)
     ? raw.xUsernames
       .filter((item): item is string => typeof item === "string" && item.trim().length > 0)
       .map((item) => item.trim())
-      .slice(0, 10)
+      .slice(0, 5)
     : [];
 
   const tokenIds = Array.isArray(raw.tokenIds)
     ? raw.tokenIds
       .filter((item): item is number => typeof item === "number" && Number.isInteger(item) && item > 0)
-      .slice(0, 10)
+      .slice(0, 5)
     : [];
 
-  return { farcasterUsernames, xUsernames, tokenIds };
+  const recipients = Array.isArray(raw.recipients)
+    ? raw.recipients
+      .map((item) => {
+        if (!item || typeof item !== "object") return null;
+        const row = item as Record<string, unknown>;
+        const tokenId = typeof row.tokenId === "number" && Number.isInteger(row.tokenId) && row.tokenId > 0 ? row.tokenId : null;
+        const recipientFid = typeof row.fid === "number" && Number.isInteger(row.fid) && row.fid > 0 ? row.fid : null;
+        const farcasterUsername = typeof row.farcasterUsername === "string" && row.farcasterUsername.trim().length > 0
+          ? row.farcasterUsername.trim()
+          : null;
+        const xUsername = typeof row.xUsername === "string" && row.xUsername.trim().length > 0 ? row.xUsername.trim() : null;
+        const mutualAffinityScore = typeof row.mutualAffinityScore === "number" && Number.isFinite(row.mutualAffinityScore)
+          ? row.mutualAffinityScore
+          : null;
+        const source = row.source === "best_friend" ? "best_friend" : "fallback";
+        if (!tokenId || !recipientFid || !farcasterUsername) return null;
+        return {
+          tokenId,
+          fid: recipientFid,
+          farcasterUsername,
+          xUsername,
+          mutualAffinityScore,
+          source,
+        } satisfies OutreachRecipient;
+      })
+      .filter((item): item is OutreachRecipient => item !== null)
+      .slice(0, 25)
+    : [];
+
+  return { farcasterUsernames, xUsernames, tokenIds, recipients };
 }
 
 function buildCastVerificationUrl(hash: string, username: string): string {
@@ -1042,7 +1230,12 @@ export default function App() {
   const [recentBuys, setRecentBuys] = useState<RecentBuyer[]>([]);
   const [rewardedUsers, setRewardedUsers] = useState<RecentBuyer[]>([]);
   const [bestFriends, setBestFriends] = useState<BestFriend[]>([]);
-  const [outreachCandidates, setOutreachCandidates] = useState<OutreachCandidate>({ farcasterUsernames: [], xUsernames: [], tokenIds: [] });
+  const [outreachCandidates, setOutreachCandidates] = useState<OutreachCandidate>({
+    farcasterUsernames: [],
+    xUsernames: [],
+    tokenIds: [],
+    recipients: [],
+  });
   const [referralCount, setReferralCount] = useState(0);
   const [topReferrers, setTopReferrers] = useState<TopReferrer[]>([]);
   const [showUnlockRewardPage, setShowUnlockRewardPage] = useState(false);
@@ -1374,8 +1567,15 @@ export default function App() {
   const yourWarpletOpenSeaUrl = yourWarpletTokenId
     ? `https://opensea.io/item/base/${WARPLETS_COLLECTION_CONTRACT}/${yourWarpletTokenId}`
     : null;
-  const castOutreach = outreachCandidates.farcasterUsernames.slice(0, 10).join(" ");
-  const tweetOutreach = outreachCandidates.xUsernames.slice(0, 10).join(" ");
+  const castOutreachRecipients = outreachCandidates.recipients
+    .filter((recipient) => recipient.farcasterUsername.trim().length > 0)
+    .slice(0, 5);
+  const tweetOutreachRecipients = outreachCandidates.recipients
+    .filter((recipient) => recipient.xUsername && recipient.xUsername.trim().length > 0)
+    .slice(0, 5);
+  const castOutreach = castOutreachRecipients.map((recipient) => recipient.farcasterUsername).join(" ");
+  const tweetOutreach = tweetOutreachRecipients.map((recipient) => recipient.xUsername).filter(Boolean).join(" ");
+  const outreachOptOutText = "(note: max 1 mention/day, easy opt-out in app)";
   const headerTitle = showUnlockRewardPage && !isMenuRoute
     ? "Unlock Rewards"
     : getHeaderTitle("drop", isMenuRoute);
@@ -1422,7 +1622,8 @@ export default function App() {
   const completeRewardAction = async (
     actionSlug: string,
     verification: string | null,
-    outreachTokenIds?: number[]
+    outreachTokenIds?: number[],
+    outreachRecipients?: OutreachRecipient[]
   ) => {
     if (!fid) return;
 
@@ -1447,6 +1648,7 @@ export default function App() {
         actionSlug,
         verification: verification ?? undefined,
         outreachTokenIds: outreachTokenIds && outreachTokenIds.length > 0 ? outreachTokenIds : undefined,
+        outreachRecipients: outreachRecipients && outreachRecipients.length > 0 ? outreachRecipients : undefined,
         sessionToken: sessionToken || undefined,
       }),
     });
@@ -1586,7 +1788,7 @@ export default function App() {
         const castRarityLine = formattedTokenId && topPercentLabel
           ? `My rarity #${formattedTokenId} of 10,000! 👀`
           : "My rarity is 10,000! 👀";
-        const outreachLine = castOutreach.length > 0 ? `\n\n🏆 You're on the list ${castOutreach}` : "";
+        const outreachLine = castOutreach.length > 0 ? `\n\n🏆 You're on the list ${castOutreach} ${outreachOptOutText}` : "";
         const raritySection = isMatched ? `\n\n${castRarityLine}\n\n...what's your rarity?` : "";
         const castResult = await sdk.actions.composeCast({
           text:
@@ -1598,13 +1800,19 @@ export default function App() {
         if (!alreadyCompleted) {
           if (castResult?.cast?.hash) {
             const verification = buildCastVerificationUrl(castResult.cast.hash, viewerUsername);
-            await completeRewardAction(action.slug, verification, outreachCandidates.tokenIds);
+            await completeRewardAction(
+              action.slug,
+              verification,
+              castOutreachRecipients.map((recipient) => recipient.tokenId),
+              castOutreachRecipients
+            );
           } else {
             // Rewards-page retry: treat composer dismiss as completion so rewards can unlock.
             await completeRewardAction(
               action.slug,
               `dismissed:${new Date().toISOString()}`,
-              outreachCandidates.tokenIds,
+              castOutreachRecipients.map((recipient) => recipient.tokenId),
+              castOutreachRecipients,
             );
           }
         }
@@ -1613,7 +1821,7 @@ export default function App() {
         const castRarityLine = formattedTokenId && topPercentLabel
           ? `My rarity #${formattedTokenId} of 10,000! 👀`
           : "My rarity is 10,000! 👀";
-        const outreachLine = tweetOutreach.length > 0 ? `🏆 You're on the list ${tweetOutreach}\n\n` : "";
+        const outreachLine = tweetOutreach.length > 0 ? `🏆 You're on the list ${tweetOutreach} ${outreachOptOutText}\n\n` : "";
         const raritySection = isMatched ? `${castRarityLine}\n\n...what's your rarity?\n\n` : "";
         const text = `🟢 10X Warplets (Private 10K NFT Drop)\n\nPrice $${urgency.currentPrice} → $${urgency.nextPrice} in ${urgency.countdown}.\nSupply private → public every 10 days.\nAre you on the list? Don't miss out.\n\n1️⃣ Join Farcaster: https://farcaster.xyz/~/code/RUZLHN\n2️⃣ Visit mini-app: ${referralDropUrl}\n\n${raritySection}${outreachLine}`;
         const intentUrl = `https://x.com/intent/post?${new URLSearchParams({
@@ -1625,7 +1833,12 @@ export default function App() {
         await sdk.actions.openUrl(intentUrl);
         if (!alreadyCompleted) {
           await wait(10000);
-          await completeRewardAction(action.slug, intentUrl, outreachCandidates.tokenIds);
+          await completeRewardAction(
+            action.slug,
+            intentUrl,
+            tweetOutreachRecipients.map((recipient) => recipient.tokenId),
+            tweetOutreachRecipients
+          );
         }
       } else if (action.slug === "drop-waitlist-email") {
         // Waitlist action uses email submit flow below.
@@ -1767,7 +1980,7 @@ export default function App() {
         const castRarityLine = formattedTokenId && topPercentLabel
           ? `My rarity #${formattedTokenId} of 10,000! 👀`
           : "My rarity is 10,000! 👀";
-        const outreachLine = castOutreach.length > 0 ? `\n\n🏆 You're on the list ${castOutreach}` : "";
+        const outreachLine = castOutreach.length > 0 ? `\n\n🏆 You're on the list ${castOutreach} ${outreachOptOutText}` : "";
         const castResult = await sdk.actions.composeCast({
           text:
             `🟢 10X Warplets (Private 10K NFT Drop)\n\nPrice $${urgency.currentPrice} → $${urgency.nextPrice} in ${urgency.countdown}.\nSupply private → public every 10 days.\nAre you on the list? Don't miss out.\n\n${castRarityLine}\n\n...what's your rarity?${outreachLine}`,
@@ -1776,7 +1989,12 @@ export default function App() {
 
         if (castResult?.cast?.hash && fid) {
           const verification = buildCastVerificationUrl(castResult.cast.hash, viewerUsername);
-          await completeRewardAction("drop-cast", verification, outreachCandidates.tokenIds);
+          await completeRewardAction(
+            "drop-cast",
+            verification,
+            castOutreachRecipients.map((recipient) => recipient.tokenId),
+            castOutreachRecipients
+          );
           await fetchRewardActions();
           await refreshStatusForRewardPage(fid);
         }
@@ -1834,17 +2052,7 @@ export default function App() {
 
         await ensureChain(provider, quote.transaction.chainIdHex || BASE_CHAIN_CONFIG.chainId);
 
-        const fulfillmentInput = quote.transaction.inputData as RawFulfillmentInput | undefined;
-        if (!fulfillmentInput?.orders?.length) {
-          throw new Error("OpenSea fulfillment payload is missing for this listing.");
-        }
-
-        const matchAdvancedOrdersArgs = buildMatchAdvancedOrdersArgs(fulfillmentInput, activeAccount);
-        const matchOrdersData = encodeFunctionData({
-          abi: MATCH_ADVANCED_ORDERS_ABI,
-          functionName: "matchAdvancedOrders",
-          args: matchAdvancedOrdersArgs,
-        });
+        const fulfillmentData = buildOpenSeaFulfillmentData(quote.transaction.inputData, activeAccount);
 
         const approvals =
           Array.isArray(quote.approvals) && quote.approvals.length > 0
@@ -1860,7 +2068,7 @@ export default function App() {
             {
               from: activeAccount,
               to: quote.transaction.to,
-              data: matchOrdersData,
+              data: fulfillmentData,
               value: quote.transaction.value,
             },
           ],
@@ -1906,7 +2114,7 @@ export default function App() {
 
     try {
       const urgency = getUrgencyDetails(nowMs);
-      const outreachLine = castOutreach.length > 0 ? `\n\n🏆 You're on the list ${castOutreach}` : "";
+      const outreachLine = castOutreach.length > 0 ? `\n\n🏆 You're on the list ${castOutreach} ${outreachOptOutText}` : "";
       const castResult = await sdk.actions.composeCast({
         text:
           `🟢 10X Warplets (Private 10K NFT Drop)\n\nPrice $${urgency.currentPrice} → $${urgency.nextPrice} in ${urgency.countdown}.\nSupply private → public every 10 days.\nAre you on the list? Don't miss out.${outreachLine}`,
@@ -1915,7 +2123,12 @@ export default function App() {
 
       if (castResult?.cast?.hash && fid) {
         const verification = buildCastVerificationUrl(castResult.cast.hash, viewerUsername);
-        await completeRewardAction("drop-cast", verification, outreachCandidates.tokenIds);
+        await completeRewardAction(
+          "drop-cast",
+          verification,
+          castOutreachRecipients.map((recipient) => recipient.tokenId),
+          castOutreachRecipients
+        );
         await fetchRewardActions();
         await refreshStatusForRewardPage(fid);
       }

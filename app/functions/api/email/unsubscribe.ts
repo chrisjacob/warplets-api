@@ -13,8 +13,12 @@ interface Env {
   WARPLETS: D1Database;
   WARPLETS_KV?: KVNamespace;
   SECURITY_LOG_SALT?: string;
+  RESEND_API_KEY?: string;
 }
 import { applySecurityHeaders, getClientIp, logSecurityEvent, rateLimit } from "../../_lib/security.js";
+import { outboundFetch } from "../../_lib/outbound.js";
+
+const RESEND_TOPIC_ID = "c3e8d591-73e6-4e98-a873-5e197a8581ee";
 
 function htmlResponse(status: number, title: string, message: string): Response {
   return applySecurityHeaders(new Response(
@@ -41,6 +45,43 @@ function htmlResponse(status: number, title: string, message: string): Response 
 </html>`,
     { status, headers: { "content-type": "text/html; charset=utf-8" } }
   ), { isHtml: true });
+}
+
+async function unsubscribeResendContact(resendApiKey: string | undefined, email: string): Promise<void> {
+  const apiKey = resendApiKey?.trim();
+  if (!apiKey) return;
+
+  const contactPath = `https://api.resend.com/contacts/${encodeURIComponent(email)}`;
+  const headers = {
+    "content-type": "application/json",
+    Authorization: `Bearer ${apiKey}`,
+  };
+
+  try {
+    const contactResponse = await outboundFetch(contactPath, {
+      method: "PATCH",
+      headers,
+      body: JSON.stringify({ unsubscribed: true }),
+    });
+    if (!contactResponse.ok && contactResponse.status !== 404) {
+      const text = await contactResponse.text().catch(() => "");
+      console.error("Resend unsubscribe contact update failed:", text || contactResponse.statusText);
+    }
+
+    const topicResponse = await outboundFetch(`${contactPath}/topics`, {
+      method: "PATCH",
+      headers,
+      body: JSON.stringify({
+        topics: [{ id: RESEND_TOPIC_ID, subscription: "opt_out" }],
+      }),
+    });
+    if (!topicResponse.ok && topicResponse.status !== 404) {
+      const text = await topicResponse.text().catch(() => "");
+      console.error("Resend unsubscribe topic update failed:", text || topicResponse.statusText);
+    }
+  } catch (error) {
+    console.error("Resend unsubscribe failed:", error);
+  }
 }
 
 export const onRequestGet: PagesFunction<Env> = async (context) => {
@@ -86,6 +127,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   )
     .bind(new Date().toISOString(), new Date().toISOString(), row.id)
     .run();
+  await unsubscribeResendContact(context.env.RESEND_API_KEY, email);
 
   return htmlResponse(
     200,

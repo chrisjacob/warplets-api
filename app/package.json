@@ -19,6 +19,7 @@
   "dependencies": {
     "@farcaster/miniapp-node": "^0.2.0",
     "@farcaster/miniapp-sdk": "^0.3.0",
+    "@farcaster/quick-auth": "0.0.6",
     "@neynar/ui": "^1",
     "canvas-confetti": "^1.9.4",
     "react": "^19",

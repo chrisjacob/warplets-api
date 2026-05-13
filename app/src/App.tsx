@@ -9,6 +9,8 @@ import {
 } from "./miniAppChrome.tsx";
 import MiniAppShell from "./MiniAppShell";
 
+const FARCASTER_MINI_APP_URL = "https://farcaster.xyz/miniapps/uR3Rzs-k6AnV/10x";
+
 const APPS = [
   {
     title: "10X Warplets Drop",
@@ -162,6 +164,16 @@ export default function App() {
             <Text className="mt-2 text-xs" style={{ color: "#b7ffb7" }}>
               10X mini apps are designed for Farcaster. Open this link inside the Farcaster app to get started.
             </Text>
+            <button
+              type="button"
+              onClick={() => {
+                window.location.href = FARCASTER_MINI_APP_URL;
+              }}
+              className="mt-4 w-full rounded-xl py-3 font-bold text-black cursor-pointer"
+              style={{ background: "#00FF00" }}
+            >
+              Open 10X
+            </button>
           </div>
         )}
 

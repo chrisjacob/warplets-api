@@ -5,6 +5,8 @@ import App from "./App.tsx";
 import DropApp from "./DropApp.tsx";
 import FindApp from "./FindApp.tsx";
 import MillionApp from "./MillionApp.tsx";
+import StopApp from "./StopApp.tsx";
+import UnsubscribeApp from "./UnsubscribeApp.tsx";
 
 function resolveActiveApp() {
   const { hostname, pathname } = window.location;
@@ -17,6 +19,8 @@ function resolveActiveApp() {
   if (cleanPath === "/drop" || cleanPath.startsWith("/drop/")) return <DropApp />;
   if (cleanPath === "/find" || cleanPath.startsWith("/find/")) return <FindApp />;
   if (cleanPath === "/million" || cleanPath.startsWith("/million/")) return <MillionApp />;
+  if (cleanPath === "/stop" || cleanPath.startsWith("/stop/")) return <StopApp />;
+  if (cleanPath === "/unsubscribe" || cleanPath.startsWith("/unsubscribe/")) return <UnsubscribeApp />;
 
   return <App />;
 }

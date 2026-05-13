@@ -14,6 +14,9 @@ const DROP_ICON_URL = "https://drop.10x.meme/icon_drop.png";
 const DROP_SPLASH_URL = "https://drop.10x.meme/splash_drop.png";
 const DROP_EMBED_URL = "https://drop.10x.meme/embed_drop.png";
 const DROP_HERO_URL = "https://drop.10x.meme/hero_drop.png";
+const STOP_SHARE_TITLE = "@Mention Settings";
+const STOP_SHARE_DESCRIPTION = "Opt out of 10X outreach mentions in the Farcaster Mini App.";
+const STOP_IMAGE_URL = "https://warplets.10x.meme/3081.png";
 
 const APP_ASSOCIATION = {
   header:
@@ -115,7 +118,7 @@ function normalizeBase(origin: string): string {
   return origin.endsWith("/") ? origin.slice(0, -1) : origin;
 }
 
-type RouteKey = "root" | "drop" | "find" | "million";
+type RouteKey = "root" | "drop" | "find" | "million" | "stop";
 
 function matchesHost(hostname: string, ...candidates: string[]): boolean {
   return candidates.includes(hostname);
@@ -129,6 +132,7 @@ function getRouteKey(hostname: string, pathname: string): RouteKey {
   if (cleanPath === "/drop" || cleanPath.startsWith("/drop/")) return "drop";
   if (cleanPath === "/find" || cleanPath.startsWith("/find/")) return "find";
   if (cleanPath === "/million" || cleanPath.startsWith("/million/")) return "million";
+  if (cleanPath === "/stop" || cleanPath.startsWith("/stop/")) return "stop";
   return "root";
 }
 
@@ -154,6 +158,14 @@ function getMiniAppConfig(routeKey: RouteKey): { title: string; name: string; pa
       title: "Open $1M Warplet",
       name: "$1M Warplet",
       path: "/million",
+    };
+  }
+
+  if (routeKey === "stop") {
+    return {
+      title: "Open 10X",
+      name: "10X",
+      path: "/stop",
     };
   }
 
@@ -215,6 +227,7 @@ function getLaunchPath(routeKey: RouteKey, hostname: string): string {
   if (routeKey === "drop") return "/drop";
   if (routeKey === "find") return "/find";
   if (routeKey === "million") return "/million";
+  if (routeKey === "stop") return "/stop";
   return "/";
 }
 
@@ -272,6 +285,26 @@ function buildDropOpenGraphTags(imageUrl: string, pageUrl: string): string {
   ].join("\n  ");
 }
 
+function buildStopOpenGraphTags(pageUrl: string): string {
+  const title = escapeHtmlAttr(STOP_SHARE_TITLE);
+  const description = escapeHtmlAttr(STOP_SHARE_DESCRIPTION);
+  const image = escapeHtmlAttr(STOP_IMAGE_URL);
+  const url = escapeHtmlAttr(pageUrl);
+
+  return [
+    `<meta property="og:title" content="${title}" />`,
+    `<meta property="og:description" content="${description}" />`,
+    `<meta property="og:url" content="${url}" />`,
+    `<meta property="og:type" content="website" />`,
+    `<meta property="og:image" content="${image}" />`,
+    `<meta property="og:image:secure_url" content="${image}" />`,
+    `<meta name="twitter:card" content="summary_large_image" />`,
+    `<meta name="twitter:title" content="${title}" />`,
+    `<meta name="twitter:description" content="${description}" />`,
+    `<meta name="twitter:image" content="${image}" />`,
+  ].join("\n  ");
+}
+
 export const onRequestGet: PagesFunction<PagesEnv> = async (context) => {
   const requestUrl = new URL(context.request.url);
 
@@ -295,12 +328,13 @@ export const onRequestGet: PagesFunction<PagesEnv> = async (context) => {
     routeKey === "drop"
       ? await getDropShareImageUrl(context.env, requestUrl.searchParams)
       : undefined;
+  const routeImageUrl = routeKey === "stop" ? STOP_IMAGE_URL : dropShareImageUrl;
   const metaContent = escapeHtmlAttr(
     buildMiniAppMetaContent(
       requestUrl.origin,
       requestUrl.pathname,
       requestUrl.search,
-      dropShareImageUrl,
+      routeImageUrl,
     )
   );
   const metaTag = `<meta name="fc:miniapp" content="${metaContent}" />`;
@@ -318,6 +352,14 @@ export const onRequestGet: PagesFunction<PagesEnv> = async (context) => {
       ? html.replace(TITLE_REGEX, titleTag)
       : html.replace("</head>", `  ${titleTag}\n  </head>`);
     html = html.replace("</head>", `  ${buildDropOpenGraphTags(dropShareImageUrl, requestUrl.href)}\n  </head>`);
+  }
+
+  if (routeKey === "stop") {
+    const titleTag = `<title>${escapeHtmlText(STOP_SHARE_TITLE)}</title>`;
+    html = TITLE_REGEX.test(html)
+      ? html.replace(TITLE_REGEX, titleTag)
+      : html.replace("</head>", `  ${titleTag}\n  </head>`);
+    html = html.replace("</head>", `  ${buildStopOpenGraphTags(requestUrl.href)}\n  </head>`);
   }
 
   const headers = new Headers(response.headers);

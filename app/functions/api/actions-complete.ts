@@ -11,6 +11,7 @@ interface RequestBody {
   actionSlug?: unknown;
   verification?: unknown;
   outreachTokenIds?: unknown;
+  outreachRecipients?: unknown;
   sessionToken?: unknown;
   fid?: unknown;
 }
@@ -48,7 +49,51 @@ function asTokenIdList(value: unknown): number[] {
   if (!Array.isArray(value)) return [];
   return value
     .filter((item): item is number => typeof item === "number" && Number.isInteger(item) && item > 0)
-    .slice(0, 10);
+    .slice(0, 5);
+}
+
+type OutreachRecipientInput = {
+  tokenId: number;
+  fid: number;
+  farcasterUsername: string;
+  xUsername: string | null;
+  mutualAffinityScore: number | null;
+  source: "best_friend" | "fallback";
+};
+
+function asOptionalMention(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed.slice(0, 80) : null;
+}
+
+function asOutreachRecipients(value: unknown): OutreachRecipientInput[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item) => {
+      if (!item || typeof item !== "object" || Array.isArray(item)) return null;
+      const row = item as Record<string, unknown>;
+      const tokenId = asPositiveInteger(row.tokenId);
+      const recipientFid = asPositiveInteger(row.fid);
+      const farcasterUsername = asOptionalMention(row.farcasterUsername);
+      const xUsername = asOptionalMention(row.xUsername);
+      const mutualAffinityScore =
+        typeof row.mutualAffinityScore === "number" && Number.isFinite(row.mutualAffinityScore)
+          ? row.mutualAffinityScore
+          : null;
+      const source = row.source === "best_friend" ? "best_friend" : "fallback";
+      if (!tokenId || !recipientFid || !farcasterUsername) return null;
+      return {
+        tokenId,
+        fid: recipientFid,
+        farcasterUsername,
+        xUsername,
+        mutualAffinityScore,
+        source,
+      } satisfies OutreachRecipientInput;
+    })
+    .filter((item): item is OutreachRecipientInput => item !== null)
+    .slice(0, 5);
 }
 
 const DROP_UNLOCK_ACTION_SLUGS = [
@@ -91,7 +136,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   if (!isPlainObject(parsed.value)) {
     return jsonSecure({ error: "Invalid JSON payload" }, { status: 400 });
   }
-  if (!hasOnlyAllowedKeys(parsed.value, ["actionSlug", "verification", "outreachTokenIds", "sessionToken", "fid"])) {
+  if (!hasOnlyAllowedKeys(parsed.value, ["actionSlug", "verification", "outreachTokenIds", "outreachRecipients", "sessionToken", "fid"])) {
     return jsonSecure({ error: "Unexpected fields in payload" }, { status: 400 });
   }
   const body = parsed.value as RequestBody;
@@ -126,6 +171,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   const actionSlug = asNonEmptyString(body.actionSlug)?.toLowerCase();
   const verification = asNonEmptyString(body.verification);
   const outreachTokenIds = asTokenIdList(body.outreachTokenIds);
+  const outreachRecipients = asOutreachRecipients(body.outreachRecipients);
 
   if (!actionSlug) {
     return jsonSecure({ error: "actionSlug is required" }, { status: 400 });
@@ -239,13 +285,14 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     }
   }
 
-  await context.env.WARPLETS.prepare(
+  const completionInsert = await context.env.WARPLETS.prepare(
     `INSERT OR IGNORE INTO actions_completed (
        action_id, action_slug, user_id, user_fid, verification, created_on
      ) VALUES (?, ?, ?, ?, ?, ?)`
   )
     .bind(action.id, action.slug, user.id, fid, verification, now)
     .run();
+  const insertedCompletion = Number(completionInsert.meta.changes ?? 0) > 0;
 
   let allActionsCompleted = false;
   try {
@@ -262,17 +309,86 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       }
     }
 
-    if (action.slug === "drop-cast" && isSuccessfulCastVerification(verification) && outreachTokenIds.length > 0) {
-      const placeholders = outreachTokenIds.map(() => "?").join(", ");
-      await context.env.WARPLETS.prepare(
-        `UPDATE warplets_metadata
-         SET last_outreach_on = ?
-         WHERE token_id IN (${placeholders})`
-      )
-        .bind(now, ...outreachTokenIds)
-        .run();
-      if (context.env.WARPLETS_KV) {
-        await context.env.WARPLETS_KV.delete(`outreach-candidates-v1:${user.id}`);
+    const outreachChannel =
+      action.slug === "drop-cast" ? "farcaster" :
+      action.slug === "drop-tweet" ? "x" :
+      null;
+
+    if (outreachChannel && insertedCompletion) {
+      try {
+        const channelRecipients = outreachRecipients.filter((recipient) =>
+          outreachChannel === "farcaster"
+            ? recipient.farcasterUsername.length > 0
+            : Boolean(recipient.xUsername)
+        );
+
+        if (channelRecipients.length > 0) {
+          const messageRow = await context.env.WARPLETS.prepare(
+            `INSERT INTO warplets_outreach_messages (
+               sender_user_id, sender_fid, action_slug, channel, verification, recipient_count, created_on
+             ) VALUES (?, ?, ?, ?, ?, ?, ?)
+             RETURNING id`
+          )
+            .bind(user.id, fid, action.slug, outreachChannel, verification, channelRecipients.length, now)
+            .first<{ id: number }>();
+
+          if (messageRow?.id) {
+            await Promise.all(channelRecipients.map((recipient) =>
+              context.env.WARPLETS.prepare(
+                `INSERT INTO warplets_outreach_recipients (
+                   message_id, sender_fid, recipient_fid, warplet_token_id, channel,
+                   farcaster_username, x_username, mutual_affinity_score, source, created_on
+                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+              )
+                .bind(
+                  messageRow.id,
+                  fid,
+                  recipient.fid,
+                  recipient.tokenId,
+                  outreachChannel,
+                  recipient.farcasterUsername,
+                  recipient.xUsername,
+                  recipient.mutualAffinityScore,
+                  recipient.source,
+                  now
+                )
+                .run()
+            ));
+          }
+
+          const tokenIds = channelRecipients.map((recipient) => recipient.tokenId);
+          const placeholders = tokenIds.map(() => "?").join(", ");
+          await context.env.WARPLETS.prepare(
+            `UPDATE warplets_metadata
+             SET last_outreach_on = ?,
+                 outreach_count = COALESCE(outreach_count, 0) + 1
+             WHERE token_id IN (${placeholders})`
+          )
+            .bind(now, ...tokenIds)
+            .run();
+        } else if (outreachTokenIds.length > 0) {
+          const placeholders = outreachTokenIds.map(() => "?").join(", ");
+          await context.env.WARPLETS.prepare(
+            `UPDATE warplets_metadata
+             SET last_outreach_on = ?
+             WHERE token_id IN (${placeholders})`
+          )
+            .bind(now, ...outreachTokenIds)
+            .run();
+        }
+
+        if (context.env.WARPLETS_KV) {
+          await Promise.all([
+            context.env.WARPLETS_KV.delete(`outreach-candidates-v1:${user.id}`),
+            context.env.WARPLETS_KV.delete(`outreach-candidates-v2:${user.id}`),
+          ]);
+        }
+      } catch (error) {
+        console.error("actions-complete outreach tracking failed", {
+          fid,
+          actionSlug: action.slug,
+          error: error instanceof Error ? error.message : String(error),
+        });
       }
     }
 

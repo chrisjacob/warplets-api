@@ -132,6 +132,37 @@ export const onRequestGet: PagesFunction = () => {
     </table>
   </section>
 
+  <!-- OUTREACH -->
+  <section>
+    <h2>Outreach</h2>
+    <div class="stat-grid">
+      <div class="stat-box"><div class="num" id="outMsg24h">-</div><div class="lbl">Messages 24h</div></div>
+      <div class="stat-box"><div class="num" id="outMsg7d">-</div><div class="lbl">Messages 7d</div></div>
+      <div class="stat-box"><div class="num" id="outMsgTotal">-</div><div class="lbl">Messages total</div></div>
+      <div class="stat-box"><div class="num" id="outRecip24h">-</div><div class="lbl">Mentions 24h</div></div>
+      <div class="stat-box"><div class="num" id="outRecip7d">-</div><div class="lbl">Mentions 7d</div></div>
+      <div class="stat-box"><div class="num" id="outRecipTotal">-</div><div class="lbl">Mentions total</div></div>
+      <div class="stat-box"><div class="num" id="outOpt24h">-</div><div class="lbl">Opt-outs 24h</div></div>
+      <div class="stat-box"><div class="num" id="outOpt7d">-</div><div class="lbl">Opt-outs 7d</div></div>
+      <div class="stat-box"><div class="num" id="outOptTotal">-</div><div class="lbl">Opt-outs total</div></div>
+      <div class="stat-box"><div class="num" id="outOptActive">-</div><div class="lbl">Active opt-outs</div></div>
+      <div class="stat-box"><div class="num" id="outAvgWarplet">-</div><div class="lbl">Avg mentions / Warplet</div></div>
+      <div class="stat-box"><div class="num" id="outNeverMentioned">-</div><div class="lbl">Never mentioned</div></div>
+    </div>
+    <table>
+      <thead><tr>
+        <th>Created</th><th>Sender FID</th><th>Channel</th><th>Recipients</th><th>Verification</th>
+      </tr></thead>
+      <tbody id="outRecentBody"><tr><td colspan="5" style="color:#555;text-align:center;padding:1rem">Loading...</td></tr></tbody>
+    </table>
+    <table style="margin-top:.75rem">
+      <thead><tr>
+        <th>Token</th><th>FID</th><th>Farcaster</th><th>X</th><th>Outreach count</th>
+      </tr></thead>
+      <tbody id="outTopBody"><tr><td colspan="5" style="color:#555;text-align:center;padding:1rem">Loading...</td></tr></tbody>
+    </table>
+  </section>
+
   <!-- SEND NOTIFICATION -->
   <section>
     <h2>Send notification</h2>
@@ -372,7 +403,52 @@ export const onRequestGet: PagesFunction = () => {
     } catch (e) { if (e.message !== 'Unauthorized') console.error(e); }
   }
 
-  function loadAll() { loadStats(); loadInspect(); loadSecurity(); loadEmail(); }
+  async function loadOutreach() {
+    try {
+      const r = await api('/api/outreach/stats');
+      const data = await r.json();
+      document.getElementById('outMsg24h').textContent = data?.messages?.last24h ?? '-';
+      document.getElementById('outMsg7d').textContent = data?.messages?.last7d ?? '-';
+      document.getElementById('outMsgTotal').textContent = data?.messages?.total ?? '-';
+      document.getElementById('outRecip24h').textContent = data?.recipients?.last24h ?? '-';
+      document.getElementById('outRecip7d').textContent = data?.recipients?.last7d ?? '-';
+      document.getElementById('outRecipTotal').textContent = data?.recipients?.total ?? '-';
+      document.getElementById('outOpt24h').textContent = data?.optOuts?.last24h ?? '-';
+      document.getElementById('outOpt7d').textContent = data?.optOuts?.last7d ?? '-';
+      document.getElementById('outOptTotal').textContent = data?.optOuts?.total ?? '-';
+      document.getElementById('outOptActive').textContent = data?.optOuts?.current ?? '-';
+      document.getElementById('outAvgWarplet').textContent =
+        Number(data?.averages?.warpletOutreachCount ?? 0).toFixed(3);
+      document.getElementById('outNeverMentioned').textContent =
+        data?.averages?.neverMentionedWarplets ?? '-';
+
+      const recent = Array.isArray(data?.recent) ? data.recent : [];
+      document.getElementById('outRecentBody').innerHTML = recent.length
+        ? recent.map(row => \`
+          <tr>
+            <td style="color:#666;font-size:.75rem">\${esc(row.created_on || '').replace('T',' ').slice(0,16)}</td>
+            <td>\${row.sender_fid}</td>
+            <td><span class="pill pending">\${esc(row.channel)}</span></td>
+            <td>\${esc(row.recipients || '')}</td>
+            <td class="mono">\${esc(row.verification || '')}</td>
+          </tr>\`).join('')
+        : '<tr><td colspan="5" style="color:#555;text-align:center;padding:1rem">No outreach tracked yet</td></tr>';
+
+      const topRows = Array.isArray(data?.topOutreached) ? data.topOutreached : [];
+      document.getElementById('outTopBody').innerHTML = topRows.length
+        ? topRows.map(row => \`
+          <tr>
+            <td>\${row.token_id}</td>
+            <td>\${row.fid_value ?? '-'}</td>
+            <td>\${esc(row.warplet_username_farcaster || '-')}</td>
+            <td>\${esc(row.warplet_username_x || '-')}</td>
+            <td>\${row.outreach_count ?? 0}</td>
+          </tr>\`).join('')
+        : '<tr><td colspan="5" style="color:#555;text-align:center;padding:1rem">No Warplets found</td></tr>';
+    } catch (e) { if (e.message !== 'Unauthorized') console.error(e); }
+  }
+
+  function loadAll() { loadStats(); loadInspect(); loadSecurity(); loadOutreach(); loadEmail(); }
 
   document.getElementById('refreshBtn').addEventListener('click', loadAll);
   document.getElementById('sendApp').addEventListener('change', updateSendTargetUiFromApp);
