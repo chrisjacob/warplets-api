@@ -114,7 +114,7 @@ export default function StopApp() {
               Stop 10X @mentions
             </Text>
             <Text className="mt-3 text-lg font-semibold" style={{ color: "#00FF00" }}>
-              No hard feelings. Notification peace matters.
+              No hard feelings. Inbox peace matters.
             </Text>
           </div>
 
