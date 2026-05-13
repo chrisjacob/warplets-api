@@ -60,7 +60,6 @@ export default function StopApp() {
         setInMiniApp(inside);
         if (!inside) return;
         await sdk.actions.ready();
-        await loadStatus();
       } catch (err) {
         if (!cancelled) setError(err instanceof Error ? err.message : String(err));
       } finally {
@@ -89,6 +88,17 @@ export default function StopApp() {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const checkMentionSettings = async () => {
+    setLoading(true);
+    try {
+      await loadStatus();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -155,7 +165,21 @@ export default function StopApp() {
             <Text className="mt-5 text-center text-sm" style={{ color: "#9ca3af" }}>
               Checking your preference...
             </Text>
-          ) : status?.optedOut ? (
+          ) : !status ? (
+            <>
+              <button
+                type="button"
+                onClick={checkMentionSettings}
+                className="w-full mt-0 px-5 py-3 rounded-[20px] border border-[#009900] bg-[#00FF00] hover:bg-[#33ff33] font-bold text-base transition-all duration-100 shadow-[3px_6px_0_#008000] active:translate-x-[1px] active:translate-y-[3px] active:shadow-[1px_3px_0_#008000] cursor-pointer"
+                style={{ color: "rgb(0, 80, 0)", fontWeight: 700 }}
+              >
+                Check @mention settings
+              </button>
+              <Text className="mt-4 text-sm leading-relaxed" style={{ color: "#b7ffb7" }}>
+                Open in Farcaster so we can verify your FID before changing @mention settings.
+              </Text>
+            </>
+          ) : status.optedOut ? (
             <>
               <Text className="text-center text-sm font-bold" style={{ color: "#00FF00" }}>
                 You are opted out. We will leave you in peace.
