@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import sdk from "@farcaster/miniapp-sdk";
+import { createLightClient } from "@farcaster/quick-auth/light";
 import { Text } from "@neynar/ui/typography";
 import MiniAppShell from "./MiniAppShell";
 import {
@@ -12,6 +13,8 @@ import {
 const FARCASTER_MINI_APP_URL = "https://farcaster.xyz/miniapps/uR3Rzs-k6AnV/10x/stop";
 const CRYING_WARPLET_URL = "https://warplets.10x.meme/3081.png";
 const QUICK_AUTH_TIMEOUT_MS = 12000;
+let stopQuickAuthToken: string | null = null;
+let stopQuickAuthPromise: Promise<string> | null = null;
 
 type StopStatus = {
   fid: number;
@@ -49,6 +52,46 @@ async function withTimeout<T>(promise: Promise<T>, message: string, timeoutMs = 
   }
 }
 
+async function getStopQuickAuthToken(): Promise<string> {
+  if (stopQuickAuthToken) return stopQuickAuthToken;
+  if (!stopQuickAuthPromise) {
+    stopQuickAuthPromise = (async () => {
+      const client = createLightClient();
+      const { nonce } = await withTimeout(
+        client.generateNonce(),
+        "Farcaster verification did not start. Please close and reopen the Mini App, then try again."
+      );
+      const signInResult = await withTimeout(
+        sdk.actions.signIn({ nonce, acceptAuthAddress: false }),
+        "Farcaster verification did not finish. Please close and reopen the Mini App, then try again."
+      );
+      const verifyResult = await withTimeout(
+        client.verifySiwf({
+          domain: window.location.hostname,
+          message: signInResult.message,
+          signature: signInResult.signature,
+        }),
+        "Farcaster verification could not be confirmed. Please close and reopen the Mini App, then try again."
+      );
+      stopQuickAuthToken = verifyResult.token;
+      return verifyResult.token;
+    })().finally(() => {
+      stopQuickAuthPromise = null;
+    });
+  }
+  return stopQuickAuthPromise;
+}
+
+async function stopAuthFetch(path: string, init?: RequestInit): Promise<Response> {
+  const token = await getStopQuickAuthToken();
+  const headers = new Headers(init?.headers);
+  headers.set("authorization", `Bearer ${token}`);
+  return fetch(path, {
+    ...init,
+    headers,
+  });
+}
+
 export default function StopApp() {
   const [inMiniApp, setInMiniApp] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -59,10 +102,7 @@ export default function StopApp() {
 
   const loadStatus = async () => {
     setError("");
-    const response = await withTimeout(
-      sdk.quickAuth.fetch("/api/outreach/stop"),
-      "Farcaster verification did not finish. Please close and reopen the Mini App, then try again."
-    );
+    const response = await stopAuthFetch("/api/outreach/stop");
     if (!response.ok) throw new Error(await readError(response));
     setStatus((await response.json()) as StopStatus);
   };
@@ -94,14 +134,11 @@ export default function StopApp() {
     setSubmitting(true);
     setError("");
     try {
-      const response = await withTimeout(
-        sdk.quickAuth.fetch("/api/outreach/stop", {
-          method: nextOptedOut ? "POST" : "DELETE",
-          headers: nextOptedOut ? { "content-type": "application/json" } : undefined,
-          body: nextOptedOut ? JSON.stringify({}) : undefined,
-        }),
-        "Farcaster verification did not finish. Please close and reopen the Mini App, then try again."
-      );
+      const response = await stopAuthFetch("/api/outreach/stop", {
+        method: nextOptedOut ? "POST" : "DELETE",
+        headers: nextOptedOut ? { "content-type": "application/json" } : undefined,
+        body: nextOptedOut ? JSON.stringify({}) : undefined,
+      });
       if (!response.ok) throw new Error(await readError(response));
       setStatus((await response.json()) as StopStatus);
     } catch (err) {
