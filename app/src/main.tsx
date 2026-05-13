@@ -8,6 +8,35 @@ import MillionApp from "./MillionApp.tsx";
 import StopApp from "./StopApp.tsx";
 import UnsubscribeApp from "./UnsubscribeApp.tsx";
 
+function getRejectedImageSrc(value: unknown): string | null {
+  if (typeof HTMLImageElement === "undefined") return null;
+  const target = (value as { target?: unknown; srcElement?: unknown } | null)?.target
+    ?? (value as { srcElement?: unknown } | null)?.srcElement;
+  return target instanceof HTMLImageElement ? target.src : null;
+}
+
+function isExternalFarcasterImageProxy(src: string | null): boolean {
+  if (!src) return false;
+  try {
+    const url = new URL(src);
+    return (
+      url.hostname === "wrpcd.net" ||
+      url.hostname.endsWith(".cloudfront.net")
+    );
+  } catch {
+    return false;
+  }
+}
+
+if (typeof window !== "undefined") {
+  window.addEventListener("unhandledrejection", (event) => {
+    const src = getRejectedImageSrc(event.reason);
+    if (!isExternalFarcasterImageProxy(src)) return;
+    event.preventDefault();
+    console.warn("[10X] Ignored failed third-party image proxy load", src);
+  });
+}
+
 function resolveActiveApp() {
   const { hostname, pathname } = window.location;
   const cleanPath = pathname.replace(/\/+$/, "") || "/";
