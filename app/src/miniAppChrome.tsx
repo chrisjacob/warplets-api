@@ -206,7 +206,20 @@ async function openApp(appSlug: AppSlug) {
 }
 
 async function openMiniAppUrl(url: string) {
-  window.location.href = url;
+  const target = new URL(url, window.location.href);
+  const isLocalTarget = target.hostname.includes("-local.");
+  const inMiniApp = typeof sdk.isInMiniApp === "function" ? await sdk.isInMiniApp().catch(() => false) : true;
+
+  if (inMiniApp && !isLocalTarget) {
+    try {
+      await sdk.actions.openMiniApp({ url: target.href });
+      return;
+    } catch {
+      // Fall through to normal navigation when the client cannot open another Mini App route.
+    }
+  }
+
+  window.location.href = target.href;
 }
 
 async function runMenuCardAction(card: MenuCard) {
