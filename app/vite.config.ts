@@ -354,6 +354,14 @@ export default defineConfig({
         target: localApiTarget,
         changeOrigin: true,
       },
+      "/__adminhidden": {
+        target: localApiTarget,
+        changeOrigin: true,
+      },
+      "/__admin": {
+        target: localApiTarget,
+        changeOrigin: true,
+      },
     },
   },
 });
