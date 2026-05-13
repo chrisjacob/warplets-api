@@ -19,7 +19,7 @@ const repoRoot = path.resolve(__dirname, "..");
 
 let localFidToTokenId: Map<string, string> | undefined;
 
-type RouteKey = "root" | "drop" | "find" | "million" | "stop";
+type RouteKey = "root" | "drop" | "find" | "million" | "stop" | "unsubscribe";
 
 function matchesHost(hostname: string, ...candidates: string[]): boolean {
   return candidates.includes(hostname);
@@ -34,6 +34,7 @@ function getRouteKey(pathname: string, hostname?: string): RouteKey {
   if (cleanPath === "/find" || cleanPath.startsWith("/find/")) return "find";
   if (cleanPath === "/million" || cleanPath.startsWith("/million/")) return "million";
   if (cleanPath === "/stop" || cleanPath.startsWith("/stop/")) return "stop";
+  if (cleanPath === "/unsubscribe" || cleanPath.startsWith("/unsubscribe/")) return "unsubscribe";
   return "root";
 }
 
@@ -67,6 +68,14 @@ function getMiniAppConfig(routeKey: RouteKey): { title: string; name: string; pa
       title: "Open 10X",
       name: "10X",
       path: "/stop",
+    };
+  }
+
+  if (routeKey === "unsubscribe") {
+    return {
+      title: "Open 10X",
+      name: "10X",
+      path: "/unsubscribe",
     };
   }
 
@@ -191,6 +200,7 @@ function getLaunchPath(routeKey: RouteKey, hostname: string): string {
   if (routeKey === "find") return "/find";
   if (routeKey === "million") return "/million";
   if (routeKey === "stop") return "/stop";
+  if (routeKey === "unsubscribe") return "/unsubscribe";
   return "/";
 }
 

@@ -248,14 +248,17 @@ async function runMenuCardAction(card: MenuCard) {
 
 
 export function useMiniAppChrome(appSlug: AppSlug) {
-  const [isMenuRoute, setIsMenuRoute] = useState(() => isMenuPath(appSlug, window.location));
+  const [pathIsMenuRoute, setPathIsMenuRoute] = useState(() => isMenuPath(appSlug, window.location));
+  const [internalMenuOpen, setInternalMenuOpen] = useState(false);
   const [canGoBack, setCanGoBack] = useState(() => getCanGoBack(appSlug));
+  const isMenuRoute = pathIsMenuRoute || internalMenuOpen;
+  const canNavigateBack = internalMenuOpen || canGoBack;
 
   useEffect(() => {
     let cleanup: (() => void) | undefined;
 
     const syncRouteState = () => {
-      setIsMenuRoute(isMenuPath(appSlug, window.location));
+      setPathIsMenuRoute(isMenuPath(appSlug, window.location));
       setCanGoBack(getCanGoBack(appSlug));
     };
 
@@ -297,12 +300,17 @@ export function useMiniAppChrome(appSlug: AppSlug) {
   }, [appSlug]);
 
   const syncRouteStateNow = () => {
-    setIsMenuRoute(isMenuPath(appSlug, window.location));
+    setPathIsMenuRoute(isMenuPath(appSlug, window.location));
     setCanGoBack(getCanGoBack(appSlug));
   };
 
   const actions = useMemo(() => ({
     goBack: () => {
+      if (internalMenuOpen) {
+        setInternalMenuOpen(false);
+        return;
+      }
+
       if (getCanGoBack(appSlug)) {
         window.history.back();
         return;
@@ -325,22 +333,23 @@ export function useMiniAppChrome(appSlug: AppSlug) {
       }
     },
     openMenu: () => {
-      const menuPath = getMenuPath(appSlug, window.location);
-      if (normalizePath(window.location.pathname) === normalizePath(menuPath)) {
-        // Keep menu action idempotent to avoid accidental back navigation on
-        // clients that may fire duplicate tap/click sequences.
-        return;
-      }
-      pushMiniAppRoute(appSlug, menuPath);
-      syncRouteStateNow();
+      setInternalMenuOpen(true);
     },
     goToCurrentRoot: () => {
+      if (internalMenuOpen) {
+        setInternalMenuOpen(false);
+      }
+
       const rootPath = getRootPath(appSlug, window.location);
       if (normalizePath(window.location.pathname) === normalizePath(rootPath)) return;
       pushMiniAppRoute(appSlug, rootPath);
       syncRouteStateNow();
     },
     openHubRoot: async () => {
+      if (internalMenuOpen) {
+        setInternalMenuOpen(false);
+      }
+
       if (appSlug === "app") {
         const rootPath = getRootPath("app", window.location);
         if (normalizePath(window.location.pathname) !== normalizePath(rootPath)) {
@@ -352,11 +361,11 @@ export function useMiniAppChrome(appSlug: AppSlug) {
 
       await openApp("app");
     },
-  }), [appSlug]);
+  }), [appSlug, internalMenuOpen]);
 
   return {
     isMenuRoute,
-    canGoBack,
+    canGoBack: canNavigateBack,
     actions,
   };
 }

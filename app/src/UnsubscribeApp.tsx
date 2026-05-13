@@ -9,7 +9,7 @@ import {
   useMiniAppChrome,
 } from "./miniAppChrome.tsx";
 
-const FARCASTER_MINI_APP_URL = "https://farcaster.xyz/miniapps/uR3Rzs-k6AnV/10x";
+const FARCASTER_MINI_APP_URL = "https://farcaster.xyz/miniapps/uR3Rzs-k6AnV/10x/unsubscribe";
 const CRYING_WARPLET_URL = "https://warplets.10x.meme/3081.png";
 
 type UnsubscribeStatus = {
