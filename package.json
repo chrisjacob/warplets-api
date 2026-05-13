@@ -27,7 +27,7 @@
   "dependencies": {
     "@farcaster/snap": "^1.22.1",
     "@farcaster/snap-hono": "~1.5.12",
-    "@noble/curves": "^2.0.0",
+    "@noble/curves": "^2.2.0",
     "hono": "^4.12.12",
     "zod": "^4.0.0"
   },
