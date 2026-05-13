@@ -1,5 +1,5 @@
 /**
- * GET /__admin/
+ * GET /__adminhidden/
  *
  * Self-contained admin UI. Serves a standalone HTML page protected by the
  * admin token (entered in-browser, kept in-memory only — never in a URL).
