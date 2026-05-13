@@ -3,7 +3,7 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
-  "packageManager": "pnpm@9.15.4",
+  "packageManager": "pnpm@10.26.0",
   "scripts": {
     "dev": "SKIP_JFS_VERIFICATION=true tsx watch src/server.ts",
     "dev:snap": "wrangler dev --env dev --port 8789",
@@ -20,6 +20,7 @@
     "build": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
     "security:preflight": "node scripts/security-preflight.mjs",
+    "security:test": "node scripts/test-security-blocklist.mjs",
     "security:smoke": "node scripts/security-smoke.mjs",
     "deploy": "wrangler deploy"
   },

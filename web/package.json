@@ -3,10 +3,13 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "packageManager": "pnpm@9.15.4",
+  "packageManager": "pnpm@10.26.0",
   "scripts": {
-    "dev": "pnpm dlx wrangler pages dev . --port 4174",
-    "deploy:dev": "pnpm dlx wrangler pages deploy . --project-name 10x-web-dev --branch dev",
-    "deploy:prod": "pnpm dlx wrangler pages deploy . --project-name 10x-web --branch main"
+    "dev": "pnpm exec wrangler pages dev . --port 4174",
+    "deploy:dev": "pnpm exec wrangler pages deploy . --project-name 10x-web-dev --branch dev",
+    "deploy:prod": "pnpm exec wrangler pages deploy . --project-name 10x-web --branch main"
+  },
+  "devDependencies": {
+    "wrangler": "4.87.0"
   }
 }
