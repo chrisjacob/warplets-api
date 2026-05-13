@@ -31,7 +31,7 @@
     }
   },
   "dependencies": {
-    "@farcaster/snap": "^1.22.1",
+    "@farcaster/snap": "^2.5.1",
     "@farcaster/snap-hono": "~1.5.12",
     "@noble/curves": "^2.0.0",
     "hono": "^4.12.12",
