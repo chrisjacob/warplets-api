@@ -19,13 +19,13 @@ importers:
         version: 1.22.1(@neynar/ui@1.2.2(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(tailwindcss@4.3.0))(bufferutil@4.1.0)(lucide-react@0.562.0(react@19.2.5))(react@19.2.5)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@4.3.6)
       '@farcaster/snap-hono':
         specifier: ~1.5.12
-        version: 1.5.12(@neynar/ui@1.2.2(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(tailwindcss@4.3.0))(bufferutil@4.1.0)(hono@4.12.12)(lucide-react@0.562.0(react@19.2.5))(react@19.2.5)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@4.3.6)
+        version: 1.5.12(@neynar/ui@1.2.2(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(tailwindcss@4.3.0))(bufferutil@4.1.0)(hono@4.12.18)(lucide-react@0.562.0(react@19.2.5))(react@19.2.5)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@4.3.6)
       '@noble/curves':
         specifier: ^2.0.0
         version: 2.0.1
       hono:
-        specifier: ^4.12.12
-        version: 4.12.12
+        specifier: ^4.12.18
+        version: 4.12.18
       zod:
         specifier: ^4.0.0
         version: 4.3.6
@@ -35,7 +35,7 @@ importers:
         version: 4.20260411.1
       '@hono/node-server':
         specifier: ^1.19.13
-        version: 1.19.13(hono@4.12.12)
+        version: 1.19.13(hono@4.12.18)
       '@types/node':
         specifier: ^24.0.0
         version: 24.12.2
@@ -1938,8 +1938,8 @@ packages:
     resolution: {integrity: sha512-Ox1pJVrDCyGHMG9CFg1tmrRUMRPRsAWYc/PinY0XzJU4K7y7vjNoLKIQ7BR5UJMCxNN8EM1MNDmHWA/B3aZUuw==}
     engines: {node: '>=6'}
 
-  hono@4.12.12:
-    resolution: {integrity: sha512-p1JfQMKaceuCbpJKAPKVqyqviZdS0eUxH9v82oWo1kb9xjQ5wA6iP3FNVAPDFlz5/p7d45lO+BpSk1tuSZMF4Q==}
+  hono@4.12.18:
+    resolution: {integrity: sha512-RWzP96k/yv0PQfyXnWjs6zot20TqfpfsNXhOnev8d1InAxubW93L11/oNUc3tQqn2G0bSdAOBpX+2uDFHV7kdQ==}
     engines: {node: '>=16.9.0'}
 
   humanize-ms@1.2.1:
@@ -3140,11 +3140,11 @@ snapshots:
       typescript: 5.9.3
       zod: 3.25.76
 
-  '@farcaster/snap-hono@1.5.12(@neynar/ui@1.2.2(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(tailwindcss@4.3.0))(bufferutil@4.1.0)(hono@4.12.12)(lucide-react@0.562.0(react@19.2.5))(react@19.2.5)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@4.3.6)':
+  '@farcaster/snap-hono@1.5.12(@neynar/ui@1.2.2(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(tailwindcss@4.3.0))(bufferutil@4.1.0)(hono@4.12.18)(lucide-react@0.562.0(react@19.2.5))(react@19.2.5)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@4.3.6)':
     dependencies:
       '@farcaster/snap': 1.22.1(@neynar/ui@1.2.2(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(tailwindcss@4.3.0))(bufferutil@4.1.0)(lucide-react@0.562.0(react@19.2.5))(react@19.2.5)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@4.3.6)
       '@resvg/resvg-wasm': 2.6.2
-      hono: 4.12.12
+      hono: 4.12.18
       satori: 0.10.14
     transitivePeerDependencies:
       - '@json-render/react'
@@ -3192,9 +3192,9 @@ snapshots:
 
   '@fontsource/architects-daughter@5.2.7': {}
 
-  '@hono/node-server@1.19.13(hono@4.12.12)':
+  '@hono/node-server@1.19.13(hono@4.12.18)':
     dependencies:
-      hono: 4.12.12
+      hono: 4.12.18
 
   '@img/colour@1.1.0': {}
 
@@ -4111,7 +4111,7 @@ snapshots:
 
   hex-rgb@4.3.0: {}
 
-  hono@4.12.12: {}
+  hono@4.12.18: {}
 
   humanize-ms@1.2.1:
     dependencies:
@@ -4273,7 +4273,7 @@ snapshots:
 
   localflare-api@0.5.0:
     dependencies:
-      hono: 4.12.12
+      hono: 4.12.18
 
   localflare-core@0.5.0:
     dependencies:
