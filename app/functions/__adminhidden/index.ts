@@ -71,6 +71,13 @@ export const onRequestGet: PagesFunction = () => {
     <input id="tokenInput" type="password" placeholder="notify-test-…" autocomplete="off" />
     <button id="loginBtn">Sign in</button>
     <div id="loginErr" style="color:#f87171;font-size:.8rem;margin-top:.5rem;display:none">Invalid token</div>
+    <div id="codeStep" style="display:none;margin-top:1rem">
+      <label>Email code</label>
+      <input id="codeInput" inputmode="numeric" maxlength="6" placeholder="123456" autocomplete="one-time-code" />
+      <button id="codeBtn">Verify code</button>
+      <div id="codeHelp" style="color:#999;font-size:.8rem;margin-top:.5rem"></div>
+      <div id="codeErr" style="color:#f87171;font-size:.8rem;margin-top:.5rem;display:none">Invalid code</div>
+    </div>
   </section>
 </div>
 
@@ -241,6 +248,8 @@ export const onRequestGet: PagesFunction = () => {
     drop: 'https://drop.10x.meme/',
   };
   let token = '';
+  let adminSession = '';
+  let pending2faNonce = '';
 
   function getDefaultTargetUrlForAppSlug(appSlug) {
     return SEND_APP_DEFAULTS[appSlug] || SEND_APP_DEFAULTS.app;
@@ -262,17 +271,28 @@ export const onRequestGet: PagesFunction = () => {
   function showLogin() {
     document.getElementById('login').style.display = 'block';
     document.getElementById('app').style.display = 'none';
+    if (!pending2faNonce) document.getElementById('codeStep').style.display = 'none';
+  }
+  function showCodeStep(email) {
+    document.getElementById('codeStep').style.display = 'block';
+    document.getElementById('codeHelp').textContent = 'We sent a 6-digit code to ' + email + '.';
+    document.getElementById('codeInput').focus();
   }
 
   document.getElementById('loginBtn').addEventListener('click', async () => {
     const t = document.getElementById('tokenInput').value.trim();
     if (!t) return;
-    // Probe inspect endpoint to verify token
-    const r = await fetch('/api/notifications/inspect', { headers: { 'x-admin-token': t } });
+    const r = await fetch('/api/admin/2fa/request', {
+      method: 'POST',
+      headers: { 'x-admin-token': t },
+    });
     if (r.ok) {
+      const data = await r.json();
       token = t;
+      pending2faNonce = data.nonce || '';
       document.getElementById('loginErr').style.display = 'none';
-      showApp();
+      document.getElementById('codeErr').style.display = 'none';
+      showCodeStep(data.email || 'the configured admin email');
     } else {
       document.getElementById('loginErr').style.display = 'block';
     }
@@ -280,20 +300,43 @@ export const onRequestGet: PagesFunction = () => {
   document.getElementById('tokenInput').addEventListener('keydown', e => {
     if (e.key === 'Enter') document.getElementById('loginBtn').click();
   });
+  document.getElementById('codeBtn').addEventListener('click', async () => {
+    const code = document.getElementById('codeInput').value.trim();
+    if (!token || !pending2faNonce || !code) return;
+    const r = await fetch('/api/admin/2fa/verify', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-admin-token': token },
+      body: JSON.stringify({ nonce: pending2faNonce, code }),
+    });
+    if (r.ok) {
+      const data = await r.json();
+      adminSession = data.sessionToken || '';
+      pending2faNonce = '';
+      document.getElementById('codeErr').style.display = 'none';
+      showApp();
+    } else {
+      document.getElementById('codeErr').style.display = 'block';
+    }
+  });
+  document.getElementById('codeInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') document.getElementById('codeBtn').click();
+  });
   document.getElementById('logoutBtn').addEventListener('click', () => {
     token = '';
+    adminSession = '';
+    pending2faNonce = '';
     showLogin();
   });
 
-  if (token) showApp(); else showLogin();
+  if (token && adminSession) showApp(); else showLogin();
 
   // --- DATA LOADING ---
   async function api(path, opts = {}) {
     const res = await fetch(path, {
       ...opts,
-      headers: { 'x-admin-token': token, ...(opts.headers || {}) },
+      headers: { 'x-admin-token': token, 'x-admin-session': adminSession, ...(opts.headers || {}) },
     });
-    if (res.status === 401) { showLogin(); throw new Error('Unauthorized'); }
+    if (res.status === 401) { adminSession = ''; showLogin(); throw new Error('Unauthorized'); }
     return res;
   }
 

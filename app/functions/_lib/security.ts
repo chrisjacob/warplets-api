@@ -7,10 +7,17 @@ interface AdminKeyRecord {
 
 interface RequireAdminScopeOptions {
   scope: string;
+  require2fa?: boolean;
 }
 
 interface ActionSessionTokenPayload {
   fid: number;
+  exp: number;
+}
+
+interface AdminSessionTokenPayload {
+  purpose: "admin_2fa";
+  keyId: string;
   exp: number;
 }
 
@@ -86,7 +93,7 @@ export function getClientIp(request: Request): string {
   );
 }
 
-async function sha256Hex(input: string): Promise<string> {
+export async function sha256Hex(input: string): Promise<string> {
   const payload = new TextEncoder().encode(input);
   const digest = await crypto.subtle.digest("SHA-256", payload);
   return Array.from(new Uint8Array(digest))
@@ -140,6 +147,13 @@ function parseAdminKeyConfig(raw?: string): AdminKeyRecord[] {
 
 function keyHasScope(scopes: string[], scope: string): boolean {
   return scopes.includes("*") || scopes.includes(scope);
+}
+
+export function maskEmailAddress(email: string): string {
+  const [local = "", domain = ""] = email.split("@");
+  if (!local || !domain) return "configured admin email";
+  const visible = local.slice(0, Math.min(2, local.length));
+  return `${visible}${"*".repeat(Math.max(2, local.length - visible.length))}@${domain}`;
 }
 
 export async function rateLimit(
@@ -275,6 +289,25 @@ export async function requireAdminScope<T extends SecurityEnv>(
   );
 
   if (validKey) {
+    if (options.require2fa === false) {
+      return { ok: true, keyId: validKey.id };
+    }
+
+    const sessionToken = context.request.headers.get("x-admin-session")?.trim() ?? null;
+    const session = await verifyAdminSessionToken(context.env.ACTION_SESSION_SECRET, sessionToken);
+    if (!session.valid || session.keyId !== validKey.id) {
+      await logSecurityEvent(context.env.WARPLETS, { logSalt: context.env.SECURITY_LOG_SALT }, {
+        eventType: "admin_auth",
+        outcome: session.valid ? "wrong_2fa_key" : `invalid_2fa:${session.reason}`,
+        actorType: "admin_key",
+        actorId: validKey.id,
+        ipAddress: ip,
+        route: requestUrl.pathname,
+        details: options.scope,
+      });
+      return { ok: false, response: jsonSecure({ error: "2FA required" }, { status: 401 }) };
+    }
+
     return { ok: true, keyId: validKey.id };
   }
 
@@ -295,6 +328,64 @@ export async function requireAdminScope<T extends SecurityEnv>(
   });
 
   return { ok: false, response: jsonSecure({ error: "Unauthorized" }, { status: 401 }) };
+}
+
+export async function createAdminSessionToken(
+  secret: string | undefined,
+  keyId: string,
+  ttlSeconds = 1800
+): Promise<string | null> {
+  const trimmed = secret?.trim();
+  if (!trimmed) return null;
+  const payload: AdminSessionTokenPayload = {
+    purpose: "admin_2fa",
+    keyId,
+    exp: Math.floor(Date.now() / 1000) + ttlSeconds,
+  };
+  const payloadJson = JSON.stringify(payload);
+  const payloadEncoded = arrayBufferToBase64Url(new TextEncoder().encode(payloadJson).buffer);
+  const key = await importActionKey(trimmed);
+  const signature = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(payloadEncoded));
+  const sigEncoded = arrayBufferToBase64Url(signature);
+  return `${payloadEncoded}.${sigEncoded}`;
+}
+
+export async function verifyAdminSessionToken(
+  secret: string | undefined,
+  token: string | null
+): Promise<{ valid: true; keyId: string } | { valid: false; reason: string }> {
+  const trimmed = secret?.trim();
+  if (!trimmed) return { valid: false, reason: "missing_secret" };
+  if (!token) return { valid: false, reason: "missing_token" };
+  const [payloadEncoded, sigEncoded] = token.split(".");
+  if (!payloadEncoded || !sigEncoded) return { valid: false, reason: "invalid_format" };
+
+  const key = await importActionKey(trimmed);
+  const signatureBytes = base64UrlToBytes(sigEncoded);
+  if (!signatureBytes) return { valid: false, reason: "invalid_signature" };
+  const verified = await crypto.subtle.verify(
+    "HMAC",
+    key,
+    signatureBytes.buffer as ArrayBuffer,
+    new TextEncoder().encode(payloadEncoded)
+  );
+  if (!verified) return { valid: false, reason: "invalid_signature" };
+
+  const payloadBytes = base64UrlToBytes(payloadEncoded);
+  if (!payloadBytes) return { valid: false, reason: "invalid_payload" };
+
+  try {
+    const payload = JSON.parse(new TextDecoder().decode(payloadBytes)) as AdminSessionTokenPayload;
+    if (!payload || payload.purpose !== "admin_2fa" || typeof payload.keyId !== "string" || !payload.keyId.trim()) {
+      return { valid: false, reason: "invalid_payload" };
+    }
+    if (typeof payload.exp !== "number" || Math.floor(Date.now() / 1000) > payload.exp) {
+      return { valid: false, reason: "expired" };
+    }
+    return { valid: true, keyId: payload.keyId };
+  } catch {
+    return { valid: false, reason: "invalid_payload" };
+  }
 }
 
 export async function readJsonBody<T>(request: Request): Promise<{ ok: true; value: T } | { ok: false; response: Response }> {
