@@ -8,6 +8,7 @@ import {
   getHeaderTitle,
   useMiniAppChrome,
 } from "./miniAppChrome.tsx";
+import { isLikelyDesktop, settingsAuthFetch } from "./settingsAuth";
 
 const FARCASTER_MINI_APP_URL = "https://farcaster.xyz/miniapps/uR3Rzs-k6AnV/10x/unsubscribe";
 const CRYING_WARPLET_URL = "https://warplets.10x.meme/3081.png";
@@ -36,6 +37,7 @@ async function readError(response: Response): Promise<string> {
 
 export default function UnsubscribeApp() {
   const [inMiniApp, setInMiniApp] = useState(false);
+  const [desktopView, setDesktopView] = useState(false);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [status, setStatus] = useState<UnsubscribeStatus | null>(null);
@@ -44,7 +46,7 @@ export default function UnsubscribeApp() {
 
   const loadStatus = async () => {
     setError("");
-    const response = await sdk.quickAuth.fetch("/api/email/unsubscribe-self");
+    const response = await settingsAuthFetch("/api/email/unsubscribe-self");
     if (!response.ok) throw new Error(await readError(response));
     setStatus((await response.json()) as UnsubscribeStatus);
   };
@@ -57,6 +59,7 @@ export default function UnsubscribeApp() {
         const inside = typeof sdk.isInMiniApp === "function" ? await sdk.isInMiniApp() : true;
         if (cancelled) return;
         setInMiniApp(inside);
+        setDesktopView(isLikelyDesktop());
         if (!inside) return;
         await sdk.actions.ready();
       } catch (err) {
@@ -91,7 +94,7 @@ export default function UnsubscribeApp() {
     setSubmitting(true);
     setError("");
     try {
-      const response = await sdk.quickAuth.fetch("/api/email/unsubscribe-self", {
+      const response = await settingsAuthFetch("/api/email/unsubscribe-self", {
         method: "POST",
       });
       if (!response.ok) throw new Error(await readError(response));
@@ -169,7 +172,9 @@ export default function UnsubscribeApp() {
               Check email settings
             </button>
             <Text className="mt-4 pb-8 text-sm leading-relaxed" style={{ color: "#b7ffb7" }}>
-              We will ask Farcaster to verify your FID before changing email settings.
+              {desktopView
+                ? "On desktop, Farcaster may ask you to confirm sign-in from your phone before this loads."
+                : "Tap to verify your FID before changing email settings."}
             </Text>
           </>
         ) : status?.requiresEmailLink ? (

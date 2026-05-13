@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import sdk from "@farcaster/miniapp-sdk";
-import { createLightClient } from "@farcaster/quick-auth/light";
 import { Text } from "@neynar/ui/typography";
 import MiniAppShell from "./MiniAppShell";
 import {
@@ -9,12 +8,10 @@ import {
   getHeaderTitle,
   useMiniAppChrome,
 } from "./miniAppChrome.tsx";
+import { isLikelyDesktop, settingsAuthFetch } from "./settingsAuth";
 
 const FARCASTER_MINI_APP_URL = "https://farcaster.xyz/miniapps/uR3Rzs-k6AnV/10x/stop";
 const CRYING_WARPLET_URL = "https://warplets.10x.meme/3081.png";
-const QUICK_AUTH_TIMEOUT_MS = 12000;
-let stopQuickAuthToken: string | null = null;
-let stopQuickAuthPromise: Promise<string> | null = null;
 
 type StopStatus = {
   fid: number;
@@ -39,61 +36,9 @@ async function readError(response: Response): Promise<string> {
   return `Request failed with ${response.status}`;
 }
 
-async function withTimeout<T>(promise: Promise<T>, message: string, timeoutMs = QUICK_AUTH_TIMEOUT_MS): Promise<T> {
-  let timeoutId: number | undefined;
-  const timeout = new Promise<never>((_, reject) => {
-    timeoutId = window.setTimeout(() => reject(new Error(message)), timeoutMs);
-  });
-
-  try {
-    return await Promise.race([promise, timeout]);
-  } finally {
-    if (timeoutId !== undefined) window.clearTimeout(timeoutId);
-  }
-}
-
-async function getStopQuickAuthToken(): Promise<string> {
-  if (stopQuickAuthToken) return stopQuickAuthToken;
-  if (!stopQuickAuthPromise) {
-    stopQuickAuthPromise = (async () => {
-      const client = createLightClient();
-      const { nonce } = await withTimeout(
-        client.generateNonce(),
-        "Farcaster verification did not start. Please close and reopen the Mini App, then try again."
-      );
-      const signInResult = await withTimeout(
-        sdk.actions.signIn({ nonce, acceptAuthAddress: false }),
-        "Farcaster verification did not finish. Please close and reopen the Mini App, then try again."
-      );
-      const verifyResult = await withTimeout(
-        client.verifySiwf({
-          domain: window.location.hostname,
-          message: signInResult.message,
-          signature: signInResult.signature,
-        }),
-        "Farcaster verification could not be confirmed. Please close and reopen the Mini App, then try again."
-      );
-      stopQuickAuthToken = verifyResult.token;
-      return verifyResult.token;
-    })().finally(() => {
-      stopQuickAuthPromise = null;
-    });
-  }
-  return stopQuickAuthPromise;
-}
-
-async function stopAuthFetch(path: string, init?: RequestInit): Promise<Response> {
-  const token = await getStopQuickAuthToken();
-  const headers = new Headers(init?.headers);
-  headers.set("authorization", `Bearer ${token}`);
-  return fetch(path, {
-    ...init,
-    headers,
-  });
-}
-
 export default function StopApp() {
   const [inMiniApp, setInMiniApp] = useState(false);
+  const [desktopView, setDesktopView] = useState(false);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [status, setStatus] = useState<StopStatus | null>(null);
@@ -102,7 +47,7 @@ export default function StopApp() {
 
   const loadStatus = async () => {
     setError("");
-    const response = await stopAuthFetch("/api/outreach/stop");
+    const response = await settingsAuthFetch("/api/outreach/stop");
     if (!response.ok) throw new Error(await readError(response));
     setStatus((await response.json()) as StopStatus);
   };
@@ -115,6 +60,7 @@ export default function StopApp() {
         const inside = typeof sdk.isInMiniApp === "function" ? await sdk.isInMiniApp() : true;
         if (cancelled) return;
         setInMiniApp(inside);
+        setDesktopView(isLikelyDesktop());
         if (!inside) return;
         await sdk.actions.ready();
       } catch (err) {
@@ -134,7 +80,7 @@ export default function StopApp() {
     setSubmitting(true);
     setError("");
     try {
-      const response = await stopAuthFetch("/api/outreach/stop", {
+      const response = await settingsAuthFetch("/api/outreach/stop", {
         method: nextOptedOut ? "POST" : "DELETE",
         headers: nextOptedOut ? { "content-type": "application/json" } : undefined,
         body: nextOptedOut ? JSON.stringify({}) : undefined,
@@ -233,7 +179,9 @@ export default function StopApp() {
                 Check @mention settings
               </button>
               <Text className="mt-4 text-sm leading-relaxed" style={{ color: "#b7ffb7" }}>
-                Tap to verify your FID before changing @mention settings.
+                {desktopView
+                  ? "On desktop, Farcaster may ask you to confirm sign-in from your phone before this loads."
+                  : "Tap to verify your FID before changing @mention settings."}
               </Text>
             </>
           ) : status.optedOut ? (
