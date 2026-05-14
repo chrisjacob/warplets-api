@@ -180,6 +180,31 @@ ON CONFLICT(user_id, best_friend_fid) DO UPDATE SET
   fetched_at = excluded.fetched_at;`;
 }
 
+function buildCacheStateSql(rows) {
+  if (rows.length === 0) return "";
+
+  const values = rows
+    .map((row) =>
+      [
+        row.userId,
+        row.userFid,
+        sqlString(row.fetchedAt),
+        row.resultCount,
+      ].join(", ")
+    )
+    .map((tuple) => `(${tuple})`)
+    .join(",\n");
+
+  return `INSERT INTO warplets_user_best_friends_cache_state
+  (user_id, user_fid, fetched_at, result_count)
+VALUES
+${values}
+ON CONFLICT(user_fid) DO UPDATE SET
+  user_id = excluded.user_id,
+  fetched_at = excluded.fetched_at,
+  result_count = excluded.result_count;`;
+}
+
 async function main() {
   await mkdir(WORK_DIR, { recursive: true });
 
@@ -196,15 +221,23 @@ async function main() {
       .map((row) => Number(row.user_fid))
       .filter((fid) => Number.isInteger(fid))
   );
+  const cachedEmpty = new Set(
+    d1Query("SELECT user_fid FROM warplets_user_best_friends_cache_state WHERE result_count = 0;")
+      .map((row) => Number(row.user_fid))
+      .filter((fid) => Number.isInteger(fid))
+  );
 
   const checkpoint = loadCheckpointSync();
   const processed = new Set(checkpoint.processedFids ?? []);
   const failed = Array.isArray(checkpoint.failed) ? checkpoint.failed : [];
-  const candidates = users.filter((user) => !existing.has(user.fid) && !processed.has(user.fid)).slice(0, maxUsers);
+  const candidates = users
+    .filter((user) => !existing.has(user.fid) && !cachedEmpty.has(user.fid) && !processed.has(user.fid))
+    .slice(0, maxUsers);
 
-  await log(`Users=${users.length}; existing=${existing.size}; checkpointProcessed=${processed.size}; candidates=${candidates.length}`);
+  await log(`Users=${users.length}; existing=${existing.size}; cachedEmpty=${cachedEmpty.size}; checkpointProcessed=${processed.size}; candidates=${candidates.length}`);
 
   let pendingRows = [];
+  let pendingCacheStates = [];
   let pendingFids = [];
   let completedThisRun = 0;
   let insertedRows = 0;
@@ -217,10 +250,15 @@ async function main() {
       insertedRows += pendingRows.length;
     }
 
+    if (pendingCacheStates.length > 0) {
+      await d1ExecuteFile(buildCacheStateSql(pendingCacheStates));
+    }
+
     pendingFids.forEach((fid) => processed.add(fid));
     await saveCheckpoint({ processedFids: [...processed], failed });
-    await log(`Flushed users=${pendingFids.length}; insertedRows=${pendingRows.length}; totalCompleted=${completedThisRun}; totalInserted=${insertedRows}`);
+    await log(`Flushed users=${pendingFids.length}; insertedRows=${pendingRows.length}; cacheStates=${pendingCacheStates.length}; totalCompleted=${completedThisRun}; totalInserted=${insertedRows}`);
     pendingRows = [];
+    pendingCacheStates = [];
     pendingFids = [];
   }
 
@@ -228,6 +266,12 @@ async function main() {
     try {
       const friends = await fetchBestFriends(user.fid, apiKey);
       const fetchedAt = new Date().toISOString();
+      pendingCacheStates.push({
+        userId: user.id,
+        userFid: user.fid,
+        fetchedAt,
+        resultCount: friends.length,
+      });
       pendingRows.push(
         ...friends.map((friend) => ({
           userId: user.id,

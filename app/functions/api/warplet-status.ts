@@ -497,8 +497,47 @@ async function loadOrFetchBestFriends(
     }));
   }
 
+  try {
+    const cacheState = await db
+      .prepare(
+        `SELECT result_count
+         FROM warplets_user_best_friends_cache_state
+         WHERE user_fid = ?
+         LIMIT 1`
+      )
+      .bind(userFid)
+      .first<{ result_count: number }>();
+
+    if (cacheState && Number(cacheState.result_count ?? 0) === 0) {
+      return [];
+    }
+  } catch {
+    // Cache-state table is migration-backed; skip this guard until migration is applied.
+  }
+
   const fetched = await fetchBestFriendsFromNeynar(userFid, neynarApiKey);
-  if (!fetched || fetched.length === 0) {
+  if (!fetched) {
+    return [];
+  }
+
+  try {
+    await db
+      .prepare(
+        `INSERT INTO warplets_user_best_friends_cache_state
+           (user_id, user_fid, fetched_at, result_count)
+         VALUES (?, ?, ?, ?)
+         ON CONFLICT(user_fid) DO UPDATE SET
+           user_id = excluded.user_id,
+           fetched_at = excluded.fetched_at,
+           result_count = excluded.result_count`
+      )
+      .bind(userId, userFid, now, fetched.length)
+      .run();
+  } catch {
+    // Non-blocking; the best-friends rows remain the source of truth.
+  }
+
+  if (fetched.length === 0) {
     return [];
   }
 

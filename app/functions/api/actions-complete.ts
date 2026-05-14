@@ -2,6 +2,7 @@ interface Env {
   WARPLETS: D1Database;
   WARPLETS_KV?: KVNamespace;
   NEYNAR_API_KEY?: string;
+  ENABLE_NEYNAR_ACTION_VERIFICATION?: string;
   ACTION_SESSION_SECRET?: string;
   ALLOW_INSECURE_ACTION_FID_FALLBACK?: string;
   SECURITY_LOG_SALT?: string;
@@ -113,6 +114,10 @@ const DROP_REWARD_REQUIRED_ACTIONS = 10;
 function isSuccessfulCastVerification(verification: string | null): boolean {
   if (!verification) return false;
   return /^https:\/\/farcaster\.xyz\/[^/\s]+\/0x[a-f0-9]+$/i.test(verification.trim());
+}
+
+function isNeynarActionVerificationEnabled(env: Env): boolean {
+  return env.ENABLE_NEYNAR_ACTION_VERIFICATION === "1";
 }
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
@@ -227,9 +232,12 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   }
 
   if (
-    action.slug === "drop-follow-fc-10xmeme" ||
-    action.slug === "drop-follow-fc-10xchris" ||
-    action.slug === "drop-join-fc-channel"
+    isNeynarActionVerificationEnabled(context.env) &&
+    (
+      action.slug === "drop-follow-fc-10xmeme" ||
+      action.slug === "drop-follow-fc-10xchris" ||
+      action.slug === "drop-join-fc-channel"
+    )
   ) {
     // Verification is best-effort only; never block completion persistence.
     const apiKey = context.env.NEYNAR_API_KEY?.trim();

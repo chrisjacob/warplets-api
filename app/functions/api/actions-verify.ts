@@ -1,5 +1,6 @@
 interface Env {
   NEYNAR_API_KEY?: string;
+  ENABLE_NEYNAR_ACTION_VERIFICATION?: string;
   ACTION_SESSION_SECRET?: string;
   WARPLETS?: D1Database;
   WARPLETS_KV?: KVNamespace;
@@ -25,6 +26,18 @@ function hasOnlyAllowedKeys(value: Record<string, unknown>, allowedKeys: string[
 
 function asNonEmptyString(value: unknown): string | null {
   return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
+}
+
+function isNeynarActionVerificationEnabled(env: Env): boolean {
+  return env.ENABLE_NEYNAR_ACTION_VERIFICATION === "1";
+}
+
+function isSupportedNeynarAction(actionSlug: string): boolean {
+  return (
+    actionSlug === "drop-follow-fc-10xmeme" ||
+    actionSlug === "drop-follow-fc-10xchris" ||
+    actionSlug === "drop-join-fc-channel"
+  );
 }
 
 async function isFollowingFid(apiKey: string, viewerFid: number, targetFid: number): Promise<boolean> {
@@ -117,6 +130,9 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   if (!actionSlug) {
     return jsonSecure({ error: "actionSlug is required" }, { status: 400 });
   }
+  if (!isSupportedNeynarAction(actionSlug)) {
+    return jsonSecure({ error: "Unsupported actionSlug" }, { status: 400 });
+  }
   const fidRate = await rateLimit(context.env.WARPLETS_KV, "actions-verify-fid", String(fid), 30, 60);
   if (!fidRate.allowed) {
     const response = jsonSecure({ error: "Rate limit exceeded" }, { status: 429 });
@@ -139,6 +155,10 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     const response = jsonSecure({ error: "Please try again shortly" }, { status: 429 });
     response.headers.set("retry-after", String(actionCooldownRate.retryAfterSeconds));
     return response;
+  }
+
+  if (!isNeynarActionVerificationEnabled(context.env)) {
+    return jsonSecure({ verified: true, verificationDisabled: true });
   }
 
   const apiKey = context.env.NEYNAR_API_KEY?.trim();
