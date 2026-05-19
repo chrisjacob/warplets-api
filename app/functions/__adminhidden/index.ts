@@ -340,6 +340,15 @@ export const onRequestGet: PagesFunction = () => {
     return res;
   }
 
+  async function readApiJson(res) {
+    const contentType = res.headers.get('content-type') || '';
+    if (contentType.includes('application/json')) return res.json();
+
+    const text = await res.text();
+    const preview = text.replace(/\\s+/g, ' ').trim().slice(0, 240);
+    throw new Error(\`Expected JSON, got HTTP \${res.status} \${contentType || 'unknown content-type'}: \${preview || 'empty response'}\`);
+  }
+
   async function loadStats() {
     try {
       const r = await api('/api/notifications/stats');
@@ -527,7 +536,7 @@ export const onRequestGet: PagesFunction = () => {
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify(payload),
       });
-      const data = await r.json();
+      const data = await readApiJson(r);
       if (r.ok) {
         const summary = Object.entries(data.summary || {}).map(([k,v]) => \`\${v} \${k}\`).join(', ');
         showStatus(\`Sent to \${data.total} token(s): \${summary || 'ok'}\`, true);
