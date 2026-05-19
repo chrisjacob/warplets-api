@@ -31,22 +31,42 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   }
 
   const { results } = await context.env.WARPLETS.prepare(
-    `SELECT
-       COALESCE(d.app_slug, 'drop') AS app_slug,
+    `WITH dispatch_stats AS (
+       SELECT
+         COALESCE(app_slug, 'drop') AS app_slug,
+         notification_id,
+         MAX(title) AS title,
+         MAX(body) AS body,
+         COUNT(*) AS dispatches,
+         SUM(CASE WHEN status = 'delivered' THEN 1 ELSE 0 END) AS delivered,
+         MIN(created_at) AS first_sent,
+         MAX(created_at) AS last_sent
+       FROM notification_dispatches
+       GROUP BY COALESCE(app_slug, 'drop'), notification_id
+     ),
+     open_stats AS (
+       SELECT
+         COALESCE(app_slug, 'drop') AS app_slug,
+         notification_id,
+         COUNT(DISTINCT id) AS opens
+       FROM notification_opens
+       GROUP BY COALESCE(app_slug, 'drop'), notification_id
+     )
+     SELECT
+       d.app_slug,
        d.notification_id,
-       MAX(d.title)       AS title,
-       MAX(d.body)        AS body,
-       COUNT(DISTINCT d.id)                                          AS dispatches,
-       SUM(CASE WHEN d.status = 'delivered' THEN 1 ELSE 0 END)      AS delivered,
-       COUNT(DISTINCT o.id)                                          AS opens,
-       MIN(d.created_at)  AS first_sent,
-       MAX(d.created_at)  AS last_sent
-     FROM notification_dispatches d
-     LEFT JOIN notification_opens  o
+       d.title,
+       d.body,
+       d.dispatches,
+       d.delivered,
+       COALESCE(o.opens, 0) AS opens,
+       d.first_sent,
+       d.last_sent
+     FROM dispatch_stats d
+     LEFT JOIN open_stats o
        ON o.notification_id = d.notification_id
-      AND COALESCE(o.app_slug, 'drop') = COALESCE(d.app_slug, 'drop')
-     GROUP BY COALESCE(d.app_slug, 'drop'), d.notification_id
-     ORDER BY last_sent DESC
+      AND o.app_slug = d.app_slug
+     ORDER BY d.last_sent DESC
      LIMIT 50`
   ).all<StatsRow>();
 
