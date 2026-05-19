@@ -22,6 +22,8 @@ export type DispatchResult =
   | { state: "failed"; error: unknown }
   | { state: "validation_error"; message: string };
 
+type DispatchStatusState = "success" | "rate_limited" | "invalid_token" | "failed";
+
 export interface DispatchOptions {
   fid: number;
   appSlug: string;
@@ -31,6 +33,27 @@ export interface DispatchOptions {
   title: string;
   body: string;
   targetUrl: string;
+}
+
+export interface DispatchBatchToken {
+  fid: number;
+  appSlug: string;
+  notificationToken: string;
+}
+
+export interface DispatchBatchOptions {
+  notificationUrl: string;
+  notificationId: string;
+  title: string;
+  body: string;
+  targetUrl: string;
+  tokens: DispatchBatchToken[];
+}
+
+export interface DispatchBatchResult {
+  fid: number;
+  state: DispatchResult["state"];
+  error?: unknown;
 }
 
 interface NotificationBuckets {
@@ -143,14 +166,23 @@ export async function dispatchNotification(
   if (!targetUrl.startsWith("https://"))
     return { state: "validation_error", message: "targetUrl must be https" };
 
-  // Upsert dispatch record (idempotency: ignore if already delivered)
+  const existing = await db
+    .prepare(
+      `SELECT id, status, attempt_count
+       FROM notification_dispatches
+       WHERE fid = ? AND notification_id = ?`
+    )
+    .bind(fid, notificationId)
+    .first<{ id: number; status: string; attempt_count: number }>();
+
+  if (existing) {
+    return dispatchStatusToResult(existing.status);
+  }
+
   const dispatch = await db
     .prepare(
       `INSERT INTO notification_dispatches (fid, app_slug, notification_id, title, body, target_url, status, attempt_count)
        VALUES (?, ?, ?, ?, ?, ?, 'pending', 0)
-       ON CONFLICT(fid, notification_id) DO UPDATE SET
-         attempt_count = attempt_count + 1,
-         updated_at = datetime('now')
        RETURNING id, status, attempt_count`
     )
     .bind(fid, appSlug, notificationId, title.slice(0, 32), body.slice(0, 128), targetUrl)
@@ -158,11 +190,6 @@ export async function dispatchNotification(
 
   if (!dispatch) {
     return { state: "failed", error: "Failed to create dispatch record" };
-  }
-
-  // Don't re-send if already successfully delivered
-  if (dispatch.status === "delivered" && dispatch.attempt_count === 0) {
-    return { state: "success" };
   }
 
   let result: DispatchResult = { state: "failed", error: "Unknown error" };
@@ -275,4 +302,197 @@ export async function dispatchNotification(
   }
 
   return result;
+}
+
+function stateToDispatchStatus(state: DispatchResult["state"]): string {
+  return state === "success"
+    ? "delivered"
+    : state === "rate_limited"
+    ? "rate_limited"
+    : state === "invalid_token"
+    ? "invalid"
+    : "failed";
+}
+
+function stateToAttemptResult(state: DispatchResult["state"]): string {
+  return state === "success"
+    ? "success"
+    : state === "rate_limited"
+    ? "rate_limited"
+    : state === "invalid_token"
+    ? "invalid"
+    : "error";
+}
+
+function dispatchStatusToState(status: string): DispatchStatusState {
+  if (status === "delivered") return "success";
+  if (status === "rate_limited") return "rate_limited";
+  if (status === "invalid") return "invalid_token";
+  return "failed";
+}
+
+function dispatchStatusToResult(status: string): DispatchResult {
+  const state = dispatchStatusToState(status);
+  return state === "failed" ? { state, error: `existing_${status}` } : { state };
+}
+
+export async function dispatchNotificationBatch(
+  db: D1Database,
+  opts: DispatchBatchOptions
+): Promise<DispatchBatchResult[]> {
+  const { notificationUrl, notificationId, title, body, targetUrl, tokens } = opts;
+
+  if (notificationId.length > 128) {
+    return tokens.map((token) => ({ fid: token.fid, state: "validation_error", error: "notificationId exceeds 128 chars" }));
+  }
+  if (title.length > 32) {
+    return tokens.map((token) => ({ fid: token.fid, state: "validation_error", error: "title exceeds 32 chars" }));
+  }
+  if (body.length > 128) {
+    return tokens.map((token) => ({ fid: token.fid, state: "validation_error", error: "body exceeds 128 chars" }));
+  }
+  if (!targetUrl.startsWith("https://")) {
+    return tokens.map((token) => ({ fid: token.fid, state: "validation_error", error: "targetUrl must be https" }));
+  }
+  if (tokens.length > 100) {
+    return tokens.map((token) => ({ fid: token.fid, state: "validation_error", error: "tokens array exceeds 100" }));
+  }
+
+  const dispatches = new Map<number, { id: number; token: DispatchBatchToken }>();
+  const skipped: DispatchBatchResult[] = [];
+
+  for (const token of tokens) {
+    const existing = await db
+      .prepare(
+        `SELECT id, status
+         FROM notification_dispatches
+         WHERE fid = ? AND notification_id = ?`
+      )
+      .bind(token.fid, notificationId)
+      .first<{ id: number; status: string }>();
+
+    if (existing) {
+      skipped.push({
+        fid: token.fid,
+        state: dispatchStatusToState(existing.status),
+      });
+      continue;
+    }
+
+    const dispatch = await db
+      .prepare(
+        `INSERT INTO notification_dispatches (fid, app_slug, notification_id, title, body, target_url, status, attempt_count)
+         VALUES (?, ?, ?, ?, ?, ?, 'pending', 0)
+         RETURNING id`
+      )
+      .bind(token.fid, token.appSlug, notificationId, title.slice(0, 32), body.slice(0, 128), targetUrl)
+      .first<{ id: number }>();
+
+    if (dispatch) {
+      dispatches.set(token.fid, { id: dispatch.id, token });
+    } else {
+      skipped.push({ fid: token.fid, state: "failed", error: "Failed to create dispatch record" });
+    }
+  }
+
+  const sendable = Array.from(dispatches.values());
+  if (sendable.length === 0) return skipped;
+
+  let responseStatus: number | null = null;
+  let buckets: NotificationBuckets | null = null;
+  let batchError: string | null = null;
+
+  try {
+    const response = await fetch(notificationUrl, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        notificationId,
+        title: title.slice(0, 32),
+        body: body.slice(0, 128),
+        targetUrl,
+        tokens: sendable.map((item) => item.token.notificationToken),
+      }),
+    });
+
+    responseStatus = response.status;
+    const responseJson = await response.json();
+
+    if (response.status === 200) {
+      const parsed = sendNotificationResponseSchema.safeParse(responseJson);
+      buckets = readNotificationBuckets(responseJson);
+      if (!buckets && parsed.success) {
+        buckets = {
+          ...parsed.data.result,
+          failedTokens: [],
+        };
+      }
+      if (!buckets) {
+        batchError = parsed.success ? "Empty notification response buckets" : JSON.stringify(parsed.error.issues);
+      }
+    } else {
+      batchError = `HTTP ${response.status}: ${JSON.stringify(responseJson)}`;
+    }
+  } catch (err) {
+    batchError = err instanceof Error ? err.message : String(err);
+  }
+
+  const results: DispatchBatchResult[] = [...skipped];
+
+  for (const item of sendable) {
+    let state: DispatchResult["state"] = "failed";
+    let errorMessage: string | null = batchError;
+
+    if (buckets) {
+      if (buckets.successfulTokens.includes(item.token.notificationToken)) {
+        state = "success";
+        errorMessage = null;
+      } else if (buckets.invalidTokens.includes(item.token.notificationToken)) {
+        state = "invalid_token";
+        errorMessage = null;
+      } else if (buckets.rateLimitedTokens.includes(item.token.notificationToken)) {
+        state = "rate_limited";
+        errorMessage = null;
+      } else {
+        const failedToken = buckets.failedTokens.find((failed) => failed.token === item.token.notificationToken);
+        errorMessage = failedToken?.reason ?? `unknown_bucket:${summarizeBuckets(buckets)}`;
+      }
+    }
+
+    const dispatchStatus = stateToDispatchStatus(state);
+    const attemptResult = stateToAttemptResult(state);
+
+    await Promise.all([
+      db
+        .prepare(
+          `INSERT INTO notification_attempts (dispatch_id, fid, notification_url, response_status, result, error_message)
+           VALUES (?, ?, ?, ?, ?, ?)`
+        )
+        .bind(item.id, item.token.fid, notificationUrl, responseStatus, attemptResult, errorMessage)
+        .run(),
+      db
+        .prepare(
+          `UPDATE notification_dispatches
+           SET status = ?, attempt_count = attempt_count + 1, updated_at = datetime('now')
+           WHERE id = ?`
+        )
+        .bind(dispatchStatus, item.id)
+        .run(),
+    ]);
+
+    if (state === "invalid_token") {
+      await db
+        .prepare(
+          `UPDATE miniapp_notification_tokens
+           SET enabled = 0, updated_at = datetime('now')
+           WHERE fid = ? AND app_slug = ?`
+        )
+        .bind(item.token.fid, item.token.appSlug)
+        .run();
+    }
+
+    results.push({ fid: item.token.fid, state, ...(errorMessage ? { error: errorMessage } : {}) });
+  }
+
+  return results;
 }

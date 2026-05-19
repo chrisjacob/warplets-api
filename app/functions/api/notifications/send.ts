@@ -15,7 +15,7 @@
  *   { total, results: { fid, state }[] }
  */
 
-import { dispatchNotification } from "../../_lib/dispatch.js";
+import { dispatchNotificationBatch } from "../../_lib/dispatch.js";
 import {
   getDefaultLaunchUrl,
   normalizeNotificationAudienceSlug,
@@ -45,6 +45,7 @@ interface RequestBody {
   targetUrl?: string;
   notificationId?: string;
   appSlug?: string;
+  sendMode?: "all" | "batch" | "fids";
 }
 
 interface TokenRow {
@@ -53,6 +54,13 @@ interface TokenRow {
   notification_url: string;
   notification_token: string;
 }
+
+interface DispatchStatusRow {
+  fid: number;
+  status: string;
+}
+
+const BATCH_LIMIT = 100;
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -69,9 +77,169 @@ function withQueryParam(url: string, key: string, value: string): string {
 }
 
 function buildNotificationId(appSlug: string, rawNotificationId?: string): string {
-  const base = (rawNotificationId ?? `campaign-${Date.now()}`).slice(0, 120);
+  const raw = rawNotificationId?.trim();
+  if (raw?.startsWith(`${appSlug}:`)) return raw.slice(0, 128);
+  const base = (raw ?? `campaign-${Date.now()}`).slice(0, 120);
   return `${appSlug}:${base}`.slice(0, 128);
 }
+
+async function resolveTokenRows(
+  db: D1Database,
+  audienceSlug: string,
+  fids?: number[]
+): Promise<TokenRow[]> {
+  if (audienceSlug === "all") {
+    if (Array.isArray(fids) && fids.length > 0) {
+      const placeholders = fids.map(() => "?").join(", ");
+      const result = await db.prepare(
+        `WITH ranked AS (
+           SELECT
+             fid,
+             app_slug,
+             notification_url,
+             notification_token,
+             updated_at,
+             ROW_NUMBER() OVER (
+               PARTITION BY fid
+               ORDER BY
+                 CASE WHEN app_slug = 'app' THEN 0 ELSE 1 END,
+                 updated_at DESC
+             ) AS rn
+           FROM miniapp_notification_tokens
+           WHERE enabled = 1 AND fid IN (${placeholders})
+         )
+         SELECT fid, app_slug, notification_url, notification_token
+         FROM ranked
+         WHERE rn = 1
+         ORDER BY updated_at DESC`
+      )
+        .bind(...fids)
+        .all<TokenRow>();
+      return result.results;
+    }
+
+    const result = await db.prepare(
+      `WITH ranked AS (
+         SELECT
+           fid,
+           app_slug,
+           notification_url,
+           notification_token,
+           updated_at,
+           ROW_NUMBER() OVER (
+             PARTITION BY fid
+             ORDER BY
+               CASE WHEN app_slug = 'app' THEN 0 ELSE 1 END,
+               updated_at DESC
+           ) AS rn
+         FROM miniapp_notification_tokens
+         WHERE enabled = 1
+       )
+       SELECT fid, app_slug, notification_url, notification_token
+       FROM ranked
+       WHERE rn = 1
+       ORDER BY updated_at DESC`
+    ).all<TokenRow>();
+    return result.results;
+  }
+
+  if (Array.isArray(fids) && fids.length > 0) {
+    const placeholders = fids.map(() => "?").join(", ");
+    const result = await db.prepare(
+      `SELECT fid, app_slug, notification_url, notification_token
+       FROM miniapp_notification_tokens
+       WHERE enabled = 1 AND app_slug = ? AND fid IN (${placeholders})
+       ORDER BY updated_at DESC`
+    )
+      .bind(audienceSlug, ...fids)
+      .all<TokenRow>();
+    return result.results;
+  }
+
+  const result = await db.prepare(
+    `SELECT fid, app_slug, notification_url, notification_token
+     FROM miniapp_notification_tokens
+     WHERE enabled = 1 AND app_slug = ?
+     ORDER BY updated_at DESC`
+  )
+    .bind(audienceSlug)
+    .all<TokenRow>();
+  return result.results;
+}
+
+async function getDispatchStatuses(db: D1Database, notificationId: string): Promise<DispatchStatusRow[]> {
+  const result = await db.prepare(
+    `SELECT fid, status
+     FROM notification_dispatches
+     WHERE notification_id = ?`
+  )
+    .bind(notificationId)
+    .all<DispatchStatusRow>();
+  return result.results;
+}
+
+function buildProgress(rows: TokenRow[], dispatchRows: DispatchStatusRow[]) {
+  const activeFids = new Set(rows.map((row) => row.fid));
+  const counts: Record<string, number> = {};
+  let alreadyDispatched = 0;
+
+  for (const row of dispatchRows) {
+    if (!activeFids.has(row.fid)) continue;
+    alreadyDispatched += 1;
+    counts[row.status] = (counts[row.status] ?? 0) + 1;
+  }
+
+  return {
+    audience: rows.length,
+    alreadyDispatched,
+    unsent: Math.max(0, rows.length - alreadyDispatched),
+    delivered: counts.delivered ?? 0,
+    invalid: counts.invalid ?? 0,
+    failed: counts.failed ?? 0,
+    rateLimited: counts.rate_limited ?? 0,
+    pending: counts.pending ?? 0,
+  };
+}
+
+function chunk<T>(items: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let index = 0; index < items.length; index += size) {
+    chunks.push(items.slice(index, index + size));
+  }
+  return chunks;
+}
+
+function parseFids(raw: string | null): number[] | undefined {
+  if (!raw?.trim()) return undefined;
+  const fids = raw
+    .split(",")
+    .map((item) => Number.parseInt(item.trim(), 10))
+    .filter((fid) => Number.isFinite(fid) && fid > 0);
+  return fids.length > 0 ? Array.from(new Set(fids)) : undefined;
+}
+
+export const onRequestGet: PagesFunction<Env> = async (context) => {
+  const auth = await requireAdminScope(context, { scope: "notify:stats" });
+  if (!auth.ok) {
+    return auth.response;
+  }
+
+  const url = new URL(context.request.url);
+  const audienceSlug = normalizeNotificationAudienceSlug(url.searchParams.get("appSlug"), "app");
+  const rawNotificationId = url.searchParams.get("notificationId")?.trim();
+  if (!rawNotificationId) {
+    return jsonSecure({ error: "notificationId is required" }, { status: 400 });
+  }
+
+  const notificationId = buildNotificationId(audienceSlug, rawNotificationId);
+  const rows = await resolveTokenRows(context.env.WARPLETS, audienceSlug, parseFids(url.searchParams.get("fids")));
+  const dispatchRows = await getDispatchStatuses(context.env.WARPLETS, notificationId);
+
+  return jsonSecure({
+    notificationId,
+    progress: buildProgress(rows, dispatchRows),
+  });
+};
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
   const auth = await requireAdminScope(context, { scope: "notify:send" });
@@ -116,13 +284,23 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   if (!isPlainObject(parsedBody.value)) {
     return jsonSecure({ error: "Invalid JSON payload" }, { status: 400 });
   }
-  if (!hasOnlyAllowedKeys(parsedBody.value, ["fids", "title", "body", "targetUrl", "notificationId", "appSlug"])) {
+  if (!hasOnlyAllowedKeys(parsedBody.value, ["fids", "title", "body", "targetUrl", "notificationId", "appSlug", "sendMode"])) {
     return jsonSecure({ error: "Unexpected fields in payload" }, { status: 400 });
   }
   const json = parsedBody.value as unknown as RequestBody;
 
   if (!json.title || !json.body) {
     return jsonSecure({ error: "title and body are required" }, { status: 400 });
+  }
+  if (json.fids !== undefined && !Array.isArray(json.fids)) {
+    return jsonSecure({ error: "fids must be an array" }, { status: 400 });
+  }
+
+  const requestedFids = Array.isArray(json.fids)
+    ? Array.from(new Set(json.fids.filter((fid) => Number.isInteger(fid) && fid > 0)))
+    : undefined;
+  if (json.sendMode === "fids" && (!requestedFids || requestedFids.length === 0)) {
+    return jsonSecure({ error: "FID list mode requires at least one valid FID" }, { status: 400 });
   }
 
   const title = json.title.slice(0, 32);
@@ -136,121 +314,66 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     return jsonSecure({ error: "targetUrl must be https" }, { status: 400 });
   }
 
-  // Hard cap: max 100 FIDs per request (Farcaster tokens-per-request limit)
-  if (Array.isArray(json.fids) && json.fids.length > 100) {
-    return jsonSecure({ error: "fids array exceeds max of 100" }, { status: 400 });
-  }
-
-  // Resolve target tokens from D1
-  let rows: TokenRow[];
-  if (audienceSlug === "all") {
-    if (Array.isArray(json.fids) && json.fids.length > 0) {
-      const placeholders = json.fids.map(() => "?").join(", ");
-      const result = await context.env.WARPLETS.prepare(
-        `WITH ranked AS (
-           SELECT
-             fid,
-             app_slug,
-             notification_url,
-             notification_token,
-             updated_at,
-             ROW_NUMBER() OVER (
-               PARTITION BY fid
-               ORDER BY
-                 CASE WHEN app_slug = 'app' THEN 0 ELSE 1 END,
-                 updated_at DESC
-             ) AS rn
-           FROM miniapp_notification_tokens
-           WHERE enabled = 1 AND fid IN (${placeholders})
-         )
-         SELECT fid, app_slug, notification_url, notification_token
-         FROM ranked
-         WHERE rn = 1
-         ORDER BY updated_at DESC`
-      )
-        .bind(...json.fids)
-        .all<TokenRow>();
-      rows = result.results;
-    } else {
-      const result = await context.env.WARPLETS.prepare(
-        `WITH ranked AS (
-           SELECT
-             fid,
-             app_slug,
-             notification_url,
-             notification_token,
-             updated_at,
-             ROW_NUMBER() OVER (
-               PARTITION BY fid
-               ORDER BY
-                 CASE WHEN app_slug = 'app' THEN 0 ELSE 1 END,
-                 updated_at DESC
-             ) AS rn
-           FROM miniapp_notification_tokens
-           WHERE enabled = 1
-         )
-         SELECT fid, app_slug, notification_url, notification_token
-         FROM ranked
-         WHERE rn = 1
-         ORDER BY updated_at DESC`
-      ).all<TokenRow>();
-      rows = result.results;
-    }
-  } else {
-    if (Array.isArray(json.fids) && json.fids.length > 0) {
-      const placeholders = json.fids.map(() => "?").join(", ");
-      const result = await context.env.WARPLETS.prepare(
-        `SELECT fid, app_slug, notification_url, notification_token
-         FROM miniapp_notification_tokens
-         WHERE enabled = 1 AND app_slug = ? AND fid IN (${placeholders})
-         ORDER BY updated_at DESC`
-      )
-        .bind(audienceSlug, ...json.fids)
-        .all<TokenRow>();
-      rows = result.results;
-    } else {
-      const result = await context.env.WARPLETS.prepare(
-        `SELECT fid, app_slug, notification_url, notification_token
-         FROM miniapp_notification_tokens
-         WHERE enabled = 1 AND app_slug = ?
-         ORDER BY updated_at DESC`
-      )
-        .bind(audienceSlug)
-        .all<TokenRow>();
-      rows = result.results;
-    }
-  }
+  const hasFidList = Boolean(requestedFids?.length);
+  const sendMode = hasFidList ? "fids" : json.sendMode === "batch" ? "batch" : "all";
+  const rows = await resolveTokenRows(context.env.WARPLETS, audienceSlug, requestedFids);
 
   if (rows.length === 0) {
     return jsonSecure({ total: 0, results: [], message: "No enabled tokens found" });
   }
 
-  // Dispatch to each FID sequentially (could be batched for scale, fine for now)
-  const results: { fid: number; state: string }[] = [];
+  const beforeDispatchRows = await getDispatchStatuses(context.env.WARPLETS, notificationId);
+  const beforeProgress = buildProgress(rows, beforeDispatchRows);
+  const alreadyDispatchedFids = new Set(beforeDispatchRows.map((row) => row.fid));
+  const pendingRows = rows.filter((row) => !alreadyDispatchedFids.has(row.fid));
+  const selectedRows = sendMode === "batch" ? pendingRows.slice(0, BATCH_LIMIT) : pendingRows;
 
-  for (const row of rows) {
-    const rowAppSlug: AppSlug = audienceSlug === "all"
-      ? normalizeAppSlug(row.app_slug, "app")
-      : audienceSlug;
-
-    const result = await dispatchNotification(context.env.WARPLETS, {
-      fid: row.fid,
-      appSlug: rowAppSlug,
-      notificationUrl: row.notification_url,
-      notificationToken: row.notification_token,
+  if (selectedRows.length === 0) {
+    return jsonSecure({
+      total: 0,
       notificationId,
-      title,
-      body,
-      targetUrl,
+      sendMode,
+      summary: { skipped_existing: rows.length },
+      progress: beforeProgress,
+      results: [],
+      message: "No unsent enabled tokens remain for this notificationId",
     });
+  }
 
-    results.push({ fid: row.fid, state: result.state });
+  const rowsByUrl = selectedRows.reduce<Record<string, TokenRow[]>>((acc, row) => {
+    (acc[row.notification_url] ??= []).push(row);
+    return acc;
+  }, {});
+
+  const results: { fid: number; state: string; error?: unknown }[] = [];
+
+  for (const [notificationUrl, urlRows] of Object.entries(rowsByUrl)) {
+    for (const batchRows of chunk(urlRows, BATCH_LIMIT)) {
+      const batchResults = await dispatchNotificationBatch(context.env.WARPLETS, {
+        notificationUrl,
+        notificationId,
+        title,
+        body,
+        targetUrl,
+        tokens: batchRows.map((row) => ({
+          fid: row.fid,
+          appSlug: audienceSlug === "all"
+            ? normalizeAppSlug(row.app_slug, "app")
+            : audienceSlug as AppSlug,
+          notificationToken: row.notification_token,
+        })),
+      });
+      results.push(...batchResults);
+    }
   }
 
   const summary = results.reduce<Record<string, number>>((acc, r) => {
     acc[r.state] = (acc[r.state] ?? 0) + 1;
     return acc;
   }, {});
+
+  const afterDispatchRows = await getDispatchStatuses(context.env.WARPLETS, notificationId);
+  const afterProgress = buildProgress(rows, afterDispatchRows);
 
   await logSecurityEvent(context.env.WARPLETS, { logSalt: context.env.SECURITY_LOG_SALT }, {
     eventType: "notification_send",
@@ -262,13 +385,18 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     details: JSON.stringify({
       audienceSlug,
       totalRows: rows.length,
+      selectedRows: selectedRows.length,
+      sendMode,
       notificationId,
     }),
   });
 
   return jsonSecure({
-    total: rows.length,
+    total: selectedRows.length,
     notificationId,
+    sendMode,
+    progress: afterProgress,
+    beforeProgress,
     summary,
     results,
   });

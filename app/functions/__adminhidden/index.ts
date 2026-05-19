@@ -192,8 +192,26 @@ export const onRequestGet: PagesFunction = () => {
     <label>Notification ID <span style="color:#555;font-size:.75rem">(optional — leave blank to auto-generate)</span></label>
     <input id="sendId" placeholder="my-campaign-001" />
 
-    <label>Target FIDs <span style="color:#555;font-size:.75rem">(optional — comma-separated, max 100; leave blank for all)</span></label>
+    <label>Send mode</label>
+    <select id="sendMode">
+      <option value="batch">One batch at a time (max 100 unsent)</option>
+      <option value="all">All unsent now</option>
+      <option value="fids">FID list only</option>
+    </select>
+
+    <label>Target FIDs <span style="color:#555;font-size:.75rem">(comma-separated; used by FID list mode)</span></label>
     <input id="sendFids" placeholder="1129138, 9152, …" />
+
+    <div class="stat-grid" style="margin-top:.75rem;margin-bottom:.5rem">
+      <div class="stat-box"><div class="num" id="sendAudience">-</div><div class="lbl">Audience</div></div>
+      <div class="stat-box"><div class="num" id="sendAlready">-</div><div class="lbl">Already dispatched</div></div>
+      <div class="stat-box"><div class="num" id="sendUnsent">-</div><div class="lbl">Unsent</div></div>
+      <div class="stat-box"><div class="num" id="sendDelivered">-</div><div class="lbl">Delivered</div></div>
+      <div class="stat-box"><div class="num" id="sendPending">-</div><div class="lbl">Ambiguous pending</div></div>
+      <div class="stat-box"><div class="num" id="sendProblem">-</div><div class="lbl">Failed / invalid / limited</div></div>
+    </div>
+    <div id="sendProgressMeta" style="font-size:.8rem;color:#666"></div>
+    <button class="secondary" id="sendProgressBtn" style="padding:.35rem .85rem;font-size:.8rem">Refresh send progress</button>
 
     <div style="margin-top:.75rem">
       <button id="sendBtn">Send notification</button>
@@ -507,8 +525,64 @@ export const onRequestGet: PagesFunction = () => {
   updateSendTargetUiFromApp();
 
   // --- SEND ---
+  function parseSendFids() {
+    const fidsRaw = document.getElementById('sendFids').value.trim();
+    return fidsRaw
+      ? Array.from(new Set(fidsRaw.split(',').map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n) && n > 0)))
+      : undefined;
+  }
+
+  function renderSendProgress(notificationId, progress) {
+    const p = progress || {};
+    document.getElementById('sendAudience').textContent = p.audience ?? '-';
+    document.getElementById('sendAlready').textContent = p.alreadyDispatched ?? '-';
+    document.getElementById('sendUnsent').textContent = p.unsent ?? '-';
+    document.getElementById('sendDelivered').textContent = p.delivered ?? '-';
+    document.getElementById('sendPending').textContent = p.pending ?? '-';
+    document.getElementById('sendProblem').textContent =
+      [p.failed, p.invalid, p.rateLimited].every(v => typeof v === 'number')
+        ? p.failed + p.invalid + p.rateLimited
+        : '-';
+    document.getElementById('sendProgressMeta').textContent = notificationId
+      ? 'Campaign: ' + notificationId
+      : '';
+  }
+
+  async function refreshSendProgress() {
+    const appSlug = document.getElementById('sendApp').value;
+    const sendMode = document.getElementById('sendMode').value;
+    const notifId = document.getElementById('sendId').value.trim();
+    if (!notifId) {
+      renderSendProgress('', null);
+      document.getElementById('sendProgressMeta').textContent = 'Enter a notification ID to view resume progress.';
+      return;
+    }
+    const fids = parseSendFids();
+    const params = new URLSearchParams({ appSlug, notificationId: notifId });
+    if (sendMode === 'fids' && fids?.length) params.set('fids', fids.join(','));
+    const r = await api('/api/notifications/send?' + params.toString());
+    const data = await readApiJson(r);
+    if (!r.ok) throw new Error(data.error || 'Unable to load send progress');
+    renderSendProgress(data.notificationId, data.progress);
+  }
+
+  document.getElementById('sendProgressBtn').addEventListener('click', async (event) => {
+    event.preventDefault();
+    try {
+      await refreshSendProgress();
+    } catch (e) {
+      if (e.message !== 'Unauthorized') showStatus(String(e), false);
+    }
+  });
+
+  document.getElementById('sendApp').addEventListener('change', () => refreshSendProgress().catch(() => {}));
+  document.getElementById('sendMode').addEventListener('change', () => refreshSendProgress().catch(() => {}));
+  document.getElementById('sendId').addEventListener('blur', () => refreshSendProgress().catch(() => {}));
+  document.getElementById('sendFids').addEventListener('blur', () => refreshSendProgress().catch(() => {}));
+
   document.getElementById('sendBtn').addEventListener('click', async () => {
     const appSlug = document.getElementById('sendApp').value;
+    const sendMode = document.getElementById('sendMode').value;
     const title = document.getElementById('sendTitle').value.trim();
     const body  = document.getElementById('sendBody').value.trim();
     if (!title || !body) { showStatus('Title and body are required', false); return; }
@@ -516,15 +590,12 @@ export const onRequestGet: PagesFunction = () => {
     const defaultTarget = getDefaultTargetUrlForAppSlug(appSlug);
     const target     = document.getElementById('sendTarget').value.trim() || defaultTarget;
     const notifId    = document.getElementById('sendId').value.trim() || undefined;
-    const fidsRaw    = document.getElementById('sendFids').value.trim();
-    const fids       = fidsRaw
-      ? fidsRaw.split(',').map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n))
-      : undefined;
+    const fids       = parseSendFids();
 
-    if (fids && fids.length > 100) { showStatus('Max 100 FIDs per send', false); return; }
+    if (sendMode === 'fids' && !fids?.length) { showStatus('FID list mode requires at least one FID', false); return; }
     if (target && !target.startsWith('https://')) { showStatus('targetUrl must be https', false); return; }
 
-    const payload = { title, body, appSlug, targetUrl: target, ...(notifId && { notificationId: notifId }), ...(fids && { fids }) };
+    const payload = { title, body, appSlug, sendMode, targetUrl: target, ...(notifId && { notificationId: notifId }), ...(sendMode === 'fids' && fids && { fids }) };
 
     const btn = document.getElementById('sendBtn');
     btn.disabled = true;
@@ -539,7 +610,9 @@ export const onRequestGet: PagesFunction = () => {
       const data = await readApiJson(r);
       if (r.ok) {
         const summary = Object.entries(data.summary || {}).map(([k,v]) => \`\${v} \${k}\`).join(', ');
-        showStatus(\`Sent to \${data.total} token(s): \${summary || 'ok'}\`, true);
+        renderSendProgress(data.notificationId, data.progress);
+        const remaining = data.progress?.unsent ?? '?';
+        showStatus(\`Processed \${data.total} unsent token(s): \${summary || 'ok'}. Remaining unsent: \${remaining}\`, true);
         setTimeout(loadAll, 1500);
       } else {
         showStatus(data.error || 'Unknown error', false);
