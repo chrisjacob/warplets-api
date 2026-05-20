@@ -98,6 +98,8 @@ type TopReferrer = {
   referrals: number;
 };
 
+const REWARD_ACTION_FAKE_VERIFICATION_MS = 5000;
+
 function getEmailFromVerification(verification: string | null): string {
   const value = verification?.trim() ?? "";
   return value.startsWith("email:") ? value.slice("email:".length).trim() : "";
@@ -1930,12 +1932,12 @@ export default function App() {
   };
 
   const setActionPendingThenComplete = (slug: string) => {
-    const completeAtMs = Date.now() + 10000;
+    const completeAtMs = Date.now() + REWARD_ACTION_FAKE_VERIFICATION_MS;
     setPendingActionUntilMs((prev) => ({ ...prev, [slug]: completeAtMs }));
     window.setTimeout(() => {
       setPendingActionUntilMs((prev) => ({ ...prev, [slug]: 0 }));
       setOptimisticCompletedActions((prev) => ({ ...prev, [slug]: true }));
-    }, 10000);
+    }, REWARD_ACTION_FAKE_VERIFICATION_MS);
   };
 
   const openWaitlistModal = (action: RewardAction) => {
@@ -1985,7 +1987,7 @@ export default function App() {
           await openExternalUrlWithMailtoFallback(action.url);
         }
         if (!alreadyCompleted) {
-          await wait(10000);
+          await wait(REWARD_ACTION_FAKE_VERIFICATION_MS);
           await completeRewardAction(action.slug, `opened:${new Date().toISOString()}`);
         }
       } else if (action.slug === "drop-cast") {
@@ -2037,7 +2039,7 @@ export default function App() {
         }).toString()}`;
         await sdk.actions.openUrl(intentUrl);
         if (!alreadyCompleted) {
-          await wait(10000);
+          await wait(REWARD_ACTION_FAKE_VERIFICATION_MS);
           await completeRewardAction(
             action.slug,
             intentUrl,
