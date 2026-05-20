@@ -65,6 +65,8 @@ migrations/
 
 ## Local development
 
+For working safely across two developer machines, follow the branching and sync workflow in [docs/TWO_MACHINE_WORKFLOW.md](docs/TWO_MACHINE_WORKFLOW.md).
+
 ### One-command dev workflow
 
 ```bash
