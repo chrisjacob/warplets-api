@@ -19,6 +19,10 @@ const DROP_UNLOCK_ACTION_SLUGS = [
 ] as const;
 const DROP_REWARD_REQUIRED_ACTIONS = 10;
 
+function currentGiveawayMonth(now = new Date()): string {
+  return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+
 async function syncWaitlistActionCompletion(db: D1Database, fid: number, email: string): Promise<void> {
   const user = await db
     .prepare("SELECT id FROM warplets_users WHERE fid = ? LIMIT 1")
@@ -81,6 +85,42 @@ async function syncWaitlistActionCompletion(db: D1Database, fid: number, email: 
   }
 }
 
+async function syncMillionEmailEntry(db: D1Database, fid: number, email: string): Promise<void> {
+  const user = await db
+    .prepare("SELECT id FROM warplets_users WHERE fid = ? LIMIT 1")
+    .bind(fid)
+    .first<{ id: number }>();
+  if (!user) return;
+
+  const action = await db
+    .prepare("SELECT id, slug, entry_value FROM actions WHERE slug = 'million-enter-email' LIMIT 1")
+    .first<{ id: number; slug: string; entry_value: number }>();
+  if (!action) return;
+
+  const now = new Date().toISOString();
+  const giveawayMonth = currentGiveawayMonth();
+  await db
+    .prepare(
+      `INSERT INTO million_giveaway_entries (
+         giveaway_month, user_id, user_fid, email, entry_source, created_on, updated_on
+       ) VALUES (?, ?, ?, ?, 'email', ?, ?)
+       ON CONFLICT(user_id, giveaway_month) DO UPDATE SET
+         email = excluded.email,
+         updated_on = excluded.updated_on`
+    )
+    .bind(giveawayMonth, user.id, fid, email, now, now)
+    .run();
+
+  await db
+    .prepare(
+      `INSERT OR IGNORE INTO million_giveaway_action_entries (
+         giveaway_month, action_id, action_slug, user_id, user_fid, entries_awarded, verification, created_on
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+    )
+    .bind(giveawayMonth, action.id, action.slug, user.id, fid, Math.max(0, Number(action.entry_value ?? 0)), `email:${email}`, now)
+    .run();
+}
+
 function htmlResponse(status: number, title: string, message: string): Response {
   return applySecurityHeaders(new Response(
     `<!DOCTYPE html>
@@ -141,6 +181,10 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   }
 
   if (row.verified === 1) {
+    if (typeof row.fid === "number" && row.fid > 0) {
+      await syncWaitlistActionCompletion(context.env.WARPLETS, row.fid, row.email);
+      await syncMillionEmailEntry(context.env.WARPLETS, row.fid, row.email);
+    }
     return htmlResponse(200, "Already verified", "Your email is already verified. You are all set.");
   }
 
@@ -155,6 +199,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
   if (typeof row.fid === "number" && row.fid > 0) {
     await syncWaitlistActionCompletion(context.env.WARPLETS, row.fid, row.email);
+    await syncMillionEmailEntry(context.env.WARPLETS, row.fid, row.email);
   }
 
   return htmlResponse(200, "Email verified", "Success. Your email is verified and your waitlist spot is confirmed.");

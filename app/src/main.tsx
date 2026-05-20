@@ -48,6 +48,8 @@ function resolveActiveApp() {
   if (cleanPath === "/drop" || cleanPath.startsWith("/drop/")) return <DropApp />;
   if (cleanPath === "/find" || cleanPath.startsWith("/find/")) return <FindApp />;
   if (cleanPath === "/million" || cleanPath.startsWith("/million/")) return <MillionApp />;
+  if (cleanPath === "/enter" || cleanPath.startsWith("/enter/")) return <MillionApp />;
+  if (cleanPath === "/entry" || cleanPath.startsWith("/entry/")) return <MillionApp />;
   if (cleanPath === "/stop" || cleanPath.startsWith("/stop/")) return <StopApp />;
   if (cleanPath === "/unsubscribe" || cleanPath.startsWith("/unsubscribe/")) return <UnsubscribeApp />;
 

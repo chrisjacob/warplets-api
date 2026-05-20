@@ -24,17 +24,22 @@ interface SubscribeBody {
   tokenId?: unknown;
   matched?: unknown;
   sessionToken?: unknown;
+  campaign?: unknown;
 }
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const RESEND_SEGMENT_ID = "e52bdc31-4f3c-4ec6-a623-9bc3977042e2";
-const RESEND_TOPIC_ID = "c3e8d591-73e6-4e98-a873-5e197a8581ee";
+const DROP_RESEND_SEGMENT_ID = "e52bdc31-4f3c-4ec6-a623-9bc3977042e2";
+const DROP_RESEND_TOPIC_ID = "c3e8d591-73e6-4e98-a873-5e197a8581ee";
+const MILLION_RESEND_SEGMENT_ID = "8d50c1f9-07a9-4d6b-9b65-f55c1e2a3bb7";
+const MILLION_RESEND_TOPIC_ID = "2eff10f6-9ec1-4ad4-b365-03f9ca042a13";
 const ALLOWED_ORIGINS = new Set([
   "https://10x.meme",
   "https://www.10x.meme",
   "https://app.10x.meme",
   "https://drop.10x.meme",
   "https://drop-dev.10x.meme",
+  "https://million.10x.meme",
+  "https://million-dev.10x.meme",
   "https://web-dev.10x.meme",
 ]);
 
@@ -131,20 +136,23 @@ async function upsertResendContact(
   email: string,
   firstName: string,
   lastName: string,
-  properties: Record<string, string>
+  properties: Record<string, string>,
+  campaign: "drop" | "million"
 ): Promise<void> {
   const contactPath = `https://api.resend.com/contacts/${encodeURIComponent(email)}`;
   const headers = {
     "content-type": "application/json",
     Authorization: `Bearer ${resendApiKey}`,
   };
+  const segmentId = campaign === "million" ? MILLION_RESEND_SEGMENT_ID : DROP_RESEND_SEGMENT_ID;
+  const topicId = campaign === "million" ? MILLION_RESEND_TOPIC_ID : DROP_RESEND_TOPIC_ID;
   const contactBody = {
     email,
     first_name: firstName,
     last_name: lastName,
     unsubscribed: false,
-    segments: [{ id: RESEND_SEGMENT_ID }],
-    topics: [{ id: RESEND_TOPIC_ID, subscription: "opt_in" }],
+    segments: [{ id: segmentId }],
+    topics: [{ id: topicId, subscription: "opt_in" }],
   };
 
   try {
@@ -186,7 +194,7 @@ async function upsertResendContact(
     }
 
     const segmentResponse = await outboundFetch(
-      `${contactPath}/segments/${RESEND_SEGMENT_ID}`,
+      `${contactPath}/segments/${segmentId}`,
       {
         method: "POST",
         headers,
@@ -201,7 +209,7 @@ async function upsertResendContact(
       method: "PATCH",
       headers,
       body: JSON.stringify({
-        topics: [{ id: RESEND_TOPIC_ID, subscription: "opt_in" }],
+        topics: [{ id: topicId, subscription: "opt_in" }],
       }),
     });
 
@@ -245,10 +253,11 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   if (!isPlainObject(parsedBody.value)) {
     return jsonSecure({ error: "Invalid JSON payload" }, { status: 400, headers: corsHeaders });
   }
-  if (!hasOnlyAllowedKeys(parsedBody.value, ["email", "fid", "username", "tokenId", "matched", "sessionToken"])) {
+  if (!hasOnlyAllowedKeys(parsedBody.value, ["email", "fid", "username", "tokenId", "matched", "sessionToken", "campaign"])) {
     return jsonSecure({ error: "Unexpected fields in payload" }, { status: 400, headers: corsHeaders });
   }
   const body = parsedBody.value as SubscribeBody;
+  const campaign = asString(body.campaign) === "million" ? "million" : "drop";
 
   const rawEmail = asString(body.email);
   const email = rawEmail?.toLowerCase() ?? "";
@@ -363,7 +372,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     const lastName = userProps?.fidString || (fid ? String(fid) : "");
     const properties = userProps?.properties ?? {};
 
-    await upsertResendContact(resendApiKey, email, firstName, lastName, properties);
+    await upsertResendContact(resendApiKey, email, firstName, lastName, properties, campaign);
   }
 
   if (!alreadyVerified && resendApiKey && !hadPendingUnverifiedBefore) {
@@ -388,7 +397,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         body: JSON.stringify({
           from: fromEmail,
           to: [email],
-          subject: "Verify your 10X Meme email",
+          subject: campaign === "million" ? "Verify your $1M Warplet giveaway entry" : "Verify your 10X Meme email",
           html: buildVerifyEmailHtml(verifyUrl.toString(), unsubscribeUrl.toString()),
         }),
       });
@@ -407,6 +416,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   return jsonSecure({
     success: true,
     email,
+    campaign,
     alreadyVerified,
     verificationEmailSent,
   }, { headers: corsHeaders });
