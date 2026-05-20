@@ -212,6 +212,12 @@ export const onRequestGet: PagesFunction = () => {
     </div>
     <div id="sendProgressMeta" style="font-size:.8rem;color:#666"></div>
     <button class="secondary" id="sendProgressBtn" style="padding:.35rem .85rem;font-size:.8rem">Refresh send progress</button>
+    <table id="sendFidDetailsTable" style="margin-top:.75rem;display:none">
+      <thead><tr>
+        <th>FID</th><th>Eligible</th><th>Tokens</th><th>Dispatch</th><th>Latest attempt</th>
+      </tr></thead>
+      <tbody id="sendFidDetailsBody"></tbody>
+    </table>
 
     <div style="margin-top:.75rem">
       <button id="sendBtn">Send notification</button>
@@ -548,12 +554,41 @@ export const onRequestGet: PagesFunction = () => {
       : '';
   }
 
+  function renderFidDetails(rows) {
+    const table = document.getElementById('sendFidDetailsTable');
+    const tbody = document.getElementById('sendFidDetailsBody');
+    if (!Array.isArray(rows) || !rows.length) {
+      table.style.display = 'none';
+      tbody.innerHTML = '';
+      return;
+    }
+
+    table.style.display = 'table';
+    tbody.innerHTML = rows.map(row => {
+      const tokenText = Array.isArray(row.tokens) && row.tokens.length
+        ? row.tokens.map(t => \`\${esc(t.appSlug)}:\${t.enabled ? 'enabled' : 'disabled'}\`).join(', ')
+        : 'none';
+      const attempt = row.latestAttempt
+        ? \`\${esc(row.latestAttempt.result)} \${row.latestAttempt.responseStatus ?? ''} \${esc(row.latestAttempt.errorMessage || '')}\`
+        : 'none';
+      return \`
+        <tr>
+          <td>\${row.fid}</td>
+          <td>\${row.eligible ? '<span class="pill delivered">yes</span>' : '<span class="pill failed">no</span>'}</td>
+          <td class="mono">\${tokenText}</td>
+          <td><span class="pill \${row.dispatchStatus || 'pending'}">\${esc(row.dispatchStatus || 'none')}</span></td>
+          <td class="mono">\${attempt}</td>
+        </tr>\`;
+    }).join('');
+  }
+
   async function refreshSendProgress() {
     const appSlug = document.getElementById('sendApp').value;
     const sendMode = document.getElementById('sendMode').value;
     const notifId = document.getElementById('sendId').value.trim();
     if (!notifId) {
       renderSendProgress('', null);
+      renderFidDetails(null);
       document.getElementById('sendProgressMeta').textContent = 'Enter a notification ID to view resume progress.';
       return;
     }
@@ -564,6 +599,7 @@ export const onRequestGet: PagesFunction = () => {
     const data = await readApiJson(r);
     if (!r.ok) throw new Error(data.error || 'Unable to load send progress');
     renderSendProgress(data.notificationId, data.progress);
+    renderFidDetails(data.fidDetails);
   }
 
   document.getElementById('sendProgressBtn').addEventListener('click', async (event) => {
@@ -611,6 +647,7 @@ export const onRequestGet: PagesFunction = () => {
       if (r.ok) {
         const summary = Object.entries(data.summary || {}).map(([k,v]) => \`\${v} \${k}\`).join(', ');
         renderSendProgress(data.notificationId, data.progress);
+        renderFidDetails(data.fidDetails);
         const remaining = data.progress?.unsent ?? '?';
         showStatus(\`Processed \${data.total} unsent token(s): \${summary || 'ok'}. Remaining unsent: \${remaining}\`, true);
         setTimeout(loadAll, 1500);

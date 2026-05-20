@@ -60,6 +60,21 @@ interface DispatchStatusRow {
   status: string;
 }
 
+interface TokenInspectRow {
+  fid: number;
+  app_slug: string;
+  enabled: number;
+  updated_at: string;
+}
+
+interface AttemptInspectRow {
+  fid: number;
+  result: string;
+  response_status: number | null;
+  error_message: string | null;
+  created_at: string;
+}
+
 const BATCH_LIMIT = 100;
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
@@ -178,6 +193,73 @@ async function getDispatchStatuses(db: D1Database, notificationId: string): Prom
   return result.results;
 }
 
+async function inspectRequestedFids(
+  db: D1Database,
+  fids: number[] | undefined,
+  eligibleRows: TokenRow[],
+  notificationId: string
+) {
+  if (!fids?.length) return undefined;
+
+  const placeholders = fids.map(() => "?").join(", ");
+  const [tokens, dispatches, attempts] = await Promise.all([
+    db.prepare(
+      `SELECT fid, app_slug, enabled, updated_at
+       FROM miniapp_notification_tokens
+       WHERE fid IN (${placeholders})
+       ORDER BY fid, app_slug`
+    )
+      .bind(...fids)
+      .all<TokenInspectRow>(),
+    db.prepare(
+      `SELECT fid, status
+       FROM notification_dispatches
+       WHERE notification_id = ? AND fid IN (${placeholders})`
+    )
+      .bind(notificationId, ...fids)
+      .all<DispatchStatusRow>(),
+    db.prepare(
+      `SELECT a.fid, a.result, a.response_status, a.error_message, a.created_at
+       FROM notification_attempts a
+       INNER JOIN notification_dispatches d ON d.id = a.dispatch_id
+       WHERE d.notification_id = ? AND a.fid IN (${placeholders})
+       ORDER BY a.created_at DESC`
+    )
+      .bind(notificationId, ...fids)
+      .all<AttemptInspectRow>(),
+  ]);
+
+  const eligibleFids = new Set(eligibleRows.map((row) => row.fid));
+  const dispatchByFid = new Map(dispatches.results.map((row) => [row.fid, row]));
+  const latestAttemptByFid = new Map<number, AttemptInspectRow>();
+  for (const row of attempts.results) {
+    if (!latestAttemptByFid.has(row.fid)) latestAttemptByFid.set(row.fid, row);
+  }
+
+  return fids.map((fid) => {
+    const tokenRows = tokens.results.filter((row) => row.fid === fid);
+    const latestAttempt = latestAttemptByFid.get(fid);
+    return {
+      fid,
+      eligible: eligibleFids.has(fid),
+      tokens: tokenRows.map((row) => ({
+        appSlug: row.app_slug,
+        enabled: row.enabled === 1,
+        updatedAt: row.updated_at,
+      })),
+      dispatchStatus: dispatchByFid.get(fid)?.status ?? null,
+      latestAttempt: latestAttempt
+        ? {
+            result: latestAttempt.result,
+            responseStatus: latestAttempt.response_status,
+            errorMessage: latestAttempt.error_message,
+            createdAt: latestAttempt.created_at,
+          }
+        : null,
+    };
+  });
+}
+
 function buildProgress(rows: TokenRow[], dispatchRows: DispatchStatusRow[]) {
   const activeFids = new Set(rows.map((row) => row.fid));
   const counts: Record<string, number> = {};
@@ -232,12 +314,14 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   }
 
   const notificationId = buildNotificationId(audienceSlug, rawNotificationId);
-  const rows = await resolveTokenRows(context.env.WARPLETS, audienceSlug, parseFids(url.searchParams.get("fids")));
+  const requestedFids = parseFids(url.searchParams.get("fids"));
+  const rows = await resolveTokenRows(context.env.WARPLETS, audienceSlug, requestedFids);
   const dispatchRows = await getDispatchStatuses(context.env.WARPLETS, notificationId);
 
   return jsonSecure({
     notificationId,
     progress: buildProgress(rows, dispatchRows),
+    fidDetails: await inspectRequestedFids(context.env.WARPLETS, requestedFids, rows, notificationId),
   });
 };
 
@@ -397,6 +481,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     sendMode,
     progress: afterProgress,
     beforeProgress,
+    fidDetails: await inspectRequestedFids(context.env.WARPLETS, requestedFids, rows, notificationId),
     summary,
     results,
   });
