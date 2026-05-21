@@ -3,7 +3,7 @@ import sdk from "@farcaster/miniapp-sdk";
 import { Text } from "@neynar/ui/typography";
 import { hapticSelectionChanged, hapticTap } from "./haptics";
 
-export type AppSlug = "app" | "drop" | "find" | "million";
+export type AppSlug = "app" | "drop" | "search" | "million";
 
 type AppConfig = {
   slug: AppSlug;
@@ -50,12 +50,12 @@ const APP_CONFIGS: Record<AppSlug, AppConfig> = {
     imageUrl: "https://drop.10x.meme/hero_drop.png",
     available: true,
   },
-  find: {
-    slug: "find",
-    appName: "10X Warplet Find",
-    headerTitle: "10X Warplet Find",
+  search: {
+    slug: "search",
+    appName: "10X Warplets Search",
+    headerTitle: "10X Warplets Search",
     ctaLabel: "Coming soon...",
-    absoluteUrl: "https://find.10x.meme/",
+    absoluteUrl: "https://search.10x.meme/",
     iconUrl: "https://app.10x.meme/icon.png",
     imageUrl: "https://app.10x.meme/embed.png",
     available: false,
@@ -75,7 +75,7 @@ const APP_CONFIGS: Record<AppSlug, AppConfig> = {
 const HOSTS_BY_APP: Record<AppSlug, string[]> = {
   app: ["app.10x.meme", "app-dev.10x.meme", "app-local.10x.meme"],
   drop: ["drop.10x.meme", "drop-dev.10x.meme", "drop-local.10x.meme"],
-  find: ["find.10x.meme", "find-dev.10x.meme", "find-local.10x.meme"],
+  search: ["search.10x.meme", "search-dev.10x.meme", "search-local.10x.meme"],
   million: ["million.10x.meme", "million-dev.10x.meme", "million-local.10x.meme"],
 };
 
@@ -99,10 +99,10 @@ const APP_URLS: Record<AppSlug, Record<EnvTier, string>> = {
     dev: "https://drop-dev.10x.meme/",
     local: "https://drop-local.10x.meme/",
   },
-  find: {
-    prod: "https://find.10x.meme/",
-    dev: "https://find-dev.10x.meme/",
-    local: "https://find-local.10x.meme/",
+  search: {
+    prod: "https://search.10x.meme/",
+    dev: "https://search-dev.10x.meme/",
+    local: "https://search-local.10x.meme/",
   },
   million: {
     prod: "https://million.10x.meme/",
@@ -544,7 +544,7 @@ export function MiniAppMenuPage({ appSlug }: { appSlug: AppSlug }) {
             ? "Buy, claim, and share your Warplet inside Farcaster."
             : config.slug === "million"
               ? "Dedicated mission for the $1M Warplet campaign."
-              : "Find rare Warplets faster once discovery tools go live.",
+              : "Search rare Warplets faster once discovery tools go live.",
       imageUrl: config.slug === "app" ? "/menu/menu-10x-app.png" : "/menu/menu-drop-app.jpg",
       ctaLabel: isCurrent ? "You are here!" : config.slug === "drop" ? "10X Warplet Drop" : config.ctaLabel,
       kind: "miniapp",

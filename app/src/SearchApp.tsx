@@ -9,9 +9,9 @@ import {
 } from "./miniAppChrome.tsx";
 import MiniAppShell from "./MiniAppShell";
 
-export default function FindApp() {
+export default function SearchApp() {
   const [showOpenInFarcaster, setShowOpenInFarcaster] = useState(false);
-  const { isMenuRoute, canGoBack, actions } = useMiniAppChrome("find");
+  const { isMenuRoute, canGoBack, actions } = useMiniAppChrome("search");
 
   useEffect(() => {
     let shouldCallReady = false;
@@ -29,7 +29,7 @@ export default function FindApp() {
         shouldCallReady = true;
         await sdk.context;
       } catch (err) {
-        console.error("Find app init error:", err);
+        console.error("Search app init error:", err);
         const message = err instanceof Error ? err.message : String(err);
         const normalized = message.toLowerCase();
         const looksLikeBrowserLaunch =
@@ -54,8 +54,8 @@ export default function FindApp() {
     <MiniAppShell>
       <div className="relative z-10 w-full">
         <MiniAppHeader
-          appSlug="find"
-          title={getHeaderTitle("find", isMenuRoute)}
+          appSlug="search"
+          title={getHeaderTitle("search", isMenuRoute)}
           canGoBack={canGoBack}
           onBack={actions.goBack}
           onLogo={actions.openHubRoot}
@@ -63,14 +63,14 @@ export default function FindApp() {
         />
 
         {isMenuRoute ? (
-          <MiniAppMenuPage appSlug="find" />
+          <MiniAppMenuPage appSlug="search" />
         ) : (
           <div className="mx-auto mt-10 w-auto max-w-md rounded-2xl border border-[#00FF00]/40 bg-[#041204]/90 p-6 text-center mx-6">
-        <Text className="text-3xl font-bold" style={{ color: "#00FF00" }}>
-          10X Warplets Find
+          <Text className="text-3xl font-bold" style={{ color: "#00FF00" }}>
+          10X Warplets Search
         </Text>
         <Text className="mt-4 text-sm" style={{ color: "#b7ffb7" }}>
-          Coming soon. This app will help you discover rare Warplets faster.
+          Coming soon. This app will help you search rare Warplets faster.
         </Text>
         {showOpenInFarcaster && (
           <Text className="mt-5 text-xs" style={{ color: "#7ddf7d" }}>

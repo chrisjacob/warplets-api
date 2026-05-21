@@ -19,9 +19,9 @@ const APPS = [
     accent: "#00FF00",
   },
   {
-    title: "10X Warplets Find",
-    path: "/find",
-    description: "Coming soon. Discover Warplets and rarity faster.",
+    title: "10X Warplets Search",
+    path: "/search",
+    description: "Coming soon. Search Warplets and rarity faster.",
     accent: "#67e8f9",
   },
   {

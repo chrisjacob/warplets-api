@@ -118,7 +118,7 @@ function normalizeBase(origin: string): string {
   return origin.endsWith("/") ? origin.slice(0, -1) : origin;
 }
 
-type RouteKey = "root" | "drop" | "find" | "million" | "stop" | "unsubscribe";
+type RouteKey = "root" | "drop" | "search" | "million" | "stop" | "unsubscribe";
 
 function matchesHost(hostname: string, ...candidates: string[]): boolean {
   return candidates.includes(hostname);
@@ -127,10 +127,10 @@ function matchesHost(hostname: string, ...candidates: string[]): boolean {
 function getRouteKey(hostname: string, pathname: string): RouteKey {
   const cleanPath = pathname.replace(/\/+$/, "") || "/";
   if (matchesHost(hostname, "drop.10x.meme", "drop-dev.10x.meme", "drop-local.10x.meme")) return "drop";
-  if (matchesHost(hostname, "find.10x.meme", "find-dev.10x.meme", "find-local.10x.meme")) return "find";
+  if (matchesHost(hostname, "search.10x.meme", "search-dev.10x.meme", "search-local.10x.meme")) return "search";
   if (matchesHost(hostname, "million.10x.meme", "million-dev.10x.meme", "million-local.10x.meme")) return "million";
   if (cleanPath === "/drop" || cleanPath.startsWith("/drop/")) return "drop";
-  if (cleanPath === "/find" || cleanPath.startsWith("/find/")) return "find";
+  if (cleanPath === "/search" || cleanPath.startsWith("/search/")) return "search";
   if (cleanPath === "/million" || cleanPath.startsWith("/million/")) return "million";
   if (cleanPath === "/stop" || cleanPath.startsWith("/stop/")) return "stop";
   if (cleanPath === "/unsubscribe" || cleanPath.startsWith("/unsubscribe/")) return "unsubscribe";
@@ -146,11 +146,11 @@ function getMiniAppConfig(routeKey: RouteKey): { title: string; name: string; pa
     };
   }
 
-  if (routeKey === "find") {
+  if (routeKey === "search") {
     return {
-      title: "Open 10X Warplets Find",
-      name: "10X Warplets Find",
-      path: "/find",
+      title: "Open 10X Warplets Search",
+      name: "10X Warplets Search",
+      path: "/search",
     };
   }
 
@@ -222,9 +222,9 @@ function getLaunchPath(routeKey: RouteKey, hostname: string): string {
       "drop.10x.meme",
       "drop-dev.10x.meme",
       "drop-local.10x.meme",
-      "find.10x.meme",
-      "find-dev.10x.meme",
-      "find-local.10x.meme",
+      "search.10x.meme",
+      "search-dev.10x.meme",
+      "search-local.10x.meme",
       "million.10x.meme",
       "million-dev.10x.meme",
       "million-local.10x.meme"
@@ -234,7 +234,7 @@ function getLaunchPath(routeKey: RouteKey, hostname: string): string {
   }
 
   if (routeKey === "drop") return "/drop";
-  if (routeKey === "find") return "/find";
+  if (routeKey === "search") return "/search";
   if (routeKey === "million") return "/million";
   if (routeKey === "stop") return "/stop";
   if (routeKey === "unsubscribe") return "/unsubscribe";

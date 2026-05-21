@@ -1,7 +1,7 @@
 import { AppSlug, normalizeAppSlug } from "../_lib/appSlug.js";
 import { Env, handleWebhookRequest } from "../webhook.js";
 
-const VALID_APP_SLUGS = new Set<AppSlug>(["app", "drop", "find", "million"]);
+const VALID_APP_SLUGS = new Set<AppSlug>(["app", "drop", "search", "million"]);
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
   const rawAppSlug = context.params?.appSlug;
