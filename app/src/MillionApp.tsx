@@ -126,10 +126,10 @@ function buildPromoCards(): PromoCard[] {
     },
     {
       id: "airdrop",
-      title: "10X Warplets 💚 The Warplets",
+      title: "10X Warplets\n💚\nThe Warplets",
       subtitle: "20% of Sale = Buy & Airdrop NFTs.",
       imageUrl: "https://warplets.10x.meme/2.jpg",
-      urgency: "🎁 Current Airdrop**: $10,000 = 500 10X Warplets + $10,000 = 5000 The Warplets.",
+      urgency: "🎁 Current Airdrop**: $10,000 = 500 10X Warplets\n+ $10,000 = 5000 The Warplets.",
       ctas: [
         {
           label: "Spread the hype on X",
@@ -160,14 +160,15 @@ function ActionCheckIcon() {
 
 function AvatarStack({ avatars, label }: { avatars: EntryAvatar[]; label: string }) {
   return (
-    <div className="mt-4 flex items-center justify-center gap-3">
-      <Text className="text-xs font-bold uppercase tracking-wide text-emerald-200/80">{label}</Text>
-      <div className="flex -space-x-2">
+    <div className="mt-4 flex items-center justify-center gap-2">
+      <Text className="text-sm font-semibold whitespace-nowrap" style={{ color: "#b7ffb7" }}>{label}</Text>
+      <div className="flex flex-nowrap overflow-x-auto pb-1">
         {avatars.slice(0, 10).map((avatar) => (
           <button
             key={`${avatar.fid}-${avatar.pfpUrl}`}
             type="button"
-            className="h-8 w-8 overflow-hidden rounded-full border border-emerald-300/70 bg-black"
+            className="h-8 w-8 min-h-8 min-w-8 shrink-0 overflow-hidden rounded-full bg-black -ml-2 first:ml-0"
+            style={{ border: "2px solid #00FF00" }}
             onClick={() => sdk.actions.viewProfile({ fid: avatar.fid }).catch(() => {})}
             title={avatar.username}
           >
@@ -221,32 +222,31 @@ function PromoSection({
   };
 
   return (
-    <section className="w-full border-t border-emerald-400/20 px-4 py-7">
-      <div className="mx-auto max-w-md">
-        <div className="overflow-hidden rounded-2xl border border-emerald-300/30 bg-black/70">
-          <img src={card.imageUrl} alt={card.title} className="aspect-square w-full object-cover" />
-          <div className="p-5 text-center">
-            <Text className="text-2xl font-black text-emerald-300">{card.title}</Text>
-            <Text className="mt-2 text-sm text-emerald-50/90">{card.subtitle}</Text>
-            <div className="mt-4 space-y-2">
-              {card.ctas.map((cta) => (
-                <button
-                  key={`${card.id}-${cta.label}`}
-                  type="button"
-                  onClick={() => runCta(cta).catch(() => {})}
-                  className="w-full rounded-xl bg-emerald-300 px-4 py-3 text-sm font-black text-black"
-                >
-                  {cta.label}
-                </button>
-              ))}
-            </div>
-            <Text className="mt-3 text-xs font-bold text-yellow-200">{card.urgency}</Text>
-            {card.id === "builders" && entryAvatars.length > 0 && (
-              <AvatarStack avatars={entryAvatars} label="Entries:" />
-            )}
-          </div>
-        </div>
+    <section className="space-y-3 pb-4">
+      <Text className="text-[clamp(1.6rem,5vw,1.6rem)] font-bold leading-tight text-center whitespace-pre-line" style={{ color: "#00FF00" }}>
+        {card.title}
+      </Text>
+      <Text className="text-lg font-semibold leading-snug text-center" style={{ color: "#00FF00" }}>{card.subtitle}</Text>
+      <div className="w-full rounded-[20px] p-[2px] bg-[#00FF00]/20 border border-[#00FF00]/45">
+        <img src={card.imageUrl} alt={card.title} className="aspect-square w-full rounded-[18px] object-cover" />
       </div>
+      {card.id === "builders" && entryAvatars.length > 0 && (
+        <AvatarStack avatars={entryAvatars} label="Entries:" />
+      )}
+      <div className="space-y-3">
+        {card.ctas.map((cta) => (
+          <button
+            key={`${card.id}-${cta.label}`}
+            type="button"
+            onClick={() => runCta(cta).catch(() => {})}
+            className="w-full rounded-[20px] border border-[#009900] bg-[#00FF00] px-5 py-3 text-base font-bold shadow-[3px_6px_0_#008000] transition-all duration-100 active:translate-x-[1px] active:translate-y-[3px] active:shadow-[1px_3px_0_#008000] cursor-pointer"
+            style={{ color: "rgb(0, 80, 0)" }}
+          >
+            {cta.label}
+          </button>
+        ))}
+      </div>
+      <Text className="text-sm font-semibold leading-relaxed text-center whitespace-pre-line" style={{ color: "#b7ffb7" }}>{card.urgency}</Text>
     </section>
   );
 }
@@ -494,29 +494,20 @@ export default function MillionApp() {
   };
 
   const renderLanding = () => (
-    <>
-      <div className="mx-auto w-full max-w-md px-4 pb-3 pt-7 text-center">
-        <Text className="text-3xl font-black text-emerald-300">$1M Warplet</Text>
-        <Text className="mt-2 text-sm text-emerald-50/80">
-          One rare auction. One monthly builder giveaway. One very green machine.
-        </Text>
-        {showOpenInFarcaster && (
-          <Text className="mt-4 text-xs text-yellow-200">
-            Open this mini app inside Farcaster to enter and track actions.
-          </Text>
-        )}
+    <div className="relative z-10 w-full max-w-md mx-auto text-center space-y-4 px-4 pt-2 pb-8">
+      <div className="space-y-5">
+        {promoCards.map((card) => (
+          <PromoSection
+            key={card.id}
+            card={card}
+            referralMillionUrl={referralMillionUrl}
+            entryAvatars={status?.entryAvatars ?? []}
+            onEnter={goToEnter}
+          />
+        ))}
       </div>
-      {promoCards.map((card) => (
-        <PromoSection
-          key={card.id}
-          card={card}
-          referralMillionUrl={referralMillionUrl}
-          entryAvatars={status?.entryAvatars ?? []}
-          onEnter={goToEnter}
-        />
-      ))}
       <Disclaimer />
-    </>
+    </div>
   );
 
   const renderEntryPage = () => {
@@ -662,28 +653,26 @@ export default function MillionApp() {
       </div>
 
       {showAddAppPrompt && !showOpenInFarcaster && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 px-4 pb-8">
-          <div className="w-full max-w-sm rounded-2xl border border-emerald-300/40 bg-black px-5 py-6 shadow-2xl">
-            <Text className="text-center text-lg font-black text-emerald-300">
-              {notificationsOnlyPrompt ? "Enable Notifications" : "Add $1M Warplet"}
+        <div className="fixed inset-0 z-40 flex items-center justify-center px-4 bg-black/70 backdrop-blur-[2px]">
+          <div className="w-full max-w-sm rounded-2xl border border-[#00FF00]/45 bg-[#041204] p-5 shadow-[0_0_40px_rgba(0,255,0,0.15)]">
+            <Text className="text-xl font-bold text-left" style={{ color: "#00FF00" }}>
+              🟢 Don&apos;t miss out
             </Text>
-            <Text className="mt-3 text-center text-sm text-emerald-50/80">
-              Get auction, giveaway, and winner updates inside Farcaster.
+            <Text className="mt-3 text-sm text-left" style={{ color: "#b7ffb7" }}>
+              {notificationsOnlyPrompt
+                ? "Please turn on notifications so you don\u2019t miss out on important updates."
+                : "Please Add Mini App and enable notifications so you don\u2019t miss out on important updates."}
             </Text>
-            <button
-              type="button"
-              onClick={handleConfirmAddAppPrompt}
-              className="mt-5 w-full rounded-xl bg-emerald-300 py-3 font-black text-black"
-            >
-              {notificationsOnlyPrompt ? "Enable Notifications" : "Add Mini App"}
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowAddAppPrompt(false)}
-              className="mt-3 w-full rounded-xl py-2 text-sm text-emerald-50/60"
-            >
-              Maybe later
-            </button>
+            <div className="mt-5 grid grid-cols-1 gap-3">
+              <button
+                type="button"
+                onClick={handleConfirmAddAppPrompt}
+                className="w-full px-4 py-3 rounded-[14px] border border-[#009900] bg-[#00FF00] hover:bg-[#33ff33] font-bold transition-colors cursor-pointer"
+                style={{ color: "rgb(0, 80, 0)" }}
+              >
+                Ok, let&apos;s go!
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -737,12 +726,15 @@ export default function MillionApp() {
 
 function Disclaimer() {
   return (
-    <section className="px-4 py-7">
-      <div className="mx-auto max-w-md rounded-2xl border border-emerald-300/25 bg-black/60 p-4">
-        <Text className="text-xs leading-relaxed text-emerald-50/65">
+    <section className="space-y-3">
+      <Text className="text-lg font-bold text-left" style={{ color: "#00FF00" }}>
+        Terms and Conditions
+      </Text>
+      <div className="rounded-2xl border border-[#00FF00]/35 bg-[#041204]/85 px-4 py-4 space-y-3">
+        <Text className="text-xs leading-relaxed text-left" style={{ color: "#b7ffb7" }}>
           * Current Prize Pool and Current Airdrop refers to the value if the $1M Warplet was sold right now for {STATIC_DISCLAIMER_PRICE}. As the dutch auction price drops so to does the prizes. But, you never know when someone will buy!
         </Text>
-        <Text className="mt-3 text-xs leading-relaxed text-emerald-50/65">
+        <Text className="text-xs leading-relaxed text-left" style={{ color: "#b7ffb7" }}>
           ** Airdrop estimates are based on the current floor price. Depending on available market supply and depth, for large purchases the price may increase significantly. This would reduce the estimated quanity that can be purchased and airdropped.
         </Text>
       </div>
