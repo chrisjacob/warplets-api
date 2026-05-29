@@ -93,6 +93,7 @@ button {
   z-index: 2;
   pointer-events: none;
   background: radial-gradient(circle at top, rgba(0, 255, 0, 0.2), rgba(0, 0, 0, 0.88) 62%);
+  max-height: 500px;
 }
 
 .miniapp-shell__video-bottom-fade {

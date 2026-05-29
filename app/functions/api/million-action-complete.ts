@@ -114,6 +114,23 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     .bind(fid)
     .first<{ id: number }>();
   if (!user) return jsonSecure({ error: "Viewer record not found" }, { status: 404 });
+  const giveawayMonth = currentGiveawayMonth();
+  const grantApplication = await context.env.WARPLETS.prepare(
+    `SELECT mga.id, mga.status, COALESCE(ew.verified, 0) AS email_verified
+     FROM million_grant_applications mga
+     LEFT JOIN email_waitlist ew ON LOWER(ew.email) = LOWER(mga.email)
+     WHERE mga.user_id = ? AND mga.grant_month = ?
+     LIMIT 1`
+  )
+    .bind(user.id, giveawayMonth)
+    .first<{ id: number; status: string; email_verified: number }>();
+  if (!grantApplication || grantApplication.email_verified !== 1 || grantApplication.status !== "accepted") {
+    return jsonSecure({
+      ok: false,
+      verified: false,
+      reason: "Complete your 10X Builders Grant application before entering 10X Attention.",
+    }, { status: 409 });
+  }
 
   const action = await context.env.WARPLETS.prepare(
     "SELECT id, slug, entry_value FROM actions WHERE slug = ? AND app_slug = 'million' LIMIT 1"
@@ -132,7 +149,6 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     }, { status: 409 });
   }
 
-  const giveawayMonth = currentGiveawayMonth();
   const now = new Date().toISOString();
   const entriesAwarded = Math.max(0, Number(action.entry_value ?? 0));
 

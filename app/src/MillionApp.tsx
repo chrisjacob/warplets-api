@@ -53,6 +53,33 @@ type WarpletStatus = {
   actionSessionToken?: string | null;
 };
 
+type WatchersResponse = {
+  watchers?: unknown;
+};
+
+type GrantApplication = {
+  id: number;
+  status: string;
+  fullName: string;
+  email: string;
+  buildAnswer: string;
+  xPostUrl: string | null;
+  farcasterPostUrl: string | null;
+  emailVerified: boolean;
+};
+
+type GrantStatus = {
+  grantMonth: string;
+  application: GrantApplication | null;
+  applicants: EntryAvatar[];
+  actionSessionToken: string | null;
+  recaptchaSiteKey: string;
+  config: {
+    xQuoteUrl: string;
+    farcasterQuoteUrl: string;
+  };
+};
+
 type PromoCard = {
   id: "rare" | "builders" | "airdrop";
   title: string;
@@ -65,6 +92,39 @@ type PromoCard = {
     href?: string;
   }>;
 };
+
+const grantSchedule = [
+  { day: "1", sale: "$1,000,000", grants: "$500,000 x 1" },
+  { day: "2", sale: "$1,000,000", grants: "$50,000 x 10" },
+  { day: "3", sale: "$900,000", grants: "$10,000 x 45" },
+  { day: "4", sale: "$800,000", grants: "$10,000 x 40" },
+  { day: "5", sale: "$700,000", grants: "$10,000 x 35" },
+  { day: "6", sale: "$600,000", grants: "$10,000 x 30" },
+  { day: "7", sale: "$500,000", grants: "$10,000 x 25" },
+  { day: "8", sale: "$400,000", grants: "$10,000 x 20" },
+  { day: "9", sale: "$300,000", grants: "$10,000 x 15" },
+  { day: "10", sale: "$200,000", grants: "$10,000 x 10" },
+  { day: "11", sale: "$100,000", grants: "$50,000 x 1" },
+  { day: "12", sale: "$90,000", grants: "$1,000 x 45" },
+  { day: "13", sale: "$80,000", grants: "$1,000 x 40" },
+  { day: "14", sale: "$70,000", grants: "$1,000 x 35" },
+  { day: "15", sale: "$60,000", grants: "$1,000 x 30" },
+  { day: "16", sale: "$50,000", grants: "$1,000 x 25" },
+  { day: "17", sale: "$40,000", grants: "$1,000 x 20" },
+  { day: "18", sale: "$30,000", grants: "$1,000 x 15" },
+  { day: "19", sale: "$20,000", grants: "$1,000 x 10" },
+  { day: "20", sale: "$10,000", grants: "$5,000 x 1" },
+  { day: "21", sale: "$10,000 - $9,000", grants: "$100 x 50-45" },
+  { day: "22", sale: "$9,000 - $8,000", grants: "$100 x 45-40" },
+  { day: "23", sale: "$8,000 - $7,000", grants: "$100 x 40-35" },
+  { day: "24", sale: "$7,000 - $6,000", grants: "$100 x 35-30" },
+  { day: "25", sale: "$6,000 - $5,000", grants: "$100 x 30-25" },
+  { day: "26", sale: "$5,000 - $4,000", grants: "$100 x 25-20" },
+  { day: "27", sale: "$4,000 - $3,000", grants: "$100 x 20-15" },
+  { day: "28", sale: "$3,000 - $2,000", grants: "$100 x 15-10" },
+  { day: "29", sale: "$2,000 - $1,000", grants: "$100 x 10-5" },
+  { day: "30", sale: "$1,000 - $100", grants: "$10 x 50-5" },
+];
 
 const FARCASTER_JOIN_URL = "https://farcaster.xyz/~/code/RUZLHN";
 const STATIC_DISCLAIMER_PRICE = "$ABC";
@@ -99,13 +159,13 @@ function buildPromoCards(): PromoCard[] {
   return [
     {
       id: "rare",
-      title: "💎 Rare 1-of-1 NFT",
-      subtitle: "30 Day Dutch Auction. $1,000,000 → $100.",
+      title: "Attention for Projects\nFunding for Builders\nAirdrops for NFTs\n$1M Warplet",
+      subtitle: "30 Day Auction: $1,000,000 → $100",
       imageUrl: "https://millions.10x.meme/WPLTX1_1000x1000.jpg",
-      urgency: "⚠️ Price drops $1,000,000 → $999,000 in X minutes",
+      urgency: "⚠️ Price drops to $900,000 in X Hours X Minutes.",
       ctas: [
         {
-          label: "About $1M Warplet + 1 Year of Attention",
+          label: "About $1M Warplet + 12 Months of Attention",
           kind: "external",
           href: "https://link.10x.meme/1mwarplet",
         },
@@ -113,13 +173,13 @@ function buildPromoCards(): PromoCard[] {
     },
     {
       id: "builders",
-      title: "🔥 Fuel for Builders",
-      subtitle: "50% of Sale = USDC Prize. $500,000 → $50.",
+      title: "🔥 10X Builders Grant",
+      subtitle: "50% of Sale = Free Grants: $500,000 → $10",
       imageUrl: "https://warplets.10x.meme/1.jpg",
-      urgency: "🤑 Current Prize Pool*: $10,000 x 5 Winners.",
+      urgency: "🤝 Zero Equity. No Strings Attached. Free Money.",
       ctas: [
         {
-          label: "Enter Now (Free, Fast, Easy)",
+          label: "Apply Now (Fund Your BIG Idea!)",
           kind: "enter",
         },
       ],
@@ -180,20 +240,54 @@ function AvatarStack({ avatars, label }: { avatars: EntryAvatar[]; label: string
   );
 }
 
+function GrantScheduleTable() {
+  return (
+    <div className="rounded-2xl overflow-hidden border border-[#00FF00]/35 bg-[#041204]/85 p-0">
+      <table className="w-full table-fixed border-separate border-spacing-0 text-left">
+        <thead>
+          <tr>
+            <th className="w-[17%] border-b border-r border-[#00FF00]/25 px-2 py-2 text-xs text-center" style={{ color: "#00FF00" }}>Day</th>
+            <th className="w-[40%] border-b border-r border-[#00FF00]/25 px-2 py-2 text-xs text-center" style={{ color: "#00FF00" }}>Sale</th>
+            <th className="w-[43%] border-b border-[#00FF00]/25 px-2 py-2 text-xs text-center" style={{ color: "#00FF00" }}>Grants</th>
+          </tr>
+        </thead>
+        <tbody>
+          {grantSchedule.map((row) => (
+            <tr key={row.day}>
+              <td className="border-b border-r border-[#00FF00]/20 px-2 py-2 text-xs font-semibold text-center" style={{ color: "#b7ffb7" }}>{row.day}</td>
+              <td className="border-b border-r border-[#00FF00]/20 px-2 py-2 text-xs text-center" style={{ color: "#b7ffb7" }}>{row.sale}</td>
+              <td className="border-b border-[#00FF00]/20 px-2 py-2 text-xs font-semibold text-center" style={{ color: "#b7ffb7" }}>{row.grants}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 function PromoSection({
   card,
   referralMillionUrl,
   entryAvatars,
   onEnter,
+  watchers,
+  applicants,
+  onRareCtaClick,
 }: {
   card: PromoCard;
   referralMillionUrl: string;
   entryAvatars: EntryAvatar[];
   onEnter: () => void;
+  watchers?: EntryAvatar[];
+  applicants?: EntryAvatar[];
+  onRareCtaClick?: () => Promise<void>;
 }) {
   const runCta = async (cta: PromoCard["ctas"][number]) => {
     await hapticPrimaryTap();
     if (cta.kind === "external" && cta.href) {
+      if (card.id === "rare" && onRareCtaClick) {
+        await onRareCtaClick().catch(() => {});
+      }
       await sdk.actions.openUrl(cta.href);
       return;
     }
@@ -221,18 +315,33 @@ function PromoSection({
     }
   };
 
+  const renderTitle = () => {
+    if (card.id !== "rare") {
+      return (
+        <Text className="text-[clamp(1.6rem,5vw,1.6rem)] font-bold leading-tight text-center whitespace-pre-line" style={{ color: "#00FF00" }}>
+          {card.title}
+        </Text>
+      );
+    }
+
+    const [attention, funding, airdrops, warplet] = card.title.split("\n");
+    return (
+      <div className="text-center text-[#0F0]" style={{ color: "#0F0" }}>
+        <Text className="text-[2.45rem] font-bold leading-[1.5] text-[#0F0]" style={{ color: "#0F0" }}>{attention}</Text>
+        <Text className="text-[2.25rem] font-bold leading-[1.5] text-[#0F0]" style={{ color: "#0F0" }}>{funding}</Text>
+        <Text className="text-[2.05rem] font-bold leading-[1.5] text-[#0F0]" style={{ color: "#0F0" }}>{airdrops}</Text>
+        <Text className="mt-3 text-[clamp(1.6rem,5vw,1.6rem)] font-bold leading-tight text-[#0F0]" style={{ color: "#0F0" }}>{warplet}</Text>
+      </div>
+    );
+  };
+
   return (
     <section className="space-y-3 pb-4">
-      <Text className="text-[clamp(1.6rem,5vw,1.6rem)] font-bold leading-tight text-center whitespace-pre-line" style={{ color: "#00FF00" }}>
-        {card.title}
-      </Text>
+      {renderTitle()}
       <Text className="text-lg font-semibold leading-snug text-center" style={{ color: "#00FF00" }}>{card.subtitle}</Text>
       <div className="w-full rounded-[20px] p-[2px] bg-[#00FF00]/20 border border-[#00FF00]/45">
         <img src={card.imageUrl} alt={card.title} className="aspect-square w-full rounded-[18px] object-cover" />
       </div>
-      {card.id === "builders" && entryAvatars.length > 0 && (
-        <AvatarStack avatars={entryAvatars} label="Entries:" />
-      )}
       <div className="space-y-3">
         {card.ctas.map((cta) => (
           <button
@@ -247,6 +356,13 @@ function PromoSection({
         ))}
       </div>
       <Text className="text-sm font-semibold leading-relaxed text-center whitespace-pre-line" style={{ color: "#b7ffb7" }}>{card.urgency}</Text>
+      {card.id === "builders" && applicants && applicants.length > 0 && (
+        <AvatarStack avatars={applicants} label="Applicants:" />
+      )}
+      {card.id === "builders" && <GrantScheduleTable />}
+      {card.id === "rare" && watchers && watchers.length > 0 && (
+        <AvatarStack avatars={watchers} label="Watchers:" />
+      )}
     </section>
   );
 }
@@ -277,6 +393,15 @@ export default function MillionApp() {
   const [emailValue, setEmailValue] = useState("");
   const [emailSubmitting, setEmailSubmitting] = useState(false);
   const [emailMessage, setEmailMessage] = useState("");
+  const [watchers, setWatchers] = useState<EntryAvatar[]>([]);
+  const [grantStatus, setGrantStatus] = useState<GrantStatus | null>(null);
+  const [grantFullName, setGrantFullName] = useState("");
+  const [grantEmail, setGrantEmail] = useState("");
+  const [grantAnswer, setGrantAnswer] = useState("");
+  const [grantXPostUrl, setGrantXPostUrl] = useState("");
+  const [grantFarcasterPostUrl, setGrantFarcasterPostUrl] = useState("");
+  const [grantSubmitting, setGrantSubmitting] = useState(false);
+  const [grantMessage, setGrantMessage] = useState("");
   const { isMenuRoute, canGoBack, actions } = useMiniAppChrome("million");
 
   const promoCards = useMemo(() => buildPromoCards(), []);
@@ -305,6 +430,65 @@ export default function MillionApp() {
     return data;
   };
 
+  const normalizeWatchers = (raw: unknown): EntryAvatar[] => {
+    if (!Array.isArray(raw)) return [];
+    return raw
+      .map((item) => {
+        if (!item || typeof item !== "object") return null;
+        const row = item as { fid?: unknown; username?: unknown; pfpUrl?: unknown };
+        if (typeof row.fid !== "number" || !Number.isFinite(row.fid)) return null;
+        if (typeof row.pfpUrl !== "string" || row.pfpUrl.trim().length === 0) return null;
+        return {
+          fid: row.fid,
+          username: typeof row.username === "string" && row.username.trim().length > 0 ? row.username : String(row.fid),
+          pfpUrl: row.pfpUrl,
+        } satisfies EntryAvatar;
+      })
+      .filter((item): item is EntryAvatar => item !== null)
+      .slice(0, 10);
+  };
+
+  const loadWatchers = async (viewerFid: number | null, token: string | null) => {
+    try {
+      const params = new URLSearchParams();
+      if (viewerFid) params.set("fid", String(viewerFid));
+      if (token) params.set("sessionToken", token);
+      const query = params.toString();
+      const response = await fetch(`/api/million-watchers${query ? `?${query}` : ""}`);
+      if (!response.ok) return;
+      const data = (await response.json()) as WatchersResponse;
+      setWatchers(normalizeWatchers(data.watchers));
+    } catch {
+      setWatchers([]);
+    }
+  };
+
+  const loadGrantStatus = async (viewerFid: number | null, token: string | null) => {
+    try {
+      const params = new URLSearchParams();
+      if (viewerFid) params.set("fid", String(viewerFid));
+      if (token) params.set("sessionToken", token);
+      const query = params.toString();
+      const response = await fetch(`/api/million-grants/status${query ? `?${query}` : ""}`);
+      if (!response.ok) return null;
+      const data = (await response.json()) as GrantStatus;
+      setGrantStatus(data);
+      if (data.actionSessionToken) setActionSessionToken(data.actionSessionToken);
+      if (data.application) {
+        setGrantFullName(data.application.fullName);
+        setGrantEmail(data.application.email);
+        setGrantAnswer(data.application.buildAnswer);
+        setGrantXPostUrl(data.application.xPostUrl ?? "");
+        setGrantFarcasterPostUrl(data.application.farcasterPostUrl ?? "");
+      } else if (!grantEmail && status?.email) {
+        setGrantEmail(status.email);
+      }
+      return data;
+    } catch {
+      return null;
+    }
+  };
+
   useEffect(() => {
     let shouldCallReady = false;
 
@@ -314,7 +498,10 @@ export default function MillionApp() {
           typeof sdk.isInMiniApp === "function" ? await sdk.isInMiniApp() : true;
         if (!inMiniApp) {
           setShowOpenInFarcaster(true);
-          await loadMillionStatus(null, null);
+          const data = await loadMillionStatus(null, null);
+          if (data.email && !grantEmail) setGrantEmail(data.email);
+          await loadWatchers(null, null);
+          await loadGrantStatus(null, null);
           return;
         }
 
@@ -339,6 +526,9 @@ export default function MillionApp() {
         if (token) setActionSessionToken(token);
 
         const data = await loadMillionStatus(viewerFid, token);
+        if (data.email && !grantEmail) setGrantEmail(data.email);
+        await loadWatchers(viewerFid, token);
+        await loadGrantStatus(viewerFid, token);
         if (data.hasEntry && getRouteMode() === "landing") {
           goToEnter();
         }
@@ -375,9 +565,163 @@ export default function MillionApp() {
     return () => window.removeEventListener("popstate", onPop);
   }, []);
 
+  useEffect(() => {
+    const siteKey = grantStatus?.recaptchaSiteKey?.trim();
+    if (!siteKey || document.querySelector("script[data-million-recaptcha='1']")) return;
+    const script = document.createElement("script");
+    script.src = `https://www.google.com/recaptcha/api.js?render=${encodeURIComponent(siteKey)}`;
+    script.async = true;
+    script.defer = true;
+    script.dataset.millionRecaptcha = "1";
+    document.head.appendChild(script);
+  }, [grantStatus?.recaptchaSiteKey]);
+
   const refreshStatus = async () => {
     if (!fid) return;
     await loadMillionStatus(fid, actionSessionToken || null);
+  };
+
+  const trackRareWatcher = async () => {
+    if (!fid) return;
+    try {
+      const response = await fetch("/api/million-watchers", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          fid,
+          sessionToken: actionSessionToken || undefined,
+        }),
+      });
+      if (!response.ok) return;
+      const data = (await response.json()) as WatchersResponse;
+      setWatchers(normalizeWatchers(data.watchers));
+    } catch {
+      return;
+    }
+  };
+
+  const grantAnswerWordCount = grantAnswer.trim().split(/\s+/).filter(Boolean).length;
+  const attentionUnlocked = Boolean(
+    grantStatus?.application?.emailVerified && grantStatus.application.status === "accepted"
+  );
+  const grantShareTextX = `What am I building?\n\n${grantAnswer.trim()}\n\n@10XMemeX`;
+  const grantShareTextFarcaster = `What am I building?\n\n${grantAnswer.trim()}\n\n@10XMeme.eth`;
+
+  const copyToClipboard = async (text: string) => {
+    await navigator.clipboard.writeText(text).catch(() => {});
+  };
+
+  const executeRecaptcha = async (): Promise<string | null> => {
+    const siteKey = grantStatus?.recaptchaSiteKey?.trim();
+    if (!siteKey) return null;
+    const grecaptcha = (window as Window & {
+      grecaptcha?: {
+        ready: (callback: () => void) => void;
+        execute: (siteKey: string, options: { action: string }) => Promise<string>;
+      };
+    }).grecaptcha;
+    if (!grecaptcha) return null;
+    return new Promise((resolve) => {
+      grecaptcha.ready(() => {
+        grecaptcha.execute(siteKey, { action: "million_grant_apply" }).then(resolve).catch(() => resolve(null));
+      });
+    });
+  };
+
+  const refreshGrantStatus = async () => {
+    await loadGrantStatus(fid, actionSessionToken || null);
+  };
+
+  const submitGrantApplication = async () => {
+    if (grantSubmitting) return;
+    setGrantMessage("");
+    if (!grantFullName.trim()) {
+      setGrantMessage("Please enter your full name.");
+      return;
+    }
+    if (!grantEmail.trim()) {
+      setGrantMessage("Please enter your email.");
+      return;
+    }
+    if (!grantAnswer.trim() || grantAnswerWordCount > 10) {
+      setGrantMessage("Answer must be 10 words or less.");
+      return;
+    }
+
+    setGrantSubmitting(true);
+    try {
+      const subscribeResponse = await fetch("/api/email/subscribe", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          email: grantEmail.trim(),
+          fid: fid ?? undefined,
+          username,
+          campaign: "million-grant",
+          sessionToken: actionSessionToken || undefined,
+        }),
+      });
+      if (!subscribeResponse.ok) throw new Error(await subscribeResponse.text());
+      const subscribePayload = (await subscribeResponse.json()) as { alreadyVerified?: boolean; verificationEmailSent?: boolean };
+      if (!subscribePayload.alreadyVerified) {
+        setGrantMessage(subscribePayload.verificationEmailSent
+          ? "Verification sent. Please verify your email, then return and submit again."
+          : "Please verify your email, then return and submit again.");
+        await refreshGrantStatus();
+        return;
+      }
+
+      const recaptchaToken = await executeRecaptcha();
+      const applyResponse = await fetch("/api/million-grants/apply", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          fid: fid ?? undefined,
+          sessionToken: actionSessionToken || undefined,
+          fullName: grantFullName.trim(),
+          email: grantEmail.trim(),
+          buildAnswer: grantAnswer.trim(),
+          xPostUrl: grantXPostUrl.trim() || undefined,
+          farcasterPostUrl: grantFarcasterPostUrl.trim() || undefined,
+          recaptchaToken: recaptchaToken || undefined,
+        }),
+      });
+      const applyPayload = await applyResponse.json().catch(() => null) as { error?: string; status?: string } | null;
+      if (!applyResponse.ok) throw new Error(applyPayload?.error ?? "Unable to submit application.");
+      await refreshGrantStatus();
+      await refreshStatus();
+      setGrantMessage(applyPayload?.status === "pending_review"
+        ? "Application received and pending review."
+        : "Application received. 10X Attention is unlocked.");
+      await hapticSuccess();
+    } catch (err) {
+      void hapticError();
+      setGrantMessage(err instanceof Error ? err.message : String(err));
+    } finally {
+      setGrantSubmitting(false);
+    }
+  };
+
+  const openGrantShareX = async () => {
+    await copyToClipboard(grantShareTextX);
+    const params = new URLSearchParams({ text: grantShareTextX });
+    const quoteUrl = grantStatus?.config.xQuoteUrl?.trim();
+    if (quoteUrl) params.set("url", quoteUrl);
+    await sdk.actions.openUrl(`https://x.com/intent/post?${params.toString()}`).catch(() => {});
+  };
+
+  const openGrantShareFarcaster = async () => {
+    await copyToClipboard(grantShareTextFarcaster);
+    const quoteUrl = grantStatus?.config.farcasterQuoteUrl?.trim();
+    if (fid) {
+      await sdk.actions.composeCast({
+        text: grantShareTextFarcaster,
+        embeds: quoteUrl ? [quoteUrl] : undefined,
+        channelKey: "10xmeme",
+      } as Parameters<typeof sdk.actions.composeCast>[0] & { channelKey: string }).catch(() => {});
+      return;
+    }
+    await sdk.actions.openUrl(FARCASTER_JOIN_URL).catch(() => {});
   };
 
   const submitEmail = async () => {
@@ -503,6 +847,9 @@ export default function MillionApp() {
             referralMillionUrl={referralMillionUrl}
             entryAvatars={status?.entryAvatars ?? []}
             onEnter={goToEnter}
+            watchers={watchers}
+            applicants={grantStatus?.applicants ?? []}
+            onRareCtaClick={trackRareWatcher}
           />
         ))}
       </div>
@@ -515,14 +862,50 @@ export default function MillionApp() {
     return (
       <>
         <section className="px-4 py-7">
-          <div className="mx-auto max-w-md">
-            <Text className="text-center text-3xl font-black text-emerald-300">🔥 Fuel for Builders</Text>
-            <Text className="mt-2 text-center text-sm font-bold text-emerald-50/80">Verified Actions 👉 More Entries</Text>
+          <div className="mx-auto max-w-md space-y-7">
+            <div className="rounded-2xl border border-emerald-300/25 bg-black/60 p-4">
+              <Text className="text-center text-3xl font-black text-emerald-300">10X Builders</Text>
+              <Text className="mt-2 text-center text-sm font-bold text-emerald-50/80">Grant Application</Text>
+              <div className="mt-5 grid grid-cols-1 gap-3">
+                <input value={grantFullName} onChange={(event) => setGrantFullName(event.target.value)} className="w-full rounded-xl border border-emerald-300/25 bg-black px-3 py-3 text-sm text-emerald-50 outline-none" placeholder="Full name" />
+                <input type="email" value={grantEmail} onChange={(event) => setGrantEmail(event.target.value)} className="w-full rounded-xl border border-emerald-300/25 bg-black px-3 py-3 text-sm text-emerald-50 outline-none" placeholder="Email" />
+                <textarea value={grantAnswer} onChange={(event) => setGrantAnswer(event.target.value)} className="min-h-24 w-full rounded-xl border border-emerald-300/25 bg-black px-3 py-3 text-sm text-emerald-50 outline-none" placeholder="What are you building? (10 words or less)" />
+                <Text className={grantAnswerWordCount > 10 ? "text-left text-xs text-red-300" : "text-left text-xs text-emerald-50/55"}>{grantAnswerWordCount}/10 words</Text>
+              </div>
+              <div className="mt-4 rounded-xl border border-emerald-300/20 bg-emerald-950/20 p-3 text-left">
+                <Text className="text-sm font-black text-emerald-200">Optional public context</Text>
+                <Text className="mt-1 text-xs leading-relaxed text-emerald-50/65">Share your answer publicly if you want judges to see more context. You can elaborate, make a thread, and add images or video.</Text>
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <button type="button" onClick={() => openGrantShareX().catch(() => {})} disabled={!grantAnswer.trim()} className="rounded-xl bg-emerald-300 px-3 py-2 text-xs font-black text-black disabled:bg-gray-700 disabled:text-gray-300">Draft on X</button>
+                  <button type="button" onClick={() => openGrantShareFarcaster().catch(() => {})} disabled={!grantAnswer.trim()} className="rounded-xl bg-emerald-300 px-3 py-2 text-xs font-black text-black disabled:bg-gray-700 disabled:text-gray-300">Draft on Farcaster</button>
+                </div>
+                {!fid && <Text className="mt-3 text-xs leading-relaxed text-emerald-50/60">Farcaster: 1. Join Farcaster at {FARCASTER_JOIN_URL} 2. Copy the drafted text, post it, then paste the cast URL below.</Text>}
+                <input value={grantXPostUrl} onChange={(event) => setGrantXPostUrl(event.target.value)} className="mt-3 w-full rounded-xl border border-emerald-300/25 bg-black px-3 py-2 text-xs text-emerald-50 outline-none" placeholder="Optional X post URL" />
+                <input value={grantFarcasterPostUrl} onChange={(event) => setGrantFarcasterPostUrl(event.target.value)} className="mt-2 w-full rounded-xl border border-emerald-300/25 bg-black px-3 py-2 text-xs text-emerald-50 outline-none" placeholder="Optional Farcaster cast URL" />
+              </div>
+              {grantStatus?.application && (
+                <Text className="mt-4 text-sm font-bold text-emerald-200">
+                  Application status: {grantStatus.application.status === "accepted" ? "Accepted" : "Pending review"}
+                  {grantStatus.application.emailVerified ? " + verified email" : " + email pending verification"}
+                </Text>
+              )}
+              {grantMessage && <Text className="mt-4 text-sm text-yellow-200">{grantMessage}</Text>}
+              <button type="button" onClick={() => submitGrantApplication().catch(() => {})} disabled={grantSubmitting} className="mt-5 w-full rounded-xl bg-emerald-300 py-3 font-black text-black disabled:bg-gray-600 disabled:text-white">
+                {grantSubmitting ? "Submitting..." : "Submit Grant Application"}
+              </button>
+            </div>
+            <Text className="text-center text-3xl font-black text-emerald-300">10X Attention</Text>
+            <Text className="mt-2 text-center text-sm font-bold text-emerald-50/80">Optional giveaway actions for more points</Text>
             <div className="mt-5 grid grid-cols-3 gap-2">
-              <StatBox value={status?.userEntries ?? 0} label="Your Entries" />
-              <StatBox value={status?.totalEntries ?? 0} label="Total Entries" />
+              <StatBox value={status?.userEntries ?? 0} label="Your Points" />
+              <StatBox value={status?.totalEntries ?? 0} label="Total Points" />
               <StatBox value={status?.daysLeft ?? 0} label="Days Left" />
             </div>
+            {!attentionUnlocked && (
+              <Text className="mt-3 rounded-xl border border-yellow-300/25 bg-yellow-950/30 px-3 py-3 text-center text-xs font-bold text-yellow-100">
+                Submit an accepted 10X Builders Grant application with a verified email to unlock 10X Attention.
+              </Text>
+            )}
             <div className="mt-5 space-y-3">
               {actionsList.map((action) => {
                 const pending = pendingVerify[action.slug] === true;
@@ -539,7 +922,7 @@ export default function MillionApp() {
                       </div>
                       <button
                         type="button"
-                        disabled={pending}
+                        disabled={pending || !attentionUnlocked}
                         onClick={() => {
                           if (showVerify) {
                             verifyAction(action.slug).catch(() => {});
@@ -560,7 +943,7 @@ export default function MillionApp() {
             <div className="mt-6 rounded-2xl border border-emerald-300/25 bg-black/60 p-4">
               <Text className="text-lg font-black text-emerald-300">Earn Referral Points</Text>
               <Text className="mt-2 text-sm text-emerald-50/75">
-                Share your $1M Warplet referral link. Every referral earns 1 bonus entry, up to 10 bonus entries.
+                Share your $1M Warplet referral link. Every referral earns 1 bonus point, up to 10 bonus points.
               </Text>
               <input
                 readOnly
@@ -568,7 +951,7 @@ export default function MillionApp() {
                 className="mt-3 w-full rounded-xl border border-emerald-300/25 bg-black px-3 py-2 text-xs text-emerald-50"
               />
               <Text className="mt-2 text-xs font-bold text-emerald-200">
-                Your referrals: {status?.referralCount ?? 0} • Bonus entries: {status?.referralBonusEntries ?? 0}/10
+                Your referrals: {status?.referralCount ?? 0} • Bonus points: {status?.referralBonusEntries ?? 0}/10
               </Text>
             </div>
 
@@ -633,7 +1016,7 @@ export default function MillionApp() {
       <div className="relative z-10 w-full">
         <MiniAppHeader
           appSlug="million"
-          title={routeMode === "enter" ? "Enter Giveaway" : getHeaderTitle("million", isMenuRoute)}
+          title={routeMode === "enter" ? "Builders + Attention" : getHeaderTitle("million", isMenuRoute)}
           canGoBack={canGoBack || routeMode === "enter"}
           onBack={routeMode === "enter" ? () => {
             window.history.pushState(window.history.state, "", getMillionRootPath());

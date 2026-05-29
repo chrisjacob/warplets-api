@@ -32,6 +32,7 @@ const DROP_RESEND_SEGMENT_ID = "e52bdc31-4f3c-4ec6-a623-9bc3977042e2";
 const DROP_RESEND_TOPIC_ID = "c3e8d591-73e6-4e98-a873-5e197a8581ee";
 const MILLION_RESEND_SEGMENT_ID = "8d50c1f9-07a9-4d6b-9b65-f55c1e2a3bb7";
 const MILLION_RESEND_TOPIC_ID = "2eff10f6-9ec1-4ad4-b365-03f9ca042a13";
+const WAITLIST_RESEND_TOPIC_ID = "c3e8d591-73e6-4e98-a873-5e197a8581ee";
 const ALLOWED_ORIGINS = new Set([
   "https://10x.meme",
   "https://www.10x.meme",
@@ -137,22 +138,24 @@ async function upsertResendContact(
   firstName: string,
   lastName: string,
   properties: Record<string, string>,
-  campaign: "drop" | "million"
+  campaign: "drop" | "million" | "million-grant"
 ): Promise<void> {
   const contactPath = `https://api.resend.com/contacts/${encodeURIComponent(email)}`;
   const headers = {
     "content-type": "application/json",
     Authorization: `Bearer ${resendApiKey}`,
   };
-  const segmentId = campaign === "million" ? MILLION_RESEND_SEGMENT_ID : DROP_RESEND_SEGMENT_ID;
-  const topicId = campaign === "million" ? MILLION_RESEND_TOPIC_ID : DROP_RESEND_TOPIC_ID;
+  const segmentId = campaign === "million" || campaign === "million-grant" ? MILLION_RESEND_SEGMENT_ID : DROP_RESEND_SEGMENT_ID;
+  const topicIds = campaign === "million-grant"
+    ? [MILLION_RESEND_TOPIC_ID, WAITLIST_RESEND_TOPIC_ID]
+    : [campaign === "million" ? MILLION_RESEND_TOPIC_ID : DROP_RESEND_TOPIC_ID];
   const contactBody = {
     email,
     first_name: firstName,
     last_name: lastName,
     unsubscribed: false,
     segments: [{ id: segmentId }],
-    topics: [{ id: topicId, subscription: "opt_in" }],
+    topics: topicIds.map((id) => ({ id, subscription: "opt_in" })),
   };
 
   try {
@@ -209,7 +212,7 @@ async function upsertResendContact(
       method: "PATCH",
       headers,
       body: JSON.stringify({
-        topics: [{ id: topicId, subscription: "opt_in" }],
+        topics: topicIds.map((id) => ({ id, subscription: "opt_in" })),
       }),
     });
 
@@ -257,7 +260,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     return jsonSecure({ error: "Unexpected fields in payload" }, { status: 400, headers: corsHeaders });
   }
   const body = parsedBody.value as SubscribeBody;
-  const campaign = asString(body.campaign) === "million" ? "million" : "drop";
+  const rawCampaign = asString(body.campaign);
+  const campaign = rawCampaign === "million-grant" ? "million-grant" : rawCampaign === "million" ? "million" : "drop";
 
   const rawEmail = asString(body.email);
   const email = rawEmail?.toLowerCase() ?? "";
@@ -397,7 +401,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         body: JSON.stringify({
           from: fromEmail,
           to: [email],
-          subject: campaign === "million" ? "Verify your $1M Warplet giveaway entry" : "Verify your 10X Meme email",
+          subject: campaign === "million" || campaign === "million-grant" ? "Verify your $1M Warplet entry" : "Verify your 10X Meme email",
           html: buildVerifyEmailHtml(verifyUrl.toString(), unsubscribeUrl.toString()),
         }),
       });
