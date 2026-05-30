@@ -354,19 +354,25 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   document.getElementById('loginBtn').addEventListener('click', async () => {
     const t = document.getElementById('tokenInput').value.trim();
     if (!t) return;
-    const r = await fetch('/api/admin/2fa/request', {
-      method: 'POST',
-      headers: { 'x-admin-token': t },
-    });
-    if (r.ok) {
-      const data = await r.json();
-      token = t;
-      pending2faNonce = data.nonce || '';
-      document.getElementById('loginErr').style.display = 'none';
-      document.getElementById('codeErr').style.display = 'none';
-      showCodeStep(data.email || 'the configured admin email');
-    } else {
-      document.getElementById('loginErr').style.display = 'block';
+    const button = document.getElementById('loginBtn');
+    button.disabled = true;
+    try {
+      const r = await fetch('/api/admin/2fa/request', {
+        method: 'POST',
+        headers: { 'x-admin-token': t },
+      });
+      if (r.ok) {
+        const data = await r.json();
+        token = t;
+        pending2faNonce = data.nonce || '';
+        document.getElementById('loginErr').style.display = 'none';
+        document.getElementById('codeErr').style.display = 'none';
+        showCodeStep(data.email || 'the configured admin email');
+      } else {
+        document.getElementById('loginErr').style.display = 'block';
+      }
+    } finally {
+      button.disabled = false;
     }
   });
   document.getElementById('tokenInput').addEventListener('keydown', e => {
@@ -375,19 +381,27 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   document.getElementById('codeBtn').addEventListener('click', async () => {
     const code = document.getElementById('codeInput').value.trim();
     if (!token || !pending2faNonce || !code) return;
-    const r = await fetch('/api/admin/2fa/verify', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', 'x-admin-token': token },
-      body: JSON.stringify({ nonce: pending2faNonce, code }),
-    });
-    if (r.ok) {
-      const data = await r.json();
-      adminSession = data.sessionToken || '';
-      pending2faNonce = '';
-      document.getElementById('codeErr').style.display = 'none';
-      showApp();
-    } else {
-      document.getElementById('codeErr').style.display = 'block';
+    const button = document.getElementById('codeBtn');
+    button.disabled = true;
+    try {
+      const r = await fetch('/api/admin/2fa/verify', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-admin-token': token },
+        body: JSON.stringify({ nonce: pending2faNonce, code }),
+      });
+      if (r.ok) {
+        const data = await r.json();
+        adminSession = data.sessionToken || '';
+        pending2faNonce = '';
+        document.getElementById('codeErr').style.display = 'none';
+        showApp();
+      } else {
+        const data = await r.json().catch(() => ({}));
+        document.getElementById('codeErr').textContent = data.error || 'Invalid code';
+        document.getElementById('codeErr').style.display = 'block';
+      }
+    } finally {
+      button.disabled = false;
     }
   });
   document.getElementById('codeInput').addEventListener('keydown', e => {
@@ -406,7 +420,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   async function api(path, opts = {}) {
     const res = await fetch(path, {
       ...opts,
-      headers: { 'x-admin-token': token, 'x-admin-session': adminSession, ...(opts.headers || {}) },
+      headers: { 'x-admin-session': adminSession, ...(opts.headers || {}) },
     });
     if (res.status === 401) { adminSession = ''; showLogin(); throw new Error('Unauthorized'); }
     return res;
