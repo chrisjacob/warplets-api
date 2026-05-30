@@ -126,7 +126,7 @@ async function maybeSendAlertEmail(env: Env, alerts: AlertRow[], generatedAt: st
 }
 
 export const onRequestGet: PagesFunction<Env> = async (context) => {
-  const auth = await requireAdminScope(context, { scope: "security:stats" });
+  const auth = await requireAdminScope(context, { scope: "security:stats", require2fa: false });
   if (!auth.ok) return auth.response;
 
   const [authFailures, rateSignals, webhookGuards] = await Promise.all([

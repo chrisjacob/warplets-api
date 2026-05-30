@@ -68,6 +68,21 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     typeof record.expiresAt !== "number" ||
     record.expiresAt < Date.now()
   ) {
+    const outcome = !record
+      ? "missing_challenge"
+      : record.keyId !== auth.keyId
+        ? "wrong_key"
+        : typeof record.expiresAt === "number" && record.expiresAt < Date.now()
+          ? "expired_challenge"
+          : "invalid_challenge";
+    await logSecurityEvent(context.env.WARPLETS, { logSalt: context.env.SECURITY_LOG_SALT }, {
+      eventType: "admin_2fa",
+      outcome,
+      actorType: "admin_key",
+      actorId: auth.keyId,
+      ipAddress: ip,
+      route: new URL(context.request.url).pathname,
+    });
     return jsonSecure({ error: "Invalid or expired code" }, { status: 401 });
   }
 

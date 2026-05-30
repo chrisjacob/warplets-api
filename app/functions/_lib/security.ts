@@ -498,6 +498,31 @@ export async function requireAdminScope<T extends SecurityEnv>(
   const suppliedToken = context.request.headers.get("x-admin-token")?.trim();
   const requestUrl = new URL(context.request.url);
   const ip = getClientIp(context.request);
+  const keys = readAdminKeys(context.env);
+
+  if (!suppliedToken && options.require2fa !== false) {
+    const sessionToken = context.request.headers.get("x-admin-session")?.trim() ?? null;
+    const session = await verifyAdminSessionToken(context.env.ACTION_SESSION_SECRET, sessionToken);
+    if (session.valid) {
+      const sessionKey = keys.find(
+        (record) => record.active !== false && record.id === session.keyId && keyHasScope(record.scopes, options.scope)
+      );
+      if (sessionKey) {
+        return { ok: true, keyId: sessionKey.id };
+      }
+    }
+
+    await logSecurityEvent(context.env.WARPLETS, { logSalt: context.env.SECURITY_LOG_SALT }, {
+      eventType: "admin_auth",
+      outcome: session.valid ? "session_scope_denied" : `invalid_2fa:${session.reason}`,
+      actorType: "admin_key",
+      actorId: session.valid ? session.keyId : null,
+      ipAddress: ip,
+      route: requestUrl.pathname,
+      details: options.scope,
+    });
+    return { ok: false, response: jsonSecure({ error: "Unauthorized" }, { status: 401 }) };
+  }
 
   if (!suppliedToken) {
     await logSecurityEvent(context.env.WARPLETS, { logSalt: context.env.SECURITY_LOG_SALT }, {
@@ -511,7 +536,6 @@ export async function requireAdminScope<T extends SecurityEnv>(
     return { ok: false, response: jsonSecure({ error: "Unauthorized" }, { status: 401 }) };
   }
 
-  const keys = readAdminKeys(context.env);
   const validKey = keys.find(
     (record) => record.active !== false && record.key === suppliedToken && keyHasScope(record.scopes, options.scope)
   );
