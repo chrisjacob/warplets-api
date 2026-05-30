@@ -280,6 +280,8 @@ Configure Cloudflare Access for the admin hosts with:
 
 Keep admin keys, action-session secrets, API provider keys, and alert/email settings in Cloudflare and GitHub secrets. Do not commit live values.
 
+If the main `ADMIN_API_KEYS_JSON` secret already exists and its value is not recoverable, add automation-only keys via `ADMIN_API_KEYS_JSON_EXTRA`. It accepts the same JSON array shape and is merged with the main admin key list at runtime.
+
 For scheduled admin automation through Cloudflare Access, configure a Cloudflare Access service token and store its client ID/secret in GitHub Actions secrets as `CF_ACCESS_CLIENT_ID` and `CF_ACCESS_CLIENT_SECRET`.
 
 ### Operational security

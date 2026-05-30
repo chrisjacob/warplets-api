@@ -44,6 +44,7 @@ export interface SecurityEnv {
   WARPLETS?: D1Database;
   WARPLETS_KV?: KVNamespace;
   ADMIN_API_KEYS_JSON?: string;
+  ADMIN_API_KEYS_JSON_EXTRA?: string;
   ACTION_SESSION_SECRET?: string;
   SECURITY_LOG_SALT?: string;
   CF_ACCESS_TEAM_DOMAIN?: string;
@@ -174,6 +175,13 @@ function parseAdminKeyConfig(raw?: string): AdminKeyRecord[] {
   } catch {
     return [];
   }
+}
+
+function readAdminKeys(env: SecurityEnv): AdminKeyRecord[] {
+  return [
+    ...parseAdminKeyConfig(env.ADMIN_API_KEYS_JSON),
+    ...parseAdminKeyConfig(env.ADMIN_API_KEYS_JSON_EXTRA),
+  ];
 }
 
 function keyHasScope(scopes: string[], scope: string): boolean {
@@ -503,7 +511,7 @@ export async function requireAdminScope<T extends SecurityEnv>(
     return { ok: false, response: jsonSecure({ error: "Unauthorized" }, { status: 401 }) };
   }
 
-  const keys = parseAdminKeyConfig(context.env.ADMIN_API_KEYS_JSON);
+  const keys = readAdminKeys(context.env);
   const validKey = keys.find(
     (record) => record.active !== false && record.key === suppliedToken && keyHasScope(record.scopes, options.scope)
   );
