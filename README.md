@@ -2,6 +2,8 @@
 
 A Farcaster [Snap](https://docs.farcaster.xyz/snap) hosted on Cloudflare Workers at [api.10x.meme](https://api.10x.meme), deployed via GitHub Actions.
 
+This repository also contains the Million app, a Vite/React Farcaster mini-app in `app/`. The Million app is currently under active development, so its features, routes, copy, and local workflow may change as it evolves.
+
 ## What it does
 
 **Favourite Colour Poll** - an interactive Farcaster snap that:
@@ -57,6 +59,9 @@ src/
   index.dev.ts    # Dev entrypoint - skips JFS verification, pins base URL
 scripts/
   dev-tunnel.mjs  # One-command dev workflow (wrangler + cloudflared + localflare)
+app/
+  src/MillionApp.tsx # Million app mini-app experience (work in progress)
+  package.json       # Vite/React app scripts
 migrations/
   0001_init.sql   # Creates users and votes tables
 .github/workflows/
@@ -66,6 +71,17 @@ migrations/
 ## Local development
 
 For working safely across two developer machines, follow the branching and sync workflow in [docs/TWO_MACHINE_WORKFLOW.md](docs/TWO_MACHINE_WORKFLOW.md).
+
+### Million app development
+
+The Million app lives in `app/` and is a work in progress. Use these commands for local development:
+
+```bash
+pnpm --dir app dev
+pnpm --dir app local:tunnel:million
+```
+
+Treat the current Million app documentation as a moving target until the app is finalized.
 
 ### One-command dev workflow
 
@@ -236,79 +252,32 @@ Optional target host:
 pnpm security:smoke -- https://drop-dev.10x.meme
 ```
 
-### Admin API auth model
+### Admin security model
 
-- Use `ADMIN_API_KEYS_JSON` (Cloudflare secret) for scoped admin keys.
+Admin surfaces use two layers:
 
-Example `ADMIN_API_KEYS_JSON`:
+1. **Cloudflare Access** as the outer gate for the admin UI and backing admin APIs.
+2. **Scoped app-level admin keys** as the inner authorization layer.
 
-```json
-[
-  {
-    "id": "ops-1",
-    "key": "replace-with-long-random-secret",
-    "scopes": ["notify:send", "notify:inspect", "notify:stats", "email:list"]
-  }
-]
-```
+Configure Cloudflare Access for the Pages app with:
 
-Suggested scopes include:
+| Variable | Purpose |
+|----------|---------|
+| `CF_ACCESS_TEAM_DOMAIN` | Cloudflare Access team domain |
+| `CF_ACCESS_AUD` | Access application audience tag |
+| `CF_ACCESS_ALLOWED_EMAILS` | Comma-separated allowed admin email addresses |
+| `CF_ACCESS_ALLOWED_SERVICE_TOKENS` | Optional comma-separated service identities for automation |
 
-- `notify:send`
-- `notify:inspect`
-- `notify:stats`
-- `email:list`
-- `security:stats`
-- `security:manage`
+Keep admin keys, action-session secrets, API provider keys, and alert/email settings in Cloudflare and GitHub secrets. Do not commit live values.
 
-Security alert email integration:
+For scheduled admin automation through Cloudflare Access, configure a Cloudflare Access service token and store its client ID/secret in GitHub Actions secrets as `CF_ACCESS_CLIENT_ID` and `CF_ACCESS_CLIENT_SECRET`.
 
-- `RESEND_API_KEY` (existing)
-- `RESEND_FROM_EMAIL` (existing)
-- `SECURITY_ALERT_EMAIL_TO` (optional; defaults to `chris@10x.meme`)
+### Operational security
 
-Optional hardening secret:
-
-- `SECURITY_LOG_SALT` (used to salt-hash IP addresses in `security_audit_events`)
-
-### Incident response runbook (minimum)
-
-1. Revoke affected admin keys by updating `ADMIN_API_KEYS_JSON`.
-2. Rotate `ACTION_SESSION_SECRET`.
-3. Temporarily block admin routes if abuse is active.
-4. Review `security_audit_events` and request logs.
-5. Roll back to last known-good deploy if needed.
-
-### Security telemetry endpoint
-
-Admin users with `security:stats` scope can query:
-
-- `GET /api/security/stats`
-
-This returns:
-
-- 24h/7d security event counts
-- admin auth failure outcomes
-- rate-limit signal outcomes
-- top routes, IPs, and event types in the last 24h
-
-If active alerts are present, `/api/security/alerts` can send a Resend email notification
-with a 4-hour dedupe window (same alert fingerprint will not resend within that window).
-
-Optional automation:
-
-- In GitHub Actions secrets, set:
-  - `SECURITY_ALERTS_URL` (e.g. `https://drop.10x.meme/api/security/alerts`)
-  - `SECURITY_ALERTS_TOKEN` (admin key with `security:stats`)
-- `security-nightly.yml` will call this endpoint when those secrets are configured.
-
-### Security retention run
-
-Admin users with `security:manage` scope can trigger:
-
-- `POST /api/security/retention-run` (optional JSON: `{ "days": 30, "dryRun": false }`)
-
-Current policy in code: remove `security_audit_events` rows older than 30 days.
+- Use least-privilege scoped admin keys and rotate them periodically.
+- Keep production, preview, and local secrets separate.
+- Keep audit logging and retention enabled for admin and abuse-sensitive events.
+- Store incident response details and sensitive endpoint inventories outside the public README.
 
 ### Performance safe testing
 
