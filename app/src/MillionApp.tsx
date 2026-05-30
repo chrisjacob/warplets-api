@@ -128,6 +128,13 @@ const grantSchedule = [
 
 const FARCASTER_JOIN_URL = "https://farcaster.xyz/~/code/RUZLHN";
 const STATIC_DISCLAIMER_PRICE = "$ABC";
+const MINUTE_MS = 60 * 1000;
+const DAY_MS = 24 * 60 * MINUTE_MS;
+
+type PriceDrop = {
+  at: number;
+  price: number;
+};
 
 function isMillionHost(): boolean {
   return window.location.hostname.includes("million");
@@ -155,14 +162,85 @@ function buildMillionUrl(fid: number | null): string {
   return fid ? `${base}?fid=${fid}` : base;
 }
 
-function buildPromoCards(): PromoCard[] {
+function formatUsd(value: number): string {
+  return `$${value.toLocaleString("en-US")}`;
+}
+
+function getMonthlyAuctionStart(now: Date): number {
+  return Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 0, 0, 0, 0);
+}
+
+function buildPriceDropSchedule(cycleStart: number): PriceDrop[] {
+  const drops: PriceDrop[] = [];
+
+  for (let day = 3; day <= 11; day += 1) {
+    drops.push({
+      at: cycleStart + (day - 1) * DAY_MS,
+      price: 1_000_000 - (day - 2) * 100_000,
+    });
+  }
+
+  for (let day = 12; day <= 20; day += 1) {
+    drops.push({
+      at: cycleStart + (day - 1) * DAY_MS,
+      price: (21 - day) * 10_000,
+    });
+  }
+
+  for (let day = 22; day <= 30; day += 1) {
+    drops.push({
+      at: cycleStart + (day - 1) * DAY_MS,
+      price: (31 - day) * 1_000,
+    });
+  }
+
+  for (let day = 21; day <= 30; day += 1) {
+    const dayStart = cycleStart + (day - 1) * DAY_MS;
+    const dayStartPrice = (31 - day) * 1_000;
+    const maxIntervals = day === 30 ? 90 : 95;
+    for (let interval = 1; interval <= maxIntervals; interval += 1) {
+      drops.push({
+        at: dayStart + interval * 15 * MINUTE_MS,
+        price: Math.max(100, dayStartPrice - interval * 10),
+      });
+    }
+  }
+
+  return drops.sort((a, b) => a.at - b.at);
+}
+
+function getNextPriceDrop(now: Date): PriceDrop {
+  const nowMs = now.getTime();
+  const cycleStart = getMonthlyAuctionStart(now);
+  const currentCycleDrop = buildPriceDropSchedule(cycleStart).find((drop) => drop.at > nowMs);
+  if (currentCycleDrop) return currentCycleDrop;
+
+  const nextCycleStart = Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1, 0, 0, 0, 0);
+  return buildPriceDropSchedule(nextCycleStart)[0];
+}
+
+function buildRareUrgency(now: Date): string {
+  const nextDrop = getNextPriceDrop(now);
+  const totalMinutes = Math.max(0, Math.ceil((nextDrop.at - now.getTime()) / MINUTE_MS));
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  const hourLabel = hours === 1 ? "Hour" : "Hours";
+  const minuteLabel = minutes === 1 ? "Minute" : "Minutes";
+  const duration = hours > 0
+    ? `${hours} ${hourLabel} ${minutes} ${minuteLabel}`
+    : `${minutes} ${minuteLabel}`;
+
+  return `⚠️ Price drops to ${formatUsd(nextDrop.price)} in ${duration}.`;
+}
+
+function buildPromoCards(rareUrgency: string): PromoCard[] {
   return [
     {
       id: "rare",
       title: "Attention for Projects\nFunding for Builders\nAirdrops for NFTs\n$1M Warplet",
       subtitle: "30 Day Auction: $1,000,000 → $100",
       imageUrl: "https://millions.10x.meme/WPLTX1_1000x1000.jpg",
-      urgency: "⚠️ Price drops to $900,000 in X Hours X Minutes.",
+      urgency: rareUrgency,
       ctas: [
         {
           label: "About $1M Warplet + 12 Months of Attention",
@@ -402,9 +480,11 @@ export default function MillionApp() {
   const [grantFarcasterPostUrl, setGrantFarcasterPostUrl] = useState("");
   const [grantSubmitting, setGrantSubmitting] = useState(false);
   const [grantMessage, setGrantMessage] = useState("");
+  const [auctionClock, setAuctionClock] = useState(() => new Date());
   const { isMenuRoute, canGoBack, actions } = useMiniAppChrome("million");
 
-  const promoCards = useMemo(() => buildPromoCards(), []);
+  const rareUrgency = useMemo(() => buildRareUrgency(auctionClock), [auctionClock]);
+  const promoCards = useMemo(() => buildPromoCards(rareUrgency), [rareUrgency]);
   const referralMillionUrl = useMemo(() => buildMillionUrl(fid), [fid]);
   const searchParams = new URLSearchParams(typeof window !== "undefined" ? window.location.search : "");
   const forceEntryAvatars = searchParams.get("entries") === "1";
@@ -415,6 +495,11 @@ export default function MillionApp() {
     window.history.pushState(window.history.state, "", enterPath);
     setRouteMode("enter");
   };
+
+  useEffect(() => {
+    const interval = window.setInterval(() => setAuctionClock(new Date()), MINUTE_MS);
+    return () => window.clearInterval(interval);
+  }, []);
 
   const loadMillionStatus = async (viewerFid: number | null, token: string | null) => {
     const params = new URLSearchParams();
