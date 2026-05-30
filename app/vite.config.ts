@@ -364,15 +364,15 @@ export default defineConfig({
       // In local tunnel mode, route API to local worker so D1/KV are local.
       "/api": {
         target: localApiTarget,
-        changeOrigin: true,
+        changeOrigin: false,
       },
       "/__adminhidden": {
         target: localApiTarget,
-        changeOrigin: true,
+        changeOrigin: false,
       },
       "/__admin": {
         target: localApiTarget,
-        changeOrigin: true,
+        changeOrigin: false,
       },
     },
   },

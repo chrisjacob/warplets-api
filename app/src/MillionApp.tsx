@@ -173,7 +173,7 @@ function buildPromoCards(): PromoCard[] {
     },
     {
       id: "builders",
-      title: "🔥 10X Builders Grant",
+      title: "10X Builders",
       subtitle: "50% of Sale = Free Grants: $500,000 → $10",
       imageUrl: "https://warplets.10x.meme/1.jpg",
       urgency: "🤝 Zero Equity. No Strings Attached. Free Money.",

@@ -8,6 +8,13 @@ import { createActionSessionToken, jsonSecure, verifyActionSessionToken } from "
 
 type ConfigMap = Record<string, string>;
 type AvatarRow = { fid: number; username: string | null; pfp_url: string | null };
+type MetadataAvatarRow = {
+  fid_value: number | null;
+  warplet_username_farcaster: string | null;
+  token_id: number;
+  webp_url: string | null;
+  image_url: string | null;
+};
 
 function currentMonth(now = new Date()): string {
   return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
@@ -28,6 +35,10 @@ function isLocalDevHost(hostname: string): boolean {
     hostname === "localhost" ||
     hostname === "::1"
   );
+}
+
+function isMillionLocalHost(hostname: string): boolean {
+  return hostname === "million-local.10x.meme";
 }
 
 async function resolveFid(context: EventContext<Env, string, unknown>): Promise<number | null> {
@@ -59,7 +70,38 @@ function normalizeAvatars(rows: AvatarRow[]) {
     .slice(0, 10);
 }
 
-async function loadApplicants(db: D1Database, grantMonth: string, viewerFid: number | null) {
+function normalizeMetadataAvatars(rows: MetadataAvatarRow[]) {
+  return rows
+    .filter((row) => typeof row.fid_value === "number")
+    .map((row) => ({
+      fid: row.fid_value as number,
+      username: row.warplet_username_farcaster?.trim() || `Warplet #${row.token_id}`,
+      pfpUrl: row.webp_url?.trim() || row.image_url?.trim() || `https://warplets.10x.meme/${row.token_id}.webp`,
+    }))
+    .filter((row) => row.pfpUrl.length > 0)
+    .slice(0, 10);
+}
+
+async function fillWithLocalMetadataAvatars(db: D1Database, applicants: ReturnType<typeof normalizeAvatars>, seen: Set<number>): Promise<void> {
+  if (applicants.length >= 10) return;
+
+  const latest = await db.prepare(
+    `SELECT fid_value, warplet_username_farcaster, token_id, webp_url, image_url
+     FROM warplets_metadata
+     WHERE fid_value IS NOT NULL
+     ORDER BY token_id DESC
+     LIMIT 25`
+  ).all<MetadataAvatarRow>();
+
+  for (const avatar of normalizeMetadataAvatars(latest.results ?? [])) {
+    if (applicants.length >= 10) break;
+    if (seen.has(avatar.fid)) continue;
+    applicants.push(avatar);
+    seen.add(avatar.fid);
+  }
+}
+
+async function loadApplicants(db: D1Database, grantMonth: string, viewerFid: number | null, options: { localRecentPurchaserFill?: boolean } = {}) {
   const applicants: ReturnType<typeof normalizeAvatars> = [];
   const seen = new Set<number>();
 
@@ -110,6 +152,10 @@ async function loadApplicants(db: D1Database, grantMonth: string, viewerFid: num
         seen.add(avatar.fid);
       }
     }
+
+    if (options.localRecentPurchaserFill) {
+      await fillWithLocalMetadataAvatars(db, applicants, seen);
+    }
   } catch {
     return [];
   }
@@ -118,6 +164,7 @@ async function loadApplicants(db: D1Database, grantMonth: string, viewerFid: num
 }
 
 export const onRequestGet: PagesFunction<Env> = async (context) => {
+  const url = new URL(context.request.url);
   const grantMonth = currentMonth();
   const fid = await resolveFid(context);
   const config = await loadConfig(context.env.WARPLETS);
@@ -172,7 +219,9 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   return jsonSecure({
     grantMonth,
     application,
-    applicants: await loadApplicants(context.env.WARPLETS, grantMonth, fid),
+    applicants: await loadApplicants(context.env.WARPLETS, grantMonth, fid, {
+      localRecentPurchaserFill: isMillionLocalHost(url.hostname),
+    }),
     actionSessionToken,
     recaptchaSiteKey: context.env.RECAPTCHA_SITE_KEY?.trim() || "",
     config: {

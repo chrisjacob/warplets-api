@@ -11,6 +11,14 @@ type WatcherRow = {
   pfp_url: string | null;
 };
 
+type MetadataAvatarRow = {
+  fid_value: number | null;
+  warplet_username_farcaster: string | null;
+  token_id: number;
+  webp_url: string | null;
+  image_url: string | null;
+};
+
 type Watcher = {
   fid: number;
   username: string;
@@ -32,6 +40,10 @@ function isLocalDevHost(hostname: string): boolean {
     hostname === "localhost" ||
     hostname === "::1"
   );
+}
+
+function isMillionLocalHost(hostname: string): boolean {
+  return hostname === "million-local.10x.meme";
 }
 
 async function resolveFid(
@@ -58,7 +70,38 @@ function normalizeWatchers(rows: WatcherRow[]): Watcher[] {
     .slice(0, 10);
 }
 
-async function loadWatchers(db: D1Database, viewerFid: number | null): Promise<Watcher[]> {
+function normalizeMetadataAvatars(rows: MetadataAvatarRow[]): Watcher[] {
+  return rows
+    .filter((row) => typeof row.fid_value === "number")
+    .map((row) => ({
+      fid: row.fid_value as number,
+      username: row.warplet_username_farcaster?.trim() || `Warplet #${row.token_id}`,
+      pfpUrl: row.webp_url?.trim() || row.image_url?.trim() || `https://warplets.10x.meme/${row.token_id}.webp`,
+    }))
+    .filter((row) => row.pfpUrl.length > 0)
+    .slice(0, 10);
+}
+
+async function fillWithLocalMetadataAvatars(db: D1Database, watchers: Watcher[], seen: Set<number>): Promise<void> {
+  if (watchers.length >= 10) return;
+
+  const latest = await db.prepare(
+    `SELECT fid_value, warplet_username_farcaster, token_id, webp_url, image_url
+     FROM warplets_metadata
+     WHERE fid_value IS NOT NULL
+     ORDER BY token_id DESC
+     LIMIT 25`
+  ).all<MetadataAvatarRow>();
+
+  for (const watcher of normalizeMetadataAvatars(latest.results ?? [])) {
+    if (watchers.length >= 10) break;
+    if (seen.has(watcher.fid)) continue;
+    watchers.push(watcher);
+    seen.add(watcher.fid);
+  }
+}
+
+async function loadWatchers(db: D1Database, viewerFid: number | null, options: { localRecentPurchaserFill?: boolean } = {}): Promise<Watcher[]> {
   const watchers: Watcher[] = [];
   const seen = new Set<number>();
 
@@ -103,6 +146,10 @@ async function loadWatchers(db: D1Database, viewerFid: number | null): Promise<W
         seen.add(watcher.fid);
       }
     }
+
+    if (options.localRecentPurchaserFill) {
+      await fillWithLocalMetadataAvatars(db, watchers, seen);
+    }
   } catch {
     return [];
   }
@@ -115,7 +162,11 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   const fallbackFid = asPositiveInt(url.searchParams.get("fid"));
   const sessionToken = url.searchParams.get("sessionToken")?.trim() || null;
   const viewerFid = await resolveFid(context.env, url, fallbackFid, sessionToken);
-  return jsonSecure({ watchers: await loadWatchers(context.env.WARPLETS, viewerFid) });
+  return jsonSecure({
+    watchers: await loadWatchers(context.env.WARPLETS, viewerFid, {
+      localRecentPurchaserFill: isMillionLocalHost(url.hostname),
+    }),
+  });
 };
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
@@ -138,7 +189,12 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   const fid = await resolveFid(context.env, url, fallbackFid, sessionToken);
 
   if (!fid) {
-    return jsonSecure({ tracked: false, watchers: await loadWatchers(context.env.WARPLETS, null) });
+    return jsonSecure({
+      tracked: false,
+      watchers: await loadWatchers(context.env.WARPLETS, null, {
+        localRecentPurchaserFill: isMillionLocalHost(url.hostname),
+      }),
+    });
   }
 
   const user = await context.env.WARPLETS.prepare(
@@ -148,7 +204,12 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     .first<{ id: number }>();
 
   if (!user) {
-    return jsonSecure({ tracked: false, watchers: await loadWatchers(context.env.WARPLETS, fid) });
+    return jsonSecure({
+      tracked: false,
+      watchers: await loadWatchers(context.env.WARPLETS, fid, {
+        localRecentPurchaserFill: isMillionLocalHost(url.hostname),
+      }),
+    });
   }
 
   try {
@@ -163,8 +224,18 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       .bind(user.id, fid, now, now)
       .run();
   } catch {
-    return jsonSecure({ tracked: false, watchers: await loadWatchers(context.env.WARPLETS, fid) });
+    return jsonSecure({
+      tracked: false,
+      watchers: await loadWatchers(context.env.WARPLETS, fid, {
+        localRecentPurchaserFill: isMillionLocalHost(url.hostname),
+      }),
+    });
   }
 
-  return jsonSecure({ tracked: true, watchers: await loadWatchers(context.env.WARPLETS, fid) });
+  return jsonSecure({
+    tracked: true,
+    watchers: await loadWatchers(context.env.WARPLETS, fid, {
+      localRecentPurchaserFill: isMillionLocalHost(url.hostname),
+    }),
+  });
 };
