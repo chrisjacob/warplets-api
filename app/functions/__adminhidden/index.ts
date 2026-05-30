@@ -1,3 +1,13 @@
+import { requireAdminHost, requireCloudflareAccess } from "../_lib/security.js";
+
+interface Env {
+  CF_ACCESS_TEAM_DOMAIN?: string;
+  CF_ACCESS_AUD?: string;
+  CF_ACCESS_ALLOWED_EMAILS?: string;
+  CF_ACCESS_ALLOWED_SERVICE_TOKENS?: string;
+  ADMIN_ALLOWED_HOSTS?: string;
+}
+
 /**
  * GET /__adminhidden/
  *
@@ -13,7 +23,13 @@
  * This page itself contains no sensitive data — it is useless without the token.
  */
 
-export const onRequestGet: PagesFunction = () => {
+export const onRequestGet: PagesFunction<Env> = async (context) => {
+  const adminHost = requireAdminHost(context, { redirectToCanonical: true });
+  if (!adminHost.ok) return adminHost.response;
+
+  const access = await requireCloudflareAccess(context);
+  if (!access.ok) return access.response;
+
   const html = /* html */ `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -136,6 +152,38 @@ export const onRequestGet: PagesFunction = () => {
         <th>Alert</th><th>Status</th><th>Value</th>
       </tr></thead>
       <tbody id="secAlertsBody"><tr><td colspan="3" style="color:#555;text-align:center;padding:1rem">Loadingâ€¦</td></tr></tbody>
+    </table>
+  </section>
+
+  <!-- OUTREACH -->
+  <section>
+    <h2>Million App Config</h2>
+    <div class="row">
+      <div style="flex:1">
+        <label>X quote URL</label>
+        <input id="millionXQuoteUrl" type="url" placeholder="https://x.com/..." />
+      </div>
+      <div style="flex:1">
+        <label>Farcaster quote URL</label>
+        <input id="millionFarcasterQuoteUrl" type="url" placeholder="https://farcaster.xyz/..." />
+      </div>
+    </div>
+    <div class="stat-grid" style="margin-top:.75rem">
+      <div><label>reCAPTCHA min</label><input id="millionRecaptchaMin" inputmode="decimal" /></div>
+      <div><label>Neynar min</label><input id="millionNeynarMin" inputmode="decimal" /></div>
+      <div><label>CF threat flag</label><input id="millionThreatFlag" inputmode="numeric" /></div>
+      <div><label>IP month clean limit</label><input id="millionIpMonthLimit" inputmode="numeric" /></div>
+      <div><label>IP hourly hard limit</label><input id="millionIpHourLimit" inputmode="numeric" /></div>
+    </div>
+    <div class="row" style="margin-top:.75rem">
+      <button id="millionConfigSaveBtn">Save Million config</button>
+      <button class="secondary" id="millionConfigRefreshBtn">Refresh</button>
+      <button class="secondary" id="millionBlockCurrentIpBtn">Block my current IP hash</button>
+    </div>
+    <div id="millionConfigStatus" style="font-size:.85rem;margin-top:.75rem;color:#999"></div>
+    <table style="margin-top:.75rem">
+      <thead><tr><th>IP hash</th><th>Action</th><th>Label</th><th>Updated</th><th></th></tr></thead>
+      <tbody id="millionIpControlsBody"><tr><td colspan="5" style="color:#555;text-align:center;padding:1rem">Loading...</td></tr></tbody>
     </table>
   </section>
 
@@ -524,9 +572,82 @@ export const onRequestGet: PagesFunction = () => {
     } catch (e) { if (e.message !== 'Unauthorized') console.error(e); }
   }
 
-  function loadAll() { loadStats(); loadInspect(); loadSecurity(); loadOutreach(); loadEmail(); }
+  async function loadMillionConfig() {
+    try {
+      const r = await api('/api/admin/million-config');
+      const data = await r.json();
+      const cfg = data.config || {};
+      document.getElementById('millionXQuoteUrl').value = cfg.x_quote_url || '';
+      document.getElementById('millionFarcasterQuoteUrl').value = cfg.farcaster_quote_url || '';
+      document.getElementById('millionRecaptchaMin').value = cfg.recaptcha_min_score || '0.5';
+      document.getElementById('millionNeynarMin').value = cfg.neynar_min_score || '0.5';
+      document.getElementById('millionThreatFlag').value = cfg.cloudflare_threat_score_flag || '10';
+      document.getElementById('millionIpMonthLimit').value = cfg.same_ip_month_clean_limit || '3';
+      document.getElementById('millionIpHourLimit').value = cfg.same_ip_hour_submit_limit || '20';
+      document.getElementById('millionConfigStatus').textContent = 'Current IP hash: ' + (data.currentIpHash || '-');
+      const rows = Array.isArray(data.ipControls) ? data.ipControls : [];
+      document.getElementById('millionIpControlsBody').innerHTML = rows.length
+        ? rows.map(row => \`
+          <tr>
+            <td class="mono">\${esc(row.ip_hash)}</td>
+            <td><span class="pill failed">\${esc(row.action)}</span></td>
+            <td>\${esc(row.label || '')}</td>
+            <td style="color:#666;font-size:.75rem">\${esc(row.updated_on || '').replace('T',' ').slice(0,16)}</td>
+            <td><button class="secondary" style="margin-top:0;padding:.25rem .5rem" onclick="unblockMillionIp('\${esc(row.ip_hash)}')">Unblock</button></td>
+          </tr>\`).join('')
+        : '<tr><td colspan="5" style="color:#555;text-align:center;padding:1rem">No IP controls</td></tr>';
+    } catch (e) { if (e.message !== 'Unauthorized') console.error(e); }
+  }
+
+  async function saveMillionConfig(extra = {}) {
+    const payload = {
+      x_quote_url: document.getElementById('millionXQuoteUrl').value.trim(),
+      farcaster_quote_url: document.getElementById('millionFarcasterQuoteUrl').value.trim(),
+      recaptcha_min_score: document.getElementById('millionRecaptchaMin').value.trim(),
+      neynar_min_score: document.getElementById('millionNeynarMin').value.trim(),
+      cloudflare_threat_score_flag: document.getElementById('millionThreatFlag').value.trim(),
+      same_ip_month_clean_limit: document.getElementById('millionIpMonthLimit').value.trim(),
+      same_ip_hour_submit_limit: document.getElementById('millionIpHourLimit').value.trim(),
+      ...extra,
+    };
+    const r = await api('/api/admin/million-config', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || 'Unable to save config');
+    await loadMillionConfig();
+  }
+
+  window.unblockMillionIp = async (ipHash) => {
+    try {
+      await saveMillionConfig({ unblockIpHash: ipHash });
+    } catch (e) {
+      document.getElementById('millionConfigStatus').textContent = String(e);
+    }
+  };
+
+  function loadAll() { loadStats(); loadInspect(); loadSecurity(); loadMillionConfig(); loadOutreach(); loadEmail(); }
 
   document.getElementById('refreshBtn').addEventListener('click', loadAll);
+  document.getElementById('millionConfigRefreshBtn').addEventListener('click', loadMillionConfig);
+  document.getElementById('millionConfigSaveBtn').addEventListener('click', async () => {
+    try {
+      await saveMillionConfig();
+      document.getElementById('millionConfigStatus').textContent = 'Saved.';
+    } catch (e) {
+      document.getElementById('millionConfigStatus').textContent = String(e);
+    }
+  });
+  document.getElementById('millionBlockCurrentIpBtn').addEventListener('click', async () => {
+    try {
+      await saveMillionConfig({ blockCurrentIp: true, label: 'admin blocked current ip' });
+      document.getElementById('millionConfigStatus').textContent = 'Current IP hash blocked.';
+    } catch (e) {
+      document.getElementById('millionConfigStatus').textContent = String(e);
+    }
+  });
   document.getElementById('sendApp').addEventListener('change', updateSendTargetUiFromApp);
   updateSendTargetUiFromApp();
 

@@ -64,11 +64,11 @@ const APP_CONFIGS: Record<AppSlug, AppConfig> = {
     slug: "million",
     appName: "$1M Warplet",
     headerTitle: "$1M Warplet",
-    ctaLabel: "Coming soon...",
+    ctaLabel: "Enter Giveaway",
     absoluteUrl: "https://million.10x.meme/",
     iconUrl: "https://app.10x.meme/icon.png",
     imageUrl: "https://app.10x.meme/embed.png",
-    available: false,
+    available: true,
   },
 };
 
