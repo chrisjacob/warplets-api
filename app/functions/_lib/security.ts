@@ -500,7 +500,7 @@ export async function requireAdminScope<T extends SecurityEnv>(
   const ip = getClientIp(context.request);
   const keys = readAdminKeys(context.env);
 
-  if (!suppliedToken && options.require2fa !== false) {
+  if (!suppliedToken) {
     const sessionToken = context.request.headers.get("x-admin-session")?.trim() ?? null;
     const session = await verifyAdminSessionToken(context.env.ACTION_SESSION_SECRET, sessionToken);
     if (session.valid) {
@@ -517,18 +517,6 @@ export async function requireAdminScope<T extends SecurityEnv>(
       outcome: session.valid ? "session_scope_denied" : `invalid_2fa:${session.reason}`,
       actorType: "admin_key",
       actorId: session.valid ? session.keyId : null,
-      ipAddress: ip,
-      route: requestUrl.pathname,
-      details: options.scope,
-    });
-    return { ok: false, response: jsonSecure({ error: "Unauthorized" }, { status: 401 }) };
-  }
-
-  if (!suppliedToken) {
-    await logSecurityEvent(context.env.WARPLETS, { logSalt: context.env.SECURITY_LOG_SALT }, {
-      eventType: "admin_auth",
-      outcome: "missing_token",
-      actorType: "admin_key",
       ipAddress: ip,
       route: requestUrl.pathname,
       details: options.scope,
