@@ -1,3 +1,12 @@
+import { requireCloudflareAccess } from "../_lib/security.js";
+
+interface Env {
+  CF_ACCESS_TEAM_DOMAIN?: string;
+  CF_ACCESS_AUD?: string;
+  CF_ACCESS_ALLOWED_EMAILS?: string;
+  CF_ACCESS_ALLOWED_SERVICE_TOKENS?: string;
+}
+
 /**
  * GET /__adminhidden/
  *
@@ -13,7 +22,10 @@
  * This page itself contains no sensitive data — it is useless without the token.
  */
 
-export const onRequestGet: PagesFunction = () => {
+export const onRequestGet: PagesFunction<Env> = async (context) => {
+  const access = await requireCloudflareAccess(context);
+  if (!access.ok) return access.response;
+
   const html = /* html */ `<!DOCTYPE html>
 <html lang="en">
 <head>

@@ -27,13 +27,30 @@ interface RateLimitResult {
   retryAfterSeconds: number;
 }
 
+interface CloudflareAccessJwtPayload {
+  aud?: string | string[];
+  email?: string;
+  exp?: number;
+  iss?: string;
+  sub?: string;
+  common_name?: string;
+}
+
 export interface SecurityEnv {
   WARPLETS?: D1Database;
   WARPLETS_KV?: KVNamespace;
   ADMIN_API_KEYS_JSON?: string;
   ACTION_SESSION_SECRET?: string;
   SECURITY_LOG_SALT?: string;
+  CF_ACCESS_TEAM_DOMAIN?: string;
+  CF_ACCESS_AUD?: string;
+  CF_ACCESS_ALLOWED_EMAILS?: string;
+  CF_ACCESS_ALLOWED_SERVICE_TOKENS?: string;
 }
+
+let cloudflareAccessCertsCache:
+  | { issuer: string; expiresAt: number; keysByKid: Map<string, JsonWebKey> }
+  | null = null;
 
 const DEFAULT_CSP = [
   "default-src 'self'",
@@ -147,6 +164,148 @@ function parseAdminKeyConfig(raw?: string): AdminKeyRecord[] {
 
 function keyHasScope(scopes: string[], scope: string): boolean {
   return scopes.includes("*") || scopes.includes(scope);
+}
+
+function parseCsvSet(value: string | undefined): Set<string> {
+  return new Set(
+    (value ?? "")
+      .split(",")
+      .map((item) => item.trim().toLowerCase())
+      .filter(Boolean)
+  );
+}
+
+function normalizeAccessTeamDomain(value: string | undefined): string {
+  const raw = (value ?? "").trim().replace(/^https?:\/\//, "").replace(/\/+$/, "");
+  if (!raw) return "";
+  return raw.endsWith(".cloudflareaccess.com") ? raw : `${raw}.cloudflareaccess.com`;
+}
+
+function timingSafeEqualString(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let mismatch = 0;
+  for (let index = 0; index < a.length; index += 1) {
+    mismatch |= a.charCodeAt(index) ^ b.charCodeAt(index);
+  }
+  return mismatch === 0;
+}
+
+function base64UrlToString(value: string): string | null {
+  const bytes = base64UrlToBytes(value);
+  if (!bytes) return null;
+  return new TextDecoder().decode(bytes);
+}
+
+function parseJwtJson<T>(encoded: string): T | null {
+  const decoded = base64UrlToString(encoded);
+  if (!decoded) return null;
+  try {
+    return JSON.parse(decoded) as T;
+  } catch {
+    return null;
+  }
+}
+
+function payloadHasAudience(payload: CloudflareAccessJwtPayload, expectedAud: string): boolean {
+  const audiences = Array.isArray(payload.aud) ? payload.aud : typeof payload.aud === "string" ? [payload.aud] : [];
+  return audiences.some((aud) => timingSafeEqualString(aud, expectedAud));
+}
+
+async function getCloudflareAccessKey(issuer: string, kid: string): Promise<JsonWebKey | null> {
+  const now = Date.now();
+  if (!cloudflareAccessCertsCache || cloudflareAccessCertsCache.issuer !== issuer || cloudflareAccessCertsCache.expiresAt <= now) {
+    const response = await fetch(`${issuer}/cdn-cgi/access/certs`, {
+      headers: { accept: "application/json" },
+    });
+    if (!response.ok) return null;
+
+    const certs = (await response.json()) as { keys?: JsonWebKey[] };
+    const keysByKid = new Map<string, JsonWebKey>();
+    for (const key of certs.keys ?? []) {
+      const kid = (key as JsonWebKey & { kid?: unknown }).kid;
+      if (typeof kid === "string") keysByKid.set(kid, key);
+    }
+    cloudflareAccessCertsCache = {
+      issuer,
+      expiresAt: now + 60 * 60 * 1000,
+      keysByKid,
+    };
+  }
+
+  return cloudflareAccessCertsCache.keysByKid.get(kid) ?? null;
+}
+
+async function verifyCloudflareAccessJwt(
+  token: string,
+  issuer: string,
+  expectedAud: string
+): Promise<{ ok: true; payload: CloudflareAccessJwtPayload } | { ok: false; reason: string }> {
+  const [headerEncoded, payloadEncoded, sigEncoded] = token.split(".");
+  if (!headerEncoded || !payloadEncoded || !sigEncoded) return { ok: false, reason: "invalid_format" };
+
+  const header = parseJwtJson<{ alg?: string; kid?: string }>(headerEncoded);
+  const payload = parseJwtJson<CloudflareAccessJwtPayload>(payloadEncoded);
+  if (!header?.kid || header.alg !== "RS256" || !payload) return { ok: false, reason: "invalid_payload" };
+  if (payload.iss !== issuer) return { ok: false, reason: "invalid_issuer" };
+  if (!payloadHasAudience(payload, expectedAud)) return { ok: false, reason: "invalid_audience" };
+  if (typeof payload.exp !== "number" || Math.floor(Date.now() / 1000) > payload.exp) {
+    return { ok: false, reason: "expired" };
+  }
+
+  const jwk = await getCloudflareAccessKey(issuer, header.kid);
+  const signatureBytes = base64UrlToBytes(sigEncoded);
+  if (!jwk || !signatureBytes) return { ok: false, reason: "invalid_signature" };
+
+  const key = await crypto.subtle.importKey(
+    "jwk",
+    jwk,
+    { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
+    false,
+    ["verify"]
+  );
+  const verified = await crypto.subtle.verify(
+    "RSASSA-PKCS1-v1_5",
+    key,
+    signatureBytes.buffer as ArrayBuffer,
+    new TextEncoder().encode(`${headerEncoded}.${payloadEncoded}`)
+  );
+
+  return verified ? { ok: true, payload } : { ok: false, reason: "invalid_signature" };
+}
+
+export async function requireCloudflareAccess<T extends SecurityEnv>(
+  context: { env: T; request: Request }
+): Promise<{ ok: true; identity: string | null } | { ok: false; response: Response }> {
+  const teamDomain = normalizeAccessTeamDomain(context.env.CF_ACCESS_TEAM_DOMAIN);
+  const expectedAud = context.env.CF_ACCESS_AUD?.trim() ?? "";
+  const allowedEmails = parseCsvSet(context.env.CF_ACCESS_ALLOWED_EMAILS);
+  const allowedServiceTokens = parseCsvSet(context.env.CF_ACCESS_ALLOWED_SERVICE_TOKENS);
+
+  const isConfigured =
+    Boolean(teamDomain) || Boolean(expectedAud) || allowedEmails.size > 0 || allowedServiceTokens.size > 0;
+  if (!isConfigured) return { ok: true, identity: null };
+  if (!teamDomain || !expectedAud || (allowedEmails.size === 0 && allowedServiceTokens.size === 0)) {
+    return { ok: false, response: jsonSecure({ error: "Cloudflare Access is not fully configured" }, { status: 503 }) };
+  }
+
+  const token = context.request.headers.get("cf-access-jwt-assertion")?.trim() ?? "";
+  if (!token) return { ok: false, response: jsonSecure({ error: "Cloudflare Access required" }, { status: 401 }) };
+
+  const issuer = `https://${teamDomain}`;
+  const verified = await verifyCloudflareAccessJwt(token, issuer, expectedAud).catch(() => null);
+  if (!verified?.ok) {
+    return { ok: false, response: jsonSecure({ error: "Invalid Cloudflare Access session" }, { status: 401 }) };
+  }
+
+  const email = verified.payload.email?.trim().toLowerCase() ?? "";
+  if (email && allowedEmails.has(email)) return { ok: true, identity: email };
+
+  const serviceIdentity = (verified.payload.common_name ?? verified.payload.sub ?? "").trim().toLowerCase();
+  if (serviceIdentity && allowedServiceTokens.has(serviceIdentity)) {
+    return { ok: true, identity: serviceIdentity };
+  }
+
+  return { ok: false, response: jsonSecure({ error: "Cloudflare Access identity is not allowed" }, { status: 403 }) };
 }
 
 export function maskEmailAddress(email: string): string {
@@ -267,6 +426,9 @@ export async function requireAdminScope<T extends SecurityEnv>(
   context: { env: T; request: Request },
   options: RequireAdminScopeOptions
 ): Promise<{ ok: true; keyId: string } | { ok: false; response: Response }> {
+  const access = await requireCloudflareAccess(context);
+  if (!access.ok) return access;
+
   const suppliedToken = context.request.headers.get("x-admin-token")?.trim();
   const requestUrl = new URL(context.request.url);
   const ip = getClientIp(context.request);
