@@ -259,7 +259,16 @@ Admin surfaces use two layers:
 1. **Cloudflare Access** as the outer gate for the admin UI and backing admin APIs.
 2. **Scoped app-level admin keys** as the inner authorization layer.
 
-Configure Cloudflare Access for the Pages app with:
+Admin routes are intentionally centralized on dedicated control-plane hosts:
+
+| Environment | Pages project | Admin host |
+|-------------|---------------|------------|
+| Production | `10x-app` | `admin.10x.meme` |
+| Dev | `10x-app-dev` | `admin-dev.10x.meme` |
+
+User-facing mini-app hosts such as `app.10x.meme`, `drop.10x.meme`, `find.10x.meme`, and `million.10x.meme` remain public product URLs. Admin APIs return 404 from non-admin hosts, and the admin UI redirects to the canonical admin host.
+
+Configure Cloudflare Access for the admin hosts with:
 
 | Variable | Purpose |
 |----------|---------|
@@ -267,6 +276,7 @@ Configure Cloudflare Access for the Pages app with:
 | `CF_ACCESS_AUD` | Access application audience tag |
 | `CF_ACCESS_ALLOWED_EMAILS` | Comma-separated allowed admin email addresses |
 | `CF_ACCESS_ALLOWED_SERVICE_TOKENS` | Optional comma-separated service identities for automation |
+| `ADMIN_ALLOWED_HOSTS` | Optional override for allowed admin hosts; defaults to `admin.10x.meme`, `admin-dev.10x.meme`, and local admin hosts |
 
 Keep admin keys, action-session secrets, API provider keys, and alert/email settings in Cloudflare and GitHub secrets. Do not commit live values.
 

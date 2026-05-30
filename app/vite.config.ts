@@ -354,6 +354,7 @@ export default defineConfig({
   ],
   server: {
     allowedHosts: [
+      "admin-local.10x.meme",
       "app-local.10x.meme",
       "drop-local.10x.meme",
       "find-local.10x.meme",

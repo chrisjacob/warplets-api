@@ -10,6 +10,10 @@ interface RequireAdminScopeOptions {
   require2fa?: boolean;
 }
 
+interface RequireAdminHostOptions {
+  redirectToCanonical?: boolean;
+}
+
 interface ActionSessionTokenPayload {
   fid: number;
   exp: number;
@@ -46,6 +50,7 @@ export interface SecurityEnv {
   CF_ACCESS_AUD?: string;
   CF_ACCESS_ALLOWED_EMAILS?: string;
   CF_ACCESS_ALLOWED_SERVICE_TOKENS?: string;
+  ADMIN_ALLOWED_HOSTS?: string;
 }
 
 let cloudflareAccessCertsCache:
@@ -64,6 +69,15 @@ const DEFAULT_CSP = [
   "frame-ancestors 'self' https://farcaster.xyz https://*.farcaster.xyz https://warpcast.com https://*.warpcast.com",
   "base-uri 'self'",
 ].join("; ");
+
+const DEFAULT_ADMIN_HOSTS = new Set([
+  "admin.10x.meme",
+  "admin-dev.10x.meme",
+  "admin-local.10x.meme",
+  "localhost",
+  "127.0.0.1",
+  "::1",
+]);
 
 function cloneHeaders(headers?: HeadersInit): Headers {
   return new Headers(headers);
@@ -173,6 +187,47 @@ function parseCsvSet(value: string | undefined): Set<string> {
       .map((item) => item.trim().toLowerCase())
       .filter(Boolean)
   );
+}
+
+function getAllowedAdminHosts(env: SecurityEnv): Set<string> {
+  const configuredHosts = parseCsvSet(env.ADMIN_ALLOWED_HOSTS);
+  return configuredHosts.size > 0 ? configuredHosts : DEFAULT_ADMIN_HOSTS;
+}
+
+function getCanonicalAdminHost(hostname: string): string {
+  const normalized = hostname.toLowerCase();
+  if (normalized === "admin-dev.10x.meme" || normalized.includes("-dev.") || normalized.includes("-local.")) {
+    return "admin-dev.10x.meme";
+  }
+  return "admin.10x.meme";
+}
+
+export function isAdminHost<T extends SecurityEnv>(context: { env: T; request: Request }): boolean {
+  const hostname = new URL(context.request.url).hostname.toLowerCase();
+  return getAllowedAdminHosts(context.env).has(hostname);
+}
+
+export function requireAdminHost<T extends SecurityEnv>(
+  context: { env: T; request: Request },
+  options: RequireAdminHostOptions = {}
+): { ok: true } | { ok: false; response: Response } {
+  if (isAdminHost(context)) return { ok: true };
+
+  const requestUrl = new URL(context.request.url);
+  if (options.redirectToCanonical) {
+    requestUrl.hostname = getCanonicalAdminHost(requestUrl.hostname);
+    requestUrl.protocol = "https:";
+    requestUrl.port = "";
+    return {
+      ok: false,
+      response: Response.redirect(requestUrl.toString(), 302),
+    };
+  }
+
+  return {
+    ok: false,
+    response: jsonSecure({ error: "Not found" }, { status: 404 }),
+  };
 }
 
 function normalizeAccessTeamDomain(value: string | undefined): string {
@@ -426,6 +481,9 @@ export async function requireAdminScope<T extends SecurityEnv>(
   context: { env: T; request: Request },
   options: RequireAdminScopeOptions
 ): Promise<{ ok: true; keyId: string } | { ok: false; response: Response }> {
+  const adminHost = requireAdminHost(context);
+  if (!adminHost.ok) return adminHost;
+
   const access = await requireCloudflareAccess(context);
   if (!access.ok) return access;
 

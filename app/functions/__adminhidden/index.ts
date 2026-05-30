@@ -1,10 +1,11 @@
-import { requireCloudflareAccess } from "../_lib/security.js";
+import { requireAdminHost, requireCloudflareAccess } from "../_lib/security.js";
 
 interface Env {
   CF_ACCESS_TEAM_DOMAIN?: string;
   CF_ACCESS_AUD?: string;
   CF_ACCESS_ALLOWED_EMAILS?: string;
   CF_ACCESS_ALLOWED_SERVICE_TOKENS?: string;
+  ADMIN_ALLOWED_HOSTS?: string;
 }
 
 /**
@@ -23,6 +24,9 @@ interface Env {
  */
 
 export const onRequestGet: PagesFunction<Env> = async (context) => {
+  const adminHost = requireAdminHost(context, { redirectToCanonical: true });
+  if (!adminHost.ok) return adminHost.response;
+
   const access = await requireCloudflareAccess(context);
   if (!access.ok) return access.response;
 
