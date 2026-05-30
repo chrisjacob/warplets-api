@@ -12,8 +12,7 @@ type MetadataAvatarRow = {
   fid_value: number | null;
   warplet_username_farcaster: string | null;
   token_id: number;
-  webp_url: string | null;
-  image_url: string | null;
+  jpg_url: string | null;
 };
 
 function currentMonth(now = new Date()): string {
@@ -76,7 +75,7 @@ function normalizeMetadataAvatars(rows: MetadataAvatarRow[]) {
     .map((row) => ({
       fid: row.fid_value as number,
       username: row.warplet_username_farcaster?.trim() || `Warplet #${row.token_id}`,
-      pfpUrl: row.webp_url?.trim() || row.image_url?.trim() || `https://warplets.10x.meme/${row.token_id}.webp`,
+      pfpUrl: row.jpg_url?.trim() || `https://warplets.10x.meme/${row.token_id}.jpg`,
     }))
     .filter((row) => row.pfpUrl.length > 0)
     .slice(0, 10);
@@ -86,7 +85,7 @@ async function fillWithLocalMetadataAvatars(db: D1Database, applicants: ReturnTy
   if (applicants.length >= 10) return;
 
   const latest = await db.prepare(
-    `SELECT fid_value, warplet_username_farcaster, token_id, webp_url, image_url
+    `SELECT fid_value, warplet_username_farcaster, token_id, jpg_url
      FROM warplets_metadata
      WHERE fid_value IS NOT NULL
      ORDER BY token_id DESC

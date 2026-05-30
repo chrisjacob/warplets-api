@@ -369,9 +369,9 @@ function PromoSection({
 
 function StatBox({ value, label }: { value: number; label: string }) {
   return (
-    <div className="rounded-xl border border-emerald-300/30 bg-black/60 px-3 py-4 text-center">
-      <Text className="text-2xl font-black text-emerald-300">{value}</Text>
-      <Text className="mt-1 text-[11px] font-bold uppercase tracking-wide text-emerald-100/70">{label}</Text>
+    <div className="rounded-xl border border-[#0F0]/30 bg-black/60 px-3 py-4 text-center">
+      <Text className="text-2xl font-black text-[#0F0]">{value}</Text>
+      <Text className="mt-1 text-[11px] font-bold uppercase tracking-wide text-[#0F0]/70">{label}</Text>
     </div>
   );
 }
@@ -863,39 +863,39 @@ export default function MillionApp() {
       <>
         <section className="px-4 py-7">
           <div className="mx-auto max-w-md space-y-7">
-            <div className="rounded-2xl border border-emerald-300/25 bg-black/60 p-4">
-              <Text className="text-center text-3xl font-black text-emerald-300">10X Builders</Text>
-              <Text className="mt-2 text-center text-sm font-bold text-emerald-50/80">Grant Application</Text>
+            <div className="rounded-2xl border border-[#0F0]/25 bg-black/60 p-4">
+              <Text className="text-center text-3xl font-black text-[#0F0]">10X Builders</Text>
+              <Text className="mt-2 text-center text-sm font-bold text-[#0F0]/80">Grant Application</Text>
               <div className="mt-5 grid grid-cols-1 gap-3">
-                <input value={grantFullName} onChange={(event) => setGrantFullName(event.target.value)} className="w-full rounded-xl border border-emerald-300/25 bg-black px-3 py-3 text-sm text-emerald-50 outline-none" placeholder="Full name" />
-                <input type="email" value={grantEmail} onChange={(event) => setGrantEmail(event.target.value)} className="w-full rounded-xl border border-emerald-300/25 bg-black px-3 py-3 text-sm text-emerald-50 outline-none" placeholder="Email" />
-                <textarea value={grantAnswer} onChange={(event) => setGrantAnswer(event.target.value)} className="min-h-24 w-full rounded-xl border border-emerald-300/25 bg-black px-3 py-3 text-sm text-emerald-50 outline-none" placeholder="What are you building? (10 words or less)" />
-                <Text className={grantAnswerWordCount > 10 ? "text-left text-xs text-red-300" : "text-left text-xs text-emerald-50/55"}>{grantAnswerWordCount}/10 words</Text>
+                <input value={grantFullName} onChange={(event) => setGrantFullName(event.target.value)} className="w-full rounded-xl border border-[#0F0]/25 bg-black px-3 py-3 text-sm text-[#0F0] outline-none" placeholder="Full name" />
+                <input type="email" value={grantEmail} onChange={(event) => setGrantEmail(event.target.value)} className="w-full rounded-xl border border-[#0F0]/25 bg-black px-3 py-3 text-sm text-[#0F0] outline-none" placeholder="Email" />
+                <textarea value={grantAnswer} onChange={(event) => setGrantAnswer(event.target.value)} className="min-h-24 w-full rounded-xl border border-[#0F0]/25 bg-black px-3 py-3 text-sm text-[#0F0] outline-none" placeholder="What are you building? (10 words or less)" />
+                <Text className={grantAnswerWordCount > 10 ? "text-left text-xs text-red-300" : "text-left text-xs text-[#0F0]/55"}>{grantAnswerWordCount}/10 words</Text>
               </div>
-              <div className="mt-4 rounded-xl border border-emerald-300/20 bg-emerald-950/20 p-3 text-left">
-                <Text className="text-sm font-black text-emerald-200">Optional public context</Text>
-                <Text className="mt-1 text-xs leading-relaxed text-emerald-50/65">Share your answer publicly if you want judges to see more context. You can elaborate, make a thread, and add images or video.</Text>
+              <div className="mt-4 rounded-xl border border-[#0F0]/20 bg-[#041204]/65 p-3 text-left">
+                <Text className="text-sm font-black text-[#0F0]">Optional public context</Text>
+                <Text className="mt-1 text-xs leading-relaxed text-[#0F0]/65">Share your answer publicly if you want judges to see more context. You can elaborate, make a thread, and add images or video.</Text>
                 <div className="mt-3 grid grid-cols-2 gap-2">
-                  <button type="button" onClick={() => openGrantShareX().catch(() => {})} disabled={!grantAnswer.trim()} className="rounded-xl bg-emerald-300 px-3 py-2 text-xs font-black text-black disabled:bg-gray-700 disabled:text-gray-300">Draft on X</button>
-                  <button type="button" onClick={() => openGrantShareFarcaster().catch(() => {})} disabled={!grantAnswer.trim()} className="rounded-xl bg-emerald-300 px-3 py-2 text-xs font-black text-black disabled:bg-gray-700 disabled:text-gray-300">Draft on Farcaster</button>
+                  <button type="button" onClick={() => openGrantShareX().catch(() => {})} disabled={!grantAnswer.trim()} className="rounded-xl bg-[#0F0] px-3 py-2 text-xs font-black text-black disabled:bg-gray-700 disabled:text-gray-300">Draft on X</button>
+                  <button type="button" onClick={() => openGrantShareFarcaster().catch(() => {})} disabled={!grantAnswer.trim()} className="rounded-xl bg-[#0F0] px-3 py-2 text-xs font-black text-black disabled:bg-gray-700 disabled:text-gray-300">Draft on Farcaster</button>
                 </div>
-                {!fid && <Text className="mt-3 text-xs leading-relaxed text-emerald-50/60">Farcaster: 1. Join Farcaster at {FARCASTER_JOIN_URL} 2. Copy the drafted text, post it, then paste the cast URL below.</Text>}
-                <input value={grantXPostUrl} onChange={(event) => setGrantXPostUrl(event.target.value)} className="mt-3 w-full rounded-xl border border-emerald-300/25 bg-black px-3 py-2 text-xs text-emerald-50 outline-none" placeholder="Optional X post URL" />
-                <input value={grantFarcasterPostUrl} onChange={(event) => setGrantFarcasterPostUrl(event.target.value)} className="mt-2 w-full rounded-xl border border-emerald-300/25 bg-black px-3 py-2 text-xs text-emerald-50 outline-none" placeholder="Optional Farcaster cast URL" />
+                {!fid && <Text className="mt-3 text-xs leading-relaxed text-[#0F0]/60">Farcaster: 1. Join Farcaster at {FARCASTER_JOIN_URL} 2. Copy the drafted text, post it, then paste the cast URL below.</Text>}
+                <input value={grantXPostUrl} onChange={(event) => setGrantXPostUrl(event.target.value)} className="mt-3 w-full rounded-xl border border-[#0F0]/25 bg-black px-3 py-2 text-xs text-[#0F0] outline-none" placeholder="Optional X post URL" />
+                <input value={grantFarcasterPostUrl} onChange={(event) => setGrantFarcasterPostUrl(event.target.value)} className="mt-2 w-full rounded-xl border border-[#0F0]/25 bg-black px-3 py-2 text-xs text-[#0F0] outline-none" placeholder="Optional Farcaster cast URL" />
               </div>
               {grantStatus?.application && (
-                <Text className="mt-4 text-sm font-bold text-emerald-200">
+                <Text className="mt-4 text-sm font-bold text-[#0F0]">
                   Application status: {grantStatus.application.status === "accepted" ? "Accepted" : "Pending review"}
                   {grantStatus.application.emailVerified ? " + verified email" : " + email pending verification"}
                 </Text>
               )}
               {grantMessage && <Text className="mt-4 text-sm text-yellow-200">{grantMessage}</Text>}
-              <button type="button" onClick={() => submitGrantApplication().catch(() => {})} disabled={grantSubmitting} className="mt-5 w-full rounded-xl bg-emerald-300 py-3 font-black text-black disabled:bg-gray-600 disabled:text-white">
+              <button type="button" onClick={() => submitGrantApplication().catch(() => {})} disabled={grantSubmitting} className="mt-5 w-full rounded-xl bg-[#0F0] py-3 font-black text-black disabled:bg-gray-600 disabled:text-white">
                 {grantSubmitting ? "Submitting..." : "Submit Grant Application"}
               </button>
             </div>
-            <Text className="text-center text-3xl font-black text-emerald-300">10X Attention</Text>
-            <Text className="mt-2 text-center text-sm font-bold text-emerald-50/80">Optional giveaway actions for more points</Text>
+            <Text className="text-center text-3xl font-black text-[#0F0]">10X Attention</Text>
+            <Text className="mt-2 text-center text-sm font-bold text-[#0F0]/80">Optional giveaway actions for more points</Text>
             <div className="mt-5 grid grid-cols-3 gap-2">
               <StatBox value={status?.userEntries ?? 0} label="Your Points" />
               <StatBox value={status?.totalEntries ?? 0} label="Total Points" />
@@ -914,11 +914,11 @@ export default function MillionApp() {
                   (Boolean(action.previouslyCompleted) && rejectedVerify[action.slug] !== true) ||
                   (action.slug === "million-enter-email" && Boolean(status?.email) && !action.completed);
                 return (
-                  <div key={action.slug} className="rounded-xl border border-emerald-300/25 bg-black/65 p-3">
+                  <div key={action.slug} className="rounded-xl border border-[#0F0]/25 bg-black/65 p-3">
                     <div className="flex items-center gap-3">
                       <div className="min-w-0 flex-1">
-                        <Text className="text-sm font-black text-emerald-100">{action.name}</Text>
-                        <Text className="mt-1 text-xs text-emerald-50/60">{action.description}</Text>
+                        <Text className="text-sm font-black text-[#0F0]">{action.name}</Text>
+                        <Text className="mt-1 text-xs text-[#0F0]/60">{action.description}</Text>
                       </div>
                       <button
                         type="button"
@@ -930,7 +930,7 @@ export default function MillionApp() {
                             runAction(action).catch(() => {});
                           }
                         }}
-                        className="flex h-11 min-w-14 items-center justify-center rounded-xl bg-emerald-300 px-3 text-sm font-black text-black disabled:bg-gray-600 disabled:text-white"
+                        className="flex h-11 min-w-14 items-center justify-center rounded-xl bg-[#0F0] px-3 text-sm font-black text-black disabled:bg-gray-600 disabled:text-white"
                       >
                         {action.completed ? <ActionCheckIcon /> : pending ? "..." : showVerify ? "Verify" : `+${action.entryValue}`}
                       </button>
@@ -940,39 +940,39 @@ export default function MillionApp() {
               })}
             </div>
 
-            <div className="mt-6 rounded-2xl border border-emerald-300/25 bg-black/60 p-4">
-              <Text className="text-lg font-black text-emerald-300">Earn Referral Points</Text>
-              <Text className="mt-2 text-sm text-emerald-50/75">
+            <div className="mt-6 rounded-2xl border border-[#0F0]/25 bg-black/60 p-4">
+              <Text className="text-lg font-black text-[#0F0]">Earn Referral Points</Text>
+              <Text className="mt-2 text-sm text-[#0F0]/75">
                 Share your $1M Warplet referral link. Every referral earns 1 bonus point, up to 10 bonus points.
               </Text>
               <input
                 readOnly
                 value={referralMillionUrl}
-                className="mt-3 w-full rounded-xl border border-emerald-300/25 bg-black px-3 py-2 text-xs text-emerald-50"
+                className="mt-3 w-full rounded-xl border border-[#0F0]/25 bg-black px-3 py-2 text-xs text-[#0F0]"
               />
-              <Text className="mt-2 text-xs font-bold text-emerald-200">
+              <Text className="mt-2 text-xs font-bold text-[#0F0]">
                 Your referrals: {status?.referralCount ?? 0} • Bonus points: {status?.referralBonusEntries ?? 0}/10
               </Text>
             </div>
 
-            <div className="mt-6 rounded-2xl border border-emerald-300/25 bg-black/60 p-4">
-              <Text className="text-lg font-black text-emerald-300">Top Referrers</Text>
+            <div className="mt-6 rounded-2xl border border-[#0F0]/25 bg-black/60 p-4">
+              <Text className="text-lg font-black text-[#0F0]">Top Referrers</Text>
               <div className="mt-3 space-y-2">
                 {(status?.topReferrers ?? []).slice(0, 10).map((referrer, index) => (
                   <button
                     key={referrer.fid}
                     type="button"
                     onClick={() => sdk.actions.viewProfile({ fid: referrer.fid }).catch(() => {})}
-                    className="flex w-full items-center gap-3 rounded-xl bg-emerald-950/35 px-3 py-2 text-left"
+                    className="flex w-full items-center gap-3 rounded-xl bg-[#041204]/80 px-3 py-2 text-left"
                   >
-                    <Text className="w-6 text-sm font-black text-emerald-300">#{index + 1}</Text>
+                    <Text className="w-6 text-sm font-black text-[#0F0]">#{index + 1}</Text>
                     {referrer.pfpUrl && <img src={referrer.pfpUrl} alt={referrer.username} className="h-8 w-8 rounded-full object-cover" />}
-                    <Text className="flex-1 text-sm font-bold text-emerald-50">{referrer.username}</Text>
-                    <Text className="text-sm font-black text-emerald-300">{referrer.referrals}</Text>
+                    <Text className="flex-1 text-sm font-bold text-[#0F0]">{referrer.username}</Text>
+                    <Text className="text-sm font-black text-[#0F0]">{referrer.referrals}</Text>
                   </button>
                 ))}
                 {(status?.topReferrers ?? []).length === 0 && (
-                  <Text className="text-sm text-emerald-50/60">No referrals yet.</Text>
+                  <Text className="text-sm text-[#0F0]/60">No referrals yet.</Text>
                 )}
               </div>
             </div>
@@ -988,9 +988,9 @@ export default function MillionApp() {
           />
         ))}
         <section className="px-4 py-7">
-          <div className="mx-auto max-w-md rounded-2xl border border-emerald-300/25 bg-black/60 p-4">
-            <Text className="text-lg font-black text-emerald-300">Terms and Conditions</Text>
-            <Text className="mt-2 text-xs leading-relaxed text-emerald-50/65">
+          <div className="mx-auto max-w-md rounded-2xl border border-[#0F0]/25 bg-black/60 p-4">
+            <Text className="text-lg font-black text-[#0F0]">Terms and Conditions</Text>
+            <Text className="mt-2 text-xs leading-relaxed text-[#0F0]/65">
               Lorem ipsum dolor sit amet, consectetur adipiscing elit. Integer non nibh vitae neque
               consequat facilisis. Entries are subject to verification, availability, eligibility,
               and final campaign rules to be published before winners are contacted.
@@ -1030,7 +1030,7 @@ export default function MillionApp() {
           <MiniAppMenuPage appSlug="million" />
         ) : loading ? (
           <div className="px-4 py-10 text-center">
-            <Text className="text-sm font-bold text-emerald-300">Loading $1M Warplet...</Text>
+            <Text className="text-sm font-bold text-[#0F0]">Loading $1M Warplet...</Text>
           </div>
         ) : routeMode === "enter" ? renderEntryPage() : renderLanding()}
       </div>
@@ -1062,29 +1062,29 @@ export default function MillionApp() {
 
       {showEmailModal && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/75 px-4 pb-8">
-          <div className="w-full max-w-sm rounded-2xl border border-emerald-300/40 bg-black px-5 py-6 shadow-2xl">
-            <Text className="text-center text-lg font-black text-emerald-300">Subscribe + Enter Giveaway</Text>
-            <Text className="mt-2 text-center text-sm text-emerald-50/75">Email needed to contact winners.</Text>
+          <div className="w-full max-w-sm rounded-2xl border border-[#0F0]/40 bg-black px-5 py-6 shadow-2xl">
+            <Text className="text-center text-lg font-black text-[#0F0]">Subscribe + Enter Giveaway</Text>
+            <Text className="mt-2 text-center text-sm text-[#0F0]/75">Email needed to contact winners.</Text>
             <input
               type="email"
               value={emailValue}
               onChange={(event) => setEmailValue(event.target.value)}
               placeholder="you@example.com"
-              className="mt-5 w-full rounded-xl border border-emerald-300/30 bg-black px-3 py-3 text-sm text-emerald-50 outline-none"
+              className="mt-5 w-full rounded-xl border border-[#0F0]/30 bg-black px-3 py-3 text-sm text-[#0F0] outline-none"
             />
             {emailMessage && <Text className="mt-3 text-xs text-yellow-200">{emailMessage}</Text>}
             <button
               type="button"
               onClick={() => submitEmail().catch(() => {})}
               disabled={emailSubmitting}
-              className="mt-5 w-full rounded-xl bg-emerald-300 py-3 font-black text-black disabled:bg-gray-600 disabled:text-white"
+              className="mt-5 w-full rounded-xl bg-[#0F0] py-3 font-black text-black disabled:bg-gray-600 disabled:text-white"
             >
               {emailSubmitting ? "Subscribing..." : "I want to WIN!"}
             </button>
             <button
               type="button"
               onClick={() => setShowEmailModal(false)}
-              className="mt-3 w-full rounded-xl py-2 text-sm text-emerald-50/60"
+              className="mt-3 w-full rounded-xl py-2 text-sm text-[#0F0]/60"
             >
               Close
             </button>
