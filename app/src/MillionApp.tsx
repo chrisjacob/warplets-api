@@ -126,6 +126,39 @@ const grantSchedule = [
   { day: "30", sale: "$1,000 - $100", grants: "$10 x 50-5" },
 ];
 
+const airdropSchedule = [
+  { day: "1", sale: "$1M", budget: "$100,000", collection: "The Warplets", opensea: "https://opensea.io/collection/the-warplets-farcaster", slug: "the-warplets-farcaster", extension: "avif", twitter: "WarpletsAI" },
+  { day: "2", sale: "$1M", budget: "$100,000", collection: "VeeFriends", opensea: "https://opensea.io/collection/veefriends", slug: "veefriends", extension: "avif", twitter: "veefriends" },
+  { day: "3", sale: "$900K", budget: "$90,000", collection: "Mutant Ape Yacht Club", opensea: "https://opensea.io/collection/mutant-ape-yacht-club", slug: "mutant-ape-yacht-club", extension: "avif", twitter: "BoredApeYC" },
+  { day: "4", sale: "$800K", budget: "$80,000", collection: "Azuki", opensea: "https://opensea.io/collection/azuki", slug: "azuki", extension: "avif", twitter: "Azuki" },
+  { day: "5", sale: "$700K", budget: "$70,000", collection: "MAX PAIN AND FRENS", opensea: "https://opensea.io/collection/max-pain-and-frens-by-xcopy", slug: "max-pain-and-frens-by-xcopy", extension: "webp", twitter: "XCOPYART" },
+  { day: "6", sale: "$600K", budget: "$60,000", collection: "Doodles", opensea: "https://opensea.io/collection/doodles-official", slug: "doodles-official", extension: "avif", twitter: "doodles" },
+  { day: "7", sale: "$500K", budget: "$50,000", collection: "Good Vibes Club", opensea: "https://opensea.io/collection/good-vibes-club", slug: "good-vibes-club", extension: "avif", twitter: "goodvibesclub" },
+  { day: "8", sale: "$400K", budget: "$40,000", collection: "Lil Pudgys", opensea: "https://opensea.io/collection/lilpudgys", slug: "lilpudgys", extension: "avif", twitter: "pudgypenguins" },
+  { day: "9", sale: "$300K", budget: "$30,000", collection: "Bankr Club", opensea: "https://opensea.io/collection/bankr-club", slug: "bankr-club", extension: "jpg", twitter: "bankrbot" },
+  { day: "10", sale: "$200K", budget: "$20,000", collection: "CLONE X - X TAKASHI MURAKAMI", opensea: "https://opensea.io/collection/clonex", slug: "clonex", extension: "avif", twitter: "RTFKT" },
+  { day: "11", sale: "$100K", budget: "$10,000", collection: "mfers", opensea: "https://opensea.io/collection/mfers", slug: "mfers", extension: "avif", twitter: "unofficialmfers" },
+  { day: "12", sale: "$90K", budget: "$9,000", collection: "Redacted Remilio Babies", opensea: "https://opensea.io/collection/remilio-babies", slug: "remilio-babies", extension: "avif", twitter: "RemilioBaby" },
+  { day: "13", sale: "$80K", budget: "$8,000", collection: "Checks - VV Originals", opensea: "https://opensea.io/collection/vv-checks-originals", slug: "vv-checks-originals", extension: "png", twitter: "jackbutcher" },
+  { day: "14", sale: "$70K", budget: "$7,000", collection: "Cool Cats", opensea: "https://opensea.io/collection/cool-cats-nft", slug: "cool-cats-nft", extension: "avif", twitter: "coolcats" },
+  { day: "15", sale: "$60K", budget: "$6,000", collection: "Mocaverse", opensea: "https://opensea.io/collection/mocaverse", slug: "mocaverse", extension: "avif", twitter: "Moca_Network" },
+  { day: "16", sale: "$50K", budget: "$5,000", collection: "Memeland Potatoz", opensea: "https://opensea.io/collection/memelandpotatoz", slug: "memelandpotatoz", extension: "webp", twitter: "memeland" },
+  { day: "17", sale: "$40K", budget: "$4,000", collection: "World of Women", opensea: "https://opensea.io/collection/world-of-women-nft", slug: "world-of-women-nft", extension: "avif", twitter: "worldofwomenxyz" },
+  { day: "18", sale: "$30K", budget: "$3,000", collection: "Yapybaras - Kaito Genesis", opensea: "https://opensea.io/collection/kaito-genesis", slug: "kaito-genesis", extension: "avif", twitter: "KaitoAI" },
+  { day: "19", sale: "$20K", budget: "$2,000", collection: "Otherdeed for Otherside", opensea: "https://opensea.io/collection/otherdeed", slug: "otherdeed", extension: "avif", twitter: "othersidemeta" },
+  { day: "20", sale: "$10K", budget: "$1,000", collection: "BEANZ Official", opensea: "https://opensea.io/collection/beanzofficial", slug: "beanzofficial", extension: "avif", twitter: "Azuki" },
+  { day: "21", sale: "$10K - $9K", budget: "$1,000 - $900", collection: "Degens", opensea: "https://opensea.io/collection/degens-base", slug: "degens-base", extension: "png", twitter: "degentokenbase" },
+  { day: "22", sale: "$9K - $8K", budget: "$900 - $800", collection: "based punks", opensea: "https://opensea.io/collection/basedpunks", slug: "basedpunks", extension: "avif", twitter: "based" },
+  { day: "23", sale: "$8K- $7K", budget: "$800 - $700", collection: "OK COMPUTERS", opensea: "https://opensea.io/collection/okcomputers", slug: "okcomputers", extension: "png", twitter: "dailofrog" },
+  { day: "24", sale: "$7K - $6K", budget: "$700 - $600", collection: "Farcaster Pro OG", opensea: "https://opensea.io/collection/farcaster-pro-og", slug: "farcaster-pro-og", extension: "png", twitter: "farcaster_xyz" },
+  { day: "25", sale: "$6K - $5K", budget: "$600 - $500", collection: "VRNouns", opensea: "https://opensea.io/collection/vrnouns", slug: "vrnouns", extension: "png", twitter: "vrnouns" },
+  { day: "26", sale: "$5K - $4K", budget: "$500 - $400", collection: "AXIOM Tool Pass", opensea: "https://opensea.io/collection/axiom-tool-pass", slug: "axiom-tool-pass", extension: "png", twitter: "AxiomBot" },
+  { day: "27", sale: "$4K - $3K", budget: "$400 - $300", collection: "BasePaint", opensea: "https://opensea.io/collection/basepaint", slug: "basepaint", extension: "avif", twitter: "basepaint_xyz" },
+  { day: "28", sale: "$3K - $2K", budget: "$300 - $200", collection: "Base Colors", opensea: "https://opensea.io/collection/base-colors-nft", slug: "base-colors-nft", extension: "png", twitter: "0fjake" },
+  { day: "29", sale: "$2K - $1K", budget: "$200 - $100", collection: "BETRMINT Rounds Art", opensea: "https://opensea.io/collection/0x145b4ea581924882e854f34630a2544b4c2fe4bd", slug: "betrmint", extension: "avif", twitter: "betrmint" },
+  { day: "30", sale: "$1K - $100", budget: "$100 - $10", collection: "The Warplets", opensea: "https://opensea.io/collection/the-warplets-farcaster", slug: "the-warplets-farcaster", extension: "avif", twitter: "WarpletsAI" },
+];
+
 const FARCASTER_JOIN_URL = "https://farcaster.xyz/~/code/RUZLHN";
 const STATIC_DISCLAIMER_PRICE = "$ABC";
 const MINUTE_MS = 60 * 1000;
@@ -168,6 +201,12 @@ function formatUsd(value: number): string {
 
 function getMonthlyAuctionStart(now: Date): number {
   return Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 0, 0, 0, 0);
+}
+
+function getCurrentAuctionDay(now: Date): number {
+  const cycleStart = getMonthlyAuctionStart(now);
+  const rawDay = Math.floor((now.getTime() - cycleStart) / DAY_MS) + 1;
+  return Math.min(grantSchedule.length, Math.max(1, rawDay));
 }
 
 function buildPriceDropSchedule(cycleStart: number): PriceDrop[] {
@@ -253,7 +292,7 @@ function buildPromoCards(rareUrgency: string): PromoCard[] {
       id: "builders",
       title: "10X Builders",
       subtitle: "50% of Sale = Free Grants: $500,000 → $10",
-      imageUrl: "https://warplets.10x.meme/1.jpg",
+      imageUrl: "https://warplets.10x.meme/1409.avif",
       urgency: "🤝 Zero Equity. No Strings Attached. Free Money.",
       ctas: [
         {
@@ -264,13 +303,13 @@ function buildPromoCards(rareUrgency: string): PromoCard[] {
     },
     {
       id: "airdrop",
-      title: "10X Warplets\n💚\nThe Warplets",
-      subtitle: "20% of Sale = Buy & Airdrop NFTs.",
-      imageUrl: "https://warplets.10x.meme/2.jpg",
-      urgency: "🎁 Current Airdrop**: $10,000 = 500 10X Warplets\n+ $10,000 = 5000 The Warplets.",
+      title: "10X Warplets",
+      subtitle: "10% of Sale = Sweep NFTs: $100,000 → $10",
+      imageUrl: "https://warplets.10x.meme/760.avif",
+      urgency: "🎁 Current Airdrop**: $10,000 = 500 10X Warplets.",
       ctas: [
         {
-          label: "Spread the hype on X",
+          label: "Spread the hype on X (Twitter)",
           kind: "x",
         },
         {
@@ -318,7 +357,7 @@ function AvatarStack({ avatars, label }: { avatars: EntryAvatar[]; label: string
   );
 }
 
-function GrantScheduleTable() {
+function GrantScheduleTable({ currentAuctionDay }: { currentAuctionDay: number }) {
   return (
     <div className="rounded-2xl overflow-hidden border border-[#00FF00]/35 bg-[#041204]/85 p-0">
       <table className="w-full table-fixed border-separate border-spacing-0 text-left">
@@ -330,13 +369,140 @@ function GrantScheduleTable() {
           </tr>
         </thead>
         <tbody>
-          {grantSchedule.map((row) => (
-            <tr key={row.day}>
-              <td className="border-b border-r border-[#00FF00]/20 px-2 py-2 text-xs font-semibold text-center" style={{ color: "#b7ffb7" }}>{row.day}</td>
-              <td className="border-b border-r border-[#00FF00]/20 px-2 py-2 text-xs text-center" style={{ color: "#b7ffb7" }}>{row.sale}</td>
-              <td className="border-b border-[#00FF00]/20 px-2 py-2 text-xs font-semibold text-center" style={{ color: "#b7ffb7" }}>{row.grants}</td>
-            </tr>
-          ))}
+          {grantSchedule.map((row) => {
+            const rowDay = Number(row.day);
+            const isPassed = rowDay < currentAuctionDay;
+            const isToday = rowDay === currentAuctionDay;
+            const passedClass = isPassed ? " line-through decoration-[#b7ffb7]/80 decoration-2" : "";
+            const rowColor = isToday ? "#0F0" : "#b7ffb7";
+            return (
+              <tr key={row.day}>
+                <td className={`border-b border-r border-[#00FF00]/20 px-2 py-2 text-xs font-semibold text-center${passedClass}`} style={{ color: rowColor }}>{row.day}</td>
+                <td className={`border-b border-r border-[#00FF00]/20 px-2 py-2 text-xs text-center${passedClass}`} style={{ color: rowColor }}>{row.sale}</td>
+                <td className={`border-b border-[#00FF00]/20 px-2 py-2 text-xs font-semibold text-center${passedClass}`} style={{ color: rowColor }}>{row.grants}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+type AirdropScheduleRow = typeof airdropSchedule[number];
+
+function AirdropShareCell({ row }: { row: AirdropScheduleRow }) {
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [loadedSlides, setLoadedSlides] = useState<Record<number, boolean>>({ 0: true });
+  const imageSources = useMemo(
+    () => [1, 2, 3, 4, 5].map((index) => `/nfts-examples/${row.slug}-${index}.${row.extension}`),
+    [row.slug, row.extension]
+  );
+  const nextIndex = (activeIndex + 1) % imageSources.length;
+
+  useEffect(() => {
+    setActiveIndex(0);
+    setLoadedSlides({ 0: true });
+  }, [row.slug, row.extension]);
+
+  useEffect(() => {
+    if (loadedSlides[nextIndex]) return;
+    let cancelled = false;
+    const image = new Image();
+    image.onload = () => {
+      if (!cancelled) {
+        setLoadedSlides((prev) => ({ ...prev, [nextIndex]: true }));
+      }
+    };
+    image.src = imageSources[nextIndex];
+    return () => {
+      cancelled = true;
+    };
+  }, [imageSources, loadedSlides, nextIndex]);
+
+  useEffect(() => {
+    if (!loadedSlides[nextIndex]) return;
+    const timeout = window.setTimeout(() => setActiveIndex(nextIndex), 3000);
+    return () => window.clearTimeout(timeout);
+  }, [loadedSlides, nextIndex]);
+
+  const shareOnX = async () => {
+    await hapticPrimaryTap();
+    const text = `${row.budget} sweep and NFT airdrop for ${row.collection} by @${row.twitter} if the $1M Warplet by @10XMemeX sells for ${row.sale} on Day ${row.day} of the 30 day dutch auction... 👀\n\nhttps://opensea.io/collection/1m-warplet-1-the-one/overview`;
+    const intentUrl = `https://x.com/intent/post?${new URLSearchParams({ text }).toString()}`;
+    await sdk.actions.openUrl(intentUrl);
+  };
+
+  return (
+    <div className="flex flex-col items-center gap-2">
+      <div className="relative flex h-[80px] w-[80px] items-center justify-center overflow-hidden rounded-lg border border-[#00FF00]/25 bg-black/35">
+        {imageSources.map((src, index) => loadedSlides[index] && (
+          <img
+            key={src}
+            src={src}
+            alt={`${row.collection} example ${index + 1}`}
+            loading={index === 0 ? "eager" : "lazy"}
+            className={`absolute max-h-[80px] max-w-[80px] object-contain transition-opacity duration-500 ${index === activeIndex ? "opacity-100" : "opacity-0"}`}
+          />
+        ))}
+      </div>
+      <button
+        type="button"
+        onClick={() => shareOnX().catch(() => {})}
+        className="rounded-lg border border-[#009900] bg-[#00FF00] px-2 py-1 text-[10px] font-black leading-tight text-black"
+      >
+        Share on X
+      </button>
+    </div>
+  );
+}
+
+function AirdropScheduleTable({ currentAuctionDay }: { currentAuctionDay: number }) {
+  return (
+    <div className="rounded-2xl border border-[#00FF00]/35 bg-[#041204]/85 p-0">
+      <table className="w-full table-fixed border-separate border-spacing-0 text-left">
+        <thead>
+          <tr>
+            <th className="w-[11%] border-b border-r border-[#00FF00]/25 px-1 py-2 text-xs text-center" style={{ color: "#00FF00" }}>Day</th>
+            <th className="w-[23%] border-b border-r border-[#00FF00]/25 px-1 py-2 text-xs text-center" style={{ color: "#00FF00" }}>Budget</th>
+            <th className="w-[33%] border-b border-r border-[#00FF00]/25 px-1 py-2 text-xs text-center" style={{ color: "#00FF00" }}>Collection</th>
+            <th className="w-[33%] border-b border-[#00FF00]/25 px-1 py-2 text-xs text-center" style={{ color: "#00FF00" }}>Share</th>
+          </tr>
+        </thead>
+        <tbody>
+          {airdropSchedule.map((row) => {
+            const rowDay = Number(row.day);
+            const isPassed = rowDay < currentAuctionDay;
+            const isToday = rowDay === currentAuctionDay;
+            const passedClass = isPassed ? " line-through decoration-[#b7ffb7]/80 decoration-2" : "";
+            const rowColor = isToday ? "#0F0" : "#b7ffb7";
+            const logoSrc = `/nfts-logos/${row.slug}.png`;
+            return (
+              <tr key={`${row.day}-${row.slug}`}>
+                <td className={`border-b border-r border-[#00FF00]/20 px-1 py-2 text-xs font-semibold text-center${passedClass}`} style={{ color: rowColor }}>{row.day}</td>
+                <td className={`border-b border-r border-[#00FF00]/20 px-1 py-2 text-[11px] font-semibold text-center leading-snug${passedClass}`} style={{ color: rowColor }}>{row.budget}</td>
+                <td className="border-b border-r border-[#00FF00]/20 px-1 py-2">
+                  <a
+                    href={row.opensea}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex flex-col items-center justify-center gap-2 text-center"
+                    style={{ color: rowColor }}
+                  >
+                    <img
+                      src={logoSrc}
+                      alt={`${row.collection} logo`}
+                      className="h-[80px] w-[80px] max-w-full shrink-0 rounded-lg border border-[#00FF00]/25 object-cover"
+                    />
+                    <span className={`text-xs font-semibold leading-snug${passedClass}`}>{row.collection}</span>
+                  </a>
+                </td>
+                <td className="border-b border-[#00FF00]/20 px-1 py-2">
+                  <AirdropShareCell row={row} />
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>
@@ -351,6 +517,7 @@ function PromoSection({
   watchers,
   applicants,
   onRareCtaClick,
+  currentAuctionDay,
 }: {
   card: PromoCard;
   referralMillionUrl: string;
@@ -359,6 +526,7 @@ function PromoSection({
   watchers?: EntryAvatar[];
   applicants?: EntryAvatar[];
   onRareCtaClick?: () => Promise<void>;
+  currentAuctionDay: number;
 }) {
   const runCta = async (cta: PromoCard["ctas"][number]) => {
     await hapticPrimaryTap();
@@ -435,9 +603,22 @@ function PromoSection({
       </div>
       <Text className="text-sm font-semibold leading-relaxed text-center whitespace-pre-line" style={{ color: "#b7ffb7" }}>{card.urgency}</Text>
       {card.id === "builders" && applicants && applicants.length > 0 && (
-        <AvatarStack avatars={applicants} label="Applicants:" />
+        <AvatarStack avatars={applicants} label="Applied:" />
       )}
-      {card.id === "builders" && <GrantScheduleTable />}
+      {card.id === "builders" && (
+        <>
+          <GrantScheduleTable currentAuctionDay={currentAuctionDay} />
+          <div className="space-y-2 pt-3">
+            <Text className="text-[clamp(1.6rem,5vw,1.6rem)] font-bold leading-tight text-center" style={{ color: "#00FF00" }}>
+              10X Airdrop
+            </Text>
+            <Text className="text-lg font-semibold leading-snug text-center" style={{ color: "#00FF00" }}>
+              10% of Sale = Airdrop NFTs: $100,000 → $10
+            </Text>
+            <AirdropScheduleTable currentAuctionDay={currentAuctionDay} />
+          </div>
+        </>
+      )}
       {card.id === "rare" && watchers && watchers.length > 0 && (
         <AvatarStack avatars={watchers} label="Watchers:" />
       )}
@@ -484,6 +665,7 @@ export default function MillionApp() {
   const { isMenuRoute, canGoBack, actions } = useMiniAppChrome("million");
 
   const rareUrgency = useMemo(() => buildRareUrgency(auctionClock), [auctionClock]);
+  const currentAuctionDay = useMemo(() => getCurrentAuctionDay(auctionClock), [auctionClock]);
   const promoCards = useMemo(() => buildPromoCards(rareUrgency), [rareUrgency]);
   const referralMillionUrl = useMemo(() => buildMillionUrl(fid), [fid]);
   const searchParams = new URLSearchParams(typeof window !== "undefined" ? window.location.search : "");
@@ -935,6 +1117,7 @@ export default function MillionApp() {
             watchers={watchers}
             applicants={grantStatus?.applicants ?? []}
             onRareCtaClick={trackRareWatcher}
+            currentAuctionDay={currentAuctionDay}
           />
         ))}
       </div>
@@ -1070,6 +1253,7 @@ export default function MillionApp() {
             referralMillionUrl={referralMillionUrl}
             entryAvatars={status?.entryAvatars ?? []}
             onEnter={goToEnter}
+            currentAuctionDay={currentAuctionDay}
           />
         ))}
         <section className="px-4 py-7">
