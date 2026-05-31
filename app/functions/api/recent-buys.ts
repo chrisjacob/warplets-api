@@ -12,6 +12,12 @@ type RecentBuyerRow = {
   buyer_on?: string | null;
 };
 
+type MetadataAvatarRow = {
+  fid_value: number | null;
+  token_id: number;
+  jpg_url: string | null;
+};
+
 type RecentBuyer = {
   fid: number;
   pfpUrl: string;
@@ -68,8 +74,41 @@ async function fetchProdMatchedFallback(): Promise<RecentBuyer[] | null> {
   }
 }
 
+async function loadLocalPlaceholderBuyers(db: D1Database): Promise<RecentBuyer[]> {
+  const latest = await db.prepare(
+    `SELECT fid_value, token_id, jpg_url
+     FROM warplets_metadata
+     WHERE fid_value IS NOT NULL
+     ORDER BY token_id DESC
+     LIMIT 25`
+  ).all<MetadataAvatarRow>();
+
+  const seen = new Set<number>();
+  const buyers: RecentBuyer[] = [];
+  for (const row of latest.results ?? []) {
+    if (typeof row.fid_value !== "number" || seen.has(row.fid_value)) continue;
+    const pfpUrl = row.jpg_url?.trim() || `https://warplets.10x.meme/${row.token_id}.jpg`;
+    buyers.push({ fid: row.fid_value, pfpUrl, score: null });
+    seen.add(row.fid_value);
+    if (buyers.length >= 10) break;
+  }
+  return buyers;
+}
+
+function isLocalDevHost(hostname: string): boolean {
+  return (
+    hostname.includes("-local.") ||
+    hostname.includes("-dev.") ||
+    hostname.endsWith(".pages.dev") ||
+    hostname === "127.0.0.1" ||
+    hostname === "localhost" ||
+    hostname === "::1"
+  );
+}
+
 export const onRequestGet: PagesFunction<Env> = async (context) => {
-  const mode = (new URL(context.request.url).searchParams.get("mode") || "buyers").toLowerCase();
+  const url = new URL(context.request.url);
+  const mode = (url.searchParams.get("mode") || "buyers").toLowerCase();
 
   if (mode === "matched") {
     const matchedQuery = await context.env.WARPLETS.prepare(
@@ -113,5 +152,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
   const matchedRows = Array.isArray(matchedQuery.results) ? matchedQuery.results : [];
   const matchedBuyers = normalizeAndRank(matchedRows, "matched_on");
+  if (matchedBuyers.length === 0 && isLocalDevHost(url.hostname)) {
+    return Response.json({ buyers: await loadLocalPlaceholderBuyers(context.env.WARPLETS), source: "local-placeholder-fallback" });
+  }
   return Response.json({ buyers: matchedBuyers, source: "local-matched-fallback" });
 };

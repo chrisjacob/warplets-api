@@ -57,6 +57,14 @@ type WatchersResponse = {
   watchers?: unknown;
 };
 
+type FollowersResponse = {
+  followers?: unknown;
+};
+
+type RecentBuysResponse = {
+  buyers?: unknown;
+};
+
 type GrantApplication = {
   id: number;
   status: string;
@@ -136,7 +144,7 @@ const airdropSchedule = [
   { day: "7", sale: "$500K", budget: "$50,000", collection: "Good Vibes Club", opensea: "https://opensea.io/collection/good-vibes-club", slug: "good-vibes-club", extension: "avif", twitter: "goodvibesclub" },
   { day: "8", sale: "$400K", budget: "$40,000", collection: "Lil Pudgys", opensea: "https://opensea.io/collection/lilpudgys", slug: "lilpudgys", extension: "avif", twitter: "pudgypenguins" },
   { day: "9", sale: "$300K", budget: "$30,000", collection: "Bankr Club", opensea: "https://opensea.io/collection/bankr-club", slug: "bankr-club", extension: "jpg", twitter: "bankrbot" },
-  { day: "10", sale: "$200K", budget: "$20,000", collection: "CLONE X - X TAKASHI MURAKAMI", opensea: "https://opensea.io/collection/clonex", slug: "clonex", extension: "avif", twitter: "RTFKT" },
+  { day: "10", sale: "$200K", budget: "$20,000", collection: "CLONE X", opensea: "https://opensea.io/collection/clonex", slug: "clonex", extension: "avif", twitter: "RTFKT" },
   { day: "11", sale: "$100K", budget: "$10,000", collection: "mfers", opensea: "https://opensea.io/collection/mfers", slug: "mfers", extension: "avif", twitter: "unofficialmfers" },
   { day: "12", sale: "$90K", budget: "$9,000", collection: "Redacted Remilio Babies", opensea: "https://opensea.io/collection/remilio-babies", slug: "remilio-babies", extension: "avif", twitter: "RemilioBaby" },
   { day: "13", sale: "$80K", budget: "$8,000", collection: "Checks - VV Originals", opensea: "https://opensea.io/collection/vv-checks-originals", slug: "vv-checks-originals", extension: "png", twitter: "jackbutcher" },
@@ -160,6 +168,7 @@ const airdropSchedule = [
 ];
 
 const FARCASTER_JOIN_URL = "https://farcaster.xyz/~/code/RUZLHN";
+const FARCASTER_AIRDROPS_JOIN_URL = "https://farcaster.xyz/~/code/1Y7636";
 const STATIC_DISCLAIMER_PRICE = "$ABC";
 const MINUTE_MS = 60 * 1000;
 const DAY_MS = 24 * 60 * MINUTE_MS;
@@ -282,7 +291,7 @@ function buildPromoCards(rareUrgency: string): PromoCard[] {
       urgency: rareUrgency,
       ctas: [
         {
-          label: "About $1M Warplet + 12 Months of Attention",
+          label: "About $1M Warplet + 1 Year of Attention",
           kind: "external",
           href: "https://link.10x.meme/1mwarplet",
         },
@@ -306,15 +315,12 @@ function buildPromoCards(rareUrgency: string): PromoCard[] {
       title: "10X Warplets",
       subtitle: "10% of Sale = Sweep NFTs: $100,000 → $10",
       imageUrl: "https://warplets.10x.meme/760.avif",
-      urgency: "🎁 Current Airdrop**: $10,000 = 500 10X Warplets.",
+      urgency: "🟢 Take the Green Pill. Don't miss out...",
       ctas: [
         {
-          label: "Spread the hype on X (Twitter)",
-          kind: "x",
-        },
-        {
-          label: "Spread the hype on Farcaster",
-          kind: "farcaster",
+          label: "Buy 10X Warplets on OpenSea",
+          kind: "external",
+          href: "https://opensea.io/collection/10xwarplets/overview",
         },
       ],
     },
@@ -359,13 +365,13 @@ function AvatarStack({ avatars, label }: { avatars: EntryAvatar[]; label: string
 
 function GrantScheduleTable({ currentAuctionDay }: { currentAuctionDay: number }) {
   return (
-    <div className="rounded-2xl overflow-hidden border border-[#00FF00]/35 bg-[#041204]/85 p-0">
+    <div className="mt-3 rounded-2xl overflow-hidden border border-[#00FF00]/35 bg-[#041204]/85 p-0">
       <table className="w-full table-fixed border-separate border-spacing-0 text-left">
         <thead>
           <tr>
-            <th className="w-[17%] border-b border-r border-[#00FF00]/25 px-2 py-2 text-xs text-center" style={{ color: "#00FF00" }}>Day</th>
-            <th className="w-[40%] border-b border-r border-[#00FF00]/25 px-2 py-2 text-xs text-center" style={{ color: "#00FF00" }}>Sale</th>
-            <th className="w-[43%] border-b border-[#00FF00]/25 px-2 py-2 text-xs text-center" style={{ color: "#00FF00" }}>Grants</th>
+            <th className="w-[17%] border-b border-r border-[#00FF00]/25 px-2 py-2 text-sm text-center" style={{ color: "#00FF00" }}>Day</th>
+            <th className="w-[40%] border-b border-r border-[#00FF00]/25 px-2 py-2 text-sm text-center" style={{ color: "#00FF00" }}>Sale</th>
+            <th className="w-[43%] border-b border-[#00FF00]/25 px-2 py-2 text-sm text-center" style={{ color: "#00FF00" }}>Grants</th>
           </tr>
         </thead>
         <tbody>
@@ -377,9 +383,9 @@ function GrantScheduleTable({ currentAuctionDay }: { currentAuctionDay: number }
             const rowColor = isToday ? "#0F0" : "#b7ffb7";
             return (
               <tr key={row.day}>
-                <td className={`border-b border-r border-[#00FF00]/20 px-2 py-2 text-xs font-semibold text-center${passedClass}`} style={{ color: rowColor }}>{row.day}</td>
-                <td className={`border-b border-r border-[#00FF00]/20 px-2 py-2 text-xs text-center${passedClass}`} style={{ color: rowColor }}>{row.sale}</td>
-                <td className={`border-b border-[#00FF00]/20 px-2 py-2 text-xs font-semibold text-center${passedClass}`} style={{ color: rowColor }}>{row.grants}</td>
+                <td className={`border-b border-r border-[#00FF00]/20 px-2 py-2 text-sm font-semibold text-center${passedClass}`} style={{ color: rowColor }}>{row.day}</td>
+                <td className={`border-b border-r border-[#00FF00]/20 px-2 py-2 text-sm text-center${passedClass}`} style={{ color: rowColor }}>{row.sale}</td>
+                <td className={`border-b border-[#00FF00]/20 px-2 py-2 text-sm font-semibold text-center${passedClass}`} style={{ color: rowColor }}>{row.grants}</td>
               </tr>
             );
           })}
@@ -391,11 +397,14 @@ function GrantScheduleTable({ currentAuctionDay }: { currentAuctionDay: number }
 
 type AirdropScheduleRow = typeof airdropSchedule[number];
 
-function AirdropShareCell({ row }: { row: AirdropScheduleRow }) {
+function AirdropImageSlideshow({ row }: { row: AirdropScheduleRow }) {
   const [activeIndex, setActiveIndex] = useState(0);
   const [loadedSlides, setLoadedSlides] = useState<Record<number, boolean>>({ 0: true });
   const imageSources = useMemo(
-    () => [1, 2, 3, 4, 5].map((index) => `/nfts-examples/${row.slug}-${index}.${row.extension}`),
+    () => [
+      `/nfts-logos/${row.slug}.png`,
+      ...[1, 2, 3, 4, 5].map((index) => `/nfts-examples/${row.slug}-${index}.${row.extension}`),
+    ],
     [row.slug, row.extension]
   );
   const nextIndex = (activeIndex + 1) % imageSources.length;
@@ -426,85 +435,77 @@ function AirdropShareCell({ row }: { row: AirdropScheduleRow }) {
     return () => window.clearTimeout(timeout);
   }, [loadedSlides, nextIndex]);
 
-  const shareOnX = async () => {
-    await hapticPrimaryTap();
-    const text = `${row.budget} sweep and NFT airdrop for ${row.collection} by @${row.twitter} if the $1M Warplet by @10XMemeX sells for ${row.sale} on Day ${row.day} of the 30 day dutch auction... 👀\n\nhttps://opensea.io/collection/1m-warplet-1-the-one/overview`;
-    const intentUrl = `https://x.com/intent/post?${new URLSearchParams({ text }).toString()}`;
-    await sdk.actions.openUrl(intentUrl);
-  };
-
   return (
-    <div className="flex flex-col items-center gap-2">
-      <div className="relative flex h-[80px] w-[80px] items-center justify-center overflow-hidden rounded-lg border border-[#00FF00]/25 bg-black/35">
-        {imageSources.map((src, index) => loadedSlides[index] && (
-          <img
-            key={src}
-            src={src}
-            alt={`${row.collection} example ${index + 1}`}
-            loading={index === 0 ? "eager" : "lazy"}
-            className={`absolute max-h-[80px] max-w-[80px] object-contain transition-opacity duration-500 ${index === activeIndex ? "opacity-100" : "opacity-0"}`}
-          />
-        ))}
-      </div>
-      <button
-        type="button"
-        onClick={() => shareOnX().catch(() => {})}
-        className="rounded-lg border border-[#009900] bg-[#00FF00] px-2 py-1 text-[10px] font-black leading-tight text-black"
-      >
-        Share on X
-      </button>
+    <div className="relative flex aspect-square w-full items-center justify-center overflow-hidden bg-black/35">
+      {imageSources.map((src, index) => loadedSlides[index] && (
+        <img
+          key={src}
+          src={src}
+          alt={index === 0 ? `${row.collection} logo` : `${row.collection} example ${index}`}
+          loading={index === 0 ? "eager" : "lazy"}
+          className={`absolute h-full w-full object-contain transition-opacity duration-500 ${index === activeIndex ? "opacity-100" : "opacity-0"}`}
+        />
+      ))}
     </div>
   );
 }
 
-function AirdropScheduleTable({ currentAuctionDay }: { currentAuctionDay: number }) {
+function AirdropCard({ row, currentAuctionDay, inMiniAppContext }: { row: AirdropScheduleRow; currentAuctionDay: number; inMiniAppContext: boolean }) {
+  const rowDay = Number(row.day);
+  const isPassed = rowDay < currentAuctionDay;
+  const isToday = rowDay === currentAuctionDay;
+  const passedClass = isPassed ? " line-through decoration-[#b7ffb7]/80 decoration-2" : "";
+  const rowColor = isToday ? "#0F0" : "#b7ffb7";
+  const shareText = `${row.budget} NFT sweep and airdrop for ${row.collection} by @${row.twitter}...\n\nBut only if the $1M Warplet by @10XMemeX sells for ${row.sale} on Day ${row.day}.\n\nWatching this 30 day dutch auction \u{1F440}\n\nhttps://opensea.io/collection/1m-warplet-1-the-one/overview`;
+  const shareUrl = `https://x.com/intent/post?${new URLSearchParams({ text: shareText }).toString()}`;
+
+  const openShare = async () => {
+    void hapticPrimaryTap();
+    const text = `${row.budget} NFT sweep and airdrop for ${row.collection} by @${row.twitter}...\n\nBut only if the $1M Warplet by @10XMemeX sells for ${row.sale} on Day ${row.day}.\n\nWatching this 30 day dutch auction 👀\n\nhttps://opensea.io/collection/1m-warplet-1-the-one/overview`;
+    try {
+      await sdk.actions.openUrl(shareUrl);
+    } catch {
+      window.location.assign(shareUrl);
+    }
+  };
+
   return (
-    <div className="rounded-2xl border border-[#00FF00]/35 bg-[#041204]/85 p-0">
-      <table className="w-full table-fixed border-separate border-spacing-0 text-left">
-        <thead>
-          <tr>
-            <th className="w-[11%] border-b border-r border-[#00FF00]/25 px-1 py-2 text-xs text-center" style={{ color: "#00FF00" }}>Day</th>
-            <th className="w-[23%] border-b border-r border-[#00FF00]/25 px-1 py-2 text-xs text-center" style={{ color: "#00FF00" }}>Budget</th>
-            <th className="w-[33%] border-b border-r border-[#00FF00]/25 px-1 py-2 text-xs text-center" style={{ color: "#00FF00" }}>Collection</th>
-            <th className="w-[33%] border-b border-[#00FF00]/25 px-1 py-2 text-xs text-center" style={{ color: "#00FF00" }}>Share</th>
-          </tr>
-        </thead>
-        <tbody>
-          {airdropSchedule.map((row) => {
-            const rowDay = Number(row.day);
-            const isPassed = rowDay < currentAuctionDay;
-            const isToday = rowDay === currentAuctionDay;
-            const passedClass = isPassed ? " line-through decoration-[#b7ffb7]/80 decoration-2" : "";
-            const rowColor = isToday ? "#0F0" : "#b7ffb7";
-            const logoSrc = `/nfts-logos/${row.slug}.png`;
-            return (
-              <tr key={`${row.day}-${row.slug}`}>
-                <td className={`border-b border-r border-[#00FF00]/20 px-1 py-2 text-xs font-semibold text-center${passedClass}`} style={{ color: rowColor }}>{row.day}</td>
-                <td className={`border-b border-r border-[#00FF00]/20 px-1 py-2 text-[11px] font-semibold text-center leading-snug${passedClass}`} style={{ color: rowColor }}>{row.budget}</td>
-                <td className="border-b border-r border-[#00FF00]/20 px-1 py-2">
-                  <a
-                    href={row.opensea}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex flex-col items-center justify-center gap-2 text-center"
-                    style={{ color: rowColor }}
-                  >
-                    <img
-                      src={logoSrc}
-                      alt={`${row.collection} logo`}
-                      className="h-[80px] w-[80px] max-w-full shrink-0 rounded-lg border border-[#00FF00]/25 object-cover"
-                    />
-                    <span className={`text-xs font-semibold leading-snug${passedClass}`}>{row.collection}</span>
-                  </a>
-                </td>
-                <td className="border-b border-[#00FF00]/20 px-1 py-2">
-                  <AirdropShareCell row={row} />
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+    <a
+      href={shareUrl}
+      target="_blank"
+      rel="noreferrer"
+      className="menu-card cursor-pointer"
+      title={`Share ${row.collection} airdrop on X`}
+      onClick={(event) => {
+        if (!inMiniAppContext) return;
+        event.preventDefault();
+        openShare().catch(() => {});
+      }}
+    >
+      <div className="px-1.5 pb-2 pt-2 text-center">
+        <Text className={`text-sm font-black leading-tight${passedClass}`} style={{ color: rowColor }}>
+          Day {row.day}: {row.budget}
+        </Text>
+      </div>
+      <AirdropImageSlideshow row={row} />
+      <div className="menu-card__cta min-h-[42px] whitespace-nowrap px-2 text-[10px] leading-tight">
+        {row.collection}
+      </div>
+    </a>
+  );
+}
+
+function AirdropScheduleGrid({ currentAuctionDay, inMiniAppContext }: { currentAuctionDay: number; inMiniAppContext: boolean }) {
+  return (
+    <div className="grid w-full grid-cols-2 gap-3 pb-2">
+      {airdropSchedule.map((row) => (
+        <AirdropCard
+          key={`${row.day}-${row.slug}`}
+          row={row}
+          currentAuctionDay={currentAuctionDay}
+          inMiniAppContext={inMiniAppContext}
+        />
+      ))}
     </div>
   );
 }
@@ -516,8 +517,11 @@ function PromoSection({
   onEnter,
   watchers,
   applicants,
+  followers,
+  buyers,
   onRareCtaClick,
   currentAuctionDay,
+  inMiniAppContext,
 }: {
   card: PromoCard;
   referralMillionUrl: string;
@@ -525,9 +529,26 @@ function PromoSection({
   onEnter: () => void;
   watchers?: EntryAvatar[];
   applicants?: EntryAvatar[];
+  followers?: EntryAvatar[];
+  buyers?: EntryAvatar[];
   onRareCtaClick?: () => Promise<void>;
   currentAuctionDay: number;
+  inMiniAppContext: boolean;
 }) {
+  const getCtaHref = (cta: PromoCard["ctas"][number]): string | null => {
+    if (cta.kind === "external" && cta.href) return cta.href;
+    if (cta.kind === "x") {
+      const text = `\u{1F7E2} $1M Warplet\n\nDon't miss out.\n\n1\uFE0F\u20E3 Join Farcaster: ${FARCASTER_JOIN_URL}\n2\uFE0F\u20E3 Visit mini-app: ${referralMillionUrl}`;
+      return `https://x.com/intent/post?${new URLSearchParams({
+        text,
+        url: "",
+        hashtags: "1MWarplet",
+        via: "10XMemeX",
+      }).toString()}`;
+    }
+    return null;
+  };
+
   const runCta = async (cta: PromoCard["ctas"][number]) => {
     await hapticPrimaryTap();
     if (cta.kind === "external" && cta.href) {
@@ -549,7 +570,7 @@ function PromoSection({
         hashtags: "1MWarplet",
         via: "10XMemeX",
       }).toString()}`;
-      await sdk.actions.openUrl(intentUrl);
+      await sdk.actions.openUrl(getCtaHref(cta) ?? intentUrl);
       return;
     }
     if (cta.kind === "farcaster") {
@@ -573,9 +594,9 @@ function PromoSection({
     const [attention, funding, airdrops, warplet] = card.title.split("\n");
     return (
       <div className="text-center text-[#0F0]" style={{ color: "#0F0" }}>
-        <Text className="text-[2.45rem] font-bold leading-[1.5] text-[#0F0]" style={{ color: "#0F0" }}>{attention}</Text>
-        <Text className="text-[2.25rem] font-bold leading-[1.5] text-[#0F0]" style={{ color: "#0F0" }}>{funding}</Text>
-        <Text className="text-[2.05rem] font-bold leading-[1.5] text-[#0F0]" style={{ color: "#0F0" }}>{airdrops}</Text>
+        <Text className="text-[2.2rem] font-bold leading-[1.45] text-[#0F0]" style={{ color: "#0F0" }}>{attention}</Text>
+        <Text className="text-[2rem] font-bold leading-[1.45] text-[#0F0]" style={{ color: "#0F0" }}>{funding}</Text>
+        <Text className="text-[1.85rem] font-bold leading-[1.45] text-[#0F0]" style={{ color: "#0F0" }}>{airdrops}</Text>
         <Text className="mt-3 text-[clamp(1.6rem,5vw,1.6rem)] font-bold leading-tight text-[#0F0]" style={{ color: "#0F0" }}>{warplet}</Text>
       </div>
     );
@@ -589,17 +610,40 @@ function PromoSection({
         <img src={card.imageUrl} alt={card.title} className="aspect-square w-full rounded-[18px] object-cover" />
       </div>
       <div className="space-y-3">
-        {card.ctas.map((cta) => (
-          <button
-            key={`${card.id}-${cta.label}`}
-            type="button"
-            onClick={() => runCta(cta).catch(() => {})}
-            className="w-full rounded-[20px] border border-[#009900] bg-[#00FF00] px-5 py-3 text-base font-bold shadow-[3px_6px_0_#008000] transition-all duration-100 active:translate-x-[1px] active:translate-y-[3px] active:shadow-[1px_3px_0_#008000] cursor-pointer"
-            style={{ color: "rgb(0, 80, 0)" }}
-          >
-            {cta.label}
-          </button>
-        ))}
+        {card.ctas.map((cta) => {
+          const href = getCtaHref(cta);
+          const className = "block w-full rounded-[20px] border border-[#009900] bg-[#00FF00] px-5 py-3 text-base font-bold shadow-[3px_6px_0_#008000] transition-all duration-100 active:translate-x-[1px] active:translate-y-[3px] active:shadow-[1px_3px_0_#008000] cursor-pointer";
+          if (href) {
+            return (
+              <a
+                key={`${card.id}-${cta.label}`}
+                href={href}
+                target="_blank"
+                rel="noreferrer"
+                onClick={(event) => {
+                  if (!inMiniAppContext) return;
+                  event.preventDefault();
+                  runCta(cta).catch(() => {});
+                }}
+                className={className}
+                style={{ color: "rgb(0, 80, 0)" }}
+              >
+                {cta.label}
+              </a>
+            );
+          }
+          return (
+            <button
+              key={`${card.id}-${cta.label}`}
+              type="button"
+              onClick={() => runCta(cta).catch(() => {})}
+              className={className}
+              style={{ color: "rgb(0, 80, 0)" }}
+            >
+              {cta.label}
+            </button>
+          );
+        })}
       </div>
       <Text className="text-sm font-semibold leading-relaxed text-center whitespace-pre-line" style={{ color: "#b7ffb7" }}>{card.urgency}</Text>
       {card.id === "builders" && applicants && applicants.length > 0 && (
@@ -612,15 +656,41 @@ function PromoSection({
             <Text className="text-[clamp(1.6rem,5vw,1.6rem)] font-bold leading-tight text-center" style={{ color: "#00FF00" }}>
               10X Airdrop
             </Text>
-            <Text className="text-lg font-semibold leading-snug text-center" style={{ color: "#00FF00" }}>
+            <Text className="pb-2 text-lg font-semibold leading-snug text-center" style={{ color: "#00FF00" }}>
               10% of Sale = Airdrop NFTs: $100,000 → $10
             </Text>
-            <AirdropScheduleTable currentAuctionDay={currentAuctionDay} />
+            <AirdropScheduleGrid currentAuctionDay={currentAuctionDay} inMiniAppContext={inMiniAppContext} />
+            <a
+              href={FARCASTER_AIRDROPS_JOIN_URL}
+              target="_blank"
+              rel="noreferrer"
+              onClick={(event) => {
+                if (!inMiniAppContext) return;
+                event.preventDefault();
+                hapticPrimaryTap().catch(() => {});
+                sdk.actions.openUrl(FARCASTER_AIRDROPS_JOIN_URL).catch(() => {
+                  window.location.assign(FARCASTER_AIRDROPS_JOIN_URL);
+                });
+              }}
+              className="mb-4 mt-4 block w-full rounded-[20px] border border-[#009900] bg-[#00FF00] px-5 py-3 text-base font-bold shadow-[3px_6px_0_#008000] transition-all duration-100 active:translate-x-[1px] active:translate-y-[3px] active:shadow-[1px_3px_0_#008000] cursor-pointer"
+              style={{ color: "rgb(0, 80, 0)" }}
+            >
+              Follow @10XMeme.eth for Airdrops
+            </a>
+            <Text className="mt-1 text-sm font-semibold leading-relaxed text-center" style={{ color: "#b7ffb7" }}>
+              💜 Join Farcaster & follow us (referral is optional)
+            </Text>
+            {followers && followers.length > 0 && (
+              <AvatarStack avatars={followers} label="Followers:" />
+            )}
           </div>
         </>
       )}
       {card.id === "rare" && watchers && watchers.length > 0 && (
         <AvatarStack avatars={watchers} label="Watchers:" />
+      )}
+      {card.id === "airdrop" && buyers && buyers.length > 0 && (
+        <AvatarStack avatars={buyers} label="Buyers:" />
       )}
     </section>
   );
@@ -637,6 +707,7 @@ function StatBox({ value, label }: { value: number; label: string }) {
 
 export default function MillionApp() {
   const [routeMode, setRouteMode] = useState<"landing" | "enter">(() => getRouteMode());
+  const [inMiniAppContext, setInMiniAppContext] = useState(false);
   const [showOpenInFarcaster, setShowOpenInFarcaster] = useState(false);
   const [showAddAppPrompt, setShowAddAppPrompt] = useState(false);
   const [notificationsOnlyPrompt, setNotificationsOnlyPrompt] = useState(false);
@@ -653,6 +724,8 @@ export default function MillionApp() {
   const [emailSubmitting, setEmailSubmitting] = useState(false);
   const [emailMessage, setEmailMessage] = useState("");
   const [watchers, setWatchers] = useState<EntryAvatar[]>([]);
+  const [followers, setFollowers] = useState<EntryAvatar[]>([]);
+  const [buyers, setBuyers] = useState<EntryAvatar[]>([]);
   const [grantStatus, setGrantStatus] = useState<GrantStatus | null>(null);
   const [grantFullName, setGrantFullName] = useState("");
   const [grantEmail, setGrantEmail] = useState("");
@@ -730,6 +803,32 @@ export default function MillionApp() {
     }
   };
 
+  const loadFollowers = async (viewerFid: number | null, token: string | null) => {
+    try {
+      const params = new URLSearchParams();
+      if (viewerFid) params.set("fid", String(viewerFid));
+      if (token) params.set("sessionToken", token);
+      const query = params.toString();
+      const response = await fetch(`/api/million-followers${query ? `?${query}` : ""}`);
+      if (!response.ok) return;
+      const data = (await response.json()) as FollowersResponse;
+      setFollowers(normalizeWatchers(data.followers));
+    } catch {
+      setFollowers([]);
+    }
+  };
+
+  const loadBuyers = async () => {
+    try {
+      const response = await fetch("/api/recent-buys?mode=buyers");
+      if (!response.ok) return;
+      const data = (await response.json()) as RecentBuysResponse;
+      setBuyers(normalizeWatchers(data.buyers));
+    } catch {
+      setBuyers([]);
+    }
+  };
+
   const loadGrantStatus = async (viewerFid: number | null, token: string | null) => {
     try {
       const params = new URLSearchParams();
@@ -763,11 +862,14 @@ export default function MillionApp() {
       try {
         const inMiniApp =
           typeof sdk.isInMiniApp === "function" ? await sdk.isInMiniApp() : true;
+        setInMiniAppContext(Boolean(inMiniApp));
         if (!inMiniApp) {
           setShowOpenInFarcaster(true);
           const data = await loadMillionStatus(null, null);
           if (data.email && !grantEmail) setGrantEmail(data.email);
           await loadWatchers(null, null);
+          await loadFollowers(null, null);
+          await loadBuyers();
           await loadGrantStatus(null, null);
           return;
         }
@@ -795,6 +897,8 @@ export default function MillionApp() {
         const data = await loadMillionStatus(viewerFid, token);
         if (data.email && !grantEmail) setGrantEmail(data.email);
         await loadWatchers(viewerFid, token);
+        await loadFollowers(viewerFid, token);
+        await loadBuyers();
         await loadGrantStatus(viewerFid, token);
         if (data.hasEntry && getRouteMode() === "landing") {
           goToEnter();
@@ -813,6 +917,7 @@ export default function MillionApp() {
           normalized.includes("can't access property \"user\"") ||
           normalized.includes("cannot read properties of undefined")
         ) {
+          setInMiniAppContext(false);
           setShowOpenInFarcaster(true);
         } else {
           setActionError(message);
@@ -1116,12 +1221,14 @@ export default function MillionApp() {
             onEnter={goToEnter}
             watchers={watchers}
             applicants={grantStatus?.applicants ?? []}
+            followers={followers}
+            buyers={buyers}
             onRareCtaClick={trackRareWatcher}
             currentAuctionDay={currentAuctionDay}
+            inMiniAppContext={inMiniAppContext}
           />
         ))}
       </div>
-      <Disclaimer />
     </div>
   );
 
@@ -1246,23 +1353,12 @@ export default function MillionApp() {
             </div>
           </div>
         </section>
-        {promoCards.filter((card) => card.id !== "builders").map((card) => (
-          <PromoSection
-            key={`repeat-${card.id}`}
-            card={card}
-            referralMillionUrl={referralMillionUrl}
-            entryAvatars={status?.entryAvatars ?? []}
-            onEnter={goToEnter}
-            currentAuctionDay={currentAuctionDay}
-          />
-        ))}
         <section className="px-4 py-7">
           <div className="mx-auto max-w-md rounded-2xl border border-[#0F0]/25 bg-black/60 p-4">
             <Text className="text-lg font-black text-[#0F0]">Terms and Conditions</Text>
             <Text className="mt-2 text-xs leading-relaxed text-[#0F0]/65">
-              Lorem ipsum dolor sit amet, consectetur adipiscing elit. Integer non nibh vitae neque
-              consequat facilisis. Entries are subject to verification, availability, eligibility,
-              and final campaign rules to be published before winners are contacted.
+              Entries are subject to verification, availability, eligibility, and final campaign rules
+              to be published before winners are contacted.
             </Text>
           </div>
         </section>
