@@ -313,7 +313,7 @@ function buildPromoCards(rareUrgency: string): PromoCard[] {
     {
       id: "airdrop",
       title: "10X Warplets",
-      subtitle: "10% of Sale = Sweep NFTs: $100,000 → $10",
+      subtitle: "10% of Sale = Buys NFTs: $100,000 → $10",
       imageUrl: "https://warplets.10x.meme/760.avif",
       urgency: "🟢 Take the Green Pill. Don't miss out...",
       ctas: [
@@ -355,7 +355,7 @@ function AvatarStack({ avatars, label }: { avatars: EntryAvatar[]; label: string
             onClick={() => sdk.actions.viewProfile({ fid: avatar.fid }).catch(() => {})}
             title={avatar.username}
           >
-            <img src={avatar.pfpUrl} alt={avatar.username} className="h-full w-full object-cover" />
+            <img src={avatar.pfpUrl} alt={avatar.username} className="h-full w-full object-cover" style={{ color: "#0F0" }} />
           </button>
         ))}
       </div>
@@ -369,9 +369,9 @@ function GrantScheduleTable({ currentAuctionDay }: { currentAuctionDay: number }
       <table className="w-full table-fixed border-separate border-spacing-0 text-left">
         <thead>
           <tr>
-            <th className="w-[17%] border-b border-r border-[#00FF00]/25 px-2 py-2 text-sm text-center" style={{ color: "#00FF00" }}>Day</th>
-            <th className="w-[40%] border-b border-r border-[#00FF00]/25 px-2 py-2 text-sm text-center" style={{ color: "#00FF00" }}>Sale</th>
-            <th className="w-[43%] border-b border-[#00FF00]/25 px-2 py-2 text-sm text-center" style={{ color: "#00FF00" }}>Grants</th>
+            <th className="w-[22%] border-b border-r border-[#00FF00]/25 px-2 py-2 text-sm text-center" style={{ color: "#00FF00" }}>Day</th>
+            <th className="w-[38%] border-b border-r border-[#00FF00]/25 px-2 py-2 text-sm text-center" style={{ color: "#00FF00" }}>Sale</th>
+            <th className="w-[40%] border-b border-[#00FF00]/25 px-2 py-2 text-sm text-center" style={{ color: "#00FF00" }}>Grants</th>
           </tr>
         </thead>
         <tbody>
@@ -380,12 +380,14 @@ function GrantScheduleTable({ currentAuctionDay }: { currentAuctionDay: number }
             const isPassed = rowDay < currentAuctionDay;
             const isToday = rowDay === currentAuctionDay;
             const passedClass = isPassed ? " line-through decoration-[#b7ffb7]/80 decoration-2" : "";
-            const rowColor = isToday ? "#0F0" : "#b7ffb7";
+            const rowColor = isToday ? "rgb(0, 80, 0)" : "#b7ffb7";
+            const rowBackground = isToday ? "#0F0" : rowDay % 2 === 0 ? "rgba(0, 255, 0, 0.05)" : "transparent";
+            const weightClass = isToday ? "font-black" : "font-semibold";
             return (
-              <tr key={row.day}>
-                <td className={`border-b border-r border-[#00FF00]/20 px-2 py-2 text-sm font-semibold text-center${passedClass}`} style={{ color: rowColor }}>{row.day}</td>
-                <td className={`border-b border-r border-[#00FF00]/20 px-2 py-2 text-sm text-center${passedClass}`} style={{ color: rowColor }}>{row.sale}</td>
-                <td className={`border-b border-[#00FF00]/20 px-2 py-2 text-sm font-semibold text-center${passedClass}`} style={{ color: rowColor }}>{row.grants}</td>
+              <tr key={row.day} style={{ backgroundColor: rowBackground }}>
+                <td className={`border-b border-r border-[#00FF00]/20 px-2 py-2 text-sm ${weightClass} text-center align-middle${passedClass}`} style={{ color: rowColor }}>{isToday ? "TODAY" : row.day}</td>
+                <td className={`border-b border-r border-[#00FF00]/20 px-2 py-2 text-sm ${isToday ? "font-black" : ""} text-center${passedClass}`} style={{ color: rowColor }}>{row.sale}</td>
+                <td className={`border-b border-[#00FF00]/20 px-2 py-2 text-sm ${weightClass} text-center${passedClass}`} style={{ color: rowColor }}>{row.grants}</td>
               </tr>
             );
           })}
@@ -444,6 +446,7 @@ function AirdropImageSlideshow({ row }: { row: AirdropScheduleRow }) {
           alt={index === 0 ? `${row.collection} logo` : `${row.collection} example ${index}`}
           loading={index === 0 ? "eager" : "lazy"}
           className={`absolute h-full w-full object-contain transition-opacity duration-500 ${index === activeIndex ? "opacity-100" : "opacity-0"}`}
+          style={{ color: "#0F0" }}
         />
       ))}
     </div>
@@ -482,9 +485,9 @@ function AirdropCard({ row, currentAuctionDay, inMiniAppContext }: { row: Airdro
         openShare().catch(() => {});
       }}
     >
-      <div className="px-1.5 pb-2 pt-2 text-center">
-        <Text className={`text-sm font-black leading-tight${passedClass}`} style={{ color: rowColor }}>
-          Day {row.day}: {row.budget}
+      <div className={isToday ? "bg-[#0F0] px-1.5 pb-2 pt-2 text-center" : "px-1.5 pb-2 pt-2 text-center"}>
+        <Text className={`text-sm font-black leading-tight${passedClass}`} style={{ color: isToday ? "rgb(0, 80, 0)" : rowColor }}>
+          {isToday ? "TODAY" : `Day ${row.day}`}: {row.budget}
         </Text>
       </div>
       <AirdropImageSlideshow row={row} />
@@ -607,7 +610,12 @@ function PromoSection({
       {renderTitle()}
       <Text className="text-lg font-semibold leading-snug text-center" style={{ color: "#00FF00" }}>{card.subtitle}</Text>
       <div className="w-full rounded-[20px] p-[2px] bg-[#00FF00]/20 border border-[#00FF00]/45">
-        <img src={card.imageUrl} alt={card.title} className="aspect-square w-full rounded-[18px] object-cover" />
+        <img
+          src={card.imageUrl}
+          alt={card.id === "rare" ? "$1M Warplet" : card.title}
+          className="aspect-square w-full rounded-[18px] object-cover"
+          style={{ color: "#0F0" }}
+        />
       </div>
       <div className="space-y-3">
         {card.ctas.map((cta) => {
@@ -1341,7 +1349,7 @@ export default function MillionApp() {
                     className="flex w-full items-center gap-3 rounded-xl bg-[#041204]/80 px-3 py-2 text-left"
                   >
                     <Text className="w-6 text-sm font-black text-[#0F0]">#{index + 1}</Text>
-                    {referrer.pfpUrl && <img src={referrer.pfpUrl} alt={referrer.username} className="h-8 w-8 rounded-full object-cover" />}
+                    {referrer.pfpUrl && <img src={referrer.pfpUrl} alt={referrer.username} className="h-8 w-8 rounded-full object-cover" style={{ color: "#0F0" }} />}
                     <Text className="flex-1 text-sm font-bold text-[#0F0]">{referrer.username}</Text>
                     <Text className="text-sm font-black text-[#0F0]">{referrer.referrals}</Text>
                   </button>
