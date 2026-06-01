@@ -24,6 +24,38 @@ type MillionAction = {
   previouslyCompleted?: boolean;
 };
 
+type AttentionAction = {
+  key: string;
+  label: string;
+  points: number;
+  kind: "external" | "x" | "farcaster" | "profile" | "add-app" | "modal";
+  url?: string;
+  fid?: number;
+  channelKey?: string;
+  auctionDay?: number;
+  collection?: string;
+  completed?: boolean;
+  payload?: unknown;
+};
+
+type DailyCollection = {
+  day: number;
+  sale: string;
+  budget: string;
+  collection: string;
+  opensea: string;
+  twitter: string;
+  slug: string;
+  extension: string;
+};
+
+type AttentionSection = {
+  id: "once" | "daily" | "tenx";
+  title: string;
+  dailyCollection?: DailyCollection;
+  actions: AttentionAction[];
+};
+
 type EntryAvatar = {
   fid: number;
   username: string;
@@ -56,6 +88,7 @@ type MillionStatus = {
   topReferrers: TopReferrer[];
   actionSessionToken: string | null;
   actions: MillionAction[];
+  attentionSections?: AttentionSection[];
 };
 
 type WarpletStatus = {
@@ -189,6 +222,9 @@ const airdropSchedule = [
 const FARCASTER_JOIN_URL = "https://farcaster.xyz/~/code/RUZLHN";
 const FARCASTER_AIRDROPS_JOIN_URL = "https://farcaster.xyz/~/code/1Y7636";
 const DEFAULT_BUILDERS_IMAGE_URL = "https://warplets.10x.meme/1409.avif";
+const ONE_M_WARPLET_OPENSEA_URL = "https://opensea.io/collection/1m-warplet-1-the-one/overview";
+const TEN_X_WARPLETS_OPENSEA_URL = "https://opensea.io/collection/10xwarplets/overview";
+const DROP_APP_URL = "https://drop.10x.meme/";
 const MINUTE_MS = 60 * 1000;
 const DAY_MS = 24 * 60 * MINUTE_MS;
 
@@ -456,8 +492,8 @@ function GrantScheduleTable({ currentAuctionDay }: { currentAuctionDay: number }
         <thead>
           <tr>
             <th className="w-[22%] border-b border-r border-[#00FF00]/25 px-2 py-2 text-sm text-center" style={{ color: "#00FF00" }}>Day</th>
-            <th className="w-[38%] border-b border-r border-[#00FF00]/25 px-2 py-2 text-sm text-center" style={{ color: "#00FF00" }}>Sale</th>
-            <th className="w-[40%] border-b border-[#00FF00]/25 px-2 py-2 text-sm text-center" style={{ color: "#00FF00" }}>Grants</th>
+            <th className="w-[38%] border-b border-r border-[#00FF00]/25 px-2 py-2 text-sm text-center" style={{ color: "#00FF00" }}>Auction Price</th>
+            <th className="w-[40%] border-b border-[#00FF00]/25 px-2 py-2 text-sm text-center" style={{ color: "#00FF00" }}>Grants (if sold)</th>
           </tr>
         </thead>
         <tbody>
@@ -539,6 +575,25 @@ function AirdropImageSlideshow({ row }: { row: AirdropScheduleRow }) {
   );
 }
 
+function AttentionDailySlideshow({ collection }: { collection: DailyCollection }) {
+  return (
+    <div className="w-full rounded-[20px] border border-[#00FF00]/45 bg-[#00FF00]/20 p-[2px]">
+      <div className="overflow-hidden rounded-[18px]">
+        <AirdropImageSlideshow row={{
+          day: String(collection.day),
+          sale: collection.sale,
+          budget: collection.budget,
+          collection: collection.collection,
+          opensea: collection.opensea,
+          slug: collection.slug,
+          extension: collection.extension,
+          twitter: collection.twitter,
+        }} />
+      </div>
+    </div>
+  );
+}
+
 function AirdropCard({ row, currentAuctionDay, inMiniAppContext }: { row: AirdropScheduleRow; currentAuctionDay: number; inMiniAppContext: boolean }) {
   const rowDay = Number(row.day);
   const isPassed = rowDay < currentAuctionDay;
@@ -571,9 +626,21 @@ function AirdropCard({ row, currentAuctionDay, inMiniAppContext }: { row: Airdro
         openShare().catch(() => {});
       }}
     >
-      <div className={isToday ? "bg-[#0F0] px-1.5 pb-2 pt-2 text-center" : "px-1.5 pb-2 pt-2 text-center"}>
-        <Text className={`text-sm font-black leading-tight${passedClass}`} style={{ color: isToday ? "rgb(0, 80, 0)" : rowColor }}>
-          {isToday ? "TODAY" : `Day ${row.day}`}: {row.budget}
+      <div className={isToday ? "flex min-h-[50px] items-center justify-center bg-[#0F0] px-1.5 py-2 text-center" : "flex min-h-[50px] items-center justify-center px-1.5 py-2 text-center"}>
+        <Text className={`text-sm font-black leading-snug${passedClass}`} style={{ color: isToday ? "rgb(0, 80, 0)" : rowColor }}>
+          {isToday ? (
+            <>
+              <span className="text-base">TODAY (if sold)</span>
+              <br />
+              {row.budget}
+            </>
+          ) : (
+            <>
+              <span className="text-base" style={{ color: "#0F0" }}>Day {row.day}</span>
+              <br />
+              {row.budget}
+            </>
+          )}
         </Text>
       </div>
       <AirdropImageSlideshow row={row} />
@@ -833,6 +900,13 @@ export default function MillionApp() {
   const [restoreMessage, setRestoreMessage] = useState("");
   const [restoreSubmitting, setRestoreSubmitting] = useState(false);
   const [copyToastVisible, setCopyToastVisible] = useState(false);
+  const [showTenXModal, setShowTenXModal] = useState(false);
+  const [tenXModalMode, setTenXModalMode] = useState<"list" | "post">("list");
+  const [tenXPath, setTenXPath] = useState<"own" | "buy" | "alternative">("own");
+  const [tenXXPostUrl, setTenXXPostUrl] = useState("");
+  const [tenXAnswer2, setTenXAnswer2] = useState("");
+  const [tenXMessage, setTenXMessage] = useState("");
+  const [tenXSubmitting, setTenXSubmitting] = useState(false);
   const [auctionClock, setAuctionClock] = useState(() => new Date());
   const { isMenuRoute, canGoBack, actions } = useMiniAppChrome("million");
 
@@ -1129,6 +1203,7 @@ export default function MillionApp() {
   };
 
   const grantAnswerWordCount = grantAnswer.trim().split(/\s+/).filter(Boolean).length;
+  const tenXAnswer2WordCount = tenXAnswer2.trim().split(/\s+/).filter(Boolean).length;
   const hasApplied = appliedSource !== "none" && Boolean(appliedApplication);
   const attentionUnlocked = Boolean(
     appliedApplication?.emailVerified && appliedApplication.status === "accepted"
@@ -1142,6 +1217,33 @@ export default function MillionApp() {
   const showCopyToast = () => {
     setCopyToastVisible(true);
     window.setTimeout(() => setCopyToastVisible(false), 1600);
+  };
+
+  const openExternalUrl = async (url: string) => {
+    try {
+      await sdk.actions.openUrl(url);
+    } catch {
+      window.open(url, "_blank", "noopener,noreferrer");
+    }
+  };
+
+  const completeAttentionAction = async (actionKey: string, options: { auctionDay?: number; payload?: unknown } = {}) => {
+    if (!fid) throw new Error("Open in Farcaster or use a signed-in local test user to earn points.");
+    const response = await fetch("/api/million-action-complete", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        actionKey,
+        auctionDay: options.auctionDay,
+        payload: options.payload,
+        fid,
+        sessionToken: actionSessionToken || undefined,
+      }),
+    });
+    const payload = await response.json().catch(() => null) as { error?: string; reason?: string; payload?: unknown } | null;
+    if (!response.ok) throw new Error(payload?.error ?? payload?.reason ?? "Unable to complete action.");
+    await refreshStatus();
+    return payload;
   };
 
   const executeRecaptcha = async (): Promise<string | null> => {
@@ -1405,6 +1507,117 @@ export default function MillionApp() {
     }
   };
 
+  const buildDailyShareText = (collection: DailyCollection) =>
+    `${collection.budget} NFT sweep and airdrop for ${collection.collection} by @${collection.twitter}...\n\nBut only if the $1M Warplet by @10XMemeX sells for ${collection.sale} on Day ${collection.day}.\n\nWatching this 30 day dutch auction 👀\n\n${ONE_M_WARPLET_OPENSEA_URL}`;
+
+  const runAttentionAction = async (action: AttentionAction, section?: AttentionSection) => {
+    if (action.completed) return;
+    if (!attentionUnlocked) {
+      setActionError("Submit a Grant Application to unlock 10X Attention.");
+      return;
+    }
+    await hapticTap();
+    setPendingVerify((prev) => ({ ...prev, [action.key]: true }));
+    setActionError("");
+    try {
+      if (action.kind === "modal") {
+        setTenXMessage("");
+        setTenXModalMode(action.key === "tenx-post-x" ? "post" : "list");
+        const listPayload = section?.actions.find((item) => item.key === "tenx-list-warplet")?.payload as { answer2?: string } | undefined;
+        if (action.key === "tenx-post-x" && listPayload?.answer2) setTenXAnswer2(listPayload.answer2);
+        setShowTenXModal(true);
+        return;
+      }
+      if (action.kind === "profile" && action.fid) {
+        await sdk.actions.viewProfile({ fid: action.fid }).catch(() => {});
+      } else if (action.kind === "farcaster") {
+        await sdk.actions.composeCast({
+          text: `🟢 $1M Warplet\n\nDon't miss out.\n\nVisit mini-app: ${referralMillionUrl}`,
+          embeds: [referralMillionUrl],
+          channelKey: action.channelKey ?? "10xmeme",
+        } as Parameters<typeof sdk.actions.composeCast>[0] & { channelKey: string }).catch(() => {});
+      } else if (action.kind === "add-app") {
+        await sdk.actions.addMiniApp().catch(() => {});
+      } else if (action.kind === "x") {
+        const daily = section?.dailyCollection;
+        const text = daily
+          ? buildDailyShareText(daily)
+          : `🟢 $1M Warplet\n\nDon't miss out.\n\n1️⃣ Join Farcaster: ${FARCASTER_JOIN_URL}\n2️⃣ Visit mini-app: ${referralMillionUrl}`;
+        await openExternalUrl(`https://x.com/intent/post?${new URLSearchParams({
+          text,
+          hashtags: daily ? "10X" : "1MWarplet",
+          via: "10XMemeX",
+        }).toString()}`);
+      } else if (action.url) {
+        await openExternalUrl(action.url);
+      }
+      await completeAttentionAction(action.key, { auctionDay: action.auctionDay });
+      await hapticSuccess();
+    } catch (err) {
+      void hapticError();
+      setActionError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setPendingVerify((prev) => ({ ...prev, [action.key]: false }));
+    }
+  };
+
+  const submitTenXListAction = async () => {
+    if (tenXSubmitting) return;
+    setTenXMessage("");
+    if (tenXPath === "alternative") {
+      if (!tenXAnswer2.trim() || tenXAnswer2WordCount > 25) {
+        setTenXMessage("Answer must be 25 words or less.");
+        return;
+      }
+    } else if (!/^https?:\/\/([^/]*\.)?(x\.com|twitter\.com)\/.+/i.test(tenXXPostUrl.trim())) {
+      setTenXMessage("Enter a valid X post URL.");
+      return;
+    }
+    setTenXSubmitting(true);
+    try {
+      await completeAttentionAction("tenx-list-warplet", {
+        payload: tenXPath === "alternative"
+          ? { path: tenXPath, answer2: tenXAnswer2.trim() }
+          : { path: tenXPath, xPostUrl: tenXXPostUrl.trim() },
+      });
+      setTenXMessage("10X action completed.");
+      setShowTenXModal(false);
+      await hapticSuccess();
+    } catch (err) {
+      void hapticError();
+      setTenXMessage(err instanceof Error ? err.message : String(err));
+    } finally {
+      setTenXSubmitting(false);
+    }
+  };
+
+  const submitTenXPostAction = async () => {
+    if (tenXSubmitting) return;
+    if (!tenXAnswer2.trim() || tenXAnswer2WordCount > 25) {
+      setTenXMessage("Answer must be 25 words or less.");
+      return;
+    }
+    setTenXSubmitting(true);
+    try {
+      const quoteUrl = grantXPostUrl.trim() || grantStatus?.config.xQuoteUrl?.trim() || "";
+      const intentUrl = `https://x.com/intent/post?${new URLSearchParams({
+        text: `How to 10X what I'm building...\n\n${tenXAnswer2.trim()}\n\n`,
+        url: quoteUrl,
+        via: "10XMemeX",
+        hashtags: "10X",
+      }).toString()}`;
+      await openExternalUrl(intentUrl);
+      await completeAttentionAction("tenx-post-x", { payload: { answer2: tenXAnswer2.trim() } });
+      setShowTenXModal(false);
+      await hapticSuccess();
+    } catch (err) {
+      void hapticError();
+      setTenXMessage(err instanceof Error ? err.message : String(err));
+    } finally {
+      setTenXSubmitting(false);
+    }
+  };
+
   const renderLanding = () => (
     <div className="relative z-10 w-full max-w-md mx-auto text-center space-y-4 px-4 pt-2 pb-8">
       <div className="space-y-5">
@@ -1431,7 +1644,6 @@ export default function MillionApp() {
   );
 
   const renderEntryPage = () => {
-    const actionsList = (status?.actions ?? []).filter((action) => action.slug !== "million-enter-email");
     const grantMonthLabel = auctionClock.toLocaleString("en-US", { month: "long", year: "numeric", timeZone: "UTC" });
     const entryCtaClass = "block w-full rounded-[20px] border border-[#009900] bg-[#00FF00] px-5 py-3 text-base font-bold shadow-[3px_6px_0_#008000] transition-all duration-100 active:translate-x-[1px] active:translate-y-[3px] active:shadow-[1px_3px_0_#008000] disabled:border-gray-700 disabled:bg-gray-700 disabled:text-gray-300 disabled:shadow-[3px_6px_0_#333]";
     const appliedCtaClass = "block w-full rounded-[20px] border border-gray-700 bg-gray-700 px-5 py-3 text-base font-bold text-gray-300";
@@ -1442,6 +1654,51 @@ export default function MillionApp() {
     const grantTopReferrers = (forceAppliedTest && (!grantStatus?.topReferrers || grantStatus.topReferrers.length === 0))
       ? LOCAL_TEST_GRANT_REFERRERS
       : grantStatus?.topReferrers ?? [];
+    const attentionSections = status?.attentionSections ?? [];
+    const renderAttentionSection = (section: AttentionSection) => (
+      <div key={section.id} className="space-y-3 text-left">
+        <Text className="text-lg font-bold text-center" style={{ color: "#00FF00" }}>
+          {section.title}
+        </Text>
+        {section.dailyCollection && (
+          <Text className="text-base font-bold text-center" style={{ color: "#b7ffb7" }}>
+            Day {section.dailyCollection.day}: {section.dailyCollection.collection}
+          </Text>
+        )}
+        {section.dailyCollection && <AttentionDailySlideshow collection={section.dailyCollection} />}
+        {section.id === "tenx" && (
+          <div className="w-full rounded-[20px] border border-[#00FF00]/45 bg-[#00FF00]/20 p-[2px]">
+            <img src="https://warplets.10x.meme/1358.avif" alt="10X Action" className="aspect-square w-full rounded-[18px] object-cover" style={{ color: "#0F0" }} />
+          </div>
+        )}
+        <div className="overflow-hidden rounded-2xl border border-[#0F0]/35 bg-[#041204]/85">
+          {section.actions.map((action) => {
+            const pending = pendingVerify[action.key] === true;
+            const actionFlat = action.completed || pending || !attentionUnlocked;
+            return (
+              <div key={`${action.key}-${action.auctionDay ?? 0}`} className="border-b border-[#0F0]/15 p-3 last:border-b-0">
+                <div className="flex items-center gap-3">
+                  <div className="min-w-0 flex-1">
+                    <Text className="text-left text-base font-bold text-[#0F0]">{action.label}</Text>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={pending || !attentionUnlocked}
+                    onClick={() => runAttentionAction(action, section).catch(() => {})}
+                    className={actionFlat
+                      ? "flex h-10 min-w-12 items-center justify-center rounded-xl border border-gray-600 bg-gray-700 px-3 text-sm font-black text-gray-200"
+                      : "flex h-10 min-w-12 items-center justify-center rounded-xl border border-[#009900] bg-[#0F0] px-3 text-sm font-black shadow-[2px_3px_0_#008000] transition-all duration-100 active:translate-x-[1px] active:translate-y-[2px] active:shadow-[1px_1px_0_#008000]"}
+                    style={actionFlat ? undefined : { color: "rgb(0, 80, 0)" }}
+                  >
+                    {action.completed ? <ActionCheckIcon /> : pending ? "..." : `+${action.points}`}
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
     return (
       <div className="relative z-10 w-full max-w-md mx-auto text-center space-y-5 px-4 pt-2 pb-8">
             <form onSubmit={(event) => {
@@ -1463,8 +1720,15 @@ export default function MillionApp() {
                 <input type="email" required disabled={hasApplied} value={grantEmail} onChange={(event) => setGrantEmail(event.target.value)} className={inputClass} placeholder="Email" />
                 <div className="relative">
                   <textarea required disabled={hasApplied} value={grantAnswer} onChange={(event) => setGrantAnswer(event.target.value)} className="min-h-36 w-full resize-none rounded-xl border border-[#0F0] bg-black px-3 pb-7 pt-3 text-lg text-[#0F0] opacity-100 outline-none placeholder:text-[#0F0]/60 disabled:border-gray-700 disabled:text-gray-300 disabled:opacity-100" placeholder="What are you building? (25 words or less)" />
-                  <Text className={grantAnswerWordCount > 25 ? "pointer-events-none absolute bottom-2 right-3 z-10 text-xs text-[#F00]/90" : "pointer-events-none absolute bottom-2 right-3 z-10 text-xs text-[#0F0]/90"}>{grantAnswerWordCount}/25 words</Text>
+                  <Text className={hasApplied ? "pointer-events-none absolute bottom-2 right-3 z-10 text-xs text-gray-300" : grantAnswerWordCount > 25 ? "pointer-events-none absolute bottom-2 right-3 z-10 text-xs text-[#F00]/90" : "pointer-events-none absolute bottom-2 right-3 z-10 text-xs text-[#0F0]/90"}>{grantAnswerWordCount}/25 words</Text>
                 </div>
+              </div>
+              <div className="mt-4 rounded-xl border border-[#00A3FF]/60 bg-[#00A3FF]/10 px-3 py-3 text-left">
+                <Text className="text-base font-bold text-[#8FD8FF]">Judging Criteria</Text>
+                <Text className="mt-2 text-sm leading-relaxed text-[#8FD8FF]/90"><strong>Creativity:</strong> Original, witty, high-impact written entry.</Text>
+                <Text className="mt-1 text-sm leading-relaxed text-[#8FD8FF]/90"><strong>Utility:</strong> Clear real-world value, a meaningful product.</Text>
+                <Text className="mt-1 text-sm leading-relaxed text-[#8FD8FF]/90"><strong>Fun:</strong> Bringing joy, entertainment, culture, excitement.</Text>
+                <Text className="mt-1 text-sm leading-relaxed text-[#8FD8FF]/90"><strong>10X:</strong> Radically challenge the status quo, Think 10X.</Text>
               </div>
               {grantAnswerWordCount > 0 && (
                 <div className="mt-4 rounded-xl border border-[#0F0]/20 bg-[#041204]/65 p-3 text-left">
@@ -1491,20 +1755,19 @@ export default function MillionApp() {
               <button type="submit" disabled={grantSubmitting || hasApplied} className={hasApplied ? `mt-5 ${appliedCtaClass}` : `mt-5 ${entryCtaClass}`} style={hasApplied ? undefined : { color: "rgb(0, 80, 0)" }}>
                 {hasApplied ? "You Have Applied. Next: 10X Attention!" : grantSubmitting ? "Submitting..." : "Submit Grant Application"}
               </button>
-              <div className="mt-5 rounded-xl border border-[#00A3FF]/60 bg-[#00A3FF]/10 px-3 py-3 text-left">
-                <Text className="text-base font-bold text-[#8FD8FF]">Judging Criteria</Text>
-                <Text className="mt-2 text-sm leading-relaxed text-[#8FD8FF]/90"><strong>10X (25%):</strong> Radically challenge the status quo.</Text>
-                <Text className="mt-1 text-sm leading-relaxed text-[#8FD8FF]/90"><strong>Creativity (25%):</strong> Original, witty, high-impact copywriting.</Text>
-                <Text className="mt-1 text-sm leading-relaxed text-[#8FD8FF]/90"><strong>Utility (25%):</strong> Clear real-world value, a meaningful solution.</Text>
-                <Text className="mt-1 text-sm leading-relaxed text-[#8FD8FF]/90"><strong>Fun (25%):</strong> Bringing joy, entertainment, culture, excitement.</Text>
-              </div>
+              <Text className="mt-5 text-sm font-semibold leading-relaxed text-center" style={{ color: "#b7ffb7" }}>
+                🤝 Zero Equity. No Strings Attached. Free Money.
+              </Text>
+              {grantStatus?.applicants && grantStatus.applicants.length > 0 && (
+                <AvatarStack avatars={grantStatus.applicants} label="Applied:" />
+              )}
             </form>
             <div className="pt-4">
               <Text className="text-[clamp(1.6rem,5vw,1.6rem)] font-bold leading-tight text-center" style={{ color: "#00FF00" }}>
                 10X Attention
               </Text>
               <Text className="mt-2 text-lg font-semibold leading-snug text-center" style={{ color: "#00FF00" }}>
-                Earn Points → Win Attention → Think 10X
+                Earn Points → Win Attention → 10X Spotlight
               </Text>
               <div className="mt-3 w-full rounded-[20px] p-[2px] bg-[#00FF00]/20 border border-[#00FF00]/45">
                 <img
@@ -1537,46 +1800,15 @@ export default function MillionApp() {
                 </button>.
               </Text>
             )}
-            <div className="mt-5 overflow-hidden rounded-2xl border border-[#0F0]/35 bg-[#041204]/85">
-              {actionsList.map((action) => {
-                const pending = pendingVerify[action.slug] === true;
-                const showVerify =
-                  pending ||
-                  (Boolean(action.previouslyCompleted) && rejectedVerify[action.slug] !== true);
-                const actionFlat = action.completed || pending || !attentionUnlocked;
-                return (
-                  <div key={action.slug} className="border-b border-[#0F0]/15 p-3 last:border-b-0">
-                    <div className="flex items-center gap-3">
-                      <div className="min-w-0 flex-1">
-                        <Text className="text-left text-base font-bold text-[#0F0]">{action.name}</Text>
-                      </div>
-                      <button
-                        type="button"
-                        disabled={pending || !attentionUnlocked}
-                        onClick={() => {
-                          if (showVerify) {
-                            verifyAction(action.slug).catch(() => {});
-                          } else {
-                            runAction(action).catch(() => {});
-                          }
-                        }}
-                        className={actionFlat
-                          ? "flex h-10 min-w-12 items-center justify-center rounded-xl border border-gray-600 bg-gray-700 px-3 text-sm font-black text-gray-200"
-                          : "flex h-10 min-w-12 items-center justify-center rounded-xl border border-[#009900] bg-[#0F0] px-3 text-sm font-black shadow-[2px_3px_0_#008000] transition-all duration-100 active:translate-x-[1px] active:translate-y-[2px] active:shadow-[1px_1px_0_#008000]"}
-                        style={actionFlat ? undefined : { color: "rgb(0, 80, 0)" }}
-                      >
-                        {action.completed ? <ActionCheckIcon /> : pending ? "..." : showVerify ? "Verify" : `+${action.entryValue}`}
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+            {attentionSections.map(renderAttentionSection)}
 
             <div className="space-y-3 text-left">
-              <Text className="text-lg font-bold text-left" style={{ color: "#00FF00" }}>
-                Earn Referral Points
+              <Text className="text-lg font-bold text-center" style={{ color: "#00FF00" }}>
+                Referral Actions (10pts)
               </Text>
+              <div className="w-full rounded-[20px] border border-[#00FF00]/45 bg-[#00FF00]/20 p-[2px]">
+                <img src="https://warplets.10x.meme/281.avif" alt="Referral Actions" className="aspect-square w-full rounded-[18px] object-cover" style={{ color: "#0F0" }} />
+              </div>
               <div className="rounded-2xl border border-[#00FF00]/35 bg-[#041204]/85 px-4 py-4 space-y-3">
                 <div className="flex items-center gap-2">
                   <input
@@ -1611,7 +1843,7 @@ export default function MillionApp() {
             </div>
 
             <div className="space-y-3 text-left">
-              <Text className="text-lg font-bold text-left" style={{ color: "#00FF00" }}>
+              <Text className="text-lg font-bold text-center" style={{ color: "#00FF00" }}>
                 Top Referrers
               </Text>
               <div className="rounded-2xl overflow-hidden border border-[#00FF00]/35 bg-[#041204]/85 p-0">
@@ -1773,6 +2005,88 @@ export default function MillionApp() {
               onClick={() => setShowRestoreModal(false)}
               className="mt-3 w-full rounded-xl py-2 text-sm text-[#0F0]/60"
             >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+
+      {showTenXModal && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/75 px-4 pb-8">
+          <div className="max-h-[88vh] w-full max-w-sm overflow-y-auto rounded-2xl border border-[#0F0]/40 bg-black px-5 py-6 shadow-2xl">
+            <Text className="text-center text-lg font-black text-[#0F0]">
+              {tenXModalMode === "post" ? "Post on X" : "$10B Mission"}
+            </Text>
+            {tenXModalMode === "list" ? (
+              <div className="mt-4 space-y-4 text-left">
+                <Text className="text-sm leading-relaxed text-[#b7ffb7]">
+                  The $10B Mission: Have all 10,000 10X Warplets listed for $1,000,000, for a combined listed value of $10,000,000,000.
+                </Text>
+                <div className="grid grid-cols-1 gap-2">
+                  {[
+                    ["own", "I already own a 10X Warplet..."],
+                    ["buy", "I don't own a 10X Warplet..."],
+                    ["alternative", "Alternative entry method..."],
+                  ].map(([value, label]) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => setTenXPath(value as "own" | "buy" | "alternative")}
+                      className={tenXPath === value ? "rounded-xl border border-[#0F0] bg-[#0F0] px-3 py-2 text-left text-sm font-bold" : "rounded-xl border border-[#0F0]/35 bg-[#041204] px-3 py-2 text-left text-sm font-bold text-[#0F0]"}
+                      style={tenXPath === value ? { color: "rgb(0, 80, 0)" } : undefined}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+
+                {tenXPath === "own" && (
+                  <div className="space-y-3">
+                    <Text className="text-sm leading-relaxed text-[#b7ffb7]">List on OpenSea for $1M and post a screenshot on X, then share the post URL.</Text>
+                    <button type="button" onClick={() => openExternalUrl(TEN_X_WARPLETS_OPENSEA_URL).catch(() => {})} className="rounded-xl border border-[#009900] bg-[#0F0] px-3 py-2 text-sm font-bold shadow-[2px_3px_0_#008000]" style={{ color: "rgb(0, 80, 0)" }}>Open 10X Warplets on OpenSea</button>
+                    <input value={tenXXPostUrl} onChange={(event) => setTenXXPostUrl(event.target.value)} className="w-full rounded-xl border border-[#0F0] bg-black px-3 py-3 text-sm text-[#0F0] outline-none placeholder:text-[#0F0]/60" placeholder="Your X screenshot post URL" />
+                  </div>
+                )}
+
+                {tenXPath === "buy" && (
+                  <div className="space-y-3">
+                    <Text className="text-sm leading-relaxed text-[#b7ffb7]">Buy or claim a 10X Warplet, post a screenshot on X, then share the post URL.</Text>
+                    <div className="grid grid-cols-1 gap-2">
+                      <button type="button" onClick={() => openExternalUrl(DROP_APP_URL).catch(() => {})} className="rounded-xl border border-[#009900] bg-[#0F0] px-3 py-2 text-sm font-bold shadow-[2px_3px_0_#008000]" style={{ color: "rgb(0, 80, 0)" }}>Open 10X Warplet Drop app</button>
+                      <button type="button" onClick={() => openExternalUrl(TEN_X_WARPLETS_OPENSEA_URL).catch(() => {})} className="rounded-xl border border-[#009900] bg-[#0F0] px-3 py-2 text-sm font-bold shadow-[2px_3px_0_#008000]" style={{ color: "rgb(0, 80, 0)" }}>Open 10X Warplets on OpenSea</button>
+                    </div>
+                    <input value={tenXXPostUrl} onChange={(event) => setTenXXPostUrl(event.target.value)} className="w-full rounded-xl border border-[#0F0] bg-black px-3 py-3 text-sm text-[#0F0] outline-none placeholder:text-[#0F0]/60" placeholder="Your X screenshot post URL" />
+                  </div>
+                )}
+
+                {tenXPath === "alternative" && (
+                  <div className="space-y-2">
+                    <Text className="text-sm leading-relaxed text-[#b7ffb7]">No Purchase Necessary method of entry.</Text>
+                    <div className="relative">
+                      <textarea value={tenXAnswer2} onChange={(event) => setTenXAnswer2(event.target.value)} className="min-h-32 w-full resize-none rounded-xl border border-[#0F0] bg-black px-3 pb-7 pt-3 text-sm text-[#0F0] outline-none placeholder:text-[#0F0]/60" placeholder="How could you 10X what you're building? (in 25 words or less)" />
+                      <Text className={tenXAnswer2WordCount > 25 ? "pointer-events-none absolute bottom-2 right-3 z-10 text-xs text-[#F00]/90" : "pointer-events-none absolute bottom-2 right-3 z-10 text-xs text-[#0F0]/90"}>{tenXAnswer2WordCount}/25 words</Text>
+                    </div>
+                  </div>
+                )}
+                {tenXMessage && <Text className="text-sm text-yellow-200">{tenXMessage}</Text>}
+                <button type="button" onClick={() => submitTenXListAction().catch(() => {})} disabled={tenXSubmitting} className="block w-full rounded-[20px] border border-[#009900] bg-[#00FF00] px-5 py-3 text-base font-bold shadow-[3px_6px_0_#008000] disabled:border-gray-700 disabled:bg-gray-700 disabled:text-gray-300 disabled:shadow-[3px_6px_0_#333]" style={{ color: "rgb(0, 80, 0)" }}>
+                  {tenXSubmitting ? "Submitting..." : "Submit 10X Action"}
+                </button>
+              </div>
+            ) : (
+              <div className="mt-4 space-y-4 text-left">
+                <Text className="text-sm leading-relaxed text-[#b7ffb7]">Answer this prompt, then post it on X.</Text>
+                <div className="relative">
+                  <textarea value={tenXAnswer2} onChange={(event) => setTenXAnswer2(event.target.value)} className="min-h-32 w-full resize-none rounded-xl border border-[#0F0] bg-black px-3 pb-7 pt-3 text-sm text-[#0F0] outline-none placeholder:text-[#0F0]/60" placeholder="How could you 10X what you're building? (in 25 words or less)" />
+                  <Text className={tenXAnswer2WordCount > 25 ? "pointer-events-none absolute bottom-2 right-3 z-10 text-xs text-[#F00]/90" : "pointer-events-none absolute bottom-2 right-3 z-10 text-xs text-[#0F0]/90"}>{tenXAnswer2WordCount}/25 words</Text>
+                </div>
+                {tenXMessage && <Text className="text-sm text-yellow-200">{tenXMessage}</Text>}
+                <button type="button" onClick={() => submitTenXPostAction().catch(() => {})} disabled={tenXSubmitting} className="block w-full rounded-[20px] border border-[#009900] bg-[#00FF00] px-5 py-3 text-base font-bold shadow-[3px_6px_0_#008000] disabled:border-gray-700 disabled:bg-gray-700 disabled:text-gray-300 disabled:shadow-[3px_6px_0_#333]" style={{ color: "rgb(0, 80, 0)" }}>
+                  {tenXSubmitting ? "Posting..." : "Post your answer on X"}
+                </button>
+              </div>
+            )}
+            <button type="button" onClick={() => setShowTenXModal(false)} className="mt-4 w-full rounded-xl py-2 text-sm text-[#0F0]/60">
               Close
             </button>
           </div>
