@@ -15,7 +15,6 @@ import {
 
 const CONFIG_KEYS = [
   "x_quote_url",
-  "farcaster_quote_url",
   "recaptcha_min_score",
   "neynar_min_score",
   "cloudflare_threat_score_flag",

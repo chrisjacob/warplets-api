@@ -34,6 +34,15 @@ type TopReferrer = EntryAvatar & {
   referrals: number;
 };
 
+type GrantTopReferrer = {
+  id: number;
+  fid: number | null;
+  username: string;
+  pfpUrl: string | null;
+  referrals: number;
+  hasProfile: boolean;
+};
+
 type MillionStatus = {
   giveawayMonth: string;
   hasEntry: boolean;
@@ -51,6 +60,8 @@ type MillionStatus = {
 
 type WarpletStatus = {
   actionSessionToken?: string | null;
+  rarityValue?: number | null;
+  matchedTokenId?: number | null;
 };
 
 type WatchersResponse = {
@@ -72,8 +83,16 @@ type GrantApplication = {
   email: string;
   buildAnswer: string;
   xPostUrl: string | null;
-  farcasterPostUrl: string | null;
   emailVerified: boolean;
+  referrals?: number;
+};
+
+type AppliedSource = "none" | "fid" | "localStorage" | "restore" | "submit";
+
+type StoredGrantApplication = Omit<GrantApplication, "id"> & {
+  id?: number;
+  restoredOn?: string;
+  submittedOn?: string;
 };
 
 type GrantStatus = {
@@ -82,9 +101,9 @@ type GrantStatus = {
   applicants: EntryAvatar[];
   actionSessionToken: string | null;
   recaptchaSiteKey: string;
+  topReferrers: GrantTopReferrer[];
   config: {
     xQuoteUrl: string;
-    farcasterQuoteUrl: string;
   };
 };
 
@@ -169,7 +188,7 @@ const airdropSchedule = [
 
 const FARCASTER_JOIN_URL = "https://farcaster.xyz/~/code/RUZLHN";
 const FARCASTER_AIRDROPS_JOIN_URL = "https://farcaster.xyz/~/code/1Y7636";
-const STATIC_DISCLAIMER_PRICE = "$ABC";
+const DEFAULT_BUILDERS_IMAGE_URL = "https://warplets.10x.meme/1409.avif";
 const MINUTE_MS = 60 * 1000;
 const DAY_MS = 24 * 60 * MINUTE_MS;
 
@@ -177,6 +196,35 @@ type PriceDrop = {
   at: number;
   price: number;
 };
+
+const LOCAL_TEST_GRANT_APPLICATION: StoredGrantApplication = {
+  id: 123,
+  fullName: "Chris Jacob",
+  email: "chris@10x.meme",
+  buildAnswer: "10X is an attention machine. Builders, capital and signal - aligned. Innovating with NFTs and Memecoins.",
+  xPostUrl: "https://x.com/10XChrisX/status/2053490361264382330",
+  status: "accepted",
+  emailVerified: true,
+  referrals: 7,
+};
+
+const LOCAL_TEST_GRANT_REFERRERS: GrantTopReferrer[] = [
+  { id: 123, fid: 1129138, username: "10XChris", pfpUrl: "https://warplets.10x.meme/1409.avif", referrals: 9, hasProfile: true },
+  { id: 124, fid: 1313340, username: "10XMeme", pfpUrl: "https://warplets.10x.meme/7840.avif", referrals: 8, hasProfile: true },
+  { id: 125, fid: 3, username: "dwr", pfpUrl: "https://warplets.10x.meme/760.avif", referrals: 7, hasProfile: true },
+  { id: 126, fid: 5650, username: "v", pfpUrl: "https://warplets.10x.meme/1000.avif", referrals: 6, hasProfile: true },
+  { id: 127, fid: null, username: "Builder One", pfpUrl: null, referrals: 5, hasProfile: false },
+  { id: 128, fid: null, username: "Grant Hacker", pfpUrl: null, referrals: 4, hasProfile: false },
+  { id: 129, fid: 99, username: "ted", pfpUrl: "https://warplets.10x.meme/2024.avif", referrals: 3, hasProfile: true },
+  { id: 130, fid: null, username: "NFT Builder", pfpUrl: null, referrals: 2, hasProfile: false },
+  { id: 131, fid: 239, username: "linda", pfpUrl: "https://warplets.10x.meme/3333.avif", referrals: 2, hasProfile: true },
+  { id: 132, fid: null, username: "Signal Seeker", pfpUrl: null, referrals: 1, hasProfile: false },
+];
+
+function isMillionLocalHost(): boolean {
+  const hostname = window.location.hostname;
+  return hostname === "localhost" || hostname === "127.0.0.1" || hostname.includes("local");
+}
 
 function isMillionHost(): boolean {
   return window.location.hostname.includes("million");
@@ -206,6 +254,44 @@ function buildMillionUrl(fid: number | null): string {
 
 function formatUsd(value: number): string {
   return `$${value.toLocaleString("en-US")}`;
+}
+
+function isValidEmail(value: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
+function getGrantMonthKey(now = new Date()): string {
+  return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+
+function getStoredGrantApplicationKey(grantMonth: string): string {
+  return `millionGrantApplication:${grantMonth}`;
+}
+
+function normalizeStoredGrantApplication(raw: unknown): StoredGrantApplication | null {
+  if (!raw || typeof raw !== "object") return null;
+  const value = raw as Partial<StoredGrantApplication>;
+  if (
+    typeof value.fullName !== "string" ||
+    typeof value.email !== "string" ||
+    typeof value.buildAnswer !== "string" ||
+    typeof value.status !== "string" ||
+    typeof value.emailVerified !== "boolean"
+  ) {
+    return null;
+  }
+  return {
+    id: typeof value.id === "number" ? value.id : undefined,
+    fullName: value.fullName,
+    email: value.email,
+    buildAnswer: value.buildAnswer,
+    xPostUrl: typeof value.xPostUrl === "string" ? value.xPostUrl : null,
+    status: value.status,
+    emailVerified: value.emailVerified,
+    referrals: typeof value.referrals === "number" ? value.referrals : undefined,
+    restoredOn: typeof value.restoredOn === "string" ? value.restoredOn : undefined,
+    submittedOn: typeof value.submittedOn === "string" ? value.submittedOn : undefined,
+  };
 }
 
 function getMonthlyAuctionStart(now: Date): number {
@@ -301,7 +387,7 @@ function buildPromoCards(rareUrgency: string): PromoCard[] {
       id: "builders",
       title: "10X Builders",
       subtitle: "50% of Sale = Free Grants: $500,000 → $10",
-      imageUrl: "https://warplets.10x.meme/1409.avif",
+      imageUrl: DEFAULT_BUILDERS_IMAGE_URL,
       urgency: "🤝 Zero Equity. No Strings Attached. Free Money.",
       ctas: [
         {
@@ -365,7 +451,7 @@ function AvatarStack({ avatars, label }: { avatars: EntryAvatar[]; label: string
 
 function GrantScheduleTable({ currentAuctionDay }: { currentAuctionDay: number }) {
   return (
-    <div className="mt-3 rounded-2xl overflow-hidden border border-[#00FF00]/35 bg-[#041204]/85 p-0">
+    <div className="mt-6 rounded-2xl overflow-hidden border border-[#00FF00]/35 bg-[#041204]/85 p-0">
       <table className="w-full table-fixed border-separate border-spacing-0 text-left">
         <thead>
           <tr>
@@ -727,10 +813,6 @@ export default function MillionApp() {
   const [actionError, setActionError] = useState("");
   const [pendingVerify, setPendingVerify] = useState<Record<string, boolean>>({});
   const [rejectedVerify, setRejectedVerify] = useState<Record<string, boolean>>({});
-  const [showEmailModal, setShowEmailModal] = useState(false);
-  const [emailValue, setEmailValue] = useState("");
-  const [emailSubmitting, setEmailSubmitting] = useState(false);
-  const [emailMessage, setEmailMessage] = useState("");
   const [watchers, setWatchers] = useState<EntryAvatar[]>([]);
   const [followers, setFollowers] = useState<EntryAvatar[]>([]);
   const [buyers, setBuyers] = useState<EntryAvatar[]>([]);
@@ -739,9 +821,18 @@ export default function MillionApp() {
   const [grantEmail, setGrantEmail] = useState("");
   const [grantAnswer, setGrantAnswer] = useState("");
   const [grantXPostUrl, setGrantXPostUrl] = useState("");
-  const [grantFarcasterPostUrl, setGrantFarcasterPostUrl] = useState("");
   const [grantSubmitting, setGrantSubmitting] = useState(false);
   const [grantMessage, setGrantMessage] = useState("");
+  const [grantApplicationImageUrl, setGrantApplicationImageUrl] = useState(DEFAULT_BUILDERS_IMAGE_URL);
+  const [appliedSource, setAppliedSource] = useState<AppliedSource>("none");
+  const [appliedApplication, setAppliedApplication] = useState<StoredGrantApplication | null>(null);
+  const [showRestoreModal, setShowRestoreModal] = useState(false);
+  const [restoreEmail, setRestoreEmail] = useState("");
+  const [restoreCode, setRestoreCode] = useState("");
+  const [restoreNonce, setRestoreNonce] = useState("");
+  const [restoreMessage, setRestoreMessage] = useState("");
+  const [restoreSubmitting, setRestoreSubmitting] = useState(false);
+  const [copyToastVisible, setCopyToastVisible] = useState(false);
   const [auctionClock, setAuctionClock] = useState(() => new Date());
   const { isMenuRoute, canGoBack, actions } = useMiniAppChrome("million");
 
@@ -751,12 +842,60 @@ export default function MillionApp() {
   const referralMillionUrl = useMemo(() => buildMillionUrl(fid), [fid]);
   const searchParams = new URLSearchParams(typeof window !== "undefined" ? window.location.search : "");
   const forceEntryAvatars = searchParams.get("entries") === "1";
+  const forceAppliedTest = isMillionLocalHost() && searchParams.get("applied") === "1";
   const referrerFid = searchParams.get("fid");
+  const referrerGrant = searchParams.get("grant");
 
   const enterPath = `${getMillionRootPath().replace(/\/$/, "")}/enter`.replace(/^\/enter$/, "/enter");
   const goToEnter = () => {
     window.history.pushState(window.history.state, "", enterPath);
     setRouteMode("enter");
+    window.requestAnimationFrame(() => window.scrollTo({ top: 0, left: 0, behavior: "auto" }));
+  };
+
+  const storeGrantApplication = (grantMonth: string, application: StoredGrantApplication) => {
+    try {
+      window.localStorage.setItem(getStoredGrantApplicationKey(grantMonth), JSON.stringify(application));
+    } catch {
+      return;
+    }
+  };
+
+  const applyGrantApplicationToForm = (
+    application: GrantApplication | StoredGrantApplication,
+    source: AppliedSource,
+    options: { persist?: boolean; grantMonth?: string } = {}
+  ) => {
+    const storedApplication: StoredGrantApplication = {
+      id: application.id,
+      fullName: application.fullName,
+      email: application.email,
+      buildAnswer: application.buildAnswer,
+      xPostUrl: application.xPostUrl ?? null,
+      status: application.status,
+      emailVerified: application.emailVerified,
+      referrals: typeof application.referrals === "number" ? application.referrals : undefined,
+      restoredOn: source === "restore" ? new Date().toISOString() : undefined,
+      submittedOn: source === "submit" ? new Date().toISOString() : undefined,
+    };
+    setGrantFullName(application.fullName);
+    setGrantEmail(application.email);
+    setGrantAnswer(application.buildAnswer);
+    setGrantXPostUrl(application.xPostUrl ?? "");
+    setAppliedSource(source);
+    setAppliedApplication(storedApplication);
+    if (options.persist && options.grantMonth) {
+      storeGrantApplication(options.grantMonth, storedApplication);
+    }
+  };
+
+  const loadStoredGrantApplication = (grantMonth: string): StoredGrantApplication | null => {
+    try {
+      const raw = window.localStorage.getItem(getStoredGrantApplicationKey(grantMonth));
+      return raw ? normalizeStoredGrantApplication(JSON.parse(raw)) : null;
+    } catch {
+      return null;
+    }
   };
 
   useEffect(() => {
@@ -774,7 +913,6 @@ export default function MillionApp() {
     const data = (await response.json()) as MillionStatus;
     setStatus(data);
     setActionSessionToken(data.actionSessionToken ?? token ?? "");
-    if (data.email && !emailValue) setEmailValue(data.email);
     return data;
   };
 
@@ -848,12 +986,17 @@ export default function MillionApp() {
       const data = (await response.json()) as GrantStatus;
       setGrantStatus(data);
       if (data.actionSessionToken) setActionSessionToken(data.actionSessionToken);
-      if (data.application) {
-        setGrantFullName(data.application.fullName);
-        setGrantEmail(data.application.email);
-        setGrantAnswer(data.application.buildAnswer);
-        setGrantXPostUrl(data.application.xPostUrl ?? "");
-        setGrantFarcasterPostUrl(data.application.farcasterPostUrl ?? "");
+      if (forceAppliedTest) {
+        applyGrantApplicationToForm(LOCAL_TEST_GRANT_APPLICATION, "localStorage");
+      } else if (data.application) {
+        applyGrantApplicationToForm(data.application, "fid", { persist: true, grantMonth: data.grantMonth });
+      } else if (!viewerFid) {
+        const storedApplication = loadStoredGrantApplication(data.grantMonth);
+        if (storedApplication) {
+          applyGrantApplicationToForm(storedApplication, "localStorage");
+        } else if (!grantEmail && status?.email) {
+          setGrantEmail(status.email);
+        }
       } else if (!grantEmail && status?.email) {
         setGrantEmail(status.email);
       }
@@ -901,6 +1044,11 @@ export default function MillionApp() {
           : null;
         const token = warpletStatus?.actionSessionToken ?? null;
         if (token) setActionSessionToken(token);
+        if (typeof warpletStatus?.matchedTokenId === "number" && Number.isInteger(warpletStatus.matchedTokenId) && warpletStatus.matchedTokenId > 0) {
+          setGrantApplicationImageUrl(`https://warplets.10x.meme/${warpletStatus.matchedTokenId}.avif`);
+        } else {
+          setGrantApplicationImageUrl(DEFAULT_BUILDERS_IMAGE_URL);
+        }
 
         const data = await loadMillionStatus(viewerFid, token);
         if (data.email && !grantEmail) setGrantEmail(data.email);
@@ -981,14 +1129,19 @@ export default function MillionApp() {
   };
 
   const grantAnswerWordCount = grantAnswer.trim().split(/\s+/).filter(Boolean).length;
+  const hasApplied = appliedSource !== "none" && Boolean(appliedApplication);
   const attentionUnlocked = Boolean(
-    grantStatus?.application?.emailVerified && grantStatus.application.status === "accepted"
+    appliedApplication?.emailVerified && appliedApplication.status === "accepted"
   );
-  const grantShareTextX = `What am I building?\n\n${grantAnswer.trim()}\n\n@10XMemeX`;
-  const grantShareTextFarcaster = `What am I building?\n\n${grantAnswer.trim()}\n\n@10XMeme.eth`;
+  const grantShareTextX = `🟢 10X Builders: Grant Application ($500K → $10)\n\nQ: What are you building?\n\nA: ${grantAnswer.trim()}\n\n👀 `;
 
   const copyToClipboard = async (text: string) => {
     await navigator.clipboard.writeText(text).catch(() => {});
+  };
+
+  const showCopyToast = () => {
+    setCopyToastVisible(true);
+    window.setTimeout(() => setCopyToastVisible(false), 1600);
   };
 
   const executeRecaptcha = async (): Promise<string | null> => {
@@ -1014,6 +1167,7 @@ export default function MillionApp() {
 
   const submitGrantApplication = async () => {
     if (grantSubmitting) return;
+    if (hasApplied) return;
     setGrantMessage("");
     if (!grantFullName.trim()) {
       setGrantMessage("Please enter your full name.");
@@ -1023,8 +1177,12 @@ export default function MillionApp() {
       setGrantMessage("Please enter your email.");
       return;
     }
-    if (!grantAnswer.trim() || grantAnswerWordCount > 10) {
-      setGrantMessage("Answer must be 10 words or less.");
+    if (!isValidEmail(grantEmail.trim())) {
+      setGrantMessage("Please enter a valid email.");
+      return;
+    }
+    if (!grantAnswer.trim() || grantAnswerWordCount > 25) {
+      setGrantMessage("Answer must be 25 words or less.");
       return;
     }
 
@@ -1062,12 +1220,20 @@ export default function MillionApp() {
           email: grantEmail.trim(),
           buildAnswer: grantAnswer.trim(),
           xPostUrl: grantXPostUrl.trim() || undefined,
-          farcasterPostUrl: grantFarcasterPostUrl.trim() || undefined,
+          grant: referrerGrant || undefined,
           recaptchaToken: recaptchaToken || undefined,
         }),
       });
-      const applyPayload = await applyResponse.json().catch(() => null) as { error?: string; status?: string } | null;
+      const applyPayload = await applyResponse.json().catch(() => null) as { error?: string; status?: string; grantMonth?: string; application?: GrantApplication } | null;
       if (!applyResponse.ok) throw new Error(applyPayload?.error ?? "Unable to submit application.");
+      applyGrantApplicationToForm(applyPayload?.application ?? {
+        fullName: grantFullName.trim(),
+        email: grantEmail.trim(),
+        buildAnswer: grantAnswer.trim(),
+        xPostUrl: grantXPostUrl.trim() || null,
+        status: applyPayload?.status ?? "accepted",
+        emailVerified: true,
+      }, "submit", { persist: true, grantMonth: applyPayload?.grantMonth ?? getGrantMonthKey(auctionClock) });
       await refreshGrantStatus();
       await refreshStatus();
       setGrantMessage(applyPayload?.status === "pending_review"
@@ -1083,64 +1249,91 @@ export default function MillionApp() {
   };
 
   const openGrantShareX = async () => {
+    if (hasApplied) {
+      const href = grantXPostUrl.trim() || grantStatus?.config.xQuoteUrl?.trim();
+      if (!href) return;
+      if (inMiniAppContext) {
+        await sdk.actions.openUrl(href).catch(() => {});
+        return;
+      }
+      window.open(href, "_blank", "noopener,noreferrer");
+      return;
+    }
     await copyToClipboard(grantShareTextX);
-    const params = new URLSearchParams({ text: grantShareTextX });
+    const params = new URLSearchParams({
+      text: grantShareTextX,
+      via: "10XMemeX",
+      hashtags: "10X",
+    });
     const quoteUrl = grantStatus?.config.xQuoteUrl?.trim();
     if (quoteUrl) params.set("url", quoteUrl);
-    await sdk.actions.openUrl(`https://x.com/intent/post?${params.toString()}`).catch(() => {});
-  };
-
-  const openGrantShareFarcaster = async () => {
-    await copyToClipboard(grantShareTextFarcaster);
-    const quoteUrl = grantStatus?.config.farcasterQuoteUrl?.trim();
-    if (fid) {
-      await sdk.actions.composeCast({
-        text: grantShareTextFarcaster,
-        embeds: quoteUrl ? [quoteUrl] : undefined,
-        channelKey: "10xmeme",
-      } as Parameters<typeof sdk.actions.composeCast>[0] & { channelKey: string }).catch(() => {});
+    const intentUrl = `https://x.com/intent/post?${params.toString()}`;
+    if (inMiniAppContext) {
+      await sdk.actions.openUrl(intentUrl).catch(() => {});
       return;
     }
-    await sdk.actions.openUrl(FARCASTER_JOIN_URL).catch(() => {});
+    window.open(intentUrl, "_blank", "noopener,noreferrer");
   };
 
-  const submitEmail = async () => {
-    if (!fid || emailSubmitting) return;
-    if (!emailValue.trim()) {
-      setEmailMessage("Please enter a valid email.");
+  const requestGrantRestore = async () => {
+    if (restoreSubmitting) return;
+    setRestoreMessage("");
+    if (!isValidEmail(restoreEmail.trim())) {
+      setRestoreMessage("Please enter a valid email.");
       return;
     }
-    setEmailSubmitting(true);
-    setEmailMessage("");
+    setRestoreSubmitting(true);
     try {
-      const response = await fetch("/api/email/subscribe", {
+      const response = await fetch("/api/million-grants/restore/request", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          email: emailValue.trim(),
-          fid,
-          username,
-          campaign: "million",
-          sessionToken: actionSessionToken || undefined,
-        }),
+        body: JSON.stringify({ email: restoreEmail.trim() }),
       });
-      if (!response.ok) throw new Error(await response.text());
-      const payload = (await response.json()) as { alreadyVerified?: boolean; verificationEmailSent?: boolean };
-      if (payload.alreadyVerified) {
-        await verifyAction("million-enter-email");
-        setEmailMessage("Email already verified. Your giveaway entry is accepted.");
-      } else {
-        setPendingVerify((prev) => ({ ...prev, "million-enter-email": true }));
-        setEmailMessage(payload.verificationEmailSent
-          ? "Verification sent. Check your email before your entry is accepted."
-          : "Subscribed. Verify your email before your entry is accepted.");
-      }
-      await refreshStatus();
+      const payload = await response.json().catch(() => null) as { error?: string; nonce?: string; message?: string } | null;
+      if (!response.ok) throw new Error(payload?.error ?? "Unable to request restore code.");
+      setRestoreNonce(payload?.nonce ?? "");
+      setRestoreMessage(payload?.nonce
+        ? "Restore code sent. Check your email."
+        : (payload?.message ?? "If an accepted application exists for that email this month, a restore code has been sent."));
+    } catch (err) {
+      setRestoreMessage(err instanceof Error ? err.message : String(err));
+    } finally {
+      setRestoreSubmitting(false);
+    }
+  };
+
+  const verifyGrantRestore = async () => {
+    if (restoreSubmitting) return;
+    setRestoreMessage("");
+    if (!restoreNonce) {
+      setRestoreMessage("Request a restore code first.");
+      return;
+    }
+    if (!/^\d{6}$/.test(restoreCode.replace(/\D/g, ""))) {
+      setRestoreMessage("Enter the 6 digit code.");
+      return;
+    }
+    setRestoreSubmitting(true);
+    try {
+      const response = await fetch("/api/million-grants/restore/verify", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ nonce: restoreNonce, code: restoreCode }),
+      });
+      const payload = await response.json().catch(() => null) as { error?: string; application?: GrantApplication } | null;
+      if (!response.ok || !payload?.application) throw new Error(payload?.error ?? "Unable to restore application.");
+      applyGrantApplicationToForm(payload.application, "restore", { persist: true, grantMonth: grantStatus?.grantMonth ?? getGrantMonthKey(auctionClock) });
+      setShowRestoreModal(false);
+      setRestoreCode("");
+      setRestoreNonce("");
+      setRestoreMessage("");
+      setGrantMessage("Application restored.");
+      await hapticSuccess();
     } catch (err) {
       void hapticError();
-      setEmailMessage(err instanceof Error ? err.message : String(err));
+      setRestoreMessage(err instanceof Error ? err.message : String(err));
     } finally {
-      setEmailSubmitting(false);
+      setRestoreSubmitting(false);
     }
   };
 
@@ -1175,11 +1368,6 @@ export default function MillionApp() {
   const runAction = async (action: MillionAction) => {
     if (action.completed) return;
     await hapticTap();
-    if (action.slug === "million-enter-email") {
-      setEmailValue(status?.email ?? emailValue);
-      setShowEmailModal(true);
-      return;
-    }
     setRejectedVerify((prev) => ({ ...prev, [action.slug]: false }));
     setPendingVerify((prev) => ({ ...prev, [action.slug]: true }));
 
@@ -1223,7 +1411,9 @@ export default function MillionApp() {
         {promoCards.map((card) => (
           <PromoSection
             key={card.id}
-            card={card}
+            card={card.id === "builders" && hasApplied
+              ? { ...card, ctas: card.ctas.map((cta) => ({ ...cta, label: "You Have Applied. Next: 10X Attention!" })) }
+              : card}
             referralMillionUrl={referralMillionUrl}
             entryAvatars={status?.entryAvatars ?? []}
             onEnter={goToEnter}
@@ -1241,31 +1431,56 @@ export default function MillionApp() {
   );
 
   const renderEntryPage = () => {
-    const actionsList = status?.actions ?? [];
+    const actionsList = (status?.actions ?? []).filter((action) => action.slug !== "million-enter-email");
+    const grantMonthLabel = auctionClock.toLocaleString("en-US", { month: "long", year: "numeric", timeZone: "UTC" });
+    const entryCtaClass = "block w-full rounded-[20px] border border-[#009900] bg-[#00FF00] px-5 py-3 text-base font-bold shadow-[3px_6px_0_#008000] transition-all duration-100 active:translate-x-[1px] active:translate-y-[3px] active:shadow-[1px_3px_0_#008000] disabled:border-gray-700 disabled:bg-gray-700 disabled:text-gray-300 disabled:shadow-[3px_6px_0_#333]";
+    const appliedCtaClass = "block w-full rounded-[20px] border border-gray-700 bg-gray-700 px-5 py-3 text-base font-bold text-gray-300";
+    const compactCtaClass = "inline-flex items-center justify-center rounded-[16px] border border-[#009900] bg-[#00FF00] px-4 py-2 text-sm font-bold shadow-[2px_4px_0_#008000] transition-all duration-100 active:translate-x-[1px] active:translate-y-[2px] active:shadow-[1px_2px_0_#008000] disabled:border-gray-700 disabled:bg-gray-700 disabled:text-gray-300 disabled:shadow-[2px_4px_0_#333]";
+    const inputClass = "w-full rounded-xl border border-[#0F0] bg-black px-3 py-3 text-sm text-[#0F0] opacity-100 outline-none placeholder:text-[#0F0]/60 disabled:border-gray-700 disabled:text-gray-300 disabled:opacity-100";
+    const applicationReferralUrl = appliedApplication?.id ? `${buildMillionUrl(null)}?grant=${appliedApplication.id}` : "";
+    const applicationReferralCount = appliedApplication?.referrals ?? grantStatus?.application?.referrals ?? 0;
+    const grantTopReferrers = (forceAppliedTest && (!grantStatus?.topReferrers || grantStatus.topReferrers.length === 0))
+      ? LOCAL_TEST_GRANT_REFERRERS
+      : grantStatus?.topReferrers ?? [];
     return (
-      <>
-        <section className="px-4 py-7">
-          <div className="mx-auto max-w-md space-y-7">
-            <div className="rounded-2xl border border-[#0F0]/25 bg-black/60 p-4">
-              <Text className="text-center text-3xl font-black text-[#0F0]">10X Builders</Text>
-              <Text className="mt-2 text-center text-sm font-bold text-[#0F0]/80">Grant Application</Text>
+      <div className="relative z-10 w-full max-w-md mx-auto text-center space-y-5 px-4 pt-2 pb-8">
+            <form onSubmit={(event) => {
+              event.preventDefault();
+              submitGrantApplication().catch(() => {});
+            }}>
+              <Text className="text-[clamp(1.6rem,5vw,1.6rem)] font-bold leading-tight text-center" style={{ color: "#00FF00" }}>Grant Application</Text>
+              <Text className="mt-2 text-lg font-semibold leading-snug text-center" style={{ color: "#00FF00" }}>50% of Sale = Free Grants: $500,000 → $10</Text>
+              <div className="mt-3 w-full rounded-[20px] p-[2px] bg-[#00FF00]/20 border border-[#00FF00]/45">
+                <img
+                  src={grantApplicationImageUrl}
+                  alt="Grant Application"
+                  className="aspect-square w-full rounded-[18px] object-cover"
+                  style={{ color: "#0F0" }}
+                />
+              </div>
               <div className="mt-5 grid grid-cols-1 gap-3">
-                <input value={grantFullName} onChange={(event) => setGrantFullName(event.target.value)} className="w-full rounded-xl border border-[#0F0]/25 bg-black px-3 py-3 text-sm text-[#0F0] outline-none" placeholder="Full name" />
-                <input type="email" value={grantEmail} onChange={(event) => setGrantEmail(event.target.value)} className="w-full rounded-xl border border-[#0F0]/25 bg-black px-3 py-3 text-sm text-[#0F0] outline-none" placeholder="Email" />
-                <textarea value={grantAnswer} onChange={(event) => setGrantAnswer(event.target.value)} className="min-h-24 w-full rounded-xl border border-[#0F0]/25 bg-black px-3 py-3 text-sm text-[#0F0] outline-none" placeholder="What are you building? (10 words or less)" />
-                <Text className={grantAnswerWordCount > 10 ? "text-left text-xs text-red-300" : "text-left text-xs text-[#0F0]/55"}>{grantAnswerWordCount}/10 words</Text>
-              </div>
-              <div className="mt-4 rounded-xl border border-[#0F0]/20 bg-[#041204]/65 p-3 text-left">
-                <Text className="text-sm font-black text-[#0F0]">Optional public context</Text>
-                <Text className="mt-1 text-xs leading-relaxed text-[#0F0]/65">Share your answer publicly if you want judges to see more context. You can elaborate, make a thread, and add images or video.</Text>
-                <div className="mt-3 grid grid-cols-2 gap-2">
-                  <button type="button" onClick={() => openGrantShareX().catch(() => {})} disabled={!grantAnswer.trim()} className="rounded-xl bg-[#0F0] px-3 py-2 text-xs font-black text-black disabled:bg-gray-700 disabled:text-gray-300">Draft on X</button>
-                  <button type="button" onClick={() => openGrantShareFarcaster().catch(() => {})} disabled={!grantAnswer.trim()} className="rounded-xl bg-[#0F0] px-3 py-2 text-xs font-black text-black disabled:bg-gray-700 disabled:text-gray-300">Draft on Farcaster</button>
+                <input required disabled={hasApplied} value={grantFullName} onChange={(event) => setGrantFullName(event.target.value)} className={inputClass} placeholder="Name" />
+                <input type="email" required disabled={hasApplied} value={grantEmail} onChange={(event) => setGrantEmail(event.target.value)} className={inputClass} placeholder="Email" />
+                <div className="relative">
+                  <textarea required disabled={hasApplied} value={grantAnswer} onChange={(event) => setGrantAnswer(event.target.value)} className="min-h-36 w-full resize-none rounded-xl border border-[#0F0] bg-black px-3 pb-7 pt-3 text-lg text-[#0F0] opacity-100 outline-none placeholder:text-[#0F0]/60 disabled:border-gray-700 disabled:text-gray-300 disabled:opacity-100" placeholder="What are you building? (25 words or less)" />
+                  <Text className={grantAnswerWordCount > 25 ? "pointer-events-none absolute bottom-2 right-3 z-10 text-xs text-[#F00]/90" : "pointer-events-none absolute bottom-2 right-3 z-10 text-xs text-[#0F0]/90"}>{grantAnswerWordCount}/25 words</Text>
                 </div>
-                {!fid && <Text className="mt-3 text-xs leading-relaxed text-[#0F0]/60">Farcaster: 1. Join Farcaster at {FARCASTER_JOIN_URL} 2. Copy the drafted text, post it, then paste the cast URL below.</Text>}
-                <input value={grantXPostUrl} onChange={(event) => setGrantXPostUrl(event.target.value)} className="mt-3 w-full rounded-xl border border-[#0F0]/25 bg-black px-3 py-2 text-xs text-[#0F0] outline-none" placeholder="Optional X post URL" />
-                <input value={grantFarcasterPostUrl} onChange={(event) => setGrantFarcasterPostUrl(event.target.value)} className="mt-2 w-full rounded-xl border border-[#0F0]/25 bg-black px-3 py-2 text-xs text-[#0F0] outline-none" placeholder="Optional Farcaster cast URL" />
               </div>
+              {grantAnswerWordCount > 0 && (
+                <div className="mt-4 rounded-xl border border-[#0F0]/20 bg-[#041204]/65 p-3 text-left">
+                  <Text className="text-base font-bold text-[#0F0]">Optional: Share on X (Twitter)</Text>
+                  <Text className="mt-1 text-sm leading-relaxed text-[#0F0]/65">
+                    Post a tweet with more detail (e.g. images, video, etc) so we can learn more about your project and pick the best winners!
+                  </Text>
+                  <div className="mt-3">
+                    <button type="button" onClick={() => openGrantShareX().catch(() => {})} disabled={!grantAnswer.trim() || (hasApplied && !grantXPostUrl.trim() && !grantStatus?.config.xQuoteUrl?.trim())} className={compactCtaClass} style={{ color: "rgb(0, 80, 0)" }}>
+                      {hasApplied ? (grantXPostUrl.trim() ? "View your post on X" : "View our post on X") : "Start by quoting our post on X"}
+                    </button>
+                  </div>
+                  {!hasApplied && <Text className="mt-3 text-sm leading-relaxed text-[#0F0]/60">Paste the URL to your tweet below:</Text>}
+                  <input disabled={hasApplied} type="url" pattern="https?://([^/]*\.)?(x\.com|twitter\.com)(/.*)?" title="Enter a valid X or Twitter URL." value={grantXPostUrl} onChange={(event) => setGrantXPostUrl(event.target.value)} className={`mt-3 ${inputClass}`} placeholder="Your tweet URL" />
+                </div>
+              )}
               {grantStatus?.application && (
                 <Text className="mt-4 text-sm font-bold text-[#0F0]">
                   Application status: {grantStatus.application.status === "accepted" ? "Accepted" : "Pending review"}
@@ -1273,35 +1488,67 @@ export default function MillionApp() {
                 </Text>
               )}
               {grantMessage && <Text className="mt-4 text-sm text-yellow-200">{grantMessage}</Text>}
-              <button type="button" onClick={() => submitGrantApplication().catch(() => {})} disabled={grantSubmitting} className="mt-5 w-full rounded-xl bg-[#0F0] py-3 font-black text-black disabled:bg-gray-600 disabled:text-white">
-                {grantSubmitting ? "Submitting..." : "Submit Grant Application"}
+              <button type="submit" disabled={grantSubmitting || hasApplied} className={hasApplied ? `mt-5 ${appliedCtaClass}` : `mt-5 ${entryCtaClass}`} style={hasApplied ? undefined : { color: "rgb(0, 80, 0)" }}>
+                {hasApplied ? "You Have Applied. Next: 10X Attention!" : grantSubmitting ? "Submitting..." : "Submit Grant Application"}
               </button>
+              <div className="mt-5 rounded-xl border border-[#00A3FF]/60 bg-[#00A3FF]/10 px-3 py-3 text-left">
+                <Text className="text-base font-bold text-[#8FD8FF]">Judging Criteria</Text>
+                <Text className="mt-2 text-sm leading-relaxed text-[#8FD8FF]/90"><strong>10X (25%):</strong> Radically challenge the status quo.</Text>
+                <Text className="mt-1 text-sm leading-relaxed text-[#8FD8FF]/90"><strong>Creativity (25%):</strong> Original, witty, high-impact copywriting.</Text>
+                <Text className="mt-1 text-sm leading-relaxed text-[#8FD8FF]/90"><strong>Utility (25%):</strong> Clear real-world value, a meaningful solution.</Text>
+                <Text className="mt-1 text-sm leading-relaxed text-[#8FD8FF]/90"><strong>Fun (25%):</strong> Bringing joy, entertainment, culture, excitement.</Text>
+              </div>
+            </form>
+            <div className="pt-4">
+              <Text className="text-[clamp(1.6rem,5vw,1.6rem)] font-bold leading-tight text-center" style={{ color: "#00FF00" }}>
+                10X Attention
+              </Text>
+              <Text className="mt-2 text-lg font-semibold leading-snug text-center" style={{ color: "#00FF00" }}>
+                Earn Points → Win Attention → Think 10X
+              </Text>
+              <div className="mt-3 w-full rounded-[20px] p-[2px] bg-[#00FF00]/20 border border-[#00FF00]/45">
+                <img
+                  src="https://warplets.10x.meme/7840.avif"
+                  alt="10X Attention"
+                  className="aspect-square w-full rounded-[18px] object-cover"
+                  style={{ color: "#0F0" }}
+                />
+              </div>
             </div>
-            <Text className="text-center text-3xl font-black text-[#0F0]">10X Attention</Text>
-            <Text className="mt-2 text-center text-sm font-bold text-[#0F0]/80">Optional giveaway actions for more points</Text>
             <div className="mt-5 grid grid-cols-3 gap-2">
               <StatBox value={status?.userEntries ?? 0} label="Your Points" />
               <StatBox value={status?.totalEntries ?? 0} label="Total Points" />
               <StatBox value={status?.daysLeft ?? 0} label="Days Left" />
             </div>
             {!attentionUnlocked && (
-              <Text className="mt-3 rounded-xl border border-yellow-300/25 bg-yellow-950/30 px-3 py-3 text-center text-xs font-bold text-yellow-100">
-                Submit an accepted 10X Builders Grant application with a verified email to unlock 10X Attention.
+              <Text className="mt-5 rounded-xl border border-[#F00]/60 bg-[#F00]/10 px-3 py-3 text-center text-base font-normal text-[#F00]/90">
+                Submit a Grant Application to unlock 10X Attention.
+                <br />
+                <br />
+                Already submitted?{" "}
+                <button type="button" onClick={() => {
+                  setRestoreEmail(grantEmail);
+                  setRestoreMessage("");
+                  setRestoreCode("");
+                  setRestoreNonce("");
+                  setShowRestoreModal(true);
+                }} className="cursor-pointer underline decoration-[#F00]/80 underline-offset-2">
+                  Restore your application
+                </button>.
               </Text>
             )}
-            <div className="mt-5 space-y-3">
+            <div className="mt-5 overflow-hidden rounded-2xl border border-[#0F0]/35 bg-[#041204]/85">
               {actionsList.map((action) => {
                 const pending = pendingVerify[action.slug] === true;
                 const showVerify =
                   pending ||
-                  (Boolean(action.previouslyCompleted) && rejectedVerify[action.slug] !== true) ||
-                  (action.slug === "million-enter-email" && Boolean(status?.email) && !action.completed);
+                  (Boolean(action.previouslyCompleted) && rejectedVerify[action.slug] !== true);
+                const actionFlat = action.completed || pending || !attentionUnlocked;
                 return (
-                  <div key={action.slug} className="rounded-xl border border-[#0F0]/25 bg-black/65 p-3">
+                  <div key={action.slug} className="border-b border-[#0F0]/15 p-3 last:border-b-0">
                     <div className="flex items-center gap-3">
                       <div className="min-w-0 flex-1">
-                        <Text className="text-sm font-black text-[#0F0]">{action.name}</Text>
-                        <Text className="mt-1 text-xs text-[#0F0]/60">{action.description}</Text>
+                        <Text className="text-left text-base font-bold text-[#0F0]">{action.name}</Text>
                       </div>
                       <button
                         type="button"
@@ -1313,7 +1560,10 @@ export default function MillionApp() {
                             runAction(action).catch(() => {});
                           }
                         }}
-                        className="flex h-11 min-w-14 items-center justify-center rounded-xl bg-[#0F0] px-3 text-sm font-black text-black disabled:bg-gray-600 disabled:text-white"
+                        className={actionFlat
+                          ? "flex h-10 min-w-12 items-center justify-center rounded-xl border border-gray-600 bg-gray-700 px-3 text-sm font-black text-gray-200"
+                          : "flex h-10 min-w-12 items-center justify-center rounded-xl border border-[#009900] bg-[#0F0] px-3 text-sm font-black shadow-[2px_3px_0_#008000] transition-all duration-100 active:translate-x-[1px] active:translate-y-[2px] active:shadow-[1px_1px_0_#008000]"}
+                        style={actionFlat ? undefined : { color: "rgb(0, 80, 0)" }}
                       >
                         {action.completed ? <ActionCheckIcon /> : pending ? "..." : showVerify ? "Verify" : `+${action.entryValue}`}
                       </button>
@@ -1323,54 +1573,108 @@ export default function MillionApp() {
               })}
             </div>
 
-            <div className="mt-6 rounded-2xl border border-[#0F0]/25 bg-black/60 p-4">
-              <Text className="text-lg font-black text-[#0F0]">Earn Referral Points</Text>
-              <Text className="mt-2 text-sm text-[#0F0]/75">
-                Share your $1M Warplet referral link. Every referral earns 1 bonus point, up to 10 bonus points.
+            <div className="space-y-3 text-left">
+              <Text className="text-lg font-bold text-left" style={{ color: "#00FF00" }}>
+                Earn Referral Points
               </Text>
-              <input
-                readOnly
-                value={referralMillionUrl}
-                className="mt-3 w-full rounded-xl border border-[#0F0]/25 bg-black px-3 py-2 text-xs text-[#0F0]"
-              />
-              <Text className="mt-2 text-xs font-bold text-[#0F0]">
-                Your referrals: {status?.referralCount ?? 0} • Bonus points: {status?.referralBonusEntries ?? 0}/10
-              </Text>
-            </div>
-
-            <div className="mt-6 rounded-2xl border border-[#0F0]/25 bg-black/60 p-4">
-              <Text className="text-lg font-black text-[#0F0]">Top Referrers</Text>
-              <div className="mt-3 space-y-2">
-                {(status?.topReferrers ?? []).slice(0, 10).map((referrer, index) => (
+              <div className="rounded-2xl border border-[#00FF00]/35 bg-[#041204]/85 px-4 py-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    readOnly
+                    disabled={!applicationReferralUrl}
+                    value={applicationReferralUrl}
+                    className="h-11 w-full rounded-xl border border-[#00FF00] bg-black/70 px-3 text-[16px] text-white outline-none disabled:border-gray-700 disabled:text-gray-400"
+                  />
                   <button
-                    key={referrer.fid}
                     type="button"
-                    onClick={() => sdk.actions.viewProfile({ fid: referrer.fid }).catch(() => {})}
-                    className="flex w-full items-center gap-3 rounded-xl bg-[#041204]/80 px-3 py-2 text-left"
+                    disabled={!applicationReferralUrl}
+                    onClick={() => {
+                      void hapticTap();
+                      if (!applicationReferralUrl) return;
+                      copyToClipboard(applicationReferralUrl).then(showCopyToast).catch(() => {});
+                    }}
+                    className="h-10 w-10 shrink-0 rounded-[10px] border border-[#009900] bg-[#00FF00] text-xl font-bold shadow-[2px_4px_0_#008000] transition-all duration-100 active:translate-x-[1px] active:translate-y-[2px] active:shadow-[1px_2px_0_#008000] cursor-pointer disabled:cursor-default disabled:border-gray-700 disabled:bg-gray-700 disabled:text-gray-300 disabled:shadow-none"
+                    style={{ color: "rgb(0, 80, 0)" }}
+                    aria-label="Copy referral link"
                   >
-                    <Text className="w-6 text-sm font-black text-[#0F0]">#{index + 1}</Text>
-                    {referrer.pfpUrl && <img src={referrer.pfpUrl} alt={referrer.username} className="h-8 w-8 rounded-full object-cover" style={{ color: "#0F0" }} />}
-                    <Text className="flex-1 text-sm font-bold text-[#0F0]">{referrer.username}</Text>
-                    <Text className="text-sm font-black text-[#0F0]">{referrer.referrals}</Text>
+                    📋
                   </button>
-                ))}
-                {(status?.topReferrers ?? []).length === 0 && (
-                  <Text className="text-sm text-[#0F0]/60">No referrals yet.</Text>
-                )}
+                </div>
+                <Text className="text-sm leading-relaxed text-left" style={{ color: "#b7ffb7" }}>
+                  Share your referral link to earn more points (maximum: 10pts)
+                </Text>
+                <Text className="text-sm font-bold text-left" style={{ color: "#00FF00" }}>
+                  Your referrals: {applicationReferralCount}
+                </Text>
               </div>
             </div>
-          </div>
-        </section>
-        <section className="px-4 py-7">
-          <div className="mx-auto max-w-md rounded-2xl border border-[#0F0]/25 bg-black/60 p-4">
-            <Text className="text-lg font-black text-[#0F0]">Terms and Conditions</Text>
-            <Text className="mt-2 text-xs leading-relaxed text-[#0F0]/65">
-              Entries are subject to verification, availability, eligibility, and final campaign rules
-              to be published before winners are contacted.
-            </Text>
-          </div>
-        </section>
-      </>
+
+            <div className="space-y-3 text-left">
+              <Text className="text-lg font-bold text-left" style={{ color: "#00FF00" }}>
+                Top Referrers
+              </Text>
+              <div className="rounded-2xl overflow-hidden border border-[#00FF00]/35 bg-[#041204]/85 p-0">
+                <table className="w-full border-separate border-spacing-0 text-left">
+                  <thead>
+                    <tr>
+                      <th className="border-b border-r border-[#00FF00]/25 px-2 py-2 text-xs text-center" style={{ color: "#00FF00" }}>Rank</th>
+                      <th className="border-b border-r border-[#00FF00]/25 px-2 py-2 text-xs text-center" style={{ color: "#00FF00" }}>Referrals</th>
+                      <th className="border-b border-[#00FF00]/25 px-2 py-2 text-xs" style={{ color: "#00FF00" }}>Username</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {grantTopReferrers.slice(0, 10).map((referrer, index) => (
+                      <tr key={referrer.id}>
+                        <td className="border-b border-r border-[#00FF00]/20 px-2 py-2 text-sm text-center" style={{ color: "#b7ffb7" }}>{index + 1}</td>
+                        <td className="border-b border-r border-[#00FF00]/20 px-2 py-2 text-sm font-semibold text-center" style={{ color: "#b7ffb7" }}>
+                          {referrer.referrals}
+                        </td>
+                        <td className="border-b border-[#00FF00]/20 px-2 py-2">
+                          {referrer.hasProfile && referrer.fid ? (
+                            <button
+                              type="button"
+                              className="flex min-w-0 items-center gap-2 text-left cursor-pointer"
+                              style={{ color: "#b7ffb7" }}
+                              onClick={() => {
+                                void hapticTap();
+                                sdk.actions.viewProfile({ fid: referrer.fid as number }).catch(() => {});
+                              }}
+                            >
+                              {referrer.pfpUrl ? (
+                                <img
+                                  src={referrer.pfpUrl}
+                                  alt={referrer.username}
+                                  className="h-8 w-8 shrink-0 rounded-full object-cover"
+                                  style={{ border: "2px solid #00FF00" }}
+                                  loading="lazy"
+                                />
+                              ) : (
+                                <span className="h-8 w-8 shrink-0 rounded-full bg-[#00FF00]" aria-hidden="true" />
+                              )}
+                              <span className="min-w-0 truncate text-sm underline underline-offset-2">{referrer.username}</span>
+                            </button>
+                          ) : (
+                            <div className="flex min-w-0 items-center gap-2" style={{ color: "#b7ffb7" }}>
+                              <span className="h-8 w-8 shrink-0 rounded-full bg-[#00FF00]" aria-hidden="true" />
+                              <span className="min-w-0 truncate text-sm">{referrer.username}</span>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                    {grantTopReferrers.length === 0 && (
+                      <tr>
+                        <td className="px-2 py-3 text-sm text-center" style={{ color: "#b7ffb7" }} colSpan={3}>
+                          No referrers yet.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+      </div>
     );
   };
 
@@ -1389,7 +1693,7 @@ export default function MillionApp() {
       <div className="relative z-10 w-full">
         <MiniAppHeader
           appSlug="million"
-          title={routeMode === "enter" ? "Builders + Attention" : getHeaderTitle("million", isMenuRoute)}
+          title={routeMode === "enter" ? "Grants + Attention" : getHeaderTitle("million", isMenuRoute)}
           canGoBack={canGoBack || routeMode === "enter"}
           onBack={routeMode === "enter" ? () => {
             window.history.pushState(window.history.state, "", getMillionRootPath());
@@ -1433,34 +1737,52 @@ export default function MillionApp() {
         </div>
       )}
 
-      {showEmailModal && (
+      {showRestoreModal && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/75 px-4 pb-8">
           <div className="w-full max-w-sm rounded-2xl border border-[#0F0]/40 bg-black px-5 py-6 shadow-2xl">
-            <Text className="text-center text-lg font-black text-[#0F0]">Subscribe + Enter Giveaway</Text>
-            <Text className="mt-2 text-center text-sm text-[#0F0]/75">Email needed to contact winners.</Text>
+            <Text className="text-center text-lg font-black text-[#0F0]">Restore Grant Application</Text>
+            <Text className="mt-2 text-center text-sm text-[#0F0]/75">Enter your application email. If it matches an accepted application this month, we will send a restore code.</Text>
             <input
               type="email"
-              value={emailValue}
-              onChange={(event) => setEmailValue(event.target.value)}
+              value={restoreEmail}
+              onChange={(event) => setRestoreEmail(event.target.value)}
               placeholder="you@example.com"
               className="mt-5 w-full rounded-xl border border-[#0F0]/30 bg-black px-3 py-3 text-sm text-[#0F0] outline-none"
             />
-            {emailMessage && <Text className="mt-3 text-xs text-yellow-200">{emailMessage}</Text>}
+            {restoreNonce && (
+              <input
+                inputMode="numeric"
+                value={restoreCode}
+                onChange={(event) => setRestoreCode(event.target.value)}
+                placeholder="6 digit code"
+                className="mt-3 w-full rounded-xl border border-[#0F0]/30 bg-black px-3 py-3 text-sm text-[#0F0] outline-none"
+              />
+            )}
+            {restoreMessage && <Text className="mt-3 text-xs text-yellow-200">{restoreMessage}</Text>}
             <button
               type="button"
-              onClick={() => submitEmail().catch(() => {})}
-              disabled={emailSubmitting}
-              className="mt-5 w-full rounded-xl bg-[#0F0] py-3 font-black text-black disabled:bg-gray-600 disabled:text-white"
+              onClick={() => (restoreNonce ? verifyGrantRestore() : requestGrantRestore()).catch(() => {})}
+              disabled={restoreSubmitting}
+              className="mt-5 block w-full rounded-[20px] border border-[#009900] bg-[#00FF00] px-5 py-3 text-base font-bold shadow-[3px_6px_0_#008000] transition-all duration-100 active:translate-x-[1px] active:translate-y-[3px] active:shadow-[1px_3px_0_#008000] disabled:border-gray-700 disabled:bg-gray-700 disabled:text-gray-300 disabled:shadow-[3px_6px_0_#333]"
+              style={{ color: "rgb(0, 80, 0)" }}
             >
-              {emailSubmitting ? "Subscribing..." : "I want to WIN!"}
+              {restoreSubmitting ? "Working..." : restoreNonce ? "Unlock Application" : "Send Restore Code"}
             </button>
             <button
               type="button"
-              onClick={() => setShowEmailModal(false)}
+              onClick={() => setShowRestoreModal(false)}
               className="mt-3 w-full rounded-xl py-2 text-sm text-[#0F0]/60"
             >
               Close
             </button>
+          </div>
+        </div>
+      )}
+
+      {copyToastVisible && (
+        <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2">
+          <div className="rounded-xl border border-[#0F0]/45 bg-black/90 px-4 py-2 shadow-lg backdrop-blur-sm">
+            <Text className="text-center text-sm font-semibold text-[#0F0]">Link copied to clipboard</Text>
           </div>
         </div>
       )}
@@ -1477,23 +1799,5 @@ export default function MillionApp() {
         </div>
       )}
     </MiniAppShell>
-  );
-}
-
-function Disclaimer() {
-  return (
-    <section className="space-y-3">
-      <Text className="text-lg font-bold text-left" style={{ color: "#00FF00" }}>
-        Terms and Conditions
-      </Text>
-      <div className="rounded-2xl border border-[#00FF00]/35 bg-[#041204]/85 px-4 py-4 space-y-3">
-        <Text className="text-xs leading-relaxed text-left" style={{ color: "#b7ffb7" }}>
-          * Current Prize Pool and Current Airdrop refers to the value if the $1M Warplet was sold right now for {STATIC_DISCLAIMER_PRICE}. As the dutch auction price drops so to does the prizes. But, you never know when someone will buy!
-        </Text>
-        <Text className="text-xs leading-relaxed text-left" style={{ color: "#b7ffb7" }}>
-          ** Airdrop estimates are based on the current floor price. Depending on available market supply and depth, for large purchases the price may increase significantly. This would reduce the estimated quanity that can be purchased and airdropped.
-        </Text>
-      </div>
-    </section>
   );
 }

@@ -1100,13 +1100,15 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       }>();
 
     let rarityValue: number | null = null;
+    let matchedTokenId: number | null = null;
     try {
       const matchRow = await context.env.WARPLETS.prepare(
-        "SELECT x10_rarity FROM warplets_metadata WHERE fid_value = ? LIMIT 1"
+        "SELECT x10_rarity, token_id FROM warplets_metadata WHERE fid_value = ? LIMIT 1"
       )
         .bind(fid)
-        .first<{ x10_rarity: number | null }>();
+        .first<{ x10_rarity: number | null; token_id: number | null }>();
       rarityValue = typeof matchRow?.x10_rarity === "number" ? matchRow.x10_rarity : null;
+      matchedTokenId = typeof matchRow?.token_id === "number" ? matchRow.token_id : null;
     } catch (error) {
       console.error("warplet-status POST match lookup skipped:", error);
     }
@@ -1234,6 +1236,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         exists: false,
         matched: isMatch,
         rarityValue,
+        matchedTokenId,
         buyInOpenseaOn: null,
         buyInFarcasterWalletOn: null,
         buyTransactionId: null,
@@ -1357,6 +1360,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       exists: true,
       matched: isMatch,
       rarityValue,
+      matchedTokenId,
       buyInOpenseaOn: existing.buy_in_opensea_on,
       buyInFarcasterWalletOn: existing.buy_in_farcaster_wallet_on,
       buyTransactionId: existing.buy_transaction_id,
@@ -1377,6 +1381,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       exists: false,
       matched: false,
       rarityValue: null,
+      matchedTokenId: null,
       buyInOpenseaOn: null,
       buyInFarcasterWalletOn: null,
       buyTransactionId: null,

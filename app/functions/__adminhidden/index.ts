@@ -163,10 +163,6 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         <label>X quote URL</label>
         <input id="millionXQuoteUrl" type="url" placeholder="https://x.com/..." />
       </div>
-      <div style="flex:1">
-        <label>Farcaster quote URL</label>
-        <input id="millionFarcasterQuoteUrl" type="url" placeholder="https://farcaster.xyz/..." />
-      </div>
     </div>
     <div class="stat-grid" style="margin-top:.75rem">
       <div><label>reCAPTCHA min</label><input id="millionRecaptchaMin" inputmode="decimal" /></div>
@@ -592,7 +588,6 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       const data = await r.json();
       const cfg = data.config || {};
       document.getElementById('millionXQuoteUrl').value = cfg.x_quote_url || '';
-      document.getElementById('millionFarcasterQuoteUrl').value = cfg.farcaster_quote_url || '';
       document.getElementById('millionRecaptchaMin').value = cfg.recaptcha_min_score || '0.5';
       document.getElementById('millionNeynarMin').value = cfg.neynar_min_score || '0.5';
       document.getElementById('millionThreatFlag').value = cfg.cloudflare_threat_score_flag || '10';
@@ -616,7 +611,6 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   async function saveMillionConfig(extra = {}) {
     const payload = {
       x_quote_url: document.getElementById('millionXQuoteUrl').value.trim(),
-      farcaster_quote_url: document.getElementById('millionFarcasterQuoteUrl').value.trim(),
       recaptcha_min_score: document.getElementById('millionRecaptchaMin').value.trim(),
       neynar_min_score: document.getElementById('millionNeynarMin').value.trim(),
       cloudflare_threat_score_flag: document.getElementById('millionThreatFlag').value.trim(),

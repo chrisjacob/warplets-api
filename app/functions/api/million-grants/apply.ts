@@ -24,7 +24,7 @@ type ApplyBody = {
   email?: unknown;
   buildAnswer?: unknown;
   xPostUrl?: unknown;
-  farcasterPostUrl?: unknown;
+  grant?: unknown;
   recaptchaToken?: unknown;
 };
 
@@ -139,7 +139,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   if (!parsed.ok) return parsed.response;
   if (!isPlainObject(parsed.value)) return jsonSecure({ error: "Invalid JSON payload" }, { status: 400 });
   const hasUnexpectedKeys = Object.keys(parsed.value).some(
-    (key) => !["fid", "sessionToken", "fullName", "email", "buildAnswer", "xPostUrl", "farcasterPostUrl", "recaptchaToken"].includes(key)
+    (key) => !["fid", "sessionToken", "fullName", "email", "buildAnswer", "xPostUrl", "grant", "recaptchaToken"].includes(key)
   );
   if (hasUnexpectedKeys) return jsonSecure({ error: "Unexpected fields in payload" }, { status: 400 });
 
@@ -147,10 +147,11 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   const fullName = asString(body.fullName);
   const email = asString(body.email)?.toLowerCase() ?? "";
   const buildAnswer = asString(body.buildAnswer);
+  const referrerApplicationId = asPositiveInteger(body.grant);
   if (!fullName || fullName.length > 120) return jsonSecure({ error: "Full name is required." }, { status: 400 });
   if (!email || !EMAIL_REGEX.test(email)) return jsonSecure({ error: "A valid email is required." }, { status: 400 });
-  if (!buildAnswer || wordCount(buildAnswer) > 10) {
-    return jsonSecure({ error: "What are you building? must be 10 words or less." }, { status: 400 });
+  if (!buildAnswer || wordCount(buildAnswer) > 25) {
+    return jsonSecure({ error: "What are you building? must be 25 words or less." }, { status: 400 });
   }
 
   const emailRow = await context.env.WARPLETS.prepare(
@@ -168,6 +169,15 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     : null;
 
   const grantMonth = currentMonth();
+  const duplicateEmailRow = await context.env.WARPLETS.prepare(
+    "SELECT id FROM million_grant_applications WHERE email = ? AND grant_month = ? LIMIT 1"
+  )
+    .bind(email, grantMonth)
+    .first<{ id: number }>();
+  if (duplicateEmailRow) {
+    return jsonSecure({ error: "Email already matches a grant application for this month." }, { status: 409 });
+  }
+
   const ipHash = await sha256Hex(`million-grant-ip:v1:${context.env.SECURITY_LOG_SALT?.trim() ?? ""}:${ip}`);
   const blocked = await context.env.WARPLETS.prepare(
     "SELECT action FROM million_ip_controls WHERE ip_hash = ? LIMIT 1"
@@ -224,28 +234,30 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   const status = flags.length > 0 ? "pending_review" : "accepted";
   const now = new Date().toISOString();
   const xPostUrl = optionalUrl(body.xPostUrl);
-  const farcasterPostUrl = optionalUrl(body.farcasterPostUrl);
+  const farcasterPostUrl = null;
+  let validReferrerApplicationId: number | null = null;
+
+  if (referrerApplicationId && status === "accepted") {
+    const referrer = await context.env.WARPLETS.prepare(
+      `SELECT id, email
+       FROM million_grant_applications
+       WHERE id = ?
+         AND grant_month = ?
+         AND status = 'accepted'
+       LIMIT 1`
+    )
+      .bind(referrerApplicationId, grantMonth)
+      .first<{ id: number; email: string }>();
+    if (referrer && referrer.email.toLowerCase() !== email) {
+      validReferrerApplicationId = referrer.id;
+    }
+  }
 
   await context.env.WARPLETS.prepare(
     `INSERT INTO million_grant_applications (
-       grant_month, user_id, user_fid, full_name, email, build_answer, x_post_url, farcaster_post_url,
+       grant_month, user_id, user_fid, full_name, email, build_answer, x_post_url, farcaster_post_url, referrer_application_id,
        status, fraud_score, fraud_flags, recaptcha_score, neynar_score, cloudflare_threat_score, ip_hash, created_on, updated_on
-     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-     ON CONFLICT(email, grant_month) DO UPDATE SET
-       user_id = COALESCE(excluded.user_id, million_grant_applications.user_id),
-       user_fid = COALESCE(excluded.user_fid, million_grant_applications.user_fid),
-       full_name = excluded.full_name,
-       build_answer = excluded.build_answer,
-       x_post_url = excluded.x_post_url,
-       farcaster_post_url = excluded.farcaster_post_url,
-       status = excluded.status,
-       fraud_score = excluded.fraud_score,
-       fraud_flags = excluded.fraud_flags,
-       recaptcha_score = excluded.recaptcha_score,
-       neynar_score = excluded.neynar_score,
-       cloudflare_threat_score = excluded.cloudflare_threat_score,
-       ip_hash = excluded.ip_hash,
-       updated_on = excluded.updated_on`
+     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   )
     .bind(
       grantMonth,
@@ -256,6 +268,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       buildAnswer,
       xPostUrl,
       farcasterPostUrl,
+      validReferrerApplicationId,
       status,
       fraudScore,
       JSON.stringify(flags),
@@ -275,14 +288,20 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     .first<{ id: number }>();
 
   if (application) {
-    for (const [platform, postUrl] of [["x", xPostUrl], ["farcaster", farcasterPostUrl]] as const) {
-      if (!postUrl) continue;
+    if (validReferrerApplicationId && validReferrerApplicationId !== application.id) {
+      await context.env.WARPLETS.prepare(
+        "UPDATE million_grant_applications SET referrals_count = COALESCE(referrals_count, 0) + 1, updated_on = ? WHERE id = ?"
+      )
+        .bind(now, validReferrerApplicationId)
+        .run();
+    }
+    if (xPostUrl) {
       await context.env.WARPLETS.prepare(
         `INSERT INTO million_grant_share_posts (application_id, platform, post_url, created_on)
-         VALUES (?, ?, ?, ?)
+         VALUES (?, 'x', ?, ?)
          ON CONFLICT(application_id, platform) DO UPDATE SET post_url = excluded.post_url`
       )
-        .bind(application.id, platform, postUrl, now)
+        .bind(application.id, xPostUrl, now)
         .run();
     }
   }
@@ -290,6 +309,17 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   return jsonSecure({
     ok: true,
     grantMonth,
+    application: application
+      ? {
+          id: application.id,
+          status,
+          fullName,
+          email,
+          buildAnswer,
+          xPostUrl,
+          emailVerified: true,
+        }
+      : null,
     status,
     fraudScore,
     flags,

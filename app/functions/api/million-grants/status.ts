@@ -8,6 +8,14 @@ import { createActionSessionToken, jsonSecure, verifyActionSessionToken } from "
 
 type ConfigMap = Record<string, string>;
 type AvatarRow = { fid: number; username: string | null; pfp_url: string | null };
+type GrantReferrerRow = {
+  id: number;
+  full_name: string;
+  referrals_count: number;
+  fid: number | null;
+  username: string | null;
+  pfp_url: string | null;
+};
 type MetadataAvatarRow = {
   fid_value: number | null;
   warplet_username_farcaster: string | null;
@@ -162,6 +170,30 @@ async function loadApplicants(db: D1Database, grantMonth: string, viewerFid: num
   return applicants;
 }
 
+async function loadTopGrantReferrers(db: D1Database, grantMonth: string) {
+  const result = await db.prepare(
+    `SELECT mga.id, mga.full_name, COALESCE(mga.referrals_count, 0) AS referrals_count,
+            wu.fid, wu.username, wu.pfp_url
+     FROM million_grant_applications mga
+     LEFT JOIN warplets_users wu ON wu.id = mga.user_id
+     WHERE mga.grant_month = ?
+       AND COALESCE(mga.referrals_count, 0) > 0
+     ORDER BY mga.referrals_count DESC, mga.created_on ASC
+     LIMIT 10`
+  )
+    .bind(grantMonth)
+    .all<GrantReferrerRow>();
+
+  return (result.results ?? []).map((row) => ({
+    id: row.id,
+    fid: typeof row.fid === "number" ? row.fid : null,
+    username: row.username?.trim() || row.full_name,
+    pfpUrl: row.pfp_url?.trim() || null,
+    referrals: Number(row.referrals_count ?? 0),
+    hasProfile: typeof row.fid === "number",
+  }));
+}
+
 export const onRequestGet: PagesFunction<Env> = async (context) => {
   const url = new URL(context.request.url);
   const grantMonth = currentMonth();
@@ -174,13 +206,13 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     email: string;
     buildAnswer: string;
     xPostUrl: string | null;
-    farcasterPostUrl: string | null;
     emailVerified: boolean;
+    referrals: number;
   };
 
   if (fid) {
     const row = await context.env.WARPLETS.prepare(
-      `SELECT mga.id, mga.status, mga.full_name, mga.email, mga.build_answer, mga.x_post_url, mga.farcaster_post_url,
+      `SELECT mga.id, mga.status, mga.full_name, mga.email, mga.build_answer, mga.x_post_url, COALESCE(mga.referrals_count, 0) AS referrals_count,
               COALESCE(ew.verified, 0) AS email_verified
        FROM million_grant_applications mga
        LEFT JOIN email_waitlist ew ON LOWER(ew.email) = LOWER(mga.email)
@@ -196,7 +228,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         email: string;
         build_answer: string;
         x_post_url: string | null;
-        farcaster_post_url: string | null;
+        referrals_count: number;
         email_verified: number;
       }>();
 
@@ -208,8 +240,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         email: row.email,
         buildAnswer: row.build_answer,
         xPostUrl: row.x_post_url,
-        farcasterPostUrl: row.farcaster_post_url,
         emailVerified: row.email_verified === 1,
+        referrals: Number(row.referrals_count ?? 0),
       };
     }
   }
@@ -225,8 +257,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     recaptchaSiteKey: context.env.RECAPTCHA_SITE_KEY?.trim() || "",
     config: {
       xQuoteUrl: config.x_quote_url ?? "",
-      farcasterQuoteUrl: config.farcaster_quote_url ?? "",
     },
+    topReferrers: await loadTopGrantReferrers(context.env.WARPLETS, grantMonth),
   });
 };
 
