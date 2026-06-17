@@ -18,8 +18,8 @@ importers:
         specifier: ^1.22.1
         version: 1.22.1(@neynar/ui@1.2.2(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(tailwindcss@4.3.0))(bufferutil@4.1.0)(lucide-react@0.562.0(react@19.2.5))(react@19.2.5)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@4.3.6)
       '@farcaster/snap-hono':
-        specifier: ~1.5.12
-        version: 1.5.12(@neynar/ui@1.2.2(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(tailwindcss@4.3.0))(bufferutil@4.1.0)(hono@4.12.12)(lucide-react@0.562.0(react@19.2.5))(react@19.2.5)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@4.3.6)
+        specifier: ~2.1.5
+        version: 2.1.5(@neynar/ui@1.2.2(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(tailwindcss@4.3.0))(bufferutil@4.1.0)(hono@4.12.12)(lucide-react@0.562.0(react@19.2.5))(react@19.2.5)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@4.3.6)
       '@noble/curves':
         specifier: ^2.0.0
         version: 2.0.1
@@ -826,13 +826,31 @@ packages:
     peerDependencies:
       typescript: 5.8.3
 
-  '@farcaster/snap-hono@1.5.12':
-    resolution: {integrity: sha512-mzIUuLwuKyHwbCCGCOLRZjYFd0WQgvz7irwYoJbOgnUfVLUwEAf1fkhfYSjG57w9K+11YfPnXl7+iJ4dE9T9PA==}
+  '@farcaster/snap-hono@2.1.5':
+    resolution: {integrity: sha512-MWIrJg+aQh1/m3t2JeAQPreTKmHz5zR6pAIbcDKcC/NlYqeLbr+uOgKtqC7rZ482IKsxvvYraQ2i0Gqf8PtRaQ==}
     peerDependencies:
       hono: '>=4.0.0'
 
   '@farcaster/snap@1.22.1':
     resolution: {integrity: sha512-3UbwxfdyudrWRL+blYvYEV2/akIBGcsGxYe01UsTN42nL+EZiVPjOQTunJb2t/IKs1uIp6YMIVAZzVJ8tm3iuw==}
+    peerDependencies:
+      '@json-render/react': '*'
+      '@neynar/ui': '*'
+      lucide-react: '*'
+      react: 19.2.5
+      zod: ^4.0.0
+    peerDependenciesMeta:
+      '@json-render/react':
+        optional: true
+      '@neynar/ui':
+        optional: true
+      lucide-react:
+        optional: true
+      react:
+        optional: true
+
+  '@farcaster/snap@2.5.1':
+    resolution: {integrity: sha512-DEbaOUyt2BOlmOxRY0gjRKcqxd8TLMBvZ4RFFYwSSprZBa++WGBYGOijMIpNW3mbHSIBcbEOm1zyOKxlIU4Jtg==}
     peerDependencies:
       '@json-render/react': '*'
       '@neynar/ui': '*'
@@ -2189,6 +2207,14 @@ packages:
       typescript:
         optional: true
 
+  ox@0.14.20:
+    resolution: {integrity: sha512-rby38C3nDn8eQkf29Zgw4hkCZJ64Qqi0zRPWL8ENUQ7JVuoITqrVtwWQgM/He19SCMUEc7hS/Sjw0jIOSLJhOw==}
+    peerDependencies:
+      typescript: '>=5.4.0'
+    peerDependenciesMeta:
+      typescript:
+        optional: true
+
   pako@0.2.9:
     resolution: {integrity: sha512-NUcwaKxUxWrZLpDG+z/xZaCgQITkA/Dv4V/T6bw7VON6l1Xz/VnrBqrYjZQ12TamKHzITTfOEIYUj48y2KXImA==}
 
@@ -2498,6 +2524,14 @@ packages:
 
   viem@2.47.12:
     resolution: {integrity: sha512-tz3CBeGUMU357aZqzlHskgAiEoC3k0/PuEwBSOxh4EQ3uuNr4GJ2Gc67ArNYmdm4MVTVL+rsRdKYoqbloUva6g==}
+    peerDependencies:
+      typescript: '>=5.0.4'
+    peerDependenciesMeta:
+      typescript:
+        optional: true
+
+  viem@2.48.11:
+    resolution: {integrity: sha512-+WZ5E0dBS6GtKb+1wEk5DeYRRRW42+pFnXCo67Ydodf42sBwO+hu3wnQy66lc4MKmHz+llPVdbyehYr9oTE2iw==}
     peerDependencies:
       typescript: '>=5.0.4'
     peerDependenciesMeta:
@@ -3097,6 +3131,12 @@ snapshots:
       typescript: 5.9.3
       viem: 2.47.12(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@4.3.6)
 
+  '@farcaster/jfs@0.3.0(typescript@5.9.3)(viem@2.48.11(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@4.3.6))':
+    dependencies:
+      '@noble/curves': 2.0.1
+      typescript: 5.9.3
+      viem: 2.48.11(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@4.3.6)
+
   '@farcaster/miniapp-core@0.6.0(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6)':
     dependencies:
       '@solana/web3.js': 1.98.4(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6)
@@ -3140,9 +3180,9 @@ snapshots:
       typescript: 5.9.3
       zod: 3.25.76
 
-  '@farcaster/snap-hono@1.5.12(@neynar/ui@1.2.2(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(tailwindcss@4.3.0))(bufferutil@4.1.0)(hono@4.12.12)(lucide-react@0.562.0(react@19.2.5))(react@19.2.5)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@4.3.6)':
+  '@farcaster/snap-hono@2.1.5(@neynar/ui@1.2.2(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(tailwindcss@4.3.0))(bufferutil@4.1.0)(hono@4.12.12)(lucide-react@0.562.0(react@19.2.5))(react@19.2.5)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@4.3.6)':
     dependencies:
-      '@farcaster/snap': 1.22.1(@neynar/ui@1.2.2(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(tailwindcss@4.3.0))(bufferutil@4.1.0)(lucide-react@0.562.0(react@19.2.5))(react@19.2.5)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@4.3.6)
+      '@farcaster/snap': 2.5.1(@neynar/ui@1.2.2(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(tailwindcss@4.3.0))(bufferutil@4.1.0)(lucide-react@0.562.0(react@19.2.5))(react@19.2.5)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@4.3.6)
       '@resvg/resvg-wasm': 2.6.2
       hono: 4.12.12
       satori: 0.10.14
@@ -3161,6 +3201,21 @@ snapshots:
       '@farcaster/jfs': 0.3.0(typescript@5.9.3)(viem@2.47.12(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@4.3.6))
       '@json-render/core': 0.15.0(zod@4.3.6)
       viem: 2.47.12(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@4.3.6)
+      zod: 4.3.6
+    optionalDependencies:
+      '@neynar/ui': 1.2.2(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(tailwindcss@4.3.0)
+      lucide-react: 0.562.0(react@19.2.5)
+      react: 19.2.5
+    transitivePeerDependencies:
+      - bufferutil
+      - typescript
+      - utf-8-validate
+
+  '@farcaster/snap@2.5.1(@neynar/ui@1.2.2(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(tailwindcss@4.3.0))(bufferutil@4.1.0)(lucide-react@0.562.0(react@19.2.5))(react@19.2.5)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@4.3.6)':
+    dependencies:
+      '@farcaster/jfs': 0.3.0(typescript@5.9.3)(viem@2.48.11(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@4.3.6))
+      '@json-render/core': 0.15.0(zod@4.3.6)
+      viem: 2.48.11(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@4.3.6)
       zod: 4.3.6
     optionalDependencies:
       '@neynar/ui': 1.2.2(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(tailwindcss@4.3.0)
@@ -4373,6 +4428,21 @@ snapshots:
     transitivePeerDependencies:
       - zod
 
+  ox@0.14.20(typescript@5.9.3)(zod@4.3.6):
+    dependencies:
+      '@adraffy/ens-normalize': 1.11.1
+      '@noble/ciphers': 1.3.0
+      '@noble/curves': 1.9.1
+      '@noble/hashes': 1.8.0
+      '@scure/bip32': 1.7.0
+      '@scure/bip39': 1.6.0
+      abitype: 1.2.3(typescript@5.9.3)(zod@4.3.6)
+      eventemitter3: 5.0.1
+    optionalDependencies:
+      typescript: 5.9.3
+    transitivePeerDependencies:
+      - zod
+
   pako@0.2.9: {}
 
   parse-css-color@0.2.1:
@@ -4707,6 +4777,23 @@ snapshots:
       abitype: 1.2.3(typescript@5.9.3)(zod@4.3.6)
       isows: 1.0.7(ws@8.18.3(bufferutil@4.1.0)(utf-8-validate@6.0.6))
       ox: 0.14.13(typescript@5.9.3)(zod@4.3.6)
+      ws: 8.18.3(bufferutil@4.1.0)(utf-8-validate@6.0.6)
+    optionalDependencies:
+      typescript: 5.9.3
+    transitivePeerDependencies:
+      - bufferutil
+      - utf-8-validate
+      - zod
+
+  viem@2.48.11(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@4.3.6):
+    dependencies:
+      '@noble/curves': 1.9.1
+      '@noble/hashes': 1.8.0
+      '@scure/bip32': 1.7.0
+      '@scure/bip39': 1.6.0
+      abitype: 1.2.3(typescript@5.9.3)(zod@4.3.6)
+      isows: 1.0.7(ws@8.18.3(bufferutil@4.1.0)(utf-8-validate@6.0.6))
+      ox: 0.14.20(typescript@5.9.3)(zod@4.3.6)
       ws: 8.18.3(bufferutil@4.1.0)(utf-8-validate@6.0.6)
     optionalDependencies:
       typescript: 5.9.3
