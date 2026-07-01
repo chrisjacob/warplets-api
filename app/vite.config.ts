@@ -259,6 +259,9 @@ export default defineConfig({
   build: {
     chunkSizeWarningLimit: 700,
   },
+  optimizeDeps: {
+    exclude: ["@sqlite.org/sqlite-wasm"],
+  },
   plugins: [
     react(),
     tailwindcss(),

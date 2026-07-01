@@ -53,7 +53,7 @@ const APP_CONFIGS: Record<AppSlug, AppConfig> = {
   search: {
     slug: "search",
     appName: "10X Warplets Search",
-    headerTitle: "10X Warplets Search",
+    headerTitle: "10X Warplets",
     ctaLabel: "Coming soon...",
     absoluteUrl: "https://search.10x.meme/",
     iconUrl: "https://app.10x.meme/icon.png",
