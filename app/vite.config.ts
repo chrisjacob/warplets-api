@@ -168,6 +168,37 @@ function getReferralFid(query: string): string | undefined {
   return fid && /^\d+$/.test(fid) ? fid : undefined;
 }
 
+function getWarpletTokenId(query: string): string | undefined {
+  const params = new URLSearchParams(query.startsWith("?") ? query.slice(1) : query);
+  const tokenId = (params.get("warplet") ?? params.get("tokenId"))?.trim();
+  return tokenId && /^\d+$/.test(tokenId) ? tokenId : undefined;
+}
+
+function getFirstWarpletTokenId(query: string): string | undefined {
+  const params = new URLSearchParams(query.startsWith("?") ? query.slice(1) : query);
+  const tokenId = (params.get("first") ?? params.get("First"))?.trim();
+  return tokenId && /^\d+$/.test(tokenId) ? tokenId : undefined;
+}
+
+function getSearchResultsShareTitle(query: string): string | undefined {
+  const params = new URLSearchParams(query.startsWith("?") ? query.slice(1) : query);
+  if (!getFirstWarpletTokenId(query)) return undefined;
+
+  const rawCount = params.get("count")?.trim();
+  const count = rawCount && /^\d+$/.test(rawCount) ? Number.parseInt(rawCount, 10) : undefined;
+  const countText = count && Number.isSafeInteger(count) && count > 0
+    ? count.toLocaleString("en-US")
+    : undefined;
+  const label = (
+    params.get("search") ??
+    params.get("q") ??
+    params.get("random") ??
+    "Filtered"
+  ).trim() || "Filtered";
+
+  return countText ? `${countText} ${label} Warplets...` : `${label} Warplets...`;
+}
+
 function getLocalDropShareImageUrl(query: string): string {
   const fid = getReferralFid(query);
   if (!fid) return DEFAULT_DROP_SHARE_IMAGE_URL;
@@ -246,6 +277,26 @@ function buildStopOpenGraphTags(pageUrl: string): string {
   ].join("\n    ");
 }
 
+function buildSearchOpenGraphTags(titleText: string, imageUrl: string, pageUrl: string): string {
+  const title = escapeHtmlAttr(titleText);
+  const description = escapeHtmlAttr("Search, filter, and share 10X Warplets.");
+  const image = escapeHtmlAttr(imageUrl);
+  const url = escapeHtmlAttr(pageUrl);
+
+  return [
+    `<meta property="og:title" content="${title}" />`,
+    `<meta property="og:description" content="${description}" />`,
+    `<meta property="og:url" content="${url}" />`,
+    `<meta property="og:type" content="website" />`,
+    `<meta property="og:image" content="${image}" />`,
+    `<meta property="og:image:secure_url" content="${image}" />`,
+    `<meta name="twitter:card" content="summary_large_image" />`,
+    `<meta name="twitter:title" content="${title}" />`,
+    `<meta name="twitter:description" content="${description}" />`,
+    `<meta name="twitter:image" content="${image}" />`,
+  ].join("\n    ");
+}
+
 const localApiTarget = process.env.VITE_LOCAL_API_TARGET?.trim() || "http://127.0.0.1:8789";
 const MINIAPP_FRAME_ANCESTORS = [
   "'self'",
@@ -293,9 +344,22 @@ export default defineConfig({
         const config = getMiniAppConfig(routeKey);
         const launchPath = getLaunchPath(routeKey, baseHostname);
         const launchBase = launchPath === "/" ? `${baseUrl}/` : `${baseUrl}${launchPath}`;
+        const searchWarpletTokenId = routeKey === "search" ? getWarpletTokenId(query) : undefined;
+        const searchFirstWarpletTokenId =
+          routeKey === "search" && !searchWarpletTokenId ? getFirstWarpletTokenId(query) : undefined;
+        const searchWarpletTitle = searchWarpletTokenId ? `10X Warplet #${searchWarpletTokenId}` : undefined;
+        const searchResultsTitle = searchFirstWarpletTokenId ? getSearchResultsShareTitle(query) : undefined;
+        const searchShareTitle = searchWarpletTitle ?? searchResultsTitle;
+        const searchWarpletImageUrl = searchWarpletTokenId
+          ? `https://warplets.10x.meme/${searchWarpletTokenId}.gif`
+          : undefined;
+        const searchResultsImageUrl = searchFirstWarpletTokenId
+          ? `https://warplets.10x.meme/${searchFirstWarpletTokenId}.gif`
+          : undefined;
         const dropShareImageUrl =
           routeKey === "drop" ? getLocalDropShareImageUrl(query) : undefined;
-        const routeImageUrl = routeKey === "stop" ? STOP_IMAGE_URL : dropShareImageUrl;
+        const searchShareImageUrl = searchWarpletImageUrl ?? searchResultsImageUrl;
+        const routeImageUrl = routeKey === "stop" ? STOP_IMAGE_URL : searchShareImageUrl ?? dropShareImageUrl;
         const splashImageUrl =
           routeKey === "drop" ? `${baseUrl}/splash_drop.png` : `${baseUrl}/splash.png`;
 
@@ -303,10 +367,10 @@ export default defineConfig({
           version: "1",
           imageUrl: routeImageUrl ?? `${baseUrl}/embed.png`,
           button: {
-            title: config.title,
+            title: searchShareTitle ?? config.title,
             action: {
               type: "launch_miniapp",
-              name: config.name,
+              name: searchShareTitle ?? config.name,
               url: `${launchBase}${query}`,
               splashImageUrl,
               splashBackgroundColor: "#000000",
@@ -337,6 +401,17 @@ export default defineConfig({
           nextHtml = nextHtml.replace(
             "</head>",
             `    ${buildStopOpenGraphTags(`${baseUrl}${reqUrl}`)}\n  </head>`,
+          );
+        }
+
+        if (routeKey === "search" && searchShareTitle && searchShareImageUrl) {
+          const titleTag = `<title>${escapeHtmlText(searchShareTitle)}</title>`;
+          nextHtml = TITLE_REGEX.test(nextHtml)
+            ? nextHtml.replace(TITLE_REGEX, titleTag)
+            : nextHtml.replace("</head>", `    ${titleTag}\n  </head>`);
+          nextHtml = nextHtml.replace(
+            "</head>",
+            `    ${buildSearchOpenGraphTags(searchShareTitle, searchShareImageUrl, `${baseUrl}${reqUrl}`)}\n  </head>`,
           );
         }
 

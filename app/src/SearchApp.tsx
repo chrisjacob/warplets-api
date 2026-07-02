@@ -21,12 +21,19 @@ import {
   useMiniAppChrome,
 } from "./miniAppChrome.tsx";
 import MiniAppShell from "./MiniAppShell";
+import {
+  hapticPrimaryTap,
+  hapticSelectionChanged,
+  hapticSuccess,
+  hapticTap,
+} from "./haptics";
 
 const DB_URL = "/db/warplets.v1.fts.sqlite.br";
 const PAGE_SIZE = 20;
 const DB_FILENAME = "/warplets-search.sqlite3";
 const SEARCH_DEBOUNCE_MS = 300;
 const STATUS_LINE_CLASS = "text-center text-xs uppercase leading-4";
+const OPENSEA_COLLECTION_URL = "https://opensea.io/collection/10xwarplets";
 const EXAMPLE_SEARCHES = [
   "Wizard Hat",
   "Pink Bunny",
@@ -553,6 +560,37 @@ type SearchFilterOverride = {
   levels: number[];
 };
 
+type SearchUrlState = {
+  search: string;
+  attributes: LevelAttributeColumn[];
+  levels: number[];
+  random: string;
+  warplet: number | null;
+  first: number | null;
+};
+
+type MiniAppHistoryStateWithSearch = {
+  searchUrl?: {
+    signature: string;
+  };
+};
+
+const EMPTY_SEARCH_URL_STATE: SearchUrlState = {
+  search: "",
+  attributes: [],
+  levels: [],
+  random: "",
+  warplet: null,
+  first: null,
+};
+
+const ATTRIBUTE_PARAM_LOOKUP = new Map<string, LevelAttributeColumn>(
+  LEVEL_ATTRIBUTES.flatMap((attribute) => [
+    [attribute.column.toLowerCase(), attribute.column],
+    [attribute.label.toLowerCase(), attribute.column],
+  ]),
+);
+
 function getRandomExampleSearch(current?: string): string {
   let next = current;
   while (!next || next === current) {
@@ -659,6 +697,155 @@ function toggleValue<T>(values: T[], value: T): T[] {
     : [...values, value];
 }
 
+function splitParamValues(value: string | null): string[] {
+  return (value ?? "")
+    .split(/[|,]/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function parseAttributeParam(value: string | null): LevelAttributeColumn[] {
+  const next = new Set<LevelAttributeColumn>();
+  for (const item of splitParamValues(value)) {
+    const attribute = ATTRIBUTE_PARAM_LOOKUP.get(item.toLowerCase());
+    if (attribute) next.add(attribute);
+  }
+  return LEVEL_ATTRIBUTES
+    .map((attribute) => attribute.column)
+    .filter((attribute) => next.has(attribute));
+}
+
+function parseLevelParam(value: string | null): number[] {
+  const next = new Set<number>();
+  for (const item of splitParamValues(value)) {
+    const level = Number(item.replace(/x$/i, ""));
+    if (Number.isInteger(level) && LEVEL_OPTIONS.includes(level)) {
+      next.add(level);
+    }
+  }
+  return [...next].sort((a, b) => a - b);
+}
+
+function parseWarpletParam(value: string | null): number | null {
+  const tokenId = Number(value);
+  return Number.isInteger(tokenId) && tokenId > 0 ? tokenId : null;
+}
+
+function parseSearchUrlState(searchParams: URLSearchParams): SearchUrlState {
+  const search = (searchParams.get("search") ?? searchParams.get("q") ?? "").trim();
+  const attributes = parseAttributeParam(searchParams.get("attributes") ?? searchParams.get("attrs"));
+  const levels = parseLevelParam(searchParams.get("levels"));
+  const random = (searchParams.get("random") ?? "").trim();
+  const warplet = parseWarpletParam(searchParams.get("warplet") ?? searchParams.get("tokenId"));
+  const first = parseWarpletParam(searchParams.get("first") ?? searchParams.get("First"));
+
+  return {
+    search,
+    attributes,
+    levels,
+    random,
+    warplet,
+    first,
+  };
+}
+
+function serializeSearchUrlState(state: SearchUrlState): string {
+  const params = new URLSearchParams();
+  const search = state.search.trim();
+  const random = state.random.trim();
+
+  if (search) {
+    params.set("search", search);
+  }
+
+  if (state.attributes.length > 0) {
+    params.set("attributes", state.attributes.join(","));
+  }
+
+  if (state.levels.length > 0) {
+    params.set("levels", state.levels.join(","));
+  }
+
+  if (!search && state.attributes.length === 0 && state.levels.length === 0 && random) {
+    params.set("random", random);
+  }
+
+  if (state.warplet != null) {
+    params.set("warplet", String(state.warplet));
+  }
+
+  if (state.first != null) {
+    params.set("first", String(state.first));
+  }
+
+  return params.toString();
+}
+
+function buildSearchUrl(state: SearchUrlState): string {
+  const url = new URL(window.location.href);
+  const serialized = serializeSearchUrlState(state);
+  url.search = serialized ? `?${serialized}` : "";
+  return `${url.pathname}${url.search}${url.hash}`;
+}
+
+function buildSearchHref(state: SearchUrlState): string {
+  return new URL(buildSearchUrl(state), window.location.origin).href;
+}
+
+function getSearchUrlSignature(state: SearchUrlState): string {
+  return serializeSearchUrlState(state);
+}
+
+function hasDeepLinkState(state: SearchUrlState): boolean {
+  return Boolean(
+    state.search ||
+    state.attributes.length > 0 ||
+    state.levels.length > 0 ||
+    state.random ||
+    state.warplet != null ||
+    state.first != null,
+  );
+}
+
+function getEffectiveSearchText(state: SearchUrlState): string {
+  if (state.search) return state.search;
+  if (state.levels.length > 0) return "";
+  if (state.attributes.length > 0) return "";
+  return state.random;
+}
+
+function getSearchUrlStateFromAppState({
+  query,
+  selectedAttributes,
+  selectedLevels,
+  activeExampleSearch,
+  selectedWarpletDetails,
+}: {
+  query: string;
+  selectedAttributes: LevelAttributeColumn[];
+  selectedLevels: number[];
+  activeExampleSearch: string;
+  selectedWarpletDetails: WarpletDetails | null;
+}): SearchUrlState {
+  const search = query.trim();
+  const hasFilters = selectedAttributes.length > 0 || selectedLevels.length > 0;
+  return {
+    search,
+    attributes: selectedAttributes,
+    levels: selectedLevels,
+    random: search || hasFilters ? "" : activeExampleSearch,
+    warplet: selectedWarpletDetails?.id ?? null,
+    first: null,
+  };
+}
+
+function appendSearchShareParams(href: string, firstWarpletId: number, totalCount: number): string {
+  const url = new URL(href);
+  url.searchParams.set("first", String(firstWarpletId));
+  url.searchParams.set("count", String(totalCount));
+  return url.href;
+}
+
 function FilterDropdown({
   label,
   valueLabel,
@@ -688,7 +875,10 @@ function FilterDropdown({
     <div ref={containerRef} className="relative flex-1">
       <button
         type="button"
-        onClick={() => setIsOpen((current) => !current)}
+        onClick={() => {
+          void hapticTap();
+          setIsOpen((current) => !current);
+        }}
         className="flex min-h-11 w-full cursor-pointer items-center justify-between rounded-xl border border-[#00FF00]/25 bg-black/70 px-3 py-2 text-left text-sm text-[#00FF00]"
       >
         <span>{label}</span>
@@ -697,7 +887,15 @@ function FilterDropdown({
         </span>
       </button>
       {isOpen && (
-        <div className="absolute left-0 right-0 z-30 mt-2 overflow-visible rounded-xl border border-[#00FF00]/30 bg-black p-2 shadow-2xl">
+        <div
+          className="absolute left-0 right-0 z-30 mt-2 overflow-visible rounded-xl border border-[#00FF00]/30 bg-black p-2 shadow-2xl"
+          onChange={(event) => {
+            if (event.target instanceof HTMLInputElement && event.target.type === "checkbox") {
+              void hapticSelectionChanged();
+              window.setTimeout(() => setIsOpen(false), 0);
+            }
+          }}
+        >
           {children}
         </div>
       )}
@@ -842,8 +1040,12 @@ async function preloadResultImages(results: WarpletResult[]): Promise<void> {
   await Promise.all(results.map((result) => preloadImage(getWarpletImageUrl(result.id))));
 }
 
-function openExternalAsset(url: string) {
-  window.open(url, "_blank", "noopener,noreferrer");
+async function openExternalAsset(url: string) {
+  try {
+    await sdk.actions.openUrl(url);
+  } catch {
+    window.open(url, "_blank", "noopener,noreferrer");
+  }
 }
 
 function WarpletCard({
@@ -860,7 +1062,10 @@ function WarpletCard({
   return (
     <button
       type="button"
-      onClick={() => onOpen(warplet.id)}
+      onClick={() => {
+        void hapticPrimaryTap();
+        onOpen(warplet.id);
+      }}
       className="flex w-full min-w-0 cursor-pointer flex-col overflow-hidden rounded-[18px] border border-[#00FF00]/25 bg-[#041204]/90 p-0 text-left transition hover:-translate-y-px hover:border-[#00FF00]/50 hover:bg-[#071807]/95"
     >
       <img
@@ -879,11 +1084,13 @@ function WarpletCard({
 function WarpletDetailsModal({
   details,
   onClose,
+  onShare,
   onSearchTag,
   onLevelFilter,
 }: {
   details: WarpletDetails;
   onClose: () => void;
+  onShare: () => void;
   onSearchTag: (tag: string) => void;
   onLevelFilter: (attribute: LevelAttributeColumn, level: number) => void;
 }) {
@@ -901,6 +1108,7 @@ function WarpletDetailsModal({
 
   const handleOpenFarcasterProfile = () => {
     if (!farcasterFid) return;
+    void hapticTap();
     sdk.actions.viewProfile({ fid: farcasterFid }).catch((error) => {
       console.error("Failed to open Farcaster profile:", error);
     });
@@ -909,20 +1117,48 @@ function WarpletDetailsModal({
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/80 p-4 sm:items-center">
       <div className="max-h-[92vh] w-full max-w-md overflow-auto rounded-2xl border border-[#00FF00]/35 bg-black shadow-2xl">
-        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-[#00FF00]/20 bg-black px-4 py-3">
+        <div className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-[#00FF00]/20 bg-black px-4 py-3">
           <Text className="min-w-0 truncate text-base font-bold" style={{ color: "#00FF00" }}>
             <span>{details.title}</span>
             {details.username && (
               <span style={{ color: "rgb(139, 191, 139)" }}> @{details.username}</span>
             )}
           </Text>
-          <button
-            type="button"
-            onClick={onClose}
-            className="ml-3 rounded-lg border border-[#00FF00]/35 px-3 py-1 text-sm font-bold text-[#00FF00] hover:bg-[#041204]"
-          >
-            Close
-          </button>
+          <div className="flex shrink-0 items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                void hapticPrimaryTap();
+                onShare();
+              }}
+              className="h-9 rounded-lg border border-[#00FF00]/55 bg-[#00FF00] px-3 text-sm font-bold text-[rgb(0,80,0)] hover:bg-[#33ff33]"
+            >
+              Share
+            </button>
+            <button
+              type="button"
+              aria-label="Close details"
+              title="Close"
+              onClick={() => {
+                void hapticTap();
+                onClose();
+              }}
+              className="flex h-9 w-9 items-center justify-center rounded-lg border border-[#00FF00]/35 text-[#00FF00] hover:bg-[#041204]"
+            >
+              <svg
+                aria-hidden="true"
+                viewBox="0 0 24 24"
+                className="h-4 w-4"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.4"
+                strokeLinecap="round"
+              >
+                <path d="M6 6l12 12" />
+                <path d="M18 6L6 18" />
+              </svg>
+            </button>
+          </div>
         </div>
 
         <div className="p-4">
@@ -959,7 +1195,10 @@ function WarpletDetailsModal({
                     {target ? (
                       <button
                         type="button"
-                        onClick={() => onLevelFilter(target.attribute, target.level)}
+                        onClick={() => {
+                          void hapticSelectionChanged();
+                          onLevelFilter(target.attribute, target.level);
+                        }}
                         className="cursor-pointer rounded px-1 text-[#00FF00] underline-offset-2 hover:text-[#00FF00] hover:underline"
                       >
                         {value}
@@ -975,7 +1214,12 @@ function WarpletDetailsModal({
 
             <button
               type="button"
-              onClick={() => openExternalAsset(getOpenSeaUrl(details.id))}
+              onClick={() => {
+                void hapticPrimaryTap();
+                sdk.actions.openUrl(getOpenSeaUrl(details.id)).catch((error) => {
+                  console.error("Failed to open OpenSea in Farcaster:", error);
+                });
+              }}
               className="mt-4 w-full cursor-pointer rounded-[20px] border border-[#009900] bg-[#00FF00] px-5 py-3 text-center text-base font-bold text-[rgb(0,80,0)] shadow-[3px_6px_0_#008000] transition-all duration-100 hover:bg-[#33ff33] active:translate-x-[1px] active:translate-y-[3px] active:shadow-[1px_3px_0_#008000]"
             >
               View on OpenSea
@@ -1009,7 +1253,10 @@ function WarpletDetailsModal({
                           {target ? (
                             <button
                             type="button"
-                            onClick={() => onLevelFilter(target.attribute, target.level)}
+                            onClick={() => {
+                              void hapticSelectionChanged();
+                              onLevelFilter(target.attribute, target.level);
+                            }}
                             className="mt-1 max-w-full cursor-pointer truncate text-left text-xs font-bold text-[#00FF00] underline-offset-2 hover:text-[#00FF00] hover:underline"
                           >
                               {value}
@@ -1050,7 +1297,10 @@ function WarpletDetailsModal({
                         key={value}
                         type="button"
                         onClick={() => {
-                          if (value !== "-") onSearchTag(value);
+                          if (value !== "-") {
+                            void hapticSelectionChanged();
+                            onSearchTag(value);
+                          }
                         }}
                         className="rounded-full border border-[#00FF00]/25 bg-black/60 px-2 py-1 text-left text-[11px] text-[#00FF00] hover:border-[#00FF00]/60 hover:bg-[#041204]"
                       >
@@ -1088,7 +1338,12 @@ function WarpletDetailsModal({
               {xUsername && xUsername !== "-" && (
                 <button
                   type="button"
-                  onClick={() => openExternalAsset(`https://x.com/${encodeURIComponent(xUsername)}`)}
+                  onClick={() => {
+                    void hapticTap();
+                    openExternalAsset(`https://x.com/${encodeURIComponent(xUsername)}`).catch((error) => {
+                      console.error("Failed to open X profile:", error);
+                    });
+                  }}
                   className="w-full rounded-xl border border-[#00FF00]/25 bg-[#041204]/60 px-3 py-2 text-left hover:border-[#00FF00]/60 hover:bg-[#071807]"
                 >
                   <Text className="text-[10px] uppercase" style={{ color: "#8bbf8b" }}>
@@ -1103,7 +1358,12 @@ function WarpletDetailsModal({
               {wallet && wallet !== "-" && (
                 <button
                   type="button"
-                  onClick={() => openExternalAsset(`https://basescan.org/address/${wallet}`)}
+                  onClick={() => {
+                    void hapticTap();
+                    openExternalAsset(`https://basescan.org/address/${wallet}`).catch((error) => {
+                      console.error("Failed to open wallet:", error);
+                    });
+                  }}
                   className="w-full rounded-xl border border-[#00FF00]/25 bg-[#041204]/60 px-3 py-2 text-left hover:border-[#00FF00]/60 hover:bg-[#071807]"
                 >
                   <Text className="text-[10px] uppercase" style={{ color: "#8bbf8b" }}>
@@ -1121,7 +1381,12 @@ function WarpletDetailsModal({
                 <button
                   key={asset.ext}
                   type="button"
-                  onClick={() => openExternalAsset(getWarpletAssetUrl(details.id, asset.ext))}
+                  onClick={() => {
+                    void hapticTap();
+                    openExternalAsset(getWarpletAssetUrl(details.id, asset.ext)).catch((error) => {
+                      console.error(`Failed to open ${asset.ext} asset:`, error);
+                    });
+                  }}
                   className="rounded-xl border border-[#00FF00]/30 bg-[#041204]/90 px-3 py-2 text-left text-xs text-[#00FF00] hover:border-[#00FF00]/60 hover:bg-[#071807]"
                 >
                   <span className="block font-bold">{asset.label}</span>
@@ -1136,7 +1401,6 @@ function WarpletDetailsModal({
 }
 
 export default function SearchApp() {
-  const [showOpenInFarcaster, setShowOpenInFarcaster] = useState(false);
   const [dbReady, setDbReady] = useState(false);
   const [dbError, setDbError] = useState("");
   const [viewerFid, setViewerFid] = useState<number | null>(null);
@@ -1155,7 +1419,59 @@ export default function SearchApp() {
   const searchRunRef = useRef(0);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const urlHydratedRef = useRef(false);
+  const applyingUrlStateRef = useRef(false);
+  const lastUrlSignatureRef = useRef("");
   const { isMenuRoute, canGoBack, actions } = useMiniAppChrome("search");
+
+  const updateSearchUrl = useCallback((state: SearchUrlState, mode: "push" | "replace") => {
+    const signature = getSearchUrlSignature(state);
+    if (signature === lastUrlSignatureRef.current && mode === "push") return;
+
+    const historyState = {
+      ...(window.history.state ?? {}),
+      searchUrl: {
+        signature,
+      },
+    } satisfies MiniAppHistoryStateWithSearch & Record<string, unknown>;
+    const nextUrl = buildSearchUrl(state);
+
+    if (mode === "replace") {
+      window.history.replaceState(historyState, "", nextUrl);
+    } else {
+      window.history.pushState(historyState, "", nextUrl);
+    }
+
+    lastUrlSignatureRef.current = signature;
+  }, []);
+
+  const loadWarpletDetails = useCallback(async (tokenId: number) => {
+    const db = dbRef.current;
+    if (!db) return null;
+
+    try {
+      const rows = db.exec(
+        `SELECT
+           w.id,
+           ${DETAIL_FIELDS.map((field) => `w."${field.column}" AS "${field.key}"`).join(",\n           ")}
+         FROM warplets w
+         WHERE w.id = ?
+         LIMIT 1`,
+        {
+          bind: [tokenId],
+          rowMode: "object",
+          returnValue: "resultRows",
+        },
+      );
+      const details = mapDetails(rows[0] as Record<string, unknown> | undefined);
+      if (!details) return null;
+      await preloadImage(getWarpletAssetUrl(details.id, "avif"));
+      return details;
+    } catch (err) {
+      console.error("Failed to load Warplet details:", err);
+      return null;
+    }
+  }, []);
 
   useEffect(() => {
     let shouldCallReady = false;
@@ -1166,7 +1482,6 @@ export default function SearchApp() {
           typeof sdk.isInMiniApp === "function" ? await sdk.isInMiniApp() : true;
 
         if (!inMiniApp) {
-          setShowOpenInFarcaster(true);
           return;
         }
 
@@ -1183,9 +1498,7 @@ export default function SearchApp() {
           normalized.includes("can't access property \"user\"") ||
           normalized.includes("cannot read properties of undefined");
 
-        if (looksLikeBrowserLaunch) {
-          setShowOpenInFarcaster(true);
-        }
+        if (looksLikeBrowserLaunch) return;
       } finally {
         if (shouldCallReady) {
           sdk.actions.ready();
@@ -1217,6 +1530,7 @@ export default function SearchApp() {
 
         dbRef.current = db;
         setDbReady(true);
+        void hapticSuccess();
       } catch (err) {
         console.error("Failed to load Warplets search database:", err);
         if (!cancelled) {
@@ -1385,6 +1699,7 @@ export default function SearchApp() {
       setSubmittedQuery(nextQuery.trim());
       setTotalResults(nextTotal);
       setResults((current) => (offset === 0 ? nextRows : [...current, ...nextRows]));
+      void hapticSuccess();
     } catch (err) {
       console.error("Warplets search failed:", err);
       if (searchRunRef.current === runId) {
@@ -1397,9 +1712,78 @@ export default function SearchApp() {
     }
   }, [selectedAttributes, selectedLevels]);
 
+  const applySearchUrlState = useCallback(async (state: SearchUrlState) => {
+    if (!dbReady || !dbRef.current) return;
+
+    applyingUrlStateRef.current = true;
+    searchRunRef.current += 1;
+
+    const nextState = {
+      ...EMPTY_SEARCH_URL_STATE,
+      ...state,
+    };
+    const nextRandom = nextState.random || activeExampleSearch;
+    const nextSearchText = getEffectiveSearchText({
+      ...nextState,
+      random: nextRandom,
+    });
+    const hasLevelFilter = nextState.levels.length > 0;
+    const hasAttributeFilter = nextState.attributes.length > 0;
+    const isRandomMode = !nextState.search && !hasAttributeFilter && !hasLevelFilter && Boolean(nextSearchText);
+
+    setQuery(nextState.search);
+    setActiveExampleSearch(nextRandom);
+    setSelectedAttributes(nextState.attributes);
+    setSelectedLevels(nextState.levels);
+    setSelectedWarpletDetails(null);
+    setSearchError("");
+    setIsSearching(false);
+
+    if (nextSearchText || hasAttributeFilter || hasLevelFilter) {
+      await runSearch(
+        nextSearchText,
+        0,
+        { attributes: nextState.attributes, levels: nextState.levels },
+        isRandomMode && matchedWarplet ? PAGE_SIZE - 1 : PAGE_SIZE,
+      );
+    } else {
+      setResults([]);
+      setTotalResults(0);
+      setSubmittedQuery("");
+    }
+
+    if (nextState.warplet != null) {
+      const details = await loadWarpletDetails(nextState.warplet);
+      if (details) setSelectedWarpletDetails(details);
+    }
+
+    applyingUrlStateRef.current = false;
+  }, [activeExampleSearch, dbReady, loadWarpletDetails, matchedWarplet, runSearch]);
+
   useEffect(() => {
-    if (!dbReady) return;
+    if (!dbReady || urlHydratedRef.current) return;
+
+    const parsed = parseSearchUrlState(new URLSearchParams(window.location.search));
+    const hasUrlState = hasDeepLinkState(parsed);
+    const initialState = hasUrlState
+      ? parsed
+      : {
+        ...parsed,
+        random: activeExampleSearch,
+      };
+
+    urlHydratedRef.current = true;
+    lastUrlSignatureRef.current = getSearchUrlSignature(initialState);
+    if (!hasUrlState) {
+      updateSearchUrl(initialState, "replace");
+    }
+    void applySearchUrlState(initialState);
+  }, [activeExampleSearch, applySearchUrlState, dbReady, updateSearchUrl]);
+
+  useEffect(() => {
+    if (!dbReady || !urlHydratedRef.current || applyingUrlStateRef.current) return;
     const timeoutId = window.setTimeout(() => {
+      if (applyingUrlStateRef.current) return;
       const hasQuery = query.trim().length > 0;
       const hasLevelFilter = selectedLevels.length > 0;
       const isExampleSearch = !hasQuery && !hasLevelFilter && selectedAttributes.length === 0;
@@ -1415,6 +1799,45 @@ export default function SearchApp() {
     }, SEARCH_DEBOUNCE_MS);
     return () => window.clearTimeout(timeoutId);
   }, [activeExampleSearch, dbReady, matchedWarplet, query, runSearch, selectedAttributes.length, selectedLevels.length]);
+
+  useEffect(() => {
+    if (!dbReady || !urlHydratedRef.current) return;
+
+    const handlePopState = () => {
+      const nextState = parseSearchUrlState(new URLSearchParams(window.location.search));
+      lastUrlSignatureRef.current = getSearchUrlSignature(nextState);
+      void applySearchUrlState(nextState);
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, [applySearchUrlState, dbReady]);
+
+  useEffect(() => {
+    if (!dbReady || !urlHydratedRef.current || applyingUrlStateRef.current) return;
+
+    const timeoutId = window.setTimeout(() => {
+      if (applyingUrlStateRef.current) return;
+      const nextState = getSearchUrlStateFromAppState({
+        query,
+        selectedAttributes,
+        selectedLevels,
+        activeExampleSearch,
+        selectedWarpletDetails,
+      });
+      updateSearchUrl(nextState, "push");
+    }, SEARCH_DEBOUNCE_MS);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [
+    activeExampleSearch,
+    dbReady,
+    query,
+    selectedAttributes,
+    selectedLevels,
+    selectedWarpletDetails,
+    updateSearchUrl,
+  ]);
 
   useEffect(() => {
     if (!dbReady || isMenuRoute) return;
@@ -1444,6 +1867,8 @@ export default function SearchApp() {
   const selectedLevelLabel = selectedLevels.length === 0
     ? "Any"
     : selectedLevels.map((level) => `${level}X`).join(", ");
+  const searchResultsShareLabel = (query.trim() || submittedQuery.trim() || (isExampleSearchMode ? activeExampleSearch : "") || "Filtered").trim();
+  const searchResultsShareTitle = `${displayedTotalResults.toLocaleString("en-US")} ${searchResultsShareLabel} Warplets...`;
 
   const handleToggleAttribute = (column: LevelAttributeColumn) => {
     setSelectedAttributes((current) => {
@@ -1459,6 +1884,7 @@ export default function SearchApp() {
   };
 
   const handleResetSearch = () => {
+    void hapticPrimaryTap();
     setQuery("");
     setSelectedAttributes([]);
     setSelectedLevels([]);
@@ -1472,6 +1898,7 @@ export default function SearchApp() {
   };
 
   const handleRandomExampleSearch = () => {
+    void hapticPrimaryTap();
     const nextExample = getRandomExampleSearch(activeExampleSearch);
     setActiveExampleSearch(nextExample);
     setQuery("");
@@ -1489,31 +1916,9 @@ export default function SearchApp() {
   };
 
   const handleOpenWarpletDetails = useCallback(async (tokenId: number) => {
-    const db = dbRef.current;
-    if (!db) return;
-
-    try {
-      const rows = db.exec(
-        `SELECT
-           w.id,
-           ${DETAIL_FIELDS.map((field) => `w."${field.column}" AS "${field.key}"`).join(",\n           ")}
-         FROM warplets w
-         WHERE w.id = ?
-         LIMIT 1`,
-        {
-          bind: [tokenId],
-          rowMode: "object",
-          returnValue: "resultRows",
-        },
-      );
-      const details = mapDetails(rows[0] as Record<string, unknown> | undefined);
-      if (!details) return;
-      await preloadImage(getWarpletAssetUrl(details.id, "avif"));
-      setSelectedWarpletDetails(details);
-    } catch (err) {
-      console.error("Failed to load Warplet details:", err);
-    }
-  }, []);
+    const details = await loadWarpletDetails(tokenId);
+    if (details) setSelectedWarpletDetails(details);
+  }, [loadWarpletDetails]);
 
   const handleSearchTag = useCallback((tag: string) => {
     setSelectedWarpletDetails(null);
@@ -1532,6 +1937,72 @@ export default function SearchApp() {
     void runSearch("", 0, { attributes: nextAttributes, levels: nextLevels });
     window.setTimeout(() => searchInputRef.current?.focus(), 0);
   }, [runSearch]);
+
+  const handleShareWarpletDetails = useCallback((tokenId: number) => {
+    const shareState = getSearchUrlStateFromAppState({
+      query,
+      selectedAttributes,
+      selectedLevels,
+      activeExampleSearch,
+      selectedWarpletDetails,
+    });
+    shareState.warplet = tokenId;
+    const shareUrl = buildSearchHref(shareState);
+    updateSearchUrl(shareState, "replace");
+
+    sdk.actions.composeCast({
+      text: `Check out 10X Warplet #${tokenId}`,
+      embeds: [shareUrl, getOpenSeaUrl(tokenId)],
+    }).catch((error) => {
+      console.error("Failed to compose Warplet share cast:", error);
+    });
+  }, [
+    activeExampleSearch,
+    query,
+    selectedAttributes,
+    selectedLevels,
+    selectedWarpletDetails,
+    updateSearchUrl,
+  ]);
+
+  const handleShareSearchResults = useCallback(() => {
+    const sharePreviewWarplet = shouldPrependMatchedWarplet
+      ? displayedResults[1] ?? displayedResults[0]
+      : displayedResults[0];
+    const firstWarpletId = sharePreviewWarplet?.id;
+    if (!firstWarpletId || displayedTotalResults <= 0) return;
+
+    const shareState = getSearchUrlStateFromAppState({
+      query,
+      selectedAttributes,
+      selectedLevels,
+      activeExampleSearch,
+      selectedWarpletDetails: null,
+    });
+    shareState.first = firstWarpletId;
+
+    const shareUrl = appendSearchShareParams(
+      buildSearchHref(shareState),
+      firstWarpletId,
+      displayedTotalResults,
+    );
+
+    sdk.actions.composeCast({
+      text: searchResultsShareTitle,
+      embeds: [shareUrl, OPENSEA_COLLECTION_URL],
+    }).catch((error) => {
+      console.error("Failed to compose search results share cast:", error);
+    });
+  }, [
+    activeExampleSearch,
+    displayedResults,
+    displayedTotalResults,
+    query,
+    searchResultsShareTitle,
+    selectedAttributes,
+    selectedLevels,
+    shouldPrependMatchedWarplet,
+  ]);
 
   useEffect(() => {
     if (!canLoadMore || isSearching || !hasActiveSearchOrFilter) return;
@@ -1633,7 +2104,7 @@ export default function SearchApp() {
                       type="checkbox"
                       checked={selectedAttributes.includes(attribute.column)}
                       onChange={() => handleToggleAttribute(attribute.column)}
-                      className="h-4 w-4 accent-[#00FF00]"
+                      className="h-4 w-4 appearance-none rounded border border-[#0F0] bg-[rgba(0,255,0,0.12)] checked:appearance-auto checked:accent-[#00FF00]"
                     />
                     <span aria-hidden="true">{attribute.emoji}</span>
                     {attribute.label}
@@ -1651,7 +2122,7 @@ export default function SearchApp() {
                       type="checkbox"
                       checked={selectedLevels.includes(level)}
                       onChange={() => handleToggleLevel(level)}
-                      className="h-4 w-4 accent-[#00FF00]"
+                      className="h-4 w-4 appearance-none rounded border border-[#0F0] bg-[rgba(0,255,0,0.12)] checked:appearance-auto checked:accent-[#00FF00]"
                     />
                     {level}X
                   </label>
@@ -1668,12 +2139,6 @@ export default function SearchApp() {
             {dbError && (
               <Text className="mt-2 text-xs text-red-400">
                 {dbError}
-              </Text>
-            )}
-
-            {showOpenInFarcaster && (
-              <Text className="mt-3 text-xs" style={{ color: "#7ddf7d" }}>
-                Open this mini app inside Farcaster to preview the full experience.
               </Text>
             )}
 
@@ -1702,10 +2167,25 @@ export default function SearchApp() {
             )}
 
             {displayedTotalResults > 0 && (
-              <div className="mt-5">
-                <Text className={STATUS_LINE_CLASS} style={{ color: "#00FF00" }}>
-                  {displayedResults.length} of {displayedTotalResults} results
-                </Text>
+              <div className="mt-3">
+                <div className="grid grid-cols-2 gap-2">
+                  <div aria-hidden="true" />
+                  <div className="flex min-w-0 items-center justify-end gap-2">
+                    <Text className="whitespace-nowrap text-center text-xs leading-4" style={{ color: "#00FF00" }}>
+                      {displayedTotalResults.toLocaleString("en-US")} Warplets
+                    </Text>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        void hapticPrimaryTap();
+                        handleShareSearchResults();
+                      }}
+                      className="h-8 shrink-0 rounded-lg border border-[#00FF00]/55 bg-[#00FF00] px-3 text-xs font-bold text-[rgb(0,80,0)] hover:bg-[#33ff33]"
+                    >
+                      Share
+                    </button>
+                  </div>
+                </div>
 
                 <div className="mt-3 grid grid-cols-2 gap-3">
                   {displayedResults.map((warplet, index) => (
@@ -1734,6 +2214,7 @@ export default function SearchApp() {
         <WarpletDetailsModal
           details={selectedWarpletDetails}
           onClose={() => setSelectedWarpletDetails(null)}
+          onShare={() => handleShareWarpletDetails(selectedWarpletDetails.id)}
           onSearchTag={handleSearchTag}
           onLevelFilter={handleLevelFilter}
         />

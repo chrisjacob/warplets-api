@@ -193,6 +193,40 @@ function getReferralFid(searchParams: URLSearchParams): number | undefined {
   return Number.isSafeInteger(fid) && fid > 0 ? fid : undefined;
 }
 
+function getWarpletTokenId(searchParams: URLSearchParams): number | undefined {
+  const rawTokenId = (searchParams.get("warplet") ?? searchParams.get("tokenId"))?.trim();
+  if (!rawTokenId || !/^\d+$/.test(rawTokenId)) return undefined;
+
+  const tokenId = Number.parseInt(rawTokenId, 10);
+  return Number.isSafeInteger(tokenId) && tokenId > 0 ? tokenId : undefined;
+}
+
+function getFirstWarpletTokenId(searchParams: URLSearchParams): number | undefined {
+  const rawTokenId = (searchParams.get("first") ?? searchParams.get("First"))?.trim();
+  if (!rawTokenId || !/^\d+$/.test(rawTokenId)) return undefined;
+
+  const tokenId = Number.parseInt(rawTokenId, 10);
+  return Number.isSafeInteger(tokenId) && tokenId > 0 ? tokenId : undefined;
+}
+
+function getSearchResultsShareTitle(searchParams: URLSearchParams): string | undefined {
+  if (!getFirstWarpletTokenId(searchParams)) return undefined;
+
+  const rawCount = searchParams.get("count")?.trim();
+  const count = rawCount && /^\d+$/.test(rawCount) ? Number.parseInt(rawCount, 10) : undefined;
+  const countText = count && Number.isSafeInteger(count) && count > 0
+    ? count.toLocaleString("en-US")
+    : undefined;
+  const label = (
+    searchParams.get("search") ??
+    searchParams.get("q") ??
+    searchParams.get("random") ??
+    "Filtered"
+  ).trim() || "Filtered";
+
+  return countText ? `${countText} ${label} Warplets...` : `${label} Warplets...`;
+}
+
 async function getDropShareImageUrl(
   env: PagesEnv,
   searchParams: URLSearchParams,
@@ -246,6 +280,8 @@ function buildMiniAppMetaContent(
   pathname: string,
   search: string,
   imageUrl?: string,
+  buttonTitle?: string,
+  actionName?: string,
 ): string {
   const base = normalizeBase(origin);
   const hostname = new URL(origin).hostname;
@@ -261,10 +297,10 @@ function buildMiniAppMetaContent(
     version: "1",
     imageUrl: imageUrl ?? `${base}/embed.png`,
     button: {
-      title: config.title,
+      title: buttonTitle ?? config.title,
       action: {
         type: "launch_miniapp",
-        name: config.name,
+        name: actionName ?? config.name,
         url: launchUrl,
         splashImageUrl,
         splashBackgroundColor: "#000000",
@@ -315,6 +351,26 @@ function buildStopOpenGraphTags(pageUrl: string): string {
   ].join("\n  ");
 }
 
+function buildSearchOpenGraphTags(titleText: string, imageUrl: string, pageUrl: string): string {
+  const title = escapeHtmlAttr(titleText);
+  const description = escapeHtmlAttr("Search, filter, and share 10X Warplets.");
+  const image = escapeHtmlAttr(imageUrl);
+  const url = escapeHtmlAttr(pageUrl);
+
+  return [
+    `<meta property="og:title" content="${title}" />`,
+    `<meta property="og:description" content="${description}" />`,
+    `<meta property="og:url" content="${url}" />`,
+    `<meta property="og:type" content="website" />`,
+    `<meta property="og:image" content="${image}" />`,
+    `<meta property="og:image:secure_url" content="${image}" />`,
+    `<meta name="twitter:card" content="summary_large_image" />`,
+    `<meta name="twitter:title" content="${title}" />`,
+    `<meta name="twitter:description" content="${description}" />`,
+    `<meta name="twitter:image" content="${image}" />`,
+  ].join("\n  ");
+}
+
 export const onRequestGet: PagesFunction<PagesEnv> = async (context) => {
   const requestUrl = new URL(context.request.url);
 
@@ -334,17 +390,34 @@ export const onRequestGet: PagesFunction<PagesEnv> = async (context) => {
   }
 
   const routeKey = getRouteKey(requestUrl.hostname, requestUrl.pathname);
+  const searchWarpletTokenId = routeKey === "search" ? getWarpletTokenId(requestUrl.searchParams) : undefined;
+  const searchFirstWarpletTokenId =
+    routeKey === "search" && !searchWarpletTokenId ? getFirstWarpletTokenId(requestUrl.searchParams) : undefined;
+  const searchWarpletTitle = searchWarpletTokenId ? `10X Warplet #${searchWarpletTokenId}` : undefined;
+  const searchResultsTitle = searchFirstWarpletTokenId
+    ? getSearchResultsShareTitle(requestUrl.searchParams)
+    : undefined;
+  const searchShareTitle = searchWarpletTitle ?? searchResultsTitle;
+  const searchWarpletImageUrl = searchWarpletTokenId
+    ? `https://warplets.10x.meme/${searchWarpletTokenId}.gif`
+    : undefined;
+  const searchResultsImageUrl = searchFirstWarpletTokenId
+    ? `https://warplets.10x.meme/${searchFirstWarpletTokenId}.gif`
+    : undefined;
   const dropShareImageUrl =
     routeKey === "drop"
       ? await getDropShareImageUrl(context.env, requestUrl.searchParams)
       : undefined;
-  const routeImageUrl = routeKey === "stop" ? STOP_IMAGE_URL : dropShareImageUrl;
+  const searchShareImageUrl = searchWarpletImageUrl ?? searchResultsImageUrl;
+  const routeImageUrl = routeKey === "stop" ? STOP_IMAGE_URL : searchShareImageUrl ?? dropShareImageUrl;
   const metaContent = escapeHtmlAttr(
     buildMiniAppMetaContent(
       requestUrl.origin,
       requestUrl.pathname,
       requestUrl.search,
       routeImageUrl,
+      searchShareTitle,
+      searchShareTitle,
     )
   );
   const metaTag = `<meta name="fc:miniapp" content="${metaContent}" />`;
@@ -370,6 +443,17 @@ export const onRequestGet: PagesFunction<PagesEnv> = async (context) => {
       ? html.replace(TITLE_REGEX, titleTag)
       : html.replace("</head>", `  ${titleTag}\n  </head>`);
     html = html.replace("</head>", `  ${buildStopOpenGraphTags(requestUrl.href)}\n  </head>`);
+  }
+
+  if (routeKey === "search" && searchShareTitle && searchShareImageUrl) {
+    const titleTag = `<title>${escapeHtmlText(searchShareTitle)}</title>`;
+    html = TITLE_REGEX.test(html)
+      ? html.replace(TITLE_REGEX, titleTag)
+      : html.replace("</head>", `  ${titleTag}\n  </head>`);
+    html = html.replace(
+      "</head>",
+      `  ${buildSearchOpenGraphTags(searchShareTitle, searchShareImageUrl, requestUrl.href)}\n  </head>`,
+    );
   }
 
   const headers = new Headers(response.headers);
