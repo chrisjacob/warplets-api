@@ -600,6 +600,17 @@ function getRandomExampleSearch(current?: string): string {
 }
 
 function normalizeFtsQuery(value: string): string {
+  const trimmed = value.trim();
+  if (trimmed.startsWith("\"") && trimmed.endsWith("\"") && trimmed.length > 1) {
+    return trimmed
+      .slice(1, -1)
+      .trim()
+      .replace(/["']/g, "")
+      .split(/\s+/)
+      .filter(Boolean)
+      .join("+");
+  }
+
   return value
     .trim()
     .split(/\s+/)
@@ -689,6 +700,10 @@ function buildLevelFilter(
     sql: `(${attributes.map((attribute) => `w.${attribute} IN (${placeholders})`).join(" OR ")})`,
     bind: attributes.flatMap(() => selectedLevels),
   };
+}
+
+function getRankColumnForLevelAttribute(attribute: LevelAttributeColumn | undefined): string | null {
+  return attribute ? attribute.replace(/_level$/, "_rank") : null;
 }
 
 function toggleValue<T>(values: T[], value: T): T[] {
@@ -1611,10 +1626,13 @@ export default function SearchApp() {
     const activeAttributes = filterOverride?.attributes ?? selectedAttributes;
     const activeLevels = filterOverride?.levels ?? selectedLevels;
     const levelFilter = buildLevelFilter(activeAttributes, activeLevels);
+    const hasAttributeOnlyFilter = activeAttributes.length > 0 && activeLevels.length === 0;
+    const attributeOnlyRankColumn =
+      !ftsQuery && hasAttributeOnlyFilter ? getRankColumnForLevelAttribute(activeAttributes[0]) : null;
     const runId = searchRunRef.current + 1;
     searchRunRef.current = runId;
 
-    if (!db || (!ftsQuery && !levelFilter)) {
+    if (!db || (!ftsQuery && !levelFilter && !hasAttributeOnlyFilter)) {
       setResults([]);
       setTotalResults(0);
       setSubmittedQuery(nextQuery.trim());
@@ -1633,8 +1651,8 @@ export default function SearchApp() {
            JOIN warplets w ON w.id = warplets_fts.rowid
            WHERE warplets_fts MATCH ?${levelFilter ? ` AND ${levelFilter.sql}` : ""}`
         : `SELECT COUNT(*)
-           FROM warplets w
-           WHERE ${levelFilter?.sql}`;
+           FROM warplets w${levelFilter ? `
+           WHERE ${levelFilter.sql}` : ""}`;
       const countBind = ftsQuery
         ? [ftsQuery, ...(levelFilter?.bind ?? [])]
         : [...(levelFilter?.bind ?? [])];
@@ -1676,9 +1694,9 @@ export default function SearchApp() {
              w.warplet_username_farcaster,
              w.warplet_username_x,
              w.warplet_wallet
-           FROM warplets w
-           WHERE ${levelFilter?.sql}
-           ORDER BY w.id ASC
+           FROM warplets w${levelFilter ? `
+           WHERE ${levelFilter.sql}` : ""}
+           ORDER BY ${attributeOnlyRankColumn ? `w."${attributeOnlyRankColumn}" ASC, ` : ""}w.id ASC
            LIMIT ? OFFSET ?`;
       const resultBind = ftsQuery
         ? [ftsQuery, ...(levelFilter?.bind ?? []), limit, offset]
