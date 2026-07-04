@@ -16,6 +16,11 @@ button {
   font-family: inherit;
 }
 
+:where(a, button, input, select, textarea, [role="button"], [tabindex]):focus-visible {
+  outline: 0;
+  box-shadow: 0 0 0 2px #0F0, 0 0 12px rgba(0, 255, 0, 0.55);
+}
+
 .brand-bg-video {
   position: fixed;
   inset: 0;

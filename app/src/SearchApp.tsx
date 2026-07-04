@@ -1,4 +1,4 @@
-import { ReactNode, useCallback, useEffect, useRef, useState } from "react";
+import { ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   FloatingPortal,
   autoUpdate,
@@ -30,10 +30,17 @@ import {
 
 const DB_URL = "/db/warplets.v1.fts.sqlite.br";
 const PAGE_SIZE = 20;
+const SEARCH_RESULT_LIMIT = 10000;
 const DB_FILENAME = "/warplets-search.sqlite3";
 const SEARCH_DEBOUNCE_MS = 300;
 const STATUS_LINE_CLASS = "text-center text-xs uppercase leading-4";
 const OPENSEA_COLLECTION_URL = "https://opensea.io/collection/10xwarplets";
+const MARKET_CACHE_KEY = "warplets-market-state-v1";
+const MARKET_SNAPSHOT_STALE_MS = 10 * 60 * 1000;
+const MARKET_DETAIL_STALE_MS = 30 * 60 * 1000;
+const MARKET_CACHE_MAX_STALE_MS = 60 * 60 * 1000;
+const BASE_WETH_TOKEN_ADDRESS = "0x4200000000000000000000000000000000000006";
+const NATIVE_TOKEN_ADDRESS = "0x0000000000000000000000000000000000000000";
 const EXAMPLE_SEARCHES = [
   "Wizard Hat",
   "Pink Bunny",
@@ -418,7 +425,7 @@ const ATTRIBUTE_GROUPS = [
   {
     label: "Cast",
     emoji: "✏️",
-    description: "Farcaster posts since The Warplets launched",
+    description: "Farcaster posts since The Warplets launch",
     valueLabel: "Value",
     level: "cast_level",
     rank: "cast_rank",
@@ -513,6 +520,36 @@ const CURRENCY_FIELD_KEYS = new Set(["volume_value", "token_value", "nft_value"]
 
 type LevelAttributeColumn = (typeof LEVEL_ATTRIBUTES)[number]["column"];
 
+type OrderByOption = "relevance" | "rarity" | "price" | "offer" | "sold" | "recently-listed" | "recently-offered" | "recently-sold" | "rank";
+type OrderDirection = "asc" | "desc";
+
+type MarketMoney = {
+  eth: number | null;
+  at: string | null;
+  rawAmount?: string | null;
+  decimals?: number | null;
+  currencySymbol?: string | null;
+  tokenAddress?: string | null;
+};
+
+type MarketSnapshot = {
+  version: "opensea-market-v1";
+  generatedAt: string;
+  maxAgeSeconds: number;
+  listings: Record<string, MarketMoney & { orderHash?: string | null; seller?: string | null }>;
+  offers: Record<string, MarketMoney & { orderHash?: string | null; offerer?: string | null }>;
+  sales: Record<string, MarketMoney & { txHash?: string | null; seller?: string | null }>;
+  owners: Record<string, { wallet: string | null; fid: number | null; checkedAt: string | null }>;
+};
+
+type TokenMarketState = {
+  listing?: MarketSnapshot["listings"][string];
+  offer?: MarketSnapshot["offers"][string];
+  sale?: MarketSnapshot["sales"][string];
+  owner?: MarketSnapshot["owners"][string];
+};
+type MarketKind = "price" | "offer" | "sold";
+
 type WarpletResult = {
   id: number;
   rarityValue: number | null;
@@ -524,6 +561,9 @@ type WarpletResult = {
   farcasterUsername: string;
   xUsername: string;
   wallet: string;
+  rankValues: Partial<Record<LevelAttributeColumn, number | null>>;
+  searchScore: number | null;
+  searchIndex: number;
 };
 
 type WarpletDetails = {
@@ -567,6 +607,8 @@ type SearchUrlState = {
   random: string;
   warplet: number | null;
   first: number | null;
+  order: OrderByOption | null;
+  dir: OrderDirection | null;
 };
 
 type MiniAppHistoryStateWithSearch = {
@@ -582,6 +624,8 @@ const EMPTY_SEARCH_URL_STATE: SearchUrlState = {
   random: "",
   warplet: null,
   first: null,
+  order: null,
+  dir: null,
 };
 
 const ATTRIBUTE_PARAM_LOOKUP = new Map<string, LevelAttributeColumn>(
@@ -590,6 +634,18 @@ const ATTRIBUTE_PARAM_LOOKUP = new Map<string, LevelAttributeColumn>(
     [attribute.label.toLowerCase(), attribute.column],
   ]),
 );
+const ATTRIBUTE_RANK_SELECT = LEVEL_ATTRIBUTES.map((attribute) => `w."${getRankColumnForLevelAttribute(attribute.column)}"`).join(",\n             ");
+const RESULT_SELECT_COLUMNS = `w.id,
+             w."10x_rarity",
+             w.fid_value,
+             w.description,
+             w.warplet_colours,
+             w.warplet_keywords,
+             w.warplet_traits,
+             w.warplet_username_farcaster,
+             w.warplet_username_x,
+             w.warplet_wallet,
+             ${ATTRIBUTE_RANK_SELECT}`;
 
 function getRandomExampleSearch(current?: string): string {
   let next = current;
@@ -620,19 +676,33 @@ function normalizeFtsQuery(value: string): string {
     .join(" ");
 }
 
-function mapRows(values: unknown[][]): WarpletResult[] {
-  return values.map((row) => ({
-    id: cellToNumber(row[0]) ?? 0,
-    rarityValue: cellToNumber(row[1]),
-    fidValue: cellToNumber(row[2]),
-    description: cellToString(row[3]),
-    colours: cellToString(row[4]),
-    keywords: cellToString(row[5]),
-    traits: cellToString(row[6]),
-    farcasterUsername: cellToString(row[7]),
-    xUsername: cellToString(row[8]),
-    wallet: cellToString(row[9]),
-  }));
+function mapRows(values: unknown[][], hasSearchScore = false): WarpletResult[] {
+  return values.map((row, index) => {
+    const rankOffset = 10;
+    const scoreOffset = rankOffset + LEVEL_ATTRIBUTES.length;
+    const rankValues = LEVEL_ATTRIBUTES.reduce<Partial<Record<LevelAttributeColumn, number | null>>>(
+      (current, attribute, attributeIndex) => {
+        current[attribute.column] = cellToNumber(row[rankOffset + attributeIndex]);
+        return current;
+      },
+      {},
+    );
+    return {
+      id: cellToNumber(row[0]) ?? 0,
+      rarityValue: cellToNumber(row[1]),
+      fidValue: cellToNumber(row[2]),
+      description: cellToString(row[3]),
+      colours: cellToString(row[4]),
+      keywords: cellToString(row[5]),
+      traits: cellToString(row[6]),
+      farcasterUsername: cellToString(row[7]),
+      xUsername: cellToString(row[8]),
+      wallet: cellToString(row[9]),
+      rankValues,
+      searchScore: hasSearchScore ? cellToNumber(row[scoreOffset]) : null,
+      searchIndex: index,
+    };
+  });
 }
 
 function mapDetails(row: Record<string, unknown> | undefined): WarpletDetails | null {
@@ -746,6 +816,19 @@ function parseWarpletParam(value: string | null): number | null {
   return Number.isInteger(tokenId) && tokenId > 0 ? tokenId : null;
 }
 
+function parseOrderParam(value: string | null): OrderByOption | null {
+  const normalized = (value ?? "").trim().toLowerCase().replace(/_/g, "-");
+  if (["relevance", "rarity", "price", "offer", "sold", "recently-listed", "recently-offered", "recently-sold", "rank"].includes(normalized)) {
+    return normalized as OrderByOption;
+  }
+  return null;
+}
+
+function parseOrderDirectionParam(value: string | null): OrderDirection | null {
+  const normalized = (value ?? "").trim().toLowerCase();
+  return normalized === "asc" || normalized === "desc" ? normalized : null;
+}
+
 function parseSearchUrlState(searchParams: URLSearchParams): SearchUrlState {
   const search = (searchParams.get("search") ?? searchParams.get("q") ?? "").trim();
   const attributes = parseAttributeParam(searchParams.get("attributes") ?? searchParams.get("attrs"));
@@ -753,6 +836,8 @@ function parseSearchUrlState(searchParams: URLSearchParams): SearchUrlState {
   const random = (searchParams.get("random") ?? "").trim();
   const warplet = parseWarpletParam(searchParams.get("warplet") ?? searchParams.get("tokenId"));
   const first = parseWarpletParam(searchParams.get("first") ?? searchParams.get("First"));
+  const order = parseOrderParam(searchParams.get("order"));
+  const dir = parseOrderDirectionParam(searchParams.get("dir"));
 
   return {
     search,
@@ -761,6 +846,8 @@ function parseSearchUrlState(searchParams: URLSearchParams): SearchUrlState {
     random,
     warplet,
     first,
+    order,
+    dir,
   };
 }
 
@@ -793,6 +880,11 @@ function serializeSearchUrlState(state: SearchUrlState): string {
     params.set("first", String(state.first));
   }
 
+  if (state.order) {
+    params.set("order", state.order);
+    params.set("dir", state.dir ?? "asc");
+  }
+
   return params.toString();
 }
 
@@ -818,7 +910,8 @@ function hasDeepLinkState(state: SearchUrlState): boolean {
     state.levels.length > 0 ||
     state.random ||
     state.warplet != null ||
-    state.first != null,
+    state.first != null ||
+    state.order != null,
   );
 }
 
@@ -831,26 +924,37 @@ function getEffectiveSearchText(state: SearchUrlState): string {
 
 function getSearchUrlStateFromAppState({
   query,
+  isAllWarpletsMode,
   selectedAttributes,
   selectedLevels,
   activeExampleSearch,
   selectedWarpletDetails,
+  orderBy,
+  orderDirection,
+  userSelectedOrder,
 }: {
   query: string;
+  isAllWarpletsMode: boolean;
   selectedAttributes: LevelAttributeColumn[];
   selectedLevels: number[];
   activeExampleSearch: string;
   selectedWarpletDetails: WarpletDetails | null;
+  orderBy: OrderByOption;
+  orderDirection: OrderDirection;
+  userSelectedOrder: boolean;
 }): SearchUrlState {
   const search = query.trim();
   const hasFilters = selectedAttributes.length > 0 || selectedLevels.length > 0;
+  const urlSearch = isAllWarpletsMode && !search ? "*" : search;
   return {
-    search,
+    search: urlSearch,
     attributes: selectedAttributes,
     levels: selectedLevels,
-    random: search || hasFilters ? "" : activeExampleSearch,
+    random: urlSearch || hasFilters ? "" : activeExampleSearch,
     warplet: selectedWarpletDetails?.id ?? null,
     first: null,
+    order: userSelectedOrder ? orderBy : null,
+    dir: userSelectedOrder ? orderDirection : null,
   };
 }
 
@@ -859,6 +963,336 @@ function appendSearchShareParams(href: string, firstWarpletId: number, totalCoun
   url.searchParams.set("first", String(firstWarpletId));
   url.searchParams.set("count", String(totalCount));
   return url.href;
+}
+
+const ORDER_OPTIONS: Array<{ value: OrderByOption; label: string }> = [
+  { value: "relevance", label: "Relevance" },
+  { value: "rarity", label: "Rarity" },
+  { value: "price", label: "Price" },
+  { value: "offer", label: "Offer" },
+  { value: "sold", label: "Sold" },
+  { value: "recently-listed", label: "Recently listed" },
+  { value: "recently-offered", label: "Recently offered" },
+  { value: "recently-sold", label: "Recently sold" },
+  { value: "rank", label: "Rank" },
+];
+
+function getDefaultOrderBy(hasFtsQuery: boolean, selectedAttributes: LevelAttributeColumn[]): OrderByOption {
+  if (hasFtsQuery) return "relevance";
+  if (selectedAttributes.length === 1) return "rank";
+  return "rarity";
+}
+
+function getOrderLabel(orderBy: OrderByOption, direction: OrderDirection): string {
+  const label = ORDER_OPTIONS.find((option) => option.value === orderBy)?.label ?? "Rarity";
+  return `${label} ${direction.toUpperCase()}`;
+}
+
+function getOrderMarketKind(orderBy: OrderByOption): MarketKind | null {
+  if (orderBy === "price" || orderBy === "recently-listed") return "price";
+  if (orderBy === "offer" || orderBy === "recently-offered") return "offer";
+  if (orderBy === "sold" || orderBy === "recently-sold") return "sold";
+  return null;
+}
+
+function getMarketKindStyles(kind: MarketKind): {
+  color: string;
+  previewColor: string;
+  backgroundColor: string;
+  borderColor: string;
+} {
+  if (kind === "price") {
+    return {
+      color: "#FFFF00",
+      previewColor: "#e6e68a",
+      backgroundColor: "rgba(255, 255, 0, 0.12)",
+      borderColor: "rgba(255, 255, 0, 0.42)",
+    };
+  }
+  if (kind === "offer") {
+    return {
+      color: "#33AAFF",
+      previewColor: "#8bcfff",
+      backgroundColor: "rgba(51, 170, 255, 0.12)",
+      borderColor: "rgba(51, 170, 255, 0.42)",
+    };
+  }
+  return {
+    color: "#FF4040",
+    previewColor: "#ff9a9a",
+    backgroundColor: "rgba(255, 64, 64, 0.12)",
+    borderColor: "rgba(255, 64, 64, 0.42)",
+  };
+}
+
+function OrderDirectionIcon({
+  direction,
+}: {
+  direction: OrderDirection;
+}) {
+  return (
+    <svg
+      aria-label={direction === "asc" ? "Ascending" : "Descending"}
+      role="img"
+      viewBox="0 0 16 16"
+      className="h-3.5 w-3.5 shrink-0"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      {direction === "asc" ? (
+        <path d="M8 3v10M4 7l4-4 4 4" />
+      ) : (
+        <path d="M8 3v10M4 9l4 4 4-4" />
+      )}
+    </svg>
+  );
+}
+
+function OrderValueLabel({
+  orderBy,
+  direction,
+  tone = "normal",
+}: {
+  orderBy: OrderByOption;
+  direction: OrderDirection;
+  tone?: "normal" | "preview";
+}) {
+  const label = ORDER_OPTIONS.find((option) => option.value === orderBy)?.label ?? "Rarity";
+  const marketKind = getOrderMarketKind(orderBy);
+  const marketStyles = marketKind ? getMarketKindStyles(marketKind) : undefined;
+  const color = marketStyles ? (tone === "preview" ? marketStyles.previewColor : marketStyles.color) : undefined;
+  return (
+    <span className="inline-flex min-w-0 items-center gap-1" style={color ? { color } : undefined}>
+      <span className="truncate">{label}</span>
+      <OrderDirectionIcon direction={direction} />
+    </span>
+  );
+}
+
+function getMarketState(snapshot: MarketSnapshot | null, tokenId: number): TokenMarketState {
+  const key = String(tokenId);
+  return {
+    listing: snapshot?.listings[key],
+    offer: snapshot?.offers[key],
+    sale: snapshot?.sales[key],
+    owner: snapshot?.owners[key],
+  };
+}
+
+function mergeTokenSnapshot(current: MarketSnapshot | null, tokenSnapshot: MarketSnapshot, tokenId: number): MarketSnapshot {
+  const generatedAt = tokenSnapshot.generatedAt || new Date().toISOString();
+  const key = String(tokenId);
+  const listings = { ...(current?.listings ?? {}) };
+  const offers = { ...(current?.offers ?? {}) };
+  const sales = { ...(current?.sales ?? {}) };
+  const owners = { ...(current?.owners ?? {}) };
+  delete listings[key];
+  delete offers[key];
+  delete sales[key];
+  delete owners[key];
+  return {
+    version: "opensea-market-v1",
+    generatedAt,
+    maxAgeSeconds: tokenSnapshot.maxAgeSeconds || 600,
+    listings: { ...listings, ...tokenSnapshot.listings },
+    offers: { ...offers, ...tokenSnapshot.offers },
+    sales: { ...sales, ...tokenSnapshot.sales },
+    owners: { ...owners, ...tokenSnapshot.owners },
+  };
+}
+
+function readCachedMarketSnapshot(): MarketSnapshot | null {
+  try {
+    const raw = window.localStorage.getItem(MARKET_CACHE_KEY);
+    if (!raw) return null;
+    const snapshot = JSON.parse(raw) as MarketSnapshot;
+    const age = Date.now() - Date.parse(snapshot.generatedAt || "");
+    if (!Number.isFinite(age) || age > MARKET_CACHE_MAX_STALE_MS) return null;
+    return snapshot;
+  } catch {
+    return null;
+  }
+}
+
+function writeCachedMarketSnapshot(snapshot: MarketSnapshot): void {
+  try {
+    window.localStorage.setItem(MARKET_CACHE_KEY, JSON.stringify(snapshot));
+  } catch {
+    // The market snapshot is a speed cache only; quota failures are harmless.
+  }
+}
+
+function formatEthValue(value: MarketMoney | undefined): string {
+  if (!value || value.eth == null) return "-";
+  return `${value.eth.toLocaleString("en-US", { maximumFractionDigits: 4 })} \u039e`;
+}
+
+function isEthLikeMarketMoney(value: MarketMoney | undefined): boolean {
+  if (!value) return false;
+  const symbol = value.currencySymbol?.toUpperCase() ?? "";
+  const tokenAddress = value.tokenAddress?.toLowerCase() ?? null;
+  if (symbol === "ETH" || symbol === "WETH") return true;
+  if (tokenAddress === BASE_WETH_TOKEN_ADDRESS || tokenAddress === NATIVE_TOKEN_ADDRESS) return true;
+  return !symbol && !tokenAddress && value.decimals === 18;
+}
+
+function formatEthNumber(value: number): string {
+  return `${value.toLocaleString("en-US", { maximumFractionDigits: 4 })} \u039e`;
+}
+
+function getFormattedRawMarketParts(value: MarketMoney): {
+  formatted: string;
+  parsed: number | null;
+} | null {
+  if (!value.rawAmount || value.decimals == null) return null;
+  try {
+    const raw = BigInt(value.rawAmount);
+    const decimals = Math.max(0, value.decimals);
+    const divisor = 10n ** BigInt(decimals);
+    const whole = raw / divisor;
+    const fraction = raw % divisor;
+    const fractionText = decimals > 0
+      ? fraction.toString().padStart(decimals, "0").replace(/0+$/, "")
+      : "";
+    const numeric = fractionText ? `${whole.toString()}.${fractionText}` : whole.toString();
+    const parsed = Number(numeric);
+    const formatted = Number.isFinite(parsed)
+      ? parsed.toLocaleString("en-US", { maximumFractionDigits: 6 })
+      : numeric;
+    return { formatted, parsed: Number.isFinite(parsed) ? parsed : null };
+  } catch {
+    return null;
+  }
+}
+
+function formatRawMarketValue(value: MarketMoney | undefined): string {
+  if (!value) return "-";
+  const parts = getFormattedRawMarketParts(value);
+  if (!parts) return "-";
+  const symbol = value.currencySymbol?.toUpperCase() ?? "";
+  if (symbol === "USDC" || symbol === "USDBC") return `$${parts.formatted}`;
+  return `${parts.formatted} ${value.currencySymbol ?? "RAW"}`;
+}
+
+function getRawMarketNumber(value: MarketMoney | undefined): number | null {
+  if (!value) return null;
+  return getFormattedRawMarketParts(value)?.parsed ?? null;
+}
+
+function getMarketNumber(value: MarketMoney | undefined): number | null {
+  if (!value) return null;
+  if (value.eth != null) return value.eth;
+  if (isEthLikeMarketMoney(value)) return getRawMarketNumber(value);
+  return getRawMarketNumber(value);
+}
+
+function formatMarketValue(value: MarketMoney | undefined): string {
+  if (!value) return "-";
+  if (value.eth != null) return formatEthValue(value);
+  if (isEthLikeMarketMoney(value)) {
+    const rawEth = getRawMarketNumber(value);
+    return rawEth == null ? "-" : formatEthNumber(rawEth);
+  }
+  return formatRawMarketValue(value);
+}
+
+function hasMarketValue(value: MarketMoney | undefined): boolean {
+  return Boolean(value && (value.eth != null || getRawMarketNumber(value) != null));
+}
+
+function formatMarketTimestamp(value: string | null | undefined): string {
+  if (!value) return "-";
+  const ms = Date.parse(value);
+  if (!Number.isFinite(ms)) return value;
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(new Date(ms));
+}
+
+function getMarketUpdatedAt(market: TokenMarketState): string | null {
+  const timestamps = [
+    market.listing?.at,
+    market.offer?.at,
+    market.sale?.at,
+    market.owner?.checkedAt,
+  ]
+    .map((value) => (value ? Date.parse(value) : NaN))
+    .filter((value) => Number.isFinite(value));
+  if (timestamps.length === 0) return null;
+  return new Date(Math.max(...timestamps)).toISOString();
+}
+
+function getSortValue(
+  warplet: WarpletResult,
+  orderBy: OrderByOption,
+  snapshot: MarketSnapshot | null,
+  rankAttribute: LevelAttributeColumn | undefined,
+): number | null {
+  const market = getMarketState(snapshot, warplet.id);
+  if (orderBy === "relevance") return warplet.searchScore ?? warplet.searchIndex;
+  if (orderBy === "rarity") return warplet.id;
+  if (orderBy === "rank") return rankAttribute ? warplet.rankValues[rankAttribute] ?? null : null;
+  if (orderBy === "price") return getMarketNumber(market.listing);
+  if (orderBy === "offer") return getMarketNumber(market.offer);
+  if (orderBy === "sold") return getMarketNumber(market.sale);
+  if (orderBy === "recently-listed") return market.listing?.at ? Date.parse(market.listing.at) : null;
+  if (orderBy === "recently-offered") return market.offer?.at ? Date.parse(market.offer.at) : null;
+  if (orderBy === "recently-sold") return market.sale?.at ? Date.parse(market.sale.at) : null;
+  return null;
+}
+
+function getMarketTieBreakTimestamp(
+  warplet: WarpletResult,
+  orderBy: OrderByOption,
+  snapshot: MarketSnapshot | null,
+): number | null {
+  if (orderBy !== "price" && orderBy !== "offer" && orderBy !== "sold") return null;
+  const market = getMarketState(snapshot, warplet.id);
+  const timestamp =
+    orderBy === "price"
+      ? market.listing?.at
+      : orderBy === "offer"
+        ? market.offer?.at
+        : market.sale?.at;
+  if (!timestamp) return null;
+  const parsed = Date.parse(timestamp);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function sortWarplets(
+  warplets: WarpletResult[],
+  orderBy: OrderByOption,
+  direction: OrderDirection,
+  snapshot: MarketSnapshot | null,
+  rankAttribute: LevelAttributeColumn | undefined,
+): WarpletResult[] {
+  const multiplier = direction === "asc" ? 1 : -1;
+  return [...warplets].sort((a, b) => {
+    const aValue = getSortValue(a, orderBy, snapshot, rankAttribute);
+    const bValue = getSortValue(b, orderBy, snapshot, rankAttribute);
+    const aMissing = aValue == null || !Number.isFinite(aValue);
+    const bMissing = bValue == null || !Number.isFinite(bValue);
+    if (aMissing && bMissing) return a.searchIndex - b.searchIndex || a.id - b.id;
+    if (aMissing) return 1;
+    if (bMissing) return -1;
+    if (aValue !== bValue) return (aValue - bValue) * multiplier;
+    const aTimestamp = getMarketTieBreakTimestamp(a, orderBy, snapshot);
+    const bTimestamp = getMarketTieBreakTimestamp(b, orderBy, snapshot);
+    const aTimestampMissing = aTimestamp == null || !Number.isFinite(aTimestamp);
+    const bTimestampMissing = bTimestamp == null || !Number.isFinite(bTimestamp);
+    if (!aTimestampMissing || !bTimestampMissing) {
+      if (aTimestampMissing) return 1;
+      if (bTimestampMissing) return -1;
+      if (aTimestamp !== bTimestamp) return bTimestamp - aTimestamp;
+    }
+    return a.id - b.id;
+  });
 }
 
 function FilterDropdown({
@@ -912,6 +1346,96 @@ function FilterDropdown({
           }}
         >
           {children}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function OrderByDropdown({
+  orderBy,
+  orderDirection,
+  selectedAttributes,
+  onSelect,
+}: {
+  orderBy: OrderByOption;
+  orderDirection: OrderDirection;
+  selectedAttributes: LevelAttributeColumn[];
+  onSelect: (orderBy: OrderByOption) => void;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const options = ORDER_OPTIONS.filter((option) => option.value !== "rank" || selectedAttributes.length === 1)
+    .sort((a, b) => {
+      if (a.value === "rank") return -1;
+      if (b.value === "rank") return 1;
+      return 0;
+    });
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!containerRef.current?.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("pointerdown", handlePointerDown);
+    return () => document.removeEventListener("pointerdown", handlePointerDown);
+  }, [isOpen]);
+
+  return (
+    <div ref={containerRef} className="relative min-w-0">
+      <button
+        type="button"
+        onClick={() => {
+          void hapticTap();
+          setIsOpen((current) => !current);
+        }}
+        className="flex min-h-11 w-full min-w-0 cursor-pointer items-center justify-between rounded-xl border border-[#00FF00]/25 bg-black/70 px-3 py-2 text-left text-sm text-[#00FF00]"
+      >
+        <span className="truncate">Order</span>
+        <span className="ml-2 min-w-0 text-xs text-[#8bbf8b]">
+          <OrderValueLabel orderBy={orderBy} direction={orderDirection} tone="preview" />
+        </span>
+      </button>
+      {isOpen && (
+        <div className="absolute left-0 right-0 z-30 mt-2 rounded-xl border border-[#00FF00]/30 bg-black p-2 shadow-2xl">
+          {options.map((option) => {
+            const active = option.value === orderBy;
+            const marketKind = getOrderMarketKind(option.value);
+            const marketStyles = marketKind ? getMarketKindStyles(marketKind) : undefined;
+            return (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => {
+                  void hapticSelectionChanged();
+                  onSelect(option.value);
+                  setIsOpen(false);
+                }}
+                className={`flex w-full cursor-pointer items-center justify-between rounded-lg border px-2 py-2 text-left text-xs ${
+                  active ? "font-bold" : "hover:bg-[#041204]"
+                }`}
+                style={marketStyles
+                  ? {
+                    backgroundColor: active ? marketStyles.backgroundColor : "transparent",
+                    borderColor: active ? marketStyles.borderColor : "transparent",
+                    color: marketStyles.color,
+                  }
+                  : {
+                    backgroundColor: active ? "rgba(0, 255, 0, 0.12)" : "transparent",
+                    borderColor: active ? "rgba(0, 255, 0, 0.42)" : "transparent",
+                    color: "#00FF00",
+                  }}
+              >
+                {active ? (
+                  <OrderValueLabel orderBy={option.value} direction={orderDirection} />
+                ) : (
+                  <span>{option.label}</span>
+                )}
+              </button>
+            );
+          })}
         </div>
       )}
     </div>
@@ -1017,6 +1541,74 @@ function ValueTooltip({
   );
 }
 
+function MarketValueChip({
+  kind,
+  value,
+  tooltip,
+  className = "",
+  variant = "pill",
+  showTooltip = true,
+  align = "center",
+}: {
+  kind: MarketKind;
+  value: string;
+  tooltip: string;
+  className?: string;
+  variant?: "pill" | "column";
+  showTooltip?: boolean;
+  align?: "center" | "left";
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const styles = getMarketKindStyles(kind);
+  const isColumn = variant === "column";
+  const { refs, floatingStyles, context } = useFloating({
+    open: isOpen,
+    onOpenChange: setIsOpen,
+    placement: "top",
+    whileElementsMounted: autoUpdate,
+    middleware: [offset(8), flip({ padding: 8 }), shift({ padding: 8 })],
+  });
+  const hover = useHover(context, { delay: { open: 0, close: 60 }, move: false });
+  const role = useRole(context, { role: "tooltip" });
+  const { getReferenceProps, getFloatingProps } = useInteractions(showTooltip ? [hover, role] : []);
+
+  return (
+    <>
+      <span
+        ref={refs.setReference}
+        {...getReferenceProps({
+          "aria-label": showTooltip ? tooltip : undefined,
+          className: `inline-flex min-w-0 ${showTooltip ? "cursor-help" : "cursor-default"} items-center ${
+            align === "left" ? "justify-start text-left" : "justify-center text-center"
+          } border font-bold leading-none ${
+            isColumn ? "min-h-[24px] rounded-none border-y-0 border-l-0 px-1 py-1" : "rounded-md px-1.5 py-1"
+          } ${className}`,
+          style: styles,
+        })}
+      >
+        <span className="truncate">{value}</span>
+      </span>
+      {showTooltip && isOpen && (
+        <FloatingPortal>
+          <div
+            ref={refs.setFloating}
+            style={{
+              ...floatingStyles,
+              borderColor: styles.borderColor,
+              color: styles.color,
+            }}
+            {...getFloatingProps({
+              className: "z-[70] max-w-[min(92vw,520px)] whitespace-nowrap rounded-lg border bg-black px-3 py-2 text-[11px] font-bold leading-snug shadow-2xl",
+            })}
+          >
+            {tooltip}
+          </div>
+        </FloatingPortal>
+      )}
+    </>
+  );
+}
+
 function getLevelFilterTarget(
   group: (typeof ATTRIBUTE_GROUPS)[number],
   row: Record<string, unknown>,
@@ -1067,10 +1659,12 @@ function WarpletCard({
   warplet,
   onOpen,
   labelOverride,
+  market,
 }: {
   warplet: WarpletResult;
   onOpen: (tokenId: number) => void;
   labelOverride?: string;
+  market?: TokenMarketState;
 }) {
   const label = labelOverride ?? `#${warplet.id} ${warplet.farcasterUsername ? `@${warplet.farcasterUsername}` : warplet.wallet}`;
 
@@ -1085,12 +1679,17 @@ function WarpletCard({
     >
       <img
         src={getWarpletImageUrl(warplet.id)}
-        alt={`Warplet ${warplet.id}`}
+        alt=""
         loading="eager"
-        className="aspect-square w-full bg-[#041204] object-cover"
+        className="aspect-square w-full bg-[rgba(0,255,0,0.12)] object-cover"
       />
-      <span className="flex min-h-[38px] w-full items-center justify-center truncate rounded-b-[18px] bg-[#00FF00] px-2 py-1.5 text-center text-[0.76rem] font-bold text-[rgb(0,80,0)]">
+      <span className="flex min-h-[38px] w-full items-center justify-center truncate bg-[#00FF00] px-2 py-1.5 text-center text-[0.76rem] font-bold text-[rgb(0,80,0)]">
         {label}
+      </span>
+      <span className="grid w-full grid-cols-3 border-t border-[#00FF00]/20 bg-black text-center text-[10px]">
+        <MarketValueChip kind="price" value={formatMarketValue(market?.listing)} tooltip="Price" variant="column" showTooltip={false} className="w-full" />
+        <MarketValueChip kind="offer" value={formatMarketValue(market?.offer)} tooltip="Top Offer" variant="column" showTooltip={false} className="w-full" />
+        <MarketValueChip kind="sold" value={formatMarketValue(market?.sale)} tooltip="Latest Sale" variant="column" showTooltip={false} className="w-full border-r-0" />
       </span>
     </button>
   );
@@ -1102,12 +1701,20 @@ function WarpletDetailsModal({
   onShare,
   onSearchTag,
   onLevelFilter,
+  market,
+  isRefreshingMarket,
+  marketRefreshError,
+  onRefreshMarket,
 }: {
   details: WarpletDetails;
   onClose: () => void;
   onShare: () => void;
   onSearchTag: (tag: string) => void;
   onLevelFilter: (attribute: LevelAttributeColumn, level: number) => void;
+  market: TokenMarketState;
+  isRefreshingMarket: boolean;
+  marketRefreshError: string;
+  onRefreshMarket: () => void;
 }) {
   const row = details.row;
   const farcasterUsername = cellToString(row.warplet_username_farcaster);
@@ -1115,6 +1722,8 @@ function WarpletDetailsModal({
   const xUsername = cellToString(row.warplet_username_x).replace(/^@/, "");
   const wallet = cellToString(row.warplet_wallet);
   const userIsPro = formatDetailValue("warplet_user_is_pro", row.warplet_user_is_pro);
+  const lastMarketUpdatedAt = getMarketUpdatedAt(market);
+  const marketLooksStale = lastMarketUpdatedAt ? Date.now() - Date.parse(lastMarketUpdatedAt) > MARKET_DETAIL_STALE_MS : true;
   const chipGroups = [
     { label: "Colours", values: splitChips(row.warplet_colours) },
     { label: "Keywords", values: splitChips(row.warplet_keywords) },
@@ -1146,7 +1755,7 @@ function WarpletDetailsModal({
                 void hapticPrimaryTap();
                 onShare();
               }}
-              className="h-9 rounded-lg border border-[#00FF00]/55 bg-[#00FF00] px-3 text-sm font-bold text-[rgb(0,80,0)] hover:bg-[#33ff33]"
+              className="h-9 cursor-pointer rounded-lg border border-[#00FF00]/55 bg-[#00FF00] px-3 text-sm font-bold text-[rgb(0,80,0)] hover:bg-[#33ff33]"
             >
               Share
             </button>
@@ -1158,7 +1767,7 @@ function WarpletDetailsModal({
                 void hapticTap();
                 onClose();
               }}
-              className="flex h-9 w-9 items-center justify-center rounded-lg border border-[#00FF00]/35 text-[#00FF00] hover:bg-[#041204]"
+              className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-lg border border-[#00FF00]/35 text-[#00FF00] hover:bg-[#041204]"
             >
               <svg
                 aria-hidden="true"
@@ -1179,8 +1788,8 @@ function WarpletDetailsModal({
         <div className="p-4">
           <img
             src={getWarpletAssetUrl(details.id, "avif")}
-            alt={`Warplet ${details.id}`}
-            className="aspect-square w-full rounded-xl bg-[#041204] object-cover"
+            alt=""
+            className="aspect-square w-full rounded-xl bg-[rgba(0,255,0,0.12)] object-cover"
           />
 
           <div className="mt-3 overflow-hidden rounded-xl border border-[#00FF00]/20 bg-[#041204]/60">
@@ -1239,6 +1848,34 @@ function WarpletDetailsModal({
             >
               View on OpenSea
             </button>
+
+            <div className="mt-4 grid grid-cols-3 gap-2">
+              {[
+                { kind: "price" as const, label: "Price", money: market.listing, emptyValue: "Not listed" },
+                { kind: "offer" as const, label: "Top Offer", money: market.offer, emptyValue: "No offers" },
+                { kind: "sold" as const, label: "Latest Sale", money: market.sale, emptyValue: "No sales" },
+              ].map(({ kind, label, money, emptyValue }) => {
+                const styles = getMarketKindStyles(kind);
+                const hasValue = hasMarketValue(money);
+                const value = hasValue ? formatMarketValue(money) : emptyValue;
+                const timestamp = hasValue && money?.at ? formatMarketTimestamp(money.at) : "\u00A0";
+                return (
+                  <div
+                    key={label}
+                    className="min-w-0 rounded-xl border px-2 py-2"
+                    style={{ borderColor: styles.borderColor, backgroundColor: styles.backgroundColor }}
+                  >
+                    <Text className="truncate text-[10px] uppercase" style={{ color: styles.color }}>
+                    {label}
+                    </Text>
+                    <MarketValueChip kind={kind} value={value} tooltip={label} showTooltip={false} align="left" className="mt-1 w-full text-xs" />
+                    <Text className="mt-1 truncate text-[9px]" style={{ color: styles.color }}>
+                      {timestamp}
+                    </Text>
+                  </div>
+                );
+              })}
+            </div>
 
             <div className="mt-4 space-y-3">
               {ATTRIBUTE_GROUPS.map((group) => (
@@ -1409,6 +2046,32 @@ function WarpletDetailsModal({
                 </button>
               ))}
             </div>
+            <div className="mt-3 text-center text-[11px] leading-4 text-[#8bbf8b]">
+              Last updated: {lastMarketUpdatedAt ? formatMarketTimestamp(lastMarketUpdatedAt) : "Not yet"}
+              {marketLooksStale && <span> (stale)</span>}
+              {". "}
+              <span
+                role="button"
+                tabIndex={0}
+                onClick={() => {
+                  void hapticPrimaryTap();
+                  onRefreshMarket();
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    void hapticPrimaryTap();
+                    onRefreshMarket();
+                  }
+                }}
+                className="cursor-pointer font-bold text-[#00FF00]"
+              >
+                {isRefreshingMarket ? "Refreshing..." : "Refresh"}
+              </span>
+              {marketRefreshError && (
+                <span className="block text-red-300">{marketRefreshError}</span>
+              )}
+            </div>
           </div>
       </div>
     </div>
@@ -1421,15 +2084,23 @@ export default function SearchApp() {
   const [viewerFid, setViewerFid] = useState<number | null>(null);
   const [matchedWarplet, setMatchedWarplet] = useState<WarpletResult | null>(null);
   const [query, setQuery] = useState("");
+  const [isAllWarpletsMode, setIsAllWarpletsMode] = useState(false);
   const [activeExampleSearch, setActiveExampleSearch] = useState(() => getRandomExampleSearch());
   const [selectedAttributes, setSelectedAttributes] = useState<LevelAttributeColumn[]>([]);
   const [selectedLevels, setSelectedLevels] = useState<number[]>([]);
   const [submittedQuery, setSubmittedQuery] = useState("");
   const [results, setResults] = useState<WarpletResult[]>([]);
   const [totalResults, setTotalResults] = useState(0);
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState("");
   const [selectedWarpletDetails, setSelectedWarpletDetails] = useState<WarpletDetails | null>(null);
+  const [marketSnapshot, setMarketSnapshot] = useState<MarketSnapshot | null>(null);
+  const [marketRefreshTokenId, setMarketRefreshTokenId] = useState<number | null>(null);
+  const [marketRefreshError, setMarketRefreshError] = useState("");
+  const [orderBy, setOrderBy] = useState<OrderByOption>("rarity");
+  const [orderDirection, setOrderDirection] = useState<OrderDirection>("asc");
+  const [userSelectedOrder, setUserSelectedOrder] = useState(false);
   const dbRef = useRef<SqliteDatabase | null>(null);
   const searchRunRef = useRef(0);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
@@ -1524,6 +2195,34 @@ export default function SearchApp() {
     init();
   }, []);
 
+  const refreshMarketSnapshot = useCallback(async (force = false) => {
+    const cached = readCachedMarketSnapshot();
+    if (cached && !force) {
+      setMarketSnapshot(cached);
+      const age = Date.now() - Date.parse(cached.generatedAt || "");
+      if (Number.isFinite(age) && age < MARKET_SNAPSHOT_STALE_MS) return;
+    }
+
+    try {
+      const response = await fetch("/api/warplets-market-state", {
+        headers: { accept: "application/json" },
+      });
+      if (!response.ok) throw new Error(`Market data failed (${response.status})`);
+      const snapshot = (await response.json()) as MarketSnapshot;
+      setMarketSnapshot(snapshot);
+      writeCachedMarketSnapshot(snapshot);
+    } catch (error) {
+      console.error("Failed to refresh market state:", error);
+      if (!cached) {
+        setMarketRefreshError(error instanceof Error ? error.message : String(error));
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    void refreshMarketSnapshot();
+  }, [refreshMarketSnapshot]);
+
   useEffect(() => {
     let cancelled = false;
 
@@ -1573,16 +2272,7 @@ export default function SearchApp() {
       try {
         const rows = db.exec(
           `SELECT
-             w.id,
-             w."10x_rarity",
-             w.fid_value,
-             w.description,
-             w.warplet_colours,
-             w.warplet_keywords,
-             w.warplet_traits,
-             w.warplet_username_farcaster,
-             w.warplet_username_x,
-             w.warplet_wallet
+             ${RESULT_SELECT_COLUMNS}
            FROM warplets w
            WHERE w.fid_value = ?
            ORDER BY w.id ASC
@@ -1622,9 +2312,10 @@ export default function SearchApp() {
     limit = PAGE_SIZE,
   ) => {
     const db = dbRef.current;
-    const ftsQuery = normalizeFtsQuery(nextQuery);
     const activeAttributes = filterOverride?.attributes ?? selectedAttributes;
     const activeLevels = filterOverride?.levels ?? selectedLevels;
+    const isWildcardSearch = nextQuery.trim() === "*";
+    const ftsQuery = isWildcardSearch ? "" : normalizeFtsQuery(nextQuery);
     const levelFilter = buildLevelFilter(activeAttributes, activeLevels);
     const hasAttributeOnlyFilter = activeAttributes.length > 0 && activeLevels.length === 0;
     const attributeOnlyRankColumn =
@@ -1632,9 +2323,10 @@ export default function SearchApp() {
     const runId = searchRunRef.current + 1;
     searchRunRef.current = runId;
 
-    if (!db || (!ftsQuery && !levelFilter && !hasAttributeOnlyFilter)) {
+    if (!db || (!ftsQuery && !levelFilter && !hasAttributeOnlyFilter && !isWildcardSearch)) {
       setResults([]);
       setTotalResults(0);
+      setVisibleCount(PAGE_SIZE);
       setSubmittedQuery(nextQuery.trim());
       setSearchError("");
       setIsSearching(false);
@@ -1667,16 +2359,7 @@ export default function SearchApp() {
       const nextTotal = cellToNumber(countRows[0]?.[0]) ?? 0;
       const resultSql = ftsQuery
         ? `SELECT
-             w.id,
-             w."10x_rarity",
-             w.fid_value,
-             w.description,
-             w.warplet_colours,
-             w.warplet_keywords,
-             w.warplet_traits,
-             w.warplet_username_farcaster,
-             w.warplet_username_x,
-             w.warplet_wallet,
+             ${RESULT_SELECT_COLUMNS},
              bm25(warplets_fts) AS score
            FROM warplets_fts
            JOIN warplets w ON w.id = warplets_fts.rowid
@@ -1684,23 +2367,14 @@ export default function SearchApp() {
            ORDER BY score, w."10x_rank" ASC, w.id ASC
            LIMIT ? OFFSET ?`
         : `SELECT
-             w.id,
-             w."10x_rarity",
-             w.fid_value,
-             w.description,
-             w.warplet_colours,
-             w.warplet_keywords,
-             w.warplet_traits,
-             w.warplet_username_farcaster,
-             w.warplet_username_x,
-             w.warplet_wallet
+             ${RESULT_SELECT_COLUMNS}
            FROM warplets w${levelFilter ? `
            WHERE ${levelFilter.sql}` : ""}
            ORDER BY ${attributeOnlyRankColumn ? `w."${attributeOnlyRankColumn}" ASC, ` : ""}w.id ASC
            LIMIT ? OFFSET ?`;
       const resultBind = ftsQuery
-        ? [ftsQuery, ...(levelFilter?.bind ?? []), limit, offset]
-        : [...(levelFilter?.bind ?? []), limit, offset];
+        ? [ftsQuery, ...(levelFilter?.bind ?? []), SEARCH_RESULT_LIMIT, 0]
+        : [...(levelFilter?.bind ?? []), SEARCH_RESULT_LIMIT, 0];
       const rows = db.exec(
         resultSql,
         {
@@ -1709,14 +2383,15 @@ export default function SearchApp() {
           returnValue: "resultRows",
         },
       );
-      const nextRows = mapRows(rows);
-      await preloadResultImages(nextRows);
+      const nextRows = mapRows(rows, Boolean(ftsQuery));
+      await preloadResultImages(nextRows.slice(0, PAGE_SIZE));
 
       if (searchRunRef.current !== runId) return;
 
       setSubmittedQuery(nextQuery.trim());
       setTotalResults(nextTotal);
-      setResults((current) => (offset === 0 ? nextRows : [...current, ...nextRows]));
+      setVisibleCount(limit);
+      setResults(nextRows);
       void hapticSuccess();
     } catch (err) {
       console.error("Warplets search failed:", err);
@@ -1747,12 +2422,22 @@ export default function SearchApp() {
     });
     const hasLevelFilter = nextState.levels.length > 0;
     const hasAttributeFilter = nextState.attributes.length > 0;
-    const isRandomMode = !nextState.search && !hasAttributeFilter && !hasLevelFilter && Boolean(nextSearchText);
+    const nextAllWarpletsMode = nextState.search.trim() === "*";
+    const isRandomMode = !nextAllWarpletsMode && !nextState.search && !hasAttributeFilter && !hasLevelFilter && Boolean(nextSearchText);
 
-    setQuery(nextState.search);
+    setQuery(nextAllWarpletsMode ? "" : nextState.search);
+    setIsAllWarpletsMode(nextAllWarpletsMode);
     setActiveExampleSearch(nextRandom);
     setSelectedAttributes(nextState.attributes);
     setSelectedLevels(nextState.levels);
+    const hasFtsQuery = Boolean(nextSearchText.trim()) && nextSearchText.trim() !== "*";
+    const canUseRequestedRank = nextState.order !== "rank" || nextState.attributes.length === 1;
+    const nextOrderBy = nextState.order && canUseRequestedRank
+      ? nextState.order
+      : getDefaultOrderBy(hasFtsQuery, nextState.attributes);
+    setOrderBy(nextOrderBy);
+    setOrderDirection(nextState.dir ?? "asc");
+    setUserSelectedOrder(Boolean(nextState.order && canUseRequestedRank));
     setSelectedWarpletDetails(null);
     setSearchError("");
     setIsSearching(false);
@@ -1767,6 +2452,7 @@ export default function SearchApp() {
     } else {
       setResults([]);
       setTotalResults(0);
+      setVisibleCount(PAGE_SIZE);
       setSubmittedQuery("");
     }
 
@@ -1804,10 +2490,12 @@ export default function SearchApp() {
       if (applyingUrlStateRef.current) return;
       const hasQuery = query.trim().length > 0;
       const hasLevelFilter = selectedLevels.length > 0;
-      const isExampleSearch = !hasQuery && !hasLevelFilter && selectedAttributes.length === 0;
+      const isExampleSearch = !isAllWarpletsMode && !hasQuery && !hasLevelFilter && selectedAttributes.length === 0;
       const nextQuery = hasQuery
         ? query
-        : hasLevelFilter
+        : isAllWarpletsMode
+          ? "*"
+          : hasLevelFilter
           ? ""
           : selectedAttributes.length > 0
             ? ""
@@ -1816,7 +2504,17 @@ export default function SearchApp() {
       runSearch(nextQuery, 0, undefined, limit);
     }, SEARCH_DEBOUNCE_MS);
     return () => window.clearTimeout(timeoutId);
-  }, [activeExampleSearch, dbReady, matchedWarplet, query, runSearch, selectedAttributes.length, selectedLevels.length]);
+  }, [activeExampleSearch, dbReady, isAllWarpletsMode, matchedWarplet, query, runSearch, selectedAttributes.length, selectedLevels.length]);
+
+  useEffect(() => {
+    if (!urlHydratedRef.current || applyingUrlStateRef.current) return;
+    const hasFtsQuery = !isAllWarpletsMode && Boolean((query.trim() || submittedQuery.trim()).trim()) && (query.trim() || submittedQuery.trim()).trim() !== "*";
+    if (!userSelectedOrder || (orderBy === "rank" && selectedAttributes.length !== 1)) {
+      setOrderBy(getDefaultOrderBy(hasFtsQuery, selectedAttributes));
+      setOrderDirection("asc");
+      setUserSelectedOrder(false);
+    }
+  }, [isAllWarpletsMode, orderBy, query, selectedAttributes, submittedQuery, userSelectedOrder]);
 
   useEffect(() => {
     if (!dbReady || !urlHydratedRef.current) return;
@@ -1838,10 +2536,14 @@ export default function SearchApp() {
       if (applyingUrlStateRef.current) return;
       const nextState = getSearchUrlStateFromAppState({
         query,
+        isAllWarpletsMode,
         selectedAttributes,
         selectedLevels,
         activeExampleSearch,
         selectedWarpletDetails,
+        orderBy,
+        orderDirection,
+        userSelectedOrder,
       });
       updateSearchUrl(nextState, "push");
     }, SEARCH_DEBOUNCE_MS);
@@ -1850,10 +2552,14 @@ export default function SearchApp() {
   }, [
     activeExampleSearch,
     dbReady,
+    isAllWarpletsMode,
     query,
     selectedAttributes,
     selectedLevels,
     selectedWarpletDetails,
+    orderBy,
+    orderDirection,
+    userSelectedOrder,
     updateSearchUrl,
   ]);
 
@@ -1862,20 +2568,29 @@ export default function SearchApp() {
     searchInputRef.current?.focus();
   }, [dbReady, isMenuRoute]);
 
-  const canLoadMore = results.length > 0 && results.length < totalResults;
   const hasActiveAttributeFilter = selectedAttributes.length > 0;
   const hasActiveLevelFilter = selectedLevels.length > 0;
   const hasTypedQuery = query.trim().length > 0;
-  const isExampleSearchMode = !hasTypedQuery && !hasActiveAttributeFilter && !hasActiveLevelFilter;
-  const searchPlaceholder = hasTypedQuery || hasActiveAttributeFilter || hasActiveLevelFilter
+  const isAllWarpletsSearchMode = isAllWarpletsMode && !hasTypedQuery;
+  const isExampleSearchMode = !isAllWarpletsSearchMode && !hasTypedQuery && !hasActiveAttributeFilter && !hasActiveLevelFilter;
+  const searchPlaceholder = isAllWarpletsSearchMode
+    ? "All Warplets..."
+    : hasTypedQuery || hasActiveAttributeFilter || hasActiveLevelFilter
     ? "Search for Warplets..."
     : `${activeExampleSearch} Warplets...`;
   const shouldPrependMatchedWarplet = Boolean(isExampleSearchMode && matchedWarplet);
+  const rankAttribute = selectedAttributes.length === 1 ? selectedAttributes[0] : undefined;
+  const sortedResults = useMemo(
+    () => sortWarplets(results, orderBy, orderDirection, marketSnapshot, rankAttribute),
+    [marketSnapshot, orderBy, orderDirection, rankAttribute, results],
+  );
+  const visibleResults = sortedResults.slice(0, visibleCount);
   const displayedResults = shouldPrependMatchedWarplet && matchedWarplet
-    ? [matchedWarplet, ...results]
-    : results;
+    ? [matchedWarplet, ...visibleResults]
+    : visibleResults;
   const displayedTotalResults = totalResults + (shouldPrependMatchedWarplet ? 1 : 0);
-  const hasActiveSearchOrFilter = Boolean(submittedQuery || hasTypedQuery || hasActiveAttributeFilter || hasActiveLevelFilter);
+  const canLoadMore = sortedResults.length > visibleCount;
+  const hasActiveSearchOrFilter = Boolean(submittedQuery || hasTypedQuery || hasActiveAttributeFilter || hasActiveLevelFilter || isAllWarpletsSearchMode);
   const selectedAttributeLabel = selectedAttributes.length === 0
     ? "All"
     : LEVEL_ATTRIBUTES
@@ -1885,8 +2600,14 @@ export default function SearchApp() {
   const selectedLevelLabel = selectedLevels.length === 0
     ? "Any"
     : selectedLevels.map((level) => `${level}X`).join(", ");
-  const searchResultsShareLabel = (query.trim() || submittedQuery.trim() || (isExampleSearchMode ? activeExampleSearch : "") || "Filtered").trim();
+  const searchResultsShareLabel = (
+    query.trim() ||
+    (isAllWarpletsSearchMode && submittedQuery.trim() === "*" ? "All" : submittedQuery.trim()) ||
+    (isExampleSearchMode ? activeExampleSearch : "") ||
+    "Filtered"
+  ).trim();
   const searchResultsShareTitle = `${displayedTotalResults.toLocaleString("en-US")} ${searchResultsShareLabel} Warplets...`;
+  const showResetSearchControl = Boolean(hasTypedQuery || hasActiveAttributeFilter || hasActiveLevelFilter || userSelectedOrder);
 
   const handleToggleAttribute = (column: LevelAttributeColumn) => {
     setSelectedAttributes((current) => {
@@ -1903,15 +2624,25 @@ export default function SearchApp() {
 
   const handleResetSearch = () => {
     void hapticPrimaryTap();
+    const nextExample = getRandomExampleSearch(activeExampleSearch);
+    setActiveExampleSearch(nextExample);
     setQuery("");
+    setIsAllWarpletsMode(false);
     setSelectedAttributes([]);
     setSelectedLevels([]);
-    setResults([]);
-    setTotalResults(0);
-    setSubmittedQuery("");
+    setVisibleCount(matchedWarplet ? PAGE_SIZE - 1 : PAGE_SIZE);
+    setOrderBy("relevance");
+    setOrderDirection("asc");
+    setUserSelectedOrder(false);
     setSearchError("");
-    setIsSearching(false);
-    searchRunRef.current += 1;
+    if (dbReady) {
+      void runSearch(
+        nextExample,
+        0,
+        { attributes: [], levels: [] },
+        matchedWarplet ? PAGE_SIZE - 1 : PAGE_SIZE,
+      );
+    }
     window.setTimeout(() => searchInputRef.current?.focus(), 0);
   };
 
@@ -1920,8 +2651,13 @@ export default function SearchApp() {
     const nextExample = getRandomExampleSearch(activeExampleSearch);
     setActiveExampleSearch(nextExample);
     setQuery("");
+    setIsAllWarpletsMode(false);
     setSelectedAttributes([]);
     setSelectedLevels([]);
+    setVisibleCount(matchedWarplet ? PAGE_SIZE - 1 : PAGE_SIZE);
+    setOrderBy("relevance");
+    setOrderDirection("asc");
+    setUserSelectedOrder(false);
     if (dbReady) {
       void runSearch(
         nextExample,
@@ -1940,6 +2676,7 @@ export default function SearchApp() {
 
   const handleSearchTag = useCallback((tag: string) => {
     setSelectedWarpletDetails(null);
+    setIsAllWarpletsMode(false);
     setQuery(tag);
     void runSearch(tag, 0);
     window.setTimeout(() => searchInputRef.current?.focus(), 0);
@@ -1950,6 +2687,7 @@ export default function SearchApp() {
     const nextLevels = [level];
     setSelectedWarpletDetails(null);
     setQuery("");
+    setIsAllWarpletsMode(false);
     setSelectedAttributes(nextAttributes);
     setSelectedLevels(nextLevels);
     void runSearch("", 0, { attributes: nextAttributes, levels: nextLevels });
@@ -1959,10 +2697,14 @@ export default function SearchApp() {
   const handleShareWarpletDetails = useCallback((tokenId: number) => {
     const shareState = getSearchUrlStateFromAppState({
       query,
+      isAllWarpletsMode,
       selectedAttributes,
       selectedLevels,
       activeExampleSearch,
       selectedWarpletDetails,
+      orderBy,
+      orderDirection,
+      userSelectedOrder,
     });
     shareState.warplet = tokenId;
     const shareUrl = buildSearchHref(shareState);
@@ -1976,10 +2718,14 @@ export default function SearchApp() {
     });
   }, [
     activeExampleSearch,
+    isAllWarpletsMode,
     query,
     selectedAttributes,
     selectedLevels,
     selectedWarpletDetails,
+    orderBy,
+    orderDirection,
+    userSelectedOrder,
     updateSearchUrl,
   ]);
 
@@ -1992,10 +2738,14 @@ export default function SearchApp() {
 
     const shareState = getSearchUrlStateFromAppState({
       query,
+      isAllWarpletsMode,
       selectedAttributes,
       selectedLevels,
       activeExampleSearch,
       selectedWarpletDetails: null,
+      orderBy,
+      orderDirection,
+      userSelectedOrder,
     });
     shareState.first = firstWarpletId;
 
@@ -2015,12 +2765,61 @@ export default function SearchApp() {
     activeExampleSearch,
     displayedResults,
     displayedTotalResults,
+    isAllWarpletsMode,
     query,
     searchResultsShareTitle,
     selectedAttributes,
     selectedLevels,
     shouldPrependMatchedWarplet,
+    orderBy,
+    orderDirection,
+    userSelectedOrder,
   ]);
+
+  const handleSelectOrderBy = useCallback((nextOrderBy: OrderByOption) => {
+    setUserSelectedOrder(true);
+    setVisibleCount(PAGE_SIZE);
+    if (orderBy === nextOrderBy) {
+      setOrderDirection((direction) => (direction === "asc" ? "desc" : "asc"));
+      return;
+    }
+    setOrderBy(nextOrderBy);
+    setOrderDirection("asc");
+  }, [orderBy]);
+
+  const handleRefreshSelectedMarket = useCallback(async () => {
+    const tokenId = selectedWarpletDetails?.id;
+    if (!tokenId || marketRefreshTokenId === tokenId) return;
+    setMarketRefreshTokenId(tokenId);
+    setMarketRefreshError("");
+    try {
+      const response = await fetch(`/api/warplets-market-state/${tokenId}?refresh=1`, {
+        headers: { accept: "application/json" },
+      });
+      if (!response.ok) throw new Error(`Refresh failed (${response.status})`);
+      const payload = (await response.json()) as {
+        snapshot?: MarketSnapshot;
+        refreshStatus?: string;
+        error?: string;
+      };
+      if (payload.snapshot) {
+        setMarketSnapshot((current) => {
+          const merged = mergeTokenSnapshot(current, payload.snapshot!, tokenId);
+          writeCachedMarketSnapshot(merged);
+          return merged;
+        });
+      }
+      if (payload.refreshStatus === "cooldown") {
+        setMarketRefreshError("Recently refreshed. Showing cached data.");
+      } else if (payload.error) {
+        setMarketRefreshError(payload.error);
+      }
+    } catch (error) {
+      setMarketRefreshError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setMarketRefreshTokenId(null);
+    }
+  }, [marketRefreshTokenId, selectedWarpletDetails?.id]);
 
   useEffect(() => {
     if (!canLoadMore || isSearching || !hasActiveSearchOrFilter) return;
@@ -2031,7 +2830,7 @@ export default function SearchApp() {
       (entries) => {
         if (entries.some((entry) => entry.isIntersecting)) {
           observer.disconnect();
-          runSearch(submittedQuery, results.length);
+          setVisibleCount((current) => Math.min(current + PAGE_SIZE, sortedResults.length));
         }
       },
       { rootMargin: "600px 0px" },
@@ -2039,7 +2838,7 @@ export default function SearchApp() {
 
     observer.observe(target);
     return () => observer.disconnect();
-  }, [canLoadMore, hasActiveSearchOrFilter, isSearching, results.length, runSearch, submittedQuery]);
+  }, [canLoadMore, hasActiveSearchOrFilter, isSearching, sortedResults.length, visibleCount]);
 
   return (
     <MiniAppShell>
@@ -2086,12 +2885,34 @@ export default function SearchApp() {
                 ref={searchInputRef}
                 type="search"
                 value={query}
-                onChange={(event) => setQuery(event.target.value)}
+                onChange={(event) => {
+                  const nextValue = event.target.value;
+                  if (nextValue.trim().length === 0) {
+                    setQuery("");
+                    setIsAllWarpletsMode(true);
+                    setVisibleCount(PAGE_SIZE);
+                    return;
+                  }
+                  setIsAllWarpletsMode(false);
+                  setQuery(nextValue);
+                }}
+                onKeyDown={(event) => {
+                  if (
+                    event.key === "Backspace" &&
+                    query.trim().length === 0 &&
+                    !isAllWarpletsMode &&
+                    !hasActiveAttributeFilter &&
+                    !hasActiveLevelFilter
+                  ) {
+                    setIsAllWarpletsMode(true);
+                    setVisibleCount(PAGE_SIZE);
+                  }
+                }}
                 placeholder={searchPlaceholder}
                 disabled={!dbReady}
                 className="min-w-0 flex-1 rounded-xl border border-[#00FF00] bg-black/70 py-3 pl-10 pr-16 text-base text-[#00FF00] outline-none transition-[border-color,box-shadow] placeholder:text-[#8bbf8b] focus:border-[#00FF00] focus:shadow-[0_0_10px_rgba(0,255,0,0.22)] disabled:cursor-wait disabled:opacity-60"
               />
-              {(query.trim() || selectedAttributes.length > 0 || selectedLevels.length > 0) ? (
+              {showResetSearchControl ? (
                 <button
                   type="button"
                   onClick={handleResetSearch}
@@ -2187,9 +3008,14 @@ export default function SearchApp() {
             {displayedTotalResults > 0 && (
               <div className="mt-3">
                 <div className="grid grid-cols-2 gap-2">
-                  <div aria-hidden="true" />
+                  <OrderByDropdown
+                    orderBy={orderBy}
+                    orderDirection={orderDirection}
+                    selectedAttributes={selectedAttributes}
+                    onSelect={handleSelectOrderBy}
+                  />
                   <div className="flex min-w-0 items-center justify-end gap-2">
-                    <Text className="whitespace-nowrap text-center text-xs leading-4" style={{ color: "#00FF00" }}>
+                    <Text className="whitespace-nowrap text-center text-xs font-bold leading-4" style={{ color: "#00FF00" }}>
                       {displayedTotalResults.toLocaleString("en-US")} Warplets
                     </Text>
                     <button
@@ -2198,7 +3024,7 @@ export default function SearchApp() {
                         void hapticPrimaryTap();
                         handleShareSearchResults();
                       }}
-                      className="h-8 shrink-0 rounded-lg border border-[#00FF00]/55 bg-[#00FF00] px-3 text-xs font-bold text-[rgb(0,80,0)] hover:bg-[#33ff33]"
+                      className="h-8 shrink-0 cursor-pointer rounded-lg border border-[#00FF00]/55 bg-[#00FF00] px-3 text-xs font-bold text-[rgb(0,80,0)] hover:bg-[#33ff33]"
                     >
                       Share
                     </button>
@@ -2210,6 +3036,7 @@ export default function SearchApp() {
                     <WarpletCard
                       key={`${warplet.id}-${index}`}
                       warplet={warplet}
+                      market={getMarketState(marketSnapshot, warplet.id)}
                       onOpen={handleOpenWarpletDetails}
                       labelOverride={shouldPrependMatchedWarplet && index === 0 ? "👀 We Found You!" : undefined}
                     />
@@ -2220,7 +3047,7 @@ export default function SearchApp() {
               </div>
             )}
 
-            {isSearching && (query.trim() || hasActiveLevelFilter || isExampleSearchMode) && (
+            {isSearching && (query.trim() || hasActiveLevelFilter || isExampleSearchMode || isAllWarpletsSearchMode) && (
               <Text className={`mt-5 ${STATUS_LINE_CLASS}`} style={{ color: "#00FF00" }}>
                 Loading results...
               </Text>
@@ -2235,6 +3062,10 @@ export default function SearchApp() {
           onShare={() => handleShareWarpletDetails(selectedWarpletDetails.id)}
           onSearchTag={handleSearchTag}
           onLevelFilter={handleLevelFilter}
+          market={getMarketState(marketSnapshot, selectedWarpletDetails.id)}
+          isRefreshingMarket={marketRefreshTokenId === selectedWarpletDetails.id}
+          marketRefreshError={marketRefreshError}
+          onRefreshMarket={handleRefreshSelectedMarket}
         />
       )}
     </MiniAppShell>
