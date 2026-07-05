@@ -23,7 +23,17 @@ export type MarketSnapshot = {
   listings: Record<string, MarketMoney & { orderHash: string | null; seller: string | null }>;
   offers: Record<string, MarketMoney & { orderHash: string | null; offerer: string | null }>;
   sales: Record<string, MarketMoney & { txHash: string | null; seller: string | null }>;
-  owners: Record<string, { wallet: string | null; fid: number | null; checkedAt: string | null }>;
+  owners: Record<string, {
+    wallet: string | null;
+    fid: number | null;
+    checkedAt: string | null;
+    username?: string | null;
+    displayName?: string | null;
+    pfpUrl?: string | null;
+    bio?: string | null;
+    followerCount?: number | null;
+    followingCount?: number | null;
+  }>;
 };
 
 export type OneTokenMarketResponse = {
@@ -63,6 +73,12 @@ type MarketStateRow = {
   owner_wallet: string | null;
   owner_fid: number | null;
   owner_checked_at: string | null;
+  owner_username?: string | null;
+  owner_display_name?: string | null;
+  owner_pfp_url?: string | null;
+  owner_profile_bio_text?: string | null;
+  owner_follower_count?: number | null;
+  owner_following_count?: number | null;
   opensea_updated_at: string | null;
 };
 
@@ -80,6 +96,15 @@ type CurrencyValue = {
   symbol: string | null;
   tokenAddress: string | null;
   eth: number | null;
+};
+
+type WalletFarcasterLinkRow = {
+  fid: number | null;
+  username?: string | null;
+  pfp_url?: string | null;
+  profile_bio_text?: string | null;
+  follower_count?: number | null;
+  following_count?: number | null;
 };
 
 const OPENSEA_API_BASE = "https://api.opensea.io/api/v2";
@@ -131,6 +156,17 @@ const MARKET_COLUMNS = [
   "owner_checked_at",
   "opensea_updated_at",
 ] as const;
+const MARKET_SELECT_COLUMNS = MARKET_COLUMNS.filter((column) => column !== "opensea_updated_at").join(", ");
+const MARKET_PROFILE_SELECT_COLUMNS = [
+  "m.token_id",
+  ...MARKET_COLUMNS.filter((column) => column !== "opensea_updated_at").map((column) => `m.${column}`),
+  "l.username AS owner_username",
+  "l.display_name AS owner_display_name",
+  "l.pfp_url AS owner_pfp_url",
+  "l.profile_bio_text AS owner_profile_bio_text",
+  "l.follower_count AS owner_follower_count",
+  "l.following_count AS owner_following_count",
+].join(", ");
 
 function asObject(value: unknown): Record<string, unknown> | undefined {
   return value && typeof value === "object" ? (value as Record<string, unknown>) : undefined;
@@ -326,17 +362,36 @@ async function ownerOf(tokenId: number): Promise<string | null> {
 }
 
 async function selectPreferredFidForWallet(env: OpenSeaMarketEnv, wallet: string): Promise<number | null> {
-  const cached = await env.WARPLETS.prepare(
-    `SELECT fid
-     FROM wallet_farcaster_links
-     WHERE wallet = ?
-     ORDER BY COALESCE(score, -1) DESC, fid ASC
-     LIMIT 1`
-  ).bind(wallet).first<{ fid: number | null }>();
-  if (typeof cached?.fid === "number") return cached.fid;
+  let cached: WalletFarcasterLinkRow | null = null;
+  try {
+    cached = await env.WARPLETS.prepare(
+      `SELECT fid, username, pfp_url, profile_bio_text, follower_count, following_count
+       FROM wallet_farcaster_links
+       WHERE wallet = ?
+       ORDER BY COALESCE(score, -1) DESC, fid ASC
+       LIMIT 1`
+    ).bind(wallet).first<WalletFarcasterLinkRow>();
+    if (
+      typeof cached?.fid === "number" &&
+      cached.username &&
+      cached.pfp_url &&
+      (cached.profile_bio_text || cached.follower_count != null || cached.following_count != null)
+    ) {
+      return cached.fid;
+    }
+  } catch {
+    cached = await env.WARPLETS.prepare(
+      `SELECT fid, username, pfp_url
+       FROM wallet_farcaster_links
+       WHERE wallet = ?
+       ORDER BY COALESCE(score, -1) DESC, fid ASC
+       LIMIT 1`
+    ).bind(wallet).first<WalletFarcasterLinkRow>();
+    if (typeof cached?.fid === "number") return cached.fid;
+  }
 
   const apiKey = env.NEYNAR_API_KEY?.trim();
-  if (!apiKey) return null;
+  if (!apiKey) return typeof cached?.fid === "number" ? cached.fid : null;
 
   try {
     const endpoint = `https://api.neynar.com/v2/farcaster/user/bulk-by-address?addresses=${encodeURIComponent(wallet)}&viewer_fid=1129138`;
@@ -352,31 +407,76 @@ async function selectPreferredFidForWallet(env: OpenSeaMarketEnv, wallet: string
         const obj = asObject(user);
         const fid = asNumber(obj?.fid);
         if (!fid || !Number.isInteger(fid)) return null;
+        const profile = asObject(obj?.profile);
+        const bio = asObject(profile?.bio);
         return {
           fid,
           score: asNumber(obj?.score),
           username: asString(obj?.username),
+          displayName: asString(obj?.display_name),
           pfpUrl: asString(obj?.pfp_url),
+          bio: asString(bio?.text) ?? asString(obj?.profile_bio_text),
+          followerCount: asNumber(obj?.follower_count),
+          followingCount: asNumber(obj?.following_count),
         };
       })
-      .filter((row): row is { fid: number; score: number | null; username: string | null; pfpUrl: string | null } => row !== null)
+      .filter((row): row is {
+        fid: number;
+        score: number | null;
+        username: string | null;
+        displayName: string | null;
+        pfpUrl: string | null;
+        bio: string | null;
+        followerCount: number | null;
+        followingCount: number | null;
+      } => row !== null)
       .sort((a, b) => (b.score ?? -1) - (a.score ?? -1) || a.fid - b.fid);
 
     const now = new Date().toISOString();
     for (const row of rows) {
-      await env.WARPLETS.prepare(
-        `INSERT INTO wallet_farcaster_links (wallet, fid, score, username, pfp_url, fetched_at)
-         VALUES (?, ?, ?, ?, ?, ?)
-         ON CONFLICT(wallet, fid) DO UPDATE SET
-           score = excluded.score,
-           username = excluded.username,
-           pfp_url = excluded.pfp_url,
-           fetched_at = excluded.fetched_at`
-      ).bind(wallet, row.fid, row.score, row.username, row.pfpUrl, now).run();
+      try {
+        await env.WARPLETS.prepare(
+          `INSERT INTO wallet_farcaster_links (
+             wallet, fid, score, username, display_name, pfp_url, profile_bio_text,
+             follower_count, following_count, fetched_at
+           )
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+           ON CONFLICT(wallet, fid) DO UPDATE SET
+             score = excluded.score,
+             username = excluded.username,
+             display_name = excluded.display_name,
+             pfp_url = excluded.pfp_url,
+             profile_bio_text = excluded.profile_bio_text,
+             follower_count = excluded.follower_count,
+             following_count = excluded.following_count,
+             fetched_at = excluded.fetched_at`
+        ).bind(
+          wallet,
+          row.fid,
+          row.score,
+          row.username,
+          row.displayName,
+          row.pfpUrl,
+          row.bio,
+          row.followerCount,
+          row.followingCount,
+          now,
+        ).run();
+      } catch {
+        await env.WARPLETS.prepare(
+          `INSERT INTO wallet_farcaster_links (wallet, fid, score, username, pfp_url, fetched_at)
+           VALUES (?, ?, ?, ?, ?, ?)
+           ON CONFLICT(wallet, fid) DO UPDATE SET
+             score = excluded.score,
+             username = excluded.username,
+             pfp_url = excluded.pfp_url,
+             fetched_at = excluded.fetched_at`
+        ).bind(wallet, row.fid, row.score, row.username, row.pfpUrl, now).run();
+      }
     }
-    return rows[0]?.fid ?? null;
+    return rows[0]?.fid ?? (typeof cached?.fid === "number" ? cached.fid : null);
   } catch {
-    return null;
+    return typeof cached?.fid === "number" ? cached.fid : null;
   }
 }
 
@@ -486,6 +586,12 @@ function snapshotFromRows(rows: MarketStateRow[], generatedAt = new Date().toISO
         wallet: row.owner_wallet,
         fid: row.owner_fid,
         checkedAt: row.owner_checked_at,
+        username: row.owner_username ?? null,
+        displayName: row.owner_display_name ?? null,
+        pfpUrl: row.owner_pfp_url ?? null,
+        bio: row.owner_profile_bio_text ?? null,
+        followerCount: row.owner_follower_count ?? null,
+        followingCount: row.owner_following_count ?? null,
       };
     }
   }
@@ -494,11 +600,22 @@ function snapshotFromRows(rows: MarketStateRow[], generatedAt = new Date().toISO
 
 export async function loadMarketSnapshotFromD1(env: OpenSeaMarketEnv): Promise<MarketSnapshot> {
   await initializeOwnersFromMetadata(env.WARPLETS);
-  const rows = await env.WARPLETS.prepare(
-    `SELECT token_id, ${MARKET_COLUMNS.filter((column) => column !== "opensea_updated_at").join(", ")}
-     FROM warplet_market_state
-     ORDER BY token_id ASC`
-  ).all<MarketStateRow>();
+  let rows: D1Result<MarketStateRow>;
+  try {
+    rows = await env.WARPLETS.prepare(
+      `SELECT ${MARKET_PROFILE_SELECT_COLUMNS}
+       FROM warplet_market_state m
+       LEFT JOIN wallet_farcaster_links l
+         ON l.wallet = m.owner_wallet AND l.fid = m.owner_fid
+       ORDER BY m.token_id ASC`
+    ).all<MarketStateRow>();
+  } catch {
+    rows = await env.WARPLETS.prepare(
+      `SELECT token_id, ${MARKET_SELECT_COLUMNS}
+       FROM warplet_market_state
+       ORDER BY token_id ASC`
+    ).all<MarketStateRow>();
+  }
   return snapshotFromRows(rows.results ?? []);
 }
 
@@ -617,7 +734,11 @@ async function clearTokenMarketSide(
   });
 }
 
-async function processSaleOrTransfer(env: OpenSeaMarketEnv, row: Record<string, unknown>): Promise<boolean> {
+async function processSaleOrTransfer(
+  env: OpenSeaMarketEnv,
+  row: Record<string, unknown>,
+  options: { clearOrdersOnOwnerChange?: boolean } = {},
+): Promise<boolean> {
   const tokenId = getTokenIdFromOpenSeaRow(row);
   if (!tokenId) return false;
   const eventType = asString(row.event_type)?.toLowerCase();
@@ -635,6 +756,24 @@ async function processSaleOrTransfer(env: OpenSeaMarketEnv, row: Record<string, 
     patch.owner_wallet = ownerWallet;
     patch.owner_fid = ownerFid;
     patch.owner_checked_at = checkedAt;
+    if (options.clearOrdersOnOwnerChange) {
+      patch.listing_eth = null;
+      patch.listed_at = null;
+      patch.listing_order_hash = null;
+      patch.listing_seller_wallet = null;
+      patch.listing_raw_amount = null;
+      patch.listing_decimals = null;
+      patch.listing_currency_symbol = null;
+      patch.listing_token_address = null;
+      patch.offer_eth = null;
+      patch.offered_at = null;
+      patch.offer_order_hash = null;
+      patch.offerer_wallet = null;
+      patch.offer_raw_amount = null;
+      patch.offer_decimals = null;
+      patch.offer_currency_symbol = null;
+      patch.offer_token_address = null;
+    }
   }
   if (eventType === "sale") {
     patch.sale_eth = price.eth;
@@ -747,7 +886,7 @@ async function ingestCollectionEvents(
   for (const event of asArray(events.asset_events ?? events.events)) {
     const row = asObject(event);
     if (!row) continue;
-    if (await processSaleOrTransfer(env, row)) {
+    if (await processSaleOrTransfer(env, row, { clearOrdersOnOwnerChange: true })) {
       changed += 1;
     }
   }
@@ -909,11 +1048,22 @@ export async function refreshOneTokenMarket(
 }
 
 export async function loadOneTokenSnapshot(env: OpenSeaMarketEnv, tokenId: number): Promise<MarketSnapshot> {
-  const row = await env.WARPLETS.prepare(
-    `SELECT token_id, ${MARKET_COLUMNS.filter((column) => column !== "opensea_updated_at").join(", ")}
-     FROM warplet_market_state
-     WHERE token_id = ?`
-  ).bind(tokenId).first<MarketStateRow>();
+  let row: MarketStateRow | null;
+  try {
+    row = await env.WARPLETS.prepare(
+      `SELECT ${MARKET_PROFILE_SELECT_COLUMNS}
+       FROM warplet_market_state m
+       LEFT JOIN wallet_farcaster_links l
+         ON l.wallet = m.owner_wallet AND l.fid = m.owner_fid
+       WHERE m.token_id = ?`
+    ).bind(tokenId).first<MarketStateRow>();
+  } catch {
+    row = await env.WARPLETS.prepare(
+      `SELECT token_id, ${MARKET_SELECT_COLUMNS}
+       FROM warplet_market_state
+       WHERE token_id = ?`
+    ).bind(tokenId).first<MarketStateRow>();
+  }
   return snapshotFromRows(row ? [row] : [], new Date().toISOString());
 }
 

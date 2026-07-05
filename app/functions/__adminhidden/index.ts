@@ -110,32 +110,32 @@ export const onRequestGet: PagesFunction = () => {
   <section>
     <h2>Security</h2>
     <div class="stat-grid">
-      <div class="stat-box"><div class="num" id="sec24h">â€”</div><div class="lbl">Security events 24h</div></div>
-      <div class="stat-box"><div class="num" id="sec7d">â€”</div><div class="lbl">Security events 7d</div></div>
+      <div class="stat-box"><div class="num" id="sec24h">—</div><div class="lbl">Security events 24h</div></div>
+      <div class="stat-box"><div class="num" id="sec7d">—</div><div class="lbl">Security events 7d</div></div>
     </div>
     <table>
       <thead><tr>
         <th>Event</th><th>Count (24h)</th>
       </tr></thead>
-      <tbody id="secEventsBody"><tr><td colspan="2" style="color:#555;text-align:center;padding:1rem">Loadingâ€¦</td></tr></tbody>
+      <tbody id="secEventsBody"><tr><td colspan="2" style="color:#555;text-align:center;padding:1rem">Loading…</td></tr></tbody>
     </table>
     <table style="margin-top:.75rem">
       <thead><tr>
         <th>Route</th><th>Count (24h)</th>
       </tr></thead>
-      <tbody id="secRoutesBody"><tr><td colspan="2" style="color:#555;text-align:center;padding:1rem">Loadingâ€¦</td></tr></tbody>
+      <tbody id="secRoutesBody"><tr><td colspan="2" style="color:#555;text-align:center;padding:1rem">Loading…</td></tr></tbody>
     </table>
     <table style="margin-top:.75rem">
       <thead><tr>
         <th>IP</th><th>Count (24h)</th>
       </tr></thead>
-      <tbody id="secIpsBody"><tr><td colspan="2" style="color:#555;text-align:center;padding:1rem">Loadingâ€¦</td></tr></tbody>
+      <tbody id="secIpsBody"><tr><td colspan="2" style="color:#555;text-align:center;padding:1rem">Loading…</td></tr></tbody>
     </table>
     <table style="margin-top:.75rem">
       <thead><tr>
         <th>Alert</th><th>Status</th><th>Value</th>
       </tr></thead>
-      <tbody id="secAlertsBody"><tr><td colspan="3" style="color:#555;text-align:center;padding:1rem">Loadingâ€¦</td></tr></tbody>
+      <tbody id="secAlertsBody"><tr><td colspan="3" style="color:#555;text-align:center;padding:1rem">Loading…</td></tr></tbody>
     </table>
   </section>
 
@@ -442,8 +442,8 @@ export const onRequestGet: PagesFunction = () => {
       const r = await api('/api/security/stats');
       const data = await r.json();
 
-      document.getElementById('sec24h').textContent = String(data?.windows?.last24h ?? 'â€”');
-      document.getElementById('sec7d').textContent = String(data?.windows?.last7d ?? 'â€”');
+      document.getElementById('sec24h').textContent = String(data?.windows?.last24h ?? '—');
+      document.getElementById('sec7d').textContent = String(data?.windows?.last7d ?? '—');
 
       const eventRows = Array.isArray(data?.topEvents24h) ? data.topEvents24h : [];
       const routeRows = Array.isArray(data?.topRoutes24h) ? data.topRoutes24h : [];

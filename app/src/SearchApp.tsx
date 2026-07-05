@@ -35,7 +35,7 @@ const DB_FILENAME = "/warplets-search.sqlite3";
 const SEARCH_DEBOUNCE_MS = 300;
 const STATUS_LINE_CLASS = "text-center text-xs uppercase leading-4";
 const OPENSEA_COLLECTION_URL = "https://opensea.io/collection/10xwarplets";
-const MARKET_CACHE_KEY = "warplets-market-state-v1";
+const MARKET_CACHE_KEY = "warplets-market-state-v2";
 const MARKET_SNAPSHOT_STALE_MS = 10 * 60 * 1000;
 const MARKET_DETAIL_STALE_MS = 30 * 60 * 1000;
 const MARKET_CACHE_MAX_STALE_MS = 60 * 60 * 1000;
@@ -49,21 +49,21 @@ const EXAMPLE_SEARCHES = [
   "Open Mouth",
   "Pink Tongue",
   "Wide Mouth",
-  "Purple+Background",
-  "Black+Background",
-  "Grey+Background",
-  "Light+Blue+Background",
-  "Blue+Background",
-  "Teal+Background",
-  "Orange+Background",
-  "Pink+Background",
-  "Red+Background",
-  "White+Background",
-  "Dark+Blue+Background",
-  "Dark+Grey+Background",
-  "Green+Background",
-  "Yellow+Background",
-  "Brown+Background",
+  '"Purple Background"',
+  '"Black Background"',
+  '"Grey Background"',
+  '"Light Blue Background"',
+  '"Blue Background"',
+  '"Teal Background"',
+  '"Orange Background"',
+  '"Pink Background"',
+  '"Red Background"',
+  '"White Background"',
+  '"Dark Blue Background"',
+  '"Dark Grey Background"',
+  '"Green Background"',
+  '"Yellow Background"',
+  '"Brown Background"',
   "Solid Purple",
   "Solid Black",
   "Solid Blue",
@@ -102,16 +102,11 @@ const EXAMPLE_SEARCHES = [
   "Neutral Expression",
   "Smiling Expression",
   "Subtle Smile",
-  "Almost",
   "Chill Vibe",
   "Playful Monster",
   "Cartoon Monster",
   "Cartoon Creature",
   "Playful Creature",
-  "Quirky Warplet",
-  "Furry Warplet",
-  "Spotted Warplet",
-  "Striped Warplet",
   "Bumpy Skin",
   "Textured Skin",
   "Purple Skin",
@@ -152,30 +147,12 @@ const EXAMPLE_SEARCHES = [
   "Black",
   "White",
   "Grey",
-  "Gray",
   "Brown",
   "Gold",
   "Silver",
   "Teal",
-  "Tan",
-  "Beige",
-  "Cream",
-  "Magenta",
-  "Lavender",
-  "Maroon",
-  "Cyan",
-  "Indigo",
-  "Furry",
-  "Peach",
-  "Olive",
-  "Mint",
-  "Lime",
-  "Navy",
-  "Sage",
-  "Pale",
   "Neon",
   "Hot",
-  "Mustard",
   "Dog",
   "Cat",
   "Robot",
@@ -200,7 +177,6 @@ const EXAMPLE_SEARCHES = [
   "Cool",
   "Playful",
   "Mischievous",
-  "Quirky",
   "Dapper",
   "Neutral",
   "Smiling",
@@ -219,69 +195,36 @@ const EXAMPLE_SEARCHES = [
   "Suit",
   "Tie",
   "Glasses",
-  "Rectangular",
   "Lit",
   "Coffee",
   "Crown",
   "Hood",
   "Collar",
-  "Teeth",
   "Monster",
-  "Tongue",
-  "Mouth",
-  "Eyes",
-  "Pupils",
-  "Ears",
-  "Nose",
-  "Brows",
-  "Feet",
-  "Hands",
-  "Claws",
-  "Smile",
-  "Grin",
-  "Fur",
   "Bumpy",
   "Textured",
-  "Spotted",
-  "Striped",
   "Hair",
   "Smoke",
-  "Expression",
-  "Wide",
   "Vibrant",
   "Sharp",
   "Striking",
-  "Open",
   "Pointed",
   "Sports",
   "Standout",
-  "Prominent",
   "Expressive",
-  "Adorned",
   "Dressed",
   "Bold",
   "Stylish",
-  "Charm",
-  "Subtle",
   "Revealing",
   "Sleek",
   "Iconic",
   "Massive",
-  "Presence",
   "Captivating",
-  "Slightly",
-  "Clean",
-  "Texture",
-  "Perfectly",
   "Clawed",
   "Eye-catching",
-  "Touch",
-  "Pop",
   "Pattern",
-  "Embodying",
   "Simple",
   "Crisp",
-  "Gaze",
   "Glowing",
   "Formidable",
   "Bright",
@@ -290,58 +233,175 @@ const EXAMPLE_SEARCHES = [
   "Demeanor",
   "Memorable",
   "Tone",
-  "Showcasing",
-  "Numerous",
   "Energy",
-  "Round",
-  "Hand",
   "Gaping",
   "Energetic",
-  "Setting",
   "Impressive",
-  "Collection",
-  "Spots",
-  "Matching",
-  "Standing",
-  "Covered",
   "Classic",
-  "Attire",
-  "Excitement",
-  "Downturned",
   "Aesthetic",
   "Closed",
-  "Uniquely",
   "Aura",
-  "Tiny",
-  "Statement",
   "Rare",
-  "Eye",
-  "Complete",
   "Casual",
-  "Huge",
-  "Color",
-  "Style",
-  "Spirit",
-  "Blend",
-  "Plain",
-  "Stand",
   "Powerful",
-  "Front",
   "Sporting",
   "Collared",
   "Stripes",
-  "Deep",
-  "Left",
-  "Feature",
   "Personality",
-  "Surprise",
-  "Pure",
   "Charming",
-  "Right",
   "Mysterious",
   "Lumpy",
-  "Hue",
-  "Bumps",
+  "Wide-Set Eyes",
+  "Unimpressed",
+  "Wide-Open White Eyes",
+  "Furrowed Brow",
+  "Furry Body",
+  "Goggles",
+  "Straight Mouth",
+  "Closed-Mouth Smile",
+  "White Fur",
+  "Blue Eyes",
+  "Warrior",
+  "Lumpy Skin Texture",
+  "Brown Spots",
+  "Red Tongue",
+  "Headphones",
+  "Yellow Eyes",
+  "Formal Attire",
+  "Sleepy Expression",
+  "Top Hat",
+  "Sharp Fangs",
+  "Gold Trim",
+  "Streetwear",
+  "Curious Expression",
+  "Cat Ears",
+  "Black Baseball Cap",
+  "Playful Expression",
+  "Grey Bumpy Skin",
+  "Cool Vibe",
+  "Bumpy Texture",
+  "Mottled Skin",
+  "Striped Body",
+  "Grey Hoodie",
+  "Menacing Expression",
+  "Purple Monster",
+  "Tired Eyes",
+  "Neutral Mouth",
+  "Gentle Smile",
+  "Blue T-Shirt",
+  "Blue Hoodie",
+  "Large Eyes",
+  "Fedora Hat",
+  "Plain White Background",
+  "Light Green Background",
+  "Wide-Eyed Monster",
+  "Cat-Like Ears",
+  "Black Glasses",
+  "Round Sunglasses",
+  "Fierce Expression",
+  "Short Sleeves",
+  "Bow Tie",
+  "Dark Purple Background",
+  "Cracked Skin",
+  "Smartphone",
+  "Happy Expression",
+  "Black Jacket",
+  "Dark Grey Hoodie",
+  "Gold Chain",
+  "Small Pupils",
+  "Striped Fur",
+  "Plain Background",
+  "Small Fangs",
+  "Stoic Expression",
+  "Startled Expression",
+  "Long Pink Tongue",
+  "Hood Up",
+  "Light Blue Skin",
+  "Front Pouch Pocket",
+  "Silver Zipper",
+  "Smooth Skin",
+  "Wide-Eyed Creature",
+  "Heavy Eyelids",
+  "Black Top Hat",
+  "Goofy Expression",
+  "Smug Expression",
+  "Speckled Skin",
+  "Street Style",
+  "Red Skin",
+  "Gold Crown",
+  "Straight Line Mouth",
+  "Glowing Red Eyes",
+  "Manic Expression",
+  "White Dress Shirt",
+  "Casual Outfit",
+  "Blue Baseball Cap",
+  "Orange Spots",
+  "Hooded Cloak",
+  "Green Frog",
+  "Big Eyes",
+  "Beige Skin",
+  "Unique Skin",
+  "White Hoodie",
+  "Blue Shirt",
+  "Red Tie",
+  "Scaly Skin",
+  "Droopy Eyelids",
+  "Flat Mouth",
+  "Gold Buttons",
+  "Worried Expression",
+  "Dapper Monster",
+  "Pink Inner Ears",
+  "Reddish-Brown Skin",
+  "Backward Baseball Cap",
+  "Straw Hat",
+  "Wide Bulging Eyes",
+  "White Collar",
+  "Suit Jacket",
+  "Light Beige Skin",
+  "Round Black-Rimmed Glasses",
+  "Large Round Eyes",
+  "Relaxed Expression",
+  "Formal Wear",
+  "Quirky Monster",
+  "Black Tank Top",
+  "Black Shirt",
+  "Whiskers",
+  "Small Smile",
+  "Grey T-Shirt",
+  "Sharp Teeth Monster",
+  "Furry Monster",
+  "Cartoon Character",
+  "Goofy Monster",
+  "Pink Tongue With Teeth",
+  "Huge Gaping Mouth",
+  "Squinted Eyes",
+  "White Belly",
+  "Red Baseball Cap",
+  "Light Blue Irises",
+  "Edgy",
+  "Red Hoodie",
+  "Large Bulging Eyes",
+  "Stern Expression",
+  "Closed Smile",
+  "Plaid Shirt",
+  "Dark Grey Bumpy Skin",
+  "Glowing Blue Eyes",
+  "Extremely Wide Open Mouth",
+  "Glowing Yellow Eyes",
+  "Dark Grey Pants",
+  "White Tank Top",
+  "Red T-Shirt",
+  "White Sclera",
+  "Pink Bumpy Tongue",
+  "Dark Blue Skin",
+  "Sharp-Toothed Creature",
+  "Purple Top Hat",
+  "Smoking Pipe",
+  "Orange Beak",
+  "Blue Jeans",
+  "Black Beanie",
+  "Red Bandana",
+  "Yellow T-Shirt",
 ] as const;
 
 const LEVEL_ATTRIBUTES = [
@@ -539,7 +599,17 @@ type MarketSnapshot = {
   listings: Record<string, MarketMoney & { orderHash?: string | null; seller?: string | null }>;
   offers: Record<string, MarketMoney & { orderHash?: string | null; offerer?: string | null }>;
   sales: Record<string, MarketMoney & { txHash?: string | null; seller?: string | null }>;
-  owners: Record<string, { wallet: string | null; fid: number | null; checkedAt: string | null }>;
+  owners: Record<string, {
+    wallet: string | null;
+    fid: number | null;
+    checkedAt: string | null;
+    username?: string | null;
+    displayName?: string | null;
+    pfpUrl?: string | null;
+    bio?: string | null;
+    followerCount?: number | null;
+    followingCount?: number | null;
+  }>;
 };
 
 type TokenMarketState = {
@@ -655,6 +725,11 @@ function getRandomExampleSearch(current?: string): string {
   return next;
 }
 
+function getRandomExampleDisplayLabel(value: string): string {
+  const trimmed = value.trim();
+  return trimmed.replace(/\s+Warplets?$/i, "").trim() || trimmed;
+}
+
 function normalizeFtsQuery(value: string): string {
   const trimmed = value.trim();
   if (trimmed.startsWith("\"") && trimmed.endsWith("\"") && trimmed.length > 1) {
@@ -721,6 +796,29 @@ function mapDetails(row: Record<string, unknown> | undefined): WarpletDetails | 
 function formatInteger(value: unknown): string {
   const number = cellToNumber(value);
   return number == null ? cellToString(value) || "-" : Math.round(number).toLocaleString("en-US");
+}
+
+function formatCompactCount(value: number | null | undefined): string {
+  if (typeof value !== "number" || !Number.isFinite(value)) return "-";
+  return Intl.NumberFormat("en-US", {
+    notation: "compact",
+    maximumFractionDigits: value < 10000 ? 1 : 0,
+  }).format(value);
+}
+
+function formatShortWallet(value: string | null | undefined): string {
+  const wallet = value?.trim();
+  if (!wallet) return "-";
+  return wallet.length > 13 ? `${wallet.slice(0, 6)}...${wallet.slice(-4)}` : wallet;
+}
+
+function getFirstBioLine(value: string | null | undefined): string {
+  const firstLine = value?.split(/\r?\n/).map((line) => line.trim()).find(Boolean);
+  return firstLine ?? "";
+}
+
+function truncateText(value: string, maxLength: number): string {
+  return value.length > maxLength ? `${value.slice(0, maxLength).trimEnd()}...` : value;
 }
 
 function formatCurrency(value: unknown): string {
@@ -1080,6 +1178,17 @@ function getMarketState(snapshot: MarketSnapshot | null, tokenId: number): Token
     sale: snapshot?.sales[key],
     owner: snapshot?.owners[key],
   };
+}
+
+function getOwnedTokenIds(snapshot: MarketSnapshot | null, ownerWallet: string | null | undefined, currentTokenId: number): number[] {
+  const normalizedWallet = ownerWallet?.trim().toLowerCase();
+  if (!normalizedWallet) return [currentTokenId];
+  const tokenIds = Object.entries(snapshot?.owners ?? {})
+    .filter(([, owner]) => owner.wallet?.trim().toLowerCase() === normalizedWallet)
+    .map(([tokenId]) => Number(tokenId))
+    .filter((tokenId) => Number.isInteger(tokenId) && tokenId > 0)
+    .sort((a, b) => a - b);
+  return Array.from(new Set([currentTokenId, ...tokenIds]));
 }
 
 function mergeTokenSnapshot(current: MarketSnapshot | null, tokenSnapshot: MarketSnapshot, tokenId: number): MarketSnapshot {
@@ -1683,8 +1792,8 @@ function WarpletCard({
         loading="eager"
         className="aspect-square w-full bg-[rgba(0,255,0,0.12)] object-cover"
       />
-      <span className="flex min-h-[38px] w-full items-center justify-center truncate bg-[#00FF00] px-2 py-1.5 text-center text-[0.76rem] font-bold text-[rgb(0,80,0)]">
-        {label}
+      <span className="flex min-h-[38px] w-full min-w-0 items-center justify-center bg-[#00FF00] px-2 py-1.5 text-center text-[0.76rem] font-bold text-[rgb(0,80,0)]">
+        <span className="block max-w-full truncate">{label}</span>
       </span>
       <span className="grid w-full grid-cols-3 border-t border-[#00FF00]/20 bg-black text-center text-[10px]">
         <MarketValueChip kind="price" value={formatMarketValue(market?.listing)} tooltip="Price" variant="column" showTooltip={false} className="w-full" />
@@ -1695,26 +1804,225 @@ function WarpletCard({
   );
 }
 
+const OWNED_BY_VISIBLE_AVATAR_LIMIT = 25;
+
+function OwnedByPanel({
+  owner,
+  currentTokenId,
+  ownedTokenIds,
+  onOpenWarplet,
+}: {
+  owner?: TokenMarketState["owner"];
+  currentTokenId: number;
+  ownedTokenIds: number[];
+  onOpenWarplet: (tokenId: number) => void;
+}) {
+  const wallet = owner?.wallet?.trim() || null;
+  const fid = typeof owner?.fid === "number" ? owner.fid : null;
+  const username = owner?.username?.trim() || null;
+  const displayName = owner?.displayName?.trim() || null;
+  const pfpUrl = owner?.pfpUrl?.trim() || null;
+  const allWarpletIds = Array.from(new Set([currentTokenId, ...ownedTokenIds])).sort((left, right) => left - right);
+  const hasMoreThanVisibleWarplets = allWarpletIds.length > OWNED_BY_VISIBLE_AVATAR_LIMIT;
+  const warpletIds = hasMoreThanVisibleWarplets
+    ? allWarpletIds.slice(0, OWNED_BY_VISIBLE_AVATAR_LIMIT - 1)
+    : allWarpletIds.slice(0, OWNED_BY_VISIBLE_AVATAR_LIMIT);
+  const ownedCount = allWarpletIds.length;
+  const remainingOwnedCount = ownedCount - (OWNED_BY_VISIBLE_AVATAR_LIMIT - 1);
+  const hasFarcasterProfile = Boolean(fid && username);
+  const hasFollowerCounts = hasFarcasterProfile && (owner?.followerCount != null || owner?.followingCount != null);
+
+  const handleOpenProfile = () => {
+    if (!fid) return;
+    void hapticTap();
+    sdk.actions.viewProfile({ fid }).catch((error) => {
+      console.error("Failed to open owner Farcaster profile:", error);
+    });
+  };
+
+  const handleOpenWallet = () => {
+    if (!wallet) return;
+    void hapticTap();
+    openExternalAsset(`https://basescan.org/address/${wallet}`).catch((error) => {
+      console.error("Failed to open owner wallet:", error);
+    });
+  };
+
+  if (!wallet && !fid) return null;
+
+  return (
+    <div className="rounded-xl border border-[#00FF00]/15 bg-[#041204]/60 p-3">
+      <Text className="text-xs font-bold uppercase" style={{ color: "#00FF00" }}>
+        Owned by
+      </Text>
+
+      <div className="mt-3 grid grid-cols-[minmax(0,1fr)_minmax(0,2fr)_minmax(0,1fr)] gap-2">
+        <div className="min-w-0 pt-1">
+          {hasFarcasterProfile ? (
+          <button
+            type="button"
+            onClick={handleOpenProfile}
+            className="aspect-square w-full min-w-0 shrink-0 cursor-pointer overflow-hidden rounded-full border-2 border-[#00FF00] bg-[rgba(0,255,0,0.12)]"
+            title={`View Farcaster profile ${fid}`}
+          >
+            {pfpUrl ? (
+              <img src={pfpUrl} alt="" className="h-full w-full object-cover" loading="lazy" />
+            ) : (
+              <video
+                src="/matrix_bg_1080x1080.mp4"
+                autoPlay
+                loop
+                muted
+                playsInline
+                aria-hidden="true"
+                className="h-full w-full object-cover"
+              />
+            )}
+          </button>
+          ) : (
+          <div className="aspect-square w-full min-w-0 shrink-0 overflow-hidden rounded-full border-2 border-[#00FF00] bg-[rgba(0,255,0,0.12)]">
+            <video
+              src="/matrix_bg_1080x1080.mp4"
+              autoPlay
+              loop
+              muted
+              playsInline
+              aria-hidden="true"
+              className="h-full w-full object-cover"
+            />
+          </div>
+          )}
+        </div>
+
+        <div className={`${hasFarcasterProfile ? "" : "col-span-2"} min-w-0 px-2 py-1`}>
+          {hasFarcasterProfile ? (
+            <button
+              type="button"
+              onClick={handleOpenProfile}
+              className="block max-w-full cursor-pointer truncate text-left text-sm font-bold text-[#00FF00] hover:underline"
+            >
+              @{username}
+            </button>
+          ) : wallet ? (
+            <button
+              type="button"
+              onClick={handleOpenWallet}
+              className="block max-w-full cursor-pointer truncate text-left text-sm font-bold text-[#00FF00] hover:underline"
+            >
+              {formatShortWallet(wallet)}
+            </button>
+          ) : (
+            <Text className="truncate text-sm font-bold" style={{ color: "#00FF00" }}>
+              Unknown wallet
+            </Text>
+          )}
+          {hasFarcasterProfile && displayName && (
+            <Text className="truncate text-[11px]" style={{ color: "#8bbf8b" }}>
+              {displayName}
+            </Text>
+          )}
+          {hasFarcasterProfile && fid && (
+            <Text className="mt-1 text-[11px]" style={{ color: "#8bbf8b" }}>
+              FID #{fid.toLocaleString("en-US")}
+            </Text>
+          )}
+          {!hasFarcasterProfile && (
+            <Text className="mt-1 text-[11px]" style={{ color: "#8bbf8b" }}>
+              Wallet does not match a Farcaster profile.
+            </Text>
+          )}
+          {wallet && hasFarcasterProfile && (
+            <button
+              type="button"
+              onClick={handleOpenWallet}
+              className="mt-1 block max-w-full cursor-pointer truncate text-left text-[11px] text-[#8bbf8b] hover:text-[#00FF00] hover:underline"
+            >
+              {formatShortWallet(wallet)}
+            </button>
+          )}
+        </div>
+
+        {hasFollowerCounts && (
+          <div className="grid min-w-0 grid-rows-2 gap-2 pl-1">
+            <div className="rounded-lg border border-[#00FF00]/15 bg-black/35 px-2 py-1.5">
+              <Text className="text-[9px] uppercase leading-3" style={{ color: "#8bbf8b" }}>
+                Followers
+              </Text>
+              <Text className="truncate text-xs font-bold leading-4" style={{ color: "#00FF00" }}>
+                {formatCompactCount(owner?.followerCount)}
+              </Text>
+            </div>
+            <div className="rounded-lg border border-[#00FF00]/15 bg-black/35 px-2 py-1.5">
+              <Text className="text-[9px] uppercase leading-3" style={{ color: "#8bbf8b" }}>
+                Following
+              </Text>
+              <Text className="truncate text-xs font-bold leading-4" style={{ color: "#00FF00" }}>
+                {formatCompactCount(owner?.followingCount)}
+              </Text>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="mt-3">
+        <Text className="text-[10px] uppercase" style={{ color: "#8bbf8b" }}>
+          10X Warplets
+        </Text>
+        <div className="mt-2 grid grid-cols-5 gap-1">
+          {warpletIds.map((tokenId) => (
+            <button
+              key={tokenId}
+              type="button"
+              onClick={() => {
+                void hapticTap();
+                onOpenWarplet(tokenId);
+              }}
+              className="aspect-square w-full min-w-0 cursor-pointer overflow-hidden rounded-full border-2 border-[rgba(0,255,0,0)] bg-transparent hover:border-[#00FF00]"
+              title={`Open 10X Warplet #${tokenId}`}
+            >
+              <img src={getWarpletImageUrl(tokenId)} alt="" className="h-full w-full object-cover" loading="lazy" />
+            </button>
+          ))}
+          {hasMoreThanVisibleWarplets && (
+            <div
+              className="flex aspect-square w-full min-w-0 items-center justify-center rounded-full border border-[#00FF00]/15 bg-black/35 text-xs font-bold text-[#00FF00]"
+              title={`${remainingOwnedCount.toLocaleString("en-US")} more 10X Warplets`}
+            >
+              +{remainingOwnedCount.toLocaleString("en-US")}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function WarpletDetailsModal({
   details,
   onClose,
   onShare,
   onSearchTag,
   onLevelFilter,
+  onOpenRelatedWarplet,
   market,
+  ownedTokenIds,
   isRefreshingMarket,
   marketRefreshError,
   onRefreshMarket,
+  stackIndex,
 }: {
   details: WarpletDetails;
   onClose: () => void;
   onShare: () => void;
   onSearchTag: (tag: string) => void;
   onLevelFilter: (attribute: LevelAttributeColumn, level: number) => void;
+  onOpenRelatedWarplet: (tokenId: number) => void;
   market: TokenMarketState;
+  ownedTokenIds: number[];
   isRefreshingMarket: boolean;
   marketRefreshError: string;
   onRefreshMarket: () => void;
+  stackIndex: number;
 }) {
   const row = details.row;
   const farcasterUsername = cellToString(row.warplet_username_farcaster);
@@ -1739,7 +2047,7 @@ function WarpletDetailsModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/80 p-4 sm:items-center">
+    <div className="fixed inset-0 flex items-end justify-center bg-black/80 p-4 sm:items-center" style={{ zIndex: 50 + stackIndex }}>
       <div className="max-h-[92vh] w-full max-w-md overflow-auto rounded-2xl border border-[#00FF00]/35 bg-black shadow-2xl">
         <div className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-[#00FF00]/20 bg-black px-4 py-3">
           <Text className="min-w-0 truncate text-base font-bold" style={{ color: "#00FF00" }}>
@@ -1878,6 +2186,13 @@ function WarpletDetailsModal({
             </div>
 
             <div className="mt-4 space-y-3">
+              <OwnedByPanel
+                owner={market.owner}
+                currentTokenId={details.id}
+                ownedTokenIds={ownedTokenIds}
+                onOpenWarplet={onOpenRelatedWarplet}
+              />
+
               {ATTRIBUTE_GROUPS.map((group) => (
                 <div key={group.label} className="rounded-xl border border-[#00FF00]/15 bg-[#041204]/60 p-3">
                   <Text className="text-xs font-bold uppercase" style={{ color: "#00FF00" }}>
@@ -2094,7 +2409,7 @@ export default function SearchApp() {
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState("");
-  const [selectedWarpletDetails, setSelectedWarpletDetails] = useState<WarpletDetails | null>(null);
+  const [selectedWarpletDetailsStack, setSelectedWarpletDetailsStack] = useState<WarpletDetails[]>([]);
   const [marketSnapshot, setMarketSnapshot] = useState<MarketSnapshot | null>(null);
   const [marketRefreshTokenId, setMarketRefreshTokenId] = useState<number | null>(null);
   const [marketRefreshError, setMarketRefreshError] = useState("");
@@ -2109,6 +2424,7 @@ export default function SearchApp() {
   const applyingUrlStateRef = useRef(false);
   const lastUrlSignatureRef = useRef("");
   const { isMenuRoute, canGoBack, actions } = useMiniAppChrome("search");
+  const selectedWarpletDetails = selectedWarpletDetailsStack.at(-1) ?? null;
 
   const updateSearchUrl = useCallback((state: SearchUrlState, mode: "push" | "replace") => {
     const signature = getSearchUrlSignature(state);
@@ -2438,7 +2754,7 @@ export default function SearchApp() {
     setOrderBy(nextOrderBy);
     setOrderDirection(nextState.dir ?? "asc");
     setUserSelectedOrder(Boolean(nextState.order && canUseRequestedRank));
-    setSelectedWarpletDetails(null);
+    setSelectedWarpletDetailsStack([]);
     setSearchError("");
     setIsSearching(false);
 
@@ -2458,7 +2774,7 @@ export default function SearchApp() {
 
     if (nextState.warplet != null) {
       const details = await loadWarpletDetails(nextState.warplet);
-      if (details) setSelectedWarpletDetails(details);
+      if (details) setSelectedWarpletDetailsStack([details]);
     }
 
     applyingUrlStateRef.current = false;
@@ -2577,7 +2893,7 @@ export default function SearchApp() {
     ? "All Warplets..."
     : hasTypedQuery || hasActiveAttributeFilter || hasActiveLevelFilter
     ? "Search for Warplets..."
-    : `${activeExampleSearch} Warplets...`;
+    : `${getRandomExampleDisplayLabel(activeExampleSearch)} Warplets...`;
   const shouldPrependMatchedWarplet = Boolean(isExampleSearchMode && matchedWarplet);
   const rankAttribute = selectedAttributes.length === 1 ? selectedAttributes[0] : undefined;
   const sortedResults = useMemo(
@@ -2600,12 +2916,15 @@ export default function SearchApp() {
   const selectedLevelLabel = selectedLevels.length === 0
     ? "Any"
     : selectedLevels.map((level) => `${level}X`).join(", ");
-  const searchResultsShareLabel = (
+  const rawSearchResultsShareLabel = (
     query.trim() ||
-    (isAllWarpletsSearchMode && submittedQuery.trim() === "*" ? "All" : submittedQuery.trim()) ||
+    (isAllWarpletsSearchMode && submittedQuery.trim() === "*" ? "10X" : submittedQuery.trim()) ||
     (isExampleSearchMode ? activeExampleSearch : "") ||
     "Filtered"
   ).trim();
+  const searchResultsShareLabel = isExampleSearchMode
+    ? getRandomExampleDisplayLabel(rawSearchResultsShareLabel)
+    : rawSearchResultsShareLabel;
   const searchResultsShareTitle = `${displayedTotalResults.toLocaleString("en-US")} ${searchResultsShareLabel} Warplets...`;
   const showResetSearchControl = Boolean(hasTypedQuery || hasActiveAttributeFilter || hasActiveLevelFilter || userSelectedOrder);
 
@@ -2671,11 +2990,24 @@ export default function SearchApp() {
 
   const handleOpenWarpletDetails = useCallback(async (tokenId: number) => {
     const details = await loadWarpletDetails(tokenId);
-    if (details) setSelectedWarpletDetails(details);
+    if (details) setSelectedWarpletDetailsStack([details]);
   }, [loadWarpletDetails]);
 
+  const handleOpenRelatedWarpletDetails = useCallback(async (tokenId: number) => {
+    const details = await loadWarpletDetails(tokenId);
+    if (!details) return;
+    setSelectedWarpletDetailsStack((current) => {
+      if (current.at(-1)?.id === details.id) return current;
+      return [...current, details];
+    });
+  }, [loadWarpletDetails]);
+
+  const handleCloseTopWarpletDetails = useCallback(() => {
+    setSelectedWarpletDetailsStack((current) => current.slice(0, -1));
+  }, []);
+
   const handleSearchTag = useCallback((tag: string) => {
-    setSelectedWarpletDetails(null);
+    setSelectedWarpletDetailsStack([]);
     setIsAllWarpletsMode(false);
     setQuery(tag);
     void runSearch(tag, 0);
@@ -2685,7 +3017,7 @@ export default function SearchApp() {
   const handleLevelFilter = useCallback((attribute: LevelAttributeColumn, level: number) => {
     const nextAttributes = [attribute];
     const nextLevels = [level];
-    setSelectedWarpletDetails(null);
+    setSelectedWarpletDetailsStack([]);
     setQuery("");
     setIsAllWarpletsMode(false);
     setSelectedAttributes(nextAttributes);
@@ -3055,19 +3387,26 @@ export default function SearchApp() {
           </div>
         )}
       </div>
-      {selectedWarpletDetails && (
-        <WarpletDetailsModal
-          details={selectedWarpletDetails}
-          onClose={() => setSelectedWarpletDetails(null)}
-          onShare={() => handleShareWarpletDetails(selectedWarpletDetails.id)}
-          onSearchTag={handleSearchTag}
-          onLevelFilter={handleLevelFilter}
-          market={getMarketState(marketSnapshot, selectedWarpletDetails.id)}
-          isRefreshingMarket={marketRefreshTokenId === selectedWarpletDetails.id}
-          marketRefreshError={marketRefreshError}
-          onRefreshMarket={handleRefreshSelectedMarket}
-        />
-      )}
+      {selectedWarpletDetailsStack.map((details, index) => {
+        const market = getMarketState(marketSnapshot, details.id);
+        return (
+          <WarpletDetailsModal
+            key={`${details.id}-${index}`}
+            details={details}
+            onClose={handleCloseTopWarpletDetails}
+            onShare={() => handleShareWarpletDetails(details.id)}
+            onSearchTag={handleSearchTag}
+            onLevelFilter={handleLevelFilter}
+            onOpenRelatedWarplet={handleOpenRelatedWarpletDetails}
+            market={market}
+            ownedTokenIds={getOwnedTokenIds(marketSnapshot, market.owner?.wallet, details.id)}
+            isRefreshingMarket={marketRefreshTokenId === details.id}
+            marketRefreshError={index === selectedWarpletDetailsStack.length - 1 ? marketRefreshError : ""}
+            onRefreshMarket={handleRefreshSelectedMarket}
+            stackIndex={index}
+          />
+        );
+      })}
     </MiniAppShell>
   );
 }

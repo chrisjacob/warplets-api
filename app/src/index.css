@@ -94,8 +94,11 @@ button {
 
 .miniapp-shell__inner-glow {
   position: absolute;
-  inset: 0;
+  top: 0;
+  left: 0;
   z-index: 2;
+  width: 100%;
+  aspect-ratio: 1 / 1;
   pointer-events: none;
   background: radial-gradient(circle at top, rgba(0, 255, 0, 0.2), rgba(0, 0, 0, 0.88) 62%);
 }
