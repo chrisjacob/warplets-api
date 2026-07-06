@@ -1,4 +1,6 @@
 import { ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import confetti from "canvas-confetti";
+import { getAddress } from "viem";
 import {
   FloatingPortal,
   autoUpdate,
@@ -22,11 +24,30 @@ import {
 } from "./miniAppChrome.tsx";
 import MiniAppShell from "./MiniAppShell";
 import {
+  hapticError,
   hapticPrimaryTap,
   hapticSelectionChanged,
   hapticSuccess,
   hapticTap,
+  hapticWarning,
 } from "./haptics";
+import {
+  ensureBaseChain,
+  ensureErc20Approval,
+  ensureErc721ApprovalForAll,
+  executeOpenSeaActions,
+  extractFulfillmentTransaction,
+  buildSeaportCancelTransaction,
+  getWalletAccounts,
+  getWalletErrorCode,
+  getWalletErrorMessage,
+  isUserRejected,
+  sendPreparedTransaction,
+  type EthereumProvider,
+  type NftApprovalRequirement,
+  type SeaportCancelOrderParameters,
+  type TokenApprovalRequirement,
+} from "./walletTrade";
 
 const DB_URL = "/db/warplets.v1.fts.sqlite.br";
 const PAGE_SIZE = 20;
@@ -592,12 +613,21 @@ type MarketMoney = {
   tokenAddress?: string | null;
 };
 
+type MarketOrderMoney = MarketMoney & {
+  orderHash?: string | null;
+  protocolAddress?: string | null;
+};
+
 type MarketSnapshot = {
   version: "opensea-market-v1";
   generatedAt: string;
   maxAgeSeconds: number;
-  listings: Record<string, MarketMoney & { orderHash?: string | null; seller?: string | null }>;
-  offers: Record<string, MarketMoney & { orderHash?: string | null; offerer?: string | null }>;
+  collection?: {
+    floor: MarketMoney | null;
+    topOffer: MarketOrderMoney & { offerer?: string | null; source: "collection" } | null;
+  };
+  listings: Record<string, MarketOrderMoney & { seller?: string | null }>;
+  offers: Record<string, MarketOrderMoney & { offerer?: string | null; source?: "item" }>;
   sales: Record<string, MarketMoney & { txHash?: string | null; seller?: string | null }>;
   owners: Record<string, {
     wallet: string | null;
@@ -614,11 +644,53 @@ type MarketSnapshot = {
 
 type TokenMarketState = {
   listing?: MarketSnapshot["listings"][string];
-  offer?: MarketSnapshot["offers"][string];
+  itemOffer?: MarketSnapshot["offers"][string];
+  collectionOffer?: NonNullable<MarketSnapshot["collection"]>["topOffer"] | null;
+  offer?: (MarketOrderMoney & { offerer?: string | null; source?: "item" | "collection" }) | null;
   sale?: MarketSnapshot["sales"][string];
   owner?: MarketSnapshot["owners"][string];
 };
 type MarketKind = "price" | "offer" | "sold";
+
+type TradeDurationOption = {
+  label: string;
+  seconds: number;
+};
+
+type TradeActionName =
+  | "buy"
+  | "make_offer"
+  | "cancel_offer"
+  | "list"
+  | "cancel_listing"
+  | "accept_offer"
+  | "test_wallet_tx"
+  | "test_send_token"
+  | "test_drop_tx";
+
+type TradeToast = {
+  id: number;
+  kind: "success" | "neutral" | "warning" | "error";
+  message: string;
+  manualClose?: boolean;
+};
+
+type FreshTradeState = {
+  tokenId: number;
+  generatedAt: string;
+  listing: (MarketOrderMoney & { seller?: string | null; protocolData?: unknown }) | null;
+  itemOffer: (MarketOrderMoney & { offerer?: string | null; source: "item"; protocolData?: unknown }) | null;
+  collectionOffer: (MarketOrderMoney & { offerer?: string | null; source: "collection"; protocolData?: unknown }) | null;
+  topOffer: (MarketOrderMoney & { offerer?: string | null; source: "item" | "collection"; protocolData?: unknown }) | null;
+  ownItemOffer: (MarketOrderMoney & { offerer?: string | null; source: "item"; protocolData?: unknown }) | null;
+  floor: MarketMoney | null;
+  owner: {
+    wallet: string | null;
+    fid: number | null;
+    checkedAt: string | null;
+  };
+  snapshot?: MarketSnapshot;
+};
 
 type WarpletResult = {
   id: number;
@@ -1075,6 +1147,16 @@ const ORDER_OPTIONS: Array<{ value: OrderByOption; label: string }> = [
   { value: "rank", label: "Rank" },
 ];
 
+const TRADE_DURATION_OPTIONS: TradeDurationOption[] = [
+  { label: "1 Hour", seconds: 60 * 60 },
+  { label: "1 Day", seconds: 24 * 60 * 60 },
+  { label: "1 Week", seconds: 7 * 24 * 60 * 60 },
+  { label: "1 Month", seconds: 30 * 24 * 60 * 60 },
+  { label: "6 Months", seconds: 183 * 24 * 60 * 60 },
+];
+
+const DEFAULT_TRADE_DURATION_SECONDS = TRADE_DURATION_OPTIONS.at(-1)?.seconds ?? 183 * 24 * 60 * 60;
+
 function getDefaultOrderBy(hasFtsQuery: boolean, selectedAttributes: LevelAttributeColumn[]): OrderByOption {
   if (hasFtsQuery) return "relevance";
   if (selectedAttributes.length === 1) return "rank";
@@ -1091,6 +1173,19 @@ function getOrderMarketKind(orderBy: OrderByOption): MarketKind | null {
   if (orderBy === "offer" || orderBy === "recently-offered") return "offer";
   if (orderBy === "sold" || orderBy === "recently-sold") return "sold";
   return null;
+}
+
+function chooseTopOffer(
+  itemOffer: MarketSnapshot["offers"][string] | undefined,
+  collectionOffer: NonNullable<MarketSnapshot["collection"]>["topOffer"] | null | undefined,
+): TokenMarketState["offer"] {
+  if (!itemOffer) return collectionOffer ?? null;
+  if (!collectionOffer) return itemOffer;
+  const itemValue = getMarketNumber(itemOffer);
+  const collectionValue = getMarketNumber(collectionOffer);
+  if (itemValue == null) return collectionOffer;
+  if (collectionValue == null) return itemOffer;
+  return itemValue >= collectionValue ? itemOffer : collectionOffer;
 }
 
 function getMarketKindStyles(kind: MarketKind): {
@@ -1172,9 +1267,13 @@ function OrderValueLabel({
 
 function getMarketState(snapshot: MarketSnapshot | null, tokenId: number): TokenMarketState {
   const key = String(tokenId);
+  const itemOffer = snapshot?.offers[key];
+  const collectionOffer = snapshot?.collection?.topOffer ?? null;
   return {
     listing: snapshot?.listings[key],
-    offer: snapshot?.offers[key],
+    itemOffer,
+    collectionOffer,
+    offer: chooseTopOffer(itemOffer, collectionOffer),
     sale: snapshot?.sales[key],
     owner: snapshot?.owners[key],
   };
@@ -1206,6 +1305,7 @@ function mergeTokenSnapshot(current: MarketSnapshot | null, tokenSnapshot: Marke
     version: "opensea-market-v1",
     generatedAt,
     maxAgeSeconds: tokenSnapshot.maxAgeSeconds || 600,
+    collection: tokenSnapshot.collection ?? current?.collection ?? { floor: null, topOffer: null },
     listings: { ...listings, ...tokenSnapshot.listings },
     offers: { ...offers, ...tokenSnapshot.offers },
     sales: { ...sales, ...tokenSnapshot.sales },
@@ -1234,12 +1334,12 @@ function writeCachedMarketSnapshot(snapshot: MarketSnapshot): void {
   }
 }
 
-function formatEthValue(value: MarketMoney | undefined): string {
+function formatEthValue(value: MarketMoney | null | undefined): string {
   if (!value || value.eth == null) return "-";
   return `${value.eth.toLocaleString("en-US", { maximumFractionDigits: 4 })} \u039e`;
 }
 
-function isEthLikeMarketMoney(value: MarketMoney | undefined): boolean {
+function isEthLikeMarketMoney(value: MarketMoney | null | undefined): boolean {
   if (!value) return false;
   const symbol = value.currencySymbol?.toUpperCase() ?? "";
   const tokenAddress = value.tokenAddress?.toLowerCase() ?? null;
@@ -1277,7 +1377,7 @@ function getFormattedRawMarketParts(value: MarketMoney): {
   }
 }
 
-function formatRawMarketValue(value: MarketMoney | undefined): string {
+function formatRawMarketValue(value: MarketMoney | null | undefined): string {
   if (!value) return "-";
   const parts = getFormattedRawMarketParts(value);
   if (!parts) return "-";
@@ -1286,19 +1386,19 @@ function formatRawMarketValue(value: MarketMoney | undefined): string {
   return `${parts.formatted} ${value.currencySymbol ?? "RAW"}`;
 }
 
-function getRawMarketNumber(value: MarketMoney | undefined): number | null {
+function getRawMarketNumber(value: MarketMoney | null | undefined): number | null {
   if (!value) return null;
   return getFormattedRawMarketParts(value)?.parsed ?? null;
 }
 
-function getMarketNumber(value: MarketMoney | undefined): number | null {
+function getMarketNumber(value: MarketMoney | null | undefined): number | null {
   if (!value) return null;
   if (value.eth != null) return value.eth;
   if (isEthLikeMarketMoney(value)) return getRawMarketNumber(value);
   return getRawMarketNumber(value);
 }
 
-function formatMarketValue(value: MarketMoney | undefined): string {
+function formatMarketValue(value: MarketMoney | null | undefined): string {
   if (!value) return "-";
   if (value.eth != null) return formatEthValue(value);
   if (isEthLikeMarketMoney(value)) {
@@ -1308,7 +1408,32 @@ function formatMarketValue(value: MarketMoney | undefined): string {
   return formatRawMarketValue(value);
 }
 
-function hasMarketValue(value: MarketMoney | undefined): boolean {
+function marketMoneyToDecimal(value: MarketMoney | null | undefined): number | null {
+  if (!value) return null;
+  if (value.eth != null) return value.eth;
+  return getRawMarketNumber(value);
+}
+
+function decimalEthToWeiString(value: string): string | null {
+  const trimmed = value.trim();
+  if (!/^\d+(\.\d{0,18})?$/.test(trimmed)) return null;
+  const [whole, fraction = ""] = trimmed.split(".");
+  return `${whole}${fraction.padEnd(18, "0").slice(0, 18)}`.replace(/^0+(?=\d)/, "") || "0";
+}
+
+function defaultOfferPrice(topOffer: MarketMoney | null | undefined): string {
+  const numeric = marketMoneyToDecimal(topOffer);
+  if (numeric == null || numeric <= 0) return "";
+  return (Math.ceil(numeric * 1.01 * 1000000) / 1000000).toString();
+}
+
+function defaultListingPrice(floor: MarketMoney | null | undefined): string {
+  const numeric = marketMoneyToDecimal(floor);
+  if (numeric == null || numeric <= 0) return "";
+  return numeric.toString();
+}
+
+function hasMarketValue(value: MarketMoney | null | undefined): boolean {
   return Boolean(value && (value.eth != null || getRawMarketNumber(value) != null));
 }
 
@@ -1997,6 +2122,125 @@ function OwnedByPanel({
   );
 }
 
+function showTradeConfetti(): void {
+  confetti({
+    particleCount: 120,
+    spread: 70,
+    origin: { y: 0.72 },
+    colors: ["#00FF00", "#FFFFFF", "#FFFF00"],
+  });
+}
+
+function TradeToastView({
+  toast,
+  onClose,
+}: {
+  toast: TradeToast;
+  onClose: () => void;
+}) {
+  return (
+    <div
+      className={`fixed left-1/2 top-4 z-[120] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 rounded-xl border px-4 py-3 text-sm shadow-2xl ${
+        toast.kind === "error"
+          ? "border-red-400/70 bg-red-950 text-red-100"
+          : toast.kind === "warning"
+          ? "border-yellow-300/70 bg-yellow-950 text-yellow-100"
+          : toast.kind === "success"
+          ? "border-[#00FF00]/70 bg-[#041204] text-[#00FF00]"
+          : "border-[#00FF00]/35 bg-black text-[#8bbf8b]"
+      }`}
+    >
+      <div className="flex items-start gap-3">
+        <span className="min-w-0 flex-1">{toast.message}</span>
+        {toast.manualClose && (
+          <button
+            type="button"
+            aria-label="Close message"
+            onClick={onClose}
+            className="shrink-0 cursor-pointer text-current"
+          >
+            X
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function getTradeButtons({
+  listed,
+  offer,
+  owner,
+  ownItemOffer,
+}: {
+  listed: boolean;
+  offer: boolean;
+  owner: boolean;
+  ownItemOffer: boolean;
+}): Array<{ action: TradeActionName; label: string; variant: "primary" | "secondary" }> {
+  if (owner) {
+    if (listed && offer) {
+      return [
+        { action: "accept_offer", label: "Accept offer", variant: "primary" },
+        { action: "cancel_listing", label: "Cancel listing", variant: "secondary" },
+      ];
+    }
+    if (listed) return [{ action: "cancel_listing", label: "Cancel listing", variant: "primary" }];
+    if (offer) {
+      return [
+        { action: "accept_offer", label: "Accept offer", variant: "primary" },
+        { action: "list", label: "List for sale", variant: "secondary" },
+      ];
+    }
+    return [{ action: "list", label: "List for sale", variant: "primary" }];
+  }
+
+  if (listed && ownItemOffer) {
+    return [
+      { action: "buy", label: "Buy now", variant: "primary" },
+      { action: "cancel_offer", label: "Cancel offer", variant: "secondary" },
+    ];
+  }
+  if (listed) {
+    return [
+      { action: "buy", label: "Buy now", variant: "primary" },
+      { action: "make_offer", label: "Make offer", variant: "secondary" },
+    ];
+  }
+  if (ownItemOffer) return [{ action: "cancel_offer", label: "Cancel offer", variant: "primary" }];
+  return [{ action: "make_offer", label: "Make offer", variant: "primary" }];
+}
+
+function getActionLogName(action: TradeActionName): string {
+  if (action === "buy") return "buy";
+  if (action === "make_offer") return "make_offer";
+  if (action === "cancel_offer") return "cancel_offer";
+  if (action === "list") return "list";
+  if (action === "cancel_listing") return "cancel_listing";
+  if (action === "test_wallet_tx") return "test_wallet_tx";
+  if (action === "test_send_token") return "test_send_token";
+  if (action === "test_drop_tx") return "test_drop_tx";
+  return "accept_offer";
+}
+
+function withClientTimeout<T>(promise: Promise<T>, label: string, timeoutMs: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timeoutId = window.setTimeout(() => {
+      reject(new Error(`${label} did not open or respond.`));
+    }, timeoutMs);
+    promise.then(
+      (value) => {
+        window.clearTimeout(timeoutId);
+        resolve(value);
+      },
+      (error) => {
+        window.clearTimeout(timeoutId);
+        reject(error);
+      },
+    );
+  });
+}
+
 function WarpletDetailsModal({
   details,
   onClose,
@@ -2009,6 +2253,8 @@ function WarpletDetailsModal({
   isRefreshingMarket,
   marketRefreshError,
   onRefreshMarket,
+  viewerFid,
+  onMergeMarketSnapshot,
   stackIndex,
 }: {
   details: WarpletDetails;
@@ -2022,6 +2268,8 @@ function WarpletDetailsModal({
   isRefreshingMarket: boolean;
   marketRefreshError: string;
   onRefreshMarket: () => void;
+  viewerFid: number | null;
+  onMergeMarketSnapshot: (tokenId: number, snapshot: MarketSnapshot) => void;
   stackIndex: number;
 }) {
   const row = details.row;
@@ -2032,11 +2280,146 @@ function WarpletDetailsModal({
   const userIsPro = formatDetailValue("warplet_user_is_pro", row.warplet_user_is_pro);
   const lastMarketUpdatedAt = getMarketUpdatedAt(market);
   const marketLooksStale = lastMarketUpdatedAt ? Date.now() - Date.parse(lastMarketUpdatedAt) > MARKET_DETAIL_STALE_MS : true;
+  const [tradeState, setTradeState] = useState<FreshTradeState | null>(null);
+  const [activeWallet, setActiveWallet] = useState<string | null>(null);
+  const [tradeMode, setTradeMode] = useState<"idle" | "offer" | "list">("idle");
+  const [tradeDuration, setTradeDuration] = useState(DEFAULT_TRADE_DURATION_SECONDS);
+  const [offerPrice, setOfferPrice] = useState("");
+  const [listingPrice, setListingPrice] = useState("");
+  const [tradeBusyAction, setTradeBusyAction] = useState<TradeActionName | null>(null);
+  const [tradeToast, setTradeToast] = useState<TradeToast | null>(null);
+  const tradeToastIdRef = useRef(0);
+  const tradeBusyActionRef = useRef<TradeActionName | null>(null);
+  const actionIdRef = useRef<string | null>(null);
+  const effectiveListing = tradeState?.listing ?? market.listing ?? null;
+  const effectiveItemOffer = tradeState?.itemOffer ?? market.itemOffer ?? null;
+  const effectiveCollectionOffer = tradeState?.collectionOffer ?? market.collectionOffer ?? null;
+  const effectiveTopOffer = tradeState?.topOffer ?? chooseTopOffer(effectiveItemOffer ?? undefined, effectiveCollectionOffer ?? null);
+  const effectiveOwner = (() => {
+    const freshOwner = tradeState?.owner;
+    const cachedOwner = market.owner;
+    if (!freshOwner) return cachedOwner ?? null;
+    const freshWallet = freshOwner.wallet?.toLowerCase() ?? "";
+    const cachedWallet = cachedOwner?.wallet?.toLowerCase() ?? "";
+    if (cachedOwner && freshWallet && cachedWallet === freshWallet) {
+      return {
+        ...cachedOwner,
+        wallet: freshOwner.wallet,
+        fid: freshOwner.fid ?? cachedOwner.fid,
+        checkedAt: freshOwner.checkedAt ?? cachedOwner.checkedAt,
+      };
+    }
+    return freshOwner;
+  })();
+  const effectiveFloor = tradeState?.floor ?? null;
+  const normalizedActiveWallet = activeWallet?.toLowerCase() ?? "";
+  const ownerWallet = effectiveOwner?.wallet?.toLowerCase() ?? "";
+  const isViewerOwnerByFid = Boolean(viewerFid != null && effectiveOwner?.fid === viewerFid);
+  const isOwner = Boolean(
+    (normalizedActiveWallet && ownerWallet && normalizedActiveWallet === ownerWallet) ||
+    (!normalizedActiveWallet && isViewerOwnerByFid)
+  );
+  const hasListing = hasMarketValue(effectiveListing ?? undefined);
+  const hasTopOffer = hasMarketValue(effectiveTopOffer ?? undefined);
+  const hasOwnItemOffer = Boolean(tradeState?.ownItemOffer && hasMarketValue(tradeState.ownItemOffer));
+  const tradeButtons = getTradeButtons({
+    listed: hasListing,
+    offer: hasTopOffer,
+    owner: isOwner,
+    ownItemOffer: hasOwnItemOffer,
+  });
   const chipGroups = [
     { label: "Colours", values: splitChips(row.warplet_colours) },
     { label: "Keywords", values: splitChips(row.warplet_keywords) },
     { label: "Traits", values: splitChips(row.warplet_traits) },
   ];
+
+  const showToast = useCallback((kind: TradeToast["kind"], message: string, options: { manualClose?: boolean; minMs?: number } = {}) => {
+    const id = tradeToastIdRef.current + 1;
+    tradeToastIdRef.current = id;
+    const toast: TradeToast = { id, kind, message, manualClose: options.manualClose };
+    setTradeToast(toast);
+    if (!options.manualClose) {
+      window.setTimeout(() => {
+        setTradeToast((current) => (current?.id === id ? null : current));
+      }, options.minMs ?? 5000);
+    }
+  }, []);
+
+  const postTradeLog = useCallback((payload: Record<string, unknown>) => {
+    fetch("/api/warplet-trade/log", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        actionId: actionIdRef.current,
+        fid: viewerFid,
+        tokenId: details.id,
+        walletFrom: activeWallet,
+        ...payload,
+      }),
+    }).catch(() => {});
+  }, [activeWallet, details.id, viewerFid]);
+
+  const getProviderAndAccount = useCallback(async (
+    preferredAccount?: string | null,
+    options: { skipChainSwitch?: boolean } = {},
+  ): Promise<{ provider: EthereumProvider; account: string }> => {
+    const provider = (await sdk.wallet.getEthereumProvider()) as EthereumProvider | null;
+    if (!provider) throw new Error("Farcaster wallet is not available");
+    const accounts = await getWalletAccounts(provider, preferredAccount);
+    const account = accounts[0] ?? preferredAccount;
+    if (!account) throw new Error("No wallet account is connected");
+    setActiveWallet(account);
+    await ensureBaseChain(provider, undefined, { allowSkipSwitch: options.skipChainSwitch });
+    return { provider, account };
+  }, []);
+
+  const refreshTradeState = useCallback(async (walletOverride?: string | null): Promise<FreshTradeState | null> => {
+    const walletParam = encodeURIComponent(walletOverride ?? activeWallet ?? "");
+    const response = await fetch(`/api/warplet-trade-state/${details.id}${walletParam ? `?wallet=${walletParam}` : ""}`, {
+      headers: { accept: "application/json" },
+    });
+    if (!response.ok) throw new Error(`Trade state failed (${response.status})`);
+    const next = (await response.json()) as FreshTradeState;
+    setTradeState(next);
+    if (next.owner?.wallet) setActiveWallet((current) => current);
+    if (next.snapshot) onMergeMarketSnapshot(details.id, next.snapshot);
+    setOfferPrice((current) => current || defaultOfferPrice(next.topOffer));
+    setListingPrice((current) => current || defaultListingPrice(next.floor));
+    return next;
+  }, [activeWallet, details.id, onMergeMarketSnapshot]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadPassiveWallet = async () => {
+      try {
+        const provider = (await sdk.wallet.getEthereumProvider()) as EthereumProvider | null;
+        if (!provider) return;
+        const raw = await provider.request({ method: "eth_accounts" }).catch(() => []);
+        const account = Array.isArray(raw) && typeof raw[0] === "string" ? raw[0] : null;
+        if (account && !cancelled) {
+          setActiveWallet(account);
+          await refreshTradeState(account);
+        } else if (!cancelled) {
+          await refreshTradeState(null);
+        }
+      } catch {
+        if (!cancelled) {
+          refreshTradeState(null).catch(() => {});
+        }
+      }
+    };
+    void loadPassiveWallet();
+    return () => {
+      cancelled = true;
+    };
+  }, [details.id, refreshTradeState]);
+
+  useEffect(() => {
+    if (!tradeState) return;
+    setOfferPrice((current) => current || defaultOfferPrice(tradeState.topOffer));
+    setListingPrice((current) => current || defaultListingPrice(tradeState.floor));
+  }, [tradeState]);
 
   const handleOpenFarcasterProfile = () => {
     if (!farcasterFid) return;
@@ -2046,7 +2429,486 @@ function WarpletDetailsModal({
     });
   };
 
+  const handleTradeError = useCallback((action: TradeActionName, error: unknown) => {
+    const message = getWalletErrorMessage(error);
+    const rejected = isUserRejected(error);
+    void (rejected ? hapticWarning() : hapticError());
+    postTradeLog({
+      actionName: getActionLogName(action),
+      status: rejected ? "rejected" : "error",
+      phase: rejected ? "user_rejected" : "wallet_error",
+      walletErrorCode: getWalletErrorCode(error),
+      errorMessage: message,
+    });
+    showToast(
+      rejected ? "neutral" : "error",
+      rejected
+        ? action === "buy"
+          ? "Item not purchased"
+          : action === "make_offer"
+          ? "Offer not made"
+          : action === "cancel_offer"
+          ? "Offer not canceled"
+          : action === "list"
+          ? "Item not listed"
+          : action === "cancel_listing"
+          ? "Listing not canceled"
+          : action === "test_wallet_tx"
+          ? "Test transaction not sent"
+          : action === "test_send_token"
+          ? "Send-token test not completed"
+          : action === "test_drop_tx"
+          ? "Drop-style wallet test not completed"
+          : "Offer not accepted"
+        : message,
+      { manualClose: !rejected, minMs: 5000 },
+    );
+  }, [postTradeLog, showToast]);
+
+  const handleFreshMismatch = useCallback((payload: { freshState?: FreshTradeState }) => {
+    if (payload.freshState) {
+      setTradeState(payload.freshState);
+      if (payload.freshState.snapshot) onMergeMarketSnapshot(details.id, payload.freshState.snapshot);
+    }
+    void hapticWarning();
+    showToast("warning", "The price has changed. Refreshing...", { minMs: 5000 });
+  }, [details.id, onMergeMarketSnapshot, showToast]);
+
+  const assertConnectedOwnerWallet = useCallback((account: string) => {
+    const expectedOwner = ownerWallet;
+    if (expectedOwner && account.toLowerCase() !== expectedOwner) {
+      throw new Error("Connected wallet does not own this Warplet.");
+    }
+  }, [ownerWallet]);
+
+  const runBuyNow = useCallback(async () => {
+    const actionId = crypto.randomUUID();
+    actionIdRef.current = actionId;
+    setTradeBusyAction("buy");
+    try {
+      void hapticPrimaryTap();
+      const { provider, account } = await getProviderAndAccount();
+      const response = await fetch("/api/warplet-trade/buy/prepare", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          actionId,
+          fid: viewerFid,
+          tokenId: details.id,
+          wallet: account,
+          expectedOrderHash: effectiveListing?.orderHash,
+          expectedRawAmount: effectiveListing?.rawAmount,
+        }),
+      });
+      const payload = await response.json() as { status?: string; freshState?: FreshTradeState; fulfillment?: unknown; state?: FreshTradeState; chainIdHex?: string; message?: string };
+      if (response.status === 409 || payload.status === "mismatch") {
+        handleFreshMismatch(payload);
+        return;
+      }
+      if (!response.ok) throw new Error(payload.message || `Buy prepare failed (${response.status})`);
+      if (payload.state) setTradeState(payload.state);
+      await ensureBaseChain(provider, payload.chainIdHex ?? undefined);
+      postTradeLog({ actionName: "buy", status: "requested", phase: "transaction_requested" });
+      const tx = extractFulfillmentTransaction(payload.fulfillment);
+      if (!tx) throw new Error("OpenSea did not return a buy transaction");
+      const hash = await sendPreparedTransaction(provider, account, tx);
+      postTradeLog({ actionName: "buy", status: "submitted", phase: "transaction_submitted", transactionHash: hash });
+      postTradeLog({ actionName: "buy", status: "confirmed", phase: "confirmed", transactionHash: hash });
+      await refreshTradeState(account);
+      void hapticSuccess();
+      showTradeConfetti();
+      showToast("success", "Item successfully purchased", { minMs: 5000 });
+    } catch (error) {
+      handleTradeError("buy", error);
+    } finally {
+      setTradeBusyAction(null);
+    }
+  }, [details.id, effectiveListing?.orderHash, effectiveListing?.rawAmount, getProviderAndAccount, handleFreshMismatch, handleTradeError, postTradeLog, refreshTradeState, showToast, viewerFid]);
+
+  const runAcceptOffer = useCallback(async () => {
+    const actionId = crypto.randomUUID();
+    actionIdRef.current = actionId;
+    setTradeBusyAction("accept_offer");
+    try {
+      void hapticPrimaryTap();
+      const { provider, account } = await getProviderAndAccount(ownerWallet);
+      assertConnectedOwnerWallet(account);
+      const response = await fetch("/api/warplet-trade/offer/accept/prepare", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          actionId,
+          fid: viewerFid,
+          tokenId: details.id,
+          wallet: account,
+          expectedOrderHash: effectiveTopOffer?.orderHash,
+          expectedRawAmount: effectiveTopOffer?.rawAmount,
+        }),
+      });
+      const payload = await response.json() as {
+        status?: string;
+        freshState?: FreshTradeState;
+        fulfillment?: unknown;
+        state?: FreshTradeState;
+        chainIdHex?: string;
+        nftApproval?: NftApprovalRequirement;
+        message?: string;
+      };
+      if (response.status === 409 || payload.status === "mismatch") {
+        handleFreshMismatch(payload);
+        return;
+      }
+      if (!response.ok) throw new Error(payload.message || `Accept offer prepare failed (${response.status})`);
+      if (payload.state) setTradeState(payload.state);
+      await ensureBaseChain(provider, payload.chainIdHex ?? undefined);
+      if (payload.nftApproval) {
+        postTradeLog({ actionName: "accept_offer", status: "requested", phase: "approval_requested" });
+        await ensureErc721ApprovalForAll(provider, account, payload.nftApproval);
+        postTradeLog({ actionName: "accept_offer", status: "approved", phase: "approval_success" });
+      }
+      postTradeLog({ actionName: "accept_offer", status: "requested", phase: "transaction_requested" });
+      const tx = extractFulfillmentTransaction(payload.fulfillment);
+      if (!tx) throw new Error("OpenSea did not return an offer fulfillment transaction");
+      const hash = await sendPreparedTransaction(provider, account, tx);
+      postTradeLog({ actionName: "accept_offer", status: "submitted", phase: "transaction_submitted", transactionHash: hash });
+      postTradeLog({ actionName: "accept_offer", status: "confirmed", phase: "confirmed", transactionHash: hash });
+      await refreshTradeState(account);
+      void hapticSuccess();
+      showTradeConfetti();
+      showToast("success", "Offer successfully accepted", { minMs: 5000 });
+    } catch (error) {
+      handleTradeError("accept_offer", error);
+    } finally {
+      setTradeBusyAction(null);
+    }
+  }, [assertConnectedOwnerWallet, details.id, effectiveTopOffer?.orderHash, effectiveTopOffer?.rawAmount, getProviderAndAccount, handleFreshMismatch, handleTradeError, postTradeLog, refreshTradeState, showToast, viewerFid]);
+
+  const runListForSale = useCallback(async () => {
+    if (tradeBusyActionRef.current) return;
+    const priceRaw = decimalEthToWeiString(listingPrice);
+    if (!priceRaw || BigInt(priceRaw) <= 0n) {
+      showToast("error", "Enter a valid listing price.", { manualClose: true });
+      return;
+    }
+    const actionId = crypto.randomUUID();
+    actionIdRef.current = actionId;
+    tradeBusyActionRef.current = "list";
+    setTradeBusyAction("list");
+    try {
+      void hapticPrimaryTap();
+      const { provider, account } = await getProviderAndAccount(ownerWallet, { skipChainSwitch: true });
+      assertConnectedOwnerWallet(account);
+      const prepare = await fetch("/api/warplet-trade/listing/prepare", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ actionId, fid: viewerFid, tokenId: details.id, wallet: account, priceRaw, durationSeconds: tradeDuration }),
+      });
+      const payload = await prepare.json() as { actions?: unknown; chainIdHex?: string; message?: string };
+      if (!prepare.ok) throw new Error(payload.message || `Listing prepare failed (${prepare.status})`);
+      postTradeLog({ actionName: "list", status: "requested", phase: "signature_requested", expectedPriceRaw: priceRaw });
+      showToast("neutral", "Check your Farcaster wallet to confirm the listing...", { minMs: 5000 });
+      const signed = await executeOpenSeaActions(provider, account, payload.actions);
+      postTradeLog({ actionName: "list", status: "signed", phase: "signature_success", expectedPriceRaw: priceRaw });
+      const submit = await fetch("/api/warplet-trade/listing/submit", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ actionId, payload: signed.payload }),
+      });
+      if (!submit.ok) {
+        const failure = await submit.json().catch(() => ({})) as { message?: string };
+        throw new Error(failure.message || `Listing submit failed (${submit.status})`);
+      }
+      await refreshTradeState(account);
+      void hapticSuccess();
+      showTradeConfetti();
+      setTradeMode("idle");
+      showToast("success", "Item successfully listed", { minMs: 5000 });
+    } catch (error) {
+      handleTradeError("list", error);
+    } finally {
+      tradeBusyActionRef.current = null;
+      setTradeBusyAction(null);
+    }
+  }, [assertConnectedOwnerWallet, details.id, getProviderAndAccount, handleTradeError, listingPrice, postTradeLog, refreshTradeState, showToast, tradeDuration, viewerFid]);
+
+  const runMakeOffer = useCallback(async () => {
+    const priceRaw = decimalEthToWeiString(offerPrice);
+    if (!priceRaw || BigInt(priceRaw) <= 0n) {
+      showToast("error", "Enter a valid offer price.", { manualClose: true });
+      return;
+    }
+    const actionId = crypto.randomUUID();
+    actionIdRef.current = actionId;
+    setTradeBusyAction("make_offer");
+    try {
+      void hapticPrimaryTap();
+      const { provider, account } = await getProviderAndAccount(null, { skipChainSwitch: true });
+      const prepare = await fetch("/api/warplet-trade/offer/prepare", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ actionId, fid: viewerFid, tokenId: details.id, wallet: account, priceRaw, durationSeconds: tradeDuration }),
+      });
+      const payload = await prepare.json() as { build?: unknown; chainIdHex?: string; wethApproval?: TokenApprovalRequirement; message?: string };
+      if (!prepare.ok) throw new Error(payload.message || `Offer prepare failed (${prepare.status})`);
+      if (payload.wethApproval) {
+        await ensureBaseChain(provider, payload.chainIdHex ?? undefined);
+        postTradeLog({ actionName: "make_offer", status: "requested", phase: "approval_requested", expectedPriceRaw: priceRaw });
+        await ensureErc20Approval(provider, account, payload.wethApproval);
+        postTradeLog({ actionName: "make_offer", status: "approved", phase: "approval_success", expectedPriceRaw: priceRaw });
+      }
+      postTradeLog({ actionName: "make_offer", status: "requested", phase: "signature_requested", expectedPriceRaw: priceRaw });
+      showToast("neutral", "Check your Farcaster wallet to confirm the offer...", { minMs: 5000 });
+      const signed = await executeOpenSeaActions(provider, account, payload.build);
+      postTradeLog({ actionName: "make_offer", status: "signed", phase: "signature_success", expectedPriceRaw: priceRaw });
+      const submit = await fetch("/api/warplet-trade/offer/submit", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ actionId, payload: signed.payload }),
+      });
+      if (!submit.ok) {
+        const failure = await submit.json().catch(() => ({})) as { message?: string };
+        throw new Error(failure.message || `Offer submit failed (${submit.status})`);
+      }
+      await refreshTradeState(account);
+      void hapticSuccess();
+      showTradeConfetti();
+      setTradeMode("idle");
+      showToast("success", "Offer successfully made", { minMs: 5000 });
+    } catch (error) {
+      handleTradeError("make_offer", error);
+    } finally {
+      setTradeBusyAction(null);
+    }
+  }, [details.id, getProviderAndAccount, handleTradeError, offerPrice, postTradeLog, refreshTradeState, showToast, tradeDuration, viewerFid]);
+
+  const runCancelOrder = useCallback(async (action: "cancel_offer" | "cancel_listing") => {
+    const order = action === "cancel_offer" ? tradeState?.ownItemOffer : effectiveListing;
+    if (!order?.orderHash || !order.protocolAddress) {
+      showToast("error", "No active order is available to cancel.", { manualClose: true });
+      return;
+    }
+    const actionId = crypto.randomUUID();
+    actionIdRef.current = actionId;
+    setTradeBusyAction(action);
+    try {
+      void hapticPrimaryTap();
+      const { provider, account } = await getProviderAndAccount(
+        action === "cancel_listing" ? ownerWallet : null,
+        { skipChainSwitch: true },
+      );
+      if (action === "cancel_listing") assertConnectedOwnerWallet(account);
+      postTradeLog({ actionName: getActionLogName(action), status: "requested", phase: "prepare_requested", orderHash: order.orderHash, protocolAddress: order.protocolAddress });
+      const endpoint = action === "cancel_offer" ? "/api/warplet-trade/offer/cancel-prepare" : "/api/warplet-trade/listing/cancel-prepare";
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          actionId,
+          fid: viewerFid,
+          tokenId: details.id,
+          wallet: account,
+          orderHash: order.orderHash,
+          protocolAddress: order.protocolAddress,
+        }),
+      });
+      const payload = await response.json().catch(() => ({})) as {
+        chainIdHex?: string;
+        protocolAddress?: string;
+        orderParameters?: SeaportCancelOrderParameters;
+        message?: string;
+      };
+      if (!response.ok) throw new Error(payload.message || `Cancel prepare failed (${response.status})`);
+      if (!payload.protocolAddress || !payload.orderParameters) throw new Error("OpenSea did not return cancel transaction data");
+      await ensureBaseChain(provider, payload.chainIdHex ?? undefined);
+      postTradeLog({ actionName: getActionLogName(action), status: "requested", phase: "transaction_requested", orderHash: order.orderHash, protocolAddress: payload.protocolAddress });
+      showToast("neutral", "Check your Farcaster wallet to confirm cancellation...", { minMs: 5000 });
+      const hash = await sendPreparedTransaction(
+        provider,
+        account,
+        buildSeaportCancelTransaction(payload.protocolAddress, payload.orderParameters),
+      );
+      postTradeLog({ actionName: getActionLogName(action), status: "submitted", phase: "transaction_submitted", orderHash: order.orderHash, protocolAddress: payload.protocolAddress, transactionHash: hash });
+      postTradeLog({ actionName: getActionLogName(action), status: "confirmed", phase: "confirmed", orderHash: order.orderHash, protocolAddress: payload.protocolAddress, transactionHash: hash });
+      await refreshTradeState(account);
+      void hapticSuccess();
+      showTradeConfetti();
+      showToast("success", action === "cancel_offer" ? "Offer successfully canceled" : "Listing successfully canceled", { minMs: 5000 });
+    } catch (error) {
+      handleTradeError(action, error);
+    } finally {
+      setTradeBusyAction(null);
+    }
+  }, [assertConnectedOwnerWallet, details.id, effectiveListing, getProviderAndAccount, handleTradeError, postTradeLog, refreshTradeState, showToast, tradeState?.ownItemOffer, viewerFid]);
+
+  const runTestWalletTransaction = useCallback(async () => {
+    if (tradeBusyActionRef.current) return;
+    const actionId = crypto.randomUUID();
+    actionIdRef.current = actionId;
+    tradeBusyActionRef.current = "test_wallet_tx";
+    setTradeBusyAction("test_wallet_tx");
+    try {
+      void hapticPrimaryTap();
+      const provider = (await sdk.wallet.getEthereumProvider()) as EthereumProvider | null;
+      if (!provider) throw new Error("Farcaster wallet is not available");
+      const account = getAddress(activeWallet ?? ownerWallet);
+      setActiveWallet(account);
+      const sdkCapabilities = await withClientTimeout(
+        sdk.getCapabilities(),
+        "SDK capabilities lookup",
+        4000,
+      ).catch((error) => [`error: ${getWalletErrorMessage(error)}`]);
+      const sdkChains = await withClientTimeout(
+        sdk.getChains(),
+        "SDK chains lookup",
+        4000,
+      ).catch((error) => [`error: ${getWalletErrorMessage(error)}`]);
+      const chainResult = await withClientTimeout(
+        provider.request({ method: "eth_chainId" }),
+        "Wallet chain lookup",
+        4000,
+      ).catch((error) => `error: ${getWalletErrorMessage(error)}`);
+      const accountsResult = await withClientTimeout(
+        provider.request({ method: "eth_accounts" }),
+        "Wallet account lookup",
+        4000,
+      ).catch((error) => `error: ${getWalletErrorMessage(error)}`);
+      const accountsText = Array.isArray(accountsResult)
+        ? `${accountsResult.length} account${accountsResult.length === 1 ? "" : "s"}`
+        : String(accountsResult);
+      const hasWalletCapability = Array.isArray(sdkCapabilities) && sdkCapabilities.includes("wallet.getEthereumProvider");
+      const chainsText = Array.isArray(sdkChains) ? sdkChains.join(",") || "none" : String(sdkChains);
+      postTradeLog({ actionName: "test_wallet_tx", status: "requested", phase: "transaction_requested", walletFrom: account });
+      showToast("neutral", `Wallet RPC: cap ${hasWalletCapability ? "yes" : "no"}, chains ${chainsText}, chain ${String(chainResult)}, ${accountsText}. Trying wallet_sendCalls...`, { minMs: 8000 });
+      let txResult = await withClientTimeout(provider.request({
+        method: "wallet_sendCalls",
+        params: [{
+          version: "2.0.0",
+          chainId: "0x2105",
+          from: account,
+          calls: [{
+            to: account,
+            value: "0x0",
+            data: "0x",
+          }],
+        }],
+      }), "wallet_sendCalls test transaction", 30000).catch((error) => {
+        showToast("warning", `wallet_sendCalls failed: ${getWalletErrorMessage(error)}. Trying eth_sendTransaction...`, { minMs: 8000 });
+        return null;
+      });
+      if (!txResult) {
+        txResult = await withClientTimeout(provider.request({
+          method: "eth_sendTransaction",
+          params: [{
+            from: account,
+            to: account,
+            value: "0x0",
+          }],
+        }), "Direct test transaction", 30000);
+      }
+      postTradeLog({ actionName: "test_wallet_tx", status: "submitted", phase: "transaction_submitted", walletFrom: account, transactionHash: typeof txResult === "string" ? txResult : null });
+      void hapticSuccess();
+      showToast("success", "Test transaction submitted", { minMs: 5000 });
+    } catch (error) {
+      handleTradeError("test_wallet_tx", error);
+    } finally {
+      tradeBusyActionRef.current = null;
+      setTradeBusyAction(null);
+    }
+  }, [activeWallet, handleTradeError, ownerWallet, postTradeLog, showToast]);
+
+  const runTestSendTokenAction = useCallback(async () => {
+    if (tradeBusyActionRef.current) return;
+    tradeBusyActionRef.current = "test_send_token";
+    setTradeBusyAction("test_send_token");
+    try {
+      void hapticPrimaryTap();
+      const account = getAddress(activeWallet ?? ownerWallet);
+      setActiveWallet(account);
+      postTradeLog({ actionName: "test_send_token", status: "requested", phase: "transaction_requested", walletFrom: account, walletTo: account });
+      showToast("neutral", "Opening Farcaster send-token action...", { minMs: 5000 });
+      const result = await withClientTimeout(
+        sdk.actions.sendToken({ recipientAddress: account }),
+        "Farcaster send-token action",
+        30000,
+      );
+      if (!result.success) {
+        throw new Error(result.error?.message || result.reason || "Send-token action did not complete");
+      }
+      postTradeLog({ actionName: "test_send_token", status: "submitted", phase: "transaction_submitted", walletFrom: account, walletTo: account, transactionHash: result.send.transaction });
+      void hapticSuccess();
+      showToast("success", "Send-token test submitted", { minMs: 5000 });
+    } catch (error) {
+      handleTradeError("test_send_token", error);
+    } finally {
+      tradeBusyActionRef.current = null;
+      setTradeBusyAction(null);
+    }
+  }, [activeWallet, handleTradeError, ownerWallet, postTradeLog, showToast]);
+
+  const runTestDropStyleTransaction = useCallback(async () => {
+    if (tradeBusyActionRef.current) return;
+    tradeBusyActionRef.current = "test_drop_tx";
+    setTradeBusyAction("test_drop_tx");
+    try {
+      void hapticPrimaryTap();
+      const provider = (await sdk.wallet.getEthereumProvider()) as EthereumProvider | null;
+      if (!provider) throw new Error("Farcaster wallet is unavailable in this client.");
+      showToast("neutral", "Drop-style test: requesting wallet account...", { minMs: 5000 });
+      const accounts = await withClientTimeout(
+        provider.request({ method: "eth_requestAccounts" }),
+        "Drop-style wallet account request",
+        30000,
+      );
+      const accountList = Array.isArray(accounts) ? accounts.filter((account): account is string => typeof account === "string") : [];
+      const activeAccount = getAddress(accountList[0] ?? "");
+      setActiveWallet(activeAccount);
+      showToast("neutral", "Drop-style test: checking Base network...", { minMs: 5000 });
+      await ensureBaseChain(provider, undefined, { allowSkipSwitch: true });
+      postTradeLog({ actionName: "test_drop_tx", status: "requested", phase: "transaction_requested", walletFrom: activeAccount });
+      showToast("neutral", "Drop-style test: check your wallet for a 0 ETH transaction...", { minMs: 5000 });
+      const hash = await withClientTimeout(provider.request({
+        method: "eth_sendTransaction",
+        params: [{
+          from: activeAccount,
+          to: activeAccount,
+          value: "0x0",
+        }],
+      }), "Drop-style test transaction", 30000);
+      if (typeof hash !== "string") throw new Error("Wallet did not return a transaction hash");
+      postTradeLog({ actionName: "test_drop_tx", status: "submitted", phase: "transaction_submitted", walletFrom: activeAccount, transactionHash: hash });
+      void hapticSuccess();
+      showToast("success", "Drop-style test transaction submitted", { minMs: 5000 });
+    } catch (error) {
+      handleTradeError("test_drop_tx", error);
+    } finally {
+      tradeBusyActionRef.current = null;
+      setTradeBusyAction(null);
+    }
+  }, [handleTradeError, postTradeLog, showToast]);
+
+  const handleTradeAction = useCallback((action: TradeActionName) => {
+    void hapticSelectionChanged();
+    if (action === "make_offer") {
+      setTradeMode("offer");
+      setOfferPrice((current) => current || defaultOfferPrice(effectiveTopOffer));
+      return;
+    }
+    if (action === "list") {
+      setTradeMode("list");
+      setListingPrice((current) => current || defaultListingPrice(effectiveFloor));
+      return;
+    }
+    if (action === "buy") void runBuyNow();
+    if (action === "accept_offer") void runAcceptOffer();
+    if (action === "cancel_offer") void runCancelOrder("cancel_offer");
+    if (action === "cancel_listing") void runCancelOrder("cancel_listing");
+  }, [effectiveFloor, effectiveTopOffer, runAcceptOffer, runBuyNow, runCancelOrder]);
+
   return (
+    <>
+    {tradeToast && (
+      <TradeToastView toast={tradeToast} onClose={() => setTradeToast(null)} />
+    )}
     <div className="fixed inset-0 flex items-end justify-center bg-black/80 p-4 sm:items-center" style={{ zIndex: 50 + stackIndex }}>
       <div className="max-h-[92vh] w-full max-w-md overflow-auto rounded-2xl border border-[#00FF00]/35 bg-black shadow-2xl">
         <div className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-[#00FF00]/20 bg-black px-4 py-3">
@@ -2144,23 +3006,145 @@ function WarpletDetailsModal({
             </div>
           </div>
 
-            <button
-              type="button"
-              onClick={() => {
-                void hapticPrimaryTap();
-                sdk.actions.openUrl(getOpenSeaUrl(details.id)).catch((error) => {
-                  console.error("Failed to open OpenSea in Farcaster:", error);
-                });
-              }}
-              className="mt-4 w-full cursor-pointer rounded-[20px] border border-[#009900] bg-[#00FF00] px-5 py-3 text-center text-base font-bold text-[rgb(0,80,0)] shadow-[3px_6px_0_#008000] transition-all duration-100 hover:bg-[#33ff33] active:translate-x-[1px] active:translate-y-[3px] active:shadow-[1px_3px_0_#008000]"
-            >
-              View on OpenSea
-            </button>
+            <div className="mt-4 space-y-3">
+              <div className="grid gap-2">
+                {tradeButtons.map((button) => (
+                  <button
+                    key={button.action}
+                    type="button"
+                    disabled={tradeBusyAction !== null}
+                    onClick={() => handleTradeAction(button.action)}
+                    className={
+                      button.variant === "primary"
+                        ? "w-full cursor-pointer rounded-[20px] border border-[#009900] bg-[#00FF00] px-5 py-3 text-center text-base font-bold text-[rgb(0,80,0)] shadow-[3px_6px_0_#008000] transition-all duration-100 hover:bg-[#33ff33] active:translate-x-[1px] active:translate-y-[3px] active:shadow-[1px_3px_0_#008000] disabled:cursor-wait disabled:opacity-70"
+                        : "w-full cursor-pointer rounded-xl border border-[#00FF00]/45 bg-black px-5 py-2.5 text-center text-sm font-bold text-[#00FF00] transition-colors hover:bg-[#041204] disabled:cursor-wait disabled:opacity-70"
+                    }
+                  >
+                    {tradeBusyAction === button.action ? "Working..." : button.label}
+                  </button>
+                ))}
+              </div>
+
+              {tradeMode === "offer" && (
+                <div className="rounded-xl border border-[#33AAFF]/35 bg-[rgba(51,170,255,0.12)] p-3">
+                  <label className="block text-xs font-bold uppercase text-[#8bcfff]">
+                    Offered at
+                    <div className="mt-1 flex items-center rounded-lg border border-[#33AAFF]/35 bg-black/60 px-3 py-2">
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        value={offerPrice}
+                        onChange={(event) => setOfferPrice(event.target.value)}
+                        placeholder="0.0"
+                        className="min-w-0 flex-1 bg-transparent text-base font-bold text-[#33AAFF] outline-none"
+                      />
+                      <span className="text-sm font-bold text-[#33AAFF]">WETH</span>
+                    </div>
+                  </label>
+                  <label className="mt-3 block text-xs font-bold uppercase text-[#8bcfff]">
+                    Duration
+                    <select
+                      value={tradeDuration}
+                      onChange={(event) => setTradeDuration(Number(event.target.value))}
+                      className="mt-1 h-10 w-full cursor-pointer rounded-lg border border-[#33AAFF]/35 bg-black px-3 text-sm font-bold text-[#33AAFF] outline-none"
+                    >
+                      {TRADE_DURATION_OPTIONS.map((option) => (
+                        <option key={option.seconds} value={option.seconds}>{option.label}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => void runMakeOffer()}
+                    disabled={tradeBusyAction !== null}
+                    className="mt-3 w-full cursor-pointer rounded-xl border border-[#33AAFF]/55 bg-[#33AAFF] px-4 py-2.5 text-sm font-bold text-black hover:bg-[#70c6ff] disabled:cursor-wait disabled:opacity-70"
+                  >
+                    {tradeBusyAction === "make_offer" ? "Working..." : "Review item offer"}
+                  </button>
+                </div>
+              )}
+
+              {tradeMode === "list" && (
+                <div className="rounded-xl border border-[#FFFF00]/35 bg-[rgba(255,255,0,0.12)] p-3">
+                  <label className="block text-xs font-bold uppercase text-[#e6e68a]">
+                    Listed as
+                    <div className="mt-1 flex items-center rounded-lg border border-[#FFFF00]/35 bg-black/60 px-3 py-2">
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        value={listingPrice}
+                        onChange={(event) => setListingPrice(event.target.value)}
+                        placeholder="0.0"
+                        className="min-w-0 flex-1 bg-transparent text-base font-bold text-[#FFFF00] outline-none"
+                      />
+                      <span className="text-sm font-bold text-[#FFFF00]">ETH</span>
+                    </div>
+                  </label>
+                  <label className="mt-3 block text-xs font-bold uppercase text-[#e6e68a]">
+                    Duration
+                    <select
+                      value={tradeDuration}
+                      onChange={(event) => setTradeDuration(Number(event.target.value))}
+                      className="mt-1 h-10 w-full cursor-pointer rounded-lg border border-[#FFFF00]/35 bg-black px-3 text-sm font-bold text-[#FFFF00] outline-none"
+                    >
+                      {TRADE_DURATION_OPTIONS.map((option) => (
+                        <option key={option.seconds} value={option.seconds}>{option.label}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => void runListForSale()}
+                    disabled={tradeBusyAction !== null}
+                    className="mt-3 w-full cursor-pointer rounded-xl border border-[#FFFF00]/55 bg-[#FFFF00] px-4 py-2.5 text-sm font-bold text-black hover:bg-[#ffff66] disabled:cursor-wait disabled:opacity-70"
+                  >
+                    {tradeBusyAction === "list" ? "Working..." : "Review item listing"}
+                  </button>
+                </div>
+              )}
+
+              <button
+                type="button"
+                onClick={() => {
+                  void hapticTap();
+                  sdk.actions.openUrl(getOpenSeaUrl(details.id)).catch((error) => {
+                    console.error("Failed to open OpenSea in Farcaster:", error);
+                  });
+                }}
+                className="mx-auto block cursor-pointer text-xs font-bold text-[#8bbf8b] underline-offset-2 hover:text-[#00FF00] hover:underline"
+              >
+                View on OpenSea
+              </button>
+              <button
+                type="button"
+                onClick={() => void runTestWalletTransaction()}
+                disabled={tradeBusyAction !== null}
+                className="mx-auto block cursor-pointer rounded-lg border border-[#00FF00]/35 bg-[rgba(0,255,0,0.12)] px-3 py-2 text-xs font-bold text-[#8bbf8b] hover:border-[#00FF00] hover:text-[#00FF00] disabled:cursor-wait disabled:opacity-70"
+              >
+                {tradeBusyAction === "test_wallet_tx" ? "Testing wallet..." : "Temporary wallet test"}
+              </button>
+              <button
+                type="button"
+                onClick={() => void runTestSendTokenAction()}
+                disabled={tradeBusyAction !== null}
+                className="mx-auto block cursor-pointer rounded-lg border border-[#00FF00]/35 bg-black px-3 py-2 text-xs font-bold text-[#8bbf8b] hover:border-[#00FF00] hover:text-[#00FF00] disabled:cursor-wait disabled:opacity-70"
+              >
+                {tradeBusyAction === "test_send_token" ? "Opening send test..." : "Temporary send-token test"}
+              </button>
+              <button
+                type="button"
+                onClick={() => void runTestDropStyleTransaction()}
+                disabled={tradeBusyAction !== null}
+                className="mx-auto block cursor-pointer rounded-lg border border-[#00FF00]/35 bg-black px-3 py-2 text-xs font-bold text-[#8bbf8b] hover:border-[#00FF00] hover:text-[#00FF00] disabled:cursor-wait disabled:opacity-70"
+              >
+                {tradeBusyAction === "test_drop_tx" ? "Testing Drop-style..." : "Temporary Drop-style test"}
+              </button>
+            </div>
 
             <div className="mt-4 grid grid-cols-3 gap-2">
               {[
-                { kind: "price" as const, label: "Price", money: market.listing, emptyValue: "Not listed" },
-                { kind: "offer" as const, label: "Top Offer", money: market.offer, emptyValue: "No offers" },
+                { kind: "price" as const, label: "Price", money: effectiveListing, emptyValue: "Not listed" },
+                { kind: "offer" as const, label: "Top Offer", money: effectiveTopOffer, emptyValue: "No offers" },
                 { kind: "sold" as const, label: "Latest Sale", money: market.sale, emptyValue: "No sales" },
               ].map(({ kind, label, money, emptyValue }) => {
                 const styles = getMarketKindStyles(kind);
@@ -2187,7 +3171,7 @@ function WarpletDetailsModal({
 
             <div className="mt-4 space-y-3">
               <OwnedByPanel
-                owner={market.owner}
+                owner={effectiveOwner ?? undefined}
                 currentTokenId={details.id}
                 ownedTokenIds={ownedTokenIds}
                 onOpenWarplet={onOpenRelatedWarplet}
@@ -2390,6 +3374,7 @@ function WarpletDetailsModal({
           </div>
       </div>
     </div>
+    </>
   );
 }
 
@@ -3119,6 +4104,14 @@ export default function SearchApp() {
     setOrderDirection("asc");
   }, [orderBy]);
 
+  const handleMergeMarketSnapshot = useCallback((tokenId: number, snapshot: MarketSnapshot) => {
+    setMarketSnapshot((current) => {
+      const merged = mergeTokenSnapshot(current, snapshot, tokenId);
+      writeCachedMarketSnapshot(merged);
+      return merged;
+    });
+  }, []);
+
   const handleRefreshSelectedMarket = useCallback(async () => {
     const tokenId = selectedWarpletDetails?.id;
     if (!tokenId || marketRefreshTokenId === tokenId) return;
@@ -3135,11 +4128,7 @@ export default function SearchApp() {
         error?: string;
       };
       if (payload.snapshot) {
-        setMarketSnapshot((current) => {
-          const merged = mergeTokenSnapshot(current, payload.snapshot!, tokenId);
-          writeCachedMarketSnapshot(merged);
-          return merged;
-        });
+        handleMergeMarketSnapshot(tokenId, payload.snapshot);
       }
       if (payload.refreshStatus === "cooldown") {
         setMarketRefreshError("Recently refreshed. Showing cached data.");
@@ -3151,7 +4140,7 @@ export default function SearchApp() {
     } finally {
       setMarketRefreshTokenId(null);
     }
-  }, [marketRefreshTokenId, selectedWarpletDetails?.id]);
+  }, [handleMergeMarketSnapshot, marketRefreshTokenId, selectedWarpletDetails?.id]);
 
   useEffect(() => {
     if (!canLoadMore || isSearching || !hasActiveSearchOrFilter) return;
@@ -3403,6 +4392,8 @@ export default function SearchApp() {
             isRefreshingMarket={marketRefreshTokenId === details.id}
             marketRefreshError={index === selectedWarpletDetailsStack.length - 1 ? marketRefreshError : ""}
             onRefreshMarket={handleRefreshSelectedMarket}
+            viewerFid={viewerFid}
+            onMergeMarketSnapshot={handleMergeMarketSnapshot}
             stackIndex={index}
           />
         );
