@@ -5,15 +5,17 @@ import {
   asString,
   clearTokenMarketSide,
   fetchOpenSea,
+  fetchLatestTokenSale,
   getMakerAddress,
+  getOrderCreatedAt,
   getPrice,
   hasCurrencyValue,
   loadOneTokenSnapshot,
   normalizeAddress,
-  normalizeTimestamp,
   ownerOf,
   processListing,
   processOffer,
+  processSaleOrTransfer,
   publishMarketSnapshot,
   selectPreferredFidForWallet,
   type MarketMoney,
@@ -62,12 +64,20 @@ export type TradeActionLogInput = {
 
 const OPENSEA_API_BASE = "https://api.opensea.io/api/v2";
 const BASE_CHAIN = "base";
+const BASE_CHAIN_ID = 8453;
 const BASE_CHAIN_ID_HEX = "0x2105";
 const COLLECTION_SLUG = "10xwarplets";
 const COLLECTION_CONTRACT = "0x780446dd12e080ae0db762fcd4daf313f3e359de";
 const DEFAULT_SEAPORT_PROTOCOL = "0x0000000000000068f116a894984e2db1123eb395";
 const BASE_WETH = "0x4200000000000000000000000000000000000006";
 const NATIVE_ETH = "0x0000000000000000000000000000000000000000";
+const BASE_RPC_URL = "https://mainnet.base.org";
+const ZERO_HASH = "0x0000000000000000000000000000000000000000000000000000000000000000";
+const OPENSEA_SIGNED_ZONE_V2 = "0x000056f7000000ece9003ca63978907a00ffd100";
+const OPENSEA_CONDUIT_KEY = "0x0000007b02230091a7ed01230072f7006a004d60a8d4e71d599b8104250f0000";
+const OPENSEA_CONDUIT_ADDRESS = "0x1e0049783f008a0085193e00003d00cd54003c71";
+const SEAPORT_GET_COUNTER_SELECTOR = "0xf07ec373";
+const MAX_OPENSEA_ORDER_DURATION_SECONDS = 179 * 24 * 60 * 60;
 
 type FreshOrder = MarketOrderMoney & {
   source?: "item" | "collection";
@@ -84,6 +94,7 @@ type FreshTradeState = {
   collectionOffer: (FreshOrder & { offerer: string | null; source: "collection" }) | null;
   topOffer: (FreshOrder & { offerer: string | null; source: "item" | "collection" }) | null;
   ownItemOffer: (FreshOrder & { offerer: string | null; source: "item" }) | null;
+  sale: MarketMoney | null;
   floor: MarketMoney | null;
   owner: {
     wallet: string | null;
@@ -91,6 +102,11 @@ type FreshTradeState = {
     checkedAt: string | null;
   };
   snapshot?: unknown;
+};
+
+type OrderFee = {
+  recipient: string;
+  bps: number;
 };
 
 function requireOpenSeaApiKey(env: OpenSeaTradeEnv): string {
@@ -118,7 +134,7 @@ function orderToMarket(row: Record<string, unknown>, side: "listing" | "offer"):
   if (!hasCurrencyValue(price)) return null;
   return {
     eth: price.eth,
-    at: normalizeTimestamp(row.created_date ?? row.listed_at ?? row.offered_at ?? row.event_timestamp),
+    at: getOrderCreatedAt(row) ?? new Date().toISOString(),
     rawAmount: price.rawAmount,
     decimals: price.decimals,
     currencySymbol: price.symbol,
@@ -147,6 +163,20 @@ function comparableMarketValue(value: MarketMoney | null | undefined): number | 
   }
 }
 
+function saleEventToMarketMoney(row: Record<string, unknown> | null): MarketMoney | null {
+  if (!row) return null;
+  const price = getPrice(row, "consideration");
+  if (!hasCurrencyValue(price)) return null;
+  return {
+    eth: price.eth,
+    at: getOrderCreatedAt(row) ?? new Date().toISOString(),
+    rawAmount: price.rawAmount,
+    decimals: price.decimals,
+    currencySymbol: price.symbol,
+    tokenAddress: price.tokenAddress,
+  };
+}
+
 function chooseTopOffer(
   itemOffer: FreshTradeState["itemOffer"],
   collectionOffer: FreshTradeState["collectionOffer"],
@@ -158,6 +188,22 @@ function chooseTopOffer(
   if (itemValue == null) return collectionOffer;
   if (collectionValue == null) return itemOffer;
   return itemValue >= collectionValue ? itemOffer : collectionOffer;
+}
+
+function isSpecificItemOffer(row: Record<string, unknown>, tokenId: number): boolean {
+  const parameters = asObject(asObject(row.protocol_data ?? row.protocolData)?.parameters);
+  const considerationItems = asArray(parameters?.consideration);
+  const expectedTokenId = String(tokenId);
+  return considerationItems.some((item) => {
+    const consideration = asObject(item);
+    if (!consideration) return false;
+    const itemType = asNumber(consideration.itemType);
+    const tokenAddress = normalizeAddress(consideration.token);
+    const identifier = asString(consideration.identifierOrCriteria);
+    return itemType === 2 &&
+      tokenAddress === COLLECTION_CONTRACT &&
+      identifier === expectedTokenId;
+  });
 }
 
 async function openSeaPost(apiKey: string, path: string, body: unknown): Promise<Record<string, unknown>> {
@@ -179,6 +225,45 @@ async function openSeaPost(apiKey: string, path: string, body: unknown): Promise
   return (await response.json()) as Record<string, unknown>;
 }
 
+async function fetchBaseRpc(method: string, params: unknown[]): Promise<unknown> {
+  const response = await fetch(BASE_RPC_URL, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
+    signal: AbortSignal.timeout(10000),
+  });
+  if (!response.ok) throw new Error(`Base RPC failed (${response.status})`);
+  const payload = (await response.json()) as Record<string, unknown>;
+  if (payload.error) throw new Error("Base RPC returned an error");
+  return payload.result;
+}
+
+async function fetchSeaportCounter(offerer: string): Promise<string> {
+  const encodedOfferer = offerer.toLowerCase().replace(/^0x/, "").padStart(64, "0");
+  const result = await fetchBaseRpc("eth_call", [{ to: DEFAULT_SEAPORT_PROTOCOL, data: `${SEAPORT_GET_COUNTER_SELECTOR}${encodedOfferer}` }, "latest"]);
+  const hex = asString(result);
+  if (!hex) return "0";
+  return BigInt(hex).toString();
+}
+
+async function fetchCollectionFees(apiKey: string): Promise<OrderFee[]> {
+  const payload = await fetchOpenSea(`/collections/${COLLECTION_SLUG}`, apiKey);
+  const rows = asArray(payload.fees ?? asObject(payload.collection)?.fees);
+  return rows
+    .map((row) => {
+      const fee = asObject(row);
+      const recipient = normalizeAddress(fee?.recipient);
+      const percent = asNumber(fee?.fee);
+      if (!recipient || percent == null || percent <= 0) return null;
+      return { recipient, bps: Math.round(percent * 100) };
+    })
+    .filter((fee): fee is OrderFee => Boolean(fee && fee.bps > 0));
+}
+
+function feeAmount(rawAmount: string, bps: number): string {
+  return ((BigInt(rawAmount) * BigInt(bps)) / 10000n).toString();
+}
+
 async function fetchBestListing(apiKey: string, tokenId: number): Promise<{ row: Record<string, unknown>; market: FreshTradeState["listing"] } | null> {
   try {
     const payload = await fetchOpenSea(`/listings/collection/${COLLECTION_SLUG}/nfts/${encodeURIComponent(String(tokenId))}/best`, apiKey);
@@ -194,6 +279,7 @@ async function fetchBestItemOffer(apiKey: string, tokenId: number): Promise<{ ro
   try {
     const payload = await fetchOpenSea(`/offers/collection/${COLLECTION_SLUG}/nfts/${encodeURIComponent(String(tokenId))}/best`, apiKey);
     const row = asObject(payload.offer) ?? payload;
+    if (!isSpecificItemOffer(row, tokenId)) return null;
     const market = orderToMarket({ ...row, identifier: String(tokenId) }, "offer") as FreshTradeState["itemOffer"];
     return market ? { row, market: { ...market, source: "item" } } : null;
   } catch {
@@ -201,13 +287,19 @@ async function fetchBestItemOffer(apiKey: string, tokenId: number): Promise<{ ro
   }
 }
 
-async function fetchCollectionOffer(apiKey: string): Promise<{ row: Record<string, unknown>; market: FreshTradeState["collectionOffer"] } | null> {
+async function fetchCollectionOffer(
+  apiKey: string,
+  excludeOrderHashes: string[] = [],
+): Promise<{ row: Record<string, unknown>; market: FreshTradeState["collectionOffer"] } | null> {
   try {
+    const excluded = new Set(excludeOrderHashes.map((hash) => hash.toLowerCase()).filter(Boolean));
     const payload = await fetchOpenSea(`/offers/collection/${COLLECTION_SLUG}`, apiKey, new URLSearchParams({ limit: "200" }));
     const rows = asArray(payload.offers ?? payload.orders)
       .map((item) => asObject(item))
       .filter((item): item is Record<string, unknown> => Boolean(item));
     const best = rows.reduce<{ row: Record<string, unknown>; market: FreshTradeState["collectionOffer"]; value: number } | null>((current, row) => {
+      const orderHash = asString(row.order_hash)?.toLowerCase();
+      if (orderHash && excluded.has(orderHash)) return current;
       const market = orderToMarket(row, "offer") as FreshTradeState["collectionOffer"];
       if (!market) return current;
       const value = comparableMarketValue(market);
@@ -230,6 +322,7 @@ async function fetchOwnItemOffer(apiKey: string, tokenId: number, wallet: string
       .filter((item): item is Record<string, unknown> => Boolean(item));
     const normalizedWallet = wallet.toLowerCase();
     const owned = rows
+      .filter((row) => isSpecificItemOffer(row, tokenId))
       .map((row) => orderToMarket({ ...row, identifier: String(tokenId) }, "offer") as FreshTradeState["ownItemOffer"])
       .filter((offer): offer is NonNullable<FreshTradeState["ownItemOffer"]> => Boolean(offer && offer.offerer?.toLowerCase() === normalizedWallet));
     owned.sort((a, b) => (comparableMarketValue(b) ?? -1) - (comparableMarketValue(a) ?? -1));
@@ -348,20 +441,33 @@ export async function logTradeAction(env: OpenSeaTradeEnv, input: TradeActionLog
   ).run();
 }
 
-export async function getFreshTradeState(env: OpenSeaTradeEnv, tokenId: number, wallet?: string | null): Promise<FreshTradeState> {
+export async function getFreshTradeState(
+  env: OpenSeaTradeEnv,
+  tokenId: number,
+  wallet?: string | null,
+  options: { excludeCollectionOrderHashes?: string[] } = {},
+): Promise<FreshTradeState> {
   const apiKey = requireOpenSeaApiKey(env);
   const normalizedWallet = normalizeWallet(wallet);
-  const [listing, itemOffer, collectionOffer, floor, ownerWallet, ownItemOffer] = await Promise.all([
+  const [listing, itemOffer, collectionOffer, floor, ownerWallet, ownItemOffer, salePayload] = await Promise.all([
     fetchBestListing(apiKey, tokenId),
     fetchBestItemOffer(apiKey, tokenId),
-    fetchCollectionOffer(apiKey),
+    fetchCollectionOffer(apiKey, options.excludeCollectionOrderHashes ?? []),
     fetchFloor(apiKey),
     ownerOf(tokenId).catch(() => null),
     fetchOwnItemOffer(apiKey, tokenId, normalizedWallet),
+    fetchLatestTokenSale(apiKey, tokenId).catch(() => null),
   ]);
 
-  if (listing?.row && listing.market) {
-    await processListing(env, { ...listing.row, identifier: String(tokenId) });
+  const listingSeller = listing?.row ? getMakerAddress(listing.row) : null;
+  const listingMatchesOwner = Boolean(
+    listing?.market &&
+    (!ownerWallet || !listingSeller || listingSeller === ownerWallet)
+  );
+  const activeListing = listingMatchesOwner ? listing : null;
+
+  if (activeListing?.row && activeListing.market) {
+    await processListing(env, { ...activeListing.row, identifier: String(tokenId) });
   } else {
     await clearTokenMarketSide(env, tokenId, "listing");
   }
@@ -371,6 +477,9 @@ export async function getFreshTradeState(env: OpenSeaTradeEnv, tokenId: number, 
     await clearTokenMarketSide(env, tokenId, "offer");
   }
   await persistCollectionTradeState(env, floor, collectionOffer?.market ?? null).catch(() => {});
+  if (salePayload) {
+    await processSaleOrTransfer(env, salePayload, { clearOrdersOnOwnerChange: true }).catch(() => false);
+  }
 
   const now = new Date().toISOString();
   const ownerFid = ownerWallet ? await selectPreferredFidForWallet(env, ownerWallet) : null;
@@ -391,11 +500,12 @@ export async function getFreshTradeState(env: OpenSeaTradeEnv, tokenId: number, 
   return {
     tokenId,
     generatedAt: now,
-    listing: listing?.market ?? null,
+    listing: activeListing?.market ?? null,
     itemOffer: itemOffer?.market ?? null,
     collectionOffer: collectionOffer?.market ?? null,
     topOffer: chooseTopOffer(itemOffer?.market ?? null, collectionOffer?.market ?? null),
     ownItemOffer,
+    sale: saleEventToMarketMoney(salePayload),
     floor,
     owner: {
       wallet: ownerWallet,
@@ -422,6 +532,125 @@ function rawEthToDecimalAmount(rawAmount: string): string {
   const fraction = raw % divisor;
   const fractionText = fraction.toString().padStart(18, "0").replace(/0+$/, "");
   return fractionText ? `${whole.toString()}.${fractionText}` : whole.toString();
+}
+
+function assertPositiveRawAmount(rawAmount: string): string {
+  try {
+    if (BigInt(rawAmount) <= 0n) throw new Error("not positive");
+    return rawAmount;
+  } catch {
+    throw new Error("Offer amount is invalid");
+  }
+}
+
+function randomUint256String(): string {
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  return BigInt(`0x${Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("")}`).toString();
+}
+
+function buildItemOfferOrder(input: {
+  offerer: string;
+  tokenId: number;
+  priceRaw: string;
+  durationSeconds: number;
+  counter: string;
+  fees: OrderFee[];
+}): { parameters: Record<string, unknown>; typedData: Record<string, unknown> } {
+  const now = Math.floor(Date.now() / 1000);
+  const startTime = String(Math.max(0, now - 60));
+  const durationSeconds = Math.min(MAX_OPENSEA_ORDER_DURATION_SECONDS, Math.max(60, Math.floor(input.durationSeconds)));
+  const endTime = String(Number(startTime) + durationSeconds);
+  const feeConsideration = input.fees
+    .map((fee) => {
+      const amount = feeAmount(input.priceRaw, fee.bps);
+      if (BigInt(amount) <= 0n) return null;
+      return {
+        itemType: 1,
+        token: BASE_WETH,
+        identifierOrCriteria: "0",
+        startAmount: amount,
+        endAmount: amount,
+        recipient: fee.recipient,
+      };
+    })
+    .filter((item): item is {
+      itemType: number;
+      token: string;
+      identifierOrCriteria: string;
+      startAmount: string;
+      endAmount: string;
+      recipient: string;
+    } => Boolean(item));
+  const parameters = {
+    offerer: input.offerer,
+    zone: OPENSEA_SIGNED_ZONE_V2,
+    offer: [{
+      itemType: 1,
+      token: BASE_WETH,
+      identifierOrCriteria: "0",
+      startAmount: input.priceRaw,
+      endAmount: input.priceRaw,
+    }],
+    consideration: [{
+      itemType: 2,
+      token: COLLECTION_CONTRACT,
+      identifierOrCriteria: String(input.tokenId),
+      startAmount: "1",
+      endAmount: "1",
+      recipient: input.offerer,
+    }, ...feeConsideration],
+    orderType: 2,
+    startTime,
+    endTime,
+    zoneHash: ZERO_HASH,
+    salt: randomUint256String(),
+    conduitKey: OPENSEA_CONDUIT_KEY,
+    counter: input.counter,
+  };
+  return {
+    parameters,
+    typedData: {
+      domain: {
+        name: "Seaport",
+        version: "1.6",
+        chainId: BASE_CHAIN_ID,
+        verifyingContract: DEFAULT_SEAPORT_PROTOCOL,
+      },
+      primaryType: "OrderComponents",
+      types: {
+        OrderComponents: [
+          { name: "offerer", type: "address" },
+          { name: "zone", type: "address" },
+          { name: "offer", type: "OfferItem[]" },
+          { name: "consideration", type: "ConsiderationItem[]" },
+          { name: "orderType", type: "uint8" },
+          { name: "startTime", type: "uint256" },
+          { name: "endTime", type: "uint256" },
+          { name: "zoneHash", type: "bytes32" },
+          { name: "salt", type: "uint256" },
+          { name: "conduitKey", type: "bytes32" },
+          { name: "counter", type: "uint256" },
+        ],
+        OfferItem: [
+          { name: "itemType", type: "uint8" },
+          { name: "token", type: "address" },
+          { name: "identifierOrCriteria", type: "uint256" },
+          { name: "startAmount", type: "uint256" },
+          { name: "endAmount", type: "uint256" },
+        ],
+        ConsiderationItem: [
+          { name: "itemType", type: "uint8" },
+          { name: "token", type: "address" },
+          { name: "identifierOrCriteria", type: "uint256" },
+          { name: "startAmount", type: "uint256" },
+          { name: "endAmount", type: "uint256" },
+          { name: "recipient", type: "address" },
+        ],
+      },
+      message: parameters,
+    },
+  };
 }
 
 async function prepareListingFulfillment(apiKey: string, listing: FreshTradeState["listing"], buyerWallet: string): Promise<Record<string, unknown>> {
@@ -455,7 +684,12 @@ async function prepareOfferFulfillment(apiKey: string, offer: NonNullable<FreshT
 export async function handleTradeStateRequest(context: Parameters<PagesFunction<OpenSeaTradeEnv>>[0], tokenId: number): Promise<Response> {
   const url = new URL(context.request.url);
   const wallet = url.searchParams.get("wallet");
-  return tradeJson(await getFreshTradeState(context.env, tokenId, wallet));
+  const excludeCollectionOrderHashes = url.searchParams
+    .getAll("excludeCollectionOrderHash")
+    .flatMap((value) => value.split(","))
+    .map((value) => value.trim().toLowerCase())
+    .filter(Boolean);
+  return tradeJson(await getFreshTradeState(context.env, tokenId, wallet, { excludeCollectionOrderHashes }));
 }
 
 export async function handleBuyPrepare(context: Parameters<PagesFunction<OpenSeaTradeEnv>>[0]): Promise<Response> {
@@ -515,7 +749,8 @@ export async function handleListingPrepare(context: Parameters<PagesFunction<Ope
   await logTradeAction(context.env, { actionId, actionName: "list", status: "requested", phase: "prepare_requested", tokenId, walletFrom: wallet, expectedPriceRaw: priceRaw });
   const apiKey = requireOpenSeaApiKey(context.env);
   const startTime = new Date().toISOString();
-  const endTime = new Date(Date.now() + Math.max(60, Math.floor(durationSeconds)) * 1000).toISOString();
+  const clampedDurationSeconds = Math.min(MAX_OPENSEA_ORDER_DURATION_SECONDS, Math.max(60, Math.floor(durationSeconds)));
+  const endTime = new Date(Date.now() + clampedDurationSeconds * 1000).toISOString();
   const priceAmount = rawEthToDecimalAmount(priceRaw);
   const actions = await openSeaPost(apiKey, "/listings/actions", {
     address: wallet,
@@ -541,29 +776,37 @@ export async function handleOfferPrepare(context: Parameters<PagesFunction<OpenS
   if (!Number.isInteger(tokenId) || tokenId <= 0 || !wallet || !priceRaw || !Number.isFinite(durationSeconds)) {
     return tradeJson({ error: "invalid_request" }, { status: 400 });
   }
+  let normalizedPriceRaw: string;
+  try {
+    normalizedPriceRaw = assertPositiveRawAmount(priceRaw);
+  } catch {
+    return tradeJson({ error: "invalid_price", message: "Offer amount is invalid" }, { status: 400 });
+  }
   const actionId = asString(body.actionId) ?? crypto.randomUUID();
-  await logTradeAction(context.env, { actionId, actionName: "make_offer", status: "requested", phase: "prepare_requested", tokenId, walletFrom: wallet, expectedPriceRaw: priceRaw, paymentToken: BASE_WETH, paymentDecimals: 18 });
+  await logTradeAction(context.env, { actionId, actionName: "make_offer", status: "requested", phase: "prepare_requested", tokenId, walletFrom: wallet, expectedPriceRaw: normalizedPriceRaw, paymentToken: BASE_WETH, paymentDecimals: 18 });
   const apiKey = requireOpenSeaApiKey(context.env);
-  const now = Math.floor(Date.now() / 1000);
-  const build = await openSeaPost(apiKey, "/offers/build", {
+  const [counter, fees] = await Promise.all([
+    fetchSeaportCounter(wallet),
+    fetchCollectionFees(apiKey),
+  ]);
+  const { parameters, typedData } = buildItemOfferOrder({
     offerer: wallet,
-    quantity: 1,
-    protocol_address: DEFAULT_SEAPORT_PROTOCOL,
-    offer_protection_enabled: true,
-    criteria: {
-      collection: { slug: COLLECTION_SLUG },
-      contract: { address: COLLECTION_CONTRACT },
-      token: { identifier: String(tokenId) },
-    },
-    offer: {
-      chain: BASE_CHAIN,
-      currency: BASE_WETH,
-      amount: priceRaw,
-      start_time: now,
-      end_time: now + Math.max(60, Math.floor(durationSeconds)),
-    },
+    tokenId,
+    priceRaw: normalizedPriceRaw,
+    durationSeconds,
+    counter,
+    fees,
   });
-  return tradeJson({ status: "ready", actionId, build, chainIdHex: BASE_CHAIN_ID_HEX, wethApproval: { tokenAddress: BASE_WETH, spender: "0x1e0049783f008a0085193e00003d00cd54003c71", amount: priceRaw } });
+  return tradeJson({
+    status: "ready",
+    actionId,
+    protocol: "seaport",
+    protocolAddress: DEFAULT_SEAPORT_PROTOCOL,
+    parameters,
+    typedData,
+    chainIdHex: BASE_CHAIN_ID_HEX,
+    wethApproval: { tokenAddress: BASE_WETH, spender: OPENSEA_CONDUIT_ADDRESS, amount: normalizedPriceRaw },
+  });
 }
 
 export async function handleListingSubmit(context: Parameters<PagesFunction<OpenSeaTradeEnv>>[0]): Promise<Response> {
@@ -578,8 +821,28 @@ export async function handleListingSubmit(context: Parameters<PagesFunction<Open
 export async function handleOfferSubmit(context: Parameters<PagesFunction<OpenSeaTradeEnv>>[0]): Promise<Response> {
   const body = await context.request.json() as Record<string, unknown>;
   const apiKey = requireOpenSeaApiKey(context.env);
+  const protocol = asString(body.protocol) ?? "seaport";
   const payload = asObject(body.payload) ?? body;
-  const result = await openSeaPost(apiKey, "/offers", payload);
+  const parameters = asObject(payload.parameters);
+  const signature = asString(payload.signature);
+  const protocolAddress = asString(payload.protocol_address) ?? DEFAULT_SEAPORT_PROTOCOL;
+  if (parameters && signature) {
+    const result = await openSeaPost(apiKey, `/orders/${BASE_CHAIN}/${encodeURIComponent(protocol)}/offers`, {
+      parameters,
+      protocol_address: protocolAddress,
+      signature,
+    });
+    return tradeJson({ status: "submitted", result });
+  }
+  const protocolData = asObject(payload.protocol_data);
+  if (!protocolData) {
+    return tradeJson({ error: "missing_protocol_data", message: "OpenSea offer response did not include signed protocol data." }, { status: 400 });
+  }
+  const result = await openSeaPost(apiKey, "/offers", {
+    protocol_data: protocolData,
+    criteria: { collection: { slug: COLLECTION_SLUG } },
+    protocol_address: protocolAddress,
+  });
   return tradeJson({ status: "submitted", result });
 }
 

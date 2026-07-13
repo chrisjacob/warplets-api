@@ -1,10 +1,32 @@
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
+import { useOverlayScrollbars } from "overlayscrollbars-react";
 
 type MiniAppShellProps = {
   children: ReactNode;
 };
 
 export default function MiniAppShell({ children }: MiniAppShellProps) {
+  const [initializeBodyScrollbars] = useOverlayScrollbars({
+    options: {
+      scrollbars: {
+        theme: "os-theme-10x",
+        autoHide: "scroll",
+        clickScroll: true,
+      },
+    },
+    defer: true,
+  });
+
+  useEffect(() => {
+    document.documentElement.setAttribute("data-overlayscrollbars-initialize", "");
+    document.body.setAttribute("data-overlayscrollbars-initialize", "");
+    initializeBodyScrollbars(document.body);
+    return () => {
+      document.documentElement.removeAttribute("data-overlayscrollbars-initialize");
+      document.body.removeAttribute("data-overlayscrollbars-initialize");
+    };
+  }, [initializeBodyScrollbars]);
+
   return (
     <div
       className="miniapp-shell"

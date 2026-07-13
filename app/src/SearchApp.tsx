@@ -1,6 +1,6 @@
 import { ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import confetti from "canvas-confetti";
-import { getAddress } from "viem";
 import {
   FloatingPortal,
   autoUpdate,
@@ -13,6 +13,7 @@ import {
   useInteractions,
   useRole,
 } from "@floating-ui/react";
+import { useOverlayScrollbars } from "overlayscrollbars-react";
 import sdk from "@farcaster/miniapp-sdk";
 import { Text } from "@neynar/ui/typography";
 import sqlite3InitModule from "@sqlite.org/sqlite-wasm";
@@ -42,9 +43,14 @@ import {
   getWalletErrorCode,
   getWalletErrorMessage,
   isUserRejected,
+  readErc20Balance,
+  readNativeBalance,
   sendPreparedTransaction,
+  signTypedData,
+  wrapEthToWeth,
   type EthereumProvider,
   type NftApprovalRequirement,
+  type PreparedTransaction,
   type SeaportCancelOrderParameters,
   type TokenApprovalRequirement,
 } from "./walletTrade";
@@ -62,6 +68,8 @@ const MARKET_DETAIL_STALE_MS = 30 * 60 * 1000;
 const MARKET_CACHE_MAX_STALE_MS = 60 * 60 * 1000;
 const BASE_WETH_TOKEN_ADDRESS = "0x4200000000000000000000000000000000000006";
 const NATIVE_TOKEN_ADDRESS = "0x0000000000000000000000000000000000000000";
+const MIN_LISTING_ETH = 0.00000000000001;
+const TRADE_PRICE_DECIMAL_PLACES = 4;
 const EXAMPLE_SEARCHES = [
   "Wizard Hat",
   "Pink Bunny",
@@ -652,21 +660,13 @@ type TokenMarketState = {
 };
 type MarketKind = "price" | "offer" | "sold";
 
-type TradeDurationOption = {
-  label: string;
-  seconds: number;
-};
-
 type TradeActionName =
   | "buy"
   | "make_offer"
   | "cancel_offer"
   | "list"
   | "cancel_listing"
-  | "accept_offer"
-  | "test_wallet_tx"
-  | "test_send_token"
-  | "test_drop_tx";
+  | "accept_offer";
 
 type TradeToast = {
   id: number;
@@ -683,6 +683,7 @@ type FreshTradeState = {
   collectionOffer: (MarketOrderMoney & { offerer?: string | null; source: "collection"; protocolData?: unknown }) | null;
   topOffer: (MarketOrderMoney & { offerer?: string | null; source: "item" | "collection"; protocolData?: unknown }) | null;
   ownItemOffer: (MarketOrderMoney & { offerer?: string | null; source: "item"; protocolData?: unknown }) | null;
+  sale?: MarketSnapshot["sales"][string] | null;
   floor: MarketMoney | null;
   owner: {
     wallet: string | null;
@@ -690,6 +691,20 @@ type FreshTradeState = {
     checkedAt: string | null;
   };
   snapshot?: MarketSnapshot;
+};
+
+type OptimisticPurchaseUpdate = {
+  buyerWallet: string;
+  buyerFid: number | null;
+  buyerProfile?: Partial<MarketSnapshot["owners"][string]>;
+  sale: MarketSnapshot["sales"][string];
+};
+
+type ViewerProfile = {
+  fid: number | null;
+  username: string | null;
+  displayName: string | null;
+  pfpUrl: string | null;
 };
 
 type WarpletResult = {
@@ -1147,15 +1162,9 @@ const ORDER_OPTIONS: Array<{ value: OrderByOption; label: string }> = [
   { value: "rank", label: "Rank" },
 ];
 
-const TRADE_DURATION_OPTIONS: TradeDurationOption[] = [
-  { label: "1 Hour", seconds: 60 * 60 },
-  { label: "1 Day", seconds: 24 * 60 * 60 },
-  { label: "1 Week", seconds: 7 * 24 * 60 * 60 },
-  { label: "1 Month", seconds: 30 * 24 * 60 * 60 },
-  { label: "6 Months", seconds: 183 * 24 * 60 * 60 },
-];
-
-const DEFAULT_TRADE_DURATION_SECONDS = TRADE_DURATION_OPTIONS.at(-1)?.seconds ?? 183 * 24 * 60 * 60;
+const DEFAULT_TRADE_DURATION_SECONDS = 179 * 24 * 60 * 60;
+const FIREFOX_WALLET_WARNING = "Firefox doesn't work well with Farcaster Wallet. Please use another browser.";
+const ETH_USD_PRICE_STALE_MS = 5 * 60 * 1000;
 
 function getDefaultOrderBy(hasFtsQuery: boolean, selectedAttributes: LevelAttributeColumn[]): OrderByOption {
   if (hasFtsQuery) return "relevance";
@@ -1269,8 +1278,14 @@ function getMarketState(snapshot: MarketSnapshot | null, tokenId: number): Token
   const key = String(tokenId);
   const itemOffer = snapshot?.offers[key];
   const collectionOffer = snapshot?.collection?.topOffer ?? null;
+  const listing = snapshot?.listings[key];
+  const ownerWallet = snapshot?.owners[key]?.wallet?.toLowerCase() ?? "";
+  const listingSellerWallet = listing?.seller?.toLowerCase() ?? "";
+  const activeListing = !ownerWallet || !listingSellerWallet || ownerWallet === listingSellerWallet
+    ? listing
+    : undefined;
   return {
-    listing: snapshot?.listings[key],
+    listing: activeListing,
     itemOffer,
     collectionOffer,
     offer: chooseTopOffer(itemOffer, collectionOffer),
@@ -1334,8 +1349,28 @@ function writeCachedMarketSnapshot(snapshot: MarketSnapshot): void {
   }
 }
 
-function formatEthValue(value: MarketMoney | null | undefined): string {
+function decimalStringFromNumber(value: number): string | null {
+  if (!Number.isFinite(value)) return null;
+  return value.toFixed(18).replace(/0+$/, "").replace(/\.$/, "");
+}
+
+function truncateDecimalDigits(value: string, maxDigits: number): string {
+  const normalized = value.replace(/,/g, "");
+  const [wholeRaw, fractionRaw = ""] = normalized.split(".");
+  const whole = wholeRaw || "0";
+  if (whole.length >= maxDigits) return whole.slice(0, maxDigits);
+  const remainingDigits = maxDigits - whole.length;
+  if (!fractionRaw || remainingDigits <= 0) return whole;
+  const fraction = fractionRaw.slice(0, remainingDigits);
+  return fraction ? `${whole}.${fraction}` : whole;
+}
+
+function formatEthValue(value: MarketMoney | null | undefined, maxDigits?: number): string {
   if (!value || value.eth == null) return "-";
+  if (maxDigits != null) {
+    const numeric = decimalStringFromNumber(value.eth);
+    return numeric == null ? "-" : `${truncateDecimalDigits(numeric, maxDigits)} \u039e`;
+  }
   return `${value.eth.toLocaleString("en-US", { maximumFractionDigits: 4 })} \u039e`;
 }
 
@@ -1348,12 +1383,17 @@ function isEthLikeMarketMoney(value: MarketMoney | null | undefined): boolean {
   return !symbol && !tokenAddress && value.decimals === 18;
 }
 
-function formatEthNumber(value: number): string {
+function formatEthNumber(value: number, maxDigits?: number): string {
+  if (maxDigits != null) {
+    const numeric = decimalStringFromNumber(value);
+    return numeric == null ? "-" : `${truncateDecimalDigits(numeric, maxDigits)} \u039e`;
+  }
   return `${value.toLocaleString("en-US", { maximumFractionDigits: 4 })} \u039e`;
 }
 
 function getFormattedRawMarketParts(value: MarketMoney): {
   formatted: string;
+  numeric: string;
   parsed: number | null;
 } | null {
   if (!value.rawAmount || value.decimals == null) return null;
@@ -1371,19 +1411,20 @@ function getFormattedRawMarketParts(value: MarketMoney): {
     const formatted = Number.isFinite(parsed)
       ? parsed.toLocaleString("en-US", { maximumFractionDigits: 6 })
       : numeric;
-    return { formatted, parsed: Number.isFinite(parsed) ? parsed : null };
+    return { formatted, numeric, parsed: Number.isFinite(parsed) ? parsed : null };
   } catch {
     return null;
   }
 }
 
-function formatRawMarketValue(value: MarketMoney | null | undefined): string {
+function formatRawMarketValue(value: MarketMoney | null | undefined, maxDigits?: number): string {
   if (!value) return "-";
   const parts = getFormattedRawMarketParts(value);
   if (!parts) return "-";
+  const formatted = maxDigits == null ? parts.formatted : truncateDecimalDigits(parts.numeric, maxDigits);
   const symbol = value.currencySymbol?.toUpperCase() ?? "";
-  if (symbol === "USDC" || symbol === "USDBC") return `$${parts.formatted}`;
-  return `${parts.formatted} ${value.currencySymbol ?? "RAW"}`;
+  if (symbol === "USDC" || symbol === "USDBC") return `$${formatted}`;
+  return `${formatted} ${value.currencySymbol ?? "RAW"}`;
 }
 
 function getRawMarketNumber(value: MarketMoney | null | undefined): number | null {
@@ -1398,20 +1439,42 @@ function getMarketNumber(value: MarketMoney | null | undefined): number | null {
   return getRawMarketNumber(value);
 }
 
-function formatMarketValue(value: MarketMoney | null | undefined): string {
+function formatMarketValue(value: MarketMoney | null | undefined, options: { maxDigits?: number } = {}): string {
   if (!value) return "-";
-  if (value.eth != null) return formatEthValue(value);
+  if (value.eth != null) return formatEthValue(value, options.maxDigits);
   if (isEthLikeMarketMoney(value)) {
     const rawEth = getRawMarketNumber(value);
-    return rawEth == null ? "-" : formatEthNumber(rawEth);
+    return rawEth == null ? "-" : formatEthNumber(rawEth, options.maxDigits);
   }
-  return formatRawMarketValue(value);
+  return formatRawMarketValue(value, options.maxDigits);
 }
 
 function marketMoneyToDecimal(value: MarketMoney | null | undefined): number | null {
   if (!value) return null;
   if (value.eth != null) return value.eth;
   return getRawMarketNumber(value);
+}
+
+function trimTradePriceDecimals(value: string): string {
+  return value.includes(".") ? value.replace(/(\.\d*?)0+$/, "$1").replace(/\.$/, "") : value;
+}
+
+function formatTradePriceInput(value: number): string {
+  if (!Number.isFinite(value) || value <= 0) return "";
+  const factor = 10 ** TRADE_PRICE_DECIMAL_PLACES;
+  const rounded = Math.round(value * factor) / factor;
+  const normalized = rounded > 0 ? rounded : 1 / factor;
+  return trimTradePriceDecimals(normalized.toFixed(TRADE_PRICE_DECIMAL_PLACES));
+}
+
+function sanitizeTradePriceInput(value: string): string {
+  const normalized = value.replace(/,/g, ".").replace(/[^\d.]/g, "");
+  if (!normalized) return "";
+  const [wholeRaw, ...fractionParts] = normalized.split(".");
+  const whole = wholeRaw.replace(/^0+(?=\d)/, "");
+  if (fractionParts.length === 0) return whole;
+  const fraction = fractionParts.join("").slice(0, TRADE_PRICE_DECIMAL_PLACES);
+  return `${whole || "0"}.${fraction}`;
 }
 
 function decimalEthToWeiString(value: string): string | null {
@@ -1421,16 +1484,37 @@ function decimalEthToWeiString(value: string): string | null {
   return `${whole}${fraction.padEnd(18, "0").slice(0, 18)}`.replace(/^0+(?=\d)/, "") || "0";
 }
 
+function formatWeiTokenAmount(value: bigint, symbol: "ETH" | "WETH"): string {
+  const divisor = 10n ** 18n;
+  const whole = value / divisor;
+  const fraction = value % divisor;
+  const fractionText = fraction.toString().padStart(18, "0").slice(0, 6).replace(/0+$/, "");
+  return `${whole.toString()}${fractionText ? `.${fractionText}` : ""} ${symbol}`;
+}
+
+function getPreparedTransactionRawValue(tx: PreparedTransaction): string | null {
+  const value = tx.value;
+  if (value == null || value === "") return null;
+  try {
+    const raw = typeof value === "string" && value.startsWith("0x")
+      ? BigInt(value)
+      : BigInt(value);
+    return raw > 0n ? raw.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
 function defaultOfferPrice(topOffer: MarketMoney | null | undefined): string {
   const numeric = marketMoneyToDecimal(topOffer);
   if (numeric == null || numeric <= 0) return "";
-  return (Math.ceil(numeric * 1.01 * 1000000) / 1000000).toString();
+  return formatTradePriceInput(numeric);
 }
 
 function defaultListingPrice(floor: MarketMoney | null | undefined): string {
   const numeric = marketMoneyToDecimal(floor);
   if (numeric == null || numeric <= 0) return "";
-  return numeric.toString();
+  return formatTradePriceInput(numeric);
 }
 
 function hasMarketValue(value: MarketMoney | null | undefined): boolean {
@@ -1803,8 +1887,9 @@ function MarketValueChip({
     middleware: [offset(8), flip({ padding: 8 }), shift({ padding: 8 })],
   });
   const hover = useHover(context, { delay: { open: 0, close: 60 }, move: false });
+  const focus = useFocus(context);
   const role = useRole(context, { role: "tooltip" });
-  const { getReferenceProps, getFloatingProps } = useInteractions(showTooltip ? [hover, role] : []);
+  const { getReferenceProps, getFloatingProps } = useInteractions(showTooltip ? [hover, focus, role] : []);
 
   return (
     <>
@@ -1812,6 +1897,8 @@ function MarketValueChip({
         ref={refs.setReference}
         {...getReferenceProps({
           "aria-label": showTooltip ? tooltip : undefined,
+          tabIndex: showTooltip ? 0 : undefined,
+          onClick: showTooltip ? () => setIsOpen((current) => !current) : undefined,
           className: `inline-flex min-w-0 ${showTooltip ? "cursor-help" : "cursor-default"} items-center ${
             align === "left" ? "justify-start text-left" : "justify-center text-center"
           } border font-bold leading-none ${
@@ -1921,9 +2008,9 @@ function WarpletCard({
         <span className="block max-w-full truncate">{label}</span>
       </span>
       <span className="grid w-full grid-cols-3 border-t border-[#00FF00]/20 bg-black text-center text-[10px]">
-        <MarketValueChip kind="price" value={formatMarketValue(market?.listing)} tooltip="Price" variant="column" showTooltip={false} className="w-full" />
-        <MarketValueChip kind="offer" value={formatMarketValue(market?.offer)} tooltip="Top Offer" variant="column" showTooltip={false} className="w-full" />
-        <MarketValueChip kind="sold" value={formatMarketValue(market?.sale)} tooltip="Latest Sale" variant="column" showTooltip={false} className="w-full border-r-0" />
+        <MarketValueChip kind="price" value={formatMarketValue(market?.listing, { maxDigits: 5 })} tooltip="Price" variant="column" showTooltip={false} className="w-full" />
+        <MarketValueChip kind="offer" value={formatMarketValue(market?.offer, { maxDigits: 5 })} tooltip="Top Offer" variant="column" showTooltip={false} className="w-full" />
+        <MarketValueChip kind="sold" value={formatMarketValue(market?.sale, { maxDigits: 5 })} tooltip="Latest Sale" variant="column" showTooltip={false} className="w-full border-r-0" />
       </span>
     </button>
   );
@@ -2131,37 +2218,33 @@ function showTradeConfetti(): void {
   });
 }
 
+const TRADE_TOAST_EXTRA_MS = 3000;
+const TRADE_TOAST_EXIT_MS = 240;
+
 function TradeToastView({
   toast,
+  exiting,
   onClose,
 }: {
   toast: TradeToast;
+  exiting: boolean;
   onClose: () => void;
 }) {
+  const isDanger = toast.kind === "error" || toast.kind === "warning";
   return (
     <div
-      className={`fixed left-1/2 top-4 z-[120] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 rounded-xl border px-4 py-3 text-sm shadow-2xl ${
-        toast.kind === "error"
-          ? "border-red-400/70 bg-red-950 text-red-100"
-          : toast.kind === "warning"
-          ? "border-yellow-300/70 bg-yellow-950 text-yellow-100"
-          : toast.kind === "success"
-          ? "border-[#00FF00]/70 bg-[#041204] text-[#00FF00]"
-          : "border-[#00FF00]/35 bg-black text-[#8bbf8b]"
-      }`}
+      className={`trade-toast ${isDanger ? "trade-toast--danger" : ""} ${exiting ? "trade-toast--exiting" : ""}`}
     >
-      <div className="flex items-start gap-3">
+      <div className="flex w-full items-center gap-3">
         <span className="min-w-0 flex-1">{toast.message}</span>
-        {toast.manualClose && (
-          <button
-            type="button"
-            aria-label="Close message"
-            onClick={onClose}
-            className="shrink-0 cursor-pointer text-current"
-          >
-            X
-          </button>
-        )}
+        <button
+          type="button"
+          aria-label="Close message"
+          onClick={onClose}
+          className="trade-toast__close"
+        >
+          X
+        </button>
       </div>
     </div>
   );
@@ -2217,28 +2300,85 @@ function getActionLogName(action: TradeActionName): string {
   if (action === "cancel_offer") return "cancel_offer";
   if (action === "list") return "list";
   if (action === "cancel_listing") return "cancel_listing";
-  if (action === "test_wallet_tx") return "test_wallet_tx";
-  if (action === "test_send_token") return "test_send_token";
-  if (action === "test_drop_tx") return "test_drop_tx";
   return "accept_offer";
 }
 
-function withClientTimeout<T>(promise: Promise<T>, label: string, timeoutMs: number): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
-    const timeoutId = window.setTimeout(() => {
-      reject(new Error(`${label} did not open or respond.`));
-    }, timeoutMs);
-    promise.then(
-      (value) => {
-        window.clearTimeout(timeoutId);
-        resolve(value);
-      },
-      (error) => {
-        window.clearTimeout(timeoutId);
-        reject(error);
-      },
-    );
+function isFirefoxBrowser(): boolean {
+  return typeof navigator !== "undefined" && navigator.userAgent.toLowerCase().includes("firefox");
+}
+
+function parseTradeAmount(value: string): number | null {
+  const normalized = value.trim().replace(/,/g, "");
+  if (!normalized) return null;
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
+}
+
+function formatTradeTokenAmount(value: number, symbol: "ETH" | "WETH" = "ETH"): string {
+  return `${value.toLocaleString("en-US", { maximumFractionDigits: 6 })} ${symbol}`;
+}
+
+function formatMarketEthForTradeCopy(value: MarketMoney | null | undefined): string {
+  const amount = marketMoneyToDecimal(value);
+  return amount == null ? "0 ETH" : formatTradeTokenAmount(amount, "ETH");
+}
+
+function formatFloorComparison(amount: string, floor: MarketMoney | null | undefined): string {
+  const parsedAmount = parseTradeAmount(amount);
+  const floorAmount = marketMoneyToDecimal(floor);
+  if (parsedAmount == null || floorAmount == null || floorAmount <= 0) return "";
+  const delta = ((parsedAmount - floorAmount) / floorAmount) * 100;
+  if (Math.abs(delta) < 0.01) return " (current floor price)";
+  const rounded = Math.round(delta);
+  return ` (${rounded}% ${delta > 0 ? "above" : "below"} floor)`;
+}
+
+function formatUsdEstimate(amount: string, ethUsdPrice: number | null, floor?: MarketMoney | null): string {
+  const parsedAmount = parseTradeAmount(amount);
+  const suffix = formatFloorComparison(amount, floor);
+  if (parsedAmount == null) return `~$0.00 USD${suffix}`;
+  if (ethUsdPrice == null) return `USD loading...${suffix}`;
+  return `~${(parsedAmount * ethUsdPrice).toLocaleString("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })} USD${suffix}`;
+}
+
+async function fetchEthUsdPrice(): Promise<number> {
+  const coinbase = await fetch("https://api.coinbase.com/v2/prices/ETH-USD/spot", {
+    headers: { accept: "application/json" },
+  }).then(async (response) => {
+    if (!response.ok) throw new Error(`Coinbase ETH price failed (${response.status})`);
+    const payload = await response.json() as { data?: { amount?: unknown } };
+    const amount = typeof payload.data?.amount === "string" ? Number(payload.data.amount) : null;
+    if (amount == null || !Number.isFinite(amount)) throw new Error("Coinbase ETH price response was invalid");
+    return amount;
+  }).catch(() => null);
+  if (coinbase != null) return coinbase;
+
+  const coingecko = await fetch("https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd", {
+    headers: { accept: "application/json" },
+  }).then(async (response) => {
+    if (!response.ok) throw new Error(`CoinGecko ETH price failed (${response.status})`);
+    const payload = await response.json() as { ethereum?: { usd?: unknown } };
+    const amount = typeof payload.ethereum?.usd === "number" ? payload.ethereum.usd : null;
+    if (amount == null || !Number.isFinite(amount)) throw new Error("CoinGecko ETH price response was invalid");
+    return amount;
   });
+  return coingecko;
+}
+
+function focusInputAtEnd(input: HTMLInputElement | null): void {
+  if (!input) return;
+  input.focus({ preventScroll: true });
+  const caretPosition = input.value.length;
+  try {
+    input.setSelectionRange(caretPosition, caretPosition);
+  } catch {
+    // Some input modes may not support selection ranges; focus alone is still useful.
+  }
 }
 
 function WarpletDetailsModal({
@@ -2255,6 +2395,9 @@ function WarpletDetailsModal({
   onRefreshMarket,
   viewerFid,
   onMergeMarketSnapshot,
+  onClearMarketSide,
+  onUpsertItemOffer,
+  onApplyPurchase,
   stackIndex,
 }: {
   details: WarpletDetails;
@@ -2270,6 +2413,9 @@ function WarpletDetailsModal({
   onRefreshMarket: () => void;
   viewerFid: number | null;
   onMergeMarketSnapshot: (tokenId: number, snapshot: MarketSnapshot) => void;
+  onClearMarketSide: (tokenId: number, side: "listing" | "offer" | "collectionOffer") => void;
+  onUpsertItemOffer: (tokenId: number, offer: MarketSnapshot["offers"][string]) => void;
+  onApplyPurchase: (tokenId: number, update: OptimisticPurchaseUpdate) => void;
   stackIndex: number;
 }) {
   const row = details.row;
@@ -2281,20 +2427,45 @@ function WarpletDetailsModal({
   const lastMarketUpdatedAt = getMarketUpdatedAt(market);
   const marketLooksStale = lastMarketUpdatedAt ? Date.now() - Date.parse(lastMarketUpdatedAt) > MARKET_DETAIL_STALE_MS : true;
   const [tradeState, setTradeState] = useState<FreshTradeState | null>(null);
+  const [optimisticSale, setOptimisticSale] = useState<MarketSnapshot["sales"][string] | null>(null);
   const [activeWallet, setActiveWallet] = useState<string | null>(null);
   const [tradeMode, setTradeMode] = useState<"idle" | "offer" | "list">("idle");
-  const [tradeDuration, setTradeDuration] = useState(DEFAULT_TRADE_DURATION_SECONDS);
   const [offerPrice, setOfferPrice] = useState("");
   const [listingPrice, setListingPrice] = useState("");
   const [tradeBusyAction, setTradeBusyAction] = useState<TradeActionName | null>(null);
   const [tradeToast, setTradeToast] = useState<TradeToast | null>(null);
+  const [tradeToastExiting, setTradeToastExiting] = useState(false);
+  const [showFirefoxWalletWarning, setShowFirefoxWalletWarning] = useState(false);
+  const [ethUsdPrice, setEthUsdPrice] = useState<number | null>(null);
   const tradeToastIdRef = useRef(0);
+  const tradeToastHideTimerRef = useRef<number | null>(null);
+  const tradeToastExitTimerRef = useRef<number | null>(null);
   const tradeBusyActionRef = useRef<TradeActionName | null>(null);
   const actionIdRef = useRef<string | null>(null);
-  const effectiveListing = tradeState?.listing ?? market.listing ?? null;
-  const effectiveItemOffer = tradeState?.itemOffer ?? market.itemOffer ?? null;
-  const effectiveCollectionOffer = tradeState?.collectionOffer ?? market.collectionOffer ?? null;
-  const effectiveTopOffer = tradeState?.topOffer ?? chooseTopOffer(effectiveItemOffer ?? undefined, effectiveCollectionOffer ?? null);
+  const optimisticOwnItemOfferRef = useRef<FreshTradeState["ownItemOffer"]>(null);
+  const modalScrollRef = useRef<HTMLDivElement | null>(null);
+  const modalHeaderRef = useRef<HTMLDivElement | null>(null);
+  const marketSummaryRef = useRef<HTMLDivElement | null>(null);
+  const offerFormRef = useRef<HTMLDivElement | null>(null);
+  const listingFormRef = useRef<HTMLDivElement | null>(null);
+  const offerInputRef = useRef<HTMLInputElement | null>(null);
+  const listingInputRef = useRef<HTMLInputElement | null>(null);
+  const ethUsdPriceFetchedAtRef = useRef(0);
+  const [initializeModalScrollbars, getModalScrollbars] = useOverlayScrollbars({
+    options: {
+      scrollbars: {
+        theme: "os-theme-10x",
+        autoHide: "scroll",
+        clickScroll: true,
+      },
+    },
+    defer: true,
+  });
+  const rawEffectiveListing = tradeState ? tradeState.listing : market.listing ?? null;
+  const effectiveItemOffer = tradeState ? tradeState.itemOffer : market.itemOffer ?? null;
+  const effectiveCollectionOffer = tradeState ? tradeState.collectionOffer : market.collectionOffer ?? null;
+  const effectiveTopOffer = tradeState ? tradeState.topOffer : chooseTopOffer(effectiveItemOffer ?? undefined, effectiveCollectionOffer ?? null);
+  const effectiveSale = optimisticSale ?? (tradeState ? tradeState.sale ?? null : market.sale ?? null);
   const effectiveOwner = (() => {
     const freshOwner = tradeState?.owner;
     const cachedOwner = market.owner;
@@ -2314,36 +2485,122 @@ function WarpletDetailsModal({
   const effectiveFloor = tradeState?.floor ?? null;
   const normalizedActiveWallet = activeWallet?.toLowerCase() ?? "";
   const ownerWallet = effectiveOwner?.wallet?.toLowerCase() ?? "";
+  const listingSellerWallet = rawEffectiveListing?.seller?.toLowerCase() ?? "";
+  const listingBelongsToOwner = Boolean(!ownerWallet || !listingSellerWallet || listingSellerWallet === ownerWallet);
+  const effectiveListing = listingBelongsToOwner ? rawEffectiveListing : null;
   const isViewerOwnerByFid = Boolean(viewerFid != null && effectiveOwner?.fid === viewerFid);
   const isOwner = Boolean(
     (normalizedActiveWallet && ownerWallet && normalizedActiveWallet === ownerWallet) ||
     (!normalizedActiveWallet && isViewerOwnerByFid)
   );
   const hasListing = hasMarketValue(effectiveListing ?? undefined);
+  const topOffererWallet = effectiveTopOffer?.offerer?.toLowerCase() ?? "";
+  const topOfferIsOwnerCollectionOffer = Boolean(
+    isOwner &&
+    effectiveTopOffer?.source === "collection" &&
+    ownerWallet &&
+    topOffererWallet === ownerWallet,
+  );
   const hasTopOffer = hasMarketValue(effectiveTopOffer ?? undefined);
-  const hasOwnItemOffer = Boolean(tradeState?.ownItemOffer && hasMarketValue(tradeState.ownItemOffer));
+  const hasSellableTopOffer = hasTopOffer && !topOfferIsOwnerCollectionOffer;
+  const ownItemOfferOrder = tradeState?.ownItemOffer && hasMarketValue(tradeState.ownItemOffer)
+    ? tradeState.ownItemOffer
+    : normalizedActiveWallet &&
+      effectiveItemOffer?.offerer?.toLowerCase() === normalizedActiveWallet &&
+      hasMarketValue(effectiveItemOffer)
+    ? { ...effectiveItemOffer, source: "item" as const }
+    : null;
+  const hasOwnItemOffer = Boolean(ownItemOfferOrder);
   const tradeButtons = getTradeButtons({
     listed: hasListing,
-    offer: hasTopOffer,
+    offer: hasSellableTopOffer,
     owner: isOwner,
     ownItemOffer: hasOwnItemOffer,
   });
+  const knownFloorPrice = defaultListingPrice(effectiveFloor);
+  const knownTopOfferPrice = defaultOfferPrice(effectiveTopOffer);
+  const listingAmount = parseTradeAmount(listingPrice);
+  const offerAmount = parseTradeAmount(offerPrice);
+  const activeListingAmount = marketMoneyToDecimal(effectiveListing);
+  const topOfferAmount = marketMoneyToDecimal(effectiveTopOffer);
+  const listingPriceIsAtOrBelowTopOffer = Boolean(
+    listingAmount != null &&
+    topOfferAmount != null &&
+    topOfferAmount > 0 &&
+    listingAmount <= topOfferAmount
+  );
+  const listingPriceIsValid = Boolean(
+    listingAmount != null &&
+    listingAmount >= MIN_LISTING_ETH &&
+    decimalEthToWeiString(listingPrice) &&
+    !listingPriceIsAtOrBelowTopOffer
+  );
+  const offerPriceIsValid = Boolean(
+    offerAmount != null &&
+    offerAmount > 0 &&
+    decimalEthToWeiString(offerPrice)
+  );
+  const offerIsAboveCurrentListing = Boolean(
+    offerAmount != null &&
+    activeListingAmount != null &&
+    activeListingAmount > 0 &&
+    offerAmount > activeListingAmount
+  );
   const chipGroups = [
     { label: "Colours", values: splitChips(row.warplet_colours) },
     { label: "Keywords", values: splitChips(row.warplet_keywords) },
     { label: "Traits", values: splitChips(row.warplet_traits) },
   ];
 
+  const closeTradeToast = useCallback(() => {
+    if (tradeToastHideTimerRef.current != null) {
+      window.clearTimeout(tradeToastHideTimerRef.current);
+      tradeToastHideTimerRef.current = null;
+    }
+    if (tradeToastExitTimerRef.current != null) {
+      window.clearTimeout(tradeToastExitTimerRef.current);
+      tradeToastExitTimerRef.current = null;
+    }
+    setTradeToastExiting(true);
+    tradeToastExitTimerRef.current = window.setTimeout(() => {
+      setTradeToast(null);
+      setTradeToastExiting(false);
+      tradeToastExitTimerRef.current = null;
+    }, TRADE_TOAST_EXIT_MS);
+  }, []);
+
   const showToast = useCallback((kind: TradeToast["kind"], message: string, options: { manualClose?: boolean; minMs?: number } = {}) => {
+    if (tradeToastHideTimerRef.current != null) {
+      window.clearTimeout(tradeToastHideTimerRef.current);
+      tradeToastHideTimerRef.current = null;
+    }
+    if (tradeToastExitTimerRef.current != null) {
+      window.clearTimeout(tradeToastExitTimerRef.current);
+      tradeToastExitTimerRef.current = null;
+    }
     const id = tradeToastIdRef.current + 1;
     tradeToastIdRef.current = id;
-    const toast: TradeToast = { id, kind, message, manualClose: options.manualClose };
+    const manualClose = options.manualClose || kind === "error" || kind === "warning";
+    const toast: TradeToast = { id, kind, message, manualClose };
+    setTradeToastExiting(false);
     setTradeToast(toast);
-    if (!options.manualClose) {
-      window.setTimeout(() => {
-        setTradeToast((current) => (current?.id === id ? null : current));
-      }, options.minMs ?? 5000);
+    if (!manualClose) {
+      tradeToastHideTimerRef.current = window.setTimeout(() => {
+        if (tradeToastIdRef.current !== id) return;
+        setTradeToastExiting(true);
+        tradeToastExitTimerRef.current = window.setTimeout(() => {
+          setTradeToast((current) => (current?.id === id ? null : current));
+          setTradeToastExiting(false);
+          tradeToastExitTimerRef.current = null;
+        }, TRADE_TOAST_EXIT_MS);
+        tradeToastHideTimerRef.current = null;
+      }, (options.minMs ?? 5000) + TRADE_TOAST_EXTRA_MS);
     }
+  }, []);
+
+  useEffect(() => () => {
+    if (tradeToastHideTimerRef.current != null) window.clearTimeout(tradeToastHideTimerRef.current);
+    if (tradeToastExitTimerRef.current != null) window.clearTimeout(tradeToastExitTimerRef.current);
   }, []);
 
   const postTradeLog = useCallback((payload: Record<string, unknown>) => {
@@ -2374,20 +2631,56 @@ function WarpletDetailsModal({
     return { provider, account };
   }, []);
 
-  const refreshTradeState = useCallback(async (walletOverride?: string | null): Promise<FreshTradeState | null> => {
-    const walletParam = encodeURIComponent(walletOverride ?? activeWallet ?? "");
-    const response = await fetch(`/api/warplet-trade-state/${details.id}${walletParam ? `?wallet=${walletParam}` : ""}`, {
+  const refreshTradeState = useCallback(async (
+    walletOverride?: string | null,
+    options: { excludeCollectionOrderHash?: string | null } = {},
+  ): Promise<FreshTradeState | null> => {
+    const params = new URLSearchParams();
+    const wallet = walletOverride ?? activeWallet ?? "";
+    if (wallet) params.set("wallet", wallet);
+    if (options.excludeCollectionOrderHash) params.set("excludeCollectionOrderHash", options.excludeCollectionOrderHash);
+    const queryString = params.toString();
+    const response = await fetch(`/api/warplet-trade-state/${details.id}${queryString ? `?${queryString}` : ""}`, {
       headers: { accept: "application/json" },
     });
     if (!response.ok) throw new Error(`Trade state failed (${response.status})`);
     const next = (await response.json()) as FreshTradeState;
-    setTradeState(next);
+    const optimisticOffer = optimisticOwnItemOfferRef.current;
+    const normalizedWallet = (walletOverride ?? activeWallet ?? "").toLowerCase();
+    const shouldPreserveOptimisticOffer = Boolean(
+      optimisticOffer &&
+      normalizedWallet &&
+      optimisticOffer.offerer?.toLowerCase() === normalizedWallet &&
+      hasMarketValue(optimisticOffer) &&
+      (
+        !next.ownItemOffer ||
+        !hasMarketValue(next.ownItemOffer) ||
+        (getMarketNumber(optimisticOffer) ?? -1) >= (getMarketNumber(next.ownItemOffer) ?? -1)
+      )
+    );
+    const preservedTopOffer = optimisticOffer
+      ? chooseTopOffer(optimisticOffer, next.collectionOffer) as FreshTradeState["topOffer"]
+      : null;
+    const merged: FreshTradeState = shouldPreserveOptimisticOffer && optimisticOffer
+      ? {
+          ...next,
+          itemOffer: optimisticOffer,
+          ownItemOffer: optimisticOffer,
+          topOffer: preservedTopOffer,
+        }
+      : next;
+    if (!shouldPreserveOptimisticOffer && next.ownItemOffer?.orderHash === optimisticOffer?.orderHash) {
+      optimisticOwnItemOfferRef.current = null;
+    }
+    setTradeState(merged);
+    setOptimisticSale(merged.sale ?? null);
     if (next.owner?.wallet) setActiveWallet((current) => current);
     if (next.snapshot) onMergeMarketSnapshot(details.id, next.snapshot);
-    setOfferPrice((current) => current || defaultOfferPrice(next.topOffer));
-    setListingPrice((current) => current || defaultListingPrice(next.floor));
-    return next;
-  }, [activeWallet, details.id, onMergeMarketSnapshot]);
+    if (shouldPreserveOptimisticOffer && optimisticOffer) onUpsertItemOffer(details.id, optimisticOffer);
+    setOfferPrice((current) => current || defaultOfferPrice(merged.topOffer));
+    setListingPrice((current) => current || defaultListingPrice(merged.floor));
+    return merged;
+  }, [activeWallet, details.id, onMergeMarketSnapshot, onUpsertItemOffer]);
 
   useEffect(() => {
     let cancelled = false;
@@ -2421,6 +2714,45 @@ function WarpletDetailsModal({
     setListingPrice((current) => current || defaultListingPrice(tradeState.floor));
   }, [tradeState]);
 
+  useEffect(() => {
+    const target = modalScrollRef.current;
+    if (!target) return;
+    target.setAttribute("data-overlayscrollbars-initialize", "");
+    initializeModalScrollbars(target);
+    return () => {
+      target.removeAttribute("data-overlayscrollbars-initialize");
+    };
+  }, [initializeModalScrollbars]);
+
+  useEffect(() => {
+    if (tradeMode === "idle") return;
+    const frame = window.requestAnimationFrame(() => {
+      const input = tradeMode === "offer" ? offerInputRef.current : listingInputRef.current;
+      focusInputAtEnd(input);
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [tradeMode]);
+
+  useEffect(() => {
+    if (tradeMode === "idle") return;
+    if (ethUsdPrice != null && Date.now() - ethUsdPriceFetchedAtRef.current < ETH_USD_PRICE_STALE_MS) return;
+
+    let cancelled = false;
+    fetchEthUsdPrice()
+      .then((price) => {
+        if (cancelled) return;
+        setEthUsdPrice(price);
+        ethUsdPriceFetchedAtRef.current = Date.now();
+      })
+      .catch((error) => {
+        console.error("Failed to fetch ETH/USD price:", error);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [ethUsdPrice, tradeMode]);
+
   const handleOpenFarcasterProfile = () => {
     if (!farcasterFid) return;
     void hapticTap();
@@ -2453,17 +2785,15 @@ function WarpletDetailsModal({
           ? "Item not listed"
           : action === "cancel_listing"
           ? "Listing not canceled"
-          : action === "test_wallet_tx"
-          ? "Test transaction not sent"
-          : action === "test_send_token"
-          ? "Send-token test not completed"
-          : action === "test_drop_tx"
-          ? "Drop-style wallet test not completed"
           : "Offer not accepted"
         : message,
       { manualClose: !rejected, minMs: 5000 },
     );
   }, [postTradeLog, showToast]);
+
+  const showFirefoxWarningIfNeeded = useCallback(() => {
+    if (isFirefoxBrowser()) setShowFirefoxWalletWarning(true);
+  }, []);
 
   const handleFreshMismatch = useCallback((payload: { freshState?: FreshTradeState }) => {
     if (payload.freshState) {
@@ -2473,6 +2803,68 @@ function WarpletDetailsModal({
     void hapticWarning();
     showToast("warning", "The price has changed. Refreshing...", { minMs: 5000 });
   }, [details.id, onMergeMarketSnapshot, showToast]);
+
+  const applyOptimisticItemOffer = useCallback((account: string, rawAmount: string, protocolAddress: string, orderHash?: string | null) => {
+    const now = new Date().toISOString();
+    const optimisticEth = getRawMarketNumber({
+      eth: null,
+      at: now,
+      rawAmount,
+      decimals: 18,
+      currencySymbol: "WETH",
+      tokenAddress: BASE_WETH_TOKEN_ADDRESS,
+    });
+    const offer: NonNullable<FreshTradeState["itemOffer"]> = {
+      eth: optimisticEth,
+      at: now,
+      rawAmount,
+      decimals: 18,
+      currencySymbol: "WETH",
+      tokenAddress: BASE_WETH_TOKEN_ADDRESS,
+      orderHash: orderHash ?? null,
+      protocolAddress,
+      offerer: account.toLowerCase(),
+      source: "item",
+    };
+    optimisticOwnItemOfferRef.current = offer;
+    const chooseFreshTopOffer = (
+      collectionOffer: FreshTradeState["collectionOffer"],
+    ): NonNullable<FreshTradeState["topOffer"]> => {
+      if (!collectionOffer) return offer;
+      const itemValue = getMarketNumber(offer);
+      const collectionValue = getMarketNumber(collectionOffer);
+      if (itemValue == null) return collectionOffer;
+      if (collectionValue == null) return offer;
+      return itemValue >= collectionValue ? offer : collectionOffer;
+    };
+    setTradeState((current) => {
+      if (!current) {
+        return {
+          tokenId: details.id,
+          generatedAt: now,
+          listing: effectiveListing ?? null,
+          itemOffer: offer,
+          collectionOffer: effectiveCollectionOffer ?? null,
+          topOffer: chooseFreshTopOffer(effectiveCollectionOffer ?? null),
+          ownItemOffer: offer,
+          floor: effectiveFloor ?? null,
+          owner: {
+            wallet: effectiveOwner?.wallet ?? null,
+            fid: effectiveOwner?.fid ?? null,
+            checkedAt: effectiveOwner?.checkedAt ?? null,
+          },
+        };
+      }
+      return {
+        ...current,
+        itemOffer: offer,
+        ownItemOffer: offer,
+        topOffer: chooseFreshTopOffer(current.collectionOffer ?? null),
+        generatedAt: now,
+      };
+    });
+    onUpsertItemOffer(details.id, offer);
+  }, [details.id, effectiveCollectionOffer, effectiveFloor, effectiveListing, effectiveOwner, onUpsertItemOffer]);
 
   const assertConnectedOwnerWallet = useCallback((account: string) => {
     const expectedOwner = ownerWallet;
@@ -2486,6 +2878,7 @@ function WarpletDetailsModal({
     actionIdRef.current = actionId;
     setTradeBusyAction("buy");
     try {
+      showFirefoxWarningIfNeeded();
       void hapticPrimaryTap();
       const { provider, account } = await getProviderAndAccount();
       const response = await fetch("/api/warplet-trade/buy/prepare", {
@@ -2507,6 +2900,7 @@ function WarpletDetailsModal({
       }
       if (!response.ok) throw new Error(payload.message || `Buy prepare failed (${response.status})`);
       if (payload.state) setTradeState(payload.state);
+      const purchasedListing = payload.state?.listing ?? effectiveListing ?? null;
       await ensureBaseChain(provider, payload.chainIdHex ?? undefined);
       postTradeLog({ actionName: "buy", status: "requested", phase: "transaction_requested" });
       const tx = extractFulfillmentTransaction(payload.fulfillment);
@@ -2514,7 +2908,59 @@ function WarpletDetailsModal({
       const hash = await sendPreparedTransaction(provider, account, tx);
       postTradeLog({ actionName: "buy", status: "submitted", phase: "transaction_submitted", transactionHash: hash });
       postTradeLog({ actionName: "buy", status: "confirmed", phase: "confirmed", transactionHash: hash });
-      await refreshTradeState(account);
+      await refreshTradeState(account).catch((error) => {
+        console.warn("Fresh trade state after buy was not ready yet:", error);
+      });
+      const now = new Date().toISOString();
+      const transactionRawValue = getPreparedTransactionRawValue(tx);
+      const saleRawAmount = purchasedListing?.rawAmount ?? transactionRawValue;
+      const saleEth = purchasedListing?.eth ?? (saleRawAmount
+        ? getRawMarketNumber({
+            eth: null,
+            at: now,
+            rawAmount: saleRawAmount,
+            decimals: 18,
+            currencySymbol: "ETH",
+            tokenAddress: NATIVE_TOKEN_ADDRESS,
+          })
+        : null);
+      const sale: MarketSnapshot["sales"][string] = {
+        eth: saleEth,
+        at: now,
+        rawAmount: saleRawAmount ?? null,
+        decimals: purchasedListing?.decimals ?? (saleRawAmount ? 18 : null),
+        currencySymbol: purchasedListing?.currencySymbol ?? (saleRawAmount ? "ETH" : null),
+        tokenAddress: purchasedListing?.tokenAddress ?? (saleRawAmount ? NATIVE_TOKEN_ADDRESS : null),
+        txHash: hash,
+        seller: purchasedListing?.seller ?? null,
+      };
+      setOptimisticSale(sale);
+      onApplyPurchase(details.id, {
+        buyerWallet: account,
+        buyerFid: viewerFid,
+        sale,
+      });
+      setTradeState((current) => {
+        const itemOffer = current?.itemOffer ?? (effectiveItemOffer ? { ...effectiveItemOffer, source: "item" as const } : null);
+        const collectionOffer = current?.collectionOffer ?? effectiveCollectionOffer ?? null;
+        const topOffer = current?.topOffer ?? (chooseTopOffer(itemOffer ?? undefined, collectionOffer) as FreshTradeState["topOffer"]) ?? null;
+        return {
+          tokenId: details.id,
+          generatedAt: now,
+          listing: null,
+          itemOffer,
+          collectionOffer,
+          topOffer,
+          ownItemOffer: current?.ownItemOffer ?? null,
+          floor: current?.floor ?? effectiveFloor ?? null,
+          owner: {
+            wallet: account.toLowerCase(),
+            fid: viewerFid,
+            checkedAt: now,
+          },
+        };
+      });
+      setTradeMode("idle");
       void hapticSuccess();
       showTradeConfetti();
       showToast("success", "Item successfully purchased", { minMs: 5000 });
@@ -2523,13 +2969,14 @@ function WarpletDetailsModal({
     } finally {
       setTradeBusyAction(null);
     }
-  }, [details.id, effectiveListing?.orderHash, effectiveListing?.rawAmount, getProviderAndAccount, handleFreshMismatch, handleTradeError, postTradeLog, refreshTradeState, showToast, viewerFid]);
+  }, [details.id, effectiveCollectionOffer, effectiveFloor, effectiveItemOffer, effectiveListing, effectiveTopOffer, getProviderAndAccount, handleFreshMismatch, handleTradeError, onApplyPurchase, postTradeLog, refreshTradeState, showFirefoxWarningIfNeeded, showToast, viewerFid]);
 
   const runAcceptOffer = useCallback(async () => {
     const actionId = crypto.randomUUID();
     actionIdRef.current = actionId;
     setTradeBusyAction("accept_offer");
     try {
+      showFirefoxWarningIfNeeded();
       void hapticPrimaryTap();
       const { provider, account } = await getProviderAndAccount(ownerWallet);
       assertConnectedOwnerWallet(account);
@@ -2559,8 +3006,11 @@ function WarpletDetailsModal({
         return;
       }
       if (!response.ok) throw new Error(payload.message || `Accept offer prepare failed (${response.status})`);
+      const acceptedOffer = payload.state?.topOffer ?? effectiveTopOffer ?? null;
+      const acceptedCollectionOfferHash = acceptedOffer?.source === "collection" ? acceptedOffer.orderHash ?? null : null;
       if (payload.state) setTradeState(payload.state);
       await ensureBaseChain(provider, payload.chainIdHex ?? undefined);
+      showToast("neutral", "Note: Received ETH excludes OpenSea fees.", { minMs: 5000 });
       if (payload.nftApproval) {
         postTradeLog({ actionName: "accept_offer", status: "requested", phase: "approval_requested" });
         await ensureErc721ApprovalForAll(provider, account, payload.nftApproval);
@@ -2572,7 +3022,104 @@ function WarpletDetailsModal({
       const hash = await sendPreparedTransaction(provider, account, tx);
       postTradeLog({ actionName: "accept_offer", status: "submitted", phase: "transaction_submitted", transactionHash: hash });
       postTradeLog({ actionName: "accept_offer", status: "confirmed", phase: "confirmed", transactionHash: hash });
-      await refreshTradeState(account);
+      const now = new Date().toISOString();
+      const acceptedBuyerWallet = acceptedOffer?.offerer ?? null;
+      const sale: MarketSnapshot["sales"][string] = {
+        eth: acceptedOffer?.eth ?? null,
+        at: now,
+        rawAmount: acceptedOffer?.rawAmount ?? null,
+        decimals: acceptedOffer?.decimals ?? null,
+        currencySymbol: acceptedOffer?.currencySymbol ?? null,
+        tokenAddress: acceptedOffer?.tokenAddress ?? null,
+        txHash: hash,
+        seller: account.toLowerCase(),
+      };
+      setOptimisticSale(sale);
+      const acceptedBuyerProfile: Partial<MarketSnapshot["owners"][string]> | undefined =
+        acceptedBuyerWallet && wallet && acceptedBuyerWallet.toLowerCase() === wallet.toLowerCase()
+          ? {
+              wallet: acceptedBuyerWallet.toLowerCase(),
+              fid: farcasterFid,
+              username: farcasterUsername || null,
+              displayName: farcasterUsername || null,
+            }
+          : undefined;
+      if (acceptedBuyerWallet) {
+        onApplyPurchase(details.id, {
+          buyerWallet: acceptedBuyerWallet,
+          buyerFid: acceptedBuyerProfile?.fid ?? null,
+          buyerProfile: acceptedBuyerProfile,
+          sale,
+        });
+      } else {
+        onClearMarketSide(details.id, "listing");
+      }
+      if (acceptedOffer?.source === "item") onClearMarketSide(details.id, "offer");
+      const refreshed = await refreshTradeState(account, {
+        excludeCollectionOrderHash: acceptedCollectionOfferHash,
+      }).catch((error) => {
+        console.warn("Fresh trade state after accepting offer was not ready yet:", error);
+        return null;
+      });
+      setOptimisticSale(sale);
+      setTradeState((current) => {
+        const itemOffer = acceptedOffer?.source === "item" ? null : current?.itemOffer ?? effectiveItemOffer ?? null;
+        const collectionOffer = acceptedOffer?.source === "collection"
+          ? refreshed?.collectionOffer ?? null
+          : current?.collectionOffer ?? effectiveCollectionOffer ?? null;
+        const nextOwnerWallet = acceptedBuyerWallet?.toLowerCase() ?? current?.owner.wallet ?? null;
+        const refreshedOwner = refreshed?.snapshot?.owners?.[String(details.id)] ?? null;
+        const currentOwner = current?.owner as MarketSnapshot["owners"][string] | undefined;
+        const matchingOwnerProfile = [refreshedOwner, market.owner, currentOwner, acceptedBuyerProfile].find(
+          (owner) => owner?.wallet?.toLowerCase() === nextOwnerWallet &&
+            (owner.username || owner.displayName || owner.pfpUrl || owner.followerCount != null || owner.followingCount != null),
+        );
+        return {
+          tokenId: details.id,
+          generatedAt: now,
+          listing: null,
+          itemOffer: itemOffer ? { ...itemOffer, source: "item" as const } : null,
+          collectionOffer,
+          topOffer: chooseTopOffer(itemOffer ? { ...itemOffer, source: "item" as const } : undefined, collectionOffer) as FreshTradeState["topOffer"],
+          ownItemOffer: acceptedOffer?.source === "item" ? null : current?.ownItemOffer ?? null,
+          sale,
+          floor: current?.floor ?? effectiveFloor ?? null,
+          owner: {
+            ...(matchingOwnerProfile ?? {}),
+            wallet: nextOwnerWallet,
+            fid: matchingOwnerProfile?.fid ?? acceptedBuyerProfile?.fid ?? refreshed?.owner.fid ?? current?.owner.fid ?? null,
+            checkedAt: now,
+          },
+        };
+      });
+      if (acceptedCollectionOfferHash) {
+        if (refreshed?.collectionOffer) {
+          if (refreshed.snapshot) onMergeMarketSnapshot(details.id, refreshed.snapshot);
+        } else {
+          setTradeState((current) => current
+            ? current.collectionOffer?.orderHash === acceptedCollectionOfferHash
+              ? { ...current, collectionOffer: null, topOffer: current.itemOffer ?? null }
+              : current
+            : current);
+          onClearMarketSide(details.id, "collectionOffer");
+        }
+        window.setTimeout(() => {
+          void refreshTradeState(account, { excludeCollectionOrderHash: acceptedCollectionOfferHash })
+            .then((next) => {
+              if (!next?.sale || (sale.txHash && next.sale.txHash !== sale.txHash)) {
+                setOptimisticSale(sale);
+              }
+            });
+        }, 5000);
+      }
+      if (acceptedBuyerWallet) {
+        onApplyPurchase(details.id, {
+          buyerWallet: acceptedBuyerWallet,
+          buyerFid: acceptedBuyerProfile?.fid ?? null,
+          buyerProfile: acceptedBuyerProfile,
+          sale,
+        });
+      }
       void hapticSuccess();
       showTradeConfetti();
       showToast("success", "Offer successfully accepted", { minMs: 5000 });
@@ -2581,13 +3128,17 @@ function WarpletDetailsModal({
     } finally {
       setTradeBusyAction(null);
     }
-  }, [assertConnectedOwnerWallet, details.id, effectiveTopOffer?.orderHash, effectiveTopOffer?.rawAmount, getProviderAndAccount, handleFreshMismatch, handleTradeError, postTradeLog, refreshTradeState, showToast, viewerFid]);
+  }, [assertConnectedOwnerWallet, details.id, effectiveCollectionOffer, effectiveFloor, effectiveItemOffer, effectiveTopOffer, farcasterFid, farcasterUsername, getProviderAndAccount, handleFreshMismatch, handleTradeError, market.owner, onApplyPurchase, onClearMarketSide, onMergeMarketSnapshot, postTradeLog, refreshTradeState, showFirefoxWarningIfNeeded, showToast, viewerFid, wallet]);
 
   const runListForSale = useCallback(async () => {
     if (tradeBusyActionRef.current) return;
     const priceRaw = decimalEthToWeiString(listingPrice);
-    if (!priceRaw || BigInt(priceRaw) <= 0n) {
-      showToast("error", "Enter a valid listing price.", { manualClose: true });
+    if (!priceRaw || BigInt(priceRaw) < 10000n) {
+      showToast("error", "Enter a listing price of at least 0.00000000000001 ETH.", { manualClose: true });
+      return;
+    }
+    if (listingPriceIsAtOrBelowTopOffer) {
+      showToast("error", `Listing price must be above the current Top Offer of ${formatMarketEthForTradeCopy(effectiveTopOffer)}.`, { manualClose: true });
       return;
     }
     const actionId = crypto.randomUUID();
@@ -2595,13 +3146,14 @@ function WarpletDetailsModal({
     tradeBusyActionRef.current = "list";
     setTradeBusyAction("list");
     try {
+      showFirefoxWarningIfNeeded();
       void hapticPrimaryTap();
       const { provider, account } = await getProviderAndAccount(ownerWallet, { skipChainSwitch: true });
       assertConnectedOwnerWallet(account);
       const prepare = await fetch("/api/warplet-trade/listing/prepare", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ actionId, fid: viewerFid, tokenId: details.id, wallet: account, priceRaw, durationSeconds: tradeDuration }),
+        body: JSON.stringify({ actionId, fid: viewerFid, tokenId: details.id, wallet: account, priceRaw, durationSeconds: DEFAULT_TRADE_DURATION_SECONDS }),
       });
       const payload = await prepare.json() as { actions?: unknown; chainIdHex?: string; message?: string };
       if (!prepare.ok) throw new Error(payload.message || `Listing prepare failed (${prepare.status})`);
@@ -2629,7 +3181,7 @@ function WarpletDetailsModal({
       tradeBusyActionRef.current = null;
       setTradeBusyAction(null);
     }
-  }, [assertConnectedOwnerWallet, details.id, getProviderAndAccount, handleTradeError, listingPrice, postTradeLog, refreshTradeState, showToast, tradeDuration, viewerFid]);
+  }, [assertConnectedOwnerWallet, details.id, effectiveTopOffer, getProviderAndAccount, handleTradeError, listingPrice, listingPriceIsAtOrBelowTopOffer, postTradeLog, refreshTradeState, showFirefoxWarningIfNeeded, showToast, viewerFid]);
 
   const runMakeOffer = useCallback(async () => {
     const priceRaw = decimalEthToWeiString(offerPrice);
@@ -2641,35 +3193,81 @@ function WarpletDetailsModal({
     actionIdRef.current = actionId;
     setTradeBusyAction("make_offer");
     try {
+      showFirefoxWarningIfNeeded();
       void hapticPrimaryTap();
       const { provider, account } = await getProviderAndAccount(null, { skipChainSwitch: true });
       const prepare = await fetch("/api/warplet-trade/offer/prepare", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ actionId, fid: viewerFid, tokenId: details.id, wallet: account, priceRaw, durationSeconds: tradeDuration }),
+        body: JSON.stringify({ actionId, fid: viewerFid, tokenId: details.id, wallet: account, priceRaw, durationSeconds: DEFAULT_TRADE_DURATION_SECONDS }),
       });
-      const payload = await prepare.json() as { build?: unknown; chainIdHex?: string; wethApproval?: TokenApprovalRequirement; message?: string };
+      const payload = await prepare.json() as {
+        protocol?: string;
+        protocolAddress?: string;
+        parameters?: unknown;
+        typedData?: unknown;
+        chainIdHex?: string;
+        wethApproval?: TokenApprovalRequirement;
+        message?: string;
+      };
       if (!prepare.ok) throw new Error(payload.message || `Offer prepare failed (${prepare.status})`);
       if (payload.wethApproval) {
         await ensureBaseChain(provider, payload.chainIdHex ?? undefined);
+        const requiredWeth = BigInt(payload.wethApproval.amount);
+        const currentWeth = await readErc20Balance(payload.wethApproval.tokenAddress, account);
+        if (currentWeth < requiredWeth) {
+          const missingWeth = requiredWeth - currentWeth;
+          const nativeEth = await readNativeBalance(account);
+          if (nativeEth <= missingWeth) {
+            throw new Error(
+              `Offer requires ${formatWeiTokenAmount(requiredWeth, "WETH")}. Wallet has ${formatWeiTokenAmount(currentWeth, "WETH")} and ${formatWeiTokenAmount(nativeEth, "ETH")}.`,
+            );
+          }
+          postTradeLog({ actionName: "make_offer", status: "requested", phase: "transaction_requested", expectedPriceRaw: priceRaw });
+          showToast("neutral", `Wrap ${formatWeiTokenAmount(missingWeth, "ETH")} to WETH to make this offer...`, { minMs: 5000 });
+          const wrapHash = await wrapEthToWeth(provider, account, payload.wethApproval.tokenAddress, missingWeth);
+          postTradeLog({ actionName: "make_offer", status: "submitted", phase: "transaction_submitted", transactionHash: wrapHash, expectedPriceRaw: priceRaw });
+          showToast("neutral", "ETH wrapped to WETH. Continuing offer...", { minMs: 5000 });
+        }
         postTradeLog({ actionName: "make_offer", status: "requested", phase: "approval_requested", expectedPriceRaw: priceRaw });
         await ensureErc20Approval(provider, account, payload.wethApproval);
         postTradeLog({ actionName: "make_offer", status: "approved", phase: "approval_success", expectedPriceRaw: priceRaw });
       }
       postTradeLog({ actionName: "make_offer", status: "requested", phase: "signature_requested", expectedPriceRaw: priceRaw });
       showToast("neutral", "Check your Farcaster wallet to confirm the offer...", { minMs: 5000 });
-      const signed = await executeOpenSeaActions(provider, account, payload.build);
+      if (!payload.typedData || !payload.parameters || !payload.protocolAddress) {
+        throw new Error("OpenSea did not return item offer signature data");
+      }
+      const signature = await signTypedData(provider, account, payload.typedData);
       postTradeLog({ actionName: "make_offer", status: "signed", phase: "signature_success", expectedPriceRaw: priceRaw });
       const submit = await fetch("/api/warplet-trade/offer/submit", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ actionId, payload: signed.payload }),
+        body: JSON.stringify({
+          actionId,
+          protocol: payload.protocol ?? "seaport",
+          payload: {
+            parameters: payload.parameters,
+            protocol_address: payload.protocolAddress,
+            signature,
+          },
+        }),
       });
       if (!submit.ok) {
         const failure = await submit.json().catch(() => ({})) as { message?: string };
         throw new Error(failure.message || `Offer submit failed (${submit.status})`);
       }
-      await refreshTradeState(account);
+      const submitPayload = await submit.json().catch(() => ({})) as {
+        result?: {
+          order_hash?: string;
+          orderHash?: string;
+        };
+      };
+      applyOptimisticItemOffer(account, priceRaw, payload.protocolAddress, submitPayload.result?.order_hash ?? submitPayload.result?.orderHash ?? null);
+      void refreshTradeState(account);
+      window.setTimeout(() => {
+        void refreshTradeState(account);
+      }, 5000);
       void hapticSuccess();
       showTradeConfetti();
       setTradeMode("idle");
@@ -2679,10 +3277,10 @@ function WarpletDetailsModal({
     } finally {
       setTradeBusyAction(null);
     }
-  }, [details.id, getProviderAndAccount, handleTradeError, offerPrice, postTradeLog, refreshTradeState, showToast, tradeDuration, viewerFid]);
+  }, [applyOptimisticItemOffer, details.id, getProviderAndAccount, handleTradeError, offerPrice, postTradeLog, refreshTradeState, showFirefoxWarningIfNeeded, showToast, viewerFid]);
 
   const runCancelOrder = useCallback(async (action: "cancel_offer" | "cancel_listing") => {
-    const order = action === "cancel_offer" ? tradeState?.ownItemOffer : effectiveListing;
+    const order = action === "cancel_offer" ? ownItemOfferOrder : effectiveListing;
     if (!order?.orderHash || !order.protocolAddress) {
       showToast("error", "No active order is available to cancel.", { manualClose: true });
       return;
@@ -2691,12 +3289,23 @@ function WarpletDetailsModal({
     actionIdRef.current = actionId;
     setTradeBusyAction(action);
     try {
+      showFirefoxWarningIfNeeded();
       void hapticPrimaryTap();
       const { provider, account } = await getProviderAndAccount(
         action === "cancel_listing" ? ownerWallet : null,
         { skipChainSwitch: true },
       );
       if (action === "cancel_listing") assertConnectedOwnerWallet(account);
+      if (
+        action === "cancel_listing" &&
+        effectiveListing?.seller &&
+        effectiveListing.seller.toLowerCase() !== account.toLowerCase()
+      ) {
+        setTradeState((current) => current ? { ...current, listing: null } : current);
+        onClearMarketSide(details.id, "listing");
+        showToast("error", "This listing belongs to another wallet and cannot be canceled.", { manualClose: true });
+        return;
+      }
       postTradeLog({ actionName: getActionLogName(action), status: "requested", phase: "prepare_requested", orderHash: order.orderHash, protocolAddress: order.protocolAddress });
       const endpoint = action === "cancel_offer" ? "/api/warplet-trade/offer/cancel-prepare" : "/api/warplet-trade/listing/cancel-prepare";
       const response = await fetch(endpoint, {
@@ -2729,7 +3338,23 @@ function WarpletDetailsModal({
       );
       postTradeLog({ actionName: getActionLogName(action), status: "submitted", phase: "transaction_submitted", orderHash: order.orderHash, protocolAddress: payload.protocolAddress, transactionHash: hash });
       postTradeLog({ actionName: getActionLogName(action), status: "confirmed", phase: "confirmed", orderHash: order.orderHash, protocolAddress: payload.protocolAddress, transactionHash: hash });
+      if (action === "cancel_listing") {
+        setTradeState((current) => current ? { ...current, listing: null } : current);
+        onClearMarketSide(details.id, "listing");
+      } else {
+        optimisticOwnItemOfferRef.current = null;
+        setTradeState((current) => current ? { ...current, itemOffer: null, ownItemOffer: null, topOffer: current.collectionOffer ?? null } : current);
+        onClearMarketSide(details.id, "offer");
+      }
       await refreshTradeState(account);
+      if (action === "cancel_listing") {
+        setTradeState((current) => current ? { ...current, listing: null } : current);
+        onClearMarketSide(details.id, "listing");
+      } else {
+        optimisticOwnItemOfferRef.current = null;
+        setTradeState((current) => current ? { ...current, itemOffer: null, ownItemOffer: null, topOffer: current.collectionOffer ?? null } : current);
+        onClearMarketSide(details.id, "offer");
+      }
       void hapticSuccess();
       showTradeConfetti();
       showToast("success", action === "cancel_offer" ? "Offer successfully canceled" : "Listing successfully canceled", { minMs: 5000 });
@@ -2738,180 +3363,321 @@ function WarpletDetailsModal({
     } finally {
       setTradeBusyAction(null);
     }
-  }, [assertConnectedOwnerWallet, details.id, effectiveListing, getProviderAndAccount, handleTradeError, postTradeLog, refreshTradeState, showToast, tradeState?.ownItemOffer, viewerFid]);
+  }, [assertConnectedOwnerWallet, details.id, effectiveListing, getProviderAndAccount, handleTradeError, onClearMarketSide, ownItemOfferOrder, postTradeLog, refreshTradeState, showFirefoxWarningIfNeeded, showToast, viewerFid]);
 
-  const runTestWalletTransaction = useCallback(async () => {
-    if (tradeBusyActionRef.current) return;
-    const actionId = crypto.randomUUID();
-    actionIdRef.current = actionId;
-    tradeBusyActionRef.current = "test_wallet_tx";
-    setTradeBusyAction("test_wallet_tx");
-    try {
-      void hapticPrimaryTap();
-      const provider = (await sdk.wallet.getEthereumProvider()) as EthereumProvider | null;
-      if (!provider) throw new Error("Farcaster wallet is not available");
-      const account = getAddress(activeWallet ?? ownerWallet);
-      setActiveWallet(account);
-      const sdkCapabilities = await withClientTimeout(
-        sdk.getCapabilities(),
-        "SDK capabilities lookup",
-        4000,
-      ).catch((error) => [`error: ${getWalletErrorMessage(error)}`]);
-      const sdkChains = await withClientTimeout(
-        sdk.getChains(),
-        "SDK chains lookup",
-        4000,
-      ).catch((error) => [`error: ${getWalletErrorMessage(error)}`]);
-      const chainResult = await withClientTimeout(
-        provider.request({ method: "eth_chainId" }),
-        "Wallet chain lookup",
-        4000,
-      ).catch((error) => `error: ${getWalletErrorMessage(error)}`);
-      const accountsResult = await withClientTimeout(
-        provider.request({ method: "eth_accounts" }),
-        "Wallet account lookup",
-        4000,
-      ).catch((error) => `error: ${getWalletErrorMessage(error)}`);
-      const accountsText = Array.isArray(accountsResult)
-        ? `${accountsResult.length} account${accountsResult.length === 1 ? "" : "s"}`
-        : String(accountsResult);
-      const hasWalletCapability = Array.isArray(sdkCapabilities) && sdkCapabilities.includes("wallet.getEthereumProvider");
-      const chainsText = Array.isArray(sdkChains) ? sdkChains.join(",") || "none" : String(sdkChains);
-      postTradeLog({ actionName: "test_wallet_tx", status: "requested", phase: "transaction_requested", walletFrom: account });
-      showToast("neutral", `Wallet RPC: cap ${hasWalletCapability ? "yes" : "no"}, chains ${chainsText}, chain ${String(chainResult)}, ${accountsText}. Trying wallet_sendCalls...`, { minMs: 8000 });
-      let txResult = await withClientTimeout(provider.request({
-        method: "wallet_sendCalls",
-        params: [{
-          version: "2.0.0",
-          chainId: "0x2105",
-          from: account,
-          calls: [{
-            to: account,
-            value: "0x0",
-            data: "0x",
-          }],
-        }],
-      }), "wallet_sendCalls test transaction", 30000).catch((error) => {
-        showToast("warning", `wallet_sendCalls failed: ${getWalletErrorMessage(error)}. Trying eth_sendTransaction...`, { minMs: 8000 });
-        return null;
-      });
-      if (!txResult) {
-        txResult = await withClientTimeout(provider.request({
-          method: "eth_sendTransaction",
-          params: [{
-            from: account,
-            to: account,
-            value: "0x0",
-          }],
-        }), "Direct test transaction", 30000);
+  const scrollTradeFormToTop = useCallback((mode: "offer" | "list") => {
+    const container = getModalScrollbars()?.elements().viewport ?? modalScrollRef.current;
+    const target = marketSummaryRef.current ?? (mode === "offer" ? offerFormRef.current : listingFormRef.current);
+    if (!container || !target) return;
+    const containerRect = container.getBoundingClientRect();
+    const targetRect = target.getBoundingClientRect();
+    const headerHeight = modalHeaderRef.current?.getBoundingClientRect().height ?? 0;
+    const targetTop = container.scrollTop + targetRect.top - containerRect.top - headerHeight - 8;
+    container.scrollTo({ top: Math.max(0, targetTop), behavior: "smooth" });
+  }, [getModalScrollbars]);
+
+  const focusTradeInput = useCallback((mode: "offer" | "list") => {
+    scrollTradeFormToTop(mode);
+    const input = mode === "offer" ? offerInputRef.current : listingInputRef.current;
+    focusInputAtEnd(input);
+    window.setTimeout(() => {
+      scrollTradeFormToTop(mode);
+      const laterInput = mode === "offer" ? offerInputRef.current : listingInputRef.current;
+      if (laterInput && document.activeElement !== laterInput) {
+        focusInputAtEnd(laterInput);
       }
-      postTradeLog({ actionName: "test_wallet_tx", status: "submitted", phase: "transaction_submitted", walletFrom: account, transactionHash: typeof txResult === "string" ? txResult : null });
-      void hapticSuccess();
-      showToast("success", "Test transaction submitted", { minMs: 5000 });
-    } catch (error) {
-      handleTradeError("test_wallet_tx", error);
-    } finally {
-      tradeBusyActionRef.current = null;
-      setTradeBusyAction(null);
-    }
-  }, [activeWallet, handleTradeError, ownerWallet, postTradeLog, showToast]);
-
-  const runTestSendTokenAction = useCallback(async () => {
-    if (tradeBusyActionRef.current) return;
-    tradeBusyActionRef.current = "test_send_token";
-    setTradeBusyAction("test_send_token");
-    try {
-      void hapticPrimaryTap();
-      const account = getAddress(activeWallet ?? ownerWallet);
-      setActiveWallet(account);
-      postTradeLog({ actionName: "test_send_token", status: "requested", phase: "transaction_requested", walletFrom: account, walletTo: account });
-      showToast("neutral", "Opening Farcaster send-token action...", { minMs: 5000 });
-      const result = await withClientTimeout(
-        sdk.actions.sendToken({ recipientAddress: account }),
-        "Farcaster send-token action",
-        30000,
-      );
-      if (!result.success) {
-        throw new Error(result.error?.message || result.reason || "Send-token action did not complete");
-      }
-      postTradeLog({ actionName: "test_send_token", status: "submitted", phase: "transaction_submitted", walletFrom: account, walletTo: account, transactionHash: result.send.transaction });
-      void hapticSuccess();
-      showToast("success", "Send-token test submitted", { minMs: 5000 });
-    } catch (error) {
-      handleTradeError("test_send_token", error);
-    } finally {
-      tradeBusyActionRef.current = null;
-      setTradeBusyAction(null);
-    }
-  }, [activeWallet, handleTradeError, ownerWallet, postTradeLog, showToast]);
-
-  const runTestDropStyleTransaction = useCallback(async () => {
-    if (tradeBusyActionRef.current) return;
-    tradeBusyActionRef.current = "test_drop_tx";
-    setTradeBusyAction("test_drop_tx");
-    try {
-      void hapticPrimaryTap();
-      const provider = (await sdk.wallet.getEthereumProvider()) as EthereumProvider | null;
-      if (!provider) throw new Error("Farcaster wallet is unavailable in this client.");
-      showToast("neutral", "Drop-style test: requesting wallet account...", { minMs: 5000 });
-      const accounts = await withClientTimeout(
-        provider.request({ method: "eth_requestAccounts" }),
-        "Drop-style wallet account request",
-        30000,
-      );
-      const accountList = Array.isArray(accounts) ? accounts.filter((account): account is string => typeof account === "string") : [];
-      const activeAccount = getAddress(accountList[0] ?? "");
-      setActiveWallet(activeAccount);
-      showToast("neutral", "Drop-style test: checking Base network...", { minMs: 5000 });
-      await ensureBaseChain(provider, undefined, { allowSkipSwitch: true });
-      postTradeLog({ actionName: "test_drop_tx", status: "requested", phase: "transaction_requested", walletFrom: activeAccount });
-      showToast("neutral", "Drop-style test: check your wallet for a 0 ETH transaction...", { minMs: 5000 });
-      const hash = await withClientTimeout(provider.request({
-        method: "eth_sendTransaction",
-        params: [{
-          from: activeAccount,
-          to: activeAccount,
-          value: "0x0",
-        }],
-      }), "Drop-style test transaction", 30000);
-      if (typeof hash !== "string") throw new Error("Wallet did not return a transaction hash");
-      postTradeLog({ actionName: "test_drop_tx", status: "submitted", phase: "transaction_submitted", walletFrom: activeAccount, transactionHash: hash });
-      void hapticSuccess();
-      showToast("success", "Drop-style test transaction submitted", { minMs: 5000 });
-    } catch (error) {
-      handleTradeError("test_drop_tx", error);
-    } finally {
-      tradeBusyActionRef.current = null;
-      setTradeBusyAction(null);
-    }
-  }, [handleTradeError, postTradeLog, showToast]);
+    }, 0);
+    window.setTimeout(() => {
+      scrollTradeFormToTop(mode);
+    }, 350);
+  }, [scrollTradeFormToTop]);
 
   const handleTradeAction = useCallback((action: TradeActionName) => {
     void hapticSelectionChanged();
+    showFirefoxWarningIfNeeded();
     if (action === "make_offer") {
-      setTradeMode("offer");
-      setOfferPrice((current) => current || defaultOfferPrice(effectiveTopOffer));
+      flushSync(() => {
+        setTradeMode("offer");
+        setOfferPrice(defaultOfferPrice(effectiveTopOffer));
+      });
+      focusTradeInput("offer");
       return;
     }
     if (action === "list") {
-      setTradeMode("list");
-      setListingPrice((current) => current || defaultListingPrice(effectiveFloor));
+      flushSync(() => {
+        setTradeMode("list");
+        setListingPrice(defaultListingPrice(effectiveFloor));
+      });
+      focusTradeInput("list");
       return;
     }
     if (action === "buy") void runBuyNow();
     if (action === "accept_offer") void runAcceptOffer();
     if (action === "cancel_offer") void runCancelOrder("cancel_offer");
     if (action === "cancel_listing") void runCancelOrder("cancel_listing");
-  }, [effectiveFloor, effectiveTopOffer, runAcceptOffer, runBuyNow, runCancelOrder]);
+  }, [effectiveFloor, effectiveTopOffer, focusTradeInput, runAcceptOffer, runBuyNow, runCancelOrder, showFirefoxWarningIfNeeded]);
+
+  const marketSummaryPanels = (
+    <div ref={marketSummaryRef} className="grid scroll-mt-16 grid-cols-3 overflow-hidden">
+      {[
+        { kind: "price" as const, label: "Price", money: effectiveListing, emptyValue: "Not listed" },
+        { kind: "offer" as const, label: "Top Offer", money: effectiveTopOffer, emptyValue: "No offers" },
+        { kind: "sold" as const, label: "Latest Sale", money: effectiveSale, emptyValue: "No sales" },
+      ].map(({ kind, label, money, emptyValue }) => {
+        const styles = getMarketKindStyles(kind);
+        const hasValue = hasMarketValue(money);
+        const value = hasValue ? formatMarketValue(money, { maxDigits: 8 }) : emptyValue;
+        const timestamp = hasValue && money?.at ? formatMarketTimestamp(money.at) : label;
+        return (
+          <div
+            key={label}
+            className="min-w-0 px-2 pb-2.5 pt-2"
+            style={{ backgroundColor: styles.backgroundColor }}
+          >
+            <Text className="truncate text-center text-[10px] uppercase" style={{ color: styles.color }}>
+              {label}
+            </Text>
+            <MarketValueChip kind={kind} value={value} tooltip={timestamp} showTooltip={hasValue} align="center" className="mt-1 w-full text-xs" />
+          </div>
+        );
+      })}
+    </div>
+  );
+
+  const compactAttributePreview = (
+    <div className="overflow-hidden rounded-t-xl bg-[#041204]/60">
+      <div className="grid grid-cols-10 border-b border-[#00FF00]/15">
+        {ATTRIBUTE_LEVEL_SUMMARY.map((group) => (
+          <div
+            key={group.label}
+            className="flex min-h-9 items-center justify-center text-base"
+          >
+            <AttributeTooltip
+              emoji={group.emoji}
+              label={`${group.label} Level`}
+              description={group.description}
+            />
+          </div>
+        ))}
+      </div>
+      <div className="grid grid-cols-10">
+        {ATTRIBUTE_LEVEL_SUMMARY.map((group) => {
+          const target = getLevelFilterTarget(group, row);
+          const value = formatDetailValue(group.level, row[group.level]);
+          return (
+            <div
+              key={group.label}
+              className="flex min-h-8 items-center justify-center border-r border-[#00FF00]/10 text-[10px] font-bold text-[#00FF00] last:border-r-0"
+            >
+              {target ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    void hapticSelectionChanged();
+                    onLevelFilter(target.attribute, target.level);
+                  }}
+                  className="cursor-pointer rounded px-1 text-[#00FF00] underline-offset-2 hover:text-[#00FF00] hover:underline"
+                >
+                  {value}
+                </button>
+              ) : (
+                value
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+
+  const tradeActionPanel = (
+    <div className="mt-1.5 space-y-1.5">
+      {tradeMode === "idle" && (
+        <div className={`grid gap-2 ${tradeButtons.length === 2 ? "grid-cols-2" : ""}`}>
+          {tradeButtons.map((button) => (
+            <button
+              key={button.action}
+              type="button"
+              disabled={tradeBusyAction !== null}
+              onClick={() => handleTradeAction(button.action)}
+              className={
+                button.variant === "primary"
+                  ? `w-full cursor-pointer rounded-[20px] border border-[#009900] bg-[#00FF00] ${tradeButtons.length === 2 ? "px-3" : "px-5"} py-3 text-center text-base font-bold text-[rgb(0,80,0)] shadow-[3px_6px_0_#008000] transition-all duration-100 hover:bg-[#33ff33] active:translate-x-[1px] active:translate-y-[3px] active:shadow-[1px_3px_0_#008000] disabled:cursor-wait disabled:opacity-70`
+                  : `secondary-trade-cta w-full cursor-pointer rounded-[20px] border bg-black ${tradeButtons.length === 2 ? "px-3" : "px-5"} py-2.5 text-center text-sm font-bold text-[#00FF00] transition-all duration-100 hover:bg-[#041204] active:translate-x-[1px] active:translate-y-[3px] disabled:cursor-wait disabled:opacity-70`
+              }
+            >
+              {tradeBusyAction === button.action ? "Working..." : button.label}
+            </button>
+          ))}
+        </div>
+      )}
+      {showFirefoxWalletWarning && (
+        <p className="rounded-lg border border-[#FFFF00]/35 bg-[rgba(255,255,0,0.12)] px-3 py-2 text-center text-xs font-bold text-[#e6e68a]">
+          {FIREFOX_WALLET_WARNING}
+        </p>
+      )}
+
+      {tradeMode === "offer" && (
+        <div ref={offerFormRef} className="rounded-xl border border-[#33AAFF]/35 bg-[rgba(51,170,255,0.12)] p-3">
+          <label className="block text-xs font-bold uppercase text-[#8bcfff]">
+            <span className="flex items-center justify-between gap-3">
+              <span>Offered at</span>
+              <span className="text-right text-[11px] text-[#8bcfff]">
+                {formatUsdEstimate(offerPrice, ethUsdPrice, effectiveFloor)}
+              </span>
+            </span>
+            <div className="mt-1 flex items-center rounded-lg border-2 border-[#33AAFF]/35 bg-black/60 px-3 py-2 transition-[border-color,box-shadow] focus-within:border-[#33AAFF] focus-within:shadow-[0_0_10px_rgba(51,170,255,0.22)]">
+              <input
+                ref={offerInputRef}
+                data-no-focus-ring
+                type="text"
+                inputMode="decimal"
+                value={offerPrice}
+                onChange={(event) => setOfferPrice(sanitizeTradePriceInput(event.target.value))}
+                placeholder="0.0"
+                className="min-w-0 flex-1 appearance-none border-0 bg-transparent text-base font-bold text-[#33AAFF] outline-none ring-0 focus:border-0 focus:outline-none focus:ring-0"
+              />
+              <span className="text-sm font-bold text-[#33AAFF]">WETH</span>
+            </div>
+          </label>
+          <p className="mt-1 text-[11px] font-bold text-[#8bcfff]">
+            Offer will be on OpenSea.
+            {knownTopOfferPrice && (
+              <>
+                {" "}Set price to{" "}
+                <button
+                  type="button"
+                  onClick={() => {
+                    void hapticTap();
+                    setOfferPrice(sanitizeTradePriceInput(knownTopOfferPrice));
+                    focusTradeInput("offer");
+                  }}
+                  className="cursor-pointer text-[#33AAFF] underline underline-offset-2 hover:text-[#70c6ff]"
+                >
+                  Top Offer
+                </button>
+                .
+              </>
+            )}
+          </p>
+          {offerIsAboveCurrentListing && activeListingAmount != null && (
+            <p className="mt-2 rounded-lg border border-[#33AAFF]/35 bg-[rgba(51,170,255,0.12)] px-3 py-2 text-xs font-bold text-[#8bcfff]">
+              Offer is above the current listing of {formatTradeTokenAmount(activeListingAmount ?? 0, "ETH")}.
+            </p>
+          )}
+          <button
+            type="button"
+            onClick={() => void runMakeOffer()}
+            disabled={tradeBusyAction !== null || !offerPriceIsValid}
+            className="mt-3 w-full cursor-pointer rounded-[20px] border border-[#1c78b3] bg-[#33AAFF] px-5 py-3 text-base font-bold leading-normal text-[rgb(0,54,80)] shadow-[3px_6px_0_#1c78b3] transition-all duration-100 hover:bg-[#70c6ff] active:translate-x-[1px] active:translate-y-[3px] active:shadow-[1px_3px_0_#1c78b3] disabled:cursor-wait disabled:opacity-70"
+          >
+            {tradeBusyAction === "make_offer" ? "Working..." : "Review item offer"}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              void hapticTap();
+              setTradeMode("idle");
+            }}
+            className="mx-auto mt-2 block cursor-pointer px-4 py-2 text-xs font-bold text-[#33AAFF] underline underline-offset-4 hover:text-[#70c6ff]"
+          >
+            Cancel item offer
+          </button>
+        </div>
+      )}
+
+      {tradeMode === "list" && (
+        <div ref={listingFormRef} className="rounded-xl border border-[#FFFF00]/35 bg-[rgba(255,255,0,0.12)] p-3">
+          <label className="block text-xs font-bold uppercase text-[#e6e68a]">
+            <span className="flex items-center justify-between gap-3">
+              <span>Listed as</span>
+              <span className="text-right text-[11px] text-[#e6e68a]">
+                {formatUsdEstimate(listingPrice, ethUsdPrice, effectiveFloor)}
+              </span>
+            </span>
+            <div className="mt-1 flex items-center rounded-lg border-2 border-[#FFFF00]/35 bg-black/60 px-3 py-2 transition-[border-color,box-shadow] focus-within:border-[#FFFF00] focus-within:shadow-[0_0_10px_rgba(255,255,0,0.2)]">
+              <input
+                ref={listingInputRef}
+                data-no-focus-ring
+                type="text"
+                inputMode="decimal"
+                value={listingPrice}
+                onChange={(event) => setListingPrice(sanitizeTradePriceInput(event.target.value))}
+                placeholder="0.0"
+                className="min-w-0 flex-1 appearance-none border-0 bg-transparent text-base font-bold text-[#FFFF00] outline-none ring-0 focus:border-0 focus:outline-none focus:ring-0"
+              />
+              <span className="text-sm font-bold text-[#FFFF00]">ETH</span>
+            </div>
+          </label>
+          <p className="mt-1 text-[11px] font-bold text-[#e6e68a]">
+            Listing will be on OpenSea. Received ETH excludes fees.
+            {knownFloorPrice && (
+              <>
+                {" "}Set price to{" "}
+                <button
+                  type="button"
+                  onClick={() => {
+                    void hapticTap();
+                    setListingPrice(sanitizeTradePriceInput(knownFloorPrice));
+                    focusTradeInput("list");
+                  }}
+                  className="cursor-pointer text-[#FFFF00] underline underline-offset-2 hover:text-[#ffff66]"
+                >
+                  Floor
+                </button>
+                .
+              </>
+            )}
+          </p>
+          {listingPriceIsAtOrBelowTopOffer && effectiveTopOffer && (
+            <p className="mt-2 rounded-lg border border-[#FFFF00]/35 bg-[rgba(255,255,0,0.12)] px-3 py-2 text-xs font-bold text-[#e6e68a]">
+              Listing price must be above the current Top Offer of {formatMarketEthForTradeCopy(effectiveTopOffer)}.
+            </p>
+          )}
+          <button
+            type="button"
+            onClick={() => void runListForSale()}
+            disabled={tradeBusyAction !== null || !listingPriceIsValid}
+            className="mt-3 w-full cursor-pointer rounded-[20px] border border-[#b3b300] bg-[#FFFF00] px-5 py-3 text-base font-bold leading-normal text-[rgb(80,80,0)] shadow-[3px_6px_0_#b3b300] transition-all duration-100 hover:bg-[#ffff66] active:translate-x-[1px] active:translate-y-[3px] active:shadow-[1px_3px_0_#b3b300] disabled:cursor-wait disabled:opacity-70"
+          >
+            {tradeBusyAction === "list" ? "Working..." : "Review item listing"}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              void hapticTap();
+              setTradeMode("idle");
+            }}
+            className="mx-auto mt-2 block cursor-pointer px-4 py-2 text-xs font-bold text-[#FFFF00] underline underline-offset-4 hover:text-[#ffff66]"
+          >
+            Cancel item listing
+          </button>
+        </div>
+      )}
+
+      <button
+        type="button"
+        onClick={() => {
+          void hapticTap();
+          sdk.actions.openUrl(getOpenSeaUrl(details.id)).catch((error) => {
+            console.error("Failed to open OpenSea in Farcaster:", error);
+          });
+        }}
+        className="mx-auto block cursor-pointer px-4 pb-1.5 pt-3.5 text-xs font-bold text-[#00FF00] underline underline-offset-4 hover:text-[#66ff66]"
+      >
+        View on OpenSea
+      </button>
+    </div>
+  );
 
   return (
     <>
     {tradeToast && (
-      <TradeToastView toast={tradeToast} onClose={() => setTradeToast(null)} />
+      <TradeToastView toast={tradeToast} exiting={tradeToastExiting} onClose={closeTradeToast} />
     )}
     <div className="fixed inset-0 flex items-end justify-center bg-black/80 p-4 sm:items-center" style={{ zIndex: 50 + stackIndex }}>
-      <div className="max-h-[92vh] w-full max-w-md overflow-auto rounded-2xl border border-[#00FF00]/35 bg-black shadow-2xl">
-        <div className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-[#00FF00]/20 bg-black px-4 py-3">
+      <div ref={modalScrollRef} className="max-h-[92vh] w-full max-w-md overflow-auto rounded-2xl border border-[#00FF00]/35 bg-black shadow-2xl">
+        <div ref={modalHeaderRef} className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-[#00FF00]/20 bg-black px-4 py-3">
           <Text className="min-w-0 truncate text-base font-bold" style={{ color: "#00FF00" }}>
             <span>{details.title}</span>
             {details.username && (
@@ -2955,150 +3721,183 @@ function WarpletDetailsModal({
           </div>
         </div>
 
-        <div className="p-4">
+        <div>
+          {compactAttributePreview}
+
           <img
             src={getWarpletAssetUrl(details.id, "avif")}
             alt=""
-            className="aspect-square w-full rounded-xl bg-[rgba(0,255,0,0.12)] object-cover"
+            className="aspect-square w-full bg-[rgba(0,255,0,0.12)] object-cover"
           />
 
-          <div className="mt-3 overflow-hidden rounded-xl border border-[#00FF00]/20 bg-[#041204]/60">
-            <div className="grid grid-cols-10 border-b border-[#00FF00]/15">
-              {ATTRIBUTE_LEVEL_SUMMARY.map((group) => (
-                <div
-                  key={group.label}
-                  className="flex min-h-9 items-center justify-center text-base"
-                >
-                  <AttributeTooltip
-                    emoji={group.emoji}
-                    label={`${group.label} Level`}
-                    description={group.description}
-                  />
-                </div>
-              ))}
-            </div>
-            <div className="grid grid-cols-10">
-              {ATTRIBUTE_LEVEL_SUMMARY.map((group) => {
-                const target = getLevelFilterTarget(group, row);
-                const value = formatDetailValue(group.level, row[group.level]);
-                return (
-                  <div
-                    key={group.label}
-                    className="flex min-h-8 items-center justify-center border-r border-[#00FF00]/10 text-[10px] font-bold text-[#00FF00] last:border-r-0"
-                  >
-                    {target ? (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          void hapticSelectionChanged();
-                          onLevelFilter(target.attribute, target.level);
-                        }}
-                        className="cursor-pointer rounded px-1 text-[#00FF00] underline-offset-2 hover:text-[#00FF00] hover:underline"
-                      >
-                        {value}
-                      </button>
-                    ) : (
-                      value
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+          {marketSummaryPanels}
+        </div>
 
+        <div className="px-4 pb-4 pt-2.5">
+          {tradeActionPanel}
+
+            {false && (
+            <>
             <div className="mt-4 space-y-3">
-              <div className="grid gap-2">
-                {tradeButtons.map((button) => (
-                  <button
-                    key={button.action}
-                    type="button"
-                    disabled={tradeBusyAction !== null}
-                    onClick={() => handleTradeAction(button.action)}
-                    className={
-                      button.variant === "primary"
-                        ? "w-full cursor-pointer rounded-[20px] border border-[#009900] bg-[#00FF00] px-5 py-3 text-center text-base font-bold text-[rgb(0,80,0)] shadow-[3px_6px_0_#008000] transition-all duration-100 hover:bg-[#33ff33] active:translate-x-[1px] active:translate-y-[3px] active:shadow-[1px_3px_0_#008000] disabled:cursor-wait disabled:opacity-70"
-                        : "w-full cursor-pointer rounded-xl border border-[#00FF00]/45 bg-black px-5 py-2.5 text-center text-sm font-bold text-[#00FF00] transition-colors hover:bg-[#041204] disabled:cursor-wait disabled:opacity-70"
-                    }
-                  >
-                    {tradeBusyAction === button.action ? "Working..." : button.label}
-                  </button>
-                ))}
-              </div>
+              {tradeMode === "idle" && (
+                <div className={`grid gap-2 ${tradeButtons.length === 2 ? "grid-cols-2" : ""}`}>
+                  {tradeButtons.map((button) => (
+                    <button
+                      key={button.action}
+                      type="button"
+                      disabled={tradeBusyAction !== null}
+                      onClick={() => handleTradeAction(button.action)}
+                      className={
+                        button.variant === "primary"
+                          ? `w-full cursor-pointer rounded-[20px] border border-[#009900] bg-[#00FF00] ${tradeButtons.length === 2 ? "px-3" : "px-5"} py-3 text-center text-base font-bold text-[rgb(0,80,0)] shadow-[3px_6px_0_#008000] transition-all duration-100 hover:bg-[#33ff33] active:translate-x-[1px] active:translate-y-[3px] active:shadow-[1px_3px_0_#008000] disabled:cursor-wait disabled:opacity-70`
+                          : `w-full cursor-pointer rounded-xl border border-[#00FF00]/45 bg-black ${tradeButtons.length === 2 ? "px-3" : "px-5"} py-2.5 text-center text-sm font-bold text-[#00FF00] transition-colors hover:bg-[#041204] disabled:cursor-wait disabled:opacity-70`
+                      }
+                    >
+                      {tradeBusyAction === button.action ? "Working..." : button.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {showFirefoxWalletWarning && (
+                <p className="rounded-lg border border-[#FFFF00]/35 bg-[rgba(255,255,0,0.12)] px-3 py-2 text-center text-xs font-bold text-[#e6e68a]">
+                  {FIREFOX_WALLET_WARNING}
+                </p>
+              )}
 
               {tradeMode === "offer" && (
-                <div className="rounded-xl border border-[#33AAFF]/35 bg-[rgba(51,170,255,0.12)] p-3">
+                <div ref={offerFormRef} className="rounded-xl border border-[#33AAFF]/35 bg-[rgba(51,170,255,0.12)] p-3">
                   <label className="block text-xs font-bold uppercase text-[#8bcfff]">
-                    Offered at
-                    <div className="mt-1 flex items-center rounded-lg border border-[#33AAFF]/35 bg-black/60 px-3 py-2">
+                    <span className="flex items-center justify-between gap-3">
+                      <span>Offered at</span>
+                      <span className="text-right text-[11px] text-[#8bcfff]">
+                        {formatUsdEstimate(offerPrice, ethUsdPrice, effectiveFloor)}
+                      </span>
+                    </span>
+                    <div className="mt-1 flex items-center rounded-lg border-2 border-[#33AAFF]/35 bg-black/60 px-3 py-2 transition-[border-color,box-shadow] focus-within:border-[#33AAFF] focus-within:shadow-[0_0_10px_rgba(51,170,255,0.22)]">
                       <input
+                        ref={offerInputRef}
+                        data-no-focus-ring
                         type="text"
                         inputMode="decimal"
                         value={offerPrice}
-                        onChange={(event) => setOfferPrice(event.target.value)}
+                        onChange={(event) => setOfferPrice(sanitizeTradePriceInput(event.target.value))}
                         placeholder="0.0"
-                        className="min-w-0 flex-1 bg-transparent text-base font-bold text-[#33AAFF] outline-none"
+                        className="min-w-0 flex-1 appearance-none border-0 bg-transparent text-base font-bold text-[#33AAFF] outline-none ring-0 focus:border-0 focus:outline-none focus:ring-0"
                       />
                       <span className="text-sm font-bold text-[#33AAFF]">WETH</span>
                     </div>
                   </label>
-                  <label className="mt-3 block text-xs font-bold uppercase text-[#8bcfff]">
-                    Duration
-                    <select
-                      value={tradeDuration}
-                      onChange={(event) => setTradeDuration(Number(event.target.value))}
-                      className="mt-1 h-10 w-full cursor-pointer rounded-lg border border-[#33AAFF]/35 bg-black px-3 text-sm font-bold text-[#33AAFF] outline-none"
-                    >
-                      {TRADE_DURATION_OPTIONS.map((option) => (
-                        <option key={option.seconds} value={option.seconds}>{option.label}</option>
-                      ))}
-                    </select>
-                  </label>
+                  <p className="mt-1 text-[11px] font-bold text-[#8bcfff]">
+                    Offer will be on OpenSea.
+                    {knownTopOfferPrice && (
+                      <>
+                        {" "}Set price to{" "}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            void hapticTap();
+                            setOfferPrice(sanitizeTradePriceInput(knownTopOfferPrice));
+                            focusTradeInput("offer");
+                          }}
+                          className="cursor-pointer text-[#33AAFF] underline underline-offset-2 hover:text-[#70c6ff]"
+                        >
+                          Top Offer
+                        </button>
+                        .
+                      </>
+                    )}
+                  </p>
+                  {offerIsAboveCurrentListing && activeListingAmount != null && (
+                    <p className="mt-2 rounded-lg border border-[#33AAFF]/35 bg-[rgba(51,170,255,0.12)] px-3 py-2 text-xs font-bold text-[#8bcfff]">
+                      Offer is above the current listing of {formatTradeTokenAmount(activeListingAmount ?? 0, "ETH")}.
+                    </p>
+                  )}
                   <button
                     type="button"
                     onClick={() => void runMakeOffer()}
-                    disabled={tradeBusyAction !== null}
-                    className="mt-3 w-full cursor-pointer rounded-xl border border-[#33AAFF]/55 bg-[#33AAFF] px-4 py-2.5 text-sm font-bold text-black hover:bg-[#70c6ff] disabled:cursor-wait disabled:opacity-70"
+                    disabled={tradeBusyAction !== null || !offerPriceIsValid}
+                    className="mt-3 w-full cursor-pointer rounded-[20px] border border-[#1c78b3] bg-[#33AAFF] px-5 py-3 text-base font-bold leading-normal text-[rgb(0,54,80)] shadow-[3px_6px_0_#1c78b3] transition-all duration-100 hover:bg-[#70c6ff] active:translate-x-[1px] active:translate-y-[3px] active:shadow-[1px_3px_0_#1c78b3] disabled:cursor-wait disabled:opacity-70"
                   >
                     {tradeBusyAction === "make_offer" ? "Working..." : "Review item offer"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void hapticTap();
+                      setTradeMode("idle");
+                    }}
+                    className="mx-auto mt-2 block cursor-pointer px-4 py-2 text-xs font-bold text-[#33AAFF] underline underline-offset-4 hover:text-[#70c6ff]"
+                  >
+                    Cancel item offer
                   </button>
                 </div>
               )}
 
               {tradeMode === "list" && (
-                <div className="rounded-xl border border-[#FFFF00]/35 bg-[rgba(255,255,0,0.12)] p-3">
+                <div ref={listingFormRef} className="rounded-xl border border-[#FFFF00]/35 bg-[rgba(255,255,0,0.12)] p-3">
                   <label className="block text-xs font-bold uppercase text-[#e6e68a]">
-                    Listed as
-                    <div className="mt-1 flex items-center rounded-lg border border-[#FFFF00]/35 bg-black/60 px-3 py-2">
+                    <span className="flex items-center justify-between gap-3">
+                      <span>Listed as</span>
+                      <span className="text-right text-[11px] text-[#e6e68a]">
+                        {formatUsdEstimate(listingPrice, ethUsdPrice, effectiveFloor)}
+                      </span>
+                    </span>
+                    <div className="mt-1 flex items-center rounded-lg border-2 border-[#FFFF00]/35 bg-black/60 px-3 py-2 transition-[border-color,box-shadow] focus-within:border-[#FFFF00] focus-within:shadow-[0_0_10px_rgba(255,255,0,0.2)]">
                       <input
+                        ref={listingInputRef}
+                        data-no-focus-ring
                         type="text"
                         inputMode="decimal"
                         value={listingPrice}
-                        onChange={(event) => setListingPrice(event.target.value)}
+                        onChange={(event) => setListingPrice(sanitizeTradePriceInput(event.target.value))}
                         placeholder="0.0"
-                        className="min-w-0 flex-1 bg-transparent text-base font-bold text-[#FFFF00] outline-none"
+                        className="min-w-0 flex-1 appearance-none border-0 bg-transparent text-base font-bold text-[#FFFF00] outline-none ring-0 focus:border-0 focus:outline-none focus:ring-0"
                       />
                       <span className="text-sm font-bold text-[#FFFF00]">ETH</span>
                     </div>
                   </label>
-                  <label className="mt-3 block text-xs font-bold uppercase text-[#e6e68a]">
-                    Duration
-                    <select
-                      value={tradeDuration}
-                      onChange={(event) => setTradeDuration(Number(event.target.value))}
-                      className="mt-1 h-10 w-full cursor-pointer rounded-lg border border-[#FFFF00]/35 bg-black px-3 text-sm font-bold text-[#FFFF00] outline-none"
-                    >
-                      {TRADE_DURATION_OPTIONS.map((option) => (
-                        <option key={option.seconds} value={option.seconds}>{option.label}</option>
-                      ))}
-                    </select>
-                  </label>
+                  <p className="mt-1 text-[11px] font-bold text-[#e6e68a]">
+                    Listing will be on OpenSea. Received ETH excludes fees.
+                    {knownFloorPrice && (
+                      <>
+                        {" "}Set price to{" "}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            void hapticTap();
+                            setListingPrice(sanitizeTradePriceInput(knownFloorPrice));
+                            focusTradeInput("list");
+                          }}
+                          className="cursor-pointer text-[#FFFF00] underline underline-offset-2 hover:text-[#ffff66]"
+                        >
+                          Floor
+                        </button>
+                        .
+                      </>
+                    )}
+                  </p>
+                  {listingPriceIsAtOrBelowTopOffer && effectiveTopOffer && (
+                    <p className="mt-2 rounded-lg border border-[#FFFF00]/35 bg-[rgba(255,255,0,0.12)] px-3 py-2 text-xs font-bold text-[#e6e68a]">
+                      Listing price must be above the current Top Offer of {formatMarketEthForTradeCopy(effectiveTopOffer)}.
+                    </p>
+                  )}
                   <button
                     type="button"
                     onClick={() => void runListForSale()}
-                    disabled={tradeBusyAction !== null}
-                    className="mt-3 w-full cursor-pointer rounded-xl border border-[#FFFF00]/55 bg-[#FFFF00] px-4 py-2.5 text-sm font-bold text-black hover:bg-[#ffff66] disabled:cursor-wait disabled:opacity-70"
+                    disabled={tradeBusyAction !== null || !listingPriceIsValid}
+                    className="mt-3 w-full cursor-pointer rounded-[20px] border border-[#b3b300] bg-[#FFFF00] px-5 py-3 text-base font-bold leading-normal text-[rgb(80,80,0)] shadow-[3px_6px_0_#b3b300] transition-all duration-100 hover:bg-[#ffff66] active:translate-x-[1px] active:translate-y-[3px] active:shadow-[1px_3px_0_#b3b300] disabled:cursor-wait disabled:opacity-70"
                   >
                     {tradeBusyAction === "list" ? "Working..." : "Review item listing"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void hapticTap();
+                      setTradeMode("idle");
+                    }}
+                    className="mx-auto mt-2 block cursor-pointer px-4 py-2 text-xs font-bold text-[#FFFF00] underline underline-offset-4 hover:text-[#ffff66]"
+                  >
+                    Cancel item listing
                   </button>
                 </div>
               )}
@@ -3111,33 +3910,9 @@ function WarpletDetailsModal({
                     console.error("Failed to open OpenSea in Farcaster:", error);
                   });
                 }}
-                className="mx-auto block cursor-pointer text-xs font-bold text-[#8bbf8b] underline-offset-2 hover:text-[#00FF00] hover:underline"
+                className="mx-auto block cursor-pointer px-4 py-2 text-xs font-bold text-[#00FF00] underline underline-offset-4 hover:text-[#66ff66]"
               >
                 View on OpenSea
-              </button>
-              <button
-                type="button"
-                onClick={() => void runTestWalletTransaction()}
-                disabled={tradeBusyAction !== null}
-                className="mx-auto block cursor-pointer rounded-lg border border-[#00FF00]/35 bg-[rgba(0,255,0,0.12)] px-3 py-2 text-xs font-bold text-[#8bbf8b] hover:border-[#00FF00] hover:text-[#00FF00] disabled:cursor-wait disabled:opacity-70"
-              >
-                {tradeBusyAction === "test_wallet_tx" ? "Testing wallet..." : "Temporary wallet test"}
-              </button>
-              <button
-                type="button"
-                onClick={() => void runTestSendTokenAction()}
-                disabled={tradeBusyAction !== null}
-                className="mx-auto block cursor-pointer rounded-lg border border-[#00FF00]/35 bg-black px-3 py-2 text-xs font-bold text-[#8bbf8b] hover:border-[#00FF00] hover:text-[#00FF00] disabled:cursor-wait disabled:opacity-70"
-              >
-                {tradeBusyAction === "test_send_token" ? "Opening send test..." : "Temporary send-token test"}
-              </button>
-              <button
-                type="button"
-                onClick={() => void runTestDropStyleTransaction()}
-                disabled={tradeBusyAction !== null}
-                className="mx-auto block cursor-pointer rounded-lg border border-[#00FF00]/35 bg-black px-3 py-2 text-xs font-bold text-[#8bbf8b] hover:border-[#00FF00] hover:text-[#00FF00] disabled:cursor-wait disabled:opacity-70"
-              >
-                {tradeBusyAction === "test_drop_tx" ? "Testing Drop-style..." : "Temporary Drop-style test"}
               </button>
             </div>
 
@@ -3145,29 +3920,29 @@ function WarpletDetailsModal({
               {[
                 { kind: "price" as const, label: "Price", money: effectiveListing, emptyValue: "Not listed" },
                 { kind: "offer" as const, label: "Top Offer", money: effectiveTopOffer, emptyValue: "No offers" },
-                { kind: "sold" as const, label: "Latest Sale", money: market.sale, emptyValue: "No sales" },
+                { kind: "sold" as const, label: "Latest Sale", money: effectiveSale, emptyValue: "No sales" },
               ].map(({ kind, label, money, emptyValue }) => {
                 const styles = getMarketKindStyles(kind);
                 const hasValue = hasMarketValue(money);
-                const value = hasValue ? formatMarketValue(money) : emptyValue;
-                const timestamp = hasValue && money?.at ? formatMarketTimestamp(money.at) : "\u00A0";
+                const value = hasValue ? formatMarketValue(money, { maxDigits: 8 }) : emptyValue;
+                const timestamp = hasValue && money?.at ? formatMarketTimestamp(money.at) : label;
                 return (
                   <div
                     key={label}
                     className="min-w-0 rounded-xl border px-2 py-2"
                     style={{ borderColor: styles.borderColor, backgroundColor: styles.backgroundColor }}
                   >
-                    <Text className="truncate text-[10px] uppercase" style={{ color: styles.color }}>
+                    <Text className="truncate text-center text-[10px] uppercase" style={{ color: styles.color }}>
                     {label}
                     </Text>
-                    <MarketValueChip kind={kind} value={value} tooltip={label} showTooltip={false} align="left" className="mt-1 w-full text-xs" />
-                    <Text className="mt-1 truncate text-[9px]" style={{ color: styles.color }}>
-                      {timestamp}
-                    </Text>
+                    <MarketValueChip kind={kind} value={value} tooltip={timestamp} showTooltip={hasValue} align="center" className="mt-1 w-full text-xs" />
                   </div>
                 );
               })}
             </div>
+
+            </>
+            )}
 
             <div className="mt-4 space-y-3">
               <OwnedByPanel
@@ -3382,6 +4157,7 @@ export default function SearchApp() {
   const [dbReady, setDbReady] = useState(false);
   const [dbError, setDbError] = useState("");
   const [viewerFid, setViewerFid] = useState<number | null>(null);
+  const [viewerProfile, setViewerProfile] = useState<ViewerProfile | null>(null);
   const [matchedWarplet, setMatchedWarplet] = useState<WarpletResult | null>(null);
   const [query, setQuery] = useState("");
   const [isAllWarpletsMode, setIsAllWarpletsMode] = useState(false);
@@ -3474,8 +4250,26 @@ export default function SearchApp() {
 
         shouldCallReady = true;
         const context = await sdk.context;
-        const fid = (context as { user?: { fid?: unknown } }).user?.fid;
-        setViewerFid(typeof fid === "number" && Number.isInteger(fid) && fid > 0 ? fid : null);
+        const user = (context as { user?: Record<string, unknown> }).user;
+        const fid = user?.fid;
+        const normalizedFid = typeof fid === "number" && Number.isInteger(fid) && fid > 0 ? fid : null;
+        setViewerFid(normalizedFid);
+        setViewerProfile({
+          fid: normalizedFid,
+          username: typeof user?.username === "string" ? user.username : null,
+          displayName: typeof user?.displayName === "string"
+            ? user.displayName
+            : typeof user?.display_name === "string"
+              ? user.display_name
+              : null,
+          pfpUrl: typeof user?.pfpUrl === "string"
+            ? user.pfpUrl
+            : typeof user?.pfp_url === "string"
+              ? user.pfp_url
+              : typeof user?.pfp === "string"
+                ? user.pfp
+                : null,
+        });
       } catch (err) {
         console.error("Search app init error:", err);
         const message = err instanceof Error ? err.message : String(err);
@@ -4112,6 +4906,87 @@ export default function SearchApp() {
     });
   }, []);
 
+  const handleClearMarketSide = useCallback((tokenId: number, side: "listing" | "offer" | "collectionOffer") => {
+    setMarketSnapshot((current) => {
+      const key = String(tokenId);
+      const next: MarketSnapshot = {
+        version: "opensea-market-v1",
+        generatedAt: new Date().toISOString(),
+        maxAgeSeconds: current?.maxAgeSeconds ?? 600,
+        collection: side === "collectionOffer"
+          ? { floor: current?.collection?.floor ?? null, topOffer: null }
+          : current?.collection ?? { floor: null, topOffer: null },
+        listings: { ...(current?.listings ?? {}) },
+        offers: { ...(current?.offers ?? {}) },
+        sales: { ...(current?.sales ?? {}) },
+        owners: { ...(current?.owners ?? {}) },
+      };
+      if (side === "listing") delete next.listings[key];
+      if (side === "offer") delete next.offers[key];
+      writeCachedMarketSnapshot(next);
+      return next;
+    });
+  }, []);
+
+  const handleUpsertItemOffer = useCallback((tokenId: number, offer: MarketSnapshot["offers"][string]) => {
+    setMarketSnapshot((current) => {
+      const key = String(tokenId);
+      const next: MarketSnapshot = {
+        version: "opensea-market-v1",
+        generatedAt: new Date().toISOString(),
+        maxAgeSeconds: current?.maxAgeSeconds ?? 600,
+        collection: current?.collection ?? { floor: null, topOffer: null },
+        listings: { ...(current?.listings ?? {}) },
+        offers: { ...(current?.offers ?? {}), [key]: offer },
+        sales: { ...(current?.sales ?? {}) },
+        owners: { ...(current?.owners ?? {}) },
+      };
+      writeCachedMarketSnapshot(next);
+      return next;
+    });
+  }, []);
+
+  const handleApplyPurchase = useCallback((tokenId: number, update: OptimisticPurchaseUpdate) => {
+    setMarketSnapshot((current) => {
+      const key = String(tokenId);
+      const now = update.sale.at ?? new Date().toISOString();
+      const normalizedBuyerWallet = update.buyerWallet.trim().toLowerCase();
+      const matchingOwnerProfile = Object.values(current?.owners ?? {}).find(
+        (owner) => owner.wallet?.trim().toLowerCase() === normalizedBuyerWallet &&
+          (owner.username || owner.displayName || owner.pfpUrl || owner.followerCount != null || owner.followingCount != null),
+      );
+      const providedOwnerProfile = update.buyerProfile ?? {};
+      const viewerOwnerProfile = viewerProfile?.fid != null && viewerProfile.fid === update.buyerFid
+        ? {
+            username: viewerProfile.username,
+            displayName: viewerProfile.displayName,
+            pfpUrl: viewerProfile.pfpUrl,
+          }
+        : {};
+      const nextOwner: MarketSnapshot["owners"][string] = {
+        ...(matchingOwnerProfile ?? {}),
+        ...viewerOwnerProfile,
+        ...providedOwnerProfile,
+        wallet: normalizedBuyerWallet,
+        fid: update.buyerFid ?? providedOwnerProfile.fid ?? matchingOwnerProfile?.fid ?? null,
+        checkedAt: now,
+      };
+      const next: MarketSnapshot = {
+        version: "opensea-market-v1",
+        generatedAt: now,
+        maxAgeSeconds: current?.maxAgeSeconds ?? 600,
+        collection: current?.collection ?? { floor: null, topOffer: null },
+        listings: { ...(current?.listings ?? {}) },
+        offers: { ...(current?.offers ?? {}) },
+        sales: { ...(current?.sales ?? {}), [key]: update.sale },
+        owners: { ...(current?.owners ?? {}), [key]: nextOwner },
+      };
+      delete next.listings[key];
+      writeCachedMarketSnapshot(next);
+      return next;
+    });
+  }, [viewerProfile]);
+
   const handleRefreshSelectedMarket = useCallback(async () => {
     const tokenId = selectedWarpletDetails?.id;
     if (!tokenId || marketRefreshTokenId === tokenId) return;
@@ -4394,6 +5269,9 @@ export default function SearchApp() {
             onRefreshMarket={handleRefreshSelectedMarket}
             viewerFid={viewerFid}
             onMergeMarketSnapshot={handleMergeMarketSnapshot}
+            onClearMarketSide={handleClearMarketSide}
+            onUpsertItemOffer={handleUpsertItemOffer}
+            onApplyPurchase={handleApplyPurchase}
             stackIndex={index}
           />
         );

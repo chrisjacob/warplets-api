@@ -1,5 +1,6 @@
 @import "@neynar/ui/styles";
 @import "@neynar/ui/themes/purple-dawn";
+@import "overlayscrollbars/overlayscrollbars.css";
 
 :root {
   --splash-bg: #000000;
@@ -12,13 +13,136 @@ body {
   padding: 0;
 }
 
+.os-theme-10x {
+  --os-size: 10px;
+  --os-padding-perpendicular: 2px;
+  --os-padding-axis: 8px;
+  --os-track-border-radius: 999px;
+  --os-track-bg: rgba(0, 0, 0, 0.72);
+  --os-track-bg-hover: rgba(0, 255, 0, 0.08);
+  --os-track-bg-active: rgba(0, 255, 0, 0.12);
+  --os-track-border: 1px solid rgba(0, 255, 0, 0.18);
+  --os-track-border-hover: 1px solid rgba(0, 255, 0, 0.28);
+  --os-track-border-active: 1px solid rgba(0, 255, 0, 0.42);
+  --os-handle-border-radius: 999px;
+  --os-handle-bg: rgba(0, 255, 0, 0.58);
+  --os-handle-bg-hover: rgba(0, 255, 0, 0.86);
+  --os-handle-bg-active: #00ff00;
+  --os-handle-border: 1px solid rgba(0, 255, 0, 0.4);
+  --os-handle-border-hover: 1px solid rgba(0, 255, 0, 0.78);
+  --os-handle-border-active: 1px solid #00ff00;
+  --os-handle-min-size: 34px;
+  --os-handle-interactive-area-offset: 4px;
+}
+
+.os-theme-10x.os-scrollbar-horizontal {
+  --os-size: 8px;
+}
+
 button {
   font-family: inherit;
+}
+
+.trade-toast {
+  position: fixed;
+  top: 0;
+  left: 50%;
+  z-index: 120;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  width: min(100vw, 500px);
+  min-height: 60px;
+  transform: translate(-50%, -100%);
+  padding: 13px 16px;
+  border: 0;
+  border-bottom: 1px solid #00ff00;
+  background: oklab(0.163375 -0.0304675 0.0224707 / 0.96);
+  color: #00ff00;
+  font-size: 0.875rem;
+  font-weight: 700;
+  line-height: 1.35;
+  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.5);
+  animation: trade-toast-slide-down 220ms ease-out forwards;
+}
+
+.trade-toast--danger {
+  border-bottom-color: #ff3b3b;
+  background: rgba(72, 0, 0, 0.96);
+  color: #ff6b6b;
+}
+
+.trade-toast__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid rgba(0, 255, 0, 0.48);
+  border-radius: 0.5rem;
+  background: rgba(0, 0, 0, 0.28);
+  color: currentColor;
+  font-size: 0.95rem;
+  font-weight: 900;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.trade-toast__close:hover {
+  border-color: #00ff00;
+  background: rgba(0, 255, 0, 0.12);
+}
+
+.trade-toast--danger .trade-toast__close {
+  border-color: rgba(255, 59, 59, 0.62);
+}
+
+.trade-toast--danger .trade-toast__close:hover {
+  border-color: #ff3b3b;
+  background: rgba(255, 59, 59, 0.16);
+}
+
+.trade-toast--exiting {
+  animation: trade-toast-slide-up 220ms ease-in forwards;
+}
+
+@keyframes trade-toast-slide-down {
+  from {
+    transform: translate(-50%, -100%);
+  }
+  to {
+    transform: translate(-50%, 0);
+  }
+}
+
+@keyframes trade-toast-slide-up {
+  from {
+    transform: translate(-50%, 0);
+  }
+  to {
+    transform: translate(-50%, -100%);
+  }
+}
+
+.secondary-trade-cta {
+  border-color: oklab(0.866435 -0.23384 0.179502 / 0.35);
+  box-shadow: 3px 6px 0 oklab(0.866435 -0.23384 0.179502 / 0.35);
+}
+
+.secondary-trade-cta:active:not(:disabled) {
+  box-shadow: 1px 3px 0 oklab(0.866435 -0.23384 0.179502 / 0.35);
 }
 
 :where(a, button, input, select, textarea, [role="button"], [tabindex]):focus-visible {
   outline: 0;
   box-shadow: 0 0 0 2px #0F0, 0 0 12px rgba(0, 255, 0, 0.55);
+}
+
+[data-no-focus-ring]:focus-visible {
+  outline: 0;
+  box-shadow: none;
 }
 
 .brand-bg-video {

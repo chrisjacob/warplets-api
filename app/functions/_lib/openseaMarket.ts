@@ -258,8 +258,32 @@ export function normalizeTimestamp(value: unknown): string | null {
   }
   const raw = asString(value);
   if (!raw) return null;
+  if (/^\d+$/.test(raw)) {
+    const parsed = Number(raw);
+    if (Number.isFinite(parsed)) {
+      const milliseconds = parsed > 100000000000 ? parsed : parsed * 1000;
+      return new Date(milliseconds).toISOString();
+    }
+  }
   const ms = Date.parse(raw);
   return Number.isFinite(ms) ? new Date(ms).toISOString() : raw;
+}
+
+export function getOrderCreatedAt(row: Record<string, unknown>): string | null {
+  const protocolData = asObject(row.protocol_data) ?? asObject(row.protocolData);
+  const parameters = asObject(protocolData?.parameters);
+  return normalizeTimestamp(
+    row.created_date ??
+    row.created_at ??
+    row.createdDate ??
+    row.listed_at ??
+    row.offered_at ??
+    row.event_timestamp ??
+    row.start_time ??
+    row.startTime ??
+    parameters?.startTime ??
+    parameters?.start_time
+  );
 }
 
 function getForceRefreshCooldownSeconds(request?: Request): number {
@@ -372,11 +396,24 @@ export function getTokenIdFromOpenSeaRow(row: Record<string, unknown>): number |
 }
 
 export function getMakerAddress(row: Record<string, unknown>): string | null {
+  const protocolData = asObject(row.protocol_data) ?? asObject(row.protocolData);
+  const parameters = asObject(protocolData?.parameters);
+  const maker = asObject(row.maker);
+  const account = asObject(row.account);
+  const fromAccount = asObject(row.from_account) ?? asObject(row.fromAccount);
   return (
-    normalizeAddress(asObject(row.maker)?.address) ??
-    normalizeAddress(asObject(row.account)?.address) ??
+    normalizeAddress(maker?.address) ??
+    normalizeAddress(row.maker) ??
+    normalizeAddress(account?.address) ??
+    normalizeAddress(row.account) ??
+    normalizeAddress(row.maker_address) ??
+    normalizeAddress(row.makerAddress) ??
     normalizeAddress(row.seller) ??
-    normalizeAddress(row.from_account)
+    normalizeAddress(row.offerer) ??
+    normalizeAddress(row.from_address) ??
+    normalizeAddress(row.fromAddress) ??
+    normalizeAddress(fromAccount?.address) ??
+    normalizeAddress(parameters?.offerer)
   );
 }
 
@@ -458,7 +495,20 @@ export async function selectPreferredFidForWallet(env: OpenSeaMarketEnv, wallet:
     });
     if (!response.ok) return null;
     const payload = (await response.json()) as Record<string, unknown>;
-    const users = asArray(payload[wallet]) || asArray(asObject(payload.result)?.[wallet]) || asArray(payload.users);
+    const result = asObject(payload.result);
+    const normalizedWallet = wallet.toLowerCase();
+    const payloadWalletEntry = Object.entries(payload).find(([key]) => key.toLowerCase() === normalizedWallet);
+    const resultWalletEntry = result
+      ? Object.entries(result).find(([key]) => key.toLowerCase() === normalizedWallet)
+      : undefined;
+    const userCandidates = [
+      asArray(payload[wallet]),
+      asArray(result?.[wallet]),
+      asArray(payloadWalletEntry?.[1]),
+      asArray(resultWalletEntry?.[1]),
+      asArray(payload.users),
+    ];
+    const users = userCandidates.find((candidate) => candidate.length > 0) ?? [];
     const rows = users
       .map((user) => {
         const obj = asObject(user);
@@ -848,10 +898,18 @@ export async function processListing(env: OpenSeaMarketEnv, row: Record<string, 
   const tokenId = getTokenIdFromOpenSeaRow(row);
   if (!tokenId) return false;
   const price = getPrice(row, "consideration");
+  const rowListedAt = getOrderCreatedAt(row);
+  const existing = rowListedAt
+    ? null
+    : await env.WARPLETS.prepare("SELECT listed_at FROM warplet_market_state WHERE token_id = ?")
+      .bind(tokenId)
+      .first<{ listed_at: string | null }>()
+      .catch(() => null);
+  const listedAt = rowListedAt ?? existing?.listed_at ?? new Date().toISOString();
   return upsertMarketStateIfChanged(env.WARPLETS, {
     token_id: tokenId,
     listing_eth: price.eth,
-    listed_at: normalizeTimestamp(row.created_date ?? row.listed_at ?? row.event_timestamp),
+    listed_at: listedAt,
     listing_order_hash: asString(row.order_hash),
     listing_protocol_address: normalizeAddress(row.protocol_address ?? asObject(row.protocol_data)?.address),
     listing_seller_wallet: getMakerAddress(row),
@@ -867,10 +925,17 @@ export async function processOffer(env: OpenSeaMarketEnv, row: Record<string, un
   const tokenId = getTokenIdFromOpenSeaRow(row);
   if (!tokenId) return false;
   const price = getPrice(row, "offer");
+  const rowOfferedAt = getOrderCreatedAt(row);
+  const existing = rowOfferedAt
+    ? null
+    : await env.WARPLETS.prepare("SELECT offered_at FROM warplet_market_state WHERE token_id = ?")
+      .bind(tokenId)
+      .first<{ offered_at: string | null }>()
+      .catch(() => null);
   return upsertMarketStateIfChanged(env.WARPLETS, {
     token_id: tokenId,
     offer_eth: price.eth,
-    offered_at: normalizeTimestamp(row.created_date ?? row.offered_at ?? row.event_timestamp),
+    offered_at: rowOfferedAt ?? existing?.offered_at ?? new Date().toISOString(),
     offer_order_hash: asString(row.order_hash),
     offer_protocol_address: normalizeAddress(row.protocol_address ?? asObject(row.protocol_data)?.address),
     offerer_wallet: getMakerAddress(row),
@@ -1082,7 +1147,7 @@ async function ingestCollectionEvents(
   return changed;
 }
 
-async function fetchLatestTokenSale(apiKey: string, tokenId: number): Promise<Record<string, unknown> | null> {
+export async function fetchLatestTokenSale(apiKey: string, tokenId: number): Promise<Record<string, unknown> | null> {
   const eventParams = new URLSearchParams({ event_type: "sale", limit: "50" });
   let payload: Record<string, unknown>;
   try {
@@ -1170,7 +1235,7 @@ async function refreshCollectionMarketState(env: OpenSeaMarketEnv, apiKey: strin
         top_offer_order_hash: asString(best.row.order_hash),
         top_offer_protocol_address: normalizeAddress(best.row.protocol_address ?? asObject(best.row.protocol_data)?.address),
         top_offerer_wallet: getMakerAddress(best.row),
-        top_offer_created_at: normalizeTimestamp(best.row.created_date ?? best.row.offered_at ?? best.row.event_timestamp) ?? now,
+        top_offer_created_at: getOrderCreatedAt(best.row) ?? now,
         top_offer_updated_at: now,
       })) {
         changed += 1;
@@ -1274,8 +1339,10 @@ export async function refreshOneTokenMarket(
     await refreshCollectionMarketState(env, apiKey).catch(() => 0);
     if (listingPayload) {
       const listing = asObject(listingPayload.listing) ?? listingPayload;
-      const listingRow = { ...listing, identifier: String(tokenId), created_date: listing.created_date ?? now };
-      if (hasCurrencyValue(getPrice(listingRow, "consideration"))) {
+      const listingRow = { ...listing, identifier: String(tokenId) };
+      const listingSeller = getMakerAddress(listingRow);
+      const listingMatchesOwner = !ownerWallet || !listingSeller || listingSeller === ownerWallet;
+      if (listingMatchesOwner && hasCurrencyValue(getPrice(listingRow, "consideration"))) {
         await processListing(env, listingRow);
       } else {
         await clearTokenMarketSide(env, tokenId, "listing");
@@ -1285,7 +1352,7 @@ export async function refreshOneTokenMarket(
     }
     if (offerPayload) {
       const offer = asObject(offerPayload.offer) ?? offerPayload;
-      const offerRow = { ...offer, identifier: String(tokenId), created_date: offer.created_date ?? now };
+      const offerRow = { ...offer, identifier: String(tokenId) };
       if (hasCurrencyValue(getPrice(offerRow, "offer"))) {
         await processOffer(env, offerRow);
       } else {
@@ -1295,7 +1362,7 @@ export async function refreshOneTokenMarket(
       await clearTokenMarketSide(env, tokenId, "offer");
     }
     if (salePayload) {
-      await processSaleOrTransfer(env, salePayload);
+      await processSaleOrTransfer(env, salePayload, { clearOrdersOnOwnerChange: true });
     }
     if (ownerWallet) {
       const ownerFid = await selectPreferredFidForWallet(env, ownerWallet);

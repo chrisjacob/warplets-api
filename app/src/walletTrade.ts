@@ -38,6 +38,20 @@ export type SeaportCancelOrderParameters = {
   counter?: unknown;
 };
 
+type SeaportOrderParameters = {
+  offerer?: unknown;
+  zone?: unknown;
+  offer?: unknown;
+  consideration?: unknown;
+  orderType?: unknown;
+  startTime?: unknown;
+  endTime?: unknown;
+  zoneHash?: unknown;
+  salt?: unknown;
+  conduitKey?: unknown;
+  totalOriginalConsiderationItems?: unknown;
+};
+
 const BASE_CHAIN_CONFIG = {
   chainId: "0x2105",
   chainName: "Base",
@@ -94,6 +108,195 @@ const seaportCancelAbi = [{
   }],
   outputs: [{ name: "cancelled", type: "bool" }],
 }] as const;
+
+const seaportFulfillmentAbi = [
+  {
+    type: "function",
+    name: "matchAdvancedOrders",
+    stateMutability: "payable",
+    inputs: [
+      {
+        name: "orders",
+        type: "tuple[]",
+        components: [
+          {
+            name: "parameters",
+            type: "tuple",
+            components: [
+              { name: "offerer", type: "address" },
+              { name: "zone", type: "address" },
+              { name: "offer", type: "tuple[]", components: [
+                { name: "itemType", type: "uint8" },
+                { name: "token", type: "address" },
+                { name: "identifierOrCriteria", type: "uint256" },
+                { name: "startAmount", type: "uint256" },
+                { name: "endAmount", type: "uint256" },
+              ] },
+              { name: "consideration", type: "tuple[]", components: [
+                { name: "itemType", type: "uint8" },
+                { name: "token", type: "address" },
+                { name: "identifierOrCriteria", type: "uint256" },
+                { name: "startAmount", type: "uint256" },
+                { name: "endAmount", type: "uint256" },
+                { name: "recipient", type: "address" },
+              ] },
+              { name: "orderType", type: "uint8" },
+              { name: "startTime", type: "uint256" },
+              { name: "endTime", type: "uint256" },
+              { name: "zoneHash", type: "bytes32" },
+              { name: "salt", type: "uint256" },
+              { name: "conduitKey", type: "bytes32" },
+              { name: "totalOriginalConsiderationItems", type: "uint256" },
+            ],
+          },
+          { name: "numerator", type: "uint120" },
+          { name: "denominator", type: "uint120" },
+          { name: "signature", type: "bytes" },
+          { name: "extraData", type: "bytes" },
+        ],
+      },
+      { name: "criteriaResolvers", type: "tuple[]", components: [
+        { name: "orderIndex", type: "uint256" },
+        { name: "side", type: "uint8" },
+        { name: "index", type: "uint256" },
+        { name: "identifier", type: "uint256" },
+        { name: "criteriaProof", type: "bytes32[]" },
+      ] },
+      { name: "fulfillments", type: "tuple[]", components: [
+        { name: "offerComponents", type: "tuple[]", components: [
+          { name: "orderIndex", type: "uint256" },
+          { name: "itemIndex", type: "uint256" },
+        ] },
+        { name: "considerationComponents", type: "tuple[]", components: [
+          { name: "orderIndex", type: "uint256" },
+          { name: "itemIndex", type: "uint256" },
+        ] },
+      ] },
+      { name: "recipient", type: "address" },
+    ],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "fulfillBasicOrder_efficient_6GL6yc",
+    stateMutability: "payable",
+    inputs: [{
+      name: "parameters",
+      type: "tuple",
+      components: [
+        { name: "considerationToken", type: "address" },
+        { name: "considerationIdentifier", type: "uint256" },
+        { name: "considerationAmount", type: "uint256" },
+        { name: "offerer", type: "address" },
+        { name: "zone", type: "address" },
+        { name: "offerToken", type: "address" },
+        { name: "offerIdentifier", type: "uint256" },
+        { name: "offerAmount", type: "uint256" },
+        { name: "basicOrderType", type: "uint8" },
+        { name: "startTime", type: "uint256" },
+        { name: "endTime", type: "uint256" },
+        { name: "zoneHash", type: "bytes32" },
+        { name: "salt", type: "uint256" },
+        { name: "offererConduitKey", type: "bytes32" },
+        { name: "fulfillerConduitKey", type: "bytes32" },
+        { name: "totalOriginalAdditionalRecipients", type: "uint256" },
+        { name: "additionalRecipients", type: "tuple[]", components: [
+          { name: "amount", type: "uint256" },
+          { name: "recipient", type: "address" },
+        ] },
+        { name: "signature", type: "bytes" },
+      ],
+    }],
+    outputs: [{ name: "fulfilled", type: "bool" }],
+  },
+  {
+    type: "function",
+    name: "fulfillOrder",
+    stateMutability: "payable",
+    inputs: [
+      { name: "order", type: "tuple", components: [
+        { name: "parameters", type: "tuple", components: [
+          { name: "offerer", type: "address" },
+          { name: "zone", type: "address" },
+          { name: "offer", type: "tuple[]", components: [
+            { name: "itemType", type: "uint8" },
+            { name: "token", type: "address" },
+            { name: "identifierOrCriteria", type: "uint256" },
+            { name: "startAmount", type: "uint256" },
+            { name: "endAmount", type: "uint256" },
+          ] },
+          { name: "consideration", type: "tuple[]", components: [
+            { name: "itemType", type: "uint8" },
+            { name: "token", type: "address" },
+            { name: "identifierOrCriteria", type: "uint256" },
+            { name: "startAmount", type: "uint256" },
+            { name: "endAmount", type: "uint256" },
+            { name: "recipient", type: "address" },
+          ] },
+          { name: "orderType", type: "uint8" },
+          { name: "startTime", type: "uint256" },
+          { name: "endTime", type: "uint256" },
+          { name: "zoneHash", type: "bytes32" },
+          { name: "salt", type: "uint256" },
+          { name: "conduitKey", type: "bytes32" },
+          { name: "totalOriginalConsiderationItems", type: "uint256" },
+        ] },
+        { name: "signature", type: "bytes" },
+      ] },
+      { name: "fulfillerConduitKey", type: "bytes32" },
+    ],
+    outputs: [{ name: "fulfilled", type: "bool" }],
+  },
+  {
+    type: "function",
+    name: "fulfillAdvancedOrder",
+    stateMutability: "payable",
+    inputs: [
+      { name: "advancedOrder", type: "tuple", components: [
+        { name: "parameters", type: "tuple", components: [
+          { name: "offerer", type: "address" },
+          { name: "zone", type: "address" },
+          { name: "offer", type: "tuple[]", components: [
+            { name: "itemType", type: "uint8" },
+            { name: "token", type: "address" },
+            { name: "identifierOrCriteria", type: "uint256" },
+            { name: "startAmount", type: "uint256" },
+            { name: "endAmount", type: "uint256" },
+          ] },
+          { name: "consideration", type: "tuple[]", components: [
+            { name: "itemType", type: "uint8" },
+            { name: "token", type: "address" },
+            { name: "identifierOrCriteria", type: "uint256" },
+            { name: "startAmount", type: "uint256" },
+            { name: "endAmount", type: "uint256" },
+            { name: "recipient", type: "address" },
+          ] },
+          { name: "orderType", type: "uint8" },
+          { name: "startTime", type: "uint256" },
+          { name: "endTime", type: "uint256" },
+          { name: "zoneHash", type: "bytes32" },
+          { name: "salt", type: "uint256" },
+          { name: "conduitKey", type: "bytes32" },
+          { name: "totalOriginalConsiderationItems", type: "uint256" },
+        ] },
+        { name: "numerator", type: "uint120" },
+        { name: "denominator", type: "uint120" },
+        { name: "signature", type: "bytes" },
+        { name: "extraData", type: "bytes" },
+      ] },
+      { name: "criteriaResolvers", type: "tuple[]", components: [
+        { name: "orderIndex", type: "uint256" },
+        { name: "side", type: "uint8" },
+        { name: "index", type: "uint256" },
+        { name: "identifier", type: "uint256" },
+        { name: "criteriaProof", type: "bytes32[]" },
+      ] },
+      { name: "fulfillerConduitKey", type: "bytes32" },
+      { name: "recipient", type: "address" },
+    ],
+    outputs: [{ name: "fulfilled", type: "bool" }],
+  },
+] as const;
 
 function asObject(value: unknown): Record<string, unknown> | undefined {
   return value && typeof value === "object" ? (value as Record<string, unknown>) : undefined;
@@ -157,6 +360,154 @@ function normalizeConsiderationItem(value: unknown) {
   };
 }
 
+function normalizeOrderParameters(value: unknown) {
+  const parameters = asObject(value) as SeaportOrderParameters | undefined;
+  if (!parameters) throw new Error("OpenSea fulfillment payload is missing order parameters");
+  return {
+    offerer: toOrderAddress(parameters.offerer),
+    zone: toOrderAddress(parameters.zone),
+    offer: asArray(parameters.offer).map(normalizeOfferItem),
+    consideration: asArray(parameters.consideration).map(normalizeConsiderationItem),
+    orderType: toOrderNumber(parameters.orderType),
+    startTime: toOrderBigInt(parameters.startTime),
+    endTime: toOrderBigInt(parameters.endTime),
+    zoneHash: toOrderBytes32(parameters.zoneHash),
+    salt: toOrderBigInt(parameters.salt),
+    conduitKey: toOrderBytes32(parameters.conduitKey),
+    totalOriginalConsiderationItems: toOrderBigInt(parameters.totalOriginalConsiderationItems),
+  };
+}
+
+function normalizeOrder(value: unknown) {
+  const order = asObject(value);
+  if (!order) throw new Error("OpenSea fulfillment payload is missing order");
+  return {
+    parameters: normalizeOrderParameters(order.parameters),
+    signature: (asString(order.signature) ?? "0x") as `0x${string}`,
+  };
+}
+
+function normalizeAdvancedOrder(value: unknown) {
+  const order = asObject(value);
+  if (!order) throw new Error("OpenSea fulfillment payload is missing advanced order");
+  return {
+    parameters: normalizeOrderParameters(order.parameters),
+    numerator: toOrderBigInt(order.numerator ?? 1),
+    denominator: toOrderBigInt(order.denominator ?? 1),
+    signature: (asString(order.signature) ?? "0x") as `0x${string}`,
+    extraData: (asString(order.extraData) ?? "0x") as `0x${string}`,
+  };
+}
+
+function normalizeCriteriaResolver(value: unknown) {
+  const resolver = asObject(value) ?? {};
+  return {
+    orderIndex: toOrderBigInt(resolver.orderIndex),
+    side: toOrderNumber(resolver.side),
+    index: toOrderBigInt(resolver.index),
+    identifier: toOrderBigInt(resolver.identifier),
+    criteriaProof: asArray(resolver.criteriaProof).map((item) => toOrderBytes32(item)),
+  };
+}
+
+function normalizeFulfillment(value: unknown) {
+  const fulfillment = asObject(value) ?? {};
+  const normalizeComponent = (component: unknown) => {
+    const item = asObject(component) ?? {};
+    return {
+      orderIndex: toOrderBigInt(item.orderIndex),
+      itemIndex: toOrderBigInt(item.itemIndex),
+    };
+  };
+  return {
+    offerComponents: asArray(fulfillment.offerComponents).map(normalizeComponent),
+    considerationComponents: asArray(fulfillment.considerationComponents).map(normalizeComponent),
+  };
+}
+
+function normalizeBasicOrderParameters(value: unknown) {
+  const input = asObject(value);
+  const parameters = asObject(input?.parameters) ?? input;
+  if (!parameters || !asString(parameters.considerationToken)) {
+    throw new Error("OpenSea fulfillment payload is missing basic order parameters");
+  }
+  return {
+    considerationToken: toOrderAddress(parameters.considerationToken),
+    considerationIdentifier: toOrderBigInt(parameters.considerationIdentifier),
+    considerationAmount: toOrderBigInt(parameters.considerationAmount),
+    offerer: toOrderAddress(parameters.offerer),
+    zone: toOrderAddress(parameters.zone),
+    offerToken: toOrderAddress(parameters.offerToken),
+    offerIdentifier: toOrderBigInt(parameters.offerIdentifier),
+    offerAmount: toOrderBigInt(parameters.offerAmount),
+    basicOrderType: toOrderNumber(parameters.basicOrderType),
+    startTime: toOrderBigInt(parameters.startTime),
+    endTime: toOrderBigInt(parameters.endTime),
+    zoneHash: toOrderBytes32(parameters.zoneHash),
+    salt: toOrderBigInt(parameters.salt),
+    offererConduitKey: toOrderBytes32(parameters.offererConduitKey),
+    fulfillerConduitKey: toOrderBytes32(parameters.fulfillerConduitKey),
+    totalOriginalAdditionalRecipients: toOrderBigInt(parameters.totalOriginalAdditionalRecipients),
+    additionalRecipients: asArray(parameters.additionalRecipients).map((recipient) => {
+      const item = asObject(recipient) ?? {};
+      return {
+        amount: toOrderBigInt(item.amount),
+        recipient: toOrderAddress(item.recipient),
+      };
+    }),
+    signature: (asString(parameters.signature) ?? "0x") as `0x${string}`,
+  };
+}
+
+function buildOpenSeaFulfillmentData(inputData: unknown, fallbackRecipient: string): `0x${string}` {
+  const input = asObject(inputData);
+  if (!input) throw new Error("OpenSea fulfillment payload is missing input data");
+
+  if (asArray(input.orders).length > 0) {
+    return encodeFunctionData({
+      abi: seaportFulfillmentAbi,
+      functionName: "matchAdvancedOrders",
+      args: [
+        asArray(input.orders).map(normalizeAdvancedOrder),
+        asArray(input.criteriaResolvers).map(normalizeCriteriaResolver),
+        asArray(input.fulfillments).map(normalizeFulfillment),
+        getAddress(asString(input.recipient) ?? fallbackRecipient),
+      ],
+    });
+  }
+
+  const order = asObject(input.order);
+  const advancedOrder = asObject(input.advancedOrder);
+  if (order?.parameters) {
+    return encodeFunctionData({
+      abi: seaportFulfillmentAbi,
+      functionName: "fulfillOrder",
+      args: [
+        normalizeOrder(order),
+        toOrderBytes32(input.fulfillerConduitKey ?? input.conduitKey),
+      ],
+    });
+  }
+  if (advancedOrder?.parameters) {
+    return encodeFunctionData({
+      abi: seaportFulfillmentAbi,
+      functionName: "fulfillAdvancedOrder",
+      args: [
+        normalizeAdvancedOrder(advancedOrder),
+        asArray(input.criteriaResolvers).map(normalizeCriteriaResolver),
+        toOrderBytes32(input.fulfillerConduitKey ?? input.conduitKey),
+        getAddress(asString(input.recipient) ?? fallbackRecipient),
+      ],
+    });
+  }
+
+  return encodeFunctionData({
+    abi: seaportFulfillmentAbi,
+    functionName: "fulfillBasicOrder_efficient_6GL6yc",
+    args: [normalizeBasicOrderParameters(input)],
+  });
+}
+
 function normalizeSeaportCancelOrder(parameters: SeaportCancelOrderParameters) {
   return {
     offerer: toOrderAddress(parameters.offerer),
@@ -189,6 +540,10 @@ function withWalletTimeout<T>(promise: Promise<T>, label: string, timeoutMs = 25
       },
     );
   });
+}
+
+function waitForWalletPrompt<T>(promise: Promise<T>): Promise<T> {
+  return promise;
 }
 
 function toHexQuantity(value: string | number | bigint | null | undefined): `0x${string}` {
@@ -263,11 +618,7 @@ export async function getWalletAccounts(provider: EthereumProvider, preferredAcc
     return [getAddress(preferredAccount)];
   }
 
-  const raw = await withWalletTimeout(
-    provider.request({ method: "eth_requestAccounts" }),
-    "Wallet account confirmation",
-    25000,
-  );
+  const raw = await waitForWalletPrompt(provider.request({ method: "eth_requestAccounts" }));
   return normalizeAccountList(raw);
 }
 
@@ -285,21 +636,21 @@ export async function ensureBaseChain(
   if (options.allowSkipSwitch) return;
 
   try {
-    await withWalletTimeout(provider.request({
+    await waitForWalletPrompt(provider.request({
       method: "wallet_switchEthereumChain",
       params: [{ chainId: chainIdHex }],
-    }), "Switch to Base network", 25000);
+    }));
   } catch (error) {
     const maybe = asObject(error);
     if (maybe?.code === 4902 || String(maybe?.message ?? "").includes("Unrecognized chain")) {
-      await withWalletTimeout(provider.request({
+      await waitForWalletPrompt(provider.request({
         method: "wallet_addEthereumChain",
         params: [BASE_CHAIN_CONFIG],
-      }), "Add Base network", 25000);
-      await withWalletTimeout(provider.request({
+      }));
+      await waitForWalletPrompt(provider.request({
         method: "wallet_switchEthereumChain",
         params: [{ chainId: chainIdHex }],
-      }), "Switch to Base network", 25000);
+      }));
       return;
     }
     throw error;
@@ -330,6 +681,42 @@ export async function waitForTransactionReceipt(hash: string, timeoutMs = 90000)
   throw new Error("Timed out waiting for transaction confirmation");
 }
 
+export async function readNativeBalance(owner: string): Promise<bigint> {
+  const result = asString(await publicRpcRequest("eth_getBalance", [getAddress(owner), "latest"]));
+  return result ? BigInt(result) : 0n;
+}
+
+export async function readErc20Balance(tokenAddress: string, owner: string): Promise<bigint> {
+  const data = encodeFunctionData({
+    abi: erc20Abi,
+    functionName: "balanceOf",
+    args: [getAddress(owner)],
+  });
+  const result = asString(await publicRpcRequest("eth_call", [{ to: getAddress(tokenAddress), data }, "latest"]));
+  return result ? BigInt(result) : 0n;
+}
+
+export async function wrapEthToWeth(
+  provider: EthereumProvider,
+  owner: string,
+  wethAddress: string,
+  amount: bigint,
+): Promise<string> {
+  if (amount <= 0n) throw new Error("Wrap amount must be greater than zero");
+  const hash = await waitForWalletPrompt(provider.request({
+    method: "eth_sendTransaction",
+    params: [{
+      from: getAddress(owner),
+      to: getAddress(wethAddress),
+      value: toHexQuantity(amount),
+      data: "0xd0e30db0",
+    }],
+  }));
+  if (typeof hash !== "string") throw new Error("Wallet did not return a WETH wrap transaction hash");
+  await waitForTransactionReceipt(hash);
+  return hash;
+}
+
 async function readAllowance(tokenAddress: string, owner: string, spender: string): Promise<bigint> {
   const data = encodeFunctionData({
     abi: erc20Abi,
@@ -354,7 +741,7 @@ export async function ensureErc20Approval(
     functionName: "approve",
     args: [getAddress(approval.spender), required],
   });
-  const hash = await withWalletTimeout(provider.request({
+  const hash = await waitForWalletPrompt(provider.request({
     method: "eth_sendTransaction",
     params: [{
       from: owner,
@@ -362,7 +749,7 @@ export async function ensureErc20Approval(
       value: "0x0",
       data,
     }],
-  }), "Token approval confirmation", 30000);
+  }));
   if (typeof hash !== "string") throw new Error("Wallet did not return an approval transaction hash");
   await waitForTransactionReceipt(hash);
   return hash;
@@ -389,7 +776,7 @@ export async function ensureErc721ApprovalForAll(
     functionName: "setApprovalForAll",
     args: [getAddress(approval.spender), true],
   });
-  const hash = await withWalletTimeout(provider.request({
+  const hash = await waitForWalletPrompt(provider.request({
     method: "eth_sendTransaction",
     params: [{
       from: owner,
@@ -397,23 +784,85 @@ export async function ensureErc721ApprovalForAll(
       value: "0x0",
       data,
     }],
-  }), "NFT approval confirmation", 30000);
+  }));
   if (typeof hash !== "string") throw new Error("Wallet did not return an NFT approval transaction hash");
   await waitForTransactionReceipt(hash);
   return hash;
 }
 
-export function extractFulfillmentTransaction(payload: unknown): PreparedTransaction | null {
-  const root = asObject(payload);
-  const fulfillment = asObject(root?.fulfillment_data) ?? root;
-  const tx = asObject(fulfillment?.transaction) ?? asObject(root?.transaction);
+function normalizePreparedTransaction(value: unknown): PreparedTransaction | null {
+  const tx = asObject(value);
   if (!tx) return null;
+  const inputData = asObject(tx.input_data) ?? asObject(tx.inputData);
+  const to =
+    asString(tx.to) ??
+    asString(tx.target) ??
+    asString(tx.contract) ??
+    asString(tx.address) ??
+    asString(tx.destination);
+  const data =
+    asString(tx.data) ??
+    asString(tx.input) ??
+    asString(tx.calldata) ??
+    asString(tx.callData) ??
+    asString(tx.inputData) ??
+    asString(inputData?.data) ??
+    asString(inputData?.calldata) ??
+    asString(inputData?.callData);
+  const rawInputData = tx.input_data ?? tx.inputData;
+  if (!to || (!data && !rawInputData)) return null;
   return {
-    to: asString(tx.to),
-    value: asString(tx.value) ?? 0,
-    data: asString(tx.data) ?? asString(tx.input) ?? asString(asObject(tx.input_data)?.data),
-    inputData: tx.input_data,
+    to,
+    value:
+      asString(tx.value) ??
+      asString(tx.nativeValue) ??
+      asString(tx.ethValue) ??
+      asString(tx.amount) ??
+      0,
+    data,
+    inputData: rawInputData,
   };
+}
+
+function findPreparedTransaction(value: unknown, depth = 0): PreparedTransaction | null {
+  if (depth > 6) return null;
+  const direct = normalizePreparedTransaction(value);
+  if (direct) return direct;
+
+  const obj = asObject(value);
+  if (obj) {
+    const candidates = [
+      obj.transaction,
+      obj.tx,
+      obj.call,
+      obj.calls,
+      obj.transactionAction,
+      asObject(obj.transactionAction)?.transaction,
+      asObject(obj.transactionAction)?.call,
+      obj.fulfillment_data,
+      obj.fulfillmentData,
+      obj.fulfillment,
+      obj.actions,
+      obj.steps,
+      asObject(obj.actions)?.steps,
+      asObject(obj.response)?.actions,
+      asObject(obj.response)?.steps,
+    ];
+    for (const candidate of candidates) {
+      const found = findPreparedTransaction(candidate, depth + 1);
+      if (found) return found;
+    }
+  }
+
+  for (const item of asArray(value)) {
+    const found = findPreparedTransaction(item, depth + 1);
+    if (found) return found;
+  }
+  return null;
+}
+
+export function extractFulfillmentTransaction(payload: unknown): PreparedTransaction | null {
+  return findPreparedTransaction(payload);
 }
 
 export async function sendPreparedTransaction(
@@ -422,9 +871,9 @@ export async function sendPreparedTransaction(
   tx: PreparedTransaction,
 ): Promise<string> {
   const to = asString(tx.to);
-  const data = asString(tx.data) ?? asString(tx.input);
+  const data = asString(tx.data) ?? asString(tx.input) ?? (tx.inputData ? buildOpenSeaFulfillmentData(tx.inputData, account) : undefined);
   if (!to || !data) throw new Error("Prepared OpenSea transaction is missing calldata");
-  const hash = await withWalletTimeout(provider.request({
+  const hash = await waitForWalletPrompt(provider.request({
     method: "eth_sendTransaction",
     params: [{
       from: account,
@@ -432,7 +881,7 @@ export async function sendPreparedTransaction(
       value: toHexQuantity(tx.value),
       data,
     }],
-  }), "Transaction confirmation", 30000);
+  }));
   if (typeof hash !== "string") throw new Error("Wallet did not return a transaction hash");
   await waitForTransactionReceipt(hash);
   return hash;
@@ -460,10 +909,10 @@ export async function signTypedData(provider: EthereumProvider, account: string,
   const firstPayload = preferObjectPayload ? normalizedTypedData : serializedTypedData;
   const fallbackPayload = preferObjectPayload ? serializedTypedData : normalizedTypedData;
 
-  const requestSignature = (payload: unknown) => withWalletTimeout(provider.request({
+  const requestSignature = (payload: unknown) => waitForWalletPrompt(provider.request({
     method: "eth_signTypedData_v4",
     params: [accountAddress, payload],
-  }), "Signature confirmation", 30000);
+  }));
 
   let signature: unknown;
   try {
@@ -477,10 +926,10 @@ export async function signTypedData(provider: EthereumProvider, account: string,
 }
 
 export async function signMessage(provider: EthereumProvider, account: string, message: string): Promise<string> {
-  const signature = await withWalletTimeout(provider.request({
+  const signature = await waitForWalletPrompt(provider.request({
     method: "personal_sign",
     params: [message, getAddress(account)],
-  }), "Signature confirmation", 30000);
+  }));
   if (typeof signature !== "string") throw new Error("Wallet did not return a signature");
   return signature;
 }
