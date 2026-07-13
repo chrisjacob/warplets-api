@@ -723,6 +723,11 @@ type WarpletResult = {
   searchIndex: number;
 };
 
+type MatchedWarpletCard = {
+  warplet: WarpletResult;
+  label: string;
+};
+
 type WarpletDetails = {
   id: number;
   title: string;
@@ -838,6 +843,29 @@ function normalizeFtsQuery(value: string): string {
     .join(" ");
 }
 
+function parseOwnerWalletSearch(value: string): { ownerWalletFilter: string | null; searchText: string } {
+  const walletMatches = value.match(ETHEREUM_WALLET_ADDRESS_PATTERN) ?? [];
+  const ownerWalletFilter = walletMatches[0]?.toLowerCase() ?? null;
+  const searchText = value
+    .replace(ETHEREUM_WALLET_ADDRESS_PATTERN, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return { ownerWalletFilter, searchText };
+}
+
+function filterRowsByOwnerWallet(
+  rows: WarpletResult[],
+  snapshot: MarketSnapshot | null,
+  ownerWalletFilter: string | null,
+): WarpletResult[] {
+  if (!ownerWalletFilter) return rows;
+  const normalizedWallet = ownerWalletFilter.toLowerCase();
+  return rows.filter((row) => {
+    const ownerWallet = snapshot?.owners[String(row.id)]?.wallet?.trim().toLowerCase() ?? "";
+    return ownerWallet === normalizedWallet;
+  });
+}
+
 function mapRows(values: unknown[][], hasSearchScore = false): WarpletResult[] {
   return values.map((row, index) => {
     const rankOffset = 10;
@@ -865,6 +893,22 @@ function mapRows(values: unknown[][], hasSearchScore = false): WarpletResult[] {
       searchIndex: index,
     };
   });
+}
+
+function loadWarpletResultById(db: SqliteDatabase, tokenId: number): WarpletResult | null {
+  const rows = db.exec(
+    `SELECT
+       ${RESULT_SELECT_COLUMNS}
+     FROM warplets w
+     WHERE w.id = ?
+     LIMIT 1`,
+    {
+      bind: [tokenId],
+      rowMode: "array",
+      returnValue: "resultRows",
+    },
+  );
+  return mapRows(rows)[0] ?? null;
 }
 
 function mapDetails(row: Record<string, unknown> | undefined): WarpletDetails | null {
@@ -1165,6 +1209,7 @@ const ORDER_OPTIONS: Array<{ value: OrderByOption; label: string }> = [
 const DEFAULT_TRADE_DURATION_SECONDS = 179 * 24 * 60 * 60;
 const FIREFOX_WALLET_WARNING = "Firefox doesn't work well with Farcaster Wallet. Please use another browser.";
 const ETH_USD_PRICE_STALE_MS = 5 * 60 * 1000;
+const ETHEREUM_WALLET_ADDRESS_PATTERN = /\b0x[a-fA-F0-9]{40}\b/g;
 
 function getDefaultOrderBy(hasFtsQuery: boolean, selectedAttributes: LevelAttributeColumn[]): OrderByOption {
   if (hasFtsQuery) return "relevance";
@@ -1303,6 +1348,63 @@ function getOwnedTokenIds(snapshot: MarketSnapshot | null, ownerWallet: string |
     .filter((tokenId) => Number.isInteger(tokenId) && tokenId > 0)
     .sort((a, b) => a - b);
   return Array.from(new Set([currentTokenId, ...tokenIds]));
+}
+
+function getOwnedTokenIdsForPreview(snapshot: MarketSnapshot | null, ownerWallet: string | null | undefined, currentTokenId: number): number[] {
+  if (currentTokenId !== 1358) return getOwnedTokenIds(snapshot, ownerWallet, currentTokenId);
+  return [
+    101,
+    248,
+    372,
+    509,
+    644,
+    791,
+    852,
+    1004,
+    1127,
+    1358,
+    1491,
+    1636,
+    1802,
+    1994,
+    2148,
+    2360,
+    2511,
+    2734,
+    2998,
+    3162,
+    3375,
+    3591,
+    3820,
+    4055,
+    4312,
+    4689,
+    5021,
+    5560,
+    6104,
+    6427,
+    6813,
+    7042,
+    7428,
+    7766,
+    8019,
+    8264,
+    8491,
+    8730,
+    8899,
+    9044,
+    9238,
+    9361,
+    9488,
+    9574,
+    9650,
+    9726,
+    9801,
+    9844,
+    9892,
+    9930,
+    9964,
+  ];
 }
 
 function mergeTokenSnapshot(current: MarketSnapshot | null, tokenSnapshot: MarketSnapshot, tokenId: number): MarketSnapshot {
@@ -2016,18 +2118,20 @@ function WarpletCard({
   );
 }
 
-const OWNED_BY_VISIBLE_AVATAR_LIMIT = 25;
+const OWNED_BY_VISIBLE_AVATAR_LIMIT = 24;
 
 function OwnedByPanel({
   owner,
   currentTokenId,
   ownedTokenIds,
   onOpenWarplet,
+  onSearchOwnerWallet,
 }: {
   owner?: TokenMarketState["owner"];
   currentTokenId: number;
   ownedTokenIds: number[];
   onOpenWarplet: (tokenId: number) => void;
+  onSearchOwnerWallet: (wallet: string) => void;
 }) {
   const wallet = owner?.wallet?.trim() || null;
   const fid = typeof owner?.fid === "number" ? owner.fid : null;
@@ -2035,12 +2139,8 @@ function OwnedByPanel({
   const displayName = owner?.displayName?.trim() || null;
   const pfpUrl = owner?.pfpUrl?.trim() || null;
   const allWarpletIds = Array.from(new Set([currentTokenId, ...ownedTokenIds])).sort((left, right) => left - right);
-  const hasMoreThanVisibleWarplets = allWarpletIds.length > OWNED_BY_VISIBLE_AVATAR_LIMIT;
-  const warpletIds = hasMoreThanVisibleWarplets
-    ? allWarpletIds.slice(0, OWNED_BY_VISIBLE_AVATAR_LIMIT - 1)
-    : allWarpletIds.slice(0, OWNED_BY_VISIBLE_AVATAR_LIMIT);
+  const warpletIds = allWarpletIds.slice(0, OWNED_BY_VISIBLE_AVATAR_LIMIT);
   const ownedCount = allWarpletIds.length;
-  const remainingOwnedCount = ownedCount - (OWNED_BY_VISIBLE_AVATAR_LIMIT - 1);
   const hasFarcasterProfile = Boolean(fid && username);
   const hasFollowerCounts = hasFarcasterProfile && (owner?.followerCount != null || owner?.followingCount != null);
 
@@ -2195,13 +2295,18 @@ function OwnedByPanel({
               <img src={getWarpletImageUrl(tokenId)} alt="" className="h-full w-full object-cover" loading="lazy" />
             </button>
           ))}
-          {hasMoreThanVisibleWarplets && (
-            <div
-              className="flex aspect-square w-full min-w-0 items-center justify-center rounded-full border border-[#00FF00]/15 bg-black/35 text-xs font-bold text-[#00FF00]"
-              title={`${remainingOwnedCount.toLocaleString("en-US")} more 10X Warplets`}
+          {wallet && (
+            <button
+              type="button"
+              onClick={() => {
+                void hapticPrimaryTap();
+                onSearchOwnerWallet(wallet);
+              }}
+              className="flex aspect-square w-full min-w-0 cursor-pointer items-center justify-center rounded-full border border-[#00FF00] bg-black text-base font-bold text-[#00FF00] transition-[border-width,background-color] duration-100 hover:border-2 hover:border-[#00FF00] hover:bg-[#041204]"
+              title={`Search ${ownedCount.toLocaleString("en-US")} owned 10X Warplets`}
             >
-              +{remainingOwnedCount.toLocaleString("en-US")}
-            </div>
+              {ownedCount.toLocaleString("en-US")}
+            </button>
           )}
         </div>
       </div>
@@ -2388,6 +2493,7 @@ function WarpletDetailsModal({
   onSearchTag,
   onLevelFilter,
   onOpenRelatedWarplet,
+  onSearchOwnerWallet,
   market,
   ownedTokenIds,
   isRefreshingMarket,
@@ -2406,6 +2512,7 @@ function WarpletDetailsModal({
   onSearchTag: (tag: string) => void;
   onLevelFilter: (attribute: LevelAttributeColumn, level: number) => void;
   onOpenRelatedWarplet: (tokenId: number) => void;
+  onSearchOwnerWallet: (wallet: string) => void;
   market: TokenMarketState;
   ownedTokenIds: number[];
   isRefreshingMarket: boolean;
@@ -3950,6 +4057,7 @@ function WarpletDetailsModal({
                 currentTokenId={details.id}
                 ownedTokenIds={ownedTokenIds}
                 onOpenWarplet={onOpenRelatedWarplet}
+                onSearchOwnerWallet={onSearchOwnerWallet}
               />
 
               {ATTRIBUTE_GROUPS.map((group) => (
@@ -4158,7 +4266,7 @@ export default function SearchApp() {
   const [dbError, setDbError] = useState("");
   const [viewerFid, setViewerFid] = useState<number | null>(null);
   const [viewerProfile, setViewerProfile] = useState<ViewerProfile | null>(null);
-  const [matchedWarplet, setMatchedWarplet] = useState<WarpletResult | null>(null);
+  const [matchedWarpletCard, setMatchedWarpletCard] = useState<MatchedWarpletCard | null>(null);
   const [query, setQuery] = useState("");
   const [isAllWarpletsMode, setIsAllWarpletsMode] = useState(false);
   const [activeExampleSearch, setActiveExampleSearch] = useState(() => getRandomExampleSearch());
@@ -4359,7 +4467,10 @@ export default function SearchApp() {
 
   useEffect(() => {
     const db = dbRef.current;
-    if (!dbReady || !db || viewerFid == null) return;
+    if (!dbReady || !db || viewerFid == null || !marketSnapshot) {
+      setMatchedWarpletCard(null);
+      return;
+    }
 
     let cancelled = false;
 
@@ -4379,16 +4490,40 @@ export default function SearchApp() {
           },
         );
         const match = mapRows(rows)[0] ?? null;
-        if (match) {
+        const matchOwnerWallet = match
+          ? marketSnapshot.owners[String(match.id)]?.wallet?.trim().toLowerCase() ?? ""
+          : "";
+        const matchMetadataWallet = match?.wallet.trim().toLowerCase() ?? "";
+
+        if (match && matchOwnerWallet && matchMetadataWallet && matchOwnerWallet === matchMetadataWallet) {
           await preloadResultImages([match]);
+          if (!cancelled) {
+            setMatchedWarpletCard({ warplet: match, label: "👀 We Found You!" });
+          }
+          return;
+        }
+
+        const rarestOwnedTokenId = Object.entries(marketSnapshot.owners)
+          .filter(([, owner]) => owner.fid === viewerFid)
+          .map(([tokenId]) => Number(tokenId))
+          .filter((tokenId) => Number.isInteger(tokenId) && tokenId > 0)
+          .sort((left, right) => left - right)[0];
+        const rarestOwnedWarplet = rarestOwnedTokenId ? loadWarpletResultById(db, rarestOwnedTokenId) : null;
+
+        if (rarestOwnedWarplet) {
+          await preloadResultImages([rarestOwnedWarplet]);
         }
         if (!cancelled) {
-          setMatchedWarplet(match);
+          setMatchedWarpletCard(
+            rarestOwnedWarplet
+              ? { warplet: rarestOwnedWarplet, label: "👀 Your Rarest Warplet!" }
+              : null,
+          );
         }
       } catch (err) {
         console.error("Failed to match Farcaster user to Warplet:", err);
         if (!cancelled) {
-          setMatchedWarplet(null);
+          setMatchedWarpletCard(null);
         }
       }
     };
@@ -4398,7 +4533,7 @@ export default function SearchApp() {
     return () => {
       cancelled = true;
     };
-  }, [dbReady, viewerFid]);
+  }, [dbReady, marketSnapshot, viewerFid]);
 
   const runSearch = useCallback(async (
     nextQuery: string,
@@ -4409,8 +4544,11 @@ export default function SearchApp() {
     const db = dbRef.current;
     const activeAttributes = filterOverride?.attributes ?? selectedAttributes;
     const activeLevels = filterOverride?.levels ?? selectedLevels;
-    const isWildcardSearch = nextQuery.trim() === "*";
-    const ftsQuery = isWildcardSearch ? "" : normalizeFtsQuery(nextQuery);
+    const ownerSearch = parseOwnerWalletSearch(nextQuery);
+    const ownerWalletFilter = ownerSearch.ownerWalletFilter;
+    const searchText = ownerSearch.searchText;
+    const isWildcardSearch = searchText.trim() === "*" || (!searchText && nextQuery.trim() === "*");
+    const ftsQuery = isWildcardSearch ? "" : normalizeFtsQuery(searchText);
     const levelFilter = buildLevelFilter(activeAttributes, activeLevels);
     const hasAttributeOnlyFilter = activeAttributes.length > 0 && activeLevels.length === 0;
     const attributeOnlyRankColumn =
@@ -4418,7 +4556,7 @@ export default function SearchApp() {
     const runId = searchRunRef.current + 1;
     searchRunRef.current = runId;
 
-    if (!db || (!ftsQuery && !levelFilter && !hasAttributeOnlyFilter && !isWildcardSearch)) {
+    if (!db || (!ftsQuery && !levelFilter && !hasAttributeOnlyFilter && !isWildcardSearch && !ownerWalletFilter)) {
       setResults([]);
       setTotalResults(0);
       setVisibleCount(PAGE_SIZE);
@@ -4432,26 +4570,6 @@ export default function SearchApp() {
     setSearchError("");
 
     try {
-      const countSql = ftsQuery
-        ? `SELECT COUNT(*)
-           FROM warplets_fts
-           JOIN warplets w ON w.id = warplets_fts.rowid
-           WHERE warplets_fts MATCH ?${levelFilter ? ` AND ${levelFilter.sql}` : ""}`
-        : `SELECT COUNT(*)
-           FROM warplets w${levelFilter ? `
-           WHERE ${levelFilter.sql}` : ""}`;
-      const countBind = ftsQuery
-        ? [ftsQuery, ...(levelFilter?.bind ?? [])]
-        : [...(levelFilter?.bind ?? [])];
-      const countRows = db.exec(
-        countSql,
-        {
-          bind: countBind,
-          rowMode: "array",
-          returnValue: "resultRows",
-        },
-      );
-      const nextTotal = cellToNumber(countRows[0]?.[0]) ?? 0;
       const resultSql = ftsQuery
         ? `SELECT
              ${RESULT_SELECT_COLUMNS},
@@ -4478,13 +4596,17 @@ export default function SearchApp() {
           returnValue: "resultRows",
         },
       );
-      const nextRows = mapRows(rows, Boolean(ftsQuery));
+      const nextRows = filterRowsByOwnerWallet(
+        mapRows(rows, Boolean(ftsQuery)),
+        marketSnapshot,
+        ownerWalletFilter,
+      );
       await preloadResultImages(nextRows.slice(0, PAGE_SIZE));
 
       if (searchRunRef.current !== runId) return;
 
       setSubmittedQuery(nextQuery.trim());
-      setTotalResults(nextTotal);
+      setTotalResults(nextRows.length);
       setVisibleCount(limit);
       setResults(nextRows);
       void hapticSuccess();
@@ -4498,7 +4620,7 @@ export default function SearchApp() {
         setIsSearching(false);
       }
     }
-  }, [selectedAttributes, selectedLevels]);
+  }, [marketSnapshot, selectedAttributes, selectedLevels]);
 
   const applySearchUrlState = useCallback(async (state: SearchUrlState) => {
     if (!dbReady || !dbRef.current) return;
@@ -4525,7 +4647,8 @@ export default function SearchApp() {
     setActiveExampleSearch(nextRandom);
     setSelectedAttributes(nextState.attributes);
     setSelectedLevels(nextState.levels);
-    const hasFtsQuery = Boolean(nextSearchText.trim()) && nextSearchText.trim() !== "*";
+    const parsedSearchText = parseOwnerWalletSearch(nextSearchText).searchText;
+    const hasFtsQuery = Boolean(parsedSearchText.trim()) && parsedSearchText.trim() !== "*";
     const canUseRequestedRank = nextState.order !== "rank" || nextState.attributes.length === 1;
     const nextOrderBy = nextState.order && canUseRequestedRank
       ? nextState.order
@@ -4542,7 +4665,7 @@ export default function SearchApp() {
         nextSearchText,
         0,
         { attributes: nextState.attributes, levels: nextState.levels },
-        isRandomMode && matchedWarplet ? PAGE_SIZE - 1 : PAGE_SIZE,
+        isRandomMode && matchedWarpletCard ? PAGE_SIZE - 1 : PAGE_SIZE,
       );
     } else {
       setResults([]);
@@ -4557,7 +4680,7 @@ export default function SearchApp() {
     }
 
     applyingUrlStateRef.current = false;
-  }, [activeExampleSearch, dbReady, loadWarpletDetails, matchedWarplet, runSearch]);
+  }, [activeExampleSearch, dbReady, loadWarpletDetails, matchedWarpletCard, runSearch]);
 
   useEffect(() => {
     if (!dbReady || urlHydratedRef.current) return;
@@ -4595,15 +4718,16 @@ export default function SearchApp() {
           : selectedAttributes.length > 0
             ? ""
             : activeExampleSearch;
-      const limit = isExampleSearch && matchedWarplet ? PAGE_SIZE - 1 : PAGE_SIZE;
+      const limit = isExampleSearch && matchedWarpletCard ? PAGE_SIZE - 1 : PAGE_SIZE;
       runSearch(nextQuery, 0, undefined, limit);
     }, SEARCH_DEBOUNCE_MS);
     return () => window.clearTimeout(timeoutId);
-  }, [activeExampleSearch, dbReady, isAllWarpletsMode, matchedWarplet, query, runSearch, selectedAttributes.length, selectedLevels.length]);
+  }, [activeExampleSearch, dbReady, isAllWarpletsMode, matchedWarpletCard, query, runSearch, selectedAttributes.length, selectedLevels.length]);
 
   useEffect(() => {
     if (!urlHydratedRef.current || applyingUrlStateRef.current) return;
-    const hasFtsQuery = !isAllWarpletsMode && Boolean((query.trim() || submittedQuery.trim()).trim()) && (query.trim() || submittedQuery.trim()).trim() !== "*";
+    const parsedSearchText = parseOwnerWalletSearch(query.trim() || submittedQuery.trim()).searchText;
+    const hasFtsQuery = !isAllWarpletsMode && Boolean(parsedSearchText.trim()) && parsedSearchText.trim() !== "*";
     if (!userSelectedOrder || (orderBy === "rank" && selectedAttributes.length !== 1)) {
       setOrderBy(getDefaultOrderBy(hasFtsQuery, selectedAttributes));
       setOrderDirection("asc");
@@ -4673,15 +4797,15 @@ export default function SearchApp() {
     : hasTypedQuery || hasActiveAttributeFilter || hasActiveLevelFilter
     ? "Search for Warplets..."
     : `${getRandomExampleDisplayLabel(activeExampleSearch)} Warplets...`;
-  const shouldPrependMatchedWarplet = Boolean(isExampleSearchMode && matchedWarplet);
+  const shouldPrependMatchedWarplet = Boolean(isExampleSearchMode && matchedWarpletCard);
   const rankAttribute = selectedAttributes.length === 1 ? selectedAttributes[0] : undefined;
   const sortedResults = useMemo(
     () => sortWarplets(results, orderBy, orderDirection, marketSnapshot, rankAttribute),
     [marketSnapshot, orderBy, orderDirection, rankAttribute, results],
   );
   const visibleResults = sortedResults.slice(0, visibleCount);
-  const displayedResults = shouldPrependMatchedWarplet && matchedWarplet
-    ? [matchedWarplet, ...visibleResults]
+  const displayedResults = shouldPrependMatchedWarplet && matchedWarpletCard
+    ? [matchedWarpletCard.warplet, ...visibleResults]
     : visibleResults;
   const displayedTotalResults = totalResults + (shouldPrependMatchedWarplet ? 1 : 0);
   const canLoadMore = sortedResults.length > visibleCount;
@@ -4728,7 +4852,7 @@ export default function SearchApp() {
     setIsAllWarpletsMode(false);
     setSelectedAttributes([]);
     setSelectedLevels([]);
-    setVisibleCount(matchedWarplet ? PAGE_SIZE - 1 : PAGE_SIZE);
+    setVisibleCount(matchedWarpletCard ? PAGE_SIZE - 1 : PAGE_SIZE);
     setOrderBy("relevance");
     setOrderDirection("asc");
     setUserSelectedOrder(false);
@@ -4738,7 +4862,7 @@ export default function SearchApp() {
         nextExample,
         0,
         { attributes: [], levels: [] },
-        matchedWarplet ? PAGE_SIZE - 1 : PAGE_SIZE,
+        matchedWarpletCard ? PAGE_SIZE - 1 : PAGE_SIZE,
       );
     }
     window.setTimeout(() => searchInputRef.current?.focus(), 0);
@@ -4752,7 +4876,7 @@ export default function SearchApp() {
     setIsAllWarpletsMode(false);
     setSelectedAttributes([]);
     setSelectedLevels([]);
-    setVisibleCount(matchedWarplet ? PAGE_SIZE - 1 : PAGE_SIZE);
+    setVisibleCount(matchedWarpletCard ? PAGE_SIZE - 1 : PAGE_SIZE);
     setOrderBy("relevance");
     setOrderDirection("asc");
     setUserSelectedOrder(false);
@@ -4761,7 +4885,7 @@ export default function SearchApp() {
         nextExample,
         0,
         { attributes: [], levels: [] },
-        matchedWarplet ? PAGE_SIZE - 1 : PAGE_SIZE,
+        matchedWarpletCard ? PAGE_SIZE - 1 : PAGE_SIZE,
       );
     }
     window.setTimeout(() => searchInputRef.current?.focus(), 0);
@@ -4804,6 +4928,25 @@ export default function SearchApp() {
     void runSearch("", 0, { attributes: nextAttributes, levels: nextLevels });
     window.setTimeout(() => searchInputRef.current?.focus(), 0);
   }, [runSearch]);
+
+  const handleSearchOwnerWallet = useCallback((wallet: string) => {
+    const normalizedWallet = wallet.trim();
+    if (!normalizedWallet) return;
+    setSelectedWarpletDetailsStack([]);
+    setQuery(normalizedWallet);
+    setIsAllWarpletsMode(false);
+    setSelectedAttributes([]);
+    setSelectedLevels([]);
+    setVisibleCount(PAGE_SIZE);
+    setOrderBy("rarity");
+    setOrderDirection("asc");
+    setUserSelectedOrder(false);
+    setSearchError("");
+    if (dbReady) {
+      void runSearch(normalizedWallet, 0, { attributes: [], levels: [] }, PAGE_SIZE);
+    }
+    window.setTimeout(() => searchInputRef.current?.focus(), 0);
+  }, [dbReady, runSearch]);
 
   const handleShareWarpletDetails = useCallback((tokenId: number) => {
     const shareState = getSearchUrlStateFromAppState({
@@ -5183,18 +5326,6 @@ export default function SearchApp() {
               </Text>
             )}
 
-            {false && matchedWarplet && (
-              <div className="mt-5">
-                <div className="grid grid-cols-2 gap-3">
-                  <WarpletCard
-                    warplet={matchedWarplet!}
-                    onOpen={handleOpenWarpletDetails}
-                    labelOverride="👀 We Found You!"
-                  />
-                </div>
-              </div>
-            )}
-
             {hasActiveSearchOrFilter && !isSearching && displayedTotalResults === 0 && !searchError && (
               <Text className={`mt-6 ${STATUS_LINE_CLASS}`} style={{ color: "#00FF00" }}>
                 No Warplets found.
@@ -5234,7 +5365,7 @@ export default function SearchApp() {
                       warplet={warplet}
                       market={getMarketState(marketSnapshot, warplet.id)}
                       onOpen={handleOpenWarpletDetails}
-                      labelOverride={shouldPrependMatchedWarplet && index === 0 ? "👀 We Found You!" : undefined}
+                      labelOverride={shouldPrependMatchedWarplet && index === 0 ? matchedWarpletCard?.label : undefined}
                     />
                   ))}
                 </div>
@@ -5262,8 +5393,9 @@ export default function SearchApp() {
             onSearchTag={handleSearchTag}
             onLevelFilter={handleLevelFilter}
             onOpenRelatedWarplet={handleOpenRelatedWarpletDetails}
+            onSearchOwnerWallet={handleSearchOwnerWallet}
             market={market}
-            ownedTokenIds={getOwnedTokenIds(marketSnapshot, market.owner?.wallet, details.id)}
+            ownedTokenIds={getOwnedTokenIdsForPreview(marketSnapshot, market.owner?.wallet, details.id)}
             isRefreshingMarket={marketRefreshTokenId === details.id}
             marketRefreshError={index === selectedWarpletDetailsStack.length - 1 ? marketRefreshError : ""}
             onRefreshMarket={handleRefreshSelectedMarket}
