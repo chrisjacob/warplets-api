@@ -786,6 +786,8 @@ type SharePreviewImage = {
 type SharePreviewState = {
   title: string;
   text: string;
+  farcasterText?: string;
+  twitterPostText?: string;
   links: string[];
   images: SharePreviewImage[];
   farcasterEmbeds: [] | [string] | [string, string];
@@ -2662,7 +2664,12 @@ function SharePreviewModal({
 }) {
   const shareContentRef = useRef<HTMLDivElement | null>(null);
   const [resolvedImages, setResolvedImages] = useState<SharePreviewImage[]>(preview.images);
-  const postText = [preview.text, ...preview.links].join("\n\n");
+  const farcasterPostText = preview.farcasterText ?? preview.text;
+  const twitterPostText = preview.twitterPostText ?? preview.text;
+  const hasChannelTabs = farcasterPostText !== twitterPostText;
+  const [activeShareChannel, setActiveShareChannel] = useState<"farcaster" | "twitter">("farcaster");
+  const visiblePostBody = hasChannelTabs && activeShareChannel === "twitter" ? twitterPostText : farcasterPostText;
+  const postText = [visiblePostBody, ...preview.links].join("\n\n");
   const [titleFirstWord, ...titleRestWords] = preview.title.split(" ");
   const titleRest = titleRestWords.join(" ");
   const [isClipboardTooltipOpen, setIsClipboardTooltipOpen] = useState(false);
@@ -2695,6 +2702,10 @@ function SharePreviewModal({
     clipboardFocus,
     clipboardRole,
   ]);
+
+  useEffect(() => {
+    setActiveShareChannel("farcaster");
+  }, [preview]);
 
   useEffect(() => {
     const target = shareContentRef.current;
@@ -2800,7 +2811,36 @@ function SharePreviewModal({
         </div>
 
         <div ref={shareContentRef} className="max-h-[calc(92vh-156px)] overflow-auto px-4 py-4">
-          <div className="relative rounded-xl border border-[#00FF00]/25 bg-[#041204]/80 p-3">
+          <div>
+            {hasChannelTabs && (
+              <div className="flex items-end gap-1">
+                {[
+                  ["farcaster", "Farcaster"],
+                  ["twitter", "X (Twitter)"],
+                ].map(([channel, label]) => {
+                  const isActive = activeShareChannel === channel;
+                  return (
+                    <button
+                      key={channel}
+                      type="button"
+                      onClick={() => {
+                        void hapticTap();
+                        setActiveShareChannel(channel as "farcaster" | "twitter");
+                      }}
+                      style={{ color: isActive ? "#00FF00" : "rgb(139, 191, 139)" }}
+                      className={`relative -mb-px cursor-pointer rounded-t-lg border px-4 py-2 text-xs font-bold transition-colors ${
+                        isActive
+                          ? "z-10 border-[#00FF00]/25 border-b-transparent bg-[#041204]"
+                          : "border-[#00FF00]/20 border-b-[#00FF00]/25 bg-black"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          <div className={`relative rounded-xl border border-[#00FF00]/25 bg-[#041204]/80 p-3 ${hasChannelTabs ? "rounded-tl-none" : ""}`}>
             <Text className="mb-2 text-xs font-bold uppercase" style={{ color: "#8bbf8b" }}>
               Post
             </Text>
@@ -2841,9 +2881,10 @@ function SharePreviewModal({
                 </div>
               </FloatingPortal>
             )}
-            <pre className="select-text whitespace-pre-wrap break-words font-sans text-sm font-bold leading-snug text-[#00FF00]">
+            <pre className="min-h-9 select-text whitespace-pre-wrap break-words pr-12 pt-1 font-sans text-sm font-bold leading-snug text-[#00FF00]">
               {postText}
             </pre>
+          </div>
           </div>
 
           <div className="mt-3 rounded-xl border border-[#00FF00]/25 bg-[#041204]/80 p-3">
@@ -3024,6 +3065,148 @@ async function fetchEthUsdPrice(): Promise<number> {
   return coingecko;
 }
 
+type WarpletSocialProfile = {
+  farcasterUsername: string | null;
+  xUsername: string | null;
+};
+
+type TradeShareAction = "offer" | "listing" | "purchase" | "sale";
+
+function parseTradeShareTestAction(value: string | null): TradeShareAction | null {
+  const normalized = (value ?? "").trim().toLowerCase();
+  if (normalized === "offer" || normalized === "make-offer") return "offer";
+  if (normalized === "list" || normalized === "listing" || normalized === "list-for-sale") return "listing";
+  if (normalized === "buy" || normalized === "purchase" || normalized === "buy-now") return "purchase";
+  if (normalized === "sell" || normalized === "sale" || normalized === "accept-offer") return "sale";
+  return null;
+}
+
+type TradeShareCounterparty = {
+  wallet?: string | null;
+  fid?: number | null;
+  farcasterUsername?: string | null;
+  xUsername?: string | null;
+};
+
+function normalizeShareUsername(value: string | null | undefined): string | null {
+  const trimmed = (value ?? "").trim().replace(/^@/, "");
+  if (!trimmed || trimmed === "-") return null;
+  return trimmed;
+}
+
+function formatWarpletShareUsername(value: string | null | undefined): string {
+  const username = normalizeShareUsername(value);
+  return username ? ` [@${username}]` : "";
+}
+
+function formatTradeShareAmount(amountEth: number | null, ethUsdPrice: number | null): string {
+  if (amountEth == null || !Number.isFinite(amountEth)) return "0 ETH";
+  const numeric = decimalStringFromNumber(amountEth);
+  const ethAmount = numeric == null ? "0" : truncateDecimalDigits(numeric, 8);
+  if (ethUsdPrice == null || !Number.isFinite(ethUsdPrice)) return `${ethAmount} ETH`;
+  const usdAmount = amountEth * ethUsdPrice;
+  const formattedUsd = usdAmount.toLocaleString("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: usdAmount >= 100 ? 0 : 2,
+  });
+  return `${ethAmount} ETH (~${formattedUsd})`;
+}
+
+async function fetchWarpletSocialProfile(input: {
+  wallet?: string | null;
+  fid?: number | null;
+}): Promise<WarpletSocialProfile> {
+  const params = new URLSearchParams();
+  if (input.wallet) params.set("wallet", input.wallet);
+  if (input.fid != null) params.set("fid", String(input.fid));
+  if (!params.toString()) return { farcasterUsername: null, xUsername: null };
+
+  try {
+    const response = await fetch(`/api/warplet-social-profile?${params.toString()}`, {
+      headers: { accept: "application/json" },
+    });
+    if (!response.ok) throw new Error(`Social profile lookup failed (${response.status})`);
+    const payload = await response.json() as Partial<WarpletSocialProfile>;
+    return {
+      farcasterUsername: normalizeShareUsername(payload.farcasterUsername),
+      xUsername: normalizeShareUsername(payload.xUsername),
+    };
+  } catch (error) {
+    console.warn("Failed to resolve trade share social profile:", error);
+    return { farcasterUsername: null, xUsername: null };
+  }
+}
+
+async function buildTradeSharePreview({
+  action,
+  details,
+  amountEth,
+  ethUsdPrice,
+  counterparty,
+}: {
+  action: TradeShareAction;
+  details: WarpletDetails;
+  amountEth: number | null;
+  ethUsdPrice: number | null;
+  counterparty?: TradeShareCounterparty | null;
+}): Promise<SharePreviewState> {
+  const tokenId = details.id;
+  const shareState = { ...EMPTY_SEARCH_URL_STATE, warplet: tokenId };
+  const miniAppLink = buildSearchHref(shareState);
+  const openSeaLink = getOpenSeaUrl(tokenId);
+  const links = [miniAppLink, openSeaLink];
+  const amountText = formatTradeShareAmount(amountEth, ethUsdPrice);
+  const resolvedCounterparty = counterparty
+    ? await fetchWarpletSocialProfile({ wallet: counterparty.wallet, fid: counterparty.fid })
+    : { farcasterUsername: null, xUsername: null };
+  const farcasterCounterparty = normalizeShareUsername(counterparty?.farcasterUsername) ?? resolvedCounterparty.farcasterUsername;
+  const twitterCounterparty = normalizeShareUsername(counterparty?.xUsername) ?? resolvedCounterparty.xUsername;
+  const farcasterWarpletUsername = formatWarpletShareUsername(cellToString(details.row.warplet_username_farcaster));
+  const twitterWarpletUsername = formatWarpletShareUsername(cellToString(details.row.warplet_username_x));
+  const withCounterparty = (keyword: "to" | "from", username: string | null) => username ? ` ${keyword} @${username}` : "";
+
+  let title = "";
+  let farcasterText = "";
+  let twitterPostText = "";
+
+  if (action === "offer") {
+    title = "Share Item Offer";
+    farcasterText = `Offering ${amountText}${withCounterparty("to", farcasterCounterparty)} for 10X Warplet #${tokenId}${farcasterWarpletUsername}.`;
+    twitterPostText = `Offering ${amountText}${withCounterparty("to", twitterCounterparty)} for 10X Warplet #${tokenId}${twitterWarpletUsername}.`;
+  } else if (action === "listing") {
+    title = "Share Item Listing";
+    farcasterText = `Listing for ${amountText} my 10X Warplet #${tokenId}${farcasterWarpletUsername}.`;
+    twitterPostText = `Listing for ${amountText} my 10X Warplet #${tokenId}${twitterWarpletUsername}.`;
+  } else if (action === "purchase") {
+    title = "Share Item Purchase";
+    farcasterText = `Purchased for ${amountText}${withCounterparty("from", farcasterCounterparty)} the 10X Warplet #${tokenId}${farcasterWarpletUsername}.`;
+    twitterPostText = `Purchased for ${amountText}${withCounterparty("from", twitterCounterparty)} the 10X Warplet #${tokenId}${twitterWarpletUsername}.`;
+  } else {
+    title = "Share Item Sale";
+    farcasterText = `Sold for ${amountText}${withCounterparty("to", farcasterCounterparty)} the 10X Warplet #${tokenId}${farcasterWarpletUsername}.`;
+    twitterPostText = `Sold for ${amountText}${withCounterparty("to", twitterCounterparty)} the 10X Warplet #${tokenId}${twitterWarpletUsername}.`;
+  }
+
+  return {
+    title,
+    text: farcasterText,
+    farcasterText,
+    twitterPostText,
+    links,
+    images: [
+      { src: getWarpletAssetUrl(tokenId, "gif"), alt: `10X Warplet #${tokenId} share image` },
+      {
+        src: getWarpletAssetUrl(tokenId, "gif"),
+        alt: `10X Warplet #${tokenId} OpenSea share image`,
+        sourceUrl: openSeaLink,
+      },
+    ],
+    farcasterEmbeds: [miniAppLink, openSeaLink],
+    twitterText: buildTwitterShareText(twitterPostText, links),
+  };
+}
+
 function focusInputAtEnd(input: HTMLInputElement | null): void {
   if (!input) return;
   input.focus({ preventScroll: true });
@@ -3057,6 +3240,7 @@ function WarpletDetailsModal({
   onClearMarketSide,
   onUpsertItemOffer,
   onApplyPurchase,
+  onOpenTradeSharePreview,
   stackIndex,
 }: {
   details: WarpletDetails;
@@ -3080,6 +3264,7 @@ function WarpletDetailsModal({
   onClearMarketSide: (tokenId: number, side: "listing" | "offer" | "collectionOffer") => void;
   onUpsertItemOffer: (tokenId: number, offer: MarketSnapshot["offers"][string]) => void;
   onApplyPurchase: (tokenId: number, update: OptimisticPurchaseUpdate) => void;
+  onOpenTradeSharePreview: (preview: SharePreviewState) => void;
   stackIndex: number;
 }) {
   const row = details.row;
@@ -3210,6 +3395,40 @@ function WarpletDetailsModal({
     activeListingAmount > 0 &&
     offerAmount > activeListingAmount
   );
+  const getTradeShareUsdPrice = useCallback(async () => {
+    if (ethUsdPrice != null && Date.now() - ethUsdPriceFetchedAtRef.current < ETH_USD_PRICE_STALE_MS) {
+      return ethUsdPrice;
+    }
+
+    try {
+      const nextPrice = await fetchEthUsdPrice();
+      ethUsdPriceFetchedAtRef.current = Date.now();
+      setEthUsdPrice(nextPrice);
+      return nextPrice;
+    } catch (error) {
+      console.warn("Failed to refresh ETH/USD for trade share:", error);
+      return ethUsdPrice;
+    }
+  }, [ethUsdPrice]);
+  const openTradeSharePreview = useCallback(async ({
+    action,
+    amountEth,
+    counterparty,
+  }: {
+    action: TradeShareAction;
+    amountEth: number | null;
+    counterparty?: TradeShareCounterparty | null;
+  }) => {
+    const usdPrice = await getTradeShareUsdPrice();
+    const preview = await buildTradeSharePreview({
+      action,
+      details,
+      amountEth,
+      ethUsdPrice: usdPrice,
+      counterparty,
+    });
+    onOpenTradeSharePreview(preview);
+  }, [details, getTradeShareUsdPrice, onOpenTradeSharePreview]);
   const chipGroups = [
     { label: "Colours", values: splitChips(row.warplet_colours) },
     { label: "Keywords", values: splitChips(row.warplet_keywords) },
@@ -3628,12 +3847,21 @@ function WarpletDetailsModal({
       void hapticSuccess();
       showTradeConfetti();
       showToast("success", "Item successfully purchased", { minMs: 5000 });
+      void openTradeSharePreview({
+        action: "purchase",
+        amountEth: marketMoneyToDecimal(sale),
+        counterparty: {
+          wallet: purchasedListing?.seller ?? effectiveOwner?.wallet ?? null,
+          fid: effectiveOwner?.fid ?? null,
+          farcasterUsername: (effectiveOwner as MarketSnapshot["owners"][string] | null)?.username ?? null,
+        },
+      });
     } catch (error) {
       handleTradeError("buy", error);
     } finally {
       setTradeBusyAction(null);
     }
-  }, [details.id, effectiveCollectionOffer, effectiveFloor, effectiveItemOffer, effectiveListing, effectiveTopOffer, getProviderAndAccount, handleFreshMismatch, handleTradeError, onApplyPurchase, postTradeLog, refreshTradeState, showFirefoxWarningIfNeeded, showToast, viewerFid]);
+  }, [details.id, effectiveCollectionOffer, effectiveFloor, effectiveItemOffer, effectiveListing, effectiveOwner, effectiveTopOffer, getProviderAndAccount, handleFreshMismatch, handleTradeError, onApplyPurchase, openTradeSharePreview, postTradeLog, refreshTradeState, showFirefoxWarningIfNeeded, showToast, viewerFid]);
 
   const runAcceptOffer = useCallback(async () => {
     const actionId = crypto.randomUUID();
@@ -3787,12 +4015,21 @@ function WarpletDetailsModal({
       void hapticSuccess();
       showTradeConfetti();
       showToast("success", "Offer successfully accepted", { minMs: 5000 });
+      void openTradeSharePreview({
+        action: "sale",
+        amountEth: marketMoneyToDecimal(sale),
+        counterparty: {
+          wallet: acceptedBuyerWallet,
+          fid: acceptedBuyerProfile?.fid ?? null,
+          farcasterUsername: acceptedBuyerProfile?.username ?? null,
+        },
+      });
     } catch (error) {
       handleTradeError("accept_offer", error);
     } finally {
       setTradeBusyAction(null);
     }
-  }, [assertConnectedOwnerWallet, details.id, effectiveCollectionOffer, effectiveFloor, effectiveItemOffer, effectiveTopOffer, farcasterFid, farcasterUsername, getProviderAndAccount, handleFreshMismatch, handleTradeError, market.owner, onApplyPurchase, onClearMarketSide, onMergeMarketSnapshot, postTradeLog, refreshTradeState, showFirefoxWarningIfNeeded, showToast, viewerFid, wallet]);
+  }, [assertConnectedOwnerWallet, details.id, effectiveCollectionOffer, effectiveFloor, effectiveItemOffer, effectiveTopOffer, farcasterFid, farcasterUsername, getProviderAndAccount, handleFreshMismatch, handleTradeError, market.owner, onApplyPurchase, onClearMarketSide, onMergeMarketSnapshot, openTradeSharePreview, postTradeLog, refreshTradeState, showFirefoxWarningIfNeeded, showToast, viewerFid, wallet]);
 
   const runListForSale = useCallback(async () => {
     if (tradeBusyActionRef.current) return;
@@ -3839,13 +4076,17 @@ function WarpletDetailsModal({
       showTradeConfetti();
       setTradeMode("idle");
       showToast("success", "Item successfully listed", { minMs: 5000 });
+      void openTradeSharePreview({
+        action: "listing",
+        amountEth: listingAmount ?? parseTradeAmount(listingPrice),
+      });
     } catch (error) {
       handleTradeError("list", error);
     } finally {
       tradeBusyActionRef.current = null;
       setTradeBusyAction(null);
     }
-  }, [assertConnectedOwnerWallet, details.id, effectiveTopOffer, getProviderAndAccount, handleTradeError, listingPrice, listingPriceIsAtOrBelowTopOffer, postTradeLog, refreshTradeState, showFirefoxWarningIfNeeded, showToast, viewerFid]);
+  }, [assertConnectedOwnerWallet, details.id, effectiveTopOffer, getProviderAndAccount, handleTradeError, listingAmount, listingPrice, listingPriceIsAtOrBelowTopOffer, openTradeSharePreview, postTradeLog, refreshTradeState, showFirefoxWarningIfNeeded, showToast, viewerFid]);
 
   const runMakeOffer = useCallback(async () => {
     const priceRaw = decimalEthToWeiString(offerPrice);
@@ -3936,12 +4177,21 @@ function WarpletDetailsModal({
       showTradeConfetti();
       setTradeMode("idle");
       showToast("success", "Offer successfully made", { minMs: 5000 });
+      void openTradeSharePreview({
+        action: "offer",
+        amountEth: offerAmount ?? parseTradeAmount(offerPrice),
+        counterparty: {
+          wallet: effectiveOwner?.wallet ?? null,
+          fid: effectiveOwner?.fid ?? null,
+          farcasterUsername: (effectiveOwner as MarketSnapshot["owners"][string] | null)?.username ?? null,
+        },
+      });
     } catch (error) {
       handleTradeError("make_offer", error);
     } finally {
       setTradeBusyAction(null);
     }
-  }, [applyOptimisticItemOffer, details.id, getProviderAndAccount, handleTradeError, offerPrice, postTradeLog, refreshTradeState, showFirefoxWarningIfNeeded, showToast, viewerFid]);
+  }, [applyOptimisticItemOffer, details.id, effectiveOwner, getProviderAndAccount, handleTradeError, offerAmount, offerPrice, openTradeSharePreview, postTradeLog, refreshTradeState, showFirefoxWarningIfNeeded, showToast, viewerFid]);
 
   const runCancelOrder = useCallback(async (action: "cancel_offer" | "cancel_listing") => {
     const order = action === "cancel_offer" ? ownItemOfferOrder : effectiveListing;
@@ -5010,6 +5260,31 @@ export default function SearchApp() {
     }
   }, []);
 
+  const openTradeShareTestPreview = useCallback(async (details: WarpletDetails, action: TradeShareAction) => {
+    const market = marketSnapshot ? getMarketState(marketSnapshot, details.id) : null;
+    const owner = market?.owner;
+    const fallbackCounterparty: TradeShareCounterparty = {
+      wallet: owner?.wallet ?? cellToString(details.row.warplet_wallet),
+      fid: owner?.fid ?? cellToNumber(details.row.fid_value),
+      farcasterUsername: owner?.username ?? cellToString(details.row.warplet_username_farcaster),
+    };
+    let ethUsdPrice: number | null = null;
+    try {
+      ethUsdPrice = await fetchEthUsdPrice();
+    } catch (error) {
+      console.warn("Failed to load ETH/USD for trade share test preview:", error);
+    }
+
+    const preview = await buildTradeSharePreview({
+      action,
+      details,
+      amountEth: 0.1,
+      ethUsdPrice,
+      counterparty: action === "listing" ? null : fallbackCounterparty,
+    });
+    setSharePreview(preview);
+  }, [marketSnapshot]);
+
   useEffect(() => {
     let shouldCallReady = false;
 
@@ -5467,13 +5742,19 @@ export default function SearchApp() {
       setSubmittedQuery("");
     }
 
+    const tradeShareTestAction = parseTradeShareTestAction(new URLSearchParams(window.location.search).get("tradeShare"));
     if (nextState.warplet != null) {
       const details = await loadWarpletDetails(nextState.warplet);
-      if (details) setSelectedWarpletDetailsStack([details]);
+      if (details) {
+        setSelectedWarpletDetailsStack([details]);
+        if (details.id === 1358 && tradeShareTestAction) {
+          void openTradeShareTestPreview(details, tradeShareTestAction);
+        }
+      }
     }
 
     applyingUrlStateRef.current = false;
-  }, [activeExampleSearch, dbReady, loadFavouriteList, loadWarpletDetails, matchedWarpletCard, runSearch]);
+  }, [activeExampleSearch, dbReady, loadFavouriteList, loadWarpletDetails, matchedWarpletCard, openTradeShareTestPreview, runSearch]);
 
   useEffect(() => {
     if (!dbReady || urlHydratedRef.current) return;
@@ -6016,7 +6297,7 @@ export default function SearchApp() {
     if (!sharePreview) return;
     beginShareCelebrationWatch();
     sdk.actions.composeCast({
-      text: sharePreview.text,
+      text: sharePreview.farcasterText ?? sharePreview.text,
       embeds: sharePreview.farcasterEmbeds,
     })
       .then(() => {
@@ -6030,8 +6311,11 @@ export default function SearchApp() {
 
   const handleSharePreviewTwitter = useCallback(() => {
     if (!sharePreview) return;
+    const twitterText = sharePreview.twitterPostText
+      ? buildTwitterShareText(sharePreview.twitterPostText, sharePreview.links)
+      : sharePreview.twitterText;
     const intentUrl = `https://x.com/intent/post?${new URLSearchParams({
-      text: sharePreview.twitterText,
+      text: twitterText,
       url: "",
     }).toString()}`;
     beginShareCelebrationWatch();
@@ -6466,6 +6750,7 @@ export default function SearchApp() {
             onClearMarketSide={handleClearMarketSide}
             onUpsertItemOffer={handleUpsertItemOffer}
             onApplyPurchase={handleApplyPurchase}
+            onOpenTradeSharePreview={setSharePreview}
             stackIndex={index}
           />
         );
