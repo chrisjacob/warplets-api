@@ -1350,63 +1350,6 @@ function getOwnedTokenIds(snapshot: MarketSnapshot | null, ownerWallet: string |
   return Array.from(new Set([currentTokenId, ...tokenIds]));
 }
 
-function getOwnedTokenIdsForPreview(snapshot: MarketSnapshot | null, ownerWallet: string | null | undefined, currentTokenId: number): number[] {
-  if (currentTokenId !== 1358) return getOwnedTokenIds(snapshot, ownerWallet, currentTokenId);
-  return [
-    101,
-    248,
-    372,
-    509,
-    644,
-    791,
-    852,
-    1004,
-    1127,
-    1358,
-    1491,
-    1636,
-    1802,
-    1994,
-    2148,
-    2360,
-    2511,
-    2734,
-    2998,
-    3162,
-    3375,
-    3591,
-    3820,
-    4055,
-    4312,
-    4689,
-    5021,
-    5560,
-    6104,
-    6427,
-    6813,
-    7042,
-    7428,
-    7766,
-    8019,
-    8264,
-    8491,
-    8730,
-    8899,
-    9044,
-    9238,
-    9361,
-    9488,
-    9574,
-    9650,
-    9726,
-    9801,
-    9844,
-    9892,
-    9930,
-    9964,
-  ];
-}
-
 function mergeTokenSnapshot(current: MarketSnapshot | null, tokenSnapshot: MarketSnapshot, tokenId: number): MarketSnapshot {
   const generatedAt = tokenSnapshot.generatedAt || new Date().toISOString();
   const key = String(tokenId);
@@ -5395,7 +5338,7 @@ export default function SearchApp() {
             onOpenRelatedWarplet={handleOpenRelatedWarpletDetails}
             onSearchOwnerWallet={handleSearchOwnerWallet}
             market={market}
-            ownedTokenIds={getOwnedTokenIdsForPreview(marketSnapshot, market.owner?.wallet, details.id)}
+            ownedTokenIds={getOwnedTokenIds(marketSnapshot, market.owner?.wallet, details.id)}
             isRefreshingMarket={marketRefreshTokenId === details.id}
             marketRefreshError={index === selectedWarpletDetailsStack.length - 1 ? marketRefreshError : ""}
             onRefreshMarket={handleRefreshSelectedMarket}
