@@ -775,6 +775,45 @@ type SearchUrlState = {
   dir: OrderDirection | null;
 };
 
+type SharePreviewImage = {
+  src: string;
+  alt: string;
+  sourceUrl?: string;
+  fallbackSrc?: string;
+  isLoading?: boolean;
+};
+
+type SharePreviewState = {
+  title: string;
+  text: string;
+  links: string[];
+  images: SharePreviewImage[];
+  farcasterEmbeds: [] | [string] | [string, string];
+  twitterText: string;
+};
+
+function buildTwitterShareText(text: string, links: string[]): string {
+  return [text, ...links, "#10XWarplets via @10XMemeX"].join("\n\n");
+}
+
+async function copyTextToClipboard(text: string): Promise<void> {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+
+  const textarea = document.createElement("textarea");
+  textarea.value = text;
+  textarea.setAttribute("readonly", "");
+  textarea.style.position = "fixed";
+  textarea.style.opacity = "0";
+  textarea.style.pointerEvents = "none";
+  document.body.appendChild(textarea);
+  textarea.select();
+  document.execCommand("copy");
+  document.body.removeChild(textarea);
+}
+
 type MiniAppHistoryStateWithSearch = {
   searchUrl?: {
     signature: string;
@@ -2504,7 +2543,18 @@ function TradeToastView({
           onClick={onClose}
           className="trade-toast__close"
         >
-          X
+          <svg
+            aria-hidden="true"
+            viewBox="0 0 24 24"
+            className="h-4 w-4"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.4"
+            strokeLinecap="round"
+          >
+            <path d="M6 6l12 12" />
+            <path d="M18 6L6 18" />
+          </svg>
         </button>
       </div>
     </div>
@@ -2594,6 +2644,263 @@ function FavouriteButton({
     >
       <HeartIcon filled={active} className={iconClass} strokeWidth={strokeWidth} />
     </button>
+  );
+}
+
+function SharePreviewModal({
+  preview,
+  onClose,
+  onCopySuccess,
+  onShareFarcaster,
+  onShareTwitter,
+}: {
+  preview: SharePreviewState;
+  onClose: () => void;
+  onCopySuccess: () => void;
+  onShareFarcaster: () => void;
+  onShareTwitter: () => void;
+}) {
+  const shareContentRef = useRef<HTMLDivElement | null>(null);
+  const [resolvedImages, setResolvedImages] = useState<SharePreviewImage[]>(preview.images);
+  const postText = [preview.text, ...preview.links].join("\n\n");
+  const [titleFirstWord, ...titleRestWords] = preview.title.split(" ");
+  const titleRest = titleRestWords.join(" ");
+  const [isClipboardTooltipOpen, setIsClipboardTooltipOpen] = useState(false);
+  const [initializeShareScrollbars] = useOverlayScrollbars({
+    options: {
+      scrollbars: {
+        theme: "os-theme-10x",
+        autoHide: "scroll",
+        clickScroll: true,
+      },
+    },
+    defer: true,
+  });
+  const {
+    refs: clipboardTooltipRefs,
+    floatingStyles: clipboardTooltipStyles,
+    context: clipboardTooltipContext,
+  } = useFloating({
+    open: isClipboardTooltipOpen,
+    onOpenChange: setIsClipboardTooltipOpen,
+    placement: "top",
+    whileElementsMounted: autoUpdate,
+    middleware: [offset(8), flip({ padding: 8 }), shift({ padding: 8 })],
+  });
+  const clipboardHover = useHover(clipboardTooltipContext, { delay: { open: 0, close: 60 }, move: false });
+  const clipboardFocus = useFocus(clipboardTooltipContext);
+  const clipboardRole = useRole(clipboardTooltipContext, { role: "tooltip" });
+  const { getReferenceProps: getClipboardReferenceProps, getFloatingProps: getClipboardFloatingProps } = useInteractions([
+    clipboardHover,
+    clipboardFocus,
+    clipboardRole,
+  ]);
+
+  useEffect(() => {
+    const target = shareContentRef.current;
+    if (!target) return;
+    target.setAttribute("data-overlayscrollbars-initialize", "");
+    initializeShareScrollbars(target);
+    return () => {
+      target.removeAttribute("data-overlayscrollbars-initialize");
+    };
+  }, [initializeShareScrollbars]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setResolvedImages(preview.images.map((image) => image.sourceUrl ? { ...image, isLoading: true } : image));
+
+    preview.images.forEach((image, index) => {
+      if (!image.sourceUrl) return;
+
+      fetch(`/api/opengraph-image?url=${encodeURIComponent(image.sourceUrl)}`, {
+        headers: { accept: "application/json" },
+      })
+        .then((response) => (response.ok ? response.json() : null))
+        .then((payload: unknown) => {
+          if (cancelled) return;
+          if (!payload || typeof payload !== "object") {
+            setResolvedImages((currentImages) =>
+              currentImages.map((currentImage, currentIndex) =>
+                currentIndex === index ? { ...currentImage, isLoading: false } : currentImage,
+              ),
+            );
+            return;
+          }
+          const imageUrl = "imageUrl" in payload ? payload.imageUrl : null;
+          if (typeof imageUrl !== "string" || !imageUrl) {
+            setResolvedImages((currentImages) =>
+              currentImages.map((currentImage, currentIndex) =>
+                currentIndex === index ? { ...currentImage, isLoading: false } : currentImage,
+              ),
+            );
+            return;
+          }
+
+          setResolvedImages((currentImages) =>
+            currentImages.map((currentImage, currentIndex) =>
+              currentIndex === index
+                ? {
+                    ...currentImage,
+                    fallbackSrc: currentImage.fallbackSrc ?? currentImage.src,
+                    src: imageUrl,
+                    isLoading: false,
+                  }
+                : currentImage,
+            ),
+          );
+        })
+        .catch((error) => {
+          console.warn("Failed to resolve OpenSea OpenGraph image", error);
+          if (cancelled) return;
+          setResolvedImages((currentImages) =>
+            currentImages.map((currentImage, currentIndex) =>
+              currentIndex === index ? { ...currentImage, isLoading: false } : currentImage,
+            ),
+          );
+        });
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [preview]);
+
+  return (
+    <div className="fixed inset-0 z-[90] flex items-end justify-center bg-black/80 p-4 sm:items-center">
+      <div className="max-h-[92vh] w-full max-w-md overflow-hidden rounded-2xl border border-[#00FF00]/35 bg-black shadow-2xl">
+        <div className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-[#00FF00]/20 bg-black px-4 py-3">
+          <Text className="min-w-0 truncate text-base font-bold" style={{ color: "rgb(139, 191, 139)" }}>
+            <span style={{ color: "#00FF00" }}>{titleFirstWord}</span>
+            {titleRest && <span> {titleRest}</span>}
+          </Text>
+          <button
+            type="button"
+            aria-label="Close share preview"
+            title="Close"
+            onClick={() => {
+              void hapticTap();
+              onClose();
+            }}
+            className="flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-[#00FF00]/35 text-[#00FF00] hover:bg-[#041204]"
+          >
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 24 24"
+              className="h-4 w-4"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.4"
+              strokeLinecap="round"
+            >
+              <path d="M6 6l12 12" />
+              <path d="M18 6L6 18" />
+            </svg>
+          </button>
+        </div>
+
+        <div ref={shareContentRef} className="max-h-[calc(92vh-156px)] overflow-auto px-4 py-4">
+          <div className="relative rounded-xl border border-[#00FF00]/25 bg-[#041204]/80 p-3">
+            <Text className="mb-2 text-xs font-bold uppercase" style={{ color: "#8bbf8b" }}>
+              Post
+            </Text>
+            <button
+              ref={clipboardTooltipRefs.setReference}
+              type="button"
+              aria-label="Copy to Clipboard"
+              {...getClipboardReferenceProps({
+                onClick: () => {
+                  void hapticPrimaryTap();
+                  setIsClipboardTooltipOpen(false);
+                  copyTextToClipboard(postText)
+                    .then(() => {
+                      void hapticSuccess();
+                      onCopySuccess();
+                    })
+                    .catch((error) => {
+                      console.error("Failed to copy share post:", error);
+                      void hapticError();
+                    });
+                },
+                className:
+                  "absolute right-3 top-3 flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-[oklab(0.866435_-0.23384_0.179502_/_0.35)] bg-black text-base text-[#00FF00] shadow-[2px_3px_0_oklab(0.866435_-0.23384_0.179502_/_0.35)] transition-all duration-100 hover:bg-[#041204] active:translate-x-[1px] active:translate-y-[2px] active:shadow-[1px_1px_0_oklab(0.866435_-0.23384_0.179502_/_0.35)]",
+              })}
+            >
+              <span aria-hidden="true">📋</span>
+            </button>
+            {isClipboardTooltipOpen && (
+              <FloatingPortal>
+                <div
+                  ref={clipboardTooltipRefs.setFloating}
+                  style={clipboardTooltipStyles}
+                  {...getClipboardFloatingProps({
+                    className: "z-[100] max-w-[min(92vw,520px)] whitespace-nowrap rounded-lg border border-[#00FF00]/40 bg-black px-3 py-2 text-[11px] font-bold leading-snug text-[#00FF00] shadow-2xl",
+                  })}
+                >
+                  Copy to Clipboard
+                </div>
+              </FloatingPortal>
+            )}
+            <pre className="select-text whitespace-pre-wrap break-words font-sans text-sm font-bold leading-snug text-[#00FF00]">
+              {postText}
+            </pre>
+          </div>
+
+          <div className="mt-3 rounded-xl border border-[#00FF00]/25 bg-[#041204]/80 p-3">
+            <Text className="mb-2 text-xs font-bold uppercase" style={{ color: "#8bbf8b" }}>
+              Images
+            </Text>
+            <div className="grid grid-cols-2 gap-2">
+              {resolvedImages.map((image, index) => (
+                <div key={`${image.src}-${index}`} className="aspect-square overflow-hidden rounded-lg border border-[#00FF00]/25 bg-[rgba(0,255,0,0.12)]">
+                  {image.isLoading ? (
+                    <div className="flex h-full w-full items-center justify-center">
+                      <span className="h-8 w-8 animate-spin rounded-full border-2 border-[#00FF00]/25 border-t-[#00FF00]" aria-label="Loading OpenSea preview image" />
+                    </div>
+                  ) : (
+                    <img
+                      src={image.src}
+                      alt={image.alt}
+                      className={`block h-full w-full ${image.sourceUrl ? "object-contain" : "object-cover"}`}
+                      loading="lazy"
+                      onError={(event) => {
+                        if (!image.fallbackSrc || event.currentTarget.src === image.fallbackSrc) return;
+                        event.currentTarget.src = image.fallbackSrc;
+                      }}
+                    />
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="sticky bottom-0 z-10 border-t border-[#00FF00]/20 bg-black px-4 py-3">
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                void hapticPrimaryTap();
+                onShareFarcaster();
+              }}
+              className="w-full cursor-pointer rounded-[20px] border border-[#009900] bg-[#00FF00] px-3 py-3 text-center text-sm font-bold text-[rgb(0,80,0)] shadow-[3px_6px_0_#008000] transition-all duration-100 hover:bg-[#33ff33] active:translate-x-[1px] active:translate-y-[3px] active:shadow-[1px_3px_0_#008000]"
+            >
+              Share on Farcaster
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                void hapticPrimaryTap();
+                onShareTwitter();
+              }}
+              className="secondary-trade-cta w-full cursor-pointer rounded-[20px] border bg-black px-3 py-3 text-center text-sm font-bold text-[#00FF00] transition-all duration-100 hover:bg-[#041204] active:translate-x-[1px] active:translate-y-[3px]"
+            >
+              Share on X (Twitter)
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -4032,10 +4339,10 @@ function WarpletDetailsModal({
     <div className="fixed inset-0 flex items-end justify-center bg-black/80 p-4 sm:items-center" style={{ zIndex: 50 + stackIndex }}>
       <div ref={modalScrollRef} className="max-h-[92vh] w-full max-w-md overflow-auto rounded-2xl border border-[#00FF00]/35 bg-black shadow-2xl">
         <div ref={modalHeaderRef} className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-[#00FF00]/20 bg-black px-4 py-3">
-          <Text className="min-w-0 truncate text-base font-bold" style={{ color: "#00FF00" }}>
-            <span>{details.title}</span>
+          <Text className="min-w-0 truncate text-base font-bold" style={{ color: "rgb(139, 191, 139)" }}>
+            <span style={{ color: "#00FF00" }}>{details.title}</span>
             {details.username && (
-              <span style={{ color: "rgb(139, 191, 139)" }}> @{details.username}</span>
+              <span> @{details.username}</span>
             )}
           </Text>
           <div className="flex shrink-0 items-center gap-2">
@@ -4543,6 +4850,7 @@ export default function SearchApp() {
   const [activeWallet, setActiveWallet] = useState<string | null>(null);
   const [favouriteListsByWallet, setFavouriteListsByWallet] = useState<Record<string, number[]>>({});
   const [favouriteFilterWallet, setFavouriteFilterWallet] = useState<string | null>(null);
+  const [sharePreview, setSharePreview] = useState<SharePreviewState | null>(null);
   const [searchToast, setSearchToast] = useState<TradeToast | null>(null);
   const [searchToastExiting, setSearchToastExiting] = useState(false);
   const dbRef = useRef<SqliteDatabase | null>(null);
@@ -4554,6 +4862,11 @@ export default function SearchApp() {
   const lastUrlSignatureRef = useRef("");
   const loadedFavouriteWalletsRef = useRef(new Set<string>());
   const favouriteListsByWalletRef = useRef<Record<string, number[]>>({});
+  const shareCelebrationRef = useRef<{ pending: boolean; leftApp: boolean; fallbackTimer: number | null }>({
+    pending: false,
+    leftApp: false,
+    fallbackTimer: null,
+  });
   const { isMenuRoute, canGoBack, actions } = useMiniAppChrome("search");
   const selectedWarpletDetails = selectedWarpletDetailsStack.at(-1) ?? null;
 
@@ -4581,6 +4894,72 @@ export default function SearchApp() {
       }, (options.minMs ?? 5000) + TRADE_TOAST_EXTRA_MS);
     }
   }, []);
+
+  const clearShareCelebrationFallback = useCallback(() => {
+    if (shareCelebrationRef.current.fallbackTimer != null) {
+      window.clearTimeout(shareCelebrationRef.current.fallbackTimer);
+      shareCelebrationRef.current.fallbackTimer = null;
+    }
+  }, []);
+
+  const completeShareCelebration = useCallback(() => {
+    if (!shareCelebrationRef.current.pending) return;
+    shareCelebrationRef.current.pending = false;
+    shareCelebrationRef.current.leftApp = false;
+    clearShareCelebrationFallback();
+    void hapticSuccess();
+    showTradeConfetti();
+  }, [clearShareCelebrationFallback]);
+
+  const cancelShareCelebration = useCallback(() => {
+    shareCelebrationRef.current.pending = false;
+    shareCelebrationRef.current.leftApp = false;
+    clearShareCelebrationFallback();
+  }, [clearShareCelebrationFallback]);
+
+  const beginShareCelebrationWatch = useCallback(() => {
+    shareCelebrationRef.current.pending = true;
+    shareCelebrationRef.current.leftApp = document.visibilityState === "hidden";
+    clearShareCelebrationFallback();
+    shareCelebrationRef.current.fallbackTimer = window.setTimeout(() => {
+      if (shareCelebrationRef.current.pending && !shareCelebrationRef.current.leftApp) {
+        completeShareCelebration();
+      }
+    }, 2500);
+  }, [clearShareCelebrationFallback, completeShareCelebration]);
+
+  useEffect(() => {
+    const markLeftApp = () => {
+      if (shareCelebrationRef.current.pending) {
+        shareCelebrationRef.current.leftApp = true;
+      }
+    };
+    const maybeCelebrateReturn = () => {
+      if (shareCelebrationRef.current.pending && shareCelebrationRef.current.leftApp && document.visibilityState !== "hidden") {
+        completeShareCelebration();
+      }
+    };
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "hidden") {
+        markLeftApp();
+      } else {
+        maybeCelebrateReturn();
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("pagehide", markLeftApp);
+    window.addEventListener("pageshow", maybeCelebrateReturn);
+    window.addEventListener("focus", maybeCelebrateReturn);
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("pagehide", markLeftApp);
+      window.removeEventListener("pageshow", maybeCelebrateReturn);
+      window.removeEventListener("focus", maybeCelebrateReturn);
+      clearShareCelebrationFallback();
+    };
+  }, [clearShareCelebrationFallback, completeShareCelebration]);
 
   const updateSearchUrl = useCallback((state: SearchUrlState, mode: "push" | "replace") => {
     const signature = getSearchUrlSignature(state);
@@ -5540,13 +5919,25 @@ export default function SearchApp() {
     });
     shareState.warplet = tokenId;
     const shareUrl = buildSearchHref(shareState);
+    const openSeaUrl = getOpenSeaUrl(tokenId);
+    const text = `Check out 10X Warplet #${tokenId}`;
+    const links = [shareUrl, openSeaUrl];
     updateSearchUrl(shareState, "replace");
 
-    sdk.actions.composeCast({
-      text: `Check out 10X Warplet #${tokenId}`,
-      embeds: [shareUrl, getOpenSeaUrl(tokenId)],
-    }).catch((error) => {
-      console.error("Failed to compose Warplet share cast:", error);
+    setSharePreview({
+      title: `Share Warplet #${tokenId}`,
+      text,
+      links,
+      images: [
+        { src: getWarpletAssetUrl(tokenId, "gif"), alt: `10X Warplet #${tokenId} share image` },
+        {
+          src: getWarpletAssetUrl(tokenId, "gif"),
+          alt: `OpenSea 10X Warplet #${tokenId} share image`,
+          sourceUrl: openSeaUrl,
+        },
+      ],
+      farcasterEmbeds: [shareUrl, openSeaUrl],
+      twitterText: buildTwitterShareText(text, links),
     });
   }, [
     activeExampleSearch,
@@ -5588,12 +5979,22 @@ export default function SearchApp() {
       firstWarpletId,
       displayedTotalResults,
     );
+    const links = [shareUrl, OPENSEA_COLLECTION_URL];
 
-    sdk.actions.composeCast({
+    setSharePreview({
+      title: "Share Search Results",
       text: searchResultsShareTitle,
-      embeds: [shareUrl, OPENSEA_COLLECTION_URL],
-    }).catch((error) => {
-      console.error("Failed to compose search results share cast:", error);
+      links,
+      images: [
+        { src: getWarpletAssetUrl(firstWarpletId, "gif"), alt: `10X Warplet #${firstWarpletId} share image` },
+        {
+          src: "/menu/menu-opensea-10xwarplets.jpg",
+          alt: "10X Warplets OpenSea collection share image",
+          sourceUrl: OPENSEA_COLLECTION_URL,
+        },
+      ],
+      farcasterEmbeds: [shareUrl, OPENSEA_COLLECTION_URL],
+      twitterText: buildTwitterShareText(searchResultsShareTitle, links),
     });
   }, [
     activeExampleSearch,
@@ -5610,6 +6011,35 @@ export default function SearchApp() {
     orderDirection,
     userSelectedOrder,
   ]);
+
+  const handleSharePreviewFarcaster = useCallback(() => {
+    if (!sharePreview) return;
+    beginShareCelebrationWatch();
+    sdk.actions.composeCast({
+      text: sharePreview.text,
+      embeds: sharePreview.farcasterEmbeds,
+    })
+      .then(() => {
+        completeShareCelebration();
+      })
+      .catch((error) => {
+        cancelShareCelebration();
+        console.error("Failed to compose share cast:", error);
+      });
+  }, [beginShareCelebrationWatch, cancelShareCelebration, completeShareCelebration, sharePreview]);
+
+  const handleSharePreviewTwitter = useCallback(() => {
+    if (!sharePreview) return;
+    const intentUrl = `https://x.com/intent/post?${new URLSearchParams({
+      text: sharePreview.twitterText,
+      url: "",
+    }).toString()}`;
+    beginShareCelebrationWatch();
+    sdk.actions.openUrl(intentUrl).catch((error) => {
+      cancelShareCelebration();
+      console.error("Failed to open X share intent:", error);
+    });
+  }, [beginShareCelebrationWatch, cancelShareCelebration, sharePreview]);
 
   const handleSelectOrderBy = useCallback((nextOrderBy: OrderByOption) => {
     setUserSelectedOrder(true);
@@ -5766,6 +6196,13 @@ export default function SearchApp() {
     observer.observe(target);
     return () => observer.disconnect();
   }, [canLoadMore, hasActiveSearchOrFilter, isSearching, sortedResults.length, visibleCount]);
+
+  const handleReturnToTop = useCallback(() => {
+    void hapticPrimaryTap();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    document.documentElement.scrollTo({ top: 0, behavior: "smooth" });
+    document.body.scrollTo({ top: 0, behavior: "smooth" });
+  }, []);
 
   return (
     <MiniAppShell>
@@ -5977,6 +6414,19 @@ export default function SearchApp() {
                 </div>
 
                 <div ref={loadMoreRef} className="h-8" />
+                {!canLoadMore && displayedTotalResults > 0 && (
+                  <Text className="mt-2 text-center text-xs font-bold leading-5" style={{ color: "#8bbf8b" }}>
+                    No more warplets.{" "}
+                    <button
+                      type="button"
+                      onClick={handleReturnToTop}
+                      className="cursor-pointer font-bold text-[#00FF00] underline decoration-[#00FF00] underline-offset-2 hover:text-[#8bbf8b] hover:decoration-[#8bbf8b]"
+                    >
+                      Return to top
+                    </button>
+                    .
+                  </Text>
+                )}
               </div>
             )}
 
@@ -6020,6 +6470,15 @@ export default function SearchApp() {
           />
         );
       })}
+      {sharePreview && (
+        <SharePreviewModal
+          preview={sharePreview}
+          onClose={() => setSharePreview(null)}
+          onCopySuccess={() => showSearchToast("neutral", "Post has been copied to your clipboard.")}
+          onShareFarcaster={handleSharePreviewFarcaster}
+          onShareTwitter={handleSharePreviewTwitter}
+        />
+      )}
     </MiniAppShell>
   );
 }
