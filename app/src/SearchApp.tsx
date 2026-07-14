@@ -62,7 +62,7 @@ const DB_FILENAME = "/warplets-search.sqlite3";
 const SEARCH_DEBOUNCE_MS = 300;
 const STATUS_LINE_CLASS = "text-center text-xs uppercase leading-4";
 const OPENSEA_COLLECTION_URL = "https://opensea.io/collection/10xwarplets";
-const MARKET_CACHE_KEY = "warplets-market-state-v2";
+const MARKET_CACHE_KEY = "warplets-market-state-v3";
 const MARKET_SNAPSHOT_STALE_MS = 10 * 60 * 1000;
 const MARKET_DETAIL_STALE_MS = 30 * 60 * 1000;
 const MARKET_CACHE_MAX_STALE_MS = 60 * 60 * 1000;
@@ -1304,8 +1304,8 @@ const ORDER_OPTIONS: Array<{ value: OrderByOption; label: string }> = [
   { value: "relevance", label: "Relevance" },
   { value: "rarity", label: "Rarity" },
   { value: "price", label: "Price" },
-  { value: "offer", label: "Offer" },
-  { value: "sold", label: "Sold" },
+  { value: "offer", label: "Top Offer" },
+  { value: "sold", label: "Latest Sale" },
   { value: "recently-listed", label: "Recently listed" },
   { value: "recently-offered", label: "Recently offered" },
   { value: "recently-sold", label: "Recently sold" },
@@ -1335,6 +1335,63 @@ function getOrderMarketKind(orderBy: OrderByOption): MarketKind | null {
   if (orderBy === "price" || orderBy === "recently-listed") return "price";
   if (orderBy === "offer" || orderBy === "recently-offered") return "offer";
   if (orderBy === "sold" || orderBy === "recently-sold") return "sold";
+  return null;
+}
+
+function isMarketOnlyOrder(orderBy: OrderByOption): boolean {
+  return getOrderMarketKind(orderBy) !== null;
+}
+
+function getMarketOrderShareMeta(orderBy: OrderByOption, direction: OrderDirection): {
+  suffix: string;
+  openSeaUrl: string;
+} | null {
+  if (orderBy === "price") {
+    return {
+      suffix: " ordered by Price.",
+      openSeaUrl: direction === "desc"
+        ? `${OPENSEA_COLLECTION_URL}?sortDirection=desc`
+        : OPENSEA_COLLECTION_URL,
+    };
+  }
+  if (orderBy === "offer") {
+    return {
+      suffix: " ordered by Top Offer.",
+      openSeaUrl: direction === "desc"
+        ? `${OPENSEA_COLLECTION_URL}?sortDirection=desc&sortBy=top_offer`
+        : OPENSEA_COLLECTION_URL,
+    };
+  }
+  if (orderBy === "sold") {
+    return {
+      suffix: " ordered by Latest Sale.",
+      openSeaUrl: direction === "desc"
+        ? `${OPENSEA_COLLECTION_URL}?sortBy=last_sale&sortDirection=desc`
+        : `${OPENSEA_COLLECTION_URL}?sortBy=last_sale`,
+    };
+  }
+  if (orderBy === "recently-listed") {
+    return {
+      suffix: " ordered by Recently Listed.",
+      openSeaUrl: direction === "desc"
+        ? `${OPENSEA_COLLECTION_URL}?sortBy=listing_created_date&sortDirection=desc`
+        : OPENSEA_COLLECTION_URL,
+    };
+  }
+  if (orderBy === "recently-offered") {
+    return {
+      suffix: " ordered by Recently Offered.",
+      openSeaUrl: OPENSEA_COLLECTION_URL,
+    };
+  }
+  if (orderBy === "recently-sold") {
+    return {
+      suffix: " ordered by Recently Sold.",
+      openSeaUrl: direction === "desc"
+        ? `${OPENSEA_COLLECTION_URL}?sortBy=last_sale_date&sortDirection=desc`
+        : OPENSEA_COLLECTION_URL,
+    };
+  }
   return null;
 }
 
@@ -1722,6 +1779,16 @@ function getSortValue(
   if (orderBy === "recently-offered") return market.offer?.at ? Date.parse(market.offer.at) : null;
   if (orderBy === "recently-sold") return market.sale?.at ? Date.parse(market.sale.at) : null;
   return null;
+}
+
+function hasMarketOrderValue(
+  warplet: WarpletResult,
+  orderBy: OrderByOption,
+  snapshot: MarketSnapshot | null,
+): boolean {
+  if (!isMarketOnlyOrder(orderBy)) return true;
+  const value = getSortValue(warplet, orderBy, snapshot, undefined, []);
+  return value != null && Number.isFinite(value);
 }
 
 function getMarketTieBreakTimestamp(
@@ -5904,17 +5971,25 @@ export default function SearchApp() {
     : hasTypedQuery || hasActiveAttributeFilter || hasActiveLevelFilter
     ? "Search for Warplets..."
     : `${getRandomExampleDisplayLabel(activeExampleSearch)} Warplets...`;
-  const shouldPrependMatchedWarplet = Boolean(isExampleSearchMode && matchedWarpletCard);
+  const shouldPrependMatchedWarplet = Boolean(
+    isExampleSearchMode &&
+    matchedWarpletCard &&
+    hasMarketOrderValue(matchedWarpletCard.warplet, orderBy, marketSnapshot),
+  );
   const rankAttribute = selectedAttributes.length === 1 ? selectedAttributes[0] : undefined;
+  const marketFilteredResults = useMemo(
+    () => results.filter((warplet) => hasMarketOrderValue(warplet, orderBy, marketSnapshot)),
+    [marketSnapshot, orderBy, results],
+  );
   const sortedResults = useMemo(
-    () => sortWarplets(results, orderBy, orderDirection, marketSnapshot, rankAttribute, favouriteOrderTokenIds),
-    [favouriteOrderTokenIds, marketSnapshot, orderBy, orderDirection, rankAttribute, results],
+    () => sortWarplets(marketFilteredResults, orderBy, orderDirection, marketSnapshot, rankAttribute, favouriteOrderTokenIds),
+    [favouriteOrderTokenIds, marketFilteredResults, marketSnapshot, orderBy, orderDirection, rankAttribute],
   );
   const visibleResults = sortedResults.slice(0, visibleCount);
   const displayedResults = shouldPrependMatchedWarplet && matchedWarpletCard
     ? [matchedWarpletCard.warplet, ...visibleResults]
     : visibleResults;
-  const displayedTotalResults = totalResults + (shouldPrependMatchedWarplet ? 1 : 0);
+  const displayedTotalResults = marketFilteredResults.length + (shouldPrependMatchedWarplet ? 1 : 0);
   const canLoadMore = sortedResults.length > visibleCount;
   const hasActiveSearchOrFilter = Boolean(submittedQuery || hasTypedQuery || hasActiveAttributeFilter || hasActiveLevelFilter || hasActiveFavouriteFilter || isAllWarpletsSearchMode);
   const selectedAttributeLabel = selectedAttributes.length === 0
@@ -5939,9 +6014,11 @@ export default function SearchApp() {
     ? "My Favourite"
     : `${favouriteFilterOwnerLabel} Favourite`;
   const favouriteShareLabel = searchResultsShareLabel === "10X" ? "" : `${searchResultsShareLabel} `;
-  const searchResultsShareTitle = hasActiveFavouriteFilter
+  const marketOrderShareMeta = getMarketOrderShareMeta(orderBy, orderDirection);
+  const baseSearchResultsShareTitle = hasActiveFavouriteFilter
     ? `${favouriteSharePrefix} ${displayedTotalResults.toLocaleString("en-US")} ${isFavouriteOnlySearchState ? "" : favouriteShareLabel}Warplets...`
     : `${displayedTotalResults.toLocaleString("en-US")} ${searchResultsShareLabel} Warplets...`;
+  const searchResultsShareTitle = `${baseSearchResultsShareTitle}${marketOrderShareMeta?.suffix ?? ""}`;
   const showResetSearchControl = Boolean(hasTypedQuery || hasActiveAttributeFilter || hasActiveLevelFilter || hasActiveFavouriteFilter || userSelectedOrder);
 
   const handleToggleAttribute = (column: LevelAttributeColumn) => {
@@ -6260,7 +6337,8 @@ export default function SearchApp() {
       firstWarpletId,
       displayedTotalResults,
     );
-    const links = [shareUrl, OPENSEA_COLLECTION_URL];
+    const openSeaCollectionUrl = marketOrderShareMeta?.openSeaUrl ?? OPENSEA_COLLECTION_URL;
+    const links = [shareUrl, openSeaCollectionUrl];
 
     setSharePreview({
       title: "Share Search Results",
@@ -6271,10 +6349,10 @@ export default function SearchApp() {
         {
           src: "/menu/menu-opensea-10xwarplets.jpg",
           alt: "10X Warplets OpenSea collection share image",
-          sourceUrl: OPENSEA_COLLECTION_URL,
+          sourceUrl: openSeaCollectionUrl,
         },
       ],
-      farcasterEmbeds: [shareUrl, OPENSEA_COLLECTION_URL],
+      farcasterEmbeds: [shareUrl, openSeaCollectionUrl],
       twitterText: buildTwitterShareText(searchResultsShareTitle, links),
     });
   }, [
@@ -6283,6 +6361,7 @@ export default function SearchApp() {
     displayedTotalResults,
     favouriteFilterWallet,
     isAllWarpletsMode,
+    marketOrderShareMeta,
     query,
     searchResultsShareTitle,
     selectedAttributes,

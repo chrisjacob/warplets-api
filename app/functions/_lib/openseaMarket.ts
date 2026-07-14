@@ -786,7 +786,7 @@ function snapshotFromRows(
         source: "item",
       };
     }
-    if (row.sale_eth != null || row.sold_at || row.sale_raw_amount) {
+    if (row.sale_eth != null) {
       snapshot.sales[key] = {
         eth: row.sale_eth,
         at: row.sold_at,
@@ -813,6 +813,17 @@ function snapshotFromRows(
     }
   }
   return snapshot;
+}
+
+function sanitizeVisibleSales(value: unknown): MarketSnapshot["sales"] | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const sales: MarketSnapshot["sales"] = {};
+  for (const [tokenId, sale] of Object.entries(value as Record<string, Partial<MarketSnapshot["sales"][string]> | null>)) {
+    if (sale && typeof sale === "object" && sale.eth != null) {
+      sales[tokenId] = sale as MarketSnapshot["sales"][string];
+    }
+  }
+  return sales;
 }
 
 export async function loadMarketSnapshotFromD1(env: OpenSeaMarketEnv): Promise<MarketSnapshot> {
@@ -858,7 +869,8 @@ export async function loadMarketSnapshot(env: OpenSeaMarketEnv): Promise<MarketS
       kv.get(MARKET_SNAPSHOT_KEYS.sales, "json"),
       kv.get(MARKET_SNAPSHOT_KEYS.owners, "json"),
     ]);
-    if (manifest?.generatedAt && listings && offers && sales && owners) {
+    const visibleSales = sanitizeVisibleSales(sales);
+    if (manifest?.generatedAt && listings && offers && visibleSales && owners) {
       return {
         version: "opensea-market-v1",
         generatedAt: manifest.generatedAt,
@@ -866,7 +878,7 @@ export async function loadMarketSnapshot(env: OpenSeaMarketEnv): Promise<MarketS
         collection: (collection as MarketSnapshot["collection"] | null) ?? { floor: null, topOffer: null },
         listings: listings as MarketSnapshot["listings"],
         offers: offers as MarketSnapshot["offers"],
-        sales: sales as MarketSnapshot["sales"],
+        sales: visibleSales,
         owners: owners as MarketSnapshot["owners"],
       };
     }
@@ -1027,7 +1039,7 @@ export async function processSaleOrTransfer(
       patch.offer_token_address = null;
     }
   }
-  if (eventType === "sale") {
+  if (eventType === "sale" && price.eth != null) {
     patch.sale_eth = price.eth;
     patch.sold_at = normalizeTimestamp(row.event_timestamp ?? row.created_date ?? row.sold_at);
     patch.sale_tx_hash = asString(row.transaction) ?? asString(asObject(row.transaction)?.transaction_hash);
