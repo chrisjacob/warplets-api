@@ -23,6 +23,11 @@ import {
   type OpenSeaMarketEnv,
 } from "./openseaMarket.js";
 import { jsonSecure } from "./security.js";
+import {
+  deactivateActiveItemOffer,
+  recordWarpletActivity,
+  upsertActiveItemOffer,
+} from "./warpletNotifications.js";
 
 export type OpenSeaTradeEnv = OpenSeaMarketEnv;
 
@@ -534,6 +539,20 @@ function rawEthToDecimalAmount(rawAmount: string): string {
   return fractionText ? `${whole.toString()}.${fractionText}` : whole.toString();
 }
 
+function rawEthToNumber(rawAmount?: string | null): number | null {
+  if (!rawAmount) return null;
+  try {
+    const raw = BigInt(rawAmount);
+    const divisor = 10n ** 18n;
+    const whole = raw / divisor;
+    const fraction = raw % divisor;
+    const parsed = Number(`${whole.toString()}.${fraction.toString().padStart(18, "0").slice(0, 8)}`);
+    return Number.isFinite(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
 function assertPositiveRawAmount(rawAmount: string): string {
   try {
     if (BigInt(rawAmount) <= 0n) throw new Error("not positive");
@@ -815,6 +834,23 @@ export async function handleListingSubmit(context: Parameters<PagesFunction<Open
   const apiKey = requireOpenSeaApiKey(context.env);
   const payload = asObject(body.payload) ?? body;
   const result = await openSeaPost(apiKey, `/orders/${BASE_CHAIN}/${encodeURIComponent(protocol)}/listings`, payload);
+  const tokenId = asString(body.tokenId);
+  const wallet = normalizeAddress(body.wallet);
+  const priceRaw = asString(body.priceRaw);
+  if (tokenId && wallet && priceRaw) {
+    await recordWarpletActivity(context.env, {
+      eventType: "listed",
+      tokenId,
+      actorWallet: wallet,
+      actorFid: asNumber(body.fid),
+      amountEth: rawEthToNumber(priceRaw),
+      amountRaw: priceRaw,
+      currencySymbol: "ETH",
+      orderHash: asString(result.order_hash) ?? asString(result.orderHash),
+      source: "search:trade",
+      rawPayload: { actionId: asString(body.actionId), result },
+    }).catch((error) => console.error("Failed to record listing submit activity", error));
+  }
   return tradeJson({ status: "submitted", result });
 }
 
@@ -832,6 +868,33 @@ export async function handleOfferSubmit(context: Parameters<PagesFunction<OpenSe
       protocol_address: protocolAddress,
       signature,
     });
+    const tokenId = asString(body.tokenId);
+    const wallet = normalizeAddress(body.wallet);
+    const priceRaw = asString(body.priceRaw);
+    const orderHash = asString(result.order_hash) ?? asString(result.orderHash) ?? asString(body.orderHash);
+    if (tokenId && wallet && priceRaw) {
+      await upsertActiveItemOffer(context.env, {
+        orderHash,
+        tokenId,
+        offererWallet: wallet,
+        amountEth: rawEthToNumber(priceRaw),
+        amountRaw: priceRaw,
+        currencySymbol: "WETH",
+        protocolAddress,
+      }).catch((error) => console.error("Failed to upsert submitted item offer", error));
+      await recordWarpletActivity(context.env, {
+        eventType: "offered",
+        tokenId,
+        actorWallet: wallet,
+        actorFid: asNumber(body.fid),
+        amountEth: rawEthToNumber(priceRaw),
+        amountRaw: priceRaw,
+        currencySymbol: "WETH",
+        orderHash,
+        source: "search:trade",
+        rawPayload: { actionId: asString(body.actionId), result },
+      }).catch((error) => console.error("Failed to record offer submit activity", error));
+    }
     return tradeJson({ status: "submitted", result });
   }
   const protocolData = asObject(payload.protocol_data);
@@ -867,6 +930,11 @@ export async function handleCancelOrder(context: Parameters<PagesFunction<OpenSe
     orderHash,
     protocolAddress,
   });
+  if (actionName === "cancel_offer") {
+    await deactivateActiveItemOffer(context.env, orderHash).catch((error) =>
+      console.error("Failed to deactivate canceled offer", error),
+    );
+  }
   return tradeJson({ status: "submitted", result });
 }
 
@@ -911,5 +979,44 @@ export async function handleCancelPrepare(context: Parameters<PagesFunction<Open
 export async function handleTradeLog(context: Parameters<PagesFunction<OpenSeaTradeEnv>>[0]): Promise<Response> {
   const body = await context.request.json() as TradeActionLogInput;
   await logTradeAction(context.env, body);
+  if (body.phase === "confirmed") {
+    const actionName = asString(body.actionName);
+    const tokenId = asString(body.tokenId);
+    const walletFrom = normalizeAddress(body.walletFrom);
+    const walletTo = normalizeAddress(body.walletTo);
+    const priceRaw = asString(body.actualPriceRaw) ?? asString(body.expectedPriceRaw);
+    if (actionName === "buy" && tokenId && walletFrom && body.transactionHash) {
+      await recordWarpletActivity(context.env, {
+        eventType: "purchased",
+        tokenId,
+        actorWallet: walletFrom,
+        actorFid: body.fid ?? null,
+        counterpartyWallet: walletTo,
+        amountEth: rawEthToNumber(priceRaw),
+        amountRaw: priceRaw,
+        currencySymbol: "ETH",
+        orderHash: asString(body.orderHash),
+        transactionHash: asString(body.transactionHash),
+        source: "search:trade",
+        rawPayload: body.rawPayload ?? body,
+      }).catch((error) => console.error("Failed to record buy confirmation activity", error));
+    }
+    if (actionName === "accept_offer" && tokenId && walletFrom && body.transactionHash) {
+      await recordWarpletActivity(context.env, {
+        eventType: "sold",
+        tokenId,
+        actorWallet: walletFrom,
+        actorFid: body.fid ?? null,
+        counterpartyWallet: walletTo,
+        amountEth: rawEthToNumber(priceRaw),
+        amountRaw: priceRaw,
+        currencySymbol: "WETH",
+        orderHash: asString(body.orderHash),
+        transactionHash: asString(body.transactionHash),
+        source: "search:trade",
+        rawPayload: body.rawPayload ?? body,
+      }).catch((error) => console.error("Failed to record accept-offer confirmation activity", error));
+    }
+  }
   return tradeJson({ ok: true });
 }

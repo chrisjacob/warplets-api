@@ -4132,7 +4132,14 @@ function WarpletDetailsModal({
       const submit = await fetch("/api/warplet-trade/listing/submit", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ actionId, payload: signed.payload }),
+        body: JSON.stringify({
+          actionId,
+          fid: viewerFid,
+          tokenId: details.id,
+          wallet: account,
+          priceRaw,
+          payload: signed.payload,
+        }),
       });
       if (!submit.ok) {
         const failure = await submit.json().catch(() => ({})) as { message?: string };
@@ -4217,6 +4224,10 @@ function WarpletDetailsModal({
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           actionId,
+          fid: viewerFid,
+          tokenId: details.id,
+          wallet: account,
+          priceRaw,
           protocol: payload.protocol ?? "seaport",
           payload: {
             parameters: payload.parameters,
@@ -5145,6 +5156,11 @@ export default function SearchApp() {
   const [dbError, setDbError] = useState("");
   const [viewerFid, setViewerFid] = useState<number | null>(null);
   const [viewerProfile, setViewerProfile] = useState<ViewerProfile | null>(null);
+  const [showAddAppPrompt, setShowAddAppPrompt] = useState(false);
+  const [notificationsOnlyPrompt, setNotificationsOnlyPrompt] = useState(false);
+  const [pendingNotificationId, setPendingNotificationId] = useState<string | null>(null);
+  const [actionSessionToken, setActionSessionToken] = useState<string | null>(null);
+  const [notificationOpenSent, setNotificationOpenSent] = useState(false);
   const [matchedWarpletCard, setMatchedWarpletCard] = useState<MatchedWarpletCard | null>(null);
   const [query, setQuery] = useState("");
   const [isAllWarpletsMode, setIsAllWarpletsMode] = useState(false);
@@ -5386,6 +5402,48 @@ export default function SearchApp() {
                 ? user.pfp
                 : null,
         });
+
+        if (normalizedFid) {
+          fetch("/api/warplet-status", {
+            method: "POST",
+            headers: { "content-type": "application/json", accept: "application/json" },
+            body: JSON.stringify({ fid: normalizedFid }),
+          })
+            .then((response) => response.ok ? response.json() : null)
+            .then((payload: unknown) => {
+              const record = payload && typeof payload === "object" ? payload as { actionSessionToken?: unknown } : null;
+              if (typeof record?.actionSessionToken === "string") {
+                setActionSessionToken(record.actionSessionToken);
+              }
+            })
+            .catch((error) => console.warn("Search user status upsert failed:", error));
+        }
+
+        const location = (context as { location?: Record<string, unknown> }).location;
+        if (location?.type === "notification") {
+          const notificationId =
+            typeof location.notificationId === "string"
+              ? location.notificationId
+              : typeof location.notification_id === "string"
+                ? location.notification_id
+                : null;
+          if (notificationId) setPendingNotificationId(notificationId);
+        }
+
+        const client = (context as { client?: Record<string, unknown> }).client;
+        const host = window.location.hostname.toLowerCase();
+        const addDebug = new URLSearchParams(window.location.search).get("add") === "1";
+        const isPromptHost =
+          host === "search.10x.meme" ||
+          host === "search-dev.10x.meme" ||
+          host === "app.10x.meme";
+        const hasAdded = client?.added === true;
+        const hasNotifications = Boolean(client?.notificationDetails);
+        const shouldPromptAddApp = (isPromptHost || addDebug) && (!hasAdded || !hasNotifications);
+        if (shouldPromptAddApp) {
+          setNotificationsOnlyPrompt(hasAdded && !hasNotifications);
+          setShowAddAppPrompt(true);
+        }
       } catch (err) {
         console.error("Search app init error:", err);
         const message = err instanceof Error ? err.message : String(err);
@@ -5404,6 +5462,32 @@ export default function SearchApp() {
     };
 
     init();
+  }, []);
+
+  useEffect(() => {
+    if (!pendingNotificationId || !viewerFid || !actionSessionToken || notificationOpenSent) return;
+    setNotificationOpenSent(true);
+    fetch("/api/notifications/open", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        notificationId: pendingNotificationId,
+        fid: viewerFid,
+        appSlug: "search",
+        sessionToken: actionSessionToken,
+      }),
+    }).catch((error) => console.warn("Failed to record notification open:", error));
+  }, [actionSessionToken, notificationOpenSent, pendingNotificationId, viewerFid]);
+
+  const handleConfirmAddAppPrompt = useCallback(async () => {
+    try {
+      void hapticPrimaryTap();
+      await sdk.actions.addMiniApp();
+    } catch (error) {
+      console.warn("Search add mini app prompt failed:", error);
+    } finally {
+      setShowAddAppPrompt(false);
+    }
   }, []);
 
   const refreshMarketSnapshot = useCallback(async (force = false) => {
@@ -6571,6 +6655,39 @@ export default function SearchApp() {
     <MiniAppShell>
       {searchToast && (
         <TradeToastView toast={searchToast} exiting={searchToastExiting} onClose={closeSearchToast} />
+      )}
+      {showAddAppPrompt && (
+        <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/80 p-4 sm:items-center">
+          <div className="w-full max-w-md rounded-2xl border border-[#00FF00]/35 bg-black p-4 shadow-2xl">
+            <Text className="text-lg font-bold" style={{ color: "#00FF00" }}>
+              Welcome to 10X Warplets
+            </Text>
+            <Text className="mt-3 text-sm leading-relaxed" style={{ color: "#8bbf8b" }}>
+              {notificationsOnlyPrompt
+                ? "Please turn on notifications so you don’t miss important Warplet market updates."
+                : "Please add this Mini App and enable notifications so you don’t miss important Warplet market updates."}
+            </Text>
+            <div className="mt-4 flex gap-3">
+              <button
+                type="button"
+                onClick={handleConfirmAddAppPrompt}
+                className="flex-1 rounded-full border-b-8 border-r-8 border-[#005000] bg-[#00FF00] px-4 py-3 text-center text-sm font-bold text-[rgb(0,80,0)] transition active:translate-x-1 active:translate-y-1 active:border-b-4 active:border-r-4"
+              >
+                {notificationsOnlyPrompt ? "Turn on notifications" : "Add Mini App"}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  void hapticTap();
+                  setShowAddAppPrompt(false);
+                }}
+                className="rounded-full border border-[#00FF00]/35 px-4 py-3 text-sm font-bold text-[#00FF00] transition hover:border-[#00FF00]"
+              >
+                Later
+              </button>
+            </div>
+          </div>
+        </div>
       )}
       <div className="relative z-10 w-full">
         <MiniAppHeader

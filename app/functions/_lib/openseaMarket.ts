@@ -1,4 +1,9 @@
 import { jsonSecure, rateLimit } from "./security.js";
+import {
+  deactivateActiveItemOffer,
+  recordWarpletActivity,
+  upsertActiveItemOffer,
+} from "./warpletNotifications.js";
 
 export interface OpenSeaMarketEnv {
   WARPLETS: D1Database;
@@ -911,26 +916,43 @@ export async function processListing(env: OpenSeaMarketEnv, row: Record<string, 
   if (!tokenId) return false;
   const price = getPrice(row, "consideration");
   const rowListedAt = getOrderCreatedAt(row);
-  const existing = rowListedAt
-    ? null
-    : await env.WARPLETS.prepare("SELECT listed_at FROM warplet_market_state WHERE token_id = ?")
+  const orderHash = asString(row.order_hash);
+  const sellerWallet = getMakerAddress(row);
+  const existing = await env.WARPLETS.prepare(
+    "SELECT listed_at, listing_order_hash FROM warplet_market_state WHERE token_id = ?",
+  )
       .bind(tokenId)
-      .first<{ listed_at: string | null }>()
+      .first<{ listed_at: string | null; listing_order_hash: string | null }>()
       .catch(() => null);
   const listedAt = rowListedAt ?? existing?.listed_at ?? new Date().toISOString();
-  return upsertMarketStateIfChanged(env.WARPLETS, {
+  const changed = await upsertMarketStateIfChanged(env.WARPLETS, {
     token_id: tokenId,
     listing_eth: price.eth,
     listed_at: listedAt,
-    listing_order_hash: asString(row.order_hash),
+    listing_order_hash: orderHash,
     listing_protocol_address: normalizeAddress(row.protocol_address ?? asObject(row.protocol_data)?.address),
-    listing_seller_wallet: getMakerAddress(row),
+    listing_seller_wallet: sellerWallet,
     listing_raw_amount: price.rawAmount,
     listing_decimals: price.decimals,
     listing_currency_symbol: price.symbol,
     listing_token_address: price.tokenAddress,
     opensea_updated_at: new Date().toISOString(),
   });
+  if (changed && existing && existing.listing_order_hash !== orderHash && price.eth != null) {
+    await recordWarpletActivity(env, {
+      eventType: "listed",
+      tokenId,
+      actorWallet: sellerWallet,
+      amountEth: price.eth,
+      amountRaw: price.rawAmount,
+      currencySymbol: price.symbol,
+      orderHash,
+      occurredAt: listedAt,
+      source: "opensea:ingest",
+      rawPayload: row,
+    }).catch((error) => console.error("Failed to record listing activity", error));
+  }
+  return changed;
 }
 
 export async function processOffer(env: OpenSeaMarketEnv, row: Record<string, unknown>): Promise<boolean> {
@@ -938,25 +960,56 @@ export async function processOffer(env: OpenSeaMarketEnv, row: Record<string, un
   if (!tokenId) return false;
   const price = getPrice(row, "offer");
   const rowOfferedAt = getOrderCreatedAt(row);
-  const existing = rowOfferedAt
-    ? null
-    : await env.WARPLETS.prepare("SELECT offered_at FROM warplet_market_state WHERE token_id = ?")
+  const orderHash = asString(row.order_hash);
+  const offererWallet = getMakerAddress(row);
+  const protocolAddress = normalizeAddress(row.protocol_address ?? asObject(row.protocol_data)?.address);
+  const existing = await env.WARPLETS.prepare(
+    "SELECT offered_at, offer_order_hash FROM warplet_market_state WHERE token_id = ?",
+  )
       .bind(tokenId)
-      .first<{ offered_at: string | null }>()
+      .first<{ offered_at: string | null; offer_order_hash: string | null }>()
       .catch(() => null);
-  return upsertMarketStateIfChanged(env.WARPLETS, {
+  const offeredAt = rowOfferedAt ?? existing?.offered_at ?? new Date().toISOString();
+  const changed = await upsertMarketStateIfChanged(env.WARPLETS, {
     token_id: tokenId,
     offer_eth: price.eth,
-    offered_at: rowOfferedAt ?? existing?.offered_at ?? new Date().toISOString(),
-    offer_order_hash: asString(row.order_hash),
-    offer_protocol_address: normalizeAddress(row.protocol_address ?? asObject(row.protocol_data)?.address),
-    offerer_wallet: getMakerAddress(row),
+    offered_at: offeredAt,
+    offer_order_hash: orderHash,
+    offer_protocol_address: protocolAddress,
+    offerer_wallet: offererWallet,
     offer_raw_amount: price.rawAmount,
     offer_decimals: price.decimals,
     offer_currency_symbol: price.symbol,
     offer_token_address: price.tokenAddress,
     opensea_updated_at: new Date().toISOString(),
   });
+  if (orderHash) {
+    await upsertActiveItemOffer(env, {
+      orderHash,
+      tokenId,
+      offererWallet,
+      amountEth: price.eth,
+      amountRaw: price.rawAmount,
+      currencySymbol: price.symbol,
+      protocolAddress,
+      createdAt: offeredAt,
+    }).catch((error) => console.error("Failed to upsert active item offer", error));
+  }
+  if (changed && existing && existing.offer_order_hash !== orderHash && price.eth != null) {
+    await recordWarpletActivity(env, {
+      eventType: "offered",
+      tokenId,
+      actorWallet: offererWallet,
+      amountEth: price.eth,
+      amountRaw: price.rawAmount,
+      currencySymbol: price.symbol,
+      orderHash,
+      occurredAt: offeredAt,
+      source: "opensea:ingest",
+      rawPayload: row,
+    }).catch((error) => console.error("Failed to record offer activity", error));
+  }
+  return changed;
 }
 
 export async function clearTokenMarketSide(
@@ -965,6 +1018,19 @@ export async function clearTokenMarketSide(
   side: "listing" | "offer",
 ): Promise<boolean> {
   const now = new Date().toISOString();
+  if (side === "offer") {
+    const previousOffer = await env.WARPLETS.prepare(
+      "SELECT offer_order_hash FROM warplet_market_state WHERE token_id = ?",
+    )
+      .bind(tokenId)
+      .first<{ offer_order_hash: string | null }>()
+      .catch(() => null);
+    if (previousOffer?.offer_order_hash) {
+      await deactivateActiveItemOffer(env, previousOffer.offer_order_hash).catch((error) =>
+        console.error("Failed to deactivate inactive item offer", error),
+      );
+    }
+  }
   if (side === "listing") {
     return upsertMarketStateIfChanged(env.WARPLETS, {
       token_id: tokenId,
@@ -1010,6 +1076,12 @@ export async function processSaleOrTransfer(
   const checkedAt = new Date().toISOString();
   const ownerWallet = buyer;
   const ownerFid = ownerWallet ? await selectPreferredFidForWallet(env, ownerWallet) : null;
+  const existing = await env.WARPLETS.prepare(
+    "SELECT owner_wallet, owner_fid, sale_tx_hash FROM warplet_market_state WHERE token_id = ?",
+  )
+    .bind(tokenId)
+    .first<{ owner_wallet: string | null; owner_fid: number | null; sale_tx_hash: string | null }>()
+    .catch(() => null);
   const patch: MarketPatch = {
     token_id: tokenId,
     opensea_updated_at: checkedAt,
@@ -1049,7 +1121,44 @@ export async function processSaleOrTransfer(
     patch.sale_currency_symbol = price.symbol;
     patch.sale_token_address = price.tokenAddress;
   }
-  return upsertMarketStateIfChanged(env.WARPLETS, patch);
+  const changed = await upsertMarketStateIfChanged(env.WARPLETS, patch);
+  if (eventType === "sale" && price.eth != null && patch.sale_tx_hash && existing?.sale_tx_hash !== patch.sale_tx_hash) {
+    const previousOwnerWallet = seller ?? existing?.owner_wallet ?? null;
+    const previousOwnerFid = existing?.owner_fid ?? (previousOwnerWallet ? await selectPreferredFidForWallet(env, previousOwnerWallet) : null);
+    await recordWarpletActivity(env, {
+      eventType: "purchased",
+      tokenId,
+      actorWallet: buyer,
+      ownerWallet: previousOwnerWallet,
+      ownerFid: previousOwnerFid,
+      counterpartyWallet: previousOwnerWallet,
+      amountEth: price.eth,
+      amountRaw: price.rawAmount,
+      currencySymbol: price.symbol,
+      transactionHash: patch.sale_tx_hash,
+      occurredAt: patch.sold_at,
+      source: "opensea:ingest",
+      rawPayload: row,
+    }).catch((error) => console.error("Failed to record purchase activity", error));
+    await recordWarpletActivity(env, {
+      eventType: "sold",
+      tokenId,
+      actorWallet: previousOwnerWallet,
+      actorFid: previousOwnerFid,
+      ownerWallet: previousOwnerWallet,
+      ownerFid: previousOwnerFid,
+      counterpartyWallet: buyer,
+      counterpartyFid: ownerFid,
+      amountEth: price.eth,
+      amountRaw: price.rawAmount,
+      currencySymbol: price.symbol,
+      transactionHash: patch.sale_tx_hash,
+      occurredAt: patch.sold_at,
+      source: "opensea:ingest",
+      rawPayload: row,
+    }).catch((error) => console.error("Failed to record sale activity", error));
+  }
+  return changed;
 }
 
 async function ingestPaginated(
@@ -1237,6 +1346,15 @@ async function refreshCollectionMarketState(env: OpenSeaMarketEnv, apiKey: strin
     }, null);
 
     if (best) {
+      const previous = await env.WARPLETS.prepare(
+        "SELECT top_offer_order_hash FROM opensea_collection_market_state WHERE collection_slug = ? LIMIT 1",
+      )
+        .bind(COLLECTION_SLUG)
+        .first<{ top_offer_order_hash: string | null }>()
+        .catch(() => null);
+      const orderHash = asString(best.row.order_hash);
+      const offererWallet = getMakerAddress(best.row);
+      const createdAt = getOrderCreatedAt(best.row) ?? now;
       if (await upsertCollectionMarketStateIfChanged(env.WARPLETS, {
         collection_slug: COLLECTION_SLUG,
         top_offer_eth: best.price.eth,
@@ -1244,13 +1362,26 @@ async function refreshCollectionMarketState(env: OpenSeaMarketEnv, apiKey: strin
         top_offer_decimals: best.price.decimals,
         top_offer_currency_symbol: best.price.symbol,
         top_offer_token_address: best.price.tokenAddress,
-        top_offer_order_hash: asString(best.row.order_hash),
+        top_offer_order_hash: orderHash,
         top_offer_protocol_address: normalizeAddress(best.row.protocol_address ?? asObject(best.row.protocol_data)?.address),
-        top_offerer_wallet: getMakerAddress(best.row),
-        top_offer_created_at: getOrderCreatedAt(best.row) ?? now,
+        top_offerer_wallet: offererWallet,
+        top_offer_created_at: createdAt,
         top_offer_updated_at: now,
       })) {
         changed += 1;
+        if (previous && previous.top_offer_order_hash !== orderHash && best.price.eth != null) {
+          await recordWarpletActivity(env, {
+            eventType: "collection_top_offer",
+            actorWallet: offererWallet,
+            amountEth: best.price.eth,
+            amountRaw: best.price.rawAmount,
+            currencySymbol: best.price.symbol,
+            orderHash,
+            occurredAt: createdAt,
+            source: "opensea:ingest",
+            rawPayload: best.row,
+          }).catch((error) => console.error("Failed to record collection offer activity", error));
+        }
       }
     } else if (await upsertCollectionMarketStateIfChanged(env.WARPLETS, {
       collection_slug: COLLECTION_SLUG,

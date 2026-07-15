@@ -1,7 +1,9 @@
 import { jsonSecure, parseObjectPayload, readJsonBodyWithLimit } from "../_lib/security.js";
+import { recordWarpletActivity } from "../_lib/warpletNotifications.js";
 
 interface Env {
   WARPLETS: D1Database;
+  WARPLETS_KV?: KVNamespace;
 }
 
 interface FavouritesPayload {
@@ -71,6 +73,10 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
   const tokenIds = normalizeTokenIds(payload.payload.tokenIds);
   if (!tokenIds) return jsonSecure({ error: "valid tokenIds are required" }, { status: 400 });
 
+  const previousTokenIds = await loadFavouriteTokenIds(context.env.WARPLETS, wallet);
+  const previous = new Set(previousTokenIds);
+  const addedTokenIds = tokenIds.filter((tokenId) => !previous.has(tokenId));
+
   await context.env.WARPLETS
     .prepare(
       `INSERT INTO warplet_favourites (wallet, token_ids)
@@ -79,6 +85,19 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
     )
     .bind(wallet, JSON.stringify(tokenIds))
     .run();
+
+  await Promise.all(
+    addedTokenIds.map((tokenId) =>
+      recordWarpletActivity(context.env, {
+        eventType: "favourited",
+        tokenId,
+        actorWallet: wallet,
+        eventKey: `search:favourited:${wallet}:${tokenId}`,
+        source: "search:favourites",
+        rawPayload: { wallet, tokenId },
+      }),
+    ),
+  );
 
   return jsonSecure({ wallet, tokenIds });
 };

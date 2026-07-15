@@ -14,6 +14,8 @@ const DROP_ICON_URL = "https://drop.10x.meme/icon_drop.png";
 const DROP_SPLASH_URL = "https://drop.10x.meme/splash_drop.png";
 const DROP_EMBED_URL = "https://drop.10x.meme/embed_drop.png";
 const DROP_HERO_URL = "https://drop.10x.meme/hero_drop.png";
+const SEARCH_SHARE_TITLE = "10X Warplets Search";
+const SEARCH_SHARE_DESCRIPTION = "Search, filter, trade, favourite, and share 10X Warplets.";
 const STOP_SHARE_TITLE = "@Mention Settings";
 const STOP_SHARE_DESCRIPTION = "Opt out of 10X outreach mentions in the Farcaster Mini App.";
 const STOP_IMAGE_URL = "https://warplets.10x.meme/3081.png";
@@ -32,6 +34,8 @@ const DROP_ASSOCIATION = {
   payload: "eyJkb21haW4iOiJkcm9wLjEweC5tZW1lIn0",
   signature: "EYVGQ7agQ+KoXvdu9vu4zsrEXk97yRwrMIeeVr9DqW11L748hmLKwCRMLL91N8nFOZRPQHr4dcQ52HM0Ds9yixw=",
 };
+
+const SEARCH_ASSOCIATION = APP_ASSOCIATION;
 
 function buildFarcasterManifest(hostname: string) {
   if (hostname === "drop.10x.meme" || hostname === "drop-dev.10x.meme") {
@@ -63,6 +67,39 @@ function buildFarcasterManifest(hostname: string) {
         ogTitle: DROP_SHARE_TITLE,
         ogDescription: DROP_SHARE_DESCRIPTION,
         ogImageUrl: DEFAULT_DROP_SHARE_IMAGE_URL,
+      },
+    };
+  }
+
+  if (hostname === "search.10x.meme" || hostname === "search-dev.10x.meme") {
+    return {
+      accountAssociation: SEARCH_ASSOCIATION,
+      miniapp: {
+        version: "1",
+        name: "10X Warplets Search",
+        canonicalDomain: hostname,
+        homeUrl: `https://${hostname}`,
+        iconUrl: `https://${hostname}/icon.png`,
+        imageUrl: `https://${hostname}/embed.png`,
+        heroImageUrl: `https://${hostname}/hero.png`,
+        buttonTitle: "Search Warplets",
+        splashImageUrl: `https://${hostname}/splash.png`,
+        splashBackgroundColor: "#000000",
+        webhookUrl: "https://app.10x.meme/webhook/search",
+        castShareUrl: `https://${hostname}`,
+        subtitle: "Find your Warplet.",
+        description: SEARCH_SHARE_DESCRIPTION,
+        primaryCategory: "social",
+        screenshotUrls: [
+          `https://${hostname}/screenshots/1.jpg`,
+          `https://${hostname}/screenshots/2.jpg`,
+          `https://${hostname}/screenshots/3.jpg`,
+        ],
+        tags: ["10x", "warplets", "farcaster", "nft", "search"],
+        tagline: "Take the green pill.",
+        ogTitle: SEARCH_SHARE_TITLE,
+        ogDescription: SEARCH_SHARE_DESCRIPTION,
+        ogImageUrl: `https://${hostname}/embed.png`,
       },
     };
   }
