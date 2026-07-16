@@ -4,7 +4,7 @@
  * Upserts the viewer into warplets_users (with optional Neynar enrichment)
  * and returns whether they are matched to a Warplet allocation.
  *
- * Body: { fid: number }
+ * Body: { fid: number, appSlug?: "search", searchCompletion?: "onboarding" | "airdrop_modal" }
  */
 
 interface Env {
@@ -19,6 +19,8 @@ import { outboundFetch } from "../_lib/outbound.js";
 interface RequestBody {
   fid?: unknown;
   referrerFid?: unknown;
+  appSlug?: unknown;
+  searchCompletion?: unknown;
 }
 
 type RecentBuyer = {
@@ -55,6 +57,8 @@ type TopReferrer = {
   pfpUrl: string;
   referrals: number;
 };
+
+type SearchCompletion = "onboarding" | "airdrop_modal";
 
 type NeynarUserRecord = {
   username?: string;
@@ -137,6 +141,15 @@ async function getWarpletsUsersColumnSet(db: D1Database): Promise<Set<string>> {
 async function hasWarpletsUsersColumn(db: D1Database, name: string): Promise<boolean> {
   const cols = await getWarpletsUsersColumnSet(db);
   return cols.has(name);
+}
+
+function normalizeAppSlug(value: unknown): string | null {
+  return typeof value === "string" && value.trim().length > 0 ? value.trim().toLowerCase() : null;
+}
+
+function normalizeSearchCompletion(value: unknown): SearchCompletion | null {
+  if (value === "onboarding" || value === "airdrop_modal") return value;
+  return null;
 }
 
 function normalizeAndRankBuyers(rows: Array<{ fid: unknown; pfp_url: unknown; score: unknown }>): RecentBuyer[] {
@@ -1044,6 +1057,11 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     if (!fid || fid <= 0) {
       return jsonSecure({ error: "fid is required" }, { status: 400 });
     }
+    const appSlug = normalizeAppSlug(body.appSlug);
+    const searchCompletion = normalizeSearchCompletion(body.searchCompletion);
+    if (body.searchCompletion !== undefined && (appSlug !== "search" || !searchCompletion)) {
+      return jsonSecure({ error: "Invalid search completion payload" }, { status: 400 });
+    }
     const requestedReferrerFid = typeof body.referrerFid === "number" && Number.isInteger(body.referrerFid)
       ? body.referrerFid
       : null;
@@ -1053,6 +1071,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     const hasReferralsCount = await hasWarpletsUsersColumn(context.env.WARPLETS, "referrals_count");
     const hasBuyTransactionId = await hasWarpletsUsersColumn(context.env.WARPLETS, "buy_transaction_id");
     const hasTransactionError = await hasWarpletsUsersColumn(context.env.WARPLETS, "transaction_error");
+    const hasSearchOnboardingCompletedAt = await hasWarpletsUsersColumn(context.env.WARPLETS, "search_onboarding_completed_at");
+    const hasSearchAirdropModalCompletedAt = await hasWarpletsUsersColumn(context.env.WARPLETS, "search_airdrop_modal_completed_at");
     if (requestedReferrerFid && requestedReferrerFid > 0 && requestedReferrerFid !== fid) {
       const referrer = await context.env.WARPLETS.prepare(
         "SELECT fid FROM warplets_users WHERE fid = ? LIMIT 1"
@@ -1078,6 +1098,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       hasReferralsCount ? "referrals_count" : "0 AS referrals_count",
       hasBuyTransactionId ? "buy_transaction_id" : "NULL AS buy_transaction_id",
       hasTransactionError ? "transaction_error" : "NULL AS transaction_error",
+      hasSearchOnboardingCompletedAt ? "search_onboarding_completed_at" : "NULL AS search_onboarding_completed_at",
+      hasSearchAirdropModalCompletedAt ? "search_airdrop_modal_completed_at" : "NULL AS search_airdrop_modal_completed_at",
     ].join(", ");
     const existing = await context.env.WARPLETS.prepare(
       `SELECT ${existingSelect} FROM warplets_users WHERE fid = ? LIMIT 1`
@@ -1097,6 +1119,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         referrals_count: number | null;
         buy_transaction_id: string | null;
         transaction_error: string | null;
+        search_onboarding_completed_at: string | null;
+        search_airdrop_modal_completed_at: string | null;
       }>();
 
     let rarityValue: number | null = null;
@@ -1142,6 +1166,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     if (!existing) {
       const neynarUser = await fetchNeynarUserByFid(fid, context.env.NEYNAR_API_KEY);
       const now = new Date().toISOString();
+      const initialSearchOnboardingCompletedAt = searchCompletion === "onboarding" ? now : null;
+      const initialSearchAirdropModalCompletedAt = searchCompletion === "airdrop_modal" ? now : null;
       const insertColumns = [
         "fid, username, display_name, pfp_url, registered_at, pro_status, profile_bio_text, ",
         "follower_count, following_count, primary_eth_address, primary_sol_address, x_username, ",
@@ -1149,9 +1175,18 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         hasBestFriendsWarpletsOn ? ", best_friends_warplets_on" : "",
         hasReferrerFid ? ", referrer_fid" : "",
         hasReferralsCount ? ", referrals_count" : "",
+        hasSearchOnboardingCompletedAt ? ", search_onboarding_completed_at" : "",
+        hasSearchAirdropModalCompletedAt ? ", search_airdrop_modal_completed_at" : "",
         ", created_on, updated_on",
       ].join("");
-      const placeholderCount = 20 + (hasBestFriendsWarpletsOn ? 1 : 0) + (hasReferrerFid ? 1 : 0) + (hasReferralsCount ? 1 : 0) + 2;
+      const placeholderCount =
+        20 +
+        (hasBestFriendsWarpletsOn ? 1 : 0) +
+        (hasReferrerFid ? 1 : 0) +
+        (hasReferralsCount ? 1 : 0) +
+        (hasSearchOnboardingCompletedAt ? 1 : 0) +
+        (hasSearchAirdropModalCompletedAt ? 1 : 0) +
+        2;
       const placeholders = new Array(placeholderCount).fill("?").join(", ");
       const insertValues: Array<unknown> = [
         fid,
@@ -1178,6 +1213,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       if (hasBestFriendsWarpletsOn) insertValues.push(null);
       if (hasReferrerFid) insertValues.push(validReferrerFid);
       if (hasReferralsCount) insertValues.push(0);
+      if (hasSearchOnboardingCompletedAt) insertValues.push(initialSearchOnboardingCompletedAt);
+      if (hasSearchAirdropModalCompletedAt) insertValues.push(initialSearchAirdropModalCompletedAt);
       insertValues.push(now, now);
 
       await context.env.WARPLETS.prepare(
@@ -1246,6 +1283,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         topReferrers,
         actionSessionToken,
         completedActionsCount: 0,
+        searchOnboardingCompletedAt: hasSearchOnboardingCompletedAt ? initialSearchOnboardingCompletedAt : null,
+        searchAirdropModalCompletedAt: hasSearchAirdropModalCompletedAt ? initialSearchAirdropModalCompletedAt : null,
       });
     }
 
@@ -1342,6 +1381,28 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       logEnrichmentError("post_existing_user_friends_outreach", error, { fid, userId: existing.id, hostname });
     }
 
+    let searchOnboardingCompletedAt = existing.search_onboarding_completed_at;
+    let searchAirdropModalCompletedAt = existing.search_airdrop_modal_completed_at;
+    if (appSlug === "search" && searchCompletion) {
+      const now = new Date().toISOString();
+      if (searchCompletion === "onboarding" && hasSearchOnboardingCompletedAt) {
+        await context.env.WARPLETS.prepare(
+          "UPDATE warplets_users SET search_onboarding_completed_at = COALESCE(search_onboarding_completed_at, ?), updated_on = ? WHERE id = ?"
+        )
+          .bind(now, now, existing.id)
+          .run();
+        searchOnboardingCompletedAt = searchOnboardingCompletedAt ?? now;
+      }
+      if (searchCompletion === "airdrop_modal" && hasSearchAirdropModalCompletedAt) {
+        await context.env.WARPLETS.prepare(
+          "UPDATE warplets_users SET search_airdrop_modal_completed_at = COALESCE(search_airdrop_modal_completed_at, ?), updated_on = ? WHERE id = ?"
+        )
+          .bind(now, now, existing.id)
+          .run();
+        searchAirdropModalCompletedAt = searchAirdropModalCompletedAt ?? now;
+      }
+    }
+
     const completedActionsRow = await context.env.WARPLETS.prepare(
       `SELECT COUNT(DISTINCT action_slug) AS completed_actions
        FROM actions_completed
@@ -1369,6 +1430,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       topReferrers,
       actionSessionToken,
       completedActionsCount,
+      searchOnboardingCompletedAt: hasSearchOnboardingCompletedAt ? searchOnboardingCompletedAt : null,
+      searchAirdropModalCompletedAt: hasSearchAirdropModalCompletedAt ? searchAirdropModalCompletedAt : null,
     });
   } catch (error) {
     console.error("warplet-status POST failed:", error);
@@ -1389,6 +1452,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       topReferrers: [],
       actionSessionToken: null,
       completedActionsCount: 0,
+      searchOnboardingCompletedAt: null,
+      searchAirdropModalCompletedAt: null,
     });
   }
 };

@@ -88,6 +88,8 @@ const DATABASE_LOADING_DELETE_MS = 250;
 const DATABASE_LOADING_MESSAGE_INTERVAL_MS = 3000;
 const DATABASE_LOADING_ANIMATION_TICK_MS = 50;
 const ONBOARDING_COMPLETE_KEY = "warplets-search-onboarding-v1-complete";
+const AIRDROP_CONGRATULATIONS_COMPLETE_KEY = "warplets-search-airdrop-v1-complete";
+const RANDOM_EXAMPLE_SEARCHES_SEEN_KEY = "warplets-search-random-seen-v1";
 const SEARCH_DEBOUNCE_MS = 300;
 const STATUS_LINE_CLASS = "text-center text-xs uppercase leading-4";
 const OPENSEA_COLLECTION_URL = "https://opensea.io/collection/10xwarplets";
@@ -99,6 +101,15 @@ const BASE_WETH_TOKEN_ADDRESS = "0x4200000000000000000000000000000000000006";
 const NATIVE_TOKEN_ADDRESS = "0x0000000000000000000000000000000000000000";
 const MIN_LISTING_ETH = 0.00000000000001;
 const TRADE_PRICE_DECIMAL_PLACES = 4;
+const FORCED_AIRDROP_FALLBACK_TOKEN_ID = 5019;
+
+type SearchCompletion = "onboarding" | "airdrop_modal";
+
+type SearchStatusPayload = {
+  actionSessionToken?: unknown;
+  searchOnboardingCompletedAt?: unknown;
+  searchAirdropModalCompletedAt?: unknown;
+};
 
 function getDatabaseLoadingMessage(elapsedMs: number): string {
   const cycleNumber = Math.floor(elapsedMs / DATABASE_LOADING_MESSAGE_INTERVAL_MS);
@@ -122,15 +133,36 @@ function isOnboardingForced(): boolean {
   return new URLSearchParams(window.location.search).get("onboarding") === "1";
 }
 
+function isAirdropForced(): boolean {
+  if (typeof window === "undefined") return false;
+  return new URLSearchParams(window.location.search).get("airdrop") === "1";
+}
+
 function readOnboardingComplete(): boolean {
   if (typeof window === "undefined") return false;
   if (isOnboardingForced()) return false;
+  if (isAirdropForced()) return true;
   return window.localStorage.getItem(ONBOARDING_COMPLETE_KEY) === "1";
 }
 
 function writeOnboardingComplete(): void {
   if (typeof window === "undefined") return;
   window.localStorage.setItem(ONBOARDING_COMPLETE_KEY, "1");
+}
+
+function readAirdropCongratulationsComplete(): boolean {
+  if (typeof window === "undefined") return false;
+  if (isAirdropForced()) return false;
+  return window.localStorage.getItem(AIRDROP_CONGRATULATIONS_COMPLETE_KEY) === "1";
+}
+
+function writeAirdropCongratulationsComplete(): void {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(AIRDROP_CONGRATULATIONS_COMPLETE_KEY, "1");
+}
+
+function isCompletedAt(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0;
 }
 
 const EXAMPLE_SEARCHES = [
@@ -495,6 +527,8 @@ const EXAMPLE_SEARCHES = [
   "Red Bandana",
   "Yellow T-Shirt",
 ] as const;
+const RANDOM_EXAMPLE_SEARCH_POOL = Array.from(new Set<string>(EXAMPLE_SEARCHES));
+const RANDOM_EXAMPLE_SEARCH_POOL_SET = new Set<string>(RANDOM_EXAMPLE_SEARCH_POOL);
 
 const LEVEL_ATTRIBUTES = [
   { label: "Cast", column: "cast_level", emoji: "✏️" },
@@ -857,6 +891,10 @@ type SharePreviewState = {
   twitterText: string;
 };
 
+function getInitialSharePreviewImages(images: SharePreviewImage[]): SharePreviewImage[] {
+  return images.map((image) => image.sourceUrl ? { ...image, isLoading: true } : image);
+}
+
 function buildTwitterShareText(text: string, links: string[]): string {
   return [text, ...links, "#10XWarplets via @10XMemeX"].join("\n\n");
 }
@@ -916,11 +954,55 @@ const RESULT_SELECT_COLUMNS = `w.id,
              w.warplet_wallet,
              ${ATTRIBUTE_RANK_SELECT}`;
 
-function getRandomExampleSearch(current?: string): string {
-  let next = current;
-  while (!next || next === current) {
-    next = EXAMPLE_SEARCHES[Math.floor(Math.random() * EXAMPLE_SEARCHES.length)];
+function readSeenRandomExampleSearches(): Set<string> {
+  if (typeof window === "undefined") return new Set();
+
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(RANDOM_EXAMPLE_SEARCHES_SEEN_KEY) ?? "[]");
+    if (!Array.isArray(parsed)) return new Set();
+    return new Set(
+      parsed.filter((value): value is string =>
+        typeof value === "string" && RANDOM_EXAMPLE_SEARCH_POOL_SET.has(value),
+      ),
+    );
+  } catch {
+    return new Set();
   }
+}
+
+function writeSeenRandomExampleSearches(seenSearches: Set<string>): void {
+  if (typeof window === "undefined") return;
+  if (seenSearches.size === 0 || seenSearches.size >= RANDOM_EXAMPLE_SEARCH_POOL.length) {
+    window.localStorage.removeItem(RANDOM_EXAMPLE_SEARCHES_SEEN_KEY);
+    return;
+  }
+  window.localStorage.setItem(
+    RANDOM_EXAMPLE_SEARCHES_SEEN_KEY,
+    JSON.stringify(RANDOM_EXAMPLE_SEARCH_POOL.filter((search) => seenSearches.has(search))),
+  );
+}
+
+function recordSeenRandomExampleSearch(value: string): void {
+  if (!RANDOM_EXAMPLE_SEARCH_POOL_SET.has(value)) return;
+  const seenSearches = readSeenRandomExampleSearches();
+  seenSearches.add(value);
+  writeSeenRandomExampleSearches(seenSearches);
+}
+
+function getRandomExampleSearch(current?: string): string {
+  const seenSearches = readSeenRandomExampleSearches();
+  let candidates = RANDOM_EXAMPLE_SEARCH_POOL.filter((search) => search !== current && !seenSearches.has(search));
+  if (candidates.length === 0) {
+    writeSeenRandomExampleSearches(new Set());
+    candidates = RANDOM_EXAMPLE_SEARCH_POOL.filter((search) => search !== current);
+  }
+  if (candidates.length === 0) return current || RANDOM_EXAMPLE_SEARCH_POOL[0] || "";
+  return candidates[Math.floor(Math.random() * candidates.length)] ?? candidates[0] ?? "";
+}
+
+function getFreshRandomExampleSearch(current?: string): string {
+  const next = getRandomExampleSearch(current);
+  recordSeenRandomExampleSearch(next);
   return next;
 }
 
@@ -1201,6 +1283,16 @@ function parseLevelParam(value: string | null): number[] {
 function parseWarpletParam(value: string | null): number | null {
   const tokenId = Number(value);
   return Number.isInteger(tokenId) && tokenId > 0 ? tokenId : null;
+}
+
+function getForcedAirdropTokenId(): number {
+  if (typeof window === "undefined") return FORCED_AIRDROP_FALLBACK_TOKEN_ID;
+  const searchParams = new URLSearchParams(window.location.search);
+  return (
+    parseWarpletParam(searchParams.get("airdropToken")) ??
+    parseWarpletParam(searchParams.get("warplet") ?? searchParams.get("tokenId")) ??
+    FORCED_AIRDROP_FALLBACK_TOKEN_ID
+  );
 }
 
 function parseOrderParam(value: string | null): OrderByOption | null {
@@ -2314,6 +2406,76 @@ function getLevelFilterTarget(
   };
 }
 
+function CompactAttributePreview({
+  row,
+  onLevelFilter,
+  revealedAttributeCount,
+}: {
+  row: Record<string, unknown>;
+  onLevelFilter?: (attribute: LevelAttributeColumn, level: number) => void;
+  revealedAttributeCount?: number;
+}) {
+  const isRevealAnimated = typeof revealedAttributeCount === "number";
+
+  return (
+    <div className="overflow-hidden rounded-t-xl bg-[#041204]/60">
+      <div className="grid grid-cols-10 border-b border-[#00FF00]/15">
+        {ATTRIBUTE_LEVEL_SUMMARY.map((group, index) => {
+          const isVisible = !isRevealAnimated || index < revealedAttributeCount;
+          const revealClass = isRevealAnimated
+            ? `transition-opacity duration-700 ease-out ${isVisible ? "opacity-100" : "opacity-0"}`
+            : "";
+
+          return (
+            <div
+              key={group.label}
+              className={`flex min-h-9 items-center justify-center text-base ${revealClass}`}
+            >
+              <AttributeTooltip
+                emoji={group.emoji}
+                label={`${group.label} Level`}
+                description={group.description}
+                placement="bottom"
+              />
+            </div>
+          );
+        })}
+      </div>
+      <div className="grid grid-cols-10">
+        {ATTRIBUTE_LEVEL_SUMMARY.map((group, index) => {
+          const target = getLevelFilterTarget(group, row);
+          const value = formatDetailValue(group.level, row[group.level]);
+          const isVisible = !isRevealAnimated || index < revealedAttributeCount;
+          const revealClass = isRevealAnimated
+            ? `transition-opacity duration-700 ease-out ${isVisible ? "opacity-100" : "opacity-0"}`
+            : "";
+          return (
+            <div
+              key={group.label}
+              className={`flex min-h-8 items-center justify-center border-r border-[#00FF00]/10 text-[10px] font-bold text-[#00FF00] last:border-r-0 ${revealClass}`}
+            >
+              {target && onLevelFilter ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    void hapticSelectionChanged();
+                    onLevelFilter(target.attribute, target.level);
+                  }}
+                  className="cursor-pointer rounded px-1 text-[#00FF00] underline-offset-2 hover:text-[#00FF00] hover:underline"
+                >
+                  {value}
+                </button>
+              ) : (
+                value
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function getWarpletImageUrl(tokenId: number): string {
   return `https://warplets.10x.meme/${tokenId}.jpg`;
 }
@@ -2854,7 +3016,7 @@ const ONBOARDING_SLIDES: OnboardingSlide[] = [
     bullets: [
       "Buy, offer, list, and sell in-app via OpenSea.",
       "Share interesting Warplets and search results.",
-      "Get notifications for stats, activity, and friends.",
+      "Get notifications for activity, stats and friends.",
     ],
   },
 ];
@@ -2946,13 +3108,21 @@ function TypewriterText({
 function OnboardingVisual({
   kind,
   animationStarted = true,
+  onFeaturedPreviewReady,
 }: {
   kind: OnboardingVisualKind;
   animationStarted?: boolean;
+  onFeaturedPreviewReady?: () => void;
 }) {
   const [isFeaturedVideoReady, setIsFeaturedVideoReady] = useState(false);
   const [readyAccessVideos, setReadyAccessVideos] = useState<Record<string, boolean>>({});
   const [levelAnimationStep, setLevelAnimationStep] = useState(-1);
+
+  useEffect(() => {
+    if (kind === "featuredWarplet" && isFeaturedVideoReady) {
+      onFeaturedPreviewReady?.();
+    }
+  }, [isFeaturedVideoReady, kind, onFeaturedPreviewReady]);
 
   useEffect(() => {
     if (kind !== "levels" || !animationStarted) {
@@ -3173,9 +3343,40 @@ function OnboardingVisual({
   );
 }
 
+const ONBOARDING_BACKGROUND_PRELOAD_IMAGES = [
+  "/onboarding/step-2.avif",
+  ...[1, 2, 3, 4, 5].map((index) => `/onboarding/step6-${index}.jpg`),
+  ...[1, 2, 3, 4, 5, 6, 7].map((index) => `/onboarding/step7-${index}-v2.jpg`),
+  getWarpletAssetUrl(FORCED_AIRDROP_FALLBACK_TOKEN_ID, "avif"),
+  getWarpletAssetUrl(FORCED_AIRDROP_FALLBACK_TOKEN_ID, "png"),
+] as const;
+
+const ONBOARDING_BACKGROUND_PRELOAD_VIDEOS = [
+  "/onboarding/ansem.mp4",
+  "/onboarding/Token_S1.mp4",
+] as const;
+
+function OnboardingBackgroundMediaPreloader() {
+  return (
+    <div
+      aria-hidden="true"
+      className="pointer-events-none absolute h-px w-px overflow-hidden opacity-0"
+      style={{ left: -9999, top: -9999 }}
+    >
+      {ONBOARDING_BACKGROUND_PRELOAD_IMAGES.map((src) => (
+        <img key={src} src={src} alt="" loading="eager" />
+      ))}
+      {ONBOARDING_BACKGROUND_PRELOAD_VIDEOS.map((src) => (
+        <video key={src} src={src} muted playsInline preload="auto" />
+      ))}
+    </div>
+  );
+}
+
 function OnboardingCarousel({ onDone }: { onDone: () => void }) {
   const [activeIndex, setActiveIndex] = useState(0);
   const [typedCharacterCount, setTypedCharacterCount] = useState(0);
+  const [shouldPreloadUpcomingMedia, setShouldPreloadUpcomingMedia] = useState(false);
   const onboardingContentRef = useRef<HTMLDivElement | null>(null);
   const activeSlide = ONBOARDING_SLIDES[activeIndex];
   const isFirst = activeIndex === 0;
@@ -3194,6 +3395,9 @@ function OnboardingCarousel({ onDone }: { onDone: () => void }) {
   );
   const onboardingBodyStartCharacterCount = onboardingTitleCharacterCount + onboardingPreviewAnimationCharacters;
   const onboardingPreviewAnimationStarted = typedCharacterCount >= onboardingTitleCharacterCount;
+  const handleFeaturedPreviewReady = useCallback(() => {
+    setShouldPreloadUpcomingMedia(true);
+  }, []);
   const onboardingTotalTextCharacters = useMemo(
     () => onboardingBodyStartCharacterCount + onboardingTextCharacterCounts.reduce((total, count) => total + count, 0),
     [onboardingBodyStartCharacterCount, onboardingTextCharacterCounts],
@@ -3256,7 +3460,7 @@ function OnboardingCarousel({ onDone }: { onDone: () => void }) {
   };
 
   return (
-    <div className="fixed inset-0 z-[110] flex items-end justify-center bg-black/85 p-4 sm:items-center">
+    <div className="fixed inset-0 z-[110] flex items-end justify-center bg-black/80 p-4 sm:items-center">
       <div className="flex max-h-[92vh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-[#00FF00]/35 bg-black shadow-2xl">
         <div className="border-b border-[#00FF00]/20 bg-black px-4 py-3">
           <Text className="relative text-base font-bold" style={{ color: "#00FF00" }}>
@@ -3269,7 +3473,12 @@ function OnboardingCarousel({ onDone }: { onDone: () => void }) {
           </Text>
         </div>
         <div ref={onboardingContentRef} className="min-h-0 flex-1 overflow-y-auto p-4">
-          <OnboardingVisual kind={activeSlide.visual} animationStarted={onboardingPreviewAnimationStarted} />
+          <OnboardingVisual
+            kind={activeSlide.visual}
+            animationStarted={onboardingPreviewAnimationStarted}
+            onFeaturedPreviewReady={handleFeaturedPreviewReady}
+          />
+          {shouldPreloadUpcomingMedia && <OnboardingBackgroundMediaPreloader />}
           <div className="mt-3 space-y-2">
             {activeSlide.bullets.map((bullet, index) => {
               const previousCharacters = onboardingBodyStartCharacterCount + onboardingTextCharacterCounts
@@ -3335,6 +3544,363 @@ function OnboardingCarousel({ onDone }: { onDone: () => void }) {
   );
 }
 
+const AIRDROP_CONGRATULATIONS_TITLE = "Free Airdrop Congratulations!";
+const AIRDROP_CONGRATULATIONS_TITLE_HIGHLIGHT_LENGTH = "Free Airdrop".length;
+const AIRDROP_CONGRATULATIONS_LINES = [
+  "Farcaster is for Builders... 10X is for Attention!",
+] as const;
+const AIRDROP_TITLE_TO_ATTRIBUTES_DELAY_MS = 180;
+const AIRDROP_ATTRIBUTE_REVEAL_INTERVAL_MS = 180;
+const AIRDROP_ATTRIBUTES_TO_IMAGE_DELAY_MS = 260;
+const AIRDROP_IMAGE_FADE_MS = 800;
+const AIRDROP_IMAGE_TO_TEXT_DELAY_MS = 1180;
+
+function AirdropCongratulationsModal({
+  details,
+  onShare,
+  onPreviewRevealComplete,
+}: {
+  details: WarpletDetails;
+  onShare: () => void;
+  onPreviewRevealComplete: () => void;
+}) {
+  const [animationElapsedMs, setAnimationElapsedMs] = useState(0);
+  const [isWarpletImageReady, setIsWarpletImageReady] = useState(false);
+  const contentRef = useRef<HTMLDivElement | null>(null);
+  const previewRevealCompleteRef = useRef(false);
+  const lineCharacterCounts = useMemo(
+    () => AIRDROP_CONGRATULATIONS_LINES.map((line) => countTypewriterCharacters(line)),
+    [],
+  );
+  const titleAnimationMs = AIRDROP_CONGRATULATIONS_TITLE.length * ONBOARDING_TYPEWRITER_MS_PER_CHARACTER;
+  const attributesStartMs = titleAnimationMs + AIRDROP_TITLE_TO_ATTRIBUTES_DELAY_MS;
+  const attributesAnimationMs = ATTRIBUTE_LEVEL_SUMMARY.length * AIRDROP_ATTRIBUTE_REVEAL_INTERVAL_MS;
+  const imageStartMs = attributesStartMs + attributesAnimationMs + AIRDROP_ATTRIBUTES_TO_IMAGE_DELAY_MS;
+  const imageRevealCompleteMs = imageStartMs + AIRDROP_IMAGE_FADE_MS;
+  const textStartMs = imageRevealCompleteMs + AIRDROP_IMAGE_TO_TEXT_DELAY_MS;
+  const textCharacterCount = useMemo(
+    () => lineCharacterCounts.reduce((total, count) => total + count, 0),
+    [lineCharacterCounts],
+  );
+  const totalAnimationMs = useMemo(
+    () => textStartMs + textCharacterCount * ONBOARDING_TYPEWRITER_MS_PER_CHARACTER,
+    [textCharacterCount, textStartMs],
+  );
+  const [initializeScrollbars] = useOverlayScrollbars({
+    options: {
+      scrollbars: {
+        theme: "os-theme-10x",
+        autoHide: "scroll",
+        clickScroll: true,
+      },
+    },
+    defer: true,
+  });
+
+  useEffect(() => {
+    const target = contentRef.current;
+    if (!target) return;
+    target.setAttribute("data-overlayscrollbars-initialize", "");
+    initializeScrollbars(target);
+    return () => {
+      target.removeAttribute("data-overlayscrollbars-initialize");
+    };
+  }, [initializeScrollbars]);
+
+  useEffect(() => {
+    let animationFrameId = 0;
+    const startedAt = performance.now();
+
+    setAnimationElapsedMs(0);
+    setIsWarpletImageReady(false);
+    previewRevealCompleteRef.current = false;
+
+    const tick = (now: number) => {
+      const nextElapsedMs = Math.min(totalAnimationMs, now - startedAt);
+      setAnimationElapsedMs(nextElapsedMs);
+      if (nextElapsedMs < totalAnimationMs) {
+        animationFrameId = window.requestAnimationFrame(tick);
+      }
+    };
+
+    animationFrameId = window.requestAnimationFrame(tick);
+    return () => window.cancelAnimationFrame(animationFrameId);
+  }, [details.id, totalAnimationMs]);
+
+  useEffect(() => {
+    if (previewRevealCompleteRef.current) return;
+    if (!isWarpletImageReady || animationElapsedMs < imageRevealCompleteMs) return;
+    previewRevealCompleteRef.current = true;
+    onPreviewRevealComplete();
+  }, [animationElapsedMs, imageRevealCompleteMs, isWarpletImageReady, onPreviewRevealComplete]);
+
+  const visibleTitleCharacters = Math.max(
+    0,
+    Math.min(
+      AIRDROP_CONGRATULATIONS_TITLE.length,
+      Math.floor(animationElapsedMs / ONBOARDING_TYPEWRITER_MS_PER_CHARACTER),
+    ),
+  );
+  const visibleHighlightedTitle = AIRDROP_CONGRATULATIONS_TITLE.slice(
+    0,
+    Math.min(visibleTitleCharacters, AIRDROP_CONGRATULATIONS_TITLE_HIGHLIGHT_LENGTH),
+  );
+  const visibleRestTitle = visibleTitleCharacters > AIRDROP_CONGRATULATIONS_TITLE_HIGHLIGHT_LENGTH
+    ? AIRDROP_CONGRATULATIONS_TITLE.slice(AIRDROP_CONGRATULATIONS_TITLE_HIGHLIGHT_LENGTH, visibleTitleCharacters)
+    : "";
+  const revealedAttributeCount = animationElapsedMs < attributesStartMs
+    ? 0
+    : Math.min(
+        ATTRIBUTE_LEVEL_SUMMARY.length,
+        Math.floor((animationElapsedMs - attributesStartMs) / AIRDROP_ATTRIBUTE_REVEAL_INTERVAL_MS) + 1,
+      );
+  const isImageVisible = animationElapsedMs >= imageStartMs;
+  const textAnimationElapsedMs = Math.max(0, animationElapsedMs - textStartMs);
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/80 p-4 sm:items-center">
+      <div className="flex max-h-[92vh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-[#00FF00]/35 bg-black shadow-2xl">
+        <div className="sticky top-0 z-10 border-b border-[#00FF00]/20 bg-black px-4 py-3">
+          <Text className="relative min-w-0 flex-1 text-base font-bold" style={{ color: "rgb(139, 191, 139)" }}>
+            <span className="invisible select-none" aria-hidden="true">{AIRDROP_CONGRATULATIONS_TITLE}</span>
+            <span className="absolute inset-0 min-w-0 truncate">
+              <span style={{ color: "#00FF00" }}>{visibleHighlightedTitle}</span>
+              {visibleRestTitle}
+            </span>
+          </Text>
+        </div>
+
+        <div ref={contentRef} className="min-h-0 flex-1 overflow-auto">
+          <CompactAttributePreview row={details.row} revealedAttributeCount={revealedAttributeCount} />
+          <div className="relative aspect-square w-full overflow-hidden bg-[rgba(0,255,0,0.12)]">
+            {(!isImageVisible || !isWarpletImageReady) && (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="h-8 w-8 animate-spin rounded-full border-2 border-[#00FF00]/25 border-t-[#00FF00]" aria-label="Loading 10X Warplet image" />
+              </div>
+            )}
+            <img
+              src={getWarpletAssetUrl(details.id, "avif")}
+              alt=""
+              onLoad={() => setIsWarpletImageReady(true)}
+              className={`relative z-[1] h-full w-full object-cover transition-opacity duration-[800ms] ${isImageVisible && isWarpletImageReady ? "opacity-100" : "opacity-0"}`}
+            />
+          </div>
+          <div className="space-y-2 p-4">
+            {AIRDROP_CONGRATULATIONS_LINES.map((line, index) => {
+              const previousCharacters = lineCharacterCounts
+                .slice(0, index)
+                .reduce((total, count) => total + count, 0);
+              const lineCharacterCount = lineCharacterCounts[index] ?? 0;
+              const visibleCharacters = Math.max(
+                0,
+                Math.min(
+                  lineCharacterCount,
+                  Math.floor(textAnimationElapsedMs / ONBOARDING_TYPEWRITER_MS_PER_CHARACTER) - previousCharacters,
+                ),
+              );
+
+              return (
+                <div key={line} className="relative rounded-lg border border-[#00FF00]/15 bg-[#041204] px-3 py-2 text-sm leading-relaxed text-[#8bbf8b]">
+                  <div className="invisible select-none" aria-hidden="true">
+                    {line}
+                  </div>
+                  <div className="absolute inset-0 px-3 py-2">
+                    <TypewriterText visibleCharacters={visibleCharacters}>
+                      {line}
+                    </TypewriterText>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="sticky bottom-0 z-10 border-t border-[#00FF00]/20 bg-black p-4">
+          <button
+            type="button"
+            onClick={() => {
+              void hapticPrimaryTap();
+              onShare();
+            }}
+            className="w-full cursor-pointer rounded-[20px] border border-[#009900] bg-[#00FF00] px-4 py-3 text-sm font-bold text-[rgb(0,80,0)] shadow-[3px_6px_0_#008000] transition-all duration-100 hover:bg-[#33ff33] active:translate-x-[1px] active:translate-y-[3px] active:shadow-[1px_3px_0_#008000]"
+          >
+            Let&apos;s make some noise!
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const NOTIFICATIONS_PROMPT_TITLE = "FOMO? Don't Miss Out...";
+const NOTIFICATIONS_PROMPT_TITLE_HIGHLIGHT_LENGTH = "FOMO?".length;
+const NOTIFICATIONS_PREVIEW_REVEAL_MS = 4800;
+const NOTIFICATIONS_PREVIEW_TO_TEXT_DELAY_MS = 180;
+const NOTIFICATIONS_PREVIEW_REVEAL_STOPS = [0, 40, 20, 65, 35, 85, 25, 100] as const;
+
+function easeInOutProgress(progress: number): number {
+  const clampedProgress = Math.max(0, Math.min(1, progress));
+  return 0.5 - Math.cos(clampedProgress * Math.PI) / 2;
+}
+
+function getNotificationPreviewRevealPercent(elapsedMs: number): number {
+  if (elapsedMs <= 0) return NOTIFICATIONS_PREVIEW_REVEAL_STOPS[0];
+  if (elapsedMs >= NOTIFICATIONS_PREVIEW_REVEAL_MS) return 100;
+
+  const segmentCount = NOTIFICATIONS_PREVIEW_REVEAL_STOPS.length - 1;
+  const segmentMs = NOTIFICATIONS_PREVIEW_REVEAL_MS / segmentCount;
+  const segmentIndex = Math.min(segmentCount - 1, Math.floor(elapsedMs / segmentMs));
+  const segmentProgress = easeInOutProgress((elapsedMs - segmentIndex * segmentMs) / segmentMs);
+  const fromPercent = NOTIFICATIONS_PREVIEW_REVEAL_STOPS[segmentIndex];
+  const toPercent = NOTIFICATIONS_PREVIEW_REVEAL_STOPS[segmentIndex + 1];
+  return fromPercent + (toPercent - fromPercent) * segmentProgress;
+}
+
+function NotificationsPromptModal({
+  notificationsOnlyPrompt,
+  onConfirm,
+}: {
+  notificationsOnlyPrompt: boolean;
+  onConfirm: () => void;
+}) {
+  const [animationElapsedMs, setAnimationElapsedMs] = useState(0);
+  const [isPreviewImageReady, setIsPreviewImageReady] = useState(false);
+  const contentRef = useRef<HTMLDivElement | null>(null);
+  const notificationPromptText = notificationsOnlyPrompt
+    ? "Please turn on notifications so you don't miss important 10X market updates."
+    : "Please add this Mini App & enable notifications so you don't miss important 10X updates.";
+  const titleAnimationMs = NOTIFICATIONS_PROMPT_TITLE.length * ONBOARDING_TYPEWRITER_MS_PER_CHARACTER;
+  const previewStartMs = titleAnimationMs;
+  const textStartMs = previewStartMs + NOTIFICATIONS_PREVIEW_REVEAL_MS + NOTIFICATIONS_PREVIEW_TO_TEXT_DELAY_MS;
+  const totalAnimationMs = textStartMs + notificationPromptText.length * ONBOARDING_TYPEWRITER_MS_PER_CHARACTER;
+  const [initializeScrollbars] = useOverlayScrollbars({
+    options: {
+      scrollbars: {
+        theme: "os-theme-10x",
+        autoHide: "scroll",
+        clickScroll: true,
+      },
+    },
+    defer: true,
+  });
+
+  useEffect(() => {
+    const target = contentRef.current;
+    if (!target) return;
+    target.setAttribute("data-overlayscrollbars-initialize", "");
+    initializeScrollbars(target);
+    return () => {
+      target.removeAttribute("data-overlayscrollbars-initialize");
+    };
+  }, [initializeScrollbars]);
+
+  useEffect(() => {
+    let animationFrameId = 0;
+    const startedAt = performance.now();
+
+    setAnimationElapsedMs(0);
+    setIsPreviewImageReady(false);
+
+    const tick = (now: number) => {
+      const nextElapsedMs = Math.min(totalAnimationMs, now - startedAt);
+      setAnimationElapsedMs(nextElapsedMs);
+      if (nextElapsedMs < totalAnimationMs) {
+        animationFrameId = window.requestAnimationFrame(tick);
+      }
+    };
+
+    animationFrameId = window.requestAnimationFrame(tick);
+    return () => window.cancelAnimationFrame(animationFrameId);
+  }, [notificationPromptText, totalAnimationMs]);
+
+  const visibleTitleCharacters = Math.max(
+    0,
+    Math.min(
+      NOTIFICATIONS_PROMPT_TITLE.length,
+      Math.floor(animationElapsedMs / ONBOARDING_TYPEWRITER_MS_PER_CHARACTER),
+    ),
+  );
+  const visibleHighlightedTitle = NOTIFICATIONS_PROMPT_TITLE.slice(
+    0,
+    Math.min(visibleTitleCharacters, NOTIFICATIONS_PROMPT_TITLE_HIGHLIGHT_LENGTH),
+  );
+  const visibleRestTitle = visibleTitleCharacters > NOTIFICATIONS_PROMPT_TITLE_HIGHLIGHT_LENGTH
+    ? NOTIFICATIONS_PROMPT_TITLE.slice(NOTIFICATIONS_PROMPT_TITLE_HIGHLIGHT_LENGTH, visibleTitleCharacters)
+    : "";
+  const previewRevealPercent = isPreviewImageReady
+    ? getNotificationPreviewRevealPercent(animationElapsedMs - previewStartMs)
+    : 0;
+  const textAnimationElapsedMs = previewRevealPercent >= 100
+    ? Math.max(0, animationElapsedMs - textStartMs)
+    : 0;
+  const visibleTextCharacters = Math.max(
+    0,
+    Math.min(
+      notificationPromptText.length,
+      Math.floor(textAnimationElapsedMs / ONBOARDING_TYPEWRITER_MS_PER_CHARACTER),
+    ),
+  );
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/80 p-4 sm:items-center">
+      <div className="flex max-h-[92vh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-[#00FF00]/35 bg-black shadow-2xl">
+        <div className="border-b border-[#00FF00]/20 bg-black px-4 py-3">
+          <Text className="relative min-w-0 text-base font-bold" style={{ color: "rgb(139, 191, 139)" }}>
+            <span className="invisible select-none" aria-hidden="true">{NOTIFICATIONS_PROMPT_TITLE}</span>
+            <span className="absolute inset-0 min-w-0 truncate">
+              <span style={{ color: "#00FF00" }}>{visibleHighlightedTitle}</span>
+              {visibleRestTitle}
+            </span>
+          </Text>
+        </div>
+
+        <div ref={contentRef} className="min-h-0 flex-1 overflow-y-auto p-4">
+          <div className="relative mx-auto aspect-[9/8] w-full max-w-[min(100%,360px)] overflow-hidden rounded-lg border border-[#00FF00]/25 bg-black">
+            {!isPreviewImageReady && (
+              <div className="absolute inset-0 flex items-center justify-center bg-[rgba(0,255,0,0.12)]">
+                <span className="h-8 w-8 animate-spin rounded-full border-2 border-[#00FF00]/25 border-t-[#00FF00]" aria-label="Loading 10X Warplet image" />
+              </div>
+            )}
+            <img
+              src={getWarpletAssetUrl(5019, "png")}
+              alt=""
+              onLoad={() => setIsPreviewImageReady(true)}
+              className={`relative z-[1] h-full w-full object-cover transition-opacity duration-300 ${isPreviewImageReady ? "opacity-100" : "opacity-0"}`}
+              style={{
+                clipPath: `inset(0 ${100 - previewRevealPercent}% 0 0)`,
+                willChange: "clip-path",
+              }}
+            />
+          </div>
+
+          <div className={`mt-3 transition-opacity duration-300 ${textAnimationElapsedMs > 0 ? "opacity-100" : "opacity-0"}`}>
+            <div className="relative rounded-lg border border-[#00FF00]/15 bg-[#041204] px-3 py-2 text-sm leading-relaxed text-[#8bbf8b]">
+              <div className="invisible select-none" aria-hidden="true">
+                {notificationPromptText}
+              </div>
+              <div className="absolute inset-0 px-3 py-2">
+                <TypewriterText visibleCharacters={visibleTextCharacters}>
+                  {notificationPromptText}
+                </TypewriterText>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="border-t border-[#00FF00]/20 bg-black p-4">
+          <button
+            type="button"
+            onClick={onConfirm}
+            className="w-full cursor-pointer rounded-[20px] border border-[#009900] bg-[#00FF00] px-4 py-3 text-sm font-bold text-[rgb(0,80,0)] shadow-[3px_6px_0_#008000] transition-all duration-100 hover:bg-[#33ff33] active:translate-x-[1px] active:translate-y-[3px] active:shadow-[1px_3px_0_#008000]"
+          >
+            Ok, let's go!
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function SharePreviewModal({
   preview,
   onClose,
@@ -3349,7 +3915,7 @@ function SharePreviewModal({
   onShareTwitter: () => void;
 }) {
   const shareContentRef = useRef<HTMLDivElement | null>(null);
-  const [resolvedImages, setResolvedImages] = useState<SharePreviewImage[]>(preview.images);
+  const [resolvedImages, setResolvedImages] = useState<SharePreviewImage[]>(() => getInitialSharePreviewImages(preview.images));
   const farcasterPostText = preview.farcasterText ?? preview.text;
   const twitterPostText = preview.twitterPostText ?? preview.text;
   const hasChannelTabs = farcasterPostText !== twitterPostText;
@@ -3405,7 +3971,7 @@ function SharePreviewModal({
 
   useEffect(() => {
     let cancelled = false;
-    setResolvedImages(preview.images.map((image) => image.sourceUrl ? { ...image, isLoading: true } : image));
+    setResolvedImages(getInitialSharePreviewImages(preview.images));
 
     preview.images.forEach((image, index) => {
       if (!image.sourceUrl) return;
@@ -3439,10 +4005,10 @@ function SharePreviewModal({
               currentIndex === index
                 ? {
                     ...currentImage,
-                    fallbackSrc: currentImage.fallbackSrc ?? currentImage.src,
-                    src: imageUrl,
-                    isLoading: false,
-                  }
+                  fallbackSrc: currentImage.fallbackSrc ?? currentImage.src,
+                  src: imageUrl,
+                  isLoading: true,
+                }
                 : currentImage,
             ),
           );
@@ -3527,7 +4093,7 @@ function SharePreviewModal({
               </div>
             )}
           <div className={`relative rounded-xl border border-[#00FF00]/25 bg-[#041204]/80 p-3 ${hasChannelTabs ? "rounded-tl-none" : ""}`}>
-            <Text className="mb-2 text-xs font-bold uppercase" style={{ color: "#8bbf8b" }}>
+            <Text className="mb-2 text-xs font-bold uppercase" style={{ color: "#00FF00" }}>
               Post
             </Text>
             <button
@@ -3567,35 +4133,49 @@ function SharePreviewModal({
                 </div>
               </FloatingPortal>
             )}
-            <pre className="min-h-9 select-text whitespace-pre-wrap break-words pr-12 pt-1 font-sans text-sm font-bold leading-snug text-[#00FF00]">
+            <pre className="min-h-9 select-text whitespace-pre-wrap break-words pr-12 pt-1 font-sans text-sm font-bold leading-snug text-[#8bbf8b]">
               {postText}
             </pre>
           </div>
           </div>
 
           <div className="mt-3 rounded-xl border border-[#00FF00]/25 bg-[#041204]/80 p-3">
-            <Text className="mb-2 text-xs font-bold uppercase" style={{ color: "#8bbf8b" }}>
+            <Text className="mb-2 text-xs font-bold uppercase" style={{ color: "#00FF00" }}>
               Images
             </Text>
             <div className="grid grid-cols-2 gap-2">
               {resolvedImages.map((image, index) => (
-                <div key={`${image.src}-${index}`} className="aspect-square overflow-hidden rounded-lg border border-[#00FF00]/25 bg-[rgba(0,255,0,0.12)]">
-                  {image.isLoading ? (
-                    <div className="flex h-full w-full items-center justify-center">
+                <div key={`${image.src}-${index}`} className="relative aspect-square overflow-hidden rounded-lg border border-[#00FF00]/25 bg-[rgba(0,255,0,0.12)]">
+                  {image.isLoading && (
+                    <div className="absolute inset-0 flex h-full w-full items-center justify-center">
                       <span className="h-8 w-8 animate-spin rounded-full border-2 border-[#00FF00]/25 border-t-[#00FF00]" aria-label="Loading OpenSea preview image" />
                     </div>
-                  ) : (
-                    <img
-                      src={image.src}
-                      alt={image.alt}
-                      className={`block h-full w-full ${image.sourceUrl ? "object-contain" : "object-cover"}`}
-                      loading="lazy"
-                      onError={(event) => {
-                        if (!image.fallbackSrc || event.currentTarget.src === image.fallbackSrc) return;
-                        event.currentTarget.src = image.fallbackSrc;
-                      }}
-                    />
                   )}
+                  <img
+                    src={image.src}
+                    alt={image.alt}
+                    className={`relative z-[1] block h-full w-full transition-opacity duration-300 ${image.isLoading ? "opacity-0" : "opacity-100"} ${image.sourceUrl ? "object-contain" : "object-cover"}`}
+                    loading="lazy"
+                    onLoad={() => {
+                      if (!image.sourceUrl || !image.fallbackSrc || !image.isLoading) return;
+                      setResolvedImages((currentImages) =>
+                        currentImages.map((currentImage, currentIndex) =>
+                          currentIndex === index ? { ...currentImage, isLoading: false } : currentImage,
+                        ),
+                      );
+                    }}
+                    onError={(event) => {
+                      if (!image.fallbackSrc || event.currentTarget.src === image.fallbackSrc) return;
+                      event.currentTarget.src = image.fallbackSrc;
+                      setResolvedImages((currentImages) =>
+                        currentImages.map((currentImage, currentIndex) =>
+                          currentIndex === index
+                            ? { ...currentImage, src: image.fallbackSrc ?? currentImage.src, isLoading: false }
+                            : currentImage,
+                        ),
+                      );
+                    }}
+                  />
                 </div>
               ))}
             </div>
@@ -5052,50 +5632,7 @@ function WarpletDetailsModal({
   );
 
   const compactAttributePreview = (
-    <div className="overflow-hidden rounded-t-xl bg-[#041204]/60">
-      <div className="grid grid-cols-10 border-b border-[#00FF00]/15">
-        {ATTRIBUTE_LEVEL_SUMMARY.map((group) => (
-          <div
-            key={group.label}
-            className="flex min-h-9 items-center justify-center text-base"
-          >
-            <AttributeTooltip
-              emoji={group.emoji}
-              label={`${group.label} Level`}
-              description={group.description}
-              placement="bottom"
-            />
-          </div>
-        ))}
-      </div>
-      <div className="grid grid-cols-10">
-        {ATTRIBUTE_LEVEL_SUMMARY.map((group) => {
-          const target = getLevelFilterTarget(group, row);
-          const value = formatDetailValue(group.level, row[group.level]);
-          return (
-            <div
-              key={group.label}
-              className="flex min-h-8 items-center justify-center border-r border-[#00FF00]/10 text-[10px] font-bold text-[#00FF00] last:border-r-0"
-            >
-              {target ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    void hapticSelectionChanged();
-                    onLevelFilter(target.attribute, target.level);
-                  }}
-                  className="cursor-pointer rounded px-1 text-[#00FF00] underline-offset-2 hover:text-[#00FF00] hover:underline"
-                >
-                  {value}
-                </button>
-              ) : (
-                value
-              )}
-            </div>
-          );
-        })}
-      </div>
-    </div>
+    <CompactAttributePreview row={row} onLevelFilter={onLevelFilter} />
   );
 
   const tradeActionPanel = (
@@ -5779,6 +6316,9 @@ export default function SearchApp() {
   const [notificationPromptPending, setNotificationPromptPending] = useState(false);
   const [viewerFid, setViewerFid] = useState<number | null>(null);
   const [viewerProfile, setViewerProfile] = useState<ViewerProfile | null>(null);
+  const [miniAppContextKnown, setMiniAppContextKnown] = useState(false);
+  const [isInMiniAppContext, setIsInMiniAppContext] = useState(false);
+  const [searchCompletionStatusLoaded, setSearchCompletionStatusLoaded] = useState(false);
   const [showAddAppPrompt, setShowAddAppPrompt] = useState(false);
   const [notificationsOnlyPrompt, setNotificationsOnlyPrompt] = useState(false);
   const [pendingNotificationId, setPendingNotificationId] = useState<string | null>(null);
@@ -5807,6 +6347,11 @@ export default function SearchApp() {
   const [favouriteListsByWallet, setFavouriteListsByWallet] = useState<Record<string, number[]>>({});
   const [favouriteFilterWallet, setFavouriteFilterWallet] = useState<string | null>(null);
   const [sharePreview, setSharePreview] = useState<SharePreviewState | null>(null);
+  const [airdropCongratulationsDetails, setAirdropCongratulationsDetails] = useState<WarpletDetails | null>(null);
+  const [preparedAirdropCongratulationsDetails, setPreparedAirdropCongratulationsDetails] = useState<WarpletDetails | null>(null);
+  const [airdropFlowHandled, setAirdropFlowHandled] = useState(false);
+  const [airdropSharePendingNotificationPrompt, setAirdropSharePendingNotificationPrompt] = useState(false);
+  const [preparedNotificationPrompt, setPreparedNotificationPrompt] = useState(false);
   const [searchToast, setSearchToast] = useState<TradeToast | null>(null);
   const [searchToastExiting, setSearchToastExiting] = useState(false);
   const dbRef = useRef<SqliteDatabase | null>(null);
@@ -5818,6 +6363,9 @@ export default function SearchApp() {
   const lastUrlSignatureRef = useRef("");
   const loadedFavouriteWalletsRef = useRef(new Set<string>());
   const favouriteListsByWalletRef = useRef<Record<string, number[]>>({});
+  const pendingSearchCompletionsRef = useRef<Set<SearchCompletion>>(new Set());
+  const forceAirdropRef = useRef(isAirdropForced());
+  const forcedAirdropTokenIdRef = useRef(getForcedAirdropTokenId());
   const shareCelebrationRef = useRef<{ pending: boolean; leftApp: boolean; fallbackTimer: number | null }>({
     pending: false,
     leftApp: false,
@@ -5991,6 +6539,52 @@ export default function SearchApp() {
     setSharePreview(preview);
   }, [marketSnapshot]);
 
+  const applySearchCompletionStatus = useCallback((payload: unknown) => {
+    const record = payload && typeof payload === "object" ? payload as SearchStatusPayload : null;
+    if (!record) return;
+
+    if (isCompletedAt(record.searchOnboardingCompletedAt) && !isOnboardingForced()) {
+      writeOnboardingComplete();
+      setOnboardingComplete(true);
+      setShowOnboarding(false);
+    }
+
+    if (isCompletedAt(record.searchAirdropModalCompletedAt) && !forceAirdropRef.current) {
+      writeAirdropCongratulationsComplete();
+      setAirdropFlowHandled(true);
+      setAirdropCongratulationsDetails(null);
+      setPreparedAirdropCongratulationsDetails(null);
+      setAirdropSharePendingNotificationPrompt(false);
+    }
+  }, []);
+
+  const postSearchCompletion = useCallback((completion: SearchCompletion) => {
+    if (!viewerFid) {
+      pendingSearchCompletionsRef.current.add(completion);
+      return;
+    }
+
+    fetch("/api/warplet-status", {
+      method: "POST",
+      headers: { "content-type": "application/json", accept: "application/json" },
+      body: JSON.stringify({
+        fid: viewerFid,
+        appSlug: "search",
+        searchCompletion: completion,
+      }),
+    })
+      .then((response) => response.ok ? response.json() : null)
+      .then((payload: unknown) => applySearchCompletionStatus(payload))
+      .catch((error) => console.warn(`Search ${completion} completion sync failed:`, error));
+  }, [applySearchCompletionStatus, viewerFid]);
+
+  useEffect(() => {
+    if (!viewerFid || pendingSearchCompletionsRef.current.size === 0) return;
+    const completions = Array.from(pendingSearchCompletionsRef.current);
+    pendingSearchCompletionsRef.current.clear();
+    completions.forEach((completion) => postSearchCompletion(completion));
+  }, [postSearchCompletion, viewerFid]);
+
   useEffect(() => {
     let shouldCallReady = false;
 
@@ -5998,8 +6592,11 @@ export default function SearchApp() {
       try {
         const inMiniApp =
           typeof sdk.isInMiniApp === "function" ? await sdk.isInMiniApp() : true;
+        setIsInMiniAppContext(inMiniApp);
 
         if (!inMiniApp) {
+          setMiniAppContextKnown(true);
+          setSearchCompletionStatusLoaded(true);
           return;
         }
 
@@ -6025,21 +6622,26 @@ export default function SearchApp() {
                 ? user.pfp
                 : null,
         });
+        setMiniAppContextKnown(true);
 
         if (normalizedFid) {
           fetch("/api/warplet-status", {
             method: "POST",
             headers: { "content-type": "application/json", accept: "application/json" },
-            body: JSON.stringify({ fid: normalizedFid }),
+            body: JSON.stringify({ fid: normalizedFid, appSlug: "search" }),
           })
             .then((response) => response.ok ? response.json() : null)
             .then((payload: unknown) => {
-              const record = payload && typeof payload === "object" ? payload as { actionSessionToken?: unknown } : null;
+              const record = payload && typeof payload === "object" ? payload as SearchStatusPayload : null;
               if (typeof record?.actionSessionToken === "string") {
                 setActionSessionToken(record.actionSessionToken);
               }
+              applySearchCompletionStatus(payload);
             })
-            .catch((error) => console.warn("Search user status upsert failed:", error));
+            .catch((error) => console.warn("Search user status upsert failed:", error))
+            .finally(() => setSearchCompletionStatusLoaded(true));
+        } else {
+          setSearchCompletionStatusLoaded(true);
         }
 
         const location = (context as { location?: Record<string, unknown> }).location;
@@ -6078,6 +6680,10 @@ export default function SearchApp() {
 
         if (looksLikeBrowserLaunch) return;
       } finally {
+        setMiniAppContextKnown(true);
+        if (!shouldCallReady) {
+          setSearchCompletionStatusLoaded(true);
+        }
         if (shouldCallReady) {
           sdk.actions.ready();
         }
@@ -6085,7 +6691,7 @@ export default function SearchApp() {
     };
 
     init();
-  }, []);
+  }, [applySearchCompletionStatus]);
 
   useEffect(() => {
     if (!pendingNotificationId || !viewerFid || !actionSessionToken || notificationOpenSent) return;
@@ -6117,15 +6723,167 @@ export default function SearchApp() {
     void hapticSuccess();
     writeOnboardingComplete();
     setOnboardingComplete(true);
+    if (preparedAirdropCongratulationsDetails) {
+      setAirdropCongratulationsDetails(preparedAirdropCongratulationsDetails);
+      setPreparedAirdropCongratulationsDetails(null);
+    } else if (preparedNotificationPrompt) {
+      setPreparedNotificationPrompt(false);
+      setShowAddAppPrompt(true);
+    }
     setShowOnboarding(false);
-  }, []);
+    postSearchCompletion("onboarding");
+  }, [postSearchCompletion, preparedAirdropCongratulationsDetails, preparedNotificationPrompt]);
+
+  const openPendingNotificationPrompt = useCallback(() => {
+    if (!notificationPromptPending) return;
+    setNotificationPromptPending(false);
+    if (showOnboarding) {
+      setPreparedNotificationPrompt(true);
+      return;
+    }
+    setShowAddAppPrompt(true);
+  }, [notificationPromptPending, showOnboarding]);
 
   useEffect(() => {
-    const airdropClaimFlowComplete = true;
-    if (!notificationPromptPending || !onboardingComplete || showOnboarding || !airdropClaimFlowComplete) return;
-    setNotificationPromptPending(false);
-    setShowAddAppPrompt(true);
-  }, [notificationPromptPending, onboardingComplete, showOnboarding]);
+    const db = dbRef.current;
+    const forceAirdrop = forceAirdropRef.current;
+    const canPreparePostOnboarding = onboardingComplete || showOnboarding;
+    if (!canPreparePostOnboarding || airdropFlowHandled || airdropCongratulationsDetails || preparedAirdropCongratulationsDetails) return;
+    if (!miniAppContextKnown) return;
+
+    if (!forceAirdrop && readAirdropCongratulationsComplete()) {
+      setAirdropFlowHandled(true);
+      openPendingNotificationPrompt();
+      return;
+    }
+
+    if (isInMiniAppContext && viewerFid != null && !searchCompletionStatusLoaded && !forceAirdrop) {
+      return;
+    }
+
+    if ((!isInMiniAppContext || viewerFid == null) && !forceAirdrop) {
+      setAirdropFlowHandled(true);
+      openPendingNotificationPrompt();
+      return;
+    }
+
+    if (!dbReady || !db) return;
+
+    let cancelled = false;
+
+    const loadAirdropMatch = async () => {
+      try {
+        let tokenId: number | null = null;
+
+        if (viewerFid != null) {
+          const rows = db.exec(
+            `SELECT w.id
+             FROM warplets w
+             WHERE w.fid_value = ?
+             ORDER BY w.id ASC
+             LIMIT 1`,
+            {
+              bind: [viewerFid],
+              rowMode: "array",
+              returnValue: "resultRows",
+            },
+          );
+          tokenId = cellToNumber(rows[0]?.[0]);
+        }
+
+        if (!tokenId && forceAirdrop) {
+          tokenId = forcedAirdropTokenIdRef.current;
+        }
+
+        let details = tokenId ? await loadWarpletDetails(tokenId) : null;
+        if (!details && forceAirdrop) {
+          const fallbackRows = db.exec(
+            `SELECT w.id
+             FROM warplets w
+             ORDER BY w.id ASC
+             LIMIT 1`,
+            {
+              rowMode: "array",
+              returnValue: "resultRows",
+            },
+          );
+          const fallbackTokenId = cellToNumber(fallbackRows[0]?.[0]);
+          details = fallbackTokenId ? await loadWarpletDetails(fallbackTokenId) : null;
+        }
+        if (cancelled) return;
+        if (details) {
+          setAirdropFlowHandled(true);
+          if (showOnboarding) {
+            setPreparedAirdropCongratulationsDetails(details);
+          } else {
+            setAirdropCongratulationsDetails(details);
+            void hapticSuccess();
+          }
+        } else if (forceAirdrop) {
+          console.warn("Forced airdrop modal could not load Warplet details.");
+        } else {
+          setAirdropFlowHandled(true);
+          openPendingNotificationPrompt();
+        }
+      } catch (error) {
+        console.error("Failed to load viewer airdrop match:", error);
+        if (!cancelled) {
+          if (forceAirdrop) {
+            console.warn("Forced airdrop modal failed before details could load.");
+          } else {
+            setAirdropFlowHandled(true);
+            openPendingNotificationPrompt();
+          }
+        }
+      }
+    };
+
+    void loadAirdropMatch();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    airdropCongratulationsDetails,
+    airdropFlowHandled,
+    dbReady,
+    isInMiniAppContext,
+    loadWarpletDetails,
+    miniAppContextKnown,
+    onboardingComplete,
+    openPendingNotificationPrompt,
+    preparedAirdropCongratulationsDetails,
+    searchCompletionStatusLoaded,
+    showOnboarding,
+    viewerFid,
+  ]);
+
+  useEffect(() => {
+    const canPreparePostOnboarding = onboardingComplete || showOnboarding;
+    if (
+      !notificationPromptPending ||
+      !canPreparePostOnboarding ||
+      (forceAirdropRef.current && !airdropSharePendingNotificationPrompt) ||
+      !airdropFlowHandled ||
+      airdropCongratulationsDetails ||
+      preparedAirdropCongratulationsDetails ||
+      airdropSharePendingNotificationPrompt ||
+      sharePreview
+    ) {
+      return;
+    }
+    openPendingNotificationPrompt();
+  }, [
+    airdropCongratulationsDetails,
+    airdropFlowHandled,
+    airdropSharePendingNotificationPrompt,
+    notificationPromptPending,
+    onboardingComplete,
+    openPendingNotificationPrompt,
+    preparedAirdropCongratulationsDetails,
+    sharePreview,
+    showOnboarding,
+  ]);
 
   const refreshMarketSnapshot = useCallback(async (force = false) => {
     const cached = readCachedMarketSnapshot();
@@ -6514,6 +7272,9 @@ export default function SearchApp() {
     setQuery(nextAllWarpletsMode ? "" : nextState.search);
     setIsAllWarpletsMode(nextAllWarpletsMode);
     setActiveExampleSearch(nextRandom);
+    if (isRandomMode) {
+      recordSeenRandomExampleSearch(nextRandom);
+    }
     setSelectedAttributes(nextState.attributes);
     setSelectedLevels(nextState.levels);
     setFavouriteFilterWallet(nextFavouriteWallet);
@@ -6773,7 +7534,7 @@ export default function SearchApp() {
 
   const handleResetSearch = () => {
     void hapticPrimaryTap();
-    const nextExample = getRandomExampleSearch(activeExampleSearch);
+    const nextExample = getFreshRandomExampleSearch(activeExampleSearch);
     setActiveExampleSearch(nextExample);
     setQuery("");
     setIsAllWarpletsMode(false);
@@ -6798,7 +7559,7 @@ export default function SearchApp() {
 
   const handleRandomExampleSearch = () => {
     void hapticPrimaryTap();
-    const nextExample = getRandomExampleSearch(activeExampleSearch);
+    const nextExample = getFreshRandomExampleSearch(activeExampleSearch);
     setActiveExampleSearch(nextExample);
     setQuery("");
     setIsAllWarpletsMode(false);
@@ -7020,7 +7781,7 @@ export default function SearchApp() {
     updateSearchUrl(shareState, "replace");
 
     setSharePreview({
-      title: `Share Warplet #${tokenId}`,
+      title: `Share 10X Warplet #${tokenId}`,
       text,
       links,
       images: [
@@ -7047,6 +7808,36 @@ export default function SearchApp() {
     userSelectedOrder,
     updateSearchUrl,
   ]);
+
+  const handleShareAirdropWarplet = useCallback((details: WarpletDetails) => {
+    const tokenId = details.id;
+    const shareState = { ...EMPTY_SEARCH_URL_STATE, warplet: tokenId };
+    const shareUrl = buildSearchHref(shareState);
+    const openSeaUrl = getOpenSeaUrl(tokenId);
+    const text = "👀 Claimed my 10X Warplet Airdrop!";
+    const links = [shareUrl, openSeaUrl];
+    writeAirdropCongratulationsComplete();
+    postSearchCompletion("airdrop_modal");
+    updateSearchUrl(shareState, "replace");
+    setAirdropCongratulationsDetails(null);
+    setAirdropSharePendingNotificationPrompt(true);
+
+    setSharePreview({
+      title: "Share Your 10X Warplet Airdrop",
+      text,
+      links,
+      images: [
+        { src: getWarpletAssetUrl(tokenId, "gif"), alt: `10X Warplet #${tokenId} airdrop share image` },
+        {
+          src: getWarpletAssetUrl(tokenId, "gif"),
+          alt: `OpenSea 10X Warplet #${tokenId} airdrop share image`,
+          sourceUrl: openSeaUrl,
+        },
+      ],
+      farcasterEmbeds: [shareUrl, openSeaUrl],
+      twitterText: buildTwitterShareText(text, links),
+    });
+  }, [postSearchCompletion, updateSearchUrl]);
 
   const handleShareSearchResults = useCallback(() => {
     const sharePreviewWarplet = shouldPrependMatchedWarplet
@@ -7140,6 +7931,14 @@ export default function SearchApp() {
       console.error("Failed to open X share intent:", error);
     });
   }, [beginShareCelebrationWatch, cancelShareCelebration, sharePreview]);
+
+  const handleCloseSharePreview = useCallback(() => {
+    setSharePreview(null);
+    if (airdropSharePendingNotificationPrompt) {
+      setAirdropSharePendingNotificationPrompt(false);
+      openPendingNotificationPrompt();
+    }
+  }, [airdropSharePendingNotificationPrompt, openPendingNotificationPrompt]);
 
   const handleSelectOrderBy = useCallback((nextOrderBy: OrderByOption) => {
     setUserSelectedOrder(true);
@@ -7312,28 +8111,18 @@ export default function SearchApp() {
       {showOnboarding && (
         <OnboardingCarousel onDone={handleCompleteOnboarding} />
       )}
+      {airdropCongratulationsDetails && (
+        <AirdropCongratulationsModal
+          details={airdropCongratulationsDetails}
+          onShare={() => handleShareAirdropWarplet(airdropCongratulationsDetails)}
+          onPreviewRevealComplete={() => showTradeConfetti()}
+        />
+      )}
       {showAddAppPrompt && (
-        <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/80 p-4 sm:items-center">
-          <div className="w-full max-w-md rounded-2xl border border-[#00FF00]/35 bg-black p-4 shadow-2xl">
-            <Text className="text-lg font-bold" style={{ color: "#00FF00" }}>
-              Welcome to 10X Warplets
-            </Text>
-            <Text className="mt-3 text-sm leading-relaxed" style={{ color: "#8bbf8b" }}>
-              {notificationsOnlyPrompt
-                ? "Please turn on notifications so you don’t miss important 10X market updates."
-                : "Please add this Mini App and enable notifications so you don’t miss important 10X market updates."}
-            </Text>
-            <div className="mt-4 flex">
-              <button
-                type="button"
-                onClick={handleConfirmAddAppPrompt}
-                className="flex-1 cursor-pointer rounded-[20px] border border-[#009900] bg-[#00FF00] px-4 py-3 text-sm font-bold text-[rgb(0,80,0)] shadow-[3px_6px_0_#008000] transition-all duration-100 hover:bg-[#33ff33] active:translate-x-[1px] active:translate-y-[3px] active:shadow-[1px_3px_0_#008000]"
-              >
-                Ok, let's go!
-              </button>
-            </div>
-          </div>
-        </div>
+        <NotificationsPromptModal
+          notificationsOnlyPrompt={notificationsOnlyPrompt}
+          onConfirm={handleConfirmAddAppPrompt}
+        />
       )}
       <div className="relative z-10 w-full">
         <MiniAppHeader
@@ -7600,7 +8389,7 @@ export default function SearchApp() {
       {sharePreview && (
         <SharePreviewModal
           preview={sharePreview}
-          onClose={() => setSharePreview(null)}
+          onClose={handleCloseSharePreview}
           onCopySuccess={() => showSearchToast("neutral", "Post has been copied to your clipboard.")}
           onShareFarcaster={handleSharePreviewFarcaster}
           onShareTwitter={handleSharePreviewTwitter}
