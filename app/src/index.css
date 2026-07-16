@@ -52,6 +52,114 @@ input[type="search"]::-webkit-search-results-decoration {
   appearance: none;
 }
 
+.onboarding-pan-zoom {
+  transform-origin: center;
+  animation: onboarding-pan-zoom 64s ease-in-out infinite;
+  will-change: transform;
+}
+
+.onboarding-attribute-tile {
+  opacity: 0;
+  animation: onboarding-attribute-fade-in 500ms ease-out forwards;
+}
+
+.onboarding-level-bar {
+  height: var(--level-height);
+  transition:
+    height var(--level-duration, 500ms) ease-out,
+    opacity 300ms ease-out;
+}
+
+.onboarding-search-carousel-image {
+  opacity: 0;
+  animation: onboarding-search-carousel var(--onboarding-carousel-duration, 15s) ease-in-out infinite;
+}
+
+.onboarding-trade-carousel-image {
+  opacity: 0;
+  animation: onboarding-trade-carousel var(--onboarding-carousel-duration, 28s) ease-in-out infinite;
+}
+
+@keyframes onboarding-attribute-fade-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes onboarding-pan-zoom {
+  0% {
+    transform: translate3d(34%, 34%, 0) scale(3.25);
+  }
+
+  12.5% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+
+  25% {
+    transform: translate3d(-34%, -34%, 0) scale(3.25);
+  }
+
+  37.5% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+
+  50% {
+    transform: translate3d(-34%, 34%, 0) scale(3.25);
+  }
+
+  62.5% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+
+  75% {
+    transform: translate3d(34%, -34%, 0) scale(3.25);
+  }
+
+  87.5% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+
+  100% {
+    transform: translate3d(34%, 34%, 0) scale(3.25);
+  }
+}
+
+@keyframes onboarding-search-carousel {
+  0%,
+  100% {
+    opacity: 0;
+  }
+
+  4%,
+  20% {
+    opacity: 1;
+  }
+
+  24% {
+    opacity: 0;
+  }
+}
+
+@keyframes onboarding-trade-carousel {
+  0%,
+  100% {
+    opacity: 0;
+  }
+
+  2.857%,
+  14.285% {
+    opacity: 1;
+  }
+
+  17.142% {
+    opacity: 0;
+  }
+}
+
 .trade-toast {
   position: fixed;
   top: 0;

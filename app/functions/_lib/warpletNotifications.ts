@@ -79,6 +79,17 @@ const ACTION_PRIORITY: Record<WarpletActivityType, number> = {
   collection_top_offer: 5,
 };
 
+const TABLE_COLUMN_CACHE = new Map<string, Set<string>>();
+
+async function getTableColumns(env: WarpletNotificationEnv, tableName: "wallet_farcaster_links" | "warplets_users"): Promise<Set<string>> {
+  const cached = TABLE_COLUMN_CACHE.get(tableName);
+  if (cached) return cached;
+  const result = await env.WARPLETS.prepare(`PRAGMA table_info(${tableName})`).all<{ name: string }>();
+  const columns = new Set((result.results ?? []).map((row) => row.name));
+  TABLE_COLUMN_CACHE.set(tableName, columns);
+  return columns;
+}
+
 function normalizeWallet(wallet?: string | null): string | null {
   if (!wallet) return null;
   const trimmed = wallet.trim().toLowerCase();
@@ -212,27 +223,49 @@ export async function resolveFidForWallet(
   const normalized = normalizeWallet(wallet);
   if (!normalized) return null;
 
-  const linked = await env.WARPLETS.prepare(
-    `SELECT fid
-     FROM wallet_farcaster_links
-     WHERE lower(wallet) = ?
-     ORDER BY COALESCE(neynar_score, 0) DESC, fid ASC
-     LIMIT 1`,
-  )
-    .bind(normalized)
-    .first<{ fid: number }>();
-  if (linked?.fid) return Number(linked.fid);
+  try {
+    const linkColumns = await getTableColumns(env, "wallet_farcaster_links");
+    if (linkColumns.has("wallet") && linkColumns.has("fid")) {
+      const scoreColumn = linkColumns.has("neynar_score") ? "neynar_score" : linkColumns.has("score") ? "score" : null;
+      const linked = await env.WARPLETS.prepare(
+        `SELECT fid
+         FROM wallet_farcaster_links
+         WHERE lower(wallet) = ?
+         ORDER BY ${scoreColumn ? `COALESCE(${scoreColumn}, 0) DESC, ` : ""}fid ASC
+         LIMIT 1`,
+      )
+        .bind(normalized)
+        .first<{ fid: number }>();
+      if (linked?.fid) return Number(linked.fid);
+    }
+  } catch (error) {
+    console.warn("resolveFidForWallet wallet_farcaster_links lookup failed", error);
+  }
 
-  const user = await env.WARPLETS.prepare(
-    `SELECT fid
-     FROM warplets_users
-     WHERE lower(primary_eth_address) = ?
-     ORDER BY updated_at DESC
-     LIMIT 1`,
-  )
-    .bind(normalized)
-    .first<{ fid: number }>();
-  return user?.fid ? Number(user.fid) : null;
+  try {
+    const userColumns = await getTableColumns(env, "warplets_users");
+    if (!userColumns.has("primary_eth_address") || !userColumns.has("fid")) return null;
+    const updatedColumn = userColumns.has("updated_at")
+      ? "updated_at"
+      : userColumns.has("updated_on")
+        ? "updated_on"
+        : userColumns.has("created_on")
+          ? "created_on"
+          : "fid";
+    const user = await env.WARPLETS.prepare(
+      `SELECT fid
+       FROM warplets_users
+       WHERE lower(primary_eth_address) = ?
+       ORDER BY ${updatedColumn} DESC
+       LIMIT 1`,
+    )
+      .bind(normalized)
+      .first<{ fid: number }>();
+    return user?.fid ? Number(user.fid) : null;
+  } catch (error) {
+    console.warn("resolveFidForWallet warplets_users lookup failed", error);
+    return null;
+  }
 }
 
 async function resolveUsernameForFid(env: WarpletNotificationEnv, fid?: number | null): Promise<string | null> {

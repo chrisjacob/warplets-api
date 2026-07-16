@@ -1,4 +1,4 @@
-import { CSSProperties, MouseEvent, ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { CSSProperties, MouseEvent, ReactNode, cloneElement, isValidElement, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import confetti from "canvas-confetti";
 import {
@@ -59,6 +59,35 @@ const DB_URL = "/db/warplets.v1.fts.sqlite.br";
 const PAGE_SIZE = 20;
 const SEARCH_RESULT_LIMIT = 10000;
 const DB_FILENAME = "/warplets-search.sqlite3";
+const DATABASE_LOADING_PREFIX = "Loading: ";
+const DATABASE_LOADING_MESSAGE_SUFFIXES = [
+  "10X Warplets Database...",
+  "Just a little longer...",
+  "Almost done I swear...",
+  "It will be worth the wait...",
+  "So close I can almost smell it...",
+  "...well this is awkward.",
+  "Enjoy the elevator music...",
+  "We're testing your patience...",
+  "It's not you, it's me...",
+  "Follow the white rabbit...",
+  "My other loading screen is much faster...",
+  "Are we there yet?",
+  "Counting backwards from Infinity...",
+  "I feel like I'm supposed to be loading something. . .",
+  "Listening for the sound of one hand clapping...",
+  "Unicorns are at the end of this road, I promise.",
+  "Granting wishes...",
+  "Time flies when you're having fun!",
+  "I think I am, therefore, I am. I think...",
+  "There is no spoon.",
+];
+const DATABASE_LOADING_TYPE_MS = 1000;
+const DATABASE_LOADING_HOLD_MS = 1750;
+const DATABASE_LOADING_DELETE_MS = 250;
+const DATABASE_LOADING_MESSAGE_INTERVAL_MS = 3000;
+const DATABASE_LOADING_ANIMATION_TICK_MS = 50;
+const ONBOARDING_COMPLETE_KEY = "warplets-search-onboarding-v1-complete";
 const SEARCH_DEBOUNCE_MS = 300;
 const STATUS_LINE_CLASS = "text-center text-xs uppercase leading-4";
 const OPENSEA_COLLECTION_URL = "https://opensea.io/collection/10xwarplets";
@@ -70,6 +99,40 @@ const BASE_WETH_TOKEN_ADDRESS = "0x4200000000000000000000000000000000000006";
 const NATIVE_TOKEN_ADDRESS = "0x0000000000000000000000000000000000000000";
 const MIN_LISTING_ETH = 0.00000000000001;
 const TRADE_PRICE_DECIMAL_PLACES = 4;
+
+function getDatabaseLoadingMessage(elapsedMs: number): string {
+  const cycleNumber = Math.floor(elapsedMs / DATABASE_LOADING_MESSAGE_INTERVAL_MS);
+  const suffix = DATABASE_LOADING_MESSAGE_SUFFIXES[cycleNumber % DATABASE_LOADING_MESSAGE_SUFFIXES.length];
+  const cycleElapsed = elapsedMs % DATABASE_LOADING_MESSAGE_INTERVAL_MS;
+  let visibleCharacters = suffix.length;
+
+  if (cycleElapsed < DATABASE_LOADING_TYPE_MS) {
+    visibleCharacters = Math.ceil((suffix.length * cycleElapsed) / DATABASE_LOADING_TYPE_MS);
+  } else if (cycleElapsed >= DATABASE_LOADING_TYPE_MS + DATABASE_LOADING_HOLD_MS) {
+    const deleteElapsed = cycleElapsed - DATABASE_LOADING_TYPE_MS - DATABASE_LOADING_HOLD_MS;
+    const deleteProgress = Math.min(1, deleteElapsed / DATABASE_LOADING_DELETE_MS);
+    visibleCharacters = Math.floor(suffix.length * (1 - deleteProgress));
+  }
+
+  return `${DATABASE_LOADING_PREFIX}${suffix.slice(0, Math.max(0, visibleCharacters))}`;
+}
+
+function isOnboardingForced(): boolean {
+  if (typeof window === "undefined") return false;
+  return new URLSearchParams(window.location.search).get("onboarding") === "1";
+}
+
+function readOnboardingComplete(): boolean {
+  if (typeof window === "undefined") return false;
+  if (isOnboardingForced()) return false;
+  return window.localStorage.getItem(ONBOARDING_COMPLETE_KEY) === "1";
+}
+
+function writeOnboardingComplete(): void {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(ONBOARDING_COMPLETE_KEY, "1");
+}
+
 const EXAMPLE_SEARCHES = [
   "Wizard Hat",
   "Pink Bunny",
@@ -2716,6 +2779,562 @@ function FavouriteButton({
   );
 }
 
+type OnboardingVisualKind =
+  | "featuredWarplet"
+  | "airdrop"
+  | "attributes"
+  | "levels"
+  | "access"
+  | "search"
+  | "trade";
+
+type OnboardingSlide = {
+  title: string;
+  bullets: ReactNode[];
+  visual: OnboardingVisualKind;
+};
+
+const ONBOARDING_SLIDES: OnboardingSlide[] = [
+  {
+    title: "Welcome to 10X Warplets",
+    visual: "featuredWarplet",
+    bullets: [
+      "10X Warplets is a fun 10,000 NFT collection.",
+      "Farcaster focused. Meme powered. Data driven.",
+      "10X is where Builders, Capital, & Attention align.",
+    ],
+  },
+  {
+    title: "Airdropped to Diamond Hands",
+    visual: "airdrop",
+    bullets: [
+      "Airdropped to an exclusive group of 10,000 holders from the original 49,137 The Warplets collection... the people who never sold!",
+      "Starting 10X with a core \"diamond hands\" community of active onchain users, with real influence, and the belief to hold long-term.",
+    ],
+  },
+  {
+    title: "Rarity was Earned!",
+    visual: "attributes",
+    bullets: [
+      "For most NFT collections, rarity is visual (...eyes, hat, background, etc). But for 10X Warplets rarity comes from onchain data.",
+      "10 NFT attributes scored a real humans onchain social presence, capital, and conviction.",
+      "Rarity isn't random, it was earned!",
+    ],
+  },
+  {
+    title: "10 Levels. Exponential Scarcity.",
+    visual: "levels",
+    bullets: [
+      "Each attribute has a Level from 10X to 1X.",
+      "10X = 10 NFTs, 9X = 20, 8X = 40 ... 1X = 4,890!",
+      "To keep things simple... Token #1 is the most rare, through to Token #10,000 is the least rare.",
+    ],
+  },
+  {
+    title: "Future Airdrops & Access",
+    visual: "access",
+    bullets: [
+      <>
+        You want higher Levels to get bigger 10X Meme daily memecoin airdrop bonuses (coming soon on Base, BSC, Solana... and <em>maybe</em> Robinhood).
+      </>,
+      "Holding a 10X Warplet also gives you whitelist access to future 10X NFT launches (coming soon on Ethereum).",
+    ],
+  },
+  {
+    title: "Find Warplets and Track The Market",
+    visual: "search",
+    bullets: [
+      "Search all 10,000 Warplets, filter by attributes and levels, and order by market data.",
+      "💚 Favourite a Warplet to track market updates.",
+    ],
+  },
+  {
+    title: "Trade, Share, and Stay Updated",
+    visual: "trade",
+    bullets: [
+      "Buy, offer, list, and sell in-app via OpenSea.",
+      "Share interesting Warplets and search results.",
+      "Get notifications for stats, activity, and friends.",
+    ],
+  },
+];
+
+const ONBOARDING_ATTRIBUTE_SAMPLE_LEVELS = ["9X", "3X", "2X", "1X", "7X", "2X", "1X", "3X", "1X", "2X"] as const;
+const ONBOARDING_ATTRIBUTES = LEVEL_ATTRIBUTES.map(({ label, emoji }, index) => ({ label, emoji, level: ONBOARDING_ATTRIBUTE_SAMPLE_LEVELS[index] ?? "1X" }));
+const ONBOARDING_LEVELS = [
+  ["10X", 10],
+  ["9X", 20],
+  ["8X", 40],
+  ["7X", 80],
+  ["6X", 160],
+  ["5X", 320],
+  ["4X", 640],
+  ["3X", 1280],
+  ["2X", 2560],
+  ["1X", 4890],
+] as const;
+const ONBOARDING_ATTRIBUTE_TILE_INTERVAL_MS = 400;
+const ONBOARDING_ATTRIBUTE_TILE_ANIMATION_MS = 500;
+const ONBOARDING_LEVEL_BAR_INTERVAL_MS = 500;
+const getOnboardingLevelBarDurationMs = (index: number) => 500 + index * 100;
+const ONBOARDING_TYPEWRITER_MS_PER_CHARACTER = 38;
+
+function getOnboardingPreviewAnimationDurationMs(kind: OnboardingVisualKind): number {
+  if (kind === "attributes") {
+    return (ONBOARDING_ATTRIBUTES.length - 1) * ONBOARDING_ATTRIBUTE_TILE_INTERVAL_MS + ONBOARDING_ATTRIBUTE_TILE_ANIMATION_MS;
+  }
+  if (kind === "levels") {
+    const finalLevelIndex = ONBOARDING_LEVELS.length - 1;
+    return finalLevelIndex * ONBOARDING_LEVEL_BAR_INTERVAL_MS + getOnboardingLevelBarDurationMs(finalLevelIndex);
+  }
+  return 0;
+}
+
+function countTypewriterCharacters(node: ReactNode): number {
+  if (node == null || typeof node === "boolean") return 0;
+  if (typeof node === "string" || typeof node === "number") return String(node).length;
+  if (Array.isArray(node)) return node.reduce((total, child) => total + countTypewriterCharacters(child), 0);
+  if (isValidElement<{ children?: ReactNode }>(node)) return countTypewriterCharacters(node.props.children);
+  return 0;
+}
+
+function renderTypewriterNode(node: ReactNode, visibleCharacters: number): { content: ReactNode; totalCharacters: number } {
+  if (node == null || typeof node === "boolean") return { content: null, totalCharacters: 0 };
+
+  if (typeof node === "string" || typeof node === "number") {
+    const text = String(node);
+    return {
+      content: text.slice(0, Math.max(0, Math.min(visibleCharacters, text.length))),
+      totalCharacters: text.length,
+    };
+  }
+
+  if (Array.isArray(node)) {
+    let remainingCharacters = visibleCharacters;
+    let totalCharacters = 0;
+    const content = node.map((child, index) => {
+      const rendered = renderTypewriterNode(child, remainingCharacters);
+      remainingCharacters -= rendered.totalCharacters;
+      totalCharacters += rendered.totalCharacters;
+      return <span key={index}>{rendered.content}</span>;
+    });
+    return { content, totalCharacters };
+  }
+
+  if (isValidElement<{ children?: ReactNode }>(node)) {
+    const rendered = renderTypewriterNode(node.props.children, visibleCharacters);
+    return {
+      content: cloneElement(node, undefined, rendered.content),
+      totalCharacters: rendered.totalCharacters,
+    };
+  }
+
+  return { content: node, totalCharacters: 0 };
+}
+
+function TypewriterText({
+  children,
+  visibleCharacters,
+}: {
+  children: ReactNode;
+  visibleCharacters: number;
+}) {
+  const rendered = renderTypewriterNode(children, visibleCharacters);
+  return <>{rendered.content}</>;
+}
+
+function OnboardingVisual({
+  kind,
+  animationStarted = true,
+}: {
+  kind: OnboardingVisualKind;
+  animationStarted?: boolean;
+}) {
+  const [isFeaturedVideoReady, setIsFeaturedVideoReady] = useState(false);
+  const [readyAccessVideos, setReadyAccessVideos] = useState<Record<string, boolean>>({});
+  const [levelAnimationStep, setLevelAnimationStep] = useState(-1);
+
+  useEffect(() => {
+    if (kind !== "levels" || !animationStarted) {
+      setLevelAnimationStep(-1);
+      return;
+    }
+
+    let isCancelled = false;
+    const timeoutIds: number[] = [];
+
+    setLevelAnimationStep(-1);
+    ONBOARDING_LEVELS.forEach((_, index) => {
+      const timeoutId = window.setTimeout(() => {
+        if (!isCancelled) setLevelAnimationStep(index);
+      }, index * ONBOARDING_LEVEL_BAR_INTERVAL_MS);
+      timeoutIds.push(timeoutId);
+    });
+
+    return () => {
+      isCancelled = true;
+      timeoutIds.forEach((timeoutId) => window.clearTimeout(timeoutId));
+    };
+  }, [animationStarted, kind]);
+
+  if (kind === "featuredWarplet") {
+    return (
+      <div className="relative mx-auto aspect-[9/8] w-full max-w-[min(100%,360px)] overflow-hidden rounded-lg border border-[#00FF00]/25 bg-black">
+        {!isFeaturedVideoReady && (
+          <div className="absolute inset-0 flex items-center justify-center bg-[rgba(0,255,0,0.12)]">
+            <span className="h-8 w-8 animate-spin rounded-full border-2 border-[#00FF00]/25 border-t-[#00FF00]" aria-label="Loading 10X Warplet video" />
+          </div>
+        )}
+        <video
+          src={getWarpletAssetUrl(760, "mp4")}
+          autoPlay
+          muted
+          loop
+          playsInline
+          onCanPlay={() => setIsFeaturedVideoReady(true)}
+          onLoadedData={() => setIsFeaturedVideoReady(true)}
+          className={`h-full w-full object-cover transition-opacity duration-300 ${isFeaturedVideoReady ? "opacity-100" : "opacity-0"}`}
+        />
+      </div>
+    );
+  }
+
+  if (kind === "airdrop") {
+    return (
+      <div className="relative aspect-[9/7] overflow-hidden rounded-lg border border-[#00FF00]/25 bg-black">
+        <img src="/onboarding/step-2.avif" alt="The Warplets collection" className="onboarding-pan-zoom h-full w-full object-cover" loading="eager" />
+      </div>
+    );
+  }
+
+  if (kind === "attributes") {
+    return (
+      <div className="aspect-[16/10] rounded-lg border border-[#00FF00]/25 bg-black p-3">
+        <div className="grid h-full grid-cols-2 gap-2">
+          {ONBOARDING_ATTRIBUTES.map(({ label, emoji, level }, index) => (
+            <div
+              key={label}
+              className={`${animationStarted ? "onboarding-attribute-tile" : "opacity-0"} flex items-center justify-between rounded border border-[#00FF00]/15 bg-[#041204] px-2 py-1`}
+              style={{
+                animationDelay: animationStarted ? `${index * ONBOARDING_ATTRIBUTE_TILE_INTERVAL_MS}ms` : undefined,
+              }}
+            >
+              <span className="flex min-w-0 items-center gap-1 text-[10px] font-bold uppercase text-[#8bbf8b]">
+                <span aria-hidden="true">{emoji}</span>
+                <span className="truncate">{label}</span>
+              </span>
+              <span className="rounded bg-[rgba(0,255,0,0.12)] px-2 py-0.5 text-xs font-bold text-[#00FF00]">{level}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (kind === "levels") {
+    const currentLevelIndex = Math.max(0, Math.min(levelAnimationStep, ONBOARDING_LEVELS.length - 1));
+    const currentMaxSupply = ONBOARDING_LEVELS[currentLevelIndex][1];
+    const pixelScalePerNft = 0.3;
+    const zoomOutThresholdSupply = 320;
+    const getLevelHeight = (count: number) => {
+      if (currentMaxSupply <= zoomOutThresholdSupply) {
+        return `${count * pixelScalePerNft}px`;
+      }
+      return count === 10 ? "1px" : `${Math.max(1, (count / currentMaxSupply) * 100)}%`;
+    };
+
+    return (
+      <div className="h-[250px] rounded-lg border border-[#00FF00]/25 bg-black p-3">
+        <div className="flex h-full items-end gap-1">
+          {ONBOARDING_LEVELS.map(([level, count], index) => {
+            const isVisible = index <= levelAnimationStep;
+            return (
+            <div key={level} className="flex h-full flex-1 flex-col items-center justify-end gap-1">
+              <div className="flex min-h-0 w-full flex-1 items-end">
+                <div
+                  className="onboarding-level-bar w-full rounded-t border border-[#00FF00]/25 bg-[rgba(0,255,0,0.12)]"
+                  style={{
+                    "--level-height": isVisible ? getLevelHeight(count) : "1px",
+                    "--level-duration": `${getOnboardingLevelBarDurationMs(index)}ms`,
+                    opacity: isVisible ? 1 : 0,
+                  } as CSSProperties}
+                />
+              </div>
+              <span className="text-[10px] font-bold text-[#00FF00]">{level}</span>
+              <span className="text-[8px] text-[#8bbf8b]">{count.toLocaleString("en-US")}</span>
+            </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  if (kind === "access") {
+    const accessVideos = [
+      { title: "10X Memes", body: "Future airdrop bonuses", src: "/onboarding/ansem.mp4" },
+      { title: "10X NFTs", body: "Future whitelist access", src: "/onboarding/Token_S1.mp4" },
+    ];
+
+    return (
+      <div className="grid grid-cols-2 gap-3 rounded-lg border border-[#00FF00]/25 bg-black p-3">
+        {accessVideos.map(({ title, body, src }) => (
+          <div key={title} className="flex min-h-0 flex-col gap-2">
+            <span className="text-center text-xs font-bold uppercase text-[#00FF00]">{title}</span>
+            <div className="relative aspect-square w-full overflow-hidden rounded-lg border border-[#00FF00]/25 bg-[rgba(0,255,0,0.12)]">
+              {!readyAccessVideos[src] && (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <span className="h-8 w-8 animate-spin rounded-full border-2 border-[#00FF00]/25 border-t-[#00FF00]" aria-label={`Loading ${title} video`} />
+                </div>
+              )}
+              <video
+                src={src}
+                autoPlay
+                muted
+                loop
+                playsInline
+                onCanPlay={() => setReadyAccessVideos((current) => ({ ...current, [src]: true }))}
+                onLoadedData={() => setReadyAccessVideos((current) => ({ ...current, [src]: true }))}
+                className={`h-full w-full object-cover transition-opacity duration-300 ${readyAccessVideos[src] ? "opacity-100" : "opacity-0"}`}
+              />
+            </div>
+            <span className="text-center text-xs font-bold text-[#8bbf8b]">{body}</span>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (kind === "search") {
+    const searchPreviewImages = [1, 2, 3, 4, 5].map((index) => `/onboarding/step6-${index}.jpg`);
+
+    return (
+      <div className="relative aspect-square overflow-hidden rounded-lg border border-[#00FF00]/25 bg-black">
+        {searchPreviewImages.map((src, index) => (
+          <img
+            key={src}
+            src={src}
+            alt=""
+            className="onboarding-search-carousel-image absolute inset-0 h-full w-full object-cover"
+            style={{
+              "--onboarding-carousel-duration": "20s",
+              animationDelay: `${index * 4}s`,
+            } as CSSProperties}
+            loading={index === 0 ? "eager" : "lazy"}
+          />
+          ))}
+      </div>
+    );
+  }
+
+  if (kind === "trade") {
+    const tradePreviewImages = [1, 2, 3, 4, 5, 6, 7].map((index) => `/onboarding/step7-${index}-v2.jpg`);
+
+    return (
+      <div className="relative aspect-[450/400] overflow-hidden rounded-lg border border-[#00FF00]/25 bg-black">
+        {tradePreviewImages.map((src, index) => (
+          <img
+            key={src}
+            src={src}
+            alt=""
+            className="onboarding-trade-carousel-image absolute inset-0 h-full w-full object-cover"
+            style={{
+              "--onboarding-carousel-duration": "28s",
+              animationDelay: `${index * 4}s`,
+            } as CSSProperties}
+            loading={index === 0 ? "eager" : "lazy"}
+          />
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div className="aspect-[16/10] rounded-lg border border-[#00FF00]/25 bg-black p-3">
+      <div className="grid h-full grid-rows-3 gap-2">
+        {[["Buy now", "Make offer"], ["List for sale", "Accept offer"], ["Share", "Notifications"]].map((row, rowIndex) => (
+          <div key={rowIndex} className="grid grid-cols-2 gap-2">
+            {row.map((label, index) => (
+              <div
+                key={label}
+                className={`flex items-center justify-center rounded-full border-b-4 border-r-4 px-2 text-center text-xs font-bold ${
+                  rowIndex === 0 && index === 0
+                    ? "border-[#005000] bg-[#00FF00] text-[rgb(0,80,0)]"
+                    : "border-[#00FF00]/35 bg-black text-[#00FF00]"
+                }`}
+              >
+                {label}
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function OnboardingCarousel({ onDone }: { onDone: () => void }) {
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [typedCharacterCount, setTypedCharacterCount] = useState(0);
+  const onboardingContentRef = useRef<HTMLDivElement | null>(null);
+  const activeSlide = ONBOARDING_SLIDES[activeIndex];
+  const isFirst = activeIndex === 0;
+  const isLast = activeIndex === ONBOARDING_SLIDES.length - 1;
+  const onboardingTitleCharacterCount = activeSlide.title.length;
+  const visibleTitleCharacters = Math.max(
+    0,
+    Math.min(onboardingTitleCharacterCount, typedCharacterCount),
+  );
+  const onboardingTextCharacterCounts = useMemo(
+    () => activeSlide.bullets.map((bullet) => countTypewriterCharacters(bullet)),
+    [activeSlide],
+  );
+  const onboardingPreviewAnimationCharacters = Math.ceil(
+    getOnboardingPreviewAnimationDurationMs(activeSlide.visual) / ONBOARDING_TYPEWRITER_MS_PER_CHARACTER,
+  );
+  const onboardingBodyStartCharacterCount = onboardingTitleCharacterCount + onboardingPreviewAnimationCharacters;
+  const onboardingPreviewAnimationStarted = typedCharacterCount >= onboardingTitleCharacterCount;
+  const onboardingTotalTextCharacters = useMemo(
+    () => onboardingBodyStartCharacterCount + onboardingTextCharacterCounts.reduce((total, count) => total + count, 0),
+    [onboardingBodyStartCharacterCount, onboardingTextCharacterCounts],
+  );
+  const [initializeOnboardingScrollbars] = useOverlayScrollbars({
+    options: {
+      scrollbars: {
+        theme: "os-theme-10x",
+        autoHide: "scroll",
+        clickScroll: true,
+      },
+    },
+    defer: true,
+  });
+
+  useEffect(() => {
+    const target = onboardingContentRef.current;
+    if (!target) return;
+    target.setAttribute("data-overlayscrollbars-initialize", "");
+    initializeOnboardingScrollbars(target);
+    return () => {
+      target.removeAttribute("data-overlayscrollbars-initialize");
+    };
+  }, [initializeOnboardingScrollbars]);
+
+  useEffect(() => {
+    let animationFrameId = 0;
+    const startedAt = performance.now();
+
+    setTypedCharacterCount(0);
+
+    const tick = (now: number) => {
+      const nextCount = Math.min(
+        onboardingTotalTextCharacters,
+        Math.floor((now - startedAt) / ONBOARDING_TYPEWRITER_MS_PER_CHARACTER),
+      );
+      setTypedCharacterCount(nextCount);
+      if (nextCount < onboardingTotalTextCharacters) {
+        animationFrameId = window.requestAnimationFrame(tick);
+      }
+    };
+
+    animationFrameId = window.requestAnimationFrame(tick);
+    return () => window.cancelAnimationFrame(animationFrameId);
+  }, [activeIndex, onboardingTotalTextCharacters]);
+
+  const goBack = () => {
+    if (isFirst) return;
+    void hapticTap();
+    setActiveIndex((current) => Math.max(0, current - 1));
+  };
+
+  const goForward = () => {
+    void hapticPrimaryTap();
+    if (isLast) {
+      onDone();
+      return;
+    }
+    setActiveIndex((current) => Math.min(ONBOARDING_SLIDES.length - 1, current + 1));
+  };
+
+  return (
+    <div className="fixed inset-0 z-[110] flex items-end justify-center bg-black/85 p-4 sm:items-center">
+      <div className="flex max-h-[92vh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-[#00FF00]/35 bg-black shadow-2xl">
+        <div className="border-b border-[#00FF00]/20 bg-black px-4 py-3">
+          <Text className="relative text-base font-bold" style={{ color: "#00FF00" }}>
+            <span className="invisible select-none" aria-hidden="true">{activeSlide.title}</span>
+            <span className="absolute inset-0">
+              <TypewriterText visibleCharacters={visibleTitleCharacters}>
+                {activeSlide.title}
+              </TypewriterText>
+            </span>
+          </Text>
+        </div>
+        <div ref={onboardingContentRef} className="min-h-0 flex-1 overflow-y-auto p-4">
+          <OnboardingVisual kind={activeSlide.visual} animationStarted={onboardingPreviewAnimationStarted} />
+          <div className="mt-3 space-y-2">
+            {activeSlide.bullets.map((bullet, index) => {
+              const previousCharacters = onboardingBodyStartCharacterCount + onboardingTextCharacterCounts
+                .slice(0, index)
+                .reduce((total, count) => total + count, 0);
+              const bulletCharacterCount = onboardingTextCharacterCounts[index] ?? 0;
+              const visibleCharacters = Math.max(
+                0,
+                Math.min(bulletCharacterCount, typedCharacterCount - previousCharacters),
+              );
+
+              return (
+                <div key={index} className="relative rounded-lg border border-[#00FF00]/15 bg-[#041204] px-3 py-2 text-sm leading-relaxed text-[#8bbf8b]">
+                  <div className="invisible select-none" aria-hidden="true">
+                    {bullet}
+                  </div>
+                  <div className="absolute inset-0 px-3 py-2">
+                    <TypewriterText visibleCharacters={visibleCharacters}>
+                      {bullet}
+                    </TypewriterText>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+        <div className="border-t border-[#00FF00]/20 bg-black p-4">
+          <div className="mb-4 flex items-center justify-center gap-1.5">
+            {ONBOARDING_SLIDES.map((slide, index) => (
+              <button
+                key={slide.title}
+                type="button"
+                aria-label={`Go to onboarding slide ${index + 1}`}
+                onClick={() => {
+                  void hapticSelectionChanged();
+                  setActiveIndex(index);
+                }}
+                className={`h-2 rounded-full transition-all ${index === activeIndex ? "w-6 bg-[#00FF00]" : "w-2 bg-[#00FF00]/25 hover:bg-[#00FF00]/60"}`}
+              />
+            ))}
+          </div>
+          <div className="flex gap-3">
+            {!isFirst && (
+              <button
+                type="button"
+                onClick={goBack}
+                className="secondary-trade-cta flex-1 cursor-pointer rounded-[20px] border bg-black px-4 py-3 text-sm font-bold text-[#00FF00] transition-all duration-100 hover:bg-[#041204] active:translate-x-[1px] active:translate-y-[3px]"
+              >
+                Back
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={goForward}
+              className="flex-1 cursor-pointer rounded-[20px] border border-[#009900] bg-[#00FF00] px-4 py-3 text-sm font-bold text-[rgb(0,80,0)] shadow-[3px_6px_0_#008000] transition-all duration-100 hover:bg-[#33ff33] active:translate-x-[1px] active:translate-y-[3px] active:shadow-[1px_3px_0_#008000]"
+            >
+              {isLast ? "Done" : "Next"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function SharePreviewModal({
   preview,
   onClose,
@@ -5154,6 +5773,10 @@ function WarpletDetailsModal({
 export default function SearchApp() {
   const [dbReady, setDbReady] = useState(false);
   const [dbError, setDbError] = useState("");
+  const [databaseLoadingMessage, setDatabaseLoadingMessage] = useState(DATABASE_LOADING_PREFIX);
+  const [onboardingComplete, setOnboardingComplete] = useState(() => readOnboardingComplete());
+  const [showOnboarding, setShowOnboarding] = useState(() => !readOnboardingComplete());
+  const [notificationPromptPending, setNotificationPromptPending] = useState(false);
   const [viewerFid, setViewerFid] = useState<number | null>(null);
   const [viewerProfile, setViewerProfile] = useState<ViewerProfile | null>(null);
   const [showAddAppPrompt, setShowAddAppPrompt] = useState(false);
@@ -5442,7 +6065,7 @@ export default function SearchApp() {
         const shouldPromptAddApp = (isPromptHost || addDebug) && (!hasAdded || !hasNotifications);
         if (shouldPromptAddApp) {
           setNotificationsOnlyPrompt(hasAdded && !hasNotifications);
-          setShowAddAppPrompt(true);
+          setNotificationPromptPending(true);
         }
       } catch (err) {
         console.error("Search app init error:", err);
@@ -5490,6 +6113,20 @@ export default function SearchApp() {
     }
   }, []);
 
+  const handleCompleteOnboarding = useCallback(() => {
+    void hapticSuccess();
+    writeOnboardingComplete();
+    setOnboardingComplete(true);
+    setShowOnboarding(false);
+  }, []);
+
+  useEffect(() => {
+    const airdropClaimFlowComplete = true;
+    if (!notificationPromptPending || !onboardingComplete || showOnboarding || !airdropClaimFlowComplete) return;
+    setNotificationPromptPending(false);
+    setShowAddAppPrompt(true);
+  }, [notificationPromptPending, onboardingComplete, showOnboarding]);
+
   const refreshMarketSnapshot = useCallback(async (force = false) => {
     const cached = readCachedMarketSnapshot();
     if (cached && !force) {
@@ -5520,6 +6157,7 @@ export default function SearchApp() {
 
   useEffect(() => {
     let cancelled = false;
+    const shouldHapticDatabaseReady = readOnboardingComplete();
 
     const loadDatabase = async () => {
       try {
@@ -5539,7 +6177,7 @@ export default function SearchApp() {
 
         dbRef.current = db;
         setDbReady(true);
-        void hapticSuccess();
+        if (shouldHapticDatabaseReady) void hapticSuccess();
       } catch (err) {
         console.error("Failed to load Warplets search database:", err);
         if (!cancelled) {
@@ -5556,6 +6194,21 @@ export default function SearchApp() {
       dbRef.current = null;
     };
   }, []);
+
+  useEffect(() => {
+    if (dbReady) {
+      setDatabaseLoadingMessage(DATABASE_LOADING_PREFIX);
+      return;
+    }
+
+    const startedAt = Date.now();
+    setDatabaseLoadingMessage(getDatabaseLoadingMessage(0));
+    const intervalId = window.setInterval(() => {
+      setDatabaseLoadingMessage(getDatabaseLoadingMessage(Date.now() - startedAt));
+    }, DATABASE_LOADING_ANIMATION_TICK_MS);
+
+    return () => window.clearInterval(intervalId);
+  }, [dbReady]);
 
   const setFavouriteListForWallet = useCallback((wallet: string, tokenIds: number[]) => {
     const normalizedWallet = normalizeWalletAddress(wallet);
@@ -6656,6 +7309,9 @@ export default function SearchApp() {
       {searchToast && (
         <TradeToastView toast={searchToast} exiting={searchToastExiting} onClose={closeSearchToast} />
       )}
+      {showOnboarding && (
+        <OnboardingCarousel onDone={handleCompleteOnboarding} />
+      )}
       {showAddAppPrompt && (
         <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/80 p-4 sm:items-center">
           <div className="w-full max-w-md rounded-2xl border border-[#00FF00]/35 bg-black p-4 shadow-2xl">
@@ -6664,26 +7320,16 @@ export default function SearchApp() {
             </Text>
             <Text className="mt-3 text-sm leading-relaxed" style={{ color: "#8bbf8b" }}>
               {notificationsOnlyPrompt
-                ? "Please turn on notifications so you don’t miss important Warplet market updates."
-                : "Please add this Mini App and enable notifications so you don’t miss important Warplet market updates."}
+                ? "Please turn on notifications so you don’t miss important 10X market updates."
+                : "Please add this Mini App and enable notifications so you don’t miss important 10X market updates."}
             </Text>
-            <div className="mt-4 flex gap-3">
+            <div className="mt-4 flex">
               <button
                 type="button"
                 onClick={handleConfirmAddAppPrompt}
-                className="flex-1 rounded-full border-b-8 border-r-8 border-[#005000] bg-[#00FF00] px-4 py-3 text-center text-sm font-bold text-[rgb(0,80,0)] transition active:translate-x-1 active:translate-y-1 active:border-b-4 active:border-r-4"
+                className="flex-1 cursor-pointer rounded-[20px] border border-[#009900] bg-[#00FF00] px-4 py-3 text-sm font-bold text-[rgb(0,80,0)] shadow-[3px_6px_0_#008000] transition-all duration-100 hover:bg-[#33ff33] active:translate-x-[1px] active:translate-y-[3px] active:shadow-[1px_3px_0_#008000]"
               >
-                {notificationsOnlyPrompt ? "Turn on notifications" : "Add Mini App"}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  void hapticTap();
-                  setShowAddAppPrompt(false);
-                }}
-                className="rounded-full border border-[#00FF00]/35 px-4 py-3 text-sm font-bold text-[#00FF00] transition hover:border-[#00FF00]"
-              >
-                Later
+                Ok, let's go!
               </button>
             </div>
           </div>
@@ -6830,7 +7476,7 @@ export default function SearchApp() {
 
             {!dbReady && (
               <Text className="mt-3 text-sm" style={{ color: "#00FF00" }}>
-                Loading: 10X Warplets Database...
+                {databaseLoadingMessage}
               </Text>
             )}
 
