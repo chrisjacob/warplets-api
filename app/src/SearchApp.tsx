@@ -2477,6 +2477,10 @@ function CompactAttributePreview({
 }
 
 function getWarpletImageUrl(tokenId: number): string {
+  return `https://warplets.10x.meme/${tokenId}.png`;
+}
+
+function getWarpletPreviewImageUrl(tokenId: number): string {
   return `https://warplets.10x.meme/${tokenId}.jpg`;
 }
 
@@ -2498,7 +2502,7 @@ function preloadImage(src: string): Promise<void> {
 }
 
 async function preloadResultImages(results: WarpletResult[]): Promise<void> {
-  await Promise.all(results.map((result) => preloadImage(getWarpletImageUrl(result.id))));
+  await Promise.all(results.map((result) => preloadImage(getWarpletPreviewImageUrl(result.id))));
 }
 
 async function openExternalAsset(url: string) {
@@ -2507,6 +2511,90 @@ async function openExternalAsset(url: string) {
   } catch {
     window.open(url, "_blank", "noopener,noreferrer");
   }
+}
+
+function ProgressiveWarpletImage({
+  tokenId,
+  alt = "",
+  loading = "lazy",
+  className = "",
+  imageClassName = "",
+}: {
+  tokenId: number;
+  alt?: string;
+  loading?: "eager" | "lazy";
+  className?: string;
+  imageClassName?: string;
+}) {
+  const [isPreviewLoaded, setIsPreviewLoaded] = useState(false);
+  const [isFullQualityLoaded, setIsFullQualityLoaded] = useState(false);
+
+  useEffect(() => {
+    setIsPreviewLoaded(false);
+    setIsFullQualityLoaded(false);
+  }, [tokenId]);
+
+  return (
+    <span className={`relative block overflow-hidden ${className}`}>
+      <img
+        src={getWarpletPreviewImageUrl(tokenId)}
+        alt={alt}
+        loading={loading}
+        onLoad={() => setIsPreviewLoaded(true)}
+        className={`absolute inset-0 h-full w-full object-cover ${imageClassName}`}
+      />
+      {isPreviewLoaded && (
+        <img
+          src={getWarpletImageUrl(tokenId)}
+          alt=""
+          aria-hidden="true"
+          loading="eager"
+          onLoad={() => setIsFullQualityLoaded(true)}
+          className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-700 ease-out ${isFullQualityLoaded ? "opacity-100" : "opacity-0"} ${imageClassName}`}
+        />
+      )}
+    </span>
+  );
+}
+
+function WarpletDetailsMedia({ tokenId }: { tokenId: number }) {
+  const [isPngReady, setIsPngReady] = useState(false);
+  const [isVideoReady, setIsVideoReady] = useState(false);
+
+  useEffect(() => {
+    setIsPngReady(false);
+    setIsVideoReady(false);
+  }, [tokenId]);
+
+  return (
+    <div className="relative aspect-square w-full overflow-hidden bg-[rgba(0,255,0,0.12)]">
+      {!isPngReady && (
+        <div className="absolute inset-0 flex items-center justify-center">
+          <span className="h-8 w-8 animate-spin rounded-full border-2 border-[#00FF00]/25 border-t-[#00FF00]" aria-label="Loading 10X Warplet image" />
+        </div>
+      )}
+      <img
+        src={getWarpletImageUrl(tokenId)}
+        alt=""
+        loading="eager"
+        onLoad={() => setIsPngReady(true)}
+        className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-300 ${isPngReady ? "opacity-100" : "opacity-0"}`}
+      />
+      {isPngReady && (
+        <video
+          src={getWarpletAssetUrl(tokenId, "mp4")}
+          autoPlay
+          muted
+          loop
+          playsInline
+          aria-hidden="true"
+          onCanPlay={() => setIsVideoReady(true)}
+          onLoadedData={() => setIsVideoReady(true)}
+          className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-700 ease-out ${isVideoReady ? "opacity-100" : "opacity-0"}`}
+        />
+      )}
+    </div>
+  );
 }
 
 function WarpletCard({
@@ -2527,7 +2615,6 @@ function WarpletCard({
   const label = labelOverride ?? `#${warplet.id} ${warplet.farcasterUsername ? `@${warplet.farcasterUsername}` : warplet.wallet}`;
 
   const openCard = () => {
-    void hapticPrimaryTap();
     onOpen(warplet.id);
   };
 
@@ -2544,11 +2631,11 @@ function WarpletCard({
       }}
       className="group relative flex w-full min-w-0 cursor-pointer flex-col rounded-[10px] border border-[#00FF00]/25 bg-[#041204]/90 p-0 text-left transition hover:-translate-y-px hover:border-[#00FF00]/50 hover:bg-[#071807]/95"
     >
-      <img
-        src={getWarpletImageUrl(warplet.id)}
+      <ProgressiveWarpletImage
+        tokenId={warplet.id}
         alt=""
         loading="eager"
-        className="aspect-square w-full rounded-t-[9px] bg-[rgba(0,255,0,0.12)] object-cover"
+        className="aspect-square w-full rounded-t-[9px] bg-[rgba(0,255,0,0.12)]"
       />
       <span className="flex h-[38px] w-full min-w-0 items-center bg-[#00FF00] pl-2 text-left text-[0.76rem] font-bold text-[rgb(0,80,0)]">
         <span className="block min-w-0 flex-1 truncate pr-1">{label}</span>
@@ -2775,13 +2862,12 @@ function OwnedByPanel({
               key={tokenId}
               type="button"
               onClick={() => {
-                void hapticTap();
                 onOpenWarplet(tokenId);
               }}
               className="aspect-square w-full min-w-0 cursor-pointer overflow-hidden rounded-full border-2 border-[rgba(0,255,0,0)] bg-transparent hover:border-[#00FF00]"
               title={`Open 10X Warplet #${tokenId}`}
             >
-              <img src={getWarpletImageUrl(tokenId)} alt="" className="h-full w-full object-cover" loading="lazy" />
+              <ProgressiveWarpletImage tokenId={tokenId} alt="" className="h-full w-full" loading="lazy" />
             </button>
           ))}
           {wallet && (
@@ -3040,8 +3126,21 @@ const ONBOARDING_ATTRIBUTE_TILE_ANIMATION_MS = 500;
 const ONBOARDING_LEVEL_BAR_INTERVAL_MS = 500;
 const getOnboardingLevelBarDurationMs = (index: number) => 500 + index * 100;
 const ONBOARDING_TYPEWRITER_MS_PER_CHARACTER = 38;
+const ONBOARDING_FEATURED_WARPLET_VIDEO_SRC = getWarpletAssetUrl(760, "mp4");
+const ONBOARDING_INITIAL_TITLE_CURSOR_MS = 1500;
+const ENABLED_ONBOARDING_VISUALS: ReadonlySet<OnboardingVisualKind> = new Set([
+  "featuredWarplet",
+  "airdrop",
+  "attributes",
+  "levels",
+  "access",
+  "search",
+  "trade",
+]);
 
 function getOnboardingPreviewAnimationDurationMs(kind: OnboardingVisualKind): number {
+  if (!ENABLED_ONBOARDING_VISUALS.has(kind)) return 0;
+
   if (kind === "attributes") {
     return (ONBOARDING_ATTRIBUTES.length - 1) * ONBOARDING_ATTRIBUTE_TILE_INTERVAL_MS + ONBOARDING_ATTRIBUTE_TILE_ANIMATION_MS;
   }
@@ -3114,15 +3213,15 @@ function OnboardingVisual({
   animationStarted?: boolean;
   onFeaturedPreviewReady?: () => void;
 }) {
-  const [isFeaturedVideoReady, setIsFeaturedVideoReady] = useState(false);
+  const [isFeaturedWarpletReady, setIsFeaturedWarpletReady] = useState(false);
   const [readyAccessVideos, setReadyAccessVideos] = useState<Record<string, boolean>>({});
   const [levelAnimationStep, setLevelAnimationStep] = useState(-1);
 
   useEffect(() => {
-    if (kind === "featuredWarplet" && isFeaturedVideoReady) {
+    if (kind === "featuredWarplet" && isFeaturedWarpletReady) {
       onFeaturedPreviewReady?.();
     }
-  }, [isFeaturedVideoReady, kind, onFeaturedPreviewReady]);
+  }, [isFeaturedWarpletReady, kind, onFeaturedPreviewReady]);
 
   useEffect(() => {
     if (kind !== "levels" || !animationStarted) {
@@ -3147,23 +3246,27 @@ function OnboardingVisual({
     };
   }, [animationStarted, kind]);
 
+  if (!ENABLED_ONBOARDING_VISUALS.has(kind)) {
+    return null;
+  }
+
   if (kind === "featuredWarplet") {
     return (
       <div className="relative mx-auto aspect-[9/8] w-full max-w-[min(100%,360px)] overflow-hidden rounded-lg border border-[#00FF00]/25 bg-black">
-        {!isFeaturedVideoReady && (
+        {!isFeaturedWarpletReady && (
           <div className="absolute inset-0 flex items-center justify-center bg-[rgba(0,255,0,0.12)]">
-            <span className="h-8 w-8 animate-spin rounded-full border-2 border-[#00FF00]/25 border-t-[#00FF00]" aria-label="Loading 10X Warplet video" />
+            <span className="h-8 w-8 animate-spin rounded-full border-2 border-[#00FF00]/25 border-t-[#00FF00]" aria-label="Loading 10X Warplet preview" />
           </div>
         )}
         <video
-          src={getWarpletAssetUrl(760, "mp4")}
+          src={ONBOARDING_FEATURED_WARPLET_VIDEO_SRC}
           autoPlay
           muted
           loop
           playsInline
-          onCanPlay={() => setIsFeaturedVideoReady(true)}
-          onLoadedData={() => setIsFeaturedVideoReady(true)}
-          className={`h-full w-full object-cover transition-opacity duration-300 ${isFeaturedVideoReady ? "opacity-100" : "opacity-0"}`}
+          onCanPlay={() => setIsFeaturedWarpletReady(true)}
+          onLoadedData={() => setIsFeaturedWarpletReady(true)}
+          className={`h-full w-full object-cover transition-opacity duration-300 ${isFeaturedWarpletReady ? "opacity-100" : "opacity-0"}`}
         />
       </div>
     );
@@ -3171,8 +3274,8 @@ function OnboardingVisual({
 
   if (kind === "airdrop") {
     return (
-      <div className="relative aspect-[9/7] overflow-hidden rounded-lg border border-[#00FF00]/25 bg-black">
-        <img src="/onboarding/step-2.avif" alt="The Warplets collection" className="onboarding-pan-zoom h-full w-full object-cover" loading="eager" />
+      <div className="onboarding-pan-zoom-frame relative aspect-[9/7] overflow-hidden rounded-lg border border-[#00FF00]/25 bg-black">
+        <img src="/onboarding/step-2-v2-small.avif" alt="The Warplets collection" className="onboarding-pan-zoom" loading="eager" decoding="async" />
       </div>
     );
   }
@@ -3276,7 +3379,7 @@ function OnboardingVisual({
   }
 
   if (kind === "search") {
-    const searchPreviewImages = [1, 2, 3, 4, 5].map((index) => `/onboarding/step6-${index}.jpg`);
+    const searchPreviewImages = [1, 2, 3, 4, 5].map((index) => `/onboarding/step6-${index}-v2.jpg`);
 
     return (
       <div className="relative aspect-square overflow-hidden rounded-lg border border-[#00FF00]/25 bg-black">
@@ -3298,10 +3401,10 @@ function OnboardingVisual({
   }
 
   if (kind === "trade") {
-    const tradePreviewImages = [1, 2, 3, 4, 5, 6, 7].map((index) => `/onboarding/step7-${index}-v2.jpg`);
+    const tradePreviewImages = [1, 2, 3, 4, 5, 6, 7].map((index) => `/onboarding/step7-${index}-v3.jpg`);
 
     return (
-      <div className="relative aspect-[450/400] overflow-hidden rounded-lg border border-[#00FF00]/25 bg-black">
+      <div className="relative aspect-[562/507] overflow-hidden rounded-lg border border-[#00FF00]/25 bg-black">
         {tradePreviewImages.map((src, index) => (
           <img
             key={src}
@@ -3344,33 +3447,57 @@ function OnboardingVisual({
 }
 
 const ONBOARDING_BACKGROUND_PRELOAD_IMAGES = [
-  "/onboarding/step-2.avif",
-  ...[1, 2, 3, 4, 5].map((index) => `/onboarding/step6-${index}.jpg`),
-  ...[1, 2, 3, 4, 5, 6, 7].map((index) => `/onboarding/step7-${index}-v2.jpg`),
+  "/onboarding/step-2-v2-small.avif",
+  ...[1, 2, 3, 4, 5].map((index) => `/onboarding/step6-${index}-v2.jpg`),
+  ...[1, 2, 3, 4, 5, 6, 7].map((index) => `/onboarding/step7-${index}-v3.jpg`),
   getWarpletAssetUrl(FORCED_AIRDROP_FALLBACK_TOKEN_ID, "avif"),
   getWarpletAssetUrl(FORCED_AIRDROP_FALLBACK_TOKEN_ID, "png"),
+  getWarpletAssetUrl(FORCED_AIRDROP_FALLBACK_TOKEN_ID, "jpg"),
 ] as const;
 
-const ONBOARDING_BACKGROUND_PRELOAD_VIDEOS = [
-  "/onboarding/ansem.mp4",
-  "/onboarding/Token_S1.mp4",
-] as const;
+const ONBOARDING_BACKGROUND_PRELOAD_DELAY_MS = 1200;
+const ONBOARDING_BACKGROUND_PRELOAD_GAP_MS = 200;
 
 function OnboardingBackgroundMediaPreloader() {
-  return (
-    <div
-      aria-hidden="true"
-      className="pointer-events-none absolute h-px w-px overflow-hidden opacity-0"
-      style={{ left: -9999, top: -9999 }}
-    >
-      {ONBOARDING_BACKGROUND_PRELOAD_IMAGES.map((src) => (
-        <img key={src} src={src} alt="" loading="eager" />
-      ))}
-      {ONBOARDING_BACKGROUND_PRELOAD_VIDEOS.map((src) => (
-        <video key={src} src={src} muted playsInline preload="auto" />
-      ))}
-    </div>
-  );
+  useEffect(() => {
+    let isCancelled = false;
+    const timeoutIds: number[] = [];
+    const imageRefs: HTMLImageElement[] = [];
+
+    const schedule = (callback: () => void, delay: number) => {
+      const timeoutId = window.setTimeout(callback, delay);
+      timeoutIds.push(timeoutId);
+    };
+
+    const preloadNextImage = (index: number) => {
+      if (isCancelled || index >= ONBOARDING_BACKGROUND_PRELOAD_IMAGES.length) return;
+
+      const src = ONBOARDING_BACKGROUND_PRELOAD_IMAGES[index];
+      const image = new Image();
+      imageRefs.push(image);
+      image.decoding = "async";
+      image.loading = "eager";
+      image.onload = () => schedule(() => preloadNextImage(index + 1), ONBOARDING_BACKGROUND_PRELOAD_GAP_MS);
+      image.onerror = () => {
+        console.warn("Search onboarding image preload failed:", src);
+        schedule(() => preloadNextImage(index + 1), ONBOARDING_BACKGROUND_PRELOAD_GAP_MS);
+      };
+      image.src = src;
+    };
+
+    schedule(() => preloadNextImage(0), ONBOARDING_BACKGROUND_PRELOAD_DELAY_MS);
+
+    return () => {
+      isCancelled = true;
+      timeoutIds.forEach((timeoutId) => window.clearTimeout(timeoutId));
+      imageRefs.forEach((image) => {
+        image.onload = null;
+        image.onerror = null;
+      });
+    };
+  }, []);
+
+  return null;
 }
 
 function OnboardingCarousel({ onDone }: { onDone: () => void }) {
@@ -3395,6 +3522,7 @@ function OnboardingCarousel({ onDone }: { onDone: () => void }) {
   );
   const onboardingBodyStartCharacterCount = onboardingTitleCharacterCount + onboardingPreviewAnimationCharacters;
   const onboardingPreviewAnimationStarted = typedCharacterCount >= onboardingTitleCharacterCount;
+  const shouldShowInitialTitleCursor = activeIndex === 0 && typedCharacterCount === 0;
   const handleFeaturedPreviewReady = useCallback(() => {
     setShouldPreloadUpcomingMedia(true);
   }, []);
@@ -3426,13 +3554,15 @@ function OnboardingCarousel({ onDone }: { onDone: () => void }) {
   useEffect(() => {
     let animationFrameId = 0;
     const startedAt = performance.now();
+    const initialDelayMs = activeIndex === 0 ? ONBOARDING_INITIAL_TITLE_CURSOR_MS : 0;
 
     setTypedCharacterCount(0);
 
     const tick = (now: number) => {
+      const elapsedMs = Math.max(0, now - startedAt - initialDelayMs);
       const nextCount = Math.min(
         onboardingTotalTextCharacters,
-        Math.floor((now - startedAt) / ONBOARDING_TYPEWRITER_MS_PER_CHARACTER),
+        Math.floor(elapsedMs / ONBOARDING_TYPEWRITER_MS_PER_CHARACTER),
       );
       setTypedCharacterCount(nextCount);
       if (nextCount < onboardingTotalTextCharacters) {
@@ -3466,9 +3596,13 @@ function OnboardingCarousel({ onDone }: { onDone: () => void }) {
           <Text className="relative text-base font-bold" style={{ color: "#00FF00" }}>
             <span className="invisible select-none" aria-hidden="true">{activeSlide.title}</span>
             <span className="absolute inset-0">
-              <TypewriterText visibleCharacters={visibleTitleCharacters}>
-                {activeSlide.title}
-              </TypewriterText>
+              {shouldShowInitialTitleCursor ? (
+                <span className="onboarding-terminal-cursor" aria-hidden="true" />
+              ) : (
+                <TypewriterText visibleCharacters={visibleTitleCharacters}>
+                  {activeSlide.title}
+                </TypewriterText>
+              )}
             </span>
           </Text>
         </div>
@@ -3734,6 +3868,10 @@ function AirdropCongratulationsModal({
 
 const NOTIFICATIONS_PROMPT_TITLE = "FOMO? Don't Miss Out...";
 const NOTIFICATIONS_PROMPT_TITLE_HIGHLIGHT_LENGTH = "FOMO?".length;
+const NOTIFICATIONS_PREVIEW_TOKEN_ID = 5019;
+const NOTIFICATIONS_PREVIEW_IMAGE_SRC = getWarpletAssetUrl(NOTIFICATIONS_PREVIEW_TOKEN_ID, "png");
+const NOTIFICATIONS_PREVIEW_FALLBACK_IMAGE_SRC = getWarpletAssetUrl(NOTIFICATIONS_PREVIEW_TOKEN_ID, "jpg");
+const NOTIFICATIONS_PREVIEW_IMAGE_FALLBACK_MS = 2500;
 const NOTIFICATIONS_PREVIEW_REVEAL_MS = 4800;
 const NOTIFICATIONS_PREVIEW_TO_TEXT_DELAY_MS = 180;
 const NOTIFICATIONS_PREVIEW_REVEAL_STOPS = [0, 40, 20, 65, 35, 85, 25, 100] as const;
@@ -3765,10 +3903,11 @@ function NotificationsPromptModal({
 }) {
   const [animationElapsedMs, setAnimationElapsedMs] = useState(0);
   const [isPreviewImageReady, setIsPreviewImageReady] = useState(false);
+  const [previewImageSrc, setPreviewImageSrc] = useState(NOTIFICATIONS_PREVIEW_IMAGE_SRC);
   const contentRef = useRef<HTMLDivElement | null>(null);
   const notificationPromptText = notificationsOnlyPrompt
     ? "Please turn on notifications so you don't miss important 10X market updates."
-    : "Please add this Mini App & enable notifications so you don't miss important 10X updates.";
+    : "Please add this Mini App & enable notifications so you don't miss important 10X updates 👀";
   const titleAnimationMs = NOTIFICATIONS_PROMPT_TITLE.length * ONBOARDING_TYPEWRITER_MS_PER_CHARACTER;
   const previewStartMs = titleAnimationMs;
   const textStartMs = previewStartMs + NOTIFICATIONS_PREVIEW_REVEAL_MS + NOTIFICATIONS_PREVIEW_TO_TEXT_DELAY_MS;
@@ -3800,6 +3939,7 @@ function NotificationsPromptModal({
 
     setAnimationElapsedMs(0);
     setIsPreviewImageReady(false);
+    setPreviewImageSrc(NOTIFICATIONS_PREVIEW_IMAGE_SRC);
 
     const tick = (now: number) => {
       const nextElapsedMs = Math.min(totalAnimationMs, now - startedAt);
@@ -3812,6 +3952,15 @@ function NotificationsPromptModal({
     animationFrameId = window.requestAnimationFrame(tick);
     return () => window.cancelAnimationFrame(animationFrameId);
   }, [notificationPromptText, totalAnimationMs]);
+
+  useEffect(() => {
+    if (isPreviewImageReady || previewImageSrc === NOTIFICATIONS_PREVIEW_FALLBACK_IMAGE_SRC) return;
+    const fallbackTimer = window.setTimeout(() => {
+      setPreviewImageSrc(NOTIFICATIONS_PREVIEW_FALLBACK_IMAGE_SRC);
+      setIsPreviewImageReady(false);
+    }, NOTIFICATIONS_PREVIEW_IMAGE_FALLBACK_MS);
+    return () => window.clearTimeout(fallbackTimer);
+  }, [isPreviewImageReady, previewImageSrc]);
 
   const visibleTitleCharacters = Math.max(
     0,
@@ -3862,9 +4011,17 @@ function NotificationsPromptModal({
               </div>
             )}
             <img
-              src={getWarpletAssetUrl(5019, "png")}
+              src={previewImageSrc}
               alt=""
               onLoad={() => setIsPreviewImageReady(true)}
+              onError={() => {
+                if (previewImageSrc !== NOTIFICATIONS_PREVIEW_FALLBACK_IMAGE_SRC) {
+                  setPreviewImageSrc(NOTIFICATIONS_PREVIEW_FALLBACK_IMAGE_SRC);
+                  setIsPreviewImageReady(false);
+                  return;
+                }
+                setIsPreviewImageReady(true);
+              }}
               className={`relative z-[1] h-full w-full object-cover transition-opacity duration-300 ${isPreviewImageReady ? "opacity-100" : "opacity-0"}`}
               style={{
                 clipPath: `inset(0 ${100 - previewRevealPercent}% 0 0)`,
@@ -3873,7 +4030,7 @@ function NotificationsPromptModal({
             />
           </div>
 
-          <div className={`mt-3 transition-opacity duration-300 ${textAnimationElapsedMs > 0 ? "opacity-100" : "opacity-0"}`}>
+          <div className="mt-3">
             <div className="relative rounded-lg border border-[#00FF00]/15 bg-[#041204] px-3 py-2 text-sm leading-relaxed text-[#8bbf8b]">
               <div className="invisible select-none" aria-hidden="true">
                 {notificationPromptText}
@@ -5879,11 +6036,7 @@ function WarpletDetailsModal({
         <div>
           {compactAttributePreview}
 
-          <img
-            src={getWarpletAssetUrl(details.id, "avif")}
-            alt=""
-            className="aspect-square w-full bg-[rgba(0,255,0,0.12)] object-cover"
-          />
+          <WarpletDetailsMedia tokenId={details.id} />
 
           {marketSummaryPanels}
         </div>
@@ -6366,6 +6519,7 @@ export default function SearchApp() {
   const pendingSearchCompletionsRef = useRef<Set<SearchCompletion>>(new Set());
   const forceAirdropRef = useRef(isAirdropForced());
   const forcedAirdropTokenIdRef = useRef(getForcedAirdropTokenId());
+  const miniAppReadySentRef = useRef(false);
   const shareCelebrationRef = useRef<{ pending: boolean; leftApp: boolean; fallbackTimer: number | null }>({
     pending: false,
     leftApp: false,
@@ -6373,6 +6527,15 @@ export default function SearchApp() {
   });
   const { isMenuRoute, canGoBack, actions } = useMiniAppChrome("search");
   const selectedWarpletDetails = selectedWarpletDetailsStack.at(-1) ?? null;
+
+  const sendMiniAppReady = useCallback(() => {
+    if (miniAppReadySentRef.current) return;
+    miniAppReadySentRef.current = true;
+    Promise.resolve(sdk.actions.ready()).catch((error) => {
+      miniAppReadySentRef.current = false;
+      console.warn("Search mini app ready failed:", error);
+    });
+  }, []);
 
   const closeSearchToast = useCallback(() => {
     if (!searchToast) return;
@@ -6506,7 +6669,7 @@ export default function SearchApp() {
       );
       const details = mapDetails(rows[0] as Record<string, unknown> | undefined);
       if (!details) return null;
-      await preloadImage(getWarpletAssetUrl(details.id, "avif"));
+      await preloadImage(getWarpletImageUrl(details.id));
       return details;
     } catch (err) {
       console.error("Failed to load Warplet details:", err);
@@ -6601,6 +6764,7 @@ export default function SearchApp() {
         }
 
         shouldCallReady = true;
+        sendMiniAppReady();
         const context = await sdk.context;
         const user = (context as { user?: Record<string, unknown> }).user;
         const fid = user?.fid;
@@ -6684,14 +6848,12 @@ export default function SearchApp() {
         if (!shouldCallReady) {
           setSearchCompletionStatusLoaded(true);
         }
-        if (shouldCallReady) {
-          sdk.actions.ready();
-        }
+        if (shouldCallReady) sendMiniAppReady();
       }
     };
 
     init();
-  }, [applySearchCompletionStatus]);
+  }, [applySearchCompletionStatus, sendMiniAppReady]);
 
   useEffect(() => {
     if (!pendingNotificationId || !viewerFid || !actionSessionToken || notificationOpenSent) return;
@@ -7823,7 +7985,7 @@ export default function SearchApp() {
     setAirdropSharePendingNotificationPrompt(true);
 
     setSharePreview({
-      title: "Share Your 10X Warplet Airdrop",
+      title: "Share your 10X Warplet Airdrop",
       text,
       links,
       images: [

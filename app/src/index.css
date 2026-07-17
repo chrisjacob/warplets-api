@@ -52,15 +52,43 @@ input[type="search"]::-webkit-search-results-decoration {
   appearance: none;
 }
 
+.onboarding-pan-zoom-frame {
+  isolation: isolate;
+  overflow: hidden;
+}
+
 .onboarding-pan-zoom {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  display: block;
+  width: 2240px;
+  height: 1707px;
+  min-width: 2240px;
+  min-height: 1707px;
+  max-width: none;
+  max-height: none;
+  object-fit: cover;
+  border-radius: inherit;
   transform-origin: center;
   animation: onboarding-pan-zoom 64s ease-in-out infinite;
+  backface-visibility: hidden;
+  contain: paint;
   will-change: transform;
 }
 
 .onboarding-attribute-tile {
   opacity: 0;
   animation: onboarding-attribute-fade-in 500ms ease-out forwards;
+}
+
+.onboarding-terminal-cursor {
+  display: inline-block;
+  width: 0.72em;
+  height: 1.05em;
+  background: #00ff00;
+  vertical-align: -0.16em;
+  animation: onboarding-terminal-cursor-blink 500ms steps(1, end) 3;
 }
 
 .onboarding-level-bar {
@@ -90,41 +118,61 @@ input[type="search"]::-webkit-search-results-decoration {
   }
 }
 
+@keyframes onboarding-terminal-cursor-blink {
+  0%,
+  49% {
+    opacity: 1;
+  }
+
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+
 @keyframes onboarding-pan-zoom {
   0% {
-    transform: translate3d(34%, 34%, 0) scale(3.25);
+    transform: translate3d(-50%, -50%, 0) scale(1);
   }
 
-  12.5% {
-    transform: translate3d(0, 0, 0) scale(1);
+  10% {
+    transform: translate3d(-50%, -50%, 0) scale(0.185);
   }
 
-  25% {
-    transform: translate3d(-34%, -34%, 0) scale(3.25);
+  20% {
+    transform: translate3d(-10%, -10%, 0) scale(1);
   }
 
-  37.5% {
-    transform: translate3d(0, 0, 0) scale(1);
+  30% {
+    transform: translate3d(-50%, -50%, 0) scale(0.185);
+  }
+
+  40% {
+    transform: translate3d(-90%, -10%, 0) scale(1);
   }
 
   50% {
-    transform: translate3d(-34%, 34%, 0) scale(3.25);
+    transform: translate3d(-50%, -50%, 0) scale(0.185);
   }
 
-  62.5% {
-    transform: translate3d(0, 0, 0) scale(1);
+  60% {
+    transform: translate3d(-10%, -90%, 0) scale(1);
   }
 
-  75% {
-    transform: translate3d(34%, -34%, 0) scale(3.25);
+  70% {
+    transform: translate3d(-50%, -50%, 0) scale(0.185);
   }
 
-  87.5% {
-    transform: translate3d(0, 0, 0) scale(1);
+  80% {
+    transform: translate3d(-90%, -90%, 0) scale(1);
+  }
+
+  90% {
+    transform: translate3d(-50%, -50%, 0) scale(0.185);
   }
 
   100% {
-    transform: translate3d(34%, 34%, 0) scale(3.25);
+    transform: translate3d(-50%, -50%, 0) scale(1);
   }
 }
 
