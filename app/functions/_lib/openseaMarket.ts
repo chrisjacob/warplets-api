@@ -26,6 +26,11 @@ export type MarketOrderMoney = MarketMoney & {
   protocolAddress?: string | null;
 };
 
+export type TraitCriterion = {
+  traitType: string;
+  traitValue: string;
+};
+
 export type MarketSnapshot = {
   version: "opensea-market-v1";
   generatedAt: string;
@@ -36,6 +41,7 @@ export type MarketSnapshot = {
   };
   listings: Record<string, MarketOrderMoney & { seller: string | null }>;
   offers: Record<string, MarketOrderMoney & { offerer: string | null; source?: "item" }>;
+  traitOffers: Record<string, MarketOrderMoney & { offerer: string | null; source: "trait"; traits: TraitCriterion[] }>;
   sales: Record<string, MarketMoney & { txHash: string | null; seller: string | null }>;
   owners: Record<string, {
     wallet: string | null;
@@ -103,6 +109,7 @@ export type MarketPatch = Partial<Omit<MarketStateRow, "token_id">> & { token_id
 type PaginatedIngestResult = {
   changed: number;
   tokenIds: Set<number>;
+  orderHashes: Set<string>;
   complete: boolean;
 };
 
@@ -134,6 +141,27 @@ type CollectionMarketRow = {
   top_offer_updated_at: string | null;
 };
 
+type CriteriaKind = "trait" | "collection";
+
+type CriteriaOfferRow = {
+  order_hash: string;
+  collection_slug: string;
+  criteria_kind: CriteriaKind;
+  traits_json: string | null;
+  offer_eth: number | null;
+  offer_raw_amount: string | null;
+  offer_decimals: number | null;
+  offer_currency_symbol: string | null;
+  offer_token_address: string | null;
+  offerer_wallet: string | null;
+  protocol_address: string | null;
+  encoded_token_ids: string | null;
+  active: number;
+  offered_at: string | null;
+  opensea_updated_at: string | null;
+  raw_payload: string | null;
+};
+
 type WalletFarcasterLinkRow = {
   fid: number | null;
   username?: string | null;
@@ -159,9 +187,55 @@ const MARKET_SNAPSHOT_KEYS = {
   collection: "opensea:market:collection:v1",
   listings: "opensea:market:listings:v1",
   offers: "opensea:market:offers:v1",
+  traitOffers: "opensea:market:trait-offers:v1",
   sales: "opensea:market:sales:v1",
   owners: "opensea:market:owners:v1",
 } as const;
+
+const TRAIT_COLUMN_MATCHERS: Record<string, { column: string; mode: "exact" | "pipe"; normalize?: (value: string) => string }> = {
+  "10xlevel": { column: "x10_level", mode: "exact", normalize: normalizeLevelTraitValue },
+  "10xrank": { column: "x10_rank", mode: "exact", normalize: normalizeNumericTraitValue },
+  "10xrarity": { column: "x10_rarity", mode: "exact", normalize: normalizeNumericTraitValue },
+  "castlevel": { column: "cast_level", mode: "exact", normalize: normalizeLevelTraitValue },
+  "castrank": { column: "cast_rank", mode: "exact", normalize: normalizeNumericTraitValue },
+  "castvalue": { column: "cast_value", mode: "exact", normalize: normalizeNumericTraitValue },
+  "fidlevel": { column: "fid_level", mode: "exact", normalize: normalizeLevelTraitValue },
+  "fidrank": { column: "fid_rank", mode: "exact", normalize: normalizeNumericTraitValue },
+  "fidvalue": { column: "fid_value", mode: "exact", normalize: normalizeNumericTraitValue },
+  "followerlevel": { column: "follower_level", mode: "exact", normalize: normalizeLevelTraitValue },
+  "followerrank": { column: "follower_rank", mode: "exact", normalize: normalizeNumericTraitValue },
+  "followervalue": { column: "follower_value", mode: "exact", normalize: normalizeNumericTraitValue },
+  "holderlevel": { column: "holder_level", mode: "exact", normalize: normalizeLevelTraitValue },
+  "holderrank": { column: "holder_rank", mode: "exact", normalize: normalizeNumericTraitValue },
+  "holdervalue": { column: "holder_value", mode: "exact", normalize: normalizeNumericTraitValue },
+  "lucklevel": { column: "luck_level", mode: "exact", normalize: normalizeLevelTraitValue },
+  "luckrank": { column: "luck_rank", mode: "exact", normalize: normalizeNumericTraitValue },
+  "luckvalue": { column: "luck_value", mode: "exact", normalize: normalizeNumericTraitValue },
+  "minterlevel": { column: "minter_level", mode: "exact", normalize: normalizeLevelTraitValue },
+  "minterrank": { column: "minter_rank", mode: "exact", normalize: normalizeNumericTraitValue },
+  "mintervalue": { column: "minter_value", mode: "exact" },
+  "neynarlevel": { column: "neynar_level", mode: "exact", normalize: normalizeLevelTraitValue },
+  "neynarrank": { column: "neynar_rank", mode: "exact", normalize: normalizeNumericTraitValue },
+  "neynarvalue": { column: "neynar_value", mode: "exact", normalize: normalizeNumericTraitValue },
+  "nftlevel": { column: "nft_level", mode: "exact", normalize: normalizeLevelTraitValue },
+  "nftrank": { column: "nft_rank", mode: "exact", normalize: normalizeNumericTraitValue },
+  "nftvalue": { column: "nft_value", mode: "exact", normalize: normalizeNumericTraitValue },
+  "tokenlevel": { column: "token_level", mode: "exact", normalize: normalizeLevelTraitValue },
+  "tokenrank": { column: "token_rank", mode: "exact", normalize: normalizeNumericTraitValue },
+  "tokenvalue": { column: "token_value", mode: "exact", normalize: normalizeNumericTraitValue },
+  "volumelevel": { column: "volume_level", mode: "exact", normalize: normalizeLevelTraitValue },
+  "volumerank": { column: "volume_rank", mode: "exact", normalize: normalizeNumericTraitValue },
+  "volumevalue": { column: "volume_value", mode: "exact", normalize: normalizeNumericTraitValue },
+  "warpletcolours": { column: "warplet_colours", mode: "pipe" },
+  "warpletcolors": { column: "warplet_colours", mode: "pipe" },
+  "warpletkeywords": { column: "warplet_keywords", mode: "pipe" },
+  "warplettraits": { column: "warplet_traits", mode: "pipe" },
+  "warpletuserispro": { column: "warplet_user_is_pro", mode: "exact", normalize: normalizeBooleanTraitValue },
+  "warpletusernamefarcaster": { column: "warplet_username_farcaster", mode: "exact" },
+  "warpletusernamex": { column: "warplet_username_x", mode: "exact" },
+  "warpletwallet": { column: "warplet_wallet", mode: "exact" },
+  "secretlevel": { column: "secret_level", mode: "exact", normalize: normalizeLevelTraitValue },
+};
 
 const MARKET_COLUMNS = [
   "listing_eth",
@@ -249,6 +323,34 @@ export function asNumber(value: unknown): number | null {
     return Number.isFinite(parsed) ? parsed : null;
   }
   return null;
+}
+
+function normalizeTraitKey(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+function normalizeLevelTraitValue(value: string): string {
+  return value.trim().replace(/x$/i, "");
+}
+
+function normalizeNumericTraitValue(value: string): string {
+  return value.trim().replace(/^\$/, "").replace(/,/g, "");
+}
+
+function normalizeBooleanTraitValue(value: string): string {
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "yes" || normalized === "true") return "1";
+  if (normalized === "no" || normalized === "false") return "0";
+  return value.trim();
+}
+
+function safeJsonString(value: unknown, maxLength = 12000): string | null {
+  if (value == null) return null;
+  try {
+    return JSON.stringify(value).slice(0, maxLength);
+  } catch {
+    return null;
+  }
 }
 
 export function normalizeAddress(value: unknown): string | null {
@@ -398,6 +500,30 @@ export function getTokenIdFromOpenSeaRow(row: Record<string, unknown>): number |
     parseTokenId(asset?.identifier) ??
     parseTokenId(item?.nft_id)
   );
+}
+
+export function readCriteriaTraits(row: Record<string, unknown>): TraitCriterion[] {
+  const criteria = asObject(row.criteria);
+  const rawTraits = asArray(criteria?.traits ?? row.traits);
+  return rawTraits
+    .map((item) => {
+      const trait = asObject(item);
+      const traitType = asString(trait?.traitType ?? trait?.trait_type ?? trait?.type);
+      const traitValue = asString(trait?.traitValue ?? trait?.trait_value ?? trait?.value);
+      return traitType && traitValue ? { traitType, traitValue } : null;
+    })
+    .filter((trait): trait is TraitCriterion => trait !== null);
+}
+
+export function getCriteriaEncodedTokenIds(row: Record<string, unknown>): string | null {
+  const criteria = asObject(row.criteria);
+  return asString(criteria?.encoded_token_ids ?? criteria?.encodedTokenIds ?? row.encoded_token_ids ?? row.encodedTokenIds);
+}
+
+export function classifyOpenSeaOffer(row: Record<string, unknown>): "item" | "trait" | "collection" {
+  if (readCriteriaTraits(row).length > 0) return "trait";
+  if (getTokenIdFromOpenSeaRow(row)) return "item";
+  return "collection";
 }
 
 export function getMakerAddress(row: Record<string, unknown>): string | null {
@@ -746,10 +872,322 @@ async function upsertCollectionMarketStateIfChanged(db: D1Database, patch: Parti
   return true;
 }
 
+function criteriaOfferToMarket(row: CriteriaOfferRow): MarketOrderMoney & { offerer: string | null; source: "trait"; traits: TraitCriterion[] } {
+  let traits: TraitCriterion[] = [];
+  try {
+    const parsed = row.traits_json ? JSON.parse(row.traits_json) : [];
+    traits = Array.isArray(parsed)
+      ? parsed
+        .map((trait) => {
+          const obj = asObject(trait);
+          const traitType = asString(obj?.traitType);
+          const traitValue = asString(obj?.traitValue);
+          return traitType && traitValue ? { traitType, traitValue } : null;
+        })
+        .filter((trait): trait is TraitCriterion => trait !== null)
+      : [];
+  } catch {
+    traits = [];
+  }
+
+  return {
+    eth: row.offer_eth,
+    at: row.offered_at,
+    rawAmount: row.offer_raw_amount,
+    decimals: row.offer_decimals,
+    currencySymbol: row.offer_currency_symbol,
+    tokenAddress: row.offer_token_address,
+    orderHash: row.order_hash,
+    protocolAddress: row.protocol_address,
+    offerer: row.offerer_wallet,
+    source: "trait",
+    traits,
+  };
+}
+
+function criteriaComparableValue(row: CriteriaOfferRow): number | null {
+  if (row.offer_eth != null) return row.offer_eth;
+  if (row.offer_raw_amount && row.offer_decimals != null) return weiToNumber(row.offer_raw_amount, row.offer_decimals);
+  return null;
+}
+
+async function loadActiveTraitOffersForToken(db: D1Database, tokenId?: number): Promise<Map<string, ReturnType<typeof criteriaOfferToMarket>>> {
+  const traitOffers = new Map<string, ReturnType<typeof criteriaOfferToMarket>>();
+  let rows: D1Result<CriteriaOfferRow & { token_id: number }>;
+  try {
+    rows = tokenId
+      ? await db.prepare(
+        `SELECT o.*, m.token_id
+         FROM opensea_criteria_offer_matches m
+         JOIN opensea_criteria_offers o ON o.order_hash = m.order_hash
+         WHERE m.collection_slug = ?
+           AND m.criteria_kind = 'trait'
+           AND m.token_id = ?
+           AND o.active = 1`
+      ).bind(COLLECTION_SLUG, tokenId).all<CriteriaOfferRow & { token_id: number }>()
+      : await db.prepare(
+        `SELECT o.*, m.token_id
+         FROM opensea_criteria_offer_matches m
+         JOIN opensea_criteria_offers o ON o.order_hash = m.order_hash
+         WHERE m.collection_slug = ?
+           AND m.criteria_kind = 'trait'
+           AND o.active = 1`
+      ).bind(COLLECTION_SLUG).all<CriteriaOfferRow & { token_id: number }>();
+  } catch {
+    return traitOffers;
+  }
+
+  for (const row of rows.results ?? []) {
+    const key = String(row.token_id);
+    const current = traitOffers.get(key);
+    const currentValue = current ? getMarketOrderComparableValue(current) : null;
+    const nextValue = criteriaComparableValue(row);
+    if (nextValue == null || !Number.isFinite(nextValue)) continue;
+    if (currentValue == null || nextValue > currentValue) {
+      traitOffers.set(key, criteriaOfferToMarket(row));
+    }
+  }
+  return traitOffers;
+}
+
+function getMarketOrderComparableValue(value: MarketOrderMoney | null | undefined): number | null {
+  if (!value) return null;
+  if (value.eth != null) return value.eth;
+  if (value.rawAmount && value.decimals != null) return weiToNumber(value.rawAmount, value.decimals);
+  return null;
+}
+
+async function matchingTokenIdsForTraits(db: D1Database, traits: TraitCriterion[]): Promise<number[]> {
+  if (traits.length === 0) return [];
+  const clauses: string[] = [];
+  const binds: string[] = [];
+
+  for (const trait of traits) {
+    const matcher = TRAIT_COLUMN_MATCHERS[normalizeTraitKey(trait.traitType)];
+    if (!matcher) return [];
+    const value = matcher.normalize ? matcher.normalize(trait.traitValue) : trait.traitValue.trim();
+    if (!value) return [];
+    if (matcher.mode === "pipe") {
+      clauses.push(`(' | ' || COALESCE(${matcher.column}, '') || ' | ') LIKE ? COLLATE NOCASE`);
+      binds.push(`%| ${value} |%`);
+    } else if (matcher.normalize === normalizeLevelTraitValue) {
+      clauses.push(`REPLACE(UPPER(CAST(${matcher.column} AS TEXT)), 'X', '') = ?`);
+      binds.push(value);
+    } else {
+      clauses.push(`CAST(${matcher.column} AS TEXT) = ? COLLATE NOCASE`);
+      binds.push(value);
+    }
+  }
+
+  const rows = await db.prepare(
+    `SELECT token_id
+     FROM warplets_metadata
+     WHERE ${clauses.join(" AND ")}
+     ORDER BY token_id ASC`
+  ).bind(...binds).all<{ token_id: number }>();
+  return (rows.results ?? [])
+    .map((row) => Number(row.token_id))
+    .filter((tokenId) => Number.isInteger(tokenId) && tokenId > 0);
+}
+
+async function replaceCriteriaOfferMatches(
+  db: D1Database,
+  orderHash: string,
+  criteriaKind: CriteriaKind,
+  tokenIds: number[],
+): Promise<void> {
+  await db.prepare(`DELETE FROM opensea_criteria_offer_matches WHERE order_hash = ?`).bind(orderHash).run();
+  if (criteriaKind !== "trait" || tokenIds.length === 0) return;
+  for (let index = 0; index < tokenIds.length; index += 50) {
+    const chunk = tokenIds.slice(index, index + 50);
+    const placeholders = chunk.map(() => "(?, ?, ?, ?)").join(", ");
+    const values = chunk.flatMap((tokenId) => [orderHash, COLLECTION_SLUG, criteriaKind, tokenId]);
+    await db.prepare(
+      `INSERT OR IGNORE INTO opensea_criteria_offer_matches
+         (order_hash, collection_slug, criteria_kind, token_id)
+       VALUES ${placeholders}`
+    ).bind(...values).run();
+  }
+}
+
+async function criteriaOfferTableHasRows(db: D1Database): Promise<boolean> {
+  try {
+    const row = await db.prepare(
+      `SELECT order_hash FROM opensea_criteria_offers WHERE collection_slug = ? LIMIT 1`
+    ).bind(COLLECTION_SLUG).first<{ order_hash: string }>();
+    return Boolean(row?.order_hash);
+  } catch {
+    return false;
+  }
+}
+
+async function isBestTraitOfferForAnyMatch(db: D1Database, orderHash: string): Promise<boolean> {
+  try {
+    const row = await db.prepare(
+      `SELECT 1 AS found
+       FROM opensea_criteria_offer_matches m
+       JOIN opensea_criteria_offers current_offer
+         ON current_offer.order_hash = m.order_hash
+       WHERE m.order_hash = ?
+         AND current_offer.active = 1
+         AND current_offer.offer_eth IS NOT NULL
+         AND NOT EXISTS (
+           SELECT 1
+           FROM opensea_criteria_offer_matches competing_match
+           JOIN opensea_criteria_offers competing_offer
+             ON competing_offer.order_hash = competing_match.order_hash
+           WHERE competing_match.token_id = m.token_id
+             AND competing_offer.active = 1
+             AND competing_offer.order_hash <> current_offer.order_hash
+             AND COALESCE(competing_offer.offer_eth, -1) >= COALESCE(current_offer.offer_eth, -1)
+         )
+       LIMIT 1`
+    ).bind(orderHash).first<{ found: number }>();
+    return Boolean(row?.found);
+  } catch {
+    return false;
+  }
+}
+
+export async function upsertCriteriaOfferFromRow(
+  env: OpenSeaMarketEnv,
+  row: Record<string, unknown>,
+  options: { recordActivity?: boolean } = {},
+): Promise<boolean> {
+  const criteriaKind = classifyOpenSeaOffer(row);
+  if (criteriaKind === "item") return false;
+  const orderHash = asString(row.order_hash);
+  if (!orderHash) return false;
+  const price = getPrice(row, "offer");
+  if (!hasCurrencyValue(price)) return false;
+
+  const traits = readCriteriaTraits(row);
+  if (criteriaKind === "trait" && traits.length === 0) return false;
+  const now = new Date().toISOString();
+  const offeredAt = getOrderCreatedAt(row) ?? now;
+  const offererWallet = getMakerAddress(row);
+  const protocolAddress = normalizeAddress(row.protocol_address ?? asObject(row.protocol_data)?.address);
+  const encodedTokenIds = getCriteriaEncodedTokenIds(row);
+  const hadCriteriaRows = await criteriaOfferTableHasRows(env.WARPLETS);
+  const existing = await env.WARPLETS.prepare(
+    `SELECT order_hash, offer_raw_amount, offer_eth, active
+     FROM opensea_criteria_offers
+     WHERE order_hash = ?`
+  ).bind(orderHash).first<{ order_hash: string; offer_raw_amount: string | null; offer_eth: number | null; active: number }>().catch(() => null);
+  const changed = !existing ||
+    existing.active !== 1 ||
+    String(existing.offer_raw_amount ?? "") !== String(price.rawAmount ?? "") ||
+    String(existing.offer_eth ?? "") !== String(price.eth ?? "");
+
+  await env.WARPLETS.prepare(
+    `INSERT INTO opensea_criteria_offers (
+       order_hash, collection_slug, criteria_kind, traits_json,
+       offer_eth, offer_raw_amount, offer_decimals, offer_currency_symbol, offer_token_address,
+       offerer_wallet, protocol_address, encoded_token_ids, active,
+       offered_at, opensea_updated_at, raw_payload, created_at, updated_at
+     )
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?)
+     ON CONFLICT(order_hash) DO UPDATE SET
+       collection_slug = excluded.collection_slug,
+       criteria_kind = excluded.criteria_kind,
+       traits_json = excluded.traits_json,
+       offer_eth = excluded.offer_eth,
+       offer_raw_amount = excluded.offer_raw_amount,
+       offer_decimals = excluded.offer_decimals,
+       offer_currency_symbol = excluded.offer_currency_symbol,
+       offer_token_address = excluded.offer_token_address,
+       offerer_wallet = excluded.offerer_wallet,
+       protocol_address = excluded.protocol_address,
+       encoded_token_ids = excluded.encoded_token_ids,
+       active = 1,
+       offered_at = excluded.offered_at,
+       opensea_updated_at = excluded.opensea_updated_at,
+       raw_payload = excluded.raw_payload,
+       updated_at = excluded.updated_at`
+  ).bind(
+    orderHash,
+    COLLECTION_SLUG,
+    criteriaKind,
+    traits.length > 0 ? JSON.stringify(traits) : null,
+    price.eth,
+    price.rawAmount,
+    price.decimals,
+    price.symbol,
+    price.tokenAddress,
+    offererWallet,
+    protocolAddress,
+    encodedTokenIds,
+    offeredAt,
+    now,
+    safeJsonString(row),
+    now,
+    now,
+  ).run();
+
+  const matchedTokenIds = criteriaKind === "trait" ? await matchingTokenIdsForTraits(env.WARPLETS, traits) : [];
+  await replaceCriteriaOfferMatches(env.WARPLETS, orderHash, criteriaKind, matchedTokenIds);
+
+  if (
+    options.recordActivity !== false &&
+    criteriaKind === "trait" &&
+    changed &&
+    hadCriteriaRows &&
+    price.eth != null &&
+    await isBestTraitOfferForAnyMatch(env.WARPLETS, orderHash)
+  ) {
+    await recordWarpletActivity(env, {
+      eventType: "trait_top_offer",
+      actorWallet: offererWallet,
+      amountEth: price.eth,
+      amountRaw: price.rawAmount,
+      currencySymbol: price.symbol,
+      orderHash,
+      occurredAt: offeredAt,
+      source: "opensea:ingest",
+      rawPayload: { offer: row, traits },
+    }).catch((error) => console.error("Failed to record trait offer activity", error));
+  }
+
+  return changed;
+}
+
+async function clearInactiveCriteriaOffers(db: D1Database, activeOrderHashes: Set<string>): Promise<number> {
+  let rows: D1Result<{ order_hash: string }>;
+  try {
+    rows = await db.prepare(
+      `SELECT order_hash
+       FROM opensea_criteria_offers
+       WHERE collection_slug = ? AND active = 1`
+    ).bind(COLLECTION_SLUG).all<{ order_hash: string }>();
+  } catch {
+    return 0;
+  }
+  const stale = (rows.results ?? [])
+    .map((row) => row.order_hash)
+    .filter((hash) => hash && !activeOrderHashes.has(hash));
+  if (stale.length === 0) return 0;
+
+  const now = new Date().toISOString();
+  for (let index = 0; index < stale.length; index += 50) {
+    const chunk = stale.slice(index, index + 50);
+    const placeholders = chunk.map(() => "?").join(", ");
+    await db.prepare(
+      `UPDATE opensea_criteria_offers
+       SET active = 0, opensea_updated_at = ?, updated_at = ?
+       WHERE order_hash IN (${placeholders})`
+    ).bind(now, now, ...chunk).run();
+    await db.prepare(
+      `DELETE FROM opensea_criteria_offer_matches WHERE order_hash IN (${placeholders})`
+    ).bind(...chunk).run();
+  }
+  return stale.length;
+}
+
 function snapshotFromRows(
   rows: MarketStateRow[],
   generatedAt = new Date().toISOString(),
   collection?: NonNullable<MarketSnapshot["collection"]>,
+  traitOffers?: MarketSnapshot["traitOffers"],
 ): MarketSnapshot {
   const snapshot: MarketSnapshot = {
     version: "opensea-market-v1",
@@ -758,6 +1196,7 @@ function snapshotFromRows(
     collection: collection ?? { floor: null, topOffer: null },
     listings: {},
     offers: {},
+    traitOffers: traitOffers ?? {},
     sales: {},
     owners: {},
   };
@@ -834,6 +1273,7 @@ function sanitizeVisibleSales(value: unknown): MarketSnapshot["sales"] | null {
 export async function loadMarketSnapshotFromD1(env: OpenSeaMarketEnv): Promise<MarketSnapshot> {
   await initializeOwnersFromMetadata(env.WARPLETS);
   const collection = collectionSnapshotFromRow(await loadCollectionMarketRow(env.WARPLETS));
+  const traitOffers = Object.fromEntries(await loadActiveTraitOffersForToken(env.WARPLETS));
   let rows: D1Result<MarketStateRow>;
   try {
     rows = await env.WARPLETS.prepare(
@@ -860,22 +1300,25 @@ export async function loadMarketSnapshotFromD1(env: OpenSeaMarketEnv): Promise<M
       ).all<MarketStateRow>();
     }
   }
-  return snapshotFromRows(rows.results ?? [], new Date().toISOString(), collection);
+  return snapshotFromRows(rows.results ?? [], new Date().toISOString(), collection, traitOffers);
 }
 
 export async function loadMarketSnapshot(env: OpenSeaMarketEnv): Promise<MarketSnapshot> {
   const kv = env.WARPLETS_KV;
   if (kv) {
     const manifest = await kv.get(MARKET_SNAPSHOT_KEYS.manifest, "json") as { generatedAt?: string } | null;
-    const [collection, listings, offers, sales, owners] = await Promise.all([
+    const [collection, listings, offers, traitOffers, sales, owners] = await Promise.all([
       kv.get(MARKET_SNAPSHOT_KEYS.collection, "json"),
       kv.get(MARKET_SNAPSHOT_KEYS.listings, "json"),
       kv.get(MARKET_SNAPSHOT_KEYS.offers, "json"),
+      kv.get(MARKET_SNAPSHOT_KEYS.traitOffers, "json"),
       kv.get(MARKET_SNAPSHOT_KEYS.sales, "json"),
       kv.get(MARKET_SNAPSHOT_KEYS.owners, "json"),
     ]);
     const visibleSales = sanitizeVisibleSales(sales);
     if (manifest?.generatedAt && listings && offers && visibleSales && owners) {
+      const persistedTraitOffers = Object.fromEntries(await loadActiveTraitOffersForToken(env.WARPLETS));
+      const cachedTraitOffers = (traitOffers as MarketSnapshot["traitOffers"] | null) ?? {};
       return {
         version: "opensea-market-v1",
         generatedAt: manifest.generatedAt,
@@ -883,6 +1326,7 @@ export async function loadMarketSnapshot(env: OpenSeaMarketEnv): Promise<MarketS
         collection: (collection as MarketSnapshot["collection"] | null) ?? { floor: null, topOffer: null },
         listings: listings as MarketSnapshot["listings"],
         offers: offers as MarketSnapshot["offers"],
+        traitOffers: { ...cachedTraitOffers, ...persistedTraitOffers },
         sales: visibleSales,
         owners: owners as MarketSnapshot["owners"],
       };
@@ -904,6 +1348,7 @@ export async function publishMarketSnapshot(env: OpenSeaMarketEnv): Promise<Mark
       kv.put(MARKET_SNAPSHOT_KEYS.collection, JSON.stringify(snapshot.collection ?? { floor: null, topOffer: null }), { expirationTtl: SNAPSHOT_TTL_SECONDS * 6 }),
       kv.put(MARKET_SNAPSHOT_KEYS.listings, JSON.stringify(snapshot.listings), { expirationTtl: SNAPSHOT_TTL_SECONDS * 6 }),
       kv.put(MARKET_SNAPSHOT_KEYS.offers, JSON.stringify(snapshot.offers), { expirationTtl: SNAPSHOT_TTL_SECONDS * 6 }),
+      kv.put(MARKET_SNAPSHOT_KEYS.traitOffers, JSON.stringify(snapshot.traitOffers), { expirationTtl: SNAPSHOT_TTL_SECONDS * 6 }),
       kv.put(MARKET_SNAPSHOT_KEYS.sales, JSON.stringify(snapshot.sales), { expirationTtl: SNAPSHOT_TTL_SECONDS * 6 }),
       kv.put(MARKET_SNAPSHOT_KEYS.owners, JSON.stringify(snapshot.owners), { expirationTtl: SNAPSHOT_TTL_SECONDS * 6 }),
     ]);
@@ -956,6 +1401,9 @@ export async function processListing(env: OpenSeaMarketEnv, row: Record<string, 
 }
 
 export async function processOffer(env: OpenSeaMarketEnv, row: Record<string, unknown>): Promise<boolean> {
+  if (classifyOpenSeaOffer(row) !== "item") {
+    return upsertCriteriaOfferFromRow(env, row);
+  }
   const tokenId = getTokenIdFromOpenSeaRow(row);
   if (!tokenId) return false;
   const price = getPrice(row, "offer");
@@ -1173,6 +1621,7 @@ async function ingestPaginated(
   let changed = 0;
   let complete = false;
   const tokenIds = new Set<number>();
+  const orderHashes = new Set<string>();
   for (let page = 0; page < maxPages; page += 1) {
     const params = new URLSearchParams({ limit: "200" });
     if (cursor) params.set("next", cursor);
@@ -1183,6 +1632,8 @@ async function ingestPaginated(
       if (!row) continue;
       const tokenId = getTokenIdFromOpenSeaRow(row);
       if (tokenId) tokenIds.add(tokenId);
+      const orderHash = asString(row.order_hash);
+      if (orderHash) orderHashes.add(orderHash);
       if (await processor(env, row)) changed += 1;
     }
     cursor = asString(payload.next);
@@ -1191,7 +1642,7 @@ async function ingestPaginated(
       break;
     }
   }
-  return { changed, tokenIds, complete };
+  return { changed, tokenIds, orderHashes, complete };
 }
 
 async function clearInactiveMarketRows(
@@ -1330,7 +1781,8 @@ async function refreshCollectionMarketState(env: OpenSeaMarketEnv, apiKey: strin
     const payload = await fetchOpenSea(`/offers/collection/${COLLECTION_SLUG}`, apiKey, params);
     const offers = asArray(payload.offers ?? payload.orders)
       .map((item) => asObject(item))
-      .filter((item): item is Record<string, unknown> => Boolean(item));
+      .filter((item): item is Record<string, unknown> => Boolean(item))
+      .filter((item) => classifyOpenSeaOffer(item) === "collection");
     const best = offers.reduce<{
       row: Record<string, unknown>;
       price: CurrencyValue;
@@ -1419,6 +1871,7 @@ export async function ingestOpenSeaMarket(env: OpenSeaMarketEnv): Promise<{ chan
   const offers = await ingestPaginated(env, apiKey, `/offers/collection/${COLLECTION_SLUG}/all`, ["offers", "orders"], processOffer, 50);
   changed += offers.changed;
   if (offers.complete) changed += await clearInactiveMarketRows(env.WARPLETS, "offer", offers.tokenIds);
+  if (offers.complete) changed += await clearInactiveCriteriaOffers(env.WARPLETS, offers.orderHashes);
 
   const last = await env.WARPLETS.prepare("SELECT value FROM opensea_ingest_state WHERE key = 'events_after'").first<{ value: string | null }>();
   const after = last?.value ?? null;
@@ -1495,11 +1948,16 @@ export async function refreshOneTokenMarket(
     }
     if (offerPayload) {
       const offer = asObject(offerPayload.offer) ?? offerPayload;
-      const offerRow = { ...offer, identifier: String(tokenId) };
-      if (hasCurrencyValue(getPrice(offerRow, "offer"))) {
-        await processOffer(env, offerRow);
-      } else {
-        await clearTokenMarketSide(env, tokenId, "offer");
+      const offerKind = classifyOpenSeaOffer(offer);
+      if (offerKind === "item") {
+        const offerRow = { ...offer, identifier: String(tokenId) };
+        if (hasCurrencyValue(getPrice(offerRow, "offer"))) {
+          await processOffer(env, offerRow);
+        } else {
+          await clearTokenMarketSide(env, tokenId, "offer");
+        }
+      } else if (hasCurrencyValue(getPrice(offer, "offer"))) {
+        await upsertCriteriaOfferFromRow(env, offer, { recordActivity: false });
       }
     } else {
       await clearTokenMarketSide(env, tokenId, "offer");
@@ -1537,6 +1995,7 @@ export async function refreshOneTokenMarket(
 
 export async function loadOneTokenSnapshot(env: OpenSeaMarketEnv, tokenId: number): Promise<MarketSnapshot> {
   const collection = collectionSnapshotFromRow(await loadCollectionMarketRow(env.WARPLETS));
+  const traitOffers = Object.fromEntries(await loadActiveTraitOffersForToken(env.WARPLETS, tokenId));
   let row: MarketStateRow | null;
   try {
     row = await env.WARPLETS.prepare(
@@ -1563,7 +2022,7 @@ export async function loadOneTokenSnapshot(env: OpenSeaMarketEnv, tokenId: numbe
       ).bind(tokenId).first<MarketStateRow>();
     }
   }
-  return snapshotFromRows(row ? [row] : [], new Date().toISOString(), collection);
+  return snapshotFromRows(row ? [row] : [], new Date().toISOString(), collection, traitOffers);
 }
 
 export function marketJson(data: unknown, init?: ResponseInit): Response {

@@ -6,7 +6,8 @@ export type WarpletActivityType =
   | "listed"
   | "sold"
   | "favourited"
-  | "collection_top_offer";
+  | "collection_top_offer"
+  | "trait_top_offer";
 
 type NotificationCategory =
   | "owned"
@@ -77,6 +78,7 @@ const ACTION_PRIORITY: Record<WarpletActivityType, number> = {
   sold: 3,
   favourited: 4,
   collection_top_offer: 5,
+  trait_top_offer: 6,
 };
 
 const TABLE_COLUMN_CACHE = new Map<string, Set<string>>();
@@ -154,6 +156,25 @@ function actorLabel(row: Pick<ActivityRow, "actor_username" | "actor_fid" | "act
   if (row.actor_fid) return `FID ${row.actor_fid}`;
   if (row.actor_wallet) return `${row.actor_wallet.slice(0, 6)}…${row.actor_wallet.slice(-4)}`;
   return "Someone";
+}
+
+function traitLabelFromPayload(rawPayload?: string | null): string {
+  if (!rawPayload) return "matching traits";
+  try {
+    const parsed = JSON.parse(rawPayload) as { traits?: Array<{ traitType?: unknown; traitValue?: unknown }> };
+    const traits = Array.isArray(parsed.traits) ? parsed.traits : [];
+    const label = traits
+      .map((trait) => {
+        const traitType = typeof trait.traitType === "string" ? trait.traitType.trim() : "";
+        const traitValue = typeof trait.traitValue === "string" ? trait.traitValue.trim() : "";
+        return traitType && traitValue ? `${traitType}: ${traitValue}` : "";
+      })
+      .filter(Boolean)
+      .join(", ");
+    return label || "matching traits";
+  } catch {
+    return "matching traits";
+  }
 }
 
 function itemTarget(tokenId?: number | null): string {
@@ -368,6 +389,12 @@ async function buildBody(
       return amount
         ? `${actor} made a new top collection offer for ${amount}`
         : `${actor} made a new top collection offer`;
+    case "trait_top_offer": {
+      const traitLabel = traitLabelFromPayload(row.raw_payload);
+      return amount
+        ? `${actor} made a new top trait offer for ${traitLabel} at ${amount}`
+        : `${actor} made a new top trait offer for ${traitLabel}`;
+    }
     default:
       return `${actor} updated 10X Warplet #${tokenId}`;
   }
@@ -409,6 +436,40 @@ async function queueInstantNotificationsForEvent(env: WarpletNotificationEnv, ro
        GROUP BY owner_fid
        LIMIT 10000`,
     ).all<{ fid: number; token_id: number }>();
+
+    for (const owner of owners.results || []) {
+      const fid = Number(owner.fid);
+      if (!fid || fid === row.actor_fid || queuedFids.has(fid)) continue;
+      queuedFids.add(fid);
+      await queueNotification(env, {
+        category: "owned",
+        priority: 15,
+        fid,
+        eventId: row.id,
+        eventKey: `${row.event_key}:${owner.token_id}`,
+        title: "10X Warplets",
+        body: await buildBody(env, row, Number(owner.token_id)),
+        targetUrl: itemTarget(Number(owner.token_id)),
+      });
+    }
+    await env.WARPLETS.prepare(
+      `UPDATE warplet_activity_events SET queued_at = CURRENT_TIMESTAMP WHERE id = ?`,
+    )
+      .bind(row.id)
+      .run();
+    return;
+  }
+
+  if (row.event_type === "trait_top_offer") {
+    const owners = await env.WARPLETS.prepare(
+      `SELECT ms.owner_fid AS fid, MIN(ms.token_id) AS token_id
+       FROM opensea_criteria_offer_matches match
+       JOIN warplet_market_state ms ON ms.token_id = match.token_id
+       WHERE match.order_hash = ?
+         AND ms.owner_fid IS NOT NULL
+       GROUP BY ms.owner_fid
+       LIMIT 10000`,
+    ).bind(row.order_hash).all<{ fid: number; token_id: number }>().catch(() => ({ results: [] }));
 
     for (const owner of owners.results || []) {
       const fid = Number(owner.fid);
@@ -480,6 +541,34 @@ async function queueInstantNotificationsForEvent(env: WarpletNotificationEnv, ro
         fid,
         eventId: row.id,
         eventKey: row.event_key,
+        title: "10X Warplets",
+        body: await buildBody(env, row),
+        targetUrl: itemTarget(tokenId),
+      });
+    }
+  }
+
+  if (["listed", "sold", "purchased"].includes(row.event_type)) {
+    const traitOfferRows = await env.WARPLETS.prepare(
+      `SELECT offer.offerer_wallet, offer.offer_eth AS amount_eth
+       FROM opensea_criteria_offer_matches match
+       JOIN opensea_criteria_offers offer ON offer.order_hash = match.order_hash
+       WHERE match.token_id = ?
+         AND offer.active = 1
+         AND offer.criteria_kind = 'trait'
+       LIMIT 1000`,
+    ).bind(tokenId).all<{ offerer_wallet: string | null; amount_eth: number | null }>().catch(() => ({ results: [] }));
+
+    for (const offer of traitOfferRows.results || []) {
+      const fid = await resolveFidForWallet(env, offer.offerer_wallet);
+      if (!fid || fid === row.actor_fid || queuedFids.has(fid)) continue;
+      queuedFids.add(fid);
+      await queueNotification(env, {
+        category: "offered",
+        priority: 20,
+        fid,
+        eventId: row.id,
+        eventKey: `${row.event_key}:trait:${fid}`,
         title: "10X Warplets",
         body: await buildBody(env, row),
         targetUrl: itemTarget(tokenId),
@@ -848,15 +937,18 @@ export async function runGlobalStatsNotifications(env: WarpletNotificationEnv): 
     `SELECT event_type, COUNT(*) AS count, COALESCE(SUM(amount_eth), 0) AS eth_total
      FROM warplet_activity_events
      WHERE datetime(occurred_at) >= datetime('now', '-24 hours')
-       AND event_type IN ('listed', 'offered', 'sold')
+       AND event_type IN ('listed', 'offered', 'trait_top_offer', 'sold')
      GROUP BY event_type`,
   ).all<{ event_type: WarpletActivityType; count: number; eth_total: number }>();
 
   const stats = new Map(rows.results?.map((row) => [row.event_type, row]) || []);
   const listings = stats.get("listed");
-  const offers = stats.get("offered");
+  const offers = {
+    count: Number(stats.get("offered")?.count || 0) + Number(stats.get("trait_top_offer")?.count || 0),
+    eth_total: Number(stats.get("offered")?.eth_total || 0) + Number(stats.get("trait_top_offer")?.eth_total || 0),
+  };
   const sales = stats.get("sold");
-  const totalCount = Number(listings?.count || 0) + Number(offers?.count || 0) + Number(sales?.count || 0);
+  const totalCount = Number(listings?.count || 0) + offers.count + Number(sales?.count || 0);
   if (totalCount === 0) return 0;
 
   const ethUsd = await getEthUsd(env);
@@ -864,8 +956,8 @@ export async function runGlobalStatsNotifications(env: WarpletNotificationEnv): 
     ethUsd && Number.isFinite(ethUsd) ? ` (~$${Math.round(eth * ethUsd).toLocaleString("en-US")})` : "";
   const body = `24hr Stats: ${Number(listings?.count || 0).toLocaleString("en-US")} New Listings${totalUsd(
     Number(listings?.eth_total || 0),
-  )}, ${Number(offers?.count || 0).toLocaleString("en-US")} New Offers${totalUsd(
-    Number(offers?.eth_total || 0),
+  )}, ${offers.count.toLocaleString("en-US")} New Offers${totalUsd(
+    offers.eth_total,
   )}, ${Number(sales?.count || 0).toLocaleString("en-US")} New Sales${totalUsd(Number(sales?.eth_total || 0))}.`;
 
   const tokens = await env.WARPLETS.prepare(

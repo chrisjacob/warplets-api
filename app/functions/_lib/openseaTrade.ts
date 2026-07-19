@@ -4,6 +4,7 @@ import {
   asObject,
   asString,
   clearTokenMarketSide,
+  classifyOpenSeaOffer,
   fetchOpenSea,
   fetchLatestTokenSale,
   getMakerAddress,
@@ -17,9 +18,12 @@ import {
   processOffer,
   processSaleOrTransfer,
   publishMarketSnapshot,
+  readCriteriaTraits,
   selectPreferredFidForWallet,
+  upsertCriteriaOfferFromRow,
   type MarketMoney,
   type MarketOrderMoney,
+  type TraitCriterion,
   type OpenSeaMarketEnv,
 } from "./openseaMarket.js";
 import { jsonSecure } from "./security.js";
@@ -85,9 +89,10 @@ const SEAPORT_GET_COUNTER_SELECTOR = "0xf07ec373";
 const MAX_OPENSEA_ORDER_DURATION_SECONDS = 179 * 24 * 60 * 60;
 
 type FreshOrder = MarketOrderMoney & {
-  source?: "item" | "collection";
+  source?: "item" | "trait" | "collection";
   seller?: string | null;
   offerer?: string | null;
+  traits?: TraitCriterion[];
   protocolData?: unknown;
 };
 
@@ -96,8 +101,9 @@ type FreshTradeState = {
   generatedAt: string;
   listing: (FreshOrder & { seller: string | null }) | null;
   itemOffer: (FreshOrder & { offerer: string | null; source: "item" }) | null;
+  traitOffer: (FreshOrder & { offerer: string | null; source: "trait"; traits: TraitCriterion[] }) | null;
   collectionOffer: (FreshOrder & { offerer: string | null; source: "collection" }) | null;
-  topOffer: (FreshOrder & { offerer: string | null; source: "item" | "collection" }) | null;
+  topOffer: (FreshOrder & { offerer: string | null; source: "item" | "trait" | "collection" }) | null;
   ownItemOffer: (FreshOrder & { offerer: string | null; source: "item" }) | null;
   sale: MarketMoney | null;
   floor: MarketMoney | null;
@@ -171,7 +177,7 @@ function comparableMarketValue(value: MarketMoney | null | undefined): number | 
 function saleEventToMarketMoney(row: Record<string, unknown> | null): MarketMoney | null {
   if (!row) return null;
   const price = getPrice(row, "consideration");
-  if (!hasCurrencyValue(price)) return null;
+  if (price.eth == null) return null;
   return {
     eth: price.eth,
     at: getOrderCreatedAt(row) ?? new Date().toISOString(),
@@ -184,15 +190,23 @@ function saleEventToMarketMoney(row: Record<string, unknown> | null): MarketMone
 
 function chooseTopOffer(
   itemOffer: FreshTradeState["itemOffer"],
+  traitOffer: FreshTradeState["traitOffer"],
   collectionOffer: FreshTradeState["collectionOffer"],
 ): FreshTradeState["topOffer"] {
-  if (!itemOffer) return collectionOffer;
-  if (!collectionOffer) return itemOffer;
-  const itemValue = comparableMarketValue(itemOffer);
-  const collectionValue = comparableMarketValue(collectionOffer);
-  if (itemValue == null) return collectionOffer;
-  if (collectionValue == null) return itemOffer;
-  return itemValue >= collectionValue ? itemOffer : collectionOffer;
+  let current: FreshTradeState["topOffer"] = null;
+  for (const offer of [itemOffer, traitOffer, collectionOffer]) {
+    if (!offer) continue;
+    if (!current) {
+      current = offer;
+      continue;
+    }
+    const currentValue = comparableMarketValue(current);
+    const nextValue = comparableMarketValue(offer);
+    if (currentValue == null || (nextValue != null && nextValue > currentValue)) {
+      current = offer;
+    }
+  }
+  return current;
 }
 
 function isSpecificItemOffer(row: Record<string, unknown>, tokenId: number): boolean {
@@ -282,11 +296,57 @@ async function fetchBestListing(apiKey: string, tokenId: number): Promise<{ row:
 
 async function fetchBestItemOffer(apiKey: string, tokenId: number): Promise<{ row: Record<string, unknown>; market: FreshTradeState["itemOffer"] } | null> {
   try {
+    const payload = await fetchOpenSea(`/offers/collection/${COLLECTION_SLUG}/nfts/${encodeURIComponent(String(tokenId))}`, apiKey, new URLSearchParams({ limit: "50" }));
+    const rows = asArray(payload.offers ?? payload.orders)
+      .map((item) => asObject(item))
+      .filter((item): item is Record<string, unknown> => Boolean(item))
+      .filter((row) => isSpecificItemOffer(row, tokenId));
+    const offers = rows
+      .map((row) => {
+        const market = orderToMarket({ ...row, identifier: String(tokenId) }, "offer") as FreshTradeState["itemOffer"];
+        return market ? { row, market: { ...market, source: "item" as const } } : null;
+      })
+      .filter((offer): offer is { row: Record<string, unknown>; market: NonNullable<FreshTradeState["itemOffer"]> } => offer !== null)
+      .sort((left, right) => (comparableMarketValue(right.market) ?? -1) - (comparableMarketValue(left.market) ?? -1));
+    return offers[0] ?? null;
+  } catch {
+    return null;
+  }
+}
+
+async function fetchBestApplicableOffer(
+  apiKey: string,
+  tokenId: number,
+  excludeOrderHashes: string[] = [],
+): Promise<{ row: Record<string, unknown>; market: NonNullable<FreshTradeState["topOffer"]> } | null> {
+  try {
+    const excluded = new Set(excludeOrderHashes.map((hash) => hash.toLowerCase()).filter(Boolean));
     const payload = await fetchOpenSea(`/offers/collection/${COLLECTION_SLUG}/nfts/${encodeURIComponent(String(tokenId))}/best`, apiKey);
     const row = asObject(payload.offer) ?? payload;
-    if (!isSpecificItemOffer(row, tokenId)) return null;
-    const market = orderToMarket({ ...row, identifier: String(tokenId) }, "offer") as FreshTradeState["itemOffer"];
-    return market ? { row, market: { ...market, source: "item" } } : null;
+    const orderHash = asString(row.order_hash)?.toLowerCase();
+    if (orderHash && excluded.has(orderHash)) return null;
+    const source = classifyOpenSeaOffer(row);
+    const market = orderToMarket(source === "item" ? { ...row, identifier: String(tokenId) } : row, "offer");
+    if (!market) return null;
+    if (source === "trait") {
+      return {
+        row,
+        market: {
+          ...market,
+          source: "trait",
+          traits: readCriteriaTraits(row),
+          offerer: market.offerer ?? null,
+        },
+      };
+    }
+    return {
+      row,
+      market: {
+        ...market,
+        source,
+        offerer: market.offerer ?? null,
+      },
+    };
   } catch {
     return null;
   }
@@ -301,7 +361,8 @@ async function fetchCollectionOffer(
     const payload = await fetchOpenSea(`/offers/collection/${COLLECTION_SLUG}`, apiKey, new URLSearchParams({ limit: "200" }));
     const rows = asArray(payload.offers ?? payload.orders)
       .map((item) => asObject(item))
-      .filter((item): item is Record<string, unknown> => Boolean(item));
+      .filter((item): item is Record<string, unknown> => Boolean(item))
+      .filter((item) => classifyOpenSeaOffer(item) === "collection");
     const best = rows.reduce<{ row: Record<string, unknown>; market: FreshTradeState["collectionOffer"]; value: number } | null>((current, row) => {
       const orderHash = asString(row.order_hash)?.toLowerCase();
       if (orderHash && excluded.has(orderHash)) return current;
@@ -454,10 +515,12 @@ export async function getFreshTradeState(
 ): Promise<FreshTradeState> {
   const apiKey = requireOpenSeaApiKey(env);
   const normalizedWallet = normalizeWallet(wallet);
-  const [listing, itemOffer, collectionOffer, floor, ownerWallet, ownItemOffer, salePayload] = await Promise.all([
+  const excludedCollectionOrderHashes = options.excludeCollectionOrderHashes ?? [];
+  const [listing, itemOffer, bestApplicableOffer, collectionOffer, floor, ownerWallet, ownItemOffer, salePayload] = await Promise.all([
     fetchBestListing(apiKey, tokenId),
     fetchBestItemOffer(apiKey, tokenId),
-    fetchCollectionOffer(apiKey, options.excludeCollectionOrderHashes ?? []),
+    fetchBestApplicableOffer(apiKey, tokenId, excludedCollectionOrderHashes),
+    fetchCollectionOffer(apiKey, excludedCollectionOrderHashes),
     fetchFloor(apiKey),
     ownerOf(tokenId).catch(() => null),
     fetchOwnItemOffer(apiKey, tokenId, normalizedWallet),
@@ -480,6 +543,12 @@ export async function getFreshTradeState(
     await processOffer(env, { ...itemOffer.row, identifier: String(tokenId) });
   } else {
     await clearTokenMarketSide(env, tokenId, "offer");
+  }
+  const traitOffer = bestApplicableOffer?.market.source === "trait"
+    ? bestApplicableOffer.market as FreshTradeState["traitOffer"]
+    : null;
+  if (bestApplicableOffer?.row && bestApplicableOffer.market.source !== "item") {
+    await upsertCriteriaOfferFromRow(env, bestApplicableOffer.row, { recordActivity: false }).catch(() => false);
   }
   await persistCollectionTradeState(env, floor, collectionOffer?.market ?? null).catch(() => {});
   if (salePayload) {
@@ -507,8 +576,9 @@ export async function getFreshTradeState(
     generatedAt: now,
     listing: activeListing?.market ?? null,
     itemOffer: itemOffer?.market ?? null,
+    traitOffer,
     collectionOffer: collectionOffer?.market ?? null,
-    topOffer: chooseTopOffer(itemOffer?.market ?? null, collectionOffer?.market ?? null),
+    topOffer: bestApplicableOffer?.market ?? chooseTopOffer(itemOffer?.market ?? null, traitOffer, collectionOffer?.market ?? null),
     ownItemOffer,
     sale: saleEventToMarketMoney(salePayload),
     floor,

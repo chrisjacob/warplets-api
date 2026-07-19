@@ -94,6 +94,7 @@ const RANDOM_EXAMPLE_SEARCHES_SEEN_KEY = "warplets-search-random-seen-v1";
 const SEARCH_DEBOUNCE_MS = 300;
 const STATUS_LINE_CLASS = "text-center text-xs uppercase leading-4";
 const OPENSEA_COLLECTION_URL = "https://opensea.io/collection/10xwarplets";
+const SEARCH_COLLECTION_OFFERS_PATH = "/collection-offers";
 const MARKET_CACHE_KEY = "warplets-market-state-v3";
 const MARKET_SNAPSHOT_STALE_MS = 10 * 60 * 1000;
 const MARKET_DETAIL_STALE_MS = 30 * 60 * 1000;
@@ -725,6 +726,11 @@ type MarketOrderMoney = MarketMoney & {
   protocolAddress?: string | null;
 };
 
+type TraitCriterion = {
+  traitType: string;
+  traitValue: string;
+};
+
 type MarketSnapshot = {
   version: "opensea-market-v1";
   generatedAt: string;
@@ -735,6 +741,7 @@ type MarketSnapshot = {
   };
   listings: Record<string, MarketOrderMoney & { seller?: string | null }>;
   offers: Record<string, MarketOrderMoney & { offerer?: string | null; source?: "item" }>;
+  traitOffers?: Record<string, MarketOrderMoney & { offerer?: string | null; source: "trait"; traits: TraitCriterion[] }>;
   sales: Record<string, MarketMoney & { txHash?: string | null; seller?: string | null }>;
   owners: Record<string, {
     wallet: string | null;
@@ -752,8 +759,9 @@ type MarketSnapshot = {
 type TokenMarketState = {
   listing?: MarketSnapshot["listings"][string];
   itemOffer?: MarketSnapshot["offers"][string];
+  traitOffer?: NonNullable<MarketSnapshot["traitOffers"]>[string];
   collectionOffer?: NonNullable<MarketSnapshot["collection"]>["topOffer"] | null;
-  offer?: (MarketOrderMoney & { offerer?: string | null; source?: "item" | "collection" }) | null;
+  offer?: (MarketOrderMoney & { offerer?: string | null; source?: "item" | "trait" | "collection"; traits?: TraitCriterion[] }) | null;
   sale?: MarketSnapshot["sales"][string];
   owner?: MarketSnapshot["owners"][string];
 };
@@ -779,8 +787,9 @@ type FreshTradeState = {
   generatedAt: string;
   listing: (MarketOrderMoney & { seller?: string | null; protocolData?: unknown }) | null;
   itemOffer: (MarketOrderMoney & { offerer?: string | null; source: "item"; protocolData?: unknown }) | null;
+  traitOffer: (MarketOrderMoney & { offerer?: string | null; source: "trait"; traits: TraitCriterion[]; protocolData?: unknown }) | null;
   collectionOffer: (MarketOrderMoney & { offerer?: string | null; source: "collection"; protocolData?: unknown }) | null;
-  topOffer: (MarketOrderMoney & { offerer?: string | null; source: "item" | "collection"; protocolData?: unknown }) | null;
+  topOffer: (MarketOrderMoney & { offerer?: string | null; source: "item" | "trait" | "collection"; traits?: TraitCriterion[]; protocolData?: unknown }) | null;
   ownItemOffer: (MarketOrderMoney & { offerer?: string | null; source: "item"; protocolData?: unknown }) | null;
   sale?: MarketSnapshot["sales"][string] | null;
   floor: MarketMoney | null;
@@ -804,6 +813,40 @@ type ViewerProfile = {
   username: string | null;
   displayName: string | null;
   pfpUrl: string | null;
+};
+
+type CollectionOfferBidder = {
+  wallet: string;
+  fid: number | null;
+  username: string | null;
+  displayName: string | null;
+  pfpUrl: string | null;
+  openseaUrl: string;
+};
+
+type CollectionOfferGroup = {
+  price: MarketMoney;
+  volume: MarketMoney;
+  offerCount: number;
+  bidderCount: number;
+  bidders: CollectionOfferBidder[];
+  userOfferCount: number;
+  userOrders: Array<{
+    orderHash: string;
+    protocolAddress: string | null;
+    quantity: number;
+  }>;
+};
+
+type CollectionOffersPayload = {
+  generatedAt: string;
+  wallet: string | null;
+  topCollectionOffer: MarketMoney | null;
+  stats: {
+    count: number;
+    value: MarketMoney;
+  };
+  groups: CollectionOfferGroup[];
 };
 
 type WarpletResult = {
@@ -1554,15 +1597,23 @@ function getMarketOrderShareMeta(orderBy: OrderByOption, direction: OrderDirecti
 
 function chooseTopOffer(
   itemOffer: MarketSnapshot["offers"][string] | undefined,
+  traitOffer: NonNullable<MarketSnapshot["traitOffers"]>[string] | undefined,
   collectionOffer: NonNullable<MarketSnapshot["collection"]>["topOffer"] | null | undefined,
 ): TokenMarketState["offer"] {
-  if (!itemOffer) return collectionOffer ?? null;
-  if (!collectionOffer) return itemOffer;
-  const itemValue = getMarketNumber(itemOffer);
-  const collectionValue = getMarketNumber(collectionOffer);
-  if (itemValue == null) return collectionOffer;
-  if (collectionValue == null) return itemOffer;
-  return itemValue >= collectionValue ? itemOffer : collectionOffer;
+  let current: TokenMarketState["offer"] = null;
+  for (const offer of [itemOffer, traitOffer, collectionOffer]) {
+    if (!offer) continue;
+    if (!current) {
+      current = offer;
+      continue;
+    }
+    const currentValue = getMarketNumber(current);
+    const nextValue = getMarketNumber(offer);
+    if (currentValue == null || (nextValue != null && nextValue > currentValue)) {
+      current = offer;
+    }
+  }
+  return current;
 }
 
 function getMarketKindStyles(kind: MarketKind): {
@@ -1645,6 +1696,7 @@ function OrderValueLabel({
 function getMarketState(snapshot: MarketSnapshot | null, tokenId: number): TokenMarketState {
   const key = String(tokenId);
   const itemOffer = snapshot?.offers[key];
+  const traitOffer = snapshot?.traitOffers?.[key];
   const collectionOffer = snapshot?.collection?.topOffer ?? null;
   const listing = snapshot?.listings[key];
   const ownerWallet = snapshot?.owners[key]?.wallet?.toLowerCase() ?? "";
@@ -1655,8 +1707,9 @@ function getMarketState(snapshot: MarketSnapshot | null, tokenId: number): Token
   return {
     listing: activeListing,
     itemOffer,
+    traitOffer,
     collectionOffer,
-    offer: chooseTopOffer(itemOffer, collectionOffer),
+    offer: chooseTopOffer(itemOffer, traitOffer, collectionOffer),
     sale: snapshot?.sales[key],
     owner: snapshot?.owners[key],
   };
@@ -1678,10 +1731,12 @@ function mergeTokenSnapshot(current: MarketSnapshot | null, tokenSnapshot: Marke
   const key = String(tokenId);
   const listings = { ...(current?.listings ?? {}) };
   const offers = { ...(current?.offers ?? {}) };
+  const traitOffers = { ...(current?.traitOffers ?? {}) };
   const sales = { ...(current?.sales ?? {}) };
   const owners = { ...(current?.owners ?? {}) };
   delete listings[key];
   delete offers[key];
+  delete traitOffers[key];
   delete sales[key];
   delete owners[key];
   return {
@@ -1691,6 +1746,7 @@ function mergeTokenSnapshot(current: MarketSnapshot | null, tokenSnapshot: Marke
     collection: tokenSnapshot.collection ?? current?.collection ?? { floor: null, topOffer: null },
     listings: { ...listings, ...tokenSnapshot.listings },
     offers: { ...offers, ...tokenSnapshot.offers },
+    traitOffers: { ...traitOffers, ...(tokenSnapshot.traitOffers ?? {}) },
     sales: { ...sales, ...tokenSnapshot.sales },
     owners: { ...owners, ...tokenSnapshot.owners },
   };
@@ -1703,6 +1759,13 @@ function readCachedMarketSnapshot(): MarketSnapshot | null {
     const snapshot = JSON.parse(raw) as MarketSnapshot;
     const age = Date.now() - Date.parse(snapshot.generatedAt || "");
     if (!Number.isFinite(age) || age > MARKET_CACHE_MAX_STALE_MS) return null;
+    const visibleSales = Object.fromEntries(
+      Object.entries(snapshot.sales ?? {}).filter(([, sale]) => isEthLikeMarketMoney(sale)),
+    ) as MarketSnapshot["sales"];
+    if (Object.keys(visibleSales).length !== Object.keys(snapshot.sales ?? {}).length) {
+      snapshot.sales = visibleSales;
+      writeCachedMarketSnapshot(snapshot);
+    }
     return snapshot;
   } catch {
     return null;
@@ -1899,6 +1962,12 @@ function formatMarketTimestamp(value: string | null | undefined): string {
     hour: "numeric",
     minute: "2-digit",
   }).format(new Date(ms));
+}
+
+function getOfferSourceLabel(offer: TokenMarketState["offer"] | null | undefined): string {
+  if (offer?.source === "trait") return "Trait Offer";
+  if (offer?.source === "collection") return "Collection Offer";
+  return "Item Offer";
 }
 
 function getMarketUpdatedAt(market: TokenMarketState): string | null {
@@ -2330,6 +2399,7 @@ function MarketValuePanel({
   label,
   money,
   emptyValue,
+  tooltipPrefix,
   className,
   style,
 }: {
@@ -2337,6 +2407,7 @@ function MarketValuePanel({
   label: string;
   money: MarketMoney | null | undefined;
   emptyValue: string;
+  tooltipPrefix?: string;
   className: string;
   style?: CSSProperties;
 }) {
@@ -2345,6 +2416,7 @@ function MarketValuePanel({
   const hasValue = hasMarketValue(money);
   const value = hasValue ? formatMarketValue(money, { maxDigits: 8 }) : emptyValue;
   const timestamp = hasValue && money?.at ? formatMarketTimestamp(money.at) : label;
+  const tooltip = hasValue && tooltipPrefix ? `${tooltipPrefix} ${timestamp}` : timestamp;
   const { refs, floatingStyles, context } = useFloating({
     open: isOpen,
     onOpenChange: setIsOpen,
@@ -2363,7 +2435,7 @@ function MarketValuePanel({
         ref={refs.setReference}
         {...getReferenceProps({
           tabIndex: hasValue ? 0 : undefined,
-          "aria-label": hasValue ? `${label}: ${timestamp}` : undefined,
+          "aria-label": hasValue ? `${label}: ${tooltip}` : undefined,
           onClick: hasValue ? () => setIsOpen((current) => !current) : undefined,
           className: `${hasValue ? "cursor-help" : ""} ${className}`,
           style: { ...style, backgroundColor: style?.backgroundColor ?? styles.backgroundColor },
@@ -2372,7 +2444,7 @@ function MarketValuePanel({
         <Text className="truncate text-center text-[10px] uppercase" style={{ color: styles.color }}>
           {label}
         </Text>
-        <MarketValueChip kind={kind} value={value} tooltip={timestamp} showTooltip={false} align="center" className="mt-1 w-full text-xs" />
+        <MarketValueChip kind={kind} value={value} tooltip={tooltip} showTooltip={false} align="center" className="mt-1 w-full text-xs" />
       </div>
       {hasValue && isOpen && (
         <FloatingPortal>
@@ -2387,7 +2459,7 @@ function MarketValuePanel({
               className: "z-[70] max-w-[min(92vw,520px)] whitespace-nowrap rounded-lg border bg-black px-3 py-2 text-[11px] font-bold leading-snug shadow-2xl",
             })}
           >
-            {timestamp}
+            {tooltip}
           </div>
         </FloatingPortal>
       )}
@@ -2494,6 +2566,41 @@ function getOpenSeaUrl(tokenId: number): string {
   return `https://opensea.io/item/base/0x780446dd12e080ae0db762fcd4daf313f3e359de/${tokenId}`;
 }
 
+function getSearchRootPath(): string {
+  return window.location.pathname.startsWith("/search") ? "/search" : "/";
+}
+
+function getSearchCollectionOffersPath(): string {
+  return window.location.pathname.startsWith("/search") ? "/search/collection-offers" : SEARCH_COLLECTION_OFFERS_PATH;
+}
+
+function isSearchCollectionOffersRoute(): boolean {
+  const normalizedPath = window.location.pathname.replace(/\/+$/, "") || "/";
+  return normalizedPath === "/collection-offers" || normalizedPath === "/search/collection-offers";
+}
+
+function getBrowserEthereumProvider(): EthereumProvider | null {
+  if (typeof window === "undefined") return null;
+  return ((window as Window & { ethereum?: EthereumProvider }).ethereum ?? null);
+}
+
+function unknownRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : null;
+}
+
+function getSiwnPrimaryWallet(user: unknown): string | null {
+  const obj = unknownRecord(user);
+  const verifiedAddresses = unknownRecord(obj?.verified_addresses) ?? unknownRecord(obj?.verifiedAddresses);
+  const rawAddresses = verifiedAddresses?.eth_addresses ?? verifiedAddresses?.ethAddresses;
+  const ethAddresses = Array.isArray(rawAddresses) ? rawAddresses : [];
+  for (const address of ethAddresses) {
+    const normalized = normalizeWalletAddress(typeof address === "string" ? address : null);
+    if (normalized) return normalized;
+  }
+  const custodyAddress = obj?.custody_address ?? obj?.custodyAddress;
+  return normalizeWalletAddress(typeof custodyAddress === "string" ? custodyAddress : null);
+}
+
 function SearchHeaderAccountControl({
   connected,
   avatarUrl,
@@ -2505,6 +2612,8 @@ function SearchHeaderAccountControl({
   closeKey,
   onConnectWallet,
   onMissingSiwnClientId,
+  onOpenCollectionOffers,
+  onOpenSpreadsheet,
   onViewOnboarding,
   onEnableNotifications,
   onDisconnect,
@@ -2519,6 +2628,8 @@ function SearchHeaderAccountControl({
   closeKey: string;
   onConnectWallet: () => void;
   onMissingSiwnClientId: () => void;
+  onOpenCollectionOffers: () => void;
+  onOpenSpreadsheet: () => void;
   onViewOnboarding: () => void;
   onEnableNotifications: () => void;
   onDisconnect: () => void;
@@ -2639,11 +2750,471 @@ function SearchHeaderAccountControl({
           <button type="button" role="menuitem" onClick={() => runMenuAction(onEnableNotifications)}>
             Enable notifications
           </button>
+          <button type="button" role="menuitem" onClick={() => runMenuAction(onOpenCollectionOffers)}>
+            Collection offers
+          </button>
+          <button type="button" role="menuitem" onClick={() => runMenuAction(onOpenSpreadsheet)}>
+            Warplets spreadsheet
+          </button>
           {showDisconnect && (
             <button type="button" role="menuitem" onClick={() => runMenuAction(onDisconnect)}>
               Disconnect
             </button>
           )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function formatUsdMoneyFromMarket(value: MarketMoney | null | undefined, ethUsdPrice: number | null): string {
+  const amount = marketMoneyToDecimal(value);
+  if (amount == null || ethUsdPrice == null) return "USD loading...";
+  return (amount * ethUsdPrice).toLocaleString("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
+function getCollectionOfferOrdersForQuantity(
+  orders: CollectionOfferGroup["userOrders"],
+  quantity: number,
+): CollectionOfferGroup["userOrders"] {
+  const selected: CollectionOfferGroup["userOrders"] = [];
+  let remaining = Math.max(1, Math.floor(quantity));
+  for (const order of orders) {
+    if (remaining <= 0) break;
+    selected.push(order);
+    remaining -= Math.max(1, order.quantity);
+  }
+  return selected;
+}
+
+function CollectionOffersPage({
+  connectedWallet,
+  viewerFid,
+  getProviderAndAccount,
+  showToast,
+}: {
+  connectedWallet: string | null;
+  viewerFid: number | null;
+  getProviderAndAccount: () => Promise<{ provider: EthereumProvider; account: string }>;
+  showToast: (kind: TradeToast["kind"], message: string, options?: { manualClose?: boolean; minMs?: number }) => void;
+}) {
+  const [scope, setScope] = useState<"all" | "your">("all");
+  const [payload, setPayload] = useState<CollectionOffersPayload | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [busy, setBusy] = useState<"offer" | "cancel" | null>(null);
+  const [price, setPrice] = useState("");
+  const [quantity, setQuantity] = useState(1);
+  const [ethUsdPrice, setEthUsdPrice] = useState<number | null>(null);
+  const [cancelGroup, setCancelGroup] = useState<CollectionOfferGroup | null>(null);
+  const [cancelQuantity, setCancelQuantity] = useState(1);
+  const formRef = useRef<HTMLDivElement | null>(null);
+  const normalizedWallet = normalizeWalletAddress(connectedWallet);
+
+  const loadOffers = useCallback(async (options: { refresh?: boolean } = {}) => {
+    if (options.refresh) setRefreshing(true);
+    else setLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (normalizedWallet) params.set("wallet", normalizedWallet);
+      if (scope === "your") params.set("scope", "your");
+      if (options.refresh) params.set("refresh", "1");
+      const response = await fetch(`/api/collection-offers?${params.toString()}`, {
+        headers: { accept: "application/json" },
+      });
+      if (!response.ok) throw new Error(`Collection offers failed (${response.status})`);
+      setPayload(await response.json() as CollectionOffersPayload);
+    } catch (error) {
+      showToast("error", error instanceof Error ? error.message : "Collection offers failed.", { manualClose: true });
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [normalizedWallet, scope, showToast]);
+
+  useEffect(() => {
+    void loadOffers();
+  }, [loadOffers]);
+
+  useEffect(() => {
+    fetchEthUsdPrice()
+      .then(setEthUsdPrice)
+      .catch((error) => console.warn("Failed to fetch ETH/USD for collection offers:", error));
+  }, []);
+
+  const setPriceFromMarket = useCallback((value: MarketMoney | null | undefined) => {
+    const amount = marketMoneyToDecimal(value);
+    if (amount != null && amount > 0) setPrice(formatTradePriceInput(amount));
+  }, []);
+
+  const formPriceRaw = decimalEthToWeiString(price);
+  const priceIsValid = Boolean(formPriceRaw && BigInt(formPriceRaw) > 0n);
+  const clampedQuantity = Math.min(10000, Math.max(1, Math.floor(quantity)));
+  const topOfferPrice = defaultOfferPrice(payload?.topCollectionOffer);
+
+  const runMakeCollectionOffer = useCallback(async () => {
+    const priceRaw = decimalEthToWeiString(price);
+    if (!priceRaw || BigInt(priceRaw) <= 0n) {
+      showToast("error", "Enter a valid collection offer price.", { manualClose: true });
+      return;
+    }
+    const actionId = crypto.randomUUID();
+    setBusy("offer");
+    try {
+      void hapticPrimaryTap();
+      const { provider, account } = await getProviderAndAccount();
+      const response = await fetch("/api/collection-offers/prepare", {
+        method: "POST",
+        headers: { "content-type": "application/json", accept: "application/json" },
+        body: JSON.stringify({
+          actionId,
+          fid: viewerFid,
+          wallet: account,
+          priceRaw,
+          quantity: clampedQuantity,
+          durationSeconds: DEFAULT_TRADE_DURATION_SECONDS,
+        }),
+      });
+      const prepared = await response.json().catch(() => ({})) as {
+        protocolAddress?: string;
+        parameters?: unknown;
+        typedData?: unknown;
+        chainIdHex?: string;
+        wethApproval?: TokenApprovalRequirement;
+        totalRaw?: string;
+        message?: string;
+      };
+      if (!response.ok) throw new Error(prepared.message || `Collection offer prepare failed (${response.status})`);
+      if (prepared.wethApproval) {
+        await ensureBaseChain(provider, prepared.chainIdHex ?? undefined);
+        const requiredWeth = BigInt(prepared.wethApproval.amount);
+        const currentWeth = await readErc20Balance(prepared.wethApproval.tokenAddress, account);
+        if (currentWeth < requiredWeth) {
+          const missingWeth = requiredWeth - currentWeth;
+          const nativeEth = await readNativeBalance(account);
+          if (nativeEth <= missingWeth) {
+            throw new Error(
+              `Offer requires ${formatWeiTokenAmount(requiredWeth, "WETH")}. Wallet has ${formatWeiTokenAmount(currentWeth, "WETH")} and ${formatWeiTokenAmount(nativeEth, "ETH")}.`,
+            );
+          }
+          showToast("neutral", `Wrap ${formatWeiTokenAmount(missingWeth, "ETH")} to WETH to make this offer...`, { minMs: 5000 });
+          await wrapEthToWeth(provider, account, prepared.wethApproval.tokenAddress, missingWeth);
+          showToast("neutral", "ETH wrapped to WETH. Continuing offer...", { minMs: 5000 });
+        }
+        await ensureErc20Approval(provider, account, prepared.wethApproval);
+      }
+      if (!prepared.typedData || !prepared.parameters || !prepared.protocolAddress) {
+        throw new Error("OpenSea did not return collection offer signature data");
+      }
+      showToast("neutral", "Check your Farcaster wallet to confirm the collection offer...", { minMs: 5000 });
+      const signature = await signTypedData(provider, account, prepared.typedData);
+      const submit = await fetch("/api/collection-offers/submit", {
+        method: "POST",
+        headers: { "content-type": "application/json", accept: "application/json" },
+        body: JSON.stringify({
+          actionId,
+          fid: viewerFid,
+          wallet: account,
+          priceRaw,
+          quantity: clampedQuantity,
+          payload: {
+            parameters: prepared.parameters,
+            protocol_address: prepared.protocolAddress,
+            signature,
+          },
+        }),
+      });
+      if (!submit.ok) {
+        const failure = await submit.json().catch(() => ({})) as { message?: string };
+        throw new Error(failure.message || `Collection offer submit failed (${submit.status})`);
+      }
+      void hapticSuccess();
+      showTradeConfetti();
+      showToast("success", "Collection offer successfully made", { minMs: 5000 });
+      await loadOffers({ refresh: true });
+    } catch (error) {
+      void hapticError();
+      showToast("error", error instanceof Error ? error.message : "Collection offer failed.", { manualClose: true });
+    } finally {
+      setBusy(null);
+    }
+  }, [clampedQuantity, getProviderAndAccount, loadOffers, price, showToast, viewerFid]);
+
+  const runCancelCollectionOffers = useCallback(async () => {
+    if (!cancelGroup) return;
+    const orders = getCollectionOfferOrdersForQuantity(cancelGroup.userOrders, cancelQuantity)
+      .filter((order) => order.orderHash && order.protocolAddress);
+    if (orders.length === 0) {
+      showToast("error", "No collection offers are available to cancel.", { manualClose: true });
+      return;
+    }
+    const actionId = crypto.randomUUID();
+    setBusy("cancel");
+    try {
+      void hapticPrimaryTap();
+      const { provider, account } = await getProviderAndAccount();
+      const response = await fetch("/api/collection-offers/cancel-prepare", {
+        method: "POST",
+        headers: { "content-type": "application/json", accept: "application/json" },
+        body: JSON.stringify({ actionId, fid: viewerFid, orders }),
+      });
+      const prepared = await response.json().catch(() => ({})) as {
+        protocolAddress?: string;
+        orderParameters?: SeaportCancelOrderParameters[];
+        chainIdHex?: string;
+        message?: string;
+      };
+      if (!response.ok) throw new Error(prepared.message || `Collection offer cancel prepare failed (${response.status})`);
+      if (!prepared.protocolAddress || !prepared.orderParameters?.length) throw new Error("OpenSea did not return cancel transaction data");
+      await ensureBaseChain(provider, prepared.chainIdHex ?? undefined);
+      showToast("neutral", "Check your Farcaster wallet to confirm cancellation...", { minMs: 5000 });
+      await sendPreparedTransaction(
+        provider,
+        account,
+        buildSeaportCancelTransaction(prepared.protocolAddress, prepared.orderParameters),
+      );
+      const submit = await fetch("/api/collection-offers/cancel", {
+        method: "POST",
+        headers: { "content-type": "application/json", accept: "application/json" },
+        body: JSON.stringify({ actionId, fid: viewerFid, orders }),
+      });
+      if (!submit.ok) {
+        const failure = await submit.json().catch(() => ({})) as { message?: string };
+        throw new Error(failure.message || `Collection offer cancel failed (${submit.status})`);
+      }
+      setCancelGroup(null);
+      void hapticSuccess();
+      showTradeConfetti();
+      showToast("success", "Collection offer successfully canceled", { minMs: 5000 });
+      await loadOffers({ refresh: true });
+    } catch (error) {
+      void hapticError();
+      showToast("error", error instanceof Error ? error.message : "Collection offer cancellation failed.", { manualClose: true });
+    } finally {
+      setBusy(null);
+    }
+  }, [cancelGroup, cancelQuantity, getProviderAndAccount, loadOffers, showToast, viewerFid]);
+
+  const stats = payload?.stats;
+  const rows = payload?.groups ?? [];
+
+  return (
+    <div className="mx-auto w-full max-w-md px-4 pb-10 pt-6">
+      <div className="mb-4 grid grid-cols-2 gap-2 rounded-lg border border-[#00FF00]/25 bg-black/60 p-1">
+        {[
+          { id: "all" as const, label: "All Offers" },
+          { id: "your" as const, label: "Your Offers" },
+        ].map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            onClick={() => {
+              void hapticSelectionChanged();
+              setScope(tab.id);
+            }}
+            className={`rounded-md px-3 py-2 text-sm font-bold transition-colors ${scope === tab.id ? "bg-[#00FF00] text-[rgb(0,80,0)]" : "text-[#00FF00] hover:bg-[#041204]"}`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div className="rounded-lg border border-[#00FF00]/30 bg-[rgba(0,255,0,0.08)] p-3">
+          <Text className="text-[11px] font-bold uppercase text-[#8bbf8b]">Count</Text>
+          <div className="mt-1 text-2xl font-bold text-[#00FF00]">{stats?.count ?? 0}</div>
+        </div>
+        <div className="rounded-lg border border-[#33AAFF]/30 bg-[rgba(51,170,255,0.08)] p-3">
+          <Text className="text-[11px] font-bold uppercase text-[#8bcfff]">Value</Text>
+          <div className="mt-1 text-2xl font-bold text-[#33AAFF]">{formatMarketValue(stats?.value, { maxDigits: 8 })}</div>
+          <div className="mt-0.5 text-[11px] font-bold text-[#8bcfff]">{formatUsdMoneyFromMarket(stats?.value, ethUsdPrice)}</div>
+        </div>
+      </div>
+
+      <div ref={formRef} className="mt-4 rounded-xl border border-[#33AAFF]/35 bg-[rgba(51,170,255,0.12)] p-3">
+        <label className="block text-xs font-bold uppercase text-[#8bcfff]">
+          <span className="flex items-center justify-between gap-3">
+            <span>Offered at</span>
+            <span className="text-right text-[11px] text-[#8bcfff]">
+              {formatUsdEstimate(price, ethUsdPrice, payload?.topCollectionOffer)}
+            </span>
+          </span>
+          <div className="mt-1 flex items-center rounded-lg border-2 border-[#33AAFF]/35 bg-black/60 px-3 py-2 transition-[border-color,box-shadow] focus-within:border-[#33AAFF] focus-within:shadow-[0_0_10px_rgba(51,170,255,0.22)]">
+            <input
+              data-no-focus-ring
+              type="text"
+              inputMode="decimal"
+              value={price}
+              onChange={(event) => setPrice(sanitizeTradePriceInput(event.target.value))}
+              placeholder="0.0001"
+              className="min-w-0 flex-1 appearance-none border-0 bg-transparent text-base font-bold text-[#33AAFF] outline-none ring-0 focus:border-0 focus:outline-none focus:ring-0"
+            />
+            <span className="text-sm font-bold text-[#33AAFF]">WETH</span>
+          </div>
+        </label>
+        <div className="mt-2 flex items-center rounded-lg border-2 border-[#33AAFF]/35 bg-black/60 px-2 py-1.5">
+          <button
+            type="button"
+            onClick={() => {
+              void hapticTap();
+              setQuantity((current) => Math.max(1, current - 1));
+            }}
+            className="h-8 w-8 rounded-md border border-[#33AAFF]/35 text-lg font-bold text-[#33AAFF] hover:bg-[#061827]"
+          >
+            -
+          </button>
+          <input
+            data-no-focus-ring
+            type="number"
+            min={1}
+            max={10000}
+            step={1}
+            value={quantity}
+            onChange={(event) => setQuantity(Math.min(10000, Math.max(1, Math.floor(Number(event.target.value) || 1))))}
+            className="mx-2 min-w-0 flex-1 appearance-none border-0 bg-transparent text-center text-base font-bold text-[#33AAFF] outline-none ring-0"
+          />
+          <span className="mr-2 shrink-0 text-sm font-bold text-[#33AAFF]">10X Warplets</span>
+          <button
+            type="button"
+            onClick={() => {
+              void hapticTap();
+              setQuantity((current) => Math.min(10000, current + 1));
+            }}
+            className="h-8 w-8 rounded-md border border-[#33AAFF]/35 text-lg font-bold text-[#33AAFF] hover:bg-[#061827]"
+          >
+            +
+          </button>
+        </div>
+        <p className="mt-2 text-[11px] font-bold text-[#8bcfff]">
+          Offer will be on OpenSea. Set price to{" "}
+          <button
+            type="button"
+            disabled={!topOfferPrice}
+            onClick={() => {
+              void hapticTap();
+              if (payload?.topCollectionOffer) setPriceFromMarket(payload.topCollectionOffer);
+            }}
+            className="cursor-pointer text-[#33AAFF] underline underline-offset-2 hover:text-[#70c6ff] disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Top Collection Offer
+          </button>
+          .
+        </p>
+        <button
+          type="button"
+          onClick={() => void runMakeCollectionOffer()}
+          disabled={busy !== null || !priceIsValid}
+          className="mt-3 w-full cursor-pointer rounded-[20px] border border-[#1c78b3] bg-[#33AAFF] px-5 py-3 text-base font-bold leading-normal text-[rgb(0,54,80)] shadow-[3px_6px_0_#1c78b3] transition-all duration-100 hover:bg-[#70c6ff] active:translate-x-[1px] active:translate-y-[3px] active:shadow-[1px_3px_0_#1c78b3] disabled:cursor-wait disabled:opacity-70"
+        >
+          {busy === "offer" ? "Working..." : "Review collection offer"}
+        </button>
+      </div>
+
+      <div className="mt-4 overflow-hidden rounded-lg border border-[#00FF00]/25">
+        <div className="grid grid-cols-[1fr_1fr_56px_72px_72px] bg-[#041204] px-2 py-2 text-[10px] font-bold uppercase text-[#8bbf8b]">
+          <span>Price</span>
+          <span>Volume</span>
+          <span className="text-center">Offers</span>
+          <span className="text-center">Bidders</span>
+          <span className="text-right">Action</span>
+        </div>
+        {loading ? (
+          <div className="px-3 py-6 text-center text-sm font-bold text-[#8bbf8b]">Loading offers...</div>
+        ) : rows.length === 0 ? (
+          <div className="px-3 py-6 text-center text-sm font-bold text-[#8bbf8b]">No collection offers.</div>
+        ) : rows.map((group) => (
+          <div key={group.price.rawAmount ?? String(group.price.eth)} className="grid grid-cols-[1fr_1fr_56px_72px_72px] items-center gap-1 border-t border-[#00FF00]/15 px-2 py-2 text-xs">
+            <span title={formatUsdMoneyFromMarket(group.price, ethUsdPrice)} className="font-bold text-[#33AAFF]">{formatMarketValue(group.price, { maxDigits: 6 })}</span>
+            <span title={formatUsdMoneyFromMarket(group.volume, ethUsdPrice)} className="font-bold text-[#00FF00]">{formatMarketValue(group.volume, { maxDigits: 6 })}</span>
+            <span className="text-center font-bold text-[#8bbf8b]">{group.offerCount}</span>
+            <span className="flex justify-center -space-x-2">
+              {group.bidders.slice(0, 3).map((bidder) => (
+                <button
+                  key={bidder.wallet}
+                  type="button"
+                  title={bidder.username ? `Open ${bidder.username} on OpenSea` : `Open ${formatShortWallet(bidder.wallet)} on OpenSea`}
+                  onClick={() => {
+                    void hapticTap();
+                    openExternalAsset(bidder.openseaUrl).catch(() => undefined);
+                  }}
+                  className="h-7 w-7 overflow-hidden rounded-full border-2 border-[#00FF00] bg-black"
+                >
+                  <img src={bidder.pfpUrl || getWarpletPreviewImageUrl(HEADER_FALLBACK_AVATAR_TOKEN_ID)} alt="" className="h-full w-full object-cover" loading="lazy" />
+                </button>
+              ))}
+            </span>
+            <button
+              type="button"
+              disabled={busy !== null}
+              onClick={() => {
+                void hapticTap();
+                if (group.userOfferCount > 0) {
+                  setCancelGroup(group);
+                  setCancelQuantity(group.userOfferCount);
+                  return;
+                }
+                setPriceFromMarket(group.price);
+                setQuantity(1);
+                formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+              }}
+              className={`rounded-md border px-2 py-1.5 text-xs font-bold ${group.userOfferCount > 0 ? "border-[#FF5555]/55 text-[#FF7777] hover:bg-[rgba(255,85,85,0.12)]" : "border-[#33AAFF]/55 text-[#33AAFF] hover:bg-[rgba(51,170,255,0.12)]"}`}
+            >
+              {group.userOfferCount > 0 ? "Cancel" : "Offer"}
+            </button>
+          </div>
+        ))}
+      </div>
+      <button
+        type="button"
+        onClick={() => void loadOffers({ refresh: true })}
+        disabled={refreshing || busy !== null}
+        className="mx-auto mt-3 block cursor-pointer px-4 py-2 text-xs font-bold text-[#00FF00] underline underline-offset-4 hover:text-[#66ff66] disabled:cursor-wait disabled:opacity-60"
+      >
+        {refreshing ? "Refreshing..." : "Refresh offers"}
+      </button>
+
+      {cancelGroup && (
+        <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/80 p-4 sm:items-center">
+          <div className="w-full max-w-sm rounded-xl border border-[#FF5555]/45 bg-black p-4 shadow-2xl">
+            <Text className="text-base font-bold text-[#FF7777]">Cancel collection offers</Text>
+            <p className="mt-2 text-sm font-bold text-[#d9b0b0]">
+              Cancel up to {cancelGroup.userOfferCount} collection offers at {formatMarketValue(cancelGroup.price, { maxDigits: 8 })}.
+            </p>
+            <div className="mt-3 flex items-center rounded-lg border-2 border-[#FF5555]/35 bg-black/60 px-2 py-1.5">
+              <button type="button" onClick={() => setCancelQuantity((current) => Math.max(1, current - 1))} className="h-8 w-8 rounded-md border border-[#FF5555]/35 text-lg font-bold text-[#FF7777]">-</button>
+              <input
+                data-no-focus-ring
+                type="number"
+                min={1}
+                max={cancelGroup.userOfferCount}
+                step={1}
+                value={cancelQuantity}
+                onChange={(event) => setCancelQuantity(Math.min(cancelGroup.userOfferCount, Math.max(1, Math.floor(Number(event.target.value) || 1))))}
+                className="mx-2 min-w-0 flex-1 appearance-none border-0 bg-transparent text-center text-base font-bold text-[#FF7777] outline-none ring-0"
+              />
+              <button type="button" onClick={() => setCancelQuantity((current) => Math.min(cancelGroup.userOfferCount, current + 1))} className="h-8 w-8 rounded-md border border-[#FF5555]/35 text-lg font-bold text-[#FF7777]">+</button>
+            </div>
+            <button
+              type="button"
+              disabled={busy !== null}
+              onClick={() => void runCancelCollectionOffers()}
+              className="mt-4 w-full cursor-pointer rounded-[20px] border border-[#a83232] bg-[#FF5555] px-5 py-3 text-base font-bold text-[#2c0000] shadow-[3px_6px_0_#8a2222] transition-all duration-100 hover:bg-[#ff7777] active:translate-x-[1px] active:translate-y-[3px] active:shadow-[1px_3px_0_#8a2222] disabled:cursor-wait disabled:opacity-70"
+            >
+              {busy === "cancel" ? "Working..." : "Review cancellation"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setCancelGroup(null)}
+              className="mx-auto mt-2 block cursor-pointer px-4 py-2 text-xs font-bold text-[#FF7777] underline underline-offset-4 hover:text-[#ff9999]"
+            >
+              Keep offers
+            </button>
+          </div>
         </div>
       )}
     </div>
@@ -4893,8 +5464,9 @@ function WarpletDetailsModal({
   });
   const rawEffectiveListing = tradeState ? tradeState.listing : market.listing ?? null;
   const effectiveItemOffer = tradeState ? tradeState.itemOffer : market.itemOffer ?? null;
+  const effectiveTraitOffer = tradeState ? tradeState.traitOffer : market.traitOffer ?? null;
   const effectiveCollectionOffer = tradeState ? tradeState.collectionOffer : market.collectionOffer ?? null;
-  const effectiveTopOffer = tradeState ? tradeState.topOffer : chooseTopOffer(effectiveItemOffer ?? undefined, effectiveCollectionOffer ?? null);
+  const effectiveTopOffer = tradeState ? tradeState.topOffer : chooseTopOffer(effectiveItemOffer ?? undefined, effectiveTraitOffer ?? undefined, effectiveCollectionOffer ?? null);
   const effectiveSale = optimisticSale ?? (tradeState ? tradeState.sale ?? null : market.sale ?? null);
   const effectiveOwner = (() => {
     const freshOwner = tradeState?.owner;
@@ -4925,14 +5497,14 @@ function WarpletDetailsModal({
   );
   const hasListing = hasMarketValue(effectiveListing ?? undefined);
   const topOffererWallet = effectiveTopOffer?.offerer?.toLowerCase() ?? "";
-  const topOfferIsOwnerCollectionOffer = Boolean(
+  const topOfferIsOwnerCriteriaOffer = Boolean(
     isOwner &&
-    effectiveTopOffer?.source === "collection" &&
+    (effectiveTopOffer?.source === "collection" || effectiveTopOffer?.source === "trait") &&
     ownerWallet &&
     topOffererWallet === ownerWallet,
   );
   const hasTopOffer = hasMarketValue(effectiveTopOffer ?? undefined);
-  const hasSellableTopOffer = hasTopOffer && !topOfferIsOwnerCollectionOffer;
+  const hasSellableTopOffer = hasTopOffer && !topOfferIsOwnerCriteriaOffer;
   const ownItemOfferOrder = tradeState?.ownItemOffer && hasMarketValue(tradeState.ownItemOffer)
     ? tradeState.ownItemOffer
     : normalizedActiveWallet &&
@@ -5123,7 +5695,7 @@ function WarpletDetailsModal({
       )
     );
     const preservedTopOffer = optimisticOffer
-      ? chooseTopOffer(optimisticOffer, next.collectionOffer) as FreshTradeState["topOffer"]
+      ? chooseTopOffer(optimisticOffer, next.traitOffer ?? undefined, next.collectionOffer) as FreshTradeState["topOffer"]
       : null;
     const merged: FreshTradeState = shouldPreserveOptimisticOffer && optimisticOffer
       ? {
@@ -5292,14 +5864,10 @@ function WarpletDetailsModal({
     };
     optimisticOwnItemOfferRef.current = offer;
     const chooseFreshTopOffer = (
+      traitOffer: FreshTradeState["traitOffer"],
       collectionOffer: FreshTradeState["collectionOffer"],
     ): NonNullable<FreshTradeState["topOffer"]> => {
-      if (!collectionOffer) return offer;
-      const itemValue = getMarketNumber(offer);
-      const collectionValue = getMarketNumber(collectionOffer);
-      if (itemValue == null) return collectionOffer;
-      if (collectionValue == null) return offer;
-      return itemValue >= collectionValue ? offer : collectionOffer;
+      return chooseTopOffer(offer, traitOffer ?? undefined, collectionOffer) as NonNullable<FreshTradeState["topOffer"]>;
     };
     setTradeState((current) => {
       if (!current) {
@@ -5308,8 +5876,9 @@ function WarpletDetailsModal({
           generatedAt: now,
           listing: effectiveListing ?? null,
           itemOffer: offer,
+          traitOffer: effectiveTraitOffer ?? null,
           collectionOffer: effectiveCollectionOffer ?? null,
-          topOffer: chooseFreshTopOffer(effectiveCollectionOffer ?? null),
+          topOffer: chooseFreshTopOffer(effectiveTraitOffer ?? null, effectiveCollectionOffer ?? null),
           ownItemOffer: offer,
           floor: effectiveFloor ?? null,
           owner: {
@@ -5323,12 +5892,12 @@ function WarpletDetailsModal({
         ...current,
         itemOffer: offer,
         ownItemOffer: offer,
-        topOffer: chooseFreshTopOffer(current.collectionOffer ?? null),
+        topOffer: chooseFreshTopOffer(current.traitOffer ?? null, current.collectionOffer ?? null),
         generatedAt: now,
       };
     });
     onUpsertItemOffer(details.id, offer);
-  }, [details.id, effectiveCollectionOffer, effectiveFloor, effectiveListing, effectiveOwner, onUpsertItemOffer]);
+  }, [details.id, effectiveCollectionOffer, effectiveFloor, effectiveItemOffer, effectiveListing, effectiveOwner, effectiveTraitOffer, onUpsertItemOffer]);
 
   const assertConnectedOwnerWallet = useCallback((account: string) => {
     const expectedOwner = ownerWallet;
@@ -5406,13 +5975,15 @@ function WarpletDetailsModal({
       });
       setTradeState((current) => {
         const itemOffer = current?.itemOffer ?? (effectiveItemOffer ? { ...effectiveItemOffer, source: "item" as const } : null);
+        const traitOffer = current?.traitOffer ?? effectiveTraitOffer ?? null;
         const collectionOffer = current?.collectionOffer ?? effectiveCollectionOffer ?? null;
-        const topOffer = current?.topOffer ?? (chooseTopOffer(itemOffer ?? undefined, collectionOffer) as FreshTradeState["topOffer"]) ?? null;
+        const topOffer = current?.topOffer ?? (chooseTopOffer(itemOffer ?? undefined, traitOffer ?? undefined, collectionOffer) as FreshTradeState["topOffer"]) ?? null;
         return {
           tokenId: details.id,
           generatedAt: now,
           listing: null,
           itemOffer,
+          traitOffer,
           collectionOffer,
           topOffer,
           ownItemOffer: current?.ownItemOffer ?? null,
@@ -5537,6 +6108,9 @@ function WarpletDetailsModal({
       setOptimisticSale(sale);
       setTradeState((current) => {
         const itemOffer = acceptedOffer?.source === "item" ? null : current?.itemOffer ?? effectiveItemOffer ?? null;
+        const traitOffer = acceptedOffer?.source === "trait"
+          ? refreshed?.traitOffer ?? null
+          : current?.traitOffer ?? effectiveTraitOffer ?? null;
         const collectionOffer = acceptedOffer?.source === "collection"
           ? refreshed?.collectionOffer ?? null
           : current?.collectionOffer ?? effectiveCollectionOffer ?? null;
@@ -5552,8 +6126,9 @@ function WarpletDetailsModal({
           generatedAt: now,
           listing: null,
           itemOffer: itemOffer ? { ...itemOffer, source: "item" as const } : null,
+          traitOffer,
           collectionOffer,
-          topOffer: chooseTopOffer(itemOffer ? { ...itemOffer, source: "item" as const } : undefined, collectionOffer) as FreshTradeState["topOffer"],
+          topOffer: chooseTopOffer(itemOffer ? { ...itemOffer, source: "item" as const } : undefined, traitOffer ?? undefined, collectionOffer) as FreshTradeState["topOffer"],
           ownItemOffer: acceptedOffer?.source === "item" ? null : current?.ownItemOffer ?? null,
           sale,
           floor: current?.floor ?? effectiveFloor ?? null,
@@ -5571,7 +6146,7 @@ function WarpletDetailsModal({
         } else {
           setTradeState((current) => current
             ? current.collectionOffer?.orderHash === acceptedCollectionOfferHash
-              ? { ...current, collectionOffer: null, topOffer: current.itemOffer ?? null }
+              ? { ...current, collectionOffer: null, topOffer: chooseTopOffer(current.itemOffer ?? undefined, current.traitOffer ?? undefined, null) as FreshTradeState["topOffer"] }
               : current
             : current);
           onClearMarketSide(details.id, "collectionOffer");
@@ -5849,7 +6424,7 @@ function WarpletDetailsModal({
         onClearMarketSide(details.id, "listing");
       } else {
         optimisticOwnItemOfferRef.current = null;
-        setTradeState((current) => current ? { ...current, itemOffer: null, ownItemOffer: null, topOffer: current.collectionOffer ?? null } : current);
+        setTradeState((current) => current ? { ...current, itemOffer: null, ownItemOffer: null, topOffer: chooseTopOffer(undefined, current.traitOffer ?? undefined, current.collectionOffer ?? null) as FreshTradeState["topOffer"] } : current);
         onClearMarketSide(details.id, "offer");
       }
       await refreshTradeState(account);
@@ -5858,7 +6433,7 @@ function WarpletDetailsModal({
         onClearMarketSide(details.id, "listing");
       } else {
         optimisticOwnItemOfferRef.current = null;
-        setTradeState((current) => current ? { ...current, itemOffer: null, ownItemOffer: null, topOffer: current.collectionOffer ?? null } : current);
+        setTradeState((current) => current ? { ...current, itemOffer: null, ownItemOffer: null, topOffer: chooseTopOffer(undefined, current.traitOffer ?? undefined, current.collectionOffer ?? null) as FreshTradeState["topOffer"] } : current);
         onClearMarketSide(details.id, "offer");
       }
       void hapticSuccess();
@@ -5927,9 +6502,9 @@ function WarpletDetailsModal({
     <div ref={marketSummaryRef} className="grid scroll-mt-16 grid-cols-3 overflow-hidden">
       {[
         { kind: "price" as const, label: "Price", money: effectiveListing, emptyValue: "Not listed" },
-        { kind: "offer" as const, label: "Top Offer", money: effectiveTopOffer, emptyValue: "No offers" },
+        { kind: "offer" as const, label: "Top Offer", money: effectiveTopOffer, emptyValue: "No offers", tooltipPrefix: getOfferSourceLabel(effectiveTopOffer) },
         { kind: "sold" as const, label: "Latest Sale", money: effectiveSale, emptyValue: "No sales" },
-      ].map(({ kind, label, money, emptyValue }) => {
+      ].map(({ kind, label, money, emptyValue, tooltipPrefix }) => {
         const styles = getMarketKindStyles(kind);
         return (
           <MarketValuePanel
@@ -5938,6 +6513,7 @@ function WarpletDetailsModal({
             label={label}
             money={money}
             emptyValue={emptyValue}
+            tooltipPrefix={tooltipPrefix}
             className="min-w-0 px-2 pb-2.5 pt-2"
             style={{ backgroundColor: styles.backgroundColor }}
           />
@@ -6686,6 +7262,7 @@ export default function SearchApp() {
   });
   const lastSiwnStatusFidRef = useRef<number | null>(null);
   const { isMenuRoute, canGoBack, actions } = useMiniAppChrome("search");
+  const [isCollectionOffersRoute, setIsCollectionOffersRoute] = useState(() => isSearchCollectionOffersRoute());
   const {
     user: neynarUser,
     isAuthenticated: neynarIsAuthenticated,
@@ -6802,6 +7379,20 @@ export default function SearchApp() {
       clearShareCelebrationFallback();
     };
   }, [clearShareCelebrationFallback, completeShareCelebration]);
+
+  useEffect(() => {
+    const syncCollectionOffersRoute = () => {
+      setIsCollectionOffersRoute(isSearchCollectionOffersRoute());
+    };
+
+    window.addEventListener("popstate", syncCollectionOffersRoute);
+    window.addEventListener("hashchange", syncCollectionOffersRoute);
+    syncCollectionOffersRoute();
+    return () => {
+      window.removeEventListener("popstate", syncCollectionOffersRoute);
+      window.removeEventListener("hashchange", syncCollectionOffersRoute);
+    };
+  }, []);
 
   const updateSearchUrl = useCallback((state: SearchUrlState, mode: "push" | "replace") => {
     const signature = getSearchUrlSignature(state);
@@ -7048,12 +7639,16 @@ export default function SearchApp() {
 
     setViewerFid(siwnViewerProfile.fid);
     setViewerProfile(siwnViewerProfile);
+    const siwnWallet = getSiwnPrimaryWallet(neynarUser);
+    if (siwnWallet) {
+      setActiveWallet(siwnWallet);
+    }
 
     if (lastSiwnStatusFidRef.current === siwnViewerProfile.fid) return;
     lastSiwnStatusFidRef.current = siwnViewerProfile.fid;
     setSearchCompletionStatusLoaded(false);
     void syncSearchViewerStatus(siwnViewerProfile.fid, "Search SIWN user status upsert failed:");
-  }, [isInMiniAppContext, miniAppContextKnown, siwnViewerProfile, syncSearchViewerStatus]);
+  }, [isInMiniAppContext, miniAppContextKnown, neynarUser, siwnViewerProfile, syncSearchViewerStatus]);
 
   useEffect(() => {
     if (!pendingNotificationId || !viewerFid || !actionSessionToken || notificationOpenSent) return;
@@ -7412,6 +8007,19 @@ export default function SearchApp() {
     return wallet;
   }, [activeWallet, loadFavouriteList]);
 
+  const getCollectionOfferProviderAndAccount = useCallback(async (): Promise<{ provider: EthereumProvider; account: string }> => {
+    const miniAppProvider = await sdk.wallet.getEthereumProvider().catch(() => null) as EthereumProvider | null;
+    const provider = miniAppProvider ?? getBrowserEthereumProvider();
+    if (!provider) throw new Error("Wallet provider is not available.");
+    const accounts = await getWalletAccounts(provider, activeWallet);
+    const account = normalizeWalletAddress(accounts[0] ?? activeWallet);
+    if (!account) throw new Error("No wallet account is connected.");
+    setActiveWallet(account);
+    void loadFavouriteList(account);
+    await ensureBaseChain(provider, undefined, { allowSkipSwitch: true });
+    return { provider, account };
+  }, [activeWallet, loadFavouriteList]);
+
   const handleHeaderConnectWallet = useCallback(() => {
     ensureActiveFavouriteWallet().catch((error) => {
       console.warn("Search header wallet connect failed:", error);
@@ -7439,12 +8047,49 @@ export default function SearchApp() {
     setShowAddAppPrompt(true);
   }, []);
 
+  const handleHeaderOpenSpreadsheet = useCallback(() => {
+    openExternalAsset("https://link.10x.meme/csv").catch((error) => {
+      console.error("Failed to open Warplets spreadsheet:", error);
+    });
+  }, []);
+
+  const handleHeaderOpenCollectionOffers = useCallback(() => {
+    const nextPath = getSearchCollectionOffersPath();
+    window.history.pushState(
+      {
+        ...(window.history.state ?? {}),
+        collectionOffers: true,
+      },
+      "",
+      nextPath,
+    );
+    setIsCollectionOffersRoute(true);
+  }, []);
+
+  const handleHeaderBack = useCallback(() => {
+    if (!isCollectionOffersRoute || isMenuRoute) {
+      actions.goBack();
+      return;
+    }
+    window.history.replaceState(
+      {
+        ...(window.history.state ?? {}),
+        collectionOffers: false,
+      },
+      "",
+      getSearchRootPath(),
+    );
+    setIsCollectionOffersRoute(false);
+  }, [actions, isCollectionOffersRoute, isMenuRoute]);
+
   const handleHeaderDisconnect = useCallback(() => {
     logoutNeynarUser();
     lastSiwnStatusFidRef.current = null;
     if (!isInMiniAppContext) {
       setViewerFid(null);
       setViewerProfile(null);
+      setActiveWallet(null);
+      setFavouriteFilterWallet(null);
       setActionSessionToken(null);
       setSearchCompletionStatusLoaded(true);
     }
@@ -8371,6 +9016,7 @@ export default function SearchApp() {
           : current?.collection ?? { floor: null, topOffer: null },
         listings: { ...(current?.listings ?? {}) },
         offers: { ...(current?.offers ?? {}) },
+        traitOffers: { ...(current?.traitOffers ?? {}) },
         sales: { ...(current?.sales ?? {}) },
         owners: { ...(current?.owners ?? {}) },
       };
@@ -8391,6 +9037,7 @@ export default function SearchApp() {
         collection: current?.collection ?? { floor: null, topOffer: null },
         listings: { ...(current?.listings ?? {}) },
         offers: { ...(current?.offers ?? {}), [key]: offer },
+        traitOffers: { ...(current?.traitOffers ?? {}) },
         sales: { ...(current?.sales ?? {}) },
         owners: { ...(current?.owners ?? {}) },
       };
@@ -8431,6 +9078,7 @@ export default function SearchApp() {
         collection: current?.collection ?? { floor: null, topOffer: null },
         listings: { ...(current?.listings ?? {}) },
         offers: { ...(current?.offers ?? {}) },
+        traitOffers: { ...(current?.traitOffers ?? {}) },
         sales: { ...(current?.sales ?? {}), [key]: update.sale },
         owners: { ...(current?.owners ?? {}), [key]: nextOwner },
       };
@@ -8517,6 +9165,9 @@ export default function SearchApp() {
     headerAccountConnected
       ? (headerAccountProfile?.pfpUrl?.trim() || getWarpletPreviewImageUrl(HEADER_FALLBACK_AVATAR_TOKEN_ID))
       : null;
+  const headerTitle = isMenuRoute ? getHeaderTitle("search", true) : isCollectionOffersRoute ? "Collection offers" : getHeaderTitle("search", false);
+  const headerCanGoBack = canGoBack || (!isMenuRoute && isCollectionOffersRoute);
+  const headerCloseKey = isMenuRoute ? "menu" : isCollectionOffersRoute ? "collection-offers" : "search";
 
   return (
     <MiniAppShell>
@@ -8542,9 +9193,9 @@ export default function SearchApp() {
       <div className="relative z-10 w-full">
         <MiniAppHeader
           appSlug="search"
-          title={getHeaderTitle("search", isMenuRoute)}
-          canGoBack={canGoBack}
-          onBack={actions.goBack}
+          title={headerTitle}
+          canGoBack={headerCanGoBack}
+          onBack={handleHeaderBack}
           onLogo={actions.openHubRoot}
           onMenu={actions.openMenu}
           rightAccessory={
@@ -8556,9 +9207,11 @@ export default function SearchApp() {
               useSiwnConnect={miniAppContextKnown && !isInMiniAppContext}
               siwnClientConfigured={Boolean(neynarClientId)}
               connectDisabled={!miniAppContextKnown}
-              closeKey={isMenuRoute ? "menu" : "search"}
+              closeKey={headerCloseKey}
               onConnectWallet={handleHeaderConnectWallet}
               onMissingSiwnClientId={handleMissingSiwnClientId}
+              onOpenCollectionOffers={handleHeaderOpenCollectionOffers}
+              onOpenSpreadsheet={handleHeaderOpenSpreadsheet}
               onViewOnboarding={handleHeaderViewOnboarding}
               onEnableNotifications={handleHeaderEnableNotifications}
               onDisconnect={handleHeaderDisconnect}
@@ -8568,6 +9221,13 @@ export default function SearchApp() {
 
         {isMenuRoute ? (
           <MiniAppMenuPage appSlug="search" />
+        ) : isCollectionOffersRoute ? (
+          <CollectionOffersPage
+            connectedWallet={activeWallet}
+            viewerFid={viewerFid}
+            getProviderAndAccount={getCollectionOfferProviderAndAccount}
+            showToast={showSearchToast}
+          />
         ) : (
           <div className="mx-auto w-full max-w-md px-4 pb-10 pt-6">
             <div className="relative flex">

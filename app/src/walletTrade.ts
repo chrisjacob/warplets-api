@@ -887,14 +887,18 @@ export async function sendPreparedTransaction(
   return hash;
 }
 
-export function buildSeaportCancelTransaction(protocolAddress: string, orderParameters: SeaportCancelOrderParameters): PreparedTransaction {
+export function buildSeaportCancelTransaction(
+  protocolAddress: string,
+  orderParameters: SeaportCancelOrderParameters | SeaportCancelOrderParameters[],
+): PreparedTransaction {
+  const orders = Array.isArray(orderParameters) ? orderParameters : [orderParameters];
   return {
     to: getAddress(protocolAddress),
     value: "0",
     data: encodeFunctionData({
       abi: seaportCancelAbi,
       functionName: "cancel",
-      args: [[normalizeSeaportCancelOrder(orderParameters)]],
+      args: [orders.map((order) => normalizeSeaportCancelOrder(order))],
     }),
   };
 }
