@@ -1,5 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
+import { NeynarContextProvider, Theme } from "@neynar/react";
+import "@neynar/react/dist/style.css";
 import "./index.css";
 import App from "./App.tsx";
 import DropApp from "./DropApp.tsx";
@@ -56,6 +58,13 @@ function resolveActiveApp() {
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    {resolveActiveApp()}
+    <NeynarContextProvider
+      settings={{
+        clientId: import.meta.env.VITE_NEYNAR_CLIENT_ID ?? "",
+        defaultTheme: Theme.Dark,
+      }}
+    >
+      {resolveActiveApp()}
+    </NeynarContextProvider>
   </StrictMode>
 );

@@ -15,6 +15,7 @@ import {
 } from "@floating-ui/react";
 import { useOverlayScrollbars } from "overlayscrollbars-react";
 import sdk from "@farcaster/miniapp-sdk";
+import { NeynarAuthButton, useNeynarContext } from "@neynar/react";
 import { Text } from "@neynar/ui/typography";
 import sqlite3InitModule from "@sqlite.org/sqlite-wasm";
 import {
@@ -102,6 +103,7 @@ const NATIVE_TOKEN_ADDRESS = "0x0000000000000000000000000000000000000000";
 const MIN_LISTING_ETH = 0.00000000000001;
 const TRADE_PRICE_DECIMAL_PLACES = 4;
 const FORCED_AIRDROP_FALLBACK_TOKEN_ID = 5019;
+const HEADER_FALLBACK_AVATAR_TOKEN_ID = 548;
 
 type SearchCompletion = "onboarding" | "airdrop_modal";
 
@@ -2490,6 +2492,162 @@ function getWarpletAssetUrl(tokenId: number, extension: string): string {
 
 function getOpenSeaUrl(tokenId: number): string {
   return `https://opensea.io/item/base/0x780446dd12e080ae0db762fcd4daf313f3e359de/${tokenId}`;
+}
+
+function SearchHeaderAccountControl({
+  connected,
+  avatarUrl,
+  accountLabel,
+  showDisconnect,
+  useSiwnConnect,
+  siwnClientConfigured,
+  connectDisabled,
+  closeKey,
+  onConnectWallet,
+  onMissingSiwnClientId,
+  onViewOnboarding,
+  onEnableNotifications,
+  onDisconnect,
+}: {
+  connected: boolean;
+  avatarUrl: string | null;
+  accountLabel: string;
+  showDisconnect: boolean;
+  useSiwnConnect: boolean;
+  siwnClientConfigured: boolean;
+  connectDisabled: boolean;
+  closeKey: string;
+  onConnectWallet: () => void;
+  onMissingSiwnClientId: () => void;
+  onViewOnboarding: () => void;
+  onEnableNotifications: () => void;
+  onDisconnect: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    setOpen(false);
+  }, [closeKey]);
+
+  useEffect(() => {
+    if (!open) return;
+
+    const handlePointerDown = (event: globalThis.MouseEvent) => {
+      if (rootRef.current?.contains(event.target as Node)) return;
+      setOpen(false);
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [open]);
+
+  const runMenuAction = (action: () => void) => {
+    setOpen(false);
+    void hapticTap();
+    action();
+  };
+
+  if (!connected) {
+    if (useSiwnConnect) {
+      if (!siwnClientConfigured) {
+        return (
+          <div className="search-header-account" ref={rootRef}>
+            <button
+              type="button"
+              className="search-header-connect-button"
+              disabled={connectDisabled}
+              title={connectDisabled ? "Checking connection" : "Missing VITE_NEYNAR_CLIENT_ID"}
+              onClick={() => {
+                void hapticTap();
+                onMissingSiwnClientId();
+              }}
+            >
+              Connect
+            </button>
+          </div>
+        );
+      }
+
+      return (
+        <div className="search-header-account" ref={rootRef}>
+          <NeynarAuthButton
+            label="Connect"
+            className="search-header-connect-button"
+            disabled={connectDisabled}
+            title={
+              connectDisabled
+                ? "Checking connection"
+                : "Connect Farcaster account"
+            }
+          />
+        </div>
+      );
+    }
+
+    return (
+      <div className="search-header-account" ref={rootRef}>
+        <button
+          type="button"
+          className="search-header-connect-button"
+          disabled={connectDisabled}
+          title={connectDisabled ? "Checking connection" : "Connect Farcaster wallet"}
+          onClick={() => {
+            void hapticTap();
+            onConnectWallet();
+          }}
+        >
+          Connect
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="search-header-account" ref={rootRef}>
+      <button
+        type="button"
+        className="search-header-avatar-button"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label={accountLabel}
+        title={accountLabel}
+        onClick={() => {
+          void hapticTap();
+          setOpen((current) => !current);
+        }}
+      >
+        <img
+          src={avatarUrl ?? getWarpletPreviewImageUrl(HEADER_FALLBACK_AVATAR_TOKEN_ID)}
+          alt=""
+          className="search-header-avatar-image"
+          loading="eager"
+        />
+      </button>
+      {open && (
+        <div className="search-header-account-menu" role="menu">
+          <button type="button" role="menuitem" onClick={() => runMenuAction(onViewOnboarding)}>
+            View onboarding
+          </button>
+          <button type="button" role="menuitem" onClick={() => runMenuAction(onEnableNotifications)}>
+            Enable notifications
+          </button>
+          {showDisconnect && (
+            <button type="button" role="menuitem" onClick={() => runMenuAction(onDisconnect)}>
+              Disconnect
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function preloadImage(src: string): Promise<void> {
@@ -6466,6 +6624,7 @@ export default function SearchApp() {
   const [databaseLoadingMessage, setDatabaseLoadingMessage] = useState(DATABASE_LOADING_PREFIX);
   const [onboardingComplete, setOnboardingComplete] = useState(() => readOnboardingComplete());
   const [showOnboarding, setShowOnboarding] = useState(() => !readOnboardingComplete());
+  const [onboardingSessionKey, setOnboardingSessionKey] = useState(0);
   const [notificationPromptPending, setNotificationPromptPending] = useState(false);
   const [viewerFid, setViewerFid] = useState<number | null>(null);
   const [viewerProfile, setViewerProfile] = useState<ViewerProfile | null>(null);
@@ -6525,8 +6684,24 @@ export default function SearchApp() {
     leftApp: false,
     fallbackTimer: null,
   });
+  const lastSiwnStatusFidRef = useRef<number | null>(null);
   const { isMenuRoute, canGoBack, actions } = useMiniAppChrome("search");
+  const {
+    user: neynarUser,
+    isAuthenticated: neynarIsAuthenticated,
+    logoutUser: logoutNeynarUser,
+  } = useNeynarContext();
   const selectedWarpletDetails = selectedWarpletDetailsStack.at(-1) ?? null;
+  const neynarClientId = import.meta.env.VITE_NEYNAR_CLIENT_ID?.trim() ?? "";
+  const siwnViewerProfile = useMemo<ViewerProfile | null>(() => {
+    if (!neynarIsAuthenticated || !neynarUser?.fid) return null;
+    return {
+      fid: neynarUser.fid,
+      username: neynarUser.username ?? null,
+      displayName: neynarUser.display_name ?? null,
+      pfpUrl: neynarUser.pfp_url ?? null,
+    };
+  }, [neynarIsAuthenticated, neynarUser]);
 
   const sendMiniAppReady = useCallback(() => {
     if (miniAppReadySentRef.current) return;
@@ -6721,6 +6896,24 @@ export default function SearchApp() {
     }
   }, []);
 
+  const syncSearchViewerStatus = useCallback((fid: number, warningLabel = "Search user status upsert failed") => {
+    return fetch("/api/warplet-status", {
+      method: "POST",
+      headers: { "content-type": "application/json", accept: "application/json" },
+      body: JSON.stringify({ fid, appSlug: "search" }),
+    })
+      .then((response) => response.ok ? response.json() : null)
+      .then((payload: unknown) => {
+        const record = payload && typeof payload === "object" ? payload as SearchStatusPayload : null;
+        if (typeof record?.actionSessionToken === "string") {
+          setActionSessionToken(record.actionSessionToken);
+        }
+        applySearchCompletionStatus(payload);
+      })
+      .catch((error) => console.warn(warningLabel, error))
+      .finally(() => setSearchCompletionStatusLoaded(true));
+  }, [applySearchCompletionStatus]);
+
   const postSearchCompletion = useCallback((completion: SearchCompletion) => {
     if (!viewerFid) {
       pendingSearchCompletionsRef.current.add(completion);
@@ -6789,21 +6982,7 @@ export default function SearchApp() {
         setMiniAppContextKnown(true);
 
         if (normalizedFid) {
-          fetch("/api/warplet-status", {
-            method: "POST",
-            headers: { "content-type": "application/json", accept: "application/json" },
-            body: JSON.stringify({ fid: normalizedFid, appSlug: "search" }),
-          })
-            .then((response) => response.ok ? response.json() : null)
-            .then((payload: unknown) => {
-              const record = payload && typeof payload === "object" ? payload as SearchStatusPayload : null;
-              if (typeof record?.actionSessionToken === "string") {
-                setActionSessionToken(record.actionSessionToken);
-              }
-              applySearchCompletionStatus(payload);
-            })
-            .catch((error) => console.warn("Search user status upsert failed:", error))
-            .finally(() => setSearchCompletionStatusLoaded(true));
+          void syncSearchViewerStatus(normalizedFid);
         } else {
           setSearchCompletionStatusLoaded(true);
         }
@@ -6853,7 +7032,28 @@ export default function SearchApp() {
     };
 
     init();
-  }, [applySearchCompletionStatus, sendMiniAppReady]);
+  }, [sendMiniAppReady, syncSearchViewerStatus]);
+
+  useEffect(() => {
+    if (!miniAppContextKnown || isInMiniAppContext) return;
+
+    if (!siwnViewerProfile?.fid) {
+      lastSiwnStatusFidRef.current = null;
+      setViewerFid(null);
+      setViewerProfile(null);
+      setActionSessionToken(null);
+      setSearchCompletionStatusLoaded(true);
+      return;
+    }
+
+    setViewerFid(siwnViewerProfile.fid);
+    setViewerProfile(siwnViewerProfile);
+
+    if (lastSiwnStatusFidRef.current === siwnViewerProfile.fid) return;
+    lastSiwnStatusFidRef.current = siwnViewerProfile.fid;
+    setSearchCompletionStatusLoaded(false);
+    void syncSearchViewerStatus(siwnViewerProfile.fid, "Search SIWN user status upsert failed:");
+  }, [isInMiniAppContext, miniAppContextKnown, siwnViewerProfile, syncSearchViewerStatus]);
 
   useEffect(() => {
     if (!pendingNotificationId || !viewerFid || !actionSessionToken || notificationOpenSent) return;
@@ -7211,6 +7411,44 @@ export default function SearchApp() {
     void loadFavouriteList(wallet);
     return wallet;
   }, [activeWallet, loadFavouriteList]);
+
+  const handleHeaderConnectWallet = useCallback(() => {
+    ensureActiveFavouriteWallet().catch((error) => {
+      console.warn("Search header wallet connect failed:", error);
+      showSearchToast("error", error instanceof Error ? error.message : "Farcaster wallet connection failed.", { manualClose: true });
+    });
+  }, [ensureActiveFavouriteWallet, showSearchToast]);
+
+  const handleMissingSiwnClientId = useCallback(() => {
+    showSearchToast("error", "Missing VITE_NEYNAR_CLIENT_ID. Add the Neynar client ID and restart the dev server.", { manualClose: true });
+  }, [showSearchToast]);
+
+  const handleHeaderViewOnboarding = useCallback(() => {
+    setOnboardingSessionKey((current) => current + 1);
+    setShowAddAppPrompt(false);
+    setNotificationsOnlyPrompt(false);
+    setAirdropCongratulationsDetails(null);
+    setPreparedAirdropCongratulationsDetails(null);
+    setShowOnboarding(true);
+  }, []);
+
+  const handleHeaderEnableNotifications = useCallback(() => {
+    setNotificationPromptPending(false);
+    setPreparedNotificationPrompt(false);
+    setNotificationsOnlyPrompt(true);
+    setShowAddAppPrompt(true);
+  }, []);
+
+  const handleHeaderDisconnect = useCallback(() => {
+    logoutNeynarUser();
+    lastSiwnStatusFidRef.current = null;
+    if (!isInMiniAppContext) {
+      setViewerFid(null);
+      setViewerProfile(null);
+      setActionSessionToken(null);
+      setSearchCompletionStatusLoaded(true);
+    }
+  }, [isInMiniAppContext, logoutNeynarUser]);
 
   useEffect(() => {
     let cancelled = false;
@@ -7938,7 +8176,7 @@ export default function SearchApp() {
     shareState.warplet = tokenId;
     const shareUrl = buildSearchHref(shareState);
     const openSeaUrl = getOpenSeaUrl(tokenId);
-    const text = `Check out 10X Warplet #${tokenId}`;
+    const text = `👀 Check out 10X Warplet #${tokenId}`;
     const links = [shareUrl, openSeaUrl];
     updateSearchUrl(shareState, "replace");
 
@@ -8265,13 +8503,28 @@ export default function SearchApp() {
     document.body.scrollTo({ top: 0, behavior: "smooth" });
   }, []);
 
+  const siwnConnected = Boolean(!isInMiniAppContext && siwnViewerProfile?.fid);
+  const miniAppWalletConnected = Boolean(isInMiniAppContext && activeWallet);
+  const headerAccountConnected = miniAppWalletConnected || siwnConnected;
+  const headerAccountProfile = isInMiniAppContext ? viewerProfile : siwnViewerProfile;
+  const headerAccountUsername = headerAccountProfile?.username?.trim() || null;
+  const headerAccountLabel = headerAccountUsername
+    ? `Connected as @${headerAccountUsername}`
+    : activeWallet
+      ? `Connected wallet ${formatShortWallet(activeWallet)}`
+      : "Connected Farcaster account";
+  const headerAccountAvatarUrl =
+    headerAccountConnected
+      ? (headerAccountProfile?.pfpUrl?.trim() || getWarpletPreviewImageUrl(HEADER_FALLBACK_AVATAR_TOKEN_ID))
+      : null;
+
   return (
     <MiniAppShell>
       {searchToast && (
         <TradeToastView toast={searchToast} exiting={searchToastExiting} onClose={closeSearchToast} />
       )}
       {showOnboarding && (
-        <OnboardingCarousel onDone={handleCompleteOnboarding} />
+        <OnboardingCarousel key={onboardingSessionKey} onDone={handleCompleteOnboarding} />
       )}
       {airdropCongratulationsDetails && (
         <AirdropCongratulationsModal
@@ -8294,6 +8547,23 @@ export default function SearchApp() {
           onBack={actions.goBack}
           onLogo={actions.openHubRoot}
           onMenu={actions.openMenu}
+          rightAccessory={
+            <SearchHeaderAccountControl
+              connected={headerAccountConnected}
+              avatarUrl={headerAccountAvatarUrl}
+              accountLabel={headerAccountLabel}
+              showDisconnect={siwnConnected}
+              useSiwnConnect={miniAppContextKnown && !isInMiniAppContext}
+              siwnClientConfigured={Boolean(neynarClientId)}
+              connectDisabled={!miniAppContextKnown}
+              closeKey={isMenuRoute ? "menu" : "search"}
+              onConnectWallet={handleHeaderConnectWallet}
+              onMissingSiwnClientId={handleMissingSiwnClientId}
+              onViewOnboarding={handleHeaderViewOnboarding}
+              onEnableNotifications={handleHeaderEnableNotifications}
+              onDisconnect={handleHeaderDisconnect}
+            />
+          }
         />
 
         {isMenuRoute ? (

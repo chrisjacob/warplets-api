@@ -407,6 +407,7 @@ export function MiniAppHeader({
   onBack,
   onLogo,
   onMenu,
+  rightAccessory,
 }: {
   appSlug: AppSlug;
   title: string;
@@ -414,6 +415,7 @@ export function MiniAppHeader({
   onBack: () => void;
   onLogo: () => void;
   onMenu: () => void;
+  rightAccessory?: ReactNode;
 }) {
   const logoLabel = appSlug === "app" ? "Open 10X home" : "Open 10X hub";
 
@@ -468,6 +470,7 @@ export function MiniAppHeader({
       </div>
 
       <div className="miniapp-header__side miniapp-header__side--right">
+        {rightAccessory}
         <HeaderActionButton
           label="Menu"
           ariaLabel="Open menu"
