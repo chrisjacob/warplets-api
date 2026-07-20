@@ -166,6 +166,7 @@ type WalletFarcasterLinkRow = {
   fid: number | null;
   username?: string | null;
   pfp_url?: string | null;
+  x_username?: string | null;
   profile_bio_text?: string | null;
   follower_count?: number | null;
   following_count?: number | null;
@@ -351,6 +352,20 @@ function safeJsonString(value: unknown, maxLength = 12000): string | null {
   } catch {
     return null;
   }
+}
+
+function readNeynarXUsername(user: Record<string, unknown> | undefined): string | null {
+  const verifiedAccounts = user?.verified_accounts;
+  if (!Array.isArray(verifiedAccounts)) return null;
+  for (const account of verifiedAccounts) {
+    const verifiedAccount = asObject(account);
+    if (!verifiedAccount) continue;
+    const platform = asString(verifiedAccount.platform)?.toLowerCase();
+    if (platform === "x" || platform === "twitter") {
+      return asString(verifiedAccount.username);
+    }
+  }
+  return null;
 }
 
 export function normalizeAddress(value: unknown): string | null {
@@ -590,7 +605,7 @@ export async function selectPreferredFidForWallet(env: OpenSeaMarketEnv, wallet:
   let cached: WalletFarcasterLinkRow | null = null;
   try {
     cached = await env.WARPLETS.prepare(
-      `SELECT fid, username, pfp_url, profile_bio_text, follower_count, following_count
+      `SELECT fid, username, pfp_url, x_username, profile_bio_text, follower_count, following_count
        FROM wallet_farcaster_links
        WHERE wallet = ?
        ORDER BY COALESCE(score, -1) DESC, fid ASC
@@ -653,6 +668,7 @@ export async function selectPreferredFidForWallet(env: OpenSeaMarketEnv, wallet:
           username: asString(obj?.username),
           displayName: asString(obj?.display_name),
           pfpUrl: asString(obj?.pfp_url),
+          xUsername: readNeynarXUsername(obj),
           bio: asString(bio?.text) ?? asString(obj?.profile_bio_text),
           followerCount: asNumber(obj?.follower_count),
           followingCount: asNumber(obj?.following_count),
@@ -664,6 +680,7 @@ export async function selectPreferredFidForWallet(env: OpenSeaMarketEnv, wallet:
         username: string | null;
         displayName: string | null;
         pfpUrl: string | null;
+        xUsername: string | null;
         bio: string | null;
         followerCount: number | null;
         followingCount: number | null;
@@ -675,15 +692,16 @@ export async function selectPreferredFidForWallet(env: OpenSeaMarketEnv, wallet:
       try {
         await env.WARPLETS.prepare(
           `INSERT INTO wallet_farcaster_links (
-             wallet, fid, score, username, display_name, pfp_url, profile_bio_text,
+             wallet, fid, score, username, display_name, pfp_url, x_username, profile_bio_text,
              follower_count, following_count, fetched_at
            )
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
            ON CONFLICT(wallet, fid) DO UPDATE SET
              score = excluded.score,
              username = excluded.username,
              display_name = excluded.display_name,
              pfp_url = excluded.pfp_url,
+             x_username = excluded.x_username,
              profile_bio_text = excluded.profile_bio_text,
              follower_count = excluded.follower_count,
              following_count = excluded.following_count,
@@ -695,6 +713,7 @@ export async function selectPreferredFidForWallet(env: OpenSeaMarketEnv, wallet:
           row.username,
           row.displayName,
           row.pfpUrl,
+          row.xUsername,
           row.bio,
           row.followerCount,
           row.followingCount,
@@ -911,6 +930,22 @@ function criteriaComparableValue(row: CriteriaOfferRow): number | null {
   return null;
 }
 
+function timestampMs(value: string | null | undefined): number | null {
+  const timestamp = Date.parse(value ?? "");
+  return Number.isFinite(timestamp) ? timestamp : null;
+}
+
+function criteriaOfferIsBetter(next: CriteriaOfferRow, current: ReturnType<typeof criteriaOfferToMarket> | null | undefined): boolean {
+  const nextValue = criteriaComparableValue(next);
+  const currentValue = getMarketOrderComparableValue(current);
+  if (nextValue == null || !Number.isFinite(nextValue)) return false;
+  if (currentValue == null || nextValue > currentValue) return true;
+  if (nextValue < currentValue) return false;
+  const nextTime = timestampMs(next.offered_at);
+  const currentTime = timestampMs(current?.at);
+  return nextTime != null && currentTime != null && nextTime < currentTime;
+}
+
 async function loadActiveTraitOffersForToken(db: D1Database, tokenId?: number): Promise<Map<string, ReturnType<typeof criteriaOfferToMarket>>> {
   const traitOffers = new Map<string, ReturnType<typeof criteriaOfferToMarket>>();
   let rows: D1Result<CriteriaOfferRow & { token_id: number }>;
@@ -940,10 +975,7 @@ async function loadActiveTraitOffersForToken(db: D1Database, tokenId?: number): 
   for (const row of rows.results ?? []) {
     const key = String(row.token_id);
     const current = traitOffers.get(key);
-    const currentValue = current ? getMarketOrderComparableValue(current) : null;
-    const nextValue = criteriaComparableValue(row);
-    if (nextValue == null || !Number.isFinite(nextValue)) continue;
-    if (currentValue == null || nextValue > currentValue) {
+    if (criteriaOfferIsBetter(row, current)) {
       traitOffers.set(key, criteriaOfferToMarket(row));
     }
   }
@@ -1039,7 +1071,13 @@ async function isBestTraitOfferForAnyMatch(db: D1Database, orderHash: string): P
            WHERE competing_match.token_id = m.token_id
              AND competing_offer.active = 1
              AND competing_offer.order_hash <> current_offer.order_hash
-             AND COALESCE(competing_offer.offer_eth, -1) >= COALESCE(current_offer.offer_eth, -1)
+             AND (
+               COALESCE(competing_offer.offer_eth, -1) > COALESCE(current_offer.offer_eth, -1)
+               OR (
+                 COALESCE(competing_offer.offer_eth, -1) = COALESCE(current_offer.offer_eth, -1)
+                 AND COALESCE(competing_offer.offered_at, competing_offer.created_at, '') < COALESCE(current_offer.offered_at, current_offer.created_at, '')
+               )
+             )
          )
        LIMIT 1`
     ).bind(orderHash).first<{ found: number }>();
@@ -1070,10 +1108,19 @@ export async function upsertCriteriaOfferFromRow(
   const encodedTokenIds = getCriteriaEncodedTokenIds(row);
   const hadCriteriaRows = await criteriaOfferTableHasRows(env.WARPLETS);
   const existing = await env.WARPLETS.prepare(
-    `SELECT order_hash, offer_raw_amount, offer_eth, active
+    `SELECT order_hash, offer_raw_amount, offer_eth, active, order_status
      FROM opensea_criteria_offers
      WHERE order_hash = ?`
-  ).bind(orderHash).first<{ order_hash: string; offer_raw_amount: string | null; offer_eth: number | null; active: number }>().catch(() => null);
+  ).bind(orderHash).first<{
+    order_hash: string;
+    offer_raw_amount: string | null;
+    offer_eth: number | null;
+    active: number;
+    order_status?: string | null;
+  }>().catch(() => null);
+  if (existing?.active === 0 && existing.order_status === "CANCELLED") {
+    return false;
+  }
   const changed = !existing ||
     existing.active !== 1 ||
     String(existing.offer_raw_amount ?? "") !== String(price.rawAmount ?? "") ||
@@ -1412,12 +1459,46 @@ export async function processOffer(env: OpenSeaMarketEnv, row: Record<string, un
   const offererWallet = getMakerAddress(row);
   const protocolAddress = normalizeAddress(row.protocol_address ?? asObject(row.protocol_data)?.address);
   const existing = await env.WARPLETS.prepare(
-    "SELECT offered_at, offer_order_hash FROM warplet_market_state WHERE token_id = ?",
+    "SELECT offered_at, offer_order_hash, offer_eth, offer_raw_amount, offer_decimals FROM warplet_market_state WHERE token_id = ?",
   )
       .bind(tokenId)
-      .first<{ offered_at: string | null; offer_order_hash: string | null }>()
+      .first<{
+        offered_at: string | null;
+        offer_order_hash: string | null;
+        offer_eth: number | null;
+        offer_raw_amount: string | null;
+        offer_decimals: number | null;
+      }>()
       .catch(() => null);
   const offeredAt = rowOfferedAt ?? existing?.offered_at ?? new Date().toISOString();
+  if (orderHash) {
+    await upsertActiveItemOffer(env, {
+      orderHash,
+      tokenId,
+      offererWallet,
+      amountEth: price.eth,
+      amountRaw: price.rawAmount,
+      currencySymbol: price.symbol,
+      protocolAddress,
+      createdAt: offeredAt,
+    }).catch((error) => console.error("Failed to upsert active item offer", error));
+  }
+  const existingValue = existing?.offer_eth ?? (
+    existing?.offer_raw_amount && existing.offer_decimals != null
+      ? weiToNumber(existing.offer_raw_amount, existing.offer_decimals)
+      : null
+  );
+  const nextValue = currencyComparableValue(price);
+  const shouldUpdateMarketOffer =
+    !existing?.offer_order_hash ||
+    existing.offer_order_hash === orderHash ||
+    priceIsBetterOrOlder({
+      nextValue,
+      nextAt: offeredAt,
+      currentValue: existingValue,
+      currentAt: existing?.offered_at ?? null,
+    });
+  if (!shouldUpdateMarketOffer) return false;
   const changed = await upsertMarketStateIfChanged(env.WARPLETS, {
     token_id: tokenId,
     offer_eth: price.eth,
@@ -1431,18 +1512,6 @@ export async function processOffer(env: OpenSeaMarketEnv, row: Record<string, un
     offer_token_address: price.tokenAddress,
     opensea_updated_at: new Date().toISOString(),
   });
-  if (orderHash) {
-    await upsertActiveItemOffer(env, {
-      orderHash,
-      tokenId,
-      offererWallet,
-      amountEth: price.eth,
-      amountRaw: price.rawAmount,
-      currencySymbol: price.symbol,
-      protocolAddress,
-      createdAt: offeredAt,
-    }).catch((error) => console.error("Failed to upsert active item offer", error));
-  }
   if (changed && existing && existing.offer_order_hash !== orderHash && price.eth != null) {
     await recordWarpletActivity(env, {
       eventType: "offered",
@@ -1753,6 +1822,20 @@ function currencyComparableValue(value: CurrencyValue): number | null {
   return null;
 }
 
+function priceIsBetterOrOlder(input: {
+  nextValue: number | null;
+  nextAt: string | null;
+  currentValue: number | null;
+  currentAt: string | null;
+}): boolean {
+  if (input.nextValue == null || !Number.isFinite(input.nextValue)) return false;
+  if (input.currentValue == null || input.nextValue > input.currentValue) return true;
+  if (input.nextValue < input.currentValue) return false;
+  const nextTime = timestampMs(input.nextAt);
+  const currentTime = timestampMs(input.currentAt);
+  return nextTime != null && currentTime != null && nextTime < currentTime;
+}
+
 async function refreshCollectionMarketState(env: OpenSeaMarketEnv, apiKey: string): Promise<number> {
   let changed = 0;
   const now = new Date().toISOString();
@@ -1787,13 +1870,25 @@ async function refreshCollectionMarketState(env: OpenSeaMarketEnv, apiKey: strin
       row: Record<string, unknown>;
       price: CurrencyValue;
       value: number;
+      createdAt: string | null;
     } | null>((current, row) => {
       const tokenId = getTokenIdFromOpenSeaRow(row);
       if (tokenId) return current;
       const price = getPrice(row, "offer");
       const value = currencyComparableValue(price);
       if (value == null || !Number.isFinite(value)) return current;
-      if (!current || value > current.value) return { row, price, value };
+      const createdAt = getOrderCreatedAt(row) ?? now;
+      if (
+        !current ||
+        priceIsBetterOrOlder({
+          nextValue: value,
+          nextAt: createdAt,
+          currentValue: current.value,
+          currentAt: current.createdAt,
+        })
+      ) {
+        return { row, price, value, createdAt };
+      }
       return current;
     }, null);
 
@@ -1806,7 +1901,7 @@ async function refreshCollectionMarketState(env: OpenSeaMarketEnv, apiKey: strin
         .catch(() => null);
       const orderHash = asString(best.row.order_hash);
       const offererWallet = getMakerAddress(best.row);
-      const createdAt = getOrderCreatedAt(best.row) ?? now;
+      const createdAt = best.createdAt ?? now;
       if (await upsertCollectionMarketStateIfChanged(env.WARPLETS, {
         collection_slug: COLLECTION_SLUG,
         top_offer_eth: best.price.eth,

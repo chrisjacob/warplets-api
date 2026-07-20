@@ -222,7 +222,7 @@ input[type="search"]::-webkit-search-results-decoration {
   padding: 13px 16px;
   border: 0;
   border-bottom: 1px solid #00ff00;
-  background: oklab(0.163375 -0.0304675 0.0224707 / 0.96);
+  background: oklab(0.163375 -0.0304675 0.0224707 / 1);
   color: #00ff00;
   font-size: 0.875rem;
   font-weight: 700;
@@ -233,7 +233,7 @@ input[type="search"]::-webkit-search-results-decoration {
 
 .trade-toast--danger {
   border-bottom-color: #ff3b3b;
-  background: rgba(72, 0, 0, 0.96);
+  background: rgb(72, 0, 0);
   color: #ff6b6b;
 }
 

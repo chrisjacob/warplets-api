@@ -821,7 +821,19 @@ type CollectionOfferBidder = {
   username: string | null;
   displayName: string | null;
   pfpUrl: string | null;
+  xUsername: string | null;
   openseaUrl: string;
+  farcasterUrl: string | null;
+  xUrl: string | null;
+  basescanUrl: string;
+};
+
+type CollectionOfferGroupOrder = {
+  orderHash: string;
+  protocolAddress: string | null;
+  quantity: number;
+  createdAt: string | null;
+  bidder: CollectionOfferBidder;
 };
 
 type CollectionOfferGroup = {
@@ -829,7 +841,8 @@ type CollectionOfferGroup = {
   volume: MarketMoney;
   offerCount: number;
   bidderCount: number;
-  bidders: CollectionOfferBidder[];
+  previewBidders: CollectionOfferBidder[];
+  orders: CollectionOfferGroupOrder[];
   userOfferCount: number;
   userOrders: Array<{
     orderHash: string;
@@ -840,6 +853,7 @@ type CollectionOfferGroup = {
 
 type CollectionOffersPayload = {
   generatedAt: string;
+  refreshError?: string | null;
   wallet: string | null;
   topCollectionOffer: MarketMoney | null;
   stats: {
@@ -1607,9 +1621,7 @@ function chooseTopOffer(
       current = offer;
       continue;
     }
-    const currentValue = getMarketNumber(current);
-    const nextValue = getMarketNumber(offer);
-    if (currentValue == null || (nextValue != null && nextValue > currentValue)) {
+    if (compareOfferPriority(offer, current) < 0) {
       current = offer;
     }
   }
@@ -1868,6 +1880,24 @@ function getMarketNumber(value: MarketMoney | null | undefined): number | null {
   if (value.eth != null) return value.eth;
   if (isEthLikeMarketMoney(value)) return getRawMarketNumber(value);
   return getRawMarketNumber(value);
+}
+
+function getMarketTimeMs(value: MarketMoney | null | undefined): number | null {
+  const timestamp = Date.parse(value?.at ?? "");
+  return Number.isFinite(timestamp) ? timestamp : null;
+}
+
+function compareOfferPriority(left: MarketMoney | null | undefined, right: MarketMoney | null | undefined): number {
+  const leftValue = getMarketNumber(left);
+  const rightValue = getMarketNumber(right);
+  if (leftValue == null && rightValue == null) return 0;
+  if (leftValue == null) return 1;
+  if (rightValue == null) return -1;
+  if (leftValue !== rightValue) return rightValue - leftValue;
+  const leftTime = getMarketTimeMs(left);
+  const rightTime = getMarketTimeMs(right);
+  if (leftTime == null || rightTime == null || leftTime === rightTime) return 0;
+  return leftTime - rightTime;
 }
 
 function formatMarketValue(value: MarketMoney | null | undefined, options: { maxDigits?: number } = {}): string {
@@ -2321,6 +2351,57 @@ function ValueTooltip({
   );
 }
 
+function InlineHoverTooltip({
+  value,
+  tooltip,
+  className = "",
+}: {
+  value: string;
+  tooltip: string;
+  className?: string;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const { refs, floatingStyles, context } = useFloating({
+    open: isOpen,
+    onOpenChange: setIsOpen,
+    placement: "top",
+    whileElementsMounted: autoUpdate,
+    middleware: [offset(8), flip({ padding: 8 }), shift({ padding: 8 })],
+  });
+  const hover = useHover(context, { delay: { open: 0, close: 60 }, move: false });
+  const focus = useFocus(context);
+  const role = useRole(context, { role: "tooltip" });
+  const { getReferenceProps, getFloatingProps } = useInteractions([hover, focus, role]);
+
+  return (
+    <>
+      <span
+        ref={refs.setReference}
+        {...getReferenceProps({
+          tabIndex: 0,
+          "aria-label": tooltip,
+          className: `inline-flex cursor-help justify-center font-bold outline-none focus:ring-1 focus:ring-[#00FF00]/70 ${className}`,
+        })}
+      >
+        {value}
+      </span>
+      {isOpen && (
+        <FloatingPortal>
+          <div
+            ref={refs.setFloating}
+            style={floatingStyles}
+            {...getFloatingProps({
+              className: "z-[70] max-w-[min(92vw,520px)] whitespace-nowrap rounded-lg border border-[#00FF00]/40 bg-black px-3 py-2 text-[11px] font-bold leading-snug text-[#00FF00] shadow-2xl",
+            })}
+          >
+            {tooltip}
+          </div>
+        </FloatingPortal>
+      )}
+    </>
+  );
+}
+
 function MarketValueChip({
   kind,
   value,
@@ -2767,6 +2848,41 @@ function SearchHeaderAccountControl({
   );
 }
 
+function OverlayScrollArea({
+  children,
+  className,
+}: {
+  children: ReactNode;
+  className: string;
+}) {
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const [initializeScrollbars] = useOverlayScrollbars({
+    options: {
+      scrollbars: {
+        theme: "os-theme-10x-green",
+        autoHide: "leave",
+      },
+    },
+    defer: true,
+  });
+
+  useEffect(() => {
+    const target = scrollRef.current;
+    if (!target) return;
+    target.setAttribute("data-overlayscrollbars-initialize", "");
+    initializeScrollbars(target);
+    return () => {
+      target.removeAttribute("data-overlayscrollbars-initialize");
+    };
+  }, [initializeScrollbars]);
+
+  return (
+    <div ref={scrollRef} className={className}>
+      {children}
+    </div>
+  );
+}
+
 function formatUsdMoneyFromMarket(value: MarketMoney | null | undefined, ethUsdPrice: number | null): string {
   const amount = marketMoneyToDecimal(value);
   if (amount == null || ethUsdPrice == null) return "USD loading...";
@@ -2792,14 +2908,184 @@ function getCollectionOfferOrdersForQuantity(
   return selected;
 }
 
+function getCollectionOfferOrderQuantity(orders: CollectionOfferGroup["userOrders"]): number {
+  return orders.reduce((total, order) => total + Math.max(1, Math.floor(order.quantity)), 0);
+}
+
+function getCollectionOfferCancellableTotals(orders: CollectionOfferGroup["userOrders"]): number[] {
+  const totals: number[] = [];
+  let runningTotal = 0;
+  for (const order of orders) {
+    runningTotal += Math.max(1, Math.floor(order.quantity));
+    if (!totals.includes(runningTotal)) totals.push(runningTotal);
+  }
+  return totals;
+}
+
+function snapCollectionOfferCancelQuantity(orders: CollectionOfferGroup["userOrders"], requestedQuantity: number): number {
+  const requested = Math.max(1, Math.floor(requestedQuantity));
+  const totals = getCollectionOfferCancellableTotals(orders);
+  return totals.find((total) => total >= requested) ?? totals[totals.length - 1] ?? requested;
+}
+
+function stepCollectionOfferCancelQuantity(totals: number[], currentQuantity: number, direction: -1 | 1): number {
+  if (totals.length === 0) return Math.max(1, currentQuantity);
+  const currentIndex = totals.findIndex((total) => total >= currentQuantity);
+  const baseIndex = currentIndex < 0 ? totals.length - 1 : currentIndex;
+  const nextIndex = Math.max(0, Math.min(totals.length - 1, baseIndex + direction));
+  return totals[nextIndex] ?? totals[0];
+}
+
+function formatCollectionBidderTitlePrice(value: MarketMoney | null | undefined): string {
+  const amount = marketMoneyToDecimal(value);
+  return amount == null ? "-" : formatEthNumber(amount, 8);
+}
+
+function formatCollectionBidderWallet(value: string | null | undefined): string {
+  const wallet = value?.trim();
+  if (!wallet) return "-";
+  return wallet.length > 6 ? `${wallet.slice(0, 6)}...` : wallet;
+}
+
+function CollectionBiddersModal({
+  group,
+  isInMiniAppContext,
+  onClose,
+}: {
+  group: CollectionOfferGroup;
+  isInMiniAppContext: boolean;
+  onClose: () => void;
+}) {
+  const handleOpenFarcaster = useCallback((bidder: CollectionOfferBidder) => {
+    void hapticTap();
+    if (isInMiniAppContext && bidder.fid) {
+      sdk.actions.viewProfile({ fid: bidder.fid }).catch((error) => {
+        console.error("Failed to open Farcaster bidder profile:", error);
+      });
+      return;
+    }
+    if (bidder.farcasterUrl) {
+      openExternalAsset(bidder.farcasterUrl).catch((error) => {
+        console.error("Failed to open Farcaster bidder URL:", error);
+      });
+    }
+  }, [isInMiniAppContext]);
+
+  return (
+    <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/80 p-4 sm:items-center">
+      <div className="flex max-h-[88vh] w-full max-w-md flex-col overflow-hidden rounded-xl border border-[#00FF00]/35 bg-black shadow-2xl">
+        <div className="flex items-start justify-between gap-3 border-b border-[#00FF00]/20 px-4 py-3">
+          <Text className="text-base font-bold text-[#d7ffd7]">
+            <span className="text-[#00FF00]">{formatCollectionBidderTitlePrice(group.price)} </span>
+            Collection bidders
+          </Text>
+          <button
+            type="button"
+            onClick={() => {
+              void hapticTap();
+              onClose();
+            }}
+            className="h-8 w-8 shrink-0 rounded-md border border-[#00FF00]/35 text-sm font-bold text-[#00FF00] hover:bg-[#041204]"
+            aria-label="Close collection bidders"
+          >
+            X
+          </button>
+        </div>
+        <OverlayScrollArea className="max-h-[68vh] overflow-auto">
+          <div className="w-full min-w-0">
+            <div className="grid w-full grid-cols-[104px_42px_repeat(3,minmax(0,1fr))] items-center gap-0.5 border-b border-[#00FF00]/20 bg-[#041204] px-2 py-2 text-center text-[10px] font-bold uppercase text-[#8bbf8b]">
+              <span>Wallet</span>
+              <span>Offers</span>
+              <span>OpenSea</span>
+              <span>Farcaster</span>
+              <span>Twitter</span>
+            </div>
+            {group.orders.map((order) => {
+              const bidder = order.bidder;
+              return (
+                <div
+                  key={order.orderHash}
+                  className="grid w-full grid-cols-[104px_42px_repeat(3,minmax(0,1fr))] items-center gap-0.5 border-b border-[#00FF00]/10 px-2 py-2 text-center text-xs"
+                >
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void hapticTap();
+                      openExternalAsset(bidder.basescanUrl).catch(() => undefined);
+                    }}
+                    className="flex min-w-0 items-center gap-1.5 text-left font-bold text-[#00FF00] hover:text-[#66ff66]"
+                    title={`Open ${formatShortWallet(bidder.wallet)} on Basescan`}
+                  >
+                    <img
+                      src={bidder.pfpUrl || getWarpletPreviewImageUrl(HEADER_FALLBACK_AVATAR_TOKEN_ID)}
+                      alt=""
+                      className="h-6 w-6 shrink-0 rounded-full border border-[#00FF00]/45 object-cover"
+                      loading="lazy"
+                    />
+                    <span className="truncate">{formatCollectionBidderWallet(bidder.wallet)}</span>
+                  </button>
+                  <span className="font-bold text-[#8bbf8b]">{order.quantity}</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void hapticTap();
+                      openExternalAsset(bidder.openseaUrl).catch(() => undefined);
+                    }}
+                    className="mx-auto flex h-7 w-[62px] items-center justify-center rounded-md border border-[#33AAFF]/45 px-1 text-[0px] font-bold text-[#33AAFF] after:text-[9px] after:content-['OpenSea'] hover:bg-[rgba(51,170,255,0.12)]"
+                    aria-label="Open bidder on OpenSea"
+                    title="OpenSea"
+                  >
+                    ⛵
+                  </button>
+                  {bidder.farcasterUrl || bidder.fid ? (
+                    <button
+                      type="button"
+                      onClick={() => handleOpenFarcaster(bidder)}
+                      className="mx-auto flex h-7 w-[62px] items-center justify-center rounded-md border border-[#8B5CF6]/45 px-1 text-[0px] font-bold text-[#c4b5fd] after:text-[9px] after:content-['Farcaster'] hover:bg-[rgba(139,92,246,0.14)]"
+                      aria-label="Open bidder on Farcaster"
+                      title="Farcaster"
+                    >
+                      ⛩️
+                    </button>
+                  ) : (
+                    <span className="font-bold text-[#536b53]">-</span>
+                  )}
+                  {bidder.xUrl ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        void hapticTap();
+                        openExternalAsset(bidder.xUrl ?? "").catch(() => undefined);
+                      }}
+                      className="mx-auto flex h-7 w-[62px] items-center justify-center rounded-md border border-[#999]/45 px-1 text-[0px] font-bold text-[#d0d0d0] after:text-[9px] after:content-['Twitter'] hover:bg-white/10"
+                      aria-label="Open bidder on X"
+                      title="X (Twitter)"
+                    >
+                      🐦
+                    </button>
+                  ) : (
+                    <span className="font-bold text-[#536b53]">-</span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </OverlayScrollArea>
+      </div>
+    </div>
+  );
+}
+
 function CollectionOffersPage({
   connectedWallet,
   viewerFid,
+  isInMiniAppContext,
   getProviderAndAccount,
   showToast,
 }: {
   connectedWallet: string | null;
   viewerFid: number | null;
+  isInMiniAppContext: boolean;
   getProviderAndAccount: () => Promise<{ provider: EthereumProvider; account: string }>;
   showToast: (kind: TradeToast["kind"], message: string, options?: { manualClose?: boolean; minMs?: number }) => void;
 }) {
@@ -2808,13 +3094,35 @@ function CollectionOffersPage({
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [busy, setBusy] = useState<"offer" | "cancel" | null>(null);
+  const [collectionBusyLabel, setCollectionBusyLabel] = useState<string | null>(null);
   const [price, setPrice] = useState("");
   const [quantity, setQuantity] = useState(1);
   const [ethUsdPrice, setEthUsdPrice] = useState<number | null>(null);
   const [cancelGroup, setCancelGroup] = useState<CollectionOfferGroup | null>(null);
+  const [biddersGroup, setBiddersGroup] = useState<CollectionOfferGroup | null>(null);
   const [cancelQuantity, setCancelQuantity] = useState(1);
+  const [cancelRequestedQuantity, setCancelRequestedQuantity] = useState(1);
   const formRef = useRef<HTMLDivElement | null>(null);
+  const collectionSubmitTimersRef = useRef<number[]>([]);
   const normalizedWallet = normalizeWalletAddress(connectedWallet);
+
+  const clearCollectionSubmitTimers = useCallback(() => {
+    collectionSubmitTimersRef.current.forEach((timerId) => window.clearTimeout(timerId));
+    collectionSubmitTimersRef.current = [];
+  }, []);
+
+  const beginOpenSeaSubmitLabels = useCallback(() => {
+    clearCollectionSubmitTimers();
+    setCollectionBusyLabel("Submitting to OpenSea...");
+    collectionSubmitTimersRef.current = [
+      window.setTimeout(() => setCollectionBusyLabel("Expect a 2 minute wait..."), 10000),
+      window.setTimeout(() => setCollectionBusyLabel("Waiting on OpenSea..."), 30000),
+      window.setTimeout(() => setCollectionBusyLabel("Almost done..."), 60000),
+      window.setTimeout(() => setCollectionBusyLabel("Waiting on OpenSea..."), 90000),
+    ];
+  }, [clearCollectionSubmitTimers]);
+
+  useEffect(() => clearCollectionSubmitTimers, [clearCollectionSubmitTimers]);
 
   const loadOffers = useCallback(async (options: { refresh?: boolean } = {}) => {
     if (options.refresh) setRefreshing(true);
@@ -2826,6 +3134,7 @@ function CollectionOffersPage({
       if (options.refresh) params.set("refresh", "1");
       const response = await fetch(`/api/collection-offers?${params.toString()}`, {
         headers: { accept: "application/json" },
+        cache: "no-store",
       });
       if (!response.ok) throw new Error(`Collection offers failed (${response.status})`);
       setPayload(await response.json() as CollectionOffersPayload);
@@ -2856,6 +3165,34 @@ function CollectionOffersPage({
   const priceIsValid = Boolean(formPriceRaw && BigInt(formPriceRaw) > 0n);
   const clampedQuantity = Math.min(10000, Math.max(1, Math.floor(quantity)));
   const topOfferPrice = defaultOfferPrice(payload?.topCollectionOffer);
+  const cancelTotals = useMemo(
+    () => cancelGroup ? getCollectionOfferCancellableTotals(cancelGroup.userOrders) : [],
+    [cancelGroup],
+  );
+  const selectedCancelOrders = useMemo(
+    () => cancelGroup ? getCollectionOfferOrdersForQuantity(cancelGroup.userOrders, cancelQuantity) : [],
+    [cancelGroup, cancelQuantity],
+  );
+  const actualCancelQuantity = useMemo(() => getCollectionOfferOrderQuantity(selectedCancelOrders), [selectedCancelOrders]);
+
+  const setRequestedCancelQuantity = useCallback((requestedQuantity: number) => {
+    if (!cancelGroup) {
+      const fallback = Math.max(1, Math.floor(requestedQuantity));
+      setCancelRequestedQuantity(fallback);
+      setCancelQuantity(fallback);
+      return;
+    }
+    const requested = Math.min(cancelGroup.userOfferCount, Math.max(1, Math.floor(requestedQuantity)));
+    setCancelRequestedQuantity(requested);
+    setCancelQuantity(snapCollectionOfferCancelQuantity(cancelGroup.userOrders, requested));
+  }, [cancelGroup]);
+
+  const stepCancelQuantity = useCallback((direction: -1 | 1) => {
+    if (!cancelGroup) return;
+    const next = stepCollectionOfferCancelQuantity(cancelTotals, cancelQuantity, direction);
+    setCancelRequestedQuantity(next);
+    setCancelQuantity(next);
+  }, [cancelGroup, cancelQuantity, cancelTotals]);
 
   const runMakeCollectionOffer = useCallback(async () => {
     const priceRaw = decimalEthToWeiString(price);
@@ -2865,6 +3202,7 @@ function CollectionOffersPage({
     }
     const actionId = crypto.randomUUID();
     setBusy("offer");
+    setCollectionBusyLabel("Preparing...");
     try {
       void hapticPrimaryTap();
       const { provider, account } = await getProviderAndAccount();
@@ -2902,17 +3240,21 @@ function CollectionOffersPage({
               `Offer requires ${formatWeiTokenAmount(requiredWeth, "WETH")}. Wallet has ${formatWeiTokenAmount(currentWeth, "WETH")} and ${formatWeiTokenAmount(nativeEth, "ETH")}.`,
             );
           }
+          setCollectionBusyLabel("Waiting for wallet...");
           showToast("neutral", `Wrap ${formatWeiTokenAmount(missingWeth, "ETH")} to WETH to make this offer...`, { minMs: 5000 });
           await wrapEthToWeth(provider, account, prepared.wethApproval.tokenAddress, missingWeth);
           showToast("neutral", "ETH wrapped to WETH. Continuing offer...", { minMs: 5000 });
         }
+        setCollectionBusyLabel("Waiting for wallet...");
         await ensureErc20Approval(provider, account, prepared.wethApproval);
       }
       if (!prepared.typedData || !prepared.parameters || !prepared.protocolAddress) {
         throw new Error("OpenSea did not return collection offer signature data");
       }
+      setCollectionBusyLabel("Waiting for wallet...");
       showToast("neutral", "Check your Farcaster wallet to confirm the collection offer...", { minMs: 5000 });
       const signature = await signTypedData(provider, account, prepared.typedData);
+      beginOpenSeaSubmitLabels();
       const submit = await fetch("/api/collection-offers/submit", {
         method: "POST",
         headers: { "content-type": "application/json", accept: "application/json" },
@@ -2933,21 +3275,25 @@ function CollectionOffersPage({
         const failure = await submit.json().catch(() => ({})) as { message?: string };
         throw new Error(failure.message || `Collection offer submit failed (${submit.status})`);
       }
+      clearCollectionSubmitTimers();
       void hapticSuccess();
       showTradeConfetti();
       showToast("success", "Collection offer successfully made", { minMs: 5000 });
-      await loadOffers({ refresh: true });
+      setCollectionBusyLabel("Refreshing offers...");
+      await loadOffers();
     } catch (error) {
       void hapticError();
       showToast("error", error instanceof Error ? error.message : "Collection offer failed.", { manualClose: true });
     } finally {
+      clearCollectionSubmitTimers();
+      setCollectionBusyLabel(null);
       setBusy(null);
     }
-  }, [clampedQuantity, getProviderAndAccount, loadOffers, price, showToast, viewerFid]);
+  }, [beginOpenSeaSubmitLabels, clampedQuantity, clearCollectionSubmitTimers, getProviderAndAccount, loadOffers, price, showToast, viewerFid]);
 
   const runCancelCollectionOffers = useCallback(async () => {
     if (!cancelGroup) return;
-    const orders = getCollectionOfferOrdersForQuantity(cancelGroup.userOrders, cancelQuantity)
+    const orders = selectedCancelOrders
       .filter((order) => order.orderHash && order.protocolAddress);
     if (orders.length === 0) {
       showToast("error", "No collection offers are available to cancel.", { manualClose: true });
@@ -2955,6 +3301,7 @@ function CollectionOffersPage({
     }
     const actionId = crypto.randomUUID();
     setBusy("cancel");
+    setCollectionBusyLabel("Preparing...");
     try {
       void hapticPrimaryTap();
       const { provider, account } = await getProviderAndAccount();
@@ -2972,12 +3319,14 @@ function CollectionOffersPage({
       if (!response.ok) throw new Error(prepared.message || `Collection offer cancel prepare failed (${response.status})`);
       if (!prepared.protocolAddress || !prepared.orderParameters?.length) throw new Error("OpenSea did not return cancel transaction data");
       await ensureBaseChain(provider, prepared.chainIdHex ?? undefined);
+      setCollectionBusyLabel("Waiting for wallet...");
       showToast("neutral", "Check your Farcaster wallet to confirm cancellation...", { minMs: 5000 });
       await sendPreparedTransaction(
         provider,
         account,
         buildSeaportCancelTransaction(prepared.protocolAddress, prepared.orderParameters),
       );
+      beginOpenSeaSubmitLabels();
       const submit = await fetch("/api/collection-offers/cancel", {
         method: "POST",
         headers: { "content-type": "application/json", accept: "application/json" },
@@ -2987,18 +3336,22 @@ function CollectionOffersPage({
         const failure = await submit.json().catch(() => ({})) as { message?: string };
         throw new Error(failure.message || `Collection offer cancel failed (${submit.status})`);
       }
+      clearCollectionSubmitTimers();
       setCancelGroup(null);
       void hapticSuccess();
       showTradeConfetti();
       showToast("success", "Collection offer successfully canceled", { minMs: 5000 });
-      await loadOffers({ refresh: true });
+      setCollectionBusyLabel("Refreshing offers...");
+      await loadOffers();
     } catch (error) {
       void hapticError();
       showToast("error", error instanceof Error ? error.message : "Collection offer cancellation failed.", { manualClose: true });
     } finally {
+      clearCollectionSubmitTimers();
+      setCollectionBusyLabel(null);
       setBusy(null);
     }
-  }, [cancelGroup, cancelQuantity, getProviderAndAccount, loadOffers, showToast, viewerFid]);
+  }, [beginOpenSeaSubmitLabels, cancelGroup, clearCollectionSubmitTimers, getProviderAndAccount, loadOffers, selectedCancelOrders, showToast, viewerFid]);
 
   const stats = payload?.stats;
   const rows = payload?.groups ?? [];
@@ -3057,7 +3410,16 @@ function CollectionOffersPage({
             <span className="text-sm font-bold text-[#33AAFF]">WETH</span>
           </div>
         </label>
-        <div className="mt-2 flex items-center rounded-lg border-2 border-[#33AAFF]/35 bg-black/60 px-2 py-1.5">
+        <div className="mt-2 flex items-center gap-2">
+          <div className="flex shrink-0 items-center gap-2">
+            <img
+              src={getWarpletPreviewImageUrl(760)}
+              alt=""
+              className="h-8 w-8 shrink-0 rounded-md border border-[#33AAFF]/35 object-cover"
+              loading="lazy"
+            />
+            <span className="shrink-0 text-sm font-bold text-[#33AAFF]">10X Warplets</span>
+          </div>
           <button
             type="button"
             onClick={() => {
@@ -3068,17 +3430,18 @@ function CollectionOffersPage({
           >
             -
           </button>
-          <input
-            data-no-focus-ring
-            type="number"
-            min={1}
-            max={10000}
-            step={1}
-            value={quantity}
-            onChange={(event) => setQuantity(Math.min(10000, Math.max(1, Math.floor(Number(event.target.value) || 1))))}
-            className="mx-2 min-w-0 flex-1 appearance-none border-0 bg-transparent text-center text-base font-bold text-[#33AAFF] outline-none ring-0"
-          />
-          <span className="mr-2 shrink-0 text-sm font-bold text-[#33AAFF]">10X Warplets</span>
+          <div className="flex min-w-0 flex-1 items-center rounded-lg border-2 border-[#33AAFF]/35 bg-black/60 px-3 py-1.5 transition-[border-color,box-shadow] focus-within:border-[#33AAFF] focus-within:shadow-[0_0_10px_rgba(51,170,255,0.22)]">
+            <input
+              data-no-focus-ring
+              type="number"
+              min={1}
+              max={10000}
+              step={1}
+              value={quantity}
+              onChange={(event) => setQuantity(Math.min(10000, Math.max(1, Math.floor(Number(event.target.value) || 1))))}
+              className="min-w-0 flex-1 appearance-none border-0 bg-transparent text-center text-base font-bold text-[#33AAFF] outline-none ring-0 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+            />
+          </div>
           <button
             type="button"
             onClick={() => {
@@ -3111,43 +3474,69 @@ function CollectionOffersPage({
           disabled={busy !== null || !priceIsValid}
           className="mt-3 w-full cursor-pointer rounded-[20px] border border-[#1c78b3] bg-[#33AAFF] px-5 py-3 text-base font-bold leading-normal text-[rgb(0,54,80)] shadow-[3px_6px_0_#1c78b3] transition-all duration-100 hover:bg-[#70c6ff] active:translate-x-[1px] active:translate-y-[3px] active:shadow-[1px_3px_0_#1c78b3] disabled:cursor-wait disabled:opacity-70"
         >
-          {busy === "offer" ? "Working..." : "Review collection offer"}
+          {busy === "offer" ? (collectionBusyLabel ?? "Preparing...") : "Review collection offer"}
         </button>
       </div>
 
       <div className="mt-4 overflow-hidden rounded-lg border border-[#00FF00]/25">
-        <div className="grid grid-cols-[1fr_1fr_56px_72px_72px] bg-[#041204] px-2 py-2 text-[10px] font-bold uppercase text-[#8bbf8b]">
+        <div className="grid grid-cols-[1fr_1fr_56px_72px_72px] items-center gap-1 bg-[#041204] px-2 py-2 text-center text-[10px] font-bold uppercase text-[#8bbf8b]">
           <span>Price</span>
           <span>Volume</span>
-          <span className="text-center">Offers</span>
-          <span className="text-center">Bidders</span>
-          <span className="text-right">Action</span>
+          <span>Offers</span>
+          <span>Bidders</span>
+          <span>Action</span>
         </div>
         {loading ? (
           <div className="px-3 py-6 text-center text-sm font-bold text-[#8bbf8b]">Loading offers...</div>
         ) : rows.length === 0 ? (
           <div className="px-3 py-6 text-center text-sm font-bold text-[#8bbf8b]">No collection offers.</div>
         ) : rows.map((group) => (
-          <div key={group.price.rawAmount ?? String(group.price.eth)} className="grid grid-cols-[1fr_1fr_56px_72px_72px] items-center gap-1 border-t border-[#00FF00]/15 px-2 py-2 text-xs">
-            <span title={formatUsdMoneyFromMarket(group.price, ethUsdPrice)} className="font-bold text-[#33AAFF]">{formatMarketValue(group.price, { maxDigits: 6 })}</span>
-            <span title={formatUsdMoneyFromMarket(group.volume, ethUsdPrice)} className="font-bold text-[#00FF00]">{formatMarketValue(group.volume, { maxDigits: 6 })}</span>
+          <div key={group.price.rawAmount ?? String(group.price.eth)} className="grid grid-cols-[1fr_1fr_56px_72px_72px] items-center gap-1 border-t border-[#00FF00]/15 px-2 py-2 text-center text-xs">
+            <button
+              type="button"
+              title={`${formatUsdMoneyFromMarket(group.price, ethUsdPrice)}. Use this price`}
+              onClick={() => {
+                void hapticTap();
+                setPriceFromMarket(group.price);
+                setQuantity(1);
+                formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+              }}
+              className="flex justify-center font-bold text-[#33AAFF] hover:text-[#70c6ff] hover:underline"
+            >
+              {formatMarketValue(group.price, { maxDigits: 5 })}
+            </button>
+            <span className="flex justify-center">
+              <InlineHoverTooltip
+                value={formatMarketValue(group.volume, { maxDigits: 5 })}
+                tooltip={formatUsdMoneyFromMarket(group.volume, ethUsdPrice)}
+                className="text-[#00FF00]"
+              />
+            </span>
             <span className="text-center font-bold text-[#8bbf8b]">{group.offerCount}</span>
-            <span className="flex justify-center -space-x-2">
-              {group.bidders.slice(0, 3).map((bidder) => (
-                <button
+            <button
+              type="button"
+              disabled={group.orders.length === 0}
+              onClick={() => {
+                void hapticTap();
+                setBiddersGroup(group);
+              }}
+              className="flex w-full justify-center -space-x-2 disabled:cursor-default disabled:opacity-60"
+              title="View collection bidders"
+            >
+              {group.previewBidders.slice(0, group.bidderCount > 5 ? 4 : 5).map((bidder) => (
+                <span
                   key={bidder.wallet}
-                  type="button"
-                  title={bidder.username ? `Open ${bidder.username} on OpenSea` : `Open ${formatShortWallet(bidder.wallet)} on OpenSea`}
-                  onClick={() => {
-                    void hapticTap();
-                    openExternalAsset(bidder.openseaUrl).catch(() => undefined);
-                  }}
                   className="h-7 w-7 overflow-hidden rounded-full border-2 border-[#00FF00] bg-black"
                 >
                   <img src={bidder.pfpUrl || getWarpletPreviewImageUrl(HEADER_FALLBACK_AVATAR_TOKEN_ID)} alt="" className="h-full w-full object-cover" loading="lazy" />
-                </button>
+                </span>
               ))}
-            </span>
+              {group.bidderCount > 5 && (
+                <span className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-[#00FF00] bg-[#041204] text-xs font-black text-[#00FF00]">
+                  +
+                </span>
+              )}
+            </button>
             <button
               type="button"
               disabled={busy !== null}
@@ -3155,28 +3544,49 @@ function CollectionOffersPage({
                 void hapticTap();
                 if (group.userOfferCount > 0) {
                   setCancelGroup(group);
-                  setCancelQuantity(group.userOfferCount);
+                  setCancelRequestedQuantity(group.userOfferCount);
+                  setCancelQuantity(snapCollectionOfferCancelQuantity(group.userOrders, group.userOfferCount));
                   return;
                 }
                 setPriceFromMarket(group.price);
                 setQuantity(1);
                 formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
               }}
-              className={`rounded-md border px-2 py-1.5 text-xs font-bold ${group.userOfferCount > 0 ? "border-[#FF5555]/55 text-[#FF7777] hover:bg-[rgba(255,85,85,0.12)]" : "border-[#33AAFF]/55 text-[#33AAFF] hover:bg-[rgba(51,170,255,0.12)]"}`}
+              className={`justify-self-center rounded-md border px-2 py-1.5 text-xs font-bold ${group.userOfferCount > 0 ? "border-[#FF5555]/55 text-[#FF7777] hover:bg-[rgba(255,85,85,0.12)]" : "border-[#33AAFF]/55 text-[#33AAFF] hover:bg-[rgba(51,170,255,0.12)]"}`}
             >
               {group.userOfferCount > 0 ? "Cancel" : "Offer"}
             </button>
           </div>
         ))}
       </div>
-      <button
-        type="button"
-        onClick={() => void loadOffers({ refresh: true })}
-        disabled={refreshing || busy !== null}
-        className="mx-auto mt-3 block cursor-pointer px-4 py-2 text-xs font-bold text-[#00FF00] underline underline-offset-4 hover:text-[#66ff66] disabled:cursor-wait disabled:opacity-60"
-      >
-        {refreshing ? "Refreshing..." : "Refresh offers"}
-      </button>
+      <div className="mt-3 text-center text-[11px] leading-4 text-[#8bbf8b]">
+        Last updated: {payload?.generatedAt ? formatMarketTimestamp(payload.generatedAt) : "Not yet"}
+        {". "}
+        <span
+          role="button"
+          tabIndex={refreshing || busy !== null ? -1 : 0}
+          aria-disabled={refreshing || busy !== null}
+          onClick={() => {
+            if (refreshing || busy !== null) return;
+            void hapticPrimaryTap();
+            void loadOffers({ refresh: true });
+          }}
+          onKeyDown={(event) => {
+            if (refreshing || busy !== null) return;
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              void hapticPrimaryTap();
+              void loadOffers({ refresh: true });
+            }
+          }}
+          className={`font-bold text-[#00FF00] ${refreshing || busy !== null ? "cursor-wait opacity-60" : "cursor-pointer"}`}
+        >
+          {refreshing ? "Refreshing..." : "Refresh"}
+        </span>
+        {payload?.refreshError && (
+          <span className="block text-red-300">{payload.refreshError}</span>
+        )}
+      </div>
 
       {cancelGroup && (
         <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/80 p-4 sm:items-center">
@@ -3186,26 +3596,34 @@ function CollectionOffersPage({
               Cancel up to {cancelGroup.userOfferCount} collection offers at {formatMarketValue(cancelGroup.price, { maxDigits: 8 })}.
             </p>
             <div className="mt-3 flex items-center rounded-lg border-2 border-[#FF5555]/35 bg-black/60 px-2 py-1.5">
-              <button type="button" onClick={() => setCancelQuantity((current) => Math.max(1, current - 1))} className="h-8 w-8 rounded-md border border-[#FF5555]/35 text-lg font-bold text-[#FF7777]">-</button>
+              <button type="button" onClick={() => stepCancelQuantity(-1)} className="h-8 w-8 rounded-md border border-[#FF5555]/35 text-lg font-bold text-[#FF7777]">-</button>
               <input
                 data-no-focus-ring
                 type="number"
                 min={1}
                 max={cancelGroup.userOfferCount}
                 step={1}
-                value={cancelQuantity}
-                onChange={(event) => setCancelQuantity(Math.min(cancelGroup.userOfferCount, Math.max(1, Math.floor(Number(event.target.value) || 1))))}
+                value={cancelRequestedQuantity}
+                onChange={(event) => setRequestedCancelQuantity(Number(event.target.value) || 1)}
                 className="mx-2 min-w-0 flex-1 appearance-none border-0 bg-transparent text-center text-base font-bold text-[#FF7777] outline-none ring-0"
               />
-              <button type="button" onClick={() => setCancelQuantity((current) => Math.min(cancelGroup.userOfferCount, current + 1))} className="h-8 w-8 rounded-md border border-[#FF5555]/35 text-lg font-bold text-[#FF7777]">+</button>
+              <button type="button" onClick={() => stepCancelQuantity(1)} className="h-8 w-8 rounded-md border border-[#FF5555]/35 text-lg font-bold text-[#FF7777]">+</button>
             </div>
+            <p className="mt-2 text-[11px] font-bold text-[#d9b0b0]">
+              Cancellable totals: {cancelTotals.length > 0 ? cancelTotals.join(", ") : cancelGroup.userOfferCount}.
+            </p>
+            {actualCancelQuantity > cancelRequestedQuantity && selectedCancelOrders.length > 0 && (
+              <p className="mt-2 rounded-lg border border-[#FFAA33]/40 bg-[rgba(255,170,51,0.12)] px-3 py-2 text-xs font-bold text-[#ffd599]">
+                Cancel {cancelRequestedQuantity} requested. This will cancel {actualCancelQuantity} offers across {selectedCancelOrders.length} OpenSea orders.
+              </p>
+            )}
             <button
               type="button"
               disabled={busy !== null}
               onClick={() => void runCancelCollectionOffers()}
               className="mt-4 w-full cursor-pointer rounded-[20px] border border-[#a83232] bg-[#FF5555] px-5 py-3 text-base font-bold text-[#2c0000] shadow-[3px_6px_0_#8a2222] transition-all duration-100 hover:bg-[#ff7777] active:translate-x-[1px] active:translate-y-[3px] active:shadow-[1px_3px_0_#8a2222] disabled:cursor-wait disabled:opacity-70"
             >
-              {busy === "cancel" ? "Working..." : "Review cancellation"}
+              {busy === "cancel" ? (collectionBusyLabel ?? "Preparing...") : "Review cancellation"}
             </button>
             <button
               type="button"
@@ -3216,6 +3634,13 @@ function CollectionOffersPage({
             </button>
           </div>
         </div>
+      )}
+      {biddersGroup && (
+        <CollectionBiddersModal
+          group={biddersGroup}
+          isInMiniAppContext={isInMiniAppContext}
+          onClose={() => setBiddersGroup(null)}
+        />
       )}
     </div>
   );
@@ -9225,6 +9650,7 @@ export default function SearchApp() {
           <CollectionOffersPage
             connectedWallet={activeWallet}
             viewerFid={viewerFid}
+            isInMiniAppContext={isInMiniAppContext}
             getProviderAndAccount={getCollectionOfferProviderAndAccount}
             showToast={showSearchToast}
           />

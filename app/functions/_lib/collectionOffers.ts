@@ -42,6 +42,8 @@ type CollectionOfferRow = {
   pfp_url?: string | null;
   username?: string | null;
   display_name?: string | null;
+  x_username?: string | null;
+  user_x_username?: string | null;
 };
 
 type BidderProfile = {
@@ -50,7 +52,11 @@ type BidderProfile = {
   username: string | null;
   displayName: string | null;
   pfpUrl: string | null;
+  xUsername: string | null;
   openseaUrl: string;
+  farcasterUrl: string | null;
+  xUrl: string | null;
+  basescanUrl: string;
 };
 
 type CollectionOffer = {
@@ -64,18 +70,37 @@ type CollectionOffer = {
   bidder: BidderProfile;
 };
 
+type CollectionOfferGroupOrder = {
+  orderHash: string;
+  protocolAddress: string | null;
+  quantity: number;
+  createdAt: string | null;
+  bidder: BidderProfile;
+};
+
 type CollectionOfferGroup = {
   price: MarketMoney;
   volume: MarketMoney;
   offerCount: number;
   bidderCount: number;
-  bidders: BidderProfile[];
+  previewBidders: BidderProfile[];
+  orders: CollectionOfferGroupOrder[];
   userOfferCount: number;
   userOrders: Array<{
     orderHash: string;
     protocolAddress: string | null;
     quantity: number;
   }>;
+};
+
+type WalletFarcasterLinkResult = {
+  wallet: string;
+  fid: number | null;
+  username: string | null;
+  display_name: string | null;
+  pfp_url: string | null;
+  x_username?: string | null;
+  user_x_username?: string | null;
 };
 
 const OPENSEA_API_BASE = "https://api.opensea.io/api/v2";
@@ -91,6 +116,10 @@ const OPENSEA_CONDUIT_KEY = "0x0000007b02230091a7ed01230072f7006a004d60a8d4e71d5
 const OPENSEA_CONDUIT_ADDRESS = "0x1e0049783f008a0085193e00003d00cd54003c71";
 const ZERO_HASH = "0x0000000000000000000000000000000000000000000000000000000000000000";
 const MAX_OPENSEA_ORDER_DURATION_SECONDS = 179 * 24 * 60 * 60;
+const SEAPORT_ORDER_TYPE_FULL_OPEN = 0;
+const SEAPORT_ORDER_TYPE_PARTIAL_OPEN = 1;
+const SEAPORT_ORDER_TYPE_FULL_RESTRICTED = 2;
+const SEAPORT_ORDER_TYPE_PARTIAL_RESTRICTED = 3;
 
 function requireOpenSeaApiKey(env: CollectionOffersEnv): string {
   const apiKey = env.OPENSEA_API_KEY?.trim();
@@ -143,6 +172,45 @@ function assertPositiveRawAmount(rawAmount: string): string {
   } catch {
     throw new Error("Offer amount is invalid");
   }
+}
+
+function normalizeSocialUsername(value: string | null | undefined): string | null {
+  const username = value?.trim().replace(/^@/, "");
+  return username || null;
+}
+
+function buildBidderProfile(input: {
+  wallet: string;
+  fid?: number | null;
+  username?: string | null;
+  displayName?: string | null;
+  pfpUrl?: string | null;
+  xUsername?: string | null;
+  openseaUsername?: string | null;
+}): BidderProfile {
+  const username = input.username ?? null;
+  const xUsername = normalizeSocialUsername(input.xUsername);
+  return {
+    wallet: input.wallet,
+    fid: input.fid ?? null,
+    username,
+    displayName: input.displayName ?? null,
+    pfpUrl: input.pfpUrl ?? null,
+    xUsername,
+    openseaUrl: `https://opensea.io/${input.openseaUsername || input.wallet}`,
+    farcasterUrl: username
+      ? `https://farcaster.xyz/${username}`
+      : input.fid != null
+        ? `https://farcaster.xyz/~/profiles/${input.fid}`
+        : null,
+    xUrl: xUsername ? `https://x.com/${xUsername}` : null,
+    basescanUrl: `https://basescan.org/address/${input.wallet}`,
+  };
+}
+
+async function getTableColumns(env: CollectionOffersEnv, tableName: "wallet_farcaster_links" | "warplets_users"): Promise<Set<string>> {
+  const result = await env.WARPLETS.prepare(`PRAGMA table_info(${tableName})`).all<{ name: string }>();
+  return new Set((result.results ?? []).map((row) => row.name));
 }
 
 function randomUint256String(): string {
@@ -262,6 +330,16 @@ function feeAmount(rawAmount: string, bps: number): string {
   return ((BigInt(rawAmount) * BigInt(bps)) / 10000n).toString();
 }
 
+function collectionOfferOrderType(parametersFromBuild: Record<string, unknown> | null, quantity: number): number {
+  const builtOrderType = asNumber(parametersFromBuild?.orderType);
+  if (quantity <= 1) return builtOrderType ?? SEAPORT_ORDER_TYPE_FULL_RESTRICTED;
+  if (builtOrderType === SEAPORT_ORDER_TYPE_PARTIAL_OPEN || builtOrderType === SEAPORT_ORDER_TYPE_PARTIAL_RESTRICTED) {
+    return builtOrderType;
+  }
+  if (builtOrderType === SEAPORT_ORDER_TYPE_FULL_OPEN) return SEAPORT_ORDER_TYPE_PARTIAL_OPEN;
+  return SEAPORT_ORDER_TYPE_PARTIAL_RESTRICTED;
+}
+
 function buildCollectionOfferTypedData(input: {
   offerer: string;
   unitPriceRaw: string;
@@ -319,7 +397,7 @@ function buildCollectionOfferTypedData(input: {
       endAmount: totalRaw,
     }],
     consideration: [...collectionConsideration, ...feeConsideration],
-    orderType: asNumber(parametersFromBuild?.orderType) ?? 2,
+    orderType: collectionOfferOrderType(parametersFromBuild, quantity),
     startTime,
     endTime: String(Number(startTime) + durationSeconds),
     zoneHash: asString(parametersFromBuild?.zoneHash) ?? ZERO_HASH,
@@ -380,7 +458,8 @@ async function updateCollectionOfferDisplayFields(env: CollectionOffersEnv, row:
   await env.WARPLETS.prepare(
     `UPDATE opensea_criteria_offers
      SET remaining_quantity = ?, order_status = ?, opensea_updated_at = ?, updated_at = ?
-     WHERE order_hash = ?`
+     WHERE order_hash = ?
+       AND NOT (active = 0 AND order_status = 'CANCELLED')`
   ).bind(
     readRemainingQuantity(row),
     asString(row.status) ?? "ACTIVE",
@@ -443,55 +522,76 @@ async function loadBidderProfiles(env: CollectionOffersEnv, wallets: string[], a
   if (normalized.length === 0) return profiles;
 
   const placeholders = normalized.map(() => "?").join(", ");
+  const [linkColumns, userColumns] = await Promise.all([
+    getTableColumns(env, "wallet_farcaster_links").catch(() => new Set<string>()),
+    getTableColumns(env, "warplets_users").catch(() => new Set<string>()),
+  ]);
+  const selectColumns = [
+    "l.wallet",
+    "l.fid",
+    linkColumns.has("username") ? "l.username" : "NULL AS username",
+    linkColumns.has("display_name") ? "l.display_name" : "NULL AS display_name",
+    linkColumns.has("pfp_url") ? "l.pfp_url" : "NULL AS pfp_url",
+    linkColumns.has("x_username") ? "l.x_username" : "NULL AS x_username",
+    userColumns.has("fid") && userColumns.has("x_username") ? "wu.x_username AS user_x_username" : "NULL AS user_x_username",
+  ];
+  const joinUsers = userColumns.has("fid") ? "LEFT JOIN warplets_users wu ON wu.fid = l.fid" : "";
   const linkRows = await env.WARPLETS.prepare(
-    `SELECT wallet, fid, username, display_name, pfp_url
-     FROM wallet_farcaster_links
-     WHERE wallet IN (${placeholders})
-     ORDER BY score DESC, fid ASC`
-  ).bind(...normalized).all<{
-    wallet: string;
-    fid: number | null;
-    username: string | null;
-    display_name: string | null;
-    pfp_url: string | null;
-  }>().catch(() => ({ results: [] }));
+    `SELECT ${selectColumns.join(", ")}
+     FROM wallet_farcaster_links l
+     ${joinUsers}
+     WHERE l.wallet IN (${placeholders})
+     ORDER BY COALESCE(l.score, -1) DESC, l.fid ASC`
+  ).bind(...normalized).all<WalletFarcasterLinkResult>().catch(() => ({ results: [] }));
   for (const row of linkRows.results ?? []) {
     const wallet = normalizeAddress(row.wallet);
     if (!wallet || profiles.has(wallet)) continue;
-    profiles.set(wallet, {
+    profiles.set(wallet, buildBidderProfile({
       wallet,
       fid: row.fid,
       username: row.username,
       displayName: row.display_name,
       pfpUrl: row.pfp_url,
-      openseaUrl: `https://opensea.io/${wallet}`,
-    });
+      xUsername: "x_username" in row ? (row.x_username ?? row.user_x_username ?? null) : null,
+    }));
   }
 
-  const missing = normalized.filter((wallet) => !profiles.get(wallet)?.pfpUrl).slice(0, 30);
+  const missing = normalized.filter((wallet) => {
+    const current = profiles.get(wallet);
+    return !current?.pfpUrl || !current?.xUsername;
+  }).slice(0, 30);
   await Promise.all(missing.map(async (wallet) => {
     const current = profiles.get(wallet);
     try {
       const account = await fetchOpenSea(`/accounts/${encodeURIComponent(wallet)}`, apiKey);
       const pfpUrl = asString(account.profile_image_url ?? account.profileImageUrl ?? account.image_url);
-      const username = asString(account.username ?? asObject(account.user)?.username);
-      profiles.set(wallet, {
+      const openseaUsername = asString(account.username ?? asObject(account.user)?.username);
+      const fid = current?.fid ?? await selectPreferredFidForWallet(env, wallet);
+      let xUsername = current?.xUsername ?? null;
+      if (!xUsername && fid != null) {
+        xUsername = await env.WARPLETS.prepare(
+          "SELECT x_username FROM warplets_users WHERE fid = ? LIMIT 1",
+        ).bind(fid).first<{ x_username: string | null }>()
+          .then((row) => normalizeSocialUsername(row?.x_username))
+          .catch(() => null);
+      }
+      profiles.set(wallet, buildBidderProfile({
         wallet,
-        fid: current?.fid ?? await selectPreferredFidForWallet(env, wallet),
-        username: current?.username ?? username,
+        fid,
+        username: current?.username ?? null,
         displayName: current?.displayName ?? asString(account.display_name ?? account.name),
         pfpUrl: current?.pfpUrl ?? pfpUrl,
-        openseaUrl: `https://opensea.io/${username || wallet}`,
-      });
+        xUsername,
+        openseaUsername,
+      }));
     } catch {
-      profiles.set(wallet, current ?? {
+      profiles.set(wallet, current ?? buildBidderProfile({
         wallet,
         fid: null,
         username: null,
         displayName: null,
         pfpUrl: null,
-        openseaUrl: `https://opensea.io/${wallet}`,
-      });
+      }));
     }
   }));
   return profiles;
@@ -500,7 +600,17 @@ async function loadBidderProfiles(env: CollectionOffersEnv, wallets: string[], a
 function groupCollectionOffers(offers: CollectionOffer[], userWallet: string | null): CollectionOfferGroup[] {
   const normalizedUserWallet = normalizeAddress(userWallet);
   const groups = new Map<string, CollectionOfferGroup>();
-  for (const offer of offers) {
+  const orderedOffers = [...offers].sort((left, right) => {
+    const priceDelta = (right.price.eth ?? -1) - (left.price.eth ?? -1);
+    if (priceDelta !== 0) return priceDelta;
+    const leftTime = Date.parse(left.createdAt ?? "");
+    const rightTime = Date.parse(right.createdAt ?? "");
+    if (Number.isFinite(leftTime) && Number.isFinite(rightTime) && leftTime !== rightTime) {
+      return leftTime - rightTime;
+    }
+    return 0;
+  });
+  for (const offer of orderedOffers) {
     const key = offer.price.rawAmount ?? String(offer.price.eth ?? "");
     if (!key) continue;
     const current = groups.get(key) ?? {
@@ -508,7 +618,8 @@ function groupCollectionOffers(offers: CollectionOffer[], userWallet: string | n
       volume: { ...offer.price, rawAmount: "0", eth: 0 },
       offerCount: 0,
       bidderCount: 0,
-      bidders: [],
+      previewBidders: [],
+      orders: [],
       userOfferCount: 0,
       userOrders: [],
     };
@@ -521,9 +632,16 @@ function groupCollectionOffers(offers: CollectionOffer[], userWallet: string | n
       rawAmount: rawVolume,
       eth: rawVolume ? rawEthToNumber(rawVolume) : ((current.volume.eth ?? 0) + (offer.price.eth ?? 0) * offer.quantity),
     };
-    if (!current.bidders.some((bidder) => bidder.wallet === offer.bidder.wallet)) {
-      current.bidders.push(offer.bidder);
-      current.bidderCount = current.bidders.length;
+    current.orders.push({
+      orderHash: offer.orderHash,
+      protocolAddress: offer.protocolAddress,
+      quantity: offer.quantity,
+      createdAt: offer.createdAt,
+      bidder: offer.bidder,
+    });
+    if (!current.previewBidders.some((bidder) => bidder.wallet === offer.bidder.wallet)) {
+      current.previewBidders.push(offer.bidder);
+      current.bidderCount = current.previewBidders.length;
     }
     if (normalizedUserWallet && offer.offerer === normalizedUserWallet) {
       current.userOfferCount += offer.quantity;
@@ -535,20 +653,23 @@ function groupCollectionOffers(offers: CollectionOffer[], userWallet: string | n
     }
     groups.set(key, current);
   }
-  return Array.from(groups.values()).sort((a, b) => (b.price.eth ?? 0) - (a.price.eth ?? 0));
+  return Array.from(groups.values())
+    .map((group) => ({
+      ...group,
+      previewBidders: group.previewBidders.slice(0, 5),
+    }))
+    .sort((a, b) => (b.price.eth ?? 0) - (a.price.eth ?? 0));
 }
 
 async function loadCollectionOffers(env: CollectionOffersEnv): Promise<CollectionOfferRow[]> {
   const rows = await env.WARPLETS.prepare(
-    `SELECT o.*, l.fid, l.username, l.display_name, l.pfp_url
+    `SELECT o.*
      FROM opensea_criteria_offers o
-     LEFT JOIN wallet_farcaster_links l
-       ON l.wallet = o.offerer_wallet
      WHERE o.collection_slug = ?
        AND o.criteria_kind = 'collection'
        AND o.active = 1
        AND COALESCE(o.order_status, 'ACTIVE') = 'ACTIVE'
-     ORDER BY o.offer_eth DESC, o.offered_at DESC`
+     ORDER BY o.offer_eth DESC, o.offered_at ASC, o.order_hash ASC`
   ).bind(COLLECTION_SLUG).all<CollectionOfferRow>().catch(() => ({ results: [] }));
   return rows.results ?? [];
 }
@@ -558,7 +679,17 @@ export async function handleCollectionOffersGet(context: Parameters<PagesFunctio
   const wallet = normalizeAddress(requestUrl.searchParams.get("wallet"));
   const refresh = requestUrl.searchParams.get("refresh") === "1";
   const apiKey = requireOpenSeaApiKey(context.env);
-  if (refresh) await refreshCollectionOffersFromOpenSea(context.env, wallet);
+  let refreshError: string | null = null;
+  if (refresh) {
+    try {
+      // The Collection offers page displays collection-wide state, so refresh the
+      // full collection and let wallet filtering happen after cached rows load.
+      await refreshCollectionOffersFromOpenSea(context.env, null);
+    } catch (error) {
+      refreshError = error instanceof Error ? error.message : "OpenSea refresh failed";
+      console.warn("Collection offers refresh failed; returning cached offers", refreshError);
+    }
+  }
   const rows = (await loadCollectionOffers(context.env)).filter(offerIsWeth);
   const wallets = rows.map((row) => row.offerer_wallet).filter((wallet): wallet is string => Boolean(wallet));
   const profiles = await loadBidderProfiles(context.env, wallets, apiKey);
@@ -566,14 +697,7 @@ export async function handleCollectionOffersGet(context: Parameters<PagesFunctio
     .reduce<CollectionOffer[]>((items, row) => {
       const offerer = normalizeAddress(row.offerer_wallet);
       if (!offerer) return items;
-      const profile = profiles.get(offerer) ?? {
-        wallet: offerer,
-        fid: null,
-        username: null,
-        displayName: null,
-        pfpUrl: null,
-        openseaUrl: `https://opensea.io/${offerer}`,
-      };
+      const profile = profiles.get(offerer) ?? buildBidderProfile({ wallet: offerer });
       items.push({
         orderHash: row.order_hash,
         protocolAddress: row.protocol_address,
@@ -598,6 +722,7 @@ export async function handleCollectionOffersGet(context: Parameters<PagesFunctio
   }, 0n).toString();
   return marketJson({
     generatedAt: new Date().toISOString(),
+    refreshError,
     wallet,
     topCollectionOffer: topOffer,
     stats: {
@@ -669,11 +794,17 @@ export async function handleCollectionOfferSubmit(context: Parameters<PagesFunct
   const protocolAddress = normalizeAddress(payload.protocol_address) ?? DEFAULT_SEAPORT_PROTOCOL;
   if (!parameters || !signature) return jsonSecure({ error: "missing_signature" }, { status: 400 });
   const apiKey = requireOpenSeaApiKey(context.env);
-  const result = await openSeaPost(apiKey, "/offers", {
-    protocol_data: { parameters, signature },
-    criteria: { collection: { slug: COLLECTION_SLUG } },
-    protocol_address: protocolAddress,
-  });
+  let result: Record<string, unknown>;
+  try {
+    result = await openSeaPost(apiKey, "/offers", {
+      protocol_data: { parameters, signature },
+      criteria: { collection: { slug: COLLECTION_SLUG } },
+      protocol_address: protocolAddress,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "OpenSea collection offer submit failed";
+    return jsonSecure({ error: "opensea_submit_failed", message }, { status: 502 });
+  }
   const orderHash = asString(result.order_hash) ?? asString(result.orderHash);
   const wallet = normalizeAddress(body.wallet);
   const priceRaw = asString(body.priceRaw);

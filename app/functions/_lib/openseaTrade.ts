@@ -174,6 +174,24 @@ function comparableMarketValue(value: MarketMoney | null | undefined): number | 
   }
 }
 
+function marketTimeMs(value: MarketMoney | null | undefined): number | null {
+  const timestamp = Date.parse(value?.at ?? "");
+  return Number.isFinite(timestamp) ? timestamp : null;
+}
+
+function compareOfferPriority(left: MarketMoney | null | undefined, right: MarketMoney | null | undefined): number {
+  const leftValue = comparableMarketValue(left);
+  const rightValue = comparableMarketValue(right);
+  if (leftValue == null && rightValue == null) return 0;
+  if (leftValue == null) return 1;
+  if (rightValue == null) return -1;
+  if (leftValue !== rightValue) return rightValue - leftValue;
+  const leftTime = marketTimeMs(left);
+  const rightTime = marketTimeMs(right);
+  if (leftTime == null || rightTime == null || leftTime === rightTime) return 0;
+  return leftTime - rightTime;
+}
+
 function saleEventToMarketMoney(row: Record<string, unknown> | null): MarketMoney | null {
   if (!row) return null;
   const price = getPrice(row, "consideration");
@@ -200,9 +218,7 @@ function chooseTopOffer(
       current = offer;
       continue;
     }
-    const currentValue = comparableMarketValue(current);
-    const nextValue = comparableMarketValue(offer);
-    if (currentValue == null || (nextValue != null && nextValue > currentValue)) {
+    if (compareOfferPriority(offer, current) < 0) {
       current = offer;
     }
   }
@@ -307,7 +323,7 @@ async function fetchBestItemOffer(apiKey: string, tokenId: number): Promise<{ ro
         return market ? { row, market: { ...market, source: "item" as const } } : null;
       })
       .filter((offer): offer is { row: Record<string, unknown>; market: NonNullable<FreshTradeState["itemOffer"]> } => offer !== null)
-      .sort((left, right) => (comparableMarketValue(right.market) ?? -1) - (comparableMarketValue(left.market) ?? -1));
+      .sort((left, right) => compareOfferPriority(left.market, right.market));
     return offers[0] ?? null;
   } catch {
     return null;
@@ -363,15 +379,13 @@ async function fetchCollectionOffer(
       .map((item) => asObject(item))
       .filter((item): item is Record<string, unknown> => Boolean(item))
       .filter((item) => classifyOpenSeaOffer(item) === "collection");
-    const best = rows.reduce<{ row: Record<string, unknown>; market: FreshTradeState["collectionOffer"]; value: number } | null>((current, row) => {
+    const best = rows.reduce<{ row: Record<string, unknown>; market: FreshTradeState["collectionOffer"] } | null>((current, row) => {
       const orderHash = asString(row.order_hash)?.toLowerCase();
       if (orderHash && excluded.has(orderHash)) return current;
       const market = orderToMarket(row, "offer") as FreshTradeState["collectionOffer"];
       if (!market) return current;
-      const value = comparableMarketValue(market);
-      if (value == null) return current;
-      const next = { row, market: { ...market, source: "collection" as const }, value };
-      return !current || value > current.value ? next : current;
+      const next = { row, market: { ...market, source: "collection" as const } };
+      return !current || compareOfferPriority(next.market, current.market) < 0 ? next : current;
     }, null);
     return best ? { row: best.row, market: best.market } : null;
   } catch {
@@ -391,7 +405,7 @@ async function fetchOwnItemOffer(apiKey: string, tokenId: number, wallet: string
       .filter((row) => isSpecificItemOffer(row, tokenId))
       .map((row) => orderToMarket({ ...row, identifier: String(tokenId) }, "offer") as FreshTradeState["ownItemOffer"])
       .filter((offer): offer is NonNullable<FreshTradeState["ownItemOffer"]> => Boolean(offer && offer.offerer?.toLowerCase() === normalizedWallet));
-    owned.sort((a, b) => (comparableMarketValue(b) ?? -1) - (comparableMarketValue(a) ?? -1));
+    owned.sort((a, b) => compareOfferPriority(a, b));
     return owned[0] ? { ...owned[0], source: "item" } : null;
   } catch {
     return null;
@@ -578,7 +592,7 @@ export async function getFreshTradeState(
     itemOffer: itemOffer?.market ?? null,
     traitOffer,
     collectionOffer: collectionOffer?.market ?? null,
-    topOffer: bestApplicableOffer?.market ?? chooseTopOffer(itemOffer?.market ?? null, traitOffer, collectionOffer?.market ?? null),
+    topOffer: chooseTopOffer(itemOffer?.market ?? null, traitOffer, collectionOffer?.market ?? null),
     ownItemOffer,
     sale: saleEventToMarketMoney(salePayload),
     floor,
