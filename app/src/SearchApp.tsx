@@ -94,7 +94,9 @@ const RANDOM_EXAMPLE_SEARCHES_SEEN_KEY = "warplets-search-random-seen-v1";
 const SEARCH_DEBOUNCE_MS = 300;
 const STATUS_LINE_CLASS = "text-center text-xs uppercase leading-4";
 const OPENSEA_COLLECTION_URL = "https://opensea.io/collection/10xwarplets";
-const SEARCH_COLLECTION_OFFERS_PATH = "/collection-offers";
+const LAST_SEARCH_OFFERS_SUBPAGE_KEY = "warplets-search-last-offers-subpage-v1";
+const LAST_SEARCH_LISTED_LEVEL_KEY = "warplets-search-last-listed-level-v1";
+const LISTED_SCOPE_KEY = "warplets-search-listed-scope-v1";
 const MARKET_CACHE_KEY = "warplets-market-state-v3";
 const MARKET_SNAPSHOT_STALE_MS = 10 * 60 * 1000;
 const MARKET_DETAIL_STALE_MS = 30 * 60 * 1000;
@@ -107,6 +109,39 @@ const FORCED_AIRDROP_FALLBACK_TOKEN_ID = 5019;
 const HEADER_FALLBACK_AVATAR_TOKEN_ID = 548;
 
 type SearchCompletion = "onboarding" | "airdrop_modal";
+
+type SearchOffersSubpage = "collection" | "trait" | "item";
+type ListedLevelFilter = "all" | "10x" | "9x" | "8x" | "7x" | "6x" | "5x" | "4x" | "3x" | "2x" | "1x";
+type ListedScopeFilter = "all" | "your";
+type SearchRoute =
+  | { page: "search" }
+  | { page: "listed"; listedLevel: ListedLevelFilter }
+  | { page: "offers"; offersPage: SearchOffersSubpage }
+  | { page: "stats" };
+
+const LISTED_LEVEL_TABS: Array<{ id: ListedLevelFilter; label: string }> = [
+  { id: "all", label: "All" },
+  { id: "10x", label: "10X" },
+  { id: "9x", label: "9X" },
+  { id: "8x", label: "8X" },
+  { id: "7x", label: "7X" },
+  { id: "6x", label: "6X" },
+  { id: "5x", label: "5X" },
+  { id: "4x", label: "4X" },
+  { id: "3x", label: "3X" },
+  { id: "2x", label: "2X" },
+  { id: "1x", label: "1X" },
+];
+
+const LISTED_SCOPE_TABS = [
+  { id: "all", label: "All Listings" },
+  { id: "your", label: "Your Listings" },
+];
+
+const OFFERS_FILTER_TABS = [
+  { id: "all", label: "All Offers" },
+  { id: "your", label: "Your Offers" },
+];
 
 type SearchStatusPayload = {
   actionSessionToken?: unknown;
@@ -1210,6 +1245,27 @@ function loadWarpletResultById(db: SqliteDatabase, tokenId: number): WarpletResu
   return mapRows(rows)[0] ?? null;
 }
 
+function loadWarpletResultsByIds(db: SqliteDatabase, tokenIds: number[]): WarpletResult[] {
+  const uniqueTokenIds = Array.from(new Set(
+    tokenIds.filter((tokenId) => Number.isInteger(tokenId) && tokenId > 0),
+  ));
+  if (uniqueTokenIds.length === 0) return [];
+  const placeholders = uniqueTokenIds.map(() => "?").join(", ");
+  const rows = db.exec(
+    `SELECT
+       ${RESULT_SELECT_COLUMNS}
+     FROM warplets w
+     WHERE w.id IN (${placeholders})`,
+    {
+      bind: uniqueTokenIds,
+      rowMode: "array",
+      returnValue: "resultRows",
+    },
+  );
+  const order = new Map(uniqueTokenIds.map((tokenId, index) => [tokenId, index]));
+  return mapRows(rows).sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
+}
+
 function mapDetails(row: Record<string, unknown> | undefined): WarpletDetails | null {
   if (!row) return null;
   const id = cellToNumber(row.id) ?? 0;
@@ -1434,6 +1490,7 @@ function serializeSearchUrlState(state: SearchUrlState): string {
 
 function buildSearchUrl(state: SearchUrlState): string {
   const url = new URL(window.location.href);
+  url.pathname = getSearchPathForRoute({ page: "search" });
   const serialized = serializeSearchUrlState(state);
   url.search = serialized ? `?${serialized}` : "";
   return `${url.pathname}${url.search}${url.hash}`;
@@ -1441,6 +1498,14 @@ function buildSearchUrl(state: SearchUrlState): string {
 
 function buildSearchHref(state: SearchUrlState): string {
   return new URL(buildSearchUrl(state), window.location.origin).href;
+}
+
+function buildListedWarpletHref(route: Extract<SearchRoute, { page: "listed" }>, tokenId: number): string {
+  const url = new URL(window.location.href);
+  url.pathname = getSearchPathForRoute(route);
+  url.search = "";
+  url.searchParams.set("warplet", String(tokenId));
+  return url.href;
 }
 
 function getSearchUrlSignature(state: SearchUrlState): string {
@@ -1736,6 +1801,72 @@ function getOwnedTokenIds(snapshot: MarketSnapshot | null, ownerWallet: string |
     .filter((tokenId) => Number.isInteger(tokenId) && tokenId > 0)
     .sort((a, b) => a - b);
   return Array.from(new Set([currentTokenId, ...tokenIds]));
+}
+
+function getListedLevelNumber(level: ListedLevelFilter): number | null {
+  if (level === "all") return null;
+  const value = Number(level.replace(/x$/i, ""));
+  return LEVEL_OPTIONS.includes(value) ? value : null;
+}
+
+function warpletMatchesListedLevel(warplet: WarpletResult, level: ListedLevelFilter): boolean {
+  const levelNumber = getListedLevelNumber(level);
+  if (levelNumber == null) return true;
+  return LEVEL_ATTRIBUTES.some((attribute) => warplet.rankValues[attribute.column] === levelNumber);
+}
+
+function walletMatches(value: string | null | undefined, wallet: string | null | undefined): boolean {
+  const left = normalizeWalletAddress(value);
+  const right = normalizeWalletAddress(wallet);
+  return Boolean(left && right && left === right);
+}
+
+function getListingGroupKey(listing: MarketOrderMoney): string {
+  if (listing.rawAmount && listing.decimals != null) {
+    return `${listing.tokenAddress?.toLowerCase() ?? listing.currencySymbol ?? "eth"}:${listing.decimals}:${listing.rawAmount}`;
+  }
+  return `eth:${listing.eth ?? 0}`;
+}
+
+function compareMarketPriceAsc(left: MarketMoney | null | undefined, right: MarketMoney | null | undefined): number {
+  const leftValue = getMarketNumber(left);
+  const rightValue = getMarketNumber(right);
+  if (leftValue == null && rightValue == null) return 0;
+  if (leftValue == null) return 1;
+  if (rightValue == null) return -1;
+  return leftValue - rightValue;
+}
+
+function sumMarketMoney(values: Array<MarketMoney | null | undefined>): MarketMoney | null {
+  const present = values.filter((value): value is MarketMoney => Boolean(value));
+  if (present.length === 0) return null;
+  const first = present[0];
+  const allRawCompatible = Boolean(first.rawAmount && first.decimals != null) &&
+    present.every((value) =>
+      value.rawAmount &&
+      value.decimals === first.decimals &&
+      (value.currencySymbol ?? null) === (first.currencySymbol ?? null) &&
+      (value.tokenAddress ?? null) === (first.tokenAddress ?? null)
+    );
+  if (allRawCompatible) {
+    const rawAmount = present.reduce((total, value) => total + BigInt(value.rawAmount ?? "0"), 0n).toString();
+    return {
+      eth: present.every((value) => value.eth != null) ? present.reduce((total, value) => total + (value.eth ?? 0), 0) : null,
+      at: first.at ?? null,
+      rawAmount,
+      decimals: first.decimals,
+      currencySymbol: first.currencySymbol ?? null,
+      tokenAddress: first.tokenAddress ?? null,
+    };
+  }
+  const decimalTotal = present.reduce((total, value) => total + (marketMoneyToDecimal(value) ?? 0), 0);
+  return {
+    eth: decimalTotal,
+    at: first.at ?? null,
+    currencySymbol: first.currencySymbol ?? "ETH",
+    tokenAddress: first.tokenAddress ?? null,
+    decimals: first.decimals ?? 18,
+  };
 }
 
 function mergeTokenSnapshot(current: MarketSnapshot | null, tokenSnapshot: MarketSnapshot, tokenId: number): MarketSnapshot {
@@ -2647,17 +2778,98 @@ function getOpenSeaUrl(tokenId: number): string {
   return `https://opensea.io/item/base/0x780446dd12e080ae0db762fcd4daf313f3e359de/${tokenId}`;
 }
 
-function getSearchRootPath(): string {
-  return window.location.pathname.startsWith("/search") ? "/search" : "/";
+function getSearchBasePath(): "" | "/search" {
+  return window.location.pathname.startsWith("/search") ? "/search" : "";
 }
 
-function getSearchCollectionOffersPath(): string {
-  return window.location.pathname.startsWith("/search") ? "/search/collection-offers" : SEARCH_COLLECTION_OFFERS_PATH;
+function getSearchRouteKey(route: SearchRoute): string {
+  return route.page === "offers" ? `offers:${route.offersPage}` : route.page;
 }
 
-function isSearchCollectionOffersRoute(): boolean {
-  const normalizedPath = window.location.pathname.replace(/\/+$/, "") || "/";
-  return normalizedPath === "/collection-offers" || normalizedPath === "/search/collection-offers";
+function getSearchRouteStableKey(route: SearchRoute): string {
+  if (route.page === "listed") return `listed:${route.listedLevel}`;
+  return getSearchRouteKey(route);
+}
+
+function normalizeSearchPath(pathname: string): string {
+  const normalizedPath = pathname.replace(/\/+$/, "") || "/";
+  if (normalizedPath === "/search") return "/";
+  if (normalizedPath.startsWith("/search/")) return normalizedPath.slice("/search".length) || "/";
+  return normalizedPath;
+}
+
+function parseSearchRouteFromPath(pathname: string): SearchRoute {
+  const path = normalizeSearchPath(pathname);
+  if (path === "/listed") return { page: "listed", listedLevel: "all" };
+  const listedMatch = path.match(/^\/listed\/(10x|9x|8x|7x|6x|5x|4x|3x|2x|1x)$/i);
+  if (listedMatch) return { page: "listed", listedLevel: listedMatch[1].toLowerCase() as ListedLevelFilter };
+  if (path === "/offers/trait") return { page: "offers", offersPage: "trait" };
+  if (path === "/offers/item") return { page: "offers", offersPage: "item" };
+  if (path === "/offers/collection") return { page: "offers", offersPage: "collection" };
+  if (path === "/stats") return { page: "stats" };
+  return { page: "search" };
+}
+
+function readLastSearchListedLevel(): ListedLevelFilter {
+  if (typeof window === "undefined") return "all";
+  const value = window.localStorage.getItem(LAST_SEARCH_LISTED_LEVEL_KEY);
+  return LISTED_LEVEL_TABS.some((tab) => tab.id === value) ? value as ListedLevelFilter : "all";
+}
+
+function writeLastSearchListedLevel(value: ListedLevelFilter): void {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(LAST_SEARCH_LISTED_LEVEL_KEY, value);
+}
+
+function readListedScopeFilter(): ListedScopeFilter {
+  if (typeof window === "undefined") return "all";
+  const value = window.localStorage.getItem(LISTED_SCOPE_KEY);
+  return value === "your" ? "your" : "all";
+}
+
+function writeListedScopeFilter(value: ListedScopeFilter): void {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(LISTED_SCOPE_KEY, value);
+}
+
+function readLastSearchOffersSubpage(): SearchOffersSubpage {
+  if (typeof window === "undefined") return "collection";
+  const value = window.localStorage.getItem(LAST_SEARCH_OFFERS_SUBPAGE_KEY);
+  return value === "trait" || value === "item" || value === "collection" ? value : "collection";
+}
+
+function writeLastSearchOffersSubpage(value: SearchOffersSubpage): void {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(LAST_SEARCH_OFFERS_SUBPAGE_KEY, value);
+}
+
+function getSearchPathForRoute(route: SearchRoute): string {
+  const basePath = getSearchBasePath();
+  const path =
+    route.page === "search"
+      ? "/"
+      : route.page === "listed"
+        ? route.listedLevel === "all" ? "/listed" : `/listed/${route.listedLevel}`
+        : route.page === "stats"
+          ? "/stats"
+          : `/offers/${route.offersPage}`;
+  if (!basePath) return path;
+  return path === "/" ? basePath : `${basePath}${path}`;
+}
+
+function getSearchRouteTitle(route: SearchRoute): string {
+  if (route.page === "listed") {
+    return route.listedLevel === "all"
+      ? "10X Warplets - Listed"
+      : `10X Warplets - Listed ${route.listedLevel.toUpperCase()}`;
+  }
+  if (route.page === "stats") return "10X Warplets - Stats";
+  if (route.page === "offers") {
+    if (route.offersPage === "trait") return "10X Warplets - Trait offers";
+    if (route.offersPage === "item") return "10X Warplets - Item offers";
+    return "10X Warplets - Collection offers";
+  }
+  return "10X Warplets";
 }
 
 function getBrowserEthereumProvider(): EthereumProvider | null {
@@ -2693,7 +2905,6 @@ function SearchHeaderAccountControl({
   closeKey,
   onConnectWallet,
   onMissingSiwnClientId,
-  onOpenCollectionOffers,
   onOpenSpreadsheet,
   onViewOnboarding,
   onEnableNotifications,
@@ -2709,7 +2920,6 @@ function SearchHeaderAccountControl({
   closeKey: string;
   onConnectWallet: () => void;
   onMissingSiwnClientId: () => void;
-  onOpenCollectionOffers: () => void;
   onOpenSpreadsheet: () => void;
   onViewOnboarding: () => void;
   onEnableNotifications: () => void;
@@ -2831,9 +3041,6 @@ function SearchHeaderAccountControl({
           <button type="button" role="menuitem" onClick={() => runMenuAction(onEnableNotifications)}>
             Enable notifications
           </button>
-          <button type="button" role="menuitem" onClick={() => runMenuAction(onOpenCollectionOffers)}>
-            Collection offers
-          </button>
           <button type="button" role="menuitem" onClick={() => runMenuAction(onOpenSpreadsheet)}>
             Warplets spreadsheet
           </button>
@@ -2844,6 +3051,138 @@ function SearchHeaderAccountControl({
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+function SearchSegmentedTabs({
+  options,
+  activeId,
+  onSelect,
+  className = "",
+}: {
+  options: Array<{ id: string; label: string }>;
+  activeId: string;
+  onSelect: (id: string) => void;
+  className?: string;
+}) {
+  const dense = options.length > 6;
+  return (
+    <div
+      className={`grid ${dense ? "gap-1" : "gap-2"} rounded-lg border border-[#00FF00]/25 bg-black/60 p-1 ${className}`}
+      style={{ gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))` }}
+    >
+      {options.map((option) => {
+        const active = option.id === activeId;
+        return (
+          <button
+            key={option.id}
+            type="button"
+            onClick={() => {
+              void hapticSelectionChanged();
+              onSelect(option.id);
+            }}
+            className={`rounded-md ${dense ? "px-1 py-2 text-[10px] sm:text-xs" : "px-2 py-2 text-xs sm:text-sm"} font-bold transition-colors ${
+              active
+                ? "bg-[#00FF00] text-[rgb(0,80,0)]"
+                : "text-[#00FF00] hover:bg-[#041204]"
+            }`}
+          >
+            {option.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function SearchPageNavigation({
+  route,
+  lastOffersSubpage,
+  lastListedLevel,
+  onNavigate,
+}: {
+  route: SearchRoute;
+  lastOffersSubpage: SearchOffersSubpage;
+  lastListedLevel: ListedLevelFilter;
+  onNavigate: (route: SearchRoute) => void;
+}) {
+  const activePrimary = route.page === "offers" ? "offers" : route.page;
+  const activeOffer = route.page === "offers" ? route.offersPage : "collection";
+  const activeListedLevel = route.page === "listed" ? route.listedLevel : "all";
+
+  return (
+    <div className="mx-auto w-full max-w-md px-4 pt-4">
+      <SearchSegmentedTabs
+        options={[
+          { id: "search", label: "Search" },
+          { id: "listed", label: "Listed" },
+          { id: "offers", label: "Offers" },
+          { id: "stats", label: "Stats" },
+        ]}
+        activeId={activePrimary}
+        onSelect={(id) => {
+          if (id === "offers") {
+            onNavigate({ page: "offers", offersPage: lastOffersSubpage });
+          } else if (id === "listed") {
+            onNavigate({ page: "listed", listedLevel: lastListedLevel });
+          } else if (id === "stats") {
+            onNavigate({ page: "stats" });
+          } else {
+            onNavigate({ page: "search" });
+          }
+        }}
+      />
+      {route.page === "offers" && (
+        <SearchSegmentedTabs
+          className="mt-2"
+          options={[
+            { id: "collection", label: "Collection" },
+            { id: "trait", label: "Trait" },
+            { id: "item", label: "Item" },
+          ]}
+          activeId={activeOffer}
+          onSelect={(id) => onNavigate({ page: "offers", offersPage: id as SearchOffersSubpage })}
+        />
+      )}
+      {route.page === "listed" && (
+        <SearchSegmentedTabs
+          className="mt-2"
+          options={LISTED_LEVEL_TABS}
+          activeId={activeListedLevel}
+          onSelect={(id) => onNavigate({ page: "listed", listedLevel: id as ListedLevelFilter })}
+        />
+      )}
+    </div>
+  );
+}
+
+function SearchPlaceholderPage({
+  title,
+  filterOptions,
+}: {
+  title: string;
+  filterOptions?: Array<{ id: string; label: string }>;
+}) {
+  const [activeFilter, setActiveFilter] = useState(filterOptions?.[0]?.id ?? "");
+
+  useEffect(() => {
+    setActiveFilter(filterOptions?.[0]?.id ?? "");
+  }, [filterOptions]);
+
+  return (
+    <div className="mx-auto w-full max-w-md px-4 pb-10 pt-6">
+      {filterOptions && filterOptions.length > 0 && (
+        <SearchSegmentedTabs
+          className="mb-4"
+          options={filterOptions}
+          activeId={activeFilter}
+          onSelect={setActiveFilter}
+        />
+      )}
+      <Text className="text-center text-sm font-bold" style={{ color: "#00FF00" }}>
+        Placeholder: {title}
+      </Text>
     </div>
   );
 }
@@ -3358,25 +3697,6 @@ function CollectionOffersPage({
 
   return (
     <div className="mx-auto w-full max-w-md px-4 pb-10 pt-6">
-      <div className="mb-4 grid grid-cols-2 gap-2 rounded-lg border border-[#00FF00]/25 bg-black/60 p-1">
-        {[
-          { id: "all" as const, label: "All Offers" },
-          { id: "your" as const, label: "Your Offers" },
-        ].map((tab) => (
-          <button
-            key={tab.id}
-            type="button"
-            onClick={() => {
-              void hapticSelectionChanged();
-              setScope(tab.id);
-            }}
-            className={`rounded-md px-3 py-2 text-sm font-bold transition-colors ${scope === tab.id ? "bg-[#00FF00] text-[rgb(0,80,0)]" : "text-[#00FF00] hover:bg-[#041204]"}`}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
-
       <div className="grid grid-cols-2 gap-3">
         <div className="rounded-lg border border-[#00FF00]/30 bg-[rgba(0,255,0,0.08)] p-3">
           <Text className="text-[11px] font-bold uppercase text-[#8bbf8b]">Count</Text>
@@ -3477,6 +3797,13 @@ function CollectionOffersPage({
           {busy === "offer" ? (collectionBusyLabel ?? "Preparing...") : "Review collection offer"}
         </button>
       </div>
+
+      <SearchSegmentedTabs
+        className="mt-4"
+        options={OFFERS_FILTER_TABS}
+        activeId={scope}
+        onSelect={(id) => setScope(id === "your" ? "your" : "all")}
+      />
 
       <div className="mt-4 overflow-hidden rounded-lg border border-[#00FF00]/25">
         <div className="grid grid-cols-[1fr_1fr_56px_72px_72px] items-center gap-1 bg-[#041204] px-2 py-2 text-center text-[10px] font-bold uppercase text-[#8bbf8b]">
@@ -3809,6 +4136,430 @@ function WarpletCard({
         <MarketValueChip kind="offer" value={formatMarketValue(market?.offer, { maxDigits: 5 })} tooltip="Top Offer" variant="column" showTooltip={false} className="w-full" />
         <MarketValueChip kind="sold" value={formatMarketValue(market?.sale, { maxDigits: 5 })} tooltip="Latest Sale" variant="column" showTooltip={false} className="w-full rounded-br-[9px]" />
       </span>
+    </div>
+  );
+}
+
+type ListedWarpletRow = {
+  warplet: WarpletResult;
+  market: TokenMarketState;
+  groupKey: string;
+};
+
+type ListedWarpletGroup = {
+  key: string;
+  price: MarketOrderMoney;
+  rows: ListedWarpletRow[];
+};
+
+function ListedStatPanel({
+  kind,
+  label,
+  value,
+}: {
+  kind: "count" | "value";
+  label: string;
+  value: ReactNode;
+}) {
+  const isValue = kind === "value";
+  return (
+    <div
+      className={`rounded-lg border p-3 ${
+        isValue
+          ? "border-[#FFFF00]/30 bg-[rgba(255,255,0,0.08)]"
+          : "border-[#00FF00]/30 bg-[rgba(0,255,0,0.08)]"
+      }`}
+    >
+      <Text className={`text-[11px] font-bold uppercase ${isValue ? "text-[#e6e68a]" : "text-[#8bbf8b]"}`}>
+        {label}
+      </Text>
+      <div className={`mt-1 text-2xl font-bold ${isValue ? "text-[#FFFF00]" : "text-[#00FF00]"}`}>
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function ListedAttributeChip({
+  attribute,
+  level,
+}: {
+  attribute: (typeof LEVEL_ATTRIBUTES)[number];
+  level: number | null | undefined;
+}) {
+  return (
+    <span className="inline-flex min-w-0 items-center justify-center gap-1 rounded-md border border-[#00FF00]/25 bg-black/70 px-1.5 py-1 text-[10px] font-bold leading-none text-[#00FF00]">
+      <span aria-hidden="true">{attribute.emoji}</span>
+      <span>{level == null ? "-" : `${level}X`}</span>
+    </span>
+  );
+}
+
+function ListedAttributePreview({ warplet }: { warplet: WarpletResult }) {
+  const firstAttributes = LEVEL_ATTRIBUTES.slice(0, 5);
+  const lastAttributes = LEVEL_ATTRIBUTES.slice(-5);
+  return (
+    <div className="space-y-1.5">
+      {[firstAttributes, lastAttributes].map((attributes, index) => (
+        <div key={index} className="grid grid-cols-5 gap-1">
+          {attributes.map((attribute) => (
+            <ListedAttributeChip
+              key={attribute.column}
+              attribute={attribute}
+              level={warplet.rankValues[attribute.column]}
+            />
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ListedMarketPanel({
+  kind,
+  label,
+  money,
+  emptyValue,
+  tooltipPrefix,
+}: {
+  kind: MarketKind;
+  label: string;
+  money: MarketMoney | null | undefined;
+  emptyValue: string;
+  tooltipPrefix?: string;
+}) {
+  const styles = getMarketKindStyles(kind);
+  return (
+    <MarketValuePanel
+      kind={kind}
+      label={label}
+      money={money}
+      emptyValue={emptyValue}
+      tooltipPrefix={tooltipPrefix}
+      className="min-w-0 rounded-lg border px-2 py-2"
+      style={{ backgroundColor: styles.backgroundColor, borderColor: styles.borderColor }}
+    />
+  );
+}
+
+function ListedWarpletCard({
+  row,
+  isFavourited,
+  onOpen,
+  onToggleFavourite,
+}: {
+  row: ListedWarpletRow;
+  isFavourited: boolean;
+  onOpen: (tokenId: number) => void;
+  onToggleFavourite: (tokenId: number) => void;
+}) {
+  const { warplet, market } = row;
+  const label = `#${warplet.id} @${warplet.farcasterUsername}`;
+
+  const openCard = () => onOpen(warplet.id);
+
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={openCard}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          openCard();
+        }
+      }}
+      className="group grid min-h-[132px] w-full cursor-pointer grid-cols-[112px_minmax(0,1fr)] overflow-hidden rounded-[10px] border border-[#00FF00]/25 bg-[#041204]/90 text-left transition hover:-translate-y-px hover:border-[#00FF00]/50 hover:bg-[#071807]/95 sm:grid-cols-[132px_minmax(0,1fr)]"
+    >
+      <ProgressiveWarpletImage
+        tokenId={warplet.id}
+        alt=""
+        loading="lazy"
+        className="h-full min-h-[132px] w-full bg-[rgba(0,255,0,0.12)]"
+      />
+      <div className="flex min-w-0 flex-col">
+        <div className="flex h-[34px] min-w-0 items-center bg-[#00FF00] pl-2 text-[0.75rem] font-bold text-[rgb(0,80,0)]">
+          <span className="block min-w-0 flex-1 truncate pr-1">{label}</span>
+          <FavouriteButton
+            active={isFavourited}
+            title={isFavourited ? `Remove 10X Warplet #${warplet.id} from favourites` : `Add 10X Warplet #${warplet.id} to favourites`}
+            variant="card"
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              onToggleFavourite(warplet.id);
+            }}
+          />
+        </div>
+        <div className="flex min-w-0 flex-1 flex-col justify-between gap-2 p-2">
+          <ListedAttributePreview warplet={warplet} />
+          <div className="grid grid-cols-2 gap-2">
+            <ListedMarketPanel
+              kind="offer"
+              label="Top Offer"
+              money={market.offer}
+              emptyValue="No offers"
+              tooltipPrefix={getOfferSourceLabel(market.offer)}
+            />
+            <ListedMarketPanel
+              kind="sold"
+              label="Latest Sale"
+              money={market.sale}
+              emptyValue="No sales"
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ListedOwnedWarpletsPanel({
+  warplets,
+  totalCount,
+  ownerWallet,
+  onOpenWarplet,
+  onSearchOwnerWallet,
+}: {
+  warplets: WarpletResult[];
+  totalCount: number;
+  ownerWallet: string;
+  onOpenWarplet: (tokenId: number) => void;
+  onSearchOwnerWallet: (wallet: string) => void;
+}) {
+  const overflowCount = Math.max(0, totalCount - warplets.length);
+  if (totalCount === 0) return null;
+
+  return (
+    <div className="mt-4 rounded-xl border border-[#00FF00]/25 bg-[#041204]/90 p-3">
+      <div className="mb-2 flex items-center justify-between gap-3">
+        <Text className="text-xs font-bold uppercase text-[#8bbf8b]">Your Warplets</Text>
+        <span className="text-xs font-bold text-[#00FF00]">{totalCount.toLocaleString("en-US")}</span>
+      </div>
+      <div className="flex flex-wrap gap-1.5">
+        {warplets.map((warplet) => (
+          <button
+            key={warplet.id}
+            type="button"
+            onClick={() => {
+              void hapticTap();
+              onOpenWarplet(warplet.id);
+            }}
+            className="h-10 w-10 overflow-hidden rounded-full border-2 border-[#00FF00] bg-black"
+            title={`Open #${warplet.id} @${warplet.farcasterUsername}`}
+          >
+            <img src={getWarpletPreviewImageUrl(warplet.id)} alt="" className="h-full w-full object-cover" loading="lazy" />
+          </button>
+        ))}
+        {overflowCount > 0 && (
+          <button
+            type="button"
+            onClick={() => {
+              void hapticTap();
+              onSearchOwnerWallet(ownerWallet);
+            }}
+            className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-[#00FF00] bg-black text-[11px] font-black text-[#00FF00]"
+            title="View all your Warplets"
+          >
+            +{overflowCount}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ListedPage({
+  level,
+  scope,
+  listedWarplets,
+  ownedWarplets,
+  marketSnapshot,
+  connectedWallet,
+  favouriteTokenIds,
+  loading,
+  loadError,
+  marketRefreshError,
+  onScopeChange,
+  onOpenWarpletDetails,
+  onToggleFavourite,
+  onSearchOwnerWallet,
+  onRefreshMarket,
+}: {
+  level: ListedLevelFilter;
+  scope: ListedScopeFilter;
+  listedWarplets: WarpletResult[];
+  ownedWarplets: WarpletResult[];
+  marketSnapshot: MarketSnapshot | null;
+  connectedWallet: string | null;
+  favouriteTokenIds: Set<number>;
+  loading: boolean;
+  loadError: string;
+  marketRefreshError: string;
+  onScopeChange: (scope: ListedScopeFilter) => void;
+  onOpenWarpletDetails: (tokenId: number) => void;
+  onToggleFavourite: (tokenId: number) => void;
+  onSearchOwnerWallet: (wallet: string) => void;
+  onRefreshMarket: () => Promise<void>;
+}) {
+  const [refreshing, setRefreshing] = useState(false);
+  const normalizedWallet = normalizeWalletAddress(connectedWallet);
+  const levelFilteredOwnedWarplets = useMemo(
+    () => ownedWarplets.filter((warplet) => warpletMatchesListedLevel(warplet, level)),
+    [level, ownedWarplets],
+  );
+  const listedRows = useMemo<ListedWarpletRow[]>(() => {
+    const rows = listedWarplets
+      .filter((warplet) => warpletMatchesListedLevel(warplet, level))
+      .map((warplet) => ({
+        warplet,
+        market: getMarketState(marketSnapshot, warplet.id),
+        groupKey: "",
+      }))
+      .filter((row) => row.market.listing)
+      .filter((row) => scope !== "your" || walletMatches(row.market.listing?.seller, normalizedWallet))
+      .map((row) => ({
+        ...row,
+        groupKey: getListingGroupKey(row.market.listing as MarketOrderMoney),
+      }))
+      .sort((a, b) => {
+        const priceCompare = compareMarketPriceAsc(a.market.listing, b.market.listing);
+        if (priceCompare !== 0) return priceCompare;
+        const aTime = getMarketTimeMs(a.market.listing);
+        const bTime = getMarketTimeMs(b.market.listing);
+        if (aTime != null && bTime != null && aTime !== bTime) return aTime - bTime;
+        return a.warplet.id - b.warplet.id;
+      });
+    return rows;
+  }, [level, listedWarplets, marketSnapshot, normalizedWallet, scope]);
+
+  const listingGroups = useMemo<ListedWarpletGroup[]>(() => {
+    const groups: ListedWarpletGroup[] = [];
+    const groupLookup = new Map<string, ListedWarpletGroup>();
+    for (const row of listedRows) {
+      const listing = row.market.listing;
+      if (!listing) continue;
+      const group = groupLookup.get(row.groupKey);
+      if (group) {
+        group.rows.push(row);
+      } else {
+        const nextGroup = { key: row.groupKey, price: listing, rows: [row] };
+        groupLookup.set(row.groupKey, nextGroup);
+        groups.push(nextGroup);
+      }
+    }
+    return groups;
+  }, [listedRows]);
+
+  const totalListingValue = useMemo(
+    () => sumMarketMoney(listedRows.map((row) => row.market.listing)),
+    [listedRows],
+  );
+  const visibleOwnedWarplets = levelFilteredOwnedWarplets.slice(0, OWNED_BY_VISIBLE_AVATAR_LIMIT);
+
+  const refreshLabel = marketSnapshot?.generatedAt ? formatMarketTimestamp(marketSnapshot.generatedAt) : "Not yet";
+
+  const runRefresh = useCallback(async () => {
+    if (refreshing) return;
+    setRefreshing(true);
+    try {
+      await onRefreshMarket();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [onRefreshMarket, refreshing]);
+
+  return (
+    <div className="mx-auto w-full max-w-md px-4 pb-10 pt-6">
+      <div className="grid grid-cols-2 gap-3">
+        <ListedStatPanel kind="count" label="Count" value={listedRows.length.toLocaleString("en-US")} />
+        <ListedStatPanel kind="value" label="Value" value={formatMarketValue(totalListingValue, { maxDigits: 8 })} />
+      </div>
+
+      {normalizedWallet && (
+        <ListedOwnedWarpletsPanel
+          warplets={visibleOwnedWarplets}
+          totalCount={levelFilteredOwnedWarplets.length}
+          ownerWallet={normalizedWallet}
+          onOpenWarplet={onOpenWarpletDetails}
+          onSearchOwnerWallet={onSearchOwnerWallet}
+        />
+      )}
+
+      <SearchSegmentedTabs
+        className="mt-4"
+        options={LISTED_SCOPE_TABS}
+        activeId={scope}
+        onSelect={(id) => onScopeChange(id === "your" ? "your" : "all")}
+      />
+
+      {loading && (
+        <Text className={`mt-6 ${STATUS_LINE_CLASS}`} style={{ color: "#00FF00" }}>
+          Loading listings...
+        </Text>
+      )}
+      {loadError && (
+        <Text className="mt-4 text-center text-xs font-bold text-red-300">
+          {loadError}
+        </Text>
+      )}
+      {!loading && !loadError && listedRows.length === 0 && (
+        <Text className={`mt-6 ${STATUS_LINE_CLASS}`} style={{ color: "#00FF00" }}>
+          No active listings.
+        </Text>
+      )}
+
+      <div className="mt-4 space-y-4">
+        {listingGroups.map((group) => (
+          <section key={group.key} className="space-y-3">
+            <div className="sticky top-0 z-20 -mx-4 border-y border-[#FFFF00]/25 bg-black/95 px-4 py-2 shadow-[0_8px_18px_rgba(0,0,0,0.45)]">
+              <Text className="text-center text-xs font-black uppercase tracking-normal text-[#e6e68a]">
+                Price <span className="text-[#FFFF00]">{formatMarketValue(group.price, { maxDigits: 8 })}</span>
+              </Text>
+            </div>
+            <div className="space-y-3">
+              {group.rows.map((row) => (
+                <ListedWarpletCard
+                  key={row.warplet.id}
+                  row={row}
+                  isFavourited={favouriteTokenIds.has(row.warplet.id)}
+                  onOpen={onOpenWarpletDetails}
+                  onToggleFavourite={onToggleFavourite}
+                />
+              ))}
+            </div>
+          </section>
+        ))}
+      </div>
+
+      <div className="mt-5 text-center text-[11px] leading-4 text-[#8bbf8b]">
+        Last updated: {refreshLabel}
+        {". "}
+        <span
+          role="button"
+          tabIndex={refreshing ? -1 : 0}
+          aria-disabled={refreshing}
+          onClick={() => {
+            if (refreshing) return;
+            void hapticPrimaryTap();
+            void runRefresh();
+          }}
+          onKeyDown={(event) => {
+            if (refreshing) return;
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              void hapticPrimaryTap();
+              void runRefresh();
+            }
+          }}
+          className={`font-bold text-[#00FF00] ${refreshing ? "cursor-wait opacity-60" : "cursor-pointer"}`}
+        >
+          {refreshing ? "Refreshing..." : "Refresh"}
+        </span>
+        {marketRefreshError && (
+          <span className="block text-red-300">{marketRefreshError}</span>
+        )}
+      </div>
     </div>
   );
 }
@@ -7653,6 +8404,11 @@ export default function SearchApp() {
   const [marketSnapshot, setMarketSnapshot] = useState<MarketSnapshot | null>(null);
   const [marketRefreshTokenId, setMarketRefreshTokenId] = useState<number | null>(null);
   const [marketRefreshError, setMarketRefreshError] = useState("");
+  const [listedWarplets, setListedWarplets] = useState<WarpletResult[]>([]);
+  const [listedOwnedWarplets, setListedOwnedWarplets] = useState<WarpletResult[]>([]);
+  const [listedWarpletsLoading, setListedWarpletsLoading] = useState(false);
+  const [listedWarpletsError, setListedWarpletsError] = useState("");
+  const [listedScope, setListedScope] = useState<ListedScopeFilter>(() => readListedScopeFilter());
   const [orderBy, setOrderBy] = useState<OrderByOption>("rarity");
   const [orderDirection, setOrderDirection] = useState<OrderDirection>("asc");
   const [userSelectedOrder, setUserSelectedOrder] = useState(false);
@@ -7679,6 +8435,7 @@ export default function SearchApp() {
   const pendingSearchCompletionsRef = useRef<Set<SearchCompletion>>(new Set());
   const forceAirdropRef = useRef(isAirdropForced());
   const forcedAirdropTokenIdRef = useRef(getForcedAirdropTokenId());
+  const listedDeepLinkSignatureRef = useRef("");
   const miniAppReadySentRef = useRef(false);
   const shareCelebrationRef = useRef<{ pending: boolean; leftApp: boolean; fallbackTimer: number | null }>({
     pending: false,
@@ -7687,7 +8444,9 @@ export default function SearchApp() {
   });
   const lastSiwnStatusFidRef = useRef<number | null>(null);
   const { isMenuRoute, canGoBack, actions } = useMiniAppChrome("search");
-  const [isCollectionOffersRoute, setIsCollectionOffersRoute] = useState(() => isSearchCollectionOffersRoute());
+  const [searchRoute, setSearchRoute] = useState<SearchRoute>(() => parseSearchRouteFromPath(window.location.pathname));
+  const [lastOffersSubpage, setLastOffersSubpage] = useState<SearchOffersSubpage>(() => readLastSearchOffersSubpage());
+  const [lastListedLevel, setLastListedLevel] = useState<ListedLevelFilter>(() => readLastSearchListedLevel());
   const {
     user: neynarUser,
     isAuthenticated: neynarIsAuthenticated,
@@ -7806,17 +8565,60 @@ export default function SearchApp() {
   }, [clearShareCelebrationFallback, completeShareCelebration]);
 
   useEffect(() => {
-    const syncCollectionOffersRoute = () => {
-      setIsCollectionOffersRoute(isSearchCollectionOffersRoute());
+    const syncSearchRoute = () => {
+      const nextRoute = parseSearchRouteFromPath(window.location.pathname);
+      setSearchRoute(nextRoute);
+      if (nextRoute.page === "offers") {
+        setLastOffersSubpage(nextRoute.offersPage);
+        writeLastSearchOffersSubpage(nextRoute.offersPage);
+      } else if (nextRoute.page === "listed") {
+        setLastListedLevel(nextRoute.listedLevel);
+        writeLastSearchListedLevel(nextRoute.listedLevel);
+      }
     };
 
-    window.addEventListener("popstate", syncCollectionOffersRoute);
-    window.addEventListener("hashchange", syncCollectionOffersRoute);
-    syncCollectionOffersRoute();
+    const navigation = (window as Window & {
+      navigation?: {
+        addEventListener?: (event: string, listener: EventListener) => void;
+        removeEventListener?: (event: string, listener: EventListener) => void;
+      };
+    }).navigation;
+
+    window.addEventListener("popstate", syncSearchRoute);
+    window.addEventListener("hashchange", syncSearchRoute);
+    navigation?.addEventListener?.("navigatesuccess", syncSearchRoute);
+    syncSearchRoute();
     return () => {
-      window.removeEventListener("popstate", syncCollectionOffersRoute);
-      window.removeEventListener("hashchange", syncCollectionOffersRoute);
+      window.removeEventListener("popstate", syncSearchRoute);
+      window.removeEventListener("hashchange", syncSearchRoute);
+      navigation?.removeEventListener?.("navigatesuccess", syncSearchRoute);
     };
+  }, []);
+
+  const navigateSearchRoute = useCallback((route: SearchRoute, mode: "push" | "replace" = "push") => {
+    const nextPath = getSearchPathForRoute(route);
+    const historyState = {
+      ...(window.history.state ?? {}),
+      searchRoute: getSearchRouteStableKey(route),
+    };
+    if (mode === "replace") {
+      window.history.replaceState(historyState, "", nextPath);
+    } else {
+      window.history.pushState(historyState, "", nextPath);
+    }
+    setSearchRoute(route);
+    if (route.page === "offers") {
+      setLastOffersSubpage(route.offersPage);
+      writeLastSearchOffersSubpage(route.offersPage);
+    } else if (route.page === "listed") {
+      setLastListedLevel(route.listedLevel);
+      writeLastSearchListedLevel(route.listedLevel);
+    }
+  }, []);
+
+  const handleListedScopeChange = useCallback((scope: ListedScopeFilter) => {
+    setListedScope(scope);
+    writeListedScopeFilter(scope);
   }, []);
 
   const updateSearchUrl = useCallback((state: SearchUrlState, mode: "push" | "replace") => {
@@ -8269,6 +9071,7 @@ export default function SearchApp() {
 
   const refreshMarketSnapshot = useCallback(async (force = false) => {
     const cached = readCachedMarketSnapshot();
+    if (force) setMarketRefreshError("");
     if (cached && !force) {
       setMarketSnapshot(cached);
       const age = Date.now() - Date.parse(cached.generatedAt || "");
@@ -8282,6 +9085,7 @@ export default function SearchApp() {
       if (!response.ok) throw new Error(`Market data failed (${response.status})`);
       const snapshot = (await response.json()) as MarketSnapshot;
       setMarketSnapshot(snapshot);
+      setMarketRefreshError("");
       writeCachedMarketSnapshot(snapshot);
     } catch (error) {
       console.error("Failed to refresh market state:", error);
@@ -8294,6 +9098,48 @@ export default function SearchApp() {
   useEffect(() => {
     void refreshMarketSnapshot();
   }, [refreshMarketSnapshot]);
+
+  useEffect(() => {
+    if (!dbReady || !dbRef.current || !marketSnapshot) {
+      setListedWarplets([]);
+      setListedWarpletsLoading(false);
+      return;
+    }
+
+    setListedWarpletsLoading(true);
+    try {
+      const tokenIds = Object.keys(marketSnapshot.listings ?? {})
+        .map((tokenId) => Number(tokenId))
+        .filter((tokenId) => Number.isInteger(tokenId) && tokenId > 0 && Boolean(getMarketState(marketSnapshot, tokenId).listing));
+      setListedWarplets(loadWarpletResultsByIds(dbRef.current, tokenIds));
+      setListedWarpletsError("");
+    } catch (error) {
+      console.error("Failed to load listed Warplets:", error);
+      setListedWarpletsError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setListedWarpletsLoading(false);
+    }
+  }, [dbReady, marketSnapshot]);
+
+  useEffect(() => {
+    const normalizedWallet = normalizeWalletAddress(activeWallet);
+    if (!dbReady || !dbRef.current || !marketSnapshot || !normalizedWallet) {
+      setListedOwnedWarplets([]);
+      return;
+    }
+
+    try {
+      const tokenIds = Object.entries(marketSnapshot.owners ?? {})
+        .filter(([, owner]) => walletMatches(owner.wallet, normalizedWallet))
+        .map(([tokenId]) => Number(tokenId))
+        .filter((tokenId) => Number.isInteger(tokenId) && tokenId > 0)
+        .sort((a, b) => a - b);
+      setListedOwnedWarplets(loadWarpletResultsByIds(dbRef.current, tokenIds));
+    } catch (error) {
+      console.error("Failed to load owned Warplets for Listed page:", error);
+      setListedOwnedWarplets([]);
+    }
+  }, [activeWallet, dbReady, marketSnapshot]);
 
   useEffect(() => {
     let cancelled = false;
@@ -8478,34 +9324,13 @@ export default function SearchApp() {
     });
   }, []);
 
-  const handleHeaderOpenCollectionOffers = useCallback(() => {
-    const nextPath = getSearchCollectionOffersPath();
-    window.history.pushState(
-      {
-        ...(window.history.state ?? {}),
-        collectionOffers: true,
-      },
-      "",
-      nextPath,
-    );
-    setIsCollectionOffersRoute(true);
-  }, []);
-
   const handleHeaderBack = useCallback(() => {
-    if (!isCollectionOffersRoute || isMenuRoute) {
+    if (isMenuRoute || searchRoute.page === "search") {
       actions.goBack();
       return;
     }
-    window.history.replaceState(
-      {
-        ...(window.history.state ?? {}),
-        collectionOffers: false,
-      },
-      "",
-      getSearchRootPath(),
-    );
-    setIsCollectionOffersRoute(false);
-  }, [actions, isCollectionOffersRoute, isMenuRoute]);
+    navigateSearchRoute({ page: "search" }, "replace");
+  }, [actions, isMenuRoute, navigateSearchRoute, searchRoute.page]);
 
   const handleHeaderDisconnect = useCallback(() => {
     logoutNeynarUser();
@@ -8580,7 +9405,7 @@ export default function SearchApp() {
         if (match && matchOwnerWallet && matchMetadataWallet && matchOwnerWallet === matchMetadataWallet) {
           await preloadResultImages([match]);
           if (!cancelled) {
-            setMatchedWarpletCard({ warplet: match, label: "👀 We Found You!" });
+            setMatchedWarpletCard({ warplet: match, label: "We Found You!" });
           }
           return;
         }
@@ -8792,7 +9617,7 @@ export default function SearchApp() {
   }, [activeExampleSearch, dbReady, loadFavouriteList, loadWarpletDetails, matchedWarpletCard, openTradeShareTestPreview, runSearch]);
 
   useEffect(() => {
-    if (!dbReady || urlHydratedRef.current) return;
+    if (searchRoute.page !== "search" || !dbReady || urlHydratedRef.current) return;
 
     const parsed = parseSearchUrlState(new URLSearchParams(window.location.search));
     const hasUrlState = hasDeepLinkState(parsed);
@@ -8809,10 +9634,10 @@ export default function SearchApp() {
       updateSearchUrl(initialState, "replace");
     }
     void applySearchUrlState(initialState);
-  }, [activeExampleSearch, applySearchUrlState, dbReady, updateSearchUrl]);
+  }, [activeExampleSearch, applySearchUrlState, dbReady, searchRoute.page, updateSearchUrl]);
 
   useEffect(() => {
-    if (!dbReady || !urlHydratedRef.current || applyingUrlStateRef.current) return;
+    if (searchRoute.page !== "search" || !dbReady || !urlHydratedRef.current || applyingUrlStateRef.current) return;
     const timeoutId = window.setTimeout(() => {
       if (applyingUrlStateRef.current) return;
       const hasQuery = query.trim().length > 0;
@@ -8832,7 +9657,7 @@ export default function SearchApp() {
       runSearch(nextQuery, 0, undefined, limit);
     }, SEARCH_DEBOUNCE_MS);
     return () => window.clearTimeout(timeoutId);
-  }, [activeExampleSearch, dbReady, favouriteFilterWallet, isAllWarpletsMode, matchedWarpletCard, query, runSearch, selectedAttributes.length, selectedLevels.length]);
+  }, [activeExampleSearch, dbReady, favouriteFilterWallet, isAllWarpletsMode, matchedWarpletCard, query, runSearch, searchRoute.page, selectedAttributes.length, selectedLevels.length]);
 
   useEffect(() => {
     if (!urlHydratedRef.current || applyingUrlStateRef.current) return;
@@ -8852,6 +9677,7 @@ export default function SearchApp() {
     if (!dbReady || !urlHydratedRef.current) return;
 
     const handlePopState = () => {
+      if (parseSearchRouteFromPath(window.location.pathname).page !== "search") return;
       const nextState = parseSearchUrlState(new URLSearchParams(window.location.search));
       lastUrlSignatureRef.current = getSearchUrlSignature(nextState);
       void applySearchUrlState(nextState);
@@ -8862,7 +9688,7 @@ export default function SearchApp() {
   }, [applySearchUrlState, dbReady]);
 
   useEffect(() => {
-    if (!dbReady || !urlHydratedRef.current || applyingUrlStateRef.current) return;
+    if (searchRoute.page !== "search" || !dbReady || !urlHydratedRef.current || applyingUrlStateRef.current) return;
 
     const timeoutId = window.setTimeout(() => {
       if (applyingUrlStateRef.current) return;
@@ -8893,14 +9719,10 @@ export default function SearchApp() {
     favouriteFilterWallet,
     orderBy,
     orderDirection,
+    searchRoute.page,
     userSelectedOrder,
     updateSearchUrl,
   ]);
-
-  useEffect(() => {
-    if (!dbReady || isMenuRoute) return;
-    searchInputRef.current?.focus();
-  }, [dbReady, isMenuRoute]);
 
   const hasActiveAttributeFilter = selectedAttributes.length > 0;
   const hasActiveLevelFilter = selectedLevels.length > 0;
@@ -9056,6 +9878,29 @@ export default function SearchApp() {
     if (details) setSelectedWarpletDetailsStack([details]);
   }, [loadWarpletDetails]);
 
+  useEffect(() => {
+    if (!dbReady || searchRoute.page !== "listed") {
+      listedDeepLinkSignatureRef.current = "";
+      return;
+    }
+    const tokenId = parseWarpletParam(new URLSearchParams(window.location.search).get("warplet") ?? new URLSearchParams(window.location.search).get("tokenId"));
+    if (!tokenId) {
+      listedDeepLinkSignatureRef.current = "";
+      return;
+    }
+    const signature = `${getSearchRouteStableKey(searchRoute)}:${tokenId}`;
+    if (listedDeepLinkSignatureRef.current === signature) return;
+    listedDeepLinkSignatureRef.current = signature;
+
+    let cancelled = false;
+    loadWarpletDetails(tokenId).then((details) => {
+      if (!cancelled && details) setSelectedWarpletDetailsStack([details]);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [dbReady, loadWarpletDetails, searchRoute]);
+
   const handleOpenRelatedWarpletDetails = useCallback(async (tokenId: number) => {
     const details = await loadWarpletDetails(tokenId);
     if (!details) return;
@@ -9066,8 +9911,22 @@ export default function SearchApp() {
   }, [loadWarpletDetails]);
 
   const handleCloseTopWarpletDetails = useCallback(() => {
-    setSelectedWarpletDetailsStack((current) => current.slice(0, -1));
-  }, []);
+    setSelectedWarpletDetailsStack((current) => {
+      const next = current.slice(0, -1);
+      if (next.length === 0 && searchRoute.page === "listed") {
+        const url = new URL(window.location.href);
+        url.searchParams.delete("warplet");
+        url.searchParams.delete("tokenId");
+        window.history.replaceState(
+          { ...(window.history.state ?? {}), searchRoute: getSearchRouteStableKey(searchRoute) },
+          "",
+          `${url.pathname}${url.search}${url.hash}`,
+        );
+        listedDeepLinkSignatureRef.current = "";
+      }
+      return next;
+    });
+  }, [searchRoute]);
 
   const handleSearchTag = useCallback((tag: string) => {
     setSelectedWarpletDetailsStack([]);
@@ -9091,7 +9950,7 @@ export default function SearchApp() {
     window.setTimeout(() => searchInputRef.current?.focus(), 0);
   }, [runSearch]);
 
-  const handleSearchOwnerWallet = useCallback((wallet: string) => {
+  const handleSearchOwnerWallet = useCallback((wallet: string, options: { focus?: boolean } = {}) => {
     const normalizedWallet = wallet.trim();
     if (!normalizedWallet) return;
     setSelectedWarpletDetailsStack([]);
@@ -9108,8 +9967,15 @@ export default function SearchApp() {
     if (dbReady) {
       void runSearch(normalizedWallet, 0, { attributes: [], levels: [], favouriteWallet: null }, PAGE_SIZE);
     }
-    window.setTimeout(() => searchInputRef.current?.focus(), 0);
+    if (options.focus !== false) {
+      window.setTimeout(() => searchInputRef.current?.focus(), 0);
+    }
   }, [dbReady, runSearch]);
+
+  const handleListedSearchOwnerWallet = useCallback((wallet: string) => {
+    navigateSearchRoute({ page: "search" });
+    handleSearchOwnerWallet(wallet, { focus: false });
+  }, [handleSearchOwnerWallet, navigateSearchRoute]);
 
   const handleToggleFavourite = useCallback(async (tokenId: number) => {
     void hapticPrimaryTap();
@@ -9231,25 +10097,36 @@ export default function SearchApp() {
   }, [dbReady, loadFavouriteList, runSearch, showSearchToast]);
 
   const handleShareWarpletDetails = useCallback((tokenId: number) => {
-    const shareState = getSearchUrlStateFromAppState({
-      query,
-      isAllWarpletsMode,
-      selectedAttributes,
-      selectedLevels,
-      activeExampleSearch,
-      favouriteFilterWallet,
-      selectedWarpletDetails,
-      orderBy,
-      orderDirection,
-      userSelectedOrder,
-    });
-    shareState.warplet = tokenId;
-    const shareUrl = buildSearchHref(shareState);
+    let shareUrl: string;
+    if (searchRoute.page === "listed") {
+      shareUrl = buildListedWarpletHref(searchRoute, tokenId);
+      const url = new URL(shareUrl);
+      window.history.replaceState(
+        { ...(window.history.state ?? {}), searchRoute: getSearchRouteStableKey(searchRoute) },
+        "",
+        `${url.pathname}${url.search}${url.hash}`,
+      );
+      listedDeepLinkSignatureRef.current = `${getSearchRouteStableKey(searchRoute)}:${tokenId}`;
+    } else {
+      const shareState = getSearchUrlStateFromAppState({
+        query,
+        isAllWarpletsMode,
+        selectedAttributes,
+        selectedLevels,
+        activeExampleSearch,
+        favouriteFilterWallet,
+        selectedWarpletDetails,
+        orderBy,
+        orderDirection,
+        userSelectedOrder,
+      });
+      shareState.warplet = tokenId;
+      shareUrl = buildSearchHref(shareState);
+      updateSearchUrl(shareState, "replace");
+    }
     const openSeaUrl = getOpenSeaUrl(tokenId);
     const text = `👀 Check out 10X Warplet #${tokenId}`;
     const links = [shareUrl, openSeaUrl];
-    updateSearchUrl(shareState, "replace");
-
     setSharePreview({
       title: `Share 10X Warplet #${tokenId}`,
       text,
@@ -9275,6 +10152,7 @@ export default function SearchApp() {
     selectedWarpletDetails,
     orderBy,
     orderDirection,
+    searchRoute,
     userSelectedOrder,
     updateSearchUrl,
   ]);
@@ -9590,9 +10468,20 @@ export default function SearchApp() {
     headerAccountConnected
       ? (headerAccountProfile?.pfpUrl?.trim() || getWarpletPreviewImageUrl(HEADER_FALLBACK_AVATAR_TOKEN_ID))
       : null;
-  const headerTitle = isMenuRoute ? getHeaderTitle("search", true) : isCollectionOffersRoute ? "Collection offers" : getHeaderTitle("search", false);
-  const headerCanGoBack = canGoBack || (!isMenuRoute && isCollectionOffersRoute);
-  const headerCloseKey = isMenuRoute ? "menu" : isCollectionOffersRoute ? "collection-offers" : "search";
+  const routeTitle = getSearchRouteTitle(searchRoute);
+  const headerTitle = isMenuRoute ? getHeaderTitle("search", true) : getHeaderTitle("search", false);
+  const headerCanGoBack = canGoBack || (!isMenuRoute && searchRoute.page !== "search");
+  const headerCloseKey = isMenuRoute ? "menu" : getSearchRouteStableKey(searchRoute);
+
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    if (selectedWarpletDetails) {
+      const username = selectedWarpletDetails.username.trim().replace(/^@/, "");
+      document.title = `10X Warplet #${selectedWarpletDetails.id} @${username}`;
+      return;
+    }
+    document.title = routeTitle;
+  }, [routeTitle, selectedWarpletDetails]);
 
   return (
     <MiniAppShell>
@@ -9635,7 +10524,6 @@ export default function SearchApp() {
               closeKey={headerCloseKey}
               onConnectWallet={handleHeaderConnectWallet}
               onMissingSiwnClientId={handleMissingSiwnClientId}
-              onOpenCollectionOffers={handleHeaderOpenCollectionOffers}
               onOpenSpreadsheet={handleHeaderOpenSpreadsheet}
               onViewOnboarding={handleHeaderViewOnboarding}
               onEnableNotifications={handleHeaderEnableNotifications}
@@ -9643,10 +10531,38 @@ export default function SearchApp() {
             />
           }
         />
+        {!isMenuRoute && (
+          <SearchPageNavigation
+            route={searchRoute}
+            lastOffersSubpage={lastOffersSubpage}
+            lastListedLevel={lastListedLevel}
+            onNavigate={navigateSearchRoute}
+          />
+        )}
 
         {isMenuRoute ? (
           <MiniAppMenuPage appSlug="search" />
-        ) : isCollectionOffersRoute ? (
+        ) : searchRoute.page === "listed" ? (
+          <ListedPage
+            level={searchRoute.listedLevel}
+            scope={listedScope}
+            listedWarplets={listedWarplets}
+            ownedWarplets={listedOwnedWarplets}
+            marketSnapshot={marketSnapshot}
+            connectedWallet={activeWallet}
+            favouriteTokenIds={activeFavouriteTokenIdSet}
+            loading={listedWarpletsLoading}
+            loadError={listedWarpletsError}
+            marketRefreshError={marketRefreshError}
+            onScopeChange={handleListedScopeChange}
+            onOpenWarpletDetails={handleOpenWarpletDetails}
+            onToggleFavourite={handleToggleFavourite}
+            onSearchOwnerWallet={handleListedSearchOwnerWallet}
+            onRefreshMarket={() => refreshMarketSnapshot(true)}
+          />
+        ) : searchRoute.page === "stats" ? (
+          <SearchPlaceholderPage title="Stats" />
+        ) : searchRoute.page === "offers" && searchRoute.offersPage === "collection" ? (
           <CollectionOffersPage
             connectedWallet={activeWallet}
             viewerFid={viewerFid}
@@ -9654,6 +10570,10 @@ export default function SearchApp() {
             getProviderAndAccount={getCollectionOfferProviderAndAccount}
             showToast={showSearchToast}
           />
+        ) : searchRoute.page === "offers" && searchRoute.offersPage === "trait" ? (
+          <SearchPlaceholderPage title="Trait offers" filterOptions={OFFERS_FILTER_TABS} />
+        ) : searchRoute.page === "offers" && searchRoute.offersPage === "item" ? (
+          <SearchPlaceholderPage title="Item offers" filterOptions={OFFERS_FILTER_TABS} />
         ) : (
           <div className="mx-auto w-full max-w-md px-4 pb-10 pt-6">
             <div className="relative flex">
