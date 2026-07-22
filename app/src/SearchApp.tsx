@@ -1,4 +1,4 @@
-import { CSSProperties, MouseEvent, ReactNode, cloneElement, isValidElement, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { CSSProperties, MouseEvent, PointerEvent as ReactPointerEvent, ReactNode, cloneElement, isValidElement, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import confetti from "canvas-confetti";
 import {
@@ -39,6 +39,9 @@ import {
   ensureErc721ApprovalForAll,
   executeOpenSeaActions,
   extractFulfillmentTransaction,
+  combinePreparedOpenSeaTransactions,
+  sendPreparedTransactionsAtomic,
+  supportsAtomicBatchTransactions,
   buildSeaportCancelTransaction,
   getWalletAccounts,
   getWalletErrorCode,
@@ -48,6 +51,7 @@ import {
   readNativeBalance,
   sendPreparedTransaction,
   signTypedData,
+  waitForTransactionReceipt,
   wrapEthToWeth,
   type EthereumProvider,
   type NftApprovalRequirement,
@@ -103,7 +107,10 @@ const MARKET_DETAIL_STALE_MS = 30 * 60 * 1000;
 const MARKET_CACHE_MAX_STALE_MS = 60 * 60 * 1000;
 const BASE_WETH_TOKEN_ADDRESS = "0x4200000000000000000000000000000000000006";
 const NATIVE_TOKEN_ADDRESS = "0x0000000000000000000000000000000000000000";
+const WARPLETS_COLLECTION_CONTRACT = "0x780446dd12e080ae0db762fcd4daf313f3e359de";
+const ERC721_TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
 const MIN_LISTING_ETH = 0.00000000000001;
+const MAX_SWEEP_ITEMS = 50;
 const TRADE_PRICE_DECIMAL_PLACES = 4;
 const FORCED_AIRDROP_FALLBACK_TOKEN_ID = 5019;
 const HEADER_FALLBACK_AVATAR_TOKEN_ID = 548;
@@ -112,7 +119,7 @@ type SearchCompletion = "onboarding" | "airdrop_modal";
 
 type SearchOffersSubpage = "collection" | "trait" | "item";
 type ListedLevelFilter = "all" | "10x" | "9x" | "8x" | "7x" | "6x" | "5x" | "4x" | "3x" | "2x" | "1x";
-type ListedScopeFilter = "all" | "your";
+type ListedScopeFilter = "all" | "your" | "favourites" | "sweep";
 type SearchRoute =
   | { page: "search" }
   | { page: "listed"; listedLevel: ListedLevelFilter }
@@ -134,8 +141,10 @@ const LISTED_LEVEL_TABS: Array<{ id: ListedLevelFilter; label: string }> = [
 ];
 
 const LISTED_SCOPE_TABS = [
-  { id: "all", label: "All Listings" },
+  { id: "all", label: "All" },
   { id: "your", label: "Your Listings" },
+  { id: "favourites", label: "Favourites" },
+  { id: "sweep", label: "Sweep" },
 ];
 
 const OFFERS_FILTER_TABS = [
@@ -843,6 +852,12 @@ type OptimisticPurchaseUpdate = {
   sale: MarketSnapshot["sales"][string];
 };
 
+type PendingConfirmedPurchase = {
+  owner: MarketSnapshot["owners"][string];
+  sale: MarketSnapshot["sales"][string];
+  expiresAt: number;
+};
+
 type ViewerProfile = {
   fid: number | null;
   username: string | null;
@@ -909,6 +924,7 @@ type WarpletResult = {
   farcasterUsername: string;
   xUsername: string;
   wallet: string;
+  levelValues: Partial<Record<LevelAttributeColumn, number | null>>;
   rankValues: Partial<Record<LevelAttributeColumn, number | null>>;
   searchScore: number | null;
   searchIndex: number;
@@ -1036,6 +1052,7 @@ const ATTRIBUTE_PARAM_LOOKUP = new Map<string, LevelAttributeColumn>(
   ]),
 );
 const ATTRIBUTE_RANK_SELECT = LEVEL_ATTRIBUTES.map((attribute) => `w."${getRankColumnForLevelAttribute(attribute.column)}"`).join(",\n             ");
+const ATTRIBUTE_LEVEL_SELECT = LEVEL_ATTRIBUTES.map((attribute) => `w."${attribute.column}"`).join(",\n             ");
 const RESULT_SELECT_COLUMNS = `w.id,
              w."10x_rarity",
              w.fid_value,
@@ -1046,7 +1063,8 @@ const RESULT_SELECT_COLUMNS = `w.id,
              w.warplet_username_farcaster,
              w.warplet_username_x,
              w.warplet_wallet,
-             ${ATTRIBUTE_RANK_SELECT}`;
+             ${ATTRIBUTE_RANK_SELECT},
+             ${ATTRIBUTE_LEVEL_SELECT}`;
 
 function readSeenRandomExampleSearches(): Set<string> {
   if (typeof window === "undefined") return new Set();
@@ -1107,20 +1125,21 @@ function getRandomExampleDisplayLabel(value: string): string {
 
 function normalizeFtsQuery(value: string): string {
   const trimmed = value.trim();
-  if (trimmed.startsWith("\"") && trimmed.endsWith("\"") && trimmed.length > 1) {
-    return trimmed
-      .slice(1, -1)
+  const quotedPhrase = trimmed.match(/^(?:"([\s\S]*)"|“([\s\S]*)”|„([\s\S]*)“)$/u);
+  const phrase = quotedPhrase?.slice(1).find((value): value is string => typeof value === "string");
+  if (phrase != null) {
+    const terms = phrase
       .trim()
-      .replace(/["']/g, "")
+      .replace(/["'“”„‘’]/gu, "")
       .split(/\s+/)
-      .filter(Boolean)
-      .join("+");
+      .filter(Boolean);
+    return terms.length > 0 ? `"${terms.join(" ")}"*` : "";
   }
 
   return value
     .trim()
     .split(/\s+/)
-    .map((term) => term.replace(/["']/g, "").replace(/\+/g, " "))
+    .map((term) => term.replace(/["'“”„‘’]/gu, "").replace(/\+/g, " "))
     .filter(Boolean)
     .map((term) => `"${term}"*`)
     .join(" ");
@@ -1203,10 +1222,18 @@ function filterRowsByFavourites(
 function mapRows(values: unknown[][], hasSearchScore = false): WarpletResult[] {
   return values.map((row, index) => {
     const rankOffset = 10;
-    const scoreOffset = rankOffset + LEVEL_ATTRIBUTES.length;
+    const levelOffset = rankOffset + LEVEL_ATTRIBUTES.length;
+    const scoreOffset = levelOffset + LEVEL_ATTRIBUTES.length;
     const rankValues = LEVEL_ATTRIBUTES.reduce<Partial<Record<LevelAttributeColumn, number | null>>>(
       (current, attribute, attributeIndex) => {
         current[attribute.column] = cellToNumber(row[rankOffset + attributeIndex]);
+        return current;
+      },
+      {},
+    );
+    const levelValues = LEVEL_ATTRIBUTES.reduce<Partial<Record<LevelAttributeColumn, number | null>>>(
+      (current, attribute, attributeIndex) => {
+        current[attribute.column] = cellToNumber(row[levelOffset + attributeIndex]);
         return current;
       },
       {},
@@ -1222,6 +1249,7 @@ function mapRows(values: unknown[][], hasSearchScore = false): WarpletResult[] {
       farcasterUsername: cellToString(row[7]),
       xUsername: cellToString(row[8]),
       wallet: cellToString(row[9]),
+      levelValues,
       rankValues,
       searchScore: hasSearchScore ? cellToNumber(row[scoreOffset]) : null,
       searchIndex: index,
@@ -1812,7 +1840,7 @@ function getListedLevelNumber(level: ListedLevelFilter): number | null {
 function warpletMatchesListedLevel(warplet: WarpletResult, level: ListedLevelFilter): boolean {
   const levelNumber = getListedLevelNumber(level);
   if (levelNumber == null) return true;
-  return LEVEL_ATTRIBUTES.some((attribute) => warplet.rankValues[attribute.column] === levelNumber);
+  return LEVEL_ATTRIBUTES.some((attribute) => warplet.levelValues[attribute.column] === levelNumber);
 }
 
 function walletMatches(value: string | null | undefined, wallet: string | null | undefined): boolean {
@@ -1826,6 +1854,28 @@ function getListingGroupKey(listing: MarketOrderMoney): string {
     return `${listing.tokenAddress?.toLowerCase() ?? listing.currencySymbol ?? "eth"}:${listing.decimals}:${listing.rawAmount}`;
   }
   return `eth:${listing.eth ?? 0}`;
+}
+
+function getPurchasedWarpletTransferIds(
+  receipt: Record<string, unknown>,
+  recipient: string,
+): Set<number> {
+  const recipientTopic = `0x${recipient.toLowerCase().replace(/^0x/, "").padStart(64, "0")}`;
+  const transferredTokenIds = new Set<number>();
+  for (const rawLog of Array.isArray(receipt.logs) ? receipt.logs : []) {
+    if (!rawLog || typeof rawLog !== "object") continue;
+    const log = rawLog as Record<string, unknown>;
+    if (typeof log.address !== "string" || log.address.toLowerCase() !== WARPLETS_COLLECTION_CONTRACT) continue;
+    const topics = Array.isArray(log.topics) ? log.topics : [];
+    if (
+      typeof topics[0] !== "string" || topics[0].toLowerCase() !== ERC721_TRANSFER_TOPIC ||
+      typeof topics[2] !== "string" || topics[2].toLowerCase() !== recipientTopic ||
+      typeof topics[3] !== "string"
+    ) continue;
+    const tokenId = Number(BigInt(topics[3]));
+    if (Number.isSafeInteger(tokenId)) transferredTokenIds.add(tokenId);
+  }
+  return transferredTokenIds;
 }
 
 function compareMarketPriceAsc(left: MarketMoney | null | undefined, right: MarketMoney | null | undefined): number {
@@ -1935,7 +1985,7 @@ function truncateDecimalDigits(value: string, maxDigits: number): string {
   if (whole.length >= maxDigits) return whole.slice(0, maxDigits);
   const remainingDigits = maxDigits - whole.length;
   if (!fractionRaw || remainingDigits <= 0) return whole;
-  const fraction = fractionRaw.slice(0, remainingDigits);
+  const fraction = fractionRaw.slice(0, remainingDigits).replace(/0+$/, "");
   return fraction ? `${whole}.${fraction}` : whole;
 }
 
@@ -2612,6 +2662,7 @@ function MarketValuePanel({
   money,
   emptyValue,
   tooltipPrefix,
+  showTooltip = true,
   className,
   style,
 }: {
@@ -2620,6 +2671,7 @@ function MarketValuePanel({
   money: MarketMoney | null | undefined;
   emptyValue: string;
   tooltipPrefix?: string;
+  showTooltip?: boolean;
   className: string;
   style?: CSSProperties;
 }) {
@@ -2629,6 +2681,7 @@ function MarketValuePanel({
   const value = hasValue ? formatMarketValue(money, { maxDigits: 8 }) : emptyValue;
   const timestamp = hasValue && money?.at ? formatMarketTimestamp(money.at) : label;
   const tooltip = hasValue && tooltipPrefix ? `${tooltipPrefix} ${timestamp}` : timestamp;
+  const tooltipEnabled = showTooltip && hasValue;
   const { refs, floatingStyles, context } = useFloating({
     open: isOpen,
     onOpenChange: setIsOpen,
@@ -2639,17 +2692,17 @@ function MarketValuePanel({
   const hover = useHover(context, { delay: { open: 0, close: 60 }, move: false });
   const focus = useFocus(context);
   const role = useRole(context, { role: "tooltip" });
-  const { getReferenceProps, getFloatingProps } = useInteractions(hasValue ? [hover, focus, role] : []);
+  const { getReferenceProps, getFloatingProps } = useInteractions(tooltipEnabled ? [hover, focus, role] : []);
 
   return (
     <>
       <div
         ref={refs.setReference}
         {...getReferenceProps({
-          tabIndex: hasValue ? 0 : undefined,
-          "aria-label": hasValue ? `${label}: ${tooltip}` : undefined,
-          onClick: hasValue ? () => setIsOpen((current) => !current) : undefined,
-          className: `${hasValue ? "cursor-help" : ""} ${className}`,
+          tabIndex: tooltipEnabled ? 0 : undefined,
+          "aria-label": tooltipEnabled ? `${label}: ${tooltip}` : undefined,
+          onClick: tooltipEnabled ? () => setIsOpen((current) => !current) : undefined,
+          className: `${tooltipEnabled ? "cursor-help" : ""} ${className}`,
           style: { ...style, backgroundColor: style?.backgroundColor ?? styles.backgroundColor },
         })}
       >
@@ -2658,7 +2711,7 @@ function MarketValuePanel({
         </Text>
         <MarketValueChip kind={kind} value={value} tooltip={tooltip} showTooltip={false} align="center" className="mt-1 w-full text-xs" />
       </div>
-      {hasValue && isOpen && (
+      {tooltipEnabled && isOpen && (
         <FloatingPortal>
           <div
             ref={refs.setFloating}
@@ -2824,7 +2877,7 @@ function writeLastSearchListedLevel(value: ListedLevelFilter): void {
 function readListedScopeFilter(): ListedScopeFilter {
   if (typeof window === "undefined") return "all";
   const value = window.localStorage.getItem(LISTED_SCOPE_KEY);
-  return value === "your" ? "your" : "all";
+  return value === "your" || value === "favourites" || value === "sweep" ? value : "all";
 }
 
 function writeListedScopeFilter(value: ListedScopeFilter): void {
@@ -3060,17 +3113,19 @@ function SearchSegmentedTabs({
   activeId,
   onSelect,
   className = "",
+  gridTemplateColumns,
 }: {
   options: Array<{ id: string; label: string }>;
   activeId: string;
   onSelect: (id: string) => void;
   className?: string;
+  gridTemplateColumns?: string;
 }) {
   const dense = options.length > 6;
   return (
     <div
       className={`grid ${dense ? "gap-1" : "gap-2"} rounded-lg border border-[#00FF00]/25 bg-black/60 p-1 ${className}`}
-      style={{ gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))` }}
+      style={{ gridTemplateColumns: gridTemplateColumns ?? `repeat(${options.length}, minmax(0, 1fr))` }}
     >
       {options.map((option) => {
         const active = option.id === activeId;
@@ -3082,7 +3137,7 @@ function SearchSegmentedTabs({
               void hapticSelectionChanged();
               onSelect(option.id);
             }}
-            className={`rounded-md ${dense ? "px-1 py-2 text-[10px] sm:text-xs" : "px-2 py-2 text-xs sm:text-sm"} font-bold transition-colors ${
+            className={`whitespace-nowrap rounded-md ${dense ? "px-1 py-2 text-[10px] sm:text-xs" : "px-2 py-2 text-xs sm:text-sm"} font-bold transition-colors ${
               active
                 ? "bg-[#00FF00] text-[rgb(0,80,0)]"
                 : "text-[#00FF00] hover:bg-[#041204]"
@@ -3710,7 +3765,7 @@ function CollectionOffersPage({
       </div>
 
       <div ref={formRef} className="mt-4 rounded-xl border border-[#33AAFF]/35 bg-[rgba(51,170,255,0.12)] p-3">
-        <label className="block text-xs font-bold uppercase text-[#8bcfff]">
+        <label className="block text-[11px] font-bold uppercase text-[#8bcfff]">
           <span className="flex items-center justify-between gap-3">
             <span>Offered at</span>
             <span className="text-right text-[11px] text-[#8bcfff]">
@@ -4152,6 +4207,54 @@ type ListedWarpletGroup = {
   rows: ListedWarpletRow[];
 };
 
+function ListedPriceHeader({ price }: { price: MarketOrderMoney }) {
+  const headerRef = useRef<HTMLDivElement | null>(null);
+  const [isSticky, setIsSticky] = useState(false);
+
+  useEffect(() => {
+    let frame = 0;
+    const update = () => {
+      frame = 0;
+      const rect = headerRef.current?.getBoundingClientRect();
+      const next = Boolean(rect && rect.top <= 0.5 && rect.top > -rect.height + 0.5);
+      setIsSticky((current) => current === next ? current : next);
+    };
+    const scheduleUpdate = () => {
+      if (!frame) frame = window.requestAnimationFrame(update);
+    };
+    update();
+    window.addEventListener("scroll", scheduleUpdate, { passive: true });
+    document.addEventListener("scroll", scheduleUpdate, { passive: true, capture: true });
+    window.addEventListener("resize", scheduleUpdate);
+    return () => {
+      window.removeEventListener("scroll", scheduleUpdate);
+      document.removeEventListener("scroll", scheduleUpdate, { capture: true });
+      window.removeEventListener("resize", scheduleUpdate);
+      if (frame) window.cancelAnimationFrame(frame);
+    };
+  }, []);
+
+  return (
+    <div
+      ref={headerRef}
+      className={`sticky top-0 z-20 -mx-4 flex items-center justify-center gap-2 border-y px-4 py-2 shadow-[0_8px_18px_rgba(0,0,0,0.45)] transition-colors ${
+        isSticky
+          ? "border-[#FFFF00]/50 bg-[rgba(32,32,0,0.98)]"
+          : "border-[#FFFF00]/25 bg-black/95"
+      }`}
+    >
+      <Text className={`text-xs font-black uppercase tracking-normal ${isSticky ? "text-[#FFFF00]" : "text-[#e6e68a]"}`}>Price</Text>
+      <MarketValueChip
+        kind="price"
+        value={formatMarketValue(price, { maxDigits: 8 })}
+        tooltip="Listing price"
+        showTooltip={false}
+        className="text-xs"
+      />
+    </div>
+  );
+}
+
 function ListedStatPanel({
   kind,
   label,
@@ -4188,7 +4291,7 @@ function ListedAttributeChip({
   level: number | null | undefined;
 }) {
   return (
-    <span className="inline-flex min-w-0 items-center justify-center gap-1 rounded-md border border-[#00FF00]/25 bg-black/70 px-1.5 py-1 text-[10px] font-bold leading-none text-[#00FF00]">
+    <span className="flex h-full min-h-0 min-w-0 items-center justify-center gap-1 rounded-md border border-[#00FF00]/25 bg-black/70 px-1.5 text-[10px] font-bold leading-none text-[#00FF00]">
       <span aria-hidden="true">{attribute.emoji}</span>
       <span>{level == null ? "-" : `${level}X`}</span>
     </span>
@@ -4196,20 +4299,14 @@ function ListedAttributeChip({
 }
 
 function ListedAttributePreview({ warplet }: { warplet: WarpletResult }) {
-  const firstAttributes = LEVEL_ATTRIBUTES.slice(0, 5);
-  const lastAttributes = LEVEL_ATTRIBUTES.slice(-5);
   return (
-    <div className="space-y-1.5">
-      {[firstAttributes, lastAttributes].map((attributes, index) => (
-        <div key={index} className="grid grid-cols-5 gap-1">
-          {attributes.map((attribute) => (
-            <ListedAttributeChip
-              key={attribute.column}
-              attribute={attribute}
-              level={warplet.rankValues[attribute.column]}
-            />
-          ))}
-        </div>
+    <div className="grid h-full min-h-0 grid-cols-2 grid-rows-5 gap-1">
+      {LEVEL_ATTRIBUTES.map((attribute) => (
+        <ListedAttributeChip
+          key={attribute.column}
+          attribute={attribute}
+          level={warplet.levelValues[attribute.column]}
+        />
       ))}
     </div>
   );
@@ -4220,41 +4317,47 @@ function ListedMarketPanel({
   label,
   money,
   emptyValue,
-  tooltipPrefix,
 }: {
   kind: MarketKind;
   label: string;
   money: MarketMoney | null | undefined;
   emptyValue: string;
-  tooltipPrefix?: string;
 }) {
   const styles = getMarketKindStyles(kind);
+  const value = hasMarketValue(money) ? formatMarketValue(money, { maxDigits: 8 }) : emptyValue;
   return (
-    <MarketValuePanel
-      kind={kind}
-      label={label}
-      money={money}
-      emptyValue={emptyValue}
-      tooltipPrefix={tooltipPrefix}
-      className="min-w-0 rounded-lg border px-2 py-2"
+    <div
+      className="flex min-h-0 min-w-0 flex-col items-center justify-center rounded-lg border p-[3px]"
       style={{ backgroundColor: styles.backgroundColor, borderColor: styles.borderColor }}
-    />
+    >
+      <Text className="max-w-full truncate text-center text-[10px] uppercase" style={{ color: styles.color }}>
+        {label}
+      </Text>
+      <span className="mt-0.5 max-w-full truncate text-center text-[11px] font-bold leading-none" style={{ color: styles.color }}>
+        {value}
+      </span>
+    </div>
   );
 }
 
 function ListedWarpletCard({
   row,
   isFavourited,
+  isSweepSelected,
+  isShaking,
   onOpen,
   onToggleFavourite,
+  onToggleSweep,
 }: {
   row: ListedWarpletRow;
   isFavourited: boolean;
+  isSweepSelected: boolean;
+  isShaking: boolean;
   onOpen: (tokenId: number) => void;
   onToggleFavourite: (tokenId: number) => void;
+  onToggleSweep: (tokenId: number) => void;
 }) {
   const { warplet, market } = row;
-  const label = `#${warplet.id} @${warplet.farcasterUsername}`;
 
   const openCard = () => onOpen(warplet.id);
 
@@ -4269,21 +4372,25 @@ function ListedWarpletCard({
           openCard();
         }
       }}
-      className="group grid min-h-[132px] w-full cursor-pointer grid-cols-[112px_minmax(0,1fr)] overflow-hidden rounded-[10px] border border-[#00FF00]/25 bg-[#041204]/90 text-left transition hover:-translate-y-px hover:border-[#00FF00]/50 hover:bg-[#071807]/95 sm:grid-cols-[132px_minmax(0,1fr)]"
+      className={`group grid w-full cursor-pointer grid-cols-[calc(50%_-_6px)_minmax(0,1fr)] overflow-hidden rounded-[10px] border border-[#00FF00]/25 bg-[#041204]/90 text-left transition hover:-translate-y-px hover:border-[#00FF00]/50 hover:bg-[#071807]/95 ${isShaking ? "listed-card-shake" : ""}`}
     >
       <ProgressiveWarpletImage
         tokenId={warplet.id}
         alt=""
         loading="lazy"
-        className="h-full min-h-[132px] w-full bg-[rgba(0,255,0,0.12)]"
+        className="aspect-square w-full self-start bg-[rgba(0,255,0,0.12)]"
       />
       <div className="flex min-w-0 flex-col">
-        <div className="flex h-[34px] min-w-0 items-center bg-[#00FF00] pl-2 text-[0.75rem] font-bold text-[rgb(0,80,0)]">
-          <span className="block min-w-0 flex-1 truncate pr-1">{label}</span>
+        <div className="flex h-[34px] min-w-0 items-center border-b border-[#00FF00]/20 bg-black pl-2 text-[0.75rem] font-bold">
+          <span className="block min-w-0 flex-1 truncate pr-1">
+            <span className="text-[#00FF00]">#{warplet.id}</span>
+            {warplet.farcasterUsername && <span className="text-[#8bbf8b]"> @{warplet.farcasterUsername}</span>}
+          </span>
           <FavouriteButton
             active={isFavourited}
             title={isFavourited ? `Remove 10X Warplet #${warplet.id} from favourites` : `Add 10X Warplet #${warplet.id} to favourites`}
             variant="card"
+            className="!text-[#00FF00]"
             onClick={(event) => {
               event.preventDefault();
               event.stopPropagation();
@@ -4291,15 +4398,14 @@ function ListedWarpletCard({
             }}
           />
         </div>
-        <div className="flex min-w-0 flex-1 flex-col justify-between gap-2 p-2">
+        <div className="grid min-w-0 flex-1 grid-cols-[minmax(0,13fr)_minmax(0,12fr)] gap-1 p-1.5">
           <ListedAttributePreview warplet={warplet} />
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid min-h-0 min-w-0 grid-rows-3 gap-[7px]">
             <ListedMarketPanel
               kind="offer"
               label="Top Offer"
               money={market.offer}
               emptyValue="No offers"
-              tooltipPrefix={getOfferSourceLabel(market.offer)}
             />
             <ListedMarketPanel
               kind="sold"
@@ -4307,6 +4413,32 @@ function ListedWarpletCard({
               money={market.sale}
               emptyValue="No sales"
             />
+            <button
+              type="button"
+              aria-pressed={isSweepSelected}
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                onToggleSweep(warplet.id);
+              }}
+              className={`flex h-[calc(100%_-_3px)] w-full self-start items-center justify-center gap-1 rounded-lg border text-xs font-bold transition-all duration-100 active:translate-x-[1px] active:translate-y-[1.5px] ${
+                isSweepSelected
+                  ? "border-[#990000] bg-[#ff3333] text-[rgb(80,0,0)] shadow-[2px_3px_0_#800000] hover:bg-[#ff5555] active:shadow-[1px_1px_0_#800000]"
+                  : "border-[#009900] bg-[#00FF00] text-[rgb(0,80,0)] shadow-[2px_3px_0_#008000] hover:bg-[#33ff33] active:shadow-[1px_1px_0_#008000]"
+              }`}
+            >
+              {isSweepSelected ? (
+                <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" aria-hidden="true">
+                  <path d="M4 4 16 16" />
+                  <path d="M16 4 4 16" />
+                </svg>
+              ) : (
+                <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M2 10 7.5 15.5 18 4.5" />
+                </svg>
+              )}
+              {isSweepSelected ? "Cancel" : "Sweep"}
+            </button>
           </div>
         </div>
       </div>
@@ -4327,16 +4459,12 @@ function ListedOwnedWarpletsPanel({
   onOpenWarplet: (tokenId: number) => void;
   onSearchOwnerWallet: (wallet: string) => void;
 }) {
-  const overflowCount = Math.max(0, totalCount - warplets.length);
-  if (totalCount === 0) return null;
-
   return (
     <div className="mt-4 rounded-xl border border-[#00FF00]/25 bg-[#041204]/90 p-3">
-      <div className="mb-2 flex items-center justify-between gap-3">
-        <Text className="text-xs font-bold uppercase text-[#8bbf8b]">Your Warplets</Text>
-        <span className="text-xs font-bold text-[#00FF00]">{totalCount.toLocaleString("en-US")}</span>
+      <div className="mb-2 flex items-center gap-3">
+        <Text className="text-[11px] font-bold uppercase text-[#8bbf8b]">Your Warplets</Text>
       </div>
-      <div className="flex flex-wrap gap-1.5">
+      <div className="grid grid-cols-8 gap-1.5">
         {warplets.map((warplet) => (
           <button
             key={warplet.id}
@@ -4345,26 +4473,268 @@ function ListedOwnedWarpletsPanel({
               void hapticTap();
               onOpenWarplet(warplet.id);
             }}
-            className="h-10 w-10 overflow-hidden rounded-full border-2 border-[#00FF00] bg-black"
+            className="aspect-square w-full justify-self-center overflow-hidden rounded-full bg-black"
             title={`Open #${warplet.id} @${warplet.farcasterUsername}`}
           >
             <img src={getWarpletPreviewImageUrl(warplet.id)} alt="" className="h-full w-full object-cover" loading="lazy" />
           </button>
         ))}
-        {overflowCount > 0 && (
-          <button
-            type="button"
-            onClick={() => {
-              void hapticTap();
-              onSearchOwnerWallet(ownerWallet);
-            }}
-            className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-[#00FF00] bg-black text-[11px] font-black text-[#00FF00]"
-            title="View all your Warplets"
-          >
-            +{overflowCount}
-          </button>
-        )}
+        <button
+          type="button"
+          onClick={() => {
+            void hapticTap();
+            onSearchOwnerWallet(ownerWallet);
+          }}
+          className="flex aspect-square w-full justify-self-center items-center justify-center rounded-full border-2 border-[#00FF00] bg-black text-[11px] font-black text-[#00FF00]"
+          title={`Search ${totalCount.toLocaleString("en-US")} owned 10X Warplets`}
+        >
+          {totalCount.toLocaleString("en-US")}
+        </button>
       </div>
+    </div>
+  );
+}
+
+function ListedSweepMedia({ tokenId }: { tokenId: number }) {
+  const rootRef = useRef<HTMLSpanElement | null>(null);
+  const [isVisible, setIsVisible] = useState(false);
+  const [isMediaReady, setIsMediaReady] = useState(false);
+  const [useMp4, setUseMp4] = useState(() => window.matchMedia("(hover: none) and (pointer: coarse)").matches);
+
+  useEffect(() => {
+    const media = window.matchMedia("(hover: none) and (pointer: coarse)");
+    const update = () => setUseMp4(media.matches);
+    update();
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, []);
+
+  useEffect(() => {
+    const target = rootRef.current;
+    if (!target) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => setIsVisible(Boolean(entry?.isIntersecting)),
+      { threshold: 0.05 },
+    );
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    setIsMediaReady(false);
+  }, [isVisible, tokenId, useMp4]);
+
+  return (
+    <span ref={rootRef} className="relative block aspect-square w-full overflow-hidden rounded-lg bg-black">
+      <img
+        src={getWarpletPreviewImageUrl(tokenId)}
+        alt=""
+        loading="lazy"
+        draggable={false}
+        className="absolute inset-0 h-full w-full object-cover"
+      />
+      {isVisible && (useMp4 ? (
+        <video
+          key={`${tokenId}-mp4`}
+          src={getWarpletAssetUrl(tokenId, "mp4")}
+          autoPlay
+          loop
+          muted
+          playsInline
+          preload="metadata"
+          onCanPlay={() => setIsMediaReady(true)}
+          className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-200 ${isMediaReady ? "opacity-100" : "opacity-0"}`}
+        />
+      ) : (
+        <img
+          key={`${tokenId}-avif`}
+          src={getWarpletAssetUrl(tokenId, "avif")}
+          alt=""
+          loading="eager"
+          decoding="async"
+          draggable={false}
+          onLoad={() => setIsMediaReady(true)}
+          className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-200 ${isMediaReady ? "opacity-100" : "opacity-0"}`}
+        />
+      ))}
+    </span>
+  );
+}
+
+function ListedSweepFooter({
+  rows,
+  ethUsdPrice,
+  busy,
+  expanded,
+  onRemove,
+  onBuy,
+  onExpand,
+  onClose,
+}: {
+  rows: ListedWarpletRow[];
+  ethUsdPrice: number | null;
+  busy: boolean;
+  expanded: boolean;
+  onRemove: (tokenId: number) => void;
+  onBuy: () => void;
+  onExpand: () => void;
+  onClose: () => void;
+}) {
+  const carouselRef = useRef<HTMLDivElement | null>(null);
+  const carouselDragRef = useRef({ active: false, pointerId: -1, startX: 0, scrollLeft: 0 });
+  const [initializeCarousel, getCarousel] = useOverlayScrollbars({
+    options: {
+      overflow: { x: "scroll", y: "hidden" },
+      scrollbars: { theme: "os-theme-10x", autoHide: "never", clickScroll: true },
+    },
+    defer: true,
+  });
+
+  useEffect(() => {
+    const target = carouselRef.current;
+    if (!target) return;
+    target.setAttribute("data-overlayscrollbars-initialize", "");
+    initializeCarousel(target);
+    return () => {
+      getCarousel()?.destroy();
+      target.removeAttribute("data-overlayscrollbars-initialize");
+    };
+  }, [expanded, getCarousel, initializeCarousel]);
+
+  const handleCarouselPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (event.pointerType !== "mouse" || event.button !== 0 || (event.target as Element).closest("button")) return;
+    const viewport = getCarousel()?.elements().viewport;
+    if (!viewport) return;
+    carouselDragRef.current = {
+      active: true,
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      scrollLeft: viewport.scrollLeft,
+    };
+    event.currentTarget.setPointerCapture(event.pointerId);
+    event.preventDefault();
+  };
+
+  const handleCarouselPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const drag = carouselDragRef.current;
+    if (!drag.active || drag.pointerId !== event.pointerId) return;
+    const viewport = getCarousel()?.elements().viewport;
+    if (!viewport) return;
+    viewport.scrollLeft = drag.scrollLeft - (event.clientX - drag.startX);
+    event.preventDefault();
+  };
+
+  const finishCarouselDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const drag = carouselDragRef.current;
+    if (!drag.active || drag.pointerId !== event.pointerId) return;
+    carouselDragRef.current.active = false;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+  };
+
+  const totalEth = rows.reduce((total, row) => total + (marketMoneyToDecimal(row.market.listing) ?? 0), 0);
+  const totalUsd = ethUsdPrice == null ? null : totalEth * ethUsdPrice;
+  const paymentSymbols = Array.from(new Set(rows.map((row) => {
+    const listing = row.market.listing;
+    const symbol = listing?.currencySymbol?.toUpperCase();
+    return symbol === "WETH" || listing?.tokenAddress?.toLowerCase() === BASE_WETH_TOKEN_ADDRESS ? "WETH" : "ETH";
+  })));
+  const paymentSymbol = paymentSymbols.join(" + ");
+
+  if (!expanded) {
+    return (
+      <div className="fixed bottom-0 left-1/2 z-50 w-full max-w-[500px] -translate-x-1/2 px-4">
+        <div className="rounded-t-2xl border border-b-0 border-[#00FF00]/35 bg-black px-4 pb-4 pt-3 shadow-[0_-12px_28px_rgba(0,0,0,0.75)]">
+        <button
+          type="button"
+          onClick={() => {
+            void hapticPrimaryTap();
+            onExpand();
+          }}
+          className="mb-1.5 w-full rounded-[20px] border border-[#009900] bg-[#00FF00] px-4 py-3 text-sm font-black text-[rgb(0,80,0)] shadow-[3px_6px_0_#008000] transition-all duration-100 hover:bg-[#33ff33] active:translate-x-[1px] active:translate-y-[3px] active:shadow-[1px_3px_0_#008000]"
+        >
+          Sweep {rows.length.toLocaleString("en-US")} for {totalEth.toLocaleString("en-US", { maximumFractionDigits: 8 })} {paymentSymbol}
+        </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="fixed bottom-0 left-1/2 z-50 w-full max-w-[500px] -translate-x-1/2 px-4">
+    <div className="overflow-hidden rounded-t-2xl border border-b-0 border-[#00FF00]/35 bg-black shadow-[0_-12px_28px_rgba(0,0,0,0.75)]">
+      <div className="flex items-center justify-between gap-3 border-b border-[#00FF00]/20 bg-black px-4 py-3">
+        <Text className="min-w-0 truncate text-base font-bold text-[#8bbf8b]">
+          <span className="text-[#00FF00]">Bulk Buy</span>{" "}
+          {rows.length.toLocaleString("en-US")} {rows.length === 1 ? "NFT" : "NFTs"}
+        </Text>
+        <button
+          type="button"
+          aria-label="Close bulk buy"
+          title="Close"
+          onClick={() => {
+            void hapticTap();
+            onClose();
+          }}
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[#00FF00]/35 text-[#00FF00] hover:bg-[#041204]"
+        >
+          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true">
+            <path d="M6 6l12 12" />
+            <path d="M18 6L6 18" />
+          </svg>
+        </button>
+      </div>
+      <div className="px-4 pb-4 pt-3">
+      <div
+        ref={carouselRef}
+        className="mb-3 max-w-full pb-3"
+      >
+        <div
+          className="flex w-max min-w-full cursor-grab select-none gap-2 px-1 pb-1 pt-1 active:cursor-grabbing"
+          onPointerDown={handleCarouselPointerDown}
+          onPointerMove={handleCarouselPointerMove}
+          onPointerUp={finishCarouselDrag}
+          onPointerCancel={finishCarouselDrag}
+          onDragStart={(event) => event.preventDefault()}
+        >
+          {rows.map((row) => {
+            const priceEth = marketMoneyToDecimal(row.market.listing) ?? 0;
+            const priceUsd = ethUsdPrice == null ? null : priceEth * ethUsdPrice;
+            const listingSymbol = row.market.listing?.currencySymbol?.toUpperCase() === "WETH" || row.market.listing?.tokenAddress?.toLowerCase() === BASE_WETH_TOKEN_ADDRESS ? "WETH" : "ETH";
+            return (
+              <div key={row.warplet.id} className="w-[76px] shrink-0 text-center">
+                <div className="relative">
+                  <ListedSweepMedia tokenId={row.warplet.id} />
+                  <button
+                    type="button"
+                    onClick={() => onRemove(row.warplet.id)}
+                    className="absolute -right-1 -top-1 z-20 flex h-5 w-5 items-center justify-center rounded-full bg-[#ff3333] text-[#730000]"
+                    aria-label={`Remove Warplet #${row.warplet.id} from sweep`}
+                  >
+                    <svg viewBox="0 0 16 16" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
+                      <path d="M3 3 13 13" />
+                      <path d="M13 3 3 13" />
+                    </svg>
+                  </button>
+                </div>
+                <div className="mt-1 truncate text-[10px] font-bold text-[#FFFF00]">{priceEth.toLocaleString("en-US", { maximumFractionDigits: 6 })} {listingSymbol}</div>
+                <div className="truncate text-[9px] text-[#8bbf8b]">{priceUsd == null ? "USD loading..." : `~$${priceUsd.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}</div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+      <button
+        type="button"
+        disabled={busy}
+        onClick={onBuy}
+        className="mb-1.5 w-full rounded-[20px] border border-[#009900] bg-[#00FF00] px-4 py-3 text-sm font-black text-[rgb(0,80,0)] shadow-[3px_6px_0_#008000] transition-all duration-100 hover:bg-[#33ff33] active:translate-x-[1px] active:translate-y-[3px] active:shadow-[1px_3px_0_#008000] disabled:cursor-wait disabled:opacity-60"
+      >
+        {busy
+          ? "Preparing Bulk Buy..."
+          : `Sweep for ${totalEth.toLocaleString("en-US", { maximumFractionDigits: 8 })} ${paymentSymbol} (${totalUsd == null ? "USD loading..." : `~$${totalUsd.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`})`}
+      </button>
+      </div>
+    </div>
     </div>
   );
 }
@@ -4385,6 +4755,7 @@ function ListedPage({
   onToggleFavourite,
   onSearchOwnerWallet,
   onRefreshMarket,
+  onBulkBuy,
 }: {
   level: ListedLevelFilter;
   scope: ListedScopeFilter;
@@ -4399,16 +4770,24 @@ function ListedPage({
   onScopeChange: (scope: ListedScopeFilter) => void;
   onOpenWarpletDetails: (tokenId: number) => void;
   onToggleFavourite: (tokenId: number) => void;
-  onSearchOwnerWallet: (wallet: string) => void;
+  onSearchOwnerWallet: (wallet: string, level: ListedLevelFilter) => void;
   onRefreshMarket: () => Promise<void>;
+  onBulkBuy: (rows: ListedWarpletRow[]) => Promise<number[]>;
 }) {
   const [refreshing, setRefreshing] = useState(false);
+  const [sweepTokenIds, setSweepTokenIds] = useState<number[]>([]);
+  const [shakingTokenIds, setShakingTokenIds] = useState<Set<number>>(() => new Set());
+  const [sweepBusy, setSweepBusy] = useState(false);
+  const [sweepEthUsdPrice, setSweepEthUsdPrice] = useState<number | null>(null);
+  const [sweepFooterExpanded, setSweepFooterExpanded] = useState(false);
+  const [sweepSelectionError, setSweepSelectionError] = useState("");
   const normalizedWallet = normalizeWalletAddress(connectedWallet);
   const levelFilteredOwnedWarplets = useMemo(
     () => ownedWarplets.filter((warplet) => warpletMatchesListedLevel(warplet, level)),
     [level, ownedWarplets],
   );
   const listedRows = useMemo<ListedWarpletRow[]>(() => {
+    const selectedForSweep = new Set(sweepTokenIds);
     const rows = listedWarplets
       .filter((warplet) => warpletMatchesListedLevel(warplet, level))
       .map((warplet) => ({
@@ -4418,6 +4797,8 @@ function ListedPage({
       }))
       .filter((row) => row.market.listing)
       .filter((row) => scope !== "your" || walletMatches(row.market.listing?.seller, normalizedWallet))
+      .filter((row) => scope !== "favourites" || favouriteTokenIds.has(row.warplet.id))
+      .filter((row) => scope !== "sweep" || selectedForSweep.has(row.warplet.id))
       .map((row) => ({
         ...row,
         groupKey: getListingGroupKey(row.market.listing as MarketOrderMoney),
@@ -4431,7 +4812,7 @@ function ListedPage({
         return a.warplet.id - b.warplet.id;
       });
     return rows;
-  }, [level, listedWarplets, marketSnapshot, normalizedWallet, scope]);
+  }, [favouriteTokenIds, level, listedWarplets, marketSnapshot, normalizedWallet, scope, sweepTokenIds]);
 
   const listingGroups = useMemo<ListedWarpletGroup[]>(() => {
     const groups: ListedWarpletGroup[] = [];
@@ -4451,11 +4832,72 @@ function ListedPage({
     return groups;
   }, [listedRows]);
 
+  const sweepRows = useMemo<ListedWarpletRow[]>(() => {
+    const selected = new Set(sweepTokenIds);
+    return listedWarplets
+      .filter((warplet) => selected.has(warplet.id))
+      .map((warplet) => ({ warplet, market: getMarketState(marketSnapshot, warplet.id), groupKey: "" }))
+      .filter((row) => Boolean(row.market.listing));
+  }, [listedWarplets, marketSnapshot, sweepTokenIds]);
+
+  useEffect(() => {
+    if (sweepRows.length === 0 || sweepEthUsdPrice != null) return;
+    fetchEthUsdPrice().then(setSweepEthUsdPrice).catch((error) => {
+      console.warn("Failed to load ETH/USD price for sweep:", error);
+    });
+  }, [sweepEthUsdPrice, sweepRows.length]);
+
+  useEffect(() => {
+    if (sweepRows.length === 0) setSweepFooterExpanded(false);
+  }, [sweepRows.length]);
+
+  useEffect(() => {
+    if (!sweepSelectionError) return;
+    const timeout = window.setTimeout(() => setSweepSelectionError(""), 4000);
+    return () => window.clearTimeout(timeout);
+  }, [sweepSelectionError]);
+
+  const toggleSweep = useCallback((tokenId: number) => {
+    const isSelected = sweepTokenIds.includes(tokenId);
+    if (!isSelected && sweepTokenIds.length >= MAX_SWEEP_ITEMS) {
+      void hapticWarning();
+      setSweepSelectionError(`You can select up to ${MAX_SWEEP_ITEMS} NFTs per bulk buy.`);
+      return;
+    }
+    void hapticSelectionChanged();
+    setSweepTokenIds((current) => current.includes(tokenId)
+      ? current.filter((id) => id !== tokenId)
+      : [...current, tokenId]);
+    setShakingTokenIds((current) => new Set(current).add(tokenId));
+    window.setTimeout(() => {
+      setShakingTokenIds((current) => {
+        const next = new Set(current);
+        next.delete(tokenId);
+        return next;
+      });
+    }, 340);
+    setSweepSelectionError("");
+  }, [sweepTokenIds]);
+
+  const runBulkBuy = useCallback(async () => {
+    if (sweepBusy || sweepRows.length === 0) return;
+    setSweepBusy(true);
+    try {
+      const purchasedTokenIds = new Set(await onBulkBuy(sweepRows));
+      if (purchasedTokenIds.size > 0) {
+        setSweepTokenIds((current) => current.filter((tokenId) => !purchasedTokenIds.has(tokenId)));
+        if (purchasedTokenIds.size === sweepRows.length) setSweepFooterExpanded(false);
+      }
+    } finally {
+      setSweepBusy(false);
+    }
+  }, [onBulkBuy, sweepBusy, sweepRows]);
+
   const totalListingValue = useMemo(
     () => sumMarketMoney(listedRows.map((row) => row.market.listing)),
     [listedRows],
   );
-  const visibleOwnedWarplets = levelFilteredOwnedWarplets.slice(0, OWNED_BY_VISIBLE_AVATAR_LIMIT);
+  const visibleOwnedWarplets = levelFilteredOwnedWarplets.slice(0, LISTED_OWNED_VISIBLE_AVATAR_LIMIT);
 
   const refreshLabel = marketSnapshot?.generatedAt ? formatMarketTimestamp(marketSnapshot.generatedAt) : "Not yet";
 
@@ -4470,19 +4912,19 @@ function ListedPage({
   }, [onRefreshMarket, refreshing]);
 
   return (
-    <div className="mx-auto w-full max-w-md px-4 pb-10 pt-6">
+    <div className={`mx-auto w-full max-w-md px-4 pt-6 ${sweepRows.length > 0 ? (sweepFooterExpanded ? "pb-72" : "pb-24") : "pb-10"}`}>
       <div className="grid grid-cols-2 gap-3">
         <ListedStatPanel kind="count" label="Count" value={listedRows.length.toLocaleString("en-US")} />
         <ListedStatPanel kind="value" label="Value" value={formatMarketValue(totalListingValue, { maxDigits: 8 })} />
       </div>
 
-      {normalizedWallet && (
+      {normalizedWallet && ownedWarplets.length > 0 && (
         <ListedOwnedWarpletsPanel
           warplets={visibleOwnedWarplets}
           totalCount={levelFilteredOwnedWarplets.length}
           ownerWallet={normalizedWallet}
           onOpenWarplet={onOpenWarpletDetails}
-          onSearchOwnerWallet={onSearchOwnerWallet}
+          onSearchOwnerWallet={(wallet) => onSearchOwnerWallet(wallet, level)}
         />
       )}
 
@@ -4490,8 +4932,14 @@ function ListedPage({
         className="mt-4"
         options={LISTED_SCOPE_TABS}
         activeId={scope}
-        onSelect={(id) => onScopeChange(id === "your" ? "your" : "all")}
+        onSelect={(id) => onScopeChange(id as ListedScopeFilter)}
+        gridTemplateColumns="52px minmax(0, 1.3fr) minmax(0, 1fr) minmax(0, 0.9fr)"
       />
+      {sweepSelectionError && (
+        <Text className="mt-2 text-center text-[11px] font-bold text-red-300">
+          {sweepSelectionError}
+        </Text>
+      )}
 
       {loading && (
         <Text className={`mt-6 ${STATUS_LINE_CLASS}`} style={{ color: "#00FF00" }}>
@@ -4509,22 +4957,21 @@ function ListedPage({
         </Text>
       )}
 
-      <div className="mt-4 space-y-4">
+      <div className="mt-4">
         {listingGroups.map((group) => (
-          <section key={group.key} className="space-y-3">
-            <div className="sticky top-0 z-20 -mx-4 border-y border-[#FFFF00]/25 bg-black/95 px-4 py-2 shadow-[0_8px_18px_rgba(0,0,0,0.45)]">
-              <Text className="text-center text-xs font-black uppercase tracking-normal text-[#e6e68a]">
-                Price <span className="text-[#FFFF00]">{formatMarketValue(group.price, { maxDigits: 8 })}</span>
-              </Text>
-            </div>
-            <div className="space-y-3">
+          <section key={group.key}>
+            <ListedPriceHeader price={group.price} />
+            <div className="space-y-3.5 py-3">
               {group.rows.map((row) => (
                 <ListedWarpletCard
                   key={row.warplet.id}
                   row={row}
                   isFavourited={favouriteTokenIds.has(row.warplet.id)}
+                  isSweepSelected={sweepTokenIds.includes(row.warplet.id)}
+                  isShaking={shakingTokenIds.has(row.warplet.id)}
                   onOpen={onOpenWarpletDetails}
                   onToggleFavourite={onToggleFavourite}
+                  onToggleSweep={toggleSweep}
                 />
               ))}
             </div>
@@ -4560,10 +5007,23 @@ function ListedPage({
           <span className="block text-red-300">{marketRefreshError}</span>
         )}
       </div>
+      {sweepRows.length > 0 && (
+        <ListedSweepFooter
+          rows={sweepRows}
+          ethUsdPrice={sweepEthUsdPrice}
+          busy={sweepBusy}
+          expanded={sweepFooterExpanded}
+          onRemove={toggleSweep}
+          onBuy={() => void runBulkBuy()}
+          onExpand={() => setSweepFooterExpanded(true)}
+          onClose={() => setSweepFooterExpanded(false)}
+        />
+      )}
     </div>
   );
 }
 
+const LISTED_OWNED_VISIBLE_AVATAR_LIMIT = 23;
 const OWNED_BY_VISIBLE_AVATAR_LIMIT = 24;
 
 function OwnedByPanel({
@@ -6566,6 +7026,7 @@ function WarpletDetailsModal({
   viewerFid,
   onMergeMarketSnapshot,
   onClearMarketSide,
+  onUpsertListing,
   onUpsertItemOffer,
   onApplyPurchase,
   onOpenTradeSharePreview,
@@ -6590,6 +7051,7 @@ function WarpletDetailsModal({
   viewerFid: number | null;
   onMergeMarketSnapshot: (tokenId: number, snapshot: MarketSnapshot) => void;
   onClearMarketSide: (tokenId: number, side: "listing" | "offer" | "collectionOffer") => void;
+  onUpsertListing: (tokenId: number, listing: MarketSnapshot["listings"][string]) => void;
   onUpsertItemOffer: (tokenId: number, offer: MarketSnapshot["offers"][string]) => void;
   onApplyPurchase: (tokenId: number, update: OptimisticPurchaseUpdate) => void;
   onOpenTradeSharePreview: (preview: SharePreviewState) => void;
@@ -6697,6 +7159,7 @@ function WarpletDetailsModal({
   });
   const knownFloorPrice = defaultListingPrice(effectiveFloor);
   const knownTopOfferPrice = defaultOfferPrice(effectiveTopOffer);
+  const floorAmount = marketMoneyToDecimal(effectiveFloor);
   const listingAmount = parseTradeAmount(listingPrice);
   const offerAmount = parseTradeAmount(offerPrice);
   const activeListingAmount = marketMoneyToDecimal(effectiveListing);
@@ -6710,8 +7173,13 @@ function WarpletDetailsModal({
   const listingPriceIsValid = Boolean(
     listingAmount != null &&
     listingAmount >= MIN_LISTING_ETH &&
-    decimalEthToWeiString(listingPrice) &&
-    !listingPriceIsAtOrBelowTopOffer
+    decimalEthToWeiString(listingPrice)
+  );
+  const showTopOfferListingShortcut = Boolean(
+    knownTopOfferPrice &&
+    topOfferAmount != null &&
+    floorAmount != null &&
+    topOfferAmount > floorAmount
   );
   const offerPriceIsValid = Boolean(
     offerAmount != null &&
@@ -6845,7 +7313,10 @@ function WarpletDetailsModal({
 
   const refreshTradeState = useCallback(async (
     walletOverride?: string | null,
-    options: { excludeCollectionOrderHash?: string | null } = {},
+    options: {
+      excludeCollectionOrderHash?: string | null;
+      optimisticListing?: FreshTradeState["listing"];
+    } = {},
   ): Promise<FreshTradeState | null> => {
     const params = new URLSearchParams();
     const wallet = walletOverride ?? activeWallet ?? "";
@@ -6873,7 +7344,7 @@ function WarpletDetailsModal({
     const preservedTopOffer = optimisticOffer
       ? chooseTopOffer(optimisticOffer, next.traitOffer ?? undefined, next.collectionOffer) as FreshTradeState["topOffer"]
       : null;
-    const merged: FreshTradeState = shouldPreserveOptimisticOffer && optimisticOffer
+    let merged: FreshTradeState = shouldPreserveOptimisticOffer && optimisticOffer
       ? {
           ...next,
           itemOffer: optimisticOffer,
@@ -6881,13 +7352,31 @@ function WarpletDetailsModal({
           topOffer: preservedTopOffer,
         }
       : next;
+    const shouldPreserveOptimisticListing = Boolean(
+      options.optimisticListing &&
+      next.listing?.rawAmount !== options.optimisticListing.rawAmount
+    );
+    if (shouldPreserveOptimisticListing && options.optimisticListing) {
+      merged = { ...merged, listing: options.optimisticListing };
+    }
     if (!shouldPreserveOptimisticOffer && next.ownItemOffer?.orderHash === optimisticOffer?.orderHash) {
       optimisticOwnItemOfferRef.current = null;
     }
     setTradeState(merged);
     setOptimisticSale(merged.sale ?? null);
     if (next.owner?.wallet) setActiveWallet((current) => current);
-    if (next.snapshot) onMergeMarketSnapshot(details.id, next.snapshot);
+    if (next.snapshot) {
+      const snapshot = shouldPreserveOptimisticListing && options.optimisticListing
+        ? {
+            ...next.snapshot,
+            listings: {
+              ...next.snapshot.listings,
+              [String(details.id)]: options.optimisticListing,
+            },
+          }
+        : next.snapshot;
+      onMergeMarketSnapshot(details.id, snapshot);
+    }
     if (shouldPreserveOptimisticOffer && optimisticOffer) onUpsertItemOffer(details.id, optimisticOffer);
     setOfferPrice((current) => current || defaultOfferPrice(merged.topOffer));
     setListingPrice((current) => current || defaultListingPrice(merged.floor));
@@ -7370,10 +7859,6 @@ function WarpletDetailsModal({
       showToast("error", "Enter a listing price of at least 0.00000000000001 ETH.", { manualClose: true });
       return;
     }
-    if (listingPriceIsAtOrBelowTopOffer) {
-      showToast("error", `Listing price must be above the current Top Offer of ${formatMarketEthForTradeCopy(effectiveTopOffer)}.`, { manualClose: true });
-      return;
-    }
     const actionId = crypto.randomUUID();
     actionIdRef.current = actionId;
     tradeBusyActionRef.current = "list";
@@ -7406,11 +7891,41 @@ function WarpletDetailsModal({
           payload: signed.payload,
         }),
       });
-      if (!submit.ok) {
-        const failure = await submit.json().catch(() => ({})) as { message?: string };
-        throw new Error(failure.message || `Listing submit failed (${submit.status})`);
+      const submitted = await submit.json().catch(() => ({})) as {
+        message?: string;
+        result?: { order_hash?: unknown; orderHash?: unknown; protocol_address?: unknown };
+      };
+      if (!submit.ok) throw new Error(submitted.message || `Listing submit failed (${submit.status})`);
+      const signedPayload = signed.payload && typeof signed.payload === "object"
+        ? signed.payload as Record<string, unknown>
+        : null;
+      const submittedOrderHash = typeof submitted.result?.order_hash === "string"
+        ? submitted.result.order_hash
+        : typeof submitted.result?.orderHash === "string" ? submitted.result.orderHash : null;
+      const submittedProtocolAddress = typeof submitted.result?.protocol_address === "string"
+        ? submitted.result.protocol_address
+        : typeof signedPayload?.protocol_address === "string" ? signedPayload.protocol_address : null;
+      const optimisticListing: NonNullable<FreshTradeState["listing"]> = {
+        eth: listingAmount ?? parseTradeAmount(listingPrice),
+        at: new Date().toISOString(),
+        rawAmount: priceRaw,
+        decimals: 18,
+        currencySymbol: "ETH",
+        tokenAddress: NATIVE_TOKEN_ADDRESS,
+        orderHash: submittedOrderHash,
+        protocolAddress: submittedProtocolAddress,
+        seller: account,
+      };
+      setTradeState((current) => current ? { ...current, listing: optimisticListing } : current);
+      onUpsertListing(details.id, optimisticListing);
+      for (const delayMs of [1500, 4000, 8000]) {
+        window.setTimeout(() => {
+          if (actionIdRef.current !== actionId) return;
+          void refreshTradeState(account, { optimisticListing }).catch((error) => {
+            console.warn("Failed to reconcile newly submitted listing:", error);
+          });
+        }, delayMs);
       }
-      await refreshTradeState(account);
       void hapticSuccess();
       showTradeConfetti();
       setTradeMode("idle");
@@ -7425,7 +7940,7 @@ function WarpletDetailsModal({
       tradeBusyActionRef.current = null;
       setTradeBusyAction(null);
     }
-  }, [assertConnectedOwnerWallet, details.id, effectiveTopOffer, getProviderAndAccount, handleTradeError, listingAmount, listingPrice, listingPriceIsAtOrBelowTopOffer, openTradeSharePreview, postTradeLog, refreshTradeState, showFirefoxWarningIfNeeded, showToast, viewerFid]);
+  }, [assertConnectedOwnerWallet, details.id, getProviderAndAccount, handleTradeError, listingAmount, listingPrice, onUpsertListing, openTradeSharePreview, postTradeLog, refreshTradeState, showFirefoxWarningIfNeeded, showToast, viewerFid]);
 
   const runMakeOffer = useCallback(async () => {
     const priceRaw = decimalEthToWeiString(offerPrice);
@@ -7840,10 +8355,27 @@ function WarpletDetailsModal({
                 .
               </>
             )}
+            {showTopOfferListingShortcut && knownTopOfferPrice && (
+              <>
+                {" "}Set price to{" "}
+                <button
+                  type="button"
+                  onClick={() => {
+                    void hapticTap();
+                    setListingPrice(sanitizeTradePriceInput(knownTopOfferPrice));
+                    focusTradeInput("list");
+                  }}
+                  className="cursor-pointer text-[#FFFF00] underline underline-offset-2 hover:text-[#ffff66]"
+                >
+                  Top Offer
+                </button>
+                .
+              </>
+            )}
           </p>
           {listingPriceIsAtOrBelowTopOffer && effectiveTopOffer && (
             <p className="mt-2 rounded-lg border border-[#FFFF00]/35 bg-[rgba(255,255,0,0.12)] px-3 py-2 text-xs font-bold text-[#e6e68a]">
-              Listing price must be above the current Top Offer of {formatMarketEthForTradeCopy(effectiveTopOffer)}.
+              Suggestion: Listing price should be above the current Top Offer of {formatMarketEthForTradeCopy(effectiveTopOffer)}.
             </p>
           )}
           <button
@@ -8093,10 +8625,27 @@ function WarpletDetailsModal({
                         .
                       </>
                     )}
+                    {showTopOfferListingShortcut && knownTopOfferPrice && (
+                      <>
+                        {" "}Set price to{" "}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            void hapticTap();
+                            setListingPrice(sanitizeTradePriceInput(knownTopOfferPrice));
+                            focusTradeInput("list");
+                          }}
+                          className="cursor-pointer text-[#FFFF00] underline underline-offset-2 hover:text-[#ffff66]"
+                        >
+                          Top Offer
+                        </button>
+                        .
+                      </>
+                    )}
                   </p>
                   {listingPriceIsAtOrBelowTopOffer && effectiveTopOffer && (
                     <p className="mt-2 rounded-lg border border-[#FFFF00]/35 bg-[rgba(255,255,0,0.12)] px-3 py-2 text-xs font-bold text-[#e6e68a]">
-                      Listing price must be above the current Top Offer of {formatMarketEthForTradeCopy(effectiveTopOffer)}.
+                      Suggestion: Listing price should be above the current Top Offer of {formatMarketEthForTradeCopy(effectiveTopOffer)}.
                     </p>
                   )}
                   <button
@@ -8425,6 +8974,7 @@ export default function SearchApp() {
   const [searchToastExiting, setSearchToastExiting] = useState(false);
   const dbRef = useRef<SqliteDatabase | null>(null);
   const searchRunRef = useRef(0);
+  const pendingConfirmedPurchasesRef = useRef(new Map<string, PendingConfirmedPurchase>());
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const urlHydratedRef = useRef(false);
@@ -9069,11 +9619,39 @@ export default function SearchApp() {
     showOnboarding,
   ]);
 
+  const preservePendingConfirmedPurchases = useCallback((snapshot: MarketSnapshot) => {
+    const pending = pendingConfirmedPurchasesRef.current;
+    if (pending.size === 0) return snapshot;
+
+    const now = Date.now();
+    let next = snapshot;
+    for (const [key, purchase] of pending) {
+      const snapshotOwner = snapshot.owners?.[key];
+      const purchaseConfirmed = walletMatches(snapshotOwner?.wallet, purchase.owner.wallet) && !snapshot.listings?.[key];
+      if (purchaseConfirmed || purchase.expiresAt <= now) {
+        pending.delete(key);
+        continue;
+      }
+      if (next === snapshot) {
+        next = {
+          ...snapshot,
+          listings: { ...(snapshot.listings ?? {}) },
+          sales: { ...(snapshot.sales ?? {}) },
+          owners: { ...(snapshot.owners ?? {}) },
+        };
+      }
+      delete next.listings[key];
+      next.sales[key] = purchase.sale;
+      next.owners[key] = purchase.owner;
+    }
+    return next;
+  }, []);
+
   const refreshMarketSnapshot = useCallback(async (force = false) => {
     const cached = readCachedMarketSnapshot();
     if (force) setMarketRefreshError("");
     if (cached && !force) {
-      setMarketSnapshot(cached);
+      setMarketSnapshot(preservePendingConfirmedPurchases(cached));
       const age = Date.now() - Date.parse(cached.generatedAt || "");
       if (Number.isFinite(age) && age < MARKET_SNAPSHOT_STALE_MS) return;
     }
@@ -9081,9 +9659,10 @@ export default function SearchApp() {
     try {
       const response = await fetch("/api/warplets-market-state", {
         headers: { accept: "application/json" },
+        cache: force ? "no-store" : "default",
       });
       if (!response.ok) throw new Error(`Market data failed (${response.status})`);
-      const snapshot = (await response.json()) as MarketSnapshot;
+      const snapshot = preservePendingConfirmedPurchases((await response.json()) as MarketSnapshot);
       setMarketSnapshot(snapshot);
       setMarketRefreshError("");
       writeCachedMarketSnapshot(snapshot);
@@ -9093,10 +9672,25 @@ export default function SearchApp() {
         setMarketRefreshError(error instanceof Error ? error.message : String(error));
       }
     }
-  }, []);
+  }, [preservePendingConfirmedPurchases]);
 
   useEffect(() => {
     void refreshMarketSnapshot();
+  }, [refreshMarketSnapshot]);
+
+  const refreshListedMarket = useCallback(async () => {
+    try {
+      const hostname = window.location.hostname.toLowerCase();
+      const isLocalSearch = hostname === "localhost" || hostname === "127.0.0.1" || hostname.startsWith("search-local.");
+      if (isLocalSearch) {
+        const scheduled = await fetch("/api/local/opensea-market-refresh", { method: "POST", cache: "no-store" });
+        if (!scheduled.ok) throw new Error(`Local OpenSea ingest failed (${scheduled.status})`);
+      }
+      await refreshMarketSnapshot(true);
+    } catch (error) {
+      console.error("Failed to refresh Listed market:", error);
+      setMarketRefreshError(error instanceof Error ? error.message : String(error));
+    }
   }, [refreshMarketSnapshot]);
 
   useEffect(() => {
@@ -9731,7 +10325,13 @@ export default function SearchApp() {
   const isAllWarpletsSearchMode = isAllWarpletsMode && !hasTypedQuery;
   const isExampleSearchMode = !isAllWarpletsSearchMode && !hasTypedQuery && !hasActiveFavouriteFilter && !hasActiveAttributeFilter && !hasActiveLevelFilter;
   const favouriteOrderTokenIds = getFavouriteTokenIds(favouriteListsByWallet, favouriteFilterWallet);
-  const parsedQuerySearchText = parseOwnerWalletSearch(query.trim() || submittedQuery.trim()).searchText;
+  const parsedQuerySearch = parseOwnerWalletSearch(query.trim() || submittedQuery.trim());
+  const parsedQuerySearchText = parsedQuerySearch.searchText;
+  const isOwnWalletSearch = Boolean(
+    parsedQuerySearch.ownerWalletFilter &&
+    activeWallet &&
+    walletMatches(parsedQuerySearch.ownerWalletFilter, activeWallet)
+  );
   const hasFavouriteOnlySearchText = Boolean(parsedQuerySearchText.trim()) && parsedQuerySearchText.trim() !== "*";
   const isFavouriteOnlySearchState = Boolean(
     hasActiveFavouriteFilter &&
@@ -9941,6 +10541,14 @@ export default function SearchApp() {
     const nextAttributes = [attribute];
     const nextLevels = [level];
     setSelectedWarpletDetailsStack([]);
+    if (searchRoute.page !== "search") {
+      navigateSearchRoute({ page: "search" });
+      window.setTimeout(() => {
+        window.scrollTo({ top: 0, behavior: "auto" });
+        document.documentElement.scrollTo({ top: 0, behavior: "auto" });
+        document.body.scrollTo({ top: 0, behavior: "auto" });
+      }, 0);
+    }
     setQuery("");
     setIsAllWarpletsMode(false);
     setSelectedAttributes(nextAttributes);
@@ -9948,16 +10556,20 @@ export default function SearchApp() {
     setFavouriteFilterWallet(null);
     void runSearch("", 0, { attributes: nextAttributes, levels: nextLevels, favouriteWallet: null });
     window.setTimeout(() => searchInputRef.current?.focus(), 0);
-  }, [runSearch]);
+  }, [navigateSearchRoute, runSearch, searchRoute.page]);
 
-  const handleSearchOwnerWallet = useCallback((wallet: string, options: { focus?: boolean } = {}) => {
+  const handleSearchOwnerWallet = useCallback((
+    wallet: string,
+    options: { focus?: boolean; levels?: number[] } = {},
+  ) => {
     const normalizedWallet = wallet.trim();
     if (!normalizedWallet) return;
+    const levels = options.levels ?? [];
     setSelectedWarpletDetailsStack([]);
     setQuery(normalizedWallet);
     setIsAllWarpletsMode(false);
     setSelectedAttributes([]);
-    setSelectedLevels([]);
+    setSelectedLevels(levels);
     setFavouriteFilterWallet(null);
     setVisibleCount(PAGE_SIZE);
     setOrderBy("rarity");
@@ -9965,16 +10577,17 @@ export default function SearchApp() {
     setUserSelectedOrder(false);
     setSearchError("");
     if (dbReady) {
-      void runSearch(normalizedWallet, 0, { attributes: [], levels: [], favouriteWallet: null }, PAGE_SIZE);
+      void runSearch(normalizedWallet, 0, { attributes: [], levels, favouriteWallet: null }, PAGE_SIZE);
     }
     if (options.focus !== false) {
       window.setTimeout(() => searchInputRef.current?.focus(), 0);
     }
   }, [dbReady, runSearch]);
 
-  const handleListedSearchOwnerWallet = useCallback((wallet: string) => {
+  const handleListedSearchOwnerWallet = useCallback((wallet: string, level: ListedLevelFilter) => {
+    const levelNumber = getListedLevelNumber(level);
     navigateSearchRoute({ page: "search" });
-    handleSearchOwnerWallet(wallet, { focus: false });
+    handleSearchOwnerWallet(wallet, { focus: false, levels: levelNumber == null ? [] : [levelNumber] });
   }, [handleSearchOwnerWallet, navigateSearchRoute]);
 
   const handleToggleFavourite = useCallback(async (tokenId: number) => {
@@ -10213,12 +10826,15 @@ export default function SearchApp() {
       firstWarpletId,
       displayedTotalResults,
     );
-    const openSeaCollectionUrl = marketOrderShareMeta?.openSeaUrl ?? OPENSEA_COLLECTION_URL;
+    const shareText = isOwnWalletSearch ? "👀 Checkout my 10X Warplets..." : searchResultsShareTitle;
+    const openSeaCollectionUrl = isOwnWalletSearch && activeWallet
+      ? `https://opensea.io/${activeWallet.toLowerCase()}?collectionSlugs=10xwarplets`
+      : marketOrderShareMeta?.openSeaUrl ?? OPENSEA_COLLECTION_URL;
     const links = [shareUrl, openSeaCollectionUrl];
 
     setSharePreview({
       title: "Share Search Results",
-      text: searchResultsShareTitle,
+      text: shareText,
       links,
       images: [
         { src: getWarpletAssetUrl(firstWarpletId, "gif"), alt: `10X Warplet #${firstWarpletId} share image` },
@@ -10229,14 +10845,16 @@ export default function SearchApp() {
         },
       ],
       farcasterEmbeds: [shareUrl, openSeaCollectionUrl],
-      twitterText: buildTwitterShareText(searchResultsShareTitle, links),
+      twitterText: buildTwitterShareText(shareText, links),
     });
   }, [
     activeExampleSearch,
+    activeWallet,
     displayedResults,
     displayedTotalResults,
     favouriteFilterWallet,
     isAllWarpletsMode,
+    isOwnWalletSearch,
     marketOrderShareMeta,
     query,
     searchResultsShareTitle,
@@ -10301,11 +10919,11 @@ export default function SearchApp() {
 
   const handleMergeMarketSnapshot = useCallback((tokenId: number, snapshot: MarketSnapshot) => {
     setMarketSnapshot((current) => {
-      const merged = mergeTokenSnapshot(current, snapshot, tokenId);
+      const merged = preservePendingConfirmedPurchases(mergeTokenSnapshot(current, snapshot, tokenId));
       writeCachedMarketSnapshot(merged);
       return merged;
     });
-  }, []);
+  }, [preservePendingConfirmedPurchases]);
 
   const handleClearMarketSide = useCallback((tokenId: number, side: "listing" | "offer" | "collectionOffer") => {
     setMarketSnapshot((current) => {
@@ -10349,6 +10967,26 @@ export default function SearchApp() {
     });
   }, []);
 
+  const handleUpsertListing = useCallback((tokenId: number, listing: MarketSnapshot["listings"][string]) => {
+    pendingConfirmedPurchasesRef.current.delete(String(tokenId));
+    setMarketSnapshot((current) => {
+      const key = String(tokenId);
+      const next: MarketSnapshot = {
+        version: "opensea-market-v1",
+        generatedAt: new Date().toISOString(),
+        maxAgeSeconds: current?.maxAgeSeconds ?? 600,
+        collection: current?.collection ?? { floor: null, topOffer: null },
+        listings: { ...(current?.listings ?? {}), [key]: listing },
+        offers: { ...(current?.offers ?? {}) },
+        traitOffers: { ...(current?.traitOffers ?? {}) },
+        sales: { ...(current?.sales ?? {}) },
+        owners: { ...(current?.owners ?? {}) },
+      };
+      writeCachedMarketSnapshot(next);
+      return next;
+    });
+  }, []);
+
   const handleApplyPurchase = useCallback((tokenId: number, update: OptimisticPurchaseUpdate) => {
     setMarketSnapshot((current) => {
       const key = String(tokenId);
@@ -10374,6 +11012,11 @@ export default function SearchApp() {
         fid: update.buyerFid ?? providedOwnerProfile.fid ?? matchingOwnerProfile?.fid ?? null,
         checkedAt: now,
       };
+      pendingConfirmedPurchasesRef.current.set(key, {
+        owner: nextOwner,
+        sale: update.sale,
+        expiresAt: Date.now() + 10 * 60 * 1000,
+      });
       const next: MarketSnapshot = {
         version: "opensea-market-v1",
         generatedAt: now,
@@ -10390,6 +11033,146 @@ export default function SearchApp() {
       return next;
     });
   }, [viewerProfile]);
+
+  const handleListedBulkBuy = useCallback(async (rows: ListedWarpletRow[]) => {
+    if (rows.length === 0) return [];
+    if (rows.length > MAX_SWEEP_ITEMS) {
+      showSearchToast("error", `Bulk buys are limited to ${MAX_SWEEP_ITEMS} NFTs`, { manualClose: true });
+      return [];
+    }
+    try {
+      void hapticPrimaryTap();
+      const { provider, account } = await getCollectionOfferProviderAndAccount();
+      const prepared = await Promise.all(rows.map(async (row) => {
+        const listing = row.market.listing;
+        if (!listing) throw new Error(`Warplet #${row.warplet.id} is no longer listed`);
+        const response = await fetch("/api/warplet-trade/buy/prepare", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            actionId: crypto.randomUUID(),
+            fid: viewerFid,
+            tokenId: row.warplet.id,
+            wallet: account,
+            expectedOrderHash: listing.orderHash,
+            expectedRawAmount: listing.rawAmount,
+          }),
+        });
+        const payload = await response.json() as {
+          status?: string;
+          chainIdHex?: string;
+          fulfillment?: unknown;
+          state?: FreshTradeState;
+          message?: string;
+        };
+        if (response.status === 409 || payload.status === "mismatch") {
+          throw new Error(`Warplet #${row.warplet.id} changed price or is no longer available`);
+        }
+        if (!response.ok) throw new Error(payload.message || `Bulk buy preparation failed (${response.status})`);
+        const transaction = extractFulfillmentTransaction(payload.fulfillment);
+        if (!transaction) throw new Error(`OpenSea did not return a transaction for #${row.warplet.id}`);
+        return { row, listing: payload.state?.listing ?? listing, transaction, chainIdHex: payload.chainIdHex };
+      }));
+
+      await ensureBaseChain(provider, prepared[0]?.chainIdHex);
+      const transactions = prepared.map((item) => item.transaction);
+      const chainIdHex = prepared[0]?.chainIdHex ?? undefined;
+      const useAtomicBatch = transactions.length > 1 && await supportsAtomicBatchTransactions(provider, account, chainIdHex);
+      const hash = transactions.length === 1
+        ? await sendPreparedTransaction(provider, account, transactions[0])
+        : useAtomicBatch
+          ? (await sendPreparedTransactionsAtomic(provider, account, transactions, chainIdHex)).transactionHash
+          : await sendPreparedTransaction(provider, account, combinePreparedOpenSeaTransactions(transactions));
+      const receipt = await waitForTransactionReceipt(hash);
+      const transferredTokenIds = getPurchasedWarpletTransferIds(receipt, account);
+      const purchased = prepared.filter((item) => transferredTokenIds.has(item.row.warplet.id));
+      if (purchased.length === 0) throw new Error("Bulk transaction confirmed without transferring any selected Warplets");
+      if (useAtomicBatch && purchased.length !== prepared.length) {
+        throw new Error("Atomic purchase receipt did not contain every selected Warplet transfer");
+      }
+      const now = new Date().toISOString();
+      for (const item of purchased) {
+        const listing = item.listing;
+        const sale: MarketSnapshot["sales"][string] = {
+          eth: listing?.eth ?? null,
+          at: now,
+          rawAmount: listing?.rawAmount ?? null,
+          decimals: listing?.decimals ?? null,
+          currencySymbol: listing?.currencySymbol ?? null,
+          tokenAddress: listing?.tokenAddress ?? null,
+          txHash: hash,
+          seller: listing?.seller ?? null,
+        };
+        handleApplyPurchase(item.row.warplet.id, { buyerWallet: account, buyerFid: viewerFid, sale });
+      }
+      void hapticSuccess();
+      showTradeConfetti();
+      window.setTimeout(() => {
+        void hapticSuccess();
+        showTradeConfetti();
+      }, 400);
+      window.setTimeout(() => {
+        void hapticSuccess();
+        showTradeConfetti();
+      }, 800);
+      if (purchased.length === prepared.length) {
+        showSearchToast("success", `Successfully purchased ${purchased.length.toLocaleString("en-US")} NFTs`, { minMs: 6000 });
+      } else {
+        void hapticWarning();
+        showSearchToast(
+          "warning",
+          `Purchased ${purchased.length.toLocaleString("en-US")} of ${prepared.length.toLocaleString("en-US")} selected NFTs; unavailable items remain in your sweep list`,
+          { minMs: 8000 },
+        );
+      }
+      const purchasedCount = purchased.length;
+      const bulkBuyShareState: SearchUrlState = {
+        ...EMPTY_SEARCH_URL_STATE,
+        search: account.toLowerCase(),
+        order: "recently-sold",
+        dir: "desc",
+      };
+      const firstPurchasedTokenId = purchased[0].row.warplet.id;
+      const walletResultTokenIds = new Set(
+        Object.entries(marketSnapshot?.owners ?? {})
+          .filter(([, owner]) => walletMatches(owner.wallet, account))
+          .map(([tokenId]) => Number(tokenId))
+          .filter((tokenId) => Number.isInteger(tokenId) && tokenId > 0),
+      );
+      purchased.forEach((item) => walletResultTokenIds.add(item.row.warplet.id));
+      const bulkBuySearchUrl = appendSearchShareParams(
+        buildSearchHref(bulkBuyShareState),
+        firstPurchasedTokenId,
+        walletResultTokenIds.size,
+      );
+      const openSeaWalletUrl = `https://opensea.io/${account.toLowerCase()}?collectionSlugs=10xwarplets`;
+      const bulkBuyShareText = `👀 Purchased ${purchasedCount.toLocaleString("en-US")} more 10X ${purchasedCount === 1 ? "Warplet" : "Warplets"}...`;
+      const links = [bulkBuySearchUrl, openSeaWalletUrl];
+      setSharePreview({
+        title: "Share Your Bulk Buy!",
+        text: bulkBuyShareText,
+        links,
+        images: [
+          {
+            src: getWarpletAssetUrl(firstPurchasedTokenId, "gif"),
+            alt: `10X Warplet #${firstPurchasedTokenId} bulk buy share image`,
+          },
+          {
+            src: "/menu/menu-opensea-10xwarplets.jpg",
+            alt: "OpenSea 10X Warplets wallet collection share image",
+            sourceUrl: openSeaWalletUrl,
+          },
+        ],
+        farcasterEmbeds: [bulkBuySearchUrl, openSeaWalletUrl],
+        twitterText: buildTwitterShareText(bulkBuyShareText, links),
+      });
+      return purchased.map((item) => item.row.warplet.id);
+    } catch (error) {
+      void hapticError();
+      showSearchToast("error", error instanceof Error ? error.message : "Bulk buy failed", { manualClose: true });
+      throw error;
+    }
+  }, [getCollectionOfferProviderAndAccount, handleApplyPurchase, marketSnapshot, showSearchToast, viewerFid]);
 
   const handleRefreshSelectedMarket = useCallback(async () => {
     const tokenId = selectedWarpletDetails?.id;
@@ -10470,7 +11253,9 @@ export default function SearchApp() {
       : null;
   const routeTitle = getSearchRouteTitle(searchRoute);
   const headerTitle = isMenuRoute ? getHeaderTitle("search", true) : getHeaderTitle("search", false);
-  const headerCanGoBack = canGoBack || (!isMenuRoute && searchRoute.page !== "search");
+  const isPrimaryNavigationRoute = !isMenuRoute &&
+    (searchRoute.page === "listed" || searchRoute.page === "offers" || searchRoute.page === "stats");
+  const headerCanGoBack = !isPrimaryNavigationRoute && (canGoBack || (!isMenuRoute && searchRoute.page !== "search"));
   const headerCloseKey = isMenuRoute ? "menu" : getSearchRouteStableKey(searchRoute);
 
   useEffect(() => {
@@ -10558,7 +11343,8 @@ export default function SearchApp() {
             onOpenWarpletDetails={handleOpenWarpletDetails}
             onToggleFavourite={handleToggleFavourite}
             onSearchOwnerWallet={handleListedSearchOwnerWallet}
-            onRefreshMarket={() => refreshMarketSnapshot(true)}
+            onRefreshMarket={refreshListedMarket}
+            onBulkBuy={handleListedBulkBuy}
           />
         ) : searchRoute.page === "stats" ? (
           <SearchPlaceholderPage title="Stats" />
@@ -10817,6 +11603,7 @@ export default function SearchApp() {
             viewerFid={viewerFid}
             onMergeMarketSnapshot={handleMergeMarketSnapshot}
             onClearMarketSide={handleClearMarketSide}
+            onUpsertListing={handleUpsertListing}
             onUpsertItemOffer={handleUpsertItemOffer}
             onApplyPurchase={handleApplyPurchase}
             onOpenTradeSharePreview={setSharePreview}

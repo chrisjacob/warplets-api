@@ -24,6 +24,11 @@ export type PreparedTransaction = {
   inputData?: unknown;
 };
 
+export type AtomicBatchReceipt = {
+  transactionHash: string;
+  logs: Array<{ address?: unknown; topics?: unknown; data?: unknown }>;
+};
+
 export type SeaportCancelOrderParameters = {
   offerer?: unknown;
   zone?: unknown;
@@ -110,6 +115,56 @@ const seaportCancelAbi = [{
 }] as const;
 
 const seaportFulfillmentAbi = [
+  {
+    type: "function",
+    name: "fulfillAvailableAdvancedOrders",
+    stateMutability: "payable",
+    inputs: [
+      { name: "advancedOrders", type: "tuple[]", components: [
+        { name: "parameters", type: "tuple", components: [
+          { name: "offerer", type: "address" },
+          { name: "zone", type: "address" },
+          { name: "offer", type: "tuple[]", components: [
+            { name: "itemType", type: "uint8" }, { name: "token", type: "address" },
+            { name: "identifierOrCriteria", type: "uint256" }, { name: "startAmount", type: "uint256" }, { name: "endAmount", type: "uint256" },
+          ] },
+          { name: "consideration", type: "tuple[]", components: [
+            { name: "itemType", type: "uint8" }, { name: "token", type: "address" },
+            { name: "identifierOrCriteria", type: "uint256" }, { name: "startAmount", type: "uint256" }, { name: "endAmount", type: "uint256" },
+            { name: "recipient", type: "address" },
+          ] },
+          { name: "orderType", type: "uint8" }, { name: "startTime", type: "uint256" }, { name: "endTime", type: "uint256" },
+          { name: "zoneHash", type: "bytes32" }, { name: "salt", type: "uint256" }, { name: "conduitKey", type: "bytes32" },
+          { name: "totalOriginalConsiderationItems", type: "uint256" },
+        ] },
+        { name: "numerator", type: "uint120" }, { name: "denominator", type: "uint120" },
+        { name: "signature", type: "bytes" }, { name: "extraData", type: "bytes" },
+      ] },
+      { name: "criteriaResolvers", type: "tuple[]", components: [
+        { name: "orderIndex", type: "uint256" }, { name: "side", type: "uint8" }, { name: "index", type: "uint256" },
+        { name: "identifier", type: "uint256" }, { name: "criteriaProof", type: "bytes32[]" },
+      ] },
+      { name: "offerFulfillments", type: "tuple[][]", components: [
+        { name: "orderIndex", type: "uint256" }, { name: "itemIndex", type: "uint256" },
+      ] },
+      { name: "considerationFulfillments", type: "tuple[][]", components: [
+        { name: "orderIndex", type: "uint256" }, { name: "itemIndex", type: "uint256" },
+      ] },
+      { name: "fulfillerConduitKey", type: "bytes32" },
+      { name: "recipient", type: "address" },
+      { name: "maximumFulfilled", type: "uint256" },
+    ],
+    outputs: [
+      { name: "availableOrders", type: "bool[]" },
+      { name: "executions", type: "tuple[]", components: [
+        { name: "item", type: "tuple", components: [
+          { name: "itemType", type: "uint8" }, { name: "token", type: "address" },
+          { name: "identifier", type: "uint256" }, { name: "amount", type: "uint256" }, { name: "recipient", type: "address" },
+        ] },
+        { name: "offerer", type: "address" }, { name: "conduitKey", type: "bytes32" },
+      ] },
+    ],
+  },
   {
     type: "function",
     name: "matchAdvancedOrders",
@@ -410,18 +465,19 @@ function normalizeCriteriaResolver(value: unknown) {
   };
 }
 
+function normalizeFulfillmentComponent(component: unknown) {
+  const item = asObject(component) ?? {};
+  return {
+    orderIndex: toOrderBigInt(item.orderIndex),
+    itemIndex: toOrderBigInt(item.itemIndex),
+  };
+}
+
 function normalizeFulfillment(value: unknown) {
   const fulfillment = asObject(value) ?? {};
-  const normalizeComponent = (component: unknown) => {
-    const item = asObject(component) ?? {};
-    return {
-      orderIndex: toOrderBigInt(item.orderIndex),
-      itemIndex: toOrderBigInt(item.itemIndex),
-    };
-  };
   return {
-    offerComponents: asArray(fulfillment.offerComponents).map(normalizeComponent),
-    considerationComponents: asArray(fulfillment.considerationComponents).map(normalizeComponent),
+    offerComponents: asArray(fulfillment.offerComponents).map(normalizeFulfillmentComponent),
+    considerationComponents: asArray(fulfillment.considerationComponents).map(normalizeFulfillmentComponent),
   };
 }
 
@@ -462,6 +518,22 @@ function normalizeBasicOrderParameters(value: unknown) {
 function buildOpenSeaFulfillmentData(inputData: unknown, fallbackRecipient: string): `0x${string}` {
   const input = asObject(inputData);
   if (!input) throw new Error("OpenSea fulfillment payload is missing input data");
+
+  if (asArray(input.availableAdvancedOrders).length > 0) {
+    return encodeFunctionData({
+      abi: seaportFulfillmentAbi,
+      functionName: "fulfillAvailableAdvancedOrders",
+      args: [
+        asArray(input.availableAdvancedOrders).map(normalizeAdvancedOrder),
+        asArray(input.criteriaResolvers).map(normalizeCriteriaResolver),
+        asArray(input.offerFulfillments).map((group) => asArray(group).map(normalizeFulfillmentComponent)),
+        asArray(input.considerationFulfillments).map((group) => asArray(group).map(normalizeFulfillmentComponent)),
+        toOrderBytes32(input.fulfillerConduitKey),
+        getAddress(asString(input.recipient) ?? fallbackRecipient),
+        BigInt(asArray(input.availableAdvancedOrders).length),
+      ],
+    });
+  }
 
   if (asArray(input.orders).length > 0) {
     return encodeFunctionData({
@@ -865,21 +937,200 @@ export function extractFulfillmentTransaction(payload: unknown): PreparedTransac
   return findPreparedTransaction(payload);
 }
 
+export function combinePreparedOpenSeaTransactions(transactions: PreparedTransaction[]): PreparedTransaction {
+  if (transactions.length === 0) throw new Error("No OpenSea transactions to combine");
+  const target = asString(transactions[0]?.to);
+  if (!target) throw new Error("OpenSea transaction is missing a target");
+  const combinedOrders: unknown[] = [];
+  const combinedCriteriaResolvers: unknown[] = [];
+  const combinedFulfillments: unknown[] = [];
+  let totalValue = 0n;
+  let recipient: string | undefined;
+  const firstInput = asObject(transactions[0]?.inputData);
+
+  if (asObject(firstInput?.advancedOrder)) {
+    const advancedOrders: unknown[] = [];
+    const criteriaResolvers: unknown[] = [];
+    const offerFulfillments: unknown[][] = [];
+    const considerationFulfillments: unknown[][] = [];
+    let fulfillerConduitKey: unknown;
+    for (const [orderIndex, transaction] of transactions.entries()) {
+      if (asString(transaction.to)?.toLowerCase() !== target.toLowerCase()) {
+        throw new Error("Selected listings use incompatible OpenSea protocols");
+      }
+      const input = asObject(transaction.inputData);
+      const advancedOrder = asObject(input?.advancedOrder);
+      if (!input || !advancedOrder) throw new Error("Selected listings use incompatible OpenSea fulfillment types");
+      advancedOrders.push(advancedOrder);
+      criteriaResolvers.push(...asArray(input.criteriaResolvers).map((value) => ({
+        ...(asObject(value) ?? {}),
+        orderIndex,
+      })));
+      const parameters = asObject(advancedOrder.parameters);
+      asArray(parameters?.offer).forEach((_, itemIndex) => offerFulfillments.push([{ orderIndex, itemIndex }]));
+      asArray(parameters?.consideration).forEach((_, itemIndex) => considerationFulfillments.push([{ orderIndex, itemIndex }]));
+      recipient ??= asString(input.recipient);
+      const conduitKey = input.fulfillerConduitKey;
+      if (fulfillerConduitKey != null && String(conduitKey).toLowerCase() !== String(fulfillerConduitKey).toLowerCase()) {
+        throw new Error("Selected listings use incompatible OpenSea conduits");
+      }
+      fulfillerConduitKey ??= conduitKey;
+      totalValue += BigInt(toHexQuantity(transaction.value));
+    }
+    return {
+      to: target,
+      value: `0x${totalValue.toString(16)}`,
+      inputData: {
+        availableAdvancedOrders: advancedOrders,
+        criteriaResolvers,
+        offerFulfillments,
+        considerationFulfillments,
+        fulfillerConduitKey,
+        recipient,
+      },
+    };
+  }
+
+  for (const transaction of transactions) {
+    if (asString(transaction.to)?.toLowerCase() !== target.toLowerCase()) {
+      throw new Error("Selected listings use incompatible OpenSea protocols");
+    }
+    const input = asObject(transaction.inputData);
+    const orders = asArray(input?.orders);
+    if (!input || orders.length === 0) {
+      throw new Error("OpenSea did not return a bulk-compatible fulfillment");
+    }
+    const orderOffset = combinedOrders.length;
+    combinedOrders.push(...orders);
+    combinedCriteriaResolvers.push(...asArray(input.criteriaResolvers).map((value) => {
+      const resolver = { ...(asObject(value) ?? {}) };
+      resolver.orderIndex = Number(resolver.orderIndex ?? 0) + orderOffset;
+      return resolver;
+    }));
+    combinedFulfillments.push(...asArray(input.fulfillments).map((value) => {
+      const fulfillment = asObject(value) ?? {};
+      const offsetComponents = (components: unknown) => asArray(components).map((componentValue) => {
+        const component = { ...(asObject(componentValue) ?? {}) };
+        component.orderIndex = Number(component.orderIndex ?? 0) + orderOffset;
+        return component;
+      });
+      return {
+        ...fulfillment,
+        offerComponents: offsetComponents(fulfillment.offerComponents),
+        considerationComponents: offsetComponents(fulfillment.considerationComponents),
+      };
+    }));
+    recipient ??= asString(input.recipient);
+    totalValue += BigInt(toHexQuantity(transaction.value));
+  }
+
+  return {
+    to: target,
+    value: `0x${totalValue.toString(16)}`,
+    inputData: {
+      orders: combinedOrders,
+      criteriaResolvers: combinedCriteriaResolvers,
+      fulfillments: combinedFulfillments,
+      recipient,
+    },
+  };
+}
+
+function getPreparedTransactionCall(tx: PreparedTransaction, account: string) {
+  const to = asString(tx.to);
+  const data = asString(tx.data) ?? asString(tx.input) ?? (tx.inputData ? buildOpenSeaFulfillmentData(tx.inputData, account) : undefined);
+  if (!to || !data) throw new Error("Prepared OpenSea transaction is missing calldata");
+  return {
+    to: getAddress(to),
+    value: toHexQuantity(tx.value),
+    data,
+  };
+}
+
+export async function supportsAtomicBatchTransactions(
+  provider: EthereumProvider,
+  account: string,
+  chainIdHex = BASE_CHAIN_CONFIG.chainId,
+): Promise<boolean> {
+  const normalizedAccount = getAddress(account);
+  const normalizedChainId = `0x${BigInt(chainIdHex).toString(16)}`;
+  try {
+    const capabilities = await provider.request({
+      method: "wallet_getCapabilities",
+      params: [normalizedAccount, [normalizedChainId]],
+    });
+    const chainCapabilities = asObject(asObject(capabilities)?.[normalizedChainId])
+      ?? asObject(asObject(capabilities)?.[normalizedChainId.toLowerCase()]);
+    const atomicStatus = asString(asObject(chainCapabilities?.atomic)?.status)?.toLowerCase();
+    return atomicStatus === "supported" || atomicStatus === "ready";
+  } catch {
+    return false;
+  }
+}
+
+export async function sendPreparedTransactionsAtomic(
+  provider: EthereumProvider,
+  account: string,
+  transactions: PreparedTransaction[],
+  chainIdHex = BASE_CHAIN_CONFIG.chainId,
+  timeoutMs = 120000,
+): Promise<AtomicBatchReceipt> {
+  if (transactions.length < 2) throw new Error("Atomic bulk buy requires at least two transactions");
+  const normalizedAccount = getAddress(account);
+  const normalizedChainId = `0x${BigInt(chainIdHex).toString(16)}`;
+
+  const calls = transactions.map((transaction) => getPreparedTransactionCall(transaction, normalizedAccount));
+  const sent = await waitForWalletPrompt(provider.request({
+    method: "wallet_sendCalls",
+    params: [{
+      version: "2.0.0",
+      from: normalizedAccount,
+      chainId: normalizedChainId,
+      atomicRequired: true,
+      calls,
+    }],
+  }));
+  const batchId = asString(sent) ?? asString(asObject(sent)?.id);
+  if (!batchId) throw new Error("Wallet did not return an atomic batch identifier");
+
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    const status = asObject(await provider.request({ method: "wallet_getCallsStatus", params: [batchId] }));
+    const statusCode = typeof status?.status === "number" ? status.status : Number(status?.status);
+    const statusLabel = asString(status?.status)?.toLowerCase();
+    if (statusCode === 200 || statusLabel === "confirmed") {
+      if (status?.atomic !== true) throw new Error("Wallet did not execute the bulk purchase atomically");
+      const receipts = asArray(status.receipts).map(asObject).filter((receipt): receipt is Record<string, unknown> => Boolean(receipt));
+      if (receipts.length === 0) throw new Error("Wallet confirmed the batch without a transaction receipt");
+      if (receipts.some((receipt) => asString(receipt.status)?.toLowerCase() !== "0x1")) {
+        throw new Error("Atomic bulk purchase reverted");
+      }
+      const transactionHash = receipts.map((receipt) => asString(receipt.transactionHash)).find(Boolean);
+      if (!transactionHash) throw new Error("Atomic bulk purchase receipt is missing its transaction hash");
+      return {
+        transactionHash,
+        logs: receipts.flatMap((receipt) => asArray(receipt.logs).map((log) => asObject(log) ?? {})),
+      };
+    }
+    if ((Number.isFinite(statusCode) && statusCode >= 400) || statusLabel === "failed") {
+      throw new Error("Atomic bulk purchase failed");
+    }
+    await new Promise((resolve) => window.setTimeout(resolve, 1500));
+  }
+  throw new Error("Timed out waiting for atomic bulk purchase confirmation");
+}
+
 export async function sendPreparedTransaction(
   provider: EthereumProvider,
   account: string,
   tx: PreparedTransaction,
 ): Promise<string> {
-  const to = asString(tx.to);
-  const data = asString(tx.data) ?? asString(tx.input) ?? (tx.inputData ? buildOpenSeaFulfillmentData(tx.inputData, account) : undefined);
-  if (!to || !data) throw new Error("Prepared OpenSea transaction is missing calldata");
+  const call = getPreparedTransactionCall(tx, account);
   const hash = await waitForWalletPrompt(provider.request({
     method: "eth_sendTransaction",
     params: [{
       from: account,
-      to: getAddress(to),
-      value: toHexQuantity(tx.value),
-      data,
+      ...call,
     }],
   }));
   if (typeof hash !== "string") throw new Error("Wallet did not return a transaction hash");

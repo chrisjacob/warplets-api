@@ -43,6 +43,18 @@ button {
   font-family: inherit;
 }
 
+.listed-card-shake {
+  animation: listed-card-shake 320ms ease-in-out;
+}
+
+@keyframes listed-card-shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-4px) rotate(-0.35deg); }
+  40% { transform: translateX(4px) rotate(0.35deg); }
+  60% { transform: translateX(-3px) rotate(-0.25deg); }
+  80% { transform: translateX(3px) rotate(0.25deg); }
+}
+
 input[type="search"]::-webkit-search-cancel-button,
 input[type="search"]::-webkit-search-decoration,
 input[type="search"]::-webkit-search-results-button,
@@ -333,7 +345,7 @@ input[type="search"]::-webkit-search-results-decoration {
 .miniapp-shell {
   position: relative;
   min-height: 100vh;
-  overflow-x: hidden;
+  overflow-x: clip;
   background: #000000;
   color: #ffffff;
 }
@@ -353,7 +365,7 @@ input[type="search"]::-webkit-search-results-decoration {
   width: 100%;
   max-width: 500px;
   margin: 0 auto;
-  overflow: hidden;
+  overflow: clip;
   background: #000000;
 }
 

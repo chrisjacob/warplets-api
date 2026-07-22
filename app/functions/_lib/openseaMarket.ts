@@ -1963,22 +1963,34 @@ export async function ingestOpenSeaMarket(env: OpenSeaMarketEnv): Promise<{ chan
   changed += listings.changed;
   if (listings.complete) changed += await clearInactiveMarketRows(env.WARPLETS, "listing", listings.tokenIds);
 
-  const offers = await ingestPaginated(env, apiKey, `/offers/collection/${COLLECTION_SLUG}/all`, ["offers", "orders"], processOffer, 50);
-  changed += offers.changed;
-  if (offers.complete) changed += await clearInactiveMarketRows(env.WARPLETS, "offer", offers.tokenIds);
-  if (offers.complete) changed += await clearInactiveCriteriaOffers(env.WARPLETS, offers.orderHashes);
+  try {
+    const offers = await ingestPaginated(env, apiKey, `/offers/collection/${COLLECTION_SLUG}/all`, ["offers", "orders"], processOffer, 50);
+    changed += offers.changed;
+    if (offers.complete) changed += await clearInactiveMarketRows(env.WARPLETS, "offer", offers.tokenIds);
+    if (offers.complete) changed += await clearInactiveCriteriaOffers(env.WARPLETS, offers.orderHashes);
+  } catch (error) {
+    console.warn("OpenSea offers ingest failed; preserving the previous offers snapshot", error);
+  }
 
   const last = await env.WARPLETS.prepare("SELECT value FROM opensea_ingest_state WHERE key = 'events_after'").first<{ value: string | null }>();
   const after = last?.value ?? null;
+  let eventsComplete = true;
   for (const eventType of ["sale", "transfer"] as const) {
-    changed += await ingestCollectionEvents(env, apiKey, eventType, after);
+    try {
+      changed += await ingestCollectionEvents(env, apiKey, eventType, after);
+    } catch (error) {
+      eventsComplete = false;
+      console.warn(`OpenSea ${eventType} events ingest failed; preserving existing event data`, error);
+    }
   }
 
-  await env.WARPLETS.prepare(
-    `INSERT INTO opensea_ingest_state (key, value, updated_at)
-     VALUES ('events_after', ?, ?)
-     ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`
-  ).bind(String(Math.floor(Date.now() / 1000)), new Date().toISOString()).run();
+  if (eventsComplete) {
+    await env.WARPLETS.prepare(
+      `INSERT INTO opensea_ingest_state (key, value, updated_at)
+       VALUES ('events_after', ?, ?)
+       ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`
+    ).bind(String(Math.floor(Date.now() / 1000)), new Date().toISOString()).run();
+  }
 
   const snapshot = await publishMarketSnapshot(env);
   return { changed, generatedAt: snapshot.generatedAt };

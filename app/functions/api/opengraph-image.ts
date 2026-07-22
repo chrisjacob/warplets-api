@@ -38,6 +38,14 @@ function isAllowedOpenSeaUrl(url: URL): boolean {
   if (path === COLLECTION_PATH) return true;
 
   const parts = path.split("/").filter(Boolean);
+  const isWarpletsWalletCollection = (
+    parts.length === 1 &&
+    /^0x[a-f0-9]{40}$/i.test(parts[0]) &&
+    url.searchParams.get("collectionSlugs") === "10xwarplets" &&
+    Array.from(url.searchParams.keys()).every((key) => key === "collectionSlugs")
+  );
+  if (isWarpletsWalletCollection) return true;
+
   return (
     parts.length === 4 &&
     parts[0] === "item" &&
@@ -118,7 +126,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   const requestUrl = new URL(context.request.url);
   const sourceUrl = normalizeOpenSeaUrl(requestUrl.searchParams.get("url"));
   if (!sourceUrl || !isAllowedOpenSeaUrl(sourceUrl)) {
-    return jsonSecure({ error: "valid OpenSea collection or Warplet item URL is required" }, { status: 400 });
+    return jsonSecure({ error: "valid OpenSea collection, wallet collection, or Warplet item URL is required" }, { status: 400 });
   }
 
   const cacheKey = `opengraph-image:v1:${sourceUrl.href}`;
