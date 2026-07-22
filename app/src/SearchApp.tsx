@@ -913,6 +913,40 @@ type CollectionOffersPayload = {
   groups: CollectionOfferGroup[];
 };
 
+type TraitOffersPayload = Omit<CollectionOffersPayload, "topCollectionOffer" | "groups"> & {
+  level: string;
+  attributes: string[];
+  topTraitOffer: MarketMoney | null;
+  groups: Array<CollectionOfferGroup & { traitType: string; traitValue: string }>;
+};
+
+type ItemOfferRow = {
+  orderHash: string;
+  tokenId: number;
+  protocolAddress: string | null;
+  price: MarketMoney;
+  bidder: CollectionOfferBidder | null;
+  isUserOffer: boolean;
+};
+
+type ItemOffersPayload = {
+  generatedAt: string;
+  refreshError?: string | null;
+  wallet: string | null;
+  tokenId: number | null;
+  topItemOffer: MarketMoney | null;
+  stats: { count: number; value: MarketMoney };
+  pagination: {
+    page: number;
+    pageSize: number;
+    totalPages: number;
+    totalRows: number;
+    hasPrevious: boolean;
+    hasNext: boolean;
+  };
+  rows: ItemOfferRow[];
+};
+
 type WarpletResult = {
   id: number;
   rarityValue: number | null;
@@ -1255,6 +1289,22 @@ function mapRows(values: unknown[][], hasSearchScore = false): WarpletResult[] {
       searchIndex: index,
     };
   });
+}
+
+function searchWarpletPickerRows(db: SqliteDatabase, query: string, favouriteTokenIds: number[] | null): WarpletResult[] {
+  const trimmed = query.trim();
+  const exactMatch = trimmed.match(/^#([1-9]\d{0,4})$/);
+  const exactTokenId = exactMatch && Number(exactMatch[1]) <= 10000 ? Number(exactMatch[1]) : null;
+  const ftsQuery = exactTokenId == null && trimmed && trimmed !== "*" ? normalizeFtsQuery(trimmed) : "";
+  const rows = exactTokenId != null
+    ? db.exec(`SELECT ${RESULT_SELECT_COLUMNS} FROM warplets w WHERE w.id = ? LIMIT 1`, { bind: [exactTokenId], rowMode: "array", returnValue: "resultRows" })
+    : ftsQuery
+      ? db.exec(`SELECT ${RESULT_SELECT_COLUMNS}, bm25(warplets_fts) AS score FROM warplets_fts JOIN warplets w ON w.id = warplets_fts.rowid WHERE warplets_fts MATCH ? ORDER BY score, w."10x_rank" ASC, w.id ASC LIMIT ?`, { bind: [ftsQuery, SEARCH_RESULT_LIMIT], rowMode: "array", returnValue: "resultRows" })
+      : db.exec(`SELECT ${RESULT_SELECT_COLUMNS} FROM warplets w ORDER BY w."10x_rank" ASC, w.id ASC LIMIT ?`, { bind: [SEARCH_RESULT_LIMIT], rowMode: "array", returnValue: "resultRows" });
+  const mapped = mapRows(rows, Boolean(ftsQuery));
+  if (!favouriteTokenIds) return mapped;
+  const favourites = new Set(favouriteTokenIds);
+  return mapped.filter((row) => favourites.has(row.id));
 }
 
 function loadWarpletResultById(db: SqliteDatabase, tokenId: number): WarpletResult | null {
@@ -2281,10 +2331,14 @@ function FilterDropdown({
   label,
   valueLabel,
   children,
+  tone = "green",
+  closeOnCheckboxChange = true,
 }: {
   label: string;
   valueLabel: string;
   children: ReactNode;
+  tone?: "green" | "blue";
+  closeOnCheckboxChange?: boolean;
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -2310,18 +2364,18 @@ function FilterDropdown({
           void hapticTap();
           setIsOpen((current) => !current);
         }}
-        className="flex min-h-11 w-full cursor-pointer items-center justify-between rounded-xl border border-[#00FF00]/25 bg-black/70 px-3 py-2 text-left text-sm text-[#00FF00]"
+        className={`flex min-h-11 w-full cursor-pointer items-center justify-between rounded-xl border bg-black/70 px-3 py-2 text-left text-sm outline-none transition-[border-color,box-shadow] ${tone === "blue" ? "border-[#33AAFF]/35 text-[#33AAFF] focus-visible:border-[#33AAFF] focus-visible:shadow-[0_0_10px_rgba(51,170,255,0.22)]" : "border-[#00FF00]/25 text-[#00FF00] focus-visible:border-[#00FF00] focus-visible:shadow-[0_0_10px_rgba(0,255,0,0.18)]"}`}
       >
         <span>{label}</span>
-        <span className="ml-2 truncate text-xs text-[#8bbf8b]">
+        <span className={`ml-2 truncate text-xs ${tone === "blue" ? "text-[#8bcfff]" : "text-[#8bbf8b]"}`}>
           {valueLabel}
         </span>
       </button>
       {isOpen && (
         <div
-          className="absolute left-0 right-0 z-30 mt-2 overflow-visible rounded-xl border border-[#00FF00]/30 bg-black p-2 shadow-2xl"
+          className={`absolute left-0 right-0 z-30 mt-2 overflow-visible rounded-xl border bg-black p-2 shadow-2xl ${tone === "blue" ? "border-[#33AAFF]/35" : "border-[#00FF00]/30"}`}
           onChange={(event) => {
-            if (event.target instanceof HTMLInputElement && event.target.type === "checkbox") {
+            if (closeOnCheckboxChange && event.target instanceof HTMLInputElement && event.target.type === "checkbox") {
               void hapticSelectionChanged();
               window.setTimeout(() => setIsOpen(false), 0);
             }
@@ -3137,7 +3191,7 @@ function SearchSegmentedTabs({
               void hapticSelectionChanged();
               onSelect(option.id);
             }}
-            className={`whitespace-nowrap rounded-md ${dense ? "px-1 py-2 text-[10px] sm:text-xs" : "px-2 py-2 text-xs sm:text-sm"} font-bold transition-colors ${
+            className={`cursor-pointer whitespace-nowrap rounded-md ${dense ? "px-1 py-2 text-[10px] sm:text-xs" : "px-2 py-2 text-xs sm:text-sm"} font-bold transition-colors ${
               active
                 ? "bg-[#00FF00] text-[rgb(0,80,0)]"
                 : "text-[#00FF00] hover:bg-[#041204]"
@@ -3245,16 +3299,18 @@ function SearchPlaceholderPage({
 function OverlayScrollArea({
   children,
   className,
+  scrollbarAutoHide = "leave",
 }: {
   children: ReactNode;
   className: string;
+  scrollbarAutoHide?: "never" | "scroll" | "leave" | "move";
 }) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const [initializeScrollbars] = useOverlayScrollbars({
     options: {
       scrollbars: {
         theme: "os-theme-10x-green",
-        autoHide: "leave",
+        autoHide: scrollbarAutoHide,
       },
     },
     defer: true,
@@ -3344,10 +3400,20 @@ function formatCollectionBidderWallet(value: string | null | undefined): string 
 function CollectionBiddersModal({
   group,
   isInMiniAppContext,
+  offerLabel = "Collection",
+  offerEmoji,
+  offerLevel,
+  showPrice = true,
+  titleOverride,
   onClose,
 }: {
   group: CollectionOfferGroup;
   isInMiniAppContext: boolean;
+  offerLabel?: string;
+  offerEmoji?: string;
+  offerLevel?: string;
+  showPrice?: boolean;
+  titleOverride?: string;
   onClose: () => void;
 }) {
   const handleOpenFarcaster = useCallback((bidder: CollectionOfferBidder) => {
@@ -3370,8 +3436,8 @@ function CollectionBiddersModal({
       <div className="flex max-h-[88vh] w-full max-w-md flex-col overflow-hidden rounded-xl border border-[#00FF00]/35 bg-black shadow-2xl">
         <div className="flex items-start justify-between gap-3 border-b border-[#00FF00]/20 px-4 py-3">
           <Text className="text-base font-bold text-[#d7ffd7]">
-            <span className="text-[#00FF00]">{formatCollectionBidderTitlePrice(group.price)} </span>
-            Collection bidders
+            {showPrice && <span className="text-[#00FF00]">{formatCollectionBidderTitlePrice(group.price)} </span>}
+            {titleOverride ?? `${offerEmoji ? `${offerEmoji} ` : ""}${offerLevel ? `${offerLevel} ` : ""}${offerLabel} bidders`}
           </Text>
           <button
             type="button"
@@ -3379,8 +3445,8 @@ function CollectionBiddersModal({
               void hapticTap();
               onClose();
             }}
-            className="h-8 w-8 shrink-0 rounded-md border border-[#00FF00]/35 text-sm font-bold text-[#00FF00] hover:bg-[#041204]"
-            aria-label="Close collection bidders"
+            className="h-8 w-8 shrink-0 cursor-pointer rounded-md border border-[#00FF00]/35 text-sm font-bold text-[#00FF00] hover:bg-[#041204]"
+            aria-label={`Close ${offerLabel.toLowerCase()} bidders`}
           >
             X
           </button>
@@ -3801,7 +3867,7 @@ function CollectionOffersPage({
               void hapticTap();
               setQuantity((current) => Math.max(1, current - 1));
             }}
-            className="h-8 w-8 rounded-md border border-[#33AAFF]/35 text-lg font-bold text-[#33AAFF] hover:bg-[#061827]"
+            className="h-8 w-8 cursor-pointer rounded-md border border-[#33AAFF]/35 text-lg font-bold text-[#33AAFF] hover:bg-[#061827]"
           >
             -
           </button>
@@ -3823,7 +3889,7 @@ function CollectionOffersPage({
               void hapticTap();
               setQuantity((current) => Math.min(10000, current + 1));
             }}
-            className="h-8 w-8 rounded-md border border-[#33AAFF]/35 text-lg font-bold text-[#33AAFF] hover:bg-[#061827]"
+            className="h-8 w-8 cursor-pointer rounded-md border border-[#33AAFF]/35 text-lg font-bold text-[#33AAFF] hover:bg-[#061827]"
           >
             +
           </button>
@@ -3883,7 +3949,7 @@ function CollectionOffersPage({
                 setQuantity(1);
                 formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
               }}
-              className="flex justify-center font-bold text-[#33AAFF] hover:text-[#70c6ff] hover:underline"
+              className="flex cursor-pointer justify-center font-bold text-[#33AAFF] hover:text-[#70c6ff] hover:underline"
             >
               {formatMarketValue(group.price, { maxDigits: 5 })}
             </button>
@@ -3902,7 +3968,7 @@ function CollectionOffersPage({
                 void hapticTap();
                 setBiddersGroup(group);
               }}
-              className="flex w-full justify-center -space-x-2 disabled:cursor-default disabled:opacity-60"
+              className="flex w-full cursor-pointer justify-center -space-x-2 disabled:cursor-default disabled:opacity-60"
               title="View collection bidders"
             >
               {group.previewBidders.slice(0, group.bidderCount > 5 ? 4 : 5).map((bidder) => (
@@ -3934,7 +4000,7 @@ function CollectionOffersPage({
                 setQuantity(1);
                 formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
               }}
-              className={`justify-self-center rounded-md border px-2 py-1.5 text-xs font-bold ${group.userOfferCount > 0 ? "border-[#FF5555]/55 text-[#FF7777] hover:bg-[rgba(255,85,85,0.12)]" : "border-[#33AAFF]/55 text-[#33AAFF] hover:bg-[rgba(51,170,255,0.12)]"}`}
+              className={`cursor-pointer justify-self-center rounded-md border px-2 py-1.5 text-xs font-bold disabled:cursor-wait ${group.userOfferCount > 0 ? "border-[#FF5555]/55 text-[#FF7777] hover:bg-[rgba(255,85,85,0.12)]" : "border-[#33AAFF]/55 text-[#33AAFF] hover:bg-[rgba(51,170,255,0.12)]"}`}
             >
               {group.userOfferCount > 0 ? "Cancel" : "Offer"}
             </button>
@@ -4207,6 +4273,434 @@ type ListedWarpletGroup = {
   rows: ListedWarpletRow[];
 };
 
+function TraitOffersPage({
+  connectedWallet,
+  viewerFid,
+  isInMiniAppContext,
+  getProviderAndAccount,
+  showToast,
+}: {
+  connectedWallet: string | null;
+  viewerFid: number | null;
+  isInMiniAppContext: boolean;
+  getProviderAndAccount: () => Promise<{ provider: EthereumProvider; account: string }>;
+  showToast: (kind: TradeToast["kind"], message: string, options?: { manualClose?: boolean; minMs?: number }) => void;
+}) {
+  const [scope, setScope] = useState<"all" | "your">("all");
+  const [selectedAttributes, setSelectedAttributes] = useState<LevelAttributeColumn[]>(() => LEVEL_ATTRIBUTES.map((item) => item.column));
+  const [level, setLevel] = useState(10);
+  const [payload, setPayload] = useState<TraitOffersPayload | null>(null);
+  const [price, setPrice] = useState("");
+  const [quantity, setQuantity] = useState(1);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [busy, setBusy] = useState<"offer" | "cancel" | null>(null);
+  const [busyLabel, setBusyLabel] = useState<string | null>(null);
+  const [ethUsdPrice, setEthUsdPrice] = useState<number | null>(null);
+  const [cancelGroup, setCancelGroup] = useState<(CollectionOfferGroup & { traitType: string; traitValue: string }) | null>(null);
+  const [cancelQuantity, setCancelQuantity] = useState(1);
+  const [cancelRequestedQuantity, setCancelRequestedQuantity] = useState(1);
+  const [biddersGroup, setBiddersGroup] = useState<CollectionOfferGroup | null>(null);
+  const formRef = useRef<HTMLDivElement | null>(null);
+  const normalizedWallet = normalizeWalletAddress(connectedWallet);
+  const attributeIds = selectedAttributes.map((column) => LEVEL_ATTRIBUTES.find((item) => item.column === column)?.label.toLowerCase()).filter((value): value is string => Boolean(value));
+
+  const loadOffers = useCallback(async (options: { refresh?: boolean } = {}) => {
+    options.refresh ? setRefreshing(true) : setLoading(true);
+    try {
+      const params = new URLSearchParams({ level: `${level}X`, attributes: attributeIds.join(",") });
+      if (normalizedWallet) params.set("wallet", normalizedWallet);
+      if (scope === "your") params.set("scope", "your");
+      if (options.refresh) params.set("refresh", "1");
+      const response = await fetch(`/api/trait-offers?${params.toString()}`, { headers: { accept: "application/json" }, cache: "no-store" });
+      if (!response.ok) throw new Error(`Trait offers failed (${response.status})`);
+      setPayload(await response.json() as TraitOffersPayload);
+    } catch (error) {
+      showToast("error", error instanceof Error ? error.message : "Trait offers failed.", { manualClose: true });
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [attributeIds.join(","), level, normalizedWallet, scope, showToast]);
+
+  useEffect(() => { void loadOffers(); }, [loadOffers]);
+  useEffect(() => { fetchEthUsdPrice().then(setEthUsdPrice).catch(() => undefined); }, []);
+
+  const setPriceFromMarket = (money: MarketMoney | null | undefined) => {
+    const amount = marketMoneyToDecimal(money);
+    if (amount != null && amount > 0) setPrice(formatTradePriceInput(amount));
+  };
+  const toggleAttribute = (column: LevelAttributeColumn) => {
+    void hapticSelectionChanged();
+    setSelectedAttributes((current) => {
+      if (current.includes(column) && current.length > 1) return current.filter((item) => item !== column);
+      if (current.includes(column)) return current;
+      return [...current, column];
+    });
+  };
+  const formPriceRaw = decimalEthToWeiString(price);
+  const priceIsValid = Boolean(formPriceRaw && BigInt(formPriceRaw) > 0n);
+  const clampedQuantity = Math.min(10000, Math.max(1, Math.floor(quantity)));
+  const cancelTotals = useMemo(() => cancelGroup ? getCollectionOfferCancellableTotals(cancelGroup.userOrders) : [], [cancelGroup]);
+  const selectedCancelOrders = useMemo(() => cancelGroup ? getCollectionOfferOrdersForQuantity(cancelGroup.userOrders, cancelQuantity) : [], [cancelGroup, cancelQuantity]);
+  const actualCancelQuantity = useMemo(() => getCollectionOfferOrderQuantity(selectedCancelOrders), [selectedCancelOrders]);
+  const selectedLabel = selectedAttributes.length === LEVEL_ATTRIBUTES.length
+    ? "All"
+    : selectedAttributes.length === 1
+      ? LEVEL_ATTRIBUTES.find((item) => item.column === selectedAttributes[0])?.label ?? "1"
+      : `${selectedAttributes.length} selected`;
+  const ctaLabel = selectedAttributes.length === 1 ? "Review trait offer" : `Review ${selectedAttributes.length} trait offers`;
+
+  const runMakeOffers = useCallback(async () => {
+    const priceRaw = decimalEthToWeiString(price);
+    if (!priceRaw || BigInt(priceRaw) <= 0n) return;
+    setBusy("offer");
+    setBusyLabel("Preparing...");
+    let submitted = 0;
+    try {
+      void hapticPrimaryTap();
+      const { provider, account } = await getProviderAndAccount();
+      const prepared = await Promise.all(attributeIds.map(async (attribute) => {
+        const actionId = crypto.randomUUID();
+        const response = await fetch("/api/trait-offers/prepare", {
+          method: "POST", headers: { "content-type": "application/json", accept: "application/json" },
+          body: JSON.stringify({ actionId, fid: viewerFid, wallet: account, priceRaw, quantity: clampedQuantity, durationSeconds: DEFAULT_TRADE_DURATION_SECONDS, attribute, level: `${level}X` }),
+        });
+        const responseText = await response.text();
+        let item: { actionId?: string; attribute?: string; parameters?: unknown; typedData?: unknown; protocolAddress?: string; chainIdHex?: string; wethApproval?: TokenApprovalRequirement; totalRaw?: string; message?: string } = {};
+        try { item = JSON.parse(responseText) as typeof item; } catch { /* Preserve the HTTP response below. */ }
+        if (!response.ok || !item.parameters || !item.typedData || !item.protocolAddress || !item.attribute || !item.wethApproval) {
+          const httpError = responseText && !responseText.trimStart().startsWith("<") ? responseText.slice(0, 500) : "";
+          throw new Error(item.message || httpError || `Could not prepare ${attribute} trait offer (${response.status})`);
+        }
+        return { ...item, actionId, attribute };
+      }));
+      await ensureBaseChain(provider, prepared[0]?.chainIdHex);
+      const aggregateRaw = prepared.reduce((total, item) => total + BigInt(item.totalRaw ?? "0"), 0n);
+      const wethToken = prepared[0].wethApproval!.tokenAddress;
+      const currentWeth = await readErc20Balance(wethToken, account);
+      if (currentWeth < aggregateRaw) {
+        const missing = aggregateRaw - currentWeth;
+        const native = await readNativeBalance(account);
+        if (native <= missing) throw new Error(`Offers require ${formatWeiTokenAmount(aggregateRaw, "WETH")}.`);
+        setBusyLabel("Waiting for wallet...");
+        await wrapEthToWeth(provider, account, wethToken, missing);
+      }
+      await ensureErc20Approval(provider, account, { ...prepared[0].wethApproval!, amount: aggregateRaw.toString() });
+      for (const item of prepared) {
+        try {
+          setBusyLabel(`Signing ${submitted + 1} of ${prepared.length}...`);
+          const signature = await signTypedData(provider, account, item.typedData);
+          setBusyLabel(`Submitting ${submitted + 1} of ${prepared.length}...`);
+          const response = await fetch("/api/trait-offers/submit", {
+            method: "POST", headers: { "content-type": "application/json", accept: "application/json" },
+            body: JSON.stringify({ actionId: item.actionId, fid: viewerFid, wallet: account, priceRaw, quantity: clampedQuantity, attribute: item.attribute, level: `${level}X`, payload: { parameters: item.parameters, protocol_address: item.protocolAddress, signature } }),
+          });
+          if (!response.ok) {
+            const failure = await response.json().catch(() => ({})) as { message?: string };
+            throw new Error(failure.message || `Trait offer submission failed (${response.status})`);
+          }
+          submitted += 1;
+        } catch (error) {
+          if (submitted === 0) throw error;
+          showToast("warning", `Submitted ${submitted} of ${prepared.length} trait offers`, { minMs: 8000 });
+          break;
+        }
+      }
+      if (submitted === prepared.length) {
+        const celebrate = () => { void hapticSuccess(); showTradeConfetti(); };
+        celebrate();
+        window.setTimeout(celebrate, 400);
+        window.setTimeout(celebrate, 800);
+        showToast("success", submitted === 1 ? "Trait offer successfully made" : `${submitted} trait offers successfully made`, { minMs: 6000 });
+      } else {
+        void hapticWarning();
+      }
+      setBusyLabel("Refreshing offers...");
+      await loadOffers();
+    } catch (error) {
+      void hapticError();
+      showToast("error", error instanceof Error ? error.message : "Trait offer failed.", { manualClose: true });
+    } finally {
+      setBusy(null);
+      setBusyLabel(null);
+    }
+  }, [attributeIds.join(","), clampedQuantity, getProviderAndAccount, level, loadOffers, price, showToast, viewerFid]);
+
+  const runCancel = useCallback(async () => {
+    if (!cancelGroup) return;
+    const orders = selectedCancelOrders
+      .filter((order) => Boolean(order.orderHash))
+      .map((order) => ({ orderHash: order.orderHash, protocolAddress: order.protocolAddress }));
+    if (orders.length === 0) return;
+    setBusy("cancel");
+    try {
+      const { provider, account } = await getProviderAndAccount();
+      const prepare = await fetch("/api/trait-offers/cancel-prepare", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ actionId: crypto.randomUUID(), orders }) });
+      const data = await prepare.json().catch(() => ({})) as { protocolAddress?: string; orderParameters?: SeaportCancelOrderParameters[]; chainIdHex?: string; message?: string; error?: string };
+      if (!prepare.ok || !data.protocolAddress || !data.orderParameters?.length) throw new Error(data.message || data.error || "Could not prepare trait offer cancellation");
+      await ensureBaseChain(provider, data.chainIdHex);
+      await sendPreparedTransaction(provider, account, buildSeaportCancelTransaction(data.protocolAddress, data.orderParameters));
+      const submit = await fetch("/api/trait-offers/cancel", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ orders }) });
+      if (!submit.ok) throw new Error("Trait offer cancellation failed");
+      setCancelGroup(null);
+      void hapticSuccess();
+      showTradeConfetti();
+      showToast("success", "Trait offers successfully canceled", { minMs: 5000 });
+      await loadOffers();
+    } catch (error) {
+      void hapticError();
+      showToast("error", error instanceof Error ? error.message : "Trait offer cancellation failed.", { manualClose: true });
+    } finally { setBusy(null); }
+  }, [cancelGroup, getProviderAndAccount, loadOffers, selectedCancelOrders, showToast]);
+
+  const stats = payload?.stats;
+  const rows = payload?.groups ?? [];
+  const emojiForTrait = (traitType: string) => LEVEL_ATTRIBUTES.find((item) => `${item.label} Level`.toLowerCase() === traitType.toLowerCase())?.emoji ?? "";
+
+  return (
+    <div className="mx-auto w-full max-w-md px-4 pb-10 pt-6">
+      <div className="grid grid-cols-2 gap-3">
+        <div className="rounded-lg border border-[#00FF00]/30 bg-[rgba(0,255,0,0.08)] p-3"><Text className="text-[11px] font-bold uppercase text-[#8bbf8b]">Count</Text><div className="mt-1 text-2xl font-bold text-[#00FF00]">{stats?.count ?? 0}</div></div>
+        <div className="rounded-lg border border-[#33AAFF]/30 bg-[rgba(51,170,255,0.08)] p-3"><Text className="text-[11px] font-bold uppercase text-[#8bcfff]">Value</Text><div className="mt-1 text-2xl font-bold text-[#33AAFF]">{formatMarketValue(stats?.value, { maxDigits: 8 })}</div><div className="mt-0.5 text-[11px] font-bold text-[#8bcfff]">{formatUsdMoneyFromMarket(stats?.value, ethUsdPrice)}</div></div>
+      </div>
+      <div ref={formRef} className="mt-4 rounded-xl border border-[#33AAFF]/35 bg-[rgba(51,170,255,0.12)] p-3">
+        <div className="grid grid-cols-2 gap-2">
+          <FilterDropdown label="Attributes" valueLabel={selectedLabel} tone="blue" closeOnCheckboxChange={false}>{LEVEL_ATTRIBUTES.map((attribute) => <label key={attribute.column} className="flex h-8 cursor-pointer items-center gap-2 rounded-lg px-2 text-sm text-[#33AAFF] hover:bg-[#061827]"><input type="checkbox" checked={selectedAttributes.includes(attribute.column)} onChange={() => toggleAttribute(attribute.column)} className="h-4 w-4 appearance-none rounded border border-[#33AAFF] bg-[rgba(51,170,255,0.12)] outline-none checked:appearance-auto checked:accent-[#33AAFF] focus-visible:shadow-[0_0_8px_rgba(51,170,255,0.65)]"/><span>{attribute.emoji}</span>{attribute.label}</label>)}</FilterDropdown>
+          <FilterDropdown label="Level" valueLabel={`${level}X`} tone="blue">{LEVEL_FILTER_OPTIONS.map((option) => <label key={option} className="flex h-8 cursor-pointer items-center gap-2 rounded-lg px-2 text-sm text-[#33AAFF] hover:bg-[#061827]"><input type="radio" name="trait-level" checked={level === option} onChange={() => { void hapticSelectionChanged(); setLevel(option); }} className="h-4 w-4 appearance-none rounded-full border border-[#33AAFF] bg-[rgba(51,170,255,0.12)] outline-none checked:appearance-auto checked:accent-[#33AAFF] focus-visible:shadow-[0_0_8px_rgba(51,170,255,0.65)]"/>{option}X</label>)}</FilterDropdown>
+        </div>
+        <label className="mt-3 block text-[11px] font-bold uppercase text-[#8bcfff]"><span className="flex justify-between gap-3"><span>Offered at</span><span>{formatUsdEstimate(price, ethUsdPrice, payload?.topTraitOffer)}</span></span><div className="mt-1 flex items-center rounded-lg border-2 border-[#33AAFF]/35 bg-black/60 px-3 py-2 transition-[border-color,box-shadow] focus-within:border-[#33AAFF] focus-within:shadow-[0_0_10px_rgba(51,170,255,0.22)]"><input data-no-focus-ring type="text" inputMode="decimal" value={price} onChange={(event) => setPrice(sanitizeTradePriceInput(event.target.value))} placeholder="0.0001" className="min-w-0 flex-1 border-0 bg-transparent text-base font-bold text-[#33AAFF] outline-none"/><span className="text-sm font-bold text-[#33AAFF]">WETH</span></div></label>
+        <div className="mt-2 flex items-center gap-2">
+          <div className="flex shrink-0 items-center gap-2">
+            <img src={getWarpletPreviewImageUrl(760)} alt="" className="h-8 w-8 shrink-0 rounded-md border border-[#33AAFF]/35 object-cover" loading="lazy" />
+            <span className="shrink-0 text-sm font-bold text-[#33AAFF]">10X Warplets</span>
+          </div>
+          <button type="button" onClick={() => setQuantity((value) => Math.max(1, value - 1))} className="h-8 w-8 cursor-pointer rounded-md border border-[#33AAFF]/35 text-lg font-bold text-[#33AAFF] hover:bg-[#061827]">-</button>
+          <div className="flex min-w-0 flex-1 items-center rounded-lg border-2 border-[#33AAFF]/35 bg-black/60 px-3 py-1.5 transition-[border-color,box-shadow] focus-within:border-[#33AAFF] focus-within:shadow-[0_0_10px_rgba(51,170,255,0.22)]">
+            <input data-no-focus-ring type="number" min={1} max={10000} step={1} value={quantity} onChange={(event) => setQuantity(Math.min(10000, Math.max(1, Math.floor(Number(event.target.value) || 1))))} className="min-w-0 flex-1 appearance-none border-0 bg-transparent text-center text-base font-bold text-[#33AAFF] outline-none ring-0 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" />
+          </div>
+          <button type="button" onClick={() => setQuantity((value) => Math.min(10000, value + 1))} className="h-8 w-8 cursor-pointer rounded-md border border-[#33AAFF]/35 text-lg font-bold text-[#33AAFF] hover:bg-[#061827]">+</button>
+        </div>
+        <p className="mt-2 text-[11px] font-bold text-[#8bcfff]">{selectedAttributes.length === 1 && "Offer will be on OpenSea. "}Set price to <button type="button" disabled={!payload?.topTraitOffer} onClick={() => setPriceFromMarket(payload?.topTraitOffer)} className="cursor-pointer text-[#33AAFF] underline disabled:cursor-not-allowed disabled:opacity-50">Top Trait Offer</button>.</p>
+        {selectedAttributes.length > 1 && <p className="mt-3 rounded-lg border border-[#33AAFF]/35 bg-[rgba(51,170,255,0.12)] px-3 py-2 text-xs font-bold text-[#8bcfff]">This will submit {selectedAttributes.length} offers on OpenSea, one for each selected Attribute with Level: {level}X.</p>}
+        <button type="button" disabled={busy !== null || !priceIsValid} onClick={() => void runMakeOffers()} className="mt-3 w-full cursor-pointer rounded-[20px] border border-[#1c78b3] bg-[#33AAFF] px-5 py-3 text-base font-bold text-[rgb(0,54,80)] shadow-[3px_6px_0_#1c78b3] disabled:cursor-wait disabled:opacity-70">{busy === "offer" ? busyLabel ?? "Preparing..." : ctaLabel}</button>
+      </div>
+      <SearchSegmentedTabs className="mt-4" options={OFFERS_FILTER_TABS} activeId={scope} onSelect={(id) => setScope(id === "your" ? "your" : "all")}/>
+      <div className="mt-4 overflow-hidden rounded-lg border border-[#00FF00]/25">
+        <div className="grid grid-cols-[1fr_1fr_56px_72px_72px] items-center gap-1 bg-[#041204] px-2 py-2 text-center text-[10px] font-bold uppercase text-[#8bbf8b]"><span>Price</span><span>Volume</span><span>Offers</span><span>Bidders</span><span>Action</span></div>
+        {loading ? <div className="px-3 py-6 text-center text-sm font-bold text-[#8bbf8b]">Loading offers...</div> : rows.length === 0 ? <div className="px-3 py-6 text-center text-sm font-bold text-[#8bbf8b]">No trait offers.</div> : rows.map((group) => <div key={`${group.traitType}|${group.traitValue}|${group.price.rawAmount ?? group.price.eth}`} className="grid grid-cols-[1fr_1fr_56px_72px_72px] items-center gap-1 border-t border-[#00FF00]/15 px-2 py-2 text-center text-xs"><button type="button" onClick={() => { setPriceFromMarket(group.price); formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }); }} className="cursor-pointer font-bold text-[#33AAFF]">{formatMarketValue(group.price, { maxDigits: 5 })}</button><span className="flex justify-center"><InlineHoverTooltip value={formatMarketValue(group.volume, { maxDigits: 5 })} tooltip={formatUsdMoneyFromMarket(group.volume, ethUsdPrice)} className="text-[#00FF00]"/></span><span className="flex justify-center"><InlineHoverTooltip value={`${emojiForTrait(group.traitType)}${group.offerCount}`} tooltip={`${group.traitType}: ${group.traitValue}`} className="font-bold text-[#8bbf8b]"/></span><button type="button" onClick={() => setBiddersGroup(group)} className="flex cursor-pointer justify-center -space-x-2">{group.previewBidders.slice(0, 5).map((bidder) => <img key={bidder.wallet} src={bidder.pfpUrl || getWarpletPreviewImageUrl(HEADER_FALLBACK_AVATAR_TOKEN_ID)} alt="" className="h-7 w-7 rounded-full border-2 border-[#00FF00] object-cover"/>)}</button><button type="button" disabled={busy !== null} onClick={() => { if (group.userOfferCount > 0) { setCancelGroup(group); setCancelRequestedQuantity(group.userOfferCount); setCancelQuantity(snapCollectionOfferCancelQuantity(group.userOrders, group.userOfferCount)); } else { const attribute = LEVEL_ATTRIBUTES.find((item) => `${item.label} Level`.toLowerCase() === group.traitType.toLowerCase()); setPriceFromMarket(group.price); if (attribute) setSelectedAttributes([attribute.column]); formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }); } }} className={`cursor-pointer justify-self-center rounded-md border px-2 py-1.5 text-xs font-bold disabled:cursor-wait ${group.userOfferCount > 0 ? "border-[#FF5555]/55 text-[#FF7777]" : "border-[#33AAFF]/55 text-[#33AAFF]"}`}>{group.userOfferCount > 0 ? "Cancel" : "Offer"}</button></div>)}
+      </div>
+      <div className="mt-3 text-center text-[11px] text-[#8bbf8b]">Last updated: {payload?.generatedAt ? formatMarketTimestamp(payload.generatedAt) : "Not yet"}. <button type="button" disabled={refreshing || busy !== null} onClick={() => void loadOffers({ refresh: true })} className="font-bold text-[#00FF00]">{refreshing ? "Refreshing..." : "Refresh"}</button>{payload?.refreshError && <span className="block text-red-300">{payload.refreshError}</span>}</div>
+      {cancelGroup && <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/80 p-4 sm:items-center"><div className="w-full max-w-sm rounded-xl border border-[#FF5555]/45 bg-black p-4"><Text className="text-base font-bold text-[#FF7777]">Cancel trait offers</Text><p className="mt-2 text-sm font-bold text-[#d9b0b0]">Cancel up to {cancelGroup.userOfferCount} {emojiForTrait(cancelGroup.traitType)} {cancelGroup.traitValue} trait offers at {formatMarketValue(cancelGroup.price, { maxDigits: 8 })}.</p><div className="mt-3 flex items-center rounded-lg border-2 border-[#FF5555]/35 bg-black/60 px-2 py-1.5"><button type="button" onClick={() => { const next = stepCollectionOfferCancelQuantity(cancelTotals, cancelQuantity, -1); setCancelRequestedQuantity(next); setCancelQuantity(next); }} className="h-8 w-8 text-lg font-bold text-[#FF7777]">-</button><input type="number" min={1} max={cancelGroup.userOfferCount} value={cancelRequestedQuantity} onChange={(event) => { const requested = Math.min(cancelGroup.userOfferCount, Math.max(1, Number(event.target.value) || 1)); setCancelRequestedQuantity(requested); setCancelQuantity(snapCollectionOfferCancelQuantity(cancelGroup.userOrders, requested)); }} className="mx-2 min-w-0 flex-1 bg-transparent text-center font-bold text-[#FF7777] outline-none"/><button type="button" onClick={() => { const next = stepCollectionOfferCancelQuantity(cancelTotals, cancelQuantity, 1); setCancelRequestedQuantity(next); setCancelQuantity(next); }} className="h-8 w-8 text-lg font-bold text-[#FF7777]">+</button></div>{actualCancelQuantity > cancelRequestedQuantity && <p className="mt-2 text-xs font-bold text-[#ffd599]">This cancels {actualCancelQuantity} offers across {selectedCancelOrders.length} OpenSea orders.</p>}<button type="button" disabled={busy !== null} onClick={() => void runCancel()} className="mt-4 w-full rounded-[20px] border border-[#a83232] bg-[#FF5555] px-5 py-3 text-base font-bold text-[#2c0000] shadow-[3px_6px_0_#8a2222]">{busy === "cancel" ? "Working..." : "Review cancellation"}</button><button type="button" onClick={() => setCancelGroup(null)} className="mx-auto mt-2 block px-4 py-2 text-xs font-bold text-[#FF7777] underline">Keep offers</button></div></div>}
+      {biddersGroup && (
+        <CollectionBiddersModal
+          group={biddersGroup}
+          isInMiniAppContext={isInMiniAppContext}
+          offerLabel="Trait"
+          offerEmoji={emojiForTrait((biddersGroup as CollectionOfferGroup & { traitType: string }).traitType)}
+          offerLevel={(biddersGroup as CollectionOfferGroup & { traitValue: string }).traitValue}
+          onClose={() => setBiddersGroup(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+function ItemOffersPage({
+  db,
+  favouriteTokenIds,
+  connectedWallet,
+  viewerFid,
+  isInMiniAppContext,
+  getProviderAndAccount,
+  showToast,
+  onOpenWarpletDetails,
+}: {
+  db: SqliteDatabase | null;
+  favouriteTokenIds: number[];
+  connectedWallet: string | null;
+  viewerFid: number | null;
+  isInMiniAppContext: boolean;
+  getProviderAndAccount: () => Promise<{ provider: EthereumProvider; account: string }>;
+  showToast: (kind: TradeToast["kind"], message: string, options?: { manualClose?: boolean; minMs?: number }) => void;
+  onOpenWarpletDetails: (tokenId: number) => void;
+}) {
+  const [scope, setScope] = useState<"all" | "your">("all");
+  const [query, setQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
+  const [selectedTokenId, setSelectedTokenId] = useState<number | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [favouritesOnly, setFavouritesOnly] = useState(false);
+  const [pickerVisibleCount, setPickerVisibleCount] = useState(PAGE_SIZE);
+  const [payload, setPayload] = useState<ItemOffersPayload | null>(null);
+  const [price, setPrice] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [busy, setBusy] = useState<"offer" | "cancel" | null>(null);
+  const [busyLabel, setBusyLabel] = useState<string | null>(null);
+  const [ethUsdPrice, setEthUsdPrice] = useState<number | null>(null);
+  const [bidderRow, setBidderRow] = useState<ItemOfferRow | null>(null);
+  const [page, setPage] = useState(0);
+  const loadRequestRef = useRef(0);
+  const pickerRootRef = useRef<HTMLDivElement | null>(null);
+  const pickerEndRef = useRef<HTMLDivElement | null>(null);
+  const formRef = useRef<HTMLDivElement | null>(null);
+  const normalizedWallet = normalizeWalletAddress(connectedWallet);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => { setDebouncedQuery(query); setPickerVisibleCount(PAGE_SIZE); }, SEARCH_DEBOUNCE_MS);
+    return () => window.clearTimeout(timer);
+  }, [query]);
+  const pickerResults = useMemo(() => {
+    if (!db || (!debouncedQuery.trim() && !favouritesOnly)) return [];
+    return searchWarpletPickerRows(db, debouncedQuery || "*", favouritesOnly ? favouriteTokenIds : null);
+  }, [db, debouncedQuery, favouriteTokenIds, favouritesOnly]);
+  const visiblePickerResults = pickerResults.slice(0, pickerVisibleCount);
+
+  useEffect(() => {
+    const target = pickerEndRef.current;
+    if (!pickerOpen || !target || pickerVisibleCount >= pickerResults.length) return;
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry?.isIntersecting) setPickerVisibleCount((current) => Math.min(current + PAGE_SIZE, pickerResults.length));
+    }, { threshold: 0.1 });
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [pickerOpen, pickerResults.length, pickerVisibleCount]);
+
+  const loadOffers = useCallback(async (options: { refresh?: boolean } = {}) => {
+    const requestId = loadRequestRef.current + 1;
+    loadRequestRef.current = requestId;
+    options.refresh ? setRefreshing(true) : setLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (normalizedWallet) params.set("wallet", normalizedWallet);
+      if (scope === "your") params.set("scope", "your");
+      if (selectedTokenId != null) params.set("tokenId", String(selectedTokenId));
+      params.set("page", String(page));
+      if (options.refresh) params.set("refresh", "1");
+      const response = await fetch(`/api/item-offers?${params.toString()}`, { headers: { accept: "application/json" }, cache: "no-store" });
+      if (!response.ok) throw new Error(`Item offers failed (${response.status})`);
+      const nextPayload = await response.json() as ItemOffersPayload;
+      if (loadRequestRef.current !== requestId) return;
+      setPayload(nextPayload);
+      if (nextPayload.pagination.page !== page) setPage(nextPayload.pagination.page);
+    } catch (error) {
+      if (loadRequestRef.current !== requestId) return;
+      showToast("error", error instanceof Error ? error.message : "Item offers failed.", { manualClose: true });
+    } finally {
+      if (loadRequestRef.current === requestId) { setLoading(false); setRefreshing(false); }
+    }
+  }, [normalizedWallet, page, scope, selectedTokenId, showToast]);
+  useEffect(() => { void loadOffers(); }, [loadOffers]);
+  useEffect(() => { setPage(0); }, [scope, selectedTokenId]);
+  useEffect(() => { fetchEthUsdPrice().then(setEthUsdPrice).catch(() => undefined); }, []);
+
+  const selectWarplet = useCallback((tokenId: number) => {
+    void hapticSelectionChanged();
+    setSelectedTokenId(tokenId);
+    setQuery(`#${tokenId}`);
+    setDebouncedQuery(`#${tokenId}`);
+    setPickerOpen(false);
+  }, []);
+  const resetPicker = () => {
+    setQuery(""); setDebouncedQuery(""); setSelectedTokenId(null); setFavouritesOnly(false); setPickerOpen(false); setPickerVisibleCount(PAGE_SIZE);
+  };
+  const setPriceFromMarket = (money: MarketMoney | null | undefined) => {
+    const amount = marketMoneyToDecimal(money);
+    if (amount != null && amount > 0) setPrice(formatTradePriceInput(amount));
+  };
+  const priceRaw = decimalEthToWeiString(price);
+  const priceIsValid = Boolean(priceRaw && BigInt(priceRaw) > 0n);
+
+  const runMakeOffer = useCallback(async () => {
+    const normalizedPriceRaw = decimalEthToWeiString(price);
+    if (!selectedTokenId || !normalizedPriceRaw || BigInt(normalizedPriceRaw) <= 0n) return;
+    const actionId = crypto.randomUUID();
+    setBusy("offer");
+    setBusyLabel("Preparing...");
+    try {
+      void hapticPrimaryTap();
+      const { provider, account } = await getProviderAndAccount();
+      const prepare = await fetch("/api/warplet-trade/offer/prepare", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ actionId, fid: viewerFid, tokenId: selectedTokenId, wallet: account, priceRaw: normalizedPriceRaw, durationSeconds: DEFAULT_TRADE_DURATION_SECONDS }) });
+      const data = await prepare.json().catch(() => ({})) as { protocol?: string; protocolAddress?: string; parameters?: unknown; typedData?: unknown; chainIdHex?: string; wethApproval?: TokenApprovalRequirement; message?: string };
+      if (!prepare.ok) throw new Error(data.message || `Offer prepare failed (${prepare.status})`);
+      if (data.wethApproval) {
+        await ensureBaseChain(provider, data.chainIdHex);
+        const required = BigInt(data.wethApproval.amount);
+        const current = await readErc20Balance(data.wethApproval.tokenAddress, account);
+        if (current < required) {
+          const missing = required - current;
+          const native = await readNativeBalance(account);
+          if (native <= missing) throw new Error(`Offer requires ${formatWeiTokenAmount(required, "WETH")}.`);
+          setBusyLabel("Waiting for wallet...");
+          await wrapEthToWeth(provider, account, data.wethApproval.tokenAddress, missing);
+        }
+        await ensureErc20Approval(provider, account, data.wethApproval);
+      }
+      if (!data.typedData || !data.parameters || !data.protocolAddress) throw new Error("OpenSea did not return item offer signature data");
+      setBusyLabel("Waiting for wallet...");
+      const signature = await signTypedData(provider, account, data.typedData);
+      setBusyLabel("Submitting to OpenSea...");
+      const submit = await fetch("/api/warplet-trade/offer/submit", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ actionId, fid: viewerFid, tokenId: selectedTokenId, wallet: account, priceRaw: normalizedPriceRaw, protocol: data.protocol ?? "seaport", payload: { parameters: data.parameters, protocol_address: data.protocolAddress, signature } }) });
+      if (!submit.ok) { const failure = await submit.json().catch(() => ({})) as { message?: string }; throw new Error(failure.message || `Offer submit failed (${submit.status})`); }
+      void hapticSuccess(); showTradeConfetti(); showToast("success", "Item offer successfully made", { minMs: 5000 });
+      await loadOffers();
+    } catch (error) {
+      void hapticError(); showToast("error", error instanceof Error ? error.message : "Item offer failed.", { manualClose: true });
+    } finally { setBusy(null); setBusyLabel(null); }
+  }, [getProviderAndAccount, loadOffers, price, selectedTokenId, showToast, viewerFid]);
+
+  const runCancelOffer = useCallback(async (row: ItemOfferRow) => {
+    if (!row.protocolAddress) { showToast("error", "This offer is missing its OpenSea protocol address.", { manualClose: true }); return; }
+    const actionId = crypto.randomUUID();
+    setBusy("cancel");
+    try {
+      const { provider, account } = await getProviderAndAccount();
+      const prepare = await fetch("/api/warplet-trade/offer/cancel-prepare", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ actionId, fid: viewerFid, tokenId: row.tokenId, wallet: account, orderHash: row.orderHash, protocolAddress: row.protocolAddress }) });
+      const data = await prepare.json().catch(() => ({})) as { protocolAddress?: string; orderParameters?: SeaportCancelOrderParameters; chainIdHex?: string; message?: string };
+      if (!prepare.ok || !data.protocolAddress || !data.orderParameters) throw new Error(data.message || "Could not prepare item offer cancellation");
+      await ensureBaseChain(provider, data.chainIdHex);
+      await sendPreparedTransaction(provider, account, buildSeaportCancelTransaction(data.protocolAddress, [data.orderParameters]));
+      const submit = await fetch("/api/warplet-trade/offer/cancel", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ actionId, fid: viewerFid, tokenId: row.tokenId, wallet: account, orderHash: row.orderHash, protocolAddress: data.protocolAddress }) });
+      if (!submit.ok) throw new Error("Item offer cancellation failed");
+      void hapticSuccess(); showTradeConfetti(); showToast("success", "Item offer successfully canceled", { minMs: 5000 });
+      await loadOffers();
+    } catch (error) {
+      void hapticError(); showToast("error", error instanceof Error ? error.message : "Item offer cancellation failed.", { manualClose: true });
+    } finally { setBusy(null); }
+  }, [getProviderAndAccount, loadOffers, showToast, viewerFid]);
+
+  const bidderGroup = bidderRow?.bidder ? {
+    price: bidderRow.price, volume: bidderRow.price, offerCount: 1, bidderCount: 1,
+    previewBidders: [bidderRow.bidder], orders: [{ orderHash: bidderRow.orderHash, protocolAddress: bidderRow.protocolAddress, quantity: 1, createdAt: bidderRow.price.at, bidder: bidderRow.bidder }],
+    userOfferCount: bidderRow.isUserOffer ? 1 : 0, userOrders: bidderRow.isUserOffer ? [{ orderHash: bidderRow.orderHash, protocolAddress: bidderRow.protocolAddress, quantity: 1 }] : [],
+  } satisfies CollectionOfferGroup : null;
+  const rows = payload?.rows ?? [];
+
+  return <div className="mx-auto w-full max-w-md px-4 pb-10 pt-6">
+    <div className="grid grid-cols-2 gap-3"><div className="rounded-lg border border-[#00FF00]/30 bg-[rgba(0,255,0,0.08)] p-3"><Text className="text-[11px] font-bold uppercase text-[#8bbf8b]">Count</Text><div className="mt-1 text-2xl font-bold text-[#00FF00]">{payload?.stats.count ?? 0}</div></div><div className="rounded-lg border border-[#33AAFF]/30 bg-[rgba(51,170,255,0.08)] p-3"><Text className="text-[11px] font-bold uppercase text-[#8bcfff]">Value</Text><div className="mt-1 text-2xl font-bold text-[#33AAFF]">{formatMarketValue(payload?.stats.value, { maxDigits: 8 })}</div><div className="mt-0.5 text-[11px] font-bold text-[#8bcfff]">{formatUsdMoneyFromMarket(payload?.stats.value, ethUsdPrice)}</div></div></div>
+    <div ref={formRef} className="mt-4 rounded-xl border border-[#33AAFF]/35 bg-[rgba(51,170,255,0.12)] p-3">
+      <div ref={pickerRootRef} className="relative">
+        <div className="flex h-11 items-center rounded-xl border-2 border-[#33AAFF]/35 bg-black/70 focus-within:border-[#33AAFF] focus-within:shadow-[0_0_10px_rgba(51,170,255,0.22)]">
+          {selectedTokenId ? <button type="button" onClick={() => onOpenWarpletDetails(selectedTokenId)} aria-label={`Open Warplet #${selectedTokenId} details`} className="flex h-full w-11 shrink-0 cursor-pointer items-center"><img src={getWarpletPreviewImageUrl(selectedTokenId)} alt={`Warplet #${selectedTokenId}`} className="h-full aspect-square rounded-l-[10px] object-cover"/></button> : <span className="flex h-full w-11 shrink-0 items-center justify-center text-[#33AAFF]"><svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="7"/><path d="m16 16 5 5"/></svg></span>}
+          <input data-no-focus-ring value={query} placeholder="Select a Warplet..." onFocus={() => { if (query.trim() || favouritesOnly) setPickerOpen(true); }} onChange={(event) => { setSelectedTokenId(null); setQuery(event.target.value); setPickerOpen(Boolean(event.target.value.trim()) || favouritesOnly); }} className={`min-w-0 flex-1 bg-transparent py-0 pr-2 text-base font-bold text-[#33AAFF] outline-none ${selectedTokenId ? "pl-2" : "pl-0"}`}/>
+          <button type="button" onClick={() => { if (query || selectedTokenId || favouritesOnly) resetPicker(); else { const random = getFreshRandomExampleSearch(); setQuery(random); setDebouncedQuery(random); setPickerOpen(true); } }} className="h-full cursor-pointer px-2 text-xs font-bold text-[#33AAFF]">{query || selectedTokenId || favouritesOnly ? "Reset" : "Random"}</button>
+          <FavouriteButton active={favouritesOnly} title="Filter picker by my favourites" className="mr-1 h-full w-9 !text-[#33AAFF]" onClick={(event) => { event.preventDefault(); setFavouritesOnly((current) => !current); setSelectedTokenId(null); setPickerOpen(true); }}/>
+        </div>
+        {pickerOpen && <div className="absolute left-0 right-0 z-40 mt-2 overflow-hidden rounded-xl border border-[#33AAFF]/35 bg-black shadow-2xl"><OverlayScrollArea className="aspect-[8/7] w-full overflow-y-auto" scrollbarAutoHide="never"><div className="grid grid-cols-4 gap-1.5 p-2">{visiblePickerResults.map((warplet) => <button key={warplet.id} type="button" onClick={() => selectWarplet(warplet.id)} title={`Select #${warplet.id}`} className="aspect-square cursor-pointer overflow-hidden rounded-[3px]"><img src={getWarpletPreviewImageUrl(warplet.id)} alt={`Warplet #${warplet.id}`} className="h-full w-full object-cover" loading="lazy"/></button>)}</div>{pickerResults.length === 0 && <div className="px-3 py-10 text-center text-xs font-black text-[#33AAFF]">NO WARPLETS FOUND</div>}{pickerResults.length > 0 && pickerVisibleCount >= pickerResults.length && <button type="button" onClick={() => { const viewport = pickerRootRef.current?.querySelector<HTMLElement>("[data-overlayscrollbars-viewport]"); viewport?.scrollTo({ top: 0, behavior: "smooth" }); }} className="w-full cursor-pointer px-3 py-3 text-center text-[11px] font-bold text-[#8bcfff]">No more warplets. Return to top</button>}<div ref={pickerEndRef} className="h-px"/></OverlayScrollArea></div>}
+      </div>
+      <label className="mt-3 block text-[11px] font-bold uppercase text-[#8bcfff]"><span className="flex justify-between"><span>Offered at</span><span>{formatUsdEstimate(price, ethUsdPrice, payload?.topItemOffer)}</span></span><div className="mt-1 flex items-center rounded-lg border-2 border-[#33AAFF]/35 bg-black/60 px-3 py-2 focus-within:border-[#33AAFF] focus-within:shadow-[0_0_10px_rgba(51,170,255,0.22)]"><input data-no-focus-ring value={price} inputMode="decimal" onChange={(event) => setPrice(sanitizeTradePriceInput(event.target.value))} placeholder="0.0001" className="min-w-0 flex-1 bg-transparent text-base font-bold text-[#33AAFF] outline-none"/><span className="font-bold text-[#33AAFF]">WETH</span></div></label>
+      <p className="mt-2 text-[11px] font-bold text-[#8bcfff]">Offer will be on OpenSea. Set price to <button type="button" disabled={!payload?.topItemOffer} onClick={() => setPriceFromMarket(payload?.topItemOffer)} className="cursor-pointer text-[#33AAFF] underline disabled:cursor-not-allowed disabled:opacity-50">Top Item Offer</button>.</p>
+      <button type="button" disabled={busy !== null || !selectedTokenId || !priceIsValid} onClick={() => void runMakeOffer()} className="mt-3 w-full cursor-pointer rounded-[20px] border border-[#1c78b3] bg-[#33AAFF] px-5 py-3 text-base font-bold text-[rgb(0,54,80)] shadow-[3px_6px_0_#1c78b3] disabled:cursor-not-allowed disabled:opacity-70">{busy === "offer" ? busyLabel ?? "Preparing..." : "Review item offer"}</button>
+    </div>
+    <SearchSegmentedTabs className="mt-4" options={OFFERS_FILTER_TABS} activeId={scope} onSelect={(id) => setScope(id === "your" ? "your" : "all")}/>
+    <div className="mt-4 overflow-hidden rounded-lg border border-[#00FF00]/25"><div className="grid grid-cols-5 items-center gap-1 bg-[#041204] px-2 py-2 text-center text-[10px] font-bold uppercase text-[#8bbf8b]"><span>Price</span><span>Warplet</span><span>NFT</span><span>Bidder</span><span>Action</span></div>{loading ? <div className="px-3 py-6 text-center text-sm font-bold text-[#8bbf8b]">Loading offers...</div> : rows.length === 0 ? <div className="px-3 py-6 text-center text-sm font-bold text-[#8bbf8b]">No item offers.</div> : rows.map((row) => <div key={row.orderHash} className="grid grid-cols-5 items-center gap-1 border-t border-[#00FF00]/15 px-2 py-2 text-center text-xs"><button type="button" onClick={() => setPriceFromMarket(row.price)} className="cursor-pointer font-bold text-[#33AAFF]">{formatMarketValue(row.price, { maxDigits: 5 })}</button><button type="button" onClick={() => selectWarplet(row.tokenId)} className="cursor-pointer font-bold text-[#00FF00]">#{row.tokenId}</button><button type="button" onClick={() => onOpenWarpletDetails(row.tokenId)} className="mx-auto h-9 w-9 cursor-pointer overflow-hidden rounded-[3px] border-2 border-[#00FF00]"><img src={getWarpletPreviewImageUrl(row.tokenId)} alt={`Warplet #${row.tokenId}`} className="h-full w-full object-cover" loading="lazy"/></button><button type="button" disabled={!row.bidder} onClick={() => setBidderRow(row)} className="mx-auto cursor-pointer disabled:cursor-default">{row.bidder && <img src={row.bidder.pfpUrl || getWarpletPreviewImageUrl(HEADER_FALLBACK_AVATAR_TOKEN_ID)} alt="" className="h-7 w-7 rounded-full border-2 border-[#00FF00] object-cover"/>}</button><button type="button" disabled={busy !== null} onClick={() => row.isUserOffer ? void runCancelOffer(row) : (selectWarplet(row.tokenId), setPriceFromMarket(row.price), formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }))} className={`cursor-pointer rounded-md border px-2 py-1.5 text-xs font-bold disabled:cursor-wait ${row.isUserOffer ? "border-[#FF5555]/55 text-[#FF7777]" : "border-[#33AAFF]/55 text-[#33AAFF]"}`}>{row.isUserOffer ? "Cancel" : "Offer"}</button></div>)}</div>
+    {(payload?.pagination.totalPages ?? 1) > 1 && <div className="mt-3 flex items-center justify-center gap-3 text-xs font-bold text-[#8bbf8b]"><button type="button" disabled={loading || !payload?.pagination.hasPrevious} onClick={() => setPage((current) => Math.max(0, current - 1))} className="cursor-pointer rounded-md border border-[#00FF00]/40 px-3 py-1.5 text-[#00FF00] disabled:cursor-not-allowed disabled:opacity-40">Previous</button><span>Page {(payload?.pagination.page ?? 0) + 1} of {payload?.pagination.totalPages ?? 1}</span><button type="button" disabled={loading || !payload?.pagination.hasNext} onClick={() => setPage((current) => current + 1)} className="cursor-pointer rounded-md border border-[#00FF00]/40 px-3 py-1.5 text-[#00FF00] disabled:cursor-not-allowed disabled:opacity-40">Next</button></div>}
+    <div className="mt-3 text-center text-[11px] text-[#8bbf8b]">Last updated: {payload?.generatedAt ? formatMarketTimestamp(payload.generatedAt) : "Not yet"}. <button type="button" disabled={refreshing || busy !== null} onClick={() => void loadOffers({ refresh: true })} className="cursor-pointer font-bold text-[#00FF00] disabled:cursor-wait">{refreshing ? "Refreshing..." : "Refresh"}</button>{payload?.refreshError && <span className="block text-red-300">{payload.refreshError}</span>}</div>
+    {bidderGroup && bidderRow && <CollectionBiddersModal group={bidderGroup} isInMiniAppContext={isInMiniAppContext} titleOverride={`#${bidderRow.tokenId} Item bidder`} onClose={() => setBidderRow(null)}/>}
+  </div>;
+}
+
 function ListedPriceHeader({ price }: { price: MarketOrderMoney }) {
   const headerRef = useRef<HTMLDivElement | null>(null);
   const [isSticky, setIsSticky] = useState(false);
@@ -4421,7 +4915,7 @@ function ListedWarpletCard({
                 event.stopPropagation();
                 onToggleSweep(warplet.id);
               }}
-              className={`flex h-[calc(100%_-_3px)] w-full self-start items-center justify-center gap-1 rounded-lg border text-xs font-bold transition-all duration-100 active:translate-x-[1px] active:translate-y-[1.5px] ${
+              className={`flex h-[calc(100%_-_3px)] w-full cursor-pointer self-start items-center justify-center gap-1 rounded-lg border text-xs font-bold transition-all duration-100 active:translate-x-[1px] active:translate-y-[1.5px] ${
                 isSweepSelected
                   ? "border-[#990000] bg-[#ff3333] text-[rgb(80,0,0)] shadow-[2px_3px_0_#800000] hover:bg-[#ff5555] active:shadow-[1px_1px_0_#800000]"
                   : "border-[#009900] bg-[#00FF00] text-[rgb(0,80,0)] shadow-[2px_3px_0_#008000] hover:bg-[#33ff33] active:shadow-[1px_1px_0_#008000]"
@@ -4473,7 +4967,7 @@ function ListedOwnedWarpletsPanel({
               void hapticTap();
               onOpenWarplet(warplet.id);
             }}
-            className="aspect-square w-full justify-self-center overflow-hidden rounded-full bg-black"
+            className="aspect-square w-full cursor-pointer justify-self-center overflow-hidden rounded-full bg-black"
             title={`Open #${warplet.id} @${warplet.farcasterUsername}`}
           >
             <img src={getWarpletPreviewImageUrl(warplet.id)} alt="" className="h-full w-full object-cover" loading="lazy" />
@@ -4485,7 +4979,7 @@ function ListedOwnedWarpletsPanel({
             void hapticTap();
             onSearchOwnerWallet(ownerWallet);
           }}
-          className="flex aspect-square w-full justify-self-center items-center justify-center rounded-full border-2 border-[#00FF00] bg-black text-[11px] font-black text-[#00FF00]"
+          className="flex aspect-square w-full cursor-pointer justify-self-center items-center justify-center rounded-full border-2 border-[#00FF00] bg-black text-[11px] font-black text-[#00FF00]"
           title={`Search ${totalCount.toLocaleString("en-US")} owned 10X Warplets`}
         >
           {totalCount.toLocaleString("en-US")}
@@ -4650,7 +5144,7 @@ function ListedSweepFooter({
             void hapticPrimaryTap();
             onExpand();
           }}
-          className="mb-1.5 w-full rounded-[20px] border border-[#009900] bg-[#00FF00] px-4 py-3 text-sm font-black text-[rgb(0,80,0)] shadow-[3px_6px_0_#008000] transition-all duration-100 hover:bg-[#33ff33] active:translate-x-[1px] active:translate-y-[3px] active:shadow-[1px_3px_0_#008000]"
+          className="mb-1.5 w-full cursor-pointer rounded-[20px] border border-[#009900] bg-[#00FF00] px-4 py-3 text-sm font-black text-[rgb(0,80,0)] shadow-[3px_6px_0_#008000] transition-all duration-100 hover:bg-[#33ff33] active:translate-x-[1px] active:translate-y-[3px] active:shadow-[1px_3px_0_#008000]"
         >
           Sweep {rows.length.toLocaleString("en-US")} for {totalEth.toLocaleString("en-US", { maximumFractionDigits: 8 })} {paymentSymbol}
         </button>
@@ -4675,7 +5169,7 @@ function ListedSweepFooter({
             void hapticTap();
             onClose();
           }}
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[#00FF00]/35 text-[#00FF00] hover:bg-[#041204]"
+          className="flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-[#00FF00]/35 text-[#00FF00] hover:bg-[#041204]"
         >
           <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true">
             <path d="M6 6l12 12" />
@@ -4707,7 +5201,7 @@ function ListedSweepFooter({
                   <button
                     type="button"
                     onClick={() => onRemove(row.warplet.id)}
-                    className="absolute -right-1 -top-1 z-20 flex h-5 w-5 items-center justify-center rounded-full bg-[#ff3333] text-[#730000]"
+                    className="absolute -right-1 -top-1 z-20 flex h-5 w-5 cursor-pointer items-center justify-center rounded-full bg-[#ff3333] text-[#730000]"
                     aria-label={`Remove Warplet #${row.warplet.id} from sweep`}
                   >
                     <svg viewBox="0 0 16 16" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
@@ -4727,7 +5221,7 @@ function ListedSweepFooter({
         type="button"
         disabled={busy}
         onClick={onBuy}
-        className="mb-1.5 w-full rounded-[20px] border border-[#009900] bg-[#00FF00] px-4 py-3 text-sm font-black text-[rgb(0,80,0)] shadow-[3px_6px_0_#008000] transition-all duration-100 hover:bg-[#33ff33] active:translate-x-[1px] active:translate-y-[3px] active:shadow-[1px_3px_0_#008000] disabled:cursor-wait disabled:opacity-60"
+        className="mb-1.5 w-full cursor-pointer rounded-[20px] border border-[#009900] bg-[#00FF00] px-4 py-3 text-sm font-black text-[rgb(0,80,0)] shadow-[3px_6px_0_#008000] transition-all duration-100 hover:bg-[#33ff33] active:translate-x-[1px] active:translate-y-[3px] active:shadow-[1px_3px_0_#008000] disabled:cursor-wait disabled:opacity-60"
       >
         {busy
           ? "Preparing Bulk Buy..."
@@ -8794,7 +9288,7 @@ function WarpletDetailsModal({
                             onSearchTag(value);
                           }
                         }}
-                        className="rounded-full border border-[#00FF00]/25 bg-black/60 px-2 py-1 text-left text-[11px] text-[#00FF00] hover:border-[#00FF00]/60 hover:bg-[#041204]"
+                        className="cursor-pointer rounded-full border border-[#00FF00]/25 bg-black/60 px-2 py-1 text-left text-[11px] text-[#00FF00] hover:border-[#00FF00]/60 hover:bg-[#041204]"
                       >
                         {value}
                       </button>
@@ -8816,7 +9310,7 @@ function WarpletDetailsModal({
                 <button
                   type="button"
                   onClick={handleOpenFarcasterProfile}
-                  className="w-full rounded-xl border border-[#00FF00]/25 bg-[#041204]/60 px-3 py-2 text-left hover:border-[#00FF00]/60 hover:bg-[#071807]"
+                  className="w-full cursor-pointer rounded-xl border border-[#00FF00]/25 bg-[#041204]/60 px-3 py-2 text-left hover:border-[#00FF00]/60 hover:bg-[#071807]"
                 >
                   <Text className="text-[10px] uppercase" style={{ color: "#8bbf8b" }}>
                     Farcaster Username
@@ -8836,7 +9330,7 @@ function WarpletDetailsModal({
                       console.error("Failed to open X profile:", error);
                     });
                   }}
-                  className="w-full rounded-xl border border-[#00FF00]/25 bg-[#041204]/60 px-3 py-2 text-left hover:border-[#00FF00]/60 hover:bg-[#071807]"
+                  className="w-full cursor-pointer rounded-xl border border-[#00FF00]/25 bg-[#041204]/60 px-3 py-2 text-left hover:border-[#00FF00]/60 hover:bg-[#071807]"
                 >
                   <Text className="text-[10px] uppercase" style={{ color: "#8bbf8b" }}>
                     X Username
@@ -8856,7 +9350,7 @@ function WarpletDetailsModal({
                       console.error("Failed to open wallet:", error);
                     });
                   }}
-                  className="w-full rounded-xl border border-[#00FF00]/25 bg-[#041204]/60 px-3 py-2 text-left hover:border-[#00FF00]/60 hover:bg-[#071807]"
+                  className="w-full cursor-pointer rounded-xl border border-[#00FF00]/25 bg-[#041204]/60 px-3 py-2 text-left hover:border-[#00FF00]/60 hover:bg-[#071807]"
                 >
                   <Text className="text-[10px] uppercase" style={{ color: "#8bbf8b" }}>
                     Wallet
@@ -8879,7 +9373,7 @@ function WarpletDetailsModal({
                       console.error(`Failed to open ${asset.ext} asset:`, error);
                     });
                   }}
-                  className="rounded-xl border border-[#00FF00]/30 bg-[#041204]/90 px-3 py-2 text-left text-xs text-[#00FF00] hover:border-[#00FF00]/60 hover:bg-[#071807]"
+                  className="cursor-pointer rounded-xl border border-[#00FF00]/30 bg-[#041204]/90 px-3 py-2 text-left text-xs text-[#00FF00] hover:border-[#00FF00]/60 hover:bg-[#071807]"
                 >
                   <span className="block font-bold">{asset.label}</span>
                   <span className="block text-[10px] text-[#8bbf8b]">{asset.detail}</span>
@@ -10053,8 +10547,10 @@ export default function SearchApp() {
     const ownerSearch = parseOwnerWalletSearch(nextQuery);
     const ownerWalletFilter = ownerSearch.ownerWalletFilter;
     const searchText = ownerSearch.searchText;
+    const exactTokenMatch = searchText.match(/^#([1-9]\d{0,4})$/);
+    const exactTokenId = exactTokenMatch && Number(exactTokenMatch[1]) <= 10000 ? Number(exactTokenMatch[1]) : null;
     const isWildcardSearch = searchText.trim() === "*" || (!searchText && nextQuery.trim() === "*");
-    const ftsQuery = isWildcardSearch ? "" : normalizeFtsQuery(searchText);
+    const ftsQuery = isWildcardSearch || exactTokenId != null ? "" : normalizeFtsQuery(searchText);
     const levelFilter = buildLevelFilter(activeAttributes, activeLevels);
     const hasAttributeOnlyFilter = activeAttributes.length > 0 && activeLevels.length === 0;
     const attributeOnlyRankColumn =
@@ -10062,7 +10558,7 @@ export default function SearchApp() {
     const runId = searchRunRef.current + 1;
     searchRunRef.current = runId;
 
-    if (!db || (!ftsQuery && !levelFilter && !hasAttributeOnlyFilter && !isWildcardSearch && !ownerWalletFilter && !activeFavouriteWallet)) {
+    if (!db || (!ftsQuery && exactTokenId == null && !levelFilter && !hasAttributeOnlyFilter && !isWildcardSearch && !ownerWalletFilter && !activeFavouriteWallet)) {
       setResults([]);
       setTotalResults(0);
       setVisibleCount(PAGE_SIZE);
@@ -10076,7 +10572,12 @@ export default function SearchApp() {
     setSearchError("");
 
     try {
-      const resultSql = ftsQuery
+      const resultSql = exactTokenId != null
+        ? `SELECT ${RESULT_SELECT_COLUMNS}
+           FROM warplets w
+           WHERE w.id = ?${levelFilter ? ` AND ${levelFilter.sql}` : ""}
+           LIMIT 1`
+        : ftsQuery
         ? `SELECT
              ${RESULT_SELECT_COLUMNS},
              bm25(warplets_fts) AS score
@@ -10091,7 +10592,9 @@ export default function SearchApp() {
            WHERE ${levelFilter.sql}` : ""}
            ORDER BY ${attributeOnlyRankColumn ? `w."${attributeOnlyRankColumn}" ASC, ` : ""}w.id ASC
            LIMIT ? OFFSET ?`;
-      const resultBind = ftsQuery
+      const resultBind = exactTokenId != null
+        ? [exactTokenId, ...(levelFilter?.bind ?? [])]
+        : ftsQuery
         ? [ftsQuery, ...(levelFilter?.bind ?? []), SEARCH_RESULT_LIMIT, 0]
         : [...(levelFilter?.bind ?? []), SEARCH_RESULT_LIMIT, 0];
       const rows = db.exec(
@@ -11357,9 +11860,24 @@ export default function SearchApp() {
             showToast={showSearchToast}
           />
         ) : searchRoute.page === "offers" && searchRoute.offersPage === "trait" ? (
-          <SearchPlaceholderPage title="Trait offers" filterOptions={OFFERS_FILTER_TABS} />
+          <TraitOffersPage
+            connectedWallet={activeWallet}
+            viewerFid={viewerFid}
+            isInMiniAppContext={isInMiniAppContext}
+            getProviderAndAccount={getCollectionOfferProviderAndAccount}
+            showToast={showSearchToast}
+          />
         ) : searchRoute.page === "offers" && searchRoute.offersPage === "item" ? (
-          <SearchPlaceholderPage title="Item offers" filterOptions={OFFERS_FILTER_TABS} />
+          <ItemOffersPage
+            db={dbRef.current}
+            favouriteTokenIds={activeFavouriteTokenIds}
+            connectedWallet={activeWallet}
+            viewerFid={viewerFid}
+            isInMiniAppContext={isInMiniAppContext}
+            getProviderAndAccount={getCollectionOfferProviderAndAccount}
+            showToast={showSearchToast}
+            onOpenWarpletDetails={handleOpenWarpletDetails}
+          />
         ) : (
           <div className="mx-auto w-full max-w-md px-4 pb-10 pt-6">
             <div className="relative flex">

@@ -5,6 +5,7 @@ import {
   asString,
   classifyOpenSeaOffer,
   fetchOpenSea,
+  ingestOpenSeaMarket,
   isEthLikeCurrency,
   marketJson,
   normalizeAddress,
@@ -22,7 +23,7 @@ export type CollectionOffersEnv = OpenSeaMarketEnv;
 type CollectionOfferRow = {
   order_hash: string;
   collection_slug: string;
-  criteria_kind: "collection";
+  criteria_kind: "collection" | "trait";
   traits_json: string | null;
   offer_eth: number | null;
   offer_raw_amount: string | null;
@@ -91,7 +92,36 @@ type CollectionOfferGroup = {
     protocolAddress: string | null;
     quantity: number;
   }>;
+  traitType?: string;
+  traitValue?: string;
 };
+
+const TRAIT_LEVELS = ["10X", "9X", "8X", "7X", "6X", "5X", "4X", "3X", "2X", "1X"] as const;
+const TRAIT_ATTRIBUTES = [
+  { id: "cast", traitType: "Cast Level", column: "cast_level" },
+  { id: "fid", traitType: "FID Level", column: "fid_level" },
+  { id: "follower", traitType: "Follower Level", column: "follower_level" },
+  { id: "holder", traitType: "Holder Level", column: "holder_level" },
+  { id: "luck", traitType: "Luck Level", column: "luck_level" },
+  { id: "minter", traitType: "Minter Level", column: "minter_level" },
+  { id: "neynar", traitType: "Neynar Level", column: "neynar_level" },
+  { id: "nft", traitType: "NFT Level", column: "nft_level" },
+  { id: "token", traitType: "Token Level", column: "token_level" },
+  { id: "volume", traitType: "Volume Level", column: "volume_level" },
+] as const;
+
+function readTraitCriteria(row: CollectionOfferRow): { traitType: string; traitValue: string } | null {
+  try {
+    const traits = row.traits_json ? JSON.parse(row.traits_json) as unknown : [];
+    if (!Array.isArray(traits)) return null;
+    const first = asObject(traits[0]);
+    const traitType = asString(first?.traitType ?? first?.trait_type);
+    const traitValue = asString(first?.traitValue ?? first?.value);
+    return traitType && traitValue ? { traitType, traitValue } : null;
+  } catch {
+    return null;
+  }
+}
 
 type WalletFarcasterLinkResult = {
   wallet: string;
@@ -261,7 +291,10 @@ function getProtocolParameters(payload: Record<string, unknown> | null): Record<
   if (!payload) return null;
   return asObject(asObject(payload.protocol_data)?.parameters) ??
     asObject(asObject(payload.protocolData)?.parameters) ??
+    asObject(payload.partial_parameters) ??
+    asObject(payload.partialParameters) ??
     asObject(payload.parameters) ??
+    (Array.isArray(payload.consideration) ? payload : null) ??
     null;
 }
 
@@ -400,7 +433,7 @@ function buildCollectionOfferTypedData(input: {
     orderType: collectionOfferOrderType(parametersFromBuild, quantity),
     startTime,
     endTime: String(Number(startTime) + durationSeconds),
-    zoneHash: asString(parametersFromBuild?.zoneHash) ?? ZERO_HASH,
+    zoneHash: asString(parametersFromBuild?.zoneHash) ?? asString(parametersFromBuild?.zone_hash) ?? ZERO_HASH,
     salt: randomUint256String(),
     conduitKey: asString(parametersFromBuild?.conduitKey) ?? OPENSEA_CONDUIT_KEY,
     counter: input.counter,
@@ -700,7 +733,7 @@ export async function handleCollectionOffersGet(context: Parameters<PagesFunctio
       const profile = profiles.get(offerer) ?? buildBidderProfile({ wallet: offerer });
       items.push({
         orderHash: row.order_hash,
-        protocolAddress: row.protocol_address,
+        protocolAddress: row.protocol_address ?? "0x0000000000000068f116a894984e2db1123eb395",
         offerer,
         price: getUnitPriceFromRow(row),
         quantity: Math.max(1, Number(row.remaining_quantity ?? 1)),
@@ -830,6 +863,139 @@ export async function handleCollectionOfferSubmit(context: Parameters<PagesFunct
   return jsonSecure({ status: "submitted", result });
 }
 
+export async function handleTraitOffersGet(context: Parameters<PagesFunction<CollectionOffersEnv>>[0]): Promise<Response> {
+  const url = new URL(context.request.url);
+  const wallet = normalizeAddress(url.searchParams.get("wallet"));
+  const level = TRAIT_LEVELS.includes(url.searchParams.get("level") as typeof TRAIT_LEVELS[number])
+    ? url.searchParams.get("level") as typeof TRAIT_LEVELS[number]
+    : "10X";
+  const requestedIds = url.searchParams.get("attributes")?.split(",").map((value) => value.trim().toLowerCase()).filter(Boolean) ?? [];
+  const attributes = requestedIds.length > 0
+    ? TRAIT_ATTRIBUTES.filter((attribute) => requestedIds.includes(attribute.id))
+    : [...TRAIT_ATTRIBUTES];
+  let refreshError: string | null = null;
+  if (url.searchParams.get("refresh") === "1") {
+    try {
+      await ingestOpenSeaMarket(context.env);
+    } catch (error) {
+      refreshError = error instanceof Error ? error.message : "OpenSea refresh failed";
+    }
+  }
+  const rows = await context.env.WARPLETS.prepare(
+    `SELECT * FROM opensea_criteria_offers
+     WHERE collection_slug = ? AND criteria_kind = 'trait' AND active = 1
+       AND COALESCE(order_status, 'ACTIVE') = 'ACTIVE'
+     ORDER BY offer_eth DESC, offered_at ASC, order_hash ASC`,
+  ).bind(COLLECTION_SLUG).all<CollectionOfferRow>().then((result) => result.results ?? []).catch(() => []);
+  const selectedTypes = new Set(attributes.map((attribute) => attribute.traitType.toLowerCase()));
+  const filteredRows = rows.filter(offerIsWeth).map((row) => ({ row, trait: readTraitCriteria(row) }))
+    .filter((item): item is { row: CollectionOfferRow; trait: { traitType: string; traitValue: string } } => Boolean(
+      item.trait && selectedTypes.has(item.trait.traitType.toLowerCase()) && item.trait.traitValue.toUpperCase() === level,
+    ));
+  const profiles = await loadBidderProfiles(
+    context.env,
+    filteredRows.map(({ row }) => row.offerer_wallet).filter((value): value is string => Boolean(value)),
+    requireOpenSeaApiKey(context.env),
+  );
+  const groups = new Map<string, CollectionOfferGroup>();
+  for (const { row, trait } of filteredRows) {
+    const offerer = normalizeAddress(row.offerer_wallet);
+    if (!offerer) continue;
+    const price = getUnitPriceFromRow(row);
+    const quantity = Math.max(1, Number(row.remaining_quantity ?? 1));
+    const key = `${trait.traitType.toLowerCase()}|${trait.traitValue.toUpperCase()}|${price.rawAmount ?? price.eth ?? ""}`;
+    const group = groups.get(key) ?? {
+      traitType: trait.traitType,
+      traitValue: trait.traitValue.toUpperCase(),
+      price,
+      volume: { ...price, rawAmount: "0", eth: 0 },
+      offerCount: 0,
+      bidderCount: 0,
+      previewBidders: [],
+      orders: [],
+      userOfferCount: 0,
+      userOrders: [],
+    };
+    group.offerCount += quantity;
+    const rawVolume = price.rawAmount ? (BigInt(group.volume.rawAmount ?? "0") + BigInt(price.rawAmount) * BigInt(quantity)).toString() : null;
+    group.volume = { ...price, rawAmount: rawVolume, eth: rawVolume ? rawEthToNumber(rawVolume) : (group.volume.eth ?? 0) + (price.eth ?? 0) * quantity };
+    const bidder = profiles.get(offerer) ?? buildBidderProfile({ wallet: offerer });
+    group.orders.push({ orderHash: row.order_hash, protocolAddress: row.protocol_address, quantity, createdAt: row.offered_at, bidder });
+    if (!group.previewBidders.some((item) => item.wallet === bidder.wallet)) group.previewBidders.push(bidder);
+    group.bidderCount = group.previewBidders.length;
+    if (wallet && offerer === wallet) {
+      group.userOfferCount += quantity;
+      group.userOrders.push({ orderHash: row.order_hash, protocolAddress: row.protocol_address, quantity });
+    }
+    groups.set(key, group);
+  }
+  const allGroups = Array.from(groups.values()).map((group) => ({ ...group, previewBidders: group.previewBidders.slice(0, 5) }))
+    .sort((a, b) => (b.price.eth ?? 0) - (a.price.eth ?? 0) || (a.traitType ?? "").localeCompare(b.traitType ?? ""));
+  const selectedGroups = url.searchParams.get("scope") === "your" && wallet ? allGroups.filter((group) => group.userOfferCount > 0) : allGroups;
+  const yourScope = url.searchParams.get("scope") === "your" && Boolean(wallet);
+  const count = selectedGroups.reduce((total, group) => total + (yourScope ? group.userOfferCount : group.offerCount), 0);
+  const valueRaw = selectedGroups.reduce((total, group) => total + BigInt(group.price.rawAmount ?? "0") * BigInt(yourScope ? group.userOfferCount : group.offerCount), 0n).toString();
+  const topTraitOffer = allGroups[0]?.price ?? null;
+  return marketJson({
+    generatedAt: new Date().toISOString(), refreshError, wallet, level,
+    attributes: attributes.map((attribute) => attribute.id), topTraitOffer,
+    stats: { count, value: { eth: rawEthToNumber(valueRaw), rawAmount: valueRaw, decimals: 18, currencySymbol: "WETH", tokenAddress: BASE_WETH, at: new Date().toISOString() } },
+    groups: selectedGroups,
+  });
+}
+
+export async function handleTraitOfferPrepare(context: Parameters<PagesFunction<CollectionOffersEnv>>[0]): Promise<Response> {
+  const body = await context.request.json() as Record<string, unknown>;
+  const wallet = normalizeAddress(body.wallet);
+  const priceRaw = asString(body.priceRaw);
+  const attribute = TRAIT_ATTRIBUTES.find((item) => item.id === asString(body.attribute)?.toLowerCase());
+  const level = asString(body.level)?.toUpperCase();
+  const quantity = Math.min(10000, Math.max(1, Math.floor(asNumber(body.quantity) ?? 1)));
+  if (!wallet || !priceRaw || !attribute || !TRAIT_LEVELS.includes(level as typeof TRAIT_LEVELS[number])) return jsonSecure({ error: "invalid_request" }, { status: 400 });
+  let normalizedPriceRaw: string;
+  try { normalizedPriceRaw = assertPositiveRawAmount(priceRaw); } catch { return jsonSecure({ error: "invalid_price", message: "Offer amount is invalid" }, { status: 400 }); }
+  const criteria = { collection: { slug: COLLECTION_SLUG }, traits: [{ trait_type: attribute.traitType, value: level }] };
+  try {
+    const apiKey = requireOpenSeaApiKey(context.env);
+    const [counter, fees, built] = await Promise.all([
+      fetchSeaportCounter(wallet), fetchCollectionFees(apiKey),
+      openSeaPost(apiKey, "/offers/build", { offerer: wallet, quantity, criteria, protocol_address: DEFAULT_SEAPORT_PROTOCOL, offer_protection_enabled: true }),
+    ]);
+    const order = buildCollectionOfferTypedData({ offerer: wallet, unitPriceRaw: normalizedPriceRaw, quantity, durationSeconds: asNumber(body.durationSeconds) ?? MAX_OPENSEA_ORDER_DURATION_SECONDS, counter, fees, built });
+    return jsonSecure({ status: "ready", actionId: asString(body.actionId) ?? crypto.randomUUID(), attribute: attribute.id, traitType: attribute.traitType, traitValue: level, criteria, protocolAddress: DEFAULT_SEAPORT_PROTOCOL, parameters: order.parameters, typedData: order.typedData, chainIdHex: BASE_CHAIN_ID_HEX, wethApproval: { tokenAddress: BASE_WETH, spender: OPENSEA_CONDUIT_ADDRESS, amount: order.totalRaw }, totalRaw: order.totalRaw });
+  } catch (error) {
+    return jsonSecure({
+      error: "trait_offer_prepare_failed",
+      message: error instanceof Error ? error.message : "Could not prepare trait offer",
+      attribute: attribute.id,
+      level,
+      quantity,
+    }, { status: 502 });
+  }
+}
+
+export async function handleTraitOfferSubmit(context: Parameters<PagesFunction<CollectionOffersEnv>>[0]): Promise<Response> {
+  const body = await context.request.json() as Record<string, unknown>;
+  const payload = asObject(body.payload) ?? body;
+  const parameters = asObject(payload.parameters);
+  const signature = asString(payload.signature);
+  const attribute = TRAIT_ATTRIBUTES.find((item) => item.id === asString(body.attribute)?.toLowerCase());
+  const level = asString(body.level)?.toUpperCase();
+  if (!parameters || !signature || !attribute || !TRAIT_LEVELS.includes(level as typeof TRAIT_LEVELS[number])) return jsonSecure({ error: "invalid_request" }, { status: 400 });
+  const protocolAddress = normalizeAddress(payload.protocol_address) ?? DEFAULT_SEAPORT_PROTOCOL;
+  const criteria = { collection: { slug: COLLECTION_SLUG }, traits: [{ trait_type: attribute.traitType, value: level }] };
+  let result: Record<string, unknown>;
+  try { result = await openSeaPost(requireOpenSeaApiKey(context.env), "/offers", { protocol_data: { parameters, signature }, criteria, protocol_address: protocolAddress }); }
+  catch (error) { return jsonSecure({ error: "opensea_submit_failed", message: error instanceof Error ? error.message : "OpenSea trait offer submit failed" }, { status: 502 }); }
+  const orderHash = asString(result.order_hash) ?? asString(result.orderHash);
+  if (orderHash) {
+    const row = { ...result, order_hash: orderHash, protocol_address: protocolAddress, protocol_data: { parameters, signature }, criteria, status: "ACTIVE", remaining_quantity: Math.max(1, Math.floor(asNumber(body.quantity) ?? 1)) };
+    await upsertCriteriaOfferFromRow(context.env, row, { recordActivity: false });
+    await updateCollectionOfferDisplayFields(context.env, row);
+  }
+  return jsonSecure({ status: "submitted", result });
+}
+
 async function loadOrderParameters(apiKey: string, orderHash: string, protocolAddress: string): Promise<Record<string, unknown>> {
   const payload = await fetchOpenSea(`/orders/chain/${BASE_CHAIN}/protocol/${encodeURIComponent(protocolAddress)}/${encodeURIComponent(orderHash)}`, apiKey);
   const order = asObject(payload.order) ?? payload;
@@ -837,6 +1003,21 @@ async function loadOrderParameters(apiKey: string, orderHash: string, protocolAd
   const parameters = asObject(protocolData?.parameters) ?? asObject(order.parameters);
   if (!parameters) throw new Error("OpenSea order response did not include Seaport order parameters.");
   return parameters;
+}
+
+async function loadStoredOrderParameters(env: CollectionOffersEnv, orderHash: string): Promise<Record<string, unknown> | null> {
+  const row = await env.WARPLETS.prepare(
+    "SELECT raw_payload FROM opensea_criteria_offers WHERE order_hash = ? LIMIT 1",
+  ).bind(orderHash).first<{ raw_payload: string | null }>().catch(() => null);
+  if (!row?.raw_payload) return null;
+  try {
+    const parsed = asObject(JSON.parse(row.raw_payload));
+    const order = asObject(parsed?.order) ?? asObject(parsed?.result) ?? parsed;
+    const protocolData = asObject(order?.protocol_data) ?? asObject(order?.protocolData);
+    return asObject(protocolData?.parameters) ?? asObject(order?.parameters) ?? null;
+  } catch {
+    return null;
+  }
 }
 
 export async function handleCollectionOfferCancelPrepare(context: Parameters<PagesFunction<CollectionOffersEnv>>[0]): Promise<Response> {
@@ -851,15 +1032,30 @@ export async function handleCollectionOfferCancelPrepare(context: Parameters<Pag
     .filter((item): item is { orderHash: string; protocolAddress: string } => Boolean(item?.orderHash && item.protocolAddress));
   if (orders.length === 0) return jsonSecure({ error: "missing_orders" }, { status: 400 });
   const apiKey = requireOpenSeaApiKey(context.env);
-  const orderParameters = await Promise.all(orders.map((order) => loadOrderParameters(apiKey, order.orderHash, order.protocolAddress)));
-  return jsonSecure({
-    status: "ready",
-    actionId: asString(body.actionId) ?? crypto.randomUUID(),
-    orders,
-    protocolAddress: orders[0]?.protocolAddress ?? DEFAULT_SEAPORT_PROTOCOL,
-    orderParameters,
-    chainIdHex: BASE_CHAIN_ID_HEX,
-  });
+  try {
+    const orderParameters = await Promise.all(orders.map(async (order) => {
+      try {
+        return await loadOrderParameters(apiKey, order.orderHash, order.protocolAddress);
+      } catch (openSeaError) {
+        const stored = await loadStoredOrderParameters(context.env, order.orderHash);
+        if (stored) return stored;
+        throw openSeaError;
+      }
+    }));
+    return jsonSecure({
+      status: "ready",
+      actionId: asString(body.actionId) ?? crypto.randomUUID(),
+      orders,
+      protocolAddress: orders[0]?.protocolAddress ?? DEFAULT_SEAPORT_PROTOCOL,
+      orderParameters,
+      chainIdHex: BASE_CHAIN_ID_HEX,
+    });
+  } catch (error) {
+    return jsonSecure({
+      error: "cancel_prepare_failed",
+      message: error instanceof Error ? error.message : "Could not load OpenSea order parameters",
+    }, { status: 502 });
+  }
 }
 
 export async function handleCollectionOfferCancel(context: Parameters<PagesFunction<CollectionOffersEnv>>[0]): Promise<Response> {
@@ -888,4 +1084,94 @@ export async function handleCollectionOfferCancel(context: Parameters<PagesFunct
     ).bind(now, now, order.orderHash).run();
   }
   return jsonSecure({ status: "submitted", results: results.map((result) => result.status) });
+}
+
+type ActiveItemOfferRow = {
+  order_hash: string;
+  token_id: number;
+  offerer_wallet: string | null;
+  amount_eth: number | null;
+  amount_raw: string | null;
+  currency_symbol: string | null;
+  protocol_address: string | null;
+  created_at: string | null;
+  expires_at: string | null;
+};
+
+export async function handleItemOffersGet(context: Parameters<PagesFunction<CollectionOffersEnv>>[0]): Promise<Response> {
+  const url = new URL(context.request.url);
+  const wallet = normalizeAddress(url.searchParams.get("wallet"));
+  const tokenIdValue = Number(url.searchParams.get("tokenId"));
+  const tokenId = Number.isInteger(tokenIdValue) && tokenIdValue > 0 && tokenIdValue <= 10000 ? tokenIdValue : null;
+  let refreshError: string | null = null;
+  if (url.searchParams.get("refresh") === "1") {
+    try { await ingestOpenSeaMarket(context.env); }
+    catch (error) { refreshError = error instanceof Error ? error.message : "OpenSea refresh failed"; }
+  }
+  const requestedPage = Math.max(0, Math.floor(Number(url.searchParams.get("page")) || 0));
+  const pageSize = 100;
+  const baseWhere = `active = 1
+    AND (expires_at IS NULL OR datetime(expires_at) > CURRENT_TIMESTAMP)
+    AND (currency_symbol IS NULL OR upper(currency_symbol) = 'WETH')
+    ${tokenId ? "AND token_id = ?" : ""}`;
+  const baseBindings: Array<string | number> = tokenId ? [tokenId] : [];
+  const scopeIsYours = url.searchParams.get("scope") === "your" && Boolean(wallet);
+  const scopedWhere = `${baseWhere}${scopeIsYours ? " AND lower(offerer_wallet) = ?" : ""}`;
+  const scopedBindings = scopeIsYours ? [...baseBindings, wallet!] : baseBindings;
+  const aggregate = await context.env.WARPLETS.prepare(
+    `SELECT COUNT(*) AS offer_count, COALESCE(SUM(amount_eth), 0) AS value_eth
+     FROM warplet_active_item_offers WHERE ${scopedWhere}`,
+  ).bind(...scopedBindings).first<{ offer_count: number; value_eth: number | null }>();
+  const count = Math.max(0, Number(aggregate?.offer_count ?? 0));
+  const totalPages = Math.max(1, Math.ceil(count / pageSize));
+  const page = Math.min(requestedPage, totalPages - 1);
+  const pageRows = await context.env.WARPLETS.prepare(
+    `SELECT order_hash, token_id, offerer_wallet, amount_eth, amount_raw, currency_symbol,
+            protocol_address, created_at, expires_at
+     FROM warplet_active_item_offers
+     WHERE ${scopedWhere}
+     ORDER BY amount_eth DESC, created_at ASC, order_hash ASC
+     LIMIT ? OFFSET ?`,
+  ).bind(...scopedBindings, pageSize, page * pageSize).all<ActiveItemOfferRow>().then((result) => result.results ?? []);
+  const topRow = await context.env.WARPLETS.prepare(
+    `SELECT order_hash, token_id, offerer_wallet, amount_eth, amount_raw, currency_symbol,
+            protocol_address, created_at, expires_at
+     FROM warplet_active_item_offers
+     WHERE ${baseWhere}
+     ORDER BY amount_eth DESC, created_at ASC, order_hash ASC
+     LIMIT 1`,
+  ).bind(...baseBindings).first<ActiveItemOfferRow>();
+  const profiles = await loadBidderProfiles(
+    context.env,
+    pageRows.map((row) => row.offerer_wallet).filter((value): value is string => Boolean(value)),
+    requireOpenSeaApiKey(context.env),
+  );
+  const topItemOffer = topRow ? {
+    eth: topRow.amount_eth,
+    rawAmount: topRow.amount_raw,
+    decimals: 18,
+    currencySymbol: topRow.currency_symbol ?? "WETH",
+    tokenAddress: BASE_WETH,
+    at: topRow.created_at,
+  } satisfies MarketMoney : null;
+  const valueEth = Number(aggregate?.value_eth ?? 0);
+  return marketJson({
+    generatedAt: new Date().toISOString(), refreshError, wallet, tokenId, topItemOffer,
+    pagination: { page, pageSize, totalPages, totalRows: count, hasPrevious: page > 0, hasNext: page + 1 < totalPages },
+    stats: {
+      count,
+      value: { eth: valueEth, rawAmount: null, decimals: 18, currencySymbol: "WETH", tokenAddress: BASE_WETH, at: new Date().toISOString() },
+    },
+    rows: pageRows.map((row) => {
+      const offerer = normalizeAddress(row.offerer_wallet);
+      return {
+        orderHash: row.order_hash,
+        tokenId: row.token_id,
+        protocolAddress: row.protocol_address ?? "0x0000000000000068f116a894984e2db1123eb395",
+        price: { eth: row.amount_eth, rawAmount: row.amount_raw, decimals: 18, currencySymbol: row.currency_symbol ?? "WETH", tokenAddress: BASE_WETH, at: row.created_at },
+        bidder: offerer ? profiles.get(offerer) ?? buildBidderProfile({ wallet: offerer }) : null,
+        isUserOffer: Boolean(wallet && offerer === wallet),
+      };
+    }),
+  });
 }
