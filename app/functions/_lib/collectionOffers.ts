@@ -15,6 +15,7 @@ import {
   type MarketMoney,
   type OpenSeaMarketEnv,
 } from "./openseaMarket.js";
+import { getFreshTradeState } from "./openseaTrade.js";
 import { jsonSecure } from "./security.js";
 import { recordWarpletActivity } from "./warpletNotifications.js";
 
@@ -115,7 +116,7 @@ function readTraitCriteria(row: CollectionOfferRow): { traitType: string; traitV
     const traits = row.traits_json ? JSON.parse(row.traits_json) as unknown : [];
     if (!Array.isArray(traits)) return null;
     const first = asObject(traits[0]);
-    const traitType = asString(first?.traitType ?? first?.trait_type);
+    const traitType = asString(first?.type ?? first?.traitType ?? first?.trait_type);
     const traitValue = asString(first?.traitValue ?? first?.value);
     return traitType && traitValue ? { traitType, traitValue } : null;
   } catch {
@@ -174,6 +175,27 @@ async function openSeaPost(apiKey: string, path: string, body: unknown): Promise
     throw new Error(`OpenSea ${path} failed (${response.status}): ${text || "unknown error"}`);
   }
   return (await response.json()) as Record<string, unknown>;
+}
+
+async function openSeaPostWithTransientRetry(
+  apiKey: string,
+  path: string,
+  body: unknown,
+  attempts = 4,
+): Promise<Record<string, unknown>> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try {
+      return await openSeaPost(apiKey, path, body);
+    } catch (error) {
+      lastError = error;
+      const message = error instanceof Error ? error.message : String(error);
+      const isTransient = /failed \((?:429|5\d\d)\)/.test(message);
+      if (!isTransient || attempt + 1 >= attempts) throw error;
+      await new Promise((resolve) => setTimeout(resolve, 500 * (2 ** attempt)));
+    }
+  }
+  throw lastError;
 }
 
 function rawEthToNumber(rawAmount?: string | null): number | null {
@@ -347,9 +369,13 @@ async function fetchSeaportCounter(offerer: string): Promise<string> {
   return hex ? BigInt(hex).toString() : "0";
 }
 
+let collectionFeesCache: { expiresAt: number; fees: Array<{ recipient: string; bps: number }> } | null = null;
+const traitBuildCache = new Map<string, { expiresAt: number; built: Record<string, unknown> }>();
+
 async function fetchCollectionFees(apiKey: string): Promise<Array<{ recipient: string; bps: number }>> {
+  if (collectionFeesCache && collectionFeesCache.expiresAt > Date.now()) return collectionFeesCache.fees;
   const payload = await fetchOpenSea(`/collections/${COLLECTION_SLUG}`, apiKey);
-  return asArray(payload.fees ?? asObject(payload.collection)?.fees)
+  const fees = asArray(payload.fees ?? asObject(payload.collection)?.fees)
     .map((row) => {
       const fee = asObject(row);
       const recipient = normalizeAddress(fee?.recipient);
@@ -357,6 +383,8 @@ async function fetchCollectionFees(apiKey: string): Promise<Array<{ recipient: s
       return recipient && percent != null && percent > 0 ? { recipient, bps: Math.round(percent * 100) } : null;
     })
     .filter((fee): fee is { recipient: string; bps: number } => Boolean(fee));
+  collectionFeesCache = { expiresAt: Date.now() + 5 * 60 * 1000, fees };
+  return fees;
 }
 
 function feeAmount(rawAmount: string, bps: number): string {
@@ -863,6 +891,26 @@ export async function handleCollectionOfferSubmit(context: Parameters<PagesFunct
   return jsonSecure({ status: "submitted", result });
 }
 
+async function restoreIncorrectlyDeactivatedTraitOffers(env: CollectionOffersEnv): Promise<void> {
+  const rows = await env.WARPLETS.prepare(
+    `SELECT raw_payload
+     FROM opensea_criteria_offers
+     WHERE collection_slug = ?
+       AND criteria_kind = 'trait'
+       AND active = 0
+       AND COALESCE(order_status, 'ACTIVE') = 'ACTIVE'
+       AND raw_payload IS NOT NULL`
+  ).bind(COLLECTION_SLUG).all<{ raw_payload: string }>().then((result) => result.results ?? []).catch(() => []);
+  for (const row of rows) {
+    try {
+      const payload = asObject(JSON.parse(row.raw_payload));
+      if (payload) await upsertCriteriaOfferFromRow(env, payload, { recordActivity: false });
+    } catch (error) {
+      console.warn("Failed to restore incorrectly deactivated trait offer", error);
+    }
+  }
+}
+
 export async function handleTraitOffersGet(context: Parameters<PagesFunction<CollectionOffersEnv>>[0]): Promise<Response> {
   const url = new URL(context.request.url);
   const wallet = normalizeAddress(url.searchParams.get("wallet"));
@@ -881,6 +929,7 @@ export async function handleTraitOffersGet(context: Parameters<PagesFunction<Col
       refreshError = error instanceof Error ? error.message : "OpenSea refresh failed";
     }
   }
+  await restoreIncorrectlyDeactivatedTraitOffers(context.env);
   const rows = await context.env.WARPLETS.prepare(
     `SELECT * FROM opensea_criteria_offers
      WHERE collection_slug = ? AND criteria_kind = 'trait' AND active = 1
@@ -954,23 +1003,40 @@ export async function handleTraitOfferPrepare(context: Parameters<PagesFunction<
   if (!wallet || !priceRaw || !attribute || !TRAIT_LEVELS.includes(level as typeof TRAIT_LEVELS[number])) return jsonSecure({ error: "invalid_request" }, { status: 400 });
   let normalizedPriceRaw: string;
   try { normalizedPriceRaw = assertPositiveRawAmount(priceRaw); } catch { return jsonSecure({ error: "invalid_price", message: "Offer amount is invalid" }, { status: 400 }); }
-  const criteria = { collection: { slug: COLLECTION_SLUG }, traits: [{ trait_type: attribute.traitType, value: level }] };
+  const criteria = { collection: { slug: COLLECTION_SLUG }, traits: [{ type: attribute.traitType, value: level }] };
   try {
     const apiKey = requireOpenSeaApiKey(context.env);
-    const [counter, fees, built] = await Promise.all([
-      fetchSeaportCounter(wallet), fetchCollectionFees(apiKey),
-      openSeaPost(apiKey, "/offers/build", { offerer: wallet, quantity, criteria, protocol_address: DEFAULT_SEAPORT_PROTOCOL, offer_protection_enabled: true }),
+    const [counter, fees] = await Promise.all([
+      fetchSeaportCounter(wallet),
+      fetchCollectionFees(apiKey),
     ]);
+    const buildCacheKey = `${wallet}|${attribute.id}|${level}`;
+    const cachedBuild = traitBuildCache.get(buildCacheKey);
+    let built: Record<string, unknown>;
+    if (cachedBuild && cachedBuild.expiresAt > Date.now()) {
+      built = cachedBuild.built;
+    } else {
+      built = await openSeaPostWithTransientRetry(apiKey, "/offers/build", {
+        offerer: wallet,
+        quantity: 1,
+        criteria,
+        protocol_address: DEFAULT_SEAPORT_PROTOCOL,
+        offer_protection_enabled: true,
+      });
+      traitBuildCache.set(buildCacheKey, { expiresAt: Date.now() + 10 * 60 * 1000, built });
+    }
     const order = buildCollectionOfferTypedData({ offerer: wallet, unitPriceRaw: normalizedPriceRaw, quantity, durationSeconds: asNumber(body.durationSeconds) ?? MAX_OPENSEA_ORDER_DURATION_SECONDS, counter, fees, built });
     return jsonSecure({ status: "ready", actionId: asString(body.actionId) ?? crypto.randomUUID(), attribute: attribute.id, traitType: attribute.traitType, traitValue: level, criteria, protocolAddress: DEFAULT_SEAPORT_PROTOCOL, parameters: order.parameters, typedData: order.typedData, chainIdHex: BASE_CHAIN_ID_HEX, wethApproval: { tokenAddress: BASE_WETH, spender: OPENSEA_CONDUIT_ADDRESS, amount: order.totalRaw }, totalRaw: order.totalRaw });
   } catch (error) {
+    const message = error instanceof Error ? error.message : "Could not prepare trait offer";
+    const status = message.startsWith("OpenSea ") ? 424 : 502;
     return jsonSecure({
       error: "trait_offer_prepare_failed",
-      message: error instanceof Error ? error.message : "Could not prepare trait offer",
+      message,
       attribute: attribute.id,
       level,
       quantity,
-    }, { status: 502 });
+    }, { status });
   }
 }
 
@@ -983,7 +1049,7 @@ export async function handleTraitOfferSubmit(context: Parameters<PagesFunction<C
   const level = asString(body.level)?.toUpperCase();
   if (!parameters || !signature || !attribute || !TRAIT_LEVELS.includes(level as typeof TRAIT_LEVELS[number])) return jsonSecure({ error: "invalid_request" }, { status: 400 });
   const protocolAddress = normalizeAddress(payload.protocol_address) ?? DEFAULT_SEAPORT_PROTOCOL;
-  const criteria = { collection: { slug: COLLECTION_SLUG }, traits: [{ trait_type: attribute.traitType, value: level }] };
+  const criteria = { collection: { slug: COLLECTION_SLUG }, traits: [{ type: attribute.traitType, value: level }] };
   let result: Record<string, unknown>;
   try { result = await openSeaPost(requireOpenSeaApiKey(context.env), "/offers", { protocol_data: { parameters, signature }, criteria, protocol_address: protocolAddress }); }
   catch (error) { return jsonSecure({ error: "opensea_submit_failed", message: error instanceof Error ? error.message : "OpenSea trait offer submit failed" }, { status: 502 }); }
@@ -1105,7 +1171,13 @@ export async function handleItemOffersGet(context: Parameters<PagesFunction<Coll
   const tokenId = Number.isInteger(tokenIdValue) && tokenIdValue > 0 && tokenIdValue <= 10000 ? tokenIdValue : null;
   let refreshError: string | null = null;
   if (url.searchParams.get("refresh") === "1") {
-    try { await ingestOpenSeaMarket(context.env); }
+    try {
+      if (tokenId) {
+        await getFreshTradeState(context.env, tokenId, wallet);
+      } else {
+        await ingestOpenSeaMarket(context.env);
+      }
+    }
     catch (error) { refreshError = error instanceof Error ? error.message : "OpenSea refresh failed"; }
   }
   const requestedPage = Math.max(0, Math.floor(Number(url.searchParams.get("page")) || 0));

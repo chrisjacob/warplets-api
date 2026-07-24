@@ -157,6 +157,8 @@ type CriteriaOfferRow = {
   protocol_address: string | null;
   encoded_token_ids: string | null;
   active: number;
+  remaining_quantity?: number | null;
+  order_status?: string | null;
   offered_at: string | null;
   opensea_updated_at: string | null;
   raw_payload: string | null;
@@ -909,10 +911,24 @@ function criteriaOfferToMarket(row: CriteriaOfferRow): MarketOrderMoney & { offe
     traits = [];
   }
 
+  const quantity = Math.max(1, Math.floor(Number(row.remaining_quantity ?? 1)));
+  let unitRawAmount = row.offer_raw_amount;
+  if (unitRawAmount) {
+    try {
+      unitRawAmount = (BigInt(unitRawAmount) / BigInt(quantity)).toString();
+    } catch {
+      // Retain the stored amount for malformed legacy rows.
+    }
+  }
+  const unitEth = unitRawAmount && row.offer_decimals != null
+    ? weiToNumber(unitRawAmount, row.offer_decimals)
+    : row.offer_eth != null
+      ? row.offer_eth / quantity
+      : null;
   return {
-    eth: row.offer_eth,
+    eth: unitEth,
     at: row.offered_at,
-    rawAmount: row.offer_raw_amount,
+    rawAmount: unitRawAmount,
     decimals: row.offer_decimals,
     currencySymbol: row.offer_currency_symbol,
     tokenAddress: row.offer_token_address,
@@ -925,8 +941,15 @@ function criteriaOfferToMarket(row: CriteriaOfferRow): MarketOrderMoney & { offe
 }
 
 function criteriaComparableValue(row: CriteriaOfferRow): number | null {
-  if (row.offer_eth != null) return row.offer_eth;
-  if (row.offer_raw_amount && row.offer_decimals != null) return weiToNumber(row.offer_raw_amount, row.offer_decimals);
+  const quantity = Math.max(1, Math.floor(Number(row.remaining_quantity ?? 1)));
+  if (row.offer_raw_amount && row.offer_decimals != null) {
+    try {
+      return weiToNumber((BigInt(row.offer_raw_amount) / BigInt(quantity)).toString(), row.offer_decimals);
+    } catch {
+      // Fall through to the decimal value.
+    }
+  }
+  if (row.offer_eth != null) return row.offer_eth / quantity;
   return null;
 }
 
@@ -980,6 +1003,64 @@ async function loadActiveTraitOffersForToken(db: D1Database, tokenId?: number): 
     }
   }
   return traitOffers;
+}
+
+async function loadActiveCollectionTopOffer(
+  db: D1Database,
+): Promise<{ loaded: boolean; offer: NonNullable<MarketSnapshot["collection"]>["topOffer"] }> {
+  try {
+    const result = await db.prepare(
+      `SELECT *
+       FROM opensea_criteria_offers
+       WHERE collection_slug = ?
+         AND criteria_kind = 'collection'
+         AND active = 1
+         AND COALESCE(order_status, 'ACTIVE') = 'ACTIVE'
+         AND COALESCE(remaining_quantity, 1) > 0
+       ORDER BY offered_at ASC, order_hash ASC`
+    ).bind(COLLECTION_SLUG).all<CriteriaOfferRow>();
+    const rows = result.results ?? [];
+    let best: { row: CriteriaOfferRow; rawAmount: string | null; value: number } | null = null;
+    for (const row of rows) {
+      const quantity = Math.max(1, Math.floor(Number(row.remaining_quantity ?? 1)));
+      let rawAmount = row.offer_raw_amount;
+      if (rawAmount) {
+        try {
+          rawAmount = (BigInt(rawAmount) / BigInt(quantity)).toString();
+        } catch {
+          // Fall back to the decimal value below when a legacy raw amount is malformed.
+        }
+      }
+      const value = rawAmount && row.offer_decimals != null
+        ? weiToNumber(rawAmount, row.offer_decimals)
+        : row.offer_eth != null
+          ? row.offer_eth / quantity
+          : null;
+      if (value == null || !Number.isFinite(value)) continue;
+      if (!best || value > best.value) best = { row, rawAmount, value };
+    }
+    if (!best) return { loaded: true, offer: null };
+    const row = best.row;
+    return {
+      loaded: true,
+      offer: {
+        eth: best.value,
+        at: row.offered_at,
+        rawAmount: best.rawAmount,
+        decimals: row.offer_decimals ?? 18,
+        currencySymbol: row.offer_currency_symbol ?? "WETH",
+        tokenAddress: row.offer_token_address ?? BASE_WETH,
+        orderHash: row.order_hash,
+        protocolAddress: row.protocol_address,
+        offerer: row.offerer_wallet,
+        source: "collection",
+      },
+    };
+  } catch {
+    // Older databases may not have the criteria-offer tables yet. In that case,
+    // retain the independently ingested collection market state.
+    return { loaded: false, offer: null };
+  }
 }
 
 function getMarketOrderComparableValue(value: MarketOrderMoney | null | undefined): number | null {
@@ -1198,38 +1279,6 @@ export async function upsertCriteriaOfferFromRow(
   return changed;
 }
 
-async function clearInactiveCriteriaOffers(db: D1Database, activeOrderHashes: Set<string>): Promise<number> {
-  let rows: D1Result<{ order_hash: string }>;
-  try {
-    rows = await db.prepare(
-      `SELECT order_hash
-       FROM opensea_criteria_offers
-       WHERE collection_slug = ? AND active = 1`
-    ).bind(COLLECTION_SLUG).all<{ order_hash: string }>();
-  } catch {
-    return 0;
-  }
-  const stale = (rows.results ?? [])
-    .map((row) => row.order_hash)
-    .filter((hash) => hash && !activeOrderHashes.has(hash));
-  if (stale.length === 0) return 0;
-
-  const now = new Date().toISOString();
-  for (let index = 0; index < stale.length; index += 50) {
-    const chunk = stale.slice(index, index + 50);
-    const placeholders = chunk.map(() => "?").join(", ");
-    await db.prepare(
-      `UPDATE opensea_criteria_offers
-       SET active = 0, opensea_updated_at = ?, updated_at = ?
-       WHERE order_hash IN (${placeholders})`
-    ).bind(now, now, ...chunk).run();
-    await db.prepare(
-      `DELETE FROM opensea_criteria_offer_matches WHERE order_hash IN (${placeholders})`
-    ).bind(...chunk).run();
-  }
-  return stale.length;
-}
-
 function snapshotFromRows(
   rows: MarketStateRow[],
   generatedAt = new Date().toISOString(),
@@ -1320,6 +1369,8 @@ function sanitizeVisibleSales(value: unknown): MarketSnapshot["sales"] | null {
 export async function loadMarketSnapshotFromD1(env: OpenSeaMarketEnv): Promise<MarketSnapshot> {
   await initializeOwnersFromMetadata(env.WARPLETS);
   const collection = collectionSnapshotFromRow(await loadCollectionMarketRow(env.WARPLETS));
+  const activeCollectionOffer = await loadActiveCollectionTopOffer(env.WARPLETS);
+  if (activeCollectionOffer.loaded) collection.topOffer = activeCollectionOffer.offer;
   const traitOffers = Object.fromEntries(await loadActiveTraitOffersForToken(env.WARPLETS));
   let rows: D1Result<MarketStateRow>;
   try {
@@ -1365,12 +1416,16 @@ export async function loadMarketSnapshot(env: OpenSeaMarketEnv): Promise<MarketS
     const visibleSales = sanitizeVisibleSales(sales);
     if (manifest?.generatedAt && listings && offers && visibleSales && owners) {
       const persistedTraitOffers = Object.fromEntries(await loadActiveTraitOffersForToken(env.WARPLETS));
+      const activeCollectionOffer = await loadActiveCollectionTopOffer(env.WARPLETS);
       const cachedTraitOffers = (traitOffers as MarketSnapshot["traitOffers"] | null) ?? {};
+      const cachedCollection = (collection as MarketSnapshot["collection"] | null) ?? { floor: null, topOffer: null };
       return {
         version: "opensea-market-v1",
         generatedAt: manifest.generatedAt,
         maxAgeSeconds: SNAPSHOT_TTL_SECONDS,
-        collection: (collection as MarketSnapshot["collection"] | null) ?? { floor: null, topOffer: null },
+        collection: activeCollectionOffer.loaded
+          ? { ...cachedCollection, topOffer: activeCollectionOffer.offer }
+          : cachedCollection,
         listings: listings as MarketSnapshot["listings"],
         offers: offers as MarketSnapshot["offers"],
         traitOffers: { ...cachedTraitOffers, ...persistedTraitOffers },
@@ -1967,7 +2022,6 @@ export async function ingestOpenSeaMarket(env: OpenSeaMarketEnv): Promise<{ chan
     const offers = await ingestPaginated(env, apiKey, `/offers/collection/${COLLECTION_SLUG}/all`, ["offers", "orders"], processOffer, 50);
     changed += offers.changed;
     if (offers.complete) changed += await clearInactiveMarketRows(env.WARPLETS, "offer", offers.tokenIds);
-    if (offers.complete) changed += await clearInactiveCriteriaOffers(env.WARPLETS, offers.orderHashes);
   } catch (error) {
     console.warn("OpenSea offers ingest failed; preserving the previous offers snapshot", error);
   }

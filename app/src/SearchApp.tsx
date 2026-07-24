@@ -13,7 +13,7 @@ import {
   useInteractions,
   useRole,
 } from "@floating-ui/react";
-import { useOverlayScrollbars } from "overlayscrollbars-react";
+import { OverlayScrollbarsComponent, useOverlayScrollbars } from "overlayscrollbars-react";
 import sdk from "@farcaster/miniapp-sdk";
 import { NeynarAuthButton, useNeynarContext } from "@neynar/react";
 import { Text } from "@neynar/ui/typography";
@@ -2590,12 +2590,77 @@ function InlineHoverTooltip({
   value,
   tooltip,
   className = "",
+  tone = "green",
 }: {
   value: string;
   tooltip: string;
   className?: string;
+  tone?: "green" | "blue" | "yellow";
 }) {
   const [isOpen, setIsOpen] = useState(false);
+  const { refs, floatingStyles, context } = useFloating({
+    open: isOpen,
+    onOpenChange: setIsOpen,
+    placement: "top",
+    whileElementsMounted: autoUpdate,
+    middleware: [offset(8), flip({ padding: 8 }), shift({ padding: 8 })],
+  });
+  const hover = useHover(context, { delay: { open: 0, close: 60 }, move: false });
+  const focus = useFocus(context);
+  const role = useRole(context, { role: "tooltip" });
+  const { getReferenceProps, getFloatingProps } = useInteractions([hover, focus, role]);
+  const referenceToneClass = tone === "blue"
+    ? "focus:ring-[#33AAFF]/70"
+    : tone === "yellow"
+      ? "focus:ring-[#FFFF00]/70"
+      : "focus:ring-[#00FF00]/70";
+  const tooltipToneClass = tone === "blue"
+    ? "border-[#33AAFF]/40 text-[#33AAFF]"
+    : tone === "yellow"
+      ? "border-[#FFFF00]/40 text-[#FFFF00]"
+      : "border-[#00FF00]/40 text-[#00FF00]";
+
+  return (
+    <>
+      <span
+        ref={refs.setReference}
+        {...getReferenceProps({
+          tabIndex: 0,
+          "aria-label": tooltip,
+          onClick: () => setIsOpen((current) => !current),
+          className: `inline-flex cursor-help justify-center font-bold outline-none focus:ring-1 ${referenceToneClass} ${className}`,
+        })}
+      >
+        {value}
+      </span>
+      {isOpen && (
+        <FloatingPortal>
+          <div
+            ref={refs.setFloating}
+            style={floatingStyles}
+            {...getFloatingProps({
+              className: `z-[70] max-w-[min(92vw,520px)] whitespace-nowrap rounded-lg border bg-black px-3 py-2 text-[11px] font-bold leading-snug shadow-2xl ${tooltipToneClass}`,
+            })}
+          >
+            {tooltip}
+          </div>
+        </FloatingPortal>
+      )}
+    </>
+  );
+}
+
+function OfferPriceTooltipButton({
+  price,
+  ethUsdPrice,
+  onClick,
+}: {
+  price: MarketMoney;
+  ethUsdPrice: number | null;
+  onClick: () => void;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const tooltip = formatUsdMoneyFromMarket(price, ethUsdPrice);
   const { refs, floatingStyles, context } = useFloating({
     open: isOpen,
     onOpenChange: setIsOpen,
@@ -2610,23 +2675,24 @@ function InlineHoverTooltip({
 
   return (
     <>
-      <span
+      <button
         ref={refs.setReference}
+        type="button"
         {...getReferenceProps({
-          tabIndex: 0,
-          "aria-label": tooltip,
-          className: `inline-flex cursor-help justify-center font-bold outline-none focus:ring-1 focus:ring-[#00FF00]/70 ${className}`,
+          "aria-label": `${formatMarketValue(price, { maxDigits: 5 })}, ${tooltip}. Use this price`,
+          onClick,
+          className: "flex cursor-pointer justify-center font-bold text-[#33AAFF] outline-none hover:text-[#70c6ff] hover:underline focus:ring-1 focus:ring-[#33AAFF]/70",
         })}
       >
-        {value}
-      </span>
+        {formatMarketValue(price, { maxDigits: 5 })}
+      </button>
       {isOpen && (
         <FloatingPortal>
           <div
             ref={refs.setFloating}
             style={floatingStyles}
             {...getFloatingProps({
-              className: "z-[70] max-w-[min(92vw,520px)] whitespace-nowrap rounded-lg border border-[#00FF00]/40 bg-black px-3 py-2 text-[11px] font-bold leading-snug text-[#00FF00] shadow-2xl",
+              className: "z-[70] max-w-[min(92vw,520px)] whitespace-nowrap rounded-lg border border-[#33AAFF]/40 bg-black px-3 py-2 text-[11px] font-bold leading-snug text-[#33AAFF] shadow-2xl",
             })}
           >
             {tooltip}
@@ -3305,31 +3371,19 @@ function OverlayScrollArea({
   className: string;
   scrollbarAutoHide?: "never" | "scroll" | "leave" | "move";
 }) {
-  const scrollRef = useRef<HTMLDivElement | null>(null);
-  const [initializeScrollbars] = useOverlayScrollbars({
-    options: {
-      scrollbars: {
-        theme: "os-theme-10x-green",
-        autoHide: scrollbarAutoHide,
-      },
-    },
-    defer: true,
-  });
-
-  useEffect(() => {
-    const target = scrollRef.current;
-    if (!target) return;
-    target.setAttribute("data-overlayscrollbars-initialize", "");
-    initializeScrollbars(target);
-    return () => {
-      target.removeAttribute("data-overlayscrollbars-initialize");
-    };
-  }, [initializeScrollbars]);
-
   return (
-    <div ref={scrollRef} className={className}>
+    <OverlayScrollbarsComponent
+      className={className}
+      defer
+      options={{
+        scrollbars: {
+          theme: "os-theme-10x-green",
+          autoHide: scrollbarAutoHide,
+        },
+      }}
+    >
       {children}
-    </div>
+    </OverlayScrollbarsComponent>
   );
 }
 
@@ -3567,19 +3621,29 @@ function CollectionOffersPage({
   const normalizedWallet = normalizeWalletAddress(connectedWallet);
 
   const clearCollectionSubmitTimers = useCallback(() => {
-    collectionSubmitTimersRef.current.forEach((timerId) => window.clearTimeout(timerId));
+    collectionSubmitTimersRef.current.forEach((timerId) => window.clearInterval(timerId));
     collectionSubmitTimersRef.current = [];
   }, []);
 
   const beginOpenSeaSubmitLabels = useCallback(() => {
     clearCollectionSubmitTimers();
-    setCollectionBusyLabel("Submitting to OpenSea...");
-    collectionSubmitTimersRef.current = [
-      window.setTimeout(() => setCollectionBusyLabel("Expect a 2 minute wait..."), 10000),
-      window.setTimeout(() => setCollectionBusyLabel("Waiting on OpenSea..."), 30000),
-      window.setTimeout(() => setCollectionBusyLabel("Almost done..."), 60000),
-      window.setTimeout(() => setCollectionBusyLabel("Waiting on OpenSea..."), 90000),
+    const labels = [
+      "Submitting to OpenSea...",
+      "Waiting for OpenSea...",
+      "OpenSea is building your offer...",
+      "Waiting for OpenSea validation...",
+      "Still waiting on OpenSea...",
+      "Checking the offer submission...",
+      "OpenSea is taking a little longer...",
+      "Waiting for order confirmation...",
+      "Still working on your offer...",
     ];
+    let labelIndex = 0;
+    setCollectionBusyLabel(labels[labelIndex]);
+    collectionSubmitTimersRef.current = [window.setInterval(() => {
+      labelIndex = (labelIndex + 1) % labels.length;
+      setCollectionBusyLabel(labels[labelIndex]);
+    }, 10000)];
   }, [clearCollectionSubmitTimers]);
 
   useEffect(() => clearCollectionSubmitTimers, [clearCollectionSubmitTimers]);
@@ -3825,8 +3889,7 @@ function CollectionOffersPage({
         </div>
         <div className="rounded-lg border border-[#33AAFF]/30 bg-[rgba(51,170,255,0.08)] p-3">
           <Text className="text-[11px] font-bold uppercase text-[#8bcfff]">Value</Text>
-          <div className="mt-1 text-2xl font-bold text-[#33AAFF]">{formatMarketValue(stats?.value, { maxDigits: 8 })}</div>
-          <div className="mt-0.5 text-[11px] font-bold text-[#8bcfff]">{formatUsdMoneyFromMarket(stats?.value, ethUsdPrice)}</div>
+          <div className="mt-1 text-2xl font-bold text-[#33AAFF]"><InlineHoverTooltip value={formatMarketValue(stats?.value, { maxDigits: 8 })} tooltip={formatUsdMoneyFromMarket(stats?.value, ethUsdPrice)} className="text-[#33AAFF]" tone="blue"/></div>
         </div>
       </div>
 
@@ -3940,19 +4003,16 @@ function CollectionOffersPage({
           <div className="px-3 py-6 text-center text-sm font-bold text-[#8bbf8b]">No collection offers.</div>
         ) : rows.map((group) => (
           <div key={group.price.rawAmount ?? String(group.price.eth)} className="grid grid-cols-[1fr_1fr_56px_72px_72px] items-center gap-1 border-t border-[#00FF00]/15 px-2 py-2 text-center text-xs">
-            <button
-              type="button"
-              title={`${formatUsdMoneyFromMarket(group.price, ethUsdPrice)}. Use this price`}
+            <OfferPriceTooltipButton
+              price={group.price}
+              ethUsdPrice={ethUsdPrice}
               onClick={() => {
                 void hapticTap();
                 setPriceFromMarket(group.price);
                 setQuantity(1);
                 formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
               }}
-              className="flex cursor-pointer justify-center font-bold text-[#33AAFF] hover:text-[#70c6ff] hover:underline"
-            >
-              {formatMarketValue(group.price, { maxDigits: 5 })}
-            </button>
+            />
             <span className="flex justify-center">
               <InlineHoverTooltip
                 value={formatMarketValue(group.volume, { maxDigits: 5 })}
@@ -4053,7 +4113,7 @@ function CollectionOffersPage({
                 step={1}
                 value={cancelRequestedQuantity}
                 onChange={(event) => setRequestedCancelQuantity(Number(event.target.value) || 1)}
-                className="mx-2 min-w-0 flex-1 appearance-none border-0 bg-transparent text-center text-base font-bold text-[#FF7777] outline-none ring-0"
+                className="mx-2 min-w-0 flex-1 appearance-none border-0 bg-transparent text-center text-base font-bold text-[#FF7777] outline-none ring-0 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
               />
               <button type="button" onClick={() => stepCancelQuantity(1)} className="h-8 w-8 rounded-md border border-[#FF5555]/35 text-lg font-bold text-[#FF7777]">+</button>
             </div>
@@ -4231,7 +4291,7 @@ function WarpletCard({
           openCard();
         }
       }}
-      className="group relative flex w-full min-w-0 cursor-pointer flex-col rounded-[10px] border border-[#00FF00]/25 bg-[#041204]/90 p-0 text-left transition hover:-translate-y-px hover:border-[#00FF00]/50 hover:bg-[#071807]/95"
+      className="group relative flex w-full min-w-0 cursor-pointer flex-col rounded-[10px] border border-[#00FF00]/25 bg-[#041204]/90 p-0 text-left transition hover:-translate-y-px hover:border-2 hover:border-[#00FF00] hover:bg-[#071807]/95 hover:shadow-[0_0_16px_rgba(0,255,0,0.55)]"
     >
       <ProgressiveWarpletImage
         tokenId={warplet.id}
@@ -4279,12 +4339,14 @@ function TraitOffersPage({
   isInMiniAppContext,
   getProviderAndAccount,
   showToast,
+  onMarketChanged,
 }: {
   connectedWallet: string | null;
   viewerFid: number | null;
   isInMiniAppContext: boolean;
   getProviderAndAccount: () => Promise<{ provider: EthereumProvider; account: string }>;
   showToast: (kind: TradeToast["kind"], message: string, options?: { manualClose?: boolean; minMs?: number }) => void;
+  onMarketChanged: () => Promise<void>;
 }) {
   const [scope, setScope] = useState<"all" | "your">("all");
   const [selectedAttributes, setSelectedAttributes] = useState<LevelAttributeColumn[]>(() => LEVEL_ATTRIBUTES.map((item) => item.column));
@@ -4305,8 +4367,10 @@ function TraitOffersPage({
   const normalizedWallet = normalizeWalletAddress(connectedWallet);
   const attributeIds = selectedAttributes.map((column) => LEVEL_ATTRIBUTES.find((item) => item.column === column)?.label.toLowerCase()).filter((value): value is string => Boolean(value));
 
-  const loadOffers = useCallback(async (options: { refresh?: boolean } = {}) => {
-    options.refresh ? setRefreshing(true) : setLoading(true);
+  const loadOffers = useCallback(async (options: { refresh?: boolean; silent?: boolean } = {}) => {
+    if (!options.silent) {
+      options.refresh ? setRefreshing(true) : setLoading(true);
+    }
     try {
       const params = new URLSearchParams({ level: `${level}X`, attributes: attributeIds.join(",") });
       if (normalizedWallet) params.set("wallet", normalizedWallet);
@@ -4318,8 +4382,10 @@ function TraitOffersPage({
     } catch (error) {
       showToast("error", error instanceof Error ? error.message : "Trait offers failed.", { manualClose: true });
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      if (!options.silent) {
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
   }, [attributeIds.join(","), level, normalizedWallet, scope, showToast]);
 
@@ -4360,21 +4426,45 @@ function TraitOffersPage({
     try {
       void hapticPrimaryTap();
       const { provider, account } = await getProviderAndAccount();
-      const prepared = await Promise.all(attributeIds.map(async (attribute) => {
+      const prepared: Array<{ actionId: string; attribute: string; parameters?: unknown; typedData?: unknown; protocolAddress?: string; chainIdHex?: string; wethApproval?: TokenApprovalRequirement; totalRaw?: string; message?: string }> = [];
+      for (const [attributeIndex, attribute] of attributeIds.entries()) {
+        setBusyLabel(`Preparing ${attributeIndex + 1} of ${attributeIds.length}...`);
         const actionId = crypto.randomUUID();
-        const response = await fetch("/api/trait-offers/prepare", {
-          method: "POST", headers: { "content-type": "application/json", accept: "application/json" },
-          body: JSON.stringify({ actionId, fid: viewerFid, wallet: account, priceRaw, quantity: clampedQuantity, durationSeconds: DEFAULT_TRADE_DURATION_SECONDS, attribute, level: `${level}X` }),
-        });
-        const responseText = await response.text();
+        const requestBody = JSON.stringify({ actionId, fid: viewerFid, wallet: account, priceRaw, quantity: clampedQuantity, durationSeconds: DEFAULT_TRADE_DURATION_SECONDS, attribute, level: `${level}X` });
+        let response: Response | null = null;
+        let responseText = "";
+        let transportError: unknown = null;
+        for (let attempt = 0; attempt < 4; attempt += 1) {
+          if (attempt > 0) {
+            setBusyLabel(`Retrying ${attributeIndex + 1} of ${attributeIds.length}...`);
+            await new Promise((resolve) => window.setTimeout(resolve, 1000 * (2 ** (attempt - 1))));
+          }
+          try {
+            response = await fetch("/api/trait-offers/prepare", {
+              method: "POST", headers: { "content-type": "application/json", accept: "application/json" },
+              body: requestBody,
+            });
+            responseText = await response.text();
+            transportError = null;
+            if (![502, 503, 504].includes(response.status)) break;
+          } catch (error) {
+            transportError = error;
+            response = null;
+            responseText = "";
+          }
+        }
+        if (!response) throw transportError instanceof Error ? transportError : new Error(`Could not prepare ${attribute} trait offer`);
         let item: { actionId?: string; attribute?: string; parameters?: unknown; typedData?: unknown; protocolAddress?: string; chainIdHex?: string; wethApproval?: TokenApprovalRequirement; totalRaw?: string; message?: string } = {};
         try { item = JSON.parse(responseText) as typeof item; } catch { /* Preserve the HTTP response below. */ }
         if (!response.ok || !item.parameters || !item.typedData || !item.protocolAddress || !item.attribute || !item.wethApproval) {
           const httpError = responseText && !responseText.trimStart().startsWith("<") ? responseText.slice(0, 500) : "";
           throw new Error(item.message || httpError || `Could not prepare ${attribute} trait offer (${response.status})`);
         }
-        return { ...item, actionId, attribute };
-      }));
+        prepared.push({ ...item, actionId, attribute });
+        if (attributeIndex + 1 < attributeIds.length) {
+          await new Promise((resolve) => window.setTimeout(resolve, 750));
+        }
+      }
       await ensureBaseChain(provider, prepared[0]?.chainIdHex);
       const aggregateRaw = prepared.reduce((total, item) => total + BigInt(item.totalRaw ?? "0"), 0n);
       const wethToken = prepared[0].wethApproval!.tokenAddress;
@@ -4401,6 +4491,11 @@ function TraitOffersPage({
             throw new Error(failure.message || `Trait offer submission failed (${response.status})`);
           }
           submitted += 1;
+          setBusyLabel(`Refreshing ${submitted} of ${prepared.length}...`);
+          await Promise.all([
+            loadOffers({ silent: true }),
+            onMarketChanged(),
+          ]);
         } catch (error) {
           if (submitted === 0) throw error;
           showToast("warning", `Submitted ${submitted} of ${prepared.length} trait offers`, { minMs: 8000 });
@@ -4417,7 +4512,10 @@ function TraitOffersPage({
         void hapticWarning();
       }
       setBusyLabel("Refreshing offers...");
-      await loadOffers();
+      await Promise.all([
+        loadOffers({ silent: true }),
+        onMarketChanged(),
+      ]);
     } catch (error) {
       void hapticError();
       showToast("error", error instanceof Error ? error.message : "Trait offer failed.", { manualClose: true });
@@ -4425,7 +4523,7 @@ function TraitOffersPage({
       setBusy(null);
       setBusyLabel(null);
     }
-  }, [attributeIds.join(","), clampedQuantity, getProviderAndAccount, level, loadOffers, price, showToast, viewerFid]);
+  }, [attributeIds.join(","), clampedQuantity, getProviderAndAccount, level, loadOffers, onMarketChanged, price, showToast, viewerFid]);
 
   const runCancel = useCallback(async () => {
     if (!cancelGroup) return;
@@ -4462,7 +4560,7 @@ function TraitOffersPage({
     <div className="mx-auto w-full max-w-md px-4 pb-10 pt-6">
       <div className="grid grid-cols-2 gap-3">
         <div className="rounded-lg border border-[#00FF00]/30 bg-[rgba(0,255,0,0.08)] p-3"><Text className="text-[11px] font-bold uppercase text-[#8bbf8b]">Count</Text><div className="mt-1 text-2xl font-bold text-[#00FF00]">{stats?.count ?? 0}</div></div>
-        <div className="rounded-lg border border-[#33AAFF]/30 bg-[rgba(51,170,255,0.08)] p-3"><Text className="text-[11px] font-bold uppercase text-[#8bcfff]">Value</Text><div className="mt-1 text-2xl font-bold text-[#33AAFF]">{formatMarketValue(stats?.value, { maxDigits: 8 })}</div><div className="mt-0.5 text-[11px] font-bold text-[#8bcfff]">{formatUsdMoneyFromMarket(stats?.value, ethUsdPrice)}</div></div>
+        <div className="rounded-lg border border-[#33AAFF]/30 bg-[rgba(51,170,255,0.08)] p-3"><Text className="text-[11px] font-bold uppercase text-[#8bcfff]">Value</Text><div className="mt-1 text-2xl font-bold text-[#33AAFF]"><InlineHoverTooltip value={formatMarketValue(stats?.value, { maxDigits: 8 })} tooltip={formatUsdMoneyFromMarket(stats?.value, ethUsdPrice)} className="text-[#33AAFF]" tone="blue"/></div></div>
       </div>
       <div ref={formRef} className="mt-4 rounded-xl border border-[#33AAFF]/35 bg-[rgba(51,170,255,0.12)] p-3">
         <div className="grid grid-cols-2 gap-2">
@@ -4488,10 +4586,10 @@ function TraitOffersPage({
       <SearchSegmentedTabs className="mt-4" options={OFFERS_FILTER_TABS} activeId={scope} onSelect={(id) => setScope(id === "your" ? "your" : "all")}/>
       <div className="mt-4 overflow-hidden rounded-lg border border-[#00FF00]/25">
         <div className="grid grid-cols-[1fr_1fr_56px_72px_72px] items-center gap-1 bg-[#041204] px-2 py-2 text-center text-[10px] font-bold uppercase text-[#8bbf8b]"><span>Price</span><span>Volume</span><span>Offers</span><span>Bidders</span><span>Action</span></div>
-        {loading ? <div className="px-3 py-6 text-center text-sm font-bold text-[#8bbf8b]">Loading offers...</div> : rows.length === 0 ? <div className="px-3 py-6 text-center text-sm font-bold text-[#8bbf8b]">No trait offers.</div> : rows.map((group) => <div key={`${group.traitType}|${group.traitValue}|${group.price.rawAmount ?? group.price.eth}`} className="grid grid-cols-[1fr_1fr_56px_72px_72px] items-center gap-1 border-t border-[#00FF00]/15 px-2 py-2 text-center text-xs"><button type="button" onClick={() => { setPriceFromMarket(group.price); formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }); }} className="cursor-pointer font-bold text-[#33AAFF]">{formatMarketValue(group.price, { maxDigits: 5 })}</button><span className="flex justify-center"><InlineHoverTooltip value={formatMarketValue(group.volume, { maxDigits: 5 })} tooltip={formatUsdMoneyFromMarket(group.volume, ethUsdPrice)} className="text-[#00FF00]"/></span><span className="flex justify-center"><InlineHoverTooltip value={`${emojiForTrait(group.traitType)}${group.offerCount}`} tooltip={`${group.traitType}: ${group.traitValue}`} className="font-bold text-[#8bbf8b]"/></span><button type="button" onClick={() => setBiddersGroup(group)} className="flex cursor-pointer justify-center -space-x-2">{group.previewBidders.slice(0, 5).map((bidder) => <img key={bidder.wallet} src={bidder.pfpUrl || getWarpletPreviewImageUrl(HEADER_FALLBACK_AVATAR_TOKEN_ID)} alt="" className="h-7 w-7 rounded-full border-2 border-[#00FF00] object-cover"/>)}</button><button type="button" disabled={busy !== null} onClick={() => { if (group.userOfferCount > 0) { setCancelGroup(group); setCancelRequestedQuantity(group.userOfferCount); setCancelQuantity(snapCollectionOfferCancelQuantity(group.userOrders, group.userOfferCount)); } else { const attribute = LEVEL_ATTRIBUTES.find((item) => `${item.label} Level`.toLowerCase() === group.traitType.toLowerCase()); setPriceFromMarket(group.price); if (attribute) setSelectedAttributes([attribute.column]); formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }); } }} className={`cursor-pointer justify-self-center rounded-md border px-2 py-1.5 text-xs font-bold disabled:cursor-wait ${group.userOfferCount > 0 ? "border-[#FF5555]/55 text-[#FF7777]" : "border-[#33AAFF]/55 text-[#33AAFF]"}`}>{group.userOfferCount > 0 ? "Cancel" : "Offer"}</button></div>)}
+        {loading ? <div className="px-3 py-6 text-center text-sm font-bold text-[#8bbf8b]">Loading offers...</div> : rows.length === 0 ? <div className="px-3 py-6 text-center text-sm font-bold text-[#8bbf8b]">No trait offers.</div> : rows.map((group) => <div key={`${group.traitType}|${group.traitValue}|${group.price.rawAmount ?? group.price.eth}`} className="grid grid-cols-[1fr_1fr_56px_72px_72px] items-center gap-1 border-t border-[#00FF00]/15 px-2 py-2 text-center text-xs"><OfferPriceTooltipButton price={group.price} ethUsdPrice={ethUsdPrice} onClick={() => { setPriceFromMarket(group.price); formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }); }}/><span className="flex justify-center"><InlineHoverTooltip value={formatMarketValue(group.volume, { maxDigits: 5 })} tooltip={formatUsdMoneyFromMarket(group.volume, ethUsdPrice)} className="text-[#00FF00]"/></span><span className="flex justify-center"><InlineHoverTooltip value={`${emojiForTrait(group.traitType)} ${group.offerCount}`} tooltip={`${group.traitType}: ${group.traitValue}`} className="font-bold text-[#8bbf8b]"/></span><button type="button" onClick={() => setBiddersGroup(group)} className="flex cursor-pointer justify-center -space-x-2">{group.previewBidders.slice(0, 5).map((bidder) => <img key={bidder.wallet} src={bidder.pfpUrl || getWarpletPreviewImageUrl(HEADER_FALLBACK_AVATAR_TOKEN_ID)} alt="" className="h-7 w-7 rounded-full border-2 border-[#00FF00] object-cover"/>)}</button><button type="button" disabled={busy !== null} onClick={() => { if (group.userOfferCount > 0) { setCancelGroup(group); setCancelRequestedQuantity(group.userOfferCount); setCancelQuantity(snapCollectionOfferCancelQuantity(group.userOrders, group.userOfferCount)); } else { const attribute = LEVEL_ATTRIBUTES.find((item) => `${item.label} Level`.toLowerCase() === group.traitType.toLowerCase()); setPriceFromMarket(group.price); if (attribute) setSelectedAttributes([attribute.column]); formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }); } }} className={`cursor-pointer justify-self-center rounded-md border px-2 py-1.5 text-xs font-bold disabled:cursor-wait ${group.userOfferCount > 0 ? "border-[#FF5555]/55 text-[#FF7777]" : "border-[#33AAFF]/55 text-[#33AAFF]"}`}>{group.userOfferCount > 0 ? "Cancel" : "Offer"}</button></div>)}
       </div>
       <div className="mt-3 text-center text-[11px] text-[#8bbf8b]">Last updated: {payload?.generatedAt ? formatMarketTimestamp(payload.generatedAt) : "Not yet"}. <button type="button" disabled={refreshing || busy !== null} onClick={() => void loadOffers({ refresh: true })} className="font-bold text-[#00FF00]">{refreshing ? "Refreshing..." : "Refresh"}</button>{payload?.refreshError && <span className="block text-red-300">{payload.refreshError}</span>}</div>
-      {cancelGroup && <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/80 p-4 sm:items-center"><div className="w-full max-w-sm rounded-xl border border-[#FF5555]/45 bg-black p-4"><Text className="text-base font-bold text-[#FF7777]">Cancel trait offers</Text><p className="mt-2 text-sm font-bold text-[#d9b0b0]">Cancel up to {cancelGroup.userOfferCount} {emojiForTrait(cancelGroup.traitType)} {cancelGroup.traitValue} trait offers at {formatMarketValue(cancelGroup.price, { maxDigits: 8 })}.</p><div className="mt-3 flex items-center rounded-lg border-2 border-[#FF5555]/35 bg-black/60 px-2 py-1.5"><button type="button" onClick={() => { const next = stepCollectionOfferCancelQuantity(cancelTotals, cancelQuantity, -1); setCancelRequestedQuantity(next); setCancelQuantity(next); }} className="h-8 w-8 text-lg font-bold text-[#FF7777]">-</button><input type="number" min={1} max={cancelGroup.userOfferCount} value={cancelRequestedQuantity} onChange={(event) => { const requested = Math.min(cancelGroup.userOfferCount, Math.max(1, Number(event.target.value) || 1)); setCancelRequestedQuantity(requested); setCancelQuantity(snapCollectionOfferCancelQuantity(cancelGroup.userOrders, requested)); }} className="mx-2 min-w-0 flex-1 bg-transparent text-center font-bold text-[#FF7777] outline-none"/><button type="button" onClick={() => { const next = stepCollectionOfferCancelQuantity(cancelTotals, cancelQuantity, 1); setCancelRequestedQuantity(next); setCancelQuantity(next); }} className="h-8 w-8 text-lg font-bold text-[#FF7777]">+</button></div>{actualCancelQuantity > cancelRequestedQuantity && <p className="mt-2 text-xs font-bold text-[#ffd599]">This cancels {actualCancelQuantity} offers across {selectedCancelOrders.length} OpenSea orders.</p>}<button type="button" disabled={busy !== null} onClick={() => void runCancel()} className="mt-4 w-full rounded-[20px] border border-[#a83232] bg-[#FF5555] px-5 py-3 text-base font-bold text-[#2c0000] shadow-[3px_6px_0_#8a2222]">{busy === "cancel" ? "Working..." : "Review cancellation"}</button><button type="button" onClick={() => setCancelGroup(null)} className="mx-auto mt-2 block px-4 py-2 text-xs font-bold text-[#FF7777] underline">Keep offers</button></div></div>}
+      {cancelGroup && <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/80 p-4 sm:items-center"><div className="w-full max-w-sm rounded-xl border border-[#FF5555]/45 bg-black p-4"><Text className="text-base font-bold text-[#FF7777]">Cancel trait offers</Text><p className="mt-2 text-sm font-bold text-[#d9b0b0]">Cancel up to {cancelGroup.userOfferCount} {emojiForTrait(cancelGroup.traitType)} {cancelGroup.traitValue} trait offers at {formatMarketValue(cancelGroup.price, { maxDigits: 8 })}.</p><div className="mt-3 flex items-center rounded-lg border-2 border-[#FF5555]/35 bg-black/60 px-2 py-1.5"><button type="button" onClick={() => { const next = stepCollectionOfferCancelQuantity(cancelTotals, cancelQuantity, -1); setCancelRequestedQuantity(next); setCancelQuantity(next); }} className="h-8 w-8 text-lg font-bold text-[#FF7777]">-</button><input type="number" min={1} max={cancelGroup.userOfferCount} value={cancelRequestedQuantity} onChange={(event) => { const requested = Math.min(cancelGroup.userOfferCount, Math.max(1, Number(event.target.value) || 1)); setCancelRequestedQuantity(requested); setCancelQuantity(snapCollectionOfferCancelQuantity(cancelGroup.userOrders, requested)); }} className="mx-2 min-w-0 flex-1 appearance-none bg-transparent text-center font-bold text-[#FF7777] outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"/><button type="button" onClick={() => { const next = stepCollectionOfferCancelQuantity(cancelTotals, cancelQuantity, 1); setCancelRequestedQuantity(next); setCancelQuantity(next); }} className="h-8 w-8 text-lg font-bold text-[#FF7777]">+</button></div>{actualCancelQuantity > cancelRequestedQuantity && <p className="mt-2 text-xs font-bold text-[#ffd599]">This cancels {actualCancelQuantity} offers across {selectedCancelOrders.length} OpenSea orders.</p>}<button type="button" disabled={busy !== null} onClick={() => void runCancel()} className="mt-4 w-full cursor-pointer rounded-[20px] border border-[#a83232] bg-[#FF5555] px-5 py-3 text-base font-bold text-[#2c0000] shadow-[3px_6px_0_#8a2222] transition-all duration-100 hover:bg-[#ff7777] active:translate-x-[1px] active:translate-y-[3px] active:shadow-[1px_3px_0_#8a2222] disabled:cursor-wait disabled:opacity-70">{busy === "cancel" ? "Working..." : "Review cancellation"}</button><button type="button" onClick={() => setCancelGroup(null)} className="mx-auto mt-2 block px-4 py-2 text-xs font-bold text-[#FF7777] underline">Keep offers</button></div></div>}
       {biddersGroup && (
         <CollectionBiddersModal
           group={biddersGroup}
@@ -4567,10 +4665,12 @@ function ItemOffersPage({
     return () => observer.disconnect();
   }, [pickerOpen, pickerResults.length, pickerVisibleCount]);
 
-  const loadOffers = useCallback(async (options: { refresh?: boolean } = {}) => {
+  const loadOffers = useCallback(async (options: { refresh?: boolean; silent?: boolean } = {}) => {
     const requestId = loadRequestRef.current + 1;
     loadRequestRef.current = requestId;
-    options.refresh ? setRefreshing(true) : setLoading(true);
+    if (!options.silent) {
+      options.refresh ? setRefreshing(true) : setLoading(true);
+    }
     try {
       const params = new URLSearchParams();
       if (normalizedWallet) params.set("wallet", normalizedWallet);
@@ -4588,7 +4688,7 @@ function ItemOffersPage({
       if (loadRequestRef.current !== requestId) return;
       showToast("error", error instanceof Error ? error.message : "Item offers failed.", { manualClose: true });
     } finally {
-      if (loadRequestRef.current === requestId) { setLoading(false); setRefreshing(false); }
+      if (loadRequestRef.current === requestId && !options.silent) { setLoading(false); setRefreshing(false); }
     }
   }, [normalizedWallet, page, scope, selectedTokenId, showToast]);
   useEffect(() => { void loadOffers(); }, [loadOffers]);
@@ -4611,6 +4711,72 @@ function ItemOffersPage({
   };
   const priceRaw = decimalEthToWeiString(price);
   const priceIsValid = Boolean(priceRaw && BigInt(priceRaw) > 0n);
+
+  const applyOptimisticItemOffer = useCallback((
+    orderHash: string,
+    tokenId: number,
+    account: string,
+    protocolAddress: string,
+    normalizedPriceRaw: string,
+  ) => {
+    const now = new Date().toISOString();
+    const optimisticPrice: MarketMoney = {
+      eth: Number(price),
+      rawAmount: normalizedPriceRaw,
+      decimals: 18,
+      currencySymbol: "WETH",
+      tokenAddress: BASE_WETH_TOKEN_ADDRESS,
+      at: now,
+    };
+    const bidder: CollectionOfferBidder = {
+      wallet: account,
+      fid: viewerFid,
+      username: null,
+      displayName: null,
+      pfpUrl: null,
+      xUsername: null,
+      openseaUrl: `https://opensea.io/${account}`,
+      farcasterUrl: viewerFid != null ? `https://farcaster.xyz/~/profiles/${viewerFid}` : null,
+      xUrl: null,
+      basescanUrl: `https://basescan.org/address/${account}`,
+    };
+    const optimisticRow: ItemOfferRow = {
+      orderHash,
+      tokenId,
+      protocolAddress,
+      price: optimisticPrice,
+      bidder,
+      isUserOffer: true,
+    };
+    setPayload((current) => {
+      if (!current || current.tokenId !== tokenId) return current;
+      const alreadyPresent = current.rows.some((row) => row.orderHash === orderHash);
+      const rows = [optimisticRow, ...current.rows.filter((row) => row.orderHash !== orderHash)]
+        .sort((left, right) => (right.price.eth ?? 0) - (left.price.eth ?? 0))
+        .slice(0, current.pagination.pageSize);
+      const value = alreadyPresent
+        ? current.stats.value
+        : sumMarketMoney([current.stats.value, optimisticPrice]) ?? current.stats.value;
+      const topItemOffer = !current.topItemOffer || (optimisticPrice.eth ?? 0) > (current.topItemOffer.eth ?? 0)
+        ? optimisticPrice
+        : current.topItemOffer;
+      return {
+        ...current,
+        generatedAt: now,
+        topItemOffer,
+        stats: {
+          count: current.stats.count + (alreadyPresent ? 0 : 1),
+          value,
+        },
+        pagination: {
+          ...current.pagination,
+          totalRows: current.pagination.totalRows + (alreadyPresent ? 0 : 1),
+          totalPages: Math.max(1, Math.ceil((current.pagination.totalRows + (alreadyPresent ? 0 : 1)) / current.pagination.pageSize)),
+        },
+        rows,
+      };
+    });
+  }, [price, viewerFid]);
 
   const runMakeOffer = useCallback(async () => {
     const normalizedPriceRaw = decimalEthToWeiString(price);
@@ -4642,13 +4808,15 @@ function ItemOffersPage({
       const signature = await signTypedData(provider, account, data.typedData);
       setBusyLabel("Submitting to OpenSea...");
       const submit = await fetch("/api/warplet-trade/offer/submit", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ actionId, fid: viewerFid, tokenId: selectedTokenId, wallet: account, priceRaw: normalizedPriceRaw, protocol: data.protocol ?? "seaport", payload: { parameters: data.parameters, protocol_address: data.protocolAddress, signature } }) });
-      if (!submit.ok) { const failure = await submit.json().catch(() => ({})) as { message?: string }; throw new Error(failure.message || `Offer submit failed (${submit.status})`); }
+      const submittedOffer = await submit.json().catch(() => ({})) as { orderHash?: string | null; message?: string };
+      if (!submit.ok) throw new Error(submittedOffer.message || `Offer submit failed (${submit.status})`);
+      applyOptimisticItemOffer(submittedOffer.orderHash || `pending:${actionId}`, selectedTokenId, account, data.protocolAddress, normalizedPriceRaw);
       void hapticSuccess(); showTradeConfetti(); showToast("success", "Item offer successfully made", { minMs: 5000 });
-      await loadOffers();
+      window.setTimeout(() => { void loadOffers({ refresh: true, silent: true }); }, 750);
     } catch (error) {
       void hapticError(); showToast("error", error instanceof Error ? error.message : "Item offer failed.", { manualClose: true });
     } finally { setBusy(null); setBusyLabel(null); }
-  }, [getProviderAndAccount, loadOffers, price, selectedTokenId, showToast, viewerFid]);
+  }, [applyOptimisticItemOffer, getProviderAndAccount, loadOffers, price, selectedTokenId, showToast, viewerFid]);
 
   const runCancelOffer = useCallback(async (row: ItemOfferRow) => {
     if (!row.protocolAddress) { showToast("error", "This offer is missing its OpenSea protocol address.", { manualClose: true }); return; }
@@ -4678,7 +4846,7 @@ function ItemOffersPage({
   const rows = payload?.rows ?? [];
 
   return <div className="mx-auto w-full max-w-md px-4 pb-10 pt-6">
-    <div className="grid grid-cols-2 gap-3"><div className="rounded-lg border border-[#00FF00]/30 bg-[rgba(0,255,0,0.08)] p-3"><Text className="text-[11px] font-bold uppercase text-[#8bbf8b]">Count</Text><div className="mt-1 text-2xl font-bold text-[#00FF00]">{payload?.stats.count ?? 0}</div></div><div className="rounded-lg border border-[#33AAFF]/30 bg-[rgba(51,170,255,0.08)] p-3"><Text className="text-[11px] font-bold uppercase text-[#8bcfff]">Value</Text><div className="mt-1 text-2xl font-bold text-[#33AAFF]">{formatMarketValue(payload?.stats.value, { maxDigits: 8 })}</div><div className="mt-0.5 text-[11px] font-bold text-[#8bcfff]">{formatUsdMoneyFromMarket(payload?.stats.value, ethUsdPrice)}</div></div></div>
+    <div className="grid grid-cols-2 gap-3"><div className="rounded-lg border border-[#00FF00]/30 bg-[rgba(0,255,0,0.08)] p-3"><Text className="text-[11px] font-bold uppercase text-[#8bbf8b]">Count</Text><div className="mt-1 text-2xl font-bold text-[#00FF00]">{payload?.stats.count ?? 0}</div></div><div className="rounded-lg border border-[#33AAFF]/30 bg-[rgba(51,170,255,0.08)] p-3"><Text className="text-[11px] font-bold uppercase text-[#8bcfff]">Value</Text><div className="mt-1 text-2xl font-bold text-[#33AAFF]"><InlineHoverTooltip value={formatMarketValue(payload?.stats.value, { maxDigits: 8 })} tooltip={formatUsdMoneyFromMarket(payload?.stats.value, ethUsdPrice)} className="text-[#33AAFF]" tone="blue"/></div></div></div>
     <div ref={formRef} className="mt-4 rounded-xl border border-[#33AAFF]/35 bg-[rgba(51,170,255,0.12)] p-3">
       <div ref={pickerRootRef} className="relative">
         <div className="flex h-11 items-center rounded-xl border-2 border-[#33AAFF]/35 bg-black/70 focus-within:border-[#33AAFF] focus-within:shadow-[0_0_10px_rgba(51,170,255,0.22)]">
@@ -4687,21 +4855,21 @@ function ItemOffersPage({
           <button type="button" onClick={() => { if (query || selectedTokenId || favouritesOnly) resetPicker(); else { const random = getFreshRandomExampleSearch(); setQuery(random); setDebouncedQuery(random); setPickerOpen(true); } }} className="h-full cursor-pointer px-2 text-xs font-bold text-[#33AAFF]">{query || selectedTokenId || favouritesOnly ? "Reset" : "Random"}</button>
           <FavouriteButton active={favouritesOnly} title="Filter picker by my favourites" className="mr-1 h-full w-9 !text-[#33AAFF]" onClick={(event) => { event.preventDefault(); setFavouritesOnly((current) => !current); setSelectedTokenId(null); setPickerOpen(true); }}/>
         </div>
-        {pickerOpen && <div className="absolute left-0 right-0 z-40 mt-2 overflow-hidden rounded-xl border border-[#33AAFF]/35 bg-black shadow-2xl"><OverlayScrollArea className="aspect-[8/7] w-full overflow-y-auto" scrollbarAutoHide="never"><div className="grid grid-cols-4 gap-1.5 p-2">{visiblePickerResults.map((warplet) => <button key={warplet.id} type="button" onClick={() => selectWarplet(warplet.id)} title={`Select #${warplet.id}`} className="aspect-square cursor-pointer overflow-hidden rounded-[3px]"><img src={getWarpletPreviewImageUrl(warplet.id)} alt={`Warplet #${warplet.id}`} className="h-full w-full object-cover" loading="lazy"/></button>)}</div>{pickerResults.length === 0 && <div className="px-3 py-10 text-center text-xs font-black text-[#33AAFF]">NO WARPLETS FOUND</div>}{pickerResults.length > 0 && pickerVisibleCount >= pickerResults.length && <button type="button" onClick={() => { const viewport = pickerRootRef.current?.querySelector<HTMLElement>("[data-overlayscrollbars-viewport]"); viewport?.scrollTo({ top: 0, behavior: "smooth" }); }} className="w-full cursor-pointer px-3 py-3 text-center text-[11px] font-bold text-[#8bcfff]">No more warplets. Return to top</button>}<div ref={pickerEndRef} className="h-px"/></OverlayScrollArea></div>}
+        {pickerOpen && <div className="absolute left-0 right-0 z-40 mt-2 overflow-hidden rounded-xl border border-[#33AAFF]/35 bg-black shadow-2xl"><OverlayScrollArea className="aspect-[8/7] w-full overflow-y-auto" scrollbarAutoHide="never"><div className="grid grid-cols-4 gap-1.5 p-2">{visiblePickerResults.map((warplet) => <button key={warplet.id} type="button" onClick={() => selectWarplet(warplet.id)} title={`Select #${warplet.id}`} className="aspect-square cursor-pointer overflow-hidden rounded-[3px]"><img src={getWarpletPreviewImageUrl(warplet.id)} alt={`Warplet #${warplet.id}`} className="h-full w-full object-cover" loading="lazy"/></button>)}</div>{pickerResults.length === 0 && <div className="px-3 py-10 text-center text-xs font-black text-[#33AAFF]">NO WARPLETS FOUND</div>}{pickerResults.length > 0 && pickerVisibleCount >= pickerResults.length && <button type="button" onClick={() => { const viewport = pickerRootRef.current?.querySelector<HTMLElement>("[data-overlayscrollbars-viewport]"); viewport?.scrollTo({ top: 0, behavior: "smooth" }); }} className="w-full cursor-pointer px-3 py-3 text-center text-[11px] font-bold text-[#8bcfff]">No more warplets. <span className="text-[#33AAFF] underline decoration-[#33AAFF] underline-offset-2 hover:text-[#8bcfff] hover:decoration-[#8bcfff]">Return to top</span></button>}<div ref={pickerEndRef} className="h-px"/></OverlayScrollArea></div>}
       </div>
       <label className="mt-3 block text-[11px] font-bold uppercase text-[#8bcfff]"><span className="flex justify-between"><span>Offered at</span><span>{formatUsdEstimate(price, ethUsdPrice, payload?.topItemOffer)}</span></span><div className="mt-1 flex items-center rounded-lg border-2 border-[#33AAFF]/35 bg-black/60 px-3 py-2 focus-within:border-[#33AAFF] focus-within:shadow-[0_0_10px_rgba(51,170,255,0.22)]"><input data-no-focus-ring value={price} inputMode="decimal" onChange={(event) => setPrice(sanitizeTradePriceInput(event.target.value))} placeholder="0.0001" className="min-w-0 flex-1 bg-transparent text-base font-bold text-[#33AAFF] outline-none"/><span className="font-bold text-[#33AAFF]">WETH</span></div></label>
       <p className="mt-2 text-[11px] font-bold text-[#8bcfff]">Offer will be on OpenSea. Set price to <button type="button" disabled={!payload?.topItemOffer} onClick={() => setPriceFromMarket(payload?.topItemOffer)} className="cursor-pointer text-[#33AAFF] underline disabled:cursor-not-allowed disabled:opacity-50">Top Item Offer</button>.</p>
       <button type="button" disabled={busy !== null || !selectedTokenId || !priceIsValid} onClick={() => void runMakeOffer()} className="mt-3 w-full cursor-pointer rounded-[20px] border border-[#1c78b3] bg-[#33AAFF] px-5 py-3 text-base font-bold text-[rgb(0,54,80)] shadow-[3px_6px_0_#1c78b3] disabled:cursor-not-allowed disabled:opacity-70">{busy === "offer" ? busyLabel ?? "Preparing..." : "Review item offer"}</button>
     </div>
     <SearchSegmentedTabs className="mt-4" options={OFFERS_FILTER_TABS} activeId={scope} onSelect={(id) => setScope(id === "your" ? "your" : "all")}/>
-    <div className="mt-4 overflow-hidden rounded-lg border border-[#00FF00]/25"><div className="grid grid-cols-5 items-center gap-1 bg-[#041204] px-2 py-2 text-center text-[10px] font-bold uppercase text-[#8bbf8b]"><span>Price</span><span>Warplet</span><span>NFT</span><span>Bidder</span><span>Action</span></div>{loading ? <div className="px-3 py-6 text-center text-sm font-bold text-[#8bbf8b]">Loading offers...</div> : rows.length === 0 ? <div className="px-3 py-6 text-center text-sm font-bold text-[#8bbf8b]">No item offers.</div> : rows.map((row) => <div key={row.orderHash} className="grid grid-cols-5 items-center gap-1 border-t border-[#00FF00]/15 px-2 py-2 text-center text-xs"><button type="button" onClick={() => setPriceFromMarket(row.price)} className="cursor-pointer font-bold text-[#33AAFF]">{formatMarketValue(row.price, { maxDigits: 5 })}</button><button type="button" onClick={() => selectWarplet(row.tokenId)} className="cursor-pointer font-bold text-[#00FF00]">#{row.tokenId}</button><button type="button" onClick={() => onOpenWarpletDetails(row.tokenId)} className="mx-auto h-9 w-9 cursor-pointer overflow-hidden rounded-[3px] border-2 border-[#00FF00]"><img src={getWarpletPreviewImageUrl(row.tokenId)} alt={`Warplet #${row.tokenId}`} className="h-full w-full object-cover" loading="lazy"/></button><button type="button" disabled={!row.bidder} onClick={() => setBidderRow(row)} className="mx-auto cursor-pointer disabled:cursor-default">{row.bidder && <img src={row.bidder.pfpUrl || getWarpletPreviewImageUrl(HEADER_FALLBACK_AVATAR_TOKEN_ID)} alt="" className="h-7 w-7 rounded-full border-2 border-[#00FF00] object-cover"/>}</button><button type="button" disabled={busy !== null} onClick={() => row.isUserOffer ? void runCancelOffer(row) : (selectWarplet(row.tokenId), setPriceFromMarket(row.price), formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }))} className={`cursor-pointer rounded-md border px-2 py-1.5 text-xs font-bold disabled:cursor-wait ${row.isUserOffer ? "border-[#FF5555]/55 text-[#FF7777]" : "border-[#33AAFF]/55 text-[#33AAFF]"}`}>{row.isUserOffer ? "Cancel" : "Offer"}</button></div>)}</div>
+    <div className="mt-4 overflow-hidden rounded-lg border border-[#00FF00]/25"><div className="grid grid-cols-5 items-center gap-1 bg-[#041204] px-2 py-2 text-center text-[10px] font-bold uppercase text-[#8bbf8b]"><span>Price</span><span>Warplet</span><span>NFT</span><span>Bidder</span><span>Action</span></div>{loading ? <div className="px-3 py-6 text-center text-sm font-bold text-[#8bbf8b]">Loading offers...</div> : rows.length === 0 ? <div className="px-3 py-6 text-center text-sm font-bold text-[#8bbf8b]">No item offers.</div> : rows.map((row) => <div key={row.orderHash} className="grid grid-cols-5 items-center gap-1 border-t border-[#00FF00]/15 px-2 py-2 text-center text-xs"><OfferPriceTooltipButton price={row.price} ethUsdPrice={ethUsdPrice} onClick={() => setPriceFromMarket(row.price)}/><button type="button" onClick={() => selectWarplet(row.tokenId)} className="cursor-pointer font-bold text-[#00FF00]">#{row.tokenId}</button><button type="button" onClick={() => onOpenWarpletDetails(row.tokenId)} className="mx-auto h-9 w-9 cursor-pointer overflow-hidden rounded-[3px] border-2 border-[#00FF00]"><img src={getWarpletPreviewImageUrl(row.tokenId)} alt={`Warplet #${row.tokenId}`} className="h-full w-full object-cover" loading="lazy"/></button><button type="button" disabled={!row.bidder} onClick={() => setBidderRow(row)} className="mx-auto cursor-pointer disabled:cursor-default">{row.bidder && <img src={row.bidder.pfpUrl || getWarpletPreviewImageUrl(HEADER_FALLBACK_AVATAR_TOKEN_ID)} alt="" className="h-7 w-7 rounded-full border-2 border-[#00FF00] object-cover"/>}</button><button type="button" disabled={busy !== null} onClick={() => row.isUserOffer ? void runCancelOffer(row) : (selectWarplet(row.tokenId), setPriceFromMarket(row.price), formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }))} className={`cursor-pointer rounded-md border px-2 py-1.5 text-xs font-bold disabled:cursor-wait ${row.isUserOffer ? "border-[#FF5555]/55 text-[#FF7777]" : "border-[#33AAFF]/55 text-[#33AAFF]"}`}>{row.isUserOffer ? "Cancel" : "Offer"}</button></div>)}</div>
     {(payload?.pagination.totalPages ?? 1) > 1 && <div className="mt-3 flex items-center justify-center gap-3 text-xs font-bold text-[#8bbf8b]"><button type="button" disabled={loading || !payload?.pagination.hasPrevious} onClick={() => setPage((current) => Math.max(0, current - 1))} className="cursor-pointer rounded-md border border-[#00FF00]/40 px-3 py-1.5 text-[#00FF00] disabled:cursor-not-allowed disabled:opacity-40">Previous</button><span>Page {(payload?.pagination.page ?? 0) + 1} of {payload?.pagination.totalPages ?? 1}</span><button type="button" disabled={loading || !payload?.pagination.hasNext} onClick={() => setPage((current) => current + 1)} className="cursor-pointer rounded-md border border-[#00FF00]/40 px-3 py-1.5 text-[#00FF00] disabled:cursor-not-allowed disabled:opacity-40">Next</button></div>}
     <div className="mt-3 text-center text-[11px] text-[#8bbf8b]">Last updated: {payload?.generatedAt ? formatMarketTimestamp(payload.generatedAt) : "Not yet"}. <button type="button" disabled={refreshing || busy !== null} onClick={() => void loadOffers({ refresh: true })} className="cursor-pointer font-bold text-[#00FF00] disabled:cursor-wait">{refreshing ? "Refreshing..." : "Refresh"}</button>{payload?.refreshError && <span className="block text-red-300">{payload.refreshError}</span>}</div>
     {bidderGroup && bidderRow && <CollectionBiddersModal group={bidderGroup} isInMiniAppContext={isInMiniAppContext} titleOverride={`#${bidderRow.tokenId} Item bidder`} onClose={() => setBidderRow(null)}/>}
   </div>;
 }
 
-function ListedPriceHeader({ price }: { price: MarketOrderMoney }) {
+function ListedPriceHeader({ price, ethUsdPrice }: { price: MarketOrderMoney; ethUsdPrice: number | null }) {
   const headerRef = useRef<HTMLDivElement | null>(null);
   const [isSticky, setIsSticky] = useState(false);
 
@@ -4731,20 +4899,15 @@ function ListedPriceHeader({ price }: { price: MarketOrderMoney }) {
   return (
     <div
       ref={headerRef}
-      className={`sticky top-0 z-20 -mx-4 flex items-center justify-center gap-2 border-y px-4 py-2 shadow-[0_8px_18px_rgba(0,0,0,0.45)] transition-colors ${
+      className={`sticky top-0 z-20 -mx-4 flex items-center justify-center gap-2 whitespace-nowrap border-y px-4 py-2 shadow-[0_8px_18px_rgba(0,0,0,0.45)] transition-colors ${
         isSticky
           ? "border-[#FFFF00]/50 bg-[rgba(32,32,0,0.98)]"
           : "border-[#FFFF00]/25 bg-black/95"
       }`}
     >
       <Text className={`text-xs font-black uppercase tracking-normal ${isSticky ? "text-[#FFFF00]" : "text-[#e6e68a]"}`}>Price</Text>
-      <MarketValueChip
-        kind="price"
-        value={formatMarketValue(price, { maxDigits: 8 })}
-        tooltip="Listing price"
-        showTooltip={false}
-        className="text-xs"
-      />
+      <MarketValueChip kind="price" value={formatMarketValue(price, { maxDigits: 8 })} tooltip="Listing price" showTooltip={false} className="text-xs" />
+      <span className={`text-xs font-black ${isSticky ? "text-[#FFFF00]" : "text-[#e6e68a]"}`}>({formatUsdMoneyFromMarket(price, ethUsdPrice)})</span>
     </div>
   );
 }
@@ -4866,7 +5029,7 @@ function ListedWarpletCard({
           openCard();
         }
       }}
-      className={`group grid w-full cursor-pointer grid-cols-[calc(50%_-_6px)_minmax(0,1fr)] overflow-hidden rounded-[10px] border border-[#00FF00]/25 bg-[#041204]/90 text-left transition hover:-translate-y-px hover:border-[#00FF00]/50 hover:bg-[#071807]/95 ${isShaking ? "listed-card-shake" : ""}`}
+      className={`group grid w-full cursor-pointer grid-cols-[calc(50%_-_6px)_minmax(0,1fr)] overflow-hidden rounded-[10px] border border-[#00FF00]/25 bg-[#041204]/90 text-left transition hover:-translate-y-px hover:border-2 hover:border-[#00FF00] hover:bg-[#071807]/95 hover:shadow-[0_0_16px_rgba(0,255,0,0.55)] ${isShaking ? "listed-card-shake" : ""}`}
     >
       <ProgressiveWarpletImage
         tokenId={warplet.id}
@@ -5335,11 +5498,11 @@ function ListedPage({
   }, [listedWarplets, marketSnapshot, sweepTokenIds]);
 
   useEffect(() => {
-    if (sweepRows.length === 0 || sweepEthUsdPrice != null) return;
+    if (sweepEthUsdPrice != null) return;
     fetchEthUsdPrice().then(setSweepEthUsdPrice).catch((error) => {
       console.warn("Failed to load ETH/USD price for sweep:", error);
     });
-  }, [sweepEthUsdPrice, sweepRows.length]);
+  }, [sweepEthUsdPrice]);
 
   useEffect(() => {
     if (sweepRows.length === 0) setSweepFooterExpanded(false);
@@ -5409,7 +5572,7 @@ function ListedPage({
     <div className={`mx-auto w-full max-w-md px-4 pt-6 ${sweepRows.length > 0 ? (sweepFooterExpanded ? "pb-72" : "pb-24") : "pb-10"}`}>
       <div className="grid grid-cols-2 gap-3">
         <ListedStatPanel kind="count" label="Count" value={listedRows.length.toLocaleString("en-US")} />
-        <ListedStatPanel kind="value" label="Value" value={formatMarketValue(totalListingValue, { maxDigits: 8 })} />
+        <ListedStatPanel kind="value" label="Value" value={<InlineHoverTooltip value={formatMarketValue(totalListingValue, { maxDigits: 8 })} tooltip={formatUsdMoneyFromMarket(totalListingValue, sweepEthUsdPrice)} className="text-[#FFFF00]" tone="yellow"/>} />
       </div>
 
       {normalizedWallet && ownedWarplets.length > 0 && (
@@ -5454,7 +5617,7 @@ function ListedPage({
       <div className="mt-4">
         {listingGroups.map((group) => (
           <section key={group.key}>
-            <ListedPriceHeader price={group.price} />
+            <ListedPriceHeader price={group.price} ethUsdPrice={sweepEthUsdPrice} />
             <div className="space-y-3.5 py-3">
               {group.rows.map((row) => (
                 <ListedWarpletCard
@@ -11866,6 +12029,7 @@ export default function SearchApp() {
             isInMiniAppContext={isInMiniAppContext}
             getProviderAndAccount={getCollectionOfferProviderAndAccount}
             showToast={showSearchToast}
+            onMarketChanged={() => refreshMarketSnapshot(true)}
           />
         ) : searchRoute.page === "offers" && searchRoute.offersPage === "item" ? (
           <ItemOffersPage

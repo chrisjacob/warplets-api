@@ -32,8 +32,67 @@ import {
   recordWarpletActivity,
   upsertActiveItemOffer,
 } from "./warpletNotifications.js";
+import { hashStruct } from "viem";
 
 export type OpenSeaTradeEnv = OpenSeaMarketEnv;
+
+const SEAPORT_ORDER_COMPONENT_TYPES = {
+  OrderComponents: [
+    { name: "offerer", type: "address" },
+    { name: "zone", type: "address" },
+    { name: "offer", type: "OfferItem[]" },
+    { name: "consideration", type: "ConsiderationItem[]" },
+    { name: "orderType", type: "uint8" },
+    { name: "startTime", type: "uint256" },
+    { name: "endTime", type: "uint256" },
+    { name: "zoneHash", type: "bytes32" },
+    { name: "salt", type: "uint256" },
+    { name: "conduitKey", type: "bytes32" },
+    { name: "counter", type: "uint256" },
+  ],
+  OfferItem: [
+    { name: "itemType", type: "uint8" },
+    { name: "token", type: "address" },
+    { name: "identifierOrCriteria", type: "uint256" },
+    { name: "startAmount", type: "uint256" },
+    { name: "endAmount", type: "uint256" },
+  ],
+  ConsiderationItem: [
+    { name: "itemType", type: "uint8" },
+    { name: "token", type: "address" },
+    { name: "identifierOrCriteria", type: "uint256" },
+    { name: "startAmount", type: "uint256" },
+    { name: "endAmount", type: "uint256" },
+    { name: "recipient", type: "address" },
+  ],
+} as const;
+
+function deriveSeaportOrderHash(parameters: Record<string, unknown>): string | null {
+  try {
+    return hashStruct({
+      data: parameters as never,
+      primaryType: "OrderComponents",
+      types: SEAPORT_ORDER_COMPONENT_TYPES,
+    });
+  } catch (error) {
+    console.error("Failed to derive Seaport order hash", error);
+    return null;
+  }
+}
+
+function nestedOrderHash(result: Record<string, unknown>): string | null {
+  const nested = asObject(result.order) ?? asObject(result.offer) ?? asObject(result.data);
+  return asString(result.order_hash) ??
+    asString(result.orderHash) ??
+    asString(nested?.order_hash) ??
+    asString(nested?.orderHash);
+}
+
+function seaportTimestamp(parameters: Record<string, unknown>, key: "startTime" | "endTime"): string | null {
+  const seconds = Number(asString(parameters[key]) ?? asNumber(parameters[key]));
+  if (!Number.isFinite(seconds) || seconds <= 0) return null;
+  return new Date(seconds * 1000).toISOString();
+}
 
 export type TradeActionPhase =
   | "prepare_requested"
@@ -955,7 +1014,7 @@ export async function handleOfferSubmit(context: Parameters<PagesFunction<OpenSe
     const tokenId = asString(body.tokenId);
     const wallet = normalizeAddress(body.wallet);
     const priceRaw = asString(body.priceRaw);
-    const orderHash = asString(result.order_hash) ?? asString(result.orderHash) ?? asString(body.orderHash);
+    const orderHash = nestedOrderHash(result) ?? asString(body.orderHash) ?? deriveSeaportOrderHash(parameters);
     if (tokenId && wallet && priceRaw) {
       await upsertActiveItemOffer(context.env, {
         orderHash,
@@ -965,6 +1024,8 @@ export async function handleOfferSubmit(context: Parameters<PagesFunction<OpenSe
         amountRaw: priceRaw,
         currencySymbol: "WETH",
         protocolAddress,
+        createdAt: seaportTimestamp(parameters, "startTime"),
+        expiresAt: seaportTimestamp(parameters, "endTime"),
       }).catch((error) => console.error("Failed to upsert submitted item offer", error));
       await recordWarpletActivity(context.env, {
         eventType: "offered",
@@ -979,7 +1040,7 @@ export async function handleOfferSubmit(context: Parameters<PagesFunction<OpenSe
         rawPayload: { actionId: asString(body.actionId), result },
       }).catch((error) => console.error("Failed to record offer submit activity", error));
     }
-    return tradeJson({ status: "submitted", result });
+    return tradeJson({ status: "submitted", orderHash, result });
   }
   const protocolData = asObject(payload.protocol_data);
   if (!protocolData) {
