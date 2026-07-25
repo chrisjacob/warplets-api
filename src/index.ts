@@ -1,5 +1,9 @@
 import { createApp } from "./app";
 import { runOpenseaSync, type OpenseaSyncEnv } from "./opensea-sync";
+import {
+	advanceDuneAnalytics,
+	type DuneAnalyticsEnv,
+} from "../app/functions/_lib/duneAnalytics";
 
 const app = createApp();
 
@@ -11,6 +15,12 @@ export default {
 		env: unknown,
 		ctx: ExecutionContext,
 	): Promise<void> {
-		ctx.waitUntil(runOpenseaSync(env as OpenseaSyncEnv));
+		const scheduledEnv = env as OpenseaSyncEnv & DuneAnalyticsEnv;
+		ctx.waitUntil(runOpenseaSync(scheduledEnv));
+		ctx.waitUntil(
+			advanceDuneAnalytics(scheduledEnv).catch((error) => {
+				console.error("[dune-analytics] scheduled ingest failed", error);
+			}),
+		);
 	},
 };

@@ -21,6 +21,7 @@ import {
   readCriteriaTraits,
   selectPreferredFidForWallet,
   upsertCriteriaOfferFromRow,
+  upsertMarketStateIfChanged,
   type MarketMoney,
   type MarketOrderMoney,
   type TraitCriterion,
@@ -32,6 +33,7 @@ import {
   recordWarpletActivity,
   upsertActiveItemOffer,
 } from "./warpletNotifications.js";
+import { refreshHolderLeaderboardWallets } from "./stats.js";
 import { hashStruct } from "viem";
 
 export type OpenSeaTradeEnv = OpenSeaMarketEnv;
@@ -589,6 +591,13 @@ export async function getFreshTradeState(
   const apiKey = requireOpenSeaApiKey(env);
   const normalizedWallet = normalizeWallet(wallet);
   const excludedCollectionOrderHashes = options.excludeCollectionOrderHashes ?? [];
+  const previousOwner = await env.WARPLETS.prepare(
+    "SELECT owner_wallet FROM warplet_market_state WHERE token_id = ?",
+  )
+    .bind(tokenId)
+    .first<{ owner_wallet: string | null }>()
+    .catch(() => null);
+  const previousOwnerWallet = normalizeAddress(previousOwner?.owner_wallet);
   const [listing, itemOffer, bestApplicableOffer, collectionOffer, floor, ownerWallet, ownItemOffer, salePayload] = await Promise.all([
     fetchBestListing(apiKey, tokenId),
     fetchBestItemOffer(apiKey, tokenId),
@@ -632,15 +641,25 @@ export async function getFreshTradeState(
   const ownerFid = ownerWallet ? await selectPreferredFidForWallet(env, ownerWallet) : null;
   if (ownerWallet) {
     await env.WARPLETS.prepare(
-      `INSERT INTO warplet_market_state (token_id, owner_wallet, owner_fid, owner_checked_at, opensea_updated_at, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?)
+      `INSERT INTO warplet_market_state (
+         token_id, owner_wallet, owner_fid, owner_checked_at, owner_event_at,
+         opensea_updated_at, created_at, updated_at
+       )
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT(token_id) DO UPDATE SET
          owner_wallet = excluded.owner_wallet,
          owner_fid = excluded.owner_fid,
          owner_checked_at = excluded.owner_checked_at,
+         owner_event_at = excluded.owner_event_at,
          opensea_updated_at = excluded.opensea_updated_at,
          updated_at = excluded.updated_at`
-    ).bind(tokenId, ownerWallet, ownerFid, now, now, now, now).run();
+    ).bind(tokenId, ownerWallet, ownerFid, now, now, now, now, now).run();
+    if (ownerWallet !== previousOwnerWallet) {
+      await refreshHolderLeaderboardWallets(env.WARPLETS, [
+        previousOwnerWallet,
+        ownerWallet,
+      ]);
+    }
   }
   await publishMarketSnapshot(env).catch(() => null);
 
@@ -1127,10 +1146,53 @@ export async function handleTradeLog(context: Parameters<PagesFunction<OpenSeaTr
   if (body.phase === "confirmed") {
     const actionName = asString(body.actionName);
     const tokenId = asString(body.tokenId);
+    const numericTokenId = tokenId ? Number(tokenId) : null;
     const walletFrom = normalizeAddress(body.walletFrom);
     const walletTo = normalizeAddress(body.walletTo);
     const priceRaw = asString(body.actualPriceRaw) ?? asString(body.expectedPriceRaw);
     if (actionName === "buy" && tokenId && walletFrom && body.transactionHash) {
+      if (
+        numericTokenId !== null &&
+        Number.isInteger(numericTokenId) &&
+        numericTokenId >= 1 &&
+        numericTokenId <= 10_000
+      ) {
+        const verifiedOwner = await ownerOf(numericTokenId).catch(() => null);
+        if (verifiedOwner === walletFrom) {
+          const previousOwner = await context.env.WARPLETS.prepare(
+            "SELECT owner_wallet FROM warplet_market_state WHERE token_id = ?",
+          )
+            .bind(numericTokenId)
+            .first<{ owner_wallet: string | null }>()
+            .catch(() => null);
+          const previousOwnerWallet = normalizeAddress(previousOwner?.owner_wallet);
+          const ownerFid = await selectPreferredFidForWallet(context.env, walletFrom);
+          const now = new Date().toISOString();
+          await upsertMarketStateIfChanged(context.env.WARPLETS, {
+            token_id: numericTokenId,
+            owner_wallet: walletFrom,
+            owner_fid: ownerFid,
+            owner_checked_at: now,
+            owner_event_at: now,
+            listing_eth: null,
+            listed_at: null,
+            listing_order_hash: null,
+            listing_protocol_address: null,
+            listing_seller_wallet: null,
+            listing_raw_amount: null,
+            listing_decimals: null,
+            listing_currency_symbol: null,
+            listing_token_address: null,
+            opensea_updated_at: now,
+          });
+          if (previousOwnerWallet !== walletFrom) {
+            await refreshHolderLeaderboardWallets(context.env.WARPLETS, [
+              previousOwnerWallet,
+              walletFrom,
+            ]);
+          }
+        }
+      }
       await recordWarpletActivity(context.env, {
         eventType: "purchased",
         tokenId,

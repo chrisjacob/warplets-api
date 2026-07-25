@@ -4,6 +4,14 @@ import {
   recordWarpletActivity,
   upsertActiveItemOffer,
 } from "./warpletNotifications.js";
+import {
+  ANALYTICS_EPOCH,
+  persistCollectionMarketSnapshot,
+  persistOpenSeaStatsSnapshot,
+  rebuildHolderLeaderboard,
+  recordNormalizedSale,
+  refreshHolderLeaderboardWallets,
+} from "./stats.js";
 
 export interface OpenSeaMarketEnv {
   WARPLETS: D1Database;
@@ -95,6 +103,7 @@ type MarketStateRow = {
   owner_wallet: string | null;
   owner_fid: number | null;
   owner_checked_at: string | null;
+  owner_event_at: string | null;
   owner_username?: string | null;
   owner_display_name?: string | null;
   owner_pfp_url?: string | null;
@@ -111,6 +120,12 @@ type PaginatedIngestResult = {
   tokenIds: Set<number>;
   orderHashes: Set<string>;
   complete: boolean;
+};
+
+type EventIngestResult = {
+  changed: number;
+  complete: boolean;
+  nextCursor: string | null;
 };
 
 type CurrencyValue = {
@@ -184,6 +199,8 @@ const NATIVE_TOKEN_ADDRESS = "0x0000000000000000000000000000000000000000";
 const SNAPSHOT_TTL_SECONDS = 600;
 const FORCE_REFRESH_COOLDOWN_SECONDS = 600;
 const LOCAL_FORCE_REFRESH_COOLDOWN_SECONDS = 10;
+const EVENT_INGEST_MAX_PAGES = 10;
+const EVENT_INGEST_OVERLAP_SECONDS = 6 * 60 * 60;
 const OWNER_OF_SELECTOR = "0x6352211e";
 const MARKET_SNAPSHOT_KEYS = {
   manifest: "opensea:market:manifest:v1",
@@ -194,6 +211,12 @@ const MARKET_SNAPSHOT_KEYS = {
   sales: "opensea:market:sales:v1",
   owners: "opensea:market:owners:v1",
 } as const;
+
+function analyticsHourBucket(value = new Date()): string {
+  const bucket = new Date(value);
+  bucket.setUTCMinutes(0, 0, 0);
+  return bucket.toISOString();
+}
 
 const TRAIT_COLUMN_MATCHERS: Record<string, { column: string; mode: "exact" | "pipe"; normalize?: (value: string) => string }> = {
   "10xlevel": { column: "x10_level", mode: "exact", normalize: normalizeLevelTraitValue },
@@ -270,12 +293,14 @@ const MARKET_COLUMNS = [
   "owner_wallet",
   "owner_fid",
   "owner_checked_at",
+  "owner_event_at",
   "opensea_updated_at",
 ] as const;
 const MARKET_SELECT_COLUMNS = MARKET_COLUMNS.filter((column) => column !== "opensea_updated_at").join(", ");
 const LEGACY_MARKET_SELECT_COLUMNS = MARKET_COLUMNS
   .filter((column) => (
     column !== "opensea_updated_at" &&
+    column !== "owner_event_at" &&
     column !== "listing_protocol_address" &&
     column !== "offer_protocol_address"
   ))
@@ -1643,25 +1668,52 @@ export async function processSaleOrTransfer(
   if (!tokenId) return false;
   const eventType = asString(row.event_type)?.toLowerCase();
   const price = getPrice(row, "consideration");
-  const buyer = normalizeAddress(row.to_address ?? row.to_account ?? asObject(row.to_account)?.address ?? asObject(row.winner_account)?.address);
-  const seller = normalizeAddress(row.from_address ?? row.from_account ?? asObject(row.from_account)?.address ?? asObject(row.seller)?.address);
+  const buyer =
+    normalizeAddress(row.buyer) ??
+    normalizeAddress(asObject(row.buyer)?.address) ??
+    normalizeAddress(row.to_address) ??
+    normalizeAddress(row.to_account) ??
+    normalizeAddress(asObject(row.to_account)?.address) ??
+    normalizeAddress(asObject(row.winner_account)?.address);
+  const seller =
+    normalizeAddress(row.seller) ??
+    normalizeAddress(asObject(row.seller)?.address) ??
+    normalizeAddress(row.from_address) ??
+    normalizeAddress(row.from_account) ??
+    normalizeAddress(asObject(row.from_account)?.address);
   const checkedAt = new Date().toISOString();
+  const eventOccurredAt = normalizeTimestamp(
+    row.event_timestamp ?? row.created_date ?? row.sold_at ?? row.created_at,
+  );
   const ownerWallet = buyer;
   const ownerFid = ownerWallet ? await selectPreferredFidForWallet(env, ownerWallet) : null;
   const existing = await env.WARPLETS.prepare(
-    "SELECT owner_wallet, owner_fid, sale_tx_hash FROM warplet_market_state WHERE token_id = ?",
+    `SELECT owner_wallet, owner_fid, owner_event_at, sold_at, sale_tx_hash
+     FROM warplet_market_state
+     WHERE token_id = ?`,
   )
     .bind(tokenId)
-    .first<{ owner_wallet: string | null; owner_fid: number | null; sale_tx_hash: string | null }>()
+    .first<{
+      owner_wallet: string | null;
+      owner_fid: number | null;
+      owner_event_at: string | null;
+      sold_at: string | null;
+      sale_tx_hash: string | null;
+    }>()
     .catch(() => null);
   const patch: MarketPatch = {
     token_id: tokenId,
     opensea_updated_at: checkedAt,
   };
-  if (ownerWallet) {
+  const ownerEventIsCurrent =
+    !eventOccurredAt ||
+    !existing?.owner_event_at ||
+    Date.parse(eventOccurredAt) >= Date.parse(existing.owner_event_at);
+  if (ownerWallet && ownerEventIsCurrent) {
     patch.owner_wallet = ownerWallet;
     patch.owner_fid = ownerFid;
     patch.owner_checked_at = checkedAt;
+    patch.owner_event_at = eventOccurredAt ?? checkedAt;
     if (options.clearOrdersOnOwnerChange) {
       patch.listing_eth = null;
       patch.listed_at = null;
@@ -1683,10 +1735,17 @@ export async function processSaleOrTransfer(
       patch.offer_token_address = null;
     }
   }
-  if (eventType === "sale" && price.eth != null) {
+  const saleIsCurrent =
+    !eventOccurredAt ||
+    !existing?.sold_at ||
+    Date.parse(eventOccurredAt) >= Date.parse(existing.sold_at);
+  const saleTxHash =
+    asString(row.transaction) ??
+    asString(asObject(row.transaction)?.transaction_hash);
+  if (eventType === "sale" && price.eth != null && saleIsCurrent) {
     patch.sale_eth = price.eth;
-    patch.sold_at = normalizeTimestamp(row.event_timestamp ?? row.created_date ?? row.sold_at);
-    patch.sale_tx_hash = asString(row.transaction) ?? asString(asObject(row.transaction)?.transaction_hash);
+    patch.sold_at = eventOccurredAt;
+    patch.sale_tx_hash = saleTxHash;
     patch.seller_wallet = seller;
     patch.sale_raw_amount = price.rawAmount;
     patch.sale_decimals = price.decimals;
@@ -1694,9 +1753,56 @@ export async function processSaleOrTransfer(
     patch.sale_token_address = price.tokenAddress;
   }
   const changed = await upsertMarketStateIfChanged(env.WARPLETS, patch);
-  if (eventType === "sale" && price.eth != null && patch.sale_tx_hash && existing?.sale_tx_hash !== patch.sale_tx_hash) {
-    const previousOwnerWallet = seller ?? existing?.owner_wallet ?? null;
-    const previousOwnerFid = existing?.owner_fid ?? (previousOwnerWallet ? await selectPreferredFidForWallet(env, previousOwnerWallet) : null);
+  const existingOwnerWallet = normalizeAddress(existing?.owner_wallet);
+  const previousOwnerWallet = seller ?? existingOwnerWallet;
+  const previousOwnerFid = previousOwnerWallet
+    ? previousOwnerWallet === existingOwnerWallet && existing?.owner_fid != null
+      ? existing.owner_fid
+      : await selectPreferredFidForWallet(env, previousOwnerWallet)
+    : null;
+
+  if (ownerWallet && ownerEventIsCurrent && ownerWallet !== existingOwnerWallet) {
+    await refreshHolderLeaderboardWallets(env.WARPLETS, [
+      existingOwnerWallet,
+      previousOwnerWallet,
+      ownerWallet,
+    ]);
+  }
+
+  if (eventType === "sale" && price.eth != null && eventOccurredAt) {
+    const eventIdValue = row.event_id ?? row.id;
+    const eventId =
+      typeof eventIdValue === "string" || typeof eventIdValue === "number"
+        ? String(eventIdValue)
+        : null;
+    const order = asObject(row.order);
+    await recordNormalizedSale(env.WARPLETS, {
+      chainId: 8453,
+      collectionSlug: COLLECTION_SLUG,
+      tokenId,
+      transactionHash: saleTxHash,
+      orderHash:
+        asString(row.order_hash) ??
+        asString(order?.order_hash) ??
+        asString(asObject(row.protocol_data)?.order_hash),
+      eventId,
+      buyerWallet: buyer,
+      sellerWallet: previousOwnerWallet,
+      buyerFid: ownerFid,
+      sellerFid: previousOwnerFid,
+      marketplace: asString(row.marketplace) ?? "opensea",
+      priceRaw: price.rawAmount,
+      paymentDecimals: price.decimals,
+      paymentSymbol: price.symbol,
+      paymentAddress: price.tokenAddress,
+      priceEth: price.eth,
+      soldAt: eventOccurredAt,
+      source: "opensea:ingest",
+      rawPayload: row,
+    });
+  }
+
+  if (eventType === "sale" && price.eth != null && saleTxHash && existing?.sale_tx_hash !== saleTxHash) {
     await recordWarpletActivity(env, {
       eventType: "purchased",
       tokenId,
@@ -1707,8 +1813,8 @@ export async function processSaleOrTransfer(
       amountEth: price.eth,
       amountRaw: price.rawAmount,
       currencySymbol: price.symbol,
-      transactionHash: patch.sale_tx_hash,
-      occurredAt: patch.sold_at,
+      transactionHash: saleTxHash,
+      occurredAt: eventOccurredAt,
       source: "opensea:ingest",
       rawPayload: row,
     }).catch((error) => console.error("Failed to record purchase activity", error));
@@ -1724,8 +1830,8 @@ export async function processSaleOrTransfer(
       amountEth: price.eth,
       amountRaw: price.rawAmount,
       currencySymbol: price.symbol,
-      transactionHash: patch.sale_tx_hash,
-      occurredAt: patch.sold_at,
+      transactionHash: saleTxHash,
+      occurredAt: eventOccurredAt,
       source: "opensea:ingest",
       rawPayload: row,
     }).catch((error) => console.error("Failed to record sale activity", error));
@@ -1826,21 +1932,42 @@ async function ingestCollectionEvents(
   apiKey: string,
   eventType: "sale" | "transfer",
   after: string | null,
-): Promise<number> {
-  const eventParams = new URLSearchParams({ limit: "200" });
-  eventParams.set("event_type", eventType);
-  if (after) eventParams.set("after", after);
-
-  const events = await fetchOpenSea(`/events/collection/${COLLECTION_SLUG}`, apiKey, eventParams);
+  initialCursor: string | null,
+): Promise<EventIngestResult> {
+  let cursor = initialCursor;
   let changed = 0;
-  for (const event of asArray(events.asset_events ?? events.events)) {
-    const row = asObject(event);
-    if (!row) continue;
-    if (await processSaleOrTransfer(env, row, { clearOrdersOnOwnerChange: true })) {
-      changed += 1;
+  for (let page = 0; page < EVENT_INGEST_MAX_PAGES; page += 1) {
+    const eventParams = new URLSearchParams({ limit: "200", event_type: eventType });
+    if (after) eventParams.set("after", after);
+    if (cursor) eventParams.set("next", cursor);
+    const payload = await fetchOpenSea(
+      `/events/collection/${COLLECTION_SLUG}`,
+      apiKey,
+      eventParams,
+    );
+    const rows = asArray(payload.asset_events ?? payload.events)
+      .map((event) => asObject(event))
+      .filter((event): event is Record<string, unknown> => Boolean(event))
+      .sort((left, right) => {
+        const leftAt = Date.parse(normalizeTimestamp(
+          left.event_timestamp ?? left.created_date ?? left.sold_at ?? left.created_at,
+        ) ?? "");
+        const rightAt = Date.parse(normalizeTimestamp(
+          right.event_timestamp ?? right.created_date ?? right.sold_at ?? right.created_at,
+        ) ?? "");
+        return (Number.isFinite(leftAt) ? leftAt : 0) - (Number.isFinite(rightAt) ? rightAt : 0);
+      });
+    for (const row of rows) {
+      if (await processSaleOrTransfer(env, row, { clearOrdersOnOwnerChange: true })) {
+        changed += 1;
+      }
+    }
+    cursor = asString(payload.next);
+    if (!cursor || rows.length === 0) {
+      return { changed, complete: true, nextCursor: null };
     }
   }
-  return changed;
+  return { changed, complete: false, nextCursor: cursor };
 }
 
 export async function fetchLatestTokenSale(apiKey: string, tokenId: number): Promise<Record<string, unknown> | null> {
@@ -1896,7 +2023,14 @@ async function refreshCollectionMarketState(env: OpenSeaMarketEnv, apiKey: strin
   const now = new Date().toISOString();
 
   try {
-    const stats = await fetchOpenSea(`/collections/${COLLECTION_SLUG}/stats`, apiKey);
+    let stats = await fetchOpenSea(`/collections/${COLLECTION_SLUG}/stats`, apiKey);
+    const capturedAt = analyticsHourBucket(new Date(now));
+    const persisted = await persistOpenSeaStatsSnapshot(env.WARPLETS, stats, capturedAt);
+    if (!persisted.persisted && persisted.reason?.startsWith("opensea_stats_drift:")) {
+      const retryStats = await fetchOpenSea(`/collections/${COLLECTION_SLUG}/stats`, apiKey);
+      const retry = await persistOpenSeaStatsSnapshot(env.WARPLETS, retryStats, capturedAt);
+      if (retry.persisted) stats = retryStats;
+    }
     const total = asObject(stats.total) ?? asObject(stats.stats) ?? stats;
     const floorEth = asNumber(total.floor_price ?? total.floorPrice);
     if (await upsertCollectionMarketStateIfChanged(env.WARPLETS, {
@@ -2007,6 +2141,78 @@ async function refreshCollectionMarketState(env: OpenSeaMarketEnv, apiKey: strin
   return changed;
 }
 
+async function persistCurrentCollectionAnalyticsSnapshot(
+  env: OpenSeaMarketEnv,
+  capturedAt = new Date().toISOString(),
+): Promise<void> {
+  try {
+    const [collection, counts] = await Promise.all([
+      loadCollectionMarketRow(env.WARPLETS),
+      env.WARPLETS.prepare(
+        `SELECT
+           SUM(CASE WHEN listing_eth IS NOT NULL OR listing_raw_amount IS NOT NULL THEN 1 ELSE 0 END) AS listed_count,
+           COUNT(DISTINCT CASE
+             WHEN owner_wallet IS NOT NULL AND TRIM(owner_wallet) <> '' THEN LOWER(TRIM(owner_wallet))
+           END) AS owners_count
+         FROM warplet_market_state`,
+      ).first<{ listed_count: number | null; owners_count: number | null }>(),
+    ]);
+    await persistCollectionMarketSnapshot(env.WARPLETS, {
+      collectionSlug: COLLECTION_SLUG,
+      capturedAt: analyticsHourBucket(new Date(capturedAt)),
+      floorEth: collection?.floor_eth ?? null,
+      topOfferEth: collection?.top_offer_eth ?? null,
+      listedCount: Number(counts?.listed_count ?? 0),
+      ownersCount: Number(counts?.owners_count ?? 0),
+      source: "opensea:ingest",
+    });
+  } catch {
+    // Analytics snapshots are additive and must never block market freshness.
+  }
+}
+
+async function reconcileHolderLeaderboardIfDue(
+  env: OpenSeaMarketEnv,
+  now = new Date(),
+): Promise<void> {
+  const sourceKey = "holders:leaderboard:reconcile";
+  try {
+    const state = await env.WARPLETS.prepare(
+      "SELECT last_success_at FROM analytics_ingest_state WHERE source_key = ?",
+    ).bind(sourceKey).first<{ last_success_at: string | null }>();
+    const lastSuccessMs = Date.parse(state?.last_success_at ?? "");
+    if (Number.isFinite(lastSuccessMs) && now.getTime() - lastSuccessMs < 6 * 60 * 60 * 1000) {
+      return;
+    }
+
+    const result = await rebuildHolderLeaderboard(env.WARPLETS);
+    if (!result.rebuilt) return;
+    const completedAt = now.toISOString();
+    await env.WARPLETS.prepare(
+      `INSERT INTO analytics_ingest_state (
+         source_key, coverage_start, coverage_end, complete, stale,
+         last_error, last_success_at, updated_at
+       ) VALUES (?, ?, ?, 1, 0, NULL, ?, ?)
+       ON CONFLICT(source_key) DO UPDATE SET
+         coverage_start = COALESCE(analytics_ingest_state.coverage_start, excluded.coverage_start),
+         coverage_end = excluded.coverage_end,
+         complete = 1,
+         stale = 0,
+         last_error = NULL,
+         last_success_at = excluded.last_success_at,
+         updated_at = excluded.updated_at`,
+    ).bind(
+      sourceKey,
+      completedAt,
+      completedAt,
+      completedAt,
+      completedAt,
+    ).run();
+  } catch {
+    // The migration may not be applied yet; holder APIs can still derive a fallback.
+  }
+}
+
 export async function ingestOpenSeaMarket(env: OpenSeaMarketEnv): Promise<{ changed: number; generatedAt: string }> {
   const apiKey = env.OPENSEA_API_KEY?.trim();
   if (!apiKey) throw new Error("OPENSEA_API_KEY is not configured");
@@ -2026,26 +2232,88 @@ export async function ingestOpenSeaMarket(env: OpenSeaMarketEnv): Promise<{ chan
     console.warn("OpenSea offers ingest failed; preserving the previous offers snapshot", error);
   }
 
-  const last = await env.WARPLETS.prepare("SELECT value FROM opensea_ingest_state WHERE key = 'events_after'").first<{ value: string | null }>();
-  const after = last?.value ?? null;
+  const last = await env.WARPLETS.prepare(
+    "SELECT value FROM opensea_ingest_state WHERE key = 'events_after'",
+  ).first<{ value: string | null }>();
+  const epochSeconds = String(Math.floor(Date.parse(ANALYTICS_EPOCH) / 1000));
   let eventsComplete = true;
+  const completedAfterValues: number[] = [];
   for (const eventType of ["sale", "transfer"] as const) {
+    const afterKey = `events_after:${eventType}`;
+    const cursorKey = `events_cursor:${eventType}`;
     try {
-      changed += await ingestCollectionEvents(env, apiKey, eventType, after);
+      const [afterState, cursorState] = await Promise.all([
+        env.WARPLETS.prepare(
+          "SELECT value FROM opensea_ingest_state WHERE key = ?",
+        ).bind(afterKey).first<{ value: string | null }>(),
+        env.WARPLETS.prepare(
+          "SELECT value FROM opensea_ingest_state WHERE key = ?",
+        ).bind(cursorKey).first<{ value: string | null }>(),
+      ]);
+      const legacyAfter = Number(last?.value);
+      const inheritedAfter = Number.isFinite(legacyAfter)
+        ? String(Math.max(Number(epochSeconds), legacyAfter - EVENT_INGEST_OVERLAP_SECONDS))
+        : epochSeconds;
+      const after = afterState?.value ?? inheritedAfter;
+      const result = await ingestCollectionEvents(
+        env,
+        apiKey,
+        eventType,
+        after,
+        cursorState?.value ?? null,
+      );
+      changed += result.changed;
+      const updatedAt = new Date().toISOString();
+      if (result.complete) {
+        const previousAfter = Number(after);
+        const safeAfter = Math.max(
+          Number.isFinite(previousAfter) ? previousAfter : Number(epochSeconds),
+          Math.floor(Date.now() / 1000) - EVENT_INGEST_OVERLAP_SECONDS,
+        );
+        completedAfterValues.push(safeAfter);
+        await env.WARPLETS.batch([
+          env.WARPLETS.prepare(
+            `INSERT INTO opensea_ingest_state (key, value, updated_at)
+             VALUES (?, ?, ?)
+             ON CONFLICT(key) DO UPDATE SET
+               value = excluded.value,
+               updated_at = excluded.updated_at`,
+          ).bind(afterKey, String(safeAfter), updatedAt),
+          env.WARPLETS.prepare(
+            "DELETE FROM opensea_ingest_state WHERE key = ?",
+          ).bind(cursorKey),
+        ]);
+      } else if (result.nextCursor) {
+        eventsComplete = false;
+        await env.WARPLETS.prepare(
+          `INSERT INTO opensea_ingest_state (key, value, updated_at)
+           VALUES (?, ?, ?)
+           ON CONFLICT(key) DO UPDATE SET
+             value = excluded.value,
+             updated_at = excluded.updated_at`,
+        ).bind(cursorKey, result.nextCursor, updatedAt).run();
+      }
     } catch (error) {
       eventsComplete = false;
       console.warn(`OpenSea ${eventType} events ingest failed; preserving existing event data`, error);
     }
   }
 
-  if (eventsComplete) {
+  if (eventsComplete && completedAfterValues.length === 2) {
     await env.WARPLETS.prepare(
       `INSERT INTO opensea_ingest_state (key, value, updated_at)
        VALUES ('events_after', ?, ?)
        ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`
-    ).bind(String(Math.floor(Date.now() / 1000)), new Date().toISOString()).run();
+    ).bind(
+      String(Math.min(...completedAfterValues)),
+      new Date().toISOString(),
+    ).run();
   }
 
+  await Promise.all([
+    persistCurrentCollectionAnalyticsSnapshot(env),
+    reconcileHolderLeaderboardIfDue(env),
+  ]);
   const snapshot = await publishMarketSnapshot(env);
   return { changed, generatedAt: snapshot.generatedAt };
 }
@@ -2086,11 +2354,14 @@ export async function refreshOneTokenMarket(
   }
 
   try {
-    const [listingPayload, offerPayload, salePayload, ownerWallet] = await Promise.all([
+    const [listingPayload, offerPayload, salePayload, ownerWallet, previousOwner] = await Promise.all([
       fetchOpenSea(`/listings/collection/${COLLECTION_SLUG}/nfts/${encodeURIComponent(String(tokenId))}/best`, apiKey).catch(() => null),
       fetchOpenSea(`/offers/collection/${COLLECTION_SLUG}/nfts/${encodeURIComponent(String(tokenId))}/best`, apiKey).catch(() => null),
       fetchLatestTokenSale(apiKey, tokenId).catch(() => null),
       ownerOf(tokenId).catch(() => null),
+      env.WARPLETS.prepare(
+        "SELECT owner_wallet FROM warplet_market_state WHERE token_id = ?",
+      ).bind(tokenId).first<{ owner_wallet: string | null }>().catch(() => null),
     ]);
     const now = new Date().toISOString();
     await refreshCollectionMarketState(env, apiKey).catch(() => 0);
@@ -2133,9 +2404,17 @@ export async function refreshOneTokenMarket(
         owner_wallet: ownerWallet,
         owner_fid: ownerFid,
         owner_checked_at: now,
+        owner_event_at: now,
         opensea_updated_at: now,
       });
+      if (ownerWallet !== previousOwner?.owner_wallet) {
+        await refreshHolderLeaderboardWallets(env.WARPLETS, [
+          previousOwner?.owner_wallet,
+          ownerWallet,
+        ]);
+      }
     }
+    await persistCurrentCollectionAnalyticsSnapshot(env, now);
     await publishMarketSnapshot(env);
     return {
       tokenId,

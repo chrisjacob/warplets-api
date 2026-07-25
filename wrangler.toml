@@ -9,6 +9,24 @@ compatibility_flags = ["nodejs_compat"]
 [triggers]
 crons = ["* * * * *"]
 
+[vars]
+# Optional Dune round-two analytics. This scheduled Worker owns production
+# polling/execution because Pages Functions do not receive Cron Trigger events.
+# Keep both switches off until the saved queries and their costs are validated.
+DUNE_ENABLED = "0"
+DUNE_EXECUTE_ENABLED = "0"
+DUNE_EXECUTION_INTERVAL_HOURS = "24"
+DUNE_RESULTS_PAGE_SIZE = "1000"
+DUNE_MAX_RESULT_PAGES = "8"
+DUNE_INDEXING_LAG_HOURS = "2"
+DUNE_MONTHLY_CREDIT_BUDGET = "1500"
+DUNE_MAX_CREDITS_PER_EXECUTION = "20"
+# DUNE_TRADES_QUERY_ID = "1234567"
+# DUNE_TRANSFERS_QUERY_ID = "1234568"
+# DUNE_TRADES_BACKFILL_QUERY_ID = "1234569"
+# DUNE_TRANSFERS_BACKFILL_QUERY_ID = "1234570"
+# Secret: DUNE_API_KEY
+
 
 [[routes]]
 pattern = "api.10x.meme"
@@ -33,6 +51,14 @@ workers_dev = false
 
 [env.dev.vars]
 SNAP_PUBLIC_BASE_URL = "https://api-dev.10x.meme"
+DUNE_ENABLED = "0"
+DUNE_EXECUTE_ENABLED = "0"
+DUNE_EXECUTION_INTERVAL_HOURS = "24"
+DUNE_RESULTS_PAGE_SIZE = "1000"
+DUNE_MAX_RESULT_PAGES = "8"
+DUNE_INDEXING_LAG_HOURS = "2"
+DUNE_MONTHLY_CREDIT_BUDGET = "1500"
+DUNE_MAX_CREDITS_PER_EXECUTION = "20"
 
 [[env.dev.kv_namespaces]]
 binding = "WARPLETS_KV"

@@ -106,6 +106,27 @@ async function waitForApi(port) {
   throw new Error(`API worker did not start on port ${port} within 45s`);
 }
 
+async function warmStatsRoutes(port) {
+  const routes = [
+    "/api/stats/overview?range=all",
+    "/api/stats/market?range=30d",
+    "/api/stats/social?range=30d",
+    "/api/stats/holders?limit=100",
+  ];
+  const results = await Promise.all(routes.map(async (route) => {
+    try {
+      const response = await fetch(`http://127.0.0.1:${port}${route}`, {
+        headers: { accept: "application/json" },
+        signal: AbortSignal.timeout(60_000),
+      });
+      return `${route} ${response.status}`;
+    } catch (error) {
+      return `${route} ${error instanceof Error ? error.message : String(error)}`;
+    }
+  }));
+  console.log(`Stats routes warmed: ${results.join(", ")}`);
+}
+
 async function main() {
   await ensurePortAvailable(VITE_PORT, "Vite");
   await ensurePortAvailable(API_PORT, "API");
@@ -136,6 +157,7 @@ async function main() {
   try {
     await waitForApi(API_PORT);
     await waitForVite(VITE_PORT);
+    await warmStatsRoutes(API_PORT);
     console.log(`OK Vite is up. Tunnel routing ${PUBLIC_URL} -> http://localhost:${VITE_PORT}`);
     console.log(`OK API worker is up on http://localhost:${API_PORT} and proxied from Vite /api`);
   } catch (error) {

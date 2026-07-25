@@ -87,6 +87,7 @@ const OUTREACH_CANDIDATES_CACHE_TTL_SECONDS = 600;
 const OUTREACH_LIMIT = 5;
 const OUTREACH_POOL_LIMIT = 25;
 const OUTREACH_COOLDOWN_MS = 24 * 60 * 60 * 1000;
+const BEST_FRIENDS_CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const WARPLETS_DROP_LIVE_AT_MS = Date.UTC(2026, 4, 1, 0, 1, 0);
 const WARPLETS_PUBLIC_TRANCHE_MS = 10 * 24 * 60 * 60 * 1000;
 const WARPLETS_PUBLIC_TRANCHE_SIZE = 1000;
@@ -491,37 +492,47 @@ async function loadOrFetchBestFriends(
   neynarApiKey?: string
 ): Promise<BestFriend[]> {
   const now = new Date().toISOString();
+  const freshAfterMs = Date.now() - BEST_FRIENDS_CACHE_TTL_MS;
 
   const cached = await db
     .prepare(
-      `SELECT best_friend_fid, mutual_affinity_score, username
+      `SELECT best_friend_fid, mutual_affinity_score, username, fetched_at
        FROM warplets_user_best_friends
        WHERE user_fid = ?
        ORDER BY mutual_affinity_score DESC`
     )
     .bind(userFid)
-    .all<{ best_friend_fid: number; mutual_affinity_score: number; username: string }>();
+    .all<{ best_friend_fid: number; mutual_affinity_score: number; username: string; fetched_at: string }>();
 
-  if (cached.results && cached.results.length > 0) {
-    return cached.results.map((row) => ({
+  const cachedFriends = (cached.results ?? []).map((row) => ({
       fid: row.best_friend_fid,
       mutualAffinityScore: row.mutual_affinity_score,
       username: row.username,
     }));
+  const newestCachedAtMs = Math.max(
+    0,
+    ...(cached.results ?? []).map((row) => Date.parse(row.fetched_at)).filter(Number.isFinite),
+  );
+  if (cachedFriends.length > 0 && newestCachedAtMs >= freshAfterMs) {
+    return cachedFriends;
   }
 
   try {
     const cacheState = await db
       .prepare(
-        `SELECT result_count
+        `SELECT result_count, fetched_at
          FROM warplets_user_best_friends_cache_state
          WHERE user_fid = ?
          LIMIT 1`
       )
       .bind(userFid)
-      .first<{ result_count: number }>();
+      .first<{ result_count: number; fetched_at: string }>();
 
-    if (cacheState && Number(cacheState.result_count ?? 0) === 0) {
+    if (
+      cacheState &&
+      Number(cacheState.result_count ?? 0) === 0 &&
+      Date.parse(cacheState.fetched_at) >= freshAfterMs
+    ) {
       return [];
     }
   } catch {
@@ -530,7 +541,7 @@ async function loadOrFetchBestFriends(
 
   const fetched = await fetchBestFriendsFromNeynar(userFid, neynarApiKey);
   if (!fetched) {
-    return [];
+    return cachedFriends;
   }
 
   try {
@@ -551,9 +562,20 @@ async function loadOrFetchBestFriends(
   }
 
   if (fetched.length === 0) {
+    if (cachedFriends.length > 0) {
+      await db
+        .prepare("DELETE FROM warplets_user_best_friends WHERE user_id = ?")
+        .bind(userId)
+        .run()
+        .catch(() => undefined);
+    }
     return [];
   }
 
+  await db
+    .prepare("DELETE FROM warplets_user_best_friends WHERE user_id = ?")
+    .bind(userId)
+    .run();
   await Promise.all(
     fetched.map((friend) =>
       db

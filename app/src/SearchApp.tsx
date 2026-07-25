@@ -1,4 +1,4 @@
-import { CSSProperties, MouseEvent, PointerEvent as ReactPointerEvent, ReactNode, cloneElement, isValidElement, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { CSSProperties, Component, MouseEvent, PointerEvent as ReactPointerEvent, ReactNode, Suspense, cloneElement, isValidElement, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import confetti from "canvas-confetti";
 import {
@@ -99,6 +99,7 @@ const SEARCH_DEBOUNCE_MS = 300;
 const STATUS_LINE_CLASS = "text-center text-xs uppercase leading-4";
 const OPENSEA_COLLECTION_URL = "https://opensea.io/collection/10xwarplets";
 const LAST_SEARCH_OFFERS_SUBPAGE_KEY = "warplets-search-last-offers-subpage-v1";
+const LAST_SEARCH_STATS_SUBPAGE_KEY = "warplets-search-last-stats-subpage-v1";
 const LAST_SEARCH_LISTED_LEVEL_KEY = "warplets-search-last-listed-level-v1";
 const LISTED_SCOPE_KEY = "warplets-search-listed-scope-v1";
 const MARKET_CACHE_KEY = "warplets-market-state-v3";
@@ -118,13 +119,15 @@ const HEADER_FALLBACK_AVATAR_TOKEN_ID = 548;
 type SearchCompletion = "onboarding" | "airdrop_modal";
 
 type SearchOffersSubpage = "collection" | "trait" | "item";
+type SearchStatsSubpage = "overview" | "market" | "social" | "holders";
+type StatsRange = "7d" | "30d" | "90d" | "1y" | "all";
 type ListedLevelFilter = "all" | "10x" | "9x" | "8x" | "7x" | "6x" | "5x" | "4x" | "3x" | "2x" | "1x";
 type ListedScopeFilter = "all" | "your" | "favourites" | "sweep";
 type SearchRoute =
   | { page: "search" }
   | { page: "listed"; listedLevel: ListedLevelFilter }
   | { page: "offers"; offersPage: SearchOffersSubpage }
-  | { page: "stats" };
+  | { page: "stats"; statsPage: SearchStatsSubpage };
 
 const LISTED_LEVEL_TABS: Array<{ id: ListedLevelFilter; label: string }> = [
   { id: "all", label: "All" },
@@ -150,6 +153,21 @@ const LISTED_SCOPE_TABS = [
 const OFFERS_FILTER_TABS = [
   { id: "all", label: "All Offers" },
   { id: "your", label: "Your Offers" },
+];
+
+const STATS_SUBPAGE_TABS: Array<{ id: SearchStatsSubpage; label: string }> = [
+  { id: "overview", label: "Overview" },
+  { id: "market", label: "Market" },
+  { id: "social", label: "Social" },
+  { id: "holders", label: "Holders" },
+];
+
+const STATS_RANGE_TABS: Array<{ id: StatsRange; label: string }> = [
+  { id: "all", label: "All" },
+  { id: "7d", label: "7D" },
+  { id: "30d", label: "30D" },
+  { id: "90d", label: "90D" },
+  { id: "1y", label: "1Y" },
 ];
 
 type SearchStatusPayload = {
@@ -2591,11 +2609,13 @@ function InlineHoverTooltip({
   tooltip,
   className = "",
   tone = "green",
+  wrap = false,
 }: {
   value: string;
   tooltip: string;
   className?: string;
-  tone?: "green" | "blue" | "yellow";
+  tone?: "green" | "blue" | "yellow" | "purple" | "red" | "muted";
+  wrap?: boolean;
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const { refs, floatingStyles, context } = useFloating({
@@ -2613,12 +2633,24 @@ function InlineHoverTooltip({
     ? "focus:ring-[#33AAFF]/70"
     : tone === "yellow"
       ? "focus:ring-[#FFFF00]/70"
-      : "focus:ring-[#00FF00]/70";
+      : tone === "purple"
+        ? "focus:ring-[#7959ff]/70"
+      : tone === "red"
+        ? "focus:ring-[#FF7777]/70"
+        : tone === "muted"
+          ? "focus:ring-[#8bbf8b]/60"
+          : "focus:ring-[#00FF00]/70";
   const tooltipToneClass = tone === "blue"
     ? "border-[#33AAFF]/40 text-[#33AAFF]"
     : tone === "yellow"
       ? "border-[#FFFF00]/40 text-[#FFFF00]"
-      : "border-[#00FF00]/40 text-[#00FF00]";
+      : tone === "purple"
+        ? "border-[#7959ff]/55 text-[#b9aaff]"
+      : tone === "red"
+        ? "border-[#FF7777]/45 text-[#FF9999]"
+        : tone === "muted"
+          ? "border-[#8bbf8b]/35 text-[#8bbf8b]"
+          : "border-[#00FF00]/40 text-[#00FF00]";
 
   return (
     <>
@@ -2639,7 +2671,7 @@ function InlineHoverTooltip({
             ref={refs.setFloating}
             style={floatingStyles}
             {...getFloatingProps({
-              className: `z-[70] max-w-[min(92vw,520px)] whitespace-nowrap rounded-lg border bg-black px-3 py-2 text-[11px] font-bold leading-snug shadow-2xl ${tooltipToneClass}`,
+              className: `z-[70] max-w-[min(92vw,520px)] rounded-lg border bg-black px-3 py-2 text-[11px] font-bold leading-snug shadow-2xl ${wrap ? "whitespace-normal break-words text-left" : "whitespace-nowrap"} ${tooltipToneClass}`,
             })}
           >
             {tooltip}
@@ -2961,6 +2993,7 @@ function getSearchRouteKey(route: SearchRoute): string {
 
 function getSearchRouteStableKey(route: SearchRoute): string {
   if (route.page === "listed") return `listed:${route.listedLevel}`;
+  if (route.page === "stats") return `stats:${route.statsPage}`;
   return getSearchRouteKey(route);
 }
 
@@ -2979,7 +3012,10 @@ function parseSearchRouteFromPath(pathname: string): SearchRoute {
   if (path === "/offers/trait") return { page: "offers", offersPage: "trait" };
   if (path === "/offers/item") return { page: "offers", offersPage: "item" };
   if (path === "/offers/collection") return { page: "offers", offersPage: "collection" };
-  if (path === "/stats") return { page: "stats" };
+  if (path === "/stats/market") return { page: "stats", statsPage: "market" };
+  if (path === "/stats/social") return { page: "stats", statsPage: "social" };
+  if (path === "/stats/holders") return { page: "stats", statsPage: "holders" };
+  if (path === "/stats" || path === "/stats/overview") return { page: "stats", statsPage: "overview" };
   return { page: "search" };
 }
 
@@ -3016,6 +3052,19 @@ function writeLastSearchOffersSubpage(value: SearchOffersSubpage): void {
   window.localStorage.setItem(LAST_SEARCH_OFFERS_SUBPAGE_KEY, value);
 }
 
+function readLastSearchStatsSubpage(): SearchStatsSubpage {
+  if (typeof window === "undefined") return "overview";
+  const value = window.localStorage.getItem(LAST_SEARCH_STATS_SUBPAGE_KEY);
+  return value === "market" || value === "social" || value === "holders" || value === "overview"
+    ? value
+    : "overview";
+}
+
+function writeLastSearchStatsSubpage(value: SearchStatsSubpage): void {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(LAST_SEARCH_STATS_SUBPAGE_KEY, value);
+}
+
 function getSearchPathForRoute(route: SearchRoute): string {
   const basePath = getSearchBasePath();
   const path =
@@ -3024,7 +3073,7 @@ function getSearchPathForRoute(route: SearchRoute): string {
       : route.page === "listed"
         ? route.listedLevel === "all" ? "/listed" : `/listed/${route.listedLevel}`
         : route.page === "stats"
-          ? "/stats"
+          ? route.statsPage === "overview" ? "/stats" : `/stats/${route.statsPage}`
           : `/offers/${route.offersPage}`;
   if (!basePath) return path;
   return path === "/" ? basePath : `${basePath}${path}`;
@@ -3036,7 +3085,10 @@ function getSearchRouteTitle(route: SearchRoute): string {
       ? "10X Warplets - Listed"
       : `10X Warplets - Listed ${route.listedLevel.toUpperCase()}`;
   }
-  if (route.page === "stats") return "10X Warplets - Stats";
+  if (route.page === "stats") {
+    const pageLabel = STATS_SUBPAGE_TABS.find((tab) => tab.id === route.statsPage)?.label ?? "Overview";
+    return `10X Warplets - ${pageLabel} stats`;
+  }
   if (route.page === "offers") {
     if (route.offersPage === "trait") return "10X Warplets - Trait offers";
     if (route.offersPage === "item") return "10X Warplets - Item offers";
@@ -3234,14 +3286,16 @@ function SearchSegmentedTabs({
   onSelect,
   className = "",
   gridTemplateColumns,
+  compact = false,
 }: {
   options: Array<{ id: string; label: string }>;
   activeId: string;
   onSelect: (id: string) => void;
   className?: string;
   gridTemplateColumns?: string;
+  compact?: boolean;
 }) {
-  const dense = options.length > 6;
+  const dense = options.length > 6 || compact;
   return (
     <div
       className={`grid ${dense ? "gap-1" : "gap-2"} rounded-lg border border-[#00FF00]/25 bg-black/60 p-1 ${className}`}
@@ -3274,16 +3328,19 @@ function SearchSegmentedTabs({
 function SearchPageNavigation({
   route,
   lastOffersSubpage,
+  lastStatsSubpage,
   lastListedLevel,
   onNavigate,
 }: {
   route: SearchRoute;
   lastOffersSubpage: SearchOffersSubpage;
+  lastStatsSubpage: SearchStatsSubpage;
   lastListedLevel: ListedLevelFilter;
   onNavigate: (route: SearchRoute) => void;
 }) {
   const activePrimary = route.page === "offers" ? "offers" : route.page;
   const activeOffer = route.page === "offers" ? route.offersPage : "collection";
+  const activeStats = route.page === "stats" ? route.statsPage : "overview";
   const activeListedLevel = route.page === "listed" ? route.listedLevel : "all";
 
   return (
@@ -3302,7 +3359,7 @@ function SearchPageNavigation({
           } else if (id === "listed") {
             onNavigate({ page: "listed", listedLevel: lastListedLevel });
           } else if (id === "stats") {
-            onNavigate({ page: "stats" });
+            onNavigate({ page: "stats", statsPage: lastStatsSubpage });
           } else {
             onNavigate({ page: "search" });
           }
@@ -3326,6 +3383,14 @@ function SearchPageNavigation({
           options={LISTED_LEVEL_TABS}
           activeId={activeListedLevel}
           onSelect={(id) => onNavigate({ page: "listed", listedLevel: id as ListedLevelFilter })}
+        />
+      )}
+      {route.page === "stats" && (
+        <SearchSegmentedTabs
+          className="mt-2"
+          options={STATS_SUBPAGE_TABS}
+          activeId={activeStats}
+          onSelect={(id) => onNavigate({ page: "stats", statsPage: id as SearchStatsSubpage })}
         />
       )}
     </div>
@@ -3384,6 +3449,2452 @@ function OverlayScrollArea({
     >
       {children}
     </OverlayScrollbarsComponent>
+  );
+}
+
+type StatsApiEnvelope = {
+  asOf?: string | null;
+  generatedAt?: string | null;
+  range?: string | null;
+  analyticsEpoch?: string | null;
+  coverageStart?: string | null;
+  baselineAsOf?: string | null;
+  complete?: boolean;
+  stale?: boolean;
+  sources?: unknown;
+  integrations?: {
+    dune?: {
+      status?: "live" | "stale" | "pending" | "disabled" | "unavailable" | "budget_paused" | string;
+      configured?: boolean;
+      asOf?: string | null;
+      coverageStart?: string | null;
+      coverageEnd?: string | null;
+      lastError?: string | null;
+      creditsThisMonth?: number | null;
+    } | null;
+    [key: string]: unknown;
+  } | null;
+  metrics?: Record<string, unknown>;
+  series?: Record<string, unknown> | unknown[];
+  summary?: Record<string, unknown>;
+  floor?: unknown;
+  rows?: unknown[];
+  nextCursor?: string | null;
+  error?: string;
+  message?: string;
+};
+
+const STATS_CLIENT_CACHE_TTL_MS = 60_000;
+const STATS_OVERVIEW_CACHE_KEY = "stats:overview:all:farcaster-holders-v1";
+const STATS_OVERVIEW_URL = "/api/stats/overview?range=all&view=farcaster-holders-v1";
+const STATS_BACKGROUND_PREFETCH_DELAY_MS = 750;
+
+const STATS_LOADING_MESSAGES: Record<SearchStatsSubpage, string[]> = {
+  overview: [
+    "Counting every Warplet without waking them...",
+    "Checking the floor for loose ETH...",
+    "Measuring just how fairly the chaos was distributed...",
+    "Polishing 10,000 tiny data points...",
+  ],
+  market: [
+    "Following Warplets across Base...",
+    "Asking the floor how low it can go...",
+    "Comparing bids, sales and marketplace mischief...",
+    "Teaching the charts about tiny decimals...",
+  ],
+  social: [
+    "Matching wallets with Farcaster alter egos...",
+    "Finding familiar faces in the onchain crowd...",
+    "Tracing the community's latest Warplet adventures...",
+    "Giving Top 100 Friends an extra glow...",
+  ],
+  holders: [
+    "Ranking wallets without starting a whale fight...",
+    "Finding each collector's rarest little monster...",
+    "Counting stacks of Warplets...",
+    "Preparing 10,000 holders, 100 at a time...",
+  ],
+};
+
+type StatsEnvelopeCacheEntry = {
+  payload: StatsApiEnvelope;
+  loadedAt: number;
+};
+
+const statsEnvelopeCache = new Map<string, StatsEnvelopeCacheEntry>();
+const statsEnvelopeRequests = new Map<string, Promise<StatsApiEnvelope>>();
+const statsHolderViewerCache = new Map<string, { payload: Record<string, unknown> | null; loadedAt: number }>();
+const statsHolderViewerRequests = new Map<string, Promise<Record<string, unknown> | null>>();
+const statsSocialHighlightsCache = new Map<number, { payload: StatsApiEnvelope; loadedAt: number }>();
+
+function readCachedStatsEnvelope(cacheKey: string): StatsApiEnvelope | null {
+  const cached = statsEnvelopeCache.get(cacheKey);
+  if (!cached || Date.now() - cached.loadedAt > STATS_CLIENT_CACHE_TTL_MS) return null;
+  return cached.payload;
+}
+
+async function fetchCachedStatsEnvelope({
+  cacheKey,
+  url,
+  force = false,
+}: {
+  cacheKey: string;
+  url: string;
+  force?: boolean;
+}): Promise<StatsApiEnvelope> {
+  if (!force) {
+    const cached = readCachedStatsEnvelope(cacheKey);
+    if (cached) return cached;
+    const activeRequest = statsEnvelopeRequests.get(cacheKey);
+    if (activeRequest) return activeRequest;
+  }
+
+  const requestKey = force ? `${cacheKey}:refresh` : cacheKey;
+  const activeRequest = statsEnvelopeRequests.get(requestKey);
+  if (activeRequest) return activeRequest;
+
+  const request = (async () => {
+    const response = await fetch(url, {
+      headers: { accept: "application/json" },
+      credentials: "same-origin",
+    });
+    const result = await response.json() as StatsApiEnvelope;
+    if (!response.ok) {
+      throw new Error(result.message || result.error || `Stats failed (${response.status})`);
+    }
+    statsEnvelopeCache.set(cacheKey, { payload: result, loadedAt: Date.now() });
+    return result;
+  })();
+  const trackedRequest = request.finally(() => {
+    if (statsEnvelopeRequests.get(requestKey) === trackedRequest) {
+      statsEnvelopeRequests.delete(requestKey);
+    }
+  });
+  statsEnvelopeRequests.set(requestKey, trackedRequest);
+  return trackedRequest;
+}
+
+async function fetchCachedStatsHolderViewer({
+  cacheKey,
+  url,
+  force = false,
+}: {
+  cacheKey: string;
+  url: string;
+  force?: boolean;
+}): Promise<Record<string, unknown> | null> {
+  if (!force) {
+    const cached = statsHolderViewerCache.get(cacheKey);
+    if (cached && Date.now() - cached.loadedAt <= STATS_CLIENT_CACHE_TTL_MS) return cached.payload;
+    const activeRequest = statsHolderViewerRequests.get(cacheKey);
+    if (activeRequest) return activeRequest;
+  }
+
+  const requestKey = force ? `${cacheKey}:refresh` : cacheKey;
+  const activeRequest = statsHolderViewerRequests.get(requestKey);
+  if (activeRequest) return activeRequest;
+
+  const request = (async () => {
+    const response = await fetch(url, {
+      headers: { accept: "application/json" },
+      credentials: "same-origin",
+    });
+    if (response.status === 404) {
+      statsHolderViewerCache.set(cacheKey, { payload: null, loadedAt: Date.now() });
+      return null;
+    }
+    const result = await response.json() as Record<string, unknown>;
+    if (!response.ok) {
+      const envelope = result as StatsApiEnvelope;
+      throw new Error(envelope.message || envelope.error || `Viewer rank failed (${response.status})`);
+    }
+    statsHolderViewerCache.set(cacheKey, { payload: result, loadedAt: Date.now() });
+    return result;
+  })();
+  const trackedRequest = request.finally(() => {
+    if (statsHolderViewerRequests.get(requestKey) === trackedRequest) {
+      statsHolderViewerRequests.delete(requestKey);
+    }
+  });
+  statsHolderViewerRequests.set(requestKey, trackedRequest);
+  return trackedRequest;
+}
+
+function StatsLoadingState({ subpage }: { subpage: SearchStatsSubpage }) {
+  const messages = STATS_LOADING_MESSAGES[subpage];
+  const [messageIndex, setMessageIndex] = useState(0);
+
+  useEffect(() => {
+    setMessageIndex(0);
+    const interval = window.setInterval(() => {
+      setMessageIndex((current) => (current + 1) % messages.length);
+    }, 1_800);
+    return () => window.clearInterval(interval);
+  }, [messages]);
+
+  return (
+    <div
+      className="overflow-hidden rounded-xl border border-[#00FF00]/25 bg-black/65 px-4 py-10 text-center"
+      role="status"
+      aria-live="polite"
+    >
+      <div className="mx-auto flex w-fit items-end gap-1" aria-hidden="true">
+        {[0, 1, 2].map((dot) => (
+          <span
+            key={dot}
+            className="h-2 w-2 animate-bounce rounded-full bg-[#00FF00] shadow-[0_0_7px_rgba(0,255,0,0.75)]"
+            style={{ animationDelay: `${dot * 140}ms` }}
+          />
+        ))}
+      </div>
+      <Text className="mt-4 text-xs font-black text-[#00FF00]">
+        Loading {STATS_SUBPAGE_TABS.find((tab) => tab.id === subpage)?.label ?? "Stats"}
+      </Text>
+      <Text key={`${subpage}-${messageIndex}`} className="mt-1.5 animate-pulse text-[10px] font-bold text-[#8bbf8b]">
+        {messages[messageIndex]}
+      </Text>
+    </div>
+  );
+}
+
+type StatsChartDatum = {
+  label: string;
+  timestamp?: string;
+  avatarUrl?: string | null;
+  isTopFriend?: boolean;
+  isViewer?: boolean;
+  tokenId?: number | null;
+  wallet?: string | null;
+  [key: string]: string | number | boolean | null | undefined;
+};
+
+type StatsChartSeries = {
+  key: string;
+  label: string;
+  color: string;
+  type: "line" | "bar";
+  axis?: "left" | "right";
+};
+
+type StatsChartProps = {
+  data: StatsChartDatum[];
+  series: StatsChartSeries[];
+  height?: number;
+  socialKey?: string;
+  onOpenToken?: (tokenId: number) => void;
+  hideMarketplace?: boolean;
+  hideEthSymbol?: boolean;
+  socialRole?: "buyer" | "seller";
+};
+
+const LazyStatsChart = lazy(async () => {
+  const {
+    Bar,
+    CartesianGrid,
+    ComposedChart,
+    Line,
+    ResponsiveContainer,
+    Scatter,
+    Tooltip,
+    XAxis,
+    YAxis,
+  } = await import("recharts");
+
+  function SocialMarker(props: { forceActive?: boolean } & Record<string, unknown>) {
+    const marker = unknownRecord(props);
+    const payload = unknownRecord(marker?.payload);
+    const cx = typeof marker?.cx === "number" ? marker.cx : 0;
+    const cy = typeof marker?.cy === "number" ? marker.cy : 0;
+    const forceActive = marker?.forceActive === true;
+    const avatarUrl =
+      typeof payload?.avatarUrl === "string" &&
+      payload?.showMarker !== false &&
+      (payload?.showAvatar !== false || forceActive)
+        ? payload.avatarUrl
+        : null;
+    const radius = forceActive ? 13 : 11;
+    const clipId = `stats-avatar-${String(payload?.fid ?? payload?.wallet ?? `${cx}-${cy}`).replace(/[^a-zA-Z0-9_-]/g, "")}-${Math.round(cx)}-${Math.round(cy)}`;
+
+    if (!avatarUrl) return <g />;
+
+    return (
+      <g style={{ cursor: payload?.tokenId ? "pointer" : "default" }}>
+        <defs>
+          <clipPath id={clipId}>
+            <circle cx={cx} cy={cy} r={radius} />
+          </clipPath>
+        </defs>
+        <image
+          href={avatarUrl}
+          x={cx - radius}
+          y={cy - radius}
+          width={radius * 2}
+          height={radius * 2}
+          preserveAspectRatio="xMidYMid slice"
+          clipPath={`url(#${clipId})`}
+        />
+      </g>
+    );
+  }
+
+  function StatsTooltipContent({
+    active,
+    payload,
+    label,
+    onOpenToken,
+    hideMarketplace,
+    hideEthSymbol,
+    socialRole,
+  }: {
+    active?: boolean;
+    payload?: Array<{
+      name?: string;
+      value?: unknown;
+      color?: string;
+      payload?: StatsChartDatum;
+    }>;
+    label?: unknown;
+    onOpenToken?: (tokenId: number) => void;
+    hideMarketplace?: boolean;
+    hideEthSymbol?: boolean;
+    socialRole?: "buyer" | "seller";
+  }) {
+    if (!active || !payload?.length) return null;
+    const point = payload.find((item) => item.payload)?.payload;
+    const buyerUsername = typeof point?.buyerUsername === "string" ? point.buyerUsername : null;
+    const sellerUsername = typeof point?.sellerUsername === "string" ? point.sellerUsername : null;
+    const transactionHash = typeof point?.transactionHash === "string" ? point.transactionHash : null;
+    const marketplace = typeof point?.marketplace === "string" ? point.marketplace : null;
+    const count = typeof point?.saleCount === "number" ? point.saleCount : null;
+    const tokenId = typeof point?.tokenId === "number" ? point.tokenId : null;
+    const saleAmount = statsNumber(point?.salePrice ?? payload.find((item) => typeof item.value === "number")?.value);
+    const buyerAvatarUrl = statsString(point?.buyerAvatarUrl);
+    const sellerAvatarUrl = statsString(point?.sellerAvatarUrl);
+    const saleDate = point?.timestamp
+      ? new Date(point.timestamp).toLocaleDateString("en-US", { month: "short", day: "numeric" })
+      : typeof label === "string" ? label : point?.label;
+
+    if (socialRole) {
+      const formattedSaleAmount = saleAmount == null
+        ? "—"
+        : `${saleAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 8 })} Ξ`;
+      return (
+        <div className="w-64 rounded-lg border border-[#00FF00]/45 bg-black px-3 py-2 text-[10px] shadow-2xl">
+          <div className="font-black">
+            <span className="text-[#00FF00]">{formattedSaleAmount}</span>
+            {saleDate && transactionHash ? (
+              <>
+                {" "}
+                <a
+                  href={`https://basescan.org/tx/${encodeURIComponent(transactionHash)}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="cursor-pointer text-white underline decoration-[#00FF00] underline-offset-2"
+                >
+                  {saleDate}
+                </a>
+              </>
+            ) : saleDate ? <span className="text-white"> {saleDate}</span> : null}
+          </div>
+          <div className="mt-2 grid grid-cols-3 gap-2 text-center">
+            <div className="min-w-0">
+              <span className="mb-1 block font-black text-[#8bbf8b]">Warplet</span>
+              {tokenId ? (
+                <>
+                  <button type="button" onClick={() => onOpenToken?.(tokenId)} className="mx-auto block cursor-pointer">
+                    <img src={getWarpletPreviewImageUrl(tokenId)} alt="" className="h-14 w-14 rounded-md object-cover" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onOpenToken?.(tokenId)}
+                    className="mt-1 cursor-pointer font-black text-[#00FF00] underline underline-offset-2"
+                  >
+                    #{tokenId}
+                  </button>
+                </>
+              ) : <span className="text-[#8bbf8b]">—</span>}
+            </div>
+            {([
+              { label: "Buyer", username: buyerUsername, avatarUrl: buyerAvatarUrl },
+              { label: "Seller", username: sellerUsername, avatarUrl: sellerAvatarUrl },
+            ] as const).map((party) => (
+              <div key={party.label} className="min-w-0">
+                <span className="mb-1 block font-black text-[#8bbf8b]">{party.label}</span>
+                {party.avatarUrl ? (
+                  <img src={party.avatarUrl} alt="" className="mx-auto h-14 w-14 rounded-full object-cover" />
+                ) : (
+                  <span className="mx-auto block h-14 w-14 rounded-full bg-[#071307]" />
+                )}
+                {party.username ? (
+                  <a
+                    href={`https://farcaster.xyz/${encodeURIComponent(party.username.replace(/^@/, ""))}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-1 block cursor-pointer truncate font-black text-[#00FF00] underline underline-offset-2"
+                  >
+                    @{party.username.replace(/^@/, "")}
+                  </a>
+                ) : <span className="mt-1 block text-[#8bbf8b]">Unknown</span>}
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="max-w-56 rounded-lg border border-[#00FF00]/45 bg-black px-3 py-2 text-[10px] shadow-2xl">
+        <div className="font-black text-[#8bbf8b]">{typeof label === "string" ? label : point?.label}</div>
+        {payload
+          .filter((item, index) => item.value != null && payload.findIndex((other) => other.name === item.name) === index)
+          .map((item) => (
+            <div key={item.name} className="mt-1 flex items-center justify-between gap-3 font-bold" style={{ color: item.color ?? "#00FF00" }}>
+              <span>{item.name ?? "Value"}</span>
+              <span>
+                {typeof item.value === "number"
+                  ? /price|volume|floor|eth|offer|^sale$/i.test(item.name ?? "")
+                    ? hideEthSymbol
+                      ? formatEthNumber(item.value, 8).replace(/\s*Ξ$/, "")
+                      : formatEthNumber(item.value, 8)
+                    : item.value.toLocaleString("en-US")
+                  : String(item.value)}
+              </span>
+            </div>
+          ))}
+        {count && count > 1 && <div className="mt-1 font-black text-[#FFFF00]">Bulk purchase ×{count}</div>}
+        {buyerUsername && socialRole !== "seller" && (
+          <a
+            href={`https://farcaster.xyz/${encodeURIComponent(buyerUsername.replace(/^@/, ""))}`}
+            target="_blank"
+            rel="noreferrer"
+            className="mt-1 block cursor-pointer font-bold text-[#00FF00] underline underline-offset-2"
+          >
+            Buyer @{buyerUsername.replace(/^@/, "")}
+            {point?.isTopFriend ? " · Top 100 Friend" : ""}
+          </a>
+        )}
+        {sellerUsername && socialRole !== "buyer" && (
+          <a
+            href={`https://farcaster.xyz/${encodeURIComponent(sellerUsername.replace(/^@/, ""))}`}
+            target="_blank"
+            rel="noreferrer"
+            className="mt-1 block cursor-pointer font-bold text-[#8bbf8b] underline underline-offset-2"
+          >
+            Seller @{sellerUsername.replace(/^@/, "")}
+          </a>
+        )}
+        {!hideMarketplace && marketplace && <div className="mt-1 text-[#8bbf8b]">{marketplace}</div>}
+        {tokenId && onOpenToken && (
+          <button
+            type="button"
+            onClick={() => onOpenToken(tokenId)}
+            className="mt-2 block cursor-pointer"
+            aria-label={`Open Warplet #${tokenId} details`}
+          >
+            <img
+              src={getWarpletPreviewImageUrl(tokenId)}
+              alt={`Warplet #${tokenId}`}
+              className="h-14 w-14 rounded-md object-cover"
+            />
+          </button>
+        )}
+        <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1">
+          {tokenId && onOpenToken && (
+            <button
+              type="button"
+              onClick={() => onOpenToken(tokenId)}
+              className="cursor-pointer font-black text-[#00FF00] underline underline-offset-2"
+            >
+              Warplet #{tokenId}
+            </button>
+          )}
+          {transactionHash && (
+            <a
+              href={`https://basescan.org/tx/${encodeURIComponent(transactionHash)}`}
+              target="_blank"
+              rel="noreferrer"
+              className="cursor-pointer font-black text-[#00FF00] underline underline-offset-2"
+            >
+              Transaction
+            </a>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  function StatsChart({
+    data,
+    series,
+    height = 210,
+    socialKey,
+    onOpenToken,
+    hideMarketplace,
+    hideEthSymbol,
+    socialRole,
+  }: StatsChartProps) {
+    const hasRightAxis = series.some((item) => item.axis === "right");
+    const axisUsesEth = (axis: "left" | "right") => series
+      .filter((item) => (item.axis ?? "left") === axis)
+      .some((item) => /price|volume|floor|eth|offer|sale/i.test(item.label));
+    const formatAxisTick = (axis: "left" | "right", value: number) =>
+      axisUsesEth(axis)
+        ? Number(value).toLocaleString("en-US", { maximumFractionDigits: 6 })
+        : Number(value).toLocaleString("en-US", { maximumFractionDigits: 2 });
+    return (
+      <div style={{ height }} className="w-full">
+        <ResponsiveContainer width="100%" height="100%">
+          <ComposedChart data={data} margin={{ top: 12, right: hasRightAxis ? 26 : 22, bottom: 0, left: 0 }}>
+            <CartesianGrid stroke="rgba(0,255,0,0.12)" strokeDasharray="3 5" vertical={false} />
+            <XAxis
+              dataKey="label"
+              tick={{ fill: "#8bbf8b", fontSize: 9 }}
+              tickLine={false}
+              axisLine={{ stroke: "rgba(0,255,0,0.2)" }}
+              minTickGap={24}
+            />
+            <YAxis
+              yAxisId="left"
+              tick={{ fill: "#8bbf8b", fontSize: 9 }}
+              tickLine={false}
+              axisLine={false}
+              width={54}
+              tickFormatter={(value: number) => formatAxisTick("left", value)}
+            />
+            {hasRightAxis && (
+              <YAxis
+                yAxisId="right"
+                orientation="right"
+                tick={{ fill: "#8bcfff", fontSize: 9 }}
+                tickLine={false}
+                axisLine={false}
+                width={54}
+                tickFormatter={(value: number) => formatAxisTick("right", value)}
+              />
+            )}
+            <Tooltip
+              trigger={socialKey ? "click" : "hover"}
+              cursor={{ stroke: "rgba(0,255,0,0.35)", strokeWidth: 1 }}
+              content={
+                <StatsTooltipContent
+                  onOpenToken={onOpenToken}
+                  hideMarketplace={hideMarketplace}
+                  hideEthSymbol={hideEthSymbol}
+                  socialRole={socialRole}
+                />
+              }
+              wrapperStyle={{ pointerEvents: "auto", zIndex: 20 }}
+            />
+            {series.map((item) => item.type === "bar" ? (
+              <Bar
+                key={item.key}
+                dataKey={item.key}
+                name={item.label}
+                yAxisId={item.axis ?? "left"}
+                fill={item.color}
+                fillOpacity={0.58}
+                radius={[3, 3, 0, 0]}
+                maxBarSize={18}
+              />
+            ) : (
+              <Line
+                key={item.key}
+                type="monotone"
+                dataKey={item.key}
+                name={item.label}
+                yAxisId={item.axis ?? "left"}
+                stroke={item.color}
+                strokeWidth={2}
+                dot={socialKey === item.key ? false : { r: 2, fill: item.color, strokeWidth: 0 }}
+                activeDot={socialKey === item.key ? false : { r: 5, fill: item.color, stroke: "#000", strokeWidth: 2 }}
+                connectNulls
+              />
+            ))}
+            {socialKey && (
+              <Scatter
+                name={series.find((item) => item.key === socialKey)?.label ?? "Sale"}
+                dataKey={socialKey}
+                yAxisId="left"
+                fill="#00FF00"
+                shape={<SocialMarker />}
+                activeShape={<SocialMarker forceActive />}
+              />
+            )}
+          </ComposedChart>
+        </ResponsiveContainer>
+      </div>
+    );
+  }
+
+  return { default: StatsChart };
+});
+
+function statsRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : null;
+}
+
+function statsNumber(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number(value.replace(/[$,%<>\s,]/g, ""));
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  const record = statsRecord(value);
+  if (!record) return null;
+  for (const key of ["value", "eth", "amount", "count", "total", "percentage", "pct", "percent"]) {
+    const parsed = statsNumber(record[key]);
+    if (parsed != null) return parsed;
+  }
+  return null;
+}
+
+function statsInteger(value: unknown): number | null {
+  const parsed = statsNumber(value);
+  return parsed != null && Number.isInteger(parsed) && parsed >= 0 ? parsed : null;
+}
+
+function statsString(value: unknown): string | null {
+  if (typeof value === "string" && value.trim()) return value.trim();
+  if (typeof value === "number" && Number.isFinite(value)) return String(value);
+  const record = statsRecord(value);
+  if (!record) return null;
+  for (const key of ["formatted", "display", "label", "value"]) {
+    const text = statsString(record[key]);
+    if (text) return text;
+  }
+  return null;
+}
+
+function statsMetric(payload: StatsApiEnvelope | null, ...keys: string[]): unknown {
+  for (const key of keys) {
+    if (payload?.metrics && Object.prototype.hasOwnProperty.call(payload.metrics, key)) return payload.metrics[key];
+    if (payload?.summary && Object.prototype.hasOwnProperty.call(payload.summary, key)) return payload.summary[key];
+    const root = payload as Record<string, unknown> | null;
+    if (root && Object.prototype.hasOwnProperty.call(root, key)) return root[key];
+  }
+  return null;
+}
+
+function statsMetricUsd(value: unknown): number | null {
+  const record = statsRecord(value);
+  if (!record) return null;
+  return statsNumber(record.usd ?? record.usdValue ?? record.usd_value);
+}
+
+function statsMetricSource(value: unknown): string | null {
+  const record = statsRecord(value);
+  if (!record) return null;
+  const source = statsString(record.source);
+  if (!source) return null;
+  const normalized = source.toLowerCase();
+  if (
+    normalized.includes("opensea") ||
+    normalized === "current_market"
+  ) {
+    return "OpenSea";
+  }
+  if (
+    normalized.includes("observed") ||
+    normalized.includes("normalized_sales") ||
+    normalized.includes("activity_events") ||
+    normalized === "market_state_latest"
+  ) {
+    return "Observed activity";
+  }
+  if (normalized.includes("dune") || normalized.includes("onchain")) {
+    return "Onchain";
+  }
+  if (normalized.includes("holder_leaderboard") || normalized.includes("ownership")) {
+    return "D1";
+  }
+  if (normalized.includes("metadata")) return "Collection";
+  if (normalized === "unavailable") return "Unavailable";
+  return source;
+}
+
+function statsSeries(payload: StatsApiEnvelope | null, ...keys: string[]): unknown[] {
+  const series = payload?.series;
+  if (Array.isArray(series)) return series;
+  const record = statsRecord(series);
+  if (!record) return [];
+  for (const key of keys) {
+    if (Array.isArray(record[key])) return record[key] as unknown[];
+  }
+  return [];
+}
+
+function statsRows(payload: StatsApiEnvelope | null, ...keys: string[]): unknown[] {
+  const nested = statsSeries(payload, ...keys);
+  if (nested.length > 0) return nested;
+  const root = payload as Record<string, unknown> | null;
+  if (!root) return [];
+  for (const key of keys) {
+    if (Array.isArray(root[key])) return root[key] as unknown[];
+  }
+  return [];
+}
+
+function statsDateLabel(value: unknown): string {
+  const record = statsRecord(value);
+  const raw = statsString(
+    record?.label ??
+    record?.date ??
+    record?.day ??
+    record?.bucket ??
+    record?.timestamp ??
+    record?.at,
+  );
+  if (!raw) return "-";
+  const date = new Date(raw);
+  if (!Number.isFinite(date.getTime())) return raw;
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+function normalizeStatsChartData(
+  rows: unknown[],
+  aliases: Record<string, string[]>,
+): StatsChartDatum[] {
+  return rows.map((value, index) => {
+    const row = statsRecord(value) ?? {};
+    const buyerProfile = statsRecord(row.buyerProfile ?? row.buyer_profile);
+    const sellerProfile = statsRecord(row.sellerProfile ?? row.seller_profile);
+    const point: StatsChartDatum = {
+      label: statsDateLabel(row),
+      timestamp: statsString(row.timestamp ?? row.at ?? row.date) ?? undefined,
+      avatarUrl: statsString(row.avatarUrl ?? row.pfpUrl ?? row.pfp_url ?? buyerProfile?.pfpUrl ?? buyerProfile?.pfp_url),
+      isTopFriend: row.isTopFriend === true || row.is_top_friend === true,
+      isViewer: row.isViewer === true || row.is_viewer === true,
+      tokenId: statsInteger(row.tokenId ?? row.token_id),
+      wallet: statsString(row.wallet ?? row.buyerWallet ?? row.buyer_wallet),
+      fid: statsInteger(row.fid ?? row.buyerFid ?? row.buyer_fid ?? buyerProfile?.fid),
+      buyerUsername: statsString(row.buyerUsername ?? row.buyer_username ?? buyerProfile?.username),
+      sellerUsername: statsString(row.sellerUsername ?? row.seller_username ?? sellerProfile?.username),
+      buyerAvatarUrl: statsString(buyerProfile?.pfpUrl ?? buyerProfile?.pfp_url),
+      sellerAvatarUrl: statsString(sellerProfile?.pfpUrl ?? sellerProfile?.pfp_url),
+      buyerFid: statsInteger(row.buyerFid ?? row.buyer_fid ?? buyerProfile?.fid),
+      sellerFid: statsInteger(row.sellerFid ?? row.seller_fid ?? sellerProfile?.fid),
+      transactionHash: statsString(row.transactionHash ?? row.transaction_hash ?? row.txHash ?? row.tx_hash),
+      marketplace: statsString(row.marketplace ?? row.market),
+      saleCount: statsInteger(row.count ?? row.saleCount ?? row.sale_count),
+    };
+    for (const [target, sourceKeys] of Object.entries(aliases)) {
+      const sourceValue = sourceKeys.map((key) => row[key]).find((item) => item != null);
+      point[target] = statsNumber(sourceValue);
+    }
+    if (point.label === "-") point.label = String(index + 1);
+    return point;
+  });
+}
+
+function statsMovingAverage(
+  data: StatsChartDatum[],
+  sourceKey: string,
+  targetKey: string,
+  windowSize = 3,
+): StatsChartDatum[] {
+  return data.map((point, index) => {
+    const values = data
+      .slice(Math.max(0, index - windowSize + 1), index + 1)
+      .map((row) => statsNumber(row[sourceKey]))
+      .filter((value): value is number => value != null);
+    return {
+      ...point,
+      [targetKey]: values.length > 0
+        ? values.reduce((sum, value) => sum + value, 0) / values.length
+        : null,
+    };
+  });
+}
+
+function statsStartEndChange(data: StatsChartDatum[], key: string): number | null {
+  const values = data
+    .map((point) => statsNumber(point[key]))
+    .filter((value): value is number => value != null);
+  const first = values[0];
+  const last = values.at(-1);
+  return first != null && last != null && first !== 0 ? ((last - first) / first) * 100 : null;
+}
+
+function statsHalfPeriodChange(data: StatsChartDatum[], key: string): number | null {
+  const values = data.map((point) => statsNumber(point[key]) ?? 0);
+  if (values.length < 2) return null;
+  const midpoint = Math.ceil(values.length / 2);
+  const first = values.slice(0, midpoint).reduce((sum, value) => sum + value, 0);
+  const second = values.slice(midpoint).reduce((sum, value) => sum + value, 0);
+  return first > 0 ? ((second - first) / first) * 100 : null;
+}
+
+function applySocialAvatarMarkerLimit(data: StatsChartDatum[]): StatsChartDatum[] {
+  const knownAvatarIndexes = data
+    .map((point, index) => point.avatarUrl ? index : -1)
+    .filter((index) => index >= 0);
+  const preferred = [...knownAvatarIndexes].sort((left, right) => {
+    const leftPoint = data[left];
+    const rightPoint = data[right];
+    const priority = (point: StatsChartDatum) => point.isViewer ? 0 : point.isTopFriend ? 1 : 2;
+    return priority(leftPoint) - priority(rightPoint) || right - left;
+  });
+  const visible = new Set(preferred.slice(0, 24));
+  return data.map((point, index) => ({
+    ...point,
+    showAvatar: Boolean(point.avatarUrl && visible.has(index)),
+    showMarker: Boolean(point.avatarUrl && visible.has(index)),
+  }));
+}
+
+function formatStatsInteger(value: unknown): string {
+  const number = statsNumber(value);
+  return number == null ? "-" : Math.round(number).toLocaleString("en-US");
+}
+
+function formatStatsPercent(value: unknown, maxDigits = 1): string {
+  const number = statsNumber(value);
+  if (number == null) return "-";
+  return `${number.toLocaleString("en-US", { maximumFractionDigits: maxDigits })}%`;
+}
+
+function formatStatsEth(value: unknown, symbol = "ETH"): string {
+  const number = statsNumber(value);
+  if (number == null) return "-";
+  return `${formatEthNumber(number, 8).replace(/\s*\u039e$/, "")} ${symbol}`;
+}
+
+function formatStatsUsd(value: unknown, ethUsdPrice: number | null): string | null {
+  const explicit = statsMetricUsd(value);
+  const amount = statsNumber(value);
+  const usd = explicit ?? (amount != null && ethUsdPrice != null ? amount * ethUsdPrice : null);
+  if (usd == null) return null;
+  return usd.toLocaleString("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
+function StatsChartFallback() {
+  return (
+    <div className="flex h-[210px] items-center justify-center text-xs font-bold text-[#8bbf8b]">
+      Loading chart...
+    </div>
+  );
+}
+
+class StatsChartErrorBoundary extends Component<
+  { children: ReactNode },
+  { failed: boolean }
+> {
+  state = { failed: false };
+
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+
+  render() {
+    if (this.state.failed) {
+      return (
+        <div className="flex h-[210px] flex-col items-center justify-center gap-2 px-4 text-center">
+          <Text className="text-xs font-bold text-[#8bbf8b]">Chart temporarily unavailable.</Text>
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="cursor-pointer text-xs font-black text-[#00FF00] underline underline-offset-2"
+          >
+            Retry
+          </button>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
+function StatsChartPanel({
+  title,
+  description,
+  headline,
+  changePercent,
+  data,
+  series,
+  socialKey,
+  onOpenToken,
+  hideMarketplace,
+  hideEthSymbol,
+  socialRole,
+}: {
+  title: string;
+  description?: string;
+  headline?: string;
+  changePercent?: number | null;
+  data: StatsChartDatum[];
+  series: StatsChartSeries[];
+  socialKey?: string;
+  onOpenToken?: (tokenId: number) => void;
+  hideMarketplace?: boolean;
+  hideEthSymbol?: boolean;
+  socialRole?: "buyer" | "seller";
+}) {
+  return (
+    <section className="overflow-hidden rounded-xl border border-[#00FF00]/25 bg-black/65">
+      <div className="border-b border-[#00FF00]/15 px-3 py-3">
+        <div className="flex items-start justify-between gap-3">
+          <span>
+            <Text className="text-xs font-black uppercase text-[#00FF00]">{title}</Text>
+            {headline && <span className="mt-1 block text-2xl font-black text-white">{headline}</span>}
+          </span>
+          {changePercent != null && Number.isFinite(changePercent) && (
+            <span className={`mt-5 shrink-0 text-xs font-black ${
+              changePercent > 0 ? "text-[#00FF00]" : changePercent < 0 ? "text-[#FF5555]" : "text-[#8bbf8b]"
+            }`}>
+              {changePercent > 0 ? "+" : ""}{changePercent.toFixed(1)}%
+            </span>
+          )}
+        </div>
+        {description && <Text className="mt-1 text-[10px] leading-4 text-[#8bbf8b]">{description}</Text>}
+      </div>
+      {data.length > 0 ? (
+        <StatsChartErrorBoundary>
+          <Suspense fallback={<StatsChartFallback />}>
+            <LazyStatsChart
+              data={data}
+              series={series}
+              socialKey={socialKey}
+              onOpenToken={onOpenToken}
+              hideMarketplace={hideMarketplace}
+              hideEthSymbol={hideEthSymbol}
+              socialRole={socialRole}
+            />
+          </Suspense>
+        </StatsChartErrorBoundary>
+      ) : (
+        <div className="flex h-36 items-center justify-center px-4 text-center text-xs font-bold text-[#8bbf8b]">
+          No activity is available for this period.
+        </div>
+      )}
+    </section>
+  );
+}
+
+function StatsMetricCard({
+  label,
+  value,
+  tooltip,
+  sublabel,
+  source,
+  tone = "green",
+}: {
+  label: string;
+  value: string;
+  tooltip?: string | null;
+  sublabel?: string | null;
+  source?: string | null;
+  tone?: "green" | "blue" | "yellow" | "purple";
+}) {
+  const toneClasses = tone === "blue"
+    ? "border-[#33AAFF]/35 bg-[rgba(51,170,255,0.08)] text-[#33AAFF]"
+    : tone === "yellow"
+      ? "border-[#FFFF00]/35 bg-[rgba(255,255,0,0.07)] text-[#FFFF00]"
+      : tone === "purple"
+        ? "border-[#7959ff]/55 bg-[rgba(93,66,214,0.16)] text-[#7959ff]"
+      : "border-[#00FF00]/30 bg-[rgba(0,255,0,0.07)] text-[#00FF00]";
+  const labelClass = tone === "blue"
+    ? "text-[#8bcfff]"
+    : tone === "yellow"
+      ? "text-[#d6d682]"
+      : tone === "purple"
+        ? "text-[#a995ff]"
+        : "text-[#8bbf8b]";
+
+  return (
+    <div className={`min-w-0 rounded-xl border p-3 ${toneClasses}`}>
+      <Text className={`text-[10px] font-black uppercase ${labelClass}`}>{label}</Text>
+      <div className="mt-1 min-w-0 text-xl font-black leading-tight">
+        {tooltip ? (
+          <InlineHoverTooltip value={value} tooltip={tooltip} className="max-w-full truncate" tone={tone} />
+        ) : (
+          <span className="block truncate">{value}</span>
+        )}
+      </div>
+      {(sublabel || source) && (
+        <Text className={`mt-1 truncate text-[9px] font-bold ${labelClass}`}>
+          {[sublabel, source].filter(Boolean).join(" · ")}
+        </Text>
+      )}
+    </div>
+  );
+}
+
+type StatsDuneIntegrationDisplay = {
+  label: string;
+  title: string;
+  toneClass: string;
+  tooltipTone: "green" | "yellow" | "red" | "muted";
+};
+
+function getStatsDuneIntegrationDisplay(payload: StatsApiEnvelope | null): StatsDuneIntegrationDisplay | null {
+  const integrations = statsRecord(payload?.integrations);
+  if (!integrations || !Object.prototype.hasOwnProperty.call(integrations, "dune")) return null;
+
+  const dune = statsRecord(integrations.dune);
+  const rawStatus = statsString(dune?.status)?.toLowerCase().replace(/\s+/g, "_")
+    ?? (dune?.configured === false ? "disabled" : "unavailable");
+  const statusLabels: Record<string, string> = {
+    live: "Live",
+    stale: "Stale",
+    pending: "Pending",
+    disabled: "Disabled",
+    unavailable: "Unavailable",
+    budget_paused: "Budget paused",
+  };
+  const label = statusLabels[rawStatus] ?? rawStatus
+    .split("_")
+    .filter(Boolean)
+    .map((part) => `${part.charAt(0).toUpperCase()}${part.slice(1)}`)
+    .join(" ");
+  const toneClass = rawStatus === "live"
+    ? "border-[#00FF00]/45 bg-[rgba(0,255,0,0.08)] text-[#00FF00]"
+    : rawStatus === "stale" || rawStatus === "pending" || rawStatus === "budget_paused"
+      ? "border-[#FFFF00]/45 bg-[rgba(255,255,0,0.08)] text-[#FFFF00]"
+      : rawStatus === "unavailable"
+        ? "border-[#FF7777]/45 bg-[rgba(255,85,85,0.08)] text-[#FF9999]"
+        : "border-[#8bbf8b]/30 bg-[rgba(139,191,139,0.06)] text-[#8bbf8b]";
+  const tooltipTone: StatsDuneIntegrationDisplay["tooltipTone"] = rawStatus === "live"
+    ? "green"
+    : rawStatus === "stale" || rawStatus === "pending" || rawStatus === "budget_paused"
+      ? "yellow"
+      : rawStatus === "unavailable"
+        ? "red"
+        : "muted";
+  const details = [`Dune onchain data: ${label || "Unavailable"}`];
+  const asOf = statsString(dune?.asOf);
+  const coverageStart = statsString(dune?.coverageStart);
+  const coverageEnd = statsString(dune?.coverageEnd);
+  const lastError = statsString(dune?.lastError);
+  const creditsThisMonth = statsInteger(dune?.creditsThisMonth);
+  if (asOf) details.push(`updated ${formatMarketTimestamp(asOf)}`);
+  if (coverageStart) {
+    details.push(`coverage ${new Date(coverageStart).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}${coverageEnd ? ` to ${new Date(coverageEnd).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}` : ""}`);
+  }
+  if (creditsThisMonth != null) {
+    details.push(`${creditsThisMonth.toLocaleString("en-US")} credits this billing period`);
+  }
+  if (lastError) details.push(lastError);
+
+  return {
+    label: label || "Unavailable",
+    title: details.join(". "),
+    toneClass,
+    tooltipTone,
+  };
+}
+
+function StatsFreshness({
+  payload,
+  refreshing,
+  onRefresh,
+}: {
+  payload: StatsApiEnvelope | null;
+  refreshing: boolean;
+  onRefresh: () => void;
+}) {
+  const asOf = payload?.asOf ?? payload?.generatedAt;
+  const dune = getStatsDuneIntegrationDisplay(payload);
+  return (
+    <div className="mt-4 text-center text-[10px] leading-4 text-[#8bbf8b]">
+      <div>
+        Last updated: {asOf ? formatMarketTimestamp(asOf) : "Not yet"}
+        {". "}
+        <button
+          type="button"
+          disabled={refreshing}
+          onClick={onRefresh}
+          className="cursor-pointer font-black text-[#00FF00] underline-offset-2 hover:underline disabled:cursor-wait disabled:opacity-60"
+        >
+          {refreshing ? "Refreshing..." : "Refresh"}
+        </button>
+      </div>
+      {dune && (
+        <span className="sr-only" data-onchain-status={dune.label} data-onchain-details={dune.title}>
+          Onchain data status: {dune.label}
+        </span>
+      )}
+    </div>
+  );
+}
+
+type StatsHolderRow = {
+  rank: number | null;
+  wallet: string;
+  fid: number | null;
+  username: string | null;
+  displayName: string | null;
+  pfpUrl: string | null;
+  ownedCount: number;
+  ownedPct: number;
+  bestRarityRank: number | null;
+  previewTokenIds: number[];
+  remainingCount: number;
+  floorValueEth: number | null;
+  averageHoldingDays: number | null;
+  oldestCurrentHoldingAt: string | null;
+  acquiredSinceEpoch: number | null;
+  disposedSinceEpoch: number | null;
+  isViewer: boolean;
+  isTopFriend: boolean;
+};
+
+const STATS_HOLDER_INITIAL_RENDER_ROWS = 20;
+const STATS_HOLDER_RENDER_BATCH = 20;
+
+function parseStatsTokenIds(value: unknown): number[] {
+  let values: unknown[] = [];
+  if (Array.isArray(value)) {
+    values = value;
+  } else if (typeof value === "string" && value.trim()) {
+    try {
+      const parsed = JSON.parse(value) as unknown;
+      if (Array.isArray(parsed)) values = parsed;
+    } catch {
+      values = value.split(",");
+    }
+  }
+  return values
+    .map((item) => statsInteger(item))
+    .filter((item): item is number => item != null && item >= 1 && item <= 10000)
+    .slice(0, 5);
+}
+
+function normalizeStatsHolderRow(value: unknown): StatsHolderRow | null {
+  const row = statsRecord(value);
+  const profile = statsRecord(row?.profile);
+  const wallet = statsString(row?.wallet ?? row?.ownerWallet ?? row?.owner_wallet);
+  if (!row || !wallet) return null;
+  const ownedCount = statsInteger(row.ownedCount ?? row.owned_count ?? row.count) ?? 0;
+  const previews = parseStatsTokenIds(
+    row.previewTokenIds ??
+    row.preview_token_ids ??
+    row.previewTokenIdsJson ??
+    row.preview_token_ids_json,
+  );
+  return {
+    rank: statsInteger(row.rank ?? row.position),
+    wallet: wallet.toLowerCase(),
+    fid: statsInteger(row.fid ?? profile?.fid),
+    username: statsString(row.username ?? profile?.username),
+    displayName: statsString(row.displayName ?? row.display_name ?? profile?.displayName ?? profile?.display_name),
+    pfpUrl: statsString(row.pfpUrl ?? row.pfp_url ?? profile?.pfpUrl ?? profile?.pfp_url),
+    ownedCount,
+    ownedPct: statsNumber(row.ownedPct ?? row.owned_pct ?? row.supplyPercentage ?? row.supply_percentage ?? row.supplyPct ?? row.supply_pct) ?? ownedCount / 100,
+    bestRarityRank: statsInteger(row.bestRarityRank ?? row.best_rarity_rank),
+    previewTokenIds: previews,
+    remainingCount: statsInteger(row.remainingCount ?? row.remaining_count ?? row.remainingPreviewCount ?? row.remaining_preview_count) ?? Math.max(0, ownedCount - previews.length),
+    floorValueEth: statsNumber(row.floorValueEth ?? row.floor_value_eth ?? row.floorValue ?? row.floor_value),
+    averageHoldingDays: statsNumber(row.averageHoldingDays ?? row.average_holding_days ?? row.averageCurrentHoldingDays ?? row.average_current_holding_days),
+    oldestCurrentHoldingAt: statsString(row.oldestCurrentHoldingAt ?? row.oldest_current_holding_at),
+    acquiredSinceEpoch: statsInteger(row.acquiredSinceEpoch ?? row.acquired_since_epoch),
+    disposedSinceEpoch: statsInteger(row.disposedSinceEpoch ?? row.disposed_since_epoch),
+    isViewer: row.isViewer === true || row.is_viewer === true,
+    isTopFriend: row.isTopFriend === true || row.is_top_friend === true,
+  };
+}
+
+function WalletIdenticon({ wallet, className = "" }: { wallet: string; className?: string }) {
+  const hash = Array.from(wallet.toLowerCase()).reduce((total, character) => {
+    return ((total << 5) - total + character.charCodeAt(0)) | 0;
+  }, 0);
+  const hue = Math.abs(hash) % 360;
+  const cells: boolean[] = [];
+  for (let row = 0; row < 5; row += 1) {
+    for (let column = 0; column < 3; column += 1) {
+      cells.push(((hash >>> ((row * 3 + column) % 28)) & 1) === 1);
+    }
+  }
+  const mirroredCells = Array.from({ length: 25 }, (_, index) => {
+    const row = Math.floor(index / 5);
+    const column = index % 5;
+    const sourceColumn = column > 2 ? 4 - column : column;
+    return cells[row * 3 + sourceColumn];
+  });
+
+  return (
+    <span
+      aria-hidden="true"
+      className={`grid grid-cols-5 overflow-hidden bg-black ${className}`}
+      style={{ backgroundColor: `hsl(${hue} 45% 10%)` }}
+    >
+      {mirroredCells.map((active, index) => (
+        <span
+          key={index}
+          style={{ backgroundColor: active ? `hsl(${hue} 85% 55%)` : "transparent" }}
+        />
+      ))}
+    </span>
+  );
+}
+
+function StatsHolderAvatar({ row }: { row: StatsHolderRow }) {
+  const ringClass = row.isViewer
+    ? "border-[#FFFF00] shadow-[0_0_8px_rgba(255,255,0,0.75)]"
+    : row.isTopFriend
+      ? "border-[#00FF00] ring-2 ring-[#CCFFCC] shadow-[0_0_9px_rgba(0,255,0,0.9)]"
+      : "border-[#00FF00]/55";
+  return row.pfpUrl ? (
+    <img
+      src={row.pfpUrl}
+      alt=""
+      className={`h-10 w-10 shrink-0 rounded-full border-2 object-cover ${ringClass}`}
+      loading="lazy"
+    />
+  ) : (
+    <WalletIdenticon wallet={row.wallet} className={`h-10 w-10 shrink-0 rounded-full border-2 ${ringClass}`} />
+  );
+}
+
+function StatsHolderRowView({
+  row,
+  pinned = false,
+  ethUsdPrice,
+  onSearchWallet,
+  onOpenWarpletDetails,
+}: {
+  row: StatsHolderRow;
+  pinned?: boolean;
+  ethUsdPrice: number | null;
+  onSearchWallet: (wallet: string) => void;
+  onOpenWarpletDetails: (tokenId: number) => void;
+}) {
+  const highlightViewer = pinned || row.isViewer;
+  const identity = row.username
+    ? `@${row.username.replace(/^@/, "")}`
+    : row.displayName || formatShortWallet(row.wallet);
+  return (
+    <article
+      tabIndex={0}
+      role="button"
+      aria-label={`Search Warplets owned by ${identity}`}
+      onClick={() => onSearchWallet(row.wallet)}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onSearchWallet(row.wallet);
+        }
+      }}
+      className={`group relative mx-2 my-2 cursor-pointer rounded-xl border px-3 py-3 outline-none transition focus:ring-1 hover:-translate-y-px hover:border-2 ${
+        highlightViewer
+          ? "border-[#FFFF00]/35 bg-[rgba(255,255,0,0.055)] hover:border-[#FFFF00] hover:bg-[rgba(255,255,0,0.075)] hover:shadow-[0_0_16px_rgba(255,255,0,0.55)] focus:ring-[#FFFF00]"
+          : "border-[#00FF00]/25 bg-[#041204]/90 hover:border-[#00FF00] hover:bg-[#071807]/95 hover:shadow-[0_0_16px_rgba(0,255,0,0.55)] focus:ring-[#00FF00]"
+      }`}
+    >
+      <div className="flex min-w-0 items-center gap-2">
+        <span className={`min-w-11 shrink-0 rounded-full border px-2 py-1 text-center text-xs font-black ${
+          highlightViewer
+            ? "border-[#FFFF00] bg-[rgba(255,255,0,0.12)] text-[#FFFF00]"
+            : "border-[#00FF00] bg-[rgba(0,255,0,0.1)] text-[#00FF00]"
+        }`}>
+          {row.rank ? `#${row.rank.toLocaleString("en-US")}` : "—"}
+        </span>
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation();
+            onSearchWallet(row.wallet);
+          }}
+          className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 text-left"
+          aria-label={`Search Warplets owned by ${identity}`}
+        >
+          <StatsHolderAvatar row={row} />
+          <span className="min-w-0">
+            <span className="flex min-w-0 items-center gap-1.5">
+              <span className="truncate text-xs font-black text-[#00FF00]">{identity}</span>
+              {highlightViewer && <span className="rounded bg-[#FFFF00] px-1 py-0.5 text-[8px] font-black text-black">YOU</span>}
+              {row.isTopFriend && <span title="Neynar-ranked Top 100 Friend" className="rounded border border-[#00FF00]/50 px-1 py-0.5 text-[8px] font-black text-[#00FF00]">TOP 100</span>}
+            </span>
+            {row.username && row.displayName && (
+              <span className="mt-0.5 block truncate text-[9px] text-[#8bbf8b]">{row.displayName}</span>
+            )}
+          </span>
+        </button>
+        <span className="shrink-0 text-right">
+          <span className="block text-base font-black text-[#00FF00]">{row.ownedCount.toLocaleString("en-US")}</span>
+          <span className="block text-[9px] font-bold text-[#8bbf8b]">{formatStatsPercent(row.ownedPct, 2)}</span>
+        </span>
+      </div>
+      <div className="mt-2 grid grid-cols-[44px_minmax(0,1fr)_auto] items-end gap-2">
+        <span className="text-[9px] font-bold uppercase text-[#8bbf8b]">
+          {row.bestRarityRank ? <>Best <strong className="block text-[#00FF00]">#{row.bestRarityRank.toLocaleString("en-US")}</strong></> : "Best —"}
+        </span>
+        <div className="flex min-w-0 gap-1">
+          {row.previewTokenIds.map((tokenId) => (
+            <button
+              key={tokenId}
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                onOpenWarpletDetails(tokenId);
+              }}
+              className="aspect-square min-w-0 max-w-10 flex-1 cursor-pointer overflow-hidden rounded-[3px] outline-none ring-[#00FF00] focus:ring-2"
+              aria-label={`Open Warplet #${tokenId} details`}
+            >
+              <img
+                src={getWarpletPreviewImageUrl(tokenId)}
+                alt={`Warplet #${tokenId}`}
+                className="h-full w-full object-cover"
+                loading="lazy"
+              />
+            </button>
+          ))}
+          {row.remainingCount > 0 && (
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                onSearchWallet(row.wallet);
+              }}
+              className="flex aspect-square max-w-10 flex-1 cursor-pointer items-center justify-center rounded-[3px] bg-[#041204] text-[9px] font-black text-[#00FF00] outline-none ring-[#00FF00] focus:ring-2"
+              aria-label={`View ${row.remainingCount} more Warplets`}
+            >
+              +{row.remainingCount}
+            </button>
+          )}
+        </div>
+        <span className="text-right">
+          <span className="block text-[8px] font-bold uppercase text-[#8bbf8b]">Floor value</span>
+          {row.floorValueEth == null ? (
+            <span className="block text-[10px] font-black text-[#33AAFF]">—</span>
+          ) : (
+            <span onClick={(event) => event.stopPropagation()}>
+              <InlineHoverTooltip
+                value={`${formatEthNumber(row.floorValueEth, 6).replace(/\s*\u039e$/, "")} ETH`}
+                tooltip={
+                  ethUsdPrice == null
+                    ? "USD value unavailable"
+                    : (row.floorValueEth * ethUsdPrice).toLocaleString("en-US", {
+                        style: "currency",
+                        currency: "USD",
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })
+                }
+                className="text-[10px] font-black text-[#33AAFF]"
+                tone="blue"
+              />
+            </span>
+          )}
+        </span>
+      </div>
+    </article>
+  );
+}
+
+function StatsHoldersPage({
+  connectedWallet,
+  viewerFid,
+  actionSessionToken,
+  ethUsdPrice,
+  onSearchWallet,
+  onOpenWarpletDetails,
+}: {
+  connectedWallet: string | null;
+  viewerFid: number | null;
+  actionSessionToken: string | null;
+  ethUsdPrice: number | null;
+  onSearchWallet: (wallet: string) => void;
+  onOpenWarpletDetails: (tokenId: number) => void;
+}) {
+  const [payload, setPayload] = useState<StatsApiEnvelope | null>(null);
+  const [rows, setRows] = useState<StatsHolderRow[]>([]);
+  const [viewerRow, setViewerRow] = useState<StatsHolderRow | null>(null);
+  const [viewerTotal, setViewerTotal] = useState<number | null>(null);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState("");
+  const [renderedRowCount, setRenderedRowCount] = useState(STATS_HOLDER_INITIAL_RENDER_ROWS);
+  const [topFriendFids, setTopFriendFids] = useState<Set<number>>(new Set());
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
+
+  const loadViewer = useCallback(async (signal?: AbortSignal, refresh = false) => {
+    if (!connectedWallet && !viewerFid) {
+      setViewerRow(null);
+      setViewerTotal(null);
+      return;
+    }
+    const params = new URLSearchParams();
+    if (connectedWallet) params.set("wallet", connectedWallet);
+    if (viewerFid) params.set("fid", String(viewerFid));
+    try {
+      const query = params.toString();
+      const result = await fetchCachedStatsHolderViewer({
+        cacheKey: `stats:holders:viewer:${query}`,
+        url: `/api/stats/holders/me?${query}`,
+        force: refresh,
+      });
+      if (signal?.aborted) return;
+      if (!result) {
+        setViewerRow(null);
+        return;
+      }
+      setViewerRow(normalizeStatsHolderRow(result.row ?? result.holder));
+      setViewerTotal(statsInteger(result.totalHolders ?? result.total_holders));
+    } catch (loadError) {
+      if (signal?.aborted) return;
+      console.warn("Stats viewer rank load failed:", loadError);
+    }
+  }, [connectedWallet, viewerFid]);
+
+  const loadPage = useCallback(async ({
+    cursor = null,
+    append = false,
+    refresh = false,
+    signal,
+  }: {
+    cursor?: string | null;
+    append?: boolean;
+    refresh?: boolean;
+    signal?: AbortSignal;
+  } = {}) => {
+    if (append) setLoadingMore(true);
+    else if (refresh) setRefreshing(true);
+    else setLoading(true);
+    setError("");
+    try {
+      const params = new URLSearchParams({ limit: "100" });
+      if (cursor) params.set("cursor", cursor);
+      if (refresh) params.set("refresh", "1");
+      const result = await fetchCachedStatsEnvelope({
+        cacheKey: `stats:holders:${cursor ?? "first"}:100`,
+        url: `/api/stats/holders?${params.toString()}`,
+        force: refresh,
+      });
+      if (signal?.aborted) return;
+      const nextRows = (Array.isArray(result.rows) ? result.rows : [])
+        .map(normalizeStatsHolderRow)
+        .filter((row): row is StatsHolderRow => Boolean(row));
+      if (!append) setRenderedRowCount(STATS_HOLDER_INITIAL_RENDER_ROWS);
+      setPayload(result);
+      setRows((current) => {
+        const combined = append ? [...current, ...nextRows] : nextRows;
+        const seen = new Set<string>();
+        return combined.filter((row) => {
+          if (seen.has(row.wallet)) return false;
+          seen.add(row.wallet);
+          return true;
+        });
+      });
+      setNextCursor(typeof result.nextCursor === "string" && result.nextCursor ? result.nextCursor : null);
+    } catch (loadError) {
+      if (signal?.aborted) return;
+      setError(loadError instanceof Error ? loadError.message : "Could not load holders");
+    } finally {
+      if (!signal?.aborted) {
+        if (append) setLoadingMore(false);
+        else if (refresh) setRefreshing(false);
+        else setLoading(false);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    void Promise.all([
+      loadPage({ signal: controller.signal }),
+      loadViewer(controller.signal),
+    ]);
+    return () => controller.abort();
+  }, [loadPage, loadViewer]);
+
+  useEffect(() => {
+    if (!viewerFid || !actionSessionToken) {
+      setTopFriendFids(new Set());
+      return;
+    }
+    const controller = new AbortController();
+    const params = new URLSearchParams({
+      range: "30d",
+      fid: String(viewerFid),
+    });
+    fetch(`/api/stats/social/highlights?${params.toString()}`, {
+      headers: { accept: "application/json", authorization: `Bearer ${actionSessionToken}` },
+      credentials: "same-origin",
+      signal: controller.signal,
+    })
+      .then((response) => response.ok ? response.json() : null)
+      .then((result) => setTopFriendFids(getStatsHighlightFids(result)))
+      .catch((highlightError) => {
+        if (!(highlightError instanceof DOMException && highlightError.name === "AbortError")) {
+          console.warn("Holder friend highlights failed:", highlightError);
+        }
+      });
+    return () => controller.abort();
+  }, [actionSessionToken, viewerFid]);
+
+  useEffect(() => {
+    const target = loadMoreRef.current;
+    const rankedRowCount = rows.length;
+    const hasBufferedRows = renderedRowCount < rankedRowCount;
+    if (!target || loadingMore || (!hasBufferedRows && !nextCursor)) return;
+    const observer = new IntersectionObserver((entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) {
+        observer.disconnect();
+        if (hasBufferedRows) {
+          setRenderedRowCount((current) =>
+            Math.min(current + STATS_HOLDER_RENDER_BATCH, rankedRowCount));
+        } else if (nextCursor) {
+          void loadPage({ cursor: nextCursor, append: true });
+        }
+      }
+    }, { rootMargin: "600px 0px" });
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [loadPage, loadingMore, nextCursor, renderedRowCount, rows]);
+
+  const summary = payload?.summary;
+  const holderCount = statsInteger(summary?.holderCount ?? summary?.uniqueOwners ?? summary?.totalHolders) ?? viewerTotal;
+  const rankedRows = rows;
+  const visibleRows = rankedRows.slice(0, renderedRowCount);
+  const hasBufferedRows = visibleRows.length < rankedRows.length;
+
+  const refresh = () => {
+    void Promise.all([
+      loadPage({ refresh: true }),
+      loadViewer(undefined, true),
+    ]);
+  };
+
+  return (
+    <div>
+      <div>
+        {(connectedWallet || viewerFid) && (
+          <div className="mb-3">
+            {viewerRow ? (
+              <>
+                <div className="px-3 text-[10px] font-black text-[#FFFF00]">
+                  Your rank: #{viewerRow.rank?.toLocaleString("en-US") ?? "—"} of {holderCount?.toLocaleString("en-US") ?? "—"}
+                </div>
+                <StatsHolderRowView
+                  row={{ ...viewerRow, isViewer: true }}
+                  pinned
+                  ethUsdPrice={ethUsdPrice}
+                  onSearchWallet={onSearchWallet}
+                  onOpenWarpletDetails={onOpenWarpletDetails}
+                />
+              </>
+            ) : (
+              <div className="rounded-xl border border-[#FFFF00]/25 bg-[rgba(255,255,0,0.055)] px-3 py-3 text-center text-[10px] font-bold text-[#d6d682]">
+                You are not currently ranked.
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className="px-3 py-2 text-center">
+          <Text className="text-xs font-black uppercase text-[#00FF00]">Leaderboard</Text>
+        </div>
+
+        {loading ? (
+          <div className="p-2">
+            <StatsLoadingState subpage="holders" />
+          </div>
+        ) : error && rows.length === 0 ? (
+          <div className="px-3 py-10 text-center">
+            <Text className="text-xs font-bold text-red-300">{error}</Text>
+            <button type="button" onClick={refresh} className="mt-3 cursor-pointer text-xs font-black text-[#00FF00] underline">Try again</button>
+          </div>
+        ) : visibleRows.length === 0 ? (
+          <div className="px-3 py-10 text-center text-xs font-bold text-[#8bbf8b]">No ranked holders are available yet.</div>
+        ) : (
+          visibleRows.map((row) => (
+            <StatsHolderRowView
+              key={row.wallet}
+              row={{
+                ...row,
+                isTopFriend: row.isTopFriend || (row.fid != null && topFriendFids.has(row.fid)),
+              }}
+              ethUsdPrice={ethUsdPrice}
+              onSearchWallet={onSearchWallet}
+              onOpenWarpletDetails={onOpenWarpletDetails}
+            />
+          ))
+        )}
+        <div ref={loadMoreRef} className="h-px" />
+        {(hasBufferedRows || nextCursor) && (
+          <button
+            type="button"
+            disabled={loadingMore}
+            onClick={() => {
+              if (hasBufferedRows) {
+                setRenderedRowCount((current) =>
+                  Math.min(current + STATS_HOLDER_RENDER_BATCH, rankedRows.length));
+              } else if (nextCursor) {
+                void loadPage({ cursor: nextCursor, append: true });
+              }
+            }}
+            className="w-full cursor-pointer border-t border-[#00FF00]/15 px-3 py-3 text-xs font-black text-[#00FF00] hover:bg-[#041204] disabled:cursor-wait disabled:opacity-60"
+          >
+            {hasBufferedRows
+              ? `Show ${Math.min(STATS_HOLDER_RENDER_BATCH, rankedRows.length - visibleRows.length)} more`
+              : loadingMore
+                ? "Loading more holders..."
+                : "Load 100 more"}
+          </button>
+        )}
+        {!hasBufferedRows && !nextCursor && rows.length > 0 && (
+          <div className="border-t border-[#00FF00]/15 px-3 py-3 text-center text-[10px] font-bold text-[#8bbf8b]">
+            All ranked holders loaded.
+          </div>
+        )}
+      </div>
+      {error && rows.length > 0 && <Text className="mt-2 text-center text-[10px] font-bold text-red-300">{error}</Text>}
+      <StatsFreshness payload={payload} refreshing={refreshing} onRefresh={refresh} />
+    </div>
+  );
+}
+
+function StatsOverview({
+  payload,
+  ethUsdPrice,
+}: {
+  payload: StatsApiEnvelope;
+  ethUsdPrice: number | null;
+}) {
+  const items = statsMetric(payload, "items", "totalItems", "supply");
+  const floor = statsMetric(payload, "floorPrice", "floor");
+  const floorChange = statsMetric(payload, "floorChange1dPercent", "floorChange1dPct", "oneDayFloorChangePct", "floorChange24h");
+  const topOffer = statsMetric(payload, "topOffer", "collectionTopOffer");
+  const volume24h = statsMetric(payload, "volume24h", "oneDayVolume");
+  const totalVolume = statsMetric(payload, "totalVolume", "totalVolumeSinceEpoch", "volumeSinceReset");
+  const listed = statsMetric(payload, "listed", "listedCount");
+  const listedRecord = statsRecord(listed);
+  const listedCount = statsNumber(listedRecord?.count ?? statsMetric(payload, "listedCount"));
+  const listedPct = statsNumber(listedRecord?.percentage ?? listedRecord?.pct ?? statsMetric(payload, "listedPct", "listedPercentage"));
+  const owners = statsMetric(payload, "ownersUnique", "uniqueOwners", "owners");
+  const ownersRecord = statsRecord(owners);
+  const ownerCount = statsNumber(ownersRecord?.count ?? statsMetric(payload, "uniqueOwnerCount", "ownerCount") ?? owners);
+  const ownerPct = statsNumber(ownersRecord?.percentage ?? ownersRecord?.pct ?? statsMetric(payload, "uniqueOwnerPct", "ownerPct"))
+    ?? (ownerCount != null ? ownerCount / 100 : null);
+  const farcasterHolders = statsRecord(statsMetric(payload, "farcasterHolders", "socialHolders"));
+  const farcasterHolderCount = statsNumber(farcasterHolders?.count);
+  const holderCoverage = statsRecord(statsMetric(payload, "identityCoverage"));
+  const holderCoveragePercentage = statsNumber(
+    holderCoverage?.percentage ??
+    holderCoverage?.pct ??
+    statsMetric(payload, "identityCoveragePct", "farcasterHolderPct"),
+  );
+  const floorUsd = formatStatsUsd(floor, ethUsdPrice);
+  const topOfferUsd = formatStatsUsd(topOffer, ethUsdPrice);
+  const volume24hUsd = formatStatsUsd(volume24h, ethUsdPrice);
+  const totalVolumeUsd = formatStatsUsd(totalVolume, ethUsdPrice);
+  const fair = statsRecord(statsMetric(payload, "fairOwnership")) ?? payload.summary ?? payload.metrics ?? {};
+
+  return (
+    <div>
+      <div className="grid grid-cols-2 gap-2">
+        <StatsMetricCard label="Items" value={formatStatsInteger(items ?? 10000)} />
+        <StatsMetricCard label="Floor Price" value={formatStatsEth(floor)} tooltip={floorUsd} />
+        <StatsMetricCard label="1D Floor %" value={formatStatsPercent(floorChange, 2)} />
+        <StatsMetricCard label="Top Offer" value={formatStatsEth(topOffer)} tooltip={topOfferUsd} />
+        <StatsMetricCard label="24H Volume" value={formatStatsEth(volume24h)} tooltip={volume24hUsd} />
+        <StatsMetricCard label="Total Volume" value={formatStatsEth(totalVolume)} tooltip={totalVolumeUsd} />
+        <StatsMetricCard
+          label="Listed"
+          value={`${listedCount?.toLocaleString("en-US") ?? "-"} (${
+            listedPct != null && listedPct < 1 && listedPct > 0 ? "<1%" : formatStatsPercent(listedPct, 1)
+          })`}
+          tooltip={listedCount == null ? null : `${listedCount.toLocaleString("en-US")} of 10,000 Warplets`}
+        />
+        <StatsMetricCard
+          label="Owners (Unique)"
+          value={`${ownerCount?.toLocaleString("en-US") ?? "-"} (${formatStatsPercent(ownerPct, 1)})`}
+        />
+        <StatsMetricCard
+          label="Farcaster Holders"
+          value={formatStatsInteger(farcasterHolderCount)}
+        />
+        <StatsMetricCard
+          label="Farcaster Holders %"
+          value={formatStatsPercent(holderCoveragePercentage, 1)}
+        />
+      </div>
+
+      <section className="mt-4 rounded-xl border border-[#7959ff]/55 bg-[rgba(93,66,214,0.12)] p-3 shadow-[0_0_14px_rgba(121,89,255,0.12)]">
+        <Text className="text-xs font-black uppercase text-[#7959ff]">Fair Launch. Mass Distribution.</Text>
+        <Text className="mt-1 text-xs leading-4 text-[#b9aaff]">
+          The Warplets diamond hands. 10,000 wallet Farcaster airdrop.
+        </Text>
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <StatsMetricCard label="OG Warplet Sold" value="Never!" tone="purple" />
+          <StatsMetricCard
+            label="Airdrop Retention"
+            value={formatStatsPercent(fair.cohortRetentionPercentage ?? fair.cohortRetentionPct ?? fair.jul2CohortRetentionPct ?? fair.cohort_retention_pct, 2)}
+            tone="purple"
+          />
+          <StatsMetricCard label="Airdrop Followers" value="48,891,855" tone="purple" />
+          <StatsMetricCard label="Airdrop NFTs" value="$1,269,859" tone="purple" />
+          <StatsMetricCard label="Airdrop Portfolios" value="$4,945,633" tone="purple" />
+          <StatsMetricCard label="Airdrop Volume" value="$2.7B" tone="purple" />
+          <StatsMetricCard label="Hold Exactly One" value={formatStatsInteger(fair.exactlyOneWallets ?? fair.singleItemHolders ?? fair.single_item_holders ?? fair.holdersWithOne)} tone="purple" />
+          <StatsMetricCard label="Hold Multiple" value={formatStatsInteger(fair.multipleWallets ?? fair.multiItemHolders ?? fair.multi_item_holders ?? fair.holdersWithMultiple)} tone="purple" />
+          <StatsMetricCard label="Top 10 Own" value={formatStatsPercent(fair.top10Percentage ?? fair.top10Pct ?? fair.top_10_pct, 2)} tone="purple" />
+          <StatsMetricCard label="Top 100 Own" value={formatStatsPercent(fair.top100Percentage ?? fair.top100Pct ?? fair.top_100_pct, 2)} tone="purple" />
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function StatsMarket({
+  payload,
+  ethUsdPrice,
+}: {
+  payload: StatsApiEnvelope;
+  ethUsdPrice: number | null;
+}) {
+  const volume = statsMetric(payload, "volume", "periodVolume", "totalVolume");
+  const sales = statsMetric(payload, "sales", "saleCount");
+  const activityMix = statsRecord(statsMetric(payload, "activityMix"));
+  const listActivity = statsRecord(activityMix?.list);
+  const offerActivity = statsRecord(activityMix?.offer);
+  const saleActivity = statsRecord(activityMix?.sale);
+  const onchainTransfers = statsMetric(payload, "onchainTransfers", "onchainTransferCount");
+  const onchainTransferCount = statsNumber(onchainTransfers);
+  const listCount = statsNumber(listActivity?.count) ?? 0;
+  const offerCount = statsNumber(offerActivity?.count) ?? 0;
+  const saleCount = statsNumber(saleActivity?.count) ?? 0;
+  const activityCount = listCount + offerCount + saleCount;
+  const activitySegments = [
+    { id: "list", label: "Listings", color: "#FFFF00", count: listCount, value: listActivity?.valueEth },
+    { id: "offer", label: "Offers", color: "#33AAFF", count: offerCount, value: offerActivity?.valueEth },
+    { id: "sale", label: "Sales", color: "#FF3333", count: saleCount, value: saleActivity?.valueEth },
+  ];
+  const dailyRows = statsSeries(payload, "daily", "dailyActivity", "salesVolume", "market");
+  const salePriceRows = statsSeries(payload, "salePrices", "prices", "priceHistory", "salesAndFloor");
+  const floorRows = statsSeries(payload, "floor", "floorHistory");
+  const dailyData = normalizeStatsChartData(dailyRows, {
+    sales: ["sales", "saleCount", "count"],
+    volume: ["volume", "volumeEth", "eth"],
+  });
+  const salePriceData = normalizeStatsChartData(salePriceRows, {
+    salePrice: ["salePrice", "priceEth", "price", "medianSalePrice", "averagePrice"],
+  });
+  const floorData = normalizeStatsChartData(floorRows, {
+    floorPrice: ["floorPrice", "floorEth", "floor"],
+  });
+  const movingPriceData = statsMovingAverage(salePriceData, "salePrice", "movingPrice");
+  const latestMovingPrice = statsNumber(movingPriceData.at(-1)?.movingPrice);
+  const latestFloorPrice = statsNumber(floorData.at(-1)?.floorPrice);
+  const priceChange = statsStartEndChange(movingPriceData, "movingPrice");
+  const floorChange = statsStartEndChange(floorData, "floorPrice");
+  const volumeChange = statsHalfPeriodChange(dailyData, "volume");
+  const salesChange = statsHalfPeriodChange(dailyData, "sales");
+
+  return (
+    <div>
+      {onchainTransferCount != null && (
+        <div className="grid grid-cols-2 gap-2">
+          <StatsMetricCard
+            label="Onchain Transfers"
+            value={formatStatsInteger(onchainTransfers)}
+          />
+        </div>
+      )}
+      {activityCount > 0 && (
+        <section className="mt-3 overflow-hidden rounded-xl border border-[#00FF00]/30 bg-[rgba(0,255,0,0.07)] p-3">
+          <div className="flex h-7 w-full overflow-hidden bg-black">
+            {activitySegments.map((segment) => segment.count > 0 && (
+              <div
+                key={segment.id}
+                className={`h-full min-w-[4px] border-2 ${
+                  segment.id === "list" ? "rounded-l-full" : segment.id === "sale" ? "rounded-r-full" : ""
+                }`}
+                style={{
+                  width: `${(segment.count / activityCount) * 100}%`,
+                  borderColor: segment.color,
+                  backgroundColor: `color-mix(in srgb, ${segment.color} 28%, black)`,
+                  boxShadow: `inset 0 0 5px color-mix(in srgb, ${segment.color} 35%, transparent)`,
+                }}
+              />
+            ))}
+          </div>
+          <div className="mt-2 grid grid-cols-3 gap-2 text-[10px] font-bold">
+            {activitySegments.map((segment, index) => (
+              <div
+                key={segment.id}
+                className={index === 1 ? "text-center" : index === 2 ? "text-right" : ""}
+                style={{ color: segment.color }}
+              >
+                <span className="block font-black">{formatStatsInteger(segment.count)} {segment.label}</span>
+                <span className="block">{formatStatsEth(segment.value)}</span>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+      <div className="mt-4 space-y-3">
+        <StatsChartPanel
+          title="Price"
+          description="Moving average of observed sale prices."
+          headline={formatStatsEth(latestMovingPrice).replace(/\s*Ξ$/, "")}
+          changePercent={priceChange}
+          data={movingPriceData}
+          hideMarketplace
+          hideEthSymbol
+          series={[{ key: "movingPrice", label: "Price ETH", color: "#00FF00", type: "line" }]}
+        />
+        <StatsChartPanel
+          title="Floor Price"
+          headline={formatStatsEth(latestFloorPrice).replace(/\s*Ξ$/, "")}
+          changePercent={floorChange}
+          data={floorData}
+          hideEthSymbol
+          series={[{ key: "floorPrice", label: "Floor ETH", color: "#00FF00", type: "line" }]}
+        />
+        <StatsChartPanel
+          title="Volume"
+          headline={formatStatsEth(volume).replace(/\s*Ξ$/, "")}
+          changePercent={volumeChange}
+          data={dailyData}
+          hideEthSymbol
+          series={[{ key: "volume", label: "Volume ETH", color: "#00FF00", type: "line" }]}
+        />
+        <StatsChartPanel
+          title="Sales"
+          headline={formatStatsInteger(sales)}
+          changePercent={salesChange}
+          data={dailyData}
+          hideEthSymbol
+          series={[{ key: "sales", label: "Sales", color: "#00FF00", type: "line" }]}
+        />
+      </div>
+    </div>
+  );
+}
+
+function getStatsHighlightFids(value: unknown): Set<number> {
+  const payload = statsRecord(value);
+  const candidates =
+    payload?.matchedFids ??
+    payload?.matched_fids ??
+    payload?.friends ??
+    payload?.topFriendFids ??
+    payload?.top_friend_fids ??
+    payload?.fids ??
+    payload?.highlights;
+  const rows = Array.isArray(candidates) ? candidates : [];
+  return new Set(rows
+    .map((item) => statsInteger(statsRecord(item)?.fid ?? item))
+    .filter((fid): fid is number => fid != null));
+}
+
+function StatsSocial({
+  payload,
+  highlights,
+  viewerFid,
+  onSearchWallet,
+  onOpenWarpletDetails,
+}: {
+  payload: StatsApiEnvelope;
+  highlights: unknown;
+  viewerFid: number | null;
+  onSearchWallet: (wallet: string) => void;
+  onOpenWarpletDetails: (tokenId: number) => void;
+}) {
+  const topFriendFids = getStatsHighlightFids(highlights);
+  const activityRows = statsRows(payload, "activity", "sales", "communityActivity", "socialSales");
+  const socialSaleData = normalizeStatsChartData(activityRows, {
+    salePrice: ["salePrice", "price", "priceEth", "eth"],
+  });
+  const buildParticipantChart = (role: "buyer" | "seller") => applySocialAvatarMarkerLimit(
+    socialSaleData.map((point) => {
+      const fid = statsInteger(point[`${role}Fid`]);
+      const avatarUrl = statsString(point[`${role}AvatarUrl`]);
+      return {
+        ...point,
+        fid,
+        avatarUrl,
+        isTopFriend: fid != null && topFriendFids.has(fid),
+        isViewer: fid != null && viewerFid != null && fid === viewerFid,
+        showMarker: Boolean(avatarUrl),
+      };
+    }),
+  );
+  const buyerChartData = buildParticipantChart("buyer");
+  const sellerChartData = buildParticipantChart("seller");
+  const highlightPayload = statsRecord(highlights);
+  const bestFriendHolderRows = Array.isArray(highlightPayload?.friendHolders)
+    ? highlightPayload.friendHolders
+    : [];
+  const purchaseRows = statsRows(payload, "recentActivity", "recent", "events");
+  const listingRows = statsRows(payload, "recentListings", "listings");
+  const recentRows = [...purchaseRows, ...listingRows].sort((left, right) => {
+    const leftRow = statsRecord(left) ?? {};
+    const rightRow = statsRecord(right) ?? {};
+    const leftAt = statsString(leftRow.at ?? leftRow.soldAt ?? leftRow.listedAt ?? leftRow.timestamp) ?? "";
+    const rightAt = statsString(rightRow.at ?? rightRow.soldAt ?? rightRow.listedAt ?? rightRow.timestamp) ?? "";
+    return rightAt.localeCompare(leftAt);
+  });
+
+  return (
+    <div>
+      <div className="space-y-3">
+        <StatsChartPanel
+          title="Farcaster Buyers"
+          data={buyerChartData}
+          series={[{ key: "salePrice", label: "Sale", color: "#00FF00", type: "line" }]}
+          socialKey="salePrice"
+          socialRole="buyer"
+          hideMarketplace
+          onOpenToken={onOpenWarpletDetails}
+        />
+        <StatsChartPanel
+          title="Farcaster Sellers"
+          data={sellerChartData}
+          series={[{ key: "salePrice", label: "Sale", color: "#00FF00", type: "line" }]}
+          socialKey="salePrice"
+          socialRole="seller"
+          hideMarketplace
+          onOpenToken={onOpenWarpletDetails}
+        />
+      </div>
+
+      {bestFriendHolderRows.length > 0 && (
+        <section className="mt-3 rounded-xl border border-[#00FF00]/25 bg-black/65 p-3">
+          <Text className="text-xs font-black uppercase text-[#00FF00]">Best Friend Holders</Text>
+          <div className="mt-3 grid grid-cols-5 gap-2.5">
+            {bestFriendHolderRows.slice(0, 25).map((value, index) => {
+              const person = statsRecord(value) ?? {};
+              const fid = statsInteger(person.fid);
+              const pfpUrl = statsString(person.pfpUrl ?? person.pfp_url);
+              const username = statsString(person.username);
+              const wallet = statsString(person.wallet) ?? `profile-${index}`;
+              const ownedCount = statsInteger(person.ownedCount ?? person.owned_count) ?? 0;
+              const bestTokenId = statsInteger(person.bestTokenId ?? person.best_token_id);
+              return (
+                <div key={`${fid ?? wallet}-${index}`} className="relative aspect-square">
+                  <button
+                    type="button"
+                    title={username ? `@${username}` : formatShortWallet(wallet)}
+                    onClick={() => onSearchWallet(wallet)}
+                    className="h-full w-full cursor-pointer rounded-full outline-none ring-[#00FF00] focus:ring-2"
+                  >
+                    {pfpUrl ? (
+                      <img src={pfpUrl} alt="" className="h-full w-full rounded-full object-cover" loading="lazy" />
+                    ) : (
+                      <WalletIdenticon wallet={wallet} className="h-full w-full rounded-full" />
+                    )}
+                  </button>
+                  {ownedCount > 1 && (
+                    <span className="pointer-events-none absolute -right-1 -top-1 rounded-full border border-black bg-[#00FF00] px-1.5 py-0.5 text-[8px] font-black text-black">
+                      {ownedCount}
+                    </span>
+                  )}
+                  {bestTokenId && (
+                    <button
+                      type="button"
+                      title={`Open rarest Warplet #${bestTokenId}`}
+                      onClick={() => onOpenWarpletDetails(bestTokenId)}
+                      className="absolute -bottom-1 -right-1 h-[50%] w-[50%] cursor-pointer overflow-hidden rounded-full border-2 border-black bg-black outline-none ring-[#00FF00] focus:ring-2"
+                    >
+                      <img
+                        src={getWarpletPreviewImageUrl(bestTokenId)}
+                        alt={`Warplet #${bestTokenId}`}
+                        className="h-full w-full object-cover"
+                        loading="lazy"
+                      />
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {recentRows.length > 0 && (
+        <section className="mt-3 overflow-hidden rounded-xl border border-[#00FF00]/25 bg-black/65">
+          <div className="border-b border-[#00FF00]/15 px-3 py-3">
+            <Text className="text-xs font-black uppercase text-[#00FF00]">Recent Social Activity</Text>
+          </div>
+          {recentRows.slice(0, 20).map((value, index) => {
+            const event = statsRecord(value) ?? {};
+            const buyerProfile = statsRecord(event.buyerProfile ?? event.profile);
+            const tokenId = statsInteger(event.tokenId ?? event.token_id);
+            const username = statsString(event.username ?? event.buyerUsername ?? event.buyer_username ?? buyerProfile?.username);
+            const action = statsString(event.action ?? event.type)
+              ?? (event.listingEth != null || event.listing_eth != null ? "listed" : "purchased");
+            const normalizedAction = action.toLowerCase();
+            const actionChipClass = normalizedAction.includes("list")
+              ? "border-[#FFFF00]/60 bg-[rgba(255,255,0,0.12)] text-[#FFFF00]"
+              : normalizedAction.includes("offer") || normalizedAction.includes("bid")
+                ? "border-[#33AAFF]/60 bg-[rgba(51,170,255,0.12)] text-[#33AAFF]"
+                : normalizedAction.includes("purchas") || normalizedAction.includes("bought")
+                  ? "border-[#00FF00]/60 bg-[rgba(0,255,0,0.12)] text-[#00FF00]"
+                  : "border-[#FF5555]/60 bg-[rgba(255,85,85,0.12)] text-[#FF7777]";
+            const at = statsString(event.at ?? event.soldAt ?? event.listedAt ?? event.timestamp);
+            return (
+              <button
+                key={`${tokenId ?? "event"}-${at ?? index}`}
+                type="button"
+                disabled={!tokenId}
+                onClick={() => tokenId && onOpenWarpletDetails(tokenId)}
+                className="flex w-full cursor-pointer items-center gap-2 border-t border-[#00FF00]/10 px-3 py-2 text-left first:border-t-0 disabled:cursor-default"
+              >
+                {tokenId ? (
+                  <img src={getWarpletPreviewImageUrl(tokenId)} alt="" className="h-9 w-9 rounded-[3px] object-cover" loading="lazy" />
+                ) : (
+                  <span className="h-9 w-9 rounded-[3px] bg-[#041204]" />
+                )}
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[11px] font-black text-[#00FF00]">
+                    {username ? `@${username.replace(/^@/, "")}` : "Farcaster collector"}
+                  </span>
+                  <span className="mt-0.5 block text-[9px] text-[#8bbf8b]">
+                    {tokenId ? `Warplet #${tokenId}` : "Collection activity"}{at ? ` · ${formatMarketTimestamp(at)}` : ""}
+                  </span>
+                </span>
+                <span className={`shrink-0 rounded-full border px-2 py-1 text-[8px] font-black uppercase ${actionChipClass}`}>
+                  {action}
+                </span>
+              </button>
+            );
+          })}
+        </section>
+      )}
+    </div>
+  );
+}
+
+function StatsPage({
+  subpage,
+  connectedWallet,
+  viewerFid,
+  actionSessionToken,
+  onSearchWallet,
+  onOpenWarpletDetails,
+}: {
+  subpage: SearchStatsSubpage;
+  connectedWallet: string | null;
+  viewerFid: number | null;
+  actionSessionToken: string | null;
+  onSearchWallet: (wallet: string) => void;
+  onOpenWarpletDetails: (tokenId: number) => void;
+}) {
+  const [range, setRange] = useState<StatsRange>("all");
+  const [payload, setPayload] = useState<StatsApiEnvelope | null>(null);
+  const [highlights, setHighlights] = useState<unknown>(null);
+  const [ethUsdPrice, setEthUsdPrice] = useState<number | null>(null);
+  const [loading, setLoading] = useState(subpage !== "holders");
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    fetchEthUsdPrice().then(setEthUsdPrice).catch(() => undefined);
+  }, []);
+
+  useEffect(() => {
+    if (!payload || loading) return;
+    const currentRange = subpage === "overview" ? "all" : range;
+    const currentCacheKey = subpage === "overview"
+      ? STATS_OVERVIEW_CACHE_KEY
+      : `stats:${subpage}:${currentRange}`;
+    const siblingRangeRequests = subpage === "market" || subpage === "social"
+      ? STATS_RANGE_TABS
+          .filter((option) => option.id !== range)
+          .map((option) => ({
+            cacheKey: `stats:${subpage}:${option.id}`,
+            url: `/api/stats/${subpage}?range=${option.id}`,
+          }))
+      : [];
+    const remainingPageRequests = [
+      {
+        cacheKey: STATS_OVERVIEW_CACHE_KEY,
+        url: STATS_OVERVIEW_URL,
+      },
+      {
+        cacheKey: "stats:market:30d",
+        url: "/api/stats/market?range=30d",
+      },
+      {
+        cacheKey: "stats:social:30d",
+        url: "/api/stats/social?range=30d",
+      },
+      {
+        cacheKey: "stats:holders:first:100",
+        url: "/api/stats/holders?limit=100",
+      },
+    ];
+    const seenCacheKeys = new Set([currentCacheKey]);
+    const backgroundRequests = [...siblingRangeRequests, ...remainingPageRequests]
+      .filter((request) => {
+        if (seenCacheKeys.has(request.cacheKey)) return false;
+        seenCacheKeys.add(request.cacheKey);
+        return true;
+      });
+    let cancelled = false;
+    const timeout = window.setTimeout(() => {
+      void (async () => {
+        for (const request of backgroundRequests) {
+          if (cancelled) return;
+          try {
+            await fetchCachedStatsEnvelope(request);
+          } catch {
+            // Background warming is optional; the destination page retries normally.
+          }
+        }
+      })();
+    }, STATS_BACKGROUND_PREFETCH_DELAY_MS);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeout);
+    };
+  }, [loading, payload, range, subpage]);
+
+  const load = useCallback(async ({
+    refresh = false,
+    signal,
+  }: {
+    refresh?: boolean;
+    signal?: AbortSignal;
+  } = {}) => {
+    if (subpage === "holders") return;
+    if (refresh) setRefreshing(true);
+    else setLoading(true);
+    setError("");
+    try {
+      const params = new URLSearchParams({ range: subpage === "overview" ? "all" : range });
+      if (refresh) params.set("refresh", "1");
+      const effectiveRange = subpage === "overview" ? "all" : range;
+      const result = await fetchCachedStatsEnvelope({
+        cacheKey: subpage === "overview" ? STATS_OVERVIEW_CACHE_KEY : `stats:${subpage}:${effectiveRange}`,
+        url: subpage === "overview"
+          ? `${STATS_OVERVIEW_URL}${refresh ? "&refresh=1" : ""}`
+          : `/api/stats/${subpage}?${params.toString()}`,
+        force: refresh,
+      });
+      if (signal?.aborted) return;
+      setPayload(result);
+    } catch (loadError) {
+      if (signal?.aborted) return;
+      setError(loadError instanceof Error ? loadError.message : "Could not load Stats");
+    } finally {
+      if (!signal?.aborted) {
+        if (refresh) setRefreshing(false);
+        else setLoading(false);
+      }
+    }
+  }, [range, subpage]);
+
+  useEffect(() => {
+    if (subpage === "holders") return;
+    const controller = new AbortController();
+    const effectiveRange = subpage === "overview" ? "all" : range;
+    setPayload(readCachedStatsEnvelope(
+      subpage === "overview" ? STATS_OVERVIEW_CACHE_KEY : `stats:${subpage}:${effectiveRange}`,
+    ));
+    void load({ signal: controller.signal });
+    return () => controller.abort();
+  }, [load, range, subpage]);
+
+  useEffect(() => {
+    if (subpage !== "social" || !viewerFid || !actionSessionToken) {
+      setHighlights(null);
+      return;
+    }
+    const cached = statsSocialHighlightsCache.get(viewerFid);
+    if (cached && Date.now() - cached.loadedAt <= STATS_CLIENT_CACHE_TTL_MS) {
+      setHighlights(cached.payload);
+      return;
+    }
+    const controller = new AbortController();
+    const params = new URLSearchParams({
+      range: "all",
+      fid: String(viewerFid),
+    });
+    fetch(`/api/stats/social/highlights?${params.toString()}`, {
+      headers: { accept: "application/json", authorization: `Bearer ${actionSessionToken}` },
+      credentials: "same-origin",
+      signal: controller.signal,
+    })
+      .then((response) => response.ok ? response.json() : null)
+      .then((result) => {
+        if (result) {
+          statsSocialHighlightsCache.set(viewerFid, { payload: result, loadedAt: Date.now() });
+        }
+        setHighlights(result);
+      })
+      .catch((highlightError) => {
+        if (!(highlightError instanceof DOMException && highlightError.name === "AbortError")) {
+          console.warn("Stats social highlights failed:", highlightError);
+        }
+      });
+    return () => controller.abort();
+  }, [actionSessionToken, subpage, viewerFid]);
+
+  return (
+    <div className="mx-auto w-full max-w-md px-4 pb-10 pt-4">
+      {subpage !== "holders" && subpage !== "overview" && (
+        <SearchSegmentedTabs
+          className="mb-4"
+          options={STATS_RANGE_TABS}
+          activeId={range}
+          onSelect={(id) => setRange(id as StatsRange)}
+          gridTemplateColumns="repeat(5, minmax(0, 1fr))"
+        />
+      )}
+      {subpage === "holders" ? (
+        <StatsHoldersPage
+          connectedWallet={connectedWallet}
+          viewerFid={viewerFid}
+          actionSessionToken={actionSessionToken}
+          ethUsdPrice={ethUsdPrice}
+          onSearchWallet={onSearchWallet}
+          onOpenWarpletDetails={onOpenWarpletDetails}
+        />
+      ) : loading && !payload ? (
+        <StatsLoadingState subpage={subpage} />
+      ) : error && !payload ? (
+        <div className="rounded-xl border border-red-400/35 bg-red-950/20 px-4 py-8 text-center">
+          <Text className="text-xs font-bold text-red-300">{error}</Text>
+          <button type="button" onClick={() => void load()} className="mt-3 cursor-pointer text-xs font-black text-[#00FF00] underline">Try again</button>
+        </div>
+      ) : payload ? (
+        <>
+          {subpage === "overview" && <StatsOverview payload={payload} ethUsdPrice={ethUsdPrice} />}
+          {subpage === "market" && <StatsMarket payload={payload} ethUsdPrice={ethUsdPrice} />}
+          {subpage === "social" && (
+            <StatsSocial
+              payload={payload}
+              highlights={highlights}
+              viewerFid={viewerFid}
+              onSearchWallet={onSearchWallet}
+              onOpenWarpletDetails={onOpenWarpletDetails}
+            />
+          )}
+          {error && <Text className="mt-3 text-center text-[10px] font-bold text-red-300">{error}</Text>}
+          <StatsFreshness payload={payload} refreshing={refreshing} onRefresh={() => void load({ refresh: true })} />
+        </>
+      ) : null}
+    </div>
+  );
+}
+
+function WarpletPriceHistory({
+  tokenId,
+  viewerFid,
+  actionSessionToken,
+}: {
+  tokenId: number;
+  viewerFid: number | null;
+  actionSessionToken: string | null;
+}) {
+  const [open, setOpen] = useState(false);
+  const [payload, setPayload] = useState<StatsApiEnvelope | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [topFriendFids, setTopFriendFids] = useState<Set<number>>(new Set());
+
+  useEffect(() => {
+    setOpen(false);
+    setPayload(null);
+    setError("");
+  }, [tokenId]);
+
+  useEffect(() => {
+    if (!open || payload) return;
+    const controller = new AbortController();
+    setLoading(true);
+    setError("");
+    const loadPriceHistory = async () => {
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        const response = await fetch(`/api/stats/warplets/${tokenId}/price-history`, {
+          headers: { accept: "application/json" },
+          signal: controller.signal,
+        });
+        const responseText = await response.text();
+        let result: StatsApiEnvelope | null = null;
+        if (responseText.trim()) {
+          try {
+            result = JSON.parse(responseText) as StatsApiEnvelope;
+          } catch {
+            if (response.ok) throw new Error("Price history returned an invalid response. Please try again.");
+          }
+        }
+        const retryable = !responseText.trim() || [502, 503, 504].includes(response.status);
+        if (retryable && attempt === 0) {
+          await new Promise((resolve) => window.setTimeout(resolve, 300));
+          continue;
+        }
+        if (!response.ok) {
+          throw new Error(result?.message || result?.error || `Price history failed (${response.status})`);
+        }
+        if (!result) throw new Error("Price history returned an empty response. Please try again.");
+        setPayload(result);
+        return;
+      }
+    };
+    void loadPriceHistory()
+      .catch((loadError) => {
+        if (!(loadError instanceof DOMException && loadError.name === "AbortError")) {
+          setError(loadError instanceof Error ? loadError.message : "Could not load price history");
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
+    return () => controller.abort();
+  }, [open, payload, tokenId]);
+
+  useEffect(() => {
+    if (!open || !viewerFid || !actionSessionToken) {
+      if (!viewerFid || !actionSessionToken) setTopFriendFids(new Set());
+      return;
+    }
+    const controller = new AbortController();
+    const params = new URLSearchParams({
+      range: "all",
+      fid: String(viewerFid),
+    });
+    fetch(`/api/stats/social/highlights?${params.toString()}`, {
+      headers: { accept: "application/json", authorization: `Bearer ${actionSessionToken}` },
+      credentials: "same-origin",
+      signal: controller.signal,
+    })
+      .then((response) => response.ok ? response.json() : null)
+      .then((result) => setTopFriendFids(getStatsHighlightFids(result)))
+      .catch((highlightError) => {
+        if (!(highlightError instanceof DOMException && highlightError.name === "AbortError")) {
+          console.warn("Price history friend highlights failed:", highlightError);
+        }
+      });
+    return () => controller.abort();
+  }, [actionSessionToken, open, viewerFid]);
+
+  const root = payload as Record<string, unknown> | null;
+  const historyRows = payload
+    ? statsSeries(payload, "history", "sales", "prices", "events").length > 0
+      ? statsSeries(payload, "history", "sales", "prices", "events")
+      : Array.isArray(root?.sales)
+        ? root.sales
+        : Array.isArray(root?.history)
+          ? root.history
+          : []
+    : [];
+  const chartData = applySocialAvatarMarkerLimit(normalizeStatsChartData(historyRows, {
+    salePrice: ["salePrice", "price", "priceEth", "eth", "amount"],
+  }).map((point) => ({
+    ...point,
+    isTopFriend: point.isTopFriend || (typeof point.fid === "number" && topFriendFids.has(point.fid)),
+    isViewer: point.isViewer || (viewerFid != null && point.fid === viewerFid),
+  })));
+
+  return (
+    <section className="mt-3 overflow-hidden rounded-xl border border-[#00FF00]/20 bg-[#041204]/60">
+      <button
+        type="button"
+        onClick={() => {
+          void hapticSelectionChanged();
+          setOpen((current) => !current);
+        }}
+        className="flex w-full cursor-pointer items-center justify-between px-3 py-3 text-left"
+        aria-expanded={open}
+      >
+        <span>
+          <span className="block text-[10px] font-black uppercase text-[#00FF00]">Price history since Jul 2, 2026</span>
+          <span className="mt-0.5 block text-[9px] text-[#8bbf8b]">Observed post-reset sales</span>
+        </span>
+        <svg
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+          className={`h-4 w-4 text-[#00FF00] transition-transform ${open ? "rotate-180" : ""}`}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+        >
+          <path d="m6 9 6 6 6-6" />
+        </svg>
+      </button>
+      {open && (
+        <div className="border-t border-[#00FF00]/15 px-2 pb-3 pt-2">
+          {loading ? (
+            <div className="py-8 text-center text-[10px] font-bold text-[#8bbf8b]">Loading price history...</div>
+          ) : error ? (
+            <div className="py-6 text-center text-[10px] font-bold text-red-300">{error}</div>
+          ) : chartData.length === 0 ? (
+            <div className="py-8 text-center text-[10px] font-bold text-[#8bbf8b]">No observed sales since Jul 2, 2026.</div>
+          ) : (
+            <>
+              <StatsChartErrorBoundary>
+                <Suspense fallback={<StatsChartFallback />}>
+                  <LazyStatsChart
+                    data={chartData}
+                    series={[{ key: "salePrice", label: "Sale ETH", color: "#33AAFF", type: "line" }]}
+                    socialKey="salePrice"
+                    height={180}
+                  />
+                </Suspense>
+              </StatsChartErrorBoundary>
+              <div className="mt-2 space-y-1">
+                {historyRows.slice(-5).reverse().map((value, index) => {
+                  const sale = statsRecord(value) ?? {};
+                  const amount = statsNumber(sale.salePrice ?? sale.price ?? sale.priceEth ?? sale.eth ?? sale.amount);
+                  const at = statsString(sale.at ?? sale.timestamp ?? sale.date);
+                  const txHash = statsString(sale.txHash ?? sale.tx_hash ?? sale.transactionHash);
+                  const marketplace = statsString(sale.marketplace ?? sale.market) ?? "Sale";
+                  const pfpUrl = statsString(sale.avatarUrl ?? sale.pfpUrl ?? sale.buyerPfpUrl);
+                  const buyer = statsString(sale.buyerUsername ?? sale.username);
+                  const buyerFid = statsInteger(sale.buyerFid ?? sale.buyer_fid);
+                  const isTopFriend = sale.isTopFriend === true || sale.is_top_friend === true || (buyerFid != null && topFriendFids.has(buyerFid));
+                  const content = (
+                    <>
+                      {pfpUrl ? (
+                        <img
+                          src={pfpUrl}
+                          alt=""
+                          className={`h-7 w-7 rounded-full border-2 object-cover ${isTopFriend ? "border-[#00FF00] ring-1 ring-[#CCFFCC] shadow-[0_0_6px_#00FF00]" : "border-[#00FF00]/45"}`}
+                          loading="lazy"
+                        />
+                      ) : (
+                        <span className="h-2.5 w-2.5 rounded-full bg-[#00FF00]" />
+                      )}
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-[10px] font-black text-[#00FF00]">
+                          {amount == null
+                            ? "Sale"
+                            : `${formatEthNumber(amount, 8).replace(/\s*\u039e$/, "")} ETH`} · {marketplace}
+                        </span>
+                        <span className="block truncate text-[9px] text-[#8bbf8b]">
+                          {buyer ? `@${buyer.replace(/^@/, "")}` : "Unknown buyer"}{at ? ` · ${formatMarketTimestamp(at)}` : ""}
+                        </span>
+                      </span>
+                    </>
+                  );
+                  return txHash ? (
+                    <button
+                      key={`${txHash}-${index}`}
+                      type="button"
+                      onClick={() => void openExternalAsset(`https://basescan.org/tx/${txHash}`)}
+                      className="flex w-full cursor-pointer items-center gap-2 rounded-lg border border-[#00FF00]/10 bg-black/45 px-2 py-1.5 text-left hover:border-[#00FF00]/35"
+                    >
+                      {content}
+                    </button>
+                  ) : (
+                    <div key={`${at ?? index}-${index}`} className="flex items-center gap-2 rounded-lg border border-[#00FF00]/10 bg-black/45 px-2 py-1.5">
+                      {content}
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="mt-2 text-center text-[9px] text-[#8bbf8b]">
+                {payload?.complete === false ? "Partial history" : "History complete"} · D1 observed activity
+              </div>
+            </>
+          )}
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -7681,6 +10192,7 @@ function WarpletDetailsModal({
   marketRefreshError,
   onRefreshMarket,
   viewerFid,
+  actionSessionToken,
   onMergeMarketSnapshot,
   onClearMarketSide,
   onUpsertListing,
@@ -7706,6 +10218,7 @@ function WarpletDetailsModal({
   marketRefreshError: string;
   onRefreshMarket: () => void;
   viewerFid: number | null;
+  actionSessionToken: string | null;
   onMergeMarketSnapshot: (tokenId: number, snapshot: MarketSnapshot) => void;
   onClearMarketSide: (tokenId: number, side: "listing" | "offer" | "collectionOffer") => void;
   onUpsertListing: (tokenId: number, listing: MarketSnapshot["listings"][string]) => void;
@@ -9525,6 +12038,12 @@ function WarpletDetailsModal({
               )}
             </div>
 
+            <WarpletPriceHistory
+              tokenId={details.id}
+              viewerFid={viewerFid}
+              actionSessionToken={actionSessionToken}
+            />
+
             <div className="mt-4 grid grid-cols-2 gap-2">
               {ASSET_LINKS.map((asset) => (
                 <button
@@ -9653,6 +12172,7 @@ export default function SearchApp() {
   const { isMenuRoute, canGoBack, actions } = useMiniAppChrome("search");
   const [searchRoute, setSearchRoute] = useState<SearchRoute>(() => parseSearchRouteFromPath(window.location.pathname));
   const [lastOffersSubpage, setLastOffersSubpage] = useState<SearchOffersSubpage>(() => readLastSearchOffersSubpage());
+  const [lastStatsSubpage, setLastStatsSubpage] = useState<SearchStatsSubpage>(() => readLastSearchStatsSubpage());
   const [lastListedLevel, setLastListedLevel] = useState<ListedLevelFilter>(() => readLastSearchListedLevel());
   const {
     user: neynarUser,
@@ -9778,6 +12298,9 @@ export default function SearchApp() {
       if (nextRoute.page === "offers") {
         setLastOffersSubpage(nextRoute.offersPage);
         writeLastSearchOffersSubpage(nextRoute.offersPage);
+      } else if (nextRoute.page === "stats") {
+        setLastStatsSubpage(nextRoute.statsPage);
+        writeLastSearchStatsSubpage(nextRoute.statsPage);
       } else if (nextRoute.page === "listed") {
         setLastListedLevel(nextRoute.listedLevel);
         writeLastSearchListedLevel(nextRoute.listedLevel);
@@ -9817,6 +12340,9 @@ export default function SearchApp() {
     if (route.page === "offers") {
       setLastOffersSubpage(route.offersPage);
       writeLastSearchOffersSubpage(route.offersPage);
+    } else if (route.page === "stats") {
+      setLastStatsSubpage(route.statsPage);
+      writeLastSearchStatsSubpage(route.statsPage);
     } else if (route.page === "listed") {
       setLastListedLevel(route.listedLevel);
       writeLastSearchListedLevel(route.listedLevel);
@@ -11256,6 +13782,16 @@ export default function SearchApp() {
     handleSearchOwnerWallet(wallet, { focus: false, levels: levelNumber == null ? [] : [levelNumber] });
   }, [handleSearchOwnerWallet, navigateSearchRoute]);
 
+  const handleStatsSearchOwnerWallet = useCallback((wallet: string) => {
+    navigateSearchRoute({ page: "search" });
+    handleSearchOwnerWallet(wallet, { focus: false });
+    window.setTimeout(() => {
+      window.scrollTo({ top: 0, behavior: "auto" });
+      document.documentElement.scrollTo({ top: 0, behavior: "auto" });
+      document.body.scrollTo({ top: 0, behavior: "auto" });
+    }, 0);
+  }, [handleSearchOwnerWallet, navigateSearchRoute]);
+
   const handleToggleFavourite = useCallback(async (tokenId: number) => {
     void hapticPrimaryTap();
     let wallet: string;
@@ -11712,11 +14248,12 @@ export default function SearchApp() {
       const prepared = await Promise.all(rows.map(async (row) => {
         const listing = row.market.listing;
         if (!listing) throw new Error(`Warplet #${row.warplet.id} is no longer listed`);
+        const actionId = crypto.randomUUID();
         const response = await fetch("/api/warplet-trade/buy/prepare", {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({
-            actionId: crypto.randomUUID(),
+            actionId,
             fid: viewerFid,
             tokenId: row.warplet.id,
             wallet: account,
@@ -11737,7 +14274,7 @@ export default function SearchApp() {
         if (!response.ok) throw new Error(payload.message || `Bulk buy preparation failed (${response.status})`);
         const transaction = extractFulfillmentTransaction(payload.fulfillment);
         if (!transaction) throw new Error(`OpenSea did not return a transaction for #${row.warplet.id}`);
-        return { row, listing: payload.state?.listing ?? listing, transaction, chainIdHex: payload.chainIdHex };
+        return { actionId, row, listing: payload.state?.listing ?? listing, transaction, chainIdHex: payload.chainIdHex };
       }));
 
       await ensureBaseChain(provider, prepared[0]?.chainIdHex);
@@ -11771,6 +14308,31 @@ export default function SearchApp() {
         };
         handleApplyPurchase(item.row.warplet.id, { buyerWallet: account, buyerFid: viewerFid, sale });
       }
+      void (async () => {
+        for (let index = 0; index < purchased.length; index += 5) {
+          const batch = purchased.slice(index, index + 5);
+          await Promise.allSettled(batch.map((item) =>
+            fetch("/api/warplet-trade/log", {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({
+                actionId: item.actionId,
+                actionName: "buy",
+                status: "confirmed",
+                phase: "confirmed",
+                fid: viewerFid,
+                tokenId: item.row.warplet.id,
+                walletFrom: account,
+                walletTo: item.listing?.seller ?? null,
+                orderHash: item.listing?.orderHash ?? null,
+                transactionHash: hash,
+                expectedPriceRaw: item.listing?.rawAmount ?? null,
+                actualPriceRaw: item.listing?.rawAmount ?? null,
+              }),
+            }),
+          ));
+        }
+      })();
       void hapticSuccess();
       showTradeConfetti();
       window.setTimeout(() => {
@@ -11904,8 +14466,9 @@ export default function SearchApp() {
   }, []);
 
   const siwnConnected = Boolean(!isInMiniAppContext && siwnViewerProfile?.fid);
+  const miniAppIdentityConnected = Boolean(isInMiniAppContext && viewerProfile?.fid);
   const miniAppWalletConnected = Boolean(isInMiniAppContext && activeWallet);
-  const headerAccountConnected = miniAppWalletConnected || siwnConnected;
+  const headerAccountConnected = miniAppIdentityConnected || miniAppWalletConnected || siwnConnected;
   const headerAccountProfile = isInMiniAppContext ? viewerProfile : siwnViewerProfile;
   const headerAccountUsername = headerAccountProfile?.username?.trim() || null;
   const headerAccountLabel = headerAccountUsername
@@ -11986,6 +14549,7 @@ export default function SearchApp() {
           <SearchPageNavigation
             route={searchRoute}
             lastOffersSubpage={lastOffersSubpage}
+            lastStatsSubpage={lastStatsSubpage}
             lastListedLevel={lastListedLevel}
             onNavigate={navigateSearchRoute}
           />
@@ -12013,7 +14577,14 @@ export default function SearchApp() {
             onBulkBuy={handleListedBulkBuy}
           />
         ) : searchRoute.page === "stats" ? (
-          <SearchPlaceholderPage title="Stats" />
+          <StatsPage
+            subpage={searchRoute.statsPage}
+            connectedWallet={activeWallet}
+            viewerFid={viewerFid}
+            actionSessionToken={actionSessionToken}
+            onSearchWallet={handleStatsSearchOwnerWallet}
+            onOpenWarpletDetails={handleOpenWarpletDetails}
+          />
         ) : searchRoute.page === "offers" && searchRoute.offersPage === "collection" ? (
           <CollectionOffersPage
             connectedWallet={activeWallet}
@@ -12283,6 +14854,7 @@ export default function SearchApp() {
             marketRefreshError={index === selectedWarpletDetailsStack.length - 1 ? marketRefreshError : ""}
             onRefreshMarket={handleRefreshSelectedMarket}
             viewerFid={viewerFid}
+            actionSessionToken={actionSessionToken}
             onMergeMarketSnapshot={handleMergeMarketSnapshot}
             onClearMarketSide={handleClearMarketSide}
             onUpsertListing={handleUpsertListing}

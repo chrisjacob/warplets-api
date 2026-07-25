@@ -311,6 +311,9 @@ export default defineConfig({
     chunkSizeWarningLimit: 700,
   },
   optimizeDeps: {
+    // Stats charts are lazy-loaded. Pre-bundle Recharts at startup so the first
+    // chart request through a local tunnel cannot invalidate Vite's dependency hash.
+    include: ["recharts"],
     exclude: ["@sqlite.org/sqlite-wasm"],
   },
   plugins: [
