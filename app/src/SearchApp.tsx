@@ -4639,7 +4639,7 @@ function StatsHolderAvatar({ row }: { row: StatsHolderRow }) {
   const ringClass = row.isViewer
     ? "border-[#FFFF00] shadow-[0_0_8px_rgba(255,255,0,0.75)]"
     : row.isTopFriend
-      ? "border-[#00FF00] ring-2 ring-[#CCFFCC] shadow-[0_0_9px_rgba(0,255,0,0.9)]"
+      ? "border-[#7959ff] ring-2 ring-[#b9aaff] shadow-[0_0_9px_rgba(121,89,255,0.9)]"
       : "border-[#00FF00]/55";
   return row.pfpUrl ? (
     <img
@@ -4682,9 +4682,11 @@ function StatsHolderRowView({
           onSearchWallet(row.wallet);
         }
       }}
-      className={`group relative mx-2 my-2 cursor-pointer rounded-xl border px-3 py-3 outline-none transition focus:ring-1 hover:-translate-y-px hover:border-2 ${
+      className={`group relative my-2 w-full cursor-pointer rounded-xl border px-3 py-3 outline-none transition focus:ring-1 hover:-translate-y-px hover:border-2 ${
         highlightViewer
           ? "border-[#FFFF00]/35 bg-[rgba(255,255,0,0.055)] hover:border-[#FFFF00] hover:bg-[rgba(255,255,0,0.075)] hover:shadow-[0_0_16px_rgba(255,255,0,0.55)] focus:ring-[#FFFF00]"
+          : row.isTopFriend
+            ? "border-[#7959ff]/45 bg-[rgba(93,66,214,0.12)] hover:border-[#7959ff] hover:bg-[rgba(93,66,214,0.18)] hover:shadow-[0_0_16px_rgba(121,89,255,0.55)] focus:ring-[#7959ff]"
           : "border-[#00FF00]/25 bg-[#041204]/90 hover:border-[#00FF00] hover:bg-[#071807]/95 hover:shadow-[0_0_16px_rgba(0,255,0,0.55)] focus:ring-[#00FF00]"
       }`}
     >
@@ -4692,6 +4694,8 @@ function StatsHolderRowView({
         <span className={`min-w-11 shrink-0 rounded-full border px-2 py-1 text-center text-xs font-black ${
           highlightViewer
             ? "border-[#FFFF00] bg-[rgba(255,255,0,0.12)] text-[#FFFF00]"
+            : row.isTopFriend
+              ? "border-[#7959ff] bg-[rgba(121,89,255,0.16)] text-[#b9aaff]"
             : "border-[#00FF00] bg-[rgba(0,255,0,0.1)] text-[#00FF00]"
         }`}>
           {row.rank ? `#${row.rank.toLocaleString("en-US")}` : "—"}
@@ -4708,9 +4712,11 @@ function StatsHolderRowView({
           <StatsHolderAvatar row={row} />
           <span className="min-w-0">
             <span className="flex min-w-0 items-center gap-1.5">
-              <span className="truncate text-xs font-black text-[#00FF00]">{identity}</span>
+              <span className={`truncate text-xs font-black ${
+                highlightViewer ? "text-[#FFFF00]" : row.isTopFriend ? "text-[#b9aaff]" : "text-[#00FF00]"
+              }`}>{identity}</span>
               {highlightViewer && <span className="rounded bg-[#FFFF00] px-1 py-0.5 text-[8px] font-black text-black">YOU</span>}
-              {row.isTopFriend && <span title="Neynar-ranked Top 100 Friend" className="rounded border border-[#00FF00]/50 px-1 py-0.5 text-[8px] font-black text-[#00FF00]">TOP 100</span>}
+              {row.isTopFriend && !highlightViewer && <span title="Neynar-ranked Top 100 Friend" className="rounded border border-[#7959ff]/70 bg-[rgba(121,89,255,0.15)] px-1 py-0.5 text-[8px] font-black text-[#b9aaff]">FRIEND</span>}
             </span>
             {row.username && row.displayName && (
               <span className="mt-0.5 block truncate text-[9px] text-[#8bbf8b]">{row.displayName}</span>
@@ -4815,6 +4821,8 @@ function StatsHoldersPage({
   const [error, setError] = useState("");
   const [renderedRowCount, setRenderedRowCount] = useState(STATS_HOLDER_INITIAL_RENDER_ROWS);
   const [topFriendFids, setTopFriendFids] = useState<Set<number>>(new Set());
+  const [friendRows, setFriendRows] = useState<StatsHolderRow[]>([]);
+  const [friendsOnly, setFriendsOnly] = useState(false);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
   const loadViewer = useCallback(async (signal?: AbortSignal, refresh = false) => {
@@ -4910,6 +4918,8 @@ function StatsHoldersPage({
   useEffect(() => {
     if (!viewerFid || !actionSessionToken) {
       setTopFriendFids(new Set());
+      setFriendRows([]);
+      setFriendsOnly(false);
       return;
     }
     const controller = new AbortController();
@@ -4923,7 +4933,18 @@ function StatsHoldersPage({
       signal: controller.signal,
     })
       .then((response) => response.ok ? response.json() : null)
-      .then((result) => setTopFriendFids(getStatsHighlightFids(result)))
+      .then((result) => {
+        setTopFriendFids(getStatsHighlightFids(result));
+        const root = statsRecord(result);
+        const holders = Array.isArray(root?.friendHolders) ? root.friendHolders : [];
+        setFriendRows(
+          holders
+            .map(normalizeStatsHolderRow)
+            .filter((row): row is StatsHolderRow => Boolean(row))
+            .map((row) => ({ ...row, isTopFriend: true }))
+            .sort((left, right) => (left.rank ?? Number.MAX_SAFE_INTEGER) - (right.rank ?? Number.MAX_SAFE_INTEGER)),
+        );
+      })
       .catch((highlightError) => {
         if (!(highlightError instanceof DOMException && highlightError.name === "AbortError")) {
           console.warn("Holder friend highlights failed:", highlightError);
@@ -4933,6 +4954,7 @@ function StatsHoldersPage({
   }, [actionSessionToken, viewerFid]);
 
   useEffect(() => {
+    if (friendsOnly) return;
     const target = loadMoreRef.current;
     const rankedRowCount = rows.length;
     const hasBufferedRows = renderedRowCount < rankedRowCount;
@@ -4950,11 +4972,11 @@ function StatsHoldersPage({
     }, { rootMargin: "600px 0px" });
     observer.observe(target);
     return () => observer.disconnect();
-  }, [loadPage, loadingMore, nextCursor, renderedRowCount, rows]);
+  }, [friendsOnly, loadPage, loadingMore, nextCursor, renderedRowCount, rows]);
 
   const summary = payload?.summary;
   const holderCount = statsInteger(summary?.holderCount ?? summary?.uniqueOwners ?? summary?.totalHolders) ?? viewerTotal;
-  const rankedRows = rows;
+  const rankedRows = friendsOnly ? friendRows : rows;
   const visibleRows = rankedRows.slice(0, renderedRowCount);
   const hasBufferedRows = visibleRows.length < rankedRows.length;
 
@@ -4972,8 +4994,8 @@ function StatsHoldersPage({
           <div className="mb-3">
             {viewerRow ? (
               <>
-                <div className="px-3 text-[10px] font-black text-[#FFFF00]">
-                  Your rank: #{viewerRow.rank?.toLocaleString("en-US") ?? "—"} of {holderCount?.toLocaleString("en-US") ?? "—"}
+                <div className="text-xs font-black uppercase text-[#FFFF00]">
+                  YOUR RANK: #{viewerRow.rank?.toLocaleString("en-US") ?? "—"} of {holderCount?.toLocaleString("en-US") ?? "—"}
                 </div>
                 <StatsHolderRowView
                   row={{ ...viewerRow, isViewer: true }}
@@ -4991,8 +5013,38 @@ function StatsHoldersPage({
           </div>
         )}
 
-        <div className="px-3 py-2 text-center">
+        <div className="flex items-center justify-between py-2">
           <Text className="text-xs font-black uppercase text-[#00FF00]">Leaderboard</Text>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={friendsOnly}
+            disabled={!viewerFid || !actionSessionToken}
+            onClick={() => {
+              setFriendsOnly((current) => !current);
+              setRenderedRowCount(STATS_HOLDER_INITIAL_RENDER_ROWS);
+              void hapticSelectionChanged();
+            }}
+            className={`flex cursor-pointer items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[10px] font-black uppercase transition disabled:cursor-not-allowed disabled:opacity-40 ${
+              friendsOnly
+                ? "border-[#7959ff] bg-[#7959ff] text-white shadow-[0_0_9px_rgba(121,89,255,0.55)]"
+                : "border-[#7959ff]/60 bg-[rgba(93,66,214,0.12)] text-[#b9aaff] hover:border-[#7959ff]"
+            }`}
+          >
+            <span
+              aria-hidden="true"
+              className={`flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-[3px] border ${
+                friendsOnly
+                  ? "border-white bg-white text-[#5d42d6]"
+                  : "border-[#b9aaff] bg-black/35 text-transparent"
+              }`}
+            >
+              <svg viewBox="0 0 12 12" className="h-2.5 w-2.5" fill="none" stroke="currentColor" strokeWidth="2.25">
+                <path d="m2 6 2.4 2.4L10 3" />
+              </svg>
+            </span>
+            Friends
+          </button>
         </div>
 
         {loading ? (
@@ -5005,13 +5057,19 @@ function StatsHoldersPage({
             <button type="button" onClick={refresh} className="mt-3 cursor-pointer text-xs font-black text-[#00FF00] underline">Try again</button>
           </div>
         ) : visibleRows.length === 0 ? (
-          <div className="px-3 py-10 text-center text-xs font-bold text-[#8bbf8b]">No ranked holders are available yet.</div>
+          <div className="px-3 py-10 text-center text-xs font-bold text-[#8bbf8b]">
+            {friendsOnly ? "None of your Top 100 Friends currently hold a Warplet." : "No ranked holders are available yet."}
+          </div>
         ) : (
           visibleRows.map((row) => (
             <StatsHolderRowView
               key={row.wallet}
               row={{
                 ...row,
+                isViewer: row.isViewer || (
+                  connectedWallet != null &&
+                  row.wallet.toLowerCase() === connectedWallet.toLowerCase()
+                ),
                 isTopFriend: row.isTopFriend || (row.fid != null && topFriendFids.has(row.fid)),
               }}
               ethUsdPrice={ethUsdPrice}
@@ -5021,7 +5079,7 @@ function StatsHoldersPage({
           ))
         )}
         <div ref={loadMoreRef} className="h-px" />
-        {(hasBufferedRows || nextCursor) && (
+        {(hasBufferedRows || (!friendsOnly && nextCursor)) && (
           <button
             type="button"
             disabled={loadingMore}
@@ -5029,7 +5087,7 @@ function StatsHoldersPage({
               if (hasBufferedRows) {
                 setRenderedRowCount((current) =>
                   Math.min(current + STATS_HOLDER_RENDER_BATCH, rankedRows.length));
-              } else if (nextCursor) {
+              } else if (!friendsOnly && nextCursor) {
                 void loadPage({ cursor: nextCursor, append: true });
               }
             }}
@@ -5042,7 +5100,7 @@ function StatsHoldersPage({
                 : "Load 100 more"}
           </button>
         )}
-        {!hasBufferedRows && !nextCursor && rows.length > 0 && (
+        {!friendsOnly && !hasBufferedRows && !nextCursor && rows.length > 0 && (
           <div className="border-t border-[#00FF00]/15 px-3 py-3 text-center text-[10px] font-bold text-[#8bbf8b]">
             All ranked holders loaded.
           </div>

@@ -3313,6 +3313,7 @@ export async function handleStatsSocialHighlightsGet(
       }));
     const friendFids = friends.map((friend) => friend.fid);
     let friendHolders: Array<{
+      rank: number;
       wallet: string;
       ownedCount: number;
       fid: number;
@@ -3320,15 +3321,29 @@ export async function handleStatsSocialHighlightsGet(
       displayName: string | null;
       pfpUrl: string | null;
       friendRank: number;
+      bestRarityRank: number | null;
       bestTokenId: number | null;
+      previewTokenIds: number[];
+      remainingCount: number;
+      ownedPct: number;
+      floorValueEth: number | null;
     }> = [];
     if (friendFids.length > 0) {
       const materialized = await ensureHolderLeaderboard(context.env.WARPLETS);
-      const holderRows = await context.env.WARPLETS.prepare(
+      const [holderRows, currentMarket] = await Promise.all([
+        context.env.WARPLETS.prepare(
         `WITH ${holderCte(materialized)},
          friend_fids AS (
            SELECT CAST(value AS INTEGER) AS fid
            FROM json_each(?)
+         ),
+         ranked_holders AS (
+           SELECT
+             *,
+             ROW_NUMBER() OVER (
+               ORDER BY owned_count DESC, best_rarity_rank ASC, wallet ASC
+             ) AS rank
+           FROM holder_source
          ),
          identity_wallets AS (
            SELECT DISTINCT LOWER(TRIM(owner_wallet)) AS wallet, owner_fid AS fid
@@ -3341,36 +3356,60 @@ export async function handleStatsSocialHighlightsGet(
            WHERE fid IN (SELECT fid FROM friend_fids)
          )
          SELECT
+           h.rank,
            h.wallet,
            h.owned_count,
+           h.best_rarity_rank,
            h.best_token_id,
+           h.preview_token_ids_json,
            i.fid
-         FROM holder_source h
+         FROM ranked_holders h
          INNER JOIN identity_wallets i ON i.wallet = h.wallet`
-      ).bind(JSON.stringify(friendFids)).all<{
+        ).bind(JSON.stringify(friendFids)).all<{
+          rank: number;
         wallet: string;
         owned_count: number;
+        best_rarity_rank: number | null;
         best_token_id: number | null;
+        preview_token_ids_json: string;
         fid: number;
-      }>();
+        }>(),
+        loadCurrentMarket(context.env.WARPLETS),
+      ]);
       const holderProfiles = await loadProfilesForFids(
         context.env.WARPLETS,
         (holderRows.results ?? []).map((row) => row.fid),
       );
       const rankByFid = new Map(friends.map((friend) => [friend.fid, friend.rank]));
+      const seenFriendWallets = new Set<string>();
       friendHolders = (holderRows.results ?? [])
-        .map((row) => ({
-          wallet: row.wallet,
-          ownedCount: row.owned_count,
-          fid: row.fid,
-          username: holderProfiles.get(row.fid)?.username ?? null,
-          displayName: holderProfiles.get(row.fid)?.displayName ?? null,
-          pfpUrl: holderProfiles.get(row.fid)?.pfpUrl ?? null,
-          friendRank: rankByFid.get(row.fid) ?? 101,
-          bestTokenId: row.best_token_id,
-        }))
+        .map((row) => {
+          const previewTokenIds = parsePreviewTokenIds(row.preview_token_ids_json);
+          return {
+            rank: row.rank,
+            wallet: row.wallet,
+            ownedCount: row.owned_count,
+            fid: row.fid,
+            username: holderProfiles.get(row.fid)?.username ?? null,
+            displayName: holderProfiles.get(row.fid)?.displayName ?? null,
+            pfpUrl: holderProfiles.get(row.fid)?.pfpUrl ?? null,
+            friendRank: rankByFid.get(row.fid) ?? 101,
+            bestRarityRank: row.best_rarity_rank,
+            bestTokenId: row.best_token_id,
+            previewTokenIds,
+            remainingCount: Math.max(0, row.owned_count - previewTokenIds.length),
+            ownedPct: safePercentage(row.owned_count, WARPLETS_TOTAL_SUPPLY),
+            floorValueEth: currentMarket.floorEth === null
+              ? null
+              : row.owned_count * currentMarket.floorEth,
+          };
+        })
         .sort((left, right) => left.friendRank - right.friendRank || left.wallet.localeCompare(right.wallet))
-        .slice(0, 25);
+        .filter((row) => {
+          if (seenFriendWallets.has(row.wallet)) return false;
+          seenFriendWallets.add(row.wallet);
+          return true;
+        });
     }
     const fetchedAt = (result.results ?? [])
       .map((row) => row.fetched_at)
