@@ -1,9 +1,9 @@
-import { loadMarketSnapshot, marketJson, type OpenSeaMarketEnv } from "../_lib/openseaMarket.js";
+import { loadCompactMarketSnapshot, marketJson, marketJsonWithEtag, type OpenSeaMarketEnv } from "../_lib/openseaMarket.js";
 
 export const onRequestGet: PagesFunction<OpenSeaMarketEnv> = async (context) => {
   try {
-    const snapshot = await loadMarketSnapshot(context.env);
-    return marketJson(snapshot);
+    const snapshot = await loadCompactMarketSnapshot(context.env);
+    return marketJsonWithEtag(snapshot, context.request);
   } catch (error) {
     return marketJson(
       {

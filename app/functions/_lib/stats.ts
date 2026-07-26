@@ -290,16 +290,19 @@ function jsonError(code: string, message: string, status = 500): Response {
   return jsonStats({ error: code, message }, { private: true, status });
 }
 
+const tableExistsCache = new Map<string, Promise<boolean>>();
+
 async function tableExists(db: D1Database, table: string): Promise<boolean> {
-  try {
-    const row = await db
-      .prepare("SELECT 1 AS found FROM sqlite_master WHERE type = 'table' AND name = ? LIMIT 1")
-      .bind(table)
-      .first<{ found: number }>();
-    return row?.found === 1;
-  } catch {
-    return false;
-  }
+  const cached = tableExistsCache.get(table);
+  if (cached) return cached;
+  const lookup = db
+    .prepare("SELECT 1 AS found FROM sqlite_master WHERE type = 'table' AND name = ? LIMIT 1")
+    .bind(table)
+    .first<{ found: number }>()
+    .then((row) => row?.found === 1)
+    .catch(() => false);
+  tableExistsCache.set(table, lookup);
+  return lookup;
 }
 
 function envEnabled(value: string | undefined): boolean {
@@ -1019,28 +1022,8 @@ export async function refreshHolderLeaderboardWallets(
 async function ensureHolderLeaderboard(db: D1Database): Promise<boolean> {
   if (!(await tableExists(db, "holder_leaderboard"))) return false;
   try {
-    const [leaderboard, market] = await Promise.all([
-      db.prepare(
-        `SELECT COUNT(*) AS holders, COALESCE(SUM(owned_count), 0) AS tokens
-         FROM holder_leaderboard`
-      ).first<{ holders: number; tokens: number }>(),
-      db.prepare(
-        `SELECT COUNT(*) AS tokens
-         FROM warplet_market_state
-         WHERE owner_wallet IS NOT NULL
-           AND TRIM(owner_wallet) <> ''
-           AND LOWER(TRIM(owner_wallet)) <> ?`
-      ).bind(ZERO_ADDRESS).first<{ tokens: number }>(),
-    ]);
-
-    const shouldRebuild =
-      !leaderboard?.holders ||
-      Number(leaderboard.tokens ?? 0) !== Number(market?.tokens ?? 0);
-    if (shouldRebuild) {
-      const result = await rebuildHolderLeaderboard(db);
-      return result.rebuilt;
-    }
-    return true;
+    const row = await db.prepare("SELECT 1 AS ready FROM holder_leaderboard LIMIT 1").first<{ ready: number }>();
+    return row?.ready === 1;
   } catch {
     return false;
   }
@@ -3848,5 +3831,186 @@ export async function handleStatsPriceHistoryGet(
       "stats_price_history_unavailable",
       error instanceof Error ? error.message : String(error),
     );
+  }
+}
+
+type ActivityCursor = { at: string; key: string };
+
+function decodeActivityCursor(raw: string | null): ActivityCursor | null {
+  if (!raw) return null;
+  try {
+    const normalized = raw.replace(/-/g, "+").replace(/_/g, "/");
+    const parsed = JSON.parse(atob(normalized)) as Partial<ActivityCursor>;
+    return typeof parsed.at === "string" && typeof parsed.key === "string"
+      ? { at: parsed.at, key: parsed.key }
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+function encodeActivityCursor(cursor: ActivityCursor): string {
+  return btoa(JSON.stringify(cursor)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+
+export async function handleStatsActivityGet(
+  context: EventContext<StatsEnv, string, unknown>,
+): Promise<Response> {
+  const url = new URL(context.request.url);
+  const range = getRange(url);
+  const tokenId = asInteger(url.searchParams.get("tokenId"));
+  if (tokenId !== null && (tokenId < 1 || tokenId > WARPLETS_TOTAL_SUPPLY)) {
+    return jsonError("invalid_token_id", "Token ID must be between 1 and 10000.", 400);
+  }
+  const limit = Math.min(20, Math.max(1, asInteger(url.searchParams.get("limit")) ?? 20));
+  const cursor = decodeActivityCursor(url.searchParams.get("cursor"));
+  const friendsOnly = url.searchParams.get("friends") === "1";
+  const requestedFid = asInteger(url.searchParams.get("fid"));
+  let viewerFid: number | null = null;
+  if (friendsOnly) {
+    const token = context.request.headers.get("authorization")?.replace(/^Bearer\s+/i, "").trim() || null;
+    const session = await verifyActionSessionToken(context.env.ACTION_SESSION_SECRET, token);
+    if (!session.valid || (requestedFid !== null && requestedFid !== session.fid)) {
+      return jsonError("friends_authorization_required", "Connect to filter activity by friends.", 401);
+    }
+    viewerFid = session.fid;
+  }
+
+  try {
+    const conditions = ["a.occurred_at >= ?"];
+    const bindings: Array<string | number> = [getRangeStart(range)];
+    if (tokenId !== null) {
+      conditions.push("a.token_id = ?");
+      bindings.push(tokenId);
+    }
+    if (cursor) {
+      conditions.push("(a.occurred_at < ? OR (a.occurred_at = ? AND a.canonical_key < ?))");
+      bindings.push(cursor.at, cursor.at, cursor.key);
+    }
+    if (friendsOnly && viewerFid !== null) {
+      conditions.push(`EXISTS (
+        SELECT 1 FROM warplets_user_best_friends bf
+        WHERE bf.user_fid = ?
+          AND (
+            bf.best_friend_fid IN (a.from_fid, a.to_fid)
+            OR EXISTS (
+              SELECT 1 FROM wallet_farcaster_links l
+              WHERE l.fid = bf.best_friend_fid
+                AND LOWER(TRIM(l.wallet)) IN (LOWER(TRIM(a.from_wallet)), LOWER(TRIM(a.to_wallet)))
+            )
+          )
+      )`);
+      bindings.push(viewerFid);
+    }
+    const result = await context.env.WARPLETS.prepare(
+      `SELECT
+         a.canonical_key, a.event_type, a.token_id, a.price_eth,
+         a.transaction_hash, a.order_hash, a.from_wallet, a.from_fid,
+         CASE WHEN a.event_type = 'offer' THEN m.owner_wallet ELSE a.to_wallet END AS to_wallet,
+         CASE WHEN a.event_type = 'offer' THEN m.owner_fid ELSE a.to_fid END AS to_fid,
+         a.occurred_at
+       FROM warplet_market_activity a
+       LEFT JOIN warplet_market_state m ON m.token_id = a.token_id
+       WHERE ${conditions.join(" AND ")}
+         AND NOT (
+           a.event_type = 'transfer' AND EXISTS (
+             SELECT 1 FROM warplet_market_activity sale
+             WHERE sale.event_type = 'sale'
+               AND sale.token_id = a.token_id
+               AND sale.transaction_hash IS NOT NULL
+               AND LOWER(sale.transaction_hash) = LOWER(a.transaction_hash)
+           )
+         )
+       ORDER BY a.occurred_at DESC, a.canonical_key DESC
+       LIMIT ?`
+    ).bind(...bindings, limit + 1).all<{
+      canonical_key: string; event_type: string; token_id: number; price_eth: number | null;
+      transaction_hash: string | null; order_hash: string | null;
+      from_wallet: string | null; from_fid: number | null; to_wallet: string | null;
+      to_fid: number | null; occurred_at: string;
+    }>();
+    const allRows = result.results ?? [];
+    const hasMore = allRows.length > limit;
+    const pageRows = allRows.slice(0, limit);
+    const profiles = await loadProfilesForWallets(
+      context.env.WARPLETS,
+      pageRows.flatMap((row) => [row.from_wallet, row.to_wallet]),
+    );
+    const rows = pageRows.map((row) => ({
+      key: row.canonical_key,
+      event: row.event_type,
+      tokenId: row.token_id,
+      priceEth: row.event_type === "transfer" ? null : row.price_eth,
+      transactionHash: row.transaction_hash,
+      orderHash: row.order_hash,
+      at: row.occurred_at,
+      from: row.from_wallet ? {
+        wallet: normalizeWallet(row.from_wallet),
+        ...(publicProfile(profiles.get(normalizeWallet(row.from_wallet) ?? "") ?? null) ?? {}),
+        fid: profiles.get(normalizeWallet(row.from_wallet) ?? "")?.fid ?? row.from_fid,
+      } : null,
+      to: row.to_wallet ? {
+        wallet: normalizeWallet(row.to_wallet),
+        ...(publicProfile(profiles.get(normalizeWallet(row.to_wallet) ?? "") ?? null) ?? {}),
+        fid: profiles.get(normalizeWallet(row.to_wallet) ?? "")?.fid ?? row.to_fid,
+      } : null,
+    }));
+    let chart: Array<Record<string, unknown>> | undefined;
+    if (tokenId !== null && !cursor) {
+      const chartResult = await context.env.WARPLETS.prepare(
+        `WITH ranked_sales AS (
+           SELECT a.*,
+             ROW_NUMBER() OVER (
+               PARTITION BY a.token_id, COALESCE(LOWER(a.transaction_hash), a.canonical_key)
+               ORDER BY CASE WHEN a.source LIKE 'opensea%' THEN 0 ELSE 1 END, a.updated_at DESC
+             ) AS duplicate_rank
+           FROM warplet_market_activity a
+           WHERE a.token_id = ? AND a.event_type = 'sale' AND a.price_eth IS NOT NULL
+         )
+         SELECT canonical_key, token_id, price_eth, transaction_hash,
+                from_wallet, from_fid, to_wallet, to_fid, occurred_at
+         FROM ranked_sales
+         WHERE duplicate_rank = 1
+         ORDER BY occurred_at ASC, canonical_key ASC`
+      ).bind(tokenId).all<{
+        canonical_key: string; token_id: number; price_eth: number;
+        transaction_hash: string | null; from_wallet: string | null; from_fid: number | null;
+        to_wallet: string | null; to_fid: number | null; occurred_at: string;
+      }>();
+      const chartRows = chartResult.results ?? [];
+      const chartProfiles = await loadProfilesForWallets(
+        context.env.WARPLETS,
+        chartRows.flatMap((sale) => [sale.from_wallet, sale.to_wallet]),
+      );
+      chart = chartRows.map((sale) => {
+        const buyerWallet = normalizeWallet(sale.to_wallet);
+        const sellerWallet = normalizeWallet(sale.from_wallet);
+        const buyer = buyerWallet ? chartProfiles.get(buyerWallet) : null;
+        const seller = sellerWallet ? chartProfiles.get(sellerWallet) : null;
+        return {
+          key: sale.canonical_key, at: sale.occurred_at, timestamp: sale.occurred_at,
+          tokenId: sale.token_id, salePrice: sale.price_eth,
+          transactionHash: sale.transaction_hash,
+          buyerWallet, buyerFid: buyer?.fid ?? sale.to_fid,
+          buyerUsername: buyer?.username ?? null, buyerAvatarUrl: buyer?.pfpUrl ?? null,
+          avatarUrl: buyer?.pfpUrl ?? null,
+          sellerWallet, sellerFid: seller?.fid ?? sale.from_fid,
+          sellerUsername: seller?.username ?? null, sellerAvatarUrl: seller?.pfpUrl ?? null,
+          showUnknownMarker: !buyer?.pfpUrl,
+        };
+      });
+    }
+    const last = pageRows.at(-1);
+    return jsonStats({
+      analyticsEpoch: ANALYTICS_EPOCH,
+      range,
+      rows,
+      ...(chart ? { chart } : {}),
+      hasMore,
+      nextCursor: hasMore && last ? encodeActivityCursor({ at: last.occurred_at, key: last.canonical_key }) : null,
+      asOf: pageRows[0]?.occurred_at ?? null,
+    }, { private: friendsOnly });
+  } catch (error) {
+    return jsonError("stats_activity_unavailable", error instanceof Error ? error.message : String(error));
   }
 }

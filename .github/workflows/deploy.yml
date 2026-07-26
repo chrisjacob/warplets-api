@@ -88,7 +88,7 @@ jobs:
 
       - name: Build
         working-directory: app
-        run: pnpm exec vite build
+        run: pnpm build
 
       - name: Deploy to Cloudflare Pages
         working-directory: app

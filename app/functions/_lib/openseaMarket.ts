@@ -40,7 +40,7 @@ export type TraitCriterion = {
 };
 
 export type MarketSnapshot = {
-  version: "opensea-market-v1";
+  version: "opensea-market-v1" | "opensea-market-v2";
   generatedAt: string;
   maxAgeSeconds: number;
   collection?: {
@@ -1462,8 +1462,132 @@ export async function loadMarketSnapshot(env: OpenSeaMarketEnv): Promise<MarketS
   return loadMarketSnapshotFromD1(env);
 }
 
+/**
+ * Public collection state intentionally excludes the 10,000-token owner/profile
+ * directory. Ownership is loaded for a single wallet (or token detail) only when
+ * a feature actually needs it.
+ */
+export async function loadCompactMarketSnapshot(
+  env: OpenSeaMarketEnv,
+  options: { skipKv?: boolean } = {},
+): Promise<MarketSnapshot> {
+  const kv = env.WARPLETS_KV;
+  if (kv && !options.skipKv) {
+    const manifest = await kv.get(MARKET_SNAPSHOT_KEYS.manifest, "json") as { generatedAt?: string } | null;
+    const [collection, listings, offers, traitOffers, sales] = await Promise.all([
+      kv.get(MARKET_SNAPSHOT_KEYS.collection, "json"),
+      kv.get(MARKET_SNAPSHOT_KEYS.listings, "json"),
+      kv.get(MARKET_SNAPSHOT_KEYS.offers, "json"),
+      kv.get(MARKET_SNAPSHOT_KEYS.traitOffers, "json"),
+      kv.get(MARKET_SNAPSHOT_KEYS.sales, "json"),
+    ]);
+    const visibleSales = sanitizeVisibleSales(sales);
+    if (manifest?.generatedAt && listings && offers && visibleSales) {
+      const persistedTraitOffers = Object.fromEntries(await loadActiveTraitOffersForToken(env.WARPLETS));
+      const activeCollectionOffer = await loadActiveCollectionTopOffer(env.WARPLETS);
+      const cachedCollection = (collection as MarketSnapshot["collection"] | null) ?? { floor: null, topOffer: null };
+      return {
+        version: "opensea-market-v2",
+        generatedAt: manifest.generatedAt,
+        maxAgeSeconds: SNAPSHOT_TTL_SECONDS,
+        collection: activeCollectionOffer.loaded
+          ? { ...cachedCollection, topOffer: activeCollectionOffer.offer }
+          : cachedCollection,
+        listings: listings as MarketSnapshot["listings"],
+        offers: offers as MarketSnapshot["offers"],
+        traitOffers: {
+          ...((traitOffers as MarketSnapshot["traitOffers"] | null) ?? {}),
+          ...persistedTraitOffers,
+        },
+        sales: visibleSales,
+        owners: {},
+      };
+    }
+  }
+
+  const collection = collectionSnapshotFromRow(await loadCollectionMarketRow(env.WARPLETS));
+  const activeCollectionOffer = await loadActiveCollectionTopOffer(env.WARPLETS);
+  if (activeCollectionOffer.loaded) collection.topOffer = activeCollectionOffer.offer;
+  const traitOffers = Object.fromEntries(await loadActiveTraitOffersForToken(env.WARPLETS));
+  const activeCondition = `(
+    listing_eth IS NOT NULL OR listing_raw_amount IS NOT NULL OR
+    offer_eth IS NOT NULL OR offer_raw_amount IS NOT NULL OR
+    sale_eth IS NOT NULL
+  )`;
+  let rows: D1Result<MarketStateRow>;
+  try {
+    rows = await env.WARPLETS.prepare(
+      `SELECT token_id, ${MARKET_SELECT_COLUMNS}
+       FROM warplet_market_state
+       WHERE ${activeCondition}
+       ORDER BY token_id ASC`,
+    ).all<MarketStateRow>();
+  } catch {
+    rows = await env.WARPLETS.prepare(
+      `SELECT token_id, ${LEGACY_MARKET_SELECT_COLUMNS}
+       FROM warplet_market_state
+       WHERE ${activeCondition}
+       ORDER BY token_id ASC`,
+    ).all<MarketStateRow>();
+  }
+  const updated = await env.WARPLETS.prepare(
+    `SELECT MAX(COALESCE(opensea_updated_at, owner_event_at, owner_checked_at, sold_at, offered_at, listed_at)) AS updated_at
+     FROM warplet_market_state`,
+  ).first<{ updated_at: string | null }>().catch(() => null);
+  const snapshot = snapshotFromRows(
+    rows.results ?? [],
+    updated?.updated_at ?? new Date().toISOString(),
+    collection,
+    traitOffers,
+  );
+  return { ...snapshot, version: "opensea-market-v2", owners: {} };
+}
+
+export async function loadMarketOwnership(
+  env: OpenSeaMarketEnv,
+  selector: { wallet?: string | null; fid?: number | null },
+): Promise<{ wallet: string | null; fid: number | null; tokenIds: number[]; owners: MarketSnapshot["owners"]; updatedAt: string }> {
+  const wallet = normalizeAddress(selector.wallet);
+  const fid = Number.isInteger(selector.fid) && Number(selector.fid) > 0 ? Number(selector.fid) : null;
+  if (!wallet && !fid) throw new Error("wallet or fid is required");
+
+  const condition = wallet ? "LOWER(m.owner_wallet) = ?" : "m.owner_fid = ?";
+  const binding = wallet ?? fid;
+  let result: D1Result<MarketStateRow>;
+  try {
+    result = await env.WARPLETS.prepare(
+      `SELECT ${MARKET_PROFILE_SELECT_COLUMNS}
+       FROM warplet_market_state m
+       LEFT JOIN wallet_farcaster_links l
+         ON l.wallet = m.owner_wallet AND l.fid = m.owner_fid
+       WHERE ${condition}
+       ORDER BY m.token_id ASC`,
+    ).bind(binding).all<MarketStateRow>();
+  } catch {
+    result = await env.WARPLETS.prepare(
+      `SELECT m.token_id, ${LEGACY_MARKET_SELECT_COLUMNS.split(", ").map((column) => `m.${column}`).join(", ")}
+       FROM warplet_market_state m
+       WHERE ${condition}
+       ORDER BY m.token_id ASC`,
+    ).bind(binding).all<MarketStateRow>();
+  }
+
+  const rows = result.results ?? [];
+  const snapshot = snapshotFromRows(rows);
+  return {
+    wallet: wallet ?? rows[0]?.owner_wallet ?? null,
+    fid: fid ?? rows[0]?.owner_fid ?? null,
+    tokenIds: rows.map((row) => row.token_id),
+    owners: snapshot.owners,
+    updatedAt: rows.reduce((latest, row) => {
+      const candidate = row.owner_checked_at ?? row.owner_event_at ?? "";
+      return candidate > latest ? candidate : latest;
+    }, "") || new Date().toISOString(),
+  };
+}
+
 export async function publishMarketSnapshot(env: OpenSeaMarketEnv): Promise<MarketSnapshot> {
-  const snapshot = await loadMarketSnapshotFromD1(env);
+  const snapshot = await loadCompactMarketSnapshot(env, { skipKv: true });
   const kv = env.WARPLETS_KV;
   if (kv) {
     await Promise.all([
@@ -1477,7 +1601,6 @@ export async function publishMarketSnapshot(env: OpenSeaMarketEnv): Promise<Mark
       kv.put(MARKET_SNAPSHOT_KEYS.offers, JSON.stringify(snapshot.offers), { expirationTtl: SNAPSHOT_TTL_SECONDS * 6 }),
       kv.put(MARKET_SNAPSHOT_KEYS.traitOffers, JSON.stringify(snapshot.traitOffers), { expirationTtl: SNAPSHOT_TTL_SECONDS * 6 }),
       kv.put(MARKET_SNAPSHOT_KEYS.sales, JSON.stringify(snapshot.sales), { expirationTtl: SNAPSHOT_TTL_SECONDS * 6 }),
-      kv.put(MARKET_SNAPSHOT_KEYS.owners, JSON.stringify(snapshot.owners), { expirationTtl: SNAPSHOT_TTL_SECONDS * 6 }),
     ]);
   }
   return snapshot;
@@ -1490,6 +1613,7 @@ export async function processListing(env: OpenSeaMarketEnv, row: Record<string, 
   const rowListedAt = getOrderCreatedAt(row);
   const orderHash = asString(row.order_hash);
   const sellerWallet = getMakerAddress(row);
+  await recordOpenSeaMarketEvent(env, { ...row, event_type: "listing" }).catch(() => false);
   const existing = await env.WARPLETS.prepare(
     "SELECT listed_at, listing_order_hash FROM warplet_market_state WHERE token_id = ?",
   )
@@ -1537,6 +1661,7 @@ export async function processOffer(env: OpenSeaMarketEnv, row: Record<string, un
   const rowOfferedAt = getOrderCreatedAt(row);
   const orderHash = asString(row.order_hash);
   const offererWallet = getMakerAddress(row);
+  await recordOpenSeaMarketEvent(env, { ...row, event_type: "offer" }).catch(() => false);
   const protocolAddress = normalizeAddress(row.protocol_address ?? asObject(row.protocol_data)?.address);
   const existing = await env.WARPLETS.prepare(
     "SELECT offered_at, offer_order_hash, offer_eth, offer_raw_amount, offer_decimals FROM warplet_market_state WHERE token_id = ?",
@@ -1839,6 +1964,56 @@ export async function processSaleOrTransfer(
   return changed;
 }
 
+async function recordOpenSeaMarketEvent(
+  env: OpenSeaMarketEnv,
+  row: Record<string, unknown>,
+): Promise<boolean> {
+  const rawType = asString(row.event_type)?.toLowerCase();
+  const eventType = rawType === "sale" || rawType === "transfer" || rawType === "listing" || rawType === "offer"
+    ? rawType
+    : null;
+  const tokenId = getTokenIdFromOpenSeaRow(row);
+  if (!eventType || !tokenId) return false;
+  const occurredAt = normalizeTimestamp(row.event_timestamp ?? row.created_date ?? row.sold_at ?? row.created_at);
+  if (!occurredAt || occurredAt < ANALYTICS_EPOCH) return false;
+  const orderHash = asString(row.order_hash) ?? asString(asObject(row.order)?.order_hash);
+  const transactionHash = asString(row.transaction) ?? asString(asObject(row.transaction)?.transaction_hash);
+  const eventId = asString(row.event_id ?? row.id);
+  const price = getPrice(row, eventType === "offer" ? "offer" : "consideration");
+  const buyer = normalizeAddress(row.buyer) ?? normalizeAddress(asObject(row.buyer)?.address) ??
+    normalizeAddress(row.to_address) ?? normalizeAddress(asObject(row.to_account)?.address);
+  const seller = normalizeAddress(row.seller) ?? normalizeAddress(asObject(row.seller)?.address) ??
+    normalizeAddress(row.from_address) ?? normalizeAddress(asObject(row.from_account)?.address);
+  const maker = getMakerAddress(row);
+  const fromWallet = eventType === "offer" || eventType === "listing" ? maker : seller;
+  const toWallet = eventType === "sale" || eventType === "transfer" ? buyer : null;
+  const canonicalKey = `opensea:${eventType}:${eventId ?? transactionHash ?? orderHash ?? `${tokenId}:${occurredAt}:${fromWallet ?? "unknown"}`}`;
+  const [fromFid, toFid] = await Promise.all([
+    fromWallet ? selectPreferredFidForWallet(env, fromWallet) : Promise.resolve(null),
+    toWallet ? selectPreferredFidForWallet(env, toWallet) : Promise.resolve(null),
+  ]);
+  const result = await env.WARPLETS.prepare(
+    `INSERT INTO warplet_market_activity (
+       canonical_key, event_type, token_id, price_eth, amount_raw, currency_symbol,
+       transaction_hash, order_hash, from_wallet, from_fid, to_wallet, to_fid,
+       occurred_at, source, raw_payload, updated_at
+     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'opensea', ?, CURRENT_TIMESTAMP)
+     ON CONFLICT(canonical_key) DO UPDATE SET
+       price_eth = COALESCE(excluded.price_eth, warplet_market_activity.price_eth),
+       from_wallet = COALESCE(excluded.from_wallet, warplet_market_activity.from_wallet),
+       from_fid = COALESCE(excluded.from_fid, warplet_market_activity.from_fid),
+       to_wallet = COALESCE(excluded.to_wallet, warplet_market_activity.to_wallet),
+       to_fid = COALESCE(excluded.to_fid, warplet_market_activity.to_fid),
+       raw_payload = excluded.raw_payload,
+       updated_at = CURRENT_TIMESTAMP`
+  ).bind(
+    canonicalKey, eventType, tokenId, eventType === "transfer" ? null : price.eth,
+    price.rawAmount, price.symbol, transactionHash, orderHash, fromWallet, fromFid,
+    toWallet, toFid, occurredAt, JSON.stringify(row),
+  ).run();
+  return (result.meta.changes ?? 0) > 0;
+}
+
 async function ingestPaginated(
   env: OpenSeaMarketEnv,
   apiKey: string,
@@ -1930,7 +2105,7 @@ async function clearInactiveMarketRows(
 async function ingestCollectionEvents(
   env: OpenSeaMarketEnv,
   apiKey: string,
-  eventType: "sale" | "transfer",
+  eventType: "sale" | "transfer" | "listing" | "offer",
   after: string | null,
   initialCursor: string | null,
 ): Promise<EventIngestResult> {
@@ -1956,9 +2131,13 @@ async function ingestCollectionEvents(
           right.event_timestamp ?? right.created_date ?? right.sold_at ?? right.created_at,
         ) ?? "");
         return (Number.isFinite(leftAt) ? leftAt : 0) - (Number.isFinite(rightAt) ? rightAt : 0);
-      });
+    });
     for (const row of rows) {
-      if (await processSaleOrTransfer(env, row, { clearOrdersOnOwnerChange: true })) {
+      const recorded = await recordOpenSeaMarketEvent(env, { ...row, event_type: eventType });
+      const didChange = eventType === "sale" || eventType === "transfer"
+        ? (await processSaleOrTransfer(env, row, { clearOrdersOnOwnerChange: true })) || recorded
+        : recorded;
+      if (didChange) {
         changed += 1;
       }
     }
@@ -2213,7 +2392,7 @@ async function reconcileHolderLeaderboardIfDue(
   }
 }
 
-export async function ingestOpenSeaMarket(env: OpenSeaMarketEnv): Promise<{ changed: number; generatedAt: string }> {
+async function ingestOpenSeaMarketUnlocked(env: OpenSeaMarketEnv): Promise<{ changed: number; generatedAt: string }> {
   const apiKey = env.OPENSEA_API_KEY?.trim();
   if (!apiKey) throw new Error("OPENSEA_API_KEY is not configured");
 
@@ -2238,7 +2417,7 @@ export async function ingestOpenSeaMarket(env: OpenSeaMarketEnv): Promise<{ chan
   const epochSeconds = String(Math.floor(Date.parse(ANALYTICS_EPOCH) / 1000));
   let eventsComplete = true;
   const completedAfterValues: number[] = [];
-  for (const eventType of ["sale", "transfer"] as const) {
+  for (const eventType of ["sale", "transfer", "listing", "offer"] as const) {
     const afterKey = `events_after:${eventType}`;
     const cursorKey = `events_cursor:${eventType}`;
     try {
@@ -2299,7 +2478,7 @@ export async function ingestOpenSeaMarket(env: OpenSeaMarketEnv): Promise<{ chan
     }
   }
 
-  if (eventsComplete && completedAfterValues.length === 2) {
+  if (eventsComplete && completedAfterValues.length === 4) {
     await env.WARPLETS.prepare(
       `INSERT INTO opensea_ingest_state (key, value, updated_at)
        VALUES ('events_after', ?, ?)
@@ -2316,6 +2495,42 @@ export async function ingestOpenSeaMarket(env: OpenSeaMarketEnv): Promise<{ chan
   ]);
   const snapshot = await publishMarketSnapshot(env);
   return { changed, generatedAt: snapshot.generatedAt };
+}
+
+export async function ingestOpenSeaMarket(env: OpenSeaMarketEnv): Promise<{ changed: number; generatedAt: string }> {
+  const lockKey = "market_ingest:lease";
+  const leaseOwner = crypto.randomUUID();
+  const acquiredAt = new Date().toISOString();
+  try {
+    await env.WARPLETS.batch([
+      env.WARPLETS.prepare(
+        `DELETE FROM opensea_ingest_state
+         WHERE key = ? AND datetime(updated_at) < datetime('now', '-30 minutes')`,
+      ).bind(lockKey),
+      env.WARPLETS.prepare(
+        `INSERT OR IGNORE INTO opensea_ingest_state (key, value, updated_at)
+         VALUES (?, ?, ?)`,
+      ).bind(lockKey, leaseOwner, acquiredAt),
+    ]);
+    const lease = await env.WARPLETS.prepare(
+      "SELECT value FROM opensea_ingest_state WHERE key = ?",
+    ).bind(lockKey).first<{ value: string | null }>();
+    if (lease?.value !== leaseOwner) {
+      const snapshot = await loadCompactMarketSnapshot(env);
+      return { changed: 0, generatedAt: snapshot.generatedAt };
+    }
+  } catch {
+    // Older local schemas may not have ingest state yet; preserve ingestion behavior.
+    return ingestOpenSeaMarketUnlocked(env);
+  }
+
+  try {
+    return await ingestOpenSeaMarketUnlocked(env);
+  } finally {
+    await env.WARPLETS.prepare(
+      "DELETE FROM opensea_ingest_state WHERE key = ? AND value = ?",
+    ).bind(lockKey, leaseOwner).run().catch(() => undefined);
+  }
 }
 
 export async function refreshOneTokenMarket(
@@ -2468,5 +2683,23 @@ export async function loadOneTokenSnapshot(env: OpenSeaMarketEnv, tokenId: numbe
 export function marketJson(data: unknown, init?: ResponseInit): Response {
   const response = jsonSecure(data, init);
   response.headers.set("cache-control", "public, max-age=60, stale-while-revalidate=600");
+  return response;
+}
+
+export async function marketJsonWithEtag(data: unknown, request: Request, init?: ResponseInit): Promise<Response> {
+  const encoded = new TextEncoder().encode(JSON.stringify(data));
+  const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", encoded));
+  const etag = `"${Array.from(digest, (byte) => byte.toString(16).padStart(2, "0")).join("")}"`;
+  if (request.headers.get("if-none-match") === etag) {
+    return new Response(null, {
+      status: 304,
+      headers: {
+        etag,
+        "cache-control": "public, max-age=60, stale-while-revalidate=600",
+      },
+    });
+  }
+  const response = marketJson(data, init);
+  response.headers.set("etag", etag);
   return response;
 }

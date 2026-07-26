@@ -1,14 +1,17 @@
-import { StrictMode } from "react";
+import { StrictMode, Suspense, lazy } from "react";
 import { createRoot } from "react-dom/client";
 import { NeynarContextProvider, Theme } from "@neynar/react";
 import "@neynar/react/dist/style.css";
 import "./index.css";
-import App from "./App.tsx";
-import DropApp from "./DropApp.tsx";
-import SearchApp from "./SearchApp.tsx";
-import MillionApp from "./MillionApp.tsx";
-import StopApp from "./StopApp.tsx";
-import UnsubscribeApp from "./UnsubscribeApp.tsx";
+
+const App = lazy(() => import("./App.tsx"));
+const DropApp = lazy(() => import("./DropApp.tsx"));
+const SearchApp = lazy(() => import("./SearchApp.tsx"));
+const MillionApp = lazy(() => import("./MillionApp.tsx"));
+const StopApp = lazy(() => import("./StopApp.tsx"));
+const UnsubscribeApp = lazy(() => import("./UnsubscribeApp.tsx"));
+
+const PRELOAD_RECOVERY_KEY = "10x-vite-preload-recovery";
 
 function getRejectedImageSrc(value: unknown): string | null {
   if (typeof HTMLImageElement === "undefined") return null;
@@ -31,6 +34,15 @@ function isExternalFarcasterImageProxy(src: string | null): boolean {
 }
 
 if (typeof window !== "undefined") {
+  window.addEventListener("vite:preloadError", (event) => {
+    event.preventDefault();
+    if (window.sessionStorage.getItem(PRELOAD_RECOVERY_KEY) === "1") return;
+    window.sessionStorage.setItem(PRELOAD_RECOVERY_KEY, "1");
+    window.location.reload();
+  });
+  window.addEventListener("load", () => {
+    window.sessionStorage.removeItem(PRELOAD_RECOVERY_KEY);
+  }, { once: true });
   window.addEventListener("unhandledrejection", (event) => {
     const src = getRejectedImageSrc(event.reason);
     if (!isExternalFarcasterImageProxy(src)) return;
@@ -64,7 +76,9 @@ createRoot(document.getElementById("root")!).render(
         defaultTheme: Theme.Dark,
       }}
     >
-      {resolveActiveApp()}
+      <Suspense fallback={<div className="min-h-screen bg-black" aria-label="Loading 10X" />}>
+        {resolveActiveApp()}
+      </Suspense>
     </NeynarContextProvider>
   </StrictMode>
 );

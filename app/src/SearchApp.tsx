@@ -1,4 +1,4 @@
-import { CSSProperties, Component, MouseEvent, PointerEvent as ReactPointerEvent, ReactNode, Suspense, cloneElement, isValidElement, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { CSSProperties, Component, Fragment, MouseEvent, PointerEvent as ReactPointerEvent, ReactNode, Suspense, cloneElement, isValidElement, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import confetti from "canvas-confetti";
 import {
@@ -17,7 +17,6 @@ import { OverlayScrollbarsComponent, useOverlayScrollbars } from "overlayscrollb
 import sdk from "@farcaster/miniapp-sdk";
 import { NeynarAuthButton, useNeynarContext } from "@neynar/react";
 import { Text } from "@neynar/ui/typography";
-import sqlite3InitModule from "@sqlite.org/sqlite-wasm";
 import {
   MiniAppHeader,
   MiniAppMenuPage,
@@ -62,7 +61,7 @@ import {
 
 const DB_URL = "/db/warplets.v1.fts.sqlite.br";
 const PAGE_SIZE = 20;
-const SEARCH_RESULT_LIMIT = 10000;
+const SEARCH_RESULT_PAGE_SIZE = 100;
 const DB_FILENAME = "/warplets-search.sqlite3";
 const DATABASE_LOADING_PREFIX = "Loading: ";
 const DATABASE_LOADING_MESSAGE_SUFFIXES = [
@@ -102,7 +101,7 @@ const LAST_SEARCH_OFFERS_SUBPAGE_KEY = "warplets-search-last-offers-subpage-v1";
 const LAST_SEARCH_STATS_SUBPAGE_KEY = "warplets-search-last-stats-subpage-v1";
 const LAST_SEARCH_LISTED_LEVEL_KEY = "warplets-search-last-listed-level-v1";
 const LISTED_SCOPE_KEY = "warplets-search-listed-scope-v1";
-const MARKET_CACHE_KEY = "warplets-market-state-v3";
+const MARKET_CACHE_KEY = "warplets-market-state-v4";
 const MARKET_SNAPSHOT_STALE_MS = 10 * 60 * 1000;
 const MARKET_DETAIL_STALE_MS = 30 * 60 * 1000;
 const MARKET_CACHE_MAX_STALE_MS = 60 * 60 * 1000;
@@ -794,7 +793,7 @@ type TraitCriterion = {
 };
 
 type MarketSnapshot = {
-  version: "opensea-market-v1";
+  version: "opensea-market-v1" | "opensea-market-v2";
   generatedAt: string;
   maxAgeSeconds: number;
   collection?: {
@@ -1007,9 +1006,8 @@ function cellToNumber(value: unknown): number | null {
   return null;
 }
 
-type SqliteDatabase = InstanceType<
-  Awaited<ReturnType<typeof sqlite3InitModule>>["oo1"]["DB"]
->;
+type SqliteInitModule = typeof import("@sqlite.org/sqlite-wasm")["default"];
+type SqliteDatabase = InstanceType<Awaited<ReturnType<SqliteInitModule>>["oo1"]["DB"]>;
 
 type SqlClause = {
   sql: string;
@@ -1309,20 +1307,53 @@ function mapRows(values: unknown[][], hasSearchScore = false): WarpletResult[] {
   });
 }
 
-function searchWarpletPickerRows(db: SqliteDatabase, query: string, favouriteTokenIds: number[] | null): WarpletResult[] {
+function searchWarpletPickerPage(
+  db: SqliteDatabase,
+  query: string,
+  favouriteTokenIds: number[] | null,
+  requestedRows: number,
+): { rows: WarpletResult[]; total: number } {
   const trimmed = query.trim();
   const exactMatch = trimmed.match(/^#([1-9]\d{0,4})$/);
   const exactTokenId = exactMatch && Number(exactMatch[1]) <= 10000 ? Number(exactMatch[1]) : null;
   const ftsQuery = exactTokenId == null && trimmed && trimmed !== "*" ? normalizeFtsQuery(trimmed) : "";
-  const rows = exactTokenId != null
-    ? db.exec(`SELECT ${RESULT_SELECT_COLUMNS} FROM warplets w WHERE w.id = ? LIMIT 1`, { bind: [exactTokenId], rowMode: "array", returnValue: "resultRows" })
-    : ftsQuery
-      ? db.exec(`SELECT ${RESULT_SELECT_COLUMNS}, bm25(warplets_fts) AS score FROM warplets_fts JOIN warplets w ON w.id = warplets_fts.rowid WHERE warplets_fts MATCH ? ORDER BY score, w."10x_rank" ASC, w.id ASC LIMIT ?`, { bind: [ftsQuery, SEARCH_RESULT_LIMIT], rowMode: "array", returnValue: "resultRows" })
-      : db.exec(`SELECT ${RESULT_SELECT_COLUMNS} FROM warplets w ORDER BY w."10x_rank" ASC, w.id ASC LIMIT ?`, { bind: [SEARCH_RESULT_LIMIT], rowMode: "array", returnValue: "resultRows" });
-  const mapped = mapRows(rows, Boolean(ftsQuery));
-  if (!favouriteTokenIds) return mapped;
-  const favourites = new Set(favouriteTokenIds);
-  return mapped.filter((row) => favourites.has(row.id));
+  const conditions: string[] = [];
+  const bind: Array<string | number> = [];
+  if (exactTokenId != null) {
+    conditions.push("w.id = ?");
+    bind.push(exactTokenId);
+  } else if (ftsQuery) {
+    conditions.push("warplets_fts MATCH ?");
+    bind.push(ftsQuery);
+  }
+  if (favouriteTokenIds) {
+    if (favouriteTokenIds.length === 0) return { rows: [], total: 0 };
+    conditions.push("w.id IN (SELECT CAST(value AS INTEGER) FROM json_each(?))");
+    bind.push(JSON.stringify(favouriteTokenIds));
+  }
+  const fromSql = ftsQuery
+    ? "FROM warplets_fts JOIN warplets w ON w.id = warplets_fts.rowid"
+    : "FROM warplets w";
+  const whereSql = conditions.length ? ` WHERE ${conditions.join(" AND ")}` : "";
+  const totalRows = db.exec(`SELECT COUNT(*) ${fromSql}${whereSql}`, {
+    bind,
+    rowMode: "array",
+    returnValue: "resultRows",
+  });
+  const total = Number(totalRows[0]?.[0] ?? 0);
+  const rows: unknown[][] = [];
+  const target = Math.min(total, Math.max(PAGE_SIZE, requestedRows));
+  for (let offset = 0; offset < target; offset += SEARCH_RESULT_PAGE_SIZE) {
+    const limit = Math.min(SEARCH_RESULT_PAGE_SIZE, target - offset);
+    rows.push(...db.exec(
+      `SELECT ${RESULT_SELECT_COLUMNS}${ftsQuery ? ", bm25(warplets_fts) AS score" : ""}
+       ${fromSql}${whereSql}
+       ORDER BY ${ftsQuery ? `score, w."10x_rank" ASC, ` : `w."10x_rank" ASC, `}w.id ASC
+       LIMIT ? OFFSET ?`,
+      { bind: [...bind, limit, offset], rowMode: "array", returnValue: "resultRows" },
+    ));
+  }
+  return { rows: mapRows(rows, Boolean(ftsQuery)), total };
 }
 
 function loadWarpletResultById(db: SqliteDatabase, tokenId: number): WarpletResult | null {
@@ -2018,6 +2049,7 @@ function readCachedMarketSnapshot(): MarketSnapshot | null {
     const raw = window.localStorage.getItem(MARKET_CACHE_KEY);
     if (!raw) return null;
     const snapshot = JSON.parse(raw) as MarketSnapshot;
+    if (snapshot.version !== "opensea-market-v2") return null;
     const age = Date.now() - Date.parse(snapshot.generatedAt || "");
     if (!Number.isFinite(age) || age > MARKET_CACHE_MAX_STALE_MS) return null;
     const visibleSales = Object.fromEntries(
@@ -2035,7 +2067,11 @@ function readCachedMarketSnapshot(): MarketSnapshot | null {
 
 function writeCachedMarketSnapshot(snapshot: MarketSnapshot): void {
   try {
-    window.localStorage.setItem(MARKET_CACHE_KEY, JSON.stringify(snapshot));
+    window.localStorage.setItem(MARKET_CACHE_KEY, JSON.stringify({
+      ...snapshot,
+      version: "opensea-market-v2",
+      owners: {},
+    } satisfies MarketSnapshot));
   } catch {
     // The market snapshot is a speed cache only; quota failures are harmless.
   }
@@ -3687,7 +3723,9 @@ type StatsChartProps = {
   socialRole?: "buyer" | "seller";
 };
 
-const LazyStatsChart = lazy(async () => {
+let statsChartAnimationId = 0;
+
+async function loadStatsChart() {
   const {
     Bar,
     CartesianGrid,
@@ -3700,11 +3738,16 @@ const LazyStatsChart = lazy(async () => {
     YAxis,
   } = await import("recharts");
 
-  function SocialMarker(props: { forceActive?: boolean } & Record<string, unknown>) {
+  function SocialMarker(props: { forceActive?: boolean; revealReady?: boolean; revealCount?: number } & Record<string, unknown>) {
     const marker = unknownRecord(props);
     const payload = unknownRecord(marker?.payload);
     const cx = typeof marker?.cx === "number" ? marker.cx : 0;
     const cy = typeof marker?.cy === "number" ? marker.cy : 0;
+    const markerIndex = typeof payload?.markerRevealIndex === "number"
+      ? payload.markerRevealIndex
+      : Number.POSITIVE_INFINITY;
+    const revealReady = marker?.revealReady === true;
+    const revealCount = typeof marker?.revealCount === "number" ? marker.revealCount : 0;
     const forceActive = marker?.forceActive === true;
     const avatarUrl =
       typeof payload?.avatarUrl === "string" &&
@@ -3715,10 +3758,18 @@ const LazyStatsChart = lazy(async () => {
     const radius = forceActive ? 13 : 11;
     const clipId = `stats-avatar-${String(payload?.fid ?? payload?.wallet ?? `${cx}-${cy}`).replace(/[^a-zA-Z0-9_-]/g, "")}-${Math.round(cx)}-${Math.round(cy)}`;
 
-    if (!avatarUrl) return <g />;
+    // Scatter can eagerly create every shape even when its data prop changes. Keep
+    // unrevealed shapes out of the SVG entirely until the line animation is over.
+    if (!revealReady || markerIndex >= revealCount) return <g />;
+
+    if (!avatarUrl) {
+      return payload?.showUnknownMarker === true
+        ? <circle className="stats-social-marker-pop" cx={cx} cy={cy} r={radius} fill="#00FF00" />
+        : <g />;
+    }
 
     return (
-      <g style={{ cursor: payload?.tokenId ? "pointer" : "default" }}>
+      <g className="stats-social-marker-pop" style={{ cursor: payload?.tokenId ? "pointer" : "default", transformBox: "fill-box", transformOrigin: "center" }}>
         <defs>
           <clipPath id={clipId}>
             <circle cx={cx} cy={cy} r={radius} />
@@ -3770,6 +3821,8 @@ const LazyStatsChart = lazy(async () => {
     const saleAmount = statsNumber(point?.salePrice ?? payload.find((item) => typeof item.value === "number")?.value);
     const buyerAvatarUrl = statsString(point?.buyerAvatarUrl);
     const sellerAvatarUrl = statsString(point?.sellerAvatarUrl);
+    const buyerWallet = statsString(point?.buyerWallet);
+    const sellerWallet = statsString(point?.sellerWallet);
     const saleDate = point?.timestamp
       ? new Date(point.timestamp).toLocaleDateString("en-US", { month: "short", day: "numeric" })
       : typeof label === "string" ? label : point?.label;
@@ -3815,15 +3868,15 @@ const LazyStatsChart = lazy(async () => {
               ) : <span className="text-[#8bbf8b]">—</span>}
             </div>
             {([
-              { label: "Buyer", username: buyerUsername, avatarUrl: buyerAvatarUrl },
-              { label: "Seller", username: sellerUsername, avatarUrl: sellerAvatarUrl },
+              { label: "Buyer", username: buyerUsername, avatarUrl: buyerAvatarUrl, wallet: buyerWallet },
+              { label: "Seller", username: sellerUsername, avatarUrl: sellerAvatarUrl, wallet: sellerWallet },
             ] as const).map((party) => (
               <div key={party.label} className="min-w-0">
                 <span className="mb-1 block font-black text-[#8bbf8b]">{party.label}</span>
-                {party.avatarUrl ? (
-                  <img src={party.avatarUrl} alt="" className="mx-auto h-14 w-14 rounded-full object-cover" />
+                {party.avatarUrl || party.wallet ? (
+                  <img src={party.avatarUrl ?? getWalletIdenticonDataUrl(party.wallet!)} alt="" className="mx-auto h-14 w-14 rounded-full object-cover" />
                 ) : (
-                  <span className="mx-auto block h-14 w-14 rounded-full bg-[#071307]" />
+                  <span className="mx-auto block h-14 w-14 rounded-full bg-[#00FF00]" />
                 )}
                 {party.username ? (
                   <a
@@ -3834,7 +3887,7 @@ const LazyStatsChart = lazy(async () => {
                   >
                     @{party.username.replace(/^@/, "")}
                   </a>
-                ) : <span className="mt-1 block text-[#8bbf8b]">Unknown</span>}
+                ) : <span className="mt-1 block truncate text-[#8bbf8b]">{party.wallet ? formatShortWallet(party.wallet) : "Unknown"}</span>}
               </div>
             ))}
           </div>
@@ -3933,7 +3986,41 @@ const LazyStatsChart = lazy(async () => {
     hideEthSymbol,
     socialRole,
   }: StatsChartProps) {
+    const [chartAnimationId] = useState(() => {
+      statsChartAnimationId += 1;
+      return statsChartAnimationId;
+    });
     const hasRightAxis = series.some((item) => item.axis === "right");
+    const socialMarkerData: StatsChartDatum[] = socialKey
+      ? data.filter((point) => point.showUnknownMarker === true || (
+        typeof point.avatarUrl === "string" && point.showMarker !== false && point.showAvatar !== false
+      )).map((point, markerRevealIndex) => ({ ...point, markerRevealIndex }))
+      : [];
+    const animationSignature = socialKey
+      ? `${socialKey}:${socialMarkerData.map((point) => `${point.timestamp ?? point.label}:${String(point[socialKey] ?? "")}:${point.wallet ?? ""}`).join("|")}`
+      : "";
+    const [lineAnimationFinished, setLineAnimationFinished] = useState(false);
+    const [visibleMarkerCount, setVisibleMarkerCount] = useState(0);
+
+    useEffect(() => {
+      setLineAnimationFinished(false);
+      setVisibleMarkerCount(0);
+      if (!socialKey || socialMarkerData.length === 0) return;
+      // Deliberately gate markers beyond the 900ms Recharts line animation. This
+      // avoids onAnimationEnd firing before the final painted frame in some browsers.
+      const lineGate = window.setTimeout(() => setLineAnimationFinished(true), 1200);
+      return () => window.clearTimeout(lineGate);
+    }, [animationSignature, socialKey]);
+
+    useEffect(() => {
+      if (!lineAnimationFinished || visibleMarkerCount >= socialMarkerData.length) return;
+      const timer = window.setTimeout(
+        () => setVisibleMarkerCount((current) => Math.min(current + 1, socialMarkerData.length)),
+        visibleMarkerCount === 0 ? 45 : 115,
+      );
+      return () => window.clearTimeout(timer);
+    }, [animationSignature, lineAnimationFinished, socialMarkerData.length, visibleMarkerCount]);
+
     const axisUsesEth = (axis: "left" | "right") => series
       .filter((item) => (item.axis ?? "left") === axis)
       .some((item) => /price|volume|floor|eth|offer|sale/i.test(item.label));
@@ -3998,7 +4085,7 @@ const LazyStatsChart = lazy(async () => {
               />
             ) : (
               <Line
-                key={item.key}
+                key={`${item.key}-${chartAnimationId}-${animationSignature}`}
                 type="monotone"
                 dataKey={item.key}
                 name={item.label}
@@ -4008,16 +4095,22 @@ const LazyStatsChart = lazy(async () => {
                 dot={socialKey === item.key ? false : { r: 2, fill: item.color, strokeWidth: 0 }}
                 activeDot={socialKey === item.key ? false : { r: 5, fill: item.color, stroke: "#000", strokeWidth: 2 }}
                 connectNulls
+                animationId={chartAnimationId}
+                animationBegin={0}
+                animationDuration={900}
+                isAnimationActive={socialKey === item.key ? !lineAnimationFinished : true}
               />
             ))}
-            {socialKey && (
+            {socialKey && lineAnimationFinished && visibleMarkerCount > 0 && (
               <Scatter
                 name={series.find((item) => item.key === socialKey)?.label ?? "Sale"}
+                data={socialMarkerData}
                 dataKey={socialKey}
                 yAxisId="left"
                 fill="#00FF00"
-                shape={<SocialMarker />}
-                activeShape={<SocialMarker forceActive />}
+                shape={<SocialMarker revealReady={lineAnimationFinished} revealCount={visibleMarkerCount} />}
+                activeShape={<SocialMarker forceActive revealReady={lineAnimationFinished} revealCount={visibleMarkerCount} />}
+                isAnimationActive={false}
               />
             )}
           </ComposedChart>
@@ -4027,7 +4120,9 @@ const LazyStatsChart = lazy(async () => {
   }
 
   return { default: StatsChart };
-});
+}
+
+const LazyStatsChart = lazy(loadStatsChart);
 
 function statsRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" && !Array.isArray(value)
@@ -4171,8 +4266,8 @@ function normalizeStatsChartData(
       fid: statsInteger(row.fid ?? row.buyerFid ?? row.buyer_fid ?? buyerProfile?.fid),
       buyerUsername: statsString(row.buyerUsername ?? row.buyer_username ?? buyerProfile?.username),
       sellerUsername: statsString(row.sellerUsername ?? row.seller_username ?? sellerProfile?.username),
-      buyerAvatarUrl: statsString(buyerProfile?.pfpUrl ?? buyerProfile?.pfp_url),
-      sellerAvatarUrl: statsString(sellerProfile?.pfpUrl ?? sellerProfile?.pfp_url),
+      buyerAvatarUrl: statsString(row.buyerAvatarUrl ?? row.buyer_avatar_url ?? buyerProfile?.pfpUrl ?? buyerProfile?.pfp_url),
+      sellerAvatarUrl: statsString(row.sellerAvatarUrl ?? row.seller_avatar_url ?? sellerProfile?.pfpUrl ?? sellerProfile?.pfp_url),
       buyerFid: statsInteger(row.buyerFid ?? row.buyer_fid ?? buyerProfile?.fid),
       sellerFid: statsInteger(row.sellerFid ?? row.seller_fid ?? sellerProfile?.fid),
       transactionHash: statsString(row.transactionHash ?? row.transaction_hash ?? row.txHash ?? row.tx_hash),
@@ -4283,10 +4378,10 @@ function StatsChartFallback() {
 }
 
 class StatsChartErrorBoundary extends Component<
-  { children: ReactNode },
-  { failed: boolean }
+  { children: ReactNode; onRetry?: () => void },
+  { failed: boolean; retryKey: number }
 > {
-  state = { failed: false };
+  state = { failed: false, retryKey: 0 };
 
   static getDerivedStateFromError() {
     return { failed: true };
@@ -4299,7 +4394,10 @@ class StatsChartErrorBoundary extends Component<
           <Text className="text-xs font-bold text-[#8bbf8b]">Chart temporarily unavailable.</Text>
           <button
             type="button"
-            onClick={() => window.location.reload()}
+            onClick={() => this.setState((current) => ({
+              failed: false,
+              retryKey: current.retryKey + 1,
+            }), this.props.onRetry)}
             className="cursor-pointer text-xs font-black text-[#00FF00] underline underline-offset-2"
           >
             Retry
@@ -4308,7 +4406,7 @@ class StatsChartErrorBoundary extends Component<
       );
     }
 
-    return this.props.children;
+    return <Fragment key={this.state.retryKey}>{this.props.children}</Fragment>;
   }
 }
 
@@ -4601,6 +4699,22 @@ function normalizeStatsHolderRow(value: unknown): StatsHolderRow | null {
   };
 }
 
+function getWalletIdenticonDataUrl(wallet: string): string {
+  const normalized = wallet.toLowerCase();
+  const hash = Array.from(normalized).reduce((total, character) => ((total << 5) - total + character.charCodeAt(0)) | 0, 0);
+  const hue = Math.abs(hash) % 360;
+  const cells: string[] = [];
+  for (let row = 0; row < 5; row += 1) {
+    for (let column = 0; column < 5; column += 1) {
+      const sourceColumn = column > 2 ? 4 - column : column;
+      const active = ((hash >>> ((row * 3 + sourceColumn) % 28)) & 1) === 1;
+      if (active) cells.push(`<rect x="${column}" y="${row}" width="1" height="1"/>`);
+    }
+  }
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 5 5"><rect width="5" height="5" fill="hsl(${hue} 45% 10%)"/><g fill="hsl(${hue} 85% 55%)">${cells.join("")}</g></svg>`;
+  return `data:image/svg+xml,${encodeURIComponent(svg)}`;
+}
+
 function WalletIdenticon({ wallet, className = "" }: { wallet: string; className?: string }) {
   const hash = Array.from(wallet.toLowerCase()).reduce((total, character) => {
     return ((total << 5) - total + character.charCodeAt(0)) | 0;
@@ -4672,6 +4786,7 @@ function StatsHolderRowView({
     : row.displayName || formatShortWallet(row.wallet);
   return (
     <article
+      style={{ contentVisibility: "auto", containIntrinsicSize: "116px" }}
       tabIndex={0}
       role="button"
       aria-label={`Search Warplets owned by ${identity}`}
@@ -4749,6 +4864,7 @@ function StatsHolderRowView({
                 alt={`Warplet #${tokenId}`}
                 className="h-full w-full object-cover"
                 loading="lazy"
+                decoding="async"
               />
             </button>
           ))}
@@ -4954,25 +5070,29 @@ function StatsHoldersPage({
   }, [actionSessionToken, viewerFid]);
 
   useEffect(() => {
-    if (friendsOnly) return;
     const target = loadMoreRef.current;
     const rankedRowCount = rows.length;
-    const hasBufferedRows = renderedRowCount < rankedRowCount;
-    if (!target || loadingMore || (!hasBufferedRows && !nextCursor)) return;
+    const filteredRowCount = friendsOnly ? friendRows.length : rankedRowCount;
+    const hasBufferedRows = renderedRowCount < filteredRowCount;
+    if (
+      !target ||
+      loadingMore ||
+      (!hasBufferedRows && (friendsOnly || !nextCursor))
+    ) return;
     const observer = new IntersectionObserver((entries) => {
       if (entries.some((entry) => entry.isIntersecting)) {
         observer.disconnect();
         if (hasBufferedRows) {
           setRenderedRowCount((current) =>
-            Math.min(current + STATS_HOLDER_RENDER_BATCH, rankedRowCount));
-        } else if (nextCursor) {
+            Math.min(current + STATS_HOLDER_RENDER_BATCH, filteredRowCount));
+        } else if (!friendsOnly && nextCursor) {
           void loadPage({ cursor: nextCursor, append: true });
         }
       }
     }, { rootMargin: "600px 0px" });
     observer.observe(target);
     return () => observer.disconnect();
-  }, [friendsOnly, loadPage, loadingMore, nextCursor, renderedRowCount, rows]);
+  }, [friendRows.length, friendsOnly, loadPage, loadingMore, nextCursor, renderedRowCount, rows]);
 
   const summary = payload?.summary;
   const holderCount = statsInteger(summary?.holderCount ?? summary?.uniqueOwners ?? summary?.totalHolders) ?? viewerTotal;
@@ -5347,16 +5467,127 @@ function getStatsHighlightFids(value: unknown): Set<number> {
     .filter((fid): fid is number => fid != null));
 }
 
+function CollectionActivity({ range, viewerFid, actionSessionToken, friendsAvailable, ethUsdPrice, onSearchWallet, onOpenToken }: {
+  range: StatsRange;
+  viewerFid: number | null;
+  actionSessionToken: string | null;
+  friendsAvailable: boolean;
+  ethUsdPrice: number | null;
+  onSearchWallet: (wallet: string) => void;
+  onOpenToken: (tokenId: number) => void;
+}) {
+  const [friendsOnly, setFriendsOnly] = useState(false);
+  const [payload, setPayload] = useState<MarketActivityPayload | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [error, setError] = useState("");
+
+  const load = useCallback(async (cursor?: string) => {
+    const params = new URLSearchParams({ range, limit: "20" });
+    if (cursor) params.set("cursor", cursor);
+    if (friendsOnly && viewerFid) {
+      params.set("friends", "1");
+      params.set("fid", String(viewerFid));
+    }
+    const response = await fetch(`/api/stats/activity?${params}`, {
+      headers: {
+        accept: "application/json",
+        ...(friendsOnly && actionSessionToken ? { authorization: `Bearer ${actionSessionToken}` } : {}),
+      },
+      credentials: "same-origin",
+    });
+    const next = await response.json() as MarketActivityPayload;
+    if (!response.ok) throw new Error(`Collection activity failed (${response.status})`);
+    setPayload((current) => cursor && current ? {
+      ...current,
+      rows: [...(current.rows ?? []), ...(next.rows ?? [])],
+      hasMore: next.hasMore,
+      nextCursor: next.nextCursor,
+    } : next);
+  }, [actionSessionToken, friendsOnly, range, viewerFid]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError("");
+    setPayload(null);
+    load().catch((loadError) => {
+      if (!cancelled) setError(loadError instanceof Error ? loadError.message : "Could not load collection activity");
+    }).finally(() => {
+      if (!cancelled) setLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, [load]);
+
+  useEffect(() => {
+    if (!friendsAvailable && friendsOnly) setFriendsOnly(false);
+  }, [friendsAvailable, friendsOnly]);
+
+  const loadMore = async () => {
+    if (!payload?.nextCursor || loadingMore) return;
+    setLoadingMore(true);
+    try { await load(payload.nextCursor); }
+    catch (loadError) { setError(loadError instanceof Error ? loadError.message : "Could not load more activity"); }
+    finally { setLoadingMore(false); }
+  };
+
+  return (
+    <section className="mt-3">
+      <div className="flex items-center justify-between py-2">
+        <Text className="text-xs font-black uppercase text-[#00FF00]">Collection Activity</Text>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={friendsOnly}
+          disabled={!friendsAvailable}
+          onClick={() => {
+            setFriendsOnly((current) => !current);
+            void hapticSelectionChanged();
+          }}
+          className={`flex cursor-pointer items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[10px] font-black uppercase transition disabled:cursor-not-allowed disabled:opacity-40 ${
+            friendsOnly
+              ? "border-[#7959ff] bg-[#7959ff] text-white shadow-[0_0_9px_rgba(121,89,255,0.55)]"
+              : "border-[#7959ff]/60 bg-[rgba(93,66,214,0.12)] text-[#b9aaff] hover:border-[#7959ff]"
+          }`}
+        >
+          <span
+            aria-hidden="true"
+            className={`flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-[3px] border ${
+              friendsOnly
+                ? "border-white bg-white text-[#5d42d6]"
+                : "border-[#b9aaff] bg-black/35 text-transparent"
+            }`}
+          >
+            <svg viewBox="0 0 12 12" className="h-2.5 w-2.5" fill="none" stroke="currentColor" strokeWidth="2.25">
+              <path d="m2 6 2.4 2.4L10 3" />
+            </svg>
+          </span>
+          Friends
+        </button>
+      </div>
+      {loading ? <div className="py-8 text-center text-[10px] font-bold text-[#8bbf8b]">Loading collection activity...</div>
+        : <MarketActivityTable rows={payload?.rows ?? []} ethUsdPrice={ethUsdPrice} showItem hasMore={Boolean(payload?.hasMore)} loadingMore={loadingMore} onLoadMore={() => void loadMore()} onSearchWallet={onSearchWallet} onOpenToken={onOpenToken} />}
+      {error && <div className="mt-2 text-center text-[9px] font-bold text-red-300">{error}</div>}
+    </section>
+  );
+}
+
 function StatsSocial({
   payload,
   highlights,
   viewerFid,
+  actionSessionToken,
+  range,
+  ethUsdPrice,
   onSearchWallet,
   onOpenWarpletDetails,
 }: {
   payload: StatsApiEnvelope;
   highlights: unknown;
   viewerFid: number | null;
+  actionSessionToken: string | null;
+  range: StatsRange;
+  ethUsdPrice: number | null;
   onSearchWallet: (wallet: string) => void;
   onOpenWarpletDetails: (tokenId: number) => void;
 }) {
@@ -5368,10 +5599,12 @@ function StatsSocial({
   const buildParticipantChart = (role: "buyer" | "seller") => applySocialAvatarMarkerLimit(
     socialSaleData.map((point) => {
       const fid = statsInteger(point[`${role}Fid`]);
-      const avatarUrl = statsString(point[`${role}AvatarUrl`]);
+      const wallet = statsString(point[`${role}Wallet`]);
+      const avatarUrl = statsString(point[`${role}AvatarUrl`]) ?? (wallet ? getWalletIdenticonDataUrl(wallet) : null);
       return {
         ...point,
         fid,
+        wallet,
         avatarUrl,
         isTopFriend: fid != null && topFriendFids.has(fid),
         isViewer: fid != null && viewerFid != null && fid === viewerFid,
@@ -5419,9 +5652,11 @@ function StatsSocial({
       </div>
 
       {bestFriendHolderRows.length > 0 && (
-        <section className="mt-3 rounded-xl border border-[#00FF00]/25 bg-black/65 p-3">
-          <Text className="text-xs font-black uppercase text-[#00FF00]">Best Friend Holders</Text>
-          <div className="mt-3 grid grid-cols-5 gap-2.5">
+        <section className="mt-3 overflow-hidden rounded-xl border border-[#00FF00]/25 bg-black/65">
+          <div className="border-b border-[#00FF00]/15 px-3 py-3">
+            <Text className="text-xs font-black uppercase text-[#00FF00]">Best Friend Holders</Text>
+          </div>
+          <div className="grid grid-cols-5 gap-2.5 p-3">
             {bestFriendHolderRows.slice(0, 25).map((value, index) => {
               const person = statsRecord(value) ?? {};
               const fid = statsInteger(person.fid);
@@ -5471,7 +5706,17 @@ function StatsSocial({
         </section>
       )}
 
-      {recentRows.length > 0 && (
+      <CollectionActivity
+        range={range}
+        viewerFid={viewerFid}
+        actionSessionToken={actionSessionToken}
+        friendsAvailable={getStatsHighlightFids(highlights).size > 0}
+        ethUsdPrice={ethUsdPrice}
+        onSearchWallet={onSearchWallet}
+        onOpenToken={onOpenWarpletDetails}
+      />
+
+      {false && recentRows.length > 0 && (
         <section className="mt-3 overflow-hidden rounded-xl border border-[#00FF00]/25 bg-black/65">
           <div className="border-b border-[#00FF00]/15 px-3 py-3">
             <Text className="text-xs font-black uppercase text-[#00FF00]">Recent Social Activity</Text>
@@ -5591,11 +5836,23 @@ function StatsPage({
         seenCacheKeys.add(request.cacheKey);
         return true;
       });
+    const connection = (navigator as Navigator & {
+      connection?: { saveData?: boolean; effectiveType?: string };
+    }).connection;
+    if (
+      document.visibilityState !== "visible" ||
+      connection?.saveData ||
+      connection?.effectiveType === "slow-2g" ||
+      connection?.effectiveType === "2g"
+    ) return;
+
     let cancelled = false;
-    const timeout = window.setTimeout(() => {
+    let timeout: number | null = null;
+    let idleCallback: number | null = null;
+    const warm = () => {
       void (async () => {
         for (const request of backgroundRequests) {
-          if (cancelled) return;
+          if (cancelled || document.visibilityState !== "visible") return;
           try {
             await fetchCachedStatsEnvelope(request);
           } catch {
@@ -5603,10 +5860,19 @@ function StatsPage({
           }
         }
       })();
+    };
+    timeout = window.setTimeout(() => {
+      timeout = null;
+      if ("requestIdleCallback" in window) {
+        idleCallback = window.requestIdleCallback(warm, { timeout: 4000 });
+      } else {
+        warm();
+      }
     }, STATS_BACKGROUND_PREFETCH_DELAY_MS);
     return () => {
       cancelled = true;
-      window.clearTimeout(timeout);
+      if (timeout != null) window.clearTimeout(timeout);
+      if (idleCallback != null && "cancelIdleCallback" in window) window.cancelIdleCallback(idleCallback);
     };
   }, [loading, payload, range, subpage]);
 
@@ -5727,6 +5993,9 @@ function StatsPage({
               payload={payload}
               highlights={highlights}
               viewerFid={viewerFid}
+              actionSessionToken={actionSessionToken}
+              range={range}
+              ethUsdPrice={ethUsdPrice}
               onSearchWallet={onSearchWallet}
               onOpenWarpletDetails={onOpenWarpletDetails}
             />
@@ -5739,19 +6008,160 @@ function StatsPage({
   );
 }
 
-function WarpletPriceHistory({
+type MarketActivityParty = {
+  wallet?: string | null;
+  fid?: number | null;
+  username?: string | null;
+  displayName?: string | null;
+  pfpUrl?: string | null;
+};
+
+type MarketActivityRow = {
+  key: string;
+  event: "sale" | "listing" | "offer" | "transfer";
+  tokenId: number;
+  priceEth: number | null;
+  transactionHash?: string | null;
+  orderHash?: string | null;
+  at: string;
+  from?: MarketActivityParty | null;
+  to?: MarketActivityParty | null;
+};
+
+type MarketActivityPayload = {
+  rows?: MarketActivityRow[];
+  chart?: Array<Record<string, unknown>>;
+  hasMore?: boolean;
+  nextCursor?: string | null;
+  complete?: boolean;
+};
+
+function ActivityPartyCell({ party, onSearchWallet }: {
+  party?: MarketActivityParty | null;
+  onSearchWallet: (wallet: string) => void;
+}) {
+  const wallet = normalizeWalletAddress(party?.wallet);
+  const username = party?.username?.trim().replace(/^@/, "") || null;
+  const label = username ? `@${username}` : wallet ? formatShortWallet(wallet) : "—";
+  const [tooltipOpen, setTooltipOpen] = useState(false);
+  const { refs, floatingStyles, context } = useFloating({
+    open: tooltipOpen,
+    onOpenChange: setTooltipOpen,
+    placement: "top",
+    whileElementsMounted: autoUpdate,
+    middleware: [offset(7), flip({ padding: 8 }), shift({ padding: 8 })],
+  });
+  const hover = useHover(context, { delay: { open: 0, close: 60 }, move: false });
+  const focus = useFocus(context);
+  const role = useRole(context, { role: "tooltip" });
+  const { getReferenceProps, getFloatingProps } = useInteractions([hover, focus, role]);
+  if (!wallet) return <span className="text-[#587458]">—</span>;
+  return (
+    <>
+      <button
+        ref={refs.setReference}
+        type="button"
+        {...getReferenceProps({
+          "aria-label": `Search Warplets owned by ${label}`,
+          onClick: () => onSearchWallet(wallet),
+          className: "mx-auto block h-6 w-6 cursor-pointer overflow-hidden rounded-full outline-none ring-[#00FF00] focus:ring-1",
+        })}
+      >
+        {party?.pfpUrl ? (
+          <img src={party.pfpUrl} alt="" className="h-full w-full object-cover" loading="lazy" decoding="async" />
+        ) : (
+          <WalletIdenticon wallet={wallet} className="h-full w-full rounded-full" />
+        )}
+      </button>
+      {tooltipOpen && <FloatingPortal><div ref={refs.setFloating} style={floatingStyles} {...getFloatingProps({ className: "z-[100] max-w-[90vw] rounded-lg border border-[#00FF00]/40 bg-black px-2 py-1.5 text-[9px] font-bold text-[#00FF00] shadow-2xl" })}><span className="block">{label}</span><span className="block text-[8px] text-[#8bbf8b]">{wallet}</span></div></FloatingPortal>}
+    </>
+  );
+}
+
+function MarketActivityTable({ rows, ethUsdPrice, showItem, hasMore, loadingMore, onLoadMore, onSearchWallet, onOpenToken }: {
+  rows: MarketActivityRow[];
+  ethUsdPrice: number | null;
+  showItem: boolean;
+  hasMore: boolean;
+  loadingMore: boolean;
+  onLoadMore: () => void;
+  onSearchWallet: (wallet: string) => void;
+  onOpenToken?: (tokenId: number) => void;
+}) {
+  const chipClass = (event: MarketActivityRow["event"]) => event === "sale"
+    ? "border-[#FF3333]/65 bg-[#FF3333]/15 text-[#FF5555]"
+    : event === "listing"
+      ? "border-[#FFFF00]/65 bg-[#FFFF00]/15 text-[#FFFF00]"
+      : event === "offer"
+        ? "border-[#33AAFF]/65 bg-[#33AAFF]/15 text-[#33AAFF]"
+        : "border-[#00FF00]/65 bg-[#00FF00]/15 text-[#00FF00]";
+  return (
+    <div className="w-full overflow-hidden rounded-xl border border-[#00FF00]/20 bg-black/65">
+      <table className="w-full table-fixed border-collapse text-center text-[8px]">
+        <colgroup>
+          {showItem && <col className="w-[19%]" />}
+          <col className={showItem ? "w-[18%]" : "w-[24%]"} />
+          <col className={showItem ? "w-[19%]" : "w-[24%]"} />
+          <col className={showItem ? "w-[11%]" : "w-[14%]"} />
+          <col className={showItem ? "w-[11%]" : "w-[14%]"} />
+          <col className={showItem ? "w-[22%]" : "w-[24%]"} />
+        </colgroup>
+        <thead className="bg-[#041204] text-[7px] font-black uppercase text-[#8bbf8b]">
+          <tr>
+            {showItem && <th className="px-0.5 py-2">Item</th>}
+            <th className="px-0.5 py-2">Event</th><th className="px-0.5 py-2">Price</th>
+            <th className="px-0.5 py-2">From</th><th className="px-0.5 py-2">To</th><th className="px-0.5 py-2">Time</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => {
+            const shortDate = new Date(row.at).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+            const fullDate = new Date(row.at).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" });
+            const price = row.event === "transfer" || row.priceEth == null ? null : row.priceEth;
+            return (
+              <tr key={row.key} className="border-t border-[#00FF00]/10">
+                {showItem && <td className="px-0.5 py-1.5">
+                  <button type="button" onClick={() => onOpenToken?.(row.tokenId)} className="mx-auto flex cursor-pointer flex-col items-center text-[#00FF00]">
+                    <img src={getWarpletPreviewImageUrl(row.tokenId)} alt="" className="h-7 w-7 rounded-[3px] object-cover" loading="lazy" decoding="async" />
+                    <span className="mt-0.5 text-[7px] font-black">#{row.tokenId}</span>
+                  </button>
+                </td>}
+                <td className="px-0.5 py-1.5"><span className={`inline-flex rounded-full border px-1 py-0.5 text-[7px] font-black uppercase ${chipClass(row.event)}`}>{row.event === "offer" ? "Offer" : row.event}</span></td>
+                <td className="px-0.5 py-1.5 font-black text-[#00FF00]">{price == null ? "—" : <InlineHoverTooltip value={`${formatEthNumber(price, 6).replace(/\s*Ξ$/, "")} Ξ`} tooltip={formatUsdMoneyFromMarket({ eth: price, at: row.at, rawAmount: null, decimals: 18, currencySymbol: "ETH", tokenAddress: null }, ethUsdPrice)} className="text-[8px]" />}</td>
+                <td className="px-0.5 py-1.5"><ActivityPartyCell party={row.from} onSearchWallet={onSearchWallet} /></td>
+                <td className="px-0.5 py-1.5"><ActivityPartyCell party={row.to} onSearchWallet={onSearchWallet} /></td>
+                <td className="px-0.5 py-1.5"><InlineHoverTooltip value={shortDate} tooltip={fullDate} className="text-[8px] text-[#8bbf8b]" tone="muted" /></td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+      {rows.length === 0 && <div className="px-3 py-8 text-center text-[10px] font-bold text-[#8bbf8b]">No activity found.</div>}
+      {hasMore && <button type="button" disabled={loadingMore} onClick={onLoadMore} className={`w-full cursor-pointer border-t border-[#00FF00]/15 px-3 py-3 text-[10px] font-black text-[#00FF00] disabled:cursor-wait disabled:opacity-60 ${showItem ? "" : "underline decoration-[#00FF00] underline-offset-2"}`}>{loadingMore ? "Loading..." : "Load More..."}</button>}
+    </div>
+  );
+}
+
+function WarpletItemActivity({
   tokenId,
   viewerFid,
   actionSessionToken,
+  onSearchWallet,
+  refreshKey,
 }: {
   tokenId: number;
   viewerFid: number | null;
   actionSessionToken: string | null;
+  onSearchWallet: (wallet: string) => void;
+  refreshKey: string;
 }) {
   const [open, setOpen] = useState(false);
-  const [payload, setPayload] = useState<StatsApiEnvelope | null>(null);
+  const [payload, setPayload] = useState<MarketActivityPayload | null>(null);
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState("");
+  const [ethUsdPrice, setEthUsdPrice] = useState<number | null>(null);
+  const [chartRetryKey, setChartRetryKey] = useState(0);
   const [topFriendFids, setTopFriendFids] = useState<Set<number>>(new Set());
 
   useEffect(() => {
@@ -5761,23 +6171,33 @@ function WarpletPriceHistory({
   }, [tokenId]);
 
   useEffect(() => {
+    if (!open || !payload) return;
+    const timer = window.setTimeout(() => setPayload(null), 400);
+    return () => window.clearTimeout(timer);
+  }, [refreshKey]);
+
+  useEffect(() => {
+    if (open && ethUsdPrice == null) fetchEthUsdPrice().then(setEthUsdPrice).catch(() => undefined);
+  }, [ethUsdPrice, open]);
+
+  useEffect(() => {
     if (!open || payload) return;
     const controller = new AbortController();
     setLoading(true);
     setError("");
     const loadPriceHistory = async () => {
       for (let attempt = 0; attempt < 2; attempt += 1) {
-        const response = await fetch(`/api/stats/warplets/${tokenId}/price-history`, {
+        const response = await fetch(`/api/stats/activity?tokenId=${tokenId}&range=all&limit=20&v=${encodeURIComponent(refreshKey)}`, {
           headers: { accept: "application/json" },
           signal: controller.signal,
         });
         const responseText = await response.text();
-        let result: StatsApiEnvelope | null = null;
+        let result: MarketActivityPayload | null = null;
         if (responseText.trim()) {
           try {
-            result = JSON.parse(responseText) as StatsApiEnvelope;
+            result = JSON.parse(responseText) as MarketActivityPayload;
           } catch {
-            if (response.ok) throw new Error("Price history returned an invalid response. Please try again.");
+            if (response.ok) throw new Error("Item activity returned an invalid response. Please try again.");
           }
         }
         const retryable = !responseText.trim() || [502, 503, 504].includes(response.status);
@@ -5786,9 +6206,9 @@ function WarpletPriceHistory({
           continue;
         }
         if (!response.ok) {
-          throw new Error(result?.message || result?.error || `Price history failed (${response.status})`);
+          throw new Error(`Item activity failed (${response.status})`);
         }
-        if (!result) throw new Error("Price history returned an empty response. Please try again.");
+        if (!result) throw new Error("Item activity returned an empty response. Please try again.");
         setPayload(result);
         return;
       }
@@ -5796,14 +6216,14 @@ function WarpletPriceHistory({
     void loadPriceHistory()
       .catch((loadError) => {
         if (!(loadError instanceof DOMException && loadError.name === "AbortError")) {
-          setError(loadError instanceof Error ? loadError.message : "Could not load price history");
+          setError(loadError instanceof Error ? loadError.message : "Could not load item activity");
         }
       })
       .finally(() => {
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [open, payload, tokenId]);
+  }, [open, payload, refreshKey, tokenId]);
 
   useEffect(() => {
     if (!open || !viewerFid || !actionSessionToken) {
@@ -5830,23 +6250,42 @@ function WarpletPriceHistory({
     return () => controller.abort();
   }, [actionSessionToken, open, viewerFid]);
 
-  const root = payload as Record<string, unknown> | null;
-  const historyRows = payload
-    ? statsSeries(payload, "history", "sales", "prices", "events").length > 0
-      ? statsSeries(payload, "history", "sales", "prices", "events")
-      : Array.isArray(root?.sales)
-        ? root.sales
-        : Array.isArray(root?.history)
-          ? root.history
-          : []
-    : [];
+  const historyRows = payload?.chart ?? [];
   const chartData = applySocialAvatarMarkerLimit(normalizeStatsChartData(historyRows, {
     salePrice: ["salePrice", "price", "priceEth", "eth", "amount"],
-  }).map((point) => ({
-    ...point,
-    isTopFriend: point.isTopFriend || (typeof point.fid === "number" && topFriendFids.has(point.fid)),
-    isViewer: point.isViewer || (viewerFid != null && point.fid === viewerFid),
-  })));
+  }).map((point) => {
+    const wallet = statsString(point.buyerWallet ?? point.wallet);
+    const avatarUrl = statsString(point.avatarUrl ?? point.buyerAvatarUrl) ?? (wallet ? getWalletIdenticonDataUrl(wallet) : null);
+    return {
+      ...point,
+      wallet,
+      avatarUrl,
+      isTopFriend: point.isTopFriend || (typeof point.fid === "number" && topFriendFids.has(point.fid)),
+      isViewer: point.isViewer || (viewerFid != null && point.fid === viewerFid),
+      showUnknownMarker: !avatarUrl,
+    };
+  }));
+  const ItemActivityChart = useMemo(() => lazy(loadStatsChart), [chartRetryKey]);
+
+  const loadMore = async () => {
+    if (!payload?.nextCursor || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const response = await fetch(`/api/stats/activity?tokenId=${tokenId}&range=all&limit=20&cursor=${encodeURIComponent(payload.nextCursor)}&v=${encodeURIComponent(refreshKey)}`);
+      const next = await response.json() as MarketActivityPayload;
+      if (!response.ok) throw new Error(`Item activity failed (${response.status})`);
+      setPayload((current) => current ? {
+        ...current,
+        rows: [...(current.rows ?? []), ...(next.rows ?? [])],
+        hasMore: next.hasMore,
+        nextCursor: next.nextCursor,
+      } : next);
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : "Could not load more activity");
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   return (
     <section className="mt-3 overflow-hidden rounded-xl border border-[#00FF00]/20 bg-[#041204]/60">
@@ -5859,42 +6298,55 @@ function WarpletPriceHistory({
         className="flex w-full cursor-pointer items-center justify-between px-3 py-3 text-left"
         aria-expanded={open}
       >
-        <span>
-          <span className="block text-[10px] font-black uppercase text-[#00FF00]">Price history since Jul 2, 2026</span>
-          <span className="mt-0.5 block text-[9px] text-[#8bbf8b]">Observed post-reset sales</span>
+        <span className="block text-[10px] font-black uppercase text-[#00FF00]">Item Activity</span>
+        <span className="grid h-7 w-7 shrink-0 place-items-center rounded-md bg-[#00FF00] text-[rgb(0,80,0)]">
+          <svg
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+            className={`h-4 w-4 transition-transform ${open ? "rotate-180" : ""}`}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+          >
+            <path d="m6 9 6 6 6-6" />
+          </svg>
         </span>
-        <svg
-          viewBox="0 0 24 24"
-          aria-hidden="true"
-          className={`h-4 w-4 text-[#00FF00] transition-transform ${open ? "rotate-180" : ""}`}
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-        >
-          <path d="m6 9 6 6 6-6" />
-        </svg>
       </button>
       {open && (
         <div className="border-t border-[#00FF00]/15 px-2 pb-3 pt-2">
           {loading ? (
-            <div className="py-8 text-center text-[10px] font-bold text-[#8bbf8b]">Loading price history...</div>
+            <div className="py-8 text-center text-[10px] font-bold text-[#8bbf8b]">Loading item activity...</div>
           ) : error ? (
             <div className="py-6 text-center text-[10px] font-bold text-red-300">{error}</div>
-          ) : chartData.length === 0 ? (
+          ) : false ? (
             <div className="py-8 text-center text-[10px] font-bold text-[#8bbf8b]">No observed sales since Jul 2, 2026.</div>
           ) : (
             <>
-              <StatsChartErrorBoundary>
-                <Suspense fallback={<StatsChartFallback />}>
-                  <LazyStatsChart
-                    data={chartData}
-                    series={[{ key: "salePrice", label: "Sale ETH", color: "#33AAFF", type: "line" }]}
-                    socialKey="salePrice"
-                    height={180}
-                  />
-                </Suspense>
-              </StatsChartErrorBoundary>
-              <div className="mt-2 space-y-1">
+              <Text className="mb-1 px-1 text-[10px] font-black uppercase text-[#00FF00]">Item Sales</Text>
+              <div className="mb-3">
+                <StatsChartErrorBoundary onRetry={() => setChartRetryKey((current) => current + 1)}>
+                  <Suspense fallback={<StatsChartFallback />}>
+                    <ItemActivityChart
+                      data={chartData}
+                      series={[{ key: "salePrice", label: "Sale", color: "#00FF00", type: "line" }]}
+                      socialKey="salePrice"
+                      socialRole="buyer"
+                      hideMarketplace
+                      height={180}
+                    />
+                  </Suspense>
+                </StatsChartErrorBoundary>
+              </div>
+              <MarketActivityTable
+                rows={payload?.rows ?? []}
+                ethUsdPrice={ethUsdPrice}
+                showItem={false}
+                hasMore={Boolean(payload?.hasMore)}
+                loadingMore={loadingMore}
+                onLoadMore={() => void loadMore()}
+                onSearchWallet={onSearchWallet}
+              />
+              <div className="hidden">
                 {historyRows.slice(-5).reverse().map((value, index) => {
                   const sale = statsRecord(value) ?? {};
                   const amount = statsNumber(sale.salePrice ?? sale.price ?? sale.priceEth ?? sale.eth ?? sale.amount);
@@ -5945,7 +6397,7 @@ function WarpletPriceHistory({
                   );
                 })}
               </div>
-              <div className="mt-2 text-center text-[9px] text-[#8bbf8b]">
+              <div className="hidden">
                 {payload?.complete === false ? "Partial history" : "History complete"} · D1 observed activity
               </div>
             </>
@@ -6100,7 +6552,7 @@ function CollectionBiddersModal({
                     title={`Open ${formatShortWallet(bidder.wallet)} on Basescan`}
                   >
                     <img
-                      src={bidder.pfpUrl || getWarpletPreviewImageUrl(HEADER_FALLBACK_AVATAR_TOKEN_ID)}
+                      src={bidder.pfpUrl || getWalletIdenticonDataUrl(bidder.wallet)}
                       alt=""
                       className="h-6 w-6 shrink-0 rounded-full border border-[#00FF00]/45 object-cover"
                       loading="lazy"
@@ -6605,7 +7057,7 @@ function CollectionOffersPage({
                   key={bidder.wallet}
                   className="h-7 w-7 overflow-hidden rounded-full border-2 border-[#00FF00] bg-black"
                 >
-                  <img src={bidder.pfpUrl || getWarpletPreviewImageUrl(HEADER_FALLBACK_AVATAR_TOKEN_ID)} alt="" className="h-full w-full object-cover" loading="lazy" />
+                  <img src={bidder.pfpUrl || getWalletIdenticonDataUrl(bidder.wallet)} alt="" className="h-full w-full object-cover" loading="lazy" />
                 </span>
               ))}
               {group.bidderCount > 5 && (
@@ -6851,6 +7303,7 @@ function WarpletCard({
 
   return (
     <div
+      style={{ contentVisibility: "auto", containIntrinsicSize: "420px" }}
       role="button"
       tabIndex={0}
       onClick={openCard}
@@ -7155,7 +7608,7 @@ function TraitOffersPage({
       <SearchSegmentedTabs className="mt-4" options={OFFERS_FILTER_TABS} activeId={scope} onSelect={(id) => setScope(id === "your" ? "your" : "all")}/>
       <div className="mt-4 overflow-hidden rounded-lg border border-[#00FF00]/25">
         <div className="grid grid-cols-[1fr_1fr_56px_72px_72px] items-center gap-1 bg-[#041204] px-2 py-2 text-center text-[10px] font-bold uppercase text-[#8bbf8b]"><span>Price</span><span>Volume</span><span>Offers</span><span>Bidders</span><span>Action</span></div>
-        {loading ? <div className="px-3 py-6 text-center text-sm font-bold text-[#8bbf8b]">Loading offers...</div> : rows.length === 0 ? <div className="px-3 py-6 text-center text-sm font-bold text-[#8bbf8b]">No trait offers.</div> : rows.map((group) => <div key={`${group.traitType}|${group.traitValue}|${group.price.rawAmount ?? group.price.eth}`} className="grid grid-cols-[1fr_1fr_56px_72px_72px] items-center gap-1 border-t border-[#00FF00]/15 px-2 py-2 text-center text-xs"><OfferPriceTooltipButton price={group.price} ethUsdPrice={ethUsdPrice} onClick={() => { setPriceFromMarket(group.price); formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }); }}/><span className="flex justify-center"><InlineHoverTooltip value={formatMarketValue(group.volume, { maxDigits: 5 })} tooltip={formatUsdMoneyFromMarket(group.volume, ethUsdPrice)} className="text-[#00FF00]"/></span><span className="flex justify-center"><InlineHoverTooltip value={`${emojiForTrait(group.traitType)} ${group.offerCount}`} tooltip={`${group.traitType}: ${group.traitValue}`} className="font-bold text-[#8bbf8b]"/></span><button type="button" onClick={() => setBiddersGroup(group)} className="flex cursor-pointer justify-center -space-x-2">{group.previewBidders.slice(0, 5).map((bidder) => <img key={bidder.wallet} src={bidder.pfpUrl || getWarpletPreviewImageUrl(HEADER_FALLBACK_AVATAR_TOKEN_ID)} alt="" className="h-7 w-7 rounded-full border-2 border-[#00FF00] object-cover"/>)}</button><button type="button" disabled={busy !== null} onClick={() => { if (group.userOfferCount > 0) { setCancelGroup(group); setCancelRequestedQuantity(group.userOfferCount); setCancelQuantity(snapCollectionOfferCancelQuantity(group.userOrders, group.userOfferCount)); } else { const attribute = LEVEL_ATTRIBUTES.find((item) => `${item.label} Level`.toLowerCase() === group.traitType.toLowerCase()); setPriceFromMarket(group.price); if (attribute) setSelectedAttributes([attribute.column]); formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }); } }} className={`cursor-pointer justify-self-center rounded-md border px-2 py-1.5 text-xs font-bold disabled:cursor-wait ${group.userOfferCount > 0 ? "border-[#FF5555]/55 text-[#FF7777]" : "border-[#33AAFF]/55 text-[#33AAFF]"}`}>{group.userOfferCount > 0 ? "Cancel" : "Offer"}</button></div>)}
+        {loading ? <div className="px-3 py-6 text-center text-sm font-bold text-[#8bbf8b]">Loading offers...</div> : rows.length === 0 ? <div className="px-3 py-6 text-center text-sm font-bold text-[#8bbf8b]">No trait offers.</div> : rows.map((group) => <div key={`${group.traitType}|${group.traitValue}|${group.price.rawAmount ?? group.price.eth}`} className="grid grid-cols-[1fr_1fr_56px_72px_72px] items-center gap-1 border-t border-[#00FF00]/15 px-2 py-2 text-center text-xs"><OfferPriceTooltipButton price={group.price} ethUsdPrice={ethUsdPrice} onClick={() => { setPriceFromMarket(group.price); formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }); }}/><span className="flex justify-center"><InlineHoverTooltip value={formatMarketValue(group.volume, { maxDigits: 5 })} tooltip={formatUsdMoneyFromMarket(group.volume, ethUsdPrice)} className="text-[#00FF00]"/></span><span className="flex justify-center"><InlineHoverTooltip value={`${emojiForTrait(group.traitType)} ${group.offerCount}`} tooltip={`${group.traitType}: ${group.traitValue}`} className="font-bold text-[#8bbf8b]"/></span><button type="button" onClick={() => setBiddersGroup(group)} className="flex cursor-pointer justify-center -space-x-2">{group.previewBidders.slice(0, 5).map((bidder) => <img key={bidder.wallet} src={bidder.pfpUrl || getWalletIdenticonDataUrl(bidder.wallet)} alt="" className="h-7 w-7 rounded-full border-2 border-[#00FF00] object-cover"/>)}</button><button type="button" disabled={busy !== null} onClick={() => { if (group.userOfferCount > 0) { setCancelGroup(group); setCancelRequestedQuantity(group.userOfferCount); setCancelQuantity(snapCollectionOfferCancelQuantity(group.userOrders, group.userOfferCount)); } else { const attribute = LEVEL_ATTRIBUTES.find((item) => `${item.label} Level`.toLowerCase() === group.traitType.toLowerCase()); setPriceFromMarket(group.price); if (attribute) setSelectedAttributes([attribute.column]); formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }); } }} className={`cursor-pointer justify-self-center rounded-md border px-2 py-1.5 text-xs font-bold disabled:cursor-wait ${group.userOfferCount > 0 ? "border-[#FF5555]/55 text-[#FF7777]" : "border-[#33AAFF]/55 text-[#33AAFF]"}`}>{group.userOfferCount > 0 ? "Cancel" : "Offer"}</button></div>)}
       </div>
       <div className="mt-3 text-center text-[11px] text-[#8bbf8b]">Last updated: {payload?.generatedAt ? formatMarketTimestamp(payload.generatedAt) : "Not yet"}. <button type="button" disabled={refreshing || busy !== null} onClick={() => void loadOffers({ refresh: true })} className="font-bold text-[#00FF00]">{refreshing ? "Refreshing..." : "Refresh"}</button>{payload?.refreshError && <span className="block text-red-300">{payload.refreshError}</span>}</div>
       {cancelGroup && <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/80 p-4 sm:items-center"><div className="w-full max-w-sm rounded-xl border border-[#FF5555]/45 bg-black p-4"><Text className="text-base font-bold text-[#FF7777]">Cancel trait offers</Text><p className="mt-2 text-sm font-bold text-[#d9b0b0]">Cancel up to {cancelGroup.userOfferCount} {emojiForTrait(cancelGroup.traitType)} {cancelGroup.traitValue} trait offers at {formatMarketValue(cancelGroup.price, { maxDigits: 8 })}.</p><div className="mt-3 flex items-center rounded-lg border-2 border-[#FF5555]/35 bg-black/60 px-2 py-1.5"><button type="button" onClick={() => { const next = stepCollectionOfferCancelQuantity(cancelTotals, cancelQuantity, -1); setCancelRequestedQuantity(next); setCancelQuantity(next); }} className="h-8 w-8 text-lg font-bold text-[#FF7777]">-</button><input type="number" min={1} max={cancelGroup.userOfferCount} value={cancelRequestedQuantity} onChange={(event) => { const requested = Math.min(cancelGroup.userOfferCount, Math.max(1, Number(event.target.value) || 1)); setCancelRequestedQuantity(requested); setCancelQuantity(snapCollectionOfferCancelQuantity(cancelGroup.userOrders, requested)); }} className="mx-2 min-w-0 flex-1 appearance-none bg-transparent text-center font-bold text-[#FF7777] outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"/><button type="button" onClick={() => { const next = stepCollectionOfferCancelQuantity(cancelTotals, cancelQuantity, 1); setCancelRequestedQuantity(next); setCancelQuantity(next); }} className="h-8 w-8 text-lg font-bold text-[#FF7777]">+</button></div>{actualCancelQuantity > cancelRequestedQuantity && <p className="mt-2 text-xs font-bold text-[#ffd599]">This cancels {actualCancelQuantity} offers across {selectedCancelOrders.length} OpenSea orders.</p>}<button type="button" disabled={busy !== null} onClick={() => void runCancel()} className="mt-4 w-full cursor-pointer rounded-[20px] border border-[#a83232] bg-[#FF5555] px-5 py-3 text-base font-bold text-[#2c0000] shadow-[3px_6px_0_#8a2222] transition-all duration-100 hover:bg-[#ff7777] active:translate-x-[1px] active:translate-y-[3px] active:shadow-[1px_3px_0_#8a2222] disabled:cursor-wait disabled:opacity-70">{busy === "cancel" ? "Working..." : "Review cancellation"}</button><button type="button" onClick={() => setCancelGroup(null)} className="mx-auto mt-2 block px-4 py-2 text-xs font-bold text-[#FF7777] underline">Keep offers</button></div></div>}
@@ -7218,21 +7671,27 @@ function ItemOffersPage({
     const timer = window.setTimeout(() => { setDebouncedQuery(query); setPickerVisibleCount(PAGE_SIZE); }, SEARCH_DEBOUNCE_MS);
     return () => window.clearTimeout(timer);
   }, [query]);
-  const pickerResults = useMemo(() => {
-    if (!db || (!debouncedQuery.trim() && !favouritesOnly)) return [];
-    return searchWarpletPickerRows(db, debouncedQuery || "*", favouritesOnly ? favouriteTokenIds : null);
-  }, [db, debouncedQuery, favouriteTokenIds, favouritesOnly]);
-  const visiblePickerResults = pickerResults.slice(0, pickerVisibleCount);
+  const pickerPage = useMemo(() => {
+    if (!db || (!debouncedQuery.trim() && !favouritesOnly)) return { rows: [], total: 0 };
+    const requestedRows = Math.ceil(pickerVisibleCount / SEARCH_RESULT_PAGE_SIZE) * SEARCH_RESULT_PAGE_SIZE;
+    return searchWarpletPickerPage(
+      db,
+      debouncedQuery || "*",
+      favouritesOnly ? favouriteTokenIds : null,
+      requestedRows,
+    );
+  }, [db, debouncedQuery, favouriteTokenIds, favouritesOnly, pickerVisibleCount]);
+  const visiblePickerResults = pickerPage.rows.slice(0, pickerVisibleCount);
 
   useEffect(() => {
     const target = pickerEndRef.current;
-    if (!pickerOpen || !target || pickerVisibleCount >= pickerResults.length) return;
+    if (!pickerOpen || !target || pickerVisibleCount >= pickerPage.total) return;
     const observer = new IntersectionObserver(([entry]) => {
-      if (entry?.isIntersecting) setPickerVisibleCount((current) => Math.min(current + PAGE_SIZE, pickerResults.length));
+      if (entry?.isIntersecting) setPickerVisibleCount((current) => Math.min(current + PAGE_SIZE, pickerPage.total));
     }, { threshold: 0.1 });
     observer.observe(target);
     return () => observer.disconnect();
-  }, [pickerOpen, pickerResults.length, pickerVisibleCount]);
+  }, [pickerOpen, pickerPage.total, pickerVisibleCount]);
 
   const loadOffers = useCallback(async (options: { refresh?: boolean; silent?: boolean } = {}) => {
     const requestId = loadRequestRef.current + 1;
@@ -7424,14 +7883,14 @@ function ItemOffersPage({
           <button type="button" onClick={() => { if (query || selectedTokenId || favouritesOnly) resetPicker(); else { const random = getFreshRandomExampleSearch(); setQuery(random); setDebouncedQuery(random); setPickerOpen(true); } }} className="h-full cursor-pointer px-2 text-xs font-bold text-[#33AAFF]">{query || selectedTokenId || favouritesOnly ? "Reset" : "Random"}</button>
           <FavouriteButton active={favouritesOnly} title="Filter picker by my favourites" className="mr-1 h-full w-9 !text-[#33AAFF]" onClick={(event) => { event.preventDefault(); setFavouritesOnly((current) => !current); setSelectedTokenId(null); setPickerOpen(true); }}/>
         </div>
-        {pickerOpen && <div className="absolute left-0 right-0 z-40 mt-2 overflow-hidden rounded-xl border border-[#33AAFF]/35 bg-black shadow-2xl"><OverlayScrollArea className="aspect-[8/7] w-full overflow-y-auto" scrollbarAutoHide="never"><div className="grid grid-cols-4 gap-1.5 p-2">{visiblePickerResults.map((warplet) => <button key={warplet.id} type="button" onClick={() => selectWarplet(warplet.id)} title={`Select #${warplet.id}`} className="aspect-square cursor-pointer overflow-hidden rounded-[3px]"><img src={getWarpletPreviewImageUrl(warplet.id)} alt={`Warplet #${warplet.id}`} className="h-full w-full object-cover" loading="lazy"/></button>)}</div>{pickerResults.length === 0 && <div className="px-3 py-10 text-center text-xs font-black text-[#33AAFF]">NO WARPLETS FOUND</div>}{pickerResults.length > 0 && pickerVisibleCount >= pickerResults.length && <button type="button" onClick={() => { const viewport = pickerRootRef.current?.querySelector<HTMLElement>("[data-overlayscrollbars-viewport]"); viewport?.scrollTo({ top: 0, behavior: "smooth" }); }} className="w-full cursor-pointer px-3 py-3 text-center text-[11px] font-bold text-[#8bcfff]">No more warplets. <span className="text-[#33AAFF] underline decoration-[#33AAFF] underline-offset-2 hover:text-[#8bcfff] hover:decoration-[#8bcfff]">Return to top</span></button>}<div ref={pickerEndRef} className="h-px"/></OverlayScrollArea></div>}
+        {pickerOpen && <div className="absolute left-0 right-0 z-40 mt-2 overflow-hidden rounded-xl border border-[#33AAFF]/35 bg-black shadow-2xl"><OverlayScrollArea className="aspect-[8/7] w-full overflow-y-auto" scrollbarAutoHide="never"><div className="grid grid-cols-4 gap-1.5 p-2">{visiblePickerResults.map((warplet) => <button key={warplet.id} type="button" onClick={() => selectWarplet(warplet.id)} title={`Select #${warplet.id}`} className="aspect-square cursor-pointer overflow-hidden rounded-[3px]"><img src={getWarpletPreviewImageUrl(warplet.id)} alt={`Warplet #${warplet.id}`} className="h-full w-full object-cover" loading="lazy" decoding="async"/></button>)}</div>{pickerPage.total === 0 && <div className="px-3 py-10 text-center text-xs font-black text-[#33AAFF]">NO WARPLETS FOUND</div>}{pickerPage.total > 0 && pickerVisibleCount >= pickerPage.total && <button type="button" onClick={() => { const viewport = pickerRootRef.current?.querySelector<HTMLElement>("[data-overlayscrollbars-viewport]"); viewport?.scrollTo({ top: 0, behavior: "smooth" }); }} className="w-full cursor-pointer px-3 py-3 text-center text-[11px] font-bold text-[#8bcfff]">No more warplets. <span className="text-[#33AAFF] underline decoration-[#33AAFF] underline-offset-2 hover:text-[#8bcfff] hover:decoration-[#8bcfff]">Return to top</span></button>}<div ref={pickerEndRef} className="h-px"/></OverlayScrollArea></div>}
       </div>
       <label className="mt-3 block text-[11px] font-bold uppercase text-[#8bcfff]"><span className="flex justify-between"><span>Offered at</span><span>{formatUsdEstimate(price, ethUsdPrice, payload?.topItemOffer)}</span></span><div className="mt-1 flex items-center rounded-lg border-2 border-[#33AAFF]/35 bg-black/60 px-3 py-2 focus-within:border-[#33AAFF] focus-within:shadow-[0_0_10px_rgba(51,170,255,0.22)]"><input data-no-focus-ring value={price} inputMode="decimal" onChange={(event) => setPrice(sanitizeTradePriceInput(event.target.value))} placeholder="0.0001" className="min-w-0 flex-1 bg-transparent text-base font-bold text-[#33AAFF] outline-none"/><span className="font-bold text-[#33AAFF]">WETH</span></div></label>
       <p className="mt-2 text-[11px] font-bold text-[#8bcfff]">Offer will be on OpenSea. Set price to <button type="button" disabled={!payload?.topItemOffer} onClick={() => setPriceFromMarket(payload?.topItemOffer)} className="cursor-pointer text-[#33AAFF] underline disabled:cursor-not-allowed disabled:opacity-50">Top Item Offer</button>.</p>
       <button type="button" disabled={busy !== null || !selectedTokenId || !priceIsValid} onClick={() => void runMakeOffer()} className="mt-3 w-full cursor-pointer rounded-[20px] border border-[#1c78b3] bg-[#33AAFF] px-5 py-3 text-base font-bold text-[rgb(0,54,80)] shadow-[3px_6px_0_#1c78b3] disabled:cursor-not-allowed disabled:opacity-70">{busy === "offer" ? busyLabel ?? "Preparing..." : "Review item offer"}</button>
     </div>
     <SearchSegmentedTabs className="mt-4" options={OFFERS_FILTER_TABS} activeId={scope} onSelect={(id) => setScope(id === "your" ? "your" : "all")}/>
-    <div className="mt-4 overflow-hidden rounded-lg border border-[#00FF00]/25"><div className="grid grid-cols-5 items-center gap-1 bg-[#041204] px-2 py-2 text-center text-[10px] font-bold uppercase text-[#8bbf8b]"><span>Price</span><span>Warplet</span><span>NFT</span><span>Bidder</span><span>Action</span></div>{loading ? <div className="px-3 py-6 text-center text-sm font-bold text-[#8bbf8b]">Loading offers...</div> : rows.length === 0 ? <div className="px-3 py-6 text-center text-sm font-bold text-[#8bbf8b]">No item offers.</div> : rows.map((row) => <div key={row.orderHash} className="grid grid-cols-5 items-center gap-1 border-t border-[#00FF00]/15 px-2 py-2 text-center text-xs"><OfferPriceTooltipButton price={row.price} ethUsdPrice={ethUsdPrice} onClick={() => setPriceFromMarket(row.price)}/><button type="button" onClick={() => selectWarplet(row.tokenId)} className="cursor-pointer font-bold text-[#00FF00]">#{row.tokenId}</button><button type="button" onClick={() => onOpenWarpletDetails(row.tokenId)} className="mx-auto h-9 w-9 cursor-pointer overflow-hidden rounded-[3px] border-2 border-[#00FF00]"><img src={getWarpletPreviewImageUrl(row.tokenId)} alt={`Warplet #${row.tokenId}`} className="h-full w-full object-cover" loading="lazy"/></button><button type="button" disabled={!row.bidder} onClick={() => setBidderRow(row)} className="mx-auto cursor-pointer disabled:cursor-default">{row.bidder && <img src={row.bidder.pfpUrl || getWarpletPreviewImageUrl(HEADER_FALLBACK_AVATAR_TOKEN_ID)} alt="" className="h-7 w-7 rounded-full border-2 border-[#00FF00] object-cover"/>}</button><button type="button" disabled={busy !== null} onClick={() => row.isUserOffer ? void runCancelOffer(row) : (selectWarplet(row.tokenId), setPriceFromMarket(row.price), formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }))} className={`cursor-pointer rounded-md border px-2 py-1.5 text-xs font-bold disabled:cursor-wait ${row.isUserOffer ? "border-[#FF5555]/55 text-[#FF7777]" : "border-[#33AAFF]/55 text-[#33AAFF]"}`}>{row.isUserOffer ? "Cancel" : "Offer"}</button></div>)}</div>
+    <div className="mt-4 overflow-hidden rounded-lg border border-[#00FF00]/25"><div className="grid grid-cols-5 items-center gap-1 bg-[#041204] px-2 py-2 text-center text-[10px] font-bold uppercase text-[#8bbf8b]"><span>Price</span><span>Warplet</span><span>NFT</span><span>Bidder</span><span>Action</span></div>{loading ? <div className="px-3 py-6 text-center text-sm font-bold text-[#8bbf8b]">Loading offers...</div> : rows.length === 0 ? <div className="px-3 py-6 text-center text-sm font-bold text-[#8bbf8b]">No item offers.</div> : rows.map((row) => <div key={row.orderHash} className="grid grid-cols-5 items-center gap-1 border-t border-[#00FF00]/15 px-2 py-2 text-center text-xs"><OfferPriceTooltipButton price={row.price} ethUsdPrice={ethUsdPrice} onClick={() => setPriceFromMarket(row.price)}/><button type="button" onClick={() => selectWarplet(row.tokenId)} className="cursor-pointer font-bold text-[#00FF00]">#{row.tokenId}</button><button type="button" onClick={() => onOpenWarpletDetails(row.tokenId)} className="mx-auto h-9 w-9 cursor-pointer overflow-hidden rounded-[3px] border-2 border-[#00FF00]"><img src={getWarpletPreviewImageUrl(row.tokenId)} alt={`Warplet #${row.tokenId}`} className="h-full w-full object-cover" loading="lazy"/></button><button type="button" disabled={!row.bidder} onClick={() => setBidderRow(row)} className="mx-auto cursor-pointer disabled:cursor-default">{row.bidder && <img src={row.bidder.pfpUrl || getWalletIdenticonDataUrl(row.bidder.wallet)} alt="" className="h-7 w-7 rounded-full border-2 border-[#00FF00] object-cover"/>}</button><button type="button" disabled={busy !== null} onClick={() => row.isUserOffer ? void runCancelOffer(row) : (selectWarplet(row.tokenId), setPriceFromMarket(row.price), formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }))} className={`cursor-pointer rounded-md border px-2 py-1.5 text-xs font-bold disabled:cursor-wait ${row.isUserOffer ? "border-[#FF5555]/55 text-[#FF7777]" : "border-[#33AAFF]/55 text-[#33AAFF]"}`}>{row.isUserOffer ? "Cancel" : "Offer"}</button></div>)}</div>
     {(payload?.pagination.totalPages ?? 1) > 1 && <div className="mt-3 flex items-center justify-center gap-3 text-xs font-bold text-[#8bbf8b]"><button type="button" disabled={loading || !payload?.pagination.hasPrevious} onClick={() => setPage((current) => Math.max(0, current - 1))} className="cursor-pointer rounded-md border border-[#00FF00]/40 px-3 py-1.5 text-[#00FF00] disabled:cursor-not-allowed disabled:opacity-40">Previous</button><span>Page {(payload?.pagination.page ?? 0) + 1} of {payload?.pagination.totalPages ?? 1}</span><button type="button" disabled={loading || !payload?.pagination.hasNext} onClick={() => setPage((current) => current + 1)} className="cursor-pointer rounded-md border border-[#00FF00]/40 px-3 py-1.5 text-[#00FF00] disabled:cursor-not-allowed disabled:opacity-40">Next</button></div>}
     <div className="mt-3 text-center text-[11px] text-[#8bbf8b]">Last updated: {payload?.generatedAt ? formatMarketTimestamp(payload.generatedAt) : "Not yet"}. <button type="button" disabled={refreshing || busy !== null} onClick={() => void loadOffers({ refresh: true })} className="cursor-pointer font-bold text-[#00FF00] disabled:cursor-wait">{refreshing ? "Refreshing..." : "Refresh"}</button>{payload?.refreshError && <span className="block text-red-300">{payload.refreshError}</span>}</div>
     {bidderGroup && bidderRow && <CollectionBiddersModal group={bidderGroup} isInMiniAppContext={isInMiniAppContext} titleOverride={`#${bidderRow.tokenId} Item bidder`} onClose={() => setBidderRow(null)}/>}
@@ -7589,6 +8048,7 @@ function ListedWarpletCard({
 
   return (
     <div
+      style={{ contentVisibility: "auto", containIntrinsicSize: "190px" }}
       role="button"
       tabIndex={0}
       onClick={openCard}
@@ -8317,28 +8777,12 @@ function OwnedByPanel({
             {pfpUrl ? (
               <img src={pfpUrl} alt="" className="h-full w-full object-cover" loading="lazy" />
             ) : (
-              <video
-                src="/matrix_bg_1080x1080.mp4"
-                autoPlay
-                loop
-                muted
-                playsInline
-                aria-hidden="true"
-                className="h-full w-full object-cover"
-              />
+              <WalletIdenticon wallet={wallet ?? String(fid)} className="h-full w-full" />
             )}
           </button>
           ) : (
           <div className="aspect-square w-full min-w-0 shrink-0 overflow-hidden rounded-full border-2 border-[#00FF00] bg-[rgba(0,255,0,0.12)]">
-            <video
-              src="/matrix_bg_1080x1080.mp4"
-              autoPlay
-              loop
-              muted
-              playsInline
-              aria-hidden="true"
-              className="h-full w-full object-cover"
-            />
+            <WalletIdenticon wallet={wallet ?? String(fid)} className="h-full w-full" />
           </div>
           )}
         </div>
@@ -10055,28 +10499,25 @@ function formatUsdEstimate(amount: string, ethUsdPrice: number | null, floor?: M
   })} USD${suffix}`;
 }
 
-async function fetchEthUsdPrice(): Promise<number> {
-  const coinbase = await fetch("https://api.coinbase.com/v2/prices/ETH-USD/spot", {
-    headers: { accept: "application/json" },
-  }).then(async (response) => {
-    if (!response.ok) throw new Error(`Coinbase ETH price failed (${response.status})`);
-    const payload = await response.json() as { data?: { amount?: unknown } };
-    const amount = typeof payload.data?.amount === "string" ? Number(payload.data.amount) : null;
-    if (amount == null || !Number.isFinite(amount)) throw new Error("Coinbase ETH price response was invalid");
-    return amount;
-  }).catch(() => null);
-  if (coinbase != null) return coinbase;
+let ethUsdPriceCache: { value: number; expiresAt: number } | null = null;
+let ethUsdPriceRequest: Promise<number> | null = null;
 
-  const coingecko = await fetch("https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd", {
-    headers: { accept: "application/json" },
-  }).then(async (response) => {
-    if (!response.ok) throw new Error(`CoinGecko ETH price failed (${response.status})`);
-    const payload = await response.json() as { ethereum?: { usd?: unknown } };
-    const amount = typeof payload.ethereum?.usd === "number" ? payload.ethereum.usd : null;
-    if (amount == null || !Number.isFinite(amount)) throw new Error("CoinGecko ETH price response was invalid");
-    return amount;
-  });
-  return coingecko;
+async function fetchEthUsdPrice(): Promise<number> {
+  if (ethUsdPriceCache && ethUsdPriceCache.expiresAt > Date.now()) return ethUsdPriceCache.value;
+  if (ethUsdPriceRequest) return ethUsdPriceRequest;
+  ethUsdPriceRequest = fetch("/api/eth-usd", { headers: { accept: "application/json" } })
+    .then(async (response) => {
+      if (!response.ok) throw new Error(`ETH/USD price failed (${response.status})`);
+      const payload = await response.json() as { ethUsd?: unknown };
+      const amount = typeof payload.ethUsd === "number" ? payload.ethUsd : Number(payload.ethUsd);
+      if (!Number.isFinite(amount) || amount <= 0) throw new Error("ETH/USD price response was invalid");
+      ethUsdPriceCache = { value: amount, expiresAt: Date.now() + 5 * 60 * 1000 };
+      return amount;
+    })
+    .finally(() => {
+      ethUsdPriceRequest = null;
+    });
+  return ethUsdPriceRequest;
 }
 
 type WarpletSocialProfile = {
@@ -11946,6 +12387,14 @@ function WarpletDetailsModal({
                 onSearchOwnerFavourites={onSearchOwnerFavourites}
               />
 
+              <WarpletItemActivity
+                tokenId={details.id}
+                viewerFid={viewerFid}
+                actionSessionToken={actionSessionToken}
+                onSearchWallet={onSearchOwnerWallet}
+                refreshKey={`${effectiveListing?.at ?? ""}|${effectiveItemOffer?.at ?? ""}|${effectiveSale?.at ?? ""}|${effectiveOwner?.wallet ?? ""}`}
+              />
+
               {ATTRIBUTE_GROUPS.map((group) => (
                 <div key={group.label} className="rounded-xl border border-[#00FF00]/15 bg-[#041204]/60 p-3">
                   <Text className="text-xs font-bold uppercase" style={{ color: "#00FF00" }}>
@@ -12096,12 +12545,6 @@ function WarpletDetailsModal({
               )}
             </div>
 
-            <WarpletPriceHistory
-              tokenId={details.id}
-              viewerFid={viewerFid}
-              actionSessionToken={actionSessionToken}
-            />
-
             <div className="mt-4 grid grid-cols-2 gap-2">
               {ASSET_LINKS.map((asset) => (
                 <button
@@ -12207,8 +12650,13 @@ export default function SearchApp() {
   const [searchToast, setSearchToast] = useState<TradeToast | null>(null);
   const [searchToastExiting, setSearchToastExiting] = useState(false);
   const dbRef = useRef<SqliteDatabase | null>(null);
+  const databaseLoadPromiseRef = useRef<Promise<SqliteDatabase> | null>(null);
+  const databaseDisposedRef = useRef(false);
   const searchRunRef = useRef(0);
   const pendingConfirmedPurchasesRef = useRef(new Map<string, PendingConfirmedPurchase>());
+  const ownershipRequestsRef = useRef(new Map<string, Promise<number[]>>());
+  const ownershipTokenIdsRef = useRef(new Map<string, number[]>());
+  const ownershipOwnersRef = useRef(new Map<string, MarketSnapshot["owners"]>());
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const urlHydratedRef = useRef(false);
@@ -12433,11 +12881,40 @@ export default function SearchApp() {
     lastUrlSignatureRef.current = signature;
   }, []);
 
-  const loadWarpletDetails = useCallback(async (tokenId: number) => {
-    const db = dbRef.current;
-    if (!db) return null;
+  const ensureDatabaseReady = useCallback(async (): Promise<SqliteDatabase> => {
+    if (dbRef.current) return dbRef.current;
+    if (!databaseLoadPromiseRef.current) {
+      setDbError("");
+      databaseLoadPromiseRef.current = (async () => {
+        const { default: sqlite3InitModule } = await import("@sqlite.org/sqlite-wasm");
+        const sqlite3 = await sqlite3InitModule();
+        const response = await fetch(DB_URL);
+        if (!response.ok) throw new Error(`Database download failed (${response.status})`);
+        const bytes = new Uint8Array(await response.arrayBuffer());
+        sqlite3.capi.sqlite3_js_posix_create_file(DB_FILENAME, bytes);
+        const db = new sqlite3.oo1.DB(DB_FILENAME, "r") as SqliteDatabase;
+        if (databaseDisposedRef.current) {
+          db.close();
+          throw new Error("Database load was cancelled");
+        }
+        dbRef.current = db;
+        setDbReady(true);
+        if (readOnboardingComplete()) void hapticSuccess();
+        return db;
+      })().catch((error) => {
+        databaseLoadPromiseRef.current = null;
+        if (!databaseDisposedRef.current) {
+          setDbError(error instanceof Error ? error.message : String(error));
+        }
+        throw error;
+      });
+    }
+    return databaseLoadPromiseRef.current;
+  }, []);
 
+  const loadWarpletDetails = useCallback(async (tokenId: number) => {
     try {
+      const db = await ensureDatabaseReady();
       const rows = db.exec(
         `SELECT
            w.id,
@@ -12459,7 +12936,7 @@ export default function SearchApp() {
       console.error("Failed to load Warplet details:", err);
       return null;
     }
-  }, []);
+  }, [ensureDatabaseReady]);
 
   const openTradeShareTestPreview = useCallback(async (details: WarpletDetails, action: TradeShareAction) => {
     const market = marketSnapshot ? getMarketState(marketSnapshot, details.id) : null;
@@ -12888,11 +13365,43 @@ export default function SearchApp() {
     return next;
   }, []);
 
+  const loadTokenMarketState = useCallback(async (tokenId: number) => {
+    try {
+      const response = await fetch(`/api/warplets-market-state/${tokenId}`, {
+        headers: { accept: "application/json" },
+      });
+      if (!response.ok) return;
+      const payload = await response.json() as { snapshot?: MarketSnapshot };
+      if (!payload.snapshot) return;
+      setMarketSnapshot((current) => preservePendingConfirmedPurchases(
+        mergeTokenSnapshot(current, payload.snapshot as MarketSnapshot, tokenId),
+      ));
+    } catch (error) {
+      console.warn(`Failed to load market state for Warplet #${tokenId}:`, error);
+    }
+  }, [preservePendingConfirmedPurchases]);
+
+  useEffect(() => {
+    const tokenId = selectedWarpletDetailsStack.at(-1)?.id;
+    if (tokenId) void loadTokenMarketState(tokenId);
+  }, [loadTokenMarketState, selectedWarpletDetailsStack]);
+
+  const mergeCachedOwnershipOwners = useCallback((owners: MarketSnapshot["owners"] = {}) => {
+    const cachedOwners: MarketSnapshot["owners"] = {};
+    for (const focusedOwners of ownershipOwnersRef.current.values()) {
+      Object.assign(cachedOwners, focusedOwners);
+    }
+    return { ...cachedOwners, ...owners };
+  }, []);
+
   const refreshMarketSnapshot = useCallback(async (force = false) => {
     const cached = readCachedMarketSnapshot();
     if (force) setMarketRefreshError("");
     if (cached && !force) {
-      setMarketSnapshot(preservePendingConfirmedPurchases(cached));
+      setMarketSnapshot((current) => preservePendingConfirmedPurchases({
+        ...cached,
+        owners: mergeCachedOwnershipOwners({ ...(current?.owners ?? {}), ...(cached.owners ?? {}) }),
+      }));
       const age = Date.now() - Date.parse(cached.generatedAt || "");
       if (Number.isFinite(age) && age < MARKET_SNAPSHOT_STALE_MS) return;
     }
@@ -12903,8 +13412,12 @@ export default function SearchApp() {
         cache: force ? "no-store" : "default",
       });
       if (!response.ok) throw new Error(`Market data failed (${response.status})`);
-      const snapshot = preservePendingConfirmedPurchases((await response.json()) as MarketSnapshot);
-      setMarketSnapshot(snapshot);
+      const received = (await response.json()) as MarketSnapshot;
+      const snapshot = preservePendingConfirmedPurchases(received);
+      setMarketSnapshot((current) => preservePendingConfirmedPurchases({
+        ...snapshot,
+        owners: mergeCachedOwnershipOwners({ ...(current?.owners ?? {}), ...(snapshot.owners ?? {}) }),
+      }));
       setMarketRefreshError("");
       writeCachedMarketSnapshot(snapshot);
     } catch (error) {
@@ -12913,11 +13426,71 @@ export default function SearchApp() {
         setMarketRefreshError(error instanceof Error ? error.message : String(error));
       }
     }
-  }, [preservePendingConfirmedPurchases]);
+  }, [mergeCachedOwnershipOwners, preservePendingConfirmedPurchases]);
+
+  const loadMarketOwnership = useCallback((selector: { wallet?: string | null; fid?: number | null }, force = false) => {
+    const wallet = normalizeWalletAddress(selector.wallet);
+    const fid = Number.isInteger(selector.fid) && Number(selector.fid) > 0 ? Number(selector.fid) : null;
+    const key = wallet ? `wallet:${wallet}` : fid ? `fid:${fid}` : "";
+    if (!key) return Promise.resolve<number[]>([]);
+    if (!force) {
+      const cached = ownershipTokenIdsRef.current.get(key);
+      if (cached) {
+        const cachedOwners = ownershipOwnersRef.current.get(key) ?? {};
+        setMarketSnapshot((current) => current
+          ? { ...current, owners: { ...(current.owners ?? {}), ...cachedOwners } }
+          : current);
+        return Promise.resolve(cached);
+      }
+      const pending = ownershipRequestsRef.current.get(key);
+      if (pending) return pending;
+    }
+    const params = new URLSearchParams(wallet ? { wallet } : { fid: String(fid) });
+    const request = fetch(`/api/warplet-ownership?${params}`, {
+      headers: { accept: "application/json" },
+      cache: force ? "no-store" : "default",
+    }).then(async (response) => {
+      if (!response.ok) throw new Error(`Ownership data failed (${response.status})`);
+      const payload = await response.json() as {
+        tokenIds?: unknown;
+        owners?: MarketSnapshot["owners"];
+      };
+      const tokenIds = Array.isArray(payload.tokenIds)
+        ? payload.tokenIds.map(Number).filter((tokenId) => Number.isInteger(tokenId) && tokenId > 0)
+        : [];
+      const owners = payload.owners && typeof payload.owners === "object" ? payload.owners : {};
+      ownershipTokenIdsRef.current.set(key, tokenIds);
+      ownershipOwnersRef.current.set(key, owners);
+      setMarketSnapshot((current) => current ? { ...current, owners: { ...(current.owners ?? {}), ...owners } } : current);
+      return tokenIds;
+    }).finally(() => {
+      if (ownershipRequestsRef.current.get(key) === request) ownershipRequestsRef.current.delete(key);
+    });
+    ownershipRequestsRef.current.set(key, request);
+    return request;
+  }, []);
 
   useEffect(() => {
-    void refreshMarketSnapshot();
-  }, [refreshMarketSnapshot]);
+    if (searchRoute.page === "search" || searchRoute.page === "listed") {
+      void refreshMarketSnapshot();
+    }
+  }, [refreshMarketSnapshot, searchRoute.page]);
+
+  useEffect(() => {
+    if (searchRoute.page === "listed" && activeWallet) {
+      void loadMarketOwnership({ wallet: activeWallet }).catch((error) => {
+        console.error("Failed to load Listed wallet ownership:", error);
+      });
+    }
+  }, [activeWallet, loadMarketOwnership, searchRoute.page]);
+
+  useEffect(() => {
+    if (searchRoute.page === "search" && viewerFid) {
+      void loadMarketOwnership({ fid: viewerFid }).catch((error) => {
+        console.error("Failed to load viewer ownership:", error);
+      });
+    }
+  }, [loadMarketOwnership, searchRoute.page, viewerFid]);
 
   const refreshListedMarket = useCallback(async () => {
     try {
@@ -12977,42 +13550,25 @@ export default function SearchApp() {
   }, [activeWallet, dbReady, marketSnapshot]);
 
   useEffect(() => {
-    let cancelled = false;
-    const shouldHapticDatabaseReady = readOnboardingComplete();
-
-    const loadDatabase = async () => {
-      try {
-        const sqlite3 = await sqlite3InitModule();
-        const response = await fetch(DB_URL);
-        if (!response.ok) {
-          throw new Error(`Database download failed (${response.status})`);
+    const routeNeedsDatabase = searchRoute.page === "search"
+      || searchRoute.page === "listed"
+      || (searchRoute.page === "offers" && searchRoute.offersPage === "item");
+    if (routeNeedsDatabase) {
+      void ensureDatabaseReady().catch((error) => {
+        if (!databaseDisposedRef.current) {
+          console.error("Failed to load Warplets search database:", error);
         }
-        const bytes = new Uint8Array(await response.arrayBuffer());
-        sqlite3.capi.sqlite3_js_posix_create_file(DB_FILENAME, bytes);
-        const db = new sqlite3.oo1.DB(DB_FILENAME, "r");
+      });
+    }
+  }, [ensureDatabaseReady, searchRoute]);
 
-        if (cancelled) {
-          db.close();
-          return;
-        }
-
-        dbRef.current = db;
-        setDbReady(true);
-        if (shouldHapticDatabaseReady) void hapticSuccess();
-      } catch (err) {
-        console.error("Failed to load Warplets search database:", err);
-        if (!cancelled) {
-          setDbError(err instanceof Error ? err.message : String(err));
-        }
-      }
-    };
-
-    loadDatabase();
-
+  useEffect(() => {
+    databaseDisposedRef.current = false;
     return () => {
-      cancelled = true;
+      databaseDisposedRef.current = true;
       dbRef.current?.close();
       dbRef.current = null;
+      databaseLoadPromiseRef.current = null;
     };
   }, []);
 
@@ -13319,58 +13875,82 @@ export default function SearchApp() {
     setSearchError("");
 
     try {
-      const resultSql = exactTokenId != null
-        ? `SELECT ${RESULT_SELECT_COLUMNS}
-           FROM warplets w
-           WHERE w.id = ?${levelFilter ? ` AND ${levelFilter.sql}` : ""}
-           LIMIT 1`
-        : ftsQuery
-        ? `SELECT
-             ${RESULT_SELECT_COLUMNS},
-             bm25(warplets_fts) AS score
-           FROM warplets_fts
-           JOIN warplets w ON w.id = warplets_fts.rowid
-           WHERE warplets_fts MATCH ?${levelFilter ? ` AND ${levelFilter.sql}` : ""}
-           ORDER BY score, w."10x_rank" ASC, w.id ASC
-           LIMIT ? OFFSET ?`
-        : `SELECT
-             ${RESULT_SELECT_COLUMNS}
-           FROM warplets w${levelFilter ? `
-           WHERE ${levelFilter.sql}` : ""}
-           ORDER BY ${attributeOnlyRankColumn ? `w."${attributeOnlyRankColumn}" ASC, ` : ""}w.id ASC
-           LIMIT ? OFFSET ?`;
-      const resultBind = exactTokenId != null
-        ? [exactTokenId, ...(levelFilter?.bind ?? [])]
-        : ftsQuery
-        ? [ftsQuery, ...(levelFilter?.bind ?? []), SEARCH_RESULT_LIMIT, 0]
-        : [...(levelFilter?.bind ?? []), SEARCH_RESULT_LIMIT, 0];
+      let allowedTokenIds: number[] | null = null;
+      if (ownerWalletFilter) {
+        allowedTokenIds = await loadMarketOwnership({ wallet: ownerWalletFilter });
+      }
+      if (activeFavouriteWallet) {
+        const favouriteTokenIds = getFavouriteTokenIds(favouriteListsByWalletRef.current, activeFavouriteWallet);
+        const favouriteSet = new Set(favouriteTokenIds);
+        allowedTokenIds = allowedTokenIds == null
+          ? favouriteTokenIds
+          : allowedTokenIds.filter((tokenId) => favouriteSet.has(tokenId));
+      }
+      if (allowedTokenIds?.length === 0) {
+        if (searchRunRef.current !== runId) return;
+        setSubmittedQuery(nextQuery.trim());
+        setTotalResults(0);
+        setVisibleCount(limit);
+        setResults([]);
+        return;
+      }
+
+      const conditions: string[] = [];
+      const baseBind: Array<string | number> = [];
+      if (exactTokenId != null) {
+        conditions.push("w.id = ?");
+        baseBind.push(exactTokenId);
+      } else if (ftsQuery) {
+        conditions.push("warplets_fts MATCH ?");
+        baseBind.push(ftsQuery);
+      }
+      if (levelFilter) {
+        conditions.push(levelFilter.sql);
+        baseBind.push(...levelFilter.bind);
+      }
+      if (allowedTokenIds) {
+        conditions.push("w.id IN (SELECT CAST(value AS INTEGER) FROM json_each(?))");
+        baseBind.push(JSON.stringify(allowedTokenIds));
+      }
+
+      const fromSql = ftsQuery
+        ? "FROM warplets_fts JOIN warplets w ON w.id = warplets_fts.rowid"
+        : "FROM warplets w";
+      const whereSql = conditions.length > 0 ? ` WHERE ${conditions.join(" AND ")}` : "";
+      const orderSql = ftsQuery
+        ? `ORDER BY score, w."10x_rank" ASC, w.id ASC`
+        : `ORDER BY ${attributeOnlyRankColumn ? `w."${attributeOnlyRankColumn}" ASC, ` : ""}w.id ASC`;
+      const pageSize = exactTokenId != null ? 1 : SEARCH_RESULT_PAGE_SIZE;
+      const resultSql = `SELECT ${RESULT_SELECT_COLUMNS}${ftsQuery ? ", bm25(warplets_fts) AS score" : ""}
+        ${fromSql}${whereSql}
+        ${orderSql}
+        LIMIT ? OFFSET ?`;
+      const countRows = db.exec(`SELECT COUNT(*) ${fromSql}${whereSql}`, {
+        bind: baseBind,
+        rowMode: "array",
+        returnValue: "resultRows",
+      });
+      const fullResultCount = Number(countRows[0]?.[0] ?? 0);
       const rows = db.exec(
         resultSql,
         {
-          bind: resultBind,
+          bind: [...baseBind, pageSize, Math.max(0, offset)],
           rowMode: "array",
           returnValue: "resultRows",
         },
       );
-      const ownerFilteredRows = filterRowsByOwnerWallet(
-        mapRows(rows, Boolean(ftsQuery)),
-        marketSnapshot,
-        ownerWalletFilter,
-      );
-      const nextRows = filterRowsByFavourites(
-        ownerFilteredRows,
-        favouriteListsByWalletRef.current,
-        activeFavouriteWallet,
-      );
+      const nextRows = mapRows(rows, Boolean(ftsQuery));
       await preloadResultImages(nextRows.slice(0, PAGE_SIZE));
 
       if (searchRunRef.current !== runId) return;
 
       setSubmittedQuery(nextQuery.trim());
-      setTotalResults(nextRows.length);
-      setVisibleCount(limit);
-      setResults(nextRows);
-      void hapticSuccess();
+      setTotalResults(fullResultCount);
+      setVisibleCount((current) => offset > 0 ? Math.max(current, offset + limit) : limit);
+      setResults((current) => offset > 0
+        ? [...current, ...nextRows.filter((row) => !current.some((existing) => existing.id === row.id))]
+        : nextRows);
+      if (offset === 0) void hapticSuccess();
     } catch (err) {
       console.error("Warplets search failed:", err);
       if (searchRunRef.current === runId) {
@@ -13381,7 +13961,7 @@ export default function SearchApp() {
         setIsSearching(false);
       }
     }
-  }, [favouriteFilterWallet, marketSnapshot, selectedAttributes, selectedLevels]);
+  }, [favouriteFilterWallet, loadMarketOwnership, selectedAttributes, selectedLevels]);
 
   const applySearchUrlState = useCallback(async (state: SearchUrlState) => {
     if (!dbReady || !dbRef.current) return;
@@ -13629,8 +14209,8 @@ export default function SearchApp() {
   const displayedResults = shouldPrependMatchedWarplet && matchedWarpletCard
     ? [matchedWarpletCard.warplet, ...visibleResults]
     : visibleResults;
-  const displayedTotalResults = marketFilteredResults.length + (shouldPrependMatchedWarplet ? 1 : 0);
-  const canLoadMore = sortedResults.length > visibleCount;
+  const displayedTotalResults = totalResults + (shouldPrependMatchedWarplet ? 1 : 0);
+  const canLoadMore = totalResults > visibleCount;
   const hasActiveSearchOrFilter = Boolean(submittedQuery || hasTypedQuery || hasActiveAttributeFilter || hasActiveLevelFilter || hasActiveFavouriteFilter || isAllWarpletsSearchMode);
   const selectedAttributeLabel = selectedAttributes.length === 0
     ? "All"
@@ -14248,6 +14828,12 @@ export default function SearchApp() {
   }, []);
 
   const handleApplyPurchase = useCallback((tokenId: number, update: OptimisticPurchaseUpdate) => {
+    const buyerWallet = normalizeWalletAddress(update.buyerWallet);
+    if (buyerWallet) {
+      const key = `wallet:${buyerWallet}`;
+      const cached = ownershipTokenIdsRef.current.get(key) ?? [];
+      ownershipTokenIdsRef.current.set(key, Array.from(new Set([...cached, tokenId])).sort((left, right) => left - right));
+    }
     setMarketSnapshot((current) => {
       const key = String(tokenId);
       const now = update.sale.at ?? new Date().toISOString();
@@ -14494,8 +15080,13 @@ export default function SearchApp() {
     for (const details of selectedWarpletDetailsStack) {
       const ownerWallet = getMarketState(marketSnapshot, details.id).owner?.wallet;
       ensureFavouriteListLoaded(ownerWallet);
+      if (ownerWallet) {
+        void loadMarketOwnership({ wallet: ownerWallet }).catch((error) => {
+          console.warn(`Failed to load owner holdings for Warplet #${details.id}:`, error);
+        });
+      }
     }
-  }, [ensureFavouriteListLoaded, marketSnapshot, selectedWarpletDetailsStack]);
+  }, [ensureFavouriteListLoaded, loadMarketOwnership, marketSnapshot, selectedWarpletDetailsStack]);
 
   useEffect(() => {
     if (!canLoadMore || isSearching || !hasActiveSearchOrFilter) return;
@@ -14506,7 +15097,7 @@ export default function SearchApp() {
       (entries) => {
         if (entries.some((entry) => entry.isIntersecting)) {
           observer.disconnect();
-          setVisibleCount((current) => Math.min(current + PAGE_SIZE, sortedResults.length));
+          setVisibleCount((current) => Math.min(current + PAGE_SIZE, totalResults));
         }
       },
       { rootMargin: "600px 0px" },
@@ -14514,7 +15105,18 @@ export default function SearchApp() {
 
     observer.observe(target);
     return () => observer.disconnect();
-  }, [canLoadMore, hasActiveSearchOrFilter, isSearching, sortedResults.length, visibleCount]);
+  }, [canLoadMore, hasActiveSearchOrFilter, isSearching, totalResults, visibleCount]);
+
+  useEffect(() => {
+    if (
+      searchRoute.page !== "search" ||
+      isSearching ||
+      results.length >= totalResults ||
+      visibleCount <= results.length ||
+      !submittedQuery
+    ) return;
+    void runSearch(submittedQuery, results.length, undefined, PAGE_SIZE);
+  }, [isSearching, results.length, runSearch, searchRoute.page, submittedQuery, totalResults, visibleCount]);
 
   const handleReturnToTop = useCallback(() => {
     void hapticPrimaryTap();
@@ -14536,7 +15138,7 @@ export default function SearchApp() {
       : "Connected Farcaster account";
   const headerAccountAvatarUrl =
     headerAccountConnected
-      ? (headerAccountProfile?.pfpUrl?.trim() || getWarpletPreviewImageUrl(HEADER_FALLBACK_AVATAR_TOKEN_ID))
+      ? (headerAccountProfile?.pfpUrl?.trim() || (activeWallet ? getWalletIdenticonDataUrl(activeWallet) : getWarpletPreviewImageUrl(HEADER_FALLBACK_AVATAR_TOKEN_ID)))
       : null;
   const routeTitle = getSearchRouteTitle(searchRoute);
   const headerTitle = isMenuRoute ? getHeaderTitle("search", true) : getHeaderTitle("search", false);
