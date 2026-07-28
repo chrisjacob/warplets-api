@@ -24,6 +24,7 @@ import {
   useMiniAppChrome,
 } from "./miniAppChrome.tsx";
 import MiniAppShell from "./MiniAppShell";
+import type { PerksSubpage } from "./perksMockData";
 import {
   hapticError,
   hapticPrimaryTap,
@@ -99,6 +100,7 @@ const STATUS_LINE_CLASS = "text-center text-xs uppercase leading-4";
 const OPENSEA_COLLECTION_URL = "https://opensea.io/collection/10xwarplets";
 const LAST_SEARCH_OFFERS_SUBPAGE_KEY = "warplets-search-last-offers-subpage-v1";
 const LAST_SEARCH_STATS_SUBPAGE_KEY = "warplets-search-last-stats-subpage-v1";
+const LAST_SEARCH_PERKS_SUBPAGE_KEY = "warplets-search-last-perks-subpage-v1";
 const LAST_SEARCH_LISTED_LEVEL_KEY = "warplets-search-last-listed-level-v1";
 const LISTED_SCOPE_KEY = "warplets-search-listed-scope-v1";
 const MARKET_CACHE_KEY = "warplets-market-state-v4";
@@ -126,6 +128,7 @@ type SearchRoute =
   | { page: "search" }
   | { page: "listed"; listedLevel: ListedLevelFilter }
   | { page: "offers"; offersPage: SearchOffersSubpage }
+  | { page: "perks"; perksPage: PerksSubpage }
   | { page: "stats"; statsPage: SearchStatsSubpage };
 
 const LISTED_LEVEL_TABS: Array<{ id: ListedLevelFilter; label: string }> = [
@@ -160,6 +163,16 @@ const STATS_SUBPAGE_TABS: Array<{ id: SearchStatsSubpage; label: string }> = [
   { id: "social", label: "Social" },
   { id: "holders", label: "Holders" },
 ];
+
+const PERKS_SUBPAGE_TABS: Array<{ id: PerksSubpage; label: string }> = [
+  { id: "memes", label: "Memes" },
+  { id: "nfts", label: "NFTs" },
+  { id: "ai", label: "AI" },
+  { id: "attention", label: "Attention" },
+  { id: "access", label: "Access" },
+];
+
+const LazyPerksPage = lazy(() => import("./PerksPage"));
 
 const STATS_RANGE_TABS: Array<{ id: StatsRange; label: string }> = [
   { id: "all", label: "All" },
@@ -3024,7 +3037,9 @@ function getSearchBasePath(): "" | "/search" {
 }
 
 function getSearchRouteKey(route: SearchRoute): string {
-  return route.page === "offers" ? `offers:${route.offersPage}` : route.page;
+  if (route.page === "offers") return `offers:${route.offersPage}`;
+  if (route.page === "perks") return `perks:${route.perksPage}`;
+  return route.page;
 }
 
 function getSearchRouteStableKey(route: SearchRoute): string {
@@ -3048,6 +3063,11 @@ function parseSearchRouteFromPath(pathname: string): SearchRoute {
   if (path === "/offers/trait") return { page: "offers", offersPage: "trait" };
   if (path === "/offers/item") return { page: "offers", offersPage: "item" };
   if (path === "/offers/collection") return { page: "offers", offersPage: "collection" };
+  if (path === "/perks/nfts") return { page: "perks", perksPage: "nfts" };
+  if (path === "/perks/ai") return { page: "perks", perksPage: "ai" };
+  if (path === "/perks/attention") return { page: "perks", perksPage: "attention" };
+  if (path === "/perks/access") return { page: "perks", perksPage: "access" };
+  if (path === "/perks" || path === "/perks/memes") return { page: "perks", perksPage: "memes" };
   if (path === "/stats/market") return { page: "stats", statsPage: "market" };
   if (path === "/stats/social") return { page: "stats", statsPage: "social" };
   if (path === "/stats/holders") return { page: "stats", statsPage: "holders" };
@@ -3088,6 +3108,19 @@ function writeLastSearchOffersSubpage(value: SearchOffersSubpage): void {
   window.localStorage.setItem(LAST_SEARCH_OFFERS_SUBPAGE_KEY, value);
 }
 
+function readLastSearchPerksSubpage(): PerksSubpage {
+  if (typeof window === "undefined") return "memes";
+  const value = window.localStorage.getItem(LAST_SEARCH_PERKS_SUBPAGE_KEY);
+  return value === "nfts" || value === "ai" || value === "attention" || value === "access" || value === "memes"
+    ? value
+    : "memes";
+}
+
+function writeLastSearchPerksSubpage(value: PerksSubpage): void {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(LAST_SEARCH_PERKS_SUBPAGE_KEY, value);
+}
+
 function readLastSearchStatsSubpage(): SearchStatsSubpage {
   if (typeof window === "undefined") return "overview";
   const value = window.localStorage.getItem(LAST_SEARCH_STATS_SUBPAGE_KEY);
@@ -3108,6 +3141,8 @@ function getSearchPathForRoute(route: SearchRoute): string {
       ? "/"
       : route.page === "listed"
         ? route.listedLevel === "all" ? "/listed" : `/listed/${route.listedLevel}`
+        : route.page === "perks"
+          ? route.perksPage === "memes" ? "/perks" : `/perks/${route.perksPage}`
         : route.page === "stats"
           ? route.statsPage === "overview" ? "/stats" : `/stats/${route.statsPage}`
           : `/offers/${route.offersPage}`;
@@ -3124,6 +3159,10 @@ function getSearchRouteTitle(route: SearchRoute): string {
   if (route.page === "stats") {
     const pageLabel = STATS_SUBPAGE_TABS.find((tab) => tab.id === route.statsPage)?.label ?? "Overview";
     return `10X Warplets - ${pageLabel} stats`;
+  }
+  if (route.page === "perks") {
+    const pageLabel = PERKS_SUBPAGE_TABS.find((tab) => tab.id === route.perksPage)?.label ?? "Memes";
+    return `10X Warplets - ${pageLabel} perks`;
   }
   if (route.page === "offers") {
     if (route.offersPage === "trait") return "10X Warplets - Trait offers";
@@ -3364,18 +3403,21 @@ function SearchSegmentedTabs({
 function SearchPageNavigation({
   route,
   lastOffersSubpage,
+  lastPerksSubpage,
   lastStatsSubpage,
   lastListedLevel,
   onNavigate,
 }: {
   route: SearchRoute;
   lastOffersSubpage: SearchOffersSubpage;
+  lastPerksSubpage: PerksSubpage;
   lastStatsSubpage: SearchStatsSubpage;
   lastListedLevel: ListedLevelFilter;
   onNavigate: (route: SearchRoute) => void;
 }) {
   const activePrimary = route.page === "offers" ? "offers" : route.page;
   const activeOffer = route.page === "offers" ? route.offersPage : "collection";
+  const activePerks = route.page === "perks" ? route.perksPage : "memes";
   const activeStats = route.page === "stats" ? route.statsPage : "overview";
   const activeListedLevel = route.page === "listed" ? route.listedLevel : "all";
 
@@ -3386,6 +3428,7 @@ function SearchPageNavigation({
           { id: "search", label: "Search" },
           { id: "listed", label: "Listed" },
           { id: "offers", label: "Offers" },
+          { id: "perks", label: "Perks" },
           { id: "stats", label: "Stats" },
         ]}
         activeId={activePrimary}
@@ -3394,6 +3437,8 @@ function SearchPageNavigation({
             onNavigate({ page: "offers", offersPage: lastOffersSubpage });
           } else if (id === "listed") {
             onNavigate({ page: "listed", listedLevel: lastListedLevel });
+          } else if (id === "perks") {
+            onNavigate({ page: "perks", perksPage: lastPerksSubpage });
           } else if (id === "stats") {
             onNavigate({ page: "stats", statsPage: lastStatsSubpage });
           } else {
@@ -3419,6 +3464,15 @@ function SearchPageNavigation({
           options={LISTED_LEVEL_TABS}
           activeId={activeListedLevel}
           onSelect={(id) => onNavigate({ page: "listed", listedLevel: id as ListedLevelFilter })}
+        />
+      )}
+      {route.page === "perks" && (
+        <SearchSegmentedTabs
+          className="mt-2"
+          options={PERKS_SUBPAGE_TABS}
+          activeId={activePerks}
+          onSelect={(id) => onNavigate({ page: "perks", perksPage: id as PerksSubpage })}
+          compact
         />
       )}
       {route.page === "stats" && (
@@ -12678,6 +12732,7 @@ export default function SearchApp() {
   const { isMenuRoute, canGoBack, actions } = useMiniAppChrome("search");
   const [searchRoute, setSearchRoute] = useState<SearchRoute>(() => parseSearchRouteFromPath(window.location.pathname));
   const [lastOffersSubpage, setLastOffersSubpage] = useState<SearchOffersSubpage>(() => readLastSearchOffersSubpage());
+  const [lastPerksSubpage, setLastPerksSubpage] = useState<PerksSubpage>(() => readLastSearchPerksSubpage());
   const [lastStatsSubpage, setLastStatsSubpage] = useState<SearchStatsSubpage>(() => readLastSearchStatsSubpage());
   const [lastListedLevel, setLastListedLevel] = useState<ListedLevelFilter>(() => readLastSearchListedLevel());
   const {
@@ -12804,6 +12859,9 @@ export default function SearchApp() {
       if (nextRoute.page === "offers") {
         setLastOffersSubpage(nextRoute.offersPage);
         writeLastSearchOffersSubpage(nextRoute.offersPage);
+      } else if (nextRoute.page === "perks") {
+        setLastPerksSubpage(nextRoute.perksPage);
+        writeLastSearchPerksSubpage(nextRoute.perksPage);
       } else if (nextRoute.page === "stats") {
         setLastStatsSubpage(nextRoute.statsPage);
         writeLastSearchStatsSubpage(nextRoute.statsPage);
@@ -12846,6 +12904,9 @@ export default function SearchApp() {
     if (route.page === "offers") {
       setLastOffersSubpage(route.offersPage);
       writeLastSearchOffersSubpage(route.offersPage);
+    } else if (route.page === "perks") {
+      setLastPerksSubpage(route.perksPage);
+      writeLastSearchPerksSubpage(route.perksPage);
     } else if (route.page === "stats") {
       setLastStatsSubpage(route.statsPage);
       writeLastSearchStatsSubpage(route.statsPage);
@@ -15143,7 +15204,7 @@ export default function SearchApp() {
   const routeTitle = getSearchRouteTitle(searchRoute);
   const headerTitle = isMenuRoute ? getHeaderTitle("search", true) : getHeaderTitle("search", false);
   const isPrimaryNavigationRoute = !isMenuRoute &&
-    (searchRoute.page === "listed" || searchRoute.page === "offers" || searchRoute.page === "stats");
+    (searchRoute.page === "listed" || searchRoute.page === "offers" || searchRoute.page === "perks" || searchRoute.page === "stats");
   const headerCanGoBack = !isPrimaryNavigationRoute && (canGoBack || (!isMenuRoute && searchRoute.page !== "search"));
   const headerCloseKey = isMenuRoute ? "menu" : getSearchRouteStableKey(searchRoute);
 
@@ -15209,6 +15270,7 @@ export default function SearchApp() {
           <SearchPageNavigation
             route={searchRoute}
             lastOffersSubpage={lastOffersSubpage}
+            lastPerksSubpage={lastPerksSubpage}
             lastStatsSubpage={lastStatsSubpage}
             lastListedLevel={lastListedLevel}
             onNavigate={navigateSearchRoute}
@@ -15245,6 +15307,17 @@ export default function SearchApp() {
             onSearchWallet={handleStatsSearchOwnerWallet}
             onOpenWarpletDetails={handleOpenWarpletDetails}
           />
+        ) : searchRoute.page === "perks" ? (
+          <Suspense fallback={<div className="mx-auto w-full max-w-md px-4 py-12 text-center text-xs font-black text-[#00FF00]">Loading Perks...</div>}>
+            <LazyPerksPage
+              subpage={searchRoute.perksPage}
+              connectedWallet={activeWallet}
+              viewerFid={viewerFid}
+              viewerProfile={headerAccountProfile}
+              onSearchWallet={handleStatsSearchOwnerWallet}
+              onOpenWarpletDetails={handleOpenWarpletDetails}
+            />
+          </Suspense>
         ) : searchRoute.page === "offers" && searchRoute.offersPage === "collection" ? (
           <CollectionOffersPage
             connectedWallet={activeWallet}
