@@ -150,6 +150,7 @@ type HolderApiRow = HolderBaseRow & {
   pfpUrl: string | null;
   isViewer: boolean;
   isTopFriend: boolean;
+  originalFidTokenId?: number | null;
   averageHoldingDays?: number | null;
   oldestCurrentHoldingAt?: string | null;
   acquiredSinceEpoch?: number | null;
@@ -3721,12 +3722,26 @@ export async function handleStatsHoldersMeGet(
     const profile = holder.row
       ? (await loadProfilesForWallets(context.env.WARPLETS, [wallet])).get(wallet) ?? null
       : null;
+    const originalFidTokenId = holder.row && profile?.fid
+      ? await context.env.WARPLETS.prepare(
+        `SELECT m.token_id
+         FROM warplets_metadata m
+         JOIN warplet_market_state s ON s.token_id = m.token_id
+         WHERE CAST(m.fid_value AS INTEGER) = ?
+           AND LOWER(TRIM(s.owner_wallet)) = ?
+         ORDER BY m.token_id ASC
+         LIMIT 1`
+      ).bind(profile.fid, wallet).first<{ token_id: number }>()
+        .then((match) => asInteger(match?.token_id))
+        .catch(() => null)
+      : null;
     const holderActivity = holder.row
       ? await loadHolderActivity(context.env.WARPLETS, [wallet])
       : new Map();
     const row = holder.row
       ? {
           ...toHolderApiRow(holder.row, market.floorEth, profile, wallet),
+          originalFidTokenId,
           ...(holderActivity.get(wallet) ?? {}),
         }
       : null;

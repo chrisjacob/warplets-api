@@ -10,12 +10,14 @@ export type PerksExplorerRow = {
   filter: string;
   cells: string[];
   progress?: number;
+  airdropUsd?: number[];
 };
 
 export type PerksDefinition = {
   id: PerksSubpage;
   title: string;
   eyebrow: string;
+  statsTitle: string;
   summary: string;
   globalMetrics: PerksMetric[];
   averageTitle: string;
@@ -38,9 +40,10 @@ export const PERKS_DEFINITIONS: Record<PerksSubpage, PerksDefinition> = {
     id: "memes",
     title: "Memes",
     eyebrow: "Attention Tokens",
-    summary: "One market-proven candidate. One community decision. One focused launch at a time.",
+    statsTitle: "Token Stats",
+    summary: "One market-proven memecoin. One community decision. One\u00A0focused launch at a time... 10X Airdrops!",
     globalMetrics: [
-      { label: "Attention Tokens Launched", value: "128" },
+      { label: "Attention Tokens", value: "128" },
       { label: "Launch Days Skipped", value: "17" },
       { label: "Community Buys", value: "$2.84M", detail: "Tokens purchased for community airdrops." },
       { label: "Airdrop Value Now", value: "$4.86M" },
@@ -56,20 +59,20 @@ export const PERKS_DEFINITIONS: Record<PerksSubpage, PerksDefinition> = {
     ],
     explorer: {
       title: "Launch Explorer",
-      description: "Recent mock Attention Tokens and their ten-day community distribution.",
+      description: "Attention Tokens community distribution airdrops.",
       filters: ["All", "Base", "BNB", "Solana", "Robinhood"],
-      columns: ["Token", "Chain", "Launchpad", "Phase", "Now", "ATH"],
+      columns: ["Token", "Chain", "Launchpad", "Airdropped", "MCAP", "ATH"],
       rows: [
-        { filter: "Base", cells: ["$BULL10X", "Base", "Clanker", "10X", "$1.8M", "$8.4M"], progress: 80 },
-        { filter: "Solana", cells: ["$TRENCH10X", "Solana", "Pump", "10X", "$920K", "$6.1M"], progress: 60 },
-        { filter: "BNB", cells: ["$BYTE10X", "BNB", "Four", "10X", "$2.3M", "$11.2M"], progress: 40 },
-        { filter: "Robinhood", cells: ["$HOOD10X", "Robinhood", "Pons", "10X", "$740K", "$3.9M"], progress: 20 },
-        { filter: "Base", cells: ["$GREEN10X", "Base", "Clanker", "10X", "$4.6M", "$18.7M"], progress: 100 },
+        { filter: "Base", cells: ["$BULL10X", "Base", "Clanker", "$357,800", "$1.8M", "$8.4M"], progress: 80, airdropUsd: [31000, 32800, 33700, 34600, 35200, 36100, 37200, 38100, 39000, 40100] },
+        { filter: "Solana", cells: ["$TRENCH10X", "Solana", "Pump", "$227,200", "$920K", "$6.1M"], progress: 60, airdropUsd: [18200, 19400, 20100, 21300, 22400, 23100, 24200, 25100, 26300, 27100] },
+        { filter: "BNB", cells: ["$BYTE10X", "BNB", "Four", "$485,700", "$2.3M", "$11.2M"], progress: 40, airdropUsd: [42600, 43900, 45100, 46800, 47900, 49200, 50500, 51800, 53200, 54700] },
+        { filter: "Robinhood", cells: ["$HOOD10X", "Robinhood", "Pons", "$179,300", "$740K", "$3.9M"], progress: 20, airdropUsd: [14400, 15200, 16100, 16800, 17500, 18300, 19100, 19800, 20700, 21400] },
+        { filter: "Base", cells: ["$GREEN10X", "Base", "Clanker", "$853,400", "$4.6M", "$18.7M"], progress: 100, airdropUsd: [72100, 74800, 77900, 80600, 83200, 86100, 89400, 92700, 96400, 100200] },
       ],
     },
-    leaderboardMetric: "ATH airdrop value",
+    leaderboardMetric: "ATH airdrop",
     explanation: [
-      { title: "Survival of the fittest", body: "10X analyses recent onchain volume, momentum and attention across chains and launchpads. The market surfaces candidates before the community chooses one launch—or chooses to skip the day." },
+      { title: "Survival of the fittest", body: "10X analyses recent onchain volume, momentum and attention across chains and launchpads. The market surfaces memecoins before the community chooses one launch—or chooses to skip the day." },
       { title: "A fourth graduation", body: "New tokens normally move through New, Almost Bonded and Migrated. A community-selected relaunch becomes an Attention Token: a 10X graduation designed to focus attention rather than create hundreds of competing vamps." },
       { title: "Community buys", body: "10X supplies initial liquidity and buys tokens for community airdrops. Distribution happens over ten days, with eligibility and boosts influenced by participation, holding 10X assets, supporting previous launches and useful bag work." },
       { title: "Known risk—not no risk", body: "Scheduled launches, community scrutiny and clearer rules aim to reduce unknowns around bundles, snipers and anonymous deployers. Attention Tokens remain highly speculative and can still lose all value." },
@@ -78,7 +81,8 @@ export const PERKS_DEFINITIONS: Record<PerksSubpage, PerksDefinition> = {
   nfts: {
     id: "nfts",
     title: "NFTs",
-    eyebrow: "Monthly 10X Seasons",
+    eyebrow: "10X Seasons",
+    statsTitle: "Season Stats",
     summary: "Mint, reveal, upgrade and rally your token tribe across a new Ethereum season every month.",
     globalMetrics: [
       { label: "Seasons", value: "12" },
@@ -123,7 +127,8 @@ export const PERKS_DEFINITIONS: Record<PerksSubpage, PerksDefinition> = {
   ai: {
     id: "ai",
     title: "AI",
-    eyebrow: "Builder and Creator Runway",
+    eyebrow: "AI for Builders",
+    statsTitle: "Builder Stats",
     summary: "Turn ecosystem revenue into practical AI compute, tools and longer runway for people who ship.",
     globalMetrics: [
       { label: "Sponsored AI", value: "$420K" },
@@ -164,7 +169,8 @@ export const PERKS_DEFINITIONS: Record<PerksSubpage, PerksDefinition> = {
   attention: {
     id: "attention",
     title: "Attention",
-    eyebrow: "The Homepage for Crypto",
+    eyebrow: "#1 Feed for Crypto",
+    statsTitle: "Distribution Stats",
     summary: "One focused daily feed where useful posts receive a real opportunity to be seen and acted on.",
     globalMetrics: [
       { label: "Impressions", value: "94.2M" },
@@ -204,11 +210,12 @@ export const PERKS_DEFINITIONS: Record<PerksSubpage, PerksDefinition> = {
     id: "access",
     title: "Access",
     eyebrow: "The 10X Network",
+    statsTitle: "Network Stats",
     summary: "Builders, traders, collectors and capital sharing signals across chains instead of staying in silos.",
     globalMetrics: [
       { label: "Members", value: "10,000" },
       { label: "Chains Represented", value: "7" },
-      { label: "Candidates Reviewed", value: "1,460" },
+      { label: "Memecoins Reviewed", value: "1,460" },
       { label: "Community Votes", value: "682K" },
       { label: "Signals Promoted", value: "410" },
       { label: "Median Move After Flag", value: "+38%", detail: "Illustrative mock performance, not a forecast." },
@@ -216,15 +223,15 @@ export const PERKS_DEFINITIONS: Record<PerksSubpage, PerksDefinition> = {
     averageTitle: "Average Member",
     averageMetrics: [
       { label: "Votes Cast", value: "68" },
-      { label: "Candidates Reviewed", value: "146" },
+      { label: "Memecoins Reviewed", value: "146" },
       { label: "Signals Backed", value: "14" },
       { label: "Chains Explored", value: "3" },
     ],
     explorer: {
-      title: "Candidate Explorer",
+      title: "Memecoin Explorer",
       description: "Mock cross-chain intelligence, community decisions and subsequent market movement.",
       filters: ["All", "Ethereum", "Base", "Solana", "BNB", "Robinhood", "Other"],
-      columns: ["Candidate", "Chain", "Momentum", "Vote", "Decision", "Move"],
+      columns: ["Memecoin", "Chain", "Momentum", "Vote", "Decision", "Move"],
       rows: [
         { filter: "Base", cells: ["Green Runner", "Base", "96", "84%", "Launch", "+182%"], progress: 96 },
         { filter: "Solana", cells: ["Deep Signal", "Solana", "91", "71%", "Watch", "+64%"], progress: 91 },
@@ -237,7 +244,7 @@ export const PERKS_DEFINITIONS: Record<PerksSubpage, PerksDefinition> = {
     leaderboardMetric: "contribution score",
     explanation: [
       { title: "Cross-chain common ground", body: "The 10X Network brings Ethereum, Base, Solana, BNB, Robinhood and emerging ecosystems into one Farcaster-native community." },
-      { title: "See the candidates early", body: "Members can review the daily market-analysis shortlist and influence whether 10X launches, skips, changes chain or chooses a different launchpad." },
+      { title: "See the memecoins early", body: "Members can review the daily market-analysis shortlist and influence whether 10X launches, skips, changes chain or chooses a different launchpad." },
       { title: "Access that can renew", body: "Warplets provide the founding network while future Season NFTs offer new entry points. Active Levels can shape voting influence and unlock smaller specialist or VIP areas." },
       { title: "Builders meet traders and capital", body: "The network is designed to connect people who create, distribute, collect, trade and fund ideas—online first, with future cultural and IRL experiences as the treasury grows." },
     ],

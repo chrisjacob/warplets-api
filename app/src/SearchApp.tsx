@@ -3472,7 +3472,7 @@ function SearchPageNavigation({
           options={PERKS_SUBPAGE_TABS}
           activeId={activePerks}
           onSelect={(id) => onNavigate({ page: "perks", perksPage: id as PerksSubpage })}
-          compact
+          gridTemplateColumns="1fr 1fr 0.65fr 1.4fr 1fr"
         />
       )}
       {route.page === "stats" && (
@@ -8766,6 +8766,205 @@ function ListedPage({
 const LISTED_OWNED_VISIBLE_AVATAR_LIMIT = 23;
 const OWNED_BY_VISIBLE_AVATAR_LIMIT = 24;
 
+function ProfilePictureDownloadModal({
+  tokenId,
+  viewerFid,
+  viewerWallet,
+  viewerUsername,
+  onClose,
+}: {
+  tokenId: number;
+  viewerFid: number | null;
+  viewerWallet: string | null;
+  viewerUsername: string | null;
+  onClose: () => void;
+}) {
+  const [xUsername, setXUsername] = useState<string | null>(null);
+  const [downloading, setDownloading] = useState<"webp" | "gif" | null>(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const params = new URLSearchParams();
+    if (viewerFid) params.set("fid", String(viewerFid));
+    else if (viewerWallet) params.set("wallet", viewerWallet);
+    if (!params.toString()) return () => controller.abort();
+
+    fetch(`/api/warplet-social-profile?${params.toString()}`, {
+      headers: { accept: "application/json" },
+      signal: controller.signal,
+    })
+      .then(async (response) => response.ok ? response.json() as Promise<{ xUsername?: unknown }> : null)
+      .then((profile) => {
+        const username = typeof profile?.xUsername === "string" ? profile.xUsername.trim().replace(/^@/, "") : "";
+        setXUsername(username || null);
+      })
+      .catch((error) => {
+        if ((error as { name?: string }).name !== "AbortError") {
+          console.warn("Failed to load the viewer's verified X profile:", error);
+        }
+      });
+
+    return () => controller.abort();
+  }, [viewerFid, viewerWallet]);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onClose]);
+
+  const downloadAsset = async (extension: "webp" | "gif") => {
+    const url = getWarpletAssetUrl(tokenId, extension);
+    void hapticPrimaryTap();
+    setDownloading(extension);
+    try {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`Image download failed (${response.status})`);
+      const blobUrl = URL.createObjectURL(await response.blob());
+      const anchor = document.createElement("a");
+      anchor.href = blobUrl;
+      anchor.download = `10x-warplet-${tokenId}.${extension}`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      window.setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+      void hapticSuccess();
+    } catch (error) {
+      console.warn("Direct profile image download was unavailable; opening the image instead:", error);
+      await openExternalAsset(url);
+    } finally {
+      setDownloading(null);
+    }
+  };
+
+  const celebrateProfileChange = () => {
+    void hapticSuccess();
+    showTradeConfetti();
+  };
+
+  const openFarcasterProfile = async () => {
+    celebrateProfileChange();
+    try {
+      const inMiniApp = typeof sdk.isInMiniApp === "function" ? await sdk.isInMiniApp() : false;
+      if (inMiniApp && viewerFid) {
+        await sdk.actions.viewProfile({ fid: viewerFid });
+        return;
+      }
+    } catch (error) {
+      console.warn("Farcaster profile action was unavailable:", error);
+    }
+    const profileUrl = viewerUsername
+      ? `https://farcaster.xyz/${encodeURIComponent(viewerUsername.replace(/^@/, ""))}`
+      : viewerFid
+        ? `https://farcaster.xyz/~/profiles/${viewerFid}`
+        : "https://farcaster.xyz";
+    window.open(profileUrl, "_blank", "noopener,noreferrer");
+  };
+
+  const openXProfile = () => {
+    celebrateProfileChange();
+    const profileUrl = xUsername ? `https://x.com/${encodeURIComponent(xUsername)}` : "https://x.com";
+    void openExternalAsset(profileUrl);
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-[120] flex items-end justify-center bg-black/80 p-4 sm:items-center"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="profile-picture-modal-title"
+    >
+      <div className="max-h-[92vh] w-full max-w-md overflow-auto rounded-2xl border border-[#00FF00]/35 bg-black shadow-2xl">
+        <div className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-[#00FF00]/20 bg-black px-4 py-3">
+          <Text id="profile-picture-modal-title" className="min-w-0 text-base font-bold" style={{ color: "rgb(139, 191, 139)" }}>
+            <span style={{ color: "#00FF00" }}>One Of Us!</span> Profile Picture Update
+          </Text>
+          <button
+            type="button"
+            aria-label="Close profile picture modal"
+            title="Close"
+            onClick={() => {
+              void hapticTap();
+              onClose();
+            }}
+            className="flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-[#00FF00]/35 bg-black text-[#00FF00] hover:bg-[#041204]"
+          >
+            <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
+              <path d="M6 6l12 12" />
+              <path d="M18 6L6 18" />
+            </svg>
+          </button>
+        </div>
+
+        <div className="px-4 py-4">
+          <Text className="text-sm font-bold" style={{ color: "#8bbf8b" }}>
+            Use your 10X Warplet as your profile picture.
+          </Text>
+
+          <div className="mt-4 grid grid-cols-2 gap-3">
+            {([
+              { extension: "webp" as const, title: "10X Green" },
+              { extension: "gif" as const, title: "Animated PFP" },
+            ]).map((option) => (
+              <div key={option.extension} className="min-w-0 rounded-xl border border-[#00FF00]/25 bg-[#041204]/80 p-2.5 text-center">
+                <Text className="mb-2 text-xs font-bold uppercase" style={{ color: "#00FF00" }}>{option.title}</Text>
+                <div className="aspect-square overflow-hidden rounded-lg bg-black">
+                  <img
+                    src={getWarpletAssetUrl(tokenId, option.extension)}
+                    alt={`${option.title} profile picture for 10X Warplet #${tokenId}`}
+                    className="h-full w-full object-cover"
+                    loading="lazy"
+                  />
+                </div>
+                <button
+                  type="button"
+                  disabled={downloading !== null}
+                  onClick={() => void downloadAsset(option.extension)}
+                  className="mt-3 w-full cursor-pointer rounded-[16px] border border-[#00FF00]/45 bg-black px-2 py-2 text-xs font-bold text-[#00FF00] transition-colors duration-100 hover:border-[#00FF00] hover:bg-[#071807] disabled:cursor-wait disabled:opacity-60"
+                >
+                  {downloading === option.extension ? "Downloading..." : "Download"}
+                </button>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-4 rounded-xl border border-[#33AAFF]/40 bg-[rgba(51,170,255,0.12)] px-3 py-2.5 text-xs font-bold leading-relaxed text-[#8bcfff]">
+            <p>Farcaster and X (Twitter) currently display Animated PFPs as a static coloured Warplet.</p>
+            <p className="mt-2">Quorum, and some other Farcaster apps do support Animated PFPs.</p>
+            <p className="mt-2">
+              ...to stand out, most of us choose{" "}
+              <span className="inline-flex rounded-full border border-[#00FF00] bg-[#032503] px-2 py-0.5 font-bold text-[#00FF00]">
+                10X Green
+              </span>
+            </p>
+          </div>
+        </div>
+
+        <div className="sticky bottom-0 z-10 border-t border-[#00FF00]/20 bg-black px-4 pb-4 pt-3">
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => void openFarcasterProfile()}
+              className="w-full cursor-pointer rounded-[20px] border border-[#009900] bg-[#00FF00] px-3 py-3 text-sm font-bold text-[rgb(0,80,0)] shadow-[3px_6px_0_#008000] transition-all duration-100 hover:bg-[#33ff33] active:translate-x-[1px] active:translate-y-[3px] active:shadow-[1px_3px_0_#008000]"
+            >
+              Farcaster Profile
+            </button>
+            <button
+              type="button"
+              onClick={openXProfile}
+              className="secondary-trade-cta w-full cursor-pointer rounded-[20px] border bg-black px-3 py-3 text-sm font-bold text-[#00FF00] transition-all duration-100 hover:bg-[#041204] active:translate-x-[1px] active:translate-y-[3px]"
+            >
+              X (Twitter) Profile
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function OwnedByPanel({
   owner,
   currentTokenId,
@@ -8774,6 +8973,9 @@ function OwnedByPanel({
   onOpenWarplet,
   onSearchOwnerWallet,
   onSearchOwnerFavourites,
+  viewerWallet,
+  viewerFid,
+  viewerUsername,
 }: {
   owner?: TokenMarketState["owner"];
   currentTokenId: number;
@@ -8782,6 +8984,9 @@ function OwnedByPanel({
   onOpenWarplet: (tokenId: number) => void;
   onSearchOwnerWallet: (wallet: string) => void;
   onSearchOwnerFavourites: (wallet: string) => void;
+  viewerWallet: string | null;
+  viewerFid: number | null;
+  viewerUsername: string | null;
 }) {
   const wallet = owner?.wallet?.trim() || null;
   const fid = typeof owner?.fid === "number" ? owner.fid : null;
@@ -8794,6 +8999,11 @@ function OwnedByPanel({
   const hasFarcasterProfile = Boolean(fid && username);
   const hasFollowerCounts = hasFarcasterProfile && (owner?.followerCount != null || owner?.followingCount != null);
   const hasOwnerFavourites = Boolean(wallet && ownerFavouriteCount > 0);
+  const viewerOwnsWarplet = Boolean(
+    (wallet && viewerWallet && normalizeWalletAddress(wallet) === normalizeWalletAddress(viewerWallet))
+    || (fid && viewerFid && fid === viewerFid),
+  );
+  const [showProfilePictureModal, setShowProfilePictureModal] = useState(false);
 
   const handleOpenProfile = () => {
     if (!fid) return;
@@ -8974,6 +9184,27 @@ function OwnedByPanel({
           )}
         </div>
       </div>
+      {viewerOwnsWarplet && (
+        <button
+          type="button"
+          onClick={() => {
+            void hapticPrimaryTap();
+            setShowProfilePictureModal(true);
+          }}
+          className="secondary-trade-cta mt-3 w-full cursor-pointer rounded-[20px] border bg-black px-4 py-2.5 text-sm font-bold text-[#00FF00] transition-all duration-100 hover:bg-[#041204] active:translate-x-[1px] active:translate-y-[3px]"
+        >
+          Set Warplet as Profile Picture
+        </button>
+      )}
+      {showProfilePictureModal && (
+        <ProfilePictureDownloadModal
+          tokenId={currentTokenId}
+          viewerFid={viewerFid}
+          viewerWallet={viewerWallet}
+          viewerUsername={viewerUsername}
+          onClose={() => setShowProfilePictureModal(false)}
+        />
+      )}
     </div>
   );
 }
@@ -10745,6 +10976,8 @@ function WarpletDetailsModal({
   marketRefreshError,
   onRefreshMarket,
   viewerFid,
+  viewerWallet,
+  viewerUsername,
   actionSessionToken,
   onMergeMarketSnapshot,
   onClearMarketSide,
@@ -10771,6 +11004,8 @@ function WarpletDetailsModal({
   marketRefreshError: string;
   onRefreshMarket: () => void;
   viewerFid: number | null;
+  viewerWallet: string | null;
+  viewerUsername: string | null;
   actionSessionToken: string | null;
   onMergeMarketSnapshot: (tokenId: number, snapshot: MarketSnapshot) => void;
   onClearMarketSide: (tokenId: number, side: "listing" | "offer" | "collectionOffer") => void;
@@ -12439,6 +12674,9 @@ function WarpletDetailsModal({
                 onOpenWarplet={onOpenRelatedWarplet}
                 onSearchOwnerWallet={onSearchOwnerWallet}
                 onSearchOwnerFavourites={onSearchOwnerFavourites}
+                viewerWallet={viewerWallet}
+                viewerFid={viewerFid}
+                viewerUsername={viewerUsername}
               />
 
               <WarpletItemActivity
@@ -12707,6 +12945,7 @@ export default function SearchApp() {
   const databaseLoadPromiseRef = useRef<Promise<SqliteDatabase> | null>(null);
   const databaseDisposedRef = useRef(false);
   const searchRunRef = useRef(0);
+  const lastSearchSuccessHapticSignatureRef = useRef("");
   const pendingConfirmedPurchasesRef = useRef(new Map<string, PendingConfirmedPurchase>());
   const ownershipRequestsRef = useRef(new Map<string, Promise<number[]>>());
   const ownershipTokenIdsRef = useRef(new Map<string, number[]>());
@@ -14011,7 +14250,20 @@ export default function SearchApp() {
       setResults((current) => offset > 0
         ? [...current, ...nextRows.filter((row) => !current.some((existing) => existing.id === row.id))]
         : nextRows);
-      if (offset === 0) void hapticSuccess();
+      if (offset === 0) {
+        const hapticSignature = JSON.stringify({
+          query: nextQuery.trim().toLowerCase(),
+          attributes: [...activeAttributes].sort(),
+          levels: [...activeLevels].sort((left, right) => left - right),
+          favouriteWallet: activeFavouriteWallet,
+          ownerWallet: ownerWalletFilter,
+          resultCount: fullResultCount,
+        });
+        if (lastSearchSuccessHapticSignatureRef.current !== hapticSignature) {
+          lastSearchSuccessHapticSignatureRef.current = hapticSignature;
+          void hapticSuccess();
+        }
+      }
     } catch (err) {
       console.error("Warplets search failed:", err);
       if (searchRunRef.current === runId) {
@@ -15587,6 +15839,8 @@ export default function SearchApp() {
             marketRefreshError={index === selectedWarpletDetailsStack.length - 1 ? marketRefreshError : ""}
             onRefreshMarket={handleRefreshSelectedMarket}
             viewerFid={viewerFid}
+            viewerWallet={activeWallet}
+            viewerUsername={headerAccountProfile?.username ?? null}
             actionSessionToken={actionSessionToken}
             onMergeMarketSnapshot={handleMergeMarketSnapshot}
             onClearMarketSide={handleClearMarketSide}
