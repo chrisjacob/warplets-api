@@ -11,6 +11,8 @@ export type PerksExplorerRow = {
   cells: string[];
   progress?: number;
   airdropUsd?: number[];
+  imageSrc?: string;
+  tools?: string[];
 };
 
 export type PerksDefinition = {
@@ -30,10 +32,11 @@ export type PerksDefinition = {
     rows: PerksExplorerRow[];
   };
   leaderboardMetric: string;
-  explanation: Array<{ title: string; body: string }>;
+  explanation: Array<{ title: string; body: string; callout?: string }>;
 };
 
 export const PERKS_MOCK_DATA_VERSION = "perks-demo-v1";
+export const PERKS_MOCKUP_NOTICE_DISMISSED_KEY = "warplets-perks-mockup-notice-dismissed-v1";
 
 export const PERKS_DEFINITIONS: Record<PerksSubpage, PerksDefinition> = {
   memes: {
@@ -45,37 +48,39 @@ export const PERKS_DEFINITIONS: Record<PerksSubpage, PerksDefinition> = {
     globalMetrics: [
       { label: "Attention Tokens", value: "128" },
       { label: "Launch Days Skipped", value: "17" },
-      { label: "Community Buys", value: "$2.84M", detail: "Tokens purchased for community airdrops." },
+      { label: "Launch Liquidity", value: "$128K", detail: "Initial liquidity seeded across 128 Attention Token launches." },
       { label: "Airdrop Value Now", value: "$4.86M" },
       { label: "Airdrop Value at ATH", value: "$18.42M" },
       { label: "Combined Token ATH", value: "$312.6M" },
     ],
     averageTitle: "Average Member",
     averageMetrics: [
+      { label: "Highest Level", value: "2X" },
+      { label: "Airdrop Boost", value: "4.5X" },
       { label: "Eligible Launches", value: "46" },
       { label: "Airdrop Value Now", value: "$486" },
       { label: "Airdrop Value at ATH", value: "$1,842" },
-      { label: "Best Airdrop Multiple", value: "14.6X" },
+      { label: "Best Airdrop Gain", value: "+14,600%" },
     ],
     explorer: {
-      title: "Launch Explorer",
+      title: "Airdrop Explorer",
       description: "Attention Tokens community distribution airdrops.",
       filters: ["All", "Base", "BNB", "Solana", "Robinhood"],
       columns: ["Token", "Chain", "Launchpad", "Airdropped", "MCAP", "ATH"],
       rows: [
-        { filter: "Base", cells: ["$BULL10X", "Base", "Clanker", "$357,800", "$1.8M", "$8.4M"], progress: 80, airdropUsd: [31000, 32800, 33700, 34600, 35200, 36100, 37200, 38100, 39000, 40100] },
-        { filter: "Solana", cells: ["$TRENCH10X", "Solana", "Pump", "$227,200", "$920K", "$6.1M"], progress: 60, airdropUsd: [18200, 19400, 20100, 21300, 22400, 23100, 24200, 25100, 26300, 27100] },
-        { filter: "BNB", cells: ["$BYTE10X", "BNB", "Four", "$485,700", "$2.3M", "$11.2M"], progress: 40, airdropUsd: [42600, 43900, 45100, 46800, 47900, 49200, 50500, 51800, 53200, 54700] },
-        { filter: "Robinhood", cells: ["$HOOD10X", "Robinhood", "Pons", "$179,300", "$740K", "$3.9M"], progress: 20, airdropUsd: [14400, 15200, 16100, 16800, 17500, 18300, 19100, 19800, 20700, 21400] },
+        { filter: "Base", cells: ["$BULL10X", "Base", "Clanker", "$278,700", "$1.8M", "$8.4M"], progress: 80, airdropUsd: [31000, 32800, 33700, 34600, 35200, 36100, 37200, 38100, 39000, 40100] },
+        { filter: "Solana", cells: ["$TRENCH10X", "Solana", "Pump", "$124,500", "$920K", "$6.1M"], progress: 60, airdropUsd: [18200, 19400, 20100, 21300, 22400, 23100, 24200, 25100, 26300, 27100] },
+        { filter: "BNB", cells: ["$BYTE10X", "BNB", "Four", "$178,400", "$2.3M", "$11.2M"], progress: 40, airdropUsd: [42600, 43900, 45100, 46800, 47900, 49200, 50500, 51800, 53200, 54700] },
+        { filter: "Robinhood", cells: ["$HOOD10X", "Robinhood", "Pons", "$29,600", "$740K", "$3.9M"], progress: 20, airdropUsd: [14400, 15200, 16100, 16800, 17500, 18300, 19100, 19800, 20700, 21400] },
         { filter: "Base", cells: ["$GREEN10X", "Base", "Clanker", "$853,400", "$4.6M", "$18.7M"], progress: 100, airdropUsd: [72100, 74800, 77900, 80600, 83200, 86100, 89400, 92700, 96400, 100200] },
       ],
     },
     leaderboardMetric: "ATH airdrop",
     explanation: [
-      { title: "Survival of the fittest", body: "10X analyses recent onchain volume, momentum and attention across chains and launchpads. The market surfaces memecoins before the community chooses one launch—or chooses to skip the day." },
-      { title: "A fourth graduation", body: "New tokens normally move through New, Almost Bonded and Migrated. A community-selected relaunch becomes an Attention Token: a 10X graduation designed to focus attention rather than create hundreds of competing vamps." },
-      { title: "Community buys", body: "10X supplies initial liquidity and buys tokens for community airdrops. Distribution happens over ten days, with eligibility and boosts influenced by participation, holding 10X assets, supporting previous launches and useful bag work." },
-      { title: "Known risk—not no risk", body: "Scheduled launches, community scrutiny and clearer rules aim to reduce unknowns around bundles, snipers and anonymous deployers. Attention Tokens remain highly speculative and can still lose all value." },
+      { title: "Survival of the fittest", body: "10X analyses recent onchain volume, momentum and attention across chains, launchpads and social. The market surfaces trending memecoins with potential. The 10X community chooses a meme to launch an Attention Token for — or chooses to skip the day, and let our previous launch run for longer. We're not bound to one chain or one launchpad, we launch where the market is hottest (Solana, Base, Robinhood, BSC, etc) attracting capital & attention from everywhere." },
+      { title: "A fourth graduation", body: "Launchpad tokens usually graduate through 3 phases: New → Almost Bonded → Migrated. Only ~1% \"make it\" from tens of thousands of new memecoins launched daily. Often those that migrate still die out too quickly. Attention Tokens can be thought of as a 4th level of graduation. Designed to amplify a meme with incentivised focused attention, rather than seeing it bleed out to hundreds of competing vamps." },
+      { title: "Launch liquidity & community airdrops", body: "10X seeds every launch with an initial bonding-curve or AMM purchase. The amount is determined by community vote and available treasury. The acquired tokens are distributed to eligible community members over the following 10 days, with eligibility and boosts influenced by participation, holding 10X assets, supporting previous launches and useful bag work." },
+      { title: "Known risk — not no risk", body: "Scheduled launches, community scrutiny and clearer rules aim to reduce unknowns around bundles, snipers and anonymous scam deployers. Stop spending 12-16 hours a day in the PVP memecoin trenches. Instead, join a single daily PVE community-driven fair launch. Attention Tokens remain highly speculative, highly volitile, and can still lose all value... but this game gives you a fighting chance.", callout: "With 10X you can be EARLY to every launch!" },
     ],
   },
   nfts: {
@@ -83,45 +88,74 @@ export const PERKS_DEFINITIONS: Record<PerksSubpage, PerksDefinition> = {
     title: "NFTs",
     eyebrow: "10X Seasons",
     statsTitle: "Season Stats",
-    summary: "Mint, reveal, upgrade and rally your token tribe across a new Ethereum season every month.",
+    summary: "Mint, reveal, upgrade and rally your token tribe across a new NFT season every month... Level up your perks!",
     globalMetrics: [
       { label: "Seasons", value: "12" },
       { label: "NFTs Minted", value: "120,000" },
       { label: "Upgrades Completed", value: "38,420" },
       { label: "Whitelist Savings", value: "$1.08M" },
-      { label: "Peak Floor Opportunity", value: "$1.52M", detail: "Illustrative peak-floor value, not realized profit." },
-      { label: "Benefit Months Created", value: "314,500" },
+      { label: "Combined ATH Floor", value: "$1.52M", detail: "Illustrative peak-floor value, not realized profit." },
+      { label: "Perk Months", value: "314,500" },
     ],
     averageTitle: "Average Member",
     averageMetrics: [
+      { label: "Season Mints", value: "12" },
+      { label: "Upgrades", value: "5" },
       { label: "Mint Spend", value: "$12" },
       { label: "Whitelist Savings", value: "$108" },
-      { label: "Peak Floor Opportunity", value: "$152" },
-      { label: "Active Benefit Months", value: "31.5" },
+      { label: "Combined ATH Floor", value: "$152" },
+      { label: "Perk Months", value: "32" },
     ],
     explorer: {
       title: "Season Explorer",
-      description: "Select a mock season to compare mint price, peak floor and community activity.",
+      description: "Select a season to compare mint price, peak floor and community activity.",
       filters: ["S12", "S11", "S10", "S9", "S8", "S7", "S6", "S5", "S4", "S3", "S2", "S1"],
-      columns: ["Season", "Mint", "Peak", "Multiple", "Upgrades", "Leading Tribe", "$1B NFT"],
+      columns: ["Season", "Mint", "Peak", "Multiple", "Owners (Unique)", "Total Volume", "Upgrades", "Leading Tribe", "$1B NFT"],
       rows: Array.from({ length: 12 }, (_, index) => {
         const season = 12 - index;
         const peak = 8.4 + season * 3.32;
-        const tribes = ["$ETH", "$SOL", "$10X", "$BTC", "$HYPE", "$BASE"];
+        const seasonTokens: Record<number, string> = {
+          1: "BTC",
+          2: "ETH",
+          3: "UNI",
+          4: "SOL",
+          5: "10X",
+          6: "BTC",
+          7: "10X",
+          8: "10X",
+          9: "ETH",
+          10: "SOL",
+          11: "SOL",
+          12: "ANSEM",
+        };
+        const leadingToken = seasonTokens[season];
+        const ownerCount = 2_645 + season * 40;
+        const ownerPercentage = Math.round((ownerCount / 10_000) * 100);
+        const totalVolume = 61_452 + season * 5_167;
         return {
           filter: `S${season}`,
-          cells: [`Season ${season}`, "$1.00", `$${peak.toFixed(2)}`, `${peak.toFixed(1)}X`, (2180 + season * 171).toLocaleString("en-US"), tribes[index % tribes.length], `$${(18 + season * 2.4).toFixed(1)}K`],
-          progress: 48 + (season * 7) % 48,
+          cells: [
+            `Season ${season}`,
+            "$1.00",
+            `$${peak.toFixed(2)}`,
+            `${peak.toFixed(1)}X`,
+            `${ownerCount.toLocaleString("en-US")} (${ownerPercentage}%)`,
+            `$${totalVolume.toLocaleString("en-US")}`,
+            (2180 + season * 171).toLocaleString("en-US"),
+            `$${leadingToken}`,
+            `$${(18 + season * 2.4).toFixed(1)}K`,
+          ],
+          imageSrc: `/perks/s${season}_${leadingToken.toLowerCase()}.jpg`,
         };
       }),
     },
-    leaderboardMetric: "peak-floor opportunity",
+    leaderboardMetric: "Combined ATH Floor",
     explanation: [
-      { title: "A new Season every month", body: "Each Ethereum Season contains 10,000 NFTs. Level is the only protocol trait and is hidden at mint, following the same exponential 1X–10X rarity pattern as Warplets." },
-      { title: "Upgrade and re-roll", body: "Combine two NFTs at the same Level and pay a small upgrade fee. One is guaranteed to rise by one Level while the other re-rolls across the full rarity distribution, creating a small chance of a much rarer result." },
-      { title: "Owner-directed attention", body: "Owners set their NFT name, description, image and URL, then choose a token to support. Matching choices combine into larger areas on a final 10,000×10,000 Season canvas." },
-      { title: "Benefits that renew", body: "A Level remains active for the same number of months: 10X for ten months through 1X for one month. Active Levels can improve launch access, airdrop boosts, AI support, attention and network access." },
-      { title: "The $1B NFT", body: "The completed Season canvas is auctioned as a sponsorship asset. Its owner receives twelve months of promotion across the future 10X network." },
+      { title: "A new Season every month", body: "Each 10X Season contains 10,000 NFTs on Ethereum, dropped via OpenSea, for maximum volume & attention. 10X Warplet holders get whitelist entry at the best price. Season NFTs have only one trait (\"Level\"), and it follows the same exponential 1X–10X rarity pattern as 10X Warplets. 10X = 10 NFTs, 9X = 20, 8X = 40, ... 1X = 4,890! Higher levels boost your perks." },
+      { title: "Upgrade and re-roll", body: "Combine two NFTs at the same Level to upgrade your NFT. One is guaranteed to rise by one Level while the other re-rolls across the full rarity distribution, creating a small chance of a much rarer result. Example: Combine two Level 3X NFTs, it upgrades one to Level 4X and the other re-rolls and could result in a Level 1X... or 2X... or 6X... or 10X! (if you're lucky)" },
+      { title: "Benefits that compound", body: "An NFT's Level remains active for the same number of months: 10X for ten months through 1X for one month. Active Levels can improve launch whitelists, airdrop boosts, AI compute, attention and network access. NFTs are upgrade material, tribe territory, and benefit boosters — gamifying utility and status." },
+      { title: "Owner-directed attention", body: "Owners claim their NFT in our mini app and choose a token tribe to support. This sets their NFT name, description, image and URL to drive attention to a crypto project. Tribes battle to control more NFTs and higher levels. Matching choices combine into larger logo realestate on a final 10,000 × 10,000 pixel Season canvas that becomes the $1B NFT." },
+      { title: "The $1B NFT", body: "The completed Season canvas is Dutch-auctioned as a sponsorship asset, starting at $1B and rapidly dropping over 30 days. Its owner receives twelve months of promotion across the future 10X network. Proceeds from the sale fuel more 10X ecosystem growth and perks.", callout: "Every month, crypto's hottest tokens are minted into history." },
     ],
   },
   ai: {
@@ -129,41 +163,42 @@ export const PERKS_DEFINITIONS: Record<PerksSubpage, PerksDefinition> = {
     title: "AI",
     eyebrow: "AI for Builders",
     statsTitle: "Builder Stats",
-    summary: "Turn ecosystem revenue into practical AI compute, tools and longer runway for people who ship.",
+    summary: "Turning ecosystem revenue into practical AI compute, tools and longer runway for people who ship... Accelerate!",
     globalMetrics: [
       { label: "Sponsored AI", value: "$420K" },
       { label: "Credits Consumed", value: "$397K" },
       { label: "Builders Supported", value: "1,842" },
       { label: "Projects Shipped", value: "286" },
-      { label: "Tools Available", value: "17" },
+      { label: "Tools Available", value: "16" },
       { label: "Credit Utilization", value: "94.5%" },
     ],
-    averageTitle: "Average Active Builder",
+    averageTitle: "Average Member",
     averageMetrics: [
-      { label: "Sponsored Value", value: "$228" },
+      { label: "Sponsored AI", value: "$228" },
+      { label: "Credits Used", value: "$197" },
+      { label: "Credits Remaining", value: "$31" },
       { label: "Model Tokens", value: "22.4M" },
       { label: "Image / Video Jobs", value: "31" },
-      { label: "Projects Shipped", value: "0.16" },
+      { label: "Projects Shipped", value: "1" },
     ],
     explorer: {
       title: "Compute Explorer",
-      description: "Mock allocation and output across the tools community members use.",
-      filters: ["All", "Coding", "Research", "Image", "Video", "Private"],
-      columns: ["Category", "Sponsored", "Used", "Members", "Output"],
+      description: "AI allocation and output across the tools community members use.",
+      filters: ["All", "Coding", "Image", "Video", "Private"],
+      columns: ["Category", "Sponsored", "Used", "Members", "Tools", "Output"],
       rows: [
-        { filter: "Coding", cells: ["Coding", "$148K", "96%", "812", "114 apps"] , progress: 96 },
-        { filter: "Research", cells: ["Research", "$82K", "91%", "623", "3,840 reports"], progress: 91 },
-        { filter: "Image", cells: ["Image", "$74K", "94%", "744", "48K images"], progress: 94 },
-        { filter: "Video", cells: ["Video", "$61K", "89%", "318", "6,420 clips"], progress: 89 },
-        { filter: "Private", cells: ["Private", "$55K", "98%", "410", "9.1B tokens"], progress: 98 },
+        { filter: "Coding", cells: ["Coding", "$180K", "96%", "812", "4", "114 apps"], tools: ["Codex", "Claude Code", "Cursor", "GitHub Copilot"] },
+        { filter: "Image", cells: ["Image", "$90K", "94%", "744", "4", "48K images"], tools: ["Midjourney", "Adobe Firefly", "Ideogram", "Leonardo.Ai"] },
+        { filter: "Video", cells: ["Video", "$75K", "89%", "318", "4", "6,420 clips"], tools: ["Runway", "Kling AI", "Google Veo", "OpenAI Sora"] },
+        { filter: "Private", cells: ["Private", "$75K", "98%", "410", "4", "9.1B tokens"], tools: ["Venice.ai", "Proton Lumo", "Duck.ai", "Ollama"] },
       ],
     },
-    leaderboardMetric: "sponsored compute",
+    leaderboardMetric: "sponsored AI",
     explanation: [
-      { title: "Runway instead of one-off grants", body: "10X can sponsor practical AI access for builders and creators, reducing recurring costs and helping community projects move faster for longer." },
-      { title: "Shared access with fair limits", body: "Future organization plans, partner packages and onchain inference credits would use per-member allowances so support reaches more people while scaling with ecosystem revenue." },
+      { title: "Runway instead of one-off grants", body: "10X can sponsor practical AI access for builders and creators, reducing recurring costs and helping community projects move faster for longer. AI is the most impactful leverage we can provide to 10X your progress!" },
+      { title: "Shared access with fair limits", body: "Organization plans, partner packages and onchain inference credits would use per-member allowances so support reaches more people while scaling with ecosystem revenue." },
       { title: "Tools for every kind of creator", body: "Potential categories include coding, research, image and video production, plus privacy-focused inference. Provider examples are exploratory; no partnership is implied." },
-      { title: "Celebrate useful output", body: "Project showcases connect sponsored compute to shipped tools, content and experiments around 10X and the wider Farcaster ecosystem." },
+      { title: "Celebrate shipping", body: "Project showcases connect sponsored compute to shipped tools, content and experiments around 10X and the wider Farcaster ecosystem. We're creating an army of bag workers and builders, amplified by AI!", callout: "Intelligence is the ultimate engine of progress." },
     ],
   },
   attention: {
@@ -171,7 +206,7 @@ export const PERKS_DEFINITIONS: Record<PerksSubpage, PerksDefinition> = {
     title: "Attention",
     eyebrow: "#1 Feed for Crypto",
     statsTitle: "Distribution Stats",
-    summary: "One focused daily feed where useful posts receive a real opportunity to be seen and acted on.",
+    summary: "One focused daily feed where posts receive a real chance to be seen and go viral... Join the content cabal!",
     globalMetrics: [
       { label: "Impressions", value: "94.2M" },
       { label: "Engagements", value: "6.8M" },
@@ -182,14 +217,16 @@ export const PERKS_DEFINITIONS: Record<PerksSubpage, PerksDefinition> = {
     ],
     averageTitle: "Average Member",
     averageMetrics: [
+      { label: "Posts", value: "3" },
       { label: "Impressions", value: "9,420" },
-      { label: "Engagements", value: "680" },
-      { label: "Posts", value: "2.5" },
-      { label: "Daily Unlock", value: "78%" },
+      { label: "Engagement", value: "680" },
+      { label: "Engagement Rate", value: "7.2%" },
+      { label: "Feed Rank", value: "#500" },
+      { label: "Daily Airdrop", value: "$3.64" },
     ],
     explorer: {
       title: "Attention Explorer",
-      description: "Mock focused-feed activity and progressive daily unlocks.",
+      description: "Focused-feed activity and progressive unlocks.",
       filters: ["7D", "30D", "All"],
       columns: ["Range", "Impressions", "Engagements", "Posts", "Actions", "Unlock"],
       rows: [
@@ -198,12 +235,12 @@ export const PERKS_DEFINITIONS: Record<PerksSubpage, PerksDefinition> = {
         { filter: "All", cells: ["All Time", "94.2M", "6.8M", "24,800", "3.1M", "78%"], progress: 78 },
       ],
     },
-    leaderboardMetric: "earned impressions",
+    leaderboardMetric: "impressions",
     explanation: [
-      { title: "One post. One focused feed.", body: "Community members can publish one thing per day into a Farcaster-powered feed designed to concentrate discovery rather than scatter it across thousands of timelines." },
-      { title: "Earn attention through contribution", body: "Holdings and Levels can boost ranking, while useful bag work—likes, comments, quotes, shares and original creation—helps strong posts travel further." },
-      { title: "Scroll to unlock", body: "The daily Attention Token allocation unlocks progressively while members explore the feed. Meaningful interactions can accelerate progress without turning the experience into a passive faucet." },
-      { title: "Distribution beyond the feed", body: "Popular community posts can receive broader promotion through future newsletters and the 10X network, while sponsors receive clearly identified placement." },
+      { title: "One daily post. One focused feed.", body: "Community members can publish one thing per day into a Farcaster-powered feed designed to concentrate discovery rather than scatter it across thousands of timelines. Driving DAUs onto Farcaster, a builder-first, crypto-native social platform — where CT really belongs." },
+      { title: "Earn attention through contribution", body: "Holdings and Levels can boost ranking, while useful bag work—likes, comments, quotes, shares and original creation—helps strong community members travel further. We win by working together." },
+      { title: "Scroll to unlock", body: "The daily Attention Token airdrop unlocks progressively while members explore the feed. Meaningful interactions can accelerate progress without turning the experience into a passive faucet... Scroll-to-Earn, and engage to earn faster!" },
+      { title: "Distribution beyond the feed", body: "We're building \"one feed to rule them all\"! The homepage for crypto, where news breaks, alpha drops and new KOLs are minted. Content starts in the 10X feed and spreads virally out to larger platforms. Popular community posts receive broader promotion through future newsletters and the 10X network.", callout: "D.R.E.A.M: Distribution rules everything around me... attention is king." },
     ],
   },
   access: {
@@ -229,7 +266,7 @@ export const PERKS_DEFINITIONS: Record<PerksSubpage, PerksDefinition> = {
     ],
     explorer: {
       title: "Memecoin Explorer",
-      description: "Mock cross-chain intelligence, community decisions and subsequent market movement.",
+      description: "Cross-chain intelligence, community decisions and subsequent memecoin market movement.",
       filters: ["All", "Ethereum", "Base", "Solana", "BNB", "Robinhood", "Other"],
       columns: ["Memecoin", "Chain", "Momentum", "Vote", "Decision", "Move"],
       rows: [

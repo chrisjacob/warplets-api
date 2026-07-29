@@ -17,6 +17,7 @@ import { hapticSelectionChanged, hapticTap } from "./haptics";
 import {
   PERKS_DEFINITIONS,
   PERKS_MOCK_DATA_VERSION,
+  PERKS_MOCKUP_NOTICE_DISMISSED_KEY,
   type PerksDefinition,
   type PerksMetric,
   type PerksSubpage,
@@ -46,7 +47,6 @@ type PerksViewerProfile = {
 
 const FALLBACK_WARPLET_TOKEN_ID = 548;
 const DEMO_HOLDER_SESSION_KEY = "warplets-perks-demo-holder-v1";
-const MOCKUP_NOTICE_DISMISSED_KEY = "warplets-perks-mockup-notice-dismissed-v1";
 const MOCK_HOLDER_LIMIT = 100;
 const PERK_IDS: PerksSubpage[] = ["memes", "nfts", "ai", "attention", "access"];
 
@@ -125,6 +125,10 @@ function getWarpletPreviewImageUrl(tokenId: number): string {
   return `https://warplets.10x.meme/${tokenId}.jpg`;
 }
 
+function getWarpletVideoUrl(tokenId: number): string {
+  return `https://warplets.10x.meme/${tokenId}.mp4`;
+}
+
 function shortWallet(wallet: string): string {
   return wallet.length > 12 ? `${wallet.slice(0, 6)}…${wallet.slice(-4)}` : wallet;
 }
@@ -198,42 +202,51 @@ function formatLeaderboardScore(perk: PerksSubpage, score: number): string {
 function buildYouMetrics(perk: PerksSubpage, holder: PerksHolder): PerksMetric[] {
   const factor = holderBenefitFactor(perk, holder);
   if (perk === "memes") {
+    const youFactor = Math.max(1.12, factor);
     return [
-      { label: "Eligible Launches", value: formatInteger(46 * factor) },
-      { label: "Claimed Distributions", value: formatInteger(39 * factor) },
-      { label: "Airdrop Value Now", value: formatMoney(486 * factor) },
-      { label: "Airdrop Value at ATH", value: formatMoney(1_842 * factor) },
-      { label: "Illustrative Boost", value: `${(1 + Math.min(holder.ownedCount, 20) * 0.04).toFixed(2)}X` },
+      { label: "Highest Level", value: `${Math.min(10, Math.max(3, Math.ceil(2 + youFactor)))}X` },
+      { label: "Airdrop Boost", value: `${(4.5 + youFactor * 0.8).toFixed(1)}X` },
+      { label: "Eligible Launches", value: formatInteger(46 * youFactor) },
+      { label: "Airdrop Value Now", value: formatMoney(486 * youFactor) },
+      { label: "Airdrop Value at ATH", value: formatMoney(1_842 * youFactor) },
+      { label: "Best Airdrop Gain", value: `+${formatInteger(14_600 * youFactor)}%` },
     ];
   }
   if (perk === "nfts") {
+    const youFactor = Math.max(1.12, factor);
     return [
-      { label: "Season Mints", value: formatInteger(12 * factor) },
-      { label: "Upgrades", value: formatInteger(4.8 * factor) },
-      { label: "Active Benefit Months", value: (31.5 * factor).toFixed(1) },
-      { label: "Whitelist Savings", value: formatMoney(108 * factor) },
-      { label: "Peak Floor Opportunity", value: formatMoney(152 * factor) },
+      { label: "Season Mints", value: formatInteger(12 * youFactor) },
+      { label: "Upgrades", value: formatInteger(5 * youFactor) },
+      { label: "Mint Spend", value: formatMoney(12 * youFactor) },
+      { label: "Whitelist Savings", value: formatMoney(108 * youFactor) },
+      { label: "Combined ATH Floor", value: formatMoney(152 * youFactor) },
+      { label: "Perk Months", value: formatInteger(32 * youFactor) },
     ];
   }
   if (perk === "ai") {
-    const allowance = 228 * factor;
-    const used = allowance * (0.62 + seededUnit(perk, holder.wallet, "usage") * 0.3);
+    const youFactor = Math.max(1.12, factor);
+    const sponsored = 228 * youFactor;
+    const used = 197 * youFactor;
+    const remaining = sponsored - used;
     return [
-      { label: "Sponsored Allowance", value: formatMoney(allowance) },
+      { label: "Sponsored AI", value: formatMoney(sponsored) },
       { label: "Credits Used", value: formatMoney(used) },
-      { label: "Credits Remaining", value: formatMoney(Math.max(0, allowance - used)) },
-      { label: "Tools Accessed", value: formatInteger(3 + factor * 2.4) },
-      { label: "Projects Shipped", value: formatInteger(factor * 1.7) },
+      { label: "Credits Remaining", value: formatMoney(remaining) },
+      { label: "Model Tokens", value: `${(22.4 * youFactor).toFixed(1)}M` },
+      { label: "Image / Video Jobs", value: Math.ceil(31 * youFactor).toLocaleString("en-US") },
+      { label: "Projects Shipped", value: Math.ceil(youFactor).toLocaleString("en-US") },
     ];
   }
   if (perk === "attention") {
-    const impressions = 9_420 * factor;
+    const youFactor = Math.max(1.12, factor);
+    const impressions = 9_420 * youFactor;
     return [
+      { label: "Posts", value: Math.ceil(3 * youFactor).toLocaleString("en-US") },
       { label: "Impressions", value: formatInteger(impressions) },
-      { label: "Engagement Rate", value: `${(5.8 + seededUnit(perk, holder.wallet, "engagement") * 8.4).toFixed(1)}%` },
-      { label: "Feed Rank", value: `#${formatInteger(30 + seededUnit(perk, holder.wallet, "rank") * 970)}` },
-      { label: "Verified Actions", value: formatInteger(310 * factor) },
-      { label: "Daily Unlock", value: `${Math.min(100, Math.round(68 + factor * 12))}%` },
+      { label: "Engagement", value: formatInteger(680 * youFactor) },
+      { label: "Engagement Rate", value: `${(7.2 + youFactor * 1.4).toFixed(1)}%` },
+      { label: "Feed Rank", value: `#${formatInteger(500 / youFactor)}` },
+      { label: "Daily Airdrop", value: formatMoney(3.64 * youFactor) },
     ];
   }
   return [
@@ -293,7 +306,7 @@ function AirdropDayTooltip({ value, children }: { value: string; children: React
         ref={refs.setReference}
         {...getReferenceProps({
           "aria-label": value,
-          className: "flex h-4 cursor-help items-center justify-center rounded-full outline-none focus:ring-1 focus:ring-[#00FF00]/70",
+          className: "mx-auto flex h-4 cursor-help items-center justify-center rounded-full outline-none focus:ring-1 focus:ring-[#00FF00]/70",
         })}
       >
         {children}
@@ -315,15 +328,82 @@ function AirdropDayTooltip({ value, children }: { value: string; children: React
   );
 }
 
-function SectionHeading({ children, detail }: { children: string; detail?: string }) {
+function AttentionTrendChart({ range }: { range: string }) {
+  const data = useMemo(() => {
+    const pointCount = range === "7D" ? 7 : range === "30D" ? 30 : 90;
+    const end = new Date();
+    end.setHours(12, 0, 0, 0);
+    return Array.from({ length: pointCount }, (_, index) => {
+      const date = new Date(end);
+      date.setDate(end.getDate() - (pointCount - index - 1));
+      const weekday = date.getDay();
+      const weekendDip = weekday === 0 ? 0.76 : weekday === 6 ? 0.83 : 1;
+      const growth = 18_000 + index * (range === "7D" ? 2_850 : range === "30D" ? 980 : 410);
+      const naturalMovement = 1 + Math.sin(index * 1.17) * 0.065 + Math.cos(index * 0.43) * 0.035;
+      return { date, value: Math.round(growth * weekendDip * naturalMovement) };
+    });
+  }, [range]);
+
+  const width = 320;
+  const height = 112;
+  const left = 34;
+  const right = 10;
+  const top = 10;
+  const bottom = 24;
+  const values = data.map((point) => point.value);
+  const minValue = Math.min(...values) * 0.92;
+  const maxValue = Math.max(...values) * 1.05;
+  const valueSpan = Math.max(1, maxValue - minValue);
+  const points = data.map((point, index) => ({
+    ...point,
+    x: left + (index / Math.max(1, data.length - 1)) * (width - left - right),
+    y: top + ((maxValue - point.value) / valueSpan) * (height - top - bottom),
+  }));
+  const linePoints = points.map((point) => `${point.x.toFixed(2)},${point.y.toFixed(2)}`).join(" ");
+  const formatDate = (date: Date) => date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  const formatValue = (value: number) => `${Math.round(value / 1000)}K`;
+
   return (
-    <div className="mb-2 mt-4 flex items-center justify-between gap-3">
-      <div>
-        <h2 className="text-xs font-black uppercase text-[#00FF00]">{children}</h2>
-        {detail && <p className="mt-0.5 text-[11px] font-bold text-[#8bbf8b]">{detail}</p>}
-      </div>
-      <DemoBadge />
-    </div>
+    <svg
+      key={range}
+      viewBox={`0 0 ${width} ${height}`}
+      className="mt-1 h-28 w-full overflow-visible"
+      role="img"
+      aria-label={`Illustrative ${range} focused-attention trend rising over time with weekend dips`}
+    >
+      {[0, 0.5, 1].map((ratio) => {
+        const y = top + ratio * (height - top - bottom);
+        return <line key={ratio} x1={left} x2={width - right} y1={y} y2={y} stroke="rgba(0,255,0,0.11)" strokeDasharray="3 5" />;
+      })}
+      <line x1={left} x2={width - right} y1={height - bottom} y2={height - bottom} stroke="rgba(0,255,0,0.3)" />
+      <polyline
+        points={linePoints}
+        pathLength="1"
+        fill="none"
+        stroke="#00FF00"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="perks-attention-chart-line"
+      />
+      {points.map((point, index) => (
+        <circle
+          key={point.date.toISOString()}
+          cx={point.x}
+          cy={point.y}
+          r="2.5"
+          fill="#00FF00"
+          stroke="#032503"
+          strokeWidth="1"
+          className="perks-attention-chart-point"
+          style={{ animationDelay: `${900 + index * Math.max(12, 120 / data.length)}ms` }}
+        />
+      ))}
+      <text x={left - 4} y={top + 4} textAnchor="end" fill="#6f9f6f" fontSize="8" fontWeight="800">{formatValue(maxValue)}</text>
+      <text x={left - 4} y={height - bottom + 3} textAnchor="end" fill="#6f9f6f" fontSize="8" fontWeight="800">{formatValue(minValue)}</text>
+      <text x={left} y={height - 6} fill="#6f9f6f" fontSize="8" fontWeight="800">{formatDate(data[0].date)}</text>
+      <text x={width - right} y={height - 6} textAnchor="end" fill="#6f9f6f" fontSize="8" fontWeight="800">{formatDate(data[data.length - 1].date)}</text>
+    </svg>
   );
 }
 
@@ -341,6 +421,18 @@ function MetricGrid({ metrics }: { metrics: PerksMetric[] }) {
         </div>
       ))}
     </div>
+  );
+}
+
+function PerksDashboardPanel({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section className="mt-4 overflow-hidden rounded-xl border border-[#00FF00]/25 bg-black/70">
+      <div className="flex items-center justify-between gap-2 border-b border-[#00FF00]/15 px-3 py-3">
+        <h2 className="text-xs font-black uppercase text-[#00FF00]">{title}</h2>
+        <DemoBadge />
+      </div>
+      <div className="p-3">{children}</div>
+    </section>
   );
 }
 
@@ -384,30 +476,26 @@ function Explorer({ definition }: { definition: PerksDefinition }) {
       </div>
       <div className="space-y-2 p-2">
         {definition.id === "nfts" && (
-          <div className="flex items-center gap-3 rounded-lg border border-[#00FF00]/15 bg-[#041204]/70 p-2">
-            <div className="grid h-20 w-20 shrink-0 grid-cols-8 overflow-hidden rounded-md border border-[#00FF00]/30 bg-black">
-              {Array.from({ length: 64 }, (_, index) => (
-                <span
-                  key={index}
-                  className="border-[0.5px] border-black"
-                  style={{ backgroundColor: `rgba(0,255,0,${0.12 + ((index * 17) % 80) / 100})` }}
-                />
-              ))}
-            </div>
-            <div>
-              <span className="block text-[10px] font-black uppercase text-[#8bbf8b]">Final Season Canvas</span>
-              <span className="mt-1 block text-xs font-black text-[#00FF00]">10,000 × 10,000 px</span>
+          <div className="rounded-lg border border-[#00FF00]/15 bg-[#041204]/70 p-2">
+            <div className="px-1 pb-3 pt-1">
+              <span className="block text-xs font-black uppercase text-[#00FF00]">Season $1B NFT Canvas</span>
               <span className="mt-1 block text-[10px] leading-4 text-[#8bbf8b]">Larger squares represent token tribes with more Season NFTs.</span>
+            </div>
+            <div className="aspect-square w-full overflow-hidden rounded-md border border-[#00FF00]/30 bg-black">
+              <img
+                src={rows[0]?.imageSrc}
+                alt={`${rows[0]?.cells[0] ?? "Selected season"} final canvas`}
+                className="h-full w-full object-cover"
+                loading="lazy"
+                decoding="async"
+              />
             </div>
           </div>
         )}
         {definition.id === "attention" && (
           <div className="rounded-lg border border-[#00FF00]/15 bg-[#041204]/70 p-2">
             <div className="flex items-center justify-between text-[10px] font-black uppercase text-[#6f9f6f]"><span>Focused attention</span><span>{filter}</span></div>
-            <svg viewBox="0 0 320 72" className="mt-1 h-[72px] w-full" role="img" aria-label={`Illustrative ${filter} attention trend`}>
-              <path d="M0 62 C30 59 37 48 63 51 S98 42 120 44 S154 27 179 34 S212 17 238 22 S278 8 320 11" fill="none" stroke="#00FF00" strokeWidth="3" />
-              <path d="M0 62 C30 59 37 48 63 51 S98 42 120 44 S154 27 179 34 S212 17 238 22 S278 8 320 11 L320 72 L0 72 Z" fill="rgba(0,255,0,0.08)" />
-            </svg>
+            <AttentionTrendChart range={filter} />
           </div>
         )}
         {rows.map((row, rowIndex) => (
@@ -418,7 +506,13 @@ function Explorer({ definition }: { definition: PerksDefinition }) {
                   <span className="block truncate text-[10px] font-black uppercase text-[#6f9f6f]">{definition.explorer.columns[index]}</span>
                   {definition.id === "memes" && definition.explorer.columns[index] === "Airdropped" ? (
                     <span className="mt-0.5 inline-flex max-w-full rounded-full border border-[#00FF00]/55 bg-[#032503] px-1.5 py-px text-[10px] font-black text-[#00FF00]">
-                      {cell}
+                      {row.airdropUsd
+                        ? formatExactAirdropValue(
+                            row.airdropUsd
+                              .slice(0, Math.ceil((row.progress ?? 0) / 10))
+                              .reduce((total, amount) => total + amount, 0),
+                          )
+                        : cell}
                     </span>
                   ) : (
                     <span className="mt-0.5 block truncate text-[11px] font-black text-white">{cell}</span>
@@ -426,19 +520,34 @@ function Explorer({ definition }: { definition: PerksDefinition }) {
                 </div>
               ))}
             </div>
+            {row.tools && row.tools.length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                {row.tools.map((tool) => (
+                  <span
+                    key={tool}
+                    className="inline-flex rounded-full border border-[#00FF00]/45 bg-[#032503] px-2 py-1 text-[10px] font-black text-[#00FF00]"
+                  >
+                    {tool}
+                  </span>
+                ))}
+              </div>
+            )}
             {row.progress != null && definition.id === "memes" && row.airdropUsd && (
               <div className="mt-3 pt-1">
-                <div className="relative grid grid-cols-10">
-                  <span className="absolute left-[5%] right-[5%] top-[7px] h-0.5 bg-[#00FF00]/30" aria-hidden="true" />
+                <div className="relative isolate grid grid-cols-10">
                   <span
-                    className="absolute left-[5%] top-[7px] h-0.5 bg-[#00FF00] transition-[width] duration-500"
+                    className="absolute left-[5%] top-[7px] z-0 h-0.5 w-[90%] bg-[#00FF00]/30"
+                    aria-hidden="true"
+                  />
+                  <span
+                    className="absolute left-[5%] top-[7px] z-0 h-0.5 bg-[#00FF00] transition-[width] duration-500"
                     style={{ width: `${Math.max(0, (Math.ceil(row.progress / 10) - 1) * 10)}%` }}
                     aria-hidden="true"
                   />
                   {row.airdropUsd.map((amount, dayIndex) => {
                     const passed = dayIndex < Math.ceil(row.progress! / 10);
                     return (
-                      <div key={dayIndex} className="relative z-[1] min-w-0 text-center">
+                      <div key={dayIndex} className="relative z-10 min-w-0 text-center">
                         <AirdropDayTooltip value={`Day ${dayIndex + 1}: ${formatExactAirdropValue(amount)}`}>
                           {passed ? (
                             <span className="block whitespace-nowrap rounded-full border border-[#00FF00]/65 bg-[#032503] px-1 py-px text-[8px] font-black leading-3 text-[#00FF00]">
@@ -457,7 +566,7 @@ function Explorer({ definition }: { definition: PerksDefinition }) {
                 </div>
               </div>
             )}
-            {row.progress != null && definition.id !== "memes" && (
+            {row.progress != null && definition.id !== "memes" && definition.id !== "attention" && (
               <div className="mt-2 h-1.5 overflow-hidden rounded-full border border-[#00FF00]/25 bg-black" title={`${row.progress}%`}>
                 <span className="block h-full bg-[#00FF00] transition-[width] duration-500" style={{ width: `${Math.max(0, Math.min(100, row.progress))}%` }} />
               </div>
@@ -522,30 +631,47 @@ function YouSpotlight({
   isDemo,
   onSearchWallet,
   onOpenWarpletDetails,
+  embedded = false,
 }: {
   definition: PerksDefinition;
   holder: PerksHolder;
   isDemo: boolean;
   onSearchWallet: (wallet: string) => void;
   onOpenWarpletDetails: (tokenId: number) => void;
+  embedded?: boolean;
 }) {
-  return (
-    <section className="mt-4 rounded-xl border border-[#00FF00]/35 bg-[rgba(0,255,0,0.065)] p-3 transition hover:border-2 hover:border-[#00FF00] hover:p-[11px] hover:shadow-[0_0_14px_rgba(0,255,0,0.34)]">
+  const content = (
+    <>
+      {!embedded && (
       <div className="flex items-center justify-between gap-2">
         <h2 className="text-xs font-black uppercase text-[#00FF00]">{isDemo ? "Demo You" : "You"}</h2>
         <DemoBadge />
       </div>
-      <div className="mt-3">
+      )}
+      <div className={embedded ? "" : "mt-3"}>
         <WarpletIdentity holder={holder} fallbackLabel={isDemo ? `Demo · ${holderLabel(holder)}` : undefined} onSearchWallet={onSearchWallet} onOpenWarpletDetails={onOpenWarpletDetails} />
       </div>
-      <div className="mt-3 grid grid-cols-2 gap-2">
-        {buildYouMetrics(definition.id, holder).map((metric, index) => (
-          <div key={metric.label} className={`${index === 4 ? "col-span-2" : ""} rounded-lg border border-[#00FF00]/15 bg-black/55 px-2 py-2`}>
-            <span className="block text-[10px] font-black uppercase text-[#6f9f6f]">{metric.label}</span>
-            <span className="mt-0.5 block text-sm font-black text-[#00FF00]">{metric.value}</span>
-          </div>
-        ))}
-      </div>
+      {definition.id === "memes" || definition.id === "nfts" || definition.id === "ai" || definition.id === "attention" ? (
+        <div className="mt-3">
+          <MetricGrid metrics={buildYouMetrics(definition.id, holder)} />
+        </div>
+      ) : (
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          {buildYouMetrics(definition.id, holder).map((metric, index) => (
+            <div key={metric.label} className={`${index === 4 ? "col-span-2" : ""} rounded-lg border border-[#00FF00]/15 bg-black/55 px-2 py-2`}>
+              <span className="block text-[10px] font-black uppercase text-[#6f9f6f]">{metric.label}</span>
+              <span className="mt-0.5 block text-sm font-black text-[#00FF00]">{metric.value}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </>
+  );
+
+  if (embedded) return content;
+  return (
+    <section className="mt-4 rounded-xl border border-[#00FF00]/35 bg-[rgba(0,255,0,0.065)] p-3 transition hover:border-2 hover:border-[#00FF00] hover:p-[11px] hover:shadow-[0_0_14px_rgba(0,255,0,0.34)]">
+      {content}
     </section>
   );
 }
@@ -555,20 +681,24 @@ function Leaderboard({
   holders,
   onSearchWallet,
   onOpenWarpletDetails,
+  embedded = false,
 }: {
   definition: PerksDefinition;
   holders: PerksHolder[];
   onSearchWallet: (wallet: string) => void;
   onOpenWarpletDetails: (tokenId: number) => void;
+  embedded?: boolean;
 }) {
   return (
-    <section className="mt-4">
+    <section className={embedded ? "" : "mt-4"}>
+      {!embedded && (
       <div className="mb-2 flex items-center justify-between gap-2">
         <div>
           <h2 className="text-xs font-black uppercase text-[#00FF00]">Top 10</h2>
         </div>
         <DemoBadge />
       </div>
+      )}
       {holders.length === 0 ? (
         <div className="rounded-xl border border-[#00FF00]/20 bg-black/65 px-3 py-8 text-center text-xs font-bold text-[#8bbf8b]">
           Live holder examples are temporarily unavailable.
@@ -589,7 +719,7 @@ function Leaderboard({
                 </div>
                 <div className="max-w-[84px] shrink-0 text-right">
                   <span className="block text-[10px] font-black uppercase leading-3 text-[#6f9f6f]">{definition.leaderboardMetric}</span>
-                  <span className="block text-xs font-black text-[#00FF00]">{formatLeaderboardScore(definition.id, score)}</span>
+                  <span className="block whitespace-nowrap text-xs font-black text-[#00FF00]">{formatLeaderboardScore(definition.id, score)}</span>
                 </div>
               </article>
             );
@@ -601,16 +731,44 @@ function Leaderboard({
 }
 
 function FutureExplanation({ definition }: { definition: PerksDefinition }) {
+  const featuredTokenId: Record<PerksSubpage, number> = {
+    memes: 3258,
+    nfts: 3786,
+    ai: 234,
+    attention: 4318,
+    access: 4334,
+  };
+  const tokenId = featuredTokenId[definition.id];
+
   return (
     <section className="mt-5 overflow-hidden rounded-xl border border-[#00FF00]/25 bg-black/70">
       <div className="border-b border-[#00FF00]/15 px-3 py-3">
         <h2 className="text-xs font-black uppercase text-[#00FF00]">The Future {definition.title} Perk</h2>
       </div>
-      <div className="divide-y divide-[#00FF00]/10">
-        {definition.explanation.map((item) => (
-          <div key={item.title} className="px-3 py-3">
+      <div>
+        <div className="p-3">
+          <video
+            key={tokenId}
+            src={getWarpletVideoUrl(tokenId)}
+            poster={getWarpletPreviewImageUrl(tokenId)}
+            aria-label={`Animated 10X Warplet #${tokenId}`}
+            className="aspect-square w-full rounded-xl object-cover"
+            autoPlay
+            loop
+            muted
+            playsInline
+            preload="metadata"
+          />
+        </div>
+        {definition.explanation.map((item, index) => (
+          <div key={item.title} className={`px-3 py-3 ${index > 0 ? "border-t border-[#00FF00]/10" : ""}`}>
             <h3 className="text-xs font-black uppercase text-[#00FF00]">{item.title}</h3>
             <p className="mt-1 text-xs leading-5 text-[#b8d7b8]">{item.body}</p>
+            {item.callout && (
+              <span className="mt-3 block py-2 text-center text-xl font-black uppercase leading-[1.5] text-[#00FF00]">
+                {item.callout}
+              </span>
+            )}
           </div>
         ))}
       </div>
@@ -641,13 +799,13 @@ export default function PerksPage({
   const [showMockupNotice, setShowMockupNotice] = useState(() => {
     if (typeof window === "undefined") return true;
     if (new URLSearchParams(window.location.search).get("mockup") === "1") return true;
-    return window.localStorage.getItem(MOCKUP_NOTICE_DISMISSED_KEY) !== "1";
+    return window.localStorage.getItem(PERKS_MOCKUP_NOTICE_DISMISSED_KEY) !== "1";
   });
 
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (new URLSearchParams(window.location.search).get("mockup") !== "1") return;
-    window.localStorage.removeItem(MOCKUP_NOTICE_DISMISSED_KEY);
+    window.localStorage.removeItem(PERKS_MOCKUP_NOTICE_DISMISSED_KEY);
     setShowMockupNotice(true);
   }, []);
 
@@ -735,7 +893,7 @@ export default function PerksPage({
             title="Close"
             onClick={() => {
               void hapticTap();
-              window.localStorage.setItem(MOCKUP_NOTICE_DISMISSED_KEY, "1");
+              window.localStorage.setItem(PERKS_MOCKUP_NOTICE_DISMISSED_KEY, "1");
               setShowMockupNotice(false);
             }}
             className="absolute right-2 top-2 flex h-9 w-9 cursor-pointer items-center justify-center rounded-lg border border-[#FFFF00]/45 bg-black text-[#FFFF00] transition hover:bg-[#1a1a00] active:scale-95"
@@ -758,22 +916,30 @@ export default function PerksPage({
 
       <header className="py-5 text-center">
         <h1 className="text-3xl font-black uppercase text-[#00FF00]">{definition.eyebrow}</h1>
-        <p className="mx-auto mt-2 max-w-sm text-xs leading-5 text-[#b8d7b8]">{definition.summary}</p>
+        <p className="mx-auto mt-2 max-w-sm px-4 text-xs leading-5 text-[#b8d7b8]">{definition.summary}</p>
       </header>
 
-      <SectionHeading>{definition.statsTitle}</SectionHeading>
-      <MetricGrid metrics={definition.globalMetrics} />
+      <PerksDashboardPanel title={definition.statsTitle}>
+        <MetricGrid metrics={definition.globalMetrics} />
+      </PerksDashboardPanel>
       <Explorer definition={definition} />
 
-      <Leaderboard definition={definition} holders={topTen} onSearchWallet={onSearchWallet} onOpenWarpletDetails={onOpenWarpletDetails} />
+      <PerksDashboardPanel title="Top 10">
+        <Leaderboard embedded definition={definition} holders={topTen} onSearchWallet={onSearchWallet} onOpenWarpletDetails={onOpenWarpletDetails} />
+      </PerksDashboardPanel>
 
-      <SectionHeading>{definition.averageTitle}</SectionHeading>
-      <MetricGrid metrics={definition.averageMetrics} />
+      <PerksDashboardPanel title={definition.averageTitle}>
+        <MetricGrid metrics={definition.averageMetrics} />
+      </PerksDashboardPanel>
 
       {(loadingViewer || (loadingHolders && !viewerHolder && roster.length === 0)) ? (
-        <div className="mt-4 rounded-xl border border-[#00FF00]/20 bg-black/65 px-3 py-8 text-center text-xs font-bold text-[#8bbf8b]">Finding your Perks example...</div>
+        <PerksDashboardPanel title={isDemoYou ? "Demo You" : "You"}>
+          <div className="py-5 text-center text-xs font-bold text-[#8bbf8b]">Finding your Perks example...</div>
+        </PerksDashboardPanel>
       ) : (
-        <YouSpotlight definition={definition} holder={youHolder} isDemo={isDemoYou} onSearchWallet={onSearchWallet} onOpenWarpletDetails={onOpenWarpletDetails} />
+        <PerksDashboardPanel title={isDemoYou ? "Demo You" : "You"}>
+          <YouSpotlight embedded definition={definition} holder={youHolder} isDemo={isDemoYou} onSearchWallet={onSearchWallet} onOpenWarpletDetails={onOpenWarpletDetails} />
+        </PerksDashboardPanel>
       )}
 
       <FutureExplanation definition={definition} />

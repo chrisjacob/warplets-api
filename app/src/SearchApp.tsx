@@ -24,7 +24,7 @@ import {
   useMiniAppChrome,
 } from "./miniAppChrome.tsx";
 import MiniAppShell from "./MiniAppShell";
-import type { PerksSubpage } from "./perksMockData";
+import { PERKS_MOCKUP_NOTICE_DISMISSED_KEY, type PerksSubpage } from "./perksMockData";
 import {
   hapticError,
   hapticPrimaryTap,
@@ -12898,6 +12898,12 @@ export default function SearchApp() {
   const [notificationPromptPending, setNotificationPromptPending] = useState(false);
   const [viewerFid, setViewerFid] = useState<number | null>(null);
   const [viewerProfile, setViewerProfile] = useState<ViewerProfile | null>(null);
+
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("mockup") === "1") {
+      window.localStorage.removeItem(PERKS_MOCKUP_NOTICE_DISMISSED_KEY);
+    }
+  }, []);
   const [miniAppContextKnown, setMiniAppContextKnown] = useState(false);
   const [isInMiniAppContext, setIsInMiniAppContext] = useState(false);
   const [searchCompletionStatusLoaded, setSearchCompletionStatusLoaded] = useState(false);

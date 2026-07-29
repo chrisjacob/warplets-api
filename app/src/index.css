@@ -880,3 +880,38 @@ input[type="search"]::-webkit-search-results-decoration {
 .share-cta-pulse-x {
   animation: share-cta-pulse-x 460ms ease-in-out 3;
 }
+@keyframes perks-attention-line-draw {
+  from { stroke-dashoffset: 1; }
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes perks-attention-point-in {
+  from { opacity: 0; transform: scale(0.35); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.perks-attention-chart-line {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: perks-attention-line-draw 850ms ease-out forwards;
+}
+
+.perks-attention-chart-point {
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: perks-attention-point-in 180ms ease-out forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .perks-attention-chart-line {
+    stroke-dashoffset: 0;
+    animation: none;
+  }
+
+  .perks-attention-chart-point {
+    opacity: 1;
+    transform: none;
+    animation: none;
+  }
+}
