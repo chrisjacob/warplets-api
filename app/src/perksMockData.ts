@@ -10,6 +10,8 @@ export type PerksExplorerRow = {
   filter: string;
   cells: string[];
   progress?: number;
+  priceHistory?: number[];
+  callIndex?: number;
   airdropUsd?: number[];
   imageSrc?: string;
   tools?: string[];
@@ -198,7 +200,7 @@ export const PERKS_DEFINITIONS: Record<PerksSubpage, PerksDefinition> = {
       { title: "Runway instead of one-off grants", body: "10X can sponsor practical AI access for builders and creators, reducing recurring costs and helping community projects move faster for longer. AI is the most impactful leverage we can provide to 10X your progress!" },
       { title: "Shared access with fair limits", body: "Organization plans, partner packages and onchain inference credits would use per-member allowances so support reaches more people while scaling with ecosystem revenue." },
       { title: "Tools for every kind of creator", body: "Potential categories include coding, research, image and video production, plus privacy-focused inference. Provider examples are exploratory; no partnership is implied." },
-      { title: "Celebrate shipping", body: "Project showcases connect sponsored compute to shipped tools, content and experiments around 10X and the wider Farcaster ecosystem. We're creating an army of bag workers and builders, amplified by AI!", callout: "Intelligence is the ultimate engine of progress." },
+      { title: "Celebrate shipping", body: "Project showcases connect sponsored compute to shipped tools, content and experiments around 10X and the wider Farcaster ecosystem. We're creating an army of bag workers and builders, amplified by AI!", callout: "Intelligence is the ultimate engine for progress." },
     ],
   },
   attention: {
@@ -248,42 +250,44 @@ export const PERKS_DEFINITIONS: Record<PerksSubpage, PerksDefinition> = {
     title: "Access",
     eyebrow: "The 10X Network",
     statsTitle: "Network Stats",
-    summary: "Builders, traders, collectors and capital sharing signals across chains instead of staying in silos.",
+    summary: "Builders, traders, collectors, whales, degens, creators, KOLs, all sharing alpha across chains... 10X vs The Market!",
     globalMetrics: [
-      { label: "Members", value: "10,000" },
-      { label: "Chains Represented", value: "7" },
-      { label: "Memecoins Reviewed", value: "1,460" },
+      { label: "Members", value: "37,420" },
+      { label: "Chains Represented", value: "6" },
+      { label: "Coins Reviewed", value: "1,460" },
       { label: "Community Votes", value: "682K" },
       { label: "Signals Promoted", value: "410" },
-      { label: "Median Move After Flag", value: "+38%", detail: "Illustrative mock performance, not a forecast." },
+      { label: "Median Call Move", value: "+138%", detail: "Illustrative mock performance, not a forecast." },
     ],
     averageTitle: "Average Member",
     averageMetrics: [
+      { label: "Coins Reviewed", value: "146" },
       { label: "Votes Cast", value: "68" },
-      { label: "Memecoins Reviewed", value: "146" },
       { label: "Signals Backed", value: "14" },
-      { label: "Chains Explored", value: "3" },
+      { label: "PnL %", value: "+38%" },
+      { label: "Community Score", value: "670" },
+      { label: "Voting Influence", value: "1.69X" },
     ],
     explorer: {
-      title: "Memecoin Explorer",
-      description: "Cross-chain intelligence, community decisions and subsequent memecoin market movement.",
-      filters: ["All", "Ethereum", "Base", "Solana", "BNB", "Robinhood", "Other"],
-      columns: ["Memecoin", "Chain", "Momentum", "Vote", "Decision", "Move"],
+      title: "Signal Explorer",
+      description: "Cross-chain intelligence, community decisions and subsequent market movement.",
+      filters: ["All", "Ethereum", "Base", "Solana", "BNB", "Robinhood", "Hyperliquid"],
+      columns: ["Coin", "Chain", "Momentum", "Vote", "Decision", "Move"],
       rows: [
-        { filter: "Base", cells: ["Green Runner", "Base", "96", "84%", "Launch", "+182%"], progress: 96 },
-        { filter: "Solana", cells: ["Deep Signal", "Solana", "91", "71%", "Watch", "+64%"], progress: 91 },
-        { filter: "BNB", cells: ["Four Alpha", "BNB", "88", "77%", "Launch", "+118%"], progress: 88 },
-        { filter: "Ethereum", cells: ["Mainframe", "Ethereum", "83", "65%", "Skip", "-12%"], progress: 83 },
-        { filter: "Robinhood", cells: ["Open Bell", "Robinhood", "79", "69%", "Watch", "+42%"], progress: 79 },
-        { filter: "Other", cells: ["Hyper Wave", "Hyperliquid", "86", "73%", "Launch", "+97%"], progress: 86 },
+        { filter: "Base", cells: ["$GREEN", "Base", "96", "84%", "Launch", "+1,842%"], priceHistory: [20, 19, 22, 18, 21, 24, 23, 26, 31, 48, 95, 408], callIndex: 4 },
+        { filter: "Solana", cells: ["$DEEP", "Solana", "91", "71%", "Watch", "+386%"], priceHistory: [30, 12, 55, 21, 26, 33, 29, 61, 44, 70, 65, 126], callIndex: 4 },
+        { filter: "BNB", cells: ["$FOUR", "BNB", "88", "77%", "Launch", "-45%"], priceHistory: [18, 24, 15, 28, 22, 19, 14, 17, 11, 13, 8, 12], callIndex: 4 },
+        { filter: "Ethereum", cells: ["$MAIN", "Ethereum", "83", "65%", "Skip", "-68%"], priceHistory: [68, 72, 66, 75, 70, 50, 58, 36, 42, 25, 29, 22], callIndex: 4 },
+        { filter: "Robinhood", cells: ["$BELL", "Robinhood", "79", "69%", "Watch", "+241%"], priceHistory: [15, 18, 17, 20, 19, 37, 35, 36, 58, 55, 78, 65], callIndex: 4 },
+        { filter: "Hyperliquid", cells: ["$HYPE", "Hyperliquid", "86", "73%", "Launch", "+612%"], priceHistory: [20, 60, 15, 80, 23, 110, 42, 150, 61, 140, 90, 164], callIndex: 4 },
       ],
     },
-    leaderboardMetric: "contribution score",
+    leaderboardMetric: "community score",
     explanation: [
-      { title: "Cross-chain common ground", body: "The 10X Network brings Ethereum, Base, Solana, BNB, Robinhood and emerging ecosystems into one Farcaster-native community." },
-      { title: "See the memecoins early", body: "Members can review the daily market-analysis shortlist and influence whether 10X launches, skips, changes chain or chooses a different launchpad." },
-      { title: "Access that can renew", body: "Warplets provide the founding network while future Season NFTs offer new entry points. Active Levels can shape voting influence and unlock smaller specialist or VIP areas." },
-      { title: "Builders meet traders and capital", body: "The network is designed to connect people who create, distribute, collect, trade and fund ideas—online first, with future cultural and IRL experiences as the treasury grows." },
+      { title: "Cross-chain common ground", body: "The 10X Network brings Base, Solana, BNB, Ethereum, Robinhood and emerging ecosystems into one Farcaster-native community.\n\nToken Tribes... without Chain-Tribalism.\nBag Workers... without Mob Mentality.\nProject Believers... without Exit Shaming.\n\nWe're here to build, trade, take profits and have fun!" },
+      { title: "See coins early", body: "Members can review the daily market-analysis shortlist and influence whether 10X launches or skips (to let a runner continue running). The Network also votes on Listing Liquidity for the 10X Airdrop, plus the Chain and Launchpad based on where the market is hottest." },
+      { title: "Access that can renew", body: "10X Warplets provide the founding network while future Season NFTs offer entry points for new members and perks boosts for existing members. Higher Levels can shape voting influence and unlock VIP areas." },
+      { title: "Uniting builders and traders", body: "Builders need Traders. Traders need Builders. The Network is designed to connect people who create, distribute, collect, trade and fund crazy ideas — online first, with future IRL experiences as the treasury grows.", callout: "10X your crypto crew!" },
     ],
   },
 };

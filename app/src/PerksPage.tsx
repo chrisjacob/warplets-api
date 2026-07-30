@@ -249,12 +249,14 @@ function buildYouMetrics(perk: PerksSubpage, holder: PerksHolder): PerksMetric[]
       { label: "Daily Airdrop", value: formatMoney(3.64 * youFactor) },
     ];
   }
+  const youFactor = Math.max(1.12, factor);
   return [
-    { label: "Access Tier", value: holder.ownedCount >= 5 ? "10X Priority" : "Network" },
-    { label: "Voting Influence", value: `${(1 + Math.min(holder.ownedCount, 20) * 0.06).toFixed(2)}X` },
-    { label: "Memecoins Reviewed", value: formatInteger(146 * factor) },
-    { label: "Signals Backed", value: formatInteger(14 * factor) },
-    { label: "Contribution Score", value: formatInteger(1_000 * factor) },
+    { label: "Coins Reviewed", value: formatInteger(146 * youFactor) },
+    { label: "Votes Cast", value: formatInteger(68 * youFactor) },
+    { label: "Signals Backed", value: formatInteger(14 * youFactor) },
+    { label: "PnL %", value: "+652%" },
+    { label: "Community Score", value: formatInteger(1_000 * youFactor) },
+    { label: "Voting Influence", value: "3.72X" },
   ];
 }
 
@@ -436,6 +438,44 @@ function PerksDashboardPanel({ title, children }: { title: string; children: Rea
   );
 }
 
+function MockTokenChart({ values, callIndex, move }: { values: number[]; callIndex: number; move: string }) {
+  const width = 320;
+  const height = 82;
+  const padX = 8;
+  const padTop = 16;
+  const padBottom = 10;
+  const minimum = Math.min(...values);
+  const maximum = Math.max(...values);
+  const spread = Math.max(1, maximum - minimum);
+  const points = values.map((value, index) => ({
+    x: padX + (index / Math.max(1, values.length - 1)) * (width - padX * 2),
+    y: padTop + ((maximum - value) / spread) * (height - padTop - padBottom),
+  }));
+  const safeCallIndex = Math.max(0, Math.min(points.length - 1, callIndex));
+  const call = points[safeCallIndex];
+  const pointString = points.map(({ x, y }) => `${x},${y}`).join(" ");
+  const isNegative = move.trim().startsWith("-");
+  const chartColor = isNegative ? "#ff3333" : "#00FF00";
+  const chartBorderClass = isNegative ? "border-[#ff3333]/35" : "border-[#00FF00]/35";
+  const mutedTextClass = isNegative ? "text-[#c77b7b]" : "text-[#8bbf8b]";
+  const moveTextClass = isNegative ? "text-[#ff3333]" : "text-[#00FF00]";
+
+  return (
+    <div className={`mt-3 rounded-md border bg-black px-2 pb-1 pt-2 ${chartBorderClass}`}>
+      <div className="flex items-center justify-between text-[9px] font-black uppercase">
+        <span className={mutedTextClass}>Mock price chart</span>
+        <span className={moveTextClass}>Move {move}</span>
+      </div>
+      <svg viewBox={`0 0 ${width} ${height}`} className="mt-1 block h-[82px] w-full overflow-visible" role="img" aria-label={`Mock token chart showing the 10X call and a ${move} move since`}>
+        <polyline points={pointString} fill="none" stroke={chartColor} strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
+        <line x1={call.x} x2={call.x} y1={10} y2={height - 4} stroke={chartColor} strokeWidth="1" strokeDasharray="3 3" opacity="0.65" />
+        <circle cx={call.x} cy={call.y} r="4" fill={chartColor} stroke="#001900" strokeWidth="2" />
+        <text x={call.x} y="8" textAnchor="middle" fill={chartColor} fontSize="8" fontWeight="900">10X CALL</text>
+      </svg>
+    </div>
+  );
+}
+
 function Explorer({ definition }: { definition: PerksDefinition }) {
   const [filter, setFilter] = useState(definition.explorer.filters[0]);
   useEffect(() => setFilter(definition.explorer.filters[0]), [definition.id, definition.explorer.filters]);
@@ -531,6 +571,13 @@ function Explorer({ definition }: { definition: PerksDefinition }) {
                   </span>
                 ))}
               </div>
+            )}
+            {definition.id === "access" && row.priceHistory && row.priceHistory.length > 1 && (
+              <MockTokenChart
+                values={row.priceHistory}
+                callIndex={row.callIndex ?? 0}
+                move={row.cells[definition.explorer.columns.indexOf("Move")] ?? "—"}
+              />
             )}
             {row.progress != null && definition.id === "memes" && row.airdropUsd && (
               <div className="mt-3 pt-1">
@@ -651,20 +698,9 @@ function YouSpotlight({
       <div className={embedded ? "" : "mt-3"}>
         <WarpletIdentity holder={holder} fallbackLabel={isDemo ? `Demo · ${holderLabel(holder)}` : undefined} onSearchWallet={onSearchWallet} onOpenWarpletDetails={onOpenWarpletDetails} />
       </div>
-      {definition.id === "memes" || definition.id === "nfts" || definition.id === "ai" || definition.id === "attention" ? (
-        <div className="mt-3">
-          <MetricGrid metrics={buildYouMetrics(definition.id, holder)} />
-        </div>
-      ) : (
-        <div className="mt-3 grid grid-cols-2 gap-2">
-          {buildYouMetrics(definition.id, holder).map((metric, index) => (
-            <div key={metric.label} className={`${index === 4 ? "col-span-2" : ""} rounded-lg border border-[#00FF00]/15 bg-black/55 px-2 py-2`}>
-              <span className="block text-[10px] font-black uppercase text-[#6f9f6f]">{metric.label}</span>
-              <span className="mt-0.5 block text-sm font-black text-[#00FF00]">{metric.value}</span>
-            </div>
-          ))}
-        </div>
-      )}
+      <div className="mt-3">
+        <MetricGrid metrics={buildYouMetrics(definition.id, holder)} />
+      </div>
     </>
   );
 
@@ -763,7 +799,7 @@ function FutureExplanation({ definition }: { definition: PerksDefinition }) {
         {definition.explanation.map((item, index) => (
           <div key={item.title} className={`px-3 py-3 ${index > 0 ? "border-t border-[#00FF00]/10" : ""}`}>
             <h3 className="text-xs font-black uppercase text-[#00FF00]">{item.title}</h3>
-            <p className="mt-1 text-xs leading-5 text-[#b8d7b8]">{item.body}</p>
+            <p className="mt-1 whitespace-pre-line text-xs leading-5 text-[#b8d7b8]">{item.body}</p>
             {item.callout && (
               <span className="mt-3 block py-2 text-center text-xl font-black uppercase leading-[1.5] text-[#00FF00]">
                 {item.callout}
