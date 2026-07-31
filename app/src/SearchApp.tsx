@@ -157,6 +157,11 @@ const OFFERS_FILTER_TABS = [
   { id: "your", label: "Your Offers" },
 ];
 
+const ITEM_OFFERS_FILTER_TABS = [
+  ...OFFERS_FILTER_TABS,
+  { id: "for_you", label: "For You" },
+];
+
 const STATS_SUBPAGE_TABS: Array<{ id: SearchStatsSubpage; label: string }> = [
   { id: "overview", label: "Overview" },
   { id: "market", label: "Market" },
@@ -1325,6 +1330,7 @@ function searchWarpletPickerPage(
   query: string,
   favouriteTokenIds: number[] | null,
   requestedRows: number,
+  allowedTokenIds: number[] | null = null,
 ): { rows: WarpletResult[]; total: number } {
   const trimmed = query.trim();
   const exactMatch = trimmed.match(/^#([1-9]\d{0,4})$/);
@@ -1343,6 +1349,11 @@ function searchWarpletPickerPage(
     if (favouriteTokenIds.length === 0) return { rows: [], total: 0 };
     conditions.push("w.id IN (SELECT CAST(value AS INTEGER) FROM json_each(?))");
     bind.push(JSON.stringify(favouriteTokenIds));
+  }
+  if (allowedTokenIds) {
+    if (allowedTokenIds.length === 0) return { rows: [], total: 0 };
+    conditions.push("w.id IN (SELECT CAST(value AS INTEGER) FROM json_each(?))");
+    bind.push(JSON.stringify(allowedTokenIds));
   }
   const fromSql = ftsQuery
     ? "FROM warplets_fts JOIN warplets w ON w.id = warplets_fts.rowid"
@@ -3775,6 +3786,8 @@ type StatsChartProps = {
   hideMarketplace?: boolean;
   hideEthSymbol?: boolean;
   socialRole?: "buyer" | "seller";
+  onShowBucketSales?: (startAt: string, endAt: string) => void;
+  onSearchWallet?: (wallet: string) => void;
 };
 
 let statsChartAnimationId = 0;
@@ -3792,7 +3805,7 @@ async function loadStatsChart() {
     YAxis,
   } = await import("recharts");
 
-  function SocialMarker(props: { forceActive?: boolean; revealReady?: boolean; revealCount?: number } & Record<string, unknown>) {
+  function SocialMarker(props: { forceActive?: boolean; revealReady?: boolean; revealCount?: number; selectedMarkerIndex?: number | null; onSelectMarker?: (index: number) => void } & Record<string, unknown>) {
     const marker = unknownRecord(props);
     const payload = unknownRecord(marker?.payload);
     const cx = typeof marker?.cx === "number" ? marker.cx : 0;
@@ -3803,6 +3816,9 @@ async function loadStatsChart() {
     const revealReady = marker?.revealReady === true;
     const revealCount = typeof marker?.revealCount === "number" ? marker.revealCount : 0;
     const forceActive = marker?.forceActive === true;
+    const selectedMarkerIndex = typeof marker?.selectedMarkerIndex === "number" ? marker.selectedMarkerIndex : null;
+    const selected = markerIndex === selectedMarkerIndex;
+    const saleCount = typeof payload?.saleCount === "number" ? payload.saleCount : 0;
     const avatarUrl =
       typeof payload?.avatarUrl === "string" &&
       payload?.showMarker !== false &&
@@ -3816,28 +3832,25 @@ async function loadStatsChart() {
     // unrevealed shapes out of the SVG entirely until the line animation is over.
     if (!revealReady || markerIndex >= revealCount) return <g />;
 
-    if (!avatarUrl) {
-      return payload?.showUnknownMarker === true
-        ? <circle className="stats-social-marker-pop" cx={cx} cy={cy} r={radius} fill="#00FF00" />
-        : <g />;
-    }
+    const selectMarker = (event: React.MouseEvent<SVGGElement>) => {
+      if (typeof marker?.onSelectMarker === "function" && Number.isFinite(markerIndex)) marker.onSelectMarker(markerIndex);
+    };
+    const countLabel = saleCount.toLocaleString("en-US");
+    const countWidth = Math.max(22, 10 + countLabel.length * 6);
 
     return (
-      <g className="stats-social-marker-pop" style={{ cursor: payload?.tokenId ? "pointer" : "default", transformBox: "fill-box", transformOrigin: "center" }}>
+      <g onClick={selectMarker} className="stats-social-marker-pop" style={{ cursor: "pointer", transformBox: "fill-box", transformOrigin: "center" }}>
+        {selected && <circle cx={cx} cy={cy} r={radius + 3} fill="none" stroke="#FFFF00" strokeWidth="2" style={{ filter: "drop-shadow(0 0 5px rgba(255,255,0,0.95))" }} />}
         <defs>
           <clipPath id={clipId}>
             <circle cx={cx} cy={cy} r={radius} />
           </clipPath>
         </defs>
-        <image
-          href={avatarUrl}
-          x={cx - radius}
-          y={cy - radius}
-          width={radius * 2}
-          height={radius * 2}
-          preserveAspectRatio="xMidYMid slice"
-          clipPath={`url(#${clipId})`}
-        />
+        {avatarUrl ? <image href={avatarUrl} x={cx - radius} y={cy - radius} width={radius * 2} height={radius * 2} preserveAspectRatio="xMidYMid slice" clipPath={`url(#${clipId})`} /> : <circle cx={cx} cy={cy} r={radius} fill="#00FF00" />}
+        {saleCount > 0 && <g pointerEvents="none">
+          <rect x={cx - countWidth / 2} y={cy - radius - 15} width={countWidth} height={12} rx={5} fill="#250303" stroke="#FF3333" strokeWidth="1" />
+          <text x={cx} y={cy - radius - 6} textAnchor="middle" fill="#FF5555" fontSize="8" fontWeight="900">{countLabel}</text>
+        </g>}
       </g>
     );
   }
@@ -3850,6 +3863,9 @@ async function loadStatsChart() {
     hideMarketplace,
     hideEthSymbol,
     socialRole,
+    onClose,
+    onShowBucketSales,
+    onSearchWallet,
   }: {
     active?: boolean;
     payload?: Array<{
@@ -3863,6 +3879,9 @@ async function loadStatsChart() {
     hideMarketplace?: boolean;
     hideEthSymbol?: boolean;
     socialRole?: "buyer" | "seller";
+    onClose?: () => void;
+    onShowBucketSales?: (startAt: string, endAt: string) => void;
+    onSearchWallet?: (wallet: string) => void;
   }) {
     if (!active || !payload?.length) return null;
     const point = payload.find((item) => item.payload)?.payload;
@@ -3880,28 +3899,23 @@ async function loadStatsChart() {
     const saleDate = point?.timestamp
       ? new Date(point.timestamp).toLocaleDateString("en-US", { month: "short", day: "numeric" })
       : typeof label === "string" ? label : point?.label;
+    const bucketStartAt = statsString(point?.bucketStartAt);
+    const bucketEndAt = statsString(point?.bucketEndAt);
+    const bucketDateRange = bucketStartAt && bucketEndAt
+      ? `${new Date(bucketStartAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })} – ${new Date(new Date(bucketEndAt).getTime() - 1).toLocaleDateString("en-US", { month: "short", day: "numeric" })}`
+      : null;
 
     if (socialRole) {
       const formattedSaleAmount = saleAmount == null
         ? "—"
         : `${saleAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 8 })} Ξ`;
       return (
-        <div className="w-64 rounded-lg border border-[#00FF00]/45 bg-black px-3 py-2 text-[10px] shadow-2xl">
-          <div className="font-black">
-            <span className="text-[#00FF00]">{formattedSaleAmount}</span>
-            {saleDate && transactionHash ? (
-              <>
-                {" "}
-                <a
-                  href={`https://basescan.org/tx/${encodeURIComponent(transactionHash)}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="cursor-pointer text-white underline decoration-[#00FF00] underline-offset-2"
-                >
-                  {saleDate}
-                </a>
-              </>
-            ) : saleDate ? <span className="text-white"> {saleDate}</span> : null}
+        <div onClick={(event) => event.stopPropagation()} className="relative w-72 min-h-52 rounded-xl border border-[#00FF00]/55 bg-black px-4 py-3 text-[11px] shadow-[0_0_22px_rgba(0,255,0,0.2)]">
+          {onClose && <button type="button" aria-label="Close sale details" onClick={(event) => { event.stopPropagation(); onClose(); }} className="absolute right-1.5 top-1.5 grid h-6 w-6 cursor-pointer place-items-center rounded-md border border-[#FF5555]/60 bg-black text-[#FF5555]">×</button>}
+          <div className="pr-6 font-black">
+            <span className="text-[#00FF00]">{formattedSaleAmount} Avg.</span>{" "}
+            {bucketDateRange && onShowBucketSales ? <button type="button" onClick={() => onShowBucketSales(bucketStartAt!, bucketEndAt!)} className="cursor-pointer text-white underline decoration-[#00FF00] underline-offset-2">{bucketDateRange}</button> : <span className="text-white">{bucketDateRange ?? saleDate}</span>}
+            {count != null && <span className="ml-1 inline-flex rounded-full border border-[#FF3333] bg-[#250303] px-1.5 py-0.5 text-[9px] text-[#FF5555]">{count.toLocaleString("en-US")} {count === 1 ? "Sale" : "Sales"}</span>}
           </div>
           <div className="mt-2 grid grid-cols-3 gap-2 text-center">
             <div className="min-w-0">
@@ -3928,7 +3942,8 @@ async function loadStatsChart() {
               <div key={party.label} className="min-w-0">
                 <span className="mb-1 block font-black text-[#8bbf8b]">{party.label}</span>
                 {party.avatarUrl || party.wallet ? (
-                  <img src={party.avatarUrl ?? getWalletIdenticonDataUrl(party.wallet!)} alt="" className="mx-auto h-14 w-14 rounded-full object-cover" />
+                  party.username ? <a href={`https://farcaster.xyz/${encodeURIComponent(party.username.replace(/^@/, ""))}`} target="_blank" rel="noreferrer" className="mx-auto block h-14 w-14 cursor-pointer"><img src={party.avatarUrl ?? getWalletIdenticonDataUrl(party.wallet!)} alt="" className="h-14 w-14 rounded-full object-cover" /></a>
+                    : <button type="button" onClick={() => party.wallet && onSearchWallet?.(party.wallet)} className="mx-auto block h-14 w-14 cursor-pointer"><img src={getWalletIdenticonDataUrl(party.wallet!)} alt="" className="h-14 w-14 rounded-full object-cover" /></button>
                 ) : (
                   <span className="mx-auto block h-14 w-14 rounded-full bg-[#00FF00]" />
                 )}
@@ -3941,10 +3956,11 @@ async function loadStatsChart() {
                   >
                     @{party.username.replace(/^@/, "")}
                   </a>
-                ) : <span className="mt-1 block truncate text-[#8bbf8b]">{party.wallet ? formatShortWallet(party.wallet) : "Unknown"}</span>}
+                ) : party.wallet ? <button type="button" onClick={() => onSearchWallet?.(party.wallet!)} className="mt-1 block w-full cursor-pointer truncate text-[#8bbf8b] underline">{formatShortWallet(party.wallet)}</button> : <span className="mt-1 block truncate text-[#8bbf8b]">Unknown</span>}
               </div>
             ))}
           </div>
+          {count != null && count > 1 && bucketStartAt && bucketEndAt && onShowBucketSales && <button type="button" onClick={() => onShowBucketSales(bucketStartAt, bucketEndAt)} className="mt-3 w-full cursor-pointer rounded-lg border border-[#00FF00]/45 bg-black px-2 py-2 font-black text-[#00FF00] hover:bg-[#041204]">Show {count.toLocaleString("en-US")} Sales</button>}
         </div>
       );
     }
@@ -4039,41 +4055,53 @@ async function loadStatsChart() {
     hideMarketplace,
     hideEthSymbol,
     socialRole,
+    onShowBucketSales,
+    onSearchWallet,
   }: StatsChartProps) {
     const [chartAnimationId] = useState(() => {
       statsChartAnimationId += 1;
       return statsChartAnimationId;
     });
     const hasRightAxis = series.some((item) => item.axis === "right");
+    let socialMarkerCount = 0;
+    // Scatter must retain the line's complete categorical sequence. Filtering it
+    // down to avatar-bearing points makes Recharts redistribute those points over
+    // the chart width, which visually detaches markers from their sale values.
     const socialMarkerData: StatsChartDatum[] = socialKey
-      ? data.filter((point) => point.showUnknownMarker === true || (
-        typeof point.avatarUrl === "string" && point.showMarker !== false && point.showAvatar !== false
-      )).map((point, markerRevealIndex) => ({ ...point, markerRevealIndex }))
+      ? data.map((point) => {
+        const hasMarker = point.showUnknownMarker === true || (
+          typeof point.avatarUrl === "string" && point.showMarker !== false && point.showAvatar !== false
+        );
+        const markerRevealIndex = hasMarker ? socialMarkerCount++ : Number.POSITIVE_INFINITY;
+        return { ...point, markerRevealIndex };
+      })
       : [];
     const animationSignature = socialKey
-      ? `${socialKey}:${socialMarkerData.map((point) => `${point.timestamp ?? point.label}:${String(point[socialKey] ?? "")}:${point.wallet ?? ""}`).join("|")}`
+      ? `${socialKey}:${socialMarkerData.filter((point) => Number.isFinite(point.markerRevealIndex)).map((point) => `${point.timestamp ?? point.label}:${String(point[socialKey] ?? "")}:${point.wallet ?? ""}`).join("|")}`
       : "";
     const [lineAnimationFinished, setLineAnimationFinished] = useState(false);
     const [visibleMarkerCount, setVisibleMarkerCount] = useState(0);
+    const [selectedMarkerIndex, setSelectedMarkerIndex] = useState<number | null>(null);
 
     useEffect(() => {
       setLineAnimationFinished(false);
       setVisibleMarkerCount(0);
-      if (!socialKey || socialMarkerData.length === 0) return;
-      // Deliberately gate markers beyond the 900ms Recharts line animation. This
-      // avoids onAnimationEnd firing before the final painted frame in some browsers.
-      const lineGate = window.setTimeout(() => setLineAnimationFinished(true), 1200);
+      setSelectedMarkerIndex(null);
+      if (!socialKey || socialMarkerCount === 0) return;
+      // Fallback for browsers that fail to emit Recharts' animation-end callback.
+      // The normal path below waits for the completed line and two painted frames.
+      const lineGate = window.setTimeout(() => setLineAnimationFinished(true), 1050);
       return () => window.clearTimeout(lineGate);
     }, [animationSignature, socialKey]);
 
     useEffect(() => {
-      if (!lineAnimationFinished || visibleMarkerCount >= socialMarkerData.length) return;
+      if (!lineAnimationFinished || visibleMarkerCount >= socialMarkerCount) return;
       const timer = window.setTimeout(
-        () => setVisibleMarkerCount((current) => Math.min(current + 1, socialMarkerData.length)),
-        visibleMarkerCount === 0 ? 45 : 115,
+        () => setVisibleMarkerCount((current) => Math.min(current + 1, socialMarkerCount)),
+        visibleMarkerCount === 0 ? 20 : 55,
       );
       return () => window.clearTimeout(timer);
-    }, [animationSignature, lineAnimationFinished, socialMarkerData.length, visibleMarkerCount]);
+    }, [animationSignature, lineAnimationFinished, socialMarkerCount, visibleMarkerCount]);
 
     const axisUsesEth = (axis: "left" | "right") => series
       .filter((item) => (item.axis ?? "left") === axis)
@@ -4082,10 +4110,11 @@ async function loadStatsChart() {
       axisUsesEth(axis)
         ? Number(value).toLocaleString("en-US", { maximumFractionDigits: 6 })
         : Number(value).toLocaleString("en-US", { maximumFractionDigits: 2 });
+    const renderedHeight = socialKey ? Math.max(height, 260) : height;
     return (
-      <div style={{ height }} className="w-full">
+      <div style={{ height: renderedHeight }} className="relative w-full">
         <ResponsiveContainer width="100%" height="100%">
-          <ComposedChart data={data} margin={{ top: 12, right: hasRightAxis ? 26 : 22, bottom: 0, left: 0 }}>
+          <ComposedChart data={data} margin={{ top: socialKey ? 34 : 12, right: hasRightAxis ? 26 : 22, bottom: 0, left: 0 }}>
             <CartesianGrid stroke="rgba(0,255,0,0.12)" strokeDasharray="3 5" vertical={false} />
             <XAxis
               dataKey="label"
@@ -4114,6 +4143,7 @@ async function loadStatsChart() {
               />
             )}
             <Tooltip
+              active={socialKey ? selectedMarkerIndex != null : undefined}
               trigger={socialKey ? "click" : "hover"}
               cursor={{ stroke: "rgba(0,255,0,0.35)", strokeWidth: 1 }}
               content={
@@ -4122,9 +4152,18 @@ async function loadStatsChart() {
                   hideMarketplace={hideMarketplace}
                   hideEthSymbol={hideEthSymbol}
                   socialRole={socialRole}
+                  onClose={() => setSelectedMarkerIndex(null)}
+                  onShowBucketSales={onShowBucketSales}
+                  onSearchWallet={onSearchWallet}
                 />
               }
-              wrapperStyle={{ pointerEvents: "auto", zIndex: 20 }}
+              wrapperStyle={{
+                pointerEvents: "auto",
+                zIndex: 20,
+                left: "50%",
+                top: "50%",
+                transform: "translate(-50%, -50%)",
+              }}
             />
             {series.map((item) => item.type === "bar" ? (
               <Bar
@@ -4153,6 +4192,11 @@ async function loadStatsChart() {
                 animationBegin={0}
                 animationDuration={900}
                 isAnimationActive={socialKey === item.key ? !lineAnimationFinished : true}
+                onAnimationEnd={socialKey === item.key ? () => {
+                  window.requestAnimationFrame(() => {
+                    window.requestAnimationFrame(() => setLineAnimationFinished(true));
+                  });
+                } : undefined}
               />
             ))}
             {socialKey && lineAnimationFinished && visibleMarkerCount > 0 && (
@@ -4162,8 +4206,8 @@ async function loadStatsChart() {
                 dataKey={socialKey}
                 yAxisId="left"
                 fill="#00FF00"
-                shape={<SocialMarker revealReady={lineAnimationFinished} revealCount={visibleMarkerCount} />}
-                activeShape={<SocialMarker forceActive revealReady={lineAnimationFinished} revealCount={visibleMarkerCount} />}
+                shape={<SocialMarker revealReady={lineAnimationFinished} revealCount={visibleMarkerCount} selectedMarkerIndex={selectedMarkerIndex} onSelectMarker={setSelectedMarkerIndex} />}
+                activeShape={<SocialMarker forceActive revealReady={lineAnimationFinished} revealCount={visibleMarkerCount} selectedMarkerIndex={selectedMarkerIndex} onSelectMarker={setSelectedMarkerIndex} />}
                 isAnimationActive={false}
               />
             )}
@@ -4476,6 +4520,9 @@ function StatsChartPanel({
   hideMarketplace,
   hideEthSymbol,
   socialRole,
+  animationKey,
+  onShowBucketSales,
+  onSearchWallet,
 }: {
   title: string;
   description?: string;
@@ -4488,6 +4535,9 @@ function StatsChartPanel({
   hideMarketplace?: boolean;
   hideEthSymbol?: boolean;
   socialRole?: "buyer" | "seller";
+  animationKey?: string;
+  onShowBucketSales?: (startAt: string, endAt: string) => void;
+  onSearchWallet?: (wallet: string) => void;
 }) {
   return (
     <section className="overflow-hidden rounded-xl border border-[#00FF00]/25 bg-black/65">
@@ -4511,6 +4561,7 @@ function StatsChartPanel({
         <StatsChartErrorBoundary>
           <Suspense fallback={<StatsChartFallback />}>
             <LazyStatsChart
+              key={animationKey}
               data={data}
               series={series}
               socialKey={socialKey}
@@ -4518,6 +4569,8 @@ function StatsChartPanel({
               hideMarketplace={hideMarketplace}
               hideEthSymbol={hideEthSymbol}
               socialRole={socialRole}
+              onShowBucketSales={onShowBucketSales}
+              onSearchWallet={onSearchWallet}
             />
           </Suspense>
         </StatsChartErrorBoundary>
@@ -5521,7 +5574,75 @@ function getStatsHighlightFids(value: unknown): Set<number> {
     .filter((fid): fid is number => fid != null));
 }
 
-function CollectionActivity({ range, viewerFid, actionSessionToken, friendsAvailable, ethUsdPrice, onSearchWallet, onOpenToken }: {
+const ACTIVITY_EVENT_OPTIONS: Array<{ value: ActivityEventFilter; label: string; classes: string }> = [
+  { value: "all", label: "All", classes: "border-[#00FF00]/55 bg-[#00FF00]/10 text-[#00FF00]" },
+  { value: "sale", label: "Sale", classes: "border-[#FF3333]/65 bg-[#FF3333]/15 text-[#FF5555]" },
+  { value: "listing", label: "Listing", classes: "border-[#FFFF00]/65 bg-[#FFFF00]/15 text-[#FFFF00]" },
+  { value: "offer", label: "Offer", classes: "border-[#33AAFF]/65 bg-[#33AAFF]/15 text-[#33AAFF]" },
+  { value: "transfer", label: "Transfer", classes: "border-[#00FF00]/65 bg-[#00FF00]/15 text-[#00FF00]" },
+];
+
+function ActivityEventDropdown({ value, onChange }: { value: ActivityEventFilter; onChange: (value: ActivityEventFilter) => void }) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const selected = ACTIVITY_EVENT_OPTIONS.find((option) => option.value === value) ?? ACTIVITY_EVENT_OPTIONS[0]!;
+  useEffect(() => {
+    if (!open) return;
+    const close = (event: PointerEvent) => { if (!rootRef.current?.contains(event.target as Node)) setOpen(false); };
+    document.addEventListener("pointerdown", close);
+    return () => document.removeEventListener("pointerdown", close);
+  }, [open]);
+  return <div ref={rootRef} className="relative min-w-0">
+    <button type="button" onClick={() => setOpen((current) => !current)} className={`flex min-h-11 w-full cursor-pointer items-center justify-between rounded-xl border bg-black/70 px-3 py-2 text-left text-sm font-black ${selected.classes}`}><span className="truncate">{selected.label}</span><span aria-hidden="true" className={`ml-2 text-xs transition-transform ${open ? "rotate-180" : ""}`}>⌄</span></button>
+    {open && <div className="absolute left-0 right-0 z-40 mt-2 min-w-[104px] rounded-xl border border-[#00FF00]/30 bg-black p-2 shadow-2xl">{ACTIVITY_EVENT_OPTIONS.map((option) => <button key={option.value} type="button" onClick={() => { onChange(option.value); setOpen(false); void hapticSelectionChanged(); }} className={`mb-1 flex w-full cursor-pointer items-center rounded-lg border px-2 py-2 text-left text-xs font-black last:mb-0 ${option.classes}`}>{option.label}</button>)}</div>}
+  </div>;
+}
+
+function ActivityDateTimeInput({ value, placeholder, onChange }: {
+  value: string;
+  placeholder: string;
+  onChange: (value: string) => void;
+}) {
+  const displayValue = value
+    ? new Date(value).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })
+    : placeholder;
+  return <div className="group relative min-h-11 min-w-0 rounded-xl border border-[#00FF00]/25 bg-black/70 focus-within:border-[#00FF00] focus-within:shadow-[0_0_8px_rgba(0,255,0,0.2)]">
+    <div className={`pointer-events-none flex min-h-11 items-center gap-1.5 px-2.5 pr-7 text-[11px] font-bold ${value ? "text-[#00FF00]" : "text-[#8bbf8b]"}`}>
+      <svg viewBox="0 0 24 24" aria-hidden="true" className="h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></svg>
+      <span className="truncate">{displayValue}</span>
+    </div>
+    <input
+      aria-label={placeholder}
+      type="datetime-local"
+      step="1"
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+      className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+    />
+    {value && <button type="button" aria-label={`Clear ${placeholder.toLowerCase()}`} onClick={(event) => { event.preventDefault(); event.stopPropagation(); onChange(""); }} className="absolute right-1.5 top-1/2 z-10 grid h-5 w-5 -translate-y-1/2 cursor-pointer place-items-center rounded text-[#8bbf8b] hover:text-[#00FF00]">×</button>}
+  </div>;
+}
+
+function ActivityFilterControls({ event, start, end, error, onEventChange, onStartChange, onEndChange }: {
+  event: ActivityEventFilter;
+  start: string;
+  end: string;
+  error: string;
+  onEventChange: (value: ActivityEventFilter) => void;
+  onStartChange: (value: string) => void;
+  onEndChange: (value: string) => void;
+}) {
+  return <div className="mb-3 rounded-xl border border-[#00FF00]/20 bg-black/55 p-2">
+    <div className="grid grid-cols-[minmax(0,0.72fr)_minmax(0,1.15fr)_minmax(0,1.15fr)] gap-1.5">
+      <ActivityEventDropdown value={event} onChange={onEventChange} />
+      <ActivityDateTimeInput value={start} placeholder="Start date" onChange={onStartChange} />
+      <ActivityDateTimeInput value={end} placeholder="End date" onChange={onEndChange} />
+    </div>
+    {error && <div className="mt-1.5 text-[10px] font-bold text-red-300">{error}</div>}
+  </div>;
+}
+
+function CollectionActivity({ range, viewerFid, actionSessionToken, friendsAvailable, ethUsdPrice, onSearchWallet, onOpenToken, requestedBucket }: {
   range: StatsRange;
   viewerFid: number | null;
   actionSessionToken: string | null;
@@ -5529,15 +5650,30 @@ function CollectionActivity({ range, viewerFid, actionSessionToken, friendsAvail
   ethUsdPrice: number | null;
   onSearchWallet: (wallet: string) => void;
   onOpenToken: (tokenId: number) => void;
+  requestedBucket: { startAt: string; endAt: string; nonce: number } | null;
 }) {
   const [friendsOnly, setFriendsOnly] = useState(false);
   const [payload, setPayload] = useState<MarketActivityPayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState("");
+  const [eventFilter, setEventFilter] = useState<ActivityEventFilter>("all");
+  const [startFilter, setStartFilter] = useState("");
+  const [endFilter, setEndFilter] = useState("");
+  const tableRef = useRef<HTMLElement | null>(null);
+  const pendingScrollRef = useRef(false);
+  const filterError = startFilter && endFilter && new Date(startFilter).getTime() >= new Date(endFilter).getTime()
+    ? "Start must be earlier than End."
+    : "";
 
   const load = useCallback(async (cursor?: string) => {
     const params = new URLSearchParams({ range, limit: "20" });
+    params.set("event", eventFilter);
+    const startIso = localDateTimeInputToIso(startFilter);
+    const endIso = localDateTimeInputToIso(endFilter);
+    if (filterError) throw new Error(filterError);
+    if (startIso) params.set("start", startIso);
+    if (endIso) params.set("end", endIso);
     if (cursor) params.set("cursor", cursor);
     if (friendsOnly && viewerFid) {
       params.set("friends", "1");
@@ -5558,13 +5694,28 @@ function CollectionActivity({ range, viewerFid, actionSessionToken, friendsAvail
       hasMore: next.hasMore,
       nextCursor: next.nextCursor,
     } : next);
-  }, [actionSessionToken, friendsOnly, range, viewerFid]);
+  }, [actionSessionToken, endFilter, eventFilter, filterError, friendsOnly, range, startFilter, viewerFid]);
+
+  useEffect(() => {
+    setEventFilter("all");
+    setStartFilter("");
+    setEndFilter("");
+  }, [range]);
+
+  useEffect(() => {
+    if (!requestedBucket) return;
+    setEventFilter("sale");
+    setStartFilter(toLocalDateTimeInput(requestedBucket.startAt));
+    setEndFilter(toLocalDateTimeInput(requestedBucket.endAt, true));
+    pendingScrollRef.current = true;
+  }, [requestedBucket]);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     setError("");
     setPayload(null);
+    if (filterError) { setLoading(false); return; }
     load().catch((loadError) => {
       if (!cancelled) setError(loadError instanceof Error ? loadError.message : "Could not load collection activity");
     }).finally(() => {
@@ -5572,6 +5723,13 @@ function CollectionActivity({ range, viewerFid, actionSessionToken, friendsAvail
     });
     return () => { cancelled = true; };
   }, [load]);
+
+  useEffect(() => {
+    if (!loading && payload && pendingScrollRef.current) {
+      pendingScrollRef.current = false;
+      tableRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [loading, payload]);
 
   useEffect(() => {
     if (!friendsAvailable && friendsOnly) setFriendsOnly(false);
@@ -5586,7 +5744,7 @@ function CollectionActivity({ range, viewerFid, actionSessionToken, friendsAvail
   };
 
   return (
-    <section className="mt-3">
+    <section ref={tableRef} className="mt-3 scroll-mt-4">
       <div className="flex items-center justify-between py-2">
         <Text className="text-xs font-black uppercase text-[#00FF00]">Collection Activity</Text>
         <button
@@ -5619,6 +5777,7 @@ function CollectionActivity({ range, viewerFid, actionSessionToken, friendsAvail
           Friends
         </button>
       </div>
+      <ActivityFilterControls event={eventFilter} start={startFilter} end={endFilter} error={filterError} onEventChange={setEventFilter} onStartChange={setStartFilter} onEndChange={setEndFilter} />
       {loading ? <div className="py-8 text-center text-[10px] font-bold text-[#8bbf8b]">Loading collection activity...</div>
         : <MarketActivityTable rows={payload?.rows ?? []} ethUsdPrice={ethUsdPrice} showItem hasMore={Boolean(payload?.hasMore)} loadingMore={loadingMore} onLoadMore={() => void loadMore()} onSearchWallet={onSearchWallet} onOpenToken={onOpenToken} />}
       {error && <div className="mt-2 text-center text-[9px] font-bold text-red-300">{error}</div>}
@@ -5646,28 +5805,30 @@ function StatsSocial({
   onOpenWarpletDetails: (tokenId: number) => void;
 }) {
   const topFriendFids = getStatsHighlightFids(highlights);
-  const activityRows = statsRows(payload, "activity", "sales", "communityActivity", "socialSales");
-  const socialSaleData = normalizeStatsChartData(activityRows, {
-    salePrice: ["salePrice", "price", "priceEth", "eth"],
-  });
-  const buildParticipantChart = (role: "buyer" | "seller") => applySocialAvatarMarkerLimit(
-    socialSaleData.map((point) => {
-      const fid = statsInteger(point[`${role}Fid`]);
-      const wallet = statsString(point[`${role}Wallet`]);
-      const avatarUrl = statsString(point[`${role}AvatarUrl`]) ?? (wallet ? getWalletIdenticonDataUrl(wallet) : null);
-      return {
-        ...point,
-        fid,
-        wallet,
-        avatarUrl,
-        isTopFriend: fid != null && topFriendFids.has(fid),
-        isViewer: fid != null && viewerFid != null && fid === viewerFid,
-        showMarker: Boolean(avatarUrl),
-      };
-    }),
-  );
-  const buyerChartData = buildParticipantChart("buyer");
-  const sellerChartData = buildParticipantChart("seller");
+  const [activityChart, setActivityChart] = useState<ActivityChartPayload | null>(null);
+  const [activityChartLoading, setActivityChartLoading] = useState(true);
+  const [requestedBucket, setRequestedBucket] = useState<{ startAt: string; endAt: string; nonce: number } | null>(null);
+  useEffect(() => {
+    const controller = new AbortController();
+    setActivityChart(null);
+    setActivityChartLoading(true);
+    fetch(`/api/stats/activity?range=${range}&limit=1&chart=1`, { headers: { accept: "application/json" }, signal: controller.signal })
+      .then(async (response) => {
+        const result = await response.json() as MarketActivityPayload;
+        if (!response.ok) throw new Error(`Sales chart failed (${response.status})`);
+        setActivityChart(result.chart ?? null);
+      })
+      .catch((chartError) => {
+        if (!(chartError instanceof DOMException && chartError.name === "AbortError")) console.warn("Aggregated social chart failed:", chartError);
+      })
+      .finally(() => { if (!controller.signal.aborted) setActivityChartLoading(false); });
+    return () => controller.abort();
+  }, [range]);
+  const buyerChartData = activityChartData(activityChart, "buyer");
+  const sellerChartData = activityChartData(activityChart, "seller");
+  const showBucketSales = useCallback((startAt: string, endAt: string) => {
+    setRequestedBucket({ startAt, endAt, nonce: Date.now() });
+  }, []);
   const highlightPayload = statsRecord(highlights);
   const bestFriendHolderRows = Array.isArray(highlightPayload?.friendHolders)
     ? highlightPayload.friendHolders
@@ -5685,7 +5846,9 @@ function StatsSocial({
   return (
     <div>
       <div className="space-y-3">
+        {activityChartLoading ? <><section className="flex h-[250px] items-center justify-center rounded-xl border border-[#00FF00]/25 bg-black/65 text-xs font-bold text-[#8bbf8b]">Loading buyer activity...</section><section className="flex h-[250px] items-center justify-center rounded-xl border border-[#00FF00]/25 bg-black/65 text-xs font-bold text-[#8bbf8b]">Loading seller activity...</section></> : <>
         <StatsChartPanel
+          animationKey={`social-buyers-${range}`}
           title="Farcaster Buyers"
           data={buyerChartData}
           series={[{ key: "salePrice", label: "Sale", color: "#00FF00", type: "line" }]}
@@ -5693,8 +5856,11 @@ function StatsSocial({
           socialRole="buyer"
           hideMarketplace
           onOpenToken={onOpenWarpletDetails}
+          onSearchWallet={onSearchWallet}
+          onShowBucketSales={showBucketSales}
         />
         <StatsChartPanel
+          animationKey={`social-sellers-${range}`}
           title="Farcaster Sellers"
           data={sellerChartData}
           series={[{ key: "salePrice", label: "Sale", color: "#00FF00", type: "line" }]}
@@ -5702,7 +5868,10 @@ function StatsSocial({
           socialRole="seller"
           hideMarketplace
           onOpenToken={onOpenWarpletDetails}
+          onSearchWallet={onSearchWallet}
+          onShowBucketSales={showBucketSales}
         />
+        </>}
       </div>
 
       {bestFriendHolderRows.length > 0 && (
@@ -5768,6 +5937,7 @@ function StatsSocial({
         ethUsdPrice={ethUsdPrice}
         onSearchWallet={onSearchWallet}
         onOpenToken={onOpenWarpletDetails}
+        requestedBucket={requestedBucket}
       />
 
       {false && recentRows.length > 0 && (
@@ -6082,13 +6252,90 @@ type MarketActivityRow = {
   to?: MarketActivityParty | null;
 };
 
+type ActivityEventFilter = "all" | MarketActivityRow["event"];
+
+type ActivityChartBucket = {
+  index: number;
+  startAt: string;
+  endAt: string;
+  saleCount: number;
+  averagePriceEth: number | null;
+  representativeSale: null | {
+    key: string;
+    tokenId: number;
+    priceEth: number;
+    at: string;
+    transactionHash?: string | null;
+    buyer?: MarketActivityParty | null;
+    seller?: MarketActivityParty | null;
+  };
+};
+
+type ActivityChartPayload = {
+  rangeStart: string;
+  rangeEnd: string;
+  bucketCount: number;
+  buckets: ActivityChartBucket[];
+};
+
 type MarketActivityPayload = {
   rows?: MarketActivityRow[];
-  chart?: Array<Record<string, unknown>>;
+  chart?: ActivityChartPayload;
   hasMore?: boolean;
   nextCursor?: string | null;
   complete?: boolean;
 };
+
+function toLocalDateTimeInput(value: string, roundUp = false): string {
+  const original = new Date(value);
+  const date = roundUp && original.getTime() % 1000 !== 0
+    ? new Date(original.getTime() + (1000 - original.getTime() % 1000))
+    : original;
+  if (!Number.isFinite(date.getTime())) return "";
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+  return local.toISOString().slice(0, 19);
+}
+
+function localDateTimeInputToIso(value: string): string | null {
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isFinite(date.getTime()) ? date.toISOString() : null;
+}
+
+function activityChartData(chart: ActivityChartPayload | null | undefined, role: "buyer" | "seller"): StatsChartDatum[] {
+  const buckets = chart?.buckets ?? [];
+  const firstSaleIndex = buckets.findIndex((bucket) => bucket.saleCount > 0 && bucket.averagePriceEth != null);
+  return buckets.map((bucket, index) => {
+    const sale = bucket.representativeSale;
+    const party = role === "buyer" ? sale?.buyer : sale?.seller;
+    const wallet = normalizeWalletAddress(party?.wallet);
+    return {
+      label: new Date(bucket.startAt).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+      timestamp: bucket.startAt,
+      // Give long ranges their honest full scale: the line begins at zero before
+      // observed history, then connects continuously across later inactive buckets.
+      salePrice: bucket.averagePriceEth ?? (firstSaleIndex > 0 && index < firstSaleIndex ? 0 : null),
+      saleCount: bucket.saleCount,
+      bucketStartAt: bucket.startAt,
+      bucketEndAt: bucket.endAt,
+      markerRevealIndex: bucket.index,
+      tokenId: sale?.tokenId ?? null,
+      transactionHash: sale?.transactionHash ?? null,
+      buyerWallet: sale?.buyer?.wallet ?? null,
+      buyerFid: sale?.buyer?.fid ?? null,
+      buyerUsername: sale?.buyer?.username ?? null,
+      buyerAvatarUrl: sale?.buyer?.pfpUrl ?? null,
+      sellerWallet: sale?.seller?.wallet ?? null,
+      sellerFid: sale?.seller?.fid ?? null,
+      sellerUsername: sale?.seller?.username ?? null,
+      sellerAvatarUrl: sale?.seller?.pfpUrl ?? null,
+      wallet,
+      avatarUrl: party?.pfpUrl ?? (wallet ? getWalletIdenticonDataUrl(wallet) : null),
+      showMarker: bucket.saleCount > 0,
+      showAvatar: bucket.saleCount > 0,
+    };
+  });
+}
 
 function ActivityPartyCell({ party, onSearchWallet }: {
   party?: MarketActivityParty | null;
@@ -6118,7 +6365,7 @@ function ActivityPartyCell({ party, onSearchWallet }: {
         {...getReferenceProps({
           "aria-label": `Search Warplets owned by ${label}`,
           onClick: () => onSearchWallet(wallet),
-          className: "mx-auto block h-6 w-6 cursor-pointer overflow-hidden rounded-full outline-none ring-[#00FF00] focus:ring-1",
+          className: "mx-auto block h-7 w-7 cursor-pointer overflow-hidden rounded-full outline-none ring-[#00FF00] focus:ring-1",
         })}
       >
         {party?.pfpUrl ? (
@@ -6151,7 +6398,7 @@ function MarketActivityTable({ rows, ethUsdPrice, showItem, hasMore, loadingMore
         : "border-[#00FF00]/65 bg-[#00FF00]/15 text-[#00FF00]";
   return (
     <div className="w-full overflow-hidden rounded-xl border border-[#00FF00]/20 bg-black/65">
-      <table className="w-full table-fixed border-collapse text-center text-[8px]">
+      <table className="w-full table-fixed border-collapse text-center text-[11px]">
         <colgroup>
           {showItem && <col className="w-[19%]" />}
           <col className={showItem ? "w-[18%]" : "w-[24%]"} />
@@ -6160,7 +6407,7 @@ function MarketActivityTable({ rows, ethUsdPrice, showItem, hasMore, loadingMore
           <col className={showItem ? "w-[11%]" : "w-[14%]"} />
           <col className={showItem ? "w-[22%]" : "w-[24%]"} />
         </colgroup>
-        <thead className="bg-[#041204] text-[7px] font-black uppercase text-[#8bbf8b]">
+        <thead className="bg-[#041204] text-[9px] font-black uppercase text-[#8bbf8b]">
           <tr>
             {showItem && <th className="px-0.5 py-2">Item</th>}
             <th className="px-0.5 py-2">Event</th><th className="px-0.5 py-2">Price</th>
@@ -6176,15 +6423,15 @@ function MarketActivityTable({ rows, ethUsdPrice, showItem, hasMore, loadingMore
               <tr key={row.key} className="border-t border-[#00FF00]/10">
                 {showItem && <td className="px-0.5 py-1.5">
                   <button type="button" onClick={() => onOpenToken?.(row.tokenId)} className="mx-auto flex cursor-pointer flex-col items-center text-[#00FF00]">
-                    <img src={getWarpletPreviewImageUrl(row.tokenId)} alt="" className="h-7 w-7 rounded-[3px] object-cover" loading="lazy" decoding="async" />
-                    <span className="mt-0.5 text-[7px] font-black">#{row.tokenId}</span>
+                    <img src={getWarpletPreviewImageUrl(row.tokenId)} alt="" className="h-8 w-8 rounded-[3px] object-cover" loading="lazy" decoding="async" />
+                    <span className="mt-0.5 text-[9px] font-black">#{row.tokenId}</span>
                   </button>
                 </td>}
-                <td className="px-0.5 py-1.5"><span className={`inline-flex rounded-full border px-1 py-0.5 text-[7px] font-black uppercase ${chipClass(row.event)}`}>{row.event === "offer" ? "Offer" : row.event}</span></td>
-                <td className="px-0.5 py-1.5 font-black text-[#00FF00]">{price == null ? "—" : <InlineHoverTooltip value={`${formatEthNumber(price, 6).replace(/\s*Ξ$/, "")} Ξ`} tooltip={formatUsdMoneyFromMarket({ eth: price, at: row.at, rawAmount: null, decimals: 18, currencySymbol: "ETH", tokenAddress: null }, ethUsdPrice)} className="text-[8px]" />}</td>
+                <td className="px-0.5 py-1.5"><span className={`inline-flex rounded-full border px-1 py-0.5 text-[9px] font-black uppercase ${chipClass(row.event)}`}>{row.event === "offer" ? "Offer" : row.event}</span></td>
+                <td className="px-0.5 py-1.5 font-black text-[#00FF00]">{price == null ? "—" : <InlineHoverTooltip value={`${formatEthNumber(price, 6).replace(/\s*Ξ$/, "")} Ξ`} tooltip={formatUsdMoneyFromMarket({ eth: price, at: row.at, rawAmount: null, decimals: 18, currencySymbol: "ETH", tokenAddress: null }, ethUsdPrice)} className="text-[11px]" />}</td>
                 <td className="px-0.5 py-1.5"><ActivityPartyCell party={row.from} onSearchWallet={onSearchWallet} /></td>
                 <td className="px-0.5 py-1.5"><ActivityPartyCell party={row.to} onSearchWallet={onSearchWallet} /></td>
-                <td className="px-0.5 py-1.5"><InlineHoverTooltip value={shortDate} tooltip={fullDate} className="text-[8px] text-[#8bbf8b]" tone="muted" /></td>
+                <td className="px-0.5 py-1.5">{row.transactionHash ? <a href={`https://basescan.org/tx/${encodeURIComponent(row.transactionHash)}`} target="_blank" rel="noreferrer" className="cursor-pointer underline decoration-[#00FF00] underline-offset-2"><InlineHoverTooltip value={shortDate} tooltip={fullDate} className="text-[11px] text-[#8bbf8b]" tone="muted" /></a> : <InlineHoverTooltip value={shortDate} tooltip={fullDate} className="text-[11px] text-[#8bbf8b]" tone="muted" />}</td>
               </tr>
             );
           })}
@@ -6201,12 +6448,14 @@ function WarpletItemActivity({
   viewerFid,
   actionSessionToken,
   onSearchWallet,
+  onOpenToken,
   refreshKey,
 }: {
   tokenId: number;
   viewerFid: number | null;
   actionSessionToken: string | null;
   onSearchWallet: (wallet: string) => void;
+  onOpenToken: (tokenId: number) => void;
   refreshKey: string;
 }) {
   const [open, setOpen] = useState(false);
@@ -6216,55 +6465,62 @@ function WarpletItemActivity({
   const [error, setError] = useState("");
   const [ethUsdPrice, setEthUsdPrice] = useState<number | null>(null);
   const [chartRetryKey, setChartRetryKey] = useState(0);
-  const [topFriendFids, setTopFriendFids] = useState<Set<number>>(new Set());
+  const [range, setRange] = useState<StatsRange>("all");
+  const [eventFilter, setEventFilter] = useState<ActivityEventFilter>("all");
+  const [startFilter, setStartFilter] = useState("");
+  const [endFilter, setEndFilter] = useState("");
+  const tableRef = useRef<HTMLDivElement | null>(null);
+  const pendingScrollRef = useRef(false);
+  const filterError = startFilter && endFilter && new Date(startFilter).getTime() >= new Date(endFilter).getTime()
+    ? "Start must be earlier than End."
+    : "";
 
   useEffect(() => {
     setOpen(false);
     setPayload(null);
     setError("");
+    setRange("all");
+    setEventFilter("all");
+    setStartFilter("");
+    setEndFilter("");
   }, [tokenId]);
-
-  useEffect(() => {
-    if (!open || !payload) return;
-    const timer = window.setTimeout(() => setPayload(null), 400);
-    return () => window.clearTimeout(timer);
-  }, [refreshKey]);
 
   useEffect(() => {
     if (open && ethUsdPrice == null) fetchEthUsdPrice().then(setEthUsdPrice).catch(() => undefined);
   }, [ethUsdPrice, open]);
 
+  const loadActivity = useCallback(async (cursor?: string, signal?: AbortSignal) => {
+    const params = new URLSearchParams({ tokenId: String(tokenId), range, limit: "20", event: eventFilter });
+    if (!cursor) params.set("chart", "1");
+    if (cursor) params.set("cursor", cursor);
+    const startIso = localDateTimeInputToIso(startFilter);
+    const endIso = localDateTimeInputToIso(endFilter);
+    if (filterError) throw new Error(filterError);
+    if (startIso) params.set("start", startIso);
+    if (endIso) params.set("end", endIso);
+    params.set("v", refreshKey);
+    const response = await fetch(`/api/stats/activity?${params}`, { headers: { accept: "application/json" }, signal });
+    const responseText = await response.text();
+    const result = responseText.trim() ? JSON.parse(responseText) as MarketActivityPayload : null;
+    if (!response.ok || !result) throw new Error(`Item activity failed (${response.status})`);
+    setPayload((current) => cursor && current ? { ...current, rows: [...(current.rows ?? []), ...(result.rows ?? [])], hasMore: result.hasMore, nextCursor: result.nextCursor } : result);
+  }, [endFilter, eventFilter, filterError, range, refreshKey, startFilter, tokenId]);
+
   useEffect(() => {
-    if (!open || payload) return;
+    if (!open || filterError) return;
     const controller = new AbortController();
     setLoading(true);
     setError("");
+    setPayload(null);
     const loadPriceHistory = async () => {
       for (let attempt = 0; attempt < 2; attempt += 1) {
-        const response = await fetch(`/api/stats/activity?tokenId=${tokenId}&range=all&limit=20&v=${encodeURIComponent(refreshKey)}`, {
-          headers: { accept: "application/json" },
-          signal: controller.signal,
-        });
-        const responseText = await response.text();
-        let result: MarketActivityPayload | null = null;
-        if (responseText.trim()) {
-          try {
-            result = JSON.parse(responseText) as MarketActivityPayload;
-          } catch {
-            if (response.ok) throw new Error("Item activity returned an invalid response. Please try again.");
-          }
-        }
-        const retryable = !responseText.trim() || [502, 503, 504].includes(response.status);
-        if (retryable && attempt === 0) {
+        try {
+          await loadActivity(undefined, controller.signal);
+          return;
+        } catch (loadError) {
+          if (attempt > 0 || (loadError instanceof DOMException && loadError.name === "AbortError")) throw loadError;
           await new Promise((resolve) => window.setTimeout(resolve, 300));
-          continue;
         }
-        if (!response.ok) {
-          throw new Error(`Item activity failed (${response.status})`);
-        }
-        if (!result) throw new Error("Item activity returned an empty response. Please try again.");
-        setPayload(result);
-        return;
       }
     };
     void loadPriceHistory()
@@ -6277,69 +6533,34 @@ function WarpletItemActivity({
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [open, payload, refreshKey, tokenId]);
+  }, [filterError, loadActivity, open]);
 
-  useEffect(() => {
-    if (!open || !viewerFid || !actionSessionToken) {
-      if (!viewerFid || !actionSessionToken) setTopFriendFids(new Set());
-      return;
-    }
-    const controller = new AbortController();
-    const params = new URLSearchParams({
-      range: "all",
-      fid: String(viewerFid),
-    });
-    fetch(`/api/stats/social/highlights?${params.toString()}`, {
-      headers: { accept: "application/json", authorization: `Bearer ${actionSessionToken}` },
-      credentials: "same-origin",
-      signal: controller.signal,
-    })
-      .then((response) => response.ok ? response.json() : null)
-      .then((result) => setTopFriendFids(getStatsHighlightFids(result)))
-      .catch((highlightError) => {
-        if (!(highlightError instanceof DOMException && highlightError.name === "AbortError")) {
-          console.warn("Price history friend highlights failed:", highlightError);
-        }
-      });
-    return () => controller.abort();
-  }, [actionSessionToken, open, viewerFid]);
-
-  const historyRows = payload?.chart ?? [];
-  const chartData = applySocialAvatarMarkerLimit(normalizeStatsChartData(historyRows, {
-    salePrice: ["salePrice", "price", "priceEth", "eth", "amount"],
-  }).map((point) => {
-    const wallet = statsString(point.buyerWallet ?? point.wallet);
-    const avatarUrl = statsString(point.avatarUrl ?? point.buyerAvatarUrl) ?? (wallet ? getWalletIdenticonDataUrl(wallet) : null);
-    return {
-      ...point,
-      wallet,
-      avatarUrl,
-      isTopFriend: point.isTopFriend || (typeof point.fid === "number" && topFriendFids.has(point.fid)),
-      isViewer: point.isViewer || (viewerFid != null && point.fid === viewerFid),
-      showUnknownMarker: !avatarUrl,
-    };
-  }));
+  const chartData = activityChartData(payload?.chart, "buyer");
   const ItemActivityChart = useMemo(() => lazy(loadStatsChart), [chartRetryKey]);
 
   const loadMore = async () => {
     if (!payload?.nextCursor || loadingMore) return;
     setLoadingMore(true);
     try {
-      const response = await fetch(`/api/stats/activity?tokenId=${tokenId}&range=all&limit=20&cursor=${encodeURIComponent(payload.nextCursor)}&v=${encodeURIComponent(refreshKey)}`);
-      const next = await response.json() as MarketActivityPayload;
-      if (!response.ok) throw new Error(`Item activity failed (${response.status})`);
-      setPayload((current) => current ? {
-        ...current,
-        rows: [...(current.rows ?? []), ...(next.rows ?? [])],
-        hasMore: next.hasMore,
-        nextCursor: next.nextCursor,
-      } : next);
+      await loadActivity(payload.nextCursor);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Could not load more activity");
     } finally {
       setLoadingMore(false);
     }
   };
+  const showBucketSales = useCallback((startAt: string, endAt: string) => {
+    setEventFilter("sale");
+    setStartFilter(toLocalDateTimeInput(startAt));
+    setEndFilter(toLocalDateTimeInput(endAt, true));
+    pendingScrollRef.current = true;
+  }, []);
+  useEffect(() => {
+    if (!loading && payload && pendingScrollRef.current) {
+      pendingScrollRef.current = false;
+      tableRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [loading, payload]);
 
   return (
     <section className="mt-3 overflow-hidden rounded-xl border border-[#00FF00]/20 bg-[#041204]/60">
@@ -6377,20 +6598,27 @@ function WarpletItemActivity({
           ) : (
             <>
               <Text className="mb-1 px-1 text-[10px] font-black uppercase text-[#00FF00]">Item Sales</Text>
+              <SearchSegmentedTabs className="mb-3" options={STATS_RANGE_TABS} activeId={range} onSelect={(id) => { setRange(id as StatsRange); setEventFilter("all"); setStartFilter(""); setEndFilter(""); }} gridTemplateColumns="repeat(5,minmax(0,1fr))" />
               <div className="mb-3">
                 <StatsChartErrorBoundary onRetry={() => setChartRetryKey((current) => current + 1)}>
                   <Suspense fallback={<StatsChartFallback />}>
                     <ItemActivityChart
+                      key={`item-sales-${tokenId}-${chartRetryKey}-${refreshKey}`}
                       data={chartData}
                       series={[{ key: "salePrice", label: "Sale", color: "#00FF00", type: "line" }]}
                       socialKey="salePrice"
                       socialRole="buyer"
                       hideMarketplace
                       height={180}
+                      onOpenToken={onOpenToken}
+                      onSearchWallet={onSearchWallet}
+                      onShowBucketSales={showBucketSales}
                     />
                   </Suspense>
                 </StatsChartErrorBoundary>
               </div>
+              <div ref={tableRef} className="scroll-mt-4">
+              <ActivityFilterControls event={eventFilter} start={startFilter} end={endFilter} error={filterError} onEventChange={setEventFilter} onStartChange={setStartFilter} onEndChange={setEndFilter} />
               <MarketActivityTable
                 rows={payload?.rows ?? []}
                 ethUsdPrice={ethUsdPrice}
@@ -6400,8 +6628,9 @@ function WarpletItemActivity({
                 onLoadMore={() => void loadMore()}
                 onSearchWallet={onSearchWallet}
               />
-              <div className="hidden">
-                {historyRows.slice(-5).reverse().map((value, index) => {
+              </div>
+              {false && <div className="hidden">
+                {([] as unknown[]).slice(-5).reverse().map((value, index) => {
                   const sale = statsRecord(value) ?? {};
                   const amount = statsNumber(sale.salePrice ?? sale.price ?? sale.priceEth ?? sale.eth ?? sale.amount);
                   const at = statsString(sale.at ?? sale.timestamp ?? sale.date);
@@ -6410,7 +6639,7 @@ function WarpletItemActivity({
                   const pfpUrl = statsString(sale.avatarUrl ?? sale.pfpUrl ?? sale.buyerPfpUrl);
                   const buyer = statsString(sale.buyerUsername ?? sale.username);
                   const buyerFid = statsInteger(sale.buyerFid ?? sale.buyer_fid);
-                  const isTopFriend = sale.isTopFriend === true || sale.is_top_friend === true || (buyerFid != null && topFriendFids.has(buyerFid));
+                  const isTopFriend = sale.isTopFriend === true || sale.is_top_friend === true;
                   const content = (
                     <>
                       {pfpUrl ? (
@@ -6450,7 +6679,7 @@ function WarpletItemActivity({
                     </div>
                   );
                 })}
-              </div>
+              </div>}
               <div className="hidden">
                 {payload?.complete === false ? "Partial history" : "History complete"} · D1 observed activity
               </div>
@@ -7689,6 +7918,8 @@ function ItemOffersPage({
   getProviderAndAccount,
   showToast,
   onOpenWarpletDetails,
+  onApplyPurchase,
+  refreshRevision,
 }: {
   db: SqliteDatabase | null;
   favouriteTokenIds: number[];
@@ -7698,8 +7929,10 @@ function ItemOffersPage({
   getProviderAndAccount: () => Promise<{ provider: EthereumProvider; account: string }>;
   showToast: (kind: TradeToast["kind"], message: string, options?: { manualClose?: boolean; minMs?: number }) => void;
   onOpenWarpletDetails: (tokenId: number) => void;
+  onApplyPurchase: (tokenId: number, update: OptimisticPurchaseUpdate) => void;
+  refreshRevision: number;
 }) {
-  const [scope, setScope] = useState<"all" | "your">("all");
+  const [scope, setScope] = useState<"all" | "your" | "for_you">("all");
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [selectedTokenId, setSelectedTokenId] = useState<number | null>(null);
@@ -7710,12 +7943,13 @@ function ItemOffersPage({
   const [price, setPrice] = useState("");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [busy, setBusy] = useState<"offer" | "cancel" | null>(null);
+  const [busy, setBusy] = useState<"offer" | "cancel" | "accept" | null>(null);
   const [busyLabel, setBusyLabel] = useState<string | null>(null);
   const [ethUsdPrice, setEthUsdPrice] = useState<number | null>(null);
   const [bidderRow, setBidderRow] = useState<ItemOfferRow | null>(null);
   const [page, setPage] = useState(0);
   const loadRequestRef = useRef(0);
+  const appliedRefreshRevisionRef = useRef(0);
   const pickerRootRef = useRef<HTMLDivElement | null>(null);
   const pickerEndRef = useRef<HTMLDivElement | null>(null);
   const formRef = useRef<HTMLDivElement | null>(null);
@@ -7756,7 +7990,8 @@ function ItemOffersPage({
     try {
       const params = new URLSearchParams();
       if (normalizedWallet) params.set("wallet", normalizedWallet);
-      if (scope === "your") params.set("scope", "your");
+      if (viewerFid != null) params.set("fid", String(viewerFid));
+      if (scope !== "all") params.set("scope", scope);
       if (selectedTokenId != null) params.set("tokenId", String(selectedTokenId));
       params.set("page", String(page));
       if (options.refresh) params.set("refresh", "1");
@@ -7772,8 +8007,13 @@ function ItemOffersPage({
     } finally {
       if (loadRequestRef.current === requestId && !options.silent) { setLoading(false); setRefreshing(false); }
     }
-  }, [normalizedWallet, page, scope, selectedTokenId, showToast]);
+  }, [normalizedWallet, page, scope, selectedTokenId, showToast, viewerFid]);
   useEffect(() => { void loadOffers(); }, [loadOffers]);
+  useEffect(() => {
+    if (refreshRevision <= appliedRefreshRevisionRef.current) return;
+    appliedRefreshRevisionRef.current = refreshRevision;
+    void loadOffers({ refresh: true, silent: true });
+  }, [loadOffers, refreshRevision]);
   useEffect(() => { setPage(0); }, [scope, selectedTokenId]);
   useEffect(() => { fetchEthUsdPrice().then(setEthUsdPrice).catch(() => undefined); }, []);
 
@@ -7920,6 +8160,105 @@ function ItemOffersPage({
     } finally { setBusy(null); }
   }, [getProviderAndAccount, loadOffers, showToast, viewerFid]);
 
+  const runAcceptOffer = useCallback(async (row: ItemOfferRow) => {
+    if (!row.bidder?.wallet || !row.orderHash || !row.price.rawAmount) {
+      showToast("error", "This item offer is missing fulfillment details.", { manualClose: true });
+      return;
+    }
+    const actionId = crypto.randomUUID();
+    setBusy("accept");
+    try {
+      void hapticPrimaryTap();
+      const { provider, account } = await getProviderAndAccount();
+      const response = await fetch("/api/warplet-trade/offer/accept/prepare", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          actionId,
+          fid: viewerFid,
+          tokenId: row.tokenId,
+          wallet: account,
+          expectedOrderHash: row.orderHash,
+          expectedRawAmount: row.price.rawAmount,
+          exactItemOffer: true,
+        }),
+      });
+      const payload = await response.json().catch(() => ({})) as {
+        status?: string;
+        fulfillment?: unknown;
+        chainIdHex?: string;
+        nftApproval?: NftApprovalRequirement;
+        message?: string;
+      };
+      if (response.status === 409 || payload.status === "mismatch") {
+        throw new Error("This offer changed or is no longer available. Refresh and try again.");
+      }
+      if (!response.ok) throw new Error(payload.message || `Accept offer prepare failed (${response.status})`);
+      await ensureBaseChain(provider, payload.chainIdHex);
+      showToast("neutral", "Note: Received ETH excludes OpenSea fees.", { minMs: 5000 });
+      if (payload.nftApproval) await ensureErc721ApprovalForAll(provider, account, payload.nftApproval);
+      const transaction = extractFulfillmentTransaction(payload.fulfillment);
+      if (!transaction) throw new Error("OpenSea did not return an offer fulfillment transaction");
+      const hash = await sendPreparedTransaction(provider, account, transaction);
+      const now = new Date().toISOString();
+      const buyerWallet = row.bidder.wallet.toLowerCase();
+      const sale: MarketSnapshot["sales"][string] = {
+        eth: row.price.eth,
+        at: now,
+        rawAmount: row.price.rawAmount,
+        decimals: row.price.decimals,
+        currencySymbol: row.price.currencySymbol,
+        tokenAddress: row.price.tokenAddress,
+        txHash: hash,
+        seller: account.toLowerCase(),
+      };
+      await fetch("/api/warplet-trade/log", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          actionId,
+          actionName: "accept_offer",
+          status: "confirmed",
+          phase: "confirmed",
+          fid: viewerFid,
+          tokenId: row.tokenId,
+          walletFrom: account,
+          walletTo: buyerWallet,
+          orderHash: row.orderHash,
+          protocolAddress: row.protocolAddress,
+          transactionHash: hash,
+          expectedPriceRaw: row.price.rawAmount,
+          actualPriceRaw: row.price.rawAmount,
+        }),
+      }).catch(() => null);
+      onApplyPurchase(row.tokenId, {
+        buyerWallet,
+        buyerFid: row.bidder.fid,
+        buyerProfile: {
+          wallet: buyerWallet,
+          fid: row.bidder.fid,
+          username: row.bidder.username,
+          displayName: row.bidder.displayName,
+          pfpUrl: row.bidder.pfpUrl,
+        },
+        sale,
+      });
+      setPayload((current) => current ? {
+        ...current,
+        rows: current.rows.filter((offer) => offer.tokenId !== row.tokenId),
+      } : current);
+      void hapticSuccess();
+      showTradeConfetti();
+      showToast("success", `Offer accepted for Warplet #${row.tokenId}`, { minMs: 5000 });
+      await loadOffers({ refresh: true, silent: true });
+    } catch (error) {
+      void hapticError();
+      showToast("error", error instanceof Error ? error.message : "Accept offer failed.", { manualClose: true });
+    } finally {
+      setBusy(null);
+    }
+  }, [getProviderAndAccount, loadOffers, onApplyPurchase, showToast, viewerFid]);
+
   const bidderGroup = bidderRow?.bidder ? {
     price: bidderRow.price, volume: bidderRow.price, offerCount: 1, bidderCount: 1,
     previewBidders: [bidderRow.bidder], orders: [{ orderHash: bidderRow.orderHash, protocolAddress: bidderRow.protocolAddress, quantity: 1, createdAt: bidderRow.price.at, bidder: bidderRow.bidder }],
@@ -7943,8 +8282,8 @@ function ItemOffersPage({
       <p className="mt-2 text-[11px] font-bold text-[#8bcfff]">Offer will be on OpenSea. Set price to <button type="button" disabled={!payload?.topItemOffer} onClick={() => setPriceFromMarket(payload?.topItemOffer)} className="cursor-pointer text-[#33AAFF] underline disabled:cursor-not-allowed disabled:opacity-50">Top Item Offer</button>.</p>
       <button type="button" disabled={busy !== null || !selectedTokenId || !priceIsValid} onClick={() => void runMakeOffer()} className="mt-3 w-full cursor-pointer rounded-[20px] border border-[#1c78b3] bg-[#33AAFF] px-5 py-3 text-base font-bold text-[rgb(0,54,80)] shadow-[3px_6px_0_#1c78b3] disabled:cursor-not-allowed disabled:opacity-70">{busy === "offer" ? busyLabel ?? "Preparing..." : "Review item offer"}</button>
     </div>
-    <SearchSegmentedTabs className="mt-4" options={OFFERS_FILTER_TABS} activeId={scope} onSelect={(id) => setScope(id === "your" ? "your" : "all")}/>
-    <div className="mt-4 overflow-hidden rounded-lg border border-[#00FF00]/25"><div className="grid grid-cols-5 items-center gap-1 bg-[#041204] px-2 py-2 text-center text-[10px] font-bold uppercase text-[#8bbf8b]"><span>Price</span><span>Warplet</span><span>NFT</span><span>Bidder</span><span>Action</span></div>{loading ? <div className="px-3 py-6 text-center text-sm font-bold text-[#8bbf8b]">Loading offers...</div> : rows.length === 0 ? <div className="px-3 py-6 text-center text-sm font-bold text-[#8bbf8b]">No item offers.</div> : rows.map((row) => <div key={row.orderHash} className="grid grid-cols-5 items-center gap-1 border-t border-[#00FF00]/15 px-2 py-2 text-center text-xs"><OfferPriceTooltipButton price={row.price} ethUsdPrice={ethUsdPrice} onClick={() => setPriceFromMarket(row.price)}/><button type="button" onClick={() => selectWarplet(row.tokenId)} className="cursor-pointer font-bold text-[#00FF00]">#{row.tokenId}</button><button type="button" onClick={() => onOpenWarpletDetails(row.tokenId)} className="mx-auto h-9 w-9 cursor-pointer overflow-hidden rounded-[3px] border-2 border-[#00FF00]"><img src={getWarpletPreviewImageUrl(row.tokenId)} alt={`Warplet #${row.tokenId}`} className="h-full w-full object-cover" loading="lazy"/></button><button type="button" disabled={!row.bidder} onClick={() => setBidderRow(row)} className="mx-auto cursor-pointer disabled:cursor-default">{row.bidder && <img src={row.bidder.pfpUrl || getWalletIdenticonDataUrl(row.bidder.wallet)} alt="" className="h-7 w-7 rounded-full border-2 border-[#00FF00] object-cover"/>}</button><button type="button" disabled={busy !== null} onClick={() => row.isUserOffer ? void runCancelOffer(row) : (selectWarplet(row.tokenId), setPriceFromMarket(row.price), formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }))} className={`cursor-pointer rounded-md border px-2 py-1.5 text-xs font-bold disabled:cursor-wait ${row.isUserOffer ? "border-[#FF5555]/55 text-[#FF7777]" : "border-[#33AAFF]/55 text-[#33AAFF]"}`}>{row.isUserOffer ? "Cancel" : "Offer"}</button></div>)}</div>
+    <SearchSegmentedTabs className="mt-4" options={ITEM_OFFERS_FILTER_TABS} activeId={scope} onSelect={(id) => setScope(id === "your" ? "your" : id === "for_you" ? "for_you" : "all")}/>
+    <div className="mt-4 overflow-hidden rounded-lg border border-[#00FF00]/25"><div className="grid grid-cols-5 items-center gap-1 bg-[#041204] px-2 py-2 text-center text-[10px] font-bold uppercase text-[#8bbf8b]"><span>Price</span><span>Warplet</span><span>NFT</span><span>Bidder</span><span>Action</span></div>{loading ? <div className="px-3 py-6 text-center text-sm font-bold text-[#8bbf8b]">Loading offers...</div> : rows.length === 0 ? <div className="px-3 py-6 text-center text-sm font-bold text-[#8bbf8b]">{scope === "for_you" ? "No offers for your Warplets." : "No item offers."}</div> : rows.map((row) => <div key={row.orderHash} className="grid grid-cols-5 items-center gap-1 border-t border-[#00FF00]/15 px-2 py-2 text-center text-xs"><OfferPriceTooltipButton price={row.price} ethUsdPrice={ethUsdPrice} onClick={() => setPriceFromMarket(row.price)}/><button type="button" onClick={() => selectWarplet(row.tokenId)} className="cursor-pointer font-bold text-[#00FF00]">#{row.tokenId}</button><button type="button" onClick={() => onOpenWarpletDetails(row.tokenId)} className="mx-auto h-9 w-9 cursor-pointer overflow-hidden rounded-[3px] border-2 border-[#00FF00]"><img src={getWarpletPreviewImageUrl(row.tokenId)} alt={`Warplet #${row.tokenId}`} className="h-full w-full object-cover" loading="lazy"/></button><button type="button" disabled={!row.bidder} onClick={() => setBidderRow(row)} className="mx-auto cursor-pointer disabled:cursor-default">{row.bidder && <img src={row.bidder.pfpUrl || getWalletIdenticonDataUrl(row.bidder.wallet)} alt="" className="h-7 w-7 rounded-full border-2 border-[#00FF00] object-cover"/>}</button>{scope === "for_you" ? <button type="button" disabled={busy !== null} onClick={() => void runAcceptOffer(row)} className="cursor-pointer rounded-md border border-[#b3b300] px-2 py-1.5 text-xs font-bold text-[#FFFF00] disabled:cursor-wait disabled:opacity-60">Accept</button> : <button type="button" disabled={busy !== null} onClick={() => row.isUserOffer ? void runCancelOffer(row) : (selectWarplet(row.tokenId), setPriceFromMarket(row.price), formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }))} className={`cursor-pointer rounded-md border px-2 py-1.5 text-xs font-bold disabled:cursor-wait ${row.isUserOffer ? "border-[#FF5555]/55 text-[#FF7777]" : "border-[#33AAFF]/55 text-[#33AAFF]"}`}>{row.isUserOffer ? "Cancel" : "Offer"}</button>}</div>)}</div>
     {(payload?.pagination.totalPages ?? 1) > 1 && <div className="mt-3 flex items-center justify-center gap-3 text-xs font-bold text-[#8bbf8b]"><button type="button" disabled={loading || !payload?.pagination.hasPrevious} onClick={() => setPage((current) => Math.max(0, current - 1))} className="cursor-pointer rounded-md border border-[#00FF00]/40 px-3 py-1.5 text-[#00FF00] disabled:cursor-not-allowed disabled:opacity-40">Previous</button><span>Page {(payload?.pagination.page ?? 0) + 1} of {payload?.pagination.totalPages ?? 1}</span><button type="button" disabled={loading || !payload?.pagination.hasNext} onClick={() => setPage((current) => current + 1)} className="cursor-pointer rounded-md border border-[#00FF00]/40 px-3 py-1.5 text-[#00FF00] disabled:cursor-not-allowed disabled:opacity-40">Next</button></div>}
     <div className="mt-3 text-center text-[11px] text-[#8bbf8b]">Last updated: {payload?.generatedAt ? formatMarketTimestamp(payload.generatedAt) : "Not yet"}. <button type="button" disabled={refreshing || busy !== null} onClick={() => void loadOffers({ refresh: true })} className="cursor-pointer font-bold text-[#00FF00] disabled:cursor-wait">{refreshing ? "Refreshing..." : "Refresh"}</button>{payload?.refreshError && <span className="block text-red-300">{payload.refreshError}</span>}</div>
     {bidderGroup && bidderRow && <CollectionBiddersModal group={bidderGroup} isInMiniAppContext={isInMiniAppContext} titleOverride={`#${bidderRow.tokenId} Item bidder`} onClose={() => setBidderRow(null)}/>}
@@ -8081,6 +8420,7 @@ function ListedMarketPanel({
 
 function ListedWarpletCard({
   row,
+  isOwned,
   isFavourited,
   isSweepSelected,
   isShaking,
@@ -8089,6 +8429,7 @@ function ListedWarpletCard({
   onToggleSweep,
 }: {
   row: ListedWarpletRow;
+  isOwned: boolean;
   isFavourited: boolean;
   isSweepSelected: boolean;
   isShaking: boolean;
@@ -8155,19 +8496,25 @@ function ListedWarpletCard({
             />
             <button
               type="button"
-              aria-pressed={isSweepSelected}
+              aria-pressed={isOwned ? undefined : isSweepSelected}
               onClick={(event) => {
                 event.preventDefault();
                 event.stopPropagation();
+                if (isOwned) {
+                  onOpen(warplet.id);
+                  return;
+                }
                 onToggleSweep(warplet.id);
               }}
-              className={`flex h-[calc(100%_-_3px)] w-full cursor-pointer self-start items-center justify-center gap-1 rounded-lg border text-xs font-bold transition-all duration-100 active:translate-x-[1px] active:translate-y-[1.5px] ${
-                isSweepSelected
+              className={`flex ${isOwned ? "h-full" : "h-[calc(100%_-_3px)]"} w-full cursor-pointer self-start items-center justify-center gap-1 rounded-lg border text-xs font-bold transition-all duration-100 ${
+                isOwned
+                  ? "border-[#00FF00]/45 bg-black text-[#00FF00] hover:border-[#00FF00] hover:bg-[#041204]"
+                  : isSweepSelected
                   ? "border-[#990000] bg-[#ff3333] text-[rgb(80,0,0)] shadow-[2px_3px_0_#800000] hover:bg-[#ff5555] active:shadow-[1px_1px_0_#800000]"
-                  : "border-[#009900] bg-[#00FF00] text-[rgb(0,80,0)] shadow-[2px_3px_0_#008000] hover:bg-[#33ff33] active:shadow-[1px_1px_0_#008000]"
+                  : "border-[#009900] bg-[#00FF00] text-[rgb(0,80,0)] shadow-[2px_3px_0_#008000] hover:bg-[#33ff33] active:translate-x-[1px] active:translate-y-[1.5px] active:shadow-[1px_1px_0_#008000]"
               }`}
             >
-              {isSweepSelected ? (
+              {isOwned ? null : isSweepSelected ? (
                 <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" aria-hidden="true">
                   <path d="M4 4 16 16" />
                   <path d="M16 4 4 16" />
@@ -8177,7 +8524,7 @@ function ListedWarpletCard({
                   <path d="M2 10 7.5 15.5 18 4.5" />
                 </svg>
               )}
-              {isSweepSelected ? "Cancel" : "Sweep"}
+              {isOwned ? "Owned" : isSweepSelected ? "Cancel" : "Buy"}
             </button>
           </div>
         </div>
@@ -8186,51 +8533,235 @@ function ListedWarpletCard({
   );
 }
 
-function ListedOwnedWarpletsPanel({
-  warplets,
-  totalCount,
-  ownerWallet,
+function ListedListingForm({
+  db,
+  ownedWarplets,
+  favouriteTokenIds,
+  marketSnapshot,
+  ethUsdPrice,
   onOpenWarplet,
-  onSearchOwnerWallet,
+  onList,
 }: {
-  warplets: WarpletResult[];
-  totalCount: number;
-  ownerWallet: string;
+  db: SqliteDatabase | null;
+  ownedWarplets: WarpletResult[];
+  favouriteTokenIds: Set<number>;
+  marketSnapshot: MarketSnapshot | null;
+  ethUsdPrice: number | null;
   onOpenWarplet: (tokenId: number) => void;
-  onSearchOwnerWallet: (wallet: string) => void;
+  onList: (tokenId: number, price: string) => Promise<boolean>;
 }) {
+  const [query, setQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
+  const [selectedTokenId, setSelectedTokenId] = useState<number | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [favouritesOnly, setFavouritesOnly] = useState(false);
+  const [pickerVisibleCount, setPickerVisibleCount] = useState(PAGE_SIZE);
+  const [price, setPrice] = useState("");
+  const [busy, setBusy] = useState(false);
+  const pickerRootRef = useRef<HTMLDivElement | null>(null);
+  const pickerEndRef = useRef<HTMLDivElement | null>(null);
+  const autoSelectedOwnerSignatureRef = useRef("");
+  const ownedTokenIds = useMemo(() => ownedWarplets.map((warplet) => warplet.id), [ownedWarplets]);
+  const listableTokenIds = useMemo(
+    () => ownedTokenIds.filter((tokenId) => !getMarketState(marketSnapshot, tokenId).listing),
+    [marketSnapshot, ownedTokenIds],
+  );
+  const favouriteIds = useMemo(() => Array.from(favouriteTokenIds), [favouriteTokenIds]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedQuery(query);
+      setPickerVisibleCount(PAGE_SIZE);
+    }, SEARCH_DEBOUNCE_MS);
+    return () => window.clearTimeout(timer);
+  }, [query]);
+
+  const pickerPage = useMemo(() => {
+    if (!db) return { rows: [], total: 0 };
+    const requestedRows = Math.ceil(pickerVisibleCount / SEARCH_RESULT_PAGE_SIZE) * SEARCH_RESULT_PAGE_SIZE;
+    return searchWarpletPickerPage(
+      db,
+      debouncedQuery || "*",
+      favouritesOnly ? favouriteIds : null,
+      requestedRows,
+      listableTokenIds,
+    );
+  }, [db, debouncedQuery, favouriteIds, favouritesOnly, listableTokenIds, pickerVisibleCount]);
+  const visiblePickerResults = pickerPage.rows.slice(0, pickerVisibleCount);
+
+  useEffect(() => {
+    const signature = listableTokenIds.join(",");
+    if (ownedTokenIds.length !== 1 || listableTokenIds.length !== 1 || autoSelectedOwnerSignatureRef.current === signature) return;
+    autoSelectedOwnerSignatureRef.current = signature;
+    const tokenId = listableTokenIds[0];
+    setSelectedTokenId(tokenId);
+    setQuery(`#${tokenId}`);
+    setDebouncedQuery(`#${tokenId}`);
+    setPickerOpen(false);
+  }, [listableTokenIds, ownedTokenIds.length]);
+
+  useEffect(() => {
+    if (selectedTokenId == null || listableTokenIds.includes(selectedTokenId)) return;
+    setQuery("");
+    setDebouncedQuery("");
+    setSelectedTokenId(null);
+    setFavouritesOnly(false);
+    setPickerOpen(false);
+    setPickerVisibleCount(PAGE_SIZE);
+  }, [listableTokenIds, selectedTokenId]);
+
+  useEffect(() => {
+    const target = pickerEndRef.current;
+    if (!pickerOpen || !target || pickerVisibleCount >= pickerPage.total) return;
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry?.isIntersecting) setPickerVisibleCount((current) => Math.min(current + PAGE_SIZE, pickerPage.total));
+    }, { threshold: 0.1 });
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [pickerOpen, pickerPage.total, pickerVisibleCount]);
+
+  useEffect(() => {
+    if (!pickerOpen) return;
+    const closePicker = (event: PointerEvent) => {
+      if (!pickerRootRef.current?.contains(event.target as Node)) setPickerOpen(false);
+    };
+    document.addEventListener("pointerdown", closePicker);
+    return () => document.removeEventListener("pointerdown", closePicker);
+  }, [pickerOpen]);
+
+  const selectWarplet = useCallback((tokenId: number) => {
+    void hapticSelectionChanged();
+    setSelectedTokenId(tokenId);
+    setQuery(`#${tokenId}`);
+    setDebouncedQuery(`#${tokenId}`);
+    setPickerOpen(false);
+  }, []);
+  const resetPicker = useCallback(() => {
+    void hapticTap();
+    setQuery("");
+    setDebouncedQuery("");
+    setSelectedTokenId(null);
+    setFavouritesOnly(false);
+    setPickerOpen(false);
+    setPickerVisibleCount(PAGE_SIZE);
+  }, []);
+
+  const selectedMarket = selectedTokenId ? getMarketState(marketSnapshot, selectedTokenId) : null;
+  const floor = marketSnapshot?.collection?.floor ?? null;
+  const topOffer = selectedMarket?.offer ?? null;
+  const priceRaw = decimalEthToWeiString(price);
+  const priceIsValid = Boolean(priceRaw && BigInt(priceRaw) >= 10000n);
+  const listingAmount = parseTradeAmount(price);
+  const topOfferAmount = marketMoneyToDecimal(topOffer);
+  const priceAtOrBelowTopOffer = listingAmount != null && topOfferAmount != null && listingAmount <= topOfferAmount;
+  const setPriceFromMarket = (money: MarketMoney | null | undefined) => {
+    const amount = marketMoneyToDecimal(money);
+    if (amount != null && amount > 0) setPrice(formatTradePriceInput(amount));
+  };
+
   return (
-    <div className="mt-4 rounded-xl border border-[#00FF00]/25 bg-[#041204]/90 p-3">
-      <div className="mb-2 flex items-center gap-3">
-        <Text className="text-[11px] font-bold uppercase text-[#8bbf8b]">Your Warplets</Text>
-      </div>
-      <div className="grid grid-cols-8 gap-1.5">
-        {warplets.map((warplet) => (
-          <button
-            key={warplet.id}
-            type="button"
-            onClick={() => {
-              void hapticTap();
-              onOpenWarplet(warplet.id);
+    <div className="mt-4 rounded-xl border border-[#FFFF00]/35 bg-[rgba(255,255,0,0.12)] p-3">
+      <div ref={pickerRootRef} className="relative">
+        <div className="flex h-11 items-center rounded-xl border-2 border-[#FFFF00]/35 bg-black/70 transition-[border-color,box-shadow] focus-within:border-[#FFFF00] focus-within:shadow-[0_0_10px_rgba(255,255,0,0.2)]">
+          {selectedTokenId ? (
+            <button type="button" onClick={() => onOpenWarplet(selectedTokenId)} aria-label={`Open Warplet #${selectedTokenId} details`} className="flex h-full w-11 shrink-0 cursor-pointer items-center">
+              <img src={getWarpletPreviewImageUrl(selectedTokenId)} alt={`Warplet #${selectedTokenId}`} className="aspect-square h-full rounded-l-[10px] object-cover" />
+            </button>
+          ) : (
+            <span className="flex h-full w-11 shrink-0 items-center justify-center text-[#FFFF00]">
+              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m16 16 5 5"/></svg>
+            </span>
+          )}
+          <input
+            data-no-focus-ring
+            value={query}
+            placeholder="Select a Warplet..."
+            onFocus={() => setPickerOpen(true)}
+            onChange={(event) => {
+              setSelectedTokenId(null);
+              setQuery(event.target.value);
+              setPickerOpen(true);
             }}
-            className="aspect-square w-full cursor-pointer justify-self-center overflow-hidden rounded-full bg-black"
-            title={`Open #${warplet.id} @${warplet.farcasterUsername}`}
-          >
-            <img src={getWarpletPreviewImageUrl(warplet.id)} alt="" className="h-full w-full object-cover" loading="lazy" />
-          </button>
-        ))}
-        <button
-          type="button"
-          onClick={() => {
-            void hapticTap();
-            onSearchOwnerWallet(ownerWallet);
-          }}
-          className="flex aspect-square w-full cursor-pointer justify-self-center items-center justify-center rounded-full border-2 border-[#00FF00] bg-black text-[11px] font-black text-[#00FF00]"
-          title={`Search ${totalCount.toLocaleString("en-US")} owned 10X Warplets`}
-        >
-          {totalCount.toLocaleString("en-US")}
-        </button>
+            className={`min-w-0 flex-1 bg-transparent py-0 pr-2 text-base font-bold text-[#FFFF00] outline-none ${selectedTokenId ? "pl-2" : "pl-0"}`}
+          />
+          <button type="button" onClick={resetPicker} className="h-full cursor-pointer px-2 text-xs font-bold text-[#FFFF00]">Reset</button>
+          <FavouriteButton
+            active={favouritesOnly}
+            title="Filter picker by my favourites"
+            className="mr-1 h-full w-9 !text-[#FFFF00]"
+            onClick={(event) => {
+              event.preventDefault();
+              setFavouritesOnly((current) => !current);
+              setSelectedTokenId(null);
+              setPickerOpen(true);
+            }}
+          />
+        </div>
+        {pickerOpen && (
+          <div className="absolute left-0 right-0 z-40 mt-2 overflow-hidden rounded-xl border border-[#FFFF00]/35 bg-black shadow-2xl">
+            <OverlayScrollArea className="aspect-[8/7] w-full overflow-y-auto" scrollbarAutoHide="never">
+              <div className="grid grid-cols-4 gap-1.5 p-2">
+                {visiblePickerResults.map((warplet) => (
+                  <button key={warplet.id} type="button" onClick={() => selectWarplet(warplet.id)} title={`Select #${warplet.id}`} className="aspect-square cursor-pointer overflow-hidden rounded-[3px]">
+                    <img src={getWarpletPreviewImageUrl(warplet.id)} alt={`Warplet #${warplet.id}`} className="h-full w-full object-cover" loading="lazy" decoding="async" />
+                  </button>
+                ))}
+              </div>
+              {pickerPage.total === 0 && (
+                <div className="px-3 py-10 text-center text-xs font-black text-[#FFFF00]">
+                  {ownedTokenIds.length === 0 ? "TIME TO BUY A WARPLET" : "NO WARPLETS FOUND"}
+                </div>
+              )}
+              {pickerPage.total > 0 && pickerVisibleCount >= pickerPage.total && (
+                <button type="button" onClick={() => pickerRootRef.current?.querySelector<HTMLElement>("[data-overlayscrollbars-viewport]")?.scrollTo({ top: 0, behavior: "smooth" })} className="w-full cursor-pointer px-3 py-3 text-center text-[11px] font-bold text-[#e6e68a]">
+                  No more warplets. <span className="text-[#FFFF00] underline decoration-[#FFFF00] underline-offset-2">Return to top</span>
+                </button>
+              )}
+              <div ref={pickerEndRef} className="h-px" />
+            </OverlayScrollArea>
+          </div>
+        )}
       </div>
+      <label className="mt-3 block text-[11px] font-bold uppercase text-[#e6e68a]">
+        <span className="flex items-center justify-between gap-3"><span>Listed as</span><span>{formatUsdEstimate(price, ethUsdPrice, floor)}</span></span>
+        <div className="mt-1 flex items-center rounded-lg border-2 border-[#FFFF00]/35 bg-black/60 px-3 py-2 transition-[border-color,box-shadow] focus-within:border-[#FFFF00] focus-within:shadow-[0_0_10px_rgba(255,255,0,0.2)]">
+          <input data-no-focus-ring type="text" inputMode="decimal" value={price} onChange={(event) => setPrice(sanitizeTradePriceInput(event.target.value))} placeholder="0.0" className="min-w-0 flex-1 appearance-none border-0 bg-transparent text-base font-bold text-[#FFFF00] outline-none" />
+          <span className="text-sm font-bold text-[#FFFF00]">ETH</span>
+        </div>
+      </label>
+      <p className="mt-1 text-[11px] font-bold text-[#e6e68a]">
+        Listing will be on OpenSea. Received ETH excludes fees.
+        {floor && <><br />Set price to <button type="button" onClick={() => setPriceFromMarket(floor)} className="cursor-pointer text-[#FFFF00] underline underline-offset-2">Floor</button>.</>}
+        {topOffer && <> Set price to <button type="button" onClick={() => setPriceFromMarket(topOffer)} className="cursor-pointer text-[#FFFF00] underline underline-offset-2">Top Offer</button>.</>}
+      </p>
+      {priceAtOrBelowTopOffer && topOffer && (
+        <p className="mt-2 rounded-lg border border-[#FFFF00]/35 bg-[rgba(255,255,0,0.12)] px-3 py-2 text-xs font-bold text-[#e6e68a]">
+          Suggestion: Listing price should be above the current Top Offer of {formatMarketEthForTradeCopy(topOffer)}.
+        </p>
+      )}
+      <button
+        type="button"
+        disabled={busy || !selectedTokenId || !priceIsValid}
+        onClick={() => {
+          if (!selectedTokenId) return;
+          setBusy(true);
+          void onList(selectedTokenId, price)
+            .then((success) => {
+              if (!success) return;
+              setPrice("");
+              setQuery("");
+              setDebouncedQuery("");
+              setSelectedTokenId(null);
+              setFavouritesOnly(false);
+              setPickerOpen(false);
+              setPickerVisibleCount(PAGE_SIZE);
+            })
+            .finally(() => setBusy(false));
+        }}
+        className="mt-3 w-full cursor-pointer rounded-[20px] border border-[#b3b300] bg-[#FFFF00] px-5 py-3 text-base font-bold text-[rgb(80,80,0)] shadow-[3px_6px_0_#b3b300] transition-all duration-100 hover:bg-[#ffff66] active:translate-x-[1px] active:translate-y-[3px] active:shadow-[1px_3px_0_#b3b300] disabled:cursor-not-allowed disabled:opacity-70"
+      >
+        {busy ? "Working..." : "Review item listing"}
+      </button>
     </div>
   );
 }
@@ -8392,7 +8923,7 @@ function ListedSweepFooter({
           }}
           className="mb-1.5 w-full cursor-pointer rounded-[20px] border border-[#009900] bg-[#00FF00] px-4 py-3 text-sm font-black text-[rgb(0,80,0)] shadow-[3px_6px_0_#008000] transition-all duration-100 hover:bg-[#33ff33] active:translate-x-[1px] active:translate-y-[3px] active:shadow-[1px_3px_0_#008000]"
         >
-          Sweep {rows.length.toLocaleString("en-US")} for {totalEth.toLocaleString("en-US", { maximumFractionDigits: 8 })} {paymentSymbol}
+          Buy {rows.length.toLocaleString("en-US")} for {totalEth.toLocaleString("en-US", { maximumFractionDigits: 8 })} {paymentSymbol}
         </button>
         </div>
       </div>
@@ -8404,7 +8935,7 @@ function ListedSweepFooter({
     <div className="overflow-hidden rounded-t-2xl border border-b-0 border-[#00FF00]/35 bg-black shadow-[0_-12px_28px_rgba(0,0,0,0.75)]">
       <div className="flex items-center justify-between gap-3 border-b border-[#00FF00]/20 bg-black px-4 py-3">
         <Text className="min-w-0 truncate text-base font-bold text-[#8bbf8b]">
-          <span className="text-[#00FF00]">Bulk Buy</span>{" "}
+          <span className="text-[#00FF00]">{rows.length === 1 ? "Buy" : "Bulk Buy"}</span>{" "}
           {rows.length.toLocaleString("en-US")} {rows.length === 1 ? "NFT" : "NFTs"}
         </Text>
         <button
@@ -8471,7 +9002,7 @@ function ListedSweepFooter({
       >
         {busy
           ? "Preparing Bulk Buy..."
-          : `Sweep for ${totalEth.toLocaleString("en-US", { maximumFractionDigits: 8 })} ${paymentSymbol} (${totalUsd == null ? "USD loading..." : `~$${totalUsd.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`})`}
+          : `Buy for ${totalEth.toLocaleString("en-US", { maximumFractionDigits: 8 })} ${paymentSymbol} (${totalUsd == null ? "USD loading..." : `~$${totalUsd.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`})`}
       </button>
       </div>
     </div>
@@ -8480,6 +9011,7 @@ function ListedSweepFooter({
 }
 
 function ListedPage({
+  db,
   level,
   scope,
   listedWarplets,
@@ -8491,12 +9023,14 @@ function ListedPage({
   loadError,
   marketRefreshError,
   onScopeChange,
+  onLevelChange,
   onOpenWarpletDetails,
   onToggleFavourite,
-  onSearchOwnerWallet,
   onRefreshMarket,
+  onListWarplet,
   onBulkBuy,
 }: {
+  db: SqliteDatabase | null;
   level: ListedLevelFilter;
   scope: ListedScopeFilter;
   listedWarplets: WarpletResult[];
@@ -8508,10 +9042,11 @@ function ListedPage({
   loadError: string;
   marketRefreshError: string;
   onScopeChange: (scope: ListedScopeFilter) => void;
+  onLevelChange: (level: ListedLevelFilter) => void;
   onOpenWarpletDetails: (tokenId: number) => void;
   onToggleFavourite: (tokenId: number) => void;
-  onSearchOwnerWallet: (wallet: string, level: ListedLevelFilter) => void;
   onRefreshMarket: () => Promise<void>;
+  onListWarplet: (tokenId: number, price: string) => Promise<boolean>;
   onBulkBuy: (rows: ListedWarpletRow[]) => Promise<number[]>;
 }) {
   const [refreshing, setRefreshing] = useState(false);
@@ -8522,6 +9057,7 @@ function ListedPage({
   const [sweepFooterExpanded, setSweepFooterExpanded] = useState(false);
   const [sweepSelectionError, setSweepSelectionError] = useState("");
   const normalizedWallet = normalizeWalletAddress(connectedWallet);
+  const ownedTokenIdSet = useMemo(() => new Set(ownedWarplets.map((warplet) => warplet.id)), [ownedWarplets]);
   const levelFilteredOwnedWarplets = useMemo(
     () => ownedWarplets.filter((warplet) => warpletMatchesListedLevel(warplet, level)),
     [level, ownedWarplets],
@@ -8592,6 +9128,10 @@ function ListedPage({
   }, [sweepRows.length]);
 
   useEffect(() => {
+    setSweepTokenIds((current) => current.filter((tokenId) => !ownedTokenIdSet.has(tokenId)));
+  }, [ownedTokenIdSet]);
+
+  useEffect(() => {
     if (!sweepSelectionError) return;
     const timeout = window.setTimeout(() => setSweepSelectionError(""), 4000);
     return () => window.clearTimeout(timeout);
@@ -8637,8 +9177,6 @@ function ListedPage({
     () => sumMarketMoney(listedRows.map((row) => row.market.listing)),
     [listedRows],
   );
-  const visibleOwnedWarplets = levelFilteredOwnedWarplets.slice(0, LISTED_OWNED_VISIBLE_AVATAR_LIMIT);
-
   const refreshLabel = marketSnapshot?.generatedAt ? formatMarketTimestamp(marketSnapshot.generatedAt) : "Not yet";
 
   const runRefresh = useCallback(async () => {
@@ -8658,15 +9196,22 @@ function ListedPage({
         <ListedStatPanel kind="value" label="Value" value={<InlineHoverTooltip value={formatMarketValue(totalListingValue, { maxDigits: 8 })} tooltip={formatUsdMoneyFromMarket(totalListingValue, sweepEthUsdPrice)} className="text-[#FFFF00]" tone="yellow"/>} />
       </div>
 
-      {normalizedWallet && ownedWarplets.length > 0 && (
-        <ListedOwnedWarpletsPanel
-          warplets={visibleOwnedWarplets}
-          totalCount={levelFilteredOwnedWarplets.length}
-          ownerWallet={normalizedWallet}
-          onOpenWarplet={onOpenWarpletDetails}
-          onSearchOwnerWallet={(wallet) => onSearchOwnerWallet(wallet, level)}
-        />
-      )}
+      <ListedListingForm
+        db={db}
+        ownedWarplets={ownedWarplets}
+        favouriteTokenIds={favouriteTokenIds}
+        marketSnapshot={marketSnapshot}
+        ethUsdPrice={sweepEthUsdPrice}
+        onOpenWarplet={onOpenWarpletDetails}
+        onList={async (tokenId, price) => {
+          const success = await onListWarplet(tokenId, price);
+          if (success) {
+            onScopeChange("your");
+            onLevelChange("all");
+          }
+          return success;
+        }}
+      />
 
       <SearchSegmentedTabs
         className="mt-4"
@@ -8693,7 +9238,7 @@ function ListedPage({
       )}
       {!loading && !loadError && listedRows.length === 0 && (
         <Text className={`mt-6 ${STATUS_LINE_CLASS}`} style={{ color: "#00FF00" }}>
-          No active listings.
+          {scope === "sweep" ? "No items selected to buy." : "No active listings."}
         </Text>
       )}
 
@@ -8706,6 +9251,7 @@ function ListedPage({
                 <ListedWarpletCard
                   key={row.warplet.id}
                   row={row}
+                  isOwned={ownedTokenIdSet.has(row.warplet.id)}
                   isFavourited={favouriteTokenIds.has(row.warplet.id)}
                   isSweepSelected={sweepTokenIds.includes(row.warplet.id)}
                   isShaking={shakingTokenIds.has(row.warplet.id)}
@@ -8763,7 +9309,6 @@ function ListedPage({
   );
 }
 
-const LISTED_OWNED_VISIBLE_AVATAR_LIMIT = 23;
 const OWNED_BY_VISIBLE_AVATAR_LIMIT = 24;
 
 function ProfilePictureDownloadModal({
@@ -9369,7 +9914,7 @@ const ONBOARDING_SLIDES: OnboardingSlide[] = [
     bullets: [
       "10X Warplets is a fun 10,000 NFT collection.",
       "Farcaster focused. Meme powered. Data driven.",
-      "10X is where Builders, Capital, & Attention align.",
+      "10X is where Builders, Traders, & Attention align.",
     ],
   },
   {
@@ -9399,13 +9944,13 @@ const ONBOARDING_SLIDES: OnboardingSlide[] = [
     ],
   },
   {
-    title: "Future Airdrops & Access",
+    title: "Perks! Airdrops, Access, and More...",
     visual: "access",
     bullets: [
       <>
-        You want higher Levels to get bigger 10X Meme daily memecoin airdrop bonuses (coming soon on Base, BSC, Solana... and <em>maybe</em> Robinhood).
+        Hold higher Levels to get bigger 10X Meme airdrop bonuses (coming soon on Base, BSC, Solana, Robinhood...).
       </>,
-      "Holding a 10X Warplet also gives you whitelist access to future 10X NFT launches (coming soon on Ethereum).",
+      "Holding a 10X Warplet also gives you whitelist access to future 10X NFT launches (coming soon on Ethereum, via OpenSea).",
     ],
   },
   {
@@ -11979,12 +12524,13 @@ function WarpletDetailsModal({
         throw new Error(failure.message || `Offer submit failed (${submit.status})`);
       }
       const submitPayload = await submit.json().catch(() => ({})) as {
+        orderHash?: string | null;
         result?: {
           order_hash?: string;
           orderHash?: string;
         };
       };
-      applyOptimisticItemOffer(account, priceRaw, payload.protocolAddress, submitPayload.result?.order_hash ?? submitPayload.result?.orderHash ?? null);
+      applyOptimisticItemOffer(account, priceRaw, payload.protocolAddress, submitPayload.orderHash ?? submitPayload.result?.order_hash ?? submitPayload.result?.orderHash ?? null);
       void refreshTradeState(account);
       window.setTimeout(() => {
         void refreshTradeState(account);
@@ -12684,6 +13230,7 @@ function WarpletDetailsModal({
                 viewerFid={viewerFid}
                 actionSessionToken={actionSessionToken}
                 onSearchWallet={onSearchOwnerWallet}
+                onOpenToken={onOpenRelatedWarplet}
                 refreshKey={`${effectiveListing?.at ?? ""}|${effectiveItemOffer?.at ?? ""}|${effectiveSale?.at ?? ""}|${effectiveOwner?.wallet ?? ""}`}
               />
 
@@ -12926,10 +13473,12 @@ export default function SearchApp() {
   const [searchError, setSearchError] = useState("");
   const [selectedWarpletDetailsStack, setSelectedWarpletDetailsStack] = useState<WarpletDetails[]>([]);
   const [marketSnapshot, setMarketSnapshot] = useState<MarketSnapshot | null>(null);
+  const [itemOffersRevision, setItemOffersRevision] = useState(0);
   const [marketRefreshTokenId, setMarketRefreshTokenId] = useState<number | null>(null);
   const [marketRefreshError, setMarketRefreshError] = useState("");
   const [listedWarplets, setListedWarplets] = useState<WarpletResult[]>([]);
   const [listedOwnedWarplets, setListedOwnedWarplets] = useState<WarpletResult[]>([]);
+  const [listedOwnedTokenIds, setListedOwnedTokenIds] = useState<number[]>([]);
   const [listedWarpletsLoading, setListedWarpletsLoading] = useState(false);
   const [listedWarpletsError, setListedWarpletsError] = useState("");
   const [listedScope, setListedScope] = useState<ListedScopeFilter>(() => readListedScopeFilter());
@@ -13783,12 +14332,31 @@ export default function SearchApp() {
   }, [refreshMarketSnapshot, searchRoute.page]);
 
   useEffect(() => {
-    if (searchRoute.page === "listed" && activeWallet) {
-      void loadMarketOwnership({ wallet: activeWallet }).catch((error) => {
-        console.error("Failed to load Listed wallet ownership:", error);
-      });
+    if (searchRoute.page !== "listed") return;
+    let cancelled = false;
+    const loadListedOwnership = async () => {
+      try {
+        let tokenIds = viewerFid
+          ? await loadMarketOwnership({ fid: viewerFid })
+          : [];
+        if (tokenIds.length === 0 && activeWallet) {
+          tokenIds = await loadMarketOwnership({ wallet: activeWallet });
+        }
+        if (!cancelled) setListedOwnedTokenIds(tokenIds);
+      } catch (error) {
+        console.error("Failed to load Listed user ownership:", error);
+        if (!cancelled) setListedOwnedTokenIds([]);
+      }
+    };
+    if (viewerFid || activeWallet) {
+      void loadListedOwnership();
+    } else {
+      setListedOwnedTokenIds([]);
     }
-  }, [activeWallet, loadMarketOwnership, searchRoute.page]);
+    return () => {
+      cancelled = true;
+    };
+  }, [activeWallet, loadMarketOwnership, searchRoute.page, viewerFid]);
 
   useEffect(() => {
     if (searchRoute.page === "search" && viewerFid) {
@@ -13837,23 +14405,26 @@ export default function SearchApp() {
 
   useEffect(() => {
     const normalizedWallet = normalizeWalletAddress(activeWallet);
-    if (!dbReady || !dbRef.current || !marketSnapshot || !normalizedWallet) {
+    if (!dbReady || !dbRef.current || !marketSnapshot || (!normalizedWallet && !viewerFid)) {
       setListedOwnedWarplets([]);
       return;
     }
 
     try {
-      const tokenIds = Object.entries(marketSnapshot.owners ?? {})
-        .filter(([, owner]) => walletMatches(owner.wallet, normalizedWallet))
-        .map(([tokenId]) => Number(tokenId))
-        .filter((tokenId) => Number.isInteger(tokenId) && tokenId > 0)
-        .sort((a, b) => a - b);
+      const ownedIds = new Set(listedOwnedTokenIds);
+      for (const [tokenId, owner] of Object.entries(marketSnapshot.owners ?? {})) {
+        if (walletMatches(owner.wallet, normalizedWallet) || (viewerFid != null && owner.fid === viewerFid)) {
+          const parsedTokenId = Number(tokenId);
+          if (Number.isInteger(parsedTokenId) && parsedTokenId > 0) ownedIds.add(parsedTokenId);
+        }
+      }
+      const tokenIds = Array.from(ownedIds).sort((a, b) => a - b);
       setListedOwnedWarplets(loadWarpletResultsByIds(dbRef.current, tokenIds));
     } catch (error) {
       console.error("Failed to load owned Warplets for Listed page:", error);
       setListedOwnedWarplets([]);
     }
-  }, [activeWallet, dbReady, marketSnapshot]);
+  }, [activeWallet, dbReady, listedOwnedTokenIds, marketSnapshot, viewerFid]);
 
   useEffect(() => {
     const routeNeedsDatabase = searchRoute.page === "search"
@@ -14733,12 +15304,6 @@ export default function SearchApp() {
     }
   }, [dbReady, runSearch]);
 
-  const handleListedSearchOwnerWallet = useCallback((wallet: string, level: ListedLevelFilter) => {
-    const levelNumber = getListedLevelNumber(level);
-    navigateSearchRoute({ page: "search" });
-    handleSearchOwnerWallet(wallet, { focus: false, levels: levelNumber == null ? [] : [levelNumber] });
-  }, [handleSearchOwnerWallet, navigateSearchRoute]);
-
   const handleStatsSearchOwnerWallet = useCallback((wallet: string) => {
     navigateSearchRoute({ page: "search" });
     handleSearchOwnerWallet(wallet, { focus: false });
@@ -15124,6 +15689,7 @@ export default function SearchApp() {
       writeCachedMarketSnapshot(next);
       return next;
     });
+    setItemOffersRevision((current) => current + 1);
   }, []);
 
   const handleUpsertListing = useCallback((tokenId: number, listing: MarketSnapshot["listings"][string]) => {
@@ -15146,13 +15712,116 @@ export default function SearchApp() {
     });
   }, []);
 
+  const handleListedCreateListing = useCallback(async (tokenId: number, price: string): Promise<boolean> => {
+    const priceRaw = decimalEthToWeiString(price);
+    if (!priceRaw || BigInt(priceRaw) < 10000n) {
+      void hapticError();
+      showSearchToast("error", "Enter a listing price of at least 0.00000000000001 ETH.", { manualClose: true });
+      return false;
+    }
+    const actionId = crypto.randomUUID();
+    try {
+      void hapticPrimaryTap();
+      const { provider, account } = await getCollectionOfferProviderAndAccount();
+      const expectedOwner = marketSnapshot?.owners?.[String(tokenId)]?.wallet ?? null;
+      if (expectedOwner && !walletMatches(expectedOwner, account)) {
+        throw new Error("Connect the wallet that owns this Warplet to list it.");
+      }
+      const prepare = await fetch("/api/warplet-trade/listing/prepare", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          actionId,
+          fid: viewerFid,
+          tokenId,
+          wallet: account,
+          priceRaw,
+          durationSeconds: DEFAULT_TRADE_DURATION_SECONDS,
+        }),
+      });
+      const prepared = await prepare.json().catch(() => ({})) as { actions?: unknown; message?: string };
+      if (!prepare.ok) throw new Error(prepared.message || `Listing prepare failed (${prepare.status})`);
+      showSearchToast("neutral", "Check your wallet to confirm the listing...", { minMs: 5000 });
+      const signed = await executeOpenSeaActions(provider, account, prepared.actions);
+      const submit = await fetch("/api/warplet-trade/listing/submit", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ actionId, fid: viewerFid, tokenId, wallet: account, priceRaw, payload: signed.payload }),
+      });
+      const submitted = await submit.json().catch(() => ({})) as {
+        message?: string;
+        result?: { order_hash?: unknown; orderHash?: unknown; protocol_address?: unknown };
+      };
+      if (!submit.ok) throw new Error(submitted.message || `Listing submit failed (${submit.status})`);
+      const signedPayload = signed.payload && typeof signed.payload === "object"
+        ? signed.payload as Record<string, unknown>
+        : null;
+      const orderHash = typeof submitted.result?.order_hash === "string"
+        ? submitted.result.order_hash
+        : typeof submitted.result?.orderHash === "string" ? submitted.result.orderHash : null;
+      const protocolAddress = typeof submitted.result?.protocol_address === "string"
+        ? submitted.result.protocol_address
+        : typeof signedPayload?.protocol_address === "string" ? signedPayload.protocol_address : null;
+      const listing: MarketSnapshot["listings"][string] = {
+        eth: parseTradeAmount(price),
+        at: new Date().toISOString(),
+        rawAmount: priceRaw,
+        decimals: 18,
+        currencySymbol: "ETH",
+        tokenAddress: NATIVE_TOKEN_ADDRESS,
+        orderHash,
+        protocolAddress,
+        seller: account,
+      };
+      handleUpsertListing(tokenId, listing);
+      void hapticSuccess();
+      showTradeConfetti();
+      showSearchToast("success", `Warplet #${tokenId} successfully listed`, { minMs: 5000 });
+      return true;
+    } catch (error) {
+      void hapticError();
+      showSearchToast("error", error instanceof Error ? error.message : "Item listing failed.", { manualClose: true });
+      return false;
+    }
+  }, [getCollectionOfferProviderAndAccount, handleUpsertListing, marketSnapshot?.owners, showSearchToast, viewerFid]);
+
   const handleApplyPurchase = useCallback((tokenId: number, update: OptimisticPurchaseUpdate) => {
     const buyerWallet = normalizeWalletAddress(update.buyerWallet);
-    if (buyerWallet) {
-      const key = `wallet:${buyerWallet}`;
-      const cached = ownershipTokenIdsRef.current.get(key) ?? [];
-      ownershipTokenIdsRef.current.set(key, Array.from(new Set([...cached, tokenId])).sort((left, right) => left - right));
+    const buyerFid = Number.isInteger(update.buyerFid) && Number(update.buyerFid) > 0
+      ? Number(update.buyerFid)
+      : null;
+    const buyerOwnershipKeys = new Set([
+      buyerWallet ? `wallet:${buyerWallet}` : "",
+      buyerFid ? `fid:${buyerFid}` : "",
+    ].filter(Boolean));
+
+    // A completed sale must invalidate the seller's focused ownership caches as
+    // well as adding the token to the buyer. Otherwise navigating to Search can
+    // merge a cached seller owner over the optimistic transfer and resurrect the
+    // sold Warplet in the "We Found You" card.
+    for (const [key, cachedTokenIds] of ownershipTokenIdsRef.current) {
+      const withoutTransferredToken = cachedTokenIds.filter((cachedTokenId) => cachedTokenId !== tokenId);
+      ownershipTokenIdsRef.current.set(
+        key,
+        buyerOwnershipKeys.has(key)
+          ? Array.from(new Set([...withoutTransferredToken, tokenId])).sort((left, right) => left - right)
+          : withoutTransferredToken,
+      );
     }
+    for (const key of buyerOwnershipKeys) {
+      const cachedTokenIds = ownershipTokenIdsRef.current.get(key) ?? [];
+      ownershipTokenIdsRef.current.set(key, Array.from(new Set([...cachedTokenIds, tokenId])).sort((left, right) => left - right));
+    }
+    for (const [key, cachedOwners] of ownershipOwnersRef.current) {
+      const nextOwners = { ...cachedOwners };
+      delete nextOwners[String(tokenId)];
+      ownershipOwnersRef.current.set(key, nextOwners);
+    }
+    const buyerIsViewer = (buyerWallet && walletMatches(buyerWallet, activeWallet)) ||
+      (buyerFid != null && buyerFid === viewerFid);
+    setListedOwnedTokenIds((current) => buyerIsViewer
+      ? Array.from(new Set([...current, tokenId])).sort((left, right) => left - right)
+      : current.filter((ownedTokenId) => ownedTokenId !== tokenId));
     setMarketSnapshot((current) => {
       const key = String(tokenId);
       const now = update.sale.at ?? new Date().toISOString();
@@ -15177,6 +15846,12 @@ export default function SearchApp() {
         fid: update.buyerFid ?? providedOwnerProfile.fid ?? matchingOwnerProfile?.fid ?? null,
         checkedAt: now,
       };
+      for (const buyerKey of buyerOwnershipKeys) {
+        ownershipOwnersRef.current.set(buyerKey, {
+          ...(ownershipOwnersRef.current.get(buyerKey) ?? {}),
+          [key]: nextOwner,
+        });
+      }
       pendingConfirmedPurchasesRef.current.set(key, {
         owner: nextOwner,
         sale: update.sale,
@@ -15197,7 +15872,7 @@ export default function SearchApp() {
       writeCachedMarketSnapshot(next);
       return next;
     });
-  }, [viewerProfile]);
+  }, [activeWallet, viewerFid, viewerProfile]);
 
   const handleListedBulkBuy = useCallback(async (rows: ListedWarpletRow[]) => {
     if (rows.length === 0) return [];
@@ -15539,6 +16214,7 @@ export default function SearchApp() {
           <MiniAppMenuPage appSlug="search" />
         ) : searchRoute.page === "listed" ? (
           <ListedPage
+            db={dbRef.current}
             level={searchRoute.listedLevel}
             scope={listedScope}
             listedWarplets={listedWarplets}
@@ -15550,10 +16226,11 @@ export default function SearchApp() {
             loadError={listedWarpletsError}
             marketRefreshError={marketRefreshError}
             onScopeChange={handleListedScopeChange}
+            onLevelChange={(level) => navigateSearchRoute({ page: "listed", listedLevel: level })}
             onOpenWarpletDetails={handleOpenWarpletDetails}
             onToggleFavourite={handleToggleFavourite}
-            onSearchOwnerWallet={handleListedSearchOwnerWallet}
             onRefreshMarket={refreshListedMarket}
+            onListWarplet={handleListedCreateListing}
             onBulkBuy={handleListedBulkBuy}
           />
         ) : searchRoute.page === "stats" ? (
@@ -15603,6 +16280,8 @@ export default function SearchApp() {
             getProviderAndAccount={getCollectionOfferProviderAndAccount}
             showToast={showSearchToast}
             onOpenWarpletDetails={handleOpenWarpletDetails}
+            onApplyPurchase={handleApplyPurchase}
+            refreshRevision={itemOffersRevision}
           />
         ) : (
           <div className="mx-auto w-full max-w-md px-4 pb-10 pt-6">

@@ -3231,7 +3231,10 @@ export async function handleStatsSocialGet(
         ),
       },
       series: {
-        sales: buildSalePoints(socialRows),
+        // High-volume sale charts are served as bounded aggregates by
+        // /api/stats/activity?chart=1. Keep the legacy key without transferring
+        // every sale into the browser.
+        sales: [],
       },
       recentActivity: socialRows.slice(-20).reverse(),
       recentListings: listings,
@@ -3851,6 +3854,137 @@ export async function handleStatsPriceHistoryGet(
 
 type ActivityCursor = { at: string; key: string };
 
+type ActivityChartRepresentativeRow = {
+  bucket_index: number;
+  sale_count: number;
+  average_price_eth: number;
+  canonical_key: string;
+  token_id: number;
+  price_eth: number;
+  transaction_hash: string | null;
+  from_wallet: string | null;
+  from_fid: number | null;
+  to_wallet: string | null;
+  to_fid: number | null;
+  occurred_at: string;
+};
+
+function activityBucketCount(range: StatsRange): number {
+  return range === "7d" ? 7 : range === "1y" ? 12 : 10;
+}
+
+function getActivityRangeStart(range: StatsRange, now = new Date()): string {
+  if (range === "all") return ANALYTICS_EPOCH;
+  const days = range === "7d" ? 7 : range === "90d" ? 90 : range === "1y" ? 365 : 30;
+  return new Date(now.getTime() - days * 86_400_000).toISOString();
+}
+
+function buildActivityBucketBounds(range: StatsRange, now = new Date()): Array<{ index: number; startAt: string; endAt: string }> {
+  // Activity charts retain their complete selected time scale even when it begins
+  // before the Jul 2 analytics epoch. The query simply finds no earlier events.
+  const rangeStartMs = Date.parse(getActivityRangeStart(range, now));
+  const rangeEndMs = now.getTime();
+  const count = activityBucketCount(range);
+  const duration = Math.max(1, rangeEndMs - rangeStartMs);
+  return Array.from({ length: count }, (_, index) => ({
+    index,
+    startAt: new Date(rangeStartMs + (duration * index) / count).toISOString(),
+    endAt: new Date(index === count - 1 ? rangeEndMs : rangeStartMs + (duration * (index + 1)) / count).toISOString(),
+  }));
+}
+
+async function loadActivityChart(
+  db: D1Database,
+  range: StatsRange,
+  tokenId: number | null,
+): Promise<{
+  rangeStart: string;
+  rangeEnd: string;
+  bucketCount: number;
+  buckets: Array<Record<string, unknown>>;
+}> {
+  const bounds = buildActivityBucketBounds(range);
+  const rangeStart = bounds[0]!.startAt;
+  const rangeEnd = bounds.at(-1)!.endAt;
+  const bucketCase = bounds.map(() => "WHEN occurred_at >= ? AND occurred_at < ? THEN ?").join(" ");
+  const bucketBindings = bounds.flatMap((bucket) => [bucket.startAt, bucket.endAt, bucket.index]);
+  const tokenClause = tokenId !== null ? "AND a.token_id = ?" : "";
+  const result = await db.prepare(
+    `WITH ranked_sales AS (
+       SELECT a.*,
+         ROW_NUMBER() OVER (
+           PARTITION BY a.token_id, COALESCE(LOWER(a.transaction_hash), LOWER(a.order_hash), a.canonical_key)
+           ORDER BY CASE WHEN a.source LIKE 'opensea%' THEN 0 ELSE 1 END, a.updated_at DESC, a.canonical_key DESC
+         ) AS duplicate_rank
+       FROM warplet_market_activity a
+       WHERE a.event_type = 'sale'
+         AND a.price_eth IS NOT NULL
+         AND a.occurred_at >= ? AND a.occurred_at < ?
+         ${tokenClause}
+     ), bucketed AS (
+       SELECT *, CASE ${bucketCase} ELSE NULL END AS bucket_index
+       FROM ranked_sales
+       WHERE duplicate_rank = 1
+     ), summarized AS (
+       SELECT *,
+         COUNT(*) OVER (PARTITION BY bucket_index) AS sale_count,
+         AVG(price_eth) OVER (PARTITION BY bucket_index) AS average_price_eth,
+         ROW_NUMBER() OVER (
+           PARTITION BY bucket_index
+           ORDER BY price_eth DESC, occurred_at DESC, canonical_key DESC
+         ) AS representative_rank
+       FROM bucketed
+       WHERE bucket_index IS NOT NULL
+     )
+     SELECT bucket_index, sale_count, average_price_eth, canonical_key, token_id,
+            price_eth, transaction_hash, from_wallet, from_fid, to_wallet, to_fid, occurred_at
+     FROM summarized
+     WHERE representative_rank = 1
+     ORDER BY bucket_index ASC`
+  ).bind(rangeStart, rangeEnd, ...(tokenId !== null ? [tokenId] : []), ...bucketBindings).all<ActivityChartRepresentativeRow>();
+  const representatives = result.results ?? [];
+  const profiles = await loadProfilesForWallets(
+    db,
+    representatives.flatMap((row) => [row.from_wallet, row.to_wallet]),
+  );
+  const byIndex = new Map(representatives.map((row) => [row.bucket_index, row]));
+  return {
+    rangeStart,
+    rangeEnd,
+    bucketCount: bounds.length,
+    buckets: bounds.map((bucket) => {
+      const row = byIndex.get(bucket.index);
+      if (!row) return { ...bucket, saleCount: 0, averagePriceEth: null, representativeSale: null };
+      const buyerWallet = normalizeWallet(row.to_wallet);
+      const sellerWallet = normalizeWallet(row.from_wallet);
+      const buyer = buyerWallet ? profiles.get(buyerWallet) : null;
+      const seller = sellerWallet ? profiles.get(sellerWallet) : null;
+      return {
+        ...bucket,
+        saleCount: row.sale_count,
+        averagePriceEth: row.average_price_eth,
+        representativeSale: {
+          key: row.canonical_key,
+          tokenId: row.token_id,
+          priceEth: row.price_eth,
+          at: row.occurred_at,
+          transactionHash: row.transaction_hash,
+          buyer: buyerWallet ? {
+            wallet: buyerWallet,
+            ...(publicProfile(buyer ?? null) ?? {}),
+            fid: buyer?.fid ?? row.to_fid,
+          } : null,
+          seller: sellerWallet ? {
+            wallet: sellerWallet,
+            ...(publicProfile(seller ?? null) ?? {}),
+            fid: seller?.fid ?? row.from_fid,
+          } : null,
+        },
+      };
+    }),
+  };
+}
+
 function decodeActivityCursor(raw: string | null): ActivityCursor | null {
   if (!raw) return null;
   try {
@@ -3879,6 +4013,24 @@ export async function handleStatsActivityGet(
   }
   const limit = Math.min(20, Math.max(1, asInteger(url.searchParams.get("limit")) ?? 20));
   const cursor = decodeActivityCursor(url.searchParams.get("cursor"));
+  const event = url.searchParams.get("event")?.trim().toLowerCase() ?? "all";
+  if (!new Set(["all", "sale", "listing", "offer", "transfer"]).has(event)) {
+    return jsonError("invalid_activity_event", "Event must be All, Sale, Listing, Offer, or Transfer.", 400);
+  }
+  const rangeStart = getActivityRangeStart(range);
+  const rangeEnd = new Date().toISOString();
+  const requestedStart = url.searchParams.get("start");
+  const requestedEnd = url.searchParams.get("end");
+  const parsedStart = requestedStart ? Date.parse(requestedStart) : Number.NaN;
+  const parsedEnd = requestedEnd ? Date.parse(requestedEnd) : Number.NaN;
+  if (requestedStart && !Number.isFinite(parsedStart)) return jsonError("invalid_activity_start", "Start must be a valid datetime.", 400);
+  if (requestedEnd && !Number.isFinite(parsedEnd)) return jsonError("invalid_activity_end", "End must be a valid datetime.", 400);
+  const effectiveStart = new Date(Math.max(Date.parse(rangeStart), Number.isFinite(parsedStart) ? parsedStart : Number.NEGATIVE_INFINITY)).toISOString();
+  const effectiveEnd = new Date(Math.min(Date.parse(rangeEnd), Number.isFinite(parsedEnd) ? parsedEnd : Number.POSITIVE_INFINITY)).toISOString();
+  if (Date.parse(effectiveStart) >= Date.parse(effectiveEnd)) {
+    return jsonError("invalid_activity_period", "Start must be earlier than End.", 400);
+  }
+  const includeChart = url.searchParams.get("chart") === "1" && !cursor;
   const friendsOnly = url.searchParams.get("friends") === "1";
   const requestedFid = asInteger(url.searchParams.get("fid"));
   let viewerFid: number | null = null;
@@ -3892,15 +4044,15 @@ export async function handleStatsActivityGet(
   }
 
   try {
-    const conditions = ["a.occurred_at >= ?"];
-    const bindings: Array<string | number> = [getRangeStart(range)];
+    const conditions = ["a.occurred_at >= ?", "a.occurred_at < ?"];
+    const bindings: Array<string | number> = [effectiveStart, effectiveEnd];
+    if (event !== "all") {
+      conditions.push("a.event_type = ?");
+      bindings.push(event);
+    }
     if (tokenId !== null) {
       conditions.push("a.token_id = ?");
       bindings.push(tokenId);
-    }
-    if (cursor) {
-      conditions.push("(a.occurred_at < ? OR (a.occurred_at = ? AND a.canonical_key < ?))");
-      bindings.push(cursor.at, cursor.at, cursor.key);
     }
     if (friendsOnly && viewerFid !== null) {
       conditions.push(`EXISTS (
@@ -3918,15 +4070,28 @@ export async function handleStatsActivityGet(
       bindings.push(viewerFid);
     }
     const result = await context.env.WARPLETS.prepare(
-      `SELECT
+      `WITH filtered_activity AS (
+         SELECT a.*,
+           ROW_NUMBER() OVER (
+             PARTITION BY CASE
+               WHEN a.event_type = 'sale' THEN CAST(a.token_id AS TEXT) || ':' || COALESCE(LOWER(a.transaction_hash), LOWER(a.order_hash), a.canonical_key)
+               ELSE a.canonical_key
+             END
+             ORDER BY CASE WHEN a.source LIKE 'opensea%' THEN 0 ELSE 1 END, a.updated_at DESC, a.canonical_key DESC
+           ) AS duplicate_rank
+         FROM warplet_market_activity a
+         WHERE ${conditions.join(" AND ")}
+       )
+       SELECT
          a.canonical_key, a.event_type, a.token_id, a.price_eth,
          a.transaction_hash, a.order_hash, a.from_wallet, a.from_fid,
          CASE WHEN a.event_type = 'offer' THEN m.owner_wallet ELSE a.to_wallet END AS to_wallet,
          CASE WHEN a.event_type = 'offer' THEN m.owner_fid ELSE a.to_fid END AS to_fid,
          a.occurred_at
-       FROM warplet_market_activity a
+       FROM filtered_activity a
        LEFT JOIN warplet_market_state m ON m.token_id = a.token_id
-       WHERE ${conditions.join(" AND ")}
+       WHERE a.duplicate_rank = 1
+         ${cursor ? "AND (a.occurred_at < ? OR (a.occurred_at = ? AND a.canonical_key < ?))" : ""}
          AND NOT (
            a.event_type = 'transfer' AND EXISTS (
              SELECT 1 FROM warplet_market_activity sale
@@ -3938,7 +4103,7 @@ export async function handleStatsActivityGet(
          )
        ORDER BY a.occurred_at DESC, a.canonical_key DESC
        LIMIT ?`
-    ).bind(...bindings, limit + 1).all<{
+    ).bind(...bindings, ...(cursor ? [cursor.at, cursor.at, cursor.key] : []), limit + 1).all<{
       canonical_key: string; event_type: string; token_id: number; price_eth: number | null;
       transaction_hash: string | null; order_hash: string | null;
       from_wallet: string | null; from_fid: number | null; to_wallet: string | null;
@@ -3970,57 +4135,14 @@ export async function handleStatsActivityGet(
         fid: profiles.get(normalizeWallet(row.to_wallet) ?? "")?.fid ?? row.to_fid,
       } : null,
     }));
-    let chart: Array<Record<string, unknown>> | undefined;
-    if (tokenId !== null && !cursor) {
-      const chartResult = await context.env.WARPLETS.prepare(
-        `WITH ranked_sales AS (
-           SELECT a.*,
-             ROW_NUMBER() OVER (
-               PARTITION BY a.token_id, COALESCE(LOWER(a.transaction_hash), a.canonical_key)
-               ORDER BY CASE WHEN a.source LIKE 'opensea%' THEN 0 ELSE 1 END, a.updated_at DESC
-             ) AS duplicate_rank
-           FROM warplet_market_activity a
-           WHERE a.token_id = ? AND a.event_type = 'sale' AND a.price_eth IS NOT NULL
-         )
-         SELECT canonical_key, token_id, price_eth, transaction_hash,
-                from_wallet, from_fid, to_wallet, to_fid, occurred_at
-         FROM ranked_sales
-         WHERE duplicate_rank = 1
-         ORDER BY occurred_at ASC, canonical_key ASC`
-      ).bind(tokenId).all<{
-        canonical_key: string; token_id: number; price_eth: number;
-        transaction_hash: string | null; from_wallet: string | null; from_fid: number | null;
-        to_wallet: string | null; to_fid: number | null; occurred_at: string;
-      }>();
-      const chartRows = chartResult.results ?? [];
-      const chartProfiles = await loadProfilesForWallets(
-        context.env.WARPLETS,
-        chartRows.flatMap((sale) => [sale.from_wallet, sale.to_wallet]),
-      );
-      chart = chartRows.map((sale) => {
-        const buyerWallet = normalizeWallet(sale.to_wallet);
-        const sellerWallet = normalizeWallet(sale.from_wallet);
-        const buyer = buyerWallet ? chartProfiles.get(buyerWallet) : null;
-        const seller = sellerWallet ? chartProfiles.get(sellerWallet) : null;
-        return {
-          key: sale.canonical_key, at: sale.occurred_at, timestamp: sale.occurred_at,
-          tokenId: sale.token_id, salePrice: sale.price_eth,
-          transactionHash: sale.transaction_hash,
-          buyerWallet, buyerFid: buyer?.fid ?? sale.to_fid,
-          buyerUsername: buyer?.username ?? null, buyerAvatarUrl: buyer?.pfpUrl ?? null,
-          avatarUrl: buyer?.pfpUrl ?? null,
-          sellerWallet, sellerFid: seller?.fid ?? sale.from_fid,
-          sellerUsername: seller?.username ?? null, sellerAvatarUrl: seller?.pfpUrl ?? null,
-          showUnknownMarker: !buyer?.pfpUrl,
-        };
-      });
-    }
+    const chart = includeChart ? await loadActivityChart(context.env.WARPLETS, range, tokenId) : undefined;
     const last = pageRows.at(-1);
     return jsonStats({
       analyticsEpoch: ANALYTICS_EPOCH,
       range,
       rows,
       ...(chart ? { chart } : {}),
+      filters: { event, start: effectiveStart, end: effectiveEnd },
       hasMore,
       nextCursor: hasMore && last ? encodeActivityCursor({ at: last.occurred_at, key: last.canonical_key }) : null,
       asOf: pageRows[0]?.occurred_at ?? null,

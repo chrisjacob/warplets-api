@@ -899,15 +899,51 @@ export async function handleAcceptOfferPrepare(context: Parameters<PagesFunction
   await logTradeAction(context.env, { actionId, actionName: "accept_offer", status: "requested", phase: "prepare_requested", tokenId, walletFrom: wallet, expectedPriceRaw: asString(body.expectedRawAmount), orderHash: asString(body.expectedOrderHash) });
   const apiKey = requireOpenSeaApiKey(context.env);
   const state = await getFreshTradeState(context.env, tokenId, wallet);
-  if (!state.topOffer || !pricesMatch(body.expectedRawAmount, body.expectedOrderHash, state.topOffer)) {
+  const exactItemOffer = body.exactItemOffer === true;
+  let offerToAccept = state.topOffer;
+  if (exactItemOffer) {
+    const expectedOrderHash = asString(body.expectedOrderHash);
+    const exactRow = expectedOrderHash ? await context.env.WARPLETS.prepare(
+      `SELECT order_hash, offerer_wallet, amount_eth, amount_raw, currency_symbol, protocol_address, created_at
+       FROM warplet_active_item_offers
+       WHERE token_id = ? AND lower(order_hash) = lower(?) AND active = 1
+         AND (expires_at IS NULL OR datetime(expires_at) > CURRENT_TIMESTAMP)
+       LIMIT 1`,
+    ).bind(tokenId, expectedOrderHash).first<{
+      order_hash: string;
+      offerer_wallet: string | null;
+      amount_eth: number | null;
+      amount_raw: string | null;
+      currency_symbol: string | null;
+      protocol_address: string | null;
+      created_at: string | null;
+    }>() : null;
+    offerToAccept = exactRow ? {
+      eth: exactRow.amount_eth,
+      rawAmount: exactRow.amount_raw,
+      decimals: 18,
+      currencySymbol: exactRow.currency_symbol ?? "WETH",
+      tokenAddress: BASE_WETH,
+      at: exactRow.created_at,
+      orderHash: exactRow.order_hash,
+      protocolAddress: exactRow.protocol_address ?? DEFAULT_SEAPORT_PROTOCOL,
+      offerer: normalizeWallet(exactRow.offerer_wallet),
+      source: "item" as const,
+    } : null;
+  }
+  if (state.owner.wallet && state.owner.wallet !== wallet) {
+    return tradeJson({ error: "not_token_owner", message: "Connect the wallet that owns this Warplet." }, { status: 403 });
+  }
+  if (!offerToAccept || !pricesMatch(body.expectedRawAmount, body.expectedOrderHash, offerToAccept)) {
     await logTradeAction(context.env, { actionId, actionName: "accept_offer", status: "mismatch", phase: "fresh_state_mismatch", tokenId, walletFrom: wallet, expectedPriceRaw: asString(body.expectedRawAmount), actualPriceRaw: state.topOffer?.rawAmount ?? null, orderHash: state.topOffer?.orderHash ?? null });
     return tradeJson({ status: "mismatch", actionId, freshState: state }, { status: 409 });
   }
-  const fulfillment = await prepareOfferFulfillment(apiKey, state.topOffer, wallet, tokenId);
+  const fulfillment = await prepareOfferFulfillment(apiKey, offerToAccept, wallet, tokenId);
   return tradeJson({
     status: "ready",
     actionId,
     state,
+    acceptedOffer: offerToAccept,
     fulfillment,
     chainIdHex: BASE_CHAIN_ID_HEX,
     nftApproval: {

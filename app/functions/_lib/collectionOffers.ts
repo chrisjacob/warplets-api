@@ -9,17 +9,60 @@ import {
   isEthLikeCurrency,
   marketJson,
   normalizeAddress,
+  processOffer,
   selectPreferredFidForWallet,
   upsertCriteriaOfferFromRow,
   weiToNumber,
   type MarketMoney,
   type OpenSeaMarketEnv,
 } from "./openseaMarket.js";
-import { getFreshTradeState } from "./openseaTrade.js";
 import { jsonSecure } from "./security.js";
 import { recordWarpletActivity } from "./warpletNotifications.js";
 
 export type CollectionOffersEnv = OpenSeaMarketEnv;
+
+async function refreshItemOffersForToken(env: CollectionOffersEnv, tokenId: number): Promise<void> {
+  const apiKey = requireOpenSeaApiKey(env);
+  const rows: Record<string, unknown>[] = [];
+  let cursor: string | null = null;
+  let complete = false;
+  for (let page = 0; page < 10; page += 1) {
+    const params = new URLSearchParams({ limit: "50" });
+    if (cursor) params.set("next", cursor);
+    const payload = await fetchOpenSea(
+      `/offers/collection/${COLLECTION_SLUG}/nfts/${encodeURIComponent(String(tokenId))}`,
+      apiKey,
+      params,
+    );
+    rows.push(...asArray(payload.offers ?? payload.orders)
+      .map((item) => asObject(item))
+      .filter((item): item is Record<string, unknown> => Boolean(item))
+      .filter((item) => classifyOpenSeaOffer(item) === "item"));
+    cursor = asString(payload.next);
+    if (!cursor) {
+      complete = true;
+      break;
+    }
+  }
+  await Promise.all(rows.map((row) => processOffer(env, row)));
+  // Only deactivate missing rows after consuming the complete OpenSea result set.
+  if (!complete) return;
+  const activeHashes = rows
+    .map((row) => asString(row.order_hash)?.toLowerCase() ?? null)
+    .filter((hash): hash is string => Boolean(hash));
+  if (activeHashes.length === 0) {
+    await env.WARPLETS.prepare(
+      "UPDATE warplet_active_item_offers SET active = 0, updated_at = CURRENT_TIMESTAMP WHERE token_id = ? AND active = 1",
+    ).bind(tokenId).run();
+    return;
+  }
+  const placeholders = activeHashes.map(() => "?").join(", ");
+  await env.WARPLETS.prepare(
+    `UPDATE warplet_active_item_offers
+     SET active = 0, updated_at = CURRENT_TIMESTAMP
+     WHERE token_id = ? AND active = 1 AND lower(order_hash) NOT IN (${placeholders})`,
+  ).bind(tokenId, ...activeHashes).run();
+}
 
 type CollectionOfferRow = {
   order_hash: string;
@@ -1167,13 +1210,15 @@ type ActiveItemOfferRow = {
 export async function handleItemOffersGet(context: Parameters<PagesFunction<CollectionOffersEnv>>[0]): Promise<Response> {
   const url = new URL(context.request.url);
   const wallet = normalizeAddress(url.searchParams.get("wallet"));
+  const fidValue = Number(url.searchParams.get("fid"));
+  const fid = Number.isInteger(fidValue) && fidValue > 0 ? fidValue : null;
   const tokenIdValue = Number(url.searchParams.get("tokenId"));
   const tokenId = Number.isInteger(tokenIdValue) && tokenIdValue > 0 && tokenIdValue <= 10000 ? tokenIdValue : null;
   let refreshError: string | null = null;
   if (url.searchParams.get("refresh") === "1") {
     try {
       if (tokenId) {
-        await getFreshTradeState(context.env, tokenId, wallet);
+        await refreshItemOffersForToken(context.env, tokenId);
       } else {
         await ingestOpenSeaMarket(context.env);
       }
@@ -1182,17 +1227,35 @@ export async function handleItemOffersGet(context: Parameters<PagesFunction<Coll
   }
   const requestedPage = Math.max(0, Math.floor(Number(url.searchParams.get("page")) || 0));
   const pageSize = 100;
-  const baseWhere = `active = 1
-    AND (expires_at IS NULL OR datetime(expires_at) > CURRENT_TIMESTAMP)
-    AND (currency_symbol IS NULL OR upper(currency_symbol) = 'WETH')
-    ${tokenId ? "AND token_id = ?" : ""}`;
+  const baseWhere = `o.active = 1
+    AND (o.expires_at IS NULL OR datetime(o.expires_at) > CURRENT_TIMESTAMP)
+    AND (o.currency_symbol IS NULL OR upper(o.currency_symbol) = 'WETH')
+    ${tokenId ? "AND o.token_id = ?" : ""}`;
   const baseBindings: Array<string | number> = tokenId ? [tokenId] : [];
-  const scopeIsYours = url.searchParams.get("scope") === "your" && Boolean(wallet);
-  const scopedWhere = `${baseWhere}${scopeIsYours ? " AND lower(offerer_wallet) = ?" : ""}`;
-  const scopedBindings = scopeIsYours ? [...baseBindings, wallet!] : baseBindings;
+  const scope = url.searchParams.get("scope");
+  const scopeIsYours = scope === "your" && Boolean(wallet);
+  const scopeIsForYou = scope === "for_you";
+  const ownerConditions = [wallet ? "lower(m.owner_wallet) = ?" : null, fid ? "m.owner_fid = ?" : null].filter(Boolean);
+  const forYouClause = scopeIsForYou
+    ? ownerConditions.length > 0
+      ? ` AND EXISTS (SELECT 1 FROM warplet_market_state m WHERE m.token_id = o.token_id AND (${ownerConditions.join(" OR ")}))
+          AND NOT EXISTS (
+            SELECT 1 FROM warplet_market_state self_owner
+            WHERE self_owner.token_id = o.token_id
+              AND lower(self_owner.owner_wallet) = lower(o.offerer_wallet)
+          )`
+      : " AND 1 = 0"
+    : "";
+  const scopedWhere = `${baseWhere}${scopeIsYours ? " AND lower(o.offerer_wallet) = ?" : ""}${forYouClause}`;
+  const scopedBindings = [
+    ...baseBindings,
+    ...(scopeIsYours ? [wallet!] : []),
+    ...(scopeIsForYou && wallet ? [wallet] : []),
+    ...(scopeIsForYou && fid ? [fid] : []),
+  ];
   const aggregate = await context.env.WARPLETS.prepare(
     `SELECT COUNT(*) AS offer_count, COALESCE(SUM(amount_eth), 0) AS value_eth
-     FROM warplet_active_item_offers WHERE ${scopedWhere}`,
+     FROM warplet_active_item_offers o WHERE ${scopedWhere}`,
   ).bind(...scopedBindings).first<{ offer_count: number; value_eth: number | null }>();
   const count = Math.max(0, Number(aggregate?.offer_count ?? 0));
   const totalPages = Math.max(1, Math.ceil(count / pageSize));
@@ -1200,7 +1263,7 @@ export async function handleItemOffersGet(context: Parameters<PagesFunction<Coll
   const pageRows = await context.env.WARPLETS.prepare(
     `SELECT order_hash, token_id, offerer_wallet, amount_eth, amount_raw, currency_symbol,
             protocol_address, created_at, expires_at
-     FROM warplet_active_item_offers
+     FROM warplet_active_item_offers o
      WHERE ${scopedWhere}
      ORDER BY amount_eth DESC, created_at ASC, order_hash ASC
      LIMIT ? OFFSET ?`,
@@ -1208,7 +1271,7 @@ export async function handleItemOffersGet(context: Parameters<PagesFunction<Coll
   const topRow = await context.env.WARPLETS.prepare(
     `SELECT order_hash, token_id, offerer_wallet, amount_eth, amount_raw, currency_symbol,
             protocol_address, created_at, expires_at
-     FROM warplet_active_item_offers
+     FROM warplet_active_item_offers o
      WHERE ${baseWhere}
      ORDER BY amount_eth DESC, created_at ASC, order_hash ASC
      LIMIT 1`,
