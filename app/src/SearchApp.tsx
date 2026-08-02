@@ -101,6 +101,7 @@ const OPENSEA_COLLECTION_URL = "https://opensea.io/collection/10xwarplets";
 const LAST_SEARCH_OFFERS_SUBPAGE_KEY = "warplets-search-last-offers-subpage-v1";
 const LAST_SEARCH_STATS_SUBPAGE_KEY = "warplets-search-last-stats-subpage-v1";
 const LAST_STATS_ACTIVITY_EVENT_KEY = "warplets-stats-activity-event-v1";
+const LAST_ITEM_ACTIVITY_EVENT_KEY = "warplets-item-activity-event-v1";
 const LAST_SEARCH_PERKS_SUBPAGE_KEY = "warplets-search-last-perks-subpage-v1";
 const LAST_SEARCH_LISTED_LEVEL_KEY = "warplets-search-last-listed-level-v1";
 const LISTED_SCOPE_KEY = "warplets-search-listed-scope-v1";
@@ -3160,6 +3161,19 @@ function writeLastStatsActivityEvent(value: StatsActivityEvent): void {
   window.localStorage.setItem(LAST_STATS_ACTIVITY_EVENT_KEY, value);
 }
 
+function readLastItemActivityEvent(): StatsActivityEvent {
+  if (typeof window === "undefined") return "sale";
+  const value = window.localStorage.getItem(LAST_ITEM_ACTIVITY_EVENT_KEY);
+  return value === "listing" || value === "offer" || value === "send" || value === "sale"
+    ? value
+    : "sale";
+}
+
+function writeLastItemActivityEvent(value: StatsActivityEvent): void {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(LAST_ITEM_ACTIVITY_EVENT_KEY, value);
+}
+
 function getSearchPathForRoute(route: SearchRoute): string {
   const basePath = getSearchBasePath();
   const path =
@@ -4209,7 +4223,7 @@ async function loadStatsChart() {
       if (!primarySocialKey || socialMarkerCount === 0) return;
       // Fallback for browsers that fail to emit Recharts' animation-end callback.
       // The normal path below waits for the completed line and two painted frames.
-      const lineGate = window.setTimeout(() => setLineAnimationFinished(true), 1050);
+      const lineGate = window.setTimeout(() => setLineAnimationFinished(true), 920);
       return () => window.clearTimeout(lineGate);
     }, [animationSignature, primarySocialKey]);
 
@@ -4217,7 +4231,7 @@ async function loadStatsChart() {
       if (!lineAnimationFinished || visibleMarkerCount >= socialMarkerCount) return;
       const timer = window.setTimeout(
         () => setVisibleMarkerCount((current) => Math.min(current + 1, socialMarkerCount)),
-        visibleMarkerCount === 0 ? 20 : 55,
+        visibleMarkerCount === 0 ? 10 : 90,
       );
       return () => window.clearTimeout(timer);
     }, [animationSignature, lineAnimationFinished, socialMarkerCount, visibleMarkerCount]);
@@ -4310,18 +4324,15 @@ async function loadStatsChart() {
                 yAxisId={item.axis ?? "left"}
                 stroke={item.color}
                 strokeWidth={2}
+                pathLength={1}
+                className={effectiveMarkerSeries.some((marker) => marker.key === item.key) ? "stats-activity-line-animate" : undefined}
                 dot={effectiveMarkerSeries.some((marker) => marker.key === item.key) ? false : { r: 2, fill: item.color, strokeWidth: 0 }}
                 activeDot={effectiveMarkerSeries.some((marker) => marker.key === item.key) ? false : { r: 5, fill: item.color, stroke: "#000", strokeWidth: 2 }}
                 connectNulls
                 animationId={chartAnimationId}
                 animationBegin={0}
                 animationDuration={900}
-                isAnimationActive={item.key === primarySocialKey ? !lineAnimationFinished : true}
-                onAnimationEnd={item.key === primarySocialKey ? () => {
-                  window.requestAnimationFrame(() => {
-                    window.requestAnimationFrame(() => setLineAnimationFinished(true));
-                  });
-                } : undefined}
+                isAnimationActive={item.key === primarySocialKey ? false : true}
               />
             ))}
             {primarySocialKey && lineAnimationFinished && visibleMarkerCount > 0 && markerDataSets.map((marker) => (
@@ -5794,8 +5805,11 @@ function ActivityFilterControls({ event, start, end, error, onEventChange, onSta
   </div>;
 }
 
-function CollectionActivity({ range, viewerFid, actionSessionToken, friendsAvailable, friendsOnly, onFriendsOnlyChange, ethUsdPrice, onSearchWallet, onOpenToken, requestedBucket, onBucketWindowChange, chart, selectedEvents, onSelectedEventsChange }: {
+function CollectionActivity({ range, tokenId, showItem = true, refreshKey, viewerFid, actionSessionToken, friendsAvailable, friendsOnly, onFriendsOnlyChange, ethUsdPrice, onSearchWallet, onOpenToken, requestedBucket, onBucketWindowChange, onScrollToEvents, chart, selectedEvents, onSelectedEventsChange }: {
   range: StatsRange;
+  tokenId?: number;
+  showItem?: boolean;
+  refreshKey?: string;
   viewerFid: number | null;
   actionSessionToken: string | null;
   friendsAvailable: boolean;
@@ -5806,6 +5820,7 @@ function CollectionActivity({ range, viewerFid, actionSessionToken, friendsAvail
   onOpenToken: (tokenId: number) => void;
   requestedBucket: { event: MarketActivityRow["event"]; startAt: string; endAt: string; nonce: number } | null;
   onBucketWindowChange: (window: { event: MarketActivityRow["event"]; startAt: string; endAt: string } | null) => void;
+  onScrollToEvents?: (target: HTMLElement) => void;
   chart?: ReactNode;
   selectedEvents: MarketActivityRow["event"][];
   onSelectedEventsChange: (events: MarketActivityRow["event"][]) => void;
@@ -5821,6 +5836,8 @@ function CollectionActivity({ range, viewerFid, actionSessionToken, friendsAvail
 
   const load = useCallback(async (cursor?: string) => {
     const params = new URLSearchParams({ range, limit: "20" });
+    if (tokenId != null) params.set("tokenId", String(tokenId));
+    if (refreshKey) params.set("v", refreshKey);
     params.set("events", selectedEvents.length > 0 ? selectedEvents.join(",") : "none");
     if (bucketWindow) {
       params.set("start", bucketWindow.startAt);
@@ -5846,7 +5863,7 @@ function CollectionActivity({ range, viewerFid, actionSessionToken, friendsAvail
       hasMore: next.hasMore,
       nextCursor: next.nextCursor,
     } : next);
-  }, [actionSessionToken, bucketWindow, friendsOnly, range, selectedEvents, viewerFid]);
+  }, [actionSessionToken, bucketWindow, friendsOnly, range, refreshKey, selectedEvents, tokenId, viewerFid]);
 
   useEffect(() => {
     setBucketWindow(null);
@@ -5877,7 +5894,9 @@ function CollectionActivity({ range, viewerFid, actionSessionToken, friendsAvail
   useEffect(() => {
     if (!loading && payload && pendingScrollRef.current) {
       pendingScrollRef.current = false;
-      eventsHeaderRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      const target = eventsHeaderRef.current;
+      if (target && onScrollToEvents) onScrollToEvents(target);
+      else target?.scrollIntoView({ behavior: "smooth", block: "start" });
     }
   }, [loading, payload]);
 
@@ -5975,8 +5994,8 @@ function CollectionActivity({ range, viewerFid, actionSessionToken, friendsAvail
           Friends
         </button>
       </div>
-      {loading ? <div className="py-8 text-center text-[10px] font-bold text-[#8bbf8b]">Loading collection activity...</div>
-        : <MarketActivityTable rows={payload?.rows ?? []} ethUsdPrice={ethUsdPrice} showItem hasMore={Boolean(payload?.hasMore)} loadingMore={loadingMore} onLoadMore={() => void loadMore()} onSearchWallet={onSearchWallet} onOpenToken={onOpenToken} />}
+      {loading ? <div className="py-8 text-center text-[10px] font-bold text-[#8bbf8b]">{tokenId != null ? "Loading item activity..." : "Loading collection activity..."}</div>
+        : <MarketActivityTable rows={payload?.rows ?? []} ethUsdPrice={ethUsdPrice} showItem={showItem} hasMore={Boolean(payload?.hasMore)} loadingMore={loadingMore} onLoadMore={() => void loadMore()} onSearchWallet={onSearchWallet} onOpenToken={onOpenToken} />}
       {error && <div className="mt-2 text-center text-[9px] font-bold text-red-300">{error}</div>}
     </section>
   );
@@ -6090,7 +6109,7 @@ function StatsSocial({
             <StatsChartErrorBoundary>
               <Suspense fallback={<StatsChartFallback />}>
                 <LazyStatsChart
-                  key={`social-buyers-${range}`}
+                  key={`social-activity-${range}-${selectedEvents[0] ?? "sale"}-${friendsOnly ? "friends" : "all"}`}
                   data={multiChartData}
                   series={([
                     { event: "sale", key: "salePrice", label: "Sales", color: "#FF3333" },
@@ -6680,6 +6699,177 @@ function MarketActivityTable({ rows, ethUsdPrice, showItem, hasMore, loadingMore
 }
 
 function WarpletItemActivity({
+  tokenId,
+  viewerFid,
+  actionSessionToken,
+  onSearchWallet,
+  onOpenToken,
+  refreshKey,
+  isInMiniAppContext,
+  onScrollToEvents,
+}: {
+  tokenId: number;
+  viewerFid: number | null;
+  actionSessionToken: string | null;
+  onSearchWallet: (wallet: string) => void;
+  onOpenToken: (tokenId: number) => void;
+  refreshKey: string;
+  isInMiniAppContext: boolean;
+  onScrollToEvents: (target: HTMLElement) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [range, setRange] = useState<StatsRange>("all");
+  const [selectedEvents, setSelectedEvents] = useState<MarketActivityRow["event"][]>(() => [readLastItemActivityEvent()]);
+  const [friendsOnly, setFriendsOnly] = useState(false);
+  const [activityChart, setActivityChart] = useState<ActivityChartPayload | null>(null);
+  const [activityChartLoading, setActivityChartLoading] = useState(false);
+  const [ethUsdPrice, setEthUsdPrice] = useState<number | null>(null);
+  const [requestedBucket, setRequestedBucket] = useState<{ event: MarketActivityRow["event"]; startAt: string; endAt: string; nonce: number } | null>(null);
+  const [activeBucketWindow, setActiveBucketWindow] = useState<{ event: MarketActivityRow["event"]; startAt: string; endAt: string } | null>(null);
+
+  const selectActivityEvents = useCallback((events: MarketActivityRow["event"][]) => {
+    const event = events[0] ?? "sale";
+    setSelectedEvents([event]);
+    writeLastItemActivityEvent(event);
+  }, []);
+
+  useEffect(() => {
+    setOpen(false);
+    setRange("all");
+    setFriendsOnly(false);
+    setRequestedBucket(null);
+    setActiveBucketWindow(null);
+  }, [tokenId]);
+
+  useEffect(() => {
+    if (open && ethUsdPrice == null) fetchEthUsdPrice().then(setEthUsdPrice).catch(() => undefined);
+  }, [ethUsdPrice, open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const controller = new AbortController();
+    const personalized = friendsOnly && viewerFid != null && actionSessionToken != null;
+    const cacheKey = `item:${tokenId}:${personalized ? `friends:${viewerFid}` : "public"}:${range}:${refreshKey}`;
+    const cached = statsActivityChartCache.get(cacheKey);
+    if (cached && Date.now() - cached.loadedAt <= STATS_CLIENT_CACHE_TTL_MS) {
+      setActivityChart(cached.payload);
+      setActivityChartLoading(false);
+      return () => controller.abort();
+    }
+    setActivityChart(null);
+    setActivityChartLoading(true);
+    const params = new URLSearchParams({ tokenId: String(tokenId), range, limit: "1", chart: "1", v: refreshKey });
+    if (personalized) {
+      params.set("friends", "1");
+      params.set("fid", String(viewerFid));
+    }
+    fetch(`/api/stats/activity?${params.toString()}`, {
+      headers: {
+        accept: "application/json",
+        ...(personalized ? { authorization: `Bearer ${actionSessionToken}` } : {}),
+      },
+      credentials: "same-origin",
+      signal: controller.signal,
+    }).then(async (response) => {
+      const result = await response.json() as MarketActivityPayload;
+      if (!response.ok) throw new Error(`Item activity chart failed (${response.status})`);
+      const chart = result.chart ?? null;
+      statsActivityChartCache.set(cacheKey, { payload: chart, loadedAt: Date.now() });
+      setActivityChart(chart);
+    }).catch((error) => {
+      if (!(error instanceof DOMException && error.name === "AbortError")) console.warn("Item activity chart failed:", error);
+    }).finally(() => {
+      if (!controller.signal.aborted) setActivityChartLoading(false);
+    });
+    return () => controller.abort();
+  }, [actionSessionToken, friendsOnly, open, range, refreshKey, tokenId, viewerFid]);
+
+  const showBucketActivity = useCallback((event: MarketActivityRow["event"], startAt: string, endAt: string) => {
+    selectActivityEvents([event]);
+    setActiveBucketWindow({ event, startAt, endAt });
+    setRequestedBucket({ event, startAt, endAt, nonce: Date.now() });
+  }, [selectActivityEvents]);
+  const multiChartData = activityMultiChartData(activityChart);
+
+  return (
+    <section className="mt-3 overflow-hidden rounded-xl border border-[#00FF00]/20 bg-[#041204]/60">
+      <button
+        type="button"
+        onClick={() => {
+          void hapticSelectionChanged();
+          setOpen((current) => !current);
+        }}
+        className="flex w-full cursor-pointer items-center justify-between px-3 py-3 text-left"
+        aria-expanded={open}
+      >
+        <span className="block text-[10px] font-black uppercase text-[#00FF00]">Item Activity</span>
+        <span className="grid h-7 w-7 shrink-0 place-items-center rounded-md bg-[#00FF00] text-[rgb(0,80,0)]">
+          <svg viewBox="0 0 24 24" aria-hidden="true" className={`h-4 w-4 transition-transform ${open ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="m6 9 6 6 6-6" />
+          </svg>
+        </span>
+      </button>
+      {open && (
+        <div className="border-t border-[#00FF00]/15 px-2 pb-3 pt-2">
+          <SearchSegmentedTabs className="mb-4" options={STATS_RANGE_TABS} activeId={range} onSelect={(id) => setRange(id as StatsRange)} gridTemplateColumns="repeat(5,minmax(0,1fr))" />
+          <CollectionActivity
+            range={range}
+            tokenId={tokenId}
+            showItem={false}
+            refreshKey={refreshKey}
+            viewerFid={viewerFid}
+            actionSessionToken={actionSessionToken}
+            friendsAvailable={Boolean(viewerFid && actionSessionToken)}
+            friendsOnly={friendsOnly}
+            onFriendsOnlyChange={setFriendsOnly}
+            ethUsdPrice={ethUsdPrice}
+            onSearchWallet={onSearchWallet}
+            onOpenToken={onOpenToken}
+            requestedBucket={requestedBucket}
+            onBucketWindowChange={setActiveBucketWindow}
+            onScrollToEvents={onScrollToEvents}
+            selectedEvents={selectedEvents}
+            onSelectedEventsChange={selectActivityEvents}
+            chart={activityChartLoading
+              ? <div className="flex h-[260px] items-center justify-center text-xs font-bold text-[#8bbf8b]">Loading item activity...</div>
+              : <div className="-mx-2 w-[calc(100%+1rem)]">
+                <StatsChartErrorBoundary>
+                  <Suspense fallback={<StatsChartFallback />}>
+                    <LazyStatsChart
+                      key={`item-activity-${tokenId}-${range}-${selectedEvents[0]}-${friendsOnly}-${refreshKey}`}
+                      data={multiChartData}
+                      series={([
+                        { event: "sale", key: "salePrice", label: "Sales", color: "#FF3333" },
+                        { event: "listing", key: "listingPrice", label: "Listings", color: "#FFFF00" },
+                        { event: "offer", key: "offerPrice", label: "Offers", color: "#33AAFF" },
+                        { event: "send", key: "sendPrice", label: "Sends", color: "#00FF00" },
+                      ] as const).filter((item) => selectedEvents.includes(item.event)).map((item) => ({ ...item, type: "line" as const }))}
+                      markerSeries={([
+                        { event: "sale", key: "salePrice", color: "#FF3333" },
+                        { event: "listing", key: "listingPrice", color: "#FFFF00" },
+                        { event: "offer", key: "offerPrice", color: "#33AAFF" },
+                        { event: "send", key: "sendPrice", color: "#00FF00" },
+                      ] as const).filter((item) => selectedEvents.includes(item.event))}
+                      socialRole="buyer"
+                      hideMarketplace
+                      height={351}
+                      onOpenToken={onOpenToken}
+                      onSearchWallet={onSearchWallet}
+                      onShowBucketActivity={showBucketActivity}
+                      isInMiniAppContext={isInMiniAppContext}
+                      activeBucket={activeBucketWindow}
+                    />
+                  </Suspense>
+                </StatsChartErrorBoundary>
+              </div>}
+          />
+        </div>
+      )}
+    </section>
+  );
+}
+
+function LegacyWarpletItemActivity({
   tokenId,
   viewerFid,
   actionSessionToken,
@@ -12893,6 +13083,16 @@ function WarpletDetailsModal({
     container.scrollTo({ top: Math.max(0, targetTop), behavior: "smooth" });
   }, [getModalScrollbars]);
 
+  const scrollActivityEventsIntoView = useCallback((target: HTMLElement) => {
+    const container = getModalScrollbars()?.elements().viewport ?? modalScrollRef.current;
+    if (!container) return;
+    const containerRect = container.getBoundingClientRect();
+    const targetRect = target.getBoundingClientRect();
+    const headerHeight = modalHeaderRef.current?.getBoundingClientRect().height ?? 0;
+    const targetTop = container.scrollTop + targetRect.top - containerRect.top - headerHeight - 8;
+    container.scrollTo({ top: Math.max(0, targetTop), behavior: "smooth" });
+  }, [getModalScrollbars]);
+
   const focusTradeInput = useCallback((mode: "offer" | "list") => {
     scrollTradeFormToTop(mode);
     const input = mode === "offer" ? offerInputRef.current : listingInputRef.current;
@@ -13474,6 +13674,7 @@ function WarpletDetailsModal({
                 onOpenToken={onOpenRelatedWarplet}
                 refreshKey={`${effectiveListing?.at ?? ""}|${effectiveItemOffer?.at ?? ""}|${effectiveSale?.at ?? ""}|${effectiveOwner?.wallet ?? ""}`}
                 isInMiniAppContext={isInMiniAppContext}
+                onScrollToEvents={scrollActivityEventsIntoView}
               />
 
               {ATTRIBUTE_GROUPS.map((group) => (

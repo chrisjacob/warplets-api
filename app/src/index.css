@@ -61,6 +61,17 @@ button {
   transform-origin: center;
 }
 
+.stats-activity-line-animate .recharts-line-curve,
+path.stats-activity-line-animate {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: stats-activity-line-draw 900ms ease forwards;
+}
+
+@keyframes stats-activity-line-draw {
+  to { stroke-dashoffset: 0; }
+}
+
 @keyframes stats-social-marker-pop {
   0% { opacity: 0; transform: scale(0.25); }
   70% { opacity: 1; transform: scale(1.12); }
@@ -70,6 +81,12 @@ button {
 @media (prefers-reduced-motion: reduce) {
   .stats-social-marker-pop {
     animation: none;
+  }
+
+  .stats-activity-line-animate .recharts-line-curve,
+  path.stats-activity-line-animate {
+    animation: none;
+    stroke-dashoffset: 0;
   }
 }
 
