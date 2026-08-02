@@ -100,6 +100,7 @@ const STATUS_LINE_CLASS = "text-center text-xs uppercase leading-4";
 const OPENSEA_COLLECTION_URL = "https://opensea.io/collection/10xwarplets";
 const LAST_SEARCH_OFFERS_SUBPAGE_KEY = "warplets-search-last-offers-subpage-v1";
 const LAST_SEARCH_STATS_SUBPAGE_KEY = "warplets-search-last-stats-subpage-v1";
+const LAST_STATS_ACTIVITY_EVENT_KEY = "warplets-stats-activity-event-v1";
 const LAST_SEARCH_PERKS_SUBPAGE_KEY = "warplets-search-last-perks-subpage-v1";
 const LAST_SEARCH_LISTED_LEVEL_KEY = "warplets-search-last-listed-level-v1";
 const LISTED_SCOPE_KEY = "warplets-search-listed-scope-v1";
@@ -122,6 +123,7 @@ type SearchCompletion = "onboarding" | "airdrop_modal";
 type SearchOffersSubpage = "collection" | "trait" | "item";
 type SearchStatsSubpage = "overview" | "market" | "social" | "holders";
 type StatsRange = "7d" | "30d" | "90d" | "1y" | "all";
+type StatsActivityEvent = "sale" | "listing" | "offer" | "send";
 type ListedLevelFilter = "all" | "10x" | "9x" | "8x" | "7x" | "6x" | "5x" | "4x" | "3x" | "2x" | "1x";
 type ListedScopeFilter = "all" | "your" | "favourites" | "sweep";
 type SearchRoute =
@@ -165,7 +167,7 @@ const ITEM_OFFERS_FILTER_TABS = [
 const STATS_SUBPAGE_TABS: Array<{ id: SearchStatsSubpage; label: string }> = [
   { id: "overview", label: "Overview" },
   { id: "market", label: "Market" },
-  { id: "social", label: "Social" },
+  { id: "social", label: "Activity" },
   { id: "holders", label: "Holders" },
 ];
 
@@ -3145,6 +3147,19 @@ function writeLastSearchStatsSubpage(value: SearchStatsSubpage): void {
   window.localStorage.setItem(LAST_SEARCH_STATS_SUBPAGE_KEY, value);
 }
 
+function readLastStatsActivityEvent(): StatsActivityEvent {
+  if (typeof window === "undefined") return "sale";
+  const value = window.localStorage.getItem(LAST_STATS_ACTIVITY_EVENT_KEY);
+  return value === "listing" || value === "offer" || value === "send" || value === "sale"
+    ? value
+    : "sale";
+}
+
+function writeLastStatsActivityEvent(value: StatsActivityEvent): void {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(LAST_STATS_ACTIVITY_EVENT_KEY, value);
+}
+
 function getSearchPathForRoute(route: SearchRoute): string {
   const basePath = getSearchBasePath();
   const path =
@@ -3586,6 +3601,7 @@ type StatsApiEnvelope = {
 };
 
 const STATS_CLIENT_CACHE_TTL_MS = 60_000;
+const statsActivityChartCache = new Map<string, { payload: ActivityChartPayload | null; loadedAt: number }>();
 const STATS_OVERVIEW_CACHE_KEY = "stats:overview:all:farcaster-holders-v1";
 const STATS_OVERVIEW_URL = "/api/stats/overview?range=all&view=farcaster-holders-v1";
 const STATS_BACKGROUND_PREFETCH_DELAY_MS = 750;
@@ -3787,7 +3803,12 @@ type StatsChartProps = {
   hideEthSymbol?: boolean;
   socialRole?: "buyer" | "seller";
   onShowBucketSales?: (startAt: string, endAt: string) => void;
+  onShowBucketActivity?: (event: MarketActivityRow["event"], startAt: string, endAt: string) => void;
   onSearchWallet?: (wallet: string) => void;
+  flushMargins?: boolean;
+  markerSeries?: Array<{ key: string; event: MarketActivityRow["event"]; color: string }>;
+  isInMiniAppContext?: boolean;
+  activeBucket?: { event: MarketActivityRow["event"]; startAt: string; endAt: string } | null;
 };
 
 let statsChartAnimationId = 0;
@@ -3805,7 +3826,7 @@ async function loadStatsChart() {
     YAxis,
   } = await import("recharts");
 
-  function SocialMarker(props: { forceActive?: boolean; revealReady?: boolean; revealCount?: number; selectedMarkerIndex?: number | null; onSelectMarker?: (index: number) => void } & Record<string, unknown>) {
+  function SocialMarker(props: { forceActive?: boolean; revealReady?: boolean; revealCount?: number; selectedMarkerId?: string | null; onSelectMarker?: (point: StatsChartDatum) => void } & Record<string, unknown>) {
     const marker = unknownRecord(props);
     const payload = unknownRecord(marker?.payload);
     const cx = typeof marker?.cx === "number" ? marker.cx : 0;
@@ -3816,16 +3837,19 @@ async function loadStatsChart() {
     const revealReady = marker?.revealReady === true;
     const revealCount = typeof marker?.revealCount === "number" ? marker.revealCount : 0;
     const forceActive = marker?.forceActive === true;
-    const selectedMarkerIndex = typeof marker?.selectedMarkerIndex === "number" ? marker.selectedMarkerIndex : null;
-    const selected = markerIndex === selectedMarkerIndex;
-    const saleCount = typeof payload?.saleCount === "number" ? payload.saleCount : 0;
+    const selectedMarkerId = typeof marker?.selectedMarkerId === "string" ? marker.selectedMarkerId : null;
+    const markerId = typeof payload?.markerId === "string" ? payload.markerId : String(markerIndex);
+    const selected = markerId === selectedMarkerId;
+    const saleCount = typeof payload?.eventCount === "number" ? payload.eventCount : typeof payload?.saleCount === "number" ? payload.saleCount : 0;
+    const markerColor = typeof payload?.markerColor === "string" ? payload.markerColor : "#FF3333";
+    const chipBackground = typeof payload?.markerChipBackground === "string" ? payload.markerChipBackground : "#250303";
     const avatarUrl =
       typeof payload?.avatarUrl === "string" &&
       payload?.showMarker !== false &&
       (payload?.showAvatar !== false || forceActive)
         ? payload.avatarUrl
         : null;
-    const radius = forceActive ? 13 : 11;
+    const radius = forceActive ? 15 : 13;
     const clipId = `stats-avatar-${String(payload?.fid ?? payload?.wallet ?? `${cx}-${cy}`).replace(/[^a-zA-Z0-9_-]/g, "")}-${Math.round(cx)}-${Math.round(cy)}`;
 
     // Scatter can eagerly create every shape even when its data prop changes. Keep
@@ -3833,14 +3857,14 @@ async function loadStatsChart() {
     if (!revealReady || markerIndex >= revealCount) return <g />;
 
     const selectMarker = (event: React.MouseEvent<SVGGElement>) => {
-      if (typeof marker?.onSelectMarker === "function" && Number.isFinite(markerIndex)) marker.onSelectMarker(markerIndex);
+      if (typeof marker?.onSelectMarker === "function" && Number.isFinite(markerIndex)) marker.onSelectMarker(payload as StatsChartDatum);
     };
     const countLabel = saleCount.toLocaleString("en-US");
-    const countWidth = Math.max(22, 10 + countLabel.length * 6);
+    const countWidth = Math.max(25, 11 + countLabel.length * 7);
 
     return (
       <g onClick={selectMarker} className="stats-social-marker-pop" style={{ cursor: "pointer", transformBox: "fill-box", transformOrigin: "center" }}>
-        {selected && <circle cx={cx} cy={cy} r={radius + 3} fill="none" stroke="#FFFF00" strokeWidth="2" style={{ filter: "drop-shadow(0 0 5px rgba(255,255,0,0.95))" }} />}
+        {selected && <circle cx={cx} cy={cy} r={radius + 1} fill="none" stroke={markerColor} strokeWidth="2" style={{ filter: `drop-shadow(0 0 5px ${markerColor})` }} />}
         <defs>
           <clipPath id={clipId}>
             <circle cx={cx} cy={cy} r={radius} />
@@ -3848,8 +3872,8 @@ async function loadStatsChart() {
         </defs>
         {avatarUrl ? <image href={avatarUrl} x={cx - radius} y={cy - radius} width={radius * 2} height={radius * 2} preserveAspectRatio="xMidYMid slice" clipPath={`url(#${clipId})`} /> : <circle cx={cx} cy={cy} r={radius} fill="#00FF00" />}
         {saleCount > 0 && <g pointerEvents="none">
-          <rect x={cx - countWidth / 2} y={cy - radius - 15} width={countWidth} height={12} rx={5} fill="#250303" stroke="#FF3333" strokeWidth="1" />
-          <text x={cx} y={cy - radius - 6} textAnchor="middle" fill="#FF5555" fontSize="8" fontWeight="900">{countLabel}</text>
+          <rect x={cx - countWidth / 2} y={cy - radius - 17} width={countWidth} height={14} rx={6} fill={chipBackground} stroke={markerColor} strokeWidth="1" />
+          <text x={cx} y={cy - radius - 7} textAnchor="middle" fill={markerColor} fontSize="9" fontWeight="900">{countLabel}</text>
         </g>}
       </g>
     );
@@ -3865,7 +3889,10 @@ async function loadStatsChart() {
     socialRole,
     onClose,
     onShowBucketSales,
+    onShowBucketActivity,
     onSearchWallet,
+    selectedPoint,
+    isInMiniAppContext,
   }: {
     active?: boolean;
     payload?: Array<{
@@ -3881,21 +3908,30 @@ async function loadStatsChart() {
     socialRole?: "buyer" | "seller";
     onClose?: () => void;
     onShowBucketSales?: (startAt: string, endAt: string) => void;
+    onShowBucketActivity?: (event: MarketActivityRow["event"], startAt: string, endAt: string) => void;
     onSearchWallet?: (wallet: string) => void;
+    selectedPoint?: StatsChartDatum | null;
+    isInMiniAppContext?: boolean;
   }) {
-    if (!active || !payload?.length) return null;
-    const point = payload.find((item) => item.payload)?.payload;
+    if (!active || (!selectedPoint && !payload?.length)) return null;
+    const point = selectedPoint ?? payload?.find((item) => item.payload)?.payload;
     const buyerUsername = typeof point?.buyerUsername === "string" ? point.buyerUsername : null;
     const sellerUsername = typeof point?.sellerUsername === "string" ? point.sellerUsername : null;
     const transactionHash = typeof point?.transactionHash === "string" ? point.transactionHash : null;
     const marketplace = typeof point?.marketplace === "string" ? point.marketplace : null;
-    const count = typeof point?.saleCount === "number" ? point.saleCount : null;
+    const count = typeof point?.eventCount === "number" ? point.eventCount : typeof point?.saleCount === "number" ? point.saleCount : null;
+    const eventType = (statsString(point?.eventType) ?? "sale") as MarketActivityRow["event"];
     const tokenId = typeof point?.tokenId === "number" ? point.tokenId : null;
-    const saleAmount = statsNumber(point?.salePrice ?? payload.find((item) => typeof item.value === "number")?.value);
-    const buyerAvatarUrl = statsString(point?.buyerAvatarUrl);
-    const sellerAvatarUrl = statsString(point?.sellerAvatarUrl);
-    const buyerWallet = statsString(point?.buyerWallet);
-    const sellerWallet = statsString(point?.sellerWallet);
+    const saleAmount = statsNumber(point?.eventAveragePrice ?? point?.salePrice ?? payload?.find((item) => typeof item.value === "number")?.value);
+    const topSaleAmount = statsNumber(point?.topEventPrice ?? point?.topSalePrice);
+    const buyerAvatarUrl = statsString(point?.toAvatarUrl ?? point?.buyerAvatarUrl);
+    const sellerAvatarUrl = statsString(point?.fromAvatarUrl ?? point?.sellerAvatarUrl);
+    const buyerWallet = statsString(point?.toWallet ?? point?.buyerWallet);
+    const sellerWallet = statsString(point?.fromWallet ?? point?.sellerWallet);
+    const toUsername = statsString(point?.toUsername ?? point?.buyerUsername);
+    const fromUsername = statsString(point?.fromUsername ?? point?.sellerUsername);
+    const toFid = statsInteger(point?.toFid ?? point?.buyerFid);
+    const fromFid = statsInteger(point?.fromFid ?? point?.sellerFid);
     const saleDate = point?.timestamp
       ? new Date(point.timestamp).toLocaleDateString("en-US", { month: "short", day: "numeric" })
       : typeof label === "string" ? label : point?.label;
@@ -3906,18 +3942,44 @@ async function loadStatsChart() {
       : null;
 
     if (socialRole) {
-      const formattedSaleAmount = saleAmount == null
+      const formattedSaleAmount = saleAmount == null || eventType === "send"
         ? "—"
         : `${saleAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 8 })} Ξ`;
+      const formattedTopSaleAmount = topSaleAmount == null || eventType === "send"
+        ? "—"
+        : `${topSaleAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 8 })} Ξ`;
+      const eventLabel = eventType === "sale" ? "Sale" : eventType === "listing" ? "Listing" : eventType === "offer" ? "Offer" : "Send";
+      const eventPlural = eventType === "sale" ? "Sales" : eventType === "listing" ? "Listings" : eventType === "offer" ? "Offers" : "Sends";
+      const countChipClass = eventType === "sale"
+        ? "border-[#FF3333] bg-[#250303] text-[#FF5555]"
+        : eventType === "listing"
+          ? "border-[#FFFF00] bg-[#252503] text-[#FFFF00]"
+          : eventType === "offer"
+            ? "border-[#33AAFF] bg-[#031825] text-[#33AAFF]"
+            : "border-[#00FF00] bg-[#032503] text-[#00FF00]";
+      const showActivity = onShowBucketActivity
+        ? () => { onShowBucketActivity(eventType, bucketStartAt!, bucketEndAt!); onClose?.(); }
+        : onShowBucketSales ? () => { onShowBucketSales(bucketStartAt!, bucketEndAt!); onClose?.(); } : undefined;
+      const openFarcasterProfile = (fid: number | null, username: string | null) => {
+        if (!fid && !username) return;
+        void hapticTap();
+        if (isInMiniAppContext && fid) {
+          sdk.actions.viewProfile({ fid }).catch((error) => console.error("Failed to open activity profile:", error));
+          return;
+        }
+        if (username) {
+          openExternalAsset(`https://farcaster.xyz/${encodeURIComponent(username.replace(/^@/, ""))}`).catch((error) => console.error("Failed to open activity profile URL:", error));
+        }
+      };
       return (
         <div onClick={(event) => event.stopPropagation()} className="relative w-72 min-h-52 rounded-xl border border-[#00FF00]/55 bg-black px-4 py-3 text-[11px] shadow-[0_0_22px_rgba(0,255,0,0.2)]">
-          {onClose && <button type="button" aria-label="Close sale details" onClick={(event) => { event.stopPropagation(); onClose(); }} className="absolute right-1.5 top-1.5 grid h-6 w-6 cursor-pointer place-items-center rounded-md border border-[#FF5555]/60 bg-black text-[#FF5555]">×</button>}
+          {onClose && <button type="button" aria-label="Close activity details" onClick={(event) => { event.stopPropagation(); onClose(); }} className="absolute right-1.5 top-1.5 flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border border-[#00FF00]/35 bg-black text-[#00FF00] hover:bg-[#041204]"><svg aria-hidden="true" viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><path d="M6 6l12 12"/><path d="M18 6L6 18"/></svg></button>}
           <div className="pr-6 font-black">
-            <span className="text-[#00FF00]">{formattedSaleAmount} Avg.</span>{" "}
-            {bucketDateRange && onShowBucketSales ? <button type="button" onClick={() => onShowBucketSales(bucketStartAt!, bucketEndAt!)} className="cursor-pointer text-white underline decoration-[#00FF00] underline-offset-2">{bucketDateRange}</button> : <span className="text-white">{bucketDateRange ?? saleDate}</span>}
-            {count != null && <span className="ml-1 inline-flex rounded-full border border-[#FF3333] bg-[#250303] px-1.5 py-0.5 text-[9px] text-[#FF5555]">{count.toLocaleString("en-US")} {count === 1 ? "Sale" : "Sales"}</span>}
+            {eventType !== "send" && <><span className="text-[#00FF00]">{formattedSaleAmount} Average</span>{" "}</>}
+            {bucketDateRange && showActivity ? <button type="button" onClick={showActivity} className="cursor-pointer text-white underline decoration-[#00FF00] underline-offset-2">{bucketDateRange}</button> : <span className="text-white">{bucketDateRange ?? saleDate}</span>}
           </div>
-          <div className="mt-2 grid grid-cols-3 gap-2 text-center">
+          <div className="mt-1 font-black">{eventType !== "send" && <span className="text-[#00FF00]">{formattedTopSaleAmount} </span>}<span className="text-white">{eventType === "send" ? "Latest Send..." : `Top ${eventLabel}...`}</span></div>
+          <div className={`mt-2 grid ${eventType === "listing" ? "grid-cols-2" : "grid-cols-3"} gap-2 text-center`}>
             <div className="min-w-0">
               <span className="mb-1 block font-black text-[#8bbf8b]">Warplet</span>
               {tokenId ? (
@@ -3936,31 +3998,30 @@ async function loadStatsChart() {
               ) : <span className="text-[#8bbf8b]">—</span>}
             </div>
             {([
-              { label: "Buyer", username: buyerUsername, avatarUrl: buyerAvatarUrl, wallet: buyerWallet },
-              { label: "Seller", username: sellerUsername, avatarUrl: sellerAvatarUrl, wallet: sellerWallet },
-            ] as const).map((party) => (
+              { label: "From", fid: fromFid, username: fromUsername, avatarUrl: sellerAvatarUrl, wallet: sellerWallet },
+              ...(eventType === "listing" ? [] : [{ label: "To", fid: toFid, username: toUsername, avatarUrl: buyerAvatarUrl, wallet: buyerWallet }]),
+            ]).map((party) => (
               <div key={party.label} className="min-w-0">
                 <span className="mb-1 block font-black text-[#8bbf8b]">{party.label}</span>
                 {party.avatarUrl || party.wallet ? (
-                  party.username ? <a href={`https://farcaster.xyz/${encodeURIComponent(party.username.replace(/^@/, ""))}`} target="_blank" rel="noreferrer" className="mx-auto block h-14 w-14 cursor-pointer"><img src={party.avatarUrl ?? getWalletIdenticonDataUrl(party.wallet!)} alt="" className="h-14 w-14 rounded-full object-cover" /></a>
+                  party.username ? <button type="button" onClick={() => openFarcasterProfile(party.fid, party.username)} className="mx-auto block h-14 w-14 cursor-pointer"><img src={party.avatarUrl ?? getWalletIdenticonDataUrl(party.wallet!)} alt="" className="h-14 w-14 rounded-full object-cover" /></button>
                     : <button type="button" onClick={() => party.wallet && onSearchWallet?.(party.wallet)} className="mx-auto block h-14 w-14 cursor-pointer"><img src={getWalletIdenticonDataUrl(party.wallet!)} alt="" className="h-14 w-14 rounded-full object-cover" /></button>
                 ) : (
                   <span className="mx-auto block h-14 w-14 rounded-full bg-[#00FF00]" />
                 )}
                 {party.username ? (
-                  <a
-                    href={`https://farcaster.xyz/${encodeURIComponent(party.username.replace(/^@/, ""))}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="mt-1 block cursor-pointer truncate font-black text-[#00FF00] underline underline-offset-2"
+                  <button
+                    type="button"
+                    onClick={() => openFarcasterProfile(party.fid, party.username)}
+                    className="mt-1 block w-full cursor-pointer truncate text-center font-black text-[#00FF00] underline underline-offset-2"
                   >
                     @{party.username.replace(/^@/, "")}
-                  </a>
+                  </button>
                 ) : party.wallet ? <button type="button" onClick={() => onSearchWallet?.(party.wallet!)} className="mt-1 block w-full cursor-pointer truncate text-[#8bbf8b] underline">{formatShortWallet(party.wallet)}</button> : <span className="mt-1 block truncate text-[#8bbf8b]">Unknown</span>}
               </div>
             ))}
           </div>
-          {count != null && count > 1 && bucketStartAt && bucketEndAt && onShowBucketSales && <button type="button" onClick={() => onShowBucketSales(bucketStartAt, bucketEndAt)} className="mt-3 w-full cursor-pointer rounded-lg border border-[#00FF00]/45 bg-black px-2 py-2 font-black text-[#00FF00] hover:bg-[#041204]">Show {count.toLocaleString("en-US")} Sales</button>}
+          {count != null && count > 0 && bucketStartAt && bucketEndAt && showActivity && <button type="button" onClick={showActivity} className="mt-3 flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-[#00FF00]/45 bg-black px-2 py-2 font-black text-[#00FF00] hover:bg-[#041204]">Show <span className={`inline-flex min-w-6 items-center justify-center rounded-full border px-1.5 py-0.5 text-[10px] leading-none ${countChipClass}`}>{count.toLocaleString("en-US")}</span> {count === 1 ? eventLabel : eventPlural}</button>}
         </div>
       );
     }
@@ -3968,8 +4029,8 @@ async function loadStatsChart() {
     return (
       <div className="max-w-56 rounded-lg border border-[#00FF00]/45 bg-black px-3 py-2 text-[10px] shadow-2xl">
         <div className="font-black text-[#8bbf8b]">{typeof label === "string" ? label : point?.label}</div>
-        {payload
-          .filter((item, index) => item.value != null && payload.findIndex((other) => other.name === item.name) === index)
+        {(payload ?? [])
+          .filter((item, index) => item.value != null && (payload ?? []).findIndex((other) => other.name === item.name) === index)
           .map((item) => (
             <div key={item.name} className="mt-1 flex items-center justify-between gap-3 font-bold" style={{ color: item.color ?? "#00FF00" }}>
               <span>{item.name ?? "Value"}</span>
@@ -4056,7 +4117,12 @@ async function loadStatsChart() {
     hideEthSymbol,
     socialRole,
     onShowBucketSales,
+    onShowBucketActivity,
     onSearchWallet,
+    flushMargins,
+    markerSeries,
+    isInMiniAppContext,
+    activeBucket,
   }: StatsChartProps) {
     const [chartAnimationId] = useState(() => {
       statsChartAnimationId += 1;
@@ -4064,35 +4130,88 @@ async function loadStatsChart() {
     });
     const hasRightAxis = series.some((item) => item.axis === "right");
     let socialMarkerCount = 0;
+    const effectiveMarkerSeries = markerSeries?.length
+      ? markerSeries
+      : socialKey ? [{ key: socialKey, event: "sale" as const, color: "#FF3333" }] : [];
+    const primarySocialKey = effectiveMarkerSeries[0]?.key;
     // Scatter must retain the line's complete categorical sequence. Filtering it
     // down to avatar-bearing points makes Recharts redistribute those points over
     // the chart width, which visually detaches markers from their sale values.
-    const socialMarkerData: StatsChartDatum[] = socialKey
-      ? data.map((point) => {
-        const hasMarker = point.showUnknownMarker === true || (
-          typeof point.avatarUrl === "string" && point.showMarker !== false && point.showAvatar !== false
-        );
-        const markerRevealIndex = hasMarker ? socialMarkerCount++ : Number.POSITIVE_INFINITY;
-        return { ...point, markerRevealIndex };
-      })
-      : [];
-    const animationSignature = socialKey
-      ? `${socialKey}:${socialMarkerData.filter((point) => Number.isFinite(point.markerRevealIndex)).map((point) => `${point.timestamp ?? point.label}:${String(point[socialKey] ?? "")}:${point.wallet ?? ""}`).join("|")}`
+    const revealIndexes = new Map<string, number>();
+    data.forEach((point, index) => effectiveMarkerSeries.forEach((marker) => {
+      if ((statsNumber(point[`${marker.event}Count`]) ?? 0) > 0 || (!markerSeries && point.showMarker !== false)) {
+        revealIndexes.set(`${marker.event}:${index}`, socialMarkerCount++);
+      }
+    }));
+    const markerDataSets = effectiveMarkerSeries.map((marker) => ({
+      ...marker,
+      data: data.map((point, index): StatsChartDatum => markerSeries ? {
+        ...point,
+        markerId: `${marker.event}:${index}`,
+        markerRevealIndex: revealIndexes.get(`${marker.event}:${index}`) ?? Number.POSITIVE_INFINITY,
+        markerColor: marker.color,
+        markerChipBackground: marker.event === "sale" ? "#250303" : marker.event === "listing" ? "#252503" : marker.event === "offer" ? "#031825" : "#032503",
+        eventType: marker.event,
+        eventCount: point[`${marker.event}Count`] ?? 0,
+        eventAveragePrice: point[marker.key] ?? null,
+        topEventPrice: point[`${marker.event}TopPrice`] ?? null,
+        tokenId: statsInteger(point[`${marker.event}TokenId`]),
+        transactionHash: point[`${marker.event}TransactionHash`] ?? null,
+        fromWallet: point[`${marker.event}FromWallet`] ?? null,
+        fromFid: point[`${marker.event}FromFid`] ?? null,
+        fromUsername: point[`${marker.event}FromUsername`] ?? null,
+        fromAvatarUrl: point[`${marker.event}FromAvatarUrl`] ?? null,
+        toWallet: point[`${marker.event}ToWallet`] ?? null,
+        toFid: point[`${marker.event}ToFid`] ?? null,
+        toUsername: point[`${marker.event}ToUsername`] ?? null,
+        toAvatarUrl: point[`${marker.event}ToAvatarUrl`] ?? null,
+        avatarUrl: statsString(point[`${marker.event}AvatarUrl`]),
+        wallet: statsString(point[`${marker.event}Wallet`]),
+        showMarker: (statsNumber(point[`${marker.event}Count`]) ?? 0) > 0,
+        showAvatar: (statsNumber(point[`${marker.event}Count`]) ?? 0) > 0,
+      } : {
+        ...point,
+        markerId: `sale:${index}`,
+        markerRevealIndex: revealIndexes.get(`sale:${index}`) ?? Number.POSITIVE_INFINITY,
+        markerColor: marker.color,
+        eventType: "sale",
+        eventCount: point.saleCount ?? 0,
+        eventAveragePrice: point[marker.key] ?? null,
+        topEventPrice: point.topSalePrice ?? null,
+      }),
+    }));
+    const animationSignature = primarySocialKey
+      ? markerDataSets.flatMap((set) => set.data.filter((point) => Number.isFinite(point.markerRevealIndex)).map((point) => `${point.markerId}:${point.timestamp ?? point.label}:${String(point[set.key] ?? "")}`)).join("|")
       : "";
     const [lineAnimationFinished, setLineAnimationFinished] = useState(false);
     const [visibleMarkerCount, setVisibleMarkerCount] = useState(0);
-    const [selectedMarkerIndex, setSelectedMarkerIndex] = useState<number | null>(null);
+    const [selectedPoint, setSelectedPoint] = useState<StatsChartDatum | null>(null);
+    const activeBucketMidpoint = activeBucket
+      ? (Date.parse(activeBucket.startAt) + Date.parse(activeBucket.endAt)) / 2
+      : Number.NaN;
+    const activeBucketIndex = activeBucket
+      ? data.findIndex((point) => {
+          const pointStart = Date.parse(statsString(point.bucketStartAt) ?? "");
+          const pointEnd = Date.parse(statsString(point.bucketEndAt) ?? "");
+          return Number.isFinite(pointStart) && Number.isFinite(pointEnd)
+            && activeBucketMidpoint >= pointStart && activeBucketMidpoint < pointEnd;
+        })
+      : -1;
+    const activeBucketMarkerId = activeBucket && activeBucketIndex >= 0
+      ? `${activeBucket.event}:${activeBucketIndex}`
+      : null;
+    const highlightedMarkerId = statsString(selectedPoint?.markerId) ?? activeBucketMarkerId;
 
     useEffect(() => {
       setLineAnimationFinished(false);
       setVisibleMarkerCount(0);
-      setSelectedMarkerIndex(null);
-      if (!socialKey || socialMarkerCount === 0) return;
+      setSelectedPoint(null);
+      if (!primarySocialKey || socialMarkerCount === 0) return;
       // Fallback for browsers that fail to emit Recharts' animation-end callback.
       // The normal path below waits for the completed line and two painted frames.
       const lineGate = window.setTimeout(() => setLineAnimationFinished(true), 1050);
       return () => window.clearTimeout(lineGate);
-    }, [animationSignature, socialKey]);
+    }, [animationSignature, primarySocialKey]);
 
     useEffect(() => {
       if (!lineAnimationFinished || visibleMarkerCount >= socialMarkerCount) return;
@@ -4114,10 +4233,12 @@ async function loadStatsChart() {
     return (
       <div style={{ height: renderedHeight }} className="relative w-full">
         <ResponsiveContainer width="100%" height="100%">
-          <ComposedChart data={data} margin={{ top: socialKey ? 34 : 12, right: hasRightAxis ? 26 : 22, bottom: 0, left: 0 }}>
+          <ComposedChart data={data} margin={{ top: flushMargins ? 0 : primarySocialKey ? 34 : 12, right: hasRightAxis ? 26 : 22, bottom: 0, left: 0 }}>
             <CartesianGrid stroke="rgba(0,255,0,0.12)" strokeDasharray="3 5" vertical={false} />
             <XAxis
               dataKey="label"
+              allowDuplicatedCategory={false}
+              padding={primarySocialKey ? { left: 13, right: 13 } : undefined}
               tick={{ fill: "#8bbf8b", fontSize: 9 }}
               tickLine={false}
               axisLine={{ stroke: "rgba(0,255,0,0.2)" }}
@@ -4125,6 +4246,7 @@ async function loadStatsChart() {
             />
             <YAxis
               yAxisId="left"
+              padding={primarySocialKey ? { bottom: 13 } : undefined}
               tick={{ fill: "#8bbf8b", fontSize: 9 }}
               tickLine={false}
               axisLine={false}
@@ -4143,8 +4265,8 @@ async function loadStatsChart() {
               />
             )}
             <Tooltip
-              active={socialKey ? selectedMarkerIndex != null : undefined}
-              trigger={socialKey ? "click" : "hover"}
+              active={primarySocialKey ? selectedPoint != null : undefined}
+              trigger={primarySocialKey ? "click" : "hover"}
               cursor={{ stroke: "rgba(0,255,0,0.35)", strokeWidth: 1 }}
               content={
                 <StatsTooltipContent
@@ -4152,9 +4274,12 @@ async function loadStatsChart() {
                   hideMarketplace={hideMarketplace}
                   hideEthSymbol={hideEthSymbol}
                   socialRole={socialRole}
-                  onClose={() => setSelectedMarkerIndex(null)}
+                  onClose={() => setSelectedPoint(null)}
                   onShowBucketSales={onShowBucketSales}
+                  onShowBucketActivity={onShowBucketActivity}
                   onSearchWallet={onSearchWallet}
+                  selectedPoint={selectedPoint}
+                  isInMiniAppContext={isInMiniAppContext}
                 />
               }
               wrapperStyle={{
@@ -4185,32 +4310,33 @@ async function loadStatsChart() {
                 yAxisId={item.axis ?? "left"}
                 stroke={item.color}
                 strokeWidth={2}
-                dot={socialKey === item.key ? false : { r: 2, fill: item.color, strokeWidth: 0 }}
-                activeDot={socialKey === item.key ? false : { r: 5, fill: item.color, stroke: "#000", strokeWidth: 2 }}
+                dot={effectiveMarkerSeries.some((marker) => marker.key === item.key) ? false : { r: 2, fill: item.color, strokeWidth: 0 }}
+                activeDot={effectiveMarkerSeries.some((marker) => marker.key === item.key) ? false : { r: 5, fill: item.color, stroke: "#000", strokeWidth: 2 }}
                 connectNulls
                 animationId={chartAnimationId}
                 animationBegin={0}
                 animationDuration={900}
-                isAnimationActive={socialKey === item.key ? !lineAnimationFinished : true}
-                onAnimationEnd={socialKey === item.key ? () => {
+                isAnimationActive={item.key === primarySocialKey ? !lineAnimationFinished : true}
+                onAnimationEnd={item.key === primarySocialKey ? () => {
                   window.requestAnimationFrame(() => {
                     window.requestAnimationFrame(() => setLineAnimationFinished(true));
                   });
                 } : undefined}
               />
             ))}
-            {socialKey && lineAnimationFinished && visibleMarkerCount > 0 && (
+            {primarySocialKey && lineAnimationFinished && visibleMarkerCount > 0 && markerDataSets.map((marker) => (
               <Scatter
-                name={series.find((item) => item.key === socialKey)?.label ?? "Sale"}
-                data={socialMarkerData}
-                dataKey={socialKey}
+                key={marker.event}
+                name={series.find((item) => item.key === marker.key)?.label ?? marker.event}
+                data={marker.data}
+                dataKey={marker.key}
                 yAxisId="left"
-                fill="#00FF00"
-                shape={<SocialMarker revealReady={lineAnimationFinished} revealCount={visibleMarkerCount} selectedMarkerIndex={selectedMarkerIndex} onSelectMarker={setSelectedMarkerIndex} />}
-                activeShape={<SocialMarker forceActive revealReady={lineAnimationFinished} revealCount={visibleMarkerCount} selectedMarkerIndex={selectedMarkerIndex} onSelectMarker={setSelectedMarkerIndex} />}
+                fill={marker.color}
+                shape={<SocialMarker revealReady={lineAnimationFinished} revealCount={visibleMarkerCount} selectedMarkerId={highlightedMarkerId} onSelectMarker={setSelectedPoint} />}
+                activeShape={<SocialMarker forceActive revealReady={lineAnimationFinished} revealCount={visibleMarkerCount} selectedMarkerId={highlightedMarkerId} onSelectMarker={setSelectedPoint} />}
                 isAnimationActive={false}
               />
-            )}
+            ))}
           </ComposedChart>
         </ResponsiveContainer>
       </div>
@@ -4904,7 +5030,7 @@ function StatsHolderRowView({
           onSearchWallet(row.wallet);
         }
       }}
-      className={`group relative my-2 w-full cursor-pointer rounded-xl border px-3 py-3 outline-none transition focus:ring-1 hover:-translate-y-px hover:border-2 ${
+      className={`group relative mb-2 w-full cursor-pointer rounded-xl border px-3 py-3 outline-none transition focus:ring-1 hover:-translate-y-px hover:border-2 ${
         highlightViewer
           ? "border-[#FFFF00]/35 bg-[rgba(255,255,0,0.055)] hover:border-[#FFFF00] hover:bg-[rgba(255,255,0,0.075)] hover:shadow-[0_0_16px_rgba(255,255,0,0.55)] focus:ring-[#FFFF00]"
           : row.isTopFriend
@@ -5149,6 +5275,7 @@ function StatsHoldersPage({
     const params = new URLSearchParams({
       range: "30d",
       fid: String(viewerFid),
+      holders: "1",
     });
     fetch(`/api/stats/social/highlights?${params.toString()}`, {
       headers: { accept: "application/json", authorization: `Bearer ${actionSessionToken}` },
@@ -5574,12 +5701,12 @@ function getStatsHighlightFids(value: unknown): Set<number> {
     .filter((fid): fid is number => fid != null));
 }
 
-const ACTIVITY_EVENT_OPTIONS: Array<{ value: ActivityEventFilter; label: string; classes: string }> = [
-  { value: "all", label: "All", classes: "border-[#00FF00]/55 bg-[#00FF00]/10 text-[#00FF00]" },
-  { value: "sale", label: "Sale", classes: "border-[#FF3333]/65 bg-[#FF3333]/15 text-[#FF5555]" },
-  { value: "listing", label: "Listing", classes: "border-[#FFFF00]/65 bg-[#FFFF00]/15 text-[#FFFF00]" },
-  { value: "offer", label: "Offer", classes: "border-[#33AAFF]/65 bg-[#33AAFF]/15 text-[#33AAFF]" },
-  { value: "transfer", label: "Transfer", classes: "border-[#00FF00]/65 bg-[#00FF00]/15 text-[#00FF00]" },
+const ACTIVITY_EVENT_OPTIONS: Array<{ value: ActivityEventFilter; label: string; textClass: string; activeClass: string; previewClass: string }> = [
+  { value: "all", label: "All", textClass: "text-[#00FF00]", activeClass: "border-[#00FF00]/45 bg-[#00FF00]/10", previewClass: "text-[#8bbf8b]" },
+  { value: "sale", label: "Sale", textClass: "text-[#FF5555]", activeClass: "border-[#FF3333]/65 bg-[#FF3333]/15", previewClass: "text-[#FF7777]" },
+  { value: "listing", label: "Listing", textClass: "text-[#FFFF00]", activeClass: "border-[#FFFF00]/65 bg-[#FFFF00]/15", previewClass: "text-[#FFFF77]" },
+  { value: "offer", label: "Offer", textClass: "text-[#33AAFF]", activeClass: "border-[#33AAFF]/65 bg-[#33AAFF]/15", previewClass: "text-[#8bcfff]" },
+  { value: "send", label: "Send", textClass: "text-[#00FF00]", activeClass: "border-[#00FF00]/65 bg-[#00FF00]/15", previewClass: "text-[#8bbf8b]" },
 ];
 
 function ActivityEventDropdown({ value, onChange }: { value: ActivityEventFilter; onChange: (value: ActivityEventFilter) => void }) {
@@ -5593,8 +5720,11 @@ function ActivityEventDropdown({ value, onChange }: { value: ActivityEventFilter
     return () => document.removeEventListener("pointerdown", close);
   }, [open]);
   return <div ref={rootRef} className="relative min-w-0">
-    <button type="button" onClick={() => setOpen((current) => !current)} className={`flex min-h-11 w-full cursor-pointer items-center justify-between rounded-xl border bg-black/70 px-3 py-2 text-left text-sm font-black ${selected.classes}`}><span className="truncate">{selected.label}</span><span aria-hidden="true" className={`ml-2 text-xs transition-transform ${open ? "rotate-180" : ""}`}>⌄</span></button>
-    {open && <div className="absolute left-0 right-0 z-40 mt-2 min-w-[104px] rounded-xl border border-[#00FF00]/30 bg-black p-2 shadow-2xl">{ACTIVITY_EVENT_OPTIONS.map((option) => <button key={option.value} type="button" onClick={() => { onChange(option.value); setOpen(false); void hapticSelectionChanged(); }} className={`mb-1 flex w-full cursor-pointer items-center rounded-lg border px-2 py-2 text-left text-xs font-black last:mb-0 ${option.classes}`}>{option.label}</button>)}</div>}
+    <button type="button" onClick={() => setOpen((current) => !current)} className="flex min-h-11 w-full cursor-pointer items-center justify-between rounded-xl border border-[#00FF00]/25 bg-black/70 px-3 py-2 text-left text-xs text-[#00FF00]"><span className="truncate">Event</span><span className={`ml-2 min-w-0 truncate text-[11px] ${selected.previewClass}`}>{selected.label}</span></button>
+    {open && <div className="absolute left-0 right-0 z-40 mt-2 min-w-[104px] rounded-xl border border-[#00FF00]/30 bg-black p-2 shadow-2xl">{ACTIVITY_EVENT_OPTIONS.map((option) => {
+      const active = option.value === value;
+      return <button key={option.value} type="button" onClick={() => { onChange(option.value); setOpen(false); void hapticSelectionChanged(); }} className={`mb-1 flex w-full cursor-pointer items-center rounded-lg border px-2 py-2 text-left text-xs last:mb-0 ${option.textClass} ${active ? `font-black ${option.activeClass}` : "border-transparent bg-transparent hover:bg-[#041204]"}`}>{option.label}</button>;
+    })}</div>}
   </div>;
 }
 
@@ -5603,23 +5733,45 @@ function ActivityDateTimeInput({ value, placeholder, onChange }: {
   placeholder: string;
   onChange: (value: string) => void;
 }) {
+  const [open, setOpen] = useState(false);
+  const [draftDate, setDraftDate] = useState("");
+  const [draftTime, setDraftTime] = useState("");
   const displayValue = value
     ? new Date(value).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })
     : placeholder;
-  return <div className="group relative min-h-11 min-w-0 rounded-xl border border-[#00FF00]/25 bg-black/70 focus-within:border-[#00FF00] focus-within:shadow-[0_0_8px_rgba(0,255,0,0.2)]">
-    <div className={`pointer-events-none flex min-h-11 items-center gap-1.5 px-2.5 pr-7 text-[11px] font-bold ${value ? "text-[#00FF00]" : "text-[#8bbf8b]"}`}>
+  const openPicker = () => {
+    const now = new Date();
+    const [currentDate = "", currentTime = ""] = value.split("T");
+    setDraftDate(currentDate || `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`);
+    setDraftTime((currentTime || `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`).slice(0, 5));
+    setOpen(true);
+    void hapticTap();
+  };
+  const applyPicker = () => {
+    if (draftDate) onChange(`${draftDate}T${draftTime || "00:00"}`);
+    setOpen(false);
+    void hapticSelectionChanged();
+  };
+  return <div className="relative min-h-11 min-w-0">
+    <button type="button" aria-label={placeholder} onClick={openPicker} className="flex min-h-11 w-full cursor-pointer items-center gap-1.5 rounded-xl border border-[#00FF00]/25 bg-black/70 px-2.5 pr-7 text-left text-[11px] font-bold outline-none focus:border-[#00FF00] focus:shadow-[0_0_8px_rgba(0,255,0,0.2)]">
       <svg viewBox="0 0 24 24" aria-hidden="true" className="h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></svg>
-      <span className="truncate">{displayValue}</span>
-    </div>
-    <input
-      aria-label={placeholder}
-      type="datetime-local"
-      step="1"
-      value={value}
-      onChange={(event) => onChange(event.target.value)}
-      className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-    />
+      <span className={`truncate ${value ? "text-[#00FF00]" : "text-[#8bbf8b]"}`}>{displayValue}</span>
+    </button>
     {value && <button type="button" aria-label={`Clear ${placeholder.toLowerCase()}`} onClick={(event) => { event.preventDefault(); event.stopPropagation(); onChange(""); }} className="absolute right-1.5 top-1/2 z-10 grid h-5 w-5 -translate-y-1/2 cursor-pointer place-items-center rounded text-[#8bbf8b] hover:text-[#00FF00]">×</button>}
+    {open && <div role="dialog" aria-modal="true" aria-label={placeholder} onClick={() => setOpen(false)} className="fixed inset-0 z-[100] flex items-end justify-center bg-black/70 p-3 sm:items-center">
+      <div onClick={(event) => event.stopPropagation()} className="w-full max-w-sm rounded-2xl border border-[#00FF00]/45 bg-black p-4 shadow-[0_0_28px_rgba(0,255,0,0.2)]">
+        <div className="mb-3 text-sm font-black uppercase text-[#00FF00]">{placeholder}</div>
+        <div className="grid grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)] gap-2">
+          <label className="min-w-0"><span className="mb-1 block text-[10px] font-black uppercase text-[#8bbf8b]">Date</span><input type="date" value={draftDate} onChange={(event) => setDraftDate(event.target.value)} className="h-12 w-full min-w-0 rounded-xl border border-[#00FF00]/35 bg-[#031003] px-2 text-base font-bold text-[#00FF00] outline-none focus:border-[#00FF00]" /></label>
+          <label className="min-w-0"><span className="mb-1 block text-[10px] font-black uppercase text-[#8bbf8b]">Time</span><input type="time" value={draftTime} onChange={(event) => setDraftTime(event.target.value)} className="h-12 w-full min-w-0 rounded-xl border border-[#00FF00]/35 bg-[#031003] px-2 text-base font-bold text-[#00FF00] outline-none focus:border-[#00FF00]" /></label>
+        </div>
+        <div className="mt-4 grid grid-cols-3 gap-2 text-xs font-black">
+          <button type="button" onClick={() => { onChange(""); setOpen(false); }} className="min-h-11 cursor-pointer rounded-xl border border-[#00FF00]/30 bg-black text-[#8bbf8b]">Clear</button>
+          <button type="button" onClick={() => setOpen(false)} className="min-h-11 cursor-pointer rounded-xl border border-[#00FF00]/30 bg-black text-[#00FF00]">Cancel</button>
+          <button type="button" onClick={applyPicker} className="min-h-11 cursor-pointer rounded-xl border border-[#00FF00] bg-[#00FF00] text-black">Done</button>
+        </div>
+      </div>
+    </div>}
   </div>;
 }
 
@@ -5632,8 +5784,8 @@ function ActivityFilterControls({ event, start, end, error, onEventChange, onSta
   onStartChange: (value: string) => void;
   onEndChange: (value: string) => void;
 }) {
-  return <div className="mb-3 rounded-xl border border-[#00FF00]/20 bg-black/55 p-2">
-    <div className="grid grid-cols-[minmax(0,0.72fr)_minmax(0,1.15fr)_minmax(0,1.15fr)] gap-1.5">
+  return <div className="mb-3">
+    <div className="grid grid-cols-[minmax(0,1.3fr)_minmax(0,0.85fr)_minmax(0,0.85fr)] gap-1.5">
       <ActivityEventDropdown value={event} onChange={onEventChange} />
       <ActivityDateTimeInput value={start} placeholder="Start date" onChange={onStartChange} />
       <ActivityDateTimeInput value={end} placeholder="End date" onChange={onEndChange} />
@@ -5642,38 +5794,38 @@ function ActivityFilterControls({ event, start, end, error, onEventChange, onSta
   </div>;
 }
 
-function CollectionActivity({ range, viewerFid, actionSessionToken, friendsAvailable, ethUsdPrice, onSearchWallet, onOpenToken, requestedBucket }: {
+function CollectionActivity({ range, viewerFid, actionSessionToken, friendsAvailable, friendsOnly, onFriendsOnlyChange, ethUsdPrice, onSearchWallet, onOpenToken, requestedBucket, onBucketWindowChange, chart, selectedEvents, onSelectedEventsChange }: {
   range: StatsRange;
   viewerFid: number | null;
   actionSessionToken: string | null;
   friendsAvailable: boolean;
+  friendsOnly: boolean;
+  onFriendsOnlyChange: (value: boolean) => void;
   ethUsdPrice: number | null;
   onSearchWallet: (wallet: string) => void;
   onOpenToken: (tokenId: number) => void;
-  requestedBucket: { startAt: string; endAt: string; nonce: number } | null;
+  requestedBucket: { event: MarketActivityRow["event"]; startAt: string; endAt: string; nonce: number } | null;
+  onBucketWindowChange: (window: { event: MarketActivityRow["event"]; startAt: string; endAt: string } | null) => void;
+  chart?: ReactNode;
+  selectedEvents: MarketActivityRow["event"][];
+  onSelectedEventsChange: (events: MarketActivityRow["event"][]) => void;
 }) {
-  const [friendsOnly, setFriendsOnly] = useState(false);
   const [payload, setPayload] = useState<MarketActivityPayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState("");
-  const [eventFilter, setEventFilter] = useState<ActivityEventFilter>("all");
-  const [startFilter, setStartFilter] = useState("");
-  const [endFilter, setEndFilter] = useState("");
+  const [bucketWindow, setBucketWindow] = useState<{ startAt: string; endAt: string } | null>(null);
   const tableRef = useRef<HTMLElement | null>(null);
+  const eventsHeaderRef = useRef<HTMLDivElement | null>(null);
   const pendingScrollRef = useRef(false);
-  const filterError = startFilter && endFilter && new Date(startFilter).getTime() >= new Date(endFilter).getTime()
-    ? "Start must be earlier than End."
-    : "";
 
   const load = useCallback(async (cursor?: string) => {
     const params = new URLSearchParams({ range, limit: "20" });
-    params.set("event", eventFilter);
-    const startIso = localDateTimeInputToIso(startFilter);
-    const endIso = localDateTimeInputToIso(endFilter);
-    if (filterError) throw new Error(filterError);
-    if (startIso) params.set("start", startIso);
-    if (endIso) params.set("end", endIso);
+    params.set("events", selectedEvents.length > 0 ? selectedEvents.join(",") : "none");
+    if (bucketWindow) {
+      params.set("start", bucketWindow.startAt);
+      params.set("end", bucketWindow.endAt);
+    }
     if (cursor) params.set("cursor", cursor);
     if (friendsOnly && viewerFid) {
       params.set("friends", "1");
@@ -5694,19 +5846,18 @@ function CollectionActivity({ range, viewerFid, actionSessionToken, friendsAvail
       hasMore: next.hasMore,
       nextCursor: next.nextCursor,
     } : next);
-  }, [actionSessionToken, endFilter, eventFilter, filterError, friendsOnly, range, startFilter, viewerFid]);
+  }, [actionSessionToken, bucketWindow, friendsOnly, range, selectedEvents, viewerFid]);
 
   useEffect(() => {
-    setEventFilter("all");
-    setStartFilter("");
-    setEndFilter("");
+    setBucketWindow(null);
+    onBucketWindowChange(null);
   }, [range]);
 
   useEffect(() => {
     if (!requestedBucket) return;
-    setEventFilter("sale");
-    setStartFilter(toLocalDateTimeInput(requestedBucket.startAt));
-    setEndFilter(toLocalDateTimeInput(requestedBucket.endAt, true));
+    onSelectedEventsChange([requestedBucket.event]);
+    setBucketWindow({ startAt: requestedBucket.startAt, endAt: requestedBucket.endAt });
+    onBucketWindowChange({ event: requestedBucket.event, startAt: requestedBucket.startAt, endAt: requestedBucket.endAt });
     pendingScrollRef.current = true;
   }, [requestedBucket]);
 
@@ -5715,7 +5866,6 @@ function CollectionActivity({ range, viewerFid, actionSessionToken, friendsAvail
     setLoading(true);
     setError("");
     setPayload(null);
-    if (filterError) { setLoading(false); return; }
     load().catch((loadError) => {
       if (!cancelled) setError(loadError instanceof Error ? loadError.message : "Could not load collection activity");
     }).finally(() => {
@@ -5727,13 +5877,13 @@ function CollectionActivity({ range, viewerFid, actionSessionToken, friendsAvail
   useEffect(() => {
     if (!loading && payload && pendingScrollRef.current) {
       pendingScrollRef.current = false;
-      tableRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      eventsHeaderRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     }
   }, [loading, payload]);
 
   useEffect(() => {
-    if (!friendsAvailable && friendsOnly) setFriendsOnly(false);
-  }, [friendsAvailable, friendsOnly]);
+    if (!friendsAvailable && friendsOnly) onFriendsOnlyChange(false);
+  }, [friendsAvailable, friendsOnly, onFriendsOnlyChange]);
 
   const loadMore = async () => {
     if (!payload?.nextCursor || loadingMore) return;
@@ -5742,18 +5892,66 @@ function CollectionActivity({ range, viewerFid, actionSessionToken, friendsAvail
     catch (loadError) { setError(loadError instanceof Error ? loadError.message : "Could not load more activity"); }
     finally { setLoadingMore(false); }
   };
+  const bucketWindowDisplayLabel = bucketWindow
+    ? [
+        new Date(bucketWindow.startAt).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+        new Date(new Date(bucketWindow.endAt).getTime() - 1).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+      ].join(" \u2013 ")
+    : null;
+  const selectedEvent = selectedEvents[0] ?? "sale";
+  const bucketWindowChipClass = selectedEvent === "sale"
+    ? "border-[#FF3333] bg-[#250303] text-[#FF7777]"
+    : selectedEvent === "listing"
+      ? "border-[#FFFF00] bg-[#252503] text-[#FFFF00]"
+      : selectedEvent === "offer"
+        ? "border-[#33AAFF] bg-[#031825] text-[#8bcfff]"
+        : "border-[#00FF00] bg-[#032503] text-[#00FF00]";
 
   return (
-    <section ref={tableRef} className="mt-3 scroll-mt-4">
-      <div className="flex items-center justify-between py-2">
-        <Text className="text-xs font-black uppercase text-[#00FF00]">Collection Activity</Text>
+    <section ref={tableRef} className="scroll-mt-4">
+      <div className="mb-2 flex flex-wrap items-center gap-1.5">
+        {([
+          { value: "sale", label: "Sales", active: "border-[#FF3333] bg-[#FF3333]/20 text-[#FF7777]", idle: "border-[#FF3333]/45 bg-[#FF3333]/5 text-[#FF7777]" },
+          { value: "listing", label: "Listings", active: "border-[#FFFF00] bg-[#FFFF00]/20 text-[#FFFF00]", idle: "border-[#FFFF00]/45 bg-[#FFFF00]/5 text-[#FFFF77]" },
+          { value: "offer", label: "Offers", active: "border-[#33AAFF] bg-[#33AAFF]/20 text-[#8bcfff]", idle: "border-[#33AAFF]/45 bg-[#33AAFF]/5 text-[#8bcfff]" },
+          { value: "send", label: "Sends", active: "border-[#00FF00] bg-[#00FF00]/20 text-[#00FF00]", idle: "border-[#00FF00]/45 bg-[#00FF00]/5 text-[#8bbf8b]" },
+        ] as const).map((option) => {
+          const active = selectedEvents.includes(option.value);
+          const count = payload?.eventCounts?.[option.value] ?? 0;
+          return <button key={option.value} type="button" role="radio" aria-checked={active} onClick={() => { setBucketWindow(null); onBucketWindowChange(null); if (!active) onSelectedEventsChange([option.value]); void hapticSelectionChanged(); }} className={`flex min-h-8 w-auto shrink-0 cursor-pointer items-center justify-start rounded-lg border px-2 py-1 text-left text-[9px] font-black uppercase transition ${active ? option.active : option.idle}`}>
+            <span className="truncate">{count.toLocaleString("en-US")} {option.label}</span>
+          </button>;
+        })}
+      </div>
+      {chart}
+      <div ref={eventsHeaderRef} className="scroll-mt-4 flex items-center justify-between gap-2 py-2">
+        <div className="mt-0.5 flex min-w-0 items-center gap-2">
+          <Text className="shrink-0 text-xs font-black uppercase text-[#00FF00]">Events</Text>
+          {bucketWindowDisplayLabel && (
+            <button
+              type="button"
+              aria-label={`Clear ${bucketWindowDisplayLabel} date filter`}
+              onClick={() => {
+                setBucketWindow(null);
+                onBucketWindowChange(null);
+                void hapticSelectionChanged();
+              }}
+              className={`flex min-w-0 cursor-pointer items-center gap-1 rounded-full border px-2 py-1 text-[9px] font-black ${bucketWindowChipClass}`}
+            >
+              <span className="truncate">{bucketWindowDisplayLabel}</span>
+              <svg aria-hidden="true" viewBox="0 0 12 12" className="h-2.5 w-2.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <path d="M2 2l8 8M10 2 2 10" />
+              </svg>
+            </button>
+          )}
+        </div>
         <button
           type="button"
           role="switch"
           aria-checked={friendsOnly}
           disabled={!friendsAvailable}
           onClick={() => {
-            setFriendsOnly((current) => !current);
+            onFriendsOnlyChange(!friendsOnly);
             void hapticSelectionChanged();
           }}
           className={`flex cursor-pointer items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[10px] font-black uppercase transition disabled:cursor-not-allowed disabled:opacity-40 ${
@@ -5777,7 +5975,6 @@ function CollectionActivity({ range, viewerFid, actionSessionToken, friendsAvail
           Friends
         </button>
       </div>
-      <ActivityFilterControls event={eventFilter} start={startFilter} end={endFilter} error={filterError} onEventChange={setEventFilter} onStartChange={setStartFilter} onEndChange={setEndFilter} />
       {loading ? <div className="py-8 text-center text-[10px] font-bold text-[#8bbf8b]">Loading collection activity...</div>
         : <MarketActivityTable rows={payload?.rows ?? []} ethUsdPrice={ethUsdPrice} showItem hasMore={Boolean(payload?.hasMore)} loadingMore={loadingMore} onLoadMore={() => void loadMore()} onSearchWallet={onSearchWallet} onOpenToken={onOpenToken} />}
       {error && <div className="mt-2 text-center text-[9px] font-bold text-red-300">{error}</div>}
@@ -5794,6 +5991,7 @@ function StatsSocial({
   ethUsdPrice,
   onSearchWallet,
   onOpenWarpletDetails,
+  isInMiniAppContext,
 }: {
   payload: StatsApiEnvelope;
   highlights: unknown;
@@ -5803,36 +6001,63 @@ function StatsSocial({
   ethUsdPrice: number | null;
   onSearchWallet: (wallet: string) => void;
   onOpenWarpletDetails: (tokenId: number) => void;
+  isInMiniAppContext: boolean;
 }) {
-  const topFriendFids = getStatsHighlightFids(highlights);
   const [activityChart, setActivityChart] = useState<ActivityChartPayload | null>(null);
   const [activityChartLoading, setActivityChartLoading] = useState(true);
-  const [requestedBucket, setRequestedBucket] = useState<{ startAt: string; endAt: string; nonce: number } | null>(null);
+  const [requestedBucket, setRequestedBucket] = useState<{ event: MarketActivityRow["event"]; startAt: string; endAt: string; nonce: number } | null>(null);
+  const [selectedEvents, setSelectedEvents] = useState<MarketActivityRow["event"][]>(() => [readLastStatsActivityEvent()]);
+  const [friendsOnly, setFriendsOnly] = useState(false);
+  const [activeBucketWindow, setActiveBucketWindow] = useState<{ event: MarketActivityRow["event"]; startAt: string; endAt: string } | null>(null);
+  const selectActivityEvents = useCallback((events: MarketActivityRow["event"][]) => {
+    const event = events[0] ?? "sale";
+    setSelectedEvents([event]);
+    writeLastStatsActivityEvent(event);
+  }, []);
   useEffect(() => {
     const controller = new AbortController();
+    const personalized = friendsOnly && viewerFid != null && actionSessionToken != null;
+    const cacheKey = `${personalized ? `friends:${viewerFid}` : "public"}:${range}`;
+    const cached = statsActivityChartCache.get(cacheKey);
+    if (cached && Date.now() - cached.loadedAt <= STATS_CLIENT_CACHE_TTL_MS) {
+      setActivityChart(cached.payload);
+      setActivityChartLoading(false);
+      return () => controller.abort();
+    }
     setActivityChart(null);
     setActivityChartLoading(true);
-    fetch(`/api/stats/activity?range=${range}&limit=1&chart=1`, { headers: { accept: "application/json" }, signal: controller.signal })
+    const params = new URLSearchParams({ range, limit: "1", chart: "1" });
+    if (personalized) {
+      params.set("friends", "1");
+      params.set("fid", String(viewerFid));
+    }
+    fetch(`/api/stats/activity?${params.toString()}`, {
+      headers: {
+        accept: "application/json",
+        ...(personalized ? { authorization: `Bearer ${actionSessionToken}` } : {}),
+      },
+      credentials: "same-origin",
+      signal: controller.signal,
+    })
       .then(async (response) => {
         const result = await response.json() as MarketActivityPayload;
         if (!response.ok) throw new Error(`Sales chart failed (${response.status})`);
-        setActivityChart(result.chart ?? null);
+        const chart = result.chart ?? null;
+        statsActivityChartCache.set(cacheKey, { payload: chart, loadedAt: Date.now() });
+        setActivityChart(chart);
       })
       .catch((chartError) => {
         if (!(chartError instanceof DOMException && chartError.name === "AbortError")) console.warn("Aggregated social chart failed:", chartError);
       })
       .finally(() => { if (!controller.signal.aborted) setActivityChartLoading(false); });
     return () => controller.abort();
-  }, [range]);
-  const buyerChartData = activityChartData(activityChart, "buyer");
-  const sellerChartData = activityChartData(activityChart, "seller");
-  const showBucketSales = useCallback((startAt: string, endAt: string) => {
-    setRequestedBucket({ startAt, endAt, nonce: Date.now() });
-  }, []);
-  const highlightPayload = statsRecord(highlights);
-  const bestFriendHolderRows = Array.isArray(highlightPayload?.friendHolders)
-    ? highlightPayload.friendHolders
-    : [];
+  }, [actionSessionToken, friendsOnly, range, viewerFid]);
+  const multiChartData = activityMultiChartData(activityChart);
+  const showBucketActivity = useCallback((event: MarketActivityRow["event"], startAt: string, endAt: string) => {
+    selectActivityEvents([event]);
+    setActiveBucketWindow({ event, startAt, endAt });
+    setRequestedBucket({ event, startAt, endAt, nonce: Date.now() });
+  }, [selectActivityEvents]);
   const purchaseRows = statsRows(payload, "recentActivity", "recent", "events");
   const listingRows = statsRows(payload, "recentListings", "listings");
   const recentRows = [...purchaseRows, ...listingRows].sort((left, right) => {
@@ -5845,99 +6070,52 @@ function StatsSocial({
 
   return (
     <div>
-      <div className="space-y-3">
-        {activityChartLoading ? <><section className="flex h-[250px] items-center justify-center rounded-xl border border-[#00FF00]/25 bg-black/65 text-xs font-bold text-[#8bbf8b]">Loading buyer activity...</section><section className="flex h-[250px] items-center justify-center rounded-xl border border-[#00FF00]/25 bg-black/65 text-xs font-bold text-[#8bbf8b]">Loading seller activity...</section></> : <>
-        <StatsChartPanel
-          animationKey={`social-buyers-${range}`}
-          title="Farcaster Buyers"
-          data={buyerChartData}
-          series={[{ key: "salePrice", label: "Sale", color: "#00FF00", type: "line" }]}
-          socialKey="salePrice"
-          socialRole="buyer"
-          hideMarketplace
-          onOpenToken={onOpenWarpletDetails}
-          onSearchWallet={onSearchWallet}
-          onShowBucketSales={showBucketSales}
-        />
-        <StatsChartPanel
-          animationKey={`social-sellers-${range}`}
-          title="Farcaster Sellers"
-          data={sellerChartData}
-          series={[{ key: "salePrice", label: "Sale", color: "#00FF00", type: "line" }]}
-          socialKey="salePrice"
-          socialRole="seller"
-          hideMarketplace
-          onOpenToken={onOpenWarpletDetails}
-          onSearchWallet={onSearchWallet}
-          onShowBucketSales={showBucketSales}
-        />
-        </>}
-      </div>
-
-      {bestFriendHolderRows.length > 0 && (
-        <section className="mt-3 overflow-hidden rounded-xl border border-[#00FF00]/25 bg-black/65">
-          <div className="border-b border-[#00FF00]/15 px-3 py-3">
-            <Text className="text-xs font-black uppercase text-[#00FF00]">Best Friend Holders</Text>
-          </div>
-          <div className="grid grid-cols-5 gap-2.5 p-3">
-            {bestFriendHolderRows.slice(0, 25).map((value, index) => {
-              const person = statsRecord(value) ?? {};
-              const fid = statsInteger(person.fid);
-              const pfpUrl = statsString(person.pfpUrl ?? person.pfp_url);
-              const username = statsString(person.username);
-              const wallet = statsString(person.wallet) ?? `profile-${index}`;
-              const ownedCount = statsInteger(person.ownedCount ?? person.owned_count) ?? 0;
-              const bestTokenId = statsInteger(person.bestTokenId ?? person.best_token_id);
-              return (
-                <div key={`${fid ?? wallet}-${index}`} className="relative aspect-square">
-                  <button
-                    type="button"
-                    title={username ? `@${username}` : formatShortWallet(wallet)}
-                    onClick={() => onSearchWallet(wallet)}
-                    className="h-full w-full cursor-pointer rounded-full outline-none ring-[#00FF00] focus:ring-2"
-                  >
-                    {pfpUrl ? (
-                      <img src={pfpUrl} alt="" className="h-full w-full rounded-full object-cover" loading="lazy" />
-                    ) : (
-                      <WalletIdenticon wallet={wallet} className="h-full w-full rounded-full" />
-                    )}
-                  </button>
-                  {ownedCount > 1 && (
-                    <span className="pointer-events-none absolute -right-1 -top-1 rounded-full border border-black bg-[#00FF00] px-1.5 py-0.5 text-[8px] font-black text-black">
-                      {ownedCount}
-                    </span>
-                  )}
-                  {bestTokenId && (
-                    <button
-                      type="button"
-                      title={`Open rarest Warplet #${bestTokenId}`}
-                      onClick={() => onOpenWarpletDetails(bestTokenId)}
-                      className="absolute -bottom-1 -right-1 h-[50%] w-[50%] cursor-pointer overflow-hidden rounded-full border-2 border-black bg-black outline-none ring-[#00FF00] focus:ring-2"
-                    >
-                      <img
-                        src={getWarpletPreviewImageUrl(bestTokenId)}
-                        alt={`Warplet #${bestTokenId}`}
-                        className="h-full w-full object-cover"
-                        loading="lazy"
-                      />
-                    </button>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </section>
-      )}
-
       <CollectionActivity
         range={range}
         viewerFid={viewerFid}
         actionSessionToken={actionSessionToken}
         friendsAvailable={getStatsHighlightFids(highlights).size > 0}
+        friendsOnly={friendsOnly}
+        onFriendsOnlyChange={setFriendsOnly}
         ethUsdPrice={ethUsdPrice}
         onSearchWallet={onSearchWallet}
         onOpenToken={onOpenWarpletDetails}
         requestedBucket={requestedBucket}
+        onBucketWindowChange={setActiveBucketWindow}
+        selectedEvents={selectedEvents}
+        onSelectedEventsChange={selectActivityEvents}
+        chart={activityChartLoading
+          ? <div className="flex h-[260px] items-center justify-center text-xs font-bold text-[#8bbf8b]">Loading buyer activity...</div>
+          : <div className="-mx-2 w-[calc(100%+1rem)]">
+            <StatsChartErrorBoundary>
+              <Suspense fallback={<StatsChartFallback />}>
+                <LazyStatsChart
+                  key={`social-buyers-${range}`}
+                  data={multiChartData}
+                  series={([
+                    { event: "sale", key: "salePrice", label: "Sales", color: "#FF3333" },
+                    { event: "listing", key: "listingPrice", label: "Listings", color: "#FFFF00" },
+                    { event: "offer", key: "offerPrice", label: "Offers", color: "#33AAFF" },
+                    { event: "send", key: "sendPrice", label: "Sends", color: "#00FF00" },
+                  ] as const).filter((item) => selectedEvents.includes(item.event)).map((item) => ({ ...item, type: "line" as const }))}
+                  markerSeries={([
+                    { event: "sale", key: "salePrice", color: "#FF3333" },
+                    { event: "listing", key: "listingPrice", color: "#FFFF00" },
+                    { event: "offer", key: "offerPrice", color: "#33AAFF" },
+                    { event: "send", key: "sendPrice", color: "#00FF00" },
+                  ] as const).filter((item) => selectedEvents.includes(item.event))}
+                  socialRole="buyer"
+                  hideMarketplace
+                  height={351}
+                  onOpenToken={onOpenWarpletDetails}
+                  onSearchWallet={onSearchWallet}
+                  onShowBucketActivity={showBucketActivity}
+                  isInMiniAppContext={isInMiniAppContext}
+                  activeBucket={activeBucketWindow}
+                />
+              </Suspense>
+            </StatsChartErrorBoundary>
+          </div>}
       />
 
       {false && recentRows.length > 0 && (
@@ -6001,6 +6179,7 @@ function StatsPage({
   actionSessionToken,
   onSearchWallet,
   onOpenWarpletDetails,
+  isInMiniAppContext,
 }: {
   subpage: SearchStatsSubpage;
   connectedWallet: string | null;
@@ -6008,6 +6187,7 @@ function StatsPage({
   actionSessionToken: string | null;
   onSearchWallet: (wallet: string) => void;
   onOpenWarpletDetails: (tokenId: number) => void;
+  isInMiniAppContext: boolean;
 }) {
   const [range, setRange] = useState<StatsRange>("all");
   const [payload, setPayload] = useState<StatsApiEnvelope | null>(null);
@@ -6222,6 +6402,7 @@ function StatsPage({
               ethUsdPrice={ethUsdPrice}
               onSearchWallet={onSearchWallet}
               onOpenWarpletDetails={onOpenWarpletDetails}
+              isInMiniAppContext={isInMiniAppContext}
             />
           )}
           {error && <Text className="mt-3 text-center text-[10px] font-bold text-red-300">{error}</Text>}
@@ -6242,7 +6423,7 @@ type MarketActivityParty = {
 
 type MarketActivityRow = {
   key: string;
-  event: "sale" | "listing" | "offer" | "transfer";
+  event: StatsActivityEvent;
   tokenId: number;
   priceEth: number | null;
   transactionHash?: string | null;
@@ -6269,6 +6450,19 @@ type ActivityChartBucket = {
     buyer?: MarketActivityParty | null;
     seller?: MarketActivityParty | null;
   };
+  events?: Partial<Record<MarketActivityRow["event"], {
+    count: number;
+    averagePriceEth: number | null;
+    representativeEvent: null | {
+      key: string;
+      tokenId: number;
+      priceEth: number | null;
+      at: string;
+      transactionHash?: string | null;
+      from?: MarketActivityParty | null;
+      to?: MarketActivityParty | null;
+    };
+  }>>;
 };
 
 type ActivityChartPayload = {
@@ -6281,6 +6475,7 @@ type ActivityChartPayload = {
 type MarketActivityPayload = {
   rows?: MarketActivityRow[];
   chart?: ActivityChartPayload;
+  eventCounts?: Partial<Record<MarketActivityRow["event"], number>>;
   hasMore?: boolean;
   nextCursor?: string | null;
   complete?: boolean;
@@ -6315,6 +6510,7 @@ function activityChartData(chart: ActivityChartPayload | null | undefined, role:
       // Give long ranges their honest full scale: the line begins at zero before
       // observed history, then connects continuously across later inactive buckets.
       salePrice: bucket.averagePriceEth ?? (firstSaleIndex > 0 && index < firstSaleIndex ? 0 : null),
+      topSalePrice: sale?.priceEth ?? null,
       saleCount: bucket.saleCount,
       bucketStartAt: bucket.startAt,
       bucketEndAt: bucket.endAt,
@@ -6334,6 +6530,46 @@ function activityChartData(chart: ActivityChartPayload | null | undefined, role:
       showMarker: bucket.saleCount > 0,
       showAvatar: bucket.saleCount > 0,
     };
+  });
+}
+
+function activityMultiChartData(chart: ActivityChartPayload | null | undefined): StatsChartDatum[] {
+  const buckets = chart?.buckets ?? [];
+  const eventTypes: MarketActivityRow["event"][] = ["sale", "listing", "offer", "send"];
+  const firstIndexes = new Map(eventTypes.map((event) => [event, buckets.findIndex((bucket) => (bucket.events?.[event]?.count ?? 0) > 0)]));
+  return buckets.map((bucket, index) => {
+    const point: StatsChartDatum = {
+      label: new Date(bucket.startAt).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+      timestamp: bucket.startAt,
+      bucketStartAt: bucket.startAt,
+      bucketEndAt: bucket.endAt,
+    };
+    eventTypes.forEach((event) => {
+      const data = bucket.events?.[event];
+      const representative = data?.representativeEvent;
+      const markerParty = event === "sale" ? representative?.to : representative?.from;
+      const markerWallet = normalizeWalletAddress(markerParty?.wallet);
+      const firstIndex = firstIndexes.get(event) ?? -1;
+      const lineValue = event === "send"
+        ? firstIndex >= 0 ? 0 : null
+        : data?.averagePriceEth ?? (firstIndex > 0 && index < firstIndex ? 0 : null);
+      point[`${event}Price`] = lineValue;
+      point[`${event}Count`] = data?.count ?? 0;
+      point[`${event}TopPrice`] = representative?.priceEth ?? null;
+      point[`${event}TokenId`] = representative?.tokenId ?? null;
+      point[`${event}TransactionHash`] = representative?.transactionHash ?? null;
+      point[`${event}FromWallet`] = representative?.from?.wallet ?? null;
+      point[`${event}FromFid`] = representative?.from?.fid ?? null;
+      point[`${event}FromUsername`] = representative?.from?.username ?? null;
+      point[`${event}FromAvatarUrl`] = representative?.from?.pfpUrl ?? (representative?.from?.wallet ? getWalletIdenticonDataUrl(representative.from.wallet) : null);
+      point[`${event}ToWallet`] = representative?.to?.wallet ?? null;
+      point[`${event}ToFid`] = representative?.to?.fid ?? null;
+      point[`${event}ToUsername`] = representative?.to?.username ?? null;
+      point[`${event}ToAvatarUrl`] = representative?.to?.pfpUrl ?? (representative?.to?.wallet ? getWalletIdenticonDataUrl(representative.to.wallet) : null);
+      point[`${event}Wallet`] = markerWallet;
+      point[`${event}AvatarUrl`] = markerParty?.pfpUrl ?? (markerWallet ? getWalletIdenticonDataUrl(markerWallet) : null);
+    });
+    return point;
   });
 }
 
@@ -6418,7 +6654,7 @@ function MarketActivityTable({ rows, ethUsdPrice, showItem, hasMore, loadingMore
           {rows.map((row) => {
             const shortDate = new Date(row.at).toLocaleDateString("en-US", { month: "short", day: "numeric" });
             const fullDate = new Date(row.at).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" });
-            const price = row.event === "transfer" || row.priceEth == null ? null : row.priceEth;
+            const price = row.event === "send" || row.priceEth == null ? null : row.priceEth;
             return (
               <tr key={row.key} className="border-t border-[#00FF00]/10">
                 {showItem && <td className="px-0.5 py-1.5">
@@ -6450,6 +6686,7 @@ function WarpletItemActivity({
   onSearchWallet,
   onOpenToken,
   refreshKey,
+  isInMiniAppContext,
 }: {
   tokenId: number;
   viewerFid: number | null;
@@ -6457,6 +6694,7 @@ function WarpletItemActivity({
   onSearchWallet: (wallet: string) => void;
   onOpenToken: (tokenId: number) => void;
   refreshKey: string;
+  isInMiniAppContext: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [payload, setPayload] = useState<MarketActivityPayload | null>(null);
@@ -6612,7 +6850,8 @@ function WarpletItemActivity({
                       height={180}
                       onOpenToken={onOpenToken}
                       onSearchWallet={onSearchWallet}
-                      onShowBucketSales={showBucketSales}
+                        onShowBucketSales={showBucketSales}
+                        isInMiniAppContext={isInMiniAppContext}
                     />
                   </Suspense>
                 </StatsChartErrorBoundary>
@@ -11531,6 +11770,7 @@ function WarpletDetailsModal({
   onApplyPurchase,
   onOpenTradeSharePreview,
   stackIndex,
+  isInMiniAppContext,
 }: {
   details: WarpletDetails;
   onClose: () => void;
@@ -11559,6 +11799,7 @@ function WarpletDetailsModal({
   onApplyPurchase: (tokenId: number, update: OptimisticPurchaseUpdate) => void;
   onOpenTradeSharePreview: (preview: SharePreviewState) => void;
   stackIndex: number;
+  isInMiniAppContext: boolean;
 }) {
   const row = details.row;
   const farcasterUsername = cellToString(row.warplet_username_farcaster);
@@ -13232,6 +13473,7 @@ function WarpletDetailsModal({
                 onSearchWallet={onSearchOwnerWallet}
                 onOpenToken={onOpenRelatedWarplet}
                 refreshKey={`${effectiveListing?.at ?? ""}|${effectiveItemOffer?.at ?? ""}|${effectiveSale?.at ?? ""}|${effectiveOwner?.wallet ?? ""}`}
+                isInMiniAppContext={isInMiniAppContext}
               />
 
               {ATTRIBUTE_GROUPS.map((group) => (
@@ -16241,6 +16483,7 @@ export default function SearchApp() {
             actionSessionToken={actionSessionToken}
             onSearchWallet={handleStatsSearchOwnerWallet}
             onOpenWarpletDetails={handleOpenWarpletDetails}
+            isInMiniAppContext={isInMiniAppContext}
           />
         ) : searchRoute.page === "perks" ? (
           <Suspense fallback={<div className="mx-auto w-full max-w-md px-4 py-12 text-center text-xs font-black text-[#00FF00]">Loading Perks...</div>}>
@@ -16534,6 +16777,7 @@ export default function SearchApp() {
             onApplyPurchase={handleApplyPurchase}
             onOpenTradeSharePreview={setSharePreview}
             stackIndex={index}
+            isInMiniAppContext={isInMiniAppContext}
           />
         );
       })}

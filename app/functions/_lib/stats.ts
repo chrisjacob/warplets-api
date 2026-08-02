@@ -3298,68 +3298,45 @@ export async function handleStatsSocialHighlightsGet(
         fid: row.best_friend_fid,
         rank: index + 1,
       }));
+    const includeHolderDetails = url.searchParams.get("holders") === "1";
     const friendFids = friends.map((friend) => friend.fid);
-    let friendHolders: Array<{
-      rank: number;
-      wallet: string;
-      ownedCount: number;
-      fid: number;
-      username: string | null;
-      displayName: string | null;
-      pfpUrl: string | null;
-      friendRank: number;
-      bestRarityRank: number | null;
-      bestTokenId: number | null;
-      previewTokenIds: number[];
-      remainingCount: number;
-      ownedPct: number;
-      floorValueEth: number | null;
-    }> = [];
-    if (friendFids.length > 0) {
+    let friendHolders: Array<Record<string, unknown>> = [];
+    if (includeHolderDetails && friendFids.length > 0) {
       const materialized = await ensureHolderLeaderboard(context.env.WARPLETS);
       const [holderRows, currentMarket] = await Promise.all([
         context.env.WARPLETS.prepare(
-        `WITH ${holderCte(materialized)},
-         friend_fids AS (
-           SELECT CAST(value AS INTEGER) AS fid
-           FROM json_each(?)
-         ),
-         ranked_holders AS (
-           SELECT
-             *,
-             ROW_NUMBER() OVER (
+          `WITH ${holderCte(materialized)},
+           friend_fids AS (
+             SELECT CAST(value AS INTEGER) AS fid FROM json_each(?)
+           ),
+           ranked_holders AS (
+             SELECT *, ROW_NUMBER() OVER (
                ORDER BY owned_count DESC, best_rarity_rank ASC, wallet ASC
              ) AS rank
-           FROM holder_source
-         ),
-         identity_wallets AS (
-           SELECT DISTINCT LOWER(TRIM(owner_wallet)) AS wallet, owner_fid AS fid
-           FROM warplet_market_state
-           WHERE owner_wallet IS NOT NULL
-             AND owner_fid IN (SELECT fid FROM friend_fids)
-           UNION
-           SELECT DISTINCT LOWER(TRIM(wallet)) AS wallet, fid
-           FROM wallet_farcaster_links
-           WHERE fid IN (SELECT fid FROM friend_fids)
-         )
-         SELECT
-           h.rank,
-           h.wallet,
-           h.owned_count,
-           h.best_rarity_rank,
-           h.best_token_id,
-           h.preview_token_ids_json,
-           i.fid
-         FROM ranked_holders h
-         INNER JOIN identity_wallets i ON i.wallet = h.wallet`
+             FROM holder_source
+           ),
+           identity_wallets AS (
+             SELECT DISTINCT LOWER(TRIM(owner_wallet)) AS wallet, owner_fid AS fid
+             FROM warplet_market_state
+             WHERE owner_wallet IS NOT NULL
+               AND owner_fid IN (SELECT fid FROM friend_fids)
+             UNION
+             SELECT DISTINCT LOWER(TRIM(wallet)) AS wallet, fid
+             FROM wallet_farcaster_links
+             WHERE fid IN (SELECT fid FROM friend_fids)
+           )
+           SELECT h.rank, h.wallet, h.owned_count, h.best_rarity_rank,
+                  h.best_token_id, h.preview_token_ids_json, i.fid
+           FROM ranked_holders h
+           INNER JOIN identity_wallets i ON i.wallet = h.wallet`
         ).bind(JSON.stringify(friendFids)).all<{
           rank: number;
-        wallet: string;
-        owned_count: number;
-        best_rarity_rank: number | null;
-        best_token_id: number | null;
-        preview_token_ids_json: string;
-        fid: number;
+          wallet: string;
+          owned_count: number;
+          best_rarity_rank: number | null;
+          best_token_id: number | null;
+          preview_token_ids_json: string;
+          fid: number;
         }>(),
         loadCurrentMarket(context.env.WARPLETS),
       ]);
@@ -3386,15 +3363,14 @@ export async function handleStatsSocialHighlightsGet(
             previewTokenIds,
             remainingCount: Math.max(0, row.owned_count - previewTokenIds.length),
             ownedPct: safePercentage(row.owned_count, WARPLETS_TOTAL_SUPPLY),
-            floorValueEth: currentMarket.floorEth === null
-              ? null
-              : row.owned_count * currentMarket.floorEth,
+            floorValueEth: currentMarket.floorEth === null ? null : row.owned_count * currentMarket.floorEth,
           };
         })
-        .sort((left, right) => left.friendRank - right.friendRank || left.wallet.localeCompare(right.wallet))
+        .sort((left, right) => Number(left.friendRank) - Number(right.friendRank) || String(left.wallet).localeCompare(String(right.wallet)))
         .filter((row) => {
-          if (seenFriendWallets.has(row.wallet)) return false;
-          seenFriendWallets.add(row.wallet);
+          const wallet = String(row.wallet);
+          if (seenFriendWallets.has(wallet)) return false;
+          seenFriendWallets.add(wallet);
           return true;
         });
     }
@@ -3423,7 +3399,7 @@ export async function handleStatsSocialHighlightsGet(
       available: Boolean(fetchedAt),
       viewer: { fid: session.fid },
       friends,
-      friendHolders,
+      ...(includeHolderDetails ? { friendHolders } : {}),
       matchedFids: friends.map((friend) => friend.fid),
     }, { private: true });
   } catch (error) {
@@ -3856,11 +3832,12 @@ type ActivityCursor = { at: string; key: string };
 
 type ActivityChartRepresentativeRow = {
   bucket_index: number;
-  sale_count: number;
-  average_price_eth: number;
+  event_type: string;
+  event_count: number;
+  average_price_eth: number | null;
   canonical_key: string;
   token_id: number;
-  price_eth: number;
+  price_eth: number | null;
   transaction_hash: string | null;
   from_wallet: string | null;
   from_fid: number | null;
@@ -3897,6 +3874,7 @@ async function loadActivityChart(
   db: D1Database,
   range: StatsRange,
   tokenId: number | null,
+  friendsViewerFid: number | null = null,
 ): Promise<{
   rangeStart: string;
   rangeEnd: string;
@@ -3909,77 +3887,129 @@ async function loadActivityChart(
   const bucketCase = bounds.map(() => "WHEN occurred_at >= ? AND occurred_at < ? THEN ?").join(" ");
   const bucketBindings = bounds.flatMap((bucket) => [bucket.startAt, bucket.endAt, bucket.index]);
   const tokenClause = tokenId !== null ? "AND a.token_id = ?" : "";
+  const friendsClause = friendsViewerFid !== null ? `AND EXISTS (
+       SELECT 1 FROM warplets_user_best_friends bf
+       WHERE bf.user_fid = ?
+         AND (
+           bf.best_friend_fid IN (
+             a.from_fid,
+             CASE WHEN a.event_type = 'offer' THEN m.owner_fid ELSE a.to_fid END
+           )
+           OR EXISTS (
+             SELECT 1 FROM wallet_farcaster_links l
+             WHERE l.fid = bf.best_friend_fid
+               AND LOWER(TRIM(l.wallet)) IN (
+                 LOWER(TRIM(a.from_wallet)),
+                 LOWER(TRIM(CASE WHEN a.event_type = 'offer' THEN m.owner_wallet ELSE a.to_wallet END))
+               )
+           )
+         )
+     )` : "";
   const result = await db.prepare(
-    `WITH ranked_sales AS (
+    `WITH ranked_activity AS (
        SELECT a.*,
+         CASE WHEN a.event_type = 'offer' THEN m.owner_wallet ELSE a.to_wallet END AS effective_to_wallet,
+         CASE WHEN a.event_type = 'offer' THEN m.owner_fid ELSE a.to_fid END AS effective_to_fid,
          ROW_NUMBER() OVER (
-           PARTITION BY a.token_id, COALESCE(LOWER(a.transaction_hash), LOWER(a.order_hash), a.canonical_key)
+           PARTITION BY CASE
+             WHEN a.event_type = 'sale' THEN CAST(a.token_id AS TEXT) || ':' || COALESCE(LOWER(a.transaction_hash), LOWER(a.order_hash), a.canonical_key)
+             ELSE a.canonical_key
+           END
            ORDER BY CASE WHEN a.source LIKE 'opensea%' THEN 0 ELSE 1 END, a.updated_at DESC, a.canonical_key DESC
          ) AS duplicate_rank
        FROM warplet_market_activity a
-       WHERE a.event_type = 'sale'
-         AND a.price_eth IS NOT NULL
+       LEFT JOIN warplet_market_state m ON m.token_id = a.token_id
+       WHERE a.event_type IN ('sale', 'listing', 'offer', 'transfer')
          AND a.occurred_at >= ? AND a.occurred_at < ?
          ${tokenClause}
+         ${friendsClause}
      ), bucketed AS (
        SELECT *, CASE ${bucketCase} ELSE NULL END AS bucket_index
-       FROM ranked_sales
+       FROM ranked_activity
        WHERE duplicate_rank = 1
+         AND NOT (
+           event_type = 'transfer' AND EXISTS (
+             SELECT 1 FROM warplet_market_activity sale
+             WHERE sale.event_type = 'sale'
+               AND sale.token_id = ranked_activity.token_id
+               AND sale.transaction_hash IS NOT NULL
+               AND LOWER(sale.transaction_hash) = LOWER(ranked_activity.transaction_hash)
+           )
+         )
      ), summarized AS (
        SELECT *,
-         COUNT(*) OVER (PARTITION BY bucket_index) AS sale_count,
-         AVG(price_eth) OVER (PARTITION BY bucket_index) AS average_price_eth,
+         COUNT(*) OVER (PARTITION BY bucket_index, event_type) AS event_count,
+         AVG(price_eth) OVER (PARTITION BY bucket_index, event_type) AS average_price_eth,
          ROW_NUMBER() OVER (
-           PARTITION BY bucket_index
-           ORDER BY price_eth DESC, occurred_at DESC, canonical_key DESC
+           PARTITION BY bucket_index, event_type
+           ORDER BY CASE WHEN event_type = 'transfer' THEN 0 ELSE COALESCE(price_eth, -1) END DESC,
+                    occurred_at DESC, canonical_key DESC
          ) AS representative_rank
        FROM bucketed
        WHERE bucket_index IS NOT NULL
      )
-     SELECT bucket_index, sale_count, average_price_eth, canonical_key, token_id,
-            price_eth, transaction_hash, from_wallet, from_fid, to_wallet, to_fid, occurred_at
+     SELECT bucket_index, event_type, event_count, average_price_eth, canonical_key, token_id,
+            price_eth, transaction_hash, from_wallet, from_fid,
+            effective_to_wallet AS to_wallet, effective_to_fid AS to_fid, occurred_at
      FROM summarized
      WHERE representative_rank = 1
      ORDER BY bucket_index ASC`
-  ).bind(rangeStart, rangeEnd, ...(tokenId !== null ? [tokenId] : []), ...bucketBindings).all<ActivityChartRepresentativeRow>();
+  ).bind(
+    rangeStart,
+    rangeEnd,
+    ...(tokenId !== null ? [tokenId] : []),
+    ...(friendsViewerFid !== null ? [friendsViewerFid] : []),
+    ...bucketBindings,
+  ).all<ActivityChartRepresentativeRow>();
   const representatives = result.results ?? [];
   const profiles = await loadProfilesForWallets(
     db,
     representatives.flatMap((row) => [row.from_wallet, row.to_wallet]),
   );
-  const byIndex = new Map(representatives.map((row) => [row.bucket_index, row]));
+  const byBucketAndEvent = new Map(representatives.map((row) => [`${row.bucket_index}:${row.event_type}`, row]));
   return {
     rangeStart,
     rangeEnd,
     bucketCount: bounds.length,
     buckets: bounds.map((bucket) => {
-      const row = byIndex.get(bucket.index);
-      if (!row) return { ...bucket, saleCount: 0, averagePriceEth: null, representativeSale: null };
-      const buyerWallet = normalizeWallet(row.to_wallet);
-      const sellerWallet = normalizeWallet(row.from_wallet);
-      const buyer = buyerWallet ? profiles.get(buyerWallet) : null;
-      const seller = sellerWallet ? profiles.get(sellerWallet) : null;
+      const eventPayload = (databaseEvent: "sale" | "listing" | "offer" | "transfer") => {
+        const row = byBucketAndEvent.get(`${bucket.index}:${databaseEvent}`);
+        if (!row) return { count: 0, averagePriceEth: null, representativeEvent: null };
+        const fromWallet = normalizeWallet(row.from_wallet);
+        const toWallet = normalizeWallet(row.to_wallet);
+        const fromProfile = fromWallet ? profiles.get(fromWallet) : null;
+        const toProfile = toWallet ? profiles.get(toWallet) : null;
+        return {
+          count: row.event_count,
+          averagePriceEth: databaseEvent === "transfer" ? 0 : row.average_price_eth,
+          representativeEvent: {
+            key: row.canonical_key,
+            tokenId: row.token_id,
+            priceEth: databaseEvent === "transfer" ? null : row.price_eth,
+            at: row.occurred_at,
+            transactionHash: row.transaction_hash,
+            from: fromWallet ? { wallet: fromWallet, ...(publicProfile(fromProfile ?? null) ?? {}), fid: fromProfile?.fid ?? row.from_fid } : null,
+            to: toWallet ? { wallet: toWallet, ...(publicProfile(toProfile ?? null) ?? {}), fid: toProfile?.fid ?? row.to_fid } : null,
+          },
+        };
+      };
+      const events = {
+        sale: eventPayload("sale"),
+        listing: eventPayload("listing"),
+        offer: eventPayload("offer"),
+        send: eventPayload("transfer"),
+      };
+      const sale = events.sale;
       return {
         ...bucket,
-        saleCount: row.sale_count,
-        averagePriceEth: row.average_price_eth,
-        representativeSale: {
-          key: row.canonical_key,
-          tokenId: row.token_id,
-          priceEth: row.price_eth,
-          at: row.occurred_at,
-          transactionHash: row.transaction_hash,
-          buyer: buyerWallet ? {
-            wallet: buyerWallet,
-            ...(publicProfile(buyer ?? null) ?? {}),
-            fid: buyer?.fid ?? row.to_fid,
-          } : null,
-          seller: sellerWallet ? {
-            wallet: sellerWallet,
-            ...(publicProfile(seller ?? null) ?? {}),
-            fid: seller?.fid ?? row.from_fid,
-          } : null,
-        },
+        events,
+        saleCount: sale.count,
+        averagePriceEth: sale.averagePriceEth,
+        representativeSale: sale.representativeEvent ? {
+          ...sale.representativeEvent,
+          buyer: sale.representativeEvent.to,
+          seller: sale.representativeEvent.from,
+        } : null,
       };
     }),
   };
@@ -4013,10 +4043,20 @@ export async function handleStatsActivityGet(
   }
   const limit = Math.min(20, Math.max(1, asInteger(url.searchParams.get("limit")) ?? 20));
   const cursor = decodeActivityCursor(url.searchParams.get("cursor"));
-  const event = url.searchParams.get("event")?.trim().toLowerCase() ?? "all";
-  if (!new Set(["all", "sale", "listing", "offer", "transfer"]).has(event)) {
-    return jsonError("invalid_activity_event", "Event must be All, Sale, Listing, Offer, or Transfer.", 400);
+  const rawEvent = url.searchParams.get("event")?.trim().toLowerCase() ?? "all";
+  const event = rawEvent === "transfer" ? "send" : rawEvent;
+  const validActivityEvents = new Set(["sale", "listing", "offer", "send"]);
+  if (event !== "all" && !validActivityEvents.has(event)) {
+    return jsonError("invalid_activity_event", "Event must be All, Sale, Listing, Offer, or Send.", 400);
   }
+  const requestedEvents = url.searchParams.get("events")?.trim().toLowerCase();
+  const events = requestedEvents == null
+    ? event === "all" ? null : [event]
+    : requestedEvents === "none" ? [] : [...new Set(requestedEvents.split(",").map((value) => value.trim() === "transfer" ? "send" : value.trim()).filter(Boolean))];
+  if (events?.some((value) => !validActivityEvents.has(value))) {
+    return jsonError("invalid_activity_events", "Events may contain Sale, Listing, Offer, and Send.", 400);
+  }
+  const databaseEvents = events?.map((value) => value === "send" ? "transfer" : value) ?? null;
   const rangeStart = getActivityRangeStart(range);
   const rangeEnd = new Date().toISOString();
   const requestedStart = url.searchParams.get("start");
@@ -4046,13 +4086,20 @@ export async function handleStatsActivityGet(
   try {
     const conditions = ["a.occurred_at >= ?", "a.occurred_at < ?"];
     const bindings: Array<string | number> = [effectiveStart, effectiveEnd];
-    if (event !== "all") {
-      conditions.push("a.event_type = ?");
-      bindings.push(event);
+    const countConditions = [...conditions];
+    const countBindings: Array<string | number> = [...bindings];
+    if (databaseEvents !== null) {
+      if (databaseEvents.length === 0) conditions.push("1 = 0");
+      else {
+        conditions.push(`a.event_type IN (${databaseEvents.map(() => "?").join(", ")})`);
+        bindings.push(...databaseEvents);
+      }
     }
     if (tokenId !== null) {
       conditions.push("a.token_id = ?");
       bindings.push(tokenId);
+      countConditions.push("a.token_id = ?");
+      countBindings.push(tokenId);
     }
     if (friendsOnly && viewerFid !== null) {
       conditions.push(`EXISTS (
@@ -4068,9 +4115,10 @@ export async function handleStatsActivityGet(
           )
       )`);
       bindings.push(viewerFid);
+      countConditions.push(conditions.at(-1)!);
+      countBindings.push(viewerFid);
     }
-    const result = await context.env.WARPLETS.prepare(
-      `WITH filtered_activity AS (
+    const filteredActivityCte = `filtered_activity AS (
          SELECT a.*,
            ROW_NUMBER() OVER (
              PARTITION BY CASE
@@ -4081,7 +4129,9 @@ export async function handleStatsActivityGet(
            ) AS duplicate_rank
          FROM warplet_market_activity a
          WHERE ${conditions.join(" AND ")}
-       )
+       )`;
+    const result = await context.env.WARPLETS.prepare(
+      `WITH ${filteredActivityCte}
        SELECT
          a.canonical_key, a.event_type, a.token_id, a.price_eth,
          a.transaction_hash, a.order_hash, a.from_wallet, a.from_fid,
@@ -4109,6 +4159,36 @@ export async function handleStatsActivityGet(
       from_wallet: string | null; from_fid: number | null; to_wallet: string | null;
       to_fid: number | null; occurred_at: string;
     }>();
+    const eventCountRows = cursor ? [] : (await context.env.WARPLETS.prepare(
+      `WITH filtered_activity AS (
+         SELECT a.*,
+           ROW_NUMBER() OVER (
+             PARTITION BY CASE
+               WHEN a.event_type = 'sale' THEN CAST(a.token_id AS TEXT) || ':' || COALESCE(LOWER(a.transaction_hash), LOWER(a.order_hash), a.canonical_key)
+               ELSE a.canonical_key
+             END
+             ORDER BY CASE WHEN a.source LIKE 'opensea%' THEN 0 ELSE 1 END, a.updated_at DESC, a.canonical_key DESC
+           ) AS duplicate_rank
+         FROM warplet_market_activity a
+         WHERE ${countConditions.join(" AND ")}
+       )
+       SELECT a.event_type, COUNT(*) AS event_count
+       FROM filtered_activity a
+       WHERE a.duplicate_rank = 1
+         AND NOT (
+           a.event_type = 'transfer' AND EXISTS (
+             SELECT 1 FROM warplet_market_activity sale
+             WHERE sale.event_type = 'sale'
+               AND sale.token_id = a.token_id
+               AND sale.transaction_hash IS NOT NULL
+               AND LOWER(sale.transaction_hash) = LOWER(a.transaction_hash)
+           )
+         )
+       GROUP BY a.event_type`
+    ).bind(...countBindings).all<{ event_type: string; event_count: number }>()).results ?? [];
+    const eventCounts = Object.fromEntries(
+      eventCountRows.map((row) => [row.event_type === "transfer" ? "send" : row.event_type, Number(row.event_count) || 0]),
+    );
     const allRows = result.results ?? [];
     const hasMore = allRows.length > limit;
     const pageRows = allRows.slice(0, limit);
@@ -4118,7 +4198,7 @@ export async function handleStatsActivityGet(
     );
     const rows = pageRows.map((row) => ({
       key: row.canonical_key,
-      event: row.event_type,
+      event: row.event_type === "transfer" ? "send" : row.event_type,
       tokenId: row.token_id,
       priceEth: row.event_type === "transfer" ? null : row.price_eth,
       transactionHash: row.transaction_hash,
@@ -4135,14 +4215,15 @@ export async function handleStatsActivityGet(
         fid: profiles.get(normalizeWallet(row.to_wallet) ?? "")?.fid ?? row.to_fid,
       } : null,
     }));
-    const chart = includeChart ? await loadActivityChart(context.env.WARPLETS, range, tokenId) : undefined;
+    const chart = includeChart ? await loadActivityChart(context.env.WARPLETS, range, tokenId, friendsOnly ? viewerFid : null) : undefined;
     const last = pageRows.at(-1);
     return jsonStats({
       analyticsEpoch: ANALYTICS_EPOCH,
       range,
       rows,
+      ...(!cursor ? { eventCounts } : {}),
       ...(chart ? { chart } : {}),
-      filters: { event, start: effectiveStart, end: effectiveEnd },
+      filters: { event, events, start: effectiveStart, end: effectiveEnd },
       hasMore,
       nextCursor: hasMore && last ? encodeActivityCursor({ at: last.occurred_at, key: last.canonical_key }) : null,
       asOf: pageRows[0]?.occurred_at ?? null,
