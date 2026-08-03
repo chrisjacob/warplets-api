@@ -9,6 +9,7 @@
     "build": "tsc --noEmit && vite build && pnpm performance:budget",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
+    "test": "vitest run",
     "performance:budget": "node ../scripts/check-performance-budget.mjs",
     "deploy": "pnpm build && wrangler pages deploy dist",
     "local:tunnel": "node ../scripts/dev-tunnel-app.mjs",
@@ -19,6 +20,7 @@
     "deploy:prod": "pnpm security:preflight && pnpm build && wrangler pages deploy dist --project-name 10x-app"
   },
   "dependencies": {
+    "@cloudflare/puppeteer": "^1.2.0",
     "@farcaster/miniapp-node": "^0.2.0",
     "@farcaster/miniapp-sdk": "^0.3.0",
     "@farcaster/quick-auth": "0.0.6",
@@ -39,7 +41,7 @@
     "viem": "^2.31.7"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.0.0",
+    "@cloudflare/workers-types": "^5.20260801.1",
     "@tailwindcss/vite": "^4",
     "@types/canvas-confetti": "^1.9.0",
     "@types/react": "^19",
@@ -48,6 +50,7 @@
     "tailwindcss": "^4",
     "typescript": "^5",
     "vite": "^6",
-    "wrangler": "^4.0.0"
+    "vitest": "^4.1.10",
+    "wrangler": "^4.118.0"
   }
 }

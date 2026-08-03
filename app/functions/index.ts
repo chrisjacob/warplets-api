@@ -1,6 +1,8 @@
 const FC_MINIAPP_META_REGEX = /<meta\s+name="fc:miniapp"[^>]*>/i;
+const FC_FRAME_META_REGEX = /<meta\s+name="fc:frame"[^>]*>/i;
 const TITLE_REGEX = /<title>[\s\S]*?<\/title>/i;
 import { applySecurityHeaders } from "./_lib/security.js";
+import { loadStatsShareSnapshot } from "./_lib/statsShares.js";
 import { getPerksShareContentFromPath, getPerksShareImageUrl } from "../src/perksShareContent.js";
 
 type PagesEnv = {
@@ -320,6 +322,7 @@ function buildMiniAppMetaContent(
   imageUrl?: string,
   buttonTitle?: string,
   actionName?: string,
+  actionUrl?: string,
 ): string {
   const base = normalizeBase(origin);
   const hostname = new URL(origin).hostname;
@@ -327,7 +330,7 @@ function buildMiniAppMetaContent(
   const config = getMiniAppConfig(routeKey);
   const launchPath = getLaunchPath(routeKey, hostname);
   const launchBase = launchPath === "/" ? `${base}/` : `${base}${launchPath}`;
-  const launchUrl = `${launchBase}${search}`;
+  const launchUrl = actionUrl ?? `${launchBase}${search}`;
   const splashImageUrl =
     routeKey === "drop" ? `${base}/splash_drop.png` : `${base}/splash.png`;
 
@@ -409,6 +412,27 @@ function buildSearchOpenGraphTags(titleText: string, imageUrl: string, pageUrl: 
   ].join("\n  ");
 }
 
+function buildStatsShareOpenGraphTags(titleText: string, imageUrl: string, pageUrl: string): string {
+  const title = escapeHtmlAttr(titleText);
+  const description = escapeHtmlAttr("A live 10X Warplets Stats snapshot.");
+  const image = escapeHtmlAttr(imageUrl);
+  const url = escapeHtmlAttr(pageUrl);
+  return [
+    `<meta property="og:title" content="${title}" />`,
+    `<meta property="og:description" content="${description}" />`,
+    `<meta property="og:url" content="${url}" />`,
+    `<meta property="og:type" content="website" />`,
+    `<meta property="og:image" content="${image}" />`,
+    `<meta property="og:image:secure_url" content="${image}" />`,
+    `<meta property="og:image:width" content="1200" />`,
+    `<meta property="og:image:height" content="800" />`,
+    `<meta name="twitter:card" content="summary_large_image" />`,
+    `<meta name="twitter:title" content="${title}" />`,
+    `<meta name="twitter:description" content="${description}" />`,
+    `<meta name="twitter:image" content="${image}" />`,
+  ].join("\n  ");
+}
+
 export const onRequestGet: PagesFunction<PagesEnv> = async (context) => {
   const requestUrl = new URL(context.request.url);
 
@@ -428,6 +452,13 @@ export const onRequestGet: PagesFunction<PagesEnv> = async (context) => {
   }
 
   const routeKey = getRouteKey(requestUrl.hostname, requestUrl.pathname);
+  const statsShareId = requestUrl.pathname.match(/^\/stats\/share\/([a-f0-9]{32})\/?$/)?.[1];
+  const statsShareSnapshot = statsShareId && context.env.WARPLETS
+    ? await loadStatsShareSnapshot(context.env.WARPLETS, statsShareId).catch(() => null)
+    : null;
+  const statsShareImageUrl = statsShareSnapshot?.imageReady
+    ? `${requestUrl.origin}/api/stats/share-images/${statsShareSnapshot.id}`
+    : undefined;
   const searchWarpletTokenId = routeKey === "search" ? getWarpletTokenId(requestUrl.searchParams) : undefined;
   const searchFirstWarpletTokenId =
     routeKey === "search" && !searchWarpletTokenId ? getFirstWarpletTokenId(requestUrl.searchParams) : undefined;
@@ -448,24 +479,30 @@ export const onRequestGet: PagesFunction<PagesEnv> = async (context) => {
       ? await getDropShareImageUrl(context.env, requestUrl.searchParams)
       : undefined;
   const searchShareImageUrl = searchWarpletImageUrl ?? searchResultsImageUrl ?? (perksShareContent ? getPerksShareImageUrl(perksShareContent) : undefined);
-  const routeImageUrl = routeKey === "stop" ? STOP_IMAGE_URL : searchShareImageUrl ?? dropShareImageUrl;
+  const routeImageUrl = statsShareImageUrl ?? (routeKey === "stop" ? STOP_IMAGE_URL : searchShareImageUrl ?? dropShareImageUrl);
   const metaContent = escapeHtmlAttr(
     buildMiniAppMetaContent(
       requestUrl.origin,
       requestUrl.pathname,
       requestUrl.search,
       routeImageUrl,
-      searchShareTitle,
-      searchShareTitle,
+      statsShareSnapshot?.title ?? searchShareTitle,
+      statsShareSnapshot?.title ?? searchShareTitle,
+      statsShareSnapshot ? `${requestUrl.origin}${statsShareSnapshot.launchPath}` : undefined,
     )
   );
   const metaTag = `<meta name="fc:miniapp" content="${metaContent}" />`;
+  const frameMetaTag = `<meta name="fc:frame" content="${metaContent}" />`;
 
   let html = await response.text();
   if (FC_MINIAPP_META_REGEX.test(html)) {
     html = html.replace(FC_MINIAPP_META_REGEX, metaTag);
   } else {
     html = html.replace("</head>", `  ${metaTag}\n  </head>`);
+  }
+  if (statsShareSnapshot) {
+    if (FC_FRAME_META_REGEX.test(html)) html = html.replace(FC_FRAME_META_REGEX, frameMetaTag);
+    else html = html.replace("</head>", `  ${frameMetaTag}\n  </head>`);
   }
 
   if (routeKey === "drop" && dropShareImageUrl) {
@@ -492,6 +529,17 @@ export const onRequestGet: PagesFunction<PagesEnv> = async (context) => {
     html = html.replace(
       "</head>",
       `  ${buildSearchOpenGraphTags(searchShareTitle, searchShareImageUrl, requestUrl.href)}\n  </head>`,
+    );
+  }
+
+  if (statsShareSnapshot && statsShareImageUrl) {
+    const titleTag = `<title>${escapeHtmlText(statsShareSnapshot.farcasterText)}</title>`;
+    html = TITLE_REGEX.test(html)
+      ? html.replace(TITLE_REGEX, titleTag)
+      : html.replace("</head>", `  ${titleTag}\n  </head>`);
+    html = html.replace(
+      "</head>",
+      `  ${buildStatsShareOpenGraphTags(statsShareSnapshot.farcasterText, statsShareImageUrl, requestUrl.href)}\n  </head>`,
     );
   }
 

@@ -1,7 +1,16 @@
 name = "10x-app"
 pages_build_output_dir = "dist"
-compatibility_date = "2024-09-23"
+compatibility_date = "2026-07-27"
 compatibility_flags = ["nodejs_compat"]
+
+[browser]
+binding = "STATS_SHARE_BROWSER"
+
+[[r2_buckets]]
+binding = "STATS_SHARE_IMAGES"
+# Placeholder names: create and bind these buckets before live snapshot rendering.
+bucket_name = "warplets-stats-shares"
+preview_bucket_name = "warplets-stats-shares-preview"
 
 [triggers]
 crons = ["*/10 * * * *"]
@@ -45,6 +54,14 @@ migrations_dir = "../migrations"
 # Preview environment (app-dev.10x.meme)
 [env.preview]
 name = "10x-app-dev"
+
+[env.preview.browser]
+binding = "STATS_SHARE_BROWSER"
+
+[[env.preview.r2_buckets]]
+binding = "STATS_SHARE_IMAGES"
+# Placeholder preview bucket: no Cloudflare resources are created by this change.
+bucket_name = "warplets-stats-shares-preview"
 
 [env.preview.vars]
 APP_APP_FID = "9152"

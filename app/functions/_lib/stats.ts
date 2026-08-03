@@ -125,6 +125,7 @@ type Profile = {
   username: string | null;
   displayName: string | null;
   pfpUrl: string | null;
+  xUsername: string | null;
   score: number | null;
 };
 
@@ -148,6 +149,7 @@ type HolderApiRow = HolderBaseRow & {
   username: string | null;
   displayName: string | null;
   pfpUrl: string | null;
+  xUsername: string | null;
   isViewer: boolean;
   isTopFriend: boolean;
   originalFidTokenId?: number | null;
@@ -1061,6 +1063,7 @@ async function loadProfilesForWallets(
            username,
            display_name,
            pfp_url,
+           x_username,
            score,
            ROW_NUMBER() OVER (
              PARTITION BY LOWER(wallet)
@@ -1072,7 +1075,7 @@ async function loadProfilesForWallets(
            FROM json_each(?)
          )
        )
-       SELECT wallet, fid, username, display_name, pfp_url, score
+       SELECT wallet, fid, username, display_name, pfp_url, x_username, score
        FROM ranked_profiles
        WHERE profile_rank = 1`
     ).bind(JSON.stringify(normalized)).all<{
@@ -1081,6 +1084,7 @@ async function loadProfilesForWallets(
       username: string | null;
       display_name: string | null;
       pfp_url: string | null;
+      x_username: string | null;
       score: number | null;
     }>();
 
@@ -1092,6 +1096,7 @@ async function loadProfilesForWallets(
         username: row.username,
         displayName: row.display_name,
         pfpUrl: row.pfp_url,
+        xUsername: row.x_username,
         score: row.score,
       },
     ]));
@@ -2505,6 +2510,7 @@ async function loadProfilesForFids(
              username,
              display_name,
              pfp_url,
+             x_username,
              score,
              ROW_NUMBER() OVER (
                PARTITION BY fid
@@ -2516,7 +2522,7 @@ async function loadProfilesForFids(
              FROM json_each(?)
            )
          )
-         SELECT wallet, fid, username, display_name, pfp_url, score
+         SELECT wallet, fid, username, display_name, pfp_url, x_username, score
          FROM ranked_profiles
          WHERE profile_rank = 1`
       ).bind(JSON.stringify(normalized)).all<{
@@ -2525,6 +2531,7 @@ async function loadProfilesForFids(
         username: string | null;
         display_name: string | null;
         pfp_url: string | null;
+        x_username: string | null;
         score: number | null;
       }>();
       for (const row of result.results ?? []) {
@@ -2534,6 +2541,7 @@ async function loadProfilesForFids(
           username: row.username,
           displayName: row.display_name,
           pfpUrl: row.pfp_url,
+          xUsername: row.x_username,
           score: row.score,
         });
       }
@@ -2545,7 +2553,7 @@ async function loadProfilesForFids(
   if (await tableExists(db, "warplets_users")) {
     try {
       const result = await db.prepare(
-        `SELECT fid, username, display_name, pfp_url, score, primary_eth_address
+        `SELECT fid, username, display_name, pfp_url, x_username, score, primary_eth_address
          FROM warplets_users
          WHERE fid IN (
            SELECT CAST(value AS INTEGER)
@@ -2556,6 +2564,7 @@ async function loadProfilesForFids(
         username: string | null;
         display_name: string | null;
         pfp_url: string | null;
+        x_username: string | null;
         score: number | null;
         primary_eth_address: string | null;
       }>();
@@ -2567,6 +2576,7 @@ async function loadProfilesForFids(
           username: current?.username ?? row.username,
           displayName: current?.displayName ?? row.display_name,
           pfpUrl: current?.pfpUrl ?? row.pfp_url,
+          xUsername: current?.xUsername ?? row.x_username,
           score: current?.score ?? row.score,
         });
       }
@@ -2585,6 +2595,7 @@ function publicProfile(profile: Profile | null): Omit<Profile, "wallet"> | null 
       username: profile.username,
       displayName: profile.displayName,
       pfpUrl: profile.pfpUrl,
+      xUsername: profile.xUsername,
       score: profile.score,
     }
     : null;
@@ -2999,6 +3010,7 @@ async function loadRecentSocialListings(db: D1Database): Promise<Array<{
               displayName: null,
               pfpUrl: null,
               score: null,
+              xUsername: null,
             }
           : null),
       ),
@@ -3429,8 +3441,98 @@ function toHolderApiRow(
     username: profile?.username ?? null,
     displayName: profile?.displayName ?? null,
     pfpUrl: profile?.pfpUrl ?? null,
+    xUsername: profile?.xUsername ?? null,
     isViewer: viewerWallet === row.wallet,
     isTopFriend: false,
+  };
+}
+
+export async function loadStatsFriendHoldersForShare(
+  env: StatsEnv,
+  viewerFid: number,
+): Promise<{ rows: HolderApiRow[]; totalHolders: number; asOf: string | null }> {
+  await ensureHolderLeaderboard(env.WARPLETS);
+  const [friends, total, market] = await Promise.all([
+    env.WARPLETS.prepare(
+      `WITH friend_wallets AS (
+         SELECT
+           LOWER(TRIM(m.owner_wallet)) AS wallet,
+           m.owner_fid AS fid,
+           bf.mutual_affinity_score,
+           ROW_NUMBER() OVER (
+             PARTITION BY LOWER(TRIM(m.owner_wallet))
+             ORDER BY COALESCE(bf.mutual_affinity_score, -1) DESC, m.owner_fid ASC
+           ) AS identity_rank
+         FROM warplet_market_state m
+         JOIN warplets_user_best_friends bf ON bf.best_friend_fid = m.owner_fid
+         WHERE bf.user_fid = ?
+           AND m.owner_wallet IS NOT NULL
+           AND TRIM(m.owner_wallet) <> ''
+         UNION ALL
+         SELECT
+           LOWER(TRIM(l.wallet)) AS wallet,
+           l.fid,
+           bf.mutual_affinity_score,
+           ROW_NUMBER() OVER (
+             PARTITION BY LOWER(TRIM(l.wallet))
+             ORDER BY COALESCE(bf.mutual_affinity_score, -1) DESC, l.fid ASC
+           ) AS identity_rank
+         FROM wallet_farcaster_links l
+         JOIN warplets_user_best_friends bf ON bf.best_friend_fid = l.fid
+         WHERE bf.user_fid = ?
+       ),
+       ranked_friend_wallets AS (
+         SELECT wallet, fid,
+           ROW_NUMBER() OVER (
+             PARTITION BY wallet
+             ORDER BY identity_rank ASC, COALESCE(mutual_affinity_score, -1) DESC, fid ASC
+           ) AS wallet_rank
+         FROM friend_wallets
+       ),
+       ranked_holders AS (
+         SELECT h.*,
+           ROW_NUMBER() OVER (
+             ORDER BY h.owned_count DESC, h.best_rarity_rank ASC, h.wallet ASC
+           ) AS rank
+         FROM holder_leaderboard h
+       )
+       SELECT
+         h.rank, h.wallet, h.owned_count, h.best_rarity_rank, h.best_token_id,
+         h.preview_token_ids_json, h.updated_at, f.fid
+       FROM ranked_holders h
+       JOIN ranked_friend_wallets f ON f.wallet = h.wallet AND f.wallet_rank = 1
+       WHERE h.wallet <> ?
+       ORDER BY h.rank ASC
+       LIMIT 10`,
+    ).bind(viewerFid, viewerFid, ZERO_ADDRESS).all<{
+      rank: number;
+      wallet: string;
+      owned_count: number;
+      best_rarity_rank: number;
+      best_token_id: number;
+      preview_token_ids_json: string;
+      updated_at: string | null;
+      fid: number;
+    }>(),
+    env.WARPLETS.prepare("SELECT COUNT(*) AS count, MAX(updated_at) AS updated_at FROM holder_leaderboard")
+      .first<{ count: number; updated_at: string | null }>(),
+    loadCurrentMarket(env.WARPLETS),
+  ]);
+  const sourceRows = friends.results ?? [];
+  const profiles = await loadProfilesForFids(env.WARPLETS, sourceRows.map((row) => row.fid));
+  const rows = sourceRows.map((row) => toHolderApiRow({
+    rank: row.rank,
+    wallet: row.wallet,
+    ownedCount: row.owned_count,
+    bestRarityRank: row.best_rarity_rank,
+    bestTokenId: row.best_token_id,
+    previewTokenIds: parsePreviewTokenIds(row.preview_token_ids_json),
+    updatedAt: row.updated_at,
+  }, market.floorEth, profiles.get(row.fid) ?? null, null));
+  return {
+    rows,
+    totalHolders: Number(total?.count) || 0,
+    asOf: total?.updated_at ?? null,
   };
 }
 
