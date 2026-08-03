@@ -26,6 +26,7 @@ import {
 import MiniAppShell from "./MiniAppShell";
 import { PERKS_DEFINITIONS, PERKS_MOCKUP_NOTICE_DISMISSED_KEY, type PerksSubpage } from "./perksMockData";
 import { PERKS_SHARE_CONTENT, getPerksShareImageUrl } from "./perksShareContent";
+import type { StatsShareCreateResponse, StatsShareRequest } from "./statsShare";
 import {
   hapticError,
   hapticPrimaryTap,
@@ -1064,6 +1065,7 @@ type SharePreviewImage = {
   sourceUrl?: string;
   fallbackSrc?: string;
   isLoading?: boolean;
+  aspectRatio?: "square" | "landscape";
 };
 
 type SharePreviewState = {
@@ -1075,6 +1077,8 @@ type SharePreviewState = {
   images: SharePreviewImage[];
   farcasterEmbeds: [] | [string] | [string, string];
   twitterText: string;
+  status?: "preparing" | "ready" | "error";
+  statusMessage?: string;
 };
 
 function getInitialSharePreviewImages(images: SharePreviewImage[]): SharePreviewImage[] {
@@ -3171,10 +3175,18 @@ function writeLastSearchStatsSubpage(value: SearchStatsSubpage): void {
 
 function readLastStatsActivityEvent(): StatsActivityEvent {
   if (typeof window === "undefined") return "sale";
+  const queryEvent = new URLSearchParams(window.location.search).get("event");
+  if (queryEvent === "listing" || queryEvent === "offer" || queryEvent === "send" || queryEvent === "sale") return queryEvent;
   const value = window.localStorage.getItem(LAST_STATS_ACTIVITY_EVENT_KEY);
   return value === "listing" || value === "offer" || value === "send" || value === "sale"
     ? value
     : "sale";
+}
+
+function readInitialStatsRange(): StatsRange {
+  if (typeof window === "undefined") return "all";
+  const value = new URLSearchParams(window.location.search).get("range");
+  return value === "7d" || value === "30d" || value === "90d" || value === "1y" || value === "all" ? value : "all";
 }
 
 function writeLastStatsActivityEvent(value: StatsActivityEvent): void {
@@ -4691,6 +4703,7 @@ function StatsChartPanel({
   animationKey,
   onShowBucketSales,
   onSearchWallet,
+  onShare,
 }: {
   title: string;
   description?: string;
@@ -4706,6 +4719,7 @@ function StatsChartPanel({
   animationKey?: string;
   onShowBucketSales?: (startAt: string, endAt: string) => void;
   onSearchWallet?: (wallet: string) => void;
+  onShare?: () => void;
 }) {
   return (
     <section className="overflow-hidden rounded-xl border border-[#00FF00]/25 bg-black/65">
@@ -4715,13 +4729,14 @@ function StatsChartPanel({
             <Text className="text-xs font-black uppercase text-[#00FF00]">{title}</Text>
             {headline && <span className="mt-1 block text-2xl font-black text-white">{headline}</span>}
           </span>
-          {changePercent != null && Number.isFinite(changePercent) && (
-            <span className={`mt-5 shrink-0 text-xs font-black ${
-              changePercent > 0 ? "text-[#00FF00]" : changePercent < 0 ? "text-[#FF5555]" : "text-[#8bbf8b]"
-            }`}>
-              {changePercent > 0 ? "+" : ""}{changePercent.toFixed(1)}%
-            </span>
-          )}
+          <span className="flex shrink-0 flex-col items-end gap-2">
+            {onShare && <StatsShareButton label={`Share ${title}`} onClick={onShare} compact />}
+            {changePercent != null && Number.isFinite(changePercent) && (
+              <span className={`text-xs font-black ${changePercent > 0 ? "text-[#00FF00]" : changePercent < 0 ? "text-[#FF5555]" : "text-[#8bbf8b]"}`}>
+                {changePercent > 0 ? "+" : ""}{changePercent.toFixed(1)}%
+              </span>
+            )}
+          </span>
         </div>
         {description && <Text className="mt-1 text-[10px] leading-4 text-[#8bbf8b]">{description}</Text>}
       </div>
@@ -4748,6 +4763,22 @@ function StatsChartPanel({
         </div>
       )}
     </section>
+  );
+}
+
+function StatsShareButton({ label, onClick, compact = false, disabled = false }: { label: string; onClick: () => void; compact?: boolean; disabled?: boolean }) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={() => { void hapticPrimaryTap(); onClick(); }}
+      className={`inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-[#00FF00]/45 bg-[#00FF00]/10 font-black text-[#00FF00] transition hover:border-[#00FF00] hover:bg-[#00FF00]/15 disabled:cursor-not-allowed disabled:opacity-40 ${compact ? "px-2 py-1 text-[9px]" : "px-3 py-2 text-[10px]"}`}
+    >
+      <svg viewBox="0 0 24 24" className={compact ? "h-3 w-3" : "h-3.5 w-3.5"} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" /><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4" />
+      </svg>
+      {label}
+    </button>
   );
 }
 
@@ -5193,6 +5224,7 @@ function StatsHoldersPage({
   ethUsdPrice,
   onSearchWallet,
   onOpenWarpletDetails,
+  onShareStats,
 }: {
   connectedWallet: string | null;
   viewerFid: number | null;
@@ -5200,6 +5232,7 @@ function StatsHoldersPage({
   ethUsdPrice: number | null;
   onSearchWallet: (wallet: string) => void;
   onOpenWarpletDetails: (tokenId: number) => void;
+  onShareStats: (request: StatsShareRequest) => void;
 }) {
   const [payload, setPayload] = useState<StatsApiEnvelope | null>(null);
   const [rows, setRows] = useState<StatsHolderRow[]>([]);
@@ -5390,8 +5423,9 @@ function StatsHoldersPage({
           <div className="mb-3">
             {viewerRow ? (
               <>
-                <div className="mb-2 text-xs font-black uppercase text-[#FFFF00]">
-                  YOUR RANK: #{viewerRow.rank?.toLocaleString("en-US") ?? "—"} of {holderCount?.toLocaleString("en-US") ?? "—"}
+                <div className="mb-2 flex items-center justify-between gap-2 text-xs font-black uppercase text-[#FFFF00]">
+                  <span>YOUR RANK: #{viewerRow.rank?.toLocaleString("en-US") ?? "—"} of {holderCount?.toLocaleString("en-US") ?? "—"}</span>
+                  <StatsShareButton label="Share Your Rank" compact onClick={() => onShareStats({ kind: "holder-rank", ...(connectedWallet ? { wallet: connectedWallet } : {}), ...(viewerFid ? { fid: viewerFid } : {}) })} />
                 </div>
                 <StatsHolderRowView
                   row={{ ...viewerRow, isViewer: true }}
@@ -5409,8 +5443,16 @@ function StatsHoldersPage({
           </div>
         )}
 
-        <div className="flex items-center justify-between py-2">
+        <div className="flex items-center justify-between gap-2 py-2">
           <Text className="text-xs font-black uppercase text-[#00FF00]">Leaderboard</Text>
+          <span className="ml-auto">
+            <StatsShareButton
+              compact
+              label={friendsOnly ? "Share Top 10 Friends" : "Share Top 10"}
+              disabled={friendsOnly && !viewerFid}
+              onClick={() => onShareStats(friendsOnly && viewerFid ? { kind: "holders-top10-friends", viewerFid } : { kind: "holders-top10" })}
+            />
+          </span>
           <button
             type="button"
             role="switch"
@@ -5511,9 +5553,11 @@ function StatsHoldersPage({
 function StatsOverview({
   payload,
   ethUsdPrice,
+  onShare,
 }: {
   payload: StatsApiEnvelope;
   ethUsdPrice: number | null;
+  onShare: () => void;
 }) {
   const items = statsMetric(payload, "items", "totalItems", "supply");
   const floor = statsMetric(payload, "floorPrice", "floor");
@@ -5546,6 +5590,7 @@ function StatsOverview({
 
   return (
     <div>
+      <div className="mb-3 flex justify-end"><StatsShareButton label="Share Overview" onClick={onShare} /></div>
       <div className="grid grid-cols-2 gap-2">
         <StatsMetricCard label="Items" value={formatStatsInteger(items ?? 10000)} />
         <StatsMetricCard label="Floor Price" value={formatStatsEth(floor)} tooltip={floorUsd} />
@@ -5603,9 +5648,13 @@ function StatsOverview({
 function StatsMarket({
   payload,
   ethUsdPrice,
+  range,
+  onShareStats,
 }: {
   payload: StatsApiEnvelope;
   ethUsdPrice: number | null;
+  range: StatsRange;
+  onShareStats: (request: StatsShareRequest) => void;
 }) {
   const volume = statsMetric(payload, "volume", "periodVolume", "totalVolume");
   const sales = statsMetric(payload, "sales", "saleCount");
@@ -5697,6 +5746,7 @@ function StatsMarket({
           hideMarketplace
           hideEthSymbol
           series={[{ key: "movingPrice", label: "Price ETH", color: "#00FF00", type: "line" }]}
+          onShare={() => onShareStats({ kind: "market", metric: "price", range })}
         />
         <StatsChartPanel
           title="Floor Price"
@@ -5705,6 +5755,7 @@ function StatsMarket({
           data={floorData}
           hideEthSymbol
           series={[{ key: "floorPrice", label: "Floor ETH", color: "#00FF00", type: "line" }]}
+          onShare={() => onShareStats({ kind: "market", metric: "floor", range })}
         />
         <StatsChartPanel
           title="Volume"
@@ -5713,6 +5764,7 @@ function StatsMarket({
           data={dailyData}
           hideEthSymbol
           series={[{ key: "volume", label: "Volume ETH", color: "#00FF00", type: "line" }]}
+          onShare={() => onShareStats({ kind: "market", metric: "volume", range })}
         />
         <StatsChartPanel
           title="Sales"
@@ -5721,6 +5773,7 @@ function StatsMarket({
           data={dailyData}
           hideEthSymbol
           series={[{ key: "sales", label: "Sales", color: "#00FF00", type: "line" }]}
+          onShare={() => onShareStats({ kind: "market", metric: "sales", range })}
         />
       </div>
     </div>
@@ -6076,6 +6129,7 @@ function StatsSocial({
   onSearchWallet,
   onOpenWarpletDetails,
   isInMiniAppContext,
+  onShareStats,
 }: {
   payload: StatsApiEnvelope;
   highlights: unknown;
@@ -6088,6 +6142,7 @@ function StatsSocial({
   onSearchWallet: (wallet: string) => void;
   onOpenWarpletDetails: (tokenId: number) => void;
   isInMiniAppContext: boolean;
+  onShareStats: (request: StatsShareRequest) => void;
 }) {
   const [activityChart, setActivityChart] = useState<ActivityChartPayload | null>(null);
   const [activityChartLoading, setActivityChartLoading] = useState(true);
@@ -6161,6 +6216,17 @@ function StatsSocial({
 
   return (
     <div>
+      <div className="mb-3 flex flex-col items-end gap-1.5">
+        <StatsShareButton
+          label={`Share ${(selectedEvents[0] ?? "sale").replace(/^./, (character) => character.toUpperCase())} Activity`}
+          onClick={() => onShareStats({ kind: "activity", event: selectedEvents[0] ?? "sale", range })}
+        />
+        {(friendsOnly || favouritesOnly) && (
+          <Text className="text-right text-[9px] font-bold leading-3 text-[#8bbf8b]">
+            The shared chart uses collection-wide data; Friends and Favourites are not included.
+          </Text>
+        )}
+      </div>
       <CollectionActivity
         range={range}
         viewerFid={viewerFid}
@@ -6279,6 +6345,7 @@ function StatsPage({
   onSearchWallet,
   onOpenWarpletDetails,
   isInMiniAppContext,
+  onShareStats,
 }: {
   subpage: SearchStatsSubpage;
   connectedWallet: string | null;
@@ -6288,8 +6355,9 @@ function StatsPage({
   onSearchWallet: (wallet: string) => void;
   onOpenWarpletDetails: (tokenId: number) => void;
   isInMiniAppContext: boolean;
+  onShareStats: (request: StatsShareRequest) => void;
 }) {
-  const [range, setRange] = useState<StatsRange>("all");
+  const [range, setRange] = useState<StatsRange>(() => readInitialStatsRange());
   const [payload, setPayload] = useState<StatsApiEnvelope | null>(null);
   const [highlights, setHighlights] = useState<unknown>(null);
   const [ethUsdPrice, setEthUsdPrice] = useState<number | null>(null);
@@ -6480,6 +6548,7 @@ function StatsPage({
           ethUsdPrice={ethUsdPrice}
           onSearchWallet={onSearchWallet}
           onOpenWarpletDetails={onOpenWarpletDetails}
+          onShareStats={onShareStats}
         />
       ) : loading && !payload ? (
         <StatsLoadingState subpage={subpage} />
@@ -6490,8 +6559,8 @@ function StatsPage({
         </div>
       ) : payload ? (
         <>
-          {subpage === "overview" && <StatsOverview payload={payload} ethUsdPrice={ethUsdPrice} />}
-          {subpage === "market" && <StatsMarket payload={payload} ethUsdPrice={ethUsdPrice} />}
+          {subpage === "overview" && <StatsOverview payload={payload} ethUsdPrice={ethUsdPrice} onShare={() => onShareStats({ kind: "overview" })} />}
+          {subpage === "market" && <StatsMarket payload={payload} ethUsdPrice={ethUsdPrice} range={range} onShareStats={onShareStats} />}
           {subpage === "social" && (
             <StatsSocial
               payload={payload}
@@ -6505,6 +6574,7 @@ function StatsPage({
               onSearchWallet={onSearchWallet}
               onOpenWarpletDetails={onOpenWarpletDetails}
               isInMiniAppContext={isInMiniAppContext}
+              onShareStats={onShareStats}
             />
           )}
           {error && <Text className="mt-3 text-center text-[10px] font-bold text-red-300">{error}</Text>}
@@ -11541,12 +11611,14 @@ function SharePreviewModal({
   onCopySuccess,
   onShareFarcaster,
   onShareTwitter,
+  onRetry,
 }: {
   preview: SharePreviewState;
   onClose: () => void;
   onCopySuccess: () => void;
   onShareFarcaster: () => void;
   onShareTwitter: () => void;
+  onRetry?: () => void;
 }) {
   const shareContentRef = useRef<HTMLDivElement | null>(null);
   const [resolvedImages, setResolvedImages] = useState<SharePreviewImage[]>(() => getInitialSharePreviewImages(preview.images));
@@ -11559,6 +11631,7 @@ function SharePreviewModal({
   const [titleFirstWord, ...titleRestWords] = preview.title.split(" ");
   const titleRest = titleRestWords.join(" ");
   const [isClipboardTooltipOpen, setIsClipboardTooltipOpen] = useState(false);
+  const shareReady = preview.status == null || preview.status === "ready";
   const [initializeShareScrollbars] = useOverlayScrollbars({
     options: {
       scrollbars: {
@@ -11734,6 +11807,7 @@ function SharePreviewModal({
               ref={clipboardTooltipRefs.setReference}
               type="button"
               aria-label="Copy to Clipboard"
+              disabled={!shareReady}
               {...getClipboardReferenceProps({
                 onClick: () => {
                   void hapticPrimaryTap();
@@ -11749,7 +11823,7 @@ function SharePreviewModal({
                     });
                 },
                 className:
-                  "absolute right-3 top-3 flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-[oklab(0.866435_-0.23384_0.179502_/_0.35)] bg-black text-base text-[#00FF00] shadow-[2px_3px_0_oklab(0.866435_-0.23384_0.179502_/_0.35)] transition-all duration-100 hover:bg-[#041204] active:translate-x-[1px] active:translate-y-[2px] active:shadow-[1px_1px_0_oklab(0.866435_-0.23384_0.179502_/_0.35)]",
+                  "absolute right-3 top-3 flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-[oklab(0.866435_-0.23384_0.179502_/_0.35)] bg-black text-base text-[#00FF00] shadow-[2px_3px_0_oklab(0.866435_-0.23384_0.179502_/_0.35)] transition-all duration-100 hover:bg-[#041204] active:translate-x-[1px] active:translate-y-[2px] active:shadow-[1px_1px_0_oklab(0.866435_-0.23384_0.179502_/_0.35)] disabled:cursor-not-allowed disabled:opacity-40",
               })}
             >
               <span aria-hidden="true">📋</span>
@@ -11773,13 +11847,29 @@ function SharePreviewModal({
           </div>
           </div>
 
-          <div className="mt-3 rounded-xl border border-[#00FF00]/25 bg-[#041204]/80 p-3">
+          {!shareReady && (
+            <div className={`mt-3 rounded-xl border p-4 text-center ${preview.status === "error" ? "border-red-400/35 bg-red-950/20" : "border-[#00FF00]/25 bg-[#041204]/80"}`}>
+              {preview.status === "preparing" ? (
+                <>
+                  <span className="mx-auto block h-9 w-9 animate-spin rounded-full border-2 border-[#00FF00]/25 border-t-[#00FF00]" aria-label="Preparing Stats share image" />
+                  <Text className="mt-3 text-xs font-bold text-[#8bbf8b]">{preview.statusMessage || "Rendering your Stats snapshot…"}</Text>
+                </>
+              ) : (
+                <>
+                  <Text className="text-xs font-bold text-red-300">{preview.statusMessage || "The Stats snapshot could not be rendered."}</Text>
+                  {onRetry && <button type="button" onClick={onRetry} className="mt-3 cursor-pointer rounded-full border border-[#00FF00]/45 px-5 py-2 text-xs font-black text-[#00FF00] hover:bg-[#00FF00]/10">Retry</button>}
+                </>
+              )}
+            </div>
+          )}
+
+          {shareReady && <div className="mt-3 rounded-xl border border-[#00FF00]/25 bg-[#041204]/80 p-3">
             <Text className="mb-2 text-xs font-bold uppercase" style={{ color: "#00FF00" }}>
               Images
             </Text>
             <div className="grid grid-cols-2 gap-2">
               {resolvedImages.map((image, index) => (
-                <div key={`${image.src}-${index}`} className="relative aspect-square overflow-hidden rounded-lg border border-[#00FF00]/25 bg-[rgba(0,255,0,0.12)]">
+                <div key={`${image.src}-${index}`} className={`relative overflow-hidden rounded-lg border border-[#00FF00]/25 bg-[rgba(0,255,0,0.12)] ${image.aspectRatio === "landscape" ? "col-span-2 aspect-[3/2]" : "aspect-square"}`}>
                   {image.isLoading && (
                     <div className="absolute inset-0 flex h-full w-full items-center justify-center">
                       <span className="h-8 w-8 animate-spin rounded-full border-2 border-[#00FF00]/25 border-t-[#00FF00]" aria-label="Loading OpenSea preview image" />
@@ -11813,28 +11903,30 @@ function SharePreviewModal({
                 </div>
               ))}
             </div>
-          </div>
+          </div>}
         </div>
 
         <div className="sticky bottom-0 z-10 border-t border-[#00FF00]/20 bg-black px-4 py-3">
           <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
+              disabled={!shareReady}
               onClick={() => {
                 void hapticPrimaryTap();
                 onShareFarcaster();
               }}
-              className="w-full cursor-pointer rounded-[20px] border border-[#009900] bg-[#00FF00] px-3 py-3 text-center text-sm font-bold text-[rgb(0,80,0)] shadow-[3px_6px_0_#008000] transition-all duration-100 hover:bg-[#33ff33] active:translate-x-[1px] active:translate-y-[3px] active:shadow-[1px_3px_0_#008000]"
+              className="w-full cursor-pointer rounded-[20px] border border-[#009900] bg-[#00FF00] px-3 py-3 text-center text-sm font-bold text-[rgb(0,80,0)] shadow-[3px_6px_0_#008000] transition-all duration-100 hover:bg-[#33ff33] active:translate-x-[1px] active:translate-y-[3px] active:shadow-[1px_3px_0_#008000] disabled:cursor-not-allowed disabled:opacity-40"
             >
               Share on Farcaster
             </button>
             <button
               type="button"
+              disabled={!shareReady}
               onClick={() => {
                 void hapticPrimaryTap();
                 onShareTwitter();
               }}
-              className="secondary-trade-cta w-full cursor-pointer rounded-[20px] border bg-black px-3 py-3 text-center text-sm font-bold text-[#00FF00] transition-all duration-100 hover:bg-[#041204] active:translate-x-[1px] active:translate-y-[3px]"
+              className="secondary-trade-cta w-full cursor-pointer rounded-[20px] border bg-black px-3 py-3 text-center text-sm font-bold text-[#00FF00] transition-all duration-100 hover:bg-[#041204] active:translate-x-[1px] active:translate-y-[3px] disabled:cursor-not-allowed disabled:opacity-40"
             >
               Share on X (Twitter)
             </button>
@@ -12225,10 +12317,27 @@ const SHARE_MODAL_TEST_CASES = [
   { id: "perk-ai", label: "AI Perk", description: "Perks → AI → bottom Share CTA." },
   { id: "perk-attention", label: "Attention Perk", description: "Perks → Attention → bottom Share CTA." },
   { id: "perk-access", label: "Access Perk", description: "Perks → Access → bottom Share CTA." },
+  { id: "stats-overview", label: "Stats Overview", description: "Stats → Overview → Share Overview." },
+  { id: "stats-market-price", label: "Stats Price", description: "Stats → Market → Price chart Share." },
+  { id: "stats-market-floor", label: "Stats Floor Price", description: "Stats → Market → Floor Price chart Share." },
+  { id: "stats-market-volume", label: "Stats Volume", description: "Stats → Market → Volume chart Share." },
+  { id: "stats-market-sales", label: "Stats Sales", description: "Stats → Market → Sales chart Share." },
+  { id: "stats-activity-sale", label: "Stats Sales Activity", description: "Stats → Activity → selected Sales chart Share." },
+  { id: "stats-activity-listing", label: "Stats Listings Activity", description: "Stats → Activity → selected Listings chart Share." },
+  { id: "stats-activity-offer", label: "Stats Offers Activity", description: "Stats → Activity → selected Offers chart Share." },
+  { id: "stats-activity-send", label: "Stats Sends Activity", description: "Stats → Activity → selected Sends chart Share." },
+  { id: "stats-holder-rank", label: "Stats Your Rank", description: "Stats → Holders → Share Your Rank." },
+  { id: "stats-holders-top10", label: "Stats Top 10", description: "Stats → Holders → Share Top 10." },
+  { id: "stats-friends-top10", label: "Stats Top 10 Friends", description: "Stats → Holders → Friends ON → Share Top 10 Friends." },
+  { id: "stats-friends-short", label: "Stats Fewer Than 10 Friends", description: "Friend leaderboard fixture with six muted empty cards." },
+  { id: "stats-x-handle", label: "Stats Verified X Handles", description: "X leaderboard copy uses verified X usernames." },
+  { id: "stats-name-fallback", label: "Stats Display-name Fallback", description: "Leaderboard copy when the channel username is unavailable." },
+  { id: "stats-wallet-fallback", label: "Stats Wallet Fallback", description: "Leaderboard copy when all profile identity is unavailable." },
 ] as const;
 type ShareModalTestId = (typeof SHARE_MODAL_TEST_CASES)[number]["id"];
 
 function AppTestingPage({ onTriggerShare }: { onTriggerShare: (id: ShareModalTestId) => void }) {
+  const visualFixtures = ["overview", "market-price", "market-floor", "market-volume", "market-sales", "activity-sale", "activity-listing", "activity-offer", "activity-send", "rank", "top10", "friends", "friends-short"];
   return (
     <div className="mx-auto w-full max-w-md px-4 pb-10 pt-6">
       <h1 className="text-xl font-black text-[#00FF00]">Share modals</h1>
@@ -12240,6 +12349,14 @@ function AppTestingPage({ onTriggerShare }: { onTriggerShare: (id: ShareModalTes
             </button>
             <p className="mt-2 text-xs leading-5 text-[#8bbf8b]">{testCase.description}</p>
           </div>
+        ))}
+      </div>
+      <h2 className="mt-7 text-lg font-black text-[#00FF00]">1200×800 visual fixtures</h2>
+      <div className="mt-3 grid grid-cols-2 gap-2 rounded-xl border border-[#00FF00]/30 bg-black/60 p-3">
+        {visualFixtures.map((fixture) => (
+          <a key={fixture} href={`/stats/share/fixtures/${fixture}`} target="_blank" rel="noreferrer" className="rounded-lg border border-[#00FF00]/35 bg-[#041204] px-3 py-2 text-center text-xs font-black capitalize text-[#00FF00] hover:border-[#00FF00]">
+            {fixture.replaceAll("-", " ")}
+          </a>
         ))}
       </div>
     </div>
@@ -14269,6 +14386,8 @@ export default function SearchApp() {
   const [favouriteListsByWallet, setFavouriteListsByWallet] = useState<Record<string, number[]>>({});
   const [favouriteFilterWallet, setFavouriteFilterWallet] = useState<string | null>(null);
   const [sharePreview, setSharePreview] = useState<SharePreviewState | null>(null);
+  const statsShareRequestRef = useRef<StatsShareRequest | null>(null);
+  const statsShareIdRef = useRef<string | null>(null);
   const [airdropCongratulationsDetails, setAirdropCongratulationsDetails] = useState<WarpletDetails | null>(null);
   const [preparedAirdropCongratulationsDetails, setPreparedAirdropCongratulationsDetails] = useState<WarpletDetails | null>(null);
   const [airdropFlowHandled, setAirdropFlowHandled] = useState(false);
@@ -16480,6 +16599,45 @@ export default function SearchApp() {
     if (id === "airdrop") return setSharePreview(mockSimplePreview("Share your 10X Warplet Airdrop", "I just received 10X Warplet #1358 in the airdrop!"));
     if (id === "bulk-buy") return setSharePreview(mockSimplePreview("Share Your Bulk Buy!", "👀 Purchased 3 more 10X Warplets..."));
     if (id === "collection-offer") return handleOpenCollectionOfferShare(0.001, 3);
+    if (id.startsWith("stats-")) {
+      const fixture = id === "stats-overview" ? "overview"
+        : id.startsWith("stats-market-") ? id.slice("stats-".length)
+          : id.startsWith("stats-activity-") ? id.slice("stats-".length)
+            : id === "stats-holder-rank" ? "rank"
+              : id === "stats-holders-top10" ? "top10"
+                : id === "stats-friends-short" ? "friends-short" : "friends";
+      const fixtureUrl = new URL(`/stats/share/fixtures/${fixture}`, window.location.origin).toString();
+      const marketMetric = id.startsWith("stats-market-") ? id.slice("stats-market-".length) : null;
+      const activityEvent = id.startsWith("stats-activity-") ? id.slice("stats-activity-".length) : null;
+      let farcasterText = id === "stats-overview" ? "10X Warplets — NFT Collection Overview"
+        : marketMetric ? `10X Warplets — ${marketMetric === "floor" ? "Floor Price" : marketMetric.replace(/^./, (character) => character.toUpperCase())} (30 Days)`
+          : activityEvent ? `10X Warplets — 29 ${activityEvent === "sale" ? "Sales" : activityEvent === "listing" ? "Listings" : activityEvent === "offer" ? "Offers" : "Sends"} (7 Days)`
+            : id === "stats-holder-rank" ? "10X Warplets — My holder rank: #1 of 8,992"
+              : "10X Warplets — Top 10 Holders\n\n🥇 @collector1\n🥈 @collector2\n🥉 @collector3";
+      let twitterPostText = farcasterText;
+      if (id === "stats-friends-top10" || id === "stats-friends-short") {
+        farcasterText = "10X Warplets — My Top Ranked Friends\n\n🥇 @collector1\n🥈 @collector2\n🥉 @collector3";
+        twitterPostText = "10X Warplets — My Top Ranked Friends\n\n🥇 @verified_x_friend\n🥈 Collector Two\n🥉 0x1234…5678";
+      } else if (id === "stats-x-handle") {
+        farcasterText = "10X Warplets — Top 10 Holders\n\n🥇 @farcaster_friend";
+        twitterPostText = "10X Warplets — Top 10 Holders\n\n🥇 @verified_x_friend";
+      } else if (id === "stats-name-fallback") {
+        farcasterText = twitterPostText = "10X Warplets — Top 10 Holders\n\n🥇 Display Name Friend";
+      } else if (id === "stats-wallet-fallback") {
+        farcasterText = twitterPostText = "10X Warplets — Top 10 Holders\n\n🥇 0x1234…5678";
+      }
+      return setSharePreview({
+        title: id === "stats-overview" ? "Share Collection Overview" : id === "stats-holder-rank" ? "Share Your Rank" : "Share Stats",
+        text: farcasterText,
+        farcasterText,
+        twitterPostText,
+        links: [fixtureUrl],
+        images: [{ src: getWarpletAssetUrl(760, "gif"), alt: "Stats share fixture", aspectRatio: "landscape" }],
+        farcasterEmbeds: [fixtureUrl],
+        twitterText: buildTwitterShareText(twitterPostText, [fixtureUrl]),
+        status: "ready",
+      });
+    }
     if (id.startsWith("perk-")) {
       const subpage = id.slice("perk-".length) as PerksSubpage;
       return setSharePreview(buildPerksSharePreview(subpage));
@@ -16625,6 +16783,63 @@ export default function SearchApp() {
       console.error("Failed to open X share intent:", error);
     });
   }, [beginShareCelebrationWatch, cancelShareCelebration, sharePreview]);
+
+  const handleCreateStatsShare = useCallback(async (request: StatsShareRequest, retry = false) => {
+    statsShareRequestRef.current = request;
+    if (!retry) statsShareIdRef.current = null;
+    setSharePreview({
+      title: "Share Stats",
+      text: "Preparing your Stats snapshot…",
+      links: [],
+      images: [],
+      farcasterEmbeds: [],
+      twitterText: "",
+      status: "preparing",
+      statusMessage: retry ? "Rendering the snapshot again…" : "Rendering your Stats snapshot…",
+    });
+    try {
+      const endpoint = retry && statsShareIdRef.current
+        ? `/api/stats/shares/${encodeURIComponent(statsShareIdRef.current)}/render`
+        : "/api/stats/shares";
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: { accept: "application/json", "content-type": "application/json" },
+        credentials: "same-origin",
+        body: retry && statsShareIdRef.current ? undefined : JSON.stringify(request),
+      });
+      const result = await response.json() as StatsShareCreateResponse & { error?: string; message?: string };
+      if (result.snapshot?.id) statsShareIdRef.current = result.snapshot.id;
+      if (!response.ok || !result.snapshot?.imageReady) {
+        throw new Error(result.renderError || result.message || result.error || `Snapshot rendering failed (${response.status})`);
+      }
+      setSharePreview({
+        title: result.snapshot.title,
+        text: result.snapshot.farcasterText,
+        farcasterText: result.snapshot.farcasterText,
+        twitterPostText: result.snapshot.twitterText,
+        links: [result.shareUrl],
+        images: [{ src: result.imageUrl, alt: result.snapshot.title, aspectRatio: "landscape" }],
+        farcasterEmbeds: [result.shareUrl],
+        twitterText: buildTwitterShareText(result.snapshot.twitterText, [result.shareUrl]),
+        status: "ready",
+      });
+    } catch (error) {
+      setSharePreview({
+        title: "Share Stats",
+        text: "Your Stats snapshot is not ready yet.",
+        links: [],
+        images: [],
+        farcasterEmbeds: [],
+        twitterText: "",
+        status: "error",
+        statusMessage: error instanceof Error ? error.message : "The Stats snapshot could not be rendered.",
+      });
+    }
+  }, []);
+
+  const handleRetryStatsShare = useCallback(() => {
+    if (statsShareRequestRef.current) void handleCreateStatsShare(statsShareRequestRef.current, true);
+  }, [handleCreateStatsShare]);
 
   const handleCloseSharePreview = useCallback(() => {
     setSharePreview(null);
@@ -17251,6 +17466,7 @@ export default function SearchApp() {
             onSearchWallet={handleStatsSearchOwnerWallet}
             onOpenWarpletDetails={handleOpenWarpletDetails}
             isInMiniAppContext={isInMiniAppContext}
+            onShareStats={(request) => void handleCreateStatsShare(request)}
           />
         ) : searchRoute.page === "perks" ? (
           <Suspense fallback={<div className="mx-auto w-full max-w-md px-4 py-12 text-center text-xs font-black text-[#00FF00]">Loading Perks...</div>}>
@@ -17561,6 +17777,7 @@ export default function SearchApp() {
           onCopySuccess={() => showSearchToast("neutral", "Post has been copied to your clipboard.")}
           onShareFarcaster={handleSharePreviewFarcaster}
           onShareTwitter={handleSharePreviewTwitter}
+          onRetry={sharePreview.status === "error" && statsShareRequestRef.current ? handleRetryStatsShare : undefined}
         />
       )}
     </MiniAppShell>

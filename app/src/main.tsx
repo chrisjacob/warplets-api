@@ -10,6 +10,8 @@ const SearchApp = lazy(() => import("./SearchApp.tsx"));
 const MillionApp = lazy(() => import("./MillionApp.tsx"));
 const StopApp = lazy(() => import("./StopApp.tsx"));
 const UnsubscribeApp = lazy(() => import("./UnsubscribeApp.tsx"));
+const StatsShareCardPage = lazy(() => import("./StatsShareCard.tsx"));
+const StatsShareFixturePage = lazy(() => import("./StatsShareCard.tsx").then((module) => ({ default: module.StatsShareFixturePage })));
 
 const PRELOAD_RECOVERY_KEY = "10x-vite-preload-recovery";
 
@@ -54,6 +56,16 @@ if (typeof window !== "undefined") {
 function resolveActiveApp() {
   const { hostname, pathname } = window.location;
   const cleanPath = pathname.replace(/\/+$/, "") || "/";
+
+  const statsShareFixtureMatch = cleanPath.match(/^\/stats\/share\/fixtures\/([a-z-]+)$/);
+  if (statsShareFixtureMatch && hostname === "search-local.10x.meme") {
+    return <StatsShareFixturePage fixture={statsShareFixtureMatch[1]!} />;
+  }
+
+  const statsShareMatch = cleanPath.match(/^\/stats\/share\/([a-f0-9]{32})(\/render)?$/);
+  if (statsShareMatch) {
+    return <StatsShareCardPage shareId={statsShareMatch[1]!} renderOnly={Boolean(statsShareMatch[2])} />;
+  }
 
   if (hostname === "drop.10x.meme" || hostname === "drop-local.10x.meme" || hostname === "drop-dev.10x.meme") return <DropApp />;
   if (hostname === "search.10x.meme" || hostname === "search-local.10x.meme" || hostname === "search-dev.10x.meme") return <SearchApp />;
