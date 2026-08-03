@@ -628,6 +628,35 @@ export async function ownerOf(tokenId: number): Promise<string | null> {
   return normalizeAddress(`0x${hex.slice(-40)}`);
 }
 
+export async function ownersOf(tokenIds: number[]): Promise<Map<number, string>> {
+  const uniqueTokenIds = [...new Set(tokenIds)].filter((tokenId) => Number.isInteger(tokenId) && tokenId > 0);
+  if (uniqueTokenIds.length === 0) return new Map();
+  const response = await fetch(BASE_RPC_URL, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(uniqueTokenIds.map((tokenId, index) => ({
+      jsonrpc: "2.0",
+      id: index + 1,
+      method: "eth_call",
+      params: [{
+        to: COLLECTION_CONTRACT,
+        data: `${OWNER_OF_SELECTOR}${BigInt(tokenId).toString(16).padStart(64, "0")}`,
+      }, "latest"],
+    }))),
+    signal: AbortSignal.timeout(10000),
+  });
+  if (!response.ok) throw new Error(`Base RPC batch failed (${response.status})`);
+  const payload = (await response.json()) as Array<{ id?: number; result?: unknown }>;
+  const owners = new Map<number, string>();
+  for (const row of Array.isArray(payload) ? payload : []) {
+    const tokenId = uniqueTokenIds[Number(row.id) - 1];
+    const hex = asString(row.result);
+    const owner = hex && hex.length >= 66 ? normalizeAddress(`0x${hex.slice(-40)}`) : null;
+    if (tokenId && owner) owners.set(tokenId, owner);
+  }
+  return owners;
+}
+
 export async function selectPreferredFidForWallet(env: OpenSeaMarketEnv, wallet: string): Promise<number | null> {
   let cached: WalletFarcasterLinkRow | null = null;
   try {

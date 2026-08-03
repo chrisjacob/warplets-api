@@ -9,8 +9,11 @@ import {
   isEthLikeCurrency,
   marketJson,
   normalizeAddress,
+  ownerOf,
+  ownersOf,
   processOffer,
   selectPreferredFidForWallet,
+  upsertMarketStateIfChanged,
   upsertCriteriaOfferFromRow,
   weiToNumber,
   type MarketMoney,
@@ -20,6 +23,45 @@ import { jsonSecure } from "./security.js";
 import { recordWarpletActivity } from "./warpletNotifications.js";
 
 export type CollectionOffersEnv = OpenSeaMarketEnv;
+
+async function refreshItemOfferOwner(env: CollectionOffersEnv, tokenId: number): Promise<void> {
+  const ownerWallet = await ownerOf(tokenId).catch(() => null);
+  if (!ownerWallet) return;
+  const now = new Date().toISOString();
+  const ownerFid = await selectPreferredFidForWallet(env, ownerWallet);
+  await upsertMarketStateIfChanged(env.WARPLETS, {
+    token_id: tokenId,
+    owner_wallet: ownerWallet,
+    owner_fid: ownerFid,
+    owner_checked_at: now,
+    owner_event_at: now,
+    opensea_updated_at: now,
+  });
+}
+
+async function refreshRecentItemOfferOwners(env: CollectionOffersEnv): Promise<void> {
+  const tokenIds = await env.WARPLETS.prepare(
+    `SELECT token_id
+     FROM warplet_active_item_offers
+     WHERE active = 1
+       AND (expires_at IS NULL OR datetime(expires_at) > CURRENT_TIMESTAMP)
+     GROUP BY token_id
+     ORDER BY MAX(updated_at) DESC
+     LIMIT 50`,
+  ).all<{ token_id: number }>().then((result) =>
+    (result.results ?? []).map((row) => Number(row.token_id)).filter((tokenId) => Number.isInteger(tokenId) && tokenId > 0),
+  );
+  const owners = await ownersOf(tokenIds);
+  const now = new Date().toISOString();
+  await Promise.all([...owners].map(([tokenId, ownerWallet]) => upsertMarketStateIfChanged(env.WARPLETS, {
+    token_id: tokenId,
+    owner_wallet: ownerWallet,
+    owner_fid: null,
+    owner_checked_at: now,
+    owner_event_at: now,
+    opensea_updated_at: now,
+  })));
+}
 
 async function refreshItemOffersForToken(env: CollectionOffersEnv, tokenId: number): Promise<void> {
   const apiKey = requireOpenSeaApiKey(env);
@@ -45,6 +87,7 @@ async function refreshItemOffersForToken(env: CollectionOffersEnv, tokenId: numb
     }
   }
   await Promise.all(rows.map((row) => processOffer(env, row)));
+  await refreshItemOfferOwner(env, tokenId);
   // Only deactivate missing rows after consuming the complete OpenSea result set.
   if (!complete) return;
   const activeHashes = rows
@@ -1214,6 +1257,7 @@ export async function handleItemOffersGet(context: Parameters<PagesFunction<Coll
   const fid = Number.isInteger(fidValue) && fidValue > 0 ? fidValue : null;
   const tokenIdValue = Number(url.searchParams.get("tokenId"));
   const tokenId = Number.isInteger(tokenIdValue) && tokenIdValue > 0 && tokenIdValue <= 10000 ? tokenIdValue : null;
+  const scope = url.searchParams.get("scope");
   let refreshError: string | null = null;
   if (url.searchParams.get("refresh") === "1") {
     try {
@@ -1221,6 +1265,7 @@ export async function handleItemOffersGet(context: Parameters<PagesFunction<Coll
         await refreshItemOffersForToken(context.env, tokenId);
       } else {
         await ingestOpenSeaMarket(context.env);
+        if (scope === "for_you") await refreshRecentItemOfferOwners(context.env);
       }
     }
     catch (error) { refreshError = error instanceof Error ? error.message : "OpenSea refresh failed"; }
@@ -1232,9 +1277,9 @@ export async function handleItemOffersGet(context: Parameters<PagesFunction<Coll
     AND (o.currency_symbol IS NULL OR upper(o.currency_symbol) = 'WETH')
     ${tokenId ? "AND o.token_id = ?" : ""}`;
   const baseBindings: Array<string | number> = tokenId ? [tokenId] : [];
-  const scope = url.searchParams.get("scope");
   const scopeIsYours = scope === "your" && Boolean(wallet);
   const scopeIsForYou = scope === "for_you";
+  const scopeIsFavourites = scope === "favourites";
   const ownerConditions = [wallet ? "lower(m.owner_wallet) = ?" : null, fid ? "m.owner_fid = ?" : null].filter(Boolean);
   const forYouClause = scopeIsForYou
     ? ownerConditions.length > 0
@@ -1246,12 +1291,23 @@ export async function handleItemOffersGet(context: Parameters<PagesFunction<Coll
           )`
       : " AND 1 = 0"
     : "";
-  const scopedWhere = `${baseWhere}${scopeIsYours ? " AND lower(o.offerer_wallet) = ?" : ""}${forYouClause}`;
+  const favouritesClause = scopeIsFavourites
+    ? wallet
+      ? ` AND EXISTS (
+          SELECT 1
+          FROM warplet_favourites wf, json_each(wf.token_ids) favourite
+          WHERE wf.wallet = ?
+            AND CAST(favourite.value AS INTEGER) = o.token_id
+        )`
+      : " AND 1 = 0"
+    : "";
+  const scopedWhere = `${baseWhere}${scopeIsYours ? " AND lower(o.offerer_wallet) = ?" : ""}${forYouClause}${favouritesClause}`;
   const scopedBindings = [
     ...baseBindings,
     ...(scopeIsYours ? [wallet!] : []),
     ...(scopeIsForYou && wallet ? [wallet] : []),
     ...(scopeIsForYou && fid ? [fid] : []),
+    ...(scopeIsFavourites && wallet ? [wallet] : []),
   ];
   const aggregate = await context.env.WARPLETS.prepare(
     `SELECT COUNT(*) AS offer_count, COALESCE(SUM(amount_eth), 0) AS value_eth

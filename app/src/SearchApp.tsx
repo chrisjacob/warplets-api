@@ -24,7 +24,8 @@ import {
   useMiniAppChrome,
 } from "./miniAppChrome.tsx";
 import MiniAppShell from "./MiniAppShell";
-import { PERKS_MOCKUP_NOTICE_DISMISSED_KEY, type PerksSubpage } from "./perksMockData";
+import { PERKS_DEFINITIONS, PERKS_MOCKUP_NOTICE_DISMISSED_KEY, type PerksSubpage } from "./perksMockData";
+import { PERKS_SHARE_CONTENT, getPerksShareImageUrl } from "./perksShareContent";
 import {
   hapticError,
   hapticPrimaryTap,
@@ -96,6 +97,7 @@ const ONBOARDING_COMPLETE_KEY = "warplets-search-onboarding-v1-complete";
 const AIRDROP_CONGRATULATIONS_COMPLETE_KEY = "warplets-search-airdrop-v1-complete";
 const RANDOM_EXAMPLE_SEARCHES_SEEN_KEY = "warplets-search-random-seen-v1";
 const SEARCH_DEBOUNCE_MS = 300;
+const SEARCH_RESULT_IMAGE_PRELOAD_TIMEOUT_MS = 250;
 const STATUS_LINE_CLASS = "text-center text-xs uppercase leading-4";
 const OPENSEA_COLLECTION_URL = "https://opensea.io/collection/10xwarplets";
 const LAST_SEARCH_OFFERS_SUBPAGE_KEY = "warplets-search-last-offers-subpage-v1";
@@ -125,10 +127,12 @@ type SearchOffersSubpage = "collection" | "trait" | "item";
 type SearchStatsSubpage = "overview" | "market" | "social" | "holders";
 type StatsRange = "7d" | "30d" | "90d" | "1y" | "all";
 type StatsActivityEvent = "sale" | "listing" | "offer" | "send";
+const ACTIVITY_CHART_HEIGHT = 351;
 type ListedLevelFilter = "all" | "10x" | "9x" | "8x" | "7x" | "6x" | "5x" | "4x" | "3x" | "2x" | "1x";
 type ListedScopeFilter = "all" | "your" | "favourites" | "sweep";
 type SearchRoute =
   | { page: "search" }
+  | { page: "app-testing" }
   | { page: "listed"; listedLevel: ListedLevelFilter }
   | { page: "offers"; offersPage: SearchOffersSubpage }
   | { page: "perks"; perksPage: PerksSubpage }
@@ -163,6 +167,7 @@ const OFFERS_FILTER_TABS = [
 const ITEM_OFFERS_FILTER_TABS = [
   ...OFFERS_FILTER_TABS,
   { id: "for_you", label: "For You" },
+  { id: "favourites", label: "Favourites" },
 ];
 
 const STATS_SUBPAGE_TABS: Array<{ id: SearchStatsSubpage; label: string }> = [
@@ -1418,6 +1423,21 @@ function loadWarpletResultsByIds(db: SqliteDatabase, tokenIds: number[]): Warple
   );
   const order = new Map(uniqueTokenIds.map((tokenId, index) => [tokenId, index]));
   return mapRows(rows).sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
+}
+
+function findTraitOfferRepresentativeTokenId(
+  db: SqliteDatabase | null,
+  attributes: LevelAttributeColumn[],
+  level: number,
+): number {
+  if (!db || attributes.length === 0) return 760;
+  const where = attributes.map((column) => `w."${column}" = ?`).join(" AND ");
+  const rows = db.exec(
+    `SELECT w.id FROM warplets w WHERE ${where} ORDER BY w."10x_rank" ASC, w.id ASC LIMIT 1`,
+    { bind: attributes.map(() => level), rowMode: "array", returnValue: "resultRows" },
+  );
+  const tokenId = Number(rows[0]?.[0]);
+  return Number.isInteger(tokenId) && tokenId > 0 ? tokenId : 760;
 }
 
 function mapDetails(row: Record<string, unknown> | undefined): WarpletDetails | null {
@@ -3071,6 +3091,7 @@ function normalizeSearchPath(pathname: string): string {
 
 function parseSearchRouteFromPath(pathname: string): SearchRoute {
   const path = normalizeSearchPath(pathname);
+  if (path === "/app-testing" && window.location.hostname === "search-local.10x.meme") return { page: "app-testing" };
   if (path === "/listed") return { page: "listed", listedLevel: "all" };
   const listedMatch = path.match(/^\/listed\/(10x|9x|8x|7x|6x|5x|4x|3x|2x|1x)$/i);
   if (listedMatch) return { page: "listed", listedLevel: listedMatch[1].toLowerCase() as ListedLevelFilter };
@@ -3179,6 +3200,8 @@ function getSearchPathForRoute(route: SearchRoute): string {
   const path =
     route.page === "search"
       ? "/"
+      : route.page === "app-testing"
+        ? "/app-testing"
       : route.page === "listed"
         ? route.listedLevel === "all" ? "/listed" : `/listed/${route.listedLevel}`
         : route.page === "perks"
@@ -3191,6 +3214,7 @@ function getSearchPathForRoute(route: SearchRoute): string {
 }
 
 function getSearchRouteTitle(route: SearchRoute): string {
+  if (route.page === "app-testing") return "10X Warplets - App testing";
   if (route.page === "listed") {
     return route.listedLevel === "all"
       ? "10X Warplets - Listed"
@@ -3246,6 +3270,7 @@ function SearchHeaderAccountControl({
   onConnectWallet,
   onMissingSiwnClientId,
   onOpenSpreadsheet,
+  onOpenAppTesting,
   onViewOnboarding,
   onEnableNotifications,
   onDisconnect,
@@ -3261,6 +3286,7 @@ function SearchHeaderAccountControl({
   onConnectWallet: () => void;
   onMissingSiwnClientId: () => void;
   onOpenSpreadsheet: () => void;
+  onOpenAppTesting: () => void;
   onViewOnboarding: () => void;
   onEnableNotifications: () => void;
   onDisconnect: () => void;
@@ -3384,6 +3410,11 @@ function SearchHeaderAccountControl({
           <button type="button" role="menuitem" onClick={() => runMenuAction(onOpenSpreadsheet)}>
             Warplets spreadsheet
           </button>
+          {window.location.hostname === "search-local.10x.meme" && (
+            <button type="button" role="menuitem" onClick={() => runMenuAction(onOpenAppTesting)}>
+              App testing
+            </button>
+          )}
           {showDisconnect && (
             <button type="button" role="menuitem" onClick={() => runMenuAction(onDisconnect)}>
               Disconnect
@@ -5359,7 +5390,7 @@ function StatsHoldersPage({
           <div className="mb-3">
             {viewerRow ? (
               <>
-                <div className="text-xs font-black uppercase text-[#FFFF00]">
+                <div className="mb-2 text-xs font-black uppercase text-[#FFFF00]">
                   YOUR RANK: #{viewerRow.rank?.toLocaleString("en-US") ?? "—"} of {holderCount?.toLocaleString("en-US") ?? "—"}
                 </div>
                 <StatsHolderRowView
@@ -5392,15 +5423,15 @@ function StatsHoldersPage({
             }}
             className={`flex cursor-pointer items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[10px] font-black uppercase transition disabled:cursor-not-allowed disabled:opacity-40 ${
               friendsOnly
-                ? "border-[#7959ff] bg-[#7959ff] text-white shadow-[0_0_9px_rgba(121,89,255,0.55)]"
-                : "border-[#7959ff]/60 bg-[rgba(93,66,214,0.12)] text-[#b9aaff] hover:border-[#7959ff]"
+                ? "border-[#7959ff] bg-[#7959ff]/20 text-[#b9aaff]"
+                : "border-[#7959ff]/45 bg-[#7959ff]/5 text-[#b9aaff] hover:border-[#7959ff]"
             }`}
           >
             <span
               aria-hidden="true"
               className={`flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-[3px] border ${
-                friendsOnly
-                  ? "border-white bg-white text-[#5d42d6]"
+              friendsOnly
+                  ? "border-[#b9aaff] bg-[#7959ff]/20 text-[#b9aaff]"
                   : "border-[#b9aaff] bg-black/35 text-transparent"
               }`}
             >
@@ -5805,7 +5836,7 @@ function ActivityFilterControls({ event, start, end, error, onEventChange, onSta
   </div>;
 }
 
-function CollectionActivity({ range, tokenId, showItem = true, refreshKey, viewerFid, actionSessionToken, friendsAvailable, friendsOnly, onFriendsOnlyChange, ethUsdPrice, onSearchWallet, onOpenToken, requestedBucket, onBucketWindowChange, onScrollToEvents, chart, selectedEvents, onSelectedEventsChange }: {
+function CollectionActivity({ range, tokenId, showItem = true, refreshKey, viewerFid, actionSessionToken, friendsAvailable, friendsOnly, onFriendsOnlyChange, favouritesAvailable = false, favouritesOnly = false, favouriteWallet = null, favouritesRevision = "", onFavouritesOnlyChange, ethUsdPrice, onSearchWallet, onOpenToken, requestedBucket, onBucketWindowChange, onScrollToEvents, chart, selectedEvents, onSelectedEventsChange }: {
   range: StatsRange;
   tokenId?: number;
   showItem?: boolean;
@@ -5815,6 +5846,11 @@ function CollectionActivity({ range, tokenId, showItem = true, refreshKey, viewe
   friendsAvailable: boolean;
   friendsOnly: boolean;
   onFriendsOnlyChange: (value: boolean) => void;
+  favouritesAvailable?: boolean;
+  favouritesOnly?: boolean;
+  favouriteWallet?: string | null;
+  favouritesRevision?: string;
+  onFavouritesOnlyChange?: (value: boolean) => void;
   ethUsdPrice: number | null;
   onSearchWallet: (wallet: string) => void;
   onOpenToken: (tokenId: number) => void;
@@ -5848,6 +5884,7 @@ function CollectionActivity({ range, tokenId, showItem = true, refreshKey, viewe
       params.set("friends", "1");
       params.set("fid", String(viewerFid));
     }
+    if (favouritesOnly && favouriteWallet) params.set("favouritesWallet", favouriteWallet);
     const response = await fetch(`/api/stats/activity?${params}`, {
       headers: {
         accept: "application/json",
@@ -5863,7 +5900,7 @@ function CollectionActivity({ range, tokenId, showItem = true, refreshKey, viewe
       hasMore: next.hasMore,
       nextCursor: next.nextCursor,
     } : next);
-  }, [actionSessionToken, bucketWindow, friendsOnly, range, refreshKey, selectedEvents, tokenId, viewerFid]);
+  }, [actionSessionToken, bucketWindow, favouriteWallet, favouritesOnly, favouritesRevision, friendsOnly, range, refreshKey, selectedEvents, tokenId, viewerFid]);
 
   useEffect(() => {
     setBucketWindow(null);
@@ -5903,6 +5940,10 @@ function CollectionActivity({ range, tokenId, showItem = true, refreshKey, viewe
   useEffect(() => {
     if (!friendsAvailable && friendsOnly) onFriendsOnlyChange(false);
   }, [friendsAvailable, friendsOnly, onFriendsOnlyChange]);
+
+  useEffect(() => {
+    if (!favouritesAvailable && favouritesOnly) onFavouritesOnlyChange?.(false);
+  }, [favouritesAvailable, favouritesOnly, onFavouritesOnlyChange]);
 
   const loadMore = async () => {
     if (!payload?.nextCursor || loadingMore) return;
@@ -5964,6 +6005,27 @@ function CollectionActivity({ range, tokenId, showItem = true, refreshKey, viewe
             </button>
           )}
         </div>
+        <div className="flex shrink-0 items-center gap-1.5">
+        {tokenId == null && (
+          <button
+            type="button"
+            role="switch"
+            aria-checked={favouritesOnly}
+            disabled={!favouritesAvailable}
+            onClick={() => {
+              onFavouritesOnlyChange?.(!favouritesOnly);
+              void hapticSelectionChanged();
+            }}
+            className={`flex cursor-pointer items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[10px] font-black uppercase transition-[background-color,box-shadow,opacity,color] disabled:cursor-not-allowed disabled:opacity-40 ${
+              favouritesOnly
+                ? "border-[#00FF00] bg-[#00FF00]/20 text-[#00FF00]"
+                : "border-[#00FF00]/35 bg-transparent text-[#00FF00] hover:bg-[#041204]"
+            }`}
+          >
+            <HeartIcon filled={favouritesOnly} className="h-3.5 w-3.5" strokeWidth={2.2} />
+            Favourites
+          </button>
+        )}
         <button
           type="button"
           role="switch"
@@ -5975,15 +6037,15 @@ function CollectionActivity({ range, tokenId, showItem = true, refreshKey, viewe
           }}
           className={`flex cursor-pointer items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[10px] font-black uppercase transition disabled:cursor-not-allowed disabled:opacity-40 ${
             friendsOnly
-              ? "border-[#7959ff] bg-[#7959ff] text-white shadow-[0_0_9px_rgba(121,89,255,0.55)]"
-              : "border-[#7959ff]/60 bg-[rgba(93,66,214,0.12)] text-[#b9aaff] hover:border-[#7959ff]"
+              ? "border-[#7959ff] bg-[#7959ff]/20 text-[#b9aaff]"
+              : "border-[#7959ff]/45 bg-[#7959ff]/5 text-[#b9aaff] hover:border-[#7959ff]"
           }`}
         >
           <span
             aria-hidden="true"
             className={`flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-[3px] border ${
               friendsOnly
-                ? "border-white bg-white text-[#5d42d6]"
+                ? "border-[#b9aaff] bg-[#7959ff]/20 text-[#b9aaff]"
                 : "border-[#b9aaff] bg-black/35 text-transparent"
             }`}
           >
@@ -5993,6 +6055,7 @@ function CollectionActivity({ range, tokenId, showItem = true, refreshKey, viewe
           </span>
           Friends
         </button>
+        </div>
       </div>
       {loading ? <div className="py-8 text-center text-[10px] font-bold text-[#8bbf8b]">{tokenId != null ? "Loading item activity..." : "Loading collection activity..."}</div>
         : <MarketActivityTable rows={payload?.rows ?? []} ethUsdPrice={ethUsdPrice} showItem={showItem} hasMore={Boolean(payload?.hasMore)} loadingMore={loadingMore} onLoadMore={() => void loadMore()} onSearchWallet={onSearchWallet} onOpenToken={onOpenToken} />}
@@ -6004,6 +6067,8 @@ function CollectionActivity({ range, tokenId, showItem = true, refreshKey, viewe
 function StatsSocial({
   payload,
   highlights,
+  connectedWallet,
+  favouriteTokenIds,
   viewerFid,
   actionSessionToken,
   range,
@@ -6014,6 +6079,8 @@ function StatsSocial({
 }: {
   payload: StatsApiEnvelope;
   highlights: unknown;
+  connectedWallet: string | null;
+  favouriteTokenIds: number[];
   viewerFid: number | null;
   actionSessionToken: string | null;
   range: StatsRange;
@@ -6027,6 +6094,8 @@ function StatsSocial({
   const [requestedBucket, setRequestedBucket] = useState<{ event: MarketActivityRow["event"]; startAt: string; endAt: string; nonce: number } | null>(null);
   const [selectedEvents, setSelectedEvents] = useState<MarketActivityRow["event"][]>(() => [readLastStatsActivityEvent()]);
   const [friendsOnly, setFriendsOnly] = useState(false);
+  const [favouritesOnly, setFavouritesOnly] = useState(false);
+  const favouritesRevision = useMemo(() => favouriteTokenIds.join(","), [favouriteTokenIds]);
   const [activeBucketWindow, setActiveBucketWindow] = useState<{ event: MarketActivityRow["event"]; startAt: string; endAt: string } | null>(null);
   const selectActivityEvents = useCallback((events: MarketActivityRow["event"][]) => {
     const event = events[0] ?? "sale";
@@ -6036,7 +6105,8 @@ function StatsSocial({
   useEffect(() => {
     const controller = new AbortController();
     const personalized = friendsOnly && viewerFid != null && actionSessionToken != null;
-    const cacheKey = `${personalized ? `friends:${viewerFid}` : "public"}:${range}`;
+    const favouriteFilterWallet = favouritesOnly ? connectedWallet : null;
+    const cacheKey = `${personalized ? `friends:${viewerFid}` : "public"}:${favouriteFilterWallet ? `favourites:${favouriteFilterWallet}:${favouritesRevision}` : "all-items"}:${range}`;
     const cached = statsActivityChartCache.get(cacheKey);
     if (cached && Date.now() - cached.loadedAt <= STATS_CLIENT_CACHE_TTL_MS) {
       setActivityChart(cached.payload);
@@ -6050,6 +6120,7 @@ function StatsSocial({
       params.set("friends", "1");
       params.set("fid", String(viewerFid));
     }
+    if (favouriteFilterWallet) params.set("favouritesWallet", favouriteFilterWallet);
     fetch(`/api/stats/activity?${params.toString()}`, {
       headers: {
         accept: "application/json",
@@ -6070,8 +6141,9 @@ function StatsSocial({
       })
       .finally(() => { if (!controller.signal.aborted) setActivityChartLoading(false); });
     return () => controller.abort();
-  }, [actionSessionToken, friendsOnly, range, viewerFid]);
+  }, [actionSessionToken, connectedWallet, favouritesOnly, favouritesRevision, friendsOnly, range, viewerFid]);
   const multiChartData = activityMultiChartData(activityChart);
+  const hasChartActivity = hasActivityForEvents(activityChart, selectedEvents);
   const showBucketActivity = useCallback((event: MarketActivityRow["event"], startAt: string, endAt: string) => {
     selectActivityEvents([event]);
     setActiveBucketWindow({ event, startAt, endAt });
@@ -6096,6 +6168,11 @@ function StatsSocial({
         friendsAvailable={getStatsHighlightFids(highlights).size > 0}
         friendsOnly={friendsOnly}
         onFriendsOnlyChange={setFriendsOnly}
+        favouritesAvailable={Boolean(connectedWallet && favouriteTokenIds.length > 0)}
+        favouritesOnly={favouritesOnly}
+        favouriteWallet={connectedWallet}
+        favouritesRevision={favouritesRevision}
+        onFavouritesOnlyChange={setFavouritesOnly}
         ethUsdPrice={ethUsdPrice}
         onSearchWallet={onSearchWallet}
         onOpenToken={onOpenWarpletDetails}
@@ -6104,12 +6181,14 @@ function StatsSocial({
         selectedEvents={selectedEvents}
         onSelectedEventsChange={selectActivityEvents}
         chart={activityChartLoading
-          ? <div className="flex h-[260px] items-center justify-center text-xs font-bold text-[#8bbf8b]">Loading buyer activity...</div>
-          : <div className="-mx-2 w-[calc(100%+1rem)]">
+          ? <div style={{ height: ACTIVITY_CHART_HEIGHT }} className="flex items-center justify-center text-xs font-bold text-[#8bbf8b]">Loading buyer activity...</div>
+          : activityChart && !hasChartActivity
+            ? <div style={{ height: ACTIVITY_CHART_HEIGHT }} className="flex items-center justify-center text-xs font-bold text-[#8bbf8b]">No activity found.</div>
+          : <div style={{ minHeight: ACTIVITY_CHART_HEIGHT }} className="-mx-2 w-[calc(100%+1rem)]">
             <StatsChartErrorBoundary>
               <Suspense fallback={<StatsChartFallback />}>
                 <LazyStatsChart
-                  key={`social-activity-${range}-${selectedEvents[0] ?? "sale"}-${friendsOnly ? "friends" : "all"}`}
+                  key={`social-activity-${range}-${selectedEvents[0] ?? "sale"}-${friendsOnly ? "friends" : "all"}-${favouritesOnly ? "favourites" : "all-items"}`}
                   data={multiChartData}
                   series={([
                     { event: "sale", key: "salePrice", label: "Sales", color: "#FF3333" },
@@ -6125,7 +6204,7 @@ function StatsSocial({
                   ] as const).filter((item) => selectedEvents.includes(item.event))}
                   socialRole="buyer"
                   hideMarketplace
-                  height={351}
+                  height={ACTIVITY_CHART_HEIGHT}
                   onOpenToken={onOpenWarpletDetails}
                   onSearchWallet={onSearchWallet}
                   onShowBucketActivity={showBucketActivity}
@@ -6194,6 +6273,7 @@ function StatsSocial({
 function StatsPage({
   subpage,
   connectedWallet,
+  favouriteTokenIds,
   viewerFid,
   actionSessionToken,
   onSearchWallet,
@@ -6202,6 +6282,7 @@ function StatsPage({
 }: {
   subpage: SearchStatsSubpage;
   connectedWallet: string | null;
+  favouriteTokenIds: number[];
   viewerFid: number | null;
   actionSessionToken: string | null;
   onSearchWallet: (wallet: string) => void;
@@ -6415,6 +6496,8 @@ function StatsPage({
             <StatsSocial
               payload={payload}
               highlights={highlights}
+              connectedWallet={connectedWallet}
+              favouriteTokenIds={favouriteTokenIds}
               viewerFid={viewerFid}
               actionSessionToken={actionSessionToken}
               range={range}
@@ -6590,6 +6673,15 @@ function activityMultiChartData(chart: ActivityChartPayload | null | undefined):
     });
     return point;
   });
+}
+
+function hasActivityForEvents(
+  chart: ActivityChartPayload | null | undefined,
+  events: MarketActivityRow["event"][],
+): boolean {
+  return Boolean(chart?.buckets.some((bucket) =>
+    events.some((event) => (bucket.events?.[event]?.count ?? 0) > 0),
+  ));
 }
 
 function ActivityPartyCell({ party, onSearchWallet }: {
@@ -6790,6 +6882,7 @@ function WarpletItemActivity({
     setRequestedBucket({ event, startAt, endAt, nonce: Date.now() });
   }, [selectActivityEvents]);
   const multiChartData = activityMultiChartData(activityChart);
+  const hasChartActivity = hasActivityForEvents(activityChart, selectedEvents);
 
   return (
     <section className="mt-3 overflow-hidden rounded-xl border border-[#00FF00]/20 bg-[#041204]/60">
@@ -6831,8 +6924,10 @@ function WarpletItemActivity({
             selectedEvents={selectedEvents}
             onSelectedEventsChange={selectActivityEvents}
             chart={activityChartLoading
-              ? <div className="flex h-[260px] items-center justify-center text-xs font-bold text-[#8bbf8b]">Loading item activity...</div>
-              : <div className="-mx-2 w-[calc(100%+1rem)]">
+              ? <div style={{ height: ACTIVITY_CHART_HEIGHT }} className="flex items-center justify-center text-xs font-bold text-[#8bbf8b]">Loading item activity...</div>
+              : activityChart && !hasChartActivity
+                ? <div style={{ height: ACTIVITY_CHART_HEIGHT }} className="flex items-center justify-center text-xs font-bold text-[#8bbf8b]">No activity found.</div>
+              : <div style={{ minHeight: ACTIVITY_CHART_HEIGHT }} className="-mx-2 w-[calc(100%+1rem)]">
                 <StatsChartErrorBoundary>
                   <Suspense fallback={<StatsChartFallback />}>
                     <LazyStatsChart
@@ -6852,7 +6947,7 @@ function WarpletItemActivity({
                       ] as const).filter((item) => selectedEvents.includes(item.event))}
                       socialRole="buyer"
                       hideMarketplace
-                      height={351}
+                      height={ACTIVITY_CHART_HEIGHT}
                       onOpenToken={onOpenToken}
                       onSearchWallet={onSearchWallet}
                       onShowBucketActivity={showBucketActivity}
@@ -7329,12 +7424,14 @@ function CollectionOffersPage({
   isInMiniAppContext,
   getProviderAndAccount,
   showToast,
+  onShareOffer,
 }: {
   connectedWallet: string | null;
   viewerFid: number | null;
   isInMiniAppContext: boolean;
   getProviderAndAccount: () => Promise<{ provider: EthereumProvider; account: string }>;
   showToast: (kind: TradeToast["kind"], message: string, options?: { manualClose?: boolean; minMs?: number }) => void;
+  onShareOffer: (amountEth: number | null, quantity: number) => void;
 }) {
   const [scope, setScope] = useState<"all" | "your">("all");
   const [payload, setPayload] = useState<CollectionOffersPayload | null>(null);
@@ -7536,6 +7633,7 @@ function CollectionOffersPage({
       void hapticSuccess();
       showTradeConfetti();
       showToast("success", "Collection offer successfully made", { minMs: 5000 });
+      onShareOffer(parseTradeAmount(price), clampedQuantity);
       setCollectionBusyLabel("Refreshing offers...");
       await loadOffers();
     } catch (error) {
@@ -7546,7 +7644,7 @@ function CollectionOffersPage({
       setCollectionBusyLabel(null);
       setBusy(null);
     }
-  }, [beginOpenSeaSubmitLabels, clampedQuantity, clearCollectionSubmitTimers, getProviderAndAccount, loadOffers, price, showToast, viewerFid]);
+  }, [beginOpenSeaSubmitLabels, clampedQuantity, clearCollectionSubmitTimers, getProviderAndAccount, loadOffers, onShareOffer, price, showToast, viewerFid]);
 
   const runCancelCollectionOffers = useCallback(async () => {
     if (!cancelGroup) return;
@@ -7900,6 +7998,20 @@ async function preloadResultImages(results: WarpletResult[]): Promise<void> {
   await Promise.all(results.map((result) => preloadImage(getWarpletPreviewImageUrl(result.id))));
 }
 
+async function preloadResultImagesWithTimeout(results: WarpletResult[]): Promise<void> {
+  let timeoutId: number | null = null;
+  try {
+    await Promise.race([
+      preloadResultImages(results),
+      new Promise<void>((resolve) => {
+        timeoutId = window.setTimeout(resolve, SEARCH_RESULT_IMAGE_PRELOAD_TIMEOUT_MS);
+      }),
+    ]);
+  } finally {
+    if (timeoutId !== null) window.clearTimeout(timeoutId);
+  }
+}
+
 async function openExternalAsset(url: string) {
   try {
     await sdk.actions.openUrl(url);
@@ -7931,11 +8043,17 @@ function ProgressiveWarpletImage({
 
   return (
     <span className={`relative block overflow-hidden ${className}`}>
+      {!isPreviewLoaded && (
+        <span className="absolute inset-0 flex items-center justify-center" aria-hidden="true">
+          <span className="h-8 w-8 animate-spin rounded-full border-2 border-[#00FF00]/25 border-t-[#00FF00]" />
+        </span>
+      )}
       <img
         src={getWarpletPreviewImageUrl(tokenId)}
         alt={alt}
         loading={loading}
         onLoad={() => setIsPreviewLoaded(true)}
+        onError={() => setIsPreviewLoaded(true)}
         className={`absolute inset-0 h-full w-full object-cover ${imageClassName}`}
       />
       {isPreviewLoaded && (
@@ -8074,6 +8192,7 @@ function TraitOffersPage({
   getProviderAndAccount,
   showToast,
   onMarketChanged,
+  onShareOffer,
 }: {
   connectedWallet: string | null;
   viewerFid: number | null;
@@ -8081,6 +8200,7 @@ function TraitOffersPage({
   getProviderAndAccount: () => Promise<{ provider: EthereumProvider; account: string }>;
   showToast: (kind: TradeToast["kind"], message: string, options?: { manualClose?: boolean; minMs?: number }) => void;
   onMarketChanged: () => Promise<void>;
+  onShareOffer: (input: { amountEth: number | null; quantity: number; attributes: LevelAttributeColumn[]; level: number }) => void;
 }) {
   const [scope, setScope] = useState<"all" | "your">("all");
   const [selectedAttributes, setSelectedAttributes] = useState<LevelAttributeColumn[]>(() => LEVEL_ATTRIBUTES.map((item) => item.column));
@@ -8242,6 +8362,7 @@ function TraitOffersPage({
         window.setTimeout(celebrate, 400);
         window.setTimeout(celebrate, 800);
         showToast("success", submitted === 1 ? "Trait offer successfully made" : `${submitted} trait offers successfully made`, { minMs: 6000 });
+        onShareOffer({ amountEth: parseTradeAmount(price), quantity: submitted * clampedQuantity, attributes: selectedAttributes, level });
       } else {
         void hapticWarning();
       }
@@ -8257,7 +8378,7 @@ function TraitOffersPage({
       setBusy(null);
       setBusyLabel(null);
     }
-  }, [attributeIds.join(","), clampedQuantity, getProviderAndAccount, level, loadOffers, onMarketChanged, price, showToast, viewerFid]);
+  }, [attributeIds.join(","), clampedQuantity, getProviderAndAccount, level, loadOffers, onMarketChanged, onShareOffer, price, selectedAttributes, showToast, viewerFid]);
 
   const runCancel = useCallback(async () => {
     if (!cancelGroup) return;
@@ -8349,6 +8470,7 @@ function ItemOffersPage({
   onOpenWarpletDetails,
   onApplyPurchase,
   refreshRevision,
+  onShareTrade,
 }: {
   db: SqliteDatabase | null;
   favouriteTokenIds: number[];
@@ -8360,8 +8482,9 @@ function ItemOffersPage({
   onOpenWarpletDetails: (tokenId: number) => void;
   onApplyPurchase: (tokenId: number, update: OptimisticPurchaseUpdate) => void;
   refreshRevision: number;
+  onShareTrade: (input: { tokenId: number; action: "offer" | "sale"; amountEth: number | null; sellerWallet?: string | null; counterparty?: TradeShareCounterparty | null }) => void;
 }) {
-  const [scope, setScope] = useState<"all" | "your" | "for_you">("all");
+  const [scope, setScope] = useState<"all" | "your" | "for_you" | "favourites">("all");
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [selectedTokenId, setSelectedTokenId] = useState<number | null>(null);
@@ -8379,6 +8502,8 @@ function ItemOffersPage({
   const [page, setPage] = useState(0);
   const loadRequestRef = useRef(0);
   const appliedRefreshRevisionRef = useRef(0);
+  const pendingItemOffersRef = useRef(new Map<string, ItemOfferRow>());
+  const previousItemOfferScopeRef = useRef<typeof scope | null>(null);
   const pickerRootRef = useRef<HTMLDivElement | null>(null);
   const pickerEndRef = useRef<HTMLDivElement | null>(null);
   const formRef = useRef<HTMLDivElement | null>(null);
@@ -8428,7 +8553,47 @@ function ItemOffersPage({
       if (!response.ok) throw new Error(`Item offers failed (${response.status})`);
       const nextPayload = await response.json() as ItemOffersPayload;
       if (loadRequestRef.current !== requestId) return;
-      setPayload(nextPayload);
+      const serverOrderHashes = new Set(nextPayload.rows.map((row) => row.orderHash));
+      serverOrderHashes.forEach((orderHash) => pendingItemOffersRef.current.delete(orderHash));
+      const favouriteTokenIdSet = new Set(favouriteTokenIds);
+      const pendingRows = page === 0
+        ? [...pendingItemOffersRef.current.values()].filter((row) => {
+            if (selectedTokenId != null && row.tokenId !== selectedTokenId) return false;
+            if (scope === "for_you") return false;
+            if (scope === "your" && normalizeWalletAddress(row.bidder?.wallet) !== normalizedWallet) return false;
+            if (scope === "favourites" && !favouriteTokenIdSet.has(row.tokenId)) return false;
+            return !serverOrderHashes.has(row.orderHash);
+          })
+        : [];
+      const reconciledPayload = pendingRows.length === 0 ? nextPayload : (() => {
+        const rows = [...pendingRows, ...nextPayload.rows]
+          .sort((left, right) => (right.price.eth ?? 0) - (left.price.eth ?? 0))
+          .slice(0, nextPayload.pagination.pageSize);
+        const value = pendingRows.reduce(
+          (current, row) => sumMarketMoney([current, row.price]) ?? current,
+          nextPayload.stats.value,
+        );
+        const topPendingOffer = pendingRows.reduce<MarketMoney | null>(
+          (top, row) => !top || (row.price.eth ?? 0) > (top.eth ?? 0) ? row.price : top,
+          null,
+        );
+        const topItemOffer = topPendingOffer && (!nextPayload.topItemOffer || (topPendingOffer.eth ?? 0) > (nextPayload.topItemOffer.eth ?? 0))
+          ? topPendingOffer
+          : nextPayload.topItemOffer;
+        const totalRows = nextPayload.pagination.totalRows + pendingRows.length;
+        return {
+          ...nextPayload,
+          topItemOffer,
+          stats: { count: nextPayload.stats.count + pendingRows.length, value },
+          pagination: {
+            ...nextPayload.pagination,
+            totalRows,
+            totalPages: Math.max(1, Math.ceil(totalRows / nextPayload.pagination.pageSize)),
+          },
+          rows,
+        };
+      })();
+      setPayload(reconciledPayload);
       if (nextPayload.pagination.page !== page) setPage(nextPayload.pagination.page);
     } catch (error) {
       if (loadRequestRef.current !== requestId) return;
@@ -8436,8 +8601,12 @@ function ItemOffersPage({
     } finally {
       if (loadRequestRef.current === requestId && !options.silent) { setLoading(false); setRefreshing(false); }
     }
-  }, [normalizedWallet, page, scope, selectedTokenId, showToast, viewerFid]);
-  useEffect(() => { void loadOffers(); }, [loadOffers]);
+  }, [favouriteTokenIds, normalizedWallet, page, scope, selectedTokenId, showToast, viewerFid]);
+  useEffect(() => {
+    const enteredForYou = scope === "for_you" && previousItemOfferScopeRef.current !== "for_you";
+    previousItemOfferScopeRef.current = scope;
+    void loadOffers(enteredForYou ? { refresh: true } : undefined);
+  }, [loadOffers, scope]);
   useEffect(() => {
     if (refreshRevision <= appliedRefreshRevisionRef.current) return;
     appliedRefreshRevisionRef.current = refreshRevision;
@@ -8499,6 +8668,7 @@ function ItemOffersPage({
       bidder,
       isUserOffer: true,
     };
+    pendingItemOffersRef.current.set(orderHash, optimisticRow);
     setPayload((current) => {
       if (!current || current.tokenId !== tokenId) return current;
       const alreadyPresent = current.rows.some((row) => row.orderHash === orderHash);
@@ -8563,11 +8733,12 @@ function ItemOffersPage({
       if (!submit.ok) throw new Error(submittedOffer.message || `Offer submit failed (${submit.status})`);
       applyOptimisticItemOffer(submittedOffer.orderHash || `pending:${actionId}`, selectedTokenId, account, data.protocolAddress, normalizedPriceRaw);
       void hapticSuccess(); showTradeConfetti(); showToast("success", "Item offer successfully made", { minMs: 5000 });
+      onShareTrade({ tokenId: selectedTokenId, action: "offer", amountEth: parseTradeAmount(price) });
       window.setTimeout(() => { void loadOffers({ refresh: true, silent: true }); }, 750);
     } catch (error) {
       void hapticError(); showToast("error", error instanceof Error ? error.message : "Item offer failed.", { manualClose: true });
     } finally { setBusy(null); setBusyLabel(null); }
-  }, [applyOptimisticItemOffer, getProviderAndAccount, loadOffers, price, selectedTokenId, showToast, viewerFid]);
+  }, [applyOptimisticItemOffer, getProviderAndAccount, loadOffers, onShareTrade, price, selectedTokenId, showToast, viewerFid]);
 
   const runCancelOffer = useCallback(async (row: ItemOfferRow) => {
     if (!row.protocolAddress) { showToast("error", "This offer is missing its OpenSea protocol address.", { manualClose: true }); return; }
@@ -8582,6 +8753,8 @@ function ItemOffersPage({
       await sendPreparedTransaction(provider, account, buildSeaportCancelTransaction(data.protocolAddress, [data.orderParameters]));
       const submit = await fetch("/api/warplet-trade/offer/cancel", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ actionId, fid: viewerFid, tokenId: row.tokenId, wallet: account, orderHash: row.orderHash, protocolAddress: data.protocolAddress }) });
       if (!submit.ok) throw new Error("Item offer cancellation failed");
+      pendingItemOffersRef.current.delete(row.orderHash);
+      setPayload((current) => current ? { ...current, rows: current.rows.filter((offer) => offer.orderHash !== row.orderHash) } : current);
       void hapticSuccess(); showTradeConfetti(); showToast("success", "Item offer successfully canceled", { minMs: 5000 });
       await loadOffers();
     } catch (error) {
@@ -8679,6 +8852,13 @@ function ItemOffersPage({
       void hapticSuccess();
       showTradeConfetti();
       showToast("success", `Offer accepted for Warplet #${row.tokenId}`, { minMs: 5000 });
+      onShareTrade({
+        tokenId: row.tokenId,
+        action: "sale",
+        amountEth: row.price.eth,
+        sellerWallet: account,
+        counterparty: { wallet: buyerWallet, fid: row.bidder.fid, farcasterUsername: row.bidder.username },
+      });
       await loadOffers({ refresh: true, silent: true });
     } catch (error) {
       void hapticError();
@@ -8686,7 +8866,7 @@ function ItemOffersPage({
     } finally {
       setBusy(null);
     }
-  }, [getProviderAndAccount, loadOffers, onApplyPurchase, showToast, viewerFid]);
+  }, [getProviderAndAccount, loadOffers, onApplyPurchase, onShareTrade, showToast, viewerFid]);
 
   const bidderGroup = bidderRow?.bidder ? {
     price: bidderRow.price, volume: bidderRow.price, offerCount: 1, bidderCount: 1,
@@ -8711,8 +8891,8 @@ function ItemOffersPage({
       <p className="mt-2 text-[11px] font-bold text-[#8bcfff]">Offer will be on OpenSea. Set price to <button type="button" disabled={!payload?.topItemOffer} onClick={() => setPriceFromMarket(payload?.topItemOffer)} className="cursor-pointer text-[#33AAFF] underline disabled:cursor-not-allowed disabled:opacity-50">Top Item Offer</button>.</p>
       <button type="button" disabled={busy !== null || !selectedTokenId || !priceIsValid} onClick={() => void runMakeOffer()} className="mt-3 w-full cursor-pointer rounded-[20px] border border-[#1c78b3] bg-[#33AAFF] px-5 py-3 text-base font-bold text-[rgb(0,54,80)] shadow-[3px_6px_0_#1c78b3] disabled:cursor-not-allowed disabled:opacity-70">{busy === "offer" ? busyLabel ?? "Preparing..." : "Review item offer"}</button>
     </div>
-    <SearchSegmentedTabs className="mt-4" options={ITEM_OFFERS_FILTER_TABS} activeId={scope} onSelect={(id) => setScope(id === "your" ? "your" : id === "for_you" ? "for_you" : "all")}/>
-    <div className="mt-4 overflow-hidden rounded-lg border border-[#00FF00]/25"><div className="grid grid-cols-5 items-center gap-1 bg-[#041204] px-2 py-2 text-center text-[10px] font-bold uppercase text-[#8bbf8b]"><span>Price</span><span>Warplet</span><span>NFT</span><span>Bidder</span><span>Action</span></div>{loading ? <div className="px-3 py-6 text-center text-sm font-bold text-[#8bbf8b]">Loading offers...</div> : rows.length === 0 ? <div className="px-3 py-6 text-center text-sm font-bold text-[#8bbf8b]">{scope === "for_you" ? "No offers for your Warplets." : "No item offers."}</div> : rows.map((row) => <div key={row.orderHash} className="grid grid-cols-5 items-center gap-1 border-t border-[#00FF00]/15 px-2 py-2 text-center text-xs"><OfferPriceTooltipButton price={row.price} ethUsdPrice={ethUsdPrice} onClick={() => setPriceFromMarket(row.price)}/><button type="button" onClick={() => selectWarplet(row.tokenId)} className="cursor-pointer font-bold text-[#00FF00]">#{row.tokenId}</button><button type="button" onClick={() => onOpenWarpletDetails(row.tokenId)} className="mx-auto h-9 w-9 cursor-pointer overflow-hidden rounded-[3px] border-2 border-[#00FF00]"><img src={getWarpletPreviewImageUrl(row.tokenId)} alt={`Warplet #${row.tokenId}`} className="h-full w-full object-cover" loading="lazy"/></button><button type="button" disabled={!row.bidder} onClick={() => setBidderRow(row)} className="mx-auto cursor-pointer disabled:cursor-default">{row.bidder && <img src={row.bidder.pfpUrl || getWalletIdenticonDataUrl(row.bidder.wallet)} alt="" className="h-7 w-7 rounded-full border-2 border-[#00FF00] object-cover"/>}</button>{scope === "for_you" ? <button type="button" disabled={busy !== null} onClick={() => void runAcceptOffer(row)} className="cursor-pointer rounded-md border border-[#b3b300] px-2 py-1.5 text-xs font-bold text-[#FFFF00] disabled:cursor-wait disabled:opacity-60">Accept</button> : <button type="button" disabled={busy !== null} onClick={() => row.isUserOffer ? void runCancelOffer(row) : (selectWarplet(row.tokenId), setPriceFromMarket(row.price), formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }))} className={`cursor-pointer rounded-md border px-2 py-1.5 text-xs font-bold disabled:cursor-wait ${row.isUserOffer ? "border-[#FF5555]/55 text-[#FF7777]" : "border-[#33AAFF]/55 text-[#33AAFF]"}`}>{row.isUserOffer ? "Cancel" : "Offer"}</button>}</div>)}</div>
+    <SearchSegmentedTabs className="mt-4" options={ITEM_OFFERS_FILTER_TABS} activeId={scope} onSelect={(id) => setScope(id === "your" ? "your" : id === "for_you" ? "for_you" : id === "favourites" ? "favourites" : "all")}/>
+    <div className="mt-4 overflow-hidden rounded-lg border border-[#00FF00]/25"><div className="grid grid-cols-5 items-center gap-1 bg-[#041204] px-2 py-2 text-center text-[10px] font-bold uppercase text-[#8bbf8b]"><span>Price</span><span>Warplet</span><span>NFT</span><span>Bidder</span><span>Action</span></div>{loading && busy !== "accept" ? <div className="px-3 py-6 text-center text-sm font-bold text-[#8bbf8b]">Loading offers...</div> : rows.length === 0 ? <div className="px-3 py-6 text-center text-sm font-bold text-[#8bbf8b]">{scope === "your" ? "You've made no item offers." : scope === "favourites" ? "No item offers for your favourites." : scope === "for_you" ? "No offers for your Warplets." : "No item offers."}</div> : rows.map((row) => <div key={row.orderHash} className="grid grid-cols-5 items-center gap-1 border-t border-[#00FF00]/15 px-2 py-2 text-center text-xs"><OfferPriceTooltipButton price={row.price} ethUsdPrice={ethUsdPrice} onClick={() => setPriceFromMarket(row.price)}/><button type="button" onClick={() => selectWarplet(row.tokenId)} className="cursor-pointer font-bold text-[#00FF00]">#{row.tokenId}</button><button type="button" onClick={() => onOpenWarpletDetails(row.tokenId)} className="mx-auto h-9 w-9 cursor-pointer overflow-hidden rounded-[3px] border-2 border-[#00FF00]"><img src={getWarpletPreviewImageUrl(row.tokenId)} alt={`Warplet #${row.tokenId}`} className="h-full w-full object-cover" loading="lazy"/></button><button type="button" disabled={!row.bidder} onClick={() => setBidderRow(row)} className="mx-auto cursor-pointer disabled:cursor-default">{row.bidder && <img src={row.bidder.pfpUrl || getWalletIdenticonDataUrl(row.bidder.wallet)} alt="" className="h-7 w-7 rounded-full border-2 border-[#00FF00] object-cover"/>}</button>{scope === "for_you" ? <button type="button" disabled={busy !== null} onClick={() => void runAcceptOffer(row)} className="cursor-pointer rounded-md border border-[#b3b300] px-2 py-1.5 text-xs font-bold text-[#FFFF00] disabled:cursor-wait disabled:opacity-60">Accept</button> : <button type="button" disabled={busy !== null} onClick={() => row.isUserOffer ? void runCancelOffer(row) : (selectWarplet(row.tokenId), setPriceFromMarket(row.price), formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }))} className={`cursor-pointer rounded-md border px-2 py-1.5 text-xs font-bold disabled:cursor-wait ${row.isUserOffer ? "border-[#FF5555]/55 text-[#FF7777]" : "border-[#33AAFF]/55 text-[#33AAFF]"}`}>{row.isUserOffer ? "Cancel" : "Offer"}</button>}</div>)}</div>
     {(payload?.pagination.totalPages ?? 1) > 1 && <div className="mt-3 flex items-center justify-center gap-3 text-xs font-bold text-[#8bbf8b]"><button type="button" disabled={loading || !payload?.pagination.hasPrevious} onClick={() => setPage((current) => Math.max(0, current - 1))} className="cursor-pointer rounded-md border border-[#00FF00]/40 px-3 py-1.5 text-[#00FF00] disabled:cursor-not-allowed disabled:opacity-40">Previous</button><span>Page {(payload?.pagination.page ?? 0) + 1} of {payload?.pagination.totalPages ?? 1}</span><button type="button" disabled={loading || !payload?.pagination.hasNext} onClick={() => setPage((current) => current + 1)} className="cursor-pointer rounded-md border border-[#00FF00]/40 px-3 py-1.5 text-[#00FF00] disabled:cursor-not-allowed disabled:opacity-40">Next</button></div>}
     <div className="mt-3 text-center text-[11px] text-[#8bbf8b]">Last updated: {payload?.generatedAt ? formatMarketTimestamp(payload.generatedAt) : "Not yet"}. <button type="button" disabled={refreshing || busy !== null} onClick={() => void loadOffers({ refresh: true })} className="cursor-pointer font-bold text-[#00FF00] disabled:cursor-wait">{refreshing ? "Refreshing..." : "Refresh"}</button>{payload?.refreshError && <span className="block text-red-300">{payload.refreshError}</span>}</div>
     {bidderGroup && bidderRow && <CollectionBiddersModal group={bidderGroup} isInMiniAppContext={isInMiniAppContext} titleOverride={`#${bidderRow.tokenId} Item bidder`} onClose={() => setBidderRow(null)}/>}
@@ -10420,6 +10600,9 @@ const ONBOARDING_ATTRIBUTE_TILE_ANIMATION_MS = 500;
 const ONBOARDING_LEVEL_BAR_INTERVAL_MS = 500;
 const getOnboardingLevelBarDurationMs = (index: number) => 500 + index * 100;
 const ONBOARDING_TYPEWRITER_MS_PER_CHARACTER = 38;
+const SEARCH_PLACEHOLDER_DELETE_MS = DATABASE_LOADING_DELETE_MS;
+const SEARCH_PLACEHOLDER_TYPE_MS_PER_CHARACTER = ONBOARDING_TYPEWRITER_MS_PER_CHARACTER;
+const SEARCH_RESULTS_REVEAL_DELAY_MS = 40;
 const ONBOARDING_FEATURED_WARPLET_VIDEO_SRC = getWarpletAssetUrl(760, "mp4");
 const ONBOARDING_INITIAL_TITLE_CURSOR_MS = 1500;
 const ENABLED_ONBOARDING_VISUALS: ReadonlySet<OnboardingVisualKind> = new Set([
@@ -11827,6 +12010,43 @@ function formatTradeShareAmount(amountEth: number | null, ethUsdPrice: number | 
   return `${ethAmount} ETH (~${formattedUsd})`;
 }
 
+async function fetchItemSaleProfitText(
+  tokenId: number,
+  sellerWallet: string | null | undefined,
+  saleAmountEth: number | null,
+): Promise<string> {
+  const seller = normalizeWalletAddress(sellerWallet);
+  if (!seller || saleAmountEth == null || !Number.isFinite(saleAmountEth) || saleAmountEth <= 0) return "";
+  let cursor: string | null = null;
+  for (let page = 0; page < 5; page += 1) {
+    const params = new URLSearchParams({ range: "all", tokenId: String(tokenId), events: "sale,send", limit: "20" });
+    if (cursor) params.set("cursor", cursor);
+    const response = await fetch(`/api/stats/activity?${params.toString()}`, { headers: { accept: "application/json" }, cache: "no-store" });
+    if (!response.ok) return "";
+    const payload = await response.json() as {
+      rows?: Array<{ event?: string; priceEth?: number | null; to?: { wallet?: string | null } | null }>;
+      nextCursor?: string | null;
+    };
+    for (const row of payload.rows ?? []) {
+      if (normalizeWalletAddress(row.to?.wallet) !== seller) continue;
+      if (row.event !== "sale" || row.priceEth == null || !Number.isFinite(row.priceEth) || row.priceEth <= 0) return "";
+      return formatItemSaleProfitText(saleAmountEth, row.priceEth);
+    }
+    cursor = payload.nextCursor ?? null;
+    if (!cursor) break;
+  }
+  return "";
+}
+
+function formatItemSaleProfitText(saleAmountEth: number | null, purchaseAmountEth: number | null): string {
+  if (saleAmountEth == null || purchaseAmountEth == null || !Number.isFinite(saleAmountEth) || !Number.isFinite(purchaseAmountEth) || purchaseAmountEth <= 0) return "";
+  const profit = saleAmountEth - purchaseAmountEth;
+  if (profit <= 0) return "";
+  const profitAmount = truncateDecimalDigits(decimalStringFromNumber(profit) ?? "0", 8);
+  const profitPercent = Math.round((profit / purchaseAmountEth) * 100);
+  return `\n\n${profitAmount} ETH profit +${profitPercent.toLocaleString("en-US")}% 🎉`;
+}
+
 async function fetchWarpletSocialProfile(input: {
   wallet?: string | null;
   fid?: number | null;
@@ -11858,12 +12078,16 @@ async function buildTradeSharePreview({
   amountEth,
   ethUsdPrice,
   counterparty,
+  sellerWallet,
+  purchaseAmountEth,
 }: {
   action: TradeShareAction;
   details: WarpletDetails;
   amountEth: number | null;
   ethUsdPrice: number | null;
   counterparty?: TradeShareCounterparty | null;
+  sellerWallet?: string | null;
+  purchaseAmountEth?: number | null;
 }): Promise<SharePreviewState> {
   const tokenId = details.id;
   const shareState = { ...EMPTY_SEARCH_URL_STATE, warplet: tokenId };
@@ -11898,8 +12122,11 @@ async function buildTradeSharePreview({
     twitterPostText = `Purchased for ${amountText}${withCounterparty("from", twitterCounterparty)} the 10X Warplet #${tokenId}${twitterWarpletUsername}.`;
   } else {
     title = "Share Item Sale";
-    farcasterText = `Sold for ${amountText}${withCounterparty("to", farcasterCounterparty)} the 10X Warplet #${tokenId}${farcasterWarpletUsername}.`;
-    twitterPostText = `Sold for ${amountText}${withCounterparty("to", twitterCounterparty)} the 10X Warplet #${tokenId}${twitterWarpletUsername}.`;
+    const profitText = purchaseAmountEth == null
+      ? await fetchItemSaleProfitText(tokenId, sellerWallet, amountEth)
+      : formatItemSaleProfitText(amountEth, purchaseAmountEth);
+    farcasterText = `Sold for ${amountText}${withCounterparty("to", farcasterCounterparty)} the 10X Warplet #${tokenId}${farcasterWarpletUsername}.${profitText}`;
+    twitterPostText = `Sold for ${amountText}${withCounterparty("to", twitterCounterparty)} the 10X Warplet #${tokenId}${twitterWarpletUsername}.${profitText}`;
   }
 
   return {
@@ -11919,6 +12146,104 @@ async function buildTradeSharePreview({
     farcasterEmbeds: [miniAppLink, openSeaLink],
     twitterText: buildTwitterShareText(twitterPostText, links),
   };
+}
+
+function buildOfferSharePreview({
+  kind,
+  amountEth,
+  ethUsdPrice,
+  quantity,
+  tokenId,
+  traitText,
+}: {
+  kind: "collection" | "trait";
+  amountEth: number | null;
+  ethUsdPrice: number | null;
+  quantity: number;
+  tokenId: number;
+  traitText?: string;
+}): SharePreviewState {
+  const amountText = formatTradeShareAmount(amountEth, ethUsdPrice);
+  const quantityText = quantity > 1 ? ` (${quantity.toLocaleString("en-US")} offers)` : "";
+  const isCollection = kind === "collection";
+  const postText = isCollection
+    ? `Offering ${amountText} for any 10X Warplet in the collection${quantityText}.`
+    : `Offering ${amountText} for any 10X Warplet with ${traitText ?? "the selected traits"}${quantityText}.`;
+  const miniAppLink = new URL(getSearchPathForRoute({ page: "offers", offersPage: isCollection ? "collection" : "trait" }), window.location.origin).toString();
+  const openSeaLink = isCollection ? OPENSEA_COLLECTION_URL : getOpenSeaUrl(tokenId);
+  const links = [miniAppLink, openSeaLink];
+  return {
+    title: isCollection ? "Share Collection Offer" : "Share Trait Offer",
+    text: postText,
+    farcasterText: postText,
+    twitterPostText: postText,
+    links,
+    images: [
+      { src: getWarpletAssetUrl(tokenId, "gif"), alt: isCollection ? "10X Warplets collection offer" : `10X Warplet #${tokenId} trait offer` },
+      { src: getWarpletAssetUrl(tokenId, "gif"), alt: "OpenSea offer", sourceUrl: openSeaLink },
+    ],
+    farcasterEmbeds: [miniAppLink, openSeaLink],
+    twitterText: buildTwitterShareText(postText, links),
+  };
+}
+
+function buildPerksSharePreview(subpage: PerksSubpage): SharePreviewState {
+  const content = PERKS_SHARE_CONTENT[subpage];
+  const definition = PERKS_DEFINITIONS[subpage];
+  const pageUrl = new URL(getSearchPathForRoute({ page: "perks", perksPage: subpage }), window.location.origin).toString();
+  const checklist = definition.explanation.map((item) => `✅ ${item.title}`).join("\n");
+  const postText = `👀 10X Perks: ${content.label}\n\n${content.eyebrow}\n${content.summary}\n\n${checklist}\n\n${content.callout}\n\n${pageUrl}`;
+  const images: SharePreviewImage[] = [{ src: getPerksShareImageUrl(content), alt: `${content.label} Perk share image` }];
+  if (content.secondImageUrl) {
+    images.push({ src: new URL(content.secondImageUrl, window.location.origin).toString(), alt: `${content.label} Perk supporting image` });
+  }
+  return {
+    title: content.modalTitle,
+    text: postText,
+    farcasterText: postText,
+    twitterPostText: postText,
+    links: [],
+    images,
+    farcasterEmbeds: [pageUrl],
+    twitterText: postText,
+  };
+}
+
+const SHARE_MODAL_TEST_CASES = [
+  { id: "warplet", label: "Warplet", description: "Details modal → Share." },
+  { id: "search", label: "Search results", description: "Search results summary → Share." },
+  { id: "airdrop", label: "Airdrop", description: "Successful Warplet airdrop congratulations." },
+  { id: "item-offer", label: "Item offer", description: "Details or Offers → Item → successful offer." },
+  { id: "item-listing", label: "Item listing", description: "Details or Listed → successful listing." },
+  { id: "item-purchase", label: "Item purchase", description: "Details → successful Buy now." },
+  { id: "item-sale", label: "Profitable item sale", description: "Details or Offers → Item → accepted offer after buying the item for less." },
+  { id: "bulk-buy", label: "Bulk buy", description: "Listed → Sweep → successful purchase." },
+  { id: "collection-offer", label: "Collection offer", description: "Offers → Collection → successful offer." },
+  { id: "trait-offer", label: "Trait offer", description: "Offers → Trait → successful offer." },
+  { id: "perk-memes", label: "Memes Perk", description: "Perks → Memes → bottom Share CTA." },
+  { id: "perk-nfts", label: "NFTs Perk", description: "Perks → NFTs → bottom Share CTA." },
+  { id: "perk-ai", label: "AI Perk", description: "Perks → AI → bottom Share CTA." },
+  { id: "perk-attention", label: "Attention Perk", description: "Perks → Attention → bottom Share CTA." },
+  { id: "perk-access", label: "Access Perk", description: "Perks → Access → bottom Share CTA." },
+] as const;
+type ShareModalTestId = (typeof SHARE_MODAL_TEST_CASES)[number]["id"];
+
+function AppTestingPage({ onTriggerShare }: { onTriggerShare: (id: ShareModalTestId) => void }) {
+  return (
+    <div className="mx-auto w-full max-w-md px-4 pb-10 pt-6">
+      <h1 className="text-xl font-black text-[#00FF00]">Share modals</h1>
+      <div className="mt-4 space-y-2 rounded-xl border border-[#00FF00]/30 bg-black/60 p-3">
+        {SHARE_MODAL_TEST_CASES.map((testCase) => (
+          <div key={testCase.id} className="rounded-lg border border-[#00FF00]/20 bg-[#041204] p-3">
+            <button type="button" onClick={() => onTriggerShare(testCase.id)} className="w-full cursor-pointer rounded-lg border border-[#00FF00] bg-[#00FF00]/15 px-3 py-2 text-sm font-black text-[#00FF00] hover:bg-[#00FF00]/25">
+              Test {testCase.label}
+            </button>
+            <p className="mt-2 text-xs leading-5 text-[#8bbf8b]">{testCase.description}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 function focusInputAtEnd(input: HTMLInputElement | null): void {
@@ -12144,10 +12469,14 @@ function WarpletDetailsModal({
   const openTradeSharePreview = useCallback(async ({
     action,
     amountEth,
+    sellerWallet,
+    purchaseAmountEth,
     counterparty,
   }: {
     action: TradeShareAction;
     amountEth: number | null;
+    sellerWallet?: string | null;
+    purchaseAmountEth?: number | null;
     counterparty?: TradeShareCounterparty | null;
   }) => {
     const usdPrice = await getTradeShareUsdPrice();
@@ -12157,9 +12486,11 @@ function WarpletDetailsModal({
       amountEth,
       ethUsdPrice: usdPrice,
       counterparty,
+      sellerWallet: action === "sale" ? sellerWallet ?? normalizedActiveWallet : null,
+      purchaseAmountEth,
     });
     onOpenTradeSharePreview(preview);
-  }, [details, getTradeShareUsdPrice, onOpenTradeSharePreview]);
+  }, [details, getTradeShareUsdPrice, normalizedActiveWallet, onOpenTradeSharePreview]);
   const chipGroups = [
     { label: "Colours", values: splitChips(row.warplet_colours) },
     { label: "Keywords", values: splitChips(row.warplet_keywords) },
@@ -13906,6 +14237,12 @@ export default function SearchApp() {
   const [query, setQuery] = useState("");
   const [isAllWarpletsMode, setIsAllWarpletsMode] = useState(false);
   const [activeExampleSearch, setActiveExampleSearch] = useState(() => getRandomExampleSearch());
+  const [searchPlaceholderAnimation, setSearchPlaceholderAnimation] = useState<{
+    from: string;
+    to: string;
+    mode: "placeholder" | "value";
+  } | null>(null);
+  const [animatedSearchPlaceholder, setAnimatedSearchPlaceholder] = useState("");
   const [selectedAttributes, setSelectedAttributes] = useState<LevelAttributeColumn[]>([]);
   const [selectedLevels, setSelectedLevels] = useState<number[]>([]);
   const [submittedQuery, setSubmittedQuery] = useState("");
@@ -13950,6 +14287,8 @@ export default function SearchApp() {
   const ownershipOwnersRef = useRef(new Map<string, MarketSnapshot["owners"]>());
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const searchInputVisualTextRef = useRef("");
+  const searchAnimationRevealAtRef = useRef(0);
   const urlHydratedRef = useRef(false);
   const applyingUrlStateRef = useRef(false);
   const lastUrlSignatureRef = useRef("");
@@ -13977,6 +14316,74 @@ export default function SearchApp() {
     isAuthenticated: neynarIsAuthenticated,
     logoutUser: logoutNeynarUser,
   } = useNeynarContext();
+
+  const animateSearchInputChange = useCallback((to: string, mode: "placeholder" | "value") => {
+    const from = searchInputVisualTextRef.current;
+    if (from === to) {
+      searchAnimationRevealAtRef.current = 0;
+      setSearchPlaceholderAnimation(null);
+      return;
+    }
+    searchAnimationRevealAtRef.current = window.performance.now()
+      + (from.length > 0 ? SEARCH_PLACEHOLDER_DELETE_MS : 0)
+      + to.length * SEARCH_PLACEHOLDER_TYPE_MS_PER_CHARACTER
+      + SEARCH_RESULTS_REVEAL_DELAY_MS;
+    setAnimatedSearchPlaceholder(from);
+    setSearchPlaceholderAnimation({ from, to, mode });
+  }, []);
+
+  useEffect(() => {
+    if (searchPlaceholderAnimation === null) return;
+
+    const { from, to } = searchPlaceholderAnimation;
+    const deleteDurationMs = from.length > 0 ? SEARCH_PLACEHOLDER_DELETE_MS : 0;
+    const typeDurationMs = to.length * SEARCH_PLACEHOLDER_TYPE_MS_PER_CHARACTER;
+    const startedAt = window.performance.now();
+    let animationFrameId: number | null = null;
+    let lastText = from;
+
+    searchInputVisualTextRef.current = from;
+    setAnimatedSearchPlaceholder(from);
+
+    const renderFrame = (now: number) => {
+      const elapsedMs = now - startedAt;
+      let nextText: string;
+
+      if (elapsedMs < deleteDurationMs) {
+        const deleteProgress = elapsedMs / deleteDurationMs;
+        const visibleCharacters = Math.ceil(from.length * (1 - deleteProgress));
+        nextText = from.slice(0, visibleCharacters);
+      } else {
+        const typeElapsedMs = elapsedMs - deleteDurationMs;
+        const visibleCharacters = Math.min(
+          to.length,
+          Math.floor(typeElapsedMs / SEARCH_PLACEHOLDER_TYPE_MS_PER_CHARACTER),
+        );
+        nextText = to.slice(0, visibleCharacters);
+      }
+
+      if (nextText !== lastText) {
+        lastText = nextText;
+        searchInputVisualTextRef.current = nextText;
+        setAnimatedSearchPlaceholder(nextText);
+      }
+
+      if (elapsedMs >= deleteDurationMs + typeDurationMs) {
+        searchAnimationRevealAtRef.current = 0;
+        setSearchPlaceholderAnimation(null);
+        return;
+      }
+
+      animationFrameId = window.requestAnimationFrame(renderFrame);
+    };
+
+    animationFrameId = window.requestAnimationFrame(renderFrame);
+
+    return () => {
+      if (animationFrameId !== null) window.cancelAnimationFrame(animationFrameId);
+    };
+  }, [searchPlaceholderAnimation]);
+
   const selectedWarpletDetails = selectedWarpletDetailsStack.at(-1) ?? null;
   const neynarClientId = import.meta.env.VITE_NEYNAR_CLIENT_ID?.trim() ?? "";
   const siwnViewerProfile = useMemo<ViewerProfile | null>(() => {
@@ -15180,8 +15587,17 @@ export default function SearchApp() {
       !ftsQuery && hasAttributeOnlyFilter ? getRankColumnForLevelAttribute(activeAttributes[0]) : null;
     const runId = searchRunRef.current + 1;
     searchRunRef.current = runId;
+    const revealAt = offset === 0 ? searchAnimationRevealAtRef.current : 0;
+    const waitForAnimatedReveal = async () => {
+      const remainingMs = revealAt - window.performance.now();
+      if (remainingMs > 0) {
+        await new Promise<void>((resolve) => window.setTimeout(resolve, remainingMs));
+      }
+    };
 
     if (!db || (!ftsQuery && exactTokenId == null && !levelFilter && !hasAttributeOnlyFilter && !isWildcardSearch && !ownerWalletFilter && !activeFavouriteWallet)) {
+      await waitForAnimatedReveal();
+      if (searchRunRef.current !== runId) return;
       setResults([]);
       setTotalResults(0);
       setVisibleCount(PAGE_SIZE);
@@ -15207,6 +15623,7 @@ export default function SearchApp() {
           : allowedTokenIds.filter((tokenId) => favouriteSet.has(tokenId));
       }
       if (allowedTokenIds?.length === 0) {
+        await waitForAnimatedReveal();
         if (searchRunRef.current !== runId) return;
         setSubmittedQuery(nextQuery.trim());
         setTotalResults(0);
@@ -15260,7 +15677,8 @@ export default function SearchApp() {
         },
       );
       const nextRows = mapRows(rows, Boolean(ftsQuery));
-      await preloadResultImages(nextRows.slice(0, PAGE_SIZE));
+      await preloadResultImagesWithTimeout(nextRows.slice(0, PAGE_SIZE));
+      await waitForAnimatedReveal();
 
       if (searchRunRef.current !== runId) return;
 
@@ -15321,6 +15739,24 @@ export default function SearchApp() {
     const nextAllWarpletsMode = nextState.search.trim() === "*" || Boolean(nextFavouriteWallet && !nextState.search && !nextState.random && !hasAttributeFilter && !hasLevelFilter);
     const isRandomMode = !nextAllWarpletsMode && !nextState.search && !nextFavouriteWallet && !hasAttributeFilter && !hasLevelFilter && Boolean(nextSearchText);
 
+    if (!nextAllWarpletsMode && nextState.search.trim()) {
+      animateSearchInputChange(nextState.search, "value");
+    } else {
+      const favouriteIsActiveWallet = Boolean(
+        nextFavouriteWallet && activeWallet && nextFavouriteWallet === activeWallet.toLowerCase(),
+      );
+      const nextPlaceholder = nextAllWarpletsMode
+        ? nextFavouriteWallet
+          ? favouriteIsActiveWallet
+            ? "My Favourite Warplets..."
+            : `${nextFavouriteWallet.slice(0, 6)} Favourite Warplets...`
+          : "All Warplets..."
+        : hasAttributeFilter || hasLevelFilter
+          ? "Search for Warplets..."
+          : `${getRandomExampleDisplayLabel(nextRandom)} Warplets...`;
+      animateSearchInputChange(nextPlaceholder, "placeholder");
+    }
+
     setQuery(nextAllWarpletsMode ? "" : nextState.search);
     setIsAllWarpletsMode(nextAllWarpletsMode);
     setActiveExampleSearch(nextRandom);
@@ -15371,7 +15807,7 @@ export default function SearchApp() {
     }
 
     applyingUrlStateRef.current = false;
-  }, [activeExampleSearch, dbReady, loadFavouriteList, loadWarpletDetails, matchedWarpletCard, openTradeShareTestPreview, runSearch]);
+  }, [activeExampleSearch, activeWallet, animateSearchInputChange, dbReady, loadFavouriteList, loadWarpletDetails, matchedWarpletCard, openTradeShareTestPreview, runSearch]);
 
   useEffect(() => {
     if (searchRoute.page !== "search" || !dbReady || urlHydratedRef.current) return;
@@ -15515,15 +15951,23 @@ export default function SearchApp() {
     favouriteFilterWallet.toLowerCase() === activeWallet.toLowerCase(),
   );
   const favouriteFilterOwnerLabel = favouriteFilterWallet?.slice(0, 6) ?? "";
-  const searchPlaceholder = isAllWarpletsSearchMode
-      ? hasActiveFavouriteFilter
-        ? favouriteFilterIsActiveWallet || !favouriteFilterOwnerLabel
+  const emptySearchPlaceholder = isAllWarpletsSearchMode
+    ? hasActiveFavouriteFilter
+      ? favouriteFilterIsActiveWallet || !favouriteFilterOwnerLabel
         ? "My Favourite Warplets..."
         : `${favouriteFilterOwnerLabel} Favourite Warplets...`
       : "All Warplets..."
-    : hasTypedQuery || hasActiveAttributeFilter || hasActiveLevelFilter
-    ? "Search for Warplets..."
     : `${getRandomExampleDisplayLabel(activeExampleSearch)} Warplets...`;
+  const searchPlaceholder = hasTypedQuery || hasActiveAttributeFilter || hasActiveLevelFilter
+    ? "Search for Warplets..."
+    : emptySearchPlaceholder;
+  const displayedSearchPlaceholder = searchPlaceholderAnimation === null
+    ? searchPlaceholder
+    : animatedSearchPlaceholder;
+  const displayedSearchValue = searchPlaceholderAnimation?.mode === "value"
+    ? animatedSearchPlaceholder
+    : query;
+  searchInputVisualTextRef.current = displayedSearchValue.trim() || displayedSearchPlaceholder;
   const shouldPrependMatchedWarplet = Boolean(
     isExampleSearchMode &&
     matchedWarpletCard &&
@@ -15575,21 +16019,38 @@ export default function SearchApp() {
   const showResetSearchControl = Boolean(hasTypedQuery || hasActiveAttributeFilter || hasActiveLevelFilter || hasActiveFavouriteFilter || userSelectedOrder);
 
   const handleToggleAttribute = (column: LevelAttributeColumn) => {
-    setSelectedAttributes((current) => {
-      const next = toggleValue(current, column);
-      return LEVEL_ATTRIBUTES
-        .map((attribute) => attribute.column)
-        .filter((attribute) => next.includes(attribute));
-    });
+    const toggled = toggleValue(selectedAttributes, column);
+    const next = LEVEL_ATTRIBUTES
+      .map((attribute) => attribute.column)
+      .filter((attribute) => toggled.includes(attribute));
+    if (!query.trim()) {
+      animateSearchInputChange(
+        next.length > 0 || selectedLevels.length > 0 ? "Search for Warplets..." : emptySearchPlaceholder,
+        "placeholder",
+      );
+    }
+    setSelectedAttributes(next);
   };
 
   const handleToggleLevel = (level: number) => {
-    setSelectedLevels((current) => toggleValue(current, level).sort((a, b) => a - b));
+    const next = toggleValue(selectedLevels, level).sort((a, b) => a - b);
+    if (!query.trim()) {
+      animateSearchInputChange(
+        selectedAttributes.length > 0 || next.length > 0 ? "Search for Warplets..." : emptySearchPlaceholder,
+        "placeholder",
+      );
+    }
+    setSelectedLevels(next);
+  };
+
+  const animateSearchPlaceholderChange = (nextPlaceholder: string) => {
+    animateSearchInputChange(nextPlaceholder, "placeholder");
   };
 
   const handleResetSearch = () => {
     void hapticPrimaryTap();
     const nextExample = getFreshRandomExampleSearch(activeExampleSearch);
+    animateSearchPlaceholderChange(`${getRandomExampleDisplayLabel(nextExample)} Warplets...`);
     setActiveExampleSearch(nextExample);
     setQuery("");
     setIsAllWarpletsMode(false);
@@ -15615,6 +16076,7 @@ export default function SearchApp() {
   const handleRandomExampleSearch = () => {
     void hapticPrimaryTap();
     const nextExample = getFreshRandomExampleSearch(activeExampleSearch);
+    animateSearchPlaceholderChange(`${getRandomExampleDisplayLabel(nextExample)} Warplets...`);
     setActiveExampleSearch(nextExample);
     setQuery("");
     setIsAllWarpletsMode(false);
@@ -15693,12 +16155,13 @@ export default function SearchApp() {
 
   const handleSearchTag = useCallback((tag: string) => {
     setSelectedWarpletDetailsStack([]);
+    animateSearchInputChange(tag, "value");
     setIsAllWarpletsMode(false);
     setFavouriteFilterWallet(null);
     setQuery(tag);
     void runSearch(tag, 0, { attributes: selectedAttributes, levels: selectedLevels, favouriteWallet: null });
     window.setTimeout(() => searchInputRef.current?.focus(), 0);
-  }, [runSearch, selectedAttributes, selectedLevels]);
+  }, [animateSearchInputChange, runSearch, selectedAttributes, selectedLevels]);
 
   const handleLevelFilter = useCallback((attribute: LevelAttributeColumn, level: number) => {
     const nextAttributes = [attribute];
@@ -15712,6 +16175,7 @@ export default function SearchApp() {
         document.body.scrollTo({ top: 0, behavior: "auto" });
       }, 0);
     }
+    animateSearchInputChange("Search for Warplets...", "placeholder");
     setQuery("");
     setIsAllWarpletsMode(false);
     setSelectedAttributes(nextAttributes);
@@ -15719,7 +16183,7 @@ export default function SearchApp() {
     setFavouriteFilterWallet(null);
     void runSearch("", 0, { attributes: nextAttributes, levels: nextLevels, favouriteWallet: null });
     window.setTimeout(() => searchInputRef.current?.focus(), 0);
-  }, [navigateSearchRoute, runSearch, searchRoute.page]);
+  }, [animateSearchInputChange, navigateSearchRoute, runSearch, searchRoute.page]);
 
   const handleSearchOwnerWallet = useCallback((
     wallet: string,
@@ -15729,6 +16193,7 @@ export default function SearchApp() {
     if (!normalizedWallet) return;
     const levels = options.levels ?? [];
     setSelectedWarpletDetailsStack([]);
+    animateSearchInputChange(normalizedWallet, "value");
     setQuery(normalizedWallet);
     setIsAllWarpletsMode(false);
     setSelectedAttributes([]);
@@ -15745,7 +16210,7 @@ export default function SearchApp() {
     if (options.focus !== false) {
       window.setTimeout(() => searchInputRef.current?.focus(), 0);
     }
-  }, [dbReady, runSearch]);
+  }, [animateSearchInputChange, dbReady, runSearch]);
 
   const handleStatsSearchOwnerWallet = useCallback((wallet: string) => {
     navigateSearchRoute({ page: "search" });
@@ -15808,6 +16273,9 @@ export default function SearchApp() {
   const handleToggleFavouriteFilter = useCallback(async () => {
     void hapticPrimaryTap();
     if (favouriteFilterWallet) {
+      if (!query.trim() && isAllWarpletsMode) {
+        animateSearchInputChange("All Warplets...", "placeholder");
+      }
       setFavouriteFilterWallet(null);
       setVisibleCount(PAGE_SIZE);
       if (orderBy === "favourited") {
@@ -15823,6 +16291,7 @@ export default function SearchApp() {
       await loadFavouriteList(wallet);
       const isFavouriteOnly = !query.trim() && selectedAttributes.length === 0 && selectedLevels.length === 0;
       if (isFavouriteOnly) {
+        animateSearchInputChange("My Favourite Warplets...", "placeholder");
         setIsAllWarpletsMode(true);
         setOrderBy("favourited");
         setOrderDirection("desc");
@@ -15839,8 +16308,10 @@ export default function SearchApp() {
       showSearchToast("error", error instanceof Error ? error.message : String(error), { manualClose: true });
     }
   }, [
+    animateSearchInputChange,
     ensureActiveFavouriteWallet,
     favouriteFilterWallet,
+    isAllWarpletsMode,
     loadFavouriteList,
     orderBy,
     query,
@@ -15856,6 +16327,10 @@ export default function SearchApp() {
     try {
       await loadFavouriteList(normalizedWallet);
       setSelectedWarpletDetailsStack([]);
+      const favouriteLabel = activeWallet && normalizedWallet === activeWallet.toLowerCase()
+        ? "My Favourite Warplets..."
+        : `${normalizedWallet.slice(0, 6)} Favourite Warplets...`;
+      animateSearchInputChange(favouriteLabel, "placeholder");
       setQuery("");
       setIsAllWarpletsMode(true);
       setSelectedAttributes([]);
@@ -15874,7 +16349,7 @@ export default function SearchApp() {
       void hapticError();
       showSearchToast("error", error instanceof Error ? error.message : String(error), { manualClose: true });
     }
-  }, [dbReady, loadFavouriteList, runSearch, showSearchToast]);
+  }, [activeWallet, animateSearchInputChange, dbReady, loadFavouriteList, runSearch, showSearchToast]);
 
   const handleShareWarpletDetails = useCallback((tokenId: number) => {
     let shareUrl: string;
@@ -15936,6 +16411,92 @@ export default function SearchApp() {
     userSelectedOrder,
     updateSearchUrl,
   ]);
+
+  const handleOpenItemTradeShare = useCallback(async ({
+    tokenId,
+    action,
+    amountEth,
+    sellerWallet,
+    purchaseAmountEth,
+    counterparty,
+  }: {
+    tokenId: number;
+    action: TradeShareAction;
+    amountEth: number | null;
+    sellerWallet?: string | null;
+    purchaseAmountEth?: number | null;
+    counterparty?: TradeShareCounterparty | null;
+  }) => {
+    const details = await loadWarpletDetails(tokenId);
+    if (!details) return;
+    const ethUsdPrice = await fetchEthUsdPrice().catch(() => null);
+    setSharePreview(await buildTradeSharePreview({ action, details, amountEth, ethUsdPrice, counterparty, sellerWallet, purchaseAmountEth }));
+  }, [loadWarpletDetails]);
+
+  const handleOpenCollectionOfferShare = useCallback((amountEth: number | null, quantity: number) => {
+    void fetchEthUsdPrice().catch(() => null).then((ethUsdPrice) => {
+      setSharePreview(buildOfferSharePreview({ kind: "collection", amountEth, ethUsdPrice, quantity, tokenId: 760 }));
+    });
+  }, []);
+
+  const handleOpenTraitOfferShare = useCallback((input: {
+    amountEth: number | null;
+    quantity: number;
+    attributes: LevelAttributeColumn[];
+    level: number;
+  }) => {
+    const selected = LEVEL_ATTRIBUTES.filter((attribute) => input.attributes.includes(attribute.column));
+    const traitText = selected.length === LEVEL_ATTRIBUTES.length
+      ? `All traits at Level ${input.level}X`
+      : `${selected.map((attribute) => `${attribute.emoji} ${attribute.label}`).join(", ")} at Level ${input.level}X`;
+    const tokenId = findTraitOfferRepresentativeTokenId(dbRef.current, input.attributes, input.level);
+    void fetchEthUsdPrice().catch(() => null).then((ethUsdPrice) => {
+      setSharePreview(buildOfferSharePreview({ kind: "trait", amountEth: input.amountEth, ethUsdPrice, quantity: input.quantity, tokenId, traitText }));
+    });
+  }, []);
+
+  const handleTestShareModal = useCallback(async (id: ShareModalTestId) => {
+    const tokenId = 1358;
+    const mockSimplePreview = (title: string, text: string, imageTokenId = tokenId): SharePreviewState => {
+      const miniAppLink = new URL("/", window.location.origin).toString();
+      const openSeaLink = getOpenSeaUrl(imageTokenId);
+      const links = [miniAppLink, openSeaLink];
+      return {
+        title,
+        text,
+        farcasterText: text,
+        twitterPostText: text,
+        links,
+        images: [
+          { src: getWarpletAssetUrl(imageTokenId, "gif"), alt: `${title} test image` },
+          { src: getWarpletAssetUrl(imageTokenId, "gif"), alt: "OpenSea test image", sourceUrl: openSeaLink },
+        ],
+        farcasterEmbeds: [miniAppLink, openSeaLink],
+        twitterText: buildTwitterShareText(text, links),
+      };
+    };
+    if (id === "warplet") return setSharePreview(mockSimplePreview("Share 10X Warplet #1358", "👀 Check out 10X Warplet #1358"));
+    if (id === "search") return setSharePreview(mockSimplePreview("Share Search Results", "👀 Check out these 42 Green 10X Warplets..."));
+    if (id === "airdrop") return setSharePreview(mockSimplePreview("Share your 10X Warplet Airdrop", "I just received 10X Warplet #1358 in the airdrop!"));
+    if (id === "bulk-buy") return setSharePreview(mockSimplePreview("Share Your Bulk Buy!", "👀 Purchased 3 more 10X Warplets..."));
+    if (id === "collection-offer") return handleOpenCollectionOfferShare(0.001, 3);
+    if (id.startsWith("perk-")) {
+      const subpage = id.slice("perk-".length) as PerksSubpage;
+      return setSharePreview(buildPerksSharePreview(subpage));
+    }
+    if (id === "trait-offer") {
+      await ensureDatabaseReady();
+      return handleOpenTraitOfferShare({ amountEth: 0.001, quantity: 2, attributes: ["cast_level"], level: 8 });
+    }
+    const action: TradeShareAction = id === "item-offer" ? "offer" : id === "item-listing" ? "listing" : id === "item-purchase" ? "purchase" : "sale";
+    await handleOpenItemTradeShare({
+      tokenId,
+      action,
+      amountEth: 0.001,
+      purchaseAmountEth: id === "item-sale" ? 0.0004 : null,
+      counterparty: { farcasterUsername: "10xchris.eth", xUsername: "10xchrisx" },
+    });
+  }, [ensureDatabaseReady, handleOpenCollectionOfferShare, handleOpenItemTradeShare, handleOpenTraitOfferShare]);
 
   const handleShareAirdropWarplet = useCallback((details: WarpletDetails) => {
     const tokenId = details.id;
@@ -16220,13 +16781,14 @@ export default function SearchApp() {
       void hapticSuccess();
       showTradeConfetti();
       showSearchToast("success", `Warplet #${tokenId} successfully listed`, { minMs: 5000 });
+      void handleOpenItemTradeShare({ tokenId, action: "listing", amountEth: listing.eth });
       return true;
     } catch (error) {
       void hapticError();
       showSearchToast("error", error instanceof Error ? error.message : "Item listing failed.", { manualClose: true });
       return false;
     }
-  }, [getCollectionOfferProviderAndAccount, handleUpsertListing, marketSnapshot?.owners, showSearchToast, viewerFid]);
+  }, [getCollectionOfferProviderAndAccount, handleOpenItemTradeShare, handleUpsertListing, marketSnapshot?.owners, showSearchToast, viewerFid]);
 
   const handleApplyPurchase = useCallback((tokenId: number, update: OptimisticPurchaseUpdate) => {
     const buyerWallet = normalizeWalletAddress(update.buyerWallet);
@@ -16636,6 +17198,7 @@ export default function SearchApp() {
               onConnectWallet={handleHeaderConnectWallet}
               onMissingSiwnClientId={handleMissingSiwnClientId}
               onOpenSpreadsheet={handleHeaderOpenSpreadsheet}
+              onOpenAppTesting={() => navigateSearchRoute({ page: "app-testing" })}
               onViewOnboarding={handleHeaderViewOnboarding}
               onEnableNotifications={handleHeaderEnableNotifications}
               onDisconnect={handleHeaderDisconnect}
@@ -16655,6 +17218,8 @@ export default function SearchApp() {
 
         {isMenuRoute ? (
           <MiniAppMenuPage appSlug="search" />
+        ) : searchRoute.page === "app-testing" ? (
+          <AppTestingPage onTriggerShare={(id) => { void handleTestShareModal(id); }} />
         ) : searchRoute.page === "listed" ? (
           <ListedPage
             db={dbRef.current}
@@ -16680,6 +17245,7 @@ export default function SearchApp() {
           <StatsPage
             subpage={searchRoute.statsPage}
             connectedWallet={activeWallet}
+            favouriteTokenIds={activeFavouriteTokenIds}
             viewerFid={viewerFid}
             actionSessionToken={actionSessionToken}
             onSearchWallet={handleStatsSearchOwnerWallet}
@@ -16695,6 +17261,7 @@ export default function SearchApp() {
               viewerProfile={headerAccountProfile}
               onSearchWallet={handleStatsSearchOwnerWallet}
               onOpenWarpletDetails={handleOpenWarpletDetails}
+              onShare={(subpage) => setSharePreview(buildPerksSharePreview(subpage))}
             />
           </Suspense>
         ) : searchRoute.page === "offers" && searchRoute.offersPage === "collection" ? (
@@ -16704,6 +17271,7 @@ export default function SearchApp() {
             isInMiniAppContext={isInMiniAppContext}
             getProviderAndAccount={getCollectionOfferProviderAndAccount}
             showToast={showSearchToast}
+            onShareOffer={handleOpenCollectionOfferShare}
           />
         ) : searchRoute.page === "offers" && searchRoute.offersPage === "trait" ? (
           <TraitOffersPage
@@ -16713,6 +17281,7 @@ export default function SearchApp() {
             getProviderAndAccount={getCollectionOfferProviderAndAccount}
             showToast={showSearchToast}
             onMarketChanged={() => refreshMarketSnapshot(true)}
+            onShareOffer={handleOpenTraitOfferShare}
           />
         ) : searchRoute.page === "offers" && searchRoute.offersPage === "item" ? (
           <ItemOffersPage
@@ -16726,6 +17295,7 @@ export default function SearchApp() {
             onOpenWarpletDetails={handleOpenWarpletDetails}
             onApplyPurchase={handleApplyPurchase}
             refreshRevision={itemOffersRevision}
+            onShareTrade={handleOpenItemTradeShare}
           />
         ) : (
           <div className="mx-auto w-full max-w-md px-4 pb-10 pt-6">
@@ -16757,8 +17327,10 @@ export default function SearchApp() {
               <input
                 ref={searchInputRef}
                 type="search"
-                value={query}
+                value={displayedSearchValue}
                 onChange={(event) => {
+                  searchAnimationRevealAtRef.current = 0;
+                  setSearchPlaceholderAnimation(null);
                   const nextValue = event.target.value;
                   if (nextValue.trim().length === 0) {
                     setQuery("");
@@ -16781,7 +17353,7 @@ export default function SearchApp() {
                     setVisibleCount(PAGE_SIZE);
                   }
                 }}
-                placeholder={searchPlaceholder}
+                placeholder={searchPlaceholderAnimation?.mode === "value" ? "" : displayedSearchPlaceholder}
                 disabled={!dbReady}
                 className="min-w-0 flex-1 rounded-xl border border-[#00FF00] bg-black/70 py-3 pl-10 pr-28 text-base text-[#00FF00] outline-none transition-[border-color,box-shadow] placeholder:text-[#8bbf8b] focus:border-[#00FF00] focus:shadow-[0_0_10px_rgba(0,255,0,0.22)] disabled:cursor-wait disabled:opacity-60"
               />

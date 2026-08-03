@@ -1,3 +1,5 @@
+import { PERKS_SHARE_CONTENT } from "./perksShareContent";
+
 export type PerksSubpage = "memes" | "nfts" | "ai" | "attention" | "access";
 
 export type PerksMetric = {
@@ -44,9 +46,9 @@ export const PERKS_DEFINITIONS: Record<PerksSubpage, PerksDefinition> = {
   memes: {
     id: "memes",
     title: "Memes",
-    eyebrow: "Attention Tokens",
+    eyebrow: PERKS_SHARE_CONTENT.memes.eyebrow,
     statsTitle: "Token Stats",
-    summary: "One market-proven memecoin. One community decision. One\u00A0focused launch at a time... 10X Airdrops!",
+    summary: PERKS_SHARE_CONTENT.memes.summary,
     globalMetrics: [
       { label: "Attention Tokens", value: "128" },
       { label: "Launch Days Skipped", value: "17" },
@@ -88,9 +90,9 @@ export const PERKS_DEFINITIONS: Record<PerksSubpage, PerksDefinition> = {
   nfts: {
     id: "nfts",
     title: "NFTs",
-    eyebrow: "10X Seasons",
+    eyebrow: PERKS_SHARE_CONTENT.nfts.eyebrow,
     statsTitle: "Season Stats",
-    summary: "Mint, reveal, upgrade and rally your token tribe across a new NFT season every month... Level up your perks!",
+    summary: PERKS_SHARE_CONTENT.nfts.summary,
     globalMetrics: [
       { label: "Seasons", value: "12" },
       { label: "NFTs Minted", value: "120,000" },
@@ -163,9 +165,9 @@ export const PERKS_DEFINITIONS: Record<PerksSubpage, PerksDefinition> = {
   ai: {
     id: "ai",
     title: "AI",
-    eyebrow: "AI for Builders",
+    eyebrow: PERKS_SHARE_CONTENT.ai.eyebrow,
     statsTitle: "Builder Stats",
-    summary: "Turning ecosystem revenue into practical AI compute, tools and longer runway for people who ship... Accelerate!",
+    summary: PERKS_SHARE_CONTENT.ai.summary,
     globalMetrics: [
       { label: "Sponsored AI", value: "$420K" },
       { label: "Credits Consumed", value: "$397K" },
@@ -206,9 +208,9 @@ export const PERKS_DEFINITIONS: Record<PerksSubpage, PerksDefinition> = {
   attention: {
     id: "attention",
     title: "Attention",
-    eyebrow: "#1 Feed for Crypto",
+    eyebrow: PERKS_SHARE_CONTENT.attention.eyebrow,
     statsTitle: "Distribution Stats",
-    summary: "One focused daily feed where posts receive a real chance to be seen and go viral... Join the content cabal!",
+    summary: PERKS_SHARE_CONTENT.attention.summary,
     globalMetrics: [
       { label: "Impressions", value: "94.2M" },
       { label: "Engagements", value: "6.8M" },
@@ -248,9 +250,9 @@ export const PERKS_DEFINITIONS: Record<PerksSubpage, PerksDefinition> = {
   access: {
     id: "access",
     title: "Access",
-    eyebrow: "The 10X Network",
+    eyebrow: PERKS_SHARE_CONTENT.access.eyebrow,
     statsTitle: "Network Stats",
-    summary: "Builders, traders, collectors, whales, degens, creators, KOLs, all sharing alpha across chains... 10X vs The Market!",
+    summary: PERKS_SHARE_CONTENT.access.summary,
     globalMetrics: [
       { label: "Members", value: "37,420" },
       { label: "Chains Represented", value: "6" },

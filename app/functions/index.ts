@@ -1,6 +1,7 @@
 const FC_MINIAPP_META_REGEX = /<meta\s+name="fc:miniapp"[^>]*>/i;
 const TITLE_REGEX = /<title>[\s\S]*?<\/title>/i;
 import { applySecurityHeaders } from "./_lib/security.js";
+import { getPerksShareContentFromPath, getPerksShareImageUrl } from "../src/perksShareContent.js";
 
 type PagesEnv = {
   WARPLETS?: D1Database;
@@ -434,7 +435,8 @@ export const onRequestGet: PagesFunction<PagesEnv> = async (context) => {
   const searchResultsTitle = searchFirstWarpletTokenId
     ? getSearchResultsShareTitle(requestUrl.searchParams)
     : undefined;
-  const searchShareTitle = searchWarpletTitle ?? searchResultsTitle;
+  const perksShareContent = routeKey === "search" ? getPerksShareContentFromPath(requestUrl.pathname) : null;
+  const searchShareTitle = searchWarpletTitle ?? searchResultsTitle ?? (perksShareContent ? `10X Perks: ${perksShareContent.label}` : undefined);
   const searchWarpletImageUrl = searchWarpletTokenId
     ? `https://warplets.10x.meme/${searchWarpletTokenId}.gif`
     : undefined;
@@ -445,7 +447,7 @@ export const onRequestGet: PagesFunction<PagesEnv> = async (context) => {
     routeKey === "drop"
       ? await getDropShareImageUrl(context.env, requestUrl.searchParams)
       : undefined;
-  const searchShareImageUrl = searchWarpletImageUrl ?? searchResultsImageUrl;
+  const searchShareImageUrl = searchWarpletImageUrl ?? searchResultsImageUrl ?? (perksShareContent ? getPerksShareImageUrl(perksShareContent) : undefined);
   const routeImageUrl = routeKey === "stop" ? STOP_IMAGE_URL : searchShareImageUrl ?? dropShareImageUrl;
   const metaContent = escapeHtmlAttr(
     buildMiniAppMetaContent(

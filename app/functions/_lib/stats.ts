@@ -3875,6 +3875,7 @@ async function loadActivityChart(
   range: StatsRange,
   tokenId: number | null,
   friendsViewerFid: number | null = null,
+  favouritesWallet: string | null = null,
 ): Promise<{
   rangeStart: string;
   rangeEnd: string;
@@ -3887,6 +3888,12 @@ async function loadActivityChart(
   const bucketCase = bounds.map(() => "WHEN occurred_at >= ? AND occurred_at < ? THEN ?").join(" ");
   const bucketBindings = bounds.flatMap((bucket) => [bucket.startAt, bucket.endAt, bucket.index]);
   const tokenClause = tokenId !== null ? "AND a.token_id = ?" : "";
+  const favouritesClause = favouritesWallet !== null ? `AND EXISTS (
+       SELECT 1
+       FROM warplet_favourites wf, json_each(wf.token_ids) favourite
+       WHERE wf.wallet = ?
+         AND CAST(favourite.value AS INTEGER) = a.token_id
+     )` : "";
   const friendsClause = friendsViewerFid !== null ? `AND EXISTS (
        SELECT 1 FROM warplets_user_best_friends bf
        WHERE bf.user_fid = ?
@@ -3923,6 +3930,7 @@ async function loadActivityChart(
          AND a.occurred_at >= ? AND a.occurred_at < ?
          ${tokenClause}
          ${friendsClause}
+         ${favouritesClause}
      ), bucketed AS (
        SELECT *, CASE ${bucketCase} ELSE NULL END AS bucket_index
        FROM ranked_activity
@@ -3959,6 +3967,7 @@ async function loadActivityChart(
     rangeEnd,
     ...(tokenId !== null ? [tokenId] : []),
     ...(friendsViewerFid !== null ? [friendsViewerFid] : []),
+    ...(favouritesWallet !== null ? [favouritesWallet] : []),
     ...bucketBindings,
   ).all<ActivityChartRepresentativeRow>();
   const representatives = result.results ?? [];
@@ -4072,6 +4081,11 @@ export async function handleStatsActivityGet(
   }
   const includeChart = url.searchParams.get("chart") === "1" && !cursor;
   const friendsOnly = url.searchParams.get("friends") === "1";
+  const requestedFavouritesWallet = url.searchParams.get("favouritesWallet");
+  const favouritesWallet = requestedFavouritesWallet ? normalizeWallet(requestedFavouritesWallet) : null;
+  if (requestedFavouritesWallet && !favouritesWallet) {
+    return jsonError("invalid_favourites_wallet", "Favourites wallet must be a valid address.", 400);
+  }
   const requestedFid = asInteger(url.searchParams.get("fid"));
   let viewerFid: number | null = null;
   if (friendsOnly) {
@@ -4117,6 +4131,17 @@ export async function handleStatsActivityGet(
       bindings.push(viewerFid);
       countConditions.push(conditions.at(-1)!);
       countBindings.push(viewerFid);
+    }
+    if (favouritesWallet !== null) {
+      conditions.push(`EXISTS (
+        SELECT 1
+        FROM warplet_favourites wf, json_each(wf.token_ids) favourite
+        WHERE wf.wallet = ?
+          AND CAST(favourite.value AS INTEGER) = a.token_id
+      )`);
+      bindings.push(favouritesWallet);
+      countConditions.push(conditions.at(-1)!);
+      countBindings.push(favouritesWallet);
     }
     const filteredActivityCte = `filtered_activity AS (
          SELECT a.*,
@@ -4215,7 +4240,9 @@ export async function handleStatsActivityGet(
         fid: profiles.get(normalizeWallet(row.to_wallet) ?? "")?.fid ?? row.to_fid,
       } : null,
     }));
-    const chart = includeChart ? await loadActivityChart(context.env.WARPLETS, range, tokenId, friendsOnly ? viewerFid : null) : undefined;
+    const chart = includeChart
+      ? await loadActivityChart(context.env.WARPLETS, range, tokenId, friendsOnly ? viewerFid : null, favouritesWallet)
+      : undefined;
     const last = pageRows.at(-1);
     return jsonStats({
       analyticsEpoch: ANALYTICS_EPOCH,
@@ -4223,7 +4250,7 @@ export async function handleStatsActivityGet(
       rows,
       ...(!cursor ? { eventCounts } : {}),
       ...(chart ? { chart } : {}),
-      filters: { event, events, start: effectiveStart, end: effectiveEnd },
+      filters: { event, events, start: effectiveStart, end: effectiveEnd, favouritesWallet },
       hasMore,
       nextCursor: hasMore && last ? encodeActivityCursor({ at: last.occurred_at, key: last.canonical_key }) : null,
       asOf: pageRows[0]?.occurred_at ?? null,

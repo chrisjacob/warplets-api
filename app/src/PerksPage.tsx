@@ -22,6 +22,7 @@ import {
   type PerksMetric,
   type PerksSubpage,
 } from "./perksMockData";
+import { PERKS_SHARE_CONTENT } from "./perksShareContent";
 
 type PerksHolder = {
   rank: number | null;
@@ -766,15 +767,9 @@ function Leaderboard({
   );
 }
 
-function FutureExplanation({ definition }: { definition: PerksDefinition }) {
-  const featuredTokenId: Record<PerksSubpage, number> = {
-    memes: 3258,
-    nfts: 3786,
-    ai: 234,
-    attention: 4318,
-    access: 4334,
-  };
-  const tokenId = featuredTokenId[definition.id];
+function FutureExplanation({ definition, onShare }: { definition: PerksDefinition; onShare: () => void }) {
+  const shareContent = PERKS_SHARE_CONTENT[definition.id];
+  const tokenId = shareContent.tokenId;
 
   return (
     <section className="mt-5 overflow-hidden rounded-xl border border-[#00FF00]/25 bg-black/70">
@@ -802,11 +797,16 @@ function FutureExplanation({ definition }: { definition: PerksDefinition }) {
             <p className="mt-1 whitespace-pre-line text-xs leading-5 text-[#b8d7b8]">{item.body}</p>
             {item.callout && (
               <span className="mt-3 block py-2 text-center text-xl font-black uppercase leading-[1.5] text-[#00FF00]">
-                {item.callout}
+                {shareContent.callout}
               </span>
             )}
           </div>
         ))}
+      </div>
+      <div className="border-t border-[#00FF00]/15 p-3">
+        <button type="button" onClick={() => { void hapticTap(); onShare(); }} className="w-full cursor-pointer rounded-[20px] border border-[#0a990a] bg-[#00FF00] px-4 py-3 text-sm font-black text-[rgb(0,80,0)] shadow-[3px_6px_0_#0a990a] active:translate-y-0.5">
+          {shareContent.cta}
+        </button>
       </div>
     </section>
   );
@@ -819,6 +819,7 @@ export default function PerksPage({
   viewerProfile,
   onSearchWallet,
   onOpenWarpletDetails,
+  onShare,
 }: {
   subpage: PerksSubpage;
   connectedWallet: string | null;
@@ -826,6 +827,7 @@ export default function PerksPage({
   viewerProfile?: PerksViewerProfile | null;
   onSearchWallet: (wallet: string) => void;
   onOpenWarpletDetails: (tokenId: number) => void;
+  onShare: (subpage: PerksSubpage) => void;
 }) {
   const definition = PERKS_DEFINITIONS[subpage];
   const [roster, setRoster] = useState<PerksHolder[]>(holderRosterCache ?? []);
@@ -978,7 +980,7 @@ export default function PerksPage({
         </PerksDashboardPanel>
       )}
 
-      <FutureExplanation definition={definition} />
+      <FutureExplanation definition={definition} onShare={() => onShare(subpage)} />
 
       <div className="mt-4 rounded-xl border border-[#FFFF00]/55 bg-[#FFFF00]/10 px-3 py-3 text-xs font-bold leading-5 text-[#fff7a8]">
         <strong className="block font-black uppercase text-[#FFFF00]">Future 10X Ecosystem Mockup</strong>
