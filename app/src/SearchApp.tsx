@@ -1082,7 +1082,7 @@ type SharePreviewState = {
 };
 
 function getInitialSharePreviewImages(images: SharePreviewImage[]): SharePreviewImage[] {
-  return images.map((image) => image.sourceUrl ? { ...image, isLoading: true } : image);
+  return images.map((image) => ({ ...image, isLoading: true }));
 }
 
 function buildTwitterShareText(text: string, links: string[]): string {
@@ -3866,6 +3866,7 @@ type StatsChartProps = {
   markerSeries?: Array<{ key: string; event: MarketActivityRow["event"]; color: string }>;
   isInMiniAppContext?: boolean;
   activeBucket?: { event: MarketActivityRow["event"]; startAt: string; endAt: string } | null;
+  animateLinesLeftToRight?: boolean;
 };
 
 let statsChartAnimationId = 0;
@@ -4180,6 +4181,7 @@ async function loadStatsChart() {
     markerSeries,
     isInMiniAppContext,
     activeBucket,
+    animateLinesLeftToRight,
   }: StatsChartProps) {
     const [chartAnimationId] = useState(() => {
       statsChartAnimationId += 1;
@@ -4240,6 +4242,10 @@ async function loadStatsChart() {
     const animationSignature = primarySocialKey
       ? markerDataSets.flatMap((set) => set.data.filter((point) => Number.isFinite(point.markerRevealIndex)).map((point) => `${point.markerId}:${point.timestamp ?? point.label}:${String(point[set.key] ?? "")}`)).join("|")
       : "";
+    const lineDataSignature = series
+      .filter((item) => item.type === "line")
+      .map((item) => `${item.key}:${data.map((point) => `${point.timestamp ?? point.label}:${String(point[item.key] ?? "")}`).join(",")}`)
+      .join("|");
     const [lineAnimationFinished, setLineAnimationFinished] = useState(false);
     const [visibleMarkerCount, setVisibleMarkerCount] = useState(0);
     const [selectedPoint, setSelectedPoint] = useState<StatsChartDatum | null>(null);
@@ -4294,7 +4300,10 @@ async function loadStatsChart() {
             <CartesianGrid stroke="rgba(0,255,0,0.12)" strokeDasharray="3 5" vertical={false} />
             <XAxis
               dataKey="label"
-              allowDuplicatedCategory={false}
+              // Keep each observation in sequence even when several share a date
+              // label. This matches the smooth Stats share chart while preserving
+              // the live chart's dots, active markers, and tooltip payloads.
+              allowDuplicatedCategory
               padding={primarySocialKey ? { left: 13, right: 13 } : undefined}
               tick={{ fill: "#8bbf8b", fontSize: 9 }}
               tickLine={false}
@@ -4359,8 +4368,10 @@ async function loadStatsChart() {
                 maxBarSize={18}
               />
             ) : (
-              <Line
-                key={`${item.key}-${chartAnimationId}-${animationSignature}`}
+              (() => {
+                const usesStrokeReveal = animateLinesLeftToRight || effectiveMarkerSeries.some((marker) => marker.key === item.key);
+                return <Line
+                key={`${item.key}-${chartAnimationId}-${lineDataSignature}-${animationSignature}`}
                 type="monotone"
                 dataKey={item.key}
                 name={item.label}
@@ -4368,15 +4379,16 @@ async function loadStatsChart() {
                 stroke={item.color}
                 strokeWidth={2}
                 pathLength={1}
-                className={effectiveMarkerSeries.some((marker) => marker.key === item.key) ? "stats-activity-line-animate" : undefined}
+                className={usesStrokeReveal ? "stats-activity-line-animate" : undefined}
                 dot={effectiveMarkerSeries.some((marker) => marker.key === item.key) ? false : { r: 2, fill: item.color, strokeWidth: 0 }}
                 activeDot={effectiveMarkerSeries.some((marker) => marker.key === item.key) ? false : { r: 5, fill: item.color, stroke: "#000", strokeWidth: 2 }}
                 connectNulls
                 animationId={chartAnimationId}
                 animationBegin={0}
                 animationDuration={900}
-                isAnimationActive={item.key === primarySocialKey ? false : true}
-              />
+                isAnimationActive={!usesStrokeReveal}
+              />;
+              })()
             ))}
             {primarySocialKey && lineAnimationFinished && visibleMarkerCount > 0 && markerDataSets.map((marker) => (
               <Scatter
@@ -4704,6 +4716,7 @@ function StatsChartPanel({
   onShowBucketSales,
   onSearchWallet,
   onShare,
+  animateLinesLeftToRight,
 }: {
   title: string;
   description?: string;
@@ -4720,6 +4733,7 @@ function StatsChartPanel({
   onShowBucketSales?: (startAt: string, endAt: string) => void;
   onSearchWallet?: (wallet: string) => void;
   onShare?: () => void;
+  animateLinesLeftToRight?: boolean;
 }) {
   return (
     <section className="overflow-hidden rounded-xl border border-[#00FF00]/25 bg-black/65">
@@ -4754,6 +4768,7 @@ function StatsChartPanel({
               socialRole={socialRole}
               onShowBucketSales={onShowBucketSales}
               onSearchWallet={onSearchWallet}
+              animateLinesLeftToRight={animateLinesLeftToRight}
             />
           </Suspense>
         </StatsChartErrorBoundary>
@@ -5557,7 +5572,7 @@ function StatsOverview({
 }: {
   payload: StatsApiEnvelope;
   ethUsdPrice: number | null;
-  onShare: () => void;
+  onShare: (panel: "collection" | "fair-launch") => void;
 }) {
   const items = statsMetric(payload, "items", "totalItems", "supply");
   const floor = statsMetric(payload, "floorPrice", "floor");
@@ -5590,7 +5605,7 @@ function StatsOverview({
 
   return (
     <div>
-      <div className="mb-3 flex justify-end"><StatsShareButton label="Share Overview" onClick={onShare} /></div>
+      <div className="mb-3 flex justify-end"><StatsShareButton label="Share NFT Collection" onClick={() => onShare("collection")} /></div>
       <div className="grid grid-cols-2 gap-2">
         <StatsMetricCard label="Items" value={formatStatsInteger(items ?? 10000)} />
         <StatsMetricCard label="Floor Price" value={formatStatsEth(floor)} tooltip={floorUsd} />
@@ -5620,7 +5635,10 @@ function StatsOverview({
       </div>
 
       <section className="mt-4 rounded-xl border border-[#7959ff]/55 bg-[rgba(93,66,214,0.12)] p-3 shadow-[0_0_14px_rgba(121,89,255,0.12)]">
-        <Text className="text-xs font-black uppercase text-[#7959ff]">Fair Launch. Mass Distribution.</Text>
+        <div className="flex items-start justify-between gap-3">
+          <Text className="text-xs font-black uppercase text-[#7959ff]">Fair Launch. Mass Distribution.</Text>
+          <StatsShareButton label="Share Fair Launch" onClick={() => onShare("fair-launch")} compact />
+        </div>
         <Text className="mt-1 text-xs leading-4 text-[#b9aaff]">
           The Warplets diamond hands. 10,000 wallet Farcaster airdrop.
         </Text>
@@ -5739,6 +5757,7 @@ function StatsMarket({
       <div className="mt-4 space-y-3">
         <StatsChartPanel
           title="Price"
+          animateLinesLeftToRight
           description="Moving average of observed sale prices."
           headline={formatStatsEth(latestMovingPrice).replace(/\s*Ξ$/, "")}
           changePercent={priceChange}
@@ -5750,6 +5769,7 @@ function StatsMarket({
         />
         <StatsChartPanel
           title="Floor Price"
+          animateLinesLeftToRight
           headline={formatStatsEth(latestFloorPrice).replace(/\s*Ξ$/, "")}
           changePercent={floorChange}
           data={floorData}
@@ -5759,6 +5779,7 @@ function StatsMarket({
         />
         <StatsChartPanel
           title="Volume"
+          animateLinesLeftToRight
           headline={formatStatsEth(volume).replace(/\s*Ξ$/, "")}
           changePercent={volumeChange}
           data={dailyData}
@@ -5768,6 +5789,7 @@ function StatsMarket({
         />
         <StatsChartPanel
           title="Sales"
+          animateLinesLeftToRight
           headline={formatStatsInteger(sales)}
           changePercent={salesChange}
           data={dailyData}
@@ -6559,7 +6581,7 @@ function StatsPage({
         </div>
       ) : payload ? (
         <>
-          {subpage === "overview" && <StatsOverview payload={payload} ethUsdPrice={ethUsdPrice} onShare={() => onShareStats({ kind: "overview" })} />}
+          {subpage === "overview" && <StatsOverview payload={payload} ethUsdPrice={ethUsdPrice} onShare={(panel) => onShareStats({ kind: "overview", panel, ...(connectedWallet ? { wallet: connectedWallet } : {}), ...(viewerFid ? { fid: viewerFid } : {}) })} />}
           {subpage === "market" && <StatsMarket payload={payload} ethUsdPrice={ethUsdPrice} range={range} onShareStats={onShareStats} />}
           {subpage === "social" && (
             <StatsSocial
@@ -8573,7 +8595,6 @@ function ItemOffersPage({
   const loadRequestRef = useRef(0);
   const appliedRefreshRevisionRef = useRef(0);
   const pendingItemOffersRef = useRef(new Map<string, ItemOfferRow>());
-  const previousItemOfferScopeRef = useRef<typeof scope | null>(null);
   const pickerRootRef = useRef<HTMLDivElement | null>(null);
   const pickerEndRef = useRef<HTMLDivElement | null>(null);
   const formRef = useRef<HTMLDivElement | null>(null);
@@ -8673,10 +8694,8 @@ function ItemOffersPage({
     }
   }, [favouriteTokenIds, normalizedWallet, page, scope, selectedTokenId, showToast, viewerFid]);
   useEffect(() => {
-    const enteredForYou = scope === "for_you" && previousItemOfferScopeRef.current !== "for_you";
-    previousItemOfferScopeRef.current = scope;
-    void loadOffers(enteredForYou ? { refresh: true } : undefined);
-  }, [loadOffers, scope]);
+    void loadOffers();
+  }, [loadOffers]);
   useEffect(() => {
     if (refreshRevision <= appliedRefreshRevisionRef.current) return;
     appliedRefreshRevisionRef.current = refreshRevision;
@@ -11620,7 +11639,6 @@ function SharePreviewModal({
   onShareTwitter: () => void;
   onRetry?: () => void;
 }) {
-  const shareContentRef = useRef<HTMLDivElement | null>(null);
   const [resolvedImages, setResolvedImages] = useState<SharePreviewImage[]>(() => getInitialSharePreviewImages(preview.images));
   const farcasterPostText = preview.farcasterText ?? preview.text;
   const twitterPostText = preview.twitterPostText ?? preview.text;
@@ -11632,16 +11650,6 @@ function SharePreviewModal({
   const titleRest = titleRestWords.join(" ");
   const [isClipboardTooltipOpen, setIsClipboardTooltipOpen] = useState(false);
   const shareReady = preview.status == null || preview.status === "ready";
-  const [initializeShareScrollbars] = useOverlayScrollbars({
-    options: {
-      scrollbars: {
-        theme: "os-theme-10x",
-        autoHide: "scroll",
-        clickScroll: true,
-      },
-    },
-    defer: true,
-  });
   const {
     refs: clipboardTooltipRefs,
     floatingStyles: clipboardTooltipStyles,
@@ -11665,16 +11673,6 @@ function SharePreviewModal({
   useEffect(() => {
     setActiveShareChannel("farcaster");
   }, [preview]);
-
-  useEffect(() => {
-    const target = shareContentRef.current;
-    if (!target) return;
-    target.setAttribute("data-overlayscrollbars-initialize", "");
-    initializeShareScrollbars(target);
-    return () => {
-      target.removeAttribute("data-overlayscrollbars-initialize");
-    };
-  }, [initializeShareScrollbars]);
 
   useEffect(() => {
     let cancelled = false;
@@ -11769,7 +11767,11 @@ function SharePreviewModal({
           </button>
         </div>
 
-        <div ref={shareContentRef} className="max-h-[calc(92vh-156px)] overflow-auto px-4 py-4">
+        <OverlayScrollbarsComponent
+          className="max-h-[calc(92vh-156px)] overflow-auto px-4 py-4"
+          defer
+          options={{ scrollbars: { theme: "os-theme-10x", autoHide: "scroll", clickScroll: true } }}
+        >
           <div>
             {hasChannelTabs && (
               <div className="flex items-end gap-1">
@@ -11871,8 +11873,8 @@ function SharePreviewModal({
               {resolvedImages.map((image, index) => (
                 <div key={`${image.src}-${index}`} className={`relative overflow-hidden rounded-lg border border-[#00FF00]/25 bg-[rgba(0,255,0,0.12)] ${image.aspectRatio === "landscape" ? "col-span-2 aspect-[3/2]" : "aspect-square"}`}>
                   {image.isLoading && (
-                    <div className="absolute inset-0 flex h-full w-full items-center justify-center">
-                      <span className="h-8 w-8 animate-spin rounded-full border-2 border-[#00FF00]/25 border-t-[#00FF00]" aria-label="Loading OpenSea preview image" />
+                    <div className="absolute inset-0 z-[2] flex h-full w-full items-center justify-center">
+                      <span className="h-8 w-8 animate-spin rounded-full border-2 border-[#00FF00]/25 border-t-[#00FF00]" aria-label="Loading share preview image" />
                     </div>
                   )}
                   <img
@@ -11881,7 +11883,7 @@ function SharePreviewModal({
                     className={`relative z-[1] block h-full w-full transition-opacity duration-300 ${image.isLoading ? "opacity-0" : "opacity-100"} ${image.sourceUrl ? "object-contain" : "object-cover"}`}
                     loading="lazy"
                     onLoad={() => {
-                      if (!image.sourceUrl || !image.fallbackSrc || !image.isLoading) return;
+                      if (!image.isLoading) return;
                       setResolvedImages((currentImages) =>
                         currentImages.map((currentImage, currentIndex) =>
                           currentIndex === index ? { ...currentImage, isLoading: false } : currentImage,
@@ -11889,12 +11891,19 @@ function SharePreviewModal({
                       );
                     }}
                     onError={(event) => {
-                      if (!image.fallbackSrc || event.currentTarget.src === image.fallbackSrc) return;
+                      if (!image.fallbackSrc || event.currentTarget.src === image.fallbackSrc) {
+                        setResolvedImages((currentImages) =>
+                          currentImages.map((currentImage, currentIndex) =>
+                            currentIndex === index ? { ...currentImage, isLoading: false } : currentImage,
+                          ),
+                        );
+                        return;
+                      }
                       event.currentTarget.src = image.fallbackSrc;
                       setResolvedImages((currentImages) =>
                         currentImages.map((currentImage, currentIndex) =>
                           currentIndex === index
-                            ? { ...currentImage, src: image.fallbackSrc ?? currentImage.src, isLoading: false }
+                            ? { ...currentImage, src: image.fallbackSrc ?? currentImage.src, isLoading: true }
                             : currentImage,
                         ),
                       );
@@ -11904,7 +11913,7 @@ function SharePreviewModal({
               ))}
             </div>
           </div>}
-        </div>
+        </OverlayScrollbarsComponent>
 
         <div className="sticky bottom-0 z-10 border-t border-[#00FF00]/20 bg-black px-4 py-3">
           <div className="grid grid-cols-2 gap-2">
@@ -12284,7 +12293,7 @@ function buildPerksSharePreview(subpage: PerksSubpage): SharePreviewState {
   const definition = PERKS_DEFINITIONS[subpage];
   const pageUrl = new URL(getSearchPathForRoute({ page: "perks", perksPage: subpage }), window.location.origin).toString();
   const checklist = definition.explanation.map((item) => `✅ ${item.title}`).join("\n");
-  const postText = `👀 10X Perks: ${content.label}\n\n${content.eyebrow}\n${content.summary}\n\n${checklist}\n\n${content.callout}\n\n${pageUrl}`;
+  const postText = `👀 10X ${content.label}\n\n${content.eyebrow}\n${content.summary}\n\n${checklist}\n\n${content.callout}\n\n${pageUrl}`;
   const images: SharePreviewImage[] = [{ src: getPerksShareImageUrl(content), alt: `${content.label} Perk share image` }];
   if (content.secondImageUrl) {
     images.push({ src: new URL(content.secondImageUrl, window.location.origin).toString(), alt: `${content.label} Perk supporting image` });
@@ -12317,7 +12326,8 @@ const SHARE_MODAL_TEST_CASES = [
   { id: "perk-ai", label: "AI Perk", description: "Perks → AI → bottom Share CTA." },
   { id: "perk-attention", label: "Attention Perk", description: "Perks → Attention → bottom Share CTA." },
   { id: "perk-access", label: "Access Perk", description: "Perks → Access → bottom Share CTA." },
-  { id: "stats-overview", label: "Stats Overview", description: "Stats → Overview → Share Overview." },
+  { id: "stats-overview-collection", label: "Stats NFT Collection", description: "Stats → Overview → Share NFT Collection." },
+  { id: "stats-overview-fair-launch", label: "Stats Fair Launch", description: "Stats → Overview → Share Fair Launch." },
   { id: "stats-market-price", label: "Stats Price", description: "Stats → Market → Price chart Share." },
   { id: "stats-market-floor", label: "Stats Floor Price", description: "Stats → Market → Floor Price chart Share." },
   { id: "stats-market-volume", label: "Stats Volume", description: "Stats → Market → Volume chart Share." },
@@ -12337,7 +12347,7 @@ const SHARE_MODAL_TEST_CASES = [
 type ShareModalTestId = (typeof SHARE_MODAL_TEST_CASES)[number]["id"];
 
 function AppTestingPage({ onTriggerShare }: { onTriggerShare: (id: ShareModalTestId) => void }) {
-  const visualFixtures = ["overview", "market-price", "market-floor", "market-volume", "market-sales", "activity-sale", "activity-listing", "activity-offer", "activity-send", "rank", "top10", "friends", "friends-short"];
+  const visualFixtures = ["overview-collection", "overview-fair-launch", "market-price", "market-floor", "market-volume", "market-sales", "activity-sale", "activity-listing", "activity-offer", "activity-send", "rank", "top10", "friends", "friends-short"];
   return (
     <div className="mx-auto w-full max-w-md px-4 pb-10 pt-6">
       <h1 className="text-xl font-black text-[#00FF00]">Share modals</h1>
@@ -14407,6 +14417,7 @@ export default function SearchApp() {
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const searchInputVisualTextRef = useRef("");
+  const searchInputAnimationStartedRef = useRef(false);
   const searchAnimationRevealAtRef = useRef(0);
   const urlHydratedRef = useRef(false);
   const applyingUrlStateRef = useRef(false);
@@ -14437,6 +14448,7 @@ export default function SearchApp() {
   } = useNeynarContext();
 
   const animateSearchInputChange = useCallback((to: string, mode: "placeholder" | "value") => {
+    searchInputAnimationStartedRef.current = true;
     const from = searchInputVisualTextRef.current;
     if (from === to) {
       searchAnimationRevealAtRef.current = 0;
@@ -16081,12 +16093,14 @@ export default function SearchApp() {
     ? "Search for Warplets..."
     : emptySearchPlaceholder;
   const displayedSearchPlaceholder = searchPlaceholderAnimation === null
-    ? searchPlaceholder
+    ? searchInputAnimationStartedRef.current ? searchPlaceholder : ""
     : animatedSearchPlaceholder;
   const displayedSearchValue = searchPlaceholderAnimation?.mode === "value"
     ? animatedSearchPlaceholder
-    : query;
-  searchInputVisualTextRef.current = displayedSearchValue.trim() || displayedSearchPlaceholder;
+    : searchInputAnimationStartedRef.current ? query : "";
+  if (searchInputAnimationStartedRef.current || searchPlaceholderAnimation !== null) {
+    searchInputVisualTextRef.current = displayedSearchValue.trim() || displayedSearchPlaceholder;
+  }
   const shouldPrependMatchedWarplet = Boolean(
     isExampleSearchMode &&
     matchedWarpletCard &&
@@ -16600,7 +16614,8 @@ export default function SearchApp() {
     if (id === "bulk-buy") return setSharePreview(mockSimplePreview("Share Your Bulk Buy!", "👀 Purchased 3 more 10X Warplets..."));
     if (id === "collection-offer") return handleOpenCollectionOfferShare(0.001, 3);
     if (id.startsWith("stats-")) {
-      const fixture = id === "stats-overview" ? "overview"
+      const fixture = id === "stats-overview-collection" ? "overview-collection"
+        : id === "stats-overview-fair-launch" ? "overview-fair-launch"
         : id.startsWith("stats-market-") ? id.slice("stats-".length)
           : id.startsWith("stats-activity-") ? id.slice("stats-".length)
             : id === "stats-holder-rank" ? "rank"
@@ -16609,7 +16624,8 @@ export default function SearchApp() {
       const fixtureUrl = new URL(`/stats/share/fixtures/${fixture}`, window.location.origin).toString();
       const marketMetric = id.startsWith("stats-market-") ? id.slice("stats-market-".length) : null;
       const activityEvent = id.startsWith("stats-activity-") ? id.slice("stats-activity-".length) : null;
-      let farcasterText = id === "stats-overview" ? "10X Warplets — NFT Collection Overview"
+      let farcasterText = id === "stats-overview-collection" ? "10X Warplets — NFT Collection Stats"
+        : id === "stats-overview-fair-launch" ? "10X Warplets — Fair Launch Stats"
         : marketMetric ? `10X Warplets — ${marketMetric === "floor" ? "Floor Price" : marketMetric.replace(/^./, (character) => character.toUpperCase())} (30 Days)`
           : activityEvent ? `10X Warplets — 29 ${activityEvent === "sale" ? "Sales" : activityEvent === "listing" ? "Listings" : activityEvent === "offer" ? "Offers" : "Sends"} (7 Days)`
             : id === "stats-holder-rank" ? "10X Warplets — My holder rank: #1 of 8,992"
@@ -16627,7 +16643,7 @@ export default function SearchApp() {
         farcasterText = twitterPostText = "10X Warplets — Top 10 Holders\n\n🥇 0x1234…5678";
       }
       return setSharePreview({
-        title: id === "stats-overview" ? "Share Collection Overview" : id === "stats-holder-rank" ? "Share Your Rank" : "Share Stats",
+        title: id === "stats-overview-collection" ? "Share NFT Collection Stats" : id === "stats-overview-fair-launch" ? "Share Fair Launch Stats" : id === "stats-holder-rank" ? "Share Your Rank" : "Share Stats",
         text: farcasterText,
         farcasterText,
         twitterPostText,
@@ -16807,7 +16823,14 @@ export default function SearchApp() {
         credentials: "same-origin",
         body: retry && statsShareIdRef.current ? undefined : JSON.stringify(request),
       });
-      const result = await response.json() as StatsShareCreateResponse & { error?: string; message?: string };
+      const responseBody = await response.text();
+      let result: StatsShareCreateResponse & { error?: string; message?: string };
+      try {
+        result = responseBody ? JSON.parse(responseBody) as StatsShareCreateResponse & { error?: string; message?: string } : {} as StatsShareCreateResponse;
+      } catch {
+        throw new Error(`Stats snapshot service returned an invalid response (${response.status}).`);
+      }
+      if (!responseBody) throw new Error(`Stats snapshot service returned an empty response (${response.status}).`);
       if (result.snapshot?.id) statsShareIdRef.current = result.snapshot.id;
       if (!response.ok || !result.snapshot?.imageReady) {
         throw new Error(result.renderError || result.message || result.error || `Snapshot rendering failed (${response.status})`);

@@ -67,6 +67,8 @@ migrations/
 
 For working safely across two developer machines, follow the branching and sync workflow in [docs/TWO_MACHINE_WORKFLOW.md](docs/TWO_MACHINE_WORKFLOW.md).
 
+For the Search app's Stats snapshot Share modals, including local Browser Run/R2 testing and the later Cloudflare resource setup, follow [docs/STATS_SHARING_SETUP.md](docs/STATS_SHARING_SETUP.md).
+
 ### One-command dev workflow
 
 ```bash

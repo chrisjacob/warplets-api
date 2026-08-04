@@ -83,6 +83,90 @@ function asNumber(value: unknown): number | null {
   return Number.isFinite(number) ? number : null;
 }
 
+const OVERVIEW_WARPLET_COUNT = 52;
+
+function appendTokenIds(target: number[], candidates: unknown[]): void {
+  const seen = new Set(target);
+  for (const candidate of candidates) {
+    const tokenId = Number(candidate);
+    if (!Number.isInteger(tokenId) || tokenId < 1 || tokenId > 10_000 || seen.has(tokenId)) continue;
+    target.push(tokenId);
+    seen.add(tokenId);
+    if (target.length >= OVERVIEW_WARPLET_COUNT) return;
+  }
+}
+
+function appendDeterministicRandomTokenIds(target: number[], seedText: string): void {
+  let seed = 2166136261;
+  for (const character of seedText) {
+    seed ^= character.charCodeAt(0);
+    seed = Math.imul(seed, 16777619) >>> 0;
+  }
+  while (target.length < OVERVIEW_WARPLET_COUNT) {
+    seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+    appendTokenIds(target, [(seed % 10_000) + 1]);
+  }
+}
+
+async function orderOverviewTokenIdsByRarity(env: StatsSharesEnv, candidates: unknown[]): Promise<number[]> {
+  const tokenIds: number[] = [];
+  appendTokenIds(tokenIds, candidates);
+  if (tokenIds.length < 2) return tokenIds;
+  const placeholders = tokenIds.map(() => "?").join(", ");
+  const rows = await env.WARPLETS.prepare(
+    `SELECT token_id, COALESCE(x10_rarity, token_id) AS rarity_rank
+     FROM warplets_metadata
+     WHERE token_id IN (${placeholders})
+     ORDER BY rarity_rank ASC, token_id ASC`,
+  ).bind(...tokenIds).all<{ token_id: number }>().catch(() => ({ results: [] }));
+  const ranked = (rows.results ?? []).map((row) => row.token_id);
+  appendTokenIds(ranked, tokenIds);
+  return ranked;
+}
+
+async function loadOverviewWarpletTokenIds(env: StatsSharesEnv, request: Extract<StatsShareRequest, { kind: "overview" }>): Promise<number[]> {
+  let wallet = request.wallet ?? null;
+  if (!wallet && request.fid) {
+    wallet = await env.WARPLETS.prepare(
+      "SELECT lower(wallet) AS wallet FROM wallet_farcaster_links WHERE fid = ? ORDER BY COALESCE(score, -1) DESC, wallet ASC LIMIT 1",
+    ).bind(request.fid).first<{ wallet: string | null }>().then((row) => row?.wallet ?? null).catch(() => null);
+  }
+
+  const tokenIds: number[] = [];
+  const ownershipConditions = [wallet ? "lower(owner_wallet) = ?" : null, request.fid ? "owner_fid = ?" : null].filter(Boolean);
+  if (ownershipConditions.length > 0) {
+    const ownershipBindings = [...(wallet ? [wallet] : []), ...(request.fid ? [request.fid] : [])];
+    const owned = await env.WARPLETS.prepare(
+      `SELECT m.token_id FROM warplet_market_state m
+       LEFT JOIN warplets_metadata md ON md.token_id = m.token_id
+       WHERE ${ownershipConditions.join(" OR ")}
+       ORDER BY COALESCE(md.x10_rarity, m.token_id) ASC, m.token_id ASC LIMIT ?`,
+    ).bind(...ownershipBindings, OVERVIEW_WARPLET_COUNT).all<{ token_id: number }>().catch(() => ({ results: [] }));
+    appendTokenIds(tokenIds, (owned.results ?? []).map((row) => row.token_id));
+  }
+
+  if (wallet && tokenIds.length < OVERVIEW_WARPLET_COUNT) {
+    const favouriteRow = await env.WARPLETS.prepare(
+      "SELECT token_ids FROM warplet_favourites WHERE wallet = ? LIMIT 1",
+    ).bind(wallet).first<{ token_ids: string | null }>().catch(() => null);
+    if (favouriteRow?.token_ids) {
+      try {
+        const favourites = JSON.parse(favouriteRow.token_ids) as unknown;
+        if (Array.isArray(favourites)) appendTokenIds(tokenIds, await orderOverviewTokenIdsByRarity(env, favourites));
+      } catch {
+        // Random Warplets fill any unavailable or malformed favourite data.
+      }
+    }
+  }
+
+  if (tokenIds.length < OVERVIEW_WARPLET_COUNT) {
+    const randomTokenIds: number[] = [];
+    appendDeterministicRandomTokenIds(randomTokenIds, wallet ?? (request.fid ? `fid:${request.fid}` : "10x-warplets-overview"));
+    appendTokenIds(tokenIds, await orderOverviewTokenIdsByRarity(env, randomTokenIds));
+  }
+  return tokenIds;
+}
+
 function normalizeHolder(value: unknown): StatsShareHolder | null {
   const row = asRecord(value);
   const wallet = typeof row?.wallet === "string" ? row.wallet.trim().toLowerCase() : "";
@@ -178,13 +262,16 @@ async function buildSnapshotData(
   request: StatsShareRequest,
 ): Promise<{ data: unknown; dataAsOf: string | null; title: string; farcasterText: string; twitterText: string }> {
   if (request.kind === "overview") {
-    const data = await readStatsResponse(await handleStatsOverviewGet(cloneStatsContext(context, "/api/stats/overview?range=all")));
+    const [data, warpletTokenIds] = await Promise.all([
+      readStatsResponse(await handleStatsOverviewGet(cloneStatsContext(context, "/api/stats/overview?range=all"))),
+      loadOverviewWarpletTokenIds(context.env, request),
+    ]);
     return {
-      data,
+      data: { ...data, warpletTokenIds },
       dataAsOf: typeof data.asOf === "string" ? data.asOf : null,
-      title: "Share Collection Overview",
-      farcasterText: "10X Warplets — NFT Collection Overview",
-      twitterText: "10X Warplets — NFT Collection Overview",
+      title: request.panel === "fair-launch" ? "Share Fair Launch Stats" : "Share NFT Collection Stats",
+      farcasterText: request.panel === "fair-launch" ? "10X Warplets — Fair Launch Stats" : "10X Warplets — NFT Collection Stats",
+      twitterText: request.panel === "fair-launch" ? "10X Warplets — Fair Launch Stats" : "10X Warplets — NFT Collection Stats",
     };
   }
 

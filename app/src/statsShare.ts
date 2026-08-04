@@ -1,8 +1,9 @@
-export const STATS_SHARE_RENDERER_VERSION = "stats-share-v1";
+export const STATS_SHARE_RENDERER_VERSION = "stats-share-v11";
 
 export type StatsShareRange = "7d" | "30d" | "90d" | "1y" | "all";
 export type StatsShareMarketMetric = "price" | "floor" | "volume" | "sales";
 export type StatsShareActivityEvent = "sale" | "listing" | "offer" | "send";
+export type StatsShareOverviewPanel = "collection" | "fair-launch";
 export type StatsShareKind =
   | "overview"
   | "market"
@@ -12,7 +13,7 @@ export type StatsShareKind =
   | "holders-top10-friends";
 
 export type StatsShareRequest =
-  | { kind: "overview" }
+  | { kind: "overview"; panel: StatsShareOverviewPanel; wallet?: string; fid?: number }
   | { kind: "market"; metric: StatsShareMarketMetric; range: StatsShareRange }
   | { kind: "activity"; event: StatsShareActivityEvent; range: StatsShareRange }
   | { kind: "holder-rank"; wallet?: string; fid?: number }
@@ -138,7 +139,17 @@ export function getStatsShareLaunchPath(request: StatsShareRequest): string {
 export function parseStatsShareRequest(value: unknown): StatsShareRequest | null {
   if (!value || typeof value !== "object") return null;
   const input = value as Record<string, unknown>;
-  if (input.kind === "overview" || input.kind === "holders-top10") return { kind: input.kind };
+  if (input.kind === "overview") {
+    if (!(input.panel === "collection" || input.panel === "fair-launch")) return null;
+    const wallet = typeof input.wallet === "string" && /^0x[a-fA-F0-9]{40}$/.test(input.wallet.trim())
+      ? input.wallet.trim().toLowerCase()
+      : undefined;
+    const fid = typeof input.fid === "number" && Number.isSafeInteger(input.fid) && input.fid > 0
+      ? input.fid
+      : undefined;
+    return { kind: "overview", panel: input.panel, ...(wallet ? { wallet } : {}), ...(fid ? { fid } : {}) };
+  }
+  if (input.kind === "holders-top10") return { kind: input.kind };
   if (input.kind === "market") {
     if (!(input.metric === "price" || input.metric === "floor" || input.metric === "volume" || input.metric === "sales")) return null;
     if (!(input.range === "7d" || input.range === "30d" || input.range === "90d" || input.range === "1y" || input.range === "all")) return null;

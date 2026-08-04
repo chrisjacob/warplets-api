@@ -6,37 +6,44 @@ export type PerksShareContent = {
   tokenId: number; secondImageUrl?: string;
 };
 
+type PerksShareDefinition = Omit<PerksShareContent, "cta" | "modalTitle">;
+
+function definePerksShareContent(content: PerksShareDefinition): PerksShareContent {
+  const shareTitle = `Share 10X ${content.label}`;
+  return { ...content, cta: shareTitle, modalTitle: shareTitle };
+}
+
 export const PERKS_SHARE_CONTENT: Record<PerksShareId, PerksShareContent> = {
-  memes: {
+  memes: definePerksShareContent({
     id: "memes", label: "Memes", eyebrow: "Attention Tokens",
     summary: "One market-proven memecoin. One community decision. One focused launch at a time... 10X Airdrops!",
-    callout: "With 10X you can be EARLY to every launch!", cta: "Share this... create some buzz!", modalTitle: "Share Future Memes Perk",
+    callout: "With 10X you can be EARLY to every launch!",
     tokenId: 3258,
-  },
-  nfts: {
+  }),
+  nfts: definePerksShareContent({
     id: "nfts", label: "NFTs", eyebrow: "10X Seasons",
     summary: "Mint, reveal, upgrade and rally your token tribe across a new NFT season every month... Level up your perks!",
-    callout: "Every month, crypto's hottest tokens are minted into history.", cta: "Share this... sparking FOMO!", modalTitle: "Share Future NFTs Perk",
+    callout: "Every month, crypto's hottest tokens are minted into history.",
     tokenId: 3786, secondImageUrl: "/perks/s12_ansem.jpg",
-  },
-  ai: {
+  }),
+  ai: definePerksShareContent({
     id: "ai", label: "AI", eyebrow: "AI for Builders",
     summary: "Turning ecosystem revenue into practical AI compute, tools and longer runway for people who ship... Accelerate!",
-    callout: "Intelligence is the ultimate engine for progress.", cta: "Share this... building anticipation!", modalTitle: "Share Future AI Perk",
+    callout: "Intelligence is the ultimate engine for progress.",
     tokenId: 234,
-  },
-  attention: {
+  }),
+  attention: definePerksShareContent({
     id: "attention", label: "Attention", eyebrow: "#1 Feed for Crypto",
     summary: "One focused daily feed where posts receive a real chance to be seen and go viral... Join the content cabal!",
-    callout: "D.R.E.A.M: Distribution rules everything around me... attention is KING.", cta: "Share this... more eyeballs!", modalTitle: "Share Future Attention Perk",
+    callout: "D.R.E.A.M: Distribution rules everything around me... attention is KING.",
     tokenId: 4318,
-  },
-  access: {
+  }),
+  access: definePerksShareContent({
     id: "access", label: "Access", eyebrow: "The 10X Network",
     summary: "Builders, traders, collectors, whales, degens, creators, KOLs, all sharing alpha across chains... 10X vs The Market!",
-    callout: "10X your crypto crew!", cta: "Share this... drop some alpha!", modalTitle: "Share Future Access Perk",
+    callout: "10X your crypto crew!",
     tokenId: 4334,
-  },
+  }),
 };
 
 export function getPerksShareImageUrl(content: PerksShareContent): string {

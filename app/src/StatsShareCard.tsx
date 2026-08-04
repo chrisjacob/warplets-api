@@ -68,10 +68,59 @@ function asOfLabel(value: string | null): string {
 function MetricTile({ label, value, purple = false }: { label: string; value: string; purple?: boolean }) {
   const color = purple ? PURPLE : GREEN;
   return (
-    <div style={{ border: `2px solid ${color}88`, borderRadius: 18, background: purple ? "#17102f" : "#001902", padding: "15px 18px", minHeight: 86 }}>
-      <div style={{ color: purple ? "#aa95ff" : "#86b886", fontSize: 13, fontWeight: 900, textTransform: "uppercase" }}>{label}</div>
-      <div style={{ color, fontSize: 27, lineHeight: 1.15, fontWeight: 950, marginTop: 8 }}>{value}</div>
+    <div style={{ border: `2px solid ${color}88`, borderRadius: 18, background: purple ? "#17102f" : "#001902", padding: "12px 18px", minHeight: 0 }}>
+      <div style={{ color: purple ? "#aa95ff" : "#86b886", fontSize: 16, lineHeight: 1.1, fontWeight: 900, textTransform: "uppercase" }}>{label}</div>
+      <div style={{ color, fontSize: 32, lineHeight: 1.12, fontWeight: 950, marginTop: 9 }}>{value}</div>
     </div>
+  );
+}
+
+const OVERVIEW_FALLBACK_WARPLETS = [94, 234, 548, 1358, 1589, 3258, 3786, 4318, 4334, 4512, 9697];
+
+function OverviewWarpletStrips({ tokenIds }: { tokenIds: number[] }) {
+  const deterministicFallbacks = Array.from({ length: 52 }, (_, index) => ((index * 197 + 93) % 10_000) + 1);
+  const prioritizedTokenIds = [...tokenIds, ...OVERVIEW_FALLBACK_WARPLETS, ...deterministicFallbacks]
+    .filter((tokenId, index, all) => Number.isInteger(tokenId) && tokenId > 0 && tokenId <= 10_000 && all.indexOf(tokenId) === index)
+    .slice(0, 52);
+  const leftColumns = [Array<number>(9), Array<number>(8), Array<number>(9)];
+  const rightColumns = [Array<number>(9), Array<number>(8), Array<number>(9)];
+  const nineRowCenterOut = [4, 3, 5, 2, 6, 1, 7, 0, 8];
+  const eightRowCenterOut = [3, 4, 2, 5, 1, 6, 0, 7];
+  const centerOutSlots: Array<readonly [number[], number]> = [];
+  for (let distanceFromPanel = 0; distanceFromPanel < 3; distanceFromPanel += 1) {
+    const leftColumn = 2 - distanceFromPanel;
+    const rightColumn = distanceFromPanel;
+    const rowOrder = distanceFromPanel === 1 ? eightRowCenterOut : nineRowCenterOut;
+    rowOrder.forEach((row) => {
+      centerOutSlots.push([leftColumns[leftColumn], row], [rightColumns[rightColumn], row]);
+    });
+  }
+  prioritizedTokenIds.forEach((tokenId, priorityIndex) => {
+    const [strip, slot] = centerOutSlots[priorityIndex];
+    strip[slot] = tokenId;
+  });
+  const strip = (side: "left" | "right", columns: number[][]) => (
+    <div style={{ position: "absolute", top: 0, bottom: 0, [side]: 0, width: 297, overflow: "hidden", background: "#001203" }}>
+      <div style={{ display: "flex", width: 300, height: 800, marginLeft: side === "left" ? -3 : 0 }}>
+        {columns.map((ids, columnIndex) => (
+          <div key={columnIndex} style={{ width: 100, height: columnIndex === 1 ? 800 : 900, marginTop: columnIndex === 1 ? 0 : -50 }}>
+            {ids.map((tokenId) => (
+              <img
+                key={tokenId}
+                src={`https://warplets.10x.meme/${tokenId}.jpg`}
+                alt=""
+                width={100}
+                height={100}
+                style={{ display: "block", width: 100, height: 100, objectFit: "contain", imageRendering: "auto" }}
+              />
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+  return (
+    <>{strip("left", leftColumns)}{strip("right", rightColumns)}</>
   );
 }
 
@@ -82,6 +131,9 @@ function OverviewCard({ snapshot }: { snapshot: StatsShareSnapshot }) {
   const farcaster = record(metric(data, "farcasterHolders", "socialHolders"));
   const coverage = record(metric(data, "identityCoverage"));
   const fair = record(metric(data, "fairOwnership"));
+  const warpletTokenIds = Array.isArray(data.warpletTokenIds)
+    ? data.warpletTokenIds.map(Number).filter((tokenId) => Number.isInteger(tokenId) && tokenId > 0 && tokenId <= 10_000)
+    : [];
   const greenMetrics = [
     ["Items", formatInteger(metric(data, "items", "totalItems", "supply") ?? 10_000)],
     ["Floor Price", formatEth(metric(data, "floorPrice", "floor"))],
@@ -106,20 +158,21 @@ function OverviewCard({ snapshot }: { snapshot: StatsShareSnapshot }) {
     ["Top 10 Own", formatPercent(fair.top10Percentage ?? fair.top10Pct, 2)],
     ["Top 100 Own", formatPercent(fair.top100Percentage ?? fair.top100Pct, 2)],
   ];
+  const panel = snapshot.request.kind === "overview" ? snapshot.request.panel : "collection";
+  const purple = panel === "fair-launch";
+  const displayedMetrics = purple ? purpleMetrics : greenMetrics;
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 22, height: "100%" }}>
-      <section style={{ border: `2px solid ${GREEN}77`, borderRadius: 24, background: "#001203", padding: 22 }}>
-        <div style={{ color: GREEN, fontSize: 27, fontWeight: 950 }}>10X Warplets NFT Collection</div>
-        <div style={{ color: "#b8e6b8", fontSize: 16, marginTop: 6 }}>Where Builders, Traders and Attention align.</div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 18 }}>
-          {greenMetrics.map(([label, value]) => <MetricTile key={label} label={label} value={value} />)}
+    <div style={{ position: "relative", width: 1200, height: 800, margin: -18 }}>
+      <OverviewWarpletStrips tokenIds={warpletTokenIds} />
+      <section style={{ position: "absolute", top: 18, bottom: 18, left: 315, width: 570, display: "flex", flexDirection: "column", border: `2px solid ${purple ? PURPLE : GREEN}${purple ? "99" : "77"}`, borderRadius: 24, background: purple ? "#0c071b" : "#001203", padding: 22 }}>
+        <div style={{ color: purple ? PURPLE : GREEN, fontSize: 27, fontWeight: 950, textTransform: purple ? "uppercase" : undefined }}>
+          {purple ? "Fair Launch. Mass Distribution." : "10X Warplets NFT Collection"}
         </div>
-      </section>
-      <section style={{ border: `2px solid ${PURPLE}99`, borderRadius: 24, background: "#0c071b", padding: 22 }}>
-        <div style={{ color: PURPLE, fontSize: 27, fontWeight: 950, textTransform: "uppercase" }}>Fair Launch. Mass Distribution.</div>
-        <div style={{ color: "#c0b2fb", fontSize: 16, marginTop: 6 }}>The Warplets diamond hands. 10,000 wallet Farcaster airdrop.</div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 18 }}>
-          {purpleMetrics.map(([label, value]) => <MetricTile key={label} label={label} value={value} purple />)}
+        <div style={{ color: purple ? "#c0b2fb" : "#b8e6b8", fontSize: 16, marginTop: 6 }}>
+          {purple ? "The Warplets diamond hands. 10,000 wallet Farcaster airdrop." : "Where Builders, Traders and Attention align."}
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gridTemplateRows: "repeat(5, minmax(0, 1fr))", gap: 10, marginTop: 18, minHeight: 0, flex: 1 }}>
+          {displayedMetrics.map(([label, value]) => <MetricTile key={label} label={label} value={value} purple={purple} />)}
         </div>
       </section>
     </div>
@@ -316,9 +369,9 @@ function fixtureSnapshot(fixture: string): StatsShareSnapshot {
     dataAsOf: "2026-08-04T00:00:00.000Z",
     createdAt: "2026-08-04T00:00:00.000Z",
   };
-  if (fixture === "overview") return {
-    ...common, kind: "overview", request: { kind: "overview" }, title: "Share Collection Overview", farcasterText: "10X Warplets — NFT Collection Overview", twitterText: "10X Warplets — NFT Collection Overview", launchPath: "/stats",
-    data: { metrics: { items: 10_000, floorPrice: 0.1, floorChange1dPercent: 12.4, topOffer: 0.08, volume24h: 4.25, totalVolume: 315.7, listed: { count: 32, percentage: 0.32 }, ownersUnique: { count: 8_992, percentage: 89.92 }, farcasterHolders: { count: 8_540 }, identityCoverage: { percentage: 94.97 }, fairOwnership: { cohortRetentionPercentage: 99.95, exactlyOneWallets: 8_200, multipleWallets: 792, top10Percentage: 0.18, top100Percentage: 1.08 } } },
+  if (fixture === "overview" || fixture === "overview-collection" || fixture === "overview-fair-launch") return {
+    ...common, kind: "overview", request: { kind: "overview", panel: fixture === "overview-fair-launch" ? "fair-launch" : "collection" }, title: fixture === "overview-fair-launch" ? "Share Fair Launch Stats" : "Share NFT Collection Stats", farcasterText: "10X Warplets — Overview Stats", twitterText: "10X Warplets — Overview Stats", launchPath: "/stats",
+    data: { metrics: { items: 10_000, floorPrice: 0.1, floorChange1dPercent: 12.4, topOffer: 0.08, volume24h: 4.25, totalVolume: 315.7, listed: { count: 32, percentage: 0.32 }, ownersUnique: { count: 8_992, percentage: 89.92 }, farcasterHolders: { count: 8_540 }, identityCoverage: { percentage: 94.97 }, fairOwnership: { cohortRetentionPercentage: 99.95, exactlyOneWallets: 8_200, multipleWallets: 792, top10Percentage: 0.18, top100Percentage: 1.08 } }, warpletTokenIds: OVERVIEW_FALLBACK_WARPLETS.slice(0, 10) },
   };
   const chart = Array.from({ length: 16 }, (_, index) => ({ date: `Jul ${index + 1}`, sales: 8 + (index % 5) * 4, volume: 0.8 + index * 0.12, price: 0.09 + Math.sin(index / 2) * 0.015, floorPrice: 0.075 + index * 0.002, salePrice: 0.09 + Math.sin(index / 2) * 0.015, sale: 4 + index % 7, salePriceValue: 0.1 }));
   if (fixture.startsWith("market-")) {
@@ -347,7 +400,14 @@ export default function StatsShareCardPage({ shareId, renderOnly }: { shareId: s
     const controller = new AbortController();
     fetch(`/api/stats/shares/${encodeURIComponent(shareId)}`, { headers: { accept: "application/json" }, signal: controller.signal })
       .then(async (result) => {
-        const body = await result.json() as StatsShareCreateResponse & { error?: string };
+        const responseBody = await result.text();
+        if (!responseBody) throw new Error(`Snapshot service returned an empty response (${result.status})`);
+        let body: StatsShareCreateResponse & { error?: string };
+        try {
+          body = JSON.parse(responseBody) as StatsShareCreateResponse & { error?: string };
+        } catch {
+          throw new Error(`Snapshot service returned an invalid response (${result.status})`);
+        }
         if (!result.ok) throw new Error(body.error || `Snapshot failed (${result.status})`);
         setResponse(body);
       })
@@ -358,7 +418,13 @@ export default function StatsShareCardPage({ shareId, renderOnly }: { shareId: s
     if (!response) return [];
     const data = record(response.snapshot.data);
     const rows = (response.snapshot.kind === "holder-rank" ? [data.row] : Array.isArray(data.rows) ? data.rows : []) as StatsShareHolder[];
-    return rows.map((row) => row?.pfpUrl).filter((value): value is string => Boolean(value));
+    const overviewTokenIds = response.snapshot.kind === "overview" && Array.isArray(data.warpletTokenIds)
+      ? data.warpletTokenIds.map(Number).filter((tokenId) => Number.isInteger(tokenId) && tokenId > 0 && tokenId <= 10_000)
+      : [];
+    return [
+      ...rows.map((row) => row?.pfpUrl).filter((value): value is string => Boolean(value)),
+      ...overviewTokenIds.map((tokenId) => `https://warplets.10x.meme/${tokenId}.jpg`),
+    ];
   }, [response]);
   useEffect(() => {
     if (!response) return;

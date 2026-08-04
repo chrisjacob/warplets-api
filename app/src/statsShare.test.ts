@@ -30,7 +30,14 @@ const holder = (overrides: Partial<StatsShareHolder> = {}): StatsShareHolder => 
 
 describe("Stats share request validation", () => {
   it("accepts every supported family and rejects invalid ranges", () => {
-    expect(parseStatsShareRequest({ kind: "overview" })).toEqual({ kind: "overview" });
+    expect(parseStatsShareRequest({ kind: "overview", panel: "collection" })).toEqual({ kind: "overview", panel: "collection" });
+    expect(parseStatsShareRequest({ kind: "overview", panel: "fair-launch", wallet: "0x1234567890abcdef1234567890abcdef12345678", fid: 9152 })).toEqual({
+      kind: "overview",
+      panel: "fair-launch",
+      wallet: "0x1234567890abcdef1234567890abcdef12345678",
+      fid: 9152,
+    });
+    expect(parseStatsShareRequest({ kind: "overview" })).toBeNull();
     expect(parseStatsShareRequest({ kind: "market", metric: "floor", range: "7d" })).toEqual({ kind: "market", metric: "floor", range: "7d" });
     expect(parseStatsShareRequest({ kind: "activity", event: "sale", range: "all" })).toEqual({ kind: "activity", event: "sale", range: "all" });
     expect(parseStatsShareRequest({ kind: "holder-rank", fid: 123 })).toEqual({ kind: "holder-rank", fid: 123 });

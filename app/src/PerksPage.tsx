@@ -803,7 +803,7 @@ function FutureExplanation({ definition, onShare }: { definition: PerksDefinitio
           </div>
         ))}
       </div>
-      <div className="border-t border-[#00FF00]/15 p-3">
+      <div className="px-3 pb-3 pt-4">
         <button type="button" onClick={() => { void hapticTap(); onShare(); }} className="w-full cursor-pointer rounded-[20px] border border-[#0a990a] bg-[#00FF00] px-4 py-3 text-sm font-black text-[rgb(0,80,0)] shadow-[3px_6px_0_#0a990a] active:translate-y-0.5">
           {shareContent.cta}
         </button>
