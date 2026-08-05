@@ -39,6 +39,9 @@ describe("Stats share request validation", () => {
     });
     expect(parseStatsShareRequest({ kind: "overview" })).toBeNull();
     expect(parseStatsShareRequest({ kind: "market", metric: "floor", range: "7d" })).toEqual({ kind: "market", metric: "floor", range: "7d" });
+    expect(parseStatsShareRequest({ kind: "market", metric: "listings", range: "30d" })).toEqual({ kind: "market", metric: "listings", range: "30d" });
+    expect(parseStatsShareRequest({ kind: "market", metric: "offers", range: "all" })).toEqual({ kind: "market", metric: "offers", range: "all" });
+    expect(parseStatsShareRequest({ kind: "market-all", range: "30d" })).toEqual({ kind: "market-all", range: "30d" });
     expect(parseStatsShareRequest({ kind: "activity", event: "sale", range: "all" })).toEqual({ kind: "activity", event: "sale", range: "all" });
     expect(parseStatsShareRequest({ kind: "holder-rank", fid: 123 })).toEqual({ kind: "holder-rank", fid: 123 });
     expect(parseStatsShareRequest({ kind: "holders-top10" })).toEqual({ kind: "holders-top10" });

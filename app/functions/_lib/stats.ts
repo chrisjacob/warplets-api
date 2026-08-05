@@ -2674,7 +2674,7 @@ export async function handleStatsMarketGet(
   const rangeStart = getRangeStart(range);
 
   try {
-    const [current, baseline, latest, sales, floorSeries, dune, duneMarket, activityMix] = await Promise.all([
+    const [current, baseline, latest, sales, floorSeries, dune, duneMarket, activityMix, activityChart] = await Promise.all([
       loadCurrentMarket(context.env.WARPLETS),
       loadBaseline(context.env.WARPLETS),
       loadLatestStatsSnapshot(context.env.WARPLETS),
@@ -2683,6 +2683,7 @@ export async function handleStatsMarketGet(
       loadDuneIntegration(context.env),
       loadDuneMarketEnrichment(context.env.WARPLETS, rangeStart),
       loadMarketActivityMix(context.env.WARPLETS, rangeStart),
+      loadActivityChart(context.env.WARPLETS, range, null),
     ]);
     const observed = summarizeSales(sales.rows);
     const headline = await chooseHeadlineTotals(
@@ -2711,6 +2712,18 @@ export async function handleStatsMarketGet(
     const stale =
       Boolean(latest?.ingest_stale) ||
       isStale(latest?.updated_at ?? current.marketUpdatedAt);
+    const marketActivitySeries = activityChart.buckets.map((bucket) => {
+      const events = asRecord(bucket.events);
+      const listing = asRecord(events?.listing);
+      const offer = asRecord(events?.offer);
+      return {
+        date: String(bucket.startAt ?? ""),
+        listings: Math.max(0, Number(listing?.count) || 0),
+        offers: Math.max(0, Number(offer?.count) || 0),
+      };
+    });
+    const listingActivityCount = marketActivitySeries.reduce((sum, row) => sum + row.listings, 0);
+    const offerActivityCount = marketActivitySeries.reduce((sum, row) => sum + row.offers, 0);
 
     return jsonStats({
       ...buildMeta({
@@ -2779,6 +2792,20 @@ export async function handleStatsMarketGet(
           current.itemCount > 0,
           current.marketUpdatedAt,
         ),
+        listingActivity: metric(
+          listingActivityCount,
+          "listings",
+          "observed_activity",
+          sales.complete,
+          sales.rows.at(-1)?.soldAt ?? current.marketUpdatedAt,
+        ),
+        offerActivity: metric(
+          offerActivityCount,
+          "offers",
+          "observed_activity",
+          sales.complete,
+          sales.rows.at(-1)?.soldAt ?? current.marketUpdatedAt,
+        ),
         sales: metric(headline.sales, "sales", headline.source, headline.complete, headlineAsOf),
         volume: metric(headline.volumeEth, "ETH", headline.source, headline.complete, headlineAsOf),
         medianSale: metric(observed.medianEth, "ETH", sales.source, sales.complete, sales.rows.at(-1)?.soldAt ?? null),
@@ -2828,6 +2855,8 @@ export async function handleStatsMarketGet(
         daily: buildDailySeries(sales.rows),
         salePrices: buildSalePoints(decorated),
         floor: floorSeries,
+        listings: marketActivitySeries,
+        offers: marketActivitySeries,
         marketplaces: duneMarket.marketplaces,
       },
     }, { noStore: url.searchParams.get("refresh") === "1" });

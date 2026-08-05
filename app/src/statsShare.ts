@@ -1,12 +1,13 @@
-export const STATS_SHARE_RENDERER_VERSION = "stats-share-v12";
+export const STATS_SHARE_RENDERER_VERSION = "stats-share-v30";
 
 export type StatsShareRange = "7d" | "30d" | "90d" | "1y" | "all";
-export type StatsShareMarketMetric = "price" | "floor" | "volume" | "sales";
+export type StatsShareMarketMetric = "price" | "floor" | "volume" | "listings" | "offers" | "sales";
 export type StatsShareActivityEvent = "sale" | "listing" | "offer" | "send";
 export type StatsShareOverviewPanel = "collection" | "fair-launch";
 export type StatsShareKind =
   | "overview"
   | "market"
+  | "market-all"
   | "activity"
   | "holder-rank"
   | "holders-top10"
@@ -15,6 +16,7 @@ export type StatsShareKind =
 export type StatsShareRequest =
   | { kind: "overview"; panel: StatsShareOverviewPanel; wallet?: string; fid?: number }
   | { kind: "market"; metric: StatsShareMarketMetric; range: StatsShareRange }
+  | { kind: "market-all"; range: StatsShareRange }
   | { kind: "activity"; event: StatsShareActivityEvent; range: StatsShareRange }
   | { kind: "holder-rank"; wallet?: string; fid?: number }
   | { kind: "holders-top10" }
@@ -71,6 +73,8 @@ const MARKET_LABELS: Record<StatsShareMarketMetric, string> = {
   price: "Price",
   floor: "Floor Price",
   volume: "Volume",
+  listings: "Listings",
+  offers: "Offers",
   sales: "Sales",
 };
 
@@ -131,7 +135,7 @@ export function buildStatsLeaderboardText(
 
 export function getStatsShareLaunchPath(request: StatsShareRequest): string {
   if (request.kind === "overview") return "/stats";
-  if (request.kind === "market") return `/stats/market?range=${request.range}`;
+  if (request.kind === "market" || request.kind === "market-all") return `/stats/market?range=${request.range}`;
   if (request.kind === "activity") return `/stats/social?range=${request.range}&event=${request.event}`;
   return "/stats/holders";
 }
@@ -151,9 +155,13 @@ export function parseStatsShareRequest(value: unknown): StatsShareRequest | null
   }
   if (input.kind === "holders-top10") return { kind: input.kind };
   if (input.kind === "market") {
-    if (!(input.metric === "price" || input.metric === "floor" || input.metric === "volume" || input.metric === "sales")) return null;
+    if (!(input.metric === "price" || input.metric === "floor" || input.metric === "volume" || input.metric === "listings" || input.metric === "offers" || input.metric === "sales")) return null;
     if (!(input.range === "7d" || input.range === "30d" || input.range === "90d" || input.range === "1y" || input.range === "all")) return null;
     return { kind: "market", metric: input.metric, range: input.range };
+  }
+  if (input.kind === "market-all") {
+    if (!(input.range === "7d" || input.range === "30d" || input.range === "90d" || input.range === "1y" || input.range === "all")) return null;
+    return { kind: "market-all", range: input.range };
   }
   if (input.kind === "activity") {
     if (!(input.event === "sale" || input.event === "listing" || input.event === "offer" || input.event === "send")) return null;

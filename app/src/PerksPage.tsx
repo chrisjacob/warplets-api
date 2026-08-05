@@ -985,7 +985,7 @@ export default function PerksPage({
 
       <FutureExplanation definition={definition} onShare={() => onShare(subpage)} />
 
-      <div className="mt-4 rounded-xl border border-[#FFFF00]/55 bg-[#FFFF00]/10 px-3 py-3 text-xs font-bold leading-5 text-[#fff7a8]">
+      <div className="mt-12 rounded-xl border border-[#FFFF00]/55 bg-[#FFFF00]/10 px-3 py-3 text-xs font-bold leading-5 text-[#fff7a8]">
         <strong className="block font-black uppercase text-[#FFFF00]">Future 10X Ecosystem Mockup</strong>
         <span className="block">Illustrative data, rankings and returns. Not actual benefits, promises, endorsements or performance.</span>
       </div>

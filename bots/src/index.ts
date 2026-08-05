@@ -148,7 +148,7 @@ function parseNaturalLanguage(question: string): { name: string; args: string[] 
   const itemMatch = normalized.match(/(?:warplet|item|#)\s*#?(\d{1,4})/i);
   if (itemMatch) return { name: "item", args: [itemMatch[1]] };
   if (/holder|leaderboard/i.test(normalized)) return { name: "stats", args: ["holders"] };
-  if (/volume|floor|price|market/i.test(normalized)) return { name: "stats", args: ["market"] };
+  if (/volume|floor|price|market|listing chart|offer chart/i.test(normalized)) return { name: "stats", args: ["market"] };
   if (/sale|listing|offer|send|activity/i.test(normalized)) return { name: "stats", args: ["activity"] };
   return { name: "search", args: [normalized] };
 }

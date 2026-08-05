@@ -3470,12 +3470,14 @@ function SearchHeaderAccountControl({
           setOpen((current) => !current);
         }}
       >
-        <img
-          src={avatarUrl ?? getWarpletPreviewImageUrl(HEADER_FALLBACK_AVATAR_TOKEN_ID)}
-          alt=""
-          className="search-header-avatar-image"
-          loading="eager"
-        />
+        <span className="search-header-avatar-frame">
+          <img
+            src={avatarUrl ?? getWarpletPreviewImageUrl(HEADER_FALLBACK_AVATAR_TOKEN_ID)}
+            alt=""
+            className="search-header-avatar-image"
+            loading="eager"
+          />
+        </span>
       </button>
       {open && (
         <div className="search-header-account-menu" role="menu">
@@ -3806,7 +3808,16 @@ async function fetchCachedStatsEnvelope({
       headers: { accept: "application/json" },
       credentials: "same-origin",
     });
-    const result = await response.json() as StatsApiEnvelope;
+    const responseBody = await response.text();
+    if (!responseBody) {
+      throw new Error(`Stats service returned an empty response (${response.status}). Please try again.`);
+    }
+    let result: StatsApiEnvelope;
+    try {
+      result = JSON.parse(responseBody) as StatsApiEnvelope;
+    } catch {
+      throw new Error(`Stats service returned an invalid response (${response.status}). Please try again.`);
+    }
     if (!response.ok) {
       throw new Error(result.message || result.error || `Stats failed (${response.status})`);
     }
@@ -4714,10 +4725,10 @@ function formatStatsPercent(value: unknown, maxDigits = 1): string {
   return `${number.toLocaleString("en-US", { maximumFractionDigits: maxDigits })}%`;
 }
 
-function formatStatsEth(value: unknown, symbol = "ETH"): string {
+function formatStatsEth(value: unknown, symbol = "ETH", maxFractionDigits = 8): string {
   const number = statsNumber(value);
   if (number == null) return "-";
-  return `${formatEthNumber(number, 8).replace(/\s*\u039e$/, "")} ${symbol}`;
+  return `${formatEthNumber(number, maxFractionDigits).replace(/\s*\u039e$/, "")} ${symbol}`;
 }
 
 function formatStatsUsd(value: unknown, ethUsdPrice: number | null): string | null {
@@ -4818,7 +4829,7 @@ function StatsChartPanel({
             {headline && <span className="mt-1 block text-2xl font-black text-white">{headline}</span>}
           </span>
           <span className="flex shrink-0 flex-col items-end gap-2">
-            {onShare && <StatsShareButton label={`Share ${title}`} onClick={onShare} compact />}
+            {onShare && <StatsShareButton label="Share" onClick={onShare} compact flat showIcon={false} />}
             {changePercent != null && Number.isFinite(changePercent) && (
               <span className={`text-xs font-black ${changePercent > 0 ? "text-[#00FF00]" : changePercent < 0 ? "text-[#FF5555]" : "text-[#8bbf8b]"}`}>
                 {changePercent > 0 ? "+" : ""}{changePercent.toFixed(1)}%
@@ -4855,17 +4866,25 @@ function StatsChartPanel({
   );
 }
 
-function StatsShareButton({ label, onClick, compact = false, disabled = false }: { label: string; onClick: () => void; compact?: boolean; disabled?: boolean }) {
+function StatsShareButton({ label, onClick, compact = false, flat = false, primary = false, primaryTone = "green", showIcon = true, disabled = false }: { label: string; onClick: () => void; compact?: boolean; flat?: boolean; primary?: boolean; primaryTone?: "green" | "purple"; showIcon?: boolean; disabled?: boolean }) {
   return (
     <button
       type="button"
       disabled={disabled}
       onClick={() => { void hapticPrimaryTap(); onClick(); }}
-      className={`inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-[#00FF00]/45 bg-[#00FF00]/10 font-black text-[#00FF00] transition hover:border-[#00FF00] hover:bg-[#00FF00]/15 disabled:cursor-not-allowed disabled:opacity-40 ${compact ? "px-2 py-1 text-[9px]" : "px-3 py-2 text-[10px]"}`}
+      className={primary
+        ? `inline-flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-[20px] border px-4 py-3 text-sm font-black transition-all duration-100 active:translate-x-[1px] active:translate-y-[3px] disabled:cursor-not-allowed disabled:opacity-40 ${primaryTone === "purple"
+          ? "border-[#5d42d6] bg-[#7959ff] text-[#160b38] shadow-[3px_6px_0_#4b33b3] hover:bg-[#967fff] active:shadow-[1px_3px_0_#4b33b3]"
+          : "border-[#009900] bg-[#00FF00] text-[rgb(0,80,0)] shadow-[3px_6px_0_#008000] hover:bg-[#33ff33] active:shadow-[1px_3px_0_#008000]"}`
+        : flat
+          ? "inline-flex h-7 cursor-pointer items-center justify-center rounded-lg border border-[#00FF00]/55 bg-[#00FF00] px-2.5 text-[10px] font-black text-[rgb(0,80,0)] transition hover:bg-[#33ff33] disabled:cursor-not-allowed disabled:opacity-40"
+        : `inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-[#00FF00]/45 bg-[#00FF00]/10 font-black text-[#00FF00] transition hover:border-[#00FF00] hover:bg-[#00FF00]/15 disabled:cursor-not-allowed disabled:opacity-40 ${compact ? "px-2 py-1 text-[9px]" : "px-3 py-2 text-[10px]"}`}
     >
-      <svg viewBox="0 0 24 24" className={compact ? "h-3 w-3" : "h-3.5 w-3.5"} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-        <circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" /><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4" />
-      </svg>
+      {!primary && showIcon && (
+        <svg viewBox="0 0 24 24" className={compact ? "h-3 w-3" : "h-3.5 w-3.5"} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" /><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4" />
+        </svg>
+      )}
       {label}
     </button>
   );
@@ -5679,40 +5698,35 @@ function StatsOverview({
 
   return (
     <div>
-      <div className="mb-3 flex justify-end"><StatsShareButton label="Share NFT Collection" onClick={() => onShare("collection")} /></div>
-      <div className="grid grid-cols-2 gap-2">
-        <StatsMetricCard label="Items" value={formatStatsInteger(items ?? 10000)} />
-        <StatsMetricCard label="Floor Price" value={formatStatsEth(floor)} tooltip={floorUsd} />
-        <StatsMetricCard label="1D Floor %" value={formatStatsPercent(floorChange, 2)} />
-        <StatsMetricCard label="Top Offer" value={formatStatsEth(topOffer)} tooltip={topOfferUsd} />
-        <StatsMetricCard label="24H Volume" value={formatStatsEth(volume24h)} tooltip={volume24hUsd} />
-        <StatsMetricCard label="Total Volume" value={formatStatsEth(totalVolume)} tooltip={totalVolumeUsd} />
-        <StatsMetricCard
-          label="Listed"
-          value={`${listedCount?.toLocaleString("en-US") ?? "-"} (${
-            listedPct != null && listedPct < 1 && listedPct > 0 ? "<1%" : formatStatsPercent(listedPct, 1)
-          })`}
-          tooltip={listedCount == null ? null : `${listedCount.toLocaleString("en-US")} of 10,000 Warplets`}
-        />
-        <StatsMetricCard
-          label="Owners (Unique)"
-          value={`${ownerCount?.toLocaleString("en-US") ?? "-"} (${formatStatsPercent(ownerPct, 1)})`}
-        />
-        <StatsMetricCard
-          label="Farcaster Holders"
-          value={formatStatsInteger(farcasterHolderCount)}
-        />
-        <StatsMetricCard
-          label="Farcaster Holders %"
-          value={formatStatsPercent(holderCoveragePercentage, 1)}
-        />
-      </div>
+      <section className="rounded-xl border border-[#00FF00]/55 bg-[rgba(0,255,0,0.055)] p-3 shadow-[0_0_14px_rgba(0,255,0,0.12)]">
+        <Text className="text-xs font-black uppercase text-[#00FF00]">10X Warplets NFT Collection</Text>
+        <Text className="mt-1 text-xs leading-4 text-[#b8e6b8]">Where Builders, Traders and Attention align.</Text>
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <StatsMetricCard label="Items" value={formatStatsInteger(items ?? 10000)} />
+          <StatsMetricCard label="Floor Price" value={formatStatsEth(floor)} tooltip={floorUsd} />
+          <StatsMetricCard label="1D Floor %" value={formatStatsPercent(floorChange, 2)} />
+          <StatsMetricCard label="Top Offer" value={formatStatsEth(topOffer)} tooltip={topOfferUsd} />
+          <StatsMetricCard label="24H Volume" value={formatStatsEth(volume24h)} tooltip={volume24hUsd} />
+          <StatsMetricCard label="Total Volume" value={formatStatsEth(totalVolume, "ETH", 6)} tooltip={totalVolumeUsd} />
+          <StatsMetricCard
+            label="Listed"
+            value={`${listedCount?.toLocaleString("en-US") ?? "-"} (${
+              listedPct != null && listedPct < 1 && listedPct > 0 ? "<1%" : formatStatsPercent(listedPct, 1)
+            })`}
+            tooltip={listedCount == null ? null : `${listedCount.toLocaleString("en-US")} of 10,000 Warplets`}
+          />
+          <StatsMetricCard
+            label="Owners (Unique)"
+            value={`${ownerCount?.toLocaleString("en-US") ?? "-"} (${formatStatsPercent(ownerPct, 1)})`}
+          />
+          <StatsMetricCard label="Farcaster Holders" value={formatStatsInteger(farcasterHolderCount)} />
+          <StatsMetricCard label="Farcaster Holders %" value={formatStatsPercent(holderCoveragePercentage, 1)} />
+        </div>
+        <div className="mb-1.5 mt-3"><StatsShareButton label="Share NFT Collection" onClick={() => onShare("collection")} primary /></div>
+      </section>
 
       <section className="mt-4 rounded-xl border border-[#7959ff]/55 bg-[rgba(93,66,214,0.12)] p-3 shadow-[0_0_14px_rgba(121,89,255,0.12)]">
-        <div className="flex items-start justify-between gap-3">
-          <Text className="text-xs font-black uppercase text-[#7959ff]">Fair Launch. Mass Distribution.</Text>
-          <StatsShareButton label="Share Fair Launch" onClick={() => onShare("fair-launch")} compact />
-        </div>
+        <Text className="text-xs font-black uppercase text-[#7959ff]">Fair Launch. Mass Distribution.</Text>
         <Text className="mt-1 text-xs leading-4 text-[#b9aaff]">
           The Warplets diamond hands. 10,000 wallet Farcaster airdrop.
         </Text>
@@ -5732,6 +5746,7 @@ function StatsOverview({
           <StatsMetricCard label="Top 10 Own" value={formatStatsPercent(fair.top10Percentage ?? fair.top10Pct ?? fair.top_10_pct, 2)} tone="purple" />
           <StatsMetricCard label="Top 100 Own" value={formatStatsPercent(fair.top100Percentage ?? fair.top100Pct ?? fair.top_100_pct, 2)} tone="purple" />
         </div>
+        <div className="mb-1.5 mt-3"><StatsShareButton label="Share Fair Launch" onClick={() => onShare("fair-launch")} primary primaryTone="purple" /></div>
       </section>
     </div>
   );
@@ -5756,8 +5771,8 @@ function StatsMarket({
   const saleActivity = statsRecord(activityMix?.sale);
   const onchainTransfers = statsMetric(payload, "onchainTransfers", "onchainTransferCount");
   const onchainTransferCount = statsNumber(onchainTransfers);
-  const listCount = statsNumber(listActivity?.count) ?? 0;
-  const offerCount = statsNumber(offerActivity?.count) ?? 0;
+  const listCount = statsNumber(statsMetric(payload, "listingActivity")) ?? statsNumber(listActivity?.count) ?? 0;
+  const offerCount = statsNumber(statsMetric(payload, "offerActivity")) ?? statsNumber(offerActivity?.count) ?? 0;
   const saleCount = statsNumber(saleActivity?.count) ?? 0;
   const activityCount = listCount + offerCount + saleCount;
   const activitySegments = [
@@ -5768,6 +5783,7 @@ function StatsMarket({
   const dailyRows = statsSeries(payload, "daily", "dailyActivity", "salesVolume", "market");
   const salePriceRows = statsSeries(payload, "salePrices", "prices", "priceHistory", "salesAndFloor");
   const floorRows = statsSeries(payload, "floor", "floorHistory");
+  const marketActivityRows = statsSeries(payload, "listings", "offers");
   const dailyData = normalizeStatsChartData(dailyRows, {
     sales: ["sales", "saleCount", "count"],
     volume: ["volume", "volumeEth", "eth"],
@@ -5778,6 +5794,10 @@ function StatsMarket({
   const floorData = normalizeStatsChartData(floorRows, {
     floorPrice: ["floorPrice", "floorEth", "floor"],
   });
+  const marketActivityData = normalizeStatsChartData(marketActivityRows, {
+    listings: ["listings", "listingCount"],
+    offers: ["offers", "offerCount"],
+  });
   const movingPriceData = statsMovingAverage(salePriceData, "salePrice", "movingPrice");
   const latestMovingPrice = statsNumber(movingPriceData.at(-1)?.movingPrice);
   const latestFloorPrice = statsNumber(floorData.at(-1)?.floorPrice);
@@ -5785,6 +5805,8 @@ function StatsMarket({
   const floorChange = statsStartEndChange(floorData, "floorPrice");
   const volumeChange = statsHalfPeriodChange(dailyData, "volume");
   const salesChange = statsHalfPeriodChange(dailyData, "sales");
+  const listingsChange = statsHalfPeriodChange(marketActivityData, "listings");
+  const offersChange = statsHalfPeriodChange(marketActivityData, "offers");
 
   return (
     <div>
@@ -5862,6 +5884,26 @@ function StatsMarket({
           onShare={() => onShareStats({ kind: "market", metric: "volume", range })}
         />
         <StatsChartPanel
+          title="Listings"
+          animateLinesLeftToRight
+          headline={formatStatsInteger(listCount)}
+          changePercent={listingsChange}
+          data={marketActivityData}
+          hideEthSymbol
+          series={[{ key: "listings", label: "Listings", color: "#00FF00", type: "line" }]}
+          onShare={() => onShareStats({ kind: "market", metric: "listings", range })}
+        />
+        <StatsChartPanel
+          title="Offers"
+          animateLinesLeftToRight
+          headline={formatStatsInteger(offerCount)}
+          changePercent={offersChange}
+          data={marketActivityData}
+          hideEthSymbol
+          series={[{ key: "offers", label: "Offers", color: "#00FF00", type: "line" }]}
+          onShare={() => onShareStats({ kind: "market", metric: "offers", range })}
+        />
+        <StatsChartPanel
           title="Sales"
           animateLinesLeftToRight
           headline={formatStatsInteger(sales)}
@@ -5872,6 +5914,7 @@ function StatsMarket({
           onShare={() => onShareStats({ kind: "market", metric: "sales", range })}
         />
       </div>
+      <div className="mb-1.5 mt-4"><StatsShareButton label="Share All Market Stats" onClick={() => onShareStats({ kind: "market-all", range })} primary /></div>
     </div>
   );
 }
@@ -12465,7 +12508,10 @@ const SHARE_MODAL_TEST_CASES = [
   { id: "stats-market-price", label: "Stats Price", description: "Stats → Market → Price chart Share." },
   { id: "stats-market-floor", label: "Stats Floor Price", description: "Stats → Market → Floor Price chart Share." },
   { id: "stats-market-volume", label: "Stats Volume", description: "Stats → Market → Volume chart Share." },
+  { id: "stats-market-listings", label: "Stats Listings", description: "Stats → Market → Listings chart Share." },
+  { id: "stats-market-offers", label: "Stats Offers", description: "Stats → Market → Offers chart Share." },
   { id: "stats-market-sales", label: "Stats Sales", description: "Stats → Market → Sales chart Share." },
+  { id: "stats-market-all", label: "All Market Stats", description: "Stats → Market → bottom Share All Market Stats CTA." },
   { id: "stats-activity-sale", label: "Stats Sales Activity", description: "Stats → Activity → selected Sales chart Share." },
   { id: "stats-activity-listing", label: "Stats Listings Activity", description: "Stats → Activity → selected Listings chart Share." },
   { id: "stats-activity-offer", label: "Stats Offers Activity", description: "Stats → Activity → selected Offers chart Share." },
@@ -12481,7 +12527,7 @@ const SHARE_MODAL_TEST_CASES = [
 type ShareModalTestId = (typeof SHARE_MODAL_TEST_CASES)[number]["id"];
 
 function AppTestingPage({ onTriggerShare }: { onTriggerShare: (id: ShareModalTestId) => void }) {
-  const visualFixtures = ["overview-collection", "overview-fair-launch", "market-price", "market-floor", "market-volume", "market-sales", "activity-sale", "activity-listing", "activity-offer", "activity-send", "rank", "top10", "friends", "friends-short"];
+  const visualFixtures = ["overview-collection", "overview-fair-launch", "market-price", "market-floor", "market-volume", "market-listings", "market-offers", "market-sales", "market-all", "activity-sale", "activity-listing", "activity-offer", "activity-send", "rank", "top10", "friends", "friends-short"];
   return (
     <div className="mx-auto w-full max-w-md px-4 pb-10 pt-6">
       <h1 className="text-xl font-black text-[#00FF00]">Share modals</h1>
@@ -12495,7 +12541,7 @@ function AppTestingPage({ onTriggerShare }: { onTriggerShare: (id: ShareModalTes
           </div>
         ))}
       </div>
-      <h2 className="mt-7 text-lg font-black text-[#00FF00]">1200×800 visual fixtures</h2>
+      <h2 className="mt-7 text-lg font-black text-[#00FF00]">1000×1000 visual fixtures</h2>
       <div className="mt-3 grid grid-cols-2 gap-2 rounded-xl border border-[#00FF00]/30 bg-black/60 p-3">
         {visualFixtures.map((fixture) => (
           <a key={fixture} href={`/stats/share/fixtures/${fixture}`} target="_blank" rel="noreferrer" className="rounded-lg border border-[#00FF00]/35 bg-[#041204] px-3 py-2 text-center text-xs font-black capitalize text-[#00FF00] hover:border-[#00FF00]">
@@ -16827,16 +16873,18 @@ export default function SearchApp() {
     if (id.startsWith("stats-")) {
       const fixture = id === "stats-overview-collection" ? "overview-collection"
         : id === "stats-overview-fair-launch" ? "overview-fair-launch"
+        : id === "stats-market-all" ? "market-all"
         : id.startsWith("stats-market-") ? id.slice("stats-".length)
           : id.startsWith("stats-activity-") ? id.slice("stats-".length)
             : id === "stats-holder-rank" ? "rank"
               : id === "stats-holders-top10" ? "top10"
                 : id === "stats-friends-short" ? "friends-short" : "friends";
       const fixtureUrl = new URL(`/stats/share/fixtures/${fixture}`, window.location.origin).toString();
-      const marketMetric = id.startsWith("stats-market-") ? id.slice("stats-market-".length) : null;
+      const marketMetric = id.startsWith("stats-market-") && id !== "stats-market-all" ? id.slice("stats-market-".length) : null;
       const activityEvent = id.startsWith("stats-activity-") ? id.slice("stats-activity-".length) : null;
       let farcasterText = id === "stats-overview-collection" ? "10X Warplets — NFT Collection Stats"
         : id === "stats-overview-fair-launch" ? "10X Warplets — Fair Launch Stats"
+        : id === "stats-market-all" ? "10X Warplets — Market Stats (30 Days)"
         : marketMetric ? `10X Warplets — ${marketMetric === "floor" ? "Floor Price" : marketMetric.replace(/^./, (character) => character.toUpperCase())} (30 Days)`
           : activityEvent ? `10X Warplets — 29 ${activityEvent === "sale" ? "Sales" : activityEvent === "listing" ? "Listings" : activityEvent === "offer" ? "Offers" : "Sends"} (7 Days)`
             : id === "stats-holder-rank" ? "10X Warplets — My holder rank: #1 of 8,992"
@@ -16859,7 +16907,7 @@ export default function SearchApp() {
         farcasterText,
         twitterPostText,
         links: [fixtureUrl],
-        images: [{ src: getWarpletAssetUrl(760, "gif"), alt: "Stats share fixture", aspectRatio: "landscape" }],
+        images: [{ src: getWarpletAssetUrl(760, "gif"), alt: "Stats share fixture", aspectRatio: "square" }],
         farcasterEmbeds: [fixtureUrl],
         twitterText: buildTwitterShareText(twitterPostText, [fixtureUrl]),
         status: "ready",
@@ -17051,7 +17099,7 @@ export default function SearchApp() {
         farcasterText: result.snapshot.farcasterText,
         twitterPostText: result.snapshot.twitterText,
         links: [result.shareUrl],
-        images: [{ src: result.imageUrl, alt: result.snapshot.title, aspectRatio: "landscape" }],
+        images: [{ src: result.imageUrl, alt: result.snapshot.title, aspectRatio: "square" }],
         farcasterEmbeds: [result.shareUrl],
         twitterText: buildTwitterShareText(result.snapshot.twitterText, [result.shareUrl]),
         status: "ready",

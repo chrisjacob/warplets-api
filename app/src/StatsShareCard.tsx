@@ -5,8 +5,10 @@ import {
   getStatsShareActivityLabel,
   getStatsShareMarketLabel,
   getStatsShareRangeLabel,
+  STATS_SHARE_RENDERER_VERSION,
   type StatsShareCreateResponse,
   type StatsShareHolder,
+  type StatsShareMarketMetric,
   type StatsShareSnapshot,
 } from "./statsShare";
 
@@ -69,8 +71,8 @@ function MetricTile({ label, value, purple = false }: { label: string; value: st
   const color = purple ? PURPLE : GREEN;
   return (
     <div style={{ border: `2px solid ${color}88`, borderRadius: 18, background: purple ? "#17102f" : "#001902", padding: "12px 18px", minHeight: 0 }}>
-      <div style={{ color: purple ? "#aa95ff" : "#86b886", fontSize: 16, lineHeight: 1.1, fontWeight: 900, textTransform: "uppercase" }}>{label}</div>
-      <div style={{ color, fontSize: 30, lineHeight: 1.12, fontWeight: 950, marginTop: 9, whiteSpace: "nowrap" }}>{value}</div>
+      <div style={{ color: purple ? "#aa95ff" : "#86b886", fontSize: 20, lineHeight: 1.1, fontWeight: 900, textTransform: "uppercase", whiteSpace: "nowrap" }}>{label}</div>
+      <div style={{ color, fontSize: 42, lineHeight: 1.08, fontWeight: 950, marginTop: 11, whiteSpace: "nowrap" }}>{value}</div>
     </div>
   );
 }
@@ -78,49 +80,37 @@ function MetricTile({ label, value, purple = false }: { label: string; value: st
 const OVERVIEW_FALLBACK_WARPLETS = [94, 234, 548, 1358, 1589, 3258, 3786, 4318, 4334, 4512, 9697];
 
 function OverviewWarpletStrips({ tokenIds }: { tokenIds: number[] }) {
-  const deterministicFallbacks = Array.from({ length: 52 }, (_, index) => ((index * 197 + 93) % 10_000) + 1);
+  const deterministicFallbacks = Array.from({ length: 22 }, (_, index) => ((index * 197 + 93) % 10_000) + 1);
   const prioritizedTokenIds = [...tokenIds, ...OVERVIEW_FALLBACK_WARPLETS, ...deterministicFallbacks]
     .filter((tokenId, index, all) => Number.isInteger(tokenId) && tokenId > 0 && tokenId <= 10_000 && all.indexOf(tokenId) === index)
-    .slice(0, 52);
-  const leftColumns = [Array<number>(9), Array<number>(8), Array<number>(9)];
-  const rightColumns = [Array<number>(9), Array<number>(8), Array<number>(9)];
-  const nineRowCenterOut = [4, 3, 5, 2, 6, 1, 7, 0, 8];
-  const eightRowCenterOut = [3, 4, 2, 5, 1, 6, 0, 7];
+    .slice(0, 22);
+  const leftColumn = Array<number>(11);
+  const rightColumn = Array<number>(11);
+  const centerOutRows = [5, 4, 6, 3, 7, 2, 8, 1, 9, 0, 10];
   const centerOutSlots: Array<readonly [number[], number]> = [];
-  for (let distanceFromPanel = 0; distanceFromPanel < 3; distanceFromPanel += 1) {
-    const leftColumn = 2 - distanceFromPanel;
-    const rightColumn = distanceFromPanel;
-    const rowOrder = distanceFromPanel === 1 ? eightRowCenterOut : nineRowCenterOut;
-    rowOrder.forEach((row) => {
-      centerOutSlots.push([leftColumns[leftColumn], row], [rightColumns[rightColumn], row]);
-    });
-  }
+  centerOutRows.forEach((row) => centerOutSlots.push([leftColumn, row], [rightColumn, row]));
   prioritizedTokenIds.forEach((tokenId, priorityIndex) => {
     const [strip, slot] = centerOutSlots[priorityIndex];
     strip[slot] = tokenId;
   });
-  const strip = (side: "left" | "right", columns: number[][]) => (
-    <div style={{ position: "absolute", top: 0, bottom: 0, [side]: 0, width: 297, overflow: "hidden", background: "#001203" }}>
-      <div style={{ display: "flex", width: 300, height: 800, marginLeft: side === "left" ? -3 : 0 }}>
-        {columns.map((ids, columnIndex) => (
-          <div key={columnIndex} style={{ width: 100, height: columnIndex === 1 ? 800 : 900, marginTop: columnIndex === 1 ? 0 : -50 }}>
-            {ids.map((tokenId) => (
-              <img
-                key={tokenId}
-                src={`https://warplets.10x.meme/${tokenId}.jpg`}
-                alt=""
-                width={100}
-                height={100}
-                style={{ display: "block", width: 100, height: 100, objectFit: "contain", imageRendering: "auto" }}
-              />
-            ))}
-          </div>
+  const strip = (side: "left" | "right", ids: number[]) => (
+    <div style={{ position: "absolute", top: 0, bottom: 0, [side]: 0, width: 100, overflow: "hidden", background: "#001203" }}>
+      <div style={{ width: 100, height: 1100, marginTop: -50 }}>
+        {ids.map((tokenId) => (
+          <img
+            key={tokenId}
+            src={`https://warplets.10x.meme/${tokenId}.jpg`}
+            alt=""
+            width={100}
+            height={100}
+            style={{ display: "block", width: 100, height: 100, objectFit: "cover", imageRendering: "auto" }}
+          />
         ))}
       </div>
     </div>
   );
   return (
-    <>{strip("left", leftColumns)}{strip("right", rightColumns)}</>
+    <>{strip("left", leftColumn)}{strip("right", rightColumn)}</>
   );
 }
 
@@ -162,13 +152,13 @@ function OverviewCard({ snapshot }: { snapshot: StatsShareSnapshot }) {
   const purple = panel === "fair-launch";
   const displayedMetrics = purple ? purpleMetrics : greenMetrics;
   return (
-    <div style={{ position: "relative", width: 1200, height: 800, margin: -18 }}>
+    <div style={{ position: "relative", width: 1000, height: 1000 }}>
       <OverviewWarpletStrips tokenIds={warpletTokenIds} />
-      <section style={{ position: "absolute", top: 18, bottom: 18, left: 315, width: 570, display: "flex", flexDirection: "column", border: `2px solid ${purple ? PURPLE : GREEN}${purple ? "99" : "77"}`, borderRadius: 24, background: purple ? "#0c071b" : "#001203", padding: 22 }}>
-        <div style={{ color: purple ? PURPLE : GREEN, fontSize: purple ? 29 : 32, lineHeight: 1.1, fontWeight: 950, textTransform: purple ? "uppercase" : undefined }}>
+      <section style={{ boxSizing: "border-box", position: "absolute", top: 0, bottom: 0, left: 100, width: 800, display: "flex", flexDirection: "column", background: purple ? "#0c071b" : "#001203", padding: 38 }}>
+        <div style={{ color: purple ? PURPLE : GREEN, fontSize: purple ? 36 : 40, lineHeight: 1.1, fontWeight: 950, textTransform: "uppercase", whiteSpace: "nowrap" }}>
           {purple ? "Fair Launch. Mass Distribution." : "10X Warplets NFT Collection"}
         </div>
-        <div style={{ color: purple ? "#c0b2fb" : "#b8e6b8", fontSize: 18, lineHeight: 1.2, marginTop: 7 }}>
+        <div style={{ color: purple ? "#c0b2fb" : "#b8e6b8", fontSize: 22, lineHeight: 1.2, marginTop: 9, whiteSpace: "nowrap" }}>
           {purple ? "The Warplets diamond hands. 10,000 wallet Farcaster airdrop." : "Where Builders, Traders and Attention align."}
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gridTemplateRows: "repeat(5, minmax(0, 1fr))", gap: 10, marginTop: 18, minHeight: 0, flex: 1 }}>
@@ -187,6 +177,10 @@ function chartRows(data: RecordValue, metricName: string): ChartPoint[] {
     ? series.salePrices ?? data.salePrices ?? data.prices
     : metricName === "floor"
       ? series.floor ?? data.floorHistory ?? data.floor
+      : metricName === "listings"
+        ? series.listings ?? data.listings
+        : metricName === "offers"
+          ? series.offers ?? data.offers
       : series.daily ?? data.daily ?? data.dailyActivity;
   if (!Array.isArray(candidates) && (metricName === "sale" || metricName === "listing" || metricName === "offer" || metricName === "send")) {
     candidates = record(data.chart).buckets;
@@ -207,7 +201,10 @@ function chartRows(data: RecordValue, metricName: string): ChartPoint[] {
     ? ["movingPrice", "salePrice", "priceEth", "price", "medianSalePrice", "averagePrice"]
     : metricName === "floor"
       ? ["floorPrice", "floorEth", "floor"]
-      : metricName === "volume" ? ["volume", "volumeEth", "eth"] : metricName === "sales" ? ["sales", "saleCount", "count"] : [`${metricName}Price`, metricName, "count"];
+      : metricName === "volume" ? ["volume", "volumeEth", "eth"]
+        : metricName === "listings" ? ["listings", "listingCount", "count"]
+          : metricName === "offers" ? ["offers", "offerCount", "count"]
+            : metricName === "sales" ? ["sales", "saleCount", "count"] : [`${metricName}Price`, metricName, "count"];
   const normalized = candidates.flatMap((candidate, index) => {
     const row = record(candidate);
     const value = valueKeys.map((key) => number(row[key])).find((item) => item != null);
@@ -228,8 +225,13 @@ function chartRows(data: RecordValue, metricName: string): ChartPoint[] {
 
 function changePercent(rows: ChartPoint[], halfPeriod = false): number | null {
   if (rows.length < 2) return null;
-  const startIndex = halfPeriod ? Math.max(0, Math.floor(rows.length / 2) - 1) : 0;
-  const start = rows[startIndex]?.value;
+  if (halfPeriod) {
+    const midpoint = Math.ceil(rows.length / 2);
+    const first = rows.slice(0, midpoint).reduce((sum, row) => sum + row.value, 0);
+    const second = rows.slice(midpoint).reduce((sum, row) => sum + row.value, 0);
+    return first > 0 ? ((second - first) / first) * 100 : null;
+  }
+  const start = rows[0]?.value;
   const end = rows.at(-1)?.value;
   return start && end != null ? ((end - start) / Math.abs(start)) * 100 : null;
 }
@@ -243,41 +245,91 @@ function MarketOrActivityCard({ snapshot }: { snapshot: StatsShareSnapshot }) {
   const rows = chartRows(data, metricName);
   const eventCount = number(data.count) ?? 0;
   const label = isMarket
-    ? getStatsShareMarketLabel(metricName as "price" | "floor" | "volume" | "sales")
+    ? getStatsShareMarketLabel(metricName as "price" | "floor" | "volume" | "listings" | "offers" | "sales")
     : getStatsShareActivityLabel(metricName as "sale" | "listing" | "offer" | "send", eventCount);
   const headlineMetric = isMarket
     ? metricName === "sales" ? metric(data, "sales", "saleCount")
+      : metricName === "listings" ? metric(data, "listingActivity", "listings")
+        : metricName === "offers" ? metric(data, "offerActivity", "offers")
       : metricName === "volume" ? metric(data, "volume", "periodVolume", "totalVolume")
         : rows.at(-1)?.value
     : eventCount;
   const headline = isMarket
-    ? metricName === "sales" ? formatInteger(headlineMetric) : formatEth(headlineMetric)
+    ? metricName === "sales" || metricName === "listings" || metricName === "offers" ? formatInteger(headlineMetric) : formatEth(headlineMetric)
     : `${formatInteger(headlineMetric)} ${label}`;
-  const change = isMarket ? changePercent(rows, metricName === "volume" || metricName === "sales") : null;
+  const change = isMarket ? changePercent(rows, metricName === "volume" || metricName === "sales" || metricName === "listings" || metricName === "offers") : null;
   const color = isMarket ? GREEN : metricName === "sale" ? "#ff3333" : metricName === "listing" ? "#ffff00" : metricName === "offer" ? "#33aaff" : GREEN;
   return (
-    <div style={{ height: "100%", border: `2px solid ${color}77`, borderRadius: 28, background: "linear-gradient(160deg,#001404,#000 65%)", padding: 42 }}>
+    <div style={{ boxSizing: "border-box", height: "100%", border: `2px solid ${color}77`, borderRadius: 28, background: "linear-gradient(160deg,#001404,#000 65%)", padding: isMarket ? "32px 24px 20px" : 42 }}>
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
         <div>
-          <div style={{ color, fontSize: 22, fontWeight: 950, textTransform: "uppercase" }}>10X Warplets — {label}</div>
-          <div style={{ color: "white", fontSize: 58, lineHeight: 1.1, fontWeight: 950, marginTop: 14 }}>{headline}</div>
+          <div style={{ color, fontSize: isMarket ? 38 : 22, fontWeight: 950, textTransform: "uppercase" }}>10X Warplets — {label}</div>
+          <div style={{ color: "white", fontSize: isMarket ? 72 : 58, lineHeight: 1.08, fontWeight: 950, marginTop: isMarket ? 10 : 14 }}>{headline}</div>
         </div>
         <div style={{ minWidth: 125, flexShrink: 0, textAlign: "right", whiteSpace: "nowrap" }}>
-          <div style={{ color: "#b5d0b5", fontSize: 22, fontWeight: 900 }}>{getStatsShareRangeLabel(range)}</div>
-          {change != null && <div style={{ color: change >= 0 ? GREEN : "#ff5555", fontSize: 28, fontWeight: 950, marginTop: 12 }}>{change > 0 ? "+" : ""}{change.toFixed(1)}%</div>}
+          <div style={{ color: "#b5d0b5", fontSize: isMarket ? 38 : 22, fontWeight: 900 }}>{getStatsShareRangeLabel(range)}</div>
+          {change != null && <div style={{ color: change >= 0 ? GREEN : "#ff5555", fontSize: isMarket ? 46 : 28, fontWeight: 950, marginTop: isMarket ? 8 : 12 }}>{change > 0 ? "+" : ""}{change.toFixed(1)}%</div>}
         </div>
       </div>
-      <div style={{ marginTop: 40, border: `1px solid ${color}55`, borderRadius: 20, background: "#000a", padding: "20px 18px 0" }}>
+      <div style={{ marginTop: isMarket ? 24 : 28 }}>
         {rows.length > 0 ? (
-          <LineChart width={1060} height={470} data={rows} margin={{ top: 20, right: 30, left: 25, bottom: 35 }}>
+          <LineChart width={isMarket ? 912 : 876} height={isMarket ? 720 : 680} data={rows} margin={{ top: 8, right: 4, left: 0, bottom: isMarket ? 54 : 36 }}>
             <CartesianGrid stroke="#154015" strokeDasharray="4 8" vertical={false} />
-            <XAxis dataKey="label" stroke="#709570" tick={{ fill: "#88aa88", fontSize: 13 }} minTickGap={50} />
-            <YAxis stroke="#709570" tick={{ fill: "#88aa88", fontSize: 13 }} width={70} />
+            <XAxis dataKey="label" stroke="#709570" tick={{ fill: "#88aa88", fontSize: isMarket ? 30 : 13 }} tickMargin={isMarket ? 14 : 5} minTickGap={isMarket ? 80 : 50} />
+            <YAxis stroke="#709570" tick={{ fill: "#88aa88", fontSize: isMarket ? 30 : 13 }} tickMargin={isMarket ? 8 : 5} width={isMarket ? 112 : 70} />
             <Line type="monotone" dataKey="value" stroke={color} strokeWidth={5} dot={false} isAnimationActive={false} />
           </LineChart>
-        ) : <div style={{ height: 470, display: "grid", placeItems: "center", color: "#8bbf8b", fontSize: 24, fontWeight: 900 }}>No activity found.</div>}
+        ) : <div style={{ height: isMarket ? 720 : 680, display: "grid", placeItems: "center", color: "#8bbf8b", fontSize: isMarket ? 30 : 24, fontWeight: 900 }}>No activity found.</div>}
       </div>
-      <div style={{ color: "#789978", fontSize: 14, marginTop: 17, textAlign: "right" }}>{asOfLabel(snapshot.dataAsOf)}</div>
+      <div style={{ color: "#789978", fontSize: isMarket ? 22 : 14, marginTop: isMarket ? 2 : 7, textAlign: "right" }}>{asOfLabel(snapshot.dataAsOf)}</div>
+    </div>
+  );
+}
+
+function MarketAllMiniChart({ data, metricName, range, index }: { data: RecordValue; metricName: StatsShareMarketMetric; range: string; index: number }) {
+  const rows = chartRows(data, metricName);
+  const countMetric = metricName === "sales" ? metric(data, "sales", "saleCount")
+    : metricName === "listings" ? metric(data, "listingActivity", "listings")
+      : metricName === "offers" ? metric(data, "offerActivity", "offers") : null;
+  const headlineMetric = countMetric ?? (metricName === "volume" ? metric(data, "volume", "periodVolume", "totalVolume") : rows.at(-1)?.value);
+  const headline = metricName === "sales" || metricName === "listings" || metricName === "offers"
+    ? formatInteger(headlineMetric)
+    : formatEth(headlineMetric);
+  const change = changePercent(rows, metricName === "volume" || metricName === "sales" || metricName === "listings" || metricName === "offers");
+  return (
+    <section style={{ boxSizing: "border-box", width: 480, height: 315, overflow: "hidden", borderRight: index % 2 === 0 ? `2px solid ${GREEN}77` : undefined, borderBottom: index < 4 ? `2px solid ${GREEN}77` : undefined, background: "linear-gradient(160deg,#001404,#000 68%)", padding: "14px 10px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10, padding: "0 8px" }}>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ color: GREEN, fontSize: 20, lineHeight: 1, fontWeight: 950, textTransform: "uppercase", whiteSpace: "nowrap" }}>{getStatsShareMarketLabel(metricName)}</div>
+          <div style={{ color: "white", fontSize: 34, lineHeight: 1.05, fontWeight: 950, marginTop: 6, whiteSpace: "nowrap" }}>{headline}</div>
+        </div>
+        <div style={{ flexShrink: 0, textAlign: "right", whiteSpace: "nowrap" }}>
+          <div style={{ color: "#b5d0b5", fontSize: 17, fontWeight: 900 }}>{getStatsShareRangeLabel(range as "7d" | "30d" | "90d" | "1y" | "all")}</div>
+          {change != null && <div style={{ color: change >= 0 ? GREEN : "#ff5555", fontSize: 22, fontWeight: 950, marginTop: 4 }}>{change > 0 ? "+" : ""}{change.toFixed(1)}%</div>}
+        </div>
+      </div>
+      {rows.length > 0 ? (
+        <LineChart width={460} height={227} data={rows} margin={{ top: 16, right: 4, left: 0, bottom: 0 }}>
+          <CartesianGrid stroke="#154015" strokeDasharray="3 7" vertical={false} />
+          <XAxis dataKey="label" stroke="#709570" tick={{ fill: "#88aa88", fontSize: 16 }} tickMargin={8} minTickGap={48} />
+          <YAxis stroke="#709570" tick={{ fill: "#88aa88", fontSize: 16 }} tickMargin={5} width={70} />
+          <Line type="monotone" dataKey="value" stroke={GREEN} strokeWidth={3} dot={false} isAnimationActive={false} />
+        </LineChart>
+      ) : <div style={{ height: 227, display: "grid", placeItems: "center", color: "#8bbf8b", fontSize: 18, fontWeight: 900 }}>No data found.</div>}
+    </section>
+  );
+}
+
+function MarketAllCard({ snapshot }: { snapshot: StatsShareSnapshot }) {
+  const data = record(snapshot.data);
+  const range = snapshot.request.kind === "market-all" ? snapshot.request.range : "all";
+  const metrics: StatsShareMarketMetric[] = ["price", "floor", "volume", "listings", "offers", "sales"];
+  return (
+    <div style={{ boxSizing: "border-box", position: "relative", width: 1000, height: 1000, padding: "16px 18px 0", background: "#000" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "480px 480px", gridTemplateRows: "315px 315px 315px", gap: 0, overflow: "hidden", border: `2px solid ${GREEN}77`, borderRadius: 18 }}>
+        {metrics.map((metricName, index) => <MarketAllMiniChart key={metricName} data={data} metricName={metricName} range={range} index={index} />)}
+      </div>
+      <div style={{ boxSizing: "border-box", height: 35, display: "flex", alignItems: "center", justifyContent: "flex-end", color: "#789978", background: "#000", fontSize: 18, lineHeight: 1, textAlign: "right" }}>{asOfLabel(snapshot.dataAsOf)}</div>
     </div>
   );
 }
@@ -290,9 +342,9 @@ function HolderAvatar({ holder }: { holder: StatsShareHolder }) {
 }
 
 function HolderCard({ holder, slot, large = false }: { holder?: StatsShareHolder; slot: number; large?: boolean }) {
-  if (!holder) return <div style={{ height: large ? 350 : 112, border: "2px dashed #315231", borderRadius: 18, background: "#04100488" }} />;
+  if (!holder) return <div style={{ height: large ? 520 : "100%", border: "2px dashed #315231", borderRadius: 18, background: "#04100488" }} />;
   return (
-    <div style={{ height: large ? 350 : 112, display: "flex", alignItems: "center", gap: large ? 32 : 18, border: `2px solid ${GREEN}66`, borderRadius: 18, background: "#031604", padding: large ? 36 : 17 }}>
+    <div style={{ boxSizing: "border-box", height: large ? 520 : "100%", display: "flex", alignItems: "center", gap: large ? 32 : 18, border: `2px solid ${GREEN}66`, borderRadius: 18, background: "#031604", padding: large ? 36 : 17 }}>
       <div style={{ color: GREEN, width: large ? 120 : 65, fontSize: large ? 56 : 28, fontWeight: 950, textAlign: "center" }}>#{holder.rank ?? slot}</div>
       <HolderAvatar holder={holder} />
       <div style={{ minWidth: 0, flex: 1 }}>
@@ -312,7 +364,7 @@ function HoldersCard({ snapshot }: { snapshot: StatsShareSnapshot }) {
   if (isRank) {
     const holder = rows[0];
     return (
-      <div style={{ height: "100%", border: `2px solid ${GREEN}77`, borderRadius: 28, background: "linear-gradient(160deg,#001704,#000 65%)", padding: 60 }}>
+      <div style={{ boxSizing: "border-box", height: "100%", border: `2px solid ${GREEN}77`, borderRadius: 28, background: "linear-gradient(160deg,#001704,#000 65%)", padding: 60 }}>
         <div style={{ color: GREEN, fontSize: 28, fontWeight: 950 }}>YOUR RANK</div>
         <div style={{ color: "white", fontSize: 72, fontWeight: 950, margin: "8px 0 35px" }}>#{formatInteger(holder?.rank)} <span style={{ color: "#8bbf8b", fontSize: 30 }}>of {formatInteger(total)}</span></div>
         <HolderCard holder={holder} slot={1} large />
@@ -322,12 +374,12 @@ function HoldersCard({ snapshot }: { snapshot: StatsShareSnapshot }) {
   }
   const friendMode = snapshot.kind === "holders-top10-friends";
   return (
-    <div style={{ height: "100%", border: `2px solid ${GREEN}77`, borderRadius: 28, background: "linear-gradient(160deg,#001704,#000 65%)", padding: 32 }}>
+    <div style={{ boxSizing: "border-box", height: "100%", border: `2px solid ${GREEN}77`, borderRadius: 28, background: "linear-gradient(160deg,#001704,#000 65%)", padding: 32 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 20 }}>
         <div style={{ color: GREEN, fontSize: 34, fontWeight: 950 }}>{friendMode ? "YOUR TOP 10 RANKED FRIENDS" : "TOP 10 HOLDERS"}</div>
         <div style={{ color: "#8bbf8b", fontSize: 16 }}>{asOfLabel(snapshot.dataAsOf)}</div>
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gridTemplateRows: "repeat(5,112px)", gridAutoFlow: "column", gap: 11 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gridTemplateRows: "repeat(5,minmax(0,1fr))", gridAutoFlow: "column", gap: 11, height: 820 }}>
         {Array.from({ length: 10 }, (_, index) => <HolderCard key={index} holder={rows[index]} slot={index + 1} />)}
       </div>
     </div>
@@ -336,8 +388,9 @@ function HoldersCard({ snapshot }: { snapshot: StatsShareSnapshot }) {
 
 function SnapshotCard({ snapshot, ready }: { snapshot: StatsShareSnapshot; ready: boolean }) {
   return (
-    <main data-stats-share-ready={ready ? "true" : "false"} style={{ boxSizing: "border-box", width: 1200, height: 800, padding: 18, overflow: "hidden", color: "white", background: "#000", fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif" }}>
+    <main data-stats-share-ready={ready ? "true" : "false"} style={{ boxSizing: "border-box", width: 1000, height: 1000, padding: snapshot.kind === "overview" || snapshot.kind === "market-all" ? 0 : 18, overflow: "hidden", color: "white", background: "#000", fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif" }}>
       {snapshot.kind === "overview" ? <OverviewCard snapshot={snapshot} />
+        : snapshot.kind === "market-all" ? <MarketAllCard snapshot={snapshot} />
         : snapshot.kind === "market" || snapshot.kind === "activity" ? <MarketOrActivityCard snapshot={snapshot} />
           : <HoldersCard snapshot={snapshot} />}
     </main>
@@ -365,7 +418,7 @@ function fixtureSnapshot(fixture: string): StatsShareSnapshot {
     id: "00000000000000000000000000000000",
     imageKey: "fixture.png",
     imageReady: true,
-    rendererVersion: "stats-share-v1",
+    rendererVersion: STATS_SHARE_RENDERER_VERSION,
     dataAsOf: "2026-08-04T00:00:00.000Z",
     createdAt: "2026-08-04T00:00:00.000Z",
   };
@@ -375,8 +428,9 @@ function fixtureSnapshot(fixture: string): StatsShareSnapshot {
   };
   const chart = Array.from({ length: 16 }, (_, index) => ({ date: `Jul ${index + 1}`, sales: 8 + (index % 5) * 4, volume: 0.8 + index * 0.12, price: 0.09 + Math.sin(index / 2) * 0.015, floorPrice: 0.075 + index * 0.002, salePrice: 0.09 + Math.sin(index / 2) * 0.015, sale: 4 + index % 7, salePriceValue: 0.1 }));
   if (fixture.startsWith("market-")) {
-    const metricName = fixture.slice(7) as "price" | "floor" | "volume" | "sales";
-    return { ...common, kind: "market", request: { kind: "market", metric: metricName, range: "30d" }, title: `Share ${getStatsShareMarketLabel(metricName)}`, farcasterText: "Market fixture", twitterText: "Market fixture", launchPath: "/stats/market?range=30d", data: { metric: metricName, metrics: { sales: 126, volume: 18.42 }, series: { daily: chart, salePrices: chart, floor: chart } } };
+    if (fixture === "market-all") return { ...common, kind: "market-all", request: { kind: "market-all", range: "30d" }, title: "Share All Market Stats", farcasterText: "10X Warplets — Market Stats (30 Days)", twitterText: "10X Warplets — Market Stats (30 Days)", launchPath: "/stats/market?range=30d", data: { metrics: { sales: 126, volume: 18.42, listingActivity: 84, offerActivity: 215 }, series: { daily: chart, salePrices: chart, floor: chart, listings: chart.map((row, index) => ({ ...row, listings: 4 + index % 6 })), offers: chart.map((row, index) => ({ ...row, offers: 9 + index % 8 })) } } };
+    const metricName = fixture.slice(7) as "price" | "floor" | "volume" | "listings" | "offers" | "sales";
+    return { ...common, kind: "market", request: { kind: "market", metric: metricName, range: "30d" }, title: `Share ${getStatsShareMarketLabel(metricName)}`, farcasterText: "Market fixture", twitterText: "Market fixture", launchPath: "/stats/market?range=30d", data: { metric: metricName, metrics: { sales: 126, volume: 18.42, listingActivity: 84, offerActivity: 215 }, series: { daily: chart, salePrices: chart, floor: chart, listings: chart.map((row, index) => ({ ...row, listings: 4 + index % 6 })), offers: chart.map((row, index) => ({ ...row, offers: 9 + index % 8 })) } } };
   }
   if (fixture.startsWith("activity-")) {
     const event = fixture.slice(9) as "sale" | "listing" | "offer" | "send";
@@ -418,7 +472,7 @@ export default function StatsShareCardPage({ shareId, renderOnly }: { shareId: s
     if (!response) return [];
     const data = record(response.snapshot.data);
     const rows = (response.snapshot.kind === "holder-rank" ? [data.row] : Array.isArray(data.rows) ? data.rows : []) as StatsShareHolder[];
-    const overviewTokenIds = response.snapshot.kind === "overview" && Array.isArray(data.warpletTokenIds)
+    const overviewTokenIds = (response.snapshot.kind === "overview" || response.snapshot.kind === "market-all") && Array.isArray(data.warpletTokenIds)
       ? data.warpletTokenIds.map(Number).filter((tokenId) => Number.isInteger(tokenId) && tokenId > 0 && tokenId <= 10_000)
       : [];
     return [
@@ -443,11 +497,11 @@ export default function StatsShareCardPage({ shareId, renderOnly }: { shareId: s
     return () => { cancelled = true; };
   }, [imageUrls, response]);
   if (error) return <div style={{ minHeight: "100vh", display: "grid", placeItems: "center", background: "black", color: "#ff7777", fontFamily: "sans-serif" }}>{error}</div>;
-  if (!response) return <div style={{ width: 1200, height: 800, display: "grid", placeItems: "center", background: "black", color: GREEN, font: "900 24px sans-serif" }}>Preparing Stats snapshot…</div>;
+  if (!response) return <div style={{ width: 1000, height: 1000, display: "grid", placeItems: "center", background: "black", color: GREEN, font: "900 24px sans-serif" }}>Preparing Stats snapshot…</div>;
   if (renderOnly) return <SnapshotCard snapshot={response.snapshot} ready={ready} />;
   return (
     <div style={{ minHeight: "100vh", background: "#000", padding: "32px 16px", overflow: "auto" }}>
-      <div style={{ width: 1200, transformOrigin: "top center", margin: "0 auto" }}><SnapshotCard snapshot={response.snapshot} ready={ready} /></div>
+      <div style={{ width: 1000, transformOrigin: "top center", margin: "0 auto" }}><SnapshotCard snapshot={response.snapshot} ready={ready} /></div>
       <div style={{ margin: "24px auto", textAlign: "center" }}><a href={response.snapshot.launchPath} style={{ display: "inline-block", color: "#000", background: GREEN, borderRadius: 999, padding: "13px 24px", font: "900 15px sans-serif", textDecoration: "none" }}>Open live Stats</a></div>
     </div>
   );

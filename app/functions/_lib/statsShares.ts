@@ -83,7 +83,7 @@ function asNumber(value: unknown): number | null {
   return Number.isFinite(number) ? number : null;
 }
 
-const OVERVIEW_WARPLET_COUNT = 52;
+const OVERVIEW_WARPLET_COUNT = 22;
 
 function appendTokenIds(target: number[], candidates: unknown[]): void {
   const seen = new Set(target);
@@ -287,6 +287,18 @@ async function buildSnapshotData(
     };
   }
 
+  if (request.kind === "market-all") {
+    const data = await readStatsResponse(await handleStatsMarketGet(cloneStatsContext(context, `/api/stats/market?range=${request.range}`)));
+    const text = `10X Warplets — Market Stats (${getStatsShareRangeLabel(request.range)})`;
+    return {
+      data,
+      dataAsOf: typeof data.asOf === "string" ? data.asOf : null,
+      title: "Share All Market Stats",
+      farcasterText: text,
+      twitterText: text,
+    };
+  }
+
   if (request.kind === "activity") {
     const data = await readStatsResponse(await handleStatsActivityGet(cloneStatsContext(
       context,
@@ -417,11 +429,11 @@ export async function renderStatsShareImage(
     const puppeteer = await import("@cloudflare/puppeteer");
     browser = await puppeteer.launch(context.env.STATS_SHARE_BROWSER as Parameters<typeof puppeteer.launch>[0]);
     const page = await browser.newPage();
-    await page.setViewport({ width: 1200, height: 800, deviceScaleFactor: 1 });
+    await page.setViewport({ width: 1000, height: 1000, deviceScaleFactor: 1 });
     const origin = getStatsSharePublicOrigin(context.request);
     await page.goto(`${origin}/stats/share/${snapshot.id}/render`, { waitUntil: "networkidle0", timeout: 20_000 });
     await page.waitForSelector('[data-stats-share-ready="true"]', { timeout: 12_000 });
-    const bytes = await page.screenshot({ type: "png", clip: { x: 0, y: 0, width: 1200, height: 800 } }) as Uint8Array;
+    const bytes = await page.screenshot({ type: "png", clip: { x: 0, y: 0, width: 1000, height: 1000 } }) as Uint8Array;
     await context.env.STATS_SHARE_IMAGES.put(snapshot.imageKey, bytes, {
       httpMetadata: { contentType: "image/png", cacheControl: "public, max-age=31536000, immutable, no-transform" },
       customMetadata: { shareId: snapshot.id, rendererVersion: snapshot.rendererVersion },
