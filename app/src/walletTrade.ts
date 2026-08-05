@@ -1,7 +1,9 @@
 import { encodeFunctionData, erc20Abi, erc721Abi, getAddress, serializeTypedData, type Address } from "viem";
+import { appendBuilderCode, builderCodeSuffix } from "./builderCode";
+import { trackAppEvent } from "./analytics";
 
 export type EthereumProvider = {
-  request(args: { method: string; params?: unknown[] }): Promise<unknown>;
+  request(args: { method: string; params?: readonly unknown[] | object }): Promise<unknown>;
 };
 
 export type TokenApprovalRequirement = {
@@ -679,19 +681,37 @@ function normalizeAccountList(raw: unknown): Address[] {
     .map((account) => getAddress(account));
 }
 
-export async function getWalletAccounts(provider: EthereumProvider, preferredAccount?: string | null): Promise<Address[]> {
+export async function getWalletAccounts(provider: EthereumProvider, _preferredAccount?: string | null): Promise<Address[]> {
   const existing = await withWalletTimeout(
     provider.request({ method: "eth_accounts" }),
     "Wallet account lookup",
     2500,
   ).then(normalizeAccountList).catch(() => []);
   if (existing.length > 0) return existing;
-  if (preferredAccount && /^0x[0-9a-fA-F]{40}$/.test(preferredAccount)) {
-    return [getAddress(preferredAccount)];
-  }
-
   const raw = await waitForWalletPrompt(provider.request({ method: "eth_requestAccounts" }));
   return normalizeAccountList(raw);
+}
+
+export async function sendAttributedTransaction(
+  provider: EthereumProvider,
+  transaction: Record<string, unknown>,
+  transactionType = "marketplace",
+): Promise<string> {
+  const attributed = { ...transaction, data: appendBuilderCode(asString(transaction.data) ?? "0x") };
+  trackAppEvent("transaction_prepared", { transactionType });
+  try {
+    trackAppEvent("transaction_wallet_prompted", { transactionType });
+    const hash = await waitForWalletPrompt(provider.request({ method: "eth_sendTransaction", params: [attributed] }));
+    if (typeof hash !== "string") throw new Error("Wallet did not return a transaction hash");
+    trackAppEvent("transaction_submitted", { transactionType });
+    return hash;
+  } catch (error) {
+    trackAppEvent("transaction_failed", {
+      transactionType,
+      result: error instanceof Error ? error.message.slice(0, 100) : "unknown",
+    });
+    throw error;
+  }
 }
 
 export async function ensureBaseChain(
@@ -775,17 +795,14 @@ export async function wrapEthToWeth(
   amount: bigint,
 ): Promise<string> {
   if (amount <= 0n) throw new Error("Wrap amount must be greater than zero");
-  const hash = await waitForWalletPrompt(provider.request({
-    method: "eth_sendTransaction",
-    params: [{
+  const hash = await sendAttributedTransaction(provider, {
       from: getAddress(owner),
       to: getAddress(wethAddress),
       value: toHexQuantity(amount),
       data: "0xd0e30db0",
-    }],
-  }));
-  if (typeof hash !== "string") throw new Error("Wallet did not return a WETH wrap transaction hash");
+    }, "wrap_weth");
   await waitForTransactionReceipt(hash);
+  trackAppEvent("transaction_confirmed", { transactionType: "wrap_weth" });
   return hash;
 }
 
@@ -813,17 +830,14 @@ export async function ensureErc20Approval(
     functionName: "approve",
     args: [getAddress(approval.spender), required],
   });
-  const hash = await waitForWalletPrompt(provider.request({
-    method: "eth_sendTransaction",
-    params: [{
+  const hash = await sendAttributedTransaction(provider, {
       from: owner,
       to: getAddress(approval.tokenAddress),
       value: "0x0",
       data,
-    }],
-  }));
-  if (typeof hash !== "string") throw new Error("Wallet did not return an approval transaction hash");
+    }, "erc20_approval");
   await waitForTransactionReceipt(hash);
+  trackAppEvent("transaction_confirmed", { transactionType: "erc20_approval" });
   return hash;
 }
 
@@ -848,17 +862,14 @@ export async function ensureErc721ApprovalForAll(
     functionName: "setApprovalForAll",
     args: [getAddress(approval.spender), true],
   });
-  const hash = await waitForWalletPrompt(provider.request({
-    method: "eth_sendTransaction",
-    params: [{
+  const hash = await sendAttributedTransaction(provider, {
       from: owner,
       to: getAddress(approval.tokenAddress),
       value: "0x0",
       data,
-    }],
-  }));
-  if (typeof hash !== "string") throw new Error("Wallet did not return an NFT approval transaction hash");
+    }, "erc721_approval");
   await waitForTransactionReceipt(hash);
+  trackAppEvent("transaction_confirmed", { transactionType: "erc721_approval" });
   return hash;
 }
 
@@ -1036,14 +1047,14 @@ export function combinePreparedOpenSeaTransactions(transactions: PreparedTransac
   };
 }
 
-function getPreparedTransactionCall(tx: PreparedTransaction, account: string) {
+function getPreparedTransactionCall(tx: PreparedTransaction, account: string, attributed = true) {
   const to = asString(tx.to);
   const data = asString(tx.data) ?? asString(tx.input) ?? (tx.inputData ? buildOpenSeaFulfillmentData(tx.inputData, account) : undefined);
   if (!to || !data) throw new Error("Prepared OpenSea transaction is missing calldata");
   return {
     to: getAddress(to),
     value: toHexQuantity(tx.value),
-    data,
+    data: attributed ? appendBuilderCode(data) : data,
   };
 }
 
@@ -1079,7 +1090,10 @@ export async function sendPreparedTransactionsAtomic(
   const normalizedAccount = getAddress(account);
   const normalizedChainId = `0x${BigInt(chainIdHex).toString(16)}`;
 
-  const calls = transactions.map((transaction) => getPreparedTransactionCall(transaction, normalizedAccount));
+  const calls = transactions.map((transaction) => getPreparedTransactionCall(transaction, normalizedAccount, false));
+  const dataSuffix = builderCodeSuffix();
+  trackAppEvent("transaction_prepared", { transactionType: "atomic_marketplace_batch" });
+  trackAppEvent("transaction_wallet_prompted", { transactionType: "atomic_marketplace_batch" });
   const sent = await waitForWalletPrompt(provider.request({
     method: "wallet_sendCalls",
     params: [{
@@ -1088,10 +1102,12 @@ export async function sendPreparedTransactionsAtomic(
       chainId: normalizedChainId,
       atomicRequired: true,
       calls,
+      ...(dataSuffix ? { capabilities: { dataSuffix: { value: dataSuffix, optional: true } } } : {}),
     }],
   }));
   const batchId = asString(sent) ?? asString(asObject(sent)?.id);
   if (!batchId) throw new Error("Wallet did not return an atomic batch identifier");
+  trackAppEvent("transaction_submitted", { transactionType: "atomic_marketplace_batch" });
 
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
@@ -1107,6 +1123,7 @@ export async function sendPreparedTransactionsAtomic(
       }
       const transactionHash = receipts.map((receipt) => asString(receipt.transactionHash)).find(Boolean);
       if (!transactionHash) throw new Error("Atomic bulk purchase receipt is missing its transaction hash");
+      trackAppEvent("transaction_confirmed", { transactionType: "atomic_marketplace_batch" });
       return {
         transactionHash,
         logs: receipts.flatMap((receipt) => asArray(receipt.logs).map((log) => asObject(log) ?? {})),
@@ -1126,15 +1143,9 @@ export async function sendPreparedTransaction(
   tx: PreparedTransaction,
 ): Promise<string> {
   const call = getPreparedTransactionCall(tx, account);
-  const hash = await waitForWalletPrompt(provider.request({
-    method: "eth_sendTransaction",
-    params: [{
-      from: account,
-      ...call,
-    }],
-  }));
-  if (typeof hash !== "string") throw new Error("Wallet did not return a transaction hash");
+  const hash = await sendAttributedTransaction(provider, { from: account, ...call }, "prepared_marketplace");
   await waitForTransactionReceipt(hash);
+  trackAppEvent("transaction_confirmed", { transactionType: "prepared_marketplace" });
   return hash;
 }
 
@@ -1170,13 +1181,19 @@ export async function signTypedData(provider: EthereumProvider, account: string,
   }));
 
   let signature: unknown;
+  trackAppEvent("transaction_prepared", { transactionType: "seaport_order_signature" });
   try {
+    trackAppEvent("transaction_wallet_prompted", { transactionType: "seaport_order_signature" });
     signature = await requestSignature(firstPayload);
   } catch (error) {
-    if (isUserRejected(error) || isWalletTimeoutError(error)) throw error;
+    if (isUserRejected(error) || isWalletTimeoutError(error)) {
+      trackAppEvent("transaction_failed", { transactionType: "seaport_order_signature", result: getWalletErrorMessage(error).slice(0, 100) });
+      throw error;
+    }
     signature = await requestSignature(fallbackPayload);
   }
   if (typeof signature !== "string") throw new Error("Wallet did not return a signature");
+  trackAppEvent("transaction_confirmed", { transactionType: "seaport_order_signature" });
   return signature;
 }
 

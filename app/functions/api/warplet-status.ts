@@ -12,9 +12,11 @@ interface Env {
   WARPLETS_KV?: KVNamespace;
   NEYNAR_API_KEY?: string;
   ACTION_SESSION_SECRET?: string;
+  APP_SESSION_SECRET?: string;
 }
 import { createActionSessionToken, jsonSecure, readJsonBodyWithLimit } from "../_lib/security.js";
 import { outboundFetch } from "../_lib/outbound.js";
+import { getAppSession } from "../_lib/appAuth.js";
 
 interface RequestBody {
   fid?: unknown;
@@ -1084,6 +1086,11 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     if (body.searchCompletion !== undefined && (appSlug !== "search" || !searchCompletion)) {
       return jsonSecure({ error: "Invalid search completion payload" }, { status: 400 });
     }
+    const verifiedSession = appSlug === "search" ? await getAppSession(context.request, context.env) : null;
+    const verifiedSearchFid = verifiedSession?.farcasterFid === fid;
+    if (searchCompletion && !verifiedSearchFid) {
+      return jsonSecure({ error: "verified Farcaster session required" }, { status: 401 });
+    }
     const requestedReferrerFid = typeof body.referrerFid === "number" && Number.isInteger(body.referrerFid)
       ? body.referrerFid
       : null;
@@ -1287,7 +1294,9 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         }
       }
 
-      const actionSessionToken = await createActionSessionToken(context.env.ACTION_SESSION_SECRET, fid, 3600);
+      const actionSessionToken = appSlug !== "search" || verifiedSearchFid
+        ? await createActionSessionToken(context.env.ACTION_SESSION_SECRET, fid, 3600)
+        : null;
       return jsonSecure({
         fid,
         exists: false,
@@ -1434,7 +1443,9 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       .first<{ completed_actions: number }>();
     const completedActionsCount = Number(completedActionsRow?.completed_actions ?? 0);
 
-    const actionSessionToken = await createActionSessionToken(context.env.ACTION_SESSION_SECRET, fid, 3600);
+    const actionSessionToken = appSlug !== "search" || verifiedSearchFid
+      ? await createActionSessionToken(context.env.ACTION_SESSION_SECRET, fid, 3600)
+      : null;
     return jsonSecure({
       fid,
       exists: true,

@@ -70,7 +70,7 @@ function MetricTile({ label, value, purple = false }: { label: string; value: st
   return (
     <div style={{ border: `2px solid ${color}88`, borderRadius: 18, background: purple ? "#17102f" : "#001902", padding: "12px 18px", minHeight: 0 }}>
       <div style={{ color: purple ? "#aa95ff" : "#86b886", fontSize: 16, lineHeight: 1.1, fontWeight: 900, textTransform: "uppercase" }}>{label}</div>
-      <div style={{ color, fontSize: 32, lineHeight: 1.12, fontWeight: 950, marginTop: 9 }}>{value}</div>
+      <div style={{ color, fontSize: 30, lineHeight: 1.12, fontWeight: 950, marginTop: 9, whiteSpace: "nowrap" }}>{value}</div>
     </div>
   );
 }
@@ -165,10 +165,10 @@ function OverviewCard({ snapshot }: { snapshot: StatsShareSnapshot }) {
     <div style={{ position: "relative", width: 1200, height: 800, margin: -18 }}>
       <OverviewWarpletStrips tokenIds={warpletTokenIds} />
       <section style={{ position: "absolute", top: 18, bottom: 18, left: 315, width: 570, display: "flex", flexDirection: "column", border: `2px solid ${purple ? PURPLE : GREEN}${purple ? "99" : "77"}`, borderRadius: 24, background: purple ? "#0c071b" : "#001203", padding: 22 }}>
-        <div style={{ color: purple ? PURPLE : GREEN, fontSize: 27, fontWeight: 950, textTransform: purple ? "uppercase" : undefined }}>
+        <div style={{ color: purple ? PURPLE : GREEN, fontSize: purple ? 29 : 32, lineHeight: 1.1, fontWeight: 950, textTransform: purple ? "uppercase" : undefined }}>
           {purple ? "Fair Launch. Mass Distribution." : "10X Warplets NFT Collection"}
         </div>
-        <div style={{ color: purple ? "#c0b2fb" : "#b8e6b8", fontSize: 16, marginTop: 6 }}>
+        <div style={{ color: purple ? "#c0b2fb" : "#b8e6b8", fontSize: 18, lineHeight: 1.2, marginTop: 7 }}>
           {purple ? "The Warplets diamond hands. 10,000 wallet Farcaster airdrop." : "Where Builders, Traders and Attention align."}
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gridTemplateRows: "repeat(5, minmax(0, 1fr))", gap: 10, marginTop: 18, minHeight: 0, flex: 1 }}>

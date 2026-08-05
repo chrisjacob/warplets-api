@@ -19,6 +19,18 @@ crons = ["*/10 * * * *"]
 # Farcaster FID of each registered mini-app — used to scope notification tokens
 # to the correct app_slug. Not sensitive (public Farcaster account IDs).
 APP_APP_FID = "9152"
+BASE_APP_URL = "https://search.10x.meme"
+# Enable only after the Base.dev project and API secret have been configured.
+BASE_NOTIFICATIONS_ENABLED = "false"
+# Server-side OAuth/OIDC client IDs may be added here; their matching client
+# secrets remain Wrangler secrets. VAPID_PUBLIC_KEY is public by design.
+# X_CLIENT_ID = "..."
+# X_OAUTH_CALLBACK_URL = "https://search.10x.meme/api/auth/x/callback"
+# TELEGRAM_OIDC_CLIENT_ID = "..."
+# TELEGRAM_OIDC_CALLBACK_URL = "https://search.10x.meme/api/auth/telegram/callback"
+# DISCORD_CLIENT_ID = "..."
+# DISCORD_OAUTH_CALLBACK_URL = "https://search.10x.meme/api/auth/discord/callback"
+# VAPID_PUBLIC_KEY = "..."
 # DROP_APP_FID = "?????"    # add once observed in webhook events for Drop
 
 # Optional Dune round-two analytics. Public Stats remain fully functional while
@@ -65,6 +77,9 @@ bucket_name = "warplets-stats-shares-preview"
 
 [env.preview.vars]
 APP_APP_FID = "9152"
+BASE_APP_URL = "https://search-dev.10x.meme"
+BASE_NOTIFICATIONS_ENABLED = "false"
+# Use preview callback URLs and client registrations before enabling OAuth.
 DUNE_ENABLED = "0"
 DUNE_EXECUTE_ENABLED = "0"
 DUNE_EXECUTION_INTERVAL_HOURS = "24"

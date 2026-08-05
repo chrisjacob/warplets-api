@@ -27,6 +27,30 @@ import MiniAppShell from "./MiniAppShell";
 import { PERKS_DEFINITIONS, PERKS_MOCKUP_NOTICE_DISMISSED_KEY, type PerksSubpage } from "./perksMockData";
 import { PERKS_SHARE_CONTENT, getPerksShareImageUrl } from "./perksShareContent";
 import type { StatsShareCreateResponse, StatsShareRequest } from "./statsShare";
+import { WebConnectModal } from "./WebConnectModal";
+import {
+  configureFarcasterWallet,
+  connectFarcasterWallet,
+  disconnectWallet,
+  getConnectedProviderAndAccount,
+  requestWebWalletConnection,
+  restoreWebWallet,
+  useWalletController,
+} from "./walletController";
+import { verifyFarcasterQuickAuth, verifyFarcasterSiwn, logoutAppPrincipal } from "./appSession";
+import { resolveAppSurface } from "./appRuntime";
+import { trackAppEvent } from "./analytics";
+import { PwaControls } from "./PwaControls";
+import { resolveEntryPoint, isStandaloneDisplay } from "./pwa";
+import {
+  composeFarcasterPost,
+  configureAppSurface,
+  getEmbeddedWalletProvider,
+  openAppUrl,
+  requestFarcasterNotifications,
+  signalAppReady,
+  viewFarcasterProfile,
+} from "./surfaceAdapter";
 import {
   hapticError,
   hapticPrimaryTap,
@@ -45,7 +69,6 @@ import {
   sendPreparedTransactionsAtomic,
   supportsAtomicBatchTransactions,
   buildSeaportCancelTransaction,
-  getWalletAccounts,
   getWalletErrorCode,
   getWalletErrorMessage,
   isUserRejected,
@@ -1105,6 +1128,65 @@ async function copyTextToClipboard(text: string): Promise<void> {
   textarea.select();
   document.execCommand("copy");
   document.body.removeChild(textarea);
+}
+
+function convertImageBlobToPng(blob: Blob): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    const objectUrl = URL.createObjectURL(blob);
+    const image = new Image();
+    const release = () => URL.revokeObjectURL(objectUrl);
+
+    image.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = image.naturalWidth;
+      canvas.height = image.naturalHeight;
+      const context = canvas.getContext("2d");
+      if (!context || canvas.width < 1 || canvas.height < 1) {
+        release();
+        reject(new Error("The share image could not be prepared for the clipboard."));
+        return;
+      }
+
+      context.drawImage(image, 0, 0);
+      canvas.toBlob((pngBlob) => {
+        release();
+        if (pngBlob) resolve(pngBlob);
+        else reject(new Error("The share image could not be converted to PNG."));
+      }, "image/png");
+    };
+    image.onerror = () => {
+      release();
+      reject(new Error("The share image could not be decoded."));
+    };
+    image.src = objectUrl;
+  });
+}
+
+async function loadShareImageBlob(src: string): Promise<Blob> {
+  const imageUrl = new URL(src, window.location.href);
+  const clipboardUrl = imageUrl.origin === window.location.origin
+    ? imageUrl.href
+    : `/api/share-image?url=${encodeURIComponent(imageUrl.href)}`;
+  const response = await fetch(clipboardUrl);
+  if (!response.ok) throw new Error(`The share image could not be loaded (${response.status}).`);
+  const blob = await response.blob();
+  if (!blob.type.startsWith("image/")) throw new Error("The share image response was not an image.");
+  return blob;
+}
+
+async function copyImageToClipboard(src: string): Promise<string> {
+  if (!navigator.clipboard?.write || typeof ClipboardItem === "undefined") {
+    throw new Error("Copying images is not supported by this browser.");
+  }
+
+  const fetchedBlob = loadShareImageBlob(src);
+  const pngBlob = fetchedBlob.then((blob) => blob.type === "image/png" ? blob : convertImageBlobToPng(blob));
+  await navigator.clipboard.write([new ClipboardItem({ "image/png": pngBlob })]);
+  return (await fetchedBlob).type;
+}
+
+async function openShareImageExternally(src: string): Promise<void> {
+  await openAppUrl(new URL(src, window.location.href).href);
 }
 
 type MiniAppHistoryStateWithSearch = {
@@ -3248,30 +3330,13 @@ function getSearchRouteTitle(route: SearchRoute): string {
   return "10X Warplets";
 }
 
-function getBrowserEthereumProvider(): EthereumProvider | null {
-  if (typeof window === "undefined") return null;
-  return ((window as Window & { ethereum?: EthereumProvider }).ethereum ?? null);
-}
-
 function unknownRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : null;
 }
 
-function getSiwnPrimaryWallet(user: unknown): string | null {
-  const obj = unknownRecord(user);
-  const verifiedAddresses = unknownRecord(obj?.verified_addresses) ?? unknownRecord(obj?.verifiedAddresses);
-  const rawAddresses = verifiedAddresses?.eth_addresses ?? verifiedAddresses?.ethAddresses;
-  const ethAddresses = Array.isArray(rawAddresses) ? rawAddresses : [];
-  for (const address of ethAddresses) {
-    const normalized = normalizeWalletAddress(typeof address === "string" ? address : null);
-    if (normalized) return normalized;
-  }
-  const custodyAddress = obj?.custody_address ?? obj?.custodyAddress;
-  return normalizeWalletAddress(typeof custodyAddress === "string" ? custodyAddress : null);
-}
-
 function SearchHeaderAccountControl({
   connected,
+  walletConnected,
   avatarUrl,
   accountLabel,
   showDisconnect,
@@ -3288,6 +3353,7 @@ function SearchHeaderAccountControl({
   onDisconnect,
 }: {
   connected: boolean;
+  walletConnected: boolean;
   avatarUrl: string | null;
   accountLabel: string;
   showDisconnect: boolean;
@@ -3378,7 +3444,7 @@ function SearchHeaderAccountControl({
           type="button"
           className="search-header-connect-button"
           disabled={connectDisabled}
-          title={connectDisabled ? "Checking connection" : "Connect Farcaster wallet"}
+          title={connectDisabled ? "Checking connection" : "Connect wallet or Farcaster identity"}
           onClick={() => {
             void hapticTap();
             onConnectWallet();
@@ -3413,6 +3479,11 @@ function SearchHeaderAccountControl({
       </button>
       {open && (
         <div className="search-header-account-menu" role="menu">
+          {!walletConnected && (
+            <button type="button" role="menuitem" onClick={() => runMenuAction(onConnectWallet)}>
+              Connect wallet
+            </button>
+          )}
           <button type="button" role="menuitem" onClick={() => runMenuAction(onViewOnboarding)}>
             View onboarding
           </button>
@@ -3422,6 +3493,9 @@ function SearchHeaderAccountControl({
           <button type="button" role="menuitem" onClick={() => runMenuAction(onOpenSpreadsheet)}>
             Warplets spreadsheet
           </button>
+          <a role="menuitem" href="/developer">
+            Developer API
+          </a>
           {window.location.hostname === "search-local.10x.meme" && (
             <button type="button" role="menuitem" onClick={() => runMenuAction(onOpenAppTesting)}>
               App testing
@@ -4022,7 +4096,7 @@ async function loadStatsChart() {
         if (!fid && !username) return;
         void hapticTap();
         if (isInMiniAppContext && fid) {
-          sdk.actions.viewProfile({ fid }).catch((error) => console.error("Failed to open activity profile:", error));
+          viewFarcasterProfile(fid).catch((error) => console.error("Failed to open activity profile:", error));
           return;
         }
         if (username) {
@@ -7393,7 +7467,7 @@ function CollectionBiddersModal({
   const handleOpenFarcaster = useCallback((bidder: CollectionOfferBidder) => {
     void hapticTap();
     if (isInMiniAppContext && bidder.fid) {
-      sdk.actions.viewProfile({ fid: bidder.fid }).catch((error) => {
+      viewFarcasterProfile(bidder.fid).catch((error) => {
         console.error("Failed to open Farcaster bidder profile:", error);
       });
       return;
@@ -8105,11 +8179,7 @@ async function preloadResultImagesWithTimeout(results: WarpletResult[]): Promise
 }
 
 async function openExternalAsset(url: string) {
-  try {
-    await sdk.actions.openUrl(url);
-  } catch {
-    window.open(url, "_blank", "noopener,noreferrer");
-  }
+  await openAppUrl(url);
 }
 
 function ProgressiveWarpletImage({
@@ -10092,7 +10162,7 @@ function ProfilePictureDownloadModal({
     try {
       const inMiniApp = typeof sdk.isInMiniApp === "function" ? await sdk.isInMiniApp() : false;
       if (inMiniApp && viewerFid) {
-        await sdk.actions.viewProfile({ fid: viewerFid });
+        await viewFarcasterProfile(viewerFid);
         return;
       }
     } catch (error) {
@@ -10251,7 +10321,7 @@ function OwnedByPanel({
   const handleOpenProfile = () => {
     if (!fid) return;
     void hapticTap();
-    sdk.actions.viewProfile({ fid }).catch((error) => {
+    viewFarcasterProfile(fid).catch((error) => {
       console.error("Failed to open owner Farcaster profile:", error);
     });
   };
@@ -11628,6 +11698,9 @@ function SharePreviewModal({
   preview,
   onClose,
   onCopySuccess,
+  onImageCopySuccess,
+  onImageCopyError,
+  onImageDownloadSuccess,
   onShareFarcaster,
   onShareTwitter,
   onRetry,
@@ -11635,11 +11708,16 @@ function SharePreviewModal({
   preview: SharePreviewState;
   onClose: () => void;
   onCopySuccess: () => void;
+  onImageCopySuccess: (sourceMimeType: string) => void;
+  onImageCopyError: (message: string) => void;
+  onImageDownloadSuccess: () => void;
   onShareFarcaster: () => void;
   onShareTwitter: () => void;
   onRetry?: () => void;
 }) {
   const [resolvedImages, setResolvedImages] = useState<SharePreviewImage[]>(() => getInitialSharePreviewImages(preview.images));
+  const [copyingImageIndex, setCopyingImageIndex] = useState<number | null>(null);
+  const [downloadingImageIndex, setDownloadingImageIndex] = useState<number | null>(null);
   const farcasterPostText = preview.farcasterText ?? preview.text;
   const twitterPostText = preview.twitterPostText ?? preview.text;
   const hasChannelTabs = farcasterPostText !== twitterPostText;
@@ -11672,6 +11750,8 @@ function SharePreviewModal({
 
   useEffect(() => {
     setActiveShareChannel("farcaster");
+    setCopyingImageIndex(null);
+    setDownloadingImageIndex(null);
   }, [preview]);
 
   useEffect(() => {
@@ -11801,35 +11881,37 @@ function SharePreviewModal({
                 })}
               </div>
             )}
-          <div className={`relative rounded-xl border border-[#00FF00]/25 bg-[#041204]/80 p-3 ${hasChannelTabs ? "rounded-tl-none" : ""}`}>
-            <Text className="mb-2 text-xs font-bold uppercase" style={{ color: "#00FF00" }}>
-              Post
-            </Text>
-            <button
-              ref={clipboardTooltipRefs.setReference}
-              type="button"
-              aria-label="Copy to Clipboard"
-              disabled={!shareReady}
-              {...getClipboardReferenceProps({
-                onClick: () => {
-                  void hapticPrimaryTap();
-                  setIsClipboardTooltipOpen(false);
-                  copyTextToClipboard(postText)
-                    .then(() => {
-                      void hapticSuccess();
-                      onCopySuccess();
-                    })
-                    .catch((error) => {
-                      console.error("Failed to copy share post:", error);
-                      void hapticError();
-                    });
-                },
-                className:
-                  "absolute right-3 top-3 flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-[oklab(0.866435_-0.23384_0.179502_/_0.35)] bg-black text-base text-[#00FF00] shadow-[2px_3px_0_oklab(0.866435_-0.23384_0.179502_/_0.35)] transition-all duration-100 hover:bg-[#041204] active:translate-x-[1px] active:translate-y-[2px] active:shadow-[1px_1px_0_oklab(0.866435_-0.23384_0.179502_/_0.35)] disabled:cursor-not-allowed disabled:opacity-40",
-              })}
-            >
-              <span aria-hidden="true">📋</span>
-            </button>
+          <div className={`rounded-xl border border-[#00FF00]/25 bg-[#041204]/80 p-3 ${hasChannelTabs ? "rounded-tl-none" : ""}`}>
+            <div className="mb-2 flex h-6 items-center justify-between gap-2">
+              <Text className="text-xs font-bold uppercase leading-6" style={{ color: "#00FF00" }}>
+                Post
+              </Text>
+              <button
+                ref={clipboardTooltipRefs.setReference}
+                type="button"
+                aria-label="Copy to Clipboard"
+                disabled={!shareReady}
+                {...getClipboardReferenceProps({
+                  onClick: () => {
+                    void hapticPrimaryTap();
+                    setIsClipboardTooltipOpen(false);
+                    copyTextToClipboard(postText)
+                      .then(() => {
+                        void hapticSuccess();
+                        onCopySuccess();
+                      })
+                      .catch((error) => {
+                        console.error("Failed to copy share post:", error);
+                        void hapticError();
+                      });
+                  },
+                  className:
+                    "flex h-6 shrink-0 cursor-pointer items-center justify-center rounded-md border border-[oklab(0.866435_-0.23384_0.179502_/_0.35)] bg-black px-2.5 text-[11px] font-black text-[#00FF00] shadow-[2px_3px_0_oklab(0.866435_-0.23384_0.179502_/_0.35)] transition-all duration-100 hover:bg-[#041204] active:translate-x-[1px] active:translate-y-[2px] active:shadow-[1px_1px_0_oklab(0.866435_-0.23384_0.179502_/_0.35)] disabled:cursor-not-allowed disabled:opacity-40",
+                })}
+              >
+                Copy
+              </button>
+            </div>
             {isClipboardTooltipOpen && (
               <FloatingPortal>
                 <div
@@ -11843,7 +11925,7 @@ function SharePreviewModal({
                 </div>
               </FloatingPortal>
             )}
-            <pre className="min-h-9 select-text whitespace-pre-wrap break-words pr-12 pt-1 font-sans text-sm font-bold leading-snug text-[#8bbf8b]">
+            <pre className="min-h-9 select-text whitespace-pre-wrap break-words font-sans text-sm font-bold leading-snug text-[#8bbf8b]">
               {postText}
             </pre>
           </div>
@@ -11867,48 +11949,100 @@ function SharePreviewModal({
 
           {shareReady && <div className="mt-3 rounded-xl border border-[#00FF00]/25 bg-[#041204]/80 p-3">
             <Text className="mb-2 text-xs font-bold uppercase" style={{ color: "#00FF00" }}>
-              Images
+              {resolvedImages.length === 1 ? "Image" : "Images"}
             </Text>
             <div className="grid grid-cols-2 gap-2">
               {resolvedImages.map((image, index) => (
-                <div key={`${image.src}-${index}`} className={`relative overflow-hidden rounded-lg border border-[#00FF00]/25 bg-[rgba(0,255,0,0.12)] ${image.aspectRatio === "landscape" ? "col-span-2 aspect-[3/2]" : "aspect-square"}`}>
-                  {image.isLoading && (
-                    <div className="absolute inset-0 z-[2] flex h-full w-full items-center justify-center">
-                      <span className="h-8 w-8 animate-spin rounded-full border-2 border-[#00FF00]/25 border-t-[#00FF00]" aria-label="Loading share preview image" />
-                    </div>
-                  )}
-                  <img
-                    src={image.src}
-                    alt={image.alt}
-                    className={`relative z-[1] block h-full w-full transition-opacity duration-300 ${image.isLoading ? "opacity-0" : "opacity-100"} ${image.sourceUrl ? "object-contain" : "object-cover"}`}
-                    loading="lazy"
-                    onLoad={() => {
-                      if (!image.isLoading) return;
-                      setResolvedImages((currentImages) =>
-                        currentImages.map((currentImage, currentIndex) =>
-                          currentIndex === index ? { ...currentImage, isLoading: false } : currentImage,
-                        ),
-                      );
-                    }}
-                    onError={(event) => {
-                      if (!image.fallbackSrc || event.currentTarget.src === image.fallbackSrc) {
+                <div key={`${image.src}-${index}`} className={image.aspectRatio === "landscape" ? "col-span-2" : ""}>
+                  <div className={`relative overflow-hidden rounded-lg border border-[#00FF00]/25 bg-[rgba(0,255,0,0.12)] ${image.aspectRatio === "landscape" ? "aspect-[3/2]" : "aspect-square"}`}>
+                    {image.isLoading && (
+                      <div className="absolute inset-0 z-[2] flex h-full w-full items-center justify-center">
+                        <span className="h-8 w-8 animate-spin rounded-full border-2 border-[#00FF00]/25 border-t-[#00FF00]" aria-label="Loading share preview image" />
+                      </div>
+                    )}
+                    <img
+                      src={image.src}
+                      alt={image.alt}
+                      className={`relative z-[1] block h-full w-full transition-opacity duration-300 ${image.isLoading ? "opacity-0" : "opacity-100"} ${image.sourceUrl ? "object-contain" : "object-cover"}`}
+                      loading="lazy"
+                      onLoad={() => {
+                        if (!image.isLoading) return;
                         setResolvedImages((currentImages) =>
                           currentImages.map((currentImage, currentIndex) =>
                             currentIndex === index ? { ...currentImage, isLoading: false } : currentImage,
                           ),
                         );
-                        return;
-                      }
-                      event.currentTarget.src = image.fallbackSrc;
-                      setResolvedImages((currentImages) =>
-                        currentImages.map((currentImage, currentIndex) =>
-                          currentIndex === index
-                            ? { ...currentImage, src: image.fallbackSrc ?? currentImage.src, isLoading: true }
-                            : currentImage,
-                        ),
-                      );
-                    }}
-                  />
+                      }}
+                      onError={(event) => {
+                        if (!image.fallbackSrc || event.currentTarget.src === image.fallbackSrc) {
+                          setResolvedImages((currentImages) =>
+                            currentImages.map((currentImage, currentIndex) =>
+                              currentIndex === index ? { ...currentImage, isLoading: false } : currentImage,
+                            ),
+                          );
+                          return;
+                        }
+                        event.currentTarget.src = image.fallbackSrc;
+                        setResolvedImages((currentImages) =>
+                          currentImages.map((currentImage, currentIndex) =>
+                            currentIndex === index
+                              ? { ...currentImage, src: image.fallbackSrc ?? currentImage.src, isLoading: true }
+                              : currentImage,
+                          ),
+                        );
+                      }}
+                    />
+                  </div>
+                  <div className="mb-1 mt-2 grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      aria-label={`Copy ${image.alt} to Clipboard`}
+                      title="Copy to Clipboard"
+                      disabled={image.isLoading || copyingImageIndex !== null || downloadingImageIndex !== null}
+                      onClick={() => {
+                        void hapticPrimaryTap();
+                        setCopyingImageIndex(index);
+                        copyImageToClipboard(image.src)
+                          .then((sourceMimeType) => {
+                            void hapticSuccess();
+                            onImageCopySuccess(sourceMimeType);
+                          })
+                          .catch((error) => {
+                            console.error("Failed to copy share image:", error);
+                            void hapticError();
+                            onImageCopyError(error instanceof Error ? error.message : "The image could not be copied.");
+                          })
+                          .finally(() => setCopyingImageIndex(null));
+                      }}
+                      className="flex h-6 w-full cursor-pointer items-center justify-center rounded-md border border-[oklab(0.866435_-0.23384_0.179502_/_0.35)] bg-black px-2.5 text-[11px] font-black text-[#00FF00] shadow-[2px_3px_0_oklab(0.866435_-0.23384_0.179502_/_0.35)] transition-all duration-100 hover:bg-[#041204] active:translate-x-[1px] active:translate-y-[2px] active:shadow-[1px_1px_0_oklab(0.866435_-0.23384_0.179502_/_0.35)] disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      {copyingImageIndex === index ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-[#00FF00]/25 border-t-[#00FF00]" aria-hidden="true" /> : "Copy"}
+                    </button>
+                    <button
+                      type="button"
+                      aria-label={`Download ${image.alt}`}
+                      title="Open image to download"
+                      disabled={image.isLoading || copyingImageIndex !== null || downloadingImageIndex !== null}
+                      onClick={() => {
+                        void hapticPrimaryTap();
+                        setDownloadingImageIndex(index);
+                        openShareImageExternally(image.src)
+                          .then(() => {
+                            void hapticSuccess();
+                            onImageDownloadSuccess();
+                          })
+                          .catch((error) => {
+                            console.error("Failed to open share image:", error);
+                            void hapticError();
+                            onImageCopyError(error instanceof Error ? error.message : "The image could not be opened.");
+                          })
+                          .finally(() => setDownloadingImageIndex(null));
+                      }}
+                      className="flex h-6 w-full cursor-pointer items-center justify-center rounded-md border border-[oklab(0.866435_-0.23384_0.179502_/_0.35)] bg-black px-2.5 text-[11px] font-black text-[#00FF00] shadow-[2px_3px_0_oklab(0.866435_-0.23384_0.179502_/_0.35)] transition-all duration-100 hover:bg-[#041204] active:translate-x-[1px] active:translate-y-[2px] active:shadow-[1px_1px_0_oklab(0.866435_-0.23384_0.179502_/_0.35)] disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      {downloadingImageIndex === index ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-[#00FF00]/25 border-t-[#00FF00]" aria-hidden="true" /> : "Download"}
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -12453,7 +12587,8 @@ function WarpletDetailsModal({
   const marketLooksStale = lastMarketUpdatedAt ? Date.now() - Date.parse(lastMarketUpdatedAt) > MARKET_DETAIL_STALE_MS : true;
   const [tradeState, setTradeState] = useState<FreshTradeState | null>(null);
   const [optimisticSale, setOptimisticSale] = useState<MarketSnapshot["sales"][string] | null>(null);
-  const [activeWallet, setActiveWallet] = useState<string | null>(null);
+  const detailsWalletController = useWalletController();
+  const activeWallet = detailsWalletController.session?.address ?? null;
   const [tradeMode, setTradeMode] = useState<"idle" | "offer" | "list">("idle");
   const [offerPrice, setOfferPrice] = useState("");
   const [listingPrice, setListingPrice] = useState("");
@@ -12690,18 +12825,20 @@ function WarpletDetailsModal({
   }, [activeWallet, details.id, viewerFid]);
 
   const getProviderAndAccount = useCallback(async (
-    preferredAccount?: string | null,
+    _preferredAccount?: string | null,
     options: { skipChainSwitch?: boolean } = {},
   ): Promise<{ provider: EthereumProvider; account: string }> => {
-    const provider = (await sdk.wallet.getEthereumProvider()) as EthereumProvider | null;
-    if (!provider) throw new Error("Farcaster wallet is not available");
-    const accounts = await getWalletAccounts(provider, preferredAccount);
-    const account = accounts[0] ?? preferredAccount;
-    if (!account) throw new Error("No wallet account is connected");
-    setActiveWallet(account);
+    if (!detailsWalletController.session) {
+      if (isInMiniAppContext) await connectFarcasterWallet();
+      else {
+        requestWebWalletConnection();
+        throw new Error("Connect a wallet to continue");
+      }
+    }
+    const { provider, account } = await getConnectedProviderAndAccount();
     await ensureBaseChain(provider, undefined, { allowSkipSwitch: options.skipChainSwitch });
     return { provider, account };
-  }, []);
+  }, [detailsWalletController.session, isInMiniAppContext]);
 
   const refreshTradeState = useCallback(async (
     walletOverride?: string | null,
@@ -12756,7 +12893,6 @@ function WarpletDetailsModal({
     }
     setTradeState(merged);
     setOptimisticSale(merged.sale ?? null);
-    if (next.owner?.wallet) setActiveWallet((current) => current);
     if (next.snapshot) {
       const snapshot = shouldPreserveOptimisticListing && options.optimisticListing
         ? {
@@ -12779,12 +12915,8 @@ function WarpletDetailsModal({
     let cancelled = false;
     const loadPassiveWallet = async () => {
       try {
-        const provider = (await sdk.wallet.getEthereumProvider()) as EthereumProvider | null;
-        if (!provider) return;
-        const raw = await provider.request({ method: "eth_accounts" }).catch(() => []);
-        const account = Array.isArray(raw) && typeof raw[0] === "string" ? raw[0] : null;
+        const account = detailsWalletController.session?.address ?? null;
         if (account && !cancelled) {
-          setActiveWallet(account);
           await refreshTradeState(account);
         } else if (!cancelled) {
           await refreshTradeState(null);
@@ -12799,7 +12931,7 @@ function WarpletDetailsModal({
     return () => {
       cancelled = true;
     };
-  }, [details.id, refreshTradeState]);
+  }, [details.id, detailsWalletController.session?.address, refreshTradeState]);
 
   useEffect(() => {
     if (!tradeState) return;
@@ -12849,7 +12981,7 @@ function WarpletDetailsModal({
   const handleOpenFarcasterProfile = () => {
     if (!farcasterFid) return;
     void hapticTap();
-    sdk.actions.viewProfile({ fid: farcasterFid }).catch((error) => {
+    viewFarcasterProfile(farcasterFid).catch((error) => {
       console.error("Failed to open Farcaster profile:", error);
     });
   };
@@ -13806,7 +13938,7 @@ function WarpletDetailsModal({
         type="button"
         onClick={() => {
           void hapticTap();
-          sdk.actions.openUrl(getOpenSeaUrl(details.id)).catch((error) => {
+          openAppUrl(getOpenSeaUrl(details.id)).catch((error) => {
             console.error("Failed to open OpenSea in Farcaster:", error);
           });
         }}
@@ -14076,7 +14208,7 @@ function WarpletDetailsModal({
                 type="button"
                 onClick={() => {
                   void hapticTap();
-                  sdk.actions.openUrl(getOpenSeaUrl(details.id)).catch((error) => {
+                  openAppUrl(getOpenSeaUrl(details.id)).catch((error) => {
                     console.error("Failed to open OpenSea in Farcaster:", error);
                   });
                 }}
@@ -14337,6 +14469,14 @@ function WarpletDetailsModal({
 }
 
 export default function SearchApp() {
+  const walletController = useWalletController();
+  const webWalletEnabled = import.meta.env.VITE_WEB_WALLET_ENABLED === "true";
+  const [webConnectOpen, setWebConnectOpen] = useState(false);
+  useEffect(() => {
+    const openConnect = () => setWebConnectOpen(true);
+    window.addEventListener("warplets:connect-wallet", openConnect);
+    return () => window.removeEventListener("warplets:connect-wallet", openConnect);
+  }, []);
   const [dbReady, setDbReady] = useState(false);
   const [dbError, setDbError] = useState("");
   const [databaseLoadingMessage, setDatabaseLoadingMessage] = useState(DATABASE_LOADING_PREFIX);
@@ -14360,6 +14500,7 @@ export default function SearchApp() {
   const [pendingNotificationId, setPendingNotificationId] = useState<string | null>(null);
   const [actionSessionToken, setActionSessionToken] = useState<string | null>(null);
   const [notificationOpenSent, setNotificationOpenSent] = useState(false);
+  const baseNotificationOpenSentRef = useRef(false);
   const [matchedWarpletCard, setMatchedWarpletCard] = useState<MatchedWarpletCard | null>(null);
   const [query, setQuery] = useState("");
   const [isAllWarpletsMode, setIsAllWarpletsMode] = useState(false);
@@ -14441,11 +14582,23 @@ export default function SearchApp() {
   const [lastPerksSubpage, setLastPerksSubpage] = useState<PerksSubpage>(() => readLastSearchPerksSubpage());
   const [lastStatsSubpage, setLastStatsSubpage] = useState<SearchStatsSubpage>(() => readLastSearchStatsSubpage());
   const [lastListedLevel, setLastListedLevel] = useState<ListedLevelFilter>(() => readLastSearchListedLevel());
+  useEffect(() => {
+    if (!miniAppContextKnown) return;
+    trackAppEvent("route_viewed", {
+      surface: resolveAppSurface(isInMiniAppContext),
+      route: window.location.pathname,
+    });
+  }, [isInMiniAppContext, miniAppContextKnown, searchRoute]);
   const {
     user: neynarUser,
     isAuthenticated: neynarIsAuthenticated,
     logoutUser: logoutNeynarUser,
   } = useNeynarContext();
+
+  useEffect(() => {
+    const wallet = walletController.session?.address ?? null;
+    setActiveWallet(wallet);
+  }, [walletController.session?.address]);
 
   const animateSearchInputChange = useCallback((to: string, mode: "placeholder" | "value") => {
     searchInputAnimationStartedRef.current = true;
@@ -14530,7 +14683,7 @@ export default function SearchApp() {
   const sendMiniAppReady = useCallback(() => {
     if (miniAppReadySentRef.current) return;
     miniAppReadySentRef.current = true;
-    Promise.resolve(sdk.actions.ready()).catch((error) => {
+    signalAppReady().catch((error) => {
       miniAppReadySentRef.current = false;
       console.warn("Search mini app ready failed:", error);
     });
@@ -14871,8 +15024,27 @@ export default function SearchApp() {
         const inMiniApp =
           typeof sdk.isInMiniApp === "function" ? await sdk.isInMiniApp() : true;
         setIsInMiniAppContext(inMiniApp);
+        const surface = resolveAppSurface(inMiniApp);
+        configureAppSurface(surface);
+        trackAppEvent("app_viewed", {
+          surface,
+          route: window.location.pathname,
+          entryPoint: resolveEntryPoint(window.location, {
+            standalone: isStandaloneDisplay(),
+            referrer: document.referrer,
+            userAgent: navigator.userAgent,
+          }),
+        });
+        configureFarcasterWallet(inMiniApp
+          ? async () => {
+              const provider = await getEmbeddedWalletProvider();
+              if (!provider) throw new Error("Farcaster wallet is unavailable");
+              return provider;
+            }
+          : null);
 
         if (!inMiniApp) {
+          void restoreWebWallet().catch((error) => console.warn("Web wallet restore failed:", error));
           setMiniAppContextKnown(true);
           setSearchCompletionStatusLoaded(true);
           return;
@@ -14904,6 +15076,9 @@ export default function SearchApp() {
         setMiniAppContextKnown(true);
 
         if (normalizedFid) {
+          void sdk.quickAuth.getToken().then(({ token }) => verifyFarcasterQuickAuth(token)).then((session) => {
+            if (typeof session.actionSessionToken === "string") setActionSessionToken(session.actionSessionToken);
+          }).catch((error) => console.warn("Farcaster Quick Auth verification failed:", error));
           void syncSearchViewerStatus(normalizedFid);
         } else {
           setSearchCompletionStatusLoaded(true);
@@ -14970,15 +15145,27 @@ export default function SearchApp() {
 
     setViewerFid(siwnViewerProfile.fid);
     setViewerProfile(siwnViewerProfile);
-    const siwnWallet = getSiwnPrimaryWallet(neynarUser);
-    if (siwnWallet) {
-      setActiveWallet(siwnWallet);
-    }
 
     if (lastSiwnStatusFidRef.current === siwnViewerProfile.fid) return;
     lastSiwnStatusFidRef.current = siwnViewerProfile.fid;
     setSearchCompletionStatusLoaded(false);
-    void syncSearchViewerStatus(siwnViewerProfile.fid, "Search SIWN user status upsert failed:");
+    const signerUuid = typeof unknownRecord(neynarUser)?.signer_uuid === "string"
+      ? String(unknownRecord(neynarUser)?.signer_uuid)
+      : "";
+    if (!signerUuid) {
+      setSearchCompletionStatusLoaded(true);
+      console.warn("Search SIWN session did not include a signer UUID");
+      return;
+    }
+    const siwnFid = siwnViewerProfile.fid;
+    void verifyFarcasterSiwn(signerUuid, siwnFid).then((session) => {
+      if (typeof session.actionSessionToken === "string") setActionSessionToken(session.actionSessionToken);
+      trackAppEvent("farcaster_identity_connected", { surface: "web" });
+      return syncSearchViewerStatus(siwnFid, "Search SIWN user status upsert failed:");
+    }).catch((error) => {
+      console.warn("Search SIWN verification failed:", error);
+      setSearchCompletionStatusLoaded(true);
+    });
   }, [isInMiniAppContext, miniAppContextKnown, neynarUser, siwnViewerProfile, syncSearchViewerStatus]);
 
   useEffect(() => {
@@ -14996,10 +15183,24 @@ export default function SearchApp() {
     }).catch((error) => console.warn("Failed to record notification open:", error));
   }, [actionSessionToken, notificationOpenSent, pendingNotificationId, viewerFid]);
 
+  useEffect(() => {
+    if (isInMiniAppContext || baseNotificationOpenSentRef.current) return;
+    const campaignId = new URLSearchParams(window.location.search).get("baseNotificationId")?.trim();
+    if (!campaignId) return;
+    void fetch("/api/notifications/base/open", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ campaignId, action: "click" }),
+    }).then((response) => {
+      if (response.ok) baseNotificationOpenSentRef.current = true;
+    }).catch(() => undefined);
+  }, [activeWallet, isInMiniAppContext]);
+
   const handleConfirmAddAppPrompt = useCallback(async () => {
     try {
       void hapticPrimaryTap();
-      await sdk.actions.addMiniApp();
+      await requestFarcasterNotifications();
     } catch (error) {
       console.warn("Search add mini app prompt failed:", error);
     } finally {
@@ -15517,35 +15718,43 @@ export default function SearchApp() {
 
   const ensureActiveFavouriteWallet = useCallback(async () => {
     if (activeWallet) return activeWallet;
-    const provider = (await sdk.wallet.getEthereumProvider()) as EthereumProvider | null;
-    if (!provider) throw new Error("Farcaster wallet is not available.");
-    const accounts = await getWalletAccounts(provider);
-    const wallet = normalizeWalletAddress(accounts[0]);
+    if (!isInMiniAppContext) {
+      setWebConnectOpen(true);
+      trackAppEvent("connect_opened", { surface: "web", route: window.location.pathname });
+      throw new Error("Connect and verify a wallet to use favourites.");
+    }
+    const session = await connectFarcasterWallet();
+    const wallet = normalizeWalletAddress(session.address);
     if (!wallet) throw new Error("No wallet account is connected.");
-    setActiveWallet(wallet);
     void loadFavouriteList(wallet);
     return wallet;
-  }, [activeWallet, loadFavouriteList]);
+  }, [activeWallet, isInMiniAppContext, loadFavouriteList]);
 
   const getCollectionOfferProviderAndAccount = useCallback(async (): Promise<{ provider: EthereumProvider; account: string }> => {
-    const miniAppProvider = await sdk.wallet.getEthereumProvider().catch(() => null) as EthereumProvider | null;
-    const provider = miniAppProvider ?? getBrowserEthereumProvider();
-    if (!provider) throw new Error("Wallet provider is not available.");
-    const accounts = await getWalletAccounts(provider, activeWallet);
-    const account = normalizeWalletAddress(accounts[0] ?? activeWallet);
-    if (!account) throw new Error("No wallet account is connected.");
-    setActiveWallet(account);
+    if (!walletController.session) {
+      if (isInMiniAppContext) await connectFarcasterWallet();
+      else {
+        setWebConnectOpen(true);
+        throw new Error("Connect a wallet to continue.");
+      }
+    }
+    const { provider, account } = await getConnectedProviderAndAccount();
     void loadFavouriteList(account);
     await ensureBaseChain(provider, undefined, { allowSkipSwitch: true });
     return { provider, account };
-  }, [activeWallet, loadFavouriteList]);
+  }, [isInMiniAppContext, loadFavouriteList, walletController.session]);
 
   const handleHeaderConnectWallet = useCallback(() => {
-    ensureActiveFavouriteWallet().catch((error) => {
+    if (!isInMiniAppContext) {
+      trackAppEvent("connect_opened", { surface: "web", route: window.location.pathname });
+      setWebConnectOpen(true);
+      return;
+    }
+    connectFarcasterWallet().then((session) => loadFavouriteList(session.address)).catch((error) => {
       console.warn("Search header wallet connect failed:", error);
       showSearchToast("error", error instanceof Error ? error.message : "Farcaster wallet connection failed.", { manualClose: true });
     });
-  }, [ensureActiveFavouriteWallet, showSearchToast]);
+  }, [isInMiniAppContext, loadFavouriteList, showSearchToast]);
 
   const handleMissingSiwnClientId = useCallback(() => {
     showSearchToast("error", "Missing VITE_NEYNAR_CLIENT_ID. Add the Neynar client ID and restart the dev server.", { manualClose: true });
@@ -15561,11 +15770,31 @@ export default function SearchApp() {
   }, []);
 
   const handleHeaderEnableNotifications = useCallback(() => {
+    if (!isInMiniAppContext) {
+      if (!activeWallet) {
+        setWebConnectOpen(true);
+        showSearchToast("warning", "Connect a wallet to check Base App notification status.", { manualClose: true });
+        return;
+      }
+      void fetch("/api/notifications/base/status", { credentials: "same-origin" }).then(async (response) => {
+        const payload = await response.json() as { appPinned?: boolean; notificationsEnabled?: boolean; error?: string };
+        if (!response.ok) throw new Error(payload.error || "Base notification status is unavailable");
+        trackAppEvent("notification_status_viewed", { surface: "web", channel: "base" });
+        if (payload.notificationsEnabled) {
+          showSearchToast("success", "Base App notifications are enabled for this wallet.");
+        } else if (payload.appPinned) {
+          showSearchToast("warning", "Enable notifications for 10X Warplets from its settings in Base App.", { manualClose: true });
+        } else {
+          showSearchToast("warning", "Pin 10X Warplets in Base App, then enable notifications there.", { manualClose: true });
+        }
+      }).catch((error) => showSearchToast("error", error instanceof Error ? error.message : "Base notification status failed", { manualClose: true }));
+      return;
+    }
     setNotificationPromptPending(false);
     setPreparedNotificationPrompt(false);
     setNotificationsOnlyPrompt(true);
     setShowAddAppPrompt(true);
-  }, []);
+  }, [activeWallet, isInMiniAppContext, showSearchToast]);
 
   const handleHeaderOpenSpreadsheet = useCallback(() => {
     openExternalAsset("https://link.10x.meme/csv").catch((error) => {
@@ -15583,6 +15812,8 @@ export default function SearchApp() {
 
   const handleHeaderDisconnect = useCallback(() => {
     logoutNeynarUser();
+    void disconnectWallet();
+    void logoutAppPrincipal("all");
     lastSiwnStatusFidRef.current = null;
     if (!isInMiniAppContext) {
       setViewerFid(null);
@@ -15595,31 +15826,11 @@ export default function SearchApp() {
   }, [isInMiniAppContext, logoutNeynarUser]);
 
   useEffect(() => {
-    let cancelled = false;
-    const loadConnectedWallet = async () => {
-      try {
-        const provider = (await sdk.wallet.getEthereumProvider()) as EthereumProvider | null;
-        if (!provider) return;
-        const raw = await provider.request({ method: "eth_accounts" }).catch(() => []);
-        const accounts = Array.isArray(raw) ? raw : [];
-        const wallet = normalizeWalletAddress(accounts.find((account): account is string => typeof account === "string") ?? null);
-        if (!cancelled && wallet) {
-          setActiveWallet(wallet);
-          const cached = readCachedFavouriteTokenIds(wallet);
-          if (cached.length > 0) {
-            setFavouriteListForWallet(wallet, cached);
-          }
-          void loadFavouriteList(wallet);
-        }
-      } catch (error) {
-        console.error("Failed to load active wallet:", error);
-      }
-    };
-    void loadConnectedWallet();
-    return () => {
-      cancelled = true;
-    };
-  }, [loadFavouriteList, setFavouriteListForWallet]);
+    if (!activeWallet) return;
+    const cached = readCachedFavouriteTokenIds(activeWallet);
+    if (cached.length > 0) setFavouriteListForWallet(activeWallet, cached);
+    void loadFavouriteList(activeWallet);
+  }, [activeWallet, loadFavouriteList, setFavouriteListForWallet]);
 
   useEffect(() => {
     const db = dbRef.current;
@@ -16770,11 +16981,9 @@ export default function SearchApp() {
 
   const handleSharePreviewFarcaster = useCallback(() => {
     if (!sharePreview) return;
+    trackAppEvent("share_started", { surface: resolveAppSurface(isInMiniAppContext), channel: "farcaster", route: window.location.pathname });
     beginShareCelebrationWatch();
-    sdk.actions.composeCast({
-      text: sharePreview.farcasterText ?? sharePreview.text,
-      embeds: sharePreview.farcasterEmbeds,
-    })
+    composeFarcasterPost(sharePreview.farcasterText ?? sharePreview.text, sharePreview.farcasterEmbeds)
       .then(() => {
         completeShareCelebration();
       })
@@ -16782,10 +16991,11 @@ export default function SearchApp() {
         cancelShareCelebration();
         console.error("Failed to compose share cast:", error);
       });
-  }, [beginShareCelebrationWatch, cancelShareCelebration, completeShareCelebration, sharePreview]);
+  }, [beginShareCelebrationWatch, cancelShareCelebration, completeShareCelebration, isInMiniAppContext, sharePreview]);
 
   const handleSharePreviewTwitter = useCallback(() => {
     if (!sharePreview) return;
+    trackAppEvent("share_started", { surface: resolveAppSurface(isInMiniAppContext), route: window.location.pathname });
     const twitterText = sharePreview.twitterPostText
       ? buildTwitterShareText(sharePreview.twitterPostText, sharePreview.links)
       : sharePreview.twitterText;
@@ -16794,11 +17004,11 @@ export default function SearchApp() {
       url: "",
     }).toString()}`;
     beginShareCelebrationWatch();
-    sdk.actions.openUrl(intentUrl).catch((error) => {
+    openAppUrl(intentUrl).catch((error) => {
       cancelShareCelebration();
       console.error("Failed to open X share intent:", error);
     });
-  }, [beginShareCelebrationWatch, cancelShareCelebration, sharePreview]);
+  }, [beginShareCelebrationWatch, cancelShareCelebration, isInMiniAppContext, sharePreview]);
 
   const handleCreateStatsShare = useCallback(async (request: StatsShareRequest, retry = false) => {
     statsShareRequestRef.current = request;
@@ -17396,6 +17606,22 @@ export default function SearchApp() {
 
   return (
     <MiniAppShell>
+      {!isInMiniAppContext && (
+        <PwaControls
+          onMessage={(kind, message) => showSearchToast(kind, message, { manualClose: kind !== "success" })}
+        />
+      )}
+      {!isInMiniAppContext && webWalletEnabled && (
+        <WebConnectModal
+          open={webConnectOpen}
+          onClose={() => setWebConnectOpen(false)}
+          farcasterControl={neynarClientId ? (
+            <NeynarAuthButton label={siwnConnected ? "Connected" : "Connect Farcaster"} disabled={siwnConnected} />
+          ) : (
+            <button type="button" disabled title="Missing VITE_NEYNAR_CLIENT_ID">Unavailable</button>
+          )}
+        />
+      )}
       {searchToast && (
         <TradeToastView toast={searchToast} exiting={searchToastExiting} onClose={closeSearchToast} />
       )}
@@ -17426,10 +17652,11 @@ export default function SearchApp() {
           rightAccessory={
             <SearchHeaderAccountControl
               connected={headerAccountConnected}
+              walletConnected={Boolean(activeWallet) || (!isInMiniAppContext && !webWalletEnabled)}
               avatarUrl={headerAccountAvatarUrl}
               accountLabel={headerAccountLabel}
-              showDisconnect={siwnConnected}
-              useSiwnConnect={miniAppContextKnown && !isInMiniAppContext}
+              showDisconnect={Boolean(siwnConnected || activeWallet)}
+              useSiwnConnect={miniAppContextKnown && !isInMiniAppContext && !webWalletEnabled}
               siwnClientConfigured={Boolean(neynarClientId)}
               connectDisabled={!miniAppContextKnown}
               closeKey={headerCloseKey}
@@ -17798,6 +18025,14 @@ export default function SearchApp() {
           preview={sharePreview}
           onClose={handleCloseSharePreview}
           onCopySuccess={() => showSearchToast("neutral", "Post has been copied to your clipboard.")}
+          onImageCopySuccess={(sourceMimeType) => showSearchToast(
+            "neutral",
+            sourceMimeType === "image/gif"
+              ? "Image has been copied to your clipboard as a static PNG image."
+              : "Image has been copied to your clipboard.",
+          )}
+          onImageCopyError={(message) => showSearchToast("error", message, { manualClose: true })}
+          onImageDownloadSuccess={() => showSearchToast("neutral", "Image opened in your browser. Use the browser controls to save it.")}
           onShareFarcaster={handleSharePreviewFarcaster}
           onShareTwitter={handleSharePreviewTwitter}
           onRetry={sharePreview.status === "error" && statsShareRequestRef.current ? handleRetryStatsShare : undefined}

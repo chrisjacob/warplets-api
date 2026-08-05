@@ -10,6 +10,13 @@ compatibility_flags = ["nodejs_compat"]
 crons = ["* * * * *"]
 
 [vars]
+SEARCH_API_ORIGIN = "https://search.10x.meme"
+X402_ENABLED = "false"
+X402_NETWORK = "eip155:84532"
+X402_ASSET = "0x036CbD53842c5426634e7929541eC2318f3dCF7e"
+X402_PRICE_USDC = "10000"
+# X402_PAY_TO is intentionally unset until the Sepolia accounting proof.
+# Secrets: BOT_SERVICE_TOKEN and, when enabled, X402_FACILITATOR_URL.
 # Optional Dune round-two analytics. This scheduled Worker owns production
 # polling/execution because Pages Functions do not receive Cron Trigger events.
 # Keep both switches off until the saved queries and their costs are validated.
@@ -51,6 +58,11 @@ workers_dev = false
 
 [env.dev.vars]
 SNAP_PUBLIC_BASE_URL = "https://api-dev.10x.meme"
+SEARCH_API_ORIGIN = "https://search-dev.10x.meme"
+X402_ENABLED = "false"
+X402_NETWORK = "eip155:84532"
+X402_ASSET = "0x036CbD53842c5426634e7929541eC2318f3dCF7e"
+X402_PRICE_USDC = "10000"
 DUNE_ENABLED = "0"
 DUNE_EXECUTE_ENABLED = "0"
 DUNE_EXECUTION_INTERVAL_HOURS = "24"

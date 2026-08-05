@@ -792,11 +792,14 @@ function FutureExplanation({ definition, onShare }: { definition: PerksDefinitio
           />
         </div>
         {definition.explanation.map((item, index) => (
-          <div key={item.title} className={`px-3 py-3 ${index > 0 ? "border-t border-[#00FF00]/10" : ""}`}>
+          <div
+            key={item.title}
+            className={`px-3 pt-3 ${item.callout ? "pb-0" : "pb-3"} ${index > 0 ? "border-t border-[#00FF00]/10" : ""}`}
+          >
             <h3 className="text-xs font-black uppercase text-[#00FF00]">{item.title}</h3>
             <p className="mt-1 whitespace-pre-line text-xs leading-5 text-[#b8d7b8]">{item.body}</p>
             {item.callout && (
-              <span className="mt-3 block py-2 text-center text-xl font-black uppercase leading-[1.5] text-[#00FF00]">
+              <span className="mt-4 block py-2 text-center text-xl font-black uppercase leading-[1.5] text-[#00FF00]">
                 {shareContent.callout}
               </span>
             )}

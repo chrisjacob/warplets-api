@@ -1,0 +1,64 @@
+{
+  "id": "/",
+  "name": "10X Warplets",
+  "short_name": "10X Warplets",
+  "description": "Search, collect and explore the 10X Warplets NFT collection.",
+  "start_url": "/?source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "orientation": "portrait-primary",
+  "categories": ["entertainment", "finance", "social"],
+  "icons": [
+    {
+      "src": "/icon.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Random Warplet",
+      "short_name": "Random",
+      "url": "/?random=1&source=pwa-shortcut",
+      "icons": [{ "src": "/icon.png", "sizes": "1024x1024", "type": "image/png" }]
+    },
+    {
+      "name": "Listed Warplets",
+      "short_name": "Listed",
+      "url": "/listed?source=pwa-shortcut",
+      "icons": [{ "src": "/icon.png", "sizes": "1024x1024", "type": "image/png" }]
+    },
+    {
+      "name": "Collection Stats",
+      "short_name": "Stats",
+      "url": "/stats?source=pwa-shortcut",
+      "icons": [{ "src": "/icon.png", "sizes": "1024x1024", "type": "image/png" }]
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/embed.png",
+      "sizes": "1200x800",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "10X Warplets Search"
+    },
+    {
+      "src": "/screenshots/1.jpg",
+      "sizes": "1284x2778",
+      "type": "image/jpeg",
+      "form_factor": "narrow",
+      "label": "Explore 10X Warplets"
+    }
+  ]
+}

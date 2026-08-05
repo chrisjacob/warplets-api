@@ -1,0 +1,17 @@
+name = "10x-warplets-drop-snap"
+main = "src/index.ts"
+compatibility_date = "2026-08-01"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+SNAP_PUBLIC_BASE_URL = "https://snap.10x.meme"
+
+[[routes]]
+pattern = "snap.10x.meme/*"
+zone_name = "10x.meme"
+
+[env.preview]
+name = "10x-warplets-drop-snap-preview"
+
+[env.preview.vars]
+SNAP_PUBLIC_BASE_URL = "https://snap-preview.10x.meme"

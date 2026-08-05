@@ -199,6 +199,13 @@ export const onRequestGet: PagesFunction = () => {
       <option value="fids">FID list only</option>
     </select>
 
+    <label>Channels</label>
+    <select id="sendChannels">
+      <option value="farcaster">Farcaster</option>
+      <option value="base">Base</option>
+      <option value="both">Both</option>
+    </select>
+
     <label>Target FIDs <span style="color:#555;font-size:.75rem">(comma-separated; used by FID list mode)</span></label>
     <input id="sendFids" placeholder="1129138, 9152, …" />
 
@@ -619,6 +626,7 @@ export const onRequestGet: PagesFunction = () => {
   document.getElementById('sendBtn').addEventListener('click', async () => {
     const appSlug = document.getElementById('sendApp').value;
     const sendMode = document.getElementById('sendMode').value;
+    const sendChannels = document.getElementById('sendChannels').value;
     const title = document.getElementById('sendTitle').value.trim();
     const body  = document.getElementById('sendBody').value.trim();
     if (!title || !body) { showStatus('Title and body are required', false); return; }
@@ -631,7 +639,8 @@ export const onRequestGet: PagesFunction = () => {
     if (sendMode === 'fids' && !fids?.length) { showStatus('FID list mode requires at least one FID', false); return; }
     if (target && !target.startsWith('https://')) { showStatus('targetUrl must be https', false); return; }
 
-    const payload = { title, body, appSlug, sendMode, targetUrl: target, ...(notifId && { notificationId: notifId }), ...(sendMode === 'fids' && fids && { fids }) };
+    const channels = sendChannels === 'both' ? ['farcaster', 'base'] : [sendChannels];
+    const payload = { title, body, appSlug, sendMode, channels, targetUrl: target, ...(notifId && { notificationId: notifId }), ...(sendMode === 'fids' && fids && { fids }) };
 
     const btn = document.getElementById('sendBtn');
     btn.disabled = true;

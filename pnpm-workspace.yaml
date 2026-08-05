@@ -1,6 +1,9 @@
 packages:
   - app
   - web
+  - snap
+  - bots
+  - extensions/10x-tabs
 
 minimumReleaseAge: 1440
 blockExoticSubdeps: true

@@ -1,4 +1,4 @@
-export const STATS_SHARE_RENDERER_VERSION = "stats-share-v11";
+export const STATS_SHARE_RENDERER_VERSION = "stats-share-v12";
 
 export type StatsShareRange = "7d" | "30d" | "90d" | "1y" | "all";
 export type StatsShareMarketMetric = "price" | "floor" | "volume" | "sales";

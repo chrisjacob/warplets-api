@@ -1,4 +1,5 @@
 import { dispatchNotification } from "./dispatch.js";
+import { sendBaseNotificationCampaign, type BaseNotificationsEnv } from "./baseNotifications.js";
 
 export type WarpletActivityType =
   | "purchased"
@@ -16,9 +17,12 @@ type NotificationCategory =
   | "best_friend"
   | "global_stats";
 
-export interface WarpletNotificationEnv {
+export interface WarpletNotificationEnv extends Partial<BaseNotificationsEnv> {
   WARPLETS: D1Database;
   WARPLETS_KV?: KVNamespace;
+  BASE_NOTIFICATIONS_API_KEY?: string;
+  BASE_NOTIFICATIONS_ENABLED?: string;
+  BASE_APP_URL?: string;
 }
 
 interface ActivityInput {
@@ -759,7 +763,7 @@ export async function processNotificationQueue(
      ORDER BY priority ASC, created_at ASC
      LIMIT ?`,
   )
-    .bind(APP_SLUG, limit)
+    .bind(APP_SLUG, env.BASE_NOTIFICATIONS_ENABLED === "true" ? Math.min(limit, 20) : limit)
     .all<{
       id: number;
       notification_id: string;
@@ -789,6 +793,34 @@ export async function processNotificationQueue(
       continue;
     }
 
+    const linkedWallet = env.BASE_NOTIFICATIONS_ENABLED === "true"
+      ? await env.WARPLETS.prepare(
+          `SELECT wallet_address AS wallet FROM app_identity_links WHERE farcaster_fid = ?
+           UNION
+           SELECT lower(wallet) AS wallet FROM wallet_farcaster_links WHERE fid = ?
+           LIMIT 1`,
+        ).bind(Number(row.fid), Number(row.fid)).first<{ wallet: string }>()
+      : null;
+    let baseDelivered = false;
+    if (linkedWallet?.wallet) {
+      try {
+        const wrappedTarget = new URL(row.target_url);
+        const rawTarget = wrappedTarget.searchParams.get("t") || "https://search.10x.meme";
+        const parsedTarget = new URL(rawTarget);
+        const baseResults = await sendBaseNotificationCampaign(env as WarpletNotificationEnv & BaseNotificationsEnv, {
+          campaignId: row.notification_id,
+          appSlug: APP_SLUG,
+          wallets: [linkedWallet.wallet],
+          title: row.title,
+          message: row.body,
+          targetPath: `${parsedTarget.pathname}${parsedTarget.search}`,
+        });
+        baseDelivered = baseResults.some((result) => result.state === "delivered");
+      } catch (error) {
+        console.warn("Base notification delivery failed:", error);
+      }
+    }
+
     const token = await env.WARPLETS.prepare(
       `SELECT notification_url, notification_token
        FROM miniapp_notification_tokens
@@ -799,13 +831,26 @@ export async function processNotificationQueue(
       .first<{ notification_url: string; notification_token: string }>();
 
     if (!token?.notification_url || !token?.notification_token) {
-      skipped += 1;
+      if (baseDelivered) sent += 1;
+      else if (linkedWallet?.wallet) retried += 1;
+      else skipped += 1;
+      const nextStatus = baseDelivered ? "sent" : linkedWallet?.wallet ? "retry" : "no_token";
       await env.WARPLETS.prepare(
         `UPDATE notification_queue
-         SET status = 'no_token', last_error = 'No enabled Search notification token', updated_at = CURRENT_TIMESTAMP
+         SET status = ?, sent_at = CASE WHEN ? THEN CURRENT_TIMESTAMP ELSE sent_at END,
+             attempt_count = attempt_count + CASE WHEN ? THEN 1 ELSE 0 END,
+             next_attempt_at = CASE WHEN ? THEN datetime('now', '+5 minutes') ELSE next_attempt_at END,
+             last_error = ?, updated_at = CURRENT_TIMESTAMP
          WHERE id = ?`,
       )
-        .bind(row.id)
+        .bind(
+          nextStatus,
+          baseDelivered ? 1 : 0,
+          linkedWallet?.wallet && !baseDelivered ? 1 : 0,
+          linkedWallet?.wallet && !baseDelivered ? 1 : 0,
+          baseDelivered ? null : linkedWallet?.wallet ? "Base delivery failed; no Farcaster token" : "No enabled Search notification token",
+          row.id,
+        )
         .run();
       continue;
     }

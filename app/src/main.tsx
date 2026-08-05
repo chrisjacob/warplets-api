@@ -3,6 +3,9 @@ import { createRoot } from "react-dom/client";
 import { NeynarContextProvider, Theme } from "@neynar/react";
 import "@neynar/react/dist/style.css";
 import "./index.css";
+import { initializePwa } from "./pwa";
+
+initializePwa();
 
 const App = lazy(() => import("./App.tsx"));
 const DropApp = lazy(() => import("./DropApp.tsx"));
@@ -12,6 +15,9 @@ const StopApp = lazy(() => import("./StopApp.tsx"));
 const UnsubscribeApp = lazy(() => import("./UnsubscribeApp.tsx"));
 const StatsShareCardPage = lazy(() => import("./StatsShareCard.tsx"));
 const StatsShareFixturePage = lazy(() => import("./StatsShareCard.tsx").then((module) => ({ default: module.StatsShareFixturePage })));
+const DeveloperPage = lazy(() => import("./DeveloperPage.tsx"));
+const BotLinkPage = lazy(() => import("./BotLinkPage.tsx"));
+const TabsEntryPage = lazy(() => import("./TabsEntryPage.tsx"));
 
 const PRELOAD_RECOVERY_KEY = "10x-vite-preload-recovery";
 
@@ -66,6 +72,10 @@ function resolveActiveApp() {
   if (statsShareMatch) {
     return <StatsShareCardPage shareId={statsShareMatch[1]!} renderOnly={Boolean(statsShareMatch[2])} />;
   }
+
+  if (cleanPath === "/developer") return <DeveloperPage />;
+  if (cleanPath === "/link-bot") return <BotLinkPage />;
+  if (cleanPath === "/tabs") return <TabsEntryPage />;
 
   if (hostname === "drop.10x.meme" || hostname === "drop-local.10x.meme" || hostname === "drop-dev.10x.meme") return <DropApp />;
   if (hostname === "search.10x.meme" || hostname === "search-local.10x.meme" || hostname === "search-dev.10x.meme") return <SearchApp />;

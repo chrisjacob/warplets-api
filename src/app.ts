@@ -6,6 +6,7 @@ import {
 } from "@farcaster/snap";
 import { registerSnapHandler } from "@farcaster/snap-hono";
 import { runOpenseaSync, type OpenseaSyncEnv } from "./opensea-sync";
+import { registerAgentApi } from "./agent-api";
 
 // ---------------------------------------------------------------------------
 // Environment bindings (Cloudflare Workers)
@@ -1130,7 +1131,7 @@ async function getWarpletRarityByFid(
 // Snap handler
 // ---------------------------------------------------------------------------
 
-const snap: SnapFunction = async (ctx) => {
+const legacySnap: SnapFunction = async (ctx) => {
   const url = new URL(ctx.request.url);
   const pathname = url.pathname;
   const colour = url.searchParams.get("colour");
@@ -1208,12 +1209,122 @@ const snap: SnapFunction = async (ctx) => {
   return pollPage(base, viewerName);
 };
 
+/**
+ * Read-only response for every historical action on api.10x.meme.
+ *
+ * The original handler remains above so the historical implementation and
+ * data model are preserved, but it is intentionally no longer registered.
+ * Keeping the retirement response on the original origin is important: JFS
+ * audiences are origin-bound, so redirecting an old POST would invalidate it.
+ */
+const retiredSnap: SnapFunction = async () => ({
+  version: "2.0",
+  theme: { accent: "green" },
+  ui: {
+    root: "page",
+    elements: {
+      page: {
+        type: "stack",
+        props: { gap: "md" },
+        children: ["title", "summary", "airdrop", "archive", "search"],
+      },
+      title: {
+        type: "text",
+        props: {
+          content: "10X Warplets — Private 10K NFT Drop",
+          weight: "bold",
+          size: "lg",
+        },
+      },
+      summary: {
+        type: "text",
+        props: {
+          content: "This private-drop period has ended. Historical polls and claims are preserved, but no new claims or votes are being recorded.",
+        },
+      },
+      airdrop: {
+        type: "text",
+        props: {
+          content: "Distribution changed to a free 10,000-wallet Farcaster airdrop.",
+        },
+      },
+      archive: {
+        type: "button",
+        props: { label: "View archived Drop Snap", variant: "secondary" },
+        on: {
+          press: {
+            action: "open_snap",
+            params: { target: "https://snap.10x.meme/drop" },
+          },
+        },
+      },
+      search: {
+        type: "button",
+        props: { label: "Open 10X Warplets Search", variant: "primary" },
+        on: {
+          press: {
+            action: "open_mini_app",
+            params: { target: "https://search.10x.meme" },
+          },
+        },
+      },
+    },
+  },
+});
+
+function mediaQuality(accept: string, mediaType: string): number {
+  let best = -1;
+  for (const rawPart of accept.toLowerCase().split(",")) {
+    const [rawType, ...rawParams] = rawPart.trim().split(";");
+    const type = rawType.trim();
+    const matches =
+      type === mediaType ||
+      type === "*/*" ||
+      (type.endsWith("/*") && mediaType.startsWith(type.slice(0, -1)));
+    if (!matches) continue;
+    const qParam = rawParams.find((part) => part.trim().startsWith("q="));
+    const parsed = qParam ? Number.parseFloat(qParam.trim().slice(2)) : 1;
+    if (Number.isFinite(parsed)) best = Math.max(best, Math.max(0, Math.min(1, parsed)));
+  }
+  return best;
+}
+
+export function prefersSnapRepresentation(acceptHeader: string | null | undefined): boolean {
+  if (!acceptHeader) return false;
+  if (!acceptHeader.toLowerCase().includes("application/vnd.farcaster.snap+json")) return false;
+  const snapQuality = mediaQuality(acceptHeader, "application/vnd.farcaster.snap+json");
+  if (snapQuality <= 0) return false;
+  const htmlQuality = mediaQuality(acceptHeader, "text/html");
+  return snapQuality >= htmlQuality;
+}
+
+const apiLandingHtml = `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>10X API</title>
+    <meta name="description" content="The 10X Warplets developer API and archived Drop Snap.">
+    <link rel="alternate" type="application/vnd.farcaster.snap+json" href="https://api.10x.meme/">
+    <style>body{margin:0;background:#000;color:#fff;font:18px/1.55 system-ui,sans-serif}main{max-width:720px;margin:10vh auto;padding:32px}h1{color:#0f0;font-size:clamp(2rem,6vw,4rem);line-height:1}a{color:#8f6cff}code{color:#0f0}</style>
+  </head>
+  <body><main>
+    <h1>10X API</h1>
+    <p>The <strong>10X Warplets — Private 10K NFT Drop</strong> Snap moved to <a href="https://snap.10x.meme/drop">snap.10x.meme/drop</a>.</p>
+    <p>The private-drop period has ended and distribution changed to a free airdrop. The archived Snap remains available for posterity; historical claims and votes are read-only.</p>
+    <p><a href="https://search.10x.meme">Open 10X Warplets Search</a></p>
+    <p>Developer API documentation is coming soon. Machine-readable discovery is available at <a href="/v1/openapi.json"><code>/v1/openapi.json</code></a>.</p>
+  </main></body>
+</html>`;
+
 // ---------------------------------------------------------------------------
 // Hono app
 // ---------------------------------------------------------------------------
 
 export function createApp(options: AppOptions = {}): Hono {
   const app = new Hono();
+
+  registerAgentApi(app);
 
   // Manually trigger OpenSea sync with a lookback window (default: 48h).
   // Protected by OPENSEA_MANUAL_SYNC_TOKEN to avoid public abuse.
@@ -1293,6 +1404,18 @@ export function createApp(options: AppOptions = {}): Hono {
     await next();
   });
 
+  // Browsers receive a temporary API landing page while Snap clients keep the
+  // origin-bound representation needed by historical signed interactions.
+  app.use("/", async (c, next) => {
+    c.header("Cache-Control", "no-store, max-age=0");
+    if (c.req.method === "GET" && !prefersSnapRepresentation(c.req.header("Accept"))) {
+      c.header("Vary", "Accept");
+      return c.html(apiLandingHtml);
+    }
+    await next();
+    c.res.headers.set("Vary", "Accept, X-Snap-Payload");
+  });
+
   const sharedSnapOptions = {
     skipJFSVerification: options.skipJFSVerification,
   };
@@ -1301,33 +1424,33 @@ export function createApp(options: AppOptions = {}): Hono {
   // behave differently on Cloudflare Workers edge runtime. The `openGraph`
   // option below still sets the <title> and <meta> tags on the browser fallback
   // HTML page (shown when visiting the URL in a regular browser).
-  registerSnapHandler(app, snap, {
+  registerSnapHandler(app, retiredSnap, {
     ...sharedSnapOptions,
     path: "/",
     og: false,
     openGraph: {
-      title: "🟢 10X Warplets - Private 10K NFT Drop",
-      description: "Builders, capital, and signal - aligned. Don't miss out.",
+      title: "10X Warplets — Private Drop Archive",
+      description: "The private-drop period has ended. Open the archived Snap or current Search app.",
     },
   });
 
-  registerSnapHandler(app, snap, {
+  registerSnapHandler(app, retiredSnap, {
     ...sharedSnapOptions,
     path: "/poll",
     og: false,
     openGraph: {
-      title: "🟢 10X Warplets - Private 10K NFT Drop",
-      description: "Builders, capital, and signal - aligned. Don't miss out.",
+      title: "10X Warplets — Private Drop Archive",
+      description: "The private-drop period has ended. Historical voting is read-only.",
     },
   });
 
-  registerSnapHandler(app, snap, {
+  registerSnapHandler(app, retiredSnap, {
     ...sharedSnapOptions,
     path: "/claim",
     og: false,
     openGraph: {
-      title: "🟢 10X Warplets - Private 10K NFT Drop",
-      description: "Builders, capital, and signal - aligned. Don't miss out.",
+      title: "10X Warplets — Private Drop Archive",
+      description: "The private-drop period has ended. Historical claims are read-only.",
     },
   });
 

@@ -1,9 +1,11 @@
 import { jsonSecure, parseObjectPayload, readJsonBodyWithLimit } from "../_lib/security.js";
 import { recordWarpletActivity } from "../_lib/warpletNotifications.js";
+import { getAppSession } from "../_lib/appAuth.js";
 
 interface Env {
   WARPLETS: D1Database;
   WARPLETS_KV?: KVNamespace;
+  APP_SESSION_SECRET?: string;
 }
 
 interface FavouritesPayload {
@@ -69,6 +71,11 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
 
   const wallet = normalizeWallet(payload.payload.wallet);
   if (!wallet) return jsonSecure({ error: "valid wallet is required" }, { status: 400 });
+
+  const session = await getAppSession(context.request, context.env);
+  if (!session?.walletAddress || session.walletAddress !== wallet) {
+    return jsonSecure({ error: "a verified session for this wallet is required" }, { status: 401 });
+  }
 
   const tokenIds = normalizeTokenIds(payload.payload.tokenIds);
   if (!tokenIds) return jsonSecure({ error: "valid tokenIds are required" }, { status: 400 });

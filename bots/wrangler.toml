@@ -1,0 +1,27 @@
+name = "10x-channel-bots"
+main = "src/index.ts"
+compatibility_date = "2026-08-01"
+
+[vars]
+API_ORIGIN = "https://api.10x.meme"
+SEARCH_ORIGIN = "https://search.10x.meme"
+
+[[services]]
+binding = "TENX_API"
+service = "api"
+
+[env.preview]
+name = "10x-channel-bots-preview"
+
+[env.preview.vars]
+API_ORIGIN = "https://api-dev.10x.meme"
+SEARCH_ORIGIN = "https://search-dev.10x.meme"
+
+[[env.preview.services]]
+binding = "TENX_API"
+service = "api-dev"
+
+# Secrets (set with `wrangler secret put`):
+# BOT_SERVICE_TOKEN, TELEGRAM_BOT_TOKEN, TELEGRAM_WEBHOOK_SECRET,
+# DISCORD_PUBLIC_KEY and DISCORD_APPLICATION_ID. DISCORD_BOT_TOKEN is used only
+# by the local command-registration script; do not expose it to the Worker.
