@@ -59,7 +59,7 @@ export default function DeveloperPage() {
       <div className="mx-auto max-w-2xl">
         <a href="/" className="text-sm font-bold text-[#00FF00]">← Back to Search</a>
         <h1 className="mt-5 text-3xl font-black text-[#00FF00]">Developer API</h1>
-        <p className="mt-2 text-sm leading-6 text-[#b7ffb7]">Create revocable, least-privilege tokens for the 10X Agent API and MCP server. A verified wallet session is required.</p>
+        <p className="mt-2 text-sm leading-6 text-[#b7ffb7]">Create revocable, least-privilege tokens for the 10X Agent API and MCP server. Farcaster identity and wallet signing are separate: connect and verify your wallet in Search before creating API tokens.</p>
 
         <section className="mt-6 rounded-2xl border border-[#00FF00]/40 bg-[#001000] p-4">
           <label className="block text-sm font-bold text-[#00FF00]">Token name

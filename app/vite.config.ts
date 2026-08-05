@@ -433,7 +433,21 @@ export default defineConfig({
       // In local tunnel mode, route API to local worker so D1/KV are local.
       "/api": {
         target: localApiTarget,
-        changeOrigin: true,
+        changeOrigin: false,
+        configure(proxy) {
+          proxy.on("proxyReq", (proxyRequest, request) => {
+            const origin = request.headers.origin;
+            if (!origin) return;
+            try {
+              const publicUrl = new URL(origin);
+              proxyRequest.setHeader("host", publicUrl.host);
+              proxyRequest.setHeader("origin", `http://${publicUrl.host}`);
+              proxyRequest.setHeader("x-10x-public-origin", publicUrl.origin);
+            } catch {
+              // Leave malformed origins untouched so the API rejects them.
+            }
+          });
+        },
       },
       "/__adminhidden": {
         target: localApiTarget,

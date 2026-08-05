@@ -23,6 +23,7 @@ interface RequestBody {
   referrerFid?: unknown;
   appSlug?: unknown;
   searchCompletion?: unknown;
+  profile?: unknown;
 }
 
 type RecentBuyer = {
@@ -96,6 +97,8 @@ const WARPLETS_PUBLIC_TRANCHE_SIZE = 1000;
 const WARPLETS_TOTAL_SUPPLY = 10000;
 const TOP_REFERRERS_CACHE_PREFIX = "top-referrers-v1";
 const TOP_REFERRERS_CACHE_TTL_SECONDS = 600;
+const PROFILE_REFRESH_CACHE_PREFIX = "farcaster-profile-refreshed-v1";
+const PROFILE_REFRESH_TTL_SECONDS = 6 * 60 * 60;
 let usersColumnSetPromise: Promise<Set<string>> | null = null;
 
 function toErrorMessage(error: unknown): string {
@@ -1088,6 +1091,14 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     }
     const verifiedSession = appSlug === "search" ? await getAppSession(context.request, context.env) : null;
     const verifiedSearchFid = verifiedSession?.farcasterFid === fid;
+    const suppliedProfile = verifiedSearchFid && body.profile && typeof body.profile === "object" && !Array.isArray(body.profile)
+      ? body.profile as Record<string, unknown>
+      : null;
+    const suppliedUsername = typeof suppliedProfile?.username === "string" ? suppliedProfile.username.trim() || null : null;
+    const suppliedDisplayName = typeof suppliedProfile?.displayName === "string" ? suppliedProfile.displayName.trim() || null : null;
+    const suppliedPfpUrl = typeof suppliedProfile?.pfpUrl === "string" && /^https:\/\//i.test(suppliedProfile.pfpUrl)
+      ? suppliedProfile.pfpUrl.trim()
+      : null;
     if (searchCompletion && !verifiedSearchFid) {
       return jsonSecure({ error: "verified Farcaster session required" }, { status: 401 });
     }
@@ -1319,10 +1330,16 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       });
     }
 
+    const profileRefreshKey = `${PROFILE_REFRESH_CACHE_PREFIX}:${fid}`;
+    const recentlyRefreshedProfile = context.env.WARPLETS_KV
+      ? await context.env.WARPLETS_KV.get(profileRefreshKey).catch(() => null)
+      : null;
     const shouldHydrateProfile =
       !existing.username ||
       !existing.pfp_url ||
-      existing.score === null;
+      existing.score === null ||
+      !recentlyRefreshedProfile ||
+      Boolean(suppliedUsername || suppliedDisplayName || suppliedPfpUrl);
     let referralCount = Math.max(0, Number(existing.referrals_count ?? 0));
 
     if (validReferrerFid && hasReferrerFid && !existing.referrer_fid) {
@@ -1348,13 +1365,13 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
     if (shouldHydrateProfile) {
       const neynarUser = await fetchNeynarUserByFid(fid, context.env.NEYNAR_API_KEY);
-      if (neynarUser) {
+      if (neynarUser || suppliedUsername || suppliedDisplayName || suppliedPfpUrl) {
         const now = new Date().toISOString();
         await context.env.WARPLETS.prepare(
           `UPDATE warplets_users SET
-             username = COALESCE(username, ?),
-             display_name = COALESCE(display_name, ?),
-             pfp_url = COALESCE(pfp_url, ?),
+             username = COALESCE(?, username),
+             display_name = COALESCE(?, display_name),
+             pfp_url = COALESCE(?, pfp_url),
              registered_at = COALESCE(registered_at, ?),
              pro_status = COALESCE(pro_status, ?),
              profile_bio_text = COALESCE(profile_bio_text, ?),
@@ -1371,25 +1388,63 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
            WHERE id = ?`
         )
           .bind(
-            neynarUser.username ?? null,
-            neynarUser.display_name ?? null,
-            neynarUser.pfp_url ?? null,
-            neynarUser.registered_at ?? null,
-            neynarUser.pro_status ?? null,
-            neynarUser.profile_bio_text ?? null,
-            neynarUser.follower_count ?? null,
-            neynarUser.following_count ?? null,
-            neynarUser.primary_eth_address ?? null,
-            neynarUser.primary_sol_address ?? null,
-            neynarUser.x_username ?? null,
-            neynarUser.url ?? null,
-            boolToInt(neynarUser.viewer_following),
-            boolToInt(neynarUser.viewer_followed_by),
-            neynarUser.score ?? null,
+            suppliedUsername ?? neynarUser?.username ?? null,
+            suppliedDisplayName ?? neynarUser?.display_name ?? null,
+            suppliedPfpUrl ?? neynarUser?.pfp_url ?? null,
+            neynarUser?.registered_at ?? null,
+            neynarUser?.pro_status ?? null,
+            neynarUser?.profile_bio_text ?? null,
+            neynarUser?.follower_count ?? null,
+            neynarUser?.following_count ?? null,
+            neynarUser?.primary_eth_address ?? null,
+            neynarUser?.primary_sol_address ?? null,
+            neynarUser?.x_username ?? null,
+            neynarUser?.url ?? null,
+            boolToInt(neynarUser?.viewer_following),
+            boolToInt(neynarUser?.viewer_followed_by),
+            neynarUser?.score ?? null,
             now,
             existing.id
           )
           .run();
+        try {
+          await context.env.WARPLETS.prepare(
+            `UPDATE wallet_farcaster_links SET
+               username = COALESCE(?, username),
+               display_name = COALESCE(?, display_name),
+               pfp_url = COALESCE(?, pfp_url),
+               score = COALESCE(?, score),
+               fetched_at = ?
+             WHERE fid = ?`
+          ).bind(
+            suppliedUsername ?? neynarUser?.username ?? null,
+            suppliedDisplayName ?? neynarUser?.display_name ?? null,
+            suppliedPfpUrl ?? neynarUser?.pfp_url ?? null,
+            neynarUser?.score ?? null,
+            now,
+            fid,
+          ).run();
+        } catch {
+          await context.env.WARPLETS.prepare(
+            `UPDATE wallet_farcaster_links SET
+               username = COALESCE(?, username),
+               pfp_url = COALESCE(?, pfp_url),
+               score = COALESCE(?, score),
+               fetched_at = ?
+             WHERE fid = ?`
+          ).bind(
+            suppliedUsername ?? neynarUser?.username ?? null,
+            suppliedPfpUrl ?? neynarUser?.pfp_url ?? null,
+            neynarUser?.score ?? null,
+            now,
+            fid,
+          ).run();
+        }
+        if (context.env.WARPLETS_KV) {
+          await context.env.WARPLETS_KV.put(profileRefreshKey, now, {
+            expirationTtl: PROFILE_REFRESH_TTL_SECONDS,
+          });
+        }
       }
     }
 

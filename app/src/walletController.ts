@@ -130,6 +130,21 @@ export async function connectFarcasterWallet(): Promise<WalletSession> {
   return activate("farcaster", await farcasterProviderFactory());
 }
 
+export async function restoreFarcasterWallet(): Promise<WalletSession | null> {
+  if (!farcasterProviderFactory || state.session) return state.session;
+  const provider = await farcasterProviderFactory() as ObservableProvider;
+  const rawAccounts = await provider.request({ method: "eth_accounts" }).catch(() => []);
+  const address = normalizeAddress(Array.isArray(rawAccounts) ? rawAccounts[0] : null);
+  if (!address) return null;
+  const appSession = await loadAppSession().catch(() => null);
+  if (appSession?.walletAddress?.toLowerCase() !== address) return null;
+  const chainId = await readChainId(provider);
+  const session = { connectorId: "farcaster", address, chainId, provider } satisfies WalletSession;
+  bindProviderEvents(provider);
+  emit({ session, connecting: null, error: null });
+  return session;
+}
+
 export async function connectBaseAccount(): Promise<WalletSession> {
   if (import.meta.env.VITE_BASE_ACCOUNT_ENABLED !== "true") throw new Error("Base Account is not enabled");
   return activate("base-account", await createBaseAccountProvider());

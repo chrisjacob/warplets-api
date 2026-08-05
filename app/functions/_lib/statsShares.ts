@@ -189,6 +189,8 @@ function normalizeHolder(value: unknown): StatsShareHolder | null {
     previewTokenIds: tokenIds,
     remainingCount: asNumber(row?.remainingCount) ?? Math.max(0, (asNumber(row?.ownedCount) ?? 0) - tokenIds.length),
     floorValueEth: asNumber(row?.floorValueEth),
+    isViewer: row?.isViewer === true,
+    isTopFriend: row?.isTopFriend === true,
   };
 }
 
@@ -306,11 +308,12 @@ async function buildSnapshotData(
     )));
     const counts = asRecord(data.eventCounts);
     const count = Math.max(0, Math.trunc(asNumber(counts?.[request.event]) ?? 0));
-    const text = `10X Warplets — ${count.toLocaleString("en-US")} ${getStatsShareActivityLabel(request.event, count)} (${getStatsShareRangeLabel(request.range)})`;
+    const subject = request.tokenId ? `10X Warplet #${request.tokenId}` : "10X Warplets";
+    const text = `${subject} — ${count.toLocaleString("en-US")} ${getStatsShareActivityLabel(request.event, count)} (${getStatsShareRangeLabel(request.range)})`;
     return {
       data: { ...data, event: request.event, count },
       dataAsOf: typeof data.asOf === "string" ? data.asOf : null,
-      title: "Share Activity",
+      title: request.tokenId ? `Share Item #${request.tokenId} Activity` : "Share Activity",
       farcasterText: text,
       twitterText: text,
     };
@@ -325,9 +328,14 @@ async function buildSnapshotData(
     if (!holder?.rank) throw new Error("This wallet is not currently ranked.");
     const total = Math.max(0, Math.trunc(asNumber(data.totalHolders) ?? 0));
     const text = `10X Warplets — My holder rank: #${holder.rank.toLocaleString("en-US")} of ${total.toLocaleString("en-US")}`;
-    const [enriched] = await fillVerifiedXUsernames(context.env, [holder]);
+    const rankWindow = (Array.isArray(data.rankWindow) ? data.rankWindow : [holder])
+      .map(normalizeHolder)
+      .filter((row): row is StatsShareHolder => Boolean(row));
+    const enrichedRows = await fillVerifiedXUsernames(context.env, rankWindow);
+    const enriched = enrichedRows.find((row) => row.wallet === holder.wallet)
+      ?? (await fillVerifiedXUsernames(context.env, [holder]))[0];
     return {
-      data: { row: enriched, totalHolders: total, asOf: data.asOf },
+      data: { row: enriched, rows: enrichedRows, totalHolders: total, asOf: data.asOf },
       dataAsOf: typeof data.asOf === "string" ? data.asOf : null,
       title: "Share Your Rank",
       farcasterText: text,
@@ -339,7 +347,14 @@ async function buildSnapshotData(
   let totalHolders = 0;
   let dataAsOf: string | null = null;
   if (request.kind === "holders-top10") {
-    const data = await readStatsResponse(await handleStatsHoldersGet(cloneStatsContext(context, "/api/stats/holders?limit=10")));
+    const params = new URLSearchParams({ limit: "10" });
+    let viewerWallet = request.wallet;
+    if (!viewerWallet && request.fid) {
+      const viewer = await readStatsResponse(await handleStatsHoldersMeGet(cloneStatsContext(context, `/api/stats/holders/me?fid=${request.fid}`)));
+      viewerWallet = normalizeHolder(viewer.row ?? viewer.holder)?.wallet;
+    }
+    if (viewerWallet) params.set("wallet", viewerWallet);
+    const data = await readStatsResponse(await handleStatsHoldersGet(cloneStatsContext(context, `/api/stats/holders?${params}`)));
     holders = (Array.isArray(data.rows) ? data.rows : []).map(normalizeHolder).filter((row): row is StatsShareHolder => Boolean(row));
     totalHolders = Math.max(0, Math.trunc(asNumber(asRecord(data.summary)?.holderCount) ?? 0));
     dataAsOf = typeof data.asOf === "string" ? data.asOf : null;
@@ -382,6 +397,26 @@ function parseStoredSnapshot(row: StoredStatsShareRow): StatsShareSnapshot {
 
 function getStatsSharePublicOrigin(request: Request): string {
   const current = new URL(request.url);
+  for (const header of [request.headers.get("referer"), request.headers.get("origin")]) {
+    if (!header) continue;
+    try {
+      const candidate = new URL(header);
+      if (current.protocol === "http:" && candidate.protocol === "https:" && candidate.hostname === current.hostname) {
+        return candidate.origin;
+      }
+    } catch {
+      // Continue to the local proxy metadata and request URL fallbacks.
+    }
+  }
+  const forwardedOrigin = request.headers.get("x-10x-public-origin");
+  if (current.protocol === "http:" && current.hostname === "search-local.10x.meme" && forwardedOrigin) {
+    try {
+      const candidate = new URL(forwardedOrigin);
+      if (candidate.protocol === "https:" && candidate.hostname === current.hostname) return candidate.origin;
+    } catch {
+      // Ignore malformed local-proxy metadata.
+    }
+  }
   if (current.hostname !== "127.0.0.1" && current.hostname !== "localhost") return current.origin;
   for (const header of [request.headers.get("origin"), request.headers.get("referer")]) {
     if (!header) continue;

@@ -1500,7 +1500,13 @@ async function loadSales(
            buyer_wallet, seller_wallet, buyer_fid, seller_fid,
            marketplace, price_eth, price_usd, payment_symbol, sold_at, source
          FROM warplet_sales
-         WHERE collection_slug = ? AND sold_at >= ?${tokenWhere}
+         WHERE collection_slug = ? AND sold_at >= ?
+           AND NOT (
+             json_valid(raw_payload)
+             AND json_type(raw_payload, '$.nft.identifier') IN ('text', 'integer')
+             AND CAST(json_extract(raw_payload, '$.nft.identifier') AS INTEGER) BETWEEN 1 AND 10000
+             AND CAST(json_extract(raw_payload, '$.nft.identifier') AS INTEGER) <> token_id
+           )${tokenWhere}
          ORDER BY sold_at ASC, token_id ASC
          LIMIT ${SALES_LIMIT}`
       ).bind(...bindings).all<{
@@ -3549,7 +3555,7 @@ export async function loadStatsFriendHoldersForShare(
   ]);
   const sourceRows = friends.results ?? [];
   const profiles = await loadProfilesForFids(env.WARPLETS, sourceRows.map((row) => row.fid));
-  const rows = sourceRows.map((row) => toHolderApiRow({
+  const rows = sourceRows.map((row) => ({ ...toHolderApiRow({
     rank: row.rank,
     wallet: row.wallet,
     ownedCount: row.owned_count,
@@ -3557,7 +3563,7 @@ export async function loadStatsFriendHoldersForShare(
     bestTokenId: row.best_token_id,
     previewTokenIds: parsePreviewTokenIds(row.preview_token_ids_json),
     updatedAt: row.updated_at,
-  }, market.floorEth, profiles.get(row.fid) ?? null, null));
+  }, market.floorEth, profiles.get(row.fid) ?? null, null), isViewer: row.fid === viewerFid, isTopFriend: true }));
   return {
     rows,
     totalHolders: Number(total?.count) || 0,
@@ -3855,6 +3861,59 @@ export async function handleStatsHoldersMeGet(
           ...(holderActivity.get(wallet) ?? {}),
         }
       : null;
+    let rankWindow: HolderApiRow[] = [];
+    if (row?.rank && holder.totalHolders > 0) {
+      const firstRank = row.rank <= 1
+        ? 1
+        : row.rank >= holder.totalHolders
+          ? Math.max(1, holder.totalHolders - 2)
+          : row.rank - 1;
+      const lastRank = Math.min(holder.totalHolders, firstRank + 2);
+      const ranked = await context.env.WARPLETS.prepare(
+        `WITH ${holderCte(holder.materialized)},
+         ranked_holders AS (
+           SELECT
+             ROW_NUMBER() OVER (ORDER BY owned_count DESC, best_rarity_rank ASC, wallet ASC) AS absolute_rank,
+             wallet,
+             owned_count,
+             best_rarity_rank,
+             best_token_id,
+             preview_token_ids_json,
+             updated_at
+           FROM holder_source
+         )
+         SELECT * FROM ranked_holders
+         WHERE absolute_rank BETWEEN ? AND ?
+         ORDER BY absolute_rank ASC`,
+      ).bind(firstRank, lastRank).all<{
+        absolute_rank: number;
+        wallet: string;
+        owned_count: number;
+        best_rarity_rank: number;
+        best_token_id: number;
+        preview_token_ids_json: string;
+        updated_at: string | null;
+      }>();
+      const adjacentRows: HolderBaseRow[] = (ranked.results ?? []).map((candidate) => ({
+        rank: candidate.absolute_rank,
+        wallet: candidate.wallet,
+        ownedCount: candidate.owned_count,
+        bestRarityRank: candidate.best_rarity_rank,
+        bestTokenId: candidate.best_token_id,
+        previewTokenIds: parsePreviewTokenIds(candidate.preview_token_ids_json),
+        updatedAt: candidate.updated_at,
+      }));
+      const adjacentProfiles = await loadProfilesForWallets(
+        context.env.WARPLETS,
+        adjacentRows.map((candidate) => candidate.wallet),
+      );
+      rankWindow = adjacentRows.map((candidate) => toHolderApiRow(
+        candidate,
+        market.floorEth,
+        adjacentProfiles.get(candidate.wallet) ?? null,
+        wallet,
+      ));
+    }
     const holderAsOf = [
       holder.row?.updatedAt ?? null,
       market.ownershipUpdatedAt,
@@ -3867,6 +3926,7 @@ export async function handleStatsHoldersMeGet(
       asOf: holderAsOf,
       row,
       holder: row,
+      rankWindow,
       totalHolders: holder.totalHolders,
       complete: holder.materialized,
       stale: isStale(holderAsOf),
@@ -4059,6 +4119,13 @@ async function loadActivityChart(
        LEFT JOIN warplet_market_state m ON m.token_id = a.token_id
        WHERE a.event_type IN ('sale', 'listing', 'offer', 'transfer')
          AND a.occurred_at >= ? AND a.occurred_at < ?
+         AND NOT (
+           a.event_type = 'sale'
+           AND json_valid(a.raw_payload)
+           AND json_type(a.raw_payload, '$.nft.identifier') IN ('text', 'integer')
+           AND CAST(json_extract(a.raw_payload, '$.nft.identifier') AS INTEGER) BETWEEN 1 AND 10000
+           AND CAST(json_extract(a.raw_payload, '$.nft.identifier') AS INTEGER) <> a.token_id
+         )
          ${tokenClause}
          ${friendsClause}
          ${favouritesClause}
@@ -4229,7 +4296,17 @@ export async function handleStatsActivityGet(
   }
 
   try {
-    const conditions = ["a.occurred_at >= ?", "a.occurred_at < ?"];
+    const conditions = [
+      "a.occurred_at >= ?",
+      "a.occurred_at < ?",
+      `NOT (
+        a.event_type = 'sale'
+        AND json_valid(a.raw_payload)
+        AND json_type(a.raw_payload, '$.nft.identifier') IN ('text', 'integer')
+        AND CAST(json_extract(a.raw_payload, '$.nft.identifier') AS INTEGER) BETWEEN 1 AND 10000
+        AND CAST(json_extract(a.raw_payload, '$.nft.identifier') AS INTEGER) <> a.token_id
+      )`,
+    ];
     const bindings: Array<string | number> = [effectiveStart, effectiveEnd];
     const countConditions = [...conditions];
     const countBindings: Array<string | number> = [...bindings];

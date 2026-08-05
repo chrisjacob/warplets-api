@@ -1,4 +1,4 @@
-export const STATS_SHARE_RENDERER_VERSION = "stats-share-v30";
+export const STATS_SHARE_RENDERER_VERSION = "stats-share-v47";
 
 export type StatsShareRange = "7d" | "30d" | "90d" | "1y" | "all";
 export type StatsShareMarketMetric = "price" | "floor" | "volume" | "listings" | "offers" | "sales";
@@ -17,9 +17,9 @@ export type StatsShareRequest =
   | { kind: "overview"; panel: StatsShareOverviewPanel; wallet?: string; fid?: number }
   | { kind: "market"; metric: StatsShareMarketMetric; range: StatsShareRange }
   | { kind: "market-all"; range: StatsShareRange }
-  | { kind: "activity"; event: StatsShareActivityEvent; range: StatsShareRange }
+  | { kind: "activity"; event: StatsShareActivityEvent; range: StatsShareRange; tokenId?: number }
   | { kind: "holder-rank"; wallet?: string; fid?: number }
-  | { kind: "holders-top10" }
+  | { kind: "holders-top10"; wallet?: string; fid?: number }
   | { kind: "holders-top10-friends"; viewerFid: number };
 
 export type StatsShareHolder = {
@@ -36,6 +36,8 @@ export type StatsShareHolder = {
   previewTokenIds: number[];
   remainingCount: number;
   floorValueEth: number | null;
+  isViewer?: boolean;
+  isTopFriend?: boolean;
 };
 
 export type StatsShareSnapshot = {
@@ -136,7 +138,9 @@ export function buildStatsLeaderboardText(
 export function getStatsShareLaunchPath(request: StatsShareRequest): string {
   if (request.kind === "overview") return "/stats";
   if (request.kind === "market" || request.kind === "market-all") return `/stats/market?range=${request.range}`;
-  if (request.kind === "activity") return `/stats/social?range=${request.range}&event=${request.event}`;
+  if (request.kind === "activity") return request.tokenId
+    ? `/?warplet=${request.tokenId}`
+    : `/stats/social?range=${request.range}&event=${request.event}`;
   return "/stats/holders";
 }
 
@@ -153,7 +157,15 @@ export function parseStatsShareRequest(value: unknown): StatsShareRequest | null
       : undefined;
     return { kind: "overview", panel: input.panel, ...(wallet ? { wallet } : {}), ...(fid ? { fid } : {}) };
   }
-  if (input.kind === "holders-top10") return { kind: input.kind };
+  if (input.kind === "holders-top10") {
+    const wallet = typeof input.wallet === "string" && /^0x[a-fA-F0-9]{40}$/.test(input.wallet.trim())
+      ? input.wallet.trim().toLowerCase()
+      : undefined;
+    const fid = typeof input.fid === "number" && Number.isSafeInteger(input.fid) && input.fid > 0
+      ? input.fid
+      : undefined;
+    return { kind: input.kind, ...(wallet ? { wallet } : {}), ...(fid ? { fid } : {}) };
+  }
   if (input.kind === "market") {
     if (!(input.metric === "price" || input.metric === "floor" || input.metric === "volume" || input.metric === "listings" || input.metric === "offers" || input.metric === "sales")) return null;
     if (!(input.range === "7d" || input.range === "30d" || input.range === "90d" || input.range === "1y" || input.range === "all")) return null;
@@ -166,7 +178,11 @@ export function parseStatsShareRequest(value: unknown): StatsShareRequest | null
   if (input.kind === "activity") {
     if (!(input.event === "sale" || input.event === "listing" || input.event === "offer" || input.event === "send")) return null;
     if (!(input.range === "7d" || input.range === "30d" || input.range === "90d" || input.range === "1y" || input.range === "all")) return null;
-    return { kind: "activity", event: input.event, range: input.range };
+    const tokenId = typeof input.tokenId === "number" && Number.isSafeInteger(input.tokenId) && input.tokenId >= 1 && input.tokenId <= 10_000
+      ? input.tokenId
+      : undefined;
+    if (input.tokenId != null && tokenId == null) return null;
+    return { kind: "activity", event: input.event, range: input.range, ...(tokenId ? { tokenId } : {}) };
   }
   if (input.kind === "holder-rank") {
     const wallet = typeof input.wallet === "string" && /^0x[a-fA-F0-9]{40}$/.test(input.wallet.trim())
@@ -201,6 +217,7 @@ export function stableStatsShareJson(value: unknown): string {
 
 export function getStatsShareActivityApiPath(request: Extract<StatsShareRequest, { kind: "activity" }>): string {
   const params = new URLSearchParams({ range: request.range, limit: "1", chart: "1", events: request.event });
+  if (request.tokenId) params.set("tokenId", String(request.tokenId));
   return `/api/stats/activity?${params.toString()}`;
 }
 

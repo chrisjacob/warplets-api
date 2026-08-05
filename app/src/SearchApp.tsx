@@ -34,6 +34,7 @@ import {
   disconnectWallet,
   getConnectedProviderAndAccount,
   requestWebWalletConnection,
+  restoreFarcasterWallet,
   restoreWebWallet,
   useWalletController,
 } from "./walletController";
@@ -1162,8 +1163,16 @@ function convertImageBlobToPng(blob: Blob): Promise<Blob> {
   });
 }
 
-async function loadShareImageBlob(src: string): Promise<Blob> {
+function resolveShareUrl(src: string): URL {
   const imageUrl = new URL(src, window.location.href);
+  if (window.location.protocol === "https:" && imageUrl.protocol === "http:" && imageUrl.hostname === window.location.hostname) {
+    imageUrl.protocol = "https:";
+  }
+  return imageUrl;
+}
+
+async function loadShareImageBlob(src: string): Promise<Blob> {
+  const imageUrl = resolveShareUrl(src);
   const clipboardUrl = imageUrl.origin === window.location.origin
     ? imageUrl.href
     : `/api/share-image?url=${encodeURIComponent(imageUrl.href)}`;
@@ -1186,7 +1195,7 @@ async function copyImageToClipboard(src: string): Promise<string> {
 }
 
 async function openShareImageExternally(src: string): Promise<void> {
-  await openAppUrl(new URL(src, window.location.href).href);
+  await openAppUrl(resolveShareUrl(src).href);
 }
 
 type MiniAppHistoryStateWithSearch = {
@@ -4866,7 +4875,7 @@ function StatsChartPanel({
   );
 }
 
-function StatsShareButton({ label, onClick, compact = false, flat = false, primary = false, primaryTone = "green", showIcon = true, disabled = false }: { label: string; onClick: () => void; compact?: boolean; flat?: boolean; primary?: boolean; primaryTone?: "green" | "purple"; showIcon?: boolean; disabled?: boolean }) {
+function StatsShareButton({ label, onClick, compact = false, flat = false, secondaryFlat = false, primary = false, primaryTone = "green", showIcon = true, disabled = false }: { label: string; onClick: () => void; compact?: boolean; flat?: boolean; secondaryFlat?: boolean; primary?: boolean; primaryTone?: "green" | "purple"; showIcon?: boolean; disabled?: boolean }) {
   return (
     <button
       type="button"
@@ -4876,6 +4885,8 @@ function StatsShareButton({ label, onClick, compact = false, flat = false, prima
         ? `inline-flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-[20px] border px-4 py-3 text-sm font-black transition-all duration-100 active:translate-x-[1px] active:translate-y-[3px] disabled:cursor-not-allowed disabled:opacity-40 ${primaryTone === "purple"
           ? "border-[#5d42d6] bg-[#7959ff] text-[#160b38] shadow-[3px_6px_0_#4b33b3] hover:bg-[#967fff] active:shadow-[1px_3px_0_#4b33b3]"
           : "border-[#009900] bg-[#00FF00] text-[rgb(0,80,0)] shadow-[3px_6px_0_#008000] hover:bg-[#33ff33] active:shadow-[1px_3px_0_#008000]"}`
+        : secondaryFlat
+          ? "inline-flex h-7 cursor-pointer items-center justify-center rounded-lg border border-[#00FF00]/55 bg-[#041204] px-2.5 text-[10px] font-black text-[#00FF00] transition hover:border-[#00FF00] hover:bg-[#071807] disabled:cursor-not-allowed disabled:opacity-40"
         : flat
           ? "inline-flex h-7 cursor-pointer items-center justify-center rounded-lg border border-[#00FF00]/55 bg-[#00FF00] px-2.5 text-[10px] font-black text-[rgb(0,80,0)] transition hover:bg-[#33ff33] disabled:cursor-not-allowed disabled:opacity-40"
         : `inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-[#00FF00]/45 bg-[#00FF00]/10 font-black text-[#00FF00] transition hover:border-[#00FF00] hover:bg-[#00FF00]/15 disabled:cursor-not-allowed disabled:opacity-40 ${compact ? "px-2 py-1 text-[9px]" : "px-3 py-2 text-[10px]"}`}
@@ -5533,7 +5544,7 @@ function StatsHoldersPage({
               <>
                 <div className="mb-2 flex items-center justify-between gap-2 text-xs font-black uppercase text-[#FFFF00]">
                   <span>YOUR RANK: #{viewerRow.rank?.toLocaleString("en-US") ?? "—"} of {holderCount?.toLocaleString("en-US") ?? "—"}</span>
-                  <StatsShareButton label="Share Your Rank" compact onClick={() => onShareStats({ kind: "holder-rank", ...(connectedWallet ? { wallet: connectedWallet } : {}), ...(viewerFid ? { fid: viewerFid } : {}) })} />
+                  <StatsShareButton label="Share" compact flat showIcon={false} onClick={() => onShareStats({ kind: "holder-rank", ...(connectedWallet ? { wallet: connectedWallet } : {}), ...(viewerFid ? { fid: viewerFid } : {}) })} />
                 </div>
                 <StatsHolderRowView
                   row={{ ...viewerRow, isViewer: true }}
@@ -5556,9 +5567,13 @@ function StatsHoldersPage({
           <span className="ml-auto">
             <StatsShareButton
               compact
-              label={friendsOnly ? "Share Top 10 Friends" : "Share Top 10"}
+              secondaryFlat
+              showIcon={false}
+              label="Share Top 10"
               disabled={friendsOnly && !viewerFid}
-              onClick={() => onShareStats(friendsOnly && viewerFid ? { kind: "holders-top10-friends", viewerFid } : { kind: "holders-top10" })}
+              onClick={() => onShareStats(friendsOnly && viewerFid
+                ? { kind: "holders-top10-friends", viewerFid }
+                : { kind: "holders-top10", ...(connectedWallet ? { wallet: connectedWallet } : {}), ...(viewerFid ? { fid: viewerFid } : {}) })}
             />
           </span>
           <button
@@ -5571,7 +5586,7 @@ function StatsHoldersPage({
               setRenderedRowCount(STATS_HOLDER_INITIAL_RENDER_ROWS);
               void hapticSelectionChanged();
             }}
-            className={`flex cursor-pointer items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[10px] font-black uppercase transition disabled:cursor-not-allowed disabled:opacity-40 ${
+            className={`flex h-7 cursor-pointer items-center gap-1.5 rounded-lg border px-3 py-0 text-[10px] font-black uppercase transition disabled:cursor-not-allowed disabled:opacity-40 ${
               friendsOnly
                 ? "border-[#7959ff] bg-[#7959ff]/20 text-[#b9aaff]"
                 : "border-[#7959ff]/45 bg-[#7959ff]/5 text-[#b9aaff] hover:border-[#7959ff]"
@@ -6028,7 +6043,7 @@ function ActivityFilterControls({ event, start, end, error, onEventChange, onSta
   </div>;
 }
 
-function CollectionActivity({ range, tokenId, showItem = true, refreshKey, viewerFid, actionSessionToken, friendsAvailable, friendsOnly, onFriendsOnlyChange, favouritesAvailable = false, favouritesOnly = false, favouriteWallet = null, favouritesRevision = "", onFavouritesOnlyChange, ethUsdPrice, onSearchWallet, onOpenToken, requestedBucket, onBucketWindowChange, onScrollToEvents, chart, selectedEvents, onSelectedEventsChange }: {
+function CollectionActivity({ range, tokenId, showItem = true, refreshKey, viewerFid, actionSessionToken, friendsAvailable, friendsOnly, onFriendsOnlyChange, favouritesAvailable = false, favouritesOnly = false, favouriteWallet = null, favouritesRevision = "", onFavouritesOnlyChange, ethUsdPrice, onSearchWallet, onOpenToken, requestedBucket, onBucketWindowChange, onScrollToEvents, chart, selectedEvents, onSelectedEventsChange, onShareChart }: {
   range: StatsRange;
   tokenId?: number;
   showItem?: boolean;
@@ -6052,8 +6067,10 @@ function CollectionActivity({ range, tokenId, showItem = true, refreshKey, viewe
   chart?: ReactNode;
   selectedEvents: MarketActivityRow["event"][];
   onSelectedEventsChange: (events: MarketActivityRow["event"][]) => void;
+  onShareChart?: () => void;
 }) {
   const [payload, setPayload] = useState<MarketActivityPayload | null>(null);
+  const [eventCounts, setEventCounts] = useState<Partial<Record<MarketActivityRow["event"], number>>>({});
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState("");
@@ -6130,6 +6147,16 @@ function CollectionActivity({ range, tokenId, showItem = true, refreshKey, viewe
   }, [loading, payload]);
 
   useEffect(() => {
+    if (!payload?.eventCounts) return;
+    setEventCounts((current) => {
+      const next = payload.eventCounts!;
+      return (["sale", "listing", "offer", "send"] as const).every((event) => current[event] === next[event])
+        ? current
+        : next;
+    });
+  }, [payload?.eventCounts]);
+
+  useEffect(() => {
     if (!friendsAvailable && friendsOnly) onFriendsOnlyChange(false);
   }, [friendsAvailable, friendsOnly, onFriendsOnlyChange]);
 
@@ -6161,7 +6188,8 @@ function CollectionActivity({ range, tokenId, showItem = true, refreshKey, viewe
 
   return (
     <section ref={tableRef} className="scroll-mt-4">
-      <div className="mb-2 flex flex-wrap items-center gap-1.5">
+      <div className="mb-2 flex min-w-0 items-center justify-between gap-2">
+        <div role="radiogroup" aria-label="Activity chart event" className="isolate flex h-8 min-h-8 max-h-8 min-w-0 shrink">
         {([
           { value: "sale", label: "Sales", active: "border-[#FF3333] bg-[#FF3333]/20 text-[#FF7777]", idle: "border-[#FF3333]/45 bg-[#FF3333]/5 text-[#FF7777]" },
           { value: "listing", label: "Listings", active: "border-[#FFFF00] bg-[#FFFF00]/20 text-[#FFFF00]", idle: "border-[#FFFF00]/45 bg-[#FFFF00]/5 text-[#FFFF77]" },
@@ -6169,11 +6197,13 @@ function CollectionActivity({ range, tokenId, showItem = true, refreshKey, viewe
           { value: "send", label: "Sends", active: "border-[#00FF00] bg-[#00FF00]/20 text-[#00FF00]", idle: "border-[#00FF00]/45 bg-[#00FF00]/5 text-[#8bbf8b]" },
         ] as const).map((option) => {
           const active = selectedEvents.includes(option.value);
-          const count = payload?.eventCounts?.[option.value] ?? 0;
-          return <button key={option.value} type="button" role="radio" aria-checked={active} onClick={() => { setBucketWindow(null); onBucketWindowChange(null); if (!active) onSelectedEventsChange([option.value]); void hapticSelectionChanged(); }} className={`flex min-h-8 w-auto shrink-0 cursor-pointer items-center justify-start rounded-lg border px-2 py-1 text-left text-[9px] font-black uppercase transition ${active ? option.active : option.idle}`}>
-            <span className="truncate">{count.toLocaleString("en-US")} {option.label}</span>
+          const count = eventCounts[option.value] ?? 0;
+          return <button key={option.value} type="button" role="radio" aria-checked={active} onClick={() => { setBucketWindow(null); onBucketWindowChange(null); if (!active) onSelectedEventsChange([option.value]); void hapticSelectionChanged(); }} className={`relative box-border flex h-8 min-h-8 max-h-8 shrink-0 cursor-pointer items-center justify-center border text-center transition first:rounded-l-lg last:rounded-r-lg ${tokenId != null ? "px-1.5 text-[10px] font-semibold" : "px-[7px] text-[11px] font-bold"} ${active ? option.active : option.idle}`}>
+            <span>{count.toLocaleString("en-US")} {option.label}</span>
           </button>;
         })}
+        </div>
+        {onShareChart && <button type="button" onClick={() => { void hapticPrimaryTap(); onShareChart(); }} className={`box-border h-8 min-h-8 max-h-8 shrink-0 cursor-pointer rounded-lg border border-[#00FF00]/55 bg-[#00FF00] text-xs font-bold leading-none text-[rgb(0,80,0)] hover:bg-[#33ff33] ${tokenId != null ? "px-2.5" : "px-3"}`}>Share</button>}
       </div>
       {chart}
       <div ref={eventsHeaderRef} className="scroll-mt-4 flex items-center justify-between gap-2 py-2">
@@ -6355,17 +6385,11 @@ function StatsSocial({
 
   return (
     <div>
-      <div className="mb-3 flex flex-col items-end gap-1.5">
-        <StatsShareButton
-          label={`Share ${(selectedEvents[0] ?? "sale").replace(/^./, (character) => character.toUpperCase())} Activity`}
-          onClick={() => onShareStats({ kind: "activity", event: selectedEvents[0] ?? "sale", range })}
-        />
-        {(friendsOnly || favouritesOnly) && (
-          <Text className="text-right text-[9px] font-bold leading-3 text-[#8bbf8b]">
-            The shared chart uses collection-wide data; Friends and Favourites are not included.
-          </Text>
-        )}
-      </div>
+      {(friendsOnly || favouritesOnly) && (
+        <Text className="mb-2 text-right text-[9px] font-bold leading-3 text-[#8bbf8b]">
+          The shared chart uses collection-wide data; Friends and Favourites are not included.
+        </Text>
+      )}
       <CollectionActivity
         range={range}
         viewerFid={viewerFid}
@@ -6385,6 +6409,7 @@ function StatsSocial({
         onBucketWindowChange={setActiveBucketWindow}
         selectedEvents={selectedEvents}
         onSelectedEventsChange={selectActivityEvents}
+        onShareChart={() => onShareStats({ kind: "activity", event: selectedEvents[0] ?? "sale", range })}
         chart={activityChartLoading
           ? <div style={{ height: ACTIVITY_CHART_HEIGHT }} className="flex items-center justify-center text-xs font-bold text-[#8bbf8b]">Loading buyer activity...</div>
           : activityChart && !hasChartActivity
@@ -7008,6 +7033,7 @@ function WarpletItemActivity({
   refreshKey,
   isInMiniAppContext,
   onScrollToEvents,
+  onShareStats,
 }: {
   tokenId: number;
   viewerFid: number | null;
@@ -7017,6 +7043,7 @@ function WarpletItemActivity({
   refreshKey: string;
   isInMiniAppContext: boolean;
   onScrollToEvents: (target: HTMLElement) => void;
+  onShareStats: (request: StatsShareRequest) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [range, setRange] = useState<StatsRange>("all");
@@ -7114,6 +7141,7 @@ function WarpletItemActivity({
       {open && (
         <div className="border-t border-[#00FF00]/15 px-2 pb-3 pt-2">
           <SearchSegmentedTabs className="mb-4" options={STATS_RANGE_TABS} activeId={range} onSelect={(id) => setRange(id as StatsRange)} gridTemplateColumns="repeat(5,minmax(0,1fr))" />
+          {friendsOnly && <Text className="mb-2 text-right text-[9px] font-bold leading-3 text-[#8bbf8b]">The shared chart uses all activity for this item; Friends are not included.</Text>}
           <CollectionActivity
             range={range}
             tokenId={tokenId}
@@ -7132,6 +7160,7 @@ function WarpletItemActivity({
             onScrollToEvents={onScrollToEvents}
             selectedEvents={selectedEvents}
             onSelectedEventsChange={selectActivityEvents}
+            onShareChart={() => onShareStats({ kind: "activity", event: selectedEvents[0] ?? "sale", range, tokenId })}
             chart={activityChartLoading
               ? <div style={{ height: ACTIVITY_CHART_HEIGHT }} className="flex items-center justify-center text-xs font-bold text-[#8bbf8b]">Loading item activity...</div>
               : activityChart && !hasChartActivity
@@ -11770,7 +11799,9 @@ function SharePreviewModal({
   const [titleFirstWord, ...titleRestWords] = preview.title.split(" ");
   const titleRest = titleRestWords.join(" ");
   const [isClipboardTooltipOpen, setIsClipboardTooltipOpen] = useState(false);
+  const [snapshotCountdown, setSnapshotCountdown] = useState<number | null>(15);
   const shareReady = preview.status == null || preview.status === "ready";
+  const snapshotRenderingMessage = preview.statusMessage || "Rendering your Stats snapshot…";
   const {
     refs: clipboardTooltipRefs,
     floatingStyles: clipboardTooltipStyles,
@@ -11790,6 +11821,27 @@ function SharePreviewModal({
     clipboardFocus,
     clipboardRole,
   ]);
+
+  useEffect(() => {
+    if (preview.status !== "preparing") {
+      setSnapshotCountdown(null);
+      return;
+    }
+
+    setSnapshotCountdown(15);
+    let remainingSeconds = 15;
+    const countdownTimer = window.setInterval(() => {
+      remainingSeconds -= 1;
+      if (remainingSeconds <= 0) {
+        window.clearInterval(countdownTimer);
+        setSnapshotCountdown(null);
+        return;
+      }
+      setSnapshotCountdown(remainingSeconds);
+    }, 1_000);
+
+    return () => window.clearInterval(countdownTimer);
+  }, [preview.status, preview.statusMessage]);
 
   useEffect(() => {
     setActiveShareChannel("farcaster");
@@ -11979,7 +12031,9 @@ function SharePreviewModal({
               {preview.status === "preparing" ? (
                 <>
                   <span className="mx-auto block h-9 w-9 animate-spin rounded-full border-2 border-[#00FF00]/25 border-t-[#00FF00]" aria-label="Preparing Stats share image" />
-                  <Text className="mt-3 text-xs font-bold text-[#8bbf8b]">{preview.statusMessage || "Rendering your Stats snapshot…"}</Text>
+                  <Text className="mt-3 text-xs font-bold text-[#8bbf8b]">
+                    {snapshotRenderingMessage}{snapshotCountdown == null ? "" : ` ${snapshotCountdown}`}
+                  </Text>
                 </>
               ) : (
                 <>
@@ -12053,7 +12107,18 @@ function SharePreviewModal({
                           .catch((error) => {
                             console.error("Failed to copy share image:", error);
                             void hapticError();
-                            onImageCopyError(error instanceof Error ? error.message : "The image could not be copied.");
+                            const message = error instanceof Error ? error.message : "The image could not be copied.";
+                            const clipboardDenied = /not allowed|denied permission|notallowederror/i.test(`${message} ${error instanceof DOMException ? error.name : ""}`);
+                            if (clipboardDenied && /iPad|iPhone|iPod/i.test(navigator.userAgent)) {
+                              void openShareImageExternally(image.src)
+                                .then(() => {
+                                  void hapticSuccess();
+                                  onImageDownloadSuccess();
+                                })
+                                .catch(() => onImageCopyError("Farcaster on iOS does not permit direct image clipboard access. Use Download to open the PNG, then press and hold it to copy or save it."));
+                              return;
+                            }
+                            onImageCopyError(message);
                           })
                           .finally(() => setCopyingImageIndex(null));
                       }}
@@ -12516,6 +12581,10 @@ const SHARE_MODAL_TEST_CASES = [
   { id: "stats-activity-listing", label: "Stats Listings Activity", description: "Stats → Activity → selected Listings chart Share." },
   { id: "stats-activity-offer", label: "Stats Offers Activity", description: "Stats → Activity → selected Offers chart Share." },
   { id: "stats-activity-send", label: "Stats Sends Activity", description: "Stats → Activity → selected Sends chart Share." },
+  { id: "stats-item-activity-sale", label: "Item Sales Activity", description: "Details → Item Activity → selected Sales chart Share." },
+  { id: "stats-item-activity-listing", label: "Item Listings Activity", description: "Details → Item Activity → selected Listings chart Share." },
+  { id: "stats-item-activity-offer", label: "Item Offers Activity", description: "Details → Item Activity → selected Offers chart Share." },
+  { id: "stats-item-activity-send", label: "Item Sends Activity", description: "Details → Item Activity → selected Sends chart Share." },
   { id: "stats-holder-rank", label: "Stats Your Rank", description: "Stats → Holders → Share Your Rank." },
   { id: "stats-holders-top10", label: "Stats Top 10", description: "Stats → Holders → Share Top 10." },
   { id: "stats-friends-top10", label: "Stats Top 10 Friends", description: "Stats → Holders → Friends ON → Share Top 10 Friends." },
@@ -12527,7 +12596,7 @@ const SHARE_MODAL_TEST_CASES = [
 type ShareModalTestId = (typeof SHARE_MODAL_TEST_CASES)[number]["id"];
 
 function AppTestingPage({ onTriggerShare }: { onTriggerShare: (id: ShareModalTestId) => void }) {
-  const visualFixtures = ["overview-collection", "overview-fair-launch", "market-price", "market-floor", "market-volume", "market-listings", "market-offers", "market-sales", "market-all", "activity-sale", "activity-listing", "activity-offer", "activity-send", "rank", "top10", "friends", "friends-short"];
+  const visualFixtures = ["overview-collection", "overview-fair-launch", "market-price", "market-floor", "market-volume", "market-listings", "market-offers", "market-sales", "market-all", "activity-sale", "activity-listing", "activity-offer", "activity-send", "item-activity-sale", "item-activity-listing", "item-activity-offer", "item-activity-send", "rank", "top10", "friends", "friends-short"];
   return (
     <div className="mx-auto w-full max-w-md px-4 pb-10 pt-6">
       <h1 className="text-xl font-black text-[#00FF00]">Share modals</h1>
@@ -12593,6 +12662,7 @@ function WarpletDetailsModal({
   onOpenTradeSharePreview,
   stackIndex,
   isInMiniAppContext,
+  onShareStats,
 }: {
   details: WarpletDetails;
   onClose: () => void;
@@ -12622,6 +12692,7 @@ function WarpletDetailsModal({
   onOpenTradeSharePreview: (preview: SharePreviewState) => void;
   stackIndex: number;
   isInMiniAppContext: boolean;
+  onShareStats: (request: StatsShareRequest) => void;
 }) {
   const row = details.row;
   const farcasterUsername = cellToString(row.warplet_username_farcaster);
@@ -14311,6 +14382,7 @@ function WarpletDetailsModal({
                 refreshKey={`${effectiveListing?.at ?? ""}|${effectiveItemOffer?.at ?? ""}|${effectiveSale?.at ?? ""}|${effectiveOwner?.wallet ?? ""}`}
                 isInMiniAppContext={isInMiniAppContext}
                 onScrollToEvents={scrollActivityEventsIntoView}
+                onShareStats={onShareStats}
               />
 
               {ATTRIBUTE_GROUPS.map((group) => (
@@ -15017,11 +15089,15 @@ export default function SearchApp() {
     }
   }, []);
 
-  const syncSearchViewerStatus = useCallback((fid: number, warningLabel = "Search user status upsert failed") => {
+  const syncSearchViewerStatus = useCallback((fid: number, warningLabel = "Search user status upsert failed", profile?: ViewerProfile | null) => {
     return fetch("/api/warplet-status", {
       method: "POST",
       headers: { "content-type": "application/json", accept: "application/json" },
-      body: JSON.stringify({ fid, appSlug: "search" }),
+      body: JSON.stringify({ fid, appSlug: "search", profile: profile ? {
+        username: profile.username,
+        displayName: profile.displayName,
+        pfpUrl: profile.pfpUrl,
+      } : undefined }),
     })
       .then((response) => response.ok ? response.json() : null)
       .then((payload: unknown) => {
@@ -15103,7 +15179,7 @@ export default function SearchApp() {
         const fid = user?.fid;
         const normalizedFid = typeof fid === "number" && Number.isInteger(fid) && fid > 0 ? fid : null;
         setViewerFid(normalizedFid);
-        setViewerProfile({
+        const liveViewerProfile: ViewerProfile = {
           fid: normalizedFid,
           username: typeof user?.username === "string" ? user.username : null,
           displayName: typeof user?.displayName === "string"
@@ -15118,14 +15194,16 @@ export default function SearchApp() {
               : typeof user?.pfp === "string"
                 ? user.pfp
                 : null,
-        });
+        };
+        setViewerProfile(liveViewerProfile);
         setMiniAppContextKnown(true);
 
         if (normalizedFid) {
-          void sdk.quickAuth.getToken().then(({ token }) => verifyFarcasterQuickAuth(token)).then((session) => {
+          void sdk.quickAuth.getToken().then(({ token }) => verifyFarcasterQuickAuth(token)).then(async (session) => {
             if (typeof session.actionSessionToken === "string") setActionSessionToken(session.actionSessionToken);
+            await syncSearchViewerStatus(normalizedFid, "Search user status upsert failed", liveViewerProfile);
+            await restoreFarcasterWallet();
           }).catch((error) => console.warn("Farcaster Quick Auth verification failed:", error));
-          void syncSearchViewerStatus(normalizedFid);
         } else {
           setSearchCompletionStatusLoaded(true);
         }
@@ -16875,18 +16953,20 @@ export default function SearchApp() {
         : id === "stats-overview-fair-launch" ? "overview-fair-launch"
         : id === "stats-market-all" ? "market-all"
         : id.startsWith("stats-market-") ? id.slice("stats-".length)
+          : id.startsWith("stats-item-activity-") ? id.slice("stats-".length)
           : id.startsWith("stats-activity-") ? id.slice("stats-".length)
             : id === "stats-holder-rank" ? "rank"
               : id === "stats-holders-top10" ? "top10"
                 : id === "stats-friends-short" ? "friends-short" : "friends";
       const fixtureUrl = new URL(`/stats/share/fixtures/${fixture}`, window.location.origin).toString();
       const marketMetric = id.startsWith("stats-market-") && id !== "stats-market-all" ? id.slice("stats-market-".length) : null;
-      const activityEvent = id.startsWith("stats-activity-") ? id.slice("stats-activity-".length) : null;
+      const itemActivity = id.startsWith("stats-item-activity-");
+      const activityEvent = itemActivity ? id.slice("stats-item-activity-".length) : id.startsWith("stats-activity-") ? id.slice("stats-activity-".length) : null;
       let farcasterText = id === "stats-overview-collection" ? "10X Warplets — NFT Collection Stats"
         : id === "stats-overview-fair-launch" ? "10X Warplets — Fair Launch Stats"
         : id === "stats-market-all" ? "10X Warplets — Market Stats (30 Days)"
         : marketMetric ? `10X Warplets — ${marketMetric === "floor" ? "Floor Price" : marketMetric.replace(/^./, (character) => character.toUpperCase())} (30 Days)`
-          : activityEvent ? `10X Warplets — 29 ${activityEvent === "sale" ? "Sales" : activityEvent === "listing" ? "Listings" : activityEvent === "offer" ? "Offers" : "Sends"} (7 Days)`
+          : activityEvent ? `${itemActivity ? "10X Warplet #4512" : "10X Warplets"} — 29 ${activityEvent === "sale" ? "Sales" : activityEvent === "listing" ? "Listings" : activityEvent === "offer" ? "Offers" : "Sends"} (7 Days)`
             : id === "stats-holder-rank" ? "10X Warplets — My holder rank: #1 of 8,992"
               : "10X Warplets — Top 10 Holders\n\n🥇 @collector1\n🥈 @collector2\n🥉 @collector3";
       let twitterPostText = farcasterText;
@@ -16902,7 +16982,7 @@ export default function SearchApp() {
         farcasterText = twitterPostText = "10X Warplets — Top 10 Holders\n\n🥇 0x1234…5678";
       }
       return setSharePreview({
-        title: id === "stats-overview-collection" ? "Share NFT Collection Stats" : id === "stats-overview-fair-launch" ? "Share Fair Launch Stats" : id === "stats-holder-rank" ? "Share Your Rank" : "Share Stats",
+        title: id === "stats-overview-collection" ? "Share NFT Collection Stats" : id === "stats-overview-fair-launch" ? "Share Fair Launch Stats" : id === "stats-holder-rank" ? "Share Your Rank" : itemActivity ? "Share Item #4512 Activity" : "Share Stats",
         text: farcasterText,
         farcasterText,
         twitterPostText,
@@ -17093,15 +17173,17 @@ export default function SearchApp() {
       if (!response.ok || !result.snapshot?.imageReady) {
         throw new Error(result.renderError || result.message || result.error || `Snapshot rendering failed (${response.status})`);
       }
+      const shareUrl = resolveShareUrl(result.shareUrl).href;
+      const imageUrl = resolveShareUrl(result.imageUrl).href;
       setSharePreview({
         title: result.snapshot.title,
         text: result.snapshot.farcasterText,
         farcasterText: result.snapshot.farcasterText,
         twitterPostText: result.snapshot.twitterText,
-        links: [result.shareUrl],
-        images: [{ src: result.imageUrl, alt: result.snapshot.title, aspectRatio: "square" }],
-        farcasterEmbeds: [result.shareUrl],
-        twitterText: buildTwitterShareText(result.snapshot.twitterText, [result.shareUrl]),
+        links: [shareUrl],
+        images: [{ src: imageUrl, alt: result.snapshot.title, aspectRatio: "square" }],
+        farcasterEmbeds: [shareUrl],
+        twitterText: buildTwitterShareText(result.snapshot.twitterText, [shareUrl]),
         status: "ready",
       });
     } catch (error) {
@@ -18065,6 +18147,7 @@ export default function SearchApp() {
             onOpenTradeSharePreview={setSharePreview}
             stackIndex={index}
             isInMiniAppContext={isInMiniAppContext}
+            onShareStats={(request) => void handleCreateStatsShare(request)}
           />
         );
       })}

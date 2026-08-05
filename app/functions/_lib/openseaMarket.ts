@@ -537,10 +537,10 @@ export function getTokenIdFromOpenSeaRow(row: Record<string, unknown>): number |
   const item = asObject(row.item);
   return (
     parseTokenId(row.token_id) ??
-    parseTokenId(row.identifier) ??
     parseTokenId(nft?.identifier) ??
     parseTokenId(asset?.identifier) ??
-    parseTokenId(item?.nft_id)
+    parseTokenId(item?.nft_id) ??
+    parseTokenId(row.identifier)
   );
 }
 
@@ -2194,7 +2194,16 @@ export async function fetchLatestTokenSale(apiKey: string, tokenId: number): Pro
   const rows = asArray(payload.asset_events ?? payload.events)
     .map((event) => asObject(event))
     .filter((event): event is Record<string, unknown> => Boolean(event))
-    .map((event): Record<string, unknown> => ({ ...event, event_type: asString(event.event_type) ?? "sale", identifier: String(tokenId) }))
+    .map((event): Record<string, unknown> => {
+      const normalized = { ...event, event_type: asString(event.event_type) ?? "sale" };
+      // Some token-specific OpenSea responses omit a root identifier, while
+      // collection responses can include an unrelated root identifier. Trust
+      // the NFT/asset payload first and use endpoint context only when the
+      // event contains no token identifier at all.
+      return getTokenIdFromOpenSeaRow(normalized) == null
+        ? { ...normalized, identifier: String(tokenId) }
+        : normalized;
+    })
     .filter((event) => getTokenIdFromOpenSeaRow(event) === tokenId);
 
   rows.sort((a, b) => {

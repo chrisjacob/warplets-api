@@ -1,4 +1,4 @@
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import net from "node:net";
 import path from "node:path";
 import process from "node:process";
@@ -11,6 +11,24 @@ const appDir = path.resolve(__dirname, "../app");
 
 const PUBLIC_URL = "https://search-local.10x.meme";
 const LOCAL_MINIAPP_BASE_URL = PUBLIC_URL;
+const LOCAL_APP_SESSION_SECRET = "search-local-only-session-secret-do-not-use-live-v1";
+
+function applyLocalMigrations() {
+  console.log("Applying pending local D1 migrations...");
+  const result = spawnSync(
+    "pnpm",
+    ["wrangler", "d1", "migrations", "apply", "warplets", "--local"],
+    {
+      cwd: appDir,
+      shell: process.platform === "win32",
+      stdio: "inherit",
+      env: process.env,
+    },
+  );
+  if (result.status !== 0) {
+    throw new Error(`Local D1 migrations failed (${result.status ?? result.signal ?? "unknown"})`);
+  }
+}
 
 function isPortAvailable(port) {
   return new Promise((resolve) => {
@@ -46,7 +64,16 @@ function spawnViteDev(port, apiPort) {
 
 function spawnApiWorker(port) {
   const command = "pnpm";
-  return spawn(command, ["wrangler", "pages", "dev", ".", "--port", String(port)], {
+  return spawn(command, [
+    "wrangler",
+    "pages",
+    "dev",
+    ".",
+    "--port",
+    String(port),
+    "--binding",
+    `APP_SESSION_SECRET=${LOCAL_APP_SESSION_SECRET}`,
+  ], {
     cwd: appDir,
     shell: process.platform === "win32",
     stdio: "inherit",
@@ -130,6 +157,7 @@ async function warmStatsRoutes(port) {
 async function main() {
   await ensurePortAvailable(VITE_PORT, "Vite");
   await ensurePortAvailable(API_PORT, "API");
+  applyLocalMigrations();
 
   console.log(`Stable dev URL: ${PUBLIC_URL}`);
   console.log(`Local dev URL:  http://localhost:${VITE_PORT}/search`);
@@ -137,14 +165,28 @@ async function main() {
   console.log(`Embed launch URL: ${LOCAL_MINIAPP_BASE_URL}`);
   console.log("Starting app API worker...");
 
-  const api = spawnApiWorker(API_PORT);
+  let shuttingDown = false;
+  let apiRestartTimer = null;
+  let api;
+  const startApi = () => {
+    api = spawnApiWorker(API_PORT);
+    api.on("exit", (code, signal) => {
+      if (shuttingDown) return;
+      console.error(`API worker exited unexpectedly (${signal ?? code ?? "unknown"}); restarting in 1 second...`);
+      apiRestartTimer = setTimeout(startApi, 1_000);
+    });
+  };
+  startApi();
   console.log("Starting vite dev...");
   const vite = spawnViteDev(VITE_PORT, API_PORT);
   console.log("Starting Cloudflare Tunnel search-local...");
   const tunnel = spawnCloudflared(VITE_PORT);
 
   const shutdown = () => {
-    api.kill();
+    if (shuttingDown) return;
+    shuttingDown = true;
+    if (apiRestartTimer) clearTimeout(apiRestartTimer);
+    api?.kill();
     vite.kill();
     tunnel.kill();
   };
@@ -152,7 +194,7 @@ async function main() {
   process.on("SIGINT", shutdown);
   process.on("SIGTERM", shutdown);
   tunnel.on("exit", shutdown);
-  api.on("exit", shutdown);
+  vite.on("exit", shutdown);
 
   try {
     await waitForApi(API_PORT);

@@ -43,8 +43,11 @@ describe("Stats share request validation", () => {
     expect(parseStatsShareRequest({ kind: "market", metric: "offers", range: "all" })).toEqual({ kind: "market", metric: "offers", range: "all" });
     expect(parseStatsShareRequest({ kind: "market-all", range: "30d" })).toEqual({ kind: "market-all", range: "30d" });
     expect(parseStatsShareRequest({ kind: "activity", event: "sale", range: "all" })).toEqual({ kind: "activity", event: "sale", range: "all" });
+    expect(parseStatsShareRequest({ kind: "activity", event: "offer", range: "30d", tokenId: 4512 })).toEqual({ kind: "activity", event: "offer", range: "30d", tokenId: 4512 });
+    expect(parseStatsShareRequest({ kind: "activity", event: "offer", range: "30d", tokenId: 10_001 })).toBeNull();
     expect(parseStatsShareRequest({ kind: "holder-rank", fid: 123 })).toEqual({ kind: "holder-rank", fid: 123 });
     expect(parseStatsShareRequest({ kind: "holders-top10" })).toEqual({ kind: "holders-top10" });
+    expect(parseStatsShareRequest({ kind: "holders-top10", wallet: holder().wallet, fid: 123 })).toEqual({ kind: "holders-top10", wallet: holder().wallet, fid: 123 });
     expect(parseStatsShareRequest({ kind: "holders-top10-friends", viewerFid: 123 })).toEqual({ kind: "holders-top10-friends", viewerFid: 123 });
     expect(parseStatsShareRequest({ kind: "market", metric: "floor", range: "yesterday" })).toBeNull();
   });
@@ -87,5 +90,6 @@ describe("Stats share canonical snapshots", () => {
     expect(path).not.toContain("friends");
     expect(path).not.toContain("favourites");
     expect(path).not.toContain("wallet");
+    expect(getStatsShareActivityApiPath({ kind: "activity", event: "sale", range: "all", tokenId: 4512 })).toContain("tokenId=4512");
   });
 });
