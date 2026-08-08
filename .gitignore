@@ -19,6 +19,7 @@ wrangler-dev.err.log
 drop-tunnel.log
 drop-tunnel.err.log
 .tmp-pages-worker.mjs
+tmp/
 
 # Localflare generated files
 .localflare/
