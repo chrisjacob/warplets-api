@@ -31,6 +31,7 @@ import {
   readJsonBodyWithLimit,
   requireAdminScope,
 } from "../../_lib/security.js";
+import { WARPLETS_APP_ORIGINS, WARPLETS_APP_SLUG } from "../../../shared/warpletsApp.js";
 
 interface Env extends BaseNotificationsEnv {
   WARPLETS: D1Database;
@@ -480,12 +481,12 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
   if (wantBase) {
     const target = new URL(targetBase);
-    const appOrigin = new URL(context.env.BASE_APP_URL || "https://search.10x.meme").origin;
+    const appOrigin = new URL(context.env.BASE_APP_URL || WARPLETS_APP_ORIGINS.prod).origin;
     const targetPath = target.origin === appOrigin ? `${target.pathname}${target.search}` : "/";
     const baseWallets = await resolveBaseWallets(context.env.WARPLETS, requestedFids, json.wallets);
     const baseResults = await sendBaseNotificationCampaign(context.env, {
       campaignId: notificationId,
-      appSlug: audienceSlug === "all" ? "search" : audienceSlug,
+      appSlug: audienceSlug === "all" ? WARPLETS_APP_SLUG : audienceSlug,
       wallets: baseWallets,
       title,
       message: body,

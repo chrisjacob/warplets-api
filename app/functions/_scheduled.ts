@@ -1,5 +1,5 @@
 import { ingestOpenSeaMarket, type OpenSeaMarketEnv } from "./_lib/openseaMarket.js";
-import { runSearchNotificationJobs } from "./_lib/warpletNotifications.js";
+import { runWarpletsNotificationJobs } from "./_lib/warpletNotifications.js";
 
 export const onSchedule = async (
   _event: ScheduledController,
@@ -12,8 +12,8 @@ export const onSchedule = async (
     }),
   );
   context.waitUntil(
-    runSearchNotificationJobs(env).catch((error) => {
-      console.error("Search notification scheduled jobs failed", error);
+    runWarpletsNotificationJobs(env).catch((error) => {
+      console.error("Warplets notification scheduled jobs failed", error);
     }),
   );
 };

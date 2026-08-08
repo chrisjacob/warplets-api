@@ -4,9 +4,16 @@ const TITLE_REGEX = /<title>[\s\S]*?<\/title>/i;
 import { applySecurityHeaders } from "./_lib/security.js";
 import { loadStatsShareSnapshot } from "./_lib/statsShares.js";
 import { getPerksShareContentFromPath, getPerksShareImageUrl } from "../src/perksShareContent.js";
+import {
+  WARPLETS_APP_HOSTS,
+  WARPLETS_APP_PATH,
+  WARPLETS_PUBLIC_NAME,
+  isWarpletsAppHostname,
+} from "../shared/warpletsApp.js";
 
 type PagesEnv = {
   WARPLETS?: D1Database;
+  WARPLETS_ACCOUNT_ASSOCIATION_JSON?: string;
 };
 
 const DROP_SHARE_TITLE = "10X Warplets (10K NFT Drop)";
@@ -17,8 +24,8 @@ const DROP_ICON_URL = "https://drop.10x.meme/icon_drop.png";
 const DROP_SPLASH_URL = "https://drop.10x.meme/splash_drop.png";
 const DROP_EMBED_URL = "https://drop.10x.meme/embed_drop.png";
 const DROP_HERO_URL = "https://drop.10x.meme/hero_drop.png";
-const SEARCH_SHARE_TITLE = "10X Warplets Search";
-const SEARCH_SHARE_DESCRIPTION = "Search, filter, trade, favourite, and share 10X Warplets.";
+const WARPLETS_SHARE_TITLE = WARPLETS_PUBLIC_NAME;
+const WARPLETS_SHARE_DESCRIPTION = "Search, filter, trade, favourite, and share 10X Warplets.";
 const STOP_SHARE_TITLE = "@Mention Settings";
 const STOP_SHARE_DESCRIPTION = "Opt out of 10X outreach mentions in the Farcaster Mini App.";
 const STOP_IMAGE_URL = "https://warplets.10x.meme/3081.png";
@@ -38,9 +45,28 @@ const DROP_ASSOCIATION = {
   signature: "EYVGQ7agQ+KoXvdu9vu4zsrEXk97yRwrMIeeVr9DqW11L748hmLKwCRMLL91N8nFOZRPQHr4dcQ52HM0Ds9yixw=",
 };
 
-const SEARCH_ASSOCIATION = APP_ASSOCIATION;
+type AccountAssociation = {
+  header: string;
+  payload: string;
+  signature: string;
+};
 
-function buildFarcasterManifest(hostname: string) {
+function parseWarpletsAccountAssociation(env: PagesEnv, hostname: string): AccountAssociation | null {
+  const raw = env.WARPLETS_ACCOUNT_ASSOCIATION_JSON?.trim();
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as Partial<AccountAssociation>;
+    if (!parsed.header || !parsed.payload || !parsed.signature) return null;
+    const paddedPayload = parsed.payload.replace(/-/g, "+").replace(/_/g, "/").padEnd(Math.ceil(parsed.payload.length / 4) * 4, "=");
+    const associationPayload = JSON.parse(atob(paddedPayload)) as { domain?: unknown };
+    if (associationPayload.domain !== hostname) return null;
+    return parsed as AccountAssociation;
+  } catch {
+    return null;
+  }
+}
+
+function buildFarcasterManifest(hostname: string, warpletsAssociation?: AccountAssociation | null) {
   if (hostname === "drop.10x.meme" || hostname === "drop-dev.10x.meme") {
     return {
       accountAssociation: DROP_ASSOCIATION,
@@ -74,24 +100,25 @@ function buildFarcasterManifest(hostname: string) {
     };
   }
 
-  if (hostname === "search.10x.meme" || hostname === "search-dev.10x.meme") {
+  if (isWarpletsAppHostname(hostname)) {
+    if (!warpletsAssociation) return null;
     return {
-      accountAssociation: SEARCH_ASSOCIATION,
+      accountAssociation: warpletsAssociation,
       miniapp: {
         version: "1",
-        name: "10X Warplets Search",
+        name: WARPLETS_PUBLIC_NAME,
         canonicalDomain: hostname,
         homeUrl: `https://${hostname}`,
         iconUrl: `https://${hostname}/icon.png`,
         imageUrl: `https://${hostname}/embed.png`,
         heroImageUrl: `https://${hostname}/hero.png`,
-        buttonTitle: "Search Warplets",
+        buttonTitle: "Open 10X Warplets",
         splashImageUrl: `https://${hostname}/splash.png`,
         splashBackgroundColor: "#000000",
-        webhookUrl: "https://app.10x.meme/webhook/search",
+        webhookUrl: `https://${hostname}/webhook/warplets`,
         castShareUrl: `https://${hostname}`,
         subtitle: "Find your Warplet.",
-        description: SEARCH_SHARE_DESCRIPTION,
+        description: WARPLETS_SHARE_DESCRIPTION,
         primaryCategory: "social",
         screenshotUrls: [
           `https://${hostname}/screenshots/1.jpg`,
@@ -100,8 +127,8 @@ function buildFarcasterManifest(hostname: string) {
         ],
         tags: ["10x", "warplets", "farcaster", "nft", "search"],
         tagline: "Take the green pill.",
-        ogTitle: SEARCH_SHARE_TITLE,
-        ogDescription: SEARCH_SHARE_DESCRIPTION,
+        ogTitle: WARPLETS_SHARE_TITLE,
+        ogDescription: WARPLETS_SHARE_DESCRIPTION,
         ogImageUrl: `https://${hostname}/embed.png`,
       },
     };
@@ -158,7 +185,7 @@ function normalizeBase(origin: string): string {
   return origin.endsWith("/") ? origin.slice(0, -1) : origin;
 }
 
-type RouteKey = "root" | "drop" | "search" | "million" | "stop" | "unsubscribe";
+type RouteKey = "root" | "drop" | "warplets" | "million" | "stop" | "unsubscribe";
 
 function matchesHost(hostname: string, ...candidates: string[]): boolean {
   return candidates.includes(hostname);
@@ -167,10 +194,10 @@ function matchesHost(hostname: string, ...candidates: string[]): boolean {
 function getRouteKey(hostname: string, pathname: string): RouteKey {
   const cleanPath = pathname.replace(/\/+$/, "") || "/";
   if (matchesHost(hostname, "drop.10x.meme", "drop-dev.10x.meme", "drop-local.10x.meme")) return "drop";
-  if (matchesHost(hostname, "search.10x.meme", "search-dev.10x.meme", "search-local.10x.meme")) return "search";
+  if (isWarpletsAppHostname(hostname)) return "warplets";
   if (matchesHost(hostname, "million.10x.meme", "million-dev.10x.meme", "million-local.10x.meme")) return "million";
   if (cleanPath === "/drop" || cleanPath.startsWith("/drop/")) return "drop";
-  if (cleanPath === "/search" || cleanPath.startsWith("/search/")) return "search";
+  if (cleanPath === WARPLETS_APP_PATH || cleanPath.startsWith(`${WARPLETS_APP_PATH}/`)) return "warplets";
   if (cleanPath === "/million" || cleanPath.startsWith("/million/")) return "million";
   if (cleanPath === "/stop" || cleanPath.startsWith("/stop/")) return "stop";
   if (cleanPath === "/unsubscribe" || cleanPath.startsWith("/unsubscribe/")) return "unsubscribe";
@@ -186,11 +213,11 @@ function getMiniAppConfig(routeKey: RouteKey): { title: string; name: string; pa
     };
   }
 
-  if (routeKey === "search") {
+  if (routeKey === "warplets") {
     return {
-      title: "Open 10X Warplets Search",
-      name: "10X Warplets Search",
-      path: "/search",
+      title: "Open 10X Warplets",
+      name: WARPLETS_PUBLIC_NAME,
+      path: WARPLETS_APP_PATH,
     };
   }
 
@@ -296,9 +323,7 @@ function getLaunchPath(routeKey: RouteKey, hostname: string): string {
       "drop.10x.meme",
       "drop-dev.10x.meme",
       "drop-local.10x.meme",
-      "search.10x.meme",
-      "search-dev.10x.meme",
-      "search-local.10x.meme",
+      ...WARPLETS_APP_HOSTS,
       "million.10x.meme",
       "million-dev.10x.meme",
       "million-local.10x.meme"
@@ -308,7 +333,7 @@ function getLaunchPath(routeKey: RouteKey, hostname: string): string {
   }
 
   if (routeKey === "drop") return "/drop";
-  if (routeKey === "search") return "/search";
+  if (routeKey === "warplets") return WARPLETS_APP_PATH;
   if (routeKey === "million") return "/million";
   if (routeKey === "stop") return "/stop";
   if (routeKey === "unsubscribe") return "/unsubscribe";
@@ -437,7 +462,16 @@ export const onRequestGet: PagesFunction<PagesEnv> = async (context) => {
   const requestUrl = new URL(context.request.url);
 
   if (requestUrl.pathname === "/.well-known/farcaster.json") {
-    return applySecurityHeaders(Response.json(buildFarcasterManifest(requestUrl.hostname), {
+    const manifest = buildFarcasterManifest(
+      requestUrl.hostname,
+      parseWarpletsAccountAssociation(context.env, requestUrl.hostname),
+    );
+    if (!manifest) {
+      return applySecurityHeaders(Response.json({
+        error: "WARPLETS_ACCOUNT_ASSOCIATION_JSON must contain an association signed for this exact hostname",
+      }, { status: 503, headers: { "cache-control": "no-store" } }));
+    }
+    return applySecurityHeaders(Response.json(manifest, {
       headers: {
         "cache-control": "no-store",
       },
@@ -459,14 +493,14 @@ export const onRequestGet: PagesFunction<PagesEnv> = async (context) => {
   const statsShareImageUrl = statsShareSnapshot?.imageReady
     ? `${requestUrl.origin}/api/stats/share-images/${statsShareSnapshot.id}`
     : undefined;
-  const searchWarpletTokenId = routeKey === "search" ? getWarpletTokenId(requestUrl.searchParams) : undefined;
+  const searchWarpletTokenId = routeKey === "warplets" ? getWarpletTokenId(requestUrl.searchParams) : undefined;
   const searchFirstWarpletTokenId =
-    routeKey === "search" && !searchWarpletTokenId ? getFirstWarpletTokenId(requestUrl.searchParams) : undefined;
+    routeKey === "warplets" && !searchWarpletTokenId ? getFirstWarpletTokenId(requestUrl.searchParams) : undefined;
   const searchWarpletTitle = searchWarpletTokenId ? `10X Warplet #${searchWarpletTokenId}` : undefined;
   const searchResultsTitle = searchFirstWarpletTokenId
     ? getSearchResultsShareTitle(requestUrl.searchParams)
     : undefined;
-  const perksShareContent = routeKey === "search" ? getPerksShareContentFromPath(requestUrl.pathname) : null;
+  const perksShareContent = routeKey === "warplets" ? getPerksShareContentFromPath(requestUrl.pathname) : null;
   const searchShareTitle = searchWarpletTitle ?? searchResultsTitle ?? (perksShareContent ? `10X Perks: ${perksShareContent.label}` : undefined);
   const searchWarpletImageUrl = searchWarpletTokenId
     ? `https://warplets.10x.meme/${searchWarpletTokenId}.gif`
@@ -521,14 +555,16 @@ export const onRequestGet: PagesFunction<PagesEnv> = async (context) => {
     html = html.replace("</head>", `  ${buildStopOpenGraphTags(requestUrl.href)}\n  </head>`);
   }
 
-  if (routeKey === "search" && searchShareTitle && searchShareImageUrl) {
-    const titleTag = `<title>${escapeHtmlText(searchShareTitle)}</title>`;
+  if (routeKey === "warplets") {
+    const routeTitle = searchShareTitle ?? WARPLETS_SHARE_TITLE;
+    const routeShareImageUrl = searchShareImageUrl ?? `${requestUrl.origin}/embed.png`;
+    const titleTag = `<title>${escapeHtmlText(routeTitle)}</title>`;
     html = TITLE_REGEX.test(html)
       ? html.replace(TITLE_REGEX, titleTag)
       : html.replace("</head>", `  ${titleTag}\n  </head>`);
     html = html.replace(
       "</head>",
-      `  ${buildSearchOpenGraphTags(searchShareTitle, searchShareImageUrl, requestUrl.href)}\n  </head>`,
+      `  ${buildSearchOpenGraphTags(routeTitle, routeShareImageUrl, requestUrl.href)}\n  </head>`,
     );
   }
 

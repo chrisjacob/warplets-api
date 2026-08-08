@@ -1,6 +1,6 @@
 # 10X distribution surfaces: setup and rollout
 
-This implementation keeps Farcaster Mini App and the central Search application
+This implementation keeps Farcaster Mini App and the central 10X Warplets application
 canonical. PWA, X, bots, the Agent API and 10X Tabs are entry points around the
 same verified identity, wallet and data boundaries.
 
@@ -17,9 +17,10 @@ installs bots or enables paid requests automatically.
 
 Migration `0047_app_identity_and_base_notifications.sql` must already have been
 applied and verified through the prerequisite runbook. Apply
-`0048_distribution_surfaces.sql` only after that gate passes. Migration 0048
+`0048_distribution_surfaces.sql` and `0049_warplets_app_identity.sql` only after that gate passes. Migration 0048
 preserves the existing Farcaster/Base delivery history while replacing the
-two-channel constraint with the generalized channel model.
+two-channel constraint with the generalized channel model. Migration 0049 changes
+whole-application identity values and schema defaults from `search` to `warplets`.
 
 ```powershell
 pnpm --dir app exec wrangler d1 migrations apply warplets_preview --remote --env preview
@@ -34,7 +35,7 @@ auth, API-token and bot-link isolation tests pass.
 The existing `api.10x.meme` Worker keeps its D1/KV bindings, OpenSea/Dune cron,
 admin route and `/img-proxy.jpg`. Configure:
 
-- `SEARCH_API_ORIGIN=https://search.10x.meme`
+- `WARPLETS_APP_ORIGIN=https://warplet.10x.meme`
 - secret `BOT_SERVICE_TOKEN` (same random 32+ character value on API and bots)
 - keep `X402_ENABLED=false` initially
 
@@ -61,7 +62,7 @@ Public reads are available under `/v1`; discovery is
 exposes equivalent tools. Public reads permit CORS; authenticated mutations do
 not infer identity from submitted wallet/FID/platform IDs.
 
-Connect and verify a wallet in Search, then open **Developer API** from the user
+Connect and verify a wallet in 10X Warplets, then open **Developer API** from the user
 menu. Tokens are shown once, stored only as SHA-256 hashes, revocable and scoped
 to favourites, alerts or Stats shares.
 
@@ -88,7 +89,7 @@ refund and accounting tests pass.
 
 ## 4. PWA and Web Push enrollment
 
-The Search build now includes a stable manifest, install shortcuts, wide/narrow
+The 10X Warplets build now includes a stable manifest, install shortcuts, wide/narrow
 screenshots, a service worker and an explicit online-required fallback. It does
 not cache the Search database or marketplace data offline.
 
@@ -119,7 +120,7 @@ Register an X OAuth 2.0 application with exact callback URLs, then configure:
 - build variable `VITE_X_AUTH_ENABLED=true`
 - variable `X_CLIENT_ID`
 - secret `X_CLIENT_SECRET` when using a confidential client
-- `X_OAUTH_CALLBACK_URL=https://search.10x.meme/api/auth/x/callback`
+- `X_OAUTH_CALLBACK_URL=https://warplet.10x.meme/api/auth/x/callback`
 
 Register preview and local callbacks separately. The implementation uses state,
 a five-minute single-use challenge and PKCE. X identity remains separate from
@@ -135,8 +136,8 @@ Telegram secrets:
 
 - `TELEGRAM_BOT_TOKEN`
 - `TELEGRAM_WEBHOOK_SECRET`
-- Search Pages variable `TELEGRAM_OIDC_CLIENT_ID`
-- Search Pages secret `TELEGRAM_OIDC_CLIENT_SECRET`
+- 10X Warplets Pages variable `TELEGRAM_OIDC_CLIENT_ID`
+- 10X Warplets Pages secret `TELEGRAM_OIDC_CLIENT_SECRET`
 - exact `TELEGRAM_OIDC_CALLBACK_URL`
 
 Register the callback/allowed URL with BotFather. Set Telegram's webhook to
@@ -148,8 +149,8 @@ Discord secrets/configuration:
 - `DISCORD_PUBLIC_KEY`
 - `DISCORD_APPLICATION_ID`
 - `DISCORD_BOT_TOKEN` for the local command-registration script only
-- Search Pages variable `DISCORD_CLIENT_ID`
-- Search Pages secret `DISCORD_CLIENT_SECRET`
+- 10X Warplets Pages variable `DISCORD_CLIENT_ID`
+- 10X Warplets Pages secret `DISCORD_CLIENT_SECRET`
 - exact `DISCORD_OAUTH_CALLBACK_URL`
 
 Set the Discord Interactions Endpoint URL to
@@ -183,7 +184,7 @@ incognito limitations, existing website sessions and each wallet connector.
 
 For a release, build from an exact clean commit, ZIP the generated directory,
 publish its SHA-256 and immutable commit provenance in a GitHub release. Updates
-remain manual. The hash pins only the wrapper; the top-level HTTPS Search app can
+remain manual. The hash pins only the wrapper; the top-level HTTPS 10X Warplets app can
 still change through normal deployments. Do not reward install/source query
 parameters and do not submit this redirect-only version to the Chrome Web Store.
 

@@ -1,4 +1,5 @@
 import { jsonSecure, sha256Hex } from "./security.js";
+import { WARPLETS_APP_HOSTS } from "../../shared/warpletsApp.js";
 
 export const BASE_MAINNET_CHAIN_ID = 8453;
 export const BASE_SEPOLIA_CHAIN_ID = 84532;
@@ -13,7 +14,7 @@ export function normalizeAuthWallet(value: unknown): `0x${string}` | null {
 export function isAllowedAuthChain(chainId: number, request: Request): boolean {
   if (chainId === BASE_MAINNET_CHAIN_ID) return true;
   const hostname = new URL(request.url).hostname;
-  return chainId === BASE_SEPOLIA_CHAIN_ID && (hostname === "localhost" || hostname === "127.0.0.1" || hostname.startsWith("search-local."));
+  return chainId === BASE_SEPOLIA_CHAIN_ID && (hostname === "localhost" || hostname === "127.0.0.1" || hostname === WARPLETS_APP_HOSTS[0]);
 }
 
 export function requireSameOrigin(request: Request): Response | null {

@@ -4,6 +4,12 @@ import tailwindcss from "@tailwindcss/vite";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  WARPLETS_APP_HOSTS,
+  WARPLETS_APP_PATH,
+  WARPLETS_PUBLIC_NAME,
+  isWarpletsAppHostname,
+} from "./shared/warpletsApp";
 
 const TITLE_REGEX = /<title>[\s\S]*?<\/title>/i;
 const DROP_SHARE_TITLE = "🟢 10X Warplets (Private 10K NFT Drop)";
@@ -17,9 +23,60 @@ const STOP_IMAGE_URL = "https://warplets.10x.meme/3081.png";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, "..");
 
+type AccountAssociation = {
+  header: string;
+  payload: string;
+  signature: string;
+};
+
+function parseWarpletsAccountAssociation(hostname: string): AccountAssociation | null {
+  const raw = process.env.WARPLETS_ACCOUNT_ASSOCIATION_JSON?.trim();
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as Partial<AccountAssociation>;
+    if (!parsed.header || !parsed.payload || !parsed.signature) return null;
+    const decoded = JSON.parse(
+      Buffer.from(parsed.payload.replace(/-/g, "+").replace(/_/g, "/"), "base64").toString("utf8"),
+    ) as { domain?: unknown };
+    return decoded.domain === hostname ? parsed as AccountAssociation : null;
+  } catch {
+    return null;
+  }
+}
+
+function buildLocalWarpletsManifest(hostname: string, accountAssociation: AccountAssociation) {
+  const origin = `https://${hostname}`;
+  return {
+    accountAssociation,
+    miniapp: {
+      version: "1",
+      name: WARPLETS_PUBLIC_NAME,
+      canonicalDomain: hostname,
+      homeUrl: origin,
+      iconUrl: `${origin}/icon.png`,
+      imageUrl: `${origin}/embed.png`,
+      heroImageUrl: `${origin}/hero.png`,
+      buttonTitle: "Open 10X Warplets",
+      splashImageUrl: `${origin}/splash.png`,
+      splashBackgroundColor: "#000000",
+      webhookUrl: `${origin}/webhook/warplets`,
+      castShareUrl: origin,
+      subtitle: "Find your Warplet.",
+      description: "Search, filter, trade, favourite, and share 10X Warplets.",
+      primaryCategory: "social",
+      screenshotUrls: [1, 2, 3].map((index) => `${origin}/screenshots/${index}.jpg`),
+      tags: ["10x", "warplets", "farcaster", "nft", "search"],
+      tagline: "Take the green pill.",
+      ogTitle: WARPLETS_PUBLIC_NAME,
+      ogDescription: "Search, filter, trade, favourite, and share 10X Warplets.",
+      ogImageUrl: `${origin}/embed.png`,
+    },
+  };
+}
+
 let localFidToTokenId: Map<string, string> | undefined;
 
-type RouteKey = "root" | "drop" | "search" | "million" | "stop" | "unsubscribe";
+type RouteKey = "root" | "drop" | "warplets" | "million" | "stop" | "unsubscribe";
 
 function matchesHost(hostname: string, ...candidates: string[]): boolean {
   return candidates.includes(hostname);
@@ -28,10 +85,10 @@ function matchesHost(hostname: string, ...candidates: string[]): boolean {
 function getRouteKey(pathname: string, hostname?: string): RouteKey {
   const cleanPath = pathname.replace(/\/+$/, "") || "/";
   if (hostname && matchesHost(hostname, "drop-local.10x.meme", "drop-dev.10x.meme", "drop.10x.meme")) return "drop";
-  if (hostname && matchesHost(hostname, "search-local.10x.meme", "search-dev.10x.meme", "search.10x.meme")) return "search";
+  if (hostname && isWarpletsAppHostname(hostname)) return "warplets";
   if (hostname && matchesHost(hostname, "million-local.10x.meme", "million-dev.10x.meme", "million.10x.meme")) return "million";
   if (cleanPath === "/drop" || cleanPath.startsWith("/drop/")) return "drop";
-  if (cleanPath === "/search" || cleanPath.startsWith("/search/")) return "search";
+  if (cleanPath === WARPLETS_APP_PATH || cleanPath.startsWith(`${WARPLETS_APP_PATH}/`)) return "warplets";
   if (cleanPath === "/million" || cleanPath.startsWith("/million/")) return "million";
   if (cleanPath === "/stop" || cleanPath.startsWith("/stop/")) return "stop";
   if (cleanPath === "/unsubscribe" || cleanPath.startsWith("/unsubscribe/")) return "unsubscribe";
@@ -47,11 +104,11 @@ function getMiniAppConfig(routeKey: RouteKey): { title: string; name: string; pa
     };
   }
 
-  if (routeKey === "search") {
+  if (routeKey === "warplets") {
     return {
-      title: "Open 10X Warplets Search",
-      name: "10X Warplets Search",
-      path: "/search",
+      title: "Open 10X Warplets",
+      name: WARPLETS_PUBLIC_NAME,
+      path: WARPLETS_APP_PATH,
     };
   }
 
@@ -216,9 +273,7 @@ function getLaunchPath(routeKey: RouteKey, hostname: string): string {
       "drop-local.10x.meme",
       "drop-dev.10x.meme",
       "drop.10x.meme",
-      "search-local.10x.meme",
-      "search-dev.10x.meme",
-      "search.10x.meme",
+      ...WARPLETS_APP_HOSTS,
       "million-local.10x.meme",
       "million-dev.10x.meme",
       "million.10x.meme",
@@ -228,7 +283,7 @@ function getLaunchPath(routeKey: RouteKey, hostname: string): string {
   }
 
   if (routeKey === "drop") return "/drop";
-  if (routeKey === "search") return "/search";
+  if (routeKey === "warplets") return WARPLETS_APP_PATH;
   if (routeKey === "million") return "/million";
   if (routeKey === "stop") return "/stop";
   if (routeKey === "unsubscribe") return "/unsubscribe";
@@ -323,7 +378,19 @@ export default defineConfig({
       name: "miniapp-meta-query-pass-through",
       apply: "serve",
       configureServer(server) {
-        server.middlewares.use((_, res, next) => {
+        server.middlewares.use((req, res, next) => {
+          const hostname = (req.headers.host ?? "").split(":")[0].toLowerCase();
+          const pathname = (req.url ?? "/").split("?")[0];
+          if (pathname === "/.well-known/farcaster.json" && isWarpletsAppHostname(hostname)) {
+            const association = parseWarpletsAccountAssociation(hostname);
+            res.statusCode = association ? 200 : 503;
+            res.setHeader("content-type", "application/json; charset=utf-8");
+            res.setHeader("cache-control", "no-store");
+            res.end(JSON.stringify(association
+              ? buildLocalWarpletsManifest(hostname, association)
+              : { error: "WARPLETS_ACCOUNT_ASSOCIATION_JSON must contain an association signed for this exact hostname" }));
+            return;
+          }
           res.removeHeader("x-frame-options");
           res.removeHeader("X-Frame-Options");
           const originalWriteHead = res.writeHead;
@@ -347,9 +414,9 @@ export default defineConfig({
         const config = getMiniAppConfig(routeKey);
         const launchPath = getLaunchPath(routeKey, baseHostname);
         const launchBase = launchPath === "/" ? `${baseUrl}/` : `${baseUrl}${launchPath}`;
-        const searchWarpletTokenId = routeKey === "search" ? getWarpletTokenId(query) : undefined;
+        const searchWarpletTokenId = routeKey === "warplets" ? getWarpletTokenId(query) : undefined;
         const searchFirstWarpletTokenId =
-          routeKey === "search" && !searchWarpletTokenId ? getFirstWarpletTokenId(query) : undefined;
+          routeKey === "warplets" && !searchWarpletTokenId ? getFirstWarpletTokenId(query) : undefined;
         const searchWarpletTitle = searchWarpletTokenId ? `10X Warplet #${searchWarpletTokenId}` : undefined;
         const searchResultsTitle = searchFirstWarpletTokenId ? getSearchResultsShareTitle(query) : undefined;
         const searchShareTitle = searchWarpletTitle ?? searchResultsTitle;
@@ -407,14 +474,16 @@ export default defineConfig({
           );
         }
 
-        if (routeKey === "search" && searchShareTitle && searchShareImageUrl) {
-          const titleTag = `<title>${escapeHtmlText(searchShareTitle)}</title>`;
+        if (routeKey === "warplets") {
+          const routeTitle = searchShareTitle ?? WARPLETS_PUBLIC_NAME;
+          const routeShareImageUrl = searchShareImageUrl ?? `${baseUrl}/embed.png`;
+          const titleTag = `<title>${escapeHtmlText(routeTitle)}</title>`;
           nextHtml = TITLE_REGEX.test(nextHtml)
             ? nextHtml.replace(TITLE_REGEX, titleTag)
             : nextHtml.replace("</head>", `    ${titleTag}\n  </head>`);
           nextHtml = nextHtml.replace(
             "</head>",
-            `    ${buildSearchOpenGraphTags(searchShareTitle, searchShareImageUrl, `${baseUrl}${reqUrl}`)}\n  </head>`,
+            `    ${buildSearchOpenGraphTags(routeTitle, routeShareImageUrl, `${baseUrl}${reqUrl}`)}\n  </head>`,
           );
         }
 
@@ -426,7 +495,7 @@ export default defineConfig({
     allowedHosts: [
       "app-local.10x.meme",
       "drop-local.10x.meme",
-      "search-local.10x.meme",
+      WARPLETS_APP_HOSTS[0],
       "million-local.10x.meme",
     ],
     proxy: {
@@ -448,6 +517,10 @@ export default defineConfig({
             }
           });
         },
+      },
+      "/webhook": {
+        target: localApiTarget,
+        changeOrigin: false,
       },
       "/__adminhidden": {
         target: localApiTarget,

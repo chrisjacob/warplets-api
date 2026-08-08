@@ -51,7 +51,7 @@ export function getPerksShareImageUrl(content: PerksShareContent): string {
 }
 
 export function getPerksShareContentFromPath(pathname: string): PerksShareContent | null {
-  const match = pathname.match(/(?:^|\/)(?:search\/)?perks(?:\/(memes|nfts|ai|attention|access))?\/?$/i);
+  const match = pathname.match(/(?:^|\/)(?:warplets\/)?perks(?:\/(memes|nfts|ai|attention|access))?\/?$/i);
   const id = (match?.[1]?.toLowerCase() || (match ? "memes" : "")) as PerksShareId;
   return id ? PERKS_SHARE_CONTENT[id] ?? null : null;
 }

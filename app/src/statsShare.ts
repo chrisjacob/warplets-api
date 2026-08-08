@@ -1,4 +1,4 @@
-export const STATS_SHARE_RENDERER_VERSION = "stats-share-v47";
+export const STATS_SHARE_RENDERER_VERSION = "stats-share-v48";
 
 export type StatsShareRange = "7d" | "30d" | "90d" | "1y" | "all";
 export type StatsShareMarketMetric = "price" | "floor" | "volume" | "listings" | "offers" | "sales";
@@ -133,6 +133,21 @@ export function buildStatsLeaderboardText(
     `${LEADERBOARD_NUMBERS[index]} ${formatStatsShareIdentity(holder, channel)}`,
   );
   return [heading, "", ...lines].join("\n");
+}
+
+export function buildStatsHolderRankText(
+  heading: string,
+  holder: StatsShareHolder,
+  rankWindow: StatsShareHolder[],
+  channel: "farcaster" | "twitter",
+): string {
+  const neighbours = rankWindow
+    .filter((candidate) => candidate.wallet.toLowerCase() !== holder.wallet.toLowerCase())
+    .slice(0, 2)
+    .map((candidate) => formatStatsShareIdentity(candidate, channel));
+  return neighbours.length > 0
+    ? `${heading}\n\n👀 ${neighbours.join(" ")}`
+    : heading;
 }
 
 export function getStatsShareLaunchPath(request: StatsShareRequest): string {

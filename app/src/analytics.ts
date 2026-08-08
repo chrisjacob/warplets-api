@@ -1,5 +1,6 @@
 import type { AppSurface } from "./appRuntime";
 import type { EntryPoint } from "./pwa";
+import { WARPLETS_APP_PATH, isWarpletsAppHostname } from "../shared/warpletsApp";
 
 export type AnalyticsEventName =
   | "app_viewed"
@@ -53,6 +54,22 @@ function anonymousSessionId(): string {
   }
 }
 
+function currentAppSlug(): "app" | "drop" | "warplets" | "million" {
+  if (typeof window === "undefined") return "app";
+  const hostname = window.location.hostname.toLowerCase();
+  const pathname = window.location.pathname.replace(/\/+$/, "") || "/";
+  if (isWarpletsAppHostname(hostname) || pathname === WARPLETS_APP_PATH || pathname.startsWith(`${WARPLETS_APP_PATH}/`)) {
+    return "warplets";
+  }
+  if (hostname.startsWith("drop-") || hostname === "drop.10x.meme" || pathname === "/drop" || pathname.startsWith("/drop/")) {
+    return "drop";
+  }
+  if (hostname.startsWith("million-") || hostname === "million.10x.meme" || pathname === "/million" || pathname.startsWith("/million/")) {
+    return "million";
+  }
+  return "app";
+}
+
 export function trackAppEvent(name: AnalyticsEventName, context: AnalyticsContext = {}): void {
   if (typeof window === "undefined" || typeof window.gtag !== "function") return;
   const sanitized = Object.fromEntries(
@@ -60,6 +77,7 @@ export function trackAppEvent(name: AnalyticsEventName, context: AnalyticsContex
   );
   window.gtag("event", name, {
     ...sanitized,
+    app_slug: currentAppSlug(),
     anonymous_session_id: anonymousSessionId(),
   });
 }

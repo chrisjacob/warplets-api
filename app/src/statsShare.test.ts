@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildStatsHolderRankText,
   buildStatsLeaderboardText,
   formatStatsShareIdentity,
   getStatsShareActivityApiPath,
@@ -54,6 +55,16 @@ describe("Stats share request validation", () => {
 
   it("accepts friend snapshots without an authentication value", () => {
     expect(parseStatsShareRequest({ kind: "holders-top10-friends", viewerFid: 9152 })).toEqual({ kind: "holders-top10-friends", viewerFid: 9152 });
+  });
+
+  it("mentions the two neighbouring rank cards with channel-specific identities", () => {
+    const viewer = holder({ wallet: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", rank: 2 });
+    const first = holder({ wallet: "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", username: "fc-one", xUsername: "x-one" });
+    const third = holder({ wallet: "0xcccccccccccccccccccccccccccccccccccccccc", username: "fc-two", xUsername: null, displayName: "Holder Two" });
+    expect(buildStatsHolderRankText("My rank", viewer, [first, viewer, third], "farcaster"))
+      .toBe("My rank\n\n👀 @fc-one @fc-two");
+    expect(buildStatsHolderRankText("My rank", viewer, [first, viewer, third], "twitter"))
+      .toBe("My rank\n\n👀 @x-one Holder Two");
   });
 });
 

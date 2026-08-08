@@ -3,7 +3,7 @@
 One Cloudflare Worker normalizes Telegram webhook updates and Discord HTTP
 interactions into the same read-only Agent API commands. It never holds wallet
 keys and never submits trades. Personal commands require a one-time bot link
-followed by SIWE and explicit confirmation in the Search app.
+followed by SIWE and explicit confirmation in 10X Warplets.
 
 ## Configure
 

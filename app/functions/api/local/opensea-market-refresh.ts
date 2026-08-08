@@ -1,4 +1,5 @@
 import { ingestOpenSeaMarket, marketJson, type OpenSeaMarketEnv } from "../../_lib/openseaMarket.js";
+import { WARPLETS_APP_HOSTS } from "../../../shared/warpletsApp.js";
 
 function isLocalRequest(request: Request): boolean {
   const hostname = new URL(request.url).hostname.toLowerCase();
@@ -6,7 +7,7 @@ function isLocalRequest(request: Request): boolean {
     hostname === "127.0.0.1" ||
     hostname === "::1" ||
     hostname.endsWith(".localhost") ||
-    hostname.startsWith("search-local.");
+    hostname === WARPLETS_APP_HOSTS[0];
 }
 
 export const onRequestPost: PagesFunction<OpenSeaMarketEnv> = async (context) => {

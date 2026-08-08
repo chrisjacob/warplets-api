@@ -178,6 +178,7 @@ export const onRequestGet: PagesFunction = () => {
       <option value="all">All</option>
       <option value="app">10X</option>
       <option value="drop">Drop</option>
+      <option value="warplets">10X Warplets</option>
     </select>
 
     <label>Title <span style="color:#555;font-size:.75rem">(max 32 chars)</span></label>
@@ -277,6 +278,7 @@ export const onRequestGet: PagesFunction = () => {
     all: 'https://app.10x.meme/',
     app: 'https://app.10x.meme/',
     drop: 'https://drop.10x.meme/',
+    warplets: 'https://warplet.10x.meme/',
   };
   let token = '';
   let adminSession = '';

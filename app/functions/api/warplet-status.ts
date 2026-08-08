@@ -4,7 +4,7 @@
  * Upserts the viewer into warplets_users (with optional Neynar enrichment)
  * and returns whether they are matched to a Warplet allocation.
  *
- * Body: { fid: number, appSlug?: "search", searchCompletion?: "onboarding" | "airdrop_modal" }
+ * Body: { fid: number, appSlug?: "warplets", searchCompletion?: "onboarding" | "airdrop_modal" }
  */
 
 interface Env {
@@ -17,6 +17,7 @@ interface Env {
 import { createActionSessionToken, jsonSecure, readJsonBodyWithLimit } from "../_lib/security.js";
 import { outboundFetch } from "../_lib/outbound.js";
 import { getAppSession } from "../_lib/appAuth.js";
+import { WARPLETS_APP_SLUG } from "../../shared/warpletsApp.js";
 
 interface RequestBody {
   fid?: unknown;
@@ -98,7 +99,7 @@ const WARPLETS_TOTAL_SUPPLY = 10000;
 const TOP_REFERRERS_CACHE_PREFIX = "top-referrers-v1";
 const TOP_REFERRERS_CACHE_TTL_SECONDS = 600;
 const PROFILE_REFRESH_CACHE_PREFIX = "farcaster-profile-refreshed-v1";
-const PROFILE_REFRESH_TTL_SECONDS = 6 * 60 * 60;
+const PROFILE_REFRESH_TTL_SECONDS = 30 * 24 * 60 * 60;
 let usersColumnSetPromise: Promise<Set<string>> | null = null;
 
 function toErrorMessage(error: unknown): string {
@@ -1086,12 +1087,12 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     }
     const appSlug = normalizeAppSlug(body.appSlug);
     const searchCompletion = normalizeSearchCompletion(body.searchCompletion);
-    if (body.searchCompletion !== undefined && (appSlug !== "search" || !searchCompletion)) {
+    if (body.searchCompletion !== undefined && (appSlug !== WARPLETS_APP_SLUG || !searchCompletion)) {
       return jsonSecure({ error: "Invalid search completion payload" }, { status: 400 });
     }
-    const verifiedSession = appSlug === "search" ? await getAppSession(context.request, context.env) : null;
-    const verifiedSearchFid = verifiedSession?.farcasterFid === fid;
-    const suppliedProfile = verifiedSearchFid && body.profile && typeof body.profile === "object" && !Array.isArray(body.profile)
+    const verifiedSession = appSlug === WARPLETS_APP_SLUG ? await getAppSession(context.request, context.env) : null;
+    const verifiedWarpletsFid = verifiedSession?.farcasterFid === fid;
+    const suppliedProfile = verifiedWarpletsFid && body.profile && typeof body.profile === "object" && !Array.isArray(body.profile)
       ? body.profile as Record<string, unknown>
       : null;
     const suppliedUsername = typeof suppliedProfile?.username === "string" ? suppliedProfile.username.trim() || null : null;
@@ -1099,7 +1100,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     const suppliedPfpUrl = typeof suppliedProfile?.pfpUrl === "string" && /^https:\/\//i.test(suppliedProfile.pfpUrl)
       ? suppliedProfile.pfpUrl.trim()
       : null;
-    if (searchCompletion && !verifiedSearchFid) {
+    if (searchCompletion && !verifiedWarpletsFid) {
       return jsonSecure({ error: "verified Farcaster session required" }, { status: 401 });
     }
     const requestedReferrerFid = typeof body.referrerFid === "number" && Number.isInteger(body.referrerFid)
@@ -1305,7 +1306,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         }
       }
 
-      const actionSessionToken = appSlug !== "search" || verifiedSearchFid
+      const actionSessionToken = appSlug !== WARPLETS_APP_SLUG || verifiedWarpletsFid
         ? await createActionSessionToken(context.env.ACTION_SESSION_SECRET, fid, 3600)
         : null;
       return jsonSecure({
@@ -1334,11 +1335,13 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     const recentlyRefreshedProfile = context.env.WARPLETS_KV
       ? await context.env.WARPLETS_KV.get(profileRefreshKey).catch(() => null)
       : null;
-    const shouldHydrateProfile =
+    const shouldRefreshProfileFromNeynar =
       !existing.username ||
       !existing.pfp_url ||
       existing.score === null ||
-      !recentlyRefreshedProfile ||
+      !recentlyRefreshedProfile;
+    const shouldHydrateProfile =
+      shouldRefreshProfileFromNeynar ||
       Boolean(suppliedUsername || suppliedDisplayName || suppliedPfpUrl);
     let referralCount = Math.max(0, Number(existing.referrals_count ?? 0));
 
@@ -1364,7 +1367,9 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     }
 
     if (shouldHydrateProfile) {
-      const neynarUser = await fetchNeynarUserByFid(fid, context.env.NEYNAR_API_KEY);
+      const neynarUser = shouldRefreshProfileFromNeynar
+        ? await fetchNeynarUserByFid(fid, context.env.NEYNAR_API_KEY)
+        : null;
       if (neynarUser || suppliedUsername || suppliedDisplayName || suppliedPfpUrl) {
         const now = new Date().toISOString();
         await context.env.WARPLETS.prepare(
@@ -1469,7 +1474,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
     let searchOnboardingCompletedAt = existing.search_onboarding_completed_at;
     let searchAirdropModalCompletedAt = existing.search_airdrop_modal_completed_at;
-    if (appSlug === "search" && searchCompletion) {
+    if (appSlug === WARPLETS_APP_SLUG && searchCompletion) {
       const now = new Date().toISOString();
       if (searchCompletion === "onboarding" && hasSearchOnboardingCompletedAt) {
         await context.env.WARPLETS.prepare(
@@ -1498,7 +1503,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       .first<{ completed_actions: number }>();
     const completedActionsCount = Number(completedActionsRow?.completed_actions ?? 0);
 
-    const actionSessionToken = appSlug !== "search" || verifiedSearchFid
+    const actionSessionToken = appSlug !== WARPLETS_APP_SLUG || verifiedWarpletsFid
       ? await createActionSessionToken(context.env.ACTION_SESSION_SECRET, fid, 3600)
       : null;
     return jsonSecure({

@@ -1045,7 +1045,7 @@ export async function handleListingSubmit(context: Parameters<PagesFunction<Open
       amountRaw: priceRaw,
       currencySymbol: "ETH",
       orderHash: asString(result.order_hash) ?? asString(result.orderHash),
-      source: "search:trade",
+      source: "warplets:trade",
       rawPayload: { actionId: asString(body.actionId), result },
     }).catch((error) => console.error("Failed to record listing submit activity", error));
   }
@@ -1091,7 +1091,7 @@ export async function handleOfferSubmit(context: Parameters<PagesFunction<OpenSe
         amountRaw: priceRaw,
         currencySymbol: "WETH",
         orderHash,
-        source: "search:trade",
+        source: "warplets:trade",
         rawPayload: { actionId: asString(body.actionId), result },
       }).catch((error) => console.error("Failed to record offer submit activity", error));
     }
@@ -1240,7 +1240,7 @@ export async function handleTradeLog(context: Parameters<PagesFunction<OpenSeaTr
         currencySymbol: "ETH",
         orderHash: asString(body.orderHash),
         transactionHash: asString(body.transactionHash),
-        source: "search:trade",
+        source: "warplets:trade",
         rawPayload: body.rawPayload ?? body,
       }).catch((error) => console.error("Failed to record buy confirmation activity", error));
     }
@@ -1256,7 +1256,7 @@ export async function handleTradeLog(context: Parameters<PagesFunction<OpenSeaTr
         currencySymbol: "WETH",
         orderHash: asString(body.orderHash),
         transactionHash: asString(body.transactionHash),
-        source: "search:trade",
+        source: "warplets:trade",
         rawPayload: body.rawPayload ?? body,
       }).catch((error) => console.error("Failed to record accept-offer confirmation activity", error));
     }

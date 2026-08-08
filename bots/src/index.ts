@@ -4,7 +4,7 @@ import { ed25519 } from "@noble/curves/ed25519.js";
 interface Env {
   TENX_API?: Fetcher;
   API_ORIGIN?: string;
-  SEARCH_ORIGIN?: string;
+  WARPLETS_APP_ORIGIN?: string;
   BOT_SERVICE_TOKEN?: string;
   TELEGRAM_BOT_TOKEN?: string;
   TELEGRAM_WEBHOOK_SECRET?: string;
@@ -58,8 +58,8 @@ function apiOrigin(env: Env): string {
   return (env.API_ORIGIN?.trim() || "https://api.10x.meme").replace(/\/$/, "");
 }
 
-function searchOrigin(env: Env): string {
-  return (env.SEARCH_ORIGIN?.trim() || "https://search.10x.meme").replace(/\/$/, "");
+function warpletsAppOrigin(env: Env): string {
+  return (env.WARPLETS_APP_ORIGIN?.trim() || "https://warplet.10x.meme").replace(/\/$/, "");
 }
 
 function serviceHeaders(env: Env, identity: BotIdentity): Headers {
@@ -168,25 +168,25 @@ async function executeCommand(env: Env, command: NormalizedCommand): Promise<str
     const q = command.args.join(" ").trim();
     if (!q) return "Usage: /search <name, trait, wallet or token ID>";
     const payload = await apiRequest(env, identity, `/v1/warplets?q=${encodeURIComponent(q)}&limit=8&sort=rank`);
-    return formatWarplets(arrayData(payload), searchOrigin(env));
+    return formatWarplets(arrayData(payload), warpletsAppOrigin(env));
   }
   if (name === "random") {
     const tokenId = crypto.getRandomValues(new Uint16Array(1))[0] % 10_000;
     const payload = await apiRequest(env, identity, `/v1/warplets/${tokenId}`);
     const data = envelopeData(payload);
-    return formatWarplets(data && typeof data === "object" ? [data as Record<string, unknown>] : [], searchOrigin(env));
+    return formatWarplets(data && typeof data === "object" ? [data as Record<string, unknown>] : [], warpletsAppOrigin(env));
   }
   if (name === "item") {
     const tokenId = Number.parseInt(command.args[0] ?? "", 10);
     if (!Number.isInteger(tokenId) || tokenId < 0 || tokenId > 9999) return "Usage: /item <0-9999>";
     const payload = await apiRequest(env, identity, `/v1/warplets/${tokenId}`);
     const data = envelopeData(payload);
-    return formatWarplets(data && typeof data === "object" ? [data as Record<string, unknown>] : [], searchOrigin(env));
+    return formatWarplets(data && typeof data === "object" ? [data as Record<string, unknown>] : [], warpletsAppOrigin(env));
   }
   if (name === "stats") {
     const kind = ["overview", "market", "activity", "holders"].includes(command.args[0]) ? command.args[0] : "overview";
     const payload = await apiRequest(env, identity, `/v1/stats/${kind}`);
-    return `${prettyStats(payload, kind[0].toUpperCase() + kind.slice(1))}\n\n${searchOrigin(env)}/stats/${kind}?source=${identity.provider}`;
+    return `${prettyStats(payload, kind[0].toUpperCase() + kind.slice(1))}\n\n${warpletsAppOrigin(env)}/stats/${kind}?source=${identity.provider}`;
   }
   if (name === "link") {
     await registerIdentity(env, identity);

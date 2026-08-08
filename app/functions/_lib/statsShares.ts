@@ -8,8 +8,10 @@ import {
   type StatsEnv,
 } from "./stats.js";
 import { jsonSecure, rateLimit, readJsonBodyWithLimit } from "./security.js";
+import { WARPLETS_APP_HOSTS } from "../../shared/warpletsApp.js";
 import {
   STATS_SHARE_RENDERER_VERSION,
+  buildStatsHolderRankText,
   buildStatsLeaderboardText,
   getStatsShareActivityLabel,
   getStatsShareActivityApiPath,
@@ -338,8 +340,8 @@ async function buildSnapshotData(
       data: { row: enriched, rows: enrichedRows, totalHolders: total, asOf: data.asOf },
       dataAsOf: typeof data.asOf === "string" ? data.asOf : null,
       title: "Share Your Rank",
-      farcasterText: text,
-      twitterText: text,
+      farcasterText: buildStatsHolderRankText(text, enriched, enrichedRows, "farcaster"),
+      twitterText: buildStatsHolderRankText(text, enriched, enrichedRows, "twitter"),
     };
   }
 
@@ -409,7 +411,7 @@ function getStatsSharePublicOrigin(request: Request): string {
     }
   }
   const forwardedOrigin = request.headers.get("x-10x-public-origin");
-  if (current.protocol === "http:" && current.hostname === "search-local.10x.meme" && forwardedOrigin) {
+  if (current.protocol === "http:" && current.hostname === WARPLETS_APP_HOSTS[0] && forwardedOrigin) {
     try {
       const candidate = new URL(forwardedOrigin);
       if (candidate.protocol === "https:" && candidate.hostname === current.hostname) return candidate.origin;
@@ -422,7 +424,7 @@ function getStatsSharePublicOrigin(request: Request): string {
     if (!header) continue;
     try {
       const candidate = new URL(header);
-      if (candidate.protocol === "https:" && candidate.hostname === "search-local.10x.meme") return candidate.origin;
+      if (candidate.protocol === "https:" && candidate.hostname === WARPLETS_APP_HOSTS[0]) return candidate.origin;
     } catch {
       // Ignore malformed proxy headers and retain the request origin.
     }

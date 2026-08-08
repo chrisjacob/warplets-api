@@ -1,6 +1,7 @@
 import { getAppSession, type AppAuthEnv } from "../../../_lib/appAuth.js";
 import { getBaseNotificationStatus, type BaseNotificationsEnv } from "../../../_lib/baseNotifications.js";
 import { jsonSecure } from "../../../_lib/security.js";
+import { WARPLETS_APP_ORIGINS } from "../../../../shared/warpletsApp.js";
 
 interface Env extends AppAuthEnv, BaseNotificationsEnv {}
 const CACHE_MS = 2 * 60 * 1000;
@@ -27,7 +28,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
          app_url = excluded.app_url, app_pinned = excluded.app_pinned,
          notifications_enabled = excluded.notifications_enabled, checked_at = excluded.checked_at,
          response_json = excluded.response_json`,
-    ).bind(session.walletAddress, context.env.BASE_APP_URL || "https://search.10x.meme", status.appPinned ? 1 : 0, status.notificationsEnabled ? 1 : 0, now, JSON.stringify(status)).run();
+    ).bind(session.walletAddress, context.env.BASE_APP_URL || WARPLETS_APP_ORIGINS.prod, status.appPinned ? 1 : 0, status.notificationsEnabled ? 1 : 0, now, JSON.stringify(status)).run();
     return jsonSecure({ ...status, cached: false });
   } catch (error) {
     return jsonSecure({ error: error instanceof Error ? error.message : "Base notification status failed" }, { status: 503 });

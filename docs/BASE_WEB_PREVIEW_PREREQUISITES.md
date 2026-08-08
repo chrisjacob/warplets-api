@@ -5,6 +5,10 @@ Complete this runbook **before**
 the Base/web foundation that has been implemented in code but has not yet been
 configured remotely.
 
+Complete the preview-domain and exact-domain Farcaster association steps in
+[`WARPLETS_HOSTNAME_SETUP.md`](./WARPLETS_HOSTNAME_SETUP.md) for
+`warplet-dev.10x.meme` before this runbook's preview smoke test.
+
 This runbook deliberately activates only the preview environment. It does not
 enable TrustConnect, Base notifications, production traffic, or a production
 deployment.
@@ -44,14 +48,14 @@ The intended preview targets are:
 
 | Purpose | Target |
 |---|---|
-| Preview Search URL | `https://search-dev.10x.meme` |
+| Preview 10X Warplets URL | `https://warplet-dev.10x.meme` |
 | Preview Pages project | The project/environment currently serving that URL |
 | Preview D1 database | `warplets_preview` |
 | Preview D1 database ID | `4ed108bd-9477-4109-930c-bc57b6c11b1f` |
 | Base test chain | Base Sepolia (`84532`) |
 
 In Cloudflare, open **Workers & Pages**, find the Pages deployment serving
-`search-dev.10x.meme`, and note its exact project name. The current deployment
+`warplet-dev.10x.meme`, and note its exact project name. The current deployment
 script uses `10x-app-dev`; confirm that in the dashboard rather than assuming
 it has not changed.
 
@@ -63,8 +67,8 @@ different Base notification API keys.
 
 1. Sign in to [Base.dev](https://base.dev/).
 2. Create a separate preview/test project where possible, named something like
-   `10X Warplets Search Preview`.
-3. Register `https://search-dev.10x.meme` as its app URL. The URL used in Base
+   `10X Warplets Preview`.
+3. Register `https://warplet-dev.10x.meme` as its app URL. The URL used in Base
    notification requests must belong to the project that issued the API key.
 4. Add the app name, icon, tagline, description, category and screenshots.
 5. Create or assign a Builder Code and copy its exact value. Builder Codes are
@@ -81,7 +85,7 @@ That value is already set under `[env.preview.vars]` in
 [`app/wrangler.toml`](../app/wrangler.toml).
 
 If Base.dev does not allow the preview URL on the production project, keep the
-projects separate. Do not use `search.10x.meme` as `BASE_APP_URL` in preview;
+projects separate. Do not use `warplet.10x.meme` as `BASE_APP_URL` in preview;
 that would test against production users.
 
 ## 3. Create the connection-only WalletConnect project
@@ -94,10 +98,10 @@ TrustConnect UI remains disabled.
    AppKit.
 3. Add these exact web origins to its allowlist:
 
-   - `https://search-dev.10x.meme`
-   - `https://search-local.10x.meme`
+   - `https://warplet-dev.10x.meme`
+   - `https://warplet-local.10x.meme`
    - the exact Vite origin you use locally, normally `http://localhost:5173`
-   - `https://search.10x.meme` when preparing production
+   - `https://warplet.10x.meme` when preparing production
 
 4. Copy the project ID. It is a public client build value, not a secret.
 5. Do **not** enable TrustConnect yet.
@@ -128,7 +132,7 @@ environment:
 
 1. **Workers & Pages** → preview project → **Settings**.
 2. Open **Variables and Secrets**.
-3. Select the environment serving `search-dev.10x.meme`.
+3. Select the environment serving `warplet-dev.10x.meme`.
 4. Add `APP_SESSION_SECRET` as an encrypted secret.
 
 Rotating this value invalidates existing application sessions. Never reuse the
@@ -205,9 +209,9 @@ List migrations without changing the database:
 pnpm --dir app exec wrangler d1 migrations list warplets_preview --remote --env preview
 ```
 
-Both 0047 and 0048 may be shown as pending. Do not use `d1 migrations apply`
+Migrations 0047, 0048 and 0049 may be shown as pending. Do not use `d1 migrations apply`
 at this stage: Wrangler applies every pending migration and would therefore run
-0048 too.
+0048 and 0049 too.
 
 Create a timestamped backup before the first remote migration:
 
@@ -228,7 +232,7 @@ Do not continue if the output names `warplets` or the production database ID.
 Migration 0047 uses idempotent `CREATE ... IF NOT EXISTS` statements. Because
 this targeted command does not add a row to Wrangler's migration journal, the
 later distribution runbook may list and harmlessly execute 0047 once more
-before recording it and applying 0048.
+before recording it and applying migrations 0048 and 0049.
 
 Verify the new tables:
 
@@ -236,19 +240,19 @@ Verify the new tables:
 pnpm --dir app exec wrangler d1 execute warplets_preview --remote --env preview --command "SELECT name FROM sqlite_master WHERE type='table' AND name IN ('app_auth_nonces','app_auth_sessions','app_identity_links','base_notification_status_cache','notification_channel_deliveries','notification_channel_attempts') ORDER BY name;"
 ```
 
-All six table names must be returned. Do **not** apply migration 0048 yet; that
-belongs to `DISTRIBUTION_SURFACES_SETUP.md`.
+All six table names must be returned. Do **not** apply migrations 0048 or 0049 yet;
+those belong to `DISTRIBUTION_SURFACES_SETUP.md`.
 
 ## 7. Deploy and smoke-test preview
 
-Deploy only the preview Search project using the repository's established
+Deploy only the preview 10X Warplets project using the repository's established
 preview command:
 
 ```powershell
 pnpm --dir app deploy:dev
 ```
 
-Verify at `https://search-dev.10x.meme`:
+Verify at `https://warplet-dev.10x.meme`:
 
 1. Anonymous Search, Offers, Listed, Stats, Perks and sharing still load.
 2. Farcaster Mini App behavior is unchanged.
@@ -310,4 +314,4 @@ This prerequisite is complete only when:
 
 Then proceed to
 [`DISTRIBUTION_SURFACES_SETUP.md`](./DISTRIBUTION_SURFACES_SETUP.md), beginning
-with migration 0048 and the new distribution surfaces.
+with migrations 0048 and 0049 and the new distribution surfaces.

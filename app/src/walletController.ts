@@ -154,7 +154,7 @@ async function createBaseAccountProvider(): Promise<ObservableProvider> {
   const { createBaseAccountSDK } = await import("@base-org/account");
   return createBaseAccountSDK({
     appName: "10X Warplets",
-    appLogoUrl: `${window.location.origin}/icons/search-1024.png`,
+    appLogoUrl: `${window.location.origin}/icon.png`,
     appChainIds: [8453],
     preference: { telemetry: false },
   }).getProvider() as unknown as ObservableProvider;

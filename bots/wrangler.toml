@@ -4,7 +4,7 @@ compatibility_date = "2026-08-01"
 
 [vars]
 API_ORIGIN = "https://api.10x.meme"
-SEARCH_ORIGIN = "https://search.10x.meme"
+WARPLETS_APP_ORIGIN = "https://warplet.10x.meme"
 
 [[services]]
 binding = "TENX_API"
@@ -15,7 +15,7 @@ name = "10x-channel-bots-preview"
 
 [env.preview.vars]
 API_ORIGIN = "https://api-dev.10x.meme"
-SEARCH_ORIGIN = "https://search-dev.10x.meme"
+WARPLETS_APP_ORIGIN = "https://warplet-dev.10x.meme"
 
 [[env.preview.services]]
 binding = "TENX_API"

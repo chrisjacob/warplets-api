@@ -970,7 +970,7 @@ export async function handleCollectionOfferSubmit(context: Parameters<PagesFunct
       amountRaw: priceRaw,
       currencySymbol: "WETH",
       orderHash,
-      source: "search:collection-offers",
+      source: "warplets:collection-offers",
       rawPayload: { actionId: asString(body.actionId), quantity, result },
     }).catch((error) => console.error("Failed to record collection offer submit activity", error));
   }

@@ -11,7 +11,7 @@ DROP INDEX IF EXISTS idx_notification_channel_status;
 CREATE TABLE notification_channel_deliveries (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   campaign_id TEXT NOT NULL,
-  app_slug TEXT NOT NULL DEFAULT 'search',
+  app_slug TEXT NOT NULL DEFAULT 'warplets',
   channel TEXT NOT NULL CHECK(channel IN ('farcaster', 'base', 'web-push', 'telegram', 'discord')),
   recipient_key TEXT NOT NULL,
   farcaster_fid INTEGER,
@@ -32,7 +32,7 @@ INSERT INTO notification_channel_deliveries (
   opened_at, clicked_at
 )
 SELECT
-  id, campaign_id, app_slug, channel, recipient_key, farcaster_fid,
+  id, campaign_id, CASE WHEN app_slug = 'search' THEN 'warplets' ELSE app_slug END, channel, recipient_key, farcaster_fid,
   wallet_address, status, attempts, last_error, created_at, updated_at,
   opened_at, clicked_at
 FROM notification_channel_deliveries_legacy;

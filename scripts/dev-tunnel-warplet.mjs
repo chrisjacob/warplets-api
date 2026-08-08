@@ -9,9 +9,12 @@ const API_PORT = 8790;
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const appDir = path.resolve(__dirname, "../app");
 
-const PUBLIC_URL = "https://search-local.10x.meme";
+const PUBLIC_URL = "https://warplet-local.10x.meme";
 const LOCAL_MINIAPP_BASE_URL = PUBLIC_URL;
-const LOCAL_APP_SESSION_SECRET = "search-local-only-session-secret-do-not-use-live-v1";
+const LOCAL_APP_SESSION_SECRET = "warplet-local-only-session-secret-do-not-use-live-v1";
+const WARPLETS_TUNNEL = process.env.WARPLETS_TUNNEL_ID?.trim() || "warplet-local";
+const WARPLETS_TUNNEL_CREDENTIALS_FILE =
+  process.env.WARPLETS_TUNNEL_CREDENTIALS_FILE?.trim() || "";
 
 function applyLocalMigrations() {
   console.log("Applying pending local D1 migrations...");
@@ -64,7 +67,7 @@ function spawnViteDev(port, apiPort) {
 
 function spawnApiWorker(port) {
   const command = "pnpm";
-  return spawn(command, [
+  const args = [
     "wrangler",
     "pages",
     "dev",
@@ -73,7 +76,12 @@ function spawnApiWorker(port) {
     String(port),
     "--binding",
     `APP_SESSION_SECRET=${LOCAL_APP_SESSION_SECRET}`,
-  ], {
+  ];
+  const accountAssociation = process.env.WARPLETS_ACCOUNT_ASSOCIATION_JSON?.trim();
+  if (accountAssociation) {
+    args.push("--binding", `WARPLETS_ACCOUNT_ASSOCIATION_JSON=${accountAssociation}`);
+  }
+  return spawn(command, args, {
     cwd: appDir,
     shell: process.platform === "win32",
     stdio: "inherit",
@@ -87,15 +95,14 @@ function spawnCloudflared(port) {
       ? "C:\\Program Files (x86)\\cloudflared\\cloudflared.exe"
       : "cloudflared";
 
-  const command = process.platform === "win32"
-    ? `"${executable}" tunnel run --url http://127.0.0.1:${port} search-local`
-    : executable;
-  const args = process.platform === "win32"
-    ? []
-    : ["tunnel", "run", "--url", `http://127.0.0.1:${port}`, "search-local"];
+  const args = ["tunnel", "run"];
+  if (WARPLETS_TUNNEL_CREDENTIALS_FILE) {
+    args.push("--credentials-file", WARPLETS_TUNNEL_CREDENTIALS_FILE);
+  }
+  args.push("--url", `http://127.0.0.1:${port}`, WARPLETS_TUNNEL);
 
-  return spawn(command, args, {
-    shell: process.platform === "win32",
+  return spawn(executable, args, {
+    shell: false,
     stdio: "inherit",
     env: process.env,
   });
@@ -109,7 +116,7 @@ async function waitForVite(port) {
   const deadline = Date.now() + 30_000;
   while (Date.now() < deadline) {
     try {
-      const res = await fetch(`http://127.0.0.1:${port}/search`);
+      const res = await fetch(`http://127.0.0.1:${port}/warplets`);
       if (res.ok || res.status === 304) return;
     } catch {
       // not ready yet
@@ -160,7 +167,7 @@ async function main() {
   applyLocalMigrations();
 
   console.log(`Stable dev URL: ${PUBLIC_URL}`);
-  console.log(`Local dev URL:  http://localhost:${VITE_PORT}/search`);
+  console.log(`Local dev URL:  http://localhost:${VITE_PORT}/warplets`);
   console.log(`Local API URL:  http://localhost:${API_PORT}`);
   console.log(`Embed launch URL: ${LOCAL_MINIAPP_BASE_URL}`);
   console.log("Starting app API worker...");
@@ -179,7 +186,7 @@ async function main() {
   startApi();
   console.log("Starting vite dev...");
   const vite = spawnViteDev(VITE_PORT, API_PORT);
-  console.log("Starting Cloudflare Tunnel search-local...");
+  console.log(`Starting Cloudflare Tunnel ${WARPLETS_TUNNEL}...`);
   const tunnel = spawnCloudflared(VITE_PORT);
 
   const shutdown = () => {

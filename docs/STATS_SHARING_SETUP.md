@@ -4,12 +4,12 @@ Stats snapshot sharing has two development modes:
 
 | Mode | Browser | Snapshot PNG storage | Cloudflare resources required |
 |---|---|---|---|
-| `search-local` (recommended for development) | Browser binding provided by the local Wrangler runtime | Local R2 state | None |
+| `warplet-local` (recommended for development) | Browser binding provided by the local Wrangler runtime | Local R2 state | None |
 | Cloudflare preview/production | Cloudflare Browser Run | Named Cloudflare R2 bucket | Browser Run binding and R2 bucket |
 
-## Use Stats sharing on `search-local` now
+## Use Stats sharing on `warplet-local` now
 
-Nothing needs to be created in the Cloudflare dashboard for the normal `search-local` workflow. This path has been tested end to end: the API creates the snapshot, renders the 1200x800 PNG, writes it to local R2, and serves it through `search-local`.
+Nothing needs to be created in the Cloudflare dashboard for the normal `warplet-local` workflow. The API creates the snapshot, renders the 1000x1000 PNG, writes it to local R2, and serves it through `warplet-local`.
 
 ### First-time setup
 
@@ -39,26 +39,26 @@ In normal local development, the bucket name identifies the binding but does not
 ### Start the stack
 
 ```powershell
-pnpm --dir app local:tunnel:search
+pnpm --dir app local:tunnel:warplet
 ```
 
 This starts:
 
 - Vite on `http://127.0.0.1:5175`
 - the Pages Functions/API runtime on `http://127.0.0.1:8790`
-- the `search-local` tunnel at `https://search-local.10x.meme`
+- the `warplet-local` tunnel at `https://warplet-local.10x.meme`
 
 Open one of these pages:
 
-- `https://search-local.10x.meme/stats`
-- `https://search-local.10x.meme/app-testing` for the complete set of mock Share modal launchers
-- `https://search-local.10x.meme/stats/share/fixtures/overview` for a render-card fixture
+- `https://warplet-local.10x.meme/stats`
+- `https://warplet-local.10x.meme/app-testing` for the complete set of mock Share modal launchers
+- `https://warplet-local.10x.meme/stats/share/fixtures/overview` for a render-card fixture
 
 Creating a Stats share should open the Share modal immediately, show its image loading state, and then enable the compose actions when the PNG is ready.
 
 ### Direct API smoke test
 
-The UI is the preferred test because it supplies the correct public origin. To test the API directly, include the `search-local` referrer so the browser renderer loads the public tunnel URL instead of trying to navigate back to its own loopback address:
+The UI is the preferred test because it supplies the correct public origin. To test the API directly, include the `warplet-local` referrer so the browser renderer loads the public tunnel URL instead of trying to navigate back to its own loopback address:
 
 ```powershell
 $statsShareBody = @{ kind = "overview" } | ConvertTo-Json -Compress
@@ -67,7 +67,7 @@ $statsShare = Invoke-RestMethod `
   -Uri "http://127.0.0.1:8790/api/stats/shares" `
   -Method Post `
   -ContentType "application/json" `
-  -Headers @{ Referer = "https://search-local.10x.meme/stats" } `
+  -Headers @{ Referer = "https://warplet-local.10x.meme/stats" } `
   -Body $statsShareBody
 
 $statsShare | ConvertTo-Json -Depth 5
@@ -77,7 +77,7 @@ Expected result:
 
 - HTTP `201` when rendering completes in the initial request
 - `imageReady: true`
-- `shareUrl` and `imageUrl` beginning with `https://search-local.10x.meme/`
+- `shareUrl` and `imageUrl` beginning with `https://warplet-local.10x.meme/`
 
 A bounded render timeout may instead return a pending response. The Share modal continues polling and exposes Retry if rendering ultimately fails.
 
@@ -88,12 +88,12 @@ Local snapshots are ideal for UI and rendering tests, but they are not durable p
 - The local D1 and R2 data belongs to this development machine.
 - Other machines do not share the snapshot store.
 - Removing `app/.wrangler/state` removes the local snapshot database and images.
-- Share URLs only work while the local API and `search-local` tunnel are running.
-- Do not publish a permanent Farcaster cast or X post that relies on a `search-local` snapshot URL.
+- Share URLs only work while the local API and `warplet-local` tunnel are running.
+- Do not publish a permanent Farcaster cast or X post that relies on a `warplet-local` snapshot URL.
 
 ## Optional: prepare Cloudflare resources now
 
-You can create the two named buckets before deployment. This is not required for `search-local`, and creating them does not deploy the app.
+You can create the two named buckets before deployment. This is not required for `warplet-local`, and creating them does not deploy the app.
 
 Authenticate Wrangler with the Cloudflare account that owns the app:
 
@@ -134,7 +134,7 @@ Before the first preview or production deployment:
 5. Check Browser Run usage in the Cloudflare dashboard and verify the generated PNG objects appear in the preview R2 bucket.
 6. Only then enable the production workflow.
 
-Do not add `remote = true` to the current top-level bindings merely to test `search-local`. That would cause local requests to write to real Cloudflare storage and incur live Browser Run/R2 usage. If remote-binding testing is needed, add a dedicated, explicitly selected development configuration that points only to `warplets-stats-shares-preview`; never point local development at the production bucket.
+Do not add `remote = true` to the current top-level bindings merely to test `warplet-local`. That would cause local requests to write to real Cloudflare storage and incur live Browser Run/R2 usage. If remote-binding testing is needed, add a dedicated, explicitly selected development configuration that points only to `warplets-stats-shares-preview`; never point local development at the production bucket.
 
 ## Troubleshooting
 
@@ -146,7 +146,7 @@ Run:
 pnpm --dir app exec wrangler d1 migrations apply WARPLETS --local
 ```
 
-Then restart `local:tunnel:search`.
+Then restart `local:tunnel:warplet`.
 
 ### The API reports that a binding is missing
 
@@ -154,14 +154,14 @@ Confirm `STATS_SHARE_BROWSER` and `STATS_SHARE_IMAGES` remain in `app/wrangler.t
 
 ### Rendering times out waiting for the ready marker
 
-- Confirm `https://search-local.10x.meme/stats/share/fixtures/overview` loads.
+- Confirm `https://warplet-local.10x.meme/stats/share/fixtures/overview` loads.
 - Confirm the tunnel still points to Vite on port `5175`.
-- Use the UI, or send the `Referer: https://search-local.10x.meme/stats` header in a direct API test.
+- Use the UI, or send the `Referer: https://warplet-local.10x.meme/stats` header in a direct API test.
 - Check the API terminal for image/font fallback warnings.
 
 ### Ports are already in use
 
-Stop the old `search-local` stack before restarting it. The expected ports are `5175` for Vite and `8790` for the API runtime.
+Stop the old local stack before restarting `warplet-local`. The expected ports are `5175` for Vite and `8790` for the API runtime.
 
 ### Browser Run returns a quota error after deployment
 

@@ -57,11 +57,11 @@ const archiveSnap: SnapFunction = async (ctx) => {
         },
         search: {
           type: "button",
-          props: { label: "Open 10X Warplets Search", variant: "primary" },
+          props: { label: "Open 10X Warplets", variant: "primary" },
           on: {
             press: {
               action: "open_mini_app",
-              params: { target: "https://search.10x.meme" },
+              params: { target: "https://warplet.10x.meme" },
             },
           },
         },

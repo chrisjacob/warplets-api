@@ -85,6 +85,11 @@ import {
   type SeaportCancelOrderParameters,
   type TokenApprovalRequirement,
 } from "./walletTrade";
+import {
+  WARPLETS_APP_ORIGINS,
+  WARPLETS_APP_PATH,
+  WARPLETS_APP_SLUG,
+} from "../shared/warpletsApp";
 
 const DB_URL = "/db/warplets.v1.fts.sqlite.br";
 const PAGE_SIZE = 20;
@@ -3161,8 +3166,8 @@ function getOpenSeaUrl(tokenId: number): string {
   return `https://opensea.io/item/base/0x780446dd12e080ae0db762fcd4daf313f3e359de/${tokenId}`;
 }
 
-function getSearchBasePath(): "" | "/search" {
-  return window.location.pathname.startsWith("/search") ? "/search" : "";
+function getSearchBasePath(): "" | typeof WARPLETS_APP_PATH {
+  return window.location.pathname.startsWith(WARPLETS_APP_PATH) ? WARPLETS_APP_PATH : "";
 }
 
 function getSearchRouteKey(route: SearchRoute): string {
@@ -3179,14 +3184,14 @@ function getSearchRouteStableKey(route: SearchRoute): string {
 
 function normalizeSearchPath(pathname: string): string {
   const normalizedPath = pathname.replace(/\/+$/, "") || "/";
-  if (normalizedPath === "/search") return "/";
-  if (normalizedPath.startsWith("/search/")) return normalizedPath.slice("/search".length) || "/";
+  if (normalizedPath === WARPLETS_APP_PATH) return "/";
+  if (normalizedPath.startsWith(`${WARPLETS_APP_PATH}/`)) return normalizedPath.slice(WARPLETS_APP_PATH.length) || "/";
   return normalizedPath;
 }
 
 function parseSearchRouteFromPath(pathname: string): SearchRoute {
   const path = normalizeSearchPath(pathname);
-  if (path === "/app-testing" && window.location.hostname === "search-local.10x.meme") return { page: "app-testing" };
+  if (path === "/app-testing" && window.location.hostname === new URL(WARPLETS_APP_ORIGINS.local).hostname) return { page: "app-testing" };
   if (path === "/listed") return { page: "listed", listedLevel: "all" };
   const listedMatch = path.match(/^\/listed\/(10x|9x|8x|7x|6x|5x|4x|3x|2x|1x)$/i);
   if (listedMatch) return { page: "listed", listedLevel: listedMatch[1].toLowerCase() as ListedLevelFilter };
@@ -3507,7 +3512,7 @@ function SearchHeaderAccountControl({
           <a role="menuitem" href="/developer">
             Developer API
           </a>
-          {window.location.hostname === "search-local.10x.meme" && (
+          {window.location.hostname === new URL(WARPLETS_APP_ORIGINS.local).hostname && (
             <button type="button" role="menuitem" onClick={() => runMenuAction(onOpenAppTesting)}>
               App testing
             </button>
@@ -4875,7 +4880,7 @@ function StatsChartPanel({
   );
 }
 
-function StatsShareButton({ label, onClick, compact = false, flat = false, secondaryFlat = false, primary = false, primaryTone = "green", showIcon = true, disabled = false }: { label: string; onClick: () => void; compact?: boolean; flat?: boolean; secondaryFlat?: boolean; primary?: boolean; primaryTone?: "green" | "purple"; showIcon?: boolean; disabled?: boolean }) {
+function StatsShareButton({ label, onClick, compact = false, flat = false, secondaryFlat = false, secondaryTone = "green", primary = false, primaryTone = "green", showIcon = true, disabled = false }: { label: string; onClick: () => void; compact?: boolean; flat?: boolean; secondaryFlat?: boolean; secondaryTone?: "green" | "purple"; primary?: boolean; primaryTone?: "green" | "purple"; showIcon?: boolean; disabled?: boolean }) {
   return (
     <button
       type="button"
@@ -4886,7 +4891,9 @@ function StatsShareButton({ label, onClick, compact = false, flat = false, secon
           ? "border-[#5d42d6] bg-[#7959ff] text-[#160b38] shadow-[3px_6px_0_#4b33b3] hover:bg-[#967fff] active:shadow-[1px_3px_0_#4b33b3]"
           : "border-[#009900] bg-[#00FF00] text-[rgb(0,80,0)] shadow-[3px_6px_0_#008000] hover:bg-[#33ff33] active:shadow-[1px_3px_0_#008000]"}`
         : secondaryFlat
-          ? "inline-flex h-7 cursor-pointer items-center justify-center rounded-lg border border-[#00FF00]/55 bg-[#041204] px-2.5 text-[10px] font-black text-[#00FF00] transition hover:border-[#00FF00] hover:bg-[#071807] disabled:cursor-not-allowed disabled:opacity-40"
+          ? `inline-flex h-7 cursor-pointer items-center justify-center rounded-lg border px-2.5 text-[10px] font-black transition disabled:cursor-not-allowed disabled:opacity-40 ${secondaryTone === "purple"
+            ? "border-[#7959ff]/65 bg-[#160b38] text-[#b9aaff] hover:border-[#7959ff] hover:bg-[#21104f]"
+            : "border-[#00FF00]/55 bg-[#041204] text-[#00FF00] hover:border-[#00FF00] hover:bg-[#071807]"}`
         : flat
           ? "inline-flex h-7 cursor-pointer items-center justify-center rounded-lg border border-[#00FF00]/55 bg-[#00FF00] px-2.5 text-[10px] font-black text-[rgb(0,80,0)] transition hover:bg-[#33ff33] disabled:cursor-not-allowed disabled:opacity-40"
         : `inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-[#00FF00]/45 bg-[#00FF00]/10 font-black text-[#00FF00] transition hover:border-[#00FF00] hover:bg-[#00FF00]/15 disabled:cursor-not-allowed disabled:opacity-40 ${compact ? "px-2 py-1 text-[9px]" : "px-3 py-2 text-[10px]"}`}
@@ -5568,6 +5575,7 @@ function StatsHoldersPage({
             <StatsShareButton
               compact
               secondaryFlat
+              secondaryTone={friendsOnly ? "purple" : "green"}
               showIcon={false}
               label="Share Top 10"
               disabled={friendsOnly && !viewerFid}
@@ -14694,7 +14702,7 @@ export default function SearchApp() {
     fallbackTimer: null,
   });
   const lastSiwnStatusFidRef = useRef<number | null>(null);
-  const { isMenuRoute, canGoBack, actions } = useMiniAppChrome("search");
+  const { isMenuRoute, canGoBack, actions } = useMiniAppChrome(WARPLETS_APP_SLUG);
   const [searchRoute, setSearchRoute] = useState<SearchRoute>(() => parseSearchRouteFromPath(window.location.pathname));
   const [lastOffersSubpage, setLastOffersSubpage] = useState<SearchOffersSubpage>(() => readLastSearchOffersSubpage());
   const [lastPerksSubpage, setLastPerksSubpage] = useState<PerksSubpage>(() => readLastSearchPerksSubpage());
@@ -15093,7 +15101,7 @@ export default function SearchApp() {
     return fetch("/api/warplet-status", {
       method: "POST",
       headers: { "content-type": "application/json", accept: "application/json" },
-      body: JSON.stringify({ fid, appSlug: "search", profile: profile ? {
+      body: JSON.stringify({ fid, appSlug: WARPLETS_APP_SLUG, profile: profile ? {
         username: profile.username,
         displayName: profile.displayName,
         pfpUrl: profile.pfpUrl,
@@ -15122,7 +15130,7 @@ export default function SearchApp() {
       headers: { "content-type": "application/json", accept: "application/json" },
       body: JSON.stringify({
         fid: viewerFid,
-        appSlug: "search",
+        appSlug: WARPLETS_APP_SLUG,
         searchCompletion: completion,
       }),
     })
@@ -15223,8 +15231,8 @@ export default function SearchApp() {
         const host = window.location.hostname.toLowerCase();
         const addDebug = new URLSearchParams(window.location.search).get("add") === "1";
         const isPromptHost =
-          host === "search.10x.meme" ||
-          host === "search-dev.10x.meme" ||
+          host === new URL(WARPLETS_APP_ORIGINS.prod).hostname ||
+          host === new URL(WARPLETS_APP_ORIGINS.dev).hostname ||
           host === "app.10x.meme";
         const hasAdded = client?.added === true;
         const hasNotifications = Boolean(client?.notificationDetails);
@@ -15301,7 +15309,7 @@ export default function SearchApp() {
       body: JSON.stringify({
         notificationId: pendingNotificationId,
         fid: viewerFid,
-        appSlug: "search",
+        appSlug: WARPLETS_APP_SLUG,
         sessionToken: actionSessionToken,
       }),
     }).catch((error) => console.warn("Failed to record notification open:", error));
@@ -15675,7 +15683,7 @@ export default function SearchApp() {
   const refreshListedMarket = useCallback(async () => {
     try {
       const hostname = window.location.hostname.toLowerCase();
-      const isLocalSearch = hostname === "localhost" || hostname === "127.0.0.1" || hostname.startsWith("search-local.");
+      const isLocalSearch = hostname === "localhost" || hostname === "127.0.0.1" || hostname === new URL(WARPLETS_APP_ORIGINS.local).hostname;
       if (isLocalSearch) {
         const scheduled = await fetch("/api/local/opensea-market-refresh", { method: "POST", cache: "no-store" });
         if (!scheduled.ok) throw new Error(`Local OpenSea ingest failed (${scheduled.status})`);
@@ -16945,7 +16953,7 @@ export default function SearchApp() {
     };
     if (id === "warplet") return setSharePreview(mockSimplePreview("Share 10X Warplet #1358", "👀 Check out 10X Warplet #1358"));
     if (id === "search") return setSharePreview(mockSimplePreview("Share Search Results", "👀 Check out these 42 Green 10X Warplets..."));
-    if (id === "airdrop") return setSharePreview(mockSimplePreview("Share your 10X Warplet Airdrop", "I just received 10X Warplet #1358 in the airdrop!"));
+    if (id === "airdrop") return setSharePreview(mockSimplePreview("Share your 10X Warplet Airdrop", "🎁 Airdropped: 10X Warplet #1358!"));
     if (id === "bulk-buy") return setSharePreview(mockSimplePreview("Share Your Bulk Buy!", "👀 Purchased 3 more 10X Warplets..."));
     if (id === "collection-offer") return handleOpenCollectionOfferShare(0.001, 3);
     if (id.startsWith("stats-")) {
@@ -16967,10 +16975,12 @@ export default function SearchApp() {
         : id === "stats-market-all" ? "10X Warplets — Market Stats (30 Days)"
         : marketMetric ? `10X Warplets — ${marketMetric === "floor" ? "Floor Price" : marketMetric.replace(/^./, (character) => character.toUpperCase())} (30 Days)`
           : activityEvent ? `${itemActivity ? "10X Warplet #4512" : "10X Warplets"} — 29 ${activityEvent === "sale" ? "Sales" : activityEvent === "listing" ? "Listings" : activityEvent === "offer" ? "Offers" : "Sends"} (7 Days)`
-            : id === "stats-holder-rank" ? "10X Warplets — My holder rank: #1 of 8,992"
+            : id === "stats-holder-rank" ? "10X Warplets — My holder rank: #1 of 9,992\n\n👀 @x-hunter @luci13.eth"
               : "10X Warplets — Top 10 Holders\n\n🥇 @collector1\n🥈 @collector2\n🥉 @collector3";
       let twitterPostText = farcasterText;
-      if (id === "stats-friends-top10" || id === "stats-friends-short") {
+      if (id === "stats-holder-rank") {
+        twitterPostText = "10X Warplets — My holder rank: #1 of 9,992\n\n👀 @verified_x_hunter Luci13";
+      } else if (id === "stats-friends-top10" || id === "stats-friends-short") {
         farcasterText = "10X Warplets — My Top Ranked Friends\n\n🥇 @collector1\n🥈 @collector2\n🥉 @collector3";
         twitterPostText = "10X Warplets — My Top Ranked Friends\n\n🥇 @verified_x_friend\n🥈 Collector Two\n🥉 0x1234…5678";
       } else if (id === "stats-x-handle") {
@@ -17016,7 +17026,7 @@ export default function SearchApp() {
     const shareState = { ...EMPTY_SEARCH_URL_STATE, warplet: tokenId };
     const shareUrl = buildSearchHref(shareState);
     const openSeaUrl = getOpenSeaUrl(tokenId);
-    const text = "👀 Claimed my 10X Warplet Airdrop!";
+    const text = `🎁 Airdropped: 10X Warplet #${tokenId}!`;
     const links = [shareUrl, openSeaUrl];
     writeAirdropCongratulationsComplete();
     postSearchCompletion("airdrop_modal");
@@ -17718,7 +17728,9 @@ export default function SearchApp() {
       ? (headerAccountProfile?.pfpUrl?.trim() || (activeWallet ? getWalletIdenticonDataUrl(activeWallet) : getWarpletPreviewImageUrl(HEADER_FALLBACK_AVATAR_TOKEN_ID)))
       : null;
   const routeTitle = getSearchRouteTitle(searchRoute);
-  const headerTitle = isMenuRoute ? getHeaderTitle("search", true) : getHeaderTitle("search", false);
+  const headerTitle = isMenuRoute
+    ? getHeaderTitle(WARPLETS_APP_SLUG, true)
+    : getHeaderTitle(WARPLETS_APP_SLUG, false);
   const isPrimaryNavigationRoute = !isMenuRoute &&
     (searchRoute.page === "listed" || searchRoute.page === "offers" || searchRoute.page === "perks" || searchRoute.page === "stats");
   const headerCanGoBack = !isPrimaryNavigationRoute && (canGoBack || (!isMenuRoute && searchRoute.page !== "search"));
@@ -17773,7 +17785,7 @@ export default function SearchApp() {
       )}
       <div className="relative z-10 w-full">
         <MiniAppHeader
-          appSlug="search"
+          appSlug={WARPLETS_APP_SLUG}
           title={headerTitle}
           canGoBack={headerCanGoBack}
           onBack={handleHeaderBack}
@@ -17812,7 +17824,7 @@ export default function SearchApp() {
         )}
 
         {isMenuRoute ? (
-          <MiniAppMenuPage appSlug="search" />
+          <MiniAppMenuPage appSlug={WARPLETS_APP_SLUG} />
         ) : searchRoute.page === "app-testing" ? (
           <AppTestingPage onTriggerShare={(id) => { void handleTestShareModal(id); }} />
         ) : searchRoute.page === "listed" ? (

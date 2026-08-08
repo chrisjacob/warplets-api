@@ -1,4 +1,5 @@
 import { jsonSecure, rateLimit } from "./security.js";
+import { WARPLETS_APP_HOSTS } from "../../shared/warpletsApp.js";
 import {
   deactivateActiveItemOffer,
   recordWarpletActivity,
@@ -443,7 +444,7 @@ function getForceRefreshCooldownSeconds(request?: Request): number {
     hostname === "127.0.0.1" ||
     hostname === "::1" ||
     hostname.endsWith(".localhost") ||
-    hostname.startsWith("search-local.");
+    hostname === WARPLETS_APP_HOSTS[0];
   return isLocal ? LOCAL_FORCE_REFRESH_COOLDOWN_SECONDS : FORCE_REFRESH_COOLDOWN_SECONDS;
 }
 

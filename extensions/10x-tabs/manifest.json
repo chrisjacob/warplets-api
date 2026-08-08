@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "10X Tabs",
-  "description": "Open 10X Warplets Search from every new tab.",
+  "description": "Open 10X Warplets from every new tab.",
   "version": "0.1.0",
   "action": {
     "default_title": "Open 10X Warplets"

@@ -2,7 +2,7 @@ import { jsonSecure, requireAdminScope } from "../../_lib/security.js";
 import {
   runBestFriendNotifications,
   runGlobalStatsNotifications,
-  runSearchNotificationJobs,
+  runWarpletsNotificationJobs,
 } from "../../_lib/warpletNotifications.js";
 
 interface Env {
@@ -26,5 +26,5 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     return jsonSecure({ ok: true, job, queued: await runGlobalStatsNotifications(context.env) });
   }
 
-  return jsonSecure({ ok: true, job: "all", result: await runSearchNotificationJobs(context.env) });
+  return jsonSecure({ ok: true, job: "all", result: await runWarpletsNotificationJobs(context.env) });
 };

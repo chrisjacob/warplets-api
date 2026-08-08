@@ -4,7 +4,7 @@ Chrome-only Developer Mode experiment built with Extension.js `4.0.28`. It has
 zero declared permissions and zero host permissions.
 
 - New Tab immediately navigates top-level to
-  `https://search.10x.meme/tabs?display=newtab&source=10x-tabs`.
+  `https://warplet.10x.meme/tabs?display=newtab&source=10x-tabs`.
 - Clicking the toolbar action opens the same HTTPS application in an
   approximately Farcaster-sized top-level popup window.
 - It does not iframe the site, inject content scripts, load remote extension

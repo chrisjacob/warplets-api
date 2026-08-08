@@ -14,7 +14,7 @@
     "deploy": "pnpm build && wrangler pages deploy dist",
     "local:tunnel": "node ../scripts/dev-tunnel-app.mjs",
     "local:tunnel:drop": "node ../scripts/dev-tunnel-drop.mjs",
-    "local:tunnel:search": "node ../scripts/dev-tunnel-search.mjs",
+    "local:tunnel:warplet": "node ../scripts/dev-tunnel-warplet.mjs",
     "security:preflight": "node ../scripts/security-preflight.mjs",
     "deploy:dev": "pnpm security:preflight && vite build --mode development && pnpm performance:budget && wrangler pages deploy dist --project-name 10x-app-dev --branch dev",
     "deploy:prod": "pnpm security:preflight && pnpm build && wrangler pages deploy dist --project-name 10x-app"

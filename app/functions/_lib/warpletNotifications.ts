@@ -1,5 +1,6 @@
 import { dispatchNotification } from "./dispatch.js";
 import { sendBaseNotificationCampaign, type BaseNotificationsEnv } from "./baseNotifications.js";
+import { WARPLETS_APP_ORIGINS, WARPLETS_APP_SLUG } from "../../shared/warpletsApp.js";
 
 export type WarpletActivityType =
   | "purchased"
@@ -70,8 +71,8 @@ interface ActivityRow {
   queued_at?: string | null;
 }
 
-const APP_SLUG = "search";
-const SEARCH_BASE_URL = "https://search.10x.meme";
+const APP_SLUG = WARPLETS_APP_SLUG;
+const WARPLETS_BASE_URL = WARPLETS_APP_ORIGINS.prod;
 const TOKEN_CONTRACT = "0x780446dd12e080ae0db762fcd4daf313f3e359de";
 const OPEN_SEA_COLLECTION_URL = "https://opensea.io/collection/10xwarplets";
 
@@ -182,7 +183,7 @@ function traitLabelFromPayload(rawPayload?: string | null): string {
 }
 
 function itemTarget(tokenId?: number | null): string {
-  return tokenId ? `${SEARCH_BASE_URL}/?warplet=${tokenId}` : SEARCH_BASE_URL;
+  return tokenId ? `${WARPLETS_BASE_URL}/?warplet=${tokenId}` : WARPLETS_BASE_URL;
 }
 
 function wrapTargetUrl(notificationId: string, fid: number, targetUrl: string): string {
@@ -191,7 +192,7 @@ function wrapTargetUrl(notificationId: string, fid: number, targetUrl: string): 
     fid: String(fid),
     t: targetUrl,
   });
-  return `${SEARCH_BASE_URL}/n/${encodeURIComponent(notificationId)}?${params.toString()}`;
+  return `${WARPLETS_BASE_URL}/n/${encodeURIComponent(notificationId)}?${params.toString()}`;
 }
 
 function makeEventKey(input: ActivityInput): string {
@@ -208,7 +209,7 @@ function makeEventKey(input: ActivityInput): string {
 }
 
 async function getEthUsd(env: WarpletNotificationEnv): Promise<number | null> {
-  const cacheKey = "search:notifications:eth-usd:v1";
+  const cacheKey = "warplets:notifications:eth-usd:v1";
   if (env.WARPLETS_KV) {
     const cached = await env.WARPLETS_KV.get(cacheKey);
     const value = cached ? Number(cached) : NaN;
@@ -333,7 +334,7 @@ async function queueNotification(
   },
 ): Promise<void> {
   if (!params.fid || !Number.isFinite(params.fid)) return;
-  const notificationId = `search:${params.category}:${params.eventKey}:${params.fid}`.slice(0, 120);
+  const notificationId = `warplets:${params.category}:${params.eventKey}:${params.fid}`.slice(0, 120);
   const queueKey = `${params.category}:${params.fid}:${params.eventKey}`.slice(0, 220);
   const wrappedTargetUrl = wrapTargetUrl(notificationId, params.fid, params.targetUrl);
 
@@ -643,7 +644,7 @@ export async function recordWarpletActivity(
       input.currencySymbol ?? null,
       input.orderHash ?? null,
       input.transactionHash ?? null,
-      input.source || "search",
+      input.source || WARPLETS_APP_SLUG,
       normalizeTimestamp(input.occurredAt),
       safeJson(input.rawPayload),
     )
@@ -805,7 +806,7 @@ export async function processNotificationQueue(
     if (linkedWallet?.wallet) {
       try {
         const wrappedTarget = new URL(row.target_url);
-        const rawTarget = wrappedTarget.searchParams.get("t") || "https://search.10x.meme";
+        const rawTarget = wrappedTarget.searchParams.get("t") || WARPLETS_BASE_URL;
         const parsedTarget = new URL(rawTarget);
         const baseResults = await sendBaseNotificationCampaign(env as WarpletNotificationEnv & BaseNotificationsEnv, {
           campaignId: row.notification_id,
@@ -848,7 +849,7 @@ export async function processNotificationQueue(
           baseDelivered ? 1 : 0,
           linkedWallet?.wallet && !baseDelivered ? 1 : 0,
           linkedWallet?.wallet && !baseDelivered ? 1 : 0,
-          baseDelivered ? null : linkedWallet?.wallet ? "Base delivery failed; no Farcaster token" : "No enabled Search notification token",
+          baseDelivered ? null : linkedWallet?.wallet ? "Base delivery failed; no Farcaster token" : "No enabled Warplets notification token",
           row.id,
         )
         .run();
@@ -914,7 +915,7 @@ export async function processNotificationQueue(
 
 export async function runBestFriendNotifications(env: WarpletNotificationEnv): Promise<number> {
   const hourKey = new Date().toISOString().slice(0, 13);
-  const stateKey = `search:best-friends:${hourKey}`;
+  const stateKey = `warplets:best-friends:${hourKey}`;
   const existing = await env.WARPLETS.prepare(
     `SELECT value FROM notification_job_state WHERE job_key = ? LIMIT 1`,
   )
@@ -972,7 +973,7 @@ export async function runBestFriendNotifications(env: WarpletNotificationEnv): P
 
 export async function runGlobalStatsNotifications(env: WarpletNotificationEnv): Promise<number> {
   const state = await env.WARPLETS.prepare(
-    `SELECT updated_at FROM notification_job_state WHERE job_key = 'search:global-stats:last' LIMIT 1`,
+    `SELECT updated_at FROM notification_job_state WHERE job_key = 'warplets:global-stats:last' LIMIT 1`,
   ).first<{ updated_at: string }>();
   if (state?.updated_at && Date.now() - new Date(state.updated_at).getTime() < 23 * 60 * 60 * 1000) {
     return 0;
@@ -1020,13 +1021,13 @@ export async function runGlobalStatsNotifications(env: WarpletNotificationEnv): 
       eventKey: dayKey,
       title: "10X Warplets",
       body,
-      targetUrl: SEARCH_BASE_URL,
+      targetUrl: WARPLETS_BASE_URL,
     });
   }
 
   await env.WARPLETS.prepare(
     `INSERT INTO notification_job_state (job_key, value, updated_at)
-     VALUES ('search:global-stats:last', ?, CURRENT_TIMESTAMP)
+     VALUES ('warplets:global-stats:last', ?, CURRENT_TIMESTAMP)
      ON CONFLICT(job_key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP`,
   )
     .bind(String(totalCount))
@@ -1034,7 +1035,7 @@ export async function runGlobalStatsNotifications(env: WarpletNotificationEnv): 
   return tokens.results?.length || 0;
 }
 
-export async function runSearchNotificationJobs(env: WarpletNotificationEnv): Promise<{
+export async function runWarpletsNotificationJobs(env: WarpletNotificationEnv): Promise<{
   bestFriendsQueued: number;
   globalStatsQueued: number;
   queue: { processed: number; sent: number; retried: number; skipped: number };
@@ -1045,4 +1046,4 @@ export async function runSearchNotificationJobs(env: WarpletNotificationEnv): Pr
   return { bestFriendsQueued, globalStatsQueued, queue };
 }
 
-export { APP_SLUG as SEARCH_NOTIFICATION_APP_SLUG, OPEN_SEA_COLLECTION_URL };
+export { APP_SLUG as WARPLETS_NOTIFICATION_APP_SLUG, OPEN_SEA_COLLECTION_URL };

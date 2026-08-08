@@ -2,8 +2,14 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import sdk from "@farcaster/miniapp-sdk";
 import { Text } from "@neynar/ui/typography";
 import { hapticSelectionChanged, hapticTap } from "./haptics";
+import {
+  WARPLETS_APP_HOSTS,
+  WARPLETS_APP_ORIGINS,
+  WARPLETS_APP_SLUG,
+  WARPLETS_PUBLIC_NAME,
+} from "../shared/warpletsApp";
 
-export type AppSlug = "app" | "drop" | "search" | "million";
+export type AppSlug = "app" | "drop" | typeof WARPLETS_APP_SLUG | "million";
 
 type AppConfig = {
   slug: AppSlug;
@@ -50,14 +56,14 @@ const APP_CONFIGS: Record<AppSlug, AppConfig> = {
     imageUrl: "https://drop.10x.meme/hero_drop.png",
     available: true,
   },
-  search: {
-    slug: "search",
-    appName: "10X Warplets Search",
+  warplets: {
+    slug: WARPLETS_APP_SLUG,
+    appName: WARPLETS_PUBLIC_NAME,
     headerTitle: "10X Warplets",
     ctaLabel: "Coming soon...",
-    absoluteUrl: "https://search.10x.meme/",
-    iconUrl: "https://app.10x.meme/icon.png",
-    imageUrl: "https://app.10x.meme/embed.png",
+    absoluteUrl: `${WARPLETS_APP_ORIGINS.prod}/`,
+    iconUrl: `${WARPLETS_APP_ORIGINS.prod}/icon.png`,
+    imageUrl: `${WARPLETS_APP_ORIGINS.prod}/embed.png`,
     available: false,
   },
   million: {
@@ -75,7 +81,7 @@ const APP_CONFIGS: Record<AppSlug, AppConfig> = {
 const HOSTS_BY_APP: Record<AppSlug, string[]> = {
   app: ["app.10x.meme", "app-dev.10x.meme", "app-local.10x.meme"],
   drop: ["drop.10x.meme", "drop-dev.10x.meme", "drop-local.10x.meme"],
-  search: ["search.10x.meme", "search-dev.10x.meme", "search-local.10x.meme"],
+  warplets: [...WARPLETS_APP_HOSTS],
   million: ["million.10x.meme", "million-dev.10x.meme", "million-local.10x.meme"],
 };
 
@@ -99,10 +105,10 @@ const APP_URLS: Record<AppSlug, Record<EnvTier, string>> = {
     dev: "https://drop-dev.10x.meme/",
     local: "https://drop-local.10x.meme/",
   },
-  search: {
-    prod: "https://search.10x.meme/",
-    dev: "https://search-dev.10x.meme/",
-    local: "https://search-local.10x.meme/",
+  warplets: {
+    prod: `${WARPLETS_APP_ORIGINS.prod}/`,
+    dev: `${WARPLETS_APP_ORIGINS.dev}/`,
+    local: `${WARPLETS_APP_ORIGINS.local}/`,
   },
   million: {
     prod: "https://million.10x.meme/",

@@ -1,5 +1,6 @@
 import { jsonSecure, requireAdminScope } from "../../_lib/security.js";
 import { processNotificationQueue } from "../../_lib/warpletNotifications.js";
+import { WARPLETS_APP_SLUG } from "../../../shared/warpletsApp.js";
 
 interface Env {
   WARPLETS: D1Database;
@@ -15,7 +16,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     context.env.WARPLETS.prepare(
       `SELECT status, category, COUNT(*) AS count
        FROM notification_queue
-       WHERE app_slug = 'search'
+       WHERE app_slug = '${WARPLETS_APP_SLUG}'
        GROUP BY status, category
        ORDER BY status, category`,
     ).all(),
@@ -23,7 +24,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       `SELECT id, category, priority, fid, event_id, title, body, status,
               attempt_count, next_attempt_at, last_error, created_at, updated_at, sent_at
        FROM notification_queue
-       WHERE app_slug = 'search'
+       WHERE app_slug = '${WARPLETS_APP_SLUG}'
        ORDER BY created_at DESC
        LIMIT 100`,
     ).all(),
@@ -62,7 +63,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     const result = await context.env.WARPLETS.prepare(
       `UPDATE notification_queue
        SET status = 'retry', next_attempt_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
-       WHERE app_slug = 'search' AND status IN ('failed', 'rate_limited')`,
+       WHERE app_slug = '${WARPLETS_APP_SLUG}' AND status IN ('failed', 'rate_limited')`,
     ).run();
     return jsonSecure({ ok: true, action, changes: result.meta.changes });
   }

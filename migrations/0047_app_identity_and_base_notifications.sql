@@ -49,7 +49,7 @@ CREATE TABLE IF NOT EXISTS base_notification_status_cache (
 CREATE TABLE IF NOT EXISTS notification_channel_deliveries (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   campaign_id TEXT NOT NULL,
-  app_slug TEXT NOT NULL DEFAULT 'search',
+  app_slug TEXT NOT NULL DEFAULT 'warplets',
   channel TEXT NOT NULL CHECK(channel IN ('farcaster', 'base')),
   recipient_key TEXT NOT NULL,
   farcaster_fid INTEGER,

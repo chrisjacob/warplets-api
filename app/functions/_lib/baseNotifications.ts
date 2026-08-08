@@ -1,3 +1,5 @@
+import { WARPLETS_APP_ORIGINS, WARPLETS_APP_SLUG } from "../../shared/warpletsApp.js";
+
 export interface BaseNotificationsEnv {
   WARPLETS: D1Database;
   BASE_NOTIFICATIONS_API_KEY?: string;
@@ -31,7 +33,7 @@ let lastBaseRequestAt = 0;
 function requireConfig(env: BaseNotificationsEnv): { apiKey: string; appUrl: string } {
   if (env.BASE_NOTIFICATIONS_ENABLED !== "true") throw new Error("Base notifications are disabled");
   const apiKey = env.BASE_NOTIFICATIONS_API_KEY?.trim();
-  const appUrl = env.BASE_APP_URL?.trim() || "https://search.10x.meme";
+  const appUrl = env.BASE_APP_URL?.trim() || WARPLETS_APP_ORIGINS.prod;
   if (!apiKey) throw new Error("BASE_NOTIFICATIONS_API_KEY is not configured");
   return { apiKey, appUrl };
 }
@@ -132,7 +134,7 @@ export async function sendBaseNotificationCampaign(env: BaseNotificationsEnv, in
   const uniqueWallets = [...new Set(sourceWallets.map(normalizeWallet).filter((value): value is string => Boolean(value)))];
   const reserved: Array<{ wallet: string; id: number }> = [];
   for (const wallet of uniqueWallets) {
-    const id = await reserveDelivery(env, input.campaignId, wallet, input.appSlug ?? "search");
+    const id = await reserveDelivery(env, input.campaignId, wallet, input.appSlug ?? WARPLETS_APP_SLUG);
     if (id) reserved.push({ wallet, id });
   }
   const results: Array<{ wallet: string; state: string; error?: string }> = [];

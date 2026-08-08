@@ -76,7 +76,7 @@ export default function TrustConnectBridge({ onConnected, onError, restoreOnly =
         name: "10X Warplets",
         description: "Search, collect and trade 10X Warplets",
         url: window.location.origin,
-        icons: [`${window.location.origin}/icons/search-1024.png`],
+        icons: [`${window.location.origin}/icon.png`],
       },
     })] : [];
     return { namespaces, services };

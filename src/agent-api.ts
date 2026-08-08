@@ -2,7 +2,7 @@ import type { Hono } from "hono";
 
 export interface AgentApiEnv {
   WARPLETS: D1Database;
-  SEARCH_API_ORIGIN?: string;
+  WARPLETS_APP_ORIGIN?: string;
   X402_ENABLED?: string;
   X402_NETWORK?: string;
   X402_ASSET?: string;
@@ -252,13 +252,13 @@ async function writeFavouriteIds(db: D1Database, wallet: string, ids: number[]):
     .run();
 }
 
-function statsOrigin(env: AgentApiEnv): string {
-  return (env.SEARCH_API_ORIGIN?.trim() || "https://search.10x.meme").replace(/\/$/, "");
+function warpletsAppOrigin(env: AgentApiEnv): string {
+  return (env.WARPLETS_APP_ORIGIN?.trim() || "https://warplet.10x.meme").replace(/\/$/, "");
 }
 
-async function proxySearchApi(c: ApiContext, path: string, init?: RequestInit): Promise<Response> {
+async function proxyWarpletsAppApi(c: ApiContext, path: string, init?: RequestInit): Promise<Response> {
   const incoming = new URL(c.req.url);
-  const target = new URL(path, `${statsOrigin(c.env)}/`);
+  const target = new URL(path, `${warpletsAppOrigin(c.env)}/`);
   target.search = incoming.search;
   const upstream = await fetch(target, {
     ...init,
@@ -449,7 +449,7 @@ async function paidStatsReport(c: ApiContext): Promise<Response> {
 }
 
 async function generateStatsReport(c: ApiContext, payment: unknown): Promise<Response> {
-  const origin = statsOrigin(c.env);
+  const origin = warpletsAppOrigin(c.env);
   const [overview, market, activity, holders] = await Promise.all(
     ["overview", "market", "activity", "holders"].map(async (kind) => {
       const response = await fetch(`${origin}/api/stats/${kind}`, { headers: { accept: "application/json" } });
@@ -580,14 +580,14 @@ export function registerAgentApi(app: Hono): void {
   });
 
   for (const kind of ["overview", "market", "activity", "holders"] as const) {
-    app.get(`/v1/stats/${kind}`, (c) => proxySearchApi(c as unknown as ApiContext, `/api/stats/${kind}`));
+    app.get(`/v1/stats/${kind}`, (c) => proxyWarpletsAppApi(c as unknown as ApiContext, `/api/stats/${kind}`));
   }
 
   app.post("/v1/stats/shares", async (rawContext) => {
     const c = rawContext as unknown as ApiContext;
     const body = await c.req.raw.text();
     if (body.length > 32_000) return failure(c, 413, "BODY_TOO_LARGE", "Snapshot requests are limited to 32 KB.");
-    return proxySearchApi(c, "/api/stats/shares", { method: "POST", headers: { "content-type": "application/json" }, body });
+    return proxyWarpletsAppApi(c, "/api/stats/shares", { method: "POST", headers: { "content-type": "application/json" }, body });
   });
 
   app.get("/v1/me/favourites", async (rawContext) => {
@@ -685,7 +685,7 @@ export function registerAgentApi(app: Hono): void {
         new Date(timestamp.getTime() + 10 * 60 * 1000).toISOString(),
       )
       .run();
-    const link = new URL("/link-bot", statsOrigin(c.env));
+    const link = new URL("/link-bot", warpletsAppOrigin(c.env));
     link.searchParams.set("provider", identity.provider);
     link.searchParams.set("challenge", challenge);
     return success(c, { link: link.toString(), expiresAt: new Date(timestamp.getTime() + 10 * 60 * 1000).toISOString() }, { cache: "private, no-store" });

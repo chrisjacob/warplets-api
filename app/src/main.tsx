@@ -4,6 +4,7 @@ import { NeynarContextProvider, Theme } from "@neynar/react";
 import "@neynar/react/dist/style.css";
 import "./index.css";
 import { initializePwa } from "./pwa";
+import { WARPLETS_APP_HOSTS, WARPLETS_APP_PATH } from "../shared/warpletsApp";
 
 initializePwa();
 
@@ -64,7 +65,7 @@ function resolveActiveApp() {
   const cleanPath = pathname.replace(/\/+$/, "") || "/";
 
   const statsShareFixtureMatch = cleanPath.match(/^\/stats\/share\/fixtures\/([a-z-]+)$/);
-  if (statsShareFixtureMatch && hostname === "search-local.10x.meme") {
+  if (statsShareFixtureMatch && hostname === WARPLETS_APP_HOSTS[0]) {
     return <StatsShareFixturePage fixture={statsShareFixtureMatch[1]!} />;
   }
 
@@ -78,11 +79,11 @@ function resolveActiveApp() {
   if (cleanPath === "/tabs") return <TabsEntryPage />;
 
   if (hostname === "drop.10x.meme" || hostname === "drop-local.10x.meme" || hostname === "drop-dev.10x.meme") return <DropApp />;
-  if (hostname === "search.10x.meme" || hostname === "search-local.10x.meme" || hostname === "search-dev.10x.meme") return <SearchApp />;
+  if ((WARPLETS_APP_HOSTS as readonly string[]).includes(hostname)) return <SearchApp />;
   if (hostname === "million.10x.meme" || hostname === "million-local.10x.meme" || hostname === "million-dev.10x.meme") return <MillionApp />;
 
   if (cleanPath === "/drop" || cleanPath.startsWith("/drop/")) return <DropApp />;
-  if (cleanPath === "/search" || cleanPath.startsWith("/search/")) return <SearchApp />;
+  if (cleanPath === WARPLETS_APP_PATH || cleanPath.startsWith(`${WARPLETS_APP_PATH}/`)) return <SearchApp />;
   if (cleanPath === "/million" || cleanPath.startsWith("/million/")) return <MillionApp />;
   if (cleanPath === "/stop" || cleanPath.startsWith("/stop/")) return <StopApp />;
   if (cleanPath === "/unsubscribe" || cleanPath.startsWith("/unsubscribe/")) return <UnsubscribeApp />;

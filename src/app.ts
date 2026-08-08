@@ -1260,11 +1260,11 @@ const retiredSnap: SnapFunction = async () => ({
       },
       search: {
         type: "button",
-        props: { label: "Open 10X Warplets Search", variant: "primary" },
+        props: { label: "Open 10X Warplets", variant: "primary" },
         on: {
           press: {
             action: "open_mini_app",
-            params: { target: "https://search.10x.meme" },
+            params: { target: "https://warplet.10x.meme" },
           },
         },
       },
@@ -1312,7 +1312,7 @@ const apiLandingHtml = `<!doctype html>
     <h1>10X API</h1>
     <p>The <strong>10X Warplets — Private 10K NFT Drop</strong> Snap moved to <a href="https://snap.10x.meme/drop">snap.10x.meme/drop</a>.</p>
     <p>The private-drop period has ended and distribution changed to a free airdrop. The archived Snap remains available for posterity; historical claims and votes are read-only.</p>
-    <p><a href="https://search.10x.meme">Open 10X Warplets Search</a></p>
+    <p><a href="https://warplet.10x.meme">Open 10X Warplets</a></p>
     <p>Developer API documentation is coming soon. Machine-readable discovery is available at <a href="/v1/openapi.json"><code>/v1/openapi.json</code></a>.</p>
   </main></body>
 </html>`;
@@ -1430,7 +1430,7 @@ export function createApp(options: AppOptions = {}): Hono {
     og: false,
     openGraph: {
       title: "10X Warplets — Private Drop Archive",
-      description: "The private-drop period has ended. Open the archived Snap or current Search app.",
+      description: "The private-drop period has ended. Open the archived Snap or 10X Warplets.",
     },
   });
 
