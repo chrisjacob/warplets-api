@@ -21,7 +21,7 @@ export const onRequestPatch: PagesFunction<WarpmojiAdminEnv> = async ({ request,
     combined: numeric("combinedDaily", Number(current.combined_daily), 0, 900),
   };
   await env.WARPLETS.prepare("UPDATE warpmoji_settings SET mode = ?, organic_user_24h = ?, organic_daily = ?, mention_user_24h = ?, mention_daily = ?, combined_daily = ?, updated_at = CURRENT_TIMESTAMP, updated_by_fid = ? WHERE singleton = 1")
-    .bind(next.mode, next.organicUser, next.organicDaily, next.mentionUser, next.mentionDaily, next.combined, admin.session.farcasterFid).run();
-  await auditWarpmoji(env.WARPLETS, admin.session.farcasterFid!, "settings.update", "singleton", next);
+    .bind(next.mode, next.organicUser, next.organicDaily, next.mentionUser, next.mentionDaily, next.combined, admin.fid).run();
+  await auditWarpmoji(env.WARPLETS, admin.fid, "settings.update", "singleton", next);
   return jsonSecure({ ok: true, settings: next, projectedDailyCredits: next.combined * 160 });
 };

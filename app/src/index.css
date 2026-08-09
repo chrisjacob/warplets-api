@@ -887,6 +887,23 @@ html[data-entry-point="pwa"] .miniapp-shell__content {
   font-size: 12px;
 }
 
+/* AuthKit's completed relay response may omit optional profile fields. Never
+   expose its `!undefined` fallback while server-side identity hydration runs. */
+.farcaster-signin-control .fc-authkit-profile-button > div {
+  display: none !important;
+}
+
+.farcaster-signin-control .fc-authkit-profile-button::after {
+  content: "Connecting\2026";
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0 12px;
+  color: #fff;
+  font-family: "Roboto Mono", system-ui, sans-serif;
+  font-size: 12px;
+}
+
 .web-connect-loading,
 .web-connect-error {
   margin: 12px 0 0;

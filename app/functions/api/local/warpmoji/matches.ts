@@ -14,8 +14,8 @@ export const onRequestPatch: PagesFunction<WarpmojiAdminEnv> = async ({ request,
   if (!row && action === "remove") return jsonSecure({ error: "Candidate not found." }, { status: 404 });
   if (action === "remove") {
     await env.WARPLETS.batch([
-      env.WARPLETS.prepare("UPDATE warpmoji_candidates SET status = 'rejected', reviewed_at = CURRENT_TIMESTAMP, reviewed_by_fid = ?, updated_at = CURRENT_TIMESTAMP WHERE canonical_emoji = ? AND token_id = ?").bind(admin.session.farcasterFid, emoji, tokenId),
-      env.WARPLETS.prepare("INSERT INTO warpmoji_rejections (canonical_emoji, token_id, score, reasons_json, scoring_version, rejected_by_fid) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(canonical_emoji, token_id) DO UPDATE SET restored_at = NULL, rejected_at = CURRENT_TIMESTAMP, rejected_by_fid = excluded.rejected_by_fid").bind(emoji, tokenId, row!.score, row!.reasons_json, row!.scoring_version, admin.session.farcasterFid),
+      env.WARPLETS.prepare("UPDATE warpmoji_candidates SET status = 'rejected', reviewed_at = CURRENT_TIMESTAMP, reviewed_by_fid = ?, updated_at = CURRENT_TIMESTAMP WHERE canonical_emoji = ? AND token_id = ?").bind(admin.fid, emoji, tokenId),
+      env.WARPLETS.prepare("INSERT INTO warpmoji_rejections (canonical_emoji, token_id, score, reasons_json, scoring_version, rejected_by_fid) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(canonical_emoji, token_id) DO UPDATE SET restored_at = NULL, rejected_at = CURRENT_TIMESTAMP, rejected_by_fid = excluded.rejected_by_fid").bind(emoji, tokenId, row!.score, row!.reasons_json, row!.scoring_version, admin.fid),
       env.WARPLETS.prepare("UPDATE warpmoji_emoji_groups SET reviewed_at = NULL, approved_count = (SELECT COUNT(*) FROM warpmoji_candidates WHERE canonical_emoji = ? AND status = 'approved'), updated_at = CURRENT_TIMESTAMP WHERE canonical_emoji = ?").bind(emoji, emoji),
     ]);
   } else {
@@ -26,6 +26,6 @@ export const onRequestPatch: PagesFunction<WarpmojiAdminEnv> = async ({ request,
       env.WARPLETS.prepare("UPDATE warpmoji_emoji_groups SET reviewed_at = NULL, candidate_count = (SELECT COUNT(*) FROM warpmoji_candidates WHERE canonical_emoji = ?), approved_count = (SELECT COUNT(*) FROM warpmoji_candidates WHERE canonical_emoji = ? AND status = 'approved'), updated_at = CURRENT_TIMESTAMP WHERE canonical_emoji = ?").bind(emoji, emoji, emoji),
     ]);
   }
-  await auditWarpmoji(env.WARPLETS, admin.session.farcasterFid!, `match.${action}`, `${emoji}:${tokenId}`);
+  await auditWarpmoji(env.WARPLETS, admin.fid, `match.${action}`, `${emoji}:${tokenId}`);
   return jsonSecure({ ok: true, action });
 };

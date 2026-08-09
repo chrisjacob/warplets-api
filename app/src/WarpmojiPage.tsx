@@ -32,7 +32,7 @@ async function readJson(response: Response): Promise<Record<string, unknown>> {
   return payload;
 }
 
-export default function WarpmojiPage() {
+export default function WarpmojiPage({ sessionToken = null }: { sessionToken?: string | null }) {
   const [section, setSection] = useState<"review" | "status" | "activity" | "settings">("review");
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>("unreviewed");
   const [query, setQuery] = useState("");
@@ -41,6 +41,9 @@ export default function WarpmojiPage() {
   const [csrf, setCsrf] = useState("");
   const [message, setMessage] = useState("Loading Warpmoji…");
   const [busy, setBusy] = useState(false);
+  const authorizationHeaders: Record<string, string> = sessionToken
+    ? { authorization: `Bearer ${sessionToken}` }
+    : {};
 
   const load = useCallback(async () => {
     setBusy(true);
@@ -48,12 +51,12 @@ export default function WarpmojiPage() {
       if (section === "review") {
         const params = new URLSearchParams({ filter });
         if (query.trim()) params.set("q", query.trim());
-        const payload = await readJson(await fetch(`/api/local/warpmoji/review?${params}`, { credentials: "same-origin" }));
+        const payload = await readJson(await fetch(`/api/local/warpmoji/review?${params}`, { credentials: "same-origin", headers: authorizationHeaders }));
         setGroups((payload.groups as Group[]) ?? []);
         setCsrf(String(payload.csrfToken ?? ""));
         setMessage((payload.groups as unknown[])?.length ? "" : "No emoji groups match this filter.");
       } else {
-        const payload = await readJson(await fetch("/api/local/warpmoji/status", { credentials: "same-origin" }));
+        const payload = await readJson(await fetch("/api/local/warpmoji/status", { credentials: "same-origin", headers: authorizationHeaders }));
         setStatus(payload);
         setCsrf(String(payload.csrfToken ?? ""));
         setMessage("");
@@ -61,7 +64,7 @@ export default function WarpmojiPage() {
     } catch (error) {
       setMessage(error instanceof Error ? error.message : String(error));
     } finally { setBusy(false); }
-  }, [filter, query, section]);
+  }, [filter, query, section, sessionToken]);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -71,7 +74,7 @@ export default function WarpmojiPage() {
       await readJson(await fetch(path, {
         method,
         credentials: "same-origin",
-        headers: { "content-type": "application/json", "x-warpmoji-csrf": csrf },
+        headers: { ...authorizationHeaders, "content-type": "application/json", "x-warpmoji-csrf": csrf },
         body: JSON.stringify(body ?? {}),
       }));
       await load();

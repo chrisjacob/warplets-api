@@ -14,7 +14,11 @@ interface FarcasterProfile {
 }
 
 function profileString(value: unknown): string | null {
-  return typeof value === "string" && value.trim() ? value.trim() : null;
+  if (typeof value !== "string") return null;
+  const normalized = value.trim();
+  return normalized && normalized.toLowerCase() !== "undefined" && normalized.toLowerCase() !== "null"
+    ? normalized
+    : null;
 }
 
 async function loadFarcasterProfile(env: Env, fid: number): Promise<FarcasterProfile> {

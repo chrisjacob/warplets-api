@@ -11,6 +11,7 @@ export interface AppSessionState {
   } | null;
   walletAddress: `0x${string}` | null;
   expiresAt: string | null;
+  actionSessionToken: string | null;
 }
 
 async function readJson(response: Response): Promise<Record<string, unknown>> {
@@ -25,6 +26,14 @@ async function requireOk(response: Response): Promise<Record<string, unknown>> {
   return payload;
 }
 
+function profileString(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim();
+  return normalized && normalized.toLowerCase() !== "undefined" && normalized.toLowerCase() !== "null"
+    ? normalized
+    : null;
+}
+
 export async function loadAppSession(): Promise<AppSessionState> {
   const payload = await requireOk(await fetch("/api/auth/session", { credentials: "same-origin" }));
   const rawProfile = payload.farcasterProfile && typeof payload.farcasterProfile === "object"
@@ -36,12 +45,13 @@ export async function loadAppSession(): Promise<AppSessionState> {
     farcasterFid: Number.isInteger(Number(payload.farcasterFid)) ? Number(payload.farcasterFid) : null,
     farcasterProfile: rawProfile && Number.isInteger(profileFid) && profileFid > 0 ? {
       fid: profileFid,
-      username: typeof rawProfile.username === "string" ? rawProfile.username : null,
-      displayName: typeof rawProfile.displayName === "string" ? rawProfile.displayName : null,
-      pfpUrl: typeof rawProfile.pfpUrl === "string" ? rawProfile.pfpUrl : null,
+      username: profileString(rawProfile.username),
+      displayName: profileString(rawProfile.displayName),
+      pfpUrl: profileString(rawProfile.pfpUrl),
     } : null,
     walletAddress: typeof payload.walletAddress === "string" ? payload.walletAddress as `0x${string}` : null,
     expiresAt: typeof payload.expiresAt === "string" ? payload.expiresAt : null,
+    actionSessionToken: typeof payload.actionSessionToken === "string" ? payload.actionSessionToken : null,
   };
 }
 

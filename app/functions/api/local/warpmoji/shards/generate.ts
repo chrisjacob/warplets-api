@@ -15,6 +15,6 @@ export const onRequestPost: PagesFunction<WarpmojiAdminEnv> = async ({ request, 
   shards.forEach((regex, index) => statements.push(env.WARPLETS.prepare("INSERT INTO warpmoji_webhook_shards (id, kind, alias_count, regex_text, status) VALUES (?, 'organic', ?, ?, 'pending')").bind(`organic-${String(index + 1).padStart(3, "0")}`, Math.min(75, aliases.results.length - index * 75), regex)));
   statements.push(env.WARPLETS.prepare("INSERT INTO warpmoji_webhook_shards (id, kind, alias_count, status) VALUES ('mention-001', 'mention', ?, 'pending')").bind(aliases.results.length));
   await env.WARPLETS.batch(statements);
-  await auditWarpmoji(env.WARPLETS, admin.session.farcasterFid!, "shards.generate", "approved-aliases", { aliases: aliases.results.length, shards: shards.length });
+  await auditWarpmoji(env.WARPLETS, admin.fid, "shards.generate", "approved-aliases", { aliases: aliases.results.length, shards: shards.length });
   return jsonSecure({ ok: true, aliases: aliases.results.length, organicShards: shards.length, shardSize: 75, synced: false });
 };

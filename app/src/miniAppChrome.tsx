@@ -540,6 +540,7 @@ function MenuSection({
 
 export function MiniAppMenuPage({ appSlug }: { appSlug: AppSlug }) {
   const appBaseUrl = getAppUrl("app").replace(/\/$/, "");
+  const isLocalWarplets = appSlug === WARPLETS_APP_SLUG && window.location.hostname === new URL(WARPLETS_APP_ORIGINS.local).hostname;
   const miniAppCards: MenuCard[] = ["app", "drop"].map((slug) => {
     const config = APP_CONFIGS[slug as AppSlug];
     const isCurrent = appSlug === config.slug;
@@ -681,11 +682,25 @@ export function MiniAppMenuPage({ appSlug }: { appSlug: AppSlug }) {
     },
   ];
 
+  const localToolCards: MenuCard[] = isLocalWarplets ? [
+    {
+      id: "warplets-warpmoji",
+      title: "Warpmoji",
+      description: "Review and curate Warpmoji emoji matches.",
+      imageUrl: "/icon.png",
+      ctaLabel: "Open Warpmoji",
+      kind: "miniapp",
+      appSlug: WARPLETS_APP_SLUG,
+      href: `${WARPLETS_APP_ORIGINS.local}/warpmoji`,
+    },
+  ] : [];
+
   return (
     <div className="miniapp-menu-page">
       <MenuSection title="Mini Apps" cards={miniAppCards} />
       <MenuSection title="Social" cards={socialCards} />
       <MenuSection title="Links" cards={linkCards} />
+      {localToolCards.length > 0 && <MenuSection title="Local Tools" cards={localToolCards} />}
       <MenuSection title="Settings" cards={optOutCards} />
     </div>
   );

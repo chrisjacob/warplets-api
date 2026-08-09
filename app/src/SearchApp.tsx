@@ -15150,6 +15150,7 @@ export default function SearchApp() {
             setSiwfViewerProfile(profile);
             setViewerFid(appSession.farcasterFid);
             setViewerProfile(profile);
+            setActionSessionToken(appSession.actionSessionToken);
           }
           setMiniAppContextKnown(true);
           setSearchCompletionStatusLoaded(true);
@@ -15160,8 +15161,8 @@ export default function SearchApp() {
         sendMiniAppReady();
         const context = await sdk.context;
         const user = (context as { user?: Record<string, unknown> }).user;
-        const fid = user?.fid;
-        const normalizedFid = typeof fid === "number" && Number.isInteger(fid) && fid > 0 ? fid : null;
+        const fid = Number(user?.fid);
+        const normalizedFid = Number.isInteger(fid) && fid > 0 ? fid : null;
         setViewerFid(normalizedFid);
         const liveViewerProfile: ViewerProfile = {
           fid: normalizedFid,
@@ -15184,8 +15185,19 @@ export default function SearchApp() {
 
         if (normalizedFid) {
           void sdk.quickAuth.getToken().then(({ token }) => verifyFarcasterQuickAuth(token)).then(async (session) => {
+            const verifiedFid = Number(session.farcasterFid);
+            const sessionFid = Number.isInteger(verifiedFid) && verifiedFid > 0 ? verifiedFid : normalizedFid;
+            if (!sessionFid) throw new Error("Farcaster identity could not be restored");
+            const verifiedProfile: ViewerProfile = {
+              fid: sessionFid,
+              username: typeof session.username === "string" && session.username.trim() ? session.username.trim() : liveViewerProfile.username,
+              displayName: typeof session.displayName === "string" && session.displayName.trim() ? session.displayName.trim() : liveViewerProfile.displayName,
+              pfpUrl: typeof session.pfpUrl === "string" && session.pfpUrl.trim() ? session.pfpUrl.trim() : liveViewerProfile.pfpUrl,
+            };
+            setViewerFid(verifiedProfile.fid);
+            setViewerProfile(verifiedProfile);
             if (typeof session.actionSessionToken === "string") setActionSessionToken(session.actionSessionToken);
-            await syncSearchViewerStatus(normalizedFid, "Search user status upsert failed", liveViewerProfile);
+            await syncSearchViewerStatus(sessionFid, "Search user status upsert failed", verifiedProfile);
             await restoreFarcasterWallet();
           }).catch((error) => console.warn("Farcaster Quick Auth verification failed:", error));
         } else {
@@ -15259,6 +15271,38 @@ export default function SearchApp() {
   const handleWebFarcasterError = useCallback((message: string) => {
     showSearchToast("error", message, { manualClose: true });
   }, [showSearchToast]);
+
+  useEffect(() => {
+    if (!webConnectOpen || isInMiniAppContext || siwfViewerProfile?.fid) return;
+    let cancelled = false;
+    let checking = false;
+    const recoverVerifiedSession = async () => {
+      if (checking || cancelled) return;
+      checking = true;
+      try {
+        const session = await loadAppSession();
+        if (cancelled || !session.farcasterFid) return;
+        handleWebFarcasterAuthenticated({
+          fid: session.farcasterFid,
+          username: session.farcasterProfile?.username ?? null,
+          displayName: session.farcasterProfile?.displayName ?? null,
+          pfpUrl: session.farcasterProfile?.pfpUrl ?? null,
+          actionSessionToken: session.actionSessionToken,
+        });
+      } catch {
+        // The normal AuthKit callback reports actionable errors. This fallback
+        // only recovers a server session if the relay UI restarts after success.
+      } finally {
+        checking = false;
+      }
+    };
+    void recoverVerifiedSession();
+    const interval = window.setInterval(() => void recoverVerifiedSession(), 1_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, [handleWebFarcasterAuthenticated, isInMiniAppContext, siwfViewerProfile?.fid, webConnectOpen]);
 
   useEffect(() => {
     if (!pendingNotificationId || !viewerFid || !actionSessionToken || notificationOpenSent) return;
@@ -17808,7 +17852,7 @@ export default function SearchApp() {
         ) : searchRoute.page === "app-testing" ? (
           <AppTestingPage onTriggerShare={(id) => { void handleTestShareModal(id); }} />
         ) : searchRoute.page === "warpmoji" ? (
-          <Suspense fallback={<p className="p-6 text-center text-sm text-[#00FF00]">Loading Warpmoji…</p>}><LazyWarpmojiPage /></Suspense>
+          <Suspense fallback={<p className="p-6 text-center text-sm text-[#00FF00]">Loading Warpmoji…</p>}><LazyWarpmojiPage sessionToken={actionSessionToken} /></Suspense>
         ) : searchRoute.page === "listed" ? (
           <ListedPage
             db={dbRef.current}

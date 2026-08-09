@@ -54,7 +54,20 @@ export function getRawSessionToken(request: Request): string | null {
 }
 
 function isSecureRequest(request: Request): boolean {
-  return new URL(request.url).protocol === "https:";
+  const requestUrl = new URL(request.url);
+  if (requestUrl.protocol === "https:") return true;
+
+  // The local HTTPS tunnel terminates TLS in front of Vite/Pages dev, so the
+  // Worker-facing URL is HTTP. Vite supplies the original public origin and
+  // only a matching HTTPS host is allowed to affect cookie security.
+  const forwardedOrigin = request.headers.get("x-10x-public-origin")?.trim();
+  if (!forwardedOrigin) return false;
+  try {
+    const forwardedUrl = new URL(forwardedOrigin);
+    return forwardedUrl.protocol === "https:" && forwardedUrl.host === requestUrl.host;
+  } catch {
+    return false;
+  }
 }
 
 function requireSessionSecret(env: AppAuthEnv): string {
@@ -92,7 +105,7 @@ export function sessionCookie(request: Request, token: string, expiresAt: string
     `${name}=${encodeURIComponent(token)}`,
     "Path=/",
     "HttpOnly",
-    "SameSite=Lax",
+    secure ? "SameSite=None" : "SameSite=Lax",
     secure ? "Secure" : "",
     `Expires=${new Date(expiresAt).toUTCString()}`,
   ].filter(Boolean).join("; ");
