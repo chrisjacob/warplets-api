@@ -497,6 +497,17 @@ export const onRequestGet: PagesFunction<PagesEnv> = async (context) => {
   const searchFirstWarpletTokenId =
     routeKey === "warplets" && !searchWarpletTokenId ? getFirstWarpletTokenId(requestUrl.searchParams) : undefined;
   const searchWarpletTitle = searchWarpletTokenId ? `10X Warplet #${searchWarpletTokenId}` : undefined;
+  const requestedWarpmojiEmoji = requestUrl.searchParams.get("emoji")?.trim().normalize("NFC") ?? "";
+  const validWarpmojiEmoji = searchWarpletTokenId && requestedWarpmojiEmoji && context.env.WARPLETS
+    ? await context.env.WARPLETS.prepare(
+      `SELECT a.alias FROM warpmoji_emoji_aliases a
+        JOIN warpmoji_candidates c ON c.canonical_emoji = a.canonical_emoji
+       WHERE a.alias = ? AND c.token_id = ? AND c.status = 'approved' LIMIT 1`,
+    ).bind(requestedWarpmojiEmoji, searchWarpletTokenId).first<{ alias: string }>().then((row) => row?.alias).catch(() => undefined)
+    : undefined;
+  const warpmojiCtaTitle = validWarpmojiEmoji && searchWarpletTokenId
+    ? `${validWarpmojiEmoji} 10X Warplet #${searchWarpletTokenId}`
+    : undefined;
   const searchResultsTitle = searchFirstWarpletTokenId
     ? getSearchResultsShareTitle(requestUrl.searchParams)
     : undefined;
@@ -520,8 +531,8 @@ export const onRequestGet: PagesFunction<PagesEnv> = async (context) => {
       requestUrl.pathname,
       requestUrl.search,
       routeImageUrl,
-      statsShareSnapshot?.title ?? searchShareTitle,
-      statsShareSnapshot?.title ?? searchShareTitle,
+      statsShareSnapshot?.title ?? warpmojiCtaTitle ?? searchShareTitle,
+      statsShareSnapshot?.title ?? warpmojiCtaTitle ?? searchShareTitle,
       statsShareSnapshot ? `${requestUrl.origin}${statsShareSnapshot.launchPath}` : undefined,
     )
   );

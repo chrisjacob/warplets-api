@@ -23,7 +23,7 @@ test("browser root is the temporary API landing page", async () => {
 });
 
 test("API token ID lists are bounded and deduplicated", () => {
-  assert.deepEqual(parseTokenIds("[5,2,5,-1,10000,3.2,\"4\"]"), [2, 5]);
+  assert.deepEqual(parseTokenIds("[5,2,5,-1,0,10000,10001,3.2,\"4\"]"), [2, 5, 10000]);
   assert.deepEqual(parseTokenIds("not-json"), []);
 });
 

@@ -228,7 +228,7 @@ export function parseTokenIds(raw: string | null | undefined): number[] {
   try {
     const value = JSON.parse(raw ?? "[]");
     if (!Array.isArray(value)) return [];
-    return [...new Set(value.filter((item): item is number => Number.isInteger(item) && item >= 0 && item <= 9999))].sort(
+    return [...new Set(value.filter((item): item is number => Number.isInteger(item) && item >= 1 && item <= 10000))].sort(
       (a, b) => a - b,
     );
   } catch {
@@ -302,6 +302,7 @@ function openApiDocument(origin: string): Record<string, unknown> {
       "/v1/stats/activity": { get: read("Get collection activity") },
       "/v1/stats/holders": { get: read("Get holder rankings") },
       "/v1/stats/shares": { post: read("Create a Stats share snapshot") },
+      "/v1/warpmoji/match": { get: read("Match one exact Unicode 17 emoji to a human-approved Warplet") },
       "/v1/me/favourites": { get: read("List favourites"), delete: read("Clear favourites") },
       "/v1/me/favourites/{tokenId}": { put: read("Add a favourite"), delete: read("Remove a favourite") },
       "/v1/me/alerts": { get: read("List alert preferences"), put: read("Update alert preferences") },
@@ -462,14 +463,15 @@ async function generateStatsReport(c: ApiContext, payment: unknown): Promise<Res
 
 const MCP_TOOLS = [
   ["search_warplets", "Search the 10X Warplets collection", { q: { type: "string" }, limit: { type: "integer", minimum: 1, maximum: 100 } }],
-  ["get_warplet", "Get one Warplet by token ID", { tokenId: { type: "integer", minimum: 0, maximum: 9999 } }],
+  ["get_warplet", "Get one Warplet by token ID", { tokenId: { type: "integer", minimum: 1, maximum: 10000 } }],
+  ["match_warpmoji", "Match an exact emoji to a human-approved Warplet", { emoji: { type: "string" } }],
   ["get_collection_stats", "Get collection overview stats", {}],
   ["get_market_stats", "Get Price, Floor Price, Volume, Listings, Offers and Sales market stats and chart series", { range: { type: "string", enum: ["7d", "30d", "90d", "1y", "all"] } }],
   ["get_activity", "Get activity stats", { range: { type: "string" }, eventType: { type: "string" } }],
   ["get_top_holders", "Get holder rankings", { limit: { type: "integer", minimum: 1, maximum: 100 } }],
   ["list_favourites", "List favourites for the authenticated API credential", {}],
-  ["add_favourite", "Add a favourite", { tokenId: { type: "integer", minimum: 0, maximum: 9999 } }],
-  ["remove_favourite", "Remove a favourite", { tokenId: { type: "integer", minimum: 0, maximum: 9999 } }],
+  ["add_favourite", "Add a favourite", { tokenId: { type: "integer", minimum: 1, maximum: 10000 } }],
+  ["remove_favourite", "Remove a favourite", { tokenId: { type: "integer", minimum: 1, maximum: 10000 } }],
   ["create_stats_share", "Create an immutable Stats share snapshot", { request: { type: "object" } }],
   ["generate_stats_report", "Generate the x402-protected Stats report", {}],
 ] as const;
@@ -488,10 +490,16 @@ function toolRoute(name: string, args: Record<string, unknown>): { path: string;
   if (typeof args.limit === "number") query.set("limit", String(args.limit));
   if (typeof args.range === "string") query.set("range", args.range);
   if (typeof args.eventType === "string") query.set("eventType", args.eventType);
+  if (typeof args.emoji === "string") {
+    query.set("emoji", args.emoji);
+    query.set("source", "warpmoji_api");
+    query.set("trigger", "api");
+  }
   const suffix = query.size ? `?${query}` : "";
   switch (name) {
     case "search_warplets": return { path: `/v1/warplets${suffix}` };
     case "get_warplet": return { path: `/v1/warplets/${args.tokenId}` };
+    case "match_warpmoji": return { path: `/v1/warpmoji/match${suffix}` };
     case "get_collection_stats": return { path: "/v1/stats/overview" };
     case "get_market_stats": return { path: `/v1/stats/market${suffix}` };
     case "get_activity": return { path: `/v1/stats/activity${suffix}` };
@@ -557,8 +565,8 @@ export function registerAgentApi(app: Hono): void {
   app.get("/v1/warplets/:tokenId", async (rawContext) => {
     const c = rawContext as unknown as ApiContext;
     const tokenId = Number.parseInt(c.req.param("tokenId"), 10);
-    if (!Number.isInteger(tokenId) || tokenId < 0 || tokenId > 9999) {
-      return failure(c, 400, "INVALID_TOKEN_ID", "tokenId must be an integer from 0 to 9999.");
+    if (!Number.isInteger(tokenId) || tokenId < 1 || tokenId > 10000) {
+      return failure(c, 400, "INVALID_TOKEN_ID", "tokenId must be an integer from 1 to 10000.");
     }
     const row = await c.env.WARPLETS.prepare(`SELECT ${WARPLET_SELECT} FROM warplets_metadata WHERE token_id = ? LIMIT 1`)
       .bind(tokenId)
@@ -602,7 +610,7 @@ export function registerAgentApi(app: Hono): void {
     const credential = await credentialFor(c, "favourites:write");
     if (!credential) return failure(c, 401, "UNAUTHORIZED", "A personal API token with favourites:write is required.");
     const tokenId = Number.parseInt(c.req.param("tokenId"), 10);
-    if (!Number.isInteger(tokenId) || tokenId < 0 || tokenId > 9999) return failure(c, 400, "INVALID_TOKEN_ID", "Invalid token ID.");
+    if (!Number.isInteger(tokenId) || tokenId < 1 || tokenId > 10000) return failure(c, 400, "INVALID_TOKEN_ID", "Invalid token ID.");
     const ids = await readFavouriteIds(c.env.WARPLETS, credential.wallet_address);
     if (!ids.includes(tokenId)) ids.push(tokenId);
     ids.sort((a, b) => a - b);

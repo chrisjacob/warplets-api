@@ -165,7 +165,6 @@ VITE_BASE_ACCOUNT_ENABLED=true
 VITE_TRUSTCONNECT_ENABLED=false
 VITE_BASE_BUILDER_CODE=<BASE_DEV_BUILDER_CODE>
 VITE_WALLETCONNECT_PROJECT_ID=<WALLETCONNECT_PROJECT_ID>
-VITE_NEYNAR_CLIENT_ID=<EXISTING_NEYNAR_CLIENT_ID>
 VITE_X_AUTH_ENABLED=false
 ```
 
@@ -183,6 +182,9 @@ Important:
   `VITE_*` variable; all `VITE_*` values are public.
 - Keep `BASE_NOTIFICATIONS_ENABLED=false` until the notification verification
   phase in `BASE_WEB_APP_SETUP.md` passes.
+- Apply `0050_farcaster_auth_nonces.sql` before testing browser Farcaster sign-in.
+  Sign In with Farcaster uses the public Farcaster relay and needs no Neynar
+  client ID or additional browser-side secret.
 
 Build locally with the preview-mode values:
 

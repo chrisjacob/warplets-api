@@ -22,11 +22,12 @@
   "dependencies": {
     "@base-org/account": "^2.5.8",
     "@cloudflare/puppeteer": "^1.2.0",
+    "@farcaster/auth-client": "0.7.1",
+    "@farcaster/auth-kit": "0.8.2",
     "@farcaster/miniapp-node": "^0.2.0",
     "@farcaster/miniapp-sdk": "^0.3.0",
     "@farcaster/quick-auth": "0.0.6",
     "@floating-ui/react": "^0.27.19",
-    "@neynar/react": "^1.2.22",
     "@neynar/ui": "^1",
     "@pigment-css/react": "^0.0.30",
     "@sqlite.org/sqlite-wasm": "3.53.0-build1",

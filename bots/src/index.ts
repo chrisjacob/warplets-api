@@ -132,6 +132,7 @@ function helpText(): string {
     "/search <terms> — search Warplets",
     "/random — show a random Warplet",
     "/item <token id> — item details",
+    "/warpmoji <emoji> — match one emoji to a Warplet",
     "/stats [overview|market|activity|holders]",
     "/favourites — your linked-wallet favourites",
     "/favourite add|remove <token id>",
@@ -171,17 +172,25 @@ async function executeCommand(env: Env, command: NormalizedCommand): Promise<str
     return formatWarplets(arrayData(payload), warpletsAppOrigin(env));
   }
   if (name === "random") {
-    const tokenId = crypto.getRandomValues(new Uint16Array(1))[0] % 10_000;
+    const tokenId = (crypto.getRandomValues(new Uint16Array(1))[0] % 10_000) + 1;
     const payload = await apiRequest(env, identity, `/v1/warplets/${tokenId}`);
     const data = envelopeData(payload);
     return formatWarplets(data && typeof data === "object" ? [data as Record<string, unknown>] : [], warpletsAppOrigin(env));
   }
   if (name === "item") {
     const tokenId = Number.parseInt(command.args[0] ?? "", 10);
-    if (!Number.isInteger(tokenId) || tokenId < 0 || tokenId > 9999) return "Usage: /item <0-9999>";
+    if (!Number.isInteger(tokenId) || tokenId < 1 || tokenId > 10000) return "Usage: /item <1-10000>";
     const payload = await apiRequest(env, identity, `/v1/warplets/${tokenId}`);
     const data = envelopeData(payload);
     return formatWarplets(data && typeof data === "object" ? [data as Record<string, unknown>] : [], warpletsAppOrigin(env));
+  }
+  if (name === "warpmoji" || name === "warpmoji_emoji") {
+    const emoji = command.args.join(" ").trim();
+    if (!emoji) return "Usage: /warpmoji <one emoji>";
+    const trigger = name === "warpmoji_emoji" ? "emoji" : "command";
+    const payload = await apiRequest(env, identity, `/v1/warpmoji/match?emoji=${encodeURIComponent(emoji)}&source=${identity.provider}&trigger=${trigger}`);
+    const data = envelopeData(payload) as { emoji?: unknown; url?: unknown };
+    return `${String(data.emoji ?? emoji)}🟢\n\n${String(data.url ?? "")}`;
   }
   if (name === "stats") {
     const kind = ["overview", "market", "activity", "holders"].includes(command.args[0]) ? command.args[0] : "overview";
@@ -203,7 +212,7 @@ async function executeCommand(env: Env, command: NormalizedCommand): Promise<str
   if (name === "favourite") {
     const action = command.args[0];
     const tokenId = Number.parseInt(command.args[1] ?? "", 10);
-    if ((action !== "add" && action !== "remove") || !Number.isInteger(tokenId) || tokenId < 0 || tokenId > 9999) return "Usage: /favourite add|remove <0-9999>";
+    if ((action !== "add" && action !== "remove") || !Number.isInteger(tokenId) || tokenId < 1 || tokenId > 10000) return "Usage: /favourite add|remove <1-10000>";
     await apiRequest(env, identity, `/v1/me/favourites/${tokenId}`, { method: action === "add" ? "PUT" : "DELETE" });
     return `Warplet #${tokenId} ${action === "add" ? "added to" : "removed from"} your favourites.`;
   }
@@ -261,7 +270,9 @@ app.post("/telegram", async (c) => {
   const user = message?.from;
   const text = message?.text?.trim() ?? "";
   if (!chatId || !user?.id || !text) return c.json({ ok: true });
-  const [commandName, ...args] = text.split(/\s+/);
+  const [parsedName, ...parsedArgs] = text.split(/\s+/);
+  const commandName = parsedName.startsWith("/") ? parsedName : "warpmoji_emoji";
+  const args = parsedName.startsWith("/") ? parsedArgs : [text];
   const identity: BotIdentity = {
     provider: "telegram",
     id: String(user.id),

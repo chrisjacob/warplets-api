@@ -53,10 +53,36 @@ async function loadFavouriteTokenIds(db: D1Database, wallet: string): Promise<nu
   }
 }
 
+async function resolveSessionFavouriteWallet(db: D1Database, session: Awaited<ReturnType<typeof getAppSession>>): Promise<string | null> {
+  if (!session) return null;
+  if (session.farcasterFid) {
+    const user = await db.prepare(
+      `SELECT lower(trim(primary_eth_address)) AS wallet
+       FROM warplets_users
+       WHERE fid = ? AND primary_eth_address IS NOT NULL AND trim(primary_eth_address) <> ''
+       LIMIT 1`,
+    ).bind(session.farcasterFid).first<{ wallet: string | null }>().catch(() => null);
+    const primaryWallet = normalizeWallet(user?.wallet);
+    if (primaryWallet) return primaryWallet;
+
+    const link = await db.prepare(
+      `SELECT lower(wallet) AS wallet
+       FROM wallet_farcaster_links
+       WHERE fid = ?
+       ORDER BY COALESCE(score, -1) DESC, wallet ASC
+       LIMIT 1`,
+    ).bind(session.farcasterFid).first<{ wallet: string | null }>().catch(() => null);
+    return normalizeWallet(link?.wallet);
+  }
+  return normalizeWallet(session.walletAddress);
+}
+
 export const onRequestGet: PagesFunction<Env> = async (context) => {
   const url = new URL(context.request.url);
-  const wallet = normalizeWallet(url.searchParams.get("wallet"));
-  if (!wallet) return jsonSecure({ error: "wallet is required" }, { status: 400 });
+  const requestedWallet = normalizeWallet(url.searchParams.get("wallet"));
+  const session = requestedWallet ? null : await getAppSession(context.request, context.env);
+  const wallet = requestedWallet ?? await resolveSessionFavouriteWallet(context.env.WARPLETS, session);
+  if (!wallet) return jsonSecure({ error: "No primary wallet is available for this Farcaster account" }, { status: 400 });
 
   const tokenIds = await loadFavouriteTokenIds(context.env.WARPLETS, wallet);
   return jsonSecure({ wallet, tokenIds });
@@ -69,12 +95,14 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
   const payload = parseObjectPayload<FavouritesPayload>(parsed.value, ["wallet", "tokenIds"]);
   if (!payload.ok) return payload.response;
 
-  const wallet = normalizeWallet(payload.payload.wallet);
-  if (!wallet) return jsonSecure({ error: "valid wallet is required" }, { status: 400 });
-
   const session = await getAppSession(context.request, context.env);
-  if (!session?.walletAddress || session.walletAddress !== wallet) {
-    return jsonSecure({ error: "a verified session for this wallet is required" }, { status: 401 });
+  const wallet = await resolveSessionFavouriteWallet(context.env.WARPLETS, session);
+  if (!wallet) {
+    return jsonSecure({ error: "a verified Farcaster identity or wallet is required" }, { status: 401 });
+  }
+  const requestedWallet = normalizeWallet(payload.payload.wallet);
+  if (requestedWallet && requestedWallet !== wallet) {
+    return jsonSecure({ error: "favourites must use the verified identity's primary wallet" }, { status: 403 });
   }
 
   const tokenIds = normalizeTokenIds(payload.payload.tokenIds);

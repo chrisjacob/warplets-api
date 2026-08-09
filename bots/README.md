@@ -5,6 +5,10 @@ interactions into the same read-only Agent API commands. It never holds wallet
 keys and never submits trades. Personal commands require a one-time bot link
 followed by SIWE and explicit confirmation in 10X Warplets.
 
+Both adapters also expose Warpmoji. Telegram accepts a standalone approved
+emoji or `/warpmoji <emoji>`; Discord exposes `/warpmoji`. Matching is performed
+by the Agent API and returns a UTM-attributed canonical Warplet link.
+
 ## Configure
 
 Set the same 32+ character `BOT_SERVICE_TOKEN` secret on both the API Worker and

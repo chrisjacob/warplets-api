@@ -23,9 +23,11 @@ export function PwaControls({
   const [updateAvailable, setUpdateAvailable] = useState(false);
   const [dismissed, setDismissed] = useState(() => localStorage.getItem(DISMISSED_KEY) === "1");
   const [busy, setBusy] = useState(false);
+  const [webPushConfigured, setWebPushConfigured] = useState(false);
   const standalone = isStandaloneDisplay();
   const embedded = isEmbeddedWebView();
-  const canPush = "Notification" in window && "PushManager" in window && Notification.permission === "default";
+  const browserCanPush = "Notification" in window && "PushManager" in window && Notification.permission === "default";
+  const canPush = browserCanPush && webPushConfigured;
   const showIosInstallHelp = isIos() && !standalone && !embedded;
 
   useEffect(() => {
@@ -41,6 +43,23 @@ export function PwaControls({
       window.removeEventListener("10x:pwa-update-available", handleUpdate);
     };
   }, []);
+
+  useEffect(() => {
+    if (!browserCanPush) return;
+    const controller = new AbortController();
+    void fetch("/api/web-push/public-key", {
+      headers: { accept: "application/json" },
+      signal: controller.signal,
+    })
+      .then(async (response): Promise<{ publicKey?: string } | null> => response.ok
+        ? await response.json() as { publicKey?: string }
+        : null)
+      .then((payload) => setWebPushConfigured(Boolean(payload?.publicKey)))
+      .catch((error: unknown) => {
+        if (!(error instanceof DOMException && error.name === "AbortError")) setWebPushConfigured(false);
+      });
+    return () => controller.abort();
+  }, [browserCanPush]);
 
   if (updateAvailable) {
     return (
@@ -89,18 +108,37 @@ export function PwaControls({
   };
 
   return (
-    <div className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] left-1/2 z-40 flex w-[calc(100%-2rem)] max-w-sm items-center gap-2 rounded-xl border border-[#00FF00]/60 bg-black/95 p-3 shadow-2xl">
-      <button
-        type="button"
-        disabled={busy}
-        className="min-w-0 flex-1 rounded-lg bg-[#00FF00] px-3 py-2 text-sm font-black text-[#003800] disabled:opacity-50"
-        onClick={() => void runPrimaryAction()}
-      >
-        {showIosInstallHelp ? "Install 10X" : installAvailable ? "Install 10X Warplets" : "Enable web notifications"}
-      </button>
-      <button type="button" className="px-2 py-2 text-xs font-bold text-[#8bbf8b]" onClick={dismiss} aria-label="Dismiss">
-        Later
-      </button>
+    <div className="fixed bottom-0 left-1/2 z-50 w-full max-w-[500px] -translate-x-1/2 px-4">
+      <div className="overflow-hidden rounded-t-2xl border border-b-0 border-[#00FF00]/35 bg-black shadow-[0_-12px_28px_rgba(0,0,0,0.75)]">
+        <div className="flex items-center justify-between gap-3 border-b border-[#00FF00]/20 bg-black px-4 py-3">
+          <p className="min-w-0 text-base font-bold text-[#8bbf8b]">
+            {installAvailable || showIosInstallHelp ? (
+              <><span className="text-[#00FF00]">Install App</span> Unlock Faster Access</>
+            ) : (
+              <><span className="text-[#00FF00]">Enable</span> Web Notifications</>
+            )}
+          </p>
+          <button
+            type="button"
+            aria-label="Close install prompt"
+            title="Close"
+            onClick={dismiss}
+            className="flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-[#00FF00]/35 text-xl leading-none text-[#00FF00] hover:bg-[#041204]"
+          >
+            ×
+          </button>
+        </div>
+        <div className="p-4 pb-5">
+          <button
+            type="button"
+            disabled={busy}
+            className="mb-1.5 w-full cursor-pointer rounded-[20px] border border-[#009900] bg-[#00FF00] px-4 py-3 text-sm font-black text-[rgb(0,80,0)] shadow-[3px_6px_0_#008000] transition-all duration-100 hover:bg-[#33ff33] active:translate-x-[1px] active:translate-y-[3px] active:shadow-[1px_3px_0_#008000] disabled:cursor-wait disabled:opacity-50"
+            onClick={() => void runPrimaryAction()}
+          >
+            {showIosInstallHelp ? "Install 10X Warplets" : installAvailable ? "Install 10X Warplets" : "Enable web notifications"}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

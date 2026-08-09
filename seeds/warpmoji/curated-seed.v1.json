@@ -1,0 +1,12 @@
+{
+  "seedSchemaVersion": 1,
+  "unicodeVersion": "17.0",
+  "scoringVersions": [
+    "warpmoji-v1"
+  ],
+  "curationUpdatedAt": null,
+  "reviewedGroups": [],
+  "approvedMatches": [],
+  "rejectedMatches": [],
+  "checksum": "f673cbb9c92a4c1b1a771347b2acdf3204d7502103936d92a1a98c68381603c9"
+}

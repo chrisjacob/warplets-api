@@ -3,11 +3,12 @@ const botToken = process.env.DISCORD_BOT_TOKEN;
 const guildId = process.env.DISCORD_GUILD_ID;
 if (!applicationId || !botToken) throw new Error("DISCORD_APPLICATION_ID and DISCORD_BOT_TOKEN are required");
 
-const integerToken = { name: "token", description: "Warplet token ID (0-9999)", type: 4, required: true, min_value: 0, max_value: 9999 };
+const integerToken = { name: "token", description: "Warplet token ID (1-10000)", type: 4, required: true, min_value: 1, max_value: 10000 };
 const commands = [
   { name: "help", description: "Show 10X Warplets commands" },
   { name: "search", description: "Search Warplets", options: [{ name: "terms", description: "Name, trait, wallet or token ID", type: 3, required: true }] },
   { name: "random", description: "Show a random Warplet" },
+  { name: "warpmoji", description: "Match one emoji to a Warplet", options: [{ name: "emoji", description: "One Unicode emoji", type: 3, required: true }] },
   { name: "item", description: "Show one Warplet", options: [integerToken] },
   { name: "stats", description: "Show collection stats", options: [{ name: "view", description: "Stats view", type: 3, required: false, choices: ["overview", "market", "activity", "holders"].map((value) => ({ name: value, value })) }] },
   { name: "favourites", description: "List your linked-wallet favourites" },

@@ -23,6 +23,9 @@
     "security:preflight": "node scripts/security-preflight.mjs",
     "security:test": "node scripts/test-security-blocklist.mjs",
     "security:smoke": "node scripts/security-smoke.mjs",
+    "warpmoji:generate": "node scripts/generate-warpmoji-data.mjs",
+    "warpmoji:export-curated": "node --no-warnings scripts/warpmoji-curated-seed.mjs export",
+    "warpmoji:import-curated": "node --no-warnings scripts/warpmoji-curated-seed.mjs import",
     "deploy": "wrangler deploy"
   },
   "pnpm": {

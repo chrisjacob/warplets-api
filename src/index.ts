@@ -4,6 +4,7 @@ import {
 	advanceDuneAnalytics,
 	type DuneAnalyticsEnv,
 } from "../app/functions/_lib/duneAnalytics";
+import { processWarpmojiJobs, type WarpmojiEnv } from "./warpmoji";
 
 const app = createApp();
 
@@ -22,5 +23,6 @@ export default {
 				console.error("[dune-analytics] scheduled ingest failed", error);
 			}),
 		);
+		ctx.waitUntil(processWarpmojiJobs(scheduledEnv as unknown as WarpmojiEnv));
 	},
 };

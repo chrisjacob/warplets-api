@@ -49,7 +49,7 @@ type PerksViewerProfile = {
 const FALLBACK_WARPLET_TOKEN_ID = 548;
 const DEMO_HOLDER_SESSION_KEY = "warplets-perks-demo-holder-v1";
 const MOCK_HOLDER_LIMIT = 100;
-const PERK_IDS: PerksSubpage[] = ["memes", "nfts", "ai", "attention", "access"];
+const PERK_IDS: PerksSubpage[] = ["memes", "nfts", "ai", "attention", "alpha"];
 
 let holderRosterCache: PerksHolder[] | null = null;
 let holderRosterRequest: Promise<PerksHolder[]> | null = null;
@@ -573,7 +573,7 @@ function Explorer({ definition }: { definition: PerksDefinition }) {
                 ))}
               </div>
             )}
-            {definition.id === "access" && row.priceHistory && row.priceHistory.length > 1 && (
+            {definition.id === "alpha" && row.priceHistory && row.priceHistory.length > 1 && (
               <MockTokenChart
                 values={row.priceHistory}
                 callIndex={row.callIndex ?? 0}

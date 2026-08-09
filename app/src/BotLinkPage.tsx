@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { NeynarAuthButton } from "@neynar/react";
 import { WebConnectModal } from "./WebConnectModal";
+import FarcasterSignInControl from "./FarcasterSignInControl";
 import { loadAppSession } from "./appSession";
 import { useWalletController } from "./walletController";
 
@@ -14,6 +14,7 @@ export default function BotLinkPage() {
   const [connectOpen, setConnectOpen] = useState(false);
   const [status, setStatus] = useState<"idle" | "busy" | "done" | "error">("idle");
   const [message, setMessage] = useState("");
+  const [farcasterConnected, setFarcasterConnected] = useState(false);
 
   const refreshSession = () => loadAppSession().then((session) => setHasVerifiedWallet(Boolean(session.walletAddress)));
   useEffect(() => { void refreshSession(); }, [wallet.session?.address]);
@@ -42,7 +43,13 @@ export default function BotLinkPage() {
       <WebConnectModal
         open={connectOpen}
         onClose={() => { setConnectOpen(false); void refreshSession(); }}
-        farcasterControl={<NeynarAuthButton label="Connect Farcaster" />}
+        farcasterControl={(
+          <FarcasterSignInControl
+            connected={farcasterConnected}
+            onAuthenticated={() => setFarcasterConnected(true)}
+            onError={setMessage}
+          />
+        )}
       />
       <section className="mx-auto max-w-md rounded-2xl border border-[#00FF00]/50 bg-[#001000] p-6">
         <h1 className="text-2xl font-black text-[#00FF00]">Link {provider}</h1>

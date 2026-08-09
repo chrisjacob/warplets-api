@@ -677,6 +677,25 @@ html[data-entry-point="pwa"] .miniapp-shell__content {
   margin-left: 0 !important;
 }
 
+.search-header-account .farcaster-signin-control button {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-width: 0 !important;
+  height: 32px !important;
+  margin: 0 !important;
+  padding: 0 12px !important;
+  border: 1px solid rgba(0, 255, 0, 0.55) !important;
+  border-radius: 8px !important;
+  background: #00ff00 !important;
+  color: rgb(0, 80, 0) !important;
+  font-family: "Roboto Mono", system-ui, sans-serif !important;
+  font-size: 0.75rem !important;
+  font-weight: 700 !important;
+  line-height: 1 !important;
+  box-shadow: none !important;
+}
+
 .search-header-avatar-button {
   display: inline-flex;
   align-items: center;
@@ -845,6 +864,27 @@ html[data-entry-point="pwa"] .miniapp-shell__content {
   border: 1px solid rgb(138 92 255 / 45%);
   border-radius: 12px;
   background: rgb(138 92 255 / 8%);
+}
+
+.web-connect-farcaster .farcaster-signin-control button {
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid rgb(138 92 255 / 70%);
+  border-radius: 8px;
+  background: rgb(138 92 255 / 18%);
+  color: #fff;
+  font-family: "Roboto Mono", system-ui, sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.farcaster-signin-control .fc-authkit-signin-button > button {
+  font-size: 0 !important;
+}
+
+.farcaster-signin-control .fc-authkit-signin-button > button::after {
+  content: "Connect";
+  font-size: 12px;
 }
 
 .web-connect-loading,

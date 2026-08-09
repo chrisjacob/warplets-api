@@ -7,6 +7,7 @@ import {
 import { registerSnapHandler } from "@farcaster/snap-hono";
 import { runOpenseaSync, type OpenseaSyncEnv } from "./opensea-sync";
 import { registerAgentApi } from "./agent-api";
+import { registerWarpmoji } from "./warpmoji";
 
 // ---------------------------------------------------------------------------
 // Environment bindings (Cloudflare Workers)
@@ -1325,6 +1326,7 @@ export function createApp(options: AppOptions = {}): Hono {
   const app = new Hono();
 
   registerAgentApi(app);
+  registerWarpmoji(app);
 
   // Manually trigger OpenSea sync with a lookback window (default: 48h).
   // Protected by OPENSEA_MANUAL_SYNC_TOKEN to avoid public abuse.

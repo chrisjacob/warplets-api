@@ -23,7 +23,6 @@ VITE_BASE_ACCOUNT_ENABLED=true
 VITE_TRUSTCONNECT_ENABLED=false
 VITE_BASE_BUILDER_CODE=your-builder-code
 VITE_WALLETCONNECT_PROJECT_ID=your-connection-only-project-id
-VITE_NEYNAR_CLIENT_ID=your-neynar-client-id
 ```
 
 Start with TrustConnect disabled. Base Account and the compatibility injected-wallet connector do not depend on it.
@@ -48,7 +47,7 @@ pnpm --dir app exec wrangler pages secret put APP_SESSION_SECRET --project-name 
 pnpm --dir app exec wrangler pages secret put BASE_NOTIFICATIONS_API_KEY --project-name 10x-app
 ```
 
-Also ensure `NEYNAR_API_KEY` and `ACTION_SESSION_SECRET` remain configured. SIWN verification uses the Neynar signer lookup; Farcaster Mini App sessions use Quick Auth.
+Also ensure `NEYNAR_API_KEY` and `ACTION_SESSION_SECRET` remain configured. The Neynar key is still used for social-data lookups, but browser authentication now uses protocol-native Sign In with Farcaster and does not require a Neynar client ID. Farcaster Mini App sessions continue to use Quick Auth.
 
 The non-secret runtime variables are in `app/wrangler.toml`:
 
@@ -69,7 +68,7 @@ Test these cases in preview:
 
 - Farcaster Mini App: Quick Auth identity, embedded wallet connection, SIWE proof, account change and disconnect.
 - Base App iOS/Android: Base Account connect, Base Mainnet selection, SIWE, typed-data order signatures, ordinary transactions and supported atomic batches.
-- Standard mobile/desktop browsers: anonymous reading, Base Account, injected wallet and SIWN identity.
+- Standard mobile/desktop browsers: anonymous reading, Base Account, injected wallet and protocol-native Sign In with Farcaster identity.
 - TrustConnect proof: EIP-6963 wallet, WalletConnect QR/mobile, reload/reconnect, disconnect, Base chain switching, SIWE, `personal_sign`, typed-data signing and ordinary transactions.
 - Confirm WalletConnect falls back to sequential transactions when EIP-5792 capabilities are absent.
 

@@ -1,6 +1,6 @@
 import { PERKS_SHARE_CONTENT } from "./perksShareContent";
 
-export type PerksSubpage = "memes" | "nfts" | "ai" | "attention" | "access";
+export type PerksSubpage = "memes" | "nfts" | "ai" | "attention" | "alpha";
 
 export type PerksMetric = {
   label: string;
@@ -247,12 +247,12 @@ export const PERKS_DEFINITIONS: Record<PerksSubpage, PerksDefinition> = {
       { title: "Distribution beyond the feed", body: "We're building \"one feed to rule them all\"! The homepage for crypto, where news breaks, alpha drops and new KOLs are minted. Content starts in the 10X feed and spreads virally out to larger platforms. Popular community posts receive broader promotion through future newsletters and the 10X network.", callout: "D.R.E.A.M: Distribution rules everything around me... attention is king." },
     ],
   },
-  access: {
-    id: "access",
-    title: "Access",
-    eyebrow: PERKS_SHARE_CONTENT.access.eyebrow,
+  alpha: {
+    id: "alpha",
+    title: "Alpha",
+    eyebrow: PERKS_SHARE_CONTENT.alpha.eyebrow,
     statsTitle: "Network Stats",
-    summary: PERKS_SHARE_CONTENT.access.summary,
+    summary: PERKS_SHARE_CONTENT.alpha.summary,
     globalMetrics: [
       { label: "Members", value: "37,420" },
       { label: "Chains Represented", value: "6" },
@@ -288,7 +288,7 @@ export const PERKS_DEFINITIONS: Record<PerksSubpage, PerksDefinition> = {
     explanation: [
       { title: "Cross-chain common ground", body: "The 10X Network brings Base, Solana, BNB, Ethereum, Robinhood and emerging ecosystems into one Farcaster-native community.\n\nToken Tribes... without Chain-Tribalism.\nBag Workers... without Mob Mentality.\nProject Believers... without Exit Shaming.\n\nWe're here to build, trade, take profits and have fun!" },
       { title: "See coins early", body: "Members can review the daily market-analysis shortlist and influence whether 10X launches or skips (to let a runner continue running). The Network also votes on Listing Liquidity for the 10X Airdrop, plus the Chain and Launchpad based on where the market is hottest." },
-      { title: "Access that can renew", body: "10X Warplets provide the founding network while future Season NFTs offer entry points for new members and perks boosts for existing members. Higher Levels can shape voting influence and unlock VIP areas." },
+      { title: "Alpha that can renew", body: "10X Warplets provide the founding network while future Season NFTs offer entry points for new members and perks boosts for existing members. Higher Levels can shape voting influence and unlock VIP areas." },
       { title: "Uniting builders and traders", body: "Builders need Traders. Traders need Builders. The Network is designed to connect people who create, distribute, collect, trade and fund crazy ideas — online first, with future IRL experiences as the treasury grows.", callout: "10X your crypto crew!" },
     ],
   },

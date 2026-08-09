@@ -16,6 +16,7 @@ export type AnalyticsEventName =
   | "pwa_install_prompted"
   | "pwa_installed"
   | "web_push_subscribed"
+  | "warpmoji_open"
   | "share_started"
   | "transaction_prepared"
   | "transaction_wallet_prompted"
@@ -31,6 +32,9 @@ export interface AnalyticsContext {
   transactionType?: string;
   channel?: "farcaster" | "base" | "web-push" | "telegram" | "discord";
   result?: string;
+  trigger?: string;
+  emoji?: string;
+  tokenId?: string;
 }
 
 declare global {
@@ -80,4 +84,32 @@ export function trackAppEvent(name: AnalyticsEventName, context: AnalyticsContex
     app_slug: currentAppSlug(),
     anonymous_session_id: anonymousSessionId(),
   });
+}
+
+const WARPMOJI_TOUCH_KEY = "warplets_warpmoji_first_touch";
+
+export function captureWarpmojiAttribution(): void {
+  if (typeof window === "undefined") return;
+  const url = new URL(window.location.href);
+  const tokenId = Number.parseInt(url.searchParams.get("warplet") ?? "", 10);
+  const emoji = (url.searchParams.get("emoji") ?? "").trim().normalize("NFC");
+  const source = url.searchParams.get("utm_source") ?? "";
+  const medium = url.searchParams.get("utm_medium") ?? "";
+  const campaign = url.searchParams.get("utm_campaign") ?? "";
+  const trigger = url.searchParams.get("utm_content") ?? "";
+  const allowed = (
+    (source === "farcaster" && medium === "social" && ["organic", "mention"].includes(trigger)) ||
+    (source === "telegram" && medium === "social" && ["emoji", "command"].includes(trigger)) ||
+    (source === "discord" && medium === "social" && ["emoji", "command"].includes(trigger)) ||
+    (source === "warpmoji_api" && medium === "bot" && trigger === "api")
+  );
+  if (!allowed || campaign !== "warpmoji" || !emoji || !Number.isInteger(tokenId) || tokenId < 1 || tokenId > 10000) return;
+  const touch = { source, trigger, emoji, tokenId };
+  try {
+    if (!sessionStorage.getItem(WARPMOJI_TOUCH_KEY)) sessionStorage.setItem(WARPMOJI_TOUCH_KEY, JSON.stringify(touch));
+  } catch { /* first-touch persistence is best effort */ }
+  trackAppEvent("warpmoji_open", { channel: source === "farcaster" || source === "telegram" || source === "discord" ? source : undefined, trigger, emoji, tokenId: String(tokenId) });
+  void fetch("/api/warpmoji/open", { method: "POST", credentials: "same-origin", headers: { "content-type": "application/json" }, body: JSON.stringify(touch) }).catch(() => undefined);
+  for (const key of ["utm_source", "utm_medium", "utm_campaign", "utm_content"]) url.searchParams.delete(key);
+  window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
 }

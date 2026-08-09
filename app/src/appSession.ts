@@ -3,6 +3,12 @@ import type { EthereumProvider } from "./walletTrade";
 export interface AppSessionState {
   authenticated: boolean;
   farcasterFid: number | null;
+  farcasterProfile: {
+    fid: number;
+    username: string | null;
+    displayName: string | null;
+    pfpUrl: string | null;
+  } | null;
   walletAddress: `0x${string}` | null;
   expiresAt: string | null;
 }
@@ -21,9 +27,19 @@ async function requireOk(response: Response): Promise<Record<string, unknown>> {
 
 export async function loadAppSession(): Promise<AppSessionState> {
   const payload = await requireOk(await fetch("/api/auth/session", { credentials: "same-origin" }));
+  const rawProfile = payload.farcasterProfile && typeof payload.farcasterProfile === "object"
+    ? payload.farcasterProfile as Record<string, unknown>
+    : null;
+  const profileFid = Number(rawProfile?.fid);
   return {
     authenticated: payload.authenticated === true,
     farcasterFid: Number.isInteger(Number(payload.farcasterFid)) ? Number(payload.farcasterFid) : null,
+    farcasterProfile: rawProfile && Number.isInteger(profileFid) && profileFid > 0 ? {
+      fid: profileFid,
+      username: typeof rawProfile.username === "string" ? rawProfile.username : null,
+      displayName: typeof rawProfile.displayName === "string" ? rawProfile.displayName : null,
+      pfpUrl: typeof rawProfile.pfpUrl === "string" ? rawProfile.pfpUrl : null,
+    } : null,
     walletAddress: typeof payload.walletAddress === "string" ? payload.walletAddress as `0x${string}` : null,
     expiresAt: typeof payload.expiresAt === "string" ? payload.expiresAt : null,
   };
@@ -37,12 +53,17 @@ export async function verifyFarcasterQuickAuth(token: string): Promise<Record<st
   }));
 }
 
-export async function verifyFarcasterSiwn(signerUuid: string, fid: number): Promise<Record<string, unknown>> {
+export async function verifyFarcasterSiwf(input: {
+  nonce: string;
+  message: string;
+  signature: `0x${string}`;
+  fid?: number;
+}): Promise<Record<string, unknown>> {
   return requireOk(await fetch("/api/auth/farcaster/verify", {
     method: "POST",
     credentials: "same-origin",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ signerUuid, fid }),
+    body: JSON.stringify(input),
   }));
 }
 

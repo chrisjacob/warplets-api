@@ -1,12 +1,12 @@
 import { StrictMode, Suspense, lazy } from "react";
 import { createRoot } from "react-dom/client";
-import { NeynarContextProvider, Theme } from "@neynar/react";
-import "@neynar/react/dist/style.css";
 import "./index.css";
 import { initializePwa } from "./pwa";
 import { WARPLETS_APP_HOSTS, WARPLETS_APP_PATH } from "../shared/warpletsApp";
+import { captureWarpmojiAttribution } from "./analytics";
 
 initializePwa();
+captureWarpmojiAttribution();
 
 const App = lazy(() => import("./App.tsx"));
 const DropApp = lazy(() => import("./DropApp.tsx"));
@@ -93,15 +93,8 @@ function resolveActiveApp() {
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <NeynarContextProvider
-      settings={{
-        clientId: import.meta.env.VITE_NEYNAR_CLIENT_ID ?? "",
-        defaultTheme: Theme.Dark,
-      }}
-    >
-      <Suspense fallback={<div className="min-h-screen bg-black" aria-label="Loading 10X" />}>
-        {resolveActiveApp()}
-      </Suspense>
-    </NeynarContextProvider>
+    <Suspense fallback={<div className="min-h-screen bg-black" aria-label="Loading 10X" />}>
+      {resolveActiveApp()}
+    </Suspense>
   </StrictMode>
 );

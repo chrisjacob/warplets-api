@@ -15,7 +15,6 @@ import {
 } from "@floating-ui/react";
 import { OverlayScrollbarsComponent, useOverlayScrollbars } from "overlayscrollbars-react";
 import sdk from "@farcaster/miniapp-sdk";
-import { NeynarAuthButton, useNeynarContext } from "@neynar/react";
 import { Text } from "@neynar/ui/typography";
 import {
   MiniAppHeader,
@@ -28,6 +27,7 @@ import { PERKS_DEFINITIONS, PERKS_MOCKUP_NOTICE_DISMISSED_KEY, type PerksSubpage
 import { PERKS_SHARE_CONTENT, getPerksShareImageUrl } from "./perksShareContent";
 import type { StatsShareCreateResponse, StatsShareRequest } from "./statsShare";
 import { WebConnectModal } from "./WebConnectModal";
+import type { FarcasterWebIdentity } from "./FarcasterSignInControl";
 import {
   configureFarcasterWallet,
   connectFarcasterWallet,
@@ -38,7 +38,7 @@ import {
   restoreWebWallet,
   useWalletController,
 } from "./walletController";
-import { verifyFarcasterQuickAuth, verifyFarcasterSiwn, logoutAppPrincipal } from "./appSession";
+import { loadAppSession, verifyFarcasterQuickAuth, logoutAppPrincipal } from "./appSession";
 import { resolveAppSurface } from "./appRuntime";
 import { trackAppEvent } from "./analytics";
 import { PwaControls } from "./PwaControls";
@@ -52,6 +52,8 @@ import {
   signalAppReady,
   viewFarcasterProfile,
 } from "./surfaceAdapter";
+
+const FarcasterSignInControl = lazy(() => import("./FarcasterSignInControl"));
 import {
   hapticError,
   hapticPrimaryTap,
@@ -163,6 +165,7 @@ type ListedScopeFilter = "all" | "your" | "favourites" | "sweep";
 type SearchRoute =
   | { page: "search" }
   | { page: "app-testing" }
+  | { page: "warpmoji" }
   | { page: "listed"; listedLevel: ListedLevelFilter }
   | { page: "offers"; offersPage: SearchOffersSubpage }
   | { page: "perks"; perksPage: PerksSubpage }
@@ -212,10 +215,11 @@ const PERKS_SUBPAGE_TABS: Array<{ id: PerksSubpage; label: string }> = [
   { id: "nfts", label: "NFTs" },
   { id: "ai", label: "AI" },
   { id: "attention", label: "Attention" },
-  { id: "access", label: "Access" },
+  { id: "alpha", label: "Alpha" },
 ];
 
 const LazyPerksPage = lazy(() => import("./PerksPage"));
+const LazyWarpmojiPage = lazy(() => import("./WarpmojiPage"));
 
 const STATS_RANGE_TABS: Array<{ id: StatsRange; label: string }> = [
   { id: "all", label: "All" },
@@ -3192,6 +3196,7 @@ function normalizeSearchPath(pathname: string): string {
 function parseSearchRouteFromPath(pathname: string): SearchRoute {
   const path = normalizeSearchPath(pathname);
   if (path === "/app-testing" && window.location.hostname === new URL(WARPLETS_APP_ORIGINS.local).hostname) return { page: "app-testing" };
+  if (path === "/warpmoji" && window.location.hostname === new URL(WARPLETS_APP_ORIGINS.local).hostname) return { page: "warpmoji" };
   if (path === "/listed") return { page: "listed", listedLevel: "all" };
   const listedMatch = path.match(/^\/listed\/(10x|9x|8x|7x|6x|5x|4x|3x|2x|1x)$/i);
   if (listedMatch) return { page: "listed", listedLevel: listedMatch[1].toLowerCase() as ListedLevelFilter };
@@ -3201,7 +3206,7 @@ function parseSearchRouteFromPath(pathname: string): SearchRoute {
   if (path === "/perks/nfts") return { page: "perks", perksPage: "nfts" };
   if (path === "/perks/ai") return { page: "perks", perksPage: "ai" };
   if (path === "/perks/attention") return { page: "perks", perksPage: "attention" };
-  if (path === "/perks/access") return { page: "perks", perksPage: "access" };
+  if (path === "/perks/alpha") return { page: "perks", perksPage: "alpha" };
   if (path === "/perks" || path === "/perks/memes") return { page: "perks", perksPage: "memes" };
   if (path === "/stats/market") return { page: "stats", statsPage: "market" };
   if (path === "/stats/social") return { page: "stats", statsPage: "social" };
@@ -3246,7 +3251,7 @@ function writeLastSearchOffersSubpage(value: SearchOffersSubpage): void {
 function readLastSearchPerksSubpage(): PerksSubpage {
   if (typeof window === "undefined") return "memes";
   const value = window.localStorage.getItem(LAST_SEARCH_PERKS_SUBPAGE_KEY);
-  return value === "nfts" || value === "ai" || value === "attention" || value === "access" || value === "memes"
+  return value === "nfts" || value === "ai" || value === "attention" || value === "alpha" || value === "memes"
     ? value
     : "memes";
 }
@@ -3310,6 +3315,8 @@ function getSearchPathForRoute(route: SearchRoute): string {
       ? "/"
       : route.page === "app-testing"
         ? "/app-testing"
+      : route.page === "warpmoji"
+        ? "/warpmoji"
       : route.page === "listed"
         ? route.listedLevel === "all" ? "/listed" : `/listed/${route.listedLevel}`
         : route.page === "perks"
@@ -3323,6 +3330,7 @@ function getSearchPathForRoute(route: SearchRoute): string {
 
 function getSearchRouteTitle(route: SearchRoute): string {
   if (route.page === "app-testing") return "10X Warplets - App testing";
+  if (route.page === "warpmoji") return "10X Warplets - Warpmoji";
   if (route.page === "listed") {
     return route.listedLevel === "all"
       ? "10X Warplets - Listed"
@@ -3354,14 +3362,12 @@ function SearchHeaderAccountControl({
   avatarUrl,
   accountLabel,
   showDisconnect,
-  useSiwnConnect,
-  siwnClientConfigured,
   connectDisabled,
   closeKey,
   onConnectWallet,
-  onMissingSiwnClientId,
   onOpenSpreadsheet,
   onOpenAppTesting,
+  onOpenWarpmoji,
   onViewOnboarding,
   onEnableNotifications,
   onDisconnect,
@@ -3371,14 +3377,12 @@ function SearchHeaderAccountControl({
   avatarUrl: string | null;
   accountLabel: string;
   showDisconnect: boolean;
-  useSiwnConnect: boolean;
-  siwnClientConfigured: boolean;
   connectDisabled: boolean;
   closeKey: string;
   onConnectWallet: () => void;
-  onMissingSiwnClientId: () => void;
   onOpenSpreadsheet: () => void;
   onOpenAppTesting: () => void;
+  onOpenWarpmoji: () => void;
   onViewOnboarding: () => void;
   onEnableNotifications: () => void;
   onDisconnect: () => void;
@@ -3416,42 +3420,6 @@ function SearchHeaderAccountControl({
   };
 
   if (!connected) {
-    if (useSiwnConnect) {
-      if (!siwnClientConfigured) {
-        return (
-          <div className="search-header-account" ref={rootRef}>
-            <button
-              type="button"
-              className="search-header-connect-button"
-              disabled={connectDisabled}
-              title={connectDisabled ? "Checking connection" : "Missing VITE_NEYNAR_CLIENT_ID"}
-              onClick={() => {
-                void hapticTap();
-                onMissingSiwnClientId();
-              }}
-            >
-              Connect
-            </button>
-          </div>
-        );
-      }
-
-      return (
-        <div className="search-header-account" ref={rootRef}>
-          <NeynarAuthButton
-            label="Connect"
-            className="search-header-connect-button"
-            disabled={connectDisabled}
-            title={
-              connectDisabled
-                ? "Checking connection"
-                : "Connect Farcaster account"
-            }
-          />
-        </div>
-      );
-    }
-
     return (
       <div className="search-header-account" ref={rootRef}>
         <button
@@ -3513,9 +3481,10 @@ function SearchHeaderAccountControl({
             Developer API
           </a>
           {window.location.hostname === new URL(WARPLETS_APP_ORIGINS.local).hostname && (
-            <button type="button" role="menuitem" onClick={() => runMenuAction(onOpenAppTesting)}>
-              App testing
-            </button>
+            <>
+              <button type="button" role="menuitem" onClick={() => runMenuAction(onOpenAppTesting)}>App testing</button>
+              <button type="button" role="menuitem" onClick={() => runMenuAction(onOpenWarpmoji)}>Warpmoji</button>
+            </>
           )}
           {showDisconnect && (
             <button type="button" role="menuitem" onClick={() => runMenuAction(onDisconnect)}>
@@ -6297,7 +6266,7 @@ function CollectionActivity({ range, tokenId, showItem = true, refreshKey, viewe
 function StatsSocial({
   payload,
   highlights,
-  connectedWallet,
+  favouriteWallet,
   favouriteTokenIds,
   viewerFid,
   actionSessionToken,
@@ -6310,7 +6279,7 @@ function StatsSocial({
 }: {
   payload: StatsApiEnvelope;
   highlights: unknown;
-  connectedWallet: string | null;
+  favouriteWallet: string | null;
   favouriteTokenIds: number[];
   viewerFid: number | null;
   actionSessionToken: string | null;
@@ -6337,7 +6306,7 @@ function StatsSocial({
   useEffect(() => {
     const controller = new AbortController();
     const personalized = friendsOnly && viewerFid != null && actionSessionToken != null;
-    const favouriteFilterWallet = favouritesOnly ? connectedWallet : null;
+    const favouriteFilterWallet = favouritesOnly ? favouriteWallet : null;
     const cacheKey = `${personalized ? `friends:${viewerFid}` : "public"}:${favouriteFilterWallet ? `favourites:${favouriteFilterWallet}:${favouritesRevision}` : "all-items"}:${range}`;
     const cached = statsActivityChartCache.get(cacheKey);
     if (cached && Date.now() - cached.loadedAt <= STATS_CLIENT_CACHE_TTL_MS) {
@@ -6373,7 +6342,7 @@ function StatsSocial({
       })
       .finally(() => { if (!controller.signal.aborted) setActivityChartLoading(false); });
     return () => controller.abort();
-  }, [actionSessionToken, connectedWallet, favouritesOnly, favouritesRevision, friendsOnly, range, viewerFid]);
+  }, [actionSessionToken, favouriteWallet, favouritesOnly, favouritesRevision, friendsOnly, range, viewerFid]);
   const multiChartData = activityMultiChartData(activityChart);
   const hasChartActivity = hasActivityForEvents(activityChart, selectedEvents);
   const showBucketActivity = useCallback((event: MarketActivityRow["event"], startAt: string, endAt: string) => {
@@ -6405,9 +6374,9 @@ function StatsSocial({
         friendsAvailable={getStatsHighlightFids(highlights).size > 0}
         friendsOnly={friendsOnly}
         onFriendsOnlyChange={setFriendsOnly}
-        favouritesAvailable={Boolean(connectedWallet && favouriteTokenIds.length > 0)}
+        favouritesAvailable={Boolean(favouriteWallet && favouriteTokenIds.length > 0)}
         favouritesOnly={favouritesOnly}
-        favouriteWallet={connectedWallet}
+        favouriteWallet={favouriteWallet}
         favouritesRevision={favouritesRevision}
         onFavouritesOnlyChange={setFavouritesOnly}
         ethUsdPrice={ethUsdPrice}
@@ -6511,6 +6480,7 @@ function StatsSocial({
 function StatsPage({
   subpage,
   connectedWallet,
+  favouriteWallet,
   favouriteTokenIds,
   viewerFid,
   actionSessionToken,
@@ -6521,6 +6491,7 @@ function StatsPage({
 }: {
   subpage: SearchStatsSubpage;
   connectedWallet: string | null;
+  favouriteWallet: string | null;
   favouriteTokenIds: number[];
   viewerFid: number | null;
   actionSessionToken: string | null;
@@ -6737,7 +6708,7 @@ function StatsPage({
             <StatsSocial
               payload={payload}
               highlights={highlights}
-              connectedWallet={connectedWallet}
+              favouriteWallet={favouriteWallet}
               favouriteTokenIds={favouriteTokenIds}
               viewerFid={viewerFid}
               actionSessionToken={actionSessionToken}
@@ -10792,7 +10763,7 @@ const ONBOARDING_SLIDES: OnboardingSlide[] = [
     ],
   },
   {
-    title: "Perks! Airdrops, Access, and More...",
+    title: "Perks! Airdrops, Alpha, and More...",
     visual: "access",
     bullets: [
       <>
@@ -12575,7 +12546,7 @@ const SHARE_MODAL_TEST_CASES = [
   { id: "perk-nfts", label: "NFTs Perk", description: "Perks → NFTs → bottom Share CTA." },
   { id: "perk-ai", label: "AI Perk", description: "Perks → AI → bottom Share CTA." },
   { id: "perk-attention", label: "Attention Perk", description: "Perks → Attention → bottom Share CTA." },
-  { id: "perk-access", label: "Access Perk", description: "Perks → Access → bottom Share CTA." },
+  { id: "perk-alpha", label: "Alpha Perk", description: "Perks → Alpha → bottom Share CTA." },
   { id: "stats-overview-collection", label: "Stats NFT Collection", description: "Stats → Overview → Share NFT Collection." },
   { id: "stats-overview-fair-launch", label: "Stats Fair Launch", description: "Stats → Overview → Share Fair Launch." },
   { id: "stats-market-price", label: "Stats Price", description: "Stats → Market → Price chart Share." },
@@ -14660,6 +14631,7 @@ export default function SearchApp() {
   const [orderDirection, setOrderDirection] = useState<OrderDirection>("asc");
   const [userSelectedOrder, setUserSelectedOrder] = useState(false);
   const [activeWallet, setActiveWallet] = useState<string | null>(null);
+  const [favouriteIdentityWallet, setFavouriteIdentityWallet] = useState<string | null>(null);
   const [favouriteListsByWallet, setFavouriteListsByWallet] = useState<Record<string, number[]>>({});
   const [favouriteFilterWallet, setFavouriteFilterWallet] = useState<string | null>(null);
   const [sharePreview, setSharePreview] = useState<SharePreviewState | null>(null);
@@ -14701,7 +14673,6 @@ export default function SearchApp() {
     leftApp: false,
     fallbackTimer: null,
   });
-  const lastSiwnStatusFidRef = useRef<number | null>(null);
   const { isMenuRoute, canGoBack, actions } = useMiniAppChrome(WARPLETS_APP_SLUG);
   const [searchRoute, setSearchRoute] = useState<SearchRoute>(() => parseSearchRouteFromPath(window.location.pathname));
   const [lastOffersSubpage, setLastOffersSubpage] = useState<SearchOffersSubpage>(() => readLastSearchOffersSubpage());
@@ -14715,11 +14686,7 @@ export default function SearchApp() {
       route: window.location.pathname,
     });
   }, [isInMiniAppContext, miniAppContextKnown, searchRoute]);
-  const {
-    user: neynarUser,
-    isAuthenticated: neynarIsAuthenticated,
-    logoutUser: logoutNeynarUser,
-  } = useNeynarContext();
+  const [siwfViewerProfile, setSiwfViewerProfile] = useState<ViewerProfile | null>(null);
 
   useEffect(() => {
     const wallet = walletController.session?.address ?? null;
@@ -14795,17 +14762,6 @@ export default function SearchApp() {
   }, [searchPlaceholderAnimation]);
 
   const selectedWarpletDetails = selectedWarpletDetailsStack.at(-1) ?? null;
-  const neynarClientId = import.meta.env.VITE_NEYNAR_CLIENT_ID?.trim() ?? "";
-  const siwnViewerProfile = useMemo<ViewerProfile | null>(() => {
-    if (!neynarIsAuthenticated || !neynarUser?.fid) return null;
-    return {
-      fid: neynarUser.fid,
-      username: neynarUser.username ?? null,
-      displayName: neynarUser.display_name ?? null,
-      pfpUrl: neynarUser.pfp_url ?? null,
-    };
-  }, [neynarIsAuthenticated, neynarUser]);
-
   const sendMiniAppReady = useCallback(() => {
     if (miniAppReadySentRef.current) return;
     miniAppReadySentRef.current = true;
@@ -15174,7 +15130,27 @@ export default function SearchApp() {
           : null);
 
         if (!inMiniApp) {
-          void restoreWebWallet().catch((error) => console.warn("Web wallet restore failed:", error));
+          const [, appSession] = await Promise.all([
+            restoreWebWallet().catch((error) => {
+              console.warn("Web wallet restore failed:", error);
+              return null;
+            }),
+            loadAppSession().catch((error) => {
+              console.warn("Application session restore failed:", error);
+              return null;
+            }),
+          ]);
+          if (appSession?.farcasterFid) {
+            const profile: ViewerProfile = appSession.farcasterProfile ?? {
+              fid: appSession.farcasterFid,
+              username: null,
+              displayName: null,
+              pfpUrl: null,
+            };
+            setSiwfViewerProfile(profile);
+            setViewerFid(appSession.farcasterFid);
+            setViewerProfile(profile);
+          }
           setMiniAppContextKnown(true);
           setSearchCompletionStatusLoaded(true);
           return;
@@ -15263,42 +15239,26 @@ export default function SearchApp() {
     init();
   }, [sendMiniAppReady, syncSearchViewerStatus]);
 
-  useEffect(() => {
-    if (!miniAppContextKnown || isInMiniAppContext) return;
-
-    if (!siwnViewerProfile?.fid) {
-      lastSiwnStatusFidRef.current = null;
-      setViewerFid(null);
-      setViewerProfile(null);
-      setActionSessionToken(null);
-      setSearchCompletionStatusLoaded(true);
-      return;
-    }
-
-    setViewerFid(siwnViewerProfile.fid);
-    setViewerProfile(siwnViewerProfile);
-
-    if (lastSiwnStatusFidRef.current === siwnViewerProfile.fid) return;
-    lastSiwnStatusFidRef.current = siwnViewerProfile.fid;
+  const handleWebFarcasterAuthenticated = useCallback((identity: FarcasterWebIdentity) => {
+    const profile: ViewerProfile = {
+      fid: identity.fid,
+      username: identity.username,
+      displayName: identity.displayName,
+      pfpUrl: identity.pfpUrl,
+    };
+    setSiwfViewerProfile(profile);
+    setViewerFid(identity.fid);
+    setViewerProfile(profile);
+    setActionSessionToken(identity.actionSessionToken);
+    setWebConnectOpen(false);
     setSearchCompletionStatusLoaded(false);
-    const signerUuid = typeof unknownRecord(neynarUser)?.signer_uuid === "string"
-      ? String(unknownRecord(neynarUser)?.signer_uuid)
-      : "";
-    if (!signerUuid) {
-      setSearchCompletionStatusLoaded(true);
-      console.warn("Search SIWN session did not include a signer UUID");
-      return;
-    }
-    const siwnFid = siwnViewerProfile.fid;
-    void verifyFarcasterSiwn(signerUuid, siwnFid).then((session) => {
-      if (typeof session.actionSessionToken === "string") setActionSessionToken(session.actionSessionToken);
-      trackAppEvent("farcaster_identity_connected", { surface: "web" });
-      return syncSearchViewerStatus(siwnFid, "Search SIWN user status upsert failed:");
-    }).catch((error) => {
-      console.warn("Search SIWN verification failed:", error);
-      setSearchCompletionStatusLoaded(true);
-    });
-  }, [isInMiniAppContext, miniAppContextKnown, neynarUser, siwnViewerProfile, syncSearchViewerStatus]);
+    trackAppEvent("farcaster_identity_connected", { surface: "web" });
+    void syncSearchViewerStatus(identity.fid, "Search SIWF user status upsert failed:", profile);
+  }, [syncSearchViewerStatus]);
+
+  const handleWebFarcasterError = useCallback((message: string) => {
+    showSearchToast("error", message, { manualClose: true });
+  }, [showSearchToast]);
 
   useEffect(() => {
     if (!pendingNotificationId || !viewerFid || !actionSessionToken || notificationOpenSent) return;
@@ -15825,6 +15785,24 @@ export default function SearchApp() {
     });
   }, [loadFavouriteList]);
 
+  const loadVerifiedFavouriteList = useCallback(async () => {
+    const response = await fetch("/api/warplet-favourites", {
+      credentials: "same-origin",
+      headers: { accept: "application/json" },
+    });
+    const payload = await response.json().catch(() => ({})) as { wallet?: unknown; tokenIds?: unknown; error?: unknown };
+    if (!response.ok || typeof payload.wallet !== "string") {
+      throw new Error(typeof payload.error === "string" ? payload.error : `Favourite list unavailable (${response.status})`);
+    }
+    const wallet = normalizeWalletAddress(payload.wallet);
+    if (!wallet) throw new Error("No primary wallet is available for this Farcaster account.");
+    const tokenIds = normalizeFavouriteTokenIds(payload.tokenIds);
+    setFavouriteIdentityWallet(wallet);
+    setFavouriteListForWallet(wallet, tokenIds);
+    loadedFavouriteWalletsRef.current.add(wallet);
+    return wallet;
+  }, [setFavouriteListForWallet]);
+
   const saveFavouriteList = useCallback(async (wallet: string, tokenIds: number[]) => {
     const normalizedWallet = normalizeWalletAddress(wallet);
     if (!normalizedWallet) throw new Error("Connect wallet to use favourites.");
@@ -15849,6 +15827,10 @@ export default function SearchApp() {
   }, [setFavouriteListForWallet]);
 
   const ensureActiveFavouriteWallet = useCallback(async () => {
+    if (viewerFid) {
+      if (favouriteIdentityWallet) return favouriteIdentityWallet;
+      return loadVerifiedFavouriteList();
+    }
     if (activeWallet) return activeWallet;
     if (!isInMiniAppContext) {
       setWebConnectOpen(true);
@@ -15860,7 +15842,14 @@ export default function SearchApp() {
     if (!wallet) throw new Error("No wallet account is connected.");
     void loadFavouriteList(wallet);
     return wallet;
-  }, [activeWallet, isInMiniAppContext, loadFavouriteList]);
+  }, [activeWallet, favouriteIdentityWallet, isInMiniAppContext, loadFavouriteList, loadVerifiedFavouriteList, viewerFid]);
+
+  useEffect(() => {
+    if (!viewerFid || !actionSessionToken) return;
+    void loadVerifiedFavouriteList().catch((error) => {
+      console.warn("Verified identity favourite list load failed:", error);
+    });
+  }, [actionSessionToken, loadVerifiedFavouriteList, viewerFid]);
 
   const getCollectionOfferProviderAndAccount = useCallback(async (): Promise<{ provider: EthereumProvider; account: string }> => {
     if (!walletController.session) {
@@ -15887,10 +15876,6 @@ export default function SearchApp() {
       showSearchToast("error", error instanceof Error ? error.message : "Farcaster wallet connection failed.", { manualClose: true });
     });
   }, [isInMiniAppContext, loadFavouriteList, showSearchToast]);
-
-  const handleMissingSiwnClientId = useCallback(() => {
-    showSearchToast("error", "Missing VITE_NEYNAR_CLIENT_ID. Add the Neynar client ID and restart the dev server.", { manualClose: true });
-  }, [showSearchToast]);
 
   const handleHeaderViewOnboarding = useCallback(() => {
     setOnboardingSessionKey((current) => current + 1);
@@ -15943,11 +15928,11 @@ export default function SearchApp() {
   }, [actions, isMenuRoute, navigateSearchRoute, searchRoute.page]);
 
   const handleHeaderDisconnect = useCallback(() => {
-    logoutNeynarUser();
     void disconnectWallet();
     void logoutAppPrincipal("all");
-    lastSiwnStatusFidRef.current = null;
     if (!isInMiniAppContext) {
+      setSiwfViewerProfile(null);
+      setFavouriteIdentityWallet(null);
       setViewerFid(null);
       setViewerProfile(null);
       setActiveWallet(null);
@@ -15955,7 +15940,7 @@ export default function SearchApp() {
       setActionSessionToken(null);
       setSearchCompletionStatusLoaded(true);
     }
-  }, [isInMiniAppContext, logoutNeynarUser]);
+  }, [isInMiniAppContext]);
 
   useEffect(() => {
     if (!activeWallet) return;
@@ -16414,15 +16399,16 @@ export default function SearchApp() {
     !hasActiveLevelFilter,
   );
   const showFavouriteOrderOption = isFavouriteOnlySearchState;
-  const activeFavouriteTokenIds = getFavouriteTokenIds(favouriteListsByWallet, activeWallet);
+  const activeFavouriteWallet = viewerFid ? favouriteIdentityWallet : activeWallet;
+  const activeFavouriteTokenIds = getFavouriteTokenIds(favouriteListsByWallet, activeFavouriteWallet);
   const activeFavouriteTokenIdSet = useMemo(
     () => new Set(activeFavouriteTokenIds),
     [activeFavouriteTokenIds],
   );
   const favouriteFilterIsActiveWallet = Boolean(
     favouriteFilterWallet &&
-    activeWallet &&
-    favouriteFilterWallet.toLowerCase() === activeWallet.toLowerCase(),
+    activeFavouriteWallet &&
+    favouriteFilterWallet.toLowerCase() === activeFavouriteWallet.toLowerCase(),
   );
   const favouriteFilterOwnerLabel = favouriteFilterWallet?.slice(0, 6) ?? "";
   const emptySearchPlaceholder = isAllWarpletsSearchMode
@@ -16803,7 +16789,7 @@ export default function SearchApp() {
     try {
       await loadFavouriteList(normalizedWallet);
       setSelectedWarpletDetailsStack([]);
-      const favouriteLabel = activeWallet && normalizedWallet === activeWallet.toLowerCase()
+      const favouriteLabel = activeFavouriteWallet && normalizedWallet === activeFavouriteWallet.toLowerCase()
         ? "My Favourite Warplets..."
         : `${normalizedWallet.slice(0, 6)} Favourite Warplets...`;
       animateSearchInputChange(favouriteLabel, "placeholder");
@@ -16825,7 +16811,7 @@ export default function SearchApp() {
       void hapticError();
       showSearchToast("error", error instanceof Error ? error.message : String(error), { manualClose: true });
     }
-  }, [activeWallet, animateSearchInputChange, dbReady, loadFavouriteList, runSearch, showSearchToast]);
+  }, [activeFavouriteWallet, animateSearchInputChange, dbReady, loadFavouriteList, runSearch, showSearchToast]);
 
   const handleShareWarpletDetails = useCallback((tokenId: number) => {
     let shareUrl: string;
@@ -17712,11 +17698,11 @@ export default function SearchApp() {
     document.body.scrollTo({ top: 0, behavior: "smooth" });
   }, []);
 
-  const siwnConnected = Boolean(!isInMiniAppContext && siwnViewerProfile?.fid);
+  const siwfConnected = Boolean(!isInMiniAppContext && siwfViewerProfile?.fid);
   const miniAppIdentityConnected = Boolean(isInMiniAppContext && viewerProfile?.fid);
   const miniAppWalletConnected = Boolean(isInMiniAppContext && activeWallet);
-  const headerAccountConnected = miniAppIdentityConnected || miniAppWalletConnected || siwnConnected;
-  const headerAccountProfile = isInMiniAppContext ? viewerProfile : siwnViewerProfile;
+  const headerAccountConnected = miniAppIdentityConnected || miniAppWalletConnected || siwfConnected;
+  const headerAccountProfile = isInMiniAppContext ? viewerProfile : siwfViewerProfile;
   const headerAccountUsername = headerAccountProfile?.username?.trim() || null;
   const headerAccountLabel = headerAccountUsername
     ? `Connected as @${headerAccountUsername}`
@@ -17753,15 +17739,11 @@ export default function SearchApp() {
           onMessage={(kind, message) => showSearchToast(kind, message, { manualClose: kind !== "success" })}
         />
       )}
-      {!isInMiniAppContext && webWalletEnabled && (
+      {!isInMiniAppContext && (
         <WebConnectModal
           open={webConnectOpen}
           onClose={() => setWebConnectOpen(false)}
-          farcasterControl={neynarClientId ? (
-            <NeynarAuthButton label={siwnConnected ? "Connected" : "Connect Farcaster"} disabled={siwnConnected} />
-          ) : (
-            <button type="button" disabled title="Missing VITE_NEYNAR_CLIENT_ID">Unavailable</button>
-          )}
+          farcasterControl={<FarcasterSignInControl connected={siwfConnected} onAuthenticated={handleWebFarcasterAuthenticated} onError={handleWebFarcasterError} />}
         />
       )}
       {searchToast && (
@@ -17794,18 +17776,16 @@ export default function SearchApp() {
           rightAccessory={
             <SearchHeaderAccountControl
               connected={headerAccountConnected}
-              walletConnected={Boolean(activeWallet) || (!isInMiniAppContext && !webWalletEnabled)}
+              walletConnected={Boolean(activeWallet)}
               avatarUrl={headerAccountAvatarUrl}
               accountLabel={headerAccountLabel}
-              showDisconnect={Boolean(siwnConnected || activeWallet)}
-              useSiwnConnect={miniAppContextKnown && !isInMiniAppContext && !webWalletEnabled}
-              siwnClientConfigured={Boolean(neynarClientId)}
+              showDisconnect={Boolean(siwfConnected || activeWallet)}
               connectDisabled={!miniAppContextKnown}
               closeKey={headerCloseKey}
               onConnectWallet={handleHeaderConnectWallet}
-              onMissingSiwnClientId={handleMissingSiwnClientId}
               onOpenSpreadsheet={handleHeaderOpenSpreadsheet}
               onOpenAppTesting={() => navigateSearchRoute({ page: "app-testing" })}
+              onOpenWarpmoji={() => navigateSearchRoute({ page: "warpmoji" })}
               onViewOnboarding={handleHeaderViewOnboarding}
               onEnableNotifications={handleHeaderEnableNotifications}
               onDisconnect={handleHeaderDisconnect}
@@ -17827,6 +17807,8 @@ export default function SearchApp() {
           <MiniAppMenuPage appSlug={WARPLETS_APP_SLUG} />
         ) : searchRoute.page === "app-testing" ? (
           <AppTestingPage onTriggerShare={(id) => { void handleTestShareModal(id); }} />
+        ) : searchRoute.page === "warpmoji" ? (
+          <Suspense fallback={<p className="p-6 text-center text-sm text-[#00FF00]">Loading Warpmoji…</p>}><LazyWarpmojiPage /></Suspense>
         ) : searchRoute.page === "listed" ? (
           <ListedPage
             db={dbRef.current}
@@ -17852,6 +17834,7 @@ export default function SearchApp() {
           <StatsPage
             subpage={searchRoute.statsPage}
             connectedWallet={activeWallet}
+            favouriteWallet={activeFavouriteWallet}
             favouriteTokenIds={activeFavouriteTokenIds}
             viewerFid={viewerFid}
             actionSessionToken={actionSessionToken}
