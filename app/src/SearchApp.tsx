@@ -14983,6 +14983,16 @@ export default function SearchApp() {
     return databaseLoadPromiseRef.current;
   }, []);
 
+  const searchWarpmojiWarplets = useCallback(async (query: string) => {
+    const db = await ensureDatabaseReady();
+    return searchWarpletPickerPage(db, query, null, 8).rows.slice(0, 8).map((row) => ({
+      id: row.id,
+      rank: row.rarityValue,
+      description: row.description,
+      jpgUrl: `https://warplets.10x.meme/${row.id}.jpg`,
+    }));
+  }, [ensureDatabaseReady]);
+
   const loadWarpletDetails = useCallback(async (tokenId: number) => {
     try {
       const db = await ensureDatabaseReady();
@@ -17852,7 +17862,7 @@ export default function SearchApp() {
         ) : searchRoute.page === "app-testing" ? (
           <AppTestingPage onTriggerShare={(id) => { void handleTestShareModal(id); }} />
         ) : searchRoute.page === "warpmoji" ? (
-          <Suspense fallback={<p className="p-6 text-center text-sm text-[#00FF00]">Loading Warpmoji…</p>}><LazyWarpmojiPage sessionToken={actionSessionToken} /></Suspense>
+          <Suspense fallback={<p className="p-6 text-center text-sm text-[#00FF00]">Loading Warpmoji…</p>}><LazyWarpmojiPage sessionToken={actionSessionToken} searchWarplets={searchWarpmojiWarplets} /></Suspense>
         ) : searchRoute.page === "listed" ? (
           <ListedPage
             db={dbRef.current}

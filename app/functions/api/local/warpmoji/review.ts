@@ -1,7 +1,7 @@
 import { requireWarpmojiAdmin, type WarpmojiAdminEnv } from "../../../_lib/warpmojiAdmin.js";
 import { jsonSecure } from "../../../_lib/security.js";
 
-type GroupRow = { canonical_emoji: string; cldr_name: string; keywords_json: string; reviewed_at: string | null; candidate_count: number; approved_count: number };
+type GroupRow = { canonical_emoji: string; cldr_name: string; keywords_json: string; reviewed_at: string | null; candidate_count: number; approved_count: number; popularity_rank: number };
 
 export const onRequestGet: PagesFunction<WarpmojiAdminEnv> = async ({ request, env }) => {
   const admin = await requireWarpmojiAdmin(request, env);
@@ -12,11 +12,11 @@ export const onRequestGet: PagesFunction<WarpmojiAdminEnv> = async ({ request, e
   const offset = Math.max(0, Number.parseInt(url.searchParams.get("offset") ?? "0", 10) || 0);
   const clauses: string[] = [];
   const binds: unknown[] = [];
-  if (filter === "unreviewed") clauses.push("g.reviewed_at IS NULL AND g.candidate_count > 0");
-  else if (filter === "reviewed") clauses.push("g.reviewed_at IS NOT NULL");
+  if (filter === "unreviewed") clauses.push("g.reviewed_at IS NULL AND EXISTS (SELECT 1 FROM warpmoji_candidates uc WHERE uc.canonical_emoji = g.canonical_emoji AND uc.status != 'rejected')");
+  else if (filter === "confirmed" || filter === "reviewed") clauses.push("g.reviewed_at IS NOT NULL");
   else if (filter === "approved") clauses.push("g.approved_count > 0");
   else if (filter === "removed") clauses.push("EXISTS (SELECT 1 FROM warpmoji_rejections r WHERE r.canonical_emoji = g.canonical_emoji AND r.restored_at IS NULL)");
-  else if (filter === "no-candidates") clauses.push("g.candidate_count = 0");
+  else if (filter === "no-candidates") clauses.push("NOT EXISTS (SELECT 1 FROM warpmoji_candidates nc WHERE nc.canonical_emoji = g.canonical_emoji AND nc.status != 'rejected')");
   if (search) {
     const tokenId = Number.parseInt(search.replace(/^#/, ""), 10);
     clauses.push("(g.canonical_emoji = ? OR g.cldr_name LIKE ? OR g.keywords_json LIKE ? OR EXISTS (SELECT 1 FROM warpmoji_candidates sc WHERE sc.canonical_emoji = g.canonical_emoji AND sc.token_id = ?))");
@@ -25,9 +25,9 @@ export const onRequestGet: PagesFunction<WarpmojiAdminEnv> = async ({ request, e
   const where = clauses.length ? `WHERE ${clauses.join(" AND ")}` : "";
   try {
     const groups = await env.WARPLETS.prepare(
-      `SELECT g.canonical_emoji, g.cldr_name, g.keywords_json, g.reviewed_at, g.candidate_count, g.approved_count
+      `SELECT g.canonical_emoji, g.cldr_name, g.keywords_json, g.reviewed_at, g.candidate_count, g.approved_count, g.popularity_rank
          FROM warpmoji_emoji_groups g ${where}
-        ORDER BY CASE WHEN g.reviewed_at IS NULL THEN 0 ELSE 1 END, g.approved_count DESC, g.cldr_name
+        ORDER BY g.popularity_rank ASC, g.cldr_name ASC
         LIMIT 20 OFFSET ?`,
     ).bind(...binds, offset).all<GroupRow>();
     const results = await Promise.all(groups.results.map(async (group) => {
@@ -55,6 +55,6 @@ export const onRequestGet: PagesFunction<WarpmojiAdminEnv> = async ({ request, e
     }));
     return jsonSecure({ groups: results, offset, csrfToken: admin.csrfToken }, { headers: { "cache-control": "private, no-store" } });
   } catch (error) {
-    return jsonSecure({ error: "Warpmoji data is not initialized. Apply migrations 0051 and 0052.", detail: error instanceof Error ? error.message : String(error) }, { status: 503 });
+    return jsonSecure({ error: "Warpmoji data is not initialized. Apply migrations 0051 through 0056.", detail: error instanceof Error ? error.message : String(error) }, { status: 503 });
   }
 };

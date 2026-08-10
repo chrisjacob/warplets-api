@@ -10,7 +10,7 @@ The checked-in `0052_warpmoji_catalog.sql` was generated from Unicode Emoji 17.0
 pnpm warpmoji:generate
 ```
 
-The generator imports every fully-qualified RGI sequence, folds skin-tone and presentation aliases into canonical pools, scores up to 30 candidates, and records score components and reasons. Re-running it replaces the generated migration; review its diff before committing.
+The generator imports every fully-qualified RGI sequence, folds skin-tone and presentation aliases into canonical pools, scores up to 30 candidates, records score components and reasons, and refreshes migration `0056` from Unicode's median-frequency ranking. Re-running it replaces both generated migrations; review their diffs before committing.
 
 Apply the schema and generated seed locally first:
 
@@ -20,7 +20,7 @@ pnpm --dir app exec wrangler d1 migrations apply WARPLETS --local
 
 The generated catalog contains roughly 15,000 SQL statements, so its first local import can take several minutes. The `local:tunnel:warplet` launcher runs this same command automatically before starting the app.
 
-For preview, apply migrations `0051` through `0055` before deploying code that calls Warpmoji tables. `0053` adds delivery telemetry, `0054` is an idempotent compatibility backfill for the nine standalone Unicode components, and `0055` records curated-seed import provenance. Use the preview D1 configured by the Pages/Worker environment. Production remains untouched until the Shadow pilot is accepted.
+For preview, apply migrations `0051` through `0056` before deploying code that calls Warpmoji tables. `0053` adds delivery telemetry, `0054` is an idempotent compatibility backfill for the nine standalone Unicode components, `0055` records curated-seed import provenance, and `0056` adds the Unicode median-frequency review order. Use the preview D1 configured by the Pages/Worker environment. Production remains untouched until the Shadow pilot is accepted.
 
 ## 2. Configure local curation access
 
@@ -38,7 +38,7 @@ Start the existing local stack and tunnel, sign in with Farcaster, then open:
 https://warplet-local.10x.meme/warpmoji
 ```
 
-Remove weak candidates until no more than ten remain, then select **Mark Reviewed**. Only approved matches can be returned by APIs or advertised in webhook regexes. **Clean up** removes bulky rejected candidate rows but preserves rejection tombstones in the Removed filter, where they can be restored.
+Review queues are ordered by Unicode's published median emoji frequency, including the **No candidates** queue. The highest-scored Warplet is the default winner. Select **Confirm** to approve only that winner, or click another candidate image/**Add** to approve it alongside the default and confirm the emoji immediately. Confirmed emoji can have up to ten approved matches. For a group with no generated candidates, use its local FTS picker to find a Warplet manually; selecting it confirms the group. Only approved matches can be returned by APIs or advertised in webhook regexes. **Clean up** removes legacy rejected candidate rows but preserves rejection tombstones in the Removed filter, where they can be restored.
 
 ### Preserve local reviews as the production seed
 
@@ -61,9 +61,9 @@ Validate the seed and your current local catalog without changing a database:
 pnpm warpmoji:import-curated -- --target local --dry-run
 ```
 
-Once preview D1 has migrations `0051` through `0055`, run the same command with `--target preview --dry-run` to verify remote catalog compatibility before importing.
+Once preview D1 has migrations `0051` through `0056`, run the same command with `--target preview --dry-run` to verify remote catalog compatibility before importing.
 
-When preview is ready, first back it up and apply migrations through `0055`, then replace its curation state from the checked-in seed:
+When preview is ready, first back it up and apply migrations through `0056`, then replace its curation state from the checked-in seed:
 
 ```powershell
 pnpm --dir app exec wrangler d1 export warplets_preview --remote --env preview --output ../tmp/warplets-preview-before-warpmoji.sql
@@ -71,7 +71,7 @@ pnpm --dir app exec wrangler d1 migrations apply WARPLETS --remote --env preview
 pnpm warpmoji:import-curated -- --target preview
 ```
 
-For the eventual production transfer, back up production, apply migrations through `0055`, verify the committed seed checksum, and use the deliberately guarded command:
+For the eventual production transfer, back up production, apply migrations through `0056`, verify the committed seed checksum, and use the deliberately guarded command:
 
 ```powershell
 pnpm --dir app exec wrangler d1 export warplets --remote --output ../tmp/warplets-production-before-warpmoji.sql

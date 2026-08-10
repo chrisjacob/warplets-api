@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 type Candidate = {
   token_id: number;
@@ -21,10 +21,23 @@ type Group = {
   reviewed_at: string | null;
   candidate_count: number;
   approved_count: number;
+  popularity_rank: number;
   candidates: Candidate[];
 };
 
-const FILTERS = ["unreviewed", "reviewed", "approved", "removed", "no-candidates"] as const;
+export type WarpmojiPickerResult = {
+  id: number;
+  rank: number | null;
+  description: string;
+  jpgUrl: string;
+};
+
+type WarpmojiPageProps = {
+  sessionToken?: string | null;
+  searchWarplets?: (query: string) => Promise<WarpmojiPickerResult[]>;
+};
+
+const FILTERS = ["unreviewed", "confirmed", "approved", "removed", "no-candidates"] as const;
 
 async function readJson(response: Response): Promise<Record<string, unknown>> {
   const payload = await response.json().catch(() => null) as Record<string, unknown> | null;
@@ -32,7 +45,89 @@ async function readJson(response: Response): Promise<Record<string, unknown>> {
   return payload;
 }
 
-export default function WarpmojiPage({ sessionToken = null }: { sessionToken?: string | null }) {
+function ManualWarpletSearch({
+  emoji,
+  disabled,
+  searchWarplets,
+  onSelect,
+}: {
+  emoji: string;
+  disabled: boolean;
+  searchWarplets?: WarpmojiPageProps["searchWarplets"];
+  onSelect: (tokenId: number) => void;
+}) {
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<WarpmojiPickerResult[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [searchError, setSearchError] = useState("");
+
+  useEffect(() => {
+    const trimmed = query.trim();
+    if (!trimmed || !searchWarplets) {
+      setResults([]);
+      setSearching(false);
+      setSearchError("");
+      return;
+    }
+    let cancelled = false;
+    setSearching(true);
+    setSearchError("");
+    const timer = window.setTimeout(() => {
+      void searchWarplets(trimmed).then((next) => {
+        if (!cancelled) setResults(next.slice(0, 8));
+      }).catch((error) => {
+        if (!cancelled) setSearchError(error instanceof Error ? error.message : "Warplet search failed.");
+      }).finally(() => {
+        if (!cancelled) setSearching(false);
+      });
+    }, 250);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [query, searchWarplets]);
+
+  return (
+    <div className="relative mt-4 rounded-xl border border-[#FFFF00]/35 bg-black/70 p-3">
+      <label className="block text-xs font-bold uppercase text-[#FFFF00]" htmlFor={`warpmoji-search-${emoji}`}>Find a Warplet manually</label>
+      <input
+        id={`warpmoji-search-${emoji}`}
+        value={query}
+        disabled={disabled || !searchWarplets}
+        onChange={(event) => setQuery(event.target.value)}
+        placeholder="Search descriptions, traits, keywords or #token"
+        className="mt-2 w-full rounded-lg border border-[#00FF00]/40 bg-black px-3 py-2 text-sm text-white outline-none focus:border-[#00FF00] disabled:opacity-50"
+        autoComplete="off"
+      />
+      {(searching || searchError || (query.trim() && results.length === 0)) && (
+        <p className={`mt-2 text-xs ${searchError ? "text-red-400" : "text-[#8bbf8b]"}`}>
+          {searching ? "Searching Warplets…" : searchError || "No matching Warplets."}
+        </p>
+      )}
+      {results.length > 0 && (
+        <div className="mt-2 overflow-hidden rounded-lg border border-[#00FF00]/30 bg-[#001000] shadow-xl">
+          {results.map((result) => (
+            <button
+              key={result.id}
+              type="button"
+              disabled={disabled}
+              onClick={() => onSelect(result.id)}
+              className="flex w-full cursor-pointer items-center gap-3 border-b border-[#00FF00]/15 px-2 py-2 text-left last:border-b-0 hover:bg-[#003000] disabled:cursor-wait disabled:opacity-60"
+            >
+              <img src={result.jpgUrl} alt="" className="h-12 w-12 shrink-0 object-cover" loading="lazy" />
+              <span className="min-w-0">
+                <span className="block text-sm font-black text-[#00FF00]">#{result.id} <span className="font-normal text-[#9fca9f]">· rank {result.rank ?? "—"}</span></span>
+                <span className="block truncate text-xs text-white">{result.description || "10X Warplet"}</span>
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default function WarpmojiPage({ sessionToken = null, searchWarplets }: WarpmojiPageProps) {
   const [section, setSection] = useState<"review" | "status" | "activity" | "settings">("review");
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>("unreviewed");
   const [query, setQuery] = useState("");
@@ -41,9 +136,11 @@ export default function WarpmojiPage({ sessionToken = null }: { sessionToken?: s
   const [csrf, setCsrf] = useState("");
   const [message, setMessage] = useState("Loading Warpmoji…");
   const [busy, setBusy] = useState(false);
-  const authorizationHeaders: Record<string, string> = sessionToken
-    ? { authorization: `Bearer ${sessionToken}` }
-    : {};
+  const authorizationHeaders = useMemo<Record<string, string>>(() => {
+    const headers: Record<string, string> = {};
+    if (sessionToken) headers.authorization = `Bearer ${sessionToken}`;
+    return headers;
+  }, [sessionToken]);
 
   const load = useCallback(async () => {
     setBusy(true);
@@ -64,7 +161,7 @@ export default function WarpmojiPage({ sessionToken = null }: { sessionToken?: s
     } catch (error) {
       setMessage(error instanceof Error ? error.message : String(error));
     } finally { setBusy(false); }
-  }, [filter, query, section, sessionToken]);
+  }, [authorizationHeaders, filter, query, section]);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -109,20 +206,42 @@ export default function WarpmojiPage({ sessionToken = null }: { sessionToken?: s
           </div>
           <div className="space-y-5">
             {groups.map((group) => {
-              const retained = group.candidates.filter((candidate) => candidate.status !== "rejected").length;
+              const eligible = group.candidates.filter((candidate) => candidate.status !== "rejected");
+              const approved = eligible.filter((candidate) => candidate.status === "approved");
+              const defaultCandidate = approved[0] ?? eligible[0] ?? null;
+              const selectedCount = approved.length || (defaultCandidate ? 1 : 0);
               return <section key={group.canonical_emoji} className="rounded-2xl border border-[#00FF00]/30 bg-[radial-gradient(circle_at_top_left,rgba(0,255,0,.09),transparent_45%)] p-4">
                 <div className="mb-4 flex items-start justify-between gap-3">
-                  <div><h2 className="text-3xl">{group.canonical_emoji}</h2><p className="font-bold text-[#00FF00]">{group.cldr_name}</p><p className="text-xs text-[#8bbf8b]">{retained} retained · {group.approved_count} approved</p></div>
-                  <button type="button" disabled={retained > 10 || busy} onClick={() => void mutate("/api/local/warpmoji/groups/review", "POST", { emoji: group.canonical_emoji })} className="rounded-lg border border-[#00FF00] bg-[#002800] px-3 py-2 text-xs font-bold text-[#00FF00] disabled:opacity-40">Mark Reviewed</button>
+                  <div><h2 className="text-3xl">{group.canonical_emoji}</h2><p className="font-bold text-[#00FF00]">{group.cldr_name}</p><p className="text-xs text-[#8bbf8b]">Popularity #{group.popularity_rank < 1_000_000 ? group.popularity_rank : "unranked"} · {selectedCount} selected</p></div>
+                  {group.reviewed_at ? (
+                    <span className="rounded-lg border border-[#00FF00]/45 bg-[#002800] px-3 py-2 text-xs font-bold text-[#00FF00]">Confirmed</span>
+                  ) : defaultCandidate ? (
+                    <button type="button" disabled={busy} onClick={() => void mutate("/api/local/warpmoji/groups/review", "POST", { emoji: group.canonical_emoji })} className="rounded-lg border border-[#00FF00] bg-[#002800] px-3 py-2 text-xs font-bold text-[#00FF00] disabled:opacity-40">Confirm #{defaultCandidate.token_id}</button>
+                  ) : null}
                 </div>
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
-                  {group.candidates.map((candidate) => <article key={candidate.token_id} className={`overflow-hidden rounded-xl border ${candidate.status === "rejected" ? "border-red-500/50 opacity-55" : candidate.assignment === "primary" ? "border-[#FFFF00]/70" : "border-[#00FF00]/35"}`}>
-                    <img src={candidate.jpg_url || `https://warplets.10x.meme/${candidate.token_id}.jpg`} alt={`Warplet #${candidate.token_id}`} className="aspect-square w-full object-cover" loading="lazy" />
-                    <div className="space-y-1 p-2 text-[11px]"><p className="font-black text-white">#{candidate.token_id} · rank {candidate.x10_rank ?? "—"}</p><p className="text-[#00FF00]">Score {(candidate.score * 100).toFixed(1)}%</p><p className="text-[#FFFF00]">Primary: {candidate.primary_emoji ?? group.canonical_emoji}</p><p className="truncate text-[#8bbf8b]" title={candidate.reasons_json}>{candidate.assignment} · {candidate.reasons_json}</p>
-                      <button type="button" disabled={busy} onClick={() => void mutate("/api/local/warpmoji/matches", "PATCH", { emoji: group.canonical_emoji, tokenId: candidate.token_id, action: candidate.status === "rejected" ? "add" : "remove" })} className={`mt-1 w-full rounded-md border py-1 font-bold ${candidate.status === "rejected" ? "border-[#00FF00] text-[#00FF00]" : "border-red-500 text-red-400"}`}>{candidate.status === "rejected" ? "Add" : "Remove"}</button>
-                    </div>
-                  </article>)}
-                </div>
+                {group.candidates.length > 0 && <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
+                  {group.candidates.map((candidate) => {
+                    const isApproved = candidate.status === "approved";
+                    const isDefault = defaultCandidate?.token_id === candidate.token_id;
+                    const action = isApproved ? "remove" : "add";
+                    return <article key={candidate.token_id} className={`overflow-hidden rounded-xl border ${candidate.status === "rejected" ? "border-red-500/50 opacity-55" : isApproved ? "border-[#00FF00] shadow-[0_0_14px_rgba(0,255,0,.16)]" : isDefault ? "border-[#FFFF00]" : "border-[#00FF00]/35"}`}>
+                      <button type="button" disabled={busy} onClick={() => void mutate("/api/local/warpmoji/matches", "PATCH", { emoji: group.canonical_emoji, tokenId: candidate.token_id, action })} className="block w-full cursor-pointer disabled:cursor-wait">
+                        <img src={candidate.jpg_url || `https://warplets.10x.meme/${candidate.token_id}.jpg`} alt={`Warplet #${candidate.token_id}`} className="aspect-square w-full object-cover" loading="lazy" />
+                      </button>
+                      <div className="space-y-1 p-2 text-[11px]"><p className="font-black text-white">#{candidate.token_id} · rank {candidate.x10_rank ?? "—"}</p><p className="text-[#00FF00]">Score {(candidate.score * 100).toFixed(1)}%</p><p className={isApproved ? "text-[#00FF00]" : isDefault ? "text-[#FFFF00]" : "text-[#8bbf8b]"}>{isApproved ? "Selected" : isDefault ? "Default winner" : "Candidate"}</p><p className="truncate text-[#8bbf8b]" title={candidate.reasons_json}>{candidate.assignment} · {candidate.reasons_json}</p>
+                        <button type="button" disabled={busy} onClick={() => void mutate("/api/local/warpmoji/matches", "PATCH", { emoji: group.canonical_emoji, tokenId: candidate.token_id, action })} className={`mt-1 w-full rounded-md border py-1 font-bold ${isApproved ? "border-red-500 text-red-400" : "border-[#00FF00] text-[#00FF00]"}`}>{isApproved ? "Remove" : "Add"}</button>
+                      </div>
+                    </article>;
+                  })}
+                </div>}
+                {eligible.length === 0 && (
+                  <ManualWarpletSearch
+                    emoji={group.canonical_emoji}
+                    disabled={busy}
+                    searchWarplets={searchWarplets}
+                    onSelect={(tokenId) => void mutate("/api/local/warpmoji/matches", "PATCH", { emoji: group.canonical_emoji, tokenId, action: "add" })}
+                  />
+                )}
               </section>;
             })}
           </div>
