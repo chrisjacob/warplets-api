@@ -506,20 +506,22 @@ export default defineConfig({
         configure(proxy) {
           proxy.on("proxyReq", (proxyRequest, request) => {
             const requestHost = (request.headers.host ?? "").split(":")[0].toLowerCase();
+            const origin = request.headers.origin;
+            if (origin) {
+              try {
+                const publicUrl = new URL(origin);
+                proxyRequest.setHeader("host", publicUrl.host);
+                proxyRequest.setHeader("origin", `http://${publicUrl.host}`);
+                if (publicUrl.protocol === "https:") {
+                  proxyRequest.setHeader("x-10x-public-origin", publicUrl.origin);
+                }
+                return;
+              } catch {
+                // Leave malformed origins untouched so the API rejects them.
+              }
+            }
             if (requestHost === WARPLETS_APP_HOSTS[0]) {
               proxyRequest.setHeader("x-10x-public-origin", `https://${requestHost}`);
-            }
-            const origin = request.headers.origin;
-            if (!origin) return;
-            try {
-              const publicUrl = new URL(origin);
-              proxyRequest.setHeader("host", publicUrl.host);
-              proxyRequest.setHeader("origin", `http://${publicUrl.host}`);
-              if (publicUrl.protocol === "https:") {
-                proxyRequest.setHeader("x-10x-public-origin", publicUrl.origin);
-              }
-            } catch {
-              // Leave malformed origins untouched so the API rejects them.
             }
           });
         },

@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from "react";
-import { authenticateWallet, loadAppSession, logoutAppPrincipal } from "./appSession";
+import { authenticateBaseWallet, authenticateWallet, loadAppSession, logoutAppPrincipal } from "./appSession";
 import { trackAppEvent } from "./analytics";
 import { ensureBaseChain, getWalletAccounts, type EthereumProvider } from "./walletTrade";
 
@@ -94,6 +94,7 @@ async function activate(
   connectorId: WalletConnectorId,
   provider: ObservableProvider,
   providedAddress?: string | null,
+  alreadyAuthenticated = false,
 ): Promise<WalletSession> {
   emit({ connecting: connectorId, error: null });
   trackAppEvent("connector_selected", { connector: connectorId });
@@ -109,7 +110,7 @@ async function activate(
     // is connected only as the transaction signer; asking it for the web SIWE
     // `personal_sign` challenge is unsupported by some Farcaster clients and
     // may be presented as a transaction that would fail.
-    if (connectorId !== "farcaster") await authenticateWallet(provider, address, chainId);
+    if (connectorId !== "farcaster" && !alreadyAuthenticated) await authenticateWallet(provider, address, chainId);
     const session = { connectorId, address, chainId, provider } satisfies WalletSession;
     bindProviderEvents(provider);
     try { window.localStorage.setItem(LAST_CONNECTOR_KEY, connectorId); } catch { /* optional */ }
@@ -151,7 +152,14 @@ export async function restoreFarcasterWallet(): Promise<WalletSession | null> {
 
 export async function connectBaseAccount(): Promise<WalletSession> {
   if (import.meta.env.VITE_BASE_ACCOUNT_ENABLED !== "true") throw new Error("Base Account is not enabled");
-  return activate("base-account", await createBaseAccountProvider());
+  const provider = await createBaseAccountProvider();
+  emit({ connecting: "base-account", error: null });
+  const address = await authenticateBaseWallet(provider, 8453).catch((error) => {
+    const message = error instanceof Error ? error.message : "Base wallet connection failed";
+    emit({ connecting: null, error: message });
+    throw error;
+  });
+  return activate("base-account", provider, address, true);
 }
 
 async function createBaseAccountProvider(): Promise<ObservableProvider> {

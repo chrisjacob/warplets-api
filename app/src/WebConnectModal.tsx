@@ -1,6 +1,8 @@
 import { lazy, Suspense, useEffect, useState, type ReactNode } from "react";
 import { OverlayScrollbarsComponent } from "overlayscrollbars-react";
 import { trackAppEvent } from "./analytics";
+import { linkCurrentWalletAndIdentity, loadAppSession, unlinkCurrentWalletAndIdentity } from "./appSession";
+import { hapticSuccess } from "./haptics";
 import { clearWalletConnectionError, connectBaseAccount, connectLegacyInjectedWallet, currentWalletSession, disconnectWallet, lastWalletConnectorId, useWalletController } from "./walletController";
 
 const TrustConnectBridge = lazy(() => import("./TrustConnectBridge"));
@@ -38,26 +40,51 @@ function BrowserWalletIcon() {
   </svg>;
 }
 
-export function WebConnectModal({ open, onClose, farcasterControl, identityError = null, onClearIdentityError, onWalletConnected }: {
+export function WebConnectModal({ open, onClose, farcasterControl, identityConnected = false, identityError = null, onClearIdentityError, onWalletConnected }: {
   open: boolean;
   onClose: () => void;
   farcasterControl: ReactNode;
+  identityConnected?: boolean;
   identityError?: string | null;
   onClearIdentityError?: () => void;
   onWalletConnected?: (address: string) => void;
 }) {
   const wallet = useWalletController();
   const [showOtherWallets, setShowOtherWallets] = useState(false);
-  const [disconnectingBase, setDisconnectingBase] = useState(false);
+  const [disconnectingWallet, setDisconnectingWallet] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
+  const [identitiesLinked, setIdentitiesLinked] = useState(false);
+  const [relationshipBusy, setRelationshipBusy] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const connectionError = identityError || localError || wallet.error;
 
   useEffect(() => {
     if (!open) {
       setShowOtherWallets(false);
       setLocalError(null);
+      setSuccessMessage(null);
     }
   }, [open]);
+
+  useEffect(() => {
+    if (!successMessage) return;
+    const timeout = window.setTimeout(() => setSuccessMessage(null), 4000);
+    return () => window.clearTimeout(timeout);
+  }, [successMessage]);
+
+  useEffect(() => {
+    if (!open || !identityConnected || !wallet.session?.address) {
+      setIdentitiesLinked(false);
+      return;
+    }
+    let active = true;
+    void loadAppSession().then((session) => {
+      if (active) setIdentitiesLinked(session.identitiesLinked);
+    }).catch(() => {
+      if (active) setIdentitiesLinked(false);
+    });
+    return () => { active = false; };
+  }, [identityConnected, open, wallet.session?.address]);
 
   if (!open) {
     const lastConnector = lastWalletConnectorId();
@@ -103,20 +130,50 @@ export function WebConnectModal({ open, onClose, farcasterControl, identityError
       ? "Wallet connection was cancelled."
       : message);
   };
-  const baseWalletConnected = wallet.session?.connectorId === "base-account";
-  const handleBaseWalletAction = async () => {
-    if (!baseWalletConnected) {
-      await run("base");
-      return;
-    }
+  const connectedConnector = wallet.session?.connectorId ?? null;
+  const walletConnected = Boolean(connectedConnector);
+  const baseWalletConnected = connectedConnector === "base-account";
+  const browserWalletConnected = connectedConnector === "legacy-injected";
+  const trustWalletConnected = connectedConnector?.startsWith("trustconnect-") === true;
+  const handleDisconnectWallet = async () => {
     setLocalError(null);
-    setDisconnectingBase(true);
+    setDisconnectingWallet(true);
     try {
       await disconnectWallet();
     } catch (error) {
-      setLocalError(error instanceof Error ? error.message : "Base wallet could not be disconnected");
+      setLocalError(error instanceof Error ? error.message : "Wallet could not be disconnected");
     } finally {
-      setDisconnectingBase(false);
+      setDisconnectingWallet(false);
+    }
+  };
+  const handleBaseWalletAction = async () => {
+    if (baseWalletConnected) await handleDisconnectWallet();
+    else await run("base");
+  };
+  const handleBrowserWalletAction = async () => {
+    if (browserWalletConnected) await handleDisconnectWallet();
+    else await run("injected");
+  };
+  const handleIdentityRelationship = async () => {
+    const address = wallet.session?.address;
+    if (!address || !identityConnected || relationshipBusy) return;
+    setLocalError(null);
+    setRelationshipBusy(true);
+    try {
+      if (identitiesLinked) {
+        await unlinkCurrentWalletAndIdentity();
+        setIdentitiesLinked(false);
+        void hapticSuccess();
+        setSuccessMessage("Wallet and identity successfully unlinked.");
+      } else if (await linkCurrentWalletAndIdentity(address)) {
+        setIdentitiesLinked(true);
+        void hapticSuccess();
+        setSuccessMessage("Wallet and identity successfully linked.");
+      }
+    } catch (error) {
+      setLocalError(error instanceof Error ? error.message : "Wallet and identity relationship could not be updated");
+    } finally {
+      setRelationshipBusy(false);
     }
   };
 
@@ -149,26 +206,33 @@ export function WebConnectModal({ open, onClose, farcasterControl, identityError
                       <BaseAccountIcon />
                       <span><strong>Base wallet</strong></span>
                     </div>
-                    <button className={`web-connect-cta${baseWalletConnected ? " web-connect-cta--disconnect" : ""}`} type="button" disabled={Boolean(wallet.connecting) || disconnectingBase} onClick={() => void handleBaseWalletAction()}>
-                      {disconnectingBase ? "Disconnecting…" : wallet.connecting === "base-account" ? "Connecting…" : baseWalletConnected ? "Disconnect" : "Connect"}
+                    <button className={`web-connect-cta${baseWalletConnected ? " web-connect-cta--disconnect" : ""}`} type="button" disabled={Boolean(wallet.connecting) || disconnectingWallet || (walletConnected && !baseWalletConnected)} onClick={() => void handleBaseWalletAction()}>
+                      {disconnectingWallet && baseWalletConnected ? "Disconnecting…" : wallet.connecting === "base-account" ? "Connecting…" : baseWalletConnected ? "Disconnect" : "Connect"}
                     </button>
                   </div>
                 ) : null}
 
                 {import.meta.env.VITE_TRUSTCONNECT_ENABLED === "true" ? (
                   <div className="web-connect-option-group">
-                    <button className="web-connect-choice" type="button" onClick={() => {
-                      trackAppEvent("connector_selected", { connector: "trustconnect" });
-                      setLocalError(null);
-                      clearWalletConnectionError();
-                      onClearIdentityError?.();
-                      setShowOtherWallets(true);
-                    }}>
-                      <span className="web-connect-provider-copy">
+                    <div className="web-connect-provider-card">
+                      <div className="web-connect-provider-copy">
                         <TrustConnectIcon />
                         <span><strong>Other wallets</strong></span>
-                      </span>
-                    </button>
+                      </div>
+                      <button className={`web-connect-cta${trustWalletConnected ? " web-connect-cta--disconnect" : ""}`} type="button" disabled={Boolean(wallet.connecting) || disconnectingWallet || (walletConnected && !trustWalletConnected)} onClick={() => {
+                        if (trustWalletConnected) {
+                          void handleDisconnectWallet();
+                          return;
+                        }
+                        trackAppEvent("connector_selected", { connector: "trustconnect" });
+                        setLocalError(null);
+                        clearWalletConnectionError();
+                        onClearIdentityError?.();
+                        setShowOtherWallets(true);
+                      }}>
+                        {disconnectingWallet && trustWalletConnected ? "Disconnecting…" : trustWalletConnected ? "Disconnect" : "Connect"}
+                      </button>
+                    </div>
                     {showOtherWallets ? (
                       <Suspense fallback={<div className="web-connect-loading">Loading wallet choices…</div>}>
                         <TrustConnectBridge onConnected={finish} onError={handleWalletError} />
@@ -182,8 +246,8 @@ export function WebConnectModal({ open, onClose, farcasterControl, identityError
                     <BrowserWalletIcon />
                     <span><strong>Browser wallet</strong></span>
                   </div>
-                  <button className="web-connect-cta" type="button" disabled={Boolean(wallet.connecting)} onClick={() => void run("injected")}>
-                    {wallet.connecting === "legacy-injected" ? "Connecting…" : "Connect"}
+                  <button className={`web-connect-cta${browserWalletConnected ? " web-connect-cta--disconnect" : ""}`} type="button" disabled={Boolean(wallet.connecting) || disconnectingWallet || (walletConnected && !browserWalletConnected)} onClick={() => void handleBrowserWalletAction()}>
+                    {disconnectingWallet && browserWalletConnected ? "Disconnecting…" : wallet.connecting === "legacy-injected" ? "Connecting…" : browserWalletConnected ? "Disconnect" : "Connect"}
                   </button>
                 </div>
               </div>
@@ -202,6 +266,18 @@ export function WebConnectModal({ open, onClose, farcasterControl, identityError
                   </div>
                   {farcasterControl}
                 </div>
+                {wallet.session?.address && identityConnected ? (
+                  <button
+                    type="button"
+                    className="web-connect-identity-link"
+                    disabled={relationshipBusy}
+                    onClick={() => void handleIdentityRelationship()}
+                  >
+                    {relationshipBusy
+                      ? "Updating Wallet and Identity…"
+                      : identitiesLinked ? "Unlink Wallet and Identity" : "Link Wallet and Identity"}
+                  </button>
+                ) : null}
                 {import.meta.env.VITE_X_AUTH_ENABLED === "true" ? (
                   <a
                     className="web-connect-choice"
@@ -237,6 +313,11 @@ export function WebConnectModal({ open, onClose, farcasterControl, identityError
             clearWalletConnectionError();
             onClearIdentityError?.();
           }}>×</button>
+        </div>
+      ) : null}
+      {successMessage && !connectionError && !wallet.connecting ? (
+        <div className="web-connect-progress-toast" role="status" aria-live="polite">
+          {successMessage}
         </div>
       ) : null}
     </div>

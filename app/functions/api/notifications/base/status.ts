@@ -9,11 +9,12 @@ const CACHE_MS = 2 * 60 * 1000;
 export const onRequestGet: PagesFunction<Env> = async (context) => {
   const session = await getAppSession(context.request, context.env);
   if (!session?.walletAddress) return jsonSecure({ error: "verified wallet session required" }, { status: 401 });
+  const forceRefresh = new URL(context.request.url).searchParams.get("refresh") === "1";
   const cached = await context.env.WARPLETS.prepare(
     `SELECT app_pinned, notifications_enabled, checked_at
      FROM base_notification_status_cache WHERE wallet_address = ? LIMIT 1`,
   ).bind(session.walletAddress).first<{ app_pinned: number; notifications_enabled: number; checked_at: string }>();
-  if (cached && Date.now() - Date.parse(cached.checked_at) < CACHE_MS) {
+  if (!forceRefresh && cached && Date.now() - Date.parse(cached.checked_at) < CACHE_MS) {
     return jsonSecure({ appPinned: cached.app_pinned === 1, notificationsEnabled: cached.notifications_enabled === 1, cached: true });
   }
 

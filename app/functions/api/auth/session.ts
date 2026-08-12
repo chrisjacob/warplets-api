@@ -22,6 +22,12 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   const actionSessionToken = session?.farcasterFid && context.env.ACTION_SESSION_SECRET
     ? await createActionSessionToken(context.env.ACTION_SESSION_SECRET, session.farcasterFid, 3600)
     : null;
+  const identityLink = session?.farcasterFid && session.walletAddress
+    ? await context.env.WARPLETS.prepare(
+      `SELECT 1 AS linked FROM app_identity_links
+       WHERE farcaster_fid = ? AND lower(wallet_address) = ? LIMIT 1`,
+    ).bind(session.farcasterFid, session.walletAddress.toLowerCase()).first<{ linked: number }>().catch(() => null)
+    : null;
   return jsonSecure({
     authenticated: Boolean(session),
     farcasterFid: session?.farcasterFid ?? null,
@@ -32,6 +38,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       pfpUrl: profileString(profile?.pfp_url),
     } : null,
     walletAddress: session?.walletAddress ?? null,
+    identitiesLinked: Boolean(identityLink?.linked),
     expiresAt: session?.expiresAt ?? null,
     actionSessionToken,
   }, token && session ? { headers: { "set-cookie": sessionCookie(context.request, token, session.expiresAt) } } : undefined);

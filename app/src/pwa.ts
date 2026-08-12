@@ -42,7 +42,16 @@ export function isStandaloneDisplay(): boolean {
 export function isEmbeddedWebView(): boolean {
   if (typeof navigator === "undefined") return false;
   const ua = navigator.userAgent.toLowerCase();
-  return /twitter|telegram|discord|farcaster|warpcast/.test(ua);
+  return /twitter|telegram|discord|farcaster|warpcast|coinbasewallet|baseapp/.test(ua);
+}
+
+export function isLikelyBaseAppBrowser(): boolean {
+  if (typeof navigator === "undefined" || typeof window === "undefined") return false;
+  const ua = navigator.userAgent.toLowerCase();
+  const referrer = document.referrer.toLowerCase();
+  const provider = (window as Window & { ethereum?: { isCoinbaseWallet?: boolean } }).ethereum;
+  const mobileCoinbaseProvider = /iphone|ipad|ipod|android/.test(ua) && provider?.isCoinbaseWallet === true;
+  return /coinbasewallet|baseapp/.test(ua) || referrer.startsWith("https://base.app/") || mobileCoinbaseProvider;
 }
 
 export function initializePwa(): void {

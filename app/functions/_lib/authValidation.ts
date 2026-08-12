@@ -25,6 +25,29 @@ export function requireSameOrigin(request: Request): Response | null {
     : jsonSecure({ error: "origin does not match this application" }, { status: 403 });
 }
 
+/**
+ * Return the browser-visible URL when the local HTTPS tunnel terminates TLS
+ * before the Pages dev Worker. The forwarded origin is accepted only when its
+ * host exactly matches the Worker-facing request host.
+ */
+export function getAuthRequestUrl(request: Request): URL {
+  const requestUrl = new URL(request.url);
+  if ((WARPLETS_APP_HOSTS as readonly string[]).includes(requestUrl.hostname.toLowerCase())) {
+    return new URL(`https://${requestUrl.host}${requestUrl.pathname}${requestUrl.search}`);
+  }
+  const forwardedOrigin = request.headers.get("x-10x-public-origin")?.trim();
+  if (!forwardedOrigin || requestUrl.protocol === "https:") return requestUrl;
+  try {
+    const forwardedUrl = new URL(forwardedOrigin);
+    if (forwardedUrl.protocol === "https:" && forwardedUrl.host === requestUrl.host) {
+      return new URL(`${forwardedUrl.origin}${requestUrl.pathname}${requestUrl.search}`);
+    }
+  } catch {
+    // Ignore an invalid or untrusted forwarded origin.
+  }
+  return requestUrl;
+}
+
 export function createAuthNonce(): string {
   const alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
   const bytes = crypto.getRandomValues(new Uint8Array(24));

@@ -43,6 +43,7 @@ export default function BotLinkPage() {
       <WebConnectModal
         open={connectOpen}
         onClose={() => { setConnectOpen(false); void refreshSession(); }}
+        identityConnected={farcasterConnected}
         farcasterControl={(
           <FarcasterSignInControl
             connected={farcasterConnected}

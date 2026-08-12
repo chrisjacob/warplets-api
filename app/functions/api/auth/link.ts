@@ -34,3 +34,19 @@ export const onRequestPost: PagesFunction<AppAuthEnv> = async (context) => {
   ).bind(session.farcasterFid, session.walletAddress, now, knownMatch ? "farcaster_verified_address" : "explicit_confirmation").run();
   return jsonSecure({ linked: true, farcasterFid: session.farcasterFid, walletAddress: session.walletAddress });
 };
+
+export const onRequestDelete: PagesFunction<AppAuthEnv> = async (context) => {
+  const originError = requireSameOrigin(context.request);
+  if (originError) return originError;
+  const session = await getAppSession(context.request, context.env);
+  if (!session?.farcasterFid || !session.walletAddress) {
+    return jsonSecure({ error: "Both a verified Farcaster identity and verified wallet are required" }, { status: 401 });
+  }
+
+  await context.env.WARPLETS.prepare(
+    `DELETE FROM app_identity_links
+     WHERE farcaster_fid = ? AND lower(wallet_address) = ?`,
+  ).bind(session.farcasterFid, session.walletAddress.toLowerCase()).run();
+
+  return jsonSecure({ linked: false, farcasterFid: session.farcasterFid, walletAddress: session.walletAddress });
+};

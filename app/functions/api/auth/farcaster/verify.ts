@@ -131,6 +131,12 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     ? await createActionSessionToken(context.env.ACTION_SESSION_SECRET, Number(fid), 3600)
     : null;
   const profile = await loadFarcasterProfile(context.env, Number(fid));
+  const responseHeaders = new Headers();
+  responseHeaders.append("set-cookie", cookie);
+  responseHeaders.append(
+    "set-cookie",
+    "__Host-warplets_farcaster_handoff=; Path=/; HttpOnly; Secure; SameSite=None; Max-Age=0",
+  );
   return jsonSecure(
     {
       farcasterFid: session.farcasterFid,
@@ -141,6 +147,6 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       expiresAt: session.expiresAt,
       actionSessionToken,
     },
-    { headers: { "set-cookie": cookie } },
+    { headers: responseHeaders },
   );
 };

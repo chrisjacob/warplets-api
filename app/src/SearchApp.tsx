@@ -28,7 +28,7 @@ import { PERKS_SHARE_CONTENT, getPerksShareImageUrl } from "./perksShareContent"
 import type { StatsShareCreateResponse, StatsShareRequest } from "./statsShare";
 import { WebConnectModal } from "./WebConnectModal";
 import type { FarcasterWebIdentity } from "./FarcasterSignInControl";
-import { hasPendingFarcasterSignIn } from "./farcasterSignInPersistence";
+import { hasPendingFarcasterSignIn, restorePendingFarcasterSignIn } from "./farcasterSignInPersistence";
 import {
   configureFarcasterWallet,
   connectFarcasterWallet,
@@ -43,7 +43,7 @@ import { loadAppSession, verifyFarcasterQuickAuth, logoutAppPrincipal } from "./
 import { resolveAppSurface } from "./appRuntime";
 import { trackAppEvent } from "./analytics";
 import { PwaControls } from "./PwaControls";
-import { resolveEntryPoint, isStandaloneDisplay } from "./pwa";
+import { resolveEntryPoint, isLikelyBaseAppBrowser, isStandaloneDisplay } from "./pwa";
 import {
   composeFarcasterPost,
   configureAppSurface,
@@ -1769,9 +1769,11 @@ function serializeSearchUrlState(state: SearchUrlState): string {
 
 function buildSearchUrl(state: SearchUrlState): string {
   const url = new URL(window.location.href);
+  const forceAddPrompt = url.searchParams.get("add") === "1";
   url.pathname = getSearchPathForRoute({ page: "search" });
   const serialized = serializeSearchUrlState(state);
   url.search = serialized ? `?${serialized}` : "";
+  if (forceAddPrompt) url.searchParams.set("add", "1");
   return `${url.pathname}${url.search}${url.hash}`;
 }
 
@@ -14724,6 +14726,12 @@ export default function SearchApp() {
     });
   }, [isInMiniAppContext, miniAppContextKnown, searchRoute]);
   const [siwfViewerProfile, setSiwfViewerProfile] = useState<ViewerProfile | null>(null);
+  useEffect(() => {
+    if (isInMiniAppContext || siwfViewerProfile?.fid) return;
+    void restorePendingFarcasterSignIn().then((pending) => {
+      if (pending) setWebConnectOpen(true);
+    });
+  }, [isInMiniAppContext, siwfViewerProfile?.fid]);
 
   useEffect(() => {
     const wallet = walletController.session?.address ?? null;
@@ -16029,6 +16037,10 @@ export default function SearchApp() {
 
   const handleHeaderEnableNotifications = useCallback(() => {
     if (!isInMiniAppContext) {
+      if (isLikelyBaseAppBrowser()) {
+        window.dispatchEvent(new CustomEvent("warplets:open-base-pin-prompt"));
+        return;
+      }
       if (!activeWallet) {
         setWebConnectOpen(true);
         showSearchToast("warning", "Connect a wallet to check Base App notification status.", { manualClose: true });
@@ -17889,6 +17901,7 @@ export default function SearchApp() {
           onClose={() => { setWebConnectOpen(false); setWebConnectIdentityError(null); }}
           identityError={webConnectIdentityError}
           onClearIdentityError={() => setWebConnectIdentityError(null)}
+          identityConnected={siwfConnected}
           onWalletConnected={(address) => {
             void hapticSuccess();
             showTradeConfetti();

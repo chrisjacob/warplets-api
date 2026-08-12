@@ -5,6 +5,7 @@ export interface PendingFarcasterSignIn {
   nonce: string;
   uri: string;
   expiresAt: number;
+  initiatedAt: number;
 }
 
 export function readPendingFarcasterSignIn(): PendingFarcasterSignIn | null {
@@ -13,7 +14,8 @@ export function readPendingFarcasterSignIn(): PendingFarcasterSignIn | null {
     if (!raw) return null;
     const value = JSON.parse(raw) as Partial<PendingFarcasterSignIn>;
     if (typeof value.channelToken !== "string" || typeof value.nonce !== "string" || typeof value.uri !== "string"
-      || typeof value.expiresAt !== "number" || value.expiresAt <= Date.now()) {
+      || typeof value.expiresAt !== "number" || value.expiresAt <= Date.now()
+      || typeof value.initiatedAt !== "number" || value.initiatedAt <= 0) {
       window.localStorage.removeItem(STORAGE_KEY);
       return null;
     }
@@ -31,4 +33,26 @@ export function clearPendingFarcasterSignIn(): void {
 
 export function hasPendingFarcasterSignIn(): boolean {
   return readPendingFarcasterSignIn() !== null;
+}
+
+export async function restorePendingFarcasterSignIn(): Promise<PendingFarcasterSignIn | null> {
+  const existing = readPendingFarcasterSignIn();
+  if (existing) return existing;
+  try {
+    const response = await fetch("/api/auth/farcaster/status", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "content-type": "application/json" },
+      body: "{}",
+    });
+    const payload = await response.json() as { recovery?: Partial<PendingFarcasterSignIn> };
+    const value = payload.recovery;
+    if (typeof value?.channelToken !== "string" || typeof value.nonce !== "string" || typeof value.uri !== "string"
+      || typeof value.expiresAt !== "number" || value.expiresAt <= Date.now()
+      || typeof value.initiatedAt !== "number" || value.initiatedAt <= 0) return null;
+    const restored = value as PendingFarcasterSignIn;
+    writePendingFarcasterSignIn(restored);
+    window.dispatchEvent(new CustomEvent("warplets:farcaster-handoff-restored"));
+    return restored;
+  } catch { return null; }
 }

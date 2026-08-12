@@ -1299,6 +1299,31 @@ html[data-entry-point="pwa"] .miniapp-shell__content {
   gap: 9px;
 }
 
+.web-connect-identity-link {
+  justify-self: center;
+  margin-bottom: 8px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #00ff00;
+  font-family: "Roboto Mono", system-ui, sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.4;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.web-connect-identity-link:hover {
+  color: #66ff66;
+}
+
+.web-connect-identity-link:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+
 .web-connect-farcaster-footer p {
   margin: 0;
   color: #9fbd9f;
@@ -1357,7 +1382,7 @@ html[data-entry-point="pwa"] .miniapp-shell__content {
   box-shadow: 1px 2px 0 #008000;
 }
 .web-connect-cta:disabled {
-  cursor: wait;
+  cursor: not-allowed;
   opacity: 0.55;
   box-shadow: none;
 }
@@ -1403,6 +1428,7 @@ html[data-entry-point="pwa"] .miniapp-shell__content {
 
 .web-connect-farcaster {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
@@ -1413,7 +1439,74 @@ html[data-entry-point="pwa"] .miniapp-shell__content {
   background: rgb(124 101 193 / 10%);
 }
 
-.web-connect-farcaster .farcaster-signin-control button {
+.farcaster-signin-debug {
+  flex: 1 0 100%;
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid rgb(121 89 255 / 45%);
+  border-radius: 8px;
+  background: #05020d;
+  color: #cfc3ff;
+  font-family: "Roboto Mono", system-ui, sans-serif;
+  font-size: 10px;
+  line-height: 1.35;
+}
+
+.farcaster-signin-debug summary {
+  color: #eeeaff;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.farcaster-signin-debug dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 3px 10px;
+  margin: 8px 0;
+}
+
+.farcaster-signin-debug dl div {
+  display: flex;
+  min-width: 0;
+  justify-content: space-between;
+  gap: 5px;
+}
+
+.farcaster-signin-debug dt {
+  color: #9d8adb;
+}
+
+.farcaster-signin-debug dd {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: #fff;
+  text-align: right;
+}
+
+.farcaster-signin-debug p {
+  margin: 4px 0;
+  overflow-wrap: anywhere;
+}
+
+.farcaster-signin-debug__error {
+  color: #ff7373;
+}
+
+.web-connect-farcaster .farcaster-signin-debug__copy {
+  width: auto;
+  min-width: 0;
+  min-height: 26px;
+  margin-top: 5px;
+  padding: 0 8px;
+  border-radius: 7px;
+  box-shadow: none;
+  font-size: 10px;
+}
+
+.web-connect-farcaster .farcaster-signin-control button,
+.web-connect-farcaster .farcaster-signin-control .farcaster-mobile-signin-button {
   display: flex;
   width: 106px;
   min-width: 106px;
@@ -1431,6 +1524,7 @@ html[data-entry-point="pwa"] .miniapp-shell__content {
   font-weight: 900;
   line-height: normal;
   text-align: center;
+  text-decoration: none;
   cursor: pointer;
   transition: transform 100ms, box-shadow 100ms, background 100ms;
 }
@@ -1442,11 +1536,13 @@ html[data-entry-point="pwa"] .miniapp-shell__content {
   flex: 0 0 106px;
 }
 
-.web-connect-farcaster .farcaster-signin-control button:hover:not(:disabled) {
+.web-connect-farcaster .farcaster-signin-control button:hover:not(:disabled),
+.web-connect-farcaster .farcaster-signin-control .farcaster-mobile-signin-button:hover {
   background: #967fff;
 }
 
-.web-connect-farcaster .farcaster-signin-control button:active:not(:disabled) {
+.web-connect-farcaster .farcaster-signin-control button:active:not(:disabled),
+.web-connect-farcaster .farcaster-signin-control .farcaster-mobile-signin-button:active {
   transform: translate(1px, 2px);
   box-shadow: 1px 2px 0 #4b33b3;
 }

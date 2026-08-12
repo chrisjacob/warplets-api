@@ -59,31 +59,29 @@ export function IdentityLinkConfirmationModal() {
 
         <div className="identity-link-content">
           <p>
-            Wallet <strong>{shortAddress(request.walletAddress)}</strong> is not currently associated with your Farcaster profile.
-            Only link it if you personally control both accounts.
+            Wallet <strong>{shortAddress(request.walletAddress)}</strong> is not linked to your Farcaster identity.
+            Only link wallet to identity if you control both.
           </p>
 
           <div className="identity-link-explanation identity-link-explanation--enabled">
             <h3>Linking will:</h3>
             <ul>
-              <li><span className="identity-link-list-icon identity-link-list-icon--tick" aria-hidden="true">✓</span><span>Save a verified association inside 10X between this wallet and your Farcaster identity.</span></li>
-              <li><span className="identity-link-list-icon identity-link-list-icon--tick" aria-hidden="true">✓</span><span>Support linked services such as Base notifications and account continuity.</span></li>
-              <li><span className="identity-link-list-icon identity-link-list-icon--tick" aria-hidden="true">✓</span><span>Keep this wallet connected for signing and transactions.</span></li>
+              <li><span className="identity-link-list-icon identity-link-list-icon--tick" aria-hidden="true">✓</span><span>Connect your verified wallet and Farcaster identity inside 10X.</span></li>
+              <li><span className="identity-link-list-icon identity-link-list-icon--tick" aria-hidden="true">✓</span><span>Enable linked features, including Base notifications.</span></li>
             </ul>
           </div>
 
           <div className="identity-link-explanation identity-link-explanation--excluded">
             <h3>Linking will not:</h3>
             <ul>
-              <li><span className="identity-link-list-icon identity-link-list-icon--cross" aria-hidden="true">×</span><span>Add the wallet to Farcaster or make it your primary or verified Farcaster wallet.</span></li>
-              <li><span className="identity-link-list-icon identity-link-list-icon--cross" aria-hidden="true">×</span><span>Change anything in Farcaster or Base.</span></li>
-              <li><span className="identity-link-list-icon identity-link-list-icon--cross" aria-hidden="true">×</span><span>Grant spending permissions, approve transactions or let 10X control your wallet.</span></li>
-              <li><span className="identity-link-list-icon identity-link-list-icon--cross" aria-hidden="true">×</span><span>Move Farcaster-based favourites away from your Farcaster primary or verified wallet.</span></li>
+              <li><span className="identity-link-list-icon identity-link-list-icon--cross" aria-hidden="true">×</span><span>Add or change wallets in Farcaster or Base.</span></li>
+              <li><span className="identity-link-list-icon identity-link-list-icon--cross" aria-hidden="true">×</span><span>Grant spending, transaction or wallet-control permissions.</span></li>
+              <li><span className="identity-link-list-icon identity-link-list-icon--cross" aria-hidden="true">×</span><span>Move your Farcaster-based favourites.</span></li>
             </ul>
           </div>
 
           <p className="identity-link-decline-note">
-            Choosing “Don’t Link” keeps the wallet connected for signing, but does not save this association between Wallet and Identity.
+            “Don’t Link” keeps the wallet connected, but identities remain separate.
           </p>
 
           <div className="identity-link-actions">

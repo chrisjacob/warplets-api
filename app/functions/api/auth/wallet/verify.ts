@@ -2,7 +2,7 @@ import { createPublicClient, http } from "viem";
 import { base, baseSepolia } from "viem/chains";
 import { parseSiweMessage } from "viem/siwe";
 import { createOrMergeAppSession, type AppAuthEnv } from "../../../_lib/appAuth.js";
-import { hashAuthNonce, isAllowedAuthChain, isUsableStoredNonce, normalizeAuthWallet, requireSameOrigin } from "../../../_lib/authValidation.js";
+import { getAuthRequestUrl, hashAuthNonce, isAllowedAuthChain, isUsableStoredNonce, normalizeAuthWallet, requireSameOrigin } from "../../../_lib/authValidation.js";
 import { jsonSecure, parseObjectPayload, readJsonBodyWithLimit } from "../../../_lib/security.js";
 
 interface VerifyPayload { message?: unknown; signature?: unknown }
@@ -14,6 +14,8 @@ interface NonceRow {
   expires_at: string;
   consumed_at: string | null;
 }
+
+const PENDING_WALLET_ADDRESS = "pending";
 
 export const onRequestPost: PagesFunction<AppAuthEnv> = async (context) => {
   const originError = requireSameOrigin(context.request);
@@ -44,10 +46,10 @@ export const onRequestPost: PagesFunction<AppAuthEnv> = async (context) => {
     `SELECT wallet_address, chain_id, domain, uri, expires_at, consumed_at
      FROM app_auth_nonces WHERE nonce_hash = ? LIMIT 1`,
   ).bind(nonceHash).first<NonceRow>();
-  const requestUrl = new URL(context.request.url);
+  const requestUrl = getAuthRequestUrl(context.request);
   if (
     !row || !isUsableStoredNonce(row) ||
-    row.wallet_address !== address || Number(row.chain_id) !== chainId ||
+    (row.wallet_address !== PENDING_WALLET_ADDRESS && row.wallet_address !== address) || Number(row.chain_id) !== chainId ||
     row.domain !== requestUrl.host || row.uri !== requestUrl.origin ||
     siwe.domain !== row.domain || siwe.uri !== row.uri
   ) {
