@@ -174,3 +174,13 @@ list`; deleting it is a separate destructive operation and is intentionally not
 performed by repository scripts.
 
 No deployment or Cloudflare resource creation is performed by the code change.
+# Farcaster Mini App launch URL
+
+Until the dedicated 10X Warplets Mini App is published, the web Connect modal
+uses the existing 10X Mini App as its "Open in Farcaster" destination. Once the
+Warplets Mini App is live, configure this public build variable for preview and
+production using its exact Farcaster Mini App URL:
+
+```text
+VITE_FARCASTER_WARPLETS_MINI_APP_URL=https://farcaster.xyz/miniapps/<warplets-id>/<warplets-slug>
+```

@@ -81,6 +81,10 @@ function spawnApiWorker(port) {
   if (accountAssociation) {
     args.push("--binding", `WARPLETS_ACCOUNT_ASSOCIATION_JSON=${accountAssociation}`);
   }
+  for (const name of ["VAPID_PUBLIC_KEY", "VAPID_PRIVATE_KEY", "VAPID_SUBJECT"]) {
+    const value = process.env[name]?.trim();
+    if (value) args.push("--binding", `${name}=${value}`);
+  }
   return spawn(command, args, {
     cwd: appDir,
     shell: process.platform === "win32",

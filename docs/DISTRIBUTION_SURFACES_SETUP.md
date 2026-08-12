@@ -99,6 +99,33 @@ Generate a P-256 VAPID key pair and configure:
 - secret `VAPID_PRIVATE_KEY`
 - secret/variable `VAPID_SUBJECT=mailto:notifications@10x.meme`
 
+For `warplet-local`, generate a development-only key pair:
+
+```powershell
+pnpm --dir app web-push:generate-keys
+```
+
+The command prints four PowerShell commands beginning with `$env:`. Copy and
+run those printed commands in the **same PowerShell window**. Do not run the
+unprefixed `VAPID_PUBLIC_KEY=...` form—PowerShell does not support that syntax.
+Do not put the private key in Git.
+
+The generated output will look like this:
+
+```powershell
+$env:VAPID_PUBLIC_KEY="<generated-public-key>"
+$env:VAPID_PRIVATE_KEY="<generated-private-key>"
+$env:VAPID_SUBJECT="mailto:notifications@10x.meme"
+pnpm --dir app local:tunnel:warplet
+```
+
+The launcher passes these values only to the local Pages Worker. Confirm setup
+after restart with `https://warplet-local.10x.meme/api/web-push/public-key`;
+it should return `200` with a `publicKey` rather than `503`. Reuse this same
+local pair across restarts if you want existing browser subscriptions to remain
+valid. A newly generated pair invalidates subscriptions created with the old
+public key.
+
 Enrollment and unsubscribe storage are implemented. Anonymous subscriptions are
 limited to general announcements; personal topics require a verified session.
 Outbound Web Push campaign delivery remains deliberately disabled until the

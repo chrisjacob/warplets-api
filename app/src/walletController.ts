@@ -105,7 +105,11 @@ async function activate(
     if (!address) throw new Error("No wallet account was returned");
     await ensureBaseChain(provider);
     const chainId = await readChainId(provider);
-    await authenticateWallet(provider, address, chainId);
+    // Farcaster Quick Auth verifies the Mini App user. The embedded SDK wallet
+    // is connected only as the transaction signer; asking it for the web SIWE
+    // `personal_sign` challenge is unsupported by some Farcaster clients and
+    // may be presented as a transaction that would fail.
+    if (connectorId !== "farcaster") await authenticateWallet(provider, address, chainId);
     const session = { connectorId, address, chainId, provider } satisfies WalletSession;
     bindProviderEvents(provider);
     try { window.localStorage.setItem(LAST_CONNECTOR_KEY, connectorId); } catch { /* optional */ }
@@ -137,7 +141,7 @@ export async function restoreFarcasterWallet(): Promise<WalletSession | null> {
   const address = normalizeAddress(Array.isArray(rawAccounts) ? rawAccounts[0] : null);
   if (!address) return null;
   const appSession = await loadAppSession().catch(() => null);
-  if (appSession?.walletAddress?.toLowerCase() !== address) return null;
+  if (!appSession?.farcasterFid) return null;
   const chainId = await readChainId(provider);
   const session = { connectorId: "farcaster", address, chainId, provider } satisfies WalletSession;
   bindProviderEvents(provider);
@@ -157,6 +161,14 @@ async function createBaseAccountProvider(): Promise<ObservableProvider> {
     appLogoUrl: `${window.location.origin}/icon.png`,
     appChainIds: [8453],
     preference: { telemetry: false },
+    // Marketplace actions must remain explicit, user-confirmed transactions.
+    // Base Account otherwise defaults sub-account funding to spend permissions,
+    // which can inject an unrelated, open-ended USDC withdrawal authorization.
+    subAccounts: {
+      creation: "manual",
+      defaultAccount: "universal",
+      funding: "manual",
+    },
   }).getProvider() as unknown as ObservableProvider;
 }
 
@@ -222,6 +234,11 @@ export function lastWalletConnectorId(): WalletConnectorId | null {
   } catch {
     return null;
   }
+}
+
+export function clearWalletConnectionError(): void {
+  if (!state.connecting && !state.error) return;
+  emit({ connecting: null, error: null });
 }
 
 export async function disconnectWallet(): Promise<void> {

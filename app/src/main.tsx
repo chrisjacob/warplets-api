@@ -4,6 +4,7 @@ import "./index.css";
 import { initializePwa } from "./pwa";
 import { WARPLETS_APP_HOSTS, WARPLETS_APP_PATH } from "../shared/warpletsApp";
 import { captureWarpmojiAttribution } from "./analytics";
+import { IdentityLinkConfirmationModal } from "./IdentityLinkConfirmationModal";
 
 initializePwa();
 captureWarpmojiAttribution();
@@ -93,8 +94,11 @@ function resolveActiveApp() {
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <Suspense fallback={<div className="min-h-screen bg-black" aria-label="Loading 10X" />}>
-      {resolveActiveApp()}
-    </Suspense>
+    <>
+      <Suspense fallback={<div className="min-h-screen bg-black" aria-label="Loading 10X" />}>
+        {resolveActiveApp()}
+      </Suspense>
+      <IdentityLinkConfirmationModal />
+    </>
   </StrictMode>
 );

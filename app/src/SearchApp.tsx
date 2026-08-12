@@ -28,6 +28,7 @@ import { PERKS_SHARE_CONTENT, getPerksShareImageUrl } from "./perksShareContent"
 import type { StatsShareCreateResponse, StatsShareRequest } from "./statsShare";
 import { WebConnectModal } from "./WebConnectModal";
 import type { FarcasterWebIdentity } from "./FarcasterSignInControl";
+import { hasPendingFarcasterSignIn } from "./farcasterSignInPersistence";
 import {
   configureFarcasterWallet,
   connectFarcasterWallet,
@@ -3359,7 +3360,12 @@ function unknownRecord(value: unknown): Record<string, unknown> | null {
 function SearchHeaderAccountControl({
   connected,
   walletConnected,
-  avatarUrl,
+  walletAddress,
+  walletAvatarUrl,
+  identityConnected,
+  identityLabel,
+  identityAvatarUrl,
+  simplifiedFarcaster,
   accountLabel,
   showDisconnect,
   connectDisabled,
@@ -3374,7 +3380,12 @@ function SearchHeaderAccountControl({
 }: {
   connected: boolean;
   walletConnected: boolean;
-  avatarUrl: string | null;
+  walletAddress: string | null;
+  walletAvatarUrl: string | null;
+  identityConnected: boolean;
+  identityLabel: string | null;
+  identityAvatarUrl: string | null;
+  simplifiedFarcaster: boolean;
   accountLabel: string;
   showDisconnect: boolean;
   connectDisabled: boolean;
@@ -3452,22 +3463,29 @@ function SearchHeaderAccountControl({
           setOpen((current) => !current);
         }}
       >
-        <span className="search-header-avatar-frame">
-          <img
-            src={avatarUrl ?? getWarpletPreviewImageUrl(HEADER_FALLBACK_AVATAR_TOKEN_ID)}
-            alt=""
-            className="search-header-avatar-image"
-            loading="eager"
-          />
+        <span className="search-header-avatar-stack">
+          {!simplifiedFarcaster && walletConnected && walletAvatarUrl && <span className="search-header-avatar-frame search-header-avatar-frame--wallet">
+            <img src={walletAvatarUrl} alt="" className="search-header-avatar-image" loading="eager" />
+          </span>}
+          {identityConnected && <span className="search-header-avatar-frame search-header-avatar-frame--identity">
+            <img src={identityAvatarUrl ?? getWarpletPreviewImageUrl(HEADER_FALLBACK_AVATAR_TOKEN_ID)} alt="" className="search-header-avatar-image" loading="eager" />
+          </span>}
         </span>
       </button>
       {open && (
         <div className="search-header-account-menu" role="menu">
-          {!walletConnected && (
-            <button type="button" role="menuitem" onClick={() => runMenuAction(onConnectWallet)}>
-              Connect wallet
-            </button>
-          )}
+          {!simplifiedFarcaster && <button type="button" role="menuitem" className="search-header-account-menu__connection" onClick={() => runMenuAction(onConnectWallet)}>
+              {walletConnected && walletAvatarUrl
+                ? <span className="search-header-account-menu__avatar-frame"><img src={walletAvatarUrl} alt="" /></span>
+                : <span className="search-header-account-menu__avatar-frame"><img src="/base.webp" alt="" /></span>}
+              <span>{walletConnected && walletAddress ? formatShortWallet(walletAddress) : "Connect wallet"}</span>
+            </button>}
+          <button type="button" role="menuitem" className="search-header-account-menu__connection" onClick={() => simplifiedFarcaster ? setOpen(false) : runMenuAction(onConnectWallet)}>
+            {identityConnected
+              ? <span className="search-header-account-menu__avatar-frame"><img src={identityAvatarUrl ?? getWarpletPreviewImageUrl(HEADER_FALLBACK_AVATAR_TOKEN_ID)} alt="" /></span>
+              : <span className="search-header-account-menu__avatar-frame"><img src="/farcaster.webp" alt="" /></span>}
+            <span>{identityConnected ? identityLabel : "Connect identity"}</span>
+          </button>
           <button type="button" role="menuitem" onClick={() => runMenuAction(onViewOnboarding)}>
             View onboarding
           </button>
@@ -3486,7 +3504,7 @@ function SearchHeaderAccountControl({
               <button type="button" role="menuitem" onClick={() => runMenuAction(onOpenWarpmoji)}>Warpmoji</button>
             </>
           )}
-          {showDisconnect && (
+          {showDisconnect && !simplifiedFarcaster && (
             <button type="button" role="menuitem" onClick={() => runMenuAction(onDisconnect)}>
               Disconnect
             </button>
@@ -4857,7 +4875,7 @@ function StatsShareButton({ label, onClick, compact = false, flat = false, secon
       onClick={() => { void hapticPrimaryTap(); onClick(); }}
       className={primary
         ? `inline-flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-[20px] border px-4 py-3 text-sm font-black transition-all duration-100 active:translate-x-[1px] active:translate-y-[3px] disabled:cursor-not-allowed disabled:opacity-40 ${primaryTone === "purple"
-          ? "border-[#5d42d6] bg-[#7959ff] text-[#160b38] shadow-[3px_6px_0_#4b33b3] hover:bg-[#967fff] active:shadow-[1px_3px_0_#4b33b3]"
+          ? "border-[#5d42d6] bg-[#7959ff] text-[#eeeaff] shadow-[3px_6px_0_#4b33b3] hover:bg-[#967fff] active:shadow-[1px_3px_0_#4b33b3]"
           : "border-[#009900] bg-[#00FF00] text-[rgb(0,80,0)] shadow-[3px_6px_0_#008000] hover:bg-[#33ff33] active:shadow-[1px_3px_0_#008000]"}`
         : secondaryFlat
           ? `inline-flex h-7 cursor-pointer items-center justify-center rounded-lg border px-2.5 text-[10px] font-black transition disabled:cursor-not-allowed disabled:opacity-40 ${secondaryTone === "purple"
@@ -7823,7 +7841,7 @@ function CollectionOffersPage({
         throw new Error("OpenSea did not return collection offer signature data");
       }
       setCollectionBusyLabel("Waiting for wallet...");
-      showToast("neutral", "Check your Farcaster wallet to confirm the collection offer...", { minMs: 5000 });
+      showToast("neutral", "Check your wallet to confirm the collection offer...", { minMs: 5000 });
       const signature = await signTypedData(provider, account, prepared.typedData);
       beginOpenSeaSubmitLabels();
       const submit = await fetch("/api/collection-offers/submit", {
@@ -10585,6 +10603,20 @@ function showTradeConfetti(): void {
 const TRADE_TOAST_EXTRA_MS = 3000;
 const TRADE_TOAST_EXIT_MS = 240;
 
+function restoreBlackBrowserChrome(): void {
+  const current = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
+  const replacement = current ?? document.createElement("meta");
+  replacement.name = "theme-color";
+  replacement.content = "#000000";
+  // Mobile Safari can retain a colour sampled from a fixed element after that
+  // element disappears. Re-inserting the tag forces its browser chrome to
+  // re-read the app theme instead of keeping the warning-toast red.
+  if (current) current.remove();
+  document.head.appendChild(replacement);
+  document.documentElement.style.backgroundColor = "#000000";
+  document.body.style.backgroundColor = "#000000";
+}
+
 function TradeToastView({
   toast,
   exiting,
@@ -10595,6 +10627,9 @@ function TradeToastView({
   onClose: () => void;
 }) {
   const isDanger = toast.kind === "error" || toast.kind === "warning";
+  useEffect(() => () => {
+    if (isDanger) restoreBlackBrowserChrome();
+  }, [isDanger]);
   return (
     <div
       className={`trade-toast ${isDanger ? "trade-toast--danger" : ""} ${exiting ? "trade-toast--exiting" : ""}`}
@@ -14568,7 +14603,8 @@ function WarpletDetailsModal({
 export default function SearchApp() {
   const walletController = useWalletController();
   const webWalletEnabled = import.meta.env.VITE_WEB_WALLET_ENABLED === "true";
-  const [webConnectOpen, setWebConnectOpen] = useState(false);
+  const [webConnectOpen, setWebConnectOpen] = useState(() => hasPendingFarcasterSignIn());
+  const [webConnectIdentityError, setWebConnectIdentityError] = useState<string | null>(null);
   useEffect(() => {
     const openConnect = () => setWebConnectOpen(true);
     window.addEventListener("warplets:connect-wallet", openConnect);
@@ -14631,6 +14667,7 @@ export default function SearchApp() {
   const [orderDirection, setOrderDirection] = useState<OrderDirection>("asc");
   const [userSelectedOrder, setUserSelectedOrder] = useState(false);
   const [activeWallet, setActiveWallet] = useState<string | null>(null);
+  const [walletProfile, setWalletProfile] = useState<{ name: string | null; avatarUrl: string | null } | null>(null);
   const [favouriteIdentityWallet, setFavouriteIdentityWallet] = useState<string | null>(null);
   const [favouriteListsByWallet, setFavouriteListsByWallet] = useState<Record<string, number[]>>({});
   const [favouriteFilterWallet, setFavouriteFilterWallet] = useState<string | null>(null);
@@ -14692,6 +14729,47 @@ export default function SearchApp() {
     const wallet = walletController.session?.address ?? null;
     setActiveWallet(wallet);
   }, [walletController.session?.address]);
+
+  useEffect(() => {
+    if (!activeWallet) {
+      setWalletProfile(null);
+      return;
+    }
+    let cancelled = false;
+    const cacheKey = `warplets_ens_profile:${activeWallet.toLowerCase()}`;
+    try {
+      const cached = JSON.parse(window.sessionStorage.getItem(cacheKey) ?? "null") as {
+        name?: unknown;
+        avatarUrl?: unknown;
+        expiresAt?: unknown;
+      } | null;
+      if (cached && Number(cached.expiresAt) > Date.now()) {
+        setWalletProfile({
+          name: typeof cached.name === "string" ? cached.name : null,
+          avatarUrl: typeof cached.avatarUrl === "string" ? cached.avatarUrl : null,
+        });
+        return;
+      }
+    } catch { /* optional cache */ }
+    setWalletProfile(null);
+    void fetch(`/api/wallet-profile?address=${encodeURIComponent(activeWallet)}`, {
+      headers: { accept: "application/json" },
+    }).then(async (response) => {
+      if (!response.ok) return null;
+      return response.json() as Promise<{ name?: unknown; avatarUrl?: unknown }>;
+    }).then((profile) => {
+      if (!profile || cancelled) return;
+      const resolved = {
+        name: typeof profile.name === "string" && profile.name.trim() ? profile.name.trim() : null,
+        avatarUrl: typeof profile.avatarUrl === "string" && profile.avatarUrl.trim() ? profile.avatarUrl.trim() : null,
+      };
+      setWalletProfile(resolved);
+      try {
+        window.sessionStorage.setItem(cacheKey, JSON.stringify({ ...resolved, expiresAt: Date.now() + 60 * 60 * 1000 }));
+      } catch { /* optional cache */ }
+    }).catch((error) => console.warn("ENS wallet profile lookup failed:", error));
+    return () => { cancelled = true; };
+  }, [activeWallet]);
 
   const animateSearchInputChange = useCallback((to: string, mode: "placeholder" | "value") => {
     searchInputAnimationStartedRef.current = true;
@@ -15262,6 +15340,7 @@ export default function SearchApp() {
   }, [sendMiniAppReady, syncSearchViewerStatus]);
 
   const handleWebFarcasterAuthenticated = useCallback((identity: FarcasterWebIdentity) => {
+    setWebConnectIdentityError(null);
     const profile: ViewerProfile = {
       fid: identity.fid,
       username: identity.username,
@@ -15279,8 +15358,22 @@ export default function SearchApp() {
   }, [syncSearchViewerStatus]);
 
   const handleWebFarcasterError = useCallback((message: string) => {
-    showSearchToast("error", message, { manualClose: true });
-  }, [showSearchToast]);
+    const normalized = /reject|denied|cancel|closed/i.test(message)
+      ? "Farcaster connection was cancelled."
+      : message;
+    setWebConnectIdentityError(normalized);
+  }, []);
+
+  const handleWebFarcasterDisconnect = useCallback(async () => {
+    await logoutAppPrincipal("farcaster");
+    setSiwfViewerProfile(null);
+    setFavouriteIdentityWallet(null);
+    setViewerFid(null);
+    setViewerProfile(null);
+    setActionSessionToken(null);
+    setSearchCompletionStatusLoaded(true);
+    setWebConnectIdentityError(null);
+  }, []);
 
   useEffect(() => {
     if (!webConnectOpen || isInMiniAppContext || siwfViewerProfile?.fid) return;
@@ -15618,13 +15711,7 @@ export default function SearchApp() {
     if (!key) return Promise.resolve<number[]>([]);
     if (!force) {
       const cached = ownershipTokenIdsRef.current.get(key);
-      if (cached) {
-        const cachedOwners = ownershipOwnersRef.current.get(key) ?? {};
-        setMarketSnapshot((current) => current
-          ? { ...current, owners: { ...(current.owners ?? {}), ...cachedOwners } }
-          : current);
-        return Promise.resolve(cached);
-      }
+      if (cached) return Promise.resolve(cached);
       const pending = ownershipRequestsRef.current.get(key);
       if (pending) return pending;
     }
@@ -17755,7 +17842,9 @@ export default function SearchApp() {
   const siwfConnected = Boolean(!isInMiniAppContext && siwfViewerProfile?.fid);
   const miniAppIdentityConnected = Boolean(isInMiniAppContext && viewerProfile?.fid);
   const miniAppWalletConnected = Boolean(isInMiniAppContext && activeWallet);
-  const headerAccountConnected = miniAppIdentityConnected || miniAppWalletConnected || siwfConnected;
+  const webWalletConnected = Boolean(!isInMiniAppContext && activeWallet);
+  const identityConnected = miniAppIdentityConnected || siwfConnected;
+  const headerAccountConnected = identityConnected || miniAppWalletConnected || webWalletConnected;
   const headerAccountProfile = isInMiniAppContext ? viewerProfile : siwfViewerProfile;
   const headerAccountUsername = headerAccountProfile?.username?.trim() || null;
   const headerAccountLabel = headerAccountUsername
@@ -17763,10 +17852,11 @@ export default function SearchApp() {
     : activeWallet
       ? `Connected wallet ${formatShortWallet(activeWallet)}`
       : "Connected Farcaster account";
-  const headerAccountAvatarUrl =
-    headerAccountConnected
-      ? (headerAccountProfile?.pfpUrl?.trim() || (activeWallet ? getWalletIdenticonDataUrl(activeWallet) : getWarpletPreviewImageUrl(HEADER_FALLBACK_AVATAR_TOKEN_ID)))
-      : null;
+  const walletAvatarUrl = activeWallet ? (walletProfile?.avatarUrl ?? getWalletIdenticonDataUrl(activeWallet)) : null;
+  const identityAvatarUrl = identityConnected ? (headerAccountProfile?.pfpUrl?.trim() || null) : null;
+  const identityMenuLabel = identityConnected
+    ? (headerAccountUsername ? `@${headerAccountUsername}` : "Farcaster identity")
+    : null;
   const routeTitle = getSearchRouteTitle(searchRoute);
   const headerTitle = isMenuRoute
     ? getHeaderTitle(WARPLETS_APP_SLUG, true)
@@ -17796,8 +17886,15 @@ export default function SearchApp() {
       {!isInMiniAppContext && (
         <WebConnectModal
           open={webConnectOpen}
-          onClose={() => setWebConnectOpen(false)}
-          farcasterControl={<FarcasterSignInControl connected={siwfConnected} onAuthenticated={handleWebFarcasterAuthenticated} onError={handleWebFarcasterError} />}
+          onClose={() => { setWebConnectOpen(false); setWebConnectIdentityError(null); }}
+          identityError={webConnectIdentityError}
+          onClearIdentityError={() => setWebConnectIdentityError(null)}
+          onWalletConnected={(address) => {
+            void hapticSuccess();
+            showTradeConfetti();
+            showSearchToast("success", `Wallet ${formatShortWallet(address)} connected successfully.`);
+          }}
+          farcasterControl={<FarcasterSignInControl connected={siwfConnected} onAuthenticated={handleWebFarcasterAuthenticated} onDisconnect={handleWebFarcasterDisconnect} onError={handleWebFarcasterError} />}
         />
       )}
       {searchToast && (
@@ -17831,9 +17928,14 @@ export default function SearchApp() {
             <SearchHeaderAccountControl
               connected={headerAccountConnected}
               walletConnected={Boolean(activeWallet)}
-              avatarUrl={headerAccountAvatarUrl}
+              walletAddress={activeWallet}
+              walletAvatarUrl={walletAvatarUrl}
+              identityConnected={identityConnected}
+              identityLabel={identityMenuLabel}
+              identityAvatarUrl={identityAvatarUrl}
+              simplifiedFarcaster={isInMiniAppContext}
               accountLabel={headerAccountLabel}
-              showDisconnect={Boolean(siwfConnected || activeWallet)}
+              showDisconnect={!isInMiniAppContext && Boolean(identityConnected || activeWallet)}
               connectDisabled={!miniAppContextKnown}
               closeKey={headerCloseKey}
               onConnectWallet={handleHeaderConnectWallet}

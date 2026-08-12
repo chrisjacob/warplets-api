@@ -1,17 +1,64 @@
-import { lazy, Suspense, useState, type ReactNode } from "react";
+import { lazy, Suspense, useEffect, useState, type ReactNode } from "react";
+import { OverlayScrollbarsComponent } from "overlayscrollbars-react";
 import { trackAppEvent } from "./analytics";
-import { connectBaseAccount, connectLegacyInjectedWallet, lastWalletConnectorId, useWalletController } from "./walletController";
+import { clearWalletConnectionError, connectBaseAccount, connectLegacyInjectedWallet, currentWalletSession, disconnectWallet, lastWalletConnectorId, useWalletController } from "./walletController";
 
 const TrustConnectBridge = lazy(() => import("./TrustConnectBridge"));
+const FARCASTER_WARPLETS_MINI_APP_URL =
+  import.meta.env.VITE_FARCASTER_WARPLETS_MINI_APP_URL?.trim()
+  || "https://farcaster.xyz/miniapps/uR3Rzs-k6AnV/10x/warplets";
 
-export function WebConnectModal({ open, onClose, farcasterControl }: {
+function walletConnectorLabel(connector: string): string {
+  if (connector === "base-account") return "Base wallet";
+  if (connector === "legacy-injected") return "browser wallet";
+  if (connector.startsWith("trustconnect-")) return "wallet";
+  if (connector === "farcaster") return "Farcaster wallet";
+  return "wallet";
+}
+
+function BaseAccountIcon() {
+  return <img aria-hidden="true" alt="" src="/base.webp" className="web-connect-provider-icon" />;
+}
+
+function FarcasterIcon() {
+  return <img aria-hidden="true" alt="" src="/farcaster.webp" className="web-connect-provider-icon" />;
+}
+
+function TrustConnectIcon() {
+  return <img aria-hidden="true" alt="" src="/trust.webp" className="web-connect-provider-icon" />;
+}
+
+function BrowserWalletIcon() {
+  return <svg aria-hidden="true" viewBox="0 0 32 32" className="web-connect-provider-icon web-connect-provider-icon-browser">
+    <rect width="32" height="32" rx="7" fill="#001500" />
+    <rect x="5" y="8" width="22" height="17" rx="4" fill="#001b00" stroke="#00FF00" strokeWidth="1.75" />
+    <path d="M6 12h20" stroke="#00FF00" strokeWidth="1.75" />
+    <path d="M19 15h9v7h-9a3.5 3.5 0 1 1 0-7Z" fill="#00FF00" />
+    <circle cx="21" cy="18.5" r="1.2" fill="#004d00" />
+  </svg>;
+}
+
+export function WebConnectModal({ open, onClose, farcasterControl, identityError = null, onClearIdentityError, onWalletConnected }: {
   open: boolean;
   onClose: () => void;
   farcasterControl: ReactNode;
+  identityError?: string | null;
+  onClearIdentityError?: () => void;
+  onWalletConnected?: (address: string) => void;
 }) {
   const wallet = useWalletController();
   const [showOtherWallets, setShowOtherWallets] = useState(false);
+  const [disconnectingBase, setDisconnectingBase] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
+  const connectionError = identityError || localError || wallet.error;
+
+  useEffect(() => {
+    if (!open) {
+      setShowOtherWallets(false);
+      setLocalError(null);
+    }
+  }, [open]);
+
   if (!open) {
     const lastConnector = lastWalletConnectorId();
     const restoreTrustConnect = import.meta.env.VITE_TRUSTCONNECT_ENABLED === "true" && lastConnector?.startsWith("trustconnect-");
@@ -26,16 +73,50 @@ export function WebConnectModal({ open, onClose, farcasterControl }: {
 
   const finish = () => {
     setLocalError(null);
+    const address = currentWalletSession()?.address;
+    if (address) onWalletConnected?.(address);
     onClose();
   };
   const run = async (connector: "base" | "injected") => {
     setLocalError(null);
+    clearWalletConnectionError();
+    onClearIdentityError?.();
     try {
-      if (connector === "base") await connectBaseAccount();
-      else await connectLegacyInjectedWallet();
-      finish();
+      const session = connector === "base"
+        ? await connectBaseAccount()
+        : await connectLegacyInjectedWallet();
+      setLocalError(null);
+      onWalletConnected?.(session.address);
+      onClose();
     } catch (error) {
-      setLocalError(error instanceof Error ? error.message : "Wallet connection failed");
+      const message = error instanceof Error ? error.message : "Wallet connection failed";
+      setShowOtherWallets(false);
+      setLocalError(/reject|denied|cancel|closed/i.test(message)
+        ? "Wallet connection was cancelled."
+        : message);
+    }
+  };
+  const handleWalletError = (message: string) => {
+    clearWalletConnectionError();
+    setShowOtherWallets(false);
+    setLocalError(/reject|denied|cancel|closed/i.test(message)
+      ? "Wallet connection was cancelled."
+      : message);
+  };
+  const baseWalletConnected = wallet.session?.connectorId === "base-account";
+  const handleBaseWalletAction = async () => {
+    if (!baseWalletConnected) {
+      await run("base");
+      return;
+    }
+    setLocalError(null);
+    setDisconnectingBase(true);
+    try {
+      await disconnectWallet();
+    } catch (error) {
+      setLocalError(error instanceof Error ? error.message : "Base wallet could not be disconnected");
+    } finally {
+      setDisconnectingBase(false);
     }
   };
 
@@ -43,59 +124,121 @@ export function WebConnectModal({ open, onClose, farcasterControl }: {
     <div className="web-connect-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
       <section className="web-connect-modal" role="dialog" aria-modal="true" aria-labelledby="web-connect-title">
         <div className="web-connect-heading">
-          <div>
-            <h2 id="web-connect-title">Connect</h2>
-            <p>Wallet signing and Farcaster identity are independent. Connect either or both.</p>
-          </div>
-          <button type="button" className="web-connect-close" onClick={onClose} aria-label="Close">×</button>
-        </div>
-
-        <div className="web-connect-options">
-          {import.meta.env.VITE_BASE_ACCOUNT_ENABLED === "true" ? (
-            <button className="web-connect-choice" type="button" disabled={Boolean(wallet.connecting)} onClick={() => void run("base")}>
-              <strong>Base Account</strong><span>Recommended for Base App and the web</span>
-            </button>
-          ) : null}
-
-          {import.meta.env.VITE_TRUSTCONNECT_ENABLED === "true" ? (
-            <div className="web-connect-option-group">
-              <button className="web-connect-choice" type="button" onClick={() => {
-                trackAppEvent("connector_selected", { connector: "trustconnect" });
-                setShowOtherWallets(true);
-              }}>
-                <strong>Other wallets</strong><span>Installed wallets or WalletConnect mobile/QR</span>
-              </button>
-              {showOtherWallets ? (
-                <Suspense fallback={<div className="web-connect-loading">Loading wallet choices…</div>}>
-                  <TrustConnectBridge onConnected={finish} onError={setLocalError} />
-                </Suspense>
-              ) : null}
-            </div>
-          ) : null}
-
-          <button className="web-connect-choice" type="button" disabled={Boolean(wallet.connecting)} onClick={() => void run("injected")}>
-            <strong>Browser wallet</strong><span>Compatibility option for an injected wallet</span>
+          <h2 id="web-connect-title"><span>Connect</span> Wallet &amp; Identity</h2>
+          <button type="button" className="web-connect-close" onClick={onClose} aria-label="Close connect modal" title="Close">
+            <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
+              <path d="M6 6l12 12" /><path d="M18 6L6 18" />
+            </svg>
           </button>
-
-          <div className="web-connect-farcaster">
-            <span>Farcaster identity</span>
-            {farcasterControl}
-          </div>
-
-          {import.meta.env.VITE_X_AUTH_ENABLED === "true" ? (
-            <a
-              className="web-connect-choice"
-              href={`/api/auth/x/start?returnTo=${encodeURIComponent(`${window.location.pathname}${window.location.search}`)}`}
-              onClick={() => trackAppEvent("connector_selected", { connector: "x-oauth" })}
-            >
-              <strong>Connect X identity</strong><span>OAuth 2.0 with PKCE; separate from wallet signing</span>
-            </a>
-          ) : null}
         </div>
+        <OverlayScrollbarsComponent
+          className="web-connect-scroll"
+          options={{ scrollbars: { theme: "os-theme-10x", autoHide: "scroll", clickScroll: true } }}
+          defer
+        >
+          <div className="web-connect-content">
+            <section className="web-connect-section" aria-labelledby="web-connect-wallet-heading">
+              <div className="web-connect-section-heading">
+                <h3 id="web-connect-wallet-heading">Wallet</h3>
+                <p>Connect to trade, verify ownership and save favourites.</p>
+              </div>
+              <div className="web-connect-options">
+                {import.meta.env.VITE_BASE_ACCOUNT_ENABLED === "true" ? (
+                  <div className="web-connect-provider-card">
+                    <div className="web-connect-provider-copy">
+                      <BaseAccountIcon />
+                      <span><strong>Base wallet</strong></span>
+                    </div>
+                    <button className={`web-connect-cta${baseWalletConnected ? " web-connect-cta--disconnect" : ""}`} type="button" disabled={Boolean(wallet.connecting) || disconnectingBase} onClick={() => void handleBaseWalletAction()}>
+                      {disconnectingBase ? "Disconnecting…" : wallet.connecting === "base-account" ? "Connecting…" : baseWalletConnected ? "Disconnect" : "Connect"}
+                    </button>
+                  </div>
+                ) : null}
 
-        {(localError || wallet.error) ? <p className="web-connect-error" role="alert">{localError || wallet.error}</p> : null}
-        {wallet.connecting ? <p className="web-connect-loading">Waiting for {wallet.connecting}…</p> : null}
+                {import.meta.env.VITE_TRUSTCONNECT_ENABLED === "true" ? (
+                  <div className="web-connect-option-group">
+                    <button className="web-connect-choice" type="button" onClick={() => {
+                      trackAppEvent("connector_selected", { connector: "trustconnect" });
+                      setLocalError(null);
+                      clearWalletConnectionError();
+                      onClearIdentityError?.();
+                      setShowOtherWallets(true);
+                    }}>
+                      <span className="web-connect-provider-copy">
+                        <TrustConnectIcon />
+                        <span><strong>Other wallets</strong></span>
+                      </span>
+                    </button>
+                    {showOtherWallets ? (
+                      <Suspense fallback={<div className="web-connect-loading">Loading wallet choices…</div>}>
+                        <TrustConnectBridge onConnected={finish} onError={handleWalletError} />
+                      </Suspense>
+                    ) : null}
+                  </div>
+                ) : null}
+
+                <div className="web-connect-provider-card">
+                  <div className="web-connect-provider-copy">
+                    <BrowserWalletIcon />
+                    <span><strong>Browser wallet</strong></span>
+                  </div>
+                  <button className="web-connect-cta" type="button" disabled={Boolean(wallet.connecting)} onClick={() => void run("injected")}>
+                    {wallet.connecting === "legacy-injected" ? "Connecting…" : "Connect"}
+                  </button>
+                </div>
+              </div>
+            </section>
+
+            <section className="web-connect-section" aria-labelledby="web-connect-identity-heading">
+              <div className="web-connect-section-heading">
+                <h3 id="web-connect-identity-heading">Identity <span className="web-connect-optional-chip">Optional</span></h3>
+                <p>Connect Farcaster for your profile, friends and social features.</p>
+              </div>
+              <div className="web-connect-options">
+                <div className="web-connect-farcaster">
+                  <div className="web-connect-provider-copy">
+                    <FarcasterIcon />
+                    <span><strong>Farcaster identity</strong></span>
+                  </div>
+                  {farcasterControl}
+                </div>
+                {import.meta.env.VITE_X_AUTH_ENABLED === "true" ? (
+                  <a
+                    className="web-connect-choice"
+                    href={`/api/auth/x/start?returnTo=${encodeURIComponent(`${window.location.pathname}${window.location.search}`)}`}
+                    onClick={() => trackAppEvent("connector_selected", { connector: "x-oauth" })}
+                  >
+                    <strong>Connect X identity</strong><span>OAuth 2.0 with PKCE; separate from wallet signing</span>
+                  </a>
+                ) : null}
+              </div>
+            </section>
+
+            <div className="web-connect-farcaster-footer">
+              <p>For the best experience, use the Farcaster Mini App.</p>
+              <a className="web-connect-farcaster-cta" href={FARCASTER_WARPLETS_MINI_APP_URL} target="_blank" rel="noreferrer">
+                Open in Farcaster
+              </a>
+            </div>
+          </div>
+        </OverlayScrollbarsComponent>
       </section>
+      {wallet.connecting ? (
+        <div className="web-connect-progress-toast" role="status" aria-live="polite">
+          Connecting {walletConnectorLabel(wallet.connecting)}…
+        </div>
+      ) : null}
+      {connectionError && !wallet.connecting ? (
+        <div className="web-connect-progress-toast web-connect-progress-toast--danger" role="alert">
+          <span>{connectionError}</span>
+          <button type="button" aria-label="Dismiss connection error" title="Dismiss" onClick={() => {
+            setLocalError(null);
+            setShowOtherWallets(false);
+            clearWalletConnectionError();
+            onClearIdentityError?.();
+          }}>×</button>
+        </div>
+      ) : null}
     </div>
   );
 }

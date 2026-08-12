@@ -1,8 +1,9 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AuthKitProvider, SignInButton } from "@farcaster/auth-kit";
 import "@farcaster/auth-kit/styles.css";
-import type { StatusAPIResponse } from "@farcaster/auth-client";
+import { createAppClient, viemConnector, type StatusAPIResponse } from "@farcaster/auth-client";
 import { loadAppSession, verifyFarcasterSiwf } from "./appSession";
+import { clearPendingFarcasterSignIn, readPendingFarcasterSignIn, writePendingFarcasterSignIn } from "./farcasterSignInPersistence";
 
 export interface FarcasterWebIdentity {
   fid: number;
@@ -13,6 +14,12 @@ export interface FarcasterWebIdentity {
 }
 
 interface FarcasterChallenge { nonce: string; uri: string }
+
+const farcasterAuthClient = createAppClient({ relay: "https://relay.farcaster.xyz", ethereum: viemConnector({}), version: "v1" });
+
+function usesMobileFarcasterHandoff(): boolean {
+  return /iPhone|iPad|iPod/i.test(window.navigator.userAgent);
+}
 
 function currentSignInUri(): string {
   const uri = new URL(window.location.href);
@@ -39,16 +46,21 @@ function FarcasterSignInControl({
   disabled = false,
   connected = false,
   onAuthenticated,
+  onDisconnect,
   onError,
 }: {
   disabled?: boolean;
   connected?: boolean;
   onAuthenticated: (identity: FarcasterWebIdentity) => void;
+  onDisconnect?: () => void | Promise<void>;
   onError?: (message: string) => void;
 }) {
   const [challenge, setChallenge] = useState<FarcasterChallenge | null>(null);
   const [verifying, setVerifying] = useState(false);
+  const [disconnecting, setDisconnecting] = useState(false);
+  const [mobileHandoffPending, setMobileHandoffPending] = useState(() => Boolean(readPendingFarcasterSignIn()));
   const completionStartedRef = useRef(false);
+  const resumeStartedRef = useRef(false);
 
   const refreshNonce = useCallback(() => {
     completionStartedRef.current = false;
@@ -60,7 +72,7 @@ function FarcasterSignInControl({
 
   useEffect(() => { if (!connected) refreshNonce(); }, [connected, refreshNonce]);
 
-  const complete = useCallback(async (result: StatusAPIResponse) => {
+  const complete = useCallback(async (result: StatusAPIResponse, nonceOverride?: string) => {
     if (completionStartedRef.current) return;
     if (!result.message || !result.signature) {
       onError?.("Farcaster did not return a complete sign-in proof");
@@ -71,7 +83,7 @@ function FarcasterSignInControl({
     setVerifying(true);
     try {
       const session = await verifyFarcasterSiwf({
-        nonce: challenge?.nonce ?? "",
+        nonce: nonceOverride ?? challenge?.nonce ?? "",
         message: result.message,
         signature: result.signature,
         ...(Number.isInteger(result.fid) && Number(result.fid) > 0 ? { fid: result.fid } : {}),
@@ -99,12 +111,81 @@ function FarcasterSignInControl({
         pfpUrl: value(result.pfpUrl, session.pfpUrl) ?? restoredProfile?.pfpUrl ?? null,
         actionSessionToken: typeof session.actionSessionToken === "string" ? session.actionSessionToken : null,
       });
+      clearPendingFarcasterSignIn();
+      setMobileHandoffPending(false);
     } catch (error) {
+      clearPendingFarcasterSignIn();
+      setMobileHandoffPending(false);
       setVerifying(false);
       onError?.(error instanceof Error ? error.message : "Farcaster sign-in failed");
       refreshNonce();
     }
   }, [challenge?.nonce, onAuthenticated, onError, refreshNonce]);
+
+  const resumeMobileHandoff = useCallback(async () => {
+    const pending = readPendingFarcasterSignIn();
+    if (!pending || completionStartedRef.current || resumeStartedRef.current) return;
+    resumeStartedRef.current = true;
+    setMobileHandoffPending(true);
+    setVerifying(true);
+    try {
+      const result = await farcasterAuthClient.watchStatus({
+        channelToken: pending.channelToken,
+        interval: 1200,
+        timeout: Math.max(1_000, pending.expiresAt - Date.now()),
+      });
+      if (result.isError || !result.data) throw result.error ?? new Error("Farcaster sign-in could not be restored");
+      await complete(result.data, pending.nonce);
+    } catch (error) {
+      resumeStartedRef.current = false;
+      clearPendingFarcasterSignIn();
+      setMobileHandoffPending(false);
+      setVerifying(false);
+      onError?.(error instanceof Error ? error.message : "Farcaster sign-in could not be restored");
+      refreshNonce();
+    }
+  }, [complete, onError, refreshNonce]);
+
+  useEffect(() => {
+    if (!connected && readPendingFarcasterSignIn()) void resumeMobileHandoff();
+  }, [connected, resumeMobileHandoff]);
+
+  useEffect(() => {
+    if (connected) return;
+    const resumeWhenVisible = () => {
+      if (document.visibilityState === "visible" && readPendingFarcasterSignIn()) void resumeMobileHandoff();
+    };
+    window.addEventListener("pageshow", resumeWhenVisible);
+    document.addEventListener("visibilitychange", resumeWhenVisible);
+    return () => {
+      window.removeEventListener("pageshow", resumeWhenVisible);
+      document.removeEventListener("visibilitychange", resumeWhenVisible);
+    };
+  }, [connected, resumeMobileHandoff]);
+
+  const startMobileHandoff = useCallback(async () => {
+    if (!challenge) return;
+    setMobileHandoffPending(true);
+    try {
+      const created = await farcasterAuthClient.createChannel({
+        nonce: challenge.nonce,
+        siweUri: challenge.uri,
+        domain: window.location.host,
+      });
+      if (created.isError || !created.data) throw created.error ?? new Error("Farcaster sign-in could not start");
+      writePendingFarcasterSignIn({
+        channelToken: created.data.channelToken,
+        nonce: created.data.nonce,
+        uri: challenge.uri,
+        expiresAt: Date.now() + 5 * 60_000,
+      });
+      window.location.assign(created.data.url);
+    } catch (error) {
+      clearPendingFarcasterSignIn();
+      setMobileHandoffPending(false);
+      onError?.(error instanceof Error ? error.message : "Farcaster sign-in could not start");
+    }
+  }, [challenge, onError]);
 
   const handleAuthKitSuccess = useCallback((result: StatusAPIResponse) => {
     void complete(result);
@@ -129,9 +210,30 @@ function FarcasterSignInControl({
     siweUri: challenge?.uri ?? currentSignInUri(),
   }), [challenge?.uri]);
 
-  if (connected) return <button type="button" disabled>Connected</button>;
-  if (verifying) return <button type="button" disabled>Connecting…</button>;
-  if (disabled || !challenge) return <button type="button" disabled>Connect Farcaster</button>;
+  if (connected) return (
+    <div className="farcaster-signin-control farcaster-signin-control--connected">
+      <button
+        type="button"
+        disabled={disconnecting}
+        onClick={() => {
+          setDisconnecting(true);
+          Promise.resolve(onDisconnect?.()).catch((error) => {
+            onError?.(error instanceof Error ? error.message : "Farcaster identity could not be disconnected");
+          }).finally(() => setDisconnecting(false));
+        }}
+      >
+        {disconnecting ? "Disconnecting…" : "Disconnect"}
+      </button>
+    </div>
+  );
+  if (verifying || mobileHandoffPending) return <div className="farcaster-signin-control"><button type="button" disabled>Connecting…</button></div>;
+  // Keep one visible idle label while AuthKit and its nonce initialize.
+  if (disabled || !challenge) return <div className="farcaster-signin-control"><button type="button" disabled>Connect</button></div>;
+  if (usesMobileFarcasterHandoff()) return (
+    <div className="farcaster-signin-control">
+      <button type="button" onClick={() => void startMobileHandoff()}>Connect</button>
+    </div>
+  );
   return (
     <AuthKitProvider key={challenge.nonce} config={authKitConfig}>
       <div className="farcaster-signin-control">

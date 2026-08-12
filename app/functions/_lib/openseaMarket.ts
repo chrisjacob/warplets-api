@@ -13,6 +13,7 @@ import {
   recordNormalizedSale,
   refreshHolderLeaderboardWallets,
 } from "./stats.js";
+import { resolveWalletProfiles } from "./walletProfiles.js";
 
 export interface OpenSeaMarketEnv {
   WARPLETS: D1Database;
@@ -1604,6 +1605,12 @@ export async function loadMarketOwnership(
 
   const rows = result.results ?? [];
   const snapshot = snapshotFromRows(rows);
+  const ownerWallets = rows.map((row) => row.owner_wallet).filter((value): value is string => Boolean(value));
+  const fallbackProfiles = await resolveWalletProfiles(env, ownerWallets);
+  for (const owner of Object.values(snapshot.owners)) {
+    if (owner.pfpUrl || !owner.wallet) continue;
+    owner.pfpUrl = fallbackProfiles.get(owner.wallet.toLowerCase())?.avatarUrl ?? null;
+  }
   return {
     wallet: wallet ?? rows[0]?.owner_wallet ?? null,
     fid: fid ?? rows[0]?.owner_fid ?? null,

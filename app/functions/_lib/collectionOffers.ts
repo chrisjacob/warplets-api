@@ -21,6 +21,7 @@ import {
 } from "./openseaMarket.js";
 import { jsonSecure } from "./security.js";
 import { recordWarpletActivity } from "./warpletNotifications.js";
+import { resolveWalletProfiles } from "./walletProfiles.js";
 
 export type CollectionOffersEnv = OpenSeaMarketEnv;
 
@@ -438,21 +439,32 @@ function offerIsWeth(row: CollectionOfferRow): boolean {
 
 async function fetchSeaportCounter(offerer: string): Promise<string> {
   const encodedOfferer = offerer.toLowerCase().replace(/^0x/, "").padStart(64, "0");
-  const response = await fetch("https://mainnet.base.org", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      jsonrpc: "2.0",
-      id: 1,
-      method: "eth_call",
-      params: [{ to: DEFAULT_SEAPORT_PROTOCOL, data: `0xf07ec373${encodedOfferer}` }, "latest"],
-    }),
-    signal: AbortSignal.timeout(10000),
-  });
-  if (!response.ok) throw new Error(`Base RPC failed (${response.status})`);
-  const payload = (await response.json()) as Record<string, unknown>;
-  const hex = asString(payload.result);
-  return hex ? BigInt(hex).toString() : "0";
+  let lastError: unknown;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      const response = await fetch("https://mainnet.base.org", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "eth_call",
+          params: [{ to: DEFAULT_SEAPORT_PROTOCOL, data: `0xf07ec373${encodedOfferer}` }, "latest"],
+        }),
+        signal: AbortSignal.timeout(10000),
+      });
+      if (!response.ok) throw new Error(`Base RPC failed (${response.status})`);
+      const payload = (await response.json()) as Record<string, unknown>;
+      if (payload.error) throw new Error(`Base RPC rejected the Seaport counter request: ${JSON.stringify(payload.error)}`);
+      const hex = asString(payload.result);
+      if (!hex) throw new Error("Base RPC did not return the Seaport counter");
+      return BigInt(hex).toString();
+    } catch (error) {
+      lastError = error;
+      if (attempt < 2) await new Promise((resolve) => setTimeout(resolve, 350 * (2 ** attempt)));
+    }
+  }
+  throw lastError instanceof Error ? lastError : new Error("Base RPC could not read the Seaport counter");
 }
 
 let collectionFeesCache: { expiresAt: number; fees: Array<{ recipient: string; bps: number }> } | null = null;
@@ -663,7 +675,7 @@ async function refreshCollectionOffersFromOpenSea(env: CollectionOffersEnv, wall
   }
 }
 
-async function loadBidderProfiles(env: CollectionOffersEnv, wallets: string[], apiKey: string): Promise<Map<string, BidderProfile>> {
+async function loadBidderProfiles(env: CollectionOffersEnv, wallets: string[], force = false): Promise<Map<string, BidderProfile>> {
   const normalized = Array.from(new Set(wallets.map((wallet) => normalizeAddress(wallet)).filter((wallet): wallet is string => Boolean(wallet))));
   const profiles = new Map<string, BidderProfile>();
   if (normalized.length === 0) return profiles;
@@ -703,44 +715,21 @@ async function loadBidderProfiles(env: CollectionOffersEnv, wallets: string[], a
     }));
   }
 
-  const missing = normalized.filter((wallet) => {
-    const current = profiles.get(wallet);
-    return !current?.pfpUrl || !current?.xUsername;
-  }).slice(0, 30);
-  await Promise.all(missing.map(async (wallet) => {
-    const current = profiles.get(wallet);
-    try {
-      const account = await fetchOpenSea(`/accounts/${encodeURIComponent(wallet)}`, apiKey);
-      const pfpUrl = asString(account.profile_image_url ?? account.profileImageUrl ?? account.image_url);
-      const openseaUsername = asString(account.username ?? asObject(account.user)?.username);
-      const fid = current?.fid ?? await selectPreferredFidForWallet(env, wallet);
-      let xUsername = current?.xUsername ?? null;
-      if (!xUsername && fid != null) {
-        xUsername = await env.WARPLETS.prepare(
-          "SELECT x_username FROM warplets_users WHERE fid = ? LIMIT 1",
-        ).bind(fid).first<{ x_username: string | null }>()
-          .then((row) => normalizeSocialUsername(row?.x_username))
-          .catch(() => null);
-      }
-      profiles.set(wallet, buildBidderProfile({
-        wallet,
-        fid,
-        username: current?.username ?? null,
-        displayName: current?.displayName ?? asString(account.display_name ?? account.name),
-        pfpUrl: current?.pfpUrl ?? pfpUrl,
-        xUsername,
-        openseaUsername,
-      }));
-    } catch {
-      profiles.set(wallet, current ?? buildBidderProfile({
-        wallet,
-        fid: null,
-        username: null,
-        displayName: null,
-        pfpUrl: null,
-      }));
-    }
-  }));
+  const fallbackProfiles = await resolveWalletProfiles(env, normalized, { force });
+  for (const wallet of normalized) {
+    const current = profiles.get(wallet) ?? buildBidderProfile({ wallet });
+    if (current.pfpUrl) continue;
+    const fallback = fallbackProfiles.get(wallet);
+    profiles.set(wallet, buildBidderProfile({
+      wallet,
+      fid: current.fid,
+      username: current.username,
+      displayName: current.displayName,
+      pfpUrl: fallback?.avatarUrl ?? null,
+      xUsername: current.xUsername,
+      openseaUsername: fallback?.openseaUsername,
+    }));
+  }
   return profiles;
 }
 
@@ -839,7 +828,7 @@ export async function handleCollectionOffersGet(context: Parameters<PagesFunctio
   }
   const rows = (await loadCollectionOffers(context.env)).filter(offerIsWeth);
   const wallets = rows.map((row) => row.offerer_wallet).filter((wallet): wallet is string => Boolean(wallet));
-  const profiles = await loadBidderProfiles(context.env, wallets, apiKey);
+  const profiles = await loadBidderProfiles(context.env, wallets, refresh);
   const offers = rows
     .reduce<CollectionOffer[]>((items, row) => {
       const offerer = normalizeAddress(row.offerer_wallet);
@@ -888,7 +877,12 @@ export async function handleCollectionOffersGet(context: Parameters<PagesFunctio
 }
 
 export async function handleCollectionOfferPrepare(context: Parameters<PagesFunction<CollectionOffersEnv>>[0]): Promise<Response> {
-  const body = await context.request.json() as Record<string, unknown>;
+  let body: Record<string, unknown>;
+  try {
+    body = await context.request.json() as Record<string, unknown>;
+  } catch {
+    return jsonSecure({ error: "invalid_json", message: "Collection offer request was invalid" }, { status: 400 });
+  }
   const wallet = normalizeAddress(body.wallet);
   const priceRaw = asString(body.priceRaw);
   const quantity = Math.min(10000, Math.max(1, Math.floor(asNumber(body.quantity) ?? 1)));
@@ -900,37 +894,46 @@ export async function handleCollectionOfferPrepare(context: Parameters<PagesFunc
   } catch {
     return jsonSecure({ error: "invalid_price", message: "Offer amount is invalid" }, { status: 400 });
   }
-  const apiKey = requireOpenSeaApiKey(context.env);
-  const [counter, fees, built] = await Promise.all([
-    fetchSeaportCounter(wallet),
-    fetchCollectionFees(apiKey),
-    openSeaPost(apiKey, "/offers/build", {
+  try {
+    const apiKey = requireOpenSeaApiKey(context.env);
+    const [counter, fees, built] = await Promise.all([
+      fetchSeaportCounter(wallet),
+      fetchCollectionFees(apiKey),
+      openSeaPostWithTransientRetry(apiKey, "/offers/build", {
+        offerer: wallet,
+        quantity,
+        criteria: { collection: { slug: COLLECTION_SLUG } },
+        protocol_address: DEFAULT_SEAPORT_PROTOCOL,
+        offer_protection_enabled: true,
+      }),
+    ]);
+    const order = buildCollectionOfferTypedData({
       offerer: wallet,
+      unitPriceRaw: normalizedPriceRaw,
       quantity,
-      criteria: { collection: { slug: COLLECTION_SLUG } },
-      protocol_address: DEFAULT_SEAPORT_PROTOCOL,
-      offer_protection_enabled: true,
-    }).catch(() => null),
-  ]);
-  const order = buildCollectionOfferTypedData({
-    offerer: wallet,
-    unitPriceRaw: normalizedPriceRaw,
-    quantity,
-    durationSeconds,
-    counter,
-    fees,
-    built,
-  });
-  return jsonSecure({
-    status: "ready",
-    actionId: asString(body.actionId) ?? crypto.randomUUID(),
-    protocolAddress: DEFAULT_SEAPORT_PROTOCOL,
-    parameters: order.parameters,
-    typedData: order.typedData,
-    chainIdHex: BASE_CHAIN_ID_HEX,
-    wethApproval: { tokenAddress: BASE_WETH, spender: OPENSEA_CONDUIT_ADDRESS, amount: order.totalRaw },
-    totalRaw: order.totalRaw,
-  });
+      durationSeconds,
+      counter,
+      fees,
+      built,
+    });
+    return jsonSecure({
+      status: "ready",
+      actionId: asString(body.actionId) ?? crypto.randomUUID(),
+      protocolAddress: DEFAULT_SEAPORT_PROTOCOL,
+      parameters: order.parameters,
+      typedData: order.typedData,
+      chainIdHex: BASE_CHAIN_ID_HEX,
+      wethApproval: { tokenAddress: BASE_WETH, spender: OPENSEA_CONDUIT_ADDRESS, amount: order.totalRaw },
+      totalRaw: order.totalRaw,
+    });
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : "unknown upstream error";
+    console.error("Collection offer prepare failed", { wallet, quantity, detail });
+    return jsonSecure({
+      error: "collection_offer_prepare_failed",
+      message: `Collection offer could not be prepared: ${detail}`,
+    }, { status: 502 });
+  }
 }
 
 export async function handleCollectionOfferSubmit(context: Parameters<PagesFunction<CollectionOffersEnv>>[0]): Promise<Response> {
@@ -1030,7 +1033,7 @@ export async function handleTraitOffersGet(context: Parameters<PagesFunction<Col
   const profiles = await loadBidderProfiles(
     context.env,
     filteredRows.map(({ row }) => row.offerer_wallet).filter((value): value is string => Boolean(value)),
-    requireOpenSeaApiKey(context.env),
+    url.searchParams.get("refresh") === "1",
   );
   const groups = new Map<string, CollectionOfferGroup>();
   for (const { row, trait } of filteredRows) {
@@ -1335,7 +1338,7 @@ export async function handleItemOffersGet(context: Parameters<PagesFunction<Coll
   const profiles = await loadBidderProfiles(
     context.env,
     pageRows.map((row) => row.offerer_wallet).filter((value): value is string => Boolean(value)),
-    requireOpenSeaApiKey(context.env),
+    new URL(context.request.url).searchParams.get("refresh") === "1",
   );
   const topItemOffer = topRow ? {
     eth: topRow.amount_eth,

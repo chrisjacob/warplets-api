@@ -1,4 +1,5 @@
 import type { EthereumProvider } from "./walletTrade";
+import { requestIdentityLinkConfirmation } from "./identityLinkConfirmation";
 
 export interface AppSessionState {
   authenticated: boolean;
@@ -102,9 +103,7 @@ export async function authenticateWallet(provider: EthereumProvider, address: `0
     });
     const first = await link(false);
     if (first.status === 409) {
-      const confirmed = window.confirm(
-        "This wallet differs from the addresses currently associated with your Farcaster profile. Link the two verified identities?",
-      );
+      const confirmed = await requestIdentityLinkConfirmation(address);
       if (confirmed) await requireOk(await link(true));
     } else if (!first.ok) {
       await requireOk(first);
