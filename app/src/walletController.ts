@@ -1,7 +1,12 @@
 import { useSyncExternalStore } from "react";
 import { authenticateBaseWallet, authenticateWallet, loadAppSession, logoutAppPrincipal } from "./appSession";
 import { trackAppEvent } from "./analytics";
-import { ensureBaseChain, getWalletAccounts, type EthereumProvider } from "./walletTrade";
+import {
+  ensureBaseChain,
+  getWalletAccounts,
+  preferBaseChainBeforeConnect,
+  type EthereumProvider,
+} from "./walletTrade";
 
 export type WalletConnectorId =
   | "farcaster"
@@ -96,9 +101,13 @@ async function activate(
   providedAddress?: string | null,
   alreadyAuthenticated = false,
 ): Promise<WalletSession> {
+  provider.connectorId = connectorId;
   emit({ connecting: connectorId, error: null });
   trackAppEvent("connector_selected", { connector: connectorId });
   try {
+    if (connectorId === "legacy-injected" && !providedAddress) {
+      await preferBaseChainBeforeConnect(provider);
+    }
     const accounts = providedAddress
       ? [normalizeAddress(providedAddress)].filter((value): value is `0x${string}` => Boolean(value))
       : await getWalletAccounts(provider);
@@ -138,6 +147,7 @@ export async function connectFarcasterWallet(): Promise<WalletSession> {
 export async function restoreFarcasterWallet(): Promise<WalletSession | null> {
   if (!farcasterProviderFactory || state.session) return state.session;
   const provider = await farcasterProviderFactory() as ObservableProvider;
+  provider.connectorId = "farcaster";
   const rawAccounts = await provider.request({ method: "eth_accounts" }).catch(() => []);
   const address = normalizeAddress(Array.isArray(rawAccounts) ? rawAccounts[0] : null);
   if (!address) return null;
@@ -164,7 +174,7 @@ export async function connectBaseAccount(): Promise<WalletSession> {
 
 async function createBaseAccountProvider(): Promise<ObservableProvider> {
   const { createBaseAccountSDK } = await import("@base-org/account");
-  return createBaseAccountSDK({
+  const provider = createBaseAccountSDK({
     appName: "10X Warplets",
     appLogoUrl: `${window.location.origin}/icon.png`,
     appChainIds: [8453],
@@ -178,6 +188,11 @@ async function createBaseAccountProvider(): Promise<ObservableProvider> {
       funding: "manual",
     },
   }).getProvider() as unknown as ObservableProvider;
+  // The SDK exposes an EIP-1193 provider without a stable runtime brand. Mark
+  // it locally so signing can use Base Account's documented payload format.
+  provider.isBaseAccount = true;
+  provider.connectorId = "base-account";
+  return provider;
 }
 
 export async function restoreWebWallet(): Promise<WalletSession | null> {
@@ -191,6 +206,7 @@ export async function restoreWebWallet(): Promise<WalletSession | null> {
     provider = (window as Window & { ethereum?: ObservableProvider }).ethereum ?? null;
   }
   if (!provider) return null;
+  provider.connectorId = connector;
   const rawAccounts = await provider.request({ method: "eth_accounts" }).catch(() => []);
   const address = normalizeAddress(Array.isArray(rawAccounts) ? rawAccounts[0] : null);
   if (!address) return null;
@@ -227,6 +243,7 @@ export async function restoreTrustConnectWallet(
   const appSession = await loadAppSession().catch(() => null);
   if (appSession?.walletAddress?.toLowerCase() !== address) return null;
   const chainId = await readChainId(provider);
+  provider.connectorId = connectorId;
   const session = { connectorId, address, chainId, provider } satisfies WalletSession;
   bindProviderEvents(provider);
   emit({ session, connecting: null, error: null });

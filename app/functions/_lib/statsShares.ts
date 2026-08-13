@@ -135,9 +135,15 @@ async function loadOverviewWarpletTokenIds(env: StatsSharesEnv, request: Extract
   }
 
   const tokenIds: number[] = [];
-  const ownershipConditions = [wallet ? "lower(owner_wallet) = ?" : null, request.fid ? "owner_fid = ?" : null].filter(Boolean);
+  // If a transaction wallet was supplied, its collection is authoritative.
+  // FID ownership is only a fallback for identity-only Mini App sessions.
+  const ownershipConditions = wallet
+    ? ["lower(owner_wallet) = ?"]
+    : request.fid
+      ? ["owner_fid = ?"]
+      : [];
   if (ownershipConditions.length > 0) {
-    const ownershipBindings = [...(wallet ? [wallet] : []), ...(request.fid ? [request.fid] : [])];
+    const ownershipBindings = wallet ? [wallet] : [request.fid!];
     const owned = await env.WARPLETS.prepare(
       `SELECT m.token_id FROM warplet_market_state m
        LEFT JOIN warplets_metadata md ON md.token_id = m.token_id

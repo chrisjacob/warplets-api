@@ -507,7 +507,7 @@ function buildCollectionOfferTypedData(input: {
   counter: string;
   fees: Array<{ recipient: string; bps: number }>;
   built?: Record<string, unknown> | null;
-}): { parameters: Record<string, unknown>; typedData: Record<string, unknown>; totalRaw: string } {
+}): { parameters: Record<string, unknown>; typedData: Record<string, unknown>; totalRaw: string; requiredWethRaw: string } {
   const quantity = Math.min(10000, Math.max(1, Math.floor(input.quantity)));
   const totalRaw = multiplyRawAmount(input.unitPriceRaw, quantity);
   const now = Math.floor(Date.now() / 1000);
@@ -545,6 +545,10 @@ function buildCollectionOfferTypedData(input: {
         recipient: fee.recipient,
       } : [];
     });
+  const requiredWethRaw = feeConsideration.reduce(
+    (total, item) => total + BigInt(asString(item.startAmount) ?? "0"),
+    BigInt(totalRaw),
+  ).toString();
   const parameters = {
     offerer: input.offerer,
     zone: normalizeAddress(parametersFromBuild?.zone) ?? OPENSEA_SIGNED_ZONE_V2,
@@ -567,6 +571,7 @@ function buildCollectionOfferTypedData(input: {
   return {
     parameters,
     totalRaw,
+    requiredWethRaw,
     typedData: {
       domain: {
         name: "Seaport",
@@ -923,8 +928,9 @@ export async function handleCollectionOfferPrepare(context: Parameters<PagesFunc
       parameters: order.parameters,
       typedData: order.typedData,
       chainIdHex: BASE_CHAIN_ID_HEX,
-      wethApproval: { tokenAddress: BASE_WETH, spender: OPENSEA_CONDUIT_ADDRESS, amount: order.totalRaw },
+      wethApproval: { tokenAddress: BASE_WETH, spender: OPENSEA_CONDUIT_ADDRESS, amount: order.requiredWethRaw },
       totalRaw: order.totalRaw,
+      requiredWethRaw: order.requiredWethRaw,
     });
   } catch (error) {
     const detail = error instanceof Error ? error.message : "unknown upstream error";
@@ -1115,7 +1121,7 @@ export async function handleTraitOfferPrepare(context: Parameters<PagesFunction<
       traitBuildCache.set(buildCacheKey, { expiresAt: Date.now() + 10 * 60 * 1000, built });
     }
     const order = buildCollectionOfferTypedData({ offerer: wallet, unitPriceRaw: normalizedPriceRaw, quantity, durationSeconds: asNumber(body.durationSeconds) ?? MAX_OPENSEA_ORDER_DURATION_SECONDS, counter, fees, built });
-    return jsonSecure({ status: "ready", actionId: asString(body.actionId) ?? crypto.randomUUID(), attribute: attribute.id, traitType: attribute.traitType, traitValue: level, criteria, protocolAddress: DEFAULT_SEAPORT_PROTOCOL, parameters: order.parameters, typedData: order.typedData, chainIdHex: BASE_CHAIN_ID_HEX, wethApproval: { tokenAddress: BASE_WETH, spender: OPENSEA_CONDUIT_ADDRESS, amount: order.totalRaw }, totalRaw: order.totalRaw });
+    return jsonSecure({ status: "ready", actionId: asString(body.actionId) ?? crypto.randomUUID(), attribute: attribute.id, traitType: attribute.traitType, traitValue: level, criteria, protocolAddress: DEFAULT_SEAPORT_PROTOCOL, parameters: order.parameters, typedData: order.typedData, chainIdHex: BASE_CHAIN_ID_HEX, wethApproval: { tokenAddress: BASE_WETH, spender: OPENSEA_CONDUIT_ADDRESS, amount: order.requiredWethRaw }, totalRaw: order.totalRaw, requiredWethRaw: order.requiredWethRaw });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Could not prepare trait offer";
     const status = message.startsWith("OpenSea ") ? 424 : 502;
@@ -1283,7 +1289,14 @@ export async function handleItemOffersGet(context: Parameters<PagesFunction<Coll
   const scopeIsYours = scope === "your" && Boolean(wallet);
   const scopeIsForYou = scope === "for_you";
   const scopeIsFavourites = scope === "favourites";
-  const ownerConditions = [wallet ? "lower(m.owner_wallet) = ?" : null, fid ? "m.owner_fid = ?" : null].filter(Boolean);
+  // A connected transaction wallet is authoritative for marketplace-owned
+  // state. FID remains a Mini App bootstrap fallback only when no wallet was
+  // supplied, and must never expand a different connected wallet's inventory.
+  const ownerConditions = wallet
+    ? ["lower(m.owner_wallet) = ?"]
+    : fid
+      ? ["m.owner_fid = ?"]
+      : [];
   const forYouClause = scopeIsForYou
     ? ownerConditions.length > 0
       ? ` AND EXISTS (SELECT 1 FROM warplet_market_state m WHERE m.token_id = o.token_id AND (${ownerConditions.join(" OR ")}))
@@ -1309,7 +1322,7 @@ export async function handleItemOffersGet(context: Parameters<PagesFunction<Coll
     ...baseBindings,
     ...(scopeIsYours ? [wallet!] : []),
     ...(scopeIsForYou && wallet ? [wallet] : []),
-    ...(scopeIsForYou && fid ? [fid] : []),
+    ...(scopeIsForYou && !wallet && fid ? [fid] : []),
     ...(scopeIsFavourites && wallet ? [wallet] : []),
   ];
   const aggregate = await context.env.WARPLETS.prepare(

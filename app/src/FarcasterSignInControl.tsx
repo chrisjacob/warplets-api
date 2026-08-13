@@ -4,6 +4,7 @@ import "@farcaster/auth-kit/styles.css";
 import { type StatusAPIResponse } from "@farcaster/auth-client";
 import { loadAppSession, verifyFarcasterSiwf } from "./appSession";
 import { clearPendingFarcasterSignIn, readPendingFarcasterSignIn, writePendingFarcasterSignIn } from "./farcasterSignInPersistence";
+import { currentWalletBrowserSignals, resolveFarcasterMobileHandoffUrl } from "./farcasterHandoff";
 
 export interface FarcasterWebIdentity {
   fid: number;
@@ -49,15 +50,6 @@ function currentSignInUri(): string {
   const uri = new URL(window.location.href);
   uri.hash = "";
   return uri.href;
-}
-
-function farcasterMobileDeepLink(relayUrl: string): string {
-  const url = new URL(relayUrl);
-  // Match Farcaster's current same-device handoff: its HTTPS SIWF page turns
-  // `/~/siwf/?channelToken=...` into `farcaster://~/siwf/?channelToken=...`.
-  // Generic `/login-mobile` is a different, cross-device login flow.
-  const path = url.pathname.startsWith("/") ? url.pathname.slice(1) : url.pathname;
-  return `farcaster://${path}${url.search}`;
 }
 
 async function requestNonce(): Promise<FarcasterChallenge> {
@@ -216,10 +208,9 @@ function FarcasterSignInControl({
       };
       setPreparedMobileChannel({
         ...prepared,
-        // The relay's HTTPS URL is useful for QR codes and ordinary browsers,
-        // but Base's iOS WebView opens it as a webpage. Use the protocol URI
-        // specified by SIWF so iOS hands this channel to the Farcaster app.
-        url: farcasterMobileDeepLink(created.url),
+        // Base needs the direct Farcaster scheme while Trust Wallet rejects
+        // custom Farcaster URLs and must follow the relay's HTTPS handoff.
+        url: resolveFarcasterMobileHandoffUrl(created.url, currentWalletBrowserSignals()),
       });
       updateDebug({ phase: "ready", lastEvent: "Mobile relay channel prepared", relayState: "not checked" });
     }).catch((error) => {

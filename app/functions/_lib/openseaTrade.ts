@@ -1114,12 +1114,27 @@ export async function handleCancelOrder(context: Parameters<PagesFunction<OpenSe
   const orderHash = asString(body.orderHash);
   const protocolAddress = asString(body.protocolAddress);
   if (!orderHash || !protocolAddress) return tradeJson({ error: "missing_order" }, { status: 400 });
+  // The client has already confirmed Seaport.cancel onchain before calling this
+  // endpoint. OpenSea may reject its legacy cancel endpoint at that point because
+  // the order is already cancelled, or because no separate offerer signature is
+  // present. Treat this as best-effort cache synchronization rather than allowing
+  // it to turn a successful onchain cancellation into a false UI failure.
   const apiKey = requireOpenSeaApiKey(context.env);
-  const result = await openSeaPost(
-    apiKey,
-    `/orders/chain/${BASE_CHAIN}/protocol/${encodeURIComponent(protocolAddress)}/${encodeURIComponent(orderHash)}/cancel`,
-    { offererSignature: asString(body.offererSignature) ?? "" },
-  );
+  let openSeaSync: "submitted" | "skipped" = "submitted";
+  let result: unknown = null;
+  try {
+    result = await openSeaPost(
+      apiKey,
+      `/orders/chain/${BASE_CHAIN}/protocol/${encodeURIComponent(protocolAddress)}/${encodeURIComponent(orderHash)}/cancel`,
+      { offererSignature: asString(body.offererSignature) ?? "" },
+    );
+  } catch (error) {
+    openSeaSync = "skipped";
+    console.warn("OpenSea cancel sync was rejected after onchain cancellation", {
+      orderHash,
+      message: error instanceof Error ? error.message : String(error),
+    });
+  }
   await logTradeAction(context.env, {
     actionId: asString(body.actionId) ?? crypto.randomUUID(),
     actionName,
@@ -1135,7 +1150,7 @@ export async function handleCancelOrder(context: Parameters<PagesFunction<OpenSe
       console.error("Failed to deactivate canceled offer", error),
     );
   }
-  return tradeJson({ status: "submitted", result });
+  return tradeJson({ status: "submitted", openSeaSync, result });
 }
 
 export async function handleCancelPrepare(context: Parameters<PagesFunction<OpenSeaTradeEnv>>[0], actionName: "cancel_offer" | "cancel_listing"): Promise<Response> {

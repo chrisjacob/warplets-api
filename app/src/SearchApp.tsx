@@ -43,6 +43,8 @@ import { loadAppSession, verifyFarcasterQuickAuth, logoutAppPrincipal } from "./
 import { resolveAppSurface } from "./appRuntime";
 import { trackAppEvent } from "./analytics";
 import { PwaControls } from "./PwaControls";
+import { LocalOfferDiagnosticsPanel } from "./LocalOfferDiagnosticsPanel";
+import { recordLocalOfferDiagnostic } from "./localOfferDiagnostics";
 import { resolveEntryPoint, isLikelyBaseAppBrowser, isStandaloneDisplay } from "./pwa";
 import {
   composeFarcasterPost,
@@ -3486,7 +3488,7 @@ function SearchHeaderAccountControl({
             {identityConnected
               ? <span className="search-header-account-menu__avatar-frame"><img src={identityAvatarUrl ?? getWarpletPreviewImageUrl(HEADER_FALLBACK_AVATAR_TOKEN_ID)} alt="" /></span>
               : <span className="search-header-account-menu__avatar-frame"><img src="/farcaster.webp" alt="" /></span>}
-            <span>{identityConnected ? identityLabel : "Connect identity"}</span>
+            <span>{identityConnected ? identityLabel : "Connect social"}</span>
           </button>
           <button type="button" role="menuitem" onClick={() => runMenuAction(onViewOnboarding)}>
             View onboarding
@@ -7692,7 +7694,7 @@ function CollectionOffersPage({
     collectionSubmitTimersRef.current = [];
   }, []);
 
-  const beginOpenSeaSubmitLabels = useCallback(() => {
+  const beginOpenSeaSubmitLabels = useCallback((showCollectionOfferCountdown = false) => {
     clearCollectionSubmitTimers();
     const labels = [
       "Submitting to OpenSea...",
@@ -7707,11 +7709,27 @@ function CollectionOffersPage({
     ];
     let labelIndex = 0;
     setCollectionBusyLabel(labels[labelIndex]);
-    collectionSubmitTimersRef.current = [window.setInterval(() => {
+    const timers = [window.setInterval(() => {
       labelIndex = (labelIndex + 1) % labels.length;
       setCollectionBusyLabel(labels[labelIndex]);
     }, 10000)];
-  }, [clearCollectionSubmitTimers]);
+    if (showCollectionOfferCountdown) {
+      let remainingSeconds = 120;
+      const showCountdown = () => showToast(
+        "neutral",
+        `OpenSea Collection Offers can take ~2 minutes, please wait... ${remainingSeconds}`,
+        { manualClose: true },
+      );
+      showCountdown();
+      const countdownTimer = window.setInterval(() => {
+        remainingSeconds = Math.max(0, remainingSeconds - 1);
+        showCountdown();
+        if (remainingSeconds === 0) window.clearInterval(countdownTimer);
+      }, 1000);
+      timers.push(countdownTimer);
+    }
+    collectionSubmitTimersRef.current = timers;
+  }, [clearCollectionSubmitTimers, showToast]);
 
   useEffect(() => clearCollectionSubmitTimers, [clearCollectionSubmitTimers]);
 
@@ -7845,7 +7863,7 @@ function CollectionOffersPage({
       setCollectionBusyLabel("Waiting for wallet...");
       showToast("neutral", "Check your wallet to confirm the collection offer...", { minMs: 5000 });
       const signature = await signTypedData(provider, account, prepared.typedData);
-      beginOpenSeaSubmitLabels();
+      beginOpenSeaSubmitLabels(true);
       const submit = await fetch("/api/collection-offers/submit", {
         method: "POST",
         headers: { "content-type": "application/json", accept: "application/json" },
@@ -8510,13 +8528,34 @@ function TraitOffersPage({
     setBusy("offer");
     setBusyLabel("Preparing...");
     let submitted = 0;
+    const attemptId = crypto.randomUUID();
+    recordLocalOfferDiagnostic("trait_offer.started", {
+      attemptId,
+      attributes: attributeIds,
+      level: `${level}X`,
+      quantity: clampedQuantity,
+      priceRaw,
+      viewerFid,
+    });
     try {
       void hapticPrimaryTap();
       const { provider, account } = await getProviderAndAccount();
-      const prepared: Array<{ actionId: string; attribute: string; parameters?: unknown; typedData?: unknown; protocolAddress?: string; chainIdHex?: string; wethApproval?: TokenApprovalRequirement; totalRaw?: string; message?: string }> = [];
+      const initialChainId = await provider.request({ method: "eth_chainId" }).catch((error) => {
+        recordLocalOfferDiagnostic("trait_offer.chain_read_failed", { attemptId, error });
+        return null;
+      });
+      recordLocalOfferDiagnostic("trait_offer.wallet_ready", {
+        attemptId,
+        connector: provider.connectorId ?? (provider.isBaseAccount ? "base-account" : "unknown"),
+        isBaseAccount: Boolean(provider.isBaseAccount),
+        account,
+        chainId: initialChainId,
+      });
+      const prepared: Array<{ actionId: string; attribute: string; parameters?: unknown; typedData?: unknown; protocolAddress?: string; chainIdHex?: string; wethApproval?: TokenApprovalRequirement; totalRaw?: string; requiredWethRaw?: string; message?: string }> = [];
       for (const [attributeIndex, attribute] of attributeIds.entries()) {
         setBusyLabel(`Preparing ${attributeIndex + 1} of ${attributeIds.length}...`);
         const actionId = crypto.randomUUID();
+        recordLocalOfferDiagnostic("trait_offer.prepare_started", { attemptId, actionId, attribute, index: attributeIndex + 1, total: attributeIds.length });
         const requestBody = JSON.stringify({ actionId, fid: viewerFid, wallet: account, priceRaw, quantity: clampedQuantity, durationSeconds: DEFAULT_TRADE_DURATION_SECONDS, attribute, level: `${level}X` });
         let response: Response | null = null;
         let responseText = "";
@@ -8541,8 +8580,24 @@ function TraitOffersPage({
           }
         }
         if (!response) throw transportError instanceof Error ? transportError : new Error(`Could not prepare ${attribute} trait offer`);
-        let item: { actionId?: string; attribute?: string; parameters?: unknown; typedData?: unknown; protocolAddress?: string; chainIdHex?: string; wethApproval?: TokenApprovalRequirement; totalRaw?: string; message?: string } = {};
+        let item: { actionId?: string; attribute?: string; parameters?: unknown; typedData?: unknown; protocolAddress?: string; chainIdHex?: string; wethApproval?: TokenApprovalRequirement; totalRaw?: string; requiredWethRaw?: string; message?: string } = {};
         try { item = JSON.parse(responseText) as typeof item; } catch { /* Preserve the HTTP response below. */ }
+        recordLocalOfferDiagnostic("trait_offer.prepare_received", {
+          attemptId,
+          actionId,
+          attribute,
+          status: response.status,
+          ok: response.ok,
+          hasParameters: Boolean(item.parameters),
+          hasTypedData: Boolean(item.typedData),
+          protocolAddress: item.protocolAddress ?? null,
+          chainIdHex: item.chainIdHex ?? null,
+          totalRaw: item.totalRaw ?? null,
+          requiredWethRaw: item.requiredWethRaw ?? null,
+          wethApproval: item.wethApproval ?? null,
+          message: item.message ?? null,
+          responsePreview: response.ok ? null : responseText.slice(0, 500),
+        });
         if (!response.ok || !item.parameters || !item.typedData || !item.protocolAddress || !item.attribute || !item.wethApproval) {
           const httpError = responseText && !responseText.trimStart().startsWith("<") ? responseText.slice(0, 500) : "";
           throw new Error(item.message || httpError || `Could not prepare ${attribute} trait offer (${response.status})`);
@@ -8553,26 +8608,42 @@ function TraitOffersPage({
         }
       }
       await ensureBaseChain(provider, prepared[0]?.chainIdHex);
-      const aggregateRaw = prepared.reduce((total, item) => total + BigInt(item.totalRaw ?? "0"), 0n);
+      const aggregateRaw = prepared.reduce(
+        (total, item) => total + BigInt(item.requiredWethRaw ?? item.wethApproval?.amount ?? item.totalRaw ?? "0"),
+        0n,
+      );
       const wethToken = prepared[0].wethApproval!.tokenAddress;
       const currentWeth = await readErc20Balance(wethToken, account);
+      const nativeBalance = await readNativeBalance(account);
+      recordLocalOfferDiagnostic("trait_offer.funds_checked", {
+        attemptId,
+        account,
+        aggregateRequiredWeth: aggregateRaw.toString(),
+        currentWeth: currentWeth.toString(),
+        nativeBalance: nativeBalance.toString(),
+        wrapRequired: currentWeth < aggregateRaw,
+      });
       if (currentWeth < aggregateRaw) {
         const missing = aggregateRaw - currentWeth;
-        const native = await readNativeBalance(account);
-        if (native <= missing) throw new Error(`Offers require ${formatWeiTokenAmount(aggregateRaw, "WETH")}.`);
+        if (nativeBalance <= missing) throw new Error(`Offers require ${formatWeiTokenAmount(aggregateRaw, "WETH")}.`);
         setBusyLabel("Waiting for wallet...");
+        recordLocalOfferDiagnostic("trait_offer.wrap_requested", { attemptId, missing: missing.toString(), wethToken });
         await wrapEthToWeth(provider, account, wethToken, missing);
+        recordLocalOfferDiagnostic("trait_offer.wrap_complete", { attemptId, missing: missing.toString() });
       }
       await ensureErc20Approval(provider, account, { ...prepared[0].wethApproval!, amount: aggregateRaw.toString() });
       for (const item of prepared) {
         try {
           setBusyLabel(`Signing ${submitted + 1} of ${prepared.length}...`);
+          recordLocalOfferDiagnostic("trait_offer.signing_started", { attemptId, actionId: item.actionId, attribute: item.attribute, index: submitted + 1, total: prepared.length });
           const signature = await signTypedData(provider, account, item.typedData);
+          recordLocalOfferDiagnostic("trait_offer.signing_complete", { attemptId, actionId: item.actionId, attribute: item.attribute, signatureLength: signature.length });
           setBusyLabel(`Submitting ${submitted + 1} of ${prepared.length}...`);
           const response = await fetch("/api/trait-offers/submit", {
             method: "POST", headers: { "content-type": "application/json", accept: "application/json" },
             body: JSON.stringify({ actionId: item.actionId, fid: viewerFid, wallet: account, priceRaw, quantity: clampedQuantity, attribute: item.attribute, level: `${level}X`, payload: { parameters: item.parameters, protocol_address: item.protocolAddress, signature } }),
           });
+          recordLocalOfferDiagnostic("trait_offer.submit_received", { attemptId, actionId: item.actionId, attribute: item.attribute, status: response.status, ok: response.ok });
           if (!response.ok) {
             const failure = await response.json().catch(() => ({})) as { message?: string };
             throw new Error(failure.message || `Trait offer submission failed (${response.status})`);
@@ -8605,6 +8676,7 @@ function TraitOffersPage({
         onMarketChanged(),
       ]);
     } catch (error) {
+      recordLocalOfferDiagnostic("trait_offer.failed", { attemptId, submitted, error });
       void hapticError();
       showToast("error", error instanceof Error ? error.message : "Trait offer failed.", { manualClose: true });
     } finally {
@@ -8677,6 +8749,7 @@ function TraitOffersPage({
         {loading ? <div className="px-3 py-6 text-center text-sm font-bold text-[#8bbf8b]">Loading offers...</div> : rows.length === 0 ? <div className="px-3 py-6 text-center text-sm font-bold text-[#8bbf8b]">No trait offers.</div> : rows.map((group) => <div key={`${group.traitType}|${group.traitValue}|${group.price.rawAmount ?? group.price.eth}`} className="grid grid-cols-[1fr_1fr_56px_72px_72px] items-center gap-1 border-t border-[#00FF00]/15 px-2 py-2 text-center text-xs"><OfferPriceTooltipButton price={group.price} ethUsdPrice={ethUsdPrice} onClick={() => { setPriceFromMarket(group.price); formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }); }}/><span className="flex justify-center"><InlineHoverTooltip value={formatMarketValue(group.volume, { maxDigits: 5 })} tooltip={formatUsdMoneyFromMarket(group.volume, ethUsdPrice)} className="text-[#00FF00]"/></span><span className="flex justify-center"><InlineHoverTooltip value={`${emojiForTrait(group.traitType)} ${group.offerCount}`} tooltip={`${group.traitType}: ${group.traitValue}`} className="font-bold text-[#8bbf8b]"/></span><button type="button" onClick={() => setBiddersGroup(group)} className="flex cursor-pointer justify-center -space-x-2">{group.previewBidders.slice(0, 5).map((bidder) => <img key={bidder.wallet} src={bidder.pfpUrl || getWalletIdenticonDataUrl(bidder.wallet)} alt="" className="h-7 w-7 rounded-full border-2 border-[#00FF00] object-cover"/>)}</button><button type="button" disabled={busy !== null} onClick={() => { if (group.userOfferCount > 0) { setCancelGroup(group); setCancelRequestedQuantity(group.userOfferCount); setCancelQuantity(snapCollectionOfferCancelQuantity(group.userOrders, group.userOfferCount)); } else { const attribute = LEVEL_ATTRIBUTES.find((item) => `${item.label} Level`.toLowerCase() === group.traitType.toLowerCase()); setPriceFromMarket(group.price); if (attribute) setSelectedAttributes([attribute.column]); formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }); } }} className={`cursor-pointer justify-self-center rounded-md border px-2 py-1.5 text-xs font-bold disabled:cursor-wait ${group.userOfferCount > 0 ? "border-[#FF5555]/55 text-[#FF7777]" : "border-[#33AAFF]/55 text-[#33AAFF]"}`}>{group.userOfferCount > 0 ? "Cancel" : "Offer"}</button></div>)}
       </div>
       <div className="mt-3 text-center text-[11px] text-[#8bbf8b]">Last updated: {payload?.generatedAt ? formatMarketTimestamp(payload.generatedAt) : "Not yet"}. <button type="button" disabled={refreshing || busy !== null} onClick={() => void loadOffers({ refresh: true })} className="font-bold text-[#00FF00]">{refreshing ? "Refreshing..." : "Refresh"}</button>{payload?.refreshError && <span className="block text-red-300">{payload.refreshError}</span>}</div>
+      <LocalOfferDiagnosticsPanel />
       {cancelGroup && <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/80 p-4 sm:items-center"><div className="w-full max-w-sm rounded-xl border border-[#FF5555]/45 bg-black p-4"><Text className="text-base font-bold text-[#FF7777]">Cancel trait offers</Text><p className="mt-2 text-sm font-bold text-[#d9b0b0]">Cancel up to {cancelGroup.userOfferCount} {emojiForTrait(cancelGroup.traitType)} {cancelGroup.traitValue} trait offers at {formatMarketValue(cancelGroup.price, { maxDigits: 8 })}.</p><div className="mt-3 flex items-center rounded-lg border-2 border-[#FF5555]/35 bg-black/60 px-2 py-1.5"><button type="button" onClick={() => { const next = stepCollectionOfferCancelQuantity(cancelTotals, cancelQuantity, -1); setCancelRequestedQuantity(next); setCancelQuantity(next); }} className="h-8 w-8 text-lg font-bold text-[#FF7777]">-</button><input type="number" min={1} max={cancelGroup.userOfferCount} value={cancelRequestedQuantity} onChange={(event) => { const requested = Math.min(cancelGroup.userOfferCount, Math.max(1, Number(event.target.value) || 1)); setCancelRequestedQuantity(requested); setCancelQuantity(snapCollectionOfferCancelQuantity(cancelGroup.userOrders, requested)); }} className="mx-2 min-w-0 flex-1 appearance-none bg-transparent text-center font-bold text-[#FF7777] outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"/><button type="button" onClick={() => { const next = stepCollectionOfferCancelQuantity(cancelTotals, cancelQuantity, 1); setCancelRequestedQuantity(next); setCancelQuantity(next); }} className="h-8 w-8 text-lg font-bold text-[#FF7777]">+</button></div>{actualCancelQuantity > cancelRequestedQuantity && <p className="mt-2 text-xs font-bold text-[#ffd599]">This cancels {actualCancelQuantity} offers across {selectedCancelOrders.length} OpenSea orders.</p>}<button type="button" disabled={busy !== null} onClick={() => void runCancel()} className="mt-4 w-full cursor-pointer rounded-[20px] border border-[#a83232] bg-[#FF5555] px-5 py-3 text-base font-bold text-[#2c0000] shadow-[3px_6px_0_#8a2222] transition-all duration-100 hover:bg-[#ff7777] active:translate-x-[1px] active:translate-y-[3px] active:shadow-[1px_3px_0_#8a2222] disabled:cursor-wait disabled:opacity-70">{busy === "cancel" ? "Working..." : "Review cancellation"}</button><button type="button" onClick={() => setCancelGroup(null)} className="mx-auto mt-2 block px-4 py-2 text-xs font-bold text-[#FF7777] underline">Keep offers</button></div></div>}
       {biddersGroup && (
         <CollectionBiddersModal
@@ -8776,7 +8849,10 @@ function ItemOffersPage({
     try {
       const params = new URLSearchParams();
       if (normalizedWallet) params.set("wallet", normalizedWallet);
-      if (viewerFid != null) params.set("fid", String(viewerFid));
+      // Marketplace ownership and "your" scopes follow the transaction
+      // signer. FID is only a fallback while the embedded Mini App wallet is
+      // being restored; it must not broaden a connected web wallet's assets.
+      if (!normalizedWallet && isInMiniAppContext && viewerFid != null) params.set("fid", String(viewerFid));
       if (scope !== "all") params.set("scope", scope);
       if (selectedTokenId != null) params.set("tokenId", String(selectedTokenId));
       params.set("page", String(page));
@@ -8833,7 +8909,7 @@ function ItemOffersPage({
     } finally {
       if (loadRequestRef.current === requestId && !options.silent) { setLoading(false); setRefreshing(false); }
     }
-  }, [favouriteTokenIds, normalizedWallet, page, scope, selectedTokenId, showToast, viewerFid]);
+  }, [favouriteTokenIds, isInMiniAppContext, normalizedWallet, page, scope, selectedTokenId, showToast, viewerFid]);
   useEffect(() => {
     void loadOffers();
   }, [loadOffers]);
@@ -8933,13 +9009,22 @@ function ItemOffersPage({
     const normalizedPriceRaw = decimalEthToWeiString(price);
     if (!selectedTokenId || !normalizedPriceRaw || BigInt(normalizedPriceRaw) <= 0n) return;
     const actionId = crypto.randomUUID();
+    recordLocalOfferDiagnostic("item_offer.started", { actionId, tokenId: selectedTokenId, priceRaw: normalizedPriceRaw, viewerFid });
     setBusy("offer");
     setBusyLabel("Preparing...");
     try {
       void hapticPrimaryTap();
       const { provider, account } = await getProviderAndAccount();
+      recordLocalOfferDiagnostic("item_offer.wallet_ready", {
+        actionId,
+        connector: provider.connectorId ?? (provider.isBaseAccount ? "base-account" : "unknown"),
+        isBaseAccount: Boolean(provider.isBaseAccount),
+        account,
+        chainId: await provider.request({ method: "eth_chainId" }).catch(() => null),
+      });
       const prepare = await fetch("/api/warplet-trade/offer/prepare", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ actionId, fid: viewerFid, tokenId: selectedTokenId, wallet: account, priceRaw: normalizedPriceRaw, durationSeconds: DEFAULT_TRADE_DURATION_SECONDS }) });
       const data = await prepare.json().catch(() => ({})) as { protocol?: string; protocolAddress?: string; parameters?: unknown; typedData?: unknown; chainIdHex?: string; wethApproval?: TokenApprovalRequirement; message?: string };
+      recordLocalOfferDiagnostic("item_offer.prepare_received", { actionId, status: prepare.status, ok: prepare.ok, protocol: data.protocol, protocolAddress: data.protocolAddress, chainIdHex: data.chainIdHex, wethApproval: data.wethApproval, message: data.message });
       if (!prepare.ok) throw new Error(data.message || `Offer prepare failed (${prepare.status})`);
       if (data.wethApproval) {
         await ensureBaseChain(provider, data.chainIdHex);
@@ -8957,15 +9042,18 @@ function ItemOffersPage({
       if (!data.typedData || !data.parameters || !data.protocolAddress) throw new Error("OpenSea did not return item offer signature data");
       setBusyLabel("Waiting for wallet...");
       const signature = await signTypedData(provider, account, data.typedData);
+      recordLocalOfferDiagnostic("item_offer.signing_complete", { actionId, signatureLength: signature.length });
       setBusyLabel("Submitting to OpenSea...");
       const submit = await fetch("/api/warplet-trade/offer/submit", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ actionId, fid: viewerFid, tokenId: selectedTokenId, wallet: account, priceRaw: normalizedPriceRaw, protocol: data.protocol ?? "seaport", payload: { parameters: data.parameters, protocol_address: data.protocolAddress, signature } }) });
       const submittedOffer = await submit.json().catch(() => ({})) as { orderHash?: string | null; message?: string };
+      recordLocalOfferDiagnostic("item_offer.submit_received", { actionId, status: submit.status, ok: submit.ok, orderHash: submittedOffer.orderHash, message: submittedOffer.message });
       if (!submit.ok) throw new Error(submittedOffer.message || `Offer submit failed (${submit.status})`);
       applyOptimisticItemOffer(submittedOffer.orderHash || `pending:${actionId}`, selectedTokenId, account, data.protocolAddress, normalizedPriceRaw);
       void hapticSuccess(); showTradeConfetti(); showToast("success", "Item offer successfully made", { minMs: 5000 });
       onShareTrade({ tokenId: selectedTokenId, action: "offer", amountEth: parseTradeAmount(price) });
       window.setTimeout(() => { void loadOffers({ refresh: true, silent: true }); }, 750);
     } catch (error) {
+      recordLocalOfferDiagnostic("item_offer.failed", { actionId, error });
       void hapticError(); showToast("error", error instanceof Error ? error.message : "Item offer failed.", { manualClose: true });
     } finally { setBusy(null); setBusyLabel(null); }
   }, [applyOptimisticItemOffer, getProviderAndAccount, loadOffers, onShareTrade, price, selectedTokenId, showToast, viewerFid]);
@@ -8982,7 +9070,10 @@ function ItemOffersPage({
       await ensureBaseChain(provider, data.chainIdHex);
       await sendPreparedTransaction(provider, account, buildSeaportCancelTransaction(data.protocolAddress, [data.orderParameters]));
       const submit = await fetch("/api/warplet-trade/offer/cancel", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ actionId, fid: viewerFid, tokenId: row.tokenId, wallet: account, orderHash: row.orderHash, protocolAddress: data.protocolAddress }) });
-      if (!submit.ok) throw new Error("Item offer cancellation failed");
+      if (!submit.ok) {
+        const failure = await submit.json().catch(() => ({})) as { message?: string };
+        throw new Error(failure.message || `Item offer cancellation sync failed (${submit.status})`);
+      }
       pendingItemOffersRef.current.delete(row.orderHash);
       setPayload((current) => current ? { ...current, rows: current.rows.filter((offer) => offer.orderHash !== row.orderHash) } : current);
       void hapticSuccess(); showTradeConfetti(); showToast("success", "Item offer successfully canceled", { minMs: 5000 });
@@ -9125,6 +9216,7 @@ function ItemOffersPage({
     <div className="mt-4 overflow-hidden rounded-lg border border-[#00FF00]/25"><div className="grid grid-cols-5 items-center gap-1 bg-[#041204] px-2 py-2 text-center text-[10px] font-bold uppercase text-[#8bbf8b]"><span>Price</span><span>Warplet</span><span>NFT</span><span>Bidder</span><span>Action</span></div>{loading && busy !== "accept" ? <div className="px-3 py-6 text-center text-sm font-bold text-[#8bbf8b]">Loading offers...</div> : rows.length === 0 ? <div className="px-3 py-6 text-center text-sm font-bold text-[#8bbf8b]">{scope === "your" ? "You've made no item offers." : scope === "favourites" ? "No item offers for your favourites." : scope === "for_you" ? "No offers for your Warplets." : "No item offers."}</div> : rows.map((row) => <div key={row.orderHash} className="grid grid-cols-5 items-center gap-1 border-t border-[#00FF00]/15 px-2 py-2 text-center text-xs"><OfferPriceTooltipButton price={row.price} ethUsdPrice={ethUsdPrice} onClick={() => setPriceFromMarket(row.price)}/><button type="button" onClick={() => selectWarplet(row.tokenId)} className="cursor-pointer font-bold text-[#00FF00]">#{row.tokenId}</button><button type="button" onClick={() => onOpenWarpletDetails(row.tokenId)} className="mx-auto h-9 w-9 cursor-pointer overflow-hidden rounded-[3px] border-2 border-[#00FF00]"><img src={getWarpletPreviewImageUrl(row.tokenId)} alt={`Warplet #${row.tokenId}`} className="h-full w-full object-cover" loading="lazy"/></button><button type="button" disabled={!row.bidder} onClick={() => setBidderRow(row)} className="mx-auto cursor-pointer disabled:cursor-default">{row.bidder && <img src={row.bidder.pfpUrl || getWalletIdenticonDataUrl(row.bidder.wallet)} alt="" className="h-7 w-7 rounded-full border-2 border-[#00FF00] object-cover"/>}</button>{scope === "for_you" ? <button type="button" disabled={busy !== null} onClick={() => void runAcceptOffer(row)} className="cursor-pointer rounded-md border border-[#b3b300] px-2 py-1.5 text-xs font-bold text-[#FFFF00] disabled:cursor-wait disabled:opacity-60">Accept</button> : <button type="button" disabled={busy !== null} onClick={() => row.isUserOffer ? void runCancelOffer(row) : (selectWarplet(row.tokenId), setPriceFromMarket(row.price), formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }))} className={`cursor-pointer rounded-md border px-2 py-1.5 text-xs font-bold disabled:cursor-wait ${row.isUserOffer ? "border-[#FF5555]/55 text-[#FF7777]" : "border-[#33AAFF]/55 text-[#33AAFF]"}`}>{row.isUserOffer ? "Cancel" : "Offer"}</button>}</div>)}</div>
     {(payload?.pagination.totalPages ?? 1) > 1 && <div className="mt-3 flex items-center justify-center gap-3 text-xs font-bold text-[#8bbf8b]"><button type="button" disabled={loading || !payload?.pagination.hasPrevious} onClick={() => setPage((current) => Math.max(0, current - 1))} className="cursor-pointer rounded-md border border-[#00FF00]/40 px-3 py-1.5 text-[#00FF00] disabled:cursor-not-allowed disabled:opacity-40">Previous</button><span>Page {(payload?.pagination.page ?? 0) + 1} of {payload?.pagination.totalPages ?? 1}</span><button type="button" disabled={loading || !payload?.pagination.hasNext} onClick={() => setPage((current) => current + 1)} className="cursor-pointer rounded-md border border-[#00FF00]/40 px-3 py-1.5 text-[#00FF00] disabled:cursor-not-allowed disabled:opacity-40">Next</button></div>}
     <div className="mt-3 text-center text-[11px] text-[#8bbf8b]">Last updated: {payload?.generatedAt ? formatMarketTimestamp(payload.generatedAt) : "Not yet"}. <button type="button" disabled={refreshing || busy !== null} onClick={() => void loadOffers({ refresh: true })} className="cursor-pointer font-bold text-[#00FF00] disabled:cursor-wait">{refreshing ? "Refreshing..." : "Refresh"}</button>{payload?.refreshError && <span className="block text-red-300">{payload.refreshError}</span>}</div>
+    <LocalOfferDiagnosticsPanel />
     {bidderGroup && bidderRow && <CollectionBiddersModal group={bidderGroup} isInMiniAppContext={isInMiniAppContext} titleOverride={`#${bidderRow.tokenId} Item bidder`} onClose={() => setBidderRow(null)}/>}
   </div>;
 }
@@ -12782,11 +12874,7 @@ function WarpletDetailsModal({
   const listingSellerWallet = rawEffectiveListing?.seller?.toLowerCase() ?? "";
   const listingBelongsToOwner = Boolean(!ownerWallet || !listingSellerWallet || listingSellerWallet === ownerWallet);
   const effectiveListing = listingBelongsToOwner ? rawEffectiveListing : null;
-  const isViewerOwnerByFid = Boolean(viewerFid != null && effectiveOwner?.fid === viewerFid);
-  const isOwner = Boolean(
-    (normalizedActiveWallet && ownerWallet && normalizedActiveWallet === ownerWallet) ||
-    (!normalizedActiveWallet && isViewerOwnerByFid)
-  );
+  const isOwner = Boolean(normalizedActiveWallet && ownerWallet && normalizedActiveWallet === ownerWallet);
   const hasListing = hasMarketValue(effectiveListing ?? undefined);
   const topOffererWallet = effectiveTopOffer?.offerer?.toLowerCase() ?? "";
   const topOfferIsOwnerCriteriaOffer = Boolean(
@@ -15757,21 +15845,21 @@ export default function SearchApp() {
   useEffect(() => {
     if (searchRoute.page !== "listed") return;
     let cancelled = false;
+    // Never leave the previous signer’s inventory visible while a newly
+    // connected wallet is being resolved.
+    setListedOwnedTokenIds([]);
     const loadListedOwnership = async () => {
       try {
-        let tokenIds = viewerFid
-          ? await loadMarketOwnership({ fid: viewerFid })
+        const tokenIds = activeWallet
+          ? await loadMarketOwnership({ wallet: activeWallet })
           : [];
-        if (tokenIds.length === 0 && activeWallet) {
-          tokenIds = await loadMarketOwnership({ wallet: activeWallet });
-        }
         if (!cancelled) setListedOwnedTokenIds(tokenIds);
       } catch (error) {
         console.error("Failed to load Listed user ownership:", error);
         if (!cancelled) setListedOwnedTokenIds([]);
       }
     };
-    if (viewerFid || activeWallet) {
+    if (activeWallet) {
       void loadListedOwnership();
     } else {
       setListedOwnedTokenIds([]);
@@ -15779,7 +15867,7 @@ export default function SearchApp() {
     return () => {
       cancelled = true;
     };
-  }, [activeWallet, loadMarketOwnership, searchRoute.page, viewerFid]);
+  }, [activeWallet, loadMarketOwnership, searchRoute.page]);
 
   useEffect(() => {
     if (searchRoute.page === "search" && viewerFid) {
@@ -15828,7 +15916,7 @@ export default function SearchApp() {
 
   useEffect(() => {
     const normalizedWallet = normalizeWalletAddress(activeWallet);
-    if (!dbReady || !dbRef.current || !marketSnapshot || (!normalizedWallet && !viewerFid)) {
+    if (!dbReady || !dbRef.current || !marketSnapshot || !normalizedWallet) {
       setListedOwnedWarplets([]);
       return;
     }
@@ -15836,7 +15924,7 @@ export default function SearchApp() {
     try {
       const ownedIds = new Set(listedOwnedTokenIds);
       for (const [tokenId, owner] of Object.entries(marketSnapshot.owners ?? {})) {
-        if (walletMatches(owner.wallet, normalizedWallet) || (viewerFid != null && owner.fid === viewerFid)) {
+        if (walletMatches(owner.wallet, normalizedWallet)) {
           const parsedTokenId = Number(tokenId);
           if (Number.isInteger(parsedTokenId) && parsedTokenId > 0) ownedIds.add(parsedTokenId);
         }
@@ -15847,7 +15935,7 @@ export default function SearchApp() {
       console.error("Failed to load owned Warplets for Listed page:", error);
       setListedOwnedWarplets([]);
     }
-  }, [activeWallet, dbReady, listedOwnedTokenIds, marketSnapshot, viewerFid]);
+  }, [activeWallet, dbReady, listedOwnedTokenIds, marketSnapshot]);
 
   useEffect(() => {
     const routeNeedsDatabase = searchRoute.page === "search"
@@ -17549,8 +17637,7 @@ export default function SearchApp() {
       delete nextOwners[String(tokenId)];
       ownershipOwnersRef.current.set(key, nextOwners);
     }
-    const buyerIsViewer = (buyerWallet && walletMatches(buyerWallet, activeWallet)) ||
-      (buyerFid != null && buyerFid === viewerFid);
+    const buyerIsViewer = Boolean(buyerWallet && walletMatches(buyerWallet, activeWallet));
     setListedOwnedTokenIds((current) => buyerIsViewer
       ? Array.from(new Set([...current, tokenId])).sort((left, right) => left - right)
       : current.filter((ownedTokenId) => ownedTokenId !== tokenId));
@@ -17604,7 +17691,7 @@ export default function SearchApp() {
       writeCachedMarketSnapshot(next);
       return next;
     });
-  }, [activeWallet, viewerFid, viewerProfile]);
+  }, [activeWallet, viewerProfile]);
 
   const handleListedBulkBuy = useCallback(async (rows: ListedWarpletRow[]) => {
     if (rows.length === 0) return [];

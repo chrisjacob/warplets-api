@@ -1,9 +1,12 @@
 import { encodeFunctionData, erc20Abi, erc721Abi, getAddress, serializeTypedData, type Address } from "viem";
 import { appendBuilderCode, builderCodeSuffix } from "./builderCode";
 import { trackAppEvent } from "./analytics";
+import { recordLocalOfferDiagnostic } from "./localOfferDiagnostics";
 
 export type EthereumProvider = {
   request(args: { method: string; params?: readonly unknown[] | object }): Promise<unknown>;
+  isBaseAccount?: boolean;
+  connectorId?: string;
 };
 
 export type TokenApprovalRequirement = {
@@ -600,24 +603,24 @@ function normalizeSeaportCancelOrder(parameters: SeaportCancelOrderParameters) {
 
 function withWalletTimeout<T>(promise: Promise<T>, label: string, timeoutMs = 25000): Promise<T> {
   return new Promise<T>((resolve, reject) => {
-    const timeoutId = window.setTimeout(() => {
-      reject(new Error(`${label} did not open or respond. Farcaster Web wallet may not support this action in this browser.`));
+    const timeoutId = globalThis.setTimeout(() => {
+      reject(new Error(`${label} did not open or respond. Return to your wallet and try again.`));
     }, timeoutMs);
     promise.then(
       (value) => {
-        window.clearTimeout(timeoutId);
+        globalThis.clearTimeout(timeoutId);
         resolve(value);
       },
       (error) => {
-        window.clearTimeout(timeoutId);
+        globalThis.clearTimeout(timeoutId);
         reject(error);
       },
     );
   });
 }
 
-function waitForWalletPrompt<T>(promise: Promise<T>): Promise<T> {
-  return promise;
+function waitForWalletPrompt<T>(promise: Promise<T>, label = "Wallet request", timeoutMs = 120000): Promise<T> {
+  return withWalletTimeout(promise, label, timeoutMs);
 }
 
 function toHexQuantity(value: string | number | bigint | null | undefined): `0x${string}` {
@@ -651,6 +654,27 @@ function isWalletTimeoutError(error: unknown): boolean {
   return getWalletErrorMessage(error).toLowerCase().includes("did not open or respond");
 }
 
+function isTypedDataFormatError(error: unknown): boolean {
+  const code = getWalletErrorCode(error);
+  const message = getWalletErrorMessage(error).toLowerCase();
+  return code === "-32602"
+    || message.includes("invalid param")
+    || message.includes("invalid typed data")
+    || message.includes("expected object")
+    || message.includes("expected string");
+}
+
+function isUnsupportedWalletMethod(error: unknown): boolean {
+  const code = getWalletErrorCode(error);
+  const message = getWalletErrorMessage(error).toLowerCase();
+  return code === "4100"
+    || code === "4200"
+    || code === "-32601"
+    || message.includes("method not supported")
+    || message.includes("unsupported method")
+    || message.includes("method is not available");
+}
+
 function normalizeTypedDataForWallet(typedData: unknown): Record<string, unknown> | null {
   const root = asObject(typedData);
   const domain = asObject(root?.domain);
@@ -672,6 +696,69 @@ function normalizeTypedDataForWallet(typedData: unknown): Record<string, unknown
       ...types,
     },
   };
+}
+
+type TypedDataField = { name: string; type: string };
+
+function isTypedDataInteger(type: string): boolean {
+  return /^(?:u?int)(?:8|16|24|32|40|48|56|64|72|80|88|96|104|112|120|128|136|144|152|160|168|176|184|192|200|208|216|224|232|240|248|256)?$/.test(type);
+}
+
+function decimalIntegerToHex(value: unknown): unknown {
+  if (typeof value !== "string" || !/^-?\d+$/.test(value)) return value;
+  const integer = BigInt(value);
+  return integer < 0n ? value : `0x${integer.toString(16)}`;
+}
+
+function normalizeTypedDataValueIntegers(
+  value: unknown,
+  type: string,
+  types: Record<string, unknown>,
+): unknown {
+  const arrayMatch = /^(.*)\[(?:\d*)\]$/.exec(type);
+  if (arrayMatch) {
+    return Array.isArray(value)
+      ? value.map((item) => normalizeTypedDataValueIntegers(item, arrayMatch[1], types))
+      : value;
+  }
+  if (isTypedDataInteger(type)) return decimalIntegerToHex(value);
+  const fields = types[type];
+  const record = asObject(value);
+  if (!Array.isArray(fields) || !record) return value;
+  return Object.fromEntries(Object.entries(record).map(([name, item]) => {
+    const field = fields.find((candidate) => {
+      const typedField = asObject(candidate);
+      return asString(typedField?.name) === name && typeof typedField?.type === "string";
+    });
+    const typedField = asObject(field) as TypedDataField | null;
+    return [name, typedField
+      ? normalizeTypedDataValueIntegers(item, typedField.type, types)
+      : item];
+  }));
+}
+
+/**
+ * Base Account displays EIP-712 data in a separate wallet surface. Preserve
+ * large uint256 values (notably OpenSea trait Merkle roots) as exact hex
+ * quantities so that surface never coerces a 77-digit decimal through a JS
+ * number. Hex and decimal encode the same EIP-712 integer and therefore produce
+ * the same Seaport order hash.
+ */
+export function normalizeBaseAccountTypedData(typedData: Record<string, unknown>): Record<string, unknown> {
+  const types = asObject(typedData.types);
+  const primaryType = asString(typedData.primaryType);
+  if (!types || !primaryType) return typedData;
+  return {
+    ...typedData,
+    message: normalizeTypedDataValueIntegers(typedData.message, primaryType, types),
+  };
+}
+
+function withoutExplicitEip712DomainType(typedData: Record<string, unknown>): Record<string, unknown> {
+  const types = asObject(typedData.types);
+  if (!types?.EIP712Domain) return typedData;
+  const { EIP712Domain: _domainType, ...messageTypes } = types;
+  return { ...typedData, types: messageTypes };
 }
 
 function normalizeAccountList(raw: unknown): Address[] {
@@ -717,14 +804,30 @@ export async function sendAttributedTransaction(
 export async function ensureBaseChain(
   provider: EthereumProvider,
   chainIdHex = BASE_CHAIN_CONFIG.chainId,
-  options: { allowSkipSwitch?: boolean } = {},
+  options: { allowSkipSwitch?: boolean; confirmTimeoutMs?: number } = {},
 ): Promise<void> {
-  const currentChainId = await withWalletTimeout(
+  const normalizedTargetChainId = chainIdHex.toLowerCase();
+  const readProviderChainId = () => withWalletTimeout(
     provider.request({ method: "eth_chainId" }),
     "Wallet chain lookup",
     2500,
-  ).then((value) => (typeof value === "string" ? value.toLowerCase() : null)).catch(() => null);
-  if (currentChainId === chainIdHex.toLowerCase()) return;
+  ).then((value) => {
+    if (typeof value === "string") return value.toLowerCase();
+    if (typeof value === "number" && Number.isInteger(value)) return `0x${value.toString(16)}`;
+    return null;
+  }).catch(() => null);
+  const confirmTargetChain = async () => {
+    const timeoutMs = options.confirmTimeoutMs ?? 10000;
+    if (timeoutMs <= 0) return;
+    const deadline = Date.now() + timeoutMs;
+    do {
+      if (await readProviderChainId() === normalizedTargetChainId) return;
+      await new Promise((resolve) => globalThis.setTimeout(resolve, 150));
+    } while (Date.now() < deadline);
+    throw new Error("Base Mainnet is required. Trust Wallet did not finish switching networks.");
+  };
+  const currentChainId = await readProviderChainId();
+  if (currentChainId === normalizedTargetChainId) return;
   if (options.allowSkipSwitch) return;
 
   try {
@@ -743,9 +846,32 @@ export async function ensureBaseChain(
         method: "wallet_switchEthereumChain",
         params: [{ chainId: chainIdHex }],
       }));
+      await confirmTargetChain();
       return;
     }
     throw error;
+  }
+  await confirmTargetChain();
+}
+
+/**
+ * Give injected wallets a chance to select Base before they present their
+ * account-connection UI. Some wallets (including Trust Wallet's dapp browser)
+ * otherwise default that first prompt to Ethereum Mainnet.
+ *
+ * Wallets that require account authorization before allowing a chain switch
+ * may reject this preliminary request. In that case activation continues and
+ * `ensureBaseChain` runs again after account access has been granted. An
+ * explicit user rejection is still respected and stops the connection flow.
+ */
+export async function preferBaseChainBeforeConnect(provider: EthereumProvider): Promise<void> {
+  try {
+    // This is only a preference before authorization. Some injected wallets do
+    // not expose the updated chain until account access has been granted, so
+    // activation performs the authoritative, confirmed switch afterwards.
+    await ensureBaseChain(provider, BASE_CHAIN_CONFIG.chainId, { confirmTimeoutMs: 0 });
+  } catch (error) {
+    if (isUserRejected(error)) throw error;
   }
 }
 
@@ -806,7 +932,7 @@ export async function wrapEthToWeth(
   return hash;
 }
 
-async function readAllowance(tokenAddress: string, owner: string, spender: string): Promise<bigint> {
+export async function readErc20Allowance(tokenAddress: string, owner: string, spender: string): Promise<bigint> {
   const data = encodeFunctionData({
     abi: erc20Abi,
     functionName: "allowance",
@@ -823,7 +949,16 @@ export async function ensureErc20Approval(
 ): Promise<string | null> {
   const required = BigInt(approval.amount);
   if (required <= 0n) return null;
-  const current = await readAllowance(approval.tokenAddress, owner, approval.spender);
+  const current = await readErc20Allowance(approval.tokenAddress, owner, approval.spender);
+  recordLocalOfferDiagnostic("weth.allowance.checked", {
+    connector: provider.connectorId ?? (provider.isBaseAccount ? "base-account" : "unknown"),
+    owner,
+    tokenAddress: approval.tokenAddress,
+    spender: approval.spender,
+    required: required.toString(),
+    current: current.toString(),
+    approvalRequired: current < required,
+  });
   if (current >= required) return null;
   const data = encodeFunctionData({
     abi: erc20Abi,
@@ -837,6 +972,7 @@ export async function ensureErc20Approval(
       data,
     }, "erc20_approval");
   await waitForTransactionReceipt(hash);
+  recordLocalOfferDiagnostic("weth.approval.confirmed", { transactionHash: hash, approvedAmount: required.toString() });
   trackAppEvent("transaction_confirmed", { transactionType: "erc20_approval" });
   return hash;
 }
@@ -1169,30 +1305,85 @@ export async function signTypedData(provider: EthereumProvider, account: string,
   const normalizedTypedData = normalizeTypedDataForWallet(typedData);
   if (!normalizedTypedData) throw new Error("OpenSea signature action returned invalid typed data");
   const accountAddress = getAddress(account);
-  const userAgent = typeof navigator === "undefined" ? "" : navigator.userAgent.toLowerCase();
-  const preferObjectPayload = userAgent.includes("firefox");
-  const serializedTypedData = serializeTypedData(normalizedTypedData as Parameters<typeof serializeTypedData>[0]);
-  const firstPayload = preferObjectPayload ? normalizedTypedData : serializedTypedData;
-  const fallbackPayload = preferObjectPayload ? serializedTypedData : normalizedTypedData;
+  const walletTypedData = provider.isBaseAccount
+    ? normalizeBaseAccountTypedData(normalizedTypedData)
+    : normalizedTypedData;
+  const serializedTypedData = serializeTypedData(walletTypedData as Parameters<typeof serializeTypedData>[0]);
+  const diagnosticRoot = asObject(walletTypedData);
+  recordLocalOfferDiagnostic("wallet.signature.prepared", {
+    connector: provider.connectorId ?? (provider.isBaseAccount ? "base-account" : "unknown"),
+    account: accountAddress,
+    route: provider.isBaseAccount ? "wallet_sign (EIP-7871), with legacy fallback" : "eth_signTypedData_v4",
+    primaryType: asString(diagnosticRoot?.primaryType),
+    domain: diagnosticRoot?.domain,
+    message: diagnosticRoot?.message,
+    typeNames: Object.keys(asObject(diagnosticRoot?.types) ?? {}),
+  });
+  // Base Account's browser SDK documents eth_signTypedData_v4 with serialized
+  // EIP-712 JSON. Other modern EIP-1193 providers accept the structured object.
+  // Keep the opposite representation as a compatibility fallback only.
+  const firstPayload = provider.isBaseAccount ? serializedTypedData : walletTypedData;
+  const fallbackPayload = provider.isBaseAccount ? walletTypedData : serializedTypedData;
 
-  const requestSignature = (payload: unknown) => waitForWalletPrompt(provider.request({
-    method: "eth_signTypedData_v4",
-    params: [accountAddress, payload],
-  }));
+  const requestTypedSignature = (payload: unknown) => waitForWalletPrompt(
+    provider.request({
+      method: "eth_signTypedData_v4",
+      params: [accountAddress, payload],
+    }),
+    "Wallet signature request",
+  );
+
+  const requestBaseSignature = async (): Promise<unknown> => {
+    // Base's native wallet_sign examples use Viem-style typed data, where the
+    // domain fields are supplied in `domain` and EIP712Domain is not repeated
+    // inside `types`. Keep the explicit domain type for the legacy RPC only.
+    const nativeTypedData = withoutExplicitEip712DomainType(walletTypedData);
+    recordLocalOfferDiagnostic("wallet.signature.requested", { method: "wallet_sign", account: accountAddress });
+    const result = await waitForWalletPrompt(provider.request({
+      method: "wallet_sign",
+      params: [{
+        version: "1.0",
+        address: accountAddress,
+        request: {
+          type: "0x01",
+          data: nativeTypedData,
+        },
+      }],
+    }), "Wallet signature request");
+    const response = asObject(result);
+    recordLocalOfferDiagnostic("wallet.signature.returned", { method: "wallet_sign", hasSignature: typeof response?.signature === "string" || typeof result === "string" });
+    return asString(response?.signature) ?? result;
+  };
 
   let signature: unknown;
   trackAppEvent("transaction_prepared", { transactionType: "seaport_order_signature" });
   try {
     trackAppEvent("transaction_wallet_prompted", { transactionType: "seaport_order_signature" });
-    signature = await requestSignature(firstPayload);
+    if (provider.isBaseAccount) {
+      try {
+        // Base Account's native EIP-7871 route avoids the legacy message
+        // renderer that rejects OpenSea trait Merkle roots. It signs the same
+        // EIP-712 payload and returns the smart-account signature explicitly.
+        signature = await requestBaseSignature();
+      } catch (error) {
+        recordLocalOfferDiagnostic("wallet.signature.wallet_sign_failed", { error, unsupportedMethod: isUnsupportedWalletMethod(error) });
+        if (!isUnsupportedWalletMethod(error)) throw error;
+        recordLocalOfferDiagnostic("wallet.signature.fallback", { method: "eth_signTypedData_v4" });
+        signature = await requestTypedSignature(firstPayload);
+      }
+    } else {
+      signature = await requestTypedSignature(firstPayload);
+    }
   } catch (error) {
-    if (isUserRejected(error) || isWalletTimeoutError(error)) {
+    recordLocalOfferDiagnostic("wallet.signature.failed", { error, connector: provider.connectorId ?? (provider.isBaseAccount ? "base-account" : "unknown") });
+    if (provider.isBaseAccount || isUserRejected(error) || isWalletTimeoutError(error) || !isTypedDataFormatError(error)) {
       trackAppEvent("transaction_failed", { transactionType: "seaport_order_signature", result: getWalletErrorMessage(error).slice(0, 100) });
       throw error;
     }
-    signature = await requestSignature(fallbackPayload);
+    signature = await requestTypedSignature(fallbackPayload);
   }
   if (typeof signature !== "string") throw new Error("Wallet did not return a signature");
+  recordLocalOfferDiagnostic("wallet.signature.complete", { signatureLength: signature.length });
   trackAppEvent("transaction_confirmed", { transactionType: "seaport_order_signature" });
   return signature;
 }

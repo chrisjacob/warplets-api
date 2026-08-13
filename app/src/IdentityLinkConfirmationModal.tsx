@@ -49,7 +49,7 @@ export function IdentityLinkConfirmationModal() {
     >
       <section className="identity-link-modal" role="dialog" aria-modal="true" aria-labelledby="identity-link-title">
         <header className="identity-link-heading">
-          <h2 id="identity-link-title"><span>Link</span> Wallet to Identity</h2>
+          <h2 id="identity-link-title"><span>Link</span> Wallet to Social</h2>
           <button type="button" className="identity-link-close" onClick={() => finish(false)} aria-label="Don't link" title="Close">
             <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
               <path d="M6 6l12 12" /><path d="M18 6L6 18" />
@@ -59,8 +59,8 @@ export function IdentityLinkConfirmationModal() {
 
         <div className="identity-link-content">
           <p>
-            Wallet <strong>{shortAddress(request.walletAddress)}</strong> is not linked to your Farcaster identity.
-            Only link wallet to identity if you control both.
+            Wallet <strong>{shortAddress(request.walletAddress)}</strong> is not linked to your Farcaster social profile.
+            Only link wallet to social if you control both.
           </p>
 
           <div className="identity-link-explanation identity-link-explanation--enabled">
@@ -81,11 +81,11 @@ export function IdentityLinkConfirmationModal() {
           </div>
 
           <p className="identity-link-decline-note">
-            “Don’t Link” keeps the wallet connected, but identities remain separate.
+            “Don’t Link” keeps the wallet connected and social unlinked.
           </p>
 
           <div className="identity-link-actions">
-            <button type="button" className="identity-link-primary" onClick={() => finish(true)}>Link Wallet to Identity</button>
+            <button type="button" className="identity-link-primary" onClick={() => finish(true)}>Link Wallet to Social</button>
             <button type="button" className="identity-link-secondary" onClick={() => finish(false)}>Don’t Link</button>
           </div>
         </div>

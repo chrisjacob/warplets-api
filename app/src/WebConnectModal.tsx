@@ -164,14 +164,14 @@ export function WebConnectModal({ open, onClose, farcasterControl, identityConne
         await unlinkCurrentWalletAndIdentity();
         setIdentitiesLinked(false);
         void hapticSuccess();
-        setSuccessMessage("Wallet and identity successfully unlinked.");
+        setSuccessMessage("Wallet and social successfully unlinked.");
       } else if (await linkCurrentWalletAndIdentity(address)) {
         setIdentitiesLinked(true);
         void hapticSuccess();
-        setSuccessMessage("Wallet and identity successfully linked.");
+        setSuccessMessage("Wallet and social successfully linked.");
       }
     } catch (error) {
-      setLocalError(error instanceof Error ? error.message : "Wallet and identity relationship could not be updated");
+      setLocalError(error instanceof Error ? error.message : "Wallet and social relationship could not be updated");
     } finally {
       setRelationshipBusy(false);
     }
@@ -181,7 +181,7 @@ export function WebConnectModal({ open, onClose, farcasterControl, identityConne
     <div className="web-connect-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
       <section className="web-connect-modal" role="dialog" aria-modal="true" aria-labelledby="web-connect-title">
         <div className="web-connect-heading">
-          <h2 id="web-connect-title"><span>Connect</span> Wallet &amp; Identity</h2>
+          <h2 id="web-connect-title"><span>Connect</span> Wallet &amp; Social</h2>
           <button type="button" className="web-connect-close" onClick={onClose} aria-label="Close connect modal" title="Close">
             <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
               <path d="M6 6l12 12" /><path d="M18 6L6 18" />
@@ -255,7 +255,7 @@ export function WebConnectModal({ open, onClose, farcasterControl, identityConne
 
             <section className="web-connect-section" aria-labelledby="web-connect-identity-heading">
               <div className="web-connect-section-heading">
-                <h3 id="web-connect-identity-heading">Identity <span className="web-connect-optional-chip">Optional</span></h3>
+                <h3 id="web-connect-identity-heading">Social <span className="web-connect-optional-chip">Optional</span></h3>
                 <p>Connect Farcaster for your profile, friends and social features.</p>
               </div>
               <div className="web-connect-options">
@@ -274,8 +274,8 @@ export function WebConnectModal({ open, onClose, farcasterControl, identityConne
                     onClick={() => void handleIdentityRelationship()}
                   >
                     {relationshipBusy
-                      ? "Updating Wallet and Identity…"
-                      : identitiesLinked ? "Unlink Wallet and Identity" : "Link Wallet and Identity"}
+                      ? "Updating Wallet and Social…"
+                      : identitiesLinked ? "Unlink Wallet and Social" : "Link Wallet and Social"}
                   </button>
                 ) : null}
                 {import.meta.env.VITE_X_AUTH_ENABLED === "true" ? (
