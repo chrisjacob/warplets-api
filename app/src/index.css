@@ -1359,6 +1359,23 @@ html[data-entry-point="pwa"] .miniapp-shell__content {
   box-shadow: 1px 3px 0 #008000;
 }
 
+.web-connect-farcaster-bonus-link {
+  justify-self: center;
+  margin-top: 8px;
+  color: #00ff00;
+  font-family: "Roboto Mono", system-ui, sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.4;
+  text-align: center;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.web-connect-farcaster-bonus-link:hover {
+  color: #66ff66;
+}
+
 .web-connect-cta {
   min-width: 106px;
   min-height: 36px;

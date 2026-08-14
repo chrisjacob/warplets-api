@@ -664,17 +664,6 @@ function isTypedDataFormatError(error: unknown): boolean {
     || message.includes("expected string");
 }
 
-function isUnsupportedWalletMethod(error: unknown): boolean {
-  const code = getWalletErrorCode(error);
-  const message = getWalletErrorMessage(error).toLowerCase();
-  return code === "4100"
-    || code === "4200"
-    || code === "-32601"
-    || message.includes("method not supported")
-    || message.includes("unsupported method")
-    || message.includes("method is not available");
-}
-
 function normalizeTypedDataForWallet(typedData: unknown): Record<string, unknown> | null {
   const root = asObject(typedData);
   const domain = asObject(root?.domain);
@@ -752,13 +741,6 @@ export function normalizeBaseAccountTypedData(typedData: Record<string, unknown>
     ...typedData,
     message: normalizeTypedDataValueIntegers(typedData.message, primaryType, types),
   };
-}
-
-function withoutExplicitEip712DomainType(typedData: Record<string, unknown>): Record<string, unknown> {
-  const types = asObject(typedData.types);
-  if (!types?.EIP712Domain) return typedData;
-  const { EIP712Domain: _domainType, ...messageTypes } = types;
-  return { ...typedData, types: messageTypes };
 }
 
 function normalizeAccountList(raw: unknown): Address[] {
@@ -1305,25 +1287,28 @@ export async function signTypedData(provider: EthereumProvider, account: string,
   const normalizedTypedData = normalizeTypedDataForWallet(typedData);
   if (!normalizedTypedData) throw new Error("OpenSea signature action returned invalid typed data");
   const accountAddress = getAddress(account);
-  const walletTypedData = provider.isBaseAccount
-    ? normalizeBaseAccountTypedData(normalizedTypedData)
-    : normalizedTypedData;
+  // Keep the integer strings returned by OpenSea intact. EIP-712 accepts exact
+  // decimal strings for uint values, and Base Account's own typed-data helpers
+  // use that representation. Converting Seaport's large trait criteria and
+  // salt to hex preserves the hash, but Base's signing surface can reject the
+  // otherwise-valid order while preparing its confirmation UI.
+  const walletTypedData = normalizedTypedData;
   const serializedTypedData = serializeTypedData(walletTypedData as Parameters<typeof serializeTypedData>[0]);
   const diagnosticRoot = asObject(walletTypedData);
   recordLocalOfferDiagnostic("wallet.signature.prepared", {
     connector: provider.connectorId ?? (provider.isBaseAccount ? "base-account" : "unknown"),
     account: accountAddress,
-    route: provider.isBaseAccount ? "wallet_sign (EIP-7871), with legacy fallback" : "eth_signTypedData_v4",
+    route: "eth_signTypedData_v4 (structured decimal strings), with serialized compatibility fallback",
     primaryType: asString(diagnosticRoot?.primaryType),
     domain: diagnosticRoot?.domain,
     message: diagnosticRoot?.message,
     typeNames: Object.keys(asObject(diagnosticRoot?.types) ?? {}),
   });
-  // Base Account's browser SDK documents eth_signTypedData_v4 with serialized
-  // EIP-712 JSON. Other modern EIP-1193 providers accept the structured object.
-  // Keep the opposite representation as a compatibility fallback only.
-  const firstPayload = provider.isBaseAccount ? serializedTypedData : walletTypedData;
-  const fallbackPayload = provider.isBaseAccount ? walletTypedData : serializedTypedData;
+  // Base's current RPC reference documents the structured EIP-712 object.
+  // Some older wallet implementations require serialized JSON, so retain that
+  // representation only as a compatibility retry for an invalid-param error.
+  const firstPayload = walletTypedData;
+  const fallbackPayload = serializedTypedData;
 
   const requestTypedSignature = (payload: unknown) => waitForWalletPrompt(
     provider.request({
@@ -1333,53 +1318,26 @@ export async function signTypedData(provider: EthereumProvider, account: string,
     "Wallet signature request",
   );
 
-  const requestBaseSignature = async (): Promise<unknown> => {
-    // Base's native wallet_sign examples use Viem-style typed data, where the
-    // domain fields are supplied in `domain` and EIP712Domain is not repeated
-    // inside `types`. Keep the explicit domain type for the legacy RPC only.
-    const nativeTypedData = withoutExplicitEip712DomainType(walletTypedData);
-    recordLocalOfferDiagnostic("wallet.signature.requested", { method: "wallet_sign", account: accountAddress });
-    const result = await waitForWalletPrompt(provider.request({
-      method: "wallet_sign",
-      params: [{
-        version: "1.0",
-        address: accountAddress,
-        request: {
-          type: "0x01",
-          data: nativeTypedData,
-        },
-      }],
-    }), "Wallet signature request");
-    const response = asObject(result);
-    recordLocalOfferDiagnostic("wallet.signature.returned", { method: "wallet_sign", hasSignature: typeof response?.signature === "string" || typeof result === "string" });
-    return asString(response?.signature) ?? result;
-  };
-
   let signature: unknown;
   trackAppEvent("transaction_prepared", { transactionType: "seaport_order_signature" });
   try {
     trackAppEvent("transaction_wallet_prompted", { transactionType: "seaport_order_signature" });
-    if (provider.isBaseAccount) {
-      try {
-        // Base Account's native EIP-7871 route avoids the legacy message
-        // renderer that rejects OpenSea trait Merkle roots. It signs the same
-        // EIP-712 payload and returns the smart-account signature explicitly.
-        signature = await requestBaseSignature();
-      } catch (error) {
-        recordLocalOfferDiagnostic("wallet.signature.wallet_sign_failed", { error, unsupportedMethod: isUnsupportedWalletMethod(error) });
-        if (!isUnsupportedWalletMethod(error)) throw error;
-        recordLocalOfferDiagnostic("wallet.signature.fallback", { method: "eth_signTypedData_v4" });
-        signature = await requestTypedSignature(firstPayload);
-      }
-    } else {
-      signature = await requestTypedSignature(firstPayload);
-    }
+    recordLocalOfferDiagnostic("wallet.signature.requested", {
+      method: "eth_signTypedData_v4",
+      account: accountAddress,
+      payload: "structured",
+    });
+    signature = await requestTypedSignature(firstPayload);
   } catch (error) {
     recordLocalOfferDiagnostic("wallet.signature.failed", { error, connector: provider.connectorId ?? (provider.isBaseAccount ? "base-account" : "unknown") });
-    if (provider.isBaseAccount || isUserRejected(error) || isWalletTimeoutError(error) || !isTypedDataFormatError(error)) {
+    if (isUserRejected(error) || isWalletTimeoutError(error) || !isTypedDataFormatError(error)) {
       trackAppEvent("transaction_failed", { transactionType: "seaport_order_signature", result: getWalletErrorMessage(error).slice(0, 100) });
       throw error;
     }
+    recordLocalOfferDiagnostic("wallet.signature.fallback", {
+      method: "eth_signTypedData_v4",
+      payload: "serialized",
+    });
     signature = await requestTypedSignature(fallbackPayload);
   }
   if (typeof signature !== "string") throw new Error("Wallet did not return a signature");

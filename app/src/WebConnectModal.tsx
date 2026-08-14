@@ -295,6 +295,14 @@ export function WebConnectModal({ open, onClose, farcasterControl, identityConne
               <a className="web-connect-farcaster-cta" href={FARCASTER_WARPLETS_MINI_APP_URL} target="_blank" rel="noreferrer">
                 Open in Farcaster
               </a>
+              <a
+                className="web-connect-farcaster-bonus-link"
+                href="https://farcaster.xyz/~/code/1Y7636"
+                target="_blank"
+                rel="noreferrer"
+              >
+                Bonus: 20% off trading fees (click here)
+              </a>
             </div>
           </div>
         </OverlayScrollbarsComponent>

@@ -1,10 +1,9 @@
 import { StrictMode, Suspense, lazy } from "react";
 import { createRoot } from "react-dom/client";
 import "./index.css";
-import { initializePwa } from "./pwa";
+import { initializePwa, isLikelyBaseAppBrowser } from "./pwa";
 import { WARPLETS_APP_HOSTS, WARPLETS_APP_PATH } from "../shared/warpletsApp";
 import { captureWarpmojiAttribution } from "./analytics";
-import { IdentityLinkConfirmationModal } from "./IdentityLinkConfirmationModal";
 
 initializePwa();
 captureWarpmojiAttribution();
@@ -46,6 +45,13 @@ function isExternalFarcasterImageProxy(src: string | null): boolean {
 if (typeof window !== "undefined") {
   window.addEventListener("vite:preloadError", (event) => {
     event.preventDefault();
+    // Base's iOS in-app browser can strand a navigation on an empty white
+    // WebView. Lazy imports already surface their own recoverable failure, so
+    // preserve the mounted application instead of forcing an embedded reload.
+    if (isLikelyBaseAppBrowser()) {
+      console.warn("[10X] Deferred stale module recovery inside Base App", event);
+      return;
+    }
     if (window.sessionStorage.getItem(PRELOAD_RECOVERY_KEY) === "1") return;
     window.sessionStorage.setItem(PRELOAD_RECOVERY_KEY, "1");
     window.location.reload();
@@ -94,11 +100,8 @@ function resolveActiveApp() {
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <>
-      <Suspense fallback={<div className="min-h-screen bg-black" aria-label="Loading 10X" />}>
-        {resolveActiveApp()}
-      </Suspense>
-      <IdentityLinkConfirmationModal />
-    </>
+    <Suspense fallback={<div className="min-h-screen bg-black" aria-label="Loading 10X" />}>
+      {resolveActiveApp()}
+    </Suspense>
   </StrictMode>
 );

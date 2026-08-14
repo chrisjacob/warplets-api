@@ -39,7 +39,7 @@ import {
   restoreWebWallet,
   useWalletController,
 } from "./walletController";
-import { loadAppSession, verifyFarcasterQuickAuth, logoutAppPrincipal } from "./appSession";
+import { linkCurrentWalletAndIdentity, loadAppSession, verifyFarcasterQuickAuth, logoutAppPrincipal } from "./appSession";
 import { resolveAppSurface } from "./appRuntime";
 import { trackAppEvent } from "./analytics";
 import { PwaControls } from "./PwaControls";
@@ -15451,7 +15451,12 @@ export default function SearchApp() {
     setSearchCompletionStatusLoaded(false);
     trackAppEvent("farcaster_identity_connected", { surface: "web" });
     void syncSearchViewerStatus(identity.fid, "Search SIWF user status upsert failed:", profile);
-  }, [syncSearchViewerStatus]);
+    if (activeWallet) {
+      void linkCurrentWalletAndIdentity(activeWallet, { automatic: true }).catch((error) => {
+        console.warn("Automatic wallet and social linking failed:", error);
+      });
+    }
+  }, [activeWallet, syncSearchViewerStatus]);
 
   const handleWebFarcasterError = useCallback((message: string) => {
     const normalized = /reject|denied|cancel|closed/i.test(message)

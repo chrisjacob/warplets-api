@@ -1,5 +1,5 @@
 import type { EthereumProvider } from "./walletTrade";
-import { requestIdentityLinkConfirmation } from "./identityLinkConfirmation";
+import { dismissBaseAccountPopup } from "./baseAccountHandoff";
 import { stringToHex } from "viem";
 
 export interface AppSessionState {
@@ -72,20 +72,22 @@ export async function loadAppSession(): Promise<AppSessionState> {
   };
 }
 
-async function identityLinkRequest(method: "POST" | "DELETE", confirm?: boolean): Promise<void> {
-  await requireOk(await fetch("/api/auth/link", {
+async function identityLinkRequest(method: "POST" | "DELETE", confirm?: boolean, automatic?: boolean): Promise<Record<string, unknown>> {
+  return requireOk(await fetch("/api/auth/link", {
     method,
     credentials: "same-origin",
     headers: method === "POST" ? { "content-type": "application/json" } : undefined,
-    body: method === "POST" ? JSON.stringify({ confirm }) : undefined,
+    body: method === "POST" ? JSON.stringify({ confirm, automatic }) : undefined,
   }));
 }
 
-export async function linkCurrentWalletAndIdentity(walletAddress: string): Promise<boolean> {
-  const confirmed = await requestIdentityLinkConfirmation(walletAddress);
-  if (!confirmed) return false;
-  await identityLinkRequest("POST", true);
-  return true;
+export async function linkCurrentWalletAndIdentity(walletAddress: string, options: { automatic?: boolean } = {}): Promise<boolean> {
+  // Both principals have already been independently verified before this is
+  // called. The address remains part of the API for call-site clarity, while
+  // the server links only the wallet held in the verified HttpOnly session.
+  void walletAddress;
+  const payload = await identityLinkRequest("POST", true, options.automatic === true);
+  return payload.linked === true;
 }
 
 export async function unlinkCurrentWalletAndIdentity(): Promise<void> {
@@ -122,19 +124,7 @@ async function completeWalletAuthentication(message: string, signature: string, 
     body: JSON.stringify({ message, signature }),
   }));
   if (Number.isInteger(Number(verified.farcasterFid)) && Number(verified.farcasterFid) > 0) {
-    const link = async (confirm: boolean) => fetch("/api/auth/link", {
-      method: "POST",
-      credentials: "same-origin",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ confirm }),
-    });
-    const first = await link(false);
-    if (first.status === 409) {
-      const confirmed = await requestIdentityLinkConfirmation(address);
-      if (confirmed) await requireOk(await link(true));
-    } else if (!first.ok) {
-      await requireOk(first);
-    }
+    await linkCurrentWalletAndIdentity(address, { automatic: true });
   }
 }
 
@@ -156,10 +146,17 @@ export async function authenticateBaseWallet(provider: EthereumProvider, chainId
     : null;
   if (!capability) throw new Error("Wallet sign-in challenge was unavailable");
 
-  const rawResult = await provider.request({
-    method: "wallet_connect",
-    params: [{ version: "1", capabilities: { signInWithEthereum: capability } }],
-  });
+  let rawResult: unknown;
+  try {
+    rawResult = await provider.request({
+      method: "wallet_connect",
+      params: [{ version: "1", capabilities: { signInWithEthereum: capability } }],
+    });
+  } finally {
+    // Base Account normally closes its own popup. Base's iOS WebView can leave
+    // that popup as a full-screen white layer after a successful passkey.
+    dismissBaseAccountPopup(provider);
+  }
   const result = rawResult && typeof rawResult === "object" ? rawResult as BaseWalletConnectResult : null;
   const account = result?.accounts?.[0];
   const address = typeof account?.address === "string" && /^0x[a-fA-F0-9]{40}$/.test(account.address)

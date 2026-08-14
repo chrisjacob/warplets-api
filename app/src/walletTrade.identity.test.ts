@@ -149,11 +149,11 @@ describe("wallet signer identity", () => {
     expect(signRequest.request?.data?.types?.EIP712Domain).toBeUndefined();
   });
 
-  it("uses Base Account's native EIP-7871 typed-data request", async () => {
+  it("uses Base Account's documented structured EIP-712 request", async () => {
     const calls: Array<{ method: string; params?: unknown[] }> = [];
     const request = vi.fn(async (request: { method: string; params?: unknown[] }) => {
       calls.push(request);
-      return { signature: `0x${"33".repeat(65)}` };
+      return `0x${"33".repeat(65)}`;
     });
 
     await signTypedData(
@@ -164,16 +164,33 @@ describe("wallet signer identity", () => {
 
     expect(request).toHaveBeenCalledTimes(1);
     expect(calls[0]).toMatchObject({
-      method: "wallet_sign",
-      params: [expect.objectContaining({
-        version: "1.0",
-        address: "0x1111111111111111111111111111111111111111",
-        request: expect.objectContaining({
-          type: "0x01",
-          data: expect.objectContaining({ primaryType: "Offer" }),
-        }),
-      })],
+      method: "eth_signTypedData_v4",
+      params: [
+        "0x1111111111111111111111111111111111111111",
+        expect.objectContaining({ primaryType: "Offer" }),
+      ],
     });
+  });
+
+  it("keeps Base Account typed-data integer strings in OpenSea's decimal representation", async () => {
+    const calls: Array<{ method: string; params?: unknown[] }> = [];
+    const request = vi.fn(async (request: { method: string; params?: unknown[] }) => {
+      calls.push(request);
+      return `0x${"44".repeat(65)}`;
+    });
+
+    await signTypedData(
+      { request, isBaseAccount: true } as EthereumProvider,
+      "0x1111111111111111111111111111111111111111",
+      traitTypedData,
+    );
+
+    const sent = calls[0]?.params?.[1] as typeof traitTypedData;
+    expect(sent.message.salt).toBe(traitTypedData.message.salt);
+    expect(sent.message.consideration[0].identifierOrCriteria).toBe(
+      traitTypedData.message.consideration[0].identifierOrCriteria,
+    );
+    expect(sent.message.consideration[0].startAmount).toBe("1");
   });
 
   it("does not retry a rejected Base Account signature", async () => {
@@ -204,11 +221,11 @@ describe("wallet signer identity", () => {
     expect(request).toHaveBeenCalledTimes(1);
   });
 
-  it("falls back to legacy Base EIP-712 when wallet_sign is unsupported", async () => {
+  it("falls back to serialized EIP-712 for Base Account invalid params", async () => {
     const calls: Array<{ method: string; params?: unknown[] }> = [];
     const request = vi.fn(async (request: { method: string; params?: unknown[] }) => {
       calls.push(request);
-      if (calls.length === 1) throw Object.assign(new Error("Method not supported"), { code: 4100 });
+      if (calls.length === 1) throw Object.assign(new Error("Invalid params"), { code: -32602 });
       return `0x${"44".repeat(65)}`;
     });
 
@@ -219,9 +236,27 @@ describe("wallet signer identity", () => {
     );
 
     expect(request).toHaveBeenCalledTimes(2);
-    expect(calls[0]?.method).toBe("wallet_sign");
+    expect(calls[0]?.method).toBe("eth_signTypedData_v4");
     expect(calls[1]?.method).toBe("eth_signTypedData_v4");
+    expect(typeof calls[0]?.params?.[1]).toBe("object");
     expect(typeof calls[1]?.params?.[1]).toBe("string");
+  });
+
+  it("does not retry a Base Account internal signing error", async () => {
+    const calls: Array<{ method: string; params?: unknown[] }> = [];
+    const request = vi.fn(async (request: { method: string; params?: unknown[] }) => {
+      calls.push(request);
+      throw Object.assign(new Error("Internal error"), { code: -32603 });
+    });
+
+    await expect(signTypedData(
+      { request, isBaseAccount: true } as EthereumProvider,
+      "0x1111111111111111111111111111111111111111",
+      typedData,
+    )).rejects.toThrow("Internal error");
+
+    expect(request).toHaveBeenCalledTimes(1);
+    expect(calls.map((call) => call.method)).toEqual(["eth_signTypedData_v4"]);
   });
 
   it("falls back to serialized typed data for older wallets", async () => {
