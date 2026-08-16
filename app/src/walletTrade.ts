@@ -1,4 +1,4 @@
-import { encodeFunctionData, erc20Abi, erc721Abi, getAddress, serializeTypedData, type Address } from "viem";
+import { encodeFunctionData, erc20Abi, erc721Abi, getAddress, recoverTypedDataAddress, serializeTypedData, type Address } from "viem";
 import { appendBuilderCode, builderCodeSuffix } from "./builderCode";
 import { trackAppEvent } from "./analytics";
 import { recordLocalOfferDiagnostic } from "./localOfferDiagnostics";
@@ -1295,20 +1295,27 @@ export async function signTypedData(provider: EthereumProvider, account: string,
   const walletTypedData = normalizedTypedData;
   const serializedTypedData = serializeTypedData(walletTypedData as Parameters<typeof serializeTypedData>[0]);
   const diagnosticRoot = asObject(walletTypedData);
+  const userAgent = typeof navigator === "undefined" ? "" : navigator.userAgent.toLowerCase();
+  const useStructuredPayload = provider.isBaseAccount === true
+    || provider.connectorId === "base-account"
+    || userAgent.includes("firefox");
+  const primaryPayloadLabel = useStructuredPayload ? "structured" : "serialized";
+  const fallbackPayloadLabel = useStructuredPayload ? "serialized" : "structured";
   recordLocalOfferDiagnostic("wallet.signature.prepared", {
     connector: provider.connectorId ?? (provider.isBaseAccount ? "base-account" : "unknown"),
     account: accountAddress,
-    route: "eth_signTypedData_v4 (structured decimal strings), with serialized compatibility fallback",
+    route: `eth_signTypedData_v4 (${primaryPayloadLabel} first), with ${fallbackPayloadLabel} compatibility fallback`,
     primaryType: asString(diagnosticRoot?.primaryType),
     domain: diagnosticRoot?.domain,
     message: diagnosticRoot?.message,
     typeNames: Object.keys(asObject(diagnosticRoot?.types) ?? {}),
   });
-  // Base's current RPC reference documents the structured EIP-712 object.
-  // Some older wallet implementations require serialized JSON, so retain that
-  // representation only as a compatibility retry for an invalid-param error.
-  const firstPayload = walletTypedData;
-  const fallbackPayload = serializedTypedData;
+  // Preserve the pre-Base-experiment route for Farcaster and injected wallets:
+  // their EIP-1193 providers historically receive eth_signTypedData_v4 as JSON.
+  // Base Account and Firefox expect the structured object, so keep that
+  // representation isolated instead of changing every wallet.
+  const firstPayload = useStructuredPayload ? walletTypedData : serializedTypedData;
+  const fallbackPayload = useStructuredPayload ? serializedTypedData : walletTypedData;
 
   const requestTypedSignature = (payload: unknown) => waitForWalletPrompt(
     provider.request({
@@ -1325,7 +1332,7 @@ export async function signTypedData(provider: EthereumProvider, account: string,
     recordLocalOfferDiagnostic("wallet.signature.requested", {
       method: "eth_signTypedData_v4",
       account: accountAddress,
-      payload: "structured",
+      payload: primaryPayloadLabel,
     });
     signature = await requestTypedSignature(firstPayload);
   } catch (error) {
@@ -1336,11 +1343,32 @@ export async function signTypedData(provider: EthereumProvider, account: string,
     }
     recordLocalOfferDiagnostic("wallet.signature.fallback", {
       method: "eth_signTypedData_v4",
-      payload: "serialized",
+      payload: fallbackPayloadLabel,
     });
     signature = await requestTypedSignature(fallbackPayload);
   }
   if (typeof signature !== "string") throw new Error("Wallet did not return a signature");
+  try {
+    const recoveredAddress = await recoverTypedDataAddress({
+      ...walletTypedData,
+      signature,
+    } as Parameters<typeof recoverTypedDataAddress>[0]);
+    const signatureMatches = recoveredAddress.toLowerCase() === accountAddress.toLowerCase();
+    recordLocalOfferDiagnostic("wallet.signature.verified", {
+      account: accountAddress,
+      recoveredAddress,
+      signatureMatches,
+    });
+    if (!signatureMatches && provider.connectorId !== "base-account" && provider.isBaseAccount !== true) {
+      throw new Error("Wallet signature does not match the connected account");
+    }
+  } catch (error) {
+    recordLocalOfferDiagnostic("wallet.signature.verification_failed", {
+      account: accountAddress,
+      error,
+    });
+    if (error instanceof Error && error.message === "Wallet signature does not match the connected account") throw error;
+  }
   recordLocalOfferDiagnostic("wallet.signature.complete", { signatureLength: signature.length });
   trackAppEvent("transaction_confirmed", { transactionType: "seaport_order_signature" });
   return signature;

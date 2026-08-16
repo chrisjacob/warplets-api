@@ -20,8 +20,10 @@ import {
   type OpenSeaMarketEnv,
 } from "./openseaMarket.js";
 import { jsonSecure } from "./security.js";
+import { logTradeAction } from "./openseaTrade.js";
 import { recordWarpletActivity } from "./warpletNotifications.js";
 import { resolveWalletProfiles } from "./walletProfiles.js";
+import { concatHex, hashStruct, keccak256, toHex, type Hex } from "viem";
 
 export type CollectionOffersEnv = OpenSeaMarketEnv;
 
@@ -238,6 +240,44 @@ const SEAPORT_ORDER_TYPE_FULL_OPEN = 0;
 const SEAPORT_ORDER_TYPE_PARTIAL_OPEN = 1;
 const SEAPORT_ORDER_TYPE_FULL_RESTRICTED = 2;
 const SEAPORT_ORDER_TYPE_PARTIAL_RESTRICTED = 3;
+const SEAPORT_ORDER_TYPES = {
+  OrderComponents: [
+    { name: "offerer", type: "address" },
+    { name: "zone", type: "address" },
+    { name: "offer", type: "OfferItem[]" },
+    { name: "consideration", type: "ConsiderationItem[]" },
+    { name: "orderType", type: "uint8" },
+    { name: "startTime", type: "uint256" },
+    { name: "endTime", type: "uint256" },
+    { name: "zoneHash", type: "bytes32" },
+    { name: "salt", type: "uint256" },
+    { name: "conduitKey", type: "bytes32" },
+    { name: "counter", type: "uint256" },
+  ],
+  OfferItem: [
+    { name: "itemType", type: "uint8" },
+    { name: "token", type: "address" },
+    { name: "identifierOrCriteria", type: "uint256" },
+    { name: "startAmount", type: "uint256" },
+    { name: "endAmount", type: "uint256" },
+  ],
+  ConsiderationItem: [
+    { name: "itemType", type: "uint8" },
+    { name: "token", type: "address" },
+    { name: "identifierOrCriteria", type: "uint256" },
+    { name: "startAmount", type: "uint256" },
+    { name: "endAmount", type: "uint256" },
+    { name: "recipient", type: "address" },
+  ],
+} as const;
+
+export function computeSeaportOrderHash(parameters: Record<string, unknown>): Hex {
+  return hashStruct({
+    data: parameters,
+    primaryType: "OrderComponents",
+    types: SEAPORT_ORDER_TYPES,
+  } as Parameters<typeof hashStruct>[0]);
+}
 
 function requireOpenSeaApiKey(env: CollectionOffersEnv): string {
   const apiKey = env.OPENSEA_API_KEY?.trim();
@@ -245,15 +285,20 @@ function requireOpenSeaApiKey(env: CollectionOffersEnv): string {
   return apiKey;
 }
 
+export function openSeaPostHeaders(apiKey: string): Record<string, string> {
+  return {
+    accept: "application/json",
+    "content-type": "application/json",
+    // Header names are case-insensitive. Supplying both x-api-key and
+    // X-API-KEY makes Fetch combine them into the invalid value "key, key".
+    "x-api-key": apiKey,
+  };
+}
+
 async function openSeaPost(apiKey: string, path: string, body: unknown): Promise<Record<string, unknown>> {
   const response = await fetch(`${OPENSEA_API_BASE}${path}`, {
     method: "POST",
-    headers: {
-      accept: "application/json",
-      "content-type": "application/json",
-      "x-api-key": apiKey,
-      "X-API-KEY": apiKey,
-    },
+    headers: openSeaPostHeaders(apiKey),
     body: JSON.stringify(body),
     signal: AbortSignal.timeout(15000),
   });
@@ -264,11 +309,12 @@ async function openSeaPost(apiKey: string, path: string, body: unknown): Promise
   return (await response.json()) as Record<string, unknown>;
 }
 
-async function openSeaPostWithTransientRetry(
+export async function openSeaPostWithTransientRetry(
   apiKey: string,
   path: string,
   body: unknown,
   attempts = 4,
+  baseDelayMs = 500,
 ): Promise<Record<string, unknown>> {
   let lastError: unknown;
   for (let attempt = 0; attempt < attempts; attempt += 1) {
@@ -279,7 +325,7 @@ async function openSeaPostWithTransientRetry(
       const message = error instanceof Error ? error.message : String(error);
       const isTransient = /failed \((?:429|5\d\d)\)/.test(message);
       if (!isTransient || attempt + 1 >= attempts) throw error;
-      await new Promise((resolve) => setTimeout(resolve, 500 * (2 ** attempt)));
+      await new Promise((resolve) => setTimeout(resolve, baseDelayMs * (2 ** attempt)));
     }
   }
   throw lastError;
@@ -468,7 +514,57 @@ async function fetchSeaportCounter(offerer: string): Promise<string> {
 }
 
 let collectionFeesCache: { expiresAt: number; fees: Array<{ recipient: string; bps: number }> } | null = null;
-const traitBuildCache = new Map<string, { expiresAt: number; built: Record<string, unknown> }>();
+
+export function buildSeaportCriteriaRoot(tokenIds: Array<number | string>): string {
+  let layer = tokenIds
+    .map((tokenId) => keccak256(toHex(BigInt(tokenId), { size: 32 })))
+    .sort((left, right) => left.localeCompare(right));
+  if (layer.length === 0) return "0";
+  while (layer.length > 1) {
+    const nextLayer: Hex[] = [];
+    for (let index = 0; index < layer.length; index += 2) {
+      const left = layer[index];
+      const right = layer[index + 1];
+      if (!right) {
+        nextLayer.push(left);
+        continue;
+      }
+      const pair = left.localeCompare(right) <= 0 ? [left, right] : [right, left];
+      nextLayer.push(keccak256(concatHex(pair)));
+    }
+    layer = nextLayer;
+  }
+  return BigInt(layer[0]).toString();
+}
+
+async function buildLocalTraitCriteria(
+  env: CollectionOffersEnv,
+  attribute: typeof TRAIT_ATTRIBUTES[number],
+  level: string,
+): Promise<Record<string, unknown>> {
+  const rows = await env.WARPLETS.prepare(
+    `SELECT token_id FROM warplets_metadata WHERE ${attribute.column} = ? ORDER BY token_id ASC`,
+  ).bind(level).all<{ token_id: number }>();
+  const tokenIds = (rows.results ?? [])
+    .map((row) => Number(row.token_id))
+    .filter((tokenId) => Number.isInteger(tokenId) && tokenId > 0);
+  if (tokenIds.length === 0) throw new Error(`No tokens matched ${attribute.traitType} ${level}`);
+  return {
+    parameters: {
+      zone: OPENSEA_SIGNED_ZONE_V2,
+      zoneHash: ZERO_HASH,
+      conduitKey: OPENSEA_CONDUIT_KEY,
+      orderType: SEAPORT_ORDER_TYPE_FULL_RESTRICTED,
+      consideration: [{
+        itemType: 4,
+        token: COLLECTION_CONTRACT,
+        identifierOrCriteria: buildSeaportCriteriaRoot(tokenIds),
+        startAmount: "1",
+        endAmount: "1",
+      }],
+    },
+  };
+}
 
 async function fetchCollectionFees(apiKey: string): Promise<Array<{ recipient: string; bps: number }>> {
   if (collectionFeesCache && collectionFeesCache.expiresAt > Date.now()) return collectionFeesCache.fees;
@@ -581,37 +677,17 @@ function buildCollectionOfferTypedData(input: {
       },
       primaryType: "OrderComponents",
       types: {
-        OrderComponents: [
-          { name: "offerer", type: "address" },
-          { name: "zone", type: "address" },
-          { name: "offer", type: "OfferItem[]" },
-          { name: "consideration", type: "ConsiderationItem[]" },
-          { name: "orderType", type: "uint8" },
-          { name: "startTime", type: "uint256" },
-          { name: "endTime", type: "uint256" },
-          { name: "zoneHash", type: "bytes32" },
-          { name: "salt", type: "uint256" },
-          { name: "conduitKey", type: "bytes32" },
-          { name: "counter", type: "uint256" },
-        ],
-        OfferItem: [
-          { name: "itemType", type: "uint8" },
-          { name: "token", type: "address" },
-          { name: "identifierOrCriteria", type: "uint256" },
-          { name: "startAmount", type: "uint256" },
-          { name: "endAmount", type: "uint256" },
-        ],
-        ConsiderationItem: [
-          { name: "itemType", type: "uint8" },
-          { name: "token", type: "address" },
-          { name: "identifierOrCriteria", type: "uint256" },
-          { name: "startAmount", type: "uint256" },
-          { name: "endAmount", type: "uint256" },
-          { name: "recipient", type: "address" },
-        ],
+        ...SEAPORT_ORDER_TYPES,
       },
       message: parameters,
     },
+  };
+}
+
+export function withOriginalConsiderationCount(parameters: Record<string, unknown>): Record<string, unknown> {
+  return {
+    ...parameters,
+    totalOriginalConsiderationItems: asArray(parameters.consideration).length,
   };
 }
 
@@ -950,10 +1026,11 @@ export async function handleCollectionOfferSubmit(context: Parameters<PagesFunct
   const protocolAddress = normalizeAddress(payload.protocol_address) ?? DEFAULT_SEAPORT_PROTOCOL;
   if (!parameters || !signature) return jsonSecure({ error: "missing_signature" }, { status: 400 });
   const apiKey = requireOpenSeaApiKey(context.env);
+  const submissionParameters = withOriginalConsiderationCount(parameters);
   let result: Record<string, unknown>;
   try {
     result = await openSeaPost(apiKey, "/offers", {
-      protocol_data: { parameters, signature },
+      protocol_data: { parameters: submissionParameters, signature },
       criteria: { collection: { slug: COLLECTION_SLUG } },
       protocol_address: protocolAddress,
     });
@@ -966,9 +1043,11 @@ export async function handleCollectionOfferSubmit(context: Parameters<PagesFunct
   const priceRaw = asString(body.priceRaw);
   const quantity = Math.max(1, Math.floor(asNumber(body.quantity) ?? 1));
   if (orderHash) {
-    const row = { ...result, order_hash: orderHash, protocol_address: protocolAddress, protocol_data: { parameters, signature }, status: "ACTIVE", remaining_quantity: quantity };
-    await upsertCriteriaOfferFromRow(context.env, row, { recordActivity: false }).catch(() => false);
-    await updateCollectionOfferDisplayFields(context.env, row);
+    const row = { ...result, order_hash: orderHash, protocol_address: protocolAddress, protocol_data: { parameters: submissionParameters, signature }, status: "ACTIVE", remaining_quantity: quantity };
+    await upsertCriteriaOfferFromRow(context.env, row, { recordActivity: false })
+      .catch((error) => console.error("Collection offer submitted but local ingestion failed", { orderHash, error }));
+    await updateCollectionOfferDisplayFields(context.env, row)
+      .catch((error) => console.error("Collection offer submitted but display bookkeeping failed", { orderHash, error }));
   }
   if (wallet && priceRaw) {
     await recordWarpletActivity(context.env, {
@@ -1096,32 +1175,36 @@ export async function handleTraitOfferPrepare(context: Parameters<PagesFunction<
   const level = asString(body.level)?.toUpperCase();
   const quantity = Math.min(10000, Math.max(1, Math.floor(asNumber(body.quantity) ?? 1)));
   if (!wallet || !priceRaw || !attribute || !TRAIT_LEVELS.includes(level as typeof TRAIT_LEVELS[number])) return jsonSecure({ error: "invalid_request" }, { status: 400 });
+  const traitLevel = level as typeof TRAIT_LEVELS[number];
   let normalizedPriceRaw: string;
   try { normalizedPriceRaw = assertPositiveRawAmount(priceRaw); } catch { return jsonSecure({ error: "invalid_price", message: "Offer amount is invalid" }, { status: 400 }); }
-  const criteria = { collection: { slug: COLLECTION_SLUG }, traits: [{ type: attribute.traitType, value: level }] };
+  const criteria = { collection: { slug: COLLECTION_SLUG }, traits: [{ type: attribute.traitType, value: traitLevel }] };
   try {
     const apiKey = requireOpenSeaApiKey(context.env);
-    const [counter, fees] = await Promise.all([
+    const [counter, fees, builtResult] = await Promise.all([
       fetchSeaportCounter(wallet),
       fetchCollectionFees(apiKey),
-    ]);
-    const buildCacheKey = `${wallet}|${attribute.id}|${level}`;
-    const cachedBuild = traitBuildCache.get(buildCacheKey);
-    let built: Record<string, unknown>;
-    if (cachedBuild && cachedBuild.expiresAt > Date.now()) {
-      built = cachedBuild.built;
-    } else {
-      built = await openSeaPostWithTransientRetry(apiKey, "/offers/build", {
+      openSeaPost(apiKey, "/offers/build", {
         offerer: wallet,
-        quantity: 1,
+        quantity,
         criteria,
         protocol_address: DEFAULT_SEAPORT_PROTOCOL,
         offer_protection_enabled: true,
-      });
-      traitBuildCache.set(buildCacheKey, { expiresAt: Date.now() + 10 * 60 * 1000, built });
-    }
-    const order = buildCollectionOfferTypedData({ offerer: wallet, unitPriceRaw: normalizedPriceRaw, quantity, durationSeconds: asNumber(body.durationSeconds) ?? MAX_OPENSEA_ORDER_DURATION_SECONDS, counter, fees, built });
-    return jsonSecure({ status: "ready", actionId: asString(body.actionId) ?? crypto.randomUUID(), attribute: attribute.id, traitType: attribute.traitType, traitValue: level, criteria, protocolAddress: DEFAULT_SEAPORT_PROTOCOL, parameters: order.parameters, typedData: order.typedData, chainIdHex: BASE_CHAIN_ID_HEX, wethApproval: { tokenAddress: BASE_WETH, spender: OPENSEA_CONDUIT_ADDRESS, amount: order.requiredWethRaw }, totalRaw: order.totalRaw, requiredWethRaw: order.requiredWethRaw });
+      }).then((built) => ({ built, source: "opensea" as const }))
+        .catch(async (error) => {
+          console.warn("OpenSea trait offer build failed; using local criteria", {
+            attribute: attribute.id,
+            level: traitLevel,
+            error: error instanceof Error ? error.message : String(error),
+          });
+          return {
+            built: await buildLocalTraitCriteria(context.env, attribute, traitLevel),
+            source: "local" as const,
+          };
+        }),
+    ]);
+    const order = buildCollectionOfferTypedData({ offerer: wallet, unitPriceRaw: normalizedPriceRaw, quantity, durationSeconds: asNumber(body.durationSeconds) ?? MAX_OPENSEA_ORDER_DURATION_SECONDS, counter, fees, built: builtResult.built });
+    return jsonSecure({ status: "ready", actionId: asString(body.actionId) ?? crypto.randomUUID(), attribute: attribute.id, traitType: attribute.traitType, traitValue: traitLevel, criteria, criteriaSource: builtResult.source, protocolAddress: DEFAULT_SEAPORT_PROTOCOL, parameters: order.parameters, typedData: order.typedData, chainIdHex: BASE_CHAIN_ID_HEX, wethApproval: { tokenAddress: BASE_WETH, spender: OPENSEA_CONDUIT_ADDRESS, amount: order.requiredWethRaw }, totalRaw: order.totalRaw, requiredWethRaw: order.requiredWethRaw });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Could not prepare trait offer";
     const status = message.startsWith("OpenSea ") ? 424 : 502;
@@ -1129,7 +1212,7 @@ export async function handleTraitOfferPrepare(context: Parameters<PagesFunction<
       error: "trait_offer_prepare_failed",
       message,
       attribute: attribute.id,
-      level,
+      level: traitLevel,
       quantity,
     }, { status });
   }
@@ -1145,14 +1228,90 @@ export async function handleTraitOfferSubmit(context: Parameters<PagesFunction<C
   if (!parameters || !signature || !attribute || !TRAIT_LEVELS.includes(level as typeof TRAIT_LEVELS[number])) return jsonSecure({ error: "invalid_request" }, { status: 400 });
   const protocolAddress = normalizeAddress(payload.protocol_address) ?? DEFAULT_SEAPORT_PROTOCOL;
   const criteria = { collection: { slug: COLLECTION_SLUG }, traits: [{ type: attribute.traitType, value: level }] };
+  const submissionParameters = withOriginalConsiderationCount(parameters);
+  const actionId = asString(body.actionId) ?? crypto.randomUUID();
+  const offerer = normalizeAddress(parameters.offerer);
+  const fid = Math.max(0, Math.floor(asNumber(body.fid) ?? 0)) || null;
+  const startedAt = Date.now();
+  const diagnosticPayload = {
+    attribute: attribute.id,
+    level,
+    quantity: Math.max(1, Math.floor(asNumber(body.quantity) ?? 1)),
+    considerationCount: asArray(parameters.consideration).length,
+    criteriaRoot: asString(asObject(asArray(parameters.consideration)[0])?.identifierOrCriteria),
+    signatureLength: signature.length,
+  };
+  await logTradeAction(context.env, {
+    actionId,
+    actionName: "trait_offer_submit",
+    status: "started",
+    phase: "signature_success",
+    fid,
+    walletFrom: offerer,
+    protocolAddress,
+    expectedPriceRaw: asString(body.priceRaw),
+    rawPayload: diagnosticPayload,
+  }).catch((error) => console.error("Failed to record trait offer submit start", error));
   let result: Record<string, unknown>;
-  try { result = await openSeaPost(requireOpenSeaApiKey(context.env), "/offers", { protocol_data: { parameters, signature }, criteria, protocol_address: protocolAddress }); }
-  catch (error) { return jsonSecure({ error: "opensea_submit_failed", message: error instanceof Error ? error.message : "OpenSea trait offer submit failed" }, { status: 502 }); }
+  let submissionHttpStatus = 200;
+  let recoveredExistingOrder = false;
+  try {
+    result = await openSeaPostWithTransientRetry(
+      requireOpenSeaApiKey(context.env),
+      "/offers",
+      { protocol_data: { parameters: submissionParameters, signature }, criteria, protocol_address: protocolAddress },
+      2,
+      5_000,
+    );
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "OpenSea trait offer submit failed";
+    const httpStatus = Number(/failed \((\d{3})\)/.exec(message)?.[1]) || null;
+    if (httpStatus === 400 && /order already exists/i.test(message)) {
+      const orderHash = computeSeaportOrderHash(parameters);
+      result = {
+        order_hash: orderHash,
+        status: "ACTIVE",
+        recovered_existing_order: true,
+      };
+      submissionHttpStatus = httpStatus;
+      recoveredExistingOrder = true;
+    } else {
+      await logTradeAction(context.env, {
+        actionId,
+        actionName: "trait_offer_submit",
+        status: "failed",
+        phase: "api_error",
+        fid,
+        walletFrom: offerer,
+        protocolAddress,
+        expectedPriceRaw: asString(body.priceRaw),
+        httpStatus,
+        errorMessage: message,
+        rawPayload: { ...diagnosticPayload, elapsedMs: Date.now() - startedAt },
+      }).catch((logError) => console.error("Failed to record trait offer submit error", logError));
+      return jsonSecure({ error: "opensea_submit_failed", message }, { status: 502 });
+    }
+  }
   const orderHash = asString(result.order_hash) ?? asString(result.orderHash);
+  await logTradeAction(context.env, {
+    actionId,
+    actionName: "trait_offer_submit",
+    status: "success",
+    phase: "confirmed",
+    fid,
+    walletFrom: offerer,
+    orderHash,
+    protocolAddress,
+    expectedPriceRaw: asString(body.priceRaw),
+    httpStatus: submissionHttpStatus,
+    rawPayload: { ...diagnosticPayload, elapsedMs: Date.now() - startedAt, recoveredExistingOrder },
+  }).catch((error) => console.error("Failed to record trait offer submit success", error));
   if (orderHash) {
-    const row = { ...result, order_hash: orderHash, protocol_address: protocolAddress, protocol_data: { parameters, signature }, criteria, status: "ACTIVE", remaining_quantity: Math.max(1, Math.floor(asNumber(body.quantity) ?? 1)) };
-    await upsertCriteriaOfferFromRow(context.env, row, { recordActivity: false });
-    await updateCollectionOfferDisplayFields(context.env, row);
+    const row = { ...result, order_hash: orderHash, protocol_address: protocolAddress, protocol_data: { parameters: submissionParameters, signature }, criteria, status: "ACTIVE", remaining_quantity: Math.max(1, Math.floor(asNumber(body.quantity) ?? 1)) };
+    await upsertCriteriaOfferFromRow(context.env, row, { recordActivity: false })
+      .catch((error) => console.error("Trait offer submitted but local ingestion failed", { orderHash, error }));
+    await updateCollectionOfferDisplayFields(context.env, row)
+      .catch((error) => console.error("Trait offer submitted but display bookkeeping failed", { orderHash, error }));
   }
   return jsonSecure({ status: "submitted", result });
 }

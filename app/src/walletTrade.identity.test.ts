@@ -127,7 +127,7 @@ describe("wallet signer identity", () => {
     expect(request).toHaveBeenCalledWith({ method: "eth_requestAccounts" });
   });
 
-  it("sends structured typed data first for standard EIP-1193 wallets", async () => {
+  it.each(["farcaster", "legacy-injected"])("preserves the known-good serialized route for %s", async (connectorId) => {
     const calls: Array<{ method: string; params?: unknown[] }> = [];
     const request = vi.fn(async (request: { method: string; params?: unknown[] }) => {
       calls.push(request);
@@ -135,18 +135,16 @@ describe("wallet signer identity", () => {
     });
 
     await signTypedData(
-      { request } as EthereumProvider,
+      { request, connectorId } as EthereumProvider,
       "0x1111111111111111111111111111111111111111",
       typedData,
     );
 
     expect(request).toHaveBeenCalledTimes(1);
-    expect(calls[0]).toMatchObject({
-      method: "eth_signTypedData_v4",
-      params: ["0x1111111111111111111111111111111111111111", expect.objectContaining({ primaryType: "Offer" })],
-    });
-    const signRequest = calls[0]?.params?.[0] as { request?: { data?: { types?: Record<string, unknown> } } };
-    expect(signRequest.request?.data?.types?.EIP712Domain).toBeUndefined();
+    expect(calls[0]?.method).toBe("eth_signTypedData_v4");
+    expect(calls[0]?.params?.[0]).toBe("0x1111111111111111111111111111111111111111");
+    expect(typeof calls[0]?.params?.[1]).toBe("string");
+    expect(JSON.parse(calls[0]?.params?.[1] as string)).toMatchObject({ primaryType: "Offer" });
   });
 
   it("uses Base Account's documented structured EIP-712 request", async () => {
@@ -259,7 +257,7 @@ describe("wallet signer identity", () => {
     expect(calls.map((call) => call.method)).toEqual(["eth_signTypedData_v4"]);
   });
 
-  it("falls back to serialized typed data for older wallets", async () => {
+  it("falls back to structured typed data when a standard wallet rejects serialized JSON", async () => {
     const calls: Array<{ method: string; params?: unknown[] }> = [];
     const request = vi.fn(async (request: { method: string; params?: unknown[] }) => {
       calls.push(request);
@@ -274,6 +272,7 @@ describe("wallet signer identity", () => {
     );
 
     expect(request).toHaveBeenCalledTimes(2);
-    expect(typeof calls[1]?.params?.[1]).toBe("string");
+    expect(typeof calls[0]?.params?.[1]).toBe("string");
+    expect(typeof calls[1]?.params?.[1]).toBe("object");
   });
 });

@@ -7810,11 +7810,29 @@ function CollectionOffersPage({
       return;
     }
     const actionId = crypto.randomUUID();
+    recordLocalOfferDiagnostic("collection_offer.started", {
+      actionId,
+      quantity: clampedQuantity,
+      priceRaw,
+      viewerFid,
+    });
     setBusy("offer");
     setCollectionBusyLabel("Preparing...");
     try {
       void hapticPrimaryTap();
       const { provider, account } = await getProviderAndAccount();
+      const initialChainId = await provider.request({ method: "eth_chainId" }).catch((error) => {
+        recordLocalOfferDiagnostic("collection_offer.chain_read_failed", { actionId, error });
+        return null;
+      });
+      recordLocalOfferDiagnostic("collection_offer.wallet_ready", {
+        actionId,
+        connector: provider.connectorId ?? (provider.isBaseAccount ? "base-account" : "unknown"),
+        isBaseAccount: Boolean(provider.isBaseAccount),
+        account,
+        chainId: initialChainId,
+      });
+      recordLocalOfferDiagnostic("collection_offer.prepare_started", { actionId });
       const response = await fetch("/api/collection-offers/prepare", {
         method: "POST",
         headers: { "content-type": "application/json", accept: "application/json" },
@@ -7836,11 +7854,30 @@ function CollectionOffersPage({
         totalRaw?: string;
         message?: string;
       };
+      recordLocalOfferDiagnostic("collection_offer.prepare_received", {
+        actionId,
+        status: response.status,
+        ok: response.ok,
+        hasParameters: Boolean(prepared.parameters),
+        hasTypedData: Boolean(prepared.typedData),
+        protocolAddress: prepared.protocolAddress ?? null,
+        chainIdHex: prepared.chainIdHex ?? null,
+        totalRaw: prepared.totalRaw ?? null,
+        wethApproval: prepared.wethApproval ?? null,
+        message: prepared.message ?? null,
+      });
       if (!response.ok) throw new Error(prepared.message || `Collection offer prepare failed (${response.status})`);
       if (prepared.wethApproval) {
         await ensureBaseChain(provider, prepared.chainIdHex ?? undefined);
         const requiredWeth = BigInt(prepared.wethApproval.amount);
         const currentWeth = await readErc20Balance(prepared.wethApproval.tokenAddress, account);
+        recordLocalOfferDiagnostic("collection_offer.funds_checked", {
+          actionId,
+          account,
+          requiredWeth: requiredWeth.toString(),
+          currentWeth: currentWeth.toString(),
+          wrapRequired: currentWeth < requiredWeth,
+        });
         if (currentWeth < requiredWeth) {
           const missingWeth = requiredWeth - currentWeth;
           const nativeEth = await readNativeBalance(account);
@@ -7862,7 +7899,9 @@ function CollectionOffersPage({
       }
       setCollectionBusyLabel("Waiting for wallet...");
       showToast("neutral", "Check your wallet to confirm the collection offer...", { minMs: 5000 });
+      recordLocalOfferDiagnostic("collection_offer.signing_started", { actionId });
       const signature = await signTypedData(provider, account, prepared.typedData);
+      recordLocalOfferDiagnostic("collection_offer.signing_complete", { actionId, signatureLength: signature.length });
       beginOpenSeaSubmitLabels(true);
       const submit = await fetch("/api/collection-offers/submit", {
         method: "POST",
@@ -7880,6 +7919,11 @@ function CollectionOffersPage({
           },
         }),
       });
+      recordLocalOfferDiagnostic("collection_offer.submit_received", {
+        actionId,
+        status: submit.status,
+        ok: submit.ok,
+      });
       if (!submit.ok) {
         const failure = await submit.json().catch(() => ({})) as { message?: string };
         throw new Error(failure.message || `Collection offer submit failed (${submit.status})`);
@@ -7892,6 +7936,7 @@ function CollectionOffersPage({
       setCollectionBusyLabel("Refreshing offers...");
       await loadOffers();
     } catch (error) {
+      recordLocalOfferDiagnostic("collection_offer.failed", { actionId, error });
       void hapticError();
       showToast("error", error instanceof Error ? error.message : "Collection offer failed.", { manualClose: true });
     } finally {
@@ -8551,7 +8596,7 @@ function TraitOffersPage({
         account,
         chainId: initialChainId,
       });
-      const prepared: Array<{ actionId: string; attribute: string; parameters?: unknown; typedData?: unknown; protocolAddress?: string; chainIdHex?: string; wethApproval?: TokenApprovalRequirement; totalRaw?: string; requiredWethRaw?: string; message?: string }> = [];
+      const prepared: Array<{ actionId: string; attribute: string; parameters?: unknown; typedData?: unknown; protocolAddress?: string; chainIdHex?: string; criteriaSource?: string; wethApproval?: TokenApprovalRequirement; totalRaw?: string; requiredWethRaw?: string; message?: string }> = [];
       for (const [attributeIndex, attribute] of attributeIds.entries()) {
         setBusyLabel(`Preparing ${attributeIndex + 1} of ${attributeIds.length}...`);
         const actionId = crypto.randomUUID();
@@ -8580,7 +8625,7 @@ function TraitOffersPage({
           }
         }
         if (!response) throw transportError instanceof Error ? transportError : new Error(`Could not prepare ${attribute} trait offer`);
-        let item: { actionId?: string; attribute?: string; parameters?: unknown; typedData?: unknown; protocolAddress?: string; chainIdHex?: string; wethApproval?: TokenApprovalRequirement; totalRaw?: string; requiredWethRaw?: string; message?: string } = {};
+        let item: { actionId?: string; attribute?: string; parameters?: unknown; typedData?: unknown; protocolAddress?: string; chainIdHex?: string; criteriaSource?: string; wethApproval?: TokenApprovalRequirement; totalRaw?: string; requiredWethRaw?: string; message?: string } = {};
         try { item = JSON.parse(responseText) as typeof item; } catch { /* Preserve the HTTP response below. */ }
         recordLocalOfferDiagnostic("trait_offer.prepare_received", {
           attemptId,
@@ -8592,6 +8637,7 @@ function TraitOffersPage({
           hasTypedData: Boolean(item.typedData),
           protocolAddress: item.protocolAddress ?? null,
           chainIdHex: item.chainIdHex ?? null,
+          criteriaSource: item.criteriaSource ?? null,
           totalRaw: item.totalRaw ?? null,
           requiredWethRaw: item.requiredWethRaw ?? null,
           wethApproval: item.wethApproval ?? null,
@@ -8643,10 +8689,24 @@ function TraitOffersPage({
             method: "POST", headers: { "content-type": "application/json", accept: "application/json" },
             body: JSON.stringify({ actionId: item.actionId, fid: viewerFid, wallet: account, priceRaw, quantity: clampedQuantity, attribute: item.attribute, level: `${level}X`, payload: { parameters: item.parameters, protocol_address: item.protocolAddress, signature } }),
           });
-          recordLocalOfferDiagnostic("trait_offer.submit_received", { attemptId, actionId: item.actionId, attribute: item.attribute, status: response.status, ok: response.ok });
+          const responseText = await response.text();
+          let responsePayload: { message?: string } = {};
+          try {
+            responsePayload = responseText ? JSON.parse(responseText) as { message?: string } : {};
+          } catch {
+            responsePayload = {};
+          }
+          recordLocalOfferDiagnostic("trait_offer.submit_received", {
+            attemptId,
+            actionId: item.actionId,
+            attribute: item.attribute,
+            status: response.status,
+            ok: response.ok,
+            message: responsePayload.message ?? null,
+            responsePreview: response.ok ? null : responseText.slice(0, 1000),
+          });
           if (!response.ok) {
-            const failure = await response.json().catch(() => ({})) as { message?: string };
-            throw new Error(failure.message || `Trait offer submission failed (${response.status})`);
+            throw new Error(responsePayload.message || `Trait offer submission failed (${response.status})`);
           }
           submitted += 1;
           setBusyLabel(`Refreshing ${submitted} of ${prepared.length}...`);
