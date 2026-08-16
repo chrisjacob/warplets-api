@@ -33,6 +33,10 @@
     "overrides": {
       "react": "19.2.5",
       "react-dom": "19.2.5"
+    },
+    "patchedDependencies": {
+      "@trustwallet/connect-walletconnect@0.0.0": "patches/@trustwallet__connect-walletconnect@0.0.0.patch",
+      "cuer@0.0.3": "patches/cuer@0.0.3.patch"
     }
   },
   "dependencies": {

@@ -45,7 +45,8 @@ import { trackAppEvent } from "./analytics";
 import { PwaControls } from "./PwaControls";
 import { LocalOfferDiagnosticsPanel } from "./LocalOfferDiagnosticsPanel";
 import { recordLocalOfferDiagnostic } from "./localOfferDiagnostics";
-import { resolveEntryPoint, isLikelyBaseAppBrowser, isStandaloneDisplay } from "./pwa";
+import { submitTraitOfferWithRetry } from "./traitOfferSubmit";
+import { resolveEntryPoint, isBaseAppContext, isLikelyBaseAppBrowser, isStandaloneDisplay } from "./pwa";
 import {
   composeFarcasterPost,
   configureAppSurface,
@@ -7975,7 +7976,7 @@ function CollectionOffersPage({
       if (!prepared.protocolAddress || !prepared.orderParameters?.length) throw new Error("OpenSea did not return cancel transaction data");
       await ensureBaseChain(provider, prepared.chainIdHex ?? undefined);
       setCollectionBusyLabel("Waiting for wallet...");
-      showToast("neutral", "Check your Farcaster wallet to confirm cancellation...", { minMs: 5000 });
+      showToast("neutral", "Check your wallet to confirm cancellation...", { minMs: 5000 });
       await sendPreparedTransaction(
         provider,
         account,
@@ -8483,20 +8484,24 @@ type ListedWarpletGroup = {
 
 function TraitOffersPage({
   connectedWallet,
+  showBaseWalletWarning,
   viewerFid,
   isInMiniAppContext,
   getProviderAndAccount,
   showToast,
   onMarketChanged,
   onShareOffer,
+  onOpenConnect,
 }: {
   connectedWallet: string | null;
+  showBaseWalletWarning: boolean;
   viewerFid: number | null;
   isInMiniAppContext: boolean;
   getProviderAndAccount: () => Promise<{ provider: EthereumProvider; account: string }>;
   showToast: (kind: TradeToast["kind"], message: string, options?: { manualClose?: boolean; minMs?: number }) => void;
   onMarketChanged: () => Promise<void>;
   onShareOffer: (input: { amountEth: number | null; quantity: number; attributes: LevelAttributeColumn[]; level: number }) => void;
+  onOpenConnect: () => void;
 }) {
   const [scope, setScope] = useState<"all" | "your">("all");
   const [selectedAttributes, setSelectedAttributes] = useState<LevelAttributeColumn[]>(() => LEVEL_ATTRIBUTES.map((item) => item.column));
@@ -8685,11 +8690,23 @@ function TraitOffersPage({
           const signature = await signTypedData(provider, account, item.typedData);
           recordLocalOfferDiagnostic("trait_offer.signing_complete", { attemptId, actionId: item.actionId, attribute: item.attribute, signatureLength: signature.length });
           setBusyLabel(`Submitting ${submitted + 1} of ${prepared.length}...`);
-          const response = await fetch("/api/trait-offers/submit", {
-            method: "POST", headers: { "content-type": "application/json", accept: "application/json" },
-            body: JSON.stringify({ actionId: item.actionId, fid: viewerFid, wallet: account, priceRaw, quantity: clampedQuantity, attribute: item.attribute, level: `${level}X`, payload: { parameters: item.parameters, protocol_address: item.protocolAddress, signature } }),
+          const submitBody = JSON.stringify({ actionId: item.actionId, fid: viewerFid, wallet: account, priceRaw, quantity: clampedQuantity, attribute: item.attribute, level: `${level}X`, payload: { parameters: item.parameters, protocol_address: item.protocolAddress, signature } });
+          const { response, responseText, attempts } = await submitTraitOfferWithRetry(submitBody, {
+            onRetry: ({ attempt, nextAttempt, delayMs, status, responseText: retryResponseText, error }) => {
+              setBusyLabel(`Retrying submission ${submitted + 1} of ${prepared.length}...`);
+              recordLocalOfferDiagnostic("trait_offer.submit_retry_scheduled", {
+                attemptId,
+                actionId: item.actionId,
+                attribute: item.attribute,
+                attempt,
+                nextAttempt,
+                delayMs,
+                status,
+                error,
+                responsePreview: retryResponseText.slice(0, 1000),
+              });
+            },
           });
-          const responseText = await response.text();
           let responsePayload: { message?: string } = {};
           try {
             responsePayload = responseText ? JSON.parse(responseText) as { message?: string } : {};
@@ -8702,6 +8719,7 @@ function TraitOffersPage({
             attribute: item.attribute,
             status: response.status,
             ok: response.ok,
+            attempts,
             message: responsePayload.message ?? null,
             responsePreview: response.ok ? null : responseText.slice(0, 1000),
           });
@@ -8801,6 +8819,14 @@ function TraitOffersPage({
         </div>
         <p className="mt-2 text-[11px] font-bold text-[#8bcfff]">{selectedAttributes.length === 1 && "Offer will be on OpenSea. "}Set price to <button type="button" disabled={!payload?.topTraitOffer} onClick={() => setPriceFromMarket(payload?.topTraitOffer)} className="cursor-pointer text-[#33AAFF] underline disabled:cursor-not-allowed disabled:opacity-50">Top Trait Offer</button>.</p>
         {selectedAttributes.length > 1 && <p className="mt-3 rounded-lg border border-[#33AAFF]/35 bg-[rgba(51,170,255,0.12)] px-3 py-2 text-xs font-bold text-[#8bcfff]">This will submit {selectedAttributes.length} offers on OpenSea, one for each selected Attribute with Level: {level}X.</p>}
+        {showBaseWalletWarning && (
+          <div role="status" className="mt-3 rounded-lg border border-[#FFFF00]/55 bg-[rgba(255,255,0,0.1)] px-3 py-2 text-xs font-bold leading-relaxed text-[#FFFF99]">
+            Base Wallet currently doesn&apos;t support Trait Offers. It returns &quot;Error Generating message&quot;. Please try connecting a{" "}
+            <button type="button" onClick={onOpenConnect} className="cursor-pointer font-bold text-[#FFFF00] underline underline-offset-2 hover:text-white">
+              different wallet
+            </button>.
+          </div>
+        )}
         <button type="button" disabled={busy !== null || !priceIsValid} onClick={() => void runMakeOffers()} className="mt-3 w-full cursor-pointer rounded-[20px] border border-[#1c78b3] bg-[#33AAFF] px-5 py-3 text-base font-bold text-[rgb(0,54,80)] shadow-[3px_6px_0_#1c78b3] disabled:cursor-wait disabled:opacity-70">{busy === "offer" ? busyLabel ?? "Preparing..." : ctaLabel}</button>
       </div>
       <SearchSegmentedTabs className="mt-4" options={OFFERS_FILTER_TABS} activeId={scope} onSelect={(id) => setScope(id === "your" ? "your" : "all")}/>
@@ -13681,7 +13707,7 @@ function WarpletDetailsModal({
       const payload = await prepare.json() as { actions?: unknown; chainIdHex?: string; message?: string };
       if (!prepare.ok) throw new Error(payload.message || `Listing prepare failed (${prepare.status})`);
       postTradeLog({ actionName: "list", status: "requested", phase: "signature_requested", expectedPriceRaw: priceRaw });
-      showToast("neutral", "Check your Farcaster wallet to confirm the listing...", { minMs: 5000 });
+      showToast("neutral", "Check your wallet to confirm the listing...", { minMs: 5000 });
       const signed = await executeOpenSeaActions(provider, account, payload.actions);
       postTradeLog({ actionName: "list", status: "signed", phase: "signature_success", expectedPriceRaw: priceRaw });
       const submit = await fetch("/api/warplet-trade/listing/submit", {
@@ -13798,7 +13824,7 @@ function WarpletDetailsModal({
         postTradeLog({ actionName: "make_offer", status: "approved", phase: "approval_success", expectedPriceRaw: priceRaw });
       }
       postTradeLog({ actionName: "make_offer", status: "requested", phase: "signature_requested", expectedPriceRaw: priceRaw });
-      showToast("neutral", "Check your Farcaster wallet to confirm the offer...", { minMs: 5000 });
+      showToast("neutral", "Check your wallet to confirm the offer...", { minMs: 5000 });
       if (!payload.typedData || !payload.parameters || !payload.protocolAddress) {
         throw new Error("OpenSea did not return item offer signature data");
       }
@@ -13908,7 +13934,7 @@ function WarpletDetailsModal({
       if (!payload.protocolAddress || !payload.orderParameters) throw new Error("OpenSea did not return cancel transaction data");
       await ensureBaseChain(provider, payload.chainIdHex ?? undefined);
       postTradeLog({ actionName: getActionLogName(action), status: "requested", phase: "transaction_requested", orderHash: order.orderHash, protocolAddress: payload.protocolAddress });
-      showToast("neutral", "Check your Farcaster wallet to confirm cancellation...", { minMs: 5000 });
+      showToast("neutral", "Check your wallet to confirm cancellation...", { minMs: 5000 });
       const hash = await sendPreparedTransaction(
         provider,
         account,
@@ -18188,12 +18214,17 @@ export default function SearchApp() {
         ) : searchRoute.page === "offers" && searchRoute.offersPage === "trait" ? (
           <TraitOffersPage
             connectedWallet={activeWallet}
+            showBaseWalletWarning={walletController.session?.connectorId === "base-account" && isBaseAppContext()}
             viewerFid={viewerFid}
             isInMiniAppContext={isInMiniAppContext}
             getProviderAndAccount={getCollectionOfferProviderAndAccount}
             showToast={showSearchToast}
             onMarketChanged={() => refreshMarketSnapshot(true)}
             onShareOffer={handleOpenTraitOfferShare}
+            onOpenConnect={() => {
+              trackAppEvent("connect_opened", { surface: "web", route: window.location.pathname, trigger: "trait_offer_base_warning" });
+              setWebConnectOpen(true);
+            }}
           />
         ) : searchRoute.page === "offers" && searchRoute.offersPage === "item" ? (
           <ItemOffersPage

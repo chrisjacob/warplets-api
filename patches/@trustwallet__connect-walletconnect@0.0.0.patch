@@ -1,0 +1,19 @@
+diff --git a/dist/react/hooks/useWalletConnect.js b/dist/react/hooks/useWalletConnect.js
+index 62f26ef..d75aa19 100644
+--- a/dist/react/hooks/useWalletConnect.js
++++ b/dist/react/hooks/useWalletConnect.js
+@@ -30,13 +30,14 @@ export function useWalletConnect() {
+             throw new LinkNotReadyError();
+         }
+-        const mobileLink = wallet.mobile?.universal || wallet.mobile?.native || wallet.mobile_link;
++        const mobileLink = wallet.mobile?.native || wallet.mobile?.universal || wallet.mobile_link;
+         if (!mobileLink) {
+             throw new MissingMobileDeepLinkError(wallet.name);
+         }
+         // Build the universal link with the WalletConnect URI
+-        const deepLink = `${mobileLink}wc?uri=${encodeURIComponent(currentUri)}`;
++        const separator = mobileLink.endsWith('/') ? '' : '/';
++        const deepLink = `${mobileLink}${separator}wc?uri=${encodeURIComponent(currentUri)}`;
+         window.open(deepLink, '_blank', 'noreferrer noopener');
+     }, [service]);
+     const uri = useSyncExternalStore((callback) => {

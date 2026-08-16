@@ -9,10 +9,28 @@ import type { EthereumProvider } from "./walletTrade";
 
 const queryClient = new QueryClient();
 
-function TrustConnectSession({ onConnected, onError, restoreOnly }: { onConnected: () => void; onError: (message: string) => void; restoreOnly: boolean }) {
-  const { open } = useTrustModal();
+function TrustConnectSession({ onConnected, onDismiss, onError, restoreOnly }: { onConnected: () => void; onDismiss: () => void; onError: (message: string) => void; restoreOnly: boolean }) {
+  const { isOpen, open } = useTrustModal();
   const connection = useConnection({ namespaceId: "eip155" });
   const activated = useRef("");
+  const modalOpened = useRef(false);
+  const modalWasOpen = useRef(false);
+
+  useEffect(() => {
+    if (restoreOnly || modalOpened.current) return;
+    modalOpened.current = true;
+    open({ type: "namespace", namespaceId: "eip155" });
+  }, [open, restoreOnly]);
+
+  useEffect(() => {
+    if (isOpen) {
+      modalWasOpen.current = true;
+      return;
+    }
+    if (restoreOnly || !modalWasOpen.current || connection.isConnected) return;
+    modalWasOpen.current = false;
+    onDismiss();
+  }, [connection.isConnected, isOpen, onDismiss, restoreOnly]);
 
   useEffect(() => {
     if (!connection.isConnected || !connection.address || !connection.wallet) return;
@@ -58,14 +76,10 @@ function TrustConnectSession({ onConnected, onError, restoreOnly }: { onConnecte
     });
   }, [connection.address, connection.chain?.reference, connection.isConnected, connection.wallet, onConnected, onError, restoreOnly]);
 
-  return (
-    <button className="web-connect-choice" type="button" onClick={() => open({ type: "namespace", namespaceId: "eip155" })}>
-      Choose an installed or mobile wallet
-    </button>
-  );
+  return null;
 }
 
-export default function TrustConnectBridge({ onConnected, onError, restoreOnly = false }: { onConnected: () => void; onError: (message: string) => void; restoreOnly?: boolean }) {
+export default function TrustConnectBridge({ onConnected, onDismiss = () => undefined, onError, restoreOnly = false }: { onConnected: () => void; onDismiss?: () => void; onError: (message: string) => void; restoreOnly?: boolean }) {
   const config = useMemo(() => {
     const chains = import.meta.env.DEV ? [base, baseSepolia] : [base];
     const namespaces = [createEIP155({ chains })];
@@ -85,7 +99,7 @@ export default function TrustConnectBridge({ onConnected, onError, restoreOnly =
   return (
     <TrustConnectProvider config={config} theme="dark">
       <QueryClientProvider client={queryClient}>
-        <TrustConnectSession onConnected={onConnected} onError={onError} restoreOnly={restoreOnly} />
+        <TrustConnectSession onConnected={onConnected} onDismiss={onDismiss} onError={onError} restoreOnly={restoreOnly} />
       </QueryClientProvider>
     </TrustConnectProvider>
   );

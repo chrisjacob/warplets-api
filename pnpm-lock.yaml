@@ -10,6 +10,14 @@ overrides:
 
 pnpmfileChecksum: sha256-ti1dAu0rxqDtrrgT9d+RxjyfG1JeN8+Gpa06A7A5CZs=
 
+patchedDependencies:
+  '@trustwallet/connect-walletconnect@0.0.0':
+    hash: 777227442ec5a9f4ae85c8fd21bdc5eadea6b274c0ab7152b0b767a587b50f47
+    path: patches/@trustwallet__connect-walletconnect@0.0.0.patch
+  cuer@0.0.3:
+    hash: 606b5d7b992ddc2fcf8f6bd1b420d324dccdf074abc10ad5925359eb309943bf
+    path: patches/cuer@0.0.3.patch
+
 importers:
 
   .:
@@ -101,10 +109,10 @@ importers:
         version: 0.0.0(@tanstack/react-query@5.101.4(react@19.2.5))(@trustwallet/connect-headless@0.0.0(react@19.2.5))(react@19.2.5)(viem@2.47.12(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@4.4.3))
       '@trustwallet/connect-react':
         specifier: 0.0.0
-        version: 0.0.0(@trustwallet/connect-walletconnect@0.0.0(bufferutil@4.1.0)(react@19.2.5)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@4.4.3))(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(typescript@5.9.3)
+        version: 0.0.0(@trustwallet/connect-walletconnect@0.0.0(patch_hash=777227442ec5a9f4ae85c8fd21bdc5eadea6b274c0ab7152b0b767a587b50f47)(bufferutil@4.1.0)(react@19.2.5)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@4.4.3))(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(typescript@5.9.3)
       '@trustwallet/connect-walletconnect':
         specifier: 0.0.0
-        version: 0.0.0(bufferutil@4.1.0)(react@19.2.5)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@4.4.3)
+        version: 0.0.0(patch_hash=777227442ec5a9f4ae85c8fd21bdc5eadea6b274c0ab7152b0b767a587b50f47)(bufferutil@4.1.0)(react@19.2.5)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@4.4.3)
       canvas-confetti:
         specifier: ^1.9.4
         version: 1.9.4
@@ -5154,14 +5162,6 @@ packages:
       uglify-js:
         optional: true
 
-  mipd@0.0.7:
-    resolution: {integrity: sha512-aAPZPNDQ3uMTdKbuO2YmAw2TxLHO0moa4YKAyETM/DTj5FloZo+a+8tU+iv4GmW+sOxKLSRwcSFuczk+Cpt6fg==}
-    peerDependencies:
-      typescript: '>=5.0.4'
-    peerDependenciesMeta:
-      typescript:
-        optional: true
-
   modern-ahocorasick@1.1.0:
     resolution: {integrity: sha512-sEKPVl2rM+MNVkGQt3ChdmD8YsigmXdn5NifZn6jiwn9LRJpWm8F3guhaqrJT/JOat6pwpbXEk6kv+b9DMIjsQ==}
 
@@ -9404,10 +9404,10 @@ snapshots:
       '@trustwallet/connect-core': 0.0.0
       react: 19.2.5
 
-  '@trustwallet/connect-react@0.0.0(@trustwallet/connect-walletconnect@0.0.0(bufferutil@4.1.0)(react@19.2.5)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@4.4.3))(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(typescript@5.9.3)':
+  '@trustwallet/connect-react@0.0.0(@trustwallet/connect-walletconnect@0.0.0(patch_hash=777227442ec5a9f4ae85c8fd21bdc5eadea6b274c0ab7152b0b767a587b50f47)(bufferutil@4.1.0)(react@19.2.5)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@4.4.3))(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(typescript@5.9.3)':
     dependencies:
-      '@trustwallet/connect-ui-logic': 0.0.0(@trustwallet/connect-walletconnect@0.0.0(bufferutil@4.1.0)(react@19.2.5)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@4.4.3))(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
-      cuer: 0.0.3(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(typescript@5.9.3)
+      '@trustwallet/connect-ui-logic': 0.0.0(@trustwallet/connect-walletconnect@0.0.0(patch_hash=777227442ec5a9f4ae85c8fd21bdc5eadea6b274c0ab7152b0b767a587b50f47)(bufferutil@4.1.0)(react@19.2.5)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@4.4.3))(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
+      cuer: 0.0.3(patch_hash=606b5d7b992ddc2fcf8f6bd1b420d324dccdf074abc10ad5925359eb309943bf)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(typescript@5.9.3)
       react: 19.2.5
       react-dom: 19.2.5(react@19.2.5)
     transitivePeerDependencies:
@@ -9418,18 +9418,18 @@ snapshots:
     dependencies:
       '@trustwallet/connect-core': 0.0.0
 
-  '@trustwallet/connect-ui-logic@0.0.0(@trustwallet/connect-walletconnect@0.0.0(bufferutil@4.1.0)(react@19.2.5)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@4.4.3))(react-dom@19.2.5(react@19.2.5))(react@19.2.5)':
+  '@trustwallet/connect-ui-logic@0.0.0(@trustwallet/connect-walletconnect@0.0.0(patch_hash=777227442ec5a9f4ae85c8fd21bdc5eadea6b274c0ab7152b0b767a587b50f47)(bufferutil@4.1.0)(react@19.2.5)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@4.4.3))(react-dom@19.2.5(react@19.2.5))(react@19.2.5)':
     dependencies:
       '@trustwallet/connect-headless': 0.0.0(react@19.2.5)
       '@trustwallet/connect-utils': 0.0.0
       react: 19.2.5
       react-dom: 19.2.5(react@19.2.5)
     optionalDependencies:
-      '@trustwallet/connect-walletconnect': 0.0.0(bufferutil@4.1.0)(react@19.2.5)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@4.4.3)
+      '@trustwallet/connect-walletconnect': 0.0.0(patch_hash=777227442ec5a9f4ae85c8fd21bdc5eadea6b274c0ab7152b0b767a587b50f47)(bufferutil@4.1.0)(react@19.2.5)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@4.4.3)
 
   '@trustwallet/connect-utils@0.0.0': {}
 
-  '@trustwallet/connect-walletconnect@0.0.0(bufferutil@4.1.0)(react@19.2.5)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@4.4.3)':
+  '@trustwallet/connect-walletconnect@0.0.0(patch_hash=777227442ec5a9f4ae85c8fd21bdc5eadea6b274c0ab7152b0b767a587b50f47)(bufferutil@4.1.0)(react@19.2.5)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@4.4.3)':
     dependencies:
       '@trustwallet/connect-bip122-types': 0.0.0(@trustwallet/connect-core@0.0.0)
       '@trustwallet/connect-core': 0.0.0
@@ -10551,7 +10551,7 @@ snapshots:
 
   csstype@3.2.3: {}
 
-  cuer@0.0.3(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(typescript@5.9.3):
+  cuer@0.0.3(patch_hash=606b5d7b992ddc2fcf8f6bd1b420d324dccdf074abc10ad5925359eb309943bf)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(typescript@5.9.3):
     dependencies:
       qr: 0.6.0
       react: 19.2.5
@@ -11653,10 +11653,6 @@ snapshots:
       webpack: 5.109.2(postcss@8.5.18)
     optionalDependencies:
       postcss: 8.5.18
-
-  mipd@0.0.7(typescript@5.9.3):
-    optionalDependencies:
-      typescript: 5.9.3
 
   modern-ahocorasick@1.1.0: {}
 

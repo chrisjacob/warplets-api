@@ -1073,6 +1073,10 @@ html[data-entry-point="pwa"] .miniapp-shell__content {
   left: 50%;
   z-index: 2300;
   box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   width: min(100vw, 500px);
   min-height: 60px;
   transform: translateX(-50%);
@@ -1083,7 +1087,7 @@ html[data-entry-point="pwa"] .miniapp-shell__content {
   font-size: 0.875rem;
   font-weight: 700;
   line-height: 1.35;
-  text-align: center;
+  text-align: left;
   box-shadow: 0 14px 28px rgb(0 0 0 / 50%);
   animation: trade-toast-slide-down 220ms ease-out forwards;
 }
@@ -1338,11 +1342,11 @@ html[data-entry-point="pwa"] .miniapp-shell__content {
   align-items: center;
   justify-content: center;
   padding: 0 16px;
-  border: 1px solid #009900;
+  border: 1px solid #5d42d6;
   border-radius: 14px;
-  background: #00ff00;
-  box-shadow: 3px 5px 0 #008000;
-  color: rgb(0 80 0);
+  background: #7959ff;
+  box-shadow: 3px 6px 0 #4b33b3;
+  color: #eeeaff;
   font-family: "Roboto Mono", system-ui, sans-serif;
   font-size: 12px;
   font-weight: 900;
@@ -1351,12 +1355,12 @@ html[data-entry-point="pwa"] .miniapp-shell__content {
 }
 
 .web-connect-farcaster-cta:hover {
-  background: #33ff33;
+  background: #967fff;
 }
 
 .web-connect-farcaster-cta:active {
   transform: translate(1px, 2px);
-  box-shadow: 1px 3px 0 #008000;
+  box-shadow: 1px 3px 0 #4b33b3;
 }
 
 .web-connect-farcaster-bonus-link {

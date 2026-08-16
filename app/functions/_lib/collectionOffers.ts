@@ -1260,8 +1260,9 @@ export async function handleTraitOfferSubmit(context: Parameters<PagesFunction<C
       requireOpenSeaApiKey(context.env),
       "/offers",
       { protocol_data: { parameters: submissionParameters, signature }, criteria, protocol_address: protocolAddress },
-      2,
-      5_000,
+      // Keep the worker response inside the Cloudflare gateway window. The client
+      // retries this exact signed payload, so no additional wallet prompt is needed.
+      1,
     );
   } catch (error) {
     const message = error instanceof Error ? error.message : "OpenSea trait offer submit failed";

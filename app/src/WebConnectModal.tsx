@@ -73,6 +73,34 @@ export function WebConnectModal({ open, onClose, farcasterControl, identityConne
   }, [successMessage]);
 
   useEffect(() => {
+    if (wallet.connecting !== "base-account") return;
+    let popupHadFocus = false;
+    let resetTimer: number | null = null;
+    const markPopupFocused = () => { popupHadFocus = true; };
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "hidden") markPopupFocused();
+    };
+    const handleFocusReturn = () => {
+      if (!popupHadFocus) return;
+      resetTimer = window.setTimeout(() => {
+        if (!currentWalletSession()) {
+          clearWalletConnectionError();
+          setLocalError(null);
+        }
+      }, 300);
+    };
+    window.addEventListener("blur", markPopupFocused);
+    window.addEventListener("focus", handleFocusReturn);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      window.removeEventListener("blur", markPopupFocused);
+      window.removeEventListener("focus", handleFocusReturn);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      if (resetTimer != null) window.clearTimeout(resetTimer);
+    };
+  }, [wallet.connecting]);
+
+  useEffect(() => {
     if (!open || !identityConnected || !wallet.session?.address) {
       setIdentitiesLinked(false);
       return;
@@ -230,12 +258,20 @@ export function WebConnectModal({ open, onClose, farcasterControl, identityConne
                         onClearIdentityError?.();
                         setShowOtherWallets(true);
                       }}>
-                        {disconnectingWallet && trustWalletConnected ? "Disconnecting…" : trustWalletConnected ? "Disconnect" : "Connect"}
+                        {disconnectingWallet && trustWalletConnected ? "Disconnecting…" : trustWalletConnected ? "Disconnect" : showOtherWallets ? "Connecting…" : "Connect"}
                       </button>
                     </div>
                     {showOtherWallets ? (
-                      <Suspense fallback={<div className="web-connect-loading">Loading wallet choices…</div>}>
-                        <TrustConnectBridge onConnected={finish} onError={handleWalletError} />
+                      <Suspense fallback={null}>
+                        <TrustConnectBridge
+                          onConnected={finish}
+                          onDismiss={() => {
+                            clearWalletConnectionError();
+                            setShowOtherWallets(false);
+                            setLocalError(null);
+                          }}
+                          onError={handleWalletError}
+                        />
                       </Suspense>
                     ) : null}
                   </div>
@@ -309,7 +345,21 @@ export function WebConnectModal({ open, onClose, farcasterControl, identityConne
       </section>
       {wallet.connecting ? (
         <div className="web-connect-progress-toast" role="status" aria-live="polite">
-          Connecting {walletConnectorLabel(wallet.connecting)}…
+          <span>Connecting {walletConnectorLabel(wallet.connecting)}…</span>
+          <button
+            type="button"
+            className="trade-toast__close"
+            aria-label="Close connection message"
+            title="Close"
+            onClick={() => {
+              setShowOtherWallets(false);
+              clearWalletConnectionError();
+            }}
+          >
+            <svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
+              <path d="M6 6l12 12" /><path d="M18 6L6 18" />
+            </svg>
+          </button>
         </div>
       ) : null}
       {connectionError && !wallet.connecting ? (

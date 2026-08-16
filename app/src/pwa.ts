@@ -54,6 +54,13 @@ export function isLikelyBaseAppBrowser(): boolean {
   return /coinbasewallet|baseapp/.test(ua) || referrer.startsWith("https://base.app/") || mobileCoinbaseProvider;
 }
 
+export function isBaseAppContext(): boolean {
+  if (typeof navigator === "undefined" || typeof document === "undefined") return false;
+  const ua = navigator.userAgent.toLowerCase();
+  const referrer = document.referrer.toLowerCase();
+  return /coinbasewallet|baseapp/.test(ua) || referrer.startsWith("https://base.app/");
+}
+
 export function initializePwa(): void {
   if (typeof window === "undefined") return;
   document.documentElement.dataset.entryPoint = resolveEntryPoint(window.location, {
