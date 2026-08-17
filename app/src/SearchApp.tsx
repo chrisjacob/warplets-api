@@ -46,6 +46,7 @@ import { PwaControls } from "./PwaControls";
 import { LocalOfferDiagnosticsPanel } from "./LocalOfferDiagnosticsPanel";
 import { recordLocalOfferDiagnostic } from "./localOfferDiagnostics";
 import { submitTraitOfferWithRetry } from "./traitOfferSubmit";
+import { getMobileWalletHandoff, openMobileWalletHandoff, waitForForeground } from "./mobileWalletHandoff";
 import { resolveEntryPoint, isBaseAppContext, isLikelyBaseAppBrowser, isStandaloneDisplay } from "./pwa";
 import {
   composeFarcasterPost,
@@ -8518,6 +8519,13 @@ function TraitOffersPage({
   const [cancelQuantity, setCancelQuantity] = useState(1);
   const [cancelRequestedQuantity, setCancelRequestedQuantity] = useState(1);
   const [biddersGroup, setBiddersGroup] = useState<CollectionOfferGroup | null>(null);
+  const [mobileSignaturePrompt, setMobileSignaturePrompt] = useState<{
+    walletName: string;
+    index: number;
+    total: number;
+    open: () => void;
+    cancel: () => void;
+  } | null>(null);
   const formRef = useRef<HTMLDivElement | null>(null);
   const normalizedWallet = normalizeWalletAddress(connectedWallet);
   const attributeIds = selectedAttributes.map((column) => LEVEL_ATTRIBUTES.find((item) => item.column === column)?.label.toLowerCase()).filter((value): value is string => Boolean(value));
@@ -8571,6 +8579,39 @@ function TraitOffersPage({
       ? LEVEL_ATTRIBUTES.find((item) => item.column === selectedAttributes[0])?.label ?? "1"
       : `${selectedAttributes.length} selected`;
   const ctaLabel = selectedAttributes.length === 1 ? "Review trait offer" : `Review ${selectedAttributes.length} trait offers`;
+
+  const requestTraitOfferSignature = useCallback((
+    provider: EthereumProvider,
+    account: string,
+    typedData: unknown,
+    index: number,
+    total: number,
+  ): Promise<string> => {
+    const handoff = getMobileWalletHandoff(provider);
+    if (!handoff) return signTypedData(provider, account, typedData);
+    recordLocalOfferDiagnostic("wallet.mobile_handoff_requested", { walletName: handoff.walletName, index, total });
+    return new Promise<string>((resolve, reject) => {
+      let settled = false;
+      const clear = () => setMobileSignaturePrompt(null);
+      const cancel = () => {
+        if (settled) return;
+        settled = true;
+        clear();
+        reject(Object.assign(new Error("Wallet signature request was cancelled."), { code: 4001 }));
+      };
+      const open = () => {
+        if (settled) return;
+        settled = true;
+        clear();
+        // Start the WalletConnect request while this button click still has a
+        // live user gesture, then immediately hand iOS to the selected wallet.
+        const signature = signTypedData(provider, account, typedData);
+        openMobileWalletHandoff(handoff);
+        signature.then(resolve, reject);
+      };
+      setMobileSignaturePrompt({ walletName: handoff.walletName, index, total, open, cancel });
+    });
+  }, []);
 
   const runMakeOffers = useCallback(async () => {
     const priceRaw = decimalEthToWeiString(price);
@@ -8687,8 +8728,13 @@ function TraitOffersPage({
         try {
           setBusyLabel(`Signing ${submitted + 1} of ${prepared.length}...`);
           recordLocalOfferDiagnostic("trait_offer.signing_started", { attemptId, actionId: item.actionId, attribute: item.attribute, index: submitted + 1, total: prepared.length });
-          const signature = await signTypedData(provider, account, item.typedData);
+          const mobileHandoff = getMobileWalletHandoff(provider);
+          const signature = await requestTraitOfferSignature(provider, account, item.typedData, submitted + 1, prepared.length);
           recordLocalOfferDiagnostic("trait_offer.signing_complete", { attemptId, actionId: item.actionId, attribute: item.attribute, signatureLength: signature.length });
+          if (mobileHandoff && document.visibilityState !== "visible") {
+            setBusyLabel("Return to Safari to submit...");
+            await waitForForeground();
+          }
           setBusyLabel(`Submitting ${submitted + 1} of ${prepared.length}...`);
           const submitBody = JSON.stringify({ actionId: item.actionId, fid: viewerFid, wallet: account, priceRaw, quantity: clampedQuantity, attribute: item.attribute, level: `${level}X`, payload: { parameters: item.parameters, protocol_address: item.protocolAddress, signature } });
           const { response, responseText, attempts } = await submitTraitOfferWithRetry(submitBody, {
@@ -8758,10 +8804,11 @@ function TraitOffersPage({
       void hapticError();
       showToast("error", error instanceof Error ? error.message : "Trait offer failed.", { manualClose: true });
     } finally {
+      setMobileSignaturePrompt(null);
       setBusy(null);
       setBusyLabel(null);
     }
-  }, [attributeIds.join(","), clampedQuantity, getProviderAndAccount, level, loadOffers, onMarketChanged, onShareOffer, price, selectedAttributes, showToast, viewerFid]);
+  }, [attributeIds.join(","), clampedQuantity, getProviderAndAccount, level, loadOffers, onMarketChanged, onShareOffer, price, requestTraitOfferSignature, selectedAttributes, showToast, viewerFid]);
 
   const runCancel = useCallback(async () => {
     if (!cancelGroup) return;
@@ -8836,6 +8883,16 @@ function TraitOffersPage({
       </div>
       <div className="mt-3 text-center text-[11px] text-[#8bbf8b]">Last updated: {payload?.generatedAt ? formatMarketTimestamp(payload.generatedAt) : "Not yet"}. <button type="button" disabled={refreshing || busy !== null} onClick={() => void loadOffers({ refresh: true })} className="font-bold text-[#00FF00]">{refreshing ? "Refreshing..." : "Refresh"}</button>{payload?.refreshError && <span className="block text-red-300">{payload.refreshError}</span>}</div>
       <LocalOfferDiagnosticsPanel />
+      {mobileSignaturePrompt && (
+        <div className="fixed inset-0 z-[90] flex items-end justify-center bg-black/80 p-4 sm:items-center">
+          <div className="w-full max-w-sm rounded-xl border border-[#33AAFF]/50 bg-black p-4 text-center shadow-[0_0_24px_rgba(51,170,255,0.18)]">
+            <Text className="text-base font-bold text-[#33AAFF]">Sign trait offer {mobileSignaturePrompt.index} of {mobileSignaturePrompt.total}</Text>
+            <p className="mt-2 text-sm font-bold leading-relaxed text-[#8bcfff]">Open {mobileSignaturePrompt.walletName} to approve the signature. After signing, return to this original Safari tab.</p>
+            <button type="button" onClick={mobileSignaturePrompt.open} className="mt-4 w-full cursor-pointer rounded-[20px] border border-[#1c78b3] bg-[#33AAFF] px-5 py-3 text-base font-bold text-[rgb(0,54,80)] shadow-[3px_6px_0_#1c78b3]">Open {mobileSignaturePrompt.walletName}</button>
+            <button type="button" onClick={mobileSignaturePrompt.cancel} className="mx-auto mt-3 block px-4 py-2 text-xs font-bold text-[#8bcfff] underline">Cancel</button>
+          </div>
+        </div>
+      )}
       {cancelGroup && <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/80 p-4 sm:items-center"><div className="w-full max-w-sm rounded-xl border border-[#FF5555]/45 bg-black p-4"><Text className="text-base font-bold text-[#FF7777]">Cancel trait offers</Text><p className="mt-2 text-sm font-bold text-[#d9b0b0]">Cancel up to {cancelGroup.userOfferCount} {emojiForTrait(cancelGroup.traitType)} {cancelGroup.traitValue} trait offers at {formatMarketValue(cancelGroup.price, { maxDigits: 8 })}.</p><div className="mt-3 flex items-center rounded-lg border-2 border-[#FF5555]/35 bg-black/60 px-2 py-1.5"><button type="button" onClick={() => { const next = stepCollectionOfferCancelQuantity(cancelTotals, cancelQuantity, -1); setCancelRequestedQuantity(next); setCancelQuantity(next); }} className="h-8 w-8 text-lg font-bold text-[#FF7777]">-</button><input type="number" min={1} max={cancelGroup.userOfferCount} value={cancelRequestedQuantity} onChange={(event) => { const requested = Math.min(cancelGroup.userOfferCount, Math.max(1, Number(event.target.value) || 1)); setCancelRequestedQuantity(requested); setCancelQuantity(snapCollectionOfferCancelQuantity(cancelGroup.userOrders, requested)); }} className="mx-2 min-w-0 flex-1 appearance-none bg-transparent text-center font-bold text-[#FF7777] outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"/><button type="button" onClick={() => { const next = stepCollectionOfferCancelQuantity(cancelTotals, cancelQuantity, 1); setCancelRequestedQuantity(next); setCancelQuantity(next); }} className="h-8 w-8 text-lg font-bold text-[#FF7777]">+</button></div>{actualCancelQuantity > cancelRequestedQuantity && <p className="mt-2 text-xs font-bold text-[#ffd599]">This cancels {actualCancelQuantity} offers across {selectedCancelOrders.length} OpenSea orders.</p>}<button type="button" disabled={busy !== null} onClick={() => void runCancel()} className="mt-4 w-full cursor-pointer rounded-[20px] border border-[#a83232] bg-[#FF5555] px-5 py-3 text-base font-bold text-[#2c0000] shadow-[3px_6px_0_#8a2222] transition-all duration-100 hover:bg-[#ff7777] active:translate-x-[1px] active:translate-y-[3px] active:shadow-[1px_3px_0_#8a2222] disabled:cursor-wait disabled:opacity-70">{busy === "cancel" ? "Working..." : "Review cancellation"}</button><button type="button" onClick={() => setCancelGroup(null)} className="mx-auto mt-2 block px-4 py-2 text-xs font-bold text-[#FF7777] underline">Keep offers</button></div></div>}
       {biddersGroup && (
         <CollectionBiddersModal

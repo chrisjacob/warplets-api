@@ -7,6 +7,12 @@ export type EthereumProvider = {
   request(args: { method: string; params?: readonly unknown[] | object }): Promise<unknown>;
   isBaseAccount?: boolean;
   connectorId?: string;
+  walletConnectPeer?: {
+    name?: string;
+    sessionTopic?: string;
+    nativeRedirect?: string;
+    universalRedirect?: string;
+  };
 };
 
 export type TokenApprovalRequirement = {

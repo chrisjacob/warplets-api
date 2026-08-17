@@ -137,6 +137,32 @@ function TrustConnectSession({ onConnected, onDismiss, onError, openRequested, r
           subscriptions.delete(listener);
         },
       };
+      const walletConnectSession = (wallet as unknown as {
+        currentSession?: {
+          topic?: string;
+          peer?: {
+            metadata?: {
+              name?: string;
+              redirect?: { native?: string; universal?: string };
+            };
+          };
+        };
+      }).currentSession;
+      const peerMetadata = walletConnectSession?.peer?.metadata;
+      if (walletConnectSession) {
+        provider.walletConnectPeer = {
+          name: peerMetadata?.name,
+          sessionTopic: walletConnectSession.topic,
+          nativeRedirect: peerMetadata?.redirect?.native,
+          universalRedirect: peerMetadata?.redirect?.universal,
+        };
+        appendWalletConnectDiagnostic("trustconnect.peer_metadata", {
+          name: peerMetadata?.name ?? null,
+          hasSessionTopic: Boolean(walletConnectSession.topic),
+          hasNativeRedirect: Boolean(peerMetadata?.redirect?.native),
+          hasUniversalRedirect: Boolean(peerMetadata?.redirect?.universal),
+        });
+      }
       const walletLabel = `${wallet.id} ${wallet.name}`.toLowerCase();
       const walletType = (wallet as unknown as { type?: string }).type;
       const connectorId: Extract<WalletConnectorId, "trustconnect-injected" | "trustconnect-walletconnect"> =
