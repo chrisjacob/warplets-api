@@ -28,8 +28,6 @@ export function getMobileWalletHandoff(
   if (provider.connectorId !== "trustconnect-walletconnect" || !isIosSafari(userAgent)) return null;
   const peer = provider.walletConnectPeer;
   const walletName = peer?.name?.trim() || "wallet";
-  // Keep the new behavior narrowly scoped to the reproduced MetaMask issue.
-  if (!walletName.toLowerCase().includes("metamask")) return null;
   const redirect = peer?.nativeRedirect?.trim() || peer?.universalRedirect?.trim();
   const sessionTopic = peer?.sessionTopic?.trim();
   if (!redirect || !sessionTopic) return null;
