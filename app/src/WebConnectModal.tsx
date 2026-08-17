@@ -4,6 +4,7 @@ import { trackAppEvent } from "./analytics";
 import { linkCurrentWalletAndIdentity, loadAppSession, unlinkCurrentWalletAndIdentity } from "./appSession";
 import { hapticSuccess } from "./haptics";
 import { clearWalletConnectionError, connectBaseAccount, connectLegacyInjectedWallet, currentWalletSession, disconnectWallet, lastWalletConnectorId, useWalletController } from "./walletController";
+import { appendWalletConnectDiagnostic, clearWalletConnectDiagnostics, readWalletConnectDiagnostics, subscribeWalletConnectDiagnostics } from "./walletConnectDiagnostics";
 
 const TrustConnectBridge = lazy(() => import("./TrustConnectBridge"));
 const FARCASTER_WARPLETS_MINI_APP_URL =
@@ -56,7 +57,40 @@ export function WebConnectModal({ open, onClose, farcasterControl, identityConne
   const [identitiesLinked, setIdentitiesLinked] = useState(false);
   const [relationshipBusy, setRelationshipBusy] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [walletDiagnostics, setWalletDiagnostics] = useState(() => readWalletConnectDiagnostics());
   const connectionError = identityError || localError || wallet.error;
+
+  useEffect(() => subscribeWalletConnectDiagnostics(() => {
+    setWalletDiagnostics(readWalletConnectDiagnostics());
+  }), []);
+
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+    const record = (event: string) => appendWalletConnectDiagnostic(`browser.${event}`, {
+      visibility: document.visibilityState,
+      focused: document.hasFocus(),
+      path: window.location.pathname,
+    });
+    const onFocus = () => record("focus");
+    const onBlur = () => record("blur");
+    const onVisibility = () => record("visibilitychange");
+    const onPageShow = (event: PageTransitionEvent) => appendWalletConnectDiagnostic("browser.pageshow", { persisted: event.persisted });
+    const onPageHide = (event: PageTransitionEvent) => appendWalletConnectDiagnostic("browser.pagehide", { persisted: event.persisted });
+    record("diagnostics_mounted");
+    window.addEventListener("focus", onFocus);
+    window.addEventListener("blur", onBlur);
+    window.addEventListener("pageshow", onPageShow);
+    window.addEventListener("pagehide", onPageHide);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      record("diagnostics_unmounted");
+      window.removeEventListener("focus", onFocus);
+      window.removeEventListener("blur", onBlur);
+      window.removeEventListener("pageshow", onPageShow);
+      window.removeEventListener("pagehide", onPageHide);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, []);
 
   useEffect(() => {
     if (!open) {
@@ -114,18 +148,6 @@ export function WebConnectModal({ open, onClose, farcasterControl, identityConne
     return () => { active = false; };
   }, [identityConnected, open, wallet.session?.address]);
 
-  if (!open) {
-    const lastConnector = lastWalletConnectorId();
-    const restoreTrustConnect = import.meta.env.VITE_TRUSTCONNECT_ENABLED === "true" && lastConnector?.startsWith("trustconnect-");
-    return restoreTrustConnect ? (
-      <div hidden aria-hidden="true">
-        <Suspense fallback={null}>
-          <TrustConnectBridge restoreOnly onConnected={() => undefined} onError={() => undefined} />
-        </Suspense>
-      </div>
-    ) : null;
-  }
-
   const finish = () => {
     setLocalError(null);
     const address = currentWalletSession()?.address;
@@ -158,6 +180,28 @@ export function WebConnectModal({ open, onClose, farcasterControl, identityConne
       ? "Wallet connection was cancelled."
       : message);
   };
+  const trustConnectEnabled = import.meta.env.VITE_TRUSTCONNECT_ENABLED === "true";
+  const restoreTrustConnect = !open && lastWalletConnectorId()?.startsWith("trustconnect-") === true;
+  const persistentTrustConnect = trustConnectEnabled ? (
+    <div hidden aria-hidden="true">
+      <Suspense fallback={null}>
+        <TrustConnectBridge
+          openRequested={open && showOtherWallets}
+          restoreOnly={restoreTrustConnect}
+          onConnected={open ? finish : () => undefined}
+          onDismiss={() => {
+            clearWalletConnectionError();
+            setShowOtherWallets(false);
+            setLocalError(null);
+          }}
+          onError={open ? handleWalletError : () => undefined}
+        />
+      </Suspense>
+    </div>
+  ) : null;
+
+  if (!open) return <>{persistentTrustConnect}</>;
+
   const connectedConnector = wallet.session?.connectorId ?? null;
   const walletConnected = Boolean(connectedConnector);
   const baseWalletConnected = connectedConnector === "base-account";
@@ -166,9 +210,18 @@ export function WebConnectModal({ open, onClose, farcasterControl, identityConne
   const handleDisconnectWallet = async () => {
     setLocalError(null);
     setDisconnectingWallet(true);
+    appendWalletConnectDiagnostic("ui.disconnect_clicked", {
+      connectorId: connectedConnector,
+      trustWalletConnected,
+    });
     try {
       await disconnectWallet();
+      appendWalletConnectDiagnostic("ui.wallet_disconnect_complete", { connectorId: connectedConnector });
     } catch (error) {
+      appendWalletConnectDiagnostic("ui.wallet_disconnect_failed", {
+        connectorId: connectedConnector,
+        message: error instanceof Error ? error.message : String(error),
+      });
       setLocalError(error instanceof Error ? error.message : "Wallet could not be disconnected");
     } finally {
       setDisconnectingWallet(false);
@@ -206,7 +259,9 @@ export function WebConnectModal({ open, onClose, farcasterControl, identityConne
   };
 
   return (
-    <div className="web-connect-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
+    <>
+      {persistentTrustConnect}
+      <div className="web-connect-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
       <section className="web-connect-modal" role="dialog" aria-modal="true" aria-labelledby="web-connect-title">
         <div className="web-connect-heading">
           <h2 id="web-connect-title"><span>Connect</span> Wallet &amp; Social</h2>
@@ -253,6 +308,10 @@ export function WebConnectModal({ open, onClose, farcasterControl, identityConne
                           return;
                         }
                         trackAppEvent("connector_selected", { connector: "trustconnect" });
+                        appendWalletConnectDiagnostic("ui.other_wallets_clicked", {
+                          visibility: document.visibilityState,
+                          focused: document.hasFocus(),
+                        });
                         setLocalError(null);
                         clearWalletConnectionError();
                         onClearIdentityError?.();
@@ -261,19 +320,6 @@ export function WebConnectModal({ open, onClose, farcasterControl, identityConne
                         {disconnectingWallet && trustWalletConnected ? "Disconnecting…" : trustWalletConnected ? "Disconnect" : showOtherWallets ? "Connecting…" : "Connect"}
                       </button>
                     </div>
-                    {showOtherWallets ? (
-                      <Suspense fallback={null}>
-                        <TrustConnectBridge
-                          onConnected={finish}
-                          onDismiss={() => {
-                            clearWalletConnectionError();
-                            setShowOtherWallets(false);
-                            setLocalError(null);
-                          }}
-                          onError={handleWalletError}
-                        />
-                      </Suspense>
-                    ) : null}
                   </div>
                 ) : null}
 
@@ -340,6 +386,16 @@ export function WebConnectModal({ open, onClose, farcasterControl, identityConne
                 Bonus: 20% off trading fees (click here)
               </a>
             </div>
+            {import.meta.env.DEV ? (
+              <details className="wallet-connect-diagnostics">
+                <summary>WalletConnect diagnostics ({walletDiagnostics.length})</summary>
+                <div className="wallet-connect-diagnostics__actions">
+                  <button type="button" onClick={() => clearWalletConnectDiagnostics()}>Clear</button>
+                  <button type="button" onClick={() => void navigator.clipboard.writeText(JSON.stringify(walletDiagnostics, null, 2))}>Copy JSON</button>
+                </div>
+                <pre>{walletDiagnostics.map((entry) => `${entry.at.slice(11, 23)} ${entry.event}${entry.details ? ` ${JSON.stringify(entry.details)}` : ""}`).join("\n")}</pre>
+              </details>
+            ) : null}
           </div>
         </OverlayScrollbarsComponent>
       </section>
@@ -378,6 +434,7 @@ export function WebConnectModal({ open, onClose, farcasterControl, identityConne
           {successMessage}
         </div>
       ) : null}
-    </div>
+      </div>
+    </>
   );
 }

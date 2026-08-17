@@ -16260,19 +16260,22 @@ export default function SearchApp() {
   }, [actions, isMenuRoute, navigateSearchRoute, searchRoute.page]);
 
   const handleHeaderDisconnect = useCallback(() => {
-    void disconnectWallet();
-    void logoutAppPrincipal("all");
-    if (!isInMiniAppContext) {
-      setSiwfViewerProfile(null);
-      setFavouriteIdentityWallet(null);
-      setViewerFid(null);
-      setViewerProfile(null);
-      setActiveWallet(null);
-      setFavouriteFilterWallet(null);
-      setActionSessionToken(null);
-      setSearchCompletionStatusLoaded(true);
-    }
-  }, [isInMiniAppContext]);
+    void disconnectWallet().then(async () => {
+      await logoutAppPrincipal("all").catch(() => undefined);
+      if (!isInMiniAppContext) {
+        setSiwfViewerProfile(null);
+        setFavouriteIdentityWallet(null);
+        setViewerFid(null);
+        setViewerProfile(null);
+        setActiveWallet(null);
+        setFavouriteFilterWallet(null);
+        setActionSessionToken(null);
+        setSearchCompletionStatusLoaded(true);
+      }
+    }).catch((error) => {
+      showSearchToast("error", error instanceof Error ? error.message : "Wallet could not be disconnected.", { manualClose: true });
+    });
+  }, [isInMiniAppContext, showSearchToast]);
 
   useEffect(() => {
     if (!activeWallet) return;

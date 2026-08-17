@@ -7,6 +7,7 @@ import {
   preferBaseChainBeforeConnect,
   type EthereumProvider,
 } from "./walletTrade";
+import { appendWalletConnectDiagnostic, requestTrustConnectSessionDisconnect } from "./walletConnectDiagnostics";
 
 export type WalletConnectorId =
   | "farcaster"
@@ -103,6 +104,7 @@ async function activate(
 ): Promise<WalletSession> {
   provider.connectorId = connectorId;
   emit({ connecting: connectorId, error: null });
+  appendWalletConnectDiagnostic("wallet.activate_started", { connectorId, hasProvidedAddress: Boolean(providedAddress), alreadyAuthenticated });
   trackAppEvent("connector_selected", { connector: connectorId });
   try {
     if (connectorId === "legacy-injected" && !providedAddress) {
@@ -113,22 +115,31 @@ async function activate(
       : await getWalletAccounts(provider);
     const address = normalizeAddress(accounts[0]);
     if (!address) throw new Error("No wallet account was returned");
+    appendWalletConnectDiagnostic("wallet.accounts_ready", { connectorId, address });
     await ensureBaseChain(provider);
+    appendWalletConnectDiagnostic("wallet.base_chain_ready", { connectorId });
     const chainId = await readChainId(provider);
+    appendWalletConnectDiagnostic("wallet.chain_ready", { connectorId, chainId });
     // Farcaster Quick Auth verifies the Mini App user. The embedded SDK wallet
     // is connected only as the transaction signer; asking it for the web SIWE
     // `personal_sign` challenge is unsupported by some Farcaster clients and
     // may be presented as a transaction that would fail.
-    if (connectorId !== "farcaster" && !alreadyAuthenticated) await authenticateWallet(provider, address, chainId);
+    if (connectorId !== "farcaster" && !alreadyAuthenticated) {
+      appendWalletConnectDiagnostic("wallet.authentication_started", { connectorId, address, chainId });
+      await authenticateWallet(provider, address, chainId);
+      appendWalletConnectDiagnostic("wallet.authentication_complete", { connectorId, address, chainId });
+    }
     const session = { connectorId, address, chainId, provider } satisfies WalletSession;
     bindProviderEvents(provider);
     try { window.localStorage.setItem(LAST_CONNECTOR_KEY, connectorId); } catch { /* optional */ }
     emit({ session, connecting: null, error: null });
+    appendWalletConnectDiagnostic("wallet.activate_complete", { connectorId, address, chainId });
     trackAppEvent("connect_succeeded", { connector: connectorId });
     return session;
   } catch (error) {
     const message = error instanceof Error ? error.message : "Wallet connection failed";
     emit({ connecting: null, error: message });
+    appendWalletConnectDiagnostic("wallet.activate_failed", { connectorId, message });
     const rejected = /reject|denied|cancel/i.test(message);
     trackAppEvent(rejected ? "connect_rejected" : "connect_failed", { connector: connectorId, result: message.slice(0, 100) });
     throw error;
@@ -230,7 +241,12 @@ export function activateTrustConnectWallet(
   provider: ObservableProvider,
   address: string,
 ): Promise<WalletSession> {
-  return activate(connectorId, provider, address);
+  // A WalletConnect session already proves that the wallet approved this
+  // client connection. On iOS, requesting SIWE immediately afterwards creates
+  // a second personal_sign request while Safari is backgrounded, leaving the
+  // UI permanently "Connecting". Keep backend authentication separate from
+  // the client-side signing session used for marketplace transactions.
+  return activate(connectorId, provider, address, connectorId === "trustconnect-walletconnect");
 }
 
 export async function restoreTrustConnectWallet(
@@ -241,7 +257,10 @@ export async function restoreTrustConnectWallet(
   const address = normalizeAddress(rawAddress);
   if (!address) return null;
   const appSession = await loadAppSession().catch(() => null);
-  if (appSession?.walletAddress?.toLowerCase() !== address) return null;
+  // WalletConnect approval is sufficient to restore the client-side signing
+  // provider after iOS Safari reloads. Backend-authenticated wallet identity
+  // remains absent until an explicit SIWE flow succeeds.
+  if (connectorId !== "trustconnect-walletconnect" && appSession?.walletAddress?.toLowerCase() !== address) return null;
   const chainId = await readChainId(provider);
   provider.connectorId = connectorId;
   const session = { connectorId, address, chainId, provider } satisfies WalletSession;
@@ -267,11 +286,21 @@ export function clearWalletConnectionError(): void {
 }
 
 export async function disconnectWallet(): Promise<void> {
+  const connectorId = state.session?.connectorId ?? null;
+  appendWalletConnectDiagnostic("wallet.disconnect_started", { connectorId });
+  if (connectorId?.startsWith("trustconnect-")) {
+    const result = await requestTrustConnectSessionDisconnect();
+    appendWalletConnectDiagnostic("wallet.trustconnect_disconnect_result", { connectorId, result });
+    if (result === "timeout") {
+      throw new Error("WalletConnect did not end its active session. Please try disconnecting again.");
+    }
+  }
   cleanupProviderListeners?.();
   cleanupProviderListeners = null;
   await logoutAppPrincipal("wallet").catch(() => undefined);
   try { window.localStorage.removeItem(LAST_CONNECTOR_KEY); } catch { /* optional */ }
   emit({ session: null, connecting: null, error: null });
+  appendWalletConnectDiagnostic("wallet.disconnect_complete", { connectorId });
 }
 
 export async function getConnectedProviderAndAccount(): Promise<{ provider: EthereumProvider; account: string }> {

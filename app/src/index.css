@@ -1380,6 +1380,51 @@ html[data-entry-point="pwa"] .miniapp-shell__content {
   color: #66ff66;
 }
 
+.wallet-connect-diagnostics {
+  margin-top: 14px;
+  padding: 10px;
+  border: 1px solid rgb(121 89 255 / 55%);
+  border-radius: 10px;
+  background: #080414;
+  color: #b9aaff;
+  font-family: "Roboto Mono", ui-monospace, monospace;
+  font-size: 10px;
+  text-align: left;
+}
+
+.wallet-connect-diagnostics summary {
+  cursor: pointer;
+  font-weight: 900;
+}
+
+.wallet-connect-diagnostics__actions {
+  display: flex;
+  gap: 8px;
+  margin: 10px 0 8px;
+}
+
+.wallet-connect-diagnostics__actions button {
+  padding: 5px 8px;
+  border: 1px solid rgb(121 89 255 / 60%);
+  border-radius: 6px;
+  background: #160b38;
+  color: #c9beff;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.wallet-connect-diagnostics pre {
+  max-height: 260px;
+  margin: 0;
+  overflow: auto;
+  color: #d8d1ff;
+  font: inherit;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 .web-connect-cta {
   min-width: 106px;
   min-height: 36px;
