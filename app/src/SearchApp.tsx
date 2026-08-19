@@ -14788,20 +14788,19 @@ function WarpletDetailsModal({
 
             <div className="mt-4 grid grid-cols-2 gap-2">
               {ASSET_LINKS.map((asset) => (
-                <button
+                <a
                   key={asset.ext}
-                  type="button"
+                  href={getWarpletAssetUrl(details.id, asset.ext)}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   onClick={() => {
                     void hapticTap();
-                    openExternalAsset(getWarpletAssetUrl(details.id, asset.ext)).catch((error) => {
-                      console.error(`Failed to open ${asset.ext} asset:`, error);
-                    });
                   }}
                   className="cursor-pointer rounded-xl border border-[#00FF00]/30 bg-[#041204]/90 px-3 py-2 text-left text-xs text-[#00FF00] hover:border-[#00FF00]/60 hover:bg-[#071807]"
                 >
                   <span className="block font-bold">{asset.label}</span>
                   <span className="block text-[10px] text-[#8bbf8b]">{asset.detail}</span>
-                </button>
+                </a>
               ))}
             </div>
             <div className="mt-3 text-center text-[11px] leading-4 text-[#8bbf8b]">

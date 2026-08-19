@@ -1730,17 +1730,21 @@ html[data-entry-point="pwa"] .miniapp-shell__content {
   min-width: 0;
   padding: 0;
   overflow: hidden;
+  color: inherit;
   text-align: left;
-  border: 1px solid rgba(0, 255, 0, 0.24);
+  text-decoration: none;
+  border: 1px solid rgba(0, 255, 0, 0.25);
   border-radius: 18px;
   background: rgba(4, 18, 4, 0.88);
   cursor: pointer;
-  transition: transform 120ms ease, border-color 120ms ease, background-color 120ms ease;
+  transition: transform 120ms ease, border-color 120ms ease, box-shadow 120ms ease, background-color 120ms ease;
 }
 
-.menu-card:hover {
+.menu-card:not(.menu-card--disabled):hover {
   transform: translateY(-1px);
-  border-color: rgba(0, 255, 0, 0.48);
+  border-width: 2px;
+  border-color: rgba(0, 255, 0, 0.9);
+  box-shadow: 0 0 0 1px rgba(0, 255, 0, 0.55), 0 0 16px rgba(0, 255, 0, 0.5);
   background: rgba(7, 24, 7, 0.96);
 }
 
@@ -1791,7 +1795,7 @@ html[data-entry-point="pwa"] .miniapp-shell__content {
   margin-bottom: 0;
   padding: 10px 12px;
   border: 0;
-  border-radius: 0 0 18px 18px;
+  border-radius: 0;
   background: #00ff00;
   color: rgb(0, 80, 0);
   font-size: 0.8rem;

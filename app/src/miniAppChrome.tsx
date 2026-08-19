@@ -11,6 +11,11 @@ import {
 
 export type AppSlug = "app" | "drop" | typeof WARPLETS_APP_SLUG | "million";
 
+// Temporarily hidden menu content. Keep the definitions below intact so these
+// cards and sections can be restored by removing their entries here.
+const HIDDEN_MENU_CARD_IDS = new Set(["miniapp-drop", "fc-channel", "opensea-1m", "site-10x"]);
+const HIDDEN_MENU_SECTIONS = new Set(["Local Tools", "Settings"]);
+
 type AppConfig = {
   slug: AppSlug;
   appName: string;
@@ -31,6 +36,7 @@ type MenuCard = {
   kind: "miniapp" | "openUrl" | "viewProfile";
   appSlug?: AppSlug;
   disabled?: boolean;
+  current?: boolean;
   href?: string;
   fid?: number;
 };
@@ -40,7 +46,7 @@ const APP_CONFIGS: Record<AppSlug, AppConfig> = {
     slug: "app",
     appName: "10X",
     headerTitle: "10X Network",
-    ctaLabel: "Open 10X",
+    ctaLabel: "10X.MEME Waitlist",
     absoluteUrl: "https://app.10x.meme/",
     iconUrl: "https://app.10x.meme/icon.png",
     imageUrl: "https://app.10x.meme/hero.png",
@@ -213,10 +219,9 @@ async function openApp(appSlug: AppSlug) {
 
 async function openMiniAppUrl(url: string) {
   const target = new URL(url, window.location.href);
-  const isLocalTarget = target.hostname.includes("-local.");
   const inMiniApp = typeof sdk.isInMiniApp === "function" ? await sdk.isInMiniApp().catch(() => false) : true;
 
-  if (inMiniApp && !isLocalTarget) {
+  if (inMiniApp) {
     try {
       await sdk.actions.openMiniApp({ url: target.href });
       return;
@@ -497,9 +502,13 @@ export function MiniAppHeader({
 function MenuSection({
   title,
   cards,
+  isFarcasterMiniApp,
+  onCurrentCardClick,
 }: {
   title: string;
   cards: MenuCard[];
+  isFarcasterMiniApp: boolean;
+  onCurrentCardClick: () => void;
 }) {
   return (
     <section className="menu-section" aria-labelledby={`menu-section-${title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}>
@@ -508,16 +517,36 @@ function MenuSection({
       </Text>
       <div className="menu-section__grid">
         {cards.map((card) => (
-          <button
+          <a
             key={card.id}
-            type="button"
+            href={card.href}
+            target="_blank"
+            rel="noopener noreferrer"
             className={`menu-card ${card.disabled ? "menu-card--disabled" : ""}`}
-            onClick={() => {
-              runMenuCardAction(card).catch((error) => {
-                console.error(`Failed menu action for ${card.id}:`, error);
-              });
+            onClick={(event) => {
+              if (card.current) {
+                event.preventDefault();
+                void hapticTap();
+                onCurrentCardClick();
+                return;
+              }
+
+              if (card.disabled) {
+                event.preventDefault();
+                return;
+              }
+
+              void hapticTap();
+              void hapticSelectionChanged();
+
+              if (card.kind === "miniapp" && isFarcasterMiniApp) {
+                event.preventDefault();
+                runMenuCardAction(card).catch((error) => {
+                  console.error(`Failed menu action for ${card.id}:`, error);
+                });
+              }
             }}
-            disabled={card.disabled}
+            aria-disabled={card.disabled || undefined}
             title={card.title}
           >
             <img
@@ -531,17 +560,40 @@ function MenuSection({
                 {card.ctaLabel}
               </span>
             </div>
-          </button>
+          </a>
         ))}
       </div>
     </section>
   );
 }
 
+function VisibleMenuSection({ title, cards, isFarcasterMiniApp, onCurrentCardClick }: { title: string; cards: MenuCard[]; isFarcasterMiniApp: boolean; onCurrentCardClick: () => void }) {
+  if (HIDDEN_MENU_SECTIONS.has(title)) return null;
+
+  const visibleCards = cards.filter((card) => !HIDDEN_MENU_CARD_IDS.has(card.id));
+  return visibleCards.length > 0 ? <MenuSection title={title} cards={visibleCards} isFarcasterMiniApp={isFarcasterMiniApp} onCurrentCardClick={onCurrentCardClick} /> : null;
+}
+
 export function MiniAppMenuPage({ appSlug }: { appSlug: AppSlug }) {
   const appBaseUrl = getAppUrl("app").replace(/\/$/, "");
   const isLocalWarplets = appSlug === WARPLETS_APP_SLUG && window.location.hostname === new URL(WARPLETS_APP_ORIGINS.local).hostname;
-  const miniAppCards: MenuCard[] = ["app", "drop"].map((slug) => {
+  const [isFarcasterMiniApp, setIsFarcasterMiniApp] = useState(false);
+  const [currentCardToastId, setCurrentCardToastId] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (typeof sdk.isInMiniApp !== "function") return;
+    void sdk.isInMiniApp().then(setIsFarcasterMiniApp).catch(() => setIsFarcasterMiniApp(false));
+  }, []);
+
+  useEffect(() => {
+    if (currentCardToastId == null) return;
+    const timeout = window.setTimeout(() => setCurrentCardToastId(null), 2200);
+    return () => window.clearTimeout(timeout);
+  }, [currentCardToastId]);
+
+  const showCurrentCardToast = () => setCurrentCardToastId(Date.now());
+
+  const miniAppCards: MenuCard[] = ["app", "drop", WARPLETS_APP_SLUG].map((slug) => {
     const config = APP_CONFIGS[slug as AppSlug];
     const isCurrent = appSlug === config.slug;
     return {
@@ -554,39 +606,71 @@ export function MiniAppMenuPage({ appSlug }: { appSlug: AppSlug }) {
             ? "Buy, claim, and share your Warplet inside Farcaster."
             : config.slug === "million"
               ? "Dedicated mission for the $1M Warplet campaign."
-              : "Search rare Warplets faster once discovery tools go live.",
-      imageUrl: config.slug === "app" ? "/menu/menu-10x-app.png" : "/menu/menu-drop-app.jpg",
-      ctaLabel: isCurrent ? "You are here!" : config.slug === "drop" ? "10X Warplet Drop" : config.ctaLabel,
-      kind: "miniapp",
+              : "Search, collect, trade, and explore 10X Warplets.",
+      imageUrl: config.slug === "app"
+        ? "/menu/menu-10x-app.png"
+        : config.slug === WARPLETS_APP_SLUG
+          ? "/menu/10xwarplets.jpg"
+          : "/menu/menu-drop-app.jpg",
+      ctaLabel: config.slug === "drop"
+          ? "10X Warplet Drop"
+          : config.slug === WARPLETS_APP_SLUG
+            ? "10X Warplets"
+            : config.ctaLabel,
+      kind: config.slug === "app" ? "openUrl" : "miniapp",
       appSlug: config.slug,
-      disabled: isCurrent || !config.available,
+      href: config.slug === "app" ? "https://10x.meme/" : getAppUrl(config.slug),
+      current: isCurrent,
     } satisfies MenuCard;
   });
+
+  const alphaCards: MenuCard[] = [
+    {
+      id: "10x-network",
+      title: "The 10X Network",
+      description: "The 10X Network is coming soon.",
+      imageUrl: "/menu/discord.png",
+      ctaLabel: "The 10X Network",
+      kind: "openUrl",
+      disabled: true,
+    },
+    {
+      id: "telegram",
+      title: "Telegram Alpha Signals",
+      description: "Join the 10X Telegram signals channel.",
+      imageUrl: "/menu/telegram.png",
+      ctaLabel: "Telegram Alpha Signals",
+      kind: "openUrl",
+      href: "https://t.me/The10XNetwork",
+    },
+  ];
 
   const socialCards: MenuCard[] = [
     {
       id: "fc-10xmeme",
       title: "Farcaster 10X Meme",
       description: "Follow the 10X Meme account on Farcaster.",
-      imageUrl: "/menu/menu-farcaster-10xmeme.jpg",
+      imageUrl: "/menu/farcaster.png",
       ctaLabel: "Follow @10XMeme.eth",
       kind: "viewProfile",
       fid: 1313340,
+      href: "https://farcaster.xyz/10xmeme.eth",
     },
     {
       id: "fc-10xchris",
       title: "Farcaster 10X Chris",
       description: "Follow Chris on Farcaster for launches and updates.",
-      imageUrl: "/menu/menu-farcaster-10xchris.jpg",
+      imageUrl: "/menu/farcaster.png",
       ctaLabel: "Follow @10XChris.eth",
       kind: "viewProfile",
       fid: 1129138,
+      href: "https://farcaster.xyz/10xchris.eth",
     },
     {
       id: "x-10xmeme",
       title: "Twitter 10X Meme",
       description: "Follow @10XMemeX on X.",
-      imageUrl: "/menu/menu-twitter-10xmeme.jpg",
+      imageUrl: "/menu/x.png",
       ctaLabel: "Follow @10XMemeX",
       kind: "openUrl",
       href: "https://twitter.com/intent/follow?user_id=3275559396",
@@ -595,7 +679,7 @@ export function MiniAppMenuPage({ appSlug }: { appSlug: AppSlug }) {
       id: "x-10xchris",
       title: "Twitter 10X Chris",
       description: "Follow @10XChrisX on X.",
-      imageUrl: "/menu/menu-twitter-10xchris.jpg",
+      imageUrl: "/menu/x.png",
       ctaLabel: "Follow @10XChrisX",
       kind: "openUrl",
       href: "https://twitter.com/intent/follow?user_id=18302782",
@@ -609,23 +693,18 @@ export function MiniAppMenuPage({ appSlug }: { appSlug: AppSlug }) {
       kind: "openUrl",
       href: "https://farcaster.xyz/~/channel/10xmeme",
     },
-    {
-      id: "telegram",
-      title: "Telegram",
-      description: "Join the 10X Telegram community.",
-      imageUrl: "/menu/menu-telegram-channel.jpg",
-      ctaLabel: "Join Telegram Channel",
-      kind: "openUrl",
-      href: "https://t.me/X10XMeme",
-    },
   ];
+
+  const founderCardIds = new Set(["fc-10xchris", "x-10xchris"]);
+  const founderCards = socialCards.filter((card) => founderCardIds.has(card.id));
+  const communitySocialCards = socialCards.filter((card) => !founderCardIds.has(card.id));
 
   const linkCards: MenuCard[] = [
     {
       id: "opensea-10x",
       title: "OpenSea 10X Warplets",
       description: "View the 10X Warplets collection on OpenSea.",
-      imageUrl: "/menu/menu-opensea-10xwarplets.jpg",
+      imageUrl: "/menu/opensea.png",
       ctaLabel: "OpenSea 10X Warplets",
       kind: "openUrl",
       href: "https://link.10x.meme/10xwarplets",
@@ -697,11 +776,14 @@ export function MiniAppMenuPage({ appSlug }: { appSlug: AppSlug }) {
 
   return (
     <div className="miniapp-menu-page">
-      <MenuSection title="Mini Apps" cards={miniAppCards} />
-      <MenuSection title="Social" cards={socialCards} />
-      <MenuSection title="Links" cards={linkCards} />
-      {localToolCards.length > 0 && <MenuSection title="Local Tools" cards={localToolCards} />}
-      <MenuSection title="Settings" cards={optOutCards} />
+      {currentCardToastId != null && <div className="trade-toast" role="status">You are already here!</div>}
+      <VisibleMenuSection title="Mini Apps" cards={miniAppCards} isFarcasterMiniApp={isFarcasterMiniApp} onCurrentCardClick={showCurrentCardToast} />
+      <VisibleMenuSection title="ALPHA" cards={alphaCards} isFarcasterMiniApp={isFarcasterMiniApp} onCurrentCardClick={showCurrentCardToast} />
+      <VisibleMenuSection title="Social" cards={communitySocialCards} isFarcasterMiniApp={isFarcasterMiniApp} onCurrentCardClick={showCurrentCardToast} />
+      <VisibleMenuSection title="Founder" cards={founderCards} isFarcasterMiniApp={isFarcasterMiniApp} onCurrentCardClick={showCurrentCardToast} />
+      <VisibleMenuSection title="Links" cards={linkCards} isFarcasterMiniApp={isFarcasterMiniApp} onCurrentCardClick={showCurrentCardToast} />
+      {localToolCards.length > 0 && <VisibleMenuSection title="Local Tools" cards={localToolCards} isFarcasterMiniApp={isFarcasterMiniApp} onCurrentCardClick={showCurrentCardToast} />}
+      <VisibleMenuSection title="Settings" cards={optOutCards} isFarcasterMiniApp={isFarcasterMiniApp} onCurrentCardClick={showCurrentCardToast} />
     </div>
   );
 }
