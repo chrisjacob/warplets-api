@@ -1,19 +1,36 @@
 import { useEffect, type ReactNode } from "react";
+import type { PartialOptions } from "overlayscrollbars";
 import { useOverlayScrollbars } from "overlayscrollbars-react";
 
 type MiniAppShellProps = {
   children: ReactNode;
 };
 
+const BODY_SCROLLBAR_OPTIONS = {
+  update: {
+    debounce: {
+      mutation: [0, 33],
+      // ResizeObserver updates are immediate by default. Mobile viewport chrome
+      // and small layout observations can therefore recalculate the thumb
+      // between adjacent scroll frames. Let the size settle before measuring.
+      resize: 100,
+      event: [33, 99],
+      env: [222, 666, true],
+    },
+  },
+  scrollbars: {
+    theme: "os-theme-10x",
+    autoHide: "scroll",
+    clickScroll: true,
+  },
+} satisfies PartialOptions;
+
 export default function MiniAppShell({ children }: MiniAppShellProps) {
   const [initializeBodyScrollbars] = useOverlayScrollbars({
-    options: {
-      scrollbars: {
-        theme: "os-theme-10x",
-        autoHide: "scroll",
-        clickScroll: true,
-      },
-    },
+    // Keep this reference stable. The adapter force-applies changed option
+    // objects to the live body instance, which can reset the thumb geometry
+    // between scroll frames when the shell rerenders.
+    options: BODY_SCROLLBAR_OPTIONS,
     defer: true,
   });
 

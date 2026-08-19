@@ -15,12 +15,22 @@ import {
 } from "@floating-ui/react";
 import { hapticSelectionChanged, hapticTap } from "./haptics";
 import {
+  aggregateRwaExplorerRows,
+  ATTENTION_CHART_PERIODS,
+  getIllustrativeStonkletPerformance,
+  getRwaMarketCapMovement,
+  getStonkletMarketCapMovement,
   PERKS_DEFINITIONS,
   PERKS_MOCK_DATA_VERSION,
   PERKS_MOCKUP_NOTICE_DISMISSED_KEY,
+  RWA_CHART_PERIODS,
+  RWA_MARKET_CHARTS,
+  RWA_YOU_DIVIDENDS_DISPLAY,
   type PerksDefinition,
+  type PerksExplorerRow,
   type PerksMetric,
   type PerksSubpage,
+  type RwaChartPeriod,
 } from "./perksMockData";
 import { PERKS_SHARE_CONTENT } from "./perksShareContent";
 
@@ -49,7 +59,7 @@ type PerksViewerProfile = {
 const FALLBACK_WARPLET_TOKEN_ID = 548;
 const DEMO_HOLDER_SESSION_KEY = "warplets-perks-demo-holder-v1";
 const MOCK_HOLDER_LIMIT = 100;
-const PERK_IDS: PerksSubpage[] = ["memes", "nfts", "ai", "attention", "alpha"];
+const PERK_IDS: PerksSubpage[] = ["memes", "rwas", "nfts", "ai", "attention", "alpha"];
 
 let holderRosterCache: PerksHolder[] | null = null;
 let holderRosterRequest: Promise<PerksHolder[]> | null = null;
@@ -187,15 +197,16 @@ function formatInteger(value: number): string {
 
 function leaderboardScore(perk: PerksSubpage, holder: PerksHolder): number {
   const base = perk === "memes" ? 1_842
-    : perk === "nfts" ? 152
-      : perk === "ai" ? 228
-        : perk === "attention" ? 9_420
-          : 1_000;
+    : perk === "rwas" ? 486
+      : perk === "nfts" ? 152
+        : perk === "ai" ? 228
+          : perk === "attention" ? 9_420
+            : 1_000;
   return base * holderBenefitFactor(perk, holder);
 }
 
 function formatLeaderboardScore(perk: PerksSubpage, score: number): string {
-  if (perk === "memes" || perk === "nfts" || perk === "ai") return formatMoney(score);
+  if (perk === "memes" || perk === "rwas" || perk === "nfts" || perk === "ai") return formatMoney(score);
   if (perk === "attention") return `${formatInteger(score)} views`;
   return `${formatInteger(score)} pts`;
 }
@@ -211,6 +222,19 @@ function buildYouMetrics(perk: PerksSubpage, holder: PerksHolder): PerksMetric[]
       { label: "Airdrop Value Now", value: formatMoney(486 * youFactor) },
       { label: "Airdrop Value at ATH", value: formatMoney(1_842 * youFactor) },
       { label: "Best Airdrop Gain", value: `+${formatInteger(14_600 * youFactor)}%` },
+    ];
+  }
+  if (perk === "rwas") {
+    const youFactor = Math.max(1.12, factor);
+    const holdings = 1_000 * youFactor;
+    const yieldRate = 0.18 + seededUnit(perk, holder.wallet, "stonklet-yield") * 0.06;
+    return [
+      { label: "Early Entry", value: formatInteger(4 * youFactor), detail: "Illustrative Stonklet markets entered early through Warplet notifications and access." },
+      { label: "Holdings", value: formatMoney(holdings), detail: "Illustrative value of Stonklet holdings acquired through Warplet-enabled early access." },
+      { label: "Dividends", value: RWA_YOU_DIVIDENDS_DISPLAY, detail: "Illustrative dividends on those Stonklet holdings. Warplet ownership alone does not earn RWA dividends." },
+      { label: "Yield", value: `${(yieldRate * 100).toFixed(1)}%`, detail: "Illustrative dividends divided by the Stonklet holdings value." },
+      { label: "Airdrop Boost", value: `${(6.4 + (youFactor - 1) * 1.4).toFixed(1)}X` },
+      { label: "Airdrop Value At ATH", value: formatMoney(Math.round(584 * youFactor)) },
     ];
   }
   if (perk === "nfts") {
@@ -331,32 +355,64 @@ function AirdropDayTooltip({ value, children }: { value: string; children: React
   );
 }
 
-function AttentionTrendChart({ range }: { range: string }) {
+function parseCompactStat(value: string): number {
+  const normalized = value.replace(/,/g, "").trim().toUpperCase();
+  const multiplier = normalized.endsWith("M") ? 1_000_000 : normalized.endsWith("K") ? 1_000 : 1;
+  return (Number.parseFloat(normalized.replace(/[MK]$/, "")) || 0) * multiplier;
+}
+
+function formatCompactStat(value: number): string {
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(value >= 10 ? 1 : 2).replace(/\.0+$|(?<=\.[0-9])0$/, "")}M`;
+  if (value >= 1_000) return `${(value / 1_000).toFixed(value >= 100_000 ? 0 : 1).replace(/\.0$/, "")}K`;
+  return Math.round(value).toLocaleString("en-US");
+}
+
+function AttentionTrendChart({ range, impressions }: { range: string; impressions: string }) {
+  const totalImpressions = parseCompactStat(impressions);
   const data = useMemo(() => {
-    const pointCount = range === "7D" ? 7 : range === "30D" ? 30 : 90;
+    const config = {
+      All: { pointCount: 60, dayStep: 14, baseWeight: 0.08, growthWeight: 2.8, acceleration: 3.4 },
+      "7D": { pointCount: 7, dayStep: 1, baseWeight: 0.75, growthWeight: 1, acceleration: 1 },
+      "30D": { pointCount: 30, dayStep: 1, baseWeight: 0.4, growthWeight: 1.8, acceleration: 1.7 },
+      "90D": { pointCount: 45, dayStep: 2, baseWeight: 0.18, growthWeight: 2.4, acceleration: 2.5 },
+      "1Y": { pointCount: 53, dayStep: 7, baseWeight: 0.12, growthWeight: 2.6, acceleration: 3 },
+    }[ATTENTION_CHART_PERIODS.includes(range as typeof ATTENTION_CHART_PERIODS[number]) ? range : "All"]!;
     const end = new Date();
     end.setHours(12, 0, 0, 0);
-    return Array.from({ length: pointCount }, (_, index) => {
+    const dates = Array.from({ length: config.pointCount }, (_, index) => {
       const date = new Date(end);
-      date.setDate(end.getDate() - (pointCount - index - 1));
+      date.setDate(end.getDate() - (config.pointCount - index - 1) * config.dayStep);
+      return date;
+    });
+    const weights = dates.slice(1).map((date, index) => {
       const weekday = date.getDay();
       const weekendDip = weekday === 0 ? 0.76 : weekday === 6 ? 0.83 : 1;
-      const growth = 18_000 + index * (range === "7D" ? 2_850 : range === "30D" ? 980 : 410);
+      const progress = index / Math.max(1, dates.length - 2);
+      const growth = config.baseWeight + Math.pow(progress, config.acceleration) * config.growthWeight;
       const naturalMovement = 1 + Math.sin(index * 1.17) * 0.065 + Math.cos(index * 0.43) * 0.035;
-      return { date, value: Math.round(growth * weekendDip * naturalMovement) };
+      return growth * weekendDip * naturalMovement;
     });
-  }, [range]);
+    const totalWeight = weights.reduce((sum, weight) => sum + weight, 0) || 1;
+    let cumulativeWeight = 0;
+    return dates.map((date, index) => {
+      if (index > 0) cumulativeWeight += weights[index - 1];
+      return {
+        date,
+        value: index === dates.length - 1
+          ? totalImpressions
+          : Math.round(totalImpressions * cumulativeWeight / totalWeight),
+      };
+    });
+  }, [range, totalImpressions]);
 
-  const width = 320;
-  const height = 112;
-  const left = 34;
-  const right = 10;
-  const top = 10;
+  const width = 360;
+  const height = 148;
+  const left = 30;
+  const right = 5;
+  const top = 8;
   const bottom = 24;
-  const values = data.map((point) => point.value);
-  const minValue = Math.min(...values) * 0.92;
-  const maxValue = Math.max(...values) * 1.05;
-  const valueSpan = Math.max(1, maxValue - minValue);
+  const maxValue = Math.max(1, totalImpressions);
+  const valueSpan = maxValue;
   const points = data.map((point, index) => ({
     ...point,
     x: left + (index / Math.max(1, data.length - 1)) * (width - left - right),
@@ -364,19 +420,26 @@ function AttentionTrendChart({ range }: { range: string }) {
   }));
   const linePoints = points.map((point) => `${point.x.toFixed(2)},${point.y.toFixed(2)}`).join(" ");
   const formatDate = (date: Date) => date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-  const formatValue = (value: number) => `${Math.round(value / 1000)}K`;
 
   return (
     <svg
       key={range}
       viewBox={`0 0 ${width} ${height}`}
-      className="mt-1 h-28 w-full overflow-visible"
+      className="mt-1 h-36 w-full overflow-visible"
       role="img"
-      aria-label={`Illustrative ${range} focused-attention trend rising over time with weekend dips`}
+      aria-label={`${range} cumulative impressions, ending at ${impressions}`}
     >
       {[0, 0.5, 1].map((ratio) => {
         const y = top + ratio * (height - top - bottom);
-        return <line key={ratio} x1={left} x2={width - right} y1={y} y2={y} stroke="rgba(0,255,0,0.11)" strokeDasharray="3 5" />;
+        const value = maxValue * (1 - ratio);
+        return (
+          <g key={ratio}>
+            <line x1={left} x2={width - right} y1={y} y2={y} stroke="rgba(0,255,0,0.11)" strokeDasharray="3 5" />
+            <text x={left - 4} y={y + 3} textAnchor="end" fill="#6f9f6f" fontSize="8" fontWeight="800">
+              {ratio === 0 ? impressions : formatCompactStat(value)}
+            </text>
+          </g>
+        );
       })}
       <line x1={left} x2={width - right} y1={height - bottom} y2={height - bottom} stroke="rgba(0,255,0,0.3)" />
       <polyline
@@ -402,8 +465,6 @@ function AttentionTrendChart({ range }: { range: string }) {
           style={{ animationDelay: `${900 + index * Math.max(12, 120 / data.length)}ms` }}
         />
       ))}
-      <text x={left - 4} y={top + 4} textAnchor="end" fill="#6f9f6f" fontSize="8" fontWeight="800">{formatValue(maxValue)}</text>
-      <text x={left - 4} y={height - bottom + 3} textAnchor="end" fill="#6f9f6f" fontSize="8" fontWeight="800">{formatValue(minValue)}</text>
       <text x={left} y={height - 6} fill="#6f9f6f" fontSize="8" fontWeight="800">{formatDate(data[0].date)}</text>
       <text x={width - right} y={height - 6} textAnchor="end" fill="#6f9f6f" fontSize="8" fontWeight="800">{formatDate(data[data.length - 1].date)}</text>
     </svg>
@@ -477,13 +538,181 @@ function MockTokenChart({ values, callIndex, move }: { values: number[]; callInd
   );
 }
 
+type OpportunityChartLine = {
+  label: string;
+  color: string;
+  values: number[];
+};
+
+function formatPerformanceChange(value: number): string {
+  const rounded = Math.round(value);
+  return `${rounded > 0 ? "+" : ""}${rounded.toLocaleString("en-US")}%`;
+}
+
+function OpportunitySparkline({
+  label,
+  lines,
+  minimum,
+  maximum,
+}: {
+  label: string;
+  lines: OpportunityChartLine[];
+  minimum: number;
+  maximum: number;
+}) {
+  const width = 120;
+  const height = 68;
+  const padX = 4;
+  const padY = 7;
+  const spread = Math.max(1, maximum - minimum);
+  const yFor = (value: number) => padY + ((maximum - value) / spread) * (height - padY * 2);
+  const zeroY = yFor(0);
+
+  return (
+    <svg viewBox={`0 0 ${width} ${height}`} className="mt-1 block h-[76px] w-full" role="img" aria-label={label}>
+      <line x1={padX} x2={width - padX} y1={zeroY} y2={zeroY} stroke="#456645" strokeWidth="0.75" strokeDasharray="2 2" />
+      {lines.map((line) => {
+        const points = line.values.map((value, index) => {
+          const x = padX + (index / Math.max(1, line.values.length - 1)) * (width - padX * 2);
+          return `${x},${yFor(value)}`;
+        }).join(" ");
+        return <polyline key={line.label} points={points} fill="none" stroke={line.color} strokeWidth="2.2" strokeLinejoin="round" strokeLinecap="round" />;
+      })}
+    </svg>
+  );
+}
+
+function RwaOpportunityCharts({
+  row,
+  markets,
+  selectedFilter,
+}: {
+  row: PerksExplorerRow;
+  markets: PerksExplorerRow[];
+  selectedFilter: string;
+}) {
+  const [period, setPeriod] = useState<RwaChartPeriod>("All");
+  const stonkletId = row.stonklet?.id;
+  const rwaChart = stonkletId ? RWA_MARKET_CHARTS[stonkletId] : null;
+  if (!rwaChart || !row.stonklet) return null;
+
+  const activeMarkets = selectedFilter === "All"
+    ? markets
+    : markets.filter((market) => market.filter === selectedFilter);
+  const stonkletLines: OpportunityChartLine[] = activeMarkets.map((market) => ({
+    label: market.filter,
+    color: market.filter === "BSC" ? "#FFFF00" : "#00FF00",
+    values: getIllustrativeStonkletPerformance(market, period),
+  }));
+  const rwaLine: OpportunityChartLine = {
+    label: rwaChart.name,
+    color: "#33AAFF",
+    values: rwaChart.performance[period],
+  };
+  const allValues = [...rwaLine.values, ...stonkletLines.flatMap((line) => line.values), 0];
+  const rawMinimum = Math.min(...allValues);
+  const rawMaximum = Math.max(...allValues);
+  const padding = Math.max(5, (rawMaximum - rawMinimum) * 0.08);
+  const minimum = rawMinimum - padding;
+  const maximum = rawMaximum + padding;
+  const rwaMarketCap = getRwaMarketCapMovement(rwaChart, period);
+  const stonkletMarketCap = getStonkletMarketCapMovement(activeMarkets, period);
+
+  return (
+    <div className="mt-3 rounded-lg border border-[#00FF00]/30 bg-black/75 p-2.5 shadow-[0_0_12px_rgba(0,255,0,0.09)]">
+      <div className="flex items-end justify-between gap-2">
+        <div>
+          <span className="block text-[10px] font-black uppercase text-[#00FF00]">Market Cap</span>
+          <span className="mt-0.5 block text-[9px] font-bold text-[#6f9f6f]">RWA vs Stonklet · % change</span>
+        </div>
+        <div className="flex shrink-0 items-center gap-1">
+          {RWA_CHART_PERIODS.map((option) => (
+            <button
+              key={option}
+              type="button"
+              onClick={() => {
+                void hapticSelectionChanged();
+                setPeriod(option);
+              }}
+              className={`flex cursor-pointer items-center rounded-md border px-1.5 py-0.5 text-[10px] font-black transition ${
+                period === option
+                  ? "border-[#00FF00] bg-[#00FF00] text-[rgb(0,80,0)]"
+                  : "border-[#00FF00]/30 text-[#00FF00] hover:border-[#00FF00]"
+              }`}
+            >
+              {option}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="mt-2 grid grid-cols-2 gap-2">
+        <div className="min-w-0 rounded-md border border-[#33AAFF]/30 bg-[#02101a] p-1.5">
+          <div className="flex items-start justify-between gap-1">
+            <div className="min-w-0">
+              <span className="block truncate text-[9px] font-black uppercase text-[#33AAFF]">RWA · {rwaChart.name}</span>
+              <span className="block whitespace-nowrap text-[8px] font-bold text-[#8bcfff]">MCAP {rwaMarketCap.label}</span>
+            </div>
+            <span className={`shrink-0 text-[10px] font-black ${rwaMarketCap.change >= 0 ? "text-[#33AAFF]" : "text-[#ff6666]"}`}>{formatPerformanceChange(rwaMarketCap.change)}</span>
+          </div>
+          <OpportunitySparkline label={`${rwaChart.name} approximate market-cap percentage change over ${period}`} lines={[rwaLine]} minimum={minimum} maximum={maximum} />
+        </div>
+        <div className="min-w-0 rounded-md border border-[#00FF00]/30 bg-[#031303] p-1.5">
+          <div className="flex items-start justify-between gap-1">
+            <div className="min-w-0">
+              <span className="block truncate text-[9px] font-black uppercase text-[#00FF00]">{row.stonklet.name}</span>
+              <span className="block whitespace-nowrap text-[8px] font-bold text-[#8bbf8b]">MCAP {stonkletMarketCap.label}</span>
+            </div>
+            <span className={`shrink-0 text-[10px] font-black ${stonkletMarketCap.change >= 0 ? "text-[#00FF00]" : "text-[#FF7777]"}`}>{formatPerformanceChange(stonkletMarketCap.change)}</span>
+          </div>
+          <OpportunitySparkline label={`${row.stonklet.name} illustrative market-cap percentage change over ${period}`} lines={stonkletLines} minimum={minimum} maximum={maximum} />
+          <div className="flex flex-wrap gap-x-2 gap-y-0.5 px-0.5">
+            {stonkletLines.map((line) => (
+              <span key={line.label} className="inline-flex items-center gap-1 text-[8px] font-black text-[#8bbf8b]">
+                <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: line.color }} />
+                {line.label}
+              </span>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function Explorer({ definition }: { definition: PerksDefinition }) {
   const [filter, setFilter] = useState(definition.explorer.filters[0]);
-  useEffect(() => setFilter(definition.explorer.filters[0]), [definition.id, definition.explorer.filters]);
+  const [rwaCardFilters, setRwaCardFilters] = useState<Record<string, string>>({});
+  useEffect(() => {
+    setFilter(definition.explorer.filters[0]);
+    setRwaCardFilters({});
+  }, [definition.id, definition.explorer.filters]);
   const rows = definition.explorer.rows.filter((row) => {
     if (definition.id === "attention" || definition.id === "nfts") return row.filter === filter;
     return filter === "All" || row.filter === filter;
   });
+  const cards = useMemo<Array<{
+    row: PerksExplorerRow;
+    markets?: PerksExplorerRow[];
+    selectedFilter?: string;
+  }>>(() => {
+    if (definition.id !== "rwas") return rows.map((row) => ({ row }));
+
+    const visibleIds = Array.from(new Set(rows.map((row) => row.stonklet?.id).filter(Boolean)));
+    return visibleIds.map((id) => {
+      const markets = definition.explorer.rows.filter((row) => row.stonklet?.id === id);
+      const defaultFilter = filter === "All"
+        ? (markets.length > 1 ? "All" : markets[0].filter)
+        : filter;
+      const requestedFilter = rwaCardFilters[id!] ?? defaultFilter;
+      const selectedFilter = (requestedFilter === "All" && markets.length > 1) || markets.some((market) => market.filter === requestedFilter)
+        ? requestedFilter
+        : markets[0].filter;
+      const row = selectedFilter === "All"
+        ? aggregateRwaExplorerRows(markets, definition.explorer.columns)
+        : markets.find((market) => market.filter === selectedFilter) ?? markets[0];
+      return { row, markets, selectedFilter };
+    });
+  }, [definition, filter, rows, rwaCardFilters]);
 
   return (
     <section className="mt-4 overflow-hidden rounded-xl border border-[#00FF00]/25 bg-black/70">
@@ -503,6 +732,7 @@ function Explorer({ definition }: { definition: PerksDefinition }) {
               onClick={() => {
                 void hapticSelectionChanged();
                 setFilter(option);
+                setRwaCardFilters({});
               }}
               className={`cursor-pointer rounded-md border px-2 py-1 text-[11px] font-black transition ${
                 filter === option
@@ -534,13 +764,61 @@ function Explorer({ definition }: { definition: PerksDefinition }) {
           </div>
         )}
         {definition.id === "attention" && (
-          <div className="rounded-lg border border-[#00FF00]/15 bg-[#041204]/70 p-2">
-            <div className="flex items-center justify-between text-[10px] font-black uppercase text-[#6f9f6f]"><span>Focused attention</span><span>{filter}</span></div>
-            <AttentionTrendChart range={filter} />
+          <div className="rounded-lg border border-[#00FF00]/15 bg-[#041204]/70 px-1 py-2">
+            <div className="flex items-center justify-between px-1 text-[10px] font-black uppercase text-[#6f9f6f]"><span>Cumulative impressions</span><span>{filter}</span></div>
+            <AttentionTrendChart
+              range={filter}
+              impressions={rows[0]?.cells[definition.explorer.columns.indexOf("Impressions")] ?? "0"}
+            />
           </div>
         )}
-        {rows.map((row, rowIndex) => (
-          <div key={`${row.filter}-${row.cells[0]}-${rowIndex}`} className="rounded-lg border border-[#00FF00]/15 bg-[#041204]/70 p-2 transition hover:border-2 hover:border-[#00FF00] hover:p-[7px] hover:shadow-[0_0_12px_rgba(0,255,0,0.35)]">
+        {cards.map(({ row, markets = [], selectedFilter }, rowIndex) => (
+          <div key={row.stonklet?.id ?? `${row.filter}-${row.cells[0]}-${rowIndex}`} className="rounded-lg border border-[#00FF00]/15 bg-[#041204]/70 p-2 transition hover:border-2 hover:border-[#00FF00] hover:p-[7px] hover:shadow-[0_0_12px_rgba(0,255,0,0.35)]">
+            {definition.id === "rwas" && row.stonklet && (
+              <div className="mb-3">
+                <div className="flex items-start gap-3">
+                  <img
+                    src={getWarpletPreviewImageUrl(row.stonklet.tokenId)}
+                    alt={`${row.stonklet.name} representative Warplet`}
+                    className="h-14 w-14 shrink-0 rounded-lg border border-[#00FF00]/35 object-cover"
+                    loading="lazy"
+                    decoding="async"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <span className="block truncate text-sm font-black text-[#00FF00]">{row.stonklet.name}</span>
+                        <span className="mt-0.5 block truncate text-[11px] font-black text-white">{row.stonklet.ticker}</span>
+                      </div>
+                      <div className="flex shrink-0 flex-nowrap justify-end gap-1">
+                        {(markets.length > 1 ? ["All", ...markets.map((market) => market.filter)] : markets.map((market) => market.filter)).map((option) => (
+                          <button
+                            key={option}
+                            type="button"
+                            onClick={() => {
+                              void hapticSelectionChanged();
+                              setRwaCardFilters((current) => ({ ...current, [row.stonklet!.id]: option }));
+                            }}
+                            className={`cursor-pointer rounded-md border px-1.5 py-1 text-[10px] font-black transition ${
+                              selectedFilter === option
+                                ? "border-[#00FF00] bg-[#00FF00] text-[rgb(0,80,0)]"
+                                : "border-[#00FF00]/45 bg-black text-[#00FF00] hover:border-[#00FF00]"
+                            }`}
+                          >
+                            {option}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <span className="mt-0.5 block text-[10px] font-bold leading-4 text-[#8bbf8b]">
+                      {selectedFilter === "All"
+                        ? `RWA pairs: ${markets.map((market) => market.stonklet?.rwaToken).join(" · ")}`
+                        : `RWA pair: ${row.stonklet.rwaToken}`}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
             <div className="grid grid-cols-3 gap-x-2 gap-y-2">
               {row.cells.map((cell, index) => (
                 <div key={`${definition.explorer.columns[index]}-${index}`} className="min-w-0">
@@ -555,22 +833,67 @@ function Explorer({ definition }: { definition: PerksDefinition }) {
                           )
                         : cell}
                     </span>
+                  ) : definition.id === "rwas" && definition.explorer.columns[index] === "RWA Dividends" ? (
+                    <span className="mt-0.5 inline-flex max-w-full rounded-full border border-[#00FF00]/55 bg-[#032503] px-1.5 py-px text-[10px] font-black text-[#00FF00]">
+                      {cell}
+                    </span>
+                  ) : (definition.id === "nfts" && definition.explorer.columns[index] === "Leading Tribe")
+                    || (definition.id === "attention" && definition.explorer.columns[index] === "Impressions")
+                    || (definition.id === "alpha" && definition.explorer.columns[index] === "Move")
+                    || (definition.id === "ai" && definition.explorer.columns[index] === "Sponsored") ? (
+                    <span className={`mt-0.5 inline-flex max-w-full rounded-full border px-1.5 py-px text-[10px] font-black ${
+                      definition.id === "alpha" && cell.trim().startsWith("-")
+                        ? "border-[#FF5555]/55 bg-[rgba(255,85,85,0.12)] text-[#FF7777]"
+                        : "border-[#00FF00]/55 bg-[#032503] text-[#00FF00]"
+                    }`}>
+                      {cell}
+                    </span>
                   ) : (
                     <span className="mt-0.5 block truncate text-[11px] font-black text-white">{cell}</span>
                   )}
                 </div>
               ))}
             </div>
-            {row.tools && row.tools.length > 0 && (
-              <div className="mt-3 flex flex-wrap gap-1.5">
-                {row.tools.map((tool) => (
-                  <span
-                    key={tool}
-                    className="inline-flex rounded-full border border-[#00FF00]/45 bg-[#032503] px-2 py-1 text-[10px] font-black text-[#00FF00]"
-                  >
-                    {tool}
-                  </span>
-                ))}
+            {definition.id === "rwas" && row.stonklet && selectedFilter && (
+              <RwaOpportunityCharts row={row} markets={markets} selectedFilter={selectedFilter} />
+            )}
+            {row.toolBadges && row.toolBadges.length > 0 && (
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                {row.toolBadges.map((tool) => {
+                  const isTiledLogo = /\.(?:png|jpe?g|webp)$/i.test(tool.logoSrc);
+                  return (
+                    <div
+                      key={tool.name}
+                      className="flex min-h-[80px] min-w-0 items-center gap-2 rounded-lg border border-[#00FF00]/25 bg-black/65 p-2 transition hover:border-[#00FF00]/60 hover:bg-[#031303]"
+                    >
+                      <span className={`relative isolate flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden ${
+                        isTiledLogo ? "rounded-lg border border-[#00FF00]/35 bg-black" : "rounded-lg border border-[#00FF00]/30 bg-[#101810] p-1"
+                      }`}>
+                        <img
+                          src={tool.logoSrc}
+                          alt={`${tool.name} logo`}
+                          className={`h-full w-full grayscale contrast-125 ${tool.invertLogo ? "invert" : ""} ${
+                            isTiledLogo
+                              ? "rounded-[7px] object-cover"
+                              : "object-contain"
+                          }`}
+                          loading="lazy"
+                          decoding="async"
+                        />
+                        <span
+                          aria-hidden="true"
+                          className={`pointer-events-none absolute z-10 bg-[#00FF00] mix-blend-multiply ${
+                            isTiledLogo ? "inset-px rounded-[7px]" : "inset-1"
+                          }`}
+                        />
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block text-[10px] font-black leading-3 text-[#00FF00]">{tool.name}</span>
+                        <span className="mt-1 block text-[9px] font-bold leading-[11px] text-[#8bbf8b]">{tool.tagline}</span>
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
             )}
             {definition.id === "alpha" && row.priceHistory && row.priceHistory.length > 1 && (
@@ -614,9 +937,11 @@ function Explorer({ definition }: { definition: PerksDefinition }) {
                 </div>
               </div>
             )}
-            {row.progress != null && definition.id !== "memes" && definition.id !== "attention" && (
-              <div className="mt-2 h-1.5 overflow-hidden rounded-full border border-[#00FF00]/25 bg-black" title={`${row.progress}%`}>
-                <span className="block h-full bg-[#00FF00] transition-[width] duration-500" style={{ width: `${Math.max(0, Math.min(100, row.progress))}%` }} />
+            {row.progress != null && definition.id !== "memes" && definition.id !== "attention" && definition.id !== "rwas" && (
+              <div className="mt-2">
+                <div className="h-1.5 overflow-hidden rounded-full border border-[#00FF00]/25 bg-black" title={`${row.progress}%`}>
+                  <span className="block h-full bg-[#00FF00] transition-[width] duration-500" style={{ width: `${Math.max(0, Math.min(100, row.progress))}%` }} />
+                </div>
               </div>
             )}
           </div>
@@ -767,14 +1092,22 @@ function Leaderboard({
   );
 }
 
+function renderInlineBold(text: string) {
+  return text.split("**").map((segment, index) => (
+    index % 2 === 1
+      ? <strong key={`${index}-${segment}`} className="font-black text-[#d8f5d8]">{segment}</strong>
+      : segment
+  ));
+}
+
 function FutureExplanation({ definition, onShare }: { definition: PerksDefinition; onShare: () => void }) {
   const shareContent = PERKS_SHARE_CONTENT[definition.id];
-  const tokenId = shareContent.tokenId;
+  const tokenId = definition.futureTokenId ?? shareContent.tokenId;
 
   return (
     <section className="mt-5 overflow-hidden rounded-xl border border-[#00FF00]/25 bg-black/70">
       <div className="border-b border-[#00FF00]/15 px-3 py-3">
-        <h2 className="text-xs font-black uppercase text-[#00FF00]">The Future {definition.title} Perk</h2>
+        <h2 className="text-xs font-black uppercase text-[#00FF00]">The Future {definition.id === "rwas" ? "RWA" : definition.title} Perk</h2>
       </div>
       <div>
         <div className="p-3">
@@ -797,7 +1130,7 @@ function FutureExplanation({ definition, onShare }: { definition: PerksDefinitio
             className={`px-3 pt-3 ${item.callout ? "pb-0" : "pb-3"} ${index > 0 ? "border-t border-[#00FF00]/10" : ""}`}
           >
             <h3 className="text-xs font-black uppercase text-[#00FF00]">{item.title}</h3>
-            <p className="mt-1 whitespace-pre-line text-xs leading-5 text-[#b8d7b8]">{item.body}</p>
+            <p className="mt-1 whitespace-pre-line text-xs leading-5 text-[#b8d7b8]">{renderInlineBold(item.body)}</p>
             {item.callout && (
               <span className="mt-4 block py-2 text-center text-xl font-black uppercase leading-[1.5] text-[#00FF00]">
                 {shareContent.callout}

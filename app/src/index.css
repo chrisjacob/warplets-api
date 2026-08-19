@@ -54,6 +54,11 @@ html::before {
   --os-handle-interactive-area-offset: 4px;
 }
 
+.os-theme-10x .os-scrollbar-handle {
+  backface-visibility: hidden;
+  will-change: transform;
+}
+
 .os-theme-10x.os-scrollbar-horizontal {
   --os-size: 8px;
 }

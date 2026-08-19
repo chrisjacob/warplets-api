@@ -217,6 +217,7 @@ const STATS_SUBPAGE_TABS: Array<{ id: SearchStatsSubpage; label: string }> = [
 
 const PERKS_SUBPAGE_TABS: Array<{ id: PerksSubpage; label: string }> = [
   { id: "memes", label: "Memes" },
+  { id: "rwas", label: "RWAs" },
   { id: "nfts", label: "NFTs" },
   { id: "ai", label: "AI" },
   { id: "attention", label: "Attention" },
@@ -3210,6 +3211,7 @@ function parseSearchRouteFromPath(pathname: string): SearchRoute {
   if (path === "/offers/trait") return { page: "offers", offersPage: "trait" };
   if (path === "/offers/item") return { page: "offers", offersPage: "item" };
   if (path === "/offers/collection") return { page: "offers", offersPage: "collection" };
+  if (path === "/perks/rwas") return { page: "perks", perksPage: "rwas" };
   if (path === "/perks/nfts") return { page: "perks", perksPage: "nfts" };
   if (path === "/perks/ai") return { page: "perks", perksPage: "ai" };
   if (path === "/perks/attention") return { page: "perks", perksPage: "attention" };
@@ -3552,7 +3554,7 @@ function SearchSegmentedTabs({
               void hapticSelectionChanged();
               onSelect(option.id);
             }}
-            className={`cursor-pointer whitespace-nowrap rounded-md ${dense ? "px-1 py-2 text-[10px] sm:text-xs" : "px-2 py-2 text-xs sm:text-sm"} font-bold transition-colors ${
+            className={`cursor-pointer whitespace-nowrap rounded-md ${compact ? "px-0.5 py-2 text-xs sm:text-sm" : dense ? "px-1 py-2 text-[10px] sm:text-xs" : "px-2 py-2 text-xs sm:text-sm"} font-bold transition-colors ${
               active
                 ? "bg-[#00FF00] text-[rgb(0,80,0)]"
                 : "text-[#00FF00] hover:bg-[#041204]"
@@ -3638,7 +3640,8 @@ function SearchPageNavigation({
           options={PERKS_SUBPAGE_TABS}
           activeId={activePerks}
           onSelect={(id) => onNavigate({ page: "perks", perksPage: id as PerksSubpage })}
-          gridTemplateColumns="1fr 1fr 0.65fr 1.4fr 1fr"
+          gridTemplateColumns="1fr 0.9fr 0.85fr 0.6fr 1.35fr 0.85fr"
+          compact
         />
       )}
       {route.page === "stats" && (
@@ -12815,6 +12818,7 @@ const SHARE_MODAL_TEST_CASES = [
   { id: "collection-offer", label: "Collection offer", description: "Offers → Collection → successful offer." },
   { id: "trait-offer", label: "Trait offer", description: "Offers → Trait → successful offer." },
   { id: "perk-memes", label: "Memes Perk", description: "Perks → Memes → bottom Share CTA." },
+  { id: "perk-rwas", label: "RWAs Perk", description: "Perks → RWAs → bottom Share CTA." },
   { id: "perk-nfts", label: "NFTs Perk", description: "Perks → NFTs → bottom Share CTA." },
   { id: "perk-ai", label: "AI Perk", description: "Perks → AI → bottom Share CTA." },
   { id: "perk-attention", label: "Attention Perk", description: "Perks → Attention → bottom Share CTA." },

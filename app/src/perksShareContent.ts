@@ -1,4 +1,4 @@
-export type PerksShareId = "memes" | "nfts" | "ai" | "attention" | "alpha";
+export type PerksShareId = "memes" | "rwas" | "nfts" | "ai" | "attention" | "alpha";
 
 export type PerksShareContent = {
   id: PerksShareId; label: string; eyebrow: string; summary: string;
@@ -19,6 +19,12 @@ export const PERKS_SHARE_CONTENT: Record<PerksShareId, PerksShareContent> = {
     summary: "One market-proven memecoin. One community decision. One focused launch at a time... 10X Airdrops!",
     callout: "With 10X you can be EARLY to every launch!",
     tokenId: 3258,
+  }),
+  rwas: definePerksShareContent({
+    id: "rwas", label: "RWAs", eyebrow: "Gen Z's Stonk Market",
+    summary: "Major real-world assets, relaunched as meme stonks. Paper hands feed diamond hands... Compounding memetic aura!",
+    callout: "Reset the market. Be early.",
+    tokenId: 9736,
   }),
   nfts: definePerksShareContent({
     id: "nfts", label: "NFTs", eyebrow: "10X Seasons",
@@ -51,7 +57,7 @@ export function getPerksShareImageUrl(content: PerksShareContent): string {
 }
 
 export function getPerksShareContentFromPath(pathname: string): PerksShareContent | null {
-  const match = pathname.match(/(?:^|\/)(?:warplets\/)?perks(?:\/(memes|nfts|ai|attention|alpha))?\/?$/i);
+  const match = pathname.match(/(?:^|\/)(?:warplets\/)?perks(?:\/(memes|rwas|nfts|ai|attention|alpha))?\/?$/i);
   const id = (match?.[1]?.toLowerCase() || (match ? "memes" : "")) as PerksShareId;
   return id ? PERKS_SHARE_CONTENT[id] ?? null : null;
 }
