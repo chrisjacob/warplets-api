@@ -10,6 +10,14 @@ WARPLETS_APP_ORIGIN = "https://warplet.10x.meme"
 binding = "TENX_API"
 service = "api"
 
+[[durable_objects.bindings]]
+name = "EMAIL_VERIFICATIONS"
+class_name = "EmailVerificationState"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["EmailVerificationState"]
+
 [env.preview]
 name = "10x-channel-bots-preview"
 
@@ -21,7 +29,12 @@ WARPLETS_APP_ORIGIN = "https://warplet-dev.10x.meme"
 binding = "TENX_API"
 service = "api-dev"
 
+[[env.preview.durable_objects.bindings]]
+name = "EMAIL_VERIFICATIONS"
+class_name = "EmailVerificationState"
+
 # Secrets (set with `wrangler secret put`):
 # BOT_SERVICE_TOKEN, TELEGRAM_BOT_TOKEN, TELEGRAM_WEBHOOK_SECRET,
-# DISCORD_PUBLIC_KEY and DISCORD_APPLICATION_ID. DISCORD_BOT_TOKEN is used only
-# by the local command-registration script; do not expose it to the Worker.
+# DISCORD_PUBLIC_KEY, DISCORD_APPLICATION_ID, DISCORD_BOT_TOKEN,
+# EMAIL_VERIFICATION_SECRET, RESEND_API_KEY and RESEND_FROM_EMAIL.
+# Optional: DISCORD_VERIFIED_ROLE_ID (otherwise the Worker resolves "Verified").

@@ -4,7 +4,7 @@ const guildId = process.env.DISCORD_GUILD_ID;
 if (!applicationId || !botToken) throw new Error("DISCORD_APPLICATION_ID and DISCORD_BOT_TOKEN are required");
 
 const integerToken = { name: "token", description: "Warplet token ID (1-10000)", type: 4, required: true, min_value: 1, max_value: 10000 };
-const commands = [
+const standardCommands = [
   { name: "help", description: "Show 10X Warplets commands" },
   { name: "search", description: "Search Warplets", options: [{ name: "terms", description: "Name, trait, wallet or token ID", type: 3, required: true }] },
   { name: "random", description: "Show a random Warplet" },
@@ -23,6 +23,17 @@ const commands = [
   { name: "link", description: "Link a verified wallet to your Discord account" },
   { name: "ask", description: "Ask a grounded read-only Warplets question", options: [{ name: "question", description: "Your question", type: 3, required: true }] },
 ].map((command) => ({ ...command, integration_types: [0, 1], contexts: [0, 1, 2] }));
+
+const commands = [
+  ...standardCommands,
+  {
+    name: "setup-email-verification",
+    description: "Post or refresh the server email verification panel",
+    integration_types: [0],
+    contexts: [0],
+    default_member_permissions: "32",
+  },
+];
 
 const route = guildId
   ? `https://discord.com/api/v10/applications/${applicationId}/guilds/${guildId}/commands`

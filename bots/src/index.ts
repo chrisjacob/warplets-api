@@ -1,7 +1,13 @@
 import { Hono } from "hono";
 import { ed25519 } from "@noble/curves/ed25519.js";
+import {
+  EmailVerificationState,
+  handleEmailVerificationInteraction,
+  type EmailVerificationEnv,
+  type EmailVerificationInteraction,
+} from "./emailVerification";
 
-interface Env {
+interface Env extends EmailVerificationEnv {
   TENX_API?: Fetcher;
   API_ORIGIN?: string;
   WARPLETS_APP_ORIGIN?: string;
@@ -43,9 +49,15 @@ interface DiscordInteraction {
   token?: string;
   application_id?: string;
   guild_id?: string;
-  member?: { user?: DiscordUser };
+  channel_id?: string;
+  member?: { user?: DiscordUser; permissions?: string; roles?: string[] };
   user?: DiscordUser;
-  data?: { name?: string; options?: DiscordOption[] };
+  data?: {
+    name?: string;
+    options?: DiscordOption[];
+    custom_id?: string;
+    components?: Array<Record<string, unknown>>;
+  };
 }
 
 interface DiscordUser { id?: string; username?: string; global_name?: string }
@@ -324,6 +336,12 @@ app.post("/discord", async (c) => {
   if (!valid) return c.text("invalid request signature", 401);
   const interaction = JSON.parse(rawBody) as DiscordInteraction;
   if (interaction.type === 1) return c.json({ type: 1 });
+  const emailVerificationResponse = handleEmailVerificationInteraction(
+    c.env,
+    interaction as EmailVerificationInteraction,
+    (promise) => c.executionCtx.waitUntil(promise),
+  );
+  if (emailVerificationResponse) return c.json(emailVerificationResponse);
   if (interaction.type !== 2) return c.json({ type: 4, data: { content: "Unsupported interaction", flags: 64 } });
   const user = interaction.member?.user ?? interaction.user;
   if (!user?.id) return c.json({ type: 4, data: { content: "Discord user identity is unavailable", flags: 64 } });
@@ -346,4 +364,5 @@ app.post("/discord", async (c) => {
   return c.json({ type: 5, data: { flags: ephemeral ? 64 : 0 } });
 });
 
+export { EmailVerificationState };
 export default app;

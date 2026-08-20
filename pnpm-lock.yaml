@@ -186,6 +186,9 @@ importers:
       '@noble/curves':
         specifier: 2.0.0
         version: 2.0.0
+      disposable-email-domains-js:
+        specifier: 1.25.0
+        version: 1.25.0
       hono:
         specifier: ^4.12.12
         version: 4.12.12
@@ -193,6 +196,12 @@ importers:
       '@cloudflare/workers-types':
         specifier: ^4.0.0
         version: 4.20260411.1
+      '@types/node':
+        specifier: ^24.12.2
+        version: 24.12.2
+      tsx:
+        specifier: ^4.21.0
+        version: 4.21.0
       typescript:
         specifier: ^5.0.0
         version: 5.9.3
@@ -4279,6 +4288,9 @@ packages:
 
   dijkstrajs@1.0.3:
     resolution: {integrity: sha512-qiSlmBq9+BCdCA/L46dw8Uy93mloxsPSbwnm5yrKn2vMPiy8KyAskTF6zuV/j5BMsmOGZDPs7KjU+mjb670kfA==}
+
+  disposable-email-domains-js@1.25.0:
+    resolution: {integrity: sha512-G16ih6YqeZV9CozhVW8IASgSAhGaJ2Tr58RRtZ8Ff5glhTCEav2VX74ciETHZ01n9D57aQasEvDzaBmzATYdYw==}
 
   dom-helpers@5.2.1:
     resolution: {integrity: sha512-nRCa7CK3VTrM2NmGkIy4cbK7IZlgBE/PYMn55rrXefr5xXDP0LdtfPnblFDoVdcAfslJ7or6iqAUnx0CCGIWQA==}
@@ -10655,6 +10667,8 @@ snapshots:
   devtools-protocol@0.0.1299070: {}
 
   dijkstrajs@1.0.3: {}
+
+  disposable-email-domains-js@1.25.0: {}
 
   dom-helpers@5.2.1:
     dependencies:

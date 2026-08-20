@@ -7,16 +7,20 @@
     "dev": "wrangler dev --port 8791",
     "build": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
+    "test": "tsx --test src/**/*.test.ts",
     "deploy": "wrangler deploy",
     "configure:telegram": "node scripts/configure-telegram.mjs",
     "configure:discord": "node scripts/register-discord-commands.mjs"
   },
   "dependencies": {
     "@noble/curves": "2.0.0",
+    "disposable-email-domains-js": "1.25.0",
     "hono": "^4.12.12"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.0.0",
+    "@types/node": "^24.12.2",
+    "tsx": "^4.21.0",
     "typescript": "^5.0.0",
     "wrangler": "^4.0.0"
   }
