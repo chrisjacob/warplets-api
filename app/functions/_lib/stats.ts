@@ -4111,6 +4111,7 @@ async function loadActivityChart(
          ROW_NUMBER() OVER (
            PARTITION BY CASE
              WHEN a.event_type = 'sale' THEN CAST(a.token_id AS TEXT) || ':' || COALESCE(LOWER(a.transaction_hash), LOWER(a.order_hash), a.canonical_key)
+             WHEN a.event_type = 'listing' AND a.order_hash IS NOT NULL THEN CAST(a.token_id AS TEXT) || ':' || LOWER(a.order_hash)
              ELSE a.canonical_key
            END
            ORDER BY CASE WHEN a.source LIKE 'opensea%' THEN 0 ELSE 1 END, a.updated_at DESC, a.canonical_key DESC
@@ -4356,6 +4357,7 @@ export async function handleStatsActivityGet(
            ROW_NUMBER() OVER (
              PARTITION BY CASE
                WHEN a.event_type = 'sale' THEN CAST(a.token_id AS TEXT) || ':' || COALESCE(LOWER(a.transaction_hash), LOWER(a.order_hash), a.canonical_key)
+               WHEN a.event_type = 'listing' AND a.order_hash IS NOT NULL THEN CAST(a.token_id AS TEXT) || ':' || LOWER(a.order_hash)
                ELSE a.canonical_key
              END
              ORDER BY CASE WHEN a.source LIKE 'opensea%' THEN 0 ELSE 1 END, a.updated_at DESC, a.canonical_key DESC
@@ -4398,6 +4400,7 @@ export async function handleStatsActivityGet(
            ROW_NUMBER() OVER (
              PARTITION BY CASE
                WHEN a.event_type = 'sale' THEN CAST(a.token_id AS TEXT) || ':' || COALESCE(LOWER(a.transaction_hash), LOWER(a.order_hash), a.canonical_key)
+               WHEN a.event_type = 'listing' AND a.order_hash IS NOT NULL THEN CAST(a.token_id AS TEXT) || ':' || LOWER(a.order_hash)
                ELSE a.canonical_key
              END
              ORDER BY CASE WHEN a.source LIKE 'opensea%' THEN 0 ELSE 1 END, a.updated_at DESC, a.canonical_key DESC

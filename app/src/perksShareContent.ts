@@ -46,7 +46,7 @@ export const PERKS_SHARE_CONTENT: Record<PerksShareId, PerksShareContent> = {
   }),
   alpha: definePerksShareContent({
     id: "alpha", label: "Alpha", eyebrow: "The 10X Network",
-    summary: "Builders, traders, collectors, whales, degens, creators, KOLs, all sharing alpha across chains... 10X vs The Market!",
+    summary: "Where builders, creators, traders, bag workers, whales, and KOLs, all share alpha... it's 10X vs The Market!",
     callout: "10X your crypto crew!",
     tokenId: 4334,
   }),

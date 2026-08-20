@@ -315,8 +315,8 @@ export function useMiniAppChrome(appSlug: AppSlug) {
     setCanGoBack(getCanGoBack(appSlug));
   };
 
-  const actions = useMemo(() => ({
-    goBack: () => {
+  const actions = useMemo(() => {
+    const goBack = () => {
       if (internalMenuOpen) {
         setInternalMenuOpen(false);
         return;
@@ -342,37 +342,46 @@ export function useMiniAppChrome(appSlug: AppSlug) {
         );
         syncRouteStateNow();
       }
-    },
-    openMenu: () => {
-      setInternalMenuOpen(true);
-    },
-    goToCurrentRoot: () => {
-      if (internalMenuOpen) {
-        setInternalMenuOpen(false);
-      }
+    };
 
-      const rootPath = getRootPath(appSlug, window.location);
-      if (normalizePath(window.location.pathname) === normalizePath(rootPath)) return;
-      pushMiniAppRoute(appSlug, rootPath);
-      syncRouteStateNow();
-    },
-    openHubRoot: async () => {
-      if (internalMenuOpen) {
-        setInternalMenuOpen(false);
-      }
-
-      if (appSlug === "app") {
-        const rootPath = getRootPath("app", window.location);
-        if (normalizePath(window.location.pathname) !== normalizePath(rootPath)) {
-          pushMiniAppRoute("app", rootPath);
-          syncRouteStateNow();
+    return {
+      goBack,
+      openMenu: () => {
+        if (isMenuRoute) {
+          goBack();
+          return;
         }
-        return;
-      }
 
-      await openApp("app");
-    },
-  }), [appSlug, internalMenuOpen]);
+        setInternalMenuOpen(true);
+      },
+      goToCurrentRoot: () => {
+        if (internalMenuOpen) {
+          setInternalMenuOpen(false);
+        }
+
+        const rootPath = getRootPath(appSlug, window.location);
+        if (normalizePath(window.location.pathname) === normalizePath(rootPath)) return;
+        pushMiniAppRoute(appSlug, rootPath);
+        syncRouteStateNow();
+      },
+      openHubRoot: async () => {
+        if (internalMenuOpen) {
+          setInternalMenuOpen(false);
+        }
+
+        if (appSlug === "app") {
+          const rootPath = getRootPath("app", window.location);
+          if (normalizePath(window.location.pathname) !== normalizePath(rootPath)) {
+            pushMiniAppRoute("app", rootPath);
+            syncRouteStateNow();
+          }
+          return;
+        }
+
+        await openApp("app");
+      },
+    };
+  }, [appSlug, internalMenuOpen, isMenuRoute]);
 
   return {
     isMenuRoute,
