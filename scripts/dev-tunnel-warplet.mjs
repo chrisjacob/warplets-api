@@ -12,6 +12,10 @@ const appDir = path.resolve(__dirname, "../app");
 const PUBLIC_URL = "https://warplet-local.10x.meme";
 const LOCAL_MINIAPP_BASE_URL = PUBLIC_URL;
 const LOCAL_APP_SESSION_SECRET = "warplet-local-only-session-secret-do-not-use-live-v1";
+const LOCAL_ACTION_SESSION_SECRET = "warplet-local-only-action-secret-do-not-use-live-v1";
+const LOCAL_EMAIL_AUDIENCE_MUTATIONS_ENABLED = /^(1|true|yes)$/i.test(
+  process.env.LOCAL_EMAIL_AUDIENCE_MUTATIONS?.trim() || "",
+);
 const WARPLETS_TUNNEL = process.env.WARPLETS_TUNNEL_ID?.trim() || "warplet-local";
 const WARPLETS_TUNNEL_CREDENTIALS_FILE =
   process.env.WARPLETS_TUNNEL_CREDENTIALS_FILE?.trim() || "";
@@ -76,6 +80,10 @@ function spawnApiWorker(port) {
     String(port),
     "--binding",
     `APP_SESSION_SECRET=${LOCAL_APP_SESSION_SECRET}`,
+    "--binding",
+    `ACTION_SESSION_SECRET=${LOCAL_ACTION_SESSION_SECRET}`,
+    "--binding",
+    `EMAIL_AUDIENCE_MUTATIONS_ENABLED=${LOCAL_EMAIL_AUDIENCE_MUTATIONS_ENABLED}`,
   ];
   const accountAssociation = process.env.WARPLETS_ACCOUNT_ASSOCIATION_JSON?.trim();
   if (accountAssociation) {
@@ -175,6 +183,9 @@ async function main() {
   console.log(`Local API URL:  http://localhost:${API_PORT}`);
   console.log(`Embed launch URL: ${LOCAL_MINIAPP_BASE_URL}`);
   console.log("Starting app API worker...");
+  console.log(
+    `Live Resend audience mutations: ${LOCAL_EMAIL_AUDIENCE_MUTATIONS_ENABLED ? "explicitly enabled" : "disabled (set LOCAL_EMAIL_AUDIENCE_MUTATIONS=true to opt in)"}`,
+  );
 
   let shuttingDown = false;
   let apiRestartTimer = null;

@@ -19,6 +19,7 @@ APP_APP_FID = "9152"
 BASE_APP_URL = "https://warplet.10x.meme"
 # Enable only after the Base.dev project and API secret have been configured.
 BASE_NOTIFICATIONS_ENABLED = "false"
+EMAIL_AUDIENCE_MUTATIONS_ENABLED = "true"
 WARPMOJI_ADMIN_FIDS = "1129138"
 # Server-side OAuth/OIDC client IDs may be added here; their matching client
 # secrets remain Wrangler secrets. VAPID_PUBLIC_KEY is public by design.
@@ -84,6 +85,7 @@ bucket_name = "warplets-stats-shares-preview"
 APP_APP_FID = "9152"
 BASE_APP_URL = "https://warplet-dev.10x.meme"
 BASE_NOTIFICATIONS_ENABLED = "false"
+EMAIL_AUDIENCE_MUTATIONS_ENABLED = "false"
 WARPMOJI_ADMIN_FIDS = "1129138"
 # WARPLETS_ACCOUNT_ASSOCIATION_JSON = "{...association signed for warplet-dev.10x.meme...}"
 # WARPLETS_APP_FID = "?????" # preview Mini App FID, if registered separately

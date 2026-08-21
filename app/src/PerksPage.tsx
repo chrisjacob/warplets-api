@@ -1139,26 +1139,38 @@ function FutureExplanation({ definition, onShare }: { definition: PerksDefinitio
           </div>
         ))}
       </div>
-      <div className="px-3 pb-3 pt-4">
+      <div className="px-3 pb-6 pt-4">
         <button type="button" onClick={() => { void hapticTap(); onShare(); }} className="w-full cursor-pointer rounded-[20px] border border-[#0a990a] bg-[#00FF00] px-4 py-3 text-sm font-black text-[rgb(0,80,0)] shadow-[3px_6px_0_#0a990a] active:translate-y-0.5">
           {shareContent.cta}
         </button>
-        <a
-          href="https://discord.gg/G5P5cV94Uz"
-          target="_blank"
-          rel="noopener noreferrer"
-          onClick={() => { void hapticTap(); }}
-          className="mt-4 flex w-full cursor-pointer items-center justify-center gap-2 rounded-[20px] border border-[#3944b7] bg-[#5865F2] px-4 py-3 text-center text-sm font-black text-[#E0E3FF] shadow-[3px_6px_0_#3944b7] active:translate-y-0.5"
-        >
-          <img src="/menu/discord.png" alt="" aria-hidden="true" className="h-6 w-6 rounded-md object-cover" />
-          <span>Discuss 10X {shareContent.label} on Discord</span>
-        </a>
       </div>
     </section>
   );
 }
 
-function PerksEmailCta() {
+function PerksDiscordCta({ label }: { label: string }) {
+  return (
+    <section className="mt-5 rounded-xl border border-[#5865F2]/60 bg-[#111329] px-3 pb-6 pt-3">
+      <h2 className="text-center text-xl font-black text-[#E0E3FF]">Discuss 10X {label}</h2>
+      <a
+        href="https://discord.gg/G5P5cV94Uz"
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={() => { void hapticTap(); }}
+        className="mt-4 flex w-full cursor-pointer items-center justify-center gap-2 rounded-[20px] border border-[#3944b7] bg-[#5865F2] px-4 py-3 text-center text-sm font-black text-[#E0E3FF] shadow-[3px_6px_0_#3944b7] active:translate-y-0.5"
+      >
+        <img src="/menu/discord.png" alt="" aria-hidden="true" className="h-6 w-6 rounded-md object-cover" />
+        <span>Join The 10X Network</span>
+      </a>
+    </section>
+  );
+}
+
+function PerksEmailCta({ actionSessionToken, viewerFid, onSubscriptionRequested }: {
+  actionSessionToken: string | null;
+  viewerFid: number | null;
+  onSubscriptionRequested: (message: string) => void;
+}) {
   const [email, setEmail] = useState("");
   const [state, setState] = useState<"idle" | "submitting" | "pending" | "error">("idle");
   const [message, setMessage] = useState("");
@@ -1172,24 +1184,30 @@ function PerksEmailCta() {
     try {
       const response = await fetch("/api/email/subscribe-10x", {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: {
+          "content-type": "application/json",
+          ...(actionSessionToken ? { authorization: `Bearer ${actionSessionToken}` } : {}),
+        },
         body: JSON.stringify({ email: email.trim() }),
       });
       const payload = await response.json().catch(() => ({})) as { error?: string; message?: string };
       if (!response.ok) throw new Error(payload.error || "Could not join the waitlist.");
+      const successMessage = payload.message || "Check your inbox to confirm your subscription.";
       setState("pending");
-      setMessage(payload.message || "Check your inbox to confirm your subscription.");
+      setMessage(successMessage);
       setEmail("");
+      onSubscriptionRequested(successMessage);
     } catch (error) {
       setState("error");
       setMessage(error instanceof Error ? error.message : "Something went wrong. Please try again.");
     }
   };
+  const waitingForFarcasterSession = viewerFid != null && !actionSessionToken;
 
   return (
-    <section className="mt-5 rounded-xl border border-[#00FF00]/25 bg-black/70 p-3">
+    <section className="mt-5 rounded-xl border border-[#00FF00]/25 bg-black/70 px-3 pb-6 pt-3">
       <h2 className="text-center text-xl font-black text-[#00FF00]">You're Just One Trade Away...</h2>
-      <form onSubmit={submit} className="mt-4 space-y-3">
+      <form onSubmit={submit} className="mt-4 flex items-stretch gap-2">
         <label htmlFor="perks-waitlist-email" className="sr-only">Email address</label>
         <input
           id="perks-waitlist-email"
@@ -1200,16 +1218,22 @@ function PerksEmailCta() {
           maxLength={254}
           value={email}
           onChange={(event) => { setEmail(event.target.value); if (state === "error") setState("idle"); }}
-          disabled={state === "submitting" || state === "pending"}
+          disabled={state === "submitting" || state === "pending" || waitingForFarcasterSession}
           placeholder="Email"
-          className="w-full rounded-[20px] border border-[#00FF00]/40 bg-[#061006] px-4 py-3 text-sm font-bold text-[#dfffe0] outline-none placeholder:text-[#6f9f6f] focus:border-[#00FF00] disabled:opacity-65"
+          className="min-w-0 flex-1 rounded-lg border border-[#00FF00]/40 bg-[#061006] px-3 py-3 text-sm font-bold text-[#dfffe0] outline-none placeholder:text-[#6f9f6f] focus:border-[#00FF00] disabled:opacity-65"
         />
         <button
           type="submit"
-          disabled={state === "submitting" || state === "pending"}
-          className="w-full cursor-pointer rounded-[20px] border border-[#0a990a] bg-[#00FF00] px-4 py-3 text-sm font-black text-[rgb(0,80,0)] shadow-[3px_6px_0_#0a990a] active:translate-y-0.5 disabled:cursor-default disabled:opacity-65"
+          disabled={state === "submitting" || state === "pending" || waitingForFarcasterSession}
+          className="shrink-0 cursor-pointer rounded-xl border border-[#0a990a] bg-[#00FF00] px-3 py-3 text-sm font-black text-[rgb(0,80,0)] shadow-[2px_3px_0_#0a990a] transition-all duration-100 hover:bg-[#33ff33] active:translate-x-[1px] active:translate-y-[1.5px] active:shadow-[1px_1px_0_#0a990a] disabled:cursor-default disabled:opacity-65"
         >
-          {state === "submitting" ? "Joining..." : state === "pending" ? "Confirmation Sent" : "Join Waitlist"}
+          {waitingForFarcasterSession
+            ? "Connecting..."
+            : state === "submitting"
+              ? "Joining..."
+              : state === "pending"
+                ? "Confirmation Sent"
+                : "Join Waitlist"}
         </button>
       </form>
       {message && (
@@ -1225,18 +1249,22 @@ export default function PerksPage({
   subpage,
   connectedWallet,
   viewerFid,
+  actionSessionToken,
   viewerProfile,
   onSearchWallet,
   onOpenWarpletDetails,
   onShare,
+  onSubscriptionRequested,
 }: {
   subpage: PerksSubpage;
   connectedWallet: string | null;
   viewerFid: number | null;
+  actionSessionToken: string | null;
   viewerProfile?: PerksViewerProfile | null;
   onSearchWallet: (wallet: string) => void;
   onOpenWarpletDetails: (tokenId: number) => void;
   onShare: (subpage: PerksSubpage) => void;
+  onSubscriptionRequested: (message: string) => void;
 }) {
   const definition = PERKS_DEFINITIONS[subpage];
   const [roster, setRoster] = useState<PerksHolder[]>(holderRosterCache ?? []);
@@ -1391,7 +1419,13 @@ export default function PerksPage({
 
       <FutureExplanation definition={definition} onShare={() => onShare(subpage)} />
 
-      <PerksEmailCta />
+      <PerksDiscordCta label={PERKS_SHARE_CONTENT[definition.id].label} />
+
+      <PerksEmailCta
+        actionSessionToken={actionSessionToken}
+        viewerFid={viewerFid}
+        onSubscriptionRequested={onSubscriptionRequested}
+      />
 
       <div className="mt-12 rounded-xl border border-[#FFFF00]/55 bg-[#FFFF00]/10 px-3 py-3 text-xs font-bold leading-5 text-[#fff7a8]">
         <strong className="block font-black uppercase text-[#FFFF00]">Future 10X Ecosystem Mockup</strong>

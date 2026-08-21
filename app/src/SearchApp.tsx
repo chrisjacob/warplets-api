@@ -14870,6 +14870,7 @@ export default function SearchApp() {
   const [actionSessionToken, setActionSessionToken] = useState<string | null>(null);
   const [notificationOpenSent, setNotificationOpenSent] = useState(false);
   const baseNotificationOpenSentRef = useRef(false);
+  const appInitializationStartedRef = useRef(false);
   const [matchedWarpletCard, setMatchedWarpletCard] = useState<MatchedWarpletCard | null>(null);
   const [query, setQuery] = useState("");
   const [isAllWarpletsMode, setIsAllWarpletsMode] = useState(false);
@@ -15433,6 +15434,8 @@ export default function SearchApp() {
   }, [postSearchCompletion, viewerFid]);
 
   useEffect(() => {
+    if (appInitializationStartedRef.current) return;
+    appInitializationStartedRef.current = true;
     let shouldCallReady = false;
 
     const init = async () => {
@@ -15578,7 +15581,7 @@ export default function SearchApp() {
       }
     };
 
-    init();
+    void init();
   }, [sendMiniAppReady, syncSearchViewerStatus]);
 
   const handleWebFarcasterAuthenticated = useCallback((identity: FarcasterWebIdentity) => {
@@ -18259,10 +18262,16 @@ export default function SearchApp() {
               subpage={searchRoute.perksPage}
               connectedWallet={activeWallet}
               viewerFid={viewerFid}
+              actionSessionToken={actionSessionToken}
               viewerProfile={headerAccountProfile}
               onSearchWallet={handleStatsSearchOwnerWallet}
               onOpenWarpletDetails={handleOpenWarpletDetails}
               onShare={(subpage) => setSharePreview(buildPerksSharePreview(subpage))}
+              onSubscriptionRequested={(message) => {
+                void hapticSuccess();
+                showTradeConfetti();
+                showSearchToast("success", message);
+              }}
             />
           </Suspense>
         ) : searchRoute.page === "offers" && searchRoute.offersPage === "collection" ? (

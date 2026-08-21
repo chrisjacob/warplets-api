@@ -135,7 +135,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   responseHeaders.append("set-cookie", cookie);
   responseHeaders.append(
     "set-cookie",
-    "__Host-warplets_farcaster_handoff=; Path=/; HttpOnly; Secure; SameSite=None; Max-Age=0",
+    "__Host-warplets_farcaster_handoff=; Path=/; HttpOnly; Secure; SameSite=None; Partitioned; Max-Age=0",
   );
   return jsonSecure(
     {

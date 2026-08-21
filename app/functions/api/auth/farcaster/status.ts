@@ -65,7 +65,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     }
     return jsonSecure({ state: "idle" }, {
       headers: {
-        "set-cookie": "__Host-warplets_farcaster_handoff=; Path=/; HttpOnly; Secure; SameSite=None; Max-Age=0",
+        "set-cookie": "__Host-warplets_farcaster_handoff=; Path=/; HttpOnly; Secure; SameSite=None; Partitioned; Max-Age=0",
       },
     });
   }
@@ -145,7 +145,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       : normalizedResult;
     let headers = new Headers(activeRecovery?.initiatedAt && (!recovery?.initiatedAt || recovery.initiatedAt !== activeRecovery.initiatedAt)
       ? {
-          "set-cookie": `__Host-warplets_farcaster_handoff=${encodeRecoveryCookie(activeRecovery)}; Path=/; HttpOnly; Secure; SameSite=None; Max-Age=300`,
+          "set-cookie": `__Host-warplets_farcaster_handoff=${encodeRecoveryCookie(activeRecovery)}; Path=/; HttpOnly; Secure; SameSite=None; Partitioned; Max-Age=300`,
         }
       : undefined);
 
@@ -177,7 +177,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       for (const cookie of verifiedCookies) headers.append("set-cookie", cookie);
       if (!verified.ok) {
         if (verifiedCookies.length === 0) {
-          headers.append("set-cookie", "__Host-warplets_farcaster_handoff=; Path=/; HttpOnly; Secure; SameSite=None; Max-Age=0");
+          headers.append("set-cookie", "__Host-warplets_farcaster_handoff=; Path=/; HttpOnly; Secure; SameSite=None; Partitioned; Max-Age=0");
         }
         return jsonSecure({
           error: typeof verifiedPayload.error === "string" ? verifiedPayload.error : "Farcaster identity could not be verified",

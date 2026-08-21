@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { sessionCookie } from "./appAuth";
+import { clearSessionCookies, sessionCookie } from "./appAuth";
 
 describe("sessionCookie", () => {
   const expiresAt = "2026-09-08T00:00:00.000Z";
@@ -12,6 +12,7 @@ describe("sessionCookie", () => {
     expect(cookie).toContain("__Host-warplets_session=token");
     expect(cookie).toContain("SameSite=None");
     expect(cookie).toContain("Secure");
+    expect(cookie).toContain("Partitioned");
   });
 
   it("does not trust a forwarded origin for a different host", () => {
@@ -22,5 +23,12 @@ describe("sessionCookie", () => {
     expect(cookie).toContain("warplets_session=token");
     expect(cookie).toContain("SameSite=Lax");
     expect(cookie).not.toContain("; Secure");
+    expect(cookie).not.toContain("Partitioned");
+  });
+
+  it("clears secure partitioned and ordinary local session cookies", () => {
+    const cookies = clearSessionCookies();
+    expect(cookies).toContain("warplets_session=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0");
+    expect(cookies).toContain("__Host-warplets_session=; Path=/; HttpOnly; SameSite=None; Secure; Partitioned; Max-Age=0");
   });
 });

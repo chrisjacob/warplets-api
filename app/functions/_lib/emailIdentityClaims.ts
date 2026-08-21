@@ -11,6 +11,7 @@ export interface EmailIdentityEnv {
   WARPLETS: D1Database;
   RESEND_API_KEY?: string;
   RESEND_FROM_EMAIL?: string;
+  EMAIL_AUDIENCE_MUTATIONS_ENABLED?: string;
 }
 
 export type EmailIdentityClaim = {
@@ -45,6 +46,18 @@ type EmailIdentityProfileRow = {
 };
 
 const CLAIM_TTL_MS = 24 * 60 * 60 * 1_000;
+
+export function emailAudienceMutationsEnabled(
+  env: Pick<EmailIdentityEnv, "EMAIL_AUDIENCE_MUTATIONS_ENABLED">,
+): boolean {
+  return env.EMAIL_AUDIENCE_MUTATIONS_ENABLED?.trim().toLowerCase() !== "false";
+}
+
+function requireEmailAudienceMutations(env: EmailIdentityEnv): void {
+  if (!emailAudienceMutationsEnabled(env)) {
+    throw new Error("Email audience mutations are disabled in this environment");
+  }
+}
 
 function randomToken(): string {
   return Array.from(crypto.getRandomValues(new Uint8Array(32)), (byte) => byte.toString(16).padStart(2, "0")).join("");
@@ -159,6 +172,7 @@ export async function createEmailIdentityClaim(input: {
   dropRewardEligible?: boolean;
   resubscribe?: boolean;
 }): Promise<void> {
+  requireEmailAudienceMutations(input.env);
   const email = input.email.trim().toLowerCase();
   const identity = normalizeIdentity({ email, ...input.identity });
   const existing = await getIdentityProfile(input.env.WARPLETS, email);
@@ -246,6 +260,7 @@ function mergedIdentity(existing: TrustedEmailIdentity | null, requested: Truste
 }
 
 async function markClaimSynced(env: EmailIdentityEnv, claim: EmailIdentityClaim): Promise<void> {
+  requireEmailAudienceMutations(env);
   const apiKey = env.RESEND_API_KEY?.trim();
   if (!apiKey) throw new Error("RESEND_API_KEY is not configured");
   const profile = await getIdentityProfile(env.WARPLETS, claim.email);

@@ -6,6 +6,8 @@ import {
   projectContactNames,
   removeDiscordIdentityFromResend,
   resendContactMatchesIdentity,
+  RESEND_COMMUNITY_TOPIC_ID,
+  syncTrustedIdentityToResend,
 } from "./resendIdentity.js";
 
 describe("trusted Resend identity projection", () => {
@@ -144,5 +146,75 @@ describe("trusted Resend identity projection", () => {
     });
     expect(requests.some((request) => request.init?.method === "DELETE"
       && request.url.endsWith(`/segments/${RESEND_DISCORD_SEGMENT_ID}`))).toBe(true);
+  });
+
+  it("updates an existing contact topic by immutable contact ID", async () => {
+    const originalFetch = globalThis.fetch;
+    const requests: Array<{ url: string; init?: RequestInit }> = [];
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      requests.push({ url, init });
+      if (!init?.method) {
+        return Response.json({
+          id: "contact-123",
+          first_name: "Legacy",
+          last_name: "Contact",
+          properties: {},
+        });
+      }
+      return Response.json({ id: "contact-123" });
+    }) as typeof fetch;
+    try {
+      await syncTrustedIdentityToResend({
+        apiKey: "test-key",
+        identity: {
+          email: "person@example.com",
+          farcasterFid: 123,
+          farcasterUsername: "alice",
+        },
+        segmentId: "segment-123",
+        resubscribe: true,
+      });
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+
+    const topic = requests.find((request) => request.url.endsWith("/contacts/contact-123/topics"));
+    expect(topic?.init?.method).toBe("PATCH");
+    expect(JSON.parse(String(topic?.init?.body))).toEqual({
+      topics: [{ id: RESEND_COMMUNITY_TOPIC_ID, subscription: "opt_in" }],
+    });
+  });
+
+  it("does not repeat topic mutation after topics are applied during contact creation", async () => {
+    const originalFetch = globalThis.fetch;
+    const requests: Array<{ url: string; init?: RequestInit }> = [];
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      requests.push({ url, init });
+      if (!init?.method) return Response.json({ error: "not found" }, { status: 404 });
+      return Response.json({ id: "contact-created" });
+    }) as typeof fetch;
+    try {
+      await syncTrustedIdentityToResend({
+        apiKey: "test-key",
+        identity: {
+          email: "new@example.com",
+          farcasterFid: 123,
+          farcasterUsername: "alice",
+        },
+        segmentId: "segment-123",
+        resubscribe: true,
+      });
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+
+    const create = requests.find((request) => request.url === "https://api.resend.com/contacts"
+      && request.init?.method === "POST");
+    expect(JSON.parse(String(create?.init?.body)).topics).toEqual([
+      { id: RESEND_COMMUNITY_TOPIC_ID, subscription: "opt_in" },
+    ]);
+    expect(requests.some((request) => request.url.endsWith("/topics"))).toBe(false);
   });
 });

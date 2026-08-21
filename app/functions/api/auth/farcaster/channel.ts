@@ -67,7 +67,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     return jsonSecure(result, {
       status: relay.status,
       headers: {
-        "set-cookie": `__Host-warplets_farcaster_handoff=${recovery}; Path=/; HttpOnly; Secure; SameSite=None; Max-Age=300`,
+        "set-cookie": `__Host-warplets_farcaster_handoff=${recovery}; Path=/; HttpOnly; Secure; SameSite=None; Partitioned; Max-Age=300`,
       },
     });
   } catch {

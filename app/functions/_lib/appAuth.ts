@@ -107,15 +107,15 @@ export function sessionCookie(request: Request, token: string, expiresAt: string
     "HttpOnly",
     secure ? "SameSite=None" : "SameSite=Lax",
     secure ? "Secure" : "",
+    secure ? "Partitioned" : "",
     `Expires=${new Date(expiresAt).toUTCString()}`,
   ].filter(Boolean).join("; ");
 }
 
 export function clearSessionCookies(): string[] {
-  const expired = "Path=/; HttpOnly; SameSite=Lax; Max-Age=0";
   return [
-    `${SESSION_COOKIE}=; ${expired}`,
-    `${SECURE_SESSION_COOKIE}=; ${expired}; Secure`,
+    `${SESSION_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`,
+    `${SECURE_SESSION_COOKIE}=; Path=/; HttpOnly; SameSite=None; Secure; Partitioned; Max-Age=0`,
   ];
 }
 

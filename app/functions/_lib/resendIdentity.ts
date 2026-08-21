@@ -15,6 +15,7 @@ export type TrustedEmailIdentity = {
 };
 
 export type ResendContact = {
+  id?: string;
   email?: string;
   first_name?: unknown;
   last_name?: unknown;
@@ -216,6 +217,8 @@ export async function syncTrustedIdentityToResend(input: {
   };
   const names = projectContactNames(identity, existing);
   const contactPath = `https://api.resend.com/contacts/${encodeURIComponent(identity.email)}`;
+  let contactIdentifier = existing?.id?.trim() || identity.email;
+  let topicsAppliedDuringCreate = false;
 
   if (!existing) {
     const create = await requestResend(input.apiKey, "https://api.resend.com/contacts", {
@@ -234,7 +237,11 @@ export async function syncTrustedIdentityToResend(input: {
     if (!create.ok && create.status !== 409) {
       throw new Error(`Resend contact create failed (${create.status}): ${await responseDetail(create)}`);
     }
-    if (create.status === 409) {
+    if (create.ok) {
+      const created: { id?: unknown } = await create.json<{ id?: unknown }>().catch(() => ({}));
+      if (typeof created.id === "string" && created.id.trim()) contactIdentifier = created.id.trim();
+      topicsAppliedDuringCreate = input.resubscribe;
+    } else if (create.status === 409) {
       const update = await requestResend(input.apiKey, contactPath, {
         method: "PATCH",
         body: JSON.stringify({
@@ -244,6 +251,8 @@ export async function syncTrustedIdentityToResend(input: {
         }),
       });
       if (!update.ok) throw new Error(`Resend contact conflict update failed (${update.status}): ${await responseDetail(update)}`);
+      const conflictedContact = await getResendContact(input.apiKey, identity.email);
+      contactIdentifier = conflictedContact?.id?.trim() || identity.email;
     }
   } else {
     const update = await requestResend(input.apiKey, contactPath, {
@@ -262,8 +271,9 @@ export async function syncTrustedIdentityToResend(input: {
     throw new Error(`Resend segment update failed (${segment.status}): ${await responseDetail(segment)}`);
   }
 
-  if (input.resubscribe) {
-    const topic = await requestResend(input.apiKey, `${contactPath}/topics`, {
+  if (input.resubscribe && !topicsAppliedDuringCreate) {
+    const topicPath = `https://api.resend.com/contacts/${encodeURIComponent(contactIdentifier)}/topics`;
+    const topic = await requestResend(input.apiKey, topicPath, {
       method: "PATCH",
       body: JSON.stringify({ topics: [{ id: RESEND_COMMUNITY_TOPIC_ID, subscription: "opt_in" }] }),
     });
