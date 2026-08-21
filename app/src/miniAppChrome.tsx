@@ -369,16 +369,7 @@ export function useMiniAppChrome(appSlug: AppSlug) {
           setInternalMenuOpen(false);
         }
 
-        if (appSlug === "app") {
-          const rootPath = getRootPath("app", window.location);
-          if (normalizePath(window.location.pathname) !== normalizePath(rootPath)) {
-            pushMiniAppRoute("app", rootPath);
-            syncRouteStateNow();
-          }
-          return;
-        }
-
-        await openApp("app");
+        await openMiniAppUrl("https://10x.meme/");
       },
     };
   }, [appSlug, internalMenuOpen, isMenuRoute]);
@@ -437,7 +428,7 @@ export function MiniAppHeader({
   onMenu: () => void;
   rightAccessory?: ReactNode;
 }) {
-  const logoLabel = appSlug === "app" ? "Open 10X home" : "Open 10X hub";
+  const logoLabel = "Open 10X.MEME";
 
   return (
     <header id="header" className="miniapp-header">

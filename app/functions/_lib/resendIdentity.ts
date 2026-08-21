@@ -14,26 +14,46 @@ export type TrustedEmailIdentity = {
   wallet?: string | null;
 };
 
-type ResendContact = {
+export type ResendContact = {
   email?: string;
-  first_name?: string | null;
-  last_name?: string | null;
+  first_name?: unknown;
+  last_name?: unknown;
   unsubscribed?: boolean;
-  properties?: Record<string, string | number | null | { value?: string | number | null; type?: string }>;
+  properties?: Record<string, unknown>;
+};
+
+export type ResendContactSegment = {
+  id: string;
+  name?: string;
 };
 
 const EVM_WALLET = /^0x[a-f0-9]{40}$/;
+const DISCORD_USER_ID = /^\d{15,22}$/;
 
 function clean(value: string | null | undefined, maxLength = 200): string | null {
   const normalized = value?.trim() ?? "";
   return normalized ? normalized.slice(0, maxLength) : null;
 }
 
+function contactScalar(value: unknown): string | number | null {
+  let current = value;
+  for (let depth = 0; depth < 3; depth += 1) {
+    if (!current || typeof current !== "object" || !("value" in current)) break;
+    current = (current as { value?: unknown }).value;
+  }
+  return typeof current === "string" || typeof current === "number" ? current : null;
+}
+
+function contactString(value: unknown, maxLength = 200): string | null {
+  const scalar = contactScalar(value);
+  return clean(scalar == null ? null : String(scalar), maxLength);
+}
+
 function flattenContactProperties(properties: ResendContact["properties"]): Record<string, string | number> {
   const flattened: Record<string, string | number> = {};
   for (const [key, raw] of Object.entries(properties ?? {})) {
-    const value = raw && typeof raw === "object" ? raw.value : raw;
-    if (typeof value === "string" || typeof value === "number") flattened[key] = value;
+    const value = contactScalar(raw);
+    if (value !== null) flattened[key] = value;
   }
   return flattened;
 }
@@ -46,7 +66,9 @@ export function normalizeIdentity(identity: TrustedEmailIdentity): TrustedEmailI
       ? Number(identity.farcasterFid)
       : null,
     farcasterUsername: clean(identity.farcasterUsername, 100),
-    discordUserId: clean(identity.discordUserId, 32),
+    discordUserId: DISCORD_USER_ID.test(clean(identity.discordUserId, 32) ?? "")
+      ? clean(identity.discordUserId, 32)
+      : null,
     discordName: clean(identity.discordName, 100),
     wallet: wallet && EVM_WALLET.test(wallet) ? wallet : null,
   };
@@ -74,12 +96,24 @@ export function projectContactNames(
   if (normalized.discordUserId && normalized.discordName) {
     return { first_name: normalized.discordName, last_name: normalized.discordUserId };
   }
-  const firstName = clean(existing?.first_name, 100);
-  const lastName = clean(existing?.last_name, 100);
+  const firstName = contactString(existing?.first_name, 100);
+  const lastName = contactString(existing?.last_name, 100);
   return {
     ...(firstName ? { first_name: firstName } : {}),
     ...(lastName ? { last_name: lastName } : {}),
   };
+}
+
+export function resendContactMatchesIdentity(
+  contact: ResendContact | null,
+  identity: TrustedEmailIdentity,
+): boolean {
+  if (!contact) return false;
+  const names = projectContactNames(identity);
+  if (names.first_name && contactString(contact.first_name, 100) !== names.first_name) return false;
+  if (names.last_name && contactString(contact.last_name, 100) !== names.last_name) return false;
+  const properties = flattenContactProperties(contact.properties);
+  return Object.entries(identityProperties(identity)).every(([key, value]) => String(properties[key] ?? "") === value);
 }
 
 async function responseDetail(response: Response): Promise<string> {
@@ -98,6 +132,73 @@ export async function getResendContact(apiKey: string, email: string): Promise<R
   if (response.status === 404) return null;
   if (!response.ok) throw new Error(`Resend contact lookup failed (${response.status}): ${await responseDetail(response)}`);
   return response.json<ResendContact>();
+}
+
+export async function listResendContactSegments(apiKey: string, email: string): Promise<ResendContactSegment[]> {
+  const response = await requestResend(
+    apiKey,
+    `https://api.resend.com/contacts/${encodeURIComponent(email.trim().toLowerCase())}/segments`,
+  );
+  if (response.status === 404) return [];
+  if (!response.ok) throw new Error(`Resend segment lookup failed (${response.status}): ${await responseDetail(response)}`);
+  const payload = await response.json<{ data?: Array<{ id?: unknown; name?: unknown }> }>();
+  return (payload.data ?? []).flatMap((segment) => typeof segment.id === "string"
+    ? [{ id: segment.id, ...(typeof segment.name === "string" ? { name: segment.name } : {}) }]
+    : []);
+}
+
+export async function deleteResendContact(apiKey: string, email: string): Promise<void> {
+  const response = await requestResend(
+    apiKey,
+    `https://api.resend.com/contacts/${encodeURIComponent(email.trim().toLowerCase())}`,
+    { method: "DELETE" },
+  );
+  if (response.ok || response.status === 404) return;
+  throw new Error(`Resend contact deletion failed (${response.status}): ${await responseDetail(response)}`);
+}
+
+export async function removeDiscordIdentityFromResend(input: {
+  apiKey: string;
+  identity: TrustedEmailIdentity;
+  previousDiscordUserId: string;
+  previousDiscordName?: string | null;
+}): Promise<void> {
+  const email = input.identity.email.trim().toLowerCase();
+  const existing = await getResendContact(input.apiKey, email);
+  if (!existing) return;
+  const properties = {
+    ...flattenContactProperties(existing.properties),
+    DiscordUserID: "",
+    DiscordName: "",
+  };
+  const farcasterNames = projectContactNames({
+    ...input.identity,
+    discordUserId: null,
+    discordName: null,
+  });
+  const currentFirst = contactString(existing.first_name, 100);
+  const currentLast = contactString(existing.last_name, 100);
+  const previousName = clean(input.previousDiscordName, 100)
+    ?? contactString(existing.properties?.DiscordName, 100);
+  const names = input.identity.farcasterFid && input.identity.farcasterUsername
+    ? farcasterNames
+    : {
+        ...(currentFirst === previousName ? { first_name: "" } : {}),
+        ...(currentLast === input.previousDiscordUserId ? { last_name: "" } : {}),
+      };
+  const contactPath = `https://api.resend.com/contacts/${encodeURIComponent(email)}`;
+  const update = await requestResend(input.apiKey, contactPath, {
+    method: "PATCH",
+    body: JSON.stringify({ ...names, properties }),
+  });
+  if (!update.ok) throw new Error(`Resend Discord identity removal failed (${update.status}): ${await responseDetail(update)}`);
+
+  const segment = await requestResend(input.apiKey, `${contactPath}/segments/${RESEND_DISCORD_SEGMENT_ID}`, {
+    method: "DELETE",
+  });
+  if (!segment.ok && segment.status !== 404) {
+    throw new Error(`Resend Discord segment removal failed (${segment.status}): ${await responseDetail(segment)}`);
+  }
 }
 
 export async function syncTrustedIdentityToResend(input: {

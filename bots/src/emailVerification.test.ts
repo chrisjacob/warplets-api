@@ -13,6 +13,7 @@ function verificationStateHarness() {
   const storage = {
     get: async <T>(key: string) => values.get(key) as T | undefined,
     put: async (key: string, value: unknown) => { values.set(key, structuredClone(value)); },
+    delete: async (key: string) => values.delete(key),
     list: async <T>(options?: { prefix?: string }) => new Map(
       [...values.entries()].filter(([key]) => !options?.prefix || key.startsWith(options.prefix)),
     ) as Map<string, T>,
@@ -233,4 +234,48 @@ test("verification state requires a fresh code before replacing the Discord acco
   assert.equal(completedReplacement.replacedUserId, "user-1");
   const oldStatus = await request("/status", { ...base });
   assert.equal(oldStatus.status, "empty");
+});
+
+test("admin reset removes the permanent user and email claim so the Discord user can verify again", async () => {
+  const request = verificationStateHarness();
+  const identity = { guildId: EMAIL_VERIFICATION_GUILD_ID, userId: "692467495952449628" };
+  await request("/reserve", {
+    ...identity,
+    email: "wrong@example.com",
+    emailKey: "wrong-email-hash",
+    challengeId: "challenge-reset",
+    codeHash: "correct-hash",
+    now: 1_000_000,
+    expiresAt: 1_600_000,
+  });
+  await request("/check", { ...identity, challengeId: "challenge-reset", candidateHash: "correct-hash", now: 1_000_100 });
+  await request("/complete", { ...identity, challengeId: "challenge-reset", now: 1_000_200 });
+
+  const stale = await request("/admin-reset", {
+    ...identity,
+    expectedEmail: "different@example.com",
+    expectedEmailKey: "different-hash",
+  });
+  assert.equal(stale.status, "association_changed");
+  assert.equal((await request("/status", identity)).status, "verified");
+
+  const reset = await request("/admin-reset", {
+    ...identity,
+    expectedEmail: "wrong@example.com",
+    expectedEmailKey: "wrong-email-hash",
+  });
+  assert.equal(reset.status, "reset");
+  assert.equal((await request("/status", identity)).status, "empty");
+  assert.deepEqual((await request("/verified-records", {})).records, []);
+
+  const retry = await request("/reserve", {
+    ...identity,
+    email: "correct@example.com",
+    emailKey: "correct-email-hash",
+    challengeId: "challenge-after-reset",
+    codeHash: "new-hash",
+    now: 2_000_000,
+    expiresAt: 2_600_000,
+  });
+  assert.equal(retry.status, "reserved");
 });

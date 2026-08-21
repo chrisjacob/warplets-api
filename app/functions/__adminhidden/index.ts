@@ -36,6 +36,8 @@ export const onRequestGet: PagesFunction = () => {
     button:disabled { background: #3a3a3a; cursor: not-allowed; }
     button.secondary { background: #2a2a2a; border: 1px solid #444; }
     button.secondary:hover { background: #333; }
+    button.danger { background: #7f1d1d; border: 1px solid #dc2626; }
+    button.danger:hover { background: #991b1b; }
     .row { display: flex; gap: .75rem; align-items: flex-end; }
     .row button { margin-top: 0; white-space: nowrap; }
     #status { font-size: .85rem; margin-top: .75rem; padding: .5rem .75rem; border-radius: 6px; display: none; }
@@ -242,6 +244,18 @@ export const onRequestGet: PagesFunction = () => {
         <th>FID</th><th>Notification ID</th><th>Title</th><th>Status</th><th>Attempts</th><th>Created</th>
       </tr></thead>
       <tbody id="dispatchBody"><tr><td colspan="6" style="color:#555;text-align:center;padding:1rem">Loading…</td></tr></tbody>
+    </table>
+  </section>
+
+  <!-- DISCORD EMAIL VERIFICATIONS -->
+  <section>
+    <h2>Discord Email Verifications <button class="secondary" id="discordVerificationRefreshBtn" style="padding:.25rem .75rem;font-size:.75rem;margin-top:0;margin-left:.5rem">Refresh</button></h2>
+    <p style="color:#888;font-size:.8rem;margin-bottom:.75rem">Resetting removes the Verified role and lets that Discord user verify again. The email contact is deleted only when it has no Farcaster, wallet, or other segment association.</p>
+    <table>
+      <thead><tr>
+        <th>Discord</th><th>User ID</th><th>Email</th><th>Other identity</th><th>Reset result</th><th></th>
+      </tr></thead>
+      <tbody id="discordVerificationBody"><tr><td colspan="6" style="color:#555;text-align:center;padding:1rem">Loadingâ€¦</td></tr></tbody>
     </table>
   </section>
 
@@ -533,7 +547,7 @@ export const onRequestGet: PagesFunction = () => {
     } catch (e) { if (e.message !== 'Unauthorized') console.error(e); }
   }
 
-  function loadAll() { loadStats(); loadInspect(); loadSecurity(); loadOutreach(); loadEmail(); }
+  function loadAll() { loadStats(); loadInspect(); loadSecurity(); loadOutreach(); loadDiscordVerifications(); loadEmail(); }
 
   document.getElementById('refreshBtn').addEventListener('click', loadAll);
   document.getElementById('sendApp').addEventListener('change', updateSendTargetUiFromApp);
@@ -683,6 +697,79 @@ export const onRequestGet: PagesFunction = () => {
   function esc(s) {
     return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   }
+
+  // --- DISCORD EMAIL VERIFICATIONS ---
+  let discordVerificationCache = [];
+
+  async function loadDiscordVerifications() {
+    const tbody = document.getElementById('discordVerificationBody');
+    try {
+      const r = await api('/api/admin/discord-verifications/list');
+      const data = await readApiJson(r);
+      if (!r.ok) throw new Error(data.error || 'Unable to load Discord verifications');
+      discordVerificationCache = data.rows || [];
+      if (!discordVerificationCache.length) {
+        tbody.innerHTML = '<tr><td colspan="6" style="color:#555;text-align:center;padding:1rem">No Discord email associations</td></tr>';
+        return;
+      }
+      tbody.innerHTML = discordVerificationCache.map((row, index) => {
+        const identity = [
+          row.farcasterFid ? 'FID ' + row.farcasterFid : '',
+          row.wallet ? 'wallet' : '',
+          ...(row.otherMemberships || []).map(() => 'other segment'),
+        ].filter(Boolean).join(', ') || 'Discord only';
+        const result = row.likelyDeletesContact
+          ? '<span class="pill failed">delete email contact</span>'
+          : '<span class="pill delivered">keep email contact</span>';
+        const stateWarning = row.durableObjectVerified ? '' : '<div style="color:#fbbf24;font-size:.72rem">D1 only; state already absent</div>';
+        return \`<tr>
+          <td>\${esc(row.discordName || 'â€”')}</td>
+          <td class="mono">\${esc(row.discordUserId)}</td>
+          <td class="mono">\${esc(row.email)}</td>
+          <td>\${esc(identity)}\${stateWarning}</td>
+          <td>\${result}</td>
+          <td><button class="danger discord-reset-btn" data-index="\${index}" style="margin-top:0;padding:.35rem .7rem;font-size:.78rem">Reset</button></td>
+        </tr>\`;
+      }).join('');
+    } catch (e) {
+      if (e.message !== 'Unauthorized') {
+        console.error(e);
+        tbody.innerHTML = '<tr><td colspan="6" style="color:#f87171;text-align:center;padding:1rem">Unable to load Discord verifications</td></tr>';
+      }
+    }
+  }
+
+  document.getElementById('discordVerificationRefreshBtn').addEventListener('click', loadDiscordVerifications);
+  document.getElementById('discordVerificationBody').addEventListener('click', async event => {
+    const button = event.target.closest('.discord-reset-btn');
+    if (!button) return;
+    const row = discordVerificationCache[Number(button.dataset.index)];
+    if (!row) return;
+    const action = row.likelyDeletesContact
+      ? 'This is expected to DELETE the email from 10X and Resend because no other association is known.'
+      : 'The email contact will be kept; only its Discord identity and Discord segment will be removed.';
+    if (!confirm(\`Reset Discord verification for \${row.discordName || row.discordUserId} (ID \${row.discordUserId}) from \${row.email}?\n\n\${action}\`)) return;
+    button.disabled = true;
+    button.textContent = 'Resettingâ€¦';
+    try {
+      const r = await api('/api/admin/discord-verifications/reset', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ discordUserId: row.discordUserId, email: row.email }),
+      });
+      const data = await readApiJson(r);
+      if (!r.ok) throw new Error(data.error || 'Reset failed');
+      const detail = data.localAction === 'email_deleted'
+        ? 'The Discord association, local email record, Resend contact, and Verified role were removed.'
+        : 'The Discord association, Discord segment, and Verified role were removed. The email contact was preserved.';
+      showStatus(detail, true);
+      await Promise.all([loadDiscordVerifications(), loadEmail()]);
+    } catch (e) {
+      if (e.message !== 'Unauthorized') showStatus(String(e.message || e), false);
+      button.disabled = false;
+      button.textContent = 'Reset';
+    }
+  });
 
   // --- EMAIL WAITLIST ---
   let emailCache = [];

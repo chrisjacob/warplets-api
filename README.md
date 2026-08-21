@@ -264,6 +264,8 @@ Suggested scopes include:
 - `email:list`
 - `security:stats`
 - `security:manage`
+- `discord-verification:read`
+- `discord-verification:reset`
 
 Security alert email integration:
 

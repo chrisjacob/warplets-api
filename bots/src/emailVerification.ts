@@ -3,7 +3,11 @@ import {
   confirmProvenEmailIdentity,
   getIdentityProfile,
 } from "../../app/functions/_lib/emailIdentityClaims.js";
-import { getResendContact } from "../../app/functions/_lib/resendIdentity.js";
+import {
+  getResendContact,
+  resendContactMatchesIdentity,
+  syncTrustedIdentityToResend,
+} from "../../app/functions/_lib/resendIdentity.js";
 
 export const EMAIL_VERIFICATION_GUILD_ID = "1539539851311845416";
 export const EMAIL_VERIFICATION_CHANNEL_ID = "1539543771878789140";
@@ -16,6 +20,7 @@ const SEND_COOLDOWN_MS = 60 * 1_000;
 const SEND_WINDOW_MS = 60 * 60 * 1_000;
 const MAX_SENDS_PER_WINDOW = 5;
 const MAX_CODE_ATTEMPTS = 5;
+const DISCORD_USER_ID = /^\d{15,22}$/;
 
 const SETUP_COMMAND = "setup-email-verification";
 const START_BUTTON = "email_verify:start";
@@ -147,7 +152,41 @@ export class EmailVerificationState {
     if (path === "/cancel") return this.cancel(body, guildId, userId);
     if (path === "/check") return this.check(body, guildId, userId);
     if (path === "/complete") return this.complete(body, guildId, userId);
+    if (path === "/admin-reset") return this.adminReset(body, guildId, userId);
     return json({ ok: false, status: "not_found" }, 404);
+  }
+
+  private async adminReset(body: Record<string, unknown>, guildId: string, userId: string): Promise<Response> {
+    const expectedEmail = stringValue(body.expectedEmail).trim().toLowerCase();
+    const expectedEmailKey = stringValue(body.expectedEmailKey);
+    if (!expectedEmail || !expectedEmailKey) return json({ ok: false, status: "invalid_request" }, 400);
+
+    const result = await this.state.storage.transaction(async (transaction) => {
+      const userKey = userStorageKey(guildId, userId);
+      const user = await transaction.get<UserVerificationState>(userKey);
+      const verifiedEmail = user?.verified?.email.trim().toLowerCase();
+      if (verifiedEmail && verifiedEmail !== expectedEmail) {
+        return { ok: false, status: "association_changed", email: verifiedEmail };
+      }
+
+      const claimKeys = new Set<string>([emailStorageKey(expectedEmailKey)]);
+      if (user?.pending?.emailKey) claimKeys.add(emailStorageKey(user.pending.emailKey));
+      for (const claimKey of claimKeys) {
+        const claim = await transaction.get<EmailClaimState>(claimKey);
+        if (!claim) continue;
+        if (claim.verifiedUserId === userId && (!claim.guildId || claim.guildId === guildId)) delete claim.verifiedUserId;
+        if (claim.pendingUserId === userId && (!claim.guildId || claim.guildId === guildId)) {
+          delete claim.pendingUserId;
+          delete claim.pendingChallengeId;
+          delete claim.pendingExpiresAt;
+        }
+        if (!claim.verifiedUserId && !claim.pendingUserId) await transaction.delete(claimKey);
+        else await transaction.put(claimKey, claim);
+      }
+      if (user) await transaction.delete(userKey);
+      return { ok: true, status: user ? "reset" : "already_reset", email: expectedEmail };
+    });
+    return json(result, result.ok ? 200 : 409);
   }
 
   private async reserve(body: Record<string, unknown>, guildId: string, userId: string): Promise<Response> {
@@ -331,6 +370,38 @@ async function storeRequest(env: EmailVerificationEnv, path: string, body: Recor
   return payload;
 }
 
+export type EmailVerificationRecord = { userId: string; email: string; verifiedAt: number };
+
+export async function listEmailVerificationRecords(env: EmailVerificationEnv): Promise<EmailVerificationRecord[]> {
+  const response = await verificationStub(env).fetch("https://email-verification.internal/verified-records", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: "{}",
+  });
+  if (!response.ok) throw new Error(`Verification record listing failed (${response.status})`);
+  const payload = await response.json<{ records?: EmailVerificationRecord[] }>();
+  return payload.records ?? [];
+}
+
+export async function resetEmailVerificationState(
+  env: EmailVerificationEnv,
+  userId: string,
+  expectedEmail: string,
+): Promise<StoreResult> {
+  const email = expectedEmail.trim().toLowerCase();
+  const response = await verificationStub(env).fetch("https://email-verification.internal/admin-reset", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      guildId: EMAIL_VERIFICATION_GUILD_ID,
+      userId,
+      expectedEmail: email,
+      expectedEmailKey: await sha256(email),
+    }),
+  });
+  return response.json<StoreResult>();
+}
+
 function randomCode(): string {
   const maximum = Math.floor(0x1_0000_0000 / 1_000_000) * 1_000_000;
   const values = new Uint32Array(1);
@@ -456,8 +527,11 @@ export async function backfillExistingDiscordVerifications(env: EmailVerificatio
     const userId = record.userId?.trim() ?? "";
     const email = record.email?.trim().toLowerCase() ?? "";
     if (!userId || !email) continue;
+    if (!DISCORD_USER_ID.test(userId)) {
+      console.error(`Discord identity reconciliation skipped malformed user ID for ${email}`);
+      continue;
+    }
     const existing = await getIdentityProfile(db, email);
-    if (existing?.discordUserId === userId && existing.discordName) continue;
     const memberResponse = await discordRequestOk(
       env,
       `/guilds/${EMAIL_VERIFICATION_GUILD_ID}/members/${userId}`,
@@ -465,12 +539,25 @@ export async function backfillExistingDiscordVerifications(env: EmailVerificatio
     const member = await memberResponse.json<{ user?: DiscordUser }>();
     const user = member.user;
     if (!user?.id) throw new Error(`Discord member ${userId} is unavailable`);
+    const discordName = displayName(user);
+    if (existing?.discordUserId === userId && existing.discordName === discordName) {
+      const contact = await getResendContact(requiredValue(env.RESEND_API_KEY, "RESEND_API_KEY"), email);
+      if (resendContactMatchesIdentity(contact, existing)) continue;
+      await syncTrustedIdentityToResend({
+        apiKey: requiredValue(env.RESEND_API_KEY, "RESEND_API_KEY"),
+        identity: existing,
+        segmentId: RESEND_DISCORD_SEGMENT_ID,
+        resubscribe: false,
+      });
+      changed += 1;
+      continue;
+    }
     await ensureResendContact(
       env,
       email,
-      displayName(user),
+      discordName,
       userId,
-      `discord-do-backfill:${userId}:${Number(record.verifiedAt) || 0}`,
+      `discord-do-reconcile-v2:${userId}:${Number(record.verifiedAt) || 0}:${discordName}`,
     );
     changed += 1;
   }
@@ -605,6 +692,17 @@ async function grantVerifiedRole(env: EmailVerificationEnv, userId: string): Pro
     method: "PUT",
     headers: { "x-audit-log-reason": "Successful email verification" },
   });
+}
+
+export async function removeVerifiedRole(env: EmailVerificationEnv, userId: string): Promise<void> {
+  const roleId = await verifiedRoleId(env);
+  const response = await discordRequest(env, `/guilds/${EMAIL_VERIFICATION_GUILD_ID}/members/${userId}/roles/${roleId}`, {
+    method: "DELETE",
+    headers: { "x-audit-log-reason": "Admin reset of email verification association" },
+  });
+  if (response.ok || response.status === 404) return;
+  const detail = (await response.text().catch(() => "")).slice(0, 300);
+  throw new Error(`Discord role removal failed (${response.status})${detail ? `: ${detail}` : ""}`);
 }
 
 async function finalizeVerification(env: EmailVerificationEnv, interaction: EmailVerificationInteraction, email: string, challengeId: string): Promise<{ unsubscribed: boolean }> {

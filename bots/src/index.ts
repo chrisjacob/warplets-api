@@ -367,6 +367,7 @@ app.post("/discord", async (c) => {
 });
 
 export { EmailVerificationState };
+export { DiscordVerificationAdmin } from "./discordVerificationAdmin.js";
 export default {
   fetch(request: Request, env: Env, context: ExecutionContext): Response | Promise<Response> {
     return app.fetch(request, env, context);
