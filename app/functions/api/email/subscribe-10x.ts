@@ -1,16 +1,10 @@
+import { getAppSession, type AppAuthEnv } from "../../_lib/appAuth.js";
 import { createEmailIdentityClaim, type EmailIdentityEnv } from "../../_lib/emailIdentityClaims.js";
-import { RESEND_DROP_SEGMENT_ID } from "../../_lib/resendIdentity.js";
-import {
-  getClientIp,
-  jsonSecure,
-  rateLimit,
-  readJsonBodyWithLimit,
-  verifyActionSessionToken,
-} from "../../_lib/security.js";
+import { RESEND_10X_SEGMENT_ID } from "../../_lib/resendIdentity.js";
+import { getClientIp, jsonSecure, rateLimit, readJsonBodyWithLimit } from "../../_lib/security.js";
 
-interface Env extends EmailIdentityEnv {
+interface Env extends AppAuthEnv, EmailIdentityEnv {
   WARPLETS_KV?: KVNamespace;
-  ACTION_SESSION_SECRET?: string;
 }
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -18,9 +12,10 @@ const ALLOWED_ORIGINS = new Set([
   "https://10x.meme",
   "https://www.10x.meme",
   "https://app.10x.meme",
-  "https://drop.10x.meme",
-  "https://drop-dev.10x.meme",
+  "https://warplet.10x.meme",
   "https://web-dev.10x.meme",
+  "https://app-dev.10x.meme",
+  "https://warplet-dev.10x.meme",
 ]);
 
 function corsHeaders(request: Request): Headers {
@@ -33,19 +28,27 @@ function corsHeaders(request: Request): Headers {
   return headers;
 }
 
+function limited(headers: Headers, retryAfterSeconds: number): Response {
+  const response = jsonSecure(
+    { error: "Please wait before trying again." },
+    { status: 429, headers },
+  );
+  response.headers.set("retry-after", String(retryAfterSeconds));
+  return response;
+}
+
 export const onRequestOptions: PagesFunction<Env> = async ({ request }) =>
   new Response(null, { status: 204, headers: corsHeaders(request) });
 
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   const headers = corsHeaders(request);
-  const parsed = await readJsonBodyWithLimit<unknown>(request, 8 * 1024);
+  const parsed = await readJsonBodyWithLimit<unknown>(request, 4 * 1024);
   if (!parsed.ok) return parsed.response;
   if (!parsed.value || typeof parsed.value !== "object" || Array.isArray(parsed.value)) {
     return jsonSecure({ error: "A valid email is required." }, { status: 400, headers });
   }
   const body = parsed.value as Record<string, unknown>;
-  const allowedKeys = new Set(["email", "fid", "username", "tokenId", "matched", "sessionToken"]);
-  if (Object.keys(body).some((key) => !allowedKeys.has(key))) {
+  if (Object.keys(body).some((key) => key !== "email")) {
     return jsonSecure({ error: "Unexpected fields in request." }, { status: 400, headers });
   }
   const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
@@ -53,42 +56,40 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     return jsonSecure({ error: "A valid email is required." }, { status: 400, headers });
   }
 
-  const sessionToken = typeof body.sessionToken === "string" ? body.sessionToken.trim() : null;
-  const session = await verifyActionSessionToken(env.ACTION_SESSION_SECRET, sessionToken);
-  const fid = session.valid ? session.fid : null;
-  const profile = fid
-    ? await env.WARPLETS.prepare("SELECT username FROM warplets_users WHERE fid = ? LIMIT 1")
-      .bind(fid).first<{ username: string | null }>().catch(() => null)
-    : null;
-  const [ipRate, emailRate, identityRate] = await Promise.all([
-    rateLimit(env.WARPLETS_KV, "drop-email-claim-ip", getClientIp(request), 10, 60 * 60),
-    rateLimit(env.WARPLETS_KV, "drop-email-claim-email", email, 3, 60 * 60),
-    fid
-      ? rateLimit(env.WARPLETS_KV, "drop-email-claim-fid", String(fid), 6, 60 * 60)
+  const ip = getClientIp(request);
+  const session = await getAppSession(request, env, { touch: false }).catch(() => null);
+  const [ipRate, emailRate, sessionRate] = await Promise.all([
+    rateLimit(env.WARPLETS_KV, "email-claim-ip", ip, 10, 60 * 60),
+    rateLimit(env.WARPLETS_KV, "email-claim-email", email, 3, 60 * 60),
+    session
+      ? rateLimit(env.WARPLETS_KV, "email-claim-session", session.sessionHash, 6, 60 * 60)
       : Promise.resolve({ allowed: true, remaining: 1, retryAfterSeconds: 0 }),
   ]);
-  const denied = [ipRate, emailRate, identityRate].find((result) => !result.allowed);
-  if (denied) {
-    const response = jsonSecure({ error: "Please wait before trying again." }, { status: 429, headers });
-    response.headers.set("retry-after", String(denied.retryAfterSeconds));
-    return response;
-  }
+  const denied = [ipRate, emailRate, sessionRate].find((result) => !result.allowed);
+  if (denied) return limited(headers, denied.retryAfterSeconds);
+
+  const profile = session?.farcasterFid
+    ? await env.WARPLETS.prepare(
+      "SELECT username FROM warplets_users WHERE fid = ? LIMIT 1",
+    ).bind(session.farcasterFid).first<{ username: string | null }>().catch(() => null)
+    : null;
 
   try {
     await createEmailIdentityClaim({
       env,
       requestUrl: request.url,
       email,
-      source: "drop",
-      segmentId: RESEND_DROP_SEGMENT_ID,
+      source: "10x",
+      segmentId: RESEND_10X_SEGMENT_ID,
       identity: {
-        farcasterFid: fid,
+        farcasterFid: session?.farcasterFid ?? null,
         farcasterUsername: profile?.username ?? null,
+        wallet: session?.walletAddress ?? null,
       },
-      dropRewardEligible: Boolean(fid),
+      dropRewardEligible: false,
     });
   } catch (error) {
-    console.error("Drop confirmation request failed", error);
+    console.error("10X confirmation request failed", error);
     return jsonSecure(
       { error: "We could not send the confirmation email. Please try again." },
       { status: 503, headers },
@@ -97,8 +98,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
 
   return jsonSecure({
     success: true,
-    alreadyVerified: false,
-    verificationEmailSent: true,
     pendingConfirmation: true,
+    message: "Check your inbox to confirm your subscription.",
   }, { status: 202, headers });
 };

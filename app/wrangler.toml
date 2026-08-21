@@ -12,9 +12,6 @@ binding = "STATS_SHARE_IMAGES"
 bucket_name = "warplets-stats-shares"
 preview_bucket_name = "warplets-stats-shares-preview"
 
-[triggers]
-crons = ["*/10 * * * *"]
-
 [vars]
 # Farcaster FID of each registered mini-app — used to scope notification tokens
 # to the correct app_slug. Not sensitive (public Farcaster account IDs).

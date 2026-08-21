@@ -1,4 +1,9 @@
 import { validateEmailAddress } from "./emailValidation";
+import {
+  confirmProvenEmailIdentity,
+  getIdentityProfile,
+} from "../../app/functions/_lib/emailIdentityClaims.js";
+import { getResendContact } from "../../app/functions/_lib/resendIdentity.js";
 
 export const EMAIL_VERIFICATION_GUILD_ID = "1539539851311845416";
 export const EMAIL_VERIFICATION_CHANNEL_ID = "1539543771878789140";
@@ -28,6 +33,7 @@ export interface EmailVerificationEnv {
   DISCORD_VERIFIED_ROLE_ID?: string;
   RESEND_API_KEY?: string;
   RESEND_FROM_EMAIL?: string;
+  WARPLETS?: D1Database;
 }
 
 interface DiscordUser {
@@ -113,6 +119,16 @@ export class EmailVerificationState {
     if (request.method !== "POST") return json({ ok: false, status: "method_not_allowed" }, 405);
     const path = new URL(request.url).pathname;
     const body: Record<string, unknown> = await request.json<Record<string, unknown>>().catch(() => ({}));
+    if (path === "/verified-records") {
+      const rows = await this.state.storage.list<UserVerificationState>({ prefix: `user:${EMAIL_VERIFICATION_GUILD_ID}:` });
+      const records = [...rows.entries()].flatMap(([key, value]) => {
+        const userId = key.slice(`user:${EMAIL_VERIFICATION_GUILD_ID}:`.length);
+        return value.verified?.email && userId
+          ? [{ userId, email: value.verified.email, verifiedAt: value.verified.verifiedAt }]
+          : [];
+      });
+      return json({ ok: true, status: "listed", records });
+    }
     const guildId = stringValue(body.guildId);
     const userId = stringValue(body.userId);
     if (!guildId || !userId) return json({ ok: false, status: "invalid_request" }, 400);
@@ -151,9 +167,6 @@ export class EmailVerificationState {
       const user = (await transaction.get<UserVerificationState>(userKey)) ?? { sends: [] };
       const claim = (await transaction.get<EmailClaimState>(claimKey)) ?? { sends: [] };
       if (user.verified) return { ok: true, status: "already_verified", email: user.verified.email };
-      if (claim.verifiedUserId && (claim.verifiedUserId !== userId || claim.guildId !== guildId)) {
-        return { ok: false, status: "email_already_used" };
-      }
       if (claim.pendingUserId && claim.pendingExpiresAt && claim.pendingExpiresAt > now && (claim.pendingUserId !== userId || claim.guildId !== guildId)) {
         return { ok: false, status: "email_in_progress" };
       }
@@ -261,10 +274,18 @@ export class EmailVerificationState {
       }
       const claimKey = emailStorageKey(user.pending.emailKey);
       const claim = (await transaction.get<EmailClaimState>(claimKey)) ?? { sends: [] };
-      if (claim.verifiedUserId && (claim.verifiedUserId !== userId || claim.guildId !== guildId)) {
-        return { ok: false, status: "email_already_used" };
-      }
       const email = user.pending.email;
+      const replacedUserId = claim.verifiedUserId && claim.verifiedUserId !== userId
+        ? claim.verifiedUserId
+        : null;
+      if (replacedUserId) {
+        const replacedKey = userStorageKey(guildId, replacedUserId);
+        const replacedUser = await transaction.get<UserVerificationState>(replacedKey);
+        if (replacedUser?.verified?.email === email) {
+          delete replacedUser.verified;
+          await transaction.put(replacedKey, replacedUser);
+        }
+      }
       claim.guildId = guildId;
       claim.verifiedUserId = userId;
       delete claim.pendingUserId;
@@ -274,7 +295,7 @@ export class EmailVerificationState {
       delete user.pending;
       await transaction.put(claimKey, claim);
       await transaction.put(userKey, user);
-      return { ok: true, status: "completed", email };
+      return { ok: true, status: "completed", email, replacedUserId };
     });
     return json(result);
   }
@@ -418,6 +439,44 @@ async function discordRequestOk(env: EmailVerificationEnv, path: string, init: R
   return response;
 }
 
+export async function backfillExistingDiscordVerifications(env: EmailVerificationEnv): Promise<number> {
+  const db = env.WARPLETS;
+  if (!db || !env.EMAIL_VERIFICATIONS) return 0;
+  const response = await verificationStub(env).fetch("https://email-verification.internal/verified-records", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: "{}",
+  });
+  if (!response.ok) throw new Error(`Verification record listing failed (${response.status})`);
+  const payload = await response.json<{
+    records?: Array<{ userId?: string; email?: string; verifiedAt?: number }>;
+  }>();
+  let changed = 0;
+  for (const record of payload.records ?? []) {
+    const userId = record.userId?.trim() ?? "";
+    const email = record.email?.trim().toLowerCase() ?? "";
+    if (!userId || !email) continue;
+    const existing = await getIdentityProfile(db, email);
+    if (existing?.discordUserId === userId && existing.discordName) continue;
+    const memberResponse = await discordRequestOk(
+      env,
+      `/guilds/${EMAIL_VERIFICATION_GUILD_ID}/members/${userId}`,
+    );
+    const member = await memberResponse.json<{ user?: DiscordUser }>();
+    const user = member.user;
+    if (!user?.id) throw new Error(`Discord member ${userId} is unavailable`);
+    await ensureResendContact(
+      env,
+      email,
+      displayName(user),
+      userId,
+      `discord-do-backfill:${userId}:${Number(record.verifiedAt) || 0}`,
+    );
+    changed += 1;
+  }
+  return changed;
+}
+
 function containsStartButton(value: unknown): boolean {
   if (!value || typeof value !== "object") return false;
   const record = value as Record<string, unknown>;
@@ -500,56 +559,43 @@ async function sendVerificationEmail(env: EmailVerificationEnv, email: string, c
   }
 }
 
-async function ensureResendContact(env: EmailVerificationEnv, email: string, name: string): Promise<{ existed: boolean; unsubscribed: boolean }> {
+export async function ensureResendContact(
+  env: EmailVerificationEnv,
+  email: string,
+  name: string,
+  discordUserId: string,
+  proofId = `discord-refresh:${discordUserId}:${name}`,
+): Promise<{ existed: boolean; unsubscribed: boolean; synced: boolean }> {
   const apiKey = requiredValue(env.RESEND_API_KEY, "RESEND_API_KEY");
-  const headers = { authorization: `Bearer ${apiKey}`, "content-type": "application/json" };
-  const contactPath = `https://api.resend.com/contacts/${encodeURIComponent(email)}`;
-  let getResponse = await fetch(contactPath, { headers });
-  let existed = getResponse.ok;
-  let unsubscribed = false;
-  if (getResponse.ok) {
-    const contact = await getResponse.json<{ unsubscribed?: boolean }>();
-    unsubscribed = contact.unsubscribed === true;
-  } else if (getResponse.status === 404) {
-    const createResponse = await fetch("https://api.resend.com/contacts", {
-      method: "POST",
-      headers,
-      body: JSON.stringify({ email, first_name: name, segments: [{ id: RESEND_DISCORD_SEGMENT_ID }] }),
-    });
-    if (!createResponse.ok && createResponse.status !== 409) {
-      throw new Error(`Resend contact create failed (${createResponse.status})`);
-    }
-    existed = createResponse.status === 409;
-    if (createResponse.status === 409) {
-      getResponse = await fetch(contactPath, { headers });
-      if (getResponse.ok) {
-        const contact = await getResponse.json<{ unsubscribed?: boolean }>();
-        unsubscribed = contact.unsubscribed === true;
-      }
-    }
-  } else {
-    throw new Error(`Resend contact lookup failed (${getResponse.status})`);
-  }
-
-  const segmentResponse = await fetch(`${contactPath}/segments/${RESEND_DISCORD_SEGMENT_ID}`, { method: "POST", headers });
-  if (!segmentResponse.ok && segmentResponse.status !== 409) {
-    throw new Error(`Resend segment add failed (${segmentResponse.status})`);
-  }
-  return { existed, unsubscribed };
+  const db = env.WARPLETS;
+  if (!db) throw new Error("WARPLETS D1 binding is not configured");
+  const [existingProfile, existingContact] = await Promise.all([
+    getIdentityProfile(db, email),
+    getResendContact(apiKey, email),
+  ]);
+  const result = await confirmProvenEmailIdentity({
+    env: { ...env, WARPLETS: db },
+    email,
+    source: "discord",
+    segmentId: RESEND_DISCORD_SEGMENT_ID,
+    proofId,
+    identity: { discordUserId, discordName: name },
+    resubscribe: false,
+  });
+  return {
+    existed: Boolean(existingProfile || existingContact),
+    unsubscribed: existingContact?.unsubscribed === true,
+    synced: result.synced,
+  };
 }
-
-const verifiedRoleCache = new Map<string, string>();
 
 async function verifiedRoleId(env: EmailVerificationEnv): Promise<string> {
   const configured = env.DISCORD_VERIFIED_ROLE_ID?.trim();
   if (configured) return configured;
-  const cached = verifiedRoleCache.get(EMAIL_VERIFICATION_GUILD_ID);
-  if (cached) return cached;
   const response = await discordRequestOk(env, `/guilds/${EMAIL_VERIFICATION_GUILD_ID}/roles`);
   const roles = await response.json<Array<{ id?: string; name?: string }>>();
   const role = roles.find((candidate) => candidate.name?.trim().toLowerCase() === VERIFIED_ROLE_NAME.toLowerCase());
   if (!role?.id) throw new Error(`Discord role ${VERIFIED_ROLE_NAME} was not found`);
-  verifiedRoleCache.set(EMAIL_VERIFICATION_GUILD_ID, role.id);
   return role.id;
 }
 
@@ -563,8 +609,7 @@ async function grantVerifiedRole(env: EmailVerificationEnv, userId: string): Pro
 
 async function finalizeVerification(env: EmailVerificationEnv, interaction: EmailVerificationInteraction, email: string, challengeId: string): Promise<{ unsubscribed: boolean }> {
   const user = userFromInteraction(interaction)!;
-  const contact = await ensureResendContact(env, email, displayName(user));
-  await grantVerifiedRole(env, user.id!);
+  const contact = await ensureResendContact(env, email, displayName(user), user.id!, `discord-otp:${challengeId}`);
   const complete = await storeRequest(env, "/complete", {
     guildId: EMAIL_VERIFICATION_GUILD_ID,
     userId: user.id,
@@ -572,12 +617,13 @@ async function finalizeVerification(env: EmailVerificationEnv, interaction: Emai
     now: Date.now(),
   });
   if (!complete.ok && complete.status !== "already_verified") throw new Error(`Verification completion failed: ${complete.status}`);
+  await grantVerifiedRole(env, user.id!);
   return { unsubscribed: contact.unsubscribed };
 }
 
 async function reconcileVerified(env: EmailVerificationEnv, interaction: EmailVerificationInteraction, email: string): Promise<void> {
   const user = userFromInteraction(interaction)!;
-  await ensureResendContact(env, email, displayName(user));
+  await ensureResendContact(env, email, displayName(user), user.id!, `discord-refresh:${user.id}:${displayName(user)}`);
   await grantVerifiedRole(env, user.id!);
   await editOriginalReply(env, interaction, { content: "You are already email verified. I have confirmed your **Verified** role.", components: [] });
 }
@@ -621,8 +667,8 @@ async function processEmailSubmission(env: EmailVerificationEnv, interaction: Em
       ? `Please wait ${Number(reserve.retryAfter) || 60} seconds before requesting another code.`
       : reserve.status === "rate_limited"
         ? "Too many verification emails were requested. Try again in an hour."
-        : reserve.status === "email_already_used" || reserve.status === "email_in_progress"
-          ? "That email is already linked to, or being verified by, another Discord account."
+        : reserve.status === "email_in_progress"
+          ? "That email is currently being verified by another Discord account. Try again after its code expires."
           : "Email verification could not be started.";
     await Promise.allSettled([
       logVerification(env, interaction, false, reserve.status, validation.email),
@@ -696,7 +742,7 @@ async function processCodeSubmission(env: EmailVerificationEnv, interaction: Ema
   await Promise.allSettled([
     logVerification(env, interaction, true, result.unsubscribed ? "verified; existing unsubscribe preference preserved" : "verified and added to Discord segment", pending.email),
     editOriginalReply(env, interaction, {
-      content: "Email verified! The **Verified** role was added, you can now post in this server 🎉.",
+      content: "Email verified! The **Verified** role was added, you can now post in PUBLIC channels 🎉",
       components: [],
     }),
   ]);

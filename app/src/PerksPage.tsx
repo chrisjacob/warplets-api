@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import {
   FloatingPortal,
   autoUpdate,
@@ -1143,7 +1143,80 @@ function FutureExplanation({ definition, onShare }: { definition: PerksDefinitio
         <button type="button" onClick={() => { void hapticTap(); onShare(); }} className="w-full cursor-pointer rounded-[20px] border border-[#0a990a] bg-[#00FF00] px-4 py-3 text-sm font-black text-[rgb(0,80,0)] shadow-[3px_6px_0_#0a990a] active:translate-y-0.5">
           {shareContent.cta}
         </button>
+        <a
+          href="https://discord.gg/G5P5cV94Uz"
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={() => { void hapticTap(); }}
+          className="mt-4 flex w-full cursor-pointer items-center justify-center gap-2 rounded-[20px] border border-[#3944b7] bg-[#5865F2] px-4 py-3 text-center text-sm font-black text-[#E0E3FF] shadow-[3px_6px_0_#3944b7] active:translate-y-0.5"
+        >
+          <img src="/menu/discord.png" alt="" aria-hidden="true" className="h-6 w-6 rounded-md object-cover" />
+          <span>Discuss 10X {shareContent.label} on Discord</span>
+        </a>
       </div>
+    </section>
+  );
+}
+
+function PerksEmailCta() {
+  const [email, setEmail] = useState("");
+  const [state, setState] = useState<"idle" | "submitting" | "pending" | "error">("idle");
+  const [message, setMessage] = useState("");
+
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (state === "submitting") return;
+    void hapticTap();
+    setState("submitting");
+    setMessage("");
+    try {
+      const response = await fetch("/api/email/subscribe-10x", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ email: email.trim() }),
+      });
+      const payload = await response.json().catch(() => ({})) as { error?: string; message?: string };
+      if (!response.ok) throw new Error(payload.error || "Could not join the waitlist.");
+      setState("pending");
+      setMessage(payload.message || "Check your inbox to confirm your subscription.");
+      setEmail("");
+    } catch (error) {
+      setState("error");
+      setMessage(error instanceof Error ? error.message : "Something went wrong. Please try again.");
+    }
+  };
+
+  return (
+    <section className="mt-5 rounded-xl border border-[#00FF00]/25 bg-black/70 p-3">
+      <h2 className="text-center text-xl font-black text-[#00FF00]">You're Just One Trade Away...</h2>
+      <form onSubmit={submit} className="mt-4 space-y-3">
+        <label htmlFor="perks-waitlist-email" className="sr-only">Email address</label>
+        <input
+          id="perks-waitlist-email"
+          type="email"
+          inputMode="email"
+          autoComplete="email"
+          required
+          maxLength={254}
+          value={email}
+          onChange={(event) => { setEmail(event.target.value); if (state === "error") setState("idle"); }}
+          disabled={state === "submitting" || state === "pending"}
+          placeholder="Email"
+          className="w-full rounded-[20px] border border-[#00FF00]/40 bg-[#061006] px-4 py-3 text-sm font-bold text-[#dfffe0] outline-none placeholder:text-[#6f9f6f] focus:border-[#00FF00] disabled:opacity-65"
+        />
+        <button
+          type="submit"
+          disabled={state === "submitting" || state === "pending"}
+          className="w-full cursor-pointer rounded-[20px] border border-[#0a990a] bg-[#00FF00] px-4 py-3 text-sm font-black text-[rgb(0,80,0)] shadow-[3px_6px_0_#0a990a] active:translate-y-0.5 disabled:cursor-default disabled:opacity-65"
+        >
+          {state === "submitting" ? "Joining..." : state === "pending" ? "Confirmation Sent" : "Join Waitlist"}
+        </button>
+      </form>
+      {message && (
+        <p role="status" aria-live="polite" className={`mt-4 text-center text-xs font-bold leading-5 ${state === "error" ? "text-[#ff8f8f]" : "text-[#b8d7b8]"}`}>
+          {message}
+        </p>
+      )}
     </section>
   );
 }
@@ -1317,6 +1390,8 @@ export default function PerksPage({
       )}
 
       <FutureExplanation definition={definition} onShare={() => onShare(subpage)} />
+
+      <PerksEmailCta />
 
       <div className="mt-12 rounded-xl border border-[#FFFF00]/55 bg-[#FFFF00]/10 px-3 py-3 text-xs font-bold leading-5 text-[#fff7a8]">
         <strong className="block font-black uppercase text-[#FFFF00]">Future 10X Ecosystem Mockup</strong>

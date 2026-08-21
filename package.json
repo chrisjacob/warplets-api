@@ -27,6 +27,7 @@
     "warpmoji:popularity": "node scripts/generate-warpmoji-popularity.mjs",
     "warpmoji:export-curated": "node --no-warnings scripts/warpmoji-curated-seed.mjs export",
     "warpmoji:import-curated": "node --no-warnings scripts/warpmoji-curated-seed.mjs import",
+    "resend:identities:migrate": "node scripts/migrate-resend-identities.mjs",
     "deploy": "wrangler deploy"
   },
   "pnpm": {

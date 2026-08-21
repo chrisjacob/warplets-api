@@ -224,10 +224,10 @@
           const apiBase = location.hostname === "web-dev.10x.meme"
             ? "https://app-dev.10x.meme"
             : "https://app.10x.meme";
-          const res = await fetch(`${apiBase}/api/email/subscribe`, {
+          const res = await fetch(`${apiBase}/api/email/subscribe-10x`, {
             method: "POST",
             headers: { "content-type": "application/json" },
-            body: JSON.stringify({ email, matched: false }),
+            body: JSON.stringify({ email }),
           });
 
           if (!res.ok) {

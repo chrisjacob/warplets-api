@@ -2,10 +2,12 @@ import { Hono } from "hono";
 import { ed25519 } from "@noble/curves/ed25519.js";
 import {
   EmailVerificationState,
+  backfillExistingDiscordVerifications,
   handleEmailVerificationInteraction,
   type EmailVerificationEnv,
   type EmailVerificationInteraction,
 } from "./emailVerification";
+import { processEmailIdentityOutbox } from "../../app/functions/_lib/emailIdentityClaims.js";
 
 interface Env extends EmailVerificationEnv {
   TENX_API?: Fetcher;
@@ -365,4 +367,24 @@ app.post("/discord", async (c) => {
 });
 
 export { EmailVerificationState };
-export default app;
+export default {
+  fetch(request: Request, env: Env, context: ExecutionContext): Response | Promise<Response> {
+    return app.fetch(request, env, context);
+  },
+  scheduled(_controller: ScheduledController, env: Env, context: ExecutionContext): void {
+    if (!env.WARPLETS) {
+      console.error("Email identity outbox cron skipped: WARPLETS D1 binding is missing");
+      return;
+    }
+    context.waitUntil(
+      processEmailIdentityOutbox({ ...env, WARPLETS: env.WARPLETS }).catch((error) => {
+        console.error("Email identity outbox cron failed", error);
+      }),
+    );
+    context.waitUntil(
+      backfillExistingDiscordVerifications(env)
+        .then((changed) => { if (changed) console.log(`Backfilled ${changed} existing Discord email identities`); })
+        .catch((error) => { console.error("Discord identity reconciliation cron failed", error); }),
+    );
+  },
+};

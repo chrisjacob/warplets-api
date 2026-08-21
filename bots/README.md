@@ -42,14 +42,19 @@ single configured 10X server. It does not open an external site:
 3. Resend sends a six-digit code. Codes expire after 10 minutes, allow five
    attempts, have a 60-second resend cooldown, and are limited to five sends per
    member and email per hour.
-4. After the code succeeds, the Worker reuses an existing global Resend contact
-   or creates one, idempotently adds it to the Discord segment, grants the
-   **Verified** role, and writes a masked audit entry to the moderator channel.
+4. After the code succeeds, the Worker records the trusted Discord identity in
+   shared D1, merges the five canonical Resend properties, idempotently adds the
+   contact to the Discord segment, grants the **Verified** role, and writes a
+   masked audit entry to the moderator channel.
 
 Existing Resend contacts are not duplicated and their global unsubscribe state
-is never changed. One email can verify only one Discord account. Verification
+is never changed. `DiscordName` and `DiscordUserID` are stored as custom
+properties. They are projected into first/last name only when no complete
+trusted Farcaster identity exists. A different Discord account may replace an
+email association only after entering a new code sent to that inbox. Verification
 state and hashed codes live in the `EMAIL_VERIFICATIONS` Durable Object; raw
-codes are never stored or logged.
+codes are never stored or logged. Failed Resend synchronization is retried by
+the Worker's 10-minute cron.
 
 ### Hardcoded single-server configuration
 

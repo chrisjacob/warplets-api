@@ -645,12 +645,33 @@ export function MiniAppMenuPage({ appSlug }: { appSlug: AppSlug }) {
     },
     {
       id: "telegram",
-      title: "10X Alpha Signals",
+      title: "10X.MEME Alpha Signals",
       description: "Join the 10X Telegram signals channel.",
       imageUrl: "/menu/telegram.png",
-      ctaLabel: "10X Alpha Signals",
+      ctaLabel: "10X.MEME Alpha Signals",
       kind: "openUrl",
       href: "https://t.me/The10XNetwork",
+    },
+  ];
+
+  const tradingCards: MenuCard[] = [
+    {
+      id: "fomo-10xmeme",
+      title: "Fomo 10X Meme",
+      description: "Follow @10XMeme on Fomo.",
+      imageUrl: "/menu/fomo.jpg",
+      ctaLabel: "Follow @10XMeme",
+      kind: "openUrl",
+      href: "https://fomo.family/profile/10XMeme",
+    },
+    {
+      id: "pumpfun-10xmeme",
+      title: "Pump.fun 10X Meme",
+      description: "Follow @10XMeme on Pump.fun.",
+      imageUrl: "/menu/pumpfun.png",
+      ctaLabel: "Follow @10XMeme",
+      kind: "openUrl",
+      href: "https://pump.fun/profile/10XMeme",
     },
   ];
 
@@ -788,6 +809,7 @@ export function MiniAppMenuPage({ appSlug }: { appSlug: AppSlug }) {
       {currentCardToastId != null && <div className="trade-toast" role="status">You are already here!</div>}
       <VisibleMenuSection title="Mini Apps" cards={miniAppCards} isFarcasterMiniApp={isFarcasterMiniApp} onCurrentCardClick={showCurrentCardToast} />
       <VisibleMenuSection title="ALPHA" cards={alphaCards} isFarcasterMiniApp={isFarcasterMiniApp} onCurrentCardClick={showCurrentCardToast} />
+      <VisibleMenuSection title="TRADING" cards={tradingCards} isFarcasterMiniApp={isFarcasterMiniApp} onCurrentCardClick={showCurrentCardToast} />
       <VisibleMenuSection title="Social" cards={communitySocialCards} isFarcasterMiniApp={isFarcasterMiniApp} onCurrentCardClick={showCurrentCardToast} />
       <VisibleMenuSection title="Founder" cards={founderCards} isFarcasterMiniApp={isFarcasterMiniApp} onCurrentCardClick={showCurrentCardToast} />
       <VisibleMenuSection title="Links" cards={linkCards} isFarcasterMiniApp={isFarcasterMiniApp} onCurrentCardClick={showCurrentCardToast} />

@@ -329,3 +329,11 @@ For local/dev troubleshooting only, you may enable `fid` fallback by setting:
 - `ALLOW_INSECURE_ACTION_FID_FALLBACK=1`
 
 This fallback is only considered on `-local`, `-dev`, and `.pages.dev` hosts.
+## Resend identity migration
+
+`pnpm resend:identities:migrate` performs a dry-run over the deduplicated 10X,
+10X Warplet Drop, and Discord segment union. It validates the five case-sensitive
+string property definitions and writes a gitignored rollback snapshot under
+`tmp/`. Add `--apply` only after reviewing the reported counts. The script reads
+`RESEND_API_KEY` and `NEYNAR_API_KEY` from the environment or from the gitignored
+`.dev.vars.identity-migration` file.
