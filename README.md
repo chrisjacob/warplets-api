@@ -215,6 +215,11 @@ The KV entry is written (or refreshed) after every vote so results page reads ar
 
 ## Security Operations
 
+If the primary `ADMIN_API_KEYS_JSON` Pages secret already exists and cannot be
+retrieved, scoped automation keys may be added through
+`ADMIN_API_KEYS_JSON_EXTRA`. Both arrays use the same record shape and are
+combined before the normal scope, active-state, and 2FA checks.
+
 ### Pre-deploy security checks
 
 Run this before `deploy`, `app deploy:dev`, or `app deploy:prod`:
