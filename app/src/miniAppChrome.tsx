@@ -58,8 +58,8 @@ const APP_CONFIGS: Record<AppSlug, AppConfig> = {
     headerTitle: "10X Warplets Drop",
     ctaLabel: "Claim Your Warplet",
     absoluteUrl: "https://drop.10x.meme/",
-    iconUrl: "https://drop.10x.meme/icon_drop.png",
-    imageUrl: "https://drop.10x.meme/hero_drop.png",
+    iconUrl: "https://drop.10x.meme/icon_drop2.png",
+    imageUrl: "https://drop.10x.meme/hero_drop2.png",
     available: true,
   },
   warplets: {

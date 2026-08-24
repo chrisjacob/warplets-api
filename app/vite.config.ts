@@ -15,8 +15,9 @@ const TITLE_REGEX = /<title>[\s\S]*?<\/title>/i;
 const DROP_SHARE_TITLE = "🟢 10X Warplets (Private 10K NFT Drop)";
 const DROP_SHARE_DESCRIPTION =
   "Price increases by $10 every 10 days. Private supply goes public every 10 days. Are you on the list? Don't miss out. ";
-const DEFAULT_DROP_SHARE_IMAGE_URL = "https://warplets.10x.meme/760.gif";
-const DROP_ICON_URL = "https://drop.10x.meme/icon_drop.png";
+const DEFAULT_DROP_SHARE_IMAGE_URL = "https://warplets.10x.meme/1391.gif";
+const DROP_ICON_URL = "https://drop.10x.meme/icon_drop2.png";
+const DROP_SPLASH_BACKGROUND_COLOR = "#849fa6";
 const STOP_SHARE_TITLE = "@Mention Settings";
 const STOP_SHARE_DESCRIPTION = "Opt out of 10X outreach mentions in the Farcaster Mini App.";
 const STOP_IMAGE_URL = "https://warplets.10x.meme/3081.png";
@@ -258,13 +259,8 @@ function getSearchResultsShareTitle(query: string): string | undefined {
 }
 
 function getLocalDropShareImageUrl(query: string): string {
-  const fid = getReferralFid(query);
-  if (!fid) return DEFAULT_DROP_SHARE_IMAGE_URL;
-
-  const tokenId = getLocalFidToTokenId().get(fid);
-  return tokenId
-    ? `https://warplets.10x.meme/${tokenId}.gif`
-    : DEFAULT_DROP_SHARE_IMAGE_URL;
+  void query;
+  return DEFAULT_DROP_SHARE_IMAGE_URL;
 }
 
 function getLaunchPath(routeKey: RouteKey, hostname: string): string {
@@ -432,7 +428,7 @@ export default defineConfig({
         const searchShareImageUrl = searchWarpletImageUrl ?? searchResultsImageUrl;
         const routeImageUrl = routeKey === "stop" ? STOP_IMAGE_URL : searchShareImageUrl ?? dropShareImageUrl;
         const splashImageUrl = routeKey === "drop"
-          ? `${baseUrl}/splash_drop.png`
+          ? `${baseUrl}/splash_drop2.png`
           : routeKey === "warplets"
             ? `${baseUrl}/splash_search.png`
             : `${baseUrl}/splash.png`;
@@ -448,7 +444,11 @@ export default defineConfig({
               name: searchShareTitle ?? config.name,
               url: `${launchBase}${query}`,
               splashImageUrl,
-              splashBackgroundColor: routeKey === "warplets" ? WARPLETS_SPLASH_BACKGROUND_COLOR : "#000000",
+              splashBackgroundColor: routeKey === "drop"
+                ? DROP_SPLASH_BACKGROUND_COLOR
+                : routeKey === "warplets"
+                  ? WARPLETS_SPLASH_BACKGROUND_COLOR
+                  : "#000000",
             },
           },
         };
@@ -456,7 +456,11 @@ export default defineConfig({
         const escaped = JSON.stringify(payload).replace(/"/g, "&quot;");
         const dynamicMeta = `<meta name="fc:miniapp" content="${escaped}" />`;
         let nextHtml = html.replace(/<meta\s+name="fc:miniapp"[^>]*>/i, dynamicMeta);
-        if (routeKey === "warplets") {
+        if (routeKey === "drop") {
+          nextHtml = nextHtml.replace(/<link\s+rel="manifest"[^>]*>/i, '<link rel="manifest" href="/manifest-drop.webmanifest" />');
+          nextHtml = nextHtml.replace(/<link\s+rel="icon"[^>]*>/i, '<link rel="icon" type="image/png" href="/icon_drop2.png" />');
+          nextHtml = nextHtml.replace(/<link\s+rel="apple-touch-icon"[^>]*>/i, '<link rel="apple-touch-icon" href="/icon_drop2.png" />');
+        } else if (routeKey === "warplets") {
           nextHtml = nextHtml.replace(/<link\s+rel="icon"[^>]*>/i, '<link rel="icon" type="image/png" href="/icon_search.png" />');
           nextHtml = nextHtml.replace(/<link\s+rel="apple-touch-icon"[^>]*>/i, '<link rel="apple-touch-icon" href="/icon_search.png" />');
         }

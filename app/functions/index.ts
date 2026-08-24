@@ -24,11 +24,12 @@ type PagesEnv = {
 const DROP_SHARE_TITLE = "10X Warplets (10K NFT Drop)";
 const DROP_SHARE_DESCRIPTION =
   "Price increases 10 USD every 10 days. Private supply goes public every 10 days. Don't miss out. ";
-const DEFAULT_DROP_SHARE_IMAGE_URL = "https://warplets.10x.meme/760.gif";
-const DROP_ICON_URL = "https://drop.10x.meme/icon_drop.png";
-const DROP_SPLASH_URL = "https://drop.10x.meme/splash_drop.png";
-const DROP_EMBED_URL = "https://drop.10x.meme/embed_drop.png";
-const DROP_HERO_URL = "https://drop.10x.meme/hero_drop.png";
+const DEFAULT_DROP_SHARE_IMAGE_URL = "https://warplets.10x.meme/1391.gif";
+const DROP_ICON_URL = "https://drop.10x.meme/icon_drop2.png";
+const DROP_SPLASH_URL = "https://drop.10x.meme/splash_drop2.png";
+const DROP_EMBED_URL = "https://drop.10x.meme/embed_drop2.png";
+const DROP_HERO_URL = "https://drop.10x.meme/hero_drop2.png";
+const DROP_SPLASH_BACKGROUND_COLOR = "#849fa6";
 const WARPLETS_SHARE_TITLE = WARPLETS_PUBLIC_NAME;
 const WARPLETS_SHARE_DESCRIPTION = "Search, filter, trade, favourite, and share 10X Warplets.";
 const WARPLETS_SPLASH_BACKGROUND_COLOR = "#004100";
@@ -86,7 +87,7 @@ function buildFarcasterManifest(hostname: string, warpletsAssociation?: AccountA
         heroImageUrl: DROP_HERO_URL,
         buttonTitle: "Claim Your Warplet",
         splashImageUrl: DROP_SPLASH_URL,
-        splashBackgroundColor: "#000000",
+        splashBackgroundColor: DROP_SPLASH_BACKGROUND_COLOR,
         webhookUrl: "https://app.10x.meme/webhook/drop",
         castShareUrl: `https://${hostname}`,
         subtitle: "Don't miss out.",
@@ -300,26 +301,8 @@ function getSearchResultsShareTitle(searchParams: URLSearchParams): string | und
   return countText ? `${countText} ${label} Warplets...` : `${label} Warplets...`;
 }
 
-async function getDropShareImageUrl(
-  env: PagesEnv,
-  searchParams: URLSearchParams,
-): Promise<string> {
-  const fid = getReferralFid(searchParams);
-  if (!fid || !env.WARPLETS) return DEFAULT_DROP_SHARE_IMAGE_URL;
-
-  try {
-    const row = await env.WARPLETS.prepare(
-      "SELECT token_id FROM warplets_metadata WHERE fid_value = ? LIMIT 1",
-    )
-      .bind(fid)
-      .first<{ token_id: number | null }>();
-
-    return typeof row?.token_id === "number" && Number.isInteger(row.token_id)
-      ? `https://warplets.10x.meme/${row.token_id}.gif`
-      : DEFAULT_DROP_SHARE_IMAGE_URL;
-  } catch {
-    return DEFAULT_DROP_SHARE_IMAGE_URL;
-  }
+function getDropShareImageUrl(): string {
+  return DEFAULT_DROP_SHARE_IMAGE_URL;
 }
 
 function getLaunchPath(routeKey: RouteKey, hostname: string): string {
@@ -363,7 +346,7 @@ function buildMiniAppMetaContent(
   const launchBase = launchPath === "/" ? `${base}/` : `${base}${launchPath}`;
   const launchUrl = actionUrl ?? `${launchBase}${search}`;
   const splashImageUrl = routeKey === "drop"
-    ? `${base}/splash_drop.png`
+    ? `${base}/splash_drop2.png`
     : routeKey === "warplets"
       ? `${base}/splash_search.png`
       : `${base}/splash.png`;
@@ -379,7 +362,11 @@ function buildMiniAppMetaContent(
         name: actionName ?? config.name,
         url: launchUrl,
         splashImageUrl,
-        splashBackgroundColor: routeKey === "warplets" ? WARPLETS_SPLASH_BACKGROUND_COLOR : "#000000",
+        splashBackgroundColor: routeKey === "drop"
+          ? DROP_SPLASH_BACKGROUND_COLOR
+          : routeKey === "warplets"
+            ? WARPLETS_SPLASH_BACKGROUND_COLOR
+            : "#000000",
       },
     },
   });
@@ -531,7 +518,7 @@ export const onRequestGet: PagesFunction<PagesEnv> = async (context) => {
     : undefined;
   const dropShareImageUrl =
     routeKey === "drop"
-      ? await getDropShareImageUrl(context.env, requestUrl.searchParams)
+      ? getDropShareImageUrl()
       : undefined;
   const searchShareImageUrl = searchWarpletImageUrl ?? searchResultsImageUrl ?? (perksShareContent ? getPerksShareImageUrl(perksShareContent) : undefined);
   const routeImageUrl = statsShareImageUrl ?? (routeKey === "stop" ? STOP_IMAGE_URL : searchShareImageUrl ?? dropShareImageUrl);
@@ -554,6 +541,13 @@ export const onRequestGet: PagesFunction<PagesEnv> = async (context) => {
     html = html.replace(MANIFEST_LINK_REGEX, '<link rel="manifest" href="/manifest-10x.webmanifest" />');
     html = html.replace(APPLICATION_NAME_META_REGEX, '<meta name="application-name" content="10X.MEME" />');
     html = html.replace(APPLE_APP_TITLE_META_REGEX, '<meta name="apple-mobile-web-app-title" content="10X.MEME" />');
+  }
+  if (routeKey === "drop") {
+    html = html.replace(MANIFEST_LINK_REGEX, '<link rel="manifest" href="/manifest-drop.webmanifest" />');
+    html = html.replace(FAVICON_LINK_REGEX, '<link rel="icon" type="image/png" href="/icon_drop2.png" />');
+    html = html.replace(APPLE_TOUCH_ICON_LINK_REGEX, '<link rel="apple-touch-icon" href="/icon_drop2.png" />');
+    html = html.replace(APPLICATION_NAME_META_REGEX, '<meta name="application-name" content="10X Warplets Drop" />');
+    html = html.replace(APPLE_APP_TITLE_META_REGEX, '<meta name="apple-mobile-web-app-title" content="10X Warplets Drop" />');
   }
   if (routeKey === "warplets") {
     html = html.replace(FAVICON_LINK_REGEX, '<link rel="icon" type="image/png" href="/icon_search.png" />');

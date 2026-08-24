@@ -1,0 +1,36 @@
+{
+  "id": "/",
+  "name": "10X Warplets Drop",
+  "short_name": "Warplets Drop",
+  "description": "The 10X Warplets Drop completion page.",
+  "start_url": "/?source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#849fa6",
+  "theme_color": "#849fa6",
+  "orientation": "portrait-primary",
+  "categories": ["entertainment", "social"],
+  "icons": [
+    {
+      "src": "/icon_drop2.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon_drop2.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/hero_drop2.png",
+      "sizes": "1200x630",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "10X Warplets Drop"
+    }
+  ]
+}
