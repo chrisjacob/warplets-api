@@ -17,6 +17,7 @@ interface Env {
 }
 import { applySecurityHeaders, getClientIp, logSecurityEvent, rateLimit } from "../../_lib/security.js";
 import { outboundFetch } from "../../_lib/outbound.js";
+import { removeEmailSocialProofMember } from "../../_lib/emailSocialProof.js";
 
 const RESEND_TOPIC_ID = "c3e8d591-73e6-4e98-a873-5e197a8581ee";
 
@@ -128,6 +129,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     .bind(new Date().toISOString(), new Date().toISOString(), row.id)
     .run();
   await unsubscribeResendContact(context.env.RESEND_API_KEY, email);
+  await removeEmailSocialProofMember(context.env.WARPLETS, email);
 
   return htmlResponse(
     200,

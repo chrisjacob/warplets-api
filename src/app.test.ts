@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createApp, prefersSnapRepresentation } from "./app.js";
-import { decodeCursor, parseTokenIds, paymentRequirements } from "./agent-api.js";
+import { decodeCursor, parseTokenIds, paymentRequirements, searchApiOrigin } from "./agent-api.js";
 
 test("weighted Accept negotiation chooses HTML for browsers", () => {
   assert.equal(prefersSnapRepresentation("text/html,application/xhtml+xml,*/*;q=0.8"), false);
@@ -38,4 +38,12 @@ test("x402 defaults to Base Sepolia and one USDC cent", () => {
   assert.equal(requirements.network, "eip155:84532");
   assert.equal(requirements.amount, "10000");
   assert.equal(requirements.asset, "0x036CbD53842c5426634e7929541eC2318f3dCF7e");
+});
+
+test("agent stats proxy uses the deployed Search API independently of public Warplet links", () => {
+  assert.equal(searchApiOrigin({} as never), "https://app.10x.meme");
+  assert.equal(
+    searchApiOrigin({ SEARCH_API_ORIGIN: "https://app-dev.10x.meme/" } as never),
+    "https://app-dev.10x.meme",
+  );
 });

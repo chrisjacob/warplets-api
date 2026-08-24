@@ -15,6 +15,15 @@ describe("sessionCookie", () => {
     expect(cookie).toContain("Partitioned");
   });
 
+  it("uses a secure cookie for the app-local HTTPS tunnel host", () => {
+    const request = new Request("http://app-local.10x.meme/api/auth/session");
+    const cookie = sessionCookie(request, "token", expiresAt);
+    expect(cookie).toContain("__Host-warplets_session=token");
+    expect(cookie).toContain("SameSite=None");
+    expect(cookie).toContain("Secure");
+    expect(cookie).toContain("Partitioned");
+  });
+
   it("does not trust a forwarded origin for a different host", () => {
     const request = new Request("http://127.0.0.1:8790/api/auth/session", {
       headers: { "x-10x-public-origin": "https://warplet-local.10x.meme" },

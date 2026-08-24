@@ -38,6 +38,7 @@ export interface EmailVerificationEnv {
   DISCORD_VERIFIED_ROLE_ID?: string;
   RESEND_API_KEY?: string;
   RESEND_FROM_EMAIL?: string;
+  NEYNAR_API_KEY?: string;
   WARPLETS?: D1Database;
 }
 

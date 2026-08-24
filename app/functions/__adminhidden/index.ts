@@ -205,8 +205,11 @@ export const onRequestGet: PagesFunction = () => {
     <label>Channels</label>
     <select id="sendChannels">
       <option value="farcaster">Farcaster</option>
+      <option value="web-push">Web Push</option>
       <option value="base">Base</option>
-      <option value="both">Both</option>
+      <option value="farcaster-web">Farcaster + Web Push</option>
+      <option value="farcaster-base">Farcaster + Base</option>
+      <option value="all">All channels</option>
     </select>
 
     <label>Target FIDs <span style="color:#555;font-size:.75rem">(comma-separated; used by FID list mode)</span></label>
@@ -256,6 +259,31 @@ export const onRequestGet: PagesFunction = () => {
         <th>Discord</th><th>User ID</th><th>Email</th><th>Other identity</th><th>Reset result</th><th></th>
       </tr></thead>
       <tbody id="discordVerificationBody"><tr><td colspan="6" style="color:#555;text-align:center;padding:1rem">Loadingâ€¦</td></tr></tbody>
+    </table>
+  </section>
+
+  <!-- RESEND ONBOARDING -->
+  <section>
+    <h2>Email Onboarding <button class="secondary" id="onboardingRefreshBtn" style="padding:.25rem .75rem;font-size:.75rem;margin-top:0;margin-left:.5rem">Refresh</button></h2>
+    <div class="stat-grid">
+      <div class="stat-box"><div class="num" id="onboardEnrolled">—</div><div class="lbl">Enrolled</div></div>
+      <div class="stat-box"><div class="num" id="onboardQueued">—</div><div class="lbl">Queued</div></div>
+      <div class="stat-box"><div class="num" id="onboardActive">—</div><div class="lbl">Active</div></div>
+      <div class="stat-box"><div class="num" id="onboardCompleted">—</div><div class="lbl">Completed</div></div>
+      <div class="stat-box"><div class="num" id="onboardInterrupted">—</div><div class="lbl">Interrupted</div></div>
+      <div class="stat-box"><div class="num" id="onboardUncertain">—</div><div class="lbl">Uncertain</div></div>
+      <div class="stat-box"><div class="num" id="onboardCompletionRate">—</div><div class="lbl">Completion rate</div></div>
+    </div>
+    <table>
+      <thead><tr><th>Email</th><th>Sent</th><th>Delivered</th><th>Opened</th><th>Clicked</th><th>Bounced</th><th>Suppressed</th><th>Complained</th></tr></thead>
+      <tbody id="onboardingStepsBody"><tr><td colspan="8" style="color:#555;text-align:center;padding:1rem">Loading…</td></tr></tbody>
+    </table>
+    <p id="onboardingStepDistribution" style="color:#888;font-size:.8rem;margin-top:.75rem"></p>
+    <p id="onboardingReconciliation" style="color:#888;font-size:.8rem;margin-top:.35rem"></p>
+    <h2 style="margin-top:1rem">Recent interruptions and reconciliation errors</h2>
+    <table>
+      <thead><tr><th>Email</th><th>Status</th><th>Last delivered</th><th>Error</th><th>Updated</th></tr></thead>
+      <tbody id="onboardingFailuresBody"><tr><td colspan="5" style="color:#555;text-align:center;padding:1rem">Loading…</td></tr></tbody>
     </table>
   </section>
 
@@ -547,9 +575,59 @@ export const onRequestGet: PagesFunction = () => {
     } catch (e) { if (e.message !== 'Unauthorized') console.error(e); }
   }
 
-  function loadAll() { loadStats(); loadInspect(); loadSecurity(); loadOutreach(); loadDiscordVerifications(); loadEmail(); }
+  async function loadEmailOnboarding() {
+    try {
+      const r = await api('/api/admin/email-onboarding/metrics');
+      const data = await readApiJson(r);
+      if (!r.ok) throw new Error(data.error || 'Unable to load email onboarding metrics');
+      const summary = data.summary || {};
+      document.getElementById('onboardEnrolled').textContent = summary.enrolled ?? '—';
+      document.getElementById('onboardQueued').textContent = summary.queued ?? '—';
+      document.getElementById('onboardActive').textContent = summary.active ?? '—';
+      document.getElementById('onboardCompleted').textContent = summary.completed ?? '—';
+      document.getElementById('onboardInterrupted').textContent = summary.interrupted ?? '—';
+      document.getElementById('onboardUncertain').textContent = summary.uncertain ?? '—';
+      document.getElementById('onboardCompletionRate').textContent = (summary.completionRate ?? 0) + '%';
+      const steps = Array.isArray(data.steps) ? data.steps : [];
+      document.getElementById('onboardingStepsBody').innerHTML = steps.map(step => \`<tr>
+        <td>Email \${step.step}</td>
+        <td>\${step.sent}</td>
+        <td>\${step.delivered.count} (\${step.delivered.rate}%)</td>
+        <td>\${step.opened.count} (\${step.opened.rate}%)</td>
+        <td>\${step.clicked.count} (\${step.clicked.rate}%)</td>
+        <td>\${step.bounced.count} (\${step.bounced.rate}%)</td>
+        <td>\${step.suppressed.count} (\${step.suppressed.rate}%)</td>
+        <td>\${step.complained.count} (\${step.complained.rate}%)</td>
+      </tr>\`).join('');
+      const currentSteps = Array.isArray(data.currentSteps) ? data.currentSteps : [];
+      document.getElementById('onboardingStepDistribution').textContent = 'Current-step distribution: ' + (
+        currentSteps.length
+          ? currentSteps.map(row => (Number(row.current_step) >= 0 ? 'Email ' + (Number(row.current_step) + 1) : 'Not delivered') + ': ' + row.count).join(' · ')
+          : 'no active runs'
+      );
+      const reconciliation = data.reconciliation || {};
+      document.getElementById('onboardingReconciliation').textContent = reconciliation.last_error
+        ? 'Reconciliation error: ' + reconciliation.last_error
+        : 'Last reconciliation: ' + (reconciliation.last_checked_at || 'not run yet');
+      const failures = Array.isArray(data.failures) ? data.failures : [];
+      document.getElementById('onboardingFailuresBody').innerHTML = failures.length
+        ? failures.map(row => \`<tr>
+          <td class="mono">\${esc(row.email)}</td>
+          <td><span class="pill failed">\${esc(row.status)}</span></td>
+          <td>\${Number(row.current_step) >= 0 ? 'Email ' + (Number(row.current_step) + 1) : 'None'}</td>
+          <td>\${esc(row.last_error || '—')}</td>
+          <td style="color:#666;font-size:.75rem">\${esc(row.updated_at || '')}</td>
+        </tr>\`).join('')
+        : '<tr><td colspan="5" style="color:#555;text-align:center;padding:1rem">No interruptions</td></tr>';
+    } catch (e) {
+      if (e.message !== 'Unauthorized') console.error(e);
+    }
+  }
+
+  function loadAll() { loadStats(); loadInspect(); loadSecurity(); loadOutreach(); loadEmailOnboarding(); loadDiscordVerifications(); loadEmail(); }
 
   document.getElementById('refreshBtn').addEventListener('click', loadAll);
+  document.getElementById('onboardingRefreshBtn').addEventListener('click', loadEmailOnboarding);
   document.getElementById('sendApp').addEventListener('change', updateSendTargetUiFromApp);
   updateSendTargetUiFromApp();
 
@@ -655,7 +733,13 @@ export const onRequestGet: PagesFunction = () => {
     if (sendMode === 'fids' && !fids?.length) { showStatus('FID list mode requires at least one FID', false); return; }
     if (target && !target.startsWith('https://')) { showStatus('targetUrl must be https', false); return; }
 
-    const channels = sendChannels === 'both' ? ['farcaster', 'base'] : [sendChannels];
+    const channels = sendChannels === 'all'
+      ? ['farcaster', 'base', 'web-push']
+      : sendChannels === 'farcaster-web'
+        ? ['farcaster', 'web-push']
+        : sendChannels === 'farcaster-base'
+          ? ['farcaster', 'base']
+          : [sendChannels];
     const payload = { title, body, appSlug, sendMode, channels, targetUrl: target, ...(notifId && { notificationId: notifId }), ...(sendMode === 'fids' && fids && { fids }) };
 
     const btn = document.getElementById('sendBtn');

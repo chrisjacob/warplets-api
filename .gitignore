@@ -24,3 +24,5 @@ resend-identity-rollback-*.json
 
 # Localflare generated files
 .localflare/
+.onboarding-provisioning/
+onboarding-provision-error.txt

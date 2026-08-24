@@ -7,6 +7,7 @@ import { base, baseSepolia } from "viem/chains";
 import { activateTrustConnectWallet, restoreTrustConnectWallet, type WalletConnectorId } from "./walletController";
 import type { EthereumProvider } from "./walletTrade";
 import { appendWalletConnectDiagnostic, TRUSTCONNECT_DISCONNECT_COMPLETE_EVENT, TRUSTCONNECT_DISCONNECT_REQUEST_EVENT } from "./walletConnectDiagnostics";
+import { getRuntimeAppIconPath } from "./brandAssets";
 
 const queryClient = new QueryClient();
 
@@ -201,7 +202,7 @@ export default function TrustConnectBridge({ onConnected, onDismiss = () => unde
         name: "10X Warplets",
         description: "Search, collect and trade 10X Warplets",
         url: window.location.origin,
-        icons: [`${window.location.origin}/icon.png`],
+        icons: [`${window.location.origin}${getRuntimeAppIconPath()}`],
       },
     })] : [];
     appendWalletConnectDiagnostic("trustconnect.config_created", {

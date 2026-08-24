@@ -11,6 +11,7 @@ crons = ["* * * * *"]
 
 [vars]
 WARPLETS_APP_ORIGIN = "https://warplet.10x.meme"
+SEARCH_API_ORIGIN = "https://app.10x.meme"
 X402_ENABLED = "false"
 X402_NETWORK = "eip155:84532"
 X402_ASSET = "0x036CbD53842c5426634e7929541eC2318f3dCF7e"
@@ -28,6 +29,9 @@ DUNE_MAX_RESULT_PAGES = "8"
 DUNE_INDEXING_LAG_HOURS = "2"
 DUNE_MONTHLY_CREDIT_BUDGET = "1500"
 DUNE_MAX_CREDITS_PER_EXECUTION = "20"
+RESEND_ONBOARDING_ENABLED = "false"
+# Set after the disabled Automation has been provisioned and reviewed.
+# RESEND_ONBOARDING_AUTOMATION_ID = "..."
 # Warpmoji remains in Shadow mode until curated pools and the allowlisted pilot
 # are verified. Secrets: NEYNAR_API_KEY, NEYNAR_WEBHOOK_SECRET,
 # WARPMOJI_SIGNER_UUID. WARPMOJI_FID is the numeric FID for warpmoji.eth.
@@ -63,6 +67,7 @@ workers_dev = false
 [env.dev.vars]
 SNAP_PUBLIC_BASE_URL = "https://api-dev.10x.meme"
 WARPLETS_APP_ORIGIN = "https://warplet-dev.10x.meme"
+SEARCH_API_ORIGIN = "https://app-dev.10x.meme"
 X402_ENABLED = "false"
 X402_NETWORK = "eip155:84532"
 X402_ASSET = "0x036CbD53842c5426634e7929541eC2318f3dCF7e"
@@ -75,6 +80,7 @@ DUNE_MAX_RESULT_PAGES = "8"
 DUNE_INDEXING_LAG_HOURS = "2"
 DUNE_MONTHLY_CREDIT_BUDGET = "1500"
 DUNE_MAX_CREDITS_PER_EXECUTION = "20"
+RESEND_ONBOARDING_ENABLED = "false"
 WARPMOJI_FID = "0"
 
 [[env.dev.kv_namespaces]]

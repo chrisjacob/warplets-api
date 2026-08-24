@@ -18,8 +18,12 @@ function isIos(): boolean {
 
 export function PwaControls({
   onMessage,
+  appName = "10X Warplets",
+  autoPrompt = true,
 }: {
   onMessage: (kind: "success" | "warning" | "error", message: string) => void;
+  appName?: string;
+  autoPrompt?: boolean;
 }) {
   const [installAvailable, setInstallAvailable] = useState(canPromptPwaInstall());
   const [updateAvailable, setUpdateAvailable] = useState(false);
@@ -29,6 +33,7 @@ export function PwaControls({
   const [basePinned, setBasePinned] = useState<boolean | null>(null);
   const [closedThisSession, setClosedThisSession] = useState(false);
   const [basePromptRequested, setBasePromptRequested] = useState(false);
+  const [manualInstallRequested, setManualInstallRequested] = useState(false);
   const wallet = useWalletController();
   const standalone = isStandaloneDisplay();
   const baseAppBrowser = isLikelyBaseAppBrowser();
@@ -38,6 +43,16 @@ export function PwaControls({
   const canPush = browserCanPush && webPushConfigured;
   const showIosInstallHelp = isIos() && !standalone && !embedded && !baseAppBrowser;
   const showBasePinPrompt = baseAppBrowser && !standalone && (basePromptRequested || forceAddPrompt || basePinned !== true);
+
+  useEffect(() => {
+    const openInstallPrompt = () => {
+      if (standalone || embedded) return;
+      setManualInstallRequested(true);
+      setClosedThisSession(false);
+    };
+    window.addEventListener("10x:open-pwa-install", openInstallPrompt);
+    return () => window.removeEventListener("10x:open-pwa-install", openInstallPrompt);
+  }, [embedded, standalone]);
 
   useEffect(() => {
     const reopenBasePrompt = () => {
@@ -94,7 +109,10 @@ export function PwaControls({
 
   useEffect(() => {
     const handleInstall = () => setInstallAvailable(canPromptPwaInstall());
-    const handleInstalled = () => setInstallAvailable(false);
+    const handleInstalled = () => {
+      setInstallAvailable(false);
+      setManualInstallRequested(false);
+    };
     const handleUpdate = () => setUpdateAvailable(true);
     window.addEventListener("10x:pwa-install-available", handleInstall);
     window.addEventListener("10x:pwa-installed", handleInstalled);
@@ -138,13 +156,19 @@ export function PwaControls({
     );
   }
 
-  if (closedThisSession || (!basePromptRequested && !forceAddPrompt && dismissed) || embedded || (!showBasePinPrompt && !installAvailable && !showIosInstallHelp && !canPush)) return null;
+  if (embedded || (!manualInstallRequested && (
+    !autoPrompt ||
+    closedThisSession ||
+    (!basePromptRequested && !forceAddPrompt && dismissed) ||
+    (!showBasePinPrompt && !installAvailable && !showIosInstallHelp && !canPush)
+  ))) return null;
 
   const dismiss = () => {
     localStorage.setItem(DISMISSED_KEY, "1");
     setDismissed(true);
     setClosedThisSession(true);
     setBasePromptRequested(false);
+    setManualInstallRequested(false);
   };
 
   const runPrimaryAction = async () => {
@@ -162,8 +186,15 @@ export function PwaControls({
       await confirmBasePin();
       return;
     }
+    if (manualInstallRequested && !installAvailable) {
+      onMessage("warning", showIosInstallHelp
+        ? `On iPhone or iPad, tap Share, then Add to Home Screen to install ${appName}.`
+        : `Install ${appName} from your browser's Install app menu.`);
+      dismiss();
+      return;
+    }
     if (showIosInstallHelp) {
-      onMessage("warning", "On iPhone or iPad, tap Share, then Add to Home Screen. Open the installed app to enable Web Push.");
+      onMessage("warning", `On iPhone or iPad, tap Share, then Add to Home Screen. Open the installed ${appName} app to enable Web Push.`);
       dismiss();
       return;
     }
@@ -171,8 +202,9 @@ export function PwaControls({
     try {
       if (installAvailable) {
         const result = await promptPwaInstall();
-        if (result === "accepted") onMessage("success", "10X Warplets was installed.");
+        if (result === "accepted") onMessage("success", `${appName} was installed.`);
         else if (result === "dismissed") onMessage("warning", "Installation was dismissed. You can install later from your browser menu.");
+        setManualInstallRequested(false);
       } else {
         await subscribeToWebPush(["announcements"]);
         onMessage("success", "Web notifications are enabled for general 10X announcements.");
@@ -192,7 +224,7 @@ export function PwaControls({
           <p className="min-w-0 text-base font-bold text-[#8bbf8b]">
             {showBasePinPrompt ? (
               <><span className="text-[#00FF00]">Pin App</span> Stay Updated</>
-            ) : installAvailable || showIosInstallHelp ? (
+            ) : manualInstallRequested || installAvailable || showIosInstallHelp ? (
               <><span className="text-[#00FF00]">Install App</span> Unlock Faster Access</>
             ) : (
               <><span className="text-[#00FF00]">Enable</span> Web Notifications</>
@@ -225,7 +257,7 @@ export function PwaControls({
             className="mb-1.5 w-full cursor-pointer rounded-[20px] border border-[#009900] bg-[#00FF00] px-4 py-3 text-sm font-black text-[rgb(0,80,0)] shadow-[3px_6px_0_#008000] transition-all duration-100 hover:bg-[#33ff33] active:translate-x-[1px] active:translate-y-[3px] active:shadow-[1px_3px_0_#008000] disabled:cursor-wait disabled:opacity-50"
             onClick={() => void runPrimaryAction()}
           >
-            {showBasePinPrompt ? (busy ? "Confirming…" : "Yes, I have Pinned the app…") : showIosInstallHelp ? "Install 10X Warplets" : installAvailable ? "Install 10X Warplets" : "Enable web notifications"}
+            {showBasePinPrompt ? (busy ? "Confirming…" : "Yes, I have Pinned the app…") : manualInstallRequested || showIosInstallHelp || installAvailable ? `Install ${appName}` : "Enable web notifications"}
           </button>
         </div>
       </div>

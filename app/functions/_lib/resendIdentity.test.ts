@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   RESEND_DISCORD_SEGMENT_ID,
   identityProperties,
+  getResendContactFarcasterFid,
+  listResendSubscriberSnapshot,
   normalizeIdentity,
   projectContactNames,
   removeDiscordIdentityFromResend,
@@ -11,6 +13,42 @@ import {
 } from "./resendIdentity.js";
 
 describe("trusted Resend identity projection", () => {
+  it("extracts Farcaster FIDs without mistaking Discord snowflakes for FIDs", () => {
+    expect(getResendContactFarcasterFid({ last_name: "1129138" })).toBe(1129138);
+    expect(getResendContactFarcasterFid({
+      last_name: "692467495952449628",
+      properties: { FarcasterFID: { value: "1313340" } },
+    })).toBe(1313340);
+    expect(getResendContactFarcasterFid({ last_name: "692467495952449628" })).toBeNull();
+  });
+
+  it("builds subscriber totals and unique Farcaster candidates from Resend contacts", async () => {
+    const originalFetch = globalThis.fetch;
+    let requestedUrl = "";
+    globalThis.fetch = (async (input) => {
+      requestedUrl = String(input);
+      return Response.json({
+      has_more: false,
+      data: [
+        { id: "1", email: "one@example.com", last_name: "1129138", unsubscribed: false },
+        { id: "2", email: "two@example.com", last_name: "1129138", unsubscribed: false },
+        { id: "3", email: "three@example.com", properties: { FarcasterFID: { value: "1313340" } }, unsubscribed: false },
+        { id: "4", email: "four@example.com", last_name: "692467495952449628", unsubscribed: false },
+        { id: "5", email: "five@example.com", last_name: "999", unsubscribed: true },
+      ],
+      });
+    }) as typeof fetch;
+    try {
+      await expect(listResendSubscriberSnapshot("test-key")).resolves.toEqual({
+        subscriberCount: 4,
+        farcasterFids: [1129138, 1313340],
+      });
+      expect(new URL(requestedUrl).searchParams.has("limit")).toBe(false);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
   it("normalizes wallets and writes only the five canonical property keys", () => {
     const identity = normalizeIdentity({
       email: " Person@Example.COM ",
@@ -216,5 +254,23 @@ describe("trusted Resend identity projection", () => {
       { id: RESEND_COMMUNITY_TOPIC_ID, subscription: "opt_in" },
     ]);
     expect(requests.some((request) => request.url.endsWith("/topics"))).toBe(false);
+  });
+
+  it("reports a preserved global unsubscribe as inactive", async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (async (_input: RequestInfo | URL, init?: RequestInit) => {
+      if (!init?.method) return Response.json({ id: "contact-123", email: "person@example.com", unsubscribed: true });
+      return Response.json({ id: "contact-123" });
+    }) as typeof fetch;
+    try {
+      await expect(syncTrustedIdentityToResend({
+        apiKey: "test-key",
+        identity: { email: "person@example.com", discordUserId: "692467495952449628", discordName: "Alice" },
+        segmentId: "segment-123",
+        resubscribe: false,
+      })).resolves.toEqual({ active: false });
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
   });
 });

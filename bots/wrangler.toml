@@ -51,5 +51,6 @@ class_name = "EmailVerificationState"
 # Secrets (set with `wrangler secret put`):
 # BOT_SERVICE_TOKEN, TELEGRAM_BOT_TOKEN, TELEGRAM_WEBHOOK_SECRET,
 # DISCORD_PUBLIC_KEY, DISCORD_APPLICATION_ID, DISCORD_BOT_TOKEN,
-# EMAIL_VERIFICATION_SECRET, RESEND_API_KEY and RESEND_FROM_EMAIL.
+# EMAIL_VERIFICATION_SECRET, RESEND_API_KEY, RESEND_FROM_EMAIL and optional
+# NEYNAR_API_KEY (used only to hydrate missing social-proof avatar profiles).
 # Optional: DISCORD_VERIFIED_ROLE_ID (otherwise the Worker resolves "Verified").

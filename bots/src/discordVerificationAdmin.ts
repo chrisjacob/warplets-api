@@ -13,6 +13,7 @@ import {
   removeDiscordIdentityFromResend,
   type TrustedEmailIdentity,
 } from "../../app/functions/_lib/resendIdentity.js";
+import { removeEmailSocialProofMember } from "../../app/functions/_lib/emailSocialProof.js";
 
 const DISCORD_USER_ID = /^\d{15,22}$/;
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -201,6 +202,7 @@ export async function resetDiscordVerificationAssociation(
     });
   } else {
     await deleteResendContact(apiKey, email);
+    await removeEmailSocialProofMember(db, email);
   }
 
   const now = new Date().toISOString();

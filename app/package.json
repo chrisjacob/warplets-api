@@ -13,6 +13,7 @@
     "performance:budget": "node ../scripts/check-performance-budget.mjs",
     "deploy": "pnpm build && wrangler pages deploy dist",
     "local:tunnel": "node ../scripts/dev-tunnel-app.mjs",
+    "local:tunnel:app": "node ../scripts/dev-tunnel-app.mjs",
     "local:tunnel:drop": "node ../scripts/dev-tunnel-drop.mjs",
     "local:tunnel:warplet": "node ../scripts/dev-tunnel-warplet.mjs",
     "web-push:generate-keys": "node ../scripts/generate-vapid-keys.mjs",

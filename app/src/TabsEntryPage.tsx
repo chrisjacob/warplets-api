@@ -1,4 +1,5 @@
 import { FormEvent, useState } from "react";
+import { getRuntimeAppIconPath } from "./brandAssets";
 
 export default function TabsEntryPage() {
   const [query, setQuery] = useState("");
@@ -12,7 +13,7 @@ export default function TabsEntryPage() {
   return (
     <main className="min-h-screen bg-black px-4 py-[max(2rem,env(safe-area-inset-top))] text-white">
       <section className="mx-auto flex min-h-[70vh] max-w-xl flex-col items-center justify-center">
-        <img src="/icon.png" alt="10X" width="96" height="96" className="h-24 w-24" />
+        <img src={getRuntimeAppIconPath()} alt="10X" width="96" height="96" className="h-24 w-24" />
         <h1 className="mt-5 text-center text-3xl font-black text-[#00FF00]">10X Warplets</h1>
         <p className="mt-2 text-center text-sm text-[#8bbf8b]">Find any Warplet without loading marketplace data until you need it.</p>
         <form onSubmit={submit} className="mt-6 flex w-full gap-2">

@@ -23,6 +23,15 @@ describe("Warplets application identity", () => {
     expect(resolveAppSlugFromUrl(new URL("https://search.10x.meme/"))).toBe("app");
   });
 
+  it.each([
+    "https://10x.meme/",
+    "https://www.10x.meme/",
+    "https://app.10x.meme/",
+    "https://app-local.10x.meme/",
+  ])("scopes %s subscriptions to the 10X application", (url) => {
+    expect(resolveAppSlugFromUrl(new URL(url))).toBe("app");
+  });
+
   it("uses the canonical production launch URL", () => {
     expect(getDefaultLaunchUrl("warplets")).toBe("https://warplet.10x.meme/");
   });

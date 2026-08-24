@@ -81,7 +81,7 @@ export function aggregateRwaExplorerRows(rows: PerksExplorerRow[], columns: stri
   const cellsByColumn: Record<string, string> = {
     Chain: `${rows.length} chains`,
     "Lifetime Volume": formatCompactMetric(totalVolume, true),
-    "RWA Dividends": formatCompactMetric(total("RWA Dividends"), true),
+    "RWA Rewards": formatCompactMetric(total("RWA Rewards"), true),
     "RWA LP": formatCompactMetric(total("RWA LP"), true),
     "10X LP": formatCompactMetric(total("10X LP"), true),
     Burned: formatCompactMetric(total("Burned"), true),
@@ -96,7 +96,7 @@ export function aggregateRwaExplorerRows(rows: PerksExplorerRow[], columns: stri
 
 export const RWA_CHART_PERIODS = ["All", "7D", "30D", "90D", "1Y"] as const;
 export const ATTENTION_CHART_PERIODS = ["All", "7D", "30D", "90D", "1Y"] as const;
-export const RWA_YOU_DIVIDENDS_DISPLAY = "$337";
+export const RWA_YOU_REWARDS_DISPLAY = "$337";
 export type RwaChartPeriod = typeof RWA_CHART_PERIODS[number];
 
 export type RwaMarketChart = {
@@ -355,7 +355,7 @@ export const PERKS_DEFINITIONS: Record<PerksSubpage, PerksDefinition> = {
       { label: "Stonklets", value: "5", detail: "Five unique Stonklet characters across seven chain-local markets." },
       { label: "Stonk Markets", value: "7", detail: "Five BSC markets and two Robinhood markets." },
       { label: "Lifetime Volume", value: "$184.2M" },
-      { label: "RWA Dividends", value: "$4.86M", detail: "Illustrative rewards funded for qualifying Stonklet holders. Owning a 10X Warplet alone does not qualify for RWA dividends." },
+      { label: "RWA Rewards", value: "$4.86M", detail: "Illustrative rewards funded for qualifying Stonklet holders. Owning a 10X Warplet alone does not qualify for RWA rewards." },
       { label: "Permanent Liquidity", value: "$3.88M", detail: "$1.94M of Stonklet/RWA liquidity plus $1.94M of Stonklet/10X liquidity." },
       { label: "Burned", value: "$58,320", detail: "Illustrative buy-and-burn value from secondary Stonklet/10X pool fees, modeled at 3% of the $1.94M in 10X liquidity built—not as a share of lifetime volume." },
     ],
@@ -363,16 +363,16 @@ export const PERKS_DEFINITIONS: Record<PerksSubpage, PerksDefinition> = {
     averageMetrics: [
       { label: "Early Entry", value: "4", detail: "Illustrative Stonklet markets entered early through Warplet notifications and access." },
       { label: "Holdings", value: "$1,000", detail: "Illustrative value of Stonklet holdings acquired through Warplet-enabled early access." },
-      { label: "Dividends", value: "$200", detail: "Illustrative dividends on those Stonklet holdings. Warplet ownership alone does not earn RWA dividends." },
-      { label: "Yield", value: "20%", detail: "Illustrative dividends divided by the Stonklet holdings value." },
+      { label: "Rewards", value: "$200", detail: "Illustrative rewards on those Stonklet holdings. Warplet ownership alone does not earn RWA rewards." },
+      { label: "Yield", value: "20%", detail: "Illustrative rewards divided by the Stonklet holdings value." },
       { label: "Airdrop Boost", value: "6.4X" },
       { label: "Airdrop Value At ATH", value: "$584" },
     ],
     explorer: {
       title: "Stonk Explorer",
-      description: "Stonklets compete across multiple chains. Every market has its own volume, liquidity, dividends, and burns. Chain ↔ RWA ↔ Stonklet ↔ 10X reflexive market dynamics.",
+      description: "Stonklets compete across multiple chains. Every market has its own volume, liquidity, rewards, and burns. Chain ↔ RWA ↔ Stonklet ↔ 10X reflexive market dynamics.",
       filters: ["All", "BSC", "Robinhood"],
-      columns: ["Chain", "Lifetime Volume", "RWA Dividends", "RWA LP", "10X LP", "Burned"],
+      columns: ["Chain", "Lifetime Volume", "RWA Rewards", "RWA LP", "10X LP", "Burned"],
       rows: [
         {
           filter: "BSC",
@@ -411,13 +411,13 @@ export const PERKS_DEFINITIONS: Record<PerksSubpage, PerksDefinition> = {
         },
       ],
     },
-    leaderboardMetric: "RWA Dividends",
+    leaderboardMetric: "RWA Rewards",
     explanation: [
       { title: "Built for Risk. Grounded in Reality.", body: "Gen Z are entering markets after decades of compounding has already created enormous wealth for earlier generations. Stonklets are built for a new generation willing to take more risk in search of asymmetric upside ...while staying grounded in longer-term exposure to real-world value." },
       { title: "Meme Stonks, not Stocks", body: "A Stonklet is an independent memecoin associated with a major real-world asset. It does not represent, track or redeem for the stock. Specialist infrastructure handles tokenized asset exposure; 10X builds the character, incentives and attention market around it. Each Stonklet has a primary Stonklet/$RWA market and a secondary Stonklet/$10X market." },
-      { title: "Tax: 1% in, 5% out", body: "Buying has a low friction 1% tax. Holding has no additional transaction tax and qualifying holders can earn RWA rewards. Selling contributes more heavily to the flywheel with a 5% tax: paper hands feed diamond hands. 50% of tax revenue funds tokenized-asset dividends for qualifying holders." },
+      { title: "Tax: 1% in, 5% out", body: "Buying has a low friction 1% tax. Holding has no additional transaction tax and qualifying holders can earn RWA rewards. Selling contributes more heavily to the flywheel with a 5% tax: paper hands feed diamond hands. 50% of tax revenue funds tokenized-asset rewards for qualifying holders." },
       { title: "Volume compounds", body: "Trading activity progressively strengthens the market. 20% of tax revenue builds permanent Stonklet/$RWA liquidity and 20% builds permanent Stonklet/$10X liquidity. As volume grows, surviving Stonklets deepen their liquidity and can strengthen the wider 10X ecosystem through $10X buying, pairing and burns." },
-      { title: "One character. Many markets.", body: "The same Stonklet can exist independently across multiple chains, while each market keeps its own contract, liquidity, volume, dividends, and burns. Holding 10X Warplets does not earn you RWA dividends, but you do get early New Stonk Market launch alerts, boosted airdrops and indirect $10X ecosystem exposure." },
+      { title: "One character. Many markets.", body: "The same Stonklet can exist independently across multiple chains, while each market keeps its own contract, liquidity, volume, rewards, and burns. Holding 10X Warplets does not earn you RWA rewards, but you do get early New Stonk Market launch alerts, boosted airdrops and indirect $10X ecosystem exposure." },
       { title: "Your Turn to Be Early", body: "The underlying assets may already be worth billions or trillions. The Stonklet market starts at zero. A new attention economy, new liquidity and a new opportunity to participate from the beginning.", callout: "Reset the market. Be early." },
     ],
   },

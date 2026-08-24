@@ -7,7 +7,9 @@ import {
   type EmailVerificationEnv,
   type EmailVerificationInteraction,
 } from "./emailVerification";
+import { helpText, localCommandReply } from "./localCommands.js";
 import { processEmailIdentityOutbox } from "../../app/functions/_lib/emailIdentityClaims.js";
+import { reconcileEmailSocialProofIfDue } from "../../app/functions/_lib/emailSocialProof.js";
 
 interface Env extends EmailVerificationEnv {
   TENX_API?: Fetcher;
@@ -139,25 +141,6 @@ function prettyStats(payload: Record<string, unknown>, label: string): string {
   return `10X Warplets — ${label}\n\n${text.length > 3500 ? `${text.slice(0, 3490)}…` : text}`;
 }
 
-function helpText(): string {
-  return [
-    "10X Warplets commands",
-    "",
-    "/search <terms> — search Warplets",
-    "/random — show a random Warplet",
-    "/item <token id> — item details",
-    "/warpmoji <emoji> — match one emoji to a Warplet",
-    "/stats [overview|market|activity|holders]",
-    "/favourites — your linked-wallet favourites",
-    "/favourite add|remove <token id>",
-    "/alerts enable|disable <topic>",
-    "/link — securely link a verified wallet",
-    "/ask <question> — grounded read-only query",
-    "",
-    "Trading actions always open the 10X app for review and wallet signature.",
-  ].join("\n");
-}
-
 function parseNaturalLanguage(question: string): { name: string; args: string[] } {
   const normalized = question.trim();
   const itemMatch = normalized.match(/(?:warplet|item|#)\s*#?(\d{1,4})/i);
@@ -171,7 +154,9 @@ function parseNaturalLanguage(question: string): { name: string; args: string[] 
 async function executeCommand(env: Env, command: NormalizedCommand): Promise<string> {
   const { identity } = command;
   const name = command.name.toLowerCase().replace(/^\//, "").split("@")[0];
-  if (name === "start" || name === "help") {
+  const localReply = localCommandReply(name);
+  if (localReply) return localReply;
+  if (name === "start") {
     await registerIdentity(env, identity);
     return helpText();
   }
@@ -386,6 +371,11 @@ export default {
       backfillExistingDiscordVerifications(env)
         .then((changed) => { if (changed) console.log(`Backfilled ${changed} existing Discord email identities`); })
         .catch((error) => { console.error("Discord identity reconciliation cron failed", error); }),
+    );
+    context.waitUntil(
+      reconcileEmailSocialProofIfDue({ ...env, WARPLETS: env.WARPLETS })
+        .then((changed) => { if (changed) console.log("Reconciled email subscriber social proof"); })
+        .catch((error) => { console.error("Email social-proof reconciliation cron failed", error); }),
     );
   },
 };

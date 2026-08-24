@@ -8,7 +8,7 @@ import {
   PERKS_DEFINITIONS,
   RWA_CHART_PERIODS,
   RWA_MARKET_CHARTS,
-  RWA_YOU_DIVIDENDS_DISPLAY,
+  RWA_YOU_REWARDS_DISPLAY,
 } from "./perksMockData";
 import {
   PERKS_SHARE_CONTENT,
@@ -23,8 +23,8 @@ function parseIllustrativeNumber(value: string): number {
 }
 
 describe("RWAs perk", () => {
-  it("uses the exact personalized dividend presentation", () => {
-    expect(RWA_YOU_DIVIDENDS_DISPLAY).toBe("$337");
+  it("uses the exact personalized rewards presentation", () => {
+    expect(RWA_YOU_REWARDS_DISPLAY).toBe("$337");
   });
 
   it("defines the exact page and share identity", () => {
@@ -42,7 +42,7 @@ describe("RWAs perk", () => {
   it("models five Stonklets across seven BSC and Robinhood markets", () => {
     const definition = PERKS_DEFINITIONS.rwas;
     const rows = definition.explorer.rows;
-    expect(definition.explorer.description).toBe("Stonklets compete across multiple chains. Every market has its own volume, liquidity, dividends, and burns. Chain ↔ RWA ↔ Stonklet ↔ 10X reflexive market dynamics.");
+    expect(definition.explorer.description).toBe("Stonklets compete across multiple chains. Every market has its own volume, liquidity, rewards, and burns. Chain ↔ RWA ↔ Stonklet ↔ 10X reflexive market dynamics.");
     expect(definition.explorer.filters).toEqual(["All", "BSC", "Robinhood"]);
     expect(rows).toHaveLength(7);
     expect(rows.filter((row) => row.filter === "BSC")).toHaveLength(5);
@@ -82,7 +82,7 @@ describe("RWAs perk", () => {
     expect(Object.fromEntries(definition.explorer.columns.map((column, index) => [column, spacex.cells[index]]))).toEqual({
       Chain: "2 chains",
       "Lifetime Volume": "$43.6M",
-      "RWA Dividends": "$1.12M",
+      "RWA Rewards": "$1.12M",
       "RWA LP": "$448K",
       "10X LP": "$448K",
       Burned: "$13.4K",
@@ -163,7 +163,7 @@ describe("RWAs perk", () => {
       return rows.reduce((total, row) => total + parseIllustrativeNumber(row.cells[index]), 0);
     };
     expect(columnTotal("Lifetime Volume")).toBe(184_200_000);
-    expect(columnTotal("RWA Dividends")).toBe(4_860_000);
+    expect(columnTotal("RWA Rewards")).toBe(4_860_000);
     expect(columnTotal("RWA LP")).toBe(1_944_000);
     expect(columnTotal("10X LP")).toBe(1_944_000);
     expect(columnTotal("Burned")).toBe(58_320);
@@ -173,15 +173,15 @@ describe("RWAs perk", () => {
       ["Stonklets", "5"],
       ["Stonk Markets", "7"],
       ["Lifetime Volume", "$184.2M"],
-      ["RWA Dividends", "$4.86M"],
+      ["RWA Rewards", "$4.86M"],
       ["Permanent Liquidity", "$3.88M"],
       ["Burned", "$58,320"],
     ]);
   });
 
-  it("attributes dividends correctly and presents the consolidated future RWA explanation", () => {
+  it("attributes rewards correctly and presents the consolidated future RWA explanation", () => {
     const definition = PERKS_DEFINITIONS.rwas;
-    expect(definition.leaderboardMetric).toBe("RWA Dividends");
+    expect(definition.leaderboardMetric).toBe("RWA Rewards");
     expect(definition.explanation.map((item) => item.title)).toEqual([
       "Built for Risk. Grounded in Reality.",
       "Meme Stonks, not Stocks",
@@ -199,15 +199,15 @@ describe("RWAs perk", () => {
     expect(definition.averageMetrics.map(({ label, value }) => [label, value])).toEqual([
       ["Early Entry", "4"],
       ["Holdings", "$1,000"],
-      ["Dividends", "$200"],
+      ["Rewards", "$200"],
       ["Yield", "20%"],
       ["Airdrop Boost", "6.4X"],
       ["Airdrop Value At ATH", "$584"],
     ]);
-    expect(definition.averageMetrics.find((metric) => metric.label === "Dividends")?.detail).toContain("Warplet ownership alone does not earn RWA dividends");
+    expect(definition.averageMetrics.find((metric) => metric.label === "Rewards")?.detail).toContain("Warplet ownership alone does not earn RWA rewards");
 
     const manyMarkets = definition.explanation.find((item) => item.title === "One character. Many markets.");
-    expect(manyMarkets?.body).toContain("Holding 10X Warplets does not earn you RWA dividends");
+    expect(manyMarkets?.body).toContain("Holding 10X Warplets does not earn you RWA rewards");
     expect(definition.explanation.at(-1)?.callout).toBe("Reset the market. Be early.");
   });
 });

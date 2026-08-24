@@ -13,13 +13,13 @@
   "categories": ["entertainment", "finance", "social"],
   "icons": [
     {
-      "src": "/icon.png",
+      "src": "/icon_search.png",
       "sizes": "1024x1024",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/icon.png",
+      "src": "/icon_search.png",
       "sizes": "1024x1024",
       "type": "image/png",
       "purpose": "maskable"
@@ -30,24 +30,24 @@
       "name": "Random Warplet",
       "short_name": "Random",
       "url": "/?random=1&source=pwa-shortcut",
-      "icons": [{ "src": "/icon.png", "sizes": "1024x1024", "type": "image/png" }]
+      "icons": [{ "src": "/icon_search.png", "sizes": "1024x1024", "type": "image/png" }]
     },
     {
       "name": "Listed Warplets",
       "short_name": "Listed",
       "url": "/listed?source=pwa-shortcut",
-      "icons": [{ "src": "/icon.png", "sizes": "1024x1024", "type": "image/png" }]
+      "icons": [{ "src": "/icon_search.png", "sizes": "1024x1024", "type": "image/png" }]
     },
     {
       "name": "Collection Stats",
       "short_name": "Stats",
       "url": "/stats?source=pwa-shortcut",
-      "icons": [{ "src": "/icon.png", "sizes": "1024x1024", "type": "image/png" }]
+      "icons": [{ "src": "/icon_search.png", "sizes": "1024x1024", "type": "image/png" }]
     }
   ],
   "screenshots": [
     {
-      "src": "/embed.png",
+      "src": "/embed_search.png",
       "sizes": "1200x800",
       "type": "image/png",
       "form_factor": "wide",

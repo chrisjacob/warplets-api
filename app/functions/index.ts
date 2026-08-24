@@ -1,6 +1,11 @@
 const FC_MINIAPP_META_REGEX = /<meta\s+name="fc:miniapp"[^>]*>/i;
 const FC_FRAME_META_REGEX = /<meta\s+name="fc:frame"[^>]*>/i;
 const TITLE_REGEX = /<title>[\s\S]*?<\/title>/i;
+const MANIFEST_LINK_REGEX = /<link\s+rel="manifest"[^>]*>/i;
+const FAVICON_LINK_REGEX = /<link\s+rel="icon"[^>]*>/i;
+const APPLE_TOUCH_ICON_LINK_REGEX = /<link\s+rel="apple-touch-icon"[^>]*>/i;
+const APPLICATION_NAME_META_REGEX = /<meta\s+name="application-name"[^>]*>/i;
+const APPLE_APP_TITLE_META_REGEX = /<meta\s+name="apple-mobile-web-app-title"[^>]*>/i;
 import { applySecurityHeaders } from "./_lib/security.js";
 import { loadStatsShareSnapshot } from "./_lib/statsShares.js";
 import { getPerksShareContentFromPath, getPerksShareImageUrl } from "../src/perksShareContent.js";
@@ -26,6 +31,7 @@ const DROP_EMBED_URL = "https://drop.10x.meme/embed_drop.png";
 const DROP_HERO_URL = "https://drop.10x.meme/hero_drop.png";
 const WARPLETS_SHARE_TITLE = WARPLETS_PUBLIC_NAME;
 const WARPLETS_SHARE_DESCRIPTION = "Search, filter, trade, favourite, and share 10X Warplets.";
+const WARPLETS_SPLASH_BACKGROUND_COLOR = "#004100";
 const STOP_SHARE_TITLE = "@Mention Settings";
 const STOP_SHARE_DESCRIPTION = "Opt out of 10X outreach mentions in the Farcaster Mini App.";
 const STOP_IMAGE_URL = "https://warplets.10x.meme/3081.png";
@@ -109,12 +115,12 @@ function buildFarcasterManifest(hostname: string, warpletsAssociation?: AccountA
         name: WARPLETS_PUBLIC_NAME,
         canonicalDomain: hostname,
         homeUrl: `https://${hostname}`,
-        iconUrl: `https://${hostname}/icon.png`,
-        imageUrl: `https://${hostname}/embed.png`,
-        heroImageUrl: `https://${hostname}/hero.png`,
+        iconUrl: `https://${hostname}/icon_search.png`,
+        imageUrl: `https://${hostname}/embed_search.png`,
+        heroImageUrl: `https://${hostname}/hero_search.png`,
         buttonTitle: "Open 10X Warplets",
-        splashImageUrl: `https://${hostname}/splash.png`,
-        splashBackgroundColor: "#000000",
+        splashImageUrl: `https://${hostname}/splash_search.png`,
+        splashBackgroundColor: WARPLETS_SPLASH_BACKGROUND_COLOR,
         webhookUrl: `https://${hostname}/webhook/warplets`,
         castShareUrl: `https://${hostname}`,
         subtitle: "Find your Warplet.",
@@ -129,7 +135,7 @@ function buildFarcasterManifest(hostname: string, warpletsAssociation?: AccountA
         tagline: "Take the green pill.",
         ogTitle: WARPLETS_SHARE_TITLE,
         ogDescription: WARPLETS_SHARE_DESCRIPTION,
-        ogImageUrl: `https://${hostname}/embed.png`,
+        ogImageUrl: `https://${hostname}/embed_search.png`,
       },
     };
   }
@@ -356,12 +362,16 @@ function buildMiniAppMetaContent(
   const launchPath = getLaunchPath(routeKey, hostname);
   const launchBase = launchPath === "/" ? `${base}/` : `${base}${launchPath}`;
   const launchUrl = actionUrl ?? `${launchBase}${search}`;
-  const splashImageUrl =
-    routeKey === "drop" ? `${base}/splash_drop.png` : `${base}/splash.png`;
+  const splashImageUrl = routeKey === "drop"
+    ? `${base}/splash_drop.png`
+    : routeKey === "warplets"
+      ? `${base}/splash_search.png`
+      : `${base}/splash.png`;
+  const defaultEmbedImageUrl = routeKey === "warplets" ? `${base}/embed_search.png` : `${base}/embed.png`;
 
   return JSON.stringify({
     version: "1",
-    imageUrl: imageUrl ?? `${base}/embed.png`,
+    imageUrl: imageUrl ?? defaultEmbedImageUrl,
     button: {
       title: buttonTitle ?? config.title,
       action: {
@@ -369,7 +379,7 @@ function buildMiniAppMetaContent(
         name: actionName ?? config.name,
         url: launchUrl,
         splashImageUrl,
-        splashBackgroundColor: "#000000",
+        splashBackgroundColor: routeKey === "warplets" ? WARPLETS_SPLASH_BACKGROUND_COLOR : "#000000",
       },
     },
   });
@@ -540,6 +550,15 @@ export const onRequestGet: PagesFunction<PagesEnv> = async (context) => {
   const frameMetaTag = `<meta name="fc:frame" content="${metaContent}" />`;
 
   let html = await response.text();
+  if (routeKey === "root") {
+    html = html.replace(MANIFEST_LINK_REGEX, '<link rel="manifest" href="/manifest-10x.webmanifest" />');
+    html = html.replace(APPLICATION_NAME_META_REGEX, '<meta name="application-name" content="10X.MEME" />');
+    html = html.replace(APPLE_APP_TITLE_META_REGEX, '<meta name="apple-mobile-web-app-title" content="10X.MEME" />');
+  }
+  if (routeKey === "warplets") {
+    html = html.replace(FAVICON_LINK_REGEX, '<link rel="icon" type="image/png" href="/icon_search.png" />');
+    html = html.replace(APPLE_TOUCH_ICON_LINK_REGEX, '<link rel="apple-touch-icon" href="/icon_search.png" />');
+  }
   if (FC_MINIAPP_META_REGEX.test(html)) {
     html = html.replace(FC_MINIAPP_META_REGEX, metaTag);
   } else {
@@ -568,7 +587,7 @@ export const onRequestGet: PagesFunction<PagesEnv> = async (context) => {
 
   if (routeKey === "warplets") {
     const routeTitle = searchShareTitle ?? WARPLETS_SHARE_TITLE;
-    const routeShareImageUrl = searchShareImageUrl ?? `${requestUrl.origin}/embed.png`;
+    const routeShareImageUrl = searchShareImageUrl ?? `${requestUrl.origin}/embed_search.png`;
     const titleTag = `<title>${escapeHtmlText(routeTitle)}</title>`;
     html = TITLE_REGEX.test(html)
       ? html.replace(TITLE_REGEX, titleTag)

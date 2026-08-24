@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   FloatingPortal,
   autoUpdate,
@@ -25,7 +25,7 @@ import {
   PERKS_MOCKUP_NOTICE_DISMISSED_KEY,
   RWA_CHART_PERIODS,
   RWA_MARKET_CHARTS,
-  RWA_YOU_DIVIDENDS_DISPLAY,
+  RWA_YOU_REWARDS_DISPLAY,
   type PerksDefinition,
   type PerksExplorerRow,
   type PerksMetric,
@@ -33,6 +33,7 @@ import {
   type RwaChartPeriod,
 } from "./perksMockData";
 import { PERKS_SHARE_CONTENT } from "./perksShareContent";
+import EmailWaitlistCta from "./EmailWaitlistCta";
 
 type PerksHolder = {
   rank: number | null;
@@ -231,8 +232,8 @@ function buildYouMetrics(perk: PerksSubpage, holder: PerksHolder): PerksMetric[]
     return [
       { label: "Early Entry", value: formatInteger(4 * youFactor), detail: "Illustrative Stonklet markets entered early through Warplet notifications and access." },
       { label: "Holdings", value: formatMoney(holdings), detail: "Illustrative value of Stonklet holdings acquired through Warplet-enabled early access." },
-      { label: "Dividends", value: RWA_YOU_DIVIDENDS_DISPLAY, detail: "Illustrative dividends on those Stonklet holdings. Warplet ownership alone does not earn RWA dividends." },
-      { label: "Yield", value: `${(yieldRate * 100).toFixed(1)}%`, detail: "Illustrative dividends divided by the Stonklet holdings value." },
+      { label: "Rewards", value: RWA_YOU_REWARDS_DISPLAY, detail: "Illustrative rewards on those Stonklet holdings. Warplet ownership alone does not earn RWA rewards." },
+      { label: "Yield", value: `${(yieldRate * 100).toFixed(1)}%`, detail: "Illustrative rewards divided by the Stonklet holdings value." },
       { label: "Airdrop Boost", value: `${(6.4 + (youFactor - 1) * 1.4).toFixed(1)}X` },
       { label: "Airdrop Value At ATH", value: formatMoney(Math.round(584 * youFactor)) },
     ];
@@ -833,7 +834,7 @@ function Explorer({ definition }: { definition: PerksDefinition }) {
                           )
                         : cell}
                     </span>
-                  ) : definition.id === "rwas" && definition.explorer.columns[index] === "RWA Dividends" ? (
+                  ) : definition.id === "rwas" && definition.explorer.columns[index] === "RWA Rewards" ? (
                     <span className="mt-0.5 inline-flex max-w-full rounded-full border border-[#00FF00]/55 bg-[#032503] px-1.5 py-px text-[10px] font-black text-[#00FF00]">
                       {cell}
                     </span>
@@ -1166,85 +1167,6 @@ function PerksDiscordCta({ label }: { label: string }) {
   );
 }
 
-function PerksEmailCta({ actionSessionToken, viewerFid, onSubscriptionRequested }: {
-  actionSessionToken: string | null;
-  viewerFid: number | null;
-  onSubscriptionRequested: (message: string) => void;
-}) {
-  const [email, setEmail] = useState("");
-  const [state, setState] = useState<"idle" | "submitting" | "pending" | "error">("idle");
-  const [message, setMessage] = useState("");
-
-  const submit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (state === "submitting") return;
-    void hapticTap();
-    setState("submitting");
-    setMessage("");
-    try {
-      const response = await fetch("/api/email/subscribe-10x", {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          ...(actionSessionToken ? { authorization: `Bearer ${actionSessionToken}` } : {}),
-        },
-        body: JSON.stringify({ email: email.trim() }),
-      });
-      const payload = await response.json().catch(() => ({})) as { error?: string; message?: string };
-      if (!response.ok) throw new Error(payload.error || "Could not join the waitlist.");
-      const successMessage = payload.message || "Check your inbox to confirm your subscription.";
-      setState("pending");
-      setMessage(successMessage);
-      setEmail("");
-      onSubscriptionRequested(successMessage);
-    } catch (error) {
-      setState("error");
-      setMessage(error instanceof Error ? error.message : "Something went wrong. Please try again.");
-    }
-  };
-  const waitingForFarcasterSession = viewerFid != null && !actionSessionToken;
-
-  return (
-    <section className="mt-5 rounded-xl border border-[#00FF00]/25 bg-black/70 px-3 pb-6 pt-3">
-      <h2 className="text-center text-xl font-black text-[#00FF00]">You're Just One Trade Away...</h2>
-      <form onSubmit={submit} className="mt-4 flex items-stretch gap-2">
-        <label htmlFor="perks-waitlist-email" className="sr-only">Email address</label>
-        <input
-          id="perks-waitlist-email"
-          type="email"
-          inputMode="email"
-          autoComplete="email"
-          required
-          maxLength={254}
-          value={email}
-          onChange={(event) => { setEmail(event.target.value); if (state === "error") setState("idle"); }}
-          disabled={state === "submitting" || state === "pending" || waitingForFarcasterSession}
-          placeholder="Email"
-          className="min-w-0 flex-1 rounded-lg border border-[#00FF00]/40 bg-[#061006] px-3 py-3 text-sm font-bold text-[#dfffe0] outline-none placeholder:text-[#6f9f6f] focus:border-[#00FF00] disabled:opacity-65"
-        />
-        <button
-          type="submit"
-          disabled={state === "submitting" || state === "pending" || waitingForFarcasterSession}
-          className="shrink-0 cursor-pointer rounded-xl border border-[#0a990a] bg-[#00FF00] px-3 py-3 text-sm font-black text-[rgb(0,80,0)] shadow-[2px_3px_0_#0a990a] transition-all duration-100 hover:bg-[#33ff33] active:translate-x-[1px] active:translate-y-[1.5px] active:shadow-[1px_1px_0_#0a990a] disabled:cursor-default disabled:opacity-65"
-        >
-          {waitingForFarcasterSession
-            ? "Connecting..."
-            : state === "submitting"
-              ? "Joining..."
-              : state === "pending"
-                ? "Confirmation Sent"
-                : "Join Waitlist"}
-        </button>
-      </form>
-      {message && (
-        <p role="status" aria-live="polite" className={`mt-4 text-center text-xs font-bold leading-5 ${state === "error" ? "text-[#ff8f8f]" : "text-[#b8d7b8]"}`}>
-          {message}
-        </p>
-      )}
-    </section>
-  );
-}
-
 export default function PerksPage({
   subpage,
   connectedWallet,
@@ -1254,7 +1176,6 @@ export default function PerksPage({
   onSearchWallet,
   onOpenWarpletDetails,
   onShare,
-  onSubscriptionRequested,
 }: {
   subpage: PerksSubpage;
   connectedWallet: string | null;
@@ -1264,7 +1185,6 @@ export default function PerksPage({
   onSearchWallet: (wallet: string) => void;
   onOpenWarpletDetails: (tokenId: number) => void;
   onShare: (subpage: PerksSubpage) => void;
-  onSubscriptionRequested: (message: string) => void;
 }) {
   const definition = PERKS_DEFINITIONS[subpage];
   const [roster, setRoster] = useState<PerksHolder[]>(holderRosterCache ?? []);
@@ -1421,11 +1341,7 @@ export default function PerksPage({
 
       <PerksDiscordCta label={PERKS_SHARE_CONTENT[definition.id].label} />
 
-      <PerksEmailCta
-        actionSessionToken={actionSessionToken}
-        viewerFid={viewerFid}
-        onSubscriptionRequested={onSubscriptionRequested}
-      />
+      <EmailWaitlistCta actionSessionToken={actionSessionToken} viewerFid={viewerFid} />
 
       <div className="mt-12 rounded-xl border border-[#FFFF00]/55 bg-[#FFFF00]/10 px-3 py-3 text-xs font-bold leading-5 text-[#fff7a8]">
         <strong className="block font-black uppercase text-[#FFFF00]">Future 10X Ecosystem Mockup</strong>

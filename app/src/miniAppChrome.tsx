@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import sdk from "@farcaster/miniapp-sdk";
 import { Text } from "@neynar/ui/typography";
 import { hapticSelectionChanged, hapticTap } from "./haptics";
@@ -68,8 +68,8 @@ const APP_CONFIGS: Record<AppSlug, AppConfig> = {
     headerTitle: "10X Warplets",
     ctaLabel: "Coming soon...",
     absoluteUrl: `${WARPLETS_APP_ORIGINS.prod}/`,
-    iconUrl: `${WARPLETS_APP_ORIGINS.prod}/icon.png`,
-    imageUrl: `${WARPLETS_APP_ORIGINS.prod}/embed.png`,
+    iconUrl: `${WARPLETS_APP_ORIGINS.prod}/icon_search.png`,
+    imageUrl: `${WARPLETS_APP_ORIGINS.prod}/embed_search.png`,
     available: false,
   },
   million: {
@@ -159,6 +159,16 @@ type MiniAppHistoryState = {
     depth: number;
   };
 };
+
+const HUB_URLS: Record<EnvTier, string> = {
+  prod: "https://10x.meme/",
+  dev: "https://app-dev.10x.meme/",
+  local: "https://app-local.10x.meme/",
+};
+
+export function getHubUrl(hostname: string): string {
+  return HUB_URLS[getEnvTier(hostname)];
+}
 
 function getMiniAppHistoryDepth(appSlug: AppSlug): number {
   if (typeof window === "undefined") return 0;
@@ -369,7 +379,7 @@ export function useMiniAppChrome(appSlug: AppSlug) {
           setInternalMenuOpen(false);
         }
 
-        await openMiniAppUrl("https://10x.meme/");
+        await openMiniAppUrl(getHubUrl(window.location.hostname));
       },
     };
   }, [appSlug, internalMenuOpen, isMenuRoute]);
@@ -418,6 +428,7 @@ export function MiniAppHeader({
   onBack,
   onLogo,
   onMenu,
+  onTitleMenu,
   rightAccessory,
 }: {
   appSlug: AppSlug;
@@ -426,13 +437,58 @@ export function MiniAppHeader({
   onBack: () => void;
   onLogo: () => void;
   onMenu: () => void;
+  onTitleMenu?: () => void;
   rightAccessory?: ReactNode;
 }) {
   const logoLabel = "Open 10X.MEME";
+  const headerRef = useRef<HTMLElement | null>(null);
+  const leftRef = useRef<HTMLDivElement | null>(null);
+  const centerRef = useRef<HTMLDivElement | null>(null);
+  const titleRef = useRef<HTMLButtonElement | null>(null);
+  const rightRef = useRef<HTMLDivElement | null>(null);
+
+  useLayoutEffect(() => {
+    const header = headerRef.current;
+    const left = leftRef.current;
+    const center = centerRef.current;
+    const titleBadge = titleRef.current;
+    const right = rightRef.current;
+    if (!header || !left || !center || !titleBadge || !right) return;
+
+    const collisionGap = 12;
+    const updateTitleShift = () => {
+      const currentShift = Number(center.dataset.titleShift ?? "0");
+      const titleRect = titleBadge.getBoundingClientRect();
+      const leftRect = left.getBoundingClientRect();
+      const rightRect = right.getBoundingClientRect();
+      const baselineLeft = titleRect.left - currentShift;
+      const baselineRight = titleRect.right - currentShift;
+
+      const rightLimitedShift = Math.min(0, rightRect.left - collisionGap - baselineRight);
+      const leftLimitedShift = leftRect.right + collisionGap - baselineLeft;
+      const nextShift = Math.round(Math.max(rightLimitedShift, leftLimitedShift));
+      if (nextShift === currentShift) return;
+
+      center.dataset.titleShift = String(nextShift);
+      center.style.setProperty("--miniapp-header-title-shift", `${nextShift}px`);
+    };
+
+    updateTitleShift();
+    const resizeObserver = new ResizeObserver(updateTitleShift);
+    resizeObserver.observe(header);
+    resizeObserver.observe(left);
+    resizeObserver.observe(titleBadge);
+    resizeObserver.observe(right);
+    window.addEventListener("resize", updateTitleShift);
+    return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener("resize", updateTitleShift);
+    };
+  }, [rightAccessory, title]);
 
   return (
-    <header id="header" className="miniapp-header">
-      <div className="miniapp-header__side miniapp-header__side--left">
+    <header ref={headerRef} id="header" className="miniapp-header">
+      <div ref={leftRef} className="miniapp-header__side miniapp-header__side--left">
         {canGoBack ? (
           <HeaderActionButton
             label="Back"
@@ -472,15 +528,33 @@ export function MiniAppHeader({
         )}
       </div>
 
-      <div className="miniapp-header__center">
+      <div ref={centerRef} className="miniapp-header__center">
         <div className="miniapp-header__title-wrap">
-          <span className="miniapp-header__title-badge" title={title}>
+          <button
+            ref={titleRef}
+            type="button"
+            className="miniapp-header__title-badge"
+            title={onTitleMenu ? "Open account menu" : title}
+            aria-label={onTitleMenu ? `${title}: open account menu` : title}
+            aria-haspopup={onTitleMenu ? "menu" : undefined}
+            disabled={!onTitleMenu}
+            onClick={() => {
+              if (!onTitleMenu) return;
+              void hapticTap();
+              onTitleMenu();
+            }}
+          >
             {title}
-          </span>
+            {onTitleMenu && (
+              <svg className="miniapp-header__title-caret" viewBox="0 0 10 6" aria-hidden="true" focusable="false">
+                <path d="M1 1L5 5L9 1" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            )}
+          </button>
         </div>
       </div>
 
-      <div className="miniapp-header__side miniapp-header__side--right">
+      <div ref={rightRef} className="miniapp-header__side miniapp-header__side--right">
         {rightAccessory}
         <HeaderActionButton
           label="Menu"
@@ -520,8 +594,8 @@ function MenuSection({
           <a
             key={card.id}
             href={card.href}
-            target="_blank"
-            rel="noopener noreferrer"
+            target={card.kind === "miniapp" ? "_self" : "_blank"}
+            rel={card.kind === "miniapp" ? undefined : "noopener noreferrer"}
             className={`menu-card ${card.disabled ? "menu-card--disabled" : ""}`}
             onClick={(event) => {
               if (card.current) {
@@ -539,11 +613,15 @@ function MenuSection({
               void hapticTap();
               void hapticSelectionChanged();
 
-              if (card.kind === "miniapp" && isFarcasterMiniApp) {
+              if (card.kind === "miniapp") {
                 event.preventDefault();
-                runMenuCardAction(card).catch((error) => {
-                  console.error(`Failed menu action for ${card.id}:`, error);
-                });
+                if (isFarcasterMiniApp) {
+                  runMenuCardAction(card).catch((error) => {
+                    console.error(`Failed menu action for ${card.id}:`, error);
+                  });
+                } else if (card.href) {
+                  window.location.assign(card.href);
+                }
               }
             }}
             aria-disabled={card.disabled || undefined}
@@ -619,7 +697,7 @@ export function MiniAppMenuPage({ appSlug }: { appSlug: AppSlug }) {
             : config.ctaLabel,
       kind: config.slug === "app" ? "openUrl" : "miniapp",
       appSlug: config.slug,
-      href: config.slug === "app" ? "https://10x.meme/" : getAppUrl(config.slug),
+      href: config.slug === "app" ? getHubUrl(window.location.hostname) : getAppUrl(config.slug),
       current: isCurrent,
     } satisfies MenuCard;
   });
@@ -630,7 +708,7 @@ export function MiniAppMenuPage({ appSlug }: { appSlug: AppSlug }) {
       title: "The 10X Network",
       description: "The 10X Network is coming soon.",
       imageUrl: "/menu/discord.png",
-      ctaLabel: "The 10X Network",
+      ctaLabel: "Discord",
       kind: "openUrl",
       href: "https://discord.gg/X7QrXueZkn",
     },
@@ -639,7 +717,7 @@ export function MiniAppMenuPage({ appSlug }: { appSlug: AppSlug }) {
       title: "10X.MEME Alpha Signals",
       description: "Join the 10X Telegram signals channel.",
       imageUrl: "/menu/telegram.png",
-      ctaLabel: "10X.MEME Alpha Signals",
+      ctaLabel: "Telegram",
       kind: "openUrl",
       href: "https://t.me/The10XNetwork",
     },
@@ -649,18 +727,18 @@ export function MiniAppMenuPage({ appSlug }: { appSlug: AppSlug }) {
     {
       id: "fomo-10xmeme",
       title: "Fomo 10X Meme",
-      description: "Follow @10XMeme on Fomo.",
+      description: "Follow @10XMemeX on FOMO.",
       imageUrl: "/menu/fomo.jpg",
-      ctaLabel: "Follow @10XMeme",
+      ctaLabel: "FOMO",
       kind: "openUrl",
-      href: "https://fomo.family/profile/10XMeme",
+      href: "https://fomo.family/profile/10XMemeX",
     },
     {
       id: "pumpfun-10xmeme",
       title: "Pump.fun 10X Meme",
       description: "Follow @10XMeme on Pump.fun.",
       imageUrl: "/menu/pumpfun.png",
-      ctaLabel: "Follow @10XMeme",
+      ctaLabel: "Pump.fun",
       kind: "openUrl",
       href: "https://pump.fun/profile/10XMeme",
     },
@@ -726,7 +804,7 @@ export function MiniAppMenuPage({ appSlug }: { appSlug: AppSlug }) {
       title: "OpenSea 10X Warplets",
       description: "View the 10X Warplets collection on OpenSea.",
       imageUrl: "/menu/opensea.png",
-      ctaLabel: "OpenSea 10X Warplets",
+      ctaLabel: "OpenSea",
       kind: "openUrl",
       href: "https://link.10x.meme/10xwarplets",
     },
@@ -749,13 +827,13 @@ export function MiniAppMenuPage({ appSlug }: { appSlug: AppSlug }) {
       href: "https://10x.meme/",
     },
     {
-      id: "site-warplets",
-      title: "The Warplets (Original)",
-      description: "Visit the original Warplets project by @SayAngel.",
-      imageUrl: "/menu/menu-warplets-website.jpg",
-      ctaLabel: "Visit warplets.ai",
+      id: "youtube-10xmeme",
+      title: "10X Meme on YouTube",
+      description: "Watch and subscribe to 10X Meme on YouTube.",
+      imageUrl: "/menu/youtube.png",
+      ctaLabel: "YouTube",
       kind: "openUrl",
-      href: "https://www.warplets.ai/",
+      href: "https://www.youtube.com/@10XMemeX",
     },
   ];
 
@@ -787,7 +865,7 @@ export function MiniAppMenuPage({ appSlug }: { appSlug: AppSlug }) {
       id: "warplets-warpmoji",
       title: "Warpmoji",
       description: "Review and curate Warpmoji emoji matches.",
-      imageUrl: "/icon.png",
+      imageUrl: "/icon_search.png",
       ctaLabel: "Open Warpmoji",
       kind: "miniapp",
       appSlug: WARPLETS_APP_SLUG,
@@ -797,7 +875,32 @@ export function MiniAppMenuPage({ appSlug }: { appSlug: AppSlug }) {
 
   return (
     <div className="miniapp-menu-page">
-      {currentCardToastId != null && <div className="trade-toast" role="status">You are already here!</div>}
+      {currentCardToastId != null && (
+        <div className="trade-toast" role="status" aria-live="polite">
+          <div className="flex w-full items-center gap-3">
+            <span className="min-w-0 flex-1">You are already here!</span>
+            <button
+              type="button"
+              aria-label="Close message"
+              onClick={() => setCurrentCardToastId(null)}
+              className="trade-toast__close"
+            >
+              <svg
+                aria-hidden="true"
+                viewBox="0 0 24 24"
+                className="h-4 w-4"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.4"
+                strokeLinecap="round"
+              >
+                <path d="M6 6l12 12" />
+                <path d="M18 6L6 18" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      )}
       <VisibleMenuSection title="Mini Apps" cards={miniAppCards} isFarcasterMiniApp={isFarcasterMiniApp} onCurrentCardClick={showCurrentCardToast} />
       <VisibleMenuSection title="ALPHA" cards={alphaCards} isFarcasterMiniApp={isFarcasterMiniApp} onCurrentCardClick={showCurrentCardToast} />
       <VisibleMenuSection title="TRADING" cards={tradingCards} isFarcasterMiniApp={isFarcasterMiniApp} onCurrentCardClick={showCurrentCardToast} />

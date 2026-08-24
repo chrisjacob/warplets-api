@@ -3,6 +3,7 @@ import type { Hono } from "hono";
 export interface AgentApiEnv {
   WARPLETS: D1Database;
   WARPLETS_APP_ORIGIN?: string;
+  SEARCH_API_ORIGIN?: string;
   X402_ENABLED?: string;
   X402_NETWORK?: string;
   X402_ASSET?: string;
@@ -256,9 +257,13 @@ function warpletsAppOrigin(env: AgentApiEnv): string {
   return (env.WARPLETS_APP_ORIGIN?.trim() || "https://warplet.10x.meme").replace(/\/$/, "");
 }
 
+export function searchApiOrigin(env: AgentApiEnv): string {
+  return (env.SEARCH_API_ORIGIN?.trim() || "https://app.10x.meme").replace(/\/$/, "");
+}
+
 async function proxyWarpletsAppApi(c: ApiContext, path: string, init?: RequestInit): Promise<Response> {
   const incoming = new URL(c.req.url);
-  const target = new URL(path, `${warpletsAppOrigin(c.env)}/`);
+  const target = new URL(path, `${searchApiOrigin(c.env)}/`);
   target.search = incoming.search;
   const upstream = await fetch(target, {
     ...init,
@@ -450,7 +455,7 @@ async function paidStatsReport(c: ApiContext): Promise<Response> {
 }
 
 async function generateStatsReport(c: ApiContext, payment: unknown): Promise<Response> {
-  const origin = warpletsAppOrigin(c.env);
+  const origin = searchApiOrigin(c.env);
   const [overview, market, activity, holders] = await Promise.all(
     ["overview", "market", "activity", "holders"].map(async (kind) => {
       const response = await fetch(`${origin}/api/stats/${kind}`, { headers: { accept: "application/json" } });

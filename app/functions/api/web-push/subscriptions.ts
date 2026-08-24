@@ -1,4 +1,5 @@
 import { getAppSession, type AppAuthEnv } from "../../_lib/appAuth.js";
+import { resolveAppSlugFromUrl } from "../../_lib/appSlug.js";
 import { jsonSecure, sha256Hex } from "../../_lib/security.js";
 
 interface Env extends AppAuthEnv {}
@@ -38,6 +39,7 @@ export const onRequestPut: PagesFunction<Env> = async ({ request, env }) => {
     return jsonSecure({ error: "Invalid Web Push subscription" }, { status: 400 });
   }
   const session = await getAppSession(request, env, { touch: false }).catch(() => null);
+  const appSlug = resolveAppSlugFromUrl(new URL(request.url));
   const topics = normalizeTopics(body.topics);
   if (!session?.walletAddress && !session?.farcasterFid && topics.some((topic) => PERSONAL_TOPICS.has(topic))) {
     return jsonSecure({ error: "A verified identity is required for personal alerts" }, { status: 401 });
@@ -47,13 +49,13 @@ export const onRequestPut: PagesFunction<Env> = async ({ request, env }) => {
   await env.WARPLETS.prepare(
     `INSERT INTO web_push_subscriptions (
        endpoint_hash, endpoint, p256dh, auth, wallet_address, farcaster_fid,
-       topics_json, enabled, created_at, updated_at, failure_count
-     ) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?, 0)
+       topics_json, enabled, created_at, updated_at, failure_count, app_slug
+     ) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?, 0, ?)
      ON CONFLICT(endpoint_hash) DO UPDATE SET
        endpoint = excluded.endpoint, p256dh = excluded.p256dh, auth = excluded.auth,
        wallet_address = excluded.wallet_address, farcaster_fid = excluded.farcaster_fid,
        topics_json = excluded.topics_json, enabled = 1, updated_at = excluded.updated_at,
-       failure_count = 0`,
+       failure_count = 0, app_slug = excluded.app_slug`,
   )
     .bind(
       endpointHash,
@@ -65,9 +67,10 @@ export const onRequestPut: PagesFunction<Env> = async ({ request, env }) => {
       JSON.stringify(topics),
       timestamp,
       timestamp,
+      appSlug,
     )
     .run();
-  return jsonSecure({ ok: true, topics, identityLinked: Boolean(session?.walletAddress || session?.farcasterFid) });
+  return jsonSecure({ ok: true, appSlug, topics, identityLinked: Boolean(session?.walletAddress || session?.farcasterFid) });
 };
 
 export const onRequestDelete: PagesFunction<Env> = async ({ request, env }) => {

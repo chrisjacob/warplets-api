@@ -20,6 +20,7 @@ const DROP_ICON_URL = "https://drop.10x.meme/icon_drop.png";
 const STOP_SHARE_TITLE = "@Mention Settings";
 const STOP_SHARE_DESCRIPTION = "Opt out of 10X outreach mentions in the Farcaster Mini App.";
 const STOP_IMAGE_URL = "https://warplets.10x.meme/3081.png";
+const WARPLETS_SPLASH_BACKGROUND_COLOR = "#004100";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, "..");
 
@@ -53,12 +54,12 @@ function buildLocalWarpletsManifest(hostname: string, accountAssociation: Accoun
       name: WARPLETS_PUBLIC_NAME,
       canonicalDomain: hostname,
       homeUrl: origin,
-      iconUrl: `${origin}/icon.png`,
-      imageUrl: `${origin}/embed.png`,
-      heroImageUrl: `${origin}/hero.png`,
+      iconUrl: `${origin}/icon_search.png`,
+      imageUrl: `${origin}/embed_search.png`,
+      heroImageUrl: `${origin}/hero_search.png`,
       buttonTitle: "Open 10X Warplets",
-      splashImageUrl: `${origin}/splash.png`,
-      splashBackgroundColor: "#000000",
+      splashImageUrl: `${origin}/splash_search.png`,
+      splashBackgroundColor: WARPLETS_SPLASH_BACKGROUND_COLOR,
       webhookUrl: `${origin}/webhook/warplets`,
       castShareUrl: origin,
       subtitle: "Find your Warplet.",
@@ -69,7 +70,7 @@ function buildLocalWarpletsManifest(hostname: string, accountAssociation: Accoun
       tagline: "Take the green pill.",
       ogTitle: WARPLETS_PUBLIC_NAME,
       ogDescription: "Search, filter, trade, favourite, and share 10X Warplets.",
-      ogImageUrl: `${origin}/embed.png`,
+      ogImageUrl: `${origin}/embed_search.png`,
     },
   };
 }
@@ -430,12 +431,16 @@ export default defineConfig({
           routeKey === "drop" ? getLocalDropShareImageUrl(query) : undefined;
         const searchShareImageUrl = searchWarpletImageUrl ?? searchResultsImageUrl;
         const routeImageUrl = routeKey === "stop" ? STOP_IMAGE_URL : searchShareImageUrl ?? dropShareImageUrl;
-        const splashImageUrl =
-          routeKey === "drop" ? `${baseUrl}/splash_drop.png` : `${baseUrl}/splash.png`;
+        const splashImageUrl = routeKey === "drop"
+          ? `${baseUrl}/splash_drop.png`
+          : routeKey === "warplets"
+            ? `${baseUrl}/splash_search.png`
+            : `${baseUrl}/splash.png`;
+        const defaultEmbedImageUrl = routeKey === "warplets" ? `${baseUrl}/embed_search.png` : `${baseUrl}/embed.png`;
 
         const payload = {
           version: "1",
-          imageUrl: routeImageUrl ?? `${baseUrl}/embed.png`,
+          imageUrl: routeImageUrl ?? defaultEmbedImageUrl,
           button: {
             title: searchShareTitle ?? config.title,
             action: {
@@ -443,7 +448,7 @@ export default defineConfig({
               name: searchShareTitle ?? config.name,
               url: `${launchBase}${query}`,
               splashImageUrl,
-              splashBackgroundColor: "#000000",
+              splashBackgroundColor: routeKey === "warplets" ? WARPLETS_SPLASH_BACKGROUND_COLOR : "#000000",
             },
           },
         };
@@ -451,6 +456,10 @@ export default defineConfig({
         const escaped = JSON.stringify(payload).replace(/"/g, "&quot;");
         const dynamicMeta = `<meta name="fc:miniapp" content="${escaped}" />`;
         let nextHtml = html.replace(/<meta\s+name="fc:miniapp"[^>]*>/i, dynamicMeta);
+        if (routeKey === "warplets") {
+          nextHtml = nextHtml.replace(/<link\s+rel="icon"[^>]*>/i, '<link rel="icon" type="image/png" href="/icon_search.png" />');
+          nextHtml = nextHtml.replace(/<link\s+rel="apple-touch-icon"[^>]*>/i, '<link rel="apple-touch-icon" href="/icon_search.png" />');
+        }
 
         if (routeKey === "drop" && dropShareImageUrl) {
           const titleTag = `<title>${escapeHtmlText(DROP_SHARE_TITLE)}</title>`;
@@ -476,7 +485,7 @@ export default defineConfig({
 
         if (routeKey === "warplets") {
           const routeTitle = searchShareTitle ?? WARPLETS_PUBLIC_NAME;
-          const routeShareImageUrl = searchShareImageUrl ?? `${baseUrl}/embed.png`;
+          const routeShareImageUrl = searchShareImageUrl ?? `${baseUrl}/embed_search.png`;
           const titleTag = `<title>${escapeHtmlText(routeTitle)}</title>`;
           nextHtml = TITLE_REGEX.test(nextHtml)
             ? nextHtml.replace(TITLE_REGEX, titleTag)

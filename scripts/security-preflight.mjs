@@ -29,6 +29,7 @@ const requiredSecrets = [
   "ADMIN_API_KEYS_JSON",
   "NEYNAR_API_KEY",
   "RESEND_API_KEY",
+  "RESEND_WEBHOOK_SECRET",
 ];
 
 function parseBindings(content) {

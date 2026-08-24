@@ -2030,7 +2030,7 @@ export default function App() {
           : "My rarity is 10,000! 👀";
         const outreachLine = tweetOutreach.length > 0 ? `🏆 You're on the list ${tweetOutreach} ${outreachOptOutText}\n\n` : "";
         const raritySection = isMatched ? `${castRarityLine}\n\n...what's your rarity?\n\n` : "";
-        const text = `🟢 10X Warplets (Private 10K NFT Drop)\n\nPrice $${urgency.currentPrice} → $${urgency.nextPrice} in ${urgency.countdown}.\nSupply private → public every 10 days.\nAre you on the list? Don't miss out.\n\n1️⃣ Join Farcaster: https://farcaster.xyz/~/code/RUZLHN\n2️⃣ Visit mini-app: ${referralDropUrl}\n\n${raritySection}${outreachLine}`;
+        const text = `🟢 10X Warplets (Private 10K NFT Drop)\n\nPrice $${urgency.currentPrice} → $${urgency.nextPrice} in ${urgency.countdown}.\nSupply private → public every 10 days.\nAre you on the list? Don't miss out.\n\n1️⃣ Join Farcaster: https://farcaster.xyz/~/code/1Y7636\n2️⃣ Visit mini-app: ${referralDropUrl}\n\n${raritySection}${outreachLine}`;
         const intentUrl = `https://x.com/intent/post?${new URLSearchParams({
           text,
           url: "",

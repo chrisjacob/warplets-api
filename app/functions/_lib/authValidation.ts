@@ -4,6 +4,16 @@ import { WARPLETS_APP_HOSTS } from "../../shared/warpletsApp.js";
 export const BASE_MAINNET_CHAIN_ID = 8453;
 export const BASE_SEPOLIA_CHAIN_ID = 84532;
 export const AUTH_NONCE_TTL_MS = 5 * 60 * 1000;
+const LOCAL_HTTPS_TUNNEL_HOSTS = new Set([
+  "app-local.10x.meme",
+  "drop-local.10x.meme",
+  "million-local.10x.meme",
+  ...WARPLETS_APP_HOSTS.filter((hostname) => hostname.includes("-local.")),
+]);
+
+export function isLocalHttpsTunnelHostname(hostname: string): boolean {
+  return LOCAL_HTTPS_TUNNEL_HOSTS.has(hostname.toLowerCase());
+}
 
 export function normalizeAuthWallet(value: unknown): `0x${string}` | null {
   if (typeof value !== "string") return null;
@@ -32,7 +42,7 @@ export function requireSameOrigin(request: Request): Response | null {
  */
 export function getAuthRequestUrl(request: Request): URL {
   const requestUrl = new URL(request.url);
-  if ((WARPLETS_APP_HOSTS as readonly string[]).includes(requestUrl.hostname.toLowerCase())) {
+  if (isLocalHttpsTunnelHostname(requestUrl.hostname)) {
     return new URL(`https://${requestUrl.host}${requestUrl.pathname}${requestUrl.search}`);
   }
   const forwardedOrigin = request.headers.get("x-10x-public-origin")?.trim();

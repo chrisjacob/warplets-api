@@ -1,15 +1,31 @@
-import { StrictMode, Suspense, lazy } from "react";
+import { StrictMode, Suspense, lazy, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import "./index.css";
 import { initializePwa, isLikelyBaseAppBrowser } from "./pwa";
 import { WARPLETS_APP_HOSTS, WARPLETS_APP_PATH } from "../shared/warpletsApp";
 import { captureWarpmojiAttribution } from "./analytics";
 
+const HOME_APP_HOSTS = new Set([
+  "10x.meme",
+  "www.10x.meme",
+  "app.10x.meme",
+  "app-dev.10x.meme",
+  "app-local.10x.meme",
+]);
+
+function configureHomePwaMetadata(): void {
+  if (!HOME_APP_HOSTS.has(window.location.hostname.toLowerCase())) return;
+  document.querySelector<HTMLLinkElement>('link[rel="manifest"]')?.setAttribute("href", "/manifest-10x.webmanifest");
+  document.querySelector<HTMLMetaElement>('meta[name="application-name"]')?.setAttribute("content", "10X.MEME");
+  document.querySelector<HTMLMetaElement>('meta[name="apple-mobile-web-app-title"]')?.setAttribute("content", "10X.MEME");
+}
+
+configureHomePwaMetadata();
 initializePwa();
 captureWarpmojiAttribution();
 
 const App = lazy(() => import("./App.tsx"));
-const DropApp = lazy(() => import("./DropApp.tsx"));
+const DropApp = lazy(() => import("./DropClosedApp.tsx"));
 const SearchApp = lazy(() => import("./SearchApp.tsx"));
 const MillionApp = lazy(() => import("./MillionApp.tsx"));
 const StopApp = lazy(() => import("./StopApp.tsx"));
@@ -19,6 +35,7 @@ const StatsShareFixturePage = lazy(() => import("./StatsShareCard.tsx").then((mo
 const DeveloperPage = lazy(() => import("./DeveloperPage.tsx"));
 const BotLinkPage = lazy(() => import("./BotLinkPage.tsx"));
 const TabsEntryPage = lazy(() => import("./TabsEntryPage.tsx"));
+const LegalPage = lazy(() => import("./LegalPage.tsx"));
 
 const PRELOAD_RECOVERY_KEY = "10x-vite-preload-recovery";
 
@@ -71,6 +88,9 @@ function resolveActiveApp() {
   const { hostname, pathname } = window.location;
   const cleanPath = pathname.replace(/\/+$/, "") || "/";
 
+  if (cleanPath === "/privacy") return <LegalPage document="privacy" />;
+  if (cleanPath === "/terms") return <LegalPage document="terms" />;
+
   const statsShareFixtureMatch = cleanPath.match(/^\/stats\/share\/fixtures\/([a-z-]+)$/);
   if (statsShareFixtureMatch && hostname === WARPLETS_APP_HOSTS[0]) {
     return <StatsShareFixturePage fixture={statsShareFixtureMatch[1]!} />;
@@ -98,10 +118,22 @@ function resolveActiveApp() {
   return <App />;
 }
 
+function RootRouter() {
+  const [, setNavigationKey] = useState(0);
+
+  useEffect(() => {
+    const handlePopState = () => setNavigationKey((key) => key + 1);
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
+
+  return resolveActiveApp();
+}
+
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <Suspense fallback={<div className="min-h-screen bg-black" aria-label="Loading 10X" />}>
-      {resolveActiveApp()}
+      <RootRouter />
     </Suspense>
   </StrictMode>
 );

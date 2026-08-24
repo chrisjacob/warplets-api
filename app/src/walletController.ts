@@ -8,6 +8,7 @@ import {
   type EthereumProvider,
 } from "./walletTrade";
 import { appendWalletConnectDiagnostic, requestTrustConnectSessionDisconnect } from "./walletConnectDiagnostics";
+import { getRuntimeAppIconPath } from "./brandAssets";
 
 export type WalletConnectorId =
   | "farcaster"
@@ -187,7 +188,7 @@ async function createBaseAccountProvider(): Promise<ObservableProvider> {
   const { createBaseAccountSDK } = await import("@base-org/account");
   const provider = createBaseAccountSDK({
     appName: "10X Warplets",
-    appLogoUrl: `${window.location.origin}/icon.png`,
+    appLogoUrl: `${window.location.origin}${getRuntimeAppIconPath()}`,
     appChainIds: [8453],
     preference: { telemetry: false },
     // Marketplace actions must remain explicit, user-confirmed transactions.

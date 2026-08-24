@@ -6,6 +6,7 @@ import {
   rateLimit,
 } from "../../_lib/security.js";
 import { outboundFetch } from "../../_lib/outbound.js";
+import { removeEmailSocialProofMember } from "../../_lib/emailSocialProof.js";
 
 interface Env {
   WARPLETS: D1Database;
@@ -188,6 +189,9 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
     await Promise.all(
       activeRows.map((row) => unsubscribeResendContact(context.env.RESEND_API_KEY, row.email))
+    );
+    await Promise.all(
+      activeRows.map((row) => removeEmailSocialProofMember(context.env.WARPLETS, row.email))
     );
   }
 

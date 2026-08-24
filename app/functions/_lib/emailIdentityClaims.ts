@@ -1,5 +1,7 @@
 import { sha256Hex } from "./security.js";
 import { syncDropWaitlistActionCompletion } from "./dropEmailReward.js";
+import { recordEmailSocialProofMember, removeEmailSocialProofMember } from "./emailSocialProof.js";
+import { enqueueEmailOnboarding, type EmailOnboardingEnv } from "./emailOnboarding.js";
 import {
   normalizeIdentity,
   refreshTrustedIdentityLabels,
@@ -7,7 +9,7 @@ import {
   type TrustedEmailIdentity,
 } from "./resendIdentity.js";
 
-export interface EmailIdentityEnv {
+export interface EmailIdentityEnv extends EmailOnboardingEnv {
   WARPLETS: D1Database;
   RESEND_API_KEY?: string;
   RESEND_FROM_EMAIL?: string;
@@ -265,13 +267,28 @@ async function markClaimSynced(env: EmailIdentityEnv, claim: EmailIdentityClaim)
   if (!apiKey) throw new Error("RESEND_API_KEY is not configured");
   const profile = await getIdentityProfile(env.WARPLETS, claim.email);
   if (!profile) throw new Error("Confirmed identity profile is missing");
-  await syncTrustedIdentityToResend({
+  const resendResult = await syncTrustedIdentityToResend({
     apiKey,
     identity: profile,
     segmentId: claim.segment_id,
     resubscribe: claim.resubscribe === 1,
   });
+  const socialProofUpdate = resendResult.active
+    ? recordEmailSocialProofMember(env.WARPLETS, profile.email, profile.farcasterFid)
+    : removeEmailSocialProofMember(env.WARPLETS, profile.email);
+  await socialProofUpdate.catch((error) => {
+    console.error("Email social-proof projection update failed", error);
+  });
   const now = new Date().toISOString();
+  if (resendResult.active) {
+    await enqueueEmailOnboarding({
+      env,
+      email: claim.email,
+      source: claim.source,
+      claimId: claim.id,
+      resubscribe: claim.resubscribe === 1,
+    });
+  }
   await env.WARPLETS.batch([
     env.WARPLETS.prepare(
       "UPDATE email_identity_claims SET status = 'synced', synced_at = ?, last_error = NULL WHERE id = ?",

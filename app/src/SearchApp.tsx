@@ -23,6 +23,8 @@ import {
   useMiniAppChrome,
 } from "./miniAppChrome.tsx";
 import MiniAppShell from "./MiniAppShell";
+import SiteFooter from "./SiteFooter";
+import { detectMiniAppContext } from "./miniAppContext";
 import { PERKS_DEFINITIONS, PERKS_MOCKUP_NOTICE_DISMISSED_KEY, type PerksSubpage } from "./perksMockData";
 import { PERKS_SHARE_CONTENT, getPerksShareImageUrl } from "./perksShareContent";
 import type { StatsShareCreateResponse, StatsShareRequest } from "./statsShare";
@@ -47,7 +49,7 @@ import { LocalOfferDiagnosticsPanel } from "./LocalOfferDiagnosticsPanel";
 import { recordLocalOfferDiagnostic } from "./localOfferDiagnostics";
 import { submitTraitOfferWithRetry } from "./traitOfferSubmit";
 import { getMobileWalletHandoff, openMobileWalletHandoff, waitForForeground } from "./mobileWalletHandoff";
-import { resolveEntryPoint, isBaseAppContext, isLikelyBaseAppBrowser, isStandaloneDisplay } from "./pwa";
+import { resolveEntryPoint, isBaseAppContext, isEmbeddedWebView, isLikelyBaseAppBrowser, isStandaloneDisplay, subscribeToWebPush } from "./pwa";
 import {
   composeFarcasterPost,
   configureAppSurface,
@@ -3376,7 +3378,10 @@ function SearchHeaderAccountControl({
   simplifiedFarcaster,
   accountLabel,
   showDisconnect,
-  connectDisabled,
+  open,
+  centered,
+  onOpenChange,
+  onAvatarToggle,
   closeKey,
   onConnectWallet,
   onOpenSpreadsheet,
@@ -3384,6 +3389,7 @@ function SearchHeaderAccountControl({
   onOpenWarpmoji,
   onViewOnboarding,
   onEnableNotifications,
+  onInstallWebApp,
   onDisconnect,
 }: {
   connected: boolean;
@@ -3396,7 +3402,10 @@ function SearchHeaderAccountControl({
   simplifiedFarcaster: boolean;
   accountLabel: string;
   showDisconnect: boolean;
-  connectDisabled: boolean;
+  open: boolean;
+  centered: boolean;
+  onOpenChange: (open: boolean) => void;
+  onAvatarToggle: () => void;
   closeKey: string;
   onConnectWallet: () => void;
   onOpenSpreadsheet: () => void;
@@ -3404,24 +3413,25 @@ function SearchHeaderAccountControl({
   onOpenWarpmoji: () => void;
   onViewOnboarding: () => void;
   onEnableNotifications: () => void;
+  onInstallWebApp?: () => void;
   onDisconnect: () => void;
 }) {
-  const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    setOpen(false);
-  }, [closeKey]);
+    onOpenChange(false);
+  }, [closeKey, onOpenChange]);
 
   useEffect(() => {
     if (!open) return;
 
     const handlePointerDown = (event: globalThis.MouseEvent) => {
       if (rootRef.current?.contains(event.target as Node)) return;
-      setOpen(false);
+      if (event.target instanceof Element && event.target.closest(".miniapp-header__title-badge")) return;
+      onOpenChange(false);
     };
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpen(false);
+      if (event.key === "Escape") onOpenChange(false);
     };
 
     document.addEventListener("mousedown", handlePointerDown);
@@ -3430,22 +3440,21 @@ function SearchHeaderAccountControl({
       document.removeEventListener("mousedown", handlePointerDown);
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [open]);
+  }, [onOpenChange, open]);
 
   const runMenuAction = (action: () => void) => {
-    setOpen(false);
+    onOpenChange(false);
     void hapticTap();
     action();
   };
 
-  if (!connected) {
-    return (
-      <div className="search-header-account" ref={rootRef}>
+  return (
+    <div className="search-header-account" ref={rootRef}>
+      {!connected ? (
         <button
           type="button"
           className="search-header-connect-button"
-          disabled={connectDisabled}
-          title={connectDisabled ? "Checking connection" : "Connect wallet or Farcaster identity"}
+          title="Connect wallet or Farcaster identity"
           onClick={() => {
             void hapticTap();
             onConnectWallet();
@@ -3453,13 +3462,7 @@ function SearchHeaderAccountControl({
         >
           Connect
         </button>
-      </div>
-    );
-  }
-
-  return (
-    <div className="search-header-account" ref={rootRef}>
-      <button
+      ) : <button
         type="button"
         className="search-header-avatar-button"
         aria-haspopup="menu"
@@ -3468,7 +3471,7 @@ function SearchHeaderAccountControl({
         title={accountLabel}
         onClick={() => {
           void hapticTap();
-          setOpen((current) => !current);
+          onAvatarToggle();
         }}
       >
         <span className="search-header-avatar-stack">
@@ -3479,16 +3482,16 @@ function SearchHeaderAccountControl({
             <img src={identityAvatarUrl ?? getWarpletPreviewImageUrl(HEADER_FALLBACK_AVATAR_TOKEN_ID)} alt="" className="search-header-avatar-image" loading="eager" />
           </span>}
         </span>
-      </button>
+      </button>}
       {open && (
-        <div className="search-header-account-menu" role="menu">
+        <div className={`search-header-account-menu${centered ? " search-header-account-menu--centered" : ""}`} role="menu">
           {!simplifiedFarcaster && <button type="button" role="menuitem" className="search-header-account-menu__connection" onClick={() => runMenuAction(onConnectWallet)}>
               {walletConnected && walletAvatarUrl
                 ? <span className="search-header-account-menu__avatar-frame"><img src={walletAvatarUrl} alt="" /></span>
                 : <span className="search-header-account-menu__avatar-frame"><img src="/base.webp" alt="" /></span>}
               <span>{walletConnected && walletAddress ? formatShortWallet(walletAddress) : "Connect wallet"}</span>
             </button>}
-          <button type="button" role="menuitem" className="search-header-account-menu__connection" onClick={() => simplifiedFarcaster ? setOpen(false) : runMenuAction(onConnectWallet)}>
+          <button type="button" role="menuitem" className="search-header-account-menu__connection" onClick={() => simplifiedFarcaster ? onOpenChange(false) : runMenuAction(onConnectWallet)}>
             {identityConnected
               ? <span className="search-header-account-menu__avatar-frame"><img src={identityAvatarUrl ?? getWarpletPreviewImageUrl(HEADER_FALLBACK_AVATAR_TOKEN_ID)} alt="" /></span>
               : <span className="search-header-account-menu__avatar-frame"><img src="/farcaster.webp" alt="" /></span>}
@@ -3500,6 +3503,11 @@ function SearchHeaderAccountControl({
           <button type="button" role="menuitem" onClick={() => runMenuAction(onEnableNotifications)}>
             Enable notifications
           </button>
+          {onInstallWebApp && (
+            <button type="button" role="menuitem" onClick={() => runMenuAction(onInstallWebApp)}>
+              Install web app
+            </button>
+          )}
           <button type="button" role="menuitem" onClick={() => runMenuAction(onOpenSpreadsheet)}>
             Warplets spreadsheet
           </button>
@@ -11006,7 +11014,7 @@ const ONBOARDING_SLIDES: OnboardingSlide[] = [
     title: "Welcome to 10X Warplets",
     visual: "featuredWarplet",
     bullets: [
-      "10X Warplets is a fun 10,000 NFT collection.",
+      "10X Warplets is an exclusive 10K NFT collection.",
       "Farcaster focused. Meme powered. Data driven.",
       "10X is where Builders, Traders, & Attention align.",
     ],
@@ -14840,6 +14848,16 @@ export default function SearchApp() {
   const walletController = useWalletController();
   const webWalletEnabled = import.meta.env.VITE_WEB_WALLET_ENABLED === "true";
   const [webConnectOpen, setWebConnectOpen] = useState(() => hasPendingFarcasterSignIn());
+  const [headerAccountMenuAnchor, setHeaderAccountMenuAnchor] = useState<"title" | "avatar" | null>(null);
+  const handleHeaderAccountMenuOpenChange = useCallback((open: boolean) => {
+    if (!open) setHeaderAccountMenuAnchor(null);
+  }, []);
+  const handleHeaderTitleMenuToggle = useCallback(() => {
+    setHeaderAccountMenuAnchor((current) => current === "title" ? null : "title");
+  }, []);
+  const handleHeaderAvatarMenuToggle = useCallback(() => {
+    setHeaderAccountMenuAnchor((current) => current === "avatar" ? null : "avatar");
+  }, []);
   const [webConnectIdentityError, setWebConnectIdentityError] = useState<string | null>(null);
   useEffect(() => {
     const openConnect = () => setWebConnectOpen(true);
@@ -14866,6 +14884,7 @@ export default function SearchApp() {
   const [searchCompletionStatusLoaded, setSearchCompletionStatusLoaded] = useState(false);
   const [showAddAppPrompt, setShowAddAppPrompt] = useState(false);
   const [notificationsOnlyPrompt, setNotificationsOnlyPrompt] = useState(false);
+  const [notificationPromptMode, setNotificationPromptMode] = useState<"farcaster" | "web">("farcaster");
   const [pendingNotificationId, setPendingNotificationId] = useState<string | null>(null);
   const [actionSessionToken, setActionSessionToken] = useState<string | null>(null);
   const [notificationOpenSent, setNotificationOpenSent] = useState(false);
@@ -14949,10 +14968,22 @@ export default function SearchApp() {
   });
   const { isMenuRoute, canGoBack, actions } = useMiniAppChrome(WARPLETS_APP_SLUG);
   const [searchRoute, setSearchRoute] = useState<SearchRoute>(() => parseSearchRouteFromPath(window.location.pathname));
+  const perksShareDeepLinkHandledRef = useRef("");
   const [lastOffersSubpage, setLastOffersSubpage] = useState<SearchOffersSubpage>(() => readLastSearchOffersSubpage());
   const [lastPerksSubpage, setLastPerksSubpage] = useState<PerksSubpage>(() => readLastSearchPerksSubpage());
   const [lastStatsSubpage, setLastStatsSubpage] = useState<SearchStatsSubpage>(() => readLastSearchStatsSubpage());
   const [lastListedLevel, setLastListedLevel] = useState<ListedLevelFilter>(() => readLastSearchListedLevel());
+  useEffect(() => {
+    if (searchRoute.page !== "perks") return;
+    const url = new URL(window.location.href);
+    if (url.searchParams.get("share") !== "1") return;
+    const signature = `${url.pathname}${url.search}${url.hash}`;
+    if (perksShareDeepLinkHandledRef.current === signature) return;
+    perksShareDeepLinkHandledRef.current = signature;
+    setSharePreview(buildPerksSharePreview(searchRoute.perksPage));
+    url.searchParams.delete("share");
+    window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
+  }, [searchRoute]);
   useEffect(() => {
     if (!miniAppContextKnown) return;
     trackAppEvent("route_viewed", {
@@ -15440,8 +15471,9 @@ export default function SearchApp() {
 
     const init = async () => {
       try {
-        const inMiniApp =
-          typeof sdk.isInMiniApp === "function" ? await sdk.isInMiniApp() : true;
+        const inMiniApp = await detectMiniAppContext(
+          typeof sdk.isInMiniApp === "function" ? () => sdk.isInMiniApp() : undefined,
+        );
         setIsInMiniAppContext(inMiniApp);
         const surface = resolveAppSurface(inMiniApp);
         configureAppSurface(surface);
@@ -15689,13 +15721,22 @@ export default function SearchApp() {
   const handleConfirmAddAppPrompt = useCallback(async () => {
     try {
       void hapticPrimaryTap();
-      await requestFarcasterNotifications();
+      if (notificationPromptMode === "web") {
+        await subscribeToWebPush(["announcements"]);
+        trackAppEvent("web_push_subscribed", { surface: "web", channel: "web-push" });
+        showSearchToast("success", "Web notifications are enabled for 10X Warplets.");
+      } else {
+        await requestFarcasterNotifications();
+      }
     } catch (error) {
       console.warn("Search add mini app prompt failed:", error);
+      if (notificationPromptMode === "web") {
+        showSearchToast("error", error instanceof Error ? error.message : "Web notifications could not be enabled.", { manualClose: true });
+      }
     } finally {
       setShowAddAppPrompt(false);
     }
-  }, []);
+  }, [notificationPromptMode, showSearchToast]);
 
   const handleCompleteOnboarding = useCallback(() => {
     void hapticSuccess();
@@ -16283,30 +16324,17 @@ export default function SearchApp() {
         window.dispatchEvent(new CustomEvent("warplets:open-base-pin-prompt"));
         return;
       }
-      if (!activeWallet) {
-        setWebConnectOpen(true);
-        showSearchToast("warning", "Connect a wallet to check Base App notification status.", { manualClose: true });
-        return;
-      }
-      void fetch("/api/notifications/base/status", { credentials: "same-origin" }).then(async (response) => {
-        const payload = await response.json() as { appPinned?: boolean; notificationsEnabled?: boolean; error?: string };
-        if (!response.ok) throw new Error(payload.error || "Base notification status is unavailable");
-        trackAppEvent("notification_status_viewed", { surface: "web", channel: "base" });
-        if (payload.notificationsEnabled) {
-          showSearchToast("success", "Base App notifications are enabled for this wallet.");
-        } else if (payload.appPinned) {
-          showSearchToast("warning", "Enable notifications for 10X Warplets from its settings in Base App.", { manualClose: true });
-        } else {
-          showSearchToast("warning", "Pin 10X Warplets in Base App, then enable notifications there.", { manualClose: true });
-        }
-      }).catch((error) => showSearchToast("error", error instanceof Error ? error.message : "Base notification status failed", { manualClose: true }));
+      setNotificationPromptMode("web");
+      setNotificationsOnlyPrompt(true);
+      setShowAddAppPrompt(true);
       return;
     }
+    setNotificationPromptMode("farcaster");
     setNotificationPromptPending(false);
     setPreparedNotificationPrompt(false);
     setNotificationsOnlyPrompt(true);
     setShowAddAppPrompt(true);
-  }, [activeWallet, isInMiniAppContext, showSearchToast]);
+  }, [isInMiniAppContext]);
 
   const handleHeaderOpenSpreadsheet = useCallback(() => {
     openExternalAsset("https://link.10x.meme/csv").catch((error) => {
@@ -18173,7 +18201,7 @@ export default function SearchApp() {
           onConfirm={handleConfirmAddAppPrompt}
         />
       )}
-      <div className="relative z-10 w-full">
+      <div className="relative z-30 w-full">
         <MiniAppHeader
           appSlug={WARPLETS_APP_SLUG}
           title={headerTitle}
@@ -18181,6 +18209,7 @@ export default function SearchApp() {
           onBack={handleHeaderBack}
           onLogo={actions.openHubRoot}
           onMenu={actions.openMenu}
+          onTitleMenu={handleHeaderTitleMenuToggle}
           rightAccessory={
             <SearchHeaderAccountControl
               connected={headerAccountConnected}
@@ -18193,7 +18222,10 @@ export default function SearchApp() {
               simplifiedFarcaster={isInMiniAppContext}
               accountLabel={headerAccountLabel}
               showDisconnect={!isInMiniAppContext && Boolean(identityConnected || activeWallet)}
-              connectDisabled={!miniAppContextKnown}
+              open={headerAccountMenuAnchor !== null}
+              centered={headerAccountMenuAnchor === "title"}
+              onOpenChange={handleHeaderAccountMenuOpenChange}
+              onAvatarToggle={handleHeaderAvatarMenuToggle}
               closeKey={headerCloseKey}
               onConnectWallet={handleHeaderConnectWallet}
               onOpenSpreadsheet={handleHeaderOpenSpreadsheet}
@@ -18201,6 +18233,9 @@ export default function SearchApp() {
               onOpenWarpmoji={() => navigateSearchRoute({ page: "warpmoji" })}
               onViewOnboarding={handleHeaderViewOnboarding}
               onEnableNotifications={handleHeaderEnableNotifications}
+              onInstallWebApp={!isInMiniAppContext && !isStandaloneDisplay() && !isEmbeddedWebView()
+                ? () => window.dispatchEvent(new CustomEvent("10x:open-pwa-install"))
+                : undefined}
               onDisconnect={handleHeaderDisconnect}
             />
           }
@@ -18267,11 +18302,6 @@ export default function SearchApp() {
               onSearchWallet={handleStatsSearchOwnerWallet}
               onOpenWarpletDetails={handleOpenWarpletDetails}
               onShare={(subpage) => setSharePreview(buildPerksSharePreview(subpage))}
-              onSubscriptionRequested={(message) => {
-                void hapticSuccess();
-                showTradeConfetti();
-                showSearchToast("success", message);
-              }}
             />
           </Suspense>
         ) : searchRoute.page === "offers" && searchRoute.offersPage === "collection" ? (
@@ -18513,7 +18543,7 @@ export default function SearchApp() {
                     <button
                       type="button"
                       onClick={handleReturnToTop}
-                      className="cursor-pointer font-bold text-[#00FF00] underline decoration-[#00FF00] underline-offset-2 hover:text-[#8bbf8b] hover:decoration-[#8bbf8b]"
+                      className="cursor-pointer font-bold text-[#00FF00] underline decoration-[#00FF00] underline-offset-2 hover:text-[#8bbf8b] hover:decoration-[#00FF00]"
                     >
                       Return to top
                     </button>
@@ -18531,6 +18561,7 @@ export default function SearchApp() {
           </div>
         )}
       </div>
+      <SiteFooter />
       {selectedWarpletDetailsStack.map((details, index) => {
         const market = getMarketState(marketSnapshot, details.id);
         const ownerWallet = normalizeWalletAddress(market.owner?.wallet);

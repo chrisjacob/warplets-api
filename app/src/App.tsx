@@ -1,224 +1,641 @@
-import { useEffect, useState } from "react";
 import sdk from "@farcaster/miniapp-sdk";
-import { Text } from "@neynar/ui/typography";
-import {
-  MiniAppHeader,
-  MiniAppMenuPage,
-  getHeaderTitle,
-  useMiniAppChrome,
-} from "./miniAppChrome.tsx";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
+import { loadAppSession, logoutAppPrincipal, verifyFarcasterQuickAuth } from "./appSession";
+import EmailWaitlistCta from "./EmailWaitlistCta";
+import type { FarcasterWebIdentity } from "./FarcasterSignInControl";
+import { hasPendingFarcasterSignIn, restorePendingFarcasterSignIn } from "./farcasterSignInPersistence";
+import { hapticSelectionChanged, hapticSuccess, hapticTap } from "./haptics";
+import { MiniAppHeader, MiniAppMenuPage, useMiniAppChrome } from "./miniAppChrome.tsx";
 import MiniAppShell from "./MiniAppShell";
+import { detectMiniAppContext } from "./miniAppContext";
+import NotificationsPromptModal from "./NotificationsPromptModal";
+import { PwaControls } from "./PwaControls";
+import SiteFooter from "./SiteFooter";
+import { isEmbeddedWebView, isStandaloneDisplay, subscribeToWebPush } from "./pwa";
+import { getEmbeddedWalletProvider } from "./surfaceAdapter";
+import { WebConnectModal } from "./WebConnectModal";
+import {
+  configureFarcasterWallet,
+  disconnectWallet,
+  restoreFarcasterWallet,
+  restoreWebWallet,
+  useWalletController,
+} from "./walletController";
+import { WARPLETS_APP_ORIGINS } from "../shared/warpletsApp";
 
-const FARCASTER_MINI_APP_URL = "https://farcaster.xyz/miniapps/uR3Rzs-k6AnV/10x";
+const FarcasterSignInControl = lazy(() => import("./FarcasterSignInControl"));
 
-const APPS = [
-  {
-    title: "10X Warplets Drop",
-    path: "/drop",
-    description: "Live now. Buy, claim, and share your Warplet.",
-    accent: "#00FF00",
-  },
-  {
-    title: "10X Warplets",
-    path: "/warplets",
-    description: "Search, collect, trade, and explore 10X Warplets.",
-    accent: "#67e8f9",
-  },
-  {
-    title: "$1M Warplet",
-    path: "/million",
-    description: "Coming soon. Dedicated mission for the $1M run.",
-    accent: "#fde047",
-  },
-];
+type ViewerProfile = {
+  fid: number;
+  username: string | null;
+  displayName: string | null;
+  pfpUrl: string | null;
+};
 
-function launch(path: string) {
-  const url = `${window.location.origin}${path}`;
-  window.location.href = url;
+type HomeToast = {
+  kind: "success" | "warning" | "error";
+  message: string;
+};
+
+type HomeLink = {
+  id: string;
+  label: string;
+  title: string;
+  imageUrl: string;
+  href: string;
+  action: "warplets" | "farcaster" | "external";
+};
+
+function getWarpletsUrl(): string {
+  const hostname = window.location.hostname.toLowerCase();
+  if (hostname === "localhost" || hostname === "127.0.0.1" || hostname.includes("-local.")) {
+    return `${WARPLETS_APP_ORIGINS.local}/`;
+  }
+  if (hostname.includes("-dev.")) return `${WARPLETS_APP_ORIGINS.dev}/`;
+  return `${WARPLETS_APP_ORIGINS.prod}/`;
+}
+
+function homeLinks(): HomeLink[] {
+  return [
+    { id: "warplets", label: "10X Warplets", title: "Open the 10X Warplets app", imageUrl: "/menu/10xwarplets.jpg", href: getWarpletsUrl(), action: "warplets" },
+    { id: "farcaster", label: "Farcaster", title: "Follow @10XMeme.eth on Farcaster", imageUrl: "/menu/farcaster.png", href: "https://farcaster.xyz/10xmeme.eth", action: "farcaster" },
+    { id: "x", label: "X (Twitter)", title: "Follow @10XMemeX on X", imageUrl: "/menu/x.png", href: "https://twitter.com/intent/follow?user_id=3275559396", action: "external" },
+    { id: "discord", label: "Discord", title: "Join The 10X Network on Discord", imageUrl: "/menu/discord.png", href: "https://discord.gg/X7QrXueZkn", action: "external" },
+    { id: "telegram", label: "Telegram", title: "Join 10X.MEME Alpha Signals on Telegram", imageUrl: "/menu/telegram.png", href: "https://t.me/The10XNetwork", action: "external" },
+    { id: "opensea", label: "OpenSea", title: "View 10X Warplets on OpenSea", imageUrl: "/menu/opensea.png", href: "https://link.10x.meme/10xwarplets", action: "external" },
+    { id: "fomo", label: "FOMO", title: "Follow @10XMemeX on FOMO", imageUrl: "/menu/fomo.jpg", href: "https://fomo.family/profile/10XMemeX", action: "external" },
+    { id: "pumpfun", label: "Pump.fun", title: "Follow @10XMeme on Pump.fun", imageUrl: "/menu/pumpfun.png", href: "https://pump.fun/profile/10XMeme", action: "external" },
+    { id: "youtube", label: "YouTube", title: "Watch 10X Meme on YouTube", imageUrl: "/menu/youtube.png", href: "https://www.youtube.com/@10XMemeX", action: "external" },
+  ];
+}
+
+function formatShortWallet(address: string): string {
+  return address.length > 12 ? `${address.slice(0, 6)}…${address.slice(-4)}` : address;
+}
+
+function HomeAccountControl({
+  isInMiniAppContext,
+  viewerProfile,
+  walletAddress,
+  showInstallWebApp,
+  open,
+  centered,
+  onOpenChange,
+  onAvatarToggle,
+  onOpen,
+  onEnableNotifications,
+  onInstallWebApp,
+  onDisconnect,
+}: {
+  isInMiniAppContext: boolean;
+  viewerProfile: ViewerProfile | null;
+  walletAddress: string | null;
+  showInstallWebApp: boolean;
+  open: boolean;
+  centered: boolean;
+  onOpenChange: (open: boolean) => void;
+  onAvatarToggle: () => void;
+  onOpen: () => void;
+  onEnableNotifications: () => void;
+  onInstallWebApp: () => void;
+  onDisconnect: () => void;
+}) {
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const connected = Boolean(viewerProfile || walletAddress);
+
+  useEffect(() => {
+    if (!open) return;
+    const handlePointerDown = (event: globalThis.MouseEvent) => {
+      if (rootRef.current?.contains(event.target as Node)) return;
+      if (event.target instanceof Element && event.target.closest(".miniapp-header__title-badge")) return;
+      onOpenChange(false);
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onOpenChange(false);
+    };
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [onOpenChange, open]);
+
+  const runMenuAction = (action: () => void) => {
+    onOpenChange(false);
+    void hapticTap();
+    action();
+  };
+
+  if (!connected) {
+    return (
+      <div className="search-header-account" ref={rootRef}>
+        {!isInMiniAppContext && (
+          <button type="button" className="search-header-connect-button" onClick={() => { void hapticTap(); onOpen(); }}>
+            Connect
+          </button>
+        )}
+        {open && (
+          <div className={`search-header-account-menu${centered ? " search-header-account-menu--centered" : ""}`} role="menu">
+            {!isInMiniAppContext && (
+              <button type="button" role="menuitem" className="search-header-account-menu__connection" onClick={() => runMenuAction(onOpen)}>
+                <span className="search-header-account-menu__avatar-frame"><img src="/base.webp" alt="" /></span>
+                <span>Connect wallet</span>
+              </button>
+            )}
+            <button type="button" role="menuitem" className="search-header-account-menu__connection" onClick={() => isInMiniAppContext ? onOpenChange(false) : runMenuAction(onOpen)}>
+              <span className="search-header-account-menu__avatar-frame"><img src="/farcaster.webp" alt="" /></span>
+              <span>Connect social</span>
+            </button>
+            <button type="button" role="menuitem" onClick={() => runMenuAction(onEnableNotifications)}>Enable notifications</button>
+            {showInstallWebApp && <button type="button" role="menuitem" onClick={() => runMenuAction(onInstallWebApp)}>Install web app</button>}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="search-header-account" ref={rootRef}>
+      <button
+        type="button"
+        className="search-header-avatar-button"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label={viewerProfile?.username ? `Connected as @${viewerProfile.username}` : "Connected account"}
+        title="Manage connected accounts"
+        onClick={() => {
+          void hapticTap();
+          onAvatarToggle();
+        }}
+      >
+        <span className="search-header-avatar-stack">
+          {walletAddress && !isInMiniAppContext && (
+            <span className="search-header-avatar-frame search-header-avatar-frame--wallet">
+              <img src="/base.webp" alt="" className="search-header-avatar-image" />
+            </span>
+          )}
+          {viewerProfile && (
+            <span className="search-header-avatar-frame search-header-avatar-frame--identity">
+              <img src={viewerProfile.pfpUrl || "/farcaster.webp"} alt="" className="search-header-avatar-image" />
+            </span>
+          )}
+        </span>
+      </button>
+      {open && (
+        <div className={`search-header-account-menu${centered ? " search-header-account-menu--centered" : ""}`} role="menu">
+          {!isInMiniAppContext && (
+            <button type="button" role="menuitem" className="search-header-account-menu__connection" onClick={() => runMenuAction(onOpen)}>
+              <span className="search-header-account-menu__avatar-frame"><img src="/base.webp" alt="" /></span>
+              <span>{walletAddress ? formatShortWallet(walletAddress) : "Connect wallet"}</span>
+            </button>
+          )}
+          <button
+            type="button"
+            role="menuitem"
+            className="search-header-account-menu__connection"
+            onClick={() => isInMiniAppContext ? onOpenChange(false) : runMenuAction(onOpen)}
+          >
+            <span className="search-header-account-menu__avatar-frame">
+              <img src={viewerProfile?.pfpUrl || "/farcaster.webp"} alt="" />
+            </span>
+            <span>{viewerProfile?.username ? `@${viewerProfile.username}` : viewerProfile?.displayName || "Connect social"}</span>
+          </button>
+          <button type="button" role="menuitem" onClick={() => runMenuAction(onEnableNotifications)}>
+            Enable notifications
+          </button>
+          {showInstallWebApp && (
+            <button type="button" role="menuitem" onClick={() => runMenuAction(onInstallWebApp)}>
+              Install web app
+            </button>
+          )}
+          {!isInMiniAppContext && (
+            <button type="button" role="menuitem" onClick={() => runMenuAction(onDisconnect)}>
+              Disconnect
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function App() {
+  const walletController = useWalletController();
   const [showAddAppPrompt, setShowAddAppPrompt] = useState(false);
   const [notificationsOnlyPrompt, setNotificationsOnlyPrompt] = useState(false);
-  const [showOpenInFarcaster, setShowOpenInFarcaster] = useState(false);
   const [actionError, setActionError] = useState("");
+  const [isInMiniAppContext, setIsInMiniAppContext] = useState(false);
+  const [miniAppContextKnown, setMiniAppContextKnown] = useState(false);
+  const [viewerProfile, setViewerProfile] = useState<ViewerProfile | null>(null);
+  const [actionSessionToken, setActionSessionToken] = useState<string | null>(null);
+  const [webConnectOpen, setWebConnectOpen] = useState(() => hasPendingFarcasterSignIn());
+  const [webConnectIdentityError, setWebConnectIdentityError] = useState<string | null>(null);
+  const [homeToast, setHomeToast] = useState<HomeToast | null>(null);
+  const [homeLinksVisible, setHomeLinksVisible] = useState(false);
+  const [headerAccountMenuAnchor, setHeaderAccountMenuAnchor] = useState<"title" | "avatar" | null>(null);
+  const handleHeaderAccountMenuOpenChange = useCallback((open: boolean) => {
+    if (!open) setHeaderAccountMenuAnchor(null);
+  }, []);
+  const handleHeaderTitleMenuToggle = useCallback(() => {
+    setHeaderAccountMenuAnchor((current) => current === "title" ? null : "title");
+  }, []);
+  const handleHeaderAvatarMenuToggle = useCallback(() => {
+    setHeaderAccountMenuAnchor((current) => current === "avatar" ? null : "avatar");
+  }, []);
+  const initializationStartedRef = useRef(false);
+  const sessionRefreshInFlightRef = useRef(false);
+  const homeLinksSectionRef = useRef<HTMLElement | null>(null);
   const { isMenuRoute, canGoBack, actions } = useMiniAppChrome("app");
 
   useEffect(() => {
+    setHeaderAccountMenuAnchor(null);
+  }, [isMenuRoute]);
+
+  const applySession = useCallback((session: Awaited<ReturnType<typeof loadAppSession>> | null) => {
+    if (!session?.farcasterFid) return;
+    setViewerProfile(session.farcasterProfile ?? { fid: session.farcasterFid, username: null, displayName: null, pfpUrl: null });
+    setActionSessionToken(session.actionSessionToken);
+    setWebConnectOpen(false);
+  }, []);
+
+  useEffect(() => {
+    if (!miniAppContextKnown || isInMiniAppContext || viewerProfile) return;
+
+    const refreshReturnedSession = () => {
+      if (hasPendingFarcasterSignIn()) setWebConnectOpen(true);
+      if (sessionRefreshInFlightRef.current) return;
+      sessionRefreshInFlightRef.current = true;
+      void loadAppSession()
+        .then(applySession)
+        .catch(() => undefined)
+        .finally(() => { sessionRefreshInFlightRef.current = false; });
+    };
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") refreshReturnedSession();
+    };
+
+    void restorePendingFarcasterSignIn().then((pending) => {
+      if (pending) setWebConnectOpen(true);
+      refreshReturnedSession();
+    });
+    window.addEventListener("pageshow", refreshReturnedSession);
+    window.addEventListener("focus", refreshReturnedSession);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      window.removeEventListener("pageshow", refreshReturnedSession);
+      window.removeEventListener("focus", refreshReturnedSession);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [applySession, isInMiniAppContext, miniAppContextKnown, viewerProfile]);
+
+  useEffect(() => {
+    if (initializationStartedRef.current) return;
+    initializationStartedRef.current = true;
     let shouldCallReady = false;
 
-    const init = async () => {
+    const initialize = async () => {
       try {
-        const inMiniApp =
-          typeof sdk.isInMiniApp === "function" ? await sdk.isInMiniApp() : true;
+        const inMiniApp = await detectMiniAppContext(
+          typeof sdk.isInMiniApp === "function" ? () => sdk.isInMiniApp() : undefined,
+        );
+        setIsInMiniAppContext(inMiniApp);
+        configureFarcasterWallet(inMiniApp
+          ? async () => {
+            const provider = await getEmbeddedWalletProvider();
+            if (!provider) throw new Error("Farcaster wallet is unavailable");
+            return provider;
+          }
+          : null);
 
         if (!inMiniApp) {
-          setShowOpenInFarcaster(true);
+          const [, session] = await Promise.all([
+            restoreWebWallet().catch((error) => {
+              console.warn("10X.MEME wallet restore failed:", error);
+              return null;
+            }),
+            loadAppSession().catch((error) => {
+              console.warn("10X.MEME session restore failed:", error);
+              return null;
+            }),
+          ]);
+          applySession(session);
           return;
         }
 
         shouldCallReady = true;
         const context = await sdk.context;
+        const user = (context as { user?: Record<string, unknown> }).user;
+        const rawFid = Number(user?.fid);
+        const fid = Number.isInteger(rawFid) && rawFid > 0 ? rawFid : null;
+        if (fid) {
+          const liveProfile: ViewerProfile = {
+            fid,
+            username: typeof user?.username === "string" ? user.username : null,
+            displayName: typeof user?.displayName === "string" ? user.displayName : typeof user?.display_name === "string" ? user.display_name : null,
+            pfpUrl: typeof user?.pfpUrl === "string" ? user.pfpUrl : typeof user?.pfp_url === "string" ? user.pfp_url : typeof user?.pfp === "string" ? user.pfp : null,
+          };
+          setViewerProfile(liveProfile);
+          void sdk.quickAuth.getToken()
+            .then(({ token }) => verifyFarcasterQuickAuth(token))
+            .then(async (session) => {
+              const verifiedFid = Number(session.farcasterFid);
+              setViewerProfile({
+                fid: Number.isInteger(verifiedFid) && verifiedFid > 0 ? verifiedFid : fid,
+                username: typeof session.username === "string" && session.username.trim() ? session.username.trim() : liveProfile.username,
+                displayName: typeof session.displayName === "string" && session.displayName.trim() ? session.displayName.trim() : liveProfile.displayName,
+                pfpUrl: typeof session.pfpUrl === "string" && session.pfpUrl.trim() ? session.pfpUrl.trim() : liveProfile.pfpUrl,
+              });
+              if (typeof session.actionSessionToken === "string") setActionSessionToken(session.actionSessionToken);
+              await restoreFarcasterWallet();
+            })
+            .catch((error) => console.warn("10X.MEME Farcaster authentication failed:", error));
+        }
 
-        const isProdHost =
-          typeof window !== "undefined" &&
-          window.location.host === "app.10x.meme" &&
-          (window.location.pathname === "/" || window.location.pathname === "");
-        const addParamSet =
-          typeof window !== "undefined" &&
-          new URLSearchParams(window.location.search).get("add") === "1";
-        const shouldPromptAddApp =
-          (isProdHost || addParamSet) &&
-          (!context.client.added || !context.client.notificationDetails);
-        const isNotificationsOnly =
-          shouldPromptAddApp && context.client.added && !context.client.notificationDetails;
-        setShowAddAppPrompt(shouldPromptAddApp);
-        setNotificationsOnlyPrompt(isNotificationsOnly);
-      } catch (err) {
-        console.error("Hub init error:", err);
-        const message = err instanceof Error ? err.message : String(err);
-        const normalized = message.toLowerCase();
-        const looksLikeBrowserLaunch =
-          normalized.includes("context is undefined") ||
-          normalized.includes("can't access property \"user\"") ||
-          normalized.includes("cannot read properties of undefined");
-        if (looksLikeBrowserLaunch) {
-          setShowOpenInFarcaster(true);
+        const client = (context as { client?: Record<string, unknown> }).client;
+        const shouldPromptAddApp = (!client?.added || !client?.notificationDetails)
+          && (window.location.hostname === "10x.meme" || new URLSearchParams(window.location.search).get("add") === "1");
+        if (shouldPromptAddApp) {
+          setShowAddAppPrompt(true);
+          setNotificationsOnlyPrompt(client?.added === true && !client?.notificationDetails);
         }
+      } catch (error) {
+        console.error("10X.MEME initialization failed:", error);
       } finally {
-        if (shouldCallReady) {
-          sdk.actions.ready();
-        }
+        setMiniAppContextKnown(true);
+        if (shouldCallReady) sdk.actions.ready();
       }
     };
 
-    init();
+    void initialize();
+  }, [applySession]);
+
+  useEffect(() => { document.title = "10X.MEME — The 10X Thesis"; }, []);
+  useEffect(() => {
+    if (!actionError) return;
+    const id = window.setTimeout(() => setActionError(""), 5_000);
+    return () => window.clearTimeout(id);
+  }, [actionError]);
+  useEffect(() => {
+    if (!homeToast) return;
+    const id = window.setTimeout(() => setHomeToast(null), homeToast.kind === "error" ? 8_000 : 5_000);
+    return () => window.clearTimeout(id);
+  }, [homeToast]);
+
+  useEffect(() => {
+    const section = homeLinksSectionRef.current;
+    if (!section) return;
+    if (!("IntersectionObserver" in window)) {
+      setHomeLinksVisible(true);
+      return;
+    }
+    const observer = new IntersectionObserver(([entry]) => {
+      if (!entry?.isIntersecting) return;
+      setHomeLinksVisible(true);
+      observer.disconnect();
+    }, { threshold: 0.12, rootMargin: "0px 0px -8% 0px" });
+    observer.observe(section);
+    return () => observer.disconnect();
   }, []);
 
   useEffect(() => {
-    if (!actionError) return;
-    const id = window.setTimeout(() => setActionError(""), 5000);
-    return () => window.clearTimeout(id);
-  }, [actionError]);
+    if (!webConnectOpen || isInMiniAppContext || viewerProfile) return;
+    let cancelled = false;
+    const interval = window.setInterval(() => {
+      void loadAppSession().then((session) => {
+        if (!cancelled && session.farcasterFid) applySession(session);
+      }).catch(() => undefined);
+    }, 1_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, [applySession, isInMiniAppContext, viewerProfile, webConnectOpen]);
+
+  const handleWebFarcasterAuthenticated = useCallback((identity: FarcasterWebIdentity) => {
+    setWebConnectIdentityError(null);
+    setViewerProfile({ fid: identity.fid, username: identity.username, displayName: identity.displayName, pfpUrl: identity.pfpUrl });
+    setActionSessionToken(identity.actionSessionToken);
+    setWebConnectOpen(false);
+  }, []);
+
+  const handleWebFarcasterDisconnect = useCallback(async () => {
+    await logoutAppPrincipal("farcaster");
+    setViewerProfile(null);
+    setActionSessionToken(null);
+    setWebConnectIdentityError(null);
+  }, []);
+
+  const handleDisconnect = useCallback(() => {
+    void disconnectWallet().then(async () => {
+      await logoutAppPrincipal("all").catch(() => undefined);
+      setViewerProfile(null);
+      setActionSessionToken(null);
+      setWebConnectIdentityError(null);
+      setHomeToast({ kind: "success", message: "Connected accounts were disconnected." });
+    }).catch((error) => {
+      setHomeToast({ kind: "error", message: error instanceof Error ? error.message : "The account could not be disconnected." });
+    });
+  }, []);
+
+  const handleEnableNotifications = useCallback(() => {
+    setNotificationsOnlyPrompt(true);
+    setShowAddAppPrompt(true);
+  }, []);
 
   const handleConfirmAddAppPrompt = async () => {
     setShowAddAppPrompt(false);
     try {
-      await sdk.actions.addMiniApp();
-    } catch (err) {
-      console.error("Failed to add mini app:", err);
-      setActionError(err instanceof Error ? err.message : String(err));
+      if (isInMiniAppContext) {
+        await sdk.actions.addMiniApp();
+      } else {
+        await subscribeToWebPush(["announcements"]);
+        setHomeToast({ kind: "success", message: "Web notifications are enabled for 10X.MEME." });
+      }
+    } catch (error) {
+      console.error("Failed to add 10X.MEME:", error);
+      const message = error instanceof Error ? error.message : String(error);
+      setActionError(message);
+      setHomeToast({ kind: "error", message });
     }
+  };
+
+  const openHomeLink = async (link: HomeLink) => {
+    void hapticTap();
+    void hapticSelectionChanged();
+    if (link.action === "warplets") {
+      await sdk.actions.openMiniApp({ url: link.href });
+      return;
+    }
+    if (link.action === "farcaster") {
+      await sdk.actions.viewProfile({ fid: 1313340 });
+      return;
+    }
+    await sdk.actions.openUrl(link.href);
   };
 
   return (
     <MiniAppShell>
-      <div className="relative z-10 w-full">
+      {!isInMiniAppContext && (
+        <PwaControls
+          appName="10X.MEME"
+          autoPrompt={false}
+          onMessage={(kind, message) => setHomeToast({ kind, message })}
+        />
+      )}
+      {!isInMiniAppContext && (
+        <WebConnectModal
+          open={webConnectOpen}
+          onClose={() => { setWebConnectOpen(false); setWebConnectIdentityError(null); }}
+          identityError={webConnectIdentityError}
+          onClearIdentityError={() => setWebConnectIdentityError(null)}
+          identityConnected={Boolean(viewerProfile)}
+          onWalletConnected={() => {
+            void hapticSuccess();
+            void loadAppSession().then(applySession).catch(() => undefined);
+          }}
+          farcasterControl={(
+            <Suspense fallback={<button type="button" disabled>Connecting...</button>}>
+              <FarcasterSignInControl
+                connected={Boolean(viewerProfile)}
+                onAuthenticated={handleWebFarcasterAuthenticated}
+                onDisconnect={handleWebFarcasterDisconnect}
+                onError={(message) => setWebConnectIdentityError(/reject|denied|cancel|closed/i.test(message) ? "Farcaster connection was cancelled." : message)}
+              />
+            </Suspense>
+          )}
+        />
+      )}
+
+      {homeToast && (
+        <div className={`trade-toast ${homeToast.kind === "error" ? "trade-toast--danger" : ""}`} role="status" aria-live="polite">
+          <div className="flex w-full items-center gap-3">
+            <span className="min-w-0 flex-1">{homeToast.message}</span>
+            <button type="button" aria-label="Close message" onClick={() => setHomeToast(null)} className="trade-toast__close">
+              <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
+                <path d="M6 6l12 12" />
+                <path d="M18 6 6 18" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {showAddAppPrompt && (
+        <NotificationsPromptModal
+          notificationsOnlyPrompt={notificationsOnlyPrompt}
+          onConfirm={() => void handleConfirmAddAppPrompt()}
+        />
+      )}
+
+      <div className="relative z-30 w-full">
         <MiniAppHeader
           appSlug="app"
-          title={getHeaderTitle("app", isMenuRoute)}
+          title="10X.MEME"
           canGoBack={canGoBack}
           onBack={actions.goBack}
           onLogo={actions.goToCurrentRoot}
           onMenu={actions.openMenu}
+          onTitleMenu={handleHeaderTitleMenuToggle}
+          rightAccessory={(
+            <HomeAccountControl
+              isInMiniAppContext={isInMiniAppContext}
+              viewerProfile={viewerProfile}
+              walletAddress={walletController.session?.address ?? null}
+              showInstallWebApp={!isInMiniAppContext && !isStandaloneDisplay() && !isEmbeddedWebView()}
+              open={headerAccountMenuAnchor !== null}
+              centered={headerAccountMenuAnchor === "title"}
+              onOpenChange={handleHeaderAccountMenuOpenChange}
+              onAvatarToggle={handleHeaderAvatarMenuToggle}
+              onOpen={() => setWebConnectOpen(true)}
+              onEnableNotifications={handleEnableNotifications}
+              onInstallWebApp={() => window.dispatchEvent(new CustomEvent("10x:open-pwa-install"))}
+              onDisconnect={handleDisconnect}
+            />
+          )}
         />
 
         {isMenuRoute ? (
           <MiniAppMenuPage appSlug="app" />
         ) : (
-          <div className="mx-auto w-full max-w-md px-4 pt-8">
-        <Text className="text-[2.4rem] font-bold text-center" style={{ color: "#00FF00" }}>
-          10X
-        </Text>
-        <Text className="mt-2 text-center text-sm" style={{ color: "#b7ffb7" }}>
-          Launchpad for all 10X mini apps.
-        </Text>
+          <main className="mx-auto w-full max-w-md px-4 pb-12 pt-6">
+            <header className="text-center">
+              <p className="text-lg font-black uppercase tracking-[0.18em] text-[#7959ff] drop-shadow-[0_0_5px_rgba(121,89,255,0.55)]">The 10X Thesis</p>
+              <h1 className="mt-3 text-[2rem] font-black leading-[1.12] text-[#E0E3FF]">
+                Crypto Doesn't Need More Tokens.
+                <span className="mt-2 block text-[#00FF00]">It Needs...</span>
+              </h1>
+            </header>
 
-        <div className="mt-6 space-y-3">
-          {APPS.map(app => (
-            <button
-              key={app.path}
-              type="button"
-              onClick={() => launch(app.path)}
-              className="w-full rounded-2xl border bg-black/40 px-4 py-4 text-left transition-colors hover:bg-black/60 cursor-pointer"
-              style={{ borderColor: `${app.accent}80` }}
-            >
-              <Text className="text-lg font-bold" style={{ color: app.accent }}>
-                {app.title}
-              </Text>
-              <Text className="mt-1 text-xs" style={{ color: "#d9d9d9" }}>
-                {app.description}
-              </Text>
-              <Text className="mt-2 text-[11px] uppercase tracking-wide" style={{ color: "#9ca3af" }}>
-                {app.path}
-              </Text>
-            </button>
-          ))}
-        </div>
+            <div className="home-thesis-media-stack mt-7 rounded-xl shadow-[0_0_18px_rgba(0,255,0,0.12)]">
+              <section className="overflow-hidden rounded-t-xl border-x border-t border-[#00FF00]/25 bg-black/75">
+                <div className="aspect-video w-full">
+                  <iframe
+                    className="h-full w-full"
+                    src="https://www.youtube.com/embed/YWRYsBhzWWM?controls=1"
+                    title="The 10X Thesis"
+                    loading="lazy"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                    referrerPolicy="strict-origin-when-cross-origin"
+                    allowFullScreen
+                  />
+                </div>
+              </section>
 
-        {showOpenInFarcaster && (
-          <div className="mt-8 rounded-2xl border border-[#00FF0040] bg-black/60 px-4 py-5 text-center">
-            <Text className="text-sm font-bold" style={{ color: "#00FF00" }}>
-              Open in Farcaster
-            </Text>
-            <Text className="mt-2 text-xs" style={{ color: "#b7ffb7" }}>
-              10X mini apps are designed for Farcaster. Open this link inside the Farcaster app to get started.
-            </Text>
-            <button
-              type="button"
-              onClick={() => {
-                window.location.href = FARCASTER_MINI_APP_URL;
-              }}
-              className="mt-4 w-full rounded-xl py-3 font-bold text-black cursor-pointer"
-              style={{ background: "#00FF00" }}
-            >
-              Open 10X
-            </button>
-          </div>
-        )}
+              <EmailWaitlistCta
+                actionSessionToken={actionSessionToken}
+                viewerFid={viewerProfile?.fid ?? null}
+                joinedToPrevious
+                autoFocusEmail
+              />
+            </div>
 
-        {actionError && (
-          <div className="mt-4 rounded-xl border border-red-500/40 bg-red-900/20 px-3 py-2">
-            <Text className="text-xs text-red-400">{actionError}</Text>
-          </div>
+            <section ref={homeLinksSectionRef} className="mt-5" aria-label="Explore 10X.MEME">
+              <div className="mb-3 text-center">
+                <h2 className="text-lg font-black text-[#00FF00]">Follow + Notifications ON 🔔</h2>
+                <p className="mt-0.5 text-sm font-bold text-[#b8d7b8]">(so you don&apos;t miss out)</p>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                {homeLinks().map((link, index) => (
+                  <a
+                    key={link.id}
+                    href={link.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title={link.title}
+                    className={`home-link-card group min-w-0 overflow-hidden rounded-xl border border-[#00FF00]/25 bg-black/70 transition hover:-translate-y-px hover:border-[#00FF00] hover:shadow-[0_0_14px_rgba(0,255,0,0.3)] ${homeLinksVisible ? "home-link-card--visible" : ""}`}
+                    style={{ "--home-link-index": index } as CSSProperties}
+                    onClick={(event) => {
+                      if (!isInMiniAppContext) {
+                        void hapticTap();
+                        return;
+                      }
+                      event.preventDefault();
+                      void openHomeLink(link).catch((error) => {
+                        console.error(`Failed to open ${link.label}:`, error);
+                        window.location.href = link.href;
+                      });
+                    }}
+                  >
+                    <img src={link.imageUrl} alt="" className="aspect-square w-full object-cover" loading="lazy" />
+                    <span className="flex min-h-[34px] items-center justify-center bg-[#00FF00] px-2 py-1.5 text-center text-[0.72rem] font-bold leading-4 text-[rgb(0,80,0)]">
+                      {link.label}
+                    </span>
+                  </a>
+                ))}
+              </div>
+            </section>
+
+            {actionError && (
+              <div className="mt-5 rounded-xl border border-red-500/40 bg-red-900/20 px-3 py-2 text-xs font-bold text-red-300">
+                {actionError}
+              </div>
+            )}
+          </main>
         )}
-          </div>
-        )}
+        <SiteFooter />
       </div>
 
-      {showAddAppPrompt && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 px-4 pb-8">
-          <div
-            className="w-full max-w-sm rounded-2xl border bg-black px-5 py-6 shadow-2xl"
-            style={{ borderColor: "#00FF0060" }}
-          >
-            <Text className="text-lg font-bold text-center" style={{ color: "#00FF00" }}>
-              {notificationsOnlyPrompt ? "Enable Notifications" : "Don't Miss Out"}
-            </Text>
-            <Text className="mt-3 text-sm text-center" style={{ color: "#d9d9d9" }}>
-              {notificationsOnlyPrompt
-                ? "Turn on notifications to get alerts for drops, price updates, and more."
-                : "Add 10X to your Farcaster home screen and get notified about drops and price moves."}
-            </Text>
-            <button
-              type="button"
-              onClick={handleConfirmAddAppPrompt}
-              className="mt-5 w-full rounded-xl py-3 font-bold text-black cursor-pointer"
-              style={{ background: "#00FF00" }}
-            >
-              {notificationsOnlyPrompt ? "Enable Notifications" : "Add 10X"}
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowAddAppPrompt(false)}
-              className="mt-3 w-full rounded-xl py-2 text-sm cursor-pointer"
-              style={{ color: "#9ca3af" }}
-            >
-              Maybe later
-            </button>
-          </div>
-        </div>
-      )}
     </MiniAppShell>
   );
 }

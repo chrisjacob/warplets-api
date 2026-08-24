@@ -1,4 +1,5 @@
 import { sha256Hex } from "./security.js";
+import { isLocalHttpsTunnelHostname } from "./authValidation.js";
 
 export interface AppAuthEnv {
   WARPLETS: D1Database;
@@ -56,6 +57,7 @@ export function getRawSessionToken(request: Request): string | null {
 function isSecureRequest(request: Request): boolean {
   const requestUrl = new URL(request.url);
   if (requestUrl.protocol === "https:") return true;
+  if (isLocalHttpsTunnelHostname(requestUrl.hostname)) return true;
 
   // The local HTTPS tunnel terminates TLS in front of Vite/Pages dev, so the
   // Worker-facing URL is HTTP. Vite supplies the original public origin and

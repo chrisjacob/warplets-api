@@ -18,6 +18,11 @@ describe("getAuthRequestUrl", () => {
     expect(getAuthRequestUrl(request).origin).toBe("https://warplet-local.10x.meme");
   });
 
+  it("uses HTTPS for the app-local host behind the local tunnel", () => {
+    const request = new Request("http://app-local.10x.meme/api/auth/wallet/challenge");
+    expect(getAuthRequestUrl(request).origin).toBe("https://app-local.10x.meme");
+  });
+
   it("rejects a forwarded origin for a different host", () => {
     const request = new Request("http://localhost:8790/api/auth/wallet/challenge", {
       headers: { "x-10x-public-origin": "https://attacker.example" },

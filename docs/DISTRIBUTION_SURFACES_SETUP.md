@@ -89,9 +89,12 @@ refund and accounting tests pass.
 
 ## 4. PWA and Web Push enrollment
 
-The 10X Warplets build now includes a stable manifest, install shortcuts, wide/narrow
-screenshots, a service worker and an explicit online-required fallback. It does
-not cache the Search database or marketplace data offline.
+For the complete local setup, production rollout, verification and rollback
+procedure, see [`WEB_PUSH_SETUP.md`](./WEB_PUSH_SETUP.md).
+
+The Search and 10X.MEME builds include app-specific manifests, service-worker
+branding and explicit online-required fallbacks. Neither app caches the Search
+database or marketplace data offline.
 
 Generate a P-256 VAPID key pair and configure:
 
@@ -99,7 +102,7 @@ Generate a P-256 VAPID key pair and configure:
 - secret `VAPID_PRIVATE_KEY`
 - secret/variable `VAPID_SUBJECT=mailto:notifications@10x.meme`
 
-For `warplet-local`, generate a development-only key pair:
+For `warplet-local` or `app-local`, generate a development-only key pair:
 
 ```powershell
 pnpm --dir app web-push:generate-keys
@@ -116,22 +119,23 @@ The generated output will look like this:
 $env:VAPID_PUBLIC_KEY="<generated-public-key>"
 $env:VAPID_PRIVATE_KEY="<generated-private-key>"
 $env:VAPID_SUBJECT="mailto:notifications@10x.meme"
-pnpm --dir app local:tunnel:warplet
+pnpm --dir app local:tunnel:app
 ```
 
-The launcher passes these values only to the local Pages Worker. Confirm setup
-after restart with `https://warplet-local.10x.meme/api/web-push/public-key`;
+The tunnel launchers pass these values only to the local Pages Worker. Confirm
+setup after restart with the app's `/api/web-push/public-key` endpoint;
 it should return `200` with a `publicKey` rather than `503`. Reuse this same
 local pair across restarts if you want existing browser subscriptions to remain
 valid. A newly generated pair invalidates subscriptions created with the old
 public key.
 
-Enrollment and unsubscribe storage are implemented. Anonymous subscriptions are
-limited to general announcements; personal topics require a verified session.
-Outbound Web Push campaign delivery remains deliberately disabled until the
-exact payload policy and privacy review are approved. Do not mark the channel
-enabled in admin fan-out until delivery, permanent 404/410 cleanup and retry
-tests exist.
+Enrollment, unsubscribe storage, campaign delivery and notification-open
+tracking are implemented. Anonymous subscriptions are limited to general
+announcements; personal topics require a verified session. Subscriptions are
+scoped to the originating application, and permanent `404`/`410` responses
+disable stale endpoints. The notification admin supports Web Push alone or in
+combination with Farcaster and Base; repeat sends are idempotent for already
+delivered campaign/subscription pairs.
 
 On iOS/iPadOS, install to Home Screen first and request notification permission
 from the user's button gesture. Embedded WebViews do not show PWA install UI.
@@ -190,8 +194,8 @@ the exact same Telegram account through OIDC or Discord account through OAuth,
 requires SIWE, and asks for explicit confirmation. The bot receives no signing
 authority.
 
-Read commands and user-initiated replies are implemented. Proactive Telegram,
-Discord and Web Push fan-out is not enabled in this commit: outbound delivery
+Read commands and user-initiated replies are implemented. Proactive Telegram
+and Discord fan-out is not enabled in this commit: outbound delivery
 must enforce recorded per-topic opt-in at the final egress boundary rather than
 accepting an arbitrary internal payload.
 

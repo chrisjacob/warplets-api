@@ -28,6 +28,16 @@ export type ResendContactSegment = {
   name?: string;
 };
 
+export type ResendSubscriberSnapshot = {
+  subscriberCount: number;
+  farcasterFids: number[];
+};
+
+export type ResendSubscriberMember = {
+  email: string;
+  farcasterFid: number | null;
+};
+
 const EVM_WALLET = /^0x[a-f0-9]{40}$/;
 const DISCORD_USER_ID = /^\d{15,22}$/;
 
@@ -48,6 +58,14 @@ function contactScalar(value: unknown): string | number | null {
 function contactString(value: unknown, maxLength = 200): string | null {
   const scalar = contactScalar(value);
   return clean(scalar == null ? null : String(scalar), maxLength);
+}
+
+export function getResendContactFarcasterFid(contact: ResendContact): number | null {
+  const value = contactString(contact.properties?.FarcasterFID, 20)
+    ?? contactString(contact.last_name, 20);
+  if (!value || !/^\d+$/.test(value)) return null;
+  const fid = Number(value);
+  return Number.isSafeInteger(fid) && fid > 0 && fid <= 2_147_483_647 ? fid : null;
 }
 
 function flattenContactProperties(properties: ResendContact["properties"]): Record<string, string | number> {
@@ -126,6 +144,58 @@ async function requestResend(apiKey: string, url: string, init: RequestInit = {}
   headers.set("authorization", `Bearer ${apiKey}`);
   if (init.body) headers.set("content-type", "application/json");
   return outboundFetch(url, { ...init, headers });
+}
+
+function wait(milliseconds: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
+
+export async function listResendSubscriberMembers(apiKey: string): Promise<ResendSubscriberMember[]> {
+  const members = new Map<string, ResendSubscriberMember>();
+  let after = "";
+
+  for (let pageNumber = 0; pageNumber < 100; pageNumber += 1) {
+    const url = new URL("https://api.resend.com/contacts");
+    // Resend returns all contacts in one response when limit is omitted. Keep
+    // cursor pagination as a defensive fallback in case that behavior changes.
+    if (after) {
+      url.searchParams.set("limit", "100");
+      url.searchParams.set("after", after);
+    }
+    const response = await requestResend(apiKey, url.href);
+    if (!response.ok) {
+      throw new Error(`Resend contact list failed (${response.status}): ${await responseDetail(response)}`);
+    }
+    const payload = await response.json<{
+      data?: ResendContact[];
+      has_more?: boolean;
+    }>();
+    const contacts = Array.isArray(payload.data) ? payload.data : [];
+    for (const contact of contacts) {
+      if (contact.unsubscribed === true) continue;
+      const email = contact.email?.trim().toLowerCase() ?? "";
+      if (!email) continue;
+      members.set(email, { email, farcasterFid: getResendContactFarcasterFid(contact) });
+    }
+
+    if (!payload.has_more) {
+      return [...members.values()];
+    }
+    const cursor = contacts[contacts.length - 1]?.id?.trim() ?? "";
+    if (!cursor || cursor === after) throw new Error("Resend contact pagination returned an invalid cursor");
+    after = cursor;
+    await wait(550);
+  }
+
+  throw new Error("Resend contact pagination exceeded the safety limit");
+}
+
+export async function listResendSubscriberSnapshot(apiKey: string): Promise<ResendSubscriberSnapshot> {
+  const members = await listResendSubscriberMembers(apiKey);
+  return {
+    subscriberCount: members.length,
+    farcasterFids: [...new Set(members.flatMap((member) => member.farcasterFid ? [member.farcasterFid] : []))],
+  };
 }
 
 export async function getResendContact(apiKey: string, email: string): Promise<ResendContact | null> {
@@ -207,7 +277,7 @@ export async function syncTrustedIdentityToResend(input: {
   identity: TrustedEmailIdentity;
   segmentId: string;
   resubscribe: boolean;
-}): Promise<void> {
+}): Promise<{ active: boolean }> {
   const identity = normalizeIdentity(input.identity);
   const existing = await getResendContact(input.apiKey, identity.email);
   const existingProperties = flattenContactProperties(existing?.properties);
@@ -219,6 +289,7 @@ export async function syncTrustedIdentityToResend(input: {
   const contactPath = `https://api.resend.com/contacts/${encodeURIComponent(identity.email)}`;
   let contactIdentifier = existing?.id?.trim() || identity.email;
   let topicsAppliedDuringCreate = false;
+  let active = existing ? existing.unsubscribed !== true : true;
 
   if (!existing) {
     const create = await requestResend(input.apiKey, "https://api.resend.com/contacts", {
@@ -253,6 +324,7 @@ export async function syncTrustedIdentityToResend(input: {
       if (!update.ok) throw new Error(`Resend contact conflict update failed (${update.status}): ${await responseDetail(update)}`);
       const conflictedContact = await getResendContact(input.apiKey, identity.email);
       contactIdentifier = conflictedContact?.id?.trim() || identity.email;
+      active = conflictedContact?.unsubscribed !== true;
     }
   } else {
     const update = await requestResend(input.apiKey, contactPath, {
@@ -279,6 +351,8 @@ export async function syncTrustedIdentityToResend(input: {
     });
     if (!topic.ok) throw new Error(`Resend topic update failed (${topic.status}): ${await responseDetail(topic)}`);
   }
+  if (input.resubscribe) active = true;
+  return { active };
 }
 
 export async function refreshTrustedIdentityLabels(input: {
