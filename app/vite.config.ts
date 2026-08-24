@@ -391,10 +391,21 @@ export default defineConfig({
           }
           res.removeHeader("x-frame-options");
           res.removeHeader("X-Frame-Options");
+          const isDevModuleRequest =
+            req.url?.startsWith("/@vite/") ||
+            req.url?.startsWith("/@fs/") ||
+            req.url?.startsWith("/src/") ||
+            req.url?.startsWith("/node_modules/");
+          if (isDevModuleRequest) {
+            res.setHeader("cache-control", "no-store");
+          }
           const originalWriteHead = res.writeHead;
           res.writeHead = function writeHeadWithoutXFrameOptions(...args: Parameters<typeof originalWriteHead>) {
             res.removeHeader("x-frame-options");
             res.removeHeader("X-Frame-Options");
+            if (isDevModuleRequest) {
+              res.setHeader("cache-control", "no-store");
+            }
             res.setHeader("content-security-policy", `frame-ancestors ${MINIAPP_FRAME_ANCESTORS}`);
             return originalWriteHead.apply(this, args);
           };

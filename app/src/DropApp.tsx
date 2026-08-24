@@ -2901,16 +2901,10 @@ export default function App() {
                         Price starts a $1,000,000 and ends at $100.
                       </Text>
                       <Text className="mt-1 text-sm leading-relaxed" style={{ color: "#b7ffb7" }}>
-                        The price drops every 15 minutes.
-                      </Text>
-                      <Text className="mt-1 text-sm leading-relaxed" style={{ color: "#b7ffb7" }}>
-                        50% of the sale funds Fuel For Builds.
+                        50% of the sale funds builders.
                       </Text>
                       <Text className="mt-1 text-sm leading-relaxed" style={{ color: "#b7ffb7" }}>
                         Airdroping $USDC every month to entrants.
-                      </Text>
-                      <Text className="mt-1 text-sm leading-relaxed" style={{ color: "#b7ffb7" }}>
-                        The actions you've completed today will award you BONUS entries towards winning prizes.
                       </Text>
                       <Text className="mt-1 text-sm leading-relaxed" style={{ color: "#b7ffb7" }}>
                         The mini app for entering is still being built.
