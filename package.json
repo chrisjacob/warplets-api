@@ -33,8 +33,15 @@
   },
   "pnpm": {
     "overrides": {
+      "@babel/core@<=7.29.0": "7.29.7",
+      "axios": "1.19.0",
+      "brace-expansion@>=2.0.0 <2.1.4": "2.1.4",
+      "js-yaml@>=4.0.0 <4.3.1": "4.3.1",
       "react": "19.2.5",
-      "react-dom": "19.2.5"
+      "react-dom": "19.2.5",
+      "jayson>uuid": "11.1.1",
+      "ws@>=7.0.0 <7.5.11": "7.5.11",
+      "ws@>=8.0.0 <8.21.0": "8.21.3"
     },
     "patchedDependencies": {
       "@trustwallet/connect-walletconnect@0.0.0": "patches/@trustwallet__connect-walletconnect@0.0.0.patch",
@@ -45,12 +52,12 @@
     "@farcaster/snap": "^1.22.1",
     "@farcaster/snap-hono": "~1.5.12",
     "@noble/curves": "^2.0.0",
-    "hono": "^4.12.12",
+    "hono": "^4.13.3",
     "zod": "^4.0.0"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.0.0",
-    "@hono/node-server": "^1.19.13",
+    "@hono/node-server": "^1.19.15",
     "@types/node": "^24.0.0",
     "localflare": "^0.5.0",
     "react": "19.2.5",

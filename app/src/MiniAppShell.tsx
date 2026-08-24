@@ -1,10 +1,39 @@
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import type { PartialOptions } from "overlayscrollbars";
 import { useOverlayScrollbars } from "overlayscrollbars-react";
 
 type MiniAppShellProps = {
   children: ReactNode;
 };
+
+type NetworkConnection = EventTarget & {
+  saveData?: boolean;
+};
+
+type NavigatorWithConnection = Navigator & {
+  connection?: NetworkConnection;
+};
+
+export function shouldSkipBackgroundVideo(
+  prefersReducedMotion: boolean,
+  saveData = false,
+  prefersReducedData = false,
+) {
+  return prefersReducedMotion || saveData || prefersReducedData;
+}
+
+function shouldLoadBackgroundVideoNow() {
+  if (typeof window === "undefined" || typeof navigator === "undefined") {
+    return false;
+  }
+
+  const connection = (navigator as NavigatorWithConnection).connection;
+  return !shouldSkipBackgroundVideo(
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+    connection?.saveData === true,
+    window.matchMedia("(prefers-reduced-data: reduce)").matches,
+  );
+}
 
 const BODY_SCROLLBAR_OPTIONS = {
   update: {
@@ -26,6 +55,9 @@ const BODY_SCROLLBAR_OPTIONS = {
 } satisfies PartialOptions;
 
 export default function MiniAppShell({ children }: MiniAppShellProps) {
+  const [loadBackgroundVideo, setLoadBackgroundVideo] = useState(
+    shouldLoadBackgroundVideoNow,
+  );
   const [initializeBodyScrollbars] = useOverlayScrollbars({
     // Keep this reference stable. The adapter force-applies changed option
     // objects to the live body instance, which can reset the thumb geometry
@@ -44,6 +76,32 @@ export default function MiniAppShell({ children }: MiniAppShellProps) {
     };
   }, [initializeBodyScrollbars]);
 
+  useEffect(() => {
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const reducedData = window.matchMedia("(prefers-reduced-data: reduce)");
+    const connection = (navigator as NavigatorWithConnection).connection;
+
+    const syncVideoPreference = () => {
+      setLoadBackgroundVideo(
+        !shouldSkipBackgroundVideo(
+          reducedMotion.matches,
+          connection?.saveData === true,
+          reducedData.matches,
+        ),
+      );
+    };
+
+    reducedMotion.addEventListener("change", syncVideoPreference);
+    reducedData.addEventListener("change", syncVideoPreference);
+    connection?.addEventListener("change", syncVideoPreference);
+
+    return () => {
+      reducedMotion.removeEventListener("change", syncVideoPreference);
+      reducedData.removeEventListener("change", syncVideoPreference);
+      connection?.removeEventListener("change", syncVideoPreference);
+    };
+  }, []);
+
   return (
     <div
       className="miniapp-shell"
@@ -53,11 +111,17 @@ export default function MiniAppShell({ children }: MiniAppShellProps) {
       <div className="miniapp-shell__inner">
         <div className="miniapp-shell__video-layer" aria-hidden="true">
           <video
-            src="/matrix_bg_1080x1080.mp4"
+            src={loadBackgroundVideo ? "/matrix_bg_500x500_v2.mp4" : undefined}
+            poster={
+              loadBackgroundVideo
+                ? undefined
+                : "/matrix_bg_500x500_poster.webp"
+            }
             autoPlay
             loop
             muted
             playsInline
+            preload={loadBackgroundVideo ? "auto" : "none"}
             aria-hidden="true"
             className="miniapp-shell__video"
           />

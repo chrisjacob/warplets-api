@@ -69,8 +69,10 @@ separate association for each hostname you will use:
 
 Store the complete JSON object containing `header`, `payload` and `signature` as
 `WARPLETS_ACCOUNT_ASSOCIATION_JSON` in the matching environment. The app
-decodes the payload and returns `503` instead of publishing a manifest signed
-for a different hostname.
+decodes the payload and only publishes the association when it is signed for
+the exact request hostname. Before an association is configured, the endpoint
+returns an unsigned bootstrap manifest with HTTP `200` so Farcaster's mobile
+signer can fetch the app metadata and generate the association.
 
 For the current PowerShell session and local tunnel:
 

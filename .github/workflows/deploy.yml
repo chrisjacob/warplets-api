@@ -38,6 +38,12 @@ jobs:
       - name: Type check
         run: pnpm typecheck
 
+      - name: Test
+        run: pnpm test
+
+      - name: Audit production dependencies
+        run: pnpm audit --prod --audit-level high
+
       - name: Security preflight
         run: pnpm security:preflight
 
@@ -72,7 +78,7 @@ jobs:
         with:
           node-version: "24"
           cache: "pnpm"
-          cache-dependency-path: app/pnpm-lock.yaml
+          cache-dependency-path: pnpm-lock.yaml
 
       - name: Install dependencies
         working-directory: app
@@ -82,9 +88,17 @@ jobs:
         working-directory: app
         run: pnpm security:preflight
 
+      - name: Audit production dependencies
+        working-directory: app
+        run: pnpm audit --prod --audit-level high
+
       - name: Type check
         working-directory: app
         run: pnpm typecheck
+
+      - name: Test
+        working-directory: app
+        run: pnpm test
 
       - name: Build
         working-directory: app

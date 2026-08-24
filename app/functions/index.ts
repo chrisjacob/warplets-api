@@ -73,7 +73,7 @@ function parseWarpletsAccountAssociation(env: PagesEnv, hostname: string): Accou
   }
 }
 
-function buildFarcasterManifest(hostname: string, warpletsAssociation?: AccountAssociation | null) {
+export function buildFarcasterManifest(hostname: string, warpletsAssociation?: AccountAssociation | null) {
   if (hostname === "drop.10x.meme" || hostname === "drop-dev.10x.meme") {
     return {
       accountAssociation: DROP_ASSOCIATION,
@@ -106,9 +106,10 @@ function buildFarcasterManifest(hostname: string, warpletsAssociation?: AccountA
   }
 
   if (isWarpletsAppHostname(hostname)) {
-    if (!warpletsAssociation) return null;
     return {
-      accountAssociation: warpletsAssociation,
+      ...(warpletsAssociation
+        ? { accountAssociation: warpletsAssociation }
+        : {}),
       miniapp: {
         version: "1",
         name: WARPLETS_PUBLIC_NAME,
@@ -459,11 +460,6 @@ export const onRequestGet: PagesFunction<PagesEnv> = async (context) => {
       requestUrl.hostname,
       parseWarpletsAccountAssociation(context.env, requestUrl.hostname),
     );
-    if (!manifest) {
-      return applySecurityHeaders(Response.json({
-        error: "WARPLETS_ACCOUNT_ASSOCIATION_JSON must contain an association signed for this exact hostname",
-      }, { status: 503, headers: { "cache-control": "no-store" } }));
-    }
     return applySecurityHeaders(Response.json(manifest, {
       headers: {
         "cache-control": "no-store",

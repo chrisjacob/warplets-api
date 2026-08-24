@@ -15,7 +15,7 @@
   "dependencies": {
     "@noble/curves": "2.0.0",
     "disposable-email-domains-js": "1.25.0",
-    "hono": "^4.12.12"
+    "hono": "^4.13.3"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.0.0",

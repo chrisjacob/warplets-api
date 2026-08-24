@@ -46,10 +46,13 @@ function parseWarpletsAccountAssociation(hostname: string): AccountAssociation |
   }
 }
 
-function buildLocalWarpletsManifest(hostname: string, accountAssociation: AccountAssociation) {
+function buildLocalWarpletsManifest(
+  hostname: string,
+  accountAssociation?: AccountAssociation | null,
+) {
   const origin = `https://${hostname}`;
   return {
-    accountAssociation,
+    ...(accountAssociation ? { accountAssociation } : {}),
     miniapp: {
       version: "1",
       name: WARPLETS_PUBLIC_NAME,
@@ -380,12 +383,10 @@ export default defineConfig({
           const pathname = (req.url ?? "/").split("?")[0];
           if (pathname === "/.well-known/farcaster.json" && isWarpletsAppHostname(hostname)) {
             const association = parseWarpletsAccountAssociation(hostname);
-            res.statusCode = association ? 200 : 503;
+            res.statusCode = 200;
             res.setHeader("content-type", "application/json; charset=utf-8");
             res.setHeader("cache-control", "no-store");
-            res.end(JSON.stringify(association
-              ? buildLocalWarpletsManifest(hostname, association)
-              : { error: "WARPLETS_ACCOUNT_ASSOCIATION_JSON must contain an association signed for this exact hostname" }));
+            res.end(JSON.stringify(buildLocalWarpletsManifest(hostname, association)));
             return;
           }
           res.removeHeader("x-frame-options");
