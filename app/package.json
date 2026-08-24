@@ -19,7 +19,7 @@
     "web-push:generate-keys": "node ../scripts/generate-vapid-keys.mjs",
     "security:preflight": "node ../scripts/security-preflight.mjs",
     "deploy:dev": "pnpm security:preflight && vite build --mode development && pnpm performance:budget && wrangler pages deploy dist --project-name 10x-app-dev --branch dev",
-    "deploy:prod": "pnpm security:preflight && pnpm build && wrangler pages deploy dist --project-name 10x-app"
+    "deploy:prod": "pnpm security:preflight && pnpm build && wrangler pages deploy dist --project-name 10x-app --branch main"
   },
   "dependencies": {
     "@base-org/account": "^2.5.8",
