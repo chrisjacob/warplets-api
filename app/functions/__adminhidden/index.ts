@@ -36,6 +36,8 @@ export const onRequestGet: PagesFunction = () => {
     button:disabled { background: #3a3a3a; cursor: not-allowed; }
     button.secondary { background: #2a2a2a; border: 1px solid #444; }
     button.secondary:hover { background: #333; }
+    button.danger { background: #7f1d1d; border: 1px solid #dc2626; }
+    button.danger:hover { background: #991b1b; }
     .row { display: flex; gap: .75rem; align-items: flex-end; }
     .row button { margin-top: 0; white-space: nowrap; }
     #status { font-size: .85rem; margin-top: .75rem; padding: .5rem .75rem; border-radius: 6px; display: none; }
@@ -110,32 +112,32 @@ export const onRequestGet: PagesFunction = () => {
   <section>
     <h2>Security</h2>
     <div class="stat-grid">
-      <div class="stat-box"><div class="num" id="sec24h">â€”</div><div class="lbl">Security events 24h</div></div>
-      <div class="stat-box"><div class="num" id="sec7d">â€”</div><div class="lbl">Security events 7d</div></div>
+      <div class="stat-box"><div class="num" id="sec24h">—</div><div class="lbl">Security events 24h</div></div>
+      <div class="stat-box"><div class="num" id="sec7d">—</div><div class="lbl">Security events 7d</div></div>
     </div>
     <table>
       <thead><tr>
         <th>Event</th><th>Count (24h)</th>
       </tr></thead>
-      <tbody id="secEventsBody"><tr><td colspan="2" style="color:#555;text-align:center;padding:1rem">Loadingâ€¦</td></tr></tbody>
+      <tbody id="secEventsBody"><tr><td colspan="2" style="color:#555;text-align:center;padding:1rem">Loading…</td></tr></tbody>
     </table>
     <table style="margin-top:.75rem">
       <thead><tr>
         <th>Route</th><th>Count (24h)</th>
       </tr></thead>
-      <tbody id="secRoutesBody"><tr><td colspan="2" style="color:#555;text-align:center;padding:1rem">Loadingâ€¦</td></tr></tbody>
+      <tbody id="secRoutesBody"><tr><td colspan="2" style="color:#555;text-align:center;padding:1rem">Loading…</td></tr></tbody>
     </table>
     <table style="margin-top:.75rem">
       <thead><tr>
         <th>IP</th><th>Count (24h)</th>
       </tr></thead>
-      <tbody id="secIpsBody"><tr><td colspan="2" style="color:#555;text-align:center;padding:1rem">Loadingâ€¦</td></tr></tbody>
+      <tbody id="secIpsBody"><tr><td colspan="2" style="color:#555;text-align:center;padding:1rem">Loading…</td></tr></tbody>
     </table>
     <table style="margin-top:.75rem">
       <thead><tr>
         <th>Alert</th><th>Status</th><th>Value</th>
       </tr></thead>
-      <tbody id="secAlertsBody"><tr><td colspan="3" style="color:#555;text-align:center;padding:1rem">Loadingâ€¦</td></tr></tbody>
+      <tbody id="secAlertsBody"><tr><td colspan="3" style="color:#555;text-align:center;padding:1rem">Loading…</td></tr></tbody>
     </table>
   </section>
 
@@ -178,6 +180,7 @@ export const onRequestGet: PagesFunction = () => {
       <option value="all">All</option>
       <option value="app">10X</option>
       <option value="drop">Drop</option>
+      <option value="warplets">10X Warplets</option>
     </select>
 
     <label>Title <span style="color:#555;font-size:.75rem">(max 32 chars)</span></label>
@@ -197,6 +200,16 @@ export const onRequestGet: PagesFunction = () => {
       <option value="batch">One batch at a time (max 100 unsent)</option>
       <option value="all">All unsent now</option>
       <option value="fids">FID list only</option>
+    </select>
+
+    <label>Channels</label>
+    <select id="sendChannels">
+      <option value="farcaster">Farcaster</option>
+      <option value="web-push">Web Push</option>
+      <option value="base">Base</option>
+      <option value="farcaster-web">Farcaster + Web Push</option>
+      <option value="farcaster-base">Farcaster + Base</option>
+      <option value="all">All channels</option>
     </select>
 
     <label>Target FIDs <span style="color:#555;font-size:.75rem">(comma-separated; used by FID list mode)</span></label>
@@ -237,6 +250,43 @@ export const onRequestGet: PagesFunction = () => {
     </table>
   </section>
 
+  <!-- DISCORD EMAIL VERIFICATIONS -->
+  <section>
+    <h2>Discord Email Verifications <button class="secondary" id="discordVerificationRefreshBtn" style="padding:.25rem .75rem;font-size:.75rem;margin-top:0;margin-left:.5rem">Refresh</button></h2>
+    <p style="color:#888;font-size:.8rem;margin-bottom:.75rem">Resetting removes the Verified role and lets that Discord user verify again. The email contact is deleted only when it has no Farcaster, wallet, or other segment association.</p>
+    <table>
+      <thead><tr>
+        <th>Discord</th><th>User ID</th><th>Email</th><th>Other identity</th><th>Reset result</th><th></th>
+      </tr></thead>
+      <tbody id="discordVerificationBody"><tr><td colspan="6" style="color:#555;text-align:center;padding:1rem">Loadingâ€¦</td></tr></tbody>
+    </table>
+  </section>
+
+  <!-- RESEND ONBOARDING -->
+  <section>
+    <h2>Email Onboarding <button class="secondary" id="onboardingRefreshBtn" style="padding:.25rem .75rem;font-size:.75rem;margin-top:0;margin-left:.5rem">Refresh</button></h2>
+    <div class="stat-grid">
+      <div class="stat-box"><div class="num" id="onboardEnrolled">—</div><div class="lbl">Enrolled</div></div>
+      <div class="stat-box"><div class="num" id="onboardQueued">—</div><div class="lbl">Queued</div></div>
+      <div class="stat-box"><div class="num" id="onboardActive">—</div><div class="lbl">Active</div></div>
+      <div class="stat-box"><div class="num" id="onboardCompleted">—</div><div class="lbl">Completed</div></div>
+      <div class="stat-box"><div class="num" id="onboardInterrupted">—</div><div class="lbl">Interrupted</div></div>
+      <div class="stat-box"><div class="num" id="onboardUncertain">—</div><div class="lbl">Uncertain</div></div>
+      <div class="stat-box"><div class="num" id="onboardCompletionRate">—</div><div class="lbl">Completion rate</div></div>
+    </div>
+    <table>
+      <thead><tr><th>Email</th><th>Sent</th><th>Delivered</th><th>Opened</th><th>Clicked</th><th>Bounced</th><th>Suppressed</th><th>Complained</th></tr></thead>
+      <tbody id="onboardingStepsBody"><tr><td colspan="8" style="color:#555;text-align:center;padding:1rem">Loading…</td></tr></tbody>
+    </table>
+    <p id="onboardingStepDistribution" style="color:#888;font-size:.8rem;margin-top:.75rem"></p>
+    <p id="onboardingReconciliation" style="color:#888;font-size:.8rem;margin-top:.35rem"></p>
+    <h2 style="margin-top:1rem">Recent interruptions and reconciliation errors</h2>
+    <table>
+      <thead><tr><th>Email</th><th>Status</th><th>Last delivered</th><th>Error</th><th>Updated</th></tr></thead>
+      <tbody id="onboardingFailuresBody"><tr><td colspan="5" style="color:#555;text-align:center;padding:1rem">Loading…</td></tr></tbody>
+    </table>
+  </section>
+
   <!-- EMAIL WAITLIST -->
   <section>
     <h2>Email Waitlist <button class="secondary" id="emailRefreshBtn" style="padding:.25rem .75rem;font-size:.75rem;margin-top:0;margin-left:.5rem">Refresh</button></h2>
@@ -270,6 +320,7 @@ export const onRequestGet: PagesFunction = () => {
     all: 'https://app.10x.meme/',
     app: 'https://app.10x.meme/',
     drop: 'https://drop.10x.meme/',
+    warplets: 'https://warplet.10x.meme/',
   };
   let token = '';
   let adminSession = '';
@@ -442,8 +493,8 @@ export const onRequestGet: PagesFunction = () => {
       const r = await api('/api/security/stats');
       const data = await r.json();
 
-      document.getElementById('sec24h').textContent = String(data?.windows?.last24h ?? 'â€”');
-      document.getElementById('sec7d').textContent = String(data?.windows?.last7d ?? 'â€”');
+      document.getElementById('sec24h').textContent = String(data?.windows?.last24h ?? '—');
+      document.getElementById('sec7d').textContent = String(data?.windows?.last7d ?? '—');
 
       const eventRows = Array.isArray(data?.topEvents24h) ? data.topEvents24h : [];
       const routeRows = Array.isArray(data?.topRoutes24h) ? data.topRoutes24h : [];
@@ -524,9 +575,59 @@ export const onRequestGet: PagesFunction = () => {
     } catch (e) { if (e.message !== 'Unauthorized') console.error(e); }
   }
 
-  function loadAll() { loadStats(); loadInspect(); loadSecurity(); loadOutreach(); loadEmail(); }
+  async function loadEmailOnboarding() {
+    try {
+      const r = await api('/api/admin/email-onboarding/metrics');
+      const data = await readApiJson(r);
+      if (!r.ok) throw new Error(data.error || 'Unable to load email onboarding metrics');
+      const summary = data.summary || {};
+      document.getElementById('onboardEnrolled').textContent = summary.enrolled ?? '—';
+      document.getElementById('onboardQueued').textContent = summary.queued ?? '—';
+      document.getElementById('onboardActive').textContent = summary.active ?? '—';
+      document.getElementById('onboardCompleted').textContent = summary.completed ?? '—';
+      document.getElementById('onboardInterrupted').textContent = summary.interrupted ?? '—';
+      document.getElementById('onboardUncertain').textContent = summary.uncertain ?? '—';
+      document.getElementById('onboardCompletionRate').textContent = (summary.completionRate ?? 0) + '%';
+      const steps = Array.isArray(data.steps) ? data.steps : [];
+      document.getElementById('onboardingStepsBody').innerHTML = steps.map(step => \`<tr>
+        <td>Email \${step.step}</td>
+        <td>\${step.sent}</td>
+        <td>\${step.delivered.count} (\${step.delivered.rate}%)</td>
+        <td>\${step.opened.count} (\${step.opened.rate}%)</td>
+        <td>\${step.clicked.count} (\${step.clicked.rate}%)</td>
+        <td>\${step.bounced.count} (\${step.bounced.rate}%)</td>
+        <td>\${step.suppressed.count} (\${step.suppressed.rate}%)</td>
+        <td>\${step.complained.count} (\${step.complained.rate}%)</td>
+      </tr>\`).join('');
+      const currentSteps = Array.isArray(data.currentSteps) ? data.currentSteps : [];
+      document.getElementById('onboardingStepDistribution').textContent = 'Current-step distribution: ' + (
+        currentSteps.length
+          ? currentSteps.map(row => (Number(row.current_step) >= 0 ? 'Email ' + (Number(row.current_step) + 1) : 'Not delivered') + ': ' + row.count).join(' · ')
+          : 'no active runs'
+      );
+      const reconciliation = data.reconciliation || {};
+      document.getElementById('onboardingReconciliation').textContent = reconciliation.last_error
+        ? 'Reconciliation error: ' + reconciliation.last_error
+        : 'Last reconciliation: ' + (reconciliation.last_checked_at || 'not run yet');
+      const failures = Array.isArray(data.failures) ? data.failures : [];
+      document.getElementById('onboardingFailuresBody').innerHTML = failures.length
+        ? failures.map(row => \`<tr>
+          <td class="mono">\${esc(row.email)}</td>
+          <td><span class="pill failed">\${esc(row.status)}</span></td>
+          <td>\${Number(row.current_step) >= 0 ? 'Email ' + (Number(row.current_step) + 1) : 'None'}</td>
+          <td>\${esc(row.last_error || '—')}</td>
+          <td style="color:#666;font-size:.75rem">\${esc(row.updated_at || '')}</td>
+        </tr>\`).join('')
+        : '<tr><td colspan="5" style="color:#555;text-align:center;padding:1rem">No interruptions</td></tr>';
+    } catch (e) {
+      if (e.message !== 'Unauthorized') console.error(e);
+    }
+  }
+
+  function loadAll() { loadStats(); loadInspect(); loadSecurity(); loadOutreach(); loadEmailOnboarding(); loadDiscordVerifications(); loadEmail(); }
 
   document.getElementById('refreshBtn').addEventListener('click', loadAll);
+  document.getElementById('onboardingRefreshBtn').addEventListener('click', loadEmailOnboarding);
   document.getElementById('sendApp').addEventListener('change', updateSendTargetUiFromApp);
   updateSendTargetUiFromApp();
 
@@ -619,6 +720,7 @@ export const onRequestGet: PagesFunction = () => {
   document.getElementById('sendBtn').addEventListener('click', async () => {
     const appSlug = document.getElementById('sendApp').value;
     const sendMode = document.getElementById('sendMode').value;
+    const sendChannels = document.getElementById('sendChannels').value;
     const title = document.getElementById('sendTitle').value.trim();
     const body  = document.getElementById('sendBody').value.trim();
     if (!title || !body) { showStatus('Title and body are required', false); return; }
@@ -631,7 +733,14 @@ export const onRequestGet: PagesFunction = () => {
     if (sendMode === 'fids' && !fids?.length) { showStatus('FID list mode requires at least one FID', false); return; }
     if (target && !target.startsWith('https://')) { showStatus('targetUrl must be https', false); return; }
 
-    const payload = { title, body, appSlug, sendMode, targetUrl: target, ...(notifId && { notificationId: notifId }), ...(sendMode === 'fids' && fids && { fids }) };
+    const channels = sendChannels === 'all'
+      ? ['farcaster', 'base', 'web-push']
+      : sendChannels === 'farcaster-web'
+        ? ['farcaster', 'web-push']
+        : sendChannels === 'farcaster-base'
+          ? ['farcaster', 'base']
+          : [sendChannels];
+    const payload = { title, body, appSlug, sendMode, channels, targetUrl: target, ...(notifId && { notificationId: notifId }), ...(sendMode === 'fids' && fids && { fids }) };
 
     const btn = document.getElementById('sendBtn');
     btn.disabled = true;
@@ -672,6 +781,79 @@ export const onRequestGet: PagesFunction = () => {
   function esc(s) {
     return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   }
+
+  // --- DISCORD EMAIL VERIFICATIONS ---
+  let discordVerificationCache = [];
+
+  async function loadDiscordVerifications() {
+    const tbody = document.getElementById('discordVerificationBody');
+    try {
+      const r = await api('/api/admin/discord-verifications/list');
+      const data = await readApiJson(r);
+      if (!r.ok) throw new Error(data.error || 'Unable to load Discord verifications');
+      discordVerificationCache = data.rows || [];
+      if (!discordVerificationCache.length) {
+        tbody.innerHTML = '<tr><td colspan="6" style="color:#555;text-align:center;padding:1rem">No Discord email associations</td></tr>';
+        return;
+      }
+      tbody.innerHTML = discordVerificationCache.map((row, index) => {
+        const identity = [
+          row.farcasterFid ? 'FID ' + row.farcasterFid : '',
+          row.wallet ? 'wallet' : '',
+          ...(row.otherMemberships || []).map(() => 'other segment'),
+        ].filter(Boolean).join(', ') || 'Discord only';
+        const result = row.likelyDeletesContact
+          ? '<span class="pill failed">delete email contact</span>'
+          : '<span class="pill delivered">keep email contact</span>';
+        const stateWarning = row.durableObjectVerified ? '' : '<div style="color:#fbbf24;font-size:.72rem">D1 only; state already absent</div>';
+        return \`<tr>
+          <td>\${esc(row.discordName || 'â€”')}</td>
+          <td class="mono">\${esc(row.discordUserId)}</td>
+          <td class="mono">\${esc(row.email)}</td>
+          <td>\${esc(identity)}\${stateWarning}</td>
+          <td>\${result}</td>
+          <td><button class="danger discord-reset-btn" data-index="\${index}" style="margin-top:0;padding:.35rem .7rem;font-size:.78rem">Reset</button></td>
+        </tr>\`;
+      }).join('');
+    } catch (e) {
+      if (e.message !== 'Unauthorized') {
+        console.error(e);
+        tbody.innerHTML = '<tr><td colspan="6" style="color:#f87171;text-align:center;padding:1rem">Unable to load Discord verifications</td></tr>';
+      }
+    }
+  }
+
+  document.getElementById('discordVerificationRefreshBtn').addEventListener('click', loadDiscordVerifications);
+  document.getElementById('discordVerificationBody').addEventListener('click', async event => {
+    const button = event.target.closest('.discord-reset-btn');
+    if (!button) return;
+    const row = discordVerificationCache[Number(button.dataset.index)];
+    if (!row) return;
+    const action = row.likelyDeletesContact
+      ? 'This is expected to DELETE the email from 10X and Resend because no other association is known.'
+      : 'The email contact will be kept; only its Discord identity and Discord segment will be removed.';
+    if (!confirm(\`Reset Discord verification for \${row.discordName || row.discordUserId} (ID \${row.discordUserId}) from \${row.email}?\n\n\${action}\`)) return;
+    button.disabled = true;
+    button.textContent = 'Resettingâ€¦';
+    try {
+      const r = await api('/api/admin/discord-verifications/reset', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ discordUserId: row.discordUserId, email: row.email }),
+      });
+      const data = await readApiJson(r);
+      if (!r.ok) throw new Error(data.error || 'Reset failed');
+      const detail = data.localAction === 'email_deleted'
+        ? 'The Discord association, local email record, Resend contact, and Verified role were removed.'
+        : 'The Discord association, Discord segment, and Verified role were removed. The email contact was preserved.';
+      showStatus(detail, true);
+      await Promise.all([loadDiscordVerifications(), loadEmail()]);
+    } catch (e) {
+      if (e.message !== 'Unauthorized') showStatus(String(e.message || e), false);
+      button.disabled = false;
+      button.textContent = 'Reset';
+    }
+  });
 
   // --- EMAIL WAITLIST ---
   let emailCache = [];

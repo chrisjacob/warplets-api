@@ -9,6 +9,41 @@ compatibility_flags = ["nodejs_compat"]
 [triggers]
 crons = ["* * * * *"]
 
+[vars]
+WARPLETS_APP_ORIGIN = "https://warplet.10x.meme"
+SEARCH_API_ORIGIN = "https://app.10x.meme"
+X402_ENABLED = "false"
+X402_NETWORK = "eip155:84532"
+X402_ASSET = "0x036CbD53842c5426634e7929541eC2318f3dCF7e"
+X402_PRICE_USDC = "10000"
+# X402_PAY_TO is intentionally unset until the Sepolia accounting proof.
+# Secrets: BOT_SERVICE_TOKEN and, when enabled, X402_FACILITATOR_URL.
+# Optional Dune round-two analytics. This scheduled Worker owns production
+# polling/execution because Pages Functions do not receive Cron Trigger events.
+# Query ingestion is enabled; root query execution remains off for bootstrap.
+DUNE_ENABLED = "1"
+DUNE_EXECUTE_ENABLED = "0"
+DUNE_EXECUTION_INTERVAL_HOURS = "24"
+DUNE_RESULTS_PAGE_SIZE = "1000"
+DUNE_MAX_RESULT_PAGES = "8"
+DUNE_INDEXING_LAG_HOURS = "2"
+DUNE_MONTHLY_CREDIT_BUDGET = "1500"
+DUNE_MAX_CREDITS_PER_EXECUTION = "20"
+RESEND_ONBOARDING_ENABLED = "false"
+# Set after the disabled Automation has been provisioned and reviewed.
+# RESEND_ONBOARDING_AUTOMATION_ID = "..."
+# Warpmoji remains in Shadow mode until curated pools and the allowlisted pilot
+# are verified. Secrets: NEYNAR_API_KEY, NEYNAR_WEBHOOK_SECRET,
+# WARPMOJI_SIGNER_UUID. WARPMOJI_FID is the numeric FID for warpmoji.eth.
+WARPMOJI_FID = "0"
+DUNE_TRADES_QUERY_ID = "8102968"
+DUNE_TRANSFERS_QUERY_ID = "8102979"
+DUNE_TRADES_BACKFILL_QUERY_ID = "8102842"
+DUNE_TRANSFERS_BACKFILL_QUERY_ID = "8102887"
+OPENSEA_MARKET_INGEST_ENABLED = "false"
+OPENSEA_MARKET_INGEST_INTERVAL_MINUTES = "10"
+# Secret: DUNE_API_KEY
+
 
 [[routes]]
 pattern = "api.10x.meme"
@@ -33,6 +68,22 @@ workers_dev = false
 
 [env.dev.vars]
 SNAP_PUBLIC_BASE_URL = "https://api-dev.10x.meme"
+WARPLETS_APP_ORIGIN = "https://warplet-dev.10x.meme"
+SEARCH_API_ORIGIN = "https://app-dev.10x.meme"
+X402_ENABLED = "false"
+X402_NETWORK = "eip155:84532"
+X402_ASSET = "0x036CbD53842c5426634e7929541eC2318f3dCF7e"
+X402_PRICE_USDC = "10000"
+DUNE_ENABLED = "0"
+DUNE_EXECUTE_ENABLED = "0"
+DUNE_EXECUTION_INTERVAL_HOURS = "24"
+DUNE_RESULTS_PAGE_SIZE = "1000"
+DUNE_MAX_RESULT_PAGES = "8"
+DUNE_INDEXING_LAG_HOURS = "2"
+DUNE_MONTHLY_CREDIT_BUDGET = "1500"
+DUNE_MAX_CREDITS_PER_EXECUTION = "20"
+RESEND_ONBOARDING_ENABLED = "false"
+WARPMOJI_FID = "0"
 
 [[env.dev.kv_namespaces]]
 binding = "WARPLETS_KV"

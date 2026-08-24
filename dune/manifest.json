@@ -1,0 +1,90 @@
+{
+  "manifestVersion": 2,
+  "collection": {
+    "slug": "10xwarplets",
+    "chain": "base",
+    "chainId": 8453,
+    "contract": "0x780446dd12e080ae0db762fcd4daf313f3e359de",
+    "tokenIdMinimum": 1,
+    "tokenIdMaximum": 10000,
+    "analyticsEpoch": "2026-07-02T00:00:00.000Z"
+  },
+  "budget": {
+    "plan": "free",
+    "maximumCreditsPerExecution": 20,
+    "monthlyTargetCredits": 1500,
+    "allowPaidOverage": false,
+    "incrementalWindowHours": 48,
+    "indexingLagHours": 2,
+    "usageApiGuard": {
+      "method": "POST",
+      "endpoint": "https://api.dune.com/api/v1/usage",
+      "consumesCredits": false,
+      "preflightScript": "scripts/check-dune-usage.ps1",
+      "denyExecutionAtOrAboveCredits": 1500
+    }
+  },
+  "queries": {
+    "oneTimeBackfills": {
+      "sales": {
+        "enabled": true,
+        "scheduled": false,
+        "queryId": "8102779",
+        "environmentVariable": "8102842",
+        "name": "10X Warplets - One-time post-reset sales backfill v1",
+        "sqlFile": "queries/warplets_sales_backfill_v1.sql",
+        "schemaVersion": "warplets_dune_sales_v1",
+        "sourceKey": "dune:trades",
+        "parameterFree": true
+      },
+      "transfers": {
+        "enabled": true,
+        "scheduled": false,
+        "queryId": "8102779",
+        "environmentVariable": "8102887",
+        "name": "10X Warplets - One-time post-reset transfers backfill v1",
+        "sqlFile": "queries/warplets_transfers_backfill_v1.sql",
+        "schemaVersion": "warplets_dune_transfers_v1",
+        "sourceKey": "dune:transfers",
+        "parameterFree": true
+      }
+    },
+    "incremental": {
+      "sales": {
+        "enabled": true,
+        "queryId": "8102968",
+        "environmentVariable": "8102968",
+        "name": "10X Warplets - 48-hour sales feed v1",
+        "sqlFile": "queries/warplets_sales_incremental_v1.sql",
+        "schemaVersion": "warplets_dune_sales_v1",
+        "sourceKey": "dune:trades",
+        "parameterFree": true,
+        "windowHours": 48,
+        "indexingLagHours": 2,
+        "cadence": "daily"
+      },
+      "transfers": {
+        "enabled": true,
+        "queryId": "8102979",
+        "environmentVariable": "8102979",
+        "name": "10X Warplets - 48-hour transfers feed v1",
+        "sqlFile": "queries/warplets_transfers_incremental_v1.sql",
+        "schemaVersion": "warplets_dune_transfers_v1",
+        "sourceKey": "dune:transfers",
+        "parameterFree": true,
+        "windowHours": 48,
+        "indexingLagHours": 2,
+        "cadence": "daily"
+      }
+    },
+    "knownBulkValidation": {
+      "enabled": false,
+      "scheduled": false,
+      "queryId": null,
+      "name": "10X Warplets - Validate known bulk trade v1",
+      "sqlFile": "queries/validate_known_bulk_trade_v1.sql",
+      "expectedTokenIds": [4512, 9234],
+      "transactionHash": "0xad4aaf07b5c2e3f57403d518a5b95fe0d0b5a248855518e7caed39b486add3c8"
+    }
+  }
+}

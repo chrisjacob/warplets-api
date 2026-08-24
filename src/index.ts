@@ -1,5 +1,8 @@
 import { createApp } from "./app";
-import { runOpenseaSync, type OpenseaSyncEnv } from "./opensea-sync";
+import {
+	scheduleProductionTasks,
+	type ProductionScheduledEnv,
+} from "./production-scheduler";
 
 const app = createApp();
 
@@ -8,9 +11,9 @@ export default {
 
 	async scheduled(
 		_event: ScheduledEvent,
-		env: unknown,
+		env: ProductionScheduledEnv,
 		ctx: ExecutionContext,
 	): Promise<void> {
-		ctx.waitUntil(runOpenseaSync(env as OpenseaSyncEnv));
+		scheduleProductionTasks(env, ctx);
 	},
 };

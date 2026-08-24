@@ -1,4 +1,4 @@
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import net from "node:net";
 import path from "node:path";
 import process from "node:process";
@@ -11,6 +11,25 @@ const appDir = path.resolve(__dirname, "../app");
 
 const PUBLIC_URL = "https://app-local.10x.meme";
 const LOCAL_MINIAPP_BASE_URL = PUBLIC_URL;
+const LOCAL_APP_SESSION_SECRET = "app-local-only-session-secret-do-not-use-live-v1";
+const LOCAL_ACTION_SESSION_SECRET = "app-local-only-action-secret-do-not-use-live-v1";
+
+function applyLocalMigrations() {
+  console.log("Applying pending local D1 migrations...");
+  const result = spawnSync(
+    "pnpm",
+    ["wrangler", "d1", "migrations", "apply", "warplets", "--local"],
+    {
+      cwd: appDir,
+      shell: process.platform === "win32",
+      stdio: "inherit",
+      env: process.env,
+    },
+  );
+  if (result.status !== 0) {
+    throw new Error(`Local D1 migrations failed (${result.status ?? result.signal ?? "unknown"})`);
+  }
+}
 
 function isPortAvailable(port) {
   return new Promise((resolve) => {
@@ -46,7 +65,23 @@ function spawnViteDev(port, apiPort) {
 
 function spawnApiWorker(port) {
   const command = process.platform === "win32" ? "pnpm" : "pnpm";
-  return spawn(command, ["wrangler", "pages", "dev", ".", "--port", String(port)], {
+  const args = [
+    "wrangler",
+    "pages",
+    "dev",
+    ".",
+    "--port",
+    String(port),
+    "--binding",
+    `APP_SESSION_SECRET=${LOCAL_APP_SESSION_SECRET}`,
+    "--binding",
+    `ACTION_SESSION_SECRET=${LOCAL_ACTION_SESSION_SECRET}`,
+  ];
+  for (const name of ["VAPID_PUBLIC_KEY", "VAPID_PRIVATE_KEY", "VAPID_SUBJECT"]) {
+    const value = process.env[name]?.trim();
+    if (value) args.push("--binding", `${name}=${value}`);
+  }
+  return spawn(command, args, {
     cwd: appDir,
     shell: process.platform === "win32",
     stdio: "inherit",
@@ -107,6 +142,7 @@ async function waitForApi(port) {
 }
 
 async function main() {
+  applyLocalMigrations();
   await ensurePortAvailable(VITE_PORT, "Vite");
   await ensurePortAvailable(API_PORT, "API");
 

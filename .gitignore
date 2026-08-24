@@ -19,6 +19,10 @@ wrangler-dev.err.log
 drop-tunnel.log
 drop-tunnel.err.log
 .tmp-pages-worker.mjs
+tmp/
+resend-identity-rollback-*.json
 
 # Localflare generated files
 .localflare/
+.onboarding-provisioning/
+onboarding-provision-error.txt

@@ -1,12 +1,19 @@
-export type AppSlug = "app" | "drop" | "find" | "million";
+import {
+  WARPLETS_APP_HOSTS,
+  WARPLETS_APP_ORIGINS,
+  WARPLETS_APP_PATH,
+  WARPLETS_APP_SLUG,
+} from "../../shared/warpletsApp.js";
+
+export type AppSlug = "app" | "drop" | typeof WARPLETS_APP_SLUG | "million";
 export type NotificationAudienceSlug = AppSlug | "all";
 
-const VALID_APP_SLUGS = new Set<AppSlug>(["app", "drop", "find", "million"]);
+const VALID_APP_SLUGS = new Set<AppSlug>(["app", "drop", WARPLETS_APP_SLUG, "million"]);
 const VALID_AUDIENCE_SLUGS = new Set<NotificationAudienceSlug>([
   "all",
   "app",
   "drop",
-  "find",
+  WARPLETS_APP_SLUG,
   "million",
 ]);
 
@@ -32,11 +39,11 @@ export function resolveAppSlugFromUrl(url: URL): AppSlug {
   const cleanPath = url.pathname.replace(/\/+$/, "") || "/";
 
   if (hostname === "drop.10x.meme") return "drop";
-  if (hostname === "find.10x.meme") return "find";
+  if ((WARPLETS_APP_HOSTS as readonly string[]).includes(hostname)) return WARPLETS_APP_SLUG;
   if (hostname === "million.10x.meme") return "million";
 
   if (cleanPath === "/drop" || cleanPath.startsWith("/drop/")) return "drop";
-  if (cleanPath === "/find" || cleanPath.startsWith("/find/")) return "find";
+  if (cleanPath === WARPLETS_APP_PATH || cleanPath.startsWith(`${WARPLETS_APP_PATH}/`)) return WARPLETS_APP_SLUG;
   if (cleanPath === "/million" || cleanPath.startsWith("/million/")) return "million";
 
   return "app";
@@ -44,7 +51,7 @@ export function resolveAppSlugFromUrl(url: URL): AppSlug {
 
 export function getDefaultLaunchUrl(appSlug: AppSlug): string {
   if (appSlug === "drop") return "https://drop.10x.meme/";
-  if (appSlug === "find") return "https://find.10x.meme/";
+  if (appSlug === WARPLETS_APP_SLUG) return `${WARPLETS_APP_ORIGINS.prod}/`;
   if (appSlug === "million") return "https://million.10x.meme/";
   return "https://app.10x.meme/";
 }
@@ -57,7 +64,7 @@ export function resolveAppSlugFromAppFid(
 
   if (mapping.app != null && appFid === mapping.app) return "app";
   if (mapping.drop != null && appFid === mapping.drop) return "drop";
-  if (mapping.find != null && appFid === mapping.find) return "find";
+  if (mapping.warplets != null && appFid === mapping.warplets) return WARPLETS_APP_SLUG;
   if (mapping.million != null && appFid === mapping.million) return "million";
 
   // Current observed app_fid in production webhook events.

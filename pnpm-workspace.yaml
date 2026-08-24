@@ -1,8 +1,20 @@
 packages:
   - app
   - web
+  - snap
+  - bots
+  - extensions/10x-tabs
 
 minimumReleaseAge: 1440
 blockExoticSubdeps: true
 ignoredOptionalDependencies:
   - "@tanstack/setup"
+
+# @cloudflare/puppeteer depends on @puppeteer/browsers 2.x, whose archive
+# installer uses extract-zip. Pages Functions only use the Cloudflare Browser
+# binding and never execute that Node-side installer. No patched extract-zip
+# release exists yet, so keep this exception narrow and remove it when the
+# Cloudflare package moves off the affected dependency.
+auditConfig:
+  ignoreCves:
+    - CVE-2026-56876

@@ -1,0 +1,17 @@
+{
+  "manifest_version": 3,
+  "name": "10X Tabs",
+  "description": "Open 10X Warplets from every new tab.",
+  "version": "0.1.0",
+  "action": {
+    "default_title": "Open 10X Warplets"
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "chrome_url_overrides": {
+    "newtab": "newtab.html"
+  },
+  "options_page": "provenance.html"
+}

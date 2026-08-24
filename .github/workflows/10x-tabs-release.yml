@@ -1,0 +1,69 @@
+name: Release 10X Tabs
+
+on:
+  push:
+    tags:
+      - "10x-tabs-v*"
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+
+jobs:
+  build-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.26.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install exact lockfile
+        run: pnpm install --frozen-lockfile --config.block-exotic-subdeps=false
+
+      - name: Stamp immutable source commit
+        env:
+          SOURCE_COMMIT: ${{ github.sha }}
+        run: pnpm --dir extensions/10x-tabs stamp
+
+      - name: Build Chrome release ZIP
+        env:
+          EXTENSION_TELEMETRY: "0"
+        run: pnpm --dir extensions/10x-tabs build:zip
+
+      - name: Produce SHA-256 checksum
+        id: artifact
+        shell: bash
+        run: |
+          zip_path="$(find extensions/10x-tabs/dist -type f -name '*.zip' -print -quit)"
+          test -n "$zip_path"
+          sha256sum "$zip_path" > "$zip_path.sha256"
+          echo "zip_path=$zip_path" >> "$GITHUB_OUTPUT"
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v3
+        with:
+          subject-path: ${{ steps.artifact.outputs.zip_path }}
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ZIP_PATH: ${{ steps.artifact.outputs.zip_path }}
+        shell: bash
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            "$ZIP_PATH" \
+            "$ZIP_PATH.sha256" \
+            --verify-tag \
+            --generate-notes \
+            --title "10X Tabs ${GITHUB_REF_NAME#10x-tabs-v}"

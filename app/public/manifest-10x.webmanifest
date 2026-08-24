@@ -1,0 +1,37 @@
+{
+  "id": "/",
+  "name": "10X.MEME",
+  "short_name": "10X.MEME",
+  "description": "The 10X thesis, network, apps, alpha and community.",
+  "start_url": "/?source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "orientation": "portrait-primary",
+  "categories": ["social", "entertainment", "finance"],
+  "icons": [
+    {
+      "src": "/icon.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshots/app_1.jpg",
+      "sizes": "1284x2778",
+      "type": "image/jpeg",
+      "form_factor": "narrow",
+      "label": "10X.MEME"
+    }
+  ]
+}

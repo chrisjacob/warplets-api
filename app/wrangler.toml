@@ -1,13 +1,61 @@
 name = "10x-app"
 pages_build_output_dir = "dist"
-compatibility_date = "2024-09-23"
+compatibility_date = "2026-07-27"
 compatibility_flags = ["nodejs_compat"]
+
+[browser]
+binding = "STATS_SHARE_BROWSER"
+
+[[r2_buckets]]
+binding = "STATS_SHARE_IMAGES"
+# Placeholder names: create and bind these buckets before live snapshot rendering.
+bucket_name = "warplets-stats-shares"
+preview_bucket_name = "warplets-stats-shares-preview"
 
 [vars]
 # Farcaster FID of each registered mini-app — used to scope notification tokens
 # to the correct app_slug. Not sensitive (public Farcaster account IDs).
 APP_APP_FID = "9152"
+BASE_APP_URL = "https://warplet.10x.meme"
+# Enable only after the Base.dev project and API secret have been configured.
+BASE_NOTIFICATIONS_ENABLED = "false"
+EMAIL_AUDIENCE_MUTATIONS_ENABLED = "true"
+RESEND_ONBOARDING_ENABLED = "false"
+# Set after the disabled Automation has been provisioned and reviewed.
+# RESEND_ONBOARDING_AUTOMATION_ID = "..."
+WARPMOJI_ADMIN_FIDS = "1129138"
+# Server-side OAuth/OIDC client IDs may be added here; their matching client
+# secrets remain Wrangler secrets. VAPID_PUBLIC_KEY is public by design.
+# X_CLIENT_ID = "..."
+# X_OAUTH_CALLBACK_URL = "https://warplet.10x.meme/api/auth/x/callback"
+# TELEGRAM_OIDC_CLIENT_ID = "..."
+# TELEGRAM_OIDC_CALLBACK_URL = "https://warplet.10x.meme/api/auth/telegram/callback"
+# DISCORD_CLIENT_ID = "..."
+# DISCORD_OAUTH_CALLBACK_URL = "https://warplet.10x.meme/api/auth/discord/callback"
+# VAPID_PUBLIC_KEY = "..."
+# WARPLETS_ACCOUNT_ASSOCIATION_JSON = "{...association signed for warplet.10x.meme...}"
+# WARPLETS_APP_FID = "?????" # add once observed for the registered 10X Warplets Mini App
 # DROP_APP_FID = "?????"    # add once observed in webhook events for Drop
+
+# Optional Dune round-two analytics. Public Stats remain fully functional while
+# disabled. After creating the saved queries in dune/queries, set the two query
+# IDs below, add DUNE_API_KEY as a Wrangler secret, then change DUNE_ENABLED to
+# "1". Pages execution is reserved for authenticated, supervised bootstrap calls;
+# recurring production execution is owned by the root Worker.
+DUNE_ENABLED = "1"
+DUNE_EXECUTE_ENABLED = "1"
+DUNE_EXECUTION_INTERVAL_HOURS = "24"
+DUNE_RESULTS_PAGE_SIZE = "1000"
+DUNE_MAX_RESULT_PAGES = "8"
+DUNE_INDEXING_LAG_HOURS = "2"
+DUNE_MONTHLY_CREDIT_BUDGET = "1500"
+DUNE_MAX_CREDITS_PER_EXECUTION = "20"
+DUNE_TRADES_QUERY_ID = "8102968"
+DUNE_TRANSFERS_QUERY_ID = "8102979"
+# Optional one-time bootstrap query IDs:
+DUNE_TRADES_BACKFILL_QUERY_ID = "8102842"
+DUNE_TRANSFERS_BACKFILL_QUERY_ID = "8102887"
+# Secrets: DUNE_API_KEY and optional DUNE_WEBHOOK_SECRET
 
 # Production bindings (app.10x.meme)
 [[kv_namespaces]]
@@ -20,12 +68,41 @@ database_name = "warplets"
 database_id   = "45a4cc4c-788e-48dd-89bf-7b504b17655d"
 migrations_dir = "../migrations"
 
+[[services]]
+binding = "CHANNEL_BOTS_ADMIN"
+service = "10x-channel-bots"
+entrypoint = "DiscordVerificationAdmin"
+
 # Preview environment (app-dev.10x.meme)
 [env.preview]
 name = "10x-app-dev"
 
+[env.preview.browser]
+binding = "STATS_SHARE_BROWSER"
+
+[[env.preview.r2_buckets]]
+binding = "STATS_SHARE_IMAGES"
+# Placeholder preview bucket: no Cloudflare resources are created by this change.
+bucket_name = "warplets-stats-shares-preview"
+
 [env.preview.vars]
 APP_APP_FID = "9152"
+BASE_APP_URL = "https://warplet-dev.10x.meme"
+BASE_NOTIFICATIONS_ENABLED = "false"
+EMAIL_AUDIENCE_MUTATIONS_ENABLED = "false"
+RESEND_ONBOARDING_ENABLED = "false"
+WARPMOJI_ADMIN_FIDS = "1129138"
+# WARPLETS_ACCOUNT_ASSOCIATION_JSON = "{...association signed for warplet-dev.10x.meme...}"
+# WARPLETS_APP_FID = "?????" # preview Mini App FID, if registered separately
+# Use preview callback URLs and client registrations before enabling OAuth.
+DUNE_ENABLED = "0"
+DUNE_EXECUTE_ENABLED = "0"
+DUNE_EXECUTION_INTERVAL_HOURS = "24"
+DUNE_RESULTS_PAGE_SIZE = "1000"
+DUNE_MAX_RESULT_PAGES = "8"
+DUNE_INDEXING_LAG_HOURS = "2"
+DUNE_MONTHLY_CREDIT_BUDGET = "1500"
+DUNE_MAX_CREDITS_PER_EXECUTION = "20"
 
 [[env.preview.kv_namespaces]]
 binding = "WARPLETS_KV"
@@ -36,3 +113,8 @@ binding       = "WARPLETS"
 database_name = "warplets_preview"
 database_id   = "4ed108bd-9477-4109-930c-bc57b6c11b1f"
 migrations_dir = "../migrations"
+
+[[env.preview.services]]
+binding = "CHANNEL_BOTS_ADMIN"
+service = "10x-channel-bots-preview"
+entrypoint = "DiscordVerificationAdmin"

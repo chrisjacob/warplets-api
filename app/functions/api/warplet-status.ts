@@ -4,7 +4,7 @@
  * Upserts the viewer into warplets_users (with optional Neynar enrichment)
  * and returns whether they are matched to a Warplet allocation.
  *
- * Body: { fid: number }
+ * Body: { fid: number, appSlug?: "warplets", searchCompletion?: "onboarding" | "airdrop_modal" }
  */
 
 interface Env {
@@ -12,13 +12,19 @@ interface Env {
   WARPLETS_KV?: KVNamespace;
   NEYNAR_API_KEY?: string;
   ACTION_SESSION_SECRET?: string;
+  APP_SESSION_SECRET?: string;
 }
 import { createActionSessionToken, jsonSecure, readJsonBodyWithLimit } from "../_lib/security.js";
 import { outboundFetch } from "../_lib/outbound.js";
+import { getAppSession } from "../_lib/appAuth.js";
+import { WARPLETS_APP_SLUG } from "../../shared/warpletsApp.js";
 
 interface RequestBody {
   fid?: unknown;
   referrerFid?: unknown;
+  appSlug?: unknown;
+  searchCompletion?: unknown;
+  profile?: unknown;
 }
 
 type RecentBuyer = {
@@ -56,6 +62,8 @@ type TopReferrer = {
   referrals: number;
 };
 
+type SearchCompletion = "onboarding" | "airdrop_modal";
+
 type NeynarUserRecord = {
   username?: string;
   display_name?: string;
@@ -83,12 +91,15 @@ const OUTREACH_CANDIDATES_CACHE_TTL_SECONDS = 600;
 const OUTREACH_LIMIT = 5;
 const OUTREACH_POOL_LIMIT = 25;
 const OUTREACH_COOLDOWN_MS = 24 * 60 * 60 * 1000;
+const BEST_FRIENDS_CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const WARPLETS_DROP_LIVE_AT_MS = Date.UTC(2026, 4, 1, 0, 1, 0);
 const WARPLETS_PUBLIC_TRANCHE_MS = 10 * 24 * 60 * 60 * 1000;
 const WARPLETS_PUBLIC_TRANCHE_SIZE = 1000;
 const WARPLETS_TOTAL_SUPPLY = 10000;
 const TOP_REFERRERS_CACHE_PREFIX = "top-referrers-v1";
 const TOP_REFERRERS_CACHE_TTL_SECONDS = 600;
+const PROFILE_REFRESH_CACHE_PREFIX = "farcaster-profile-refreshed-v1";
+const PROFILE_REFRESH_TTL_SECONDS = 30 * 24 * 60 * 60;
 let usersColumnSetPromise: Promise<Set<string>> | null = null;
 
 function toErrorMessage(error: unknown): string {
@@ -137,6 +148,15 @@ async function getWarpletsUsersColumnSet(db: D1Database): Promise<Set<string>> {
 async function hasWarpletsUsersColumn(db: D1Database, name: string): Promise<boolean> {
   const cols = await getWarpletsUsersColumnSet(db);
   return cols.has(name);
+}
+
+function normalizeAppSlug(value: unknown): string | null {
+  return typeof value === "string" && value.trim().length > 0 ? value.trim().toLowerCase() : null;
+}
+
+function normalizeSearchCompletion(value: unknown): SearchCompletion | null {
+  if (value === "onboarding" || value === "airdrop_modal") return value;
+  return null;
 }
 
 function normalizeAndRankBuyers(rows: Array<{ fid: unknown; pfp_url: unknown; score: unknown }>): RecentBuyer[] {
@@ -478,37 +498,47 @@ async function loadOrFetchBestFriends(
   neynarApiKey?: string
 ): Promise<BestFriend[]> {
   const now = new Date().toISOString();
+  const freshAfterMs = Date.now() - BEST_FRIENDS_CACHE_TTL_MS;
 
   const cached = await db
     .prepare(
-      `SELECT best_friend_fid, mutual_affinity_score, username
+      `SELECT best_friend_fid, mutual_affinity_score, username, fetched_at
        FROM warplets_user_best_friends
        WHERE user_fid = ?
        ORDER BY mutual_affinity_score DESC`
     )
     .bind(userFid)
-    .all<{ best_friend_fid: number; mutual_affinity_score: number; username: string }>();
+    .all<{ best_friend_fid: number; mutual_affinity_score: number; username: string; fetched_at: string }>();
 
-  if (cached.results && cached.results.length > 0) {
-    return cached.results.map((row) => ({
+  const cachedFriends = (cached.results ?? []).map((row) => ({
       fid: row.best_friend_fid,
       mutualAffinityScore: row.mutual_affinity_score,
       username: row.username,
     }));
+  const newestCachedAtMs = Math.max(
+    0,
+    ...(cached.results ?? []).map((row) => Date.parse(row.fetched_at)).filter(Number.isFinite),
+  );
+  if (cachedFriends.length > 0 && newestCachedAtMs >= freshAfterMs) {
+    return cachedFriends;
   }
 
   try {
     const cacheState = await db
       .prepare(
-        `SELECT result_count
+        `SELECT result_count, fetched_at
          FROM warplets_user_best_friends_cache_state
          WHERE user_fid = ?
          LIMIT 1`
       )
       .bind(userFid)
-      .first<{ result_count: number }>();
+      .first<{ result_count: number; fetched_at: string }>();
 
-    if (cacheState && Number(cacheState.result_count ?? 0) === 0) {
+    if (
+      cacheState &&
+      Number(cacheState.result_count ?? 0) === 0 &&
+      Date.parse(cacheState.fetched_at) >= freshAfterMs
+    ) {
       return [];
     }
   } catch {
@@ -517,7 +547,7 @@ async function loadOrFetchBestFriends(
 
   const fetched = await fetchBestFriendsFromNeynar(userFid, neynarApiKey);
   if (!fetched) {
-    return [];
+    return cachedFriends;
   }
 
   try {
@@ -538,9 +568,20 @@ async function loadOrFetchBestFriends(
   }
 
   if (fetched.length === 0) {
+    if (cachedFriends.length > 0) {
+      await db
+        .prepare("DELETE FROM warplets_user_best_friends WHERE user_id = ?")
+        .bind(userId)
+        .run()
+        .catch(() => undefined);
+    }
     return [];
   }
 
+  await db
+    .prepare("DELETE FROM warplets_user_best_friends WHERE user_id = ?")
+    .bind(userId)
+    .run();
   await Promise.all(
     fetched.map((friend) =>
       db
@@ -1044,6 +1085,24 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     if (!fid || fid <= 0) {
       return jsonSecure({ error: "fid is required" }, { status: 400 });
     }
+    const appSlug = normalizeAppSlug(body.appSlug);
+    const searchCompletion = normalizeSearchCompletion(body.searchCompletion);
+    if (body.searchCompletion !== undefined && (appSlug !== WARPLETS_APP_SLUG || !searchCompletion)) {
+      return jsonSecure({ error: "Invalid search completion payload" }, { status: 400 });
+    }
+    const verifiedSession = appSlug === WARPLETS_APP_SLUG ? await getAppSession(context.request, context.env) : null;
+    const verifiedWarpletsFid = verifiedSession?.farcasterFid === fid;
+    const suppliedProfile = verifiedWarpletsFid && body.profile && typeof body.profile === "object" && !Array.isArray(body.profile)
+      ? body.profile as Record<string, unknown>
+      : null;
+    const suppliedUsername = typeof suppliedProfile?.username === "string" ? suppliedProfile.username.trim() || null : null;
+    const suppliedDisplayName = typeof suppliedProfile?.displayName === "string" ? suppliedProfile.displayName.trim() || null : null;
+    const suppliedPfpUrl = typeof suppliedProfile?.pfpUrl === "string" && /^https:\/\//i.test(suppliedProfile.pfpUrl)
+      ? suppliedProfile.pfpUrl.trim()
+      : null;
+    if (searchCompletion && !verifiedWarpletsFid) {
+      return jsonSecure({ error: "verified Farcaster session required" }, { status: 401 });
+    }
     const requestedReferrerFid = typeof body.referrerFid === "number" && Number.isInteger(body.referrerFid)
       ? body.referrerFid
       : null;
@@ -1053,6 +1112,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     const hasReferralsCount = await hasWarpletsUsersColumn(context.env.WARPLETS, "referrals_count");
     const hasBuyTransactionId = await hasWarpletsUsersColumn(context.env.WARPLETS, "buy_transaction_id");
     const hasTransactionError = await hasWarpletsUsersColumn(context.env.WARPLETS, "transaction_error");
+    const hasSearchOnboardingCompletedAt = await hasWarpletsUsersColumn(context.env.WARPLETS, "search_onboarding_completed_at");
+    const hasSearchAirdropModalCompletedAt = await hasWarpletsUsersColumn(context.env.WARPLETS, "search_airdrop_modal_completed_at");
     if (requestedReferrerFid && requestedReferrerFid > 0 && requestedReferrerFid !== fid) {
       const referrer = await context.env.WARPLETS.prepare(
         "SELECT fid FROM warplets_users WHERE fid = ? LIMIT 1"
@@ -1078,6 +1139,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       hasReferralsCount ? "referrals_count" : "0 AS referrals_count",
       hasBuyTransactionId ? "buy_transaction_id" : "NULL AS buy_transaction_id",
       hasTransactionError ? "transaction_error" : "NULL AS transaction_error",
+      hasSearchOnboardingCompletedAt ? "search_onboarding_completed_at" : "NULL AS search_onboarding_completed_at",
+      hasSearchAirdropModalCompletedAt ? "search_airdrop_modal_completed_at" : "NULL AS search_airdrop_modal_completed_at",
     ].join(", ");
     const existing = await context.env.WARPLETS.prepare(
       `SELECT ${existingSelect} FROM warplets_users WHERE fid = ? LIMIT 1`
@@ -1097,6 +1160,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         referrals_count: number | null;
         buy_transaction_id: string | null;
         transaction_error: string | null;
+        search_onboarding_completed_at: string | null;
+        search_airdrop_modal_completed_at: string | null;
       }>();
 
     let rarityValue: number | null = null;
@@ -1142,6 +1207,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     if (!existing) {
       const neynarUser = await fetchNeynarUserByFid(fid, context.env.NEYNAR_API_KEY);
       const now = new Date().toISOString();
+      const initialSearchOnboardingCompletedAt = searchCompletion === "onboarding" ? now : null;
+      const initialSearchAirdropModalCompletedAt = searchCompletion === "airdrop_modal" ? now : null;
       const insertColumns = [
         "fid, username, display_name, pfp_url, registered_at, pro_status, profile_bio_text, ",
         "follower_count, following_count, primary_eth_address, primary_sol_address, x_username, ",
@@ -1149,9 +1216,18 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         hasBestFriendsWarpletsOn ? ", best_friends_warplets_on" : "",
         hasReferrerFid ? ", referrer_fid" : "",
         hasReferralsCount ? ", referrals_count" : "",
+        hasSearchOnboardingCompletedAt ? ", search_onboarding_completed_at" : "",
+        hasSearchAirdropModalCompletedAt ? ", search_airdrop_modal_completed_at" : "",
         ", created_on, updated_on",
       ].join("");
-      const placeholderCount = 20 + (hasBestFriendsWarpletsOn ? 1 : 0) + (hasReferrerFid ? 1 : 0) + (hasReferralsCount ? 1 : 0) + 2;
+      const placeholderCount =
+        20 +
+        (hasBestFriendsWarpletsOn ? 1 : 0) +
+        (hasReferrerFid ? 1 : 0) +
+        (hasReferralsCount ? 1 : 0) +
+        (hasSearchOnboardingCompletedAt ? 1 : 0) +
+        (hasSearchAirdropModalCompletedAt ? 1 : 0) +
+        2;
       const placeholders = new Array(placeholderCount).fill("?").join(", ");
       const insertValues: Array<unknown> = [
         fid,
@@ -1178,6 +1254,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       if (hasBestFriendsWarpletsOn) insertValues.push(null);
       if (hasReferrerFid) insertValues.push(validReferrerFid);
       if (hasReferralsCount) insertValues.push(0);
+      if (hasSearchOnboardingCompletedAt) insertValues.push(initialSearchOnboardingCompletedAt);
+      if (hasSearchAirdropModalCompletedAt) insertValues.push(initialSearchAirdropModalCompletedAt);
       insertValues.push(now, now);
 
       await context.env.WARPLETS.prepare(
@@ -1228,7 +1306,9 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         }
       }
 
-      const actionSessionToken = await createActionSessionToken(context.env.ACTION_SESSION_SECRET, fid, 3600);
+      const actionSessionToken = appSlug !== WARPLETS_APP_SLUG || verifiedWarpletsFid
+        ? await createActionSessionToken(context.env.ACTION_SESSION_SECRET, fid, 3600)
+        : null;
       return jsonSecure({
         fid,
         exists: false,
@@ -1246,13 +1326,23 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         topReferrers,
         actionSessionToken,
         completedActionsCount: 0,
+        searchOnboardingCompletedAt: hasSearchOnboardingCompletedAt ? initialSearchOnboardingCompletedAt : null,
+        searchAirdropModalCompletedAt: hasSearchAirdropModalCompletedAt ? initialSearchAirdropModalCompletedAt : null,
       });
     }
 
-    const shouldHydrateProfile =
+    const profileRefreshKey = `${PROFILE_REFRESH_CACHE_PREFIX}:${fid}`;
+    const recentlyRefreshedProfile = context.env.WARPLETS_KV
+      ? await context.env.WARPLETS_KV.get(profileRefreshKey).catch(() => null)
+      : null;
+    const shouldRefreshProfileFromNeynar =
       !existing.username ||
       !existing.pfp_url ||
-      existing.score === null;
+      existing.score === null ||
+      !recentlyRefreshedProfile;
+    const shouldHydrateProfile =
+      shouldRefreshProfileFromNeynar ||
+      Boolean(suppliedUsername || suppliedDisplayName || suppliedPfpUrl);
     let referralCount = Math.max(0, Number(existing.referrals_count ?? 0));
 
     if (validReferrerFid && hasReferrerFid && !existing.referrer_fid) {
@@ -1277,14 +1367,16 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     }
 
     if (shouldHydrateProfile) {
-      const neynarUser = await fetchNeynarUserByFid(fid, context.env.NEYNAR_API_KEY);
-      if (neynarUser) {
+      const neynarUser = shouldRefreshProfileFromNeynar
+        ? await fetchNeynarUserByFid(fid, context.env.NEYNAR_API_KEY)
+        : null;
+      if (neynarUser || suppliedUsername || suppliedDisplayName || suppliedPfpUrl) {
         const now = new Date().toISOString();
         await context.env.WARPLETS.prepare(
           `UPDATE warplets_users SET
-             username = COALESCE(username, ?),
-             display_name = COALESCE(display_name, ?),
-             pfp_url = COALESCE(pfp_url, ?),
+             username = COALESCE(?, username),
+             display_name = COALESCE(?, display_name),
+             pfp_url = COALESCE(?, pfp_url),
              registered_at = COALESCE(registered_at, ?),
              pro_status = COALESCE(pro_status, ?),
              profile_bio_text = COALESCE(profile_bio_text, ?),
@@ -1301,25 +1393,63 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
            WHERE id = ?`
         )
           .bind(
-            neynarUser.username ?? null,
-            neynarUser.display_name ?? null,
-            neynarUser.pfp_url ?? null,
-            neynarUser.registered_at ?? null,
-            neynarUser.pro_status ?? null,
-            neynarUser.profile_bio_text ?? null,
-            neynarUser.follower_count ?? null,
-            neynarUser.following_count ?? null,
-            neynarUser.primary_eth_address ?? null,
-            neynarUser.primary_sol_address ?? null,
-            neynarUser.x_username ?? null,
-            neynarUser.url ?? null,
-            boolToInt(neynarUser.viewer_following),
-            boolToInt(neynarUser.viewer_followed_by),
-            neynarUser.score ?? null,
+            suppliedUsername ?? neynarUser?.username ?? null,
+            suppliedDisplayName ?? neynarUser?.display_name ?? null,
+            suppliedPfpUrl ?? neynarUser?.pfp_url ?? null,
+            neynarUser?.registered_at ?? null,
+            neynarUser?.pro_status ?? null,
+            neynarUser?.profile_bio_text ?? null,
+            neynarUser?.follower_count ?? null,
+            neynarUser?.following_count ?? null,
+            neynarUser?.primary_eth_address ?? null,
+            neynarUser?.primary_sol_address ?? null,
+            neynarUser?.x_username ?? null,
+            neynarUser?.url ?? null,
+            boolToInt(neynarUser?.viewer_following),
+            boolToInt(neynarUser?.viewer_followed_by),
+            neynarUser?.score ?? null,
             now,
             existing.id
           )
           .run();
+        try {
+          await context.env.WARPLETS.prepare(
+            `UPDATE wallet_farcaster_links SET
+               username = COALESCE(?, username),
+               display_name = COALESCE(?, display_name),
+               pfp_url = COALESCE(?, pfp_url),
+               score = COALESCE(?, score),
+               fetched_at = ?
+             WHERE fid = ?`
+          ).bind(
+            suppliedUsername ?? neynarUser?.username ?? null,
+            suppliedDisplayName ?? neynarUser?.display_name ?? null,
+            suppliedPfpUrl ?? neynarUser?.pfp_url ?? null,
+            neynarUser?.score ?? null,
+            now,
+            fid,
+          ).run();
+        } catch {
+          await context.env.WARPLETS.prepare(
+            `UPDATE wallet_farcaster_links SET
+               username = COALESCE(?, username),
+               pfp_url = COALESCE(?, pfp_url),
+               score = COALESCE(?, score),
+               fetched_at = ?
+             WHERE fid = ?`
+          ).bind(
+            suppliedUsername ?? neynarUser?.username ?? null,
+            suppliedPfpUrl ?? neynarUser?.pfp_url ?? null,
+            neynarUser?.score ?? null,
+            now,
+            fid,
+          ).run();
+        }
+        if (context.env.WARPLETS_KV) {
+          await context.env.WARPLETS_KV.put(profileRefreshKey, now, {
+            expirationTtl: PROFILE_REFRESH_TTL_SECONDS,
+          });
+        }
       }
     }
 
@@ -1342,6 +1472,28 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       logEnrichmentError("post_existing_user_friends_outreach", error, { fid, userId: existing.id, hostname });
     }
 
+    let searchOnboardingCompletedAt = existing.search_onboarding_completed_at;
+    let searchAirdropModalCompletedAt = existing.search_airdrop_modal_completed_at;
+    if (appSlug === WARPLETS_APP_SLUG && searchCompletion) {
+      const now = new Date().toISOString();
+      if (searchCompletion === "onboarding" && hasSearchOnboardingCompletedAt) {
+        await context.env.WARPLETS.prepare(
+          "UPDATE warplets_users SET search_onboarding_completed_at = COALESCE(search_onboarding_completed_at, ?), updated_on = ? WHERE id = ?"
+        )
+          .bind(now, now, existing.id)
+          .run();
+        searchOnboardingCompletedAt = searchOnboardingCompletedAt ?? now;
+      }
+      if (searchCompletion === "airdrop_modal" && hasSearchAirdropModalCompletedAt) {
+        await context.env.WARPLETS.prepare(
+          "UPDATE warplets_users SET search_airdrop_modal_completed_at = COALESCE(search_airdrop_modal_completed_at, ?), updated_on = ? WHERE id = ?"
+        )
+          .bind(now, now, existing.id)
+          .run();
+        searchAirdropModalCompletedAt = searchAirdropModalCompletedAt ?? now;
+      }
+    }
+
     const completedActionsRow = await context.env.WARPLETS.prepare(
       `SELECT COUNT(DISTINCT action_slug) AS completed_actions
        FROM actions_completed
@@ -1351,7 +1503,9 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       .first<{ completed_actions: number }>();
     const completedActionsCount = Number(completedActionsRow?.completed_actions ?? 0);
 
-    const actionSessionToken = await createActionSessionToken(context.env.ACTION_SESSION_SECRET, fid, 3600);
+    const actionSessionToken = appSlug !== WARPLETS_APP_SLUG || verifiedWarpletsFid
+      ? await createActionSessionToken(context.env.ACTION_SESSION_SECRET, fid, 3600)
+      : null;
     return jsonSecure({
       fid,
       exists: true,
@@ -1369,6 +1523,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       topReferrers,
       actionSessionToken,
       completedActionsCount,
+      searchOnboardingCompletedAt: hasSearchOnboardingCompletedAt ? searchOnboardingCompletedAt : null,
+      searchAirdropModalCompletedAt: hasSearchAirdropModalCompletedAt ? searchAirdropModalCompletedAt : null,
     });
   } catch (error) {
     console.error("warplet-status POST failed:", error);
@@ -1389,6 +1545,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       topReferrers: [],
       actionSessionToken: null,
       completedActionsCount: 0,
+      searchOnboardingCompletedAt: null,
+      searchAirdropModalCompletedAt: null,
     });
   }
 };

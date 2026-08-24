@@ -43,7 +43,7 @@ const DEFAULT_CSP = [
   "script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' https://www.googletagmanager.com https://www.google-analytics.com https://static.cloudflareinsights.com https://challenges.cloudflare.com https://ph.neynar.com",
   "frame-src 'self' https://www.youtube-nocookie.com https://www.youtube.com",
   "worker-src 'self' blob:",
-  "connect-src 'self' https:",
+  "connect-src 'self' https: wss://relay.walletconnect.com wss://relay.walletconnect.org",
   "frame-ancestors 'self' https://farcaster.xyz https://*.farcaster.xyz https://warpcast.com https://*.warpcast.com",
   "base-uri 'self'",
 ].join("; ");

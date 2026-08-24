@@ -15,6 +15,7 @@ import {
 } from "@farcaster/miniapp-node";
 import { AppSlug, normalizeAppSlug, resolveAppSlugFromAppFid } from "./_lib/appSlug.js";
 import { jsonSecure, logSecurityEvent } from "./_lib/security.js";
+import { WARPLETS_APP_SLUG } from "../shared/warpletsApp.js";
 
 interface NotificationDetails { token: string; url: string; }
 
@@ -25,7 +26,7 @@ export interface Env {
   SECURITY_LOG_SALT?: string;
   APP_APP_FID?: string;
   DROP_APP_FID?: string;
-  FIND_APP_FID?: string;
+  WARPLETS_APP_FID?: string;
   MILLION_APP_FID?: string;
 }
 
@@ -49,7 +50,7 @@ function resolveAppSlugFromWebhookPath(url: URL): AppSlug | null {
   }
 
   const rawSlug = segments[1];
-  if (!["app", "drop", "find", "million"].includes(rawSlug)) {
+  if (!["app", "drop", WARPLETS_APP_SLUG, "million"].includes(rawSlug)) {
     return null;
   }
 
@@ -174,7 +175,7 @@ export async function handleWebhookRequest(
   const appSlug = pathScopedAppSlug ?? resolveAppSlugFromAppFid(appFid, {
     app: parseOptionalInt(env.APP_APP_FID),
     drop: parseOptionalInt(env.DROP_APP_FID),
-    find: parseOptionalInt(env.FIND_APP_FID),
+    warplets: parseOptionalInt(env.WARPLETS_APP_FID),
     million: parseOptionalInt(env.MILLION_APP_FID),
   });
 

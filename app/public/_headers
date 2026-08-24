@@ -1,0 +1,5 @@
+/db/warplets.v1.fts.sqlite.br
+  Content-Type: application/vnd.sqlite3
+  Content-Encoding: br
+  Cache-Control: public, max-age=31536000, immutable
+  Access-Control-Allow-Origin: *

@@ -1,0 +1,15 @@
+{
+  "name": "@10x/tabs",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "extension dev --browser=chrome",
+    "build": "extension build --browser=chrome",
+    "build:zip": "extension build --browser=chrome --zip",
+    "stamp": "node scripts/stamp-provenance.mjs"
+  },
+  "devDependencies": {
+    "extension": "4.0.28"
+  }
+}

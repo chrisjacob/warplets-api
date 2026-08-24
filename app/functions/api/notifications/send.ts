@@ -16,6 +16,12 @@
  */
 
 import { dispatchNotificationBatch } from "../../_lib/dispatch.js";
+import { sendBaseNotificationCampaign, type BaseNotificationsEnv } from "../../_lib/baseNotifications.js";
+import {
+  sendWebPushNotification,
+  type WebPushEnv,
+  type WebPushSubscriptionRow,
+} from "../../_lib/webPush.js";
 import {
   getDefaultLaunchUrl,
   normalizeNotificationAudienceSlug,
@@ -30,12 +36,19 @@ import {
   readJsonBodyWithLimit,
   requireAdminScope,
 } from "../../_lib/security.js";
+import { WARPLETS_APP_ORIGINS, WARPLETS_APP_SLUG } from "../../../shared/warpletsApp.js";
 
-interface Env {
+interface Env extends BaseNotificationsEnv, WebPushEnv {
   WARPLETS: D1Database;
   WARPLETS_KV: KVNamespace;
   ADMIN_API_KEYS_JSON?: string;
   SECURITY_LOG_SALT?: string;
+  BASE_NOTIFICATIONS_API_KEY?: string;
+  BASE_NOTIFICATIONS_ENABLED?: string;
+  BASE_APP_URL?: string;
+  VAPID_PUBLIC_KEY?: string;
+  VAPID_PRIVATE_KEY?: string;
+  VAPID_SUBJECT?: string;
 }
 
 interface RequestBody {
@@ -46,6 +59,8 @@ interface RequestBody {
   notificationId?: string;
   appSlug?: string;
   sendMode?: "all" | "batch" | "fids";
+  channels?: Array<"farcaster" | "base" | "web-push">;
+  wallets?: string[];
 }
 
 interface TokenRow {
@@ -76,6 +91,45 @@ interface AttemptInspectRow {
 }
 
 const BATCH_LIMIT = 100;
+
+async function resolveWebPushRows(
+  db: D1Database,
+  audienceSlug: string,
+  fids?: number[],
+): Promise<WebPushSubscriptionRow[]> {
+  const filters = [
+    "enabled = 1",
+    `EXISTS (
+       SELECT 1 FROM json_each(web_push_subscriptions.topics_json)
+        WHERE json_each.value = 'announcements'
+     )`,
+  ];
+  const bindings: Array<string | number> = [];
+  if (audienceSlug !== "all") {
+    filters.push("app_slug = ?");
+    bindings.push(audienceSlug);
+  }
+  if (fids?.length) {
+    filters.push(`farcaster_fid IN (${fids.map(() => "?").join(", ")})`);
+    bindings.push(...fids);
+  }
+  const result = await db.prepare(
+    `SELECT endpoint_hash, endpoint, p256dh, auth, app_slug, farcaster_fid, wallet_address
+       FROM web_push_subscriptions
+      WHERE ${filters.join(" AND ")}
+      ORDER BY updated_at DESC`,
+  ).bind(...bindings).all<WebPushSubscriptionRow>();
+  return result.results ?? [];
+}
+
+async function resolveDeliveredWebPushRecipients(db: D1Database, campaignId: string): Promise<Set<string>> {
+  const result = await db.prepare(
+    `SELECT recipient_key
+       FROM notification_channel_deliveries
+      WHERE campaign_id = ? AND channel = 'web-push' AND status = 'delivered'`,
+  ).bind(campaignId).all<{ recipient_key: string }>();
+  return new Set((result.results ?? []).map((row) => row.recipient_key));
+}
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -300,6 +354,21 @@ function parseFids(raw: string | null): number[] | undefined {
   return fids.length > 0 ? Array.from(new Set(fids)) : undefined;
 }
 
+async function resolveBaseWallets(db: D1Database, fids?: number[], wallets?: string[]): Promise<string[] | undefined> {
+  const explicit = Array.isArray(wallets)
+    ? wallets.map((wallet) => wallet.trim().toLowerCase()).filter((wallet) => /^0x[a-f0-9]{40}$/.test(wallet))
+    : [];
+  if (explicit.length > 0) return [...new Set(explicit)];
+  if (!fids?.length) return undefined;
+  const placeholders = fids.map(() => "?").join(", ");
+  const result = await db.prepare(
+    `SELECT lower(wallet_address) AS wallet FROM app_identity_links WHERE farcaster_fid IN (${placeholders})
+     UNION
+     SELECT lower(wallet) AS wallet FROM wallet_farcaster_links WHERE fid IN (${placeholders})`,
+  ).bind(...fids, ...fids).all<{ wallet: string }>();
+  return [...new Set(result.results.map((row) => row.wallet).filter((wallet) => /^0x[a-f0-9]{40}$/.test(wallet)))];
+}
+
 export const onRequestGet: PagesFunction<Env> = async (context) => {
   const auth = await requireAdminScope(context, { scope: "notify:stats" });
   if (!auth.ok) {
@@ -368,7 +437,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   if (!isPlainObject(parsedBody.value)) {
     return jsonSecure({ error: "Invalid JSON payload" }, { status: 400 });
   }
-  if (!hasOnlyAllowedKeys(parsedBody.value, ["fids", "title", "body", "targetUrl", "notificationId", "appSlug", "sendMode"])) {
+  if (!hasOnlyAllowedKeys(parsedBody.value, ["fids", "title", "body", "targetUrl", "notificationId", "appSlug", "sendMode", "channels", "wallets"])) {
     return jsonSecure({ error: "Unexpected fields in payload" }, { status: 400 });
   }
   const json = parsedBody.value as unknown as RequestBody;
@@ -379,6 +448,13 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   if (json.fids !== undefined && !Array.isArray(json.fids)) {
     return jsonSecure({ error: "fids must be an array" }, { status: 400 });
   }
+  if (json.channels !== undefined && (!Array.isArray(json.channels) || json.channels.some((channel) => channel !== "farcaster" && channel !== "base" && channel !== "web-push"))) {
+    return jsonSecure({ error: "channels must contain farcaster, base, and/or web-push" }, { status: 400 });
+  }
+  const channels = [...new Set(json.channels?.length ? json.channels : ["farcaster"])] as Array<"farcaster" | "base" | "web-push">;
+  const wantFarcaster = channels.includes("farcaster");
+  const wantBase = channels.includes("base");
+  const wantWebPush = channels.includes("web-push");
 
   const requestedFids = Array.isArray(json.fids)
     ? Array.from(new Set(json.fids.filter((fid) => Number.isInteger(fid) && fid > 0)))
@@ -400,9 +476,10 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
   const hasFidList = Boolean(requestedFids?.length);
   const sendMode = hasFidList ? "fids" : json.sendMode === "batch" ? "batch" : "all";
-  const rows = await resolveTokenRows(context.env.WARPLETS, audienceSlug, requestedFids);
+  const rows = wantFarcaster ? await resolveTokenRows(context.env.WARPLETS, audienceSlug, requestedFids) : [];
+  const webPushRows = wantWebPush ? await resolveWebPushRows(context.env.WARPLETS, audienceSlug, requestedFids) : [];
 
-  if (rows.length === 0) {
+  if (rows.length === 0 && webPushRows.length === 0 && !wantBase) {
     return jsonSecure({ total: 0, results: [], message: "No enabled tokens found" });
   }
 
@@ -412,7 +489,13 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   const pendingRows = rows.filter((row) => !alreadyDispatchedFids.has(row.fid));
   const selectedRows = sendMode === "batch" ? pendingRows.slice(0, BATCH_LIMIT) : pendingRows;
 
-  if (selectedRows.length === 0) {
+  const deliveredWebPushRecipients = wantWebPush
+    ? await resolveDeliveredWebPushRecipients(context.env.WARPLETS, notificationId)
+    : new Set<string>();
+  const pendingWebPushRows = webPushRows.filter((row) => !deliveredWebPushRecipients.has(row.endpoint_hash));
+  const selectedWebPushRows = sendMode === "batch" ? pendingWebPushRows.slice(0, BATCH_LIMIT) : pendingWebPushRows;
+
+  if (selectedRows.length === 0 && selectedWebPushRows.length === 0 && !wantBase) {
     return jsonSecure({
       total: 0,
       notificationId,
@@ -429,7 +512,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     return acc;
   }, {});
 
-  const results: { fid: number; state: string; error?: unknown }[] = [];
+  const results: Array<{ channel: "farcaster" | "base" | "web-push"; fid?: number; wallet?: string; state: string; error?: unknown }> = [];
 
   for (const [notificationUrl, urlRows] of Object.entries(rowsByUrl)) {
     for (const batchRows of chunk(urlRows, BATCH_LIMIT)) {
@@ -447,8 +530,44 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
           notificationToken: row.notification_token,
         })),
       });
-      results.push(...batchResults);
+      results.push(...batchResults.map((result) => ({ channel: "farcaster" as const, ...result })));
     }
+  }
+
+  for (const webPushBatch of chunk(selectedWebPushRows, 20)) {
+    const batchResults = await Promise.all(webPushBatch.map((subscription) => sendWebPushNotification(
+      context.env,
+      subscription,
+      {
+        campaignId: notificationId,
+        appSlug: audienceSlug === "all" ? subscription.app_slug : audienceSlug as AppSlug,
+        title,
+        body,
+        targetUrl,
+      },
+    )));
+    results.push(...batchResults);
+  }
+
+  if (wantBase) {
+    const target = new URL(targetBase);
+    const appOrigin = new URL(context.env.BASE_APP_URL || WARPLETS_APP_ORIGINS.prod).origin;
+    const targetPath = target.origin === appOrigin ? `${target.pathname}${target.search}` : "/";
+    const baseWallets = await resolveBaseWallets(context.env.WARPLETS, requestedFids, json.wallets);
+    const baseResults = await sendBaseNotificationCampaign(context.env, {
+      campaignId: notificationId,
+      appSlug: audienceSlug === "all" ? WARPLETS_APP_SLUG : audienceSlug,
+      wallets: baseWallets,
+      title,
+      message: body,
+      targetPath,
+    });
+    results.push(...baseResults.map((result) => ({
+      channel: "base" as const,
+      wallet: result.wallet,
+      state: result.state,
+      error: result.error,
+    })));
   }
 
   const summary = results.reduce<Record<string, number>>((acc, r) => {
@@ -470,13 +589,16 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       audienceSlug,
       totalRows: rows.length,
       selectedRows: selectedRows.length,
+      selectedWebPushRows: selectedWebPushRows.length,
+      channels,
       sendMode,
       notificationId,
     }),
   });
 
   return jsonSecure({
-    total: selectedRows.length,
+    total: results.length,
+    channels,
     notificationId,
     sendMode,
     progress: afterProgress,

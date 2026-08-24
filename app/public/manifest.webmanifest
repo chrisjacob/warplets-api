@@ -1,0 +1,85 @@
+{
+  "id": "/",
+  "name": "10X Warplets",
+  "short_name": "10X Warplets",
+  "description": "Search, collect and explore the 10X Warplets NFT collection.",
+  "start_url": "/?source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "orientation": "portrait-primary",
+  "categories": ["entertainment", "finance", "social"],
+  "icons": [
+    {
+      "src": "/icon_search.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon_search.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Random Warplet",
+      "short_name": "Random",
+      "url": "/?random=1&source=pwa-shortcut",
+      "icons": [{ "src": "/icon_search.png", "sizes": "1024x1024", "type": "image/png" }]
+    },
+    {
+      "name": "Listed Warplets",
+      "short_name": "Listed",
+      "url": "/listed?source=pwa-shortcut",
+      "icons": [{ "src": "/icon_search.png", "sizes": "1024x1024", "type": "image/png" }]
+    },
+    {
+      "name": "Collection Stats",
+      "short_name": "Stats",
+      "url": "/stats?source=pwa-shortcut",
+      "icons": [{ "src": "/icon_search.png", "sizes": "1024x1024", "type": "image/png" }]
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/embed_search.png",
+      "sizes": "1200x800",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "10X Warplets"
+    },
+    {
+      "src": "/screenshots/search_1.jpg",
+      "sizes": "1284x2778",
+      "type": "image/jpeg",
+      "form_factor": "narrow",
+      "label": "10X Warplets screenshot 1"
+    },
+    {
+      "src": "/screenshots/search_2.jpg",
+      "sizes": "1284x2778",
+      "type": "image/jpeg",
+      "form_factor": "narrow",
+      "label": "10X Warplets screenshot 2"
+    },
+    {
+      "src": "/screenshots/search_3.jpg",
+      "sizes": "1284x2778",
+      "type": "image/jpeg",
+      "form_factor": "narrow",
+      "label": "10X Warplets screenshot 3"
+    },
+    {
+      "src": "/screenshots/search_4.jpg",
+      "sizes": "1284x2778",
+      "type": "image/jpeg",
+      "form_factor": "narrow",
+      "label": "10X Warplets screenshot 4"
+    }
+  ]
+}
