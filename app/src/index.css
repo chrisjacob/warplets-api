@@ -17,16 +17,6 @@ html {
   background-color: #000000;
 }
 
-/* Keep the 10X green underline as the stable affordance while link text can
-   still shift colour on hover. This also covers controls that reveal their
-   underline only on hover. */
-a,
-button,
-[class~="underline"],
-[class~="hover:underline"] {
-  text-decoration-color: #00ff00 !important;
-}
-
 /* Keep iPhone's status-bar safe area owned by the app shell rather than by a
    temporary fixed toast. Safari otherwise samples the warning red for its
    browser chrome and may retain it after the toast has been dismissed. */

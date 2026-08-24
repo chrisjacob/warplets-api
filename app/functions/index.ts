@@ -94,9 +94,7 @@ function buildFarcasterManifest(hostname: string, warpletsAssociation?: AccountA
         description: DROP_SHARE_DESCRIPTION,
         primaryCategory: "social",
         screenshotUrls: [
-          "https://drop.10x.meme/screenshots/1.jpg",
-          "https://drop.10x.meme/screenshots/2.jpg",
-          "https://drop.10x.meme/screenshots/3.jpg",
+          "https://drop.10x.meme/screenshots/drop_1.jpg",
         ],
         tags: ["10x", "warplets", "farcaster", "nft", "drop"],
         tagline: "Take the green pill.",
@@ -128,15 +126,15 @@ function buildFarcasterManifest(hostname: string, warpletsAssociation?: AccountA
         description: WARPLETS_SHARE_DESCRIPTION,
         primaryCategory: "social",
         screenshotUrls: [
-          `https://${hostname}/screenshots/1.jpg`,
-          `https://${hostname}/screenshots/2.jpg`,
-          `https://${hostname}/screenshots/3.jpg`,
+          `https://${hostname}/screenshots/search_1.jpg`,
+          `https://${hostname}/screenshots/search_2.jpg`,
+          `https://${hostname}/screenshots/search_3.jpg`,
         ],
         tags: ["10x", "warplets", "farcaster", "nft", "search"],
         tagline: "Take the green pill.",
         ogTitle: WARPLETS_SHARE_TITLE,
         ogDescription: WARPLETS_SHARE_DESCRIPTION,
-        ogImageUrl: `https://${hostname}/embed_search.png`,
+        ogImageUrl: `https://${hostname}/hero_search.png`,
       },
     };
   }
@@ -160,9 +158,7 @@ function buildFarcasterManifest(hostname: string, warpletsAssociation?: AccountA
       description: "10X Network. 10X Warplets. 10X Memecoins.",
       primaryCategory: "social",
       screenshotUrls: [
-        "https://app.10x.meme/screenshots/1.jpg",
-        "https://app.10x.meme/screenshots/2.jpg",
-        "https://app.10x.meme/screenshots/3.jpg",
+        "https://app.10x.meme/screenshots/app_1.jpg",
       ],
       tags: ["10x", "warplets", "farcaster", "nft", "memecoins"],
       tagline: "Don't miss out.",

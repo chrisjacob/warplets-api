@@ -24,5 +24,14 @@
       "type": "image/png",
       "purpose": "maskable"
     }
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshots/app_1.jpg",
+      "sizes": "1284x2778",
+      "type": "image/jpeg",
+      "form_factor": "narrow",
+      "label": "10X.MEME"
+    }
   ]
 }

@@ -26,10 +26,10 @@
   ],
   "screenshots": [
     {
-      "src": "/hero_drop2.png",
-      "sizes": "1200x630",
-      "type": "image/png",
-      "form_factor": "wide",
+      "src": "/screenshots/drop_1.jpg",
+      "sizes": "1284x2778",
+      "type": "image/jpeg",
+      "form_factor": "narrow",
       "label": "10X Warplets Drop"
     }
   ]

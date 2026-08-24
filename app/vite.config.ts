@@ -66,12 +66,12 @@ function buildLocalWarpletsManifest(hostname: string, accountAssociation: Accoun
       subtitle: "Find your Warplet.",
       description: "Search, filter, trade, favourite, and share 10X Warplets.",
       primaryCategory: "social",
-      screenshotUrls: [1, 2, 3].map((index) => `${origin}/screenshots/${index}.jpg`),
+      screenshotUrls: [1, 2, 3].map((index) => `${origin}/screenshots/search_${index}.jpg`),
       tags: ["10x", "warplets", "farcaster", "nft", "search"],
       tagline: "Take the green pill.",
       ogTitle: WARPLETS_PUBLIC_NAME,
       ogDescription: "Search, filter, trade, favourite, and share 10X Warplets.",
-      ogImageUrl: `${origin}/embed_search.png`,
+      ogImageUrl: `${origin}/hero_search.png`,
     },
   };
 }

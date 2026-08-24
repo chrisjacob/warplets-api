@@ -54,11 +54,32 @@
       "label": "10X Warplets"
     },
     {
-      "src": "/screenshots/1.jpg",
+      "src": "/screenshots/search_1.jpg",
       "sizes": "1284x2778",
       "type": "image/jpeg",
       "form_factor": "narrow",
-      "label": "Explore 10X Warplets"
+      "label": "10X Warplets screenshot 1"
+    },
+    {
+      "src": "/screenshots/search_2.jpg",
+      "sizes": "1284x2778",
+      "type": "image/jpeg",
+      "form_factor": "narrow",
+      "label": "10X Warplets screenshot 2"
+    },
+    {
+      "src": "/screenshots/search_3.jpg",
+      "sizes": "1284x2778",
+      "type": "image/jpeg",
+      "form_factor": "narrow",
+      "label": "10X Warplets screenshot 3"
+    },
+    {
+      "src": "/screenshots/search_4.jpg",
+      "sizes": "1284x2778",
+      "type": "image/jpeg",
+      "form_factor": "narrow",
+      "label": "10X Warplets screenshot 4"
     }
   ]
 }
