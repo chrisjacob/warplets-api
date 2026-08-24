@@ -220,6 +220,10 @@ retrieved, scoped automation keys may be added through
 `ADMIN_API_KEYS_JSON_EXTRA`. Both arrays use the same record shape and are
 combined before the normal scope, active-state, and 2FA checks.
 
+Staged production releases may use `ADMIN_API_KEYS_JSON_RELEASE` for a separate,
+least-privilege bootstrap key when neither encrypted key set can be retrieved.
+Remove that secret and its runtime support after the supervised bootstrap.
+
 ### Pre-deploy security checks
 
 Run this before `deploy`, `app deploy:dev`, or `app deploy:prod`:

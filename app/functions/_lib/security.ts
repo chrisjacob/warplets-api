@@ -32,6 +32,7 @@ export interface SecurityEnv {
   WARPLETS_KV?: KVNamespace;
   ADMIN_API_KEYS_JSON?: string;
   ADMIN_API_KEYS_JSON_EXTRA?: string;
+  ADMIN_API_KEYS_JSON_RELEASE?: string;
   ACTION_SESSION_SECRET?: string;
   SECURITY_LOG_SALT?: string;
 }
@@ -150,6 +151,7 @@ function readAdminKeys(env: SecurityEnv): AdminKeyRecord[] {
   return [
     ...parseAdminKeyConfig(env.ADMIN_API_KEYS_JSON),
     ...parseAdminKeyConfig(env.ADMIN_API_KEYS_JSON_EXTRA),
+    ...parseAdminKeyConfig(env.ADMIN_API_KEYS_JSON_RELEASE),
   ];
 }
 
