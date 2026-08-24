@@ -8,7 +8,10 @@ async function refresh(context: EventContext<Env, string, unknown>) {
   if (!auth.ok) return auth.response;
 
   try {
-    return marketJson(await ingestOpenSeaMarket(context.env));
+    const url = new URL(context.request.url);
+    return marketJson(await ingestOpenSeaMarket(context.env, {
+      bootstrap: url.searchParams.get("bootstrap") === "1",
+    }));
   } catch (error) {
     return marketJson(
       {

@@ -20,8 +20,8 @@ X402_PRICE_USDC = "10000"
 # Secrets: BOT_SERVICE_TOKEN and, when enabled, X402_FACILITATOR_URL.
 # Optional Dune round-two analytics. This scheduled Worker owns production
 # polling/execution because Pages Functions do not receive Cron Trigger events.
-# Keep both switches off until the saved queries and their costs are validated.
-DUNE_ENABLED = "0"
+# Query ingestion is enabled; root query execution remains off for bootstrap.
+DUNE_ENABLED = "1"
 DUNE_EXECUTE_ENABLED = "0"
 DUNE_EXECUTION_INTERVAL_HOURS = "24"
 DUNE_RESULTS_PAGE_SIZE = "1000"
@@ -36,10 +36,12 @@ RESEND_ONBOARDING_ENABLED = "false"
 # are verified. Secrets: NEYNAR_API_KEY, NEYNAR_WEBHOOK_SECRET,
 # WARPMOJI_SIGNER_UUID. WARPMOJI_FID is the numeric FID for warpmoji.eth.
 WARPMOJI_FID = "0"
-# DUNE_TRADES_QUERY_ID = "1234567"
-# DUNE_TRANSFERS_QUERY_ID = "1234568"
-# DUNE_TRADES_BACKFILL_QUERY_ID = "1234569"
-# DUNE_TRANSFERS_BACKFILL_QUERY_ID = "1234570"
+DUNE_TRADES_QUERY_ID = "8102968"
+DUNE_TRANSFERS_QUERY_ID = "8102979"
+DUNE_TRADES_BACKFILL_QUERY_ID = "8102842"
+DUNE_TRANSFERS_BACKFILL_QUERY_ID = "8102887"
+OPENSEA_MARKET_INGEST_ENABLED = "false"
+OPENSEA_MARKET_INGEST_INTERVAL_MINUTES = "10"
 # Secret: DUNE_API_KEY
 
 

@@ -656,10 +656,32 @@ export async function recordWarpletActivity(
     .bind(eventKey)
     .first<ActivityRow>();
 
-  if (row && input.queue !== false && !row.queued_at) {
-    await queueInstantNotificationsForEvent(env, row);
+  const disposition = row
+    ? activityNotificationDisposition(input.queue, row.queued_at)
+    : "already_handled";
+  if (row && disposition !== "already_handled") {
+    if (disposition === "suppress") {
+      await env.WARPLETS.prepare(
+        `UPDATE warplet_activity_events
+         SET queued_at = CURRENT_TIMESTAMP
+         WHERE id = ? AND queued_at IS NULL`,
+      )
+        .bind(row.id)
+        .run();
+      row.queued_at = new Date().toISOString();
+    } else {
+      await queueInstantNotificationsForEvent(env, row);
+    }
   }
   return row || null;
+}
+
+export function activityNotificationDisposition(
+  queue: boolean | undefined,
+  queuedAt: string | null | undefined,
+): "already_handled" | "suppress" | "queue" {
+  if (queuedAt) return "already_handled";
+  return queue === false ? "suppress" : "queue";
 }
 
 export async function upsertActiveItemOffer(

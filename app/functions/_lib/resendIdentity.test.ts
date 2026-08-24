@@ -192,6 +192,11 @@ describe("trusted Resend identity projection", () => {
     globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
       requests.push({ url, init });
+      if (url.endsWith("/contacts/contact-123/topics") && !init?.method) {
+        return Response.json({
+          data: [{ id: RESEND_COMMUNITY_TOPIC_ID, subscription: "opt_out" }],
+        });
+      }
       if (!init?.method) {
         return Response.json({
           id: "contact-123",
@@ -217,11 +222,91 @@ describe("trusted Resend identity projection", () => {
       globalThis.fetch = originalFetch;
     }
 
-    const topic = requests.find((request) => request.url.endsWith("/contacts/contact-123/topics"));
+    const topic = requests.find(
+      (request) =>
+        request.url.endsWith("/contacts/contact-123/topics") &&
+        request.init?.method === "PATCH",
+    );
     expect(topic?.init?.method).toBe("PATCH");
     expect(JSON.parse(String(topic?.init?.body))).toEqual({
       topics: [{ id: RESEND_COMMUNITY_TOPIC_ID, subscription: "opt_in" }],
     });
+  });
+
+  it("skips a redundant topic mutation when the contact is already opted in", async () => {
+    const originalFetch = globalThis.fetch;
+    const requests: Array<{ url: string; init?: RequestInit }> = [];
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      requests.push({ url, init });
+      if (url.endsWith("/contacts/contact-123/topics")) {
+        return Response.json({
+          data: [{ id: RESEND_COMMUNITY_TOPIC_ID, subscription: "opt_in" }],
+        });
+      }
+      if (!init?.method) {
+        return Response.json({ id: "contact-123", properties: {} });
+      }
+      return Response.json({ id: "contact-123" });
+    }) as typeof fetch;
+    try {
+      await syncTrustedIdentityToResend({
+        apiKey: "test-key",
+        identity: { email: "person@example.com", farcasterFid: 123, farcasterUsername: "alice" },
+        segmentId: "segment-123",
+        resubscribe: true,
+      });
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+    expect(requests.some((request) =>
+      request.url.endsWith("/topics") && request.init?.method === "PATCH"
+    )).toBe(false);
+  });
+
+  it("rejects malformed topic lookup responses", async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith("/contacts/contact-123/topics")) return Response.json({ data: null });
+      if (!init?.method) return Response.json({ id: "contact-123", properties: {} });
+      return Response.json({ id: "contact-123" });
+    }) as typeof fetch;
+    try {
+      await expect(syncTrustedIdentityToResend({
+        apiKey: "test-key",
+        identity: { email: "person@example.com" },
+        segmentId: "segment-123",
+        resubscribe: true,
+      })).rejects.toThrow("malformed response");
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it("reports a topic update failure when an opt-out cannot be changed", async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith("/contacts/contact-123/topics") && !init?.method) {
+        return Response.json({ data: [{ id: RESEND_COMMUNITY_TOPIC_ID, subscription: "opt_out" }] });
+      }
+      if (url.endsWith("/contacts/contact-123/topics") && init?.method === "PATCH") {
+        return Response.json({ message: "invalid" }, { status: 422 });
+      }
+      if (!init?.method) return Response.json({ id: "contact-123", properties: {} });
+      return Response.json({ id: "contact-123" });
+    }) as typeof fetch;
+    try {
+      await expect(syncTrustedIdentityToResend({
+        apiKey: "test-key",
+        identity: { email: "person@example.com" },
+        segmentId: "segment-123",
+        resubscribe: true,
+      })).rejects.toThrow("Resend topic update failed (422)");
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
   });
 
   it("does not repeat topic mutation after topics are applied during contact creation", async () => {

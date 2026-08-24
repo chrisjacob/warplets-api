@@ -40,20 +40,21 @@ WARPMOJI_ADMIN_FIDS = "1129138"
 # Optional Dune round-two analytics. Public Stats remain fully functional while
 # disabled. After creating the saved queries in dune/queries, set the two query
 # IDs below, add DUNE_API_KEY as a Wrangler secret, then change DUNE_ENABLED to
-# "1". Keep automatic execution off until manual costs have been validated.
-DUNE_ENABLED = "0"
-DUNE_EXECUTE_ENABLED = "0"
+# "1". Pages execution is reserved for authenticated, supervised bootstrap calls;
+# recurring production execution is owned by the root Worker.
+DUNE_ENABLED = "1"
+DUNE_EXECUTE_ENABLED = "1"
 DUNE_EXECUTION_INTERVAL_HOURS = "24"
 DUNE_RESULTS_PAGE_SIZE = "1000"
 DUNE_MAX_RESULT_PAGES = "8"
 DUNE_INDEXING_LAG_HOURS = "2"
 DUNE_MONTHLY_CREDIT_BUDGET = "1500"
 DUNE_MAX_CREDITS_PER_EXECUTION = "20"
-# DUNE_TRADES_QUERY_ID = "1234567"
-# DUNE_TRANSFERS_QUERY_ID = "1234568"
+DUNE_TRADES_QUERY_ID = "8102968"
+DUNE_TRANSFERS_QUERY_ID = "8102979"
 # Optional one-time bootstrap query IDs:
-# DUNE_TRADES_BACKFILL_QUERY_ID = "1234569"
-# DUNE_TRANSFERS_BACKFILL_QUERY_ID = "1234570"
+DUNE_TRADES_BACKFILL_QUERY_ID = "8102842"
+DUNE_TRANSFERS_BACKFILL_QUERY_ID = "8102887"
 # Secrets: DUNE_API_KEY and optional DUNE_WEBHOOK_SECRET
 
 # Production bindings (app.10x.meme)

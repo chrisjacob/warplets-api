@@ -20,7 +20,33 @@ export interface OpenSeaMarketEnv {
   WARPLETS_KV?: KVNamespace;
   OPENSEA_API_KEY?: string;
   NEYNAR_API_KEY?: string;
+  OPENSEA_MARKET_INGEST_ENABLED?: string;
+  OPENSEA_MARKET_INGEST_INTERVAL_MINUTES?: string;
 }
+
+export type OpenSeaMarketNotificationMode = "queue" | "suppress";
+
+export type OpenSeaMarketIngestOptions = {
+  bootstrap?: boolean;
+  notificationMode?: OpenSeaMarketNotificationMode;
+};
+
+export type OpenSeaMarketBootstrapState = {
+  complete: boolean;
+  completedEventTypes: string[];
+  pendingEventTypes: string[];
+};
+
+export type OpenSeaMarketIngestResult = {
+  changed: number;
+  generatedAt: string;
+  bootstrap: OpenSeaMarketBootstrapState;
+  notificationMode: OpenSeaMarketNotificationMode;
+};
+
+export type ScheduledOpenSeaMarketResult =
+  | { status: "disabled" | "bootstrap_required" | "fresh"; lastSuccessAt?: string | null }
+  | ({ status: "ingested" } & OpenSeaMarketIngestResult);
 
 export type MarketMoney = {
   eth: number | null;
@@ -203,6 +229,10 @@ const FORCE_REFRESH_COOLDOWN_SECONDS = 600;
 const LOCAL_FORCE_REFRESH_COOLDOWN_SECONDS = 10;
 const EVENT_INGEST_MAX_PAGES = 10;
 const EVENT_INGEST_OVERLAP_SECONDS = 6 * 60 * 60;
+const EVENT_TYPES = ["sale", "transfer", "listing", "offer"] as const;
+const BOOTSTRAP_COMPLETE_KEY = "market_ingest:bootstrap_complete";
+const LAST_SUCCESS_KEY = "market_ingest:last_success_at";
+const DEFAULT_SCHEDULE_INTERVAL_MINUTES = 10;
 const OWNER_OF_SELECTOR = "0x6352211e";
 const MARKET_SNAPSHOT_KEYS = {
   manifest: "opensea:market:manifest:v1",
@@ -213,6 +243,56 @@ const MARKET_SNAPSHOT_KEYS = {
   sales: "opensea:market:sales:v1",
   owners: "opensea:market:owners:v1",
 } as const;
+
+function enabled(value: string | undefined): boolean {
+  return /^(?:1|true|yes|on)$/i.test(value?.trim() ?? "");
+}
+
+export function resolveOpenSeaMarketNotificationMode(
+  bootstrapComplete: boolean,
+  options: OpenSeaMarketIngestOptions = {},
+): OpenSeaMarketNotificationMode {
+  if (options.bootstrap || !bootstrapComplete) return "suppress";
+  return options.notificationMode ?? "queue";
+}
+
+export function isOpenSeaMarketIngestDue(
+  lastSuccessAt: string | null | undefined,
+  nowMs: number,
+  intervalMinutes: number,
+): boolean {
+  const lastSuccessMs = Date.parse(lastSuccessAt ?? "");
+  return !Number.isFinite(lastSuccessMs) || nowMs - lastSuccessMs >= intervalMinutes * 60_000;
+}
+
+export function ownsOpenSeaMarketLease(
+  persistedOwner: string | null | undefined,
+  requestedOwner: string,
+): boolean {
+  return persistedOwner === requestedOwner;
+}
+
+export function deriveOpenSeaMarketBootstrapState(
+  resultRows: Array<{ key: string; value: string | null }>,
+): OpenSeaMarketBootstrapState {
+  const state = new Map(resultRows.map((row) => [row.key, row.value]));
+  const completedEventTypes = EVENT_TYPES.filter((eventType) =>
+    Boolean(state.get(`events_after:${eventType}`)) && !state.get(`events_cursor:${eventType}`)
+  );
+  const pendingEventTypes = EVENT_TYPES.filter((eventType) => !completedEventTypes.includes(eventType));
+  return {
+    complete: pendingEventTypes.length === 0,
+    completedEventTypes: [...completedEventTypes],
+    pendingEventTypes: [...pendingEventTypes],
+  };
+}
+
+function marketIngestIntervalMinutes(value: string | undefined): number {
+  const parsed = Number(value);
+  return Number.isFinite(parsed)
+    ? Math.min(60, Math.max(1, Math.floor(parsed)))
+    : DEFAULT_SCHEDULE_INTERVAL_MINUTES;
+}
 
 function analyticsHourBucket(value = new Date()): string {
   const bucket = new Date(value);
@@ -1227,7 +1307,10 @@ async function isBestTraitOfferForAnyMatch(db: D1Database, orderHash: string): P
 export async function upsertCriteriaOfferFromRow(
   env: OpenSeaMarketEnv,
   row: Record<string, unknown>,
-  options: { recordActivity?: boolean } = {},
+  options: {
+    recordActivity?: boolean;
+    notificationMode?: OpenSeaMarketNotificationMode;
+  } = {},
 ): Promise<boolean> {
   const criteriaKind = classifyOpenSeaOffer(row);
   if (criteriaKind === "item") return false;
@@ -1329,6 +1412,7 @@ export async function upsertCriteriaOfferFromRow(
       occurredAt: offeredAt,
       source: "opensea:ingest",
       rawPayload: { offer: row, traits },
+      queue: options.notificationMode !== "suppress",
     }).catch((error) => console.error("Failed to record trait offer activity", error));
   }
 
@@ -1643,7 +1727,11 @@ export async function publishMarketSnapshot(env: OpenSeaMarketEnv): Promise<Mark
   return snapshot;
 }
 
-export async function processListing(env: OpenSeaMarketEnv, row: Record<string, unknown>): Promise<boolean> {
+export async function processListing(
+  env: OpenSeaMarketEnv,
+  row: Record<string, unknown>,
+  notificationMode: OpenSeaMarketNotificationMode = "queue",
+): Promise<boolean> {
   const tokenId = getTokenIdFromOpenSeaRow(row);
   if (!tokenId) return false;
   const price = getPrice(row, "consideration");
@@ -1683,14 +1771,19 @@ export async function processListing(env: OpenSeaMarketEnv, row: Record<string, 
       occurredAt: listedAt,
       source: "opensea:ingest",
       rawPayload: row,
+      queue: notificationMode !== "suppress",
     }).catch((error) => console.error("Failed to record listing activity", error));
   }
   return changed;
 }
 
-export async function processOffer(env: OpenSeaMarketEnv, row: Record<string, unknown>): Promise<boolean> {
+export async function processOffer(
+  env: OpenSeaMarketEnv,
+  row: Record<string, unknown>,
+  notificationMode: OpenSeaMarketNotificationMode = "queue",
+): Promise<boolean> {
   if (classifyOpenSeaOffer(row) !== "item") {
-    return upsertCriteriaOfferFromRow(env, row);
+    return upsertCriteriaOfferFromRow(env, row, { notificationMode });
   }
   const tokenId = getTokenIdFromOpenSeaRow(row);
   if (!tokenId) return false;
@@ -1766,6 +1859,7 @@ export async function processOffer(env: OpenSeaMarketEnv, row: Record<string, un
       occurredAt: offeredAt,
       source: "opensea:ingest",
       rawPayload: row,
+      queue: notificationMode !== "suppress",
     }).catch((error) => console.error("Failed to record offer activity", error));
   }
   return changed;
@@ -1824,7 +1918,10 @@ export async function clearTokenMarketSide(
 export async function processSaleOrTransfer(
   env: OpenSeaMarketEnv,
   row: Record<string, unknown>,
-  options: { clearOrdersOnOwnerChange?: boolean } = {},
+  options: {
+    clearOrdersOnOwnerChange?: boolean;
+    notificationMode?: OpenSeaMarketNotificationMode;
+  } = {},
 ): Promise<boolean> {
   const tokenId = getTokenIdFromOpenSeaRow(row);
   if (!tokenId) return false;
@@ -1979,6 +2076,7 @@ export async function processSaleOrTransfer(
       occurredAt: eventOccurredAt,
       source: "opensea:ingest",
       rawPayload: row,
+      queue: options.notificationMode !== "suppress",
     }).catch((error) => console.error("Failed to record purchase activity", error));
     await recordWarpletActivity(env, {
       eventType: "sold",
@@ -1996,6 +2094,7 @@ export async function processSaleOrTransfer(
       occurredAt: eventOccurredAt,
       source: "opensea:ingest",
       rawPayload: row,
+      queue: options.notificationMode !== "suppress",
     }).catch((error) => console.error("Failed to record sale activity", error));
   }
   return changed;
@@ -2145,6 +2244,7 @@ async function ingestCollectionEvents(
   eventType: "sale" | "transfer" | "listing" | "offer",
   after: string | null,
   initialCursor: string | null,
+  notificationMode: OpenSeaMarketNotificationMode,
 ): Promise<EventIngestResult> {
   let cursor = initialCursor;
   let changed = 0;
@@ -2172,7 +2272,10 @@ async function ingestCollectionEvents(
     for (const row of rows) {
       const recorded = await recordOpenSeaMarketEvent(env, { ...row, event_type: eventType });
       const didChange = eventType === "sale" || eventType === "transfer"
-        ? (await processSaleOrTransfer(env, row, { clearOrdersOnOwnerChange: true })) || recorded
+        ? (await processSaleOrTransfer(env, row, {
+          clearOrdersOnOwnerChange: true,
+          notificationMode,
+        })) || recorded
         : recorded;
       if (didChange) {
         changed += 1;
@@ -2243,7 +2346,11 @@ function priceIsBetterOrOlder(input: {
   return nextTime != null && currentTime != null && nextTime < currentTime;
 }
 
-async function refreshCollectionMarketState(env: OpenSeaMarketEnv, apiKey: string): Promise<number> {
+async function refreshCollectionMarketState(
+  env: OpenSeaMarketEnv,
+  apiKey: string,
+  notificationMode: OpenSeaMarketNotificationMode = "queue",
+): Promise<number> {
   let changed = 0;
   const now = new Date().toISOString();
 
@@ -2341,6 +2448,7 @@ async function refreshCollectionMarketState(env: OpenSeaMarketEnv, apiKey: strin
             occurredAt: createdAt,
             source: "opensea:ingest",
             rawPayload: best.row,
+            queue: notificationMode !== "suppress",
           }).catch((error) => console.error("Failed to record collection offer activity", error));
         }
       }
@@ -2438,19 +2546,60 @@ async function reconcileHolderLeaderboardIfDue(
   }
 }
 
-async function ingestOpenSeaMarketUnlocked(env: OpenSeaMarketEnv): Promise<{ changed: number; generatedAt: string }> {
+async function hasOpenSeaMarketBootstrapMarker(db: D1Database): Promise<boolean> {
+  const row = await db.prepare(
+    "SELECT value FROM opensea_ingest_state WHERE key = ? LIMIT 1",
+  ).bind(BOOTSTRAP_COMPLETE_KEY).first<{ value: string | null }>().catch(() => null);
+  return Boolean(row?.value);
+}
+
+export async function loadOpenSeaMarketBootstrapState(
+  db: D1Database,
+): Promise<OpenSeaMarketBootstrapState> {
+  let resultRows: Array<{ key: string; value: string | null }> = [];
+  try {
+    const rows = await db.prepare(
+      `SELECT key, value
+       FROM opensea_ingest_state
+       WHERE key LIKE 'events_after:%' OR key LIKE 'events_cursor:%'`,
+    ).all<{ key: string; value: string | null }>();
+    resultRows = rows.results ?? [];
+  } catch {
+    // Older local databases without ingest state are not bootstrapped.
+  }
+  return deriveOpenSeaMarketBootstrapState(resultRows);
+}
+
+async function ingestOpenSeaMarketUnlocked(
+  env: OpenSeaMarketEnv,
+  notificationMode: OpenSeaMarketNotificationMode,
+): Promise<OpenSeaMarketIngestResult> {
   const apiKey = env.OPENSEA_API_KEY?.trim();
   if (!apiKey) throw new Error("OPENSEA_API_KEY is not configured");
 
   await initializeOwnersFromMetadata(env.WARPLETS);
   let changed = 0;
-  changed += await refreshCollectionMarketState(env, apiKey);
-  const listings = await ingestPaginated(env, apiKey, `/listings/collection/${COLLECTION_SLUG}/all`, ["listings", "orders"], processListing, 50);
+  changed += await refreshCollectionMarketState(env, apiKey, notificationMode);
+  const listings = await ingestPaginated(
+    env,
+    apiKey,
+    `/listings/collection/${COLLECTION_SLUG}/all`,
+    ["listings", "orders"],
+    (processorEnv, row) => processListing(processorEnv, row, notificationMode),
+    50,
+  );
   changed += listings.changed;
   if (listings.complete) changed += await clearInactiveMarketRows(env.WARPLETS, "listing", listings.tokenIds);
 
   try {
-    const offers = await ingestPaginated(env, apiKey, `/offers/collection/${COLLECTION_SLUG}/all`, ["offers", "orders"], processOffer, 50);
+    const offers = await ingestPaginated(
+      env,
+      apiKey,
+      `/offers/collection/${COLLECTION_SLUG}/all`,
+      ["offers", "orders"],
+      (processorEnv, row) => processOffer(processorEnv, row, notificationMode),
+      50,
+    );
     changed += offers.changed;
     if (offers.complete) changed += await clearInactiveMarketRows(env.WARPLETS, "offer", offers.tokenIds);
   } catch (error) {
@@ -2463,7 +2612,7 @@ async function ingestOpenSeaMarketUnlocked(env: OpenSeaMarketEnv): Promise<{ cha
   const epochSeconds = String(Math.floor(Date.parse(ANALYTICS_EPOCH) / 1000));
   let eventsComplete = true;
   const completedAfterValues: number[] = [];
-  for (const eventType of ["sale", "transfer", "listing", "offer"] as const) {
+  for (const eventType of EVENT_TYPES) {
     const afterKey = `events_after:${eventType}`;
     const cursorKey = `events_cursor:${eventType}`;
     try {
@@ -2486,6 +2635,7 @@ async function ingestOpenSeaMarketUnlocked(env: OpenSeaMarketEnv): Promise<{ cha
         eventType,
         after,
         cursorState?.value ?? null,
+        notificationMode,
       );
       changed += result.changed;
       const updatedAt = new Date().toISOString();
@@ -2540,10 +2690,23 @@ async function ingestOpenSeaMarketUnlocked(env: OpenSeaMarketEnv): Promise<{ cha
     reconcileHolderLeaderboardIfDue(env),
   ]);
   const snapshot = await publishMarketSnapshot(env);
-  return { changed, generatedAt: snapshot.generatedAt };
+  const bootstrap = await loadOpenSeaMarketBootstrapState(env.WARPLETS);
+  if (bootstrap.complete) {
+    await env.WARPLETS.prepare(
+      `INSERT INTO opensea_ingest_state (key, value, updated_at)
+       VALUES (?, ?, ?)
+       ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`,
+    ).bind(BOOTSTRAP_COMPLETE_KEY, snapshot.generatedAt, snapshot.generatedAt).run().catch(() => undefined);
+  }
+  return { changed, generatedAt: snapshot.generatedAt, bootstrap, notificationMode };
 }
 
-export async function ingestOpenSeaMarket(env: OpenSeaMarketEnv): Promise<{ changed: number; generatedAt: string }> {
+export async function ingestOpenSeaMarket(
+  env: OpenSeaMarketEnv,
+  options: OpenSeaMarketIngestOptions = {},
+): Promise<OpenSeaMarketIngestResult> {
+  const bootstrapComplete = await hasOpenSeaMarketBootstrapMarker(env.WARPLETS);
+  const notificationMode = resolveOpenSeaMarketNotificationMode(bootstrapComplete, options);
   const lockKey = "market_ingest:lease";
   const leaseOwner = crypto.randomUUID();
   const acquiredAt = new Date().toISOString();
@@ -2561,22 +2724,53 @@ export async function ingestOpenSeaMarket(env: OpenSeaMarketEnv): Promise<{ chan
     const lease = await env.WARPLETS.prepare(
       "SELECT value FROM opensea_ingest_state WHERE key = ?",
     ).bind(lockKey).first<{ value: string | null }>();
-    if (lease?.value !== leaseOwner) {
+    if (!ownsOpenSeaMarketLease(lease?.value, leaseOwner)) {
       const snapshot = await loadCompactMarketSnapshot(env);
-      return { changed: 0, generatedAt: snapshot.generatedAt };
+      return {
+        changed: 0,
+        generatedAt: snapshot.generatedAt,
+        bootstrap: await loadOpenSeaMarketBootstrapState(env.WARPLETS),
+        notificationMode,
+      };
     }
   } catch {
     // Older local schemas may not have ingest state yet; preserve ingestion behavior.
-    return ingestOpenSeaMarketUnlocked(env);
+    return ingestOpenSeaMarketUnlocked(env, notificationMode);
   }
 
   try {
-    return await ingestOpenSeaMarketUnlocked(env);
+    return await ingestOpenSeaMarketUnlocked(env, notificationMode);
   } finally {
     await env.WARPLETS.prepare(
       "DELETE FROM opensea_ingest_state WHERE key = ? AND value = ?",
     ).bind(lockKey, leaseOwner).run().catch(() => undefined);
   }
+}
+
+export async function ingestOpenSeaMarketIfDue(
+  env: OpenSeaMarketEnv,
+  now = new Date(),
+): Promise<ScheduledOpenSeaMarketResult> {
+  if (!enabled(env.OPENSEA_MARKET_INGEST_ENABLED)) return { status: "disabled" };
+  if (!(await hasOpenSeaMarketBootstrapMarker(env.WARPLETS))) {
+    return { status: "bootstrap_required" };
+  }
+  const lastSuccess = await env.WARPLETS.prepare(
+    "SELECT value FROM opensea_ingest_state WHERE key = ? LIMIT 1",
+  ).bind(LAST_SUCCESS_KEY).first<{ value: string | null }>().catch(() => null);
+  const intervalMinutes = marketIngestIntervalMinutes(env.OPENSEA_MARKET_INGEST_INTERVAL_MINUTES);
+  if (!isOpenSeaMarketIngestDue(lastSuccess?.value, now.getTime(), intervalMinutes)) {
+    return { status: "fresh", lastSuccessAt: lastSuccess?.value ?? null };
+  }
+
+  const result = await ingestOpenSeaMarket(env);
+  const completedAt = new Date().toISOString();
+  await env.WARPLETS.prepare(
+    `INSERT INTO opensea_ingest_state (key, value, updated_at)
+     VALUES (?, ?, ?)
+     ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`,
+  ).bind(LAST_SUCCESS_KEY, completedAt, completedAt).run();
+  return { status: "ingested", ...result };
 }
 
 export async function refreshOneTokenMarket(

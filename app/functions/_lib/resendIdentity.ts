@@ -28,6 +28,11 @@ export type ResendContactSegment = {
   name?: string;
 };
 
+export type ResendContactTopic = {
+  id: string;
+  subscription: "opt_in" | "opt_out";
+};
+
 export type ResendSubscriberSnapshot = {
   subscriberCount: number;
   farcasterFids: number[];
@@ -218,6 +223,34 @@ export async function listResendContactSegments(apiKey: string, email: string): 
     : []);
 }
 
+export async function listResendContactTopics(
+  apiKey: string,
+  contactIdentifier: string,
+): Promise<ResendContactTopic[]> {
+  const response = await requestResend(
+    apiKey,
+    `https://api.resend.com/contacts/${encodeURIComponent(contactIdentifier.trim())}/topics`,
+  );
+  if (!response.ok) {
+    throw new Error(`Resend topic lookup failed (${response.status}): ${await responseDetail(response)}`);
+  }
+  const payload = await response.json<{ data?: unknown }>().catch(() => null);
+  if (!payload || !Array.isArray(payload.data)) {
+    throw new Error("Resend topic lookup returned a malformed response.");
+  }
+  return payload.data.flatMap((value) => {
+    if (!value || typeof value !== "object") return [];
+    const topic = value as { id?: unknown; subscription?: unknown };
+    if (
+      typeof topic.id !== "string" ||
+      (topic.subscription !== "opt_in" && topic.subscription !== "opt_out")
+    ) {
+      return [];
+    }
+    return [{ id: topic.id, subscription: topic.subscription }];
+  });
+}
+
 export async function deleteResendContact(apiKey: string, email: string): Promise<void> {
   const response = await requestResend(
     apiKey,
@@ -345,11 +378,17 @@ export async function syncTrustedIdentityToResend(input: {
 
   if (input.resubscribe && !topicsAppliedDuringCreate) {
     const topicPath = `https://api.resend.com/contacts/${encodeURIComponent(contactIdentifier)}/topics`;
-    const topic = await requestResend(input.apiKey, topicPath, {
-      method: "PATCH",
-      body: JSON.stringify({ topics: [{ id: RESEND_COMMUNITY_TOPIC_ID, subscription: "opt_in" }] }),
-    });
-    if (!topic.ok) throw new Error(`Resend topic update failed (${topic.status}): ${await responseDetail(topic)}`);
+    const topics = await listResendContactTopics(input.apiKey, contactIdentifier);
+    const alreadyOptedIn = topics.some((topic) =>
+      topic.id === RESEND_COMMUNITY_TOPIC_ID && topic.subscription === "opt_in"
+    );
+    if (!alreadyOptedIn) {
+      const topic = await requestResend(input.apiKey, topicPath, {
+        method: "PATCH",
+        body: JSON.stringify({ topics: [{ id: RESEND_COMMUNITY_TOPIC_ID, subscription: "opt_in" }] }),
+      });
+      if (!topic.ok) throw new Error(`Resend topic update failed (${topic.status}): ${await responseDetail(topic)}`);
+    }
   }
   if (input.resubscribe) active = true;
   return { active };
