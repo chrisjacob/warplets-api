@@ -3393,6 +3393,7 @@ function SearchHeaderAccountControl({
   onOpenSpreadsheet,
   onOpenAppTesting,
   onOpenWarpmoji,
+  onViewMyWarplets,
   onViewOnboarding,
   onEnableNotifications,
   onInstallWebApp,
@@ -3417,6 +3418,7 @@ function SearchHeaderAccountControl({
   onOpenSpreadsheet: () => void;
   onOpenAppTesting: () => void;
   onOpenWarpmoji: () => void;
+  onViewMyWarplets?: () => void;
   onViewOnboarding: () => void;
   onEnableNotifications: () => void;
   onInstallWebApp?: () => void;
@@ -3503,6 +3505,11 @@ function SearchHeaderAccountControl({
               : <span className="search-header-account-menu__avatar-frame"><img src="/farcaster.webp" alt="" /></span>}
             <span>{identityConnected ? identityLabel : "Connect social"}</span>
           </button>
+          {onViewMyWarplets && (
+            <button type="button" role="menuitem" onClick={() => runMenuAction(onViewMyWarplets)}>
+              My Warplets
+            </button>
+          )}
           <button type="button" role="menuitem" onClick={() => runMenuAction(onViewOnboarding)}>
             View onboarding
           </button>
@@ -17107,6 +17114,27 @@ export default function SearchApp() {
     }, 0);
   }, [handleSearchOwnerWallet, navigateSearchRoute]);
 
+  const handleSearchMyWarplets = useCallback(async () => {
+    let wallet = normalizeWalletAddress(activeWallet) ?? normalizeWalletAddress(favouriteIdentityWallet);
+    try {
+      if (!wallet && isInMiniAppContext && viewerFid) {
+        wallet = await loadVerifiedFavouriteList().catch((error) => {
+          console.warn("Verified wallet unavailable for My Warplets; using embedded wallet", error);
+          return null;
+        });
+      }
+      if (!wallet && isInMiniAppContext) {
+        const session = await connectFarcasterWallet();
+        wallet = normalizeWalletAddress(session.address);
+      }
+      if (!wallet) throw new Error("No wallet account is connected.");
+      handleStatsSearchOwnerWallet(wallet);
+    } catch (error) {
+      void hapticError();
+      showSearchToast("error", error instanceof Error ? error.message : "Unable to find your wallet.");
+    }
+  }, [activeWallet, favouriteIdentityWallet, handleStatsSearchOwnerWallet, isInMiniAppContext, loadVerifiedFavouriteList, showSearchToast, viewerFid]);
+
   const handleToggleFavourite = useCallback(async (tokenId: number) => {
     void hapticPrimaryTap();
     let wallet: string;
@@ -18243,6 +18271,7 @@ export default function SearchApp() {
               onOpenSpreadsheet={handleHeaderOpenSpreadsheet}
               onOpenAppTesting={() => navigateSearchRoute({ page: "app-testing" })}
               onOpenWarpmoji={() => navigateSearchRoute({ page: "warpmoji" })}
+              onViewMyWarplets={activeWallet || isInMiniAppContext ? () => { void handleSearchMyWarplets(); } : undefined}
               onViewOnboarding={handleHeaderViewOnboarding}
               onEnableNotifications={handleHeaderEnableNotifications}
               onInstallWebApp={!isInMiniAppContext && !isStandaloneDisplay() && !isEmbeddedWebView()
