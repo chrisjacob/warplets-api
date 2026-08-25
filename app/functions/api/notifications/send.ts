@@ -26,8 +26,10 @@ import {
   getDefaultLaunchUrl,
   normalizeNotificationAudienceSlug,
   normalizeAppSlug,
+  resolveAppSlugFromUrl,
   type AppSlug,
 } from "../../_lib/appSlug.js";
+import { buildClickTrackingUrl } from "../../_lib/notificationTracking.js";
 import {
   getClientIp,
   jsonSecure,
@@ -478,6 +480,16 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   const sendMode = hasFidList ? "fids" : json.sendMode === "batch" ? "batch" : "all";
   const rows = wantFarcaster ? await resolveTokenRows(context.env.WARPLETS, audienceSlug, requestedFids) : [];
   const webPushRows = wantWebPush ? await resolveWebPushRows(context.env.WARPLETS, audienceSlug, requestedFids) : [];
+  const trackingAppSlug = audienceSlug === "all"
+    ? resolveAppSlugFromUrl(new URL(targetUrl))
+    : audienceSlug;
+  const farcasterTargetUrl = buildClickTrackingUrl({
+    notificationId,
+    targetUrl,
+    trackingBaseUrl: getDefaultLaunchUrl(trackingAppSlug),
+    appSlug: trackingAppSlug,
+    ...(requestedFids?.length === 1 ? { fid: requestedFids[0] } : {}),
+  });
 
   if (rows.length === 0 && webPushRows.length === 0 && !wantBase) {
     return jsonSecure({ total: 0, results: [], message: "No enabled tokens found" });
@@ -521,7 +533,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         notificationId,
         title,
         body,
-        targetUrl,
+        targetUrl: farcasterTargetUrl,
         tokens: batchRows.map((row) => ({
           fid: row.fid,
           appSlug: audienceSlug === "all"
