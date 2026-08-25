@@ -15,7 +15,13 @@ interface Env {
 }
 
 export const onRequestGet: PagesFunction<Env> = async (context) => {
-  const { notificationId } = context.params as { notificationId: string };
+  const { notificationId: encodedNotificationId } = context.params as { notificationId: string };
+  let notificationId: string;
+  try {
+    notificationId = decodeURIComponent(encodedNotificationId);
+  } catch {
+    return new Response("Invalid notification ID", { status: 400 });
+  }
   const url = new URL(context.request.url);
   const target = url.searchParams.get("t");
   const fidParam = url.searchParams.get("fid");
@@ -43,13 +49,25 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   // Persist the click before redirecting. Pages may stop unfinished work after
   // the response is returned, so a fire-and-forget write can be lost.
   try {
-    await context.env.WARPLETS.prepare(
+    const writes = [context.env.WARPLETS.prepare(
       `INSERT INTO notification_clicks (notification_id, fid, target_url, app_slug) VALUES (?, ?, ?, ?)`
     )
       .bind(notificationId, fid, targetUrl.toString(), appSlug)
-      .run();
+    ];
+    if (fid) {
+      writes.push(context.env.WARPLETS.prepare(
+        `INSERT INTO notification_opens (notification_id, fid, app_slug)
+         SELECT ?, ?, ?
+          WHERE NOT EXISTS (
+            SELECT 1
+              FROM notification_opens
+             WHERE notification_id = ? AND fid = ? AND app_slug = ?
+          )`
+      ).bind(notificationId, fid, appSlug, notificationId, fid, appSlug));
+    }
+    await context.env.WARPLETS.batch(writes);
   } catch (error) {
-    console.error("Failed to record notification click", error);
+    console.error("Failed to record notification tracking", error);
   }
 
   return Response.redirect(targetUrl.toString(), 302);

@@ -125,9 +125,17 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   }
 
   await context.env.WARPLETS.prepare(
-    `INSERT INTO notification_opens (notification_id, fid, app_slug) VALUES (?, ?, ?)`
+    `INSERT INTO notification_opens (notification_id, fid, app_slug)
+     SELECT ?, ?, ?
+      WHERE NOT EXISTS (
+        SELECT 1
+          FROM notification_opens
+         WHERE notification_id = ?
+           AND ((fid = ?) OR (fid IS NULL AND ? IS NULL))
+           AND app_slug = ?
+      )`
   )
-    .bind(notificationId, fid, appSlug)
+    .bind(notificationId, fid, appSlug, notificationId, fid, fid, appSlug)
     .run();
 
   return jsonSecure({ ok: true });
