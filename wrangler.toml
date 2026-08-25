@@ -20,9 +20,9 @@ X402_PRICE_USDC = "10000"
 # Secrets: BOT_SERVICE_TOKEN and, when enabled, X402_FACILITATOR_URL.
 # Optional Dune round-two analytics. This scheduled Worker owns production
 # polling/execution because Pages Functions do not receive Cron Trigger events.
-# Query ingestion is enabled; root query execution remains off for bootstrap.
+# Bootstrap is complete; scheduled polling and guarded query execution are active.
 DUNE_ENABLED = "1"
-DUNE_EXECUTE_ENABLED = "0"
+DUNE_EXECUTE_ENABLED = "1"
 DUNE_EXECUTION_INTERVAL_HOURS = "24"
 DUNE_RESULTS_PAGE_SIZE = "1000"
 DUNE_MAX_RESULT_PAGES = "8"
@@ -40,7 +40,7 @@ DUNE_TRADES_QUERY_ID = "8102968"
 DUNE_TRANSFERS_QUERY_ID = "8102979"
 DUNE_TRADES_BACKFILL_QUERY_ID = "8102842"
 DUNE_TRANSFERS_BACKFILL_QUERY_ID = "8102887"
-OPENSEA_MARKET_INGEST_ENABLED = "false"
+OPENSEA_MARKET_INGEST_ENABLED = "true"
 OPENSEA_MARKET_INGEST_INTERVAL_MINUTES = "10"
 # Secret: DUNE_API_KEY
 
