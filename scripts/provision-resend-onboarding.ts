@@ -138,7 +138,7 @@ const SOCIAL_LINKS = [
   ["Telegram", "/menu/telegram.png", "https://t.me/The10XNetwork"],
   ["OpenSea", "/menu/opensea.png", "https://link.10x.meme/10xwarplets"],
   ["FOMO", "/menu/fomo.jpg", "https://fomo.family/profile/10XMemeX"],
-  ["Pump.fun", "/menu/pumpfun.png", "https://pump.fun/profile/10XMeme"],
+  ["Pump.fun", "/menu/pumpfun.png", "https://pump.fun/profile/10XMemeX"],
   ["YouTube", "https://www.gstatic.com/youtube/img/branding/favicon/favicon_144x144.png", "https://www.youtube.com/@10XMemeX"],
 ] as const;
 

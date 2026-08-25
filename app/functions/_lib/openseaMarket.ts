@@ -813,15 +813,15 @@ export async function selectPreferredFidForWallet(env: OpenSeaMarketEnv, wallet:
              follower_count, following_count, fetched_at
            )
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-           ON CONFLICT(wallet, fid) DO UPDATE SET
-             score = excluded.score,
-             username = excluded.username,
-             display_name = excluded.display_name,
-             pfp_url = excluded.pfp_url,
-             x_username = excluded.x_username,
-             profile_bio_text = excluded.profile_bio_text,
-             follower_count = excluded.follower_count,
-             following_count = excluded.following_count,
+          ON CONFLICT(wallet, fid) DO UPDATE SET
+             score = COALESCE(excluded.score, wallet_farcaster_links.score),
+             username = COALESCE(NULLIF(TRIM(excluded.username), ''), wallet_farcaster_links.username),
+             display_name = COALESCE(NULLIF(TRIM(excluded.display_name), ''), wallet_farcaster_links.display_name),
+             pfp_url = COALESCE(NULLIF(TRIM(excluded.pfp_url), ''), wallet_farcaster_links.pfp_url),
+             x_username = COALESCE(NULLIF(TRIM(excluded.x_username), ''), wallet_farcaster_links.x_username),
+             profile_bio_text = COALESCE(NULLIF(TRIM(excluded.profile_bio_text), ''), wallet_farcaster_links.profile_bio_text),
+             follower_count = COALESCE(excluded.follower_count, wallet_farcaster_links.follower_count),
+             following_count = COALESCE(excluded.following_count, wallet_farcaster_links.following_count),
              fetched_at = excluded.fetched_at`
         ).bind(
           wallet,
@@ -840,10 +840,10 @@ export async function selectPreferredFidForWallet(env: OpenSeaMarketEnv, wallet:
         await env.WARPLETS.prepare(
           `INSERT INTO wallet_farcaster_links (wallet, fid, score, username, pfp_url, fetched_at)
            VALUES (?, ?, ?, ?, ?, ?)
-           ON CONFLICT(wallet, fid) DO UPDATE SET
-             score = excluded.score,
-             username = excluded.username,
-             pfp_url = excluded.pfp_url,
+          ON CONFLICT(wallet, fid) DO UPDATE SET
+             score = COALESCE(excluded.score, wallet_farcaster_links.score),
+             username = COALESCE(NULLIF(TRIM(excluded.username), ''), wallet_farcaster_links.username),
+             pfp_url = COALESCE(NULLIF(TRIM(excluded.pfp_url), ''), wallet_farcaster_links.pfp_url),
              fetched_at = excluded.fetched_at`
         ).bind(wallet, row.fid, row.score, row.username, row.pfpUrl, now).run();
       }

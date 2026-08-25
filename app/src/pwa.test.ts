@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolveEntryPoint } from "./pwa";
+import { isEmbeddedWebViewUserAgent, resolveEntryPoint } from "./pwa";
 
 describe("resolveEntryPoint", () => {
   it("keeps source parameters attribution-only and deterministic", () => {
@@ -16,5 +16,16 @@ describe("resolveEntryPoint", () => {
   it("uses X referrer and UA only for presentation analytics", () => {
     expect(resolveEntryPoint({ search: "" }, { referrer: "https://t.co/example" })).toBe("x-webview");
     expect(resolveEntryPoint({ search: "" }, { userAgent: "Twitter for iPhone" })).toBe("x-webview");
+  });
+});
+
+describe("isEmbeddedWebViewUserAgent", () => {
+  it("recognizes Farcaster hosts as embedded browsers", () => {
+    expect(isEmbeddedWebViewUserAgent("Farcaster/1.0 iOS WebView")).toBe(true);
+    expect(isEmbeddedWebViewUserAgent("Warpcast/2026.8 Mobile")).toBe(true);
+  });
+
+  it("does not classify standalone Safari as embedded", () => {
+    expect(isEmbeddedWebViewUserAgent("Mozilla/5.0 Mobile Safari/604.1")).toBe(false);
   });
 });

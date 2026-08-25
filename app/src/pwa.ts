@@ -41,8 +41,11 @@ export function isStandaloneDisplay(): boolean {
 
 export function isEmbeddedWebView(): boolean {
   if (typeof navigator === "undefined") return false;
-  const ua = navigator.userAgent.toLowerCase();
-  return /twitter|telegram|discord|farcaster|warpcast|coinbasewallet|baseapp/.test(ua);
+  return isEmbeddedWebViewUserAgent(navigator.userAgent);
+}
+
+export function isEmbeddedWebViewUserAgent(userAgent: string): boolean {
+  return /twitter|telegram|discord|farcaster|warpcast|coinbasewallet|baseapp/.test(userAgent.toLowerCase());
 }
 
 export function isLikelyBaseAppBrowser(): boolean {

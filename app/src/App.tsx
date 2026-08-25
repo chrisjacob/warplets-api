@@ -64,7 +64,7 @@ function homeLinks(): HomeLink[] {
     { id: "telegram", label: "Telegram", title: "Join 10X.MEME Alpha Signals on Telegram", imageUrl: "/menu/telegram.png", href: "https://t.me/The10XNetwork", action: "external" },
     { id: "opensea", label: "OpenSea", title: "View 10X Warplets on OpenSea", imageUrl: "/menu/opensea.png", href: "https://link.10x.meme/10xwarplets", action: "external" },
     { id: "fomo", label: "FOMO", title: "Follow @10XMemeX on FOMO", imageUrl: "/menu/fomo.jpg", href: "https://fomo.family/profile/10XMemeX", action: "external" },
-    { id: "pumpfun", label: "Pump.fun", title: "Follow @10XMeme on Pump.fun", imageUrl: "/menu/pumpfun.png", href: "https://pump.fun/profile/10XMeme", action: "external" },
+    { id: "pumpfun", label: "Pump.fun", title: "Follow @10XMemeX on Pump.fun", imageUrl: "/menu/pumpfun.png", href: "https://pump.fun/profile/10XMemeX", action: "external" },
     { id: "youtube", label: "YouTube", title: "Watch 10X Meme on YouTube", imageUrl: "/menu/youtube.png", href: "https://www.youtube.com/@10XMemeX", action: "external" },
   ];
 }

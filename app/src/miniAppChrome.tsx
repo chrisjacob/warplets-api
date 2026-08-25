@@ -736,11 +736,11 @@ export function MiniAppMenuPage({ appSlug }: { appSlug: AppSlug }) {
     {
       id: "pumpfun-10xmeme",
       title: "Pump.fun 10X Meme",
-      description: "Follow @10XMeme on Pump.fun.",
+      description: "Follow @10XMemeX on Pump.fun.",
       imageUrl: "/menu/pumpfun.png",
       ctaLabel: "Pump.fun",
       kind: "openUrl",
-      href: "https://pump.fun/profile/10XMeme",
+      href: "https://pump.fun/profile/10XMemeX",
     },
   ];
 

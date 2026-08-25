@@ -1062,7 +1062,10 @@ async function loadProfilesForWallets(
            fid,
            username,
            display_name,
-           pfp_url,
+           COALESCE(
+             NULLIF(TRIM(pfp_url), ''),
+             (SELECT NULLIF(TRIM(u.pfp_url), '') FROM warplets_users u WHERE u.fid = wallet_farcaster_links.fid LIMIT 1)
+           ) AS pfp_url,
            x_username,
            score,
            ROW_NUMBER() OVER (

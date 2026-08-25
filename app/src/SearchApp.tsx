@@ -3517,11 +3517,9 @@ function SearchHeaderAccountControl({
           <button type="button" role="menuitem" onClick={() => runMenuAction(onOpenSpreadsheet)}>
             Warplets spreadsheet
           </button>
-          <a role="menuitem" href="/developer">
-            Developer API
-          </a>
           {window.location.hostname === new URL(WARPLETS_APP_ORIGINS.local).hostname && (
             <>
+              <a role="menuitem" href="/developer">Developer API</a>
               <button type="button" role="menuitem" onClick={() => runMenuAction(onOpenAppTesting)}>App testing</button>
               <button type="button" role="menuitem" onClick={() => runMenuAction(onOpenWarpmoji)}>Warpmoji</button>
             </>
@@ -5192,17 +5190,19 @@ function WalletIdenticon({ wallet, className = "" }: { wallet: string; className
 }
 
 function StatsHolderAvatar({ row }: { row: StatsHolderRow }) {
+  const [failedPfpUrl, setFailedPfpUrl] = useState<string | null>(null);
   const ringClass = row.isViewer
     ? "border-[#FFFF00] shadow-[0_0_8px_rgba(255,255,0,0.75)]"
     : row.isTopFriend
       ? "border-[#7959ff] ring-2 ring-[#b9aaff] shadow-[0_0_9px_rgba(121,89,255,0.9)]"
       : "border-[#00FF00]/55";
-  return row.pfpUrl ? (
+  return row.pfpUrl && failedPfpUrl !== row.pfpUrl ? (
     <img
       src={row.pfpUrl}
       alt=""
       className={`h-10 w-10 shrink-0 rounded-full border-2 object-cover ${ringClass}`}
       loading="lazy"
+      onError={() => setFailedPfpUrl(row.pfpUrl)}
     />
   ) : (
     <WalletIdenticon wallet={row.wallet} className={`h-10 w-10 shrink-0 rounded-full border-2 ${ringClass}`} />

@@ -1,7 +1,7 @@
 import { StrictMode, Suspense, lazy, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import "./index.css";
-import { initializePwa, isLikelyBaseAppBrowser } from "./pwa";
+import { initializePwa, isEmbeddedWebView, isLikelyBaseAppBrowser } from "./pwa";
 import { WARPLETS_APP_HOSTS, WARPLETS_APP_PATH } from "../shared/warpletsApp";
 import { captureWarpmojiAttribution } from "./analytics";
 import { clearLocalCacheIfRequested } from "./localCacheReset";
@@ -64,11 +64,12 @@ function isExternalFarcasterImageProxy(src: string | null): boolean {
 if (typeof window !== "undefined") {
   window.addEventListener("vite:preloadError", (event) => {
     event.preventDefault();
-    // Base's iOS in-app browser can strand a navigation on an empty white
-    // WebView. Lazy imports already surface their own recoverable failure, so
-    // preserve the mounted application instead of forcing an embedded reload.
-    if (isLikelyBaseAppBrowser()) {
-      console.warn("[10X] Deferred stale module recovery inside Base App", event);
+    // Embedded app browsers can keep an older document alive across a release.
+    // A deferred route import may then report a stale chunk on the user's first
+    // tab interaction. Preserve the mounted app instead of visibly reloading
+    // the whole WebView; lazy-route boundaries can surface their own recovery.
+    if (isEmbeddedWebView() || isLikelyBaseAppBrowser()) {
+      console.warn("[10X] Deferred stale module recovery inside embedded app", event);
       return;
     }
     if (window.sessionStorage.getItem(PRELOAD_RECOVERY_KEY) === "1") return;
