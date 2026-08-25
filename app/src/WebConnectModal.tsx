@@ -9,7 +9,7 @@ import { appendWalletConnectDiagnostic, clearWalletConnectDiagnostics, readWalle
 const TrustConnectBridge = lazy(() => import("./TrustConnectBridge"));
 const FARCASTER_WARPLETS_MINI_APP_URL =
   import.meta.env.VITE_FARCASTER_WARPLETS_MINI_APP_URL?.trim()
-  || "https://farcaster.xyz/miniapps/uR3Rzs-k6AnV/10x/warplets";
+  || "https://farcaster.xyz/miniapps/xzCEVqZVx3Sq/10x-warplets";
 
 function walletConnectorLabel(connector: string): string {
   if (connector === "base-account") return "Base wallet";
