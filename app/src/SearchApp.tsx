@@ -15563,15 +15563,19 @@ export default function SearchApp() {
         }
 
         const location = (context as { location?: Record<string, unknown> }).location;
-        if (location?.type === "notification") {
-          const notificationId =
-            typeof location.notificationId === "string"
+        const notification = location?.notification;
+        const notificationIdFromContext = location?.type === "notification"
+          ? typeof notification === "object" && notification !== null && "notificationId" in notification && typeof notification.notificationId === "string"
+            ? notification.notificationId
+            : typeof location.notificationId === "string"
               ? location.notificationId
               : typeof location.notification_id === "string"
                 ? location.notification_id
-                : null;
-          if (notificationId) setPendingNotificationId(notificationId);
-        }
+                : null
+          : null;
+        const notificationIdFromUrl = new URLSearchParams(window.location.search).get("notificationId")?.trim() || null;
+        const notificationId = notificationIdFromContext?.trim() || notificationIdFromUrl;
+        if (notificationId) setPendingNotificationId(notificationId);
 
         const client = (context as { client?: Record<string, unknown> }).client;
         const host = window.location.hostname.toLowerCase();
