@@ -41,6 +41,7 @@ const TabsEntryPage = lazy(() => import("./TabsEntryPage.tsx"));
 const LegalPage = lazy(() => import("./LegalPage.tsx"));
 
 const PRELOAD_RECOVERY_KEY = "10x-vite-preload-recovery";
+let appMounted = typeof document !== "undefined" && document.readyState === "complete";
 
 function getRejectedImageSrc(value: unknown): string | null {
   if (typeof HTMLImageElement === "undefined") return null;
@@ -63,12 +64,11 @@ function isExternalFarcasterImageProxy(src: string | null): boolean {
 }
 
 if (typeof window !== "undefined") {
-  let appLoaded = document.readyState === "complete";
   window.addEventListener("vite:preloadError", (event) => {
     event.preventDefault();
     const recoveryAttempted = window.sessionStorage.getItem(PRELOAD_RECOVERY_KEY) === "1";
     if (!shouldReloadForPreloadError({
-      appLoaded,
+      appMounted,
       embedded: isEmbeddedWebView() || isLikelyBaseAppBrowser(),
       recoveryAttempted,
     })) {
@@ -81,7 +81,6 @@ if (typeof window !== "undefined") {
     window.location.reload();
   });
   window.addEventListener("load", () => {
-    appLoaded = true;
     window.sessionStorage.removeItem(PRELOAD_RECOVERY_KEY);
   }, { once: true });
   window.addEventListener("unhandledrejection", (event) => {
@@ -130,6 +129,7 @@ function RootRouter() {
   const [, setNavigationKey] = useState(0);
 
   useEffect(() => {
+    appMounted = true;
     const handlePopState = () => setNavigationKey((key) => key + 1);
     window.addEventListener("popstate", handlePopState);
     return () => window.removeEventListener("popstate", handlePopState);
