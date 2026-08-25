@@ -5,6 +5,7 @@ import { initializePwa, isEmbeddedWebView, isLikelyBaseAppBrowser } from "./pwa"
 import { WARPLETS_APP_HOSTS, WARPLETS_APP_PATH } from "../shared/warpletsApp";
 import { captureWarpmojiAttribution } from "./analytics";
 import { clearLocalCacheIfRequested } from "./localCacheReset";
+import { shouldReloadForPreloadError } from "./preloadRecovery";
 
 const HOME_APP_HOSTS = new Set([
   "10x.meme",
@@ -62,21 +63,25 @@ function isExternalFarcasterImageProxy(src: string | null): boolean {
 }
 
 if (typeof window !== "undefined") {
+  let appLoaded = document.readyState === "complete";
   window.addEventListener("vite:preloadError", (event) => {
     event.preventDefault();
-    // Embedded app browsers can keep an older document alive across a release.
-    // A deferred route import may then report a stale chunk on the user's first
-    // tab interaction. Preserve the mounted app instead of visibly reloading
-    // the whole WebView; lazy-route boundaries can surface their own recovery.
-    if (isEmbeddedWebView() || isLikelyBaseAppBrowser()) {
-      console.warn("[10X] Deferred stale module recovery inside embedded app", event);
+    const recoveryAttempted = window.sessionStorage.getItem(PRELOAD_RECOVERY_KEY) === "1";
+    if (!shouldReloadForPreloadError({
+      appLoaded,
+      embedded: isEmbeddedWebView() || isLikelyBaseAppBrowser(),
+      recoveryAttempted,
+    })) {
+      // Keep a mounted SPA alive when an old document requests a deferred chunk
+      // after a release. Reloading here replays the host splash on first click.
+      console.warn("[10X] Deferred stale module recovery preserved the mounted app", event);
       return;
     }
-    if (window.sessionStorage.getItem(PRELOAD_RECOVERY_KEY) === "1") return;
     window.sessionStorage.setItem(PRELOAD_RECOVERY_KEY, "1");
     window.location.reload();
   });
   window.addEventListener("load", () => {
+    appLoaded = true;
     window.sessionStorage.removeItem(PRELOAD_RECOVERY_KEY);
   }, { once: true });
   window.addEventListener("unhandledrejection", (event) => {
