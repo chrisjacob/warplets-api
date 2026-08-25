@@ -17,8 +17,8 @@ preview_bucket_name = "warplets-stats-shares-preview"
 # to the correct app_slug. Not sensitive (public Farcaster account IDs).
 APP_APP_FID = "9152"
 BASE_APP_URL = "https://warplet.10x.meme"
-# Enable only after the Base.dev project and API secret have been configured.
-BASE_NOTIFICATIONS_ENABLED = "false"
+# Base.dev project ownership and the production API secret are configured.
+BASE_NOTIFICATIONS_ENABLED = "true"
 EMAIL_AUDIENCE_MUTATIONS_ENABLED = "true"
 RESEND_ONBOARDING_ENABLED = "false"
 # Set after the disabled Automation has been provisioned and reviewed.

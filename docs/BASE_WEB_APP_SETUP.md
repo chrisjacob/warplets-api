@@ -52,7 +52,7 @@ Also ensure `NEYNAR_API_KEY` and `ACTION_SESSION_SECRET` remain configured. The 
 The non-secret runtime variables are in `app/wrangler.toml`:
 
 - `BASE_APP_URL=https://warplet.10x.meme`
-- `BASE_NOTIFICATIONS_ENABLED=false`
+- `BASE_NOTIFICATIONS_ENABLED=true` in production after the Base.dev API key and registered app URL have been validated
 
 After validating the Base API key and registered URL in preview, set `BASE_NOTIFICATIONS_ENABLED=true` for that environment. The Base notification API is limited to 20 requests per minute, 1,000 wallets per send, and deduplicates identical messages for 24 hours.
 

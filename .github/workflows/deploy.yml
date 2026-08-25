@@ -102,6 +102,8 @@ jobs:
 
       - name: Build
         working-directory: app
+        env:
+          VITE_BASE_BUILDER_CODE: ${{ vars.VITE_BASE_BUILDER_CODE }}
         run: pnpm build
 
       - name: Deploy to Cloudflare Pages
