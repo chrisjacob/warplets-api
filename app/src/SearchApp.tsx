@@ -50,6 +50,8 @@ import { recordLocalOfferDiagnostic } from "./localOfferDiagnostics";
 import { submitTraitOfferWithRetry } from "./traitOfferSubmit";
 import { getMobileWalletHandoff, openMobileWalletHandoff, waitForForeground } from "./mobileWalletHandoff";
 import { resolveEntryPoint, isBaseAppContext, isEmbeddedWebView, isLikelyBaseAppBrowser, isStandaloneDisplay, subscribeToWebPush } from "./pwa";
+import { resolveEffectiveWarpletOwner } from "./ownerResolution";
+import { canPresentAirdrop, shouldOpenOnboarding } from "./searchModalSequence";
 import {
   composeFarcasterPost,
   configureAppSurface,
@@ -13007,22 +13009,7 @@ function WarpletDetailsModal({
   const effectiveCollectionOffer = tradeState ? tradeState.collectionOffer : market.collectionOffer ?? null;
   const effectiveTopOffer = tradeState ? tradeState.topOffer : chooseTopOffer(effectiveItemOffer ?? undefined, effectiveTraitOffer ?? undefined, effectiveCollectionOffer ?? null);
   const effectiveSale = optimisticSale ?? (tradeState ? tradeState.sale ?? null : market.sale ?? null);
-  const effectiveOwner = (() => {
-    const freshOwner = tradeState?.owner;
-    const cachedOwner = market.owner;
-    if (!freshOwner) return cachedOwner ?? null;
-    const freshWallet = freshOwner.wallet?.toLowerCase() ?? "";
-    const cachedWallet = cachedOwner?.wallet?.toLowerCase() ?? "";
-    if (cachedOwner && freshWallet && cachedWallet === freshWallet) {
-      return {
-        ...cachedOwner,
-        wallet: freshOwner.wallet,
-        fid: freshOwner.fid ?? cachedOwner.fid,
-        checkedAt: freshOwner.checkedAt ?? cachedOwner.checkedAt,
-      };
-    }
-    return freshOwner;
-  })();
+  const effectiveOwner = resolveEffectiveWarpletOwner(tradeState?.owner, market.owner);
   const effectiveFloor = tradeState?.floor ?? null;
   const normalizedActiveWallet = activeWallet?.toLowerCase() ?? "";
   const ownerWallet = effectiveOwner?.wallet?.toLowerCase() ?? "";
@@ -14868,7 +14855,7 @@ export default function SearchApp() {
   const [dbError, setDbError] = useState("");
   const [databaseLoadingMessage, setDatabaseLoadingMessage] = useState(DATABASE_LOADING_PREFIX);
   const [onboardingComplete, setOnboardingComplete] = useState(() => readOnboardingComplete());
-  const [showOnboarding, setShowOnboarding] = useState(() => !readOnboardingComplete());
+  const [showOnboarding, setShowOnboarding] = useState(() => isOnboardingForced());
   const [onboardingSessionKey, setOnboardingSessionKey] = useState(0);
   const [notificationPromptPending, setNotificationPromptPending] = useState(false);
   const [viewerFid, setViewerFid] = useState<number | null>(null);
@@ -14882,6 +14869,25 @@ export default function SearchApp() {
   const [miniAppContextKnown, setMiniAppContextKnown] = useState(false);
   const [isInMiniAppContext, setIsInMiniAppContext] = useState(false);
   const [searchCompletionStatusLoaded, setSearchCompletionStatusLoaded] = useState(false);
+  useEffect(() => {
+    if (shouldOpenOnboarding({
+      onboardingComplete,
+      showOnboarding,
+      miniAppContextKnown,
+      isInMiniAppContext,
+      viewerFid,
+      searchCompletionStatusLoaded,
+    })) {
+      setShowOnboarding(true);
+    }
+  }, [
+    onboardingComplete,
+    showOnboarding,
+    miniAppContextKnown,
+    isInMiniAppContext,
+    viewerFid,
+    searchCompletionStatusLoaded,
+  ]);
   const [showAddAppPrompt, setShowAddAppPrompt] = useState(false);
   const [notificationsOnlyPrompt, setNotificationsOnlyPrompt] = useState(false);
   const [notificationPromptMode, setNotificationPromptMode] = useState<"farcaster" | "web">("farcaster");
@@ -15403,7 +15409,6 @@ export default function SearchApp() {
     if (isCompletedAt(record.searchOnboardingCompletedAt) && !isOnboardingForced()) {
       writeOnboardingComplete();
       setOnboardingComplete(true);
-      setShowOnboarding(false);
     }
 
     if (isCompletedAt(record.searchAirdropModalCompletedAt) && !forceAirdropRef.current) {
@@ -15564,7 +15569,8 @@ export default function SearchApp() {
             if (typeof session.actionSessionToken === "string") setActionSessionToken(session.actionSessionToken);
             await syncSearchViewerStatus(sessionFid, "Search user status upsert failed", verifiedProfile);
             await restoreFarcasterWallet();
-          }).catch((error) => console.warn("Farcaster Quick Auth verification failed:", error));
+          }).catch((error) => console.warn("Farcaster Quick Auth verification failed:", error))
+            .finally(() => setSearchCompletionStatusLoaded(true));
         } else {
           setSearchCompletionStatusLoaded(true);
         }
@@ -18188,7 +18194,7 @@ export default function SearchApp() {
       {showOnboarding && (
         <OnboardingCarousel key={onboardingSessionKey} onDone={handleCompleteOnboarding} />
       )}
-      {airdropCongratulationsDetails && (
+      {airdropCongratulationsDetails && canPresentAirdrop(showOnboarding) && (
         <AirdropCongratulationsModal
           details={airdropCongratulationsDetails}
           onShare={() => handleShareAirdropWarplet(airdropCongratulationsDetails)}

@@ -14,8 +14,9 @@ import {
   refreshHolderLeaderboardWallets,
 } from "./stats.js";
 import { resolveWalletProfiles } from "./walletProfiles.js";
+import { fetchBaseRpc, fetchBaseRpcBatch, type BaseRpcEnv } from "./baseRpc.js";
 
-export interface OpenSeaMarketEnv {
+export interface OpenSeaMarketEnv extends BaseRpcEnv {
   WARPLETS: D1Database;
   WARPLETS_KV?: KVNamespace;
   OPENSEA_API_KEY?: string;
@@ -218,7 +219,6 @@ type WalletFarcasterLinkRow = {
 };
 
 const OPENSEA_API_BASE = "https://api.opensea.io/api/v2";
-const BASE_RPC_URL = "https://mainnet.base.org";
 const BASE_CHAIN = "base";
 const COLLECTION_SLUG = "10xwarplets";
 const COLLECTION_CONTRACT = "0x780446dd12e080ae0db762fcd4daf313f3e359de";
@@ -688,47 +688,26 @@ export async function fetchOpenSea(path: string, apiKey: string, params?: URLSea
   return (await response.json()) as Record<string, unknown>;
 }
 
-async function fetchBaseRpc(method: string, params: unknown[]): Promise<unknown> {
-  const response = await fetch(BASE_RPC_URL, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
-    signal: AbortSignal.timeout(10000),
-  });
-  if (!response.ok) throw new Error(`Base RPC failed (${response.status})`);
-  const payload = (await response.json()) as Record<string, unknown>;
-  if (payload.error) throw new Error("Base RPC returned an error");
-  return payload.result;
-}
-
-export async function ownerOf(tokenId: number): Promise<string | null> {
+export async function ownerOf(tokenId: number, env?: BaseRpcEnv): Promise<string | null> {
   const tokenHex = BigInt(tokenId).toString(16).padStart(64, "0");
   const data = `${OWNER_OF_SELECTOR}${tokenHex}`;
-  const result = await fetchBaseRpc("eth_call", [{ to: COLLECTION_CONTRACT, data }, "latest"]);
+  const result = await fetchBaseRpc(env, "eth_call", [{ to: COLLECTION_CONTRACT, data }, "latest"]);
   const hex = asString(result);
   if (!hex || hex.length < 66) return null;
   return normalizeAddress(`0x${hex.slice(-40)}`);
 }
 
-export async function ownersOf(tokenIds: number[]): Promise<Map<number, string>> {
+export async function ownersOf(tokenIds: number[], env?: BaseRpcEnv): Promise<Map<number, string>> {
   const uniqueTokenIds = [...new Set(tokenIds)].filter((tokenId) => Number.isInteger(tokenId) && tokenId > 0);
   if (uniqueTokenIds.length === 0) return new Map();
-  const response = await fetch(BASE_RPC_URL, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(uniqueTokenIds.map((tokenId, index) => ({
-      jsonrpc: "2.0",
+  const payload = await fetchBaseRpcBatch(env, uniqueTokenIds.map((tokenId, index) => ({
       id: index + 1,
       method: "eth_call",
       params: [{
         to: COLLECTION_CONTRACT,
         data: `${OWNER_OF_SELECTOR}${BigInt(tokenId).toString(16).padStart(64, "0")}`,
       }, "latest"],
-    }))),
-    signal: AbortSignal.timeout(10000),
-  });
-  if (!response.ok) throw new Error(`Base RPC batch failed (${response.status})`);
-  const payload = (await response.json()) as Array<{ id?: number; result?: unknown }>;
+  })));
   const owners = new Map<number, string>();
   for (const row of Array.isArray(payload) ? payload : []) {
     const tokenId = uniqueTokenIds[Number(row.id) - 1];
@@ -2813,7 +2792,7 @@ export async function refreshOneTokenMarket(
       fetchOpenSea(`/listings/collection/${COLLECTION_SLUG}/nfts/${encodeURIComponent(String(tokenId))}/best`, apiKey).catch(() => null),
       fetchOpenSea(`/offers/collection/${COLLECTION_SLUG}/nfts/${encodeURIComponent(String(tokenId))}/best`, apiKey).catch(() => null),
       fetchLatestTokenSale(apiKey, tokenId).catch(() => null),
-      ownerOf(tokenId).catch(() => null),
+      ownerOf(tokenId, env).catch(() => null),
       env.WARPLETS.prepare(
         "SELECT owner_wallet FROM warplet_market_state WHERE token_id = ?",
       ).bind(tokenId).first<{ owner_wallet: string | null }>().catch(() => null),

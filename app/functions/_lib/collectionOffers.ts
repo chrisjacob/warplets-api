@@ -28,7 +28,7 @@ import { concatHex, hashStruct, keccak256, toHex, type Hex } from "viem";
 export type CollectionOffersEnv = OpenSeaMarketEnv;
 
 async function refreshItemOfferOwner(env: CollectionOffersEnv, tokenId: number): Promise<void> {
-  const ownerWallet = await ownerOf(tokenId).catch(() => null);
+  const ownerWallet = await ownerOf(tokenId, env).catch(() => null);
   if (!ownerWallet) return;
   const now = new Date().toISOString();
   const ownerFid = await selectPreferredFidForWallet(env, ownerWallet);
@@ -54,7 +54,7 @@ async function refreshRecentItemOfferOwners(env: CollectionOffersEnv): Promise<v
   ).all<{ token_id: number }>().then((result) =>
     (result.results ?? []).map((row) => Number(row.token_id)).filter((tokenId) => Number.isInteger(tokenId) && tokenId > 0),
   );
-  const owners = await ownersOf(tokenIds);
+  const owners = await ownersOf(tokenIds, env);
   const now = new Date().toISOString();
   await Promise.all([...owners].map(([tokenId, ownerWallet]) => upsertMarketStateIfChanged(env.WARPLETS, {
     token_id: tokenId,

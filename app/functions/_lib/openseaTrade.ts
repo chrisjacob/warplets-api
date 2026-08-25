@@ -34,6 +34,7 @@ import {
   upsertActiveItemOffer,
 } from "./warpletNotifications.js";
 import { refreshHolderLeaderboardWallets } from "./stats.js";
+import { fetchBaseRpc } from "./baseRpc.js";
 import { hashStruct } from "viem";
 
 export type OpenSeaTradeEnv = OpenSeaMarketEnv;
@@ -141,7 +142,6 @@ const COLLECTION_CONTRACT = "0x780446dd12e080ae0db762fcd4daf313f3e359de";
 const DEFAULT_SEAPORT_PROTOCOL = "0x0000000000000068f116a894984e2db1123eb395";
 const BASE_WETH = "0x4200000000000000000000000000000000000006";
 const NATIVE_ETH = "0x0000000000000000000000000000000000000000";
-const BASE_RPC_URL = "https://mainnet.base.org";
 const ZERO_HASH = "0x0000000000000000000000000000000000000000000000000000000000000000";
 const OPENSEA_SIGNED_ZONE_V2 = "0x000056f7000000ece9003ca63978907a00ffd100";
 const OPENSEA_CONDUIT_KEY = "0x0000007b02230091a7ed01230072f7006a004d60a8d4e71d599b8104250f0000";
@@ -321,22 +321,9 @@ async function openSeaPost(apiKey: string, path: string, body: unknown): Promise
   return (await response.json()) as Record<string, unknown>;
 }
 
-async function fetchBaseRpc(method: string, params: unknown[]): Promise<unknown> {
-  const response = await fetch(BASE_RPC_URL, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
-    signal: AbortSignal.timeout(10000),
-  });
-  if (!response.ok) throw new Error(`Base RPC failed (${response.status})`);
-  const payload = (await response.json()) as Record<string, unknown>;
-  if (payload.error) throw new Error("Base RPC returned an error");
-  return payload.result;
-}
-
-async function fetchSeaportCounter(offerer: string): Promise<string> {
+async function fetchSeaportCounter(env: OpenSeaTradeEnv, offerer: string): Promise<string> {
   const encodedOfferer = offerer.toLowerCase().replace(/^0x/, "").padStart(64, "0");
-  const result = await fetchBaseRpc("eth_call", [{ to: DEFAULT_SEAPORT_PROTOCOL, data: `${SEAPORT_GET_COUNTER_SELECTOR}${encodedOfferer}` }, "latest"]);
+  const result = await fetchBaseRpc(env, "eth_call", [{ to: DEFAULT_SEAPORT_PROTOCOL, data: `${SEAPORT_GET_COUNTER_SELECTOR}${encodedOfferer}` }, "latest"]);
   const hex = asString(result);
   if (!hex) return "0";
   return BigInt(hex).toString();
@@ -592,22 +579,30 @@ export async function getFreshTradeState(
   const normalizedWallet = normalizeWallet(wallet);
   const excludedCollectionOrderHashes = options.excludeCollectionOrderHashes ?? [];
   const previousOwner = await env.WARPLETS.prepare(
-    "SELECT owner_wallet FROM warplet_market_state WHERE token_id = ?",
+    "SELECT owner_wallet, owner_fid, owner_checked_at FROM warplet_market_state WHERE token_id = ?",
   )
     .bind(tokenId)
-    .first<{ owner_wallet: string | null }>()
+    .first<{ owner_wallet: string | null; owner_fid: number | null; owner_checked_at: string | null }>()
     .catch(() => null);
   const previousOwnerWallet = normalizeAddress(previousOwner?.owner_wallet);
-  const [listing, itemOffer, bestApplicableOffer, collectionOffer, floor, ownerWallet, ownItemOffer, salePayload] = await Promise.all([
+  const [listing, itemOffer, bestApplicableOffer, collectionOffer, floor, rpcOwnerWallet, ownItemOffer, salePayload] = await Promise.all([
     fetchBestListing(apiKey, tokenId),
     fetchBestItemOffer(apiKey, tokenId),
     fetchBestApplicableOffer(apiKey, tokenId, excludedCollectionOrderHashes),
     fetchCollectionOffer(apiKey, excludedCollectionOrderHashes),
     fetchFloor(apiKey),
-    ownerOf(tokenId).catch(() => null),
+    ownerOf(tokenId, env).catch((error) => {
+      console.warn(JSON.stringify({
+        message: "Base owner lookup failed; using persisted ownership",
+        tokenId,
+        error: error instanceof Error ? error.message : String(error),
+      }));
+      return null;
+    }),
     fetchOwnItemOffer(apiKey, tokenId, normalizedWallet),
     fetchLatestTokenSale(apiKey, tokenId).catch(() => null),
   ]);
+  const ownerWallet = rpcOwnerWallet ?? previousOwnerWallet;
 
   const listingSeller = listing?.row ? getMakerAddress(listing.row) : null;
   const listingMatchesOwner = Boolean(
@@ -638,8 +633,11 @@ export async function getFreshTradeState(
   }
 
   const now = new Date().toISOString();
-  const ownerFid = ownerWallet ? await selectPreferredFidForWallet(env, ownerWallet) : null;
-  if (ownerWallet) {
+  const ownerFid = rpcOwnerWallet
+    ? await selectPreferredFidForWallet(env, rpcOwnerWallet)
+    : previousOwner?.owner_fid ?? null;
+  const ownerCheckedAt = rpcOwnerWallet ? now : previousOwner?.owner_checked_at ?? null;
+  if (rpcOwnerWallet) {
     await env.WARPLETS.prepare(
       `INSERT INTO warplet_market_state (
          token_id, owner_wallet, owner_fid, owner_checked_at, owner_event_at,
@@ -653,11 +651,11 @@ export async function getFreshTradeState(
          owner_event_at = excluded.owner_event_at,
          opensea_updated_at = excluded.opensea_updated_at,
          updated_at = excluded.updated_at`
-    ).bind(tokenId, ownerWallet, ownerFid, now, now, now, now, now).run();
-    if (ownerWallet !== previousOwnerWallet) {
+    ).bind(tokenId, rpcOwnerWallet, ownerFid, now, now, now, now, now).run();
+    if (rpcOwnerWallet !== previousOwnerWallet) {
       await refreshHolderLeaderboardWallets(env.WARPLETS, [
         previousOwnerWallet,
-        ownerWallet,
+        rpcOwnerWallet,
       ]);
     }
   }
@@ -677,7 +675,7 @@ export async function getFreshTradeState(
     owner: {
       wallet: ownerWallet,
       fid: ownerFid,
-      checkedAt: now,
+      checkedAt: ownerCheckedAt,
     },
     snapshot: await loadOneTokenSnapshot(env, tokenId),
   };
@@ -1003,7 +1001,7 @@ export async function handleOfferPrepare(context: Parameters<PagesFunction<OpenS
   await logTradeAction(context.env, { actionId, actionName: "make_offer", status: "requested", phase: "prepare_requested", tokenId, walletFrom: wallet, expectedPriceRaw: normalizedPriceRaw, paymentToken: BASE_WETH, paymentDecimals: 18 });
   const apiKey = requireOpenSeaApiKey(context.env);
   const [counter, fees] = await Promise.all([
-    fetchSeaportCounter(wallet),
+    fetchSeaportCounter(context.env, wallet),
     fetchCollectionFees(apiKey),
   ]);
   const { parameters, typedData } = buildItemOfferOrder({
@@ -1208,7 +1206,7 @@ export async function handleTradeLog(context: Parameters<PagesFunction<OpenSeaTr
         numericTokenId >= 1 &&
         numericTokenId <= 10_000
       ) {
-        const verifiedOwner = await ownerOf(numericTokenId).catch(() => null);
+        const verifiedOwner = await ownerOf(numericTokenId, context.env).catch(() => null);
         if (verifiedOwner === walletFrom) {
           const previousOwner = await context.env.WARPLETS.prepare(
             "SELECT owner_wallet FROM warplet_market_state WHERE token_id = ?",
