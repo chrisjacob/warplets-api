@@ -51,7 +51,7 @@ import { submitTraitOfferWithRetry } from "./traitOfferSubmit";
 import { getMobileWalletHandoff, openMobileWalletHandoff, waitForForeground } from "./mobileWalletHandoff";
 import { resolveEntryPoint, isBaseAppContext, isEmbeddedWebView, isLikelyBaseAppBrowser, isStandaloneDisplay, subscribeToWebPush } from "./pwa";
 import { resolveEffectiveWarpletOwner } from "./ownerResolution";
-import { canPresentAirdrop, shouldOpenOnboarding } from "./searchModalSequence";
+import { canPresentAirdrop, shouldCoverAppWhileResolvingOnboarding, shouldOpenOnboarding } from "./searchModalSequence";
 import { SERVER_CACHE_RESET_PENDING_KEY } from "./localCacheReset";
 import {
   composeFarcasterPost,
@@ -135,6 +135,7 @@ const DATABASE_LOADING_HOLD_MS = 1750;
 const DATABASE_LOADING_DELETE_MS = 250;
 const DATABASE_LOADING_MESSAGE_INTERVAL_MS = 3000;
 const DATABASE_LOADING_ANIMATION_TICK_MS = 50;
+const ONBOARDING_DECISION_TIMEOUT_MS = 2500;
 const ONBOARDING_COMPLETE_KEY = "warplets-search-onboarding-v1-complete";
 const AIRDROP_CONGRATULATIONS_COMPLETE_KEY = "warplets-search-airdrop-v1-complete";
 const RANDOM_EXAMPLE_SEARCHES_SEEN_KEY = "warplets-search-random-seen-v1";
@@ -14871,6 +14872,12 @@ export default function SearchApp() {
   const [miniAppContextKnown, setMiniAppContextKnown] = useState(false);
   const [isInMiniAppContext, setIsInMiniAppContext] = useState(false);
   const [searchCompletionStatusLoaded, setSearchCompletionStatusLoaded] = useState(false);
+  const [onboardingDecisionTimedOut, setOnboardingDecisionTimedOut] = useState(false);
+  useEffect(() => {
+    if (onboardingComplete || showOnboarding) return;
+    const timeoutId = window.setTimeout(() => setOnboardingDecisionTimedOut(true), ONBOARDING_DECISION_TIMEOUT_MS);
+    return () => window.clearTimeout(timeoutId);
+  }, [onboardingComplete, showOnboarding]);
   useEffect(() => {
     if (shouldOpenOnboarding({
       onboardingComplete,
@@ -14879,6 +14886,7 @@ export default function SearchApp() {
       isInMiniAppContext,
       viewerFid,
       searchCompletionStatusLoaded,
+      onboardingDecisionTimedOut,
     })) {
       setShowOnboarding(true);
     }
@@ -14889,6 +14897,7 @@ export default function SearchApp() {
     isInMiniAppContext,
     viewerFid,
     searchCompletionStatusLoaded,
+    onboardingDecisionTimedOut,
   ]);
   const [showAddAppPrompt, setShowAddAppPrompt] = useState(false);
   const [notificationsOnlyPrompt, setNotificationsOnlyPrompt] = useState(false);
@@ -18161,6 +18170,15 @@ export default function SearchApp() {
     (searchRoute.page === "listed" || searchRoute.page === "offers" || searchRoute.page === "perks" || searchRoute.page === "stats");
   const headerCanGoBack = !isPrimaryNavigationRoute && (canGoBack || (!isMenuRoute && searchRoute.page !== "search"));
   const headerCloseKey = isMenuRoute ? "menu" : getSearchRouteStableKey(searchRoute);
+  const coverAppWhileResolvingOnboarding = shouldCoverAppWhileResolvingOnboarding({
+    onboardingComplete,
+    showOnboarding,
+    miniAppContextKnown,
+    isInMiniAppContext,
+    viewerFid,
+    searchCompletionStatusLoaded,
+    onboardingDecisionTimedOut,
+  });
 
   useEffect(() => {
     if (typeof document === "undefined") return;
@@ -18174,6 +18192,12 @@ export default function SearchApp() {
 
   return (
     <MiniAppShell>
+      {coverAppWhileResolvingOnboarding && (
+        <div className="fixed inset-0 z-[105] flex flex-col items-center justify-center gap-4 bg-black px-6 text-center" aria-busy="true" aria-live="polite">
+          <img src="/icon_search.png" alt="10X Warplets" className="h-24 w-24 animate-pulse rounded-2xl" />
+          <Text className="text-sm" style={{ color: "#00FF00" }}>Loading 10X Warplets…</Text>
+        </div>
+      )}
       {!isInMiniAppContext && (
         <PwaControls
           onMessage={(kind, message) => showSearchToast(kind, message, { manualClose: kind !== "success" })}
