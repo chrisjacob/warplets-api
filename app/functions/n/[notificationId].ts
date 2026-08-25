@@ -40,14 +40,17 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   const fid = fidParam !== null && /^\d+$/.test(fidParam) ? parseInt(fidParam, 10) : null;
   const appSlug = normalizeAppSlug(appSlugParam, resolveAppSlugFromUrl(targetUrl));
 
-  // Log click fire-and-forget (don't block the redirect)
-  context.waitUntil(
-    context.env.WARPLETS.prepare(
+  // Persist the click before redirecting. Pages may stop unfinished work after
+  // the response is returned, so a fire-and-forget write can be lost.
+  try {
+    await context.env.WARPLETS.prepare(
       `INSERT INTO notification_clicks (notification_id, fid, target_url, app_slug) VALUES (?, ?, ?, ?)`
     )
       .bind(notificationId, fid, targetUrl.toString(), appSlug)
-      .run()
-  );
+      .run();
+  } catch (error) {
+    console.error("Failed to record notification click", error);
+  }
 
   return Response.redirect(targetUrl.toString(), 302);
 };
