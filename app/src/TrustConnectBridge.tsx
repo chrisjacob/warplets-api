@@ -8,6 +8,12 @@ import { activateTrustConnectWallet, restoreTrustConnectWallet, type WalletConne
 import type { EthereumProvider } from "./walletTrade";
 import { appendWalletConnectDiagnostic, TRUSTCONNECT_DISCONNECT_COMPLETE_EVENT, TRUSTCONNECT_DISCONNECT_REQUEST_EVENT } from "./walletConnectDiagnostics";
 import { getRuntimeAppIconPath } from "./brandAssets";
+import {
+  isWalletConnectWallet,
+  normalizeTrustConnectAccounts,
+  normalizeTrustConnectChainReference,
+  toEip1193ChainId,
+} from "./trustConnectCompatibility";
 
 const queryClient = new QueryClient();
 
@@ -95,7 +101,7 @@ function TrustConnectSession({ onConnected, onDismiss, onError, openRequested, r
     if (!connection.isConnected || !connection.address || !connection.wallet) return;
     const wallet = connection.wallet;
     const address = connection.address;
-    const chainReference = connection.chain?.reference ?? "8453";
+    const chainReference = normalizeTrustConnectChainReference(connection.chain);
     const key = `${wallet.id}:${address}:${chainReference}`;
     if (activated.current === key) return;
     activated.current = key;
@@ -104,6 +110,7 @@ function TrustConnectSession({ onConnected, onDismiss, onError, openRequested, r
       appendWalletConnectDiagnostic("trustconnect.provider_ready", { address, chain: chainReference, walletId: wallet.id });
       const rawInjectedProvider = (wallet as unknown as { eip1193Provider?: EthereumProvider }).eip1193Provider;
       const subscriptions = new Map<(...args: unknown[]) => void, () => void>();
+      let activeChainReference = chainReference;
       const provider: EthereumProvider & {
         on?: (event: string, listener: (...args: unknown[]) => void) => void;
         removeListener?: (event: string, listener: (...args: unknown[]) => void) => void;
@@ -112,7 +119,7 @@ function TrustConnectSession({ onConnected, onDismiss, onError, openRequested, r
           appendWalletConnectDiagnostic("provider.request_started", { method, chain: chainReference });
           try {
             const result = await caipProvider.request({
-              chainId: `eip155:${chainReference}`,
+              chainId: `eip155:${activeChainReference}`,
               request: { method, params } as never,
             } as never);
             appendWalletConnectDiagnostic("provider.request_complete", { method, chain: chainReference });
@@ -128,9 +135,12 @@ function TrustConnectSession({ onConnected, onDismiss, onError, openRequested, r
         },
         on: (event, listener) => {
           if (event === "accountsChanged") {
-            subscriptions.set(listener, wallet.__internal.handleOnAddress((nextAddress) => listener(nextAddress ? [nextAddress] : [])));
+            subscriptions.set(listener, wallet.__internal.handleOnAddress((nextAddress) => listener(normalizeTrustConnectAccounts(nextAddress))));
           } else if (event === "chainChanged") {
-            subscriptions.set(listener, wallet.__internal.handleOnChain((nextChain) => listener(nextChain ? `0x${Number(nextChain.reference).toString(16)}` : null)));
+            subscriptions.set(listener, wallet.__internal.handleOnChain((nextChain) => {
+              activeChainReference = normalizeTrustConnectChainReference(nextChain, activeChainReference);
+              listener(toEip1193ChainId(activeChainReference));
+            }));
           }
         },
         removeListener: (_event, listener) => {
@@ -164,10 +174,8 @@ function TrustConnectSession({ onConnected, onDismiss, onError, openRequested, r
           hasUniversalRedirect: Boolean(peerMetadata?.redirect?.universal),
         });
       }
-      const walletLabel = `${wallet.id} ${wallet.name}`.toLowerCase();
-      const walletType = (wallet as unknown as { type?: string }).type;
       const connectorId: Extract<WalletConnectorId, "trustconnect-injected" | "trustconnect-walletconnect"> =
-        walletType === "caip" || walletLabel.includes("walletconnect") ? "trustconnect-walletconnect" : "trustconnect-injected";
+        isWalletConnectWallet(wallet as unknown as Parameters<typeof isWalletConnectWallet>[0]) ? "trustconnect-walletconnect" : "trustconnect-injected";
       return restoreOnly
         ? restoreTrustConnectWallet(connectorId, provider, address)
         : activateTrustConnectWallet(connectorId, provider, address);
