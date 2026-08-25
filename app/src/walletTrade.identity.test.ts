@@ -1,13 +1,20 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { hashTypedData } from "viem";
+import { builderCodeSuffix } from "./builderCode";
 import {
   ensureBaseChain,
   getWalletAccounts,
   normalizeBaseAccountTypedData,
   preferBaseChainBeforeConnect,
+  sendAttributedTransaction,
+  sendPreparedTransactionsAtomic,
   signTypedData,
   type EthereumProvider,
 } from "./walletTrade";
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
 
 const typedData = {
   domain: {
@@ -46,6 +53,61 @@ const traitTypedData = {
 };
 
 describe("wallet signer identity", () => {
+  it("appends the Builder Code suffix to standard Base transactions", async () => {
+    vi.stubEnv("VITE_BASE_BUILDER_CODE", "bc_warplets");
+    const request = vi.fn(async () => `0x${"12".repeat(32)}`);
+
+    await sendAttributedTransaction(
+      { request } as EthereumProvider,
+      {
+        from: "0x1111111111111111111111111111111111111111",
+        to: "0x2222222222222222222222222222222222222222",
+        data: "0x1234",
+        value: "0x0",
+      },
+      "test_transaction",
+    );
+
+    const suffix = builderCodeSuffix("bc_warplets");
+    expect(request).toHaveBeenCalledWith({
+      method: "eth_sendTransaction",
+      params: [expect.objectContaining({ data: `0x1234${suffix?.slice(2)}` })],
+    });
+  });
+
+  it("passes the Builder Code as an optional dataSuffix for atomic Base batches", async () => {
+    vi.stubEnv("VITE_BASE_BUILDER_CODE", "bc_warplets");
+    const transactionHash = `0x${"34".repeat(32)}`;
+    const request = vi.fn(async ({ method }: { method: string }) => {
+      if (method === "wallet_sendCalls") return { id: "batch-1" };
+      if (method === "wallet_getCallsStatus") {
+        return { status: 200, atomic: true, receipts: [{ status: "0x1", transactionHash, logs: [] }] };
+      }
+      throw new Error(`Unexpected method: ${method}`);
+    });
+
+    await expect(sendPreparedTransactionsAtomic(
+      { request } as EthereumProvider,
+      "0x1111111111111111111111111111111111111111",
+      [
+        { to: "0x2222222222222222222222222222222222222222", data: "0x1234", value: "0x0" },
+        { to: "0x3333333333333333333333333333333333333333", data: "0x5678", value: "0x0" },
+      ],
+    )).resolves.toMatchObject({ transactionHash });
+
+    expect(request).toHaveBeenCalledWith({
+      method: "wallet_sendCalls",
+      params: [expect.objectContaining({
+        capabilities: {
+          dataSuffix: {
+            value: builderCodeSuffix("bc_warplets"),
+            optional: true,
+          },
+        },
+      })],
+    });
+  });
+
   it("preserves Base Account uint256 trait criteria as exact hex quantities", () => {
     const normalized = normalizeBaseAccountTypedData(traitTypedData) as typeof traitTypedData;
 

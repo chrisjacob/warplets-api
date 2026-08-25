@@ -1,7 +1,6 @@
 /*
- * Worker-safe Web Push payload builder, adapted from
- * @block65/webcrypto-web-push (MIT). Cloudflare Workers always expose the
- * Web Crypto API, so this intentionally has no Node crypto fallback.
+ * Worker-safe RFC 8291 Web Push payload builder. Cloudflare Workers expose
+ * Web Crypto directly, so this intentionally has no Node crypto fallback.
  */
 
 export interface PushSubscription {
@@ -88,8 +87,7 @@ async function createVapidHeaders(subscription: PushSubscription, vapid: VapidKe
   );
 
   return {
-    authorization: `WebPush ${unsignedToken}.${encodeBase64Url(signature)}`,
-    "crypto-key": `p256ecdsa=${vapid.publicKey}`,
+    authorization: `vapid t=${unsignedToken}.${encodeBase64Url(signature)}, k=${vapid.publicKey}`,
   };
 }
 
@@ -119,42 +117,21 @@ async function hkdf(salt: BufferSource, inputKeyMaterial: BufferSource) {
   };
 }
 
-function encodeLength(value: number): Uint8Array {
-  return new Uint8Array([0, value]);
-}
-
-function createInfo(clientPublic: Uint8Array, serverPublic: Uint8Array, type: string): Uint8Array {
+function createWebPushInfo(clientPublic: Uint8Array, serverPublic: Uint8Array): Uint8Array {
   return new Uint8Array([
-    ...new TextEncoder().encode(`Content-Encoding: ${type}\0`),
-    ...new TextEncoder().encode("P-256\0"),
-    ...encodeLength(clientPublic.byteLength),
+    ...new TextEncoder().encode("WebPush: info\0"),
     ...clientPublic,
-    ...encodeLength(serverPublic.byteLength),
     ...serverPublic,
   ]);
 }
 
-function createAuthInfo(): Uint8Array {
-  return new TextEncoder().encode("Content-Encoding: auth\0");
-}
-
-function generateNonce(base: Uint8Array, index: number): Uint8Array {
-  const nonce = base.slice(0, 12);
-  for (let offset = 0; offset < 6; offset += 1) {
-    nonce[nonce.length - 1 - offset] ^= (index / 256 ** offset) & 0xff;
-  }
-  return nonce;
-}
-
-function splitIntoChunks(value: Uint8Array, size: number): Uint8Array[] {
-  const chunks: Uint8Array[] = [];
-  for (let index = 0; index < value.length; index += size) {
-    chunks.push(value.slice(index, index + size));
-  }
-  return chunks;
+function createContentEncodingInfo(type: "aes128gcm" | "nonce"): Uint8Array {
+  return new TextEncoder().encode(`Content-Encoding: ${type}\0`);
 }
 
 async function encryptNotification(subscription: PushSubscription, plaintext: Uint8Array) {
+  const recordSize = 4096;
+  invariant(plaintext.byteLength <= 3993, "Web Push payload exceeds the RFC 8291 single-record limit");
   const clientPublicBytes = decodeBase64Url(subscription.keys.p256dh);
   invariant(
     clientPublicBytes.length === 65 && clientPublicBytes[0] === 4,
@@ -193,14 +170,17 @@ async function encryptNotification(subscription: PushSubscription, plaintext: Ui
   const salt = crypto.getRandomValues(new Uint8Array(16));
   const authSecret = decodeBase64Url(subscription.keys.auth);
   const authHkdf = await hkdf(authSecret.slice().buffer as ArrayBuffer, sharedSecret);
-  const inputKeyMaterial = await authHkdf.extract(createAuthInfo(), 32);
+  const inputKeyMaterial = await authHkdf.extract(
+    createWebPushInfo(clientPublicBytes, localPublicBytes),
+    32,
+  );
   const messageHkdf = await hkdf(salt, inputKeyMaterial);
   const contentEncryptionKey = await messageHkdf.extract(
-    createInfo(clientPublicBytes, localPublicBytes, "aesgcm"),
+    createContentEncodingInfo("aes128gcm"),
     16,
   );
   const nonce = await messageHkdf.extract(
-    createInfo(clientPublicBytes, localPublicBytes, "nonce"),
+    createContentEncodingInfo("nonce"),
     12,
   );
   const encryptionKey = await crypto.subtle.importKey(
@@ -210,27 +190,22 @@ async function encryptNotification(subscription: PushSubscription, plaintext: Ui
     false,
     ["encrypt"],
   );
-  const encryptedChunks = await Promise.all(splitIntoChunks(plaintext, 4_095).map(async (chunk, index) => {
-    const paddedChunk = new Uint8Array(chunk.length + 2);
-    paddedChunk.set(chunk, 2);
-    return new Uint8Array(await crypto.subtle.encrypt(
-      {
-        name: "AES-GCM",
-        iv: generateNonce(new Uint8Array(nonce), index).slice().buffer as ArrayBuffer,
-      },
-      encryptionKey,
-      paddedChunk,
-    ));
-  }));
-  const ciphertextLength = encryptedChunks.reduce((total, chunk) => total + chunk.length, 0);
-  const ciphertext = new Uint8Array(ciphertextLength);
-  let offset = 0;
-  for (const chunk of encryptedChunks) {
-    ciphertext.set(chunk, offset);
-    offset += chunk.length;
-  }
+  const record = new Uint8Array(plaintext.byteLength + 1);
+  record.set(plaintext);
+  record[record.length - 1] = 2;
+  const ciphertext = new Uint8Array(await crypto.subtle.encrypt(
+    { name: "AES-GCM", iv: nonce },
+    encryptionKey,
+    record,
+  ));
+  const body = new Uint8Array(16 + 4 + 1 + localPublicBytes.byteLength + ciphertext.byteLength);
+  body.set(salt, 0);
+  new DataView(body.buffer).setUint32(16, recordSize, false);
+  body[20] = localPublicBytes.byteLength;
+  body.set(localPublicBytes, 21);
+  body.set(ciphertext, 21 + localPublicBytes.byteLength);
 
-  return { ciphertext, salt, localPublicBytes };
+  return body;
 }
 
 export async function buildPushPayload(
@@ -242,21 +217,19 @@ export async function buildPushPayload(
   const serialized = typeof message.data === "string" || typeof message.data === "number"
     ? message.data.toString()
     : JSON.stringify(message.data);
-  const encrypted = await encryptNotification(subscription, new TextEncoder().encode(serialized));
+  const body = await encryptNotification(subscription, new TextEncoder().encode(serialized));
 
   return {
     method: "POST",
     headers: {
       ...vapidHeaders,
-      "crypto-key": `dh=${encodeBase64Url(encrypted.localPublicBytes)};${vapidHeaders["crypto-key"]}`,
-      encryption: `salt=${encodeBase64Url(encrypted.salt)}`,
       ttl: (message.options?.ttl ?? 60).toString(),
       ...(message.options?.urgency ? { urgency: message.options.urgency } : {}),
       ...(message.options?.topic ? { topic: message.options.topic } : {}),
-      "content-encoding": "aesgcm",
-      "content-length": encrypted.ciphertext.byteLength.toString(),
+      "content-encoding": "aes128gcm",
+      "content-length": body.byteLength.toString(),
       "content-type": "application/octet-stream",
     },
-    body: encrypted.ciphertext,
+    body,
   };
 }
