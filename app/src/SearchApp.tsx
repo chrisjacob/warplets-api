@@ -53,6 +53,7 @@ import { resolveEntryPoint, isBaseAppContext, isEmbeddedWebView, isLikelyBaseApp
 import { resolveEffectiveWarpletOwner } from "./ownerResolution";
 import { canPresentAirdrop, shouldCoverAppWhileResolvingOnboarding, shouldOpenOnboarding } from "./searchModalSequence";
 import { SERVER_CACHE_RESET_PENDING_KEY } from "./localCacheReset";
+import ProgressiveNotificationImage from "./ProgressiveNotificationImage";
 import {
   composeFarcasterPost,
   configureAppSurface,
@@ -11846,7 +11847,6 @@ const NOTIFICATIONS_PROMPT_TITLE_HIGHLIGHT_LENGTH = "FOMO?".length;
 const NOTIFICATIONS_PREVIEW_TOKEN_ID = 5019;
 const NOTIFICATIONS_PREVIEW_IMAGE_SRC = getWarpletAssetUrl(NOTIFICATIONS_PREVIEW_TOKEN_ID, "png");
 const NOTIFICATIONS_PREVIEW_FALLBACK_IMAGE_SRC = getWarpletAssetUrl(NOTIFICATIONS_PREVIEW_TOKEN_ID, "jpg");
-const NOTIFICATIONS_PREVIEW_IMAGE_FALLBACK_MS = 2500;
 const NOTIFICATIONS_PREVIEW_REVEAL_MS = 4800;
 const NOTIFICATIONS_PREVIEW_TO_TEXT_DELAY_MS = 180;
 const NOTIFICATIONS_PREVIEW_REVEAL_STOPS = [0, 40, 20, 65, 35, 85, 25, 100] as const;
@@ -11878,7 +11878,6 @@ function NotificationsPromptModal({
 }) {
   const [animationElapsedMs, setAnimationElapsedMs] = useState(0);
   const [isPreviewImageReady, setIsPreviewImageReady] = useState(false);
-  const [previewImageSrc, setPreviewImageSrc] = useState(NOTIFICATIONS_PREVIEW_IMAGE_SRC);
   const contentRef = useRef<HTMLDivElement | null>(null);
   const notificationPromptText = notificationsOnlyPrompt
     ? "Please turn on notifications so you don't miss important 10X market updates."
@@ -11914,7 +11913,6 @@ function NotificationsPromptModal({
 
     setAnimationElapsedMs(0);
     setIsPreviewImageReady(false);
-    setPreviewImageSrc(NOTIFICATIONS_PREVIEW_IMAGE_SRC);
 
     const tick = (now: number) => {
       const nextElapsedMs = Math.min(totalAnimationMs, now - startedAt);
@@ -11927,15 +11925,6 @@ function NotificationsPromptModal({
     animationFrameId = window.requestAnimationFrame(tick);
     return () => window.cancelAnimationFrame(animationFrameId);
   }, [notificationPromptText, totalAnimationMs]);
-
-  useEffect(() => {
-    if (isPreviewImageReady || previewImageSrc === NOTIFICATIONS_PREVIEW_FALLBACK_IMAGE_SRC) return;
-    const fallbackTimer = window.setTimeout(() => {
-      setPreviewImageSrc(NOTIFICATIONS_PREVIEW_FALLBACK_IMAGE_SRC);
-      setIsPreviewImageReady(false);
-    }, NOTIFICATIONS_PREVIEW_IMAGE_FALLBACK_MS);
-    return () => window.clearTimeout(fallbackTimer);
-  }, [isPreviewImageReady, previewImageSrc]);
 
   const visibleTitleCharacters = Math.max(
     0,
@@ -11980,28 +11969,11 @@ function NotificationsPromptModal({
 
         <div ref={contentRef} className="min-h-0 flex-1 overflow-y-auto p-4">
           <div className="relative mx-auto aspect-[9/8] w-full max-w-[min(100%,360px)] overflow-hidden rounded-lg border border-[#00FF00]/25 bg-black">
-            {!isPreviewImageReady && (
-              <div className="absolute inset-0 flex items-center justify-center bg-[rgba(0,255,0,0.12)]">
-                <span className="h-8 w-8 animate-spin rounded-full border-2 border-[#00FF00]/25 border-t-[#00FF00]" aria-label="Loading 10X Warplet image" />
-              </div>
-            )}
-            <img
-              src={previewImageSrc}
-              alt=""
-              onLoad={() => setIsPreviewImageReady(true)}
-              onError={() => {
-                if (previewImageSrc !== NOTIFICATIONS_PREVIEW_FALLBACK_IMAGE_SRC) {
-                  setPreviewImageSrc(NOTIFICATIONS_PREVIEW_FALLBACK_IMAGE_SRC);
-                  setIsPreviewImageReady(false);
-                  return;
-                }
-                setIsPreviewImageReady(true);
-              }}
-              className={`relative z-[1] h-full w-full object-cover transition-opacity duration-300 ${isPreviewImageReady ? "opacity-100" : "opacity-0"}`}
-              style={{
-                clipPath: `inset(0 ${100 - previewRevealPercent}% 0 0)`,
-                willChange: "clip-path",
-              }}
+            <ProgressiveNotificationImage
+              highResolutionSrc={NOTIFICATIONS_PREVIEW_IMAGE_SRC}
+              fallbackSrc={NOTIFICATIONS_PREVIEW_FALLBACK_IMAGE_SRC}
+              revealPercent={previewRevealPercent}
+              onReady={() => setIsPreviewImageReady(true)}
             />
           </div>
 
