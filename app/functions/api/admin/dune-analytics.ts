@@ -11,6 +11,17 @@ import {
 
 type Env = DuneAnalyticsEnv & SecurityEnv;
 
+export function parseDuneQueryId(value: string | null): number | null {
+  if (value === null || value.trim() === "") return null;
+  const normalized = value.trim();
+  if (!/^\d+$/.test(normalized)) throw new Error("queryId must be a positive integer.");
+  const queryId = Number(normalized);
+  if (!Number.isSafeInteger(queryId) || queryId <= 0) {
+    throw new Error("queryId must be a positive integer.");
+  }
+  return queryId;
+}
+
 export const onRequestPost: PagesFunction<Env> = async (context) => {
   const auth = await requireAdminScope(context, { scope: "stats:dune" });
   if (!auth.ok) return auth.response;
@@ -27,6 +38,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       force: url.searchParams.get("force") === "1",
       execute: url.searchParams.get("execute") === "1",
       backfill: url.searchParams.get("backfill") === "1",
+      queryId: parseDuneQueryId(url.searchParams.get("queryId")),
     }), {
       headers: { "cache-control": "private, no-store" },
     });
