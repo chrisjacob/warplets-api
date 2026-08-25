@@ -4,7 +4,7 @@
  * Upserts the viewer into warplets_users (with optional Neynar enrichment)
  * and returns whether they are matched to a Warplet allocation.
  *
- * Body: { fid: number, appSlug?: "warplets", searchCompletion?: "onboarding" | "airdrop_modal" }
+ * Body: { fid: number, appSlug?: "warplets", searchCompletion?: "onboarding" | "airdrop_modal", resetSearchCompletions?: true }
  */
 
 interface Env {
@@ -24,6 +24,7 @@ interface RequestBody {
   referrerFid?: unknown;
   appSlug?: unknown;
   searchCompletion?: unknown;
+  resetSearchCompletions?: unknown;
   profile?: unknown;
 }
 
@@ -1087,8 +1088,12 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     }
     const appSlug = normalizeAppSlug(body.appSlug);
     const searchCompletion = normalizeSearchCompletion(body.searchCompletion);
+    const resetSearchCompletions = body.resetSearchCompletions === true;
     if (body.searchCompletion !== undefined && (appSlug !== WARPLETS_APP_SLUG || !searchCompletion)) {
       return jsonSecure({ error: "Invalid search completion payload" }, { status: 400 });
+    }
+    if (body.resetSearchCompletions !== undefined && !resetSearchCompletions) {
+      return jsonSecure({ error: "Invalid search completion reset payload" }, { status: 400 });
     }
     const verifiedSession = appSlug === WARPLETS_APP_SLUG ? await getAppSession(context.request, context.env) : null;
     const verifiedWarpletsFid = verifiedSession?.farcasterFid === fid;
@@ -1101,6 +1106,9 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       ? suppliedProfile.pfpUrl.trim()
       : null;
     if (searchCompletion && !verifiedWarpletsFid) {
+      return jsonSecure({ error: "verified Farcaster session required" }, { status: 401 });
+    }
+    if (resetSearchCompletions && (appSlug !== WARPLETS_APP_SLUG || !verifiedWarpletsFid)) {
       return jsonSecure({ error: "verified Farcaster session required" }, { status: 401 });
     }
     const requestedReferrerFid = typeof body.referrerFid === "number" && Number.isInteger(body.referrerFid)
@@ -1163,6 +1171,18 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         search_onboarding_completed_at: string | null;
         search_airdrop_modal_completed_at: string | null;
       }>();
+
+    if (resetSearchCompletions && existing) {
+      await context.env.WARPLETS.prepare(
+        `UPDATE warplets_users
+         SET search_onboarding_completed_at = NULL,
+             search_airdrop_modal_completed_at = NULL,
+             updated_on = CURRENT_TIMESTAMP
+         WHERE id = ?`,
+      ).bind(existing.id).run();
+      existing.search_onboarding_completed_at = null;
+      existing.search_airdrop_modal_completed_at = null;
+    }
 
     let rarityValue: number | null = null;
     try {
@@ -1328,6 +1348,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         completedActionsCount: 0,
         searchOnboardingCompletedAt: hasSearchOnboardingCompletedAt ? initialSearchOnboardingCompletedAt : null,
         searchAirdropModalCompletedAt: hasSearchAirdropModalCompletedAt ? initialSearchAirdropModalCompletedAt : null,
+        searchCompletionsReset: resetSearchCompletions,
       });
     }
 
@@ -1525,6 +1546,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       completedActionsCount,
       searchOnboardingCompletedAt: hasSearchOnboardingCompletedAt ? searchOnboardingCompletedAt : null,
       searchAirdropModalCompletedAt: hasSearchAirdropModalCompletedAt ? searchAirdropModalCompletedAt : null,
+      searchCompletionsReset: resetSearchCompletions,
     });
   } catch (error) {
     console.error("warplet-status POST failed:", error);

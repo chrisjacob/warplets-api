@@ -4,6 +4,7 @@ import "./index.css";
 import { initializePwa, isLikelyBaseAppBrowser } from "./pwa";
 import { WARPLETS_APP_HOSTS, WARPLETS_APP_PATH } from "../shared/warpletsApp";
 import { captureWarpmojiAttribution } from "./analytics";
+import { clearLocalCacheIfRequested } from "./localCacheReset";
 
 const HOME_APP_HOSTS = new Set([
   "10x.meme",
@@ -20,6 +21,7 @@ function configureHomePwaMetadata(): void {
   document.querySelector<HTMLMetaElement>('meta[name="apple-mobile-web-app-title"]')?.setAttribute("content", "10X.MEME");
 }
 
+clearLocalCacheIfRequested(window);
 configureHomePwaMetadata();
 initializePwa();
 captureWarpmojiAttribution();

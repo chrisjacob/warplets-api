@@ -52,6 +52,7 @@ import { getMobileWalletHandoff, openMobileWalletHandoff, waitForForeground } fr
 import { resolveEntryPoint, isBaseAppContext, isEmbeddedWebView, isLikelyBaseAppBrowser, isStandaloneDisplay, subscribeToWebPush } from "./pwa";
 import { resolveEffectiveWarpletOwner } from "./ownerResolution";
 import { canPresentAirdrop, shouldOpenOnboarding } from "./searchModalSequence";
+import { SERVER_CACHE_RESET_PENDING_KEY } from "./localCacheReset";
 import {
   composeFarcasterPost,
   configureAppSurface,
@@ -243,6 +244,7 @@ type SearchStatusPayload = {
   actionSessionToken?: unknown;
   searchOnboardingCompletedAt?: unknown;
   searchAirdropModalCompletedAt?: unknown;
+  searchCompletionsReset?: unknown;
 };
 
 function getDatabaseLoadingMessage(elapsedMs: number): string {
@@ -15421,10 +15423,11 @@ export default function SearchApp() {
   }, []);
 
   const syncSearchViewerStatus = useCallback((fid: number, warningLabel = "Search user status upsert failed", profile?: ViewerProfile | null) => {
+    const resetSearchCompletions = window.sessionStorage.getItem(SERVER_CACHE_RESET_PENDING_KEY) === "1";
     return fetch("/api/warplet-status", {
       method: "POST",
       headers: { "content-type": "application/json", accept: "application/json" },
-      body: JSON.stringify({ fid, appSlug: WARPLETS_APP_SLUG, profile: profile ? {
+      body: JSON.stringify({ fid, appSlug: WARPLETS_APP_SLUG, resetSearchCompletions: resetSearchCompletions || undefined, profile: profile ? {
         username: profile.username,
         displayName: profile.displayName,
         pfpUrl: profile.pfpUrl,
@@ -15433,6 +15436,9 @@ export default function SearchApp() {
       .then((response) => response.ok ? response.json() : null)
       .then((payload: unknown) => {
         const record = payload && typeof payload === "object" ? payload as SearchStatusPayload : null;
+        if (record?.searchCompletionsReset === true) {
+          window.sessionStorage.removeItem(SERVER_CACHE_RESET_PENDING_KEY);
+        }
         if (typeof record?.actionSessionToken === "string") {
           setActionSessionToken(record.actionSessionToken);
         }
