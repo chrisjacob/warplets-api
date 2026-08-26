@@ -123,6 +123,36 @@ describe("dynamic Stats Open Graph routes", () => {
   });
 });
 
+describe("shared-content Farcaster embeds", () => {
+  it("uses an audience-facing View CTA for a shared Warplet deep link", async () => {
+    const response = await onRequestGet({
+      request: new Request("https://warplet.10x.meme/?warplet=8535"),
+      env: { ASSETS: { fetch: vi.fn() } },
+      next: vi.fn(async () => new Response("<!doctype html><html><head><title>10X Warplets</title></head><body></body></html>", {
+        headers: { "content-type": "text/html" },
+      })),
+    } as never);
+
+    const html = await response.text();
+    expect(html).toContain("&quot;title&quot;:&quot;View&quot;");
+    expect(html).toContain("&quot;name&quot;:&quot;10X Warplets&quot;");
+    expect(html).not.toContain("&quot;title&quot;:&quot;10X Warplet #8535&quot;");
+  });
+
+  it("keeps the normal app-launch CTA on the unfiltered homepage", async () => {
+    const response = await onRequestGet({
+      request: new Request("https://warplet.10x.meme/"),
+      env: { ASSETS: { fetch: vi.fn() } },
+      next: vi.fn(async () => new Response("<!doctype html><html><head><title>10X Warplets</title></head><body></body></html>", {
+        headers: { "content-type": "text/html" },
+      })),
+    } as never);
+
+    const html = await response.text();
+    expect(html).toContain("&quot;title&quot;:&quot;Open 10X Warplets&quot;");
+  });
+});
+
 describe("Warplets Farcaster manifest bootstrap", () => {
   it("serves app metadata without an account association during bootstrap", () => {
     const manifest = buildFarcasterManifest("warplet.10x.meme", null);

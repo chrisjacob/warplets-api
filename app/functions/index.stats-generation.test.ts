@@ -68,6 +68,9 @@ describe("on-demand Stats Open Graph generation", () => {
     expect(html).toContain('<meta property="og:image:width" content="1200" />');
     expect(html).toContain('<meta property="og:image:height" content="630" />');
     expect(html).toContain("10X Warplets - Sales (30 Days)");
+    expect(html).toContain("&quot;title&quot;:&quot;View&quot;");
+    expect(html).toContain("&quot;name&quot;:&quot;10X Warplets&quot;");
+    expect(html).not.toContain("&quot;title&quot;:&quot;Share Sales&quot;");
   });
 
   it("does not invent route metadata when generation infrastructure is unavailable", async () => {

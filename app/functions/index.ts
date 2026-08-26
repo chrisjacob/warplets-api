@@ -696,14 +696,20 @@ export const onRequestGet: PagesFunction<PagesEnv> = async (context) => {
       : undefined;
   const searchShareImageUrl = searchWarpletImageUrl ?? searchResultsImageUrl ?? (perksShareContent ? getPerksShareImageUrl(perksShareContent) : undefined);
   const routeImageUrl = statsShareOgImageUrl ?? (routeKey === "stop" ? STOP_IMAGE_URL : searchShareImageUrl ?? dropShareImageUrl);
+  const isSharedContentDeepLink = Boolean(
+    statsLaunchLookupPath ||
+    searchWarpletTitle ||
+    searchResultsTitle ||
+    perksShareContent
+  );
   const metaContent = escapeHtmlAttr(
     buildMiniAppMetaContent(
       requestUrl.origin,
       requestUrl.pathname,
       requestUrl.search,
       routeImageUrl,
-      statsShareSnapshot?.title ?? warpmojiCtaTitle ?? searchShareTitle,
-      statsShareSnapshot?.title ?? warpmojiCtaTitle ?? searchShareTitle,
+      isSharedContentDeepLink ? "View" : statsShareSnapshot?.title ?? warpmojiCtaTitle ?? searchShareTitle,
+      isSharedContentDeepLink ? undefined : statsShareSnapshot?.title ?? warpmojiCtaTitle ?? searchShareTitle,
       statsShareSnapshot ? `${requestUrl.origin}${statsShareSnapshot.launchPath}` : undefined,
     )
   );
