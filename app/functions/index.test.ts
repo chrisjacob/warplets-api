@@ -124,6 +124,24 @@ describe("dynamic Stats Open Graph routes", () => {
 });
 
 describe("shared-content Farcaster embeds", () => {
+  it.each([
+    ["https://warplet.10x.meme/stats/market/30d/floor-price", "View Floor Price"],
+    ["https://warplet.10x.meme/stats/activity/7d/offers", "View Activity"],
+    ["https://warplet.10x.meme/stats/holders/top10", "View Top 10 Holders"],
+    ["https://warplet.10x.meme/stats/holders/top10friends?wallet=0x1234567890abcdef1234567890abcdef12345678", "View Top 10 Friends"],
+    ["https://warplet.10x.meme/?warplet=4512&activity=1&range=all&event=send", "View Item #4512 Activity"],
+  ])("uses a descriptive View CTA for %s", async (url, expectedTitle) => {
+    const response = await onRequestGet({
+      request: new Request(url),
+      env: { ASSETS: { fetch: vi.fn() } },
+      next: vi.fn(async () => new Response("<!doctype html><html><head><title>10X Warplets</title></head><body></body></html>", {
+        headers: { "content-type": "text/html" },
+      })),
+    } as never);
+
+    expect(await response.text()).toContain(`&quot;title&quot;:&quot;${expectedTitle}&quot;`);
+  });
+
   it("uses an audience-facing View CTA for a shared Warplet deep link", async () => {
     const response = await onRequestGet({
       request: new Request("https://warplet.10x.meme/?warplet=8535"),
@@ -134,7 +152,7 @@ describe("shared-content Farcaster embeds", () => {
     } as never);
 
     const html = await response.text();
-    expect(html).toContain("&quot;title&quot;:&quot;View&quot;");
+    expect(html).toContain("&quot;title&quot;:&quot;View 10X Warplet #8535&quot;");
     expect(html).toContain("&quot;name&quot;:&quot;10X Warplets&quot;");
     expect(html).not.toContain("&quot;title&quot;:&quot;10X Warplet #8535&quot;");
   });

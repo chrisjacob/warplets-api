@@ -532,6 +532,45 @@ export function getStatsLaunchLookupPath(url: URL): string | null {
   return null;
 }
 
+function getStatsDeepLinkButtonTitle(url: URL): string | null {
+  const path = url.pathname.replace(/\/+$/, "") || "/";
+  if (path === "/stats/overview/collection") return "View NFT Collection Stats";
+  if (path === "/stats/overview/launch") return "View Fair Launch Stats";
+
+  const market = path.match(/^\/stats\/market\/(?:7d|30d|90d|1y|all)(?:\/([^/]+))?$/i);
+  if (market) {
+    const labels: Readonly<Record<string, string>> = {
+      price: "Price",
+      "floor-price": "Floor Price",
+      volume: "Volume",
+      listings: "Listings",
+      offers: "Offers",
+      sales: "Sales",
+    };
+    return market[1] ? `View ${labels[market[1].toLowerCase()] ?? "Market Stats"}` : "View All Market Stats";
+  }
+
+  if (/^\/stats\/activity\/(?:7d|30d|90d|1y|all)\/(?:sales|listings|offers|sends)$/i.test(path)) {
+    return "View Activity";
+  }
+  if (path === "/stats/holders") return "View Your Rank";
+  if (path === "/stats/holders/top10") return "View Top 10 Holders";
+  if (path === "/stats/holders/top10friends") return "View Top 10 Friends";
+
+  const tokenId = url.searchParams.get("warplet")?.trim();
+  if (path === "/" && url.searchParams.get("activity") === "1" && tokenId && /^\d+$/.test(tokenId)) {
+    return `View Item #${tokenId} Activity`;
+  }
+  return null;
+}
+
+function getViewButtonTitle(title: string): string {
+  const normalized = title.trim();
+  return /^Share(?:\s|$)/i.test(normalized)
+    ? normalized.replace(/^Share/i, "View")
+    : `View ${normalized}`;
+}
+
 function getStatsSnapshotIdentity(snapshot: StatsShareSnapshot): string | null {
   if (!snapshot.data || typeof snapshot.data !== "object" || Array.isArray(snapshot.data)) return null;
   const data = snapshot.data as Record<string, unknown>;
@@ -702,13 +741,18 @@ export const onRequestGet: PagesFunction<PagesEnv> = async (context) => {
     searchResultsTitle ||
     perksShareContent
   );
+  const sharedContentSubject = warpmojiCtaTitle ?? searchShareTitle;
+  const sharedContentButtonTitle = statsShareSnapshot?.title
+    ? getViewButtonTitle(statsShareSnapshot.title)
+    : getStatsDeepLinkButtonTitle(requestUrl)
+      ?? (sharedContentSubject ? getViewButtonTitle(sharedContentSubject) : undefined);
   const metaContent = escapeHtmlAttr(
     buildMiniAppMetaContent(
       requestUrl.origin,
       requestUrl.pathname,
       requestUrl.search,
       routeImageUrl,
-      isSharedContentDeepLink ? "View" : statsShareSnapshot?.title ?? warpmojiCtaTitle ?? searchShareTitle,
+      isSharedContentDeepLink ? sharedContentButtonTitle : statsShareSnapshot?.title ?? warpmojiCtaTitle ?? searchShareTitle,
       isSharedContentDeepLink ? undefined : statsShareSnapshot?.title ?? warpmojiCtaTitle ?? searchShareTitle,
       statsLaunchLookupPath
         ? `${requestUrl.origin}${statsLaunchLookupPath}`

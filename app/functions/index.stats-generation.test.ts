@@ -68,7 +68,7 @@ describe("on-demand Stats Open Graph generation", () => {
     expect(html).toContain('<meta property="og:image:width" content="1200" />');
     expect(html).toContain('<meta property="og:image:height" content="630" />');
     expect(html).toContain("10X Warplets - Sales (30 Days)");
-    expect(html).toContain("&quot;title&quot;:&quot;View&quot;");
+    expect(html).toContain("&quot;title&quot;:&quot;View Sales&quot;");
     expect(html).toContain("&quot;name&quot;:&quot;10X Warplets&quot;");
     expect(html).not.toContain("&quot;title&quot;:&quot;Share Sales&quot;");
   });
@@ -87,7 +87,7 @@ describe("on-demand Stats Open Graph generation", () => {
     const html = await response.text();
     expect(html).not.toContain("<meta property=\"og:title\"");
     expect(html).not.toContain("<meta property=\"og:description\"");
-    expect(html).toContain("&quot;title&quot;:&quot;View&quot;");
+    expect(html).toContain("&quot;title&quot;:&quot;View Fair Launch Stats&quot;");
     expect(html).toContain("&quot;url&quot;:&quot;https://warplet.10x.meme/stats/overview/launch&quot;");
   });
 });
