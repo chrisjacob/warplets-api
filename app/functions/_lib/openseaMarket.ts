@@ -149,6 +149,10 @@ export type MarketPatch = Partial<Omit<MarketStateRow, "token_id">> & { token_id
 
 type PaginatedIngestResult = {
   changed: number;
+  scanned: number;
+  pages: number;
+  fetchDurationMs: number;
+  processingDurationMs: number;
   tokenIds: Set<number>;
   orderHashes: Set<string>;
   complete: boolean;
@@ -156,6 +160,10 @@ type PaginatedIngestResult = {
 
 type EventIngestResult = {
   changed: number;
+  scanned: number;
+  pages: number;
+  fetchDurationMs: number;
+  processingDurationMs: number;
   complete: boolean;
   nextCursor: string | null;
 };
@@ -232,6 +240,7 @@ const FORCE_REFRESH_COOLDOWN_SECONDS = 600;
 const LOCAL_FORCE_REFRESH_COOLDOWN_SECONDS = 10;
 const EVENT_INGEST_MAX_PAGES = 10;
 const EVENT_INGEST_OVERLAP_SECONDS = 6 * 60 * 60;
+const MARKET_ROW_CONCURRENCY = 4;
 const EVENT_TYPES = ["sale", "transfer", "listing", "offer"] as const;
 const BOOTSTRAP_COMPLETE_KEY = "market_ingest:bootstrap_complete";
 const LAST_SUCCESS_KEY = "market_ingest:last_success_at";
@@ -892,21 +901,35 @@ async function initializeOwnersFromMetadata(db: D1Database): Promise<void> {
   ).run();
 }
 
-export async function upsertMarketStateIfChanged(db: D1Database, patch: MarketPatch): Promise<boolean> {
-  const current = await db
-    .prepare(`SELECT ${MARKET_COLUMNS.join(", ")} FROM warplet_market_state WHERE token_id = ?`)
-    .bind(patch.token_id)
-    .first<Record<string, unknown>>();
+export function marketPatchChangesCurrent(
+  current: Record<string, unknown> | null,
+  patch: MarketPatch,
+): boolean {
+  if (!current) return true;
+  return MARKET_COLUMNS
+    .filter((column) => column !== "opensea_updated_at" && Object.prototype.hasOwnProperty.call(patch, column))
+    .some((column) => {
+      const next = patch[column as keyof MarketPatch] ?? null;
+      const prev = current[column] ?? null;
+      return String(next ?? "") !== String(prev ?? "");
+    });
+}
+
+export async function upsertMarketStateIfChanged(
+  db: D1Database,
+  patch: MarketPatch,
+  options: { current?: Record<string, unknown> | null } = {},
+): Promise<boolean> {
+  const current = Object.prototype.hasOwnProperty.call(options, "current")
+    ? options.current ?? null
+    : await db
+      .prepare(`SELECT ${MARKET_COLUMNS.join(", ")} FROM warplet_market_state WHERE token_id = ?`)
+      .bind(patch.token_id)
+      .first<Record<string, unknown>>();
 
   const updates = MARKET_COLUMNS.filter((column) => Object.prototype.hasOwnProperty.call(patch, column));
   if (updates.length === 0) return false;
-
-  const changed = updates.some((column) => {
-    const next = patch[column as keyof MarketPatch] ?? null;
-    const prev = current?.[column] ?? null;
-    return String(next ?? "") !== String(prev ?? "");
-  });
-  if (current && !changed) return false;
+  if (!marketPatchChangesCurrent(current, patch)) return false;
 
   const now = new Date().toISOString();
   if (!current) {
@@ -1332,15 +1355,28 @@ export async function upsertCriteriaOfferFromRow(
   const offererWallet = getMakerAddress(row);
   const protocolAddress = normalizeAddress(row.protocol_address ?? asObject(row.protocol_data)?.address);
   const encodedTokenIds = getCriteriaEncodedTokenIds(row);
-  const hadCriteriaRows = await criteriaOfferTableHasRows(env.WARPLETS);
+  const traitsJson = traits.length > 0 ? JSON.stringify(traits) : null;
   const existing = await env.WARPLETS.prepare(
-    `SELECT order_hash, offer_raw_amount, offer_eth, active, order_status
+    `SELECT order_hash, collection_slug, criteria_kind, traits_json,
+            offer_raw_amount, offer_eth, offer_decimals, offer_currency_symbol,
+            offer_token_address, offerer_wallet, protocol_address, encoded_token_ids,
+            offered_at, active, order_status
      FROM opensea_criteria_offers
      WHERE order_hash = ?`
   ).bind(orderHash).first<{
     order_hash: string;
+    collection_slug: string;
+    criteria_kind: CriteriaKind;
+    traits_json: string | null;
     offer_raw_amount: string | null;
     offer_eth: number | null;
+    offer_decimals: number | null;
+    offer_currency_symbol: string | null;
+    offer_token_address: string | null;
+    offerer_wallet: string | null;
+    protocol_address: string | null;
+    encoded_token_ids: string | null;
+    offered_at: string | null;
     active: number;
     order_status?: string | null;
   }>().catch(() => null);
@@ -1349,8 +1385,20 @@ export async function upsertCriteriaOfferFromRow(
   }
   const changed = !existing ||
     existing.active !== 1 ||
+    existing.collection_slug !== COLLECTION_SLUG ||
+    existing.criteria_kind !== criteriaKind ||
+    String(existing.traits_json ?? "") !== String(traitsJson ?? "") ||
     String(existing.offer_raw_amount ?? "") !== String(price.rawAmount ?? "") ||
-    String(existing.offer_eth ?? "") !== String(price.eth ?? "");
+    String(existing.offer_eth ?? "") !== String(price.eth ?? "") ||
+    String(existing.offer_decimals ?? "") !== String(price.decimals ?? "") ||
+    String(existing.offer_currency_symbol ?? "") !== String(price.symbol ?? "") ||
+    String(existing.offer_token_address ?? "") !== String(price.tokenAddress ?? "") ||
+    String(existing.offerer_wallet ?? "") !== String(offererWallet ?? "") ||
+    String(existing.protocol_address ?? "") !== String(protocolAddress ?? "") ||
+    String(existing.encoded_token_ids ?? "") !== String(encodedTokenIds ?? "") ||
+    String(existing.offered_at ?? "") !== String(offeredAt ?? "");
+  if (!changed) return false;
+  const hadCriteriaRows = await criteriaOfferTableHasRows(env.WARPLETS);
 
   await env.WARPLETS.prepare(
     `INSERT INTO opensea_criteria_offers (
@@ -1381,7 +1429,7 @@ export async function upsertCriteriaOfferFromRow(
     orderHash,
     COLLECTION_SLUG,
     criteriaKind,
-    traits.length > 0 ? JSON.stringify(traits) : null,
+    traitsJson,
     price.eth,
     price.rawAmount,
     price.decimals,
@@ -1713,8 +1761,14 @@ export async function loadMarketOwnership(
   };
 }
 
-export async function publishMarketSnapshot(env: OpenSeaMarketEnv): Promise<MarketSnapshot> {
-  const snapshot = await loadCompactMarketSnapshot(env, { skipKv: true });
+export async function publishMarketSnapshot(
+  env: OpenSeaMarketEnv,
+  generatedAt = new Date().toISOString(),
+): Promise<MarketSnapshot> {
+  const snapshot = {
+    ...await loadCompactMarketSnapshot(env, { skipKv: true }),
+    generatedAt,
+  };
   const kv = env.WARPLETS_KV;
   if (kv) {
     await Promise.all([
@@ -1744,15 +1798,14 @@ export async function processListing(
   const rowListedAt = getOrderCreatedAt(row);
   const orderHash = asString(row.order_hash);
   const sellerWallet = getMakerAddress(row);
-  await recordOpenSeaMarketEvent(env, { ...row, event_type: "listing" }).catch(() => false);
   const existing = await env.WARPLETS.prepare(
-    "SELECT listed_at, listing_order_hash FROM warplet_market_state WHERE token_id = ?",
+    `SELECT ${MARKET_COLUMNS.join(", ")} FROM warplet_market_state WHERE token_id = ?`,
   )
       .bind(tokenId)
-      .first<{ listed_at: string | null; listing_order_hash: string | null }>()
+      .first<Record<string, unknown> & { listed_at: string | null; listing_order_hash: string | null }>()
       .catch(() => null);
   const listedAt = rowListedAt ?? existing?.listed_at ?? new Date().toISOString();
-  const changed = await upsertMarketStateIfChanged(env.WARPLETS, {
+  const patch: MarketPatch = {
     token_id: tokenId,
     listing_eth: price.eth,
     listed_at: listedAt,
@@ -1764,7 +1817,11 @@ export async function processListing(
     listing_currency_symbol: price.symbol,
     listing_token_address: price.tokenAddress,
     opensea_updated_at: new Date().toISOString(),
-  });
+  };
+  const changed = await upsertMarketStateIfChanged(env.WARPLETS, patch, { current: existing });
+  if (changed) {
+    await recordOpenSeaMarketEvent(env, { ...row, event_type: "listing" }).catch(() => false);
+  }
   if (changed && existing && existing.listing_order_hash !== orderHash && price.eth != null) {
     await recordWarpletActivity(env, {
       eventType: "listed",
@@ -1800,10 +1857,10 @@ export async function processOffer(
   await recordOpenSeaMarketEvent(env, { ...row, event_type: "offer" }).catch(() => false);
   const protocolAddress = normalizeAddress(row.protocol_address ?? asObject(row.protocol_data)?.address);
   const existing = await env.WARPLETS.prepare(
-    "SELECT offered_at, offer_order_hash, offer_eth, offer_raw_amount, offer_decimals FROM warplet_market_state WHERE token_id = ?",
+    `SELECT ${MARKET_COLUMNS.join(", ")} FROM warplet_market_state WHERE token_id = ?`,
   )
       .bind(tokenId)
-      .first<{
+      .first<Record<string, unknown> & {
         offered_at: string | null;
         offer_order_hash: string | null;
         offer_eth: number | null;
@@ -1852,7 +1909,7 @@ export async function processOffer(
     offer_currency_symbol: price.symbol,
     offer_token_address: price.tokenAddress,
     opensea_updated_at: new Date().toISOString(),
-  });
+  }, { current: existing });
   if (changed && existing && existing.offer_order_hash !== orderHash && price.eth != null) {
     await recordWarpletActivity(env, {
       eventType: "offered",
@@ -2130,6 +2187,10 @@ async function recordOpenSeaMarketEvent(
   const fromWallet = eventType === "offer" || eventType === "listing" ? maker : seller;
   const toWallet = eventType === "sale" || eventType === "transfer" ? buyer : null;
   const canonicalKey = `opensea:${eventType}:${eventId ?? transactionHash ?? orderHash ?? `${tokenId}:${occurredAt}:${fromWallet ?? "unknown"}`}`;
+  const existingEvent = await env.WARPLETS.prepare(
+    "SELECT 1 AS found FROM warplet_market_activity WHERE canonical_key = ? LIMIT 1",
+  ).bind(canonicalKey).first<{ found: number }>().catch(() => null);
+  if (existingEvent?.found) return false;
   const [fromFid, toFid] = await Promise.all([
     fromWallet ? selectPreferredFidForWallet(env, fromWallet) : Promise.resolve(null),
     toWallet ? selectPreferredFidForWallet(env, toWallet) : Promise.resolve(null),
@@ -2156,40 +2217,113 @@ async function recordOpenSeaMarketEvent(
   return (result.meta.changes ?? 0) > 0;
 }
 
+export async function processKeyedRowsWithConcurrency<T>(
+  rows: T[],
+  keyForRow: (row: T, index: number) => string,
+  processor: (row: T) => Promise<boolean>,
+  concurrency = MARKET_ROW_CONCURRENCY,
+): Promise<number> {
+  const groups = new Map<string, T[]>();
+  rows.forEach((row, index) => {
+    const key = keyForRow(row, index);
+    const group = groups.get(key);
+    if (group) group.push(row);
+    else groups.set(key, [row]);
+  });
+  const groupedRows = [...groups.values()];
+  let nextGroup = 0;
+  const workers = Array.from(
+    { length: Math.min(Math.max(1, Math.floor(concurrency)), groupedRows.length) },
+    async () => {
+      let changed = 0;
+      while (nextGroup < groupedRows.length) {
+        const groupIndex = nextGroup;
+        nextGroup += 1;
+        for (const row of groupedRows[groupIndex]) {
+          if (await processor(row)) changed += 1;
+        }
+      }
+      return changed;
+    },
+  );
+  return (await Promise.all(workers)).reduce((total, changed) => total + changed, 0);
+}
+
+function listingProcessingKey(row: Record<string, unknown>, index: number): string {
+  return `listing:${getTokenIdFromOpenSeaRow(row) ?? asString(row.order_hash) ?? index}`;
+}
+
+function offerProcessingKey(row: Record<string, unknown>, index: number): string {
+  const kind = classifyOpenSeaOffer(row);
+  if (kind === "item") {
+    return `item:${getTokenIdFromOpenSeaRow(row) ?? asString(row.order_hash) ?? index}`;
+  }
+  if (kind === "collection") return "criteria:collection";
+  const traits = readCriteriaTraits(row)
+    .map(({ traitType, traitValue }) => `${normalizeTraitKey(traitType)}=${traitValue.trim().toLowerCase()}`)
+    .sort();
+  return `criteria:trait:${traits.join("|") || asString(row.order_hash) || index}`;
+}
+
 async function ingestPaginated(
   env: OpenSeaMarketEnv,
   apiKey: string,
   path: string,
   rowKeys: string[],
   processor: (env: OpenSeaMarketEnv, row: Record<string, unknown>) => Promise<boolean>,
+  keyForRow: (row: Record<string, unknown>, index: number) => string,
   maxPages: number,
 ): Promise<PaginatedIngestResult> {
   let cursor: string | null = null;
   let changed = 0;
+  let scanned = 0;
+  let pages = 0;
+  let fetchDurationMs = 0;
+  let processingDurationMs = 0;
   let complete = false;
   const tokenIds = new Set<number>();
   const orderHashes = new Set<string>();
   for (let page = 0; page < maxPages; page += 1) {
+    pages = page + 1;
     const params = new URLSearchParams({ limit: "200" });
     if (cursor) params.set("next", cursor);
+    const fetchStartedAt = Date.now();
     const payload = await fetchOpenSea(path, apiKey, params);
-    const rows = rowKeys.flatMap((key) => asArray(payload[key]));
-    for (const item of rows) {
-      const row = asObject(item);
-      if (!row) continue;
+    fetchDurationMs += Date.now() - fetchStartedAt;
+    const rows = rowKeys
+      .flatMap((key) => asArray(payload[key]))
+      .map((item) => asObject(item))
+      .filter((row): row is Record<string, unknown> => Boolean(row));
+    scanned += rows.length;
+    for (const row of rows) {
       const tokenId = getTokenIdFromOpenSeaRow(row);
       if (tokenId) tokenIds.add(tokenId);
       const orderHash = asString(row.order_hash);
       if (orderHash) orderHashes.add(orderHash);
-      if (await processor(env, row)) changed += 1;
     }
+    const processingStartedAt = Date.now();
+    changed += await processKeyedRowsWithConcurrency(
+      rows,
+      keyForRow,
+      (row) => processor(env, row),
+    );
+    processingDurationMs += Date.now() - processingStartedAt;
     cursor = asString(payload.next);
     if (!cursor || rows.length === 0) {
       complete = true;
       break;
     }
   }
-  return { changed, tokenIds, orderHashes, complete };
+  return {
+    changed,
+    scanned,
+    pages,
+    fetchDurationMs,
+    processingDurationMs,
+    tokenIds,
+    orderHashes,
+    complete,
+  };
 }
 
 async function clearInactiveMarketRows(
@@ -2254,15 +2388,20 @@ async function ingestCollectionEvents(
 ): Promise<EventIngestResult> {
   let cursor = initialCursor;
   let changed = 0;
+  let scanned = 0;
+  let fetchDurationMs = 0;
+  let processingDurationMs = 0;
   for (let page = 0; page < EVENT_INGEST_MAX_PAGES; page += 1) {
     const eventParams = new URLSearchParams({ limit: "200", event_type: eventType });
     if (after) eventParams.set("after", after);
     if (cursor) eventParams.set("next", cursor);
+    const fetchStartedAt = Date.now();
     const payload = await fetchOpenSea(
       `/events/collection/${COLLECTION_SLUG}`,
       apiKey,
       eventParams,
     );
+    fetchDurationMs += Date.now() - fetchStartedAt;
     const rows = asArray(payload.asset_events ?? payload.events)
       .map((event) => asObject(event))
       .filter((event): event is Record<string, unknown> => Boolean(event))
@@ -2274,25 +2413,45 @@ async function ingestCollectionEvents(
           right.event_timestamp ?? right.created_date ?? right.sold_at ?? right.created_at,
         ) ?? "");
         return (Number.isFinite(leftAt) ? leftAt : 0) - (Number.isFinite(rightAt) ? rightAt : 0);
-    });
-    for (const row of rows) {
-      const recorded = await recordOpenSeaMarketEvent(env, { ...row, event_type: eventType });
-      const didChange = eventType === "sale" || eventType === "transfer"
-        ? (await processSaleOrTransfer(env, row, {
-          clearOrdersOnOwnerChange: true,
-          notificationMode,
-        })) || recorded
-        : recorded;
-      if (didChange) {
-        changed += 1;
-      }
-    }
+      });
+    scanned += rows.length;
+    const processingStartedAt = Date.now();
+    changed += await processKeyedRowsWithConcurrency(
+      rows,
+      (row, index) => `event:${getTokenIdFromOpenSeaRow(row) ?? asString(row.id) ?? index}`,
+      async (row) => {
+        const recorded = await recordOpenSeaMarketEvent(env, { ...row, event_type: eventType });
+        return eventType === "sale" || eventType === "transfer"
+          ? (await processSaleOrTransfer(env, row, {
+            clearOrdersOnOwnerChange: true,
+            notificationMode,
+          })) || recorded
+          : recorded;
+      },
+    );
+    processingDurationMs += Date.now() - processingStartedAt;
     cursor = asString(payload.next);
     if (!cursor || rows.length === 0) {
-      return { changed, complete: true, nextCursor: null };
+      return {
+        changed,
+        scanned,
+        pages: page + 1,
+        fetchDurationMs,
+        processingDurationMs,
+        complete: true,
+        nextCursor: null,
+      };
     }
   }
-  return { changed, complete: false, nextCursor: cursor };
+  return {
+    changed,
+    scanned,
+    pages: EVENT_INGEST_MAX_PAGES,
+    fetchDurationMs,
+    processingDurationMs,
+    complete: false,
+    nextCursor: cursor,
+  };
 }
 
 export async function fetchLatestTokenSale(apiKey: string, tokenId: number): Promise<Record<string, unknown> | null> {
@@ -2583,27 +2742,37 @@ async function ingestOpenSeaMarketUnlocked(
   const apiKey = env.OPENSEA_API_KEY?.trim();
   if (!apiKey) throw new Error("OPENSEA_API_KEY is not configured");
 
+  const ingestStartedAt = Date.now();
   await initializeOwnersFromMetadata(env.WARPLETS);
+  const initializationDurationMs = Date.now() - ingestStartedAt;
   let changed = 0;
+  const collectionStartedAt = Date.now();
   changed += await refreshCollectionMarketState(env, apiKey, notificationMode);
+  const collectionDurationMs = Date.now() - collectionStartedAt;
+  const listingsStartedAt = Date.now();
   const listings = await ingestPaginated(
     env,
     apiKey,
     `/listings/collection/${COLLECTION_SLUG}/all`,
     ["listings", "orders"],
     (processorEnv, row) => processListing(processorEnv, row, notificationMode),
+    listingProcessingKey,
     50,
   );
+  const listingsDurationMs = Date.now() - listingsStartedAt;
   changed += listings.changed;
   if (listings.complete) changed += await clearInactiveMarketRows(env.WARPLETS, "listing", listings.tokenIds);
 
+  let offers: PaginatedIngestResult | null = null;
+  const offersStartedAt = Date.now();
   try {
-    const offers = await ingestPaginated(
+    offers = await ingestPaginated(
       env,
       apiKey,
       `/offers/collection/${COLLECTION_SLUG}/all`,
       ["offers", "orders"],
       (processorEnv, row) => processOffer(processorEnv, row, notificationMode),
+      offerProcessingKey,
       50,
     );
     changed += offers.changed;
@@ -2611,7 +2780,13 @@ async function ingestOpenSeaMarketUnlocked(
   } catch (error) {
     console.warn("OpenSea offers ingest failed; preserving the previous offers snapshot", error);
   }
+  const offersDurationMs = Date.now() - offersStartedAt;
 
+  const eventsStartedAt = Date.now();
+  let eventRowsScanned = 0;
+  let eventPages = 0;
+  let eventFetchDurationMs = 0;
+  let eventProcessingDurationMs = 0;
   const last = await env.WARPLETS.prepare(
     "SELECT value FROM opensea_ingest_state WHERE key = 'events_after'",
   ).first<{ value: string | null }>();
@@ -2644,6 +2819,10 @@ async function ingestOpenSeaMarketUnlocked(
         notificationMode,
       );
       changed += result.changed;
+      eventRowsScanned += result.scanned;
+      eventPages += result.pages;
+      eventFetchDurationMs += result.fetchDurationMs;
+      eventProcessingDurationMs += result.processingDurationMs;
       const updatedAt = new Date().toISOString();
       if (result.complete) {
         const previousAfter = Number(after);
@@ -2690,7 +2869,9 @@ async function ingestOpenSeaMarketUnlocked(
       new Date().toISOString(),
     ).run();
   }
+  const eventsDurationMs = Date.now() - eventsStartedAt;
 
+  const finalizationStartedAt = Date.now();
   await Promise.all([
     persistCurrentCollectionAnalyticsSnapshot(env),
     reconcileHolderLeaderboardIfDue(env),
@@ -2704,6 +2885,39 @@ async function ingestOpenSeaMarketUnlocked(
        ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`,
     ).bind(BOOTSTRAP_COMPLETE_KEY, snapshot.generatedAt, snapshot.generatedAt).run().catch(() => undefined);
   }
+  const finalizationDurationMs = Date.now() - finalizationStartedAt;
+  console.log(JSON.stringify({
+    message: "OpenSea market ingest completed",
+    durationMs: Date.now() - ingestStartedAt,
+    changed,
+    initializationDurationMs,
+    collectionDurationMs,
+    listings: {
+      durationMs: listingsDurationMs,
+      fetchDurationMs: listings.fetchDurationMs,
+      processingDurationMs: listings.processingDurationMs,
+      scanned: listings.scanned,
+      pages: listings.pages,
+      complete: listings.complete,
+    },
+    offers: offers ? {
+      durationMs: offersDurationMs,
+      fetchDurationMs: offers.fetchDurationMs,
+      processingDurationMs: offers.processingDurationMs,
+      scanned: offers.scanned,
+      pages: offers.pages,
+      complete: offers.complete,
+    } : { durationMs: offersDurationMs, failed: true },
+    events: {
+      durationMs: eventsDurationMs,
+      fetchDurationMs: eventFetchDurationMs,
+      processingDurationMs: eventProcessingDurationMs,
+      scanned: eventRowsScanned,
+      pages: eventPages,
+      complete: eventsComplete,
+    },
+    finalizationDurationMs,
+  }));
   return { changed, generatedAt: snapshot.generatedAt, bootstrap, notificationMode };
 }
 

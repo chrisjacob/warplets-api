@@ -697,11 +697,35 @@ export async function upsertActiveItemOffer(
     createdAt?: string | null;
     expiresAt?: string | null;
   },
-): Promise<void> {
+): Promise<boolean> {
   const orderHash = input.orderHash?.trim();
   const tokenId = normalizeTokenId(input.tokenId);
-  if (!orderHash || !tokenId) return;
+  if (!orderHash || !tokenId) return false;
   const offererWallet = normalizeWallet(input.offererWallet);
+  const createdAt = input.createdAt ? normalizeTimestamp(input.createdAt) : null;
+  const expiresAt = input.expiresAt ? normalizeTimestamp(input.expiresAt) : null;
+  const existing = await env.WARPLETS.prepare(
+    `SELECT token_id, offerer_wallet, amount_eth, amount_raw, currency_symbol,
+            protocol_address, active, created_at, expires_at
+     FROM warplet_active_item_offers
+     WHERE order_hash = ?
+     LIMIT 1`,
+  )
+    .bind(orderHash)
+    .first<Record<string, unknown>>()
+    .catch(() => null);
+  const unchanged = existing &&
+    Number(existing.token_id) === tokenId &&
+    String(existing.offerer_wallet ?? "") === String(offererWallet ?? "") &&
+    String(existing.amount_eth ?? "") === String(input.amountEth ?? "") &&
+    String(existing.amount_raw ?? "") === String(input.amountRaw ?? "") &&
+    String(existing.currency_symbol ?? "") === String(input.currencySymbol ?? "") &&
+    String(existing.protocol_address ?? "") === String(input.protocolAddress ?? "") &&
+    Number(existing.active) === 1 &&
+    String(existing.created_at ?? "") === String(createdAt ?? "") &&
+    String(existing.expires_at ?? "") === String(expiresAt ?? "");
+  if (unchanged) return false;
+
   const offererFid = await resolveFidForWallet(env, offererWallet);
 
   await env.WARPLETS.prepare(
@@ -731,10 +755,11 @@ export async function upsertActiveItemOffer(
       input.amountRaw ?? null,
       input.currencySymbol ?? null,
       input.protocolAddress ?? null,
-      input.createdAt ? normalizeTimestamp(input.createdAt) : null,
-      input.expiresAt ? normalizeTimestamp(input.expiresAt) : null,
+      createdAt,
+      expiresAt,
     )
     .run();
+  return true;
 }
 
 export async function deactivateActiveItemOffer(

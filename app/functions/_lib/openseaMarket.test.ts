@@ -4,7 +4,9 @@ import {
   getTokenIdFromOpenSeaRow,
   isOpenSeaMarketIngestDue,
   markOpenSeaMarketIngestSuccessIfLeaseOwned,
+  marketPatchChangesCurrent,
   ownsOpenSeaMarketLease,
+  processKeyedRowsWithConcurrency,
   resolveOpenSeaMarketNotificationMode,
 } from "./openseaMarket";
 
@@ -125,5 +127,66 @@ describe("OpenSea ingest lease", () => {
       ),
     ).resolves.toBe(false);
     expect(writes.has("market_ingest:last_success_at")).toBe(false);
+  });
+});
+
+describe("OpenSea scan write suppression", () => {
+  it("does not rewrite an unchanged row merely to refresh its scan timestamp", () => {
+    expect(marketPatchChangesCurrent(
+      {
+        token_id: 1589,
+        listing_order_hash: "0xorder",
+        listing_raw_amount: "1000000000000000",
+        opensea_updated_at: "2026-08-26T00:00:00.000Z",
+      },
+      {
+        token_id: 1589,
+        listing_order_hash: "0xorder",
+        listing_raw_amount: "1000000000000000",
+        opensea_updated_at: "2026-08-26T00:10:00.000Z",
+      },
+    )).toBe(false);
+  });
+
+  it("still writes a real order or price change", () => {
+    expect(marketPatchChangesCurrent(
+      { token_id: 1589, listing_order_hash: "0xold" },
+      { token_id: 1589, listing_order_hash: "0xnew" },
+    )).toBe(true);
+  });
+});
+
+describe("OpenSea bounded row processing", () => {
+  it("runs independent tokens concurrently while preserving order per token", async () => {
+    const rows = [
+      { token: "a", sequence: 1 },
+      { token: "a", sequence: 2 },
+      { token: "b", sequence: 1 },
+      { token: "b", sequence: 2 },
+    ];
+    const processed = new Map<string, number[]>();
+    let active = 0;
+    let maxActive = 0;
+
+    const changed = await processKeyedRowsWithConcurrency(
+      rows,
+      (row) => row.token,
+      async (row) => {
+        active += 1;
+        maxActive = Math.max(maxActive, active);
+        await new Promise((resolve) => setTimeout(resolve, 5));
+        const tokenRows = processed.get(row.token) ?? [];
+        tokenRows.push(row.sequence);
+        processed.set(row.token, tokenRows);
+        active -= 1;
+        return true;
+      },
+      2,
+    );
+
+    expect(changed).toBe(4);
+    expect(maxActive).toBe(2);
+    expect(processed.get("a")).toEqual([1, 2]);
+    expect(processed.get("b")).toEqual([1, 2]);
   });
 });

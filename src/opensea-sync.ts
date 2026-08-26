@@ -27,6 +27,7 @@ const KV_LAST_SYNC_KEY = "opensea_last_sync_at";
 const KV_STATS_BUYS_KEY = "stats_buys";
 const OPENSEA_REQUEST_TIMEOUT_MS = 12_000;
 const OPENSEA_EVENTS_PAGE_SIZE = 200;
+const OPENSEA_D1_BATCH_SIZE = 50;
 
 // ---------------------------------------------------------------------------
 // Types
@@ -64,6 +65,11 @@ type OpenSeaEventsResponse = {
   next?: string | null;
 };
 
+type PreparedOpenSeaEvent = {
+  event: OpenSeaEvent;
+  statement: D1PreparedStatement;
+};
+
 export type SyncResult = {
   processed: number;
   matched: number;
@@ -80,6 +86,33 @@ export type OpenSeaResumePoint = {
   persistedCursorSec: number | null;
   source: "manual" | "persisted" | "lookback";
 };
+
+async function insertOpenSeaEventBatch(
+  db: D1Database,
+  preparedEvents: PreparedOpenSeaEvent[],
+): Promise<Array<{ event: OpenSeaEvent; stored: boolean; inserted: boolean }>> {
+  try {
+    const results = await db.batch(preparedEvents.map(({ statement }) => statement));
+    return preparedEvents.map(({ event }, index) => ({
+      event,
+      stored: true,
+      inserted: (results[index]?.meta.changes ?? 0) > 0,
+    }));
+  } catch (batchError) {
+    console.warn("[opensea-sync] batched event insert failed; retrying rows individually", batchError);
+    const outcomes: Array<{ event: OpenSeaEvent; stored: boolean; inserted: boolean }> = [];
+    for (const { event, statement } of preparedEvents) {
+      try {
+        const result = await statement.run();
+        outcomes.push({ event, stored: true, inserted: (result.meta.changes ?? 0) > 0 });
+      } catch (error) {
+        console.error("[opensea-sync] insert error for event:", event.event_timestamp, error);
+        outcomes.push({ event, stored: false, inserted: false });
+      }
+    }
+    return outcomes;
+  }
+}
 
 /** Normalize OpenSea ISO, Unix-second, and Unix-millisecond timestamps. */
 export function parseOpenSeaTimestampSeconds(
@@ -178,6 +211,7 @@ export async function runOpenseaSync(
   let skipped = 0;
   let latestTimestampSec: number | null = resume.persistedCursorSec;
   let buyMatchFound = false;
+  const distributionBuyerWallets = new Set<string>();
 
   do {
     const url = buildOpenSeaSalesEventsUrl(occurredAfterSec, cursor);
@@ -215,100 +249,89 @@ export async function runOpenseaSync(
     // -----------------------------------------------------------------------
     // 3. Process each event
     // -----------------------------------------------------------------------
-    for (const ev of events) {
-      const txHash = ev.transaction ?? null;
-      const tokenId = ev.nft?.identifier ?? null;
-      const walletFrom = ev.seller ?? null;
-      const walletTo = ev.buyer ?? null;
-      const salePriceWei = ev.payment?.quantity ?? null;
-      const paymentToken = ev.payment?.token?.symbol ?? null;
-      const eventTs = ev.event_timestamp;
+    const preparedEvents = events.map((ev): PreparedOpenSeaEvent => ({
+      event: ev,
+      statement: env.WARPLETS.prepare(
+        `INSERT OR IGNORE INTO opensea
+          (event_type, token_id, wallet_from, wallet_to, transaction_hash,
+           sale_price_wei, payment_token, event_timestamp, raw_payload, created_on)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`,
+      ).bind(
+        ev.event_type,
+        ev.nft?.identifier ?? null,
+        ev.seller ?? null,
+        ev.buyer ?? null,
+        ev.transaction ?? null,
+        ev.payment?.quantity ?? null,
+        ev.payment?.token?.symbol ?? null,
+        ev.event_timestamp,
+        JSON.stringify(ev),
+      ),
+    }));
 
-      // Insert into opensea table; ON CONFLICT DO NOTHING handles dedup
-      let isDuplicate = false;
-      try {
-        const result = await env.WARPLETS.prepare(
-          `INSERT OR IGNORE INTO opensea
-            (event_type, token_id, wallet_from, wallet_to, transaction_hash,
-             sale_price_wei, payment_token, event_timestamp, raw_payload, created_on)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`,
-        )
-          .bind(
-            ev.event_type,
-            tokenId,
-            walletFrom,
-            walletTo,
-            txHash,
-            salePriceWei,
-            paymentToken,
-            eventTs,
-            JSON.stringify(ev),
-          )
-          .run();
+    for (let index = 0; index < preparedEvents.length; index += OPENSEA_D1_BATCH_SIZE) {
+      const outcomes = await insertOpenSeaEventBatch(
+        env.WARPLETS,
+        preparedEvents.slice(index, index + OPENSEA_D1_BATCH_SIZE),
+      );
+      for (const insertOutcome of outcomes) {
+        const ev = insertOutcome.event;
+        const walletFrom = ev.seller ?? null;
+        const walletTo = ev.buyer ?? null;
+        const eventTs = ev.event_timestamp;
 
-        // `changes === 0` means the UNIQUE constraint fired — already stored
-        if (result.meta.changes === 0) {
-          isDuplicate = true;
-          skipped++;
+        // Insert into opensea table; ON CONFLICT DO NOTHING handles dedup.
+        if (!insertOutcome.stored) continue;
+
+        if (insertOutcome.inserted) processed += 1;
+        else skipped += 1;
+
+        // Track the resume cursor in one representation regardless of which
+        // event timestamp format OpenSea returned.
+        const eventTimestampSec = parseOpenSeaTimestampSeconds(eventTs);
+        if (
+          eventTimestampSec !== null &&
+          (latestTimestampSec === null || eventTimestampSec > latestTimestampSec)
+        ) {
+          latestTimestampSec = eventTimestampSec;
         }
-      } catch (err) {
-        console.error("[opensea-sync] insert error for event:", eventTs, err);
-        continue;
-      }
 
-      if (!isDuplicate) {
-        processed++;
-      }
-
-      // Track the resume cursor in one representation regardless of which
-      // event timestamp format OpenSea returned.
-      const eventTimestampSec = parseOpenSeaTimestampSeconds(eventTs);
-      if (
-        eventTimestampSec !== null &&
-        (latestTimestampSec === null || eventTimestampSec > latestTimestampSec)
-      ) {
-        latestTimestampSec = eventTimestampSec;
-      }
-
-      // -------------------------------------------------------------------
-      // 4. If sale from distribution wallet: match buyer → warplets_users.buy_in_opensea_on
-      //    Only sales where 10xchris.eth is the seller count (direct listings
-      //    and accepted offers both have wallet_from = distribution wallet).
-      // -------------------------------------------------------------------
-      if (
-        ev.event_type === "sale" &&
-        walletFrom?.toLowerCase() === DISTRIBUTION_WALLET.toLowerCase() &&
-        walletTo
-      ) {
-        try {
-          const userRow = await env.WARPLETS.prepare(
-            `SELECT id, buy_in_opensea_on FROM warplets_users
-             WHERE LOWER(primary_eth_address) = LOWER(?) LIMIT 1`,
-          )
-            .bind(walletTo)
-            .first<{ id: number; buy_in_opensea_on: string | null }>();
-
-          if (userRow && !userRow.buy_in_opensea_on) {
-            const now = new Date().toISOString();
-            await env.WARPLETS.prepare(
-              "UPDATE warplets_users SET buy_in_opensea_on = ?, updated_on = ? WHERE id = ?",
-            )
-              .bind(now, now, userRow.id)
-              .run();
-            matched++;
-            buyMatchFound = true;
-            console.log(
-              `[opensea-sync] matched buyer wallet ${walletTo} → user id ${userRow.id} (token ${tokenId})`,
-            );
-          }
-        } catch (err) {
-          console.error("[opensea-sync] error matching buyer:", err);
+        // Distribution-sale buyer updates are applied in bounded chunks after
+        // pagination instead of issuing a SELECT and UPDATE for every event.
+        if (
+          ev.event_type === "sale" &&
+          walletFrom?.toLowerCase() === DISTRIBUTION_WALLET.toLowerCase() &&
+          walletTo
+        ) {
+          distributionBuyerWallets.add(walletTo.toLowerCase());
         }
       }
     }
 
     cursor = data.next ?? null;
   } while (cursor);
+
+  // Preserve repair behavior for duplicate sale events while avoiding one
+  // SELECT and one UPDATE for every buyer in the OpenSea response.
+  const buyerWallets = [...distributionBuyerWallets];
+  for (let index = 0; index < buyerWallets.length; index += OPENSEA_D1_BATCH_SIZE) {
+    const chunk = buyerWallets.slice(index, index + OPENSEA_D1_BATCH_SIZE);
+    const placeholders = chunk.map(() => "?").join(", ");
+    const now = new Date().toISOString();
+    try {
+      const result = await env.WARPLETS.prepare(
+        `UPDATE warplets_users
+         SET buy_in_opensea_on = ?, updated_on = ?
+         WHERE buy_in_opensea_on IS NULL
+           AND LOWER(primary_eth_address) IN (${placeholders})`,
+      ).bind(now, now, ...chunk).run();
+      const changes = result.meta.changes ?? 0;
+      matched += changes;
+      buyMatchFound ||= changes > 0;
+    } catch (error) {
+      console.error("[opensea-sync] error matching distribution buyers:", error);
+    }
+  }
 
   // -------------------------------------------------------------------------
   // 5. Persist resume point (only advance if we saw newer events)
