@@ -27,7 +27,7 @@ type PagesEnv = {
 
 const DROP_SHARE_TITLE = "10X Warplets (10K NFT Drop)";
 const DROP_SHARE_DESCRIPTION =
-  "Price increases 10 USD every 10 days. Private supply goes public every 10 days. Don't miss out. ";
+  "10X Warplets airdropped to 10,000 diamond hands.";
 const DEFAULT_DROP_SHARE_IMAGE_URL = "https://warplets.10x.meme/1391.gif";
 const DROP_ICON_URL = "https://drop.10x.meme/icon_drop2.png";
 const DROP_SPLASH_URL = "https://drop.10x.meme/splash_drop2.png";
@@ -39,6 +39,8 @@ const WARPLETS_SHARE_DESCRIPTION = "Search, filter, trade, favourite, and share 
 const WARPLETS_SPLASH_BACKGROUND_COLOR = "#004100";
 export const APP_SHARE_TITLE = "10X.MEME 🟢 You're Just One Trade Away...";
 export const APP_SHARE_DESCRIPTION = "10X Memes, RWAs, NFTs, AI, Attention & Alpha.";
+export const APP_MINIAPP_TITLE = "You're Just One Trade Away...";
+export const APP_MINIAPP_DESCRIPTION = "10X Memes, RWAs, NFTs, AI, Attention and Alpha.";
 const STOP_SHARE_TITLE = "@Mention Settings";
 const STOP_SHARE_DESCRIPTION = "Opt out of 10X outreach mentions in the Farcaster Mini App.";
 const STOP_IMAGE_URL = "https://warplets.10x.meme/3081.png";
@@ -95,12 +97,12 @@ export function buildFarcasterManifest(hostname: string, warpletsAssociation?: A
         iconUrl: DROP_ICON_URL,
         imageUrl: DROP_EMBED_URL,
         heroImageUrl: DROP_HERO_URL,
-        buttonTitle: "Claim Your Warplet",
+        buttonTitle: "Drop Has Finished",
         splashImageUrl: DROP_SPLASH_URL,
         splashBackgroundColor: DROP_SPLASH_BACKGROUND_COLOR,
         webhookUrl: "https://app.10x.meme/webhook/drop",
         castShareUrl: `https://${hostname}`,
-        subtitle: "Don't miss out.",
+        subtitle: "Did you get the free airdrop?",
         description: DROP_SHARE_DESCRIPTION,
         primaryCategory: "social",
         screenshotUrls: [
@@ -166,15 +168,15 @@ export function buildFarcasterManifest(hostname: string, warpletsAssociation?: A
       webhookUrl: "https://app.10x.meme/webhook/app",
       castShareUrl: "https://app.10x.meme",
       subtitle: "Don't miss out.",
-      description: APP_SHARE_DESCRIPTION,
+      description: APP_MINIAPP_DESCRIPTION,
       primaryCategory: "social",
       screenshotUrls: [
         "https://app.10x.meme/screenshots/app_1v2.jpg",
       ],
       tags: ["10x", "warplets", "farcaster", "nft", "memecoins"],
       tagline: "Don't miss out.",
-      ogTitle: APP_SHARE_TITLE,
-      ogDescription: APP_SHARE_DESCRIPTION,
+      ogTitle: APP_MINIAPP_TITLE,
+      ogDescription: APP_MINIAPP_DESCRIPTION,
       ogImageUrl: "https://app.10x.meme/embed.png",
     },
   };

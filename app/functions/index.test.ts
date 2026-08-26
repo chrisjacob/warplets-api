@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from "vitest";
 import {
   APP_SHARE_DESCRIPTION,
   APP_SHARE_TITLE,
+  APP_MINIAPP_DESCRIPTION,
+  APP_MINIAPP_TITLE,
   buildCanonicalUrl,
   buildFarcasterManifest,
   getBaseAppId,
@@ -40,22 +42,37 @@ describe("10X app metadata", () => {
     expect(APP_SHARE_TITLE).toBe("10X.MEME 🟢 You're Just One Trade Away...");
   });
 
-  it("uses the requested description in the app manifest", () => {
+  it("keeps the requested description in the webpage metadata", () => {
     expect(APP_SHARE_DESCRIPTION).toBe("10X Memes, RWAs, NFTs, AI, Attention & Alpha.");
-    expect(buildFarcasterManifest("app.10x.meme").miniapp.description).toBe(APP_SHARE_DESCRIPTION);
   });
 
-  it("keeps the Farcaster Open Graph metadata aligned with the webpage", () => {
+  it("uses validator-safe Farcaster manifest metadata", () => {
     const manifest = buildFarcasterManifest("app.10x.meme").miniapp;
 
-    expect(manifest.ogTitle).toBe(APP_SHARE_TITLE);
-    expect(manifest.ogDescription).toBe(APP_SHARE_DESCRIPTION);
+    expect(APP_MINIAPP_TITLE).toBe("You're Just One Trade Away...");
+    expect(APP_MINIAPP_DESCRIPTION).toBe("10X Memes, RWAs, NFTs, AI, Attention and Alpha.");
+    expect(manifest.description).toBe(APP_MINIAPP_DESCRIPTION);
+    expect(manifest.ogTitle).toBe(APP_MINIAPP_TITLE);
+    expect(manifest.ogDescription).toBe(APP_MINIAPP_DESCRIPTION);
+    expect(manifest.ogTitle.length).toBeLessThanOrEqual(30);
+    expect(`${manifest.description}${manifest.ogDescription}`).not.toMatch(/[@#$%^&*+=/\\|~«»]/);
   });
 
   it("publishes the current app screenshot", () => {
     expect(buildFarcasterManifest("app.10x.meme").miniapp.screenshotUrls).toEqual([
       "https://app.10x.meme/screenshots/app_1v2.jpg",
     ]);
+  });
+});
+
+describe("10X Warplets Drop metadata", () => {
+  it("describes the completed airdrop in the manifest and Open Graph metadata", () => {
+    const manifest = buildFarcasterManifest("drop.10x.meme").miniapp;
+
+    expect(manifest.buttonTitle).toBe("Drop Has Finished");
+    expect(manifest.subtitle).toBe("Did you get the free airdrop?");
+    expect(manifest.description).toBe("10X Warplets airdropped to 10,000 diamond hands.");
+    expect(manifest.ogDescription).toBe("10X Warplets airdropped to 10,000 diamond hands.");
   });
 });
 

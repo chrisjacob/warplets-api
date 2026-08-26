@@ -5750,7 +5750,7 @@ function StatsOverview({
         <Text className="mt-1 text-xs leading-4 text-[#b8e6b8]">Where Builders, Traders and Attention align.</Text>
         <div className="mt-3 grid grid-cols-2 gap-2">
           <StatsMetricCard label="Items" value={formatStatsInteger(items ?? 10000)} />
-          <StatsMetricCard label="Floor Price" value={formatStatsEth(floor)} tooltip={floorUsd} />
+          <StatsMetricCard label="Floor Price" value={formatStatsEth(floor, "ETH", 7)} tooltip={floorUsd} />
           <StatsMetricCard label="1D Floor %" value={formatStatsPercent(floorChange, 2)} />
           <StatsMetricCard label="Top Offer" value={formatStatsEth(topOffer)} tooltip={topOfferUsd} />
           <StatsMetricCard label="24H Volume" value={formatStatsEth(volume24h)} tooltip={volume24hUsd} />

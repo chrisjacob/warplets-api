@@ -4048,6 +4048,40 @@ export async function handleStatsPriceHistoryGet(
 
 type ActivityCursor = { at: string; key: string };
 
+type ActivityDedupeInput = {
+  eventType: string;
+  tokenId: number;
+  transactionHash?: string | null;
+  orderHash?: string | null;
+  canonicalKey: string;
+};
+
+export function getActivityDedupeIdentity(input: ActivityDedupeInput): string {
+  const eventType = input.eventType.trim().toLowerCase();
+  const transactionHash = input.transactionHash?.trim().toLowerCase() || null;
+  const orderHash = input.orderHash?.trim().toLowerCase() || null;
+  if ((eventType === "sale" || eventType === "transfer") && transactionHash) {
+    return `${eventType}:${input.tokenId}:${transactionHash}`;
+  }
+  if ((eventType === "listing" || eventType === "offer") && orderHash) {
+    return `${eventType}:${input.tokenId}:${orderHash}`;
+  }
+  if (eventType === "sale" && orderHash) {
+    return `${eventType}:${input.tokenId}:${orderHash}`;
+  }
+  return input.canonicalKey;
+}
+
+const ACTIVITY_DEDUPE_PARTITION_SQL = `CASE
+  WHEN a.event_type IN ('sale', 'transfer') AND a.transaction_hash IS NOT NULL
+    THEN a.event_type || ':' || CAST(a.token_id AS TEXT) || ':' || LOWER(a.transaction_hash)
+  WHEN a.event_type IN ('listing', 'offer') AND a.order_hash IS NOT NULL
+    THEN a.event_type || ':' || CAST(a.token_id AS TEXT) || ':' || LOWER(a.order_hash)
+  WHEN a.event_type = 'sale' AND a.order_hash IS NOT NULL
+    THEN a.event_type || ':' || CAST(a.token_id AS TEXT) || ':' || LOWER(a.order_hash)
+  ELSE a.canonical_key
+END`;
+
 type ActivityChartRepresentativeRow = {
   bucket_index: number;
   event_type: string;
@@ -4136,11 +4170,7 @@ async function loadActivityChart(
          CASE WHEN a.event_type = 'offer' THEN m.owner_wallet ELSE a.to_wallet END AS effective_to_wallet,
          CASE WHEN a.event_type = 'offer' THEN m.owner_fid ELSE a.to_fid END AS effective_to_fid,
          ROW_NUMBER() OVER (
-           PARTITION BY CASE
-             WHEN a.event_type = 'sale' THEN CAST(a.token_id AS TEXT) || ':' || COALESCE(LOWER(a.transaction_hash), LOWER(a.order_hash), a.canonical_key)
-             WHEN a.event_type = 'listing' AND a.order_hash IS NOT NULL THEN CAST(a.token_id AS TEXT) || ':' || LOWER(a.order_hash)
-             ELSE a.canonical_key
-           END
+           PARTITION BY ${ACTIVITY_DEDUPE_PARTITION_SQL}
            ORDER BY CASE WHEN a.source LIKE 'opensea%' THEN 0 ELSE 1 END, a.updated_at DESC, a.canonical_key DESC
          ) AS duplicate_rank
        FROM warplet_market_activity a
@@ -4382,11 +4412,7 @@ export async function handleStatsActivityGet(
     const filteredActivityCte = `filtered_activity AS (
          SELECT a.*,
            ROW_NUMBER() OVER (
-             PARTITION BY CASE
-               WHEN a.event_type = 'sale' THEN CAST(a.token_id AS TEXT) || ':' || COALESCE(LOWER(a.transaction_hash), LOWER(a.order_hash), a.canonical_key)
-               WHEN a.event_type = 'listing' AND a.order_hash IS NOT NULL THEN CAST(a.token_id AS TEXT) || ':' || LOWER(a.order_hash)
-               ELSE a.canonical_key
-             END
+             PARTITION BY ${ACTIVITY_DEDUPE_PARTITION_SQL}
              ORDER BY CASE WHEN a.source LIKE 'opensea%' THEN 0 ELSE 1 END, a.updated_at DESC, a.canonical_key DESC
            ) AS duplicate_rank
          FROM warplet_market_activity a
@@ -4425,11 +4451,7 @@ export async function handleStatsActivityGet(
       `WITH filtered_activity AS (
          SELECT a.*,
            ROW_NUMBER() OVER (
-             PARTITION BY CASE
-               WHEN a.event_type = 'sale' THEN CAST(a.token_id AS TEXT) || ':' || COALESCE(LOWER(a.transaction_hash), LOWER(a.order_hash), a.canonical_key)
-               WHEN a.event_type = 'listing' AND a.order_hash IS NOT NULL THEN CAST(a.token_id AS TEXT) || ':' || LOWER(a.order_hash)
-               ELSE a.canonical_key
-             END
+             PARTITION BY ${ACTIVITY_DEDUPE_PARTITION_SQL}
              ORDER BY CASE WHEN a.source LIKE 'opensea%' THEN 0 ELSE 1 END, a.updated_at DESC, a.canonical_key DESC
            ) AS duplicate_rank
          FROM warplet_market_activity a
