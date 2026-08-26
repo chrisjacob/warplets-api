@@ -25,6 +25,10 @@ describe("isEmbeddedWebViewUserAgent", () => {
     expect(isEmbeddedWebViewUserAgent("Warpcast/2026.8 Mobile")).toBe(true);
   });
 
+  it("treats Base App as embedded so PWA prompts stay disabled", () => {
+    expect(isEmbeddedWebViewUserAgent("BaseApp/1.0 iPhone CoinbaseWallet")).toBe(true);
+  });
+
   it("does not classify standalone Safari as embedded", () => {
     expect(isEmbeddedWebViewUserAgent("Mozilla/5.0 Mobile Safari/604.1")).toBe(false);
   });

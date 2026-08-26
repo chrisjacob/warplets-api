@@ -11,3 +11,7 @@ export function isWarpletsSurface(location: Pick<Location, "hostname" | "pathnam
 export function getRuntimeAppIconPath(): string {
   return isWarpletsSurface() ? "/icon_search.png" : "/icon.png";
 }
+
+export function getRuntimeAppName(): string {
+  return isWarpletsSurface() ? "10X Warplets" : "10X.MEME";
+}

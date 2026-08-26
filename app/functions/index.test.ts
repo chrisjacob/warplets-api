@@ -1,11 +1,27 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   APP_SHARE_DESCRIPTION,
   APP_SHARE_TITLE,
   buildCanonicalUrl,
   buildFarcasterManifest,
   getBaseAppId,
+  onRequestGet,
 } from "./index";
+
+describe("host-aware favicon fallback", () => {
+  it("serves the Warplets ICO when a client requests the conventional favicon URL", async () => {
+    const assetFetch = vi.fn(async (_input: RequestInfo | URL) => new Response(new Uint8Array([0, 0, 1, 0]), {
+      headers: { "content-type": "image/x-icon" },
+    }));
+    const response = await onRequestGet({
+      request: new Request("https://warplet.10x.meme/favicon.ico"),
+      env: { ASSETS: { fetch: assetFetch } },
+    } as never);
+
+    expect(new URL((assetFetch.mock.calls[0]?.[0] as Request).url).pathname).toBe("/favicon-warplets-v2.ico");
+    expect(response.headers.get("content-type")).toBe("image/x-icon");
+  });
+});
 
 describe("Base app ownership", () => {
   it("uses independent registrations for the shared production domains", () => {

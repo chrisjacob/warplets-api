@@ -36,6 +36,7 @@ import {
   connectFarcasterWallet,
   disconnectWallet,
   getConnectedProviderAndAccount,
+  requestBaseAppWalletLogin,
   requestWebWalletConnection,
   restoreFarcasterWallet,
   restoreWebWallet,
@@ -3420,7 +3421,7 @@ function SearchHeaderAccountControl({
   onOpenWarpmoji: () => void;
   onViewMyWarplets?: () => void;
   onViewOnboarding: () => void;
-  onEnableNotifications: () => void;
+  onEnableNotifications?: () => void;
   onInstallWebApp?: () => void;
   onDisconnect: () => void;
 }) {
@@ -3513,9 +3514,11 @@ function SearchHeaderAccountControl({
           <button type="button" role="menuitem" onClick={() => runMenuAction(onViewOnboarding)}>
             View onboarding
           </button>
-          <button type="button" role="menuitem" onClick={() => runMenuAction(onEnableNotifications)}>
-            Enable notifications
-          </button>
+          {onEnableNotifications && (
+            <button type="button" role="menuitem" onClick={() => runMenuAction(onEnableNotifications)}>
+              Enable notifications
+            </button>
+          )}
           {onInstallWebApp && (
             <button type="button" role="menuitem" onClick={() => runMenuAction(onInstallWebApp)}>
               Install web app
@@ -15493,9 +15496,17 @@ export default function SearchApp() {
             }
           : null);
 
+        const inBaseApp = isLikelyBaseAppBrowser();
+        if (inBaseApp) {
+          void requestBaseAppWalletLogin().catch((error) => {
+            const message = error instanceof Error ? error.message : String(error);
+            if (!/reject|denied|cancel/i.test(message)) console.warn("Base wallet login failed:", error);
+          });
+        }
+
         if (!inMiniApp) {
           const [, appSession] = await Promise.all([
-            restoreWebWallet().catch((error) => {
+            (inBaseApp ? Promise.resolve(null) : restoreWebWallet()).catch((error) => {
               console.warn("Web wallet restore failed:", error);
               return null;
             }),
@@ -16324,10 +16335,7 @@ export default function SearchApp() {
 
   const handleHeaderEnableNotifications = useCallback(() => {
     if (!isInMiniAppContext) {
-      if (isLikelyBaseAppBrowser()) {
-        window.dispatchEvent(new CustomEvent("warplets:open-base-pin-prompt"));
-        return;
-      }
+      if (isLikelyBaseAppBrowser()) return;
       setNotificationPromptMode("web");
       setNotificationsOnlyPrompt(true);
       setShowAddAppPrompt(true);
@@ -18273,8 +18281,8 @@ export default function SearchApp() {
               onOpenWarpmoji={() => navigateSearchRoute({ page: "warpmoji" })}
               onViewMyWarplets={activeWallet || isInMiniAppContext ? () => { void handleSearchMyWarplets(); } : undefined}
               onViewOnboarding={handleHeaderViewOnboarding}
-              onEnableNotifications={handleHeaderEnableNotifications}
-              onInstallWebApp={!isInMiniAppContext && !isStandaloneDisplay() && !isEmbeddedWebView()
+              onEnableNotifications={isLikelyBaseAppBrowser() ? undefined : handleHeaderEnableNotifications}
+              onInstallWebApp={!isInMiniAppContext && !isStandaloneDisplay() && !isEmbeddedWebView() && !isLikelyBaseAppBrowser()
                 ? () => window.dispatchEvent(new CustomEvent("10x:open-pwa-install"))
                 : undefined}
               onDisconnect={handleHeaderDisconnect}

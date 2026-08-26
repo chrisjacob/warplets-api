@@ -1,8 +1,9 @@
-import { createPublicClient, http } from "viem";
+import { createPublicClient, custom, http } from "viem";
 import { base, baseSepolia } from "viem/chains";
 import { parseSiweMessage } from "viem/siwe";
 import { createOrMergeAppSession, type AppAuthEnv } from "../../../_lib/appAuth.js";
 import { getAuthRequestUrl, hashAuthNonce, isAllowedAuthChain, isUsableStoredNonce, normalizeAuthWallet, requireSameOrigin } from "../../../_lib/authValidation.js";
+import { fetchBaseRpc, type BaseRpcEnv } from "../../../_lib/baseRpc.js";
 import { jsonSecure, parseObjectPayload, readJsonBodyWithLimit } from "../../../_lib/security.js";
 
 interface VerifyPayload { message?: unknown; signature?: unknown }
@@ -17,7 +18,9 @@ interface NonceRow {
 
 const PENDING_WALLET_ADDRESS = "pending";
 
-export const onRequestPost: PagesFunction<AppAuthEnv> = async (context) => {
+interface Env extends AppAuthEnv, BaseRpcEnv {}
+
+export const onRequestPost: PagesFunction<Env> = async (context) => {
   const originError = requireSameOrigin(context.request);
   if (originError) return originError;
   const parsed = await readJsonBodyWithLimit<unknown>(context.request, 32 * 1024);
@@ -56,7 +59,17 @@ export const onRequestPost: PagesFunction<AppAuthEnv> = async (context) => {
     return jsonSecure({ error: "SIWE challenge is expired, consumed, or does not match" }, { status: 401 });
   }
 
-  const client = createPublicClient({ chain: chainId === baseSepolia.id ? baseSepolia : base, transport: http() });
+  const chain = chainId === baseSepolia.id ? baseSepolia : base;
+  const transport = chainId === baseSepolia.id
+    ? http()
+    : custom({
+      request: ({ method, params }: { method: string; params?: readonly unknown[] | object }) => fetchBaseRpc(
+        context.env,
+        method,
+        Array.isArray(params) ? [...params] : [],
+      ),
+    }, { retryCount: 0 });
+  const client = createPublicClient({ chain, transport });
   let verified = false;
   try {
     verified = await client.verifySiweMessage({

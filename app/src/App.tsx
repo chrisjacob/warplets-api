@@ -11,12 +11,13 @@ import { detectMiniAppContext } from "./miniAppContext";
 import NotificationsPromptModal from "./NotificationsPromptModal";
 import { PwaControls } from "./PwaControls";
 import SiteFooter from "./SiteFooter";
-import { isEmbeddedWebView, isStandaloneDisplay, subscribeToWebPush } from "./pwa";
+import { isEmbeddedWebView, isLikelyBaseAppBrowser, isStandaloneDisplay, subscribeToWebPush } from "./pwa";
 import { getEmbeddedWalletProvider } from "./surfaceAdapter";
 import { WebConnectModal } from "./WebConnectModal";
 import {
   configureFarcasterWallet,
   disconnectWallet,
+  requestBaseAppWalletLogin,
   restoreFarcasterWallet,
   restoreWebWallet,
   useWalletController,
@@ -96,7 +97,7 @@ function HomeAccountControl({
   onOpenChange: (open: boolean) => void;
   onAvatarToggle: () => void;
   onOpen: () => void;
-  onEnableNotifications: () => void;
+  onEnableNotifications?: () => void;
   onInstallWebApp: () => void;
   onDisconnect: () => void;
 }) {
@@ -147,7 +148,7 @@ function HomeAccountControl({
               <span className="search-header-account-menu__avatar-frame"><img src="/farcaster.webp" alt="" /></span>
               <span>Connect social</span>
             </button>
-            <button type="button" role="menuitem" onClick={() => runMenuAction(onEnableNotifications)}>Enable notifications</button>
+            {onEnableNotifications && <button type="button" role="menuitem" onClick={() => runMenuAction(onEnableNotifications)}>Enable notifications</button>}
             {showInstallWebApp && <button type="button" role="menuitem" onClick={() => runMenuAction(onInstallWebApp)}>Install web app</button>}
           </div>
         )}
@@ -201,9 +202,11 @@ function HomeAccountControl({
             </span>
             <span>{viewerProfile?.username ? `@${viewerProfile.username}` : viewerProfile?.displayName || "Connect social"}</span>
           </button>
-          <button type="button" role="menuitem" onClick={() => runMenuAction(onEnableNotifications)}>
-            Enable notifications
-          </button>
+          {onEnableNotifications && (
+            <button type="button" role="menuitem" onClick={() => runMenuAction(onEnableNotifications)}>
+              Enable notifications
+            </button>
+          )}
           {showInstallWebApp && (
             <button type="button" role="menuitem" onClick={() => runMenuAction(onInstallWebApp)}>
               Install web app
@@ -308,9 +311,17 @@ export default function App() {
           }
           : null);
 
+        const inBaseApp = isLikelyBaseAppBrowser();
+        if (inBaseApp) {
+          void requestBaseAppWalletLogin().catch((error) => {
+            const message = error instanceof Error ? error.message : String(error);
+            if (!/reject|denied|cancel/i.test(message)) console.warn("10X.MEME Base wallet login failed:", error);
+          });
+        }
+
         if (!inMiniApp) {
           const [, session] = await Promise.all([
-            restoreWebWallet().catch((error) => {
+            (inBaseApp ? Promise.resolve(null) : restoreWebWallet()).catch((error) => {
               console.warn("10X.MEME wallet restore failed:", error);
               return null;
             }),
@@ -439,6 +450,7 @@ export default function App() {
   }, []);
 
   const handleEnableNotifications = useCallback(() => {
+    if (isLikelyBaseAppBrowser()) return;
     setNotificationsOnlyPrompt(true);
     setShowAddAppPrompt(true);
   }, []);
@@ -542,13 +554,13 @@ export default function App() {
               isInMiniAppContext={isInMiniAppContext}
               viewerProfile={viewerProfile}
               walletAddress={walletController.session?.address ?? null}
-              showInstallWebApp={!isInMiniAppContext && !isStandaloneDisplay() && !isEmbeddedWebView()}
+              showInstallWebApp={!isInMiniAppContext && !isStandaloneDisplay() && !isEmbeddedWebView() && !isLikelyBaseAppBrowser()}
               open={headerAccountMenuAnchor !== null}
               centered={headerAccountMenuAnchor === "title"}
               onOpenChange={handleHeaderAccountMenuOpenChange}
               onAvatarToggle={handleHeaderAvatarMenuToggle}
               onOpen={() => setWebConnectOpen(true)}
-              onEnableNotifications={handleEnableNotifications}
+              onEnableNotifications={isLikelyBaseAppBrowser() ? undefined : handleEnableNotifications}
               onInstallWebApp={() => window.dispatchEvent(new CustomEvent("10x:open-pwa-install"))}
               onDisconnect={handleDisconnect}
             />

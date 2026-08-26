@@ -6,7 +6,11 @@ interface Env { WARPLETS: D1Database }
 interface ChallengePayload { address?: unknown; chainId?: unknown }
 
 const PENDING_WALLET_ADDRESS = "pending";
-const SIGN_IN_STATEMENT = "Sign in to 10X Warplets. This request does not trigger a blockchain transaction.";
+
+function signInStatement(hostname: string): string {
+  const appName = hostname.toLowerCase().startsWith("warplet") ? "10X Warplets" : "10X.MEME";
+  return `Sign in to ${appName}. This request does not trigger a blockchain transaction.`;
+}
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
   const originError = requireSameOrigin(context.request);
@@ -28,6 +32,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   const url = getAuthRequestUrl(context.request);
   const domain = url.host;
   const uri = url.origin;
+  const statement = signInStatement(url.hostname);
   const nonce = createAuthNonce();
   const issuedAt = new Date();
   const expiresAt = new Date(issuedAt.getTime() + AUTH_NONCE_TTL_MS);
@@ -41,7 +46,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     nonce,
     issuedAt,
     expirationTime: expiresAt,
-    statement: SIGN_IN_STATEMENT,
+    statement,
   }) : null;
 
   await context.env.WARPLETS.prepare(
@@ -59,7 +64,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       domain,
       uri,
       version: "1",
-      statement: SIGN_IN_STATEMENT,
+      statement,
       issuedAt: issuedAt.toISOString(),
       expirationTime: expiresAt.toISOString(),
     },

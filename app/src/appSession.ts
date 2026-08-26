@@ -30,6 +30,35 @@ interface BaseWalletConnectResult {
   }>;
 }
 
+function walletRpcErrorCode(error: unknown): number | null {
+  if (!error || typeof error !== "object") return null;
+  const code = (error as { code?: unknown }).code;
+  if (typeof code === "number") return code;
+  const cause = (error as { cause?: unknown }).cause;
+  return cause === error ? null : walletRpcErrorCode(cause);
+}
+
+function walletConnectIsUnsupported(error: unknown): boolean {
+  const code = walletRpcErrorCode(error);
+  if (code === -32601 || code === 4200) return true;
+  const message = error instanceof Error ? error.message : String(error);
+  return /wallet_connect.*(?:unsupported|not supported|not found)|(?:unsupported|not supported|not found).*wallet_connect|method (?:is )?not supported/i.test(message);
+}
+
+function normalizeWalletAddress(value: unknown): `0x${string}` | null {
+  return typeof value === "string" && /^0x[a-fA-F0-9]{40}$/.test(value)
+    ? value.toLowerCase() as `0x${string}`
+    : null;
+}
+
+async function authenticateBaseWalletFallback(provider: EthereumProvider, chainId: number): Promise<`0x${string}`> {
+  const rawAccounts = await provider.request({ method: "eth_requestAccounts" });
+  const address = normalizeWalletAddress(Array.isArray(rawAccounts) ? rawAccounts[0] : null);
+  if (!address) throw new Error("Base wallet did not return an account");
+  await authenticateWallet(provider, address, chainId);
+  return address;
+}
+
 async function readJson(response: Response): Promise<Record<string, unknown>> {
   const text = await response.text();
   if (!text) return {};
@@ -148,10 +177,15 @@ export async function authenticateBaseWallet(provider: EthereumProvider, chainId
 
   let rawResult: unknown;
   try {
-    rawResult = await provider.request({
-      method: "wallet_connect",
-      params: [{ version: "1", capabilities: { signInWithEthereum: capability } }],
-    });
+    try {
+      rawResult = await provider.request({
+        method: "wallet_connect",
+        params: [{ version: "1", capabilities: { signInWithEthereum: capability } }],
+      });
+    } catch (error) {
+      if (!walletConnectIsUnsupported(error)) throw error;
+      return await authenticateBaseWalletFallback(provider, chainId);
+    }
   } finally {
     // Base Account normally closes its own popup. Base's iOS WebView can leave
     // that popup as a full-screen white layer after a successful passkey.
@@ -159,9 +193,7 @@ export async function authenticateBaseWallet(provider: EthereumProvider, chainId
   }
   const result = rawResult && typeof rawResult === "object" ? rawResult as BaseWalletConnectResult : null;
   const account = result?.accounts?.[0];
-  const address = typeof account?.address === "string" && /^0x[a-fA-F0-9]{40}$/.test(account.address)
-    ? account.address.toLowerCase() as `0x${string}`
-    : null;
+  const address = normalizeWalletAddress(account?.address);
   const signIn = account?.capabilities?.signInWithEthereum;
   if (!address) throw new Error("Base wallet did not return an account");
   if (!signIn || typeof signIn.message !== "string" || typeof signIn.signature !== "string") {

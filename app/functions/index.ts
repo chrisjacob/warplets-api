@@ -3,7 +3,7 @@ const FC_FRAME_META_REGEX = /<meta\s+name="fc:frame"[^>]*>/i;
 const TITLE_REGEX = /<title>[\s\S]*?<\/title>/i;
 const MANIFEST_LINK_REGEX = /<link\s+rel="manifest"[^>]*>/i;
 const CANONICAL_LINK_REGEX = /<link\s+rel="canonical"[^>]*>/i;
-const FAVICON_LINK_REGEX = /<link\s+rel="icon"[^>]*>/i;
+const FAVICON_LINKS_REGEX = /<link\s+rel="icon"[^>]*>\s*(?:<link\s+rel="shortcut icon"[^>]*>\s*)?/i;
 const APPLE_TOUCH_ICON_LINK_REGEX = /<link\s+rel="apple-touch-icon"[^>]*>/i;
 const APPLICATION_NAME_META_REGEX = /<meta\s+name="application-name"[^>]*>/i;
 const APPLE_APP_TITLE_META_REGEX = /<meta\s+name="apple-mobile-web-app-title"[^>]*>/i;
@@ -17,8 +17,10 @@ import {
   WARPLETS_PUBLIC_NAME,
   isWarpletsAppHostname,
 } from "../shared/warpletsApp.js";
+import { APP_FAVICONS, buildFaviconLinks, getHostnameFaviconKey } from "../shared/favicons.js";
 
 type PagesEnv = {
+  ASSETS: Fetcher;
   WARPLETS?: D1Database;
   WARPLETS_ACCOUNT_ASSOCIATION_JSON?: string;
 };
@@ -502,6 +504,23 @@ function buildStatsShareOpenGraphTags(titleText: string, imageUrl: string, pageU
 export const onRequestGet: PagesFunction<PagesEnv> = async (context) => {
   const requestUrl = new URL(context.request.url);
 
+  if (requestUrl.pathname === "/favicon.ico") {
+    const favicon = APP_FAVICONS[getHostnameFaviconKey(requestUrl.hostname)];
+    const assetResponse = await context.env.ASSETS.fetch(new Request(
+      new URL(favicon.ico, requestUrl.origin),
+      context.request,
+    ));
+    const headers = new Headers(assetResponse.headers);
+    headers.set("cache-control", "public, max-age=14400, must-revalidate");
+    headers.set("content-type", "image/x-icon");
+    headers.set("x-content-type-options", "nosniff");
+    return new Response(assetResponse.body, {
+      status: assetResponse.status,
+      statusText: assetResponse.statusText,
+      headers,
+    });
+  }
+
   if (requestUrl.pathname === "/.well-known/farcaster.json") {
     const manifest = buildFarcasterManifest(
       requestUrl.hostname,
@@ -591,18 +610,19 @@ export const onRequestGet: PagesFunction<PagesEnv> = async (context) => {
     : html.replace("</head>", `  ${canonicalTag}\n  </head>`);
   if (routeKey === "root") {
     html = html.replace(MANIFEST_LINK_REGEX, '<link rel="manifest" href="/manifest-10x.webmanifest" />');
+    html = html.replace(FAVICON_LINKS_REGEX, buildFaviconLinks("app"));
     html = html.replace(APPLICATION_NAME_META_REGEX, '<meta name="application-name" content="10X.MEME" />');
     html = html.replace(APPLE_APP_TITLE_META_REGEX, '<meta name="apple-mobile-web-app-title" content="10X.MEME" />');
   }
   if (routeKey === "drop") {
     html = html.replace(MANIFEST_LINK_REGEX, '<link rel="manifest" href="/manifest-drop.webmanifest" />');
-    html = html.replace(FAVICON_LINK_REGEX, '<link rel="icon" type="image/png" href="/icon_drop2.png" />');
+    html = html.replace(FAVICON_LINKS_REGEX, buildFaviconLinks("drop"));
     html = html.replace(APPLE_TOUCH_ICON_LINK_REGEX, '<link rel="apple-touch-icon" href="/icon_drop2.png" />');
     html = html.replace(APPLICATION_NAME_META_REGEX, '<meta name="application-name" content="10X Warplets Drop" />');
     html = html.replace(APPLE_APP_TITLE_META_REGEX, '<meta name="apple-mobile-web-app-title" content="10X Warplets Drop" />');
   }
   if (routeKey === "warplets") {
-    html = html.replace(FAVICON_LINK_REGEX, '<link rel="icon" type="image/png" href="/icon_search.png" />');
+    html = html.replace(FAVICON_LINKS_REGEX, buildFaviconLinks("warplets"));
     html = html.replace(APPLE_TOUCH_ICON_LINK_REGEX, '<link rel="apple-touch-icon" href="/icon_search.png" />');
   }
   if (FC_MINIAPP_META_REGEX.test(html)) {

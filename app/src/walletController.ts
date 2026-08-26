@@ -8,7 +8,8 @@ import {
   type EthereumProvider,
 } from "./walletTrade";
 import { appendWalletConnectDiagnostic, requestTrustConnectSessionDisconnect } from "./walletConnectDiagnostics";
-import { getRuntimeAppIconPath } from "./brandAssets";
+import { getRuntimeAppIconPath, getRuntimeAppName } from "./brandAssets";
+import { isLikelyBaseAppBrowser } from "./pwa";
 
 export type WalletConnectorId =
   | "farcaster"
@@ -25,6 +26,8 @@ export interface WalletSession {
 }
 
 interface ObservableProvider extends EthereumProvider {
+  isCoinbaseWallet?: boolean;
+  providers?: ObservableProvider[];
   on?: (event: string, listener: (...args: unknown[]) => void) => void;
   removeListener?: (event: string, listener: (...args: unknown[]) => void) => void;
 }
@@ -39,6 +42,8 @@ let state: WalletControllerState = { session: null, connecting: null, error: nul
 const listeners = new Set<() => void>();
 let farcasterProviderFactory: (() => Promise<EthereumProvider>) | null = null;
 let cleanupProviderListeners: (() => void) | null = null;
+let baseAccountConnectionPromise: Promise<WalletSession> | null = null;
+let baseAppAutoLoginStarted = false;
 const LAST_CONNECTOR_KEY = "warplets_wallet_connector";
 
 function emit(next: Partial<WalletControllerState>): void {
@@ -172,7 +177,7 @@ export async function restoreFarcasterWallet(): Promise<WalletSession | null> {
   return session;
 }
 
-export async function connectBaseAccount(): Promise<WalletSession> {
+async function connectBaseAccountInternal(): Promise<WalletSession> {
   if (import.meta.env.VITE_BASE_ACCOUNT_ENABLED !== "true") throw new Error("Base Account is not enabled");
   const provider = await createBaseAccountProvider();
   emit({ connecting: "base-account", error: null });
@@ -184,10 +189,50 @@ export async function connectBaseAccount(): Promise<WalletSession> {
   return activate("base-account", provider, address, true);
 }
 
+export function connectBaseAccount(): Promise<WalletSession> {
+  if (state.session?.connectorId === "base-account") return Promise.resolve(state.session);
+  if (baseAccountConnectionPromise) return baseAccountConnectionPromise;
+  baseAccountConnectionPromise = connectBaseAccountInternal().finally(() => {
+    baseAccountConnectionPromise = null;
+  });
+  return baseAccountConnectionPromise;
+}
+
+/**
+ * Base App is now a standard web runtime with an injected Base wallet. Ask it
+ * for the signed-in account as soon as the page starts, without making app
+ * readiness wait for the user-facing login sheet.
+ */
+export function requestBaseAppWalletLogin(): Promise<WalletSession | null> {
+  if (
+    baseAppAutoLoginStarted ||
+    !isLikelyBaseAppBrowser() ||
+    import.meta.env.VITE_WEB_WALLET_ENABLED !== "true" ||
+    import.meta.env.VITE_BASE_ACCOUNT_ENABLED !== "true"
+  ) {
+    return Promise.resolve(state.session);
+  }
+  baseAppAutoLoginStarted = true;
+  return connectBaseAccount();
+}
+
+function injectedBaseAppProvider(): ObservableProvider | null {
+  if (!isLikelyBaseAppBrowser() || typeof window === "undefined") return null;
+  const injected = (window as Window & { ethereum?: ObservableProvider }).ethereum;
+  if (!injected?.request) return null;
+  const candidates = Array.isArray(injected.providers) ? injected.providers : [];
+  const provider = candidates.find((candidate) => candidate?.isCoinbaseWallet === true) ?? injected;
+  provider.isBaseAccount = true;
+  provider.connectorId = "base-account";
+  return provider;
+}
+
 async function createBaseAccountProvider(): Promise<ObservableProvider> {
+  const injected = injectedBaseAppProvider();
+  if (injected) return injected;
   const { createBaseAccountSDK } = await import("@base-org/account");
   const provider = createBaseAccountSDK({
-    appName: "10X Warplets",
+    appName: getRuntimeAppName(),
     appLogoUrl: `${window.location.origin}${getRuntimeAppIconPath()}`,
     appChainIds: [8453],
     preference: { telemetry: false },

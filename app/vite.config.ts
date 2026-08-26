@@ -10,6 +10,7 @@ import {
   WARPLETS_PUBLIC_NAME,
   isWarpletsAppHostname,
 } from "./shared/warpletsApp";
+import { buildFaviconLinks } from "./shared/favicons";
 
 const TITLE_REGEX = /<title>[\s\S]*?<\/title>/i;
 const DROP_SHARE_TITLE = "🟢 10X Warplets (Private 10K NFT Drop)";
@@ -470,10 +471,10 @@ export default defineConfig({
         let nextHtml = html.replace(/<meta\s+name="fc:miniapp"[^>]*>/i, dynamicMeta);
         if (routeKey === "drop") {
           nextHtml = nextHtml.replace(/<link\s+rel="manifest"[^>]*>/i, '<link rel="manifest" href="/manifest-drop.webmanifest" />');
-          nextHtml = nextHtml.replace(/<link\s+rel="icon"[^>]*>/i, '<link rel="icon" type="image/png" href="/icon_drop2.png" />');
+          nextHtml = nextHtml.replace(/<link\s+rel="icon"[^>]*>\s*(?:<link\s+rel="shortcut icon"[^>]*>\s*)?/i, buildFaviconLinks("drop"));
           nextHtml = nextHtml.replace(/<link\s+rel="apple-touch-icon"[^>]*>/i, '<link rel="apple-touch-icon" href="/icon_drop2.png" />');
         } else if (routeKey === "warplets") {
-          nextHtml = nextHtml.replace(/<link\s+rel="icon"[^>]*>/i, '<link rel="icon" type="image/png" href="/icon_search.png" />');
+          nextHtml = nextHtml.replace(/<link\s+rel="icon"[^>]*>\s*(?:<link\s+rel="shortcut icon"[^>]*>\s*)?/i, buildFaviconLinks("warplets"));
           nextHtml = nextHtml.replace(/<link\s+rel="apple-touch-icon"[^>]*>/i, '<link rel="apple-touch-icon" href="/icon_search.png" />');
         }
 
