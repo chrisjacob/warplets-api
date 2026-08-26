@@ -9,8 +9,12 @@ import {
 } from "./stats.js";
 import { jsonSecure, rateLimit, readJsonBodyWithLimit } from "./security.js";
 import { WARPLETS_APP_HOSTS } from "../../shared/warpletsApp.js";
+import type { Page } from "@cloudflare/puppeteer";
 import {
+  STATS_SHARE_OG_HEIGHT,
+  STATS_SHARE_OG_WIDTH,
   STATS_SHARE_RENDERER_VERSION,
+  STATS_SHARE_SQUARE_SIZE,
   buildStatsHolderRankText,
   buildStatsLeaderboardText,
   getStatsShareActivityLabel,
@@ -476,33 +480,119 @@ function responseForSnapshot(request: Request, snapshot: StatsShareSnapshot, ren
     snapshot,
     shareUrl: `${origin}/stats/share/${snapshot.id}`,
     imageUrl: `${origin}/api/stats/share-images/${snapshot.id}`,
+    ogImageUrl: `${origin}/api/stats/share-images/${snapshot.id}/og`,
     ...(renderError ? { renderError } : {}),
   };
+}
+
+export function getStatsShareOgImageKey(snapshot: Pick<StatsShareSnapshot, "imageKey">): string {
+  return snapshot.imageKey.endsWith(".png")
+    ? `${snapshot.imageKey.slice(0, -4)}-og-1200x630.png`
+    : `${snapshot.imageKey}-og-1200x630.png`;
+}
+
+function escapeStatsShareImageUrl(url: string): string {
+  return url.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+export function buildStatsShareOgDocument(squareImageUrl: string): string {
+  return `<!doctype html><html><head><meta charset="utf-8"><style>
+    html,body{width:${STATS_SHARE_OG_WIDTH}px;height:${STATS_SHARE_OG_HEIGHT}px;margin:0;overflow:hidden;background:#000}
+    body{display:flex;align-items:center;justify-content:center}
+    img{display:block;width:${STATS_SHARE_OG_HEIGHT}px;height:${STATS_SHARE_OG_HEIGHT}px;object-fit:contain;background:#000}
+  </style></head><body><img id="stats-og-square" src="${escapeStatsShareImageUrl(squareImageUrl)}" alt=""></body></html>`;
+}
+
+async function renderStatsShareOgImageWithPage(
+  context: EventContext<StatsSharesEnv, string, unknown>,
+  snapshot: StatsShareSnapshot,
+  page: Page,
+): Promise<void> {
+  const images = context.env.STATS_SHARE_IMAGES;
+  if (!images) throw new Error("The Stats share R2 binding is required to render the Open Graph image.");
+  const ogImageKey = getStatsShareOgImageKey(snapshot);
+  if (await images.head(ogImageKey)) return;
+
+  const origin = getStatsSharePublicOrigin(context.request);
+  const squareImageUrl = `${origin}/api/stats/share-images/${snapshot.id}`;
+  await page.setViewport({ width: STATS_SHARE_OG_WIDTH, height: STATS_SHARE_OG_HEIGHT, deviceScaleFactor: 1 });
+  await page.setContent(
+    buildStatsShareOgDocument(squareImageUrl),
+    { waitUntil: "networkidle0", timeout: 20_000 },
+  );
+  await page.waitForFunction(
+    () => {
+      const image = document.getElementById("stats-og-square") as HTMLImageElement | null;
+      return Boolean(image?.complete && image.naturalWidth > 0 && image.naturalHeight > 0);
+    },
+    { timeout: 12_000 },
+  );
+  const bytes = await page.screenshot({
+    type: "png",
+    clip: { x: 0, y: 0, width: STATS_SHARE_OG_WIDTH, height: STATS_SHARE_OG_HEIGHT },
+  }) as Uint8Array;
+  await images.put(ogImageKey, bytes, {
+    httpMetadata: { contentType: "image/png", cacheControl: "public, max-age=31536000, immutable, no-transform" },
+    customMetadata: {
+      shareId: snapshot.id,
+      rendererVersion: snapshot.rendererVersion,
+      variant: "open-graph",
+      width: String(STATS_SHARE_OG_WIDTH),
+      height: String(STATS_SHARE_OG_HEIGHT),
+    },
+  });
+}
+
+export async function renderStatsShareOgImage(
+  context: EventContext<StatsSharesEnv, string, unknown>,
+  snapshot: StatsShareSnapshot,
+): Promise<string | null> {
+  const images = context.env.STATS_SHARE_IMAGES;
+  if (!images) return "The Stats share R2 binding is required to render the Open Graph image.";
+  if (await images.head(getStatsShareOgImageKey(snapshot))) return null;
+  if (!context.env.STATS_SHARE_BROWSER) return "The Cloudflare Browser Run binding is required to render the Open Graph image.";
+
+  let browser: Awaited<ReturnType<typeof import("@cloudflare/puppeteer")["launch"]>> | null = null;
+  try {
+    const puppeteer = await import("@cloudflare/puppeteer");
+    browser = await puppeteer.launch(context.env.STATS_SHARE_BROWSER as Parameters<typeof puppeteer.launch>[0]);
+    const page = await browser.newPage();
+    await renderStatsShareOgImageWithPage(context, snapshot, page);
+    return null;
+  } catch (error) {
+    return error instanceof Error ? error.message : String(error);
+  } finally {
+    await browser?.close().catch(() => undefined);
+  }
 }
 
 export async function renderStatsShareImage(
   context: EventContext<StatsSharesEnv, string, unknown>,
   snapshot: StatsShareSnapshot,
 ): Promise<string | null> {
-  if (snapshot.imageReady) return null;
+  if (snapshot.imageReady) return renderStatsShareOgImage(context, snapshot);
   if (!context.env.STATS_SHARE_BROWSER || !context.env.STATS_SHARE_IMAGES) {
     return "Cloudflare Browser Run and R2 bindings are required to render this image.";
   }
 
-  let browser: { close(): Promise<void>; newPage(): Promise<any> } | null = null;
+  let browser: Awaited<ReturnType<typeof import("@cloudflare/puppeteer")["launch"]>> | null = null;
   try {
     const puppeteer = await import("@cloudflare/puppeteer");
     browser = await puppeteer.launch(context.env.STATS_SHARE_BROWSER as Parameters<typeof puppeteer.launch>[0]);
     const page = await browser.newPage();
-    await page.setViewport({ width: 1000, height: 1000, deviceScaleFactor: 1 });
+    await page.setViewport({ width: STATS_SHARE_SQUARE_SIZE, height: STATS_SHARE_SQUARE_SIZE, deviceScaleFactor: 1 });
     const origin = getStatsSharePublicOrigin(context.request);
     await page.goto(`${origin}/stats/share/${snapshot.id}/render`, { waitUntil: "networkidle0", timeout: 20_000 });
     await page.waitForSelector('[data-stats-share-ready="true"]', { timeout: 12_000 });
-    const bytes = await page.screenshot({ type: "png", clip: { x: 0, y: 0, width: 1000, height: 1000 } }) as Uint8Array;
+    const bytes = await page.screenshot({
+      type: "png",
+      clip: { x: 0, y: 0, width: STATS_SHARE_SQUARE_SIZE, height: STATS_SHARE_SQUARE_SIZE },
+    }) as Uint8Array;
     await context.env.STATS_SHARE_IMAGES.put(snapshot.imageKey, bytes, {
       httpMetadata: { contentType: "image/png", cacheControl: "public, max-age=31536000, immutable, no-transform" },
       customMetadata: { shareId: snapshot.id, rendererVersion: snapshot.rendererVersion },
     });
+    await renderStatsShareOgImageWithPage(context, snapshot, page);
     await context.env.WARPLETS.prepare(
       "UPDATE stats_share_snapshots SET image_status = 'ready', image_error = NULL WHERE id = ?",
     ).bind(snapshot.id).run();
@@ -622,20 +712,26 @@ function buildStatsShareImageHeaders(object: R2Object): Headers {
 
 export async function handleStatsShareImageGet(
   context: EventContext<StatsSharesEnv, "shareId", unknown>,
+  variant: "square" | "og" = "square",
 ): Promise<Response> {
   const snapshot = await loadStatsShareSnapshot(context.env.WARPLETS, String(context.params.shareId));
   if (!snapshot) return new Response("Not found", { status: 404, headers: { "cache-control": "no-store" } });
-  const object = await context.env.STATS_SHARE_IMAGES?.get(snapshot.imageKey);
+  const object = await context.env.STATS_SHARE_IMAGES?.get(
+    variant === "og" ? getStatsShareOgImageKey(snapshot) : snapshot.imageKey,
+  );
   if (!object) return new Response("Image is not ready", { status: 404, headers: { "cache-control": "no-store" } });
   return new Response(object.body, { headers: buildStatsShareImageHeaders(object) });
 }
 
 export async function handleStatsShareImageHead(
   context: EventContext<StatsSharesEnv, "shareId", unknown>,
+  variant: "square" | "og" = "square",
 ): Promise<Response> {
   const snapshot = await loadStatsShareSnapshot(context.env.WARPLETS, String(context.params.shareId));
   if (!snapshot) return new Response(null, { status: 404, headers: { "cache-control": "no-store" } });
-  const object = await context.env.STATS_SHARE_IMAGES?.head(snapshot.imageKey);
+  const object = await context.env.STATS_SHARE_IMAGES?.head(
+    variant === "og" ? getStatsShareOgImageKey(snapshot) : snapshot.imageKey,
+  );
   if (!object) return new Response(null, { status: 404, headers: { "cache-control": "no-store" } });
   return new Response(null, { headers: buildStatsShareImageHeaders(object) });
 }

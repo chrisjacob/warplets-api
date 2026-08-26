@@ -29,8 +29,13 @@ export async function openAppUrl(url: string): Promise<void> {
     await sdk.actions.openUrl(url);
     return;
   }
-  const opened = window.open(url, "_blank", "noopener,noreferrer");
-  if (!opened) window.location.assign(url);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.target = "_blank";
+  anchor.rel = "noopener noreferrer";
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
 }
 
 export async function viewFarcasterProfile(fid: number): Promise<void> {

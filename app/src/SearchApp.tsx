@@ -17797,7 +17797,7 @@ export default function SearchApp() {
         twitterPostText: result.snapshot.twitterText,
         links: [launchUrl],
         images: [{ src: imageUrl, alt: result.snapshot.title, aspectRatio: "square" }],
-        farcasterEmbeds: [launchUrl],
+        farcasterEmbeds: [launchUrl, imageUrl],
         twitterText: buildTwitterShareText(result.snapshot.twitterText, [launchUrl]),
         status: "ready",
       });

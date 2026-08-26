@@ -4,6 +4,7 @@ const statsMocks = vi.hoisted(() => ({
   ensureStatsShareSnapshot: vi.fn(),
   loadLatestStatsShareSnapshotByLaunchPath: vi.fn(),
   loadStatsShareSnapshot: vi.fn(),
+  renderStatsShareOgImage: vi.fn(),
   resolveStatsFriendFilterFid: vi.fn(),
 }));
 
@@ -11,6 +12,7 @@ vi.mock("./_lib/statsShares.js", () => ({
   ensureStatsShareSnapshot: statsMocks.ensureStatsShareSnapshot,
   loadLatestStatsShareSnapshotByLaunchPath: statsMocks.loadLatestStatsShareSnapshotByLaunchPath,
   loadStatsShareSnapshot: statsMocks.loadStatsShareSnapshot,
+  renderStatsShareOgImage: statsMocks.renderStatsShareOgImage,
 }));
 
 vi.mock("./_lib/stats.js", () => ({
@@ -22,6 +24,7 @@ import { onRequestGet } from "./index";
 describe("on-demand Stats Open Graph generation", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    statsMocks.renderStatsShareOgImage.mockResolvedValue(null);
   });
 
   it("renders a missing snapshot before returning the same deep-link HTML response", async () => {
@@ -61,7 +64,9 @@ describe("on-demand Stats Open Graph generation", () => {
       { kind: "market", metric: "sales", range: "30d" },
     );
     const html = await response.text();
-    expect(html).toContain(`/api/stats/share-images/${snapshot.id}`);
+    expect(html).toContain(`/api/stats/share-images/${snapshot.id}/og`);
+    expect(html).toContain('<meta property="og:image:width" content="1200" />');
+    expect(html).toContain('<meta property="og:image:height" content="630" />');
     expect(html).toContain("10X Warplets - Sales (30 Days)");
   });
 

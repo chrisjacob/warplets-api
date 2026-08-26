@@ -1,5 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
-import { handleStatsShareImageGet, handleStatsShareImageHead } from "./statsShares";
+import {
+  buildStatsShareOgDocument,
+  getStatsShareOgImageKey,
+  handleStatsShareImageGet,
+  handleStatsShareImageHead,
+} from "./statsShares";
 
 const SHARE_ID = "a".repeat(32);
 const IMAGE_BYTES = new Uint8Array([137, 80, 78, 71]);
@@ -58,6 +63,14 @@ function expectImageHeaders(response: Response) {
 }
 
 describe("Stats share image HTTP methods", () => {
+  it("centres the square snapshot at full height on a black 1200 by 630 canvas", () => {
+    const document = buildStatsShareOgDocument("https://warplet.10x.meme/image.png?x=1&y=2");
+    expect(document).toContain("width:1200px;height:630px");
+    expect(document).toContain("width:630px;height:630px");
+    expect(document).toContain("background:#000");
+    expect(document).toContain("https://warplet.10x.meme/image.png?x=1&amp;y=2");
+  });
+
   it("returns the PNG body and image headers for GET", async () => {
     const { context, get, head } = createContext("GET");
     const response = await handleStatsShareImageGet(context);
@@ -76,5 +89,19 @@ describe("Stats share image HTTP methods", () => {
     expect((await response.arrayBuffer()).byteLength).toBe(0);
     expect(head).toHaveBeenCalledOnce();
     expect(get).not.toHaveBeenCalled();
+  });
+
+  it("serves the separately letterboxed Open Graph object for GET and HEAD", async () => {
+    const getRequest = createContext("GET");
+    const headRequest = createContext("HEAD");
+    const getResponse = await handleStatsShareImageGet(getRequest.context, "og");
+    const headResponse = await handleStatsShareImageHead(headRequest.context, "og");
+
+    expectImageHeaders(getResponse);
+    expectImageHeaders(headResponse);
+    const ogKey = `stats-share-v48/${SHARE_ID}-og-1200x630.png`;
+    expect(getRequest.get).toHaveBeenCalledWith(ogKey);
+    expect(headRequest.head).toHaveBeenCalledWith(ogKey);
+    expect(getStatsShareOgImageKey({ imageKey: `stats-share-v48/${SHARE_ID}.png` })).toBe(ogKey);
   });
 });

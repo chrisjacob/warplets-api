@@ -1,4 +1,7 @@
 export const STATS_SHARE_RENDERER_VERSION = "stats-share-v48";
+export const STATS_SHARE_SQUARE_SIZE = 1000;
+export const STATS_SHARE_OG_WIDTH = 1200;
+export const STATS_SHARE_OG_HEIGHT = 630;
 
 export type StatsShareRange = "7d" | "30d" | "90d" | "1y" | "all";
 export type StatsShareMarketMetric = "price" | "floor" | "volume" | "listings" | "offers" | "sales";
@@ -60,6 +63,7 @@ export type StatsShareCreateResponse = {
   snapshot: StatsShareSnapshot;
   shareUrl: string;
   imageUrl: string;
+  ogImageUrl?: string;
   renderError?: string | null;
 };
 

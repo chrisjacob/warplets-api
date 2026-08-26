@@ -14,9 +14,12 @@ import {
   ensureStatsShareSnapshot,
   loadLatestStatsShareSnapshotByLaunchPath,
   loadStatsShareSnapshot,
+  renderStatsShareOgImage,
   type StatsSharesEnv,
 } from "./_lib/statsShares.js";
 import {
+  STATS_SHARE_OG_HEIGHT,
+  STATS_SHARE_OG_WIDTH,
   getStatsShareRequestFromLaunchUrl,
   type StatsShareSnapshot,
 } from "../src/statsShare.js";
@@ -503,8 +506,8 @@ function buildStatsShareOpenGraphTags(titleText: string, descriptionText: string
     `<meta property="og:type" content="website" />`,
     `<meta property="og:image" content="${image}" />`,
     `<meta property="og:image:secure_url" content="${image}" />`,
-    `<meta property="og:image:width" content="1000" />`,
-    `<meta property="og:image:height" content="1000" />`,
+    `<meta property="og:image:width" content="${STATS_SHARE_OG_WIDTH}" />`,
+    `<meta property="og:image:height" content="${STATS_SHARE_OG_HEIGHT}" />`,
     `<meta name="twitter:card" content="summary_large_image" />`,
     `<meta name="twitter:title" content="${title}" />`,
     `<meta name="twitter:description" content="${description}" />`,
@@ -643,8 +646,23 @@ export const onRequestGet: PagesFunction<PagesEnv> = async (context) => {
       });
     }
   }
-  const statsShareImageUrl = statsShareSnapshot?.imageReady
-    ? `${requestUrl.origin}/api/stats/share-images/${statsShareSnapshot.id}`
+  let statsShareOgReady = false;
+  if (statsShareSnapshot?.imageReady && context.env.STATS_SHARE_IMAGES) {
+    const ogRenderError = await renderStatsShareOgImage(
+      context as EventContext<StatsSharesEnv, string, unknown>,
+      statsShareSnapshot,
+    );
+    if (ogRenderError) {
+      console.error("stats_share_og_render_failed", {
+        launchPath: statsShareSnapshot.launchPath,
+        error: ogRenderError,
+      });
+    } else {
+      statsShareOgReady = true;
+    }
+  }
+  const statsShareOgImageUrl = statsShareSnapshot?.imageReady && statsShareOgReady
+    ? `${requestUrl.origin}/api/stats/share-images/${statsShareSnapshot.id}/og`
     : undefined;
   const searchWarpletTokenId = routeKey === "warplets" ? getWarpletTokenId(requestUrl.searchParams) : undefined;
   const searchFirstWarpletTokenId =
@@ -677,7 +695,7 @@ export const onRequestGet: PagesFunction<PagesEnv> = async (context) => {
       ? getDropShareImageUrl()
       : undefined;
   const searchShareImageUrl = searchWarpletImageUrl ?? searchResultsImageUrl ?? (perksShareContent ? getPerksShareImageUrl(perksShareContent) : undefined);
-  const routeImageUrl = statsShareImageUrl ?? (routeKey === "stop" ? STOP_IMAGE_URL : searchShareImageUrl ?? dropShareImageUrl);
+  const routeImageUrl = statsShareOgImageUrl ?? (routeKey === "stop" ? STOP_IMAGE_URL : searchShareImageUrl ?? dropShareImageUrl);
   const metaContent = escapeHtmlAttr(
     buildMiniAppMetaContent(
       requestUrl.origin,
@@ -770,7 +788,7 @@ export const onRequestGet: PagesFunction<PagesEnv> = async (context) => {
     );
   }
 
-  if (statsShareSnapshot && statsShareImageUrl) {
+  if (statsShareSnapshot && statsShareOgImageUrl) {
     const statsMeta = getStatsSnapshotMeta(statsShareSnapshot);
     const titleTag = `<title>${escapeHtmlText(statsMeta.title)}</title>`;
     html = TITLE_REGEX.test(html)
@@ -781,7 +799,7 @@ export const onRequestGet: PagesFunction<PagesEnv> = async (context) => {
       `  ${buildStatsShareOpenGraphTags(
         statsMeta.title,
         statsMeta.description,
-        statsShareImageUrl,
+        statsShareOgImageUrl,
         requestUrl.href,
       )}\n  </head>`,
     );
