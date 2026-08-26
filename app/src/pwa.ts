@@ -132,6 +132,15 @@ function urlBase64ToUint8Array(value: string): Uint8Array {
   return Uint8Array.from(decoded, (character) => character.charCodeAt(0));
 }
 
+export function applicationServerKeysMatch(
+  existing: ArrayBuffer | null | undefined,
+  expected: Uint8Array,
+): boolean {
+  if (!existing) return false;
+  const current = new Uint8Array(existing);
+  return current.length === expected.length && current.every((value, index) => value === expected[index]);
+}
+
 export async function subscribeToWebPush(topics: string[] = ["announcements"]): Promise<PushSubscription> {
   if (!("Notification" in window) || !("PushManager" in window)) throw new Error("Web Push is not supported in this browser.");
   const permission = await Notification.requestPermission();
@@ -141,9 +150,23 @@ export async function subscribeToWebPush(topics: string[] = ["announcements"]): 
   const keyResponse = await fetch("/api/web-push/public-key", { headers: { accept: "application/json" } });
   const keyPayload = await keyResponse.json() as { publicKey?: string; error?: string };
   if (!keyResponse.ok || !keyPayload.publicKey) throw new Error(keyPayload.error || "Web Push is not configured.");
+  const applicationServerKey = urlBase64ToUint8Array(keyPayload.publicKey);
+  const existingSubscription = await registration.pushManager.getSubscription();
+  if (
+    existingSubscription &&
+    !applicationServerKeysMatch(existingSubscription.options.applicationServerKey, applicationServerKey)
+  ) {
+    await fetch("/api/web-push/subscriptions", {
+      method: "DELETE",
+      credentials: "same-origin",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ endpoint: existingSubscription.endpoint }),
+    }).catch(() => undefined);
+    await existingSubscription.unsubscribe();
+  }
   const subscription = await registration.pushManager.subscribe({
     userVisibleOnly: true,
-    applicationServerKey: new Uint8Array(urlBase64ToUint8Array(keyPayload.publicKey)).buffer,
+    applicationServerKey: new Uint8Array(applicationServerKey).buffer,
   });
   const response = await fetch("/api/web-push/subscriptions", {
     method: "PUT",

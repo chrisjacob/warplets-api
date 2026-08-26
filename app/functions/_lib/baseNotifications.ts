@@ -163,7 +163,7 @@ export async function sendBaseNotificationCampaign(env: BaseNotificationsEnv, in
 }): Promise<Array<{ wallet: string; state: string; error?: string }>> {
   const appSlug = input.appSlug ?? WARPLETS_APP_SLUG;
   const { appUrl } = requireConfig(env, appSlug);
-  const sourceWallets = input.wallets?.length ? input.wallets : await getBaseNotificationAudience(env, appSlug);
+  const sourceWallets = input.wallets !== undefined ? input.wallets : await getBaseNotificationAudience(env, appSlug);
   const uniqueWallets = [...new Set(sourceWallets.map(normalizeWallet).filter((value): value is string => Boolean(value)))];
   const reserved: Array<{ wallet: string; id: number }> = [];
   for (const wallet of uniqueWallets) {

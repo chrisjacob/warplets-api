@@ -1,5 +1,67 @@
 import { describe, expect, it } from "vitest";
-import { activityNotificationDisposition, upsertActiveItemOffer } from "./warpletNotifications";
+import {
+  activityNotificationDisposition,
+  buildGlobalStatsAudience,
+  GLOBAL_STATS_TARGET_URL,
+  isWebPushSubscriptionEligible,
+  upsertActiveItemOffer,
+} from "./warpletNotifications";
+import type { WebPushSubscriptionRow } from "./webPush";
+
+function webPushSubscription(overrides: Partial<WebPushSubscriptionRow> = {}): WebPushSubscriptionRow {
+  return {
+    endpoint_hash: "a".repeat(64),
+    endpoint: "https://push.example/subscription",
+    p256dh: "p256dh",
+    auth: "auth",
+    app_slug: "warplets",
+    farcaster_fid: null,
+    wallet_address: null,
+    ...overrides,
+  };
+}
+
+describe("global statistics notification audience", () => {
+  it.each([
+    { name: "Farcaster-only", fids: [1129138], wallets: [], pushes: [], expected: [1, 0, 0] },
+    { name: "Base-only", fids: [], wallets: ["0x1111111111111111111111111111111111111111"], pushes: [], expected: [0, 1, 0] },
+    { name: "Web Push-only", fids: [], wallets: [], pushes: [webPushSubscription()], expected: [0, 0, 1] },
+    {
+      name: "multi-channel",
+      fids: [1129138],
+      wallets: ["0x1111111111111111111111111111111111111111"],
+      pushes: [webPushSubscription({ farcaster_fid: 1129138 })],
+      expected: [1, 1, 1],
+    },
+  ])("includes a $name recipient", ({ fids, wallets, pushes, expected }) => {
+    const audience = buildGlobalStatsAudience({
+      farcasterFids: fids,
+      baseWallets: wallets,
+      webPushSubscriptions: pushes,
+    });
+    expect([
+      audience.farcasterFids.length,
+      audience.baseWallets.length,
+      audience.webPushSubscriptions.length,
+    ]).toEqual(expected);
+  });
+
+  it("allows anonymous Chrome subscriptions for daily stats but not personal transactions", () => {
+    const anonymousChrome = webPushSubscription();
+    expect(isWebPushSubscriptionEligible(anonymousChrome, "daily-stats")).toBe(true);
+    expect(isWebPushSubscriptionEligible(anonymousChrome, "transactional")).toBe(false);
+    expect(isWebPushSubscriptionEligible(
+      webPushSubscription({ wallet_address: "0x1111111111111111111111111111111111111111" }),
+      "transactional",
+    )).toBe(true);
+  });
+
+  it("opens the 30-day Stats Market view from every daily delivery channel", () => {
+    const target = new URL(GLOBAL_STATS_TARGET_URL);
+    expect(target.pathname).toBe("/stats/market");
+    expect(target.searchParams.get("range")).toBe("30d");
+  });
+});
 
 describe("historical activity notification suppression", () => {
   it("marks suppressed bootstrap activity as handled", () => {

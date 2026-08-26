@@ -1,5 +1,15 @@
 import { dispatchNotification } from "./dispatch.js";
-import { sendBaseNotificationCampaign, type BaseNotificationsEnv } from "./baseNotifications.js";
+import {
+  getBaseNotificationAudience,
+  sendBaseNotificationCampaign,
+  type BaseNotificationsEnv,
+} from "./baseNotifications.js";
+import { buildClickTrackingUrl } from "./notificationTracking.js";
+import {
+  sendWebPushNotification,
+  type WebPushEnv,
+  type WebPushSubscriptionRow,
+} from "./webPush.js";
 import { WARPLETS_APP_ORIGINS, WARPLETS_APP_SLUG } from "../../shared/warpletsApp.js";
 
 export type WarpletActivityType =
@@ -18,7 +28,7 @@ type NotificationCategory =
   | "best_friend"
   | "global_stats";
 
-export interface WarpletNotificationEnv extends Partial<BaseNotificationsEnv> {
+export interface WarpletNotificationEnv extends Partial<BaseNotificationsEnv>, Partial<WebPushEnv> {
   WARPLETS: D1Database;
   WARPLETS_KV?: KVNamespace;
   BASE_NOTIFICATIONS_API_KEY?: string;
@@ -75,6 +85,9 @@ const APP_SLUG = WARPLETS_APP_SLUG;
 const WARPLETS_BASE_URL = WARPLETS_APP_ORIGINS.prod;
 const TOKEN_CONTRACT = "0x780446dd12e080ae0db762fcd4daf313f3e359de";
 const OPEN_SEA_COLLECTION_URL = "https://opensea.io/collection/10xwarplets";
+const GLOBAL_STATS_ACTIVE_JOB_KEY = "warplets:global-stats:active";
+const GLOBAL_STATS_LAST_JOB_KEY = "warplets:global-stats:last";
+export const GLOBAL_STATS_TARGET_URL = `${WARPLETS_BASE_URL}/stats/market?range=30d`;
 
 const ACTION_PRIORITY: Record<WarpletActivityType, number> = {
   purchased: 0,
@@ -87,6 +100,34 @@ const ACTION_PRIORITY: Record<WarpletActivityType, number> = {
 };
 
 const TABLE_COLUMN_CACHE = new Map<string, Set<string>>();
+
+export function isWebPushSubscriptionEligible(
+  subscription: Pick<WebPushSubscriptionRow, "farcaster_fid" | "wallet_address">,
+  notificationKind: "daily-stats" | "transactional",
+): boolean {
+  if (notificationKind === "daily-stats") return true;
+  return Boolean(subscription.farcaster_fid || normalizeWallet(subscription.wallet_address));
+}
+
+export function buildGlobalStatsAudience(input: {
+  farcasterFids: number[];
+  baseWallets: string[];
+  webPushSubscriptions: WebPushSubscriptionRow[];
+}): {
+  farcasterFids: number[];
+  baseWallets: string[];
+  webPushSubscriptions: WebPushSubscriptionRow[];
+} {
+  return {
+    farcasterFids: [...new Set(input.farcasterFids.filter((fid) => Number.isInteger(fid) && fid > 0))],
+    baseWallets: [...new Set(input.baseWallets.map(normalizeWallet).filter((wallet): wallet is string => Boolean(wallet)))],
+    webPushSubscriptions: [...new Map(
+      input.webPushSubscriptions
+        .filter((subscription) => isWebPushSubscriptionEligible(subscription, "daily-stats"))
+        .map((subscription) => [subscription.endpoint_hash, subscription]),
+    ).values()],
+  };
+}
 
 async function getTableColumns(env: WarpletNotificationEnv, tableName: "wallet_farcaster_links" | "warplets_users"): Promise<Set<string>> {
   const cached = TABLE_COLUMN_CACHE.get(tableName);
@@ -1018,68 +1059,218 @@ export async function runBestFriendNotifications(env: WarpletNotificationEnv): P
   return selected.size;
 }
 
-export async function runGlobalStatsNotifications(env: WarpletNotificationEnv): Promise<number> {
-  const state = await env.WARPLETS.prepare(
-    `SELECT updated_at FROM notification_job_state WHERE job_key = 'warplets:global-stats:last' LIMIT 1`,
-  ).first<{ updated_at: string }>();
-  if (state?.updated_at && Date.now() - new Date(state.updated_at).getTime() < 23 * 60 * 60 * 1000) {
-    return 0;
+interface GlobalStatsCampaign {
+  campaignId: string;
+  body: string;
+  totalCount: number;
+}
+
+function parseGlobalStatsCampaign(value?: string | null): GlobalStatsCampaign | null {
+  if (!value) return null;
+  try {
+    const parsed = JSON.parse(value) as Partial<GlobalStatsCampaign>;
+    if (
+      typeof parsed.campaignId !== "string" ||
+      typeof parsed.body !== "string" ||
+      typeof parsed.totalCount !== "number"
+    ) return null;
+    return { campaignId: parsed.campaignId, body: parsed.body, totalCount: parsed.totalCount };
+  } catch {
+    return null;
   }
+}
 
-  const rows = await env.WARPLETS.prepare(
-    `SELECT event_type, COUNT(*) AS count, COALESCE(SUM(amount_eth), 0) AS eth_total
-     FROM warplet_activity_events
-     WHERE datetime(occurred_at) >= datetime('now', '-24 hours')
-       AND event_type IN ('listed', 'offered', 'trait_top_offer', 'sold')
-     GROUP BY event_type`,
-  ).all<{ event_type: WarpletActivityType; count: number; eth_total: number }>();
+async function recordFarcasterChannelDelivery(
+  env: WarpletNotificationEnv,
+  campaignId: string,
+  fid: number,
+  state: "success" | "no_token" | "rate_limited" | "invalid_token" | "failed" | "validation_error",
+): Promise<void> {
+  const now = new Date().toISOString();
+  const status = state === "success"
+    ? "delivered"
+    : state === "invalid_token" || state === "no_token" || state === "validation_error"
+    ? "invalid"
+    : state === "rate_limited"
+    ? "rate_limited"
+    : "failed";
+  await env.WARPLETS.prepare(
+    `INSERT INTO notification_channel_deliveries
+       (campaign_id, app_slug, channel, recipient_key, farcaster_fid, status, attempts, last_error, created_at, updated_at)
+     VALUES (?, ?, 'farcaster', ?, ?, ?, 1, ?, ?, ?)
+     ON CONFLICT(campaign_id, app_slug, channel, recipient_key) DO UPDATE SET
+       status = excluded.status,
+       attempts = notification_channel_deliveries.attempts + 1,
+       last_error = excluded.last_error,
+       updated_at = excluded.updated_at`,
+  ).bind(
+    campaignId,
+    APP_SLUG,
+    String(fid),
+    fid,
+    status,
+    status === "delivered" ? null : state,
+    now,
+    now,
+  ).run();
+}
 
-  const stats = new Map(rows.results?.map((row) => [row.event_type, row]) || []);
-  const listings = stats.get("listed");
-  const offers = {
-    count: Number(stats.get("offered")?.count || 0) + Number(stats.get("trait_top_offer")?.count || 0),
-    eth_total: Number(stats.get("offered")?.eth_total || 0) + Number(stats.get("trait_top_offer")?.eth_total || 0),
-  };
-  const sales = stats.get("sold");
-  const totalCount = Number(listings?.count || 0) + offers.count + Number(sales?.count || 0);
-  if (totalCount === 0) return 0;
+export async function runGlobalStatsNotifications(env: WarpletNotificationEnv): Promise<number> {
+  const [lastState, activeState] = await Promise.all([
+    env.WARPLETS.prepare(
+      `SELECT value, updated_at FROM notification_job_state WHERE job_key = ? LIMIT 1`,
+    ).bind(GLOBAL_STATS_LAST_JOB_KEY).first<{ value: string | null; updated_at: string }>(),
+    env.WARPLETS.prepare(
+      `SELECT value FROM notification_job_state WHERE job_key = ? LIMIT 1`,
+    ).bind(GLOBAL_STATS_ACTIVE_JOB_KEY).first<{ value: string | null }>(),
+  ]);
+  const activeCampaign = parseGlobalStatsCampaign(activeState?.value);
+  if (
+    !activeCampaign &&
+    lastState?.updated_at &&
+    Date.now() - new Date(lastState.updated_at).getTime() < 23 * 60 * 60 * 1000
+  ) return 0;
 
-  const ethUsd = await getEthUsd(env);
-  const totalUsd = (eth: number) =>
-    ethUsd && Number.isFinite(ethUsd) ? ` (~$${Math.round(eth * ethUsd).toLocaleString("en-US")})` : "";
-  const body = `24hr Stats: ${Number(listings?.count || 0).toLocaleString("en-US")} New Listings${totalUsd(
-    Number(listings?.eth_total || 0),
-  )}, ${offers.count.toLocaleString("en-US")} New Offers${totalUsd(
-    offers.eth_total,
-  )}, ${Number(sales?.count || 0).toLocaleString("en-US")} New Sales${totalUsd(Number(sales?.eth_total || 0))}.`;
+  let campaign = activeCampaign;
+  if (!campaign) {
+    const rows = await env.WARPLETS.prepare(
+      `SELECT event_type, COUNT(*) AS count, COALESCE(SUM(amount_eth), 0) AS eth_total
+       FROM warplet_activity_events
+       WHERE datetime(occurred_at) >= datetime('now', '-24 hours')
+         AND event_type IN ('listed', 'offered', 'trait_top_offer', 'sold')
+       GROUP BY event_type`,
+    ).all<{ event_type: WarpletActivityType; count: number; eth_total: number }>();
+    const stats = new Map(rows.results?.map((row) => [row.event_type, row]) || []);
+    const listings = stats.get("listed");
+    const offers = {
+      count: Number(stats.get("offered")?.count || 0) + Number(stats.get("trait_top_offer")?.count || 0),
+      eth_total: Number(stats.get("offered")?.eth_total || 0) + Number(stats.get("trait_top_offer")?.eth_total || 0),
+    };
+    const sales = stats.get("sold");
+    const totalCount = Number(listings?.count || 0) + offers.count + Number(sales?.count || 0);
+    if (totalCount === 0) return 0;
+    const ethUsd = await getEthUsd(env);
+    const totalUsd = (eth: number) =>
+      ethUsd && Number.isFinite(ethUsd) ? ` (~$${Math.round(eth * ethUsd).toLocaleString("en-US")})` : "";
+    campaign = {
+      campaignId: `${APP_SLUG}:global-stats:${new Date().toISOString().slice(0, 10)}`,
+      totalCount,
+      body: `24hr Stats: ${Number(listings?.count || 0).toLocaleString("en-US")} New Listings${totalUsd(
+        Number(listings?.eth_total || 0),
+      )}, ${offers.count.toLocaleString("en-US")} New Offers${totalUsd(
+        offers.eth_total,
+      )}, ${Number(sales?.count || 0).toLocaleString("en-US")} New Sales${totalUsd(Number(sales?.eth_total || 0))}.`.slice(0, 128),
+    };
+    await env.WARPLETS.prepare(
+      `INSERT INTO notification_job_state (job_key, value, updated_at)
+       VALUES (?, ?, CURRENT_TIMESTAMP)
+       ON CONFLICT(job_key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP`,
+    ).bind(GLOBAL_STATS_ACTIVE_JOB_KEY, JSON.stringify(campaign)).run();
+  }
 
   const tokens = await env.WARPLETS.prepare(
-    `SELECT DISTINCT fid FROM miniapp_notification_tokens WHERE app_slug = ? AND enabled = 1 LIMIT 10000`,
-  )
-    .bind(APP_SLUG)
-    .all<{ fid: number }>();
+    `SELECT fid, notification_url, notification_token
+       FROM miniapp_notification_tokens
+      WHERE app_slug = ? AND enabled = 1
+      ORDER BY fid
+      LIMIT 10000`,
+  ).bind(APP_SLUG).all<{ fid: number; notification_url: string; notification_token: string }>();
+  const webPush = await env.WARPLETS.prepare(
+    `SELECT endpoint_hash, endpoint, p256dh, auth, app_slug, farcaster_fid, wallet_address
+       FROM web_push_subscriptions
+      WHERE app_slug = ? AND enabled = 1
+        AND EXISTS (SELECT 1 FROM json_each(web_push_subscriptions.topics_json) WHERE value = 'announcements')
+      ORDER BY updated_at DESC`,
+  ).bind(APP_SLUG).all<WebPushSubscriptionRow>();
 
-  const dayKey = new Date().toISOString().slice(0, 10);
-  for (const token of tokens.results || []) {
-    await queueNotification(env, {
-      category: "global_stats",
-      priority: 90,
-      fid: Number(token.fid),
-      eventKey: dayKey,
-      title: "10X Warplets",
-      body,
-      targetUrl: WARPLETS_BASE_URL,
+  let retryableFailure = false;
+  let baseAudience: string[] = [];
+  let baseAudienceResolved = false;
+  try {
+    baseAudience = await getBaseNotificationAudience(env as WarpletNotificationEnv & BaseNotificationsEnv, APP_SLUG);
+    baseAudienceResolved = true;
+  } catch (error) {
+    retryableFailure = true;
+    console.error("Daily Base notification audience lookup failed", error);
+  }
+  const audience = buildGlobalStatsAudience({
+    farcasterFids: (tokens.results || []).map((token) => Number(token.fid)),
+    baseWallets: baseAudience,
+    webPushSubscriptions: webPush.results || [],
+  });
+  const tokenByFid = new Map((tokens.results || []).map((token) => [Number(token.fid), token]));
+  for (const fid of audience.farcasterFids) {
+    const token = tokenByFid.get(fid);
+    if (!token) continue;
+    const completed = await env.WARPLETS.prepare(
+      `SELECT 1 AS delivered
+         FROM notification_channel_deliveries
+        WHERE campaign_id = ? AND app_slug = ? AND channel = 'farcaster'
+          AND recipient_key = ? AND status = 'delivered'
+        LIMIT 1`,
+    ).bind(campaign.campaignId, APP_SLUG, String(fid)).first<{ delivered: number }>();
+    if (completed?.delivered === 1) continue;
+    const targetUrl = buildClickTrackingUrl({
+      notificationId: campaign.campaignId,
+      targetUrl: GLOBAL_STATS_TARGET_URL,
+      trackingBaseUrl: WARPLETS_BASE_URL,
+      appSlug: APP_SLUG,
+      fid,
     });
+    const result = await dispatchNotification(env.WARPLETS, {
+      fid,
+      appSlug: APP_SLUG,
+      notificationUrl: token.notification_url,
+      notificationToken: token.notification_token,
+      notificationId: campaign.campaignId,
+      title: "10X Warplets",
+      body: campaign.body,
+      targetUrl,
+    });
+    await recordFarcasterChannelDelivery(env, campaign.campaignId, fid, result.state);
+    if (result.state === "failed" || result.state === "rate_limited") retryableFailure = true;
   }
 
-  await env.WARPLETS.prepare(
-    `INSERT INTO notification_job_state (job_key, value, updated_at)
-     VALUES ('warplets:global-stats:last', ?, CURRENT_TIMESTAMP)
-     ON CONFLICT(job_key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP`,
-  )
-    .bind(String(totalCount))
-    .run();
-  return tokens.results?.length || 0;
+  if (baseAudienceResolved) {
+    try {
+    const baseResults = await sendBaseNotificationCampaign(env as WarpletNotificationEnv & BaseNotificationsEnv, {
+      campaignId: campaign.campaignId,
+      appSlug: APP_SLUG,
+      wallets: audience.baseWallets,
+      title: "10X Warplets",
+      message: campaign.body,
+      targetPath: "/stats/market?range=30d",
+    });
+    if (baseResults.some((result) => result.state === "failed")) retryableFailure = true;
+    } catch (error) {
+      retryableFailure = true;
+      console.error("Daily Base notification delivery failed", error);
+    }
+  }
+
+  for (const subscription of audience.webPushSubscriptions) {
+    const result = await sendWebPushNotification(env as WarpletNotificationEnv & WebPushEnv, subscription, {
+      campaignId: campaign.campaignId,
+      appSlug: APP_SLUG,
+      title: "10X Warplets",
+      body: campaign.body,
+      targetUrl: GLOBAL_STATS_TARGET_URL,
+    });
+    if (result.state === "failed" || result.state === "rate_limited") retryableFailure = true;
+  }
+
+  const audienceSize = audience.farcasterFids.length + audience.baseWallets.length + audience.webPushSubscriptions.length;
+  if (!retryableFailure) {
+    await env.WARPLETS.batch([
+      env.WARPLETS.prepare(
+        `INSERT INTO notification_job_state (job_key, value, updated_at)
+         VALUES (?, ?, CURRENT_TIMESTAMP)
+         ON CONFLICT(job_key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP`,
+      ).bind(GLOBAL_STATS_LAST_JOB_KEY, JSON.stringify({ ...campaign, audienceSize })),
+      env.WARPLETS.prepare(`DELETE FROM notification_job_state WHERE job_key = ?`).bind(GLOBAL_STATS_ACTIVE_JOB_KEY),
+    ]);
+  }
+  return audienceSize;
 }
 
 export async function runWarpletsNotificationJobs(env: WarpletNotificationEnv): Promise<{

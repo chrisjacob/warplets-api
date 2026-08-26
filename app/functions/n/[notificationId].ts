@@ -9,6 +9,7 @@
  */
 
 import { normalizeAppSlug, resolveAppSlugFromUrl } from "../_lib/appSlug.js";
+import { recordNotificationChannelInteraction } from "../_lib/notificationChannelTracking.js";
 
 interface Env {
   WARPLETS: D1Database;
@@ -66,6 +67,15 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       ).bind(notificationId, fid, appSlug, notificationId, fid, appSlug));
     }
     await context.env.WARPLETS.batch(writes);
+    if (fid) {
+      await recordNotificationChannelInteraction(context.env.WARPLETS, {
+        campaignId: notificationId,
+        appSlug,
+        channel: "farcaster",
+        recipientKey: String(fid),
+        action: "click",
+      });
+    }
   } catch (error) {
     console.error("Failed to record notification tracking", error);
   }

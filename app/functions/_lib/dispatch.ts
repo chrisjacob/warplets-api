@@ -168,25 +168,37 @@ export async function dispatchNotification(
 
   const existing = await db
     .prepare(
-      `SELECT id, status, attempt_count
+      `SELECT id, status, attempt_count, updated_at
        FROM notification_dispatches
        WHERE fid = ? AND notification_id = ?`
     )
     .bind(fid, notificationId)
-    .first<{ id: number; status: string; attempt_count: number }>();
+    .first<{ id: number; status: string; attempt_count: number; updated_at: string }>();
 
-  if (existing) {
+  if (existing && (existing.status === "delivered" || existing.status === "invalid")) {
     return dispatchStatusToResult(existing.status);
   }
 
-  const dispatch = await db
-    .prepare(
-      `INSERT INTO notification_dispatches (fid, app_slug, notification_id, title, body, target_url, status, attempt_count)
-       VALUES (?, ?, ?, ?, ?, ?, 'pending', 0)
-       RETURNING id, status, attempt_count`
-    )
-    .bind(fid, appSlug, notificationId, title.slice(0, 32), body.slice(0, 128), targetUrl)
-    .first<{ id: number; status: string; attempt_count: number }>();
+  if (existing?.status === "pending" && Date.now() - new Date(existing.updated_at).getTime() < 5 * 60 * 1000) {
+    return { state: "failed", error: "existing_pending" };
+  }
+
+  const dispatch = existing
+    ? await db.prepare(
+      `UPDATE notification_dispatches
+          SET status = 'pending', title = ?, body = ?, target_url = ?, updated_at = datetime('now')
+        WHERE id = ?
+        RETURNING id, status, attempt_count`,
+    ).bind(title.slice(0, 32), body.slice(0, 128), targetUrl, existing.id)
+      .first<{ id: number; status: string; attempt_count: number }>()
+    : await db
+      .prepare(
+        `INSERT INTO notification_dispatches (fid, app_slug, notification_id, title, body, target_url, status, attempt_count)
+         VALUES (?, ?, ?, ?, ?, ?, 'pending', 0)
+         RETURNING id, status, attempt_count`
+      )
+      .bind(fid, appSlug, notificationId, title.slice(0, 32), body.slice(0, 128), targetUrl)
+      .first<{ id: number; status: string; attempt_count: number }>();
 
   if (!dispatch) {
     return { state: "failed", error: "Failed to create dispatch record" };
@@ -282,7 +294,7 @@ export async function dispatchNotification(
     db
       .prepare(
         `UPDATE notification_dispatches
-         SET status = ?, updated_at = datetime('now')
+         SET status = ?, attempt_count = attempt_count + 1, updated_at = datetime('now')
          WHERE id = ?`
       )
       .bind(dispatchStatus, dispatch.id)

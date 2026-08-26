@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isEmbeddedWebViewUserAgent, resolveEntryPoint } from "./pwa";
+import { applicationServerKeysMatch, isEmbeddedWebViewUserAgent, resolveEntryPoint } from "./pwa";
 
 describe("resolveEntryPoint", () => {
   it("keeps source parameters attribution-only and deterministic", () => {
@@ -31,5 +31,16 @@ describe("isEmbeddedWebViewUserAgent", () => {
 
   it("does not classify standalone Safari as embedded", () => {
     expect(isEmbeddedWebViewUserAgent("Mozilla/5.0 Mobile Safari/604.1")).toBe(false);
+  });
+});
+
+describe("Web Push VAPID rotation", () => {
+  it("keeps subscriptions created with the active application server key", () => {
+    expect(applicationServerKeysMatch(new Uint8Array([1, 2, 3]).buffer, new Uint8Array([1, 2, 3]))).toBe(true);
+  });
+
+  it("replaces subscriptions created with an older application server key", () => {
+    expect(applicationServerKeysMatch(new Uint8Array([1, 2, 3]).buffer, new Uint8Array([4, 5, 6]))).toBe(false);
+    expect(applicationServerKeysMatch(null, new Uint8Array([4, 5, 6]))).toBe(false);
   });
 });

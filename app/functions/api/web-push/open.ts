@@ -1,4 +1,5 @@
 import { resolveAppSlugFromUrl } from "../../_lib/appSlug.js";
+import { recordNotificationChannelInteraction } from "../../_lib/notificationChannelTracking.js";
 import { jsonSecure, readJsonBodyWithLimit } from "../../_lib/security.js";
 
 interface Env {
@@ -19,12 +20,12 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     return jsonSecure({ error: "Invalid Web Push open event" }, { status: 400 });
   }
   const appSlug = resolveAppSlugFromUrl(new URL(request.url));
-  const now = new Date().toISOString();
-  await env.WARPLETS.prepare(
-    `UPDATE notification_channel_deliveries
-        SET opened_at = COALESCE(opened_at, ?), updated_at = ?
-      WHERE campaign_id = ? AND app_slug = ? AND channel = 'web-push'
-        AND recipient_key = ? AND status = 'delivered'`,
-  ).bind(now, now, notificationId, appSlug, recipientKey).run();
+  await recordNotificationChannelInteraction(env.WARPLETS, {
+    campaignId: notificationId,
+    appSlug,
+    channel: "web-push",
+    recipientKey,
+    action: "click",
+  });
   return jsonSecure({ ok: true });
 };
