@@ -173,8 +173,8 @@ export function buildFarcasterManifest(hostname: string, warpletsAssociation?: A
       ],
       tags: ["10x", "warplets", "farcaster", "nft", "memecoins"],
       tagline: "Don't miss out.",
-      ogTitle: "10X",
-      ogDescription: "Builders, capital and signal - aligned.",
+      ogTitle: APP_SHARE_TITLE,
+      ogDescription: APP_SHARE_DESCRIPTION,
       ogImageUrl: "https://app.10x.meme/embed.png",
     },
   };

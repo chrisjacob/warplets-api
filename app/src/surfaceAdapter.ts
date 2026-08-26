@@ -4,6 +4,9 @@ import type { EthereumProvider } from "./walletTrade";
 
 let surface: AppSurface = "web";
 
+export const FARCASTER_NOTIFICATIONS_MANUAL_ENABLE_MESSAGE =
+  "This app is installed, but notifications are disabled. Open its settings in Farcaster and manually enable notifications.";
+
 export function configureAppSurface(next: AppSurface): void {
   surface = next;
 }
@@ -49,7 +52,7 @@ export async function composeFarcasterPost(text: string, embeds: string[] = []):
   await openAppUrl(`https://farcaster.xyz/~/compose?${params.toString()}`);
 }
 
-export async function requestFarcasterNotifications(): Promise<void> {
+export async function requestFarcasterNotifications() {
   if (surface !== "farcaster-miniapp") throw new Error("Enable Base notifications from the app settings in Base App");
-  await sdk.actions.addMiniApp();
+  return await sdk.actions.addMiniApp();
 }

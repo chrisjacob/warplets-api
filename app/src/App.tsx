@@ -12,7 +12,7 @@ import NotificationsPromptModal from "./NotificationsPromptModal";
 import { PwaControls } from "./PwaControls";
 import SiteFooter from "./SiteFooter";
 import { isEmbeddedWebView, isLikelyBaseAppBrowser, isStandaloneDisplay, subscribeToWebPush } from "./pwa";
-import { getEmbeddedWalletProvider } from "./surfaceAdapter";
+import { FARCASTER_NOTIFICATIONS_MANUAL_ENABLE_MESSAGE, getEmbeddedWalletProvider } from "./surfaceAdapter";
 import { WebConnectModal } from "./WebConnectModal";
 import {
   configureFarcasterWallet,
@@ -459,14 +459,19 @@ export default function App() {
     setShowAddAppPrompt(false);
     try {
       if (isInMiniAppContext) {
-        await sdk.actions.addMiniApp();
+        const result = await sdk.actions.addMiniApp();
+        if (!result.notificationDetails) {
+          setHomeToast({ kind: "error", message: FARCASTER_NOTIFICATIONS_MANUAL_ENABLE_MESSAGE });
+        }
       } else {
         await subscribeToWebPush(["announcements"]);
         setHomeToast({ kind: "success", message: "Web notifications are enabled for 10X.MEME." });
       }
     } catch (error) {
       console.error("Failed to add 10X.MEME:", error);
-      const message = error instanceof Error ? error.message : String(error);
+      const message = isInMiniAppContext && notificationsOnlyPrompt
+        ? FARCASTER_NOTIFICATIONS_MANUAL_ENABLE_MESSAGE
+        : error instanceof Error ? error.message : String(error);
       setActionError(message);
       setHomeToast({ kind: "error", message });
     }

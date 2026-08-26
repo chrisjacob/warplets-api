@@ -45,6 +45,13 @@ describe("10X app metadata", () => {
     expect(buildFarcasterManifest("app.10x.meme").miniapp.description).toBe(APP_SHARE_DESCRIPTION);
   });
 
+  it("keeps the Farcaster Open Graph metadata aligned with the webpage", () => {
+    const manifest = buildFarcasterManifest("app.10x.meme").miniapp;
+
+    expect(manifest.ogTitle).toBe(APP_SHARE_TITLE);
+    expect(manifest.ogDescription).toBe(APP_SHARE_DESCRIPTION);
+  });
+
   it("publishes the current app screenshot", () => {
     expect(buildFarcasterManifest("app.10x.meme").miniapp.screenshotUrls).toEqual([
       "https://app.10x.meme/screenshots/app_1v2.jpg",

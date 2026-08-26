@@ -45,7 +45,7 @@ WARPMOJI_ADMIN_FIDS = "1129138"
 # "1". Pages execution is reserved for authenticated, supervised bootstrap calls;
 # recurring production execution is owned by the root Worker.
 DUNE_ENABLED = "1"
-DUNE_EXECUTE_ENABLED = "1"
+DUNE_EXECUTE_ENABLED = "0"
 DUNE_EXECUTION_INTERVAL_HOURS = "24"
 DUNE_RESULTS_PAGE_SIZE = "1000"
 DUNE_MAX_RESULT_PAGES = "8"

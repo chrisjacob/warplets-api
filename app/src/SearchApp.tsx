@@ -54,8 +54,10 @@ import { resolveEntryPoint, isBaseAppContext, isEmbeddedWebView, isLikelyBaseApp
 import { findRarestOwnedWarpletTokenId, resolveEffectiveWarpletOwner } from "./ownerResolution";
 import { canPresentAirdrop, shouldCoverAppWhileResolvingOnboarding, shouldOpenOnboarding } from "./searchModalSequence";
 import { SERVER_CACHE_RESET_PENDING_KEY } from "./localCacheReset";
+import { writeSpaHistory } from "./spaHistory";
 import ProgressiveNotificationImage from "./ProgressiveNotificationImage";
 import {
+  FARCASTER_NOTIFICATIONS_MANUAL_ENABLE_MESSAGE,
   composeFarcasterPost,
   configureAppSurface,
   getEmbeddedWalletProvider,
@@ -14976,6 +14978,7 @@ export default function SearchApp() {
   const [lastPerksSubpage, setLastPerksSubpage] = useState<PerksSubpage>(() => readLastSearchPerksSubpage());
   const [lastStatsSubpage, setLastStatsSubpage] = useState<SearchStatsSubpage>(() => readLastSearchStatsSubpage());
   const [lastListedLevel, setLastListedLevel] = useState<ListedLevelFilter>(() => readLastSearchListedLevel());
+  const useEmbeddedHistory = isInMiniAppContext || isEmbeddedWebView() || isLikelyBaseAppBrowser();
   useEffect(() => {
     if (searchRoute.page !== "perks") return;
     const url = new URL(window.location.href);
@@ -15260,11 +15263,10 @@ export default function SearchApp() {
       ...(window.history.state ?? {}),
       searchRoute: getSearchRouteStableKey(route),
     };
-    if (mode === "replace") {
-      window.history.replaceState(historyState, "", nextPath);
-    } else {
-      window.history.pushState(historyState, "", nextPath);
-    }
+    writeSpaHistory(window.history, historyState, nextPath, {
+      mode,
+      embedded: useEmbeddedHistory,
+    });
     setSearchRoute(route);
     if (route.page === "offers") {
       setLastOffersSubpage(route.offersPage);
@@ -15279,7 +15281,7 @@ export default function SearchApp() {
       setLastListedLevel(route.listedLevel);
       writeLastSearchListedLevel(route.listedLevel);
     }
-  }, []);
+  }, [useEmbeddedHistory]);
 
   const handleListedScopeChange = useCallback((scope: ListedScopeFilter) => {
     setListedScope(scope);
@@ -15298,14 +15300,13 @@ export default function SearchApp() {
     } satisfies MiniAppHistoryStateWithSearch & Record<string, unknown>;
     const nextUrl = buildSearchUrl(state);
 
-    if (mode === "replace") {
-      window.history.replaceState(historyState, "", nextUrl);
-    } else {
-      window.history.pushState(historyState, "", nextUrl);
-    }
+    writeSpaHistory(window.history, historyState, nextUrl, {
+      mode,
+      embedded: useEmbeddedHistory,
+    });
 
     lastUrlSignatureRef.current = signature;
-  }, []);
+  }, [useEmbeddedHistory]);
 
   const ensureDatabaseReady = useCallback(async (): Promise<SqliteDatabase> => {
     if (dbRef.current) return dbRef.current;
@@ -15745,17 +15746,22 @@ export default function SearchApp() {
         trackAppEvent("web_push_subscribed", { surface: "web", channel: "web-push" });
         showSearchToast("success", "Web notifications are enabled for 10X Warplets.");
       } else {
-        await requestFarcasterNotifications();
+        const result = await requestFarcasterNotifications();
+        if (!result.notificationDetails) {
+          showSearchToast("error", FARCASTER_NOTIFICATIONS_MANUAL_ENABLE_MESSAGE, { manualClose: true });
+        }
       }
     } catch (error) {
       console.warn("Search add mini app prompt failed:", error);
       if (notificationPromptMode === "web") {
         showSearchToast("error", error instanceof Error ? error.message : "Web notifications could not be enabled.", { manualClose: true });
+      } else if (notificationsOnlyPrompt) {
+        showSearchToast("error", FARCASTER_NOTIFICATIONS_MANUAL_ENABLE_MESSAGE, { manualClose: true });
       }
     } finally {
       setShowAddAppPrompt(false);
     }
-  }, [notificationPromptMode, showSearchToast]);
+  }, [notificationPromptMode, notificationsOnlyPrompt, showSearchToast]);
 
   const handleCompleteOnboarding = useCallback(() => {
     void hapticSuccess();
