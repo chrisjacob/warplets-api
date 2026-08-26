@@ -500,17 +500,39 @@ function readStatsSnapshot(
   };
 }
 
-function decimalTextIsLessThan(
+const OPENSEA_VOLUME_CORRECTION_MAX_BPS = 50n;
+const BASIS_POINTS_DENOMINATOR = 10_000n;
+
+export type OpenSeaLifetimeVolumeResolution = {
+  kind: "current" | "bounded_correction" | "regression";
+  effectiveValue: string | null;
+};
+
+/**
+ * OpenSea can make small retrospective corrections to collection volume.
+ * Preserve a monotonic analytics series for corrections up to 0.5%, while
+ * retaining the existing hard failure for larger provider regressions.
+ */
+export function resolveOpenSeaLifetimeVolume(
   candidateValue: string | null,
   previousValue: string | null,
-): boolean {
+): OpenSeaLifetimeVolumeResolution {
   const candidate = parseDecimal(candidateValue);
   const previous = parseDecimal(previousValue);
-  if (!candidate || !previous) return false;
+  if (!candidate || !previous) return { kind: "current", effectiveValue: candidateValue };
   const scale = Math.max(candidate.scale, previous.scale);
   const candidateInteger = candidate.integer * 10n ** BigInt(scale - candidate.scale);
   const previousInteger = previous.integer * 10n ** BigInt(scale - previous.scale);
-  return candidateInteger < previousInteger;
+  if (candidateInteger >= previousInteger) {
+    return { kind: "current", effectiveValue: candidateValue };
+  }
+
+  const decrease = previousInteger - candidateInteger;
+  const boundedCorrection = previousInteger > 0n &&
+    decrease * BASIS_POINTS_DENOMINATOR <= previousInteger * OPENSEA_VOLUME_CORRECTION_MAX_BPS;
+  return boundedCorrection
+    ? { kind: "bounded_correction", effectiveValue: previousValue }
+    : { kind: "regression", effectiveValue: candidateValue };
 }
 
 async function recordOpenSeaStatsIngestHealth(
@@ -585,6 +607,10 @@ export async function persistOpenSeaStatsSnapshot(
       total_sales: number | null;
       total_volume_text: string | null;
     }>();
+    const volumeResolution = resolveOpenSeaLifetimeVolume(
+      row.total_volume_text,
+      previous?.total_volume_text ?? null,
+    );
     let invalidReason: string | null = null;
     if (
       previous?.total_sales !== null &&
@@ -605,9 +631,7 @@ export async function persistOpenSeaStatsSnapshot(
       !row.total_volume_text
     ) {
       invalidReason = "OpenSea collection stats omitted the lifetime volume total.";
-    } else if (
-      decimalTextIsLessThan(row.total_volume_text, previous?.total_volume_text ?? null)
-    ) {
+    } else if (volumeResolution.kind === "regression") {
       invalidReason =
         `OpenSea lifetime volume moved backwards from ${previous?.total_volume_text} to ${row.total_volume_text}.`;
     }
@@ -643,7 +667,7 @@ export async function persistOpenSeaStatsSnapshot(
       STATS_COLLECTION_SLUG,
       capturedAt,
       row.total_sales,
-      row.total_volume_text,
+      volumeResolution.effectiveValue,
       row.one_day_sales,
       row.one_day_volume_text,
       row.seven_day_sales,

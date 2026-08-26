@@ -1,5 +1,61 @@
 import { describe, expect, it } from "vitest";
-import { buildFarcasterManifest } from "./index";
+import {
+  APP_SHARE_DESCRIPTION,
+  APP_SHARE_TITLE,
+  buildCanonicalUrl,
+  buildFarcasterManifest,
+  getBaseAppId,
+} from "./index";
+
+describe("Base app ownership", () => {
+  it("uses independent registrations for the shared production domains", () => {
+    expect(getBaseAppId("app.10x.meme")).toBe("6a8e3af7164a4b20f8b98f3a");
+    expect(getBaseAppId("warplet.10x.meme")).toBe("6a8dba294f7ceaca3bfa774f");
+  });
+
+  it("does not expose a production registration on unregistered hosts", () => {
+    expect(getBaseAppId("app-dev.10x.meme")).toBeNull();
+    expect(getBaseAppId("drop.10x.meme")).toBeNull();
+  });
+});
+
+describe("10X app metadata", () => {
+  it("uses the requested SEO and Open Graph title", () => {
+    expect(APP_SHARE_TITLE).toBe("10X.MEME 🟢 You're Just One Trade Away...");
+  });
+
+  it("uses the requested description in the app manifest", () => {
+    expect(APP_SHARE_DESCRIPTION).toBe("10X Memes, RWAs, NFTs, AI, Attention & Alpha.");
+    expect(buildFarcasterManifest("app.10x.meme").miniapp.description).toBe(APP_SHARE_DESCRIPTION);
+  });
+});
+
+describe("canonical URLs", () => {
+  it("keeps the Warplet identity while removing search and tracking parameters", () => {
+    const requestUrl = new URL(
+      "https://warplet.10x.meme/?random=Sports&warplet=8535&clearcache=1&source=notification",
+    );
+
+    expect(buildCanonicalUrl(requestUrl)).toBe("https://warplet.10x.meme/?warplet=8535");
+  });
+
+  it("normalizes tokenId aliases to the public Warplet parameter", () => {
+    const requestUrl = new URL("https://warplet.10x.meme/?tokenId=8535&utm_source=farcaster");
+
+    expect(buildCanonicalUrl(requestUrl)).toBe("https://warplet.10x.meme/?warplet=8535");
+  });
+
+  it("removes query parameters from non-detail pages and normalizes trailing slashes", () => {
+    const requestUrl = new URL("https://warplet.10x.meme/perks/sports/?clearcache=1");
+
+    expect(buildCanonicalUrl(requestUrl)).toBe("https://warplet.10x.meme/perks/sports");
+  });
+
+  it("uses the requested production hostname for apps served by the shared Pages project", () => {
+    expect(buildCanonicalUrl(new URL("https://app.10x.meme/?source=pwa"))).toBe("https://app.10x.meme/");
+    expect(buildCanonicalUrl(new URL("https://drop.10x.meme/?fid=1129138"))).toBe("https://drop.10x.meme/");
+  });
+});
 
 describe("Warplets Farcaster manifest bootstrap", () => {
   it("serves app metadata without an account association during bootstrap", () => {

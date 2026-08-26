@@ -24,6 +24,7 @@ const COLLECTION_SLUG = "10xwarplets";
 const DISTRIBUTION_WALLET = "0x4709a4b12daf0eedae0ef48a28a056640dee0846";
 const KV_LAST_SYNC_KEY = "opensea_last_sync_at";
 const KV_STATS_BUYS_KEY = "stats_buys";
+const OPENSEA_REQUEST_TIMEOUT_MS = 12_000;
 
 // ---------------------------------------------------------------------------
 // Types
@@ -72,6 +73,56 @@ export type OpenseaSyncOptions = {
   occurredAfterSec?: number;
 };
 
+export type OpenSeaResumePoint = {
+  occurredAfterSec: number;
+  persistedCursorSec: number | null;
+  source: "manual" | "persisted" | "lookback";
+};
+
+/** Normalize OpenSea ISO, Unix-second, and Unix-millisecond timestamps. */
+export function parseOpenSeaTimestampSeconds(
+  value: string | number | null | undefined,
+): number | null {
+  if (value === null || value === undefined) return null;
+  const raw = typeof value === "string" ? value.trim() : value;
+  if (raw === "") return null;
+
+  const numeric = typeof raw === "number"
+    ? raw
+    : /^\d+(?:\.\d+)?$/.test(raw)
+      ? Number(raw)
+      : Number.NaN;
+  if (Number.isFinite(numeric) && numeric >= 0) {
+    return Math.floor(numeric >= 100_000_000_000 ? numeric / 1000 : numeric);
+  }
+
+  if (typeof raw !== "string") return null;
+  const parsedMs = Date.parse(raw);
+  return Number.isFinite(parsedMs) && parsedMs >= 0
+    ? Math.floor(parsedMs / 1000)
+    : null;
+}
+
+export function resolveOpenSeaResumePoint(
+  lastSyncAt: string | null,
+  occurredAfterOverride: number | undefined,
+  nowMs = Date.now(),
+): OpenSeaResumePoint {
+  const persistedCursorSec = parseOpenSeaTimestampSeconds(lastSyncAt);
+  const manualCursorSec = parseOpenSeaTimestampSeconds(occurredAfterOverride);
+  if (manualCursorSec !== null) {
+    return { occurredAfterSec: manualCursorSec, persistedCursorSec, source: "manual" };
+  }
+  if (persistedCursorSec !== null) {
+    return { occurredAfterSec: persistedCursorSec, persistedCursorSec, source: "persisted" };
+  }
+  return {
+    occurredAfterSec: Math.floor(nowMs / 1000) - 86400,
+    persistedCursorSec,
+    source: "lookback",
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Main sync function
 // ---------------------------------------------------------------------------
@@ -90,16 +141,17 @@ export async function runOpenseaSync(
   // 1. Determine resume point
   // -------------------------------------------------------------------------
   const lastSyncAt = await env.WARPLETS_KV.get(KV_LAST_SYNC_KEY);
-  const occurredAfterSec =
-    typeof options.occurredAfterSec === "number"
-      ? options.occurredAfterSec
-      : lastSyncAt
-        ? Math.floor(new Date(lastSyncAt).getTime() / 1000)
-        // First run: look back 24 hours so we don't miss recent activity
-        : Math.floor(Date.now() / 1000) - 86400;
+  const resume = resolveOpenSeaResumePoint(lastSyncAt, options.occurredAfterSec);
+  const occurredAfterSec = resume.occurredAfterSec;
+
+  if (lastSyncAt && resume.persistedCursorSec === null) {
+    console.warn(
+      `[opensea-sync] invalid persisted cursor ${JSON.stringify(lastSyncAt)}; using a 24-hour lookback`,
+    );
+  }
 
   console.log(
-    `[opensea-sync] resuming from ${lastSyncAt ?? "(first run, -24h)"} (unix=${occurredAfterSec})${typeof options.occurredAfterSec === "number" ? " [manual window override]" : ""}`,
+    `[opensea-sync] resume cursor=${lastSyncAt ?? "none"} occurred_after=${occurredAfterSec} source=${resume.source}`,
   );
 
   // -------------------------------------------------------------------------
@@ -109,7 +161,7 @@ export async function runOpenseaSync(
   let processed = 0;
   let matched = 0;
   let skipped = 0;
-  let latestTimestamp: string | null = lastSyncAt;
+  let latestTimestampSec: number | null = resume.persistedCursorSec;
   let buyMatchFound = false;
 
   do {
@@ -129,6 +181,7 @@ export async function runOpenseaSync(
           "x-api-key": apiKey,
           accept: "application/json",
         },
+        signal: AbortSignal.timeout(OPENSEA_REQUEST_TIMEOUT_MS),
       });
     } catch (err) {
       console.error("[opensea-sync] network error fetching events:", err);
@@ -199,9 +252,14 @@ export async function runOpenseaSync(
         processed++;
       }
 
-      // Track latest timestamp for KV resume
-      if (!latestTimestamp || eventTs > latestTimestamp) {
-        latestTimestamp = eventTs;
+      // Track the resume cursor in one representation regardless of which
+      // event timestamp format OpenSea returned.
+      const eventTimestampSec = parseOpenSeaTimestampSeconds(eventTs);
+      if (
+        eventTimestampSec !== null &&
+        (latestTimestampSec === null || eventTimestampSec > latestTimestampSec)
+      ) {
+        latestTimestampSec = eventTimestampSec;
       }
 
       // -------------------------------------------------------------------
@@ -247,9 +305,12 @@ export async function runOpenseaSync(
   // -------------------------------------------------------------------------
   // 5. Persist resume point (only advance if we saw newer events)
   // -------------------------------------------------------------------------
-  if (latestTimestamp && latestTimestamp !== lastSyncAt) {
-    await env.WARPLETS_KV.put(KV_LAST_SYNC_KEY, latestTimestamp);
-    console.log(`[opensea-sync] updated last_sync_at → ${latestTimestamp}`);
+  if (
+    latestTimestampSec !== null &&
+    latestTimestampSec !== resume.persistedCursorSec
+  ) {
+    await env.WARPLETS_KV.put(KV_LAST_SYNC_KEY, String(latestTimestampSec));
+    console.log(`[opensea-sync] updated last_sync_at to ${latestTimestampSec}`);
   }
 
   // -------------------------------------------------------------------------

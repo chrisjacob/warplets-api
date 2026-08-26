@@ -46,7 +46,10 @@ export type OpenSeaMarketIngestResult = {
 };
 
 export type ScheduledOpenSeaMarketResult =
-  | { status: "disabled" | "bootstrap_required" | "fresh"; lastSuccessAt?: string | null }
+  | {
+    status: "disabled" | "bootstrap_required" | "fresh" | "lease_held" | "lease_lost";
+    lastSuccessAt?: string | null;
+  }
   | ({ status: "ingested" } & OpenSeaMarketIngestResult);
 
 export type MarketMoney = {
@@ -232,6 +235,7 @@ const EVENT_INGEST_OVERLAP_SECONDS = 6 * 60 * 60;
 const EVENT_TYPES = ["sale", "transfer", "listing", "offer"] as const;
 const BOOTSTRAP_COMPLETE_KEY = "market_ingest:bootstrap_complete";
 const LAST_SUCCESS_KEY = "market_ingest:last_success_at";
+const INGEST_LEASE_KEY = "market_ingest:lease";
 const DEFAULT_SCHEDULE_INTERVAL_MINUTES = 10;
 const OWNER_OF_SELECTOR = "0x6352211e";
 const MARKET_SNAPSHOT_KEYS = {
@@ -270,6 +274,29 @@ export function ownsOpenSeaMarketLease(
   requestedOwner: string,
 ): boolean {
   return persistedOwner === requestedOwner;
+}
+
+export async function markOpenSeaMarketIngestSuccessIfLeaseOwned(
+  db: D1Database,
+  leaseOwner: string,
+  completedAt: string,
+): Promise<boolean> {
+  const result = await db.prepare(
+    `INSERT INTO opensea_ingest_state (key, value, updated_at)
+     SELECT ?, ?, ?
+     FROM opensea_ingest_state AS lease
+     WHERE lease.key = ? AND lease.value = ?
+     ON CONFLICT(key) DO UPDATE SET
+       value = excluded.value,
+       updated_at = excluded.updated_at`,
+  ).bind(
+    LAST_SUCCESS_KEY,
+    completedAt,
+    completedAt,
+    INGEST_LEASE_KEY,
+    leaseOwner,
+  ).run();
+  return (result.meta.changes ?? 0) > 0;
 }
 
 export function deriveOpenSeaMarketBootstrapState(
@@ -2680,50 +2707,67 @@ async function ingestOpenSeaMarketUnlocked(
   return { changed, generatedAt: snapshot.generatedAt, bootstrap, notificationMode };
 }
 
-export async function ingestOpenSeaMarket(
+type OpenSeaMarketLeaseRun = {
+  result: OpenSeaMarketIngestResult;
+  leaseStatus: "acquired" | "held" | "lost";
+};
+
+async function runOpenSeaMarketWithLease(
   env: OpenSeaMarketEnv,
   options: OpenSeaMarketIngestOptions = {},
-): Promise<OpenSeaMarketIngestResult> {
+  onCompletedWhileLeaseOwned?: (leaseOwner: string) => Promise<boolean>,
+): Promise<OpenSeaMarketLeaseRun> {
   const bootstrapComplete = await hasOpenSeaMarketBootstrapMarker(env.WARPLETS);
   const notificationMode = resolveOpenSeaMarketNotificationMode(bootstrapComplete, options);
-  const lockKey = "market_ingest:lease";
   const leaseOwner = crypto.randomUUID();
   const acquiredAt = new Date().toISOString();
-  try {
-    await env.WARPLETS.batch([
-      env.WARPLETS.prepare(
-        `DELETE FROM opensea_ingest_state
-         WHERE key = ? AND datetime(updated_at) < datetime('now', '-30 minutes')`,
-      ).bind(lockKey),
-      env.WARPLETS.prepare(
-        `INSERT OR IGNORE INTO opensea_ingest_state (key, value, updated_at)
-         VALUES (?, ?, ?)`,
-      ).bind(lockKey, leaseOwner, acquiredAt),
-    ]);
-    const lease = await env.WARPLETS.prepare(
-      "SELECT value FROM opensea_ingest_state WHERE key = ?",
-    ).bind(lockKey).first<{ value: string | null }>();
-    if (!ownsOpenSeaMarketLease(lease?.value, leaseOwner)) {
-      const snapshot = await loadCompactMarketSnapshot(env);
-      return {
+  await env.WARPLETS.batch([
+    env.WARPLETS.prepare(
+      `DELETE FROM opensea_ingest_state
+       WHERE key = ? AND datetime(updated_at) < datetime('now', '-30 minutes')`,
+    ).bind(INGEST_LEASE_KEY),
+    env.WARPLETS.prepare(
+      `INSERT OR IGNORE INTO opensea_ingest_state (key, value, updated_at)
+       VALUES (?, ?, ?)`,
+    ).bind(INGEST_LEASE_KEY, leaseOwner, acquiredAt),
+  ]);
+  const lease = await env.WARPLETS.prepare(
+    "SELECT value FROM opensea_ingest_state WHERE key = ?",
+  ).bind(INGEST_LEASE_KEY).first<{ value: string | null }>();
+  if (!ownsOpenSeaMarketLease(lease?.value, leaseOwner)) {
+    const snapshot = await loadCompactMarketSnapshot(env);
+    return {
+      leaseStatus: "held",
+      result: {
         changed: 0,
         generatedAt: snapshot.generatedAt,
         bootstrap: await loadOpenSeaMarketBootstrapState(env.WARPLETS),
         notificationMode,
-      };
-    }
-  } catch {
-    // Older local schemas may not have ingest state yet; preserve ingestion behavior.
-    return ingestOpenSeaMarketUnlocked(env, notificationMode);
+      },
+    };
   }
 
   try {
-    return await ingestOpenSeaMarketUnlocked(env, notificationMode);
+    const result = await ingestOpenSeaMarketUnlocked(env, notificationMode);
+    const completionAccepted = onCompletedWhileLeaseOwned
+      ? await onCompletedWhileLeaseOwned(leaseOwner)
+      : true;
+    return {
+      result,
+      leaseStatus: completionAccepted ? "acquired" : "lost",
+    };
   } finally {
     await env.WARPLETS.prepare(
       "DELETE FROM opensea_ingest_state WHERE key = ? AND value = ?",
-    ).bind(lockKey, leaseOwner).run().catch(() => undefined);
+    ).bind(INGEST_LEASE_KEY, leaseOwner).run().catch(() => undefined);
   }
+}
+
+export async function ingestOpenSeaMarket(
+  env: OpenSeaMarketEnv,
+  options: OpenSeaMarketIngestOptions = {},
+): Promise<OpenSeaMarketIngestResult> {
+  return (await runOpenSeaMarketWithLease(env, options)).result;
 }
 
 export async function ingestOpenSeaMarketIfDue(
@@ -2742,14 +2786,20 @@ export async function ingestOpenSeaMarketIfDue(
     return { status: "fresh", lastSuccessAt: lastSuccess?.value ?? null };
   }
 
-  const result = await ingestOpenSeaMarket(env);
-  const completedAt = new Date().toISOString();
-  await env.WARPLETS.prepare(
-    `INSERT INTO opensea_ingest_state (key, value, updated_at)
-     VALUES (?, ?, ?)
-     ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`,
-  ).bind(LAST_SUCCESS_KEY, completedAt, completedAt).run();
-  return { status: "ingested", ...result };
+  const run = await runOpenSeaMarketWithLease(env, {}, (leaseOwner) =>
+    markOpenSeaMarketIngestSuccessIfLeaseOwned(
+      env.WARPLETS,
+      leaseOwner,
+      new Date().toISOString(),
+    )
+  );
+  if (run.leaseStatus === "held") {
+    return { status: "lease_held", lastSuccessAt: lastSuccess?.value ?? null };
+  }
+  if (run.leaseStatus === "lost") {
+    return { status: "lease_lost", lastSuccessAt: lastSuccess?.value ?? null };
+  }
+  return { status: "ingested", ...run.result };
 }
 
 export async function refreshOneTokenMarket(

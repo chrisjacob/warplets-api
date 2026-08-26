@@ -3,6 +3,7 @@ import {
   deriveOpenSeaMarketBootstrapState,
   getTokenIdFromOpenSeaRow,
   isOpenSeaMarketIngestDue,
+  markOpenSeaMarketIngestSuccessIfLeaseOwned,
   ownsOpenSeaMarketLease,
   resolveOpenSeaMarketNotificationMode,
 } from "./openseaMarket";
@@ -78,5 +79,51 @@ describe("OpenSea ingest lease", () => {
     expect(ownsOpenSeaMarketLease("worker-a", "worker-a")).toBe(true);
     expect(ownsOpenSeaMarketLease("worker-b", "worker-a")).toBe(false);
     expect(ownsOpenSeaMarketLease(null, "worker-a")).toBe(false);
+  });
+
+  function completionDb(persistedOwner: string | null) {
+    const writes = new Map<string, string>();
+    const db = {
+      prepare(sql: string) {
+        return {
+          bind(...values: string[]) {
+            return {
+              async run() {
+                const [key, value, , leaseKey, requestedOwner] = values;
+                const isFencedCompletion = sql.includes("FROM opensea_ingest_state AS lease") &&
+                  leaseKey === "market_ingest:lease";
+                const accepted = isFencedCompletion && persistedOwner === requestedOwner;
+                if (accepted) writes.set(key, value);
+                return { meta: { changes: accepted ? 1 : 0 } };
+              },
+            };
+          },
+        };
+      },
+    } as unknown as D1Database;
+    return { db, writes };
+  }
+
+  it("records scheduled success only while the same Worker owns the lease", async () => {
+    const { db, writes } = completionDb("worker-a");
+    const completedAt = "2026-08-26T01:15:00.000Z";
+
+    await expect(
+      markOpenSeaMarketIngestSuccessIfLeaseOwned(db, "worker-a", completedAt),
+    ).resolves.toBe(true);
+    expect(writes.get("market_ingest:last_success_at")).toBe(completedAt);
+  });
+
+  it("rejects stale completion after another Worker owns the lease", async () => {
+    const { db, writes } = completionDb("worker-b");
+
+    await expect(
+      markOpenSeaMarketIngestSuccessIfLeaseOwned(
+        db,
+        "worker-a",
+        "2026-08-26T01:15:00.000Z",
+      ),
+    ).resolves.toBe(false);
+    expect(writes.has("market_ingest:last_success_at")).toBe(false);
   });
 });

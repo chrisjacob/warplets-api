@@ -2,10 +2,12 @@ const FC_MINIAPP_META_REGEX = /<meta\s+name="fc:miniapp"[^>]*>/i;
 const FC_FRAME_META_REGEX = /<meta\s+name="fc:frame"[^>]*>/i;
 const TITLE_REGEX = /<title>[\s\S]*?<\/title>/i;
 const MANIFEST_LINK_REGEX = /<link\s+rel="manifest"[^>]*>/i;
+const CANONICAL_LINK_REGEX = /<link\s+rel="canonical"[^>]*>/i;
 const FAVICON_LINK_REGEX = /<link\s+rel="icon"[^>]*>/i;
 const APPLE_TOUCH_ICON_LINK_REGEX = /<link\s+rel="apple-touch-icon"[^>]*>/i;
 const APPLICATION_NAME_META_REGEX = /<meta\s+name="application-name"[^>]*>/i;
 const APPLE_APP_TITLE_META_REGEX = /<meta\s+name="apple-mobile-web-app-title"[^>]*>/i;
+const BASE_APP_ID_META_REGEX = /<meta\s+name="base:app_id"[^>]*>/i;
 import { applySecurityHeaders } from "./_lib/security.js";
 import { loadStatsShareSnapshot } from "./_lib/statsShares.js";
 import { getPerksShareContentFromPath, getPerksShareImageUrl } from "../src/perksShareContent.js";
@@ -33,9 +35,15 @@ const DROP_SPLASH_BACKGROUND_COLOR = "#849fa6";
 const WARPLETS_SHARE_TITLE = WARPLETS_PUBLIC_NAME;
 const WARPLETS_SHARE_DESCRIPTION = "Search, filter, trade, favourite, and share 10X Warplets.";
 const WARPLETS_SPLASH_BACKGROUND_COLOR = "#004100";
+export const APP_SHARE_TITLE = "10X.MEME 🟢 You're Just One Trade Away...";
+export const APP_SHARE_DESCRIPTION = "10X Memes, RWAs, NFTs, AI, Attention & Alpha.";
 const STOP_SHARE_TITLE = "@Mention Settings";
 const STOP_SHARE_DESCRIPTION = "Opt out of 10X outreach mentions in the Farcaster Mini App.";
 const STOP_IMAGE_URL = "https://warplets.10x.meme/3081.png";
+const BASE_APP_IDS: Readonly<Record<string, string>> = {
+  "app.10x.meme": "6a8e3af7164a4b20f8b98f3a",
+  "warplet.10x.meme": "6a8dba294f7ceaca3bfa774f",
+};
 
 const APP_ASSOCIATION = {
   header:
@@ -156,7 +164,7 @@ export function buildFarcasterManifest(hostname: string, warpletsAssociation?: A
       webhookUrl: "https://app.10x.meme/webhook/app",
       castShareUrl: "https://app.10x.meme",
       subtitle: "Don't miss out.",
-      description: "10X Network. 10X Warplets. 10X Memecoins.",
+      description: APP_SHARE_DESCRIPTION,
       primaryCategory: "social",
       screenshotUrls: [
         "https://app.10x.meme/screenshots/app_1.jpg",
@@ -272,6 +280,24 @@ function getWarpletTokenId(searchParams: URLSearchParams): number | undefined {
   return Number.isSafeInteger(tokenId) && tokenId > 0 ? tokenId : undefined;
 }
 
+export function buildCanonicalUrl(requestUrl: URL): string {
+  const canonicalUrl = new URL(requestUrl.origin);
+  canonicalUrl.pathname = requestUrl.pathname === "/"
+    ? "/"
+    : requestUrl.pathname.replace(/\/+$/, "");
+
+  if (getRouteKey(requestUrl.hostname, requestUrl.pathname) === "warplets") {
+    const tokenId = getWarpletTokenId(requestUrl.searchParams);
+    if (tokenId) canonicalUrl.searchParams.set("warplet", String(tokenId));
+  }
+
+  return canonicalUrl.href;
+}
+
+export function getBaseAppId(hostname: string): string | null {
+  return BASE_APP_IDS[hostname.toLowerCase()] ?? null;
+}
+
 function getFirstWarpletTokenId(searchParams: URLSearchParams): number | undefined {
   const rawTokenId = (searchParams.get("first") ?? searchParams.get("First"))?.trim();
   if (!rawTokenId || !/^\d+$/.test(rawTokenId)) return undefined;
@@ -382,6 +408,27 @@ function buildDropOpenGraphTags(imageUrl: string, pageUrl: string): string {
     `<meta property="og:url" content="${url}" />`,
     `<meta property="og:type" content="website" />`,
     `<meta property="og:logo" content="${logo}" />`,
+    `<meta property="og:image" content="${image}" />`,
+    `<meta property="og:image:secure_url" content="${image}" />`,
+    `<meta name="twitter:card" content="summary_large_image" />`,
+    `<meta name="twitter:title" content="${title}" />`,
+    `<meta name="twitter:description" content="${description}" />`,
+    `<meta name="twitter:image" content="${image}" />`,
+  ].join("\n  ");
+}
+
+function buildAppOpenGraphTags(pageUrl: string): string {
+  const title = escapeHtmlAttr(APP_SHARE_TITLE);
+  const description = escapeHtmlAttr(APP_SHARE_DESCRIPTION);
+  const image = escapeHtmlAttr("https://app.10x.meme/embed.png");
+  const url = escapeHtmlAttr(pageUrl);
+
+  return [
+    `<meta name="description" content="${description}" />`,
+    `<meta property="og:title" content="${title}" />`,
+    `<meta property="og:description" content="${description}" />`,
+    `<meta property="og:url" content="${url}" />`,
+    `<meta property="og:type" content="website" />`,
     `<meta property="og:image" content="${image}" />`,
     `<meta property="og:image:secure_url" content="${image}" />`,
     `<meta name="twitter:card" content="summary_large_image" />`,
@@ -529,6 +576,19 @@ export const onRequestGet: PagesFunction<PagesEnv> = async (context) => {
   const frameMetaTag = `<meta name="fc:frame" content="${metaContent}" />`;
 
   let html = await response.text();
+  const baseAppId = getBaseAppId(requestUrl.hostname);
+  if (baseAppId) {
+    const baseAppIdTag = `<meta name="base:app_id" content="${baseAppId}" />`;
+    html = BASE_APP_ID_META_REGEX.test(html)
+      ? html.replace(BASE_APP_ID_META_REGEX, baseAppIdTag)
+      : html.replace("</head>", `  ${baseAppIdTag}\n  </head>`);
+  } else {
+    html = html.replace(BASE_APP_ID_META_REGEX, "");
+  }
+  const canonicalTag = `<link rel="canonical" href="${escapeHtmlAttr(buildCanonicalUrl(requestUrl))}" />`;
+  html = CANONICAL_LINK_REGEX.test(html)
+    ? html.replace(CANONICAL_LINK_REGEX, canonicalTag)
+    : html.replace("</head>", `  ${canonicalTag}\n  </head>`);
   if (routeKey === "root") {
     html = html.replace(MANIFEST_LINK_REGEX, '<link rel="manifest" href="/manifest-10x.webmanifest" />');
     html = html.replace(APPLICATION_NAME_META_REGEX, '<meta name="application-name" content="10X.MEME" />');
@@ -561,6 +621,14 @@ export const onRequestGet: PagesFunction<PagesEnv> = async (context) => {
       ? html.replace(TITLE_REGEX, titleTag)
       : html.replace("</head>", `  ${titleTag}\n  </head>`);
     html = html.replace("</head>", `  ${buildDropOpenGraphTags(dropShareImageUrl, requestUrl.href)}\n  </head>`);
+  }
+
+  if (routeKey === "root") {
+    const titleTag = `<title>${escapeHtmlText(APP_SHARE_TITLE)}</title>`;
+    html = TITLE_REGEX.test(html)
+      ? html.replace(TITLE_REGEX, titleTag)
+      : html.replace("</head>", `  ${titleTag}\n  </head>`);
+    html = html.replace("</head>", `  ${buildAppOpenGraphTags(requestUrl.href)}\n  </head>`);
   }
 
   if (routeKey === "stop") {

@@ -569,10 +569,10 @@ export default function App() {
 
             <div className="home-thesis-media-stack mt-7 rounded-xl shadow-[0_0_18px_rgba(0,255,0,0.12)]">
               <section className="overflow-hidden rounded-t-xl border-x border-t border-[#00FF00]/25 bg-black/75">
-                <div className="aspect-video w-full">
+                <div className="aspect-square w-full">
                   <iframe
                     className="h-full w-full"
-                    src="https://www.youtube.com/embed/YWRYsBhzWWM?controls=1"
+                    src="https://www.youtube.com/embed/P8tnl7sodII?controls=1"
                     title="The 10X Thesis"
                     loading="lazy"
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"

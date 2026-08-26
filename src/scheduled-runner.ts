@@ -22,14 +22,28 @@ export function scheduleTasks<Env>(
 	tasks: ScheduledTasks<Env>,
 ): void {
 	for (const taskName of productionScheduledTaskNames) {
+		const startedAt = Date.now();
 		ctx.waitUntil(
-			tasks[taskName](env).catch((error) => {
-				console.error(JSON.stringify({
-					message: "Production scheduled task failed",
-					task: taskName,
-					error: error instanceof Error ? error.message : String(error),
-				}));
-			}),
+			tasks[taskName](env)
+				.then((result) => {
+					const durationMs = Date.now() - startedAt;
+					if (durationMs >= 60_000) {
+						console.warn(JSON.stringify({
+							message: "Production scheduled task exceeded one minute",
+							task: taskName,
+							durationMs,
+							result,
+						}));
+					}
+				})
+				.catch((error) => {
+					console.error(JSON.stringify({
+						message: "Production scheduled task failed",
+						task: taskName,
+						durationMs: Date.now() - startedAt,
+						error: error instanceof Error ? error.message : String(error),
+					}));
+				}),
 		);
 	}
 }
