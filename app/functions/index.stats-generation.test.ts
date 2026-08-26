@@ -87,5 +87,7 @@ describe("on-demand Stats Open Graph generation", () => {
     const html = await response.text();
     expect(html).not.toContain("<meta property=\"og:title\"");
     expect(html).not.toContain("<meta property=\"og:description\"");
+    expect(html).toContain("&quot;title&quot;:&quot;View&quot;");
+    expect(html).toContain("&quot;url&quot;:&quot;https://warplet.10x.meme/stats/overview/launch&quot;");
   });
 });

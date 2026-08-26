@@ -710,7 +710,11 @@ export const onRequestGet: PagesFunction<PagesEnv> = async (context) => {
       routeImageUrl,
       isSharedContentDeepLink ? "View" : statsShareSnapshot?.title ?? warpmojiCtaTitle ?? searchShareTitle,
       isSharedContentDeepLink ? undefined : statsShareSnapshot?.title ?? warpmojiCtaTitle ?? searchShareTitle,
-      statsShareSnapshot ? `${requestUrl.origin}${statsShareSnapshot.launchPath}` : undefined,
+      statsLaunchLookupPath
+        ? `${requestUrl.origin}${statsLaunchLookupPath}`
+        : statsShareSnapshot
+          ? `${requestUrl.origin}${statsShareSnapshot.launchPath}`
+          : undefined,
     )
   );
   const metaTag = `<meta name="fc:miniapp" content="${metaContent}" />`;
