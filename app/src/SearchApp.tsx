@@ -51,7 +51,7 @@ import { recordLocalOfferDiagnostic } from "./localOfferDiagnostics";
 import { submitTraitOfferWithRetry } from "./traitOfferSubmit";
 import { getMobileWalletHandoff, openMobileWalletHandoff, waitForForeground } from "./mobileWalletHandoff";
 import { resolveEntryPoint, isBaseAppContext, isEmbeddedWebView, isLikelyBaseAppBrowser, isStandaloneDisplay, subscribeToWebPush } from "./pwa";
-import { resolveEffectiveWarpletOwner } from "./ownerResolution";
+import { findRarestOwnedWarpletTokenId, resolveEffectiveWarpletOwner } from "./ownerResolution";
 import { canPresentAirdrop, shouldCoverAppWhileResolvingOnboarding, shouldOpenOnboarding } from "./searchModalSequence";
 import { SERVER_CACHE_RESET_PENDING_KEY } from "./localCacheReset";
 import ProgressiveNotificationImage from "./ProgressiveNotificationImage";
@@ -1114,6 +1114,8 @@ type SharePreviewImage = {
   fallbackSrc?: string;
   isLoading?: boolean;
   aspectRatio?: "square" | "landscape";
+  waitForResolvedSource?: boolean;
+  sourceResolved?: boolean;
 };
 
 type SharePreviewState = {
@@ -5812,8 +5814,6 @@ function StatsMarket({
   const listActivity = statsRecord(activityMix?.list);
   const offerActivity = statsRecord(activityMix?.offer);
   const saleActivity = statsRecord(activityMix?.sale);
-  const onchainTransfers = statsMetric(payload, "onchainTransfers", "onchainTransferCount");
-  const onchainTransferCount = statsNumber(onchainTransfers);
   const listCount = statsNumber(statsMetric(payload, "listingActivity")) ?? statsNumber(listActivity?.count) ?? 0;
   const offerCount = statsNumber(statsMetric(payload, "offerActivity")) ?? statsNumber(offerActivity?.count) ?? 0;
   const saleCount = statsNumber(saleActivity?.count) ?? 0;
@@ -5853,14 +5853,6 @@ function StatsMarket({
 
   return (
     <div>
-      {onchainTransferCount != null && (
-        <div className="grid grid-cols-2 gap-2">
-          <StatsMetricCard
-            label="Onchain Transfers"
-            value={formatStatsInteger(onchainTransfers)}
-          />
-        </div>
-      )}
       {activityCount > 0 && (
         <section className="mt-3 overflow-hidden rounded-xl border border-[#00FF00]/30 bg-[rgba(0,255,0,0.07)] p-3">
           <div className="flex h-7 w-full overflow-hidden bg-black">
@@ -12114,7 +12106,9 @@ function SharePreviewModal({
           if (!payload || typeof payload !== "object") {
             setResolvedImages((currentImages) =>
               currentImages.map((currentImage, currentIndex) =>
-                currentIndex === index ? { ...currentImage, isLoading: false } : currentImage,
+                currentIndex === index && !currentImage.waitForResolvedSource
+                  ? { ...currentImage, isLoading: false }
+                  : currentImage,
               ),
             );
             return;
@@ -12123,7 +12117,9 @@ function SharePreviewModal({
           if (typeof imageUrl !== "string" || !imageUrl) {
             setResolvedImages((currentImages) =>
               currentImages.map((currentImage, currentIndex) =>
-                currentIndex === index ? { ...currentImage, isLoading: false } : currentImage,
+                currentIndex === index && !currentImage.waitForResolvedSource
+                  ? { ...currentImage, isLoading: false }
+                  : currentImage,
               ),
             );
             return;
@@ -12134,10 +12130,13 @@ function SharePreviewModal({
               currentIndex === index
                 ? {
                     ...currentImage,
-                  fallbackSrc: currentImage.fallbackSrc ?? currentImage.src,
-                  src: imageUrl,
-                  isLoading: true,
-                }
+                    fallbackSrc: currentImage.waitForResolvedSource
+                      ? undefined
+                      : currentImage.fallbackSrc ?? currentImage.src,
+                    src: imageUrl,
+                    isLoading: true,
+                    sourceResolved: true,
+                  }
                 : currentImage,
             ),
           );
@@ -12147,7 +12146,9 @@ function SharePreviewModal({
           if (cancelled) return;
           setResolvedImages((currentImages) =>
             currentImages.map((currentImage, currentIndex) =>
-              currentIndex === index ? { ...currentImage, isLoading: false } : currentImage,
+              currentIndex === index && !currentImage.waitForResolvedSource
+                ? { ...currentImage, isLoading: false }
+                : currentImage,
             ),
           );
         });
@@ -12306,38 +12307,41 @@ function SharePreviewModal({
                         <span className="h-8 w-8 animate-spin rounded-full border-2 border-[#00FF00]/25 border-t-[#00FF00]" aria-label="Loading share preview image" />
                       </div>
                     )}
-                    <img
-                      src={image.src}
-                      alt={image.alt}
-                      className={`relative z-[1] block h-full w-full transition-opacity duration-300 ${image.isLoading ? "opacity-0" : "opacity-100"} ${image.sourceUrl ? "object-contain" : "object-cover"}`}
-                      loading="lazy"
-                      onLoad={() => {
-                        if (!image.isLoading) return;
-                        setResolvedImages((currentImages) =>
-                          currentImages.map((currentImage, currentIndex) =>
-                            currentIndex === index ? { ...currentImage, isLoading: false } : currentImage,
-                          ),
-                        );
-                      }}
-                      onError={(event) => {
-                        if (!image.fallbackSrc || event.currentTarget.src === image.fallbackSrc) {
+                    {(!image.waitForResolvedSource || image.sourceResolved) && (
+                      <img
+                        src={image.src}
+                        alt={image.alt}
+                        className={`relative z-[1] block h-full w-full transition-opacity duration-300 ${image.isLoading ? "opacity-0" : "opacity-100"} ${image.sourceUrl ? "object-contain" : "object-cover"}`}
+                        loading="lazy"
+                        onLoad={() => {
+                          if (!image.isLoading) return;
                           setResolvedImages((currentImages) =>
                             currentImages.map((currentImage, currentIndex) =>
                               currentIndex === index ? { ...currentImage, isLoading: false } : currentImage,
                             ),
                           );
-                          return;
-                        }
-                        event.currentTarget.src = image.fallbackSrc;
-                        setResolvedImages((currentImages) =>
-                          currentImages.map((currentImage, currentIndex) =>
-                            currentIndex === index
-                              ? { ...currentImage, src: image.fallbackSrc ?? currentImage.src, isLoading: true }
-                              : currentImage,
-                          ),
-                        );
-                      }}
-                    />
+                        }}
+                        onError={(event) => {
+                          if (!image.fallbackSrc || event.currentTarget.src === image.fallbackSrc) {
+                            if (image.waitForResolvedSource) return;
+                            setResolvedImages((currentImages) =>
+                              currentImages.map((currentImage, currentIndex) =>
+                                currentIndex === index ? { ...currentImage, isLoading: false } : currentImage,
+                              ),
+                            );
+                            return;
+                          }
+                          event.currentTarget.src = image.fallbackSrc;
+                          setResolvedImages((currentImages) =>
+                            currentImages.map((currentImage, currentIndex) =>
+                              currentIndex === index
+                                ? { ...currentImage, src: image.fallbackSrc ?? currentImage.src, isLoading: true }
+                                : currentImage,
+                            ),
+                          );
+                        }}
+                      />
+                    )}
                   </div>
                   <div className="mb-1 mt-2 grid grid-cols-2 gap-2">
                     <button
@@ -16080,12 +16084,17 @@ export default function SearchApp() {
   }, [activeWallet, loadMarketOwnership, searchRoute.page]);
 
   useEffect(() => {
-    if (searchRoute.page === "search" && viewerFid) {
-      void loadMarketOwnership({ fid: viewerFid }).catch((error) => {
-        console.error("Failed to load viewer ownership:", error);
-      });
-    }
-  }, [loadMarketOwnership, searchRoute.page, viewerFid]);
+    if (searchRoute.page !== "search") return;
+    const ownershipSelector = activeWallet
+      ? { wallet: activeWallet }
+      : viewerFid
+        ? { fid: viewerFid }
+        : null;
+    if (!ownershipSelector) return;
+    void loadMarketOwnership(ownershipSelector).catch((error) => {
+      console.error("Failed to load viewer ownership:", error);
+    });
+  }, [activeWallet, loadMarketOwnership, searchRoute.page, viewerFid]);
 
   const refreshListedMarket = useCallback(async () => {
     try {
@@ -16389,7 +16398,7 @@ export default function SearchApp() {
 
   useEffect(() => {
     const db = dbRef.current;
-    if (!dbReady || !db || viewerFid == null || !marketSnapshot) {
+    if (!dbReady || !db || (!activeWallet && viewerFid == null) || !marketSnapshot) {
       setMatchedWarpletCard(null);
       return;
     }
@@ -16398,26 +16407,34 @@ export default function SearchApp() {
 
     const loadViewerMatch = async () => {
       try {
-        const rows = db.exec(
-          `SELECT
-             ${RESULT_SELECT_COLUMNS}
-           FROM warplets w
-           WHERE w.fid_value = ?
-           ORDER BY w.id ASC
-           LIMIT 1`,
-          {
-            bind: [viewerFid],
-            rowMode: "array",
-            returnValue: "resultRows",
-          },
-        );
+        const rows = viewerFid == null
+          ? []
+          : db.exec(
+            `SELECT
+               ${RESULT_SELECT_COLUMNS}
+             FROM warplets w
+             WHERE w.fid_value = ?
+             ORDER BY w.id ASC
+             LIMIT 1`,
+            {
+              bind: [viewerFid],
+              rowMode: "array",
+              returnValue: "resultRows",
+            },
+          );
         const match = mapRows(rows)[0] ?? null;
         const matchOwnerWallet = match
           ? marketSnapshot.owners[String(match.id)]?.wallet?.trim().toLowerCase() ?? ""
           : "";
         const matchMetadataWallet = match?.wallet.trim().toLowerCase() ?? "";
 
-        if (match && matchOwnerWallet && matchMetadataWallet && matchOwnerWallet === matchMetadataWallet) {
+        if (
+          match &&
+          matchOwnerWallet &&
+          matchMetadataWallet &&
+          matchOwnerWallet === matchMetadataWallet &&
+          (!activeWallet || walletMatches(matchOwnerWallet, activeWallet))
+        ) {
           await preloadResultImages([match]);
           if (!cancelled) {
             setMatchedWarpletCard({ warplet: match, label: "We Found You!" });
@@ -16425,11 +16442,10 @@ export default function SearchApp() {
           return;
         }
 
-        const rarestOwnedTokenId = Object.entries(marketSnapshot.owners)
-          .filter(([, owner]) => owner.fid === viewerFid)
-          .map(([tokenId]) => Number(tokenId))
-          .filter((tokenId) => Number.isInteger(tokenId) && tokenId > 0)
-          .sort((left, right) => left - right)[0];
+        const rarestOwnedTokenId = findRarestOwnedWarpletTokenId(marketSnapshot.owners, {
+          wallet: activeWallet,
+          fid: viewerFid,
+        });
         const rarestOwnedWarplet = rarestOwnedTokenId ? loadWarpletResultById(db, rarestOwnedTokenId) : null;
 
         if (rarestOwnedWarplet) {
@@ -16443,7 +16459,7 @@ export default function SearchApp() {
           );
         }
       } catch (err) {
-        console.error("Failed to match Farcaster user to Warplet:", err);
+        console.error("Failed to match connected user to Warplet:", err);
         if (!cancelled) {
           setMatchedWarpletCard(null);
         }
@@ -16455,7 +16471,7 @@ export default function SearchApp() {
     return () => {
       cancelled = true;
     };
-  }, [dbReady, marketSnapshot, viewerFid]);
+  }, [activeWallet, dbReady, marketSnapshot, viewerFid]);
 
   const runSearch = useCallback(async (
     nextQuery: string,
@@ -17538,6 +17554,7 @@ export default function SearchApp() {
           src: "/menu/menu-opensea-10xwarplets.jpg",
           alt: "10X Warplets OpenSea collection share image",
           sourceUrl: openSeaCollectionUrl,
+          waitForResolvedSource: true,
         },
       ],
       farcasterEmbeds: [shareUrl, openSeaCollectionUrl],

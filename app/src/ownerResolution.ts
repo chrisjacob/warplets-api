@@ -10,8 +10,28 @@ export type WarpletOwner = {
   followingCount?: number | null;
 };
 
-function normalizedWallet(owner: WarpletOwner | null | undefined): string {
+function normalizedWallet(owner: Pick<WarpletOwner, "wallet"> | null | undefined): string {
   return owner?.wallet?.trim().toLowerCase() ?? "";
+}
+
+export function findRarestOwnedWarpletTokenId(
+  owners: Record<string, Pick<WarpletOwner, "wallet" | "fid">>,
+  identity: { wallet?: string | null; fid?: number | null },
+): number | null {
+  const wallet = identity.wallet?.trim().toLowerCase() ?? "";
+  const fid = Number.isInteger(identity.fid) && Number(identity.fid) > 0
+    ? Number(identity.fid)
+    : null;
+
+  const tokenId = Object.entries(owners)
+    .filter(([, owner]) => wallet
+      ? normalizedWallet(owner) === wallet
+      : fid != null && owner.fid === fid)
+    .map(([rawTokenId]) => Number(rawTokenId))
+    .filter((candidate) => Number.isInteger(candidate) && candidate > 0)
+    .sort((left, right) => left - right)[0];
+
+  return tokenId ?? null;
 }
 
 export function resolveEffectiveWarpletOwner(
