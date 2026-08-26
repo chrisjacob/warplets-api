@@ -19,6 +19,7 @@ import {
   type MarketMoney,
   type OpenSeaMarketEnv,
 } from "./openseaMarket.js";
+import { fetchBaseRpc, type BaseRpcEnv } from "./baseRpc.js";
 import { jsonSecure } from "./security.js";
 import { logTradeAction } from "./openseaTrade.js";
 import { recordWarpletActivity } from "./warpletNotifications.js";
@@ -483,34 +484,15 @@ function offerIsWeth(row: CollectionOfferRow): boolean {
   return isEthLikeCurrency(price.currencySymbol, normalizeAddress(price.tokenAddress), price.decimals);
 }
 
-async function fetchSeaportCounter(offerer: string): Promise<string> {
+export async function fetchSeaportCounter(env: BaseRpcEnv, offerer: string): Promise<string> {
   const encodedOfferer = offerer.toLowerCase().replace(/^0x/, "").padStart(64, "0");
-  let lastError: unknown;
-  for (let attempt = 0; attempt < 3; attempt += 1) {
-    try {
-      const response = await fetch("https://mainnet.base.org", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          jsonrpc: "2.0",
-          id: 1,
-          method: "eth_call",
-          params: [{ to: DEFAULT_SEAPORT_PROTOCOL, data: `0xf07ec373${encodedOfferer}` }, "latest"],
-        }),
-        signal: AbortSignal.timeout(10000),
-      });
-      if (!response.ok) throw new Error(`Base RPC failed (${response.status})`);
-      const payload = (await response.json()) as Record<string, unknown>;
-      if (payload.error) throw new Error(`Base RPC rejected the Seaport counter request: ${JSON.stringify(payload.error)}`);
-      const hex = asString(payload.result);
-      if (!hex) throw new Error("Base RPC did not return the Seaport counter");
-      return BigInt(hex).toString();
-    } catch (error) {
-      lastError = error;
-      if (attempt < 2) await new Promise((resolve) => setTimeout(resolve, 350 * (2 ** attempt)));
-    }
-  }
-  throw lastError instanceof Error ? lastError : new Error("Base RPC could not read the Seaport counter");
+  const result = await fetchBaseRpc(env, "eth_call", [
+    { to: DEFAULT_SEAPORT_PROTOCOL, data: `0xf07ec373${encodedOfferer}` },
+    "latest",
+  ]);
+  const hex = asString(result);
+  if (!hex) throw new Error("Base RPC did not return the Seaport counter");
+  return BigInt(hex).toString();
 }
 
 let collectionFeesCache: { expiresAt: number; fees: Array<{ recipient: string; bps: number }> } | null = null;
@@ -978,7 +960,7 @@ export async function handleCollectionOfferPrepare(context: Parameters<PagesFunc
   try {
     const apiKey = requireOpenSeaApiKey(context.env);
     const [counter, fees, built] = await Promise.all([
-      fetchSeaportCounter(wallet),
+      fetchSeaportCounter(context.env, wallet),
       fetchCollectionFees(apiKey),
       openSeaPostWithTransientRetry(apiKey, "/offers/build", {
         offerer: wallet,
@@ -1182,7 +1164,7 @@ export async function handleTraitOfferPrepare(context: Parameters<PagesFunction<
   try {
     const apiKey = requireOpenSeaApiKey(context.env);
     const [counter, fees, builtResult] = await Promise.all([
-      fetchSeaportCounter(wallet),
+      fetchSeaportCounter(context.env, wallet),
       fetchCollectionFees(apiKey),
       openSeaPost(apiKey, "/offers/build", {
         offerer: wallet,

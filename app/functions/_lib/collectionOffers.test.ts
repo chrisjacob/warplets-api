@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { buildSeaportCriteriaRoot, computeSeaportOrderHash, openSeaPostHeaders, openSeaPostWithTransientRetry, withOriginalConsiderationCount } from "./collectionOffers.js";
+import { buildSeaportCriteriaRoot, computeSeaportOrderHash, fetchSeaportCounter, openSeaPostHeaders, openSeaPostWithTransientRetry, withOriginalConsiderationCount } from "./collectionOffers.js";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -53,6 +53,38 @@ describe("withOriginalConsiderationCount", () => {
       totalOriginalConsiderationItems: 3,
     });
     expect(parameters).not.toHaveProperty("totalOriginalConsiderationItems");
+  });
+});
+
+describe("fetchSeaportCounter", () => {
+  it("reads the counter through the configured Base RPC provider", async () => {
+    const requests: Array<{ input: string; init?: RequestInit }> = [];
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      requests.push({ input: String(input), init });
+      return Response.json({ jsonrpc: "2.0", id: 1, result: "0x2a" });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const counter = await fetchSeaportCounter(
+      { BASE_RPC_URL: "https://base-mainnet.g.alchemy.com/v2/test-key" },
+      "0x4709a4b12daf0eedae0ef48a28a056640dee0846",
+    );
+
+    expect(counter).toBe("42");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(requests[0]?.input).toBe("https://base-mainnet.g.alchemy.com/v2/test-key");
+    expect(JSON.parse(String(requests[0]?.init?.body))).toEqual({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "eth_call",
+      params: [
+        {
+          to: "0x0000000000000068f116a894984e2db1123eb395",
+          data: "0xf07ec3730000000000000000000000004709a4b12daf0eedae0ef48a28a056640dee0846",
+        },
+        "latest",
+      ],
+    });
   });
 });
 
