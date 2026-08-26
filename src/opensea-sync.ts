@@ -4,8 +4,9 @@
  * How resumption works:
  *   • After each successful run, the ISO timestamp of the most recent event
  *     processed is written to KV under `opensea_last_sync_at`.
- *   • On the next run, that value is read back and passed as `occurred_after`
- *     to the OpenSea API, ensuring no events are missed across cron gaps.
+ *   • On the next run, that value is read back and passed
+ *     to the OpenSea API as the supported `after` filter, ensuring no events
+ *     are missed across cron gaps.
  *   • On the very first run (or if KV is empty) we fall back to the last 24 h.
  *   • The `next` cursor returned by OpenSea is followed until exhausted so
  *     large bursts of activity are fully captured in a single cron invocation.
@@ -25,6 +26,7 @@ const DISTRIBUTION_WALLET = "0x4709a4b12daf0eedae0ef48a28a056640dee0846";
 const KV_LAST_SYNC_KEY = "opensea_last_sync_at";
 const KV_STATS_BUYS_KEY = "stats_buys";
 const OPENSEA_REQUEST_TIMEOUT_MS = 12_000;
+const OPENSEA_EVENTS_PAGE_SIZE = 200;
 
 // ---------------------------------------------------------------------------
 // Types
@@ -123,6 +125,19 @@ export function resolveOpenSeaResumePoint(
   };
 }
 
+export function buildOpenSeaSalesEventsUrl(
+  occurredAfterSec: number,
+  cursor: string | null = null,
+): string {
+  const params = new URLSearchParams({
+    event_type: "sale",
+    after: String(occurredAfterSec),
+    limit: String(OPENSEA_EVENTS_PAGE_SIZE),
+  });
+  if (cursor) params.set("next", cursor);
+  return `${OPENSEA_API_BASE}/events/collection/${COLLECTION_SLUG}?${params}`;
+}
+
 // ---------------------------------------------------------------------------
 // Main sync function
 // ---------------------------------------------------------------------------
@@ -151,7 +166,7 @@ export async function runOpenseaSync(
   }
 
   console.log(
-    `[opensea-sync] resume cursor=${lastSyncAt ?? "none"} occurred_after=${occurredAfterSec} source=${resume.source}`,
+    `[opensea-sync] resume cursor=${lastSyncAt ?? "none"} after=${occurredAfterSec} source=${resume.source}`,
   );
 
   // -------------------------------------------------------------------------
@@ -165,14 +180,7 @@ export async function runOpenseaSync(
   let buyMatchFound = false;
 
   do {
-    const params = new URLSearchParams({
-      event_type: "sale",
-      occurred_after: String(occurredAfterSec),
-      limit: "50",
-    });
-    if (cursor) params.set("next", cursor);
-
-    const url = `${OPENSEA_API_BASE}/events/collection/${COLLECTION_SLUG}?${params}`;
+    const url = buildOpenSeaSalesEventsUrl(occurredAfterSec, cursor);
 
     let res: Response;
     try {

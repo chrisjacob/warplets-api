@@ -16,7 +16,11 @@
  */
 
 import { dispatchNotificationBatch } from "../../_lib/dispatch.js";
-import { sendBaseNotificationCampaign, type BaseNotificationsEnv } from "../../_lib/baseNotifications.js";
+import {
+  resolveBaseNotificationConfig,
+  sendBaseNotificationCampaign,
+  type BaseNotificationsEnv,
+} from "../../_lib/baseNotifications.js";
 import {
   sendWebPushNotification,
   type WebPushEnv,
@@ -38,7 +42,7 @@ import {
   readJsonBodyWithLimit,
   requireAdminScope,
 } from "../../_lib/security.js";
-import { WARPLETS_APP_ORIGINS, WARPLETS_APP_SLUG } from "../../../shared/warpletsApp.js";
+import { WARPLETS_APP_SLUG } from "../../../shared/warpletsApp.js";
 
 interface Env extends BaseNotificationsEnv, WebPushEnv {
   WARPLETS: D1Database;
@@ -563,12 +567,13 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
   if (wantBase) {
     const target = new URL(targetBase);
-    const appOrigin = new URL(context.env.BASE_APP_URL || WARPLETS_APP_ORIGINS.prod).origin;
+    const baseAppSlug = audienceSlug === "all" ? WARPLETS_APP_SLUG : audienceSlug;
+    const appOrigin = new URL(resolveBaseNotificationConfig(context.env, baseAppSlug).appUrl).origin;
     const targetPath = target.origin === appOrigin ? `${target.pathname}${target.search}` : "/";
     const baseWallets = await resolveBaseWallets(context.env.WARPLETS, requestedFids, json.wallets);
     const baseResults = await sendBaseNotificationCampaign(context.env, {
       campaignId: notificationId,
-      appSlug: audienceSlug === "all" ? WARPLETS_APP_SLUG : audienceSlug,
+      appSlug: baseAppSlug,
       wallets: baseWallets,
       title,
       message: body,

@@ -1,9 +1,21 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  buildOpenSeaSalesEventsUrl,
   parseOpenSeaTimestampSeconds,
   resolveOpenSeaResumePoint,
 } from "./opensea-sync";
+
+test("OpenSea sales requests use the supported v2 time filter and maximum page size", () => {
+  const url = new URL(buildOpenSeaSalesEventsUrl(1787156433, "next-page"));
+
+  assert.equal(url.pathname, "/api/v2/events/collection/10xwarplets");
+  assert.equal(url.searchParams.get("after"), "1787156433");
+  assert.equal(url.searchParams.has("occurred_after"), false);
+  assert.equal(url.searchParams.get("event_type"), "sale");
+  assert.equal(url.searchParams.get("limit"), "200");
+  assert.equal(url.searchParams.get("next"), "next-page");
+});
 
 test("OpenSea resume parsing accepts the production Unix-seconds cursor", () => {
   assert.equal(parseOpenSeaTimestampSeconds("1787156433"), 1787156433);

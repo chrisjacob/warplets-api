@@ -167,7 +167,7 @@ export function buildFarcasterManifest(hostname: string, warpletsAssociation?: A
       description: APP_SHARE_DESCRIPTION,
       primaryCategory: "social",
       screenshotUrls: [
-        "https://app.10x.meme/screenshots/app_1.jpg",
+        "https://app.10x.meme/screenshots/app_1v2.jpg",
       ],
       tags: ["10x", "warplets", "farcaster", "nft", "memecoins"],
       tagline: "Don't miss out.",

@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { appendBuilderCode, builderCodeSuffix } from "./builderCode";
+import { appendBuilderCode, builderCodeSuffix, resolveBuilderCodeForHostname } from "./builderCode";
 
 describe("Base Builder Code attribution", () => {
+  it("keeps app and Warplets Builder Codes scoped to their own hostnames", () => {
+    expect(resolveBuilderCodeForHostname("app.10x.meme", "app-code", "warplets-code")).toBe("app-code");
+    expect(resolveBuilderCodeForHostname("10x.meme", "app-code", "warplets-code")).toBe("app-code");
+    expect(resolveBuilderCodeForHostname("warplet.10x.meme", "app-code", "warplets-code")).toBe("warplets-code");
+  });
+
   it("creates and appends an ERC-8021 suffix", () => {
     const suffix = builderCodeSuffix("10x-warplets");
     expect(suffix).toMatch(/^0x[0-9a-f]+$/);

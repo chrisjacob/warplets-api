@@ -1,8 +1,10 @@
 import { WARPLETS_APP_ORIGINS, WARPLETS_APP_SLUG } from "../../shared/warpletsApp.js";
+import { getDefaultLaunchUrl, type AppSlug } from "./appSlug.js";
 
 export interface BaseNotificationsEnv {
   WARPLETS: D1Database;
   BASE_NOTIFICATIONS_API_KEY?: string;
+  BASE_APP_NOTIFICATIONS_API_KEY?: string;
   BASE_NOTIFICATIONS_ENABLED?: string;
   BASE_APP_URL?: string;
 }
@@ -30,11 +32,29 @@ const WALLET_PATTERN = /^0x[a-f0-9]{40}$/;
 const BASE_REQUEST_SPACING_MS = 3100;
 let lastBaseRequestAt = 0;
 
-function requireConfig(env: BaseNotificationsEnv): { apiKey: string; appUrl: string } {
+export function resolveBaseNotificationConfig(
+  env: BaseNotificationsEnv,
+  appSlug: AppSlug,
+): { apiKey: string | null; appUrl: string } {
+  if (appSlug === "app") {
+    return {
+      apiKey: env.BASE_APP_NOTIFICATIONS_API_KEY?.trim() || null,
+      appUrl: getDefaultLaunchUrl("app"),
+    };
+  }
+  if (appSlug === WARPLETS_APP_SLUG) {
+    return {
+      apiKey: env.BASE_NOTIFICATIONS_API_KEY?.trim() || null,
+      appUrl: env.BASE_APP_URL?.trim() || WARPLETS_APP_ORIGINS.prod,
+    };
+  }
+  return { apiKey: null, appUrl: getDefaultLaunchUrl(appSlug) };
+}
+
+function requireConfig(env: BaseNotificationsEnv, appSlug: AppSlug): { apiKey: string; appUrl: string } {
   if (env.BASE_NOTIFICATIONS_ENABLED !== "true") throw new Error("Base notifications are disabled");
-  const apiKey = env.BASE_NOTIFICATIONS_API_KEY?.trim();
-  const appUrl = env.BASE_APP_URL?.trim() || WARPLETS_APP_ORIGINS.prod;
-  if (!apiKey) throw new Error("BASE_NOTIFICATIONS_API_KEY is not configured");
+  const { apiKey, appUrl } = resolveBaseNotificationConfig(env, appSlug);
+  if (!apiKey) throw new Error(`Base notifications are not configured for ${appSlug}`);
   return { apiKey, appUrl };
 }
 
@@ -44,8 +64,13 @@ function normalizeWallet(value: unknown): string | null {
   return WALLET_PATTERN.test(normalized) ? normalized : null;
 }
 
-async function baseFetch(env: BaseNotificationsEnv, path: string, init: RequestInit = {}): Promise<Response> {
-  const { apiKey } = requireConfig(env);
+async function baseFetch(
+  env: BaseNotificationsEnv,
+  appSlug: AppSlug,
+  path: string,
+  init: RequestInit = {},
+): Promise<Response> {
+  const { apiKey } = requireConfig(env, appSlug);
   let response: Response | null = null;
   for (let attempt = 0; attempt < 3; attempt += 1) {
     const waitMs = Math.max(0, BASE_REQUEST_SPACING_MS - (Date.now() - lastBaseRequestAt));
@@ -61,11 +86,15 @@ async function baseFetch(env: BaseNotificationsEnv, path: string, init: RequestI
   return response as Response;
 }
 
-export async function getBaseNotificationStatus(env: BaseNotificationsEnv, wallet: string): Promise<BaseNotificationStatus> {
+export async function getBaseNotificationStatus(
+  env: BaseNotificationsEnv,
+  wallet: string,
+  appSlug: AppSlug = WARPLETS_APP_SLUG,
+): Promise<BaseNotificationStatus> {
   const normalized = normalizeWallet(wallet);
   if (!normalized) throw new Error("A valid wallet is required");
-  const { appUrl } = requireConfig(env);
-  const response = await baseFetch(env, "/api/v1/notifications/app/user/status", {
+  const { appUrl } = requireConfig(env, appSlug);
+  const response = await baseFetch(env, appSlug, "/api/v1/notifications/app/user/status", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ app_url: appUrl, wallet_address: normalized }),
@@ -75,14 +104,17 @@ export async function getBaseNotificationStatus(env: BaseNotificationsEnv, walle
   return { appPinned: payload.appPinned === true, notificationsEnabled: payload.notificationsEnabled === true };
 }
 
-export async function getBaseNotificationAudience(env: BaseNotificationsEnv): Promise<string[]> {
-  const { appUrl } = requireConfig(env);
+export async function getBaseNotificationAudience(
+  env: BaseNotificationsEnv,
+  appSlug: AppSlug = WARPLETS_APP_SLUG,
+): Promise<string[]> {
+  const { appUrl } = requireConfig(env, appSlug);
   const wallets = new Set<string>();
   let cursor = "";
   for (let page = 0; page < 100; page += 1) {
     const query = new URLSearchParams({ app_url: appUrl, notification_enabled: "true", limit: "500" });
     if (cursor) query.set("cursor", cursor);
-    const response = await baseFetch(env, `/api/v1/notifications/app/users?${query.toString()}`);
+    const response = await baseFetch(env, appSlug, `/api/v1/notifications/app/users?${query.toString()}`);
     if (!response.ok) throw new Error(`Base notification audience failed (${response.status})`);
     const payload = await response.json() as BaseAudienceResponse;
     for (const user of payload.users ?? []) {
@@ -123,18 +155,19 @@ async function reserveDelivery(
 
 export async function sendBaseNotificationCampaign(env: BaseNotificationsEnv, input: {
   campaignId: string;
-  appSlug?: string;
+  appSlug?: AppSlug;
   wallets?: string[];
   title: string;
   message: string;
   targetPath?: string;
 }): Promise<Array<{ wallet: string; state: string; error?: string }>> {
-  const { appUrl } = requireConfig(env);
-  const sourceWallets = input.wallets?.length ? input.wallets : await getBaseNotificationAudience(env);
+  const appSlug = input.appSlug ?? WARPLETS_APP_SLUG;
+  const { appUrl } = requireConfig(env, appSlug);
+  const sourceWallets = input.wallets?.length ? input.wallets : await getBaseNotificationAudience(env, appSlug);
   const uniqueWallets = [...new Set(sourceWallets.map(normalizeWallet).filter((value): value is string => Boolean(value)))];
   const reserved: Array<{ wallet: string; id: number }> = [];
   for (const wallet of uniqueWallets) {
-    const id = await reserveDelivery(env, input.campaignId, wallet, input.appSlug ?? WARPLETS_APP_SLUG);
+    const id = await reserveDelivery(env, input.campaignId, wallet, appSlug);
     if (id) reserved.push({ wallet, id });
   }
   const results: Array<{ wallet: string; state: string; error?: string }> = [];
@@ -143,7 +176,7 @@ export async function sendBaseNotificationCampaign(env: BaseNotificationsEnv, in
     const batch = reserved.slice(index, index + 1000);
     const target = new URL(input.targetPath || "/", appUrl);
     target.searchParams.set("baseNotificationId", input.campaignId);
-    const response = await baseFetch(env, "/api/v1/notifications/send", {
+    const response = await baseFetch(env, appSlug, "/api/v1/notifications/send", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({

@@ -28,6 +28,12 @@ describe("10X app metadata", () => {
     expect(APP_SHARE_DESCRIPTION).toBe("10X Memes, RWAs, NFTs, AI, Attention & Alpha.");
     expect(buildFarcasterManifest("app.10x.meme").miniapp.description).toBe(APP_SHARE_DESCRIPTION);
   });
+
+  it("publishes the current app screenshot", () => {
+    expect(buildFarcasterManifest("app.10x.meme").miniapp.screenshotUrls).toEqual([
+      "https://app.10x.meme/screenshots/app_1v2.jpg",
+    ]);
+  });
 });
 
 describe("canonical URLs", () => {

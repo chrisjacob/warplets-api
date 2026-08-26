@@ -5,6 +5,7 @@ interface ImportMetaEnv {
   readonly VITE_TRUSTCONNECT_ENABLED?: string;
   readonly VITE_BASE_ACCOUNT_ENABLED?: string;
   readonly VITE_BASE_BUILDER_CODE?: string;
+  readonly VITE_BASE_APP_BUILDER_CODE?: string;
   readonly VITE_WALLETCONNECT_PROJECT_ID?: string;
   readonly VITE_FARCASTER_WARPLETS_MINI_APP_URL?: string;
 }

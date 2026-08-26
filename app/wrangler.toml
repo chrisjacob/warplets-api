@@ -17,7 +17,9 @@ preview_bucket_name = "warplets-stats-shares-preview"
 # to the correct app_slug. Not sensitive (public Farcaster account IDs).
 APP_APP_FID = "9152"
 BASE_APP_URL = "https://warplet.10x.meme"
-# Base.dev project ownership and the production API secret are configured.
+# Base.dev project ownership and the production API secrets are configured.
+# Secrets: BASE_NOTIFICATIONS_API_KEY (Warplets) and
+# BASE_APP_NOTIFICATIONS_API_KEY (app.10x.meme).
 BASE_NOTIFICATIONS_ENABLED = "true"
 EMAIL_AUDIENCE_MUTATIONS_ENABLED = "true"
 RESEND_ONBOARDING_ENABLED = "false"
