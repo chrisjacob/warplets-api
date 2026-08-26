@@ -3509,11 +3509,61 @@ function toHolderApiRow(
   };
 }
 
-export async function loadStatsFriendHoldersForShare(
+export async function resolveStatsFriendFilterFid(
+  db: D1Database,
+  wallet: string,
+): Promise<number | null> {
+  const linked = await db.prepare(
+    `SELECT fid
+     FROM wallet_farcaster_links l
+     WHERE wallet = ? AND fid > 0
+     GROUP BY fid
+     ORDER BY
+       EXISTS (
+         SELECT 1 FROM warplets_user_best_friends bf
+         WHERE bf.user_fid = l.fid
+       ) DESC,
+       MAX(COALESCE(score, -1)) DESC,
+       fid ASC
+     LIMIT 1`,
+  ).bind(wallet).first<{ fid: number }>().catch(() => null);
+  const linkedFid = asInteger(linked?.fid);
+  if (linkedFid !== null) return linkedFid;
+
+  const fallback = await db.prepare(
+    `WITH candidates(fid, source_rank) AS (
+       SELECT owner_fid, 0
+       FROM warplet_market_state
+       WHERE LOWER(TRIM(owner_wallet)) = ?
+         AND owner_fid IS NOT NULL
+       UNION ALL
+       SELECT fid, 1
+       FROM warplets_users
+       WHERE LOWER(TRIM(primary_eth_address)) = ?
+     )
+     SELECT fid
+     FROM candidates c
+     WHERE fid IS NOT NULL AND fid > 0
+     GROUP BY fid
+     ORDER BY
+       EXISTS (
+         SELECT 1 FROM warplets_user_best_friends bf
+         WHERE bf.user_fid = c.fid
+       ) DESC,
+       MIN(source_rank) ASC,
+       fid ASC
+     LIMIT 1`,
+  ).bind(wallet, wallet).first<{ fid: number }>().catch(() => null);
+  return asInteger(fallback?.fid);
+}
+
+export async function loadStatsFriendHolders(
   env: StatsEnv,
   viewerFid: number,
+  limit = 100,
 ): Promise<{ rows: HolderApiRow[]; totalHolders: number; asOf: string | null }> {
   await ensureHolderLeaderboard(env.WARPLETS);
+  const boundedLimit = Math.max(1, Math.min(100, Math.trunc(limit)));
   const [friends, total, market] = await Promise.all([
     env.WARPLETS.prepare(
       `WITH friend_wallets AS (
@@ -3565,8 +3615,8 @@ export async function loadStatsFriendHoldersForShare(
        JOIN ranked_friend_wallets f ON f.wallet = h.wallet AND f.wallet_rank = 1
        WHERE h.wallet <> ?
        ORDER BY h.rank ASC
-       LIMIT 10`,
-    ).bind(viewerFid, viewerFid, ZERO_ADDRESS).all<{
+       LIMIT ?`,
+    ).bind(viewerFid, viewerFid, ZERO_ADDRESS, boundedLimit).all<{
       rank: number;
       wallet: string;
       owned_count: number;
@@ -3596,6 +3646,13 @@ export async function loadStatsFriendHoldersForShare(
     totalHolders: Number(total?.count) || 0,
     asOf: total?.updated_at ?? null,
   };
+}
+
+export async function loadStatsFriendHoldersForShare(
+  env: StatsEnv,
+  viewerFid: number,
+): Promise<{ rows: HolderApiRow[]; totalHolders: number; asOf: string | null }> {
+  return loadStatsFriendHolders(env, viewerFid, 10);
 }
 
 async function loadHolderActivity(
@@ -3672,31 +3729,49 @@ export async function handleStatsHoldersGet(
   if (url.searchParams.get("wallet") && !viewerWallet) {
     return jsonError("invalid_wallet", "Wallet must be a valid EVM address.", 400);
   }
+  const rawFriendFilterWallet = url.searchParams.get("friendsWallet");
+  const friendFilterWallet = normalizeWallet(rawFriendFilterWallet);
+  if (rawFriendFilterWallet && !friendFilterWallet) {
+    return jsonError("invalid_friends_wallet", "Friends wallet must be a valid EVM address.", 400);
+  }
 
   try {
     const materialized = await ensureHolderLeaderboard(context.env.WARPLETS);
-    const [page, summary, market, dune] = await Promise.all([
-      loadHolderBaseRows(context.env.WARPLETS, limit + 1, cursor, materialized),
+    const friendFilterFid = friendFilterWallet
+      ? await resolveStatsFriendFilterFid(context.env.WARPLETS, friendFilterWallet)
+      : null;
+    const [page, filteredFriends, summary, market, dune] = await Promise.all([
+      friendFilterWallet
+        ? Promise.resolve(null)
+        : loadHolderBaseRows(context.env.WARPLETS, limit + 1, cursor, materialized),
+      friendFilterFid
+        ? loadStatsFriendHolders(context.env, friendFilterFid, limit)
+        : Promise.resolve(null),
       loadHolderSummary(context.env.WARPLETS, materialized),
       loadCurrentMarket(context.env.WARPLETS),
       loadDuneIntegration(context.env),
     ]);
-    const hasMore = page.rows.length > limit;
-    const visible = page.rows.slice(0, limit);
-    const [profiles, holderActivity] = await Promise.all([
-      loadProfilesForWallets(
-        context.env.WARPLETS,
-        visible.map((row) => row.wallet),
-      ),
-      loadHolderActivity(
-        context.env.WARPLETS,
-        visible.map((row) => row.wallet),
-      ),
-    ]);
-    const rows = visible.map((row) => ({
-      ...toHolderApiRow(row, market.floorEth, profiles.get(row.wallet) ?? null, viewerWallet),
-      ...(holderActivity.get(row.wallet) ?? {}),
-    }));
+    const hasMore = friendFilterWallet ? false : (page?.rows.length ?? 0) > limit;
+    const visible = friendFilterWallet ? [] : (page?.rows ?? []).slice(0, limit);
+    let rows: HolderApiRow[];
+    if (friendFilterWallet) {
+      rows = filteredFriends?.rows ?? [];
+    } else {
+      const [profiles, holderActivity] = await Promise.all([
+        loadProfilesForWallets(
+          context.env.WARPLETS,
+          visible.map((row) => row.wallet),
+        ),
+        loadHolderActivity(
+          context.env.WARPLETS,
+          visible.map((row) => row.wallet),
+        ),
+      ]);
+      rows = visible.map((row) => ({
+        ...toHolderApiRow(row, market.floorEth, profiles.get(row.wallet) ?? null, viewerWallet),
+        ...(holderActivity.get(row.wallet) ?? {}),
+      }));
+    }
     const last = hasMore ? visible.at(-1) : null;
     const nextCursor = last
       ? encodeHolderCursor({
@@ -3738,8 +3813,8 @@ export async function handleStatsHoldersGet(
         complete,
         stale: isStale(ownershipAsOf),
         sources: [{
-          id: page.materialized ? "holder_leaderboard" : "current_ownership",
-          label: page.materialized ? "Materialized D1 holder leaderboard" : "Current D1 ownership",
+          id: materialized ? "holder_leaderboard" : "current_ownership",
+          label: materialized ? "Materialized D1 holder leaderboard" : "Current D1 ownership",
           complete,
           asOf: ownershipAsOf,
         }],
@@ -3773,6 +3848,13 @@ export async function handleStatsHoldersGet(
       rows,
       viewer,
       nextCursor,
+      ...(friendFilterWallet ? {
+        friendFilter: {
+          wallet: friendFilterWallet,
+          fid: friendFilterFid,
+          available: friendFilterFid !== null,
+        },
+      } : {}),
     }, {
       private: Boolean(viewerWallet),
       noStore: url.searchParams.get("refresh") === "1",

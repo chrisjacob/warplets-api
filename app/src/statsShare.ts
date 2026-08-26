@@ -166,6 +166,72 @@ const ACTIVITY_PATHS: Record<StatsShareActivityEvent, string> = {
   send: "sends",
 };
 
+const MARKET_METRICS_BY_PATH: Readonly<Record<string, StatsShareMarketMetric>> = Object.fromEntries(
+  Object.entries(MARKET_PATHS).map(([metric, path]) => [path, metric as StatsShareMarketMetric]),
+);
+
+const ACTIVITY_EVENTS_BY_PATH: Readonly<Record<string, StatsShareActivityEvent>> = Object.fromEntries(
+  Object.entries(ACTIVITY_PATHS).map(([event, path]) => [path, event as StatsShareActivityEvent]),
+);
+
+function readLaunchWallet(url: URL): string | undefined {
+  const wallet = url.searchParams.get("wallet")?.trim().toLowerCase();
+  return wallet && /^0x[a-f0-9]{40}$/.test(wallet) ? wallet : undefined;
+}
+
+/**
+ * Reconstructs the share request represented by a public Stats deep link.
+ * Friend leaderboards need the wallet's resolved Farcaster identity supplied by
+ * the caller because that lookup belongs to the server-side identity store.
+ */
+export function getStatsShareRequestFromLaunchUrl(
+  url: URL,
+  friendFilterFid?: number | null,
+): StatsShareRequest | null {
+  const path = url.pathname.replace(/\/+$/, "") || "/";
+  const wallet = readLaunchWallet(url);
+
+  const overview = path.match(/^\/stats\/overview\/(collection|launch)$/i)?.[1]?.toLowerCase();
+  if (overview) {
+    return { kind: "overview", panel: overview === "launch" ? "fair-launch" : "collection" };
+  }
+
+  const market = path.match(/^\/stats\/market\/(7d|30d|90d|1y|all)(?:\/([^/]+))?$/i);
+  if (market) {
+    const range = market[1].toLowerCase() as StatsShareRange;
+    const metric = market[2] ? MARKET_METRICS_BY_PATH[market[2].toLowerCase()] : undefined;
+    if (market[2] && !metric) return null;
+    return metric ? { kind: "market", range, metric } : { kind: "market-all", range };
+  }
+
+  const activity = path.match(/^\/stats\/activity\/(7d|30d|90d|1y|all)\/([^/]+)$/i);
+  if (activity) {
+    const event = ACTIVITY_EVENTS_BY_PATH[activity[2].toLowerCase()];
+    return event ? { kind: "activity", range: activity[1].toLowerCase() as StatsShareRange, event } : null;
+  }
+
+  if (path === "/stats/holders") return wallet ? { kind: "holder-rank", wallet } : null;
+  if (path === "/stats/holders/top10") return { kind: "holders-top10" };
+  if (path === "/stats/holders/top10friends") {
+    return wallet && friendFilterFid && Number.isSafeInteger(friendFilterFid) && friendFilterFid > 0
+      ? { kind: "holders-top10-friends", viewerFid: friendFilterFid, wallet }
+      : null;
+  }
+
+  const tokenIdText = url.searchParams.get("warplet")?.trim();
+  const range = url.searchParams.get("range")?.trim().toLowerCase() as StatsShareRange | undefined;
+  const event = url.searchParams.get("event")?.trim().toLowerCase() as StatsShareActivityEvent | undefined;
+  const tokenId = tokenIdText && /^\d+$/.test(tokenIdText) ? Number.parseInt(tokenIdText, 10) : null;
+  if (
+    path === "/" && url.searchParams.get("activity") === "1"
+    && tokenId && tokenId >= 1 && tokenId <= 10_000
+    && range && range in RANGE_LABELS && event && event in ACTIVITY_LABELS
+  ) {
+    return { kind: "activity", range, event, tokenId };
+  }
+  return null;
+}
+
 function readSnapshotWallet(data: unknown): string | undefined {
   if (!data || typeof data !== "object" || Array.isArray(data)) return undefined;
   const row = (data as { row?: unknown }).row;

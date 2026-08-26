@@ -66,6 +66,8 @@ import {
   signalAppReady,
   viewFarcasterProfile,
 } from "./surfaceAdapter";
+import { buildSharePostText, buildTwitterShareText } from "./shareCopy";
+import { getStatsFriendFilterWallet } from "./statsHolderFilter";
 
 const FarcasterSignInControl = lazy(() => import("./FarcasterSignInControl"));
 import {
@@ -1136,10 +1138,6 @@ type SharePreviewState = {
 
 function getInitialSharePreviewImages(images: SharePreviewImage[]): SharePreviewImage[] {
   return images.map((image) => ({ ...image, isLoading: true }));
-}
-
-function buildTwitterShareText(text: string, links: string[]): string {
-  return [text, ...links, "#10XWarplets via @10XMemeX"].join("\n\n");
 }
 
 async function copyTextToClipboard(text: string): Promise<void> {
@@ -3334,8 +3332,7 @@ function readLegacyStatsRange(): StatsRange {
 
 function readStatsDeepLinkWallet(): string | null {
   if (typeof window === "undefined") return null;
-  const wallet = new URLSearchParams(window.location.search).get("wallet")?.trim().toLowerCase() ?? "";
-  return /^0x[a-f0-9]{40}$/.test(wallet) ? wallet : null;
+  return getStatsFriendFilterWallet(window.location.search);
 }
 
 function writeLastStatsActivityEvent(value: StatsActivityEvent): void {
@@ -3809,6 +3806,11 @@ type StatsApiEnvelope = {
   floor?: unknown;
   rows?: unknown[];
   nextCursor?: string | null;
+  friendFilter?: {
+    wallet?: string | null;
+    fid?: number | null;
+    available?: boolean;
+  } | null;
   error?: string;
   message?: string;
 };
@@ -5415,21 +5417,25 @@ function StatsHolderRowView({
 
 function StatsHoldersPage({
   connectedWallet,
+  friendFilterWallet,
   viewerFid,
   actionSessionToken,
   ethUsdPrice,
   onSearchWallet,
   onOpenWarpletDetails,
   onShareStats,
+  onResetFriendFilter,
   initialFriendsOnly = false,
 }: {
   connectedWallet: string | null;
+  friendFilterWallet: string | null;
   viewerFid: number | null;
   actionSessionToken: string | null;
   ethUsdPrice: number | null;
   onSearchWallet: (wallet: string) => void;
   onOpenWarpletDetails: (tokenId: number) => void;
   onShareStats: (request: StatsShareRequest) => void;
+  onResetFriendFilter: () => void;
   initialFriendsOnly?: boolean;
 }) {
   const [payload, setPayload] = useState<StatsApiEnvelope | null>(null);
@@ -5444,6 +5450,7 @@ function StatsHoldersPage({
   const [renderedRowCount, setRenderedRowCount] = useState(STATS_HOLDER_INITIAL_RENDER_ROWS);
   const [topFriendFids, setTopFriendFids] = useState<Set<number>>(new Set());
   const [friendRows, setFriendRows] = useState<StatsHolderRow[]>([]);
+  const [friendFilterFid, setFriendFilterFid] = useState<number | null>(null);
   const [friendsOnly, setFriendsOnly] = useState(initialFriendsOnly);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
@@ -5489,14 +5496,19 @@ function StatsHoldersPage({
   } = {}) => {
     if (append) setLoadingMore(true);
     else if (refresh) setRefreshing(true);
-    else setLoading(true);
+    else {
+      setLoading(true);
+      setFriendFilterFid(null);
+    }
     setError("");
     try {
       const params = new URLSearchParams({ limit: "100" });
       if (cursor) params.set("cursor", cursor);
       if (refresh) params.set("refresh", "1");
+      if (friendFilterWallet) params.set("friendsWallet", friendFilterWallet);
+      const filterCacheKey = friendFilterWallet ? `friends:${friendFilterWallet}` : "all";
       const result = await fetchCachedStatsEnvelope({
-        cacheKey: `stats:holders:${cursor ?? "first"}:100`,
+        cacheKey: `stats:holders:${filterCacheKey}:${cursor ?? "first"}:100`,
         url: `/api/stats/holders?${params.toString()}`,
         force: refresh,
       });
@@ -5506,6 +5518,8 @@ function StatsHoldersPage({
         .filter((row): row is StatsHolderRow => Boolean(row));
       if (!append) setRenderedRowCount(STATS_HOLDER_INITIAL_RENDER_ROWS);
       setPayload(result);
+      const friendFilter = statsRecord(result.friendFilter);
+      setFriendFilterFid(statsInteger(friendFilter?.fid));
       setRows((current) => {
         const combined = append ? [...current, ...nextRows] : nextRows;
         const seen = new Set<string>();
@@ -5526,7 +5540,7 @@ function StatsHoldersPage({
         else setLoading(false);
       }
     }
-  }, []);
+  }, [friendFilterWallet]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -5538,7 +5552,7 @@ function StatsHoldersPage({
   }, [loadPage, loadViewer]);
 
   useEffect(() => {
-    if (!viewerFid || !actionSessionToken) {
+    if (friendFilterWallet || !viewerFid || !actionSessionToken) {
       setTopFriendFids(new Set());
       setFriendRows([]);
       setFriendsOnly(false);
@@ -5574,21 +5588,27 @@ function StatsHoldersPage({
         }
       });
     return () => controller.abort();
-  }, [actionSessionToken, viewerFid]);
+  }, [actionSessionToken, friendFilterWallet, viewerFid]);
 
   useEffect(() => {
+    if (friendFilterWallet) {
+      setFriendsOnly(false);
+      return;
+    }
     if (initialFriendsOnly && viewerFid && actionSessionToken) setFriendsOnly(true);
-  }, [actionSessionToken, initialFriendsOnly, viewerFid]);
+  }, [actionSessionToken, friendFilterWallet, initialFriendsOnly, viewerFid]);
+
+  const effectiveFriendsOnly = !friendFilterWallet && friendsOnly;
 
   useEffect(() => {
     const target = loadMoreRef.current;
     const rankedRowCount = rows.length;
-    const filteredRowCount = friendsOnly ? friendRows.length : rankedRowCount;
+    const filteredRowCount = effectiveFriendsOnly ? friendRows.length : rankedRowCount;
     const hasBufferedRows = renderedRowCount < filteredRowCount;
     if (
       !target ||
       loadingMore ||
-      (!hasBufferedRows && (friendsOnly || !nextCursor))
+      (!hasBufferedRows && (effectiveFriendsOnly || !nextCursor))
     ) return;
     const observer = new IntersectionObserver((entries) => {
       if (entries.some((entry) => entry.isIntersecting)) {
@@ -5596,18 +5616,18 @@ function StatsHoldersPage({
         if (hasBufferedRows) {
           setRenderedRowCount((current) =>
             Math.min(current + STATS_HOLDER_RENDER_BATCH, filteredRowCount));
-        } else if (!friendsOnly && nextCursor) {
+        } else if (!effectiveFriendsOnly && nextCursor) {
           void loadPage({ cursor: nextCursor, append: true });
         }
       }
     }, { rootMargin: "600px 0px" });
     observer.observe(target);
     return () => observer.disconnect();
-  }, [friendRows.length, friendsOnly, loadPage, loadingMore, nextCursor, renderedRowCount, rows]);
+  }, [effectiveFriendsOnly, friendRows.length, loadPage, loadingMore, nextCursor, renderedRowCount, rows]);
 
   const summary = payload?.summary;
   const holderCount = statsInteger(summary?.holderCount ?? summary?.uniqueOwners ?? summary?.totalHolders) ?? viewerTotal;
-  const rankedRows = friendsOnly ? friendRows : rows;
+  const rankedRows = effectiveFriendsOnly ? friendRows : rows;
   const visibleRows = rankedRows.slice(0, renderedRowCount);
   const hasBufferedRows = visibleRows.length < rankedRows.length;
 
@@ -5645,33 +5665,53 @@ function StatsHoldersPage({
           </div>
         )}
 
+        {friendFilterWallet && (
+          <div className="mb-3 flex items-center gap-3 rounded-xl border border-[#7959ff]/70 bg-[rgba(121,89,255,0.14)] px-3 py-3 text-[#c9bcff]">
+            <Text className="min-w-0 flex-1 break-all text-[10px] font-black leading-4">
+              Leaderboard filtered to the friends of {friendFilterWallet}
+            </Text>
+            <button
+              type="button"
+              onClick={() => {
+                void hapticSelectionChanged();
+                onResetFriendFilter();
+              }}
+              className="shrink-0 cursor-pointer rounded-lg border border-[#b9aaff]/70 bg-black/35 px-3 py-2 text-[10px] font-black uppercase text-[#d6ceff] hover:bg-[#7959ff]/20"
+            >
+              Reset
+            </button>
+          </div>
+        )}
+
         <div className="flex items-center justify-between gap-2 py-2">
           <Text className="text-xs font-black uppercase text-[#00FF00]">Leaderboard</Text>
           <span className="ml-auto">
             <StatsShareButton
               compact
               secondaryFlat
-              secondaryTone={friendsOnly ? "purple" : "green"}
+              secondaryTone={friendFilterWallet || effectiveFriendsOnly ? "purple" : "green"}
               showIcon={false}
               label="Share Top 10"
-              disabled={friendsOnly && !viewerFid}
-              onClick={() => onShareStats(friendsOnly && viewerFid
-                ? { kind: "holders-top10-friends", viewerFid, ...(connectedWallet ? { wallet: connectedWallet } : {}) }
+              disabled={friendFilterWallet ? !friendFilterFid : effectiveFriendsOnly && !viewerFid}
+              onClick={() => onShareStats(friendFilterWallet && friendFilterFid
+                ? { kind: "holders-top10-friends", viewerFid: friendFilterFid, wallet: friendFilterWallet }
+                : effectiveFriendsOnly && viewerFid
+                  ? { kind: "holders-top10-friends", viewerFid, ...(connectedWallet ? { wallet: connectedWallet } : {}) }
                 : { kind: "holders-top10", ...(connectedWallet ? { wallet: connectedWallet } : {}), ...(viewerFid ? { fid: viewerFid } : {}) })}
             />
           </span>
           <button
             type="button"
             role="switch"
-            aria-checked={friendsOnly}
-            disabled={!viewerFid || !actionSessionToken}
+            aria-checked={effectiveFriendsOnly}
+            disabled={Boolean(friendFilterWallet) || !viewerFid || !actionSessionToken}
             onClick={() => {
               setFriendsOnly((current) => !current);
               setRenderedRowCount(STATS_HOLDER_INITIAL_RENDER_ROWS);
               void hapticSelectionChanged();
             }}
             className={`flex h-7 cursor-pointer items-center gap-1.5 rounded-lg border px-3 py-0 text-[10px] font-black uppercase transition disabled:cursor-not-allowed disabled:opacity-40 ${
-              friendsOnly
+              effectiveFriendsOnly
                 ? "border-[#7959ff] bg-[#7959ff]/20 text-[#b9aaff]"
                 : "border-[#7959ff]/45 bg-[#7959ff]/5 text-[#b9aaff] hover:border-[#7959ff]"
             }`}
@@ -5679,7 +5719,7 @@ function StatsHoldersPage({
             <span
               aria-hidden="true"
               className={`flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-[3px] border ${
-              friendsOnly
+              effectiveFriendsOnly
                   ? "border-[#b9aaff] bg-[#7959ff]/20 text-[#b9aaff]"
                   : "border-[#b9aaff] bg-black/35 text-transparent"
               }`}
@@ -5703,7 +5743,11 @@ function StatsHoldersPage({
           </div>
         ) : visibleRows.length === 0 ? (
           <div className="px-3 py-10 text-center text-xs font-bold text-[#8bbf8b]">
-            {friendsOnly ? "None of your Top 100 Friends currently hold a Warplet." : "No ranked holders are available yet."}
+            {friendFilterWallet
+              ? `None of the cached friends for ${friendFilterWallet} currently hold a Warplet.`
+              : effectiveFriendsOnly
+                ? "None of your Top 100 Friends currently hold a Warplet."
+                : "No ranked holders are available yet."}
           </div>
         ) : (
           visibleRows.map((row) => (
@@ -5724,7 +5768,7 @@ function StatsHoldersPage({
           ))
         )}
         <div ref={loadMoreRef} className="h-px" />
-        {(hasBufferedRows || (!friendsOnly && nextCursor)) && (
+        {(hasBufferedRows || (!effectiveFriendsOnly && nextCursor)) && (
           <button
             type="button"
             disabled={loadingMore}
@@ -5732,7 +5776,7 @@ function StatsHoldersPage({
               if (hasBufferedRows) {
                 setRenderedRowCount((current) =>
                   Math.min(current + STATS_HOLDER_RENDER_BATCH, rankedRows.length));
-              } else if (!friendsOnly && nextCursor) {
+              } else if (!effectiveFriendsOnly && nextCursor) {
                 void loadPage({ cursor: nextCursor, append: true });
               }
             }}
@@ -5745,7 +5789,7 @@ function StatsHoldersPage({
                 : "Load 100 more"}
           </button>
         )}
-        {!friendsOnly && !hasBufferedRows && !nextCursor && rows.length > 0 && (
+        {!effectiveFriendsOnly && !hasBufferedRows && !nextCursor && rows.length > 0 && (
           <div className="border-t border-[#00FF00]/15 px-3 py-3 text-center text-[10px] font-bold text-[#8bbf8b]">
             All ranked holders loaded.
           </div>
@@ -6594,6 +6638,7 @@ function StatsPage({
   detail,
   onRangeChange,
   connectedWallet,
+  friendFilterWallet,
   favouriteWallet,
   favouriteTokenIds,
   viewerFid,
@@ -6602,12 +6647,14 @@ function StatsPage({
   onOpenWarpletDetails,
   isInMiniAppContext,
   onShareStats,
+  onResetFriendFilter,
 }: {
   subpage: SearchStatsSubpage;
   range: StatsRange;
   detail?: StatsRouteDetail;
   onRangeChange: (range: StatsRange) => void;
   connectedWallet: string | null;
+  friendFilterWallet: string | null;
   favouriteWallet: string | null;
   favouriteTokenIds: number[];
   viewerFid: number | null;
@@ -6616,6 +6663,7 @@ function StatsPage({
   onOpenWarpletDetails: (tokenId: number) => void;
   isInMiniAppContext: boolean;
   onShareStats: (request: StatsShareRequest) => void;
+  onResetFriendFilter: () => void;
 }) {
   const [payload, setPayload] = useState<StatsApiEnvelope | null>(null);
   const [highlights, setHighlights] = useState<unknown>(null);
@@ -6810,13 +6858,15 @@ function StatsPage({
       {subpage === "holders" ? (
         <StatsHoldersPage
           connectedWallet={connectedWallet}
+          friendFilterWallet={friendFilterWallet}
           viewerFid={viewerFid}
           actionSessionToken={actionSessionToken}
           ethUsdPrice={ethUsdPrice}
           onSearchWallet={onSearchWallet}
           onOpenWarpletDetails={onOpenWarpletDetails}
           onShareStats={onShareStats}
-          initialFriendsOnly={detail === "top10friends"}
+          onResetFriendFilter={onResetFriendFilter}
+          initialFriendsOnly={detail === "top10friends" && !friendFilterWallet}
         />
       ) : loading && !payload ? (
         <StatsLoadingState subpage={subpage} />
@@ -12121,7 +12171,7 @@ function SharePreviewModal({
   const hasChannelTabs = farcasterPostText !== twitterPostText;
   const [activeShareChannel, setActiveShareChannel] = useState<"farcaster" | "twitter">("farcaster");
   const visiblePostBody = hasChannelTabs && activeShareChannel === "twitter" ? twitterPostText : farcasterPostText;
-  const postText = [visiblePostBody, ...preview.links].join("\n\n");
+  const postText = buildSharePostText(visiblePostBody, preview.links);
   const [titleFirstWord, ...titleRestWords] = preview.title.split(" ");
   const titleRest = titleRestWords.join(" ");
   const [isClipboardTooltipOpen, setIsClipboardTooltipOpen] = useState(false);
@@ -17672,7 +17722,10 @@ export default function SearchApp() {
     if (!sharePreview) return;
     trackAppEvent("share_started", { surface: resolveAppSurface(isInMiniAppContext), channel: "farcaster", route: window.location.pathname });
     beginShareCelebrationWatch();
-    composeFarcasterPost(sharePreview.farcasterText ?? sharePreview.text, sharePreview.farcasterEmbeds)
+    composeFarcasterPost(
+      buildSharePostText(sharePreview.farcasterText ?? sharePreview.text, sharePreview.links),
+      sharePreview.farcasterEmbeds,
+    )
       .then(() => {
         completeShareCelebration();
       })
@@ -18445,7 +18498,8 @@ export default function SearchApp() {
               statsRange: range,
               statsDetail: searchRoute.statsDetail,
             })}
-            connectedWallet={activeWallet ?? (searchRoute.statsPage === "holders" ? readStatsDeepLinkWallet() : null)}
+            connectedWallet={searchRoute.statsPage === "holders" ? readStatsDeepLinkWallet() ?? activeWallet : activeWallet}
+            friendFilterWallet={searchRoute.statsPage === "holders" ? readStatsDeepLinkWallet() : null}
             favouriteWallet={activeFavouriteWallet}
             favouriteTokenIds={activeFavouriteTokenIds}
             viewerFid={viewerFid}
@@ -18454,6 +18508,7 @@ export default function SearchApp() {
             onOpenWarpletDetails={handleOpenWarpletDetails}
             isInMiniAppContext={isInMiniAppContext}
             onShareStats={(request) => void handleCreateStatsShare(request)}
+            onResetFriendFilter={() => navigateSearchRoute({ page: "stats", statsPage: "holders" })}
           />
         ) : searchRoute.page === "perks" ? (
           <Suspense fallback={<div className="mx-auto w-full max-w-md px-4 py-12 text-center text-xs font-black text-[#00FF00]">Loading Perks...</div>}>

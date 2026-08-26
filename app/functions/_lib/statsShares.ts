@@ -536,37 +536,7 @@ export async function handleStatsShareCreate(
   }
 
   try {
-    const built = await buildSnapshotData(context, request);
-    const id = await getStatsShareContentHash(request, built.dataAsOf, built.data);
-    const createdAt = new Date().toISOString();
-    const imageKey = `${STATS_SHARE_RENDERER_VERSION}/${id}.png`;
-    await context.env.WARPLETS.prepare(
-      `INSERT INTO stats_share_snapshots (
-         id, kind, request_json, snapshot_json, title, farcaster_text, twitter_text,
-         launch_path, image_key, image_status, renderer_version, data_as_of, created_at
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?)
-       ON CONFLICT(id) DO UPDATE SET
-         title = excluded.title,
-         farcaster_text = excluded.farcaster_text,
-         twitter_text = excluded.twitter_text,
-         launch_path = excluded.launch_path`,
-    ).bind(
-      id,
-      request.kind,
-      stableStatsShareJson(request),
-      stableStatsShareJson(built.data),
-      built.title,
-      built.farcasterText,
-      built.twitterText,
-      getStatsShareLaunchPath(request, built.data),
-      imageKey,
-      STATS_SHARE_RENDERER_VERSION,
-      built.dataAsOf,
-      createdAt,
-    ).run();
-    const snapshot = await loadStatsShareSnapshot(context.env.WARPLETS, id);
-    if (!snapshot) throw new Error("The Stats share snapshot could not be read after creation.");
-    const renderError = await renderStatsShareImage(context, snapshot);
+    const { snapshot, renderError } = await ensureStatsShareSnapshot(context, request);
     return jsonSecure(responseForSnapshot(context.request, snapshot, renderError), {
       status: renderError ? 202 : 201,
       headers: { "cache-control": "no-store" },
@@ -577,6 +547,44 @@ export async function handleStatsShareCreate(
       message: error instanceof Error ? error.message : String(error),
     }, { status: 500 });
   }
+}
+
+export async function ensureStatsShareSnapshot(
+  context: EventContext<StatsSharesEnv, string, unknown>,
+  request: StatsShareRequest,
+): Promise<{ snapshot: StatsShareSnapshot; renderError: string | null }> {
+  const built = await buildSnapshotData(context, request);
+  const id = await getStatsShareContentHash(request, built.dataAsOf, built.data);
+  const createdAt = new Date().toISOString();
+  const imageKey = `${STATS_SHARE_RENDERER_VERSION}/${id}.png`;
+  await context.env.WARPLETS.prepare(
+    `INSERT INTO stats_share_snapshots (
+       id, kind, request_json, snapshot_json, title, farcaster_text, twitter_text,
+       launch_path, image_key, image_status, renderer_version, data_as_of, created_at
+     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?)
+     ON CONFLICT(id) DO UPDATE SET
+       title = excluded.title,
+       farcaster_text = excluded.farcaster_text,
+       twitter_text = excluded.twitter_text,
+       launch_path = excluded.launch_path`,
+  ).bind(
+    id,
+    request.kind,
+    stableStatsShareJson(request),
+    stableStatsShareJson(built.data),
+    built.title,
+    built.farcasterText,
+    built.twitterText,
+    getStatsShareLaunchPath(request, built.data),
+    imageKey,
+    STATS_SHARE_RENDERER_VERSION,
+    built.dataAsOf,
+    createdAt,
+  ).run();
+  const snapshot = await loadStatsShareSnapshot(context.env.WARPLETS, id);
+  if (!snapshot) throw new Error("The Stats share snapshot could not be read after creation.");
+  const renderError = await renderStatsShareImage(context, snapshot);
+  return { snapshot, renderError };
 }
 
 export async function handleStatsShareGet(
@@ -601,6 +609,17 @@ export async function handleStatsShareRender(
   });
 }
 
+function buildStatsShareImageHeaders(object: R2Object): Headers {
+  const headers = new Headers();
+  object.writeHttpMetadata(headers);
+  headers.set("etag", object.httpEtag);
+  headers.set("cache-control", "public, max-age=31536000, immutable, no-transform");
+  headers.set("content-type", "image/png");
+  headers.set("content-length", String(object.size));
+  headers.set("x-content-type-options", "nosniff");
+  return headers;
+}
+
 export async function handleStatsShareImageGet(
   context: EventContext<StatsSharesEnv, "shareId", unknown>,
 ): Promise<Response> {
@@ -608,10 +627,15 @@ export async function handleStatsShareImageGet(
   if (!snapshot) return new Response("Not found", { status: 404, headers: { "cache-control": "no-store" } });
   const object = await context.env.STATS_SHARE_IMAGES?.get(snapshot.imageKey);
   if (!object) return new Response("Image is not ready", { status: 404, headers: { "cache-control": "no-store" } });
-  const headers = new Headers();
-  object.writeHttpMetadata(headers);
-  headers.set("etag", object.httpEtag);
-  headers.set("cache-control", "public, max-age=31536000, immutable, no-transform");
-  headers.set("content-type", "image/png");
-  return new Response(object.body, { headers });
+  return new Response(object.body, { headers: buildStatsShareImageHeaders(object) });
+}
+
+export async function handleStatsShareImageHead(
+  context: EventContext<StatsSharesEnv, "shareId", unknown>,
+): Promise<Response> {
+  const snapshot = await loadStatsShareSnapshot(context.env.WARPLETS, String(context.params.shareId));
+  if (!snapshot) return new Response(null, { status: 404, headers: { "cache-control": "no-store" } });
+  const object = await context.env.STATS_SHARE_IMAGES?.head(snapshot.imageKey);
+  if (!object) return new Response(null, { status: 404, headers: { "cache-control": "no-store" } });
+  return new Response(null, { headers: buildStatsShareImageHeaders(object) });
 }

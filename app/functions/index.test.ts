@@ -110,6 +110,8 @@ describe("dynamic Stats Open Graph routes", () => {
       .toBe("/stats/market/30d/sales");
     expect(getStatsLaunchLookupPath(new URL("https://warplet.10x.meme/stats/activity/7d/offers")))
       .toBe("/stats/activity/7d/offers");
+    expect(getStatsLaunchLookupPath(new URL("https://warplet.10x.meme/stats/holders/top10?wallet=0x1234567890abcdef1234567890abcdef12345678")))
+      .toBe("/stats/holders/top10");
     expect(getStatsLaunchLookupPath(new URL("https://warplet.10x.meme/stats/holders?wallet=0x1234567890abcdef1234567890abcdef12345678&utm_source=x")))
       .toBe("/stats/holders?wallet=0x1234567890abcdef1234567890abcdef12345678");
     expect(getStatsLaunchLookupPath(new URL("https://warplet.10x.meme/?event=send&range=all&activity=1&warplet=4512")))

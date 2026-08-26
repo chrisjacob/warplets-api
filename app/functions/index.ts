@@ -9,8 +9,17 @@ const APPLICATION_NAME_META_REGEX = /<meta\s+name="application-name"[^>]*>/i;
 const APPLE_APP_TITLE_META_REGEX = /<meta\s+name="apple-mobile-web-app-title"[^>]*>/i;
 const BASE_APP_ID_META_REGEX = /<meta\s+name="base:app_id"[^>]*>/i;
 import { applySecurityHeaders } from "./_lib/security.js";
-import { loadLatestStatsShareSnapshotByLaunchPath, loadStatsShareSnapshot } from "./_lib/statsShares.js";
-import type { StatsShareSnapshot } from "../src/statsShare.js";
+import { resolveStatsFriendFilterFid } from "./_lib/stats.js";
+import {
+  ensureStatsShareSnapshot,
+  loadLatestStatsShareSnapshotByLaunchPath,
+  loadStatsShareSnapshot,
+  type StatsSharesEnv,
+} from "./_lib/statsShares.js";
+import {
+  getStatsShareRequestFromLaunchUrl,
+  type StatsShareSnapshot,
+} from "../src/statsShare.js";
 import { getPerksShareContentFromPath, getPerksShareImageUrl } from "../src/perksShareContent.js";
 import {
   WARPLETS_APP_HOSTS,
@@ -20,9 +29,8 @@ import {
 } from "../shared/warpletsApp.js";
 import { APP_FAVICONS, buildFaviconLinks, getHostnameFaviconKey } from "../shared/favicons.js";
 
-type PagesEnv = {
+type PagesEnv = StatsSharesEnv & {
   ASSETS: Fetcher;
-  WARPLETS?: D1Database;
   WARPLETS_ACCOUNT_ASSOCIATION_JSON?: string;
 };
 
@@ -508,7 +516,8 @@ export function getStatsLaunchLookupPath(url: URL): string | null {
   if (/^\/stats\/(?:overview\/(?:collection|launch)|market\/(?:7d|30d|90d|1y|all)(?:\/(?:price|floor-price|volume|listings|offers|sales))?|activity\/(?:7d|30d|90d|1y|all)\/(?:sales|listings|offers|sends)|holders(?:\/top10|\/top10friends)?)\/?$/i.test(url.pathname)) {
     const path = url.pathname.replace(/\/$/, "") || "/";
     const wallet = url.searchParams.get("wallet")?.trim().toLowerCase();
-    return wallet && /^0x[a-f0-9]{40}$/.test(wallet) ? `${path}?wallet=${wallet}` : path;
+    const walletScoped = path === "/stats/holders" || path === "/stats/holders/top10friends";
+    return walletScoped && wallet && /^0x[a-f0-9]{40}$/.test(wallet) ? `${path}?wallet=${wallet}` : path;
   }
   const tokenId = url.searchParams.get("warplet")?.trim();
   const range = url.searchParams.get("range")?.trim();
@@ -591,13 +600,49 @@ export const onRequestGet: PagesFunction<PagesEnv> = async (context) => {
   const routeKey = getRouteKey(requestUrl.hostname, requestUrl.pathname);
   const statsShareId = requestUrl.pathname.match(/^\/stats\/share\/([a-f0-9]{32})\/?$/)?.[1];
   const statsLaunchLookupPath = getStatsLaunchLookupPath(requestUrl);
-  const statsShareSnapshot = context.env.WARPLETS
+  let statsShareSnapshot = context.env.WARPLETS
     ? statsShareId
       ? await loadStatsShareSnapshot(context.env.WARPLETS, statsShareId).catch(() => null)
       : statsLaunchLookupPath
         ? await loadLatestStatsShareSnapshotByLaunchPath(context.env.WARPLETS, statsLaunchLookupPath).catch(() => null)
         : null
     : null;
+  if (
+    !statsShareSnapshot
+    && routeKey === "warplets"
+    && statsLaunchLookupPath
+    && context.env.WARPLETS
+    && context.env.STATS_SHARE_BROWSER
+    && context.env.STATS_SHARE_IMAGES
+  ) {
+    try {
+      const wallet = requestUrl.searchParams.get("wallet")?.trim().toLowerCase();
+      const friendFilterFid = requestUrl.pathname.replace(/\/+$/, "") === "/stats/holders/top10friends"
+        && wallet && /^0x[a-f0-9]{40}$/.test(wallet)
+        ? await resolveStatsFriendFilterFid(context.env.WARPLETS, wallet)
+        : null;
+      const statsShareRequest = getStatsShareRequestFromLaunchUrl(requestUrl, friendFilterFid);
+      if (statsShareRequest) {
+        const generated = await ensureStatsShareSnapshot(
+          context as EventContext<StatsSharesEnv, string, unknown>,
+          statsShareRequest,
+        );
+        if (generated.renderError) {
+          console.error("stats_share_metadata_render_failed", {
+            launchPath: statsLaunchLookupPath,
+            error: generated.renderError,
+          });
+        } else {
+          statsShareSnapshot = generated.snapshot;
+        }
+      }
+    } catch (error) {
+      console.error("stats_share_metadata_generation_failed", {
+        launchPath: statsLaunchLookupPath,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
   const statsShareImageUrl = statsShareSnapshot?.imageReady
     ? `${requestUrl.origin}/api/stats/share-images/${statsShareSnapshot.id}`
     : undefined;
@@ -712,7 +757,7 @@ export const onRequestGet: PagesFunction<PagesEnv> = async (context) => {
     html = html.replace("</head>", `  ${buildStopOpenGraphTags(requestUrl.href)}\n  </head>`);
   }
 
-  if (routeKey === "warplets" && !statsShareSnapshot) {
+  if (routeKey === "warplets" && !statsShareSnapshot && !statsLaunchLookupPath) {
     const routeTitle = searchShareTitle ?? WARPLETS_SHARE_TITLE;
     const routeShareImageUrl = searchShareImageUrl ?? `${requestUrl.origin}/embed_search.png`;
     const titleTag = `<title>${escapeHtmlText(routeTitle)}</title>`;
