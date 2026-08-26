@@ -6,6 +6,7 @@ import {
   getStatsShareActivityApiPath,
   getStatsShareActivityLabel,
   getStatsShareContentHash,
+  getStatsShareLaunchPath,
   getStatsShareRangeLabel,
   parseStatsShareRequest,
   stableStatsShareJson,
@@ -87,6 +88,27 @@ describe("Stats share copy", () => {
 });
 
 describe("Stats share canonical snapshots", () => {
+  it("builds path-based range deep links for Market and Activity shares", () => {
+    expect(getStatsShareLaunchPath({ kind: "market", metric: "floor", range: "30d" }))
+      .toBe("/stats/market/30d/floor-price");
+    expect(getStatsShareLaunchPath({ kind: "market-all", range: "1y" }))
+      .toBe("/stats/market/1y");
+    expect(getStatsShareLaunchPath({ kind: "activity", event: "offer", range: "7d" }))
+      .toBe("/stats/activity/7d/offers");
+    expect(getStatsShareLaunchPath({ kind: "overview", panel: "collection" }))
+      .toBe("/stats/overview/collection");
+    expect(getStatsShareLaunchPath({ kind: "overview", panel: "fair-launch" }))
+      .toBe("/stats/overview/launch");
+    expect(getStatsShareLaunchPath({ kind: "activity", event: "send", range: "all", tokenId: 4512 }))
+      .toBe("/?warplet=4512&activity=1&range=all&event=send");
+    expect(getStatsShareLaunchPath({ kind: "holder-rank", wallet: holder().wallet }))
+      .toBe(`/stats/holders?wallet=${holder().wallet}`);
+    expect(getStatsShareLaunchPath({ kind: "holders-top10" }))
+      .toBe("/stats/holders/top10");
+    expect(getStatsShareLaunchPath({ kind: "holders-top10-friends", viewerFid: 123, wallet: holder().wallet }))
+      .toBe(`/stats/holders/top10friends?wallet=${holder().wallet}`);
+  });
+
   it("serializes object keys stably and hashes deterministically", async () => {
     expect(stableStatsShareJson({ z: 1, a: { y: 2, b: 3 } })).toBe('{"a":{"b":3,"y":2},"z":1}');
     const request = { kind: "market", metric: "price", range: "30d" } as const;

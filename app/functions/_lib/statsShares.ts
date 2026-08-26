@@ -352,6 +352,7 @@ async function buildSnapshotData(
   }
 
   let holders: StatsShareHolder[] = [];
+  let viewer: StatsShareHolder | null = null;
   let totalHolders = 0;
   let dataAsOf: string | null = null;
   if (request.kind === "holders-top10") {
@@ -367,8 +368,14 @@ async function buildSnapshotData(
     totalHolders = Math.max(0, Math.trunc(asNumber(asRecord(data.summary)?.holderCount) ?? 0));
     dataAsOf = typeof data.asOf === "string" ? data.asOf : null;
   } else {
-    const result = await loadStatsFriendHoldersForShare(context.env, request.viewerFid);
+    const viewerParams = new URLSearchParams({ fid: String(request.viewerFid) });
+    if (request.wallet) viewerParams.set("wallet", request.wallet);
+    const [result, viewerData] = await Promise.all([
+      loadStatsFriendHoldersForShare(context.env, request.viewerFid),
+      readStatsResponse(await handleStatsHoldersMeGet(cloneStatsContext(context, `/api/stats/holders/me?${viewerParams}`))).catch(() => null),
+    ]);
     holders = result.rows.map(normalizeHolder).filter((row): row is StatsShareHolder => Boolean(row));
+    viewer = normalizeHolder(viewerData?.row ?? viewerData?.holder);
     totalHolders = result.totalHolders;
     dataAsOf = result.asOf;
   }
@@ -377,7 +384,7 @@ async function buildSnapshotData(
     ? "10X Warplets — Top 10 Holders"
     : "10X Warplets — My Top Ranked Friends";
   return {
-    data: { rows: holders, totalHolders, asOf: dataAsOf },
+    data: { rows: holders, ...(viewer ? { viewer } : {}), totalHolders, asOf: dataAsOf },
     dataAsOf,
     title: request.kind === "holders-top10" ? "Share Top 10 Holders" : "Share Top 10 Friends",
     farcasterText: buildStatsLeaderboardText(heading, holders, "farcaster"),
@@ -445,6 +452,21 @@ export async function loadStatsShareSnapshot(db: D1Database, id: string): Promis
             launch_path, image_key, image_status, renderer_version, data_as_of, created_at
      FROM stats_share_snapshots WHERE id = ? LIMIT 1`,
   ).bind(id).first<StoredStatsShareRow>();
+  return row ? parseStoredSnapshot(row) : null;
+}
+
+export async function loadLatestStatsShareSnapshotByLaunchPath(
+  db: D1Database,
+  launchPath: string,
+): Promise<StatsShareSnapshot | null> {
+  const row = await db.prepare(
+    `SELECT id, kind, request_json, snapshot_json, title, farcaster_text, twitter_text,
+            launch_path, image_key, image_status, renderer_version, data_as_of, created_at
+       FROM stats_share_snapshots
+      WHERE launch_path = ? AND image_status = 'ready'
+      ORDER BY created_at DESC
+      LIMIT 1`,
+  ).bind(launchPath).first<StoredStatsShareRow>();
   return row ? parseStoredSnapshot(row) : null;
 }
 
@@ -526,7 +548,8 @@ export async function handleStatsShareCreate(
        ON CONFLICT(id) DO UPDATE SET
          title = excluded.title,
          farcaster_text = excluded.farcaster_text,
-         twitter_text = excluded.twitter_text`,
+         twitter_text = excluded.twitter_text,
+         launch_path = excluded.launch_path`,
     ).bind(
       id,
       request.kind,
@@ -535,7 +558,7 @@ export async function handleStatsShareCreate(
       built.title,
       built.farcasterText,
       built.twitterText,
-      getStatsShareLaunchPath(request),
+      getStatsShareLaunchPath(request, built.data),
       imageKey,
       STATS_SHARE_RENDERER_VERSION,
       built.dataAsOf,

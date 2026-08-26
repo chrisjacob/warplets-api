@@ -7,6 +7,7 @@ import {
   buildCanonicalUrl,
   buildFarcasterManifest,
   getBaseAppId,
+  getStatsLaunchLookupPath,
   onRequestGet,
 } from "./index";
 
@@ -100,6 +101,23 @@ describe("canonical URLs", () => {
   it("uses the requested production hostname for apps served by the shared Pages project", () => {
     expect(buildCanonicalUrl(new URL("https://app.10x.meme/?source=pwa"))).toBe("https://app.10x.meme/");
     expect(buildCanonicalUrl(new URL("https://drop.10x.meme/?fid=1129138"))).toBe("https://drop.10x.meme/");
+  });
+});
+
+describe("dynamic Stats Open Graph routes", () => {
+  it("normalizes canonical Market, Activity, holder, and item-activity lookup paths", () => {
+    expect(getStatsLaunchLookupPath(new URL("https://warplet.10x.meme/stats/market/30d/sales")))
+      .toBe("/stats/market/30d/sales");
+    expect(getStatsLaunchLookupPath(new URL("https://warplet.10x.meme/stats/activity/7d/offers")))
+      .toBe("/stats/activity/7d/offers");
+    expect(getStatsLaunchLookupPath(new URL("https://warplet.10x.meme/stats/holders?wallet=0x1234567890abcdef1234567890abcdef12345678&utm_source=x")))
+      .toBe("/stats/holders?wallet=0x1234567890abcdef1234567890abcdef12345678");
+    expect(getStatsLaunchLookupPath(new URL("https://warplet.10x.meme/?event=send&range=all&activity=1&warplet=4512")))
+      .toBe("/?warplet=4512&activity=1&range=all&event=send");
+  });
+
+  it("does not treat unrelated app routes as Stats snapshot routes", () => {
+    expect(getStatsLaunchLookupPath(new URL("https://warplet.10x.meme/perks/memes"))).toBeNull();
   });
 });
 

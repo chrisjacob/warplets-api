@@ -61,6 +61,7 @@ function SubscriberSocialProof({ actionSessionToken, confirmationPending }: {
 }) {
   const [profiles, setProfiles] = useState<SubscriberProfile[]>([]);
   const [subscriberCount, setSubscriberCount] = useState<number | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [revealedProfileCount, setRevealedProfileCount] = useState(0);
   const readyProfileIndexes = useRef(new Set<number>());
   const nextProfileToReveal = useRef(0);
@@ -110,9 +111,13 @@ function SubscriberSocialProof({ actionSessionToken, confirmationPending }: {
         const socialProof = normalizeSubscriberSocialProof(payload);
         setProfiles(socialProof.profiles);
         setSubscriberCount(socialProof.subscriberCount);
+        setLoadFailed(socialProof.subscriberCount == null);
       })
       .catch((error) => {
-        if (!controller.signal.aborted) console.warn("Subscriber social proof failed to load:", error);
+        if (!controller.signal.aborted) {
+          setLoadFailed(true);
+          console.warn("Subscriber social proof failed to load:", error);
+        }
       });
     return () => {
       controller.abort();
@@ -186,7 +191,9 @@ function SubscriberSocialProof({ actionSessionToken, confirmationPending }: {
       <p className={`mt-3 text-center text-[15px] font-black leading-5 text-[#b8d7b8] ${confirmationPending ? "" : "whitespace-nowrap"}`}>
         {confirmationPending
           ? "Check your inbox to confirm your subscription."
-          : subscriberMilestone == null
+          : loadFailed
+            ? "Subscriber count temporarily unavailable."
+            : subscriberMilestone == null
             ? "Loading subscribers…"
             : `Over ${subscriberMilestone.toLocaleString("en-US")} Subscribed!`}
       </p>

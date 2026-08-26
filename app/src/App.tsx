@@ -585,7 +585,7 @@ export default function App() {
             </header>
 
             <div className="home-thesis-media-stack mt-7 rounded-xl shadow-[0_0_18px_rgba(0,255,0,0.12)]">
-              <section className="overflow-hidden rounded-t-xl border-x border-t border-[#00FF00]/25 bg-black/75">
+              <section className="overflow-hidden rounded-t-xl border-x border-t border-[#00FF00]/25 bg-black/75 px-3">
                 <div className="aspect-square w-full">
                   <iframe
                     className="h-full w-full"

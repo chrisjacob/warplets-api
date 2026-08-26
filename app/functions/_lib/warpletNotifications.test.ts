@@ -58,8 +58,8 @@ describe("global statistics notification audience", () => {
 
   it("opens the 30-day Stats Market view from every daily delivery channel", () => {
     const target = new URL(GLOBAL_STATS_TARGET_URL);
-    expect(target.pathname).toBe("/stats/market");
-    expect(target.searchParams.get("range")).toBe("30d");
+    expect(target.pathname).toBe("/stats/market/30d");
+    expect(target.search).toBe("");
   });
 });
 

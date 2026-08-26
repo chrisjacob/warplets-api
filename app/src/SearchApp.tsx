@@ -174,6 +174,7 @@ type SearchOffersSubpage = "collection" | "trait" | "item";
 type SearchStatsSubpage = "overview" | "market" | "social" | "holders";
 type StatsRange = "7d" | "30d" | "90d" | "1y" | "all";
 type StatsActivityEvent = "sale" | "listing" | "offer" | "send";
+type StatsRouteDetail = "collection" | "launch" | "price" | "floor-price" | "volume" | "listings" | "offers" | "sales" | "sends" | "top10" | "top10friends";
 const ACTIVITY_CHART_HEIGHT = 351;
 type ListedLevelFilter = "all" | "10x" | "9x" | "8x" | "7x" | "6x" | "5x" | "4x" | "3x" | "2x" | "1x";
 type ListedScopeFilter = "all" | "your" | "favourites" | "sweep";
@@ -184,7 +185,7 @@ type SearchRoute =
   | { page: "listed"; listedLevel: ListedLevelFilter }
   | { page: "offers"; offersPage: SearchOffersSubpage }
   | { page: "perks"; perksPage: PerksSubpage }
-  | { page: "stats"; statsPage: SearchStatsSubpage };
+  | { page: "stats"; statsPage: SearchStatsSubpage; statsRange?: StatsRange; statsDetail?: StatsRouteDetail };
 
 const LISTED_LEVEL_TABS: Array<{ id: ListedLevelFilter; label: string }> = [
   { id: "all", label: "All" },
@@ -3203,7 +3204,7 @@ function getSearchRouteKey(route: SearchRoute): string {
 
 function getSearchRouteStableKey(route: SearchRoute): string {
   if (route.page === "listed") return `listed:${route.listedLevel}`;
-  if (route.page === "stats") return `stats:${route.statsPage}`;
+  if (route.page === "stats") return `stats:${route.statsPage}:${route.statsRange ?? "all"}:${route.statsDetail ?? "all"}`;
   return getSearchRouteKey(route);
 }
 
@@ -3230,8 +3231,19 @@ function parseSearchRouteFromPath(pathname: string): SearchRoute {
   if (path === "/perks/attention") return { page: "perks", perksPage: "attention" };
   if (path === "/perks/alpha") return { page: "perks", perksPage: "alpha" };
   if (path === "/perks" || path === "/perks/memes") return { page: "perks", perksPage: "memes" };
-  if (path === "/stats/market") return { page: "stats", statsPage: "market" };
-  if (path === "/stats/social") return { page: "stats", statsPage: "social" };
+  const statsOverviewMatch = path.match(/^\/stats\/overview\/(collection|launch)$/i);
+  if (statsOverviewMatch) return { page: "stats", statsPage: "overview", statsDetail: statsOverviewMatch[1].toLowerCase() as StatsRouteDetail };
+  const statsRangeMatch = path.match(/^\/stats\/(market|activity|social)\/(7d|30d|90d|1y|all)(?:\/(price|floor-price|volume|listings|offers|sales|sends))?$/i);
+  if (statsRangeMatch) return {
+    page: "stats",
+    statsPage: statsRangeMatch[1].toLowerCase() === "market" ? "market" : "social",
+    statsRange: statsRangeMatch[2].toLowerCase() as StatsRange,
+    ...(statsRangeMatch[3] ? { statsDetail: statsRangeMatch[3].toLowerCase() as StatsRouteDetail } : {}),
+  };
+  if (path === "/stats/market") return { page: "stats", statsPage: "market", statsRange: readLegacyStatsRange() };
+  if (path === "/stats/activity" || path === "/stats/social") return { page: "stats", statsPage: "social", statsRange: readLegacyStatsRange() };
+  if (path === "/stats/holders/top10") return { page: "stats", statsPage: "holders", statsDetail: "top10" };
+  if (path === "/stats/holders/top10friends") return { page: "stats", statsPage: "holders", statsDetail: "top10friends" };
   if (path === "/stats/holders") return { page: "stats", statsPage: "holders" };
   if (path === "/stats" || path === "/stats/overview") return { page: "stats", statsPage: "overview" };
   return { page: "search" };
@@ -3306,10 +3318,24 @@ function readLastStatsActivityEvent(): StatsActivityEvent {
     : "sale";
 }
 
-function readInitialStatsRange(): StatsRange {
+function getStatsActivityEventFromRouteDetail(detail?: StatsRouteDetail): StatsActivityEvent | null {
+  if (detail === "sales") return "sale";
+  if (detail === "listings") return "listing";
+  if (detail === "offers") return "offer";
+  if (detail === "sends") return "send";
+  return null;
+}
+
+function readLegacyStatsRange(): StatsRange {
   if (typeof window === "undefined") return "all";
   const value = new URLSearchParams(window.location.search).get("range");
   return value === "7d" || value === "30d" || value === "90d" || value === "1y" || value === "all" ? value : "all";
+}
+
+function readStatsDeepLinkWallet(): string | null {
+  if (typeof window === "undefined") return null;
+  const wallet = new URLSearchParams(window.location.search).get("wallet")?.trim().toLowerCase() ?? "";
+  return /^0x[a-f0-9]{40}$/.test(wallet) ? wallet : null;
 }
 
 function writeLastStatsActivityEvent(value: StatsActivityEvent): void {
@@ -3323,6 +3349,18 @@ function readLastItemActivityEvent(): StatsActivityEvent {
   return value === "listing" || value === "offer" || value === "send" || value === "sale"
     ? value
     : "sale";
+}
+
+function readItemActivityDeepLink(): { open: boolean; range: StatsRange; event: StatsActivityEvent | null } {
+  if (typeof window === "undefined") return { open: false, range: "all", event: null };
+  const params = new URLSearchParams(window.location.search);
+  const range = params.get("range");
+  const event = params.get("event");
+  return {
+    open: params.get("activity") === "1",
+    range: range === "7d" || range === "30d" || range === "90d" || range === "1y" || range === "all" ? range : "all",
+    event: event === "sale" || event === "listing" || event === "offer" || event === "send" ? event : null,
+  };
 }
 
 function writeLastItemActivityEvent(value: StatsActivityEvent): void {
@@ -3342,9 +3380,15 @@ function getSearchPathForRoute(route: SearchRoute): string {
       : route.page === "listed"
         ? route.listedLevel === "all" ? "/listed" : `/listed/${route.listedLevel}`
         : route.page === "perks"
-          ? route.perksPage === "memes" ? "/perks" : `/perks/${route.perksPage}`
+          ? `/perks/${route.perksPage}`
         : route.page === "stats"
-          ? route.statsPage === "overview" ? "/stats" : `/stats/${route.statsPage}`
+          ? route.statsPage === "overview"
+            ? route.statsDetail ? `/stats/overview/${route.statsDetail}` : "/stats"
+            : route.statsPage === "holders"
+              ? route.statsDetail === "top10" || route.statsDetail === "top10friends"
+                ? `/stats/holders/${route.statsDetail}`
+                : "/stats/holders"
+              : `/stats/${route.statsPage === "social" ? "activity" : "market"}/${route.statsRange ?? "all"}${route.statsDetail ? `/${route.statsDetail}` : ""}`
           : `/offers/${route.offersPage}`;
   if (!basePath) return path;
   return path === "/" ? basePath : `${basePath}${path}`;
@@ -4822,6 +4866,7 @@ class StatsChartErrorBoundary extends Component<
 }
 
 function StatsChartPanel({
+  id,
   title,
   description,
   headline,
@@ -4839,6 +4884,7 @@ function StatsChartPanel({
   onShare,
   animateLinesLeftToRight,
 }: {
+  id?: string;
   title: string;
   description?: string;
   headline?: string;
@@ -4857,7 +4903,7 @@ function StatsChartPanel({
   animateLinesLeftToRight?: boolean;
 }) {
   return (
-    <section className="overflow-hidden rounded-xl border border-[#00FF00]/25 bg-black/65">
+    <section id={id} className="scroll-mt-4 overflow-hidden rounded-xl border border-[#00FF00]/25 bg-black/65">
       <div className="border-b border-[#00FF00]/15 px-3 py-3">
         <div className="flex items-start justify-between gap-3">
           <span>
@@ -5375,6 +5421,7 @@ function StatsHoldersPage({
   onSearchWallet,
   onOpenWarpletDetails,
   onShareStats,
+  initialFriendsOnly = false,
 }: {
   connectedWallet: string | null;
   viewerFid: number | null;
@@ -5383,6 +5430,7 @@ function StatsHoldersPage({
   onSearchWallet: (wallet: string) => void;
   onOpenWarpletDetails: (tokenId: number) => void;
   onShareStats: (request: StatsShareRequest) => void;
+  initialFriendsOnly?: boolean;
 }) {
   const [payload, setPayload] = useState<StatsApiEnvelope | null>(null);
   const [rows, setRows] = useState<StatsHolderRow[]>([]);
@@ -5396,7 +5444,7 @@ function StatsHoldersPage({
   const [renderedRowCount, setRenderedRowCount] = useState(STATS_HOLDER_INITIAL_RENDER_ROWS);
   const [topFriendFids, setTopFriendFids] = useState<Set<number>>(new Set());
   const [friendRows, setFriendRows] = useState<StatsHolderRow[]>([]);
-  const [friendsOnly, setFriendsOnly] = useState(false);
+  const [friendsOnly, setFriendsOnly] = useState(initialFriendsOnly);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
   const loadViewer = useCallback(async (signal?: AbortSignal, refresh = false) => {
@@ -5529,6 +5577,10 @@ function StatsHoldersPage({
   }, [actionSessionToken, viewerFid]);
 
   useEffect(() => {
+    if (initialFriendsOnly && viewerFid && actionSessionToken) setFriendsOnly(true);
+  }, [actionSessionToken, initialFriendsOnly, viewerFid]);
+
+  useEffect(() => {
     const target = loadMoreRef.current;
     const rankedRowCount = rows.length;
     const filteredRowCount = friendsOnly ? friendRows.length : rankedRowCount;
@@ -5604,7 +5656,7 @@ function StatsHoldersPage({
               label="Share Top 10"
               disabled={friendsOnly && !viewerFid}
               onClick={() => onShareStats(friendsOnly && viewerFid
-                ? { kind: "holders-top10-friends", viewerFid }
+                ? { kind: "holders-top10-friends", viewerFid, ...(connectedWallet ? { wallet: connectedWallet } : {}) }
                 : { kind: "holders-top10", ...(connectedWallet ? { wallet: connectedWallet } : {}), ...(viewerFid ? { fid: viewerFid } : {}) })}
             />
           </span>
@@ -5745,7 +5797,7 @@ function StatsOverview({
 
   return (
     <div>
-      <section className="rounded-xl border border-[#00FF00]/55 bg-[rgba(0,255,0,0.055)] p-3 shadow-[0_0_14px_rgba(0,255,0,0.12)]">
+      <section id="stats-deeplink-collection" className="scroll-mt-4 rounded-xl border border-[#00FF00]/55 bg-[rgba(0,255,0,0.055)] p-3 shadow-[0_0_14px_rgba(0,255,0,0.12)]">
         <Text className="text-xs font-black uppercase text-[#00FF00]">10X Warplets NFT Collection</Text>
         <Text className="mt-1 text-xs leading-4 text-[#b8e6b8]">Where Builders, Traders and Attention align.</Text>
         <div className="mt-3 grid grid-cols-2 gap-2">
@@ -5772,7 +5824,7 @@ function StatsOverview({
         <div className="mb-1.5 mt-3"><StatsShareButton label="Share NFT Collection" onClick={() => onShare("collection")} primary /></div>
       </section>
 
-      <section className="mt-4 rounded-xl border border-[#7959ff]/55 bg-[rgba(93,66,214,0.12)] p-3 shadow-[0_0_14px_rgba(121,89,255,0.12)]">
+      <section id="stats-deeplink-launch" className="scroll-mt-4 mt-4 rounded-xl border border-[#7959ff]/55 bg-[rgba(93,66,214,0.12)] p-3 shadow-[0_0_14px_rgba(121,89,255,0.12)]">
         <Text className="text-xs font-black uppercase text-[#7959ff]">Fair Launch. Mass Distribution.</Text>
         <Text className="mt-1 text-xs leading-4 text-[#b9aaff]">
           The Warplets diamond hands. 10,000 wallet Farcaster airdrop.
@@ -5889,6 +5941,7 @@ function StatsMarket({
       )}
       <div className="mt-4 space-y-3">
         <StatsChartPanel
+          id="stats-deeplink-price"
           title="Price"
           animateLinesLeftToRight
           description="Moving average of observed sale prices."
@@ -5901,6 +5954,7 @@ function StatsMarket({
           onShare={() => onShareStats({ kind: "market", metric: "price", range })}
         />
         <StatsChartPanel
+          id="stats-deeplink-floor-price"
           title="Floor Price"
           animateLinesLeftToRight
           headline={formatStatsEth(latestFloorPrice).replace(/\s*Ξ$/, "")}
@@ -5911,6 +5965,7 @@ function StatsMarket({
           onShare={() => onShareStats({ kind: "market", metric: "floor", range })}
         />
         <StatsChartPanel
+          id="stats-deeplink-volume"
           title="Volume"
           animateLinesLeftToRight
           headline={formatStatsEth(volume).replace(/\s*Ξ$/, "")}
@@ -5921,6 +5976,7 @@ function StatsMarket({
           onShare={() => onShareStats({ kind: "market", metric: "volume", range })}
         />
         <StatsChartPanel
+          id="stats-deeplink-listings"
           title="Listings"
           animateLinesLeftToRight
           headline={formatStatsInteger(listCount)}
@@ -5931,6 +5987,7 @@ function StatsMarket({
           onShare={() => onShareStats({ kind: "market", metric: "listings", range })}
         />
         <StatsChartPanel
+          id="stats-deeplink-offers"
           title="Offers"
           animateLinesLeftToRight
           headline={formatStatsInteger(offerCount)}
@@ -5941,6 +5998,7 @@ function StatsMarket({
           onShare={() => onShareStats({ kind: "market", metric: "offers", range })}
         />
         <StatsChartPanel
+          id="stats-deeplink-sales"
           title="Sales"
           animateLinesLeftToRight
           headline={formatStatsInteger(sales)}
@@ -6316,6 +6374,7 @@ function StatsSocial({
   viewerFid,
   actionSessionToken,
   range,
+  detail,
   ethUsdPrice,
   onSearchWallet,
   onOpenWarpletDetails,
@@ -6329,6 +6388,7 @@ function StatsSocial({
   viewerFid: number | null;
   actionSessionToken: string | null;
   range: StatsRange;
+  detail?: StatsRouteDetail;
   ethUsdPrice: number | null;
   onSearchWallet: (wallet: string) => void;
   onOpenWarpletDetails: (tokenId: number) => void;
@@ -6348,6 +6408,10 @@ function StatsSocial({
     setSelectedEvents([event]);
     writeLastStatsActivityEvent(event);
   }, []);
+  useEffect(() => {
+    const event = getStatsActivityEventFromRouteDetail(detail);
+    if (event) selectActivityEvents([event]);
+  }, [detail, selectActivityEvents]);
   useEffect(() => {
     const controller = new AbortController();
     const personalized = friendsOnly && viewerFid != null && actionSessionToken != null;
@@ -6412,6 +6476,7 @@ function StatsSocial({
           The shared chart uses collection-wide data; Friends and Favourites are not included.
         </Text>
       )}
+      <div id={detail ? `stats-deeplink-${detail}` : undefined} className="scroll-mt-4">
       <CollectionActivity
         range={range}
         viewerFid={viewerFid}
@@ -6467,6 +6532,7 @@ function StatsSocial({
             </StatsChartErrorBoundary>
           </div>}
       />
+      </div>
 
       {false && recentRows.length > 0 && (
         <section className="mt-3 overflow-hidden rounded-xl border border-[#00FF00]/25 bg-black/65">
@@ -6524,6 +6590,9 @@ function StatsSocial({
 
 function StatsPage({
   subpage,
+  range,
+  detail,
+  onRangeChange,
   connectedWallet,
   favouriteWallet,
   favouriteTokenIds,
@@ -6535,6 +6604,9 @@ function StatsPage({
   onShareStats,
 }: {
   subpage: SearchStatsSubpage;
+  range: StatsRange;
+  detail?: StatsRouteDetail;
+  onRangeChange: (range: StatsRange) => void;
   connectedWallet: string | null;
   favouriteWallet: string | null;
   favouriteTokenIds: number[];
@@ -6545,7 +6617,6 @@ function StatsPage({
   isInMiniAppContext: boolean;
   onShareStats: (request: StatsShareRequest) => void;
 }) {
-  const [range, setRange] = useState<StatsRange>(() => readInitialStatsRange());
   const [payload, setPayload] = useState<StatsApiEnvelope | null>(null);
   const [highlights, setHighlights] = useState<unknown>(null);
   const [ethUsdPrice, setEthUsdPrice] = useState<number | null>(null);
@@ -6556,6 +6627,14 @@ function StatsPage({
   useEffect(() => {
     fetchEthUsdPrice().then(setEthUsdPrice).catch(() => undefined);
   }, []);
+
+  useEffect(() => {
+    if (!detail || !payload || loading) return;
+    const frame = window.requestAnimationFrame(() => {
+      document.getElementById(`stats-deeplink-${detail}`)?.scrollIntoView({ block: "start" });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [detail, loading, payload]);
 
   useEffect(() => {
     if (!payload || loading) return;
@@ -6724,7 +6803,7 @@ function StatsPage({
           className="mb-4"
           options={STATS_RANGE_TABS}
           activeId={range}
-          onSelect={(id) => setRange(id as StatsRange)}
+          onSelect={(id) => onRangeChange(id as StatsRange)}
           gridTemplateColumns="repeat(5, minmax(0, 1fr))"
         />
       )}
@@ -6737,6 +6816,7 @@ function StatsPage({
           onSearchWallet={onSearchWallet}
           onOpenWarpletDetails={onOpenWarpletDetails}
           onShareStats={onShareStats}
+          initialFriendsOnly={detail === "top10friends"}
         />
       ) : loading && !payload ? (
         <StatsLoadingState subpage={subpage} />
@@ -6758,6 +6838,7 @@ function StatsPage({
               viewerFid={viewerFid}
               actionSessionToken={actionSessionToken}
               range={range}
+              detail={detail}
               ethUsdPrice={ethUsdPrice}
               onSearchWallet={onSearchWallet}
               onOpenWarpletDetails={onOpenWarpletDetails}
@@ -7069,9 +7150,9 @@ function WarpletItemActivity({
   onScrollToEvents: (target: HTMLElement) => void;
   onShareStats: (request: StatsShareRequest) => void;
 }) {
-  const [open, setOpen] = useState(false);
-  const [range, setRange] = useState<StatsRange>("all");
-  const [selectedEvents, setSelectedEvents] = useState<MarketActivityRow["event"][]>(() => [readLastItemActivityEvent()]);
+  const [open, setOpen] = useState(() => readItemActivityDeepLink().open);
+  const [range, setRange] = useState<StatsRange>(() => readItemActivityDeepLink().range);
+  const [selectedEvents, setSelectedEvents] = useState<MarketActivityRow["event"][]>(() => [readItemActivityDeepLink().event ?? readLastItemActivityEvent()]);
   const [friendsOnly, setFriendsOnly] = useState(false);
   const [activityChart, setActivityChart] = useState<ActivityChartPayload | null>(null);
   const [activityChartLoading, setActivityChartLoading] = useState(false);
@@ -7086,12 +7167,14 @@ function WarpletItemActivity({
   }, []);
 
   useEffect(() => {
-    setOpen(false);
-    setRange("all");
+    const deepLink = readItemActivityDeepLink();
+    setOpen(deepLink.open);
+    setRange(deepLink.range);
+    if (deepLink.event) selectActivityEvents([deepLink.event]);
     setFriendsOnly(false);
     setRequestedBucket(null);
     setActiveBucketWindow(null);
-  }, [tokenId]);
+  }, [selectActivityEvents, tokenId]);
 
   useEffect(() => {
     if (open && ethUsdPrice == null) fetchEthUsdPrice().then(setEthUsdPrice).catch(() => undefined);
@@ -17651,17 +17734,18 @@ export default function SearchApp() {
       if (!response.ok || !result.snapshot?.imageReady) {
         throw new Error(result.renderError || result.message || result.error || `Snapshot rendering failed (${response.status})`);
       }
-      const shareUrl = resolveShareUrl(result.shareUrl).href;
+      const launchUrl = new URL(result.snapshot.launchPath, window.location.origin).href;
       const imageUrl = resolveShareUrl(result.imageUrl).href;
+      const farcasterPostText = `${result.snapshot.farcasterText}\n\n${launchUrl}`;
       setSharePreview({
         title: result.snapshot.title,
-        text: result.snapshot.farcasterText,
-        farcasterText: result.snapshot.farcasterText,
+        text: farcasterPostText,
+        farcasterText: farcasterPostText,
         twitterPostText: result.snapshot.twitterText,
-        links: [shareUrl],
+        links: [launchUrl],
         images: [{ src: imageUrl, alt: result.snapshot.title, aspectRatio: "square" }],
-        farcasterEmbeds: [shareUrl],
-        twitterText: buildTwitterShareText(result.snapshot.twitterText, [shareUrl]),
+        farcasterEmbeds: [launchUrl],
+        twitterText: buildTwitterShareText(result.snapshot.twitterText, [launchUrl]),
         status: "ready",
       });
     } catch (error) {
@@ -18353,7 +18437,15 @@ export default function SearchApp() {
         ) : searchRoute.page === "stats" ? (
           <StatsPage
             subpage={searchRoute.statsPage}
-            connectedWallet={activeWallet}
+            range={searchRoute.statsRange ?? "all"}
+            detail={searchRoute.statsDetail}
+            onRangeChange={(range) => navigateSearchRoute({
+              page: "stats",
+              statsPage: searchRoute.statsPage,
+              statsRange: range,
+              statsDetail: searchRoute.statsDetail,
+            })}
+            connectedWallet={activeWallet ?? (searchRoute.statsPage === "holders" ? readStatsDeepLinkWallet() : null)}
             favouriteWallet={activeFavouriteWallet}
             favouriteTokenIds={activeFavouriteTokenIds}
             viewerFid={viewerFid}

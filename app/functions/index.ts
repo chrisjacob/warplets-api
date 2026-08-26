@@ -9,7 +9,8 @@ const APPLICATION_NAME_META_REGEX = /<meta\s+name="application-name"[^>]*>/i;
 const APPLE_APP_TITLE_META_REGEX = /<meta\s+name="apple-mobile-web-app-title"[^>]*>/i;
 const BASE_APP_ID_META_REGEX = /<meta\s+name="base:app_id"[^>]*>/i;
 import { applySecurityHeaders } from "./_lib/security.js";
-import { loadStatsShareSnapshot } from "./_lib/statsShares.js";
+import { loadLatestStatsShareSnapshotByLaunchPath, loadStatsShareSnapshot } from "./_lib/statsShares.js";
+import type { StatsShareSnapshot } from "../src/statsShare.js";
 import { getPerksShareContentFromPath, getPerksShareImageUrl } from "../src/perksShareContent.js";
 import {
   WARPLETS_APP_HOSTS,
@@ -482,9 +483,9 @@ function buildSearchOpenGraphTags(titleText: string, imageUrl: string, pageUrl: 
   ].join("\n  ");
 }
 
-function buildStatsShareOpenGraphTags(titleText: string, imageUrl: string, pageUrl: string): string {
+function buildStatsShareOpenGraphTags(titleText: string, descriptionText: string, imageUrl: string, pageUrl: string): string {
   const title = escapeHtmlAttr(titleText);
-  const description = escapeHtmlAttr("A live 10X Warplets Stats snapshot.");
+  const description = escapeHtmlAttr(descriptionText);
   const image = escapeHtmlAttr(imageUrl);
   const url = escapeHtmlAttr(pageUrl);
   return [
@@ -501,6 +502,51 @@ function buildStatsShareOpenGraphTags(titleText: string, imageUrl: string, pageU
     `<meta name="twitter:description" content="${description}" />`,
     `<meta name="twitter:image" content="${image}" />`,
   ].join("\n  ");
+}
+
+export function getStatsLaunchLookupPath(url: URL): string | null {
+  if (/^\/stats\/(?:overview\/(?:collection|launch)|market\/(?:7d|30d|90d|1y|all)(?:\/(?:price|floor-price|volume|listings|offers|sales))?|activity\/(?:7d|30d|90d|1y|all)\/(?:sales|listings|offers|sends)|holders(?:\/top10|\/top10friends)?)\/?$/i.test(url.pathname)) {
+    const path = url.pathname.replace(/\/$/, "") || "/";
+    const wallet = url.searchParams.get("wallet")?.trim().toLowerCase();
+    return wallet && /^0x[a-f0-9]{40}$/.test(wallet) ? `${path}?wallet=${wallet}` : path;
+  }
+  const tokenId = url.searchParams.get("warplet")?.trim();
+  const range = url.searchParams.get("range")?.trim();
+  const event = url.searchParams.get("event")?.trim();
+  if (url.pathname === "/" && url.searchParams.get("activity") === "1" && tokenId && /^\d+$/.test(tokenId)
+    && /^(7d|30d|90d|1y|all)$/.test(range ?? "") && /^(sale|listing|offer|send)$/.test(event ?? "")) {
+    return `/?warplet=${tokenId}&activity=1&range=${range}&event=${event}`;
+  }
+  return null;
+}
+
+function getStatsSnapshotIdentity(snapshot: StatsShareSnapshot): string | null {
+  if (!snapshot.data || typeof snapshot.data !== "object" || Array.isArray(snapshot.data)) return null;
+  const data = snapshot.data as Record<string, unknown>;
+  const candidate = snapshot.kind === "holder-rank" ? data.row : data.viewer;
+  if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) return null;
+  const row = candidate as Record<string, unknown>;
+  for (const username of [row.username, row.xUsername]) {
+    if (typeof username === "string" && username.trim()) return `@${username.trim().replace(/^@/, "")}`;
+  }
+  if (typeof row.displayName === "string" && row.displayName.trim()) return row.displayName.trim();
+  if (typeof row.wallet === "string" && row.wallet.length > 12) return `${row.wallet.slice(0, 6)}...${row.wallet.slice(-4)}`;
+  return null;
+}
+
+function getStatsSnapshotMeta(snapshot: StatsShareSnapshot): { title: string; description: string } {
+  const identity = getStatsSnapshotIdentity(snapshot);
+  const title = snapshot.kind === "holder-rank" && identity
+    ? `${identity}'s 10X Warplets Holder Rank`
+    : snapshot.kind === "holders-top10-friends" && identity
+      ? `${identity}'s Top Ranked Warplet Friends`
+      : snapshot.kind === "holders-top10"
+        ? "10X Warplets Top 10 Holders"
+        : snapshot.farcasterText.split("\n")[0] || snapshot.title;
+  return {
+    title,
+    description: snapshot.twitterText.replace(/\s+/g, " ").trim(),
+  };
 }
 
 export const onRequestGet: PagesFunction<PagesEnv> = async (context) => {
@@ -544,8 +590,13 @@ export const onRequestGet: PagesFunction<PagesEnv> = async (context) => {
 
   const routeKey = getRouteKey(requestUrl.hostname, requestUrl.pathname);
   const statsShareId = requestUrl.pathname.match(/^\/stats\/share\/([a-f0-9]{32})\/?$/)?.[1];
-  const statsShareSnapshot = statsShareId && context.env.WARPLETS
-    ? await loadStatsShareSnapshot(context.env.WARPLETS, statsShareId).catch(() => null)
+  const statsLaunchLookupPath = getStatsLaunchLookupPath(requestUrl);
+  const statsShareSnapshot = context.env.WARPLETS
+    ? statsShareId
+      ? await loadStatsShareSnapshot(context.env.WARPLETS, statsShareId).catch(() => null)
+      : statsLaunchLookupPath
+        ? await loadLatestStatsShareSnapshotByLaunchPath(context.env.WARPLETS, statsLaunchLookupPath).catch(() => null)
+        : null
     : null;
   const statsShareImageUrl = statsShareSnapshot?.imageReady
     ? `${requestUrl.origin}/api/stats/share-images/${statsShareSnapshot.id}`
@@ -661,7 +712,7 @@ export const onRequestGet: PagesFunction<PagesEnv> = async (context) => {
     html = html.replace("</head>", `  ${buildStopOpenGraphTags(requestUrl.href)}\n  </head>`);
   }
 
-  if (routeKey === "warplets") {
+  if (routeKey === "warplets" && !statsShareSnapshot) {
     const routeTitle = searchShareTitle ?? WARPLETS_SHARE_TITLE;
     const routeShareImageUrl = searchShareImageUrl ?? `${requestUrl.origin}/embed_search.png`;
     const titleTag = `<title>${escapeHtmlText(routeTitle)}</title>`;
@@ -675,13 +726,19 @@ export const onRequestGet: PagesFunction<PagesEnv> = async (context) => {
   }
 
   if (statsShareSnapshot && statsShareImageUrl) {
-    const titleTag = `<title>${escapeHtmlText(statsShareSnapshot.farcasterText)}</title>`;
+    const statsMeta = getStatsSnapshotMeta(statsShareSnapshot);
+    const titleTag = `<title>${escapeHtmlText(statsMeta.title)}</title>`;
     html = TITLE_REGEX.test(html)
       ? html.replace(TITLE_REGEX, titleTag)
       : html.replace("</head>", `  ${titleTag}\n  </head>`);
     html = html.replace(
       "</head>",
-      `  ${buildStatsShareOpenGraphTags(statsShareSnapshot.farcasterText, statsShareImageUrl, requestUrl.href)}\n  </head>`,
+      `  ${buildStatsShareOpenGraphTags(
+        statsMeta.title,
+        statsMeta.description,
+        statsShareImageUrl,
+        requestUrl.href,
+      )}\n  </head>`,
     );
   }
 

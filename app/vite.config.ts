@@ -353,7 +353,7 @@ function buildSearchOpenGraphTags(titleText: string, imageUrl: string, pageUrl: 
   ].join("\n    ");
 }
 
-const localApiTarget = process.env.VITE_LOCAL_API_TARGET?.trim() || "http://127.0.0.1:8789";
+const localApiTarget = process.env.VITE_LOCAL_API_TARGET?.trim() || "http://127.0.0.1:8788";
 const MINIAPP_FRAME_ANCESTORS = [
   "'self'",
   "https://farcaster.xyz",

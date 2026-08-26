@@ -20,7 +20,7 @@ export type StatsShareRequest =
   | { kind: "activity"; event: StatsShareActivityEvent; range: StatsShareRange; tokenId?: number }
   | { kind: "holder-rank"; wallet?: string; fid?: number }
   | { kind: "holders-top10"; wallet?: string; fid?: number }
-  | { kind: "holders-top10-friends"; viewerFid: number };
+  | { kind: "holders-top10-friends"; viewerFid: number; wallet?: string };
 
 export type StatsShareHolder = {
   rank: number | null;
@@ -150,13 +150,44 @@ export function buildStatsHolderRankText(
     : heading;
 }
 
-export function getStatsShareLaunchPath(request: StatsShareRequest): string {
-  if (request.kind === "overview") return "/stats";
-  if (request.kind === "market" || request.kind === "market-all") return `/stats/market?range=${request.range}`;
+const MARKET_PATHS: Record<StatsShareMarketMetric, string> = {
+  price: "price",
+  floor: "floor-price",
+  volume: "volume",
+  listings: "listings",
+  offers: "offers",
+  sales: "sales",
+};
+
+const ACTIVITY_PATHS: Record<StatsShareActivityEvent, string> = {
+  sale: "sales",
+  listing: "listings",
+  offer: "offers",
+  send: "sends",
+};
+
+function readSnapshotWallet(data: unknown): string | undefined {
+  if (!data || typeof data !== "object" || Array.isArray(data)) return undefined;
+  const row = (data as { row?: unknown }).row;
+  if (!row || typeof row !== "object" || Array.isArray(row)) return undefined;
+  const wallet = (row as { wallet?: unknown }).wallet;
+  return typeof wallet === "string" && /^0x[a-fA-F0-9]{40}$/.test(wallet) ? wallet.toLowerCase() : undefined;
+}
+
+export function getStatsShareLaunchPath(request: StatsShareRequest, data?: unknown): string {
+  if (request.kind === "overview") return `/stats/overview/${request.panel === "fair-launch" ? "launch" : "collection"}`;
+  if (request.kind === "market") return `/stats/market/${request.range}/${MARKET_PATHS[request.metric]}`;
+  if (request.kind === "market-all") return `/stats/market/${request.range}`;
   if (request.kind === "activity") return request.tokenId
-    ? `/?warplet=${request.tokenId}`
-    : `/stats/social?range=${request.range}&event=${request.event}`;
-  return "/stats/holders";
+    ? `/?warplet=${request.tokenId}&activity=1&range=${request.range}&event=${request.event}`
+    : `/stats/activity/${request.range}/${ACTIVITY_PATHS[request.event]}`;
+  if (request.kind === "holder-rank") {
+    const wallet = request.wallet ?? readSnapshotWallet(data);
+    return wallet ? `/stats/holders?wallet=${wallet}` : "/stats/holders";
+  }
+  if (request.kind === "holders-top10") return "/stats/holders/top10";
+  const wallet = request.wallet ?? readSnapshotWallet(data);
+  return wallet ? `/stats/holders/top10friends?wallet=${wallet}` : "/stats/holders/top10friends";
 }
 
 export function parseStatsShareRequest(value: unknown): StatsShareRequest | null {
@@ -212,7 +243,10 @@ export function parseStatsShareRequest(value: unknown): StatsShareRequest | null
     const viewerFid = typeof input.viewerFid === "number" && Number.isSafeInteger(input.viewerFid) && input.viewerFid > 0
       ? input.viewerFid
       : null;
-    return viewerFid ? { kind: "holders-top10-friends", viewerFid } : null;
+    const wallet = typeof input.wallet === "string" && /^0x[a-fA-F0-9]{40}$/.test(input.wallet.trim())
+      ? input.wallet.trim().toLowerCase()
+      : undefined;
+    return viewerFid ? { kind: "holders-top10-friends", viewerFid, ...(wallet ? { wallet } : {}) } : null;
   }
   return null;
 }

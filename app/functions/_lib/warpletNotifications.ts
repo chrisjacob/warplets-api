@@ -87,7 +87,7 @@ const TOKEN_CONTRACT = "0x780446dd12e080ae0db762fcd4daf313f3e359de";
 const OPEN_SEA_COLLECTION_URL = "https://opensea.io/collection/10xwarplets";
 const GLOBAL_STATS_ACTIVE_JOB_KEY = "warplets:global-stats:active";
 const GLOBAL_STATS_LAST_JOB_KEY = "warplets:global-stats:last";
-export const GLOBAL_STATS_TARGET_URL = `${WARPLETS_BASE_URL}/stats/market?range=30d`;
+export const GLOBAL_STATS_TARGET_URL = `${WARPLETS_BASE_URL}/stats/market/30d`;
 
 const ACTION_PRIORITY: Record<WarpletActivityType, number> = {
   purchased: 0,
@@ -1239,7 +1239,7 @@ export async function runGlobalStatsNotifications(env: WarpletNotificationEnv): 
       wallets: audience.baseWallets,
       title: "10X Warplets",
       message: campaign.body,
-      targetPath: "/stats/market?range=30d",
+      targetPath: "/stats/market/30d",
     });
     if (baseResults.some((result) => result.state === "failed")) retryableFailure = true;
     } catch (error) {
