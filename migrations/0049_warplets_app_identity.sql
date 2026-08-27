@@ -27,6 +27,8 @@ CREATE TABLE notification_queue (
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   sent_at TEXT,
+  collapse_key TEXT,
+  expires_at TEXT,
   FOREIGN KEY(event_id) REFERENCES warplet_activity_events(id)
 );
 

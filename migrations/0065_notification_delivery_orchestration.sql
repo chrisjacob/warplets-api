@@ -1,8 +1,5 @@
 -- Make transactional notifications coalescible and time-bounded. Provider
 -- delivery attempts remain independently durable in notification_channel_deliveries.
-ALTER TABLE notification_queue ADD COLUMN collapse_key TEXT;
-ALTER TABLE notification_queue ADD COLUMN expires_at TEXT;
-
 CREATE INDEX IF NOT EXISTS idx_notification_queue_collapse_status
   ON notification_queue(app_slug, collapse_key, status, created_at);
 
