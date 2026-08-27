@@ -27,6 +27,19 @@ interface BaseSendResponse {
   failedCount?: number;
 }
 
+const PERMANENT_DELIVERY_FAILURES = [
+  "user has not saved this app",
+  "notifications are not enabled",
+  "notifications disabled",
+  "invalid wallet",
+] as const;
+
+export function isPermanentBaseNotificationFailure(error: unknown): boolean {
+  if (typeof error !== "string") return false;
+  const normalized = error.trim().toLowerCase();
+  return PERMANENT_DELIVERY_FAILURES.some((message) => normalized.includes(message));
+}
+
 const BASE_NOTIFICATIONS_ORIGIN = "https://dashboard.base.org";
 const WALLET_PATTERN = /^0x[a-f0-9]{40}$/;
 const BASE_REQUEST_SPACING_MS = 3100;

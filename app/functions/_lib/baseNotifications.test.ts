@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { resolveBaseNotificationConfig, type BaseNotificationsEnv } from "./baseNotifications";
+import {
+  isPermanentBaseNotificationFailure,
+  resolveBaseNotificationConfig,
+  type BaseNotificationsEnv,
+} from "./baseNotifications";
 
 function testEnv(): BaseNotificationsEnv {
   return {
@@ -31,4 +35,22 @@ describe("Base notification app configuration", () => {
       appUrl: "https://drop.10x.meme/",
     });
   });
+});
+
+describe("Base notification retry classification", () => {
+  it.each([
+    "user has not saved this app",
+    "Notifications are not enabled for this user",
+    "notifications disabled",
+    "Invalid wallet address",
+  ])("treats %s as permanent", (message) => {
+    expect(isPermanentBaseNotificationFailure(message)).toBe(true);
+  });
+
+  it.each(["HTTP 429", "HTTP 503", "network timeout", null])(
+    "allows retrying %s",
+    (message) => {
+      expect(isPermanentBaseNotificationFailure(message)).toBe(false);
+    },
+  );
 });

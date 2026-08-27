@@ -1,6 +1,7 @@
 import { dispatchNotification } from "./dispatch.js";
 import {
   getBaseNotificationAudience,
+  isPermanentBaseNotificationFailure,
   sendBaseNotificationCampaign,
   type BaseNotificationsEnv,
 } from "./baseNotifications.js";
@@ -87,6 +88,8 @@ const TOKEN_CONTRACT = "0x780446dd12e080ae0db762fcd4daf313f3e359de";
 const OPEN_SEA_COLLECTION_URL = "https://opensea.io/collection/10xwarplets";
 const GLOBAL_STATS_ACTIVE_JOB_KEY = "warplets:global-stats:active";
 const GLOBAL_STATS_LAST_JOB_KEY = "warplets:global-stats:last";
+const MAX_TRANSACTIONAL_RETRY_ATTEMPTS = 6;
+const MAX_COLLECTION_OFFER_RECIPIENTS = 250;
 export const GLOBAL_STATS_TARGET_URL = `${WARPLETS_BASE_URL}/stats/market/30d`;
 
 const ACTION_PRIORITY: Record<WarpletActivityType, number> = {
@@ -475,13 +478,33 @@ async function queueInstantNotificationsForEvent(env: WarpletNotificationEnv, ro
   const queuedFids = new Set<number>();
 
   if (row.event_type === "collection_top_offer") {
+    await env.WARPLETS.prepare(
+      `UPDATE notification_queue
+       SET status = 'superseded', last_error = 'Superseded by a newer top collection offer',
+           updated_at = CURRENT_TIMESTAMP
+       WHERE app_slug = ? AND status IN ('pending', 'retry') AND event_id IN (
+         SELECT id FROM warplet_activity_events
+         WHERE event_type = 'collection_top_offer' AND id <> ?
+       )`,
+    ).bind(APP_SLUG, row.id).run();
+
     const owners = await env.WARPLETS.prepare(
       `SELECT owner_fid AS fid, MIN(token_id) AS token_id
        FROM warplet_market_state
-       WHERE owner_fid IS NOT NULL
+       WHERE owner_fid IS NOT NULL AND (
+         EXISTS (
+           SELECT 1 FROM miniapp_notification_tokens token
+           WHERE token.fid = warplet_market_state.owner_fid
+             AND token.app_slug = ? AND token.enabled = 1
+         )
+         OR EXISTS (
+           SELECT 1 FROM app_identity_links identity
+           WHERE identity.farcaster_fid = warplet_market_state.owner_fid
+         )
+       )
        GROUP BY owner_fid
-       LIMIT 10000`,
-    ).all<{ fid: number; token_id: number }>();
+       LIMIT ?`,
+    ).bind(APP_SLUG, MAX_COLLECTION_OFFER_RECIPIENTS).all<{ fid: number; token_id: number }>();
 
     for (const owner of owners.results || []) {
       const fid = Number(owner.fid);
@@ -882,16 +905,19 @@ export async function processNotificationQueue(
       continue;
     }
 
-    const linkedWallet = env.BASE_NOTIFICATIONS_ENABLED === "true"
+    const linkedWallets = env.BASE_NOTIFICATIONS_ENABLED === "true"
       ? await env.WARPLETS.prepare(
-          `SELECT wallet_address AS wallet FROM app_identity_links WHERE farcaster_fid = ?
+          `SELECT lower(wallet_address) AS wallet FROM app_identity_links WHERE farcaster_fid = ?
            UNION
            SELECT lower(wallet) AS wallet FROM wallet_farcaster_links WHERE fid = ?
-           LIMIT 1`,
-        ).bind(Number(row.fid), Number(row.fid)).first<{ wallet: string }>()
-      : null;
+           LIMIT 10`,
+        ).bind(Number(row.fid), Number(row.fid)).all<{ wallet: string }>()
+      : { results: [] as Array<{ wallet: string }> };
+    const wallets = [...new Set((linkedWallets.results ?? []).map((item) => item.wallet))];
     let baseDelivered = false;
-    if (linkedWallet?.wallet) {
+    let baseFailure: string | null = null;
+    let basePermanentlyUnavailable = false;
+    if (wallets.length > 0) {
       try {
         const wrappedTarget = new URL(row.target_url);
         const rawTarget = wrappedTarget.searchParams.get("t") || WARPLETS_BASE_URL;
@@ -899,13 +925,22 @@ export async function processNotificationQueue(
         const baseResults = await sendBaseNotificationCampaign(env as WarpletNotificationEnv & BaseNotificationsEnv, {
           campaignId: row.notification_id,
           appSlug: APP_SLUG,
-          wallets: [linkedWallet.wallet],
+          wallets,
           title: row.title,
           message: row.body,
           targetPath: `${parsedTarget.pathname}${parsedTarget.search}`,
         });
         baseDelivered = baseResults.some((result) => result.state === "delivered");
+        const failures = baseResults
+          .filter((result) => result.state !== "delivered")
+          .map((result) => result.error)
+          .filter((error): error is string => Boolean(error));
+        baseFailure = failures.length > 0 ? [...new Set(failures)].join("; ").slice(0, 500) : null;
+        basePermanentlyUnavailable = failures.length === baseResults.length &&
+          failures.every(isPermanentBaseNotificationFailure);
       } catch (error) {
+        baseFailure = error instanceof Error ? error.message : String(error);
+        basePermanentlyUnavailable = isPermanentBaseNotificationFailure(baseFailure);
         console.warn("Base notification delivery failed:", error);
       }
     }
@@ -921,9 +956,13 @@ export async function processNotificationQueue(
 
     if (!token?.notification_url || !token?.notification_token) {
       if (baseDelivered) sent += 1;
-      else if (linkedWallet?.wallet) retried += 1;
-      else skipped += 1;
-      const nextStatus = baseDelivered ? "sent" : linkedWallet?.wallet ? "retry" : "no_token";
+      const attempts = Number(row.attempt_count || 0) + 1;
+      const retryable = wallets.length > 0 &&
+        !basePermanentlyUnavailable &&
+        attempts < MAX_TRANSACTIONAL_RETRY_ATTEMPTS;
+      if (!baseDelivered && retryable) retried += 1;
+      else if (!baseDelivered) skipped += 1;
+      const nextStatus = baseDelivered ? "sent" : retryable ? "retry" : "no_token";
       await env.WARPLETS.prepare(
         `UPDATE notification_queue
          SET status = ?, sent_at = CASE WHEN ? THEN CURRENT_TIMESTAMP ELSE sent_at END,
@@ -935,9 +974,13 @@ export async function processNotificationQueue(
         .bind(
           nextStatus,
           baseDelivered ? 1 : 0,
-          linkedWallet?.wallet && !baseDelivered ? 1 : 0,
-          linkedWallet?.wallet && !baseDelivered ? 1 : 0,
-          baseDelivered ? null : linkedWallet?.wallet ? "Base delivery failed; no Farcaster token" : "No enabled Warplets notification token",
+          wallets.length > 0 && !baseDelivered ? 1 : 0,
+          retryable ? 1 : 0,
+          baseDelivered ? null : baseFailure || (wallets.length > 0
+            ? attempts >= MAX_TRANSACTIONAL_RETRY_ATTEMPTS
+              ? "Retry limit reached; no Farcaster token"
+              : "Base delivery failed; no Farcaster token"
+            : "No enabled Warplets notification token"),
           row.id,
         )
         .run();
@@ -974,11 +1017,14 @@ export async function processNotificationQueue(
         .bind(result.state, result.state, row.id)
         .run();
     } else {
-      retried += 1;
+      const attempts = Number(row.attempt_count || 0) + 1;
+      const retryable = result.state !== "validation_error" && attempts < MAX_TRANSACTIONAL_RETRY_ATTEMPTS;
+      if (retryable) retried += 1;
+      else skipped += 1;
       const delayMinutes = Math.min(60, Math.pow(2, Math.min(6, Number(row.attempt_count || 0))));
       await env.WARPLETS.prepare(
         `UPDATE notification_queue
-         SET status = 'retry',
+         SET status = ?,
              attempt_count = attempt_count + 1,
              next_attempt_at = datetime('now', ?),
              last_error = ?,
@@ -986,6 +1032,7 @@ export async function processNotificationQueue(
          WHERE id = ?`,
       )
         .bind(
+          retryable ? "retry" : "failed",
           `+${delayMinutes} minutes`,
           result.state === "validation_error"
             ? result.message
