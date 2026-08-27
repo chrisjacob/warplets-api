@@ -22,9 +22,8 @@ BASE_APP_URL = "https://warplet.10x.meme"
 # BASE_APP_NOTIFICATIONS_API_KEY (app.10x.meme).
 BASE_NOTIFICATIONS_ENABLED = "true"
 EMAIL_AUDIENCE_MUTATIONS_ENABLED = "true"
-RESEND_ONBOARDING_ENABLED = "false"
-# Set after the disabled Automation has been provisioned and reviewed.
-# RESEND_ONBOARDING_AUTOMATION_ID = "..."
+RESEND_ONBOARDING_ENABLED = "true"
+RESEND_ONBOARDING_AUTOMATION_ID = "01a0427e-157b-72fc-96e6-661028cf82f7"
 WARPMOJI_ADMIN_FIDS = "1129138"
 # Server-side OAuth/OIDC client IDs may be added here; their matching client
 # secrets remain Wrangler secrets. VAPID_PUBLIC_KEY is public by design.

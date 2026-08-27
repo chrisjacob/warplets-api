@@ -8,6 +8,7 @@ const EVENT_NAME = "10x.onboarding.start.v1";
 const VERSION = 1;
 const apply = process.argv.includes("--apply");
 const testDelays = process.argv.includes("--test-delays");
+const skipRegister = process.argv.includes("--skip-register");
 const apiKey = process.env.RESEND_API_KEY?.trim() ?? "";
 const from = process.env.RESEND_FROM_EMAIL?.trim() || "10X <10x@10x.meme>";
 const webhookOrigin = (process.env.ONBOARDING_WEBHOOK_ORIGIN?.trim() || "https://app.10x.meme").replace(/\/$/, "");
@@ -375,13 +376,14 @@ async function main(): Promise<void> {
   const automationId = await ensureAutomation(provisionedTemplates.map((template) => template.templateId));
   const webhook = await ensureWebhook();
   const config = { version: VERSION, eventName: EVENT_NAME, automationId, webhookId: webhook.id, templates: provisionedTemplates };
-  if (!testDelays) await registerConfig(config);
+  if (!testDelays && !skipRegister) await registerConfig(config);
   const outputDirectory = resolve(".onboarding-provisioning");
   await mkdir(outputDirectory, { recursive: true });
   const outputPath = resolve(outputDirectory, `resend-onboarding-v${VERSION}.json`);
   await writeFile(outputPath, `${JSON.stringify({ ...config, webhookSigningSecret: webhook.signingSecret }, null, 2)}\n`, { mode: 0o600 });
   console.log(`Provisioned disabled Automation ${automationId}. Configuration saved to ${outputPath}.`);
   if (testDelays) console.log("Test-delay resources were not registered in D1. Enable them only while sending the controlled test event.");
+  if (skipRegister) console.log("D1 registration was skipped; register the saved configuration before enabling production onboarding.");
   if (webhook.signingSecret) console.log("A new webhook signing secret was saved locally; set it as RESEND_WEBHOOK_SECRET before testing.");
 }
 

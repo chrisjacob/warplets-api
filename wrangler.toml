@@ -31,9 +31,8 @@ DUNE_MAX_RESULT_PAGES = "8"
 DUNE_INDEXING_LAG_HOURS = "2"
 DUNE_MONTHLY_CREDIT_BUDGET = "1500"
 DUNE_MAX_CREDITS_PER_EXECUTION = "20"
-RESEND_ONBOARDING_ENABLED = "false"
-# Set after the disabled Automation has been provisioned and reviewed.
-# RESEND_ONBOARDING_AUTOMATION_ID = "..."
+RESEND_ONBOARDING_ENABLED = "true"
+RESEND_ONBOARDING_AUTOMATION_ID = "01a0427e-157b-72fc-96e6-661028cf82f7"
 # Warpmoji remains in Shadow mode until curated pools and the allowlisted pilot
 # are verified. Secrets: NEYNAR_API_KEY, NEYNAR_WEBHOOK_SECRET,
 # WARPMOJI_SIGNER_UUID. WARPMOJI_FID is the numeric FID for warpmoji.eth.
