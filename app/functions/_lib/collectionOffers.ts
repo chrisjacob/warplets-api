@@ -1128,20 +1128,19 @@ export async function handleCollectionOfferSubmit(context: Parameters<PagesFunct
     rawPayload: { ...diagnosticPayload, elapsedMs: Date.now() - startedAt, recoveredExistingOrder },
   }).catch((error) => console.error("Failed to record collection offer submit success", error));
 
-  const displayBookkeeping: Promise<unknown>[] = [];
   if (orderHash) {
     const row = { ...result, order_hash: orderHash, protocol_address: protocolAddress, protocol_data: { parameters: submissionParameters, signature }, criteria: { collection: { slug: COLLECTION_SLUG } }, status: "ACTIVE", remaining_quantity: quantity };
-    displayBookkeeping.push(
-      upsertCriteriaOfferFromRow(context.env, row, { recordActivity: false })
-        .catch((error) => console.error("Collection offer submitted but local ingestion failed", { orderHash, error })),
-      updateCollectionOfferDisplayFields(context.env, row)
-        .catch((error) => console.error("Collection offer submitted but display bookkeeping failed", { orderHash, error })),
-    );
+    try {
+      // Quantity is stored by the follow-up display update, so the row must
+      // exist before that update runs. Running these concurrently can leave a
+      // multi-item order at the schema's quantity-one default, which makes its
+      // total WETH appear as the per-item price.
+      await upsertCriteriaOfferFromRow(context.env, row, { recordActivity: false });
+      await updateCollectionOfferDisplayFields(context.env, row);
+    } catch (error) {
+      console.error("Collection offer submitted but local display ingestion failed", { orderHash, error });
+    }
   }
-  // The browser reloads the collection-offer table as soon as this response
-  // succeeds. Finish the local display writes first so that reload cannot race
-  // the background bookkeeping and render stale data.
-  if (displayBookkeeping.length > 0) await Promise.allSettled(displayBookkeeping);
   if (offerer && priceRaw) {
     context.waitUntil(recordWarpletActivity(context.env, {
       eventType: "collection_top_offer",
