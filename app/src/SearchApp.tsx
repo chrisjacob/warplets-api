@@ -15941,7 +15941,7 @@ export default function SearchApp() {
     try {
       void hapticPrimaryTap();
       if (notificationPromptMode === "web") {
-        await subscribeToWebPush(["announcements"]);
+        await subscribeToWebPush(["announcements", "favourites", "offers", "market", "activity"]);
         trackAppEvent("web_push_subscribed", { surface: "web", channel: "web-push" });
         showSearchToast("success", "Web notifications are enabled for 10X Warplets.");
       } else {

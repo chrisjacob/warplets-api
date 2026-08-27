@@ -81,6 +81,14 @@ interface DispatchStatusRow {
   status: string;
 }
 
+interface ChannelDeliveryStatusRow {
+  channel: "base" | "web-push";
+  recipient_key: string;
+  status: string;
+}
+
+type AdminNotificationChannel = "farcaster" | "base" | "web-push";
+
 interface TokenInspectRow {
   fid: number;
   app_slug: string;
@@ -253,6 +261,18 @@ async function getDispatchStatuses(db: D1Database, notificationId: string): Prom
   return result.results;
 }
 
+async function getChannelDeliveryStatuses(
+  db: D1Database,
+  notificationId: string,
+): Promise<ChannelDeliveryStatusRow[]> {
+  const result = await db.prepare(
+    `SELECT channel, recipient_key, status
+       FROM notification_channel_deliveries
+      WHERE campaign_id = ? AND channel IN ('base', 'web-push')`,
+  ).bind(notificationId).all<ChannelDeliveryStatusRow>();
+  return result.results ?? [];
+}
+
 async function inspectRequestedFids(
   db: D1Database,
   fids: number[] | undefined,
@@ -320,27 +340,71 @@ async function inspectRequestedFids(
   });
 }
 
-function buildProgress(rows: TokenRow[], dispatchRows: DispatchStatusRow[]) {
-  const activeFids = new Set(rows.map((row) => row.fid));
-  const counts: Record<string, number> = {};
-  let alreadyDispatched = 0;
+export function buildProgress(input: {
+  channels: AdminNotificationChannel[];
+  farcasterRows: TokenRow[];
+  dispatchRows: DispatchStatusRow[];
+  webPushRows: WebPushSubscriptionRow[];
+  baseWallets?: string[];
+  channelDeliveryRows: ChannelDeliveryStatusRow[];
+}) {
+  const recipients = new Map<string, { channel: AdminNotificationChannel; status: string | null }>();
+  const addRecipient = (channel: AdminNotificationChannel, key: string, status: string | null = null) => {
+    const composite = `${channel}:${key}`;
+    const existing = recipients.get(composite);
+    recipients.set(composite, { channel, status: status ?? existing?.status ?? null });
+  };
 
-  for (const row of dispatchRows) {
-    if (!activeFids.has(row.fid)) continue;
-    alreadyDispatched += 1;
-    counts[row.status] = (counts[row.status] ?? 0) + 1;
+  if (input.channels.includes("farcaster")) {
+    for (const row of input.farcasterRows) addRecipient("farcaster", String(row.fid));
+    const activeFids = new Set(input.farcasterRows.map((row) => row.fid));
+    for (const row of input.dispatchRows) {
+      if (activeFids.has(row.fid)) addRecipient("farcaster", String(row.fid), row.status);
+    }
+  }
+  if (input.channels.includes("web-push")) {
+    for (const row of input.webPushRows) addRecipient("web-push", row.endpoint_hash);
+  }
+  if (input.channels.includes("base")) {
+    for (const wallet of input.baseWallets ?? []) addRecipient("base", wallet);
+  }
+  for (const row of input.channelDeliveryRows) {
+    if (input.channels.includes(row.channel)) addRecipient(row.channel, row.recipient_key, row.status);
   }
 
-  return {
-    audience: rows.length,
-    alreadyDispatched,
-    unsent: Math.max(0, rows.length - alreadyDispatched),
-    delivered: counts.delivered ?? 0,
-    invalid: counts.invalid ?? 0,
-    failed: counts.failed ?? 0,
-    rateLimited: counts.rate_limited ?? 0,
-    pending: counts.pending ?? 0,
+  const summarize = (values: Array<{ status: string | null }>) => {
+    const counts: Record<string, number> = {};
+    for (const row of values) {
+      if (row.status) counts[row.status] = (counts[row.status] ?? 0) + 1;
+    }
+    const alreadyDispatched = values.filter((row) => row.status !== null).length;
+    return {
+      audience: values.length,
+      alreadyDispatched,
+      unsent: Math.max(0, values.length - alreadyDispatched),
+      delivered: counts.delivered ?? 0,
+      invalid: counts.invalid ?? 0,
+      failed: counts.failed ?? 0,
+      rateLimited: counts.rate_limited ?? 0,
+      pending: (counts.pending ?? 0) + (counts.sending ?? 0),
+    };
   };
+  const values = [...recipients.values()];
+  return {
+    ...summarize(values),
+    byChannel: Object.fromEntries(input.channels.map((channel) => [
+      channel,
+      summarize(values.filter((row) => row.channel === channel)),
+    ])),
+  };
+}
+
+function parseChannels(raw: string | null): AdminNotificationChannel[] {
+  const values = raw?.split(",").filter(
+    (channel): channel is AdminNotificationChannel =>
+      channel === "farcaster" || channel === "base" || channel === "web-push",
+  ) ?? [];
+  return values.length > 0 ? [...new Set(values)] : ["farcaster"];
 }
 
 function chunk<T>(items: T[], size: number): T[][] {
@@ -390,13 +454,22 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
   const notificationId = buildNotificationId(audienceSlug, rawNotificationId);
   const requestedFids = parseFids(url.searchParams.get("fids"));
-  const rows = await resolveTokenRows(context.env.WARPLETS, audienceSlug, requestedFids);
-  const dispatchRows = await getDispatchStatuses(context.env.WARPLETS, notificationId);
+  const channels = parseChannels(url.searchParams.get("channels"));
+  const [rows, webPushRows, baseWallets, dispatchRows, channelDeliveryRows] = await Promise.all([
+    channels.includes("farcaster") ? resolveTokenRows(context.env.WARPLETS, audienceSlug, requestedFids) : Promise.resolve([]),
+    channels.includes("web-push") ? resolveWebPushRows(context.env.WARPLETS, audienceSlug, requestedFids) : Promise.resolve([]),
+    channels.includes("base") ? resolveBaseWallets(context.env.WARPLETS, requestedFids) : Promise.resolve(undefined),
+    getDispatchStatuses(context.env.WARPLETS, notificationId),
+    getChannelDeliveryStatuses(context.env.WARPLETS, notificationId),
+  ]);
 
   return jsonSecure({
     notificationId,
-    progress: buildProgress(rows, dispatchRows),
-    fidDetails: await inspectRequestedFids(context.env.WARPLETS, requestedFids, rows, notificationId),
+    channels,
+    progress: buildProgress({ channels, farcasterRows: rows, dispatchRows, webPushRows, baseWallets, channelDeliveryRows }),
+    fidDetails: channels.includes("farcaster")
+      ? await inspectRequestedFids(context.env.WARPLETS, requestedFids, rows, notificationId)
+      : undefined,
   });
 };
 
@@ -499,8 +572,21 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     return jsonSecure({ total: 0, results: [], message: "No enabled tokens found" });
   }
 
-  const beforeDispatchRows = await getDispatchStatuses(context.env.WARPLETS, notificationId);
-  const beforeProgress = buildProgress(rows, beforeDispatchRows);
+  const resolvedBaseWallets = wantBase
+    ? await resolveBaseWallets(context.env.WARPLETS, requestedFids, json.wallets)
+    : undefined;
+  const [beforeDispatchRows, beforeChannelDeliveryRows] = await Promise.all([
+    getDispatchStatuses(context.env.WARPLETS, notificationId),
+    getChannelDeliveryStatuses(context.env.WARPLETS, notificationId),
+  ]);
+  const beforeProgress = buildProgress({
+    channels,
+    farcasterRows: rows,
+    dispatchRows: beforeDispatchRows,
+    webPushRows,
+    baseWallets: resolvedBaseWallets,
+    channelDeliveryRows: beforeChannelDeliveryRows,
+  });
   const alreadyDispatchedFids = new Set(beforeDispatchRows.map((row) => row.fid));
   const pendingRows = rows.filter((row) => !alreadyDispatchedFids.has(row.fid));
   const selectedRows = sendMode === "batch" ? pendingRows.slice(0, BATCH_LIMIT) : pendingRows;
@@ -570,11 +656,10 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     const baseAppSlug = audienceSlug === "all" ? WARPLETS_APP_SLUG : audienceSlug;
     const appOrigin = new URL(resolveBaseNotificationConfig(context.env, baseAppSlug).appUrl).origin;
     const targetPath = target.origin === appOrigin ? `${target.pathname}${target.search}` : "/";
-    const baseWallets = await resolveBaseWallets(context.env.WARPLETS, requestedFids, json.wallets);
     const baseResults = await sendBaseNotificationCampaign(context.env, {
       campaignId: notificationId,
       appSlug: baseAppSlug,
-      wallets: baseWallets,
+      wallets: resolvedBaseWallets,
       title,
       message: body,
       targetPath,
@@ -592,8 +677,18 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     return acc;
   }, {});
 
-  const afterDispatchRows = await getDispatchStatuses(context.env.WARPLETS, notificationId);
-  const afterProgress = buildProgress(rows, afterDispatchRows);
+  const [afterDispatchRows, afterChannelDeliveryRows] = await Promise.all([
+    getDispatchStatuses(context.env.WARPLETS, notificationId),
+    getChannelDeliveryStatuses(context.env.WARPLETS, notificationId),
+  ]);
+  const afterProgress = buildProgress({
+    channels,
+    farcasterRows: rows,
+    dispatchRows: afterDispatchRows,
+    webPushRows,
+    baseWallets: resolvedBaseWallets,
+    channelDeliveryRows: afterChannelDeliveryRows,
+  });
 
   await logSecurityEvent(context.env.WARPLETS, { logSalt: context.env.SECURITY_LOG_SALT }, {
     eventType: "notification_send",

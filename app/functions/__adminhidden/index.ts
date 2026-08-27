@@ -216,7 +216,7 @@ export const onRequestGet: PagesFunction = () => {
     <input id="sendFids" placeholder="1129138, 9152, …" />
 
     <div class="stat-grid" style="margin-top:.75rem;margin-bottom:.5rem">
-      <div class="stat-box"><div class="num" id="sendAudience">-</div><div class="lbl">Audience</div></div>
+      <div class="stat-box"><div class="num" id="sendAudience">-</div><div class="lbl">Channel recipients</div></div>
       <div class="stat-box"><div class="num" id="sendAlready">-</div><div class="lbl">Already dispatched</div></div>
       <div class="stat-box"><div class="num" id="sendUnsent">-</div><div class="lbl">Unsent</div></div>
       <div class="stat-box"><div class="num" id="sendDelivered">-</div><div class="lbl">Delivered</div></div>
@@ -651,7 +651,9 @@ export const onRequestGet: PagesFunction = () => {
         ? p.failed + p.invalid + p.rateLimited
         : '-';
     document.getElementById('sendProgressMeta').textContent = notificationId
-      ? 'Campaign: ' + notificationId
+      ? 'Campaign: ' + notificationId + (p.byChannel
+        ? ' · ' + Object.entries(p.byChannel).map(([channel, values]) => channel + ': ' + values.delivered + '/' + values.audience).join(', ')
+        : '')
       : '';
   }
 
@@ -695,6 +697,15 @@ export const onRequestGet: PagesFunction = () => {
     }
     const fids = parseSendFids();
     const params = new URLSearchParams({ appSlug, notificationId: notifId });
+    const channelValue = document.getElementById('sendChannels').value;
+    const channels = channelValue === 'all'
+      ? ['farcaster', 'base', 'web-push']
+      : channelValue === 'farcaster-web'
+        ? ['farcaster', 'web-push']
+        : channelValue === 'farcaster-base'
+          ? ['farcaster', 'base']
+          : [channelValue];
+    params.set('channels', channels.join(','));
     if (sendMode === 'fids' && fids?.length) params.set('fids', fids.join(','));
     const r = await api('/api/notifications/send?' + params.toString());
     const data = await readApiJson(r);
@@ -714,6 +725,7 @@ export const onRequestGet: PagesFunction = () => {
 
   document.getElementById('sendApp').addEventListener('change', () => refreshSendProgress().catch(() => {}));
   document.getElementById('sendMode').addEventListener('change', () => refreshSendProgress().catch(() => {}));
+  document.getElementById('sendChannels').addEventListener('change', () => refreshSendProgress().catch(() => {}));
   document.getElementById('sendId').addEventListener('blur', () => refreshSendProgress().catch(() => {}));
   document.getElementById('sendFids').addEventListener('blur', () => refreshSendProgress().catch(() => {}));
 

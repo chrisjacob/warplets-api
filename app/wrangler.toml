@@ -1,6 +1,6 @@
 name = "10x-app"
 pages_build_output_dir = "dist"
-compatibility_date = "2026-07-27"
+compatibility_date = "2026-08-28"
 compatibility_flags = ["nodejs_compat"]
 
 [browser]
@@ -71,6 +71,10 @@ database_name = "warplets"
 database_id   = "45a4cc4c-788e-48dd-89bf-7b504b17655d"
 migrations_dir = "../migrations"
 
+[[queues.producers]]
+binding = "NOTIFICATION_DISPATCH_QUEUE"
+queue = "warplets-notifications"
+
 [[services]]
 binding = "CHANNEL_BOTS_ADMIN"
 service = "10x-channel-bots"
@@ -116,6 +120,10 @@ binding       = "WARPLETS"
 database_name = "warplets_preview"
 database_id   = "4ed108bd-9477-4109-930c-bc57b6c11b1f"
 migrations_dir = "../migrations"
+
+[[env.preview.queues.producers]]
+binding = "NOTIFICATION_DISPATCH_QUEUE"
+queue = "warplets-notifications-preview"
 
 [[env.preview.services]]
 binding = "CHANNEL_BOTS_ADMIN"

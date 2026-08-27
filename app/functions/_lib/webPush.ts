@@ -4,6 +4,7 @@ import {
   type VapidKeys,
 } from "./workerWebPush.js";
 import type { AppSlug } from "./appSlug.js";
+import { claimNotificationChannelDelivery } from "./notificationDelivery.js";
 
 export interface WebPushEnv {
   WARPLETS: D1Database;
@@ -61,29 +62,15 @@ async function reserveDelivery(
   env: WebPushEnv,
   subscription: WebPushSubscriptionRow,
   input: WebPushSendInput,
-): Promise<{ id: number; status: string }> {
-  const now = new Date().toISOString();
-  await env.WARPLETS.prepare(
-    `INSERT OR IGNORE INTO notification_channel_deliveries (
-       campaign_id, app_slug, channel, recipient_key, farcaster_fid, wallet_address,
-       status, attempts, created_at, updated_at
-     ) VALUES (?, ?, 'web-push', ?, ?, ?, 'pending', 0, ?, ?)`,
-  ).bind(
-    input.campaignId,
-    input.appSlug,
-    subscription.endpoint_hash,
-    subscription.farcaster_fid,
-    subscription.wallet_address,
-    now,
-    now,
-  ).run();
-
-  const delivery = await env.WARPLETS.prepare(
-    `SELECT id, status FROM notification_channel_deliveries
-      WHERE campaign_id = ? AND app_slug = ? AND channel = 'web-push' AND recipient_key = ?`,
-  ).bind(input.campaignId, input.appSlug, subscription.endpoint_hash).first<{ id: number; status: string }>();
-  if (!delivery) throw new Error("Web Push delivery reservation failed");
-  return delivery;
+): Promise<Awaited<ReturnType<typeof claimNotificationChannelDelivery>>> {
+  return claimNotificationChannelDelivery(env.WARPLETS, {
+    campaignId: input.campaignId,
+    appSlug: input.appSlug,
+    channel: "web-push",
+    recipientKey: subscription.endpoint_hash,
+    farcasterFid: subscription.farcaster_fid,
+    walletAddress: subscription.wallet_address,
+  });
 }
 
 async function recordAttempt(
@@ -131,7 +118,7 @@ export async function sendWebPushNotification(
     ...(subscription.farcaster_fid ? { fid: subscription.farcaster_fid } : {}),
     ...(subscription.wallet_address ? { wallet: subscription.wallet_address } : {}),
   };
-  if (delivery.status === "delivered") {
+  if (!delivery.claimed) {
     return { channel: "web-push", endpointHash: subscription.endpoint_hash, ...identity, state: "skipped_existing" };
   }
 

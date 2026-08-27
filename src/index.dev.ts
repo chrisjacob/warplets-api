@@ -1,5 +1,10 @@
 import { createApp } from "./app";
 import { runOpenseaSync, type OpenseaSyncEnv } from "./opensea-sync";
+import {
+  processNotificationQueue,
+  type NotificationQueueWakeMessage,
+  type WarpletNotificationEnv,
+} from "../app/functions/_lib/warpletNotifications";
 
 process.env.SNAP_PUBLIC_BASE_URL = "https://api-dev.10x.meme";
 
@@ -31,5 +36,26 @@ export default {
     }
 
     return _app.fetch(req, env, ctx);
+  },
+
+  async queue(
+    batch: MessageBatch<NotificationQueueWakeMessage>,
+    env: OpenseaSyncEnv & WarpletNotificationEnv,
+  ): Promise<void> {
+    try {
+      await processNotificationQueue(
+        env,
+        Math.min(100, Math.max(20, batch.messages.length)),
+        batch.messages.map((message) => Number(message.body?.queueId)),
+      );
+      batch.ackAll();
+    } catch (error) {
+      console.error(JSON.stringify({
+        message: "Development notification queue consumer failed",
+        error: error instanceof Error ? error.message : String(error),
+        batchSize: batch.messages.length,
+      }));
+      batch.retryAll({ delaySeconds: 30 });
+    }
   },
 };

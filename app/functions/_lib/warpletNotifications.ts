@@ -1,11 +1,16 @@
 import { dispatchNotification } from "./dispatch.js";
 import {
+  createBaseRequestPacer,
   getBaseNotificationAudience,
-  isPermanentBaseNotificationFailure,
   sendBaseNotificationCampaign,
   type BaseNotificationsEnv,
 } from "./baseNotifications.js";
 import { buildClickTrackingUrl } from "./notificationTracking.js";
+import {
+  getCampaignChannelDeliveries,
+  notificationDeliveryNeedsRetry,
+  type NotificationChannelDeliveryStatus,
+} from "./notificationDelivery.js";
 import {
   sendWebPushNotification,
   type WebPushEnv,
@@ -35,6 +40,12 @@ export interface WarpletNotificationEnv extends Partial<BaseNotificationsEnv>, P
   BASE_NOTIFICATIONS_API_KEY?: string;
   BASE_NOTIFICATIONS_ENABLED?: string;
   BASE_APP_URL?: string;
+  NOTIFICATION_DISPATCH_QUEUE?: Queue<NotificationQueueWakeMessage>;
+}
+
+export interface NotificationQueueWakeMessage {
+  appSlug: typeof WARPLETS_APP_SLUG;
+  queueId: number;
 }
 
 interface ActivityInput {
@@ -91,6 +102,9 @@ const GLOBAL_STATS_LAST_JOB_KEY = "warplets:global-stats:last";
 const COLLECTION_OFFER_AUDIENCE_CURSOR_KEY = "warplets:collection-offer-audience:cursor";
 const MAX_TRANSACTIONAL_RETRY_ATTEMPTS = 6;
 const MAX_COLLECTION_OFFER_RECIPIENTS = 250;
+const TRANSACTIONAL_NOTIFICATION_MAX_AGE_HOURS = 24;
+const MAX_GLOBAL_STATS_ATTEMPTS = 6;
+const GLOBAL_STATS_MAX_AGE_HOURS = 6;
 export const GLOBAL_STATS_TARGET_URL = `${WARPLETS_BASE_URL}/stats/market/30d`;
 
 const ACTION_PRIORITY: Record<WarpletActivityType, number> = {
@@ -382,11 +396,22 @@ async function queueNotification(
   const notificationId = `warplets:${params.category}:${params.eventKey}:${params.fid}`.slice(0, 120);
   const queueKey = `${params.category}:${params.fid}:${params.eventKey}`.slice(0, 220);
   const wrappedTargetUrl = wrapTargetUrl(notificationId, params.fid, params.targetUrl);
+  const collapseKey = `${params.category}:${params.fid}:${params.targetUrl}`.slice(0, 500);
+  const expiresAt = new Date(Date.now() + TRANSACTIONAL_NOTIFICATION_MAX_AGE_HOURS * 60 * 60 * 1000).toISOString();
 
   await env.WARPLETS.prepare(
+    `UPDATE notification_queue
+        SET status = 'superseded', last_error = 'Superseded by a newer relevant notification',
+            updated_at = CURRENT_TIMESTAMP
+      WHERE app_slug = ? AND collapse_key = ? AND status IN ('pending', 'retry')`,
+  ).bind(APP_SLUG, collapseKey).run();
+
+  const inserted = await env.WARPLETS.prepare(
     `INSERT OR IGNORE INTO notification_queue
-       (queue_key, notification_id, app_slug, category, priority, fid, event_id, title, body, target_url)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       (queue_key, notification_id, app_slug, category, priority, fid, event_id,
+        title, body, target_url, collapse_key, expires_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+     RETURNING id`,
   )
     .bind(
       queueKey,
@@ -399,8 +424,19 @@ async function queueNotification(
       truncate(params.title, 32),
       truncate(params.body, 128),
       wrappedTargetUrl,
+      collapseKey,
+      expiresAt,
     )
-    .run();
+    .first<{ id: number }>();
+  if (inserted?.id && env.NOTIFICATION_DISPATCH_QUEUE) {
+    await env.NOTIFICATION_DISPATCH_QUEUE.send({ appSlug: APP_SLUG, queueId: Number(inserted.id) }).catch((error) => {
+      console.warn(JSON.stringify({
+        message: "Notification Queue wake-up failed; cron recovery remains active",
+        queueId: Number(inserted.id),
+        error: error instanceof Error ? error.message : String(error),
+      }));
+    });
+  }
 }
 
 async function buildBody(
@@ -509,16 +545,28 @@ async function queueInstantNotificationsForEvent(env: WarpletNotificationEnv, ro
            WHERE token.fid = warplet_market_state.owner_fid
              AND token.app_slug = ? AND token.enabled = 1
          )
-         OR EXISTS (
-           SELECT 1 FROM app_identity_links identity
-           WHERE identity.farcaster_fid = warplet_market_state.owner_fid
-         )
-       )
+          OR EXISTS (
+            SELECT 1 FROM app_identity_links identity
+            WHERE identity.farcaster_fid = warplet_market_state.owner_fid
+          )
+          OR EXISTS (
+            SELECT 1 FROM web_push_subscriptions push
+            WHERE (
+                push.farcaster_fid = warplet_market_state.owner_fid
+                OR lower(push.wallet_address) = lower(warplet_market_state.owner_wallet)
+              )
+              AND push.app_slug = ? AND push.enabled = 1
+              AND EXISTS (
+                SELECT 1 FROM json_each(push.topics_json)
+                WHERE value IN ('activity', 'market')
+              )
+          )
+        )
        GROUP BY owner_fid
        ORDER BY CASE WHEN owner_fid > ? THEN 0 ELSE 1 END, owner_fid ASC
        LIMIT ?`,
     )
-      .bind(actorFid, APP_SLUG, audienceCursor, MAX_COLLECTION_OFFER_RECIPIENTS)
+      .bind(actorFid, APP_SLUG, APP_SLUG, audienceCursor, MAX_COLLECTION_OFFER_RECIPIENTS)
       .all<{ fid: number; token_id: number }>();
 
     for (const owner of owners.results || []) {
@@ -888,19 +936,169 @@ async function shouldThrottle(env: WarpletNotificationEnv, fid: number): Promise
   return { throttle: false };
 }
 
+function webPushTopicForCategory(category: NotificationCategory): string {
+  if (category === "offered") return "offers";
+  if (category === "favourited") return "favourites";
+  if (category === "global_stats") return "announcements";
+  return "activity";
+}
+
+function unwrapNotificationTarget(targetUrl: string): string {
+  try {
+    const wrapped = new URL(targetUrl);
+    const rawTarget = wrapped.searchParams.get("t");
+    return rawTarget && rawTarget.startsWith("https://") ? rawTarget : targetUrl;
+  } catch {
+    return WARPLETS_BASE_URL;
+  }
+}
+
+async function resolveTransactionalWebPushSubscriptions(
+  env: WarpletNotificationEnv,
+  fid: number,
+  wallets: string[],
+  category: NotificationCategory,
+): Promise<WebPushSubscriptionRow[]> {
+  const identityFilters = ["farcaster_fid = ?"];
+  const bindings: Array<string | number> = [APP_SLUG, webPushTopicForCategory(category), fid];
+  if (wallets.length > 0) {
+    identityFilters.push(`lower(wallet_address) IN (${wallets.map(() => "?").join(", ")})`);
+    bindings.push(...wallets);
+  }
+  const result = await env.WARPLETS.prepare(
+    `SELECT endpoint_hash, endpoint, p256dh, auth, app_slug, farcaster_fid, wallet_address
+       FROM web_push_subscriptions
+      WHERE app_slug = ? AND enabled = 1
+        AND EXISTS (
+          SELECT 1 FROM json_each(web_push_subscriptions.topics_json) WHERE value = ?
+        )
+        AND (${identityFilters.join(" OR ")})
+      ORDER BY updated_at DESC`,
+  ).bind(...bindings).all<WebPushSubscriptionRow>();
+  return [...new Map(
+    (result.results ?? [])
+      .filter((subscription) => isWebPushSubscriptionEligible(subscription, "transactional"))
+      .map((subscription) => [subscription.endpoint_hash, subscription]),
+  ).values()];
+}
+
+async function resolveLinkedWallets(env: WarpletNotificationEnv, fid: number): Promise<string[]> {
+  const result = await env.WARPLETS.prepare(
+    `WITH linked AS (
+       SELECT lower(wallet_address) AS wallet, verified_at AS linked_at, 0 AS source_priority
+         FROM app_identity_links WHERE farcaster_fid = ?
+       UNION ALL
+       SELECT lower(wallet) AS wallet, fetched_at AS linked_at, 1 AS source_priority
+         FROM wallet_farcaster_links WHERE fid = ?
+     )
+     SELECT linked.wallet
+       FROM linked
+      GROUP BY linked.wallet
+      ORDER BY MIN(linked.source_priority), MAX(linked.linked_at) DESC
+      LIMIT 10`,
+  ).bind(fid, fid).all<{ wallet: string }>();
+  return [...new Set((result.results ?? []).map((row) => normalizeWallet(row.wallet)).filter(
+    (wallet): wallet is string => Boolean(wallet),
+  ))];
+}
+
+async function resolveEligibleBaseWallets(
+  env: WarpletNotificationEnv,
+  identityWallets: string[],
+): Promise<string[]> {
+  if (env.BASE_NOTIFICATIONS_ENABLED !== "true" || identityWallets.length === 0) return [];
+  const result = await env.WARPLETS.prepare(
+    `SELECT wallet
+     FROM (SELECT value AS wallet, key AS position FROM json_each(?)) linked
+       LEFT JOIN base_notification_status_cache cache
+         ON cache.wallet_address = linked.wallet AND cache.app_url = ?
+      WHERE cache.wallet_address IS NULL
+         OR cache.notifications_enabled = 1
+         OR datetime(cache.checked_at) < datetime('now', '-7 days')
+      ORDER BY linked.position`,
+  ).bind(JSON.stringify(identityWallets), env.BASE_APP_URL?.trim() || WARPLETS_BASE_URL)
+    .all<{ wallet: string }>();
+  return (result.results ?? []).map((row) => row.wallet);
+}
+
+async function recoverAndExpireTransactionalQueue(env: WarpletNotificationEnv): Promise<void> {
+  await env.WARPLETS.batch([
+    env.WARPLETS.prepare(
+      `UPDATE notification_queue
+          SET status = 'retry', next_attempt_at = CURRENT_TIMESTAMP,
+              last_error = 'Recovered an expired processing lease', updated_at = CURRENT_TIMESTAMP
+        WHERE app_slug = ? AND status = 'processing'
+          AND datetime(updated_at) <= datetime('now', '-10 minutes')`,
+    ).bind(APP_SLUG),
+    env.WARPLETS.prepare(
+      `UPDATE notification_queue
+          SET status = 'expired', last_error = 'Notification expired before delivery',
+              updated_at = CURRENT_TIMESTAMP
+        WHERE app_slug = ? AND status IN ('pending', 'retry', 'processing')
+          AND (
+            (expires_at IS NOT NULL AND datetime(expires_at) <= datetime('now'))
+            OR datetime(created_at) < datetime('now', '-1 day')
+          )`,
+    ).bind(APP_SLUG),
+  ]);
+}
+
+async function claimTransactionalQueueRow(env: WarpletNotificationEnv, id: number): Promise<boolean> {
+  const claimed = await env.WARPLETS.prepare(
+    `UPDATE notification_queue
+        SET status = 'processing', updated_at = CURRENT_TIMESTAMP
+      WHERE id = ? AND app_slug = ? AND status IN ('pending', 'retry')
+        AND datetime(next_attempt_at) <= datetime('now')
+        AND (expires_at IS NULL OR datetime(expires_at) > datetime('now'))`,
+  ).bind(id, APP_SLUG).run();
+  return Number(claimed.meta.changes || 0) === 1;
+}
+
+export function transactionalQueueDisposition(input: {
+  intendedChannels: string[];
+  deliveries: Array<{ channel: string; status: NotificationChannelDeliveryStatus; attempts: number }>;
+  cycleErrorCount: number;
+  attemptCount: number;
+}): "retry" | "sent" | "failed" | "no_token" {
+  if (input.intendedChannels.length === 0) return "no_token";
+  const retryableDelivery = input.deliveries.some((delivery) => notificationDeliveryNeedsRetry(delivery));
+  const missingChannelDelivery = input.intendedChannels.some(
+    (channel) => !input.deliveries.some((delivery) => delivery.channel === channel),
+  );
+  if (
+    input.attemptCount < MAX_TRANSACTIONAL_RETRY_ATTEMPTS &&
+    (retryableDelivery || missingChannelDelivery || input.cycleErrorCount > 0)
+  ) return "retry";
+  return input.deliveries.some((delivery) => delivery.status === "delivered") ? "sent" : "failed";
+}
+
 export async function processNotificationQueue(
   env: WarpletNotificationEnv,
   limit = 100,
+  queueIds?: number[],
 ): Promise<{ processed: number; sent: number; retried: number; skipped: number }> {
+  await recoverAndExpireTransactionalQueue(env);
+  const selectedIds = [...new Set((queueIds ?? []).filter((id) => Number.isSafeInteger(id) && id > 0))]
+    .slice(0, limit);
+  const idFilter = queueIds === undefined
+    ? ""
+    : selectedIds.length > 0
+    ? `AND id IN (${selectedIds.map(() => "?").join(", ")})`
+    : "AND 1 = 0";
   const rows = await env.WARPLETS.prepare(
     `SELECT *
      FROM notification_queue
      WHERE app_slug = ? AND status IN ('pending', 'retry')
        AND datetime(next_attempt_at) <= datetime('now')
+       ${idFilter}
      ORDER BY priority ASC, created_at ASC
      LIMIT ?`,
   )
-    .bind(APP_SLUG, env.BASE_NOTIFICATIONS_ENABLED === "true" ? Math.min(limit, 20) : limit)
+    .bind(
+      APP_SLUG,
+      ...selectedIds,
+      env.BASE_NOTIFICATIONS_ENABLED === "true" ? Math.min(limit, 20) : limit,
+    )
     .all<{
       id: number;
       notification_id: string;
@@ -909,165 +1107,136 @@ export async function processNotificationQueue(
       body: string;
       target_url: string;
       attempt_count: number;
+      category: NotificationCategory;
     }>();
 
   let sent = 0;
   let retried = 0;
   let skipped = 0;
+  const basePacer = createBaseRequestPacer();
 
   for (const row of rows.results || []) {
-    const throttle = await shouldThrottle(env, Number(row.fid));
-    if (throttle.throttle) {
+    if (!await claimTransactionalQueueRow(env, Number(row.id))) {
       skipped += 1;
-      await env.WARPLETS.prepare(
-        `UPDATE notification_queue
-         SET status = 'retry', next_attempt_at = datetime('now', '+5 minutes'),
-             last_error = ?, updated_at = CURRENT_TIMESTAMP
-         WHERE id = ?`,
-      )
-        .bind(throttle.reason || "throttled", row.id)
-        .run();
       continue;
     }
-
-    const linkedWallets = env.BASE_NOTIFICATIONS_ENABLED === "true"
-      ? await env.WARPLETS.prepare(
-          `SELECT lower(wallet_address) AS wallet FROM app_identity_links WHERE farcaster_fid = ?
-           UNION
-           SELECT lower(wallet) AS wallet FROM wallet_farcaster_links WHERE fid = ?
-           LIMIT 10`,
-        ).bind(Number(row.fid), Number(row.fid)).all<{ wallet: string }>()
-      : { results: [] as Array<{ wallet: string }> };
-    const wallets = [...new Set((linkedWallets.results ?? []).map((item) => item.wallet))];
-    let baseDelivered = false;
-    let baseFailure: string | null = null;
-    let basePermanentlyUnavailable = false;
-    if (wallets.length > 0) {
-      try {
-        const wrappedTarget = new URL(row.target_url);
-        const rawTarget = wrappedTarget.searchParams.get("t") || WARPLETS_BASE_URL;
-        const parsedTarget = new URL(rawTarget);
-        const baseResults = await sendBaseNotificationCampaign(env as WarpletNotificationEnv & BaseNotificationsEnv, {
-          campaignId: row.notification_id,
-          appSlug: APP_SLUG,
-          wallets,
-          title: row.title,
-          message: row.body,
-          targetPath: `${parsedTarget.pathname}${parsedTarget.search}`,
-        });
-        baseDelivered = baseResults.some((result) => result.state === "delivered");
-        const failures = baseResults
-          .filter((result) => result.state !== "delivered")
-          .map((result) => result.error)
-          .filter((error): error is string => Boolean(error));
-        baseFailure = failures.length > 0 ? [...new Set(failures)].join("; ").slice(0, 500) : null;
-        basePermanentlyUnavailable = failures.length === baseResults.length &&
-          failures.every(isPermanentBaseNotificationFailure);
-      } catch (error) {
-        baseFailure = error instanceof Error ? error.message : String(error);
-        basePermanentlyUnavailable = isPermanentBaseNotificationFailure(baseFailure);
-        console.warn("Base notification delivery failed:", error);
-      }
-    }
-
+    const identityWallets = await resolveLinkedWallets(env, Number(row.fid));
+    const wallets = await resolveEligibleBaseWallets(env, identityWallets);
+    const rawTarget = unwrapNotificationTarget(row.target_url);
+    const webPushSubscriptions = await resolveTransactionalWebPushSubscriptions(
+      env,
+      Number(row.fid),
+      identityWallets,
+      row.category,
+    );
     const token = await env.WARPLETS.prepare(
       `SELECT notification_url, notification_token
        FROM miniapp_notification_tokens
        WHERE fid = ? AND app_slug = ? AND enabled = 1
        LIMIT 1`,
-    )
-      .bind(Number(row.fid), APP_SLUG)
+    ).bind(Number(row.fid), APP_SLUG)
       .first<{ notification_url: string; notification_token: string }>();
 
-    if (!token?.notification_url || !token?.notification_token) {
-      if (baseDelivered) sent += 1;
-      const attempts = Number(row.attempt_count || 0) + 1;
-      const retryable = wallets.length > 0 &&
-        !basePermanentlyUnavailable &&
-        attempts < MAX_TRANSACTIONAL_RETRY_ATTEMPTS;
-      if (!baseDelivered && retryable) retried += 1;
-      else if (!baseDelivered) skipped += 1;
-      const nextStatus = baseDelivered ? "sent" : retryable ? "retry" : "no_token";
-      await env.WARPLETS.prepare(
-        `UPDATE notification_queue
-         SET status = ?, sent_at = CASE WHEN ? THEN CURRENT_TIMESTAMP ELSE sent_at END,
-             attempt_count = attempt_count + CASE WHEN ? THEN 1 ELSE 0 END,
-             next_attempt_at = CASE WHEN ? THEN datetime('now', '+5 minutes') ELSE next_attempt_at END,
-             last_error = ?, updated_at = CURRENT_TIMESTAMP
-         WHERE id = ?`,
-      )
-        .bind(
-          nextStatus,
-          baseDelivered ? 1 : 0,
-          wallets.length > 0 && !baseDelivered ? 1 : 0,
-          retryable ? 1 : 0,
-          baseDelivered ? null : baseFailure || (wallets.length > 0
-            ? attempts >= MAX_TRANSACTIONAL_RETRY_ATTEMPTS
-              ? "Retry limit reached; no Farcaster token"
-              : "Base delivery failed; no Farcaster token"
-            : "No enabled Warplets notification token"),
-          row.id,
-        )
-        .run();
-      continue;
+    const intendedChannels = new Set<string>();
+    const cycleErrors: string[] = [];
+    if (wallets.length > 0) intendedChannels.add("base");
+    if (webPushSubscriptions.length > 0) intendedChannels.add("web-push");
+    if (token?.notification_url && token?.notification_token) intendedChannels.add("farcaster");
+
+    // Linked wallets can represent the same person. Try the most recently
+    // verified eligible wallet first and stop after one succeeds.
+    for (const wallet of wallets) {
+      try {
+        const parsedTarget = new URL(rawTarget);
+        const baseResults = await sendBaseNotificationCampaign(env as WarpletNotificationEnv & BaseNotificationsEnv, {
+          campaignId: row.notification_id,
+          appSlug: APP_SLUG,
+          wallets: [wallet],
+          title: row.title,
+          message: row.body,
+          targetPath: `${parsedTarget.pathname}${parsedTarget.search}`,
+          pacer: basePacer,
+        });
+        if (baseResults.some((result) => ["delivered", "skipped_existing"].includes(result.state))) break;
+        const error = baseResults.find((result) => result.error)?.error;
+        if (error) cycleErrors.push(`Base: ${error}`);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        cycleErrors.push(`Base: ${message}`);
+        console.warn(JSON.stringify({ message: "Base notification delivery failed", error: message, fid: row.fid }));
+      }
     }
 
-    const result = await dispatchNotification(env.WARPLETS, {
-      appSlug: APP_SLUG,
-      fid: Number(row.fid),
-      notificationUrl: token.notification_url,
-      notificationToken: token.notification_token,
-      notificationId: row.notification_id,
-      title: row.title,
-      body: row.body,
-      targetUrl: row.target_url,
+    for (const subscription of webPushSubscriptions) {
+      const result = await sendWebPushNotification(env as WarpletNotificationEnv & WebPushEnv, subscription, {
+        campaignId: row.notification_id,
+        appSlug: APP_SLUG,
+        title: row.title,
+        body: row.body,
+        targetUrl: rawTarget,
+      });
+      if (result.error) cycleErrors.push(`Web Push: ${result.error}`);
+    }
+
+    let throttleReason: string | null = null;
+    if (token?.notification_url && token?.notification_token) {
+      const throttle = await shouldThrottle(env, Number(row.fid));
+      if (throttle.throttle) {
+        throttleReason = throttle.reason || "throttled";
+        cycleErrors.push(`Farcaster: ${throttleReason}`);
+      } else {
+        const result = await dispatchNotification(env.WARPLETS, {
+          appSlug: APP_SLUG,
+          fid: Number(row.fid),
+          notificationUrl: token.notification_url,
+          notificationToken: token.notification_token,
+          notificationId: row.notification_id,
+          title: row.title,
+          body: row.body,
+          targetUrl: row.target_url,
+        });
+        await recordFarcasterChannelDelivery(env, row.notification_id, Number(row.fid), result.state);
+        if (result.state === "failed") cycleErrors.push(`Farcaster: ${String(result.error)}`);
+        if (result.state === "rate_limited") cycleErrors.push("Farcaster: rate limited");
+      }
+    }
+
+    const deliveries = (await getCampaignChannelDeliveries(env.WARPLETS, row.notification_id, APP_SLUG))
+      .filter((delivery) => intendedChannels.has(delivery.channel));
+    const countsAsAttempt = throttleReason ? 0 : 1;
+    const attempts = Number(row.attempt_count || 0) + countsAsAttempt;
+    const delayExpression = throttleReason === "30s throttle"
+      ? "+30 seconds"
+      : throttleReason === "daily soft cap"
+      ? "+1 hour"
+      : `+${Math.min(60, Math.pow(2, Math.min(6, Number(row.attempt_count || 0))))} minutes`;
+    const finalStatus = transactionalQueueDisposition({
+      intendedChannels: [...intendedChannels],
+      deliveries,
+      cycleErrorCount: cycleErrors.length,
+      attemptCount: attempts,
     });
-
-    if (result.state === "success") {
-      sent += 1;
-      await env.WARPLETS.prepare(
-        `UPDATE notification_queue
-         SET status = 'sent', sent_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP, last_error = NULL
-         WHERE id = ?`,
-      )
-        .bind(row.id)
-        .run();
-    } else if (result.state === "invalid_token" || result.state === "no_token") {
-      skipped += 1;
-      await env.WARPLETS.prepare(
-        `UPDATE notification_queue
-         SET status = ?, last_error = ?, updated_at = CURRENT_TIMESTAMP
-         WHERE id = ?`,
-      )
-        .bind(result.state, result.state, row.id)
-        .run();
-    } else {
-      const attempts = Number(row.attempt_count || 0) + 1;
-      const retryable = result.state !== "validation_error" && attempts < MAX_TRANSACTIONAL_RETRY_ATTEMPTS;
-      if (retryable) retried += 1;
-      else skipped += 1;
-      const delayMinutes = Math.min(60, Math.pow(2, Math.min(6, Number(row.attempt_count || 0))));
-      await env.WARPLETS.prepare(
-        `UPDATE notification_queue
-         SET status = ?,
-             attempt_count = attempt_count + 1,
-             next_attempt_at = datetime('now', ?),
-             last_error = ?,
-             updated_at = CURRENT_TIMESTAMP
-         WHERE id = ?`,
-      )
-        .bind(
-          retryable ? "retry" : "failed",
-          `+${delayMinutes} minutes`,
-          result.state === "validation_error"
-            ? result.message
-            : result.state === "failed"
-            ? String(result.error)
-            : result.state,
-          row.id,
-        )
-        .run();
-    }
+    if (finalStatus === "sent") sent += 1;
+    else if (finalStatus === "retry") retried += 1;
+    else skipped += 1;
+    await env.WARPLETS.prepare(
+      `UPDATE notification_queue
+          SET status = ?,
+              sent_at = CASE WHEN ? = 'sent' THEN CURRENT_TIMESTAMP ELSE sent_at END,
+              attempt_count = attempt_count + ?,
+              next_attempt_at = CASE WHEN ? = 'retry' THEN datetime('now', ?) ELSE next_attempt_at END,
+              last_error = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE id = ? AND status = 'processing'`,
+    ).bind(
+      finalStatus,
+      finalStatus,
+      finalStatus === "retry" || finalStatus === "failed" ? countsAsAttempt : 0,
+      finalStatus,
+      delayExpression,
+      finalStatus === "sent" ? null : cycleErrors.join("; ").slice(0, 500) ||
+        (intendedChannels.size === 0 ? "No enabled notification channel" : "Delivery retry limit reached"),
+      row.id,
+    ).run();
   }
 
   return { processed: rows.results?.length || 0, sent, retried, skipped };
@@ -1135,6 +1304,8 @@ interface GlobalStatsCampaign {
   campaignId: string;
   body: string;
   totalCount: number;
+  attemptCount: number;
+  createdAt: string;
 }
 
 function parseGlobalStatsCampaign(value?: string | null): GlobalStatsCampaign | null {
@@ -1146,10 +1317,28 @@ function parseGlobalStatsCampaign(value?: string | null): GlobalStatsCampaign | 
       typeof parsed.body !== "string" ||
       typeof parsed.totalCount !== "number"
     ) return null;
-    return { campaignId: parsed.campaignId, body: parsed.body, totalCount: parsed.totalCount };
+    return {
+      campaignId: parsed.campaignId,
+      body: parsed.body,
+      totalCount: parsed.totalCount,
+      attemptCount: Number.isFinite(parsed.attemptCount) ? Number(parsed.attemptCount) : 0,
+      createdAt: typeof parsed.createdAt === "string" ? parsed.createdAt : new Date().toISOString(),
+    };
   } catch {
     return null;
   }
+}
+
+export function shouldFinalizeGlobalStatsCampaign(input: {
+  retryableFailure: boolean;
+  nextAttemptCount: number;
+  createdAt: string;
+  now?: number;
+}): boolean {
+  if (!input.retryableFailure) return true;
+  const now = input.now ?? Date.now();
+  const campaignExpired = now - new Date(input.createdAt).getTime() >= GLOBAL_STATS_MAX_AGE_HOURS * 60 * 60 * 1000;
+  return campaignExpired || input.nextAttemptCount >= MAX_GLOBAL_STATS_ATTEMPTS;
 }
 
 async function recordFarcasterChannelDelivery(
@@ -1227,6 +1416,8 @@ export async function runGlobalStatsNotifications(env: WarpletNotificationEnv): 
     campaign = {
       campaignId: `${APP_SLUG}:global-stats:${new Date().toISOString().slice(0, 10)}`,
       totalCount,
+      attemptCount: 0,
+      createdAt: new Date().toISOString(),
       body: `24hr Stats: ${Number(listings?.count || 0).toLocaleString("en-US")} New Listings${totalUsd(
         Number(listings?.eth_total || 0),
       )}, ${offers.count.toLocaleString("en-US")} New Offers${totalUsd(
@@ -1258,8 +1449,13 @@ export async function runGlobalStatsNotifications(env: WarpletNotificationEnv): 
   let retryableFailure = false;
   let baseAudience: string[] = [];
   let baseAudienceResolved = false;
+  const globalBasePacer = createBaseRequestPacer();
   try {
-    baseAudience = await getBaseNotificationAudience(env as WarpletNotificationEnv & BaseNotificationsEnv, APP_SLUG);
+    baseAudience = await getBaseNotificationAudience(
+      env as WarpletNotificationEnv & BaseNotificationsEnv,
+      APP_SLUG,
+      globalBasePacer,
+    );
     baseAudienceResolved = true;
   } catch (error) {
     retryableFailure = true;
@@ -1312,8 +1508,11 @@ export async function runGlobalStatsNotifications(env: WarpletNotificationEnv): 
       title: "10X Warplets",
       message: campaign.body,
       targetPath: "/stats/market/30d",
+      pacer: globalBasePacer,
     });
-    if (baseResults.some((result) => result.state === "failed")) retryableFailure = true;
+    if (baseResults.some((result) => result.state === "failed" || result.state === "skipped_in_flight")) {
+      retryableFailure = true;
+    }
     } catch (error) {
       retryableFailure = true;
       console.error("Daily Base notification delivery failed", error);
@@ -1332,15 +1531,25 @@ export async function runGlobalStatsNotifications(env: WarpletNotificationEnv): 
   }
 
   const audienceSize = audience.farcasterFids.length + audience.baseWallets.length + audience.webPushSubscriptions.length;
-  if (!retryableFailure) {
+  const nextAttemptCount = campaign.attemptCount + (retryableFailure ? 1 : 0);
+  if (shouldFinalizeGlobalStatsCampaign({ retryableFailure, nextAttemptCount, createdAt: campaign.createdAt })) {
     await env.WARPLETS.batch([
       env.WARPLETS.prepare(
         `INSERT INTO notification_job_state (job_key, value, updated_at)
          VALUES (?, ?, CURRENT_TIMESTAMP)
          ON CONFLICT(job_key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP`,
-      ).bind(GLOBAL_STATS_LAST_JOB_KEY, JSON.stringify({ ...campaign, audienceSize })),
+      ).bind(GLOBAL_STATS_LAST_JOB_KEY, JSON.stringify({
+        ...campaign,
+        attemptCount: nextAttemptCount,
+        audienceSize,
+        completedWithFailures: retryableFailure,
+      })),
       env.WARPLETS.prepare(`DELETE FROM notification_job_state WHERE job_key = ?`).bind(GLOBAL_STATS_ACTIVE_JOB_KEY),
     ]);
+  } else {
+    await env.WARPLETS.prepare(
+      `UPDATE notification_job_state SET value = ?, updated_at = CURRENT_TIMESTAMP WHERE job_key = ?`,
+    ).bind(JSON.stringify({ ...campaign, attemptCount: nextAttemptCount }), GLOBAL_STATS_ACTIVE_JOB_KEY).run();
   }
   return audienceSize;
 }
@@ -1351,8 +1560,8 @@ export async function runWarpletsNotificationJobs(env: WarpletNotificationEnv): 
   queue: { processed: number; sent: number; retried: number; skipped: number };
 }> {
   const bestFriendsQueued = await runBestFriendNotifications(env);
-  const globalStatsQueued = await runGlobalStatsNotifications(env);
   const queue = await processNotificationQueue(env, 100);
+  const globalStatsQueued = await runGlobalStatsNotifications(env);
   return { bestFriendsQueued, globalStatsQueued, queue };
 }
 

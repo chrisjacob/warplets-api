@@ -4,6 +4,8 @@ import {
   buildGlobalStatsAudience,
   GLOBAL_STATS_TARGET_URL,
   isWebPushSubscriptionEligible,
+  shouldFinalizeGlobalStatsCampaign,
+  transactionalQueueDisposition,
   upsertActiveItemOffer,
 } from "./warpletNotifications";
 import type { WebPushSubscriptionRow } from "./webPush";
@@ -60,6 +62,79 @@ describe("global statistics notification audience", () => {
     const target = new URL(GLOBAL_STATS_TARGET_URL);
     expect(target.pathname).toBe("/stats/market/30d");
     expect(target.search).toBe("");
+  });
+});
+
+describe("transactional multi-channel completion", () => {
+  it("keeps retrying when Farcaster delivered but Base failed transiently", () => {
+    expect(transactionalQueueDisposition({
+      intendedChannels: ["farcaster", "base"],
+      deliveries: [
+        { channel: "farcaster", status: "delivered", attempts: 1 },
+        { channel: "base", status: "failed", attempts: 1 },
+      ],
+      cycleErrorCount: 1,
+      attemptCount: 1,
+    })).toBe("retry");
+  });
+
+  it("finishes after delivered and terminal-invalid channels complete", () => {
+    expect(transactionalQueueDisposition({
+      intendedChannels: ["farcaster", "base", "web-push"],
+      deliveries: [
+        { channel: "farcaster", status: "delivered", attempts: 1 },
+        { channel: "base", status: "invalid", attempts: 1 },
+        { channel: "web-push", status: "delivered", attempts: 1 },
+      ],
+      cycleErrorCount: 0,
+      attemptCount: 1,
+    })).toBe("sent");
+  });
+
+  it("does not close a delivery while an intended channel has no record", () => {
+    expect(transactionalQueueDisposition({
+      intendedChannels: ["farcaster", "web-push"],
+      deliveries: [{ channel: "farcaster", status: "delivered", attempts: 1 }],
+      cycleErrorCount: 0,
+      attemptCount: 1,
+    })).toBe("retry");
+  });
+});
+
+describe("daily campaign retry bounds", () => {
+  const createdAt = "2026-08-28T00:00:00.000Z";
+
+  it("finishes immediately when no retryable failure remains", () => {
+    expect(shouldFinalizeGlobalStatsCampaign({
+      retryableFailure: false,
+      nextAttemptCount: 0,
+      createdAt,
+      now: Date.parse("2026-08-28T00:01:00.000Z"),
+    })).toBe(true);
+  });
+
+  it("keeps a recent retryable campaign active below the attempt cap", () => {
+    expect(shouldFinalizeGlobalStatsCampaign({
+      retryableFailure: true,
+      nextAttemptCount: 2,
+      createdAt,
+      now: Date.parse("2026-08-28T00:05:00.000Z"),
+    })).toBe(false);
+  });
+
+  it("finishes retryable campaigns at the attempt or age bound", () => {
+    expect(shouldFinalizeGlobalStatsCampaign({
+      retryableFailure: true,
+      nextAttemptCount: 6,
+      createdAt,
+      now: Date.parse("2026-08-28T00:05:00.000Z"),
+    })).toBe(true);
+    expect(shouldFinalizeGlobalStatsCampaign({
+      retryableFailure: true,
+      nextAttemptCount: 1,
+      createdAt,
+      now: Date.parse("2026-08-28T06:00:00.000Z"),
+    })).toBe(true);
   });
 });
 
