@@ -17396,12 +17396,13 @@ export default function SearchApp() {
         wallet = normalizeWalletAddress(session.address);
       }
       if (!wallet) throw new Error("No wallet account is connected.");
+      await loadMarketOwnership({ wallet }, true);
       handleStatsSearchOwnerWallet(wallet);
     } catch (error) {
       void hapticError();
       showSearchToast("error", error instanceof Error ? error.message : "Unable to find your wallet.");
     }
-  }, [activeWallet, favouriteIdentityWallet, handleStatsSearchOwnerWallet, isInMiniAppContext, loadVerifiedFavouriteList, showSearchToast, viewerFid]);
+  }, [activeWallet, favouriteIdentityWallet, handleStatsSearchOwnerWallet, isInMiniAppContext, loadMarketOwnership, loadVerifiedFavouriteList, showSearchToast, viewerFid]);
 
   const handleToggleFavourite = useCallback(async (tokenId: number) => {
     void hapticPrimaryTap();
