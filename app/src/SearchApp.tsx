@@ -16231,6 +16231,7 @@ export default function SearchApp() {
       if (pending) return pending;
     }
     const params = new URLSearchParams(wallet ? { wallet } : { fid: String(fid) });
+    if (force && wallet) params.set("refresh", "1");
     const request = fetch(`/api/warplet-ownership?${params}`, {
       headers: { accept: "application/json" },
       cache: force ? "no-store" : "default",

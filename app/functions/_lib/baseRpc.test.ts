@@ -44,4 +44,22 @@ describe("Base RPC failover", () => {
       "https://mainnet.base.org",
     ]);
   });
+
+  it("falls back when a provider returns a result rejected by the caller", async () => {
+    let callCount = 0;
+    const fetcher = vi.fn(async (_input: RequestInfo | URL) => {
+      callCount += 1;
+      const result = callCount === 1 ? null : { status: "0x1" };
+      return Response.json({ jsonrpc: "2.0", id: 1, result });
+    }) as typeof fetch;
+
+    await expect(fetchBaseRpc(
+      { BASE_RPC_URL: "https://base-mainnet.g.alchemy.com/v2/test-key" },
+      "eth_getTransactionReceipt",
+      ["0xabc"],
+      { fetcher, validateResult: (result) => Boolean(result) },
+    )).resolves.toEqual({ status: "0x1" });
+
+    expect(fetcher).toHaveBeenCalledTimes(2);
+  });
 });

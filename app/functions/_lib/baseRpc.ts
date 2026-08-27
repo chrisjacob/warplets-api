@@ -26,9 +26,10 @@ type JsonRpcBatchResponse = Array<{
 
 type RpcFetch = typeof fetch;
 
-type BaseRpcOptions = {
+export type BaseRpcOptions = {
   fetcher?: RpcFetch;
   timeoutMs?: number;
+  validateResult?: (result: unknown) => boolean;
 };
 
 function rpcEndpointLabel(endpoint: string): string {
@@ -104,6 +105,9 @@ export async function fetchBaseRpc(
     }
     const response = payload as JsonRpcResponse;
     if (response.error || !("result" in response)) throw new Error(rpcErrorMessage(response.error));
+    if (options.validateResult && !options.validateResult(response.result)) {
+      throw new Error("invalid result");
+    }
     return response.result;
   }, options);
 }

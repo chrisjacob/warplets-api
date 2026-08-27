@@ -14,6 +14,7 @@ import {
   loadOneTokenSnapshot,
   normalizeAddress,
   ownerOf,
+  ownersOf,
   processListing,
   processOffer,
   processSaleOrTransfer,
@@ -147,7 +148,50 @@ const OPENSEA_SIGNED_ZONE_V2 = "0x000056f7000000ece9003ca63978907a00ffd100";
 const OPENSEA_CONDUIT_KEY = "0x0000007b02230091a7ed01230072f7006a004d60a8d4e71d599b8104250f0000";
 const OPENSEA_CONDUIT_ADDRESS = "0x1e0049783f008a0085193e00003d00cd54003c71";
 const SEAPORT_GET_COUNTER_SELECTOR = "0xf07ec373";
+const ERC721_TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
 const MAX_OPENSEA_ORDER_DURATION_SECONDS = 179 * 24 * 60 * 60;
+
+export function receiptConfirmsWarpletTransfer(
+  receipt: unknown,
+  tokenId: number,
+  recipient: string,
+): boolean {
+  const normalizedRecipient = normalizeAddress(recipient);
+  const root = asObject(receipt);
+  if (!normalizedRecipient || !root) return false;
+  const status = asString(root.status)?.toLowerCase();
+  if (status !== "0x1" && status !== "1") return false;
+  const expectedTokenId = BigInt(tokenId);
+
+  return asArray(root.logs).some((entry) => {
+    const log = asObject(entry);
+    if (!log || normalizeAddress(log.address) !== COLLECTION_CONTRACT) return false;
+    const topics = asArray(log.topics).map(asString);
+    if (topics.length < 4 || topics[0]?.toLowerCase() !== ERC721_TRANSFER_TOPIC) return false;
+    const transferredTo = topics[2] ? normalizeAddress(`0x${topics[2].slice(-40)}`) : null;
+    if (transferredTo !== normalizedRecipient || !topics[3]) return false;
+    try {
+      return BigInt(topics[3]) === expectedTokenId;
+    } catch {
+      return false;
+    }
+  });
+}
+
+async function transactionConfirmsWarpletTransfer(
+  env: OpenSeaTradeEnv,
+  transactionHash: string,
+  tokenId: number,
+  recipient: string,
+): Promise<boolean> {
+  if (!/^0x[a-f0-9]{64}$/i.test(transactionHash)) return false;
+  const receipt = await fetchBaseRpc(env, "eth_getTransactionReceipt", [transactionHash], {
+    // A configured RPC can briefly trail the wallet's provider just after confirmation.
+    // Treat a missing receipt as a provider failure so Base RPC failover is attempted.
+    validateResult: (result) => Boolean(asObject(result)),
+  }).catch(() => null);
+  return receiptConfirmsWarpletTransfer(receipt, tokenId, recipient);
+}
 
 type FreshOrder = MarketOrderMoney & {
   source?: "item" | "trait" | "collection";
@@ -1189,6 +1233,94 @@ export async function handleCancelPrepare(context: Parameters<PagesFunction<Open
   });
 }
 
+async function persistVerifiedTokenOwner(
+  env: OpenSeaTradeEnv,
+  tokenId: number,
+  ownerWallet: string,
+  options: { clearListing?: boolean } = {},
+): Promise<{ previousOwnerWallet: string | null; changed: boolean }> {
+  const previousOwner = await env.WARPLETS.prepare(
+    "SELECT owner_wallet FROM warplet_market_state WHERE token_id = ?",
+  )
+    .bind(tokenId)
+    .first<{ owner_wallet: string | null }>()
+    .catch(() => null);
+  const previousOwnerWallet = normalizeAddress(previousOwner?.owner_wallet);
+  const ownerFid = await selectPreferredFidForWallet(env, ownerWallet);
+  const now = new Date().toISOString();
+  const ownershipPatch = {
+    token_id: tokenId,
+    owner_wallet: ownerWallet,
+    owner_fid: ownerFid,
+    owner_checked_at: now,
+    owner_event_at: now,
+  };
+  const changed = await upsertMarketStateIfChanged(
+    env.WARPLETS,
+    options.clearListing
+      ? {
+        ...ownershipPatch,
+        listing_eth: null,
+        listed_at: null,
+        listing_order_hash: null,
+        listing_protocol_address: null,
+        listing_seller_wallet: null,
+        listing_raw_amount: null,
+        listing_decimals: null,
+        listing_currency_symbol: null,
+        listing_token_address: null,
+        opensea_updated_at: now,
+      }
+      : ownershipPatch,
+  );
+  return { previousOwnerWallet, changed };
+}
+
+export async function reconcileRecentConfirmedPurchasesForWallet(
+  env: OpenSeaTradeEnv,
+  walletInput: string,
+): Promise<{ checked: number; repaired: number }> {
+  const wallet = normalizeAddress(walletInput);
+  if (!wallet) return { checked: 0, repaired: 0 };
+
+  const recent = await env.WARPLETS.prepare(
+    `SELECT token_id
+     FROM opensea_action_log
+     WHERE action_name = 'buy'
+       AND phase = 'confirmed'
+       AND LOWER(wallet_from) = ?
+       AND created_on >= datetime('now', '-30 days')
+       AND CAST(token_id AS INTEGER) BETWEEN 1 AND 10000
+     ORDER BY id DESC
+     LIMIT 50`,
+  ).bind(wallet).all<{ token_id: string }>().catch(() => null);
+  const tokenIds = [...new Set((recent?.results ?? [])
+    .map((row) => Number(row.token_id))
+    .filter((tokenId) => Number.isInteger(tokenId) && tokenId >= 1 && tokenId <= 10_000))];
+  if (tokenIds.length === 0) return { checked: 0, repaired: 0 };
+
+  const verifiedOwners = await ownersOf(tokenIds, env);
+  const affectedWallets = new Set<string>();
+  let repaired = 0;
+  for (const tokenId of tokenIds) {
+    const verifiedOwner = verifiedOwners.get(tokenId);
+    if (!verifiedOwner) continue;
+    const current = await env.WARPLETS.prepare(
+      "SELECT owner_wallet FROM warplet_market_state WHERE token_id = ?",
+    ).bind(tokenId).first<{ owner_wallet: string | null }>().catch(() => null);
+    if (normalizeAddress(current?.owner_wallet) === verifiedOwner) continue;
+    const result = await persistVerifiedTokenOwner(env, tokenId, verifiedOwner);
+    if (!result.changed) continue;
+    repaired += 1;
+    if (result.previousOwnerWallet) affectedWallets.add(result.previousOwnerWallet);
+    affectedWallets.add(verifiedOwner);
+  }
+  if (affectedWallets.size > 0) {
+    await refreshHolderLeaderboardWallets(env.WARPLETS, affectedWallets);
+  }
+  return { checked: tokenIds.length, repaired };
+}
+
 export async function handleTradeLog(context: Parameters<PagesFunction<OpenSeaTradeEnv>>[0]): Promise<Response> {
   const body = await context.request.json() as TradeActionLogInput;
   await logTradeAction(context.env, body);
@@ -1206,40 +1338,37 @@ export async function handleTradeLog(context: Parameters<PagesFunction<OpenSeaTr
         numericTokenId >= 1 &&
         numericTokenId <= 10_000
       ) {
-        const verifiedOwner = await ownerOf(numericTokenId, context.env).catch(() => null);
-        if (verifiedOwner === walletFrom) {
-          const previousOwner = await context.env.WARPLETS.prepare(
-            "SELECT owner_wallet FROM warplet_market_state WHERE token_id = ?",
+        const transactionHash = asString(body.transactionHash);
+        const receiptVerified = transactionHash
+          ? await transactionConfirmsWarpletTransfer(
+            context.env,
+            transactionHash,
+            numericTokenId,
+            walletFrom,
           )
-            .bind(numericTokenId)
-            .first<{ owner_wallet: string | null }>()
-            .catch(() => null);
-          const previousOwnerWallet = normalizeAddress(previousOwner?.owner_wallet);
-          const ownerFid = await selectPreferredFidForWallet(context.env, walletFrom);
-          const now = new Date().toISOString();
-          await upsertMarketStateIfChanged(context.env.WARPLETS, {
-            token_id: numericTokenId,
-            owner_wallet: walletFrom,
-            owner_fid: ownerFid,
-            owner_checked_at: now,
-            owner_event_at: now,
-            listing_eth: null,
-            listed_at: null,
-            listing_order_hash: null,
-            listing_protocol_address: null,
-            listing_seller_wallet: null,
-            listing_raw_amount: null,
-            listing_decimals: null,
-            listing_currency_symbol: null,
-            listing_token_address: null,
-            opensea_updated_at: now,
-          });
+          : false;
+        const verifiedOwner = receiptVerified
+          ? walletFrom
+          : await ownerOf(numericTokenId, context.env).catch(() => null);
+        if (verifiedOwner === walletFrom) {
+          const { previousOwnerWallet } = await persistVerifiedTokenOwner(
+            context.env,
+            numericTokenId,
+            walletFrom,
+            { clearListing: true },
+          );
           if (previousOwnerWallet !== walletFrom) {
             await refreshHolderLeaderboardWallets(context.env.WARPLETS, [
               previousOwnerWallet,
               walletFrom,
             ]);
           }
+        } else {
+          console.warn(JSON.stringify({
+            message: "Confirmed buy ownership verification deferred",
+            tokenId: numericTokenId,
+            transactionHash,
+          }));
         }
       }
       await recordWarpletActivity(context.env, {

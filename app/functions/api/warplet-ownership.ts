@@ -4,6 +4,7 @@ import {
   marketJsonWithEtag,
   type OpenSeaMarketEnv,
 } from "../_lib/openseaMarket.js";
+import { reconcileRecentConfirmedPurchasesForWallet } from "../_lib/openseaTrade.js";
 
 export const onRequestGet: PagesFunction<OpenSeaMarketEnv> = async (context) => {
   const url = new URL(context.request.url);
@@ -15,6 +16,9 @@ export const onRequestGet: PagesFunction<OpenSeaMarketEnv> = async (context) => 
   }
 
   try {
+    if (wallet && url.searchParams.get("refresh") === "1") {
+      await reconcileRecentConfirmedPurchasesForWallet(context.env, wallet);
+    }
     const ownership = await loadMarketOwnership(context.env, { wallet, fid });
     return marketJsonWithEtag(ownership, context.request);
   } catch (error) {
