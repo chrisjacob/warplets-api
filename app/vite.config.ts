@@ -360,6 +360,8 @@ const MINIAPP_FRAME_ANCESTORS = [
   "https://*.farcaster.xyz",
   "https://warpcast.com",
   "https://*.warpcast.com",
+  "https://10x-social.pages.dev",
+  "https://10x.social",
 ].join(" ");
 
 export default defineConfig({

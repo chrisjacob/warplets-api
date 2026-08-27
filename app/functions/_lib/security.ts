@@ -45,7 +45,7 @@ const DEFAULT_CSP = [
   "frame-src 'self' https://www.youtube-nocookie.com https://www.youtube.com",
   "worker-src 'self' blob:",
   "connect-src 'self' https: wss://relay.walletconnect.com wss://relay.walletconnect.org",
-  "frame-ancestors 'self' https://farcaster.xyz https://*.farcaster.xyz https://warpcast.com https://*.warpcast.com",
+  "frame-ancestors 'self' https://farcaster.xyz https://*.farcaster.xyz https://warpcast.com https://*.warpcast.com https://10x-social.pages.dev https://10x.social",
   "base-uri 'self'",
 ].join("; ");
 
