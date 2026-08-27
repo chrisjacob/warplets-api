@@ -14,13 +14,14 @@ export type TraitOfferSubmitResult = {
 };
 
 type SubmitTraitOfferOptions = {
+  endpoint?: string;
   maxAttempts?: number;
   baseDelayMs?: number;
   fetchImpl?: typeof fetch;
   onRetry?: (retry: TraitOfferSubmitRetry) => void;
 };
 
-const TRANSIENT_SUBMIT_STATUSES = new Set([429, 502, 503, 504]);
+const TRANSIENT_SUBMIT_STATUSES = new Set([429, 502, 503, 504, 524]);
 
 export async function submitTraitOfferWithRetry(
   requestBody: string,
@@ -29,13 +30,14 @@ export async function submitTraitOfferWithRetry(
   const maxAttempts = Math.max(1, Math.floor(options.maxAttempts ?? 3));
   const baseDelayMs = Math.max(0, Math.floor(options.baseDelayMs ?? 1_000));
   const fetchImpl = options.fetchImpl ?? fetch;
+  const endpoint = options.endpoint ?? "/api/trait-offers/submit";
   let lastError: unknown;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     let response: Response | null = null;
     let responseText = "";
     try {
-      response = await fetchImpl("/api/trait-offers/submit", {
+      response = await fetchImpl(endpoint, {
         method: "POST",
         headers: { "content-type": "application/json", accept: "application/json" },
         body: requestBody,

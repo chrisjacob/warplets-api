@@ -296,13 +296,48 @@ export function openSeaPostHeaders(apiKey: string): Record<string, string> {
   };
 }
 
-async function openSeaPost(apiKey: string, path: string, body: unknown): Promise<Record<string, unknown>> {
-  const response = await fetch(`${OPENSEA_API_BASE}${path}`, {
+async function openSeaPost(
+  apiKey: string,
+  path: string,
+  body: unknown,
+  timeoutMs: number | null = 15_000,
+): Promise<Record<string, unknown>> {
+  const request = () => fetch(`${OPENSEA_API_BASE}${path}`, {
     method: "POST",
     headers: openSeaPostHeaders(apiKey),
     body: JSON.stringify(body),
-    signal: AbortSignal.timeout(15000),
   });
+  if (timeoutMs == null) {
+    const response = await request();
+    if (!response.ok) {
+      const text = await response.text().catch(() => "");
+      throw new Error(`OpenSea ${path} failed (${response.status}): ${text || "unknown error"}`);
+    }
+    return (await response.json()) as Record<string, unknown>;
+  }
+
+  const controller = new AbortController();
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+  const timeout = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => {
+      controller.abort();
+      reject(new Error(`OpenSea ${path} timed out after ${timeoutMs}ms`));
+    }, timeoutMs);
+  });
+  let response: Response;
+  try {
+    response = await Promise.race([
+      fetch(`${OPENSEA_API_BASE}${path}`, {
+        method: "POST",
+        headers: openSeaPostHeaders(apiKey),
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      }),
+      timeout,
+    ]);
+  } finally {
+    if (timeoutId != null) clearTimeout(timeoutId);
+  }
   if (!response.ok) {
     const text = await response.text().catch(() => "");
     throw new Error(`OpenSea ${path} failed (${response.status}): ${text || "unknown error"}`);
@@ -316,11 +351,12 @@ export async function openSeaPostWithTransientRetry(
   body: unknown,
   attempts = 4,
   baseDelayMs = 500,
+  timeoutMs: number | null = 15_000,
 ): Promise<Record<string, unknown>> {
   let lastError: unknown;
   for (let attempt = 0; attempt < attempts; attempt += 1) {
     try {
-      return await openSeaPost(apiKey, path, body);
+      return await openSeaPost(apiKey, path, body, timeoutMs);
     } catch (error) {
       lastError = error;
       const message = error instanceof Error ? error.message : String(error);
@@ -1007,44 +1043,116 @@ export async function handleCollectionOfferSubmit(context: Parameters<PagesFunct
   const signature = asString(payload.signature);
   const protocolAddress = normalizeAddress(payload.protocol_address) ?? DEFAULT_SEAPORT_PROTOCOL;
   if (!parameters || !signature) return jsonSecure({ error: "missing_signature" }, { status: 400 });
-  const apiKey = requireOpenSeaApiKey(context.env);
   const submissionParameters = withOriginalConsiderationCount(parameters);
-  let result: Record<string, unknown>;
-  try {
-    result = await openSeaPost(apiKey, "/offers", {
-      protocol_data: { parameters: submissionParameters, signature },
-      criteria: { collection: { slug: COLLECTION_SLUG } },
-      protocol_address: protocolAddress,
-    });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "OpenSea collection offer submit failed";
-    return jsonSecure({ error: "opensea_submit_failed", message }, { status: 502 });
-  }
-  const orderHash = asString(result.order_hash) ?? asString(result.orderHash);
-  const wallet = normalizeAddress(body.wallet);
+  const actionId = asString(body.actionId) ?? crypto.randomUUID();
+  const offerer = normalizeAddress(parameters.offerer) ?? normalizeAddress(body.wallet);
+  const fid = Math.max(0, Math.floor(asNumber(body.fid) ?? 0)) || null;
   const priceRaw = asString(body.priceRaw);
   const quantity = Math.max(1, Math.floor(asNumber(body.quantity) ?? 1));
-  if (orderHash) {
-    const row = { ...result, order_hash: orderHash, protocol_address: protocolAddress, protocol_data: { parameters: submissionParameters, signature }, status: "ACTIVE", remaining_quantity: quantity };
-    await upsertCriteriaOfferFromRow(context.env, row, { recordActivity: false })
-      .catch((error) => console.error("Collection offer submitted but local ingestion failed", { orderHash, error }));
-    await updateCollectionOfferDisplayFields(context.env, row)
-      .catch((error) => console.error("Collection offer submitted but display bookkeeping failed", { orderHash, error }));
+  const startedAt = Date.now();
+  const diagnosticPayload = {
+    quantity,
+    considerationCount: asArray(parameters.consideration).length,
+    signatureLength: signature.length,
+  };
+  await logTradeAction(context.env, {
+    actionId,
+    actionName: "collection_offer_submit",
+    status: "started",
+    phase: "signature_success",
+    fid,
+    walletFrom: offerer,
+    protocolAddress,
+    expectedPriceRaw: priceRaw,
+    rawPayload: diagnosticPayload,
+  }).catch((error) => console.error("Failed to record collection offer submit start", error));
+  let result: Record<string, unknown>;
+  let submissionHttpStatus = 200;
+  let recoveredExistingOrder = false;
+  try {
+    result = await openSeaPostWithTransientRetry(
+      requireOpenSeaApiKey(context.env),
+      "/offers",
+      {
+        protocol_data: { parameters: submissionParameters, signature },
+        criteria: { collection: { slug: COLLECTION_SLUG } },
+        protocol_address: protocolAddress,
+      },
+      1,
+      500,
+      // Collection Offer creation can legitimately take around two minutes.
+      // Let the platform/OpenSea own the request lifetime while the client
+      // keeps its long-running progress toaster visible.
+      null,
+    );
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "OpenSea collection offer submit failed";
+    const httpStatus = Number(/failed \((\d{3})\)/.exec(message)?.[1]) || null;
+    if (httpStatus === 400 && /order already exists/i.test(message)) {
+      result = {
+        order_hash: computeSeaportOrderHash(parameters),
+        status: "ACTIVE",
+        recovered_existing_order: true,
+      };
+      submissionHttpStatus = httpStatus;
+      recoveredExistingOrder = true;
+    } else {
+      await logTradeAction(context.env, {
+        actionId,
+        actionName: "collection_offer_submit",
+        status: "failed",
+        phase: "api_error",
+        fid,
+        walletFrom: offerer,
+        protocolAddress,
+        expectedPriceRaw: priceRaw,
+        httpStatus,
+        errorMessage: message,
+        rawPayload: { ...diagnosticPayload, elapsedMs: Date.now() - startedAt },
+      }).catch((logError) => console.error("Failed to record collection offer submit error", logError));
+      return jsonSecure({ error: "opensea_submit_failed", message }, { status: 502 });
+    }
   }
-  if (wallet && priceRaw) {
-    await recordWarpletActivity(context.env, {
+  const orderHash = asString(result.order_hash) ?? asString(result.orderHash);
+  await logTradeAction(context.env, {
+    actionId,
+    actionName: "collection_offer_submit",
+    status: "success",
+    phase: "confirmed",
+    fid,
+    walletFrom: offerer,
+    orderHash,
+    protocolAddress,
+    expectedPriceRaw: priceRaw,
+    httpStatus: submissionHttpStatus,
+    rawPayload: { ...diagnosticPayload, elapsedMs: Date.now() - startedAt, recoveredExistingOrder },
+  }).catch((error) => console.error("Failed to record collection offer submit success", error));
+
+  const bookkeeping: Promise<unknown>[] = [];
+  if (orderHash) {
+    const row = { ...result, order_hash: orderHash, protocol_address: protocolAddress, protocol_data: { parameters: submissionParameters, signature }, criteria: { collection: { slug: COLLECTION_SLUG } }, status: "ACTIVE", remaining_quantity: quantity };
+    bookkeeping.push(
+      upsertCriteriaOfferFromRow(context.env, row, { recordActivity: false })
+        .catch((error) => console.error("Collection offer submitted but local ingestion failed", { orderHash, error })),
+      updateCollectionOfferDisplayFields(context.env, row)
+        .catch((error) => console.error("Collection offer submitted but display bookkeeping failed", { orderHash, error })),
+    );
+  }
+  if (offerer && priceRaw) {
+    bookkeeping.push(recordWarpletActivity(context.env, {
       eventType: "collection_top_offer",
-      actorWallet: wallet,
-      actorFid: asNumber(body.fid),
+      actorWallet: offerer,
+      actorFid: fid,
       amountEth: rawEthToNumber(priceRaw),
       amountRaw: priceRaw,
       currencySymbol: "WETH",
       orderHash,
       source: "warplets:collection-offers",
-      rawPayload: { actionId: asString(body.actionId), quantity, result },
-    }).catch((error) => console.error("Failed to record collection offer submit activity", error));
+      rawPayload: { actionId, quantity, result },
+    }).catch((error) => console.error("Failed to record collection offer submit activity", error)));
   }
-  return jsonSecure({ status: "submitted", result });
+  if (bookkeeping.length > 0) context.waitUntil(Promise.allSettled(bookkeeping));
+  return jsonSecure({ status: "submitted", result, recoveredExistingOrder });
 }
 
 async function restoreIncorrectlyDeactivatedTraitOffers(env: CollectionOffersEnv): Promise<void> {

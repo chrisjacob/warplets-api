@@ -58,7 +58,8 @@ DUNE_TRANSFERS_QUERY_ID = "8102979"
 DUNE_TRADES_BACKFILL_QUERY_ID = "8102842"
 DUNE_TRANSFERS_BACKFILL_QUERY_ID = "8102887"
 # Secrets: DUNE_API_KEY and optional DUNE_WEBHOOK_SECRET
-# Secret: BASE_RPC_URL (preferred dedicated Base Mainnet RPC; use the full Alchemy HTTPS URL)
+# Secrets: BASE_RPC_URL (preferred dedicated Base Mainnet RPC; use the full Alchemy HTTPS URL)
+# and optional OPTIMISM_RPC_URL (SIWF verification; BASE_RPC_URL's Alchemy key is reused when omitted)
 
 # Production bindings (app.10x.meme)
 [[kv_namespaces]]

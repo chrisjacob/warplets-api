@@ -2,9 +2,10 @@ import { createClient } from "@farcaster/quick-auth";
 import { createAppClient, viemConnector } from "@farcaster/auth-client";
 import { createOrMergeAppSession, type AppAuthEnv } from "../../../_lib/appAuth.js";
 import { hashAuthNonce, isUsableStoredNonce, requireSameOrigin } from "../../../_lib/authValidation.js";
+import { getOptimismRpcUrls, type OptimismRpcEnv } from "../../../_lib/optimismRpc.js";
 import { createActionSessionToken, jsonSecure, parseObjectPayload, readJsonBodyWithLimit } from "../../../_lib/security.js";
 
-interface Env extends AppAuthEnv { ACTION_SESSION_SECRET?: string; NEYNAR_API_KEY?: string }
+interface Env extends AppAuthEnv, OptimismRpcEnv { ACTION_SESSION_SECRET?: string; NEYNAR_API_KEY?: string }
 interface SiwfPayload { nonce?: unknown; message?: unknown; signature?: unknown; fid?: unknown }
 interface NonceRow { domain: string; uri: string; expires_at: string; consumed_at: string | null }
 interface FarcasterProfile {
@@ -87,7 +88,9 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     }
     let verification: Awaited<ReturnType<ReturnType<typeof createAppClient>["verifySignInMessage"]>>;
     try {
-      verification = await createAppClient({ ethereum: viemConnector() }).verifySignInMessage({
+      verification = await createAppClient({
+        ethereum: viemConnector({ rpcUrls: getOptimismRpcUrls(context.env) }),
+      }).verifySignInMessage({
         nonce,
         domain: row.domain,
         message,
@@ -103,6 +106,13 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       signedUri = null;
     }
     if (!verification.success || !Number.isInteger(Number(verification.fid)) || Number(verification.fid) <= 0) {
+      const rejected = verification as unknown as {
+        error?: { code?: unknown; message?: unknown };
+      };
+      console.warn("Farcaster SIWF verification rejected", {
+        code: typeof rejected.error?.code === "string" ? rejected.error.code : "unknown",
+        message: typeof rejected.error?.message === "string" ? rejected.error.message : "Verification returned no valid FID",
+      });
       return jsonSecure({ error: "Farcaster signed identity is invalid" }, { status: 401 });
     }
     if (suppliedFid != null && suppliedFid !== Number(verification.fid)) {

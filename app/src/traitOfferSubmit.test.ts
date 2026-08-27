@@ -45,4 +45,21 @@ describe("submitTraitOfferWithRetry", () => {
       .resolves.toMatchObject({ attempts: 2 });
     expect(fetchImpl).toHaveBeenCalledTimes(2);
   });
+
+  it("retries a collection-offer 524 against the collection endpoint", async () => {
+    const fetchImpl = vi.fn()
+      .mockResolvedValueOnce(new Response("gateway timeout", { status: 524 }))
+      .mockResolvedValueOnce(Response.json({ status: "submitted", recoveredExistingOrder: true }));
+
+    const result = await submitTraitOfferWithRetry("signed-body", {
+      endpoint: "/api/collection-offers/submit",
+      fetchImpl,
+      baseDelayMs: 0,
+    });
+
+    expect(result.response.status).toBe(200);
+    expect(result.attempts).toBe(2);
+    expect(fetchImpl).toHaveBeenNthCalledWith(1, "/api/collection-offers/submit", expect.any(Object));
+    expect(fetchImpl.mock.calls[0]?.[1]).toEqual(fetchImpl.mock.calls[1]?.[1]);
+  });
 });

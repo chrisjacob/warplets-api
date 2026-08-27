@@ -8059,10 +8059,7 @@ function CollectionOffersPage({
       const signature = await signTypedData(provider, account, prepared.typedData);
       recordLocalOfferDiagnostic("collection_offer.signing_complete", { actionId, signatureLength: signature.length });
       beginOpenSeaSubmitLabels(true);
-      const submit = await fetch("/api/collection-offers/submit", {
-        method: "POST",
-        headers: { "content-type": "application/json", accept: "application/json" },
-        body: JSON.stringify({
+      const submitBody = JSON.stringify({
           actionId,
           fid: viewerFid,
           wallet: account,
@@ -8073,15 +8070,31 @@ function CollectionOffersPage({
             protocol_address: prepared.protocolAddress,
             signature,
           },
-        }),
+        });
+      const { response: submit, responseText, attempts } = await submitTraitOfferWithRetry(submitBody, {
+        endpoint: "/api/collection-offers/submit",
+        onRetry: ({ attempt, nextAttempt, delayMs, status, responseText: retryResponseText, error }) => {
+          setCollectionBusyLabel("Confirming submitted offer...");
+          recordLocalOfferDiagnostic("collection_offer.submit_retry_scheduled", {
+            actionId,
+            attempt,
+            nextAttempt,
+            delayMs,
+            status,
+            error,
+            responsePreview: retryResponseText.slice(0, 1000),
+          });
+        },
       });
       recordLocalOfferDiagnostic("collection_offer.submit_received", {
         actionId,
         status: submit.status,
         ok: submit.ok,
+        attempts,
       });
       if (!submit.ok) {
-        const failure = await submit.json().catch(() => ({})) as { message?: string };
+        let failure: { message?: string } = {};
+        try { failure = responseText ? JSON.parse(responseText) as { message?: string } : {}; } catch { /* Preserve status fallback. */ }
         throw new Error(failure.message || `Collection offer submit failed (${submit.status})`);
       }
       clearCollectionSubmitTimers();
@@ -8318,7 +8331,7 @@ function CollectionOffersPage({
               className="flex w-full cursor-pointer justify-center -space-x-2 disabled:cursor-default disabled:opacity-60"
               title="View collection bidders"
             >
-              {group.previewBidders.slice(0, group.bidderCount > 5 ? 4 : 5).map((bidder) => (
+              {group.previewBidders.slice(0, 3).map((bidder) => (
                 <span
                   key={bidder.wallet}
                   className="h-7 w-7 overflow-hidden rounded-full border-2 border-[#00FF00] bg-black"
@@ -8326,11 +8339,6 @@ function CollectionOffersPage({
                   <img src={bidder.pfpUrl || getWalletIdenticonDataUrl(bidder.wallet)} alt="" className="h-full w-full object-cover" loading="lazy" />
                 </span>
               ))}
-              {group.bidderCount > 5 && (
-                <span className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-[#00FF00] bg-[#041204] text-xs font-black text-[#00FF00]">
-                  +
-                </span>
-              )}
             </button>
             <button
               type="button"
@@ -9033,7 +9041,7 @@ function TraitOffersPage({
       <SearchSegmentedTabs className="mt-4" options={OFFERS_FILTER_TABS} activeId={scope} onSelect={(id) => setScope(id === "your" ? "your" : "all")}/>
       <div className="mt-4 overflow-hidden rounded-lg border border-[#00FF00]/25">
         <div className="grid grid-cols-[1fr_1fr_56px_72px_72px] items-center gap-1 bg-[#041204] px-2 py-2 text-center text-[10px] font-bold uppercase text-[#8bbf8b]"><span>Price</span><span>Volume</span><span>Offers</span><span>Bidders</span><span>Action</span></div>
-        {loading ? <div className="px-3 py-6 text-center text-sm font-bold text-[#8bbf8b]">Loading offers...</div> : rows.length === 0 ? <div className="px-3 py-6 text-center text-sm font-bold text-[#8bbf8b]">No trait offers.</div> : rows.map((group) => <div key={`${group.traitType}|${group.traitValue}|${group.price.rawAmount ?? group.price.eth}`} className="grid grid-cols-[1fr_1fr_56px_72px_72px] items-center gap-1 border-t border-[#00FF00]/15 px-2 py-2 text-center text-xs"><OfferPriceTooltipButton price={group.price} ethUsdPrice={ethUsdPrice} onClick={() => { setPriceFromMarket(group.price); formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }); }}/><span className="flex justify-center"><InlineHoverTooltip value={formatMarketValue(group.volume, { maxDigits: 5 })} tooltip={formatUsdMoneyFromMarket(group.volume, ethUsdPrice)} className="text-[#00FF00]"/></span><span className="flex justify-center"><InlineHoverTooltip value={`${emojiForTrait(group.traitType)} ${group.offerCount}`} tooltip={`${group.traitType}: ${group.traitValue}`} className="font-bold text-[#8bbf8b]"/></span><button type="button" onClick={() => setBiddersGroup(group)} className="flex cursor-pointer justify-center -space-x-2">{group.previewBidders.slice(0, 5).map((bidder) => <img key={bidder.wallet} src={bidder.pfpUrl || getWalletIdenticonDataUrl(bidder.wallet)} alt="" className="h-7 w-7 rounded-full border-2 border-[#00FF00] object-cover"/>)}</button><button type="button" disabled={busy !== null} onClick={() => { if (group.userOfferCount > 0) { setCancelGroup(group); setCancelRequestedQuantity(group.userOfferCount); setCancelQuantity(snapCollectionOfferCancelQuantity(group.userOrders, group.userOfferCount)); } else { const attribute = LEVEL_ATTRIBUTES.find((item) => `${item.label} Level`.toLowerCase() === group.traitType.toLowerCase()); setPriceFromMarket(group.price); if (attribute) setSelectedAttributes([attribute.column]); formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }); } }} className={`cursor-pointer justify-self-center rounded-md border px-2 py-1.5 text-xs font-bold disabled:cursor-wait ${group.userOfferCount > 0 ? "border-[#FF5555]/55 text-[#FF7777]" : "border-[#33AAFF]/55 text-[#33AAFF]"}`}>{group.userOfferCount > 0 ? "Cancel" : "Offer"}</button></div>)}
+        {loading ? <div className="px-3 py-6 text-center text-sm font-bold text-[#8bbf8b]">Loading offers...</div> : rows.length === 0 ? <div className="px-3 py-6 text-center text-sm font-bold text-[#8bbf8b]">No trait offers.</div> : rows.map((group) => <div key={`${group.traitType}|${group.traitValue}|${group.price.rawAmount ?? group.price.eth}`} className="grid grid-cols-[1fr_1fr_56px_72px_72px] items-center gap-1 border-t border-[#00FF00]/15 px-2 py-2 text-center text-xs"><OfferPriceTooltipButton price={group.price} ethUsdPrice={ethUsdPrice} onClick={() => { setPriceFromMarket(group.price); formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }); }}/><span className="flex justify-center"><InlineHoverTooltip value={formatMarketValue(group.volume, { maxDigits: 5 })} tooltip={formatUsdMoneyFromMarket(group.volume, ethUsdPrice)} className="text-[#00FF00]"/></span><span className="flex justify-center"><InlineHoverTooltip value={`${emojiForTrait(group.traitType)} ${group.offerCount}`} tooltip={`${group.traitType}: ${group.traitValue}`} className="font-bold text-[#8bbf8b]"/></span><button type="button" onClick={() => setBiddersGroup(group)} className="flex cursor-pointer justify-center -space-x-2">{group.previewBidders.slice(0, 3).map((bidder) => <img key={bidder.wallet} src={bidder.pfpUrl || getWalletIdenticonDataUrl(bidder.wallet)} alt="" className="h-7 w-7 rounded-full border-2 border-[#00FF00] object-cover"/>)}</button><button type="button" disabled={busy !== null} onClick={() => { if (group.userOfferCount > 0) { setCancelGroup(group); setCancelRequestedQuantity(group.userOfferCount); setCancelQuantity(snapCollectionOfferCancelQuantity(group.userOrders, group.userOfferCount)); } else { const attribute = LEVEL_ATTRIBUTES.find((item) => `${item.label} Level`.toLowerCase() === group.traitType.toLowerCase()); setPriceFromMarket(group.price); if (attribute) setSelectedAttributes([attribute.column]); formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }); } }} className={`cursor-pointer justify-self-center rounded-md border px-2 py-1.5 text-xs font-bold disabled:cursor-wait ${group.userOfferCount > 0 ? "border-[#FF5555]/55 text-[#FF7777]" : "border-[#33AAFF]/55 text-[#33AAFF]"}`}>{group.userOfferCount > 0 ? "Cancel" : "Offer"}</button></div>)}
       </div>
       <div className="mt-3 text-center text-[11px] text-[#8bbf8b]">Last updated: {payload?.generatedAt ? formatMarketTimestamp(payload.generatedAt) : "Not yet"}. <button type="button" disabled={refreshing || busy !== null} onClick={() => void loadOffers({ refresh: true })} className="font-bold text-[#00FF00]">{refreshing ? "Refreshing..." : "Refresh"}</button>{payload?.refreshError && <span className="block text-red-300">{payload.refreshError}</span>}</div>
       <LocalOfferDiagnosticsPanel />
@@ -13298,7 +13306,7 @@ function WarpletDetailsModal({
   }, []);
 
   const postTradeLog = useCallback((payload: Record<string, unknown>) => {
-    fetch("/api/warplet-trade/log", {
+    return fetch("/api/warplet-trade/log", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
@@ -13308,7 +13316,7 @@ function WarpletDetailsModal({
         walletFrom: activeWallet,
         ...payload,
       }),
-    }).catch(() => {});
+    }).catch(() => null);
   }, [activeWallet, details.id, viewerFid]);
 
   const getProviderAndAccount = useCallback(async (
@@ -13616,7 +13624,16 @@ function WarpletDetailsModal({
       if (!tx) throw new Error("OpenSea did not return a buy transaction");
       const hash = await sendPreparedTransaction(provider, account, tx);
       postTradeLog({ actionName: "buy", status: "submitted", phase: "transaction_submitted", transactionHash: hash });
-      postTradeLog({ actionName: "buy", status: "confirmed", phase: "confirmed", transactionHash: hash });
+      const confirmationLog = await postTradeLog({
+        actionName: "buy",
+        status: "confirmed",
+        phase: "confirmed",
+        transactionHash: hash,
+        walletFrom: account,
+      });
+      if (!confirmationLog?.ok) {
+        console.warn("Purchase confirmed, but its immediate ownership sync did not complete.");
+      }
       await refreshTradeState(account).catch((error) => {
         console.warn("Fresh trade state after buy was not ready yet:", error);
       });
@@ -16174,10 +16191,30 @@ export default function SearchApp() {
         tokenIds?: unknown;
         owners?: MarketSnapshot["owners"];
       };
-      const tokenIds = Array.isArray(payload.tokenIds)
+      const tokenIdSet = new Set(Array.isArray(payload.tokenIds)
         ? payload.tokenIds.map(Number).filter((tokenId) => Number.isInteger(tokenId) && tokenId > 0)
-        : [];
-      const owners = payload.owners && typeof payload.owners === "object" ? payload.owners : {};
+        : []);
+      const owners = payload.owners && typeof payload.owners === "object" ? { ...payload.owners } : {};
+      const now = Date.now();
+      for (const [tokenId, purchase] of pendingConfirmedPurchasesRef.current) {
+        if (purchase.expiresAt <= now) {
+          pendingConfirmedPurchasesRef.current.delete(tokenId);
+          continue;
+        }
+        const belongsToSelector = wallet
+          ? walletMatches(purchase.owner.wallet, wallet)
+          : fid != null && purchase.owner.fid === fid;
+        if (belongsToSelector) {
+          tokenIdSet.add(Number(tokenId));
+          owners[tokenId] = purchase.owner;
+        } else {
+          tokenIdSet.delete(Number(tokenId));
+          delete owners[tokenId];
+        }
+      }
+      const tokenIds = Array.from(tokenIdSet)
+        .filter((tokenId) => Number.isInteger(tokenId) && tokenId > 0)
+        .sort((left, right) => left - right);
       ownershipTokenIdsRef.current.set(key, tokenIds);
       ownershipOwnersRef.current.set(key, owners);
       setMarketSnapshot((current) => current ? { ...current, owners: { ...(current.owners ?? {}), ...owners } } : current);
@@ -18224,6 +18261,7 @@ export default function SearchApp() {
             src: "/menu/menu-opensea-10xwarplets.jpg",
             alt: "OpenSea 10X Warplets wallet collection share image",
             sourceUrl: openSeaWalletUrl,
+            waitForResolvedSource: true,
           },
         ],
         farcasterEmbeds: [bulkBuySearchUrl, openSeaWalletUrl],
