@@ -42,7 +42,7 @@ import {
   restoreWebWallet,
   useWalletController,
 } from "./walletController";
-import { linkCurrentWalletAndIdentity, loadAppSession, verifyFarcasterQuickAuth, logoutAppPrincipal } from "./appSession";
+import { authenticateWallet, linkCurrentWalletAndIdentity, loadAppSession, verifyFarcasterQuickAuth, logoutAppPrincipal } from "./appSession";
 import { resolveAppSurface } from "./appRuntime";
 import { trackAppEvent } from "./analytics";
 import { PwaControls } from "./PwaControls";
@@ -15149,11 +15149,11 @@ export default function SearchApp() {
   }, [isInMiniAppContext, miniAppContextKnown, searchRoute]);
   const [siwfViewerProfile, setSiwfViewerProfile] = useState<ViewerProfile | null>(null);
   useEffect(() => {
-    if (isInMiniAppContext || siwfViewerProfile?.fid) return;
+    if (!miniAppContextKnown || isInMiniAppContext || siwfViewerProfile?.fid) return;
     void restorePendingFarcasterSignIn().then((pending) => {
       if (pending) setWebConnectOpen(true);
     });
-  }, [isInMiniAppContext, siwfViewerProfile?.fid]);
+  }, [isInMiniAppContext, miniAppContextKnown, siwfViewerProfile?.fid]);
 
   useEffect(() => {
     const wallet = walletController.session?.address ?? null;
@@ -16463,7 +16463,24 @@ export default function SearchApp() {
       if (favouriteIdentityWallet) return favouriteIdentityWallet;
       return loadVerifiedFavouriteList();
     }
-    if (activeWallet) return activeWallet;
+    if (activeWallet) {
+      const normalizedWallet = normalizeWalletAddress(activeWallet);
+      if (!normalizedWallet) throw new Error("No wallet account is connected.");
+      const authenticatedSession = await loadAppSession().catch(() => null);
+      if (authenticatedSession?.walletAddress?.toLowerCase() !== normalizedWallet) {
+        const walletSession = walletController.session;
+        if (!walletSession || walletSession.address.toLowerCase() !== normalizedWallet) {
+          throw new Error("Reconnect and verify your wallet to use favourites.");
+        }
+        showSearchToast("neutral", "Check your wallet to verify favourites access...", { minMs: 5000 });
+        await authenticateWallet(walletSession.provider, walletSession.address, walletSession.chainId);
+        const verifiedSession = await loadAppSession();
+        if (verifiedSession.walletAddress?.toLowerCase() !== normalizedWallet) {
+          throw new Error("Wallet verification did not complete.");
+        }
+      }
+      return normalizedWallet;
+    }
     if (!isInMiniAppContext) {
       setWebConnectOpen(true);
       trackAppEvent("connect_opened", { surface: "web", route: window.location.pathname });
@@ -16474,7 +16491,7 @@ export default function SearchApp() {
     if (!wallet) throw new Error("No wallet account is connected.");
     void loadFavouriteList(wallet);
     return wallet;
-  }, [activeWallet, favouriteIdentityWallet, isInMiniAppContext, loadFavouriteList, loadVerifiedFavouriteList, viewerFid]);
+  }, [activeWallet, favouriteIdentityWallet, isInMiniAppContext, loadFavouriteList, loadVerifiedFavouriteList, showSearchToast, viewerFid, walletController.session]);
 
   useEffect(() => {
     if (!viewerFid || !actionSessionToken) return;

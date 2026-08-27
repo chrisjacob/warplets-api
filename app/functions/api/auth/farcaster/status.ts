@@ -72,6 +72,9 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   const explicitChannelToken = typeof payload.payload.channelToken === "string"
     ? payload.payload.channelToken.trim()
     : "";
+  if (!explicitChannelToken && !recovery) {
+    return jsonSecure({ state: "idle" });
+  }
   if (!explicitChannelToken && recovery && !recovery.initiatedAt) {
     return jsonSecure({ state: "idle" });
   }
