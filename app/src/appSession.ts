@@ -1,4 +1,4 @@
-import type { EthereumProvider } from "./walletTrade";
+import { signMessage, type EthereumProvider } from "./walletTrade";
 import { dismissBaseAccountPopup } from "./baseAccountHandoff";
 import { stringToHex } from "viem";
 
@@ -215,11 +215,7 @@ export async function authenticateWallet(provider: EthereumProvider, address: `0
   // accept a plain UTF-8 string, but Base Account correctly rejects it as an
   // invalid message. The server still receives and validates the original SIWE
   // text; stringToHex represents the exact same UTF-8 bytes being signed.
-  const signature = await provider.request({
-    method: "personal_sign",
-    params: [stringToHex(challenge.message), address],
-  });
-  if (typeof signature !== "string") throw new Error("Wallet did not return a sign-in signature");
+  const signature = await signMessage(provider, address, stringToHex(challenge.message));
   await completeWalletAuthentication(challenge.message, signature, address);
 }
 

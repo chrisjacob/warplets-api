@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { stringToHex } from "viem";
-import { authenticateBaseWallet } from "./appSession";
-import type { EthereumProvider } from "./walletTrade";
+import { authenticateBaseWallet, authenticateWallet } from "./appSession";
+import { subscribeToWalletReviewRequests, type EthereumProvider } from "./walletTrade";
 
 const ADDRESS = "0x1234567890abcdef1234567890abcdef12345678" as const;
 
@@ -77,5 +77,31 @@ describe("authenticateBaseWallet", () => {
     await expect(authenticateBaseWallet(provider, 8453)).rejects.toThrow("User rejected request");
     expect(request).toHaveBeenCalledTimes(1);
     expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("authenticateWallet", () => {
+  it("publishes the external-wallet signature lifecycle for SIWE", async () => {
+    const message = "app.10x.meme wants you to sign in";
+    const fetcher = vi.fn()
+      .mockResolvedValueOnce(json({ message }))
+      .mockResolvedValueOnce(json({ walletAddress: ADDRESS }));
+    vi.stubGlobal("fetch", fetcher);
+    const request = vi.fn(async ({ method, params }: { method: string; params?: readonly unknown[] | object }) => {
+      expect(method).toBe("personal_sign");
+      expect(params).toEqual([stringToHex(message), ADDRESS]);
+      return "0xabcd";
+    });
+    const provider = { request, connectorId: "trustconnect-walletconnect" } satisfies EthereumProvider;
+    const phases: string[] = [];
+    const unsubscribe = subscribeToWalletReviewRequests(({ phase }) => phases.push(phase));
+
+    try {
+      await authenticateWallet(provider, ADDRESS, 8453);
+    } finally {
+      unsubscribe();
+    }
+
+    expect(phases).toEqual(["started", "settled"]);
   });
 });

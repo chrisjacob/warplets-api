@@ -1454,7 +1454,7 @@ export async function signTypedData(provider: EthereumProvider, account: string,
 export async function signMessage(provider: EthereumProvider, account: string, message: string): Promise<string> {
   const signature = await requestWithWalletReview(provider, "signature", () => provider.request({
     method: "personal_sign",
-    params: [message, getAddress(account)],
+    params: [message, account],
   }));
   if (typeof signature !== "string") throw new Error("Wallet did not return a signature");
   return signature;
