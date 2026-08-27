@@ -50,6 +50,7 @@ import { LocalOfferDiagnosticsPanel } from "./LocalOfferDiagnosticsPanel";
 import { recordLocalOfferDiagnostic } from "./localOfferDiagnostics";
 import { submitTraitOfferWithRetry } from "./traitOfferSubmit";
 import { getMobileWalletHandoff, openMobileWalletHandoff, waitForForeground } from "./mobileWalletHandoff";
+import { getExternalWalletReviewName } from "./walletReviewPrompt";
 import { resolveEntryPoint, isBaseAppContext, isEmbeddedWebView, isLikelyBaseAppBrowser, isStandaloneDisplay, subscribeToWebPush } from "./pwa";
 import { findRarestOwnedWarpletTokenId, resolveEffectiveWarpletOwner } from "./ownerResolution";
 import { canPresentAirdrop, shouldCoverAppWhileResolvingOnboarding, shouldOpenOnboarding } from "./searchModalSequence";
@@ -90,11 +91,13 @@ import {
   buildSeaportCancelTransaction,
   getWalletErrorCode,
   getWalletErrorMessage,
+  isOpaqueWalletConnectNullError,
   isUserRejected,
   readErc20Balance,
   readNativeBalance,
   sendPreparedTransaction,
   signTypedData,
+  subscribeToWalletReviewRequests,
   waitForTransactionReceipt,
   wrapEthToWeth,
   type EthereumProvider,
@@ -8043,7 +8046,9 @@ function CollectionOffersPage({
             );
           }
           setCollectionBusyLabel("Waiting for wallet...");
-          showToast("neutral", `Wrap ${formatWeiTokenAmount(missingWeth, "ETH")} to WETH to make this offer...`, { minMs: 5000 });
+          if (!getExternalWalletReviewName(provider)) {
+            showToast("neutral", `Wrap ${formatWeiTokenAmount(missingWeth, "ETH")} to WETH to make this offer...`, { minMs: 5000 });
+          }
           await wrapEthToWeth(provider, account, prepared.wethApproval.tokenAddress, missingWeth);
           showToast("neutral", "ETH wrapped to WETH. Continuing offer...", { minMs: 5000 });
         }
@@ -8054,7 +8059,9 @@ function CollectionOffersPage({
         throw new Error("OpenSea did not return collection offer signature data");
       }
       setCollectionBusyLabel("Waiting for wallet...");
-      showToast("neutral", "Check your wallet to confirm the collection offer...", { minMs: 5000 });
+      if (!getExternalWalletReviewName(provider)) {
+        showToast("neutral", "Check your wallet to confirm the collection offer...", { minMs: 5000 });
+      }
       recordLocalOfferDiagnostic("collection_offer.signing_started", { actionId });
       const signature = await signTypedData(provider, account, prepared.typedData);
       recordLocalOfferDiagnostic("collection_offer.signing_complete", { actionId, signatureLength: signature.length });
@@ -8144,7 +8151,9 @@ function CollectionOffersPage({
       if (!prepared.protocolAddress || !prepared.orderParameters?.length) throw new Error("OpenSea did not return cancel transaction data");
       await ensureBaseChain(provider, prepared.chainIdHex ?? undefined);
       setCollectionBusyLabel("Waiting for wallet...");
-      showToast("neutral", "Check your wallet to confirm cancellation...", { minMs: 5000 });
+      if (!getExternalWalletReviewName(provider)) {
+        showToast("neutral", "Check your wallet to confirm cancellation...", { minMs: 5000 });
+      }
       await sendPreparedTransaction(
         provider,
         account,
@@ -8891,7 +8900,20 @@ function TraitOffersPage({
           setBusyLabel(`Signing ${submitted + 1} of ${prepared.length}...`);
           recordLocalOfferDiagnostic("trait_offer.signing_started", { attemptId, actionId: item.actionId, attribute: item.attribute, index: submitted + 1, total: prepared.length });
           const mobileHandoff = getMobileWalletHandoff(provider);
-          const signature = await requestTraitOfferSignature(provider, account, item.typedData, submitted + 1, prepared.length);
+          let signature: string;
+          try {
+            signature = await requestTraitOfferSignature(provider, account, item.typedData, submitted + 1, prepared.length);
+          } catch (error) {
+            if (provider.connectorId !== "trustconnect-walletconnect" || !isOpaqueWalletConnectNullError(error)) throw error;
+            recordLocalOfferDiagnostic("trait_offer.signature_walletconnect_retry", {
+              attemptId,
+              actionId: item.actionId,
+              attribute: item.attribute,
+              error,
+            });
+            setBusyLabel(`Retrying signature ${submitted + 1} of ${prepared.length}...`);
+            signature = await requestTraitOfferSignature(provider, account, item.typedData, submitted + 1, prepared.length);
+          }
           recordLocalOfferDiagnostic("trait_offer.signing_complete", { attemptId, actionId: item.actionId, attribute: item.attribute, signatureLength: signature.length });
           if (mobileHandoff && document.visibilityState !== "visible") {
             setBusyLabel("Return to Safari to submit...");
@@ -13904,7 +13926,9 @@ function WarpletDetailsModal({
       const payload = await prepare.json() as { actions?: unknown; chainIdHex?: string; message?: string };
       if (!prepare.ok) throw new Error(payload.message || `Listing prepare failed (${prepare.status})`);
       postTradeLog({ actionName: "list", status: "requested", phase: "signature_requested", expectedPriceRaw: priceRaw });
-      showToast("neutral", "Check your wallet to confirm the listing...", { minMs: 5000 });
+      if (!getExternalWalletReviewName(provider)) {
+        showToast("neutral", "Check your wallet to confirm the listing...", { minMs: 5000 });
+      }
       const signed = await executeOpenSeaActions(provider, account, payload.actions);
       postTradeLog({ actionName: "list", status: "signed", phase: "signature_success", expectedPriceRaw: priceRaw });
       const submit = await fetch("/api/warplet-trade/listing/submit", {
@@ -14011,7 +14035,9 @@ function WarpletDetailsModal({
             );
           }
           postTradeLog({ actionName: "make_offer", status: "requested", phase: "transaction_requested", expectedPriceRaw: priceRaw });
-          showToast("neutral", `Wrap ${formatWeiTokenAmount(missingWeth, "ETH")} to WETH to make this offer...`, { minMs: 5000 });
+          if (!getExternalWalletReviewName(provider)) {
+            showToast("neutral", `Wrap ${formatWeiTokenAmount(missingWeth, "ETH")} to WETH to make this offer...`, { minMs: 5000 });
+          }
           const wrapHash = await wrapEthToWeth(provider, account, payload.wethApproval.tokenAddress, missingWeth);
           postTradeLog({ actionName: "make_offer", status: "submitted", phase: "transaction_submitted", transactionHash: wrapHash, expectedPriceRaw: priceRaw });
           showToast("neutral", "ETH wrapped to WETH. Continuing offer...", { minMs: 5000 });
@@ -14021,7 +14047,9 @@ function WarpletDetailsModal({
         postTradeLog({ actionName: "make_offer", status: "approved", phase: "approval_success", expectedPriceRaw: priceRaw });
       }
       postTradeLog({ actionName: "make_offer", status: "requested", phase: "signature_requested", expectedPriceRaw: priceRaw });
-      showToast("neutral", "Check your wallet to confirm the offer...", { minMs: 5000 });
+      if (!getExternalWalletReviewName(provider)) {
+        showToast("neutral", "Check your wallet to confirm the offer...", { minMs: 5000 });
+      }
       if (!payload.typedData || !payload.parameters || !payload.protocolAddress) {
         throw new Error("OpenSea did not return item offer signature data");
       }
@@ -14131,7 +14159,9 @@ function WarpletDetailsModal({
       if (!payload.protocolAddress || !payload.orderParameters) throw new Error("OpenSea did not return cancel transaction data");
       await ensureBaseChain(provider, payload.chainIdHex ?? undefined);
       postTradeLog({ actionName: getActionLogName(action), status: "requested", phase: "transaction_requested", orderHash: order.orderHash, protocolAddress: payload.protocolAddress });
-      showToast("neutral", "Check your wallet to confirm cancellation...", { minMs: 5000 });
+      if (!getExternalWalletReviewName(provider)) {
+        showToast("neutral", "Check your wallet to confirm cancellation...", { minMs: 5000 });
+      }
       const hash = await sendPreparedTransaction(
         provider,
         account,
@@ -15304,6 +15334,25 @@ export default function SearchApp() {
     }
   }, []);
 
+  useEffect(() => subscribeToWalletReviewRequests(({ provider, kind, phase }) => {
+    const externalWalletName = getExternalWalletReviewName(provider);
+    if (!externalWalletName) return;
+    if (phase === "settled") {
+      closeSearchToast();
+      return;
+    }
+    const requestLabel = kind === "signature"
+      ? "signature request"
+      : kind === "network"
+        ? "network request"
+        : "transaction request";
+    showSearchToast(
+      "success",
+      `Review the ${requestLabel} in ${externalWalletName} to continue.`,
+      { manualClose: true },
+    );
+  }), [closeSearchToast, showSearchToast]);
+
   const clearShareCelebrationFallback = useCallback(() => {
     if (shareCelebrationRef.current.fallbackTimer != null) {
       window.clearTimeout(shareCelebrationRef.current.fallbackTimer);
@@ -16472,7 +16521,9 @@ export default function SearchApp() {
         if (!walletSession || walletSession.address.toLowerCase() !== normalizedWallet) {
           throw new Error("Reconnect and verify your wallet to use favourites.");
         }
-        showSearchToast("neutral", "Check your wallet to verify favourites access...", { minMs: 5000 });
+        if (!getExternalWalletReviewName(walletSession.provider)) {
+          showSearchToast("neutral", "Check your wallet to verify favourites access...", { minMs: 5000 });
+        }
         await authenticateWallet(walletSession.provider, walletSession.address, walletSession.chainId);
         const verifiedSession = await loadAppSession();
         if (verifiedSession.walletAddress?.toLowerCase() !== normalizedWallet) {
@@ -17992,7 +18043,9 @@ export default function SearchApp() {
       });
       const prepared = await prepare.json().catch(() => ({})) as { actions?: unknown; message?: string };
       if (!prepare.ok) throw new Error(prepared.message || `Listing prepare failed (${prepare.status})`);
-      showSearchToast("neutral", "Check your wallet to confirm the listing...", { minMs: 5000 });
+      if (!getExternalWalletReviewName(provider)) {
+        showSearchToast("neutral", "Check your wallet to confirm the listing...", { minMs: 5000 });
+      }
       const signed = await executeOpenSeaActions(provider, account, prepared.actions);
       const submit = await fetch("/api/warplet-trade/listing/submit", {
         method: "POST",

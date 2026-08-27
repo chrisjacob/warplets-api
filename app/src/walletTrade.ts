@@ -15,6 +15,27 @@ export type EthereumProvider = {
   };
 };
 
+export type WalletReviewRequest = {
+  provider: EthereumProvider;
+  kind: "transaction" | "signature" | "network";
+  phase: "started" | "settled";
+};
+
+const walletReviewRequestListeners = new Set<(request: WalletReviewRequest) => void>();
+
+export function subscribeToWalletReviewRequests(listener: (request: WalletReviewRequest) => void): () => void {
+  walletReviewRequestListeners.add(listener);
+  return () => walletReviewRequestListeners.delete(listener);
+}
+
+function notifyWalletReviewRequest(
+  provider: EthereumProvider,
+  kind: WalletReviewRequest["kind"],
+  phase: WalletReviewRequest["phase"],
+): void {
+  walletReviewRequestListeners.forEach((listener) => listener({ provider, kind, phase }));
+}
+
 export type TokenApprovalRequirement = {
   tokenAddress: string;
   spender: string;
@@ -629,6 +650,23 @@ function waitForWalletPrompt<T>(promise: Promise<T>, label = "Wallet request", t
   return withWalletTimeout(promise, label, timeoutMs);
 }
 
+function requestWithWalletReview<T>(
+  provider: EthereumProvider,
+  kind: WalletReviewRequest["kind"],
+  request: () => Promise<T>,
+  label = "Wallet request",
+  timeoutMs = 120000,
+): Promise<T> {
+  notifyWalletReviewRequest(provider, kind, "started");
+  try {
+    return waitForWalletPrompt(request(), label, timeoutMs)
+      .finally(() => notifyWalletReviewRequest(provider, kind, "settled"));
+  } catch (error) {
+    notifyWalletReviewRequest(provider, kind, "settled");
+    return Promise.reject(error);
+  }
+}
+
 function toHexQuantity(value: string | number | bigint | null | undefined): `0x${string}` {
   if (typeof value === "string" && value.startsWith("0x")) return value as `0x${string}`;
   if (typeof value === "string" && value) return `0x${BigInt(value).toString(16)}`;
@@ -658,6 +696,11 @@ export function isUserRejected(error: unknown): boolean {
 
 function isWalletTimeoutError(error: unknown): boolean {
   return getWalletErrorMessage(error).toLowerCase().includes("did not open or respond");
+}
+
+export function isOpaqueWalletConnectNullError(error: unknown): boolean {
+  const message = getWalletErrorMessage(error).toLowerCase();
+  return message.includes("null is not an object") && message.includes(".message");
 }
 
 function isTypedDataFormatError(error: unknown): boolean {
@@ -776,7 +819,11 @@ export async function sendAttributedTransaction(
   trackAppEvent("transaction_prepared", { transactionType });
   try {
     trackAppEvent("transaction_wallet_prompted", { transactionType });
-    const hash = await waitForWalletPrompt(provider.request({ method: "eth_sendTransaction", params: [attributed] }));
+    const hash = await requestWithWalletReview(
+      provider,
+      "transaction",
+      () => provider.request({ method: "eth_sendTransaction", params: [attributed] }),
+    );
     if (typeof hash !== "string") throw new Error("Wallet did not return a transaction hash");
     trackAppEvent("transaction_submitted", { transactionType });
     return hash;
@@ -819,18 +866,18 @@ export async function ensureBaseChain(
   if (options.allowSkipSwitch) return;
 
   try {
-    await waitForWalletPrompt(provider.request({
+    await requestWithWalletReview(provider, "network", () => provider.request({
       method: "wallet_switchEthereumChain",
       params: [{ chainId: chainIdHex }],
     }));
   } catch (error) {
     const maybe = asObject(error);
     if (maybe?.code === 4902 || String(maybe?.message ?? "").includes("Unrecognized chain")) {
-      await waitForWalletPrompt(provider.request({
+      await requestWithWalletReview(provider, "network", () => provider.request({
         method: "wallet_addEthereumChain",
         params: [BASE_CHAIN_CONFIG],
       }));
-      await waitForWalletPrompt(provider.request({
+      await requestWithWalletReview(provider, "network", () => provider.request({
         method: "wallet_switchEthereumChain",
         params: [{ chainId: chainIdHex }],
       }));
@@ -953,12 +1000,35 @@ export async function ensureErc20Approval(
     functionName: "approve",
     args: [getAddress(approval.spender), required],
   });
-  const hash = await sendAttributedTransaction(provider, {
-      from: owner,
-      to: getAddress(approval.tokenAddress),
-      value: "0x0",
-      data,
-    }, "erc20_approval");
+  let hash: string;
+  try {
+    hash = await sendAttributedTransaction(provider, {
+        from: owner,
+        to: getAddress(approval.tokenAddress),
+        value: "0x0",
+        data,
+      }, "erc20_approval");
+  } catch (error) {
+    const canRecoverOpaqueWalletConnectResult = provider.connectorId === "trustconnect-walletconnect"
+      && isOpaqueWalletConnectNullError(error)
+      && !isUserRejected(error);
+    if (!canRecoverOpaqueWalletConnectResult) throw error;
+
+    recordLocalOfferDiagnostic("weth.approval.walletconnect_result_missing", { error });
+    const deadline = Date.now() + 30000;
+    do {
+      const recoveredAllowance = await readErc20Allowance(approval.tokenAddress, owner, approval.spender).catch(() => 0n);
+      if (recoveredAllowance >= required) {
+        recordLocalOfferDiagnostic("weth.approval.recovered", {
+          approvedAmount: recoveredAllowance.toString(),
+        });
+        trackAppEvent("transaction_confirmed", { transactionType: "erc20_approval", result: "recovered_from_allowance" });
+        return null;
+      }
+      await new Promise((resolve) => globalThis.setTimeout(resolve, 1000));
+    } while (Date.now() < deadline);
+    throw new Error("Trust Wallet did not return the WETH approval result. Check the transaction in Trust Wallet, then try again.");
+  }
   await waitForTransactionReceipt(hash);
   recordLocalOfferDiagnostic("weth.approval.confirmed", { transactionHash: hash, approvedAmount: required.toString() });
   trackAppEvent("transaction_confirmed", { transactionType: "erc20_approval" });
@@ -1218,7 +1288,7 @@ export async function sendPreparedTransactionsAtomic(
   const dataSuffix = builderCodeSuffix();
   trackAppEvent("transaction_prepared", { transactionType: "atomic_marketplace_batch" });
   trackAppEvent("transaction_wallet_prompted", { transactionType: "atomic_marketplace_batch" });
-  const sent = await waitForWalletPrompt(provider.request({
+  const sent = await requestWithWalletReview(provider, "transaction", () => provider.request({
     method: "wallet_sendCalls",
     params: [{
       version: "2.0.0",
@@ -1323,13 +1393,14 @@ export async function signTypedData(provider: EthereumProvider, account: string,
   const firstPayload = useStructuredPayload ? walletTypedData : serializedTypedData;
   const fallbackPayload = useStructuredPayload ? serializedTypedData : walletTypedData;
 
-  const requestTypedSignature = (payload: unknown) => waitForWalletPrompt(
-    provider.request({
+  const requestTypedSignature = (payload: unknown) => {
+    return requestWithWalletReview(provider, "signature", () => provider.request({
       method: "eth_signTypedData_v4",
       params: [accountAddress, payload],
     }),
     "Wallet signature request",
-  );
+    );
+  };
 
   let signature: unknown;
   trackAppEvent("transaction_prepared", { transactionType: "seaport_order_signature" });
@@ -1381,7 +1452,7 @@ export async function signTypedData(provider: EthereumProvider, account: string,
 }
 
 export async function signMessage(provider: EthereumProvider, account: string, message: string): Promise<string> {
-  const signature = await waitForWalletPrompt(provider.request({
+  const signature = await requestWithWalletReview(provider, "signature", () => provider.request({
     method: "personal_sign",
     params: [message, getAddress(account)],
   }));
