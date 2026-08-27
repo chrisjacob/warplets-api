@@ -88,6 +88,7 @@ const TOKEN_CONTRACT = "0x780446dd12e080ae0db762fcd4daf313f3e359de";
 const OPEN_SEA_COLLECTION_URL = "https://opensea.io/collection/10xwarplets";
 const GLOBAL_STATS_ACTIVE_JOB_KEY = "warplets:global-stats:active";
 const GLOBAL_STATS_LAST_JOB_KEY = "warplets:global-stats:last";
+const COLLECTION_OFFER_AUDIENCE_CURSOR_KEY = "warplets:collection-offer-audience:cursor";
 const MAX_TRANSACTIONAL_RETRY_ATTEMPTS = 6;
 const MAX_COLLECTION_OFFER_RECIPIENTS = 250;
 export const GLOBAL_STATS_TARGET_URL = `${WARPLETS_BASE_URL}/stats/market/30d`;
@@ -488,10 +489,21 @@ async function queueInstantNotificationsForEvent(env: WarpletNotificationEnv, ro
        )`,
     ).bind(APP_SLUG, row.id).run();
 
+    const cursorState = await env.WARPLETS.prepare(
+      `SELECT value FROM notification_job_state WHERE job_key = ? LIMIT 1`,
+    )
+      .bind(COLLECTION_OFFER_AUDIENCE_CURSOR_KEY)
+      .first<{ value: string | null }>();
+    const parsedCursor = Number(cursorState?.value);
+    const audienceCursor = Number.isSafeInteger(parsedCursor) && parsedCursor > 0 ? parsedCursor : 0;
+    const actorFid = Number(row.actor_fid) || 0;
+
     const owners = await env.WARPLETS.prepare(
       `SELECT owner_fid AS fid, MIN(token_id) AS token_id
        FROM warplet_market_state
-       WHERE owner_fid IS NOT NULL AND (
+       WHERE owner_fid IS NOT NULL
+         AND owner_fid <> ?
+         AND (
          EXISTS (
            SELECT 1 FROM miniapp_notification_tokens token
            WHERE token.fid = warplet_market_state.owner_fid
@@ -503,12 +515,15 @@ async function queueInstantNotificationsForEvent(env: WarpletNotificationEnv, ro
          )
        )
        GROUP BY owner_fid
+       ORDER BY CASE WHEN owner_fid > ? THEN 0 ELSE 1 END, owner_fid ASC
        LIMIT ?`,
-    ).bind(APP_SLUG, MAX_COLLECTION_OFFER_RECIPIENTS).all<{ fid: number; token_id: number }>();
+    )
+      .bind(actorFid, APP_SLUG, audienceCursor, MAX_COLLECTION_OFFER_RECIPIENTS)
+      .all<{ fid: number; token_id: number }>();
 
     for (const owner of owners.results || []) {
       const fid = Number(owner.fid);
-      if (!fid || fid === row.actor_fid || queuedFids.has(fid)) continue;
+      if (!fid || queuedFids.has(fid)) continue;
       queuedFids.add(fid);
       await queueNotification(env, {
         category: "owned",
@@ -520,6 +535,16 @@ async function queueInstantNotificationsForEvent(env: WarpletNotificationEnv, ro
         body: await buildBody(env, row, Number(owner.token_id)),
         targetUrl: itemTarget(Number(owner.token_id)),
       });
+    }
+    const lastSelectedFid = Number(owners.results?.at(-1)?.fid);
+    if (Number.isSafeInteger(lastSelectedFid) && lastSelectedFid > 0) {
+      await env.WARPLETS.prepare(
+        `INSERT INTO notification_job_state (job_key, value, updated_at)
+         VALUES (?, ?, CURRENT_TIMESTAMP)
+         ON CONFLICT(job_key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP`,
+      )
+        .bind(COLLECTION_OFFER_AUDIENCE_CURSOR_KEY, String(lastSelectedFid))
+        .run();
     }
     await env.WARPLETS.prepare(
       `UPDATE warplet_activity_events SET queued_at = CURRENT_TIMESTAMP WHERE id = ?`,
