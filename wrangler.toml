@@ -1,7 +1,7 @@
 name = "api"
 main = "src/index.ts"
 account_id = "3f3a7e7d6b29f0389b841af63623becd"
-compatibility_date = "2026-08-28"
+compatibility_date = "2026-08-27"
 compatibility_flags = ["nodejs_compat"]
 
 # Run the OpenSea event sync every 1 minute.
