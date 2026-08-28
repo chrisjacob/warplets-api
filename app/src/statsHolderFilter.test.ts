@@ -24,8 +24,9 @@ describe("Stats holder friend-filter routes", () => {
 
   it("builds a visible identity label for wallet and FID-scoped shares", () => {
     expect(formatStatsFriendFilterLabel(null, 1_129_138))
-      .toBe("Viewing Top 10 Friends for Farcaster FID #1,129,138");
+      .toBe("Viewing Friends for Farcaster FID #1,129,138");
     expect(formatStatsFriendFilterLabel("0x1234", null))
-      .toBe("Viewing Top 10 Friends for 0x1234");
+      .toBe("Viewing Friends for 0x1234");
+    expect(formatStatsFriendFilterLabel(null, null)).toBe("Viewing Friends");
   });
 });

@@ -11,7 +11,7 @@ export function getStatsFriendFilterFid(search: string): number | null {
 }
 
 export function formatStatsFriendFilterLabel(wallet: string | null, fid: number | null): string {
-  if (wallet) return `Viewing Top 10 Friends for ${wallet}`;
-  if (fid) return `Viewing Top 10 Friends for Farcaster FID #${fid.toLocaleString("en-US")}`;
-  return "Viewing Top 10 Friends";
+  if (wallet) return `Viewing Friends for ${wallet}`;
+  if (fid) return `Viewing Friends for Farcaster FID #${fid.toLocaleString("en-US")}`;
+  return "Viewing Friends";
 }

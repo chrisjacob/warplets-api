@@ -410,6 +410,41 @@ input[type="search"]::-webkit-search-results-decoration {
   color: #ffffff;
 }
 
+/* Embedded browsers such as X can resize their visible viewport without
+   immediately changing the CSS layout viewport. Modal chrome follows the live
+   Visual Viewport API values set by MiniAppShell, leaving only the body to
+   shrink and scroll. */
+.app-modal-viewport {
+  top: var(--app-visual-viewport-offset-top, 0px);
+  bottom: auto;
+  box-sizing: border-box;
+  height: 100vh;
+  height: var(--app-visual-viewport-height, 100svh);
+  max-height: 100vh;
+  max-height: var(--app-visual-viewport-height, 100svh);
+  overflow: hidden;
+  padding-top: max(1rem, env(safe-area-inset-top));
+  padding-right: max(1rem, env(safe-area-inset-right));
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  padding-left: max(1rem, env(safe-area-inset-left));
+}
+
+.app-modal-panel {
+  min-height: 0;
+  max-height: 100%;
+}
+
+.app-modal-header,
+.app-modal-footer {
+  flex: 0 0 auto;
+}
+
+.app-modal-scroll-body {
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow: auto;
+}
+
 html[data-entry-point="x-webview"] .miniapp-shell__content,
 html[data-entry-point="pwa"] .miniapp-shell__content {
   padding-top: env(safe-area-inset-top);
@@ -896,6 +931,22 @@ html[data-entry-point="pwa"] .miniapp-shell__content {
   backdrop-filter: blur(3px);
 }
 
+.web-connect-backdrop,
+.identity-link-backdrop {
+  top: var(--app-visual-viewport-offset-top, 0px);
+  bottom: auto;
+  box-sizing: border-box;
+  height: 100vh;
+  height: var(--app-visual-viewport-height, 100svh);
+  max-height: 100vh;
+  max-height: var(--app-visual-viewport-height, 100svh);
+  overflow: hidden;
+  padding-top: max(1rem, env(safe-area-inset-top));
+  padding-right: max(1rem, env(safe-area-inset-right));
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  padding-left: max(1rem, env(safe-area-inset-left));
+}
+
 .identity-link-backdrop {
   position: fixed;
   inset: 0;
@@ -909,7 +960,7 @@ html[data-entry-point="pwa"] .miniapp-shell__content {
 
 .identity-link-modal {
   width: min(420px, 100%);
-  max-height: calc(100dvh - 32px);
+  max-height: 100%;
   overflow: auto;
   border: 1px solid rgb(0 255 0 / 35%);
   border-radius: 16px;
@@ -1156,7 +1207,7 @@ html[data-entry-point="pwa"] .miniapp-shell__content {
   display: flex;
   flex-direction: column;
   width: min(392px, 100%);
-  max-height: calc(100dvh - 32px);
+  max-height: 100%;
   overflow: hidden;
   padding: 0;
   border: 1px solid rgb(0 255 0 / 35%);
@@ -1217,6 +1268,7 @@ html[data-entry-point="pwa"] .miniapp-shell__content {
 
 .web-connect-scroll {
   min-height: 0;
+  flex: 1 1 auto;
 }
 
 .web-connect-content {

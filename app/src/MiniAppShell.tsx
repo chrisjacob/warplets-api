@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useState, type ReactNode } from "react";
 import type { PartialOptions } from "overlayscrollbars";
 import { useOverlayScrollbars } from "overlayscrollbars-react";
 
@@ -13,6 +13,24 @@ type NetworkConnection = EventTarget & {
 type NavigatorWithConnection = Navigator & {
   connection?: NetworkConnection;
 };
+
+export function getVisualViewportMetrics(
+  viewportHeight: number | undefined,
+  viewportOffsetTop: number | undefined,
+  fallbackHeight: number,
+) {
+  const height = Number.isFinite(viewportHeight) && Number(viewportHeight) > 0
+    ? Number(viewportHeight)
+    : fallbackHeight;
+  const offsetTop = Number.isFinite(viewportOffsetTop) && Number(viewportOffsetTop) > 0
+    ? Number(viewportOffsetTop)
+    : 0;
+
+  return {
+    height: `${Math.max(1, Math.round(height))}px`,
+    offsetTop: `${Math.max(0, Math.round(offsetTop))}px`,
+  };
+}
 
 export function shouldSkipBackgroundVideo(
   prefersReducedMotion: boolean,
@@ -75,6 +93,42 @@ export default function MiniAppShell({ children }: MiniAppShellProps) {
       document.body.removeAttribute("data-overlayscrollbars-initialize");
     };
   }, [initializeBodyScrollbars]);
+
+  useLayoutEffect(() => {
+    const root = document.documentElement;
+    const viewport = window.visualViewport;
+    let animationFrameId = 0;
+
+    const applyVisualViewport = () => {
+      const metrics = getVisualViewportMetrics(
+        viewport?.height,
+        viewport?.offsetTop,
+        window.innerHeight,
+      );
+      root.style.setProperty("--app-visual-viewport-height", metrics.height);
+      root.style.setProperty("--app-visual-viewport-offset-top", metrics.offsetTop);
+    };
+    const scheduleVisualViewportSync = () => {
+      window.cancelAnimationFrame(animationFrameId);
+      animationFrameId = window.requestAnimationFrame(applyVisualViewport);
+    };
+
+    applyVisualViewport();
+    viewport?.addEventListener("resize", scheduleVisualViewportSync);
+    viewport?.addEventListener("scroll", scheduleVisualViewportSync);
+    window.addEventListener("resize", scheduleVisualViewportSync);
+    window.addEventListener("orientationchange", scheduleVisualViewportSync);
+
+    return () => {
+      window.cancelAnimationFrame(animationFrameId);
+      viewport?.removeEventListener("resize", scheduleVisualViewportSync);
+      viewport?.removeEventListener("scroll", scheduleVisualViewportSync);
+      window.removeEventListener("resize", scheduleVisualViewportSync);
+      window.removeEventListener("orientationchange", scheduleVisualViewportSync);
+      root.style.removeProperty("--app-visual-viewport-height");
+      root.style.removeProperty("--app-visual-viewport-offset-top");
+    };
+  }, []);
 
   useEffect(() => {
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");

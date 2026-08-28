@@ -6154,7 +6154,7 @@ function ActivityDateTimeInput({ value, placeholder, onChange }: {
       <span className={`truncate ${value ? "text-[#00FF00]" : "text-[#8bbf8b]"}`}>{displayValue}</span>
     </button>
     {value && <button type="button" aria-label={`Clear ${placeholder.toLowerCase()}`} onClick={(event) => { event.preventDefault(); event.stopPropagation(); onChange(""); }} className="absolute right-1.5 top-1/2 z-10 grid h-5 w-5 -translate-y-1/2 cursor-pointer place-items-center rounded text-[#8bbf8b] hover:text-[#00FF00]">×</button>}
-    {open && <div role="dialog" aria-modal="true" aria-label={placeholder} onClick={() => setOpen(false)} className="fixed inset-0 z-[100] flex items-end justify-center bg-black/70 p-3 sm:items-center">
+    {open && <div role="dialog" aria-modal="true" aria-label={placeholder} onClick={() => setOpen(false)} className="app-modal-viewport fixed inset-0 z-[100] flex items-end justify-center bg-black/70 p-3 sm:items-center">
       <div onClick={(event) => event.stopPropagation()} className="w-full max-w-sm rounded-2xl border border-[#00FF00]/45 bg-black p-4 shadow-[0_0_28px_rgba(0,255,0,0.2)]">
         <div className="mb-3 text-sm font-black uppercase text-[#00FF00]">{placeholder}</div>
         <div className="grid grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)] gap-2">
@@ -7735,9 +7735,9 @@ function CollectionBiddersModal({
   }, [isInMiniAppContext]);
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/80 p-4 sm:items-center">
-      <div className="flex max-h-[88vh] w-full max-w-md flex-col overflow-hidden rounded-xl border border-[#00FF00]/35 bg-black shadow-2xl">
-        <div className="flex items-start justify-between gap-3 border-b border-[#00FF00]/20 px-4 py-3">
+    <div className="app-modal-viewport fixed inset-0 z-[80] flex items-end justify-center bg-black/80 p-4 sm:items-center">
+      <div className="app-modal-panel flex max-h-[88vh] w-full max-w-md flex-col overflow-hidden rounded-xl border border-[#00FF00]/35 bg-black shadow-2xl">
+        <div className="app-modal-header flex items-start justify-between gap-3 border-b border-[#00FF00]/20 px-4 py-3">
           <Text className="text-base font-bold text-[#d7ffd7]">
             {showPrice && <span className="text-[#00FF00]">{formatCollectionBidderTitlePrice(group.price)} </span>}
             {titleOverride ?? `${offerEmoji ? `${offerEmoji} ` : ""}${offerLevel ? `${offerLevel} ` : ""}${offerLabel} bidders`}
@@ -7754,7 +7754,7 @@ function CollectionBiddersModal({
             X
           </button>
         </div>
-        <OverlayScrollArea className="max-h-[68vh] overflow-auto">
+        <OverlayScrollArea className="app-modal-scroll-body max-h-[68vh] overflow-auto">
           <div className="w-full min-w-0">
             <div className="grid w-full grid-cols-[104px_42px_repeat(3,minmax(0,1fr))] items-center gap-0.5 border-b border-[#00FF00]/20 bg-[#041204] px-2 py-2 text-center text-[10px] font-bold uppercase text-[#8bbf8b]">
               <span>Wallet</span>
@@ -8424,7 +8424,7 @@ function CollectionOffersPage({
       </div>
 
       {cancelGroup && (
-        <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/80 p-4 sm:items-center">
+        <div className="app-modal-viewport fixed inset-0 z-[80] flex items-end justify-center bg-black/80 p-4 sm:items-center">
           <div className="w-full max-w-sm rounded-xl border border-[#FF5555]/45 bg-black p-4 shadow-2xl">
             <Text className="text-base font-bold text-[#FF7777]">Cancel collection offers</Text>
             <p className="mt-2 text-sm font-bold text-[#d9b0b0]">
@@ -9091,7 +9091,7 @@ function TraitOffersPage({
       <div className="mt-3 text-center text-[11px] text-[#8bbf8b]">Last updated: {payload?.generatedAt ? formatMarketTimestamp(payload.generatedAt) : "Not yet"}. <button type="button" disabled={refreshing || busy !== null} onClick={() => void loadOffers({ refresh: true })} className="font-bold text-[#00FF00]">{refreshing ? "Refreshing..." : "Refresh"}</button>{payload?.refreshError && <span className="block text-red-300">{payload.refreshError}</span>}</div>
       <LocalOfferDiagnosticsPanel />
       {mobileSignaturePrompt && (
-        <div className="fixed inset-0 z-[90] flex items-end justify-center bg-black/80 p-4 sm:items-center">
+        <div className="app-modal-viewport fixed inset-0 z-[90] flex items-end justify-center bg-black/80 p-4 sm:items-center">
           <div className="w-full max-w-sm rounded-xl border border-[#33AAFF]/50 bg-black p-4 text-center shadow-[0_0_24px_rgba(51,170,255,0.18)]">
             <Text className="text-base font-bold text-[#33AAFF]">Sign trait offer {mobileSignaturePrompt.index} of {mobileSignaturePrompt.total}</Text>
             <p className="mt-2 text-sm font-bold leading-relaxed text-[#8bcfff]">Open {mobileSignaturePrompt.walletName} to approve the signature. After signing, return to this original Safari tab.</p>
@@ -10697,13 +10697,13 @@ function ProfilePictureDownloadModal({
 
   return (
     <div
-      className="fixed inset-0 z-[120] flex items-end justify-center bg-black/80 p-4 sm:items-center"
+      className="app-modal-viewport fixed inset-0 z-[120] flex items-end justify-center bg-black/80 p-4 sm:items-center"
       role="dialog"
       aria-modal="true"
       aria-labelledby="profile-picture-modal-title"
     >
-      <div className="max-h-[92vh] w-full max-w-md overflow-auto rounded-2xl border border-[#00FF00]/35 bg-black shadow-2xl">
-        <div className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-[#00FF00]/20 bg-black px-4 py-3">
+      <div className="app-modal-panel flex max-h-[92vh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-[#00FF00]/35 bg-black shadow-2xl">
+        <div className="app-modal-header flex items-center justify-between gap-3 border-b border-[#00FF00]/20 bg-black px-4 py-3">
           <Text id="profile-picture-modal-title" className="min-w-0 text-base font-bold" style={{ color: "rgb(139, 191, 139)" }}>
             <span style={{ color: "#00FF00" }}>One Of Us!</span> Profile Picture Update
           </Text>
@@ -10724,7 +10724,7 @@ function ProfilePictureDownloadModal({
           </button>
         </div>
 
-        <div className="px-4 py-4">
+        <div className="app-modal-scroll-body px-4 py-4">
           <Text className="text-sm font-bold" style={{ color: "#8bbf8b" }}>
             Use your 10X Warplet as your profile picture.
           </Text>
@@ -10768,7 +10768,7 @@ function ProfilePictureDownloadModal({
           </div>
         </div>
 
-        <div className="sticky bottom-0 z-10 border-t border-[#00FF00]/20 bg-black px-4 pb-4 pt-3">
+        <div className="app-modal-footer border-t border-[#00FF00]/20 bg-black px-4 pb-4 pt-3">
           <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
@@ -11756,9 +11756,9 @@ function OnboardingCarousel({ onDone }: { onDone: () => void }) {
   };
 
   return (
-    <div className="fixed inset-0 z-[110] flex items-end justify-center bg-black/80 p-4 sm:items-center">
-      <div className="flex max-h-[92vh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-[#00FF00]/35 bg-black shadow-2xl">
-        <div className="border-b border-[#00FF00]/20 bg-black px-4 py-3">
+    <div className="app-modal-viewport fixed inset-0 z-[110] flex items-end justify-center bg-black/80 p-4 sm:items-center">
+      <div className="app-modal-panel flex max-h-[92vh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-[#00FF00]/35 bg-black shadow-2xl">
+        <div className="app-modal-header border-b border-[#00FF00]/20 bg-black px-4 py-3">
           <Text className="relative text-base font-bold" style={{ color: "#00FF00" }}>
             <span className="invisible select-none" aria-hidden="true">{activeSlide.title}</span>
             <span className="absolute inset-0">
@@ -11772,7 +11772,7 @@ function OnboardingCarousel({ onDone }: { onDone: () => void }) {
             </span>
           </Text>
         </div>
-        <div ref={onboardingContentRef} className="min-h-0 flex-1 overflow-y-auto p-4">
+        <div ref={onboardingContentRef} className="app-modal-scroll-body min-h-0 flex-1 overflow-y-auto p-4">
           <OnboardingVisual
             kind={activeSlide.visual}
             animationStarted={onboardingPreviewAnimationStarted}
@@ -11805,7 +11805,7 @@ function OnboardingCarousel({ onDone }: { onDone: () => void }) {
             })}
           </div>
         </div>
-        <div className="border-t border-[#00FF00]/20 bg-black p-4">
+        <div className="app-modal-footer border-t border-[#00FF00]/20 bg-black p-4">
           <div className="mb-4 flex items-center justify-center gap-1.5">
             {ONBOARDING_SLIDES.map((slide, index) => (
               <button
@@ -11958,9 +11958,9 @@ function AirdropCongratulationsModal({
   const textAnimationElapsedMs = Math.max(0, animationElapsedMs - textStartMs);
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/80 p-4 sm:items-center">
-      <div className="flex max-h-[92vh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-[#00FF00]/35 bg-black shadow-2xl">
-        <div className="sticky top-0 z-10 border-b border-[#00FF00]/20 bg-black px-4 py-3">
+    <div className="app-modal-viewport fixed inset-0 z-[100] flex items-end justify-center bg-black/80 p-4 sm:items-center">
+      <div className="app-modal-panel flex max-h-[92vh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-[#00FF00]/35 bg-black shadow-2xl">
+        <div className="app-modal-header border-b border-[#00FF00]/20 bg-black px-4 py-3">
           <Text className="relative min-w-0 flex-1 text-base font-bold" style={{ color: "rgb(139, 191, 139)" }}>
             <span className="invisible select-none" aria-hidden="true">{AIRDROP_CONGRATULATIONS_TITLE}</span>
             <span className="absolute inset-0 min-w-0 truncate">
@@ -11970,7 +11970,7 @@ function AirdropCongratulationsModal({
           </Text>
         </div>
 
-        <div ref={contentRef} className="min-h-0 flex-1 overflow-auto">
+        <div ref={contentRef} className="app-modal-scroll-body min-h-0 flex-1 overflow-auto">
           <CompactAttributePreview row={details.row} revealedAttributeCount={revealedAttributeCount} />
           <div className="relative aspect-square w-full overflow-hidden bg-[rgba(0,255,0,0.12)]">
             {(!isImageVisible || !isWarpletImageReady) && (
@@ -12015,7 +12015,7 @@ function AirdropCongratulationsModal({
           </div>
         </div>
 
-        <div className="sticky bottom-0 z-10 border-t border-[#00FF00]/20 bg-black p-4">
+        <div className="app-modal-footer border-t border-[#00FF00]/20 bg-black p-4">
           <button
             type="button"
             onClick={() => {
@@ -12149,9 +12149,9 @@ function NotificationsPromptModal({
   );
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/80 p-4 sm:items-center">
-      <div className="flex max-h-[92vh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-[#00FF00]/35 bg-black shadow-2xl">
-        <div className="border-b border-[#00FF00]/20 bg-black px-4 py-3">
+    <div className="app-modal-viewport fixed inset-0 z-[100] flex items-end justify-center bg-black/80 p-4 sm:items-center">
+      <div className="app-modal-panel flex max-h-[92vh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-[#00FF00]/35 bg-black shadow-2xl">
+        <div className="app-modal-header border-b border-[#00FF00]/20 bg-black px-4 py-3">
           <Text className="relative min-w-0 text-base font-bold" style={{ color: "rgb(139, 191, 139)" }}>
             <span className="invisible select-none" aria-hidden="true">{NOTIFICATIONS_PROMPT_TITLE}</span>
             <span className="absolute inset-0 min-w-0 truncate">
@@ -12161,7 +12161,7 @@ function NotificationsPromptModal({
           </Text>
         </div>
 
-        <div ref={contentRef} className="min-h-0 flex-1 overflow-y-auto p-4">
+        <div ref={contentRef} className="app-modal-scroll-body min-h-0 flex-1 overflow-y-auto p-4">
           <div className="relative mx-auto aspect-[9/8] w-full max-w-[min(100%,360px)] overflow-hidden rounded-lg border border-[#00FF00]/25 bg-black">
             <ProgressiveNotificationImage
               highResolutionSrc={NOTIFICATIONS_PREVIEW_IMAGE_SRC}
@@ -12185,7 +12185,7 @@ function NotificationsPromptModal({
           </div>
         </div>
 
-        <div className="border-t border-[#00FF00]/20 bg-black p-4">
+        <div className="app-modal-footer border-t border-[#00FF00]/20 bg-black p-4">
           <button
             type="button"
             onClick={onConfirm}
@@ -12352,9 +12352,9 @@ function SharePreviewModal({
   }, [preview]);
 
   return (
-    <div className="fixed inset-0 z-[90] flex items-end justify-center bg-black/80 p-4 sm:items-center">
-      <div className="max-h-[92vh] w-full max-w-md overflow-hidden rounded-2xl border border-[#00FF00]/35 bg-black shadow-2xl">
-        <div className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-[#00FF00]/20 bg-black px-4 py-3">
+    <div className="app-modal-viewport fixed inset-0 z-[90] flex items-end justify-center bg-black/80 p-4 sm:items-center">
+      <div className="app-modal-panel flex max-h-[92vh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-[#00FF00]/35 bg-black shadow-2xl">
+        <div className="app-modal-header flex items-center justify-between gap-3 border-b border-[#00FF00]/20 bg-black px-4 py-3">
           <Text className="min-w-0 truncate text-base font-bold" style={{ color: "rgb(139, 191, 139)" }}>
             <span style={{ color: "#00FF00" }}>{titleFirstWord}</span>
             {titleRest && <span> {titleRest}</span>}
@@ -12385,7 +12385,7 @@ function SharePreviewModal({
         </div>
 
         <OverlayScrollbarsComponent
-          className="max-h-[calc(92vh-156px)] overflow-auto px-4 py-4"
+          className="app-modal-scroll-body overflow-auto px-4 py-4"
           defer
           options={{ scrollbars: { theme: "os-theme-10x", autoHide: "scroll", clickScroll: true } }}
         >
@@ -12602,7 +12602,7 @@ function SharePreviewModal({
           </div>}
         </OverlayScrollbarsComponent>
 
-        <div className="sticky bottom-0 z-10 border-t border-[#00FF00]/20 bg-black px-4 py-3">
+        <div className="app-modal-footer border-t border-[#00FF00]/20 bg-black px-4 py-3">
           <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
@@ -14515,8 +14515,8 @@ function WarpletDetailsModal({
     {tradeToast && (
       <TradeToastView toast={tradeToast} exiting={tradeToastExiting} onClose={closeTradeToast} />
     )}
-    <div className="fixed inset-0 flex items-end justify-center bg-black/80 p-4 sm:items-center" style={{ zIndex: 50 + stackIndex }}>
-      <div ref={modalScrollRef} className="max-h-[92vh] w-full max-w-md overflow-auto rounded-2xl border border-[#00FF00]/35 bg-black shadow-2xl">
+    <div className="app-modal-viewport fixed inset-0 flex items-end justify-center bg-black/80 p-4 sm:items-center" style={{ zIndex: 50 + stackIndex }}>
+      <div ref={modalScrollRef} className="app-modal-panel max-h-[92vh] w-full max-w-md overflow-auto rounded-2xl border border-[#00FF00]/35 bg-black shadow-2xl">
         <div ref={modalHeaderRef} className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-[#00FF00]/20 bg-black px-4 py-3">
           <Text className="min-w-0 truncate text-base font-bold" style={{ color: "rgb(139, 191, 139)" }}>
             <span style={{ color: "#00FF00" }}>{details.title}</span>

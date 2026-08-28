@@ -107,9 +107,9 @@ export default function NotificationsPromptModal({
   ));
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/80 p-4 sm:items-center">
-      <div className="flex max-h-[92vh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-[#00FF00]/35 bg-black shadow-2xl">
-        <div className="border-b border-[#00FF00]/20 bg-black px-4 py-3">
+    <div className="app-modal-viewport fixed inset-0 z-[100] flex items-end justify-center bg-black/80 p-4 sm:items-center">
+      <div className="app-modal-panel flex max-h-[92vh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-[#00FF00]/35 bg-black shadow-2xl">
+        <div className="app-modal-header border-b border-[#00FF00]/20 bg-black px-4 py-3">
           <Text className="relative min-w-0 text-base font-bold" style={{ color: "rgb(139, 191, 139)" }}>
             <span className="invisible select-none" aria-hidden="true">{TITLE}</span>
             <span className="absolute inset-0 min-w-0 truncate">
@@ -119,7 +119,7 @@ export default function NotificationsPromptModal({
           </Text>
         </div>
 
-        <div ref={contentRef} className="min-h-0 flex-1 overflow-y-auto p-4">
+        <div ref={contentRef} className="app-modal-scroll-body min-h-0 flex-1 overflow-y-auto p-4">
           <div className="relative mx-auto aspect-[9/8] w-full max-w-[min(100%,360px)] overflow-hidden rounded-lg border border-[#00FF00]/25 bg-black">
             <ProgressiveNotificationImage
               highResolutionSrc={PREVIEW_IMAGE_SRC}
@@ -137,7 +137,7 @@ export default function NotificationsPromptModal({
           </div>
         </div>
 
-        <div className="border-t border-[#00FF00]/20 bg-black p-4">
+        <div className="app-modal-footer border-t border-[#00FF00]/20 bg-black p-4">
           <button
             type="button"
             onClick={onConfirm}
