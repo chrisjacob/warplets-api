@@ -9,6 +9,7 @@ import {
   getStatsShareLaunchPath,
   getStatsShareRangeLabel,
   getStatsShareRequestFromLaunchUrl,
+  getVersionedStatsShareLaunchPath,
   parseStatsShareRequest,
   stableStatsShareJson,
   type StatsShareHolder,
@@ -89,6 +90,13 @@ describe("Stats share copy", () => {
 });
 
 describe("Stats share canonical snapshots", () => {
+  it("adds the snapshot ID as a cache key without losing identity parameters", () => {
+    expect(getVersionedStatsShareLaunchPath("/stats/overview/collection", "a".repeat(32)))
+      .toBe(`/stats/overview/collection?snapshot=${"a".repeat(32)}`);
+    expect(getVersionedStatsShareLaunchPath("/stats/holders/top10friends?fid=1129138", "b".repeat(32)))
+      .toBe(`/stats/holders/top10friends?fid=1129138&snapshot=${"b".repeat(32)}`);
+  });
+
   it("builds path-based range deep links for Market and Activity shares", () => {
     expect(getStatsShareLaunchPath({ kind: "market", metric: "floor", range: "30d" }))
       .toBe("/stats/market/30d/floor-price");
@@ -107,7 +115,9 @@ describe("Stats share canonical snapshots", () => {
     expect(getStatsShareLaunchPath({ kind: "holders-top10" }))
       .toBe("/stats/holders/top10");
     expect(getStatsShareLaunchPath({ kind: "holders-top10-friends", viewerFid: 123, wallet: holder().wallet }))
-      .toBe(`/stats/holders/top10friends?wallet=${holder().wallet}`);
+      .toBe("/stats/holders/top10friends?fid=123");
+    expect(getStatsShareLaunchPath({ kind: "holders-top10-friends", viewerFid: 456 }))
+      .toBe("/stats/holders/top10friends?fid=456");
   });
 
   it("serializes object keys stably and hashes deterministically", async () => {
@@ -135,6 +145,9 @@ describe("Stats share canonical snapshots", () => {
       new URL(`https://warplet.10x.meme/stats/holders/top10friends?wallet=${holder().wallet}`),
       123,
     )).toEqual({ kind: "holders-top10-friends", viewerFid: 123, wallet: holder().wallet });
+    expect(getStatsShareRequestFromLaunchUrl(
+      new URL("https://warplet.10x.meme/stats/holders/top10friends?fid=456"),
+    )).toEqual({ kind: "holders-top10-friends", viewerFid: 456 });
     expect(getStatsShareRequestFromLaunchUrl(new URL(
       "https://warplet.10x.meme/?warplet=4512&activity=1&range=7d&event=offer",
     ))).toEqual({ kind: "activity", range: "7d", event: "offer", tokenId: 4512 });
@@ -144,6 +157,9 @@ describe("Stats share canonical snapshots", () => {
     expect(getStatsShareRequestFromLaunchUrl(new URL("https://warplet.10x.meme/stats/holders"))).toBeNull();
     expect(getStatsShareRequestFromLaunchUrl(new URL(
       `https://warplet.10x.meme/stats/holders/top10friends?wallet=${holder().wallet}`,
+    ))).toBeNull();
+    expect(getStatsShareRequestFromLaunchUrl(new URL(
+      "https://warplet.10x.meme/stats/holders/top10friends?fid=0",
     ))).toBeNull();
   });
 

@@ -414,7 +414,7 @@ function parseStoredSnapshot(row: StoredStatsShareRow): StatsShareSnapshot {
   };
 }
 
-function getStatsSharePublicOrigin(request: Request): string {
+export function getStatsSharePublicOrigin(request: Request): string {
   const current = new URL(request.url);
   for (const header of [request.headers.get("referer"), request.headers.get("origin")]) {
     if (!header) continue;
@@ -428,6 +428,13 @@ function getStatsSharePublicOrigin(request: Request): string {
     }
   }
   const forwardedOrigin = request.headers.get("x-10x-public-origin");
+  const forwardedProto = request.headers.get("x-forwarded-proto")
+    ?.split(",", 1)[0]
+    ?.trim()
+    .toLowerCase();
+  if (current.protocol === "http:" && current.hostname === WARPLETS_APP_HOSTS[0] && forwardedProto === "https") {
+    return `https://${current.host}`;
+  }
   if (current.protocol === "http:" && current.hostname === WARPLETS_APP_HOSTS[0] && forwardedOrigin) {
     try {
       const candidate = new URL(forwardedOrigin);

@@ -67,6 +67,12 @@ export type StatsShareCreateResponse = {
   renderError?: string | null;
 };
 
+export function getVersionedStatsShareLaunchPath(launchPath: string, snapshotId: string): string {
+  const url = new URL(launchPath, "https://warplet.10x.meme");
+  url.searchParams.set("snapshot", snapshotId);
+  return `${url.pathname}${url.search}${url.hash}`;
+}
+
 const RANGE_LABELS: Record<StatsShareRange, string> = {
   "7d": "7 Days",
   "30d": "30 Days",
@@ -183,10 +189,18 @@ function readLaunchWallet(url: URL): string | undefined {
   return wallet && /^0x[a-f0-9]{40}$/.test(wallet) ? wallet : undefined;
 }
 
+function readLaunchFid(url: URL): number | undefined {
+  const rawFid = url.searchParams.get("fid")?.trim();
+  if (!rawFid || !/^\d+$/.test(rawFid)) return undefined;
+  const fid = Number.parseInt(rawFid, 10);
+  return Number.isSafeInteger(fid) && fid > 0 ? fid : undefined;
+}
+
 /**
  * Reconstructs the share request represented by a public Stats deep link.
- * Friend leaderboards need the wallet's resolved Farcaster identity supplied by
- * the caller because that lookup belongs to the server-side identity store.
+ * New friend-leaderboard links carry the public FID directly. The optional
+ * caller-supplied FID keeps legacy wallet-scoped links working through the
+ * server-side identity store.
  */
 export function getStatsShareRequestFromLaunchUrl(
   url: URL,
@@ -194,6 +208,7 @@ export function getStatsShareRequestFromLaunchUrl(
 ): StatsShareRequest | null {
   const path = url.pathname.replace(/\/+$/, "") || "/";
   const wallet = readLaunchWallet(url);
+  const launchFid = readLaunchFid(url);
 
   const overview = path.match(/^\/stats\/overview\/(collection|launch)$/i)?.[1]?.toLowerCase();
   if (overview) {
@@ -217,8 +232,13 @@ export function getStatsShareRequestFromLaunchUrl(
   if (path === "/stats/holders") return wallet ? { kind: "holder-rank", wallet } : null;
   if (path === "/stats/holders/top10") return { kind: "holders-top10" };
   if (path === "/stats/holders/top10friends") {
-    return wallet && friendFilterFid && Number.isSafeInteger(friendFilterFid) && friendFilterFid > 0
-      ? { kind: "holders-top10-friends", viewerFid: friendFilterFid, wallet }
+    const viewerFid = launchFid ?? (
+      friendFilterFid && Number.isSafeInteger(friendFilterFid) && friendFilterFid > 0
+        ? friendFilterFid
+        : undefined
+    );
+    return viewerFid
+      ? { kind: "holders-top10-friends", viewerFid, ...(wallet ? { wallet } : {}) }
       : null;
   }
 
@@ -256,8 +276,7 @@ export function getStatsShareLaunchPath(request: StatsShareRequest, data?: unkno
     return wallet ? `/stats/holders?wallet=${wallet}` : "/stats/holders";
   }
   if (request.kind === "holders-top10") return "/stats/holders/top10";
-  const wallet = request.wallet ?? readSnapshotWallet(data);
-  return wallet ? `/stats/holders/top10friends?wallet=${wallet}` : "/stats/holders/top10friends";
+  return `/stats/holders/top10friends?fid=${request.viewerFid}`;
 }
 
 export function parseStatsShareRequest(value: unknown): StatsShareRequest | null {

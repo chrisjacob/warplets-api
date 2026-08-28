@@ -554,6 +554,12 @@ export default defineConfig({
           });
         },
       },
+      // Stats share pages need the Pages Function's dynamic OG metadata. The
+      // returned index still loads its /src modules from this Vite server.
+      "/stats": {
+        target: localApiTarget,
+        changeOrigin: false,
+      },
       "/webhook": {
         target: localApiTarget,
         changeOrigin: false,

@@ -313,9 +313,23 @@ export default function App() {
 
         const inBaseApp = isLikelyBaseAppBrowser();
         if (inBaseApp) {
-          void requestBaseAppWalletLogin().catch((error) => {
+          setNotificationsOnlyPrompt(true);
+          void requestBaseAppWalletLogin().then(async (baseSession) => {
+            if (baseSession) {
+              const response = await fetch("/api/notifications/base/status", {
+                headers: { accept: "application/json" },
+                credentials: "same-origin",
+              }).catch(() => null);
+              if (response?.ok) {
+                const status = await response.json() as { appPinned?: unknown; notificationsEnabled?: unknown };
+                if (status.appPinned === true && status.notificationsEnabled === true) return;
+              }
+            }
+            setShowAddAppPrompt(true);
+          }).catch((error) => {
             const message = error instanceof Error ? error.message : String(error);
             if (!/reject|denied|cancel/i.test(message)) console.warn("10X.MEME Base wallet login failed:", error);
+            setShowAddAppPrompt(true);
           });
         }
 
@@ -450,13 +464,13 @@ export default function App() {
   }, []);
 
   const handleEnableNotifications = useCallback(() => {
-    if (isLikelyBaseAppBrowser()) return;
     setNotificationsOnlyPrompt(true);
     setShowAddAppPrompt(true);
   }, []);
 
   const handleConfirmAddAppPrompt = async () => {
     setShowAddAppPrompt(false);
+    if (isLikelyBaseAppBrowser()) return;
     try {
       if (isInMiniAppContext) {
         const result = await sdk.actions.addMiniApp();
@@ -541,6 +555,7 @@ export default function App() {
       {showAddAppPrompt && (
         <NotificationsPromptModal
           notificationsOnlyPrompt={notificationsOnlyPrompt}
+          baseAppContext={isLikelyBaseAppBrowser()}
           onConfirm={() => void handleConfirmAddAppPrompt()}
         />
       )}
@@ -565,7 +580,7 @@ export default function App() {
               onOpenChange={handleHeaderAccountMenuOpenChange}
               onAvatarToggle={handleHeaderAvatarMenuToggle}
               onOpen={() => setWebConnectOpen(true)}
-              onEnableNotifications={isLikelyBaseAppBrowser() ? undefined : handleEnableNotifications}
+              onEnableNotifications={handleEnableNotifications}
               onInstallWebApp={() => window.dispatchEvent(new CustomEvent("10x:open-pwa-install"))}
               onDisconnect={handleDisconnect}
             />

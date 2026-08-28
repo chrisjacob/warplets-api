@@ -3734,14 +3734,20 @@ export async function handleStatsHoldersGet(
   if (rawFriendFilterWallet && !friendFilterWallet) {
     return jsonError("invalid_friends_wallet", "Friends wallet must be a valid EVM address.", 400);
   }
+  const rawFriendFilterFid = url.searchParams.get("friendsFid");
+  const requestedFriendFilterFid = asInteger(rawFriendFilterFid);
+  if (rawFriendFilterFid !== null && (requestedFriendFilterFid === null || requestedFriendFilterFid <= 0)) {
+    return jsonError("invalid_friends_fid", "Friends FID must be a positive integer.", 400);
+  }
+  const hasFriendFilter = Boolean(friendFilterWallet || requestedFriendFilterFid);
 
   try {
     const materialized = await ensureHolderLeaderboard(context.env.WARPLETS);
-    const friendFilterFid = friendFilterWallet
+    const friendFilterFid = requestedFriendFilterFid ?? (friendFilterWallet
       ? await resolveStatsFriendFilterFid(context.env.WARPLETS, friendFilterWallet)
-      : null;
+      : null);
     const [page, filteredFriends, summary, market, dune] = await Promise.all([
-      friendFilterWallet
+      hasFriendFilter
         ? Promise.resolve(null)
         : loadHolderBaseRows(context.env.WARPLETS, limit + 1, cursor, materialized),
       friendFilterFid
@@ -3751,10 +3757,10 @@ export async function handleStatsHoldersGet(
       loadCurrentMarket(context.env.WARPLETS),
       loadDuneIntegration(context.env),
     ]);
-    const hasMore = friendFilterWallet ? false : (page?.rows.length ?? 0) > limit;
-    const visible = friendFilterWallet ? [] : (page?.rows ?? []).slice(0, limit);
+    const hasMore = hasFriendFilter ? false : (page?.rows.length ?? 0) > limit;
+    const visible = hasFriendFilter ? [] : (page?.rows ?? []).slice(0, limit);
     let rows: HolderApiRow[];
-    if (friendFilterWallet) {
+    if (hasFriendFilter) {
       rows = filteredFriends?.rows ?? [];
     } else {
       const [profiles, holderActivity] = await Promise.all([
@@ -3848,9 +3854,9 @@ export async function handleStatsHoldersGet(
       rows,
       viewer,
       nextCursor,
-      ...(friendFilterWallet ? {
+      ...(hasFriendFilter ? {
         friendFilter: {
-          wallet: friendFilterWallet,
+          ...(friendFilterWallet ? { wallet: friendFilterWallet } : {}),
           fid: friendFilterFid,
           available: friendFilterFid !== null,
         },

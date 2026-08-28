@@ -7,6 +7,8 @@ import {
   buildCanonicalUrl,
   buildFarcasterManifest,
   getBaseAppId,
+  injectLocalViteReactPreamble,
+  getPublicPageRequestUrl,
   getStatsLaunchLookupPath,
   onRequestGet,
 } from "./index";
@@ -98,9 +100,61 @@ describe("canonical URLs", () => {
     expect(buildCanonicalUrl(requestUrl)).toBe("https://warplet.10x.meme/perks/sports");
   });
 
+  it("preserves the identity scope for a shared Friends leaderboard", () => {
+    expect(buildCanonicalUrl(new URL("https://warplet.10x.meme/stats/holders/top10friends?fid=1129138&utm_source=x")))
+      .toBe("https://warplet.10x.meme/stats/holders/top10friends?fid=1129138");
+  });
+
   it("uses the requested production hostname for apps served by the shared Pages project", () => {
     expect(buildCanonicalUrl(new URL("https://app.10x.meme/?source=pwa"))).toBe("https://app.10x.meme/");
     expect(buildCanonicalUrl(new URL("https://drop.10x.meme/?fid=1129138"))).toBe("https://drop.10x.meme/");
+  });
+});
+
+describe("local Pages proxy URLs", () => {
+  it("restores the React refresh preamble when local Stats HTML comes through Pages", () => {
+    const html = '<html><head></head><body><script type="module" src="/src/main.tsx"></script></body></html>';
+    const injected = injectLocalViteReactPreamble(html, "warplet-local.10x.meme");
+
+    expect(injected).toContain('from "/@react-refresh"');
+    expect(injectLocalViteReactPreamble(injected, "warplet-local.10x.meme")).toBe(injected);
+    expect(injectLocalViteReactPreamble(html, "warplet.10x.meme")).toBe(html);
+  });
+
+  it("uses Cloudflare's forwarded HTTPS protocol for Warplets metadata", () => {
+    const request = new Request("http://warplet-local.10x.meme/stats/overview/collection", {
+      headers: { "x-forwarded-proto": "https" },
+    });
+
+    expect(getPublicPageRequestUrl(request).href)
+      .toBe("https://warplet-local.10x.meme/stats/overview/collection");
+  });
+
+  it("uses the trusted public HTTPS tunnel origin for Warplets metadata", () => {
+    const request = new Request("http://warplet-local.10x.meme/stats/overview/collection", {
+      headers: { "x-10x-public-origin": "https://warplet-local.10x.meme" },
+    });
+
+    expect(getPublicPageRequestUrl(request).href)
+      .toBe("https://warplet-local.10x.meme/stats/overview/collection");
+  });
+
+  it("rejects a forwarded origin for another hostname", () => {
+    const request = new Request("http://warplet-local.10x.meme/stats/overview/collection", {
+      headers: { "x-10x-public-origin": "https://attacker.example" },
+    });
+
+    expect(getPublicPageRequestUrl(request).href)
+      .toBe("http://warplet-local.10x.meme/stats/overview/collection");
+  });
+
+  it("ignores forwarded HTTPS metadata on an unrecognized hostname", () => {
+    const request = new Request("http://attacker.example/stats/overview/collection", {
+      headers: { "x-forwarded-proto": "https" },
+    });
+
+    expect(getPublicPageRequestUrl(request).href)
+      .toBe("http://attacker.example/stats/overview/collection");
   });
 });
 
@@ -114,6 +168,8 @@ describe("dynamic Stats Open Graph routes", () => {
       .toBe("/stats/holders/top10");
     expect(getStatsLaunchLookupPath(new URL("https://warplet.10x.meme/stats/holders?wallet=0x1234567890abcdef1234567890abcdef12345678&utm_source=x")))
       .toBe("/stats/holders?wallet=0x1234567890abcdef1234567890abcdef12345678");
+    expect(getStatsLaunchLookupPath(new URL("https://warplet.10x.meme/stats/holders/top10friends?fid=1129138")))
+      .toBe("/stats/holders/top10friends?fid=1129138");
     expect(getStatsLaunchLookupPath(new URL("https://warplet.10x.meme/?event=send&range=all&activity=1&warplet=4512")))
       .toBe("/?warplet=4512&activity=1&range=all&event=send");
   });

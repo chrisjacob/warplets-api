@@ -2,6 +2,7 @@ import { Text } from "@neynar/ui/typography";
 import { useEffect, useRef, useState } from "react";
 import { useOverlayScrollbars } from "overlayscrollbars-react";
 import ProgressiveNotificationImage from "./ProgressiveNotificationImage";
+import { getNotificationPromptConfirmLabel, getNotificationPromptText } from "./notificationPromptCopy";
 
 const TYPEWRITER_MS_PER_CHARACTER = 38;
 const TITLE = "FOMO? Don't Miss Out...";
@@ -32,17 +33,21 @@ function getPreviewRevealPercent(elapsedMs: number): number {
 
 export default function NotificationsPromptModal({
   notificationsOnlyPrompt,
+  baseAppContext = false,
   onConfirm,
 }: {
   notificationsOnlyPrompt: boolean;
+  baseAppContext?: boolean;
   onConfirm: () => void;
 }) {
   const [animationElapsedMs, setAnimationElapsedMs] = useState(0);
   const [isPreviewImageReady, setIsPreviewImageReady] = useState(false);
   const contentRef = useRef<HTMLDivElement | null>(null);
-  const notificationPromptText = notificationsOnlyPrompt
-    ? "Please turn on notifications so you don't miss important 10X market updates."
-    : "Please add this Mini App & enable notifications so you don't miss important 10X updates 👀";
+  const notificationPromptText = getNotificationPromptText({
+    appName: "10X.MEME",
+    notificationsOnlyPrompt,
+    baseAppContext,
+  });
   const titleAnimationMs = TITLE.length * TYPEWRITER_MS_PER_CHARACTER;
   const previewStartMs = titleAnimationMs;
   const textStartMs = previewStartMs + PREVIEW_REVEAL_MS + PREVIEW_TO_TEXT_DELAY_MS;
@@ -138,7 +143,7 @@ export default function NotificationsPromptModal({
             onClick={onConfirm}
             className="w-full cursor-pointer rounded-[20px] border border-[#009900] bg-[#00FF00] px-4 py-3 text-sm font-bold text-[rgb(0,80,0)] shadow-[3px_6px_0_#008000] transition-all duration-100 hover:bg-[#33ff33] active:translate-x-[1px] active:translate-y-[3px] active:shadow-[1px_3px_0_#008000]"
           >
-            Ok, let's go!
+            {getNotificationPromptConfirmLabel(baseAppContext)}
           </button>
         </div>
       </div>

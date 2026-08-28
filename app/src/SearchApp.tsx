@@ -27,7 +27,7 @@ import SiteFooter from "./SiteFooter";
 import { detectMiniAppContext } from "./miniAppContext";
 import { PERKS_DEFINITIONS, PERKS_MOCKUP_NOTICE_DISMISSED_KEY, type PerksSubpage } from "./perksMockData";
 import { PERKS_SHARE_CONTENT, getPerksShareImageUrl } from "./perksShareContent";
-import type { StatsShareCreateResponse, StatsShareRequest } from "./statsShare";
+import { getVersionedStatsShareLaunchPath, type StatsShareCreateResponse, type StatsShareRequest } from "./statsShare";
 import { WebConnectModal } from "./WebConnectModal";
 import type { FarcasterWebIdentity } from "./FarcasterSignInControl";
 import { hasPendingFarcasterSignIn, restorePendingFarcasterSignIn } from "./farcasterSignInPersistence";
@@ -68,7 +68,12 @@ import {
   viewFarcasterProfile,
 } from "./surfaceAdapter";
 import { buildSharePostText, buildTwitterShareText } from "./shareCopy";
-import { getStatsFriendFilterWallet } from "./statsHolderFilter";
+import { getNotificationPromptConfirmLabel, getNotificationPromptText } from "./notificationPromptCopy";
+import {
+  formatStatsFriendFilterLabel,
+  getStatsFriendFilterFid,
+  getStatsFriendFilterWallet,
+} from "./statsHolderFilter";
 
 const FarcasterSignInControl = lazy(() => import("./FarcasterSignInControl"));
 import {
@@ -1133,7 +1138,8 @@ type SharePreviewState = {
   twitterPostText?: string;
   links: string[];
   images: SharePreviewImage[];
-  farcasterEmbeds: [] | [string] | [string, string];
+  // Keep the Farcaster CTA focused on one mini-app card; images stay in the modal/X share only.
+  farcasterEmbeds: [] | [string];
   twitterText: string;
   status?: "preparing" | "ready" | "error";
   statusMessage?: string;
@@ -3338,6 +3344,11 @@ function readStatsDeepLinkWallet(): string | null {
   return getStatsFriendFilterWallet(window.location.search);
 }
 
+function readStatsDeepLinkFriendFid(): number | null {
+  if (typeof window === "undefined") return null;
+  return getStatsFriendFilterFid(window.location.search);
+}
+
 function writeLastStatsActivityEvent(value: StatsActivityEvent): void {
   if (typeof window === "undefined") return;
   window.localStorage.setItem(LAST_STATS_ACTIVITY_EVENT_KEY, value);
@@ -5421,6 +5432,7 @@ function StatsHolderRowView({
 function StatsHoldersPage({
   connectedWallet,
   friendFilterWallet,
+  friendFilterFid,
   viewerFid,
   actionSessionToken,
   ethUsdPrice,
@@ -5432,6 +5444,7 @@ function StatsHoldersPage({
 }: {
   connectedWallet: string | null;
   friendFilterWallet: string | null;
+  friendFilterFid: number | null;
   viewerFid: number | null;
   actionSessionToken: string | null;
   ethUsdPrice: number | null;
@@ -5453,9 +5466,10 @@ function StatsHoldersPage({
   const [renderedRowCount, setRenderedRowCount] = useState(STATS_HOLDER_INITIAL_RENDER_ROWS);
   const [topFriendFids, setTopFriendFids] = useState<Set<number>>(new Set());
   const [friendRows, setFriendRows] = useState<StatsHolderRow[]>([]);
-  const [friendFilterFid, setFriendFilterFid] = useState<number | null>(null);
+  const [resolvedFriendFilterFid, setResolvedFriendFilterFid] = useState<number | null>(friendFilterFid);
   const [friendsOnly, setFriendsOnly] = useState(initialFriendsOnly);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
+  const hasFriendFilter = Boolean(friendFilterWallet || friendFilterFid);
 
   const loadViewer = useCallback(async (signal?: AbortSignal, refresh = false) => {
     if (!connectedWallet && !viewerFid) {
@@ -5501,7 +5515,7 @@ function StatsHoldersPage({
     else if (refresh) setRefreshing(true);
     else {
       setLoading(true);
-      setFriendFilterFid(null);
+      setResolvedFriendFilterFid(friendFilterFid);
     }
     setError("");
     try {
@@ -5509,7 +5523,10 @@ function StatsHoldersPage({
       if (cursor) params.set("cursor", cursor);
       if (refresh) params.set("refresh", "1");
       if (friendFilterWallet) params.set("friendsWallet", friendFilterWallet);
-      const filterCacheKey = friendFilterWallet ? `friends:${friendFilterWallet}` : "all";
+      if (friendFilterFid) params.set("friendsFid", String(friendFilterFid));
+      const filterCacheKey = friendFilterFid
+        ? `friends-fid:${friendFilterFid}`
+        : friendFilterWallet ? `friends-wallet:${friendFilterWallet}` : "all";
       const result = await fetchCachedStatsEnvelope({
         cacheKey: `stats:holders:${filterCacheKey}:${cursor ?? "first"}:100`,
         url: `/api/stats/holders?${params.toString()}`,
@@ -5522,7 +5539,7 @@ function StatsHoldersPage({
       if (!append) setRenderedRowCount(STATS_HOLDER_INITIAL_RENDER_ROWS);
       setPayload(result);
       const friendFilter = statsRecord(result.friendFilter);
-      setFriendFilterFid(statsInteger(friendFilter?.fid));
+      setResolvedFriendFilterFid(statsInteger(friendFilter?.fid) ?? friendFilterFid);
       setRows((current) => {
         const combined = append ? [...current, ...nextRows] : nextRows;
         const seen = new Set<string>();
@@ -5543,7 +5560,7 @@ function StatsHoldersPage({
         else setLoading(false);
       }
     }
-  }, [friendFilterWallet]);
+  }, [friendFilterFid, friendFilterWallet]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -5555,7 +5572,7 @@ function StatsHoldersPage({
   }, [loadPage, loadViewer]);
 
   useEffect(() => {
-    if (friendFilterWallet || !viewerFid || !actionSessionToken) {
+    if (hasFriendFilter || !viewerFid || !actionSessionToken) {
       setTopFriendFids(new Set());
       setFriendRows([]);
       setFriendsOnly(false);
@@ -5591,17 +5608,17 @@ function StatsHoldersPage({
         }
       });
     return () => controller.abort();
-  }, [actionSessionToken, friendFilterWallet, viewerFid]);
+  }, [actionSessionToken, hasFriendFilter, viewerFid]);
 
   useEffect(() => {
-    if (friendFilterWallet) {
+    if (hasFriendFilter) {
       setFriendsOnly(false);
       return;
     }
     if (initialFriendsOnly && viewerFid && actionSessionToken) setFriendsOnly(true);
-  }, [actionSessionToken, friendFilterWallet, initialFriendsOnly, viewerFid]);
+  }, [actionSessionToken, hasFriendFilter, initialFriendsOnly, viewerFid]);
 
-  const effectiveFriendsOnly = !friendFilterWallet && friendsOnly;
+  const effectiveFriendsOnly = !hasFriendFilter && friendsOnly;
 
   useEffect(() => {
     const target = loadMoreRef.current;
@@ -5668,11 +5685,14 @@ function StatsHoldersPage({
           </div>
         )}
 
-        {friendFilterWallet && (
+        {hasFriendFilter && (
           <div className="mb-3 flex items-center gap-3 rounded-xl border border-[#7959ff]/70 bg-[rgba(121,89,255,0.14)] px-3 py-3 text-[#c9bcff]">
-            <Text className="min-w-0 flex-1 break-all text-[10px] font-black leading-4">
-              Leaderboard filtered to the friends of {friendFilterWallet}
-            </Text>
+            <p
+              className="min-w-0 flex-1 break-all text-[10px] font-black uppercase leading-4"
+              style={{ color: "#d8ceff" }}
+            >
+              {formatStatsFriendFilterLabel(friendFilterWallet, friendFilterFid)}
+            </p>
             <button
               type="button"
               onClick={() => {
@@ -5692,12 +5712,12 @@ function StatsHoldersPage({
             <StatsShareButton
               compact
               secondaryFlat
-              secondaryTone={friendFilterWallet || effectiveFriendsOnly ? "purple" : "green"}
+              secondaryTone={hasFriendFilter || effectiveFriendsOnly ? "purple" : "green"}
               showIcon={false}
               label="Share Top 10"
-              disabled={friendFilterWallet ? !friendFilterFid : effectiveFriendsOnly && !viewerFid}
-              onClick={() => onShareStats(friendFilterWallet && friendFilterFid
-                ? { kind: "holders-top10-friends", viewerFid: friendFilterFid, wallet: friendFilterWallet }
+              disabled={hasFriendFilter ? !resolvedFriendFilterFid : effectiveFriendsOnly && !viewerFid}
+              onClick={() => onShareStats(hasFriendFilter && resolvedFriendFilterFid
+                ? { kind: "holders-top10-friends", viewerFid: resolvedFriendFilterFid, ...(friendFilterWallet ? { wallet: friendFilterWallet } : {}) }
                 : effectiveFriendsOnly && viewerFid
                   ? { kind: "holders-top10-friends", viewerFid, ...(connectedWallet ? { wallet: connectedWallet } : {}) }
                 : { kind: "holders-top10", ...(connectedWallet ? { wallet: connectedWallet } : {}), ...(viewerFid ? { fid: viewerFid } : {}) })}
@@ -5707,7 +5727,7 @@ function StatsHoldersPage({
             type="button"
             role="switch"
             aria-checked={effectiveFriendsOnly}
-            disabled={Boolean(friendFilterWallet) || !viewerFid || !actionSessionToken}
+            disabled={hasFriendFilter || !viewerFid || !actionSessionToken}
             onClick={() => {
               setFriendsOnly((current) => !current);
               setRenderedRowCount(STATS_HOLDER_INITIAL_RENDER_ROWS);
@@ -5746,8 +5766,8 @@ function StatsHoldersPage({
           </div>
         ) : visibleRows.length === 0 ? (
           <div className="px-3 py-10 text-center text-xs font-bold text-[#8bbf8b]">
-            {friendFilterWallet
-              ? `None of the cached friends for ${friendFilterWallet} currently hold a Warplet.`
+            {hasFriendFilter
+              ? `None of the cached friends for ${friendFilterWallet ?? `FID #${friendFilterFid}`} currently hold a 10X Warplet.`
               : effectiveFriendsOnly
                 ? "None of your Top 100 Friends currently hold a Warplet."
                 : "No ranked holders are available yet."}
@@ -6642,6 +6662,7 @@ function StatsPage({
   onRangeChange,
   connectedWallet,
   friendFilterWallet,
+  friendFilterFid,
   favouriteWallet,
   favouriteTokenIds,
   viewerFid,
@@ -6658,6 +6679,7 @@ function StatsPage({
   onRangeChange: (range: StatsRange) => void;
   connectedWallet: string | null;
   friendFilterWallet: string | null;
+  friendFilterFid: number | null;
   favouriteWallet: string | null;
   favouriteTokenIds: number[];
   viewerFid: number | null;
@@ -6862,6 +6884,7 @@ function StatsPage({
         <StatsHoldersPage
           connectedWallet={connectedWallet}
           friendFilterWallet={friendFilterWallet}
+          friendFilterFid={friendFilterFid}
           viewerFid={viewerFid}
           actionSessionToken={actionSessionToken}
           ethUsdPrice={ethUsdPrice}
@@ -6869,7 +6892,7 @@ function StatsPage({
           onOpenWarpletDetails={onOpenWarpletDetails}
           onShareStats={onShareStats}
           onResetFriendFilter={onResetFriendFilter}
-          initialFriendsOnly={detail === "top10friends" && !friendFilterWallet}
+          initialFriendsOnly={detail === "top10friends" && !friendFilterWallet && !friendFilterFid}
         />
       ) : loading && !payload ? (
         <StatsLoadingState subpage={subpage} />
@@ -12038,17 +12061,21 @@ function getNotificationPreviewRevealPercent(elapsedMs: number): number {
 
 function NotificationsPromptModal({
   notificationsOnlyPrompt,
+  baseAppContext = false,
   onConfirm,
 }: {
   notificationsOnlyPrompt: boolean;
+  baseAppContext?: boolean;
   onConfirm: () => void;
 }) {
   const [animationElapsedMs, setAnimationElapsedMs] = useState(0);
   const [isPreviewImageReady, setIsPreviewImageReady] = useState(false);
   const contentRef = useRef<HTMLDivElement | null>(null);
-  const notificationPromptText = notificationsOnlyPrompt
-    ? "Please turn on notifications so you don't miss important 10X market updates."
-    : "Please add this Mini App & enable notifications so you don't miss important 10X updates 👀";
+  const notificationPromptText = getNotificationPromptText({
+    appName: "10X Warplets",
+    notificationsOnlyPrompt,
+    baseAppContext,
+  });
   const titleAnimationMs = NOTIFICATIONS_PROMPT_TITLE.length * ONBOARDING_TYPEWRITER_MS_PER_CHARACTER;
   const previewStartMs = titleAnimationMs;
   const textStartMs = previewStartMs + NOTIFICATIONS_PREVIEW_REVEAL_MS + NOTIFICATIONS_PREVIEW_TO_TEXT_DELAY_MS;
@@ -12164,7 +12191,7 @@ function NotificationsPromptModal({
             onClick={onConfirm}
             className="w-full cursor-pointer rounded-[20px] border border-[#009900] bg-[#00FF00] px-4 py-3 text-sm font-bold text-[rgb(0,80,0)] shadow-[3px_6px_0_#008000] transition-all duration-100 hover:bg-[#33ff33] active:translate-x-[1px] active:translate-y-[3px] active:shadow-[1px_3px_0_#008000]"
           >
-            Ok, let's go!
+            {getNotificationPromptConfirmLabel(baseAppContext)}
           </button>
         </div>
       </div>
@@ -12904,7 +12931,7 @@ async function buildTradeSharePreview({
         sourceUrl: openSeaLink,
       },
     ],
-    farcasterEmbeds: [miniAppLink, openSeaLink],
+    farcasterEmbeds: [miniAppLink],
     twitterText: buildTwitterShareText(twitterPostText, links),
   };
 }
@@ -12943,7 +12970,7 @@ function buildOfferSharePreview({
       { src: getWarpletAssetUrl(tokenId, "gif"), alt: isCollection ? "10X Warplets collection offer" : `10X Warplet #${tokenId} trait offer` },
       { src: getWarpletAssetUrl(tokenId, "gif"), alt: "OpenSea offer", sourceUrl: openSeaLink },
     ],
-    farcasterEmbeds: [miniAppLink, openSeaLink],
+    farcasterEmbeds: [miniAppLink],
     twitterText: buildTwitterShareText(postText, links),
   };
 }
@@ -15069,7 +15096,7 @@ export default function SearchApp() {
   ]);
   const [showAddAppPrompt, setShowAddAppPrompt] = useState(false);
   const [notificationsOnlyPrompt, setNotificationsOnlyPrompt] = useState(false);
-  const [notificationPromptMode, setNotificationPromptMode] = useState<"farcaster" | "web">("farcaster");
+  const [notificationPromptMode, setNotificationPromptMode] = useState<"farcaster" | "web" | "base">("farcaster");
   const [pendingNotificationId, setPendingNotificationId] = useState<string | null>(null);
   const [actionSessionToken, setActionSessionToken] = useState<string | null>(null);
   const [notificationOpenSent, setNotificationOpenSent] = useState(false);
@@ -15702,9 +15729,24 @@ export default function SearchApp() {
 
         const inBaseApp = isLikelyBaseAppBrowser();
         if (inBaseApp) {
-          void requestBaseAppWalletLogin().catch((error) => {
+          setNotificationPromptMode("base");
+          setNotificationsOnlyPrompt(true);
+          void requestBaseAppWalletLogin().then(async (session) => {
+            if (session) {
+              const response = await fetch("/api/notifications/base/status", {
+                headers: { accept: "application/json" },
+                credentials: "same-origin",
+              }).catch(() => null);
+              if (response?.ok) {
+                const status = await response.json() as { appPinned?: unknown; notificationsEnabled?: unknown };
+                if (status.appPinned === true && status.notificationsEnabled === true) return;
+              }
+            }
+            setNotificationPromptPending(true);
+          }).catch((error) => {
             const message = error instanceof Error ? error.message : String(error);
             if (!/reject|denied|cancel/i.test(message)) console.warn("Base wallet login failed:", error);
+            setNotificationPromptPending(true);
           });
         }
 
@@ -15940,6 +15982,9 @@ export default function SearchApp() {
   const handleConfirmAddAppPrompt = useCallback(async () => {
     try {
       void hapticPrimaryTap();
+      if (notificationPromptMode === "base") {
+        return;
+      }
       if (notificationPromptMode === "web") {
         await subscribeToWebPush(["announcements", "favourites", "offers", "market", "activity"]);
         trackAppEvent("web_push_subscribed", { surface: "web", channel: "web-push" });
@@ -16589,8 +16634,10 @@ export default function SearchApp() {
 
   const handleHeaderEnableNotifications = useCallback(() => {
     if (!isInMiniAppContext) {
-      if (isLikelyBaseAppBrowser()) return;
-      setNotificationPromptMode("web");
+      const inBaseApp = isLikelyBaseAppBrowser();
+      setNotificationPromptMode(inBaseApp ? "base" : "web");
+      setNotificationPromptPending(false);
+      setPreparedNotificationPrompt(false);
       setNotificationsOnlyPrompt(true);
       setShowAddAppPrompt(true);
       return;
@@ -17577,7 +17624,7 @@ export default function SearchApp() {
           sourceUrl: openSeaUrl,
         },
       ],
-      farcasterEmbeds: [shareUrl, openSeaUrl],
+      farcasterEmbeds: [shareUrl],
       twitterText: buildTwitterShareText(text, links),
     });
   }, [
@@ -17654,7 +17701,7 @@ export default function SearchApp() {
           { src: getWarpletAssetUrl(imageTokenId, "gif"), alt: `${title} test image` },
           { src: getWarpletAssetUrl(imageTokenId, "gif"), alt: "OpenSea test image", sourceUrl: openSeaLink },
         ],
-        farcasterEmbeds: [miniAppLink, openSeaLink],
+        farcasterEmbeds: [miniAppLink],
         twitterText: buildTwitterShareText(text, links),
       };
     };
@@ -17753,7 +17800,7 @@ export default function SearchApp() {
           sourceUrl: openSeaUrl,
         },
       ],
-      farcasterEmbeds: [shareUrl, openSeaUrl],
+      farcasterEmbeds: [shareUrl],
       twitterText: buildTwitterShareText(text, links),
     });
   }, [postSearchCompletion, updateSearchUrl]);
@@ -17803,7 +17850,7 @@ export default function SearchApp() {
           waitForResolvedSource: true,
         },
       ],
-      farcasterEmbeds: [shareUrl, openSeaCollectionUrl],
+      farcasterEmbeds: [shareUrl],
       twitterText: buildTwitterShareText(shareText, links),
     });
   }, [
@@ -17894,7 +17941,10 @@ export default function SearchApp() {
       if (!response.ok || !result.snapshot?.imageReady) {
         throw new Error(result.renderError || result.message || result.error || `Snapshot rendering failed (${response.status})`);
       }
-      const launchUrl = new URL(result.snapshot.launchPath, window.location.origin).href;
+      const launchUrl = new URL(
+        getVersionedStatsShareLaunchPath(result.snapshot.launchPath, result.snapshot.id),
+        window.location.origin,
+      ).href;
       const imageUrl = resolveShareUrl(result.imageUrl).href;
       const farcasterPostText = `${result.snapshot.farcasterText}\n\n${launchUrl}`;
       setSharePreview({
@@ -17904,7 +17954,7 @@ export default function SearchApp() {
         twitterPostText: result.snapshot.twitterText,
         links: [launchUrl],
         images: [{ src: imageUrl, alt: result.snapshot.title, aspectRatio: "square" }],
-        farcasterEmbeds: [launchUrl, imageUrl],
+        farcasterEmbeds: [launchUrl],
         twitterText: buildTwitterShareText(result.snapshot.twitterText, [launchUrl]),
         status: "ready",
       });
@@ -18336,7 +18386,7 @@ export default function SearchApp() {
             waitForResolvedSource: true,
           },
         ],
-        farcasterEmbeds: [bulkBuySearchUrl, openSeaWalletUrl],
+        farcasterEmbeds: [bulkBuySearchUrl],
         twitterText: buildTwitterShareText(bulkBuyShareText, links),
       });
       return purchased.map((item) => item.row.warplet.id);
@@ -18516,6 +18566,7 @@ export default function SearchApp() {
       {showAddAppPrompt && (
         <NotificationsPromptModal
           notificationsOnlyPrompt={notificationsOnlyPrompt}
+          baseAppContext={notificationPromptMode === "base"}
           onConfirm={handleConfirmAddAppPrompt}
         />
       )}
@@ -18551,7 +18602,7 @@ export default function SearchApp() {
               onOpenWarpmoji={() => navigateSearchRoute({ page: "warpmoji" })}
               onViewMyWarplets={activeWallet || isInMiniAppContext ? () => { void handleSearchMyWarplets(); } : undefined}
               onViewOnboarding={handleHeaderViewOnboarding}
-              onEnableNotifications={isLikelyBaseAppBrowser() ? undefined : handleHeaderEnableNotifications}
+              onEnableNotifications={handleHeaderEnableNotifications}
               onInstallWebApp={!isInMiniAppContext && !isStandaloneDisplay() && !isEmbeddedWebView() && !isLikelyBaseAppBrowser()
                 ? () => window.dispatchEvent(new CustomEvent("10x:open-pwa-install"))
                 : undefined}
@@ -18610,6 +18661,7 @@ export default function SearchApp() {
             })}
             connectedWallet={searchRoute.statsPage === "holders" ? readStatsDeepLinkWallet() ?? activeWallet : activeWallet}
             friendFilterWallet={searchRoute.statsPage === "holders" ? readStatsDeepLinkWallet() : null}
+            friendFilterFid={searchRoute.statsPage === "holders" ? readStatsDeepLinkFriendFid() : null}
             favouriteWallet={activeFavouriteWallet}
             favouriteTokenIds={activeFavouriteTokenIds}
             viewerFid={viewerFid}

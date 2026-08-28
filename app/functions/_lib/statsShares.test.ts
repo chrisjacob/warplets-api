@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   buildStatsShareOgDocument,
+  getStatsSharePublicOrigin,
   getStatsShareOgImageKey,
   handleStatsShareImageGet,
   handleStatsShareImageHead,
@@ -63,6 +64,25 @@ function expectImageHeaders(response: Response) {
 }
 
 describe("Stats share image HTTP methods", () => {
+  it("uses Cloudflare's forwarded HTTPS protocol for local snapshot rendering", () => {
+    const request = new Request("http://warplet-local.10x.meme/stats/overview/collection", {
+      headers: {
+        "x-forwarded-proto": "https",
+        "x-10x-public-origin": "http://warplet-local.10x.meme",
+      },
+    });
+
+    expect(getStatsSharePublicOrigin(request)).toBe("https://warplet-local.10x.meme");
+  });
+
+  it("does not trust forwarded HTTPS on an unrelated host", () => {
+    const request = new Request("http://attacker.example/stats/overview/collection", {
+      headers: { "x-forwarded-proto": "https" },
+    });
+
+    expect(getStatsSharePublicOrigin(request)).toBe("http://attacker.example");
+  });
+
   it("centres the square snapshot at full height on a black 1200 by 630 canvas", () => {
     const document = buildStatsShareOgDocument("https://warplet.10x.meme/image.png?x=1&y=2");
     expect(document).toContain("width:1200px;height:630px");

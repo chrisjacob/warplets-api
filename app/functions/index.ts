@@ -305,9 +305,57 @@ export function buildCanonicalUrl(requestUrl: URL): string {
   if (getRouteKey(requestUrl.hostname, requestUrl.pathname) === "warplets") {
     const tokenId = getWarpletTokenId(requestUrl.searchParams);
     if (tokenId) canonicalUrl.searchParams.set("warplet", String(tokenId));
+    if (canonicalUrl.pathname === "/stats/holders/top10friends") {
+      const fid = getReferralFid(requestUrl.searchParams);
+      const wallet = requestUrl.searchParams.get("wallet")?.trim().toLowerCase();
+      if (fid) canonicalUrl.searchParams.set("fid", String(fid));
+      else if (wallet && /^0x[a-f0-9]{40}$/.test(wallet)) canonicalUrl.searchParams.set("wallet", wallet);
+    }
   }
 
   return canonicalUrl.href;
+}
+
+export function getPublicPageRequestUrl(request: Request): URL {
+  const current = new URL(request.url);
+  const forwardedOrigin = request.headers.get("x-10x-public-origin")?.trim();
+  if (current.protocol !== "http:" || !isWarpletsAppHostname(current.hostname)) {
+    return current;
+  }
+  const forwardedProto = request.headers.get("x-forwarded-proto")
+    ?.split(",", 1)[0]
+    ?.trim()
+    .toLowerCase();
+  if (forwardedProto === "https") {
+    current.protocol = "https:";
+    return current;
+  }
+  if (!forwardedOrigin) return current;
+  try {
+    const candidate = new URL(forwardedOrigin);
+    if (candidate.protocol !== "https:" || candidate.hostname !== current.hostname) return current;
+    return new URL(`${current.pathname}${current.search}`, candidate.origin);
+  } catch {
+    return current;
+  }
+}
+
+const VITE_REACT_PREAMBLE = `<script type="module">
+import { injectIntoGlobalHook } from "/@react-refresh";
+injectIntoGlobalHook(window);
+window.$RefreshReg$ = () => {};
+window.$RefreshSig$ = () => (type) => type;
+</script>`;
+
+export function injectLocalViteReactPreamble(html: string, hostname: string): string {
+  if (
+    hostname.toLowerCase() !== WARPLETS_APP_HOSTS[0]
+    || !html.includes('<script type="module" src="/src/main.tsx"></script>')
+    || html.includes('from "/@react-refresh"')
+  ) {
+    return html;
+  }
+  return html.replace("</head>", `  ${VITE_REACT_PREAMBLE}\n  </head>`);
 }
 
 export function getBaseAppId(hostname: string): string | null {
@@ -519,8 +567,13 @@ export function getStatsLaunchLookupPath(url: URL): string | null {
   if (/^\/stats\/(?:overview\/(?:collection|launch)|market\/(?:7d|30d|90d|1y|all)(?:\/(?:price|floor-price|volume|listings|offers|sales))?|activity\/(?:7d|30d|90d|1y|all)\/(?:sales|listings|offers|sends)|holders(?:\/top10|\/top10friends)?)\/?$/i.test(url.pathname)) {
     const path = url.pathname.replace(/\/$/, "") || "/";
     const wallet = url.searchParams.get("wallet")?.trim().toLowerCase();
-    const walletScoped = path === "/stats/holders" || path === "/stats/holders/top10friends";
-    return walletScoped && wallet && /^0x[a-f0-9]{40}$/.test(wallet) ? `${path}?wallet=${wallet}` : path;
+    const validWallet = wallet && /^0x[a-f0-9]{40}$/.test(wallet) ? wallet : null;
+    if (path === "/stats/holders/top10friends") {
+      const fid = getReferralFid(url.searchParams);
+      if (fid) return `${path}?fid=${fid}`;
+      return validWallet ? `${path}?wallet=${validWallet}` : path;
+    }
+    return path === "/stats/holders" && validWallet ? `${path}?wallet=${validWallet}` : path;
   }
   const tokenId = url.searchParams.get("warplet")?.trim();
   const range = url.searchParams.get("range")?.trim();
@@ -601,7 +654,7 @@ function getStatsSnapshotMeta(snapshot: StatsShareSnapshot): { title: string; de
 }
 
 export const onRequestGet: PagesFunction<PagesEnv> = async (context) => {
-  const requestUrl = new URL(context.request.url);
+  const requestUrl = getPublicPageRequestUrl(context.request);
 
   if (requestUrl.pathname === "/favicon.ico") {
     const favicon = APP_FAVICONS[getHostnameFaviconKey(requestUrl.hostname)];
@@ -641,14 +694,27 @@ export const onRequestGet: PagesFunction<PagesEnv> = async (context) => {
 
   const routeKey = getRouteKey(requestUrl.hostname, requestUrl.pathname);
   const statsShareId = requestUrl.pathname.match(/^\/stats\/share\/([a-f0-9]{32})\/?$/)?.[1];
+  const versionedStatsShareId = requestUrl.searchParams.get("snapshot")?.trim().toLowerCase();
+  const validVersionedStatsShareId = versionedStatsShareId && /^[a-f0-9]{32}$/.test(versionedStatsShareId)
+    ? versionedStatsShareId
+    : null;
   const statsLaunchLookupPath = getStatsLaunchLookupPath(requestUrl);
   let statsShareSnapshot = context.env.WARPLETS
     ? statsShareId
       ? await loadStatsShareSnapshot(context.env.WARPLETS, statsShareId).catch(() => null)
+      : validVersionedStatsShareId
+        ? await loadStatsShareSnapshot(context.env.WARPLETS, validVersionedStatsShareId).catch(() => null)
       : statsLaunchLookupPath
         ? await loadLatestStatsShareSnapshotByLaunchPath(context.env.WARPLETS, statsLaunchLookupPath).catch(() => null)
         : null
     : null;
+  if (
+    validVersionedStatsShareId
+    && statsShareSnapshot
+    && statsLaunchLookupPath !== getStatsLaunchLookupPath(new URL(statsShareSnapshot.launchPath, requestUrl.origin))
+  ) {
+    statsShareSnapshot = null;
+  }
   if (
     !statsShareSnapshot
     && routeKey === "warplets"
@@ -659,10 +725,13 @@ export const onRequestGet: PagesFunction<PagesEnv> = async (context) => {
   ) {
     try {
       const wallet = requestUrl.searchParams.get("wallet")?.trim().toLowerCase();
-      const friendFilterFid = requestUrl.pathname.replace(/\/+$/, "") === "/stats/holders/top10friends"
-        && wallet && /^0x[a-f0-9]{40}$/.test(wallet)
-        ? await resolveStatsFriendFilterFid(context.env.WARPLETS, wallet)
-        : null;
+      const isFriendLeaderboard = requestUrl.pathname.replace(/\/+$/, "") === "/stats/holders/top10friends";
+      const launchFid = isFriendLeaderboard ? getReferralFid(requestUrl.searchParams) : undefined;
+      const friendFilterFid = launchFid ?? (
+        isFriendLeaderboard && wallet && /^0x[a-f0-9]{40}$/.test(wallet)
+          ? await resolveStatsFriendFilterFid(context.env.WARPLETS, wallet)
+          : null
+      );
       const statsShareRequest = getStatsShareRequestFromLaunchUrl(requestUrl, friendFilterFid);
       if (statsShareRequest) {
         const generated = await ensureStatsShareSnapshot(
@@ -764,7 +833,7 @@ export const onRequestGet: PagesFunction<PagesEnv> = async (context) => {
   const metaTag = `<meta name="fc:miniapp" content="${metaContent}" />`;
   const frameMetaTag = `<meta name="fc:frame" content="${metaContent}" />`;
 
-  let html = await response.text();
+  let html = injectLocalViteReactPreamble(await response.text(), requestUrl.hostname);
   const baseAppId = getBaseAppId(requestUrl.hostname);
   if (baseAppId) {
     const baseAppIdTag = `<meta name="base:app_id" content="${baseAppId}" />`;
