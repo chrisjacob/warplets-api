@@ -1,4 +1,5 @@
 import {
+  fetchWithTransientRetry,
   HOLDER_OUTREACH_WINDOW_MS,
   parseHolderOutreachFeedPage,
   type HolderOutreachCast,
@@ -32,6 +33,8 @@ type SyncStateRow = {
 const HOLDERS_PER_SYNC = 200;
 const FIDS_PER_FEED = 25;
 const MAX_FEED_PAGES = 5;
+const FEED_GROUP_CONCURRENCY = 3;
+const NEYNAR_REQUEST_INTERVAL_MS = 250;
 
 const CURRENT_HOLDER_CTE = `WITH ranked_wallet_links AS (
   SELECT
@@ -78,10 +81,46 @@ async function runStatements(db: D1Database, statements: D1PreparedStatement[]):
   }
 }
 
+async function mapWithConcurrency<T, R>(
+  values: T[],
+  concurrency: number,
+  mapper: (value: T, index: number) => Promise<R>,
+): Promise<R[]> {
+  const results = new Array<R>(values.length);
+  let nextIndex = 0;
+  async function worker(): Promise<void> {
+    while (nextIndex < values.length) {
+      const index = nextIndex;
+      nextIndex += 1;
+      results[index] = await mapper(values[index], index);
+    }
+  }
+  await Promise.all(Array.from(
+    { length: Math.min(Math.max(1, concurrency), values.length) },
+    () => worker(),
+  ));
+  return results;
+}
+
+function createRequestGate(minimumIntervalMs: number): () => Promise<void> {
+  let nextStartAt = 0;
+  let queue = Promise.resolve();
+  return () => {
+    const turn = queue.then(async () => {
+      const wait = Math.max(0, nextStartAt - Date.now());
+      if (wait > 0) await new Promise((resolve) => setTimeout(resolve, wait));
+      nextStartAt = Date.now() + minimumIntervalMs;
+    });
+    queue = turn.catch(() => undefined);
+    return turn;
+  };
+}
+
 async function fetchRecentCastsForGroup(
   apiKey: string,
   holders: HolderRow[],
   cutoff: string,
+  beforeRequest: () => Promise<void>,
 ): Promise<{ casts: Map<number, HolderOutreachCast>; complete: boolean }> {
   const allowedFids = new Set(holders.map((holder) => Number(holder.fid)));
   const latestByFid = new Map<number, HolderOutreachCast>();
@@ -96,14 +135,20 @@ async function fetchRecentCastsForGroup(
     url.searchParams.set("limit", "100");
     if (cursor) url.searchParams.set("cursor", cursor);
 
-    const response = await fetch(url, {
-      headers: {
-        accept: "application/json",
-        "x-api-key": apiKey,
-      },
-    });
+    let response: Response;
+    try {
+      response = await fetchWithTransientRetry(url, {
+        headers: {
+          accept: "application/json",
+          "x-api-key": apiKey,
+        },
+      }, { beforeAttempt: beforeRequest });
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error);
+      throw new Error(`Neynar holder feed request failed after retries: ${detail}`);
+    }
     if (!response.ok) {
-      throw new Error(`Neynar holder feed failed (${response.status})`);
+      throw new Error(`Neynar holder feed failed after retries (${response.status})`);
     }
 
     const parsed = parseHolderOutreachFeedPage(await response.json(), allowedFids);
@@ -187,8 +232,11 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     }
 
     const feedGroups = chunks(holders, FIDS_PER_FEED);
-    const groupResults = await Promise.all(
-      feedGroups.map((group) => fetchRecentCastsForGroup(apiKey, group, cutoff)),
+    const beforeNeynarRequest = createRequestGate(NEYNAR_REQUEST_INTERVAL_MS);
+    const groupResults = await mapWithConcurrency(
+      feedGroups,
+      FEED_GROUP_CONCURRENCY,
+      (group) => fetchRecentCastsForGroup(apiKey, group, cutoff, beforeNeynarRequest),
     );
     const statements: D1PreparedStatement[] = [];
     let truncatedGroups = 0;

@@ -136,7 +136,7 @@ export const onRequestGet: PagesFunction = () => {
   async function api(path, options) {
     const supplied = options || {};
     const response = await fetch(path, Object.assign({}, supplied, {
-      headers: Object.assign({ 'x-admin-token':token, 'x-admin-session':adminSession }, supplied.headers || {})
+      headers: Object.assign({ 'accept':'application/json', 'x-admin-token':token, 'x-admin-session':adminSession }, supplied.headers || {})
     }));
     if (response.status === 401) {
       adminSession = '';

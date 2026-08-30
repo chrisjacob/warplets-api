@@ -3,6 +3,7 @@ import {
   buildFarcasterReplyComposeUrl,
   buildHolderOutreachDeepLink,
   buildHolderOutreachMessage,
+  fetchWithTransientRetry,
   normalizeOutreachTrackingCode,
   parseHolderOutreachFeedPage,
 } from "./holderOutreach";
@@ -60,5 +61,38 @@ describe("holder outreach helpers", () => {
   it("accepts only opaque 32-character tracking codes", () => {
     expect(normalizeOutreachTrackingCode("A".repeat(32))).toBe("a".repeat(32));
     expect(normalizeOutreachTrackingCode("short")).toBeNull();
+  });
+
+  it("retries transient responses and respects Retry-After", async () => {
+    const responses = [
+      new Response("unavailable", { status: 503, headers: { "retry-after": "2" } }),
+      Response.json({ ok: true }),
+    ];
+    let fetchCalls = 0;
+    const waits: number[] = [];
+    let attemptStarts = 0;
+
+    const response = await fetchWithTransientRetry("https://api.neynar.com/test", undefined, {
+      fetcher: async () => responses[fetchCalls++]!,
+      sleep: async (milliseconds) => { waits.push(milliseconds); },
+      beforeAttempt: async () => { attemptStarts += 1; },
+      random: () => 0,
+    });
+
+    expect(response.status).toBe(200);
+    expect(fetchCalls).toBe(2);
+    expect(attemptStarts).toBe(2);
+    expect(waits).toEqual([2_000]);
+  });
+
+  it("does not retry non-transient client errors", async () => {
+    let fetchCalls = 0;
+    const response = await fetchWithTransientRetry("https://api.neynar.com/test", undefined, {
+      fetcher: async () => { fetchCalls += 1; return new Response("bad request", { status: 400 }); },
+      sleep: async () => { throw new Error("should not wait"); },
+    });
+
+    expect(response.status).toBe(400);
+    expect(fetchCalls).toBe(1);
   });
 });

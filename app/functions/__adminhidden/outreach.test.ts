@@ -21,5 +21,6 @@ describe("holder outreach admin page", () => {
     expect(html).toContain(".table-wrap tbody tr{display:block");
     expect(html).toContain("data-label=\"Holder\"");
     expect(html).toContain("data-label=\"Actions\"");
+    expect(html).toContain("'accept':'application/json'");
   });
 });

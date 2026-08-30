@@ -37,6 +37,59 @@ export type HolderOutreachCast = {
   parentHash: string | null;
 };
 
+type TransientFetchOptions = {
+  attempts?: number;
+  baseDelayMs?: number;
+  maxDelayMs?: number;
+  beforeAttempt?: () => Promise<void>;
+  fetcher?: typeof fetch;
+  sleep?: (milliseconds: number) => Promise<void>;
+  random?: () => number;
+  now?: () => number;
+};
+
+const TRANSIENT_HTTP_STATUSES = new Set([429, 500, 502, 503, 504]);
+
+function retryAfterMilliseconds(value: string | null, now: number): number | null {
+  if (!value) return null;
+  const seconds = Number(value);
+  if (Number.isFinite(seconds) && seconds >= 0) return seconds * 1000;
+  const retryAt = Date.parse(value);
+  return Number.isFinite(retryAt) ? Math.max(0, retryAt - now) : null;
+}
+
+export async function fetchWithTransientRetry(
+  input: RequestInfo | URL,
+  init?: RequestInit,
+  options: TransientFetchOptions = {},
+): Promise<Response> {
+  const attempts = Math.max(1, Math.floor(options.attempts ?? 4));
+  const baseDelayMs = Math.max(0, options.baseDelayMs ?? 500);
+  const maxDelayMs = Math.max(baseDelayMs, options.maxDelayMs ?? 15_000);
+  const fetcher = options.fetcher ?? fetch;
+  const sleep = options.sleep ?? ((milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds)));
+  const random = options.random ?? Math.random;
+  const now = options.now ?? Date.now;
+
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    await options.beforeAttempt?.();
+    try {
+      const response = await fetcher(input, init);
+      if (!TRANSIENT_HTTP_STATUSES.has(response.status) || attempt === attempts - 1) return response;
+      await response.body?.cancel().catch(() => undefined);
+      const retryAfter = retryAfterMilliseconds(response.headers.get("retry-after"), now());
+      const exponential = baseDelayMs * (2 ** attempt) + Math.floor(random() * 250);
+      await sleep(Math.min(maxDelayMs, retryAfter ?? exponential));
+    } catch (error) {
+      if (attempt === attempts - 1) throw error;
+      const exponential = baseDelayMs * (2 ** attempt) + Math.floor(random() * 250);
+      await sleep(Math.min(maxDelayMs, exponential));
+    }
+  }
+
+  throw new Error("Transient fetch retry loop exhausted");
+}
+
 function record(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" && !Array.isArray(value)
     ? value as Record<string, unknown>
