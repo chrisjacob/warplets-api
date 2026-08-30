@@ -6,6 +6,7 @@ import { WARPLETS_APP_HOSTS, WARPLETS_APP_PATH } from "../shared/warpletsApp";
 import { captureWarpmojiAttribution } from "./analytics";
 import { clearLocalCacheIfRequested } from "./localCacheReset";
 import { shouldReloadForPreloadError } from "./preloadRecovery";
+import { captureHolderOutreachAttribution } from "./outreachAttribution";
 
 const HOME_APP_HOSTS = new Set([
   "10x.meme",
@@ -26,6 +27,7 @@ clearLocalCacheIfRequested(window);
 configureHomePwaMetadata();
 initializePwa();
 captureWarpmojiAttribution();
+captureHolderOutreachAttribution();
 
 const App = lazy(() => import("./App.tsx"));
 const DropApp = lazy(() => import("./DropClosedApp.tsx"));

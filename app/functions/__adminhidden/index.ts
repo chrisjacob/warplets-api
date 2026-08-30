@@ -87,7 +87,7 @@ export const onRequestGet: PagesFunction = () => {
 <div id="app">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem">
     <h1>10X Admin — Notifications</h1>
-    <button class="secondary" id="logoutBtn" style="margin-top:0">Sign out</button>
+    <div style="display:flex;gap:.5rem;align-items:center"><a href="/__adminhidden/outreach" style="display:inline-block;background:#2a2a2a;border:1px solid #444;border-radius:6px;color:#fff;padding:.5rem .85rem;text-decoration:none;font-size:.85rem">Holder outreach</a><button class="secondary" id="logoutBtn" style="margin-top:0">Sign out</button></div>
   </div>
 
   <!-- STATS SUMMARY -->

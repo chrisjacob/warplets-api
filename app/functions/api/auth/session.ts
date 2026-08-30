@@ -1,5 +1,6 @@
 import { getAppSession, getRawSessionToken, sessionCookie, type AppAuthEnv } from "../../_lib/appAuth.js";
 import { createActionSessionToken, jsonSecure } from "../../_lib/security.js";
+import { isWarpletsAppHostname } from "../../../shared/warpletsApp.js";
 
 interface Env extends AppAuthEnv { ACTION_SESSION_SECRET?: string }
 
@@ -13,6 +14,11 @@ function profileString(value: unknown): string | null {
 
 export const onRequestGet: PagesFunction<Env> = async (context) => {
   const session = await getAppSession(context.request, context.env);
+  if (session?.farcasterFid && isWarpletsAppHostname(new URL(context.request.url).hostname)) {
+    await context.env.WARPLETS.prepare(
+      "UPDATE app_auth_sessions SET last_warplets_seen_at = ? WHERE session_hash = ?",
+    ).bind(new Date().toISOString(), session.sessionHash).run();
+  }
   const token = session ? getRawSessionToken(context.request) : null;
   const profile = session?.farcasterFid
     ? await context.env.WARPLETS.prepare(
