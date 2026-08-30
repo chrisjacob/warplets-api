@@ -102,6 +102,7 @@ const GLOBAL_STATS_LAST_JOB_KEY = "warplets:global-stats:last";
 const COLLECTION_OFFER_AUDIENCE_CURSOR_KEY = "warplets:collection-offer-audience:cursor";
 const MAX_TRANSACTIONAL_RETRY_ATTEMPTS = 6;
 const MAX_COLLECTION_OFFER_RECIPIENTS = 250;
+const MAX_BEST_FRIEND_NOTIFICATIONS_PER_DAY = 2;
 const TRANSACTIONAL_NOTIFICATION_MAX_AGE_HOURS = 24;
 const MAX_GLOBAL_STATS_ATTEMPTS = 6;
 const GLOBAL_STATS_MAX_AGE_HOURS = 6;
@@ -116,6 +117,30 @@ const ACTION_PRIORITY: Record<WarpletActivityType, number> = {
   collection_top_offer: 5,
   trait_top_offer: 6,
 };
+
+export type BestFriendActivityDelivery = "immediate" | "daily_digest" | "none";
+
+export function bestFriendActivityDelivery(eventType: WarpletActivityType): BestFriendActivityDelivery {
+  if (eventType === "purchased" || eventType === "sold") return "immediate";
+  if (eventType === "offered" || eventType === "listed") return "daily_digest";
+  return "none";
+}
+
+export function buildBestFriendDigestBody(input: {
+  friendCount: number;
+  offerCount: number;
+  listingCount: number;
+}): string {
+  const friendCount = Math.max(1, Math.floor(input.friendCount));
+  const offerCount = Math.max(0, Math.floor(input.offerCount));
+  const listingCount = Math.max(0, Math.floor(input.listingCount));
+  const subject = friendCount === 1 ? "A friend" : `${friendCount.toLocaleString("en-US")} friends`;
+  const activity = [
+    offerCount > 0 ? `${offerCount.toLocaleString("en-US")} offer${offerCount === 1 ? "" : "s"}` : "",
+    listingCount > 0 ? `${listingCount.toLocaleString("en-US")} listing${listingCount === 1 ? "" : "s"}` : "",
+  ].filter(Boolean).join(" and ");
+  return `${subject} made ${activity || "market updates"} in the past 24 hours.`;
+}
 
 const TABLE_COLUMN_CACHE = new Map<string, Set<string>>();
 
@@ -391,8 +416,8 @@ async function queueNotification(
     body: string;
     targetUrl: string;
   },
-): Promise<void> {
-  if (!params.fid || !Number.isFinite(params.fid)) return;
+): Promise<boolean> {
+  if (!params.fid || !Number.isFinite(params.fid)) return false;
   const notificationId = `warplets:${params.category}:${params.eventKey}:${params.fid}`.slice(0, 120);
   const queueKey = `${params.category}:${params.fid}:${params.eventKey}`.slice(0, 220);
   const wrappedTargetUrl = wrapTargetUrl(notificationId, params.fid, params.targetUrl);
@@ -406,28 +431,42 @@ async function queueNotification(
       WHERE app_slug = ? AND collapse_key = ? AND status IN ('pending', 'retry')`,
   ).bind(APP_SLUG, collapseKey).run();
 
-  const inserted = await env.WARPLETS.prepare(
-    `INSERT OR IGNORE INTO notification_queue
-       (queue_key, notification_id, app_slug, category, priority, fid, event_id,
-        title, body, target_url, collapse_key, expires_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-     RETURNING id`,
-  )
-    .bind(
-      queueKey,
-      notificationId,
-      APP_SLUG,
-      params.category,
-      params.priority,
-      params.fid,
-      params.eventId ?? null,
-      truncate(params.title, 32),
-      truncate(params.body, 128),
-      wrappedTargetUrl,
-      collapseKey,
-      expiresAt,
-    )
-    .first<{ id: number }>();
+  const values = [
+    queueKey,
+    notificationId,
+    APP_SLUG,
+    params.category,
+    params.priority,
+    params.fid,
+    params.eventId ?? null,
+    truncate(params.title, 32),
+    truncate(params.body, 128),
+    wrappedTargetUrl,
+    collapseKey,
+    expiresAt,
+  ] as const;
+  const inserted = params.category === "best_friend"
+    ? await env.WARPLETS.prepare(
+      `INSERT OR IGNORE INTO notification_queue
+         (queue_key, notification_id, app_slug, category, priority, fid, event_id,
+          title, body, target_url, collapse_key, expires_at)
+       SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+       WHERE (
+         SELECT COUNT(*)
+         FROM notification_queue
+         WHERE app_slug = ? AND fid = ? AND category = 'best_friend'
+           AND status IN ('pending', 'retry', 'processing', 'sent')
+           AND datetime(created_at) >= datetime('now', '-1 day')
+       ) < ?
+       RETURNING id`,
+    ).bind(...values, APP_SLUG, params.fid, MAX_BEST_FRIEND_NOTIFICATIONS_PER_DAY).first<{ id: number }>()
+    : await env.WARPLETS.prepare(
+      `INSERT OR IGNORE INTO notification_queue
+         (queue_key, notification_id, app_slug, category, priority, fid, event_id,
+          title, body, target_url, collapse_key, expires_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       RETURNING id`,
+    ).bind(...values).first<{ id: number }>();
   if (inserted?.id && env.NOTIFICATION_DISPATCH_QUEUE) {
     await env.NOTIFICATION_DISPATCH_QUEUE.send({ appSlug: APP_SLUG, queueId: Number(inserted.id) }).catch((error) => {
       console.warn(JSON.stringify({
@@ -437,6 +476,7 @@ async function queueNotification(
       }));
     });
   }
+  return Boolean(inserted?.id);
 }
 
 async function buildBody(
@@ -1242,7 +1282,7 @@ export async function processNotificationQueue(
   return { processed: rows.results?.length || 0, sent, retried, skipped };
 }
 
-export async function runBestFriendNotifications(env: WarpletNotificationEnv): Promise<number> {
+async function runImmediateBestFriendNotifications(env: WarpletNotificationEnv): Promise<number> {
   const hourKey = new Date().toISOString().slice(0, 13);
   const stateKey = `warplets:best-friends:${hourKey}`;
   const existing = await env.WARPLETS.prepare(
@@ -1259,14 +1299,23 @@ export async function runBestFriendNotifications(env: WarpletNotificationEnv): P
      JOIN miniapp_notification_tokens t ON t.fid = bf.user_fid AND t.app_slug = ? AND t.enabled = 1
      WHERE datetime(e.occurred_at) >= datetime('now', '-1 hour')
        AND e.actor_fid IS NOT NULL
+       AND e.event_type IN ('purchased', 'sold')
+       AND (
+         SELECT COUNT(*)
+         FROM notification_queue q
+         WHERE q.app_slug = ? AND q.fid = bf.user_fid AND q.category = 'best_friend'
+           AND q.status IN ('pending', 'retry', 'processing', 'sent')
+           AND datetime(q.created_at) >= datetime('now', '-1 day')
+       ) < ?
      ORDER BY bf.user_fid ASC, bf.mutual_affinity_score DESC, e.occurred_at DESC
      LIMIT 5000`,
   )
-    .bind(APP_SLUG)
+    .bind(APP_SLUG, APP_SLUG, MAX_BEST_FRIEND_NOTIFICATIONS_PER_DAY)
     .all<ActivityRow & { fid: number }>();
 
   const selected = new Map<number, ActivityRow & { fid: number }>();
   for (const row of rows.results || []) {
+    if (bestFriendActivityDelivery(row.event_type) !== "immediate") continue;
     const current = selected.get(Number(row.fid));
     if (!current) {
       selected.set(Number(row.fid), row);
@@ -1277,8 +1326,9 @@ export async function runBestFriendNotifications(env: WarpletNotificationEnv): P
     if (nextPriority < currentPriority) selected.set(Number(row.fid), row);
   }
 
+  let queued = 0;
   for (const row of selected.values()) {
-    await queueNotification(env, {
+    if (await queueNotification(env, {
       category: "best_friend",
       priority: 40,
       fid: Number(row.fid),
@@ -1287,7 +1337,7 @@ export async function runBestFriendNotifications(env: WarpletNotificationEnv): P
       title: "10X Warplets",
       body: await buildBody(env, row),
       targetUrl: itemTarget(row.token_id),
-    });
+    })) queued += 1;
   }
 
   await env.WARPLETS.prepare(
@@ -1295,9 +1345,83 @@ export async function runBestFriendNotifications(env: WarpletNotificationEnv): P
      VALUES (?, ?, CURRENT_TIMESTAMP)
      ON CONFLICT(job_key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP`,
   )
-    .bind(stateKey, String(selected.size))
+    .bind(stateKey, String(queued))
     .run();
-  return selected.size;
+  return queued;
+}
+
+async function runDailyBestFriendDigest(env: WarpletNotificationEnv): Promise<number> {
+  const dayKey = new Date().toISOString().slice(0, 10);
+  const stateKey = `warplets:best-friends-digest:${dayKey}`;
+  const existing = await env.WARPLETS.prepare(
+    `SELECT value FROM notification_job_state WHERE job_key = ? LIMIT 1`,
+  ).bind(stateKey).first<{ value: string | null }>();
+  if (existing) return 0;
+
+  const rows = await env.WARPLETS.prepare(
+    `WITH eligible_activity AS (
+       SELECT DISTINCT
+         bf.user_fid AS fid,
+         e.id AS event_id,
+         e.actor_fid,
+         e.event_type
+       FROM warplet_activity_events e
+       JOIN warplets_user_best_friends bf ON bf.best_friend_fid = e.actor_fid
+       JOIN miniapp_notification_tokens t
+         ON t.fid = bf.user_fid AND t.app_slug = ? AND t.enabled = 1
+       WHERE datetime(e.occurred_at) >= datetime('now', '-1 day')
+         AND e.actor_fid IS NOT NULL
+         AND e.event_type IN ('offered', 'listed')
+         AND (
+           SELECT COUNT(*)
+           FROM notification_queue q
+           WHERE q.app_slug = ? AND q.fid = bf.user_fid AND q.category = 'best_friend'
+             AND q.status IN ('pending', 'retry', 'processing', 'sent')
+             AND datetime(q.created_at) >= datetime('now', '-1 day')
+         ) < ?
+     )
+     SELECT
+       fid,
+       COUNT(DISTINCT actor_fid) AS friend_count,
+       COUNT(DISTINCT CASE WHEN event_type = 'offered' THEN event_id END) AS offer_count,
+       COUNT(DISTINCT CASE WHEN event_type = 'listed' THEN event_id END) AS listing_count
+     FROM eligible_activity
+     GROUP BY fid
+     ORDER BY fid
+     LIMIT 5000`,
+  )
+    .bind(APP_SLUG, APP_SLUG, MAX_BEST_FRIEND_NOTIFICATIONS_PER_DAY)
+    .all<{ fid: number; friend_count: number; offer_count: number; listing_count: number }>();
+
+  let queued = 0;
+  for (const row of rows.results || []) {
+    if (await queueNotification(env, {
+      category: "best_friend",
+      priority: 45,
+      fid: Number(row.fid),
+      eventKey: `digest:${dayKey}`,
+      title: "10X Warplets",
+      body: buildBestFriendDigestBody({
+        friendCount: Number(row.friend_count),
+        offerCount: Number(row.offer_count),
+        listingCount: Number(row.listing_count),
+      }),
+      targetUrl: `${WARPLETS_BASE_URL}/stats/activity/7d/offers?friends=1`,
+    })) queued += 1;
+  }
+
+  await env.WARPLETS.prepare(
+    `INSERT INTO notification_job_state (job_key, value, updated_at)
+     VALUES (?, ?, CURRENT_TIMESTAMP)
+     ON CONFLICT(job_key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP`,
+  ).bind(stateKey, String(queued)).run();
+  return queued;
+}
+
+export async function runBestFriendNotifications(env: WarpletNotificationEnv): Promise<number> {
+  const immediateQueued = await runImmediateBestFriendNotifications(env);
+  const digestQueued = await runDailyBestFriendDigest(env);
+  return immediateQueued + digestQueued;
 }
 
 interface GlobalStatsCampaign {

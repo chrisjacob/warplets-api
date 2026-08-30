@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   activityNotificationDisposition,
+  bestFriendActivityDelivery,
+  buildBestFriendDigestBody,
   buildGlobalStatsAudience,
   GLOBAL_STATS_TARGET_URL,
   isWebPushSubscriptionEligible,
@@ -22,6 +24,27 @@ function webPushSubscription(overrides: Partial<WebPushSubscriptionRow> = {}): W
     ...overrides,
   };
 }
+
+describe("best-friend activity notifications", () => {
+  it.each([
+    ["purchased", "immediate"],
+    ["sold", "immediate"],
+    ["offered", "daily_digest"],
+    ["listed", "daily_digest"],
+    ["favourited", "none"],
+    ["collection_top_offer", "none"],
+    ["trait_top_offer", "none"],
+  ] as const)("routes %s activity to %s", (eventType, expected) => {
+    expect(bestFriendActivityDelivery(eventType)).toBe(expected);
+  });
+
+  it("summarises offers and listings without naming individual friends", () => {
+    expect(buildBestFriendDigestBody({ friendCount: 3, offerCount: 2, listingCount: 1 }))
+      .toBe("3 friends made 2 offers and 1 listing in the past 24 hours.");
+    expect(buildBestFriendDigestBody({ friendCount: 1, offerCount: 0, listingCount: 2 }))
+      .toBe("A friend made 2 listings in the past 24 hours.");
+  });
+});
 
 describe("global statistics notification audience", () => {
   it.each([
