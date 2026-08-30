@@ -1,5 +1,22 @@
 import { describe, expect, it } from "vitest";
-import { buildProgress } from "./send";
+import {
+  ADMIN_NOTIFICATION_BATCH_LIMIT,
+  buildProgress,
+  selectAdminNotificationBatch,
+} from "./send";
+
+describe("admin notification batching", () => {
+  const recipients = Array.from({ length: 1431 }, (_, index) => index + 1);
+
+  it("caps both manual and automatic audience sends to one resumable request batch", () => {
+    expect(selectAdminNotificationBatch(recipients, "batch")).toHaveLength(ADMIN_NOTIFICATION_BATCH_LIMIT);
+    expect(selectAdminNotificationBatch(recipients, "all")).toHaveLength(ADMIN_NOTIFICATION_BATCH_LIMIT);
+  });
+
+  it("preserves an already validated targeted FID list", () => {
+    expect(selectAdminNotificationBatch(recipients.slice(0, 3), "fids")).toEqual([1, 2, 3]);
+  });
+});
 
 describe("admin multi-channel progress", () => {
   it("counts every selected channel recipient and its persisted delivery state", () => {

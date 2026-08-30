@@ -17,6 +17,7 @@
 
 import { dispatchNotificationBatch } from "../../_lib/dispatch.js";
 import {
+  getBaseNotificationAudience,
   resolveBaseNotificationConfig,
   sendBaseNotificationCampaign,
   type BaseNotificationsEnv,
@@ -104,7 +105,14 @@ interface AttemptInspectRow {
   created_at: string;
 }
 
-const BATCH_LIMIT = 100;
+export const ADMIN_NOTIFICATION_BATCH_LIMIT = 100;
+
+export function selectAdminNotificationBatch<T>(
+  rows: T[],
+  sendMode: "all" | "batch" | "fids",
+): T[] {
+  return sendMode === "fids" ? rows : rows.slice(0, ADMIN_NOTIFICATION_BATCH_LIMIT);
+}
 
 async function resolveWebPushRows(
   db: D1Database,
@@ -541,6 +549,9 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   if (json.sendMode === "fids" && (!requestedFids || requestedFids.length === 0)) {
     return jsonSecure({ error: "FID list mode requires at least one valid FID" }, { status: 400 });
   }
+  if (requestedFids && requestedFids.length > ADMIN_NOTIFICATION_BATCH_LIMIT) {
+    return jsonSecure({ error: `FID list mode supports at most ${ADMIN_NOTIFICATION_BATCH_LIMIT} unique FIDs per request` }, { status: 400 });
+  }
 
   const title = json.title.slice(0, 32);
   const body = json.body.slice(0, 128);
@@ -557,6 +568,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   const sendMode = hasFidList ? "fids" : json.sendMode === "batch" ? "batch" : "all";
   const rows = wantFarcaster ? await resolveTokenRows(context.env.WARPLETS, audienceSlug, requestedFids) : [];
   const webPushRows = wantWebPush ? await resolveWebPushRows(context.env.WARPLETS, audienceSlug, requestedFids) : [];
+  const baseAppSlug = audienceSlug === "all" ? WARPLETS_APP_SLUG : audienceSlug as AppSlug;
   const trackingAppSlug = audienceSlug === "all"
     ? resolveAppSlugFromUrl(new URL(targetUrl))
     : audienceSlug;
@@ -574,6 +586,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
   const resolvedBaseWallets = wantBase
     ? await resolveBaseWallets(context.env.WARPLETS, requestedFids, json.wallets)
+      ?? await getBaseNotificationAudience(context.env, baseAppSlug)
     : undefined;
   const [beforeDispatchRows, beforeChannelDeliveryRows] = await Promise.all([
     getDispatchStatuses(context.env.WARPLETS, notificationId),
@@ -589,15 +602,23 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   });
   const alreadyDispatchedFids = new Set(beforeDispatchRows.map((row) => row.fid));
   const pendingRows = rows.filter((row) => !alreadyDispatchedFids.has(row.fid));
-  const selectedRows = sendMode === "batch" ? pendingRows.slice(0, BATCH_LIMIT) : pendingRows;
+  const selectedRows = selectAdminNotificationBatch(pendingRows, sendMode);
 
   const deliveredWebPushRecipients = wantWebPush
     ? await resolveDeliveredWebPushRecipients(context.env.WARPLETS, notificationId)
     : new Set<string>();
   const pendingWebPushRows = webPushRows.filter((row) => !deliveredWebPushRecipients.has(row.endpoint_hash));
-  const selectedWebPushRows = sendMode === "batch" ? pendingWebPushRows.slice(0, BATCH_LIMIT) : pendingWebPushRows;
+  const selectedWebPushRows = selectAdminNotificationBatch(pendingWebPushRows, sendMode);
 
-  if (selectedRows.length === 0 && selectedWebPushRows.length === 0 && !wantBase) {
+  const existingBaseRecipients = new Set(
+    beforeChannelDeliveryRows
+      .filter((row) => row.channel === "base")
+      .map((row) => row.recipient_key),
+  );
+  const pendingBaseWallets = resolvedBaseWallets?.filter((wallet) => !existingBaseRecipients.has(wallet)) ?? [];
+  const selectedBaseWallets = selectAdminNotificationBatch(pendingBaseWallets, sendMode);
+
+  if (selectedRows.length === 0 && selectedWebPushRows.length === 0 && selectedBaseWallets.length === 0) {
     return jsonSecure({
       total: 0,
       notificationId,
@@ -617,7 +638,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   const results: Array<{ channel: "farcaster" | "base" | "web-push"; fid?: number; wallet?: string; state: string; error?: unknown }> = [];
 
   for (const [notificationUrl, urlRows] of Object.entries(rowsByUrl)) {
-    for (const batchRows of chunk(urlRows, BATCH_LIMIT)) {
+    for (const batchRows of chunk(urlRows, ADMIN_NOTIFICATION_BATCH_LIMIT)) {
       const batchResults = await dispatchNotificationBatch(context.env.WARPLETS, {
         notificationUrl,
         notificationId,
@@ -651,15 +672,14 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     results.push(...batchResults);
   }
 
-  if (wantBase) {
+  if (selectedBaseWallets.length > 0) {
     const target = new URL(targetBase);
-    const baseAppSlug = audienceSlug === "all" ? WARPLETS_APP_SLUG : audienceSlug;
     const appOrigin = new URL(resolveBaseNotificationConfig(context.env, baseAppSlug).appUrl).origin;
     const targetPath = target.origin === appOrigin ? `${target.pathname}${target.search}` : "/";
     const baseResults = await sendBaseNotificationCampaign(context.env, {
       campaignId: notificationId,
       appSlug: baseAppSlug,
-      wallets: resolvedBaseWallets,
+      wallets: selectedBaseWallets,
       title,
       message: body,
       targetPath,
@@ -702,6 +722,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       totalRows: rows.length,
       selectedRows: selectedRows.length,
       selectedWebPushRows: selectedWebPushRows.length,
+      selectedBaseWallets: selectedBaseWallets.length,
       channels,
       sendMode,
       notificationId,

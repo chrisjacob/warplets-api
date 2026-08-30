@@ -198,7 +198,7 @@ export const onRequestGet: PagesFunction = () => {
     <label>Send mode</label>
     <select id="sendMode">
       <option value="batch">One batch at a time (max 100 unsent)</option>
-      <option value="all">All unsent now</option>
+      <option value="all">All unsent (automatic batches)</option>
       <option value="fids">FID list only</option>
     </select>
 
@@ -419,9 +419,11 @@ export const onRequestGet: PagesFunction = () => {
     const contentType = res.headers.get('content-type') || '';
     if (contentType.includes('application/json')) return res.json();
 
-    const text = await res.text();
-    const preview = text.replace(/\\s+/g, ' ').trim().slice(0, 240);
-    throw new Error(\`Expected JSON, got HTTP \${res.status} \${contentType || 'unknown content-type'}: \${preview || 'empty response'}\`);
+    if (res.status === 524) {
+      throw new Error('The send request timed out at Cloudflare. Delivery may still be finishing; progress has been refreshed before any retry.');
+    }
+
+    throw new Error(\`The server returned HTTP \${res.status} instead of JSON (\${contentType || 'unknown content-type'}).\`);
   }
 
   async function loadStats() {
@@ -752,31 +754,52 @@ export const onRequestGet: PagesFunction = () => {
         : sendChannels === 'farcaster-base'
           ? ['farcaster', 'base']
           : [sendChannels];
-    const payload = { title, body, appSlug, sendMode, channels, targetUrl: target, ...(notifId && { notificationId: notifId }), ...(sendMode === 'fids' && fids && { fids }) };
+    const payload = { title, body, appSlug, sendMode: sendMode === 'all' ? 'batch' : sendMode, channels, targetUrl: target, ...(notifId && { notificationId: notifId }), ...(sendMode === 'fids' && fids && { fids }) };
 
     const btn = document.getElementById('sendBtn');
     btn.disabled = true;
     btn.textContent = 'Sending…';
 
     try {
-      const r = await api('/api/notifications/send', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      const data = await readApiJson(r);
-      if (r.ok) {
-        const summary = Object.entries(data.summary || {}).map(([k,v]) => \`\${v} \${k}\`).join(', ');
+      let data = null;
+      let processedTotal = 0;
+      let batchNumber = 0;
+      const combinedSummary = {};
+
+      while (true) {
+        batchNumber += 1;
+        btn.textContent = sendMode === 'all' ? \`Sending batch \${batchNumber}…\` : 'Sending…';
+        const r = await api('/api/notifications/send', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        data = await readApiJson(r);
+        if (!r.ok) throw new Error(data.error || 'Unknown error');
+
+        if (!payload.notificationId && data.notificationId) {
+          payload.notificationId = data.notificationId;
+          document.getElementById('sendId').value = data.notificationId;
+        }
+        processedTotal += Number(data.total || 0);
+        for (const [state, count] of Object.entries(data.summary || {})) {
+          combinedSummary[state] = (combinedSummary[state] || 0) + Number(count || 0);
+        }
         renderSendProgress(data.notificationId, data.progress);
         renderFidDetails(data.fidDetails);
-        const remaining = data.progress?.unsent ?? '?';
-        showStatus(\`Processed \${data.total} unsent token(s): \${summary || 'ok'}. Remaining unsent: \${remaining}\`, true);
-        setTimeout(loadAll, 1500);
-      } else {
-        showStatus(data.error || 'Unknown error', false);
+        const remaining = Number(data.progress?.unsent || 0);
+        if (sendMode !== 'all' || remaining <= 0 || Number(data.total || 0) <= 0) break;
       }
+
+      const summary = Object.entries(combinedSummary).map(([k,v]) => \`\${v} \${k}\`).join(', ');
+      const remaining = data?.progress?.unsent ?? '?';
+      showStatus(\`Processed \${processedTotal} unsent recipient(s): \${summary || 'ok'}. Remaining unsent: \${remaining}\`, true);
+      setTimeout(loadAll, 1500);
     } catch (e) {
-      if (e.message !== 'Unauthorized') showStatus(String(e), false);
+      if (e.message !== 'Unauthorized') {
+        try { await refreshSendProgress(); } catch { /* keep the original send error */ }
+        showStatus(String(e.message || e), false);
+      }
     } finally {
       btn.disabled = false;
       btn.textContent = 'Send notification';

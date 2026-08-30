@@ -4,6 +4,7 @@
 
 :root {
   --splash-bg: #000000;
+  --app-fixed-top-offset: calc(var(--app-visual-viewport-offset-top, 0px) + env(safe-area-inset-top));
 }
 
 body {
@@ -22,10 +23,10 @@ html {
    browser chrome and may retain it after the toast has been dismissed. */
 html::before {
   position: fixed;
-  top: 0;
+  top: var(--app-visual-viewport-offset-top, 0px);
   right: 0;
   left: 0;
-  z-index: 121;
+  z-index: 2401;
   height: env(safe-area-inset-top);
   background: #000000;
   content: "";
@@ -281,7 +282,7 @@ input[type="search"]::-webkit-search-results-decoration {
 
 .trade-toast {
   position: fixed;
-  top: 0;
+  top: var(--app-fixed-top-offset);
   left: 50%;
   z-index: 120;
   box-sizing: border-box;
@@ -1154,7 +1155,7 @@ html[data-entry-point="pwa"] .miniapp-shell__content {
 
 .web-connect-progress-toast {
   position: fixed;
-  top: 0;
+  top: var(--app-fixed-top-offset);
   left: 50%;
   z-index: 2300;
   box-sizing: border-box;
