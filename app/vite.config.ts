@@ -11,6 +11,7 @@ import {
   isWarpletsAppHostname,
 } from "./shared/warpletsApp";
 import { buildFaviconLinks } from "./shared/favicons";
+import { getTwitterCardImageUrl } from "./shared/twitterCardImage";
 
 const TITLE_REGEX = /<title>[\s\S]*?<\/title>/i;
 const DROP_SHARE_TITLE = "🟢 10X Warplets (Private 10K NFT Drop)";
@@ -295,6 +296,7 @@ function buildDropOpenGraphTags(imageUrl: string, pageUrl: string): string {
   const title = escapeHtmlAttr(DROP_SHARE_TITLE);
   const description = escapeHtmlAttr(DROP_SHARE_DESCRIPTION);
   const image = escapeHtmlAttr(imageUrl);
+  const twitterImage = escapeHtmlAttr(getTwitterCardImageUrl(imageUrl));
   const url = escapeHtmlAttr(pageUrl);
   const logo = escapeHtmlAttr(DROP_ICON_URL);
 
@@ -309,7 +311,7 @@ function buildDropOpenGraphTags(imageUrl: string, pageUrl: string): string {
     `<meta name="twitter:card" content="summary_large_image" />`,
     `<meta name="twitter:title" content="${title}" />`,
     `<meta name="twitter:description" content="${description}" />`,
-    `<meta name="twitter:image" content="${image}" />`,
+    `<meta name="twitter:image" content="${twitterImage}" />`,
   ].join("\n    ");
 }
 
@@ -317,6 +319,7 @@ function buildStopOpenGraphTags(pageUrl: string): string {
   const title = escapeHtmlAttr(STOP_SHARE_TITLE);
   const description = escapeHtmlAttr(STOP_SHARE_DESCRIPTION);
   const image = escapeHtmlAttr(STOP_IMAGE_URL);
+  const twitterImage = escapeHtmlAttr(getTwitterCardImageUrl(STOP_IMAGE_URL));
   const url = escapeHtmlAttr(pageUrl);
 
   return [
@@ -329,7 +332,7 @@ function buildStopOpenGraphTags(pageUrl: string): string {
     `<meta name="twitter:card" content="summary_large_image" />`,
     `<meta name="twitter:title" content="${title}" />`,
     `<meta name="twitter:description" content="${description}" />`,
-    `<meta name="twitter:image" content="${image}" />`,
+    `<meta name="twitter:image" content="${twitterImage}" />`,
   ].join("\n    ");
 }
 
@@ -337,6 +340,7 @@ function buildSearchOpenGraphTags(titleText: string, imageUrl: string, pageUrl: 
   const title = escapeHtmlAttr(titleText);
   const description = escapeHtmlAttr("Search, filter, and share 10X Warplets.");
   const image = escapeHtmlAttr(imageUrl);
+  const twitterImage = escapeHtmlAttr(getTwitterCardImageUrl(imageUrl));
   const url = escapeHtmlAttr(pageUrl);
 
   return [
@@ -349,7 +353,7 @@ function buildSearchOpenGraphTags(titleText: string, imageUrl: string, pageUrl: 
     `<meta name="twitter:card" content="summary_large_image" />`,
     `<meta name="twitter:title" content="${title}" />`,
     `<meta name="twitter:description" content="${description}" />`,
-    `<meta name="twitter:image" content="${image}" />`,
+    `<meta name="twitter:image" content="${twitterImage}" />`,
   ].join("\n    ");
 }
 

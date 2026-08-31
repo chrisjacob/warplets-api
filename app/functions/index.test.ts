@@ -77,6 +77,20 @@ describe("10X Warplets Drop metadata", () => {
     expect(manifest.description).toBe("10X Warplets airdropped to 10,000 diamond hands.");
     expect(manifest.ogDescription).toBe("10X Warplets airdropped to 10,000 diamond hands.");
   });
+
+  it("uses a static PNG for Twitter when the Drop Open Graph image is a GIF", async () => {
+    const response = await onRequestGet({
+      request: new Request("https://drop.10x.meme/"),
+      env: { ASSETS: { fetch: vi.fn() } },
+      next: vi.fn(async () => new Response("<!doctype html><html><head><title>10X Warplets</title></head><body></body></html>", {
+        headers: { "content-type": "text/html" },
+      })),
+    } as never);
+
+    const html = await response.text();
+    expect(html).toContain('<meta property="og:image" content="https://warplets.10x.meme/1391.gif" />');
+    expect(html).toContain('<meta name="twitter:image" content="https://warplets.10x.meme/1391.png" />');
+  });
 });
 
 describe("canonical URLs", () => {
@@ -180,6 +194,24 @@ describe("dynamic Stats Open Graph routes", () => {
 });
 
 describe("shared-content Farcaster embeds", () => {
+  it.each([
+    ["https://warplet.10x.meme/?warplet=17", "10X Warplet #17"],
+    ["https://warplet.10x.meme/?first=17&count=42", "17"],
+  ])("uses a static PNG for the Twitter card while retaining the GIF Open Graph image for %s", async (url) => {
+    const response = await onRequestGet({
+      request: new Request(url),
+      env: { ASSETS: { fetch: vi.fn() } },
+      next: vi.fn(async () => new Response("<!doctype html><html><head><title>10X Warplets</title></head><body></body></html>", {
+        headers: { "content-type": "text/html" },
+      })),
+    } as never);
+
+    const html = await response.text();
+    expect(html).toContain('<meta property="og:image" content="https://warplets.10x.meme/17.gif" />');
+    expect(html).toContain('<meta name="twitter:image" content="https://warplets.10x.meme/17.png" />');
+    expect(html).not.toContain('<meta name="twitter:image" content="https://warplets.10x.meme/17.gif" />');
+  });
+
   it.each([
     ["https://warplet.10x.meme/stats/market/30d/floor-price", "View Floor Price"],
     ["https://warplet.10x.meme/stats/activity/7d/offers", "View Activity"],

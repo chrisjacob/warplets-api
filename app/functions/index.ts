@@ -31,6 +31,7 @@ import {
   isWarpletsAppHostname,
 } from "../shared/warpletsApp.js";
 import { APP_FAVICONS, buildFaviconLinks, getHostnameFaviconKey } from "../shared/favicons.js";
+import { getTwitterCardImageUrl } from "../shared/twitterCardImage.js";
 
 type PagesEnv = StatsSharesEnv & {
   ASSETS: Fetcher;
@@ -463,6 +464,7 @@ function buildDropOpenGraphTags(imageUrl: string, pageUrl: string): string {
   const title = escapeHtmlAttr(DROP_SHARE_TITLE);
   const description = escapeHtmlAttr(DROP_SHARE_DESCRIPTION);
   const image = escapeHtmlAttr(imageUrl);
+  const twitterImage = escapeHtmlAttr(getTwitterCardImageUrl(imageUrl));
   const url = escapeHtmlAttr(pageUrl);
   const logo = escapeHtmlAttr(DROP_ICON_URL);
 
@@ -477,7 +479,7 @@ function buildDropOpenGraphTags(imageUrl: string, pageUrl: string): string {
     `<meta name="twitter:card" content="summary_large_image" />`,
     `<meta name="twitter:title" content="${title}" />`,
     `<meta name="twitter:description" content="${description}" />`,
-    `<meta name="twitter:image" content="${image}" />`,
+    `<meta name="twitter:image" content="${twitterImage}" />`,
   ].join("\n  ");
 }
 
@@ -485,6 +487,7 @@ function buildAppOpenGraphTags(pageUrl: string): string {
   const title = escapeHtmlAttr(APP_SHARE_TITLE);
   const description = escapeHtmlAttr(APP_SHARE_DESCRIPTION);
   const image = escapeHtmlAttr("https://app.10x.meme/embed.png");
+  const twitterImage = escapeHtmlAttr(getTwitterCardImageUrl("https://app.10x.meme/embed.png"));
   const url = escapeHtmlAttr(pageUrl);
 
   return [
@@ -498,7 +501,7 @@ function buildAppOpenGraphTags(pageUrl: string): string {
     `<meta name="twitter:card" content="summary_large_image" />`,
     `<meta name="twitter:title" content="${title}" />`,
     `<meta name="twitter:description" content="${description}" />`,
-    `<meta name="twitter:image" content="${image}" />`,
+    `<meta name="twitter:image" content="${twitterImage}" />`,
   ].join("\n  ");
 }
 
@@ -506,6 +509,7 @@ function buildStopOpenGraphTags(pageUrl: string): string {
   const title = escapeHtmlAttr(STOP_SHARE_TITLE);
   const description = escapeHtmlAttr(STOP_SHARE_DESCRIPTION);
   const image = escapeHtmlAttr(STOP_IMAGE_URL);
+  const twitterImage = escapeHtmlAttr(getTwitterCardImageUrl(STOP_IMAGE_URL));
   const url = escapeHtmlAttr(pageUrl);
 
   return [
@@ -518,7 +522,7 @@ function buildStopOpenGraphTags(pageUrl: string): string {
     `<meta name="twitter:card" content="summary_large_image" />`,
     `<meta name="twitter:title" content="${title}" />`,
     `<meta name="twitter:description" content="${description}" />`,
-    `<meta name="twitter:image" content="${image}" />`,
+    `<meta name="twitter:image" content="${twitterImage}" />`,
   ].join("\n  ");
 }
 
@@ -526,6 +530,7 @@ function buildSearchOpenGraphTags(titleText: string, imageUrl: string, pageUrl: 
   const title = escapeHtmlAttr(titleText);
   const description = escapeHtmlAttr("Search, filter, and share 10X Warplets.");
   const image = escapeHtmlAttr(imageUrl);
+  const twitterImage = escapeHtmlAttr(getTwitterCardImageUrl(imageUrl));
   const url = escapeHtmlAttr(pageUrl);
 
   return [
@@ -538,7 +543,7 @@ function buildSearchOpenGraphTags(titleText: string, imageUrl: string, pageUrl: 
     `<meta name="twitter:card" content="summary_large_image" />`,
     `<meta name="twitter:title" content="${title}" />`,
     `<meta name="twitter:description" content="${description}" />`,
-    `<meta name="twitter:image" content="${image}" />`,
+    `<meta name="twitter:image" content="${twitterImage}" />`,
   ].join("\n  ");
 }
 
@@ -546,6 +551,7 @@ function buildStatsShareOpenGraphTags(titleText: string, descriptionText: string
   const title = escapeHtmlAttr(titleText);
   const description = escapeHtmlAttr(descriptionText);
   const image = escapeHtmlAttr(imageUrl);
+  const twitterImage = escapeHtmlAttr(getTwitterCardImageUrl(imageUrl));
   const url = escapeHtmlAttr(pageUrl);
   return [
     `<meta property="og:title" content="${title}" />`,
@@ -559,7 +565,7 @@ function buildStatsShareOpenGraphTags(titleText: string, descriptionText: string
     `<meta name="twitter:card" content="summary_large_image" />`,
     `<meta name="twitter:title" content="${title}" />`,
     `<meta name="twitter:description" content="${description}" />`,
-    `<meta name="twitter:image" content="${image}" />`,
+    `<meta name="twitter:image" content="${twitterImage}" />`,
   ].join("\n  ");
 }
 
@@ -907,7 +913,11 @@ export const onRequestGet: PagesFunction<PagesEnv> = async (context) => {
       : html.replace("</head>", `  ${titleTag}\n  </head>`);
     html = html.replace(
       "</head>",
-      `  ${buildSearchOpenGraphTags(routeTitle, routeShareImageUrl, requestUrl.href)}\n  </head>`,
+      `  ${buildSearchOpenGraphTags(
+        routeTitle,
+        routeShareImageUrl,
+        requestUrl.href,
+      )}\n  </head>`,
     );
   }
 
