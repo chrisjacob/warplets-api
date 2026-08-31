@@ -82,6 +82,8 @@ import {
   SEARCH_RESULT_RENDER_WINDOW_SIZE,
   clampSearchResultWindowStart,
   getSearchResultLayoutColumnCount,
+  getSearchResultLayoutCorners,
+  type SearchResultLayoutCorners,
 } from "./searchResultWindow";
 import {
   formatStatsFriendFilterLabel,
@@ -8784,6 +8786,7 @@ type SearchLayoutCardProps = {
   isFirst?: boolean;
   isLast?: boolean;
   windowIndex?: number;
+  layoutCorners?: SearchResultLayoutCorners;
 };
 
 function openResultCardFromKeyboard(event: ReactKeyboardEvent, onOpen: () => void) {
@@ -8793,8 +8796,14 @@ function openResultCardFromKeyboard(event: ReactKeyboardEvent, onOpen: () => voi
   onOpen();
 }
 
-function SearchHeroLayoutCard({ warplet, onOpen, isFavourited, onToggleFavourite, windowIndex }: SearchLayoutCardProps) {
+function SearchHeroLayoutCard({ warplet, onOpen, isFavourited, onToggleFavourite, windowIndex, layoutCorners }: SearchLayoutCardProps) {
   const loading = (windowIndex ?? 0) < 4 ? "eager" : "lazy";
+  const cornerClassName = [
+    layoutCorners?.topLeft ? "rounded-tl-xl" : "",
+    layoutCorners?.topRight ? "rounded-tr-xl" : "",
+    layoutCorners?.bottomLeft ? "rounded-bl-xl" : "",
+    layoutCorners?.bottomRight ? "rounded-br-xl" : "",
+  ].filter(Boolean).join(" ");
   return (
     <div
       role="button"
@@ -8802,7 +8811,7 @@ function SearchHeroLayoutCard({ warplet, onOpen, isFavourited, onToggleFavourite
       aria-label={`Open 10X Warplet #${warplet.id}`}
       onClick={() => onOpen(warplet.id)}
       onKeyDown={(event) => openResultCardFromKeyboard(event, () => onOpen(warplet.id))}
-      className="group relative aspect-square min-w-0 cursor-pointer overflow-hidden bg-[rgba(0,255,0,0.12)] outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#00FF00]"
+      className={`group relative aspect-square min-w-0 cursor-pointer overflow-hidden bg-[rgba(0,255,0,0.12)] outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#00FF00] ${cornerClassName}`}
     >
       <ProgressiveWarpletImage tokenId={warplet.id} alt="" loading={loading} className="h-full w-full" />
       <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/85 to-transparent" />
@@ -8824,14 +8833,20 @@ function SearchHeroLayoutCard({ warplet, onOpen, isFavourited, onToggleFavourite
   );
 }
 
-function SearchGridLayoutCard({ warplet, onOpen, windowIndex }: SearchLayoutCardProps) {
+function SearchGridLayoutCard({ warplet, onOpen, windowIndex, layoutCorners }: SearchLayoutCardProps) {
   const loading = (windowIndex ?? 0) < 8 ? "eager" : "lazy";
+  const cornerClassName = [
+    layoutCorners?.topLeft ? "rounded-tl-xl" : "",
+    layoutCorners?.topRight ? "rounded-tr-xl" : "",
+    layoutCorners?.bottomLeft ? "rounded-bl-xl" : "",
+    layoutCorners?.bottomRight ? "rounded-br-xl" : "",
+  ].filter(Boolean).join(" ");
   return (
     <button
       type="button"
       aria-label={`Open 10X Warplet #${warplet.id}`}
       onClick={() => onOpen(warplet.id)}
-      className="block aspect-square w-full min-w-0 cursor-pointer overflow-hidden bg-[rgba(0,255,0,0.12)] outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#00FF00]"
+      className={`block aspect-square w-full min-w-0 cursor-pointer overflow-hidden bg-[rgba(0,255,0,0.12)] outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#00FF00] ${cornerClassName}`}
     >
       <ProgressiveWarpletImage tokenId={warplet.id} alt="" loading={loading} className="h-full w-full" />
     </button>
@@ -8868,7 +8883,7 @@ function SearchCompactLayoutRow({ warplet, onOpen, isFavourited, onToggleFavouri
   const edgeClassName = [
     isFirst ? "border-t border-[#00FF00]/15 rounded-t-xl" : "",
     isLast ? "rounded-b-xl" : "",
-    isFirst || isLast ? "overflow-hidden" : "",
+    isFirst ? "overflow-hidden" : "",
   ].filter(Boolean).join(" ");
 
   return (
@@ -8879,7 +8894,7 @@ function SearchCompactLayoutRow({ warplet, onOpen, isFavourited, onToggleFavouri
       onKeyDown={(event) => openResultCardFromKeyboard(event, () => onOpen(warplet.id))}
       className={`grid min-h-[69px] w-full cursor-pointer grid-cols-[69px_48px_minmax(0,1fr)_48px] items-stretch bg-[#041204]/65 text-left outline-none hover:bg-[#071807] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#00FF00] ${edgeClassName}`}
     >
-      <ProgressiveWarpletImage tokenId={warplet.id} alt="" loading="lazy" className="relative z-10 -mt-px aspect-square h-[70px] w-[70px] max-w-none bg-[rgba(0,255,0,0.12)]" />
+      <ProgressiveWarpletImage tokenId={warplet.id} alt="" loading="lazy" className={`relative z-10 -mt-px aspect-square h-[70px] w-[70px] max-w-none bg-[rgba(0,255,0,0.12)] ${isLast ? "rounded-bl-xl" : ""}`} />
       <span className="flex min-w-0 items-center justify-center border-b border-[#00FF00]/15 px-1 text-[11px] font-black text-[#00FF00]">#{warplet.id}</span>
       <CompactAttributePreview row={warplet.levelValues as Record<string, unknown>} className="min-w-0 rounded-none border-b border-l border-[#00FF00]/10" />
       <div className={`min-w-0 border-b border-l border-r border-[#00FF00]/10 ${isFirst ? "rounded-tr-xl" : ""} ${isLast ? "rounded-br-xl" : ""}`}>
@@ -19468,6 +19483,11 @@ export default function SearchApp() {
                           isFirst={resultIndex === 0}
                           isLast={resultIndex === allDisplayedResults.length - 1}
                           windowIndex={index}
+                          layoutCorners={getSearchResultLayoutCorners(
+                            resultIndex,
+                            allDisplayedResults.length,
+                            searchResultColumnCount,
+                          )}
                           labelOverride={shouldPrependMatchedWarplet && resultIndex === 0 ? matchedWarpletCard?.label : undefined}
                         />
                       </div>

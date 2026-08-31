@@ -4,6 +4,7 @@ import {
   alignSearchResultWindowStart,
   clampSearchResultWindowStart,
   getSearchResultLayoutColumnCount,
+  getSearchResultLayoutCorners,
 } from "./searchResultWindow";
 
 describe("search result render window", () => {
@@ -32,5 +33,23 @@ describe("search result render window", () => {
     const start = clampSearchResultWindowStart(10_000, 701, 4);
     expect(start).toBe(504);
     expect(701 - start).toBeLessThanOrEqual(SEARCH_RESULT_RENDER_WINDOW_SIZE);
+  });
+
+  it("identifies the outer corners of complete and incomplete grids", () => {
+    expect(getSearchResultLayoutCorners(0, 10, 4)).toEqual({
+      topLeft: true,
+      topRight: false,
+      bottomLeft: false,
+      bottomRight: false,
+    });
+    expect(getSearchResultLayoutCorners(3, 10, 4).topRight).toBe(true);
+    expect(getSearchResultLayoutCorners(8, 10, 4).bottomLeft).toBe(true);
+    expect(getSearchResultLayoutCorners(9, 10, 4).bottomRight).toBe(true);
+    expect(getSearchResultLayoutCorners(0, 1, 4)).toEqual({
+      topLeft: true,
+      topRight: true,
+      bottomLeft: true,
+      bottomRight: true,
+    });
   });
 });

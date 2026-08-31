@@ -18,3 +18,25 @@ export function clampSearchResultWindowStart(index: number, resultCount: number,
   const maximumStart = Math.ceil((resultCount - SEARCH_RESULT_RENDER_WINDOW_SIZE) / columnCount) * columnCount;
   return Math.min(alignSearchResultWindowStart(index, columnCount), maximumStart);
 }
+
+export type SearchResultLayoutCorners = {
+  topLeft: boolean;
+  topRight: boolean;
+  bottomLeft: boolean;
+  bottomRight: boolean;
+};
+
+export function getSearchResultLayoutCorners(
+  index: number,
+  resultCount: number,
+  columnCount: number,
+): SearchResultLayoutCorners {
+  const lastIndex = resultCount - 1;
+  const lastRowStart = Math.floor(Math.max(0, lastIndex) / columnCount) * columnCount;
+  return {
+    topLeft: resultCount > 0 && index === 0,
+    topRight: resultCount > 0 && index === Math.min(columnCount, resultCount) - 1,
+    bottomLeft: resultCount > 0 && index === lastRowStart,
+    bottomRight: resultCount > 0 && index === lastIndex,
+  };
+}
