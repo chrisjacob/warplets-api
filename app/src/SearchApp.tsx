@@ -1,4 +1,4 @@
-import { CSSProperties, Component, Fragment, MouseEvent, PointerEvent as ReactPointerEvent, ReactNode, Suspense, cloneElement, isValidElement, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { CSSProperties, Component, Fragment, KeyboardEvent as ReactKeyboardEvent, MouseEvent, PointerEvent as ReactPointerEvent, ReactNode, Suspense, cloneElement, isValidElement, lazy, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import confetti from "canvas-confetti";
 import {
@@ -69,6 +69,20 @@ import {
 } from "./surfaceAdapter";
 import { buildSharePostText, buildTwitterShareText } from "./shareCopy";
 import { getNotificationPromptConfirmLabel, getNotificationPromptText } from "./notificationPromptCopy";
+import { resolveActiveFavouriteWallet } from "./favouriteWallet";
+import {
+  SEARCH_RESULT_LAYOUT_LABELS,
+  getNextSearchResultLayout,
+  readSearchResultLayout,
+  writeSearchResultLayout,
+  type SearchResultLayout,
+} from "./searchResultLayout";
+import {
+  SEARCH_RESULT_RENDER_WINDOW_SHIFT,
+  SEARCH_RESULT_RENDER_WINDOW_SIZE,
+  clampSearchResultWindowStart,
+  getSearchResultLayoutColumnCount,
+} from "./searchResultWindow";
 import {
   formatStatsFriendFilterLabel,
   getStatsFriendFilterFid,
@@ -120,6 +134,22 @@ import {
 const DB_URL = "/db/warplets.v1.fts.sqlite.br";
 const PAGE_SIZE = 20;
 const SEARCH_RESULT_PAGE_SIZE = 100;
+const FULL_QUALITY_IMAGE_MAX_RETRIES = 2;
+const FULL_QUALITY_IMAGE_RETRY_DELAY_MS = 350;
+// Temporarily disabled for UX testing; retain the matching flow for easy restoration.
+const SHOW_MATCHED_WARPLET_CARD = false;
+
+function getSearchResultFallbackRowPitch(layout: SearchResultLayout): number {
+  const shellWidth = typeof window === "undefined" ? 448 : Math.min(window.innerWidth, 448);
+  const contentWidth = Math.max(1, shellWidth - 32);
+  if (layout === "hero") return shellWidth / 2;
+  if (layout === "grid") return shellWidth / 4;
+  if (layout === "compact") return 69;
+  if (layout === "slides") return shellWidth;
+  if (layout === "listing") return (contentWidth / 2) - 6 + 14;
+  if (layout === "full") return 634;
+  return ((contentWidth - 12) / 2) + 88;
+}
 const DB_FILENAME = "/warplets-search.sqlite3";
 const DATABASE_LOADING_PREFIX = "Loading: ";
 const DATABASE_LOADING_MESSAGE_SUFFIXES = [
@@ -2459,6 +2489,32 @@ function formatMarketTimestamp(value: string | null | undefined): string {
   }).format(new Date(ms));
 }
 
+function formatMarketTooltipTimestamp(value: string | null | undefined): string {
+  if (!value) return "Date unavailable";
+  const ms = Date.parse(value);
+  if (!Number.isFinite(ms)) return value;
+  const parts = new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  }).formatToParts(new Date(ms));
+  const part = (type: Intl.DateTimeFormatPartTypes) => parts.find((item) => item.type === type)?.value ?? "";
+  return `${part("month")} ${part("day")} at ${part("hour")}:${part("minute")}${part("dayPeriod")}`;
+}
+
+function formatMarketTooltipUsd(value: MarketMoney | null | undefined, ethUsdPrice: number | null | undefined): string {
+  const amount = marketMoneyToDecimal(value);
+  if (amount == null || ethUsdPrice == null) return "USD loading...";
+  return (amount * ethUsdPrice).toLocaleString("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  });
+}
+
 function getOfferSourceLabel(offer: TokenMarketState["offer"] | null | undefined): string {
   if (offer?.source === "trait") return "Trait Offer";
   if (offer?.source === "collection") return "Collection Offer";
@@ -3030,6 +3086,7 @@ function MarketValuePanel({
   money,
   emptyValue,
   tooltipPrefix,
+  ethUsdPrice,
   showTooltip = true,
   className,
   style,
@@ -3039,6 +3096,7 @@ function MarketValuePanel({
   money: MarketMoney | null | undefined;
   emptyValue: string;
   tooltipPrefix?: string;
+  ethUsdPrice?: number | null;
   showTooltip?: boolean;
   className: string;
   style?: CSSProperties;
@@ -3047,8 +3105,9 @@ function MarketValuePanel({
   const styles = getMarketKindStyles(kind);
   const hasValue = hasMarketValue(money);
   const value = hasValue ? formatMarketValue(money, { maxDigits: 8 }) : emptyValue;
-  const timestamp = hasValue && money?.at ? formatMarketTimestamp(money.at) : label;
-  const tooltip = hasValue && tooltipPrefix ? `${tooltipPrefix} ${timestamp}` : timestamp;
+  const timestamp = hasValue ? formatMarketTooltipTimestamp(money?.at) : label;
+  const datedValue = tooltipPrefix ? `${tooltipPrefix} ${timestamp}` : timestamp;
+  const tooltip = hasValue ? `${formatMarketTooltipUsd(money, ethUsdPrice)} - ${datedValue}` : label;
   const tooltipEnabled = showTooltip && hasValue;
   const { refs, floatingStyles, context } = useFloating({
     open: isOpen,
@@ -3069,7 +3128,10 @@ function MarketValuePanel({
         {...getReferenceProps({
           tabIndex: tooltipEnabled ? 0 : undefined,
           "aria-label": tooltipEnabled ? `${label}: ${tooltip}` : undefined,
-          onClick: tooltipEnabled ? () => setIsOpen((current) => !current) : undefined,
+          onClick: tooltipEnabled ? (event) => {
+            event.stopPropagation();
+            setIsOpen((current) => !current);
+          } : undefined,
           className: `${tooltipEnabled ? "cursor-help" : ""} ${className}`,
           style: { ...style, backgroundColor: style?.backgroundColor ?? styles.backgroundColor },
         })}
@@ -3117,15 +3179,17 @@ function CompactAttributePreview({
   row,
   onLevelFilter,
   revealedAttributeCount,
+  className = "rounded-t-xl",
 }: {
   row: Record<string, unknown>;
   onLevelFilter?: (attribute: LevelAttributeColumn, level: number) => void;
   revealedAttributeCount?: number;
+  className?: string;
 }) {
   const isRevealAnimated = typeof revealedAttributeCount === "number";
 
   return (
-    <div className="overflow-hidden rounded-t-xl bg-[#041204]/60">
+    <div className={`overflow-hidden bg-[#041204]/60 ${className}`}>
       <div className="grid grid-cols-10 border-b border-[#00FF00]/15">
         {ATTRIBUTE_LEVEL_SUMMARY.map((group, index) => {
           const isVisible = !isRevealAnimated || index < revealedAttributeCount;
@@ -8527,11 +8591,39 @@ function ProgressiveWarpletImage({
 }) {
   const [isPreviewLoaded, setIsPreviewLoaded] = useState(false);
   const [isFullQualityLoaded, setIsFullQualityLoaded] = useState(false);
+  const [fullQualityRetryAttempt, setFullQualityRetryAttempt] = useState(0);
+  const previewImageRef = useRef<HTMLImageElement | null>(null);
+  const fullQualityImageRef = useRef<HTMLImageElement | null>(null);
+  const fullQualityRetryTimerRef = useRef<number | null>(null);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     setIsPreviewLoaded(false);
     setIsFullQualityLoaded(false);
+    setFullQualityRetryAttempt(0);
+    if (fullQualityRetryTimerRef.current !== null) {
+      window.clearTimeout(fullQualityRetryTimerRef.current);
+      fullQualityRetryTimerRef.current = null;
+    }
+    return () => {
+      if (fullQualityRetryTimerRef.current !== null) {
+        window.clearTimeout(fullQualityRetryTimerRef.current);
+        fullQualityRetryTimerRef.current = null;
+      }
+    };
   }, [tokenId]);
+
+  useLayoutEffect(() => {
+    if (previewImageRef.current?.complete) setIsPreviewLoaded(true);
+  }, [tokenId]);
+
+  useLayoutEffect(() => {
+    const image = fullQualityImageRef.current;
+    if (image?.complete && image.naturalWidth > 0) setIsFullQualityLoaded(true);
+  }, [fullQualityRetryAttempt, isPreviewLoaded, tokenId]);
+
+  const fullQualityImageUrl = fullQualityRetryAttempt === 0
+    ? getWarpletImageUrl(tokenId)
+    : `${getWarpletImageUrl(tokenId)}?retry=${fullQualityRetryAttempt}`;
 
   return (
     <span className={`relative block overflow-hidden ${className}`}>
@@ -8541,6 +8633,7 @@ function ProgressiveWarpletImage({
         </span>
       )}
       <img
+        ref={previewImageRef}
         src={getWarpletPreviewImageUrl(tokenId)}
         alt={alt}
         loading={loading}
@@ -8550,11 +8643,26 @@ function ProgressiveWarpletImage({
       />
       {isPreviewLoaded && (
         <img
-          src={getWarpletImageUrl(tokenId)}
+          ref={fullQualityImageRef}
+          src={fullQualityImageUrl}
           alt=""
           aria-hidden="true"
-          loading="eager"
-          onLoad={() => setIsFullQualityLoaded(true)}
+          loading={loading}
+          onLoad={() => {
+            if (fullQualityRetryTimerRef.current !== null) {
+              window.clearTimeout(fullQualityRetryTimerRef.current);
+              fullQualityRetryTimerRef.current = null;
+            }
+            setIsFullQualityLoaded(true);
+          }}
+          onError={() => {
+            setIsFullQualityLoaded(false);
+            if (fullQualityRetryAttempt >= FULL_QUALITY_IMAGE_MAX_RETRIES || fullQualityRetryTimerRef.current !== null) return;
+            fullQualityRetryTimerRef.current = window.setTimeout(() => {
+              fullQualityRetryTimerRef.current = null;
+              setFullQualityRetryAttempt((current) => Math.min(FULL_QUALITY_IMAGE_MAX_RETRIES, current + 1));
+            }, FULL_QUALITY_IMAGE_RETRY_DELAY_MS * (fullQualityRetryAttempt + 1));
+          }}
           className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-700 ease-out ${isFullQualityLoaded ? "opacity-100" : "opacity-0"} ${imageClassName}`}
         />
       )}
@@ -8663,6 +8771,227 @@ function WarpletCard({
       </span>
     </div>
   );
+}
+
+type SearchLayoutCardProps = {
+  warplet: WarpletResult;
+  onOpen: (tokenId: number) => void;
+  isFavourited: boolean;
+  onToggleFavourite: (tokenId: number) => void;
+  labelOverride?: string;
+  market?: TokenMarketState;
+  ethUsdPrice?: number | null;
+  isFirst?: boolean;
+  isLast?: boolean;
+  windowIndex?: number;
+};
+
+function openResultCardFromKeyboard(event: ReactKeyboardEvent, onOpen: () => void) {
+  if (event.target !== event.currentTarget) return;
+  if (event.key !== "Enter" && event.key !== " ") return;
+  event.preventDefault();
+  onOpen();
+}
+
+function SearchHeroLayoutCard({ warplet, onOpen, isFavourited, onToggleFavourite, windowIndex }: SearchLayoutCardProps) {
+  const loading = (windowIndex ?? 0) < 4 ? "eager" : "lazy";
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      aria-label={`Open 10X Warplet #${warplet.id}`}
+      onClick={() => onOpen(warplet.id)}
+      onKeyDown={(event) => openResultCardFromKeyboard(event, () => onOpen(warplet.id))}
+      className="group relative aspect-square min-w-0 cursor-pointer overflow-hidden bg-[rgba(0,255,0,0.12)] outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#00FF00]"
+    >
+      <ProgressiveWarpletImage tokenId={warplet.id} alt="" loading={loading} className="h-full w-full" />
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/85 to-transparent" />
+      <span className="pointer-events-none absolute bottom-2 left-2 text-sm font-black text-white opacity-50 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
+        #{warplet.id}
+      </span>
+      <FavouriteButton
+        active={isFavourited}
+        title={isFavourited ? `Remove 10X Warplet #${warplet.id} from favourites` : `Add 10X Warplet #${warplet.id} to favourites`}
+        variant="modal"
+        className="absolute bottom-1 right-1 !border-0 !bg-transparent !text-white opacity-50 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] hover:!bg-transparent"
+        onClick={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          onToggleFavourite(warplet.id);
+        }}
+      />
+    </div>
+  );
+}
+
+function SearchGridLayoutCard({ warplet, onOpen, windowIndex }: SearchLayoutCardProps) {
+  const loading = (windowIndex ?? 0) < 8 ? "eager" : "lazy";
+  return (
+    <button
+      type="button"
+      aria-label={`Open 10X Warplet #${warplet.id}`}
+      onClick={() => onOpen(warplet.id)}
+      className="block aspect-square w-full min-w-0 cursor-pointer overflow-hidden bg-[rgba(0,255,0,0.12)] outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#00FF00]"
+    >
+      <ProgressiveWarpletImage tokenId={warplet.id} alt="" loading={loading} className="h-full w-full" />
+    </button>
+  );
+}
+
+function SearchSlidesLayoutCard({ warplet, onOpen, isFirst, isLast }: SearchLayoutCardProps) {
+  const edgeClassName = isFirst && isLast
+    ? "rounded-xl"
+    : isFirst
+      ? "rounded-t-xl"
+      : isLast
+        ? "rounded-b-xl"
+        : "";
+
+  return (
+    <button
+      type="button"
+      aria-label={`Open 10X Warplet #${warplet.id}`}
+      onClick={() => onOpen(warplet.id)}
+      className={`block aspect-square w-full cursor-pointer overflow-hidden border-0 bg-[rgba(0,255,0,0.12)] p-0 outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#00FF00] ${edgeClassName}`}
+    >
+      <ProgressiveWarpletImage
+        tokenId={warplet.id}
+        alt=""
+        loading={isFirst ? "eager" : "lazy"}
+        className="h-full w-full"
+      />
+    </button>
+  );
+}
+
+function SearchCompactLayoutRow({ warplet, onOpen, isFavourited, onToggleFavourite, isFirst, isLast }: SearchLayoutCardProps) {
+  const edgeClassName = [
+    isFirst ? "border-t border-[#00FF00]/15 rounded-t-xl" : "",
+    isLast ? "rounded-b-xl" : "",
+    isFirst || isLast ? "overflow-hidden" : "",
+  ].filter(Boolean).join(" ");
+
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={() => onOpen(warplet.id)}
+      onKeyDown={(event) => openResultCardFromKeyboard(event, () => onOpen(warplet.id))}
+      className={`grid min-h-[69px] w-full cursor-pointer grid-cols-[69px_48px_minmax(0,1fr)_48px] items-stretch bg-[#041204]/65 text-left outline-none hover:bg-[#071807] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#00FF00] ${edgeClassName}`}
+    >
+      <ProgressiveWarpletImage tokenId={warplet.id} alt="" loading="lazy" className="relative z-10 -mt-px aspect-square h-[70px] w-[70px] max-w-none bg-[rgba(0,255,0,0.12)]" />
+      <span className="flex min-w-0 items-center justify-center border-b border-[#00FF00]/15 px-1 text-[11px] font-black text-[#00FF00]">#{warplet.id}</span>
+      <CompactAttributePreview row={warplet.levelValues as Record<string, unknown>} className="min-w-0 rounded-none border-b border-l border-[#00FF00]/10" />
+      <div className={`min-w-0 border-b border-l border-r border-[#00FF00]/10 ${isFirst ? "rounded-tr-xl" : ""} ${isLast ? "rounded-br-xl" : ""}`}>
+        <FavouriteButton
+          active={isFavourited}
+          title={isFavourited ? `Remove 10X Warplet #${warplet.id} from favourites` : `Add 10X Warplet #${warplet.id} to favourites`}
+          className="!h-full !w-full"
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            onToggleFavourite(warplet.id);
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function SearchListingLayoutCard({ warplet, onOpen, isFavourited, onToggleFavourite, labelOverride, market }: SearchLayoutCardProps) {
+  return (
+    <div
+      style={{ contentVisibility: "auto", containIntrinsicSize: "190px" }}
+      role="button"
+      tabIndex={0}
+      onClick={() => onOpen(warplet.id)}
+      onKeyDown={(event) => openResultCardFromKeyboard(event, () => onOpen(warplet.id))}
+      className="group grid w-full cursor-pointer grid-cols-[calc(50%_-_6px)_minmax(0,1fr)] overflow-hidden rounded-[10px] border border-[#00FF00]/25 bg-[#041204]/90 text-left transition hover:-translate-y-px hover:border-2 hover:border-[#00FF00] hover:bg-[#071807]/95 hover:shadow-[0_0_16px_rgba(0,255,0,0.55)]"
+    >
+      <ProgressiveWarpletImage tokenId={warplet.id} alt="" loading="lazy" className="aspect-square w-full self-start bg-[rgba(0,255,0,0.12)]" />
+      <div className="flex min-w-0 flex-col">
+        <div className="flex h-[34px] min-w-0 items-center border-b border-[#00FF00]/20 bg-black pl-2 text-[0.75rem] font-bold">
+          <span className="block min-w-0 flex-1 truncate pr-1">
+            {labelOverride ? (
+              <span className="text-[#00FF00]">{labelOverride}</span>
+            ) : (
+              <>
+                <span className="text-[#00FF00]">#{warplet.id}</span>
+                {warplet.farcasterUsername && <span className="text-[#8bbf8b]"> @{warplet.farcasterUsername}</span>}
+              </>
+            )}
+          </span>
+          <FavouriteButton
+            active={isFavourited}
+            title={isFavourited ? `Remove 10X Warplet #${warplet.id} from favourites` : `Add 10X Warplet #${warplet.id} to favourites`}
+            variant="card"
+            className="!text-[#00FF00]"
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              onToggleFavourite(warplet.id);
+            }}
+          />
+        </div>
+        <div className="grid min-w-0 flex-1 grid-cols-[minmax(0,13fr)_minmax(0,12fr)] gap-1 p-1.5">
+          <ListedAttributePreview warplet={warplet} />
+          <div className="grid min-h-0 min-w-0 grid-rows-3 gap-[7px]">
+            <ListedMarketPanel kind="price" label="Price" money={market?.listing} emptyValue="Not listed" />
+            <ListedMarketPanel kind="offer" label="Top Offer" money={market?.offer} emptyValue="No offers" />
+            <ListedMarketPanel kind="sold" label="Latest Sale" money={market?.sale} emptyValue="No sales" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SearchFullLayoutCard({ warplet, onOpen, isFavourited, onToggleFavourite, market, ethUsdPrice }: SearchLayoutCardProps) {
+  const row = warplet.levelValues as Record<string, unknown>;
+  return (
+    <div
+      style={{ contentVisibility: "auto", containIntrinsicSize: "620px" }}
+      role="button"
+      tabIndex={0}
+      onClick={() => onOpen(warplet.id)}
+      onKeyDown={(event) => openResultCardFromKeyboard(event, () => onOpen(warplet.id))}
+      className="w-full cursor-pointer overflow-hidden rounded-2xl border border-[#00FF00]/35 bg-black text-left outline-none transition hover:border-[#00FF00] hover:shadow-[0_0_16px_rgba(0,255,0,0.35)] focus-visible:ring-2 focus-visible:ring-[#00FF00]"
+    >
+      <div className="flex h-12 min-w-0 items-center gap-2 border-b border-[#00FF00]/20 bg-black px-4">
+        <span className="min-w-0 flex-1 truncate text-base font-bold text-[#00FF00]">
+          #{warplet.id}{warplet.farcasterUsername && <span className="text-[#8bbf8b]"> @{warplet.farcasterUsername}</span>}
+        </span>
+        <FavouriteButton
+          active={isFavourited}
+          title={isFavourited ? `Remove 10X Warplet #${warplet.id} from favourites` : `Add 10X Warplet #${warplet.id} to favourites`}
+          variant="modal"
+          className="!h-8 !w-8"
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            onToggleFavourite(warplet.id);
+          }}
+        />
+      </div>
+      <CompactAttributePreview row={row} />
+      <ProgressiveWarpletImage tokenId={warplet.id} alt="" loading="lazy" className="aspect-square w-full bg-[rgba(0,255,0,0.12)]" />
+      <div className="grid grid-cols-3 overflow-hidden">
+        <MarketValuePanel kind="price" label="Price" money={market?.listing} emptyValue="Not listed" ethUsdPrice={ethUsdPrice} className="min-w-0 px-2 pb-2.5 pt-2" />
+        <MarketValuePanel kind="offer" label="Top Offer" money={market?.offer} emptyValue="No offers" tooltipPrefix={getOfferSourceLabel(market?.offer)} ethUsdPrice={ethUsdPrice} className="min-w-0 px-2 pb-2.5 pt-2" />
+        <MarketValuePanel kind="sold" label="Latest Sale" money={market?.sale} emptyValue="No sales" ethUsdPrice={ethUsdPrice} className="min-w-0 px-2 pb-2.5 pt-2" />
+      </div>
+    </div>
+  );
+}
+
+function SearchResultLayoutItem({ layout, ...props }: SearchLayoutCardProps & { layout: SearchResultLayout }) {
+  if (layout === "hero") return <SearchHeroLayoutCard {...props} />;
+  if (layout === "grid") return <SearchGridLayoutCard {...props} />;
+  if (layout === "compact") return <SearchCompactLayoutRow {...props} />;
+  if (layout === "listing") return <SearchListingLayoutCard {...props} />;
+  if (layout === "full") return <SearchFullLayoutCard {...props} />;
+  if (layout === "slides") return <SearchSlidesLayoutCard {...props} />;
+  return <WarpletCard {...props} />;
 }
 
 type ListedWarpletRow = {
@@ -13503,7 +13832,6 @@ function WarpletDetailsModal({
   }, [tradeMode]);
 
   useEffect(() => {
-    if (tradeMode === "idle") return;
     if (ethUsdPrice != null && Date.now() - ethUsdPriceFetchedAtRef.current < ETH_USD_PRICE_STALE_MS) return;
 
     let cancelled = false;
@@ -13520,7 +13848,7 @@ function WarpletDetailsModal({
     return () => {
       cancelled = true;
     };
-  }, [ethUsdPrice, tradeMode]);
+  }, [ethUsdPrice]);
 
   const handleOpenFarcasterProfile = () => {
     if (!farcasterFid) return;
@@ -14301,6 +14629,7 @@ function WarpletDetailsModal({
             money={money}
             emptyValue={emptyValue}
             tooltipPrefix={tooltipPrefix}
+            ethUsdPrice={ethUsdPrice}
             className="min-w-0 px-2 pb-2.5 pt-2"
             style={{ backgroundColor: styles.backgroundColor }}
           />
@@ -14515,8 +14844,8 @@ function WarpletDetailsModal({
     {tradeToast && (
       <TradeToastView toast={tradeToast} exiting={tradeToastExiting} onClose={closeTradeToast} />
     )}
-    <div className="app-modal-viewport fixed inset-0 flex items-end justify-center bg-black/80 p-4 sm:items-center" style={{ zIndex: 50 + stackIndex }}>
-      <div ref={modalScrollRef} className="app-modal-panel max-h-[92vh] w-full max-w-md overflow-auto rounded-2xl border border-[#00FF00]/35 bg-black shadow-2xl">
+    <div className="app-modal-viewport fixed inset-0 flex items-end justify-center overscroll-none bg-black/80 p-4 sm:items-center" style={{ zIndex: 50 + stackIndex }}>
+      <div ref={modalScrollRef} className="app-modal-panel max-h-[92vh] w-full max-w-md overflow-auto overscroll-contain rounded-2xl border border-[#00FF00]/35 bg-black shadow-2xl">
         <div ref={modalHeaderRef} className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-[#00FF00]/20 bg-black px-4 py-3">
           <Text className="min-w-0 truncate text-base font-bold" style={{ color: "rgb(139, 191, 139)" }}>
             <span style={{ color: "#00FF00" }}>{details.title}</span>
@@ -14782,9 +15111,9 @@ function WarpletDetailsModal({
             <div className="mt-4 grid grid-cols-3 gap-2">
               {[
                 { kind: "price" as const, label: "Price", money: effectiveListing, emptyValue: "Not listed" },
-                { kind: "offer" as const, label: "Top Offer", money: effectiveTopOffer, emptyValue: "No offers" },
+                { kind: "offer" as const, label: "Top Offer", money: effectiveTopOffer, emptyValue: "No offers", tooltipPrefix: getOfferSourceLabel(effectiveTopOffer) },
                 { kind: "sold" as const, label: "Latest Sale", money: effectiveSale, emptyValue: "No sales" },
-              ].map(({ kind, label, money, emptyValue }) => {
+              ].map(({ kind, label, money, emptyValue, tooltipPrefix }) => {
                 const styles = getMarketKindStyles(kind);
                 return (
                   <MarketValuePanel
@@ -14793,6 +15122,8 @@ function WarpletDetailsModal({
                     label={label}
                     money={money}
                     emptyValue={emptyValue}
+                    tooltipPrefix={tooltipPrefix}
+                    ethUsdPrice={ethUsdPrice}
                     className="min-w-0 rounded-xl border px-2 py-2"
                     style={{ borderColor: styles.borderColor, backgroundColor: styles.backgroundColor }}
                   />
@@ -15104,6 +15435,33 @@ export default function SearchApp() {
   const appInitializationStartedRef = useRef(false);
   const [matchedWarpletCard, setMatchedWarpletCard] = useState<MatchedWarpletCard | null>(null);
   const [query, setQuery] = useState("");
+  const [searchResultLayout, setSearchResultLayout] = useState<SearchResultLayout>(() => readSearchResultLayout(window.localStorage));
+  const [searchResultWindowStart, setSearchResultWindowStart] = useState(0);
+  const [searchResultRowPitches, setSearchResultRowPitches] = useState<Partial<Record<SearchResultLayout, number>>>({});
+  const cycleSearchResultLayout = useCallback(() => {
+    void hapticSelectionChanged();
+    const next = getNextSearchResultLayout(searchResultLayout);
+    pendingSearchResultAnchorRef.current = null;
+    setVisibleCount(PAGE_SIZE);
+    setSearchResultWindowStart(0);
+    setSearchResultLayout(next);
+    writeSearchResultLayout(window.localStorage, next);
+  }, [searchResultLayout]);
+  const [searchMarketEthUsdPrice, setSearchMarketEthUsdPrice] = useState<number | null>(null);
+  useEffect(() => {
+    if (searchResultLayout !== "full" || searchMarketEthUsdPrice != null) return;
+    let cancelled = false;
+    fetchEthUsdPrice()
+      .then((price) => {
+        if (!cancelled) setSearchMarketEthUsdPrice(price);
+      })
+      .catch((error) => {
+        console.warn("Failed to load ETH/USD for Full search results:", error);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [searchMarketEthUsdPrice, searchResultLayout]);
   const [isAllWarpletsMode, setIsAllWarpletsMode] = useState(false);
   const [activeExampleSearch, setActiveExampleSearch] = useState(() => getRandomExampleSearch());
   const [searchPlaceholderAnimation, setSearchPlaceholderAnimation] = useState<{
@@ -15121,6 +15479,36 @@ export default function SearchApp() {
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState("");
   const [selectedWarpletDetailsStack, setSelectedWarpletDetailsStack] = useState<WarpletDetails[]>([]);
+  const hasOpenWarpletDetails = selectedWarpletDetailsStack.length > 0;
+  useLayoutEffect(() => {
+    if (!hasOpenWarpletDetails) return;
+
+    const root = document.documentElement;
+    const body = document.body;
+    const scrollX = window.scrollX;
+    const scrollY = window.scrollY;
+    const previousViewportOverflowY = root.style.getPropertyValue("--os-viewport-overflow-y");
+    const previousViewportOverflowYPriority = root.style.getPropertyPriority("--os-viewport-overflow-y");
+    const previousRootOverscrollBehavior = root.style.overscrollBehavior;
+    const previousBodyOverscrollBehavior = body.style.overscrollBehavior;
+
+    root.style.setProperty("--os-viewport-overflow-y", "hidden");
+    root.style.overscrollBehavior = "none";
+    body.style.overscrollBehavior = "none";
+
+    return () => {
+      if (previousViewportOverflowY) {
+        root.style.setProperty("--os-viewport-overflow-y", previousViewportOverflowY, previousViewportOverflowYPriority);
+      } else {
+        root.style.removeProperty("--os-viewport-overflow-y");
+      }
+      root.style.overscrollBehavior = previousRootOverscrollBehavior;
+      body.style.overscrollBehavior = previousBodyOverscrollBehavior;
+      if (Math.abs(window.scrollX - scrollX) > 0.5 || Math.abs(window.scrollY - scrollY) > 0.5) {
+        window.scrollTo(scrollX, scrollY);
+      }
+    };
+  }, [hasOpenWarpletDetails]);
   const [marketSnapshot, setMarketSnapshot] = useState<MarketSnapshot | null>(null);
   const [itemOffersRevision, setItemOffersRevision] = useState(0);
   const [marketRefreshTokenId, setMarketRefreshTokenId] = useState<number | null>(null);
@@ -15159,6 +15547,9 @@ export default function SearchApp() {
   const ownershipTokenIdsRef = useRef(new Map<string, number[]>());
   const ownershipOwnersRef = useRef(new Map<string, MarketSnapshot["owners"]>());
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
+  const loadPreviousResultsRef = useRef<HTMLDivElement | null>(null);
+  const searchResultListRef = useRef<HTMLDivElement | null>(null);
+  const pendingSearchResultAnchorRef = useRef<{ index: number; top: number } | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const searchInputVisualTextRef = useRef("");
   const searchInputAnimationStartedRef = useRef(false);
@@ -16536,6 +16927,7 @@ export default function SearchApp() {
     const normalizedTokenIds = normalizeFavouriteTokenIds(tokenIds);
     const response = await fetch("/api/warplet-favourites", {
       method: "PUT",
+      credentials: "same-origin",
       headers: {
         accept: "application/json",
         "content-type": "application/json",
@@ -16556,7 +16948,11 @@ export default function SearchApp() {
   const ensureActiveFavouriteWallet = useCallback(async () => {
     if (viewerFid) {
       if (favouriteIdentityWallet) return favouriteIdentityWallet;
-      return loadVerifiedFavouriteList();
+      try {
+        return await loadVerifiedFavouriteList();
+      } catch (error) {
+        console.warn("Verified favourite wallet unavailable; falling back to the connected wallet:", error);
+      }
     }
     if (activeWallet) {
       const normalizedWallet = normalizeWalletAddress(activeWallet);
@@ -16566,6 +16962,10 @@ export default function SearchApp() {
         const walletSession = walletController.session;
         if (!walletSession || walletSession.address.toLowerCase() !== normalizedWallet) {
           throw new Error("Reconnect and verify your wallet to use favourites.");
+        }
+        const isWarpletLocal = window.location.hostname === new URL(WARPLETS_APP_ORIGINS.local).hostname;
+        if (viewerFid && walletSession.connectorId === "farcaster" && isWarpletLocal) {
+          return normalizedWallet;
         }
         if (!getExternalWalletReviewName(walletSession.provider)) {
           showSearchToast("neutral", "Check your wallet to verify favourites access...", { minMs: 5000 });
@@ -16991,7 +17391,7 @@ export default function SearchApp() {
         nextSearchText,
         0,
         { attributes: nextState.attributes, levels: nextState.levels, favouriteWallet: nextFavouriteWallet },
-        isRandomMode && matchedWarpletCard ? PAGE_SIZE - 1 : PAGE_SIZE,
+        SHOW_MATCHED_WARPLET_CARD && isRandomMode && matchedWarpletCard ? PAGE_SIZE - 1 : PAGE_SIZE,
       );
     } else {
       setResults([]);
@@ -17051,7 +17451,7 @@ export default function SearchApp() {
           : selectedAttributes.length > 0
             ? ""
             : activeExampleSearch;
-      const limit = isExampleSearch && matchedWarpletCard ? PAGE_SIZE - 1 : PAGE_SIZE;
+      const limit = SHOW_MATCHED_WARPLET_CARD && isExampleSearch && matchedWarpletCard ? PAGE_SIZE - 1 : PAGE_SIZE;
       runSearch(nextQuery, 0, undefined, limit);
     }, SEARCH_DEBOUNCE_MS);
     return () => window.clearTimeout(timeoutId);
@@ -17145,7 +17545,7 @@ export default function SearchApp() {
     !hasActiveLevelFilter,
   );
   const showFavouriteOrderOption = isFavouriteOnlySearchState;
-  const activeFavouriteWallet = viewerFid ? favouriteIdentityWallet : activeWallet;
+  const activeFavouriteWallet = resolveActiveFavouriteWallet(favouriteIdentityWallet, activeWallet);
   const activeFavouriteTokenIds = getFavouriteTokenIds(favouriteListsByWallet, activeFavouriteWallet);
   const activeFavouriteTokenIdSet = useMemo(
     () => new Set(activeFavouriteTokenIds),
@@ -17177,6 +17577,7 @@ export default function SearchApp() {
     searchInputVisualTextRef.current = displayedSearchValue.trim() || displayedSearchPlaceholder;
   }
   const shouldPrependMatchedWarplet = Boolean(
+    SHOW_MATCHED_WARPLET_CARD &&
     isExampleSearchMode &&
     matchedWarpletCard &&
     hasMarketOrderValue(matchedWarpletCard.warplet, orderBy, marketSnapshot),
@@ -17191,11 +17592,39 @@ export default function SearchApp() {
     [favouriteOrderTokenIds, marketFilteredResults, marketSnapshot, orderBy, orderDirection, rankAttribute],
   );
   const visibleResults = sortedResults.slice(0, visibleCount);
-  const displayedResults = shouldPrependMatchedWarplet && matchedWarpletCard
+  const allDisplayedResults = shouldPrependMatchedWarplet && matchedWarpletCard
     ? [matchedWarpletCard.warplet, ...visibleResults]
     : visibleResults;
   const displayedTotalResults = totalResults + (shouldPrependMatchedWarplet ? 1 : 0);
   const canLoadMore = totalResults > visibleCount;
+  const searchResultColumnCount = getSearchResultLayoutColumnCount(searchResultLayout);
+  const effectiveSearchResultWindowStart = clampSearchResultWindowStart(
+    searchResultWindowStart,
+    allDisplayedResults.length,
+    searchResultColumnCount,
+  );
+  const searchResultWindowEnd = Math.min(
+    effectiveSearchResultWindowStart + SEARCH_RESULT_RENDER_WINDOW_SIZE,
+    allDisplayedResults.length,
+  );
+  const displayedResults = allDisplayedResults.slice(effectiveSearchResultWindowStart, searchResultWindowEnd);
+  const searchResultRowPitch = searchResultRowPitches[searchResultLayout]
+    ?? getSearchResultFallbackRowPitch(searchResultLayout);
+  const searchResultTopSpacerHeight = (effectiveSearchResultWindowStart / searchResultColumnCount) * searchResultRowPitch;
+  const searchResultBottomSpacerHeight = Math.ceil(
+    (allDisplayedResults.length - searchResultWindowEnd) / searchResultColumnCount,
+  ) * searchResultRowPitch;
+  const searchResultLayoutClassName = searchResultLayout === "card"
+    ? "mt-3 grid grid-cols-2 gap-3"
+    : searchResultLayout === "hero"
+      ? "mt-3 -mx-4 grid grid-cols-2 gap-0"
+      : searchResultLayout === "grid"
+        ? "mt-3 -mx-4 grid grid-cols-4 gap-0"
+        : searchResultLayout === "compact"
+          ? "mt-3 -mx-4"
+          : searchResultLayout === "slides"
+            ? "mt-3 -mx-4"
+            : "mt-3 space-y-3.5";
   const hasActiveSearchOrFilter = Boolean(submittedQuery || hasTypedQuery || hasActiveAttributeFilter || hasActiveLevelFilter || hasActiveFavouriteFilter || isAllWarpletsSearchMode);
   const selectedAttributeLabel = selectedAttributes.length === 0
     ? "All"
@@ -17265,7 +17694,7 @@ export default function SearchApp() {
     setSelectedAttributes([]);
     setSelectedLevels([]);
     setFavouriteFilterWallet(null);
-    setVisibleCount(matchedWarpletCard ? PAGE_SIZE - 1 : PAGE_SIZE);
+    setVisibleCount(SHOW_MATCHED_WARPLET_CARD && matchedWarpletCard ? PAGE_SIZE - 1 : PAGE_SIZE);
     setOrderBy("relevance");
     setOrderDirection("asc");
     setUserSelectedOrder(false);
@@ -17275,7 +17704,7 @@ export default function SearchApp() {
         nextExample,
         0,
         { attributes: [], levels: [], favouriteWallet: null },
-        matchedWarpletCard ? PAGE_SIZE - 1 : PAGE_SIZE,
+        SHOW_MATCHED_WARPLET_CARD && matchedWarpletCard ? PAGE_SIZE - 1 : PAGE_SIZE,
       );
     }
     window.setTimeout(() => searchInputRef.current?.focus(), 0);
@@ -17291,7 +17720,7 @@ export default function SearchApp() {
     setSelectedAttributes([]);
     setSelectedLevels([]);
     setFavouriteFilterWallet(null);
-    setVisibleCount(matchedWarpletCard ? PAGE_SIZE - 1 : PAGE_SIZE);
+    setVisibleCount(SHOW_MATCHED_WARPLET_CARD && matchedWarpletCard ? PAGE_SIZE - 1 : PAGE_SIZE);
     setOrderBy("relevance");
     setOrderDirection("asc");
     setUserSelectedOrder(false);
@@ -17300,7 +17729,7 @@ export default function SearchApp() {
         nextExample,
         0,
         { attributes: [], levels: [], favouriteWallet: null },
-        matchedWarpletCard ? PAGE_SIZE - 1 : PAGE_SIZE,
+        SHOW_MATCHED_WARPLET_CARD && matchedWarpletCard ? PAGE_SIZE - 1 : PAGE_SIZE,
       );
     }
     window.setTimeout(() => searchInputRef.current?.focus(), 0);
@@ -17807,8 +18236,8 @@ export default function SearchApp() {
 
   const handleShareSearchResults = useCallback(() => {
     const sharePreviewWarplet = shouldPrependMatchedWarplet
-      ? displayedResults[1] ?? displayedResults[0]
-      : displayedResults[0];
+      ? allDisplayedResults[1] ?? allDisplayedResults[0]
+      : allDisplayedResults[0];
     const firstWarpletId = sharePreviewWarplet?.id;
     if (!firstWarpletId || displayedTotalResults <= 0) return;
 
@@ -17856,7 +18285,7 @@ export default function SearchApp() {
   }, [
     activeExampleSearch,
     activeWallet,
-    displayedResults,
+    allDisplayedResults,
     displayedTotalResults,
     favouriteFilterWallet,
     isAllWarpletsMode,
@@ -18439,15 +18868,99 @@ export default function SearchApp() {
     }
   }, [ensureFavouriteListLoaded, loadMarketOwnership, marketSnapshot, selectedWarpletDetailsStack]);
 
+  const captureSearchResultAnchor = useCallback(() => {
+    const nodes = Array.from(
+      searchResultListRef.current?.querySelectorAll<HTMLElement>("[data-search-result-index]") ?? [],
+    );
+    const anchor = nodes.find((node) => node.getBoundingClientRect().bottom > 0) ?? nodes[nodes.length - 1];
+    const index = Number(anchor?.dataset.searchResultIndex);
+    if (!anchor || !Number.isFinite(index)) return null;
+    return { index, top: anchor.getBoundingClientRect().top };
+  }, []);
+
+  const shiftSearchResultWindow = useCallback((direction: -1 | 1) => {
+    const alignedShift = Math.ceil(SEARCH_RESULT_RENDER_WINDOW_SHIFT / searchResultColumnCount)
+      * searchResultColumnCount;
+    const nextStart = clampSearchResultWindowStart(
+      effectiveSearchResultWindowStart + (direction * alignedShift),
+      allDisplayedResults.length,
+      searchResultColumnCount,
+    );
+    if (nextStart === effectiveSearchResultWindowStart) return;
+    pendingSearchResultAnchorRef.current = captureSearchResultAnchor();
+    setSearchResultWindowStart(nextStart);
+  }, [
+    allDisplayedResults.length,
+    captureSearchResultAnchor,
+    effectiveSearchResultWindowStart,
+    searchResultColumnCount,
+  ]);
+
+  useLayoutEffect(() => {
+    const pendingAnchor = pendingSearchResultAnchorRef.current;
+    if (!pendingAnchor) return;
+    const target = searchResultListRef.current?.querySelector<HTMLElement>(
+      `[data-search-result-index="${pendingAnchor.index}"]`,
+    );
+    pendingSearchResultAnchorRef.current = null;
+    if (!target) return;
+    const offset = target.getBoundingClientRect().top - pendingAnchor.top;
+    if (Math.abs(offset) > 0.5) window.scrollBy(0, offset);
+  }, [displayedResults.length, effectiveSearchResultWindowStart, searchResultLayout, searchResultRowPitch]);
+
+  useLayoutEffect(() => {
+    const nodes = Array.from(
+      searchResultListRef.current?.querySelectorAll<HTMLElement>("[data-search-result-index]") ?? [],
+    );
+    if (nodes.length <= searchResultColumnCount) return;
+    const firstTop = nodes[0].getBoundingClientRect().top;
+    const nextRowTop = nodes[searchResultColumnCount].getBoundingClientRect().top;
+    const measuredPitch = nextRowTop - firstTop;
+    if (measuredPitch <= 0 || Math.abs(measuredPitch - searchResultRowPitch) <= 0.5) return;
+    pendingSearchResultAnchorRef.current = captureSearchResultAnchor();
+    setSearchResultRowPitches((current) => ({ ...current, [searchResultLayout]: measuredPitch }));
+  }, [
+    captureSearchResultAnchor,
+    displayedResults.length,
+    effectiveSearchResultWindowStart,
+    searchResultColumnCount,
+    searchResultLayout,
+    searchResultRowPitch,
+  ]);
+
   useEffect(() => {
-    if (!canLoadMore || isSearching || !hasActiveSearchOrFilter) return;
+    if (searchResultWindowStart !== effectiveSearchResultWindowStart) {
+      setSearchResultWindowStart(effectiveSearchResultWindowStart);
+    }
+  }, [effectiveSearchResultWindowStart, searchResultWindowStart]);
+
+  useEffect(() => {
+    if (effectiveSearchResultWindowStart <= 0 || !hasActiveSearchOrFilter) return;
+    const target = loadPreviousResultsRef.current;
+    if (!target) return;
+    const observer = new IntersectionObserver((entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) {
+        observer.disconnect();
+        shiftSearchResultWindow(-1);
+      }
+    }, { rootMargin: "600px 0px" });
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [effectiveSearchResultWindowStart, hasActiveSearchOrFilter, shiftSearchResultWindow]);
+
+  useEffect(() => {
+    const canShiftWindowForward = searchResultWindowEnd < allDisplayedResults.length;
+    if ((!canShiftWindowForward && !canLoadMore) || isSearching || !hasActiveSearchOrFilter) return;
     const target = loadMoreRef.current;
     if (!target) return;
 
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries.some((entry) => entry.isIntersecting)) {
-          observer.disconnect();
+        if (!entries.some((entry) => entry.isIntersecting)) return;
+        observer.disconnect();
+        if (canShiftWindowForward) {
+          shiftSearchResultWindow(1);
+        } else {
           setVisibleCount((current) => Math.min(current + PAGE_SIZE, totalResults));
         }
       },
@@ -18456,7 +18969,15 @@ export default function SearchApp() {
 
     observer.observe(target);
     return () => observer.disconnect();
-  }, [canLoadMore, hasActiveSearchOrFilter, isSearching, totalResults, visibleCount]);
+  }, [
+    allDisplayedResults.length,
+    canLoadMore,
+    hasActiveSearchOrFilter,
+    isSearching,
+    searchResultWindowEnd,
+    shiftSearchResultWindow,
+    totalResults,
+  ]);
 
   useEffect(() => {
     if (
@@ -18888,7 +19409,7 @@ export default function SearchApp() {
                   />
                   <div className="flex min-w-0 items-center justify-end gap-2">
                     <Text className="whitespace-nowrap text-center text-xs font-bold leading-4" style={{ color: "#00FF00" }}>
-                      {displayedTotalResults.toLocaleString("en-US")} Warplets
+                      {displayedTotalResults.toLocaleString("en-US")}<span className="hidden sm:inline"> Warplets</span>
                     </Text>
                     <button
                       type="button"
@@ -18900,24 +19421,65 @@ export default function SearchApp() {
                     >
                       Share
                     </button>
+                    <button
+                      type="button"
+                      aria-label={`Change results layout. Current layout: ${SEARCH_RESULT_LAYOUT_LABELS[searchResultLayout]}. Next layout: ${SEARCH_RESULT_LAYOUT_LABELS[getNextSearchResultLayout(searchResultLayout)]}.`}
+                      title={`${SEARCH_RESULT_LAYOUT_LABELS[searchResultLayout]} layout`}
+                      onClick={cycleSearchResultLayout}
+                      className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-[#00FF00]/35 bg-transparent text-[#00FF00] hover:bg-[#041204]"
+                    >
+                      <svg aria-hidden="true" viewBox="0 0 20 20" className="h-6 w-6" fill="currentColor">
+                        <rect x="4" y="4" width="5" height="5" rx="1" />
+                        <rect x="11" y="4" width="5" height="5" rx="1" />
+                        <rect x="4" y="11" width="5" height="5" rx="1" />
+                        <rect x="11" y="11" width="5" height="5" rx="1" />
+                      </svg>
+                    </button>
                   </div>
                 </div>
 
-                <div className="mt-3 grid grid-cols-2 gap-3">
-                  {displayedResults.map((warplet, index) => (
-                    <WarpletCard
-                      key={`${warplet.id}-${index}`}
-                      warplet={warplet}
-                      market={getMarketState(marketSnapshot, warplet.id)}
-                      onOpen={handleOpenWarpletDetails}
-                      isFavourited={activeFavouriteTokenIdSet.has(warplet.id)}
-                      onToggleFavourite={handleToggleFavourite}
-                      labelOverride={shouldPrependMatchedWarplet && index === 0 ? matchedWarpletCard?.label : undefined}
-                    />
-                  ))}
+                <div
+                  ref={loadPreviousResultsRef}
+                  aria-hidden="true"
+                  className="relative"
+                  style={{ height: searchResultTopSpacerHeight }}
+                />
+                <div
+                  ref={searchResultListRef}
+                  className={searchResultLayoutClassName}
+                  data-search-result-layout={searchResultLayout}
+                >
+                  {displayedResults.map((warplet, index) => {
+                    const resultIndex = effectiveSearchResultWindowStart + index;
+                    return (
+                      <div
+                        key={`${warplet.id}-${resultIndex}`}
+                        className="min-w-0"
+                        data-search-result-index={resultIndex}
+                      >
+                        <SearchResultLayoutItem
+                          layout={searchResultLayout}
+                          warplet={warplet}
+                          market={getMarketState(marketSnapshot, warplet.id)}
+                          ethUsdPrice={searchMarketEthUsdPrice}
+                          onOpen={handleOpenWarpletDetails}
+                          isFavourited={activeFavouriteTokenIdSet.has(warplet.id)}
+                          onToggleFavourite={handleToggleFavourite}
+                          isFirst={resultIndex === 0}
+                          isLast={resultIndex === allDisplayedResults.length - 1}
+                          windowIndex={index}
+                          labelOverride={shouldPrependMatchedWarplet && resultIndex === 0 ? matchedWarpletCard?.label : undefined}
+                        />
+                      </div>
+                    );
+                  })}
                 </div>
-
-                <div ref={loadMoreRef} className="h-8" />
+                <div
+                  ref={loadMoreRef}
+                  aria-hidden="true"
+                  className="relative"
+                  style={{ height: Math.max(1, searchResultBottomSpacerHeight) }}
+                />
                 {!canLoadMore && displayedTotalResults > 0 && (
                   <Text className="mt-2 text-center text-xs font-bold leading-5" style={{ color: "#8bbf8b" }}>
                     No more warplets.{" "}

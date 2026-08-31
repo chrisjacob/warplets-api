@@ -433,6 +433,11 @@ input[type="search"]::-webkit-search-results-decoration {
 .app-modal-panel {
   min-height: 0;
   max-height: 100%;
+  overscroll-behavior: contain;
+}
+
+.app-modal-panel [data-overlayscrollbars-viewport] {
+  overscroll-behavior: contain;
 }
 
 .app-modal-header,

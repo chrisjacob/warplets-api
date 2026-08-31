@@ -1,6 +1,6 @@
 import { jsonSecure, parseObjectPayload, readJsonBodyWithLimit } from "../_lib/security.js";
 import { recordWarpletActivity } from "../_lib/warpletNotifications.js";
-import { getAppSession } from "../_lib/appAuth.js";
+import { getAppSession, type AppSession } from "../_lib/appAuth.js";
 
 interface Env {
   WARPLETS: D1Database;
@@ -53,7 +53,7 @@ async function loadFavouriteTokenIds(db: D1Database, wallet: string): Promise<nu
   }
 }
 
-async function resolveSessionFavouriteWallet(db: D1Database, session: Awaited<ReturnType<typeof getAppSession>>): Promise<string | null> {
+export async function resolveSessionFavouriteWallet(db: D1Database, session: AppSession | null): Promise<string | null> {
   if (!session) return null;
   if (session.farcasterFid) {
     const user = await db.prepare(
@@ -72,9 +72,19 @@ async function resolveSessionFavouriteWallet(db: D1Database, session: Awaited<Re
        ORDER BY COALESCE(score, -1) DESC, wallet ASC
        LIMIT 1`,
     ).bind(session.farcasterFid).first<{ wallet: string | null }>().catch(() => null);
-    return normalizeWallet(link?.wallet);
+    return normalizeWallet(link?.wallet) ?? normalizeWallet(session.walletAddress);
   }
   return normalizeWallet(session.walletAddress);
+}
+
+export function resolveWarpletLocalRequestedWallet(
+  request: Request,
+  session: AppSession | null,
+  requestedWallet: string | null,
+): string | null {
+  return session?.farcasterFid && requestedWallet && new URL(request.url).hostname === "warplet-local.10x.meme"
+    ? requestedWallet
+    : null;
 }
 
 export const onRequestGet: PagesFunction<Env> = async (context) => {
@@ -96,11 +106,12 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
   if (!payload.ok) return payload.response;
 
   const session = await getAppSession(context.request, context.env);
-  const wallet = await resolveSessionFavouriteWallet(context.env.WARPLETS, session);
+  const requestedWallet = normalizeWallet(payload.payload.wallet);
+  const wallet = await resolveSessionFavouriteWallet(context.env.WARPLETS, session)
+    ?? resolveWarpletLocalRequestedWallet(context.request, session, requestedWallet);
   if (!wallet) {
     return jsonSecure({ error: "a verified Farcaster identity or wallet is required" }, { status: 401 });
   }
-  const requestedWallet = normalizeWallet(payload.payload.wallet);
   if (requestedWallet && requestedWallet !== wallet) {
     return jsonSecure({ error: "favourites must use the verified identity's primary wallet" }, { status: 403 });
   }
