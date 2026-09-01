@@ -85,6 +85,7 @@ import {
   getSearchResultLayoutCorners,
   type SearchResultLayoutCorners,
 } from "./searchResultWindow";
+import { orderSearchCandidates } from "./searchResultOrder";
 import {
   formatStatsFriendFilterLabel,
   getStatsFriendFilterFid,
@@ -1138,6 +1139,8 @@ type SearchFilterOverride = {
   attributes: LevelAttributeColumn[];
   levels: number[];
   favouriteWallet?: string | null;
+  orderBy?: OrderByOption;
+  orderDirection?: OrderDirection;
 };
 
 type SearchUrlState = {
@@ -1585,7 +1588,9 @@ function loadWarpletResultsByIds(db: SqliteDatabase, tokenIds: number[]): Warple
     },
   );
   const order = new Map(uniqueTokenIds.map((tokenId, index) => [tokenId, index]));
-  return mapRows(rows).sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
+  return mapRows(rows)
+    .sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0))
+    .map((row, index) => ({ ...row, searchIndex: index }));
 }
 
 function findTraitOfferRepresentativeTokenId(
@@ -2545,7 +2550,7 @@ function getSortValue(
 ): number | null {
   const market = getMarketState(snapshot, warplet.id);
   if (orderBy === "relevance") return warplet.searchScore ?? warplet.searchIndex;
-  if (orderBy === "rarity") return warplet.id;
+  if (orderBy === "rarity") return warplet.rarityValue;
   if (orderBy === "rank") return rankAttribute ? warplet.rankValues[rankAttribute] ?? null : null;
   if (orderBy === "favourited") {
     const index = favouriteTokenIds.indexOf(warplet.id);
@@ -2615,7 +2620,7 @@ function sortWarplets(
       if (bTimestampMissing) return -1;
       if (aTimestamp !== bTimestamp) return bTimestamp - aTimestamp;
     }
-    return a.id - b.id;
+    return (a.id - b.id) * multiplier;
   });
 }
 
@@ -10707,9 +10712,6 @@ function ListedPage({
       .sort((a, b) => {
         const priceCompare = compareMarketPriceAsc(a.market.listing, b.market.listing);
         if (priceCompare !== 0) return priceCompare;
-        const aTime = getMarketTimeMs(a.market.listing);
-        const bTime = getMarketTimeMs(b.market.listing);
-        if (aTime != null && bTime != null && aTime !== bTime) return aTime - bTime;
         return a.warplet.id - b.warplet.id;
       });
     return rows;
@@ -15556,6 +15558,7 @@ export default function SearchApp() {
   const databaseLoadPromiseRef = useRef<Promise<SqliteDatabase> | null>(null);
   const databaseDisposedRef = useRef(false);
   const searchRunRef = useRef(0);
+  const orderedSearchTokenIdsRef = useRef<{ signature: string; tokenIds: number[] } | null>(null);
   const lastSearchSuccessHapticSignatureRef = useRef("");
   const pendingConfirmedPurchasesRef = useRef(new Map<string, PendingConfirmedPurchase>());
   const ownershipRequestsRef = useRef(new Map<string, Promise<number[]>>());
@@ -17194,6 +17197,8 @@ export default function SearchApp() {
         ? filterOverride.favouriteWallet ?? null
         : favouriteFilterWallet,
     );
+    const activeOrderBy = filterOverride?.orderBy ?? orderBy;
+    const activeOrderDirection = filterOverride?.orderDirection ?? orderDirection;
     const ownerSearch = parseOwnerWalletSearch(nextQuery);
     const ownerWalletFilter = ownerSearch.ownerWalletFilter;
     const searchText = ownerSearch.searchText;
@@ -17274,29 +17279,82 @@ export default function SearchApp() {
         ? "FROM warplets_fts JOIN warplets w ON w.id = warplets_fts.rowid"
         : "FROM warplets w";
       const whereSql = conditions.length > 0 ? ` WHERE ${conditions.join(" AND ")}` : "";
-      const orderSql = ftsQuery
-        ? `ORDER BY score, w."10x_rank" ASC, w.id ASC`
-        : `ORDER BY ${attributeOnlyRankColumn ? `w."${attributeOnlyRankColumn}" ASC, ` : ""}w.id ASC`;
       const pageSize = exactTokenId != null ? 1 : SEARCH_RESULT_PAGE_SIZE;
-      const resultSql = `SELECT ${RESULT_SELECT_COLUMNS}${ftsQuery ? ", bm25(warplets_fts) AS score" : ""}
-        ${fromSql}${whereSql}
-        ${orderSql}
-        LIMIT ? OFFSET ?`;
-      const countRows = db.exec(`SELECT COUNT(*) ${fromSql}${whereSql}`, {
-        bind: baseBind,
-        rowMode: "array",
-        returnValue: "resultRows",
+      const favouriteOrderTokenIds = getFavouriteTokenIds(favouriteListsByWalletRef.current, activeFavouriteWallet);
+      const paginationSignature = JSON.stringify({
+        query: nextQuery.trim(),
+        attributes: activeAttributes,
+        levels: activeLevels,
+        allowedTokenIds,
+        orderBy: activeOrderBy,
+        orderDirection: activeOrderDirection,
       });
-      const fullResultCount = Number(countRows[0]?.[0] ?? 0);
-      const rows = db.exec(
-        resultSql,
-        {
-          bind: [...baseBind, pageSize, Math.max(0, offset)],
-          rowMode: "array",
-          returnValue: "resultRows",
-        },
-      );
-      const nextRows = mapRows(rows, Boolean(ftsQuery));
+      let orderedTokenIds = offset > 0 && orderedSearchTokenIdsRef.current?.signature === paginationSignature
+        ? orderedSearchTokenIdsRef.current.tokenIds
+        : null;
+
+      if (!orderedTokenIds) {
+        const rankColumn = activeOrderBy === "rank" && activeAttributes.length === 1
+          ? getRankColumnForLevelAttribute(activeAttributes[0])
+          : null;
+        const candidateRows = db.exec(
+          `SELECT w.id,
+                  w."10x_rarity",
+                  ${rankColumn ? `w."${rankColumn}"` : "NULL"} AS selected_rank,
+                  ${ftsQuery ? "bm25(warplets_fts)" : "NULL"} AS score
+             ${fromSql}${whereSql}
+             ORDER BY ${ftsQuery ? `score, w."10x_rank" ASC, ` : attributeOnlyRankColumn ? `w."${attributeOnlyRankColumn}" ASC, ` : ""}w.id ASC`,
+          {
+            bind: baseBind,
+            rowMode: "array",
+            returnValue: "resultRows",
+          },
+        );
+        const favouriteOrderIndexes = new Map(
+          favouriteOrderTokenIds.map((tokenId, index) => [tokenId, index]),
+        );
+        const candidates = candidateRows.map((row, fallbackIndex) => {
+          const id = cellToNumber(row[0]) ?? 0;
+          const market = getMarketState(marketSnapshot, id);
+          let value: number | null;
+          if (activeOrderBy === "relevance") value = cellToNumber(row[3]) ?? fallbackIndex;
+          else if (activeOrderBy === "rarity") value = cellToNumber(row[1]);
+          else if (activeOrderBy === "rank") value = cellToNumber(row[2]);
+          else if (activeOrderBy === "favourited") value = favouriteOrderIndexes.get(id) ?? null;
+          else if (activeOrderBy === "price") value = getMarketNumber(market.listing);
+          else if (activeOrderBy === "offer") value = getMarketNumber(market.offer);
+          else if (activeOrderBy === "sold") value = getMarketNumber(market.sale);
+          else if (activeOrderBy === "recently-listed") value = market.listing?.at ? Date.parse(market.listing.at) : null;
+          else if (activeOrderBy === "recently-offered") value = market.offer?.at ? Date.parse(market.offer.at) : null;
+          else value = market.sale?.at ? Date.parse(market.sale.at) : null;
+
+          const tieBreakAt = activeOrderBy === "price"
+            ? market.listing?.at
+            : activeOrderBy === "offer"
+              ? market.offer?.at
+              : activeOrderBy === "sold"
+                ? market.sale?.at
+                : null;
+          const tieBreakTimestamp = tieBreakAt ? Date.parse(tieBreakAt) : null;
+          return {
+            id,
+            value,
+            fallbackIndex,
+            tieBreakTimestamp: tieBreakTimestamp != null && Number.isFinite(tieBreakTimestamp) ? tieBreakTimestamp : null,
+          };
+        });
+        orderedTokenIds = orderSearchCandidates(
+          candidates,
+          activeOrderDirection,
+          isMarketOnlyOrder(activeOrderBy),
+        ).map((candidate) => candidate.id);
+        orderedSearchTokenIdsRef.current = { signature: paginationSignature, tokenIds: orderedTokenIds };
+      }
+
+      const fullResultCount = orderedTokenIds.length;
+      const pageTokenIds = orderedTokenIds.slice(Math.max(0, offset), Math.max(0, offset) + pageSize);
+      const nextRows = loadWarpletResultsByIds(db, pageTokenIds)
+        .map((row, index) => ({ ...row, searchIndex: Math.max(0, offset) + index }));
       await preloadResultImagesWithTimeout(nextRows.slice(0, PAGE_SIZE));
       await waitForAnimatedReveal();
 
@@ -17332,7 +17390,7 @@ export default function SearchApp() {
         setIsSearching(false);
       }
     }
-  }, [favouriteFilterWallet, loadMarketOwnership, selectedAttributes, selectedLevels]);
+  }, [favouriteFilterWallet, loadMarketOwnership, marketSnapshot, orderBy, orderDirection, selectedAttributes, selectedLevels]);
 
   const applySearchUrlState = useCallback(async (state: SearchUrlState) => {
     if (!dbReady || !dbRef.current) return;
@@ -17405,7 +17463,13 @@ export default function SearchApp() {
       await runSearch(
         nextSearchText,
         0,
-        { attributes: nextState.attributes, levels: nextState.levels, favouriteWallet: nextFavouriteWallet },
+        {
+          attributes: nextState.attributes,
+          levels: nextState.levels,
+          favouriteWallet: nextFavouriteWallet,
+          orderBy: nextOrderBy,
+          orderDirection: nextState.dir ?? (nextOrderBy === "favourited" ? "desc" : "asc"),
+        },
         SHOW_MATCHED_WARPLET_CARD && isRandomMode && matchedWarpletCard ? PAGE_SIZE - 1 : PAGE_SIZE,
       );
     } else {
@@ -18430,7 +18494,10 @@ export default function SearchApp() {
 
   const handleSelectOrderBy = useCallback((nextOrderBy: OrderByOption) => {
     setUserSelectedOrder(true);
+    pendingSearchResultAnchorRef.current = null;
+    orderedSearchTokenIdsRef.current = null;
     setVisibleCount(PAGE_SIZE);
+    setSearchResultWindowStart(0);
     if (orderBy === nextOrderBy) {
       setOrderDirection((direction) => (direction === "asc" ? "desc" : "asc"));
       return;
