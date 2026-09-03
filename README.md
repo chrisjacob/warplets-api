@@ -122,6 +122,43 @@ https://studio.localflare.dev?port=8790
 pnpm wrangler d1 migrations apply warplets --local
 ```
 
+### Stonklets CoinMarketCap enrichment
+
+Put the Basic-plan key in the ignored `app/.dev.vars` file:
+
+```dotenv
+COINMARKETCAP_API_KEY=your-key-here
+```
+
+The Stonklets tunnel applies local migrations automatically. Its first local
+market request discovers CMC IDs, refreshes one batched quote set, and begins
+the rotating holder-count queue. The key is read only by Pages Functions and
+is never included in the browser bundle.
+
+Production ingestion runs from the root scheduled Worker. Configure its key
+through Wrangler's interactive secret prompt (do not place it in `wrangler.toml`):
+
+```bash
+pnpm wrangler secret put COINMARKETCAP_API_KEY
+```
+
+The default safety settings use one quote batch every five minutes and spread
+holder-count requests across six hours for 40 assets or twelve hours for 80.
+The D1 credit ledger stops new CMC calls at 14,000 credits per UTC month, below
+the Basic plan's 15,000-credit allowance. Binance remains the fast source for
+price, volume, short-window changes, and candles; CMC supplies market cap and
+holder counts; the Flap/DexPaprika/GeckoTerminal connectors continue to supply
+launch state, DEX liquidity, and DEX charts.
+
+Stonklets chart and selected-period change requests accept `range=1h|24h|7d|30d|60d|90d|all`.
+Binance supplies bStock candles, while migrated Flap-token history combines
+GeckoTerminal OHLCV with retained D1 observations. The scheduled five-minute
+ingestion keeps five-minute observations for 48 hours, hourly rollups for 90
+days, and daily rollups indefinitely. Response caches are one minute for `1h`,
+five minutes for `24h`/`7d`, 15 minutes for longer finite ranges, and six hours
+for `all`; last-known responses remain available during transient provider
+failures.
+
 ## Deploying to Cloudflare Workers
 
 ### One-time setup

@@ -5,6 +5,7 @@ import { join, resolve } from "node:path";
 const repoRoot = resolve(import.meta.dirname, "..");
 const distAssets = join(repoRoot, "app", "dist", "assets");
 const searchSourcePath = join(repoRoot, "app", "src", "SearchApp.tsx");
+const stonkletsSourcePath = join(repoRoot, "app", "src", "StonkletsApp.tsx");
 const maxJavascriptGzipBytes = 350 * 1024;
 const largeAssetWarningBytes = 500 * 1024;
 const failures = [];
@@ -36,6 +37,13 @@ if (!searchSource.includes("const SEARCH_RESULT_PAGE_SIZE = 100")) {
 }
 if (searchSource.includes("const SEARCH_RESULT_LIMIT = 10000")) {
   failures.push("Search must not restore the 10,000-row materialization limit");
+}
+const stonkletsSource = readFileSync(stonkletsSourcePath, "utf8");
+if (!stonkletsSource.includes('import("lightweight-charts")')) {
+  failures.push("Lightweight Charts must remain dynamically imported by Stonklets");
+}
+if (/^import\s+.*from\s+["']lightweight-charts["']/m.test(stonkletsSource)) {
+  failures.push("Lightweight Charts has regressed to a static runtime import");
 }
 
 if (failures.length > 0) {

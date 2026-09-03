@@ -283,3 +283,21 @@ describe("Warplets Farcaster manifest bootstrap", () => {
     ).toHaveProperty("accountAssociation", accountAssociation);
   });
 });
+
+describe("Stonklets host metadata", () => {
+  it("publishes an isolated Stonklets manifest and webhook", () => {
+    const manifest = buildFarcasterManifest("stonklet.10x.meme", null, null);
+    expect(manifest).not.toHaveProperty("accountAssociation");
+    expect(manifest.miniapp).toMatchObject({
+      canonicalDomain: "stonklet.10x.meme",
+      homeUrl: "https://stonklet.10x.meme",
+      name: "10X Stonklets",
+      webhookUrl: "https://stonklet.10x.meme/webhook/stonklets",
+    });
+  });
+
+  it("preserves only shareable Stonklets market state in canonical URLs", () => {
+    expect(buildCanonicalUrl(new URL("https://stonklet.10x.meme/?q=volt&market=stonklet&order=change&dir=desc&change=7d&layout=chart&favourites=1&utm_source=x")))
+      .toBe("https://stonklet.10x.meme/?q=volt&market=stonklet&order=change&dir=desc&change=7d&layout=chart&favourites=1");
+  });
+});

@@ -10,6 +10,12 @@ import {
   WARPLETS_PUBLIC_NAME,
   isWarpletsAppHostname,
 } from "./shared/warpletsApp";
+import {
+  STONKLETS_APP_HOSTS,
+  STONKLETS_APP_PATH,
+  STONKLETS_PUBLIC_NAME,
+  isStonkletsAppHostname,
+} from "./shared/stonkletsApp";
 import { buildFaviconLinks } from "./shared/favicons";
 import { getTwitterCardImageUrl } from "./shared/twitterCardImage";
 
@@ -24,6 +30,8 @@ const STOP_SHARE_TITLE = "@Mention Settings";
 const STOP_SHARE_DESCRIPTION = "Opt out of 10X outreach mentions in the Farcaster Mini App.";
 const STOP_IMAGE_URL = "https://warplets.10x.meme/3081.png";
 const WARPLETS_SPLASH_BACKGROUND_COLOR = "#004100";
+const STONKLETS_SPLASH_BACKGROUND_COLOR = "#001400";
+const STONKLETS_SHARE_DESCRIPTION = "Track paired bStocks and vote for the Stonklets you want launched first.";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, "..");
 
@@ -35,6 +43,21 @@ type AccountAssociation = {
 
 function parseWarpletsAccountAssociation(hostname: string): AccountAssociation | null {
   const raw = process.env.WARPLETS_ACCOUNT_ASSOCIATION_JSON?.trim();
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as Partial<AccountAssociation>;
+    if (!parsed.header || !parsed.payload || !parsed.signature) return null;
+    const decoded = JSON.parse(
+      Buffer.from(parsed.payload.replace(/-/g, "+").replace(/_/g, "/"), "base64").toString("utf8"),
+    ) as { domain?: unknown };
+    return decoded.domain === hostname ? parsed as AccountAssociation : null;
+  } catch {
+    return null;
+  }
+}
+
+function parseStonkletsAccountAssociation(hostname: string): AccountAssociation | null {
+  const raw = process.env.STONKLETS_ACCOUNT_ASSOCIATION_JSON?.trim();
   if (!raw) return null;
   try {
     const parsed = JSON.parse(raw) as Partial<AccountAssociation>;
@@ -81,9 +104,42 @@ function buildLocalWarpletsManifest(
   };
 }
 
+function buildLocalStonkletsManifest(
+  hostname: string,
+  accountAssociation?: AccountAssociation | null,
+) {
+  const origin = `https://${hostname}`;
+  return {
+    ...(accountAssociation ? { accountAssociation } : {}),
+    miniapp: {
+      version: "1",
+      name: STONKLETS_PUBLIC_NAME,
+      canonicalDomain: hostname,
+      homeUrl: origin,
+      iconUrl: `${origin}/stonklets/chip.png`,
+      imageUrl: `${origin}/stonklets/chip.png`,
+      heroImageUrl: `${origin}/stonklets/chip.png`,
+      buttonTitle: "Open 10X Stonklets",
+      splashImageUrl: `${origin}/stonklets/chip.png`,
+      splashBackgroundColor: STONKLETS_SPLASH_BACKGROUND_COLOR,
+      webhookUrl: `${origin}/webhook/stonklets`,
+      castShareUrl: origin,
+      subtitle: "Vote for the next launch.",
+      description: STONKLETS_SHARE_DESCRIPTION,
+      primaryCategory: "finance",
+      screenshotUrls: [`${origin}/stonklets/chip.png`],
+      tags: ["10x", "stonklets", "bnb", "rwa", "memecoins"],
+      tagline: "Real assets. Unreal characters.",
+      ogTitle: STONKLETS_PUBLIC_NAME,
+      ogDescription: STONKLETS_SHARE_DESCRIPTION,
+      ogImageUrl: `${origin}/stonklets/chip.png`,
+    },
+  };
+}
+
 let localFidToTokenId: Map<string, string> | undefined;
 
-type RouteKey = "root" | "drop" | "warplets" | "million" | "stop" | "unsubscribe";
+type RouteKey = "root" | "drop" | "warplets" | "stonklets" | "million" | "stop" | "unsubscribe";
 
 function matchesHost(hostname: string, ...candidates: string[]): boolean {
   return candidates.includes(hostname);
@@ -93,9 +149,11 @@ function getRouteKey(pathname: string, hostname?: string): RouteKey {
   const cleanPath = pathname.replace(/\/+$/, "") || "/";
   if (hostname && matchesHost(hostname, "drop-local.10x.meme", "drop-dev.10x.meme", "drop.10x.meme")) return "drop";
   if (hostname && isWarpletsAppHostname(hostname)) return "warplets";
+  if (hostname && isStonkletsAppHostname(hostname)) return "stonklets";
   if (hostname && matchesHost(hostname, "million-local.10x.meme", "million-dev.10x.meme", "million.10x.meme")) return "million";
   if (cleanPath === "/drop" || cleanPath.startsWith("/drop/")) return "drop";
   if (cleanPath === WARPLETS_APP_PATH || cleanPath.startsWith(`${WARPLETS_APP_PATH}/`)) return "warplets";
+  if (cleanPath === STONKLETS_APP_PATH || cleanPath.startsWith(`${STONKLETS_APP_PATH}/`)) return "stonklets";
   if (cleanPath === "/million" || cleanPath.startsWith("/million/")) return "million";
   if (cleanPath === "/stop" || cleanPath.startsWith("/stop/")) return "stop";
   if (cleanPath === "/unsubscribe" || cleanPath.startsWith("/unsubscribe/")) return "unsubscribe";
@@ -116,6 +174,14 @@ function getMiniAppConfig(routeKey: RouteKey): { title: string; name: string; pa
       title: "Open 10X Warplets",
       name: WARPLETS_PUBLIC_NAME,
       path: WARPLETS_APP_PATH,
+    };
+  }
+
+  if (routeKey === "stonklets") {
+    return {
+      title: "Open 10X Stonklets",
+      name: STONKLETS_PUBLIC_NAME,
+      path: STONKLETS_APP_PATH,
     };
   }
 
@@ -276,6 +342,7 @@ function getLaunchPath(routeKey: RouteKey, hostname: string): string {
       "drop-dev.10x.meme",
       "drop.10x.meme",
       ...WARPLETS_APP_HOSTS,
+      ...STONKLETS_APP_HOSTS,
       "million-local.10x.meme",
       "million-dev.10x.meme",
       "million.10x.meme",
@@ -286,6 +353,7 @@ function getLaunchPath(routeKey: RouteKey, hostname: string): string {
 
   if (routeKey === "drop") return "/drop";
   if (routeKey === "warplets") return WARPLETS_APP_PATH;
+  if (routeKey === "stonklets") return STONKLETS_APP_PATH;
   if (routeKey === "million") return "/million";
   if (routeKey === "stop") return "/stop";
   if (routeKey === "unsubscribe") return "/unsubscribe";
@@ -336,9 +404,9 @@ function buildStopOpenGraphTags(pageUrl: string): string {
   ].join("\n    ");
 }
 
-function buildSearchOpenGraphTags(titleText: string, imageUrl: string, pageUrl: string): string {
+function buildSearchOpenGraphTags(titleText: string, imageUrl: string, pageUrl: string, descriptionText = "Search, filter, and share 10X Warplets."): string {
   const title = escapeHtmlAttr(titleText);
-  const description = escapeHtmlAttr("Search, filter, and share 10X Warplets.");
+  const description = escapeHtmlAttr(descriptionText);
   const image = escapeHtmlAttr(imageUrl);
   const twitterImage = escapeHtmlAttr(getTwitterCardImageUrl(imageUrl));
   const url = escapeHtmlAttr(pageUrl);
@@ -396,6 +464,14 @@ export default defineConfig({
             res.end(JSON.stringify(buildLocalWarpletsManifest(hostname, association)));
             return;
           }
+          if (pathname === "/.well-known/farcaster.json" && isStonkletsAppHostname(hostname)) {
+            const association = parseStonkletsAccountAssociation(hostname);
+            res.statusCode = 200;
+            res.setHeader("content-type", "application/json; charset=utf-8");
+            res.setHeader("cache-control", "no-store");
+            res.end(JSON.stringify(buildLocalStonkletsManifest(hostname, association)));
+            return;
+          }
           res.removeHeader("x-frame-options");
           res.removeHeader("X-Frame-Options");
           const isDevModuleRequest =
@@ -450,8 +526,14 @@ export default defineConfig({
           ? `${baseUrl}/splash_drop2.png`
           : routeKey === "warplets"
             ? `${baseUrl}/splash_search.png`
+            : routeKey === "stonklets"
+              ? `${baseUrl}/stonklets/chip.png`
             : `${baseUrl}/splash.png`;
-        const defaultEmbedImageUrl = routeKey === "warplets" ? `${baseUrl}/embed_search.png` : `${baseUrl}/embed.png`;
+        const defaultEmbedImageUrl = routeKey === "warplets"
+          ? `${baseUrl}/embed_search.png`
+          : routeKey === "stonklets"
+            ? `${baseUrl}/stonklets/chip.png`
+            : `${baseUrl}/embed.png`;
 
         const payload = {
           version: "1",
@@ -467,6 +549,8 @@ export default defineConfig({
                 ? DROP_SPLASH_BACKGROUND_COLOR
                 : routeKey === "warplets"
                   ? WARPLETS_SPLASH_BACKGROUND_COLOR
+                  : routeKey === "stonklets"
+                    ? STONKLETS_SPLASH_BACKGROUND_COLOR
                   : "#000000",
             },
           },
@@ -482,6 +566,12 @@ export default defineConfig({
         } else if (routeKey === "warplets") {
           nextHtml = nextHtml.replace(/<link\s+rel="icon"[^>]*>\s*(?:<link\s+rel="shortcut icon"[^>]*>\s*)?/i, buildFaviconLinks("warplets"));
           nextHtml = nextHtml.replace(/<link\s+rel="apple-touch-icon"[^>]*>/i, '<link rel="apple-touch-icon" href="/icon_search.png" />');
+        } else if (routeKey === "stonklets") {
+          nextHtml = nextHtml.replace(/<link\s+rel="manifest"[^>]*>/i, '<link rel="manifest" href="/manifest-stonklets.webmanifest" />');
+          nextHtml = nextHtml.replace(/<link\s+rel="icon"[^>]*>\s*(?:<link\s+rel="shortcut icon"[^>]*>\s*)?/i, buildFaviconLinks("stonklets"));
+          nextHtml = nextHtml.replace(/<link\s+rel="apple-touch-icon"[^>]*>/i, '<link rel="apple-touch-icon" href="/stonklets/chip.png" />');
+          nextHtml = nextHtml.replace(/<meta\s+name="application-name"[^>]*>/i, '<meta name="application-name" content="10X Stonklets" />');
+          nextHtml = nextHtml.replace(/<meta\s+name="apple-mobile-web-app-title"[^>]*>/i, '<meta name="apple-mobile-web-app-title" content="10X Stonklets" />');
         }
 
         if (routeKey === "drop" && dropShareImageUrl) {
@@ -519,6 +609,17 @@ export default defineConfig({
           );
         }
 
+        if (routeKey === "stonklets") {
+          const titleTag = `<title>${escapeHtmlText(STONKLETS_PUBLIC_NAME)}</title>`;
+          nextHtml = TITLE_REGEX.test(nextHtml)
+            ? nextHtml.replace(TITLE_REGEX, titleTag)
+            : nextHtml.replace("</head>", `    ${titleTag}\n  </head>`);
+          nextHtml = nextHtml.replace(
+            "</head>",
+            `    ${buildSearchOpenGraphTags(STONKLETS_PUBLIC_NAME, `${baseUrl}/stonklets/chip.png`, `${baseUrl}${reqUrl}`, STONKLETS_SHARE_DESCRIPTION)}\n  </head>`,
+          );
+        }
+
         return nextHtml;
       },
     },
@@ -528,6 +629,7 @@ export default defineConfig({
       "app-local.10x.meme",
       "drop-local.10x.meme",
       WARPLETS_APP_HOSTS[0],
+      STONKLETS_APP_HOSTS[0],
       "million-local.10x.meme",
     ],
     proxy: {
@@ -552,7 +654,7 @@ export default defineConfig({
                 // Leave malformed origins untouched so the API rejects them.
               }
             }
-            if (requestHost === WARPLETS_APP_HOSTS[0]) {
+            if (requestHost === WARPLETS_APP_HOSTS[0] || requestHost === STONKLETS_APP_HOSTS[0]) {
               proxyRequest.setHeader("x-10x-public-origin", `https://${requestHost}`);
             }
           });

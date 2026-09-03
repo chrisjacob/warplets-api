@@ -2743,30 +2743,17 @@ function OrderByDropdown({
           {options.map((option) => {
             const active = option.value === orderBy;
             const marketKind = getOrderMarketKind(option.value);
-            const marketStyles = marketKind ? getMarketKindStyles(marketKind) : undefined;
             return (
               <button
                 key={option.value}
                 type="button"
+                data-order-tone={marketKind ?? "default"}
                 onClick={() => {
                   void hapticSelectionChanged();
                   onSelect(option.value);
                   setIsOpen(false);
                 }}
-                className={`flex w-full cursor-pointer items-center justify-between rounded-lg border px-2 py-2 text-left text-xs ${
-                  active ? "font-bold" : "hover:bg-[#041204]"
-                }`}
-                style={marketStyles
-                  ? {
-                    backgroundColor: active ? marketStyles.backgroundColor : "transparent",
-                    borderColor: active ? marketStyles.borderColor : "transparent",
-                    color: marketStyles.color,
-                  }
-                  : {
-                    backgroundColor: active ? "rgba(0, 255, 0, 0.12)" : "transparent",
-                    borderColor: active ? "rgba(0, 255, 0, 0.42)" : "transparent",
-                    color: "#00FF00",
-                  }}
+                className={`warplets-order-option flex w-full cursor-pointer items-center justify-between rounded-lg px-2 py-2 text-left text-xs ${active ? "is-active font-bold" : ""}`}
               >
                 {active ? (
                   <OrderValueLabel orderBy={option.value} direction={orderDirection} />

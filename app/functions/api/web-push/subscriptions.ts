@@ -13,8 +13,8 @@ interface SubscriptionBody {
   topics?: string[];
 }
 
-const VALID_TOPICS = new Set(["announcements", "favourites", "offers", "market", "activity"]);
-const PERSONAL_TOPICS = new Set(["favourites", "offers"]);
+const VALID_TOPICS = new Set(["announcements", "favourites", "offers", "market", "activity", "launches"]);
+const PERSONAL_TOPICS = new Set(["favourites", "offers", "launches"]);
 
 function normalizeTopics(value: unknown): string[] {
   if (!Array.isArray(value)) return ["announcements"];

@@ -1,10 +1,12 @@
 import { isWarpletsAppHostname } from "./warpletsApp.js";
+import { isStonkletsAppHostname } from "./stonkletsApp.js";
 
-export type AppFaviconKey = "app" | "warplets" | "drop";
+export type AppFaviconKey = "app" | "warplets" | "stonklets" | "drop";
 
 export const APP_FAVICONS: Readonly<Record<AppFaviconKey, { png: string; ico: string }>> = {
   app: { png: "/favicon-10x-v2.png", ico: "/favicon-10x-v2.ico" },
   warplets: { png: "/favicon-warplets-v2.png", ico: "/favicon-warplets-v2.ico" },
+  stonklets: { png: "/stonklets/chip.png", ico: "/favicon-warplets-v2.ico" },
   drop: { png: "/favicon-drop-v2.png", ico: "/favicon-drop-v2.ico" },
 };
 
@@ -13,7 +15,8 @@ export function getHostnameFaviconKey(hostname: string): AppFaviconKey {
   if (normalized === "drop.10x.meme" || normalized === "drop-dev.10x.meme" || normalized === "drop-local.10x.meme") {
     return "drop";
   }
-  return isWarpletsAppHostname(normalized) ? "warplets" : "app";
+  if (isWarpletsAppHostname(normalized)) return "warplets";
+  return isStonkletsAppHostname(normalized) ? "stonklets" : "app";
 }
 
 export function buildFaviconLinks(key: AppFaviconKey): string {

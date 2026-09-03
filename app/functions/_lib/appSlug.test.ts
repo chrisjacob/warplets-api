@@ -40,3 +40,19 @@ describe("Warplets application identity", () => {
     expect(resolveAppSlugFromAppFid(1234, { warplets: 1234 })).toBe("warplets");
   });
 });
+
+describe("Stonklets application identity", () => {
+  it.each([
+    "https://stonklet-local.10x.meme/",
+    "https://stonklet-dev.10x.meme/trade?pair=tesla",
+    "https://stonklet.10x.meme/stats",
+    "https://app.10x.meme/stonklets/portfolio",
+  ])("resolves %s to the isolated Stonklets app", (url) => {
+    expect(resolveAppSlugFromUrl(new URL(url))).toBe("stonklets");
+  });
+
+  it("uses independent launch and FID mappings", () => {
+    expect(getDefaultLaunchUrl("stonklets")).toBe("https://stonklet.10x.meme/");
+    expect(resolveAppSlugFromAppFid(9876, { stonklets: 9876 })).toBe("stonklets");
+  });
+});

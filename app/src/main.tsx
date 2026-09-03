@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import "./index.css";
 import { initializePwa, isEmbeddedWebView, isLikelyBaseAppBrowser } from "./pwa";
 import { WARPLETS_APP_HOSTS, WARPLETS_APP_PATH } from "../shared/warpletsApp";
+import { STONKLETS_APP_HOSTS, STONKLETS_APP_PATH } from "../shared/stonkletsApp";
 import { captureWarpmojiAttribution } from "./analytics";
 import { clearLocalCacheIfRequested } from "./localCacheReset";
 import { shouldReloadForPreloadError } from "./preloadRecovery";
@@ -32,6 +33,7 @@ captureHolderOutreachAttribution();
 const App = lazy(() => import("./App.tsx"));
 const DropApp = lazy(() => import("./DropClosedApp.tsx"));
 const SearchApp = lazy(() => import("./SearchApp.tsx"));
+const StonkletsApp = lazy(() => import("./StonkletsApp.tsx"));
 const MillionApp = lazy(() => import("./MillionApp.tsx"));
 const StopApp = lazy(() => import("./StopApp.tsx"));
 const UnsubscribeApp = lazy(() => import("./UnsubscribeApp.tsx"));
@@ -116,10 +118,12 @@ function resolveActiveApp() {
 
   if (hostname === "drop.10x.meme" || hostname === "drop-local.10x.meme" || hostname === "drop-dev.10x.meme") return <DropApp />;
   if ((WARPLETS_APP_HOSTS as readonly string[]).includes(hostname)) return <SearchApp />;
+  if ((STONKLETS_APP_HOSTS as readonly string[]).includes(hostname)) return <StonkletsApp />;
   if (hostname === "million.10x.meme" || hostname === "million-local.10x.meme" || hostname === "million-dev.10x.meme") return <MillionApp />;
 
   if (cleanPath === "/drop" || cleanPath.startsWith("/drop/")) return <DropApp />;
   if (cleanPath === WARPLETS_APP_PATH || cleanPath.startsWith(`${WARPLETS_APP_PATH}/`)) return <SearchApp />;
+  if (cleanPath === STONKLETS_APP_PATH || cleanPath.startsWith(`${STONKLETS_APP_PATH}/`)) return <StonkletsApp />;
   if (cleanPath === "/million" || cleanPath.startsWith("/million/")) return <MillionApp />;
   if (cleanPath === "/stop" || cleanPath.startsWith("/stop/")) return <StopApp />;
   if (cleanPath === "/unsubscribe" || cleanPath.startsWith("/unsubscribe/")) return <UnsubscribeApp />;

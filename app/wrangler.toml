@@ -36,6 +36,9 @@ WARPMOJI_ADMIN_FIDS = "1129138"
 # VAPID_PUBLIC_KEY = "..."
 # WARPLETS_ACCOUNT_ASSOCIATION_JSON = "{...association signed for warplet.10x.meme...}"
 # WARPLETS_APP_FID = "?????" # add once observed for the registered 10X Warplets Mini App
+# STONKLETS_ACCOUNT_ASSOCIATION_JSON = "{...association signed for stonklet.10x.meme...}"
+# STONKLETS_APP_FID = "?????" # add after Stonklets Mini App registration
+# STONKLETS_BASE_APP_ID = "?????" # public Base app ID, if registered
 # DROP_APP_FID = "?????"    # add once observed in webhook events for Drop
 
 # Optional Dune round-two analytics. Public Stats remain fully functional while
@@ -59,6 +62,13 @@ DUNE_TRANSFERS_BACKFILL_QUERY_ID = "8102887"
 # Secrets: DUNE_API_KEY and optional DUNE_WEBHOOK_SECRET
 # Secrets: BASE_RPC_URL (preferred dedicated Base Mainnet RPC; use the full Alchemy HTTPS URL)
 # and optional OPTIMISM_RPC_URL (SIWF verification; BASE_RPC_URL's Alchemy key is reused when omitted)
+# Optional BNB_RPC_URL provides a dedicated BNB Chain RPC for Flap state reads.
+# When absent, the server-only connector falls back to official public BNB RPC.
+# COINMARKETCAP_API_KEY is a server-only secret used by the Stonklets market
+# enrichment connector. For local Pages development, put it in app/.dev.vars.
+STONKLETS_CMC_ENABLED = "true"
+STONKLETS_CMC_QUOTES_INTERVAL_MINUTES = "5"
+STONKLETS_CMC_MONTHLY_CREDIT_BUDGET = "14000"
 
 # Production bindings (app.10x.meme)
 [[kv_namespaces]]
@@ -101,6 +111,13 @@ RESEND_ONBOARDING_ENABLED = "false"
 WARPMOJI_ADMIN_FIDS = "1129138"
 # WARPLETS_ACCOUNT_ASSOCIATION_JSON = "{...association signed for warplet-dev.10x.meme...}"
 # WARPLETS_APP_FID = "?????" # preview Mini App FID, if registered separately
+# STONKLETS_ACCOUNT_ASSOCIATION_JSON = "{...association signed for stonklet-dev.10x.meme...}"
+# STONKLETS_APP_FID = "?????" # preview Stonklets Mini App FID
+# STONKLETS_BASE_APP_ID = "?????"
+# Secret: COINMARKETCAP_API_KEY (Stonklets market enrichment).
+STONKLETS_CMC_ENABLED = "false"
+STONKLETS_CMC_QUOTES_INTERVAL_MINUTES = "5"
+STONKLETS_CMC_MONTHLY_CREDIT_BUDGET = "14000"
 # Use preview callback URLs and client registrations before enabling OAuth.
 DUNE_ENABLED = "0"
 DUNE_EXECUTE_ENABLED = "0"

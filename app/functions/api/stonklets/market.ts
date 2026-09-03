@@ -1,0 +1,72 @@
+import { jsonSecure } from "../../_lib/security.js";
+import { loadStockMetricsBatch, loadStockPeriodChanges } from "../../_lib/stonkletMarket.js";
+import { loadStonkletDemoMarket, loadStonkletPeriodChanges, marketSnapshotsByPair, marketStatusForSnapshots, type StonkletMarketIngestEnv } from "../../_lib/stonkletIngestion.js";
+import { ingestCmcMarketIfDue, loadCmcMarket, mergeCmcMetrics } from "../../_lib/stonkletCmc.js";
+import { STONKLETS_CATALOG, emptyMarketMetrics } from "../../../shared/stonkletsCatalog.js";
+import { DEFAULT_STONKLET_CHANGE_RANGE, parseStonkletChangeRange, stonkletRangeCacheSeconds } from "../../../shared/stonkletsTime.js";
+
+interface Env extends StonkletMarketIngestEnv {}
+
+type FavouriteAsset = "stock" | "stonklet";
+
+async function favouriteAggregates(db: D1Database): Promise<Map<string, { total: number; momentum7d: number }>> {
+  const result = await db.prepare(
+    `SELECT pair_id, asset,
+            SUM(CASE WHEN active = 1 THEN 1 ELSE 0 END) AS total,
+            SUM(CASE WHEN active = 1 AND julianday(favourited_at) >= julianday('now', '-7 days') THEN 1 ELSE 0 END) AS momentum
+     FROM stonklet_asset_favourites GROUP BY pair_id, asset`,
+  ).all<{ pair_id: string; asset: FavouriteAsset; total: number; momentum: number }>().catch(() => ({ results: [] }));
+  return new Map((result.results ?? []).map((row) => [`${row.pair_id}:${row.asset}`, { total: Number(row.total) || 0, momentum7d: Number(row.momentum) || 0 }]));
+}
+
+export const onRequestGet: PagesFunction<Env> = async ({ env, request }) => {
+  const url = new URL(request.url);
+  const hostname = url.hostname.toLowerCase();
+  const rawChange = url.searchParams.get("range") ?? url.searchParams.get("change");
+  const changeRange = rawChange == null ? DEFAULT_STONKLET_CHANGE_RANGE : parseStonkletChangeRange(rawChange);
+  if (!changeRange) return jsonSecure({ error: "invalid change range" }, { status: 400 });
+  if (hostname === "localhost" || hostname === "127.0.0.1" || hostname.includes("-local.")) {
+    await ingestCmcMarketIfDue(env);
+  }
+  const [aggregates, metrics, demoSnapshots, cmcMarket, stockPeriodChanges] = await Promise.all([
+    favouriteAggregates(env.WARPLETS),
+    loadStockMetricsBatch(STONKLETS_CATALOG, env.WARPLETS_KV),
+    loadStonkletDemoMarket(env),
+    loadCmcMarket(env),
+    loadStockPeriodChanges(STONKLETS_CATALOG, changeRange, env.WARPLETS_KV),
+  ]);
+  const stonkletPeriodChanges = await loadStonkletPeriodChanges(env, changeRange, demoSnapshots);
+  const demos = marketSnapshotsByPair(demoSnapshots);
+  const entries = STONKLETS_CATALOG.map((entry) => {
+    const cmcStock = cmcMarket.get(`${entry.id}:stock`);
+    const cmcStonklet = cmcMarket.get(`${entry.id}:stonklet`);
+    return {
+      ...entry,
+      stock: {
+        ...entry.stock,
+        contractAddress: entry.stock.contractAddress ?? cmcStock?.contractAddress ?? null,
+      },
+      stockMetrics: mergeCmcMetrics(metrics.get(entry.id) ?? emptyMarketMetrics(), cmcStock),
+      stonkletMetrics: mergeCmcMetrics(demos.get(entry.id)?.metrics ?? emptyMarketMetrics(), cmcStonklet),
+      stockPeriodChange: stockPeriodChanges.get(entry.id) ?? null,
+      stonkletPeriodChange: stonkletPeriodChanges.get(entry.id) ?? null,
+      demoMarket: demos.get(entry.id)?.state ?? null,
+      favourites: aggregates.get(`${entry.id}:stonklet`)?.total ?? 0,
+      momentum7d: aggregates.get(`${entry.id}:stonklet`)?.momentum7d ?? 0,
+      stockFavourites: aggregates.get(`${entry.id}:stock`)?.total ?? 0,
+      stockMomentum7d: aggregates.get(`${entry.id}:stock`)?.momentum7d ?? 0,
+    };
+  });
+  const metricValues = entries.flatMap((entry) => [entry.stockMetrics, entry.stonkletMetrics]);
+  const liveTimes = metricValues.map((metric) => metric.updatedAt).filter((value): value is string => Boolean(value));
+  return jsonSecure({
+    entries,
+    changeRange,
+    basis: "price",
+    updatedAt: liveTimes.sort().at(-1) ?? null,
+    stale: metricValues.some((metric) => metric.status === "stale"),
+    demoMarketStatus: marketStatusForSnapshots(demoSnapshots),
+  }, {
+    headers: { "cache-control": `public, max-age=15, s-maxage=${stonkletRangeCacheSeconds(changeRange)}, stale-while-revalidate=${Math.max(120, stonkletRangeCacheSeconds(changeRange) * 2)}` },
+  });
+};

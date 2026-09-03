@@ -1,6 +1,7 @@
 import type { AppSurface } from "./appRuntime";
 import type { EntryPoint } from "./pwa";
 import { WARPLETS_APP_PATH, isWarpletsAppHostname } from "../shared/warpletsApp";
+import { STONKLETS_APP_PATH, isStonkletsAppHostname } from "../shared/stonkletsApp";
 
 export type AnalyticsEventName =
   | "app_viewed"
@@ -58,12 +59,15 @@ function anonymousSessionId(): string {
   }
 }
 
-function currentAppSlug(): "app" | "drop" | "warplets" | "million" {
+function currentAppSlug(): "app" | "drop" | "warplets" | "stonklets" | "million" {
   if (typeof window === "undefined") return "app";
   const hostname = window.location.hostname.toLowerCase();
   const pathname = window.location.pathname.replace(/\/+$/, "") || "/";
   if (isWarpletsAppHostname(hostname) || pathname === WARPLETS_APP_PATH || pathname.startsWith(`${WARPLETS_APP_PATH}/`)) {
     return "warplets";
+  }
+  if (isStonkletsAppHostname(hostname) || pathname === STONKLETS_APP_PATH || pathname.startsWith(`${STONKLETS_APP_PATH}/`)) {
+    return "stonklets";
   }
   if (hostname.startsWith("drop-") || hostname === "drop.10x.meme" || pathname === "/drop" || pathname.startsWith("/drop/")) {
     return "drop";

@@ -8,8 +8,14 @@ import {
   WARPLETS_APP_SLUG,
   WARPLETS_PUBLIC_NAME,
 } from "../shared/warpletsApp";
+import {
+  STONKLETS_APP_HOSTS,
+  STONKLETS_APP_ORIGINS,
+  STONKLETS_APP_SLUG,
+  STONKLETS_PUBLIC_NAME,
+} from "../shared/stonkletsApp";
 
-export type AppSlug = "app" | "drop" | typeof WARPLETS_APP_SLUG | "million";
+export type AppSlug = "app" | "drop" | typeof WARPLETS_APP_SLUG | typeof STONKLETS_APP_SLUG | "million";
 
 // Temporarily hidden menu content. Keep the definitions below intact so these
 // cards and sections can be restored by removing their entries here.
@@ -72,6 +78,16 @@ const APP_CONFIGS: Record<AppSlug, AppConfig> = {
     imageUrl: `${WARPLETS_APP_ORIGINS.prod}/embed_search.png`,
     available: false,
   },
+  stonklets: {
+    slug: STONKLETS_APP_SLUG,
+    appName: STONKLETS_PUBLIC_NAME,
+    headerTitle: STONKLETS_PUBLIC_NAME,
+    ctaLabel: "Explore Stonklets",
+    absoluteUrl: `${STONKLETS_APP_ORIGINS.prod}/`,
+    iconUrl: `${STONKLETS_APP_ORIGINS.prod}/stonklets/chip.png`,
+    imageUrl: `${STONKLETS_APP_ORIGINS.prod}/stonklets/chip.png`,
+    available: true,
+  },
   million: {
     slug: "million",
     appName: "$1M Warplet",
@@ -88,6 +104,7 @@ const HOSTS_BY_APP: Record<AppSlug, string[]> = {
   app: ["app.10x.meme", "app-dev.10x.meme", "app-local.10x.meme"],
   drop: ["drop.10x.meme", "drop-dev.10x.meme", "drop-local.10x.meme"],
   warplets: [...WARPLETS_APP_HOSTS],
+  stonklets: [...STONKLETS_APP_HOSTS],
   million: ["million.10x.meme", "million-dev.10x.meme", "million-local.10x.meme"],
 };
 
@@ -115,6 +132,11 @@ const APP_URLS: Record<AppSlug, Record<EnvTier, string>> = {
     prod: `${WARPLETS_APP_ORIGINS.prod}/`,
     dev: `${WARPLETS_APP_ORIGINS.dev}/`,
     local: `${WARPLETS_APP_ORIGINS.local}/`,
+  },
+  stonklets: {
+    prod: `${STONKLETS_APP_ORIGINS.prod}/`,
+    dev: `${STONKLETS_APP_ORIGINS.dev}/`,
+    local: `${STONKLETS_APP_ORIGINS.local}/`,
   },
   million: {
     prod: "https://million.10x.meme/",
@@ -671,7 +693,7 @@ export function MiniAppMenuPage({ appSlug }: { appSlug: AppSlug }) {
 
   const showCurrentCardToast = () => setCurrentCardToastId(Date.now());
 
-  const miniAppCards: MenuCard[] = ["app", "drop", WARPLETS_APP_SLUG].map((slug) => {
+  const miniAppCards: MenuCard[] = ["app", "drop", WARPLETS_APP_SLUG, STONKLETS_APP_SLUG].map((slug) => {
     const config = APP_CONFIGS[slug as AppSlug];
     const isCurrent = appSlug === config.slug;
     return {
@@ -684,16 +706,22 @@ export function MiniAppMenuPage({ appSlug }: { appSlug: AppSlug }) {
             ? "Buy, claim, and share your Warplet inside Farcaster."
             : config.slug === "million"
               ? "Dedicated mission for the $1M Warplet campaign."
-              : "Search, collect, trade, and explore 10X Warplets.",
+              : config.slug === STONKLETS_APP_SLUG
+                ? "Track paired bStocks and vote for the Stonklets you want launched first."
+                : "Search, collect, trade, and explore 10X Warplets.",
       imageUrl: config.slug === "app"
         ? "/menu/menu-10x-app.png"
         : config.slug === WARPLETS_APP_SLUG
           ? "/menu/10xwarplets.jpg"
+          : config.slug === STONKLETS_APP_SLUG
+            ? "/stonklets/chip.png"
           : "/menu/menu-drop-app.jpg",
       ctaLabel: config.slug === "drop"
           ? "10X Warplet Drop"
           : config.slug === WARPLETS_APP_SLUG
             ? "10X Warplets"
+            : config.slug === STONKLETS_APP_SLUG
+              ? "10X Stonklets"
             : config.ctaLabel,
       kind: config.slug === "app" ? "openUrl" : "miniapp",
       appSlug: config.slug,

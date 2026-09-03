@@ -1,0 +1,17 @@
+{
+  "name": "10X Stonklets",
+  "short_name": "Stonklets",
+  "description": "Track paired bStocks and vote for the Stonklets you want launched first.",
+  "id": "/stonklets",
+  "start_url": "/stonklets",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#001400",
+  "icons": [
+    { "src": "/stonklets/chip.png", "sizes": "1254x1254", "type": "image/png", "purpose": "any maskable" }
+  ],
+  "screenshots": [
+    { "src": "/stonklets/chip.png", "sizes": "1254x1254", "type": "image/png", "form_factor": "narrow" }
+  ]
+}

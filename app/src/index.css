@@ -372,6 +372,28 @@ input[type="search"]::-webkit-search-results-decoration {
   box-shadow: 1px 3px 0 oklab(0.866435 -0.23384 0.179502 / 0.35);
 }
 
+.warplets-order-option {
+  border: 2px solid transparent;
+  background: transparent;
+  color: #00ff00;
+}
+
+.warplets-order-option[data-order-tone="price"] { color: #ffff00; }
+.warplets-order-option[data-order-tone="offer"] { color: #33aaff; }
+.warplets-order-option[data-order-tone="sold"] { color: #ff4040; }
+.warplets-order-option.is-active[data-order-tone="default"] { border-color: rgba(0, 255, 0, 0.42); background: rgba(0, 255, 0, 0.12); }
+.warplets-order-option.is-active[data-order-tone="price"] { border-color: rgba(255, 255, 0, 0.42); background: rgba(255, 255, 0, 0.12); }
+.warplets-order-option.is-active[data-order-tone="offer"] { border-color: rgba(51, 170, 255, 0.42); background: rgba(51, 170, 255, 0.12); }
+.warplets-order-option.is-active[data-order-tone="sold"] { border-color: rgba(255, 64, 64, 0.42); background: rgba(255, 64, 64, 0.12); }
+.warplets-order-option:hover,
+.warplets-order-option:focus-visible { border-color: #000; background: rgba(0, 255, 0, 0.12); }
+.warplets-order-option[data-order-tone="price"]:hover,
+.warplets-order-option[data-order-tone="price"]:focus-visible { background: rgba(255, 255, 0, 0.12); }
+.warplets-order-option[data-order-tone="offer"]:hover,
+.warplets-order-option[data-order-tone="offer"]:focus-visible { background: rgba(51, 170, 255, 0.12); }
+.warplets-order-option[data-order-tone="sold"]:hover,
+.warplets-order-option[data-order-tone="sold"]:focus-visible { background: rgba(255, 64, 64, 0.12); }
+
 :where(a, button, input, select, textarea, [role="button"], [tabindex]):focus-visible {
   outline: 0;
   box-shadow: 0 0 0 2px #0F0, 0 0 12px rgba(0, 255, 0, 0.55);
@@ -2081,3 +2103,176 @@ html[data-entry-point="pwa"] .miniapp-shell__content {
     animation: none;
   }
 }
+
+/* 10X Stonklets ---------------------------------------------------------- */
+.stonklets-main{position:relative;z-index:1;width:min(1180px,100%);min-height:70vh;margin:0 auto;padding:14px clamp(10px,2.5vw,28px) 48px;color:#d8efd8;font-family:"Roboto Mono",monospace}.stonklets-nav{display:grid;grid-template-columns:repeat(5,1fr);overflow:hidden;border:1px solid rgba(0,255,0,.32);border-radius:10px;background:rgba(0,7,0,.82);box-shadow:0 10px 40px rgba(0,0,0,.35)}.stonklets-nav button{min-width:0;padding:10px 3px;border:0;border-right:1px solid rgba(0,255,0,.18);background:transparent;color:#78a978;font:700 clamp(9px,2.3vw,12px)/1 "Roboto Mono",monospace;text-transform:uppercase;cursor:pointer}.stonklets-nav button:last-child{border-right:0}.stonklets-nav button.is-active{background:#00ff00;color:#001800}.stonklets-intro{padding:clamp(28px,6vw,60px) 2px 24px;max-width:840px}.stonklets-kicker,.stonklets-results>header span{color:#00ff00;font-size:11px;font-weight:800;letter-spacing:.14em}.stonklets-intro h1{max-width:750px;margin:7px 0 10px;color:#f2fff2;font-size:clamp(30px,6.8vw,64px);line-height:.98;letter-spacing:-.055em}.stonklets-intro p{max-width:700px;margin:0;color:#8bbf8b;font-size:clamp(12px,2vw,15px);line-height:1.6}.stonklets-search-row{display:flex;gap:8px;margin-bottom:8px}.stonklets-search-row label{position:relative;display:flex;min-width:0;flex:1}.stonklets-search-row input{width:100%;height:42px;padding:0 66px 0 13px;border:1px solid rgba(0,255,0,.35);border-radius:8px;outline:0;background:rgba(0,5,0,.9);color:#eaffea;font:12px "Roboto Mono",monospace}.stonklets-search-row input:focus{border-color:#00ff00;box-shadow:0 0 0 2px rgba(0,255,0,.12)}.stonklets-search-row label button{position:absolute;right:8px;top:0;height:42px;border:0;background:transparent;color:#00ff00;font:700 10px "Roboto Mono",monospace;cursor:pointer}.stonklets-search-row>button,.stonklets-controls>button,.stonklets-controls label{height:42px;border:1px solid rgba(0,255,0,.3);border-radius:8px;background:rgba(0,5,0,.9);color:#9bc39b;font:700 10px "Roboto Mono",monospace;white-space:nowrap}.stonklets-search-row>button{padding:0 12px}.stonklets-search-row>button.is-active{border-color:#00ff00;color:#00ff00}.stonklets-controls{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1.25fr) .7fr .85fr;gap:8px;margin-bottom:20px}.stonklets-controls label{display:flex;align-items:center;gap:4px;padding-left:8px}.stonklets-controls select{min-width:0;flex:1;height:100%;border:0;outline:0;background:transparent;color:#e8ffe8;font:700 10px "Roboto Mono",monospace}.stonklets-controls option{background:#001000}.stonklets-controls label button{width:28px;border:0;background:transparent;color:#00ff00;font-size:16px;cursor:pointer}.stonklets-controls>button{padding:0 7px;cursor:pointer}.stonklets-controls button:hover,.stonklets-controls button:focus-visible{border-color:#00ff00;color:#00ff00}.stonklets-state{margin:10px 0;padding:10px 12px;border:1px solid rgba(0,255,0,.2);border-radius:7px;background:rgba(0,20,0,.75);color:#8bbf8b;font-size:11px}.stonklets-state.is-error{border-color:rgba(255,73,108,.4);color:#ff9aad}.stonklets-results{margin:28px 0}.stonklets-results>header{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:9px}.stonklets-results h2{margin:2px 0 0;color:#efffef;font-size:clamp(18px,4vw,28px)}.stonklets-results>header>b{display:grid;width:32px;height:32px;place-items:center;border:1px solid rgba(0,255,0,.3);border-radius:50%;color:#00ff00;font-size:11px}.stonklets-compact-head,.stonklets-compact-row{display:grid;grid-template-columns:minmax(82px,1.6fr) minmax(43px,.65fr) minmax(50px,.75fr) minmax(51px,.8fr) minmax(47px,.7fr) minmax(48px,.7fr) minmax(44px,.55fr);align-items:center;gap:4px}.stonklets-compact-head{padding:7px 9px;color:#568456;font-size:8px;font-weight:700;text-transform:uppercase}.stonklets-pair{position:relative;margin-bottom:8px;overflow:hidden;border:1px solid rgba(0,255,0,.24);border-radius:9px;background:rgba(0,6,0,.9);box-shadow:0 8px 30px rgba(0,0,0,.3)}.stonklets-pair:focus-within{border-color:rgba(0,255,0,.55)}.stonklets-badge{position:absolute;z-index:3;right:7px;top:5px;padding:3px 5px;border:1px solid rgba(255,193,7,.4);border-radius:4px;background:#171100;color:#ffcf40;font-size:7px;font-weight:800;letter-spacing:.08em}.stonklets-compact-row{min-height:65px;padding:8px 9px;color:#b7d1b7;font-size:clamp(7px,1.5vw,10px)}.stonklets-compact-row+.stonklets-compact-row{border-top:1px solid rgba(0,255,0,.15);background:rgba(0,255,0,.025)}.stonklets-compact-identity,.stonklets-card-identity{display:flex;min-width:0;align-items:center;gap:7px}.stonklets-compact-identity>span:last-child,.stonklets-card-identity>div{display:flex;min-width:0;flex-direction:column}.stonklets-compact-identity b,.stonklets-card-identity b{overflow:hidden;color:#f0fff0;font-size:clamp(9px,2.1vw,13px);text-overflow:ellipsis;white-space:nowrap}.stonklets-compact-identity small,.stonklets-card-identity span{overflow:hidden;color:#648e64;font-size:clamp(6px,1.3vw,9px);text-overflow:ellipsis;white-space:nowrap}.stonklets-identity-image{display:grid;width:38px;height:38px;flex:0 0 38px;overflow:hidden;place-items:center;border:1px solid rgba(0,255,0,.25);border-radius:8px;background:#061006;color:#00ff00;font-size:10px}.stonklets-identity-image img{width:100%;height:100%;object-fit:contain}.stonklets-identity-image--stonklet img{object-fit:cover}.stonklets-row-kind{color:#4b7b4b;font-size:8px;text-transform:uppercase}.is-positive{color:#00ff66!important}.is-negative{color:#ff496c!important}.stonklets-heart{display:flex;align-items:center;justify-content:flex-start;gap:3px;min-width:0;border:0;background:transparent;color:#6b956b;font:700 clamp(8px,1.7vw,11px) "Roboto Mono",monospace;cursor:pointer}.stonklets-heart span{font-size:16px}.stonklets-heart.is-active{color:#ff496c}.stonklets-heart:disabled{opacity:.5}.stonklets-trade{min-width:0;height:30px;padding:0 6px;border:1px solid #00ff00;border-radius:5px;background:#00ff00;color:#001200;font:800 clamp(7px,1.5vw,10px) "Roboto Mono",monospace;cursor:pointer}.stonklets-trade:hover,.stonklets-trade:focus-visible{background:#001600;color:#00ff00}.stonklets-chart-pair{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1px;background:rgba(0,255,0,.18)}.stonklets-asset-card{min-width:0;padding:10px;background:rgba(0,6,0,.96)}.stonklets-card-identity{margin-bottom:8px}.stonklets-chart{position:relative;height:132px;overflow:hidden;border:1px solid rgba(0,255,0,.13);border-radius:6px;background:rgba(0,16,0,.45)}.stonklets-chart>span{position:absolute;inset:0;display:grid;place-items:center;color:#416741;font-size:8px}.stonklets-chart>strong{position:absolute;z-index:2;left:7px;top:6px;color:#799979;font-size:9px;pointer-events:none}.stonklets-card-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;margin:8px 0}.stonklets-card-metrics span{min-width:0;overflow:hidden;color:#c6dfc6;font-size:clamp(7px,1.6vw,10px);text-overflow:ellipsis;white-space:nowrap}.stonklets-card-metrics small{display:block;color:#4f7d4f;font-size:6px;text-transform:uppercase}.stonklets-asset-card>.stonklets-trade{width:100%}.stonklets-empty,.stonklets-placeholder{padding:60px 20px;text-align:center;border:1px dashed rgba(0,255,0,.25);border-radius:10px;background:rgba(0,5,0,.75)}.stonklets-empty h2,.stonklets-placeholder h1{margin:8px 0;color:#efffef}.stonklets-empty p,.stonklets-placeholder p{color:#79a579;font-size:12px}.stonklets-empty button{padding:8px 12px;border:1px solid #00ff00;border-radius:5px;background:transparent;color:#00ff00}.stonklets-coming{display:inline-block;margin-top:12px;padding:5px 8px;border:1px solid #00ff00;border-radius:4px;color:#00ff00;font-size:10px;letter-spacing:.12em}.stonklets-risk{margin-top:32px;padding:14px 16px;border-left:3px solid #00ff00;background:rgba(0,10,0,.82);color:#6f9b6f;font-size:10px;line-height:1.6}.stonklets-risk b{display:block;color:#b8d7b8}.stonklets-account{display:grid;width:34px;height:34px;overflow:hidden;place-items:center;border:1px solid rgba(0,255,0,.45);border-radius:50%;background:#001000;color:#00ff00;cursor:pointer}.stonklets-account img{width:100%;height:100%;object-fit:cover}.stonklets-toast{position:fixed;z-index:120;right:12px;bottom:max(12px,env(safe-area-inset-bottom));left:12px;max-width:520px;margin:auto;padding:12px 14px;border:1px solid #00ff00;border-radius:8px;background:#001000;color:#caffca;font:11px/1.4 "Roboto Mono",monospace;box-shadow:0 12px 50px #000}.stonklets-placeholder{margin-top:24px}.stonklets-placeholder>p:first-of-type{font-size:18px;color:#d8efd8}
+@media(max-width:520px){.stonklets-main{padding-inline:7px}.stonklets-search-row{gap:5px}.stonklets-search-row>button{padding:0 7px;font-size:8px}.stonklets-controls{gap:4px}.stonklets-controls label{padding-left:5px;font-size:7px}.stonklets-controls select{font-size:8px}.stonklets-controls>button{font-size:8px}.stonklets-compact-head,.stonklets-compact-row{grid-template-columns:minmax(74px,1.5fr) minmax(37px,.65fr) minmax(42px,.72fr) minmax(44px,.75fr) minmax(39px,.66fr) minmax(42px,.66fr) minmax(36px,.52fr);gap:2px}.stonklets-compact-row{padding-inline:5px}.stonklets-identity-image{width:31px;height:31px;flex-basis:31px;border-radius:6px}.stonklets-compact-identity{gap:4px}.stonklets-trade{padding:0 3px}.stonklets-asset-card{padding:6px}.stonklets-chart{height:110px}.stonklets-card-metrics{gap:2px}.stonklets-badge{font-size:6px}}
+@media(prefers-reduced-motion:reduce){.stonklets-main *{scroll-behavior:auto!important;transition:none!important}}
+.stonklets-chart-vote{display:flex;align-items:center;justify-content:space-between;padding:7px 10px;border-top:1px solid rgba(0,255,0,.14);color:#6e986e;font-size:9px}.stonklets-chart-vote .stonklets-heart{justify-content:flex-end}.stonklets-alert-modal{position:fixed;z-index:130;inset:0;display:grid;place-items:center;padding:16px;background:rgba(0,0,0,.82)}.stonklets-alert-modal>div{width:min(420px,100%);padding:22px;border:1px solid rgba(0,255,0,.45);border-radius:12px;background:#000b00;box-shadow:0 24px 90px #000;color:#d8efd8}.stonklets-alert-modal h2{margin:5px 0 8px}.stonklets-alert-modal p{color:#78a478;font-size:11px;line-height:1.6}.stonklets-alert-modal button{width:100%;margin-top:8px;padding:10px;border:1px solid #00ff00;border-radius:6px;background:#00ff00;color:#001000;font:800 10px "Roboto Mono",monospace}.stonklets-alert-modal button.is-secondary{background:transparent;color:#00ff00}
+.stonklets-chart-tooltip{position:absolute;z-index:4;min-width:72px;padding:3px 5px;border:1px solid rgba(0,255,0,.35);border-radius:4px;background:rgba(0,10,0,.92);color:#eaffea;font:8px "Roboto Mono",monospace;pointer-events:none}
+.stonklets-attribution{text-align:right;font-size:9px}.stonklets-attribution a{color:#648e64}.stonklets-attribution a:hover{color:#00ff00}
+.stonklets-intro .stonklets-demo-note{max-width:760px;margin-top:14px;padding:10px 12px;border:1px solid rgba(64,190,255,.28);border-radius:7px;background:rgba(0,24,38,.62);color:#83b4c9;font-size:10px;line-height:1.55}.stonklets-demo-note b{color:#80d8ff}.stonklets-demo-label{display:block;overflow:hidden;margin-top:3px;color:#80d8ff;font:700 clamp(5px,1.15vw,7px)/1.2 "Roboto Mono",monospace;font-style:normal;letter-spacing:.03em;text-overflow:ellipsis;white-space:nowrap}.stonklets-demo-label.is-bonding{color:#ffcf40}.stonklets-demo-trade{width:min(560px,100%);margin:18px auto 0;padding:14px;border:1px solid rgba(64,190,255,.32);border-radius:8px;background:rgba(0,24,38,.55);text-align:left}.stonklets-demo-trade>b{color:#80d8ff;font-size:11px;text-transform:uppercase}.stonklets-demo-trade p{margin:7px 0}.stonklets-demo-trade a{color:#00ff00;font-size:10px;font-weight:700}.stonklets-card-identity .stonklets-demo-label{max-width:100%}
+.stonklets-data-attribution{margin:18px 0 0;color:#4f7d4f;font-size:8px;line-height:1.55;text-align:right}.stonklets-data-attribution a{color:#6e9f6e}.stonklets-data-attribution a:hover,.stonklets-data-attribution a:focus-visible{color:#00ff00}
+
+/* Keep Stonklets on the same compact mini-app visual contract as Warplets. */
+.stonklets-main{width:min(448px,100%);padding:16px 16px 48px;font-family:inherit}
+.stonklets-market-page{padding-top:24px}
+.stonklets-search-row{display:block;margin-bottom:12px}
+.stonklets-search-row input{width:100%;height:auto;padding-top:12px;padding-bottom:12px;padding-left:40px;padding-right:112px;border-color:#00ff00;border-radius:12px;background:rgba(0,0,0,.7);color:#00ff00;font-family:inherit;font-size:16px;font-weight:400;line-height:24px}
+.stonklets-search-row input::placeholder{color:#8bbf8b}
+.stonklets-search-row input:focus{border-color:#00ff00;box-shadow:0 0 10px rgba(0,255,0,.22)}
+.stonklets-controls{grid-template-columns:minmax(0,1.03fr) minmax(0,1.17fr) minmax(0,.95fr) auto;align-items:center;gap:8px;margin-bottom:12px}
+.stonklets-controls>button{height:32px;border-radius:8px;font-family:inherit;font-size:12px;font-weight:700;line-height:16px}
+.stonklets-controls>button:not(:last-child){border-color:rgba(0,255,0,.55);background:#00ff00;color:rgb(0,80,0)}
+.stonklets-controls>button:not(:last-child):hover{background:#33ff33;color:rgb(0,80,0)}
+.stonklets-controls>button:last-child{width:32px;padding:0;border-color:rgba(0,255,0,.35);background:transparent;color:#00ff00}
+.stonklets-controls>button:last-child:hover{background:#041204;color:#00ff00}
+.stonklets-loading{margin:12px 0;color:#00ff00;font-size:14px;line-height:1.5}
+.stonklets-results{margin:8px 0 0}
+.stonklets-results--upcoming{margin-top:10px}
+.stonklets-upcoming-toggle{display:block;margin:18px auto 4px;padding:4px;border:0;background:transparent;color:#00ff00;font:700 12px/1.4 "Roboto Mono",monospace;text-decoration:underline;text-decoration-color:#00ff00;text-underline-offset:3px;cursor:pointer}
+.stonklets-upcoming-toggle:hover,.stonklets-upcoming-toggle:focus-visible{color:#8bbf8b}
+.stonklets-empty-status{margin:24px 0;text-align:center;color:#00ff00;font-size:12px;font-weight:700;line-height:1.4;text-transform:uppercase}
+.stonklets-empty-status button{border:0;background:transparent;color:#00ff00;font:inherit;text-decoration:underline;text-decoration-color:#00ff00;text-underline-offset:2px;cursor:pointer}
+.stonklets-chart-vote{justify-content:flex-end;gap:7px}
+.stonklets-chart-vote>span{text-align:right}
+.stonklets-data-attribution{text-align:left}
+@media(max-width:520px){.stonklets-main{padding-inline:16px}.stonklets-search-row{gap:0}.stonklets-controls{grid-template-columns:minmax(0,1.03fr) minmax(0,1.17fr) minmax(0,.95fr) auto;gap:5px}.stonklets-controls>button:not(:last-child){padding-inline:12px}}
+
+.stonklets-nav{display:grid;grid-template-columns:minmax(0,.98fr) minmax(0,.82fr) minmax(0,1.15fr) minmax(0,1.51fr) minmax(0,.76fr);gap:8px;overflow:visible;padding:4px;border:1px solid rgba(0,255,0,.25);border-radius:8px;background:rgba(0,0,0,.6);box-shadow:none}
+.stonklets-nav button{min-width:0;padding:8px;border:0;border-radius:6px;background:transparent;color:#00ff00;font-family:inherit;font-size:12px;font-weight:700;line-height:16px;text-transform:none;white-space:nowrap;cursor:pointer;transition:color .15s ease,background-color .15s ease}
+.stonklets-nav button:nth-child(3){padding-inline:0}
+.stonklets-nav button:nth-child(4){padding-inline:8px}
+.stonklets-nav button:nth-child(5){padding-inline:4px}
+.stonklets-nav button:last-child{border-right:0}
+.stonklets-nav button:not(.is-active):hover,.stonklets-nav button:not(.is-active):focus-visible{background:#041204;color:#00ff00;outline:none}
+.stonklets-nav button.is-active{background:#00ff00;color:rgb(0,80,0)}
+@media(min-width:640px){.stonklets-nav button{font-size:14px;line-height:20px}}
+@media(max-width:420px){.stonklets-nav{grid-template-columns:minmax(0,.98fr) minmax(0,.82fr) minmax(0,1.15fr) minmax(0,1.51fr) minmax(0,.76fr);gap:4px}}
+
+/* Match Warplets form-control interaction states without the legacy Stonklets button overrides. */
+.stonklets-controls .stonklets-dropdown-trigger{height:32px;min-height:32px;gap:4px;padding-top:0;padding-right:6px;padding-bottom:0;border-radius:8px}
+.stonklets-controls .stonklets-dropdown-trigger>span:not(.sr-only){font-size:12px}
+.stonklets-controls .stonklets-dropdown-trigger>svg{background:transparent}
+.stonklets-controls .stonklets-dropdown-trigger:hover{border-color:rgba(0,255,0,.25);color:#00ff00}
+.stonklets-controls .stonklets-dropdown-trigger:focus-visible{border-color:#00ff00;color:#00ff00;box-shadow:0 0 10px rgba(0,255,0,.18)}
+.stonklets-controls .stonklets-dropdown-option{border-width:2px;border-color:transparent;background:transparent;color:#00ff00}
+.stonklets-controls .stonklets-dropdown-option:not(:disabled):not(.is-active):hover,.stonklets-controls .stonklets-dropdown-option:not(:disabled):not(.is-active):focus-visible{border-color:#000;background:#041204;color:#00ff00}
+.stonklets-controls .stonklets-dropdown-option.is-active,.stonklets-controls .stonklets-dropdown-option.is-active:hover,.stonklets-controls .stonklets-dropdown-option.is-active:focus-visible{border-color:rgba(0,255,0,.42);background:rgba(0,255,0,.12);color:#00ff00}
+.stonklets-controls .stonklets-dropdown-option:not(:disabled):hover,.stonklets-controls .stonklets-dropdown-option:not(:disabled):focus-visible{border-color:#000}
+
+/* Both halves of a Stonklet pair use the same circular asset frame. */
+.stonklets-identity-image{position:relative;border-color:transparent;border-radius:50%}
+.stonklets-identity-image::after{content:"";position:absolute;z-index:1;inset:0;border:2px solid;border-radius:inherit;pointer-events:none}
+.stonklets-identity-image--stock::after{border-color:#f0a82b}
+.stonklets-identity-image--stonklet::after{border-color:#00ff00}
+.stonklets-identity-image.stonklets-identity-image--stonklet{overflow:visible;isolation:isolate}
+.stonklets-identity-image--stonklet>img{position:relative;z-index:0;border-radius:inherit}
+.stonklets-paired-stock-logo{position:absolute;z-index:5;right:-2px;bottom:-2px;display:block;width:45%;height:45%;overflow:hidden;border-radius:50%;background:#000;pointer-events:none}
+.stonklets-paired-stock-logo[hidden]{display:none}
+.stonklets-identity-image .stonklets-paired-stock-logo>img{width:100%;height:100%;border-radius:inherit;object-fit:contain}
+.stonklets-paired-stock-logo::after{content:"";position:absolute;inset:0;border:1px solid #f0a82b;border-radius:inherit;pointer-events:none}
+
+/* Chart cards: independent favourites, square charts, artwork fallback, and 10X 3D CTAs. */
+.stonklets-card-header{display:flex;min-width:0;align-items:center;justify-content:space-between;gap:6px;margin-bottom:8px}
+.stonklets-card-header .stonklets-card-identity{min-width:0;margin-bottom:0}
+.stonklets-card-header>.stonklets-heart{flex:0 0 auto;justify-content:center;color:#00ff00}
+.stonklets-card-header>.stonklets-heart.is-active{color:#00ff00}
+.stonklets-heart--chart{height:36px;min-width:50px;padding:0 9px;gap:6px;border:0;border-radius:8px;background:transparent;color:#00ff00;font-family:inherit;font-size:12px;font-weight:700;line-height:16px;transition:background-color .15s ease,color .15s ease}
+.stonklets-heart--chart:hover:not(:disabled),.stonklets-heart--chart:focus-visible:not(:disabled){background:#041204;color:#00ff00}
+.stonklets-heart--chart b{font-size:12px;line-height:16px}
+.stonklets-chart{height:auto;aspect-ratio:1/1}
+.stonklets-chart-canvas{position:absolute;inset:0}
+.stonklets-chart-loading{position:absolute;z-index:2;inset:0;display:grid;place-items:center;background:rgba(0,16,0,.45)}
+.stonklets-chart-fallback{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.stonklets-chart>strong{right:9px;left:auto;top:8px;font-size:clamp(14px,4vw,18px);line-height:1;font-weight:800;text-align:right}
+.stonklets-chart-price-range{position:absolute;z-index:3;left:8px;bottom:12px;display:flex;height:20px;box-sizing:border-box;align-items:center;gap:5px;padding:0 7px;border-radius:4px;color:#000;font-size:clamp(9px,2.8vw,12px);font-weight:700;line-height:1;white-space:nowrap;pointer-events:none}
+.stonklets-chart-price-range.is-positive-range{background:#00ff66}
+.stonklets-chart-price-range.is-negative-range{background:#ff496c}
+.stonklets-chart-price-range b{color:#000;font:inherit}
+.stonklets-launch-panel{display:flex;min-height:43px;align-items:center;justify-content:center;margin:8px 0;padding:7px 8px;border:1px solid rgba(255,255,0,.55);border-radius:8px;background:rgba(255,255,0,.12);color:#ffff00;font-family:inherit;font-size:11px;font-weight:700;line-height:14px;text-align:center}
+.stonklets-trade{height:30px;margin-bottom:6px;padding:0 8px;border:1px solid #009900;border-radius:16px;background:#00ff00;color:rgb(0,80,0);font-family:inherit;font-weight:700;box-shadow:3px 6px 0 #008000;transition:transform .1s ease,box-shadow .1s ease,background-color .1s ease}
+.stonklets-trade:hover:not(:disabled),.stonklets-trade:focus-visible:not(:disabled){background:#33ff33;color:rgb(0,80,0)}
+.stonklets-trade:active:not(:disabled){transform:translate(1px,3px);box-shadow:1px 3px 0 #008000}
+.stonklets-trade:disabled{cursor:wait;opacity:.65}
+.stonklets-chart-cta{width:100%;height:auto;min-height:42px;margin-bottom:6px;padding:9px 8px;border:1px solid #009900;border-radius:16px;background:#00ff00;color:rgb(0,80,0);font-family:inherit;font-size:10px;font-weight:700;line-height:14px;text-align:center;box-shadow:3px 6px 0 #008000;cursor:pointer;transition:transform .1s ease,box-shadow .1s ease,background-color .1s ease}
+.stonklets-chart-cta:hover:not(:disabled),.stonklets-chart-cta:focus-visible:not(:disabled){background:#33ff33;color:rgb(0,80,0)}
+.stonklets-chart-cta:active:not(:disabled){transform:translate(1px,3px);box-shadow:1px 3px 0 #008000}
+@media(max-width:420px){.stonklets-chart-cta{padding-inline:10px}}
+
+/* Four-mode Stonklets result layouts. */
+.stonklets-layout-menu{width:32px;height:32px;align-self:center}
+.stonklets-pair{margin-bottom:14px}
+.stonklets-chart-pair--single{grid-template-columns:minmax(0,1fr);gap:0;background:transparent}
+.stonklets-pair--single-chart{margin-bottom:14px;background:transparent}
+.stonklets-pair--single-chart .stonklets-launch-panel{font-size:clamp(11px,2.6vw,14px);line-height:16px}
+.stonklets-pair--single-chart .stonklets-chart-cta{font-size:14px;line-height:18px}
+.stonklets-results--single-grid{overflow:hidden;border:1px solid rgba(0,255,0,.24);border-radius:9px;background:rgba(0,6,0,.9);box-shadow:0 8px 30px rgba(0,0,0,.3)}
+.stonklets-results--single-grid .stonklets-compact-head{border-bottom:1px solid rgba(0,255,0,.15)}
+.stonklets-results--single-grid .stonklets-pair--single-grid{margin:0;overflow:visible;border:0;border-radius:0;background:transparent;box-shadow:none}
+.stonklets-results--single-grid .stonklets-pair--single-grid+.stonklets-pair--single-grid{border-top:1px solid rgba(0,255,0,.15)}
+.stonklets-results--single-grid .stonklets-pair--single-grid:focus-within{background:rgba(0,255,0,.025)}
+
+/* Denser, more legible grid rows with Warplets-style secondary favourites and Buy CTAs. */
+.stonklets-compact-head{padding:5px 7px;font-size:9px;font-weight:800}
+.stonklets-compact-row{min-height:52px;padding:4px 7px;font-size:clamp(9px,2vw,11px)}
+.stonklets-compact-row>span:not(.stonklets-identity-image){min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.stonklets-compact-identity b{font-size:clamp(12px,2.4vw,14px)}
+.stonklets-compact-identity small{font-size:clamp(9px,1.8vw,11px)}
+.stonklets-heart--grid{height:26px;min-width:38px;padding:0 6px;justify-content:center;gap:4px;border:0;border-radius:6px;background:transparent;color:#00ff00;font-family:inherit;font-size:10px;font-weight:700;line-height:14px;transition:color .15s ease}
+.stonklets-heart--grid.is-active{color:#00ff00}
+.stonklets-heart--grid:hover:not(:disabled),.stonklets-heart--grid:focus-visible:not(:disabled){background:transparent;color:#00ff00;outline:none}
+.stonklets-heart--grid b{font-size:10px;line-height:14px}
+.stonklets-grid-cta{height:26px;margin:0 0 3px;padding:0 6px;border:1px solid #009900;border-radius:8px;font-size:9px;line-height:11px;box-shadow:2px 3px 0 #008000}
+.stonklets-grid-cta:active:not(:disabled){transform:translate(1px,1.5px);box-shadow:1px 1px 0 #008000}
+.stonklets-grid-launch-panel{grid-column:2/6;display:flex;height:32px;min-width:0;align-items:center;justify-content:center;overflow:hidden;padding:0 5px;border:1px solid rgba(255,255,0,.55);border-radius:7px;background:rgba(255,255,0,.12);color:#ffff00;font-size:clamp(7px,2vw,10px);font-weight:700;line-height:12px;text-align:center;white-space:nowrap;text-overflow:ellipsis}
+@media(max-width:520px){.stonklets-compact-row{padding:3px 5px;font-size:9px}.stonklets-compact-identity b{font-size:11px}.stonklets-compact-identity small{font-size:9px}.stonklets-heart--grid{min-width:34px;padding-inline:4px;gap:3px}.stonklets-grid-cta{padding-inline:4px;font-size:9px}}
+
+/* Keep the chart-card data and prelaunch message aligned at the same height. */
+.stonklets-card-metrics,.stonklets-launch-panel{box-sizing:border-box;height:43px;min-height:43px;max-height:43px;margin-block:8px}
+.stonklets-card-metrics{align-items:center}
+.stonklets-card-metrics span{font-size:11px;line-height:15px}
+.stonklets-card-identity span{font-size:clamp(9px,2.35vw,11px);line-height:1.25}
+.stonklets-card-metrics small{margin-bottom:2px;font-size:9px;font-weight:800;line-height:11px}
+.stonklets-launch-panel{overflow:hidden;padding:0 4px;font-size:clamp(8px,2.15vw,10px);line-height:12px;white-space:nowrap;text-overflow:ellipsis}
+.stonklets-chart-cta{font-size:11px}
+
+/* Warplets-style paired-result emphasis without shifting the layout. */
+.stonklets-pair{border-color:rgba(0,255,0,.24);outline:0;transition:box-shadow .15s ease,background-color .15s ease}
+.stonklets-pair:hover,.stonklets-pair:focus-within{border-color:#00ff00;box-shadow:0 0 0 1px rgba(0,255,0,.24),0 0 18px rgba(0,255,0,.28)}
+.stonklets-results--single-grid .stonklets-pair--single-grid:hover,.stonklets-results--single-grid .stonklets-pair--single-grid:focus-within{z-index:1;background:rgba(0,255,0,.055);box-shadow:inset 0 0 0 1px #00ff00,0 0 14px rgba(0,255,0,.22)}
+
+/* Keep compared assets visually connected without an internal divider. */
+.stonklets-chart-pair{gap:0;background:transparent}
+.stonklets-compact-row+.stonklets-compact-row{border-top:0}
+
+/* Seven-column Market grid after replacing Price with Holders. */
+.stonklets-compact-head,.stonklets-compact-row{grid-template-columns:minmax(92px,1.7fr) minmax(0,.75fr) minmax(0,.85fr) minmax(0,.75fr) minmax(0,.8fr) minmax(0,.68fr) minmax(0,.62fr)}
+.stonklets-compact-head,.stonklets-results--grid{width:calc(100% + 32px);max-width:none;margin-right:-16px;margin-left:-16px}
+.stonklets-results--grid .stonklets-compact-head{width:100%;margin-right:0;margin-left:0}
+.stonklets-card-metrics{grid-template-columns:repeat(3,minmax(0,1fr))}
+@media(max-width:520px){
+  .stonklets-compact-head,.stonklets-compact-row{grid-template-columns:minmax(78px,1.6fr) minmax(0,.7fr) minmax(0,.76fr) minmax(0,.7fr) minmax(0,.72fr) minmax(0,.64fr) minmax(0,.58fr)}
+}
+
+/* Use the extra width available in Single Chart layout. */
+.stonklets-pair--single-chart .stonklets-card-metrics span{display:flex;align-items:baseline;justify-content:center;gap:5px;font-size:14px;line-height:18px}
+.stonklets-pair--single-chart .stonklets-card-metrics small{display:inline;margin:0;font-size:11px;line-height:14px}
+.stonklets-pair--single-chart .stonklets-card-metrics small::after{content:":"}
+.stonklets-pair--single-chart .stonklets-chart-price-range{height:28px;gap:7px;padding-inline:10px;font-size:15px}
+.stonklets-pair--single-chart .stonklets-chart>strong{font-size:clamp(20px,6vw,26px)}
+.stonklets-pair--single-chart .stonklets-heart--chart{height:42px;min-width:64px;gap:8px;padding-inline:10px}
+.stonklets-pair--single-chart .stonklets-heart--chart b{font-size:16px;line-height:20px}
+.stonklets-pair--single-chart .stonklets-heart--chart svg{width:22px;height:22px}
+.stonklets-chart-pair .stonklets-card-header{margin-bottom:12px}
+.stonklets-chart-pair .stonklets-identity-image{width:48px;height:48px;flex-basis:48px}
+.stonklets-chart-pair .stonklets-card-identity b{font-size:16px;line-height:20px}
+.stonklets-chart-pair .stonklets-card-identity span{font-size:11px;line-height:16px}
+.stonklets-pair--single-chart .stonklets-identity-image{width:56px;height:56px;flex-basis:56px}
+.stonklets-pair--single-chart .stonklets-card-identity b{font-size:18px;line-height:22px}
+.stonklets-pair--single-chart .stonklets-card-identity span{font-size:13px;line-height:18px}
+.stonklets-pair--single-chart .stonklets-chart-cta{margin-bottom:14px}
+
+/* Match the Warplets future-ecosystem warning treatment. */
+.stonklets-risk{margin-top:32px;padding:12px;border:1px solid rgba(255,255,0,.55);border-radius:12px;background:rgba(255,255,0,.1);color:#fff7a8;font-size:12px;font-weight:700;line-height:20px}
+.stonklets-risk b{display:block;color:#ffff00;font-weight:900;text-transform:uppercase}
