@@ -22,4 +22,16 @@ Pages deployment depends on the successful Worker job, which applies migrations 
 
 ## Outstanding production setup
 
-Stonklets custom domain/DNS and the existing market-provider secret require explicit approval after automatic review rejected the setup action. The production Farcaster account association and app FID are missing; requested from the owner. Do not enable the daily notification campaign before registration and audience checks pass.
+Production setup was explicitly approved. COINMARKETCAP_API_KEY is provisioned in both the api Worker and 10x-app Pages. The Pages custom domain stonklet.10x.meme was added, but remains pending because the available CLI token lacks DNS permissions. The owner was asked to add a proxied CNAME: stonklet -> 10x-app.pages.dev (TTL Auto).
+
+The production Farcaster account association and app FID are missing; requested from the owner. Production has no enabled Stonklets notification registrations. Do not enable the daily notification campaign before registration and audience checks pass.
+
+## Deployed
+
+- Release PR #53 merged as `7ab66066444f11de56e8f90deef8cc9e9ddf9490`.
+- GitHub deployment run `33988500740`: Worker and Pages jobs both succeeded.
+- Pages deployment: `8c20b5c5-becd-4f2b-b22a-02fddb212a6a`.
+- No pending D1 migrations remain. Worker runtime daily-notification flag verified false.
+- HTTP 200: api, app, warplet and drop homepages; Stonklets market API via app hostname (one requested pair, stale=false); favicon and hero assets.
+- Invalid share-image request returns 404.
+- Dedicated-domain, authenticated Farcaster voting/install and real rendered-share checks remain pending DNS/registration. No test emails or notifications sent.
