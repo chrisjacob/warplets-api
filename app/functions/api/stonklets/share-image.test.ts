@@ -20,7 +20,7 @@ describe("share render deduplication", () => {
   await vi.advanceTimersByTimeAsync(2_000);
   const response = await pending as Response;
   expect(response.status).toBe(200);
-  expect(claimStonkletWork).toHaveBeenCalledWith(expect.anything(), "stonklet-shares/v3/stonklet-local.10x.meme/robinhood/24h",180);
+  expect(claimStonkletWork).toHaveBeenCalledWith(expect.anything(), "stonklet-shares/v4/stonklet-local.10x.meme/robinhood/24h",180);
   expect(releaseStonkletWork).not.toHaveBeenCalled();
   vi.useRealTimers();
  });

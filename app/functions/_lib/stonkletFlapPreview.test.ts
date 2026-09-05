@@ -50,14 +50,15 @@ describe("Flap preview data", () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")));
     expect(await loadFlapPreviewChart(undefined, address, "24h")).toMatchObject({ status: "unavailable", points: [] });
   });
-  it("uses the same source token's alternate USD history when GeckoTerminal rate limits", async () => {
+  it.each([false, true])("uses explicit base/quote metadata rather than search order (quote=%s)", async (quote) => {
     const fetcher = vi.fn()
       .mockResolvedValueOnce(new Response(null, { status: 429 }))
       .mockResolvedValueOnce(Response.json({ pools: [{ id: "pool", chain: "bsc", volume_usd: 10, tokens: [{ id: "quote" }, { id: address }] }] }))
+      .mockResolvedValueOnce(Response.json({ base_token_id: quote ? "other" : address, quote_token_id: quote ? address : "other" }))
       .mockResolvedValueOnce(Response.json([{ time_open: "2026-09-05T00:00:00Z", close: 2 }, { time_open: "2026-09-05T00:05:00Z", close: 3 }]));
     vi.stubGlobal("fetch", fetcher);
     expect(await loadFlapPreviewChart(undefined, address, "24h")).toMatchObject({ provider: "dexpaprika+local", status: "live", periodChange: 50 });
     expect(String(fetcher.mock.calls[1]?.[0])).toContain(`query=${address}`);
-    expect(String(fetcher.mock.calls[2]?.[0])).toContain("inversed=true");
+    expect(String(fetcher.mock.calls[3]?.[0])).toContain(`inversed=${quote}`);
   });
 });
