@@ -10,11 +10,22 @@ function testEnv(): BaseNotificationsEnv {
     WARPLETS: {} as D1Database,
     BASE_NOTIFICATIONS_API_KEY: "warplets-key",
     BASE_APP_NOTIFICATIONS_API_KEY: "app-key",
+    BASE_STONKLETS_NOTIFICATIONS_API_KEY: "stonklets-key",
     BASE_APP_URL: "https://warplet.10x.meme",
   };
 }
 
 describe("Base notification app configuration", () => {
+  it("uses the Stonklets registration and its own key", () => {
+    expect(resolveBaseNotificationConfig(testEnv(), "stonklets")).toEqual({
+      apiKey: "stonklets-key",
+      appUrl: "https://stonklet.10x.meme/",
+    });
+  });
+
+  it("does not fall back to other credentials when the Stonklets key is missing", () => {
+    expect(resolveBaseNotificationConfig({ ...testEnv(), BASE_STONKLETS_NOTIFICATIONS_API_KEY: " " }, "stonklets").apiKey).toBeNull();
+  });
   it("uses the app registration for app.10x.meme deliveries", () => {
     expect(resolveBaseNotificationConfig(testEnv(), "app")).toEqual({
       apiKey: "app-key",

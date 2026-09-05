@@ -649,6 +649,10 @@ export default function StonkletsApp() {
         stockMomentum7d: payload.stockCounts?.[item.id]?.momentum7d ?? item.stockMomentum7d,
       } : item));
       const identity = asset === "stock" ? entry.stock : entry.stonklet;
+      if (next) {
+        if (isInMiniAppContext) void hapticSuccess();
+        void confetti({ particleCount: 120, spread: 70, origin: { y: 0.72 }, colors: ["#00FF00", "#FFFFFF", "#FFFF00"], zIndex: 150, disableForReducedMotion: true });
+      }
       showToast(asset === "stonklet"
         ? next ? `♥ ${identity.name} vote saved. Launch alerts are on.` : `${identity.name} removed from favourites.`
         : next ? `♥ ${identity.name} added to favourites.` : `${identity.name} removed from favourites.`);
@@ -698,8 +702,10 @@ export default function StonkletsApp() {
       onClickCapture={(event) => {
         if (!(event.target instanceof Element) || !event.target.closest(".stonklets-card-identity,.stonklets-compact-identity,.stonklets-heart,.stonklets-trade")) return;
         const tradeLink = event.target.closest("a.stonklets-trade");
-        event.stopPropagation();
         setShareEntry(entry);
+        // Let Favourite/Vote reach the button's save handler as well as sharing.
+        if (event.target.closest(".stonklets-heart,button.stonklets-trade")) return;
+        event.stopPropagation();
         // Preserve the clicked asset's verified destination and the browser's
         // native new-tab action. Mini apps open it through their host instead.
         if (!(tradeLink instanceof HTMLAnchorElement)) event.preventDefault();
