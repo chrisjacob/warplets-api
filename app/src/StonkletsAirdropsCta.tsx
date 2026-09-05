@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { hapticTap } from "./haptics";
+import sdk from "@farcaster/miniapp-sdk";
+import { currentAppSurface } from "./surfaceAdapter";
 
 export default function StonkletsAirdropsCta() {
   const panel = useRef<HTMLElement>(null);
@@ -33,8 +35,15 @@ export default function StonkletsAirdropsCta() {
     <video ref={video} src={loadVideo ? "https://warplets.10x.meme/760.mp4" : undefined}
       className="mt-4 aspect-square w-full rounded-xl bg-black object-cover"
       aria-label="10X Warplet NFT animation" loop muted playsInline preload="none" disablePictureInPicture />
-    <a href="https://warplets.10x.meme/" target="_blank" rel="noopener noreferrer"
-      onClick={() => { void hapticTap(); }}
+    <a href="https://warplet.10x.meme/" target="_blank" rel="noopener noreferrer"
+      onClick={(event) => {
+        void hapticTap();
+        if (currentAppSurface() !== "farcaster-miniapp") return;
+        event.preventDefault();
+        void sdk.actions.openMiniApp({ url: "https://warplet.10x.meme/" })
+          .catch(() => sdk.actions.openUrl("https://warplet.10x.meme/"))
+          .catch(() => { window.location.href = "https://warplet.10x.meme/"; });
+      }}
       className="mt-4 flex w-full cursor-pointer items-center justify-center rounded-[20px] border border-[#0a990a] bg-[#00FF00] px-4 py-3 text-center text-sm font-black text-[rgb(0,80,0)] shadow-[3px_6px_0_#0a990a] active:translate-y-0.5">
       Get Your 10X Warplet NFT
     </a>
