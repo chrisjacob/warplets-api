@@ -32,6 +32,7 @@ describe("Base app ownership", () => {
   it("uses independent registrations for the shared production domains", () => {
     expect(getBaseAppId("app.10x.meme")).toBe("6a8e3af7164a4b20f8b98f3a");
     expect(getBaseAppId("warplet.10x.meme")).toBe("6a8dba294f7ceaca3bfa774f");
+    expect(getBaseAppId("stonklet.10x.meme")).toBe("6a9c8f306f71865e384d7e5c");
   });
 
   it("does not expose a production registration on unregistered hosts", () => {
