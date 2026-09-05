@@ -287,6 +287,7 @@ describe("Warplets Farcaster manifest bootstrap", () => {
 describe("Stonklets host metadata", () => {
   it("publishes an isolated Stonklets manifest and webhook", () => {
     const manifest = buildFarcasterManifest("stonklet.10x.meme", null, null);
+    expect(manifest.miniapp).toMatchObject({ iconUrl: "https://stonklet.10x.meme/icon_stonklet.jpg", splashImageUrl: "https://stonklet.10x.meme/splash_stonklet.png", splashBackgroundColor: "#258d33", heroImageUrl: "https://stonklet.10x.meme/hero_stonklet.jpg", imageUrl: "https://stonklet.10x.meme/embed_stonklet.jpg" });
     expect(manifest).not.toHaveProperty("accountAssociation");
     expect(manifest.miniapp).toMatchObject({
       canonicalDomain: "stonklet.10x.meme",

@@ -1,4 +1,7 @@
 import { defineConfig } from "vite";
+import { stonkletFromSharePath, stonkletShare } from "./shared/stonkletsShare";
+import { STONKLETS_CATALOG } from "./shared/stonkletsCatalog";
+import { parseStonkletChangeRange } from "./shared/stonkletsTime";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import fs from "node:fs";
@@ -30,7 +33,7 @@ const STOP_SHARE_TITLE = "@Mention Settings";
 const STOP_SHARE_DESCRIPTION = "Opt out of 10X outreach mentions in the Farcaster Mini App.";
 const STOP_IMAGE_URL = "https://warplets.10x.meme/3081.png";
 const WARPLETS_SPLASH_BACKGROUND_COLOR = "#004100";
-const STONKLETS_SPLASH_BACKGROUND_COLOR = "#001400";
+const STONKLETS_SPLASH_BACKGROUND_COLOR = "#258d33";
 const STONKLETS_SHARE_DESCRIPTION = "Track paired bStocks and vote for the Stonklets you want launched first.";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, "..");
@@ -116,23 +119,23 @@ function buildLocalStonkletsManifest(
       name: STONKLETS_PUBLIC_NAME,
       canonicalDomain: hostname,
       homeUrl: origin,
-      iconUrl: `${origin}/stonklets/chip.png`,
-      imageUrl: `${origin}/stonklets/chip.png`,
-      heroImageUrl: `${origin}/stonklets/chip.png`,
+      iconUrl: `${origin}/icon_stonklet.jpg`,
+      imageUrl: `${origin}/embed_stonklet.jpg`,
+      heroImageUrl: `${origin}/hero_stonklet.jpg`,
       buttonTitle: "Open 10X Stonklets",
-      splashImageUrl: `${origin}/stonklets/chip.png`,
+      splashImageUrl: `${origin}/splash_stonklet.png`,
       splashBackgroundColor: STONKLETS_SPLASH_BACKGROUND_COLOR,
       webhookUrl: `${origin}/webhook/stonklets`,
       castShareUrl: origin,
       subtitle: "Vote for the next launch.",
       description: STONKLETS_SHARE_DESCRIPTION,
       primaryCategory: "finance",
-      screenshotUrls: [`${origin}/stonklets/chip.png`],
+      screenshotUrls: [`${origin}/hero_stonklet.jpg`],
       tags: ["10x", "stonklets", "bnb", "rwa", "memecoins"],
       tagline: "Real assets. Unreal characters.",
       ogTitle: STONKLETS_PUBLIC_NAME,
       ogDescription: STONKLETS_SHARE_DESCRIPTION,
-      ogImageUrl: `${origin}/stonklets/chip.png`,
+      ogImageUrl: `${origin}/embed_stonklet.jpg`,
     },
   };
 }
@@ -521,29 +524,31 @@ export default defineConfig({
         const dropShareImageUrl =
           routeKey === "drop" ? getLocalDropShareImageUrl(query) : undefined;
         const searchShareImageUrl = searchWarpletImageUrl ?? searchResultsImageUrl;
-        const routeImageUrl = routeKey === "stop" ? STOP_IMAGE_URL : searchShareImageUrl ?? dropShareImageUrl;
+        const sharedStonklet = routeKey === "stonklets" ? stonkletFromSharePath(reqPath) : undefined;
+        const stonkletMeta = sharedStonklet ? stonkletShare(sharedStonklet, baseHostname, parseStonkletChangeRange(new URLSearchParams(query).get("change")) ?? "24h") : undefined;
+        const routeImageUrl = stonkletMeta?.ogImage ?? (routeKey === "stop" ? STOP_IMAGE_URL : searchShareImageUrl ?? dropShareImageUrl);
         const splashImageUrl = routeKey === "drop"
           ? `${baseUrl}/splash_drop2.png`
           : routeKey === "warplets"
             ? `${baseUrl}/splash_search.png`
             : routeKey === "stonklets"
-              ? `${baseUrl}/stonklets/chip.png`
+              ? `${baseUrl}/splash_stonklet.png`
             : `${baseUrl}/splash.png`;
         const defaultEmbedImageUrl = routeKey === "warplets"
           ? `${baseUrl}/embed_search.png`
           : routeKey === "stonklets"
-            ? `${baseUrl}/stonklets/chip.png`
+            ? `${baseUrl}/embed_stonklet.jpg`
             : `${baseUrl}/embed.png`;
 
         const payload = {
           version: "1",
           imageUrl: routeImageUrl ?? defaultEmbedImageUrl,
           button: {
-            title: searchShareTitle ?? config.title,
+            title: stonkletMeta ? `View ${sharedStonklet!.stonklet.name}` : searchShareTitle ?? config.title,
             action: {
               type: "launch_miniapp",
               name: searchShareTitle ?? config.name,
-              url: `${launchBase}${query}`,
+              url: stonkletMeta?.url ?? `${launchBase}${query}`,
               splashImageUrl,
               splashBackgroundColor: routeKey === "drop"
                 ? DROP_SPLASH_BACKGROUND_COLOR
@@ -569,7 +574,7 @@ export default defineConfig({
         } else if (routeKey === "stonklets") {
           nextHtml = nextHtml.replace(/<link\s+rel="manifest"[^>]*>/i, '<link rel="manifest" href="/manifest-stonklets.webmanifest" />');
           nextHtml = nextHtml.replace(/<link\s+rel="icon"[^>]*>\s*(?:<link\s+rel="shortcut icon"[^>]*>\s*)?/i, buildFaviconLinks("stonklets"));
-          nextHtml = nextHtml.replace(/<link\s+rel="apple-touch-icon"[^>]*>/i, '<link rel="apple-touch-icon" href="/stonklets/chip.png" />');
+          nextHtml = nextHtml.replace(/<link\s+rel="apple-touch-icon"[^>]*>/i, '<link rel="apple-touch-icon" href="/icon_stonklet.jpg" />');
           nextHtml = nextHtml.replace(/<meta\s+name="application-name"[^>]*>/i, '<meta name="application-name" content="10X Stonklets" />');
           nextHtml = nextHtml.replace(/<meta\s+name="apple-mobile-web-app-title"[^>]*>/i, '<meta name="apple-mobile-web-app-title" content="10X Stonklets" />');
         }
@@ -610,13 +615,13 @@ export default defineConfig({
         }
 
         if (routeKey === "stonklets") {
-          const titleTag = `<title>${escapeHtmlText(STONKLETS_PUBLIC_NAME)}</title>`;
+          const titleTag = `<title>${escapeHtmlText(stonkletMeta?.title ?? STONKLETS_PUBLIC_NAME)}</title>`;
           nextHtml = TITLE_REGEX.test(nextHtml)
             ? nextHtml.replace(TITLE_REGEX, titleTag)
             : nextHtml.replace("</head>", `    ${titleTag}\n  </head>`);
           nextHtml = nextHtml.replace(
             "</head>",
-            `    ${buildSearchOpenGraphTags(STONKLETS_PUBLIC_NAME, `${baseUrl}/stonklets/chip.png`, `${baseUrl}${reqUrl}`, STONKLETS_SHARE_DESCRIPTION)}\n  </head>`,
+            `    ${buildSearchOpenGraphTags(stonkletMeta?.title ?? STONKLETS_PUBLIC_NAME, stonkletMeta?.ogImage ?? `${baseUrl}/embed_stonklet.jpg`, stonkletMeta?.url ?? `${baseUrl}${reqUrl}`, stonkletMeta?.description ?? STONKLETS_SHARE_DESCRIPTION)}${stonkletMeta ? '<meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">' : ""}\n  </head>`,
           );
         }
 
@@ -633,6 +638,18 @@ export default defineConfig({
       "million-local.10x.meme",
     ],
     proxy: {
+      // Token deep links need the Pages Function's selected-token OG metadata,
+      // even when the dev server was started without VITE_MINIAPP_BASE_URL.
+      [`^/(?:${STONKLETS_CATALOG.map((entry) => encodeURIComponent(entry.stonklet.symbol.toLowerCase()).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})/?(?:\\?.*)?$`]: {
+        target: localApiTarget,
+        changeOrigin: false,
+        configure(proxy) {
+          proxy.on("proxyReq", (proxyRequest, request) => {
+            const host = (request.headers.host ?? "").split(":")[0];
+            if (isStonkletsAppHostname(host)) proxyRequest.setHeader("x-10x-public-origin", `https://${host}`);
+          });
+        },
+      },
       // In local tunnel mode, route API to local worker so D1/KV are local.
       "/api": {
         target: localApiTarget,

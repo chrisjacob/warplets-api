@@ -107,6 +107,7 @@ function VotersModal({ id, name, count, onClose }: { id: string; name: string; c
 export default function StonkletLaunchVotes({ id, name, count, compact = false }: { id: string; name: string; count: number; compact?: boolean }) {
   const root = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(false);
+  const [votersReady, setVotersReady] = useState(false);
   const [voters, setVoters] = useState<StonkletVoter[]>([]);
   const [open, setOpen] = useState(false);
   useEffect(() => {
@@ -117,10 +118,13 @@ export default function StonkletLaunchVotes({ id, name, count, compact = false }
   useEffect(() => {
     if (!visible || count < 1) { setVoters([]); return; }
     const controller = new AbortController();
-    void loadVoters(id, true, controller.signal, count).then((page) => setVoters(page.voters)).catch(() => {});
+    setVotersReady(false);
+    void loadVoters(id, true, controller.signal, count).then((page) => setVoters(page.voters)).catch(() => {}).finally(() => {
+      if (!controller.signal.aborted) setVotersReady(true);
+    });
     return () => controller.abort();
   }, [id, count, visible]);
-  return <div ref={root} className={compact ? "stonklets-grid-launch-panel" : "stonklets-launch-panel"}>
+  return <div ref={root} data-voters-ready={count < 1 || votersReady} className={compact ? "stonklets-grid-launch-panel" : "stonklets-launch-panel"}>
     {count < 1 ? "Vote to launch this Stonklet!" : <button type="button" className="stonklets-votes-stack" aria-label={`View ${count.toLocaleString("en-US")} votes for ${name}`} onClick={() => setOpen(true)}>
       <span className="stonklets-votes-label">Voted to launch</span>
       {voters.length > 0 && <span className="stonklets-votes-faces" style={{ width: 24 + (voters.length - 1) * 7 }}>{voters.map((voter) => <VoterAvatar key={voter.wallet} voter={voter} stack />)}</span>}

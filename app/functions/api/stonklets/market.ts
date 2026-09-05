@@ -1,3 +1,4 @@
+import { claimStonkletWork, releaseStonkletWork } from "../../_lib/stonkletWorkLease.js";
 import { jsonSecure } from "../../_lib/security.js";
 import { isStonkletsFlapPreview } from "../../../shared/stonkletsFlapPreview.js";
 import { applyFlapPreview, cachedFlapPreviewChange, loadFlapPreviewBoard } from "../../_lib/stonkletFlapPreview.js";
@@ -21,26 +22,30 @@ async function favouriteAggregates(db: D1Database): Promise<Map<string, { total:
   return new Map((result.results ?? []).map((row) => [`${row.pair_id}:${row.asset}`, { total: Number(row.total) || 0, momentum7d: Number(row.momentum) || 0 }]));
 }
 
-export const onRequestGet: PagesFunction<Env> = async ({ env, request }) => {
+const buildMarketResponse: PagesFunction<Env> = async (context) => {
+  const { env, request } = context;
   const url = new URL(request.url);
   const hostname = url.hostname.toLowerCase();
   const preview = isStonkletsFlapPreview(url);
   const rawChange = url.searchParams.get("range") ?? url.searchParams.get("change");
   const changeRange = rawChange == null ? DEFAULT_STONKLET_CHANGE_RANGE : parseStonkletChangeRange(rawChange);
   if (!changeRange) return jsonSecure({ error: "invalid change range" }, { status: 400 });
+  const pairId = url.searchParams.get("id");
+  const catalog = pairId ? STONKLETS_CATALOG.filter((entry) => entry.id === pairId) : STONKLETS_CATALOG;
+  if (!catalog.length) return jsonSecure({ error: "unknown Stonklet" }, { status: 404 });
   if (hostname === "localhost" || hostname === "127.0.0.1" || hostname.includes("-local.")) {
-    await ingestCmcMarketIfDue(env);
+    context.waitUntil(ingestCmcMarketIfDue(env).catch((error) => console.warn("stonklets_cmc_background_refresh_failed", String(error))));
   }
   const [aggregates, metrics, demoSnapshots, cmcMarket, stockPeriodChanges] = await Promise.all([
     favouriteAggregates(env.WARPLETS),
-    loadStockMetricsBatch(STONKLETS_CATALOG, env.WARPLETS_KV),
+    loadStockMetricsBatch(catalog, env.WARPLETS_KV),
     loadStonkletDemoMarket(env),
     loadCmcMarket(env),
-    loadStockPeriodChanges(STONKLETS_CATALOG, changeRange, env.WARPLETS_KV),
+    loadStockPeriodChanges(catalog, changeRange, env.WARPLETS_KV),
   ]);
-  const stonkletPeriodChanges = await loadStonkletPeriodChanges(env, changeRange, demoSnapshots);
+  const stonkletPeriodChanges = await loadStonkletPeriodChanges(env, changeRange, demoSnapshots, catalog.map((entry) => entry.id));
   const demos = marketSnapshotsByPair(demoSnapshots);
-  const entries = STONKLETS_CATALOG.map((entry) => {
+  const entries = catalog.map((entry) => {
     const cmcStock = cmcMarket.get(`${entry.id}:stock`);
     const cmcStonklet = cmcMarket.get(`${entry.id}:stonklet`);
     return {
@@ -89,4 +94,38 @@ export const onRequestGet: PagesFunction<Env> = async ({ env, request }) => {
   }, {
     headers: { "cache-control": preview ? "no-store" : `public, max-age=15, s-maxage=${stonkletRangeCacheSeconds(changeRange)}, stale-while-revalidate=${Math.max(120, stonkletRangeCacheSeconds(changeRange) * 2)}` },
   });
+};
+
+// Cache only the public board; personal favourites remain on their authenticated endpoint.
+export const onRequestGet: PagesFunction<Env> = async (context) => {
+  const url = new URL(context.request.url);
+  const range = parseStonkletChangeRange(url.searchParams.get("range") ?? url.searchParams.get("change") ?? "24h");
+  const pairId = url.searchParams.get("id");
+  if (!range || (pairId && !STONKLETS_CATALOG.some((entry) => entry.id === pairId))) return buildMarketResponse(context);
+  const kv = context.env.WARPLETS_KV;
+  if (!kv || isStonkletsFlapPreview(url)) return buildMarketResponse(context);
+  const key = `stonklets:board:v1:${url.hostname}:${range}:${pairId ?? "all"}`;
+  type Snapshot = { storedAt: number; payload: Record<string, unknown> };
+  const cached = await kv.get<Snapshot>(key, "json");
+  const refresh = async () => {
+    const response = await buildMarketResponse(context);
+    if (response.ok) {
+      const payload = await response.clone().json() as Record<string, unknown>;
+      await kv.put(key, JSON.stringify({ storedAt: Date.now(), payload }), { expirationTtl: 600 });
+    }
+    return response;
+  };
+  if (cached && Date.now() - cached.storedAt < 300_000) {
+    const stale = Date.now() - cached.storedAt >= 30_000;
+    if (stale) context.waitUntil((async () => {
+      const lease = await claimStonkletWork(context.env.WARPLETS, key, 120);
+      if (!lease) return;
+      try { await refresh(); }
+      finally { await releaseStonkletWork(context.env.WARPLETS, key, lease); }
+    })().catch((error) => console.warn("stonklets_board_refresh_failed", String(error))));
+    return jsonSecure({ ...cached.payload, stale: stale || cached.payload.stale }, {
+      headers: { "cache-control": "public, max-age=15", "x-stonklets-cache": stale ? "stale" : "hit" },
+    });
+  }
+  return refresh();
 };

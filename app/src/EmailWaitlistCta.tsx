@@ -202,9 +202,10 @@ function SubscriberSocialProof({ actionSessionToken, confirmationPending }: {
   );
 }
 
-export default function EmailWaitlistCta({ actionSessionToken, viewerFid, joinedToPrevious = false, autoFocusEmail = false }: {
+export default function EmailWaitlistCta({ actionSessionToken, viewerFid, authenticatedSession = false, joinedToPrevious = false, autoFocusEmail = false }: {
   actionSessionToken: string | null;
   viewerFid: number | null;
+  authenticatedSession?: boolean;
   joinedToPrevious?: boolean;
   autoFocusEmail?: boolean;
 }) {
@@ -214,7 +215,7 @@ export default function EmailWaitlistCta({ actionSessionToken, viewerFid, joined
   const [toastMessage, setToastMessage] = useState("");
   const emailInputRef = useRef<HTMLInputElement>(null);
   const hasAutoFocusedEmail = useRef(false);
-  const waitingForFarcasterSession = viewerFid != null && !actionSessionToken;
+  const waitingForFarcasterSession = viewerFid != null && !actionSessionToken && !authenticatedSession;
   const shouldAutoFocusEmail = autoFocusEmail && supportsDesktopAutofocus();
 
   useEffect(() => {

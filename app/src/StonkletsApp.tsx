@@ -1,6 +1,10 @@
+import ProgressiveStonkletImage, { stonkletThumbnail } from "./ProgressiveStonkletImage";
+import StonkletsAbout from "./StonkletsAbout";
 import { AppViewport } from "./AppViewport";
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import sdk from "@farcaster/miniapp-sdk";
+import confetti from "canvas-confetti";
+import { hapticSuccess, hapticTap } from "./haptics";
 import MiniAppShell from "./MiniAppShell";
 import SiteFooter from "./SiteFooter";
 import FarcasterSignInControl from "./FarcasterSignInControl";
@@ -9,7 +13,7 @@ import { loadAppSession, logoutAppPrincipal, type AppSessionState } from "./appS
 import { authenticateStonkletsFarcaster } from "./stonkletsFarcasterAuth";
 import { StonkletsToast, type StonkletsToastMessage } from "./StonkletsToast";
 import StonkletsNotificationsPrompt from "./StonkletsNotificationsPrompt";
-import { configureAppSurface, getEmbeddedWalletProvider, signalAppReady } from "./surfaceAdapter";
+import { configureAppSurface, getEmbeddedWalletProvider, openAppUrl, signalAppReady } from "./surfaceAdapter";
 import { resolveAppSurface } from "./appRuntime";
 import { detectMiniAppContext } from "./miniAppContext";
 import { configureFarcasterWallet, restoreFarcasterWallet } from "./walletController";
@@ -19,13 +23,17 @@ import { STONKLETS_CATALOG, emptyMarketMetrics } from "../shared/stonkletsCatalo
 import { isStonkletsFlapPreview } from "../shared/stonkletsFlapPreview";
 import { isStonkletsVotesPreview, mockVoteCount } from "../shared/stonkletsVotes";
 import StonkletLaunchVotes from "./StonkletLaunchVotes";
+import StonkletShareModal from "./StonkletShareModal";
+import EmailWaitlistCta from "./EmailWaitlistCta";
+import StonkletsAirdropsCta from "./StonkletsAirdropsCta";
+import { stonkletFromSharePath } from "../shared/stonkletsShare";
 import { STONKLET_TRADE_DESTINATIONS, stonkletTradeUrl } from "../shared/stonkletsTrading";
 import { fetchStonkletChart } from "./stonkletsChartRequests";
 import { DEFAULT_STONKLET_CHANGE_RANGE, STONKLET_CHANGE_RANGE_LABELS, STONKLET_CHANGE_RANGES, parseStonkletChangeRange, type StonkletChangeRange } from "../shared/stonkletsTime";
 import { filterAndSortStonklets, stonkletMetric, visibleStonkletsFavourites, type StonkletsMarketEntry as MarketEntry } from "./stonkletsMarket";
 import BstocksNoticeModal, { hasAcceptedBstocksNotice, isBstocksNoticeForced } from "./BstocksNoticeModal";
 
-type Page = "market" | "trade" | "portfolio" | "leaderboard" | "stats";
+type Page = "about" | "market" | "trade" | "portfolio" | "leaderboard" | "stats";
 type MarketSide = "stock" | "stonklet";
 type Layout = "compact" | "chart" | "single-chart" | "single-grid";
 type OrderKey = "trending" | "marketCap" | "volume24h" | "holders" | "change" | "favourites" | "az";
@@ -123,7 +131,7 @@ function StonkletsLayoutSwitcher({ layout, onSelect }: { layout: Layout; onSelec
   </button>;
 }
 
-function StonkletsHeaderAccount({ session, miniAppProfile, simplifiedFarcaster, open, centered, onOpenChange, onConnect, onShowFavourites, onEnableNotifications, onDisconnect }: {
+function StonkletsHeaderAccount({ session, miniAppProfile, simplifiedFarcaster, open, centered, onOpenChange, onConnect, onAbout, onShowFavourites, onEnableNotifications, onDisconnect }: {
   session: AppSessionState | null;
   miniAppProfile: AppSessionState["farcasterProfile"];
   simplifiedFarcaster: boolean;
@@ -131,6 +139,7 @@ function StonkletsHeaderAccount({ session, miniAppProfile, simplifiedFarcaster, 
   centered: boolean;
   onOpenChange: (open: boolean) => void;
   onConnect: () => void;
+  onAbout: () => void;
   onShowFavourites: () => void;
   onEnableNotifications: () => void;
   onDisconnect: () => void;
@@ -163,6 +172,7 @@ function StonkletsHeaderAccount({ session, miniAppProfile, simplifiedFarcaster, 
     {open && <AppViewport portalled={centered} onMouseDown={(event) => event.stopPropagation()} className={`search-header-account-menu${centered ? " search-header-account-menu--centered" : ""}`} role="menu">
       {!simplifiedFarcaster && <button type="button" role="menuitem" className="search-header-account-menu__connection" onClick={() => run(onConnect)}><span className="search-header-account-menu__avatar-frame"><img src="/base.webp" alt="" /></span><span>{session?.walletAddress ? shortWallet(session.walletAddress) : "Connect wallet"}</span></button>}
       <button type="button" role="menuitem" className="search-header-account-menu__connection" onClick={() => simplifiedFarcaster ? onOpenChange(false) : run(onConnect)}><span className="search-header-account-menu__avatar-frame"><img src={avatar} alt="" /></span><span>{username ? `@${username}` : simplifiedFarcaster ? "Farcaster identity" : "Connect social"}</span></button>
+      <button type="button" role="menuitem" onClick={() => run(onAbout)}>About Stonklets</button>
       <button type="button" role="menuitem" onClick={() => run(onShowFavourites)}>My favourites</button>
       <button type="button" role="menuitem" onClick={() => run(onEnableNotifications)}>Enable notifications</button>
       {connected && !simplifiedFarcaster && <button type="button" role="menuitem" onClick={() => run(onDisconnect)}>Disconnect</button>}
@@ -188,7 +198,7 @@ function basePath(): string {
 
 function currentPage(): Page {
   const relative = window.location.pathname.slice(basePath().length).replace(/^\/+|\/+$/g, "");
-  return (["trade", "portfolio", "leaderboard", "stats"] as Page[]).includes(relative as Page) ? relative as Page : "market";
+  return (["about", "trade", "portfolio", "leaderboard", "stats"] as Page[]).includes(relative as Page) ? relative as Page : "market";
 }
 
 function safeParam<T extends string>(value: string | null, allowed: readonly T[], fallback: T): T {
@@ -242,9 +252,10 @@ function IdentityImage({ src, label, kind, pairedStockLogo }: { src: string; lab
     setActiveSrc(src);
     setFailed(false);
   }, [src]);
+  const thumbnail = kind === "stonklet" ? stonkletThumbnail(activeSrc) : activeSrc;
   return (
     <span className={`stonklets-identity-image stonklets-identity-image--${kind}`} aria-hidden="true">
-      {!failed && <img src={activeSrc} alt="" loading="lazy" decoding="async" onError={() => { const fallback = kind === "stonklet" ? CHARACTER_FALLBACKS[label] : null; if (fallback && activeSrc !== fallback) setActiveSrc(fallback); else setFailed(true); }} />}
+      {!failed && <img src={thumbnail} alt="" loading="lazy" decoding="async" onError={() => { const fallback = kind === "stonklet" ? CHARACTER_FALLBACKS[label] : null; if (fallback && activeSrc !== fallback) setActiveSrc(fallback); else setFailed(true); }} />}
       {failed && <span>{label.slice(0, 2).toUpperCase()}</span>}
       {kind === "stonklet" && pairedStockLogo && <span className="stonklets-paired-stock-logo"><img src={pairedStockLogo} alt="" loading="lazy" decoding="async" onError={(event) => { if (event.currentTarget.parentElement) event.currentTarget.parentElement.hidden = true; }} /></span>}
     </span>
@@ -265,13 +276,13 @@ function DeferredChart({ pairId, asset, range, periodChange, fallbackImage, prev
   useEffect(() => {
     const host = hostRef.current;
     if (!host) return;
-    const observer = new IntersectionObserver(([entry]) => { if (entry?.isIntersecting) { setNear(true); observer.disconnect(); } }, { rootMargin: "300px" });
+    const observer = new IntersectionObserver(([entry]) => { setNear(Boolean(entry?.isIntersecting)); }, { rootMargin: "300px" });
     observer.observe(host);
     return () => observer.disconnect();
   }, []);
   useEffect(() => {
     const host = hostRef.current;
-    if (!near || !host) return;
+    if (!near || !host) { setStatus("idle"); return; }
     let disposed = false;
     const controller = new AbortController();
     let cleanup = () => {};
@@ -355,13 +366,13 @@ function DeferredChart({ pairId, asset, range, periodChange, fallbackImage, prev
   return <div className="stonklets-chart" role="img" aria-label={status === "ready" ? `Normalized ${rangeLabel} percentage chart. Start price ${endpointPrices ? priceText(endpointPrices.start) : "unavailable"}. End price ${endpointPrices ? priceText(endpointPrices.end) : "unavailable"}. Change ${changeText(displayedChange)}` : status === "idle" || status === "loading" ? `Loading ${rangeLabel} market chart` : "Stonklet artwork shown while market chart data is unavailable"}>
     <div ref={hostRef} className="stonklets-chart-canvas" />
     {(status === "idle" || status === "loading") && <div className="stonklets-chart-loading" role="status" aria-label={`Loading ${rangeLabel} market chart`}><span className="h-8 w-8 animate-spin rounded-full border-2 border-[#00FF00]/25 border-t-[#00FF00]" /></div>}
-    {(status === "empty" || status === "error") && <img className="stonklets-chart-fallback" src={fallbackImage} alt="" loading="lazy" decoding="async" />}
+    {(status === "empty" || status === "error") && <ProgressiveStonkletImage className="stonklets-chart-fallback" src={fallbackImage} alt="" />}
     {status === "ready" && displayedChange != null && <strong className={displayedChange >= 0 ? "is-positive" : "is-negative"}>{changeText(displayedChange)}</strong>}
     {status === "ready" && endpointPrices && <div className={`stonklets-chart-price-range ${(displayedChange ?? 0) >= 0 ? "is-positive-range" : "is-negative-range"}`} aria-hidden="true"><span>{priceText(endpointPrices.start)}</span><b>➜</b><span>{priceText(endpointPrices.end)}</span></div>}
   </div>;
 }
 
-function AssetCard({ entry, asset, range, favourite, busy, onFavourite }: { entry: MarketEntry; asset: MarketSide; range: StonkletChangeRange; favourite: boolean; busy: boolean; onFavourite: () => void }) {
+export function AssetCard({ entry, asset, range, favourite, busy, onFavourite }: { entry: MarketEntry; asset: MarketSide; range: StonkletChangeRange; favourite: boolean; busy: boolean; onFavourite: () => void }) {
   const identity = asset === "stock" ? entry.stock : entry.stonklet;
   const metrics = asset === "stock" ? entry.stockMetrics : entry.stonkletMetrics;
   const periodChange = asset === "stock" ? entry.stockPeriodChange : entry.stonkletPeriodChange;
@@ -370,9 +381,9 @@ function AssetCard({ entry, asset, range, favourite, busy, onFavourite }: { entr
   const ctaLabel = voting ? `Vote for $${entry.stonklet.symbol}/${entry.stock.symbol}` : `Trade $${identity.symbol}`;
   const tradeUrl = stonkletTradeUrl(entry, asset);
   return <article className="stonklets-asset-card">
-    <div className="stonklets-card-header"><div className="stonklets-card-identity"><IdentityImage key={`${entry.id}:${asset}`} src={asset === "stock" ? entry.stock.logo : entry.stonklet.image} label={identity.symbol} kind={asset} pairedStockLogo={asset === "stonklet" ? entry.stock.logo : undefined} /><div><b>{identity.symbol}</b><span>{identity.name}</span></div></div><Heart active={favourite} count={favouriteCount} disabled={busy} onClick={onFavourite} variant="chart" /></div>
+    <div className="stonklets-card-header"><div className="stonklets-card-identity"><IdentityImage key={`${entry.id}:${asset}`} src={asset === "stock" ? entry.stock.logo : entry.stonklet.image} label={identity.symbol} kind={asset} pairedStockLogo={asset === "stonklet" ? entry.stock.logo : undefined} /><div><b role="button" tabIndex={0} aria-label={`Share ${entry.stonklet.name}`}>{identity.symbol}</b><span>{identity.name}</span></div></div><Heart active={favourite} count={favouriteCount} disabled={busy} onClick={onFavourite} variant="chart" /></div>
     {asset === "stonklet" && entry.launchStatus !== "launched"
-      ? <div className="stonklets-chart" role="img" aria-label={`${entry.stonklet.name} artwork shown until launch`}><img className="stonklets-chart-fallback" src={highResolutionStonkletImage(entry.stonklet.image)} alt="" loading="lazy" decoding="async" /></div>
+      ? <div className="stonklets-chart" role="img" aria-label={`${entry.stonklet.name} artwork shown until launch`}><ProgressiveStonkletImage className="stonklets-chart-fallback" src={highResolutionStonkletImage(entry.stonklet.image)} alt="" /></div>
       : <DeferredChart pairId={entry.id} asset={asset} range={range} periodChange={periodChange} fallbackImage={highResolutionStonkletImage(entry.stonklet.image)} previewSource={asset === "stonklet" && entry.flapPreview ? entry.demoToken?.contractAddress : undefined} />}
     {asset === "stonklet" && entry.launchStatus !== "launched"
       ? <StonkletLaunchVotes id={entry.id} name={entry.stonklet.name} count={entry.favourites} />
@@ -391,7 +402,7 @@ function CompactRow({ entry, asset, range, favourite, busy, onFavourite }: { ent
   const ctaLabel = unlaunchedStonklet ? `Vote for $${entry.stonklet.symbol}/${entry.stock.symbol}` : `Trade $${identity.symbol}`;
   const tradeUrl = stonkletTradeUrl(entry, asset);
   return <div className={`stonklets-compact-row stonklets-compact-row--${asset}`}>
-    <div className="stonklets-compact-identity"><IdentityImage key={`${entry.id}:${asset}`} src={asset === "stock" ? entry.stock.logo : entry.stonklet.image} label={identity.symbol} kind={asset} pairedStockLogo={asset === "stonklet" ? entry.stock.logo : undefined} /><span><b>{identity.symbol}</b><small>{identity.name}</small></span></div>
+    <div className="stonklets-compact-identity" role="button" tabIndex={0} aria-label={`Share ${entry.stonklet.name}`}><IdentityImage key={`${entry.id}:${asset}`} src={asset === "stock" ? entry.stock.logo : entry.stonklet.image} label={identity.symbol} kind={asset} pairedStockLogo={asset === "stonklet" ? entry.stock.logo : undefined} /><span><b>{identity.symbol}</b><small>{identity.name}</small></span></div>
     {unlaunchedStonklet
       ? <StonkletLaunchVotes id={entry.id} name={entry.stonklet.name} count={entry.favourites} compact />
       : <><span data-label="MCap">{compactNumber(metrics.marketCap, true)}</span><span data-label="24h Vol">{compactNumber(metrics.volume24h, true)}</span><span data-label="Holders">{compactNumber(metrics.holders)}</span><span data-label={STONKLET_CHANGE_RANGE_LABELS[range]} className={periodChange == null ? "" : periodChange >= 0 ? "is-positive" : "is-negative"}>{changeText(periodChange)}</span></>}
@@ -402,7 +413,7 @@ function CompactRow({ entry, asset, range, favourite, busy, onFavourite }: { ent
   </div>;
 }
 
-function Placeholder({ page, pair, asset }: { page: Exclude<Page, "market">; pair: MarketEntry | undefined; asset?: MarketSide }) {
+function Placeholder({ page, pair, asset }: { page: Exclude<Page, "market" | "about">; pair: MarketEntry | undefined; asset?: MarketSide }) {
   const labels = { trade: "Trade", portfolio: "Portfolio", leaderboard: "Leaderboard", stats: "Stats" };
   return <section className="stonklets-placeholder"><span className="stonklets-kicker">10X STONKLETS</span><h1>{labels[page]}</h1>{page === "trade" && pair ? <><p><b>{pair.stock.symbol}</b> × <b>${pair.stonklet.symbol}</b></p><p>Selected asset: <b>{asset === "stonklet" ? `$${pair.stonklet.symbol}` : pair.stock.symbol}</b></p>{asset === "stonklet" && pair.demoToken ? <div className="stonklets-demo-trade"><b>Live market-data demo</b><p>{pair.stonklet.name} is previewing {pair.demoToken.name} ({pair.demoToken.symbol}), a third-party Flap token. This is not the official 10X contract and trading is not enabled here.</p><a href={pair.demoToken.flapUrl} target="_blank" rel="noreferrer">Inspect source token on Flap ↗</a></div> : <p>{pair.stonklet.name} has not launched yet. Favourite it on Market to vote and opt into launch alerts.</p>}</> : <p>This part of the Stonklets market is coming soon.</p>}</section>;
 }
@@ -420,7 +431,7 @@ export default function StonkletsApp() {
     () => forceBstocksNotice || !hasAcceptedBstocksNotice(window.localStorage),
   );
   const [search, setSearch] = useState(initial.get("q") ?? "");
-  const [market, setMarket] = useState<MarketSide>(safeParam<MarketSide>(initial.get("market"), ["stock", "stonklet"], "stock"));
+  const [market, setMarket] = useState<MarketSide>(safeParam<MarketSide>(initial.get("market"), ["stock", "stonklet"], "stonklet"));
   const [order, setOrder] = useState<OrderKey>(safeParam(initial.get("order"), ORDER_OPTIONS.map((option) => option.key), "trending"));
   const [direction, setDirection] = useState<Direction>(safeParam<Direction>(initial.get("dir"), ["asc", "desc"], initial.get("order") === "az" ? "asc" : "desc"));
   const [changeRange, setChangeRange] = useState<StonkletChangeRange>(() => parseStonkletChangeRange(initial.get("change")) ?? DEFAULT_STONKLET_CHANGE_RANGE);
@@ -445,6 +456,8 @@ export default function StonkletsApp() {
   const showToast = (message: string, kind: StonkletsToastMessage["kind"] = "success") => setToast({ message, kind });
   const closeToast = useCallback(() => setToast(null), []);
   const [launchPrompt, setLaunchPrompt] = useState(false);
+  const [shareEntry, setShareEntry] = useState(() => stonkletFromSharePath(window.location.pathname) ?? null);
+  const closeShare = useCallback(() => setShareEntry(null), []);
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [showUpcoming, setShowUpcoming] = useState(false);
   const [headerAccountAnchor, setHeaderAccountAnchor] = useState<"title" | "avatar" | null>(null);
@@ -563,14 +576,14 @@ export default function StonkletsApp() {
     }
     const startedAt = Date.now();
     setMarketLoadingMessage(getMarketLoadingMessage(0));
-    const interval = window.setInterval(() => setMarketLoadingMessage(getMarketLoadingMessage(Date.now() - startedAt)), 50);
+    const interval = window.setInterval(() => setMarketLoadingMessage(getMarketLoadingMessage(Date.now() - startedAt)), 1_000);
     return () => window.clearInterval(interval);
   }, [loading]);
   useEffect(() => {
     if (page !== "market") return;
     const params = new URLSearchParams();
     if (search) params.set("q", search);
-    if (market !== "stock") params.set("market", market);
+    if (market !== "stonklet") params.set("market", market);
     if (order !== "trending") params.set("order", order);
     if (direction !== (order === "az" ? "asc" : "desc")) params.set("dir", direction);
     if (changeRange !== DEFAULT_STONKLET_CHANGE_RANGE) params.set("change", changeRange);
@@ -580,7 +593,8 @@ export default function StonkletsApp() {
     if (flapPreview) params.set("flap", "1");
     if (votesPreview) params.set("votes", "1");
     const query = params.toString();
-    window.history.replaceState(window.history.state, "", `${basePath() || "/"}${query ? `?${query}` : ""}`);
+    const path = stonkletFromSharePath(window.location.pathname) ? window.location.pathname : basePath() || "/";
+    window.history.replaceState(window.history.state, "", `${path}${query ? `?${query}` : ""}`);
   }, [changeRange, direction, favouritesOnly, forceBstocksNotice, flapPreview, votesPreview, layout, market, order, page, search]);
 
   const orderAvailable = useCallback((key: OrderKey) => key === "trending" || key === "favourites" || key === "az" || entries.some((entry) => stonkletMetric(entry, market, key) != null), [entries, market]);
@@ -680,7 +694,30 @@ export default function StonkletsApp() {
     const assets = isSingleLayout(layout) ? [first] : [first, second];
     const isFavourite = (asset: MarketSide) => (asset === "stock" ? stockFavourites : favourites).has(entry.id);
     const isBusy = (asset: MarketSide) => busyFavourite === `${entry.id}:${asset}`;
-    return <article className={`stonklets-pair${layout === "single-grid" ? " stonklets-pair--single-grid" : ""}${layout === "single-chart" ? " stonklets-pair--single-chart" : ""}`} key={entry.id}>
+    return <article className={`stonklets-pair${layout === "single-grid" ? " stonklets-pair--single-grid" : ""}${layout === "single-chart" ? " stonklets-pair--single-chart" : ""}`} key={entry.id}
+      onClickCapture={(event) => {
+        if (!(event.target instanceof Element) || !event.target.closest(".stonklets-card-identity,.stonklets-compact-identity,.stonklets-heart,.stonklets-trade")) return;
+        const tradeLink = event.target.closest("a.stonklets-trade");
+        event.stopPropagation();
+        setShareEntry(entry);
+        // Preserve the clicked asset's verified destination and the browser's
+        // native new-tab action. Mini apps open it through their host instead.
+        if (!(tradeLink instanceof HTMLAnchorElement)) event.preventDefault();
+        else if (isInMiniAppContext) {
+          event.preventDefault();
+          void openAppUrl(tradeLink.href).catch(() => showToast("Unable to open FOMO. Please try again.", "error"));
+        }
+        if (event.target.closest(".stonklets-heart,.stonklets-trade")) {
+          if (isInMiniAppContext) void hapticSuccess();
+          void confetti({ particleCount: 120, spread: 70, origin: { y: 0.72 }, colors: ["#00FF00", "#FFFFFF", "#FFFF00"], zIndex: 150, disableForReducedMotion: true });
+        } else if (isInMiniAppContext) void hapticTap();
+      }}
+      onKeyDown={(event) => {
+        if ((event.key === "Enter" || event.key === " ") && event.target instanceof Element && event.target.closest(".stonklets-card-identity,.stonklets-compact-identity")) {
+          event.preventDefault(); setShareEntry(entry);
+          if (isInMiniAppContext) void hapticTap();
+        }
+      }}>
       {isGridLayout(layout)
         ? assets.map((asset) => <CompactRow key={asset} entry={entry} asset={asset} range={changeRange} favourite={isFavourite(asset)} busy={isBusy(asset)} onFavourite={() => void toggleFavourite(entry, asset)} />)
         : <div className={`stonklets-chart-pair${layout === "single-chart" ? " stonklets-chart-pair--single" : ""}`}>{assets.map((asset) => <AssetCard key={asset} entry={entry} asset={asset} range={changeRange} favourite={isFavourite(asset)} busy={isBusy(asset)} onFavourite={() => void toggleFavourite(entry, asset)} />)}</div>}
@@ -699,8 +736,8 @@ export default function StonkletsApp() {
   const header = <MiniAppHeader
     appSlug={STONKLETS_APP_SLUG}
     title="10X Stonklets"
-    canGoBack={chrome.canGoBack}
-    onBack={chrome.actions.goBack}
+    canGoBack={page === "about" || chrome.canGoBack}
+    onBack={page === "about" && !chrome.isMenuRoute ? () => goPage("market") : chrome.actions.goBack}
     onLogo={() => void chrome.actions.openHubRoot()}
     onMenu={chrome.actions.openMenu}
     onTitleMenu={() => setHeaderAccountAnchor((current) => current === "title" ? null : "title")}
@@ -712,6 +749,7 @@ export default function StonkletsApp() {
       centered={headerAccountAnchor === "title"}
       onOpenChange={(open) => setHeaderAccountAnchor(open ? "avatar" : null)}
       onConnect={() => setConnectOpen(true)}
+      onAbout={() => goPage("about")}
       onShowFavourites={() => { goPage("market"); void applyFavouriteFilter(true); }}
       onEnableNotifications={() => setLaunchPrompt(true)}
       onDisconnect={() => void logoutAppPrincipal("all").then(() => { setSession(null); setFavouriteIdentityReady(false); setFavourites(new Set()); setStockFavourites(new Set()); })}
@@ -725,7 +763,7 @@ export default function StonkletsApp() {
       {flapPreview && <p className="stonklets-state" role="status">Local Flap preview · Stonklets use third-party live token data. <a href={basePath() || "/"}>Exit preview</a></p>}
       {votesPreview && <p className="stonklets-state" role="status">Local vote preview · Mock votes with sample Farcaster profile images.</p>}
       {/* Page navigation is temporarily hidden while Market is the primary page. */}
-      {page !== "market" ? <Placeholder page={page} pair={selectedPair} asset={selectedAsset} /> : <div className="stonklets-market-page">
+      {page === "about" ? <StonkletsAbout /> : page !== "market" ? <Placeholder page={page} pair={selectedPair} asset={selectedAsset} /> : <div className="stonklets-market-page">
         <header className="stonklets-market-heading">
           <h1>GEN Z'S STONK MARKET</h1>
           <p className="stonklets-market-tagline"><strong>Reset the market. Be early. Win.</strong></p>
@@ -760,11 +798,14 @@ export default function StonkletsApp() {
         {renderGroup("Upcoming", upcomingEntries)}
         {!filtered.length && <p className="stonklets-empty-status">{favouritesOnly ? "No favourites found." : "No pairings found."}{search && <> <button type="button" onClick={() => setSearch("")}>Reset search</button>.</>}</p>}
         {!showUpcoming && launchedEntries.length === 0 && votingEntries.length === 0 && upcomingEntries.length > 0 && <p className="stonklets-empty-status">Matching results are in Upcoming Tokens.</p>}
+        <EmailWaitlistCta actionSessionToken={session?.actionSessionToken ?? null} viewerFid={session?.farcasterFid ?? null} authenticatedSession={session?.authenticated === true} />
+        <StonkletsAirdropsCta />
         <aside className="stonklets-risk"><b>Know what you’re pairing.</b> bStocks provide tokenized economic exposure to real-world assets. Stonklets are separate meme tokens; their prices are not correlated with the referenced asset. Nothing here is investment advice.</aside>
       </div>}
     </main><SiteFooter legalSuffix={<a href="https://www.tradingview.com/" target="_blank" rel="noreferrer" className="font-bold text-[#00FF00] underline decoration-[#00FF00] underline-offset-2 hover:text-[#8bff8b]">Charts by TradingView</a>} /></>}
     <WebConnectModal open={connectOpen} onClose={() => setConnectOpen(false)} identityConnected={Boolean(session?.farcasterFid)} onWalletConnected={() => { void refreshSession(); void loadFavourites(); setConnectOpen(false); }} farcasterControl={<FarcasterSignInControl connected={Boolean(session?.farcasterFid)} onAuthenticated={() => { void refreshSession(); setConnectOpen(false); void loadFavourites(); }} />} />
     {launchPrompt && <StonkletsNotificationsPrompt inMiniApp={isInMiniAppContext} onClose={() => setLaunchPrompt(false)} onEnabled={() => setNotificationsEnabled(true)} onMessage={showToast} />}
+    {shareEntry && <StonkletShareModal entry={shareEntry} range={changeRange} onClose={closeShare} onMessage={showToast} />}
     {toast && <StonkletsToast toast={toast} onClose={closeToast} />}</>}
   </MiniAppShell>;
 }

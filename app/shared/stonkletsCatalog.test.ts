@@ -30,10 +30,10 @@ describe("Stonklets catalog", () => {
 
   it("uses the supplied character images", () => {
     const images = Object.fromEntries(STONKLETS_CATALOG.map((entry) => [entry.stonklet.symbol, entry.stonklet.image]));
-    expect(images.ORBIT).toBe("/stonklets/stonklets/SpaceX-Orbit.png");
-    expect(images.CHIP).toBe("/stonklets/stonklets/NVIDIA-Chip.png");
-    expect(images.CORE).toBe("/stonklets/stonklets/Apple-Core.png");
-    expect(images.VOLT).toBe("/stonklets/stonklets/Tesla-Volt.png");
+    expect(images.ORBIT).toBe("/stonklets/stonklets/SpaceX-Orbit.webp");
+    expect(images.CHIP).toBe("/stonklets/stonklets/NVIDIA-Chip.webp");
+    expect(images.CORE).toBe("/stonklets/stonklets/Apple-Core.webp");
+    expect(images.VOLT).toBe("/stonklets/stonklets/Tesla-Volt.webp");
   });
 
   it("serves every stock image from a unique local image path", () => {

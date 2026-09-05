@@ -85,8 +85,8 @@ const APP_CONFIGS: Record<AppSlug, AppConfig> = {
     headerTitle: STONKLETS_PUBLIC_NAME,
     ctaLabel: "Explore Stonklets",
     absoluteUrl: `${STONKLETS_APP_ORIGINS.prod}/`,
-    iconUrl: `${STONKLETS_APP_ORIGINS.prod}/stonklets/chip.png`,
-    imageUrl: `${STONKLETS_APP_ORIGINS.prod}/stonklets/chip.png`,
+    iconUrl: `${STONKLETS_APP_ORIGINS.prod}/icon_stonklet.jpg`,
+    imageUrl: `${STONKLETS_APP_ORIGINS.prod}/embed_stonklet.jpg`,
     available: true,
   },
   million: {
@@ -716,7 +716,7 @@ export function MiniAppMenuPage({ appSlug }: { appSlug: AppSlug }) {
         : config.slug === WARPLETS_APP_SLUG
           ? "/menu/10xwarplets.jpg"
           : config.slug === STONKLETS_APP_SLUG
-            ? "/stonklets/chip.png"
+            ? "/icon_stonklet.jpg"
           : "/menu/menu-drop-app.jpg",
       ctaLabel: config.slug === "drop"
           ? "10X Warplet Drop"

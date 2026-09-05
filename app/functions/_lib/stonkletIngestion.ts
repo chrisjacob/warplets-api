@@ -455,9 +455,10 @@ export async function loadStonkletPeriodChanges(
   env: StonkletMarketIngestEnv,
   range: StonkletChangeRange,
   suppliedSnapshots?: readonly StonkletDemoSnapshot[],
+  pairIds?: readonly string[],
 ): Promise<Map<string, number | null>> {
   const snapshots = suppliedSnapshots ?? await loadStonkletDemoMarket(env);
-  const rows = await Promise.all(STONKLETS_CATALOG.map(async (entry) => [entry.id, entry.demoToken ? (await loadStonkletRangeChart(env, entry.id, range, snapshots)).periodChange : null] as const));
+  const rows = await Promise.all(STONKLETS_CATALOG.filter((entry) => !pairIds || pairIds.includes(entry.id)).map(async (entry) => [entry.id, entry.demoToken ? (await loadStonkletRangeChart(env, entry.id, range, snapshots)).periodChange : null] as const));
   return new Map(rows);
 }
 

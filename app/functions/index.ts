@@ -38,6 +38,8 @@ import {
 } from "../shared/stonkletsApp.js";
 import { APP_FAVICONS, buildFaviconLinks, getHostnameFaviconKey } from "../shared/favicons.js";
 import { getTwitterCardImageUrl } from "../shared/twitterCardImage.js";
+import { stonkletFromSharePath, stonkletShare } from "../shared/stonkletsShare.js";
+import { parseStonkletChangeRange } from "../shared/stonkletsTime.js";
 
 type PagesEnv = StatsSharesEnv & {
   ASSETS: Fetcher;
@@ -59,7 +61,7 @@ const WARPLETS_SHARE_DESCRIPTION = "Search, filter, trade, favourite, and share 
 const WARPLETS_SPLASH_BACKGROUND_COLOR = "#004100";
 const STONKLETS_SHARE_TITLE = STONKLETS_PUBLIC_NAME;
 const STONKLETS_SHARE_DESCRIPTION = "Track paired bStocks and vote for the Stonklets you want launched first.";
-const STONKLETS_SPLASH_BACKGROUND_COLOR = "#001400";
+const STONKLETS_SPLASH_BACKGROUND_COLOR = "#258d33";
 export const APP_SHARE_TITLE = "10X.MEME 🟢 You're Just One Trade Away...";
 export const APP_SHARE_DESCRIPTION = "10X Memes, RWAs, NFTs, AI, Attention & Alpha.";
 export const APP_MINIAPP_TITLE = "You're Just One Trade Away...";
@@ -187,23 +189,23 @@ export function buildFarcasterManifest(hostname: string, warpletsAssociation?: A
         name: STONKLETS_PUBLIC_NAME,
         canonicalDomain: hostname,
         homeUrl: `https://${hostname}`,
-        iconUrl: `https://${hostname}/stonklets/chip.png`,
-        imageUrl: `https://${hostname}/stonklets/chip.png`,
-        heroImageUrl: `https://${hostname}/stonklets/chip.png`,
+        iconUrl: `https://${hostname}/icon_stonklet.jpg`,
+        imageUrl: `https://${hostname}/embed_stonklet.jpg`,
+        heroImageUrl: `https://${hostname}/hero_stonklet.jpg`,
         buttonTitle: "Open 10X Stonklets",
-        splashImageUrl: `https://${hostname}/stonklets/chip.png`,
+        splashImageUrl: `https://${hostname}/splash_stonklet.png`,
         splashBackgroundColor: STONKLETS_SPLASH_BACKGROUND_COLOR,
         webhookUrl: `https://${hostname}/webhook/stonklets`,
         castShareUrl: `https://${hostname}`,
         subtitle: "Vote for the next launch.",
         description: STONKLETS_SHARE_DESCRIPTION,
         primaryCategory: "finance",
-        screenshotUrls: [`https://${hostname}/stonklets/chip.png`],
+        screenshotUrls: [`https://${hostname}/hero_stonklet.jpg`],
         tags: ["10x", "stonklets", "bnb", "rwa", "memecoins"],
         tagline: "Real assets. Unreal characters.",
         ogTitle: STONKLETS_SHARE_TITLE,
         ogDescription: STONKLETS_SHARE_DESCRIPTION,
-        ogImageUrl: `https://${hostname}/stonklets/chip.png`,
+        ogImageUrl: `https://${hostname}/embed_stonklet.jpg`,
       },
     };
   }
@@ -495,12 +497,12 @@ function buildMiniAppMetaContent(
     : routeKey === "warplets"
       ? `${base}/splash_search.png`
       : routeKey === "stonklets"
-        ? `${base}/stonklets/chip.png`
+        ? `${base}/splash_stonklet.png`
       : `${base}/splash.png`;
   const defaultEmbedImageUrl = routeKey === "warplets"
     ? `${base}/embed_search.png`
     : routeKey === "stonklets"
-      ? `${base}/stonklets/chip.png`
+      ? `${base}/embed_stonklet.jpg`
       : `${base}/embed.png`;
 
   return JSON.stringify({
@@ -875,15 +877,18 @@ export const onRequestGet: PagesFunction<PagesEnv> = async (context) => {
       ? getDropShareImageUrl()
       : undefined;
   const searchShareImageUrl = searchWarpletImageUrl ?? searchResultsImageUrl ?? (perksShareContent ? getPerksShareImageUrl(perksShareContent) : undefined);
-  const routeImageUrl = statsShareOgImageUrl ?? (routeKey === "stop" ? STOP_IMAGE_URL : searchShareImageUrl ?? dropShareImageUrl);
+  const sharedStonklet = routeKey === "stonklets" ? stonkletFromSharePath(requestUrl.pathname) : undefined;
+  const stonkletShareMeta = sharedStonklet ? stonkletShare(sharedStonklet, requestUrl.hostname, parseStonkletChangeRange(requestUrl.searchParams.get("change")) ?? "24h") : undefined;
+  const routeImageUrl = stonkletShareMeta?.ogImage ?? statsShareOgImageUrl ?? (routeKey === "stop" ? STOP_IMAGE_URL : searchShareImageUrl ?? dropShareImageUrl);
   const isSharedContentDeepLink = Boolean(
+    stonkletShareMeta ||
     statsLaunchLookupPath ||
     searchWarpletTitle ||
     searchResultsTitle ||
     perksShareContent
   );
-  const sharedContentSubject = warpmojiCtaTitle ?? searchShareTitle;
-  const sharedContentButtonTitle = statsShareSnapshot?.title
+  const sharedContentSubject = stonkletShareMeta?.title ?? warpmojiCtaTitle ?? searchShareTitle;
+  const sharedContentButtonTitle = sharedStonklet ? `View ${sharedStonklet.stonklet.name}` : statsShareSnapshot?.title
     ? getViewButtonTitle(statsShareSnapshot.title)
     : getStatsDeepLinkButtonTitle(requestUrl)
       ?? (sharedContentSubject ? getViewButtonTitle(sharedContentSubject) : undefined);
@@ -895,11 +900,11 @@ export const onRequestGet: PagesFunction<PagesEnv> = async (context) => {
       routeImageUrl,
       isSharedContentDeepLink ? sharedContentButtonTitle : statsShareSnapshot?.title ?? warpmojiCtaTitle ?? searchShareTitle,
       isSharedContentDeepLink ? undefined : statsShareSnapshot?.title ?? warpmojiCtaTitle ?? searchShareTitle,
-      statsLaunchLookupPath
+      stonkletShareMeta?.url ?? (statsLaunchLookupPath
         ? `${requestUrl.origin}${statsLaunchLookupPath}`
         : statsShareSnapshot
           ? `${requestUrl.origin}${statsShareSnapshot.launchPath}`
-          : undefined,
+          : undefined),
     )
   );
   const metaTag = `<meta name="fc:miniapp" content="${metaContent}" />`;
@@ -939,7 +944,7 @@ export const onRequestGet: PagesFunction<PagesEnv> = async (context) => {
   if (routeKey === "stonklets") {
     html = html.replace(MANIFEST_LINK_REGEX, '<link rel="manifest" href="/manifest-stonklets.webmanifest" />');
     html = html.replace(FAVICON_LINKS_REGEX, buildFaviconLinks("stonklets"));
-    html = html.replace(APPLE_TOUCH_ICON_LINK_REGEX, '<link rel="apple-touch-icon" href="/stonklets/chip.png" />');
+    html = html.replace(APPLE_TOUCH_ICON_LINK_REGEX, '<link rel="apple-touch-icon" href="/icon_stonklet.jpg" />');
     html = html.replace(APPLICATION_NAME_META_REGEX, '<meta name="application-name" content="10X Stonklets" />');
     html = html.replace(APPLE_APP_TITLE_META_REGEX, '<meta name="apple-mobile-web-app-title" content="10X Stonklets" />');
   }
@@ -994,9 +999,9 @@ export const onRequestGet: PagesFunction<PagesEnv> = async (context) => {
     );
   }
   if (routeKey === "stonklets") {
-    const titleTag = `<title>${escapeHtmlText(STONKLETS_SHARE_TITLE)}</title>`;
+    const titleTag = `<title>${escapeHtmlText(stonkletShareMeta?.title ?? STONKLETS_SHARE_TITLE)}</title>`;
     html = TITLE_REGEX.test(html) ? html.replace(TITLE_REGEX, titleTag) : html.replace("</head>", `  ${titleTag}\n  </head>`);
-    html = html.replace("</head>", `  ${buildSearchOpenGraphTags(STONKLETS_SHARE_TITLE, `${requestUrl.origin}/stonklets/chip.png`, requestUrl.href, STONKLETS_SHARE_DESCRIPTION)}\n  </head>`);
+    html = html.replace("</head>", `  ${stonkletShareMeta ? buildStatsShareOpenGraphTags(stonkletShareMeta.title, stonkletShareMeta.description, stonkletShareMeta.ogImage, stonkletShareMeta.url) : buildSearchOpenGraphTags(STONKLETS_SHARE_TITLE, `${requestUrl.origin}/embed_stonklet.jpg`, requestUrl.href, STONKLETS_SHARE_DESCRIPTION)}\n  </head>`);
   }
 
   if (statsShareSnapshot && statsShareOgImageUrl) {

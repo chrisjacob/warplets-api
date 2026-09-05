@@ -20,7 +20,10 @@ export interface StonkletsMarketEntry extends StonkletCatalogEntry {
 }
 
 export function stonkletMetric(entry: StonkletsMarketEntry, market: StonkletsMarketSide, order: StonkletsOrderKey): number | null {
-  if (order === "trending") return market === "stock" ? entry.stockMomentum7d : entry.momentum7d;
+  if (order === "trending") {
+    if (market === "stock") return entry.stockPeriodChange;
+    return entry.launchStatus === "launched" ? entry.stonkletPeriodChange : entry.momentum7d;
+  }
   if (order === "favourites") return market === "stock" ? entry.stockFavourites : entry.favourites;
   if (order === "az") return null;
   if (order === "change") return market === "stock" ? entry.stockPeriodChange : entry.stonkletPeriodChange;
@@ -60,6 +63,9 @@ export function filterAndSortStonklets(options: {
     if (av != null && bv == null) return -1;
     const delta = (av ?? 0) - (bv ?? 0);
     if (delta) return delta * (direction === "asc" ? 1 : -1);
+    if (order === "trending" && (market === "stock" || (a.launchStatus === "launched" && b.launchStatus === "launched"))) {
+      return (market === "stock" ? a.stock.name : a.stonklet.name).localeCompare(market === "stock" ? b.stock.name : b.stonklet.name);
+    }
     const aFavourites = market === "stock" ? a.stockFavourites : a.favourites;
     const bFavourites = market === "stock" ? b.stockFavourites : b.favourites;
     if (aFavourites !== bFavourites) return bFavourites - aFavourites;
