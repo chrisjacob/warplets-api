@@ -2,6 +2,11 @@ import { describe, expect, it } from "vitest";
 import { appendBuilderCode, builderCodeSuffix, resolveBuilderCodeForHostname } from "./builderCode";
 
 describe("Base Builder Code attribution", () => {
+  it("uses the Stonklets code on production and local Stonklets hosts", () => {
+    for (const hostname of ["stonklet.10x.meme", "stonklet-local.10x.meme"]) {
+      expect(resolveBuilderCodeForHostname(hostname, "app-code", "warplets-code")).toBe("bc_aj4t6s6i");
+    }
+  });
   it("keeps app and Warplets Builder Codes scoped to their own hostnames", () => {
     expect(resolveBuilderCodeForHostname("app.10x.meme", "app-code", "warplets-code")).toBe("app-code");
     expect(resolveBuilderCodeForHostname("10x.meme", "app-code", "warplets-code")).toBe("app-code");

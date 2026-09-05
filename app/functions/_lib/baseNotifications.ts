@@ -6,6 +6,7 @@ export interface BaseNotificationsEnv {
   WARPLETS: D1Database;
   BASE_NOTIFICATIONS_API_KEY?: string;
   BASE_APP_NOTIFICATIONS_API_KEY?: string;
+  BASE_STONKLETS_NOTIFICATIONS_API_KEY?: string;
   BASE_NOTIFICATIONS_ENABLED?: string;
   BASE_APP_URL?: string;
 }
@@ -75,6 +76,12 @@ export function resolveBaseNotificationConfig(
     return {
       apiKey: env.BASE_NOTIFICATIONS_API_KEY?.trim() || null,
       appUrl: env.BASE_APP_URL?.trim() || WARPLETS_APP_ORIGINS.prod,
+    };
+  }
+  if (appSlug === "stonklets") {
+    return {
+      apiKey: env.BASE_STONKLETS_NOTIFICATIONS_API_KEY?.trim() || null,
+      appUrl: getDefaultLaunchUrl("stonklets"),
     };
   }
   return { apiKey: null, appUrl: getDefaultLaunchUrl(appSlug) };

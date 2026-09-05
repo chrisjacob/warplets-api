@@ -8,6 +8,9 @@ export function resolveBuilderCodeForHostname(
   warpletsCode = import.meta.env.VITE_BASE_BUILDER_CODE,
 ): string | undefined {
   const normalizedHostname = hostname.trim().toLowerCase();
+  if (["stonklet.10x.meme", "stonklet-local.10x.meme"].includes(normalizedHostname)) {
+    return "bc_aj4t6s6i";
+  }
   if (["10x.meme", "www.10x.meme", "app.10x.meme"].includes(normalizedHostname)) {
     return appCode?.trim() || undefined;
   }
