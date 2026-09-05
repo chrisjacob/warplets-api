@@ -25,7 +25,7 @@ export default function StonkletShareRender({ id }: { id: string }) {
     if (!entry || !host.current) return;
     const check = () => {
       const charts = host.current?.querySelectorAll('.stonklets-chart');
-      if (charts?.length === 2 && !host.current?.querySelector('.stonklets-chart-loading,[data-voters-ready="false"],[data-artwork-ready="false"]')) setReady(true);
+      setReady(charts?.length === 2 && !host.current?.querySelector('.stonklets-chart-loading,[data-voters-ready="false"],[data-artwork-ready="false"]'));
     };
     const observer = new MutationObserver(check);
     observer.observe(host.current, { subtree: true, childList: true, attributes: true });
