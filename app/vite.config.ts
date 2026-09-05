@@ -127,7 +127,7 @@ function buildLocalStonkletsManifest(
       splashBackgroundColor: STONKLETS_SPLASH_BACKGROUND_COLOR,
       webhookUrl: `${origin}/webhook/stonklets`,
       castShareUrl: origin,
-      subtitle: "Reset the market. Be early. Win.",
+      subtitle: "Reset the market➔Be early➔Win.",
       description: STONKLETS_SHARE_DESCRIPTION,
       primaryCategory: "finance",
       screenshotUrls: [`${origin}/hero_stonklet.jpg`],

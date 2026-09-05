@@ -72,6 +72,7 @@ const STOP_IMAGE_URL = "https://warplets.10x.meme/3081.png";
 const BASE_APP_IDS: Readonly<Record<string, string>> = {
   "app.10x.meme": "6a8e3af7164a4b20f8b98f3a",
   "warplet.10x.meme": "6a8dba294f7ceaca3bfa774f",
+  "stonklet.10x.meme": "6a9c8f306f71865e384d7e5c",
 };
 
 const APP_ASSOCIATION = {
@@ -197,7 +198,7 @@ export function buildFarcasterManifest(hostname: string, warpletsAssociation?: A
         splashBackgroundColor: STONKLETS_SPLASH_BACKGROUND_COLOR,
         webhookUrl: `https://${hostname}/webhook/stonklets`,
         castShareUrl: `https://${hostname}`,
-        subtitle: "Reset the market. Be early. Win.",
+        subtitle: "Reset the market➔Be early➔Win.",
         description: STONKLETS_SHARE_DESCRIPTION,
         primaryCategory: "finance",
         screenshotUrls: [`https://${hostname}/hero_stonklet.jpg`],
