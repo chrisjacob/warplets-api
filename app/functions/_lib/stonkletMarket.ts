@@ -244,7 +244,17 @@ export async function loadChart(pairId: string, asset: "stock" | "stonklet", kv?
       await store(kv, key, rows, staleSeconds);
     } catch (error) {
       console.warn(JSON.stringify({ message: "stonklets_chart_upstream_error", pair: entry.id, range, error: error instanceof Error ? error.message : String(error) }));
-      if (!prior || Date.now() - prior.storedAt > staleSeconds * 1000) return chartUnavailable(range);
+      if (!prior || Date.now() - prior.storedAt > staleSeconds * 1000) {
+        // Hosted exchange APIs can reject Workers. Resolve on-chain candles only
+        // for this catalog entry's verified bStock contract, never its Stonklet.
+        if (entry.stock.contractAddress) {
+          try {
+            const { loadFlapPreviewChart } = await import("./stonkletFlapPreview.js");
+            return await loadFlapPreviewChart(kv, entry.stock.contractAddress, range);
+          } catch { /* Both providers unavailable; retain the explicit empty state. */ }
+        }
+        return chartUnavailable(range);
+      }
       rows = prior.value;
       status = "stale";
     }

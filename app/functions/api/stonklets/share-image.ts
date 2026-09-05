@@ -14,7 +14,7 @@ export const onRequestGet: PagesFunction<StatsSharesEnv> = async (context) => {
   if (!entry || !isStonkletsAppHostname(url.hostname)) return jsonSecure({ error: "Unknown Stonklet" }, { status: 404 });
   const range = parseStonkletChangeRange(url.searchParams.get("range")) ?? "24h";
   const variant = url.searchParams.get("variant") === "og" ? "og" : "square";
-  const prefix = `stonklet-shares/v2/${url.hostname}/${entry.id}/${range}`;
+  const prefix = `stonklet-shares/v3/${url.hostname}/${entry.id}/${range}`;
   const key = `${prefix}-${variant}.png`;
   const images = context.env.STATS_SHARE_IMAGES;
   if (!images || !context.env.STATS_SHARE_BROWSER) return jsonSecure({ error: "Share image rendering is unavailable" }, { status: 503 });
@@ -67,6 +67,7 @@ export const onRequestGet: PagesFunction<StatsSharesEnv> = async (context) => {
     await page.goto(renderUrl, { waitUntil: "domcontentloaded", timeout: 30_000 });
     await page.waitForSelector('[data-stonklet-share-ready="true"]', { timeout: 45_000 });
     await page.evaluate(async () => {
+      for (const image of document.images) image.loading = "eager";
       await Promise.race([
         Promise.all([document.fonts.ready, ...Array.from(document.images).map((image) => image.decode().catch(() => undefined))]),
         new Promise((resolve) => setTimeout(resolve, 5000)),

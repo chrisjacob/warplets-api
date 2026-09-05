@@ -95,3 +95,22 @@ describe("Binance Stonklets normalization", () => {
     expect(result.points).toHaveLength(2);
   });
 });
+
+it("falls back to candles for the verified bStock contract when Binance rejects production", async () => {
+  const contract = STONKLETS_BY_ID.get("robinhood")!.stock.contractAddress!;
+  const pool = "0x1111111111111111111111111111111111111111";
+  const fetcher = vi.fn(async (input: string) => {
+    if (input.includes("binance")) return Response.json({}, { status: 403 });
+    if (input.includes(`/tokens/${contract}/pools`)) return Response.json({ data: [{ attributes: { address: pool }, relationships: { base_token: { data: { id: `bsc_${contract}` } }, quote_token: { data: { id: "bsc_other" } } } }] });
+    if (input.includes(`/pools/${pool}/ohlcv/`)) return Response.json({ data: { attributes: { ohlcv_list: [[1060,12,12,12,12,1],[1000,10,10,10,10,1]] } } });
+    throw new Error(`Unexpected provider URL: ${input}`);
+  });
+  vi.stubGlobal("fetch", fetcher);
+  try {
+    const chart = await loadChart("robinhood", "stock", undefined, "24h");
+    expect(chart.provider).toBe("geckoterminal+local");
+    expect(chart.points).toHaveLength(2);
+    expect(chart.periodChange).toBeCloseTo(20);
+    expect(fetcher.mock.calls.some(([url]) => url.includes(`/tokens/${contract}/pools`))).toBe(true);
+  } finally { vi.unstubAllGlobals(); }
+});
