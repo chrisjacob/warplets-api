@@ -2335,7 +2335,7 @@ a.stonklets-trade{display:flex;align-items:center;justify-content:center;box-siz
 .stonklet-share-square>.stonklets-pair{width:100%;margin:0}
 .stonklet-share-square .stonklets-trade{display:none}
 .stonklet-share-square .stonklets-chart{width:100%;height:auto;aspect-ratio:1/1}
-.stonklets-chart-pair:not(.stonklets-chart-pair--single)>.stonklets-asset-card{padding-top:24px;padding-bottom:18px}
+.stonklets-chart-pair:not(.stonklets-chart-pair--single)>.stonklets-asset-card{padding-top:20px;padding-bottom:14px}
 .stonklets-chart-pair:not(.stonklets-chart-pair--single) .stonklets-card-header{display:grid;grid-template-columns:auto minmax(0,1fr) auto;grid-template-rows:20px 16px;column-gap:6px;row-gap:0;align-items:center}
 .stonklets-chart-pair:not(.stonklets-chart-pair--single) .stonklets-card-identity,.stonklets-chart-pair:not(.stonklets-chart-pair--single) .stonklets-card-identity>div{display:contents}
 .stonklets-chart-pair:not(.stonklets-chart-pair--single) .stonklets-card-identity>.stonklets-identity-image{grid-column:1;grid-row:1 / 3}

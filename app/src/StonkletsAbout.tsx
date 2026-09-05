@@ -12,7 +12,7 @@ export default function StonkletsAbout() {
   return <div className="pt-6">
     <header className="mb-5 text-center">
       <h1 className="text-3xl font-black text-[#00FF00]">About Stonklets</h1>
-      <p className="mt-3 text-base font-bold text-[#b8d7b8]">Major real-world assets, relaunched as meme stonks.</p>
+      <p className="mt-3 text-base font-bold text-[#b8d7b8]">Real-world assets, relaunched as meme stonks.</p>
     </header>
     <img src="/hero_stonklet.jpg" alt="Stonklets Bull and Bear" width={1200} height={630} className="mb-6 w-full rounded-xl" />
     <div className="overflow-hidden rounded-xl border border-[#00FF00]/25 bg-black/70">
