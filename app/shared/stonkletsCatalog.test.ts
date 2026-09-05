@@ -25,7 +25,7 @@ describe("Stonklets catalog", () => {
 
   it("keeps prelaunch addresses nullable until official contracts are configured", () => {
     expect(STONKLETS_CATALOG.every((entry) => entry.stonklet.contractAddress === null)).toBe(true);
-    expect(STONKLETS_CATALOG.filter((entry) => entry.launchStatus === "launched").map((entry) => entry.stonklet.symbol).sort()).toEqual(["BEAR", "BULL"]);
+    expect(STONKLETS_CATALOG.filter((entry) => entry.launchStatus === "launched").map((entry) => entry.stonklet.symbol).sort()).toEqual(["BEAR10X", "BULL10X"]);
   });
 
   it("uses the supplied character images", () => {

@@ -709,7 +709,7 @@ export function MiniAppMenuPage({ appSlug }: { appSlug: AppSlug }) {
             : config.slug === "million"
               ? "Dedicated mission for the $1M Warplet campaign."
               : config.slug === STONKLETS_APP_SLUG
-                ? "Track paired bStocks and vote for the Stonklets you want launched first."
+                ? "GEN Z'S STONK MARKET. Reset the market. Be early. Win."
                 : "Search, collect, trade, and explore 10X Warplets.",
       imageUrl: config.slug === "app"
         ? "/menu/menu-10x-app.png"
