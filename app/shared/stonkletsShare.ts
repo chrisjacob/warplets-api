@@ -6,7 +6,8 @@ import { DEFAULT_STONKLET_CHANGE_RANGE, type StonkletChangeRange } from "./stonk
 export function stonkletFromSharePath(path: string): StonkletCatalogEntry | undefined {
   try {
     const symbol = decodeURIComponent(path.replace(/^\//, "").replace(/\/$/, "")).toLowerCase();
-    return STONKLETS_CATALOG.find((entry) => entry.stonklet.symbol.toLowerCase() === symbol);
+    const currentSymbol = ({ bull: "bull10x", bear: "bear10x" } as Record<string, string>)[symbol] ?? symbol;
+    return STONKLETS_CATALOG.find((entry) => entry.stonklet.symbol.toLowerCase() === currentSymbol);
   } catch { return undefined; }
 }
 export function stonkletShareOrigin(hostname: string): string {

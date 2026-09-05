@@ -34,7 +34,7 @@ const STOP_SHARE_DESCRIPTION = "Opt out of 10X outreach mentions in the Farcaste
 const STOP_IMAGE_URL = "https://warplets.10x.meme/3081.png";
 const WARPLETS_SPLASH_BACKGROUND_COLOR = "#004100";
 const STONKLETS_SPLASH_BACKGROUND_COLOR = "#258d33";
-const STONKLETS_SHARE_DESCRIPTION = "Track paired bStocks and vote for the Stonklets you want launched first.";
+const STONKLETS_SHARE_DESCRIPTION = "GEN Z'S STONK MARKET. Reset the market. Be early. Win.";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, "..");
 
@@ -127,12 +127,12 @@ function buildLocalStonkletsManifest(
       splashBackgroundColor: STONKLETS_SPLASH_BACKGROUND_COLOR,
       webhookUrl: `${origin}/webhook/stonklets`,
       castShareUrl: origin,
-      subtitle: "Vote for the next launch.",
+      subtitle: "Reset the market. Be early. Win.",
       description: STONKLETS_SHARE_DESCRIPTION,
       primaryCategory: "finance",
       screenshotUrls: [`${origin}/hero_stonklet.jpg`],
       tags: ["10x", "stonklets", "bnb", "rwa", "memecoins"],
-      tagline: "Real assets. Unreal characters.",
+      tagline: "GEN Z'S STONK MARKET.",
       ogTitle: STONKLETS_PUBLIC_NAME,
       ogDescription: STONKLETS_SHARE_DESCRIPTION,
       ogImageUrl: `${origin}/embed_stonklet.jpg`,
@@ -640,7 +640,7 @@ export default defineConfig({
     proxy: {
       // Token deep links need the Pages Function's selected-token OG metadata,
       // even when the dev server was started without VITE_MINIAPP_BASE_URL.
-      [`^/(?:${STONKLETS_CATALOG.map((entry) => encodeURIComponent(entry.stonklet.symbol.toLowerCase()).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})/?(?:\\?.*)?$`]: {
+      [`^/(?:bull|bear|${STONKLETS_CATALOG.map((entry) => encodeURIComponent(entry.stonklet.symbol.toLowerCase()).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})/?(?:\\?.*)?$`]: {
         target: localApiTarget,
         changeOrigin: false,
         configure(proxy) {
