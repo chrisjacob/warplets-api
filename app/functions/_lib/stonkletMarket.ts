@@ -20,9 +20,10 @@ const STALE_MS = 15 * 60_000;
 
 export interface ChartPoint { time: number; value: number; price: number }
 export interface StonkletChartResult {
+  sourceToken?: string;
   range: StonkletChangeRange;
   basis: "price";
-  provider: "binance" | "geckoterminal+local" | "flap-local" | null;
+  provider: "binance" | "geckoterminal+local" | "dexpaprika+local" | "flap-local" | null;
   points: ChartPoint[];
   periodChange: number | null;
   coverageStart: string | null;
@@ -158,24 +159,24 @@ function responseBySymbol(payload: unknown): Map<string, Record<string, unknown>
 }
 
 export async function loadStockMetricsBatch(entries: readonly StonkletCatalogEntry[], kv?: KVNamespace): Promise<Map<string, MarketMetrics>> {
-  const available = entries.filter((entry) => entry.pairingStatus === "available");
-  const cacheKey = "stonklets:market-batch:v2";
+  const symbols = [...new Set(entries.map(entry => `${entry.stock.symbol}USDT`))].sort();
+  if (!symbols.length) return new Map();
+  const cacheKey = `stonklets:market-batch:v3:${symbols.join(",")}`;
   const prior = await cached<Record<string, MarketMetrics>>(kv, cacheKey);
   if (prior && Date.now() - prior.storedAt < FRESH_MS) return new Map(Object.entries(prior.value));
-  const query = encodeURIComponent(JSON.stringify(available.map((entry) => `${entry.stock.symbol}USDT`)));
+  const query = encodeURIComponent(JSON.stringify(symbols));
   try {
-    const bodies = await Promise.all([
-      fetchBinanceJson(`/ticker/24hr?symbols=${query}`),
-      ...(["5m", "1h", "4h"] as const).map((windowSize) => fetchBinanceJson(`/ticker?symbols=${query}&windowSize=${windowSize}&type=FULL`)),
-    ]);
-    const day = responseBySymbol(bodies[0]);
-    const five = responseBySymbol(bodies[1]);
-    const hour = responseBySymbol(bodies[2]);
-    const four = responseBySymbol(bodies[3]);
+    // One unsupported symbol must not hide metrics for all the other bStocks.
+    const day = responseBySymbol(await fetchBinanceJson(`/ticker/24hr?symbols=${query}`).catch(() => fetchBinanceJson("/ticker/24hr")));
+    const supported = symbols.filter(symbol => day.has(symbol));
+    const supportedQuery = encodeURIComponent(JSON.stringify(supported));
+    const windows = await Promise.all((["5m", "1h", "4h"] as const).map(async windowSize => supported.length
+      ? responseBySymbol(await fetchBinanceJson(`/ticker?symbols=${supportedQuery}&windowSize=${windowSize}&type=FULL`).catch(() => []))
+      : new Map<string, Record<string, unknown>>()));
+    const [five, hour, four] = windows;
     const updatedAt = new Date().toISOString();
     const value: Record<string, MarketMetrics> = {};
     for (const entry of entries) {
-      if (entry.pairingStatus !== "available") { value[entry.id] = emptyMarketMetrics(); continue; }
       const symbol = `${entry.stock.symbol}USDT`;
       const ticker = day.get(symbol);
       value[entry.id] = ticker ? {
@@ -200,7 +201,6 @@ export async function loadStockMetricsBatch(entries: readonly StonkletCatalogEnt
 }
 
 export async function loadStockMetrics(entry: StonkletCatalogEntry, kv?: KVNamespace): Promise<MarketMetrics> {
-  if (entry.pairingStatus !== "available") return emptyMarketMetrics();
   const key = `stonklets:market:v1:${entry.stock.symbol}`;
   const prior = await cached<Record<string, unknown>>(kv, key);
   if (prior && Date.now() - prior.storedAt < FRESH_MS) {
@@ -227,7 +227,7 @@ export async function loadStockMetrics(entry: StonkletCatalogEntry, kv?: KVNames
 
 export async function loadChart(pairId: string, asset: "stock" | "stonklet", kv?: KVNamespace, range: StonkletChangeRange = DEFAULT_STONKLET_CHANGE_RANGE): Promise<StonkletChartResult> {
   const entry = STONKLETS_BY_ID.get(pairId);
-  if (!entry || asset === "stonklet" || entry.pairingStatus !== "available") return chartUnavailable(range);
+  if (!entry || asset === "stonklet") return chartUnavailable(range);
   const cacheSeconds = stonkletRangeCacheSeconds(range);
   const staleSeconds = Math.max(15 * 60, cacheSeconds * 4);
   const key = `stonklets:chart:v2:${entry.stock.symbol}:${range}`;
@@ -269,6 +269,6 @@ export async function loadChart(pairId: string, asset: "stock" | "stonklet", kv?
 }
 
 export async function loadStockPeriodChanges(entries: readonly StonkletCatalogEntry[], range: StonkletChangeRange, kv?: KVNamespace): Promise<Map<string, number | null>> {
-  const rows = await Promise.all(entries.map(async (entry) => [entry.id, entry.pairingStatus === "available" ? (await loadChart(entry.id, "stock", kv, range)).periodChange : null] as const));
+  const rows = await Promise.all(entries.map(async (entry) => [entry.id, (await loadChart(entry.id, "stock", kv, range)).periodChange] as const));
   return new Map(rows);
 }

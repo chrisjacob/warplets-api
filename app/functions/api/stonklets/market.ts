@@ -1,4 +1,6 @@
 import { jsonSecure } from "../../_lib/security.js";
+import { isStonkletsFlapPreview } from "../../../shared/stonkletsFlapPreview.js";
+import { applyFlapPreview, cachedFlapPreviewChange, loadFlapPreviewBoard } from "../../_lib/stonkletFlapPreview.js";
 import { loadStockMetricsBatch, loadStockPeriodChanges } from "../../_lib/stonkletMarket.js";
 import { loadStonkletDemoMarket, loadStonkletPeriodChanges, marketSnapshotsByPair, marketStatusForSnapshots, type StonkletMarketIngestEnv } from "../../_lib/stonkletIngestion.js";
 import { ingestCmcMarketIfDue, loadCmcMarket, mergeCmcMetrics } from "../../_lib/stonkletCmc.js";
@@ -22,6 +24,7 @@ async function favouriteAggregates(db: D1Database): Promise<Map<string, { total:
 export const onRequestGet: PagesFunction<Env> = async ({ env, request }) => {
   const url = new URL(request.url);
   const hostname = url.hostname.toLowerCase();
+  const preview = isStonkletsFlapPreview(url);
   const rawChange = url.searchParams.get("range") ?? url.searchParams.get("change");
   const changeRange = rawChange == null ? DEFAULT_STONKLET_CHANGE_RANGE : parseStonkletChangeRange(rawChange);
   if (!changeRange) return jsonSecure({ error: "invalid change range" }, { status: 400 });
@@ -42,6 +45,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ env, request }) => {
     const cmcStonklet = cmcMarket.get(`${entry.id}:stonklet`);
     return {
       ...entry,
+      flapPreview: false,
       stock: {
         ...entry.stock,
         contractAddress: entry.stock.contractAddress ?? cmcStock?.contractAddress ?? null,
@@ -57,16 +61,32 @@ export const onRequestGet: PagesFunction<Env> = async ({ env, request }) => {
       stockMomentum7d: aggregates.get(`${entry.id}:stock`)?.momentum7d ?? 0,
     };
   });
-  const metricValues = entries.flatMap((entry) => [entry.stockMetrics, entry.stonkletMetrics]);
+  let responseEntries = entries;
+  if (preview) {
+    try {
+      responseEntries = applyFlapPreview(entries, await loadFlapPreviewBoard(env.WARPLETS_KV), changeRange);
+      // Chart histories load separately as cards approach the viewport.
+      if (changeRange !== "1h" && changeRange !== "24h") {
+        await Promise.all(responseEntries.map(async entry => {
+          if (entry.flapPreview) entry.stonkletPeriodChange = await cachedFlapPreviewChange(env.WARPLETS_KV, entry.demoToken!.contractAddress, changeRange);
+        }));
+      }
+    } catch (error) {
+      console.warn("Flap preview unavailable", error instanceof Error ? error.message : String(error));
+      return jsonSecure({ error: "Flap preview is temporarily unavailable" }, { status: 503, headers: { "cache-control": "no-store" } });
+    }
+  }
+  const metricValues = responseEntries.flatMap((entry) => [entry.stockMetrics, entry.stonkletMetrics]);
   const liveTimes = metricValues.map((metric) => metric.updatedAt).filter((value): value is string => Boolean(value));
   return jsonSecure({
-    entries,
+    entries: responseEntries,
+    flapPreview: preview,
     changeRange,
     basis: "price",
     updatedAt: liveTimes.sort().at(-1) ?? null,
     stale: metricValues.some((metric) => metric.status === "stale"),
     demoMarketStatus: marketStatusForSnapshots(demoSnapshots),
   }, {
-    headers: { "cache-control": `public, max-age=15, s-maxage=${stonkletRangeCacheSeconds(changeRange)}, stale-while-revalidate=${Math.max(120, stonkletRangeCacheSeconds(changeRange) * 2)}` },
+    headers: { "cache-control": preview ? "no-store" : `public, max-age=15, s-maxage=${stonkletRangeCacheSeconds(changeRange)}, stale-while-revalidate=${Math.max(120, stonkletRangeCacheSeconds(changeRange) * 2)}` },
   });
 };

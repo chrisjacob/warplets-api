@@ -1,3 +1,4 @@
+import { AppViewport } from "./AppViewport";
 import { useEffect, useState } from "react";
 import {
   activatePwaUpdate,
@@ -85,7 +86,7 @@ export function PwaControls({
 
   if (updateAvailable) {
     return (
-      <div className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] left-1/2 z-40 w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 rounded-xl border border-[#00FF00]/60 bg-black/95 p-3 text-sm text-[#b7ffb7] shadow-2xl">
+      <AppViewport className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] left-1/2 z-40 w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 rounded-xl border border-[#00FF00]/60 bg-black/95 p-3 text-sm text-[#b7ffb7] shadow-2xl">
         <p>A new 10X version is ready.</p>
         <button
           type="button"
@@ -94,7 +95,7 @@ export function PwaControls({
         >
           Update now
         </button>
-      </div>
+      </AppViewport>
     );
   }
 
@@ -145,7 +146,7 @@ export function PwaControls({
   };
 
   return (
-    <div className="fixed bottom-0 left-1/2 z-50 w-full max-w-[500px] -translate-x-1/2 px-4">
+    <AppViewport className="fixed bottom-0 left-1/2 z-50 w-full max-w-[500px] -translate-x-1/2 px-4">
       <div className="overflow-hidden rounded-t-2xl border border-b-0 border-[#00FF00]/35 bg-black shadow-[0_-12px_28px_rgba(0,0,0,0.75)]">
         <div className="flex items-center justify-between gap-3 border-b border-[#00FF00]/20 bg-black px-4 py-3">
           <p className="min-w-0 text-base font-bold text-[#8bbf8b]">
@@ -176,6 +177,6 @@ export function PwaControls({
           </button>
         </div>
       </div>
-    </div>
+    </AppViewport>
   );
 }

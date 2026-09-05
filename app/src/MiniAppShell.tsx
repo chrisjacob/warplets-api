@@ -1,4 +1,5 @@
-import { useEffect, useLayoutEffect, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { getAppScale } from "./AppViewport";
 import type { PartialOptions } from "overlayscrollbars";
 import { useOverlayScrollbars } from "overlayscrollbars-react";
 
@@ -73,6 +74,8 @@ const BODY_SCROLLBAR_OPTIONS = {
 } satisfies PartialOptions;
 
 export default function MiniAppShell({ children }: MiniAppShellProps) {
+  const shellRef = useRef<HTMLDivElement>(null);
+  const pageRef = useRef<HTMLDivElement>(null);
   const [loadBackgroundVideo, setLoadBackgroundVideo] = useState(
     shouldLoadBackgroundVideoNow,
   );
@@ -99,7 +102,15 @@ export default function MiniAppShell({ children }: MiniAppShellProps) {
     const viewport = window.visualViewport;
     let animationFrameId = 0;
 
+    const syncStickyOffset = () => {
+      const scale = getAppScale(document.documentElement.clientWidth);
+      // Native sticky offsets use layout pixels, while document scrolling uses
+      // screen pixels. Compensate without moving scrolling into a new element.
+      pageRef.current?.style.setProperty("--app-sticky-scroll-correction", `${window.scrollY * (1 / scale - 1)}px`);
+    };
+
     const applyVisualViewport = () => {
+      const scale = getAppScale(document.documentElement.clientWidth);
       const metrics = getVisualViewportMetrics(
         viewport?.height,
         viewport?.offsetTop,
@@ -107,6 +118,15 @@ export default function MiniAppShell({ children }: MiniAppShellProps) {
       );
       root.style.setProperty("--app-visual-viewport-height", metrics.height);
       root.style.setProperty("--app-visual-viewport-offset-top", metrics.offsetTop);
+      root.style.setProperty("--app-scale", String(scale));
+      root.style.setProperty("--app-layout-viewport-height", `${window.innerHeight / scale}px`);
+      root.style.setProperty("--app-overlay-width", `${document.documentElement.clientWidth / scale}px`);
+      root.style.setProperty("--app-overlay-height", `${parseFloat(metrics.height) / scale}px`);
+      root.style.setProperty("--app-overlay-offset-top", `${parseFloat(metrics.offsetTop) / scale}px`);
+      syncStickyOffset();
+      if (shellRef.current && pageRef.current) {
+        shellRef.current.style.height = `${pageRef.current.getBoundingClientRect().height}px`;
+      }
     };
     const scheduleVisualViewportSync = () => {
       window.cancelAnimationFrame(animationFrameId);
@@ -114,19 +134,25 @@ export default function MiniAppShell({ children }: MiniAppShellProps) {
     };
 
     applyVisualViewport();
+    const pageObserver = new ResizeObserver(applyVisualViewport);
+    if (pageRef.current) pageObserver.observe(pageRef.current);
     viewport?.addEventListener("resize", scheduleVisualViewportSync);
     viewport?.addEventListener("scroll", scheduleVisualViewportSync);
     window.addEventListener("resize", scheduleVisualViewportSync);
     window.addEventListener("orientationchange", scheduleVisualViewportSync);
+    window.addEventListener("scroll", syncStickyOffset, { passive: true });
 
     return () => {
       window.cancelAnimationFrame(animationFrameId);
+      pageObserver.disconnect();
       viewport?.removeEventListener("resize", scheduleVisualViewportSync);
       viewport?.removeEventListener("scroll", scheduleVisualViewportSync);
       window.removeEventListener("resize", scheduleVisualViewportSync);
       window.removeEventListener("orientationchange", scheduleVisualViewportSync);
+      window.removeEventListener("scroll", syncStickyOffset);
       root.style.removeProperty("--app-visual-viewport-height");
       root.style.removeProperty("--app-visual-viewport-offset-top");
+      for (const property of ["--app-scale", "--app-layout-viewport-height", "--app-overlay-width", "--app-overlay-height", "--app-overlay-offset-top"]) root.style.removeProperty(property);
     };
   }, []);
 
@@ -159,10 +185,11 @@ export default function MiniAppShell({ children }: MiniAppShellProps) {
   return (
     <div
       className="miniapp-shell"
+      ref={shellRef}
       style={{ fontFamily: '"Roboto Mono", system-ui, sans-serif' }}
     >
       <div className="miniapp-shell__outer-glow" aria-hidden="true" />
-      <div className="miniapp-shell__inner">
+      <div className="miniapp-shell__inner" ref={pageRef}>
         <div className="miniapp-shell__video-layer" aria-hidden="true">
           <video
             src={loadBackgroundVideo ? "/matrix_bg_500x500_v2.mp4" : undefined}

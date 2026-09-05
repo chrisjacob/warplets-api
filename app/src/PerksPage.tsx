@@ -1,6 +1,7 @@
+import { AppFloatingPortal } from "./AppViewport";
 import { useEffect, useMemo, useState } from "react";
 import {
-  FloatingPortal,
+
   autoUpdate,
   flip,
   offset,
@@ -340,7 +341,7 @@ function AirdropDayTooltip({ value, children }: { value: string; children: React
         {children}
       </button>
       {isOpen && (
-        <FloatingPortal>
+        <AppFloatingPortal>
           <div
             ref={refs.setFloating}
             style={floatingStyles}
@@ -350,7 +351,7 @@ function AirdropDayTooltip({ value, children }: { value: string; children: React
           >
             {value}
           </div>
-        </FloatingPortal>
+        </AppFloatingPortal>
       )}
     </>
   );

@@ -1,5 +1,6 @@
-import { describe, expect, it } from "vitest";
-import { decodeFlapTokenState, geckoRangeConfig, normalizeDexPaprikaToken, normalizeGeckoTerminalChart } from "./stonkletIngestion";
+import { describe, expect, it, vi } from "vitest";
+import { STONKLETS_BY_ID } from "../../shared/stonkletsCatalog";
+import { decodeFlapTokenState, fetchFlapStates, geckoRangeConfig, normalizeDexPaprikaToken, normalizeGeckoTerminalChart } from "./stonkletIngestion";
 
 function word(value: bigint | number): string {
   return BigInt(value).toString(16).padStart(64, "0");
@@ -10,6 +11,17 @@ function addressWord(address: string): string {
 }
 
 describe("Stonklets live demo ingestion", () => {
+  it("accepts one RPC result when two Stonklets temporarily use the same source token", async () => {
+    const token = STONKLETS_BY_ID.get("direxion-soxl")!.demoToken!;
+    const fetcher = vi.fn().mockResolvedValue(Response.json([{ id: 1, result: `0x${Array.from({ length: 18 }, () => word(0)).join("")}` }]));
+    vi.stubGlobal("fetch", fetcher);
+    try {
+      const result = await fetchFlapStates([token, { ...token }], {} as never);
+      expect(result.size).toBe(1);
+      expect(JSON.parse(fetcher.mock.calls[0]![1].body)).toHaveLength(1);
+      expect(fetcher).toHaveBeenCalledTimes(1);
+    } finally { vi.unstubAllGlobals(); }
+  });
   it("decodes Flap V8Safe state and migration progress", () => {
     const words = Array.from({ length: 18 }, () => word(0));
     words[0] = word(4);

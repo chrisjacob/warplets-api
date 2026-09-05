@@ -1,3 +1,4 @@
+import { AppViewport, getElementScale } from "./AppViewport";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import sdk from "@farcaster/miniapp-sdk";
 import { Text } from "@neynar/ui/typography";
@@ -480,15 +481,16 @@ export function MiniAppHeader({
     const collisionGap = 12;
     const updateTitleShift = () => {
       const currentShift = Number(center.dataset.titleShift ?? "0");
+      const scale = getElementScale(header);
       const titleRect = titleBadge.getBoundingClientRect();
       const leftRect = left.getBoundingClientRect();
       const rightRect = right.getBoundingClientRect();
-      const baselineLeft = titleRect.left - currentShift;
-      const baselineRight = titleRect.right - currentShift;
+      const baselineLeft = titleRect.left - currentShift * scale;
+      const baselineRight = titleRect.right - currentShift * scale;
 
-      const rightLimitedShift = Math.min(0, rightRect.left - collisionGap - baselineRight);
-      const leftLimitedShift = leftRect.right + collisionGap - baselineLeft;
-      const nextShift = Math.round(Math.max(rightLimitedShift, leftLimitedShift));
+      const rightLimitedShift = Math.min(0, rightRect.left - collisionGap * scale - baselineRight);
+      const leftLimitedShift = leftRect.right + collisionGap * scale - baselineLeft;
+      const nextShift = Math.round(Math.max(rightLimitedShift, leftLimitedShift) / scale);
       if (nextShift === currentShift) return;
 
       center.dataset.titleShift = String(nextShift);
@@ -904,7 +906,7 @@ export function MiniAppMenuPage({ appSlug }: { appSlug: AppSlug }) {
   return (
     <div className="miniapp-menu-page">
       {currentCardToastId != null && (
-        <div className="trade-toast" role="status" aria-live="polite">
+        <AppViewport className="trade-toast" role="status" aria-live="polite">
           <div className="flex w-full items-center gap-3">
             <span className="min-w-0 flex-1">You are already here!</span>
             <button
@@ -927,7 +929,7 @@ export function MiniAppMenuPage({ appSlug }: { appSlug: AppSlug }) {
               </svg>
             </button>
           </div>
-        </div>
+        </AppViewport>
       )}
       <VisibleMenuSection title="Mini Apps" cards={miniAppCards} isFarcasterMiniApp={isFarcasterMiniApp} onCurrentCardClick={showCurrentCardToast} />
       <VisibleMenuSection title="ALPHA" cards={alphaCards} isFarcasterMiniApp={isFarcasterMiniApp} onCurrentCardClick={showCurrentCardToast} />

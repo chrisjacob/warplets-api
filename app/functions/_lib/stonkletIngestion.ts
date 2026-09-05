@@ -139,7 +139,8 @@ async function fetchJson(url: string, init?: RequestInit, cacheTtl = 300): Promi
   return response.json();
 }
 
-async function fetchFlapStates(tokens: readonly FlapDemoToken[], env: StonkletMarketIngestEnv): Promise<Map<string, FlapTokenState>> {
+export async function fetchFlapStates(tokens: readonly FlapDemoToken[], env: StonkletMarketIngestEnv): Promise<Map<string, FlapTokenState>> {
+  tokens = [...new Map(tokens.map((token) => [token.contractAddress.toLowerCase(), token])).values()];
   const configured = env.BNB_RPC_URL?.trim();
   const rpcUrls = [configured, ...DEFAULT_BNB_RPC_URLS].filter((value): value is string => Boolean(value && /^https:\/\//i.test(value)));
   const body = tokens.map((token, index) => ({
@@ -252,7 +253,10 @@ function snapshotAge(snapshot: StonkletDemoSnapshot, now = Date.now()): number {
 }
 
 function allFresh(snapshots: readonly StonkletDemoSnapshot[], now = Date.now()): boolean {
-  return snapshots.length === 4 && snapshots.every((snapshot) => snapshotAge(snapshot, now) < FRESH_MS);
+  const expected = STONKLETS_CATALOG.filter((entry) => entry.demoToken);
+  return snapshots.length === expected.length
+    && expected.every((entry) => snapshots.some((snapshot) => snapshot.pairId === entry.id && snapshot.contractAddress.toLowerCase() === entry.demoToken!.contractAddress.toLowerCase()))
+    && snapshots.every((snapshot) => snapshotAge(snapshot, now) < FRESH_MS);
 }
 
 async function persistSnapshots(env: StonkletMarketIngestEnv, snapshots: readonly StonkletDemoSnapshot[]): Promise<void> {

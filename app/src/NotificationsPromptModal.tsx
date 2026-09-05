@@ -1,3 +1,4 @@
+import { AppViewport } from "./AppViewport";
 import { Text } from "@neynar/ui/typography";
 import { useEffect, useRef, useState } from "react";
 import { useOverlayScrollbars } from "overlayscrollbars-react";
@@ -34,17 +35,25 @@ function getPreviewRevealPercent(elapsedMs: number): number {
 export default function NotificationsPromptModal({
   notificationsOnlyPrompt,
   baseAppContext = false,
+  appName = "10X.MEME",
+  promptText,
+  busy = false,
+  onClose,
   onConfirm,
 }: {
   notificationsOnlyPrompt: boolean;
   baseAppContext?: boolean;
+  appName?: string;
+  promptText?: string;
+  busy?: boolean;
+  onClose?: () => void;
   onConfirm: () => void;
 }) {
   const [animationElapsedMs, setAnimationElapsedMs] = useState(0);
   const [isPreviewImageReady, setIsPreviewImageReady] = useState(false);
   const contentRef = useRef<HTMLDivElement | null>(null);
-  const notificationPromptText = getNotificationPromptText({
-    appName: "10X.MEME",
+  const notificationPromptText = promptText ?? getNotificationPromptText({
+    appName,
     notificationsOnlyPrompt,
     baseAppContext,
   });
@@ -107,7 +116,7 @@ export default function NotificationsPromptModal({
   ));
 
   return (
-    <div className="app-modal-viewport fixed inset-0 z-[100] flex items-end justify-center bg-black/80 p-4 sm:items-center">
+    <AppViewport className="app-modal-viewport fixed inset-0 z-[100] flex items-end justify-center bg-black/80 p-4 sm:items-center">
       <div className="app-modal-panel flex max-h-[92vh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-[#00FF00]/35 bg-black shadow-2xl">
         <div className="app-modal-header border-b border-[#00FF00]/20 bg-black px-4 py-3">
           <Text className="relative min-w-0 text-base font-bold" style={{ color: "rgb(139, 191, 139)" }}>
@@ -141,12 +150,14 @@ export default function NotificationsPromptModal({
           <button
             type="button"
             onClick={onConfirm}
+            disabled={busy}
             className="w-full cursor-pointer rounded-[20px] border border-[#009900] bg-[#00FF00] px-4 py-3 text-sm font-bold text-[rgb(0,80,0)] shadow-[3px_6px_0_#008000] transition-all duration-100 hover:bg-[#33ff33] active:translate-x-[1px] active:translate-y-[3px] active:shadow-[1px_3px_0_#008000]"
           >
-            {getNotificationPromptConfirmLabel(baseAppContext)}
+            {busy ? "Enabling notifications…" : getNotificationPromptConfirmLabel(baseAppContext)}
           </button>
+          {onClose && <button type="button" disabled={busy} onClick={onClose} className="mt-3 w-full cursor-pointer bg-transparent py-2 text-sm text-[#8bbf8b]">Maybe later</button>}
         </div>
       </div>
-    </div>
+    </AppViewport>
   );
 }

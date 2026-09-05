@@ -1,12 +1,23 @@
 import { describe, expect, it } from "vitest";
 import { STONKLETS_CATALOG, emptyMarketMetrics } from "../shared/stonkletsCatalog";
-import { entryMatchesQuery, filterAndSortStonklets, type StonkletsMarketEntry } from "./stonkletsMarket";
+import { entryMatchesQuery, filterAndSortStonklets, visibleStonkletsFavourites, type StonkletsMarketEntry } from "./stonkletsMarket";
 
 function entry(index: number, overrides: Partial<StonkletsMarketEntry> = {}): StonkletsMarketEntry {
   return { ...STONKLETS_CATALOG[index]!, stockMetrics: emptyMarketMetrics(), stonkletMetrics: emptyMarketMetrics(), stockPeriodChange: null, stonkletPeriodChange: null, favourites: 0, momentum7d: 0, stockFavourites: 0, stockMomentum7d: 0, ...overrides };
 }
 
 describe("Stonklets market filtering and ordering", () => {
+  it("includes votes and stock favourites in paired results regardless of the ordering side", () => {
+    const entries = [entry(0), entry(1), entry(2)];
+    const stock = new Set([entries[0]!.id]);
+    const stonklet = new Set([entries[1]!.id]);
+    for (const market of ["stock", "stonklet"] as const) {
+      const result = filterAndSortStonklets({ entries, query: "", favourites: visibleStonkletsFavourites(stock, stonklet, market, false), favouritesOnly: true, market, order: "az", direction: "asc" });
+      expect(new Set(result.map((item) => item.id))).toEqual(new Set([entries[0]!.id, entries[1]!.id]));
+      const single = filterAndSortStonklets({ entries, query: "", favourites: visibleStonkletsFavourites(stock, stonklet, market, true), favouritesOnly: true, market, order: "az", direction: "asc" });
+      expect(single.map((item) => item.id)).toEqual([market === "stock" ? entries[0]!.id : entries[1]!.id]);
+    }
+  });
   it("searches both names, symbols, and configured addresses", () => {
     const orbit = entry(0, { stock: { ...STONKLETS_CATALOG[0]!.stock, contractAddress: "0xstock" }, stonklet: { ...STONKLETS_CATALOG[0]!.stonklet, contractAddress: "0xstonklet" } });
     expect(entryMatchesQuery(orbit, "SpaceX")).toBe(true);

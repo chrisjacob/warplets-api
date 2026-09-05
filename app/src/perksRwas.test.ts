@@ -31,7 +31,7 @@ describe("RWAs perk", () => {
     const content = PERKS_SHARE_CONTENT.rwas;
     expect(content.eyebrow).toBe("Gen Z's Stonk Market");
     expect(content.summary).toBe("Major real-world assets, relaunched as meme stonks. Paper hands feed diamond hands... Compounding memetic aura!");
-    expect(content.callout).toBe("Reset the market. Be early.");
+    expect(content.callout).toBe("Reset the market. Be early. Win.");
     expect(content.cta).toBe("Share 10X RWAs");
     expect(getPerksShareImageUrl(content)).toBe("https://warplets.10x.meme/9736.gif");
     expect(PERKS_DEFINITIONS.rwas.futureTokenId).toBe(9736);
@@ -185,17 +185,16 @@ describe("RWAs perk", () => {
     expect(definition.explanation.map((item) => item.title)).toEqual([
       "Built for Risk. Grounded in Reality.",
       "Meme Stonks, not Stocks",
-      "Tax: 1% in, 5% out",
-      "Volume compounds",
-      "One character. Many markets.",
+      "Tax: 3% in, 3% out",
+      "1% Holders. 1% Liquidity. 1% Growth",
       "Your Turn to Be Early",
     ]);
     expect(definition.explanation[0]).toEqual({
       title: "Built for Risk. Grounded in Reality.",
       body: "Gen Z are entering markets after decades of compounding has already created enormous wealth for earlier generations. Stonklets are built for a new generation willing to take more risk in search of asymmetric upside ...while staying grounded in longer-term exposure to real-world value.",
     });
-    expect(definition.explanation.find((item) => item.title === "Meme Stonks, not Stocks")?.body).toContain("a primary Stonklet/$RWA market and a secondary Stonklet/$10X market");
-    expect(definition.explanation.find((item) => item.title === "Volume compounds")?.body).toContain("20% of tax revenue builds permanent Stonklet/$RWA liquidity and 20% builds permanent Stonklet/$10X liquidity.");
+    expect(definition.explanation.find((item) => item.title === "Meme Stonks, not Stocks")?.body).toContain("It does not represent, track or redeem for the stock.");
+    expect(definition.explanation.find((item) => item.title === "1% Holders. 1% Liquidity. 1% Growth")?.body).toContain("34% of tax revenue funds tokenized-asset RWA rewards for qualifying holders.");
     expect(definition.averageMetrics.map(({ label, value }) => [label, value])).toEqual([
       ["Early Entry", "4"],
       ["Holdings", "$1,000"],
@@ -206,8 +205,6 @@ describe("RWAs perk", () => {
     ]);
     expect(definition.averageMetrics.find((metric) => metric.label === "Rewards")?.detail).toContain("Warplet ownership alone does not earn RWA rewards");
 
-    const manyMarkets = definition.explanation.find((item) => item.title === "One character. Many markets.");
-    expect(manyMarkets?.body).toContain("Holding 10X Warplets does not earn you RWA rewards");
-    expect(definition.explanation.at(-1)?.callout).toBe("Reset the market. Be early.");
+    expect(definition.explanation.at(-1)?.callout).toBe("Reset the market. Be early. Win.");
   });
 });

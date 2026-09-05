@@ -1,3 +1,6 @@
+import { VERIFIED_STOCK_CONTRACTS } from "./stonkletsStockContracts";
+import { STONKLET_TRADE_DESTINATIONS } from "./stonkletsTrading";
+
 export type StonkletPairingStatus = "available" | "upcoming";
 export type StonkletLaunchStatus = "prelaunch" | "launched";
 export type MarketDataStatus = "live" | "stale" | "unavailable";
@@ -49,62 +52,67 @@ export interface MarketMetrics {
   status: MarketDataStatus;
 }
 
-const imageIds = [709, 134, 3873, 1955, 760, 5019, 2844, 936, 2601, 414, 3210, 1777, 2280, 608, 3644, 1210, 4021, 877, 1538, 3088, 2721, 468, 3311, 1904, 811, 2402, 1129, 3720, 159, 2965, 1317, 4433, 652, 2156, 3491, 995, 4077, 1822, 2514, 522] as const;
-
 const rows = [
-  ["spacex", "SpaceX", "SPCXB", "Orbit", "ORBIT", "available"],
-  ["sk-hynix", "SK Hynix", "SKHYB", "Byte", "BYTE", "available"],
-  ["spy", "SPY", "SPYB", "Scout", "SCOUT", "available"],
-  ["tether-gold", "Tether Gold", "XAUT", "Gild", "GILD", "available"],
-  ["invesco-qqq", "Invesco QQQ Trust", "QQQB", "Quanta", "QUANTA", "available"],
-  ["nvidia", "NVIDIA", "NVDAB", "Chip", "CHIP", "available"],
-  ["apple", "Apple", "AAPLB", "Core", "CORE", "available"],
-  ["tesla", "Tesla", "TSLAB", "Volt", "VOLT", "available"],
-  ["microsoft", "Microsoft", "MSFTB", "Macro", "MACRO", "available"],
-  ["alphabet", "Alphabet", "GOOGLB", "Letter", "LETTER", "available"],
-  ["robinhood", "Robinhood", "HOODB", "Arrow", "ARROW", "available"],
-  ["alibaba", "Alibaba", "BABAB", "Bazaar", "BAZR", "available"],
-  ["gamestop", "GameStop", "GMEB", "Respawn", "RSPWN", "available"],
-  ["netflix", "Netflix", "NFLXB", "Binge", "BINGE", "available"],
-  ["strategy", "Strategy", "MSTRB", "Stack", "STACK", "available"],
-  ["trump-media", "Trump Media & Technology Group", "DJTB", "Signal", "SIGNL", "available"],
-  ["bitmine", "BitMine Immersion Technologies", "BMNRB", "Miner", "MINER", "upcoming"],
-  ["super-micro", "Super Micro Computer", "SMCIB", "Rack", "RACK", "upcoming"],
-  ["iren", "IREN", "IRENB", "Hydro", "HYDRO", "upcoming"],
-  ["asml", "ASML", "ASMLB", "Etch", "ETCH", "upcoming"],
-  ["ast-spacemobile", "AST SpaceMobile", "ASTSB", "Beacon", "BEACON", "upcoming"],
-  ["coherent", "Coherent", "COHRB", "Photon", "PHOTON", "upcoming"],
-  ["credo", "Credo Technology", "CRDOB", "Lane", "LANE", "upcoming"],
-  ["usa-rare-earth", "USA Rare Earth", "USARB", "Ore", "ORE", "upcoming"],
-  ["astera-labs", "Astera Labs", "ALABB", "Fabric", "FABRIC", "upcoming"],
-  ["circle", "Circle", "CRCLB", "Halo", "HALO", "upcoming"],
-  ["micron", "Micron", "MUB", "Bitty", "BITTY", "upcoming"],
-  ["sandisk", "Sandisk", "SNDKB", "Flash", "FLASH", "upcoming"],
-  ["amd", "Advanced Micro Devices", "AMDB", "Ember", "EMBER", "upcoming"],
-  ["ishares-korea", "iShares MSCI South Korea ETF", "EWYB", "Seoul", "SEOUL", "upcoming"],
-  ["intel", "Intel", "INTCB", "Logic", "LOGIC", "upcoming"],
-  ["lumentum", "Lumentum", "LITEB", "Beam", "BEAM", "upcoming"],
-  ["meta", "Meta", "METAB", "Realm", "REALM", "upcoming"],
-  ["palantir", "Palantir", "PLTRB", "Seer", "SEER", "upcoming"],
-  ["bloom-energy", "Bloom Energy", "BEB", "Spark", "SPARK", "upcoming"],
-  ["amazon", "Amazon", "AMZNB", "Parcel", "PARCEL", "upcoming"],
-  ["direxion-soxs", "Direxion Semiconductor Bear 3X ETF", "SOXSB", "Shorty", "SHORTY", "upcoming"],
-  ["dell", "Dell", "DELLB", "Boxy", "BOXY", "upcoming"],
-  ["fluence", "Fluence Energy", "FLNCB", "Grid", "GRID", "upcoming"],
-  ["applied-materials", "Applied Materials", "AMATB", "Wafer", "WAFER", "upcoming"],
+  ["spacex", "SpaceX", "SPCXB", "Orbit", "ORBIT", "available", "SpaceX-Orbit.png"],
+  ["sk-hynix", "SK Hynix", "SKHYB", "Byte", "BYTE", "available", "SK hynix-Byte.png"],
+  ["spy", "SPY", "SPYB", "Spider", "SPIDER", "available", "SPDR S&P 500 ETF-Spider.png"],
+  ["tether-gold", "Tether Gold", "XAUT", "Nugget", "NUGGET", "available", "Tether Gold-Nugget.png"],
+  ["invesco-qqq", "Invesco QQQ Trust", "QQQB", "Quanta", "QUANTA", "available", "Invesco QQQ Trust-Quanta.png"],
+  ["nvidia", "NVIDIA", "NVDAB", "Chip", "CHIP", "available", "NVIDIA-Chip.png"],
+  ["apple", "Apple", "AAPLB", "Core", "CORE", "available", "Apple-Core.png"],
+  ["tesla", "Tesla", "TSLAB", "Volt", "VOLT", "available", "Tesla-Volt.png"],
+  ["microsoft", "Microsoft", "MSFTB", "Cloud", "CLOUD", "available", "Microsoft-Cloud.png"],
+  ["alphabet", "Alphabet", "GOOGLB", "Scout", "SCOUT", "available", "AlphabetGoogle-Scout.png"],
+  ["robinhood", "Robinhood", "HOODB", "Arrow", "ARROW", "available", "Robinhood-Arrow.png"],
+  ["alibaba", "Alibaba", "BABAB", "Bazaar", "BAZAAR", "available", "Alibaba-Bazaar.png"],
+  ["gamestop", "GameStop", "GMEB", "Player", "PLAYER", "available", "GameStop-Player.png"],
+  ["netflix", "Netflix", "NFLXB", "Binge", "BINGE", "available", "Netflix-Binge.png"],
+  ["strategy", "Strategy", "MSTRB", "Stack", "STACK", "available", "Strategy-Stack.png"],
+  ["trump-media", "Trump Media & Technology Group", "DJTB", "YUGE", "YUGE", "available", "Trump Media Technology Group-Echo.png"],
+  ["bitmine", "BitMine Immersion Technologies", "BMNRB", "Vault", "VAULT", "upcoming", "BitMine Immersion Technologies-Vault.png"],
+  ["super-micro", "Super Micro Computer", "SMCIB", "Rack", "RACK", "upcoming", "Super Micro Computer-Rack.png"],
+  ["iren", "IREN", "IRENB", "Grid", "GRID", "upcoming", "IREN-Grid.png"],
+  ["asml", "ASML", "ASMLB", "Lens", "LENS", "upcoming", "ASML-Lens.png"],
+  ["ast-spacemobile", "AST SpaceMobile", "ASTSB", "Signal", "SIGNAL", "upcoming", "AST SpaceMobile-Signal.png"],
+  ["coherent", "Coherent", "COHRB", "Laser", "LASER", "upcoming", "Coherent-Laser.png"],
+  ["credo", "Credo Technology", "CRDOB", "Link", "LINK", "upcoming", "Credo Technology-Link.png"],
+  ["usa-rare-earth", "USA Rare Earth", "USARB", "Magnet", "MAGNET", "upcoming", "USA Rare Earth-Magnet.png"],
+  ["astera-labs", "Astera Labs", "ALABB", "Fabric", "FABRIC", "upcoming", "Astera Labs-Fabric.png"],
+  ["circle", "Circle", "CRCLB", "Mint", "MINT", "upcoming", "Circle Internet Group-Mint.png"],
+  ["micron", "Micron", "MUB", "Memory", "MEMORY", "upcoming", "Micron Technology-Memory.png"],
+  ["sandisk", "Sandisk", "SNDKB", "Flash", "FLASH", "upcoming", "Sandisk-Flash.png"],
+  ["amd", "Advanced Micro Devices", "AMDB", "Compute", "COMPUTE", "upcoming", "Advanced Micro Devices-Compute.png"],
+  ["ishares-korea", "iShares MSCI South Korea ETF", "EWYB", "Seoul", "SEOUL", "upcoming", "iShares MSCI South Korea ETF-Seoul.png"],
+  ["intel", "Intel", "INTCB", "Silicon", "SILICON", "upcoming", "Intel-Silicon.png"],
+  ["lumentum", "Lumentum", "LITEB", "Photon", "PHOTON", "upcoming", "Lumentum-Photon.png"],
+  ["meta", "Meta", "METAB", "Verse", "VERSE", "upcoming", "Meta Platforms-Verse.png"],
+  ["palantir", "Palantir", "PLTRB", "Oracle", "ORACLE", "upcoming", "Palantir Technologies-Oracle.png"],
+  ["bloom-energy", "Bloom Energy", "BEB", "Cell", "CELL", "upcoming", "Bloom Energy-Cell.png"],
+  ["amazon", "Amazon", "AMZNB", "Parcel", "PARCEL", "upcoming", "Amazon-Parcel.png"],
+  ["direxion-soxs", "Semis 3× Short", "SOXSB", "Bear", "BEAR", "available", "Direxion Daily Semiconductor Bear 3X ETF-Bear.png"],
+  ["dell", "Dell", "DELLB", "Rig", "RIG", "upcoming", "Dell Technologies-Rig.png"],
+  ["fluence", "Fluence Energy", "FLNCB", "Charge", "CHARGE", "available", "Fluence Energy-Charge.png"],
+  ["applied-materials", "Applied Materials", "AMATB", "Fab", "FAB", "upcoming", "Applied Materials-Fab.png"],
+  ["direxion-soxl", "Semis 3× Long", "SOXLB", "Bull", "BULL", "available", "Direxion Daily Semiconductor Bull 3X ETF-Bull.png"],
+  ["moderna", "Moderna", "MRNAB", "Dealer", "DEALER", "available", "Moderna-Dealer.png"],
+  ["paypal", "PayPal", "PYPLB", "Bro", "BRO", "upcoming", "PayPal Holdings-Bro.png"],
+  ["proshares-sqqq", "ProShares UltraPro Short QQQ", "SQQQB", "NASDAQ Bear", "NASDAQBEAR", "upcoming", "ProShares UltraPro Short QQQ-NASDAQ Bear.png"],
 ] as const;
-
-const suppliedCharacterPaths: Record<string, string> = {
-  orbit: "/stonklets/orbit.png",
-  chip: "/stonklets/chip.png",
-  core: "/stonklets/core.png",
-  volt: "/stonklets/volt.png",
-};
 
 // These are real, third-party Flap launches used only as live product-demo
 // proxies. They are deliberately kept separate from the official Stonklet CA,
 // which remains null until a 10X contract is launched.
 const demoTokens: Partial<Record<string, FlapDemoToken>> = {
+  "direxion-soxl": {
+    name: "MarsCoin", symbol: "MarsCoin", contractAddress: "0xfe189e97832da1573e4e4ff034f4ffc3a15c7777",
+    expectedLifecycle: "migrated", poolAddress: "0x94F3ed36706c746ad59fAdCAF271b7431AB1D8F1", quoteSymbol: "SPCXB", chartTokenSide: "quote",
+    flapUrl: "https://flap.sh/bnb/0xfe189e97832da1573e4e4ff034f4ffc3a15c7777",
+  },
+  "direxion-soxs": {
+    name: "Semicon Bull 3X", symbol: "犇", contractAddress: "0x90f62f81307ebf4ccd0a0510e3391c67b1d17777",
+    expectedLifecycle: "migrated", poolAddress: "0xddcfe537686d0909070d6ed41fc9317eaa78bbb3", quoteSymbol: "SOXLB", chartTokenSide: "base",
+    flapUrl: "https://flap.sh/bnb/0x90f62f81307ebf4ccd0a0510e3391c67b1d17777",
+  },
   spacex: {
     name: "MarsCoin",
     symbol: "MarsCoin",
@@ -147,25 +155,24 @@ const demoTokens: Partial<Record<string, FlapDemoToken>> = {
   },
 };
 
-export const STONKLETS_CATALOG: readonly StonkletCatalogEntry[] = rows.map((row, index) => {
-  const [id, stockName, stockSymbol, stonkletName, stonkletSymbol, pairingStatus] = row;
-  const characterKey = stonkletName.toLowerCase();
+export const STONKLETS_CATALOG: readonly StonkletCatalogEntry[] = rows.map((row) => {
+  const [id, stockName, stockSymbol, stonkletName, stonkletSymbol, pairingStatus, imageFile] = row;
   return {
     id,
     stock: {
       name: stockName,
       symbol: stockSymbol,
-      contractAddress: null,
-      logo: `/stonklets/stocks/${id}.png`,
+      contractAddress: VERIFIED_STOCK_CONTRACTS[stockSymbol]?.address ?? null,
+      logo: `/stonklets/stocks/${id}.${id === "proshares-sqqq" ? "svg" : "png"}`,
     },
     pairingStatus,
     stonklet: {
       name: stonkletName,
       symbol: stonkletSymbol,
       contractAddress: null,
-      image: suppliedCharacterPaths[characterKey] ?? `https://warplets.10x.meme/${imageIds[index]}.jpg`,
+      image: `/stonklets/stonklets/${encodeURI(imageFile)}`,
     },
-    launchStatus: "prelaunch",
+    launchStatus: STONKLET_TRADE_DESTINATIONS[id] ? "launched" : "prelaunch",
     flapUrl: "https://flap.sh/",
     launchedAt: null,
     demoToken: demoTokens[id] ?? null,

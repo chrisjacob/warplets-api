@@ -1,3 +1,4 @@
+import { AppViewport } from "./AppViewport";
 import confetti from "canvas-confetti";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { hapticSuccess, hapticTap } from "./haptics";
@@ -259,7 +260,7 @@ export default function EmailWaitlistCta({ actionSessionToken, viewerFid, joined
   return (
     <>
       {toastMessage && (
-        <div className="trade-toast" role="status" aria-live="polite">
+        <AppViewport className="trade-toast" role="status" aria-live="polite">
           <div className="flex w-full items-center gap-3">
             <span className="min-w-0 flex-1">{toastMessage}</span>
             <button
@@ -274,7 +275,7 @@ export default function EmailWaitlistCta({ actionSessionToken, viewerFid, joined
               </svg>
             </button>
           </div>
-        </div>
+        </AppViewport>
       )}
       <section className={`${joinedToPrevious ? "mt-0 rounded-b-xl border-x border-b" : "mt-5 rounded-xl border"} border-[#00FF00]/25 bg-black/70 px-3 pb-6 pt-6`}>
         <h2 className="text-center text-xl font-black text-[#00FF00]">You're Just One Trade Away...</h2>

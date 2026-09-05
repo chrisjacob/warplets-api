@@ -3,7 +3,11 @@ import type { MarketMetrics, StonkletCatalogEntry, StonkletDemoMarketState } fro
 export type StonkletsMarketSide = "stock" | "stonklet";
 export type StonkletsOrderKey = "trending" | "marketCap" | "volume24h" | "holders" | "liquidity" | "change" | "favourites" | "az";
 export type StonkletsDirection = "asc" | "desc";
+export function visibleStonkletsFavourites(stock: Set<string>, stonklet: Set<string>, market: StonkletsMarketSide, single: boolean): Set<string> {
+  return single ? market === "stock" ? stock : stonklet : new Set([...stock, ...stonklet]);
+}
 export interface StonkletsMarketEntry extends StonkletCatalogEntry {
+  flapPreview?: boolean;
   stockMetrics: MarketMetrics;
   stonkletMetrics: MarketMetrics;
   stockPeriodChange: number | null;
