@@ -14,7 +14,7 @@ export const onRequestGet: PagesFunction<StatsSharesEnv> = async (context) => {
   if (!entry || !isStonkletsAppHostname(url.hostname)) return jsonSecure({ error: "Unknown Stonklet" }, { status: 404 });
   const range = parseStonkletChangeRange(url.searchParams.get("range")) ?? "24h";
   const variant = url.searchParams.get("variant") === "og" ? "og" : "square";
-  const prefix = `stonklet-shares/v3/${url.hostname}/${entry.id}/${range}`;
+  const prefix = `stonklet-shares/v4/${url.hostname}/${entry.id}/${range}`;
   const key = `${prefix}-${variant}.png`;
   const images = context.env.STATS_SHARE_IMAGES;
   if (!images || !context.env.STATS_SHARE_BROWSER) return jsonSecure({ error: "Share image rendering is unavailable" }, { status: 503 });

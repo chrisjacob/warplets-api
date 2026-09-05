@@ -6,7 +6,7 @@ import { periodChangeFromChart, type StonkletChartResult } from "./stonkletMarke
 
 const FLAP = "https://bnb.taxed.fun"; // Public board endpoint used by flap.sh.
 const GECKO = "https://api.geckoterminal.com/api/v2/networks/bsc";
-const PREFIX = "stonklets:flap-preview:v2:";
+const PREFIX = "stonklets:flap-preview:v3:";
 const ADDRESS = /^0x[0-9a-f]{40}$/i;
 export class FlapPreviewRateLimitError extends Error {}
 interface BoardItem {
@@ -108,7 +108,11 @@ async function loadPaprikaPreviewChart(kv: KVNamespace | undefined, source: stri
     const candidates = (data.pools ?? []).filter(row => row.chain === "bsc" && row.tokens?.some(token => token.id.toLowerCase() === source));
     const match = candidates.sort((a, b) => b.volume_usd - a.volume_usd)[0];
     if (!match) throw new Error("No alternate preview pool available");
-    pool = { address: match.id, inverted: match.tokens[0]?.id.toLowerCase() !== source };
+    const detail = await fetchJson(`${base}/networks/bsc/pools/${encodeURIComponent(match.id)}`) as { base_token_id?: string; quote_token_id?: string };
+    const baseToken = detail.base_token_id?.toLowerCase();
+    const quoteToken = detail.quote_token_id?.toLowerCase();
+    if (source !== baseToken && source !== quoteToken) throw new Error("Pool metadata does not contain the requested token");
+    pool = { address: match.id, inverted: source === quoteToken };
     await write(kv, `paprika-pool:${source}`, pool);
   }
   const configs: Record<StonkletChangeRange, { interval: string; seconds: number; days: number }> = {
