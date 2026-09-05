@@ -1,3 +1,4 @@
+import { AppViewport } from "./AppViewport";
 import sdk from "@farcaster/miniapp-sdk";
 import { lazy, Suspense, useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import { loadAppSession, logoutAppPrincipal, verifyFarcasterQuickAuth } from "./appSession";
@@ -137,7 +138,7 @@ function HomeAccountControl({
           </button>
         )}
         {open && (
-          <div className={`search-header-account-menu${centered ? " search-header-account-menu--centered" : ""}`} role="menu">
+          <AppViewport portalled={centered} onMouseDown={(event) => event.stopPropagation()} className={`search-header-account-menu${centered ? " search-header-account-menu--centered" : ""}`} role="menu">
             {!isInMiniAppContext && (
               <button type="button" role="menuitem" className="search-header-account-menu__connection" onClick={() => runMenuAction(onOpen)}>
                 <span className="search-header-account-menu__avatar-frame"><img src="/base.webp" alt="" /></span>
@@ -150,7 +151,7 @@ function HomeAccountControl({
             </button>
             {onEnableNotifications && <button type="button" role="menuitem" onClick={() => runMenuAction(onEnableNotifications)}>Enable notifications</button>}
             {showInstallWebApp && <button type="button" role="menuitem" onClick={() => runMenuAction(onInstallWebApp)}>Install web app</button>}
-          </div>
+          </AppViewport>
         )}
       </div>
     );
@@ -184,7 +185,7 @@ function HomeAccountControl({
         </span>
       </button>
       {open && (
-        <div className={`search-header-account-menu${centered ? " search-header-account-menu--centered" : ""}`} role="menu">
+        <AppViewport portalled={centered} onMouseDown={(event) => event.stopPropagation()} className={`search-header-account-menu${centered ? " search-header-account-menu--centered" : ""}`} role="menu">
           {!isInMiniAppContext && (
             <button type="button" role="menuitem" className="search-header-account-menu__connection" onClick={() => runMenuAction(onOpen)}>
               <span className="search-header-account-menu__avatar-frame"><img src="/base.webp" alt="" /></span>
@@ -217,7 +218,7 @@ function HomeAccountControl({
               Disconnect
             </button>
           )}
-        </div>
+        </AppViewport>
       )}
     </div>
   );
@@ -539,7 +540,7 @@ export default function App() {
       )}
 
       {homeToast && (
-        <div className={`trade-toast ${homeToast.kind === "error" ? "trade-toast--danger" : ""}`} role="status" aria-live="polite">
+        <AppViewport className={`trade-toast ${homeToast.kind === "error" ? "trade-toast--danger" : ""}`} role="status" aria-live="polite">
           <div className="flex w-full items-center gap-3">
             <span className="min-w-0 flex-1">{homeToast.message}</span>
             <button type="button" aria-label="Close message" onClick={() => setHomeToast(null)} className="trade-toast__close">
@@ -549,7 +550,7 @@ export default function App() {
               </svg>
             </button>
           </div>
-        </div>
+        </AppViewport>
       )}
 
       {showAddAppPrompt && (

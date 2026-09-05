@@ -3,6 +3,7 @@
 @import "overlayscrollbars/overlayscrollbars.css";
 
 :root {
+  --app-scale: 1;
   --splash-bg: #000000;
   --app-fixed-top-offset: calc(var(--app-visual-viewport-offset-top, 0px) + env(safe-area-inset-top));
 }
@@ -492,12 +493,14 @@ html[data-entry-point="pwa"] .miniapp-shell__content {
 .miniapp-shell__inner {
   position: relative;
   z-index: 1;
-  min-height: 100vh;
+  min-height: var(--app-layout-viewport-height, 100dvh);
   width: 100%;
   max-width: 500px;
   margin: 0 auto;
   overflow: clip;
   background: #000000;
+  transform: scale(var(--app-scale));
+  transform-origin: top center;
 }
 
 .miniapp-shell__video-layer {
@@ -550,7 +553,34 @@ html[data-entry-point="pwa"] .miniapp-shell__content {
   position: relative;
   z-index: 3;
   width: 100%;
-  min-height: 100vh;
+  min-height: var(--app-layout-viewport-height, 100dvh);
+}
+
+/* A separate, scaled viewport preserves fixed dialogs/toasts and lets Floating
+   UI measure anchors in the same coordinate system as its portalled menus. */
+#app-overlays {
+  position: fixed;
+  inset: 0 auto auto 0;
+  width: var(--app-overlay-width, 100%);
+  height: var(--app-overlay-height, 100dvh);
+  transform: scale(var(--app-scale));
+  transform-origin: top left;
+  z-index: 100;
+  pointer-events: none;
+  font-family: "Roboto Mono", system-ui, sans-serif;
+  --app-visual-viewport-height: var(--app-overlay-height, 100svh);
+  --app-visual-viewport-offset-top: var(--app-overlay-offset-top, 0px);
+  --app-fixed-top-offset: calc(var(--app-overlay-offset-top, 0px) + env(safe-area-inset-top));
+}
+
+#app-overlays > * { pointer-events: auto; }
+
+.miniapp-shell__inner .sticky.top-0 {
+  top: var(--app-sticky-scroll-correction, 0px);
+}
+
+.miniapp-shell__inner .sticky.top-2 {
+  top: calc(0.5rem + var(--app-sticky-scroll-correction, 0px));
 }
 
 @media (min-width: 501px) {
@@ -2117,6 +2147,10 @@ html[data-entry-point="pwa"] .miniapp-shell__content {
 /* Keep Stonklets on the same compact mini-app visual contract as Warplets. */
 .stonklets-main{width:min(448px,100%);padding:16px 16px 48px;font-family:inherit}
 .stonklets-market-page{padding-top:24px}
+.stonklets-market-heading{container-type:inline-size;width:100%;margin-bottom:20px;text-align:center}
+.stonklets-market-heading h1{width:100%;margin:0;color:#00ff00;font-size:8.1cqi;font-weight:900;line-height:1.15;letter-spacing:-.04em;white-space:nowrap}
+.stonklets-market-heading p{margin:8px 0 0;color:#8bbf8b;font-size:14px;line-height:1.5}
+.stonklets-market-heading .stonklets-market-tagline{font-size:4.4cqi;white-space:nowrap}
 .stonklets-search-row{display:block;margin-bottom:12px}
 .stonklets-search-row input{width:100%;height:auto;padding-top:12px;padding-bottom:12px;padding-left:40px;padding-right:112px;border-color:#00ff00;border-radius:12px;background:rgba(0,0,0,.7);color:#00ff00;font-family:inherit;font-size:16px;font-weight:400;line-height:24px}
 .stonklets-search-row input::placeholder{color:#8bbf8b}
@@ -2130,7 +2164,7 @@ html[data-entry-point="pwa"] .miniapp-shell__content {
 .stonklets-loading{margin:12px 0;color:#00ff00;font-size:14px;line-height:1.5}
 .stonklets-results{margin:8px 0 0}
 .stonklets-results--upcoming{margin-top:10px}
-.stonklets-upcoming-toggle{display:block;margin:18px auto 4px;padding:4px;border:0;background:transparent;color:#00ff00;font:700 12px/1.4 "Roboto Mono",monospace;text-decoration:underline;text-decoration-color:#00ff00;text-underline-offset:3px;cursor:pointer}
+.stonklets-upcoming-toggle{display:block;margin:0 0 10px;padding:4px 0;border:0;background:transparent;color:#00ff00;font:700 12px/1.4 "Roboto Mono",monospace;text-decoration:underline;text-decoration-color:#00ff00;text-underline-offset:3px;cursor:pointer}
 .stonklets-upcoming-toggle:hover,.stonklets-upcoming-toggle:focus-visible{color:#8bbf8b}
 .stonklets-empty-status{margin:24px 0;text-align:center;color:#00ff00;font-size:12px;font-weight:700;line-height:1.4;text-transform:uppercase}
 .stonklets-empty-status button{border:0;background:transparent;color:#00ff00;font:inherit;text-decoration:underline;text-decoration-color:#00ff00;text-underline-offset:2px;cursor:pointer}
@@ -2235,6 +2269,32 @@ html[data-entry-point="pwa"] .miniapp-shell__content {
 .stonklets-card-identity span{font-size:clamp(9px,2.35vw,11px);line-height:1.25}
 .stonklets-card-metrics small{margin-bottom:2px;font-size:9px;font-weight:800;line-height:11px}
 .stonklets-launch-panel{overflow:hidden;padding:0 4px;font-size:clamp(8px,2.15vw,10px);line-height:12px;white-space:nowrap;text-overflow:ellipsis}
+.stonklets-votes-label{flex:none;white-space:nowrap}
+.stonklets-market-group{margin-top:20px}
+.stonklets-group-heading{display:flex;align-items:center;gap:8px;margin:0 0 10px;color:#00ff00;font-size:14px;font-weight:800;line-height:1.4}
+.stonklets-group-heading span{border:1px solid rgba(0,255,0,.25);border-radius:12px;padding:1px 7px;color:#8bbf8b;font-size:10px;font-weight:600}
+.stonklets-group-empty{margin:0 0 12px;color:#8bbf8b;font-size:11px}
+a.stonklets-trade{display:flex;align-items:center;justify-content:center;box-sizing:border-box;text-decoration:none}
+.stonklets-votes-stack{display:inline-flex;align-items:center;justify-content:center;gap:6px;flex:0 1 auto;min-width:0;max-width:100%;height:30px;margin:0;padding:0;border:0;background:transparent;color:inherit;font:inherit;cursor:pointer;white-space:nowrap}
+.stonklets-voter-avatar{display:block;flex:none;overflow:hidden;border-radius:50%;background:#23252c;aspect-ratio:1}
+.stonklets-voter-avatar img,.stonklets-voter-avatar svg{display:block;width:100%;height:100%;object-fit:cover}
+.stonklets-votes-faces{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);flex:0 1 auto;min-width:24px;max-width:90px;padding-right:17px;box-sizing:border-box}
+.stonklets-votes-stack .stonklets-voter-avatar{width:24px;height:24px;border:2px solid #292914;box-sizing:border-box}
+.stonklets-votes-stack:focus-visible,.stonklets-voters-modal button:focus-visible,.stonklets-voter-avatar:focus-visible{outline:2px solid #00ff00;outline-offset:2px}
+/* Top-layer dialogs bypass the overlay host's transform. Apply its scale here,
+   with viewport limits in unscaled units to keep the enlarged panel on screen. */
+.stonklets-voters-modal{position:fixed;inset:0;margin:auto;width:min(420px,calc(100vw / var(--app-scale) - 32px));max-height:calc(85dvh / var(--app-scale));transform:scale(var(--app-scale));transform-origin:center;padding:0;overflow:hidden;font-family:"Roboto Mono",system-ui,sans-serif;white-space:normal;text-align:left}
+.stonklets-voters-modal[open]{display:flex;flex-direction:column}
+.stonklets-voters-modal .identity-link-heading{flex-shrink:0}
+.stonklets-voters-modal::backdrop{background:rgb(0 0 0 / 88%);backdrop-filter:blur(4px)}
+.stonklets-voters-modal h2{flex:1;min-width:0;outline:none}
+.stonklets-voters-body{min-height:0;max-height:calc(60dvh / var(--app-scale));overflow:auto;overscroll-behavior:contain;padding:16px;color:#8bbf8b}
+.stonklets-voters-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:16px}
+.stonklets-voters-grid .stonklets-voter-avatar{width:100%;border:1px solid rgb(0 255 0 / 25%)}
+.stonklets-voters-body p{text-align:center;font-size:13px}
+.stonklets-voters-more{display:block;margin:20px auto 0;border:1px solid rgb(0 255 0 / 35%);border-radius:8px;padding:8px 14px;background:transparent;color:#00ff00;font:inherit;font-size:12px;cursor:pointer}
+.stonklets-voters-more:hover{background:#041204}
+.stonklets-voters-more:disabled{opacity:.5;cursor:wait}
 .stonklets-chart-cta{font-size:11px}
 
 /* Warplets-style paired-result emphasis without shifting the layout. */
@@ -2268,6 +2328,20 @@ html[data-entry-point="pwa"] .miniapp-shell__content {
 .stonklets-chart-pair .stonklets-identity-image{width:48px;height:48px;flex-basis:48px}
 .stonklets-chart-pair .stonklets-card-identity b{font-size:16px;line-height:20px}
 .stonklets-chart-pair .stonklets-card-identity span{font-size:11px;line-height:16px}
+/* Compare headers reserve the heart's width only on the symbol row. */
+.stonklets-card-identity,.stonklets-compact-identity{cursor:pointer}
+.stonklet-share-canvas{position:fixed;inset:0;width:1000px;height:1000px;overflow:hidden;background:#000;color:#8bbf8b;font-family:"Roboto Mono",monospace}
+.stonklet-share-square{width:500px;height:500px;padding:12px;box-sizing:border-box;display:flex;align-items:center;transform:scale(2);transform-origin:top left}
+.stonklet-share-square>.stonklets-pair{width:100%;margin:0}
+.stonklet-share-square .stonklets-trade{display:none}
+.stonklet-share-square .stonklets-chart{width:100%;height:auto;aspect-ratio:1/1}
+.stonklets-chart-pair:not(.stonklets-chart-pair--single)>.stonklets-asset-card{padding-top:20px;padding-bottom:14px}
+.stonklets-chart-pair:not(.stonklets-chart-pair--single) .stonklets-card-header{display:grid;grid-template-columns:auto minmax(0,1fr) auto;grid-template-rows:20px 16px;column-gap:6px;row-gap:0;align-items:center}
+.stonklets-chart-pair:not(.stonklets-chart-pair--single) .stonklets-card-identity,.stonklets-chart-pair:not(.stonklets-chart-pair--single) .stonklets-card-identity>div{display:contents}
+.stonklets-chart-pair:not(.stonklets-chart-pair--single) .stonklets-card-identity>.stonklets-identity-image{grid-column:1;grid-row:1 / 3}
+.stonklets-chart-pair:not(.stonklets-chart-pair--single) .stonklets-card-identity>div>b{grid-column:2;grid-row:1;min-width:0}
+.stonklets-chart-pair:not(.stonklets-chart-pair--single) .stonklets-card-identity>div>span{grid-column:2 / 4;grid-row:2;min-width:0}
+.stonklets-chart-pair:not(.stonklets-chart-pair--single) .stonklets-heart--chart{grid-column:3;grid-row:1;height:20px;padding-block:0;min-width:0;padding-inline:4px}
 .stonklets-pair--single-chart .stonklets-identity-image{width:56px;height:56px;flex-basis:56px}
 .stonklets-pair--single-chart .stonklets-card-identity b{font-size:18px;line-height:22px}
 .stonklets-pair--single-chart .stonklets-card-identity span{font-size:13px;line-height:18px}
@@ -2276,3 +2350,28 @@ html[data-entry-point="pwa"] .miniapp-shell__content {
 /* Match the Warplets future-ecosystem warning treatment. */
 .stonklets-risk{margin-top:32px;padding:12px;border:1px solid rgba(255,255,0,.55);border-radius:12px;background:rgba(255,255,0,.1);color:#fff7a8;font-size:12px;font-weight:700;line-height:20px}
 .stonklets-risk b{display:block;color:#ffff00;font-weight:900;text-transform:uppercase}
+/* Full-height server-rendered comparison; scoped away from the live cards. */
+.stonklet-share-square{align-items:stretch}
+.stonklet-share-square>.stonklets-pair{display:flex;flex-direction:column;height:100%;box-sizing:border-box}
+.stonklet-share-square .stonklets-chart-pair{flex:1;min-height:0;background:transparent}
+.stonklet-share-square .stonklets-asset-card{display:flex;flex-direction:column;min-height:0;padding:18px 6px 10px}
+.stonklet-share-square .stonklets-chart-pair:not(.stonklets-chart-pair--single) .stonklets-card-header{grid-template-columns:76px minmax(0,1fr) auto;grid-template-rows:42px 32px;column-gap:8px;flex-shrink:0;margin-bottom:18px}
+.stonklet-share-square .stonklets-identity-image{width:76px;height:76px;flex-basis:76px}
+.stonklet-share-square .stonklets-card-identity b{font-size:26px;line-height:42px}
+.stonklet-share-square .stonklets-card-identity span{font-size:16px;line-height:32px;font-weight:800;letter-spacing:-.03em;transform:translateY(-6px)}
+.stonklet-share-square .stonklets-chart{flex:1;min-height:0;width:100%;height:auto;aspect-ratio:auto}
+.stonklet-share-square .stonklets-chart>strong{font-size:23px;top:9px;right:9px}
+.stonklet-share-square .stonklets-card-metrics{flex-shrink:0;margin:16px 0 0;gap:6px}
+.stonklet-share-square .stonklets-card-metrics span{font-size:16px;line-height:26px;font-weight:800;letter-spacing:-.04em}
+.stonklet-share-square .stonklets-card-metrics small{font-size:13px;line-height:20px;font-weight:900;margin-bottom:6px;letter-spacing:-.03em}
+.stonklet-share-timestamp{flex-shrink:0;padding:8px 10px 10px;color:#8bbf8b;font-size:10px;line-height:14px;text-align:center}
+
+.stonklet-share-square .stonklets-heart--chart b{font-size:18px;line-height:26px}
+.stonklet-share-square .stonklets-heart--chart svg{width:26px;height:26px}
+
+.stonklet-share-square .stonklets-chart-pair:not(.stonklets-chart-pair--single) .stonklets-heart--chart{height:30px;padding-inline:0;gap:4px}
+
+.stonklet-share-square .stonklets-launch-panel{display:flex;flex-shrink:0;align-items:center;justify-content:center;height:43px;min-height:43px;max-height:43px;margin:16px 0 0;font-size:12px;font-weight:800}
+.stonklet-share-square .stonklets-chart-fallback{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center}
+
+.stonklet-share-square [data-artwork-ready] img{transition:none}

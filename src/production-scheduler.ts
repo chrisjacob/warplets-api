@@ -26,6 +26,7 @@ import {
 	type StonkletMarketIngestEnv,
 } from "../app/functions/_lib/stonkletIngestion";
 import { scheduleTasks, type ScheduledTasks } from "./scheduled-runner";
+import { runStonkletsDailyNotifications, type StonkletsDailyNotificationEnv } from "../app/functions/_lib/stonkletsDailyNotifications";
 
 export type ProductionScheduledEnv = OpenseaSyncEnv &
 	OpenSeaMarketEnv &
@@ -34,7 +35,7 @@ export type ProductionScheduledEnv = OpenseaSyncEnv &
 	WarpletNotificationEnv &
 	EmailIdentityEnv &
 	EmailOnboardingEnv &
-	StonkletMarketIngestEnv;
+	StonkletMarketIngestEnv & StonkletsDailyNotificationEnv;
 
 export type ProductionScheduledTasks = ScheduledTasks<ProductionScheduledEnv>;
 
@@ -48,6 +49,7 @@ const productionScheduledTasks: ProductionScheduledTasks = {
 	emailOnboarding: (env) => processEmailOnboardingOutbox(env),
 	emailOnboardingReconciliation: (env) => reconcileUncertainEmailOnboarding(env),
 	stonkletsMarket: (env) => ingestStonkletMarketIfDue(env),
+	stonkletsNotifications: (env) => runStonkletsDailyNotifications(env),
 };
 
 export function scheduleProductionTasks(

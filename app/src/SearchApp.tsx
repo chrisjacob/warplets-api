@@ -1,8 +1,9 @@
+import { AppViewport, AppFloatingPortal, getElementScale } from "./AppViewport";
 import { CSSProperties, Component, Fragment, KeyboardEvent as ReactKeyboardEvent, MouseEvent, PointerEvent as ReactPointerEvent, ReactNode, Suspense, cloneElement, isValidElement, lazy, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import confetti from "canvas-confetti";
 import {
-  FloatingPortal,
+
   autoUpdate,
   flip,
   offset,
@@ -2806,7 +2807,7 @@ function AttributeTooltip({
         {emoji}
       </span>
       {isOpen && (
-        <FloatingPortal>
+        <AppFloatingPortal>
           <div
             ref={refs.setFloating}
             style={floatingStyles}
@@ -2817,7 +2818,7 @@ function AttributeTooltip({
             <span className="font-bold text-[#00FF00]">{label}</span>
             <span> — {description}</span>
           </div>
-        </FloatingPortal>
+        </AppFloatingPortal>
       )}
     </>
   );
@@ -2854,7 +2855,7 @@ function ValueTooltip({
         {value}
       </span>
       {isOpen && (
-        <FloatingPortal>
+        <AppFloatingPortal>
           <div
             ref={refs.setFloating}
             style={floatingStyles}
@@ -2864,7 +2865,7 @@ function ValueTooltip({
           >
             {value}
           </div>
-        </FloatingPortal>
+        </AppFloatingPortal>
       )}
     </>
   );
@@ -2932,7 +2933,7 @@ function InlineHoverTooltip({
         {value}
       </span>
       {isOpen && (
-        <FloatingPortal>
+        <AppFloatingPortal>
           <div
             ref={refs.setFloating}
             style={floatingStyles}
@@ -2942,7 +2943,7 @@ function InlineHoverTooltip({
           >
             {tooltip}
           </div>
-        </FloatingPortal>
+        </AppFloatingPortal>
       )}
     </>
   );
@@ -2985,7 +2986,7 @@ function OfferPriceTooltipButton({
         {formatMarketValue(price, { maxDigits: 5 })}
       </button>
       {isOpen && (
-        <FloatingPortal>
+        <AppFloatingPortal>
           <div
             ref={refs.setFloating}
             style={floatingStyles}
@@ -2995,7 +2996,7 @@ function OfferPriceTooltipButton({
           >
             {tooltip}
           </div>
-        </FloatingPortal>
+        </AppFloatingPortal>
       )}
     </>
   );
@@ -3054,7 +3055,7 @@ function MarketValueChip({
         <span className="truncate">{value}</span>
       </span>
       {showTooltip && isOpen && (
-        <FloatingPortal>
+        <AppFloatingPortal>
           <div
             ref={refs.setFloating}
             style={{
@@ -3068,7 +3069,7 @@ function MarketValueChip({
           >
             {tooltip}
           </div>
-        </FloatingPortal>
+        </AppFloatingPortal>
       )}
     </>
   );
@@ -3136,7 +3137,7 @@ function MarketValuePanel({
         <MarketValueChip kind={kind} value={value} tooltip={tooltip} showTooltip={false} align="center" className="mt-1 w-full text-xs" />
       </div>
       {tooltipEnabled && isOpen && (
-        <FloatingPortal>
+        <AppFloatingPortal>
           <div
             ref={refs.setFloating}
             style={{
@@ -3150,7 +3151,7 @@ function MarketValuePanel({
           >
             {tooltip}
           </div>
-        </FloatingPortal>
+        </AppFloatingPortal>
       )}
     </>
   );
@@ -3610,7 +3611,7 @@ function SearchHeaderAccountControl({
         </span>
       </button>}
       {open && (
-        <div className={`search-header-account-menu${centered ? " search-header-account-menu--centered" : ""}`} role="menu">
+        <AppViewport portalled={centered} onMouseDown={(event) => event.stopPropagation()} className={`search-header-account-menu${centered ? " search-header-account-menu--centered" : ""}`} role="menu">
           {!simplifiedFarcaster && <button type="button" role="menuitem" className="search-header-account-menu__connection" onClick={() => runMenuAction(onConnectWallet)}>
               {walletConnected && walletAvatarUrl
                 ? <span className="search-header-account-menu__avatar-frame"><img src={walletAvatarUrl} alt="" /></span>
@@ -3656,7 +3657,7 @@ function SearchHeaderAccountControl({
               Disconnect
             </button>
           )}
-        </div>
+        </AppViewport>
       )}
     </div>
   );
@@ -6212,7 +6213,7 @@ function ActivityDateTimeInput({ value, placeholder, onChange }: {
       <span className={`truncate ${value ? "text-[#00FF00]" : "text-[#8bbf8b]"}`}>{displayValue}</span>
     </button>
     {value && <button type="button" aria-label={`Clear ${placeholder.toLowerCase()}`} onClick={(event) => { event.preventDefault(); event.stopPropagation(); onChange(""); }} className="absolute right-1.5 top-1/2 z-10 grid h-5 w-5 -translate-y-1/2 cursor-pointer place-items-center rounded text-[#8bbf8b] hover:text-[#00FF00]">×</button>}
-    {open && <div role="dialog" aria-modal="true" aria-label={placeholder} onClick={() => setOpen(false)} className="app-modal-viewport fixed inset-0 z-[100] flex items-end justify-center bg-black/70 p-3 sm:items-center">
+    {open && <AppViewport role="dialog" aria-modal="true" aria-label={placeholder} onClick={() => setOpen(false)} className="app-modal-viewport fixed inset-0 z-[100] flex items-end justify-center bg-black/70 p-3 sm:items-center">
       <div onClick={(event) => event.stopPropagation()} className="w-full max-w-sm rounded-2xl border border-[#00FF00]/45 bg-black p-4 shadow-[0_0_28px_rgba(0,255,0,0.2)]">
         <div className="mb-3 text-sm font-black uppercase text-[#00FF00]">{placeholder}</div>
         <div className="grid grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)] gap-2">
@@ -6225,7 +6226,7 @@ function ActivityDateTimeInput({ value, placeholder, onChange }: {
           <button type="button" onClick={applyPicker} className="min-h-11 cursor-pointer rounded-xl border border-[#00FF00] bg-[#00FF00] text-black">Done</button>
         </div>
       </div>
-    </div>}
+    </AppViewport>}
   </div>;
 }
 
@@ -7194,7 +7195,7 @@ function ActivityPartyCell({ party, onSearchWallet }: {
           <WalletIdenticon wallet={wallet} className="h-full w-full rounded-full" />
         )}
       </button>
-      {tooltipOpen && <FloatingPortal><div ref={refs.setFloating} style={floatingStyles} {...getFloatingProps({ className: "z-[100] max-w-[90vw] rounded-lg border border-[#00FF00]/40 bg-black px-2 py-1.5 text-[9px] font-bold text-[#00FF00] shadow-2xl" })}><span className="block">{label}</span><span className="block text-[8px] text-[#8bbf8b]">{wallet}</span></div></FloatingPortal>}
+      {tooltipOpen && <AppFloatingPortal><div ref={refs.setFloating} style={floatingStyles} {...getFloatingProps({ className: "z-[100] max-w-[90vw] rounded-lg border border-[#00FF00]/40 bg-black px-2 py-1.5 text-[9px] font-bold text-[#00FF00] shadow-2xl" })}><span className="block">{label}</span><span className="block text-[8px] text-[#8bbf8b]">{wallet}</span></div></AppFloatingPortal>}
     </>
   );
 }
@@ -7793,7 +7794,7 @@ function CollectionBiddersModal({
   }, [isInMiniAppContext]);
 
   return (
-    <div className="app-modal-viewport fixed inset-0 z-[80] flex items-end justify-center bg-black/80 p-4 sm:items-center">
+    <AppViewport className="app-modal-viewport fixed inset-0 z-[80] flex items-end justify-center bg-black/80 p-4 sm:items-center">
       <div className="app-modal-panel flex max-h-[88vh] w-full max-w-md flex-col overflow-hidden rounded-xl border border-[#00FF00]/35 bg-black shadow-2xl">
         <div className="app-modal-header flex items-start justify-between gap-3 border-b border-[#00FF00]/20 px-4 py-3">
           <Text className="text-base font-bold text-[#d7ffd7]">
@@ -7893,7 +7894,7 @@ function CollectionBiddersModal({
           </div>
         </OverlayScrollArea>
       </div>
-    </div>
+    </AppViewport>
   );
 }
 
@@ -8482,7 +8483,7 @@ function CollectionOffersPage({
       </div>
 
       {cancelGroup && (
-        <div className="app-modal-viewport fixed inset-0 z-[80] flex items-end justify-center bg-black/80 p-4 sm:items-center">
+        <AppViewport className="app-modal-viewport fixed inset-0 z-[80] flex items-end justify-center bg-black/80 p-4 sm:items-center">
           <div className="w-full max-w-sm rounded-xl border border-[#FF5555]/45 bg-black p-4 shadow-2xl">
             <Text className="text-base font-bold text-[#FF7777]">Cancel collection offers</Text>
             <p className="mt-2 text-sm font-bold text-[#d9b0b0]">
@@ -8526,7 +8527,7 @@ function CollectionOffersPage({
               Keep offers
             </button>
           </div>
-        </div>
+        </AppViewport>
       )}
       {biddersGroup && (
         <CollectionBiddersModal
@@ -9427,16 +9428,16 @@ function TraitOffersPage({
       <div className="mt-3 text-center text-[11px] text-[#8bbf8b]">Last updated: {payload?.generatedAt ? formatMarketTimestamp(payload.generatedAt) : "Not yet"}. <button type="button" disabled={refreshing || busy !== null} onClick={() => void loadOffers({ refresh: true })} className="font-bold text-[#00FF00]">{refreshing ? "Refreshing..." : "Refresh"}</button>{payload?.refreshError && <span className="block text-red-300">{payload.refreshError}</span>}</div>
       <LocalOfferDiagnosticsPanel />
       {mobileSignaturePrompt && (
-        <div className="app-modal-viewport fixed inset-0 z-[90] flex items-end justify-center bg-black/80 p-4 sm:items-center">
+        <AppViewport className="app-modal-viewport fixed inset-0 z-[90] flex items-end justify-center bg-black/80 p-4 sm:items-center">
           <div className="w-full max-w-sm rounded-xl border border-[#33AAFF]/50 bg-black p-4 text-center shadow-[0_0_24px_rgba(51,170,255,0.18)]">
             <Text className="text-base font-bold text-[#33AAFF]">Sign trait offer {mobileSignaturePrompt.index} of {mobileSignaturePrompt.total}</Text>
             <p className="mt-2 text-sm font-bold leading-relaxed text-[#8bcfff]">Open {mobileSignaturePrompt.walletName} to approve the signature. After signing, return to this original Safari tab.</p>
             <button type="button" onClick={mobileSignaturePrompt.open} className="mt-4 w-full cursor-pointer rounded-[20px] border border-[#1c78b3] bg-[#33AAFF] px-5 py-3 text-base font-bold text-[rgb(0,54,80)] shadow-[3px_6px_0_#1c78b3]">Open {mobileSignaturePrompt.walletName}</button>
             <button type="button" onClick={mobileSignaturePrompt.cancel} className="mx-auto mt-3 block px-4 py-2 text-xs font-bold text-[#8bcfff] underline">Cancel</button>
           </div>
-        </div>
+        </AppViewport>
       )}
-      {cancelGroup && <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/80 p-4 sm:items-center"><div className="w-full max-w-sm rounded-xl border border-[#FF5555]/45 bg-black p-4"><Text className="text-base font-bold text-[#FF7777]">Cancel trait offers</Text><p className="mt-2 text-sm font-bold text-[#d9b0b0]">Cancel up to {cancelGroup.userOfferCount} {emojiForTrait(cancelGroup.traitType)} {cancelGroup.traitValue} trait offers at {formatMarketValue(cancelGroup.price, { maxDigits: 8 })}.</p><div className="mt-3 flex items-center rounded-lg border-2 border-[#FF5555]/35 bg-black/60 px-2 py-1.5"><button type="button" onClick={() => { const next = stepCollectionOfferCancelQuantity(cancelTotals, cancelQuantity, -1); setCancelRequestedQuantity(next); setCancelQuantity(next); }} className="h-8 w-8 text-lg font-bold text-[#FF7777]">-</button><input type="number" min={1} max={cancelGroup.userOfferCount} value={cancelRequestedQuantity} onChange={(event) => { const requested = Math.min(cancelGroup.userOfferCount, Math.max(1, Number(event.target.value) || 1)); setCancelRequestedQuantity(requested); setCancelQuantity(snapCollectionOfferCancelQuantity(cancelGroup.userOrders, requested)); }} className="mx-2 min-w-0 flex-1 appearance-none bg-transparent text-center font-bold text-[#FF7777] outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"/><button type="button" onClick={() => { const next = stepCollectionOfferCancelQuantity(cancelTotals, cancelQuantity, 1); setCancelRequestedQuantity(next); setCancelQuantity(next); }} className="h-8 w-8 text-lg font-bold text-[#FF7777]">+</button></div>{actualCancelQuantity > cancelRequestedQuantity && <p className="mt-2 text-xs font-bold text-[#ffd599]">This cancels {actualCancelQuantity} offers across {selectedCancelOrders.length} OpenSea orders.</p>}<button type="button" disabled={busy !== null} onClick={() => void runCancel()} className="mt-4 w-full cursor-pointer rounded-[20px] border border-[#a83232] bg-[#FF5555] px-5 py-3 text-base font-bold text-[#2c0000] shadow-[3px_6px_0_#8a2222] transition-all duration-100 hover:bg-[#ff7777] active:translate-x-[1px] active:translate-y-[3px] active:shadow-[1px_3px_0_#8a2222] disabled:cursor-wait disabled:opacity-70">{busy === "cancel" ? "Working..." : "Review cancellation"}</button><button type="button" onClick={() => setCancelGroup(null)} className="mx-auto mt-2 block px-4 py-2 text-xs font-bold text-[#FF7777] underline">Keep offers</button></div></div>}
+      {cancelGroup && <AppViewport className="fixed inset-0 z-[80] flex items-end justify-center bg-black/80 p-4 sm:items-center"><div className="w-full max-w-sm rounded-xl border border-[#FF5555]/45 bg-black p-4"><Text className="text-base font-bold text-[#FF7777]">Cancel trait offers</Text><p className="mt-2 text-sm font-bold text-[#d9b0b0]">Cancel up to {cancelGroup.userOfferCount} {emojiForTrait(cancelGroup.traitType)} {cancelGroup.traitValue} trait offers at {formatMarketValue(cancelGroup.price, { maxDigits: 8 })}.</p><div className="mt-3 flex items-center rounded-lg border-2 border-[#FF5555]/35 bg-black/60 px-2 py-1.5"><button type="button" onClick={() => { const next = stepCollectionOfferCancelQuantity(cancelTotals, cancelQuantity, -1); setCancelRequestedQuantity(next); setCancelQuantity(next); }} className="h-8 w-8 text-lg font-bold text-[#FF7777]">-</button><input type="number" min={1} max={cancelGroup.userOfferCount} value={cancelRequestedQuantity} onChange={(event) => { const requested = Math.min(cancelGroup.userOfferCount, Math.max(1, Number(event.target.value) || 1)); setCancelRequestedQuantity(requested); setCancelQuantity(snapCollectionOfferCancelQuantity(cancelGroup.userOrders, requested)); }} className="mx-2 min-w-0 flex-1 appearance-none bg-transparent text-center font-bold text-[#FF7777] outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"/><button type="button" onClick={() => { const next = stepCollectionOfferCancelQuantity(cancelTotals, cancelQuantity, 1); setCancelRequestedQuantity(next); setCancelQuantity(next); }} className="h-8 w-8 text-lg font-bold text-[#FF7777]">+</button></div>{actualCancelQuantity > cancelRequestedQuantity && <p className="mt-2 text-xs font-bold text-[#ffd599]">This cancels {actualCancelQuantity} offers across {selectedCancelOrders.length} OpenSea orders.</p>}<button type="button" disabled={busy !== null} onClick={() => void runCancel()} className="mt-4 w-full cursor-pointer rounded-[20px] border border-[#a83232] bg-[#FF5555] px-5 py-3 text-base font-bold text-[#2c0000] shadow-[3px_6px_0_#8a2222] transition-all duration-100 hover:bg-[#ff7777] active:translate-x-[1px] active:translate-y-[3px] active:shadow-[1px_3px_0_#8a2222] disabled:cursor-wait disabled:opacity-70">{busy === "cancel" ? "Working..." : "Review cancellation"}</button><button type="button" onClick={() => setCancelGroup(null)} className="mx-auto mt-2 block px-4 py-2 text-xs font-bold text-[#FF7777] underline">Keep offers</button></div></AppViewport>}
       {biddersGroup && (
         <CollectionBiddersModal
           group={biddersGroup}
@@ -10530,7 +10531,7 @@ function ListedSweepFooter({
 
   if (!expanded) {
     return (
-      <div className="fixed bottom-0 left-1/2 z-50 w-full max-w-[500px] -translate-x-1/2 px-4">
+      <AppViewport className="fixed bottom-0 left-1/2 z-50 w-full max-w-[500px] -translate-x-1/2 px-4">
         <div className="rounded-t-2xl border border-b-0 border-[#00FF00]/35 bg-black px-4 pb-4 pt-3 shadow-[0_-12px_28px_rgba(0,0,0,0.75)]">
         <button
           type="button"
@@ -10543,12 +10544,12 @@ function ListedSweepFooter({
           Buy {rows.length.toLocaleString("en-US")} for {totalEth.toLocaleString("en-US", { maximumFractionDigits: 8 })} {paymentSymbol}
         </button>
         </div>
-      </div>
+      </AppViewport>
     );
   }
 
   return (
-    <div className="fixed bottom-0 left-1/2 z-50 w-full max-w-[500px] -translate-x-1/2 px-4">
+    <AppViewport className="fixed bottom-0 left-1/2 z-50 w-full max-w-[500px] -translate-x-1/2 px-4">
     <div className="overflow-hidden rounded-t-2xl border border-b-0 border-[#00FF00]/35 bg-black shadow-[0_-12px_28px_rgba(0,0,0,0.75)]">
       <div className="flex items-center justify-between gap-3 border-b border-[#00FF00]/20 bg-black px-4 py-3">
         <Text className="min-w-0 truncate text-base font-bold text-[#8bbf8b]">
@@ -10623,7 +10624,7 @@ function ListedSweepFooter({
       </button>
       </div>
     </div>
-    </div>
+    </AppViewport>
   );
 }
 
@@ -11029,7 +11030,7 @@ function ProfilePictureDownloadModal({
   };
 
   return (
-    <div
+    <AppViewport
       className="app-modal-viewport fixed inset-0 z-[120] flex items-end justify-center bg-black/80 p-4 sm:items-center"
       role="dialog"
       aria-modal="true"
@@ -11120,7 +11121,7 @@ function ProfilePictureDownloadModal({
           </div>
         </div>
       </div>
-    </div>
+    </AppViewport>
   );
 }
 
@@ -11408,7 +11409,7 @@ function TradeToastView({
     if (isDanger) restoreBlackBrowserChrome();
   }, [isDanger]);
   return (
-    <div
+    <AppViewport
       className={`trade-toast ${isDanger ? "trade-toast--danger" : ""} ${exiting ? "trade-toast--exiting" : ""}`}
     >
       <div className="flex w-full items-center gap-3">
@@ -11433,7 +11434,7 @@ function TradeToastView({
           </svg>
         </button>
       </div>
-    </div>
+    </AppViewport>
   );
 }
 
@@ -12089,7 +12090,7 @@ function OnboardingCarousel({ onDone }: { onDone: () => void }) {
   };
 
   return (
-    <div className="app-modal-viewport fixed inset-0 z-[110] flex items-end justify-center bg-black/80 p-4 sm:items-center">
+    <AppViewport className="app-modal-viewport fixed inset-0 z-[110] flex items-end justify-center bg-black/80 p-4 sm:items-center">
       <div className="app-modal-panel flex max-h-[92vh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-[#00FF00]/35 bg-black shadow-2xl">
         <div className="app-modal-header border-b border-[#00FF00]/20 bg-black px-4 py-3">
           <Text className="relative text-base font-bold" style={{ color: "#00FF00" }}>
@@ -12173,7 +12174,7 @@ function OnboardingCarousel({ onDone }: { onDone: () => void }) {
           </div>
         </div>
       </div>
-    </div>
+    </AppViewport>
   );
 }
 
@@ -12291,7 +12292,7 @@ function AirdropCongratulationsModal({
   const textAnimationElapsedMs = Math.max(0, animationElapsedMs - textStartMs);
 
   return (
-    <div className="app-modal-viewport fixed inset-0 z-[100] flex items-end justify-center bg-black/80 p-4 sm:items-center">
+    <AppViewport className="app-modal-viewport fixed inset-0 z-[100] flex items-end justify-center bg-black/80 p-4 sm:items-center">
       <div className="app-modal-panel flex max-h-[92vh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-[#00FF00]/35 bg-black shadow-2xl">
         <div className="app-modal-header border-b border-[#00FF00]/20 bg-black px-4 py-3">
           <Text className="relative min-w-0 flex-1 text-base font-bold" style={{ color: "rgb(139, 191, 139)" }}>
@@ -12361,7 +12362,7 @@ function AirdropCongratulationsModal({
           </button>
         </div>
       </div>
-    </div>
+    </AppViewport>
   );
 }
 
@@ -12482,7 +12483,7 @@ function NotificationsPromptModal({
   );
 
   return (
-    <div className="app-modal-viewport fixed inset-0 z-[100] flex items-end justify-center bg-black/80 p-4 sm:items-center">
+    <AppViewport className="app-modal-viewport fixed inset-0 z-[100] flex items-end justify-center bg-black/80 p-4 sm:items-center">
       <div className="app-modal-panel flex max-h-[92vh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-[#00FF00]/35 bg-black shadow-2xl">
         <div className="app-modal-header border-b border-[#00FF00]/20 bg-black px-4 py-3">
           <Text className="relative min-w-0 text-base font-bold" style={{ color: "rgb(139, 191, 139)" }}>
@@ -12528,7 +12529,7 @@ function NotificationsPromptModal({
           </button>
         </div>
       </div>
-    </div>
+    </AppViewport>
   );
 }
 
@@ -12685,7 +12686,7 @@ function SharePreviewModal({
   }, [preview]);
 
   return (
-    <div className="app-modal-viewport fixed inset-0 z-[90] flex items-end justify-center bg-black/80 p-4 sm:items-center">
+    <AppViewport className="app-modal-viewport fixed inset-0 z-[90] flex items-end justify-center bg-black/80 p-4 sm:items-center">
       <div className="app-modal-panel flex max-h-[92vh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-[#00FF00]/35 bg-black shadow-2xl">
         <div className="app-modal-header flex items-center justify-between gap-3 border-b border-[#00FF00]/20 bg-black px-4 py-3">
           <Text className="min-w-0 truncate text-base font-bold" style={{ color: "rgb(139, 191, 139)" }}>
@@ -12783,7 +12784,7 @@ function SharePreviewModal({
               </button>
             </div>
             {isClipboardTooltipOpen && (
-              <FloatingPortal>
+              <AppFloatingPortal>
                 <div
                   ref={clipboardTooltipRefs.setFloating}
                   style={clipboardTooltipStyles}
@@ -12793,7 +12794,7 @@ function SharePreviewModal({
                 >
                   Copy to Clipboard
                 </div>
-              </FloatingPortal>
+              </AppFloatingPortal>
             )}
             <pre className="min-h-9 select-text whitespace-pre-wrap break-words font-sans text-sm font-bold leading-snug text-[#8bbf8b]">
               {postText}
@@ -12962,7 +12963,7 @@ function SharePreviewModal({
           </div>
         </div>
       </div>
-    </div>
+    </AppViewport>
   );
 }
 
@@ -14562,7 +14563,7 @@ function WarpletDetailsModal({
     const containerRect = container.getBoundingClientRect();
     const targetRect = target.getBoundingClientRect();
     const headerHeight = modalHeaderRef.current?.getBoundingClientRect().height ?? 0;
-    const targetTop = container.scrollTop + targetRect.top - containerRect.top - headerHeight - 8;
+    const targetTop = container.scrollTop + (targetRect.top - containerRect.top - headerHeight) / getElementScale(container) - 8;
     container.scrollTo({ top: Math.max(0, targetTop), behavior: "smooth" });
   }, [getModalScrollbars]);
 
@@ -14572,7 +14573,7 @@ function WarpletDetailsModal({
     const containerRect = container.getBoundingClientRect();
     const targetRect = target.getBoundingClientRect();
     const headerHeight = modalHeaderRef.current?.getBoundingClientRect().height ?? 0;
-    const targetTop = container.scrollTop + targetRect.top - containerRect.top - headerHeight - 8;
+    const targetTop = container.scrollTop + (targetRect.top - containerRect.top - headerHeight) / getElementScale(container) - 8;
     container.scrollTo({ top: Math.max(0, targetTop), behavior: "smooth" });
   }, [getModalScrollbars]);
 
@@ -14848,7 +14849,7 @@ function WarpletDetailsModal({
     {tradeToast && (
       <TradeToastView toast={tradeToast} exiting={tradeToastExiting} onClose={closeTradeToast} />
     )}
-    <div className="app-modal-viewport fixed inset-0 flex items-end justify-center overscroll-none bg-black/80 p-4 sm:items-center" style={{ zIndex: 50 + stackIndex }}>
+    <AppViewport className="app-modal-viewport fixed inset-0 flex items-end justify-center overscroll-none bg-black/80 p-4 sm:items-center" style={{ zIndex: 50 + stackIndex }}>
       <div ref={modalScrollRef} className="app-modal-panel max-h-[92vh] w-full max-w-md overflow-auto overscroll-contain rounded-2xl border border-[#00FF00]/35 bg-black shadow-2xl">
         <div ref={modalHeaderRef} className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-[#00FF00]/20 bg-black px-4 py-3">
           <Text className="min-w-0 truncate text-base font-bold" style={{ color: "rgb(139, 191, 139)" }}>
@@ -15359,7 +15360,7 @@ function WarpletDetailsModal({
             </div>
           </div>
       </div>
-    </div>
+    </AppViewport>
     </>
   );
 }
@@ -18984,7 +18985,7 @@ export default function SearchApp() {
     if (nodes.length <= searchResultColumnCount) return;
     const firstTop = nodes[0].getBoundingClientRect().top;
     const nextRowTop = nodes[searchResultColumnCount].getBoundingClientRect().top;
-    const measuredPitch = nextRowTop - firstTop;
+    const measuredPitch = (nextRowTop - firstTop) / getElementScale(nodes[0]);
     if (measuredPitch <= 0 || Math.abs(measuredPitch - searchResultRowPitch) <= 0.5) return;
     pendingSearchResultAnchorRef.current = captureSearchResultAnchor();
     setSearchResultRowPitches((current) => ({ ...current, [searchResultLayout]: measuredPitch }));
@@ -19115,10 +19116,10 @@ export default function SearchApp() {
   return (
     <MiniAppShell>
       {coverAppWhileResolvingOnboarding && (
-        <div className="fixed inset-0 z-[105] flex flex-col items-center justify-center gap-4 bg-black px-6 text-center" aria-busy="true" aria-live="polite">
+        <AppViewport className="fixed inset-0 z-[105] flex flex-col items-center justify-center gap-4 bg-black px-6 text-center" aria-busy="true" aria-live="polite">
           <img src="/icon_search.png" alt="10X Warplets" className="h-24 w-24 animate-pulse rounded-2xl" />
           <Text className="text-sm" style={{ color: "#00FF00" }}>Loading 10X Warplets…</Text>
-        </div>
+        </AppViewport>
       )}
       {!isInMiniAppContext && (
         <PwaControls

@@ -58,6 +58,7 @@ jobs:
         run: pnpm exec wrangler deploy --env=""
 
   deploy-app:
+    needs: deploy
     name: Deploy 10X Mini App (Pages)
     runs-on: ubuntu-latest
     permissions:

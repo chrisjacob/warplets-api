@@ -1,0 +1,16 @@
+﻿# Stonklets performance
+
+- The public market endpoint stores a board snapshot in KV, scoped by hostname, range, and optional pair ID. Snapshots are fresh for 30 seconds; snapshots younger than five minutes are returned immediately with `stale: true` while a background refresh runs. A database lease prevents overlapping background refreshes. Older/missing snapshots are rebuilt synchronously. Private favourite state remains separate.
+- `/api/stonklets/market?id=<catalog ID>&change=<range>` returns one pairing and requests period changes only for that pairing. Share rendering uses this path. Local CMC ingestion runs in the background rather than blocking the response.
+- Square and OpenGraph renders share a cross-worker database lease and R2 cache prefix, scoped by hostname, pair and range. Concurrent callers wait for the existing render; a bounded timeout returns 202 with Retry-After. The Share modal retries while preserving its spinner. Render locks expire after three minutes if a worker crashes and are released normally in finally. Existing notification_job_state storage is reused; no migration is needed.
+- Charts are destroyed when they leave the 300px viewport margin. A 64-entry/60-second browser cache retains successful chart responses (at most 200KB per entry) so scrolling back recreates the chart without another request. The three-request concurrency limit remains in place.
+- `scripts/generate-stonklet-thumbnails.mjs` creates 128px, 256px and 512px WebPs at quality 90. Current identity icons use 512px, covering at least 3x the largest current rendered 168px icon. Large artwork shows that preview first, then loads the full WebP with a short crossfade. Failed originals leave the preview visible. Share snapshots wait for full artwork readiness, with a bounded fallback for slow images.
+- Image copying reuses the loaded chart blob instead of fetching/rendering it again. The loading-message timer updates once per second rather than 20 times per second.
+
+Validation in local development: repeated full-board responses approximately 0.7 seconds over the tunnel; single-pair payload 1.2KB versus a 50KB board. Concurrent uncached square/OG responses completed in 18–19 seconds. These are local endpoint observations, not production Core Web Vitals measurements. 512px artwork set: 2,040,618 bytes versus 8,780,488 bytes for originals (76.8% reduction).
+
+## Abuse protection
+
+Uncached share renders are limited atomically in D1 to five per IP per minute and twenty globally per minute. Cached responses and duplicate-render followers do not consume render quota. Limits fail closed if the database is unavailable. Favourite writes allow five requests per verified identity per minute, across all pairs/assets; toggling preserves the original vote timestamp. Limits return HTTP 429 with Retry-After: 60.
+
+The screenshot browser blocks external requests except up to ten raster avatars from explicit CDN hosts in stonkletAbuse.ts. These fetches reject redirects, SVG, bodies over 512 KiB and transfers exceeding four seconds. Unsupported stack avatars are omitted. Image/font readiness has a five-second bound. The CDN allowlist can be extended after reviewing a legitimate profile-image provider.

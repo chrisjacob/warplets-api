@@ -1,3 +1,4 @@
+import { AppViewport } from "./AppViewport";
 import { useEffect, useRef, useState } from "react";
 
 export const BSTOCKS_NOTICE_FORCE_PARAM = "bstocksNotice";
@@ -47,7 +48,7 @@ export default function BstocksNoticeModal({ onAccept }: { onAccept: () => void 
   };
 
   return (
-    <div
+    <AppViewport
       className="app-modal-viewport fixed inset-0 z-[200] flex items-end justify-center bg-black/80 p-4 sm:items-center"
       role="alertdialog"
       aria-modal="true"
@@ -98,6 +99,6 @@ export default function BstocksNoticeModal({ onAccept }: { onAccept: () => void 
           </button>
         </footer>
       </section>
-    </div>
+    </AppViewport>
   );
 }

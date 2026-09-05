@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { binanceRangeConfig, loadChart, normalizeBinanceTicker, normalizePriceSeries, periodChangeFromChart } from "./stonkletMarket";
+import { binanceRangeConfig, loadChart, loadStockMetricsBatch, normalizeBinanceTicker, normalizePriceSeries, periodChangeFromChart } from "./stonkletMarket";
+import { STONKLETS_BY_ID } from "../../shared/stonkletsCatalog";
 
 function candle(close: number): unknown[] { return [0, String(close), String(close), String(close), String(close)]; }
 
@@ -66,5 +67,31 @@ describe("Binance Stonklets normalization", () => {
     expect(result.status).toBe("stale");
     expect(result.provider).toBe("binance");
     expect(result.periodChange).toBeCloseTo(20);
+  });
+  it("loads real stock metrics for an upcoming Stonklet pairing", async () => {
+    const entry = STONKLETS_BY_ID.get("bitmine")!;
+    expect(entry.pairingStatus).toBe("upcoming");
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json([{ symbol: "BMNRBUSDT", lastPrice: "25", quoteVolume: "1234", priceChangePercent: "3" }])));
+    const result = await loadStockMetricsBatch([entry]);
+    expect(result.get(entry.id)).toMatchObject({ price: 25, volume24h: 1234, change24h: 3, status: "live" });
+  });
+  it("keeps supported bStocks visible if another symbol is unavailable", async () => {
+    const entry = STONKLETS_BY_ID.get("bitmine")!;
+    const missing = { ...entry, id: "missing", stock: { ...entry.stock, symbol: "MISSING" } };
+    vi.stubGlobal("fetch", vi.fn(async (input: string) => {
+      const url = new URL(input);
+      if (url.searchParams.get("symbols")?.includes("MISSING")) return Response.json({ code: -1121 }, { status: 400 });
+      return Response.json([{ symbol: "BMNRBUSDT", lastPrice: "25", quoteVolume: "1234", priceChangePercent: "3" }]);
+    }));
+    const result = await loadStockMetricsBatch([entry, missing]);
+    expect(result.get(entry.id)?.price).toBe(25);
+    expect(result.get(missing.id)?.status).toBe("unavailable");
+  });
+  it("loads the bStock chart before its Stonklet has launched", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json([[1000000, "10", "10", "10", "10"], [1060000, "12", "12", "12", "12"]])));
+    const result = await loadChart("bitmine", "stock", undefined, "24h");
+    expect(result).toMatchObject({ status: "live", provider: "binance" });
+    expect(result.periodChange).toBeCloseTo(20);
+    expect(result.points).toHaveLength(2);
   });
 });

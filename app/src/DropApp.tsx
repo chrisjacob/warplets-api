@@ -1,3 +1,4 @@
+import { AppViewport } from "./AppViewport";
 ﻿import { useEffect, useState, type FormEvent } from "react";
 import sdk from "@farcaster/miniapp-sdk";
 import confetti from "canvas-confetti";
@@ -3077,7 +3078,7 @@ export default function App() {
           )}
 
           {!loading && !error && !showOpenInFarcaster && showUnlockRewardPage && (
-            <div className="fixed bottom-3 left-0 right-0 z-30 px-4">
+            <AppViewport className="fixed bottom-3 left-0 right-0 z-30 px-4">
               <div className="mx-auto w-full max-w-md rounded-xl border border-[#00FF00]/45 bg-black/85 px-4 py-3 backdrop-blur-sm">
                 <Text className="text-xs font-semibold text-center" style={{ color: "#b7ffb7" }}>
                   Complete 2 Actions = Unlock Reward
@@ -3086,11 +3087,11 @@ export default function App() {
                   {`Progress: ${completedActionsCount}/10 actions • ${unlockedRewardCount}/5 rewards`}
                 </Text>
               </div>
-            </div>
+            </AppViewport>
           )}
 
           {!loading && !error && !showOpenInFarcaster && showUnlockRewardPage && showWaitlistModal && (
-            <div
+            <AppViewport
               className="fixed inset-0 z-40 flex items-center justify-center px-4 bg-black/70 backdrop-blur-[2px]"
               onClick={() => {
                 void hapticTap();
@@ -3158,11 +3159,11 @@ export default function App() {
                   </button>
                 </form>
               </div>
-            </div>
+            </AppViewport>
           )}
 
           {!loading && !error && !showOpenInFarcaster && showUnlockRewardPage && showEmail10xModal && (
-            <div
+            <AppViewport
               className="fixed inset-0 z-40 flex items-center justify-center px-4 bg-black/70 backdrop-blur-[2px]"
               onClick={() => {
                 void hapticTap();
@@ -3238,7 +3239,7 @@ export default function App() {
                   </button>
                 </div>
               </div>
-            </div>
+            </AppViewport>
           )}
 
           {!loading && !error && !showOpenInFarcaster && !showUnlockRewardPage && (
@@ -3317,7 +3318,7 @@ export default function App() {
       )}
 
       {actionError && (
-        <div className="fixed bottom-4 left-4 right-4 z-20 max-w-md mx-auto">
+        <AppViewport className="fixed bottom-4 left-4 right-4 z-20 max-w-md mx-auto">
           <div className="rounded-xl border border-red-300/70 bg-red-950/90 px-4 py-3 shadow-lg backdrop-blur-sm">
             <div className="flex items-start justify-between gap-3">
               <Text className="text-sm text-red-100 text-left">{actionError}</Text>
@@ -3334,21 +3335,21 @@ export default function App() {
               </button>
             </div>
           </div>
-        </div>
+        </AppViewport>
       )}
 
       {copyToastVisible && (
-        <div className="fixed bottom-6 left-1/2 z-30 -translate-x-1/2">
+        <AppViewport className="fixed bottom-6 left-1/2 z-30 -translate-x-1/2">
           <div className="rounded-xl border border-[#00FF00]/45 bg-black/90 px-4 py-2 shadow-lg backdrop-blur-sm">
             <Text className="text-sm font-semibold text-center" style={{ color: "#00FF00" }}>
               Link copied to clipboard
             </Text>
           </div>
-        </div>
+        </AppViewport>
       )}
 
       {showAddAppPrompt && !loading && !showOpenInFarcaster && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center px-4 bg-black/70 backdrop-blur-[2px]">
+        <AppViewport className="fixed inset-0 z-40 flex items-center justify-center px-4 bg-black/70 backdrop-blur-[2px]">
           <div className="w-full max-w-sm rounded-2xl border border-[#00FF00]/45 bg-[#041204] p-5 shadow-[0_0_40px_rgba(0,255,0,0.15)]">
             <Text className="text-xl font-bold text-left" style={{ color: "#00FF00" }}>
               🟢 Don&apos;t miss out
@@ -3369,11 +3370,11 @@ export default function App() {
               </button>
             </div>
           </div>
-        </div>
+        </AppViewport>
       )}
 
       {showDebugChip && (
-        <div className="fixed left-3 top-[76px] z-30 max-w-[92vw] rounded-lg border border-cyan-300/70 bg-black/90 px-3 py-2 text-left shadow-xl backdrop-blur-sm">
+        <AppViewport className="fixed left-3 top-[76px] z-30 max-w-[92vw] rounded-lg border border-cyan-300/70 bg-black/90 px-3 py-2 text-left shadow-xl backdrop-blur-sm">
           <Text className="text-[11px] leading-tight" style={{ color: "#67e8f9" }}>
             {`debug host=${currentHost || "n/a"}`}
           </Text>
@@ -3386,7 +3387,7 @@ export default function App() {
           <Text className="text-[11px] leading-tight" style={{ color: "#67e8f9" }}>
             {`error=${error || "none"}`}
           </Text>
-        </div>
+        </AppViewport>
       )}
     </MiniAppShell>
   );

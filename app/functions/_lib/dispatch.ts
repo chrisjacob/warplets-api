@@ -25,6 +25,7 @@ export type DispatchResult =
 type DispatchStatusState = "success" | "rate_limited" | "invalid_token" | "failed";
 
 export interface DispatchOptions {
+  signal?: AbortSignal;
   fid: number;
   appSlug: string;
   notificationUrl: string;
@@ -211,6 +212,7 @@ export async function dispatchNotification(
 
   try {
     const response = await fetch(notificationUrl, {
+      signal: opts.signal,
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({

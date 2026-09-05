@@ -34,6 +34,7 @@ const App = lazy(() => import("./App.tsx"));
 const DropApp = lazy(() => import("./DropClosedApp.tsx"));
 const SearchApp = lazy(() => import("./SearchApp.tsx"));
 const StonkletsApp = lazy(() => import("./StonkletsApp.tsx"));
+const StonkletShareRender = lazy(() => import("./StonkletShareRender.tsx"));
 const MillionApp = lazy(() => import("./MillionApp.tsx"));
 const StopApp = lazy(() => import("./StopApp.tsx"));
 const UnsubscribeApp = lazy(() => import("./UnsubscribeApp.tsx"));
@@ -98,6 +99,8 @@ if (typeof window !== "undefined") {
 function resolveActiveApp() {
   const { hostname, pathname } = window.location;
   const cleanPath = pathname.replace(/\/+$/, "") || "/";
+  const stonkletRenderId = new URLSearchParams(window.location.search).get("shareRender");
+  if (cleanPath === "/stonklets" && stonkletRenderId) return <StonkletShareRender id={stonkletRenderId} />;
 
   if (cleanPath === "/privacy") return <LegalPage document="privacy" />;
   if (cleanPath === "/terms") return <LegalPage document="terms" />;

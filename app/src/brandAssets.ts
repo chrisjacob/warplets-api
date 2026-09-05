@@ -18,7 +18,7 @@ export function isStonkletsSurface(location: Pick<Location, "hostname" | "pathna
 }
 
 export function getRuntimeAppIconPath(): string {
-  if (isStonkletsSurface()) return "/stonklets/chip.png";
+  if (isStonkletsSurface()) return "/icon_stonklet.jpg";
   return isWarpletsSurface() ? "/icon_search.png" : "/icon.png";
 }
 

@@ -6,12 +6,22 @@
   "start_url": "/stonklets",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#000000",
-  "theme_color": "#001400",
+  "background_color": "#258d33",
+  "theme_color": "#258d33",
   "icons": [
-    { "src": "/stonklets/chip.png", "sizes": "1254x1254", "type": "image/png", "purpose": "any maskable" }
+    {
+      "src": "/icon_stonklet.jpg",
+      "sizes": "1024x1024",
+      "type": "image/jpeg",
+      "purpose": "any"
+    }
   ],
   "screenshots": [
-    { "src": "/stonklets/chip.png", "sizes": "1254x1254", "type": "image/png", "form_factor": "narrow" }
+    {
+      "src": "/hero_stonklet.jpg",
+      "sizes": "1200x630",
+      "type": "image/jpeg",
+      "form_factor": "wide"
+    }
   ]
 }

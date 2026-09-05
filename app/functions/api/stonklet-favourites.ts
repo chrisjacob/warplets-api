@@ -1,3 +1,4 @@
+import { allowStonkletAction } from "../_lib/stonkletAbuse.js";
 import { getAppSession } from "../_lib/appAuth.js";
 import { requireSameOrigin } from "../_lib/authValidation.js";
 import { jsonSecure, parseObjectPayload, readJsonBodyWithLimit } from "../_lib/security.js";
@@ -56,6 +57,7 @@ export const onRequestPut: PagesFunction<Env> = async ({ request, env }) => {
   const session = await getAppSession(request, env);
   const wallet = await resolveSessionFavouriteWallet(env.WARPLETS, session);
   if (!wallet) return jsonSecure({ error: "a verified Farcaster identity or wallet is required" }, { status: 401 });
+  if (!await allowStonkletAction(env.WARPLETS, "votes", wallet, 5)) return jsonSecure({ error: "Please wait a minute before changing more favourites." }, { status: 429, headers: { "retry-after": "60" } });
   const favourited = body.payload.favourited;
   const notify = asset === "stonklet" && favourited && body.payload.notifyOnLaunch !== false;
   const now = new Date().toISOString();
@@ -66,7 +68,7 @@ export const onRequestPut: PagesFunction<Env> = async ({ request, env }) => {
      ON CONFLICT(identity_wallet, pair_id, asset) DO UPDATE SET
        active = excluded.active,
        notify_on_launch = excluded.notify_on_launch,
-       favourited_at = CASE WHEN excluded.active = 1 AND stonklet_asset_favourites.active = 0 THEN excluded.favourited_at ELSE stonklet_asset_favourites.favourited_at END,
+       favourited_at = stonklet_asset_favourites.favourited_at,
        updated_at = excluded.updated_at`,
   ).bind(wallet, id, asset, favourited ? 1 : 0, notify ? 1 : 0, now, now, now).run();
   return jsonSecure({ authenticated: true, wallet, ...await personalState(env.WARPLETS, wallet), ...await counts(env.WARPLETS) });

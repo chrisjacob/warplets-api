@@ -22,6 +22,7 @@ test("the root scheduled handler starts every production job, including notifica
 		emailOnboarding: async () => { calls.push("emailOnboarding"); },
 		emailOnboardingReconciliation: async () => { calls.push("emailOnboardingReconciliation"); },
 		stonkletsMarket: async () => { calls.push("stonkletsMarket"); },
+		stonkletsNotifications: async () => { calls.push("stonkletsNotifications"); },
 	};
 	const context = {
 		waitUntil(promise: Promise<unknown>) { pending.push(promise); },
@@ -50,6 +51,7 @@ test("one scheduled job failure does not prevent the other jobs", async () => {
 		emailOnboarding: task("emailOnboarding"),
 		emailOnboardingReconciliation: task("emailOnboardingReconciliation"),
 		stonkletsMarket: task("stonkletsMarket"),
+		stonkletsNotifications: task("stonkletsNotifications"),
 	};
 	const context = {
 		waitUntil(promise: Promise<unknown>) { pending.push(promise); },
@@ -60,5 +62,5 @@ test("one scheduled job failure does not prevent the other jobs", async () => {
 	scheduleTasks({}, context, tasks);
 	await Promise.all(pending);
 
-	assert.equal(calls.length, 9);
+	assert.equal(calls.length, 10);
 });

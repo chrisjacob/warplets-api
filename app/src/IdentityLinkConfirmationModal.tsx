@@ -1,3 +1,4 @@
+import { AppViewport } from "./AppViewport";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   subscribeIdentityLinkConfirmation,
@@ -42,7 +43,7 @@ export function IdentityLinkConfirmationModal() {
   if (!request) return null;
 
   return (
-    <div
+    <AppViewport
       className="identity-link-backdrop"
       role="presentation"
       onMouseDown={(event) => event.target === event.currentTarget && finish(false)}
@@ -90,6 +91,6 @@ export function IdentityLinkConfirmationModal() {
           </div>
         </div>
       </section>
-    </div>
+    </AppViewport>
   );
 }

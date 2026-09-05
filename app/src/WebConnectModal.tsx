@@ -1,3 +1,4 @@
+import { AppViewport } from "./AppViewport";
 import { lazy, Suspense, useEffect, useState, type ReactNode } from "react";
 import { OverlayScrollbarsComponent } from "overlayscrollbars-react";
 import { trackAppEvent } from "./analytics";
@@ -261,7 +262,7 @@ export function WebConnectModal({ open, onClose, farcasterControl, identityConne
   return (
     <>
       {persistentTrustConnect}
-      <div className="web-connect-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
+      <AppViewport className="web-connect-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
       <section className="web-connect-modal" role="dialog" aria-modal="true" aria-labelledby="web-connect-title">
         <div className="web-connect-heading">
           <h2 id="web-connect-title"><span>Connect</span> Wallet &amp; Social</h2>
@@ -400,7 +401,7 @@ export function WebConnectModal({ open, onClose, farcasterControl, identityConne
         </OverlayScrollbarsComponent>
       </section>
       {wallet.connecting ? (
-        <div className="web-connect-progress-toast" role="status" aria-live="polite">
+        <AppViewport className="web-connect-progress-toast" role="status" aria-live="polite">
           <span>Connecting {walletConnectorLabel(wallet.connecting)}…</span>
           <button
             type="button"
@@ -416,10 +417,10 @@ export function WebConnectModal({ open, onClose, farcasterControl, identityConne
               <path d="M6 6l12 12" /><path d="M18 6L6 18" />
             </svg>
           </button>
-        </div>
+        </AppViewport>
       ) : null}
       {connectionError && !wallet.connecting ? (
-        <div className="web-connect-progress-toast web-connect-progress-toast--danger" role="alert">
+        <AppViewport className="web-connect-progress-toast web-connect-progress-toast--danger" role="alert">
           <span>{connectionError}</span>
           <button type="button" aria-label="Dismiss connection error" title="Dismiss" onClick={() => {
             setLocalError(null);
@@ -427,14 +428,14 @@ export function WebConnectModal({ open, onClose, farcasterControl, identityConne
             clearWalletConnectionError();
             onClearIdentityError?.();
           }}>×</button>
-        </div>
+        </AppViewport>
       ) : null}
       {successMessage && !connectionError && !wallet.connecting ? (
-        <div className="web-connect-progress-toast" role="status" aria-live="polite">
+        <AppViewport className="web-connect-progress-toast" role="status" aria-live="polite">
           {successMessage}
-        </div>
+        </AppViewport>
       ) : null}
-      </div>
+      </AppViewport>
     </>
   );
 }

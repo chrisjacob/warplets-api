@@ -6,7 +6,7 @@ export type AppFaviconKey = "app" | "warplets" | "stonklets" | "drop";
 export const APP_FAVICONS: Readonly<Record<AppFaviconKey, { png: string; ico: string }>> = {
   app: { png: "/favicon-10x-v2.png", ico: "/favicon-10x-v2.ico" },
   warplets: { png: "/favicon-warplets-v2.png", ico: "/favicon-warplets-v2.ico" },
-  stonklets: { png: "/stonklets/chip.png", ico: "/favicon-warplets-v2.ico" },
+  stonklets: { png: "/favicon-stonklet.png", ico: "/favicon-stonklet.ico" },
   drop: { png: "/favicon-drop-v2.png", ico: "/favicon-drop-v2.ico" },
 };
 

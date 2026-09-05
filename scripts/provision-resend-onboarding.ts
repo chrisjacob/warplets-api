@@ -348,6 +348,27 @@ async function registerConfig(payload: ApiObject): Promise<void> {
 
 async function main(): Promise<void> {
   validateTemplates();
+  const templateKey = process.argv.find((arg) => arg.startsWith("--template="))?.slice("--template=".length);
+  if (templateKey) {
+    const template = templates.find((item) => item.stepKey === templateKey);
+    if (!template) throw new Error(`Unknown template: ${templateKey}`);
+    const directory = resolve(".onboarding-provisioning");
+    await mkdir(directory, { recursive: true });
+    await writeFile(resolve(directory, `${template.alias}.html`), template.html);
+    await writeFile(resolve(directory, `${template.alias}.txt`), template.text);
+    console.log(JSON.stringify({ mode: apply ? "update-template" : "preview-template", alias: template.alias, subject: template.subject }));
+    if (!apply) return;
+    if (!apiKey) throw new Error("RESEND_API_KEY is required with --apply");
+    // Targeted copy updates must preserve the existing automation's template ID.
+    const existing = await resend(`/templates/${encodeURIComponent(template.alias)}`);
+    if (!existing.id) throw new Error("Existing template not found");
+    await resend(`/templates/${encodeURIComponent(String(existing.id))}`, { method: "PATCH", body: JSON.stringify({ html: template.html, text: template.text }) });
+    await resend(`/templates/${encodeURIComponent(String(existing.id))}/publish`, { method: "POST" });
+    const saved = await resend(`/templates/${encodeURIComponent(String(existing.id))}`);
+    if (saved.html !== template.html || saved.text !== template.text) throw new Error("Template read-back did not match generated content");
+    console.log(`Updated and verified ${template.alias}.`);
+    return;
+  }
   console.log(JSON.stringify({
     mode: apply ? "apply" : "dry-run",
     event: EVENT_NAME,

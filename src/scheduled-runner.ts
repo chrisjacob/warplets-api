@@ -8,6 +8,7 @@ export const productionScheduledTaskNames = [
 	"emailOnboarding",
 	"emailOnboardingReconciliation",
 	"stonkletsMarket",
+	"stonkletsNotifications",
 ] as const;
 
 export type ProductionScheduledTaskName = (typeof productionScheduledTaskNames)[number];

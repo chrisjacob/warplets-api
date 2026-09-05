@@ -1,12 +1,42 @@
 import { describe, expect, it } from "vitest";
 import { STONKLETS_CATALOG, emptyMarketMetrics } from "../shared/stonkletsCatalog";
-import { entryMatchesQuery, filterAndSortStonklets, type StonkletsMarketEntry } from "./stonkletsMarket";
+import { entryMatchesQuery, filterAndSortStonklets, visibleStonkletsFavourites, type StonkletsMarketEntry } from "./stonkletsMarket";
 
 function entry(index: number, overrides: Partial<StonkletsMarketEntry> = {}): StonkletsMarketEntry {
   return { ...STONKLETS_CATALOG[index]!, stockMetrics: emptyMarketMetrics(), stonkletMetrics: emptyMarketMetrics(), stockPeriodChange: null, stonkletPeriodChange: null, favourites: 0, momentum7d: 0, stockFavourites: 0, stockMomentum7d: 0, ...overrides };
 }
 
 describe("Stonklets market filtering and ordering", () => {
+  it("ranks stocks and launched Stonklets by the selected period's change rather than votes", () => {
+    for (const market of ["stock", "stonklet"] as const) {
+      const a = entry(0, { launchStatus: "launched", stockPeriodChange: -5, stonkletPeriodChange: -5, stockMomentum7d: 100, momentum7d: 100 });
+      const b = entry(1, { launchStatus: "launched", stockPeriodChange: 12, stonkletPeriodChange: 12 });
+      const missing = entry(2, { launchStatus: "launched", stockMomentum7d: 999, momentum7d: 999 });
+      const options = { entries: [a, b, missing], query: "", favourites: new Set<string>(), favouritesOnly: false, market, order: "trending" as const };
+      expect(filterAndSortStonklets({ ...options, direction: "desc" }).map((row) => row.id)).toEqual([b.id, a.id, missing.id]);
+      expect(filterAndSortStonklets({ ...options, direction: "asc" }).map((row) => row.id)).toEqual([a.id, b.id, missing.id]);
+      // Changing the selected timeframe supplies new period changes.
+      a.stockPeriodChange = a.stonkletPeriodChange = 20;
+      expect(filterAndSortStonklets({ ...options, direction: "desc" })[0]?.id).toBe(a.id);
+    }
+  });
+
+  it("keeps prelaunch Stonklets ranked by votes even when preview prices are available", () => {
+    const a = entry(0, { launchStatus: "prelaunch", momentum7d: 10, stonkletPeriodChange: -5 });
+    const b = entry(1, { launchStatus: "prelaunch", momentum7d: 2, stonkletPeriodChange: 100 });
+    expect(filterAndSortStonklets({ entries: [b, a], query: "", favourites: new Set(), favouritesOnly: false, market: "stonklet", order: "trending", direction: "desc" })[0]?.id).toBe(a.id);
+  });
+  it("includes votes and stock favourites in paired results regardless of the ordering side", () => {
+    const entries = [entry(0), entry(1), entry(2)];
+    const stock = new Set([entries[0]!.id]);
+    const stonklet = new Set([entries[1]!.id]);
+    for (const market of ["stock", "stonklet"] as const) {
+      const result = filterAndSortStonklets({ entries, query: "", favourites: visibleStonkletsFavourites(stock, stonklet, market, false), favouritesOnly: true, market, order: "az", direction: "asc" });
+      expect(new Set(result.map((item) => item.id))).toEqual(new Set([entries[0]!.id, entries[1]!.id]));
+      const single = filterAndSortStonklets({ entries, query: "", favourites: visibleStonkletsFavourites(stock, stonklet, market, true), favouritesOnly: true, market, order: "az", direction: "asc" });
+      expect(single.map((item) => item.id)).toEqual([market === "stock" ? entries[0]!.id : entries[1]!.id]);
+    }
+  });
   it("searches both names, symbols, and configured addresses", () => {
     const orbit = entry(0, { stock: { ...STONKLETS_CATALOG[0]!.stock, contractAddress: "0xstock" }, stonklet: { ...STONKLETS_CATALOG[0]!.stonklet, contractAddress: "0xstonklet" } });
     expect(entryMatchesQuery(orbit, "SpaceX")).toBe(true);
