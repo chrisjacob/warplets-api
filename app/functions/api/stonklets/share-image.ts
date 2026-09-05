@@ -14,7 +14,7 @@ export const onRequestGet: PagesFunction<StatsSharesEnv> = async (context) => {
   if (!entry || !isStonkletsAppHostname(url.hostname)) return jsonSecure({ error: "Unknown Stonklet" }, { status: 404 });
   const range = parseStonkletChangeRange(url.searchParams.get("range")) ?? "24h";
   const variant = url.searchParams.get("variant") === "og" ? "og" : "square";
-  const prefix = `stonklet-shares/v4/${url.hostname}/${entry.id}/${range}`;
+  const prefix = `stonklet-shares/v5/${url.hostname}/${entry.id}/${range}`;
   const key = `${prefix}-${variant}.png`;
   const images = context.env.STATS_SHARE_IMAGES;
   if (!images || !context.env.STATS_SHARE_BROWSER) return jsonSecure({ error: "Share image rendering is unavailable" }, { status: 503 });
@@ -73,6 +73,20 @@ export const onRequestGet: PagesFunction<StatsSharesEnv> = async (context) => {
         new Promise((resolve) => setTimeout(resolve, 5000)),
       ]);
     });
+    // Recheck after image/font work: deferred charts may have restarted while
+    // layout settled. Require a stable ready window and then let canvas paint.
+    await page.waitForFunction(() => {
+      const root = document.querySelector('[data-stonklet-share-ready="true"]');
+      const ready = root && !root.querySelector('.stonklets-chart-loading,[data-artwork-ready="false"],[data-voters-ready="false"]')
+        && Array.from(document.images).every(image => image.complete)
+        && document.fonts.status === "loaded";
+      const state = document.documentElement;
+      if (!ready) { delete state.dataset.shareStableAt; return false; }
+      const started = Number(state.dataset.shareStableAt || Date.now());
+      state.dataset.shareStableAt = String(started);
+      return Date.now() - started >= 750;
+    }, { timeout: 30_000, polling: 100 });
+    await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
     const square = await page.screenshot({ type: "png", clip: { x: 0, y: 0, width: 1000, height: 1000 } });
     await images.put(`${prefix}-square.png`, square, { httpMetadata: { contentType: "image/png" } });
     await page.setViewport({ width: 1200, height: 630, deviceScaleFactor: 1 });
