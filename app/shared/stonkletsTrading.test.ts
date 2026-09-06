@@ -5,8 +5,8 @@ import { VERIFIED_STOCK_CONTRACTS } from "./stonkletsStockContracts";
 
 describe("FOMO trade destinations", () => {
   it.each([
-    ["direxion-soxl", "stonklet", "0xfe189e97832da1573e4e4ff034f4ffc3a15c7777"],
-    ["direxion-soxs", "stonklet", "0x90f62f81307ebf4ccd0a0510e3391c67b1d17777"],
+    ["direxion-soxl", "stonklet", "0x21d68a77b309a0835a2ee52378d2fd2e12e97777"],
+    ["direxion-soxs", "stonklet", "0x10cdfce1effe43e912dace17fe925cf87e987777"],
     ["direxion-soxl", "stock", "0xd97d097a89113fa59b76c572e5b2eb647e8eefaf"],
     ["direxion-soxs", "stock", "0xe28cd11c99af2df76bb8ada4cd0ef3904378280f"],
     ["invesco-qqq", "stock", "0x205812cdbed920aff76c6580abd681a46d11efc7"],
