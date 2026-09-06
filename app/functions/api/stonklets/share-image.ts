@@ -65,7 +65,20 @@ export const onRequestGet: PagesFunction<StatsSharesEnv> = async (context) => {
     await page.setViewport({ width: 1000, height: 1000, deviceScaleFactor: 1 });
     const renderUrl = `https://${url.hostname}/stonklets?shareRender=${encodeURIComponent(entry.id)}&change=${range}`;
     await page.goto(renderUrl, { waitUntil: "domcontentloaded", timeout: 30_000 });
-    await page.waitForSelector('[data-stonklet-share-ready="true"]', { timeout: 45_000 });
+    try {
+      await page.waitForSelector('[data-stonklet-share-ready="true"]', { timeout: 45_000 });
+    } catch (error) {
+      const pending = await page.evaluate(() => ({
+        ready: document.querySelector('[data-stonklet-share-ready]')?.getAttribute('data-stonklet-share-ready'),
+        charts: Array.from(document.querySelectorAll('.stonklets-chart')).map(chart => ({ label: chart.getAttribute('aria-label'), loading: !!chart.querySelector('.stonklets-chart-loading') })),
+        artwork: document.querySelectorAll('[data-artwork-ready="false"]').length,
+        voters: document.querySelectorAll('[data-voters-ready="false"]').length,
+        voterImages: Array.from(document.querySelectorAll('[data-voter-image-ready]')).map(node => ({ ready: node.getAttribute('data-voter-image-ready'), image: !!node.querySelector('img') })),
+        images: Array.from(document.images).map(image => ({ path: new URL(image.src).pathname, host: new URL(image.src).hostname, complete: image.complete, width: image.naturalWidth })),
+      })).catch(() => null);
+      console.error('stonklet_share_pending', { id: entry.id, pending });
+      throw error;
+    }
     await page.evaluate(async () => {
       for (const image of document.images) image.loading = "eager";
       await Promise.race([
