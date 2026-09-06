@@ -99,19 +99,17 @@ const rows = [
   ["proshares-sqqq", "ProShares UltraPro Short QQQ", "SQQQB", "NASDAQ Bear", "NASDAQBEAR", "upcoming", "ProShares UltraPro Short QQQ-NASDAQ Bear.webp"],
 ] as const;
 
-// These are real, third-party Flap launches used only as live product-demo
-// proxies. They are deliberately kept separate from the official Stonklet CA,
-// which remains null until a 10X contract is launched.
+// Launched contracts use their own market sources. Other entries retain demo sources.
 const demoTokens: Partial<Record<string, FlapDemoToken>> = {
   "direxion-soxl": {
-    name: "MarsCoin", symbol: "MarsCoin", contractAddress: "0xfe189e97832da1573e4e4ff034f4ffc3a15c7777",
-    expectedLifecycle: "migrated", poolAddress: "0x94F3ed36706c746ad59fAdCAF271b7431AB1D8F1", quoteSymbol: "SPCXB", chartTokenSide: "quote",
-    flapUrl: "https://flap.sh/bnb/0xfe189e97832da1573e4e4ff034f4ffc3a15c7777",
+    name: "BULL ? 10X.MEME", symbol: "BULL10X", contractAddress: "0x21d68a77b309a0835a2ee52378d2fd2e12e97777",
+    expectedLifecycle: "bonding", poolAddress: "0x4257be928d2bd88548330f9de6f921fadf87cccf", quoteSymbol: "SOXLB", chartTokenSide: "base",
+    flapUrl: "https://flap.sh/bnb/0x21d68a77b309a0835a2ee52378d2fd2e12e97777?lang=en",
   },
   "direxion-soxs": {
-    name: "Semicon Bull 3X", symbol: "犇", contractAddress: "0x90f62f81307ebf4ccd0a0510e3391c67b1d17777",
-    expectedLifecycle: "migrated", poolAddress: "0xddcfe537686d0909070d6ed41fc9317eaa78bbb3", quoteSymbol: "SOXLB", chartTokenSide: "base",
-    flapUrl: "https://flap.sh/bnb/0x90f62f81307ebf4ccd0a0510e3391c67b1d17777",
+    name: "BEAR ? 10X.MEME", symbol: "BEAR10X", contractAddress: "0x10cdfce1effe43e912dace17fe925cf87e987777",
+    expectedLifecycle: "bonding", poolAddress: "0x95cb4928119a2cca9c08bd5a3d84ebc269558e94", quoteSymbol: "SOXSB", chartTokenSide: "base",
+    flapUrl: "https://flap.sh/bnb/0x10cdfce1effe43e912dace17fe925cf87e987777?lang=en",
   },
   spacex: {
     name: "MarsCoin",
@@ -169,11 +167,11 @@ export const STONKLETS_CATALOG: readonly StonkletCatalogEntry[] = rows.map((row)
     stonklet: {
       name: stonkletName,
       symbol: stonkletSymbol,
-      contractAddress: null,
+      contractAddress: STONKLET_TRADE_DESTINATIONS[id] ?? null,
       image: `/stonklets/stonklets/${encodeURI(imageFile)}`,
     },
     launchStatus: STONKLET_TRADE_DESTINATIONS[id] ? "launched" : "prelaunch",
-    flapUrl: "https://flap.sh/",
+    flapUrl: STONKLET_TRADE_DESTINATIONS[id] ? demoTokens[id]!.flapUrl : "https://flap.sh/",
     launchedAt: null,
     demoToken: demoTokens[id] ?? null,
   };

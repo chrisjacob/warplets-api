@@ -32,7 +32,7 @@ const DEXPAPRIKA_BASE = "https://api.dexpaprika.com/networks/bsc";
 const GECKOTERMINAL_BASE = "https://api.geckoterminal.com/api/v2/networks/bsc";
 const FRESH_MS = 5 * 60_000;
 const STALE_MS = 60 * 60_000;
-const KV_KEY = "stonklets:demo-market:v1";
+const KV_KEY = "stonklets:demo-market:v2";
 const PROVIDER_HEADERS = { accept: "application/json", "user-agent": "10X-Stonklets/1.0 (+https://stonklet.10x.meme)" };
 
 export interface StonkletMarketIngestEnv extends StonkletCmcEnv {
@@ -78,6 +78,13 @@ interface CachedSnapshots {
 interface CachedRangeChart {
   storedAt: number;
   value: StonkletChartResult;
+}
+
+function matchesCatalog(pairId: string, address: string): boolean {
+  return STONKLETS_CATALOG.find(entry => entry.id === pairId)?.demoToken?.contractAddress.toLowerCase() === address.toLowerCase();
+}
+function historyKey(pairId: string, address: string): string {
+  return STONKLETS_CATALOG.find(entry => entry.id === pairId)?.stonklet.contractAddress ? `${pairId}:${address.toLowerCase()}` : pairId;
 }
 
 function finiteNumber(value: unknown): number | null {
@@ -283,7 +290,7 @@ async function persistSnapshots(env: StonkletMarketIngestEnv, snapshots: readonl
     console.warn("stonklets_snapshot_d1_write_error", { message: error instanceof Error ? error.message : String(error) });
   });
   await persistStonkletHistory(env.WARPLETS, snapshots.map((snapshot) => ({
-    pairId: snapshot.pairId,
+    pairId: historyKey(snapshot.pairId, snapshot.contractAddress),
     price: snapshot.metrics.price,
     marketCap: snapshot.metrics.marketCap,
     updatedAt: snapshot.metrics.updatedAt ?? snapshot.state.updatedAt,
@@ -300,7 +307,7 @@ export async function readStonkletDemoSnapshots(db: D1Database): Promise<Stonkle
     const metrics = safeJson<MarketMetrics>(row.metrics_json);
     const state = safeJson<StonkletDemoMarketState>(row.state_json);
     const chart = safeJson<ChartPoint[]>(row.chart_json);
-    return metrics && state && Array.isArray(chart) ? [{
+    return metrics && state && Array.isArray(chart) && matchesCatalog(row.pair_id, row.contract_address) ? [{
       pairId: row.pair_id,
       contractAddress: row.contract_address,
       metrics,
@@ -312,7 +319,7 @@ export async function readStonkletDemoSnapshots(db: D1Database): Promise<Stonkle
 
 async function readCachedSnapshots(env: StonkletMarketIngestEnv): Promise<StonkletDemoSnapshot[]> {
   const cached = await env.WARPLETS_KV?.get<CachedSnapshots>(KV_KEY, "json").catch(() => null) ?? null;
-  if (cached && Array.isArray(cached.snapshots)) return cached.snapshots;
+  if (cached && Array.isArray(cached.snapshots)) return cached.snapshots.filter(snapshot => matchesCatalog(snapshot.pairId, snapshot.contractAddress));
   return readStonkletDemoSnapshots(env.WARPLETS);
 }
 
@@ -407,13 +414,14 @@ export async function loadStonkletRangeChart(
   if (!entry?.demoToken) return unavailableRangeChart(range);
   const cacheSeconds = stonkletRangeCacheSeconds(range);
   const staleSeconds = Math.max(60 * 60, cacheSeconds * 4);
-  const cacheKey = `stonklets:range-chart:v1:${pairId}:${range}`;
+  const cacheKey = `stonklets:range-chart:v2:${pairId}:${entry.demoToken.contractAddress.toLowerCase()}:${range}`;
   const prior = await env.WARPLETS_KV?.get<CachedRangeChart>(cacheKey, "json").catch(() => null) ?? null;
   if (prior && Date.now() - prior.storedAt < cacheSeconds * 1000) return prior.value;
   try {
     const snapshots = marketSnapshotsByPair(suppliedSnapshots ?? await loadStonkletDemoMarket(env));
-    const snapshot = snapshots.get(pairId);
-    const local = await loadLocalStonkletHistory(env.WARPLETS, pairId, range);
+    const candidate = snapshots.get(pairId);
+    const snapshot = candidate && matchesCatalog(pairId, candidate.contractAddress) ? candidate : undefined;
+    const local = await loadLocalStonkletHistory(env.WARPLETS, historyKey(pairId, entry.demoToken.contractAddress), range);
     let provider: ChartPoint[] = [];
     let providerFailed = false;
     if (snapshot?.state.lifecycle === "migrated") {

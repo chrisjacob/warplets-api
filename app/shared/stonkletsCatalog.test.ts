@@ -24,7 +24,7 @@ describe("Stonklets catalog", () => {
   });
 
   it("keeps prelaunch addresses nullable until official contracts are configured", () => {
-    expect(STONKLETS_CATALOG.every((entry) => entry.stonklet.contractAddress === null)).toBe(true);
+    expect(STONKLETS_CATALOG.filter(entry => entry.launchStatus !== "launched").every((entry) => entry.stonklet.contractAddress === null)).toBe(true);
     expect(STONKLETS_CATALOG.filter((entry) => entry.launchStatus === "launched").map((entry) => entry.stonklet.symbol).sort()).toEqual(["BEAR10X", "BULL10X"]);
   });
 
@@ -56,4 +56,14 @@ describe("Stonklets catalog", () => {
     });
     expect(mapped.every((entry) => entry.stonklet.contractAddress === null)).toBe(true);
   });
+});
+
+it.each([
+  ["BULL10X", "0x21d68a77b309a0835a2ee52378d2fd2e12e97777", "SOXLB"],
+  ["BEAR10X", "0x10cdfce1effe43e912dace17fe925cf87e987777", "SOXSB"],
+])("uses the launched %s contract for both market data and identity", (symbol, address, quote) => {
+  const entry = STONKLETS_CATALOG.find(entry => entry.stonklet.symbol === symbol)!;
+  expect(entry.stonklet.contractAddress).toBe(address);
+  expect(entry.demoToken).toMatchObject({ symbol, contractAddress: address, quoteSymbol: quote, chartTokenSide: "base" });
+  expect(entry.flapUrl).toBe(`https://flap.sh/bnb/${address}?lang=en`);
 });
