@@ -16,7 +16,7 @@ describe("Stonklet sharing", () => {
     expect(share.title).toContain("BULL 牛 ( $BULL10X )");
     expect(share.description).toContain(bull.stock.name);
     expect(share.url).toBe("https://stonklet-local.10x.meme/bull10x?change=1h");
-    expect(share.text).toContain("0x21d68a77b309a0835a2ee52378d2fd2e12e97777?r=10XMemeX");
+    expect(share.text).toContain("https://flap.sh/bnb/0x21d68a77b309a0835a2ee52378d2fd2e12e97777?lang=en");
     expect(share.image).toContain("range=1h");
     expect(share.ogImage).toBe(`${share.image}&variant=og`);
     expect(decodeURI(share.artwork)).toContain("Bull.webp");
@@ -35,4 +35,14 @@ it.each(["BULL10X", "BEAR10X"])("keeps the page URL first in %s share text", (sy
  expect(share.title.toLowerCase()).not.toContain("10x.meme");
  expect(entry.stonklet.name).toContain("10X.MEME");
  expect(share.text.match(/https?:\/\/\S+/)?.[0]).toBe(share.url);
+});
+
+it.each([
+  ["BULL10X", "0x21d68a77b309a0835a2ee52378d2fd2e12e97777"],
+  ["BEAR10X", "0x10cdfce1effe43e912dace17fe925cf87e987777"],
+])("shares the Flap trading URL for %s", (symbol, address) => {
+  const entry = STONKLETS_CATALOG.find(item => item.stonklet.symbol === symbol)!;
+  const share = stonkletShare(entry, "stonklet.10x.meme");
+  expect(share.text).toContain(`https://flap.sh/bnb/${address}?lang=en`);
+  expect(share.text).not.toContain("fomo.family");
 });

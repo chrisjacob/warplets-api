@@ -11,5 +11,8 @@ export function stonkletTradeUrl(entry: StonkletCatalogEntry, asset: "stock" | "
   // Never use a provider's symbol-only contract mapping for a trading destination.
   const address = asset === "stock" ? VERIFIED_STOCK_CONTRACTS[entry.stock.symbol]?.address
     : entry.launchStatus === "launched" ? STONKLET_TRADE_DESTINATIONS[entry.id] ?? entry.stonklet.contractAddress ?? entry.demoToken?.contractAddress : null;
+  if (asset === "stonklet" && address && STONKLET_TRADE_DESTINATIONS[entry.id]) {
+    return `https://flap.sh/bnb/${address.toLowerCase()}?lang=en`;
+  }
   return address && /^0x[0-9a-f]{40}$/i.test(address) ? `https://fomo.family/tokens/bnb/${address.toLowerCase()}?r=10XMemeX` : null;
 }
