@@ -104,7 +104,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   if (!range || (pairId && !STONKLETS_CATALOG.some((entry) => entry.id === pairId))) return buildMarketResponse(context);
   const kv = context.env.WARPLETS_KV;
   if (!kv || isStonkletsFlapPreview(url)) return buildMarketResponse(context);
-  const key = `stonklets:board:v1:${url.hostname}:${range}:${pairId ?? "all"}`;
+  const key = `stonklets:board:v2:${url.hostname}:${range}:${pairId ?? "all"}`;
   type Snapshot = { storedAt: number; payload: Record<string, unknown> };
   const cached = await kv.get<Snapshot>(key, "json");
   const refresh = async () => {

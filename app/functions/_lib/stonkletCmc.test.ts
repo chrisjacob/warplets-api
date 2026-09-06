@@ -101,3 +101,12 @@ describe("CoinMarketCap Stonklets enrichment", () => {
     expect(estimateCmcMonthlyCredits(80)).toEqual({ quotes: 8928, holders: 4960, mappings: 31, total: 13_919 });
   });
 });
+
+it("rejects cached metrics and holders from a replaced token contract", async () => {
+  const { loadCmcMarket } = await import("./stonkletCmc");
+  const old = { assetKey: "direxion-soxl:stonklet", contractAddress: "0xfe189e97832da1573e4e4ff034f4ffc3a15c7777", metrics: emptyMarketMetrics() };
+  const current = { ...old, contractAddress: "0x21d68a77b309a0835a2ee52378d2fd2e12e97777" };
+  const makeEnv = (assets: unknown[]) => ({ WARPLETS_KV: { get: async () => ({ assets }) } }) as never;
+  expect((await loadCmcMarket(makeEnv([old]))).size).toBe(0);
+  expect((await loadCmcMarket(makeEnv([current]))).get(old.assetKey)?.contractAddress).toBe(current.contractAddress);
+});

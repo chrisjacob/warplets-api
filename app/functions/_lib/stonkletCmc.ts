@@ -314,7 +314,8 @@ export async function loadCmcMarket(env: StonkletCmcEnv): Promise<Map<string, Cm
   const cached = await env.WARPLETS_KV?.get<StoredCmcAssets>(KV_KEY, "json").catch(() => null) ?? null;
   const staleAfter = Math.max(15 * 60_000, quoteIntervalFor(env) * 3);
   const raw = cached && Array.isArray(cached.assets) ? cached.assets : (await readRows(env)).map(rowToSnapshot);
-  const snapshots = raw.map((snapshot) => ({
+  const expected = new Map(candidateRows(STONKLETS_CATALOG).map(row => [row.assetKey, row.contractAddress?.toLowerCase()]));
+  const snapshots = raw.filter(snapshot => expected.get(snapshot.assetKey) === snapshot.contractAddress?.toLowerCase()).map((snapshot) => ({
     ...snapshot,
     metrics: snapshot.metrics.status === "live" && timestampAge(snapshot.quoteUpdatedAt) > staleAfter
       ? { ...snapshot.metrics, status: "stale" as const }
@@ -346,7 +347,11 @@ async function refreshMappings(env: StonkletCmcEnv, candidates: ReturnType<typeo
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT(asset_key) DO UPDATE SET
          symbol = excluded.symbol,
-         cmc_id = COALESCE(excluded.cmc_id, stonklet_cmc_assets.cmc_id),
+         cmc_id = CASE WHEN stonklet_cmc_assets.contract_address IS NOT excluded.contract_address THEN excluded.cmc_id ELSE COALESCE(excluded.cmc_id, stonklet_cmc_assets.cmc_id) END,
+         quote_json = CASE WHEN stonklet_cmc_assets.contract_address IS NOT excluded.contract_address THEN NULL ELSE stonklet_cmc_assets.quote_json END,
+         quote_updated_at = CASE WHEN stonklet_cmc_assets.contract_address IS NOT excluded.contract_address THEN NULL ELSE stonklet_cmc_assets.quote_updated_at END,
+         holders = CASE WHEN stonklet_cmc_assets.contract_address IS NOT excluded.contract_address THEN NULL ELSE stonklet_cmc_assets.holders END,
+         holders_updated_at = CASE WHEN stonklet_cmc_assets.contract_address IS NOT excluded.contract_address THEN NULL ELSE stonklet_cmc_assets.holders_updated_at END,
          contract_address = COALESCE(excluded.contract_address, stonklet_cmc_assets.contract_address),
          mapping_updated_at = excluded.mapping_updated_at,
          updated_at = excluded.updated_at`,
@@ -424,7 +429,7 @@ export async function ingestCmcMarketIfDue(env: StonkletCmcEnv): Promise<CmcInge
     const candidates = candidateRows(STONKLETS_CATALOG);
     let rows = await readRows(env);
     let mapped = 0;
-    const needsMapping = rows.length < candidates.length || rows.some((row) => timestampAge(row.mapping_updated_at) >= DEFAULT_MAPPING_INTERVAL_MS);
+    const needsMapping = candidates.some(candidate => !rows.some(row => row.asset_key === candidate.assetKey && row.contract_address?.toLowerCase() === candidate.contractAddress?.toLowerCase())) || rows.length < candidates.length || rows.some((row) => timestampAge(row.mapping_updated_at) >= DEFAULT_MAPPING_INTERVAL_MS);
     if (needsMapping) {
       const lease = await acquireLease(env, "mapping");
       if (lease) {
