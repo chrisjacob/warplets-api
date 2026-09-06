@@ -19,7 +19,7 @@ describe("Flap preview data", () => {
       expect(entry.stonklet).toEqual(STONKLETS_CATALOG[index]!.stonklet);
       expect(entry.stock).toEqual(STONKLETS_CATALOG[index]!.stock);
       if (STONKLET_TRADE_DESTINATIONS[entry.id]) {
-        expect(entry).toMatchObject({ launchStatus: "launched", flapPreview: false, demoToken: { contractAddress: STONKLET_TRADE_DESTINATIONS[entry.id] } });
+        expect(entry).toMatchObject({ launchStatus: "launched", flapPreview: false, demoToken: STONKLETS_CATALOG[index]!.demoToken });
       } else {
         expect(entry).toMatchObject({ launchStatus: "launched", pairingStatus: "available", flapPreview: true, demoToken: { contractAddress: items[sourceIndex]!.coin.address }, stonkletMetrics: { volume24h: (sourceIndex + 1) * 50, price: sourceIndex + 1 } });
         sourceIndex++;
