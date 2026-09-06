@@ -32,6 +32,12 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   const result = asset === "stonklet"
     ? await loadStonkletRangeChart(env, pair, range)
     : await loadChart(pair, asset, env.WARPLETS_KV, range);
+  if (result.points.length < 2) {
+    return jsonSecure({ pair, asset, ...result }, {
+      status: 503,
+      headers: { "cache-control": "no-store", "retry-after": "10" },
+    });
+  }
   return jsonSecure({ pair, asset, ...result }, {
     headers: { "cache-control": `public, max-age=${Math.min(300, cacheSeconds)}, s-maxage=${cacheSeconds}, stale-while-revalidate=${Math.max(300, cacheSeconds * 2)}` },
   });

@@ -202,7 +202,7 @@ function SubscriberSocialProof({ actionSessionToken, confirmationPending }: {
   );
 }
 
-export default function EmailWaitlistCta({ actionSessionToken, viewerFid, authenticatedSession = false, joinedToPrevious = false, autoFocusEmail = false }: {
+export default function EmailWaitlistCta({ actionSessionToken, joinedToPrevious = false, autoFocusEmail = false }: {
   actionSessionToken: string | null;
   viewerFid: number | null;
   authenticatedSession?: boolean;
@@ -215,14 +215,13 @@ export default function EmailWaitlistCta({ actionSessionToken, viewerFid, authen
   const [toastMessage, setToastMessage] = useState("");
   const emailInputRef = useRef<HTMLInputElement>(null);
   const hasAutoFocusedEmail = useRef(false);
-  const waitingForFarcasterSession = viewerFid != null && !actionSessionToken && !authenticatedSession;
   const shouldAutoFocusEmail = autoFocusEmail && supportsDesktopAutofocus();
 
   useEffect(() => {
-    if (!shouldAutoFocusEmail || waitingForFarcasterSession || hasAutoFocusedEmail.current) return;
+    if (!shouldAutoFocusEmail || hasAutoFocusedEmail.current) return;
     emailInputRef.current?.focus();
     hasAutoFocusedEmail.current = true;
-  }, [shouldAutoFocusEmail, waitingForFarcasterSession]);
+  }, [shouldAutoFocusEmail]);
 
   useEffect(() => {
     if (!toastMessage) return;
@@ -239,6 +238,7 @@ export default function EmailWaitlistCta({ actionSessionToken, viewerFid, authen
     try {
       const response = await fetch("/api/email/subscribe-10x", {
         method: "POST",
+        signal: AbortSignal.timeout(30_000),
         headers: {
           "content-type": "application/json",
           ...(actionSessionToken ? { authorization: `Bearer ${actionSessionToken}` } : {}),
@@ -288,23 +288,21 @@ export default function EmailWaitlistCta({ actionSessionToken, viewerFid, authen
             type="email"
             inputMode="email"
             autoComplete="email"
-            autoFocus={shouldAutoFocusEmail && !waitingForFarcasterSession}
+            autoFocus={shouldAutoFocusEmail}
             required
             maxLength={254}
             value={email}
             onChange={(event) => { setEmail(event.target.value); if (state === "error") setState("idle"); }}
-            disabled={state === "submitting" || state === "pending" || waitingForFarcasterSession}
+            disabled={state === "submitting" || state === "pending"}
             placeholder="Email"
             className="min-w-0 flex-1 rounded-lg border border-[#00FF00]/40 bg-[#061006] px-3 py-3 text-base font-bold text-[#dfffe0] outline-none placeholder:text-[#6f9f6f] focus:border-[#00FF00] disabled:opacity-65"
           />
           <button
             type="submit"
-            disabled={state === "submitting" || state === "pending" || waitingForFarcasterSession}
+            disabled={state === "submitting" || state === "pending"}
             className="shrink-0 cursor-pointer rounded-xl border border-[#0a990a] bg-[#00FF00] px-3 py-3 text-sm font-black text-[rgb(0,80,0)] shadow-[2px_3px_0_#0a990a] transition-all duration-100 hover:bg-[#33ff33] active:translate-x-[1px] active:translate-y-[1.5px] active:shadow-[1px_1px_0_#0a990a] disabled:cursor-default disabled:opacity-65"
           >
-            {waitingForFarcasterSession
-              ? "Connecting..."
-              : state === "submitting"
+            {state === "submitting"
                 ? "Joining..."
                 : state === "pending"
                   ? "Confirmation Sent"

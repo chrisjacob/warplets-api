@@ -136,13 +136,14 @@ export async function sendWebPushNotification(
         notificationId: input.campaignId,
         recipientKey: subscription.endpoint_hash,
         appSlug: input.appSlug,
-        icon: input.appSlug === "warplets" ? "/icon_search.png" : "/icon.png",
-        badge: input.appSlug === "warplets" ? "/splash_search.png" : "/splash.png",
+        icon: input.appSlug === "stonklets" ? "/icon_stonklet.jpg" : input.appSlug === "warplets" ? "/icon_search.png" : "/icon.png",
+        badge: input.appSlug === "stonklets" ? "/splash_stonklet.png" : input.appSlug === "warplets" ? "/splash_search.png" : "/splash.png",
       }),
       options: { ttl: 86_400, urgency: "normal" },
     }, pushSubscription, requireVapidKeys(env));
     const response = await fetch(subscription.endpoint, {
       method: payload.method,
+      signal: AbortSignal.timeout(10_000),
       headers: payload.headers,
       body: payload.body.slice().buffer as ArrayBuffer,
     });

@@ -1,4 +1,4 @@
-﻿import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { onRequestGet } from "./market";
 import { loadStockPeriodChanges } from "../../_lib/stonkletMarket";
 import { loadStonkletPeriodChanges } from "../../_lib/stonkletIngestion";
@@ -32,12 +32,12 @@ describe("market snapshots", () => {
   expect((await response.json() as {entries: unknown[]}).entries).toHaveLength(44);
   expect(loadStockPeriodChanges).toHaveBeenCalledTimes(1);
  });
- it("returns a stale snapshot immediately and refreshes it in the background", async () => {
+ it("refreshes the board cache without claiming healthy quotes are delayed", async () => {
   const {context,store,pending} = fixture();
   store.set("stonklets:board:v1:stonklet.10x.meme:24h:all", JSON.stringify({storedAt:Date.now()-60_000,payload:{entries:[],stale:false}}));
   const response = await onRequestGet(context as never) as Response;
   expect(response.headers.get("x-stonklets-cache")).toBe("stale");
-  expect((await response.json() as {stale:boolean}).stale).toBe(true);
+  expect(await response.json()).toMatchObject({ stale: false, refreshing: true });
   await Promise.all(pending);
   expect(loadStockPeriodChanges).toHaveBeenCalledTimes(1);
  });
@@ -46,4 +46,12 @@ describe("market snapshots", () => {
   expect((await onRequestGet(context as never) as Response).status).toBe(404);
   expect(loadStockPeriodChanges).not.toHaveBeenCalled();
  });
+});
+
+it("preserves genuine provider delays while refreshing the board", async () => {
+ const {context,store,pending} = fixture();
+ store.set("stonklets:board:v1:stonklet.10x.meme:24h:all", JSON.stringify({storedAt:Date.now()-60_000,payload:{entries:[],stale:true}}));
+ const response = await onRequestGet(context as never) as Response;
+ expect(await response.json()).toMatchObject({stale:true,refreshing:true});
+ await Promise.all(pending);
 });

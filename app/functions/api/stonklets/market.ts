@@ -123,7 +123,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       try { await refresh(); }
       finally { await releaseStonkletWork(context.env.WARPLETS, key, lease); }
     })().catch((error) => console.warn("stonklets_board_refresh_failed", String(error))));
-    return jsonSecure({ ...cached.payload, stale: stale || cached.payload.stale }, {
+    return jsonSecure({ ...cached.payload, stale: cached.payload.stale === true, refreshing: stale }, {
       headers: { "cache-control": "public, max-age=15", "x-stonklets-cache": stale ? "stale" : "hit" },
     });
   }

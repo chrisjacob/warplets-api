@@ -42,7 +42,8 @@ function BrowserWalletIcon() {
   </svg>;
 }
 
-export function WebConnectModal({ open, onClose, farcasterControl, identityConnected = false, identityError = null, onClearIdentityError, onWalletConnected }: {
+export function WebConnectModal({ open, onClose, farcasterControl, identityConnected = false, identityError = null, onClearIdentityError, onWalletConnected, farcasterMiniAppUrl = FARCASTER_WARPLETS_MINI_APP_URL }: {
+  farcasterMiniAppUrl?: string;
   open: boolean;
   onClose: () => void;
   farcasterControl: ReactNode;
@@ -375,7 +376,7 @@ export function WebConnectModal({ open, onClose, farcasterControl, identityConne
 
             <div className="web-connect-farcaster-footer">
               <p>For the best experience, use the Farcaster Mini App.</p>
-              <a className="web-connect-farcaster-cta" href={FARCASTER_WARPLETS_MINI_APP_URL} target="_blank" rel="noreferrer">
+              <a className="web-connect-farcaster-cta" href={farcasterMiniAppUrl} target="_blank" rel="noreferrer">
                 Open in Farcaster
               </a>
               <a

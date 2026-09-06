@@ -1,3 +1,4 @@
+import { isLikelyBaseAppBrowser } from "./pwa";
 import ProgressiveStonkletImage, { stonkletThumbnail } from "./ProgressiveStonkletImage";
 import StonkletsAbout from "./StonkletsAbout";
 import { AppViewport } from "./AppViewport";
@@ -16,7 +17,7 @@ import StonkletsNotificationsPrompt from "./StonkletsNotificationsPrompt";
 import { configureAppSurface, getEmbeddedWalletProvider, openAppUrl, signalAppReady } from "./surfaceAdapter";
 import { resolveAppSurface } from "./appRuntime";
 import { detectMiniAppContext } from "./miniAppContext";
-import { configureFarcasterWallet, restoreFarcasterWallet } from "./walletController";
+import { configureFarcasterWallet, restoreFarcasterWallet, requestBaseAppWalletLogin } from "./walletController";
 import { MiniAppHeader, MiniAppMenuPage, useMiniAppChrome } from "./miniAppChrome";
 import { STONKLETS_APP_HOSTS, STONKLETS_APP_PATH, STONKLETS_APP_SLUG } from "../shared/stonkletsApp";
 import { STONKLETS_CATALOG, emptyMarketMetrics } from "../shared/stonkletsCatalog";
@@ -166,7 +167,7 @@ function StonkletsHeaderAccount({ session, miniAppProfile, simplifiedFarcaster, 
     {!connected ? <button type="button" className="search-header-connect-button" onClick={onConnect}>Connect</button> : <button type="button" className="search-header-avatar-button" aria-haspopup="menu" aria-expanded={open} aria-label="Open account menu" onClick={() => onOpenChange(!open)}>
       <span className="search-header-avatar-stack">
         {!simplifiedFarcaster && session?.walletAddress && <span className="search-header-avatar-frame search-header-avatar-frame--wallet"><img src="/base.webp" alt="Wallet" className="search-header-avatar-image" /></span>}
-        {(simplifiedFarcaster || session?.farcasterFid) && <span className="search-header-avatar-frame search-header-avatar-frame--identity"><img src={avatar} alt={username ? `@${username}` : "Farcaster"} className="search-header-avatar-image" /></span>}
+        {(simplifiedFarcaster || Boolean(session?.farcasterFid)) && <span className="search-header-avatar-frame search-header-avatar-frame--identity"><img src={avatar} alt={username ? `@${username}` : "Farcaster"} className="search-header-avatar-image" /></span>}
       </span>
     </button>}
     {open && <AppViewport portalled={centered} onMouseDown={(event) => event.stopPropagation()} className={`search-header-account-menu${centered ? " search-header-account-menu--centered" : ""}`} role="menu">
@@ -266,9 +267,10 @@ function Heart({ active, count, disabled, onClick, variant = "grid" }: { active:
   return <button type="button" className={`stonklets-heart stonklets-heart--${variant}${active ? " is-active" : ""}`} disabled={disabled} onClick={onClick} aria-pressed={active} aria-label={`${active ? "Remove" : "Add"} favourite. ${count} votes`} title={active ? "Remove from favourites" : "Add to favourites"}><b>{favouriteCountText(count)}</b><SearchHeartIcon filled={active} className={variant === "chart" ? "h-[17px] w-[17px] translate-y-px" : "h-3.5 w-3.5"} strokeWidth={2.2} /></button>;
 }
 
-function DeferredChart({ pairId, asset, range, periodChange, fallbackImage, previewSource }: { pairId: string; asset: MarketSide; range: StonkletChangeRange; periodChange: number | null; fallbackImage: string; previewSource?: string }) {
+function DeferredChart({ pairId, asset, range, periodChange, previewSource }: { pairId: string; asset: MarketSide; range: StonkletChangeRange; periodChange: number | null; previewSource?: string }) {
   const hostRef = useRef<HTMLDivElement>(null);
   const [near, setNear] = useState(false);
+  const [retry, setRetry] = useState(0);
   const [status, setStatus] = useState<"idle" | "loading" | "ready" | "empty" | "error">("idle");
   const [endpointPrices, setEndpointPrices] = useState<{ start: number; end: number } | null>(null);
   const [chartChange, setChartChange] = useState<number | null>(null);
@@ -361,12 +363,12 @@ function DeferredChart({ pairId, asset, range, periodChange, fallbackImage, prev
       setStatus("ready");
     }).catch(() => { if (!disposed) { setEndpointPrices(null); setStatus("error"); } });
     return () => { disposed = true; controller.abort(); cleanup(); };
-  }, [asset, near, pairId, periodChange, range, previewSource]);
+  }, [asset, near, pairId, periodChange, range, previewSource, retry]);
   const rangeLabel = STONKLET_CHANGE_RANGE_LABELS[range];
-  return <div className="stonklets-chart" role="img" aria-label={status === "ready" ? `Normalized ${rangeLabel} percentage chart. Start price ${endpointPrices ? priceText(endpointPrices.start) : "unavailable"}. End price ${endpointPrices ? priceText(endpointPrices.end) : "unavailable"}. Change ${changeText(displayedChange)}` : status === "idle" || status === "loading" ? `Loading ${rangeLabel} market chart` : "Stonklet artwork shown while market chart data is unavailable"}>
+  return <div className="stonklets-chart" role={status === "ready" ? "img" : undefined} aria-label={status === "ready" ? `Normalized ${rangeLabel} percentage chart. Start price ${endpointPrices ? priceText(endpointPrices.start) : "unavailable"}. End price ${endpointPrices ? priceText(endpointPrices.end) : "unavailable"}. Change ${changeText(displayedChange)}` : status === "idle" || status === "loading" ? `Loading ${rangeLabel} market chart` : "Market chart temporarily unavailable"}>
     <div ref={hostRef} className="stonklets-chart-canvas" />
     {(status === "idle" || status === "loading") && <div className="stonklets-chart-loading" role="status" aria-label={`Loading ${rangeLabel} market chart`}><span className="h-8 w-8 animate-spin rounded-full border-2 border-[#00FF00]/25 border-t-[#00FF00]" /></div>}
-    {(status === "empty" || status === "error") && <ProgressiveStonkletImage className="stonklets-chart-fallback" src={fallbackImage} alt="" />}
+    {(status === "empty" || status === "error") && <div className="stonklets-chart-loading"><div className="text-center text-sm text-[#8bbf8b]"><p>Chart temporarily unavailable</p><button type="button" className="mt-3 font-bold text-[#00ff00] underline" onClick={() => setRetry((value) => value + 1)}>Retry chart</button></div></div>}
     {status === "ready" && displayedChange != null && <strong className={displayedChange >= 0 ? "is-positive" : "is-negative"}>{changeText(displayedChange)}</strong>}
     {status === "ready" && endpointPrices && <div className={`stonklets-chart-price-range ${(displayedChange ?? 0) >= 0 ? "is-positive-range" : "is-negative-range"}`} aria-hidden="true"><span>{priceText(endpointPrices.start)}</span><b>➜</b><span>{priceText(endpointPrices.end)}</span></div>}
   </div>;
@@ -384,7 +386,7 @@ export function AssetCard({ entry, asset, range, favourite, busy, onFavourite }:
     <div className="stonklets-card-header"><div className="stonklets-card-identity"><IdentityImage key={`${entry.id}:${asset}`} src={asset === "stock" ? entry.stock.logo : entry.stonklet.image} label={identity.symbol} kind={asset} pairedStockLogo={asset === "stonklet" ? entry.stock.logo : undefined} /><div><b role="button" tabIndex={0} aria-label={`Share ${entry.stonklet.name}`}>{identity.symbol}</b><span>{identity.name}</span></div></div><Heart active={favourite} count={favouriteCount} disabled={busy} onClick={onFavourite} variant="chart" /></div>
     {asset === "stonklet" && entry.launchStatus !== "launched"
       ? <div className="stonklets-chart" role="img" aria-label={`${entry.stonklet.name} artwork shown until launch`}><ProgressiveStonkletImage className="stonklets-chart-fallback" src={highResolutionStonkletImage(entry.stonklet.image)} alt="" /></div>
-      : <DeferredChart pairId={entry.id} asset={asset} range={range} periodChange={periodChange} fallbackImage={highResolutionStonkletImage(entry.stonklet.image)} previewSource={asset === "stonklet" && entry.flapPreview ? entry.demoToken?.contractAddress : undefined} />}
+      : <DeferredChart pairId={entry.id} asset={asset} range={range} periodChange={periodChange} previewSource={asset === "stonklet" && entry.flapPreview ? entry.demoToken?.contractAddress : undefined} />}
     {asset === "stonklet" && entry.launchStatus !== "launched"
       ? <StonkletLaunchVotes id={entry.id} name={entry.stonklet.name} count={entry.favourites} />
       : <div className="stonklets-card-metrics"><span><small>MCap</small>{compactNumber(metrics.marketCap, true)}</span><span><small>24h Vol</small>{compactNumber(metrics.volume24h, true)}</span><span><small>Holders</small>{compactNumber(metrics.holders)}</span></div>}
@@ -503,6 +505,30 @@ export default function StonkletsApp() {
             }
           : null);
 
+        // Match Warplets' once-per-load Base login without blocking app startup.
+        if (isLikelyBaseAppBrowser()) {
+          void requestBaseAppWalletLogin().then(async (wallet) => {
+            if (wallet) {
+              await Promise.all([refreshSession(), loadFavourites()]);
+              const response = await fetch("/api/notifications/base/status", {
+                headers: { accept: "application/json" },
+                credentials: "same-origin",
+              }).catch(() => null);
+              if (response?.ok) {
+                const status = await response.json() as { appPinned?: boolean; notificationsEnabled?: boolean };
+                const enabled = status.appPinned === true && status.notificationsEnabled === true;
+                setNotificationsEnabled(enabled);
+                if (enabled) return;
+              }
+            }
+            setLaunchPrompt(true);
+          }).catch((error) => {
+            const message = error instanceof Error ? error.message : String(error);
+            if (!/reject|denied|cancel/i.test(message)) console.warn("Base wallet login failed:", error);
+            setLaunchPrompt(true);
+          });
+        }
+
         if (!inMiniApp) return;
 
         if (!miniAppReadySentRef.current) {
@@ -557,12 +583,41 @@ export default function StonkletsApp() {
   useEffect(() => { void refreshSession(); void loadFavourites(); }, [loadFavourites, refreshSession]);
   useEffect(() => {
     const controller = new AbortController();
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let pending = false;
     setLoading(true);
-    fetch(`/api/stonklets/market?range=${changeRange}${flapPreview ? "&flap=1" : ""}`, { signal: controller.signal }).then(async (response) => {
-      if (!response.ok) throw new Error("Market data is unavailable");
-      return response.json() as Promise<{ entries?: MarketEntry[]; stale?: boolean }>;
-    }).then((payload) => { if (Array.isArray(payload.entries)) { setEntries(payload.entries); setStale(payload.stale === true); setMarketError(null); } }).catch((error) => { if (!(error instanceof DOMException && error.name === "AbortError")) setMarketError(error instanceof Error ? error.message : "Market data is unavailable"); }).finally(() => { if (!controller.signal.aborted) setLoading(false); });
-    return () => controller.abort();
+    const refresh = async () => {
+      if (pending || controller.signal.aborted) return;
+      if (timer) clearTimeout(timer);
+      if (document.hidden) return;
+      pending = true;
+      let nextRefresh = 60_000;
+      try {
+        const response = await fetch(`/api/stonklets/market?range=${changeRange}${flapPreview ? "&flap=1" : ""}`, { signal: controller.signal });
+        if (!response.ok) throw new Error("Market data is unavailable");
+        const payload = await response.json() as { entries?: MarketEntry[]; stale?: boolean; refreshing?: boolean };
+        if (controller.signal.aborted) return;
+        if (Array.isArray(payload.entries)) {
+          setEntries(payload.entries);
+          setStale(payload.stale === true);
+          setMarketError(null);
+        }
+        if (payload.refreshing || payload.stale) nextRefresh = 15_000;
+      } catch (error) {
+        if (!controller.signal.aborted) setMarketError(error instanceof Error ? error.message : "Market data is unavailable");
+        nextRefresh = 30_000;
+      } finally {
+        pending = false;
+        if (!controller.signal.aborted) {
+          setLoading(false);
+          timer = setTimeout(() => void refresh(), nextRefresh);
+        }
+      }
+    };
+    const onVisibility = () => { if (!document.hidden) void refresh(); };
+    document.addEventListener("visibilitychange", onVisibility);
+    void refresh();
+    return () => { controller.abort(); if (timer) clearTimeout(timer); document.removeEventListener("visibilitychange", onVisibility); };
   }, [changeRange, flapPreview]);
   useEffect(() => {
     const onPop = () => setPage(currentPage());
@@ -653,7 +708,7 @@ export default function StonkletsApp() {
         if (isInMiniAppContext) void hapticSuccess();
         void confetti({ particleCount: 120, spread: 70, origin: { y: 0.72 }, colors: ["#00FF00", "#FFFFFF", "#FFFF00"], zIndex: 150, disableForReducedMotion: true });
       }
-      showToast(asset === "stonklet"
+      showToast(asset === "stonklet" && entry.launchStatus !== "launched"
         ? next ? `♥ ${identity.name} vote saved. Launch alerts are on.` : `${identity.name} removed from favourites.`
         : next ? `♥ ${identity.name} added to favourites.` : `${identity.name} removed from favourites.`);
       if (asset === "stonklet" && next && !notificationsEnabled && (isInMiniAppContext || typeof Notification === "undefined" || Notification.permission !== "granted")) setLaunchPrompt(true);
@@ -809,7 +864,7 @@ export default function StonkletsApp() {
         <aside className="stonklets-risk"><b>Know what you’re pairing.</b> bStocks provide tokenized economic exposure to real-world assets. Stonklets are separate meme tokens; their prices are not correlated with the referenced asset. Nothing here is investment advice.</aside>
       </div>}
     </main><SiteFooter legalSuffix={<a href="https://www.tradingview.com/" target="_blank" rel="noreferrer" className="font-bold text-[#00FF00] underline decoration-[#00FF00] underline-offset-2 hover:text-[#8bff8b]">Charts by TradingView</a>} /></>}
-    <WebConnectModal open={connectOpen} onClose={() => setConnectOpen(false)} identityConnected={Boolean(session?.farcasterFid)} onWalletConnected={() => { void refreshSession(); void loadFavourites(); setConnectOpen(false); }} farcasterControl={<FarcasterSignInControl connected={Boolean(session?.farcasterFid)} onAuthenticated={() => { void refreshSession(); setConnectOpen(false); void loadFavourites(); }} />} />
+    <WebConnectModal farcasterMiniAppUrl="https://farcaster.xyz/miniapps/Ozxi56EEeUTa/10x-stonklets" open={connectOpen} onClose={() => setConnectOpen(false)} identityConnected={Boolean(session?.farcasterFid)} onWalletConnected={() => { void refreshSession(); void loadFavourites(); setConnectOpen(false); }} farcasterControl={<FarcasterSignInControl connected={Boolean(session?.farcasterFid)} onAuthenticated={() => { void refreshSession(); setConnectOpen(false); void loadFavourites(); }} />} />
     {launchPrompt && <StonkletsNotificationsPrompt inMiniApp={isInMiniAppContext} onClose={() => setLaunchPrompt(false)} onEnabled={() => setNotificationsEnabled(true)} onMessage={showToast} />}
     {shareEntry && <StonkletShareModal entry={shareEntry} range={changeRange} onClose={closeShare} onMessage={showToast} />}
     {toast && <StonkletsToast toast={toast} onClose={closeToast} />}</>}

@@ -1,3 +1,5 @@
+import { getBaseNotificationAudiencePage, sendBaseNotificationCampaign, type BaseNotificationsEnv } from "./baseNotifications.js";
+import { sendWebPushNotification, type WebPushEnv, type WebPushSubscriptionRow } from "./webPush.js";
 import { STONKLETS_CATALOG, emptyMarketMetrics } from "../../shared/stonkletsCatalog.js";
 import { dailyTopBody, dailyTopDate, selectDailyTopTokens, type DailyTopToken } from "../../shared/stonkletsDailyTop.js";
 import { loadStockMetricsBatch, loadStockPeriodChanges } from "./stonkletMarket.js";
@@ -6,7 +8,7 @@ import { loadCmcMarket, mergeCmcMetrics } from "./stonkletCmc.js";
 import { dispatchNotification } from "./dispatch.js";
 import { buildClickTrackingUrl } from "./notificationTracking.js";
 
-export interface StonkletsDailyNotificationEnv extends StonkletMarketIngestEnv {
+export interface StonkletsDailyNotificationEnv extends StonkletMarketIngestEnv, BaseNotificationsEnv, WebPushEnv {
   STONKLETS_DAILY_NOTIFICATIONS_ENABLED?: string;
 }
 
@@ -31,7 +33,7 @@ async function loadDailyTop(env: StonkletsDailyNotificationEnv): Promise<DailyTo
 }
 
 /** Cron processes a bounded batch; the daily body is frozen and dispatch IDs
- * are stable across retries. Only this app's enabled Farcaster tokens qualify. */
+ * are stable across retries. Only this app's opted-in recipients qualify across all three channels. */
 export async function runStonkletsDailyNotifications(env: StonkletsDailyNotificationEnv): Promise<number> {
   if (!/^(1|true)$/i.test(env.STONKLETS_DAILY_NOTIFICATIONS_ENABLED ?? "")) return 0;
   const day = dailyTopDate(new Date());
@@ -54,7 +56,6 @@ export async function runStonkletsDailyNotifications(env: StonkletsDailyNotifica
           AND julianday(d.updated_at) <= julianday('now', '-5 minutes')))
       ORDER BY COALESCE(d.attempt_count, 0), t.fid LIMIT 50`)
       .bind(campaignId).all<{ fid: number; notification_url: string; notification_token: string }>();
-    if (!recipients.results?.length) return 0;
     let body = (await db.prepare("SELECT value FROM notification_job_state WHERE job_key = ?").bind(campaignId).first<{ value: string }>())?.value;
     if (!body) {
       const top = await loadDailyTop(env);
@@ -66,7 +67,12 @@ export async function runStonkletsDailyNotifications(env: StonkletsDailyNotifica
     }
     let sent = 0;
     const deadline = Date.now() + 45_000;
-    for (const token of recipients.results) {
+    // Each channel is independent: a Base outage must not prevent Farcaster delivery.
+    try { sent += await sendDailyBase(env, campaignId, body); }
+    catch (error) { console.warn("stonklets_daily_base_failed", String(error)); }
+    try { sent += await sendDailyWebPush(env, campaignId, body, deadline); }
+    catch (error) { console.warn("stonklets_daily_web_push_failed", String(error)); }
+    for (const token of recipients.results ?? []) {
       if (Date.now() >= deadline) break;
       // Renew the lease before each network send and stop if another worker took it.
       const lease = await db.prepare("UPDATE notification_job_state SET updated_at = CURRENT_TIMESTAMP WHERE job_key = ? AND value = ? RETURNING value")
@@ -85,4 +91,35 @@ export async function runStonkletsDailyNotifications(env: StonkletsDailyNotifica
   } finally {
     await db.prepare("DELETE FROM notification_job_state WHERE job_key = ? AND value = ?").bind(lockKey, owner).run();
   }
+}
+
+const DAILY_TARGET_PATH = "/?change=24h&order=change&dir=desc";
+async function sendDailyBase(env: StonkletsDailyNotificationEnv, campaignId: string, body: string): Promise<number> {
+  if (env.BASE_NOTIFICATIONS_ENABLED !== "true" || !env.BASE_STONKLETS_NOTIFICATIONS_API_KEY) return 0;
+  const key = `${campaignId}:base-cursor`;
+  const prior = await env.WARPLETS.prepare("SELECT value FROM notification_job_state WHERE job_key = ?").bind(key).first<{value:string}>();
+  if (prior?.value === "done") return 0;
+  const page = await getBaseNotificationAudiencePage(env, "stonklets", prior?.value ?? "");
+  const results = await sendBaseNotificationCampaign(env, { campaignId, appSlug: "stonklets", wallets: page.wallets, title: "Stonklets", message: body, targetPath: DAILY_TARGET_PATH });
+  if (!results.some(result => result.state === "failed" || result.state === "skipped_in_flight")) {
+    await env.WARPLETS.prepare("INSERT INTO notification_job_state (job_key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP) ON CONFLICT(job_key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP").bind(key, page.nextCursor ?? "done").run();
+  }
+  return results.filter(result => result.state === "delivered").length;
+}
+async function sendDailyWebPush(env: StonkletsDailyNotificationEnv, campaignId: string, body: string, deadline: number): Promise<number> {
+  if (!env.VAPID_PUBLIC_KEY || !env.VAPID_PRIVATE_KEY || !env.VAPID_SUBJECT) return 0;
+  const subscriptions = await env.WARPLETS.prepare(`SELECT s.endpoint_hash, s.endpoint, s.p256dh, s.auth, s.app_slug, s.farcaster_fid, s.wallet_address
+    FROM web_push_subscriptions s
+    LEFT JOIN notification_channel_deliveries d ON d.campaign_id = ? AND d.app_slug = 'stonklets' AND d.channel = 'web-push' AND d.recipient_key = s.endpoint_hash
+    WHERE s.app_slug = 'stonklets' AND s.enabled = 1
+      AND EXISTS (SELECT 1 FROM json_each(s.topics_json) WHERE value = 'announcements')
+      AND (d.id IS NULL OR (d.status NOT IN ('delivered','invalid') AND d.attempts < 6))
+    ORDER BY COALESCE(d.attempts, 0), s.endpoint_hash LIMIT 50`).bind(campaignId).all<WebPushSubscriptionRow>();
+  let sent = 0;
+  for (const subscription of subscriptions.results ?? []) {
+    if (Date.now() >= deadline) break;
+    const result = await sendWebPushNotification(env, subscription, { campaignId, appSlug: "stonklets", title: "Stonklets", body, targetUrl: `https://stonklet.10x.meme${DAILY_TARGET_PATH}` });
+    if (result.state === "delivered") sent++;
+  }
+  return sent;
 }

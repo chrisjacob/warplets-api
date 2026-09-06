@@ -13,7 +13,7 @@ describe("Stonklet sharing", () => {
   it("uses Stonklet-specific post, original artwork, and safe referral destination", () => {
     const bull = STONKLETS_CATALOG.find((entry) => entry.id === "direxion-soxl")!;
     const share = stonkletShare(bull, "stonklet-local.10x.meme", "1h");
-    expect(share.title).toContain("BULL 牛 10X.MEME ( $BULL10X )");
+    expect(share.title).toContain("BULL 牛 ( $BULL10X )");
     expect(share.description).toContain(bull.stock.name);
     expect(share.url).toBe("https://stonklet-local.10x.meme/bull10x?change=1h");
     expect(share.text).toContain("0xfe189e97832da1573e4e4ff034f4ffc3a15c7777?r=10XMemeX");
@@ -27,4 +27,12 @@ describe("Stonklet sharing", () => {
     expect(share.text).toBe("✅ Vote for Stonklet: Arrow ( $ARROW ).\n\nMemecoin paired with Stock: Robinhood ( $HOODB ).\n\nhttps://stonklet-local.10x.meme/arrow");
     expect(share.text).not.toContain("fomo.family");
   });
+});
+
+it.each(["BULL10X", "BEAR10X"])("keeps the page URL first in %s share text", (symbol) => {
+ const entry = STONKLETS_CATALOG.find(item => item.stonklet.symbol === symbol)!;
+ const share = stonkletShare(entry, "stonklet.10x.meme");
+ expect(share.title.toLowerCase()).not.toContain("10x.meme");
+ expect(entry.stonklet.name).toContain("10X.MEME");
+ expect(share.text.match(/https?:\/\/\S+/)?.[0]).toBe(share.url);
 });

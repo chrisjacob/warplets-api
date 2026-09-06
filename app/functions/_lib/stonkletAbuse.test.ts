@@ -17,6 +17,6 @@ it("blocks SVG and disables redirects while accepting small raster images", asyn
   const fetch = vi.fn().mockResolvedValueOnce(new Response("<svg/>", { headers: { "content-type": "image/svg+xml" } })).mockResolvedValueOnce(new Response(new Uint8Array([1,2]), { headers: { "content-type": "image/png" } }));
   vi.stubGlobal("fetch", fetch);
   expect(await fetchRenderAvatar("https://imagedelivery.net/a")).toBeNull();
-  expect(await fetchRenderAvatar("https://imagedelivery.net/b")).toEqual(new Uint8Array([1,2]));
+  expect(await fetchRenderAvatar("https://imagedelivery.net/b")).toEqual({ body: new Uint8Array([1,2]), contentType: "image/png" });
   expect(fetch).toHaveBeenLastCalledWith(expect.any(String), expect.objectContaining({ redirect: "error", signal: expect.any(AbortSignal) }));
 });

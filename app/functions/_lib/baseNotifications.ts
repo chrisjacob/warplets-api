@@ -115,6 +115,7 @@ async function baseFetch(
     pacer.lastRequestAt = Date.now();
     response = await fetch(`${BASE_NOTIFICATIONS_ORIGIN}${path}`, {
       ...init,
+      signal: init.signal ?? AbortSignal.timeout(10_000),
       headers: { accept: "application/json", "x-api-key": apiKey, ...(init.headers ?? {}) },
     });
     if (response.status !== 429 && response.status !== 503) return response;
@@ -139,6 +140,20 @@ export async function getBaseNotificationStatus(
   if (!response.ok) throw new Error(`Base notification status failed (${response.status})`);
   const payload = await response.json() as BaseNotificationStatus;
   return { appPinned: payload.appPinned === true, notificationsEnabled: payload.notificationsEnabled === true };
+}
+
+/** One bounded page for resumable scheduled campaigns. */
+export async function getBaseNotificationAudiencePage(env: BaseNotificationsEnv, appSlug: AppSlug, cursor = "") {
+  const { appUrl } = requireConfig(env, appSlug);
+  const query = new URLSearchParams({ app_url: appUrl, notification_enabled: "true", limit: "50" });
+  if (cursor) query.set("cursor", cursor);
+  const response = await baseFetch(env, appSlug, `/api/v1/notifications/app/users?${query}`);
+  if (!response.ok) throw new Error(`Base notification audience failed (${response.status})`);
+  const payload = await response.json() as BaseAudienceResponse;
+  return {
+    wallets: (payload.users ?? []).filter(user => user.notificationsEnabled === true).map(user => normalizeWallet(user.address)).filter((wallet): wallet is string => wallet !== null),
+    nextCursor: typeof payload.nextCursor === "string" && payload.nextCursor ? payload.nextCursor : null,
+  };
 }
 
 export async function getBaseNotificationAudience(
