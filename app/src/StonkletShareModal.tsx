@@ -21,12 +21,12 @@ export default function StonkletShareModal({ entry, range, onClose, onMessage }:
   const [busy, setBusy] = useState<number | null>(null);
   const [failed, setFailed] = useState<Set<number>>(new Set());
   const [loaded, setLoaded] = useState<Set<number>>(new Set());
-  const [snapshotCountdown, setSnapshotCountdown] = useState<number | null>(25);
+  const [snapshotCountdown, setSnapshotCountdown] = useState<number | null>(30);
   const renderingChart = !loaded.has(0) && !failed.has(0);
   useEffect(() => {
     if (!renderingChart) { setSnapshotCountdown(null); return; }
-    setSnapshotCountdown(25);
-    let remainingSeconds = 25;
+    setSnapshotCountdown(30);
+    let remainingSeconds = 30;
     const timer = window.setInterval(() => {
       remainingSeconds -= 1;
       setSnapshotCountdown(remainingSeconds > 0 ? remainingSeconds : null);

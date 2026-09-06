@@ -41,6 +41,20 @@ async function openSearchApp(path = "/"): Promise<void> {
   window.location.assign(url);
 }
 
+async function openStonkletsApp(): Promise<void> {
+  void hapticPrimaryTap();
+  const inMiniApp = typeof sdk.isInMiniApp === "function"
+    ? await sdk.isInMiniApp().catch(() => false)
+    : false;
+  if (inMiniApp) {
+    try {
+      await sdk.actions.openMiniApp({ url: "https://farcaster.xyz/miniapps/Ozxi56EEeUTa/10x-stonklets" });
+      return;
+    } catch { /* Use the web app when app switching is unavailable. */ }
+  }
+  window.location.assign("https://stonklet.10x.meme/");
+}
+
 async function recordNotificationOpen(fid: number, notificationId: string): Promise<void> {
   const statusResponse = await fetch("/api/warplet-status", {
     method: "POST",
@@ -117,6 +131,23 @@ export default function DropClosedApp() {
           <MiniAppMenuPage appSlug="drop" />
         ) : (
           <main className="mx-auto w-full max-w-md px-4 pb-10 pt-6">
+            <section className="mb-6 overflow-hidden rounded-2xl border border-[#00FF00]/35 bg-black/80 shadow-[0_0_20px_rgba(0,255,0,0.13)]">
+              <img src="/icon_stonklet.jpg" alt="10X Stonklets" className="aspect-square w-full object-cover" width={1024} height={1024} />
+              <div className="px-5 pb-6 pt-5 text-center">
+                <h2 className="text-2xl font-black leading-tight text-[#00FF00] drop-shadow-[0_0_7px_rgba(0,255,0,0.4)]">
+                  10X RWAs Have Launched
+                </h2>
+                <p className="mt-4 text-sm font-semibold leading-6 text-[#d9f5d9]"><strong>GEN Z'S STONK MARKET</strong></p>
+                <p className="mt-3 text-sm leading-6 text-[#b8d7b8]">Reset the market. Be early. Win.</p>
+                <button
+                  type="button"
+                  className="mt-5 w-full rounded-[14px] border border-[#009900] bg-[#00FF00] px-5 py-3 text-base font-black text-[rgb(0,80,0)] shadow-[2px_4px_0_#008000] transition hover:bg-[#33ff33] active:translate-x-[1px] active:translate-y-[2px] active:shadow-[1px_2px_0_#008000]"
+                  onClick={() => void openStonkletsApp()}
+                >
+                  Explore 10X Stonklets
+                </button>
+              </div>
+            </section>
             <section className="overflow-hidden rounded-2xl border border-[#00FF00]/35 bg-black/80 shadow-[0_0_20px_rgba(0,255,0,0.13)]">
               <video
                 src="https://warplets.10x.meme/1391.mp4"
