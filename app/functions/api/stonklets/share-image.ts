@@ -14,7 +14,7 @@ export const onRequestGet: PagesFunction<StatsSharesEnv> = async (context) => {
   if (!entry || !isStonkletsAppHostname(url.hostname)) return jsonSecure({ error: "Unknown Stonklet" }, { status: 404 });
   const range = parseStonkletChangeRange(url.searchParams.get("range")) ?? "24h";
   const variant = url.searchParams.get("variant") === "og" ? "og" : "square";
-  const prefix = `stonklet-shares/v5/${url.hostname}/${entry.id}/${range}`;
+  const prefix = `stonklet-shares/v6/${url.hostname}/${entry.id}/${range}`;
   const key = `${prefix}-${variant}.png`;
   const images = context.env.STATS_SHARE_IMAGES;
   if (!images || !context.env.STATS_SHARE_BROWSER) return jsonSecure({ error: "Share image rendering is unavailable" }, { status: 503 });
@@ -57,7 +57,7 @@ export const onRequestGet: PagesFunction<StatsSharesEnv> = async (context) => {
         // External scripts, documents, redirects and arbitrary profile destinations are blocked.
         if (request.resourceType() === "image" && ++avatarRequests <= 10) {
           const body = await fetchRenderAvatar(request.url());
-          if (body) { await request.respond({ status: 200, body: Buffer.from(body) }); return; }
+          if (body) { await request.respond({ status: 200, contentType: body.contentType, body: Buffer.from(body.body) }); return; }
         }
         await request.abort();
       })().catch(() => request.abort().catch(() => undefined));
@@ -77,7 +77,7 @@ export const onRequestGet: PagesFunction<StatsSharesEnv> = async (context) => {
     // layout settled. Require a stable ready window and then let canvas paint.
     await page.waitForFunction(() => {
       const root = document.querySelector('[data-stonklet-share-ready="true"]');
-      const ready = root && !root.querySelector('.stonklets-chart-loading,[data-artwork-ready="false"],[data-voters-ready="false"]')
+      const ready = root && !root.querySelector('.stonklets-chart-loading,[data-artwork-ready="false"],[data-voters-ready="false"],[data-voter-image-ready="false"]')
         && Array.from(document.images).every(image => image.complete)
         && document.fonts.status === "loaded";
       const state = document.documentElement;

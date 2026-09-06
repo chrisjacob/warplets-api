@@ -1,4 +1,8 @@
-﻿import { afterEach, describe, expect, it, vi } from "vitest";
+import { getBaseNotificationAudiencePage, sendBaseNotificationCampaign } from "./baseNotifications";
+import { sendWebPushNotification } from "./webPush";
+vi.mock("./baseNotifications", () => ({ getBaseNotificationAudiencePage: vi.fn(async () => ({wallets:["0x123"],nextCursor:null})), sendBaseNotificationCampaign: vi.fn(async () => [{state:"delivered"}]) }));
+vi.mock("./webPush", () => ({ sendWebPushNotification: vi.fn(async () => ({state:"delivered"})) }));
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { runStonkletsDailyNotifications, type StonkletsDailyNotificationEnv } from "./stonkletsDailyNotifications";
 import { dispatchNotification } from "./dispatch";
 vi.mock("./dispatch", () => ({ dispatchNotification: vi.fn().mockResolvedValue({ state: "success" }) }));
@@ -13,11 +17,11 @@ function fixture(locked = false, empty = false) {
       bind: (...bindings: unknown[]) => { args = bindings; values.push(bindings); return statement; },
       first: async () => {
         if (sql.includes("ON CONFLICT(job_key)")) return locked ? null : { value: args[1] };
-        if (sql.includes("SELECT value")) return { value: body };
+        if (sql.includes("SELECT value")) return String(args[0]).endsWith(":base-cursor") ? null : { value: body };
         if (sql.startsWith("UPDATE")) return { value: args[1] };
         return null;
       },
-      all: async () => ({ results: empty ? [] : [{ fid: 123, notification_url: "https://example.com/notify", notification_token: "token" }] }),
+      all: async () => ({ results: sql.includes("FROM web_push_subscriptions") ? [{ endpoint_hash: "hash", app_slug: "stonklets" }] : empty ? [] : [{ fid: 123, notification_url: "https://example.com/notify", notification_token: "token" }] }),
       run: async () => ({ meta: { changes: 1 } }),
     };
     return statement;
@@ -58,4 +62,27 @@ describe("Stonklets daily delivery", () => {
     await expect(runStonkletsDailyNotifications(f.env)).rejects.toThrow("database failure");
     expect(f.queries.at(-1)).toContain("DELETE FROM notification_job_state");
   });
+});
+
+it("delivers to Base and web push even without any Farcaster recipients", async () => {
+ vi.useFakeTimers(); vi.setSystemTime(new Date("2026-09-08T20:00:00Z"));
+ const f = fixture(false, true);
+ Object.assign(f.env, {BASE_NOTIFICATIONS_ENABLED:"true", BASE_STONKLETS_NOTIFICATIONS_API_KEY:"key", VAPID_PUBLIC_KEY:"public", VAPID_PRIVATE_KEY:"private", VAPID_SUBJECT:"mailto:test@example.com"});
+ expect(await runStonkletsDailyNotifications(f.env)).toBe(2);
+ expect(dispatchNotification).not.toHaveBeenCalled();
+ expect(getBaseNotificationAudiencePage).toHaveBeenCalledWith(f.env,"stonklets","");
+ expect(sendBaseNotificationCampaign).toHaveBeenCalledWith(f.env,expect.objectContaining({campaignId:"stonklets:daily-top:2026-09-08",appSlug:"stonklets",wallets:["0x123"],message:body}));
+ expect(sendWebPushNotification).toHaveBeenCalledWith(f.env,expect.anything(),expect.objectContaining({appSlug:"stonklets",body}));
+ expect(f.values).toContainEqual(["stonklets:daily-top:2026-09-08:base-cursor","done"]);
+ const sql=f.queries.find(q=>q.includes("FROM web_push_subscriptions"))!;
+ expect(sql).toContain("s.app_slug = 'stonklets' AND s.enabled = 1");
+ expect(sql).toContain("value = 'announcements'");
+});
+it("keeps the Base cursor for retry without blocking Farcaster", async () => {
+ vi.useFakeTimers(); vi.setSystemTime(new Date("2026-09-08T20:00:00Z"));
+ const f=fixture(); Object.assign(f.env,{BASE_NOTIFICATIONS_ENABLED:"true",BASE_STONKLETS_NOTIFICATIONS_API_KEY:"key"});
+ vi.mocked(sendBaseNotificationCampaign).mockResolvedValueOnce([{wallet:"0x123",state:"failed"}]);
+ expect(await runStonkletsDailyNotifications(f.env)).toBe(1);
+ expect(f.values).not.toContainEqual(["stonklets:daily-top:2026-09-08:base-cursor","done"]);
+ expect(dispatchNotification).toHaveBeenCalled();
 });

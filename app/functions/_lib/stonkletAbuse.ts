@@ -22,7 +22,7 @@ export function allowedRenderAvatar(raw: string): boolean {
 }
 
 /** No redirects, bounded transfer, and raster-only responses from explicitly trusted CDNs. */
-export async function fetchRenderAvatar(raw: string): Promise<Uint8Array | null> {
+export async function fetchRenderAvatar(raw: string): Promise<{ body: Uint8Array; contentType: string } | null> {
   if (!allowedRenderAvatar(raw)) return null;
   try {
     const response = await fetch(raw, { redirect: "error", signal: AbortSignal.timeout(4000) });
@@ -42,6 +42,6 @@ export async function fetchRenderAvatar(raw: string): Promise<Uint8Array | null>
     }
     const result = new Uint8Array(length); let offset = 0;
     for (const chunk of chunks) { result.set(chunk, offset); offset += chunk.length; }
-    return result;
+    return { body: result, contentType: type! };
   } catch { return null; }
 }

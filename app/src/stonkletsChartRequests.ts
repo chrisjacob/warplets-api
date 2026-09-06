@@ -36,18 +36,26 @@ export async function fetchStonkletChart(url: string, signal: AbortSignal): Prom
     const queuedHit = cachedResponse(url);
     if (queuedHit) return queuedHit;
     for (let attempt = 0; ; attempt++) {
-      const response = await fetch(url, { credentials: "same-origin", signal });
-      if (response.status !== 429 || attempt >= 3) {
+      const response = await fetch(url, { credentials: "same-origin", signal, cache: "no-cache" }).catch((error) => {
+        if (signal.aborted) throw error;
+        return new Response(null, { status: 503 });
+      });
+      const body = response.ok ? await response.text() : null;
+      let hasPoints = false;
+      if (body != null) {
+        try { const payload = JSON.parse(body); hasPoints = Array.isArray(payload.points) && payload.points.length >= 2; } catch { /* Retry malformed upstream data. */ }
+      }
+      const retryable = response.status === 429 || response.status >= 500 || (response.ok && !hasPoints);
+      if (!retryable || attempt >= 3) {
         if (!response.ok) return response;
-        const body = await response.text();
-        if (body.length <= 200_000) {
+        if (hasPoints && body != null && body.length <= 200_000) {
           cached.set(url, { body, storedAt: Date.now() });
           while (cached.size > 64) cached.delete(cached.keys().next().value!);
         }
         return new Response(body, { status: response.status, headers: response.headers });
       }
-      await response.body?.cancel();
-      const seconds = Math.min(120, Math.max(1, Number(response.headers.get("retry-after")) || 60));
+      if (body == null) await response.body?.cancel();
+      const seconds = Math.min(120, Math.max(1, Number(response.headers.get("retry-after")) || (response.status === 429 ? 60 : 2 ** (attempt + 1))));
       await new Promise<void>((resolve, reject) => {
         const cancel = () => { clearTimeout(timer); reject(new DOMException("Chart request cancelled", "AbortError")); };
         const timer = setTimeout(() => { signal.removeEventListener("abort", cancel); resolve(); }, seconds * 1000);

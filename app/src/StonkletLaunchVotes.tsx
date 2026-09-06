@@ -32,10 +32,12 @@ function WalletAvatar({ wallet }: { wallet: string }) {
 
 function VoterAvatar({ voter, stack = false }: { voter: StonkletVoter; stack?: boolean }) {
   const [failed, setFailed] = useState(false);
-  if (stack && (!voter.image || failed)) return null;
+  const [loaded, setLoaded] = useState(false);
+  const shareRender = typeof window !== "undefined" && new URLSearchParams(window.location.search).has("shareRender");
+  if (stack && (!voter.image || (failed && !shareRender))) return null;
   const label = voter.username ? `@${voter.username}` : voter.wallet;
-  return <span className="stonklets-voter-avatar" title={label} aria-label={label} tabIndex={stack ? undefined : 0}>
-    {voter.image && !failed ? <img src={voter.image} alt="" loading="lazy" decoding="async" referrerPolicy="no-referrer" onError={() => setFailed(true)} /> : <WalletAvatar wallet={voter.wallet} />}
+  return <span data-voter-image-ready={shareRender && voter.image ? loaded : undefined} className="stonklets-voter-avatar" title={label} aria-label={label} tabIndex={stack ? undefined : 0}>
+    {voter.image && !failed ? <img src={voter.image} alt="" loading={shareRender ? "eager" : "lazy"} decoding="async" onLoad={() => setLoaded(true)} referrerPolicy="no-referrer" onError={() => setFailed(true)} /> : <WalletAvatar wallet={voter.wallet} />}
   </span>;
 }
 
@@ -93,7 +95,7 @@ function VotersModal({ id, name, count, onClose }: { id: string; name: string; c
     const rect = event.currentTarget.getBoundingClientRect();
     if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) onClose();
   }}>
-    <header className="identity-link-heading"><h2 id={titleId} tabIndex={-1} autoFocus><span>{total.toLocaleString("en-US")}</span> Voted for {name}</h2><button type="button" className="identity-link-close" aria-label="Close voters" title="Close" onClick={onClose}><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><path d="M6 6l12 12" /><path d="M18 6L6 18" /></svg></button></header>
+    <header className="identity-link-heading"><h2 id={titleId} tabIndex={-1} autoFocus data-no-focus-ring><span>{total.toLocaleString("en-US")}</span> Voted for {name}</h2><button type="button" className="identity-link-close" aria-label="Close voters" title="Close" onClick={onClose}><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><path d="M6 6l12 12" /><path d="M18 6L6 18" /></svg></button></header>
     <div className="stonklets-voters-body" ref={body} aria-busy={loading}>
       <div className="stonklets-voters-grid">{voters.map((voter) => <VoterAvatar key={voter.wallet} voter={voter} />)}</div>
       {loading && <p role="status">Loading voters…</p>}
