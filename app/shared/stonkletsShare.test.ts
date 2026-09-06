@@ -16,7 +16,7 @@ describe("Stonklet sharing", () => {
     expect(share.title).toContain("BULL 牛 ( $BULL10X )");
     expect(share.description).toContain(bull.stock.name);
     expect(share.url).toBe("https://stonklet-local.10x.meme/bull10x?change=1h");
-    expect(share.text).toContain("0xfe189e97832da1573e4e4ff034f4ffc3a15c7777?r=10XMemeX");
+    expect(share.text).toContain("0x21d68a77b309a0835a2ee52378d2fd2e12e97777?r=10XMemeX");
     expect(share.image).toContain("range=1h");
     expect(share.ogImage).toBe(`${share.image}&variant=og`);
     expect(decodeURI(share.artwork)).toContain("Bull.webp");

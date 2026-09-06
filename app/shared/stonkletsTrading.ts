@@ -1,10 +1,10 @@
 import type { StonkletCatalogEntry } from "./stonkletsCatalog";
 import { VERIFIED_STOCK_CONTRACTS } from "./stonkletsStockContracts";
 
-// User-selected temporary destinations, separate from official Stonklet contracts.
+// User-provided BNB contracts for launched Stonklet Trade and Share links.
 export const STONKLET_TRADE_DESTINATIONS: Readonly<Record<string, string>> = {
-  "direxion-soxl": "0xfe189e97832da1573e4e4ff034f4ffc3a15c7777",
-  "direxion-soxs": "0x90f62f81307ebf4ccd0a0510e3391c67b1d17777",
+  "direxion-soxl": "0x21d68a77b309a0835a2ee52378d2fd2e12e97777",
+  "direxion-soxs": "0x10cdfce1effe43e912dace17fe925cf87e987777",
 };
 
 export function stonkletTradeUrl(entry: StonkletCatalogEntry, asset: "stock" | "stonklet"): string | null {
