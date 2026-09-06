@@ -25,7 +25,7 @@ export function allowedRenderAvatar(raw: string): boolean {
 export async function fetchRenderAvatar(raw: string): Promise<{ body: Uint8Array; contentType: string } | null> {
   if (!allowedRenderAvatar(raw)) return null;
   try {
-    const response = await fetch(raw, { redirect: "error", signal: AbortSignal.timeout(4000) });
+    const response = await fetch(raw, { redirect: "manual", signal: AbortSignal.timeout(4000) });
     const type = response.headers.get("content-type")?.split(";")[0];
     if (!response.ok || !["image/png", "image/jpeg", "image/webp"].includes(type ?? "") || Number(response.headers.get("content-length")) > 512 * 1024) {
       await response.body?.cancel(); return null;
