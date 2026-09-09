@@ -2372,6 +2372,6 @@ a.stonklets-trade{display:flex;align-items:center;justify-content:center;box-siz
 .stonklet-share-avatars{position:relative;flex:1;min-width:0;height:28px}
 .stonklet-share-avatars>span{position:absolute;top:0;width:28px;height:28px}
 .stonklet-share-avatars .stonklets-voter-avatar{width:28px;height:28px;border:1.5px solid #153015;box-sizing:border-box}
-.stonklet-share-contract{flex-shrink:0;white-space:nowrap;margin-top:13px;padding:7px 4px;border:1px solid rgb(238 220 90 / 20%);border-radius:4px;background:rgb(238 220 90 / 7%);color:#b8b07b;font-size:9.5px;line-height:12px;text-align:center;letter-spacing:-.045em}
+.stonklet-share-contract{flex-shrink:0;white-space:nowrap;margin-top:13px;padding:7px 4px;border:1px solid rgb(238 220 90 / 20%);border-radius:4px;background:rgb(238 220 90 / 7%);color:#b8b07b;font-size:8.5px;line-height:12px;text-align:center;letter-spacing:-.045em}
 
 .stonklet-share-square .stonklets-chart-price-range{font-size:13px;height:22px;bottom:10px}

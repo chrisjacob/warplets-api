@@ -9,6 +9,9 @@ interface Env { WARPLETS: D1Database; APP_SESSION_SECRET?: string }
 type FavouriteAsset = "stock" | "stonklet";
 interface Payload { stonkletId?: unknown; asset?: unknown; favourited?: unknown; notifyOnLaunch?: unknown }
 
+// Match verified session FIDs, never a client-supplied username or wallet.
+const UNLIMITED_FAVOURITE_FIDS = new Set([1313340, 1129138]); // 10xmeme.eth, 10xchris.eth
+
 async function personalState(db: D1Database, wallet: string) {
   const result = await db.prepare(
     "SELECT pair_id, asset, notify_on_launch FROM stonklet_asset_favourites WHERE identity_wallet = ? AND active = 1 ORDER BY pair_id, asset",
@@ -57,7 +60,8 @@ export const onRequestPut: PagesFunction<Env> = async ({ request, env }) => {
   const session = await getAppSession(request, env);
   const wallet = await resolveSessionFavouriteWallet(env.WARPLETS, session);
   if (!wallet) return jsonSecure({ error: "a verified Farcaster identity or wallet is required" }, { status: 401 });
-  if (!await allowStonkletAction(env.WARPLETS, "votes", wallet, 5)) return jsonSecure({ error: "Please wait a minute before changing more favourites." }, { status: 429, headers: { "retry-after": "60" } });
+  const unlimited = session?.farcasterFid != null && UNLIMITED_FAVOURITE_FIDS.has(session.farcasterFid);
+  if (!unlimited && !await allowStonkletAction(env.WARPLETS, "votes", wallet, 5)) return jsonSecure({ error: "Please wait a minute before changing more favourites." }, { status: 429, headers: { "retry-after": "60" } });
   const favourited = body.payload.favourited;
   const notify = asset === "stonklet" && favourited && body.payload.notifyOnLaunch !== false;
   const now = new Date().toISOString();

@@ -9,6 +9,7 @@ import {
 } from "../../shared/stonkletsCatalog.js";
 import {
   normalizePriceSeries,
+  loadStockMetricsBatch,
   periodChangeFromChart,
   type ChartPoint,
   type StonkletChartResult,
@@ -20,6 +21,7 @@ import {
 } from "../../shared/stonkletsTime.js";
 import { ingestCmcMarketIfDue, type CmcIngestResult, type StonkletCmcEnv } from "./stonkletCmc.js";
 import { loadLocalStonkletHistory, mergeStonkletHistoryPoints, persistStonkletHistory } from "./stonkletHistory.js";
+import { claimStonkletWork, releaseStonkletWork } from "./stonkletWorkLease.js";
 
 const FLAP_PORTAL = "0xe2cE6ab80874Fa9Fa2aAE65D277Dd6B8e65C9De0";
 const GET_TOKEN_V8_SAFE_SELECTOR = "0x62fafcca";
@@ -259,11 +261,11 @@ function snapshotAge(snapshot: StonkletDemoSnapshot, now = Date.now()): number {
   return Number.isFinite(timestamp) ? now - timestamp : Number.POSITIVE_INFINITY;
 }
 
-function allFresh(snapshots: readonly StonkletDemoSnapshot[], now = Date.now()): boolean {
+function allFresh(snapshots: readonly StonkletDemoSnapshot[], now = Date.now(), freshMs = FRESH_MS): boolean {
   const expected = STONKLETS_CATALOG.filter((entry) => entry.demoToken);
   return snapshots.length === expected.length
     && expected.every((entry) => snapshots.some((snapshot) => snapshot.pairId === entry.id && snapshot.contractAddress.toLowerCase() === entry.demoToken!.contractAddress.toLowerCase()))
-    && snapshots.every((snapshot) => snapshotAge(snapshot, now) < FRESH_MS);
+    && snapshots.every((snapshot) => snapshot.metrics.status !== "stale" && snapshotAge(snapshot, now) < freshMs);
 }
 
 async function persistSnapshots(env: StonkletMarketIngestEnv, snapshots: readonly StonkletDemoSnapshot[]): Promise<void> {
@@ -323,7 +325,7 @@ async function readCachedSnapshots(env: StonkletMarketIngestEnv): Promise<Stonkl
   return readStonkletDemoSnapshots(env.WARPLETS);
 }
 
-export async function refreshStonkletDemoMarket(env: StonkletMarketIngestEnv): Promise<StonkletDemoSnapshot[]> {
+export async function refreshStonkletDemoMarket(env: StonkletMarketIngestEnv, prior: readonly StonkletDemoSnapshot[] = [], suppliedStockMetrics?: Map<string, MarketMetrics>): Promise<StonkletDemoSnapshot[]> {
   const mapped = STONKLETS_CATALOG.flatMap((entry) => entry.demoToken ? [{ pairId: entry.id, token: entry.demoToken }] : []);
   const states = await fetchFlapStates(mapped.map(({ token }) => token), env);
   const now = new Date().toISOString();
@@ -333,9 +335,24 @@ export async function refreshStonkletDemoMarket(env: StonkletMarketIngestEnv): P
     if (lifecycleForStatus(state.status) !== "bonding") return [];
     return [state.quoteTokenAddress === "0x0000000000000000000000000000000000000000" ? WBNB.toLowerCase() : state.quoteTokenAddress];
   }));
+  // Stock quote prices already come from one batched provider request. Match by
+  // verified contract, since the on-chain quote token may differ from the label.
+  const stockMetrics = suppliedStockMetrics ?? (quoteAddresses.size ? await loadStockMetricsBatch(STONKLETS_CATALOG, env.WARPLETS_KV) : new Map<string, MarketMetrics>());
+  const stockQuotes = new Map(STONKLETS_CATALOG.flatMap(entry => {
+    const metric = stockMetrics.get(entry.id);
+    return entry.stock.contractAddress && metric?.price != null && metric.price > 0
+      ? [[entry.stock.contractAddress.toLowerCase(), metric] as const] : [];
+  }));
+  const safeToken = async (address: string) => {
+    try { return await dexPaprikaToken(address); }
+    catch (error) {
+      console.warn("stonklets_token_quote_failed", { address, message: error instanceof Error ? error.message : String(error) });
+      return null;
+    }
+  };
   const [tokenPayloads, quotePayloads, chartPayloads] = await Promise.all([
-    Promise.all(migrated.map(async ({ token }) => [token.contractAddress.toLowerCase(), await dexPaprikaToken(token.contractAddress)] as const)),
-    Promise.all([...quoteAddresses].map(async (address) => [address, await dexPaprikaToken(address)] as const)),
+    Promise.all(migrated.map(async ({ token }) => [token.contractAddress.toLowerCase(), await safeToken(token.contractAddress)] as const)),
+    Promise.all([...quoteAddresses].filter(address => stockQuotes.get(address)?.status !== "live").map(async (address) => [address, await safeToken(address)] as const)),
     Promise.all(migrated.map(async ({ token }) => [token.contractAddress.toLowerCase(), await geckoChart(token).catch(() => [])] as const)),
   ]);
   const tokenData = new Map(tokenPayloads);
@@ -348,13 +365,15 @@ export async function refreshStonkletDemoMarket(env: StonkletMarketIngestEnv): P
     const chart = charts.get(token.contractAddress.toLowerCase()) ?? [];
     let metrics: MarketMetrics;
     let provider: StonkletDemoMarketState["provider"];
-    if (lifecycle === "migrated" && tokenData.has(token.contractAddress.toLowerCase())) {
+    if (lifecycle === "migrated") {
       metrics = normalizeDexPaprikaToken(tokenData.get(token.contractAddress.toLowerCase()), now);
+      if (metrics.price == null) metrics = emptyMarketMetrics();
       metrics.change4h = changeFromChart(chart, 4);
       provider = "flap+dexpaprika";
     } else {
       const quoteAddress = flap.quoteTokenAddress === "0x0000000000000000000000000000000000000000" ? WBNB.toLowerCase() : flap.quoteTokenAddress;
-      const quoteMetrics = normalizeDexPaprikaToken(quoteData.get(quoteAddress), now);
+      const dexQuote = normalizeDexPaprikaToken(quoteData.get(quoteAddress), now);
+      const quoteMetrics = dexQuote.price != null && dexQuote.price > 0 ? dexQuote : stockQuotes.get(quoteAddress) ?? emptyMarketMetrics();
       const quoteUsd = quoteMetrics.price;
       const priceInQuote = Number(flap.price) / 1e18;
       const reserveInQuote = Number(flap.reserve) / 1e18;
@@ -364,10 +383,14 @@ export async function refreshStonkletDemoMarket(env: StonkletMarketIngestEnv): P
         price: priceUsd,
         marketCap: priceUsd == null ? null : priceUsd * 1_000_000_000,
         liquidity: quoteUsd == null ? null : reserveInQuote * quoteUsd,
-        updatedAt: now,
-        status: priceUsd == null ? "unavailable" : "live",
+        updatedAt: quoteMetrics.status === "stale" ? quoteMetrics.updatedAt : now,
+        status: priceUsd == null ? "unavailable" : quoteMetrics.status,
       };
       provider = "flap-onchain";
+    }
+    if (metrics.price == null) {
+      const previous = prior.find(snapshot => snapshot.pairId === pairId && snapshot.contractAddress === token.contractAddress.toLowerCase());
+      if (previous) return staleSnapshots([previous])[0]!;
     }
     return {
       pairId,
@@ -389,14 +412,18 @@ export async function refreshStonkletDemoMarket(env: StonkletMarketIngestEnv): P
   return snapshots;
 }
 
-export async function loadStonkletDemoMarket(env: StonkletMarketIngestEnv): Promise<StonkletDemoSnapshot[]> {
+export async function loadStonkletDemoMarket(env: StonkletMarketIngestEnv, suppliedStockMetrics?: Map<string, MarketMetrics>): Promise<StonkletDemoSnapshot[]> {
   const prior = await readCachedSnapshots(env);
   if (allFresh(prior)) return prior;
+  const lease = await claimStonkletWork(env.WARPLETS, KV_KEY, 60);
+  if (!lease) return staleSnapshots(prior);
   try {
-    return await refreshStonkletDemoMarket(env);
+    return await refreshStonkletDemoMarket(env, prior, suppliedStockMetrics);
   } catch (error) {
     console.warn("stonklets_demo_market_upstream_error", { message: error instanceof Error ? error.message : String(error) });
-    return prior.length && prior.every((snapshot) => snapshotAge(snapshot) <= STALE_MS) ? staleSnapshots(prior) : prior;
+    return staleSnapshots(prior);
+  } finally {
+    await releaseStonkletWork(env.WARPLETS, KV_KEY, lease);
   }
 }
 
@@ -475,9 +502,15 @@ export async function ingestStonkletMarketIfDue(env: StonkletMarketIngestEnv): P
   if (!/^(1|true|yes)$/i.test(env.STONKLETS_MARKET_INGEST_ENABLED?.trim() ?? "")) return { status: "disabled", cmc };
   const interval = Math.max(1, Math.min(60, Number(env.STONKLETS_MARKET_INGEST_INTERVAL_MINUTES) || 5));
   const prior = await readCachedSnapshots(env);
-  if (prior.length === 4 && prior.every((snapshot) => snapshotAge(snapshot) < interval * 60_000)) return { status: "fresh", cmc };
-  const snapshots = await refreshStonkletDemoMarket(env);
-  return { status: "ingested", snapshots: snapshots.length, cmc };
+  if (allFresh(prior, Date.now(), interval * 60_000)) return { status: "fresh", cmc };
+  const lease = await claimStonkletWork(env.WARPLETS, KV_KEY, 60);
+  if (!lease) return { status: "fresh", cmc };
+  try {
+    const snapshots = await refreshStonkletDemoMarket(env, prior);
+    return { status: "ingested", snapshots: snapshots.length, cmc };
+  } finally {
+    await releaseStonkletWork(env.WARPLETS, KV_KEY, lease);
+  }
 }
 
 export function marketSnapshotsByPair(snapshots: readonly StonkletDemoSnapshot[]): Map<string, StonkletDemoSnapshot> {

@@ -36,10 +36,11 @@ const buildMarketResponse: PagesFunction<Env> = async (context) => {
   if (hostname === "localhost" || hostname === "127.0.0.1" || hostname.includes("-local.")) {
     context.waitUntil(ingestCmcMarketIfDue(env).catch((error) => console.warn("stonklets_cmc_background_refresh_failed", String(error))));
   }
+  const stockMetrics = loadStockMetricsBatch(STONKLETS_CATALOG, env.WARPLETS_KV);
   const [aggregates, metrics, demoSnapshots, cmcMarket, stockPeriodChanges] = await Promise.all([
     favouriteAggregates(env.WARPLETS),
-    loadStockMetricsBatch(catalog, env.WARPLETS_KV),
-    loadStonkletDemoMarket(env),
+    stockMetrics,
+    stockMetrics.then(metrics => loadStonkletDemoMarket(env, metrics)),
     loadCmcMarket(env),
     loadStockPeriodChanges(catalog, changeRange, env.WARPLETS_KV),
   ]);
