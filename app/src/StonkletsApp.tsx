@@ -32,12 +32,11 @@ import { stonkletFromSharePath } from "../shared/stonkletsShare";
 import { STONKLET_TRADE_DESTINATIONS, stonkletTradeUrl } from "../shared/stonkletsTrading";
 import { fetchStonkletChart } from "./stonkletsChartRequests";
 import { DEFAULT_STONKLET_CHANGE_RANGE, STONKLET_CHANGE_RANGE_LABELS, STONKLET_CHANGE_RANGES, parseStonkletChangeRange, type StonkletChangeRange } from "../shared/stonkletsTime";
-import { filterAndSortStonklets, stonkletMetric, visibleStonkletsFavourites, type StonkletsMarketEntry as MarketEntry } from "./stonkletsMarket";
+import { filterAndSortStonklets, stonkletMetric, stonkletsSearchLayout, visibleStonkletsFavourites, type StonkletsLayout as Layout, type StonkletsMarketEntry as MarketEntry } from "./stonkletsMarket";
 import BstocksNoticeModal, { hasAcceptedBstocksNotice, isBstocksNoticeForced } from "./BstocksNoticeModal";
 
 type Page = "about" | "market" | "trade" | "portfolio" | "leaderboard" | "stats";
 type MarketSide = "stock" | "stonklet";
-type Layout = "compact" | "chart" | "single-chart" | "single-grid";
 type OrderKey = "trending" | "marketCap" | "volume24h" | "holders" | "change" | "favourites" | "az";
 type Direction = "asc" | "desc";
 
@@ -661,7 +660,8 @@ export default function StonkletsApp() {
 
   const orderAvailable = useCallback((key: OrderKey) => key === "trending" || key === "favourites" || key === "az" || entries.some((entry) => stonkletMetric(entry, market, key) != null), [entries, market]);
   useEffect(() => { if (!orderAvailable(order)) { setOrder("trending"); setDirection("desc"); } }, [order, orderAvailable]);
-  const selectedMarketFavourites = useMemo(() => visibleStonkletsFavourites(stockFavourites, favourites, market, isSingleLayout(layout)), [stockFavourites, favourites, market, layout]);
+  const resultLayout = stonkletsSearchLayout(layout, search);
+  const selectedMarketFavourites = useMemo(() => visibleStonkletsFavourites(stockFavourites, favourites, market, isSingleLayout(resultLayout)), [stockFavourites, favourites, market, resultLayout]);
   const filtered = useMemo(() => filterAndSortStonklets({ entries, query: search, favourites: selectedMarketFavourites, favouritesOnly, market, order, direction }), [direction, entries, favouritesOnly, market, order, search, selectedMarketFavourites]);
 
   const goPage = (next: Page, pair?: MarketEntry, asset?: MarketSide) => {
@@ -757,10 +757,10 @@ export default function StonkletsApp() {
   const renderPairs = (items: MarketEntry[]) => items.map((entry) => {
     const first: MarketSide = market;
     const second: MarketSide = market === "stock" ? "stonklet" : "stock";
-    const assets = isSingleLayout(layout) ? [first] : [first, second];
+    const assets = isSingleLayout(resultLayout) ? [first] : [first, second];
     const isFavourite = (asset: MarketSide) => (asset === "stock" ? stockFavourites : favourites).has(entry.id);
     const isBusy = (asset: MarketSide) => busyFavourite === `${entry.id}:${asset}`;
-    return <article className={`stonklets-pair${layout === "single-grid" ? " stonklets-pair--single-grid" : ""}${layout === "single-chart" ? " stonklets-pair--single-chart" : ""}`} key={entry.id}
+    return <article className={`stonklets-pair${resultLayout === "single-grid" ? " stonklets-pair--single-grid" : ""}${resultLayout === "single-chart" ? " stonklets-pair--single-chart" : ""}`} key={entry.id}
       onClickCapture={(event) => {
         if (!(event.target instanceof Element) || !event.target.closest(".stonklets-card-identity,.stonklets-compact-identity,.stonklets-heart,.stonklets-trade")) return;
         const tradeLink = event.target.closest("a.stonklets-trade");
@@ -786,17 +786,17 @@ export default function StonkletsApp() {
           if (isInMiniAppContext) void hapticTap();
         }
       }}>
-      {isGridLayout(layout)
+      {isGridLayout(resultLayout)
         ? assets.map((asset) => <CompactRow key={asset} entry={entry} asset={asset} range={changeRange} favourite={isFavourite(asset)} busy={isBusy(asset)} onFavourite={() => void toggleFavourite(entry, asset)} />)
-        : <div className={`stonklets-chart-pair${layout === "single-chart" ? " stonklets-chart-pair--single" : ""}`}>{assets.map((asset) => <AssetCard key={asset} entry={entry} asset={asset} range={changeRange} favourite={isFavourite(asset)} busy={isBusy(asset)} onFavourite={() => void toggleFavourite(entry, asset)} />)}</div>}
+        : <div className={`stonklets-chart-pair${resultLayout === "single-chart" ? " stonklets-chart-pair--single" : ""}`}>{assets.map((asset) => <AssetCard key={asset} entry={entry} asset={asset} range={changeRange} favourite={isFavourite(asset)} busy={isBusy(asset)} onFavourite={() => void toggleFavourite(entry, asset)} />)}</div>}
     </article>;
   });
   const renderGroup = (name: "Launched" | "Voting" | "Upcoming", items: MarketEntry[]) => <section className="stonklets-market-group" aria-labelledby={`stonklets-group-${name.toLowerCase()}`}>
     <h2 id={`stonklets-group-${name.toLowerCase()}`} className="stonklets-group-heading">{name}<span>{items.length}</span></h2>
-    {name === "Upcoming" && <button type="button" className="stonklets-upcoming-toggle" onClick={() => setShowUpcoming((value) => !value)} aria-expanded={showUpcoming}>{showUpcoming ? "Hide Upcoming Tokens" : "Show Upcoming Tokens"}</button>}
-    {(name !== "Upcoming" || showUpcoming) && <>
-    {items.length > 0 ? <div className={`stonklets-results${name === "Upcoming" ? " stonklets-results--upcoming" : ""}${isGridLayout(layout) ? " stonklets-results--grid" : ""}${layout === "single-grid" ? " stonklets-results--single-grid" : ""}`}>
-      {isGridLayout(layout) && <div className="stonklets-compact-head"><span aria-hidden="true" /><span>MCap</span><span>24h Vol</span><span>Hold</span><span>{STONKLET_CHANGE_RANGE_LABELS[changeRange].toUpperCase()}</span></div>}
+    {name === "Upcoming" && !search.trim() && <button type="button" className="stonklets-upcoming-toggle" onClick={() => setShowUpcoming((value) => !value)} aria-expanded={showUpcoming}>{showUpcoming ? "Hide Upcoming Tokens" : "Show Upcoming Tokens"}</button>}
+    {(name !== "Upcoming" || showUpcoming || Boolean(search.trim())) && <>
+    {items.length > 0 ? <div className={`stonklets-results${name === "Upcoming" ? " stonklets-results--upcoming" : ""}${isGridLayout(resultLayout) ? " stonklets-results--grid" : ""}${resultLayout === "single-grid" ? " stonklets-results--single-grid" : ""}`}>
+      {isGridLayout(resultLayout) && <div className="stonklets-compact-head"><span aria-hidden="true" /><span>MCap</span><span>24h Vol</span><span>Hold</span><span>{STONKLET_CHANGE_RANGE_LABELS[changeRange].toUpperCase()}</span></div>}
       {renderPairs(items)}
     </div> : !loading && <p className="stonklets-group-empty">{search || favouritesOnly ? "No matching tokens." : name === "Launched" ? "No Stonklets launched yet." : name === "Voting" ? "No Stonklets awaiting votes." : "No upcoming tokens."}</p>}
     </>}

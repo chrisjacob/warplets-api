@@ -1,6 +1,12 @@
 import type { MarketMetrics, StonkletCatalogEntry, StonkletDemoMarketState } from "../shared/stonkletsCatalog";
 
 export type StonkletsMarketSide = "stock" | "stonklet";
+export type StonkletsLayout = "compact" | "chart" | "single-chart" | "single-grid";
+
+export function stonkletsSearchLayout(layout: StonkletsLayout, query: string): StonkletsLayout {
+  if (!query.trim()) return layout;
+  return layout === "single-grid" ? "compact" : layout === "single-chart" ? "chart" : layout;
+}
 export type StonkletsOrderKey = "trending" | "marketCap" | "volume24h" | "holders" | "liquidity" | "change" | "favourites" | "az";
 export type StonkletsDirection = "asc" | "desc";
 export function visibleStonkletsFavourites(stock: Set<string>, stonklet: Set<string>, market: StonkletsMarketSide, single: boolean): Set<string> {
