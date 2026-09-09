@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { AssetCard } from "./StonkletsApp";
 import type { StonkletsMarketEntry } from "./stonkletsMarket";
 import { parseStonkletChangeRange } from "../shared/stonkletsTime";
+import { stonkletShareContentReady } from "../shared/stonkletsShareReadiness";
 
 export default function StonkletShareRender({ id }: { id: string }) {
   const [entry, setEntry] = useState<StonkletsMarketEntry | null>(null);
@@ -47,8 +48,7 @@ export default function StonkletShareRender({ id }: { id: string }) {
   useEffect(() => {
     if (!entry || !host.current) return;
     const check = () => {
-      const charts = host.current?.querySelectorAll('.stonklets-chart');
-      setReady(charts?.length === 2 && !host.current?.querySelector('.stonklets-chart-loading,[data-voters-ready="false"],[data-voter-image-ready="false"],[data-artwork-ready="false"]'));
+      setReady(stonkletShareContentReady(host.current));
     };
     const observer = new MutationObserver(check);
     observer.observe(host.current, { subtree: true, childList: true, attributes: true });

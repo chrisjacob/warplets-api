@@ -6,6 +6,7 @@ import { isStonkletsAppHostname } from "../../../shared/stonkletsApp.js";
 import { parseStonkletChangeRange } from "../../../shared/stonkletsTime.js";
 import { buildStatsShareOgDocument, type StatsSharesEnv } from "../../_lib/statsShares.js";
 import { jsonSecure } from "../../_lib/security.js";
+import { stonkletShareContentReady } from "../../../shared/stonkletsShareReadiness.js";
 
 const CACHE_SECONDS = 300;
 type ShareImageContext = Parameters<PagesFunction<StatsSharesEnv>>[0];
@@ -16,7 +17,7 @@ async function renderShareImage(context: ShareImageContext, backgroundRefresh = 
   if (!entry || !isStonkletsAppHostname(url.hostname)) return jsonSecure({ error: "Unknown Stonklet" }, { status: 404 });
   const range = parseStonkletChangeRange(url.searchParams.get("range")) ?? "24h";
   const variant = url.searchParams.get("variant") === "og" ? "og" : "square";
-  const prefix = `stonklet-shares/v10/${url.hostname}/${entry.id}/${range}`;
+  const prefix = `stonklet-shares/v11/${url.hostname}/${entry.id}/${range}`;
   const key = `${prefix}-${variant}.png`;
   const images = context.env.STATS_SHARE_IMAGES;
   if (!images) return jsonSecure({ error: "Share image rendering is unavailable" }, { status: 503 });
@@ -78,7 +79,7 @@ async function renderShareImage(context: ShareImageContext, backgroundRefresh = 
     const renderUrl = `https://${url.hostname}/stonklets?shareRender=${encodeURIComponent(entry.id)}&change=${range}`;
     await page.goto(renderUrl, { waitUntil: "domcontentloaded", timeout: 30_000 });
     try {
-      await page.waitForSelector('[data-stonklet-share-ready="true"]', { timeout: 45_000 });
+      await page.waitForFunction(stonkletShareContentReady, { timeout: 45_000 });
     } catch (error) {
       const pending = await page.evaluate(() => ({
         ready: document.querySelector('[data-stonklet-share-ready]')?.getAttribute('data-stonklet-share-ready'),
@@ -102,7 +103,9 @@ async function renderShareImage(context: ShareImageContext, backgroundRefresh = 
     // layout settled. Require a stable ready window and then let canvas paint.
     await page.waitForFunction(() => {
       const root = document.querySelector('[data-stonklet-share-ready="true"]');
+      const charts = Array.from(root?.querySelectorAll<HTMLElement>('.stonklets-chart') ?? []);
       const ready = root && !root.querySelector('.stonklets-chart-loading,[data-artwork-ready="false"],[data-voters-ready="false"],[data-voter-image-ready="false"]')
+        && charts.length === 2 && charts.every(chart => chart.dataset.chartReady === "true" || chart.dataset.chartReady === "artwork")
         && Array.from(document.images).every(image => image.complete)
         && document.fonts.status === "loaded";
       const state = document.documentElement;
@@ -112,12 +115,14 @@ async function renderShareImage(context: ShareImageContext, backgroundRefresh = 
       return Date.now() - started >= 750;
     }, { timeout: 30_000, polling: 100 });
     await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
-    const square = await page.screenshot({ type: "png", clip: { x: 0, y: 0, width: 1000, height: 1000 } });
-    await images.put(`${prefix}-square.png`, square, { httpMetadata: { contentType: "image/png" } });
+    if (!await page.evaluate(stonkletShareContentReady)) throw new Error("Charts changed before capture");
+    const square = await page.screenshot({ type: "png", captureBeyondViewport: false, clip: { x: 0, y: 0, width: 1000, height: 1000 } });
+    if (!await page.evaluate(stonkletShareContentReady)) throw new Error("Charts changed during capture");
     await page.setViewport({ width: 1200, height: 630, deviceScaleFactor: 1 });
     await page.setContent(buildStatsShareOgDocument(`data:image/png;base64,${Buffer.from(square).toString("base64")}`));
     await page.evaluate(async () => { await Promise.race([Promise.all(Array.from(document.images).map((image) => image.decode())), new Promise((resolve) => setTimeout(resolve, 5000))]); });
     const og = await page.screenshot({ type: "png", clip: { x: 0, y: 0, width: 1200, height: 630 } });
+    await images.put(`${prefix}-square.png`, square, { httpMetadata: { contentType: "image/png" } });
     await images.put(`${prefix}-og.png`, og, { httpMetadata: { contentType: "image/png" } });
     return new Response(new Uint8Array(variant === "og" ? og : square), { headers });
   } catch (error) {
