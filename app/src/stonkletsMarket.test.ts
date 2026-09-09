@@ -1,12 +1,43 @@
 import { describe, expect, it } from "vitest";
 import { STONKLETS_CATALOG, emptyMarketMetrics } from "../shared/stonkletsCatalog";
-import { entryMatchesQuery, filterAndSortStonklets, visibleStonkletsFavourites, type StonkletsMarketEntry } from "./stonkletsMarket";
+import { entryMatchesQuery, filterAndSortStonklets, stonkletsSearchLayout, visibleStonkletsFavourites, type StonkletsMarketEntry } from "./stonkletsMarket";
 
 function entry(index: number, overrides: Partial<StonkletsMarketEntry> = {}): StonkletsMarketEntry {
   return { ...STONKLETS_CATALOG[index]!, stockMetrics: emptyMarketMetrics(), stonkletMetrics: emptyMarketMetrics(), stockPeriodChange: null, stonkletPeriodChange: null, favourites: 0, momentum7d: 0, stockFavourites: 0, stockMomentum7d: 0, ...overrides };
 }
 
 describe("Stonklets market filtering and ordering", () => {
+  it.each(["chip", "NVDA", "NVDAB", "NVIDIA", "CHIP10X"])("finds the NVIDIA/CHIP pair from %s on either market side", query => {
+    const entries = STONKLETS_CATALOG.map((_, index) => entry(index));
+    for (const market of ["stock", "stonklet"] as const) {
+      const result = filterAndSortStonklets({ entries, query, favourites: new Set(), favouritesOnly: false, market, order: "az", direction: "asc" });
+      expect(result.map(item => item.id)).toContain("nvidia");
+      expect(result.find(item => item.id === "nvidia")?.stock.symbol).toBe("NVDAB");
+      expect(result.find(item => item.id === "nvidia")?.stonklet.symbol).toBe("CHIP10X");
+    }
+  });
+  it("shows paired results during search and restores the chosen layout when cleared", () => {
+    for (const query of ["chip", "NVDA", " NVIDIA "]) {
+      expect(stonkletsSearchLayout("single-grid", query)).toBe("compact");
+      expect(stonkletsSearchLayout("single-chart", query)).toBe("chart");
+    }
+    for (const layout of ["compact", "chart", "single-grid", "single-chart"] as const) {
+      expect(stonkletsSearchLayout(layout, "")).toBe(layout);
+      expect(stonkletsSearchLayout(layout, "   ")).toBe(layout);
+    }
+  });
+  it("matches both identities for every catalog pair", () => {
+    STONKLETS_CATALOG.forEach((pair, index) => {
+      const item = entry(index);
+      for (const identity of [pair.stock, pair.stonklet]) {
+        for (const query of [identity.name, identity.symbol, identity.contractAddress].filter((value): value is string => Boolean(value))) {
+          expect(entryMatchesQuery(item, query), `${pair.id}: ${query}`).toBe(true);
+          expect(stonkletsSearchLayout("single-grid", query)).toBe("compact");
+          expect(stonkletsSearchLayout("single-chart", query)).toBe("chart");
+        }
+      }
+    });
+  });
   it("ranks stocks and launched Stonklets by the selected period's change rather than votes", () => {
     for (const market of ["stock", "stonklet"] as const) {
       const a = entry(0, { launchStatus: "launched", stockPeriodChange: -5, stonkletPeriodChange: -5, stockMomentum7d: 100, momentum7d: 100 });
