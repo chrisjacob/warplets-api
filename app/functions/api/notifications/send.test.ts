@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   ADMIN_NOTIFICATION_BATCH_LIMIT,
   buildProgress,
+  configuredNotificationChannels,
   selectAdminNotificationBatch,
 } from "./send";
 
@@ -73,5 +74,20 @@ describe("admin multi-channel progress", () => {
     });
 
     expect(progress).toMatchObject({ audience: 1, delivered: 1, unsent: 0 });
+  });
+});
+
+
+describe("configured notification channels", () => {
+  const env = { BASE_NOTIFICATIONS_ENABLED: "true", BASE_NOTIFICATIONS_API_KEY: "warplets-key", BASE_STONKLETS_NOTIFICATIONS_API_KEY: "stonklets-key" } as never;
+  it("skips unconfigured Base for Drop without blocking Farcaster or web push", () => {
+    expect(configuredNotificationChannels(env, "drop", ["farcaster", "base", "web-push"])).toEqual(["farcaster", "web-push"]);
+    expect(configuredNotificationChannels(env, "drop", ["base"])).toEqual([]);
+  });
+  it("retains Base for Stonklets when configured", () => {
+    expect(configuredNotificationChannels(env, "stonklets", ["farcaster", "base"])).toEqual(["farcaster", "base"]);
+  });
+  it("skips disabled Base even when its key exists", () => {
+    expect(configuredNotificationChannels({ BASE_NOTIFICATIONS_ENABLED: "false", BASE_STONKLETS_NOTIFICATIONS_API_KEY: "key" } as never, "stonklets", ["base"])).toEqual([]);
   });
 });

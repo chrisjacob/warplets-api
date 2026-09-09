@@ -110,3 +110,22 @@ it("rejects cached metrics and holders from a replaced token contract", async ()
   expect((await loadCmcMarket(makeEnv([old]))).size).toBe(0);
   expect((await loadCmcMarket(makeEnv([current]))).get(old.assetKey)?.contractAddress).toBe(current.contractAddress);
 });
+
+it("keeps valid mappings when new symbols are unlisted", async () => {
+  const { loadCmcMappings } = await import("./stonkletCmc");
+  const calls: string[][] = [];
+  const data = { data: [{ symbol: "SOXLB" }] };
+  const result = await loadCmcMappings(["SOXLB", "BULL10X", "BEAR10X"], async symbols => {
+    calls.push(symbols);
+    if (calls.length === 1) throw new Error('CMC returned 400: Invalid values for "symbol": "BEAR10X,BULL10X"');
+    return data;
+  });
+  expect(calls).toEqual([["SOXLB", "BULL10X", "BEAR10X"], ["SOXLB"]]);
+  expect(result).toBe(data);
+});
+it("does not retry unrelated provider errors", async () => {
+  const { loadCmcMappings } = await import("./stonkletCmc");
+  let calls = 0;
+  await expect(loadCmcMappings(["SOXLB"], async () => { calls++; throw new Error("CMC returned 429: rate limited"); })).rejects.toThrow("429");
+  expect(calls).toBe(1);
+});

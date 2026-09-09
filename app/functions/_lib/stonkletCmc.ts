@@ -324,10 +324,26 @@ export async function loadCmcMarket(env: StonkletCmcEnv): Promise<Map<string, Cm
   return new Map(snapshots.map((snapshot) => [snapshot.assetKey, snapshot]));
 }
 
+export async function loadCmcMappings(symbols: string[], request: (symbols: string[]) => Promise<unknown>): Promise<unknown> {
+  try { return await request(symbols); }
+  catch (error) {
+    const message = error instanceof Error ? error.message : "";
+    const match = /^CMC returned 400: Invalid values? for "symbol": "([^"]+)"/.exec(message);
+    if (!match) throw error;
+    const invalid = new Set(match[1]!.split(",").map(symbol => symbol.trim().toUpperCase()));
+    const remaining = symbols.filter(symbol => !invalid.has(symbol.toUpperCase()));
+    if (remaining.length === symbols.length) throw error;
+    // Retry once; configured contracts remain eligible for holder lookups.
+    return remaining.length ? request(remaining) : { data: [] };
+  }
+}
+
 async function refreshMappings(env: StonkletCmcEnv, candidates: ReturnType<typeof candidateRows>): Promise<number> {
   const symbols = [...new Set(candidates.map((candidate) => candidate.symbol.toUpperCase()))];
-  const params = new URLSearchParams({ symbol: symbols.join(","), aux: "platform" });
-  const { payload } = await fetchCmcJson(env, `/v1/cryptocurrency/map?${params}`);
+  const payload = await loadCmcMappings(symbols, async remaining => {
+    const params = new URLSearchParams({ symbol: remaining.join(","), aux: "platform" });
+    return (await fetchCmcJson(env, `/v1/cryptocurrency/map?${params}`)).payload;
+  });
   const mappedBySymbol = new Map<string, CmcMapItem[]>();
   for (const item of normalizeCmcMap(payload)) {
     if (item.platform?.slug !== "bnb" || !item.platform.token_address) continue;
@@ -434,6 +450,10 @@ export async function ingestCmcMarketIfDue(env: StonkletCmcEnv): Promise<CmcInge
       const lease = await acquireLease(env, "mapping");
       if (lease) {
         try { mapped = await refreshMappings(env, candidates); }
+        catch (error) {
+          if (error instanceof CmcBudgetError) throw error;
+          console.warn("stonklets_cmc_mapping_error", { message: error instanceof Error ? error.message : String(error) });
+        }
         finally { await releaseLease(env, "mapping", lease); }
         rows = await readRows(env);
       }

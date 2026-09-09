@@ -90,6 +90,12 @@ interface ChannelDeliveryStatusRow {
 
 type AdminNotificationChannel = "farcaster" | "base" | "web-push";
 
+export function configuredNotificationChannels(env: BaseNotificationsEnv, appSlug: AppSlug, channels: AdminNotificationChannel[]): AdminNotificationChannel[] {
+  const baseAvailable = env.BASE_NOTIFICATIONS_ENABLED === "true" && Boolean(resolveBaseNotificationConfig(env, appSlug).apiKey);
+  return channels.filter(channel => channel !== "base" || baseAvailable);
+}
+
+
 interface TokenInspectRow {
   fid: number;
   app_slug: string;
@@ -538,7 +544,12 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   if (json.channels !== undefined && (!Array.isArray(json.channels) || json.channels.some((channel) => channel !== "farcaster" && channel !== "base" && channel !== "web-push"))) {
     return jsonSecure({ error: "channels must contain farcaster, base, and/or web-push" }, { status: 400 });
   }
-  const channels = [...new Set(json.channels?.length ? json.channels : ["farcaster"])] as Array<"farcaster" | "base" | "web-push">;
+  const audienceSlug = normalizeNotificationAudienceSlug(json.appSlug, "app");
+  const requestedChannels = [...new Set(json.channels?.length ? json.channels : ["farcaster"])] as AdminNotificationChannel[];
+  const channels = configuredNotificationChannels(context.env, audienceSlug === "all" ? WARPLETS_APP_SLUG : audienceSlug as AppSlug, requestedChannels);
+  if (!channels.length) {
+    return jsonSecure({ error: `Base notifications are not configured or enabled for ${audienceSlug}` }, { status: 400 });
+  }
   const wantFarcaster = channels.includes("farcaster");
   const wantBase = channels.includes("base");
   const wantWebPush = channels.includes("web-push");
@@ -555,7 +566,6 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
   const title = json.title.slice(0, 32);
   const body = json.body.slice(0, 128);
-  const audienceSlug = normalizeNotificationAudienceSlug(json.appSlug, "app");
   const notificationId = buildNotificationId(audienceSlug, json.notificationId);
   const targetBase = json.targetUrl ?? getDefaultLaunchUrl(audienceSlug === "all" ? "app" : audienceSlug);
   const targetUrl = withQueryParam(targetBase, "notificationId", notificationId);

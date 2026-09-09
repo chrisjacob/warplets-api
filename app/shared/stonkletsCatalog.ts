@@ -96,7 +96,7 @@ const rows = [
   ["direxion-soxl", "Semis 3× Long", "SOXLB", "BULL 牛 10X.MEME", "BULL10X", "available", "Direxion Daily Semiconductor Bull 3X ETF-Bull.webp"],
   ["moderna", "Moderna", "MRNAB", "Dealer", "DEALER", "available", "Moderna-Dealer.webp"],
   ["paypal", "PayPal", "PYPLB", "Bro", "BRO", "upcoming", "PayPal Holdings-Bro.webp"],
-  ["proshares-sqqq", "ProShares UltraPro Short QQQ", "SQQQB", "NASDAQ Bear", "NASDAQBEAR", "upcoming", "ProShares UltraPro Short QQQ-NASDAQ Bear.webp"],
+  ["proshares-sqqq", "ProShares UltraPro Short QQQ", "SQQQB", "NASBEAR", "NASBEAR", "upcoming", "ProShares UltraPro Short QQQ-NASDAQ Bear.webp"],
 ] as const;
 
 // Launched contracts use their own market sources. Other entries retain demo sources.
