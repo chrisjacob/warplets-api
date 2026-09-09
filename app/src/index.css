@@ -19,20 +19,8 @@ html {
   background-color: #000000;
 }
 
-/* Keep iPhone's status-bar safe area owned by the app shell rather than by a
-   temporary fixed toast. Safari otherwise samples the warning red for its
-   browser chrome and may retain it after the toast has been dismissed. */
-html::before {
-  position: fixed;
-  top: var(--app-visual-viewport-offset-top, 0px);
-  right: 0;
-  left: 0;
-  z-index: 2401;
-  height: env(safe-area-inset-top);
-  background: #000000;
-  content: "";
-  pointer-events: none;
-}
+/* Use the page background for browser chrome. A fixed safe-area overlay can
+   cover the header in embedded iOS browsers that already inset web content. */
 
 .os-theme-10x {
   --os-size: 10px;
