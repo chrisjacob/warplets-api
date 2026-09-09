@@ -22,9 +22,9 @@ describe("Stonklet sharing", () => {
     expect(decodeURI(share.artwork)).toContain("Bull.webp");
   });
   it("asks for votes and omits trading links for an unlaunched Stonklet", () => {
-    const entry = STONKLETS_CATALOG.find((item) => item.stonklet.symbol === "ARROW")!;
+    const entry = STONKLETS_CATALOG.find((item) => item.stonklet.symbol === "VAULT")!;
     const share = stonkletShare(entry, "stonklet-local.10x.meme");
-    expect(share.text).toBe("✅ Vote for Stonklet: Arrow ( $ARROW ).\n\nMemecoin paired with Stock: Robinhood ( $HOODB ).\n\nhttps://stonklet-local.10x.meme/arrow");
+    expect(share.text).toBe("✅ Vote for Stonklet: Vault ( $VAULT ).\n\nMemecoin paired with Stock: BitMine Immersion Technologies ( $BMNRB ).\n\nhttps://stonklet-local.10x.meme/vault");
     expect(share.text).not.toContain("fomo.family");
   });
 });

@@ -855,7 +855,7 @@ export default function StonkletsApp() {
         {marketError && <p className="stonklets-state is-error">{marketError}. Catalog and voting remain available.</p>}
         {loading && <p className="stonklets-loading" aria-live="polite">{marketLoadingMessage}</p>}
         {renderGroup("Launched", launchedEntries)}
-        {renderGroup("Voting", votingEntries)}
+        {votingEntries.length > 0 && renderGroup("Voting", votingEntries)}
         {renderGroup("Upcoming", upcomingEntries)}
         {!filtered.length && <p className="stonklets-empty-status">{favouritesOnly ? "No favourites found." : "No pairings found."}{search && <> <button type="button" onClick={() => setSearch("")}>Reset search</button>.</>}</p>}
         {!showUpcoming && launchedEntries.length === 0 && votingEntries.length === 0 && upcomingEntries.length > 0 && <p className="stonklets-empty-status">Matching results are in Upcoming Tokens.</p>}

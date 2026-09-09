@@ -43,8 +43,8 @@ describe("Stonklets market filtering and ordering", () => {
     expect(entryMatchesQuery(orbit, "ORBIT")).toBe(true);
     expect(entryMatchesQuery(orbit, "0xstock")).toBe(true);
     expect(entryMatchesQuery(orbit, "0xstonklet")).toBe(true);
-    expect(entryMatchesQuery(orbit, "MarsCoin")).toBe(true);
-    expect(entryMatchesQuery(orbit, "0xfe189e97832d")).toBe(true);
+    expect(entryMatchesQuery(orbit, "ORBIT10X")).toBe(true);
+    expect(entryMatchesQuery(orbit, "0xe7bb667c3586")).toBe(true);
   });
 
   it("shows all personal favourites when a text query has no results", () => {

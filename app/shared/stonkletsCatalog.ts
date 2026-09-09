@@ -53,22 +53,22 @@ export interface MarketMetrics {
 }
 
 const rows = [
-  ["spacex", "SpaceX", "SPCXB", "Orbit", "ORBIT", "available", "SpaceX-Orbit.webp"],
-  ["sk-hynix", "SK Hynix", "SKHYB", "Byte", "BYTE", "available", "SK hynix-Byte.webp"],
-  ["spy", "SPY", "SPYB", "Spider", "SPIDER", "available", "SPDR S&P 500 ETF-Spider.webp"],
-  ["tether-gold", "Tether Gold", "XAUT", "Nugget", "NUGGET", "available", "Tether Gold-Nugget.webp"],
-  ["invesco-qqq", "Invesco QQQ Trust", "QQQB", "Quanta", "QUANTA", "available", "Invesco QQQ Trust-Quanta.webp"],
-  ["nvidia", "NVIDIA", "NVDAB", "Chip", "CHIP", "available", "NVIDIA-Chip.webp"],
-  ["apple", "Apple", "AAPLB", "Core", "CORE", "available", "Apple-Core.webp"],
-  ["tesla", "Tesla", "TSLAB", "Volt", "VOLT", "available", "Tesla-Volt.webp"],
-  ["microsoft", "Microsoft", "MSFTB", "Cloud", "CLOUD", "available", "Microsoft-Cloud.webp"],
-  ["alphabet", "Alphabet", "GOOGLB", "Scout", "SCOUT", "available", "AlphabetGoogle-Scout.webp"],
-  ["robinhood", "Robinhood", "HOODB", "Arrow", "ARROW", "available", "Robinhood-Arrow.webp"],
-  ["alibaba", "Alibaba", "BABAB", "Bazaar", "BAZAAR", "available", "Alibaba-Bazaar.webp"],
-  ["gamestop", "GameStop", "GMEB", "Player", "PLAYER", "available", "GameStop-Player.webp"],
-  ["netflix", "Netflix", "NFLXB", "Binge", "BINGE", "available", "Netflix-Binge.webp"],
-  ["strategy", "Strategy", "MSTRB", "Stack", "STACK", "available", "Strategy-Stack.webp"],
-  ["trump-media", "Trump Media & Technology Group", "DJTB", "YUGE", "YUGE", "available", "Trump Media Technology Group-Echo.webp"],
+  ["spacex", "SpaceX", "SPCXB", "ORBIT 轨道 10X.MEME", "ORBIT10X", "available", "SpaceX-Orbit.webp"],
+  ["sk-hynix", "SK Hynix", "SKHYB", "BYTE 字节 10X.MEME", "BYTE10X", "available", "SK hynix-Byte.webp"],
+  ["spy", "SPY", "SPYB", "SPIDER 蜘蛛 10X.MEME", "SPIDER10X", "available", "SPDR S&P 500 ETF-Spider.webp"],
+  ["tether-gold", "Tether Gold", "XAUT", "NUGGET 金块 10X.MEME", "NUGGET10X", "available", "Tether Gold-Nugget.webp"],
+  ["invesco-qqq", "Invesco QQQ Trust", "QQQB", "QUANTA 量子 10X.MEME", "QUANTA10X", "available", "Invesco QQQ Trust-Quanta.webp"],
+  ["nvidia", "NVIDIA", "NVDAB", "CHIP 芯片 10X.MEME", "CHIP10X", "available", "NVIDIA-Chip.webp"],
+  ["apple", "Apple", "AAPLB", "CORE 核心 10X.MEME", "CORE10X", "available", "Apple-Core.webp"],
+  ["tesla", "Tesla", "TSLAB", "VOLT 伏特 10X.MEME", "VOLT10X", "available", "Tesla-Volt.webp"],
+  ["microsoft", "Microsoft", "MSFTB", "CLOUD 云 10X.MEME", "CLOUD10X", "available", "Microsoft-Cloud.webp"],
+  ["alphabet", "Alphabet", "GOOGLB", "SCOUT 搜索 10X.MEME", "SCOUT10X", "available", "AlphabetGoogle-Scout.webp"],
+  ["robinhood", "Robinhood", "HOODB", "ARROW 箭 10X.MEME", "ARROW10X", "available", "Robinhood-Arrow.webp"],
+  ["alibaba", "Alibaba", "BABAB", "BAZAAR 集市 10X.MEME", "BAZAAR10X", "available", "Alibaba-Bazaar.webp"],
+  ["gamestop", "GameStop", "GMEB", "PLAYER 玩家 10X.MEME", "PLAYER10X", "available", "GameStop-Player.webp"],
+  ["netflix", "Netflix", "NFLXB", "BINGE 刷剧 10X.MEME", "BINGE10X", "available", "Netflix-Binge.webp"],
+  ["strategy", "Strategy", "MSTRB", "STACK 堆叠 10X.MEME", "STACK10X", "available", "Strategy-Stack.webp"],
+  ["trump-media", "Trump Media & Technology Group", "DJTB", "YUGE 巨 10X.MEME", "YUGE10X", "available", "Trump Media Technology Group-Echo.webp"],
   ["bitmine", "BitMine Immersion Technologies", "BMNRB", "Vault", "VAULT", "upcoming", "BitMine Immersion Technologies-Vault.webp"],
   ["super-micro", "Super Micro Computer", "SMCIB", "Rack", "RACK", "upcoming", "Super Micro Computer-Rack.webp"],
   ["iren", "IREN", "IRENB", "Grid", "GRID", "upcoming", "IREN-Grid.webp"],
@@ -91,70 +91,22 @@ const rows = [
   ["amazon", "Amazon", "AMZNB", "Parcel", "PARCEL", "upcoming", "Amazon-Parcel.webp"],
   ["direxion-soxs", "Semis 3× Short", "SOXSB", "BEAR 熊 10X.MEME", "BEAR10X", "available", "Direxion Daily Semiconductor Bear 3X ETF-Bear.webp"],
   ["dell", "Dell", "DELLB", "Rig", "RIG", "upcoming", "Dell Technologies-Rig.webp"],
-  ["fluence", "Fluence Energy", "FLNCB", "Charge", "CHARGE", "available", "Fluence Energy-Charge.webp"],
+  ["fluence", "Fluence Energy", "FLNCB", "CHARGE 充电 10X.MEME", "CHARGE10X", "available", "Fluence Energy-Charge.webp"],
   ["applied-materials", "Applied Materials", "AMATB", "Fab", "FAB", "upcoming", "Applied Materials-Fab.webp"],
   ["direxion-soxl", "Semis 3× Long", "SOXLB", "BULL 牛 10X.MEME", "BULL10X", "available", "Direxion Daily Semiconductor Bull 3X ETF-Bull.webp"],
-  ["moderna", "Moderna", "MRNAB", "Dealer", "DEALER", "available", "Moderna-Dealer.webp"],
+  ["moderna", "Moderna", "MRNAB", "DEALER 药商 10X.MEME", "DEALER10X", "available", "Moderna-Dealer.webp"],
   ["paypal", "PayPal", "PYPLB", "Bro", "BRO", "upcoming", "PayPal Holdings-Bro.webp"],
   ["proshares-sqqq", "ProShares UltraPro Short QQQ", "SQQQB", "NASBEAR", "NASBEAR", "upcoming", "ProShares UltraPro Short QQQ-NASDAQ Bear.webp"],
 ] as const;
 
-// Launched contracts use their own market sources. Other entries retain demo sources.
-const demoTokens: Partial<Record<string, FlapDemoToken>> = {
-  "direxion-soxl": {
-    name: "BULL ? 10X.MEME", symbol: "BULL10X", contractAddress: "0x21d68a77b309a0835a2ee52378d2fd2e12e97777",
-    expectedLifecycle: "bonding", poolAddress: "0x4257be928d2bd88548330f9de6f921fadf87cccf", quoteSymbol: "SOXLB", chartTokenSide: "base",
-    flapUrl: "https://flap.sh/bnb/0x21d68a77b309a0835a2ee52378d2fd2e12e97777?lang=en",
-  },
-  "direxion-soxs": {
-    name: "BEAR ? 10X.MEME", symbol: "BEAR10X", contractAddress: "0x10cdfce1effe43e912dace17fe925cf87e987777",
-    expectedLifecycle: "bonding", poolAddress: "0x95cb4928119a2cca9c08bd5a3d84ebc269558e94", quoteSymbol: "SOXSB", chartTokenSide: "base",
-    flapUrl: "https://flap.sh/bnb/0x10cdfce1effe43e912dace17fe925cf87e987777?lang=en",
-  },
-  spacex: {
-    name: "MarsCoin",
-    symbol: "MarsCoin",
-    contractAddress: "0xfe189e97832da1573e4e4ff034f4ffc3a15c7777",
-    expectedLifecycle: "migrated",
-    poolAddress: "0x94F3ed36706c746ad59fAdCAF271b7431AB1D8F1",
-    quoteSymbol: "SPCXB",
-    chartTokenSide: "quote",
-    flapUrl: "https://flap.sh/bnb/0xfe189e97832da1573e4e4ff034f4ffc3a15c7777?lang=en",
-  },
-  nvidia: {
-    name: "RWA",
-    symbol: "RWA",
-    contractAddress: "0x5675bd4ac800068a147ebc9aeb464ff9fc167777",
-    expectedLifecycle: "migrated",
-    poolAddress: "0xA32a88D989f1Ffa67000fCBB7E2BD864F68FFc0a",
-    quoteSymbol: "WBNB",
-    chartTokenSide: "base",
-    flapUrl: "https://flap.sh/bnb/0x5675bd4ac800068a147ebc9aeb464ff9fc167777?lang=en",
-  },
-  apple: {
-    name: "Bear On Moon",
-    symbol: "BOM",
-    contractAddress: "0x8c7b8f21b0faf2879720a8951fdacc3c4b987777",
-    expectedLifecycle: "bonding",
-    poolAddress: null,
-    quoteSymbol: "BNB",
-    chartTokenSide: null,
-    flapUrl: "https://flap.sh/bnb/0x8c7b8f21b0faf2879720a8951fdacc3c4b987777?lang=en",
-  },
-  tesla: {
-    name: "FLAPGOTCHI",
-    symbol: "FLAPGOTCHI",
-    contractAddress: "0x10e4f3f1ea55c465f2bb7d36cdd7ea390c867777",
-    expectedLifecycle: "bonding",
-    poolAddress: null,
-    quoteSymbol: "BNB",
-    chartTokenSide: null,
-    flapUrl: "https://flap.sh/bnb/0x10e4f3f1ea55c465f2bb7d36cdd7ea390c867777?lang=en",
-  },
-};
-
 export const STONKLETS_CATALOG: readonly StonkletCatalogEntry[] = rows.map((row) => {
   const [id, stockName, stockSymbol, stonkletName, stonkletSymbol, pairingStatus, imageFile] = row;
+  const address = STONKLET_TRADE_DESTINATIONS[id];
+  const marketToken: FlapDemoToken | null = address ? {
+    name: stonkletName, symbol: stonkletSymbol, contractAddress: address as `0x${string}`,
+    expectedLifecycle: "bonding", poolAddress: null, quoteSymbol: stockSymbol, chartTokenSide: null,
+    flapUrl: `https://flap.sh/bnb/${address}?lang=en`,
+  } : null;
   return {
     id,
     stock: {
@@ -171,9 +123,9 @@ export const STONKLETS_CATALOG: readonly StonkletCatalogEntry[] = rows.map((row)
       image: `/stonklets/stonklets/${encodeURI(imageFile)}`,
     },
     launchStatus: STONKLET_TRADE_DESTINATIONS[id] ? "launched" : "prelaunch",
-    flapUrl: STONKLET_TRADE_DESTINATIONS[id] ? demoTokens[id]!.flapUrl : "https://flap.sh/",
+    flapUrl: marketToken?.flapUrl ?? "https://flap.sh/",
     launchedAt: null,
-    demoToken: demoTokens[id] ?? null,
+    demoToken: marketToken,
   };
 });
 

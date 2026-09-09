@@ -25,15 +25,15 @@ describe("Stonklets catalog", () => {
 
   it("keeps prelaunch addresses nullable until official contracts are configured", () => {
     expect(STONKLETS_CATALOG.filter(entry => entry.launchStatus !== "launched").every((entry) => entry.stonklet.contractAddress === null)).toBe(true);
-    expect(STONKLETS_CATALOG.filter((entry) => entry.launchStatus === "launched").map((entry) => entry.stonklet.symbol).sort()).toEqual(["BEAR10X", "BULL10X"]);
+    expect(STONKLETS_CATALOG.filter((entry) => entry.launchStatus === "launched")).toHaveLength(20);
   });
 
   it("uses the supplied character images", () => {
     const images = Object.fromEntries(STONKLETS_CATALOG.map((entry) => [entry.stonklet.symbol, entry.stonklet.image]));
-    expect(images.ORBIT).toBe("/stonklets/stonklets/SpaceX-Orbit.webp");
-    expect(images.CHIP).toBe("/stonklets/stonklets/NVIDIA-Chip.webp");
-    expect(images.CORE).toBe("/stonklets/stonklets/Apple-Core.webp");
-    expect(images.VOLT).toBe("/stonklets/stonklets/Tesla-Volt.webp");
+    expect(images.ORBIT10X).toBe("/stonklets/stonklets/SpaceX-Orbit.webp");
+    expect(images.CHIP10X).toBe("/stonklets/stonklets/NVIDIA-Chip.webp");
+    expect(images.CORE10X).toBe("/stonklets/stonklets/Apple-Core.webp");
+    expect(images.VOLT10X).toBe("/stonklets/stonklets/Tesla-Volt.webp");
   });
 
   it("serves every stock image from a unique local image path", () => {
@@ -42,19 +42,16 @@ describe("Stonklets catalog", () => {
     expect(logos.every((logo) => /^\/stonklets\/stocks\/[a-z0-9-]+\.(png|svg)$/.test(logo))).toBe(true);
   });
 
-  it("keeps the original four demo proxies separate from official Stonklet contracts", () => {
-    const mapped = STONKLETS_CATALOG.filter((entry) => entry.demoToken && entry.launchStatus !== "launched");
-    expect(mapped).toHaveLength(4);
-    expect(new Set(mapped.map((entry) => entry.demoToken?.contractAddress.toLowerCase())).size).toBe(4);
-    expect(mapped.filter((entry) => entry.demoToken?.expectedLifecycle === "migrated")).toHaveLength(2);
-    expect(mapped.filter((entry) => entry.demoToken?.expectedLifecycle === "bonding")).toHaveLength(2);
-    expect(Object.fromEntries(mapped.map((entry) => [entry.stonklet.symbol, entry.demoToken?.name]))).toEqual({
-      ORBIT: "MarsCoin",
-      CHIP: "RWA",
-      CORE: "Bear On Moon",
-      VOLT: "FLAPGOTCHI",
-    });
-    expect(mapped.every((entry) => entry.stonklet.contractAddress === null)).toBe(true);
+  it("uses each launched contract for market data and trading, with no demo proxies", () => {
+    for (const entry of STONKLETS_CATALOG) {
+      if (entry.launchStatus === "launched") {
+        expect(entry.stonklet.contractAddress).toMatch(/^0x[0-9a-f]{40}$/);
+        expect(entry.demoToken).toMatchObject({ name: entry.stonklet.name, symbol: entry.stonklet.symbol, contractAddress: entry.stonklet.contractAddress });
+        expect(entry.flapUrl).toBe(`https://flap.sh/bnb/${entry.stonklet.contractAddress}?lang=en`);
+      } else {
+        expect(entry.demoToken).toBeNull();
+      }
+    }
   });
 });
 
@@ -64,6 +61,6 @@ it.each([
 ])("uses the launched %s contract for both market data and identity", (symbol, address, quote) => {
   const entry = STONKLETS_CATALOG.find(entry => entry.stonklet.symbol === symbol)!;
   expect(entry.stonklet.contractAddress).toBe(address);
-  expect(entry.demoToken).toMatchObject({ symbol, contractAddress: address, quoteSymbol: quote, chartTokenSide: "base" });
+  expect(entry.demoToken).toMatchObject({ symbol, contractAddress: address, quoteSymbol: quote, chartTokenSide: null });
   expect(entry.flapUrl).toBe(`https://flap.sh/bnb/${address}?lang=en`);
 });
