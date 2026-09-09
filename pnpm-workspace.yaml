@@ -18,3 +18,6 @@ ignoredOptionalDependencies:
 auditConfig:
   ignoreCves:
     - CVE-2026-56876
+    # Same unused browser installer: duplicate-entry symlink overwrite.
+    # Approved exception; revisit if local browser installation or ZIP extraction is added.
+    - CVE-2026-19693
