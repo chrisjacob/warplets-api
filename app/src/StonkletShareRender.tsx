@@ -27,12 +27,14 @@ export default function StonkletShareRender({ id }: { id: string }) {
     let cancelled = false;
     const fit = () => {
       if (cancelled) return;
-      for (const selector of [".stonklets-card-identity>div>b", ".stonklets-card-identity>div>span"]) {
+      for (const selector of [".stonklets-card-identity>div>b", ".stonklets-card-identity>div>span", ".stonklet-share-contract"]) {
         root.querySelectorAll<HTMLElement>(selector).forEach(element => {
           element.style.fontSize = "";
-          const size = parseFloat(getComputedStyle(element).fontSize);
+          const style = getComputedStyle(element);
+          const size = parseFloat(style.fontSize);
+          const padding = parseFloat(style.paddingLeft) + parseFloat(style.paddingRight);
           if (element.scrollWidth > element.clientWidth && element.clientWidth > 0) {
-            element.style.fontSize = `${size * element.clientWidth / element.scrollWidth}px`;
+            element.style.fontSize = `${size * (element.clientWidth - padding) / (element.scrollWidth - padding)}px`;
           }
         });
       }
