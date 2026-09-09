@@ -2341,18 +2341,18 @@ a.stonklets-trade{display:flex;align-items:center;justify-content:center;box-siz
 /* Full-height server-rendered comparison; scoped away from the live cards. */
 .stonklet-share-square{align-items:stretch}
 .stonklet-share-square>.stonklets-pair{display:flex;flex-direction:column;height:100%;box-sizing:border-box}
-.stonklet-share-square .stonklets-chart-pair{flex:1;min-height:0;background:transparent}
-.stonklet-share-square .stonklets-asset-card{display:flex;flex-direction:column;min-height:0;padding:18px 6px 10px}
-.stonklet-share-square .stonklets-chart-pair:not(.stonklets-chart-pair--single) .stonklets-card-header{grid-template-columns:76px minmax(0,1fr) auto;grid-template-rows:42px 32px;column-gap:8px;flex-shrink:0;margin-bottom:18px}
-.stonklet-share-square .stonklets-identity-image{width:76px;height:76px;flex-basis:76px}
-.stonklet-share-square .stonklets-card-identity b{font-size:26px;line-height:42px}
-.stonklet-share-square .stonklets-card-identity span{font-size:16px;line-height:32px;font-weight:800;letter-spacing:-.03em;transform:translateY(-6px)}
+.stonklet-share-square .stonklets-chart-pair{flex:1;min-height:0;margin-bottom:-6px;background:transparent}
+.stonklet-share-square .stonklets-asset-card{display:flex;flex-direction:column;min-height:0;padding:18px 6px 0}
+.stonklet-share-square .stonklets-chart-pair:not(.stonklets-chart-pair--single) .stonklets-card-header{grid-template-columns:66px minmax(0,1fr);grid-template-rows:36px 30px;column-gap:8px;flex-shrink:0;margin-bottom:12px}
+.stonklet-share-square .stonklets-identity-image{width:66px;height:66px;flex-basis:66px}
+.stonklet-share-square .stonklets-card-identity b{font-size:24px;line-height:36px}
+.stonklet-share-square .stonklets-card-identity span{font-size:16px;line-height:30px;font-weight:800;letter-spacing:-.03em}
 .stonklet-share-square .stonklets-chart{flex:1;min-height:0;width:100%;height:auto;aspect-ratio:auto}
-.stonklet-share-square .stonklets-chart>strong{font-size:23px;top:9px;right:9px}
+.stonklet-share-square .stonklets-chart>strong{font-size:26px;top:9px;right:9px}
 .stonklet-share-square .stonklets-card-metrics{flex-shrink:0;margin:16px 0 0;gap:6px}
 .stonklet-share-square .stonklets-card-metrics span{font-size:16px;line-height:26px;font-weight:800;letter-spacing:-.04em}
 .stonklet-share-square .stonklets-card-metrics small{font-size:13px;line-height:20px;font-weight:900;margin-bottom:6px;letter-spacing:-.03em}
-.stonklet-share-timestamp{flex-shrink:0;padding:8px 10px 10px;color:#8bbf8b;font-size:10px;line-height:14px;text-align:center}
+.stonklet-share-timestamp{flex-shrink:0;padding:0 10px 6px;color:#8bbf8b;font-size:10px;line-height:14px;text-align:center}
 
 .stonklet-share-square .stonklets-heart--chart b{font-size:18px;line-height:26px}
 .stonklet-share-square .stonklets-heart--chart svg{width:26px;height:26px}
@@ -2363,3 +2363,15 @@ a.stonklets-trade{display:flex;align-items:center;justify-content:center;box-siz
 .stonklet-share-square .stonklets-chart-fallback{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center}
 
 .stonklet-share-square [data-artwork-ready] img{transition:none}
+
+/* Share-only social proof and full contract identity. */
+.stonklet-share-square .stonklets-card-identity>div>span{grid-column:2!important}
+.stonklet-share-square .stonklets-paired-stock-logo{right:-5px;bottom:-5px}
+.stonklet-share-favourites{display:flex;align-items:center;gap:10px;height:32px;flex-shrink:0;margin:0 0 12px}
+.stonklet-share-favourites>.stonklets-heart{flex:none;color:#00ff00}
+.stonklet-share-avatars{position:relative;flex:1;min-width:0;height:28px}
+.stonklet-share-avatars>span{position:absolute;top:0;width:28px;height:28px}
+.stonklet-share-avatars .stonklets-voter-avatar{width:28px;height:28px;border:1.5px solid #153015;box-sizing:border-box}
+.stonklet-share-contract{flex-shrink:0;white-space:nowrap;margin-top:13px;padding:7px 4px;border:1px solid rgb(238 220 90 / 20%);border-radius:4px;background:rgb(238 220 90 / 7%);color:#b8b07b;font-size:9.5px;line-height:12px;text-align:center;letter-spacing:-.045em}
+
+.stonklet-share-square .stonklets-chart-price-range{font-size:13px;height:22px;bottom:10px}

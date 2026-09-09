@@ -25,6 +25,17 @@ async function get(binding: unknown, query = "", host = "localhost") {
 }
 
 describe("Stonklet voter pages", () => {
+  it("keeps stock favourites separate from Stonklet favourites", async () => {
+    const { db, binding } = database();
+    db.prepare("INSERT INTO stonklet_asset_favourites VALUES (?, 'apple', 'stock', 1, '2026-09-01')").run(wallet(1));
+    db.prepare("INSERT INTO stonklet_asset_favourites VALUES (?, 'apple', 'stonklet', 1, '2026-09-01')").run(wallet(2));
+    db.prepare("INSERT INTO warplets_users VALUES (1, ?, 'stock-fan', 'https://example.com/1.png')").run(wallet(1));
+    const { body } = await get(binding, "&asset=stock&stack=1");
+    expect(body.total).toBe(1);
+    expect(body.voters.map(voter => voter.wallet)).toEqual([wallet(1)]);
+    expect((await get(binding, "&asset=invalid")).response.status).toBe(400);
+  });
+
   it("counts only active Stonklet favourites and paginates tied timestamps without duplicate wallets", async () => {
     const { db, binding } = database();
     const insert = db.prepare("INSERT INTO stonklet_asset_favourites VALUES (?, 'apple', ?, ?, ?)");

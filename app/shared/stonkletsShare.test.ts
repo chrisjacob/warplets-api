@@ -13,7 +13,7 @@ describe("Stonklet sharing", () => {
   it("uses Stonklet-specific post, original artwork, and safe referral destination", () => {
     const bull = STONKLETS_CATALOG.find((entry) => entry.id === "direxion-soxl")!;
     const share = stonkletShare(bull, "stonklet-local.10x.meme", "1h");
-    expect(share.title).toContain("BULL 牛 ( $BULL10X )");
+    expect(share.title).toContain("BULL 牛 $BULL10X");
     expect(share.description).toContain(bull.stock.name);
     expect(share.url).toBe("https://stonklet-local.10x.meme/bull10x?change=1h");
     expect(share.text).toContain("https://flap.sh/bnb/0x21d68a77b309a0835a2ee52378d2fd2e12e97777?lang=en");
@@ -24,7 +24,7 @@ describe("Stonklet sharing", () => {
   it("asks for votes and omits trading links for an unlaunched Stonklet", () => {
     const entry = STONKLETS_CATALOG.find((item) => item.stonklet.symbol === "VAULT")!;
     const share = stonkletShare(entry, "stonklet-local.10x.meme");
-    expect(share.text).toBe("✅ Vote for Stonklet: Vault ( $VAULT ).\n\nMemecoin paired with Stock: BitMine Immersion Technologies ( $BMNRB ).\n\nhttps://stonklet-local.10x.meme/vault");
+    expect(share.text).toBe("✅ Vote for Stonklet: Vault $VAULT\n\nMemecoin paired with Stock: BitMine Immersion Technologies $BMNRB\n\nhttps://stonklet-local.10x.meme/vault");
     expect(share.text).not.toContain("fomo.family");
   });
 });

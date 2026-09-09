@@ -17,7 +17,7 @@ export const VOTERS_SQL = `WITH voters AS (
  LEFT JOIN warplets_users u ON u.fid = COALESCE(l.fid, (
    SELECT fid FROM warplets_users WHERE lower(trim(primary_eth_address)) = f.identity_wallet ORDER BY fid LIMIT 1
  ))
- WHERE f.pair_id = ? AND f.asset = 'stonklet' AND f.active = 1
+ WHERE f.pair_id = ? AND f.asset = ? AND f.active = 1
 )
 SELECT * FROM voters WHERE (? = 0 OR image LIKE 'https://%' OR image LIKE 'http://%')
  AND (? IS NULL OR favourited_at < ? OR (favourited_at = ? AND identity_wallet > ?))
@@ -27,6 +27,8 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   const url = new URL(request.url);
   const id = url.searchParams.get("id") ?? "";
   if (!STONKLETS_BY_ID.has(id)) return jsonSecure({ error: "unknown Stonklet" }, { status: 400 });
+  const asset = url.searchParams.get("asset") ?? "stonklet";
+  if (asset !== "stonklet" && asset !== "stock") return jsonSecure({ error: "invalid asset" }, { status: 400 });
   const stack = url.searchParams.get("stack") === "1";
   const size = stack ? 10 : 20;
   const rawCursor = url.searchParams.get("cursor");
@@ -65,8 +67,8 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
     return jsonSecure({ total, voters, nextCursor: !stack && index < total ? String(index) : null });
   }
   const [count, page] = await Promise.all([
-    env.WARPLETS.prepare("SELECT COUNT(*) AS total FROM stonklet_asset_favourites WHERE pair_id = ? AND asset = 'stonklet' AND active = 1").bind(id).first<{ total: number }>(),
-    env.WARPLETS.prepare(VOTERS_SQL).bind(id, stack ? 1 : 0, cursor?.[0] ?? null, cursor?.[0] ?? null, cursor?.[0] ?? null, cursor?.[1] ?? null, size + 1).all<Row>(),
+    env.WARPLETS.prepare("SELECT COUNT(*) AS total FROM stonklet_asset_favourites WHERE pair_id = ? AND asset = ? AND active = 1").bind(id, asset).first<{ total: number }>(),
+    env.WARPLETS.prepare(VOTERS_SQL).bind(id, asset, stack ? 1 : 0, cursor?.[0] ?? null, cursor?.[0] ?? null, cursor?.[0] ?? null, cursor?.[1] ?? null, size + 1).all<Row>(),
   ]);
   const rows = page.results ?? [];
   const selected = rows.slice(0, size);

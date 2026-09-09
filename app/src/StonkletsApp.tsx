@@ -1,3 +1,4 @@
+import StonkletShareFavourites from "./StonkletShareFavourites";
 import { isLikelyBaseAppBrowser } from "./pwa";
 import ProgressiveStonkletImage, { stonkletThumbnail } from "./ProgressiveStonkletImage";
 import StonkletsAbout from "./StonkletsAbout";
@@ -374,7 +375,7 @@ function DeferredChart({ pairId, asset, range, periodChange, previewSource }: { 
   </div>;
 }
 
-export function AssetCard({ entry, asset, range, favourite, busy, onFavourite }: { entry: MarketEntry; asset: MarketSide; range: StonkletChangeRange; favourite: boolean; busy: boolean; onFavourite: () => void }) {
+export function AssetCard({ entry, asset, range, favourite, busy, onFavourite, shareRender = false }: { entry: MarketEntry; asset: MarketSide; range: StonkletChangeRange; favourite: boolean; busy: boolean; onFavourite: () => void; shareRender?: boolean }) {
   const identity = asset === "stock" ? entry.stock : entry.stonklet;
   const metrics = asset === "stock" ? entry.stockMetrics : entry.stonkletMetrics;
   const periodChange = asset === "stock" ? entry.stockPeriodChange : entry.stonkletPeriodChange;
@@ -383,13 +384,15 @@ export function AssetCard({ entry, asset, range, favourite, busy, onFavourite }:
   const ctaLabel = voting ? `Vote for $${entry.stonklet.symbol}/${entry.stock.symbol}` : `Trade $${identity.symbol}`;
   const tradeUrl = stonkletTradeUrl(entry, asset);
   return <article className="stonklets-asset-card">
-    <div className="stonklets-card-header"><div className="stonklets-card-identity"><IdentityImage key={`${entry.id}:${asset}`} src={asset === "stock" ? entry.stock.logo : entry.stonklet.image} label={identity.symbol} kind={asset} pairedStockLogo={asset === "stonklet" ? entry.stock.logo : undefined} /><div><b role="button" tabIndex={0} aria-label={`Share ${entry.stonklet.name}`}>{identity.symbol}</b><span>{identity.name}</span></div></div><Heart active={favourite} count={favouriteCount} disabled={busy} onClick={onFavourite} variant="chart" /></div>
+    <div className="stonklets-card-header"><div className="stonklets-card-identity"><IdentityImage key={`${entry.id}:${asset}`} src={asset === "stock" ? entry.stock.logo : entry.stonklet.image} label={identity.symbol} kind={asset} pairedStockLogo={asset === "stonklet" ? entry.stock.logo : undefined} /><div><b role="button" tabIndex={0} aria-label={`Share ${entry.stonklet.name}`}>{shareRender ? `$${identity.symbol}` : identity.symbol}</b><span>{identity.name}</span></div></div>{!shareRender && <Heart active={favourite} count={favouriteCount} disabled={busy} onClick={onFavourite} variant="chart" />}</div>
+    {shareRender && <div className="stonklet-share-favourites"><StonkletShareFavourites id={entry.id} asset={asset} count={favouriteCount} /><Heart active={false} count={favouriteCount} disabled={false} onClick={() => {}} variant="chart" /></div>}
     {asset === "stonklet" && entry.launchStatus !== "launched"
       ? <div className="stonklets-chart" role="img" aria-label={`${entry.stonklet.name} artwork shown until launch`}><ProgressiveStonkletImage className="stonklets-chart-fallback" src={highResolutionStonkletImage(entry.stonklet.image)} alt="" /></div>
       : <DeferredChart pairId={entry.id} asset={asset} range={range} periodChange={periodChange} previewSource={asset === "stonklet" && entry.flapPreview ? entry.demoToken?.contractAddress : undefined} />}
     {asset === "stonklet" && entry.launchStatus !== "launched"
-      ? <StonkletLaunchVotes id={entry.id} name={entry.stonklet.name} count={entry.favourites} />
+      ? shareRender ? <div className="stonklets-launch-panel">Awaiting launch</div> : <StonkletLaunchVotes id={entry.id} name={entry.stonklet.name} count={entry.favourites} />
       : <div className="stonklets-card-metrics"><span><small>MCap</small>{compactNumber(metrics.marketCap, true)}</span><span><small>24h Vol</small>{compactNumber(metrics.volume24h, true)}</span><span><small>Holders</small>{compactNumber(metrics.holders)}</span></div>}
+    {shareRender && <div className="stonklet-share-contract">{identity.contractAddress ?? "Contract pending launch"}</div>}
     {voting ? <button type="button" className="stonklets-trade stonklets-chart-cta" disabled={busy} onClick={onFavourite}>{ctaLabel}</button>
       : tradeUrl ? <a className="stonklets-trade stonklets-chart-cta" href={tradeUrl} target="_blank" rel="noopener noreferrer">{ctaLabel}</a>
       : <button type="button" className="stonklets-trade stonklets-chart-cta" disabled>{ctaLabel}</button>}
