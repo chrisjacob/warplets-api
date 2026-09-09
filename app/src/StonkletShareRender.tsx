@@ -23,6 +23,29 @@ export default function StonkletShareRender({ id }: { id: string }) {
   }, [id, range]);
   useEffect(() => {
     if (!entry || !host.current) return;
+    const root = host.current;
+    let cancelled = false;
+    const fit = () => {
+      if (cancelled) return;
+      for (const selector of [".stonklets-card-identity>div>b", ".stonklets-card-identity>div>span", ".stonklet-share-contract"]) {
+        root.querySelectorAll<HTMLElement>(selector).forEach(element => {
+          element.style.fontSize = "";
+          const style = getComputedStyle(element);
+          const size = parseFloat(style.fontSize);
+          const padding = parseFloat(style.paddingLeft) + parseFloat(style.paddingRight);
+          if (element.scrollWidth > element.clientWidth && element.clientWidth > 0) {
+            element.style.fontSize = `${size * (element.clientWidth - padding) / (element.scrollWidth - padding)}px`;
+          }
+        });
+      }
+    };
+    const observer = new ResizeObserver(fit);
+    observer.observe(root);
+    void document.fonts.ready.then(fit);
+    return () => { cancelled = true; observer.disconnect(); };
+  }, [entry]);
+  useEffect(() => {
+    if (!entry || !host.current) return;
     const check = () => {
       const charts = host.current?.querySelectorAll('.stonklets-chart');
       setReady(charts?.length === 2 && !host.current?.querySelector('.stonklets-chart-loading,[data-voters-ready="false"],[data-voter-image-ready="false"],[data-artwork-ready="false"]'));
@@ -34,7 +57,7 @@ export default function StonkletShareRender({ id }: { id: string }) {
   }, [entry]);
   return <div className="stonklet-share-canvas" ref={host} data-stonklet-share-ready={ready}>
     {entry ? <div className="stonklet-share-square"><article className="stonklets-pair"><div className="stonklets-chart-pair">
-      {(["stonklet", "stock"] as const).map((asset) => <AssetCard key={asset} entry={entry} asset={asset} range={range} favourite={false} busy={false} onFavourite={() => {}} />)}
+      {(["stonklet", "stock"] as const).map((asset) => <AssetCard shareRender key={asset} entry={entry} asset={asset} range={range} favourite={false} busy={false} onFavourite={() => {}} />)}
     </div><footer className="stonklet-share-timestamp">Snapshot {renderedAt.toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" })} UTC</footer></article></div> : <p>{error ? "Share image unavailable" : "Preparing Stonklet…"}</p>}
   </div>;
 }

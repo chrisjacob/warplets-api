@@ -14,7 +14,7 @@ export const onRequestGet: PagesFunction<StatsSharesEnv> = async (context) => {
   if (!entry || !isStonkletsAppHostname(url.hostname)) return jsonSecure({ error: "Unknown Stonklet" }, { status: 404 });
   const range = parseStonkletChangeRange(url.searchParams.get("range")) ?? "24h";
   const variant = url.searchParams.get("variant") === "og" ? "og" : "square";
-  const prefix = `stonklet-shares/v7/${url.hostname}/${entry.id}/${range}`;
+  const prefix = `stonklet-shares/v10/${url.hostname}/${entry.id}/${range}`;
   const key = `${prefix}-${variant}.png`;
   const images = context.env.STATS_SHARE_IMAGES;
   if (!images || !context.env.STATS_SHARE_BROWSER) return jsonSecure({ error: "Share image rendering is unavailable" }, { status: 503 });
@@ -55,7 +55,7 @@ export const onRequestGet: PagesFunction<StatsSharesEnv> = async (context) => {
           await request.continue(); return;
         }
         // External scripts, documents, redirects and arbitrary profile destinations are blocked.
-        if (request.resourceType() === "image" && ++avatarRequests <= 10) {
+        if (request.resourceType() === "image" && ++avatarRequests <= 20) {
           const body = await fetchRenderAvatar(request.url());
           if (body) { await request.respond({ status: 200, contentType: body.contentType, body: Buffer.from(body.body) }); return; }
         }

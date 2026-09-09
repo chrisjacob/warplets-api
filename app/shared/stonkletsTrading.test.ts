@@ -15,7 +15,7 @@ describe("Trade destinations", () => {
     expect(stonkletTradeUrl(STONKLETS_BY_ID.get(id)!, asset)).toBe(asset === "stonklet" ? `https://flap.sh/bnb/${address}?lang=en` : `https://fomo.family/tokens/bnb/${address}?r=10XMemeX`);
   });
   it("does not trade unlaunched Stonklets, even when demo data exists", () => {
-    expect(stonkletTradeUrl(STONKLETS_BY_ID.get("spacex")!, "stonklet")).toBeNull();
+    expect(stonkletTradeUrl(STONKLETS_BY_ID.get("bitmine")!, "stonklet")).toBeNull();
   });
   it("ignores unverified provider contracts and fails closed for unknown stock symbols", () => {
     const entry = STONKLETS_BY_ID.get("invesco-qqq")!;

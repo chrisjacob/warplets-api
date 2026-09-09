@@ -36,10 +36,11 @@ const buildMarketResponse: PagesFunction<Env> = async (context) => {
   if (hostname === "localhost" || hostname === "127.0.0.1" || hostname.includes("-local.")) {
     context.waitUntil(ingestCmcMarketIfDue(env).catch((error) => console.warn("stonklets_cmc_background_refresh_failed", String(error))));
   }
+  const stockMetrics = loadStockMetricsBatch(STONKLETS_CATALOG, env.WARPLETS_KV);
   const [aggregates, metrics, demoSnapshots, cmcMarket, stockPeriodChanges] = await Promise.all([
     favouriteAggregates(env.WARPLETS),
-    loadStockMetricsBatch(catalog, env.WARPLETS_KV),
-    loadStonkletDemoMarket(env),
+    stockMetrics,
+    stockMetrics.then(metrics => loadStonkletDemoMarket(env, metrics)),
     loadCmcMarket(env),
     loadStockPeriodChanges(catalog, changeRange, env.WARPLETS_KV),
   ]);
@@ -104,7 +105,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   if (!range || (pairId && !STONKLETS_CATALOG.some((entry) => entry.id === pairId))) return buildMarketResponse(context);
   const kv = context.env.WARPLETS_KV;
   if (!kv || isStonkletsFlapPreview(url)) return buildMarketResponse(context);
-  const key = `stonklets:board:v2:${url.hostname}:${range}:${pairId ?? "all"}`;
+  const key = `stonklets:board:v3:${url.hostname}:${range}:${pairId ?? "all"}`;
   type Snapshot = { storedAt: number; payload: Record<string, unknown> };
   const cached = await kv.get<Snapshot>(key, "json");
   const refresh = async () => {

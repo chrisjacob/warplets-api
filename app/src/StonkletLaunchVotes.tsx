@@ -30,14 +30,14 @@ function WalletAvatar({ wallet }: { wallet: string }) {
   })}</svg>;
 }
 
-function VoterAvatar({ voter, stack = false }: { voter: StonkletVoter; stack?: boolean }) {
+export function VoterAvatar({ voter, stack = false }: { voter: StonkletVoter; stack?: boolean }) {
   const [failed, setFailed] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const shareRender = typeof window !== "undefined" && new URLSearchParams(window.location.search).has("shareRender");
   if (stack && (!voter.image || (failed && !shareRender))) return null;
   const label = voter.username ? `@${voter.username}` : voter.wallet;
   return <span data-voter-image-ready={shareRender && voter.image ? loaded : undefined} className="stonklets-voter-avatar" title={label} aria-label={label} tabIndex={stack ? undefined : 0}>
-    {voter.image && !failed ? <img src={voter.image} alt="" loading={shareRender ? "eager" : "lazy"} decoding="async" onLoad={() => setLoaded(true)} referrerPolicy="no-referrer" onError={() => setFailed(true)} /> : <WalletAvatar wallet={voter.wallet} />}
+    {voter.image && !failed ? <img src={voter.image} alt="" loading={shareRender ? "eager" : "lazy"} decoding="async" onLoad={() => setLoaded(true)} referrerPolicy="no-referrer" onError={() => { setFailed(true); setLoaded(true); }} /> : <WalletAvatar wallet={voter.wallet} />}
   </span>;
 }
 

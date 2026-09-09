@@ -52,7 +52,7 @@ const MARKET_HEADERS = { accept: "application/json", "user-agent": "10X-Stonklet
 async function fetchBinanceJson(path: string): Promise<unknown> {
   let lastStatus = 0;
   for (const base of BINANCE_BASES) {
-    const response = await fetch(`${base}${path}`, { headers: MARKET_HEADERS, cf: { cacheTtl: 30, cacheEverything: true } } as RequestInit).catch(() => null);
+    const response = await fetch(`${base}${path}`, { headers: MARKET_HEADERS, signal: AbortSignal.timeout(5_000), cf: { cacheTtl: 30, cacheEverything: true } } as RequestInit).catch(() => null);
     if (!response) continue;
     lastStatus = response.status;
     const payload = await response.json().catch(() => null);
