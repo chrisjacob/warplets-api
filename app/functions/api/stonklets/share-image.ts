@@ -8,7 +8,9 @@ import { buildStatsShareOgDocument, type StatsSharesEnv } from "../../_lib/stats
 import { jsonSecure } from "../../_lib/security.js";
 
 const CACHE_SECONDS = 300;
-export const onRequestGet: PagesFunction<StatsSharesEnv> = async (context) => {
+type ShareImageContext = Parameters<PagesFunction<StatsSharesEnv>>[0];
+
+async function renderShareImage(context: ShareImageContext, backgroundRefresh = true): Promise<Response> {
   const url = new URL(context.request.url);
   const entry = STONKLETS_BY_ID.get(url.searchParams.get("id") ?? "");
   if (!entry || !isStonkletsAppHostname(url.hostname)) return jsonSecure({ error: "Unknown Stonklet" }, { status: 404 });
@@ -17,12 +19,22 @@ export const onRequestGet: PagesFunction<StatsSharesEnv> = async (context) => {
   const prefix = `stonklet-shares/v10/${url.hostname}/${entry.id}/${range}`;
   const key = `${prefix}-${variant}.png`;
   const images = context.env.STATS_SHARE_IMAGES;
-  if (!images || !context.env.STATS_SHARE_BROWSER) return jsonSecure({ error: "Share image rendering is unavailable" }, { status: 503 });
+  if (!images) return jsonSecure({ error: "Share image rendering is unavailable" }, { status: 503 });
   const headers = { "content-type": "image/png", "cache-control": `public, max-age=${CACHE_SECONDS}`, "x-content-type-options": "nosniff" };
   const cached = await images.get(key);
   if (cached && Date.now() - cached.uploaded.getTime() < CACHE_SECONDS * 1000) return new Response(cached.body, { headers });
+  // Social crawlers need image bytes immediately, not a browser render that can
+  // take tens of seconds. Keep the last timestamped OG card during refreshes.
+  if (cached && variant === "og" && backgroundRefresh) {
+    if (context.env.STATS_SHARE_BROWSER) context.waitUntil(renderShareImage(context, false)
+      .then(async response => { await response.body?.cancel(); })
+      .catch(error => console.warn("stonklet_og_background_refresh_failed", { id: entry.id, error: String(error) })));
+    return new Response(cached.body, { headers });
+  }
+  if (!context.env.STATS_SHARE_BROWSER) return jsonSecure({ error: "Share image rendering is unavailable" }, { status: 503 });
   const owner = await claimStonkletWork(context.env.WARPLETS, prefix, 180);
   if (!owner) {
+    if (cached && variant === "og") return new Response(cached.body, { headers });
     // Social crawlers also need an image response; wait for the existing render
     // without starting another browser. The modal can retry a bounded timeout.
     for (let attempt = 0; attempt < 45; attempt++) {
@@ -115,4 +127,6 @@ export const onRequestGet: PagesFunction<StatsSharesEnv> = async (context) => {
     await browser?.close().catch(() => undefined);
     await releaseStonkletWork(context.env.WARPLETS, prefix, owner);
   }
-};
+}
+
+export const onRequestGet: PagesFunction<StatsSharesEnv> = context => renderShareImage(context);

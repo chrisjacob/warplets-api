@@ -8,6 +8,36 @@ const image = () => ({ uploaded: new Date(), body: new Uint8Array([137,80,78,71]
 function context(get: ReturnType<typeof vi.fn>) { return { request: new Request("https://stonklet-local.10x.meme/api/stonklets/share-image?id=robinhood&range=24h"), env: { STATS_SHARE_IMAGES: { get }, STATS_SHARE_BROWSER: {}, WARPLETS: {} } }; }
 beforeEach(() => { vi.clearAllMocks(); vi.useRealTimers(); });
 describe("share render deduplication", () => {
+ it("serves an expired OG card immediately while a refresh is already running", async () => {
+  const get = vi.fn(async () => ({ ...image(), uploaded: new Date(Date.now() - 600_000) }));
+  const pending: Promise<unknown>[] = [];
+  vi.mocked(claimStonkletWork).mockResolvedValueOnce(null);
+  const ctx = { ...context(get), request: new Request("https://stonklet-local.10x.meme/api/stonklets/share-image?id=robinhood&variant=og"), waitUntil: (promise: Promise<unknown>) => pending.push(promise) };
+  const response = await onRequestGet(ctx as never) as Response;
+  expect(response.status).toBe(200);
+  expect(response.headers.get("content-type")).toBe("image/png");
+  expect(new Uint8Array(await response.arrayBuffer())).toEqual(image().body);
+  expect(pending).toHaveLength(1);
+  await Promise.all(pending);
+  expect(allowStonkletAction).not.toHaveBeenCalled();
+ });
+ it("keeps serving the OG card when the background refresh hits its quota", async () => {
+  const get = vi.fn(async () => ({ ...image(), uploaded: new Date(Date.now() - 600_000) }));
+  const pending: Promise<unknown>[] = [];
+  vi.mocked(claimStonkletWork).mockResolvedValueOnce("owner");
+  vi.mocked(allowStonkletAction).mockResolvedValueOnce(false);
+  const ctx = { ...context(get), request: new Request("https://stonklet-local.10x.meme/api/stonklets/share-image?id=robinhood&variant=og"), waitUntil: (promise: Promise<unknown>) => pending.push(promise) };
+  const response = await onRequestGet(ctx as never) as Response;
+  expect(response.status).toBe(200);
+  await Promise.all(pending);
+  expect(releaseStonkletWork).toHaveBeenCalled();
+ });
+ it("serves an existing OG card even if browser rendering is unavailable", async () => {
+  const ctx = context(vi.fn(async () => ({ ...image(), uploaded: new Date(0) })));
+  const response = await onRequestGet({ ...ctx, request: new Request("https://stonklet-local.10x.meme/api/stonklets/share-image?id=robinhood&variant=og"), env: { ...ctx.env, STATS_SHARE_BROWSER: undefined } } as never) as Response;
+  expect(response.status).toBe(200);
+  expect(claimStonkletWork).not.toHaveBeenCalled();
+ });
  it("returns cached images without acquiring a render lease", async () => {
   const get = vi.fn(async () => image());
   const response = await onRequestGet(context(get) as never) as Response;
