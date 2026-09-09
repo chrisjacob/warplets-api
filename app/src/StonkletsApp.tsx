@@ -268,21 +268,22 @@ function Heart({ active, count, disabled, onClick, variant = "grid" }: { active:
   return <button type="button" className={`stonklets-heart stonklets-heart--${variant}${active ? " is-active" : ""}`} disabled={disabled} onClick={onClick} aria-pressed={active} aria-label={`${active ? "Remove" : "Add"} favourite. ${count} votes`} title={active ? "Remove from favourites" : "Add to favourites"}><b>{favouriteCountText(count)}</b><SearchHeartIcon filled={active} className={variant === "chart" ? "h-[17px] w-[17px] translate-y-px" : "h-3.5 w-3.5"} strokeWidth={2.2} /></button>;
 }
 
-function DeferredChart({ pairId, asset, range, periodChange, previewSource }: { pairId: string; asset: MarketSide; range: StonkletChangeRange; periodChange: number | null; previewSource?: string }) {
+function DeferredChart({ pairId, asset, range, periodChange, previewSource, shareRender = false }: { pairId: string; asset: MarketSide; range: StonkletChangeRange; periodChange: number | null; previewSource?: string; shareRender?: boolean }) {
   const hostRef = useRef<HTMLDivElement>(null);
-  const [near, setNear] = useState(false);
+  const [near, setNear] = useState(shareRender);
   const [retry, setRetry] = useState(0);
   const [status, setStatus] = useState<"idle" | "loading" | "ready" | "empty" | "error">("idle");
   const [endpointPrices, setEndpointPrices] = useState<{ start: number; end: number } | null>(null);
   const [chartChange, setChartChange] = useState<number | null>(null);
   const displayedChange = chartChange ?? periodChange;
   useEffect(() => {
+    if (shareRender) return;
     const host = hostRef.current;
     if (!host) return;
     const observer = new IntersectionObserver(([entry]) => { setNear(Boolean(entry?.isIntersecting)); }, { rootMargin: "300px" });
     observer.observe(host);
     return () => observer.disconnect();
-  }, []);
+  }, [shareRender]);
   useEffect(() => {
     const host = hostRef.current;
     if (!near || !host) { setStatus("idle"); return; }
@@ -298,7 +299,7 @@ function DeferredChart({ pairId, asset, range, periodChange, previewSource }: { 
         if (!response.ok) throw new Error("Chart unavailable");
         return response.json() as Promise<{ points?: { time: number; value: number; price: number }[]; periodChange?: number | null }>;
       }),
-    ]).then(([charts, payload]) => {
+    ]).then(async ([charts, payload]) => {
       if (disposed || !host) return;
       const points = Array.isArray(payload.points) ? payload.points : [];
       if (points.length < 2) { setStatus("empty"); return; }
@@ -361,12 +362,15 @@ function DeferredChart({ pairId, asset, range, periodChange, previewSource }: { 
         tooltip.remove();
         chart.remove();
       };
-      setStatus("ready");
+      // Canvas drawing is asynchronous. Signal readiness only after paint, and
+      // never let an unmounted or superseded chart mark its replacement ready.
+      await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+      if (!disposed) setStatus("ready");
     }).catch(() => { if (!disposed) { setEndpointPrices(null); setStatus("error"); } });
     return () => { disposed = true; controller.abort(); cleanup(); };
   }, [asset, near, pairId, periodChange, range, previewSource, retry]);
   const rangeLabel = STONKLET_CHANGE_RANGE_LABELS[range];
-  return <div className="stonklets-chart" role={status === "ready" ? "img" : undefined} aria-label={status === "ready" ? `Normalized ${rangeLabel} percentage chart. Start price ${endpointPrices ? priceText(endpointPrices.start) : "unavailable"}. End price ${endpointPrices ? priceText(endpointPrices.end) : "unavailable"}. Change ${changeText(displayedChange)}` : status === "idle" || status === "loading" ? `Loading ${rangeLabel} market chart` : "Market chart temporarily unavailable"}>
+  return <div className="stonklets-chart" data-chart-ready={status === "ready"} role={status === "ready" ? "img" : undefined} aria-label={status === "ready" ? `Normalized ${rangeLabel} percentage chart. Start price ${endpointPrices ? priceText(endpointPrices.start) : "unavailable"}. End price ${endpointPrices ? priceText(endpointPrices.end) : "unavailable"}. Change ${changeText(displayedChange)}` : status === "idle" || status === "loading" ? `Loading ${rangeLabel} market chart` : "Market chart temporarily unavailable"}>
     <div ref={hostRef} className="stonklets-chart-canvas" />
     {(status === "idle" || status === "loading") && <div className="stonklets-chart-loading" role="status" aria-label={`Loading ${rangeLabel} market chart`}><span className="h-8 w-8 animate-spin rounded-full border-2 border-[#00FF00]/25 border-t-[#00FF00]" /></div>}
     {(status === "empty" || status === "error") && <div className="stonklets-chart-loading"><div className="text-center text-sm text-[#8bbf8b]"><p>Chart temporarily unavailable</p><button type="button" className="mt-3 font-bold text-[#00ff00] underline" onClick={() => setRetry((value) => value + 1)}>Retry chart</button></div></div>}
@@ -387,8 +391,8 @@ export function AssetCard({ entry, asset, range, favourite, busy, onFavourite, s
     <div className="stonklets-card-header"><div className="stonklets-card-identity"><IdentityImage key={`${entry.id}:${asset}`} src={asset === "stock" ? entry.stock.logo : entry.stonklet.image} label={identity.symbol} kind={asset} pairedStockLogo={asset === "stonklet" ? entry.stock.logo : undefined} /><div><b role="button" tabIndex={0} aria-label={`Share ${entry.stonklet.name}`}>{shareRender ? `$${identity.symbol}` : identity.symbol}</b><span>{identity.name}</span></div></div>{!shareRender && <Heart active={favourite} count={favouriteCount} disabled={busy} onClick={onFavourite} variant="chart" />}</div>
     {shareRender && <div className="stonklet-share-favourites"><StonkletShareFavourites id={entry.id} asset={asset} count={favouriteCount} /><Heart active={false} count={favouriteCount} disabled={false} onClick={() => {}} variant="chart" /></div>}
     {asset === "stonklet" && entry.launchStatus !== "launched"
-      ? <div className="stonklets-chart" role="img" aria-label={`${entry.stonklet.name} artwork shown until launch`}><ProgressiveStonkletImage className="stonklets-chart-fallback" src={highResolutionStonkletImage(entry.stonklet.image)} alt="" /></div>
-      : <DeferredChart pairId={entry.id} asset={asset} range={range} periodChange={periodChange} previewSource={asset === "stonklet" && entry.flapPreview ? entry.demoToken?.contractAddress : undefined} />}
+      ? <div className="stonklets-chart" data-chart-ready="artwork" role="img" aria-label={`${entry.stonklet.name} artwork shown until launch`}><ProgressiveStonkletImage className="stonklets-chart-fallback" src={highResolutionStonkletImage(entry.stonklet.image)} alt="" /></div>
+      : <DeferredChart shareRender={shareRender} pairId={entry.id} asset={asset} range={range} periodChange={periodChange} previewSource={asset === "stonklet" && entry.flapPreview ? entry.demoToken?.contractAddress : undefined} />}
     {asset === "stonklet" && entry.launchStatus !== "launched"
       ? shareRender ? <div className="stonklets-launch-panel">Awaiting launch</div> : <StonkletLaunchVotes id={entry.id} name={entry.stonklet.name} count={entry.favourites} />
       : <div className="stonklets-card-metrics"><span><small>MCap</small>{compactNumber(metrics.marketCap, true)}</span><span><small>24h Vol</small>{compactNumber(metrics.volume24h, true)}</span><span><small>Holders</small>{compactNumber(metrics.holders)}</span></div>}
