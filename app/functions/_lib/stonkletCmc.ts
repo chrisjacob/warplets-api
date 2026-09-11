@@ -4,6 +4,9 @@ import {
   type MarketMetrics,
   type StonkletCatalogEntry,
 } from "../../shared/stonkletsCatalog.js";
+import { persistStonkletHistory } from "./stonkletHistory.js";
+import { stockHistoryKey } from "./stonkletStockHistory.js";
+import { freshQuote } from "./stonkletQuoteIntegrity.js";
 
 const CMC_BASE = "https://pro-api.coinmarketcap.com";
 const KV_KEY = "stonklets:cmc-market:v1";
@@ -400,6 +403,12 @@ async function refreshQuotes(env: StonkletCmcEnv, rows: CmcAssetRow[]): Promise<
     ).bind(JSON.stringify(metrics), now, now, row.asset_key)];
   });
   if (statements.length) await env.WARPLETS.batch(statements);
+  await persistStonkletHistory(env.WARPLETS, rows.flatMap(row => {
+    const metrics = row.cmc_id == null ? undefined : quotes.get(Number(row.cmc_id));
+    return row.asset === "stock" && row.contract_address && freshQuote(metrics)
+      ? [{pairId: stockHistoryKey(row.pair_id, row.contract_address), price: metrics.price, marketCap: metrics.marketCap, updatedAt: metrics.updatedAt}]
+      : [];
+  }));
   return statements.length;
 }
 

@@ -21,10 +21,11 @@ const STALE_MS = 15 * 60_000;
 
 export interface ChartPoint { time: number; value: number; price: number }
 export interface StonkletChartResult {
+  partial?: boolean;
   sourceToken?: string;
   range: StonkletChangeRange;
   basis: "price";
-  provider: "binance" | "geckoterminal+local" | "dexpaprika+local" | "flap-local" | null;
+  provider: "binance" | "geckoterminal+local" | "dexpaprika+local" | "flap-local" | "cmc-local" | null;
   points: ChartPoint[];
   periodChange: number | null;
   coverageStart: string | null;

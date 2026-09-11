@@ -4,6 +4,7 @@ import { FlapPreviewRateLimitError, loadFlapPreviewChart } from "../../_lib/ston
 import { loadChart, loadStockMetricsBatch } from "../../_lib/stonkletMarket.js";
 import { loadCmcMarket, mergeCmcMetrics } from "../../_lib/stonkletCmc.js";
 import { emptyMarketMetrics, STONKLETS_CATALOG } from "../../../shared/stonkletsCatalog.js";
+import { loadStockQuoteHistory } from "../../_lib/stonkletStockHistory.js";
 import { loadStonkletRangeChart, type StonkletMarketIngestEnv } from "../../_lib/stonkletIngestion.js";
 import { STONKLETS_BY_ID } from "../../../shared/stonkletsCatalog.js";
 import { DEFAULT_STONKLET_CHANGE_RANGE, parseStonkletChangeRange, stonkletRangeCacheSeconds } from "../../../shared/stonkletsTime.js";
@@ -36,7 +37,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   ]).then(([stocks, cmc]) => mergeCmcMetrics(stocks.get(pair) ?? emptyMarketMetrics(), cmc.get(`${pair}:stock`))) : undefined;
   const result = asset === "stonklet"
     ? await loadStonkletRangeChart(env, pair, range)
-    : await loadChart(pair, asset, env.WARPLETS_KV, range, reference);
+    : await loadStockQuoteHistory(env.WARPLETS, pair, range, reference) ?? await loadChart(pair, asset, env.WARPLETS_KV, range, reference);
   if (result.points.length < 2) {
     return jsonSecure({ pair, asset, ...result }, {
       status: 503,
