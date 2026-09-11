@@ -2212,6 +2212,7 @@ html[data-entry-point="pwa"] .miniapp-shell__content {
 .stonklets-chart-price-range.is-positive-range{background:#00ff66}
 .stonklets-chart-price-range.is-negative-range{background:#ff496c}
 .stonklets-chart-price-range b{color:#000;font:inherit}
+.stonklets-chart-history-end{position:absolute;z-index:3;left:8px;bottom:38px;color:#8bbf8b;font-size:10px;pointer-events:none}
 .stonklets-launch-panel{display:flex;min-height:43px;align-items:center;justify-content:center;margin:8px 0;padding:7px 8px;border:1px solid rgba(255,255,0,.55);border-radius:8px;background:rgba(255,255,0,.12);color:#ffff00;font-family:inherit;font-size:11px;font-weight:700;line-height:14px;text-align:center}
 .stonklets-trade{height:30px;margin-bottom:6px;padding:0 8px;border:1px solid #009900;border-radius:16px;background:#00ff00;color:rgb(0,80,0);font-family:inherit;font-weight:700;box-shadow:3px 6px 0 #008000;transition:transform .1s ease,box-shadow .1s ease,background-color .1s ease}
 .stonklets-trade:hover:not(:disabled),.stonklets-trade:focus-visible:not(:disabled){background:#33ff33;color:rgb(0,80,0)}

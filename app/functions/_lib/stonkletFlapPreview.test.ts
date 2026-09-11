@@ -9,6 +9,19 @@ const item = { coin: { address, name: "Source", symbol: "SRC" }, listed: true, p
 const items = STONKLETS_CATALOG.map((_, index) => ({ ...item, coin: { ...item.coin, address: `0x${(index + 1).toString(16).padStart(40, "0")}` }, price: String(index + 1), volume24h: String((index + 1) * 50) }));
 
 describe("Flap preview data", () => {
+  it("loads verified V4 pool IDs without accepting them as token contracts", async () => {
+    const pool = `0x${"a".repeat(64)}`;
+    const fetcher = vi.fn()
+      .mockResolvedValueOnce(Response.json({data: [{attributes: {address: pool}, relationships: {base_token: {data: {id: `bsc_${address}`}}, quote_token: {data: {id: "bsc_other"}}}}]}))
+      .mockResolvedValueOnce(Response.json({data: {attributes: {ohlcv_list: [[2000,52,52,52,52,1],[1000,51,51,51,51,1]]}}}));
+    vi.stubGlobal("fetch", fetcher);
+    const chart = await loadFlapPreviewChart(undefined, address, "24h", true);
+    expect(chart.provider).toBe("geckoterminal+local");
+    expect(chart.points.at(-1)?.price).toBe(52);
+    expect(fetcher.mock.calls[1]![0]).toContain(`/pools/${pool}/ohlcv/`);
+    expect(fetcher.mock.calls[1]![0]).toContain("include_empty_intervals=true");
+    expect((await loadFlapPreviewChart(undefined, pool, "24h", true)).status).toBe("unavailable");
+  });
   it("never uses DexPaprika or its legacy cached candles for stock charts", async () => {
     const get = vi.fn(async () => null);
     const fetcher = vi.fn(async () => new Response(null, { status: 429 }));
@@ -16,7 +29,7 @@ describe("Flap preview data", () => {
     const result = await loadFlapPreviewChart({get} as unknown as KVNamespace, address, "24h", true);
     expect(result.status).toBe("unavailable");
     expect(fetcher).toHaveBeenCalledTimes(1);
-    expect(get.mock.calls[0]).toEqual([`stonklets:flap-preview:v3:stock-chart:v1:${address}:24h`, "json"]);
+    expect(get.mock.calls[0]).toEqual([`stonklets:flap-preview:v3:stock-chart:v2:${address}:24h`, "json"]);
   });
   it("maps every Stonklet without changing its identity or the official catalog", () => {
     const original = JSON.stringify(STONKLETS_CATALOG);

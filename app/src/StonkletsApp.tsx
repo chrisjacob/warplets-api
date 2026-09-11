@@ -274,6 +274,7 @@ function DeferredChart({ pairId, asset, range, periodChange, previewSource, shar
   const [status, setStatus] = useState<"idle" | "loading" | "ready" | "empty" | "error">("idle");
   const [endpointPrices, setEndpointPrices] = useState<{ start: number; end: number } | null>(null);
   const [chartChange, setChartChange] = useState<number | null>(null);
+  const [historyEnd, setHistoryEnd] = useState<number | null>(null);
   const displayedChange = asset === "stock" ? periodChange : chartChange ?? periodChange;
   useEffect(() => {
     if (shareRender) return;
@@ -292,6 +293,7 @@ function DeferredChart({ pairId, asset, range, periodChange, previewSource, shar
     setStatus("loading");
     setEndpointPrices(null);
     setChartChange(null);
+    setHistoryEnd(null);
     Promise.all([
       import("lightweight-charts"),
       fetchStonkletChart(`/api/stonklets/chart?v=2&pair=${encodeURIComponent(pairId)}&asset=${asset}&range=${range}${previewSource ? `&flap=1&source=${encodeURIComponent(previewSource)}` : ""}`, controller.signal).then(async (response) => {
@@ -324,6 +326,7 @@ function DeferredChart({ pairId, asset, range, periodChange, previewSource, shar
       line.setData(points.map((point) => ({ time: point.time as never, value: point.value })));
       const firstPoint = points[0]!;
       const lastPoint = points.at(-1)!;
+      setHistoryEnd(lastPoint.time);
       setEndpointPrices({ start: firstPoint.price, end: lastPoint.price });
       line.createPriceLine({ price: 0, color: "rgba(255,255,255,.35)", lineWidth: 1, lineStyle: charts.LineStyle.Dashed, axisLabelVisible: false, title: "0%" });
       const priceByTime = new Map(points.map((point) => [point.time, point.price]));
@@ -374,6 +377,7 @@ function DeferredChart({ pairId, asset, range, periodChange, previewSource, shar
     {(status === "idle" || status === "loading") && <div className="stonklets-chart-loading" role="status" aria-label={`Loading ${rangeLabel} market chart`}><span className="h-8 w-8 animate-spin rounded-full border-2 border-[#00FF00]/25 border-t-[#00FF00]" /></div>}
     {(status === "empty" || status === "error") && <div className="stonklets-chart-loading"><div className="text-center text-sm text-[#8bbf8b]"><p>Chart temporarily unavailable</p><button type="button" className="mt-3 font-bold text-[#00ff00] underline" onClick={() => setRetry((value) => value + 1)}>Retry chart</button></div></div>}
     {status === "ready" && displayedChange != null && <strong className={displayedChange >= 0 ? "is-positive" : "is-negative"}>{changeText(displayedChange)}</strong>}
+    {status === "ready" && asset === "stock" && historyEnd != null && Date.now() - historyEnd * 1000 > 30 * 60_000 && <small className="stonklets-chart-history-end">Trades through {new Date(historyEnd * 1000).toLocaleTimeString([], {hour: "2-digit", minute: "2-digit"})}</small>}
     {status === "ready" && endpointPrices && <div className={`stonklets-chart-price-range ${(displayedChange ?? 0) >= 0 ? "is-positive-range" : "is-negative-range"}`} aria-hidden="true"><span>{priceText(endpointPrices.start)}</span><b>➜</b><span>{priceText(endpointPrices.end)}</span></div>}
   </div>;
 }
@@ -446,6 +450,8 @@ export default function StonkletsApp() {
   const [layout, setLayout] = useState<Layout>(() => safeParam(initial.get("layout"), ["compact", "chart", "single-chart", "single-grid"], safeParam(localStorage.getItem("stonklets-layout"), ["compact", "chart", "single-chart", "single-grid"], "compact")));
   const [favouritesOnly, setFavouritesOnly] = useState(initial.get("favourites") === "1");
   const [rawEntries, setEntries] = useState<MarketEntry[]>(defaultEntries);
+  const delayedSymbols = rawEntries.flatMap(entry => (["stock", "stonklet"] as const)
+    .filter(asset => entry[`${asset}Metrics`].status === "stale").map(asset => entry[asset].symbol));
   const [loading, setLoading] = useState(true);
   const [marketError, setMarketError] = useState<string | null>(null);
   const [stale, setStale] = useState(false);
@@ -858,7 +864,7 @@ export default function StonkletsApp() {
           </StonkletsDropdown>
           <StonkletsLayoutSwitcher layout={layout} onSelect={(next) => { setLayout(next); localStorage.setItem("stonklets-layout", next); }} />
         </section>
-        {stale && <p className="stonklets-state">Market data is delayed; last-known values are shown.</p>}
+        {stale && <p className="stonklets-state">{delayedSymbols.length ? `Quotes delayed for ${delayedSymbols.join(", ")}. Last-known values are shown for those tokens.` : "Refreshing market quotes…"}</p>}
         {marketError && <p className="stonklets-state is-error">{marketError}. Catalog and voting remain available.</p>}
         {loading && <p className="stonklets-loading" aria-live="polite">{marketLoadingMessage}</p>}
         {renderGroup("Launched", launchedEntries)}
