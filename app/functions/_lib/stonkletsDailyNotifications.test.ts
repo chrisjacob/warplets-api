@@ -7,7 +7,7 @@ import { runStonkletsDailyNotifications, type StonkletsDailyNotificationEnv } fr
 import { dispatchNotification } from "./dispatch";
 vi.mock("./dispatch", () => ({ dispatchNotification: vi.fn().mockResolvedValue({ state: "success" }) }));
 const body = "Daily Top 3: +10% $BULL. +5% $SOXSB. -1% $QQQB.";
-function fixture(locked = false, empty = false) {
+function fixture(locked = false, empty = false, frozen = JSON.stringify({ version: 2, body, validatedAt: Date.now() })) {
   const queries: string[] = [];
   const values: unknown[][] = [];
   const db = { prepare: (sql: string) => {
@@ -17,7 +17,7 @@ function fixture(locked = false, empty = false) {
       bind: (...bindings: unknown[]) => { args = bindings; values.push(bindings); return statement; },
       first: async () => {
         if (sql.includes("ON CONFLICT(job_key)")) return locked ? null : { value: args[1] };
-        if (sql.includes("SELECT value")) return String(args[0]).endsWith(":base-cursor") ? null : { value: body };
+        if (sql.includes("SELECT value")) return String(args[0]).endsWith(":base-cursor") ? null : { value: frozen };
         if (sql.startsWith("UPDATE")) return { value: args[1] };
         return null;
       },
@@ -30,6 +30,13 @@ function fixture(locked = false, empty = false) {
 }
 afterEach(() => { vi.useRealTimers(); vi.clearAllMocks(); });
 describe("Stonklets daily delivery", () => {
+  it.each([body, JSON.stringify({version: 2, body, validatedAt: 0})])("does not resume unvalidated or expired campaigns", async frozen => {
+    vi.useFakeTimers(); vi.setSystemTime(new Date("2026-09-08T20:00:00Z"));
+    expect(await runStonkletsDailyNotifications(fixture(false, false, frozen).env)).toBe(0);
+    expect(dispatchNotification).not.toHaveBeenCalled();
+    expect(sendBaseNotificationCampaign).not.toHaveBeenCalled();
+    expect(sendWebPushNotification).not.toHaveBeenCalled();
+  });
   it("does not query or send when disabled or before market close", async () => {
     const f = fixture();
     vi.useFakeTimers(); vi.setSystemTime(new Date("2026-09-08T19:00:00Z"));

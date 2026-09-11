@@ -17,7 +17,7 @@ async function renderShareImage(context: ShareImageContext, backgroundRefresh = 
   if (!entry || !isStonkletsAppHostname(url.hostname)) return jsonSecure({ error: "Unknown Stonklet" }, { status: 404 });
   const range = parseStonkletChangeRange(url.searchParams.get("range")) ?? "24h";
   const variant = url.searchParams.get("variant") === "og" ? "og" : "square";
-  const prefix = `stonklet-shares/v11/${url.hostname}/${entry.id}/${range}`;
+  const prefix = `stonklet-shares/v12/${url.hostname}/${entry.id}/${range}`;
   const key = `${prefix}-${variant}.png`;
   const images = context.env.STATS_SHARE_IMAGES;
   if (!images) return jsonSecure({ error: "Share image rendering is unavailable" }, { status: 503 });

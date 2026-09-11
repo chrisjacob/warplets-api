@@ -313,11 +313,14 @@ async function writeCache(env: StonkletCmcEnv, rows?: CmcAssetRow[]): Promise<Cm
 export async function loadCmcMarket(env: StonkletCmcEnv): Promise<Map<string, CmcAssetSnapshot>> {
   const cached = await env.WARPLETS_KV?.get<StoredCmcAssets>(KV_KEY, "json").catch(() => null) ?? null;
   const staleAfter = Math.max(15 * 60_000, quoteIntervalFor(env) * 3);
-  const raw = cached && Array.isArray(cached.assets) ? cached.assets : (await readRows(env)).map(rowToSnapshot);
+  const cacheAge = Date.now() - (cached?.storedAt ?? 0);
+  const cacheCurrent = cached && Array.isArray(cached.assets) && cacheAge >= 0 && cacheAge < quoteIntervalFor(env) * 2
+    && !cached.assets.some(asset => asset.metrics.price != null && timestampAge(asset.quoteUpdatedAt) > staleAfter);
+  const raw = cacheCurrent ? cached.assets : (await readRows(env)).map(rowToSnapshot);
   const expected = new Map(candidateRows(STONKLETS_CATALOG).map(row => [row.assetKey, row.contractAddress?.toLowerCase()]));
   const snapshots = raw.filter(snapshot => expected.get(snapshot.assetKey) === snapshot.contractAddress?.toLowerCase()).map((snapshot) => ({
     ...snapshot,
-    metrics: snapshot.metrics.status === "live" && timestampAge(snapshot.quoteUpdatedAt) > staleAfter
+    metrics: snapshot.metrics.status === "live" && Math.max(timestampAge(snapshot.quoteUpdatedAt), timestampAge(snapshot.metrics.updatedAt)) > staleAfter
       ? { ...snapshot.metrics, status: "stale" as const }
       : snapshot.metrics,
   }));
@@ -489,19 +492,20 @@ export async function ingestCmcMarketIfDue(env: StonkletCmcEnv): Promise<CmcInge
 export function mergeCmcMetrics(primary: MarketMetrics, supplemental: CmcAssetSnapshot | undefined): MarketMetrics {
   if (!supplemental) return primary;
   const cmc = supplemental.metrics;
-  const updatedAt = [primary.updatedAt, cmc.updatedAt].filter((value): value is string => Boolean(value)).sort().at(-1) ?? null;
-  const hasMetric = [primary, cmc].some((metrics) => metrics.status !== "unavailable");
+  // Keep price, returns and freshness from one quote. New holder metadata must
+  // not make an old price look live, nor may a stale primary hide a newer quote.
+  const quote = cmc.price != null && (primary.price == null || (cmc.status === "live" && primary.status !== "live")) ? cmc : primary;
   return {
-    price: primary.price ?? cmc.price,
+    price: quote.price,
     marketCap: cmc.marketCap ?? primary.marketCap,
-    volume24h: primary.volume24h ?? cmc.volume24h,
+    volume24h: quote.volume24h,
     holders: cmc.holders ?? primary.holders,
     liquidity: primary.liquidity ?? cmc.liquidity,
-    change5m: primary.change5m ?? cmc.change5m,
-    change1h: primary.change1h ?? cmc.change1h,
-    change4h: primary.change4h ?? cmc.change4h,
-    change24h: primary.change24h ?? cmc.change24h,
-    updatedAt,
-    status: primary.status === "live" || cmc.status === "live" ? "live" : hasMetric ? "stale" : "unavailable",
+    change5m: quote.change5m,
+    change1h: quote.change1h,
+    change4h: quote.change4h,
+    change24h: quote.change24h,
+    updatedAt: quote.updatedAt,
+    status: quote.status,
   };
 }

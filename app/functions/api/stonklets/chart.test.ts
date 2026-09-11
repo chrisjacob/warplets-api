@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { onRequestGet } from "./chart";
-vi.mock("../../_lib/stonkletMarket.js", () => ({ loadChart: vi.fn(async () => ({ points: [], status: "unavailable" })) }));
+vi.mock("../../_lib/stonkletMarket.js", () => ({ loadChart: vi.fn(async () => ({ points: [], status: "unavailable" })), loadStockMetricsBatch: vi.fn(async () => new Map()) }));
+vi.mock("../../_lib/stonkletCmc.js", () => ({ loadCmcMarket: vi.fn(async () => new Map()), mergeCmcMetrics: (m: unknown) => m }));
 
 describe("Stonklets chart API validation", () => {
   it("rejects unsupported chart ranges", async () => {

@@ -2,7 +2,8 @@ import { getBaseNotificationAudiencePage, sendBaseNotificationCampaign, type Bas
 import { sendWebPushNotification, type WebPushEnv, type WebPushSubscriptionRow } from "./webPush.js";
 import { STONKLETS_CATALOG, emptyMarketMetrics } from "../../shared/stonkletsCatalog.js";
 import { dailyTopBody, dailyTopDate, selectDailyTopTokens, type DailyTopToken } from "../../shared/stonkletsDailyTop.js";
-import { loadStockMetricsBatch, loadStockPeriodChanges } from "./stonkletMarket.js";
+import { loadStockMetricsBatch } from "./stonkletMarket.js";
+import { freshQuote, notificationStockChange } from "./stonkletQuoteIntegrity.js";
 import { loadStonkletDemoMarket, loadStonkletPeriodChanges, marketSnapshotsByPair, type StonkletMarketIngestEnv } from "./stonkletIngestion.js";
 import { loadCmcMarket, mergeCmcMetrics } from "./stonkletCmc.js";
 import { dispatchNotification } from "./dispatch.js";
@@ -12,10 +13,9 @@ export interface StonkletsDailyNotificationEnv extends StonkletMarketIngestEnv, 
   STONKLETS_DAILY_NOTIFICATIONS_ENABLED?: string;
 }
 
-async function loadDailyTop(env: StonkletsDailyNotificationEnv): Promise<DailyTopToken[]> {
-  const [stocks, stockChanges, snapshots, cmc] = await Promise.all([
+export async function loadDailyTop(env: StonkletsDailyNotificationEnv): Promise<DailyTopToken[]> {
+  const [stocks, snapshots, cmc] = await Promise.all([
     loadStockMetricsBatch(STONKLETS_CATALOG, env.WARPLETS_KV),
-    loadStockPeriodChanges(STONKLETS_CATALOG, "24h", env.WARPLETS_KV),
     loadStonkletDemoMarket(env), loadCmcMarket(env),
   ]);
   const stonkletChanges = await loadStonkletPeriodChanges(env, "24h", snapshots);
@@ -25,7 +25,12 @@ async function loadDailyTop(env: StonkletsDailyNotificationEnv): Promise<DailyTo
     for (const asset of ["stock", "stonklet"] as const) {
       if (asset === "stonklet" && entry.launchStatus !== "launched") continue;
       const metrics = mergeCmcMetrics((asset === "stock" ? stocks.get(entry.id) : byPair.get(entry.id)?.metrics) ?? emptyMarketMetrics(), cmc.get(`${entry.id}:${asset}`));
-      const change = (asset === "stock" ? stockChanges : stonkletChanges).get(entry.id) ?? null;
+      if (!freshQuote(metrics)) continue;
+      const primary = stocks.get(entry.id);
+      const independent = cmc.get(`${entry.id}:stock`)?.metrics;
+      const change = asset === "stock"
+        ? notificationStockChange(freshQuote(primary) ? primary : independent, freshQuote(primary) ? independent : undefined)
+        : stonkletChanges.get(entry.id) ?? null;
       candidates.push({ id: entry.id, asset, symbol: entry[asset].symbol, change, marketCap: metrics.marketCap });
     }
   }
@@ -56,14 +61,24 @@ export async function runStonkletsDailyNotifications(env: StonkletsDailyNotifica
           AND julianday(d.updated_at) <= julianday('now', '-5 minutes')))
       ORDER BY COALESCE(d.attempt_count, 0), t.fid LIMIT 50`)
       .bind(campaignId).all<{ fid: number; notification_url: string; notification_token: string }>();
-    let body = (await db.prepare("SELECT value FROM notification_job_state WHERE job_key = ?").bind(campaignId).first<{ value: string }>())?.value;
+    const frozen = (await db.prepare("SELECT value FROM notification_job_state WHERE job_key = ?").bind(campaignId).first<{ value: string }>())?.value;
+    let body: string | undefined;
+    if (frozen) {
+      // Never resume a pre-validation campaign or resend it under a new ID.
+      try {
+        const saved = JSON.parse(frozen) as { version?: number; body?: string; validatedAt?: number };
+        if (saved.version !== 2 || typeof saved.body !== "string" || !Number.isFinite(saved.validatedAt)
+          || Date.now() - saved.validatedAt! > 30 * 60_000 || saved.validatedAt! > Date.now()) return 0;
+        body = saved.body;
+      } catch { return 0; }
+    }
     if (!body) {
       const top = await loadDailyTop(env);
       if (!top.length) return 0;
       body = dailyTopBody(top);
       if (body.length > 128) throw new Error("Daily Top notification exceeds 128 characters");
       await db.prepare("INSERT OR IGNORE INTO notification_job_state (job_key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)")
-        .bind(campaignId, body).run();
+        .bind(campaignId, JSON.stringify({ version: 2, body, validatedAt: Date.now() })).run();
     }
     let sent = 0;
     const deadline = Date.now() + 45_000;
