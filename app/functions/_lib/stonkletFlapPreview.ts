@@ -164,7 +164,10 @@ export async function loadFlapPreviewChart(kv: KVNamespace | undefined, source: 
   } catch (error) {
     if (prior && Date.now() - prior.at < (stockOnly ? 900000 : 86400000)) return { ...prior.value, status: "stale" };
     // Arbitrary DEX pool ratios must never become bStock USD history.
-    if (stockOnly) return empty;
+    if (stockOnly) {
+      console.warn("stonklets_stock_chart_provider_failed", {source, error: error instanceof Error ? error.message : String(error)});
+      return empty;
+    }
     try {
       const value = await loadPaprikaPreviewChart(kv, source, range);
       await write(kv, key, value);

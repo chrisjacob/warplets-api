@@ -275,6 +275,7 @@ function DeferredChart({ pairId, asset, range, periodChange, previewSource, shar
   const [endpointPrices, setEndpointPrices] = useState<{ start: number; end: number } | null>(null);
   const [chartChange, setChartChange] = useState<number | null>(null);
   const [historyEnd, setHistoryEnd] = useState<number | null>(null);
+  const [historyStart, setHistoryStart] = useState<string | null>(null);
   const displayedChange = asset === "stock" ? periodChange : chartChange ?? periodChange;
   useEffect(() => {
     if (shareRender) return;
@@ -294,17 +295,19 @@ function DeferredChart({ pairId, asset, range, periodChange, previewSource, shar
     setEndpointPrices(null);
     setChartChange(null);
     setHistoryEnd(null);
+    setHistoryStart(null);
     Promise.all([
       import("lightweight-charts"),
       fetchStonkletChart(`/api/stonklets/chart?v=2&pair=${encodeURIComponent(pairId)}&asset=${asset}&range=${range}${previewSource ? `&flap=1&source=${encodeURIComponent(previewSource)}` : ""}`, controller.signal).then(async (response) => {
         if (!response.ok) throw new Error("Chart unavailable");
-        return response.json() as Promise<{ points?: { time: number; value: number; price: number }[]; periodChange?: number | null }>;
+        return response.json() as Promise<{ points?: { time: number; value: number; price: number }[]; periodChange?: number | null; partial?: boolean; coverageStart?: string | null }>;
       }),
     ]).then(async ([charts, payload]) => {
       if (disposed || !host) return;
       const points = Array.isArray(payload.points) ? payload.points : [];
       if (points.length < 2) { setStatus("empty"); return; }
       const loadedChange = payload.periodChange ?? periodChange;
+      setHistoryStart(payload.partial ? payload.coverageStart ?? null : null);
       setChartChange(loadedChange);
       const chart = charts.createChart(host, {
         width: Math.max(1, Math.round(host.clientWidth)),
@@ -377,7 +380,7 @@ function DeferredChart({ pairId, asset, range, periodChange, previewSource, shar
     {(status === "idle" || status === "loading") && <div className="stonklets-chart-loading" role="status" aria-label={`Loading ${rangeLabel} market chart`}><span className="h-8 w-8 animate-spin rounded-full border-2 border-[#00FF00]/25 border-t-[#00FF00]" /></div>}
     {(status === "empty" || status === "error") && <div className="stonklets-chart-loading"><div className="text-center text-sm text-[#8bbf8b]"><p>Chart temporarily unavailable</p><button type="button" className="mt-3 font-bold text-[#00ff00] underline" onClick={() => setRetry((value) => value + 1)}>Retry chart</button></div></div>}
     {status === "ready" && displayedChange != null && <strong className={displayedChange >= 0 ? "is-positive" : "is-negative"}>{changeText(displayedChange)}</strong>}
-    {status === "ready" && asset === "stock" && historyEnd != null && Date.now() - historyEnd * 1000 > 30 * 60_000 && <small className="stonklets-chart-history-end">Trades through {new Date(historyEnd * 1000).toLocaleTimeString([], {hour: "2-digit", minute: "2-digit"})}</small>}
+    {status === "ready" && historyStart ? <small className="stonklets-chart-history-end">History since {new Date(historyStart).toLocaleString([], {month: "short", day: "numeric", hour: "2-digit", minute: "2-digit"})}</small> : status === "ready" && asset === "stock" && historyEnd != null && Date.now() - historyEnd * 1000 > 30 * 60_000 && <small className="stonklets-chart-history-end">Trades through {new Date(historyEnd * 1000).toLocaleTimeString([], {hour: "2-digit", minute: "2-digit"})}</small>}
     {status === "ready" && endpointPrices && <div className={`stonklets-chart-price-range ${(displayedChange ?? 0) >= 0 ? "is-positive-range" : "is-negative-range"}`} aria-hidden="true"><span>{priceText(endpointPrices.start)}</span><b>➜</b><span>{priceText(endpointPrices.end)}</span></div>}
   </div>;
 }
