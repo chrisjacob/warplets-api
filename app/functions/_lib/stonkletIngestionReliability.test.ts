@@ -1,11 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { STONKLETS_CATALOG, emptyMarketMetrics } from "../../shared/stonkletsCatalog";
 import { loadStockMetricsBatch } from "./stonkletMarket";
+import { loadCmcMarket } from "./stonkletCmc";
 import { claimStonkletWork, releaseStonkletWork } from "./stonkletWorkLease";
 import { ingestStonkletMarketIfDue, loadStonkletDemoMarket, refreshStonkletDemoMarket, type StonkletDemoSnapshot } from "./stonkletIngestion";
 
 vi.mock("./stonkletMarket", async importOriginal => ({ ...await importOriginal<typeof import("./stonkletMarket")>(), loadStockMetricsBatch: vi.fn() }));
-vi.mock("./stonkletCmc", () => ({ ingestCmcMarketIfDue: vi.fn(async () => ({ status: "disabled" })) }));
+vi.mock("./stonkletCmc", async importOriginal => ({ ...await importOriginal<typeof import("./stonkletCmc")>(), ingestCmcMarketIfDue: vi.fn(async () => ({ status: "disabled" })), loadCmcMarket: vi.fn(async () => new Map()) }));
 vi.mock("./stonkletWorkLease", () => ({ claimStonkletWork: vi.fn(async () => "owner"), releaseStonkletWork: vi.fn(async () => {}) }));
 const launched = STONKLETS_CATALOG.filter(entry => entry.demoToken);
 const now = new Date().toISOString();
@@ -22,7 +23,7 @@ function fixture(snapshots: StonkletDemoSnapshot[] = [], migratedId?: string) {
   const statement = { bind: vi.fn().mockReturnThis(), run: vi.fn(async () => ({})), all: vi.fn(async () => ({ results: [] })) };
   const env = {
     WARPLETS: { prepare: vi.fn(() => statement), batch: vi.fn(async () => []) },
-    WARPLETS_KV: { get: vi.fn(async () => ({ snapshots })), put: vi.fn(async () => {}) },
+    WARPLETS_KV: { get: vi.fn(async () => ({ storedAt: Date.now(), snapshots })), put: vi.fn(async () => {}) },
     STONKLETS_MARKET_INGEST_ENABLED: "true",
   };
   const fetcher = vi.fn(async (_url: string, init?: RequestInit) => {
@@ -44,11 +45,21 @@ function fixture(snapshots: StonkletDemoSnapshot[] = [], migratedId?: string) {
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(loadStockMetricsBatch).mockResolvedValue(stockMetrics());
+  vi.mocked(loadCmcMarket).mockResolvedValue(new Map());
   vi.mocked(claimStonkletWork).mockResolvedValue("owner");
 });
 afterEach(() => vi.unstubAllGlobals());
 
 describe("market refresh resilience", () => {
+  it("prices bonding tokens with fresh CMC quotes when Binance is unavailable", async () => {
+    vi.mocked(loadStockMetricsBatch).mockResolvedValue(new Map());
+    vi.mocked(loadCmcMarket).mockResolvedValue(new Map([...stockMetrics()].map(([id, metrics]) => [`${id}:stock`, {metrics} as never])));
+    const {env, fetcher} = fixture();
+    const snapshots = await refreshStonkletDemoMarket(env as never);
+    expect(snapshots).toHaveLength(20);
+    expect(snapshots.every(snapshot => snapshot.metrics.status === "live")).toBe(true);
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  });
   it("prices all bonding tokens from the stock batch without separate DexPaprika requests", async () => {
     const { env, fetcher } = fixture();
     const snapshots = await refreshStonkletDemoMarket(env as never);

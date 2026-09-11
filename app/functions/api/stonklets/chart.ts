@@ -3,7 +3,7 @@ import { isStonkletsFlapPreview } from "../../../shared/stonkletsFlapPreview.js"
 import { FlapPreviewRateLimitError, loadFlapPreviewChart } from "../../_lib/stonkletFlapPreview.js";
 import { loadChart, loadStockMetricsBatch } from "../../_lib/stonkletMarket.js";
 import { loadCmcMarket, mergeCmcMetrics } from "../../_lib/stonkletCmc.js";
-import { emptyMarketMetrics } from "../../../shared/stonkletsCatalog.js";
+import { emptyMarketMetrics, STONKLETS_CATALOG } from "../../../shared/stonkletsCatalog.js";
 import { loadStonkletRangeChart, type StonkletMarketIngestEnv } from "../../_lib/stonkletIngestion.js";
 import { STONKLETS_BY_ID } from "../../../shared/stonkletsCatalog.js";
 import { DEFAULT_STONKLET_CHANGE_RANGE, parseStonkletChangeRange, stonkletRangeCacheSeconds } from "../../../shared/stonkletsTime.js";
@@ -32,7 +32,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   }
   const cacheSeconds = stonkletRangeCacheSeconds(range);
   const reference = asset === "stock" ? await Promise.all([
-    loadStockMetricsBatch([entry], env.WARPLETS_KV), loadCmcMarket(env),
+    loadStockMetricsBatch(STONKLETS_CATALOG, env.WARPLETS_KV), loadCmcMarket(env),
   ]).then(([stocks, cmc]) => mergeCmcMetrics(stocks.get(pair) ?? emptyMarketMetrics(), cmc.get(`${pair}:stock`))) : undefined;
   const result = asset === "stonklet"
     ? await loadStonkletRangeChart(env, pair, range)

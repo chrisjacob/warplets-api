@@ -19,7 +19,7 @@ import {
   stonkletRangeCacheSeconds,
   type StonkletChangeRange,
 } from "../../shared/stonkletsTime.js";
-import { ingestCmcMarketIfDue, type CmcIngestResult, type StonkletCmcEnv } from "./stonkletCmc.js";
+import { ingestCmcMarketIfDue, loadCmcMarket, mergeCmcMetrics, type CmcIngestResult, type StonkletCmcEnv } from "./stonkletCmc.js";
 import { loadLocalStonkletHistory, mergeStonkletHistoryPoints, persistStonkletHistory } from "./stonkletHistory.js";
 import { claimStonkletWork, releaseStonkletWork } from "./stonkletWorkLease.js";
 
@@ -321,7 +321,7 @@ export async function readStonkletDemoSnapshots(db: D1Database): Promise<Stonkle
 
 async function readCachedSnapshots(env: StonkletMarketIngestEnv): Promise<StonkletDemoSnapshot[]> {
   const cached = await env.WARPLETS_KV?.get<CachedSnapshots>(KV_KEY, "json").catch(() => null) ?? null;
-  if (cached && Array.isArray(cached.snapshots)) return cached.snapshots.filter(snapshot => matchesCatalog(snapshot.pairId, snapshot.contractAddress));
+  if (cached && Array.isArray(cached.snapshots) && Date.now() - cached.storedAt < 5 * 60_000) return cached.snapshots.filter(snapshot => matchesCatalog(snapshot.pairId, snapshot.contractAddress));
   return readStonkletDemoSnapshots(env.WARPLETS);
 }
 
@@ -338,8 +338,9 @@ export async function refreshStonkletDemoMarket(env: StonkletMarketIngestEnv, pr
   // Stock quote prices already come from one batched provider request. Match by
   // verified contract, since the on-chain quote token may differ from the label.
   const stockMetrics = suppliedStockMetrics ?? (quoteAddresses.size ? await loadStockMetricsBatch(STONKLETS_CATALOG, env.WARPLETS_KV) : new Map<string, MarketMetrics>());
+  const cmc = quoteAddresses.size ? await loadCmcMarket(env) : new Map();
   const stockQuotes = new Map(STONKLETS_CATALOG.flatMap(entry => {
-    const metric = stockMetrics.get(entry.id);
+    const metric = mergeCmcMetrics(stockMetrics.get(entry.id) ?? emptyMarketMetrics(), cmc.get(`${entry.id}:stock`));
     return entry.stock.contractAddress && metric?.price != null && metric.price > 0
       ? [[entry.stock.contractAddress.toLowerCase(), metric] as const] : [];
   }));

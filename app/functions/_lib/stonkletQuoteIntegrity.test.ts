@@ -19,12 +19,17 @@ describe("stock quote integrity", () => {
     expect(stockChartAgreesWithQuote(chart(13, 52.73), quote())).toBe(false);
   });
   it("rejects old, future and incomplete chart windows", () => {
-    for (const offset of [-7200, 600]) {
+    for (const offset of [-25200, 600]) {
       const data = chart(); data.points.forEach(p => p.time += offset);
       expect(stockChartAgreesWithQuote(data, quote())).toBe(false);
     }
     const data = chart(); data.points[0]!.time += 80000;
     expect(stockChartAgreesWithQuote(data, quote())).toBe(false);
+  });
+  it("accepts a quiet pool's historical trades only while corroborated by a fresh quote", () => {
+    const data = chart(); data.points.forEach(p => p.time -= 7200);
+    expect(stockChartAgreesWithQuote(data, quote())).toBe(true);
+    expect(stockChartAgreesWithQuote(data, quote(201, 306))).toBe(false);
   });
   it("does not trust a live label on an old quote", () => {
     const old = { ...quote(), updatedAt: new Date(Date.now() - 86400000).toISOString() };

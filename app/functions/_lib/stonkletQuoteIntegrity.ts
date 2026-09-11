@@ -19,7 +19,10 @@ export function stockChartAgreesWithQuote(chart: StonkletChartResult, quote: Mar
   if (!freshQuote(quote) || chart.status !== "live" || chart.points.length < 2) return false;
   const last = chart.points.at(-1)!;
   const age = Date.now() - last.time * 1000;
-  if (age < -60_000 || age > 30 * 60_000 || Math.abs(last.price / quote.price! - 1) > 0.1) return false;
+  // Quiet pools can have no recent trades. Allow bounded historical coverage,
+  // still corroborated by a fresh quote, and expose the actual ending time.
+  const maxAge = chart.range === "24h" ? 6 * 3600_000 : 30 * 60_000;
+  if (age < -60_000 || age > maxAge || Math.abs(last.price / quote.price! - 1) > 0.1) return false;
   const expected = quotedChange(quote, chart.range);
   if (chart.range === "24h" || chart.range === "1h") {
     const duration = chart.range === "24h" ? 86400 : 3600;

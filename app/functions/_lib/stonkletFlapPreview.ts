@@ -8,6 +8,8 @@ const FLAP = "https://bnb.taxed.fun"; // Public board endpoint used by flap.sh.
 const GECKO = "https://api.geckoterminal.com/api/v2/networks/bsc";
 const PREFIX = "stonklets:flap-preview:v3:";
 const ADDRESS = /^0x[0-9a-f]{40}$/i;
+// Uniswap V4 pools are bytes32 IDs; token contracts remain 20-byte addresses.
+const POOL_ID = /^0x(?:[0-9a-f]{40}|[0-9a-f]{64})$/i;
 export class FlapPreviewRateLimitError extends Error {}
 interface BoardItem {
   coin: { address: string; name: string; symbol: string };
@@ -135,22 +137,23 @@ export async function loadFlapPreviewChart(kv: KVNamespace | undefined, source: 
   const empty: StonkletChartResult = { range, basis: "price", provider: null, points: [], periodChange: null, coverageStart: null, coverageEnd: null, status: "unavailable", updatedAt: null };
   if (!ADDRESS.test(source)) return empty;
   source = source.toLowerCase();
-  const key = `${stockOnly ? "stock-chart:v1" : "chart"}:${source}:${range}`;
+  const key = `${stockOnly ? "stock-chart:v2" : "chart"}:${source}:${range}`;
   const cachedPrior = await read<StonkletChartResult>(kv, key);
   const prior = cachedPrior?.value.provider === "dexpaprika+local" && cachedPrior.value.sourceToken !== source ? null : cachedPrior;
   if (prior && Date.now() - prior.at < stonkletRangeCacheSeconds(range) * 1000) return prior.value;
   try {
-    let pool = (await read<{ address: string; side: string }>(kv, `pool:${source}`))?.value;
+    const poolKey = `${stockOnly ? "stock-pool:v2" : "pool"}:${source}`;
+    let pool = (await read<{ address: string; side: string }>(kv, poolKey))?.value;
     if (!pool) {
       const payload = await fetchJson(`${GECKO}/tokens/${source}/pools?page=1`);
-      const match = payload.data?.find((row: any) => ADDRESS.test(row.attributes?.address) &&
+      const match = payload.data?.find((row: any) => POOL_ID.test(row.attributes?.address) &&
         [row.relationships?.base_token?.data?.id, row.relationships?.quote_token?.data?.id].includes(`bsc_${source}`));
       if (!match) throw new Error("No GeckoTerminal pool available");
       pool = { address: match.attributes.address, side: match.relationships.base_token.data.id === `bsc_${source}` ? "base" : "quote" };
-      await write(kv, `pool:${source}`, pool);
+      await write(kv, poolKey, pool);
     }
     const config = geckoRangeConfig(range);
-    const payload = await fetchJson(`${GECKO}/pools/${pool.address}/ohlcv/${config.timeframe}?aggregate=${config.aggregate}&limit=${config.limit}&currency=usd&token=${pool.side}`);
+    const payload = await fetchJson(`${GECKO}/pools/${pool.address}/ohlcv/${config.timeframe}?aggregate=${config.aggregate}&limit=${config.limit}&currency=usd&token=${pool.side}${stockOnly ? "&include_empty_intervals=true" : ""}`);
     const points = normalizeGeckoTerminalChart(payload);
     if (points.length < 2) throw new Error("Preview chart has insufficient history");
     const value: StonkletChartResult = { range, basis: "price", provider: "geckoterminal+local", points,
