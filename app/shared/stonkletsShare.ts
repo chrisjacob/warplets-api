@@ -23,6 +23,6 @@ export function stonkletShare(entry: StonkletCatalogEntry, hostname: string, ran
   const shareName = entry.stonklet.name.replace(/\b10x\.meme\b/gi, "").replace(/\s+/g, " ").trim();
   const title = `${launched ? "👀 Check out" : "✅ Vote for"} Stonklet: ${shareName} $${entry.stonklet.symbol}`;
   const description = `Memecoin paired with Stock: ${entry.stock.name} $${entry.stock.symbol}`;
-  const image = `${origin}/api/stonklets/share-image?id=${encodeURIComponent(entry.id)}&range=${range}&v=11`;
+  const image = `${origin}/api/stonklets/share-image?id=${encodeURIComponent(entry.id)}&range=${range}&v=12`;
   return { title, description, url: url.href, text: `${title}\n\n${description}\n\n${url.href}${tradeUrl ? `\n\n${tradeUrl}` : ""}`, image, ogImage: `${image}&variant=og`, artwork: new URL(entry.stonklet.image, origin).href };
 }

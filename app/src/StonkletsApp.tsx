@@ -274,7 +274,7 @@ function DeferredChart({ pairId, asset, range, periodChange, previewSource, shar
   const [status, setStatus] = useState<"idle" | "loading" | "ready" | "empty" | "error">("idle");
   const [endpointPrices, setEndpointPrices] = useState<{ start: number; end: number } | null>(null);
   const [chartChange, setChartChange] = useState<number | null>(null);
-  const displayedChange = chartChange ?? periodChange;
+  const displayedChange = asset === "stock" ? periodChange : chartChange ?? periodChange;
   useEffect(() => {
     if (shareRender) return;
     const host = hostRef.current;
@@ -294,7 +294,7 @@ function DeferredChart({ pairId, asset, range, periodChange, previewSource, shar
     setChartChange(null);
     Promise.all([
       import("lightweight-charts"),
-      fetchStonkletChart(`/api/stonklets/chart?pair=${encodeURIComponent(pairId)}&asset=${asset}&range=${range}${previewSource ? `&flap=1&source=${encodeURIComponent(previewSource)}` : ""}`, controller.signal).then(async (response) => {
+      fetchStonkletChart(`/api/stonklets/chart?v=2&pair=${encodeURIComponent(pairId)}&asset=${asset}&range=${range}${previewSource ? `&flap=1&source=${encodeURIComponent(previewSource)}` : ""}`, controller.signal).then(async (response) => {
         if (!response.ok) throw new Error("Chart unavailable");
         return response.json() as Promise<{ points?: { time: number; value: number; price: number }[]; periodChange?: number | null }>;
       }),

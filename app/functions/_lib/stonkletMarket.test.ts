@@ -97,17 +97,18 @@ describe("Binance Stonklets normalization", () => {
 });
 
 it("falls back to candles for the verified bStock contract when Binance rejects production", async () => {
+  const now = Math.floor(Date.now() / 1000);
   const contract = STONKLETS_BY_ID.get("robinhood")!.stock.contractAddress!;
   const pool = "0x1111111111111111111111111111111111111111";
   const fetcher = vi.fn(async (input: string) => {
     if (input.includes("binance")) return Response.json({}, { status: 403 });
     if (input.includes(`/tokens/${contract}/pools`)) return Response.json({ data: [{ attributes: { address: pool }, relationships: { base_token: { data: { id: `bsc_${contract}` } }, quote_token: { data: { id: "bsc_other" } } } }] });
-    if (input.includes(`/pools/${pool}/ohlcv/`)) return Response.json({ data: { attributes: { ohlcv_list: [[1060,12,12,12,12,1],[1000,10,10,10,10,1]] } } });
+    if (input.includes(`/pools/${pool}/ohlcv/`)) return Response.json({ data: { attributes: { ohlcv_list: [[now,12,12,12,12,1],[now - 86400,10,10,10,10,1]] } } });
     throw new Error(`Unexpected provider URL: ${input}`);
   });
   vi.stubGlobal("fetch", fetcher);
   try {
-    const chart = await loadChart("robinhood", "stock", undefined, "24h");
+    const chart = await loadChart("robinhood", "stock", undefined, "24h", { price: 12, change24h: 20, status: "live", updatedAt: new Date().toISOString() } as never);
     expect(chart.provider).toBe("geckoterminal+local");
     expect(chart.points).toHaveLength(2);
     expect(chart.periodChange).toBeCloseTo(20);

@@ -131,11 +131,11 @@ async function loadPaprikaPreviewChart(kv: KVNamespace | undefined, source: stri
   return { sourceToken: source, range, basis: "price", provider: "dexpaprika+local", points, periodChange: periodChangeFromChart(points), coverageStart: new Date(points[0]!.time * 1000).toISOString(), coverageEnd: new Date(points.at(-1)!.time * 1000).toISOString(), status: "live", updatedAt: new Date().toISOString() };
 }
 
-export async function loadFlapPreviewChart(kv: KVNamespace | undefined, source: string, range: StonkletChangeRange): Promise<StonkletChartResult> {
+export async function loadFlapPreviewChart(kv: KVNamespace | undefined, source: string, range: StonkletChangeRange, stockOnly = false): Promise<StonkletChartResult> {
   const empty: StonkletChartResult = { range, basis: "price", provider: null, points: [], periodChange: null, coverageStart: null, coverageEnd: null, status: "unavailable", updatedAt: null };
   if (!ADDRESS.test(source)) return empty;
   source = source.toLowerCase();
-  const key = `chart:${source}:${range}`;
+  const key = `${stockOnly ? "stock-chart:v1" : "chart"}:${source}:${range}`;
   const cachedPrior = await read<StonkletChartResult>(kv, key);
   const prior = cachedPrior?.value.provider === "dexpaprika+local" && cachedPrior.value.sourceToken !== source ? null : cachedPrior;
   if (prior && Date.now() - prior.at < stonkletRangeCacheSeconds(range) * 1000) return prior.value;
@@ -159,7 +159,9 @@ export async function loadFlapPreviewChart(kv: KVNamespace | undefined, source: 
     await write(kv, key, value);
     return value;
   } catch (error) {
-    if (prior && Date.now() - prior.at < 86400000) return { ...prior.value, status: "stale" };
+    if (prior && Date.now() - prior.at < (stockOnly ? 900000 : 86400000)) return { ...prior.value, status: "stale" };
+    // Arbitrary DEX pool ratios must never become bStock USD history.
+    if (stockOnly) return empty;
     try {
       const value = await loadPaprikaPreviewChart(kv, source, range);
       await write(kv, key, value);

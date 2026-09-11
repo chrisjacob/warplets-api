@@ -14,9 +14,9 @@ describe("share render deduplication", () => {
   const get = vi.fn(async () => image());
   const ctx = context(get);
   await onRequestGet(ctx as never);
-  expect(get).toHaveBeenLastCalledWith("stonklet-shares/v11/stonklet-local.10x.meme/robinhood/24h-square.png");
+  expect(get).toHaveBeenLastCalledWith("stonklet-shares/v12/stonklet-local.10x.meme/robinhood/24h-square.png");
   await onRequestGet({ ...ctx, request: new Request(`${ctx.request.url}&variant=og`) } as never);
-  expect(get).toHaveBeenLastCalledWith("stonklet-shares/v11/stonklet-local.10x.meme/robinhood/24h-og.png");
+  expect(get).toHaveBeenLastCalledWith("stonklet-shares/v12/stonklet-local.10x.meme/robinhood/24h-og.png");
  });
  it("serves an expired OG card immediately while a refresh is already running", async () => {
   const get = vi.fn(async () => ({ ...image(), uploaded: new Date(Date.now() - 600_000) }));
@@ -60,7 +60,7 @@ describe("share render deduplication", () => {
   await vi.advanceTimersByTimeAsync(2_000);
   const response = await pending as Response;
   expect(response.status).toBe(200);
-  expect(claimStonkletWork).toHaveBeenCalledWith(expect.anything(), "stonklet-shares/v11/stonklet-local.10x.meme/robinhood/24h",180);
+  expect(claimStonkletWork).toHaveBeenCalledWith(expect.anything(), "stonklet-shares/v12/stonklet-local.10x.meme/robinhood/24h",180);
   expect(releaseStonkletWork).not.toHaveBeenCalled();
   vi.useRealTimers();
  });

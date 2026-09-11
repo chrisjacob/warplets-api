@@ -1,4 +1,5 @@
 import { STONKLETS_BY_ID, emptyMarketMetrics, type MarketMetrics, type StonkletCatalogEntry } from "../../shared/stonkletsCatalog.js";
+import { quotedChange, stockChartAgreesWithQuote } from "./stonkletQuoteIntegrity.js";
 import {
   DEFAULT_STONKLET_CHANGE_RANGE,
   stonkletChangeRangeSeconds,
@@ -225,7 +226,7 @@ export async function loadStockMetrics(entry: StonkletCatalogEntry, kv?: KVNames
   }
 }
 
-export async function loadChart(pairId: string, asset: "stock" | "stonklet", kv?: KVNamespace, range: StonkletChangeRange = DEFAULT_STONKLET_CHANGE_RANGE): Promise<StonkletChartResult> {
+export async function loadChart(pairId: string, asset: "stock" | "stonklet", kv?: KVNamespace, range: StonkletChangeRange = DEFAULT_STONKLET_CHANGE_RANGE, reference?: MarketMetrics): Promise<StonkletChartResult> {
   const entry = STONKLETS_BY_ID.get(pairId);
   if (!entry || asset === "stonklet") return chartUnavailable(range);
   const cacheSeconds = stonkletRangeCacheSeconds(range);
@@ -250,7 +251,10 @@ export async function loadChart(pairId: string, asset: "stock" | "stonklet", kv?
         if (entry.stock.contractAddress) {
           try {
             const { loadFlapPreviewChart } = await import("./stonkletFlapPreview.js");
-            return await loadFlapPreviewChart(kv, entry.stock.contractAddress, range);
+            const chart = await loadFlapPreviewChart(kv, entry.stock.contractAddress, range, true);
+            if (stockChartAgreesWithQuote(chart, reference)) return chart;
+            console.warn("stonklets_stock_chart_rejected", { pair: entry.id, provider: chart.provider });
+            return chartUnavailable(range);
           } catch { /* Both providers unavailable; retain the explicit empty state. */ }
         }
         return chartUnavailable(range);
@@ -278,7 +282,12 @@ export async function loadChart(pairId: string, asset: "stock" | "stonklet", kv?
   };
 }
 
-export async function loadStockPeriodChanges(entries: readonly StonkletCatalogEntry[], range: StonkletChangeRange, kv?: KVNamespace): Promise<Map<string, number | null>> {
-  const rows = await Promise.all(entries.map(async (entry) => [entry.id, (await loadChart(entry.id, "stock", kv, range)).periodChange] as const));
+export async function loadStockPeriodChanges(entries: readonly StonkletCatalogEntry[], range: StonkletChangeRange, kv?: KVNamespace, references?: Map<string, MarketMetrics>): Promise<Map<string, number | null>> {
+  const rows = await Promise.all(entries.map(async (entry) => {
+    const reference = references?.get(entry.id);
+    // Use the provider's rolling return, not the first/last trades in an arbitrary pool.
+    if (range === "24h" || range === "1h") return [entry.id, quotedChange(reference, range)] as const;
+    return [entry.id, (await loadChart(entry.id, "stock", kv, range, reference)).periodChange] as const;
+  }));
   return new Map(rows);
 }

@@ -9,6 +9,15 @@ const item = { coin: { address, name: "Source", symbol: "SRC" }, listed: true, p
 const items = STONKLETS_CATALOG.map((_, index) => ({ ...item, coin: { ...item.coin, address: `0x${(index + 1).toString(16).padStart(40, "0")}` }, price: String(index + 1), volume24h: String((index + 1) * 50) }));
 
 describe("Flap preview data", () => {
+  it("never uses DexPaprika or its legacy cached candles for stock charts", async () => {
+    const get = vi.fn(async () => null);
+    const fetcher = vi.fn(async () => new Response(null, { status: 429 }));
+    vi.stubGlobal("fetch", fetcher);
+    const result = await loadFlapPreviewChart({get} as unknown as KVNamespace, address, "24h", true);
+    expect(result.status).toBe("unavailable");
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(get.mock.calls[0]).toEqual([`stonklets:flap-preview:v3:stock-chart:v1:${address}:24h`, "json"]);
+  });
   it("maps every Stonklet without changing its identity or the official catalog", () => {
     const original = JSON.stringify(STONKLETS_CATALOG);
     const entries = applyFlapPreview(STONKLETS_CATALOG, { at: Date.now(), value: items, stale: false }, "24h");
