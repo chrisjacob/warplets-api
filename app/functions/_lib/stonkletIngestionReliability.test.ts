@@ -40,7 +40,7 @@ function fixture(snapshots: StonkletDemoSnapshot[] = [], migratedId?: string) {
     }));
   });
   vi.stubGlobal("fetch", fetcher);
-  return { env, fetcher };
+  return { env, fetcher, statement };
 }
 beforeEach(() => {
   vi.clearAllMocks();
@@ -117,5 +117,29 @@ describe("market refresh resilience", () => {
     const { env, fetcher } = fixture(launched.map(entry => previous(entry, now)));
     expect(await ingestStonkletMarketIfDue(env as never)).toMatchObject({ status: "fresh" });
     expect(fetcher).not.toHaveBeenCalled();
+  });
+
+  it("refreshes before the five-minute expiry instead of waiting for quotes to become delayed", async () => {
+    const at = new Date(Date.now() - 4 * 60_000).toISOString();
+    const { env, fetcher } = fixture(launched.map(entry => previous(entry, at)));
+    expect(await ingestStonkletMarketIfDue(env as never)).toMatchObject({ status: "ingested", snapshots: 20 });
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+
+  it("uses current database snapshots when KV still contains the previous expired generation", async () => {
+    const old = launched.map(entry => previous(entry, new Date(Date.now() - 6 * 60_000).toISOString()));
+    const fresh = launched.map(entry => previous(entry, new Date().toISOString()));
+    const { env, fetcher, statement } = fixture(old);
+    statement.all.mockResolvedValue({ results: fresh.map(snapshot => ({
+      pair_id: snapshot.pairId, contract_address: snapshot.contractAddress,
+      metrics_json: JSON.stringify(snapshot.metrics), state_json: JSON.stringify(snapshot.state),
+      chart_json: "[]", updated_at: snapshot.state.updatedAt,
+    })) } as never);
+    vi.mocked(claimStonkletWork).mockResolvedValue(null);
+    const result = await loadStonkletDemoMarket(env as never);
+    expect(result).toHaveLength(20);
+    expect(result.every(snapshot => snapshot.metrics.status === "live")).toBe(true);
+    expect(fetcher).not.toHaveBeenCalled();
+    expect(claimStonkletWork).not.toHaveBeenCalled();
   });
 });

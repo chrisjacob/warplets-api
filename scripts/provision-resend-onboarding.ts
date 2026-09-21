@@ -104,7 +104,7 @@ const PERK_ORDER: PerksSubpage[] = ["memes", "rwas", "nfts", "ai", "attention", 
 function perkTemplate(id: PerksSubpage, index: number): TemplateSpec {
   const definition = PERKS_DEFINITIONS[id];
   const share = PERKS_SHARE_CONTENT[id];
-  const subject = `10X ${share.label}: ${share.eyebrow}`;
+  const subject = `10X ${share.label}: ${id === "rwas" ? "Meme Stock Market" : share.eyebrow}`;
   const route = `https://warplet.10x.meme/perks/${id}`;
   const explanations = definition.explanation.map((item) => {
     const paragraphs = item.body.split(/\n\n+/).map((paragraph) => `<p style="font-size:15px;line-height:1.65;margin:0 0 14px">${escapeHtml(paragraph).replace(/\n/g, "<br>")}</p>`).join("");
@@ -362,10 +362,10 @@ async function main(): Promise<void> {
     // Targeted copy updates must preserve the existing automation's template ID.
     const existing = await resend(`/templates/${encodeURIComponent(template.alias)}`);
     if (!existing.id) throw new Error("Existing template not found");
-    await resend(`/templates/${encodeURIComponent(String(existing.id))}`, { method: "PATCH", body: JSON.stringify({ html: template.html, text: template.text }) });
+    await resend(`/templates/${encodeURIComponent(String(existing.id))}`, { method: "PATCH", body: JSON.stringify({ subject: template.subject, html: template.html, text: template.text }) });
     await resend(`/templates/${encodeURIComponent(String(existing.id))}/publish`, { method: "POST" });
     const saved = await resend(`/templates/${encodeURIComponent(String(existing.id))}`);
-    if (saved.html !== template.html || saved.text !== template.text) throw new Error("Template read-back did not match generated content");
+    if (saved.subject !== template.subject || saved.html !== template.html || saved.text !== template.text) throw new Error("Template read-back did not match generated content");
     console.log(`Updated and verified ${template.alias}.`);
     return;
   }

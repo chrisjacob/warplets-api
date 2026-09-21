@@ -18,7 +18,7 @@ export function AppFloatingPortal(props: ComponentProps<typeof FloatingPortal>) 
 }
 
 export function getAppScale(width: number): number {
-  return Number.isFinite(width) ? Math.min(1.5, Math.max(1, width / 500)) : 1;
+  return Number.isFinite(width) ? Math.min(1.25, Math.max(1, width / 500)) : 1;
 }
 
 export function getElementScale(element: HTMLElement): number {

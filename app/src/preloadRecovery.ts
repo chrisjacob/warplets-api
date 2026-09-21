@@ -19,3 +19,18 @@ export function shouldReloadForPreloadError({
 }: PreloadRecoveryContext): boolean {
   return !appMounted && !embedded && !recoveryAttempted;
 }
+
+export function claimPreloadRecovery(
+  storage: Pick<Storage, "getItem" | "setItem">,
+  key: string,
+  context: Omit<PreloadRecoveryContext, "recoveryAttempted">,
+): boolean {
+  try {
+    if (!shouldReloadForPreloadError({ ...context, recoveryAttempted: storage.getItem(key) === "1" })) return false;
+    storage.setItem(key, "1");
+    return true;
+  } catch {
+    // Without a durable guard, automatic reloads could repeat indefinitely.
+    return false;
+  }
+}

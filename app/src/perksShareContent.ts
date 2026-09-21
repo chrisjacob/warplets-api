@@ -21,9 +21,9 @@ export const PERKS_SHARE_CONTENT: Record<PerksShareId, PerksShareContent> = {
     tokenId: 3258,
   }),
   rwas: definePerksShareContent({
-    id: "rwas", label: "RWAs", eyebrow: "Gen Z's Stonk Market",
+    id: "rwas", label: "RWAs", eyebrow: "MEME STOCK MARKET",
     summary: "Major real-world assets, relaunched as meme stonks. Paper hands feed diamond hands... Compounding memetic aura!",
-    callout: "Reset the market. Be early. Win.",
+    callout: "Can a meme market outperform the real market?",
     tokenId: 9736,
   }),
   nfts: definePerksShareContent({

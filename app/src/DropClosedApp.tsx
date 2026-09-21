@@ -137,8 +137,8 @@ export default function DropClosedApp() {
                 <h2 className="text-2xl font-black leading-tight text-[#00FF00] drop-shadow-[0_0_7px_rgba(0,255,0,0.4)]">
                   10X RWAs Have Launched
                 </h2>
-                <p className="mt-4 text-sm font-semibold leading-6 text-[#d9f5d9]"><strong>GEN Z'S STONK MARKET</strong></p>
-                <p className="mt-3 text-sm leading-6 text-[#b8d7b8]">Reset the market. Be early. Win.</p>
+                <p className="mt-4 text-sm font-semibold leading-6 text-[#d9f5d9]"><strong>MEME STOCK MARKET</strong></p>
+                <p className="mt-3 text-sm leading-6 text-[#b8d7b8]">Can a meme market outperform the real market?</p>
                 <button
                   type="button"
                   className="mt-5 w-full rounded-[14px] border border-[#009900] bg-[#00FF00] px-5 py-3 text-base font-black text-[rgb(0,80,0)] shadow-[2px_4px_0_#008000] transition hover:bg-[#33ff33] active:translate-x-[1px] active:translate-y-[2px] active:shadow-[1px_2px_0_#008000]"
