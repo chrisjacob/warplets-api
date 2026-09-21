@@ -210,9 +210,9 @@ export function normalizeCmcHolderCount(payload: unknown): number | null {
   return positiveInteger(value.count);
 }
 
-function readCreditCount(payload: unknown): number {
-  if (!payload || typeof payload !== "object") return 1;
-  return Math.max(1, positiveInteger((payload as CmcResponse<unknown>).status?.credit_count) ?? 1);
+function readCreditCount(payload: unknown): number | null {
+  if (!payload || typeof payload !== "object") return null;
+  return positiveInteger((payload as CmcResponse<unknown>).status?.credit_count);
 }
 
 async function reserveCredits(env: StonkletCmcEnv, credits: number): Promise<number> {
@@ -231,12 +231,14 @@ async function reserveCredits(env: StonkletCmcEnv, credits: number): Promise<num
   return Number(row.credits) || credits;
 }
 
-async function accountExtraCredits(env: StonkletCmcEnv, reserved: number, actual: number): Promise<void> {
-  const extra = Math.max(0, actual - reserved);
-  if (!extra) return;
+async function reconcileCredits(env: StonkletCmcEnv, reserved: number, actual: number | null, month: string): Promise<void> {
+  // Keep the reservation when the charge is unknown, including network failures.
+  // Explicit zero-credit errors must not consume the monthly quote allowance.
+  const adjustment = actual == null ? 0 : actual - reserved;
+  if (!adjustment) return;
   await env.WARPLETS.prepare(
-    "UPDATE stonklet_cmc_credit_usage SET credits = credits + ?, updated_at = ? WHERE month_key = ?",
-  ).bind(extra, new Date().toISOString(), monthKey()).run();
+    "UPDATE stonklet_cmc_credit_usage SET credits = MAX(0, credits + ?), updated_at = ? WHERE month_key = ?",
+  ).bind(adjustment, new Date().toISOString(), month).run();
 }
 
 async function acquireLease(env: StonkletCmcEnv, lockKey: string, leaseMs = 2 * 60_000): Promise<string | null> {
@@ -252,17 +254,18 @@ async function acquireLease(env: StonkletCmcEnv, lockKey: string, leaseMs = 2 * 
   return row?.lease_until === leaseUntil ? leaseUntil : null;
 }
 
-async function releaseLease(env: StonkletCmcEnv, lockKey: string, leaseUntil: string): Promise<void> {
+async function releaseLease(env: StonkletCmcEnv, lockKey: string, leaseUntil: string, retryDelayMs = 0): Promise<void> {
   const now = new Date().toISOString();
   await env.WARPLETS.prepare(
     "UPDATE stonklet_cmc_ingest_locks SET lease_until = ?, updated_at = ? WHERE lock_key = ? AND lease_until = ?",
-  ).bind(now, now, lockKey, leaseUntil).run().catch(() => undefined);
+  ).bind(new Date(Date.now() + retryDelayMs).toISOString(), now, lockKey, leaseUntil).run().catch(() => undefined);
 }
 
 async function fetchCmcJson(env: StonkletCmcEnv, path: string): Promise<{ payload: unknown; creditsThisMonth: number }> {
   const key = env.COINMARKETCAP_API_KEY?.trim();
   if (!key) throw new Error("Missing CoinMarketCap API key");
   const reserved = 1;
+  const reservationMonth = monthKey();
   const creditsThisMonth = await reserveCredits(env, reserved);
   const response = await fetch(`${CMC_BASE}${path}`, {
     headers: { ...PROVIDER_HEADERS, "X-CMC_PRO_API_KEY": key },
@@ -270,10 +273,10 @@ async function fetchCmcJson(env: StonkletCmcEnv, path: string): Promise<{ payloa
   });
   const payload = await response.json().catch(() => null);
   const status = payload && typeof payload === "object" ? (payload as CmcResponse<unknown>).status : null;
+  await reconcileCredits(env, reserved, readCreditCount(payload), reservationMonth);
   if (!response.ok || (status?.error_code != null && Number(status.error_code) !== 0)) {
     throw new Error(`CMC returned ${response.status}: ${status?.error_message || "upstream error"}`);
   }
-  await accountExtraCredits(env, reserved, readCreditCount(payload));
   return { payload, creditsThisMonth };
 }
 
@@ -461,12 +464,14 @@ export async function ingestCmcMarketIfDue(env: StonkletCmcEnv): Promise<CmcInge
     if (needsMapping) {
       const lease = await acquireLease(env, "mapping");
       if (lease) {
+        let retryDelayMs = 0;
         try { mapped = await refreshMappings(env, candidates); }
         catch (error) {
+          retryDelayMs = 15 * 60_000;
           if (error instanceof CmcBudgetError) throw error;
           console.warn("stonklets_cmc_mapping_error", { message: error instanceof Error ? error.message : String(error) });
         }
-        finally { await releaseLease(env, "mapping", lease); }
+        finally { await releaseLease(env, "mapping", lease, retryDelayMs); }
         rows = await readRows(env);
       }
     }
@@ -474,16 +479,20 @@ export async function ingestCmcMarketIfDue(env: StonkletCmcEnv): Promise<CmcInge
     if (rows.some((row) => row.cmc_id != null && timestampAge(row.quote_updated_at) >= quoteIntervalFor(env))) {
       const lease = await acquireLease(env, "quotes");
       if (lease) {
+        let retryDelayMs = 0;
         try { quoted = await refreshQuotes(env, rows); }
-        finally { await releaseLease(env, "quotes", lease); }
+        catch (error) { retryDelayMs = 5 * 60_000; throw error; }
+        finally { await releaseLease(env, "quotes", lease, retryDelayMs); }
         rows = await readRows(env);
       }
     }
     let holderAsset: string | null = null;
     const holderLease = await acquireLease(env, "holders");
     if (holderLease) {
+      let retryDelayMs = 0;
       try { holderAsset = await refreshOneHolder(env, rows); }
-      finally { await releaseLease(env, "holders", holderLease); }
+      catch (error) { retryDelayMs = 60 * 60_000; throw error; }
+      finally { await releaseLease(env, "holders", holderLease, retryDelayMs); }
     }
     await writeCache(env);
     const changed = mapped > 0 || quoted > 0 || holderAsset != null;

@@ -33,6 +33,8 @@ const DEFAULT_BNB_RPC_URLS = [
 const DEXPAPRIKA_BASE = "https://api.dexpaprika.com/networks/bsc";
 const GECKOTERMINAL_BASE = "https://api.geckoterminal.com/api/v2/networks/bsc";
 const FRESH_MS = 5 * 60_000;
+// Leave time for the minute-based cron tick and provider requests to complete.
+const REFRESH_AHEAD_MS = 2 * 60_000;
 const STALE_MS = 60 * 60_000;
 const KV_KEY = "stonklets:demo-market:v2";
 const PROVIDER_HEADERS = { accept: "application/json", "user-agent": "10X-Stonklets/1.0 (+https://stonklet.10x.meme)" };
@@ -321,8 +323,17 @@ export async function readStonkletDemoSnapshots(db: D1Database): Promise<Stonkle
 
 async function readCachedSnapshots(env: StonkletMarketIngestEnv): Promise<StonkletDemoSnapshot[]> {
   const cached = await env.WARPLETS_KV?.get<CachedSnapshots>(KV_KEY, "json").catch(() => null) ?? null;
-  if (cached && Array.isArray(cached.snapshots) && Date.now() - cached.storedAt < 5 * 60_000) return cached.snapshots.filter(snapshot => matchesCatalog(snapshot.pairId, snapshot.contractAddress));
-  return readStonkletDemoSnapshots(env.WARPLETS);
+  const snapshots = cached && Array.isArray(cached.snapshots)
+    ? cached.snapshots.filter(snapshot => matchesCatalog(snapshot.pairId, snapshot.contractAddress)) : [];
+  if (cached && Date.now() - cached.storedAt < FRESH_MS && allFresh(snapshots)) return snapshots;
+  // KV can lag behind the cron's database write. Check the authoritative rows
+  // before reporting expired cached quotes as delayed or starting another refresh.
+  const current = new Map(snapshots.map(snapshot => [snapshot.pairId, snapshot]));
+  for (const snapshot of await readStonkletDemoSnapshots(env.WARPLETS)) {
+    const prior = current.get(snapshot.pairId);
+    if (!prior || snapshotAge(snapshot) <= snapshotAge(prior)) current.set(snapshot.pairId, snapshot);
+  }
+  return [...current.values()];
 }
 
 export async function refreshStonkletDemoMarket(env: StonkletMarketIngestEnv, prior: readonly StonkletDemoSnapshot[] = [], suppliedStockMetrics?: Map<string, MarketMetrics>): Promise<StonkletDemoSnapshot[]> {
@@ -503,7 +514,8 @@ export async function ingestStonkletMarketIfDue(env: StonkletMarketIngestEnv): P
   if (!/^(1|true|yes)$/i.test(env.STONKLETS_MARKET_INGEST_ENABLED?.trim() ?? "")) return { status: "disabled", cmc };
   const interval = Math.max(1, Math.min(60, Number(env.STONKLETS_MARKET_INGEST_INTERVAL_MINUTES) || 5));
   const prior = await readCachedSnapshots(env);
-  if (allFresh(prior, Date.now(), interval * 60_000)) return { status: "fresh", cmc };
+  const refreshAfter = Math.max(60_000, Math.min(FRESH_MS, interval * 60_000) - REFRESH_AHEAD_MS);
+  if (allFresh(prior, Date.now(), refreshAfter)) return { status: "fresh", cmc };
   const lease = await claimStonkletWork(env.WARPLETS, KV_KEY, 60);
   if (!lease) return { status: "fresh", cmc };
   try {

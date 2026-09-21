@@ -2138,7 +2138,7 @@ html[data-entry-point="pwa"] .miniapp-shell__content {
 .stonklets-market-heading{container-type:inline-size;width:100%;margin-bottom:20px;text-align:center}
 .stonklets-market-heading h1{width:100%;margin:0;color:#00ff00;font-size:8.1cqi;font-weight:900;line-height:1.15;letter-spacing:-.04em;white-space:nowrap}
 .stonklets-market-heading p{margin:8px 0 0;color:#8bbf8b;font-size:14px;line-height:1.5}
-.stonklets-market-heading .stonklets-market-tagline{font-size:4.4cqi;white-space:nowrap}
+.stonklets-market-heading .stonklets-market-tagline{font-size:4.4cqi;white-space:normal;text-wrap:balance}
 .stonklets-search-row{display:block;margin-bottom:12px}
 .stonklets-search-row input{width:100%;height:auto;padding-top:12px;padding-bottom:12px;padding-left:40px;padding-right:112px;border-color:#00ff00;border-radius:12px;background:rgba(0,0,0,.7);color:#00ff00;font-family:inherit;font-size:16px;font-weight:400;line-height:24px}
 .stonklets-search-row input::placeholder{color:#8bbf8b}

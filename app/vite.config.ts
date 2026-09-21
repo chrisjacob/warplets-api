@@ -34,7 +34,7 @@ const STOP_SHARE_DESCRIPTION = "Opt out of 10X outreach mentions in the Farcaste
 const STOP_IMAGE_URL = "https://warplets.10x.meme/3081.png";
 const WARPLETS_SPLASH_BACKGROUND_COLOR = "#004100";
 const STONKLETS_SPLASH_BACKGROUND_COLOR = "#258d33";
-const STONKLETS_SHARE_DESCRIPTION = "GEN Z'S STONK MARKET. Reset the market. Be early. Win.";
+const STONKLETS_SHARE_DESCRIPTION = "MEME STOCK MARKET. Can a meme market outperform the real market?";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, "..");
 
@@ -127,12 +127,12 @@ function buildLocalStonkletsManifest(
       splashBackgroundColor: STONKLETS_SPLASH_BACKGROUND_COLOR,
       webhookUrl: `${origin}/webhook/stonklets`,
       castShareUrl: origin,
-      subtitle: "Reset the market.Be early.Win.",
+      subtitle: "MEME STOCK MARKET",
       description: STONKLETS_SHARE_DESCRIPTION,
       primaryCategory: "finance",
       screenshotUrls: [1, 2, 3].map((index) => `${origin}/screenshots/stonklets_${index}.jpg`),
       tags: ["10x", "stonklets", "bnb", "rwa", "memecoins"],
-      tagline: "GEN Z'S STONK MARKET.",
+      tagline: "MEME STOCK MARKET",
       ogTitle: STONKLETS_PUBLIC_NAME,
       ogDescription: STONKLETS_SHARE_DESCRIPTION,
       ogImageUrl: `${origin}/embed_stonklet.jpg`,

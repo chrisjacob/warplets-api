@@ -29,9 +29,9 @@ describe("RWAs perk", () => {
 
   it("defines the exact page and share identity", () => {
     const content = PERKS_SHARE_CONTENT.rwas;
-    expect(content.eyebrow).toBe("Gen Z's Stonk Market");
+    expect(content.eyebrow).toBe("MEME STOCK MARKET");
     expect(content.summary).toBe("Major real-world assets, relaunched as meme stonks. Paper hands feed diamond hands... Compounding memetic aura!");
-    expect(content.callout).toBe("Reset the market. Be early. Win.");
+    expect(content.callout).toBe("Can a meme market outperform the real market?");
     expect(content.cta).toBe("Share 10X RWAs");
     expect(getPerksShareImageUrl(content)).toBe("https://warplets.10x.meme/9736.gif");
     expect(PERKS_DEFINITIONS.rwas.futureTokenId).toBe(9736);
@@ -205,6 +205,6 @@ describe("RWAs perk", () => {
     ]);
     expect(definition.averageMetrics.find((metric) => metric.label === "Rewards")?.detail).toContain("Warplet ownership alone does not earn RWA rewards");
 
-    expect(definition.explanation.at(-1)?.callout).toBe("Reset the market. Be early. Win.");
+    expect(definition.explanation.at(-1)?.callout).toBe("Can a meme market outperform the real market?");
   });
 });

@@ -1,4 +1,4 @@
-import { StrictMode, Suspense, lazy, useEffect, useState } from "react";
+import { Component, StrictMode, Suspense, lazy, useEffect, useState, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import "./index.css";
 import { initializePwa, isEmbeddedWebView, isLikelyBaseAppBrowser } from "./pwa";
@@ -6,7 +6,7 @@ import { WARPLETS_APP_HOSTS, WARPLETS_APP_PATH } from "../shared/warpletsApp";
 import { STONKLETS_APP_HOSTS, STONKLETS_APP_PATH } from "../shared/stonkletsApp";
 import { captureWarpmojiAttribution } from "./analytics";
 import { clearLocalCacheIfRequested } from "./localCacheReset";
-import { shouldReloadForPreloadError } from "./preloadRecovery";
+import { claimPreloadRecovery } from "./preloadRecovery";
 import { captureHolderOutreachAttribution } from "./outreachAttribution";
 
 const HOME_APP_HOSTS = new Set([
@@ -46,7 +46,7 @@ const TabsEntryPage = lazy(() => import("./TabsEntryPage.tsx"));
 const LegalPage = lazy(() => import("./LegalPage.tsx"));
 
 const PRELOAD_RECOVERY_KEY = "10x-vite-preload-recovery";
-let appMounted = typeof document !== "undefined" && document.readyState === "complete";
+let appMounted = false;
 
 function getRejectedImageSrc(value: unknown): string | null {
   if (typeof HTMLImageElement === "undefined") return null;
@@ -70,24 +70,19 @@ function isExternalFarcasterImageProxy(src: string | null): boolean {
 
 if (typeof window !== "undefined") {
   window.addEventListener("vite:preloadError", (event) => {
+    let recover = false;
+    try {
+      recover = claimPreloadRecovery(window.sessionStorage, PRELOAD_RECOVERY_KEY, {
+        appMounted,
+        embedded: isEmbeddedWebView() || isLikelyBaseAppBrowser(),
+      });
+    } catch { /* Storage can be inaccessible in restricted browsers. */ }
+    // Let failed imports reject normally when recovery is exhausted. Cancelling
+    // Vite's event otherwise resolves the import as undefined and crashes React.lazy.
+    if (!recover) return;
     event.preventDefault();
-    const recoveryAttempted = window.sessionStorage.getItem(PRELOAD_RECOVERY_KEY) === "1";
-    if (!shouldReloadForPreloadError({
-      appMounted,
-      embedded: isEmbeddedWebView() || isLikelyBaseAppBrowser(),
-      recoveryAttempted,
-    })) {
-      // Keep a mounted SPA alive when an old document requests a deferred chunk
-      // after a release. Reloading here replays the host splash on first click.
-      console.warn("[10X] Deferred stale module recovery preserved the mounted app", event);
-      return;
-    }
-    window.sessionStorage.setItem(PRELOAD_RECOVERY_KEY, "1");
     window.location.reload();
   });
-  window.addEventListener("load", () => {
-    window.sessionStorage.removeItem(PRELOAD_RECOVERY_KEY);
-  }, { once: true });
   window.addEventListener("unhandledrejection", (event) => {
     const src = getRejectedImageSrc(event.reason);
     if (!isExternalFarcasterImageProxy(src)) return;
@@ -139,6 +134,9 @@ function RootRouter() {
 
   useEffect(() => {
     appMounted = true;
+    // A window load event can fire even when the lazy app failed to start.
+    // Clear the reload guard only after the actual app has committed.
+    try { window.sessionStorage.removeItem(PRELOAD_RECOVERY_KEY); } catch { /* best effort */ }
     const handlePopState = () => setNavigationKey((key) => key + 1);
     window.addEventListener("popstate", handlePopState);
     return () => window.removeEventListener("popstate", handlePopState);
@@ -147,10 +145,24 @@ function RootRouter() {
   return resolveActiveApp();
 }
 
+class AppLoadBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
+  state = { failed: false };
+  static getDerivedStateFromError() { return { failed: true }; }
+  render() {
+    if (!this.state.failed) return this.props.children;
+    return <div role="alert" className="flex min-h-screen flex-col items-center justify-center gap-4 bg-black p-6 text-center text-[#b8d7b8]">
+      <p>The app couldn’t finish loading.</p>
+      <button className="rounded-lg border border-[#00ff00] px-5 py-3 font-bold text-[#00ff00]" onClick={() => window.location.reload()}>Reload app</button>
+    </div>;
+  }
+}
+
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <Suspense fallback={<div className="min-h-screen bg-black" aria-label="Loading 10X" />}>
+    <AppLoadBoundary>
+    <Suspense fallback={<div className="flex min-h-screen items-center justify-center bg-black text-[#b8d7b8]" role="status">Loading 10X…</div>}>
       <RootRouter />
     </Suspense>
+    </AppLoadBoundary>
   </StrictMode>
 );

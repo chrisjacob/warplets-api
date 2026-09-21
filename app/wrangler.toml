@@ -67,7 +67,8 @@ DUNE_TRANSFERS_BACKFILL_QUERY_ID = "8102887"
 # COINMARKETCAP_API_KEY is a server-only secret used by the Stonklets market
 # enrichment connector. For local Pages development, put it in app/.dev.vars.
 STONKLETS_CMC_ENABLED = "true"
-STONKLETS_CMC_QUOTES_INTERVAL_MINUTES = "5"
+STONKLETS_CMC_QUOTES_INTERVAL_MINUTES = "10"
+STONKLETS_CMC_HOLDER_TARGET_HOURS = "24"
 STONKLETS_CMC_MONTHLY_CREDIT_BUDGET = "14000"
 
 # Production bindings (app.10x.meme)

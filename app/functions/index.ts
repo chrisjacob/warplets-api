@@ -60,7 +60,7 @@ const WARPLETS_SHARE_TITLE = WARPLETS_PUBLIC_NAME;
 const WARPLETS_SHARE_DESCRIPTION = "Search, filter, trade, favourite, and share 10X Warplets.";
 const WARPLETS_SPLASH_BACKGROUND_COLOR = "#004100";
 const STONKLETS_SHARE_TITLE = STONKLETS_PUBLIC_NAME;
-const STONKLETS_SHARE_DESCRIPTION = "GEN Z'S STONK MARKET. Reset the market. Be early. Win.";
+const STONKLETS_SHARE_DESCRIPTION = "MEME STOCK MARKET. Can a meme market outperform the real market?";
 const STONKLETS_SPLASH_BACKGROUND_COLOR = "#258d33";
 export const APP_SHARE_TITLE = "10X.MEME 🟢 You're Just One Trade Away...";
 export const APP_SHARE_DESCRIPTION = "10X Memes, RWAs, NFTs, AI, Attention & Alpha.";
@@ -198,12 +198,12 @@ export function buildFarcasterManifest(hostname: string, warpletsAssociation?: A
         splashBackgroundColor: STONKLETS_SPLASH_BACKGROUND_COLOR,
         webhookUrl: `https://${hostname}/webhook/stonklets`,
         castShareUrl: `https://${hostname}`,
-        subtitle: "Reset the market.Be early.Win.",
+        subtitle: "MEME STOCK MARKET",
         description: STONKLETS_SHARE_DESCRIPTION,
         primaryCategory: "finance",
         screenshotUrls: [1, 2, 3].map((index) => `https://${hostname}/screenshots/stonklets_${index}.jpg`),
         tags: ["10x", "stonklets", "bnb", "rwa", "memecoins"],
-        tagline: "GEN Z'S STONK MARKET.",
+        tagline: "MEME STOCK MARKET",
         ogTitle: STONKLETS_SHARE_TITLE,
         ogDescription: STONKLETS_SHARE_DESCRIPTION,
         ogImageUrl: `https://${hostname}/embed_stonklet.jpg`,
