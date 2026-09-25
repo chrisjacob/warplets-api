@@ -104,6 +104,27 @@ describe("market refresh resilience", () => {
     expect(fetcher).not.toHaveBeenCalled();
   });
 
+  it.each(["busy", "failed"])("keeps fresh tokens live when one token is delayed and refresh is %s", async mode => {
+    const snapshots = launched.map(entry => previous(entry, new Date().toISOString()));
+    const delayed = snapshots.find(snapshot => snapshot.pairId === "tether-gold")!;
+    delayed.metrics.status = "stale";
+    delayed.state.status = "stale";
+    const expired = snapshots.find(snapshot => snapshot.pairId === "spacex")!;
+    expired.state.updatedAt = new Date(Date.now() - 6 * 60_000).toISOString();
+    expired.metrics.updatedAt = expired.state.updatedAt;
+    const { env, fetcher } = fixture(snapshots);
+    if (mode === "busy") vi.mocked(claimStonkletWork).mockResolvedValue(null);
+    else fetcher.mockRejectedValue(new Error("offline"));
+
+    const result = await loadStonkletDemoMarket(env as never);
+
+    expect(result.filter(snapshot => snapshot.metrics.status === "live")).toHaveLength(18);
+    expect(result.filter(snapshot => snapshot.metrics.status === "stale").map(snapshot => snapshot.pairId).sort()).toEqual(["spacex", "tether-gold"]);
+    expect(result.find(snapshot => snapshot.pairId === "sk-hynix")).toEqual(snapshots.find(snapshot => snapshot.pairId === "sk-hynix"));
+    if (mode === "busy") expect(fetcher).not.toHaveBeenCalled();
+    else expect(releaseStonkletWork).toHaveBeenCalled();
+  });
+
   it("marks even hour-old snapshots stale when every RPC fails and releases its lease", async () => {
     const prior = previous();
     const { env, fetcher } = fixture([prior]);
