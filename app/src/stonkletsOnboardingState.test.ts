@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ARROW_SCENARIO, HOOD_SCENARIO, STONKLETS_ONBOARDING_KEY, completeOnboarding, firstStonkletsDialog, onboardingComplete, scenarioValue } from "./stonkletsOnboardingState";
+import { ARROW_SCENARIO, HOOD_SCENARIO, STONKLETS_ONBOARDING_KEY, completeOnboarding, firstStonkletsDialog, onboardingComplete, scenarioValue, marketAgeDays } from "./stonkletsOnboardingState";
 
 describe("Stonklets onboarding lifecycle", () => {
   it("remembers only Stonklets completion and tolerates unavailable storage", () => {
@@ -39,5 +39,15 @@ describe("illustrative return animation", () => {
     expect(Math.min(...ARROW_SCENARIO)).toBeLessThan(0);
     expect(largestDrop(ARROW_SCENARIO)).toBeGreaterThan(300);
     expect(largestDrop(HOOD_SCENARIO)).toBeLessThan(10);
+  });
+});
+
+describe("market calendar ages", () => {
+  it("calculates both launch ages without counting a partial day", () => {
+    const today = new Date(2026, 8, 23, 23, 59);
+    expect(marketAgeDays("1792-05-17", today)).toBe(85595);
+    expect(marketAgeDays("2026-09-06", today)).toBe(17);
+    expect(marketAgeDays("2026-09-06", new Date(2026, 8, 6))).toBe(0);
+    expect(marketAgeDays("2026-09-06", new Date(2026, 8, 5))).toBe(0);
   });
 });

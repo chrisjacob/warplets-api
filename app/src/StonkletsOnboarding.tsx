@@ -1,23 +1,24 @@
 import { useEffect, useId, useRef, useState, type CSSProperties } from "react";
+import { useOverlayScrollbars } from "overlayscrollbars-react";
 import { AppViewport } from "./AppViewport";
 import { STONKLETS_CATALOG } from "../shared/stonkletsCatalog";
 import { hapticPrimaryTap, hapticSelectionChanged, hapticTap } from "./haptics";
-import { ARROW_SCENARIO, HOOD_SCENARIO, scenarioValue } from "./stonkletsOnboardingState";
+import { ARROW_SCENARIO, HOOD_SCENARIO, scenarioValue, marketAgeDays } from "./stonkletsOnboardingState";
 import { MARSCOIN_MILESTONES, MARSCOIN_POOL, historicalReturn, formatHistoricalReturn } from "./stonkletsOnboardingHistory";
 import "./stonkletsOnboarding.css";
 
 const pair = STONKLETS_CATALOG.find((entry) => entry.id === "robinhood")!;
-const slides = [
-  { title: "Your turn to be early", lines: ["Familiar stocks. A new meme market.", "Stonklets create a new starting point around the companies and stories you already know."] },
-  { title: "Memes meet stocks", lines: ["Stonklets are memecoins paired with bStocks, which provide tokenized exposure to real-world assets.", "The meme token has its own price discovery.", "ARROW trades against HOODB. Its dollar price reflects both its price in HOODB and HOODB’s dollar value, while ARROW’s own buying and selling drives its relative performance."] },
-  { title: "Designed for the long term", lines: ["3% buy / 3% sell tax. Trading activity funds rewards for qualifying holders, deeper liquidity for larger buyers, and ongoing growth.", "MarsCoin also uses a 3% trading tax. Here’s where its story went."] },
+const baseSlides = [
+  { title: "It's your turn to be early...", lines: [] },
+  { title: "Memes 🤝 Stocks", lines: ["Stonklets are memecoins paired with Binance bStocks, which provide tokenized exposure to real-world assets.", "ARROW trades against HOOD in a pair $ARROW10X/$HOODB.", "If HOOD price goes up it can cause ARROW price to go up.", "The Stonklet memecoin has its own buy/sell price discovery."] },
+  { title: "Designed for long term growth", lines: ["3% buy / sell tax. Trading activity funds rewards for qualifying holders, deeper liquidity for larger buyers, and ongoing growth (including airdrops to 10X Warplets NFT holders).", "MarsCoin uses a 3% trading tax. Here’s how its story went..."] },
   { title: "From meme to mainstream", lines: ["One meme. One stock pairing. A major exchange listing.", "Stonklets takes that idea across a whole market.", "Could an entire meme market write its own version of that story?"] },
   { title: "Can a meme market outperform the real market?", lines: ["Bigger moves. Bigger swings. Could a whole meme market outperform?"] },
 ];
 const allocations = [
-  { name: "Funds", share: 33, color: "rgb(124 90 255)", purpose: "Development, community growth, and expansion" },
-  { name: "Dividends", share: 34, color: "rgb(208 255 0)", purpose: "Rewards for qualifying long-term holders" },
-  { name: "Liquidity", share: 33, color: "rgb(22 217 217)", purpose: "Deeper liquidity for larger trades, including whales" },
+  { name: "Growth", share: 33, color: "rgb(124 90 255)", purpose: "Development, community growth, and expansion" },
+  { name: "Rewards", share: 34, color: "rgb(208 255 0)", purpose: "Rewards wallets for holding more than 10,000 tokens" },
+  { name: "Liquidity", share: 33, color: "rgb(22 217 217)", purpose: "Deeper liquidity for larger trades & more volume" },
 ];
 
 function useReducedMotion() {
@@ -31,12 +32,12 @@ function useReducedMotion() {
   return reduced;
 }
 
-function Artwork({ src, alt, pan = false }: { src: string; alt: string; pan?: boolean }) {
+function Artwork({ src, alt, fullWidth = false }: { src: string; alt: string; fullWidth?: boolean }) {
   const [failed, setFailed] = useState(false);
-  return <div className="stonk-onboard-art">{failed ? <div className="stonk-onboard-art-fallback">{alt}</div> : <img src={src} alt={alt} className={pan ? "stonk-onboard-pan" : undefined} onError={() => setFailed(true)} />}</div>;
+  return <div className="stonk-onboard-art">{failed ? <div className="stonk-onboard-art-fallback">{alt}</div> : <img src={src} alt={alt} className={fullWidth ? "stonk-onboard-art-full" : undefined} onError={() => setFailed(true)} />}</div>;
 }
 function PairIdentity({ stock = false }: { stock?: boolean }) {
-  return <div className="stonk-onboard-identity"><img src={stock ? pair.stock.logo : pair.stonklet.image} alt="" /><b>{stock ? "HOODB" : "ARROW10X"}</b><span>{stock ? "Robinhood bStock" : "Independent meme token"}</span></div>;
+  return <div className={`stonk-onboard-identity${stock ? " stonk-onboard-identity--stock" : ""}`}><img src={stock ? pair.stock.logo : pair.stonklet.image} alt="" /><b>{stock ? "$HOODB" : "$ARROW10X"}</b><span>{stock ? "Robinhood bStock" : "Stonklet Memecoin"}</span></div>;
 }
 function TaxVisual() {
   return <div className="stonk-onboard-tax">
@@ -75,7 +76,7 @@ function Scenario({ reduced }: { reduced: boolean }) {
 }
 
 function Visual({ index, reduced }: { index: number; reduced: boolean }) {
-  if (index === 0) return <Artwork src="/stonklets/stonklets.jpg" alt="Stonklets: a new meme market" pan />;
+  if (index === 0) return <Artwork src="/stonklets/stonklets.jpg" alt="Stonklets: a new meme market" fullWidth />;
   if (index === 1) return <div className="stonk-onboard-pair"><PairIdentity /><span className="stonk-onboard-pair-link" aria-label="paired with">⇄</span><PairIdentity stock /></div>;
   if (index === 2) return <TaxVisual />;
   if (index === 3) return <><Artwork src="/stonklets/marscoin.jpeg" alt="MarsCoin" />
@@ -92,7 +93,26 @@ export default function StonkletsOnboarding({ onDone }: { onDone: () => void }) 
   const reduced = useReducedMotion();
   const panel = useRef<HTMLDivElement>(null);
   const body = useRef<HTMLDivElement>(null);
+  const [initializeScrollbars, getScrollbars] = useOverlayScrollbars({
+    options: {
+      scrollbars: { theme: "os-theme-10x", autoHide: "scroll", clickScroll: true },
+    },
+    defer: true,
+  });
+  useEffect(() => {
+    const target = body.current;
+    if (!target) return;
+    target.setAttribute("data-overlayscrollbars-initialize", "");
+    initializeScrollbars(target);
+    return () => { target.removeAttribute("data-overlayscrollbars-initialize"); };
+  }, [initializeScrollbars]);
   const heading = useRef<HTMLHeadingElement>(null);
+  const today = new Date();
+  const slides = [{ ...baseSlides[0]!, lines: [
+    `The U.S. stock market is ${marketAgeDays("1792-05-17", today).toLocaleString("en-US")} days old.`,
+    `The Stonklets meme market is ${marketAgeDays("2026-09-06", today).toLocaleString("en-US")} days old.`,
+    "A new starting point. Anyone can be early.",
+  ] }, ...baseSlides.slice(1)];
   const slide = slides[index]!;
   const total = slide.title.length + slide.lines.join("").length;
   useEffect(() => {
@@ -117,7 +137,7 @@ export default function StonkletsOnboarding({ onDone }: { onDone: () => void }) 
   }, []);
   useEffect(() => {
     heading.current?.focus();
-    body.current?.scrollTo({ top: 0 });
+    (getScrollbars()?.elements().viewport ?? body.current)?.scrollTo({ top: 0 });
     setCharacters(0);
     if (reduced) return;
     let frame = 0;
@@ -129,8 +149,14 @@ export default function StonkletsOnboarding({ onDone }: { onDone: () => void }) 
     };
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
-  }, [index, total, reduced]);
-  const typed = (text: string, offset: number) => <span className="stonk-onboard-typed"><span className="sr-only">{text}</span><span className="stonk-onboard-reserved" aria-hidden="true">{text}</span><span className="stonk-onboard-visible" aria-hidden="true">{text.slice(0, reduced ? text.length : Math.max(0, characters - offset))}{index === 0 && offset === 0 && characters === 0 && !reduced && <span className="onboarding-terminal-cursor" />}</span></span>;
+  }, [index, total, reduced, getScrollbars]);
+  const emphasiseAge = (text: string, visible = text.length) => {
+    const match = /[\d,]+ days old/.exec(text);
+    if (!match) return text.slice(0, visible);
+    const start = match.index, end = start + match[0].length;
+    return <>{text.slice(0, Math.min(start, visible))}<strong>{text.slice(start, Math.max(start, Math.min(end, visible)))}</strong>{text.slice(end, Math.max(end, visible))}</>;
+  };
+  const typed = (text: string, offset: number) => <span className="stonk-onboard-typed"><span className="sr-only">{text}</span><span className="stonk-onboard-reserved" aria-hidden="true">{emphasiseAge(text)}</span><span className="stonk-onboard-visible" aria-hidden="true">{emphasiseAge(text, reduced ? text.length : Math.max(0, characters - offset))}{index === 0 && offset === 0 && characters === 0 && !reduced && <span className="onboarding-terminal-cursor" />}</span></span>;
   const navigate = (next: number) => { void hapticSelectionChanged(); setIndex(next); };
   return <AppViewport className="app-modal-viewport stonk-onboard fixed inset-0 z-[210] flex items-end justify-center bg-black/80 p-4 sm:items-center" role="dialog" aria-modal="true" aria-labelledby="stonk-onboard-title" onKeyDown={(event) => {
     if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); }
@@ -142,7 +168,13 @@ export default function StonkletsOnboarding({ onDone }: { onDone: () => void }) 
   }}>
     <div ref={panel} className="app-modal-panel flex max-h-[92vh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-[#00FF00]/35 bg-black shadow-2xl">
       <header className="app-modal-header border-b border-[#00FF00]/20 px-4 py-3"><h2 id="stonk-onboard-title" ref={heading} tabIndex={-1} className="text-base font-bold text-[#00FF00] outline-none">{typed(slide.title, 0)}</h2></header>
-      <div ref={body} className="app-modal-scroll-body min-h-0 flex-1 overflow-y-auto p-4"><div key={index}><Visual index={index} reduced={reduced} /></div><div className="mt-3 space-y-2">{slide.lines.map((line, lineIndex) => <p key={line} className="rounded-lg border border-[#00FF00]/15 bg-[#041204] px-3 py-2 text-sm leading-relaxed text-[#8bbf8b]">{typed(line, slide.title.length + slide.lines.slice(0, lineIndex).join("").length)}</p>)}</div></div>
+      <div ref={body} className="app-modal-scroll-body min-h-0 flex-1 overflow-y-auto p-4">
+        {/* OverlayScrollbars reparents this stable wrapper; React owns its changing children. */}
+        <div>
+          <div key={index}><Visual index={index} reduced={reduced} /></div>
+          <div className="mt-3 space-y-2">{slide.lines.map((line, lineIndex) => <p key={line} className="rounded-lg border border-[#00FF00]/15 bg-[#041204] px-3 py-2 text-sm leading-relaxed text-[#8bbf8b]">{typed(line, slide.title.length + slide.lines.slice(0, lineIndex).join("").length)}</p>)}</div>
+        </div>
+      </div>
       <footer className="app-modal-footer border-t border-[#00FF00]/20 p-4"><nav className="mb-4 flex justify-center gap-1.5" aria-label="Onboarding slides">{slides.map((item, i) => <button key={item.title} type="button" aria-label={`Go to onboarding slide ${i + 1}`} aria-current={i === index ? "step" : undefined} onClick={() => navigate(i)} className="stonk-onboard-dot"><span className={i === index ? "is-active" : ""} /></button>)}</nav><div className="flex gap-3">{index > 0 && <button type="button" className="stonk-onboard-back" onClick={() => { void hapticTap(); setIndex(index - 1); }}>Back</button>}<button type="button" className="stonk-onboard-next" onClick={() => { void hapticPrimaryTap(); if (index === slides.length - 1) onDone(); else setIndex(index + 1); }}>{index === slides.length - 1 ? "Explore the market" : "Next"}</button></div></footer>
     </div>
   </AppViewport>;

@@ -23,3 +23,10 @@ export function scenarioValue(series: readonly number[], progress: number): numb
   const index = Math.floor(position);
   return series[index]! + ((series[Math.min(index + 1, series.length - 1)]! - series[index]!) * (position - index));
 }
+
+// Compare calendar dates in the visitor's timezone, using UTC arithmetic to
+// avoid daylight-saving days being rounded incorrectly.
+export function marketAgeDays(start: string, today = new Date()): number {
+  const currentDay = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate());
+  return Math.max(0, Math.floor((currentDay - Date.parse(`${start}T00:00:00Z`)) / 86_400_000));
+}
