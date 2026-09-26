@@ -8,12 +8,14 @@ import MarscoinReplay from "./MarscoinReplay";
 import "./stonkletsOnboarding.css";
 
 const pair = STONKLETS_CATALOG.find((entry) => entry.id === "robinhood")!;
+const scenarioPairs = ["apple", "tesla", "microsoft", "alphabet", "netflix", "nvidia", "spacex", "alibaba", "gamestop", "robinhood"].map(id => STONKLETS_CATALOG.find(entry => entry.id === id)!);
+const SCENARIO_DURATION_MS = scenarioPairs.length * 1500;
 const baseSlides = [
   { title: "It's your turn to be early...", lines: [] },
   { title: "Memes 🤝 Stocks", lines: ["Stonklets are memecoins paired with Binance bStocks, providing exposure to real-world assets.", "$ARROW10X trades against $HOODB in a pair.", "If HOOD price goes up it can cause ARROW to go up.", "Stonklets also have their own buy/sell price discovery."] },
   { title: "Designed for long term growth", lines: ["Trading activity funds rewards for holders, deeper liquidity for larger buyers, and ongoing growth.", "Hold Stonklets to earn bStock token rewards.", "MarsCoin uses a 3% tax. Here’s how its story went..."] },
-  { title: "From meme to mainstream", lines: ["One meme. One stock pair. Binance exchange listing.", "Could an entire meme market follow?"] },
-  { title: "High Risk, High Reward", lines: ["Bigger moves. Bigger opportunity.", "Can a meme market outperform the real market?"] },
+  { title: "From meme to mainstream", lines: ["One meme. One stock pair. Binance exchange listing."] },
+  { title: "High Risk, High Reward", lines: ["Can a meme market outperform the real market?"] },
 ];
 const allocations = [
   { name: "Growth", share: 1, color: "rgb(124 90 255)", purpose: "Development, community growth, and expansion" },
@@ -36,8 +38,8 @@ function Artwork({ src, alt, fullWidth = false }: { src: string; alt: string; fu
   const [failed, setFailed] = useState(false);
   return <div className="stonk-onboard-art">{failed ? <div className="stonk-onboard-art-fallback">{alt}</div> : <img src={src} alt={alt} className={fullWidth ? "stonk-onboard-art-full" : undefined} onError={() => setFailed(true)} />}</div>;
 }
-function PairIdentity({ stock = false, showDescription = true }: { stock?: boolean; showDescription?: boolean }) {
-  return <div className={`stonk-onboard-identity${stock ? " stonk-onboard-identity--stock" : ""}`}><img src={stock ? pair.stock.logo : pair.stonklet.image} alt="" /><b>{stock ? "$HOODB" : "$ARROW10X"}</b>{showDescription && <span>{stock ? "Robinhood bStock" : "Stonklet Memecoin"}</span>}</div>;
+function PairIdentity({ stock = false, showDescription = true, pairing = pair }: { stock?: boolean; showDescription?: boolean; pairing?: typeof pair }) {
+  return <div className={`stonk-onboard-identity${stock ? " stonk-onboard-identity--stock" : ""}`}><img src={stock ? pairing.stock.logo : pairing.stonklet.image} alt="" /><b>${stock ? pairing.stock.symbol : pairing.stonklet.symbol}</b>{showDescription && <span>{stock ? `${pairing.stock.name} bStock` : "Stonklet Memecoin"}</span>}</div>;
 }
 function TaxVisual() {
   return <div className="stonk-onboard-tax">
@@ -49,21 +51,28 @@ function TaxVisual() {
 function Scenario({ reduced }: { reduced: boolean }) {
   const [elapsed, setElapsed] = useState(0);
   const clipId = useId().replace(/:/g, "");
-  const progress = reduced ? 1 : Math.min(1, elapsed / 8000);
+  const progress = reduced ? 1 : Math.min(1, elapsed / SCENARIO_DURATION_MS);
   useEffect(() => {
     if (reduced) return;
+    for (const pairing of scenarioPairs) {
+      for (const src of [pairing.stock.logo, pairing.stonklet.image]) {
+        const image = new Image();
+        image.src = src;
+      }
+    }
     const started = performance.now();
     let frame = 0;
-    const tick = (now: number) => { setElapsed(Math.min(8000, now - started)); if (now - started < 8000) frame = requestAnimationFrame(tick); };
+    const tick = (now: number) => { setElapsed(Math.min(SCENARIO_DURATION_MS, now - started)); if (now - started < SCENARIO_DURATION_MS) frame = requestAnimationFrame(tick); };
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
   }, [reduced]);
+  const activePair = scenarioPairs[reduced ? 0 : Math.min(scenarioPairs.length - 1, Math.floor(progress * scenarioPairs.length))]!;
   const y = (value: number) => 205 - ((value + 100) / 1200) * 180;
   const points = (series: number[]) => series.map((value, index) => `${48 + index / (series.length - 1) * 292},${y(value)}`).join(" ");
   const percent = (value: number) => `${value >= 0 ? "+" : ""}${Math.round(value).toLocaleString("en-US")}%`;
   return <div className="stonk-onboard-scenario">
-    <div className="stonk-onboard-chart-legend">{[false, true].map((stock) => <div key={String(stock)}><PairIdentity stock={stock} showDescription={false} /><strong style={{ color: stock ? "#f0a82b" : "#00ff00" }} aria-hidden="true">{percent(scenarioValue(stock ? HOOD_SCENARIO : ARROW_SCENARIO, progress))}</strong></div>)}</div>
-    <svg viewBox="0 0 360 240" role="img" aria-label="Hypothetical percentage returns: volatile ARROW10X ends at plus 1,000 percent; steadier HOODB ends at plus 100 percent.">
+    <div className="stonk-onboard-chart-legend">{[false, true].map((stock) => <div key={String(stock)}><PairIdentity stock={stock} showDescription={false} pairing={activePair} /><strong style={{ color: stock ? "#f0a82b" : "#00ff00" }} aria-hidden="true">{percent(scenarioValue(stock ? HOOD_SCENARIO : ARROW_SCENARIO, progress))}</strong></div>)}</div>
+    <svg viewBox="0 20 360 220" role="img" aria-label={`Illustrative percentage returns for ${activePair.stock.name}: ${activePair.stonklet.symbol} ends at plus 1,000 percent; ${activePair.stock.symbol} ends at plus 100 percent. Not historical performance or a forecast.`}>
       <defs><clipPath id={clipId}><rect x="47" y="0" width={294 * progress} height="220" /></clipPath></defs>
       {[-100, 0, 500, 1000].map((value) => <g key={value}><line x1="48" x2="340" y1={y(value)} y2={y(value)} stroke="#163516" /><text x="42" y={y(value) + 4} textAnchor="end" fill="#8bbf8b" fontSize="10">{value}%</text></g>)}
       <g clipPath={`url(#${clipId})`}><polyline points={points(HOOD_SCENARIO)} fill="none" stroke="#f0a82b" strokeWidth="2.5" /><polyline points={points(ARROW_SCENARIO)} fill="none" stroke="#00ff00" strokeWidth="2.5" strokeLinejoin="round" /></g>

@@ -41,10 +41,9 @@
 .stonk-onboard-history small { display: block; font-size: 9px; color: #8bbf8b; font-weight: normal; }
 .stonk-onboard-chart-legend { display: flex; justify-content: space-around; text-align: center; }
 .stonk-onboard-chart-legend .stonk-onboard-identity img { width: 76px; height: 76px; }
-.stonk-onboard-chart-legend strong { display: block; margin-top: 8px; font-size: 24px; font-variant-numeric: tabular-nums; }
+.stonk-onboard-chart-legend strong { display: block; margin-top: 2px; font-size: 24px; line-height: 1.1; font-variant-numeric: tabular-nums; }
 .stonk-onboard-scenario svg { width: 100%; }
 .stonk-onboard-result { text-align: center; color: #d0ff00; font-weight: bold; min-height: 24px; }
-.mars-replay { border: 1px solid #00ff0040; border-radius: 12px; background: #041204; padding: 12px; }
 .mars-replay-header { display: flex; align-items: center; gap: 9px; }
 .mars-replay-header img { width: 36px; height: 36px; object-fit: cover; border-radius: 50%; flex-shrink: 0; }
 .mars-replay-header strong { display: block; color: #00ff00; font-size: 20px; }
