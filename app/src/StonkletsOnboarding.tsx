@@ -4,21 +4,21 @@ import { AppViewport } from "./AppViewport";
 import { STONKLETS_CATALOG } from "../shared/stonkletsCatalog";
 import { hapticPrimaryTap, hapticSelectionChanged, hapticTap } from "./haptics";
 import { ARROW_SCENARIO, HOOD_SCENARIO, scenarioValue, marketAgeDays } from "./stonkletsOnboardingState";
-import { MARSCOIN_MILESTONES, MARSCOIN_POOL, historicalReturn, formatHistoricalReturn } from "./stonkletsOnboardingHistory";
+import MarscoinReplay from "./MarscoinReplay";
 import "./stonkletsOnboarding.css";
 
 const pair = STONKLETS_CATALOG.find((entry) => entry.id === "robinhood")!;
 const baseSlides = [
   { title: "It's your turn to be early...", lines: [] },
-  { title: "Memes 🤝 Stocks", lines: ["Stonklets are memecoins paired with Binance bStocks, which provide tokenized exposure to real-world assets.", "ARROW trades against HOOD in a pair $ARROW10X/$HOODB.", "If HOOD price goes up it can cause ARROW price to go up.", "The Stonklet memecoin has its own buy/sell price discovery."] },
-  { title: "Designed for long term growth", lines: ["3% buy / sell tax. Trading activity funds rewards for qualifying holders, deeper liquidity for larger buyers, and ongoing growth (including airdrops to 10X Warplets NFT holders).", "MarsCoin uses a 3% trading tax. Here’s how its story went..."] },
-  { title: "From meme to mainstream", lines: ["One meme. One stock pairing. A major exchange listing.", "Stonklets takes that idea across a whole market.", "Could an entire meme market write its own version of that story?"] },
-  { title: "Can a meme market outperform the real market?", lines: ["Bigger moves. Bigger swings. Could a whole meme market outperform?"] },
+  { title: "Memes 🤝 Stocks", lines: ["Stonklets are memecoins paired with Binance bStocks, providing exposure to real-world assets.", "$ARROW10X trades against $HOODB in a pair.", "If HOOD price goes up it can cause ARROW to go up.", "Stonklets also have their own buy/sell price discovery."] },
+  { title: "Designed for long term growth", lines: ["Trading activity funds rewards for holders, deeper liquidity for larger buyers, and ongoing growth.", "Hold Stonklets to earn bStock token rewards.", "MarsCoin uses a 3% tax. Here’s how its story went..."] },
+  { title: "From meme to mainstream", lines: ["One meme. One stock pair. Binance exchange listing.", "Could an entire meme market follow?"] },
+  { title: "High Risk, High Reward", lines: ["Bigger moves. Bigger opportunity.", "Can a meme market outperform the real market?"] },
 ];
 const allocations = [
-  { name: "Growth", share: 33, color: "rgb(124 90 255)", purpose: "Development, community growth, and expansion" },
-  { name: "Rewards", share: 34, color: "rgb(208 255 0)", purpose: "Rewards wallets for holding more than 10,000 tokens" },
-  { name: "Liquidity", share: 33, color: "rgb(22 217 217)", purpose: "Deeper liquidity for larger trades & more volume" },
+  { name: "Growth", share: 1, color: "rgb(124 90 255)", purpose: "Development, community growth, and expansion" },
+  { name: "Rewards", share: 1, color: "rgb(208 255 0)", purpose: "Rewards wallets for holding more than 10,000 tokens" },
+  { name: "Liquidity", share: 1, color: "rgb(22 217 217)", purpose: "Deeper liquidity for larger trades & more volume" },
 ];
 
 function useReducedMotion() {
@@ -36,15 +36,14 @@ function Artwork({ src, alt, fullWidth = false }: { src: string; alt: string; fu
   const [failed, setFailed] = useState(false);
   return <div className="stonk-onboard-art">{failed ? <div className="stonk-onboard-art-fallback">{alt}</div> : <img src={src} alt={alt} className={fullWidth ? "stonk-onboard-art-full" : undefined} onError={() => setFailed(true)} />}</div>;
 }
-function PairIdentity({ stock = false }: { stock?: boolean }) {
-  return <div className={`stonk-onboard-identity${stock ? " stonk-onboard-identity--stock" : ""}`}><img src={stock ? pair.stock.logo : pair.stonklet.image} alt="" /><b>{stock ? "$HOODB" : "$ARROW10X"}</b><span>{stock ? "Robinhood bStock" : "Stonklet Memecoin"}</span></div>;
+function PairIdentity({ stock = false, showDescription = true }: { stock?: boolean; showDescription?: boolean }) {
+  return <div className={`stonk-onboard-identity${stock ? " stonk-onboard-identity--stock" : ""}`}><img src={stock ? pair.stock.logo : pair.stonklet.image} alt="" /><b>{stock ? "$HOODB" : "$ARROW10X"}</b>{showDescription && <span>{stock ? "Robinhood bStock" : "Stonklet Memecoin"}</span>}</div>;
 }
 function TaxVisual() {
   return <div className="stonk-onboard-tax">
     <div className="stonk-onboard-tax-source">3% trading tax</div>
-    <svg viewBox="0 0 360 70" aria-hidden="true">{allocations.map((item, index) => <path key={item.name} d={`M180 0 V20 Q180 30 ${60 + index * 120} 40 V70`} fill="none" stroke={item.color} strokeWidth="2" className="stonk-onboard-flow" />)}</svg>
+    <svg viewBox="0 0 360 70" aria-hidden="true">{allocations.map((item, index) => <path key={item.name} d={`M180 0 V20 Q180 30 ${60 + index * 120} 40 V70`} fill="none" stroke={item.color} strokeWidth="3" vectorEffect="non-scaling-stroke" className="stonk-onboard-flow" />)}</svg>
     <div className="stonk-onboard-allocations">{allocations.map((item, index) => <div key={item.name} style={{ "--allocation-color": item.color, "--reveal-delay": `${index * 250}ms` } as CSSProperties}><b>{item.share}%</b><strong>{item.name}</strong><p>{item.purpose}</p></div>)}</div>
-    <p className="stonk-onboard-caption">Allocation of tax revenue</p>
   </div>;
 }
 function Scenario({ reduced }: { reduced: boolean }) {
@@ -63,15 +62,14 @@ function Scenario({ reduced }: { reduced: boolean }) {
   const points = (series: number[]) => series.map((value, index) => `${48 + index / (series.length - 1) * 292},${y(value)}`).join(" ");
   const percent = (value: number) => `${value >= 0 ? "+" : ""}${Math.round(value).toLocaleString("en-US")}%`;
   return <div className="stonk-onboard-scenario">
-    <p className="stonk-onboard-caption">Illustrative scenario—not historical performance or a forecast</p>
-    <div className="stonk-onboard-chart-legend">{[false, true].map((stock) => <div key={String(stock)}><PairIdentity stock={stock} /><strong style={{ color: stock ? "#16d9d9" : "#d0ff00" }} aria-hidden="true">{percent(scenarioValue(stock ? HOOD_SCENARIO : ARROW_SCENARIO, progress))}</strong></div>)}</div>
+    <div className="stonk-onboard-chart-legend">{[false, true].map((stock) => <div key={String(stock)}><PairIdentity stock={stock} showDescription={false} /><strong style={{ color: stock ? "#f0a82b" : "#00ff00" }} aria-hidden="true">{percent(scenarioValue(stock ? HOOD_SCENARIO : ARROW_SCENARIO, progress))}</strong></div>)}</div>
     <svg viewBox="0 0 360 240" role="img" aria-label="Hypothetical percentage returns: volatile ARROW10X ends at plus 1,000 percent; steadier HOODB ends at plus 100 percent.">
       <defs><clipPath id={clipId}><rect x="47" y="0" width={294 * progress} height="220" /></clipPath></defs>
       {[-100, 0, 500, 1000].map((value) => <g key={value}><line x1="48" x2="340" y1={y(value)} y2={y(value)} stroke="#163516" /><text x="42" y={y(value) + 4} textAnchor="end" fill="#8bbf8b" fontSize="10">{value}%</text></g>)}
-      <g clipPath={`url(#${clipId})`}><polyline points={points(HOOD_SCENARIO)} fill="none" stroke="#16d9d9" strokeWidth="2.5" /><polyline points={points(ARROW_SCENARIO)} fill="none" stroke="#d0ff00" strokeWidth="2.5" strokeLinejoin="round" /></g>
+      <g clipPath={`url(#${clipId})`}><polyline points={points(HOOD_SCENARIO)} fill="none" stroke="#f0a82b" strokeWidth="2.5" /><polyline points={points(ARROW_SCENARIO)} fill="none" stroke="#00ff00" strokeWidth="2.5" strokeLinejoin="round" /></g>
       <text x="48" y="232" fill="#8bbf8b" fontSize="11">Start</text><text x="340" y="232" fill="#8bbf8b" fontSize="11" textAnchor="end">Over time →</text>
     </svg>
-    <p className="stonk-onboard-result" style={{ opacity: progress === 1 ? 1 : 0 }}>10× the percentage gain</p>
+    <p className="stonk-onboard-caption">Illustrative scenario—not historical performance or a forecast</p>
   </div>;
 }
 
@@ -79,11 +77,7 @@ function Visual({ index, reduced }: { index: number; reduced: boolean }) {
   if (index === 0) return <Artwork src="/stonklets/stonklets.jpg" alt="Stonklets: a new meme market" fullWidth />;
   if (index === 1) return <div className="stonk-onboard-pair"><PairIdentity /><span className="stonk-onboard-pair-link" aria-label="paired with">⇄</span><PairIdentity stock /></div>;
   if (index === 2) return <TaxVisual />;
-  if (index === 3) return <><Artwork src="/stonklets/marscoin.jpeg" alt="MarsCoin" />
-    <div className="stonk-onboard-milestones"><span>Launch</span><span>Alpha</span><span>Spot</span></div>
-    <table className="stonk-onboard-history"><caption>Historical USD price gains · 2026</caption><thead><tr><th scope="col">Milestone</th><th scope="col">MarsCoin</th><th scope="col">SPCXB</th></tr></thead><tbody>{MARSCOIN_MILESTONES.map((point) => <tr key={point.id}><th scope="row">{point.label}<small>{point.date}</small></th><td>{formatHistoricalReturn(historicalReturn(point.mars, MARSCOIN_MILESTONES[0].mars))}</td><td>{formatHistoricalReturn(historicalReturn(point.spcxb, MARSCOIN_MILESTONES[0].spcxb))}</td></tr>)}</tbody></table>
-    <p className="stonk-onboard-caption">SPCXB is the SpaceX-linked bStock. Baseline: close of the first full hourly pool candle. Matching hourly USD closes; before taxes, fees, slippage, and rewards. Historical results, not a forecast.</p>
-    <div className="stonk-onboard-sources"><a className="stonk-onboard-source" href="https://www.binance.com/en/support/announcement/detail/c2eaa763831745b2b1701dab45e20225" target="_blank" rel="noreferrer">Binance listing ↗</a><a className="stonk-onboard-source" href={`https://www.geckoterminal.com/bsc/pools/${MARSCOIN_POOL}`} target="_blank" rel="noreferrer">GeckoTerminal prices ↗</a></div></>;
+  if (index === 3) return <MarscoinReplay reduced={reduced} />;
   return <Scenario reduced={reduced} />;
 }
 
@@ -175,7 +169,7 @@ export default function StonkletsOnboarding({ onDone }: { onDone: () => void }) 
           <div className="mt-3 space-y-2">{slide.lines.map((line, lineIndex) => <p key={line} className="rounded-lg border border-[#00FF00]/15 bg-[#041204] px-3 py-2 text-sm leading-relaxed text-[#8bbf8b]">{typed(line, slide.title.length + slide.lines.slice(0, lineIndex).join("").length)}</p>)}</div>
         </div>
       </div>
-      <footer className="app-modal-footer border-t border-[#00FF00]/20 p-4"><nav className="mb-4 flex justify-center gap-1.5" aria-label="Onboarding slides">{slides.map((item, i) => <button key={item.title} type="button" aria-label={`Go to onboarding slide ${i + 1}`} aria-current={i === index ? "step" : undefined} onClick={() => navigate(i)} className="stonk-onboard-dot"><span className={i === index ? "is-active" : ""} /></button>)}</nav><div className="flex gap-3">{index > 0 && <button type="button" className="stonk-onboard-back" onClick={() => { void hapticTap(); setIndex(index - 1); }}>Back</button>}<button type="button" className="stonk-onboard-next" onClick={() => { void hapticPrimaryTap(); if (index === slides.length - 1) onDone(); else setIndex(index + 1); }}>{index === slides.length - 1 ? "Explore the market" : "Next"}</button></div></footer>
+      <footer className="app-modal-footer border-t border-[#00FF00]/20 p-4"><nav className="mb-4 flex justify-center gap-1.5" aria-label="Onboarding slides">{slides.map((item, i) => <button key={item.title} type="button" aria-label={`Go to onboarding slide ${i + 1}`} aria-current={i === index ? "step" : undefined} onClick={() => navigate(i)} className="stonk-onboard-dot"><span className={i === index ? "is-active" : ""} /></button>)}</nav><div className="stonk-onboard-actions">{index > 0 && <button type="button" className="secondary-trade-cta flex-1 cursor-pointer rounded-[20px] border bg-black px-4 py-3 text-sm font-bold text-[#00FF00] transition-all duration-100 hover:bg-[#041204] active:translate-x-[1px] active:translate-y-[3px]" onClick={() => { void hapticTap(); setIndex(index - 1); }}>Back</button>}<button type="button" className="stonk-onboard-next" onClick={() => { void hapticPrimaryTap(); if (index === slides.length - 1) onDone(); else setIndex(index + 1); }}>{index === slides.length - 1 ? "Explore the market" : "Next"}</button></div></footer>
     </div>
   </AppViewport>;
 }

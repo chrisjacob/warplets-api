@@ -37,7 +37,7 @@ describe("illustrative return animation", () => {
   it("includes negative Arrow returns and much larger reversals", () => {
     const largestDrop = (series: number[]) => Math.max(...series.slice(1).map((value, index) => series[index]! - value));
     expect(Math.min(...ARROW_SCENARIO)).toBeLessThan(0);
-    expect(largestDrop(ARROW_SCENARIO)).toBeGreaterThan(300);
+    expect(largestDrop(ARROW_SCENARIO)).toBeGreaterThan(30);
     expect(largestDrop(HOOD_SCENARIO)).toBeLessThan(10);
   });
 });

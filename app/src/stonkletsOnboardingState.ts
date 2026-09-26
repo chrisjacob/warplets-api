@@ -17,7 +17,9 @@ export function firstStonkletsDialog(onboarding: boolean, notice: boolean, notif
 
 // Percentage returns, not prices. Both share the same linear chart scale.
 export const HOOD_SCENARIO = [0, 3, 8, 6, 12, 19, 17, 25, 31, 28, 38, 44, 40, 51, 57, 53, 65, 72, 68, 80, 87, 83, 94, 100];
-export const ARROW_SCENARIO = [0, 35, -55, 95, 180, 40, 260, 105, 390, 170, 510, 220, 650, 360, 780, 410, 910, 520, 740, 440, 980, 670, 850, 1000];
+// Invented path echoing the broad MarsCoin arc: early lift, choppy consolidation,
+// a prolonged pullback, then a late breakout. Not sampled from historical prices.
+export const ARROW_SCENARIO = [0, -15, 35, 105, 190, 245, 220, 260, 235, 205, 225, 180, 145, 115, 130, 120, 155, 185, 160, 230, 310, 470, 740, 1000];
 export function scenarioValue(series: readonly number[], progress: number): number {
   const position = Math.max(0, Math.min(1, progress)) * (series.length - 1);
   const index = Math.floor(position);
