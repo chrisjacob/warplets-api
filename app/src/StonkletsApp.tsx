@@ -1,3 +1,5 @@
+import StonkletsOnboarding from "./StonkletsOnboarding";
+import { STONKLETS_ONBOARDING_RELEASE_READY, onboardingComplete, completeOnboarding, onboardingStorage, firstStonkletsDialog } from "./stonkletsOnboardingState";
 import StonkletShareFavourites from "./StonkletShareFavourites";
 import { isLikelyBaseAppBrowser } from "./pwa";
 import ProgressiveStonkletImage, { stonkletThumbnail } from "./ProgressiveStonkletImage";
@@ -56,6 +58,10 @@ const LAYOUT_OPTIONS: { key: Layout; label: string }[] = [
   { key: "single-chart", label: "Single chart layout" },
   { key: "single-grid", label: "Single grid layout" },
 ];
+
+function readStonkletsLayout(): string | null {
+  try { return onboardingStorage()?.getItem("stonklets-layout") ?? null; } catch { return null; }
+}
 
 function isGridLayout(layout: Layout): boolean {
   return layout === "compact" || layout === "single-grid";
@@ -132,7 +138,7 @@ function StonkletsLayoutSwitcher({ layout, onSelect }: { layout: Layout; onSelec
   </button>;
 }
 
-function StonkletsHeaderAccount({ session, miniAppProfile, simplifiedFarcaster, open, centered, onOpenChange, onConnect, onAbout, onShowFavourites, onEnableNotifications, onDisconnect }: {
+function StonkletsHeaderAccount({ session, miniAppProfile, simplifiedFarcaster, open, centered, onOpenChange, onConnect, onAbout, onViewOnboarding, onShowFavourites, onEnableNotifications, onDisconnect }: {
   session: AppSessionState | null;
   miniAppProfile: AppSessionState["farcasterProfile"];
   simplifiedFarcaster: boolean;
@@ -141,6 +147,7 @@ function StonkletsHeaderAccount({ session, miniAppProfile, simplifiedFarcaster, 
   onOpenChange: (open: boolean) => void;
   onConnect: () => void;
   onAbout: () => void;
+  onViewOnboarding?: () => void;
   onShowFavourites: () => void;
   onEnableNotifications: () => void;
   onDisconnect: () => void;
@@ -174,6 +181,7 @@ function StonkletsHeaderAccount({ session, miniAppProfile, simplifiedFarcaster, 
       {!simplifiedFarcaster && <button type="button" role="menuitem" className="search-header-account-menu__connection" onClick={() => run(onConnect)}><span className="search-header-account-menu__avatar-frame"><img src="/base.webp" alt="" /></span><span>{session?.walletAddress ? shortWallet(session.walletAddress) : "Connect wallet"}</span></button>}
       <button type="button" role="menuitem" className="search-header-account-menu__connection" onClick={() => simplifiedFarcaster ? onOpenChange(false) : run(onConnect)}><span className="search-header-account-menu__avatar-frame"><img src={avatar} alt="" /></span><span>{username ? `@${username}` : simplifiedFarcaster ? "Farcaster identity" : "Connect social"}</span></button>
       <button type="button" role="menuitem" onClick={() => run(onAbout)}>About Stonklets</button>
+      {onViewOnboarding && <button type="button" role="menuitem" onClick={() => run(onViewOnboarding)}>View onboarding</button>}
       <button type="button" role="menuitem" onClick={() => run(onShowFavourites)}>My favourites</button>
       <button type="button" role="menuitem" onClick={() => run(onEnableNotifications)}>Enable notifications</button>
       {connected && !simplifiedFarcaster && <button type="button" role="menuitem" onClick={() => run(onDisconnect)}>Disconnect</button>}
@@ -436,18 +444,21 @@ export default function StonkletsApp() {
   const miniAppReadySentRef = useRef(false);
   const [page, setPage] = useState<Page>(currentPage);
   const initial = useMemo(() => new URLSearchParams(window.location.search), []);
+  const onboardingAvailable = import.meta.env.DEV || STONKLETS_ONBOARDING_RELEASE_READY;
+  const [showOnboarding, setShowOnboarding] = useState(() => onboardingAvailable && (initial.get("onboarding") === "1" || !onboardingComplete(onboardingStorage())));
+  const finishOnboarding = () => { completeOnboarding(onboardingStorage()); setShowOnboarding(false); };
   const flapPreview = isStonkletsFlapPreview(new URL(window.location.href));
   const votesPreview = isStonkletsVotesPreview(new URL(window.location.href));
   const forceBstocksNotice = isBstocksNoticeForced(initial.toString());
   const [bstocksNoticeOpen, setBstocksNoticeOpen] = useState(
-    () => forceBstocksNotice || !hasAcceptedBstocksNotice(window.localStorage),
+    () => forceBstocksNotice || !hasAcceptedBstocksNotice({ getItem: (key) => onboardingStorage()?.getItem(key) ?? null }),
   );
   const [search, setSearch] = useState(initial.get("q") ?? "");
   const [market, setMarket] = useState<MarketSide>(safeParam<MarketSide>(initial.get("market"), ["stock", "stonklet"], "stonklet"));
   const [order, setOrder] = useState<OrderKey>(safeParam(initial.get("order"), ORDER_OPTIONS.map((option) => option.key), "trending"));
   const [direction, setDirection] = useState<Direction>(safeParam<Direction>(initial.get("dir"), ["asc", "desc"], initial.get("order") === "az" ? "asc" : "desc"));
   const [changeRange, setChangeRange] = useState<StonkletChangeRange>(() => parseStonkletChangeRange(initial.get("change")) ?? DEFAULT_STONKLET_CHANGE_RANGE);
-  const [layout, setLayout] = useState<Layout>(() => safeParam(initial.get("layout"), ["compact", "chart", "single-chart", "single-grid"], safeParam(localStorage.getItem("stonklets-layout"), ["compact", "chart", "single-chart", "single-grid"], "compact")));
+  const [layout, setLayout] = useState<Layout>(() => safeParam(initial.get("layout"), ["compact", "chart", "single-chart", "single-grid"], safeParam(readStonkletsLayout(), ["compact", "chart", "single-chart", "single-grid"], "compact")));
   const [favouritesOnly, setFavouritesOnly] = useState(initial.get("favourites") === "1");
   const [rawEntries, setEntries] = useState<MarketEntry[]>(defaultEntries);
   const delayedSymbols = rawEntries.flatMap(entry => (["stock", "stonklet"] as const)
@@ -824,14 +835,20 @@ export default function StonkletsApp() {
       onOpenChange={(open) => setHeaderAccountAnchor(open ? "avatar" : null)}
       onConnect={() => setConnectOpen(true)}
       onAbout={() => goPage("about")}
+      onViewOnboarding={onboardingAvailable ? () => setShowOnboarding(true) : undefined}
       onShowFavourites={() => { goPage("market"); void applyFavouriteFilter(true); }}
       onEnableNotifications={() => setLaunchPrompt(true)}
       onDisconnect={() => void logoutAppPrincipal("all").then(() => { setSession(null); setFavouriteIdentityReady(false); setFavourites(new Set()); setStockFavourites(new Set()); })}
     />}
   />;
 
-  return <MiniAppShell>{bstocksNoticeOpen
+  const activeEntryDialog = firstStonkletsDialog(showOnboarding, bstocksNoticeOpen, launchPrompt);
+  return <MiniAppShell>{activeEntryDialog === "onboarding"
+    ? <StonkletsOnboarding onDone={finishOnboarding} />
+    : activeEntryDialog === "notice"
     ? <BstocksNoticeModal onAccept={() => setBstocksNoticeOpen(false)} />
+    : activeEntryDialog === "notifications"
+    ? <><StonkletsNotificationsPrompt inMiniApp={isInMiniAppContext} onClose={() => setLaunchPrompt(false)} onEnabled={() => setNotificationsEnabled(true)} onMessage={showToast} />{toast && <StonkletsToast toast={toast} onClose={closeToast} />}</>
     : <>{header}{chrome.isMenuRoute ? <MiniAppMenuPage appSlug={STONKLETS_APP_SLUG} /> : <>
     <main className="stonklets-main">
       {flapPreview && <p className="stonklets-state" role="status">Local Flap preview · Stonklets use third-party live token data. <a href={basePath() || "/"}>Exit preview</a></p>}
@@ -862,7 +879,7 @@ export default function StonkletsApp() {
           <StonkletsDropdown label="Change" valueLabel={STONKLET_CHANGE_RANGE_LABELS[changeRange]}>
             {STONKLET_CHANGE_RANGES.map((value) => { const active = changeRange === value; return <button type="button" role="option" aria-selected={active} key={value} onClick={() => setChangeRange(value)} className={`stonklets-dropdown-option flex w-full cursor-pointer items-center rounded-lg border px-2 py-2 text-left text-xs ${active ? "is-active font-bold" : ""}`}><span>{STONKLET_CHANGE_RANGE_LABELS[value]}</span></button>; })}
           </StonkletsDropdown>
-          <StonkletsLayoutSwitcher layout={layout} onSelect={(next) => { setLayout(next); localStorage.setItem("stonklets-layout", next); }} />
+          <StonkletsLayoutSwitcher layout={layout} onSelect={(next) => { setLayout(next); try { onboardingStorage()?.setItem("stonklets-layout", next); } catch { /* Keep layout for this mount. */ } }} />
         </section>
         {stale && <p className="stonklets-state">{delayedSymbols.length ? `Quotes delayed for ${delayedSymbols.join(", ")}. Last-known values are shown for those tokens.` : "Refreshing market quotes…"}</p>}
         {marketError && <p className="stonklets-state is-error">{marketError}. Catalog and voting remain available.</p>}
@@ -878,7 +895,6 @@ export default function StonkletsApp() {
       </div>}
     </main><SiteFooter legalSuffix={<a href="https://www.tradingview.com/" target="_blank" rel="noreferrer" className="font-bold text-[#00FF00] underline decoration-[#00FF00] underline-offset-2 hover:text-[#8bff8b]">Charts by TradingView</a>} /></>}
     <WebConnectModal farcasterMiniAppUrl="https://farcaster.xyz/miniapps/Ozxi56EEeUTa/10x-stonklets" open={connectOpen} onClose={() => setConnectOpen(false)} identityConnected={Boolean(session?.farcasterFid)} onWalletConnected={() => { void refreshSession(); void loadFavourites(); setConnectOpen(false); }} farcasterControl={<FarcasterSignInControl connected={Boolean(session?.farcasterFid)} onAuthenticated={() => { void refreshSession(); setConnectOpen(false); void loadFavourites(); }} />} />
-    {launchPrompt && <StonkletsNotificationsPrompt inMiniApp={isInMiniAppContext} onClose={() => setLaunchPrompt(false)} onEnabled={() => setNotificationsEnabled(true)} onMessage={showToast} />}
     {shareEntry && <StonkletShareModal entry={shareEntry} range={changeRange} onClose={closeShare} onMessage={showToast} />}
     {toast && <StonkletsToast toast={toast} onClose={closeToast} />}</>}
   </MiniAppShell>;

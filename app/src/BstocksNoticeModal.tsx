@@ -43,7 +43,7 @@ export default function BstocksNoticeModal({ onAccept }: { onAccept: () => void 
 
   const accept = () => {
     if (!confirmed) return;
-    rememberBstocksNoticeAcceptance(window.localStorage);
+    try { rememberBstocksNoticeAcceptance(window.localStorage); } catch { /* Storage access itself may be blocked. */ }
     onAccept();
   };
 

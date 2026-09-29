@@ -263,6 +263,14 @@ function snapshotAge(snapshot: StonkletDemoSnapshot, now = Date.now()): number {
   return Number.isFinite(timestamp) ? now - timestamp : Number.POSITIVE_INFINITY;
 }
 
+function snapshotsDuringRefresh(snapshots: readonly StonkletDemoSnapshot[], now = Date.now()): StonkletDemoSnapshot[] {
+  // A delayed token can trigger a batch refresh while other quotes are still
+  // fresh. Contention or failure must not mark those healthy quotes as delayed.
+  return snapshots.map(snapshot => snapshotAge(snapshot, now) < FRESH_MS
+    ? snapshot
+    : staleSnapshots([snapshot])[0]!);
+}
+
 function allFresh(snapshots: readonly StonkletDemoSnapshot[], now = Date.now(), freshMs = FRESH_MS): boolean {
   const expected = STONKLETS_CATALOG.filter((entry) => entry.demoToken);
   return snapshots.length === expected.length
@@ -428,12 +436,12 @@ export async function loadStonkletDemoMarket(env: StonkletMarketIngestEnv, suppl
   const prior = await readCachedSnapshots(env);
   if (allFresh(prior)) return prior;
   const lease = await claimStonkletWork(env.WARPLETS, KV_KEY, 60);
-  if (!lease) return staleSnapshots(prior);
+  if (!lease) return snapshotsDuringRefresh(prior);
   try {
     return await refreshStonkletDemoMarket(env, prior, suppliedStockMetrics);
   } catch (error) {
     console.warn("stonklets_demo_market_upstream_error", { message: error instanceof Error ? error.message : String(error) });
-    return staleSnapshots(prior);
+    return snapshotsDuringRefresh(prior);
   } finally {
     await releaseStonkletWork(env.WARPLETS, KV_KEY, lease);
   }

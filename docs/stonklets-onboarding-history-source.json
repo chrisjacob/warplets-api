@@ -1,0 +1,286 @@
+[
+  {
+    "milestone": "baseline",
+    "asset": "mars",
+    "url": "https://api.geckoterminal.com/api/v2/networks/bsc/pools/0x94f3ed36706c746ad59fadcaf271b7431ab1d8f1/ohlcv/hour?aggregate=1&before_timestamp=1785164399&limit=2&currency=usd&token=0xfe189e97832da1573e4e4ff034f4ffc3a15c7777",
+    "retrievedAt": "2026-09-21T23:32:19.716782+00:00",
+    "response": {
+      "data": {
+        "id": "ba2989cf-2c73-407f-bd28-f6698f3a3b6b",
+        "type": "ohlcv_request_response",
+        "attributes": {
+          "ohlcv_list": [
+            [
+              1785160800,
+              0.000649955325206002,
+              0.000723657033208525,
+              0.000364861137623301,
+              0.000510349355354238,
+              291470.97468840005
+            ],
+            [
+              1785157200,
+              4.89098406985415e-05,
+              0.000741977237757213,
+              4.72092708542361e-05,
+              0.000649955325206002,
+              898723.4364777744
+            ]
+          ]
+        }
+      },
+      "meta": {
+        "base": {
+          "name": "MarsCoin",
+          "symbol": "MarsCoin",
+          "coingecko_coin_id": "marscoin-4",
+          "address": "0xfe189e97832da1573e4e4ff034f4ffc3a15c7777"
+        },
+        "quote": {
+          "name": "SpaceX",
+          "symbol": "SPCXB",
+          "coingecko_coin_id": "spacex-bstocks-tokenized-stock",
+          "address": "0xbe9d156892e55e7154bcd3cb0fea677f9d3103e1"
+        }
+      }
+    }
+  },
+  {
+    "milestone": "baseline",
+    "asset": "spcxb",
+    "url": "https://api.geckoterminal.com/api/v2/networks/bsc/pools/0x94f3ed36706c746ad59fadcaf271b7431ab1d8f1/ohlcv/hour?aggregate=1&before_timestamp=1785164399&limit=2&currency=usd&token=0xbe9d156892e55e7154bcd3cb0fea677f9d3103e1",
+    "retrievedAt": "2026-09-21T23:32:22.670627+00:00",
+    "response": {
+      "data": {
+        "id": "76a1b6de-ba47-4f33-98bf-3d0ce3850cb1",
+        "type": "ohlcv_request_response",
+        "attributes": {
+          "ohlcv_list": [
+            [
+              1785160800,
+              110.8160984705,
+              111.966765117334,
+              108.085603777736,
+              110.235632252118,
+              291775.02611610317
+            ],
+            [
+              1785157200,
+              113.941353819515,
+              115.26295748981,
+              109.333040017249,
+              110.8160984705,
+              889403.87587625
+            ]
+          ]
+        }
+      },
+      "meta": {
+        "base": {
+          "name": "SpaceX",
+          "symbol": "SPCXB",
+          "coingecko_coin_id": "spacex-bstocks-tokenized-stock",
+          "address": "0xbe9d156892e55e7154bcd3cb0fea677f9d3103e1"
+        },
+        "quote": {
+          "name": "MarsCoin",
+          "symbol": "MarsCoin",
+          "coingecko_coin_id": "marscoin-4",
+          "address": "0xfe189e97832da1573e4e4ff034f4ffc3a15c7777"
+        }
+      }
+    }
+  },
+  {
+    "milestone": "listing",
+    "asset": "mars",
+    "url": "https://api.geckoterminal.com/api/v2/networks/bsc/pools/0x94f3ed36706c746ad59fadcaf271b7431ab1d8f1/ohlcv/hour?aggregate=1&before_timestamp=1788526799&limit=2&currency=usd&token=0xfe189e97832da1573e4e4ff034f4ffc3a15c7777",
+    "retrievedAt": "2026-09-21T23:32:25.373878+00:00",
+    "response": {
+      "data": {
+        "id": "3f17b31d-318a-4cfb-8db0-cfd8d8146c0a",
+        "type": "ohlcv_request_response",
+        "attributes": {
+          "ohlcv_list": [
+            [
+              1788523200,
+              0.183483419277218,
+              0.189566978745209,
+              0.172349887573927,
+              0.176849576899212,
+              1979303.9999777141
+            ],
+            [
+              1788519600,
+              0.179982508946589,
+              0.19532971657568,
+              0.175705609321797,
+              0.183483419277218,
+              958966.4306335172
+            ]
+          ]
+        }
+      },
+      "meta": {
+        "base": {
+          "name": "MarsCoin",
+          "symbol": "MarsCoin",
+          "coingecko_coin_id": "marscoin-4",
+          "address": "0xfe189e97832da1573e4e4ff034f4ffc3a15c7777"
+        },
+        "quote": {
+          "name": "SpaceX",
+          "symbol": "SPCXB",
+          "coingecko_coin_id": "spacex-bstocks-tokenized-stock",
+          "address": "0xbe9d156892e55e7154bcd3cb0fea677f9d3103e1"
+        }
+      }
+    }
+  },
+  {
+    "milestone": "listing",
+    "asset": "spcxb",
+    "url": "https://api.geckoterminal.com/api/v2/networks/bsc/pools/0x94f3ed36706c746ad59fadcaf271b7431ab1d8f1/ohlcv/hour?aggregate=1&before_timestamp=1788526799&limit=2&currency=usd&token=0xbe9d156892e55e7154bcd3cb0fea677f9d3103e1",
+    "retrievedAt": "2026-09-21T23:32:28.091595+00:00",
+    "response": {
+      "data": {
+        "id": "cb043d26-6cab-4969-a6ac-78b3dc4d43a7",
+        "type": "ohlcv_request_response",
+        "attributes": {
+          "ohlcv_list": [
+            [
+              1788523200,
+              149.26906011761,
+              150.597568108939,
+              147.432356888952,
+              148.070667874823,
+              1507446.591829174
+            ],
+            [
+              1788519600,
+              150.505470680132,
+              150.662970804538,
+              148.61821418986,
+              149.26906011761,
+              958294.1066510496
+            ]
+          ]
+        }
+      },
+      "meta": {
+        "base": {
+          "name": "SpaceX",
+          "symbol": "SPCXB",
+          "coingecko_coin_id": "spacex-bstocks-tokenized-stock",
+          "address": "0xbe9d156892e55e7154bcd3cb0fea677f9d3103e1"
+        },
+        "quote": {
+          "name": "MarsCoin",
+          "symbol": "MarsCoin",
+          "coingecko_coin_id": "marscoin-4",
+          "address": "0xfe189e97832da1573e4e4ff034f4ffc3a15c7777"
+        }
+      }
+    }
+  },
+  {
+    "milestone": "after24h",
+    "asset": "mars",
+    "url": "https://api.geckoterminal.com/api/v2/networks/bsc/pools/0x94f3ed36706c746ad59fadcaf271b7431ab1d8f1/ohlcv/hour?aggregate=1&before_timestamp=1788613199&limit=2&currency=usd&token=0xfe189e97832da1573e4e4ff034f4ffc3a15c7777",
+    "retrievedAt": "2026-09-21T23:32:30.779846+00:00",
+    "response": {
+      "data": {
+        "id": "bc37cf54-1219-47af-aad7-50dea259b7e5",
+        "type": "ohlcv_request_response",
+        "attributes": {
+          "ohlcv_list": [
+            [
+              1788609600,
+              0.234395412310402,
+              0.250838139602673,
+              0.228164802197113,
+              0.247730585076766,
+              398526.58720092534
+            ],
+            [
+              1788606000,
+              0.23316981558218,
+              0.243512041361884,
+              0.229218866193216,
+              0.234395412310402,
+              103203.57500114871
+            ]
+          ]
+        }
+      },
+      "meta": {
+        "base": {
+          "name": "MarsCoin",
+          "symbol": "MarsCoin",
+          "coingecko_coin_id": "marscoin-4",
+          "address": "0xfe189e97832da1573e4e4ff034f4ffc3a15c7777"
+        },
+        "quote": {
+          "name": "SpaceX",
+          "symbol": "SPCXB",
+          "coingecko_coin_id": "spacex-bstocks-tokenized-stock",
+          "address": "0xbe9d156892e55e7154bcd3cb0fea677f9d3103e1"
+        }
+      }
+    }
+  },
+  {
+    "milestone": "after24h",
+    "asset": "spcxb",
+    "url": "https://api.geckoterminal.com/api/v2/networks/bsc/pools/0x94f3ed36706c746ad59fadcaf271b7431ab1d8f1/ohlcv/hour?aggregate=1&before_timestamp=1788613199&limit=3&currency=usd&token=0xbe9d156892e55e7154bcd3cb0fea677f9d3103e1",
+    "retrievedAt": "2026-09-21T23:33:12.004099+00:00",
+    "response": {
+      "data": {
+        "id": "01baad84-c73d-40f2-8efc-b25f3d8d747e",
+        "type": "ohlcv_request_response",
+        "attributes": {
+          "ohlcv_list": [
+            [
+              1788609600,
+              149.198585677394,
+              150.258778667842,
+              148.595336218615,
+              149.609482732555,
+              387623.5423882896
+            ],
+            [
+              1788606000,
+              149.391369022669,
+              150.350422824807,
+              148.526782791266,
+              149.198585677394,
+              101608.02663977277
+            ],
+            [
+              1788602400,
+              149.60626533099,
+              149.789381319664,
+              148.161098282998,
+              149.391369022669,
+              652053.5114995575
+            ]
+          ]
+        }
+      },
+      "meta": {
+        "base": {
+          "name": "SpaceX",
+          "symbol": "SPCXB",
+          "coingecko_coin_id": "spacex-bstocks-tokenized-stock",
+          "address": "0xbe9d156892e55e7154bcd3cb0fea677f9d3103e1"
+        },
+        "quote": {
+          "name": "MarsCoin",
+          "symbol": "MarsCoin",
+          "coingecko_coin_id": "marscoin-4",
+          "address": "0xfe189e97832da1573e4e4ff034f4ffc3a15c7777"
+        }
+      }
+    }
+  }
+]
