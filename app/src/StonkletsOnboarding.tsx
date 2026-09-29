@@ -4,12 +4,11 @@ import { AppViewport } from "./AppViewport";
 import { STONKLETS_CATALOG } from "../shared/stonkletsCatalog";
 import { hapticPrimaryTap, hapticSelectionChanged, hapticTap } from "./haptics";
 import { ARROW_SCENARIO, HOOD_SCENARIO, scenarioValue, marketAgeDays } from "./stonkletsOnboardingState";
+import { SCENARIO_PAIRS, SCENARIO_DURATION_MS, scenarioProgress, scenarioPairAt, preloadScenarioImages } from "./stonkletsScenario";
 import MarscoinReplay from "./MarscoinReplay";
 import "./stonkletsOnboarding.css";
 
 const pair = STONKLETS_CATALOG.find((entry) => entry.id === "robinhood")!;
-const scenarioPairs = ["apple", "tesla", "microsoft", "alphabet", "netflix", "nvidia", "spacex", "alibaba", "gamestop", "robinhood"].map(id => STONKLETS_CATALOG.find(entry => entry.id === id)!);
-const SCENARIO_DURATION_MS = scenarioPairs.length * 1500;
 const baseSlides = [
   { title: "It's your turn to be early...", lines: [] },
   { title: "Memes 🤝 Stocks", lines: ["Stonklets are memecoins paired with Binance bStocks, providing exposure to real-world assets.", "$ARROW10X trades against $HOODB in a pair.", "If HOOD price goes up it can cause ARROW to go up.", "Stonklets also have their own buy/sell price discovery."] },
@@ -38,8 +37,9 @@ function Artwork({ src, alt, fullWidth = false }: { src: string; alt: string; fu
   const [failed, setFailed] = useState(false);
   return <div className="stonk-onboard-art">{failed ? <div className="stonk-onboard-art-fallback">{alt}</div> : <img src={src} alt={alt} className={fullWidth ? "stonk-onboard-art-full" : undefined} onError={() => setFailed(true)} />}</div>;
 }
-function PairIdentity({ stock = false, showDescription = true, pairing = pair }: { stock?: boolean; showDescription?: boolean; pairing?: typeof pair }) {
-  return <div className={`stonk-onboard-identity${stock ? " stonk-onboard-identity--stock" : ""}`}><img src={stock ? pairing.stock.logo : pairing.stonklet.image} alt="" /><b>${stock ? pairing.stock.symbol : pairing.stonklet.symbol}</b>{showDescription && <span>{stock ? `${pairing.stock.name} bStock` : "Stonklet Memecoin"}</span>}</div>;
+function PairIdentity({ stock = false, showDescription = true, pairing = pair, onImageSettled }: { stock?: boolean; showDescription?: boolean; pairing?: typeof pair; onImageSettled?: () => void }) {
+  if (!pairing) return null;
+  return <div className={`stonk-onboard-identity${stock ? " stonk-onboard-identity--stock" : ""}`}><img src={stock ? pairing.stock.logo : pairing.stonklet.image} alt="" onLoad={onImageSettled} onError={onImageSettled} /><b>${stock ? pairing.stock.symbol : pairing.stonklet.symbol}</b>{showDescription && <span>{stock ? `${pairing.stock.name} bStock` : "Stonklet Memecoin"}</span>}</div>;
 }
 function TaxVisual() {
   return <div className="stonk-onboard-tax">
@@ -51,40 +51,36 @@ function TaxVisual() {
 function Scenario({ reduced }: { reduced: boolean }) {
   const [elapsed, setElapsed] = useState(0);
   const clipId = useId().replace(/:/g, "");
-  const progress = reduced ? 1 : Math.min(1, elapsed / SCENARIO_DURATION_MS);
+  useEffect(() => { void preloadScenarioImages(); }, []);
+  const progress = reduced ? 1 : scenarioProgress(elapsed, SCENARIO_DURATION_MS);
   useEffect(() => {
     if (reduced) return;
-    for (const pairing of scenarioPairs) {
-      for (const src of [pairing.stock.logo, pairing.stonklet.image]) {
-        const image = new Image();
-        image.src = src;
-      }
-    }
     const started = performance.now();
     let frame = 0;
-    const tick = (now: number) => { setElapsed(Math.min(SCENARIO_DURATION_MS, now - started)); if (now - started < SCENARIO_DURATION_MS) frame = requestAnimationFrame(tick); };
+    const tick = (now: number) => { setElapsed(Math.max(0, Math.min(SCENARIO_DURATION_MS, now - started))); if (now - started < SCENARIO_DURATION_MS) frame = requestAnimationFrame(tick); };
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
   }, [reduced]);
-  const activePair = scenarioPairs[reduced ? 0 : Math.min(scenarioPairs.length - 1, Math.floor(progress * scenarioPairs.length))]!;
-  const y = (value: number) => 205 - ((value + 100) / 1200) * 180;
+  const activePair = scenarioPairAt(SCENARIO_PAIRS, reduced ? 0 : progress) ?? pair;
+  if (!activePair) return <p className="stonk-onboard-caption">Market illustration unavailable.</p>;
+  const y = (value: number) => 153 - ((value + 100) / 1200) * 130;
   const points = (series: number[]) => series.map((value, index) => `${48 + index / (series.length - 1) * 292},${y(value)}`).join(" ");
   const percent = (value: number) => `${value >= 0 ? "+" : ""}${Math.round(value).toLocaleString("en-US")}%`;
   return <div className="stonk-onboard-scenario">
-    <div className="stonk-onboard-chart-legend">{[false, true].map((stock) => <div key={String(stock)}><PairIdentity stock={stock} showDescription={false} pairing={activePair} /><strong style={{ color: stock ? "#f0a82b" : "#00ff00" }} aria-hidden="true">{percent(scenarioValue(stock ? HOOD_SCENARIO : ARROW_SCENARIO, progress))}</strong></div>)}</div>
-    <svg viewBox="0 20 360 220" role="img" aria-label={`Illustrative percentage returns for ${activePair.stock.name}: ${activePair.stonklet.symbol} ends at plus 1,000 percent; ${activePair.stock.symbol} ends at plus 100 percent. Not historical performance or a forecast.`}>
+    <div className="stonk-onboard-chart-legend">{[false, true].map((stock) => <div key={String(stock)}><PairIdentity stock={stock} showDescription={false} pairing={activePair} /><strong style={{ color: stock ? "#f0a82b" : "#00ff00" }} aria-hidden="true">{percent(scenarioValue(stock ? HOOD_SCENARIO : ARROW_SCENARIO, progress))}</strong></div>)}<img className="stonk-onboard-versus" src="/stonklets/Street_Fighter_VS_logo.png" alt="Versus" /></div>
+    <svg viewBox="0 20 360 168" role="img" aria-label={`Illustrative percentage returns for ${activePair.stock.name}: ${activePair.stonklet.symbol} ends at plus 1,000 percent; ${activePair.stock.symbol} ends at plus 100 percent. Not historical performance or a forecast.`}>
       <defs><clipPath id={clipId}><rect x="47" y="0" width={294 * progress} height="220" /></clipPath></defs>
       {[-100, 0, 500, 1000].map((value) => <g key={value}><line x1="48" x2="340" y1={y(value)} y2={y(value)} stroke="#163516" /><text x="42" y={y(value) + 4} textAnchor="end" fill="#8bbf8b" fontSize="10">{value}%</text></g>)}
       <g clipPath={`url(#${clipId})`}><polyline points={points(HOOD_SCENARIO)} fill="none" stroke="#f0a82b" strokeWidth="2.5" /><polyline points={points(ARROW_SCENARIO)} fill="none" stroke="#00ff00" strokeWidth="2.5" strokeLinejoin="round" /></g>
-      <text x="48" y="232" fill="#8bbf8b" fontSize="11">Start</text><text x="340" y="232" fill="#8bbf8b" fontSize="11" textAnchor="end">Over time →</text>
+      <text x="48" y="180" fill="#8bbf8b" fontSize="11">Start</text><text x="340" y="180" fill="#8bbf8b" fontSize="11" textAnchor="end">Over time →</text>
     </svg>
     <p className="stonk-onboard-caption">Illustrative scenario—not historical performance or a forecast</p>
   </div>;
 }
 
-function Visual({ index, reduced }: { index: number; reduced: boolean }) {
+function Visual({ index, reduced, onPairImageSettled }: { index: number; reduced: boolean; onPairImageSettled: (stock: boolean) => void }) {
   if (index === 0) return <Artwork src="/stonklets/stonklets.jpg" alt="Stonklets: a new meme market" fullWidth />;
-  if (index === 1) return <div className="stonk-onboard-pair"><PairIdentity /><span className="stonk-onboard-pair-link" aria-label="paired with">⇄</span><PairIdentity stock /></div>;
+  if (index === 1) return <div className="stonk-onboard-pair"><PairIdentity onImageSettled={() => onPairImageSettled(false)} /><span className="stonk-onboard-pair-link" aria-label="paired with">⇄</span><PairIdentity stock onImageSettled={() => onPairImageSettled(true)} /></div>;
   if (index === 2) return <TaxVisual />;
   if (index === 3) return <MarscoinReplay reduced={reduced} />;
   return <Scenario reduced={reduced} />;
@@ -93,6 +89,11 @@ function Visual({ index, reduced }: { index: number; reduced: boolean }) {
 export default function StonkletsOnboarding({ onDone }: { onDone: () => void }) {
   const [index, setIndex] = useState(0);
   const [characters, setCharacters] = useState(0);
+  const loadedPairImages = useRef(new Set<boolean>());
+  const onPairImageSettled = (stock: boolean) => {
+    loadedPairImages.current.add(stock);
+    if (loadedPairImages.current.size === 2) void preloadScenarioImages();
+  };
   const reduced = useReducedMotion();
   const panel = useRef<HTMLDivElement>(null);
   const body = useRef<HTMLDivElement>(null);
@@ -174,7 +175,7 @@ export default function StonkletsOnboarding({ onDone }: { onDone: () => void }) 
       <div ref={body} className="app-modal-scroll-body min-h-0 flex-1 overflow-y-auto p-4">
         {/* OverlayScrollbars reparents this stable wrapper; React owns its changing children. */}
         <div>
-          <div key={index}><Visual index={index} reduced={reduced} /></div>
+          <div key={index}><Visual index={index} reduced={reduced} onPairImageSettled={onPairImageSettled} /></div>
           <div className="mt-3 space-y-2">{slide.lines.map((line, lineIndex) => <p key={line} className="rounded-lg border border-[#00FF00]/15 bg-[#041204] px-3 py-2 text-sm leading-relaxed text-[#8bbf8b]">{typed(line, slide.title.length + slide.lines.slice(0, lineIndex).join("").length)}</p>)}</div>
         </div>
       </div>
