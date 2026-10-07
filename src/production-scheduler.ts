@@ -27,6 +27,9 @@ import {
 } from "../app/functions/_lib/stonkletIngestion";
 import { scheduleTasks, type ScheduledTasks } from "./scheduled-runner";
 import { runStonkletsDailyNotifications, type StonkletsDailyNotificationEnv } from "../app/functions/_lib/stonkletsDailyNotifications";
+import { scheduleStonkletNews, type NewsEnv } from "../app/functions/_lib/stonkletNews";
+import { ingestSocial } from "../app/functions/_lib/socialIngestion";
+import type { SocialEnv } from "../app/functions/_lib/socialStore";
 
 export type ProductionScheduledEnv = OpenseaSyncEnv &
 	OpenSeaMarketEnv &
@@ -35,7 +38,7 @@ export type ProductionScheduledEnv = OpenseaSyncEnv &
 	WarpletNotificationEnv &
 	EmailIdentityEnv &
 	EmailOnboardingEnv &
-	StonkletMarketIngestEnv & StonkletsDailyNotificationEnv;
+	StonkletMarketIngestEnv & StonkletsDailyNotificationEnv & NewsEnv & SocialEnv;
 
 export type ProductionScheduledTasks = ScheduledTasks<ProductionScheduledEnv>;
 
@@ -50,6 +53,7 @@ const productionScheduledTasks: ProductionScheduledTasks = {
 	emailOnboardingReconciliation: (env) => reconcileUncertainEmailOnboarding(env),
 	stonkletsMarket: (env) => ingestStonkletMarketIfDue(env),
 	stonkletsNotifications: (env) => runStonkletsDailyNotifications(env),
+	stonkletsSpotlight: (env) => scheduleStonkletNews(env),
 };
 
 export function scheduleProductionTasks(
@@ -58,4 +62,6 @@ export function scheduleProductionTasks(
 	tasks: ProductionScheduledTasks = productionScheduledTasks,
 ): void {
 	scheduleTasks(env, ctx, tasks);
+  // Separate opt-in task keeps existing scheduler task contracts compatible.
+  ctx.waitUntil(ingestSocial(env).catch(error => console.error("social_ingestion_failed", error instanceof Error ? error.message : String(error))));
 }

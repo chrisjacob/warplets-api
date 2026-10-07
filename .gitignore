@@ -20,6 +20,8 @@ drop-tunnel.log
 drop-tunnel.err.log
 .tmp-pages-worker.mjs
 tmp/
+.tmp/
+.pnpm-store/
 resend-identity-rollback-*.json
 
 # Localflare generated files

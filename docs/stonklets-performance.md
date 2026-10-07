@@ -9,6 +9,30 @@
 
 Validation in local development: repeated full-board responses approximately 0.7 seconds over the tunnel; single-pair payload 1.2KB versus a 50KB board. Concurrent uncached square/OG responses completed in 18–19 seconds. These are local endpoint observations, not production Core Web Vitals measurements. 512px artwork set: 2,040,618 bytes versus 8,780,488 bytes for originals (76.8% reduction).
 
+## Local market data (production mirror)
+
+Vite serves local `/api/stonklets/market` and `/api/stonklets/chart` from the
+production public endpoints through `app/localStonkletsMarket.ts`, bypassing the
+local Pages worker's market/provider refresh path. No provider keys, browser
+cookies or authorization headers are sent. Authenticated favourites and voting
+requests still use the local worker; public market aggregates come from production.
+
+Market snapshots refresh on demand at most every five minutes per range. Chart
+snapshots refresh at most every fifteen minutes per pair/asset/range. Requests are
+deduplicated, with three upstream requests in flight and a one-minute failure
+backoff. Single-pair board requests share the full-board snapshot. No background
+polling runs while the local app is unused. Production remains the CMC ingestion
+owner; public production reads can still use their existing free-provider cache
+refreshes.
+
+Snapshots persist under `app/node_modules/.cache/stonklets-market-production/`.
+During refresh failures, copies remain available for up to 24 hours, marked stale
+without changing provider timestamps. Cold starts without a saved response report
+an error rather than inventing data. Flap preview/provider overrides are rejected
+by this development mirror. `x-stonklets-data-source: production-mirror` and the
+JSON `localMirror` field identify the source and copy time. The tunnel startup
+smoke test checks the Vite market route, not the local worker's direct market route.
+
 ## Abuse protection
 
 Uncached share renders are limited atomically in D1 to five per IP per minute and twenty globally per minute. Cached responses and duplicate-render followers do not consume render quota. Limits fail closed if the database is unavailable. Favourite writes allow five requests per verified identity per minute, across all pairs/assets; toggling preserves the original vote timestamp. Limits return HTTP 429 with Retry-After: 60.

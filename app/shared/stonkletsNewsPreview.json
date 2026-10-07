@@ -1,0 +1,342 @@
+[
+  {
+    "id": "news-9dddbc2962225dd66df08093",
+    "pairId": "apple",
+    "selectedAt": "2026-10-06T12:28:28.376Z",
+    "quoteAt": "2026-10-06T12:21:02.000Z",
+    "kind": "relative-strength",
+    "eligibleCount": 19,
+    "totalCount": 20,
+    "returns": {
+      "1h": -0.1258115317161912,
+      "4h": -0.13816765789247398,
+      "24h": -0.00104169
+    },
+    "score": 0.15,
+    "explanation": "",
+    "sources": [
+      {
+        "id": "https://www.apple.com/newsroom/2026/09/final-cut-camera-now-supports-variable-aperture-on-iphone-18-pro/",
+        "title": "Final Cut Camera now supports variable aperture on iPhone 18 Pro",
+        "url": "https://www.apple.com/newsroom/2026/09/final-cut-camera-now-supports-variable-aperture-on-iphone-18-pro/",
+        "publisher": "Apple",
+        "publishedAt": "2026-09-29T17:00:57.163Z",
+        "fetchedAt": "2026-10-06T12:28:28.376Z"
+      }
+    ],
+    "supporting": [],
+    "researchStatus": "sources",
+    "uncertainty": "Momentum can reverse quickly. News context does not establish what caused a price move.",
+    "exposure": null,
+    "strategy": "trending-news-v3",
+    "headline": "Final Cut Camera now supports variable aperture on iPhone 18 Pro",
+    "leadSourceId": "https://www.apple.com/newsroom/2026/09/final-cut-camera-now-supports-variable-aperture-on-iphone-18-pro/",
+    "catalystType": "news"
+  },
+  {
+    "id": "news-0c1ce5485e214ae20ea24590",
+    "pairId": "apple",
+    "selectedAt": "2026-10-06T12:28:28.376Z",
+    "quoteAt": "2026-10-06T12:21:02.000Z",
+    "kind": "relative-strength",
+    "eligibleCount": 19,
+    "totalCount": 20,
+    "returns": {
+      "1h": -0.1258115317161912,
+      "4h": -0.13816765789247398,
+      "24h": -0.00104169
+    },
+    "score": 0.15,
+    "explanation": "",
+    "sources": [
+      {
+        "id": "https://www.apple.com/newsroom/2026/09/new-updates-coming-to-apple-creator-studio/",
+        "title": "New updates coming to Apple Creator Studio",
+        "url": "https://www.apple.com/newsroom/2026/09/new-updates-coming-to-apple-creator-studio/",
+        "publisher": "Apple",
+        "publishedAt": "2026-09-29T17:00:02.643Z",
+        "fetchedAt": "2026-10-06T12:28:28.376Z"
+      }
+    ],
+    "supporting": [],
+    "researchStatus": "sources",
+    "uncertainty": "Momentum can reverse quickly. News context does not establish what caused a price move.",
+    "exposure": null,
+    "strategy": "trending-news-v3",
+    "headline": "New updates coming to Apple Creator Studio",
+    "leadSourceId": "https://www.apple.com/newsroom/2026/09/new-updates-coming-to-apple-creator-studio/",
+    "catalystType": "news"
+  },
+  {
+    "id": "news-0bb578c81861c0ee0df81358",
+    "pairId": "nvidia",
+    "selectedAt": "2026-10-06T12:28:28.376Z",
+    "quoteAt": "2026-10-06T12:21:02.000Z",
+    "kind": "bullish",
+    "eligibleCount": 19,
+    "totalCount": 20,
+    "returns": {
+      "1h": 0.18848674746552163,
+      "4h": 0.17064853072392694,
+      "24h": 2.64170175
+    },
+    "score": 0.555555555556,
+    "explanation": "",
+    "sources": [
+      {
+        "title": "NVIDIA Announces a $150 Billion Share Repurchase Authorization Increase",
+        "publishedAt": "2026-09-28T11:00:00.000Z",
+        "url": "https://nvidianews.nvidia.com/news/nvidia-announces-a-150-billion-share-repurchase-authorization-increase",
+        "id": "https://nvidianews.nvidia.com/news/nvidia-announces-a-150-billion-share-repurchase-authorization-increase",
+        "publisher": "NVIDIA",
+        "fetchedAt": "2026-10-06T12:27:47.710Z"
+      }
+    ],
+    "supporting": [],
+    "researchStatus": "sources",
+    "uncertainty": "Momentum can reverse quickly. News context does not establish what caused a price move.",
+    "exposure": null,
+    "strategy": "trending-news-v3",
+    "headline": "NVIDIA Announces a $150 Billion Share Repurchase Authorization Increase",
+    "leadSourceId": "https://nvidianews.nvidia.com/news/nvidia-announces-a-150-billion-share-repurchase-authorization-increase",
+    "catalystType": "news"
+  },
+  {
+    "id": "news-3c904e367f45c9c0eb62a16f",
+    "pairId": "nvidia",
+    "selectedAt": "2026-10-06T12:28:28.376Z",
+    "quoteAt": "2026-10-06T12:21:02.000Z",
+    "kind": "bullish",
+    "eligibleCount": 19,
+    "totalCount": 20,
+    "returns": {
+      "1h": 0.18848674746552163,
+      "4h": 0.17064853072392694,
+      "24h": 2.64170175
+    },
+    "score": 0.555555555556,
+    "explanation": "",
+    "sources": [
+      {
+        "title": "NVIDIA Launches Open Agent Safety Platform to Secure Agents From Testing to Deployment",
+        "publishedAt": "2026-09-28T09:00:00.000Z",
+        "url": "https://nvidianews.nvidia.com/news/open-agent-safety-platform",
+        "id": "https://nvidianews.nvidia.com/news/open-agent-safety-platform",
+        "publisher": "NVIDIA",
+        "fetchedAt": "2026-10-06T12:27:47.711Z"
+      }
+    ],
+    "supporting": [],
+    "researchStatus": "sources",
+    "uncertainty": "Momentum can reverse quickly. News context does not establish what caused a price move.",
+    "exposure": null,
+    "strategy": "trending-news-v3",
+    "headline": "NVIDIA Launches Open Agent Safety Platform to Secure Agents From Testing to Deployment",
+    "leadSourceId": "https://nvidianews.nvidia.com/news/open-agent-safety-platform",
+    "catalystType": "news"
+  },
+  {
+    "id": "news-485d33c518f3985dbe808f32",
+    "pairId": "alphabet",
+    "selectedAt": "2026-10-06T12:28:28.376Z",
+    "quoteAt": "2026-10-06T12:21:02.000Z",
+    "kind": "bullish",
+    "eligibleCount": 19,
+    "totalCount": 20,
+    "returns": {
+      "1h": 0.005066979156254092,
+      "4h": -0.08739918747872055,
+      "24h": 1.41122098
+    },
+    "score": 0.272222222222,
+    "explanation": "",
+    "sources": [
+      {
+        "title": "Why we're backing America's existing nuclear plants",
+        "publishedAt": "2026-10-06T10:00:00.000Z",
+        "url": "https://blog.google/company-news/why-were-backing-americas-existing-nuclear-plants/",
+        "id": "https://blog.google/company-news/why-were-backing-americas-existing-nuclear-plants/",
+        "publisher": "Google",
+        "fetchedAt": "2026-10-06T12:27:47.713Z"
+      }
+    ],
+    "supporting": [],
+    "researchStatus": "sources",
+    "uncertainty": "Momentum can reverse quickly. News context does not establish what caused a price move.",
+    "exposure": null,
+    "strategy": "trending-news-v3",
+    "headline": "Why we're backing America's existing nuclear plants",
+    "leadSourceId": "https://blog.google/company-news/why-were-backing-americas-existing-nuclear-plants/",
+    "catalystType": "news"
+  },
+  {
+    "id": "news-64b49ad33cd686ce17f1899a",
+    "pairId": "alphabet",
+    "selectedAt": "2026-10-06T12:28:28.376Z",
+    "quoteAt": "2026-10-06T12:21:02.000Z",
+    "kind": "bullish",
+    "eligibleCount": 19,
+    "totalCount": 20,
+    "returns": {
+      "1h": 0.005066979156254092,
+      "4h": -0.08739918747872055,
+      "24h": 1.41122098
+    },
+    "score": 0.272222222222,
+    "explanation": "",
+    "sources": [
+      {
+        "title": "Our Project Suncatcher prototype satellite is in orbit.",
+        "publishedAt": "2026-10-01T23:30:00.000Z",
+        "url": "https://blog.google/innovation-and-ai/models-and-research/google-research/project-suncatcher-prototype/",
+        "id": "https://blog.google/innovation-and-ai/models-and-research/google-research/project-suncatcher-prototype/",
+        "publisher": "Google",
+        "fetchedAt": "2026-10-06T12:27:47.714Z"
+      }
+    ],
+    "supporting": [],
+    "researchStatus": "sources",
+    "uncertainty": "Momentum can reverse quickly. News context does not establish what caused a price move.",
+    "exposure": null,
+    "strategy": "trending-news-v3",
+    "headline": "Our Project Suncatcher prototype satellite is in orbit.",
+    "leadSourceId": "https://blog.google/innovation-and-ai/models-and-research/google-research/project-suncatcher-prototype/",
+    "catalystType": "news"
+  },
+  {
+    "id": "news-4351ac47ff5a896359972c65",
+    "pairId": "microsoft",
+    "selectedAt": "2026-10-06T12:28:28.376Z",
+    "quoteAt": "2026-10-06T12:21:02.000Z",
+    "kind": "bullish",
+    "eligibleCount": 19,
+    "totalCount": 20,
+    "returns": {
+      "1h": 0.11566942314800155,
+      "4h": 0.3687550006407081,
+      "24h": 1.82660415
+    },
+    "score": 0.494444444444,
+    "explanation": "",
+    "sources": [
+      {
+        "title": "Introducing the new Copilot with Home, Code and Autopilot",
+        "publishedAt": "2026-09-25T12:03:50.000Z",
+        "url": "https://blogs.microsoft.com/blog/2026/09/25/introducing-the-new-copilot-with-home-code-and-autopilot/",
+        "id": "https://blogs.microsoft.com/blog/2026/09/25/introducing-the-new-copilot-with-home-code-and-autopilot/",
+        "publisher": "Microsoft",
+        "fetchedAt": "2026-10-06T12:27:47.716Z"
+      }
+    ],
+    "supporting": [],
+    "researchStatus": "sources",
+    "uncertainty": "Momentum can reverse quickly. News context does not establish what caused a price move.",
+    "exposure": null,
+    "strategy": "trending-news-v3",
+    "headline": "Introducing the new Copilot with Home, Code and Autopilot",
+    "leadSourceId": "https://blogs.microsoft.com/blog/2026/09/25/introducing-the-new-copilot-with-home-code-and-autopilot/",
+    "catalystType": "news"
+  },
+  {
+    "id": "news-1ec9e920cf414f6a0366d415",
+    "pairId": "sk-hynix",
+    "selectedAt": "2026-10-06T12:28:28.376Z",
+    "quoteAt": "2026-10-06T12:21:02.000Z",
+    "kind": "bullish",
+    "eligibleCount": 19,
+    "totalCount": 20,
+    "returns": {
+      "1h": 0.8294928371824772,
+      "4h": 0.5459846629832565,
+      "24h": -1.19149975
+    },
+    "score": 0.811111111111,
+    "explanation": "",
+    "sources": [
+      {
+        "title": "SK hynix Launches ‘SK hynix Ventures’ in Silicon Valley to Expand Global AI Ecosystem Investment",
+        "publishedAt": "2026-09-18T05:59:25.000Z",
+        "url": "https://news.skhynix.com/en/sk-hynix-ventures/",
+        "id": "https://news.skhynix.com/en/sk-hynix-ventures/",
+        "publisher": "SK hynix",
+        "fetchedAt": "2026-10-06T12:27:47.718Z"
+      }
+    ],
+    "supporting": [],
+    "researchStatus": "sources",
+    "uncertainty": "Momentum can reverse quickly. News context does not establish what caused a price move.",
+    "exposure": null,
+    "strategy": "trending-news-v3",
+    "headline": "SK hynix Launches ‘SK hynix Ventures’ in Silicon Valley to Expand Global AI Ecosystem Investment",
+    "leadSourceId": "https://news.skhynix.com/en/sk-hynix-ventures/",
+    "catalystType": "news"
+  },
+  {
+    "id": "news-a0c6cea6a8f18bfbc65f2182",
+    "pairId": "fluence",
+    "selectedAt": "2026-10-06T12:28:28.376Z",
+    "quoteAt": "2026-10-06T12:21:02.000Z",
+    "kind": "bullish",
+    "eligibleCount": 19,
+    "totalCount": 20,
+    "returns": {
+      "1h": 0.3456275621533278,
+      "4h": 0.7192223758146987,
+      "24h": 1.91052719
+    },
+    "score": 0.783333333333,
+    "explanation": "",
+    "sources": [
+      {
+        "title": "Fluence Secures Long-Term Battery Supply Through Multiyear Agreement with EVE Power",
+        "publishedAt": "2026-09-24T13:00:50.000Z",
+        "url": "https://ir.fluenceenergy.com/news-releases/news-release-details/fluence-secures-long-term-battery-supply-through-multiyear",
+        "id": "https://ir.fluenceenergy.com/news-releases/news-release-details/fluence-secures-long-term-battery-supply-through-multiyear",
+        "publisher": "Fluence",
+        "fetchedAt": "2026-10-06T12:27:47.720Z"
+      }
+    ],
+    "supporting": [],
+    "researchStatus": "sources",
+    "uncertainty": "Momentum can reverse quickly. News context does not establish what caused a price move.",
+    "exposure": null,
+    "strategy": "trending-news-v3",
+    "headline": "Fluence Secures Long-Term Battery Supply Through Multiyear Agreement with EVE Power",
+    "leadSourceId": "https://ir.fluenceenergy.com/news-releases/news-release-details/fluence-secures-long-term-battery-supply-through-multiyear",
+    "catalystType": "news"
+  },
+  {
+    "id": "news-5354d797c6db8f4d804f2361",
+    "pairId": "robinhood",
+    "selectedAt": "2026-10-06T12:28:28.376Z",
+    "quoteAt": "2026-10-06T12:21:02.000Z",
+    "kind": "bullish",
+    "eligibleCount": 19,
+    "totalCount": 20,
+    "returns": {
+      "1h": 0.481180564338235,
+      "4h": 0.9765242714054212,
+      "24h": 1.31503954
+    },
+    "score": 0.8,
+    "explanation": "",
+    "sources": [
+      {
+        "id": "https://robinhood.com/us/en/newsroom/hood-summit-2026/",
+        "url": "https://robinhood.com/us/en/newsroom/hood-summit-2026/",
+        "title": "Robinhood Puts the Power of Hedge Funds in Every Trader's Pocket",
+        "publisher": "Robinhood",
+        "publishedAt": "2026-09-29T05:00:00.000Z",
+        "fetchedAt": "2026-10-06T12:27:47.720Z"
+      }
+    ],
+    "supporting": [],
+    "researchStatus": "sources",
+    "uncertainty": "Momentum can reverse quickly. News context does not establish what caused a price move.",
+    "exposure": null,
+    "strategy": "trending-news-v3",
+    "headline": "Robinhood Puts the Power of Hedge Funds in Every Trader's Pocket",
+    "leadSourceId": "https://robinhood.com/us/en/newsroom/hood-summit-2026/",
+    "catalystType": "news"
+  }
+]

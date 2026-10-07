@@ -127,7 +127,7 @@ async function waitFor(url, label, timeoutMs = 45_000) {
 }
 
 async function smokeTest() {
-  const marketResponse = await fetch(`http://127.0.0.1:${API_PORT}/api/stonklets/market`);
+  const marketResponse = await fetch(`http://127.0.0.1:${VITE_PORT}/api/stonklets/market`);
   const market = await marketResponse.json();
   const favouritesResponse = await fetch(`http://127.0.0.1:${API_PORT}/api/stonklet-favourites`);
   console.log(
@@ -175,7 +175,7 @@ async function main() {
   vite.on("exit", shutdown);
 
   try {
-    await waitFor(`http://127.0.0.1:${API_PORT}/api/stonklets/market`, "Pages Functions");
+    await waitFor(`http://127.0.0.1:${VITE_PORT}/api/stonklets/market`, "Pages Functions");
     await waitFor(`http://127.0.0.1:${VITE_PORT}/stonklets`, "Vite");
     await smokeTest();
     console.log(`OK Tunnel routing ${PUBLIC_URL} -> http://127.0.0.1:${VITE_PORT}`);

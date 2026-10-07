@@ -1,0 +1,4875 @@
+{
+  "checkedAt": "2026-10-07T05:35:24.409Z",
+  "windowStart": "2025-11-07T00:00:00.000Z",
+  "method": "Reviewed manifest only; uncapped distinct narratives. Discovery feeds are not evidence of accepted coverage. Syndicated issuer releases count as one issuer, not independent journalism. Unknown origin fails diversity until reviewed. Calendar months intersecting the window include partial first/current months; ten distinct stories is the alternative pass criterion.",
+  "summary": {
+    "stocks": 44,
+    "volumePass": 22,
+    "sourceDiversityPass": 9,
+    "bothPass": 2,
+    "officialAutomatedFeed": 14
+  },
+  "stocks": [
+    {
+      "pairId": "spacex",
+      "name": "SpaceX",
+      "stories": 7,
+      "months": {
+        "2025-11": 0,
+        "2025-12": 0,
+        "2026-01": 0,
+        "2026-02": 0,
+        "2026-03": 0,
+        "2026-04": 0,
+        "2026-05": 0,
+        "2026-06": 2,
+        "2026-07": 1,
+        "2026-08": 0,
+        "2026-09": 2,
+        "2026-10": 2
+      },
+      "missingMonths": [
+        "2025-11",
+        "2025-12",
+        "2026-01",
+        "2026-02",
+        "2026-03",
+        "2026-04",
+        "2026-05",
+        "2026-08"
+      ],
+      "volumePass": false,
+      "sourceDiversityPass": true,
+      "primaryOwners": [
+        "nasa.gov"
+      ],
+      "independentOwners": [
+        "reuters.com"
+      ],
+      "unverifiedDomains": [
+        "rttnews.com"
+      ],
+      "officialDiscoveryHomepage": "https://www.spacex.com/updates/",
+      "officialAutomatedFeed": false,
+      "discoveryFeeds": [
+        "bbc-business",
+        "cnbc-business",
+        "stock-spacex"
+      ],
+      "sources": [
+        {
+          "id": "news-da4aaf9fa6af1509ac89fa20",
+          "url": "https://www.nasa.gov/news-release/nasa-awards-launch-services-for-starburst-gamma-ray-detector/",
+          "date": "2026-09-17T00:00:00.000Z",
+          "kind": "primary",
+          "owner": "nasa.gov"
+        },
+        {
+          "id": "news-766c0436d354b5e157bce350",
+          "url": "https://www.nasa.gov/blogs/smallsatellites/2026/10/01/nasa-smallsats-launch-to-advance-science-technology-orbital-operations/",
+          "date": "2026-10-01T00:00:00.000Z",
+          "kind": "primary",
+          "owner": "nasa.gov"
+        },
+        {
+          "id": "news-a85be5d56dbd607fff5adc7a",
+          "url": "https://www.nasa.gov/news-release/nasas-spacex-crew-13-launches-to-international-space-station/",
+          "date": "2026-10-01T00:00:00.000Z",
+          "kind": "primary",
+          "owner": "nasa.gov"
+        },
+        {
+          "id": "news-51d4951c6b5c42d92e6e6c80",
+          "url": "https://www.nasa.gov/missions/station/commercial-crew/nasa-awards-spacex-three-crew-flights-to-space-station/",
+          "date": "2026-09-18T00:00:00.000Z",
+          "kind": "primary",
+          "owner": "nasa.gov"
+        },
+        {
+          "id": "news-0a06cbae26d0898fe0eddb88",
+          "url": "https://www.investing.com/news/stock-market-news/frontier-joins-airlines-betting-on-starlink-to-lure-travelers-4790960",
+          "date": "2026-07-14T00:00:00.000Z",
+          "kind": "independent",
+          "owner": "reuters.com"
+        },
+        {
+          "id": "news-ba91ba353ba9fa6c32f8563a",
+          "url": "https://arenaholdings-timeslive-prod.web.arc-cdn.net/news/sci-tech/2026-06-09-musks-starlink-leads-bezoss-amazon-as-airlines-rush-to-boost-in-flight-wi-fi/",
+          "date": "2026-06-09T00:00:00.000Z",
+          "kind": "independent",
+          "owner": "reuters.com"
+        },
+        {
+          "id": "news-170dc2144035ce80b3a3f91d",
+          "url": "https://www.rttnews.com/story.aspx?Id=3663388",
+          "date": "2026-06-29T22:53:32.000Z",
+          "kind": "unverified",
+          "owner": "rttnews.com"
+        }
+      ]
+    },
+    {
+      "pairId": "sk-hynix",
+      "name": "SK Hynix",
+      "stories": 8,
+      "months": {
+        "2025-11": 0,
+        "2025-12": 0,
+        "2026-01": 0,
+        "2026-02": 0,
+        "2026-03": 2,
+        "2026-04": 1,
+        "2026-05": 0,
+        "2026-06": 2,
+        "2026-07": 0,
+        "2026-08": 3,
+        "2026-09": 0,
+        "2026-10": 0
+      },
+      "missingMonths": [
+        "2025-11",
+        "2025-12",
+        "2026-01",
+        "2026-02",
+        "2026-05",
+        "2026-07",
+        "2026-09",
+        "2026-10"
+      ],
+      "volumePass": false,
+      "sourceDiversityPass": false,
+      "primaryOwners": [
+        "sk-hynix"
+      ],
+      "independentOwners": [],
+      "unverifiedDomains": [],
+      "officialDiscoveryHomepage": "https://news.skhynix.com/en/",
+      "officialAutomatedFeed": true,
+      "discoveryFeeds": [
+        "official-sk-hynix",
+        "bbc-business",
+        "cnbc-business",
+        "stock-sk-hynix"
+      ],
+      "sources": [
+        {
+          "id": "news-631c2b19e6c0a63df0ee6315",
+          "url": "https://api.quotemedia.com/supplement/news-story/?webmasterId=102691&storyId=7825549468318631",
+          "date": "2026-06-07T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "sk-hynix"
+        },
+        {
+          "id": "news-6e0927284cc20ce42fb6be86",
+          "url": "https://www.businesswire.com/news/home/20260803297696/en/",
+          "date": "2026-08-03T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "sk-hynix"
+        },
+        {
+          "id": "news-b97f420f1de60bee47fe157d",
+          "url": "https://api.quotemedia.com/supplement/news-story/?webmasterId=102691&storyId=6527108963574693",
+          "date": "2026-03-10T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "sk-hynix"
+        },
+        {
+          "id": "news-f30a177066bdbd45319a650f",
+          "url": "https://news.skhynix.com/en/fab-facility-investment-2026/",
+          "date": "2026-08-07T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "sk-hynix"
+        },
+        {
+          "id": "news-c8730e107da2a7d4fdf32404",
+          "url": "https://news.skhynix.com/en/groundbreaking-ceremony-in-indiana/",
+          "date": "2026-08-28T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "sk-hynix"
+        },
+        {
+          "id": "news-6d716d9a74b2655d83c3f4bd",
+          "url": "https://news.skhynix.com/en/1c-lpddr6-development-2026/",
+          "date": "2026-03-10T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "sk-hynix"
+        },
+        {
+          "id": "news-51101e3462408c72e733c058",
+          "url": "https://news.skhynix.com/en/mass-production-socamm2-192gb/",
+          "date": "2026-04-20T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "sk-hynix"
+        },
+        {
+          "id": "news-6cce11dae2484c13306b29ec",
+          "url": "https://news.skhynix.com/en/sk-hynix-ships-samples-of-12-layer-next-gen-hbm4e-2/",
+          "date": "2026-06-18T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "sk-hynix"
+        }
+      ]
+    },
+    {
+      "pairId": "spy",
+      "name": "SPY",
+      "stories": 7,
+      "months": {
+        "2025-11": 0,
+        "2025-12": 1,
+        "2026-01": 1,
+        "2026-02": 0,
+        "2026-03": 0,
+        "2026-04": 1,
+        "2026-05": 1,
+        "2026-06": 0,
+        "2026-07": 1,
+        "2026-08": 1,
+        "2026-09": 0,
+        "2026-10": 1
+      },
+      "missingMonths": [
+        "2025-11",
+        "2026-02",
+        "2026-03",
+        "2026-06",
+        "2026-09"
+      ],
+      "volumePass": false,
+      "sourceDiversityPass": true,
+      "primaryOwners": [
+        "spy"
+      ],
+      "independentOwners": [
+        "reuters.com",
+        "cnbc.com"
+      ],
+      "unverifiedDomains": [
+        "etftrends.com"
+      ],
+      "officialDiscoveryHomepage": "https://www.ssga.com/us/en/individual/insights",
+      "officialAutomatedFeed": false,
+      "discoveryFeeds": [
+        "bbc-business",
+        "cnbc-business",
+        "stock-spy"
+      ],
+      "sources": [
+        {
+          "id": "news-c7e7f820553071c0322f093c",
+          "url": "https://finance.yahoo.com/markets/stocks/articles/p-500-hits-intraday-record-133900526.html",
+          "date": "2026-10-06T00:00:00.000Z",
+          "kind": "independent",
+          "owner": "reuters.com"
+        },
+        {
+          "id": "news-c1036b2a15862fc3953628c1",
+          "url": "https://www.etftrends.com/fixed-income-content-hub/s-p-500-snapshot-index-closes-record-high/",
+          "date": "2026-01-09T21:41:13.000Z",
+          "kind": "unverified",
+          "owner": "etftrends.com"
+        },
+        {
+          "id": "news-27612544735130426487411c",
+          "url": "https://www.etftrends.com/fixed-income-content-hub/sp-500-snapshot-7000-era-begins-amid-triple-record-highs/",
+          "date": "2026-04-17T21:42:38.000Z",
+          "kind": "unverified",
+          "owner": "etftrends.com"
+        },
+        {
+          "id": "news-23d970e5707093ec1c1f41fd",
+          "url": "https://www.cnbc.com/2026/08/08/record-breaking-week-for-options-powers-sp-500-surge.html",
+          "date": "2026-08-08T11:49:22.000Z",
+          "kind": "independent",
+          "owner": "cnbc.com"
+        },
+        {
+          "id": "news-5a929634c4086a201cfa5837",
+          "url": "https://www.etftrends.com/fixed-income-content-hub/sp-500-snapshot-win-streak-puts-index-inches-record-high/",
+          "date": "2025-12-05T22:25:49.000Z",
+          "kind": "unverified",
+          "owner": "etftrends.com"
+        },
+        {
+          "id": "news-2a20e335d97e7924b25f1d2e",
+          "url": "https://www.etftrends.com/april-showers-bring-deluge-etf-inflows/",
+          "date": "2026-05-04T17:50:00.000Z",
+          "kind": "unverified",
+          "owner": "etftrends.com"
+        },
+        {
+          "id": "news-3fc3c32cb17d576c793ca710",
+          "url": "https://www.ssga.com/us/en/individual/insights/etf-inflows-set-records-in-first-half",
+          "date": "2026-07-06T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "spy"
+        }
+      ]
+    },
+    {
+      "pairId": "tether-gold",
+      "name": "Tether Gold",
+      "stories": 6,
+      "months": {
+        "2025-11": 0,
+        "2025-12": 0,
+        "2026-01": 2,
+        "2026-02": 1,
+        "2026-03": 0,
+        "2026-04": 0,
+        "2026-05": 1,
+        "2026-06": 0,
+        "2026-07": 0,
+        "2026-08": 1,
+        "2026-09": 1,
+        "2026-10": 0
+      },
+      "missingMonths": [
+        "2025-11",
+        "2025-12",
+        "2026-03",
+        "2026-04",
+        "2026-06",
+        "2026-07",
+        "2026-10"
+      ],
+      "volumePass": false,
+      "sourceDiversityPass": false,
+      "primaryOwners": [
+        "gold.org",
+        "tether-gold"
+      ],
+      "independentOwners": [],
+      "unverifiedDomains": [],
+      "officialDiscoveryHomepage": "https://tether.io/news/",
+      "officialAutomatedFeed": true,
+      "discoveryFeeds": [
+        "bbc-business",
+        "cnbc-business",
+        "expanded-official-tether-gold"
+      ],
+      "sources": [
+        {
+          "id": "news-dfe11cfda187ff5d4c5fb7c2",
+          "url": "https://www.gold.org/goldhub/research/gold-etfs-holdings-and-flows/2026/09",
+          "date": "2026-09-09T00:00:00.000Z",
+          "kind": "primary",
+          "owner": "gold.org"
+        },
+        {
+          "id": "news-c259e6a57d9db09a568700ca",
+          "url": "https://tether.io/news/tether-gold-holdings-rise-9-5-in-q2-as-demand-for-tokenized-gold-remains-strong-through-market-volatility/",
+          "date": "2026-08-03T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "tether-gold"
+        },
+        {
+          "id": "news-07639fc481747200d1711893",
+          "url": "https://tether.io/news/tether-introduces-scudo-redefining-fractional-gold-ownership-onchain/",
+          "date": "2026-01-06T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "tether-gold"
+        },
+        {
+          "id": "news-6acd15ff86a18b7945ab604e",
+          "url": "https://tether.io/news/tether-gold-surpasses-3-3-billion-as-reserves-surge-36-in-q1-driven-by-flight-to-hard-assets/",
+          "date": "2026-05-04T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "tether-gold"
+        },
+        {
+          "id": "news-32060dcb71c3b59ee7f8eb08",
+          "url": "https://tether.io/news/tether-gold-accounts-for-more-than-half-the-entire-gold-backed-stablecoin-market-as-xaut-surpasses-4-billion-in-value/",
+          "date": "2026-01-26T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "tether-gold"
+        },
+        {
+          "id": "news-83e68919940d1c01826787fa",
+          "url": "https://tether.io/news/tether-makes-150-million-strategic-investment-in-gold-com-expanding-global-access-to-tokenized-and-physical-gold/",
+          "date": "2026-02-05T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "tether-gold"
+        }
+      ]
+    },
+    {
+      "pairId": "invesco-qqq",
+      "name": "Invesco QQQ Trust",
+      "stories": 8,
+      "months": {
+        "2025-11": 1,
+        "2025-12": 1,
+        "2026-01": 1,
+        "2026-02": 0,
+        "2026-03": 0,
+        "2026-04": 0,
+        "2026-05": 1,
+        "2026-06": 1,
+        "2026-07": 2,
+        "2026-08": 0,
+        "2026-09": 1,
+        "2026-10": 0
+      },
+      "missingMonths": [
+        "2026-02",
+        "2026-03",
+        "2026-04",
+        "2026-08",
+        "2026-10"
+      ],
+      "volumePass": false,
+      "sourceDiversityPass": false,
+      "primaryOwners": [
+        "invesco-qqq",
+        "sec.gov"
+      ],
+      "independentOwners": [],
+      "unverifiedDomains": [
+        "etftrends.com",
+        "yahoo.com",
+        "rttnews.com"
+      ],
+      "officialDiscoveryHomepage": "https://www.invesco.com/qqq-etf/en/insights.html",
+      "officialAutomatedFeed": false,
+      "discoveryFeeds": [
+        "bbc-business",
+        "cnbc-business",
+        "stock-invesco-qqq"
+      ],
+      "sources": [
+        {
+          "id": "news-20c00cffeaaabb5eeea4db98",
+          "url": "https://www.invesco.com/qqq-etf/en/etf-insights/qqq-monthly-review.html",
+          "date": "2026-09-17T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "invesco-qqq"
+        },
+        {
+          "id": "news-57b469da97a366e1c4b1c387",
+          "url": "https://www.etftrends.com/april-showers-bring-deluge-etf-inflows/",
+          "date": "2026-05-04T17:50:00.000Z",
+          "kind": "unverified",
+          "owner": "etftrends.com"
+        },
+        {
+          "id": "news-825ac911358f06e79bfdde2a",
+          "url": "https://www.etftrends.com/etf-education-content-hub/etfs-right-side-tech-earnings-chasm/",
+          "date": "2025-11-10T13:00:37.000Z",
+          "kind": "unverified",
+          "owner": "etftrends.com"
+        },
+        {
+          "id": "news-dc724d7cb0ea6168a24e6fe4",
+          "url": "https://finance.yahoo.com/news/walmart-join-nasdaq-100-jan-020910743.html",
+          "date": "2026-01-10T02:09:10.000Z",
+          "kind": "unverified",
+          "owner": "yahoo.com"
+        },
+        {
+          "id": "news-7e8363e059f66ee2295cec82",
+          "url": "https://www.etftrends.com/equity-etf-content-hub/microsofts-earnings-beat-ripple-effect-across-etf-landscape/",
+          "date": "2026-07-30T21:30:59.000Z",
+          "kind": "unverified",
+          "owner": "etftrends.com"
+        },
+        {
+          "id": "news-02c2dba8f2a6a76dd8b0babf",
+          "url": "https://www.rttnews.com/story.aspx?Id=3663388",
+          "date": "2026-06-29T22:53:32.000Z",
+          "kind": "unverified",
+          "owner": "rttnews.com"
+        },
+        {
+          "id": "news-5414000dd5de755cc48617f1",
+          "url": "https://www.invesco.com/qqq-etf/en/market-outlook/whats-new-about-qqq.html",
+          "date": "2025-12-22T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "invesco-qqq"
+        },
+        {
+          "id": "news-5e47c28e0693b8af2ce7e294",
+          "url": "https://www.sec.gov/Archives/edgar/data/914208/000091420826000229/ivzpressrelease2q2026.htm",
+          "date": "2026-07-28T00:00:00.000Z",
+          "kind": "primary",
+          "owner": "sec.gov"
+        }
+      ]
+    },
+    {
+      "pairId": "nvidia",
+      "name": "NVIDIA",
+      "stories": 14,
+      "months": {
+        "2025-11": 0,
+        "2025-12": 0,
+        "2026-01": 0,
+        "2026-02": 0,
+        "2026-03": 0,
+        "2026-04": 0,
+        "2026-05": 0,
+        "2026-06": 0,
+        "2026-07": 3,
+        "2026-08": 4,
+        "2026-09": 7,
+        "2026-10": 0
+      },
+      "missingMonths": [
+        "2025-11",
+        "2025-12",
+        "2026-01",
+        "2026-02",
+        "2026-03",
+        "2026-04",
+        "2026-05",
+        "2026-06",
+        "2026-10"
+      ],
+      "volumePass": true,
+      "sourceDiversityPass": false,
+      "primaryOwners": [
+        "nvidia"
+      ],
+      "independentOwners": [],
+      "unverifiedDomains": [],
+      "officialDiscoveryHomepage": "https://nvidianews.nvidia.com/",
+      "officialAutomatedFeed": true,
+      "discoveryFeeds": [
+        "official-nvidia",
+        "bbc-business",
+        "cnbc-business",
+        "stock-nvidia"
+      ],
+      "sources": [
+        {
+          "id": "news-fc209fdf2b17742811db37cd",
+          "url": "https://nvidianews.nvidia.com/news/nvidia-announces-a-150-billion-share-repurchase-authorization-increase",
+          "date": "2026-09-28T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "nvidia"
+        },
+        {
+          "id": "news-9a89806b25be9aad2a78bb03",
+          "url": "https://nvidianews.nvidia.com/news/open-agent-safety-platform",
+          "date": "2026-09-28T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "nvidia"
+        },
+        {
+          "id": "news-2bb2e60eae7ddb352c4fa742",
+          "url": "https://blogs.nvidia.com/blog/dsx-ready-ai-factories-power-cooling/",
+          "date": "2026-09-21T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "nvidia"
+        },
+        {
+          "id": "news-d5bfeb271e1bf0791489f511",
+          "url": "https://blogs.nvidia.com/blog/ai-energy-management-alliance/",
+          "date": "2026-09-16T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "nvidia"
+        },
+        {
+          "id": "news-ce7cb803693772af9625b05d",
+          "url": "https://blogs.nvidia.com/blog/vera-rubin-nvl72-mlperf-inference/",
+          "date": "2026-09-16T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "nvidia"
+        },
+        {
+          "id": "news-da1830eb9c58a622d804d6f4",
+          "url": "https://nvidianews.nvidia.com/news/nvidia-expands-open-source-cuda-q-platform-for-fault-tolerant-quantum-computing",
+          "date": "2026-09-14T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "nvidia"
+        },
+        {
+          "id": "news-1c026a3261615e0a5f83fa1a",
+          "url": "https://api.quotemedia.com/supplement/news-story/?webmasterId=102691&storyId=5838206060778075",
+          "date": "2026-09-09T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "nvidia"
+        },
+        {
+          "id": "news-d623892800a0d143c5c14af6",
+          "url": "https://api.quotemedia.com/supplement/news-story/?webmasterId=102691&storyId=7613400287506645",
+          "date": "2026-08-31T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "nvidia"
+        },
+        {
+          "id": "news-b1bd0ac9c4db49794626dee7",
+          "url": "https://api.quotemedia.com/supplement/news-story/?webmasterId=102691&storyId=7795897468951555",
+          "date": "2026-08-26T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "nvidia"
+        },
+        {
+          "id": "news-0a218be9731fe3f817b843c7",
+          "url": "https://api.quotemedia.com/supplement/news-story/?webmasterId=102691&storyId=8658939235244648",
+          "date": "2026-08-24T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "nvidia"
+        },
+        {
+          "id": "news-1e2f11a94613a6fb146a7024",
+          "url": "https://api.quotemedia.com/supplement/news-story/?webmasterId=102691&storyId=4716591036312565",
+          "date": "2026-08-10T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "nvidia"
+        },
+        {
+          "id": "news-b88695640d45de978cec0793",
+          "url": "https://api.quotemedia.com/supplement/news-story/?webmasterId=102691&storyId=8214164106467898",
+          "date": "2026-07-27T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "nvidia"
+        },
+        {
+          "id": "news-5654a7bd8153e74886a3e5c4",
+          "url": "https://api.quotemedia.com/supplement/news-story/?webmasterId=102691&storyId=5521898097301322",
+          "date": "2026-07-26T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "nvidia"
+        },
+        {
+          "id": "news-2890c06b8bc6fa3348cef4d1",
+          "url": "https://api.quotemedia.com/supplement/news-story/?webmasterId=102691&storyId=7317676962621930",
+          "date": "2026-07-25T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "nvidia"
+        }
+      ]
+    },
+    {
+      "pairId": "apple",
+      "name": "Apple",
+      "stories": 11,
+      "months": {
+        "2025-11": 0,
+        "2025-12": 0,
+        "2026-01": 0,
+        "2026-02": 0,
+        "2026-03": 0,
+        "2026-04": 0,
+        "2026-05": 0,
+        "2026-06": 1,
+        "2026-07": 1,
+        "2026-08": 3,
+        "2026-09": 6,
+        "2026-10": 0
+      },
+      "missingMonths": [
+        "2025-11",
+        "2025-12",
+        "2026-01",
+        "2026-02",
+        "2026-03",
+        "2026-04",
+        "2026-05",
+        "2026-10"
+      ],
+      "volumePass": true,
+      "sourceDiversityPass": false,
+      "primaryOwners": [
+        "apple"
+      ],
+      "independentOwners": [],
+      "unverifiedDomains": [],
+      "officialDiscoveryHomepage": "https://www.apple.com/newsroom/",
+      "officialAutomatedFeed": true,
+      "discoveryFeeds": [
+        "official-apple",
+        "bbc-business",
+        "cnbc-business",
+        "stock-apple",
+        "industry-tech"
+      ],
+      "sources": [
+        {
+          "id": "news-4c27edf73afcdf602dbcbea9",
+          "url": "https://www.apple.com/newsroom/2026/06/apple-unveils-next-generation-of-apple-intelligence-siri-ai-and-more/",
+          "date": "2026-06-08T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "apple"
+        },
+        {
+          "id": "news-7bcaf098738a00838c58e0e7",
+          "url": "https://www.apple.com/newsroom/2026/09/apple-unveils-iphone-duo/",
+          "date": "2026-09-09T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "apple"
+        },
+        {
+          "id": "news-192ce140434ac37583daa2d5",
+          "url": "https://www.apple.com/newsroom/2026/09/final-cut-camera-now-supports-variable-aperture-on-iphone-18-pro/",
+          "date": "2026-09-29T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "apple"
+        },
+        {
+          "id": "news-5c94dd2c2671a19f10f658b8",
+          "url": "https://www.apple.com/newsroom/2026/09/introducing-apple-watch-series-12-with-the-all-new-health-sensing-system/",
+          "date": "2026-09-09T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "apple"
+        },
+        {
+          "id": "news-09af7a342515b33f5e32ad8b",
+          "url": "https://www.apple.com/newsroom/2026/09/apple-unveils-apple-watch-ultra-4/",
+          "date": "2026-09-09T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "apple"
+        },
+        {
+          "id": "news-a8023ff76e36264469e8af5f",
+          "url": "https://www.apple.com/newsroom/2026/09/new-updates-coming-to-apple-creator-studio/",
+          "date": "2026-09-29T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "apple"
+        },
+        {
+          "id": "news-9a0fd14ed949d54191c276ef",
+          "url": "https://www.businesswire.com/news/home/20260909422575/en/",
+          "date": "2026-09-09T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "apple"
+        },
+        {
+          "id": "news-5cc27efd7ad49865c853430b",
+          "url": "https://www.businesswire.com/news/home/20260824356138/en/",
+          "date": "2026-08-25T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "apple"
+        },
+        {
+          "id": "news-34cbf6be7bdb2ba2e7d0190d",
+          "url": "https://www.businesswire.com/news/home/20260824429809/en/",
+          "date": "2026-08-25T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "apple"
+        },
+        {
+          "id": "news-41e23658717285a649cc323c",
+          "url": "https://www.businesswire.com/news/home/20260824417799/en/",
+          "date": "2026-08-25T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "apple"
+        },
+        {
+          "id": "news-937dda63be8133822c87dd37",
+          "url": "https://www.businesswire.com/news/home/20260728336406/en/",
+          "date": "2026-07-28T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "apple"
+        }
+      ]
+    },
+    {
+      "pairId": "tesla",
+      "name": "Tesla",
+      "stories": 10,
+      "months": {
+        "2025-11": 0,
+        "2025-12": 0,
+        "2026-01": 0,
+        "2026-02": 0,
+        "2026-03": 2,
+        "2026-04": 1,
+        "2026-05": 0,
+        "2026-06": 1,
+        "2026-07": 3,
+        "2026-08": 1,
+        "2026-09": 2,
+        "2026-10": 0
+      },
+      "missingMonths": [
+        "2025-11",
+        "2025-12",
+        "2026-01",
+        "2026-02",
+        "2026-05",
+        "2026-10"
+      ],
+      "volumePass": true,
+      "sourceDiversityPass": true,
+      "primaryOwners": [
+        "tesla",
+        "rdw.nl",
+        "esyasoft.com"
+      ],
+      "independentOwners": [
+        "reuters.com",
+        "ess-news.com",
+        "electrek.co"
+      ],
+      "unverifiedDomains": [],
+      "officialDiscoveryHomepage": "https://ir.tesla.com/press",
+      "officialAutomatedFeed": false,
+      "discoveryFeeds": [
+        "bbc-business",
+        "cnbc-business",
+        "stock-tesla",
+        "industry-energy"
+      ],
+      "sources": [
+        {
+          "id": "news-bbaa5d2c8ee99d6f04bfe398",
+          "url": "https://api.quotemedia.com/supplement/news-story/?webmasterId=102691&storyId=6360610068125993",
+          "date": "2026-06-24T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "tesla"
+        },
+        {
+          "id": "news-176dbb79daa66ee36fd725ea",
+          "url": "https://www.investing.com/news/stock-market-news/tesla-taps-forum-mobility-for-california-electrictruck-charging-stations-4905320",
+          "date": "2026-09-17T00:00:00.000Z",
+          "kind": "independent",
+          "owner": "reuters.com"
+        },
+        {
+          "id": "news-75667c7384cfb262cdb666df",
+          "url": "https://www.ess-news.com/2026/09/10/zhero-and-tesla-energy-sign-agreement-for-3-gwh-of-bess-in-italy/",
+          "date": "2026-09-10T00:00:00.000Z",
+          "kind": "independent",
+          "owner": "ess-news.com"
+        },
+        {
+          "id": "news-532f6333d370706b6cb1d33a",
+          "url": "https://electrek.co/2026/08/06/tesla-megapack-3-production-starts-texas/",
+          "date": "2026-08-06T00:00:00.000Z",
+          "kind": "independent",
+          "owner": "electrek.co"
+        },
+        {
+          "id": "news-8198468a641aca9923bd5a7a",
+          "url": "https://finance.yahoo.com/technology/ai/articles/tesla-expands-robotaxi-orlando-tampa-133753618.html",
+          "date": "2026-07-21T00:00:00.000Z",
+          "kind": "independent",
+          "owner": "reuters.com"
+        },
+        {
+          "id": "news-245b39e1dd0ef7c4379d16c8",
+          "url": "https://www.marketscreener.com/news/tesla-rolls-out-robotaxi-service-in-miami-ce7f5edadb89f32c",
+          "date": "2026-07-03T00:00:00.000Z",
+          "kind": "independent",
+          "owner": "reuters.com"
+        },
+        {
+          "id": "news-d75c5e7dedef491d2a1d6d43",
+          "url": "https://www.rdw.nl/en/news/2026/rdw-explanation-of-european-type-approval-tesla-with-provisional-validity-in-the-netherlands",
+          "date": "2026-04-10T00:00:00.000Z",
+          "kind": "primary",
+          "owner": "rdw.nl"
+        },
+        {
+          "id": "news-7d065e9ecd41c74d702fb8af",
+          "url": "https://www.investing.com/news/stock-market-news/us-government-confirms-tesla-and-lg-energy-solutions-43-billion-battery-deal-4564532",
+          "date": "2026-03-16T00:00:00.000Z",
+          "kind": "independent",
+          "owner": "reuters.com"
+        },
+        {
+          "id": "news-0d1d5b02eb4e75dad0bc339c",
+          "url": "https://www.investing.com/news/stock-market-news/teslas-energy-business-wins-approval-to-supply-electricity-in-uk-4556141",
+          "date": "2026-03-12T00:00:00.000Z",
+          "kind": "independent",
+          "owner": "reuters.com"
+        },
+        {
+          "id": "news-9d4b609f57110c7044d15610",
+          "url": "https://esyasoft.com/news/tesla-and-esyasoft-collaborate-to-deploy-battery-energy-storage-solutions-globally",
+          "date": "2026-07-08T00:00:00.000Z",
+          "kind": "primary",
+          "owner": "esyasoft.com"
+        }
+      ]
+    },
+    {
+      "pairId": "microsoft",
+      "name": "Microsoft",
+      "stories": 12,
+      "months": {
+        "2025-11": 0,
+        "2025-12": 0,
+        "2026-01": 0,
+        "2026-02": 1,
+        "2026-03": 1,
+        "2026-04": 1,
+        "2026-05": 0,
+        "2026-06": 3,
+        "2026-07": 4,
+        "2026-08": 0,
+        "2026-09": 2,
+        "2026-10": 0
+      },
+      "missingMonths": [
+        "2025-11",
+        "2025-12",
+        "2026-01",
+        "2026-05",
+        "2026-08",
+        "2026-10"
+      ],
+      "volumePass": true,
+      "sourceDiversityPass": false,
+      "primaryOwners": [
+        "microsoft"
+      ],
+      "independentOwners": [],
+      "unverifiedDomains": [],
+      "officialDiscoveryHomepage": "https://blogs.microsoft.com/",
+      "officialAutomatedFeed": true,
+      "discoveryFeeds": [
+        "official-microsoft",
+        "bbc-business",
+        "cnbc-business",
+        "stock-microsoft",
+        "industry-tech"
+      ],
+      "sources": [
+        {
+          "id": "news-7c61ebe24ab3686fd6f907c3",
+          "url": "https://blogs.microsoft.com/blog/2026/02/27/microsoft-and-openai-joint-statement-on-continuing-partnership/",
+          "date": "2026-02-27T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "microsoft"
+        },
+        {
+          "id": "news-d763f77b8586f63ad6d40970",
+          "url": "https://blogs.microsoft.com/blog/2026/09/28/new-microsoft-data-innovations-unlock-what-only-your-business-knows/",
+          "date": "2026-09-29T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "microsoft"
+        },
+        {
+          "id": "news-e0565aeac3e148d140aaab1e",
+          "url": "https://blogs.microsoft.com/blog/2026/09/25/introducing-the-new-copilot-with-home-code-and-autopilot/",
+          "date": "2026-09-25T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "microsoft"
+        },
+        {
+          "id": "news-f0c0cec7f33cef0da453f6ca",
+          "url": "https://blogs.microsoft.com/blog/2026/07/20/microsoft-expands-azure-ai-and-hpc-infrastructure-with-amd/",
+          "date": "2026-07-20T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "microsoft"
+        },
+        {
+          "id": "news-982dd75aed09cba6172b5e97",
+          "url": "https://blogs.microsoft.com/blog/2026/04/27/the-next-phase-of-the-microsoft-openai-partnership/",
+          "date": "2026-04-27T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "microsoft"
+        },
+        {
+          "id": "news-4b33b50448b1177287683630",
+          "url": "https://blogs.microsoft.com/blog/2026/03/09/introducing-the-first-frontier-suite-built-on-intelligence-trust/",
+          "date": "2026-03-09T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "microsoft"
+        },
+        {
+          "id": "news-6ff49384fae457ec58552cd2",
+          "url": "https://www.prnewswire.com/news-releases/databricks-and-microsoft-expand-partnership-to-help-enterprises-bring-business-context-to-enterprise-ai-302832954.html",
+          "date": "2026-07-23T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "microsoft"
+        },
+        {
+          "id": "news-c977d4f7620e253dee2d922d",
+          "url": "https://www.prnewswire.com/news-releases/microsoft-and-mistral-expand-strategic-partnership-to-give-enterprises-and-regulated-industries-frontier-ai-they-can-control-302830202.html",
+          "date": "2026-07-21T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "microsoft"
+        },
+        {
+          "id": "news-222990598e3fb04cfc324dfe",
+          "url": "https://www.prnewswire.com/news-releases/3m-and-microsoft-announce-strategic-partnership-to-advance-ai-data-center-infrastructure-and-enterprise-transformation-302825813.html",
+          "date": "2026-07-15T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "microsoft"
+        },
+        {
+          "id": "news-d44a3c059c698d99dfe2365c",
+          "url": "https://www.businesswire.com/news/home/20260622017964/en/",
+          "date": "2026-06-22T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "microsoft"
+        },
+        {
+          "id": "news-5df26e8ece895da2eb82aa0c",
+          "url": "https://www.prnewswire.com/news-releases/nhs-england-accelerates-ai-adoption-with-microsoft-365-copilot-to-improve-service-delivery-reduce-costs-and-create-more-time-for-care-302793352.html",
+          "date": "2026-06-08T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "microsoft"
+        },
+        {
+          "id": "news-5c051a24d949c95c58f9542a",
+          "url": "https://www.prnewswire.com/news-releases/mayo-clinic-and-microsoft-collaborate-to-develop-a-frontier-ai-model-for-healthcare-302788613.html",
+          "date": "2026-06-02T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "microsoft"
+        }
+      ]
+    },
+    {
+      "pairId": "alphabet",
+      "name": "Alphabet",
+      "stories": 6,
+      "months": {
+        "2025-11": 0,
+        "2025-12": 0,
+        "2026-01": 0,
+        "2026-02": 0,
+        "2026-03": 0,
+        "2026-04": 0,
+        "2026-05": 2,
+        "2026-06": 1,
+        "2026-07": 0,
+        "2026-08": 0,
+        "2026-09": 3,
+        "2026-10": 0
+      },
+      "missingMonths": [
+        "2025-11",
+        "2025-12",
+        "2026-01",
+        "2026-02",
+        "2026-03",
+        "2026-04",
+        "2026-07",
+        "2026-08",
+        "2026-10"
+      ],
+      "volumePass": false,
+      "sourceDiversityPass": false,
+      "primaryOwners": [
+        "alphabet"
+      ],
+      "independentOwners": [],
+      "unverifiedDomains": [],
+      "officialDiscoveryHomepage": "https://blog.google/",
+      "officialAutomatedFeed": true,
+      "discoveryFeeds": [
+        "official-alphabet",
+        "bbc-business",
+        "cnbc-business",
+        "stock-alphabet",
+        "industry-tech"
+      ],
+      "sources": [
+        {
+          "id": "news-75ab110c662d0fa91f499b82",
+          "url": "https://blog.google/products-and-platforms/devices/googlebook/first-look-googlebook/",
+          "date": "2026-09-21T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "alphabet"
+        },
+        {
+          "id": "news-d5bb6bce251a9d4585177088",
+          "url": "https://blog.google/innovation-and-ai/products/gemini-app/next-evolution-gemini-app/",
+          "date": "2026-05-19T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "alphabet"
+        },
+        {
+          "id": "news-c0818ab926666055e95a9601",
+          "url": "https://blog.google/innovation-and-ai/models-and-research/gemini-models/gemini-3-5/",
+          "date": "2026-05-19T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "alphabet"
+        },
+        {
+          "id": "news-c07c003921eba0bdd1beec60",
+          "url": "https://blog.google/innovation-and-ai/products/gemini-app/personal-intelligence-nano-banana-us-expansion/",
+          "date": "2026-06-29T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "alphabet"
+        },
+        {
+          "id": "news-a2dde77f41f330306abbfc52",
+          "url": "https://blog.google/innovation-and-ai/models-and-research/google-deepmind/introducing-weathernext-3/",
+          "date": "2026-09-03T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "alphabet"
+        },
+        {
+          "id": "news-a1d6055ee5698b4a8d042824",
+          "url": "https://blog.google/innovation-and-ai/models-and-research/gemini-models/gemini-4-argon/",
+          "date": "2026-09-30T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "alphabet"
+        }
+      ]
+    },
+    {
+      "pairId": "robinhood",
+      "name": "Robinhood",
+      "stories": 14,
+      "months": {
+        "2025-11": 0,
+        "2025-12": 0,
+        "2026-01": 1,
+        "2026-02": 1,
+        "2026-03": 2,
+        "2026-04": 2,
+        "2026-05": 1,
+        "2026-06": 0,
+        "2026-07": 2,
+        "2026-08": 2,
+        "2026-09": 3,
+        "2026-10": 0
+      },
+      "missingMonths": [
+        "2025-11",
+        "2025-12",
+        "2026-06",
+        "2026-10"
+      ],
+      "volumePass": true,
+      "sourceDiversityPass": false,
+      "primaryOwners": [
+        "robinhood"
+      ],
+      "independentOwners": [],
+      "unverifiedDomains": [],
+      "officialDiscoveryHomepage": "https://robinhood.com/newsroom/",
+      "officialAutomatedFeed": false,
+      "discoveryFeeds": [
+        "bbc-business",
+        "cnbc-business",
+        "stock-robinhood",
+        "industry-finance"
+      ],
+      "sources": [
+        {
+          "id": "news-63af680738cb448c99500e68",
+          "url": "https://robinhood.com/newsroom/hood-summit-2026/",
+          "date": "2026-09-29T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "robinhood"
+        },
+        {
+          "id": "news-c752bb0a80fb067663056ec4",
+          "url": "https://robinhood.com/us/en/newsroom/robinhood-launches-crypto-trading-for-uk-investors/",
+          "date": "2026-08-10T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "robinhood"
+        },
+        {
+          "id": "news-40967b1117e0feebd6843f34",
+          "url": "https://robinhood.com/newsroom/Robinhood-Singapore-IPA/",
+          "date": "2026-04-23T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "robinhood"
+        },
+        {
+          "id": "news-e98779daf3b5cc16057ef344",
+          "url": "https://robinhood.com/us/en/newsroom/robinhood-unveils-the-future-of-family-finance-at-robinhood-presents-take-flight/",
+          "date": "2026-03-04T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "robinhood"
+        },
+        {
+          "id": "news-43e5d14fcabb08baf03a81bb",
+          "url": "https://robinhood.com/us/en/newsroom/introducing-rvii/",
+          "date": "2026-08-03T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "robinhood"
+        },
+        {
+          "id": "news-aeef8646d6717cbbc20ee118",
+          "url": "https://robinhood.com/us/en/newsroom/robinhood-is-now-open-to-agents/",
+          "date": "2026-05-27T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "robinhood"
+        },
+        {
+          "id": "news-27fdf2777d0082b15053388c",
+          "url": "https://robinhood.com/us/en/newsroom/robinhood-accelerates-global-expansion-robinhood-chain-mainnet-stock-tokens-agentic-trading/?lang=en",
+          "date": "2026-07-01T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "robinhood"
+        },
+        {
+          "id": "news-65bfaaa531a22a62f9e98a74",
+          "url": "https://robinhood.com/us/en/newsroom/introducing-rvi/",
+          "date": "2026-02-17T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "robinhood"
+        },
+        {
+          "id": "news-21de7f6d2fc916930cadee6c",
+          "url": "https://www.businesswire.com/news/home/20260930475603/en/",
+          "date": "2026-09-30T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "robinhood"
+        },
+        {
+          "id": "news-785eb3a22478b9eb41729454",
+          "url": "https://www.prnewswire.com/news-releases/robinhood-selects-ogcom-as-infrastructure-partner-for-prediction-markets-platform-holding-equity-stake-in-exchange-engine-302871772.html",
+          "date": "2026-09-08T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "robinhood"
+        },
+        {
+          "id": "news-ba913ea63339ce8a124076d1",
+          "url": "https://www.prnewswire.com/news-releases/robinhood-launches-new-platinum-card-with-function-as-a-core-benefit-as-americans-rethink-how-they-invest-in-their-future-302831505.html",
+          "date": "2026-07-22T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "robinhood"
+        },
+        {
+          "id": "news-e307f49be789bb534796fe49",
+          "url": "https://api.quotemedia.com/supplement/news-story/?webmasterId=102691&storyId=8883922773236609",
+          "date": "2026-04-22T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "robinhood"
+        },
+        {
+          "id": "news-140be2bedd0dbb210050ceef",
+          "url": "https://www.prnewswire.com/news-releases/miami-international-holdings-completes-sale-of-miaxdx-to-joint-venture-established-by-robinhood-markets-in-partnership-with-susquehanna-international-group-302666145.html",
+          "date": "2026-01-21T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "robinhood"
+        },
+        {
+          "id": "news-f11df70e74501ca7767e27b0",
+          "url": "https://api.quotemedia.com/supplement/news-story/?webmasterId=102691&storyId=7128255288813588",
+          "date": "2026-03-17T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "robinhood"
+        }
+      ]
+    },
+    {
+      "pairId": "alibaba",
+      "name": "Alibaba",
+      "stories": 8,
+      "months": {
+        "2025-11": 0,
+        "2025-12": 0,
+        "2026-01": 0,
+        "2026-02": 1,
+        "2026-03": 0,
+        "2026-04": 0,
+        "2026-05": 1,
+        "2026-06": 2,
+        "2026-07": 1,
+        "2026-08": 1,
+        "2026-09": 2,
+        "2026-10": 0
+      },
+      "missingMonths": [
+        "2025-11",
+        "2025-12",
+        "2026-01",
+        "2026-03",
+        "2026-04",
+        "2026-10"
+      ],
+      "volumePass": false,
+      "sourceDiversityPass": true,
+      "primaryOwners": [
+        "alibaba"
+      ],
+      "independentOwners": [
+        "reuters.com"
+      ],
+      "unverifiedDomains": [
+        "yahoo.com"
+      ],
+      "officialDiscoveryHomepage": "https://www.alibabagroup.com/en-US/press-releases",
+      "officialAutomatedFeed": false,
+      "discoveryFeeds": [
+        "bbc-business",
+        "cnbc-business",
+        "stock-alibaba",
+        "industry-tech"
+      ],
+      "sources": [
+        {
+          "id": "news-5091ff2ed13a807cb0c24799",
+          "url": "https://www.alibabacloud.com/blog/alibaba-launches-qwen-intelligence-to-power-next-generation-agentic-smartphones_603597",
+          "date": "2026-09-25T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "alibaba"
+        },
+        {
+          "id": "news-c1d8fcbe3911c6ac585aeacd",
+          "url": "https://www.alibabacloud.com/en/press-room/alibaba-cloud-unveil-advanced-agentic-ai-ecosystem",
+          "date": "2026-05-26T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "alibaba"
+        },
+        {
+          "id": "news-a2cada8c49afe86f5896227e",
+          "url": "https://www.alibabacloud.com/en/press-room/alibaba-unveils-roadmap-on-full-stack-ai-strategy",
+          "date": "2026-09-22T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "alibaba"
+        },
+        {
+          "id": "news-7e6a1d1fba74e991213c9461",
+          "url": "https://www.alibabacloud.com/en/press-room/alibaba-positions-for-accelerated-ai-growth-in-sec",
+          "date": "2026-06-30T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "alibaba"
+        },
+        {
+          "id": "news-d304c606e9e8cfc2eec01afe",
+          "url": "https://ae.marketscreener.com/news/alibaba-s-qwen-launches-qwen3-8-flash-ai-model-with-lower-training-costs-ce7858d9df89f327",
+          "date": "2026-08-26T00:00:00.000Z",
+          "kind": "independent",
+          "owner": "reuters.com"
+        },
+        {
+          "id": "news-0f12b578dc67672e4911d021",
+          "url": "https://finance.yahoo.com/news/alibaba-unveils-qwen3-5-model-090141816.html/",
+          "date": "2026-02-16T00:00:00.000Z",
+          "kind": "independent",
+          "owner": "reuters.com"
+        },
+        {
+          "id": "news-7d55458109dd153c9ac3c158",
+          "url": "https://finance.yahoo.com/technology/ai/articles/baba-stock-physical-ai-race-160002111.html",
+          "date": "2026-06-21T16:00:02.000Z",
+          "kind": "unverified",
+          "owner": "yahoo.com"
+        },
+        {
+          "id": "news-8f422533a480c35f62c2c5a0",
+          "url": "https://finance.yahoo.com/technology/ai/articles/apple-intelligence-just-got-green-140002408.html",
+          "date": "2026-07-19T14:00:02.000Z",
+          "kind": "unverified",
+          "owner": "yahoo.com"
+        }
+      ]
+    },
+    {
+      "pairId": "gamestop",
+      "name": "GameStop",
+      "stories": 5,
+      "months": {
+        "2025-11": 0,
+        "2025-12": 0,
+        "2026-01": 1,
+        "2026-02": 0,
+        "2026-03": 0,
+        "2026-04": 1,
+        "2026-05": 0,
+        "2026-06": 1,
+        "2026-07": 1,
+        "2026-08": 0,
+        "2026-09": 1,
+        "2026-10": 0
+      },
+      "missingMonths": [
+        "2025-11",
+        "2025-12",
+        "2026-02",
+        "2026-03",
+        "2026-05",
+        "2026-08",
+        "2026-10"
+      ],
+      "volumePass": false,
+      "sourceDiversityPass": true,
+      "primaryOwners": [
+        "gamestop"
+      ],
+      "independentOwners": [
+        "reuters.com"
+      ],
+      "unverifiedDomains": [
+        "yahoo.com"
+      ],
+      "officialDiscoveryHomepage": "https://investor.gamestop.com/newsroom",
+      "officialAutomatedFeed": false,
+      "discoveryFeeds": [
+        "bbc-business",
+        "cnbc-business",
+        "stock-gamestop",
+        "industry-retail"
+      ],
+      "sources": [
+        {
+          "id": "news-a3a5540ec231dbe10b369a94",
+          "url": "https://www.businesswire.com/news/home/20260715916460/en/",
+          "date": "2026-07-15T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "gamestop"
+        },
+        {
+          "id": "news-444a58b692c33391bfdc522f",
+          "url": "https://www.businesswire.com/news/home/20260414252978/en/",
+          "date": "2026-04-14T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "gamestop"
+        },
+        {
+          "id": "news-bedece5be246c070230262f4",
+          "url": "https://www.prnewswire.com/news-releases/cineverse-and-gamestop-invite-fans-to-return-to-silent-hill-with-innovative-partnership-featuring-mysterious-messages-exclusive-rewards-in-store-media--more-302661577.html",
+          "date": "2026-01-14T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "gamestop"
+        },
+        {
+          "id": "news-1a5e081dedceb64154cf9e42",
+          "url": "https://ca.marketscreener.com/news/gamestop-reports-14-rise-in-quarterly-revenue-unveils-2-billion-share-buyback-ce7f5dded18bfe23",
+          "date": "2026-06-02T00:00:00.000Z",
+          "kind": "independent",
+          "owner": "reuters.com"
+        },
+        {
+          "id": "news-d06f559f554359749e4b8d84",
+          "url": "https://finance.yahoo.com/markets/stocks/articles/gamestop-rises-4-collectibles-sales-151356496.html",
+          "date": "2026-09-09T15:13:56.000Z",
+          "kind": "unverified",
+          "owner": "yahoo.com"
+        }
+      ]
+    },
+    {
+      "pairId": "netflix",
+      "name": "Netflix",
+      "stories": 7,
+      "months": {
+        "2025-11": 0,
+        "2025-12": 0,
+        "2026-01": 1,
+        "2026-02": 0,
+        "2026-03": 0,
+        "2026-04": 0,
+        "2026-05": 1,
+        "2026-06": 1,
+        "2026-07": 0,
+        "2026-08": 0,
+        "2026-09": 2,
+        "2026-10": 2
+      },
+      "missingMonths": [
+        "2025-11",
+        "2025-12",
+        "2026-02",
+        "2026-03",
+        "2026-04",
+        "2026-07",
+        "2026-08"
+      ],
+      "volumePass": false,
+      "sourceDiversityPass": true,
+      "primaryOwners": [
+        "netflix"
+      ],
+      "independentOwners": [
+        "reuters.com"
+      ],
+      "unverifiedDomains": [
+        "yahoo.com"
+      ],
+      "officialDiscoveryHomepage": "https://about.netflix.com/en/news",
+      "officialAutomatedFeed": false,
+      "discoveryFeeds": [
+        "bbc-business",
+        "cnbc-business",
+        "stock-netflix",
+        "industry-media"
+      ],
+      "sources": [
+        {
+          "id": "news-9b9f1cb7d48ae24b7d774375",
+          "url": "https://about.netflix.com/en/news/netflix-marks-10-years-in-south-africa-with-a-major-content-slate",
+          "date": "2026-09-08T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "netflix"
+        },
+        {
+          "id": "news-1f01a91c611d84775e16c766",
+          "url": "https://about.netflix.com/en/news/netflix-and-sony-pictures-entertainment-enter-new-global-pay-1-deal?_bhlid=291c915bcac277fed4fc7c27e482dc0cfd357cd4",
+          "date": "2026-01-15T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "netflix"
+        },
+        {
+          "id": "news-d0be8f2e2cd744dca4b8f024",
+          "url": "https://about.netflix.com/en/news/netflix-unveils-its-new-competitive-reality-show-plex-ultima-partida",
+          "date": "2026-10-01T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "netflix"
+        },
+        {
+          "id": "news-899831c6e12125790d931a07",
+          "url": "https://uk.marketscreener.com/news/disney-licenses-lineup-of-movies-tv-shows-to-netflix-including-ice-age-will-trent-ce785ddbd880f026",
+          "date": "2026-10-02T00:00:00.000Z",
+          "kind": "independent",
+          "owner": "reuters.com"
+        },
+        {
+          "id": "news-835cfeee0ac7129f8ad677ed",
+          "url": "https://www.investing.com/news/stock-market-news/netflix-expands-iheartmedia-partnership-adds-kate-hudson-martha-stewart-podcast-shows-4742729",
+          "date": "2026-06-15T00:00:00.000Z",
+          "kind": "independent",
+          "owner": "reuters.com"
+        },
+        {
+          "id": "news-364abfac8404171123fd9fae",
+          "url": "https://about.netflix.com/en/news/netflix-hosts-first-uk-upfront",
+          "date": "2026-09-24T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "netflix"
+        },
+        {
+          "id": "news-125e6f344c6d2582726a00de",
+          "url": "https://finance.yahoo.com/markets/stocks/articles/netflix-inc-nflx-expands-consumer-164145122.html",
+          "date": "2026-05-30T16:41:45.000Z",
+          "kind": "unverified",
+          "owner": "yahoo.com"
+        }
+      ]
+    },
+    {
+      "pairId": "strategy",
+      "name": "Strategy",
+      "stories": 8,
+      "months": {
+        "2025-11": 0,
+        "2025-12": 1,
+        "2026-01": 0,
+        "2026-02": 0,
+        "2026-03": 0,
+        "2026-04": 0,
+        "2026-05": 2,
+        "2026-06": 2,
+        "2026-07": 1,
+        "2026-08": 0,
+        "2026-09": 2,
+        "2026-10": 0
+      },
+      "missingMonths": [
+        "2025-11",
+        "2026-01",
+        "2026-02",
+        "2026-03",
+        "2026-04",
+        "2026-08",
+        "2026-10"
+      ],
+      "volumePass": false,
+      "sourceDiversityPass": false,
+      "primaryOwners": [
+        "strategy"
+      ],
+      "independentOwners": [],
+      "unverifiedDomains": [],
+      "officialDiscoveryHomepage": "https://www.strategy.com/press",
+      "officialAutomatedFeed": false,
+      "discoveryFeeds": [
+        "bbc-business",
+        "cnbc-business",
+        "stock-strategy"
+      ],
+      "sources": [
+        {
+          "id": "news-ca7e7c0ac736bf2ee5da358e",
+          "url": "https://www.strategy.com/press/strategy-acquires-1665-btc-and-repurchases-152-million-of-strc_09-28-2026",
+          "date": "2026-09-28T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "strategy"
+        },
+        {
+          "id": "news-99612f79b83f75b7a4e38490",
+          "url": "https://www.strategy.com/press/leading-financial-institutions-bitcoin-companies-launch-the-bitcoin-security-consortium_07-23-2026",
+          "date": "2026-07-23T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "strategy"
+        },
+        {
+          "id": "news-73993188c656994e6d8a5a87",
+          "url": "https://www.strategy.com/press/strategy-announces-approval-of-strc-semi-monthly-dividends_06-08-2026",
+          "date": "2026-06-08T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "strategy"
+        },
+        {
+          "id": "news-9f03c3548a793e14663055ba",
+          "url": "https://www.strategy.com/press/strategy-completes-1-5-billion-debt-repurchase-and-achieves-btc-yield-of-13-3-ytd-now-holds-843738-btc_05-26-2026",
+          "date": "2026-05-26T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "strategy"
+        },
+        {
+          "id": "news-7bc9006fe1049a8b5331d856",
+          "url": "https://api.quotemedia.com/supplement/news-story/?webmasterId=102691&storyId=7338877267372227",
+          "date": "2026-09-02T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "strategy"
+        },
+        {
+          "id": "news-cff20200ceb4c774089a8061",
+          "url": "https://www.businesswire.com/news/home/20260622540948/en/",
+          "date": "2026-06-23T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "strategy"
+        },
+        {
+          "id": "news-2cc9eab77e4bc493e980c6f3",
+          "url": "https://www.businesswire.com/news/home/20260526522276/en/",
+          "date": "2026-05-26T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "strategy"
+        },
+        {
+          "id": "news-74a9bef6497690c03b9e478a",
+          "url": "https://www.businesswire.com/news/home/20251204125837/en/",
+          "date": "2025-12-04T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "strategy"
+        }
+      ]
+    },
+    {
+      "pairId": "trump-media",
+      "name": "Trump Media & Technology Group",
+      "stories": 5,
+      "months": {
+        "2025-11": 0,
+        "2025-12": 1,
+        "2026-01": 1,
+        "2026-02": 1,
+        "2026-03": 0,
+        "2026-04": 0,
+        "2026-05": 0,
+        "2026-06": 1,
+        "2026-07": 1,
+        "2026-08": 0,
+        "2026-09": 0,
+        "2026-10": 0
+      },
+      "missingMonths": [
+        "2025-11",
+        "2026-03",
+        "2026-04",
+        "2026-05",
+        "2026-08",
+        "2026-09",
+        "2026-10"
+      ],
+      "volumePass": false,
+      "sourceDiversityPass": false,
+      "primaryOwners": [
+        "trump-media"
+      ],
+      "independentOwners": [],
+      "unverifiedDomains": [],
+      "officialDiscoveryHomepage": "https://ir.tmtgcorp.com/news-events/press-releases",
+      "officialAutomatedFeed": false,
+      "discoveryFeeds": [
+        "bbc-business",
+        "cnbc-business",
+        "stock-trump-media",
+        "industry-media"
+      ],
+      "sources": [
+        {
+          "id": "news-60c2d5ba3fe028450b3fcd81",
+          "url": "https://www.globenewswire.com/news-release/2026/01/13/3217804/0/en/Trump-Media-and-Partners-Announce-Launch-of-Separately-Managed-Accounts.html",
+          "date": "2026-01-13T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "trump-media"
+        },
+        {
+          "id": "news-80c1ffe221f0ae7a13e33ebc",
+          "url": "https://www.globenewswire.com/news-release/2025/12/30/3211382/0/en/Truth-Social-ETFs-Launch-Today.html",
+          "date": "2025-12-30T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "trump-media"
+        },
+        {
+          "id": "news-2eb29771416414c997120431",
+          "url": "https://api.quotemedia.com/supplement/news-story/?webmasterId=102691&storyId=7050851421267288",
+          "date": "2026-07-16T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "trump-media"
+        },
+        {
+          "id": "news-d6f51e19c0f725f352e01f6b",
+          "url": "https://www.prnewswire.com/news-releases/yorkville-america-equities-and-truth-social-funds-announce-the-relaunch-of-the-truth-social-god-bless-america-etf-ticker-yall-302806379.html",
+          "date": "2026-06-22T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "trump-media"
+        },
+        {
+          "id": "news-be807aaea02d5097ce975fec",
+          "url": "https://www.prnewswire.com/news-releases/yorkville-america-equities-llc-and-truth-social-funds-announce-proposed-acquisition-of-the-point-bridge-america-first-etf-maga-302692609.html",
+          "date": "2026-02-19T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "trump-media"
+        }
+      ]
+    },
+    {
+      "pairId": "bitmine",
+      "name": "BitMine Immersion Technologies",
+      "stories": 13,
+      "months": {
+        "2025-11": 1,
+        "2025-12": 0,
+        "2026-01": 1,
+        "2026-02": 2,
+        "2026-03": 4,
+        "2026-04": 2,
+        "2026-05": 0,
+        "2026-06": 2,
+        "2026-07": 0,
+        "2026-08": 0,
+        "2026-09": 1,
+        "2026-10": 0
+      },
+      "missingMonths": [
+        "2025-12",
+        "2026-05",
+        "2026-07",
+        "2026-08",
+        "2026-10"
+      ],
+      "volumePass": true,
+      "sourceDiversityPass": false,
+      "primaryOwners": [
+        "sec.gov",
+        "bitmine"
+      ],
+      "independentOwners": [],
+      "unverifiedDomains": [],
+      "officialDiscoveryHomepage": "https://www.bitminetech.io/news",
+      "officialAutomatedFeed": false,
+      "discoveryFeeds": [
+        "bbc-business",
+        "cnbc-business",
+        "stock-bitmine"
+      ],
+      "sources": [
+        {
+          "id": "news-2ede8cc30b1c54cb2cdaef49",
+          "url": "https://www.sec.gov/Archives/edgar/data/1829311/000149315226044459/ex99-1.htm",
+          "date": "2026-09-28T00:00:00.000Z",
+          "kind": "primary",
+          "owner": "sec.gov"
+        },
+        {
+          "id": "news-b97147f3627e044ff870bcef",
+          "url": "https://www.prnewswire.com/news-releases/bitmine-immersion-technologies-bmnr-announces-eth-holdings-reach-4-423-million-tokens-and-total-crypto-and-total-cash-holdings-of-9-6-billion-302694282.html",
+          "date": "2026-02-23T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "bitmine"
+        },
+        {
+          "id": "news-b622271e9492ad873ee5389d",
+          "url": "https://www.prnewswire.com/news-releases/bitmine-immersion-technologies-bmnr-announces-eth-holdings-reach-4-285-million-tokens-and-total-crypto-and-total-cash-holdings-of-10-7-billion-302676048.html?tc=eml_cleartime",
+          "date": "2026-02-02T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "bitmine"
+        },
+        {
+          "id": "news-21db9cb3df9d5ad298ff66ae",
+          "url": "https://www.prnewswire.com/news-releases/bitmine-immersion-technologies-bmnr-announces-eth-holdings-reach-5-42-million-tokens-and-total-crypto-and-total-cash-holdings-of-11-6-billion-302786720.html?tc=eml_cleartime",
+          "date": "2026-06-01T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "bitmine"
+        },
+        {
+          "id": "news-6077399eb4fd4c63bfda2b5d",
+          "url": "https://www.prnewswire.com/news-releases/bitmine-immersion-technologies-bmnr-announces-eth-holdings-reach-4-732-million-tokens-and-total-crypto-and-total-cash-holdings-of-10-7-billion-302728176.html?tc=eml_cleartime",
+          "date": "2026-03-30T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "bitmine"
+        },
+        {
+          "id": "news-908942612243a83e06bf2103",
+          "url": "https://www.prnewswire.com/news-releases/bitmine-immersion-technologies-bmnr-announces-eth-holdings-reach-4-535-million-tokens-and-total-crypto-and-total-cash-holdings-of-10-3-billion-302708118.html",
+          "date": "2026-03-09T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "bitmine"
+        },
+        {
+          "id": "news-2309c81df5c7d54fd321ecec",
+          "url": "https://www.prnewswire.com/news-releases/ethlabs-founded-by-former-ethereum-foundation-contributors-and-funded-by-bitmine-sharplink-and-joe-lubin-launches-to-accelerate-ethereums-institutional-supercycle-302806705.html",
+          "date": "2026-06-22T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "bitmine"
+        },
+        {
+          "id": "news-a14d1e2211f0534edea6793e",
+          "url": "https://www.prnewswire.com/news-releases/bitmine-immersion-technologies-bmnr-announces-eth-holdings-reach-unprecedented-world-record-of-5-078-million-tokens-and-total-crypto-and-total-cash-holdings-of-13-3-billion-302753891.html",
+          "date": "2026-04-27T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "bitmine"
+        },
+        {
+          "id": "news-ba54e398a4841417c2cae6e3",
+          "url": "https://www.prnewswire.com/news-releases/bitmine-immersion-technologies-nyse-bmnr-announces-uplisting-to-new-york-stock-exchange-and-expansion-of-share-repurchase-program-to-4-billion-302737742.html",
+          "date": "2026-04-09T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "bitmine"
+        },
+        {
+          "id": "news-da0c26236d1b7043513a0398",
+          "url": "https://www.prnewswire.com/news-releases/bitmine-immersion-technologies-bmnr-announces-launch-of-mavan-made-in-america-validator-network-the-companys-proprietary-staking-solution-302724419.html",
+          "date": "2026-03-25T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "bitmine"
+        },
+        {
+          "id": "news-da110c4e507eff40cf906ba6",
+          "url": "https://www.prnewswire.com/news-releases/eightco-nasdaq-orbs-secures-125m-in-institutional-commitments-led-by-bitmine-nyse-bmnr-cathie-woods-ark-invest-and-payward-to-expand-into-next-generation-technology-302712148.html",
+          "date": "2026-03-12T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "bitmine"
+        },
+        {
+          "id": "news-3e406de91c04e86a2e21b8bc",
+          "url": "https://www.prnewswire.com/news-releases/bitmine-immersion-technologies-bmnr-announces-200-million-investment-in-beast-industries-302662082.html",
+          "date": "2026-01-15T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "bitmine"
+        },
+        {
+          "id": "news-c23012510e8d42051e1d20a2",
+          "url": "https://www.prnewswire.com/news-releases/bitmine-immersion-bmnr-announces-eth-holdings-reaching-3-6-million-tokens-and-release-of-november-chairmans-message-302617138.html",
+          "date": "2025-11-17T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "bitmine"
+        }
+      ]
+    },
+    {
+      "pairId": "super-micro",
+      "name": "Super Micro Computer",
+      "stories": 11,
+      "months": {
+        "2025-11": 0,
+        "2025-12": 0,
+        "2026-01": 0,
+        "2026-02": 0,
+        "2026-03": 0,
+        "2026-04": 0,
+        "2026-05": 2,
+        "2026-06": 5,
+        "2026-07": 3,
+        "2026-08": 0,
+        "2026-09": 1,
+        "2026-10": 0
+      },
+      "missingMonths": [
+        "2025-11",
+        "2025-12",
+        "2026-01",
+        "2026-02",
+        "2026-03",
+        "2026-04",
+        "2026-08",
+        "2026-10"
+      ],
+      "volumePass": true,
+      "sourceDiversityPass": false,
+      "primaryOwners": [
+        "super-micro"
+      ],
+      "independentOwners": [],
+      "unverifiedDomains": [],
+      "officialDiscoveryHomepage": "https://ir.supermicro.com/news/default.aspx",
+      "officialAutomatedFeed": false,
+      "discoveryFeeds": [
+        "bbc-business",
+        "cnbc-business",
+        "stock-super-micro"
+      ],
+      "sources": [
+        {
+          "id": "news-0a7744f04662bb1a67e1ddbb",
+          "url": "https://ir.supermicro.com/news/news-details/2026/Supermicro-Now-Shipping-NVIDIA-Vera-Rubin-NVL72-Racks/default.aspx",
+          "date": "2026-09-23T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "super-micro"
+        },
+        {
+          "id": "news-6fc3095cc8de5d9a1ca8c03f",
+          "url": "https://www.prnewswire.com/news-releases/supermicro-expands-dcbbs-with-precision-engineered-ai-rack-series-to-accelerate-deployment-and-time-to-online-302839359.html",
+          "date": "2026-07-30T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "super-micro"
+        },
+        {
+          "id": "news-c1ff10e123f0d5a048a4dd8b",
+          "url": "https://www.prnewswire.com/news-releases/supermicro-introduces-new-server-portfolio-with-6th-gen-amd-epyc-9006-series-cpus-delivering-1-7x-generational-performance-improvements-302832811.html",
+          "date": "2026-07-23T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "super-micro"
+        },
+        {
+          "id": "news-244613a5e06dc712c52601e1",
+          "url": "https://www.prnewswire.com/news-releases/supermicro-expands-end-to-end-dcbbs-liquid-cooling-portfolio-with-rear-door-heat-exchangers-for-high-density-ai-and-hpc-infrastructure-302825872.html",
+          "date": "2026-07-15T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "super-micro"
+        },
+        {
+          "id": "news-c4bbd8558d7d8a02549fcd5c",
+          "url": "https://www.prnewswire.com/news-releases/stormagic-and-supermicro-collaborate-to-simplify-and-deliver-high-availability-edge-infrastructure-302809229.html",
+          "date": "2026-06-24T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "super-micro"
+        },
+        {
+          "id": "news-38e9a6c1c7464f290d2b12ec",
+          "url": "https://www.prnewswire.com/news-releases/supermicro-delivers-nvidia-vera-rubin-nvl4-end-to-end-dcbbs-blueprint-with-native-fp64-performance-for-converged-hpc-and-ai-infrastructure-302806051.html",
+          "date": "2026-06-22T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "super-micro"
+        },
+        {
+          "id": "news-d07235f5266532437bb2b179",
+          "url": "https://www.prnewswire.com/news-releases/supermicro-collaborates-with-arm-to-deliver-a-new-class-of-energy-efficient-rack-scale-infrastructure-for-enterprise-agentic-ai-302786260.html",
+          "date": "2026-06-02T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "super-micro"
+        },
+        {
+          "id": "news-7fd5e8c7a1d5d4ead74e80d7",
+          "url": "https://www.prnewswire.com/news-releases/supermicro-expands-rack-scale-ai-leadership-with-amd-helios-platform-accelerating-deployment-and-operational-efficiency-302786259.html",
+          "date": "2026-06-02T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "super-micro"
+        },
+        {
+          "id": "news-70ba18bad72b5d2fd3bc7fae",
+          "url": "https://www.prnewswire.com/news-releases/supermicro-introduces-dcbbs-blueprints-for-nvidia-vera-rubin-nvl72-and-nvidia-hgx-rubin-nvl8-built-to-scale-from-5mw-to-1gw-as-an-end-to-end-total-solution-302786517.html",
+          "date": "2026-06-01T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "super-micro"
+        },
+        {
+          "id": "news-cdbcb5e5b93a214e45ef9d44",
+          "url": "https://www.prnewswire.com/news-releases/supermicro-launches-new-server-solutions-with-intel-xeon-6-processors-to-reduce-tco-and-accelerate-time-to-online-for-large-scale-cloud-and-data-centers-302786258.html",
+          "date": "2026-05-31T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "super-micro"
+        },
+        {
+          "id": "news-566669c23678b10f1cb82ff0",
+          "url": "https://www.prnewswire.com/news-releases/supermicro-and-verda-deliver-sustainable-full-stack-ai-cloud-infrastructure-for-next-generation-ai-workloads-302782712.html",
+          "date": "2026-05-27T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "super-micro"
+        }
+      ]
+    },
+    {
+      "pairId": "iren",
+      "name": "IREN",
+      "stories": 12,
+      "months": {
+        "2025-11": 0,
+        "2025-12": 0,
+        "2026-01": 0,
+        "2026-02": 0,
+        "2026-03": 1,
+        "2026-04": 0,
+        "2026-05": 4,
+        "2026-06": 4,
+        "2026-07": 1,
+        "2026-08": 2,
+        "2026-09": 0,
+        "2026-10": 0
+      },
+      "missingMonths": [
+        "2025-11",
+        "2025-12",
+        "2026-01",
+        "2026-02",
+        "2026-04",
+        "2026-09",
+        "2026-10"
+      ],
+      "volumePass": true,
+      "sourceDiversityPass": false,
+      "primaryOwners": [
+        "iren"
+      ],
+      "independentOwners": [],
+      "unverifiedDomains": [],
+      "officialDiscoveryHomepage": "https://iren.com/investors/news",
+      "officialAutomatedFeed": false,
+      "discoveryFeeds": [
+        "bbc-business",
+        "cnbc-business",
+        "stock-iren"
+      ],
+      "sources": [
+        {
+          "id": "news-cfd44f2cf2d7c66dc37bb2ff",
+          "url": "https://iren.gcs-web.com/news-releases/news-release-details/iren-signs-28bn-new-customer-contracts-leading-ai-developers",
+          "date": "2026-07-20T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "iren"
+        },
+        {
+          "id": "news-0db9f6e5faf934979e09cf8e",
+          "url": "https://iren.gcs-web.com/news-releases/news-release-details/golden-state-and-iren-announce-landmark-partnership",
+          "date": "2026-06-25T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "iren"
+        },
+        {
+          "id": "news-a8bd731a1f62f8ea36fa9576",
+          "url": "https://iren.gcs-web.com/news-releases/news-release-details/iren-secures-34bn-ai-cloud-contract-nvidia",
+          "date": "2026-05-07T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "iren"
+        },
+        {
+          "id": "news-7a80a7d84123af7aa8ff3cb6",
+          "url": "https://iren.gcs-web.com/news-releases/news-release-details/iren-expands-ai-cloud-platform-europe-acquisition-nostrum-group",
+          "date": "2026-05-07T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "iren"
+        },
+        {
+          "id": "news-d4001c3479268c949f6a6b67",
+          "url": "https://iren.gcs-web.com/news-releases/news-release-details/iren-acquires-awaken-support-global-brand-growth",
+          "date": "2026-05-18T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "iren"
+        },
+        {
+          "id": "news-65498666eb87b5e416379e51",
+          "url": "https://iren.gcs-web.com/news-releases/news-release-details/iren-expands-ai-cloud-capacity-150000-gpus",
+          "date": "2026-03-04T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "iren"
+        },
+        {
+          "id": "news-b8bfb691b05bb26118cd3177",
+          "url": "https://iren.gcs-web.com/news-releases/news-release-details/iren-completes-acquisition-nostrum-group-expanding-ai-cloud",
+          "date": "2026-06-15T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "iren"
+        },
+        {
+          "id": "news-1d89737b31954f3bc4a57e46",
+          "url": "https://iren.gcs-web.com/news-releases/news-release-details/iren-completes-acquisition-mirantis",
+          "date": "2026-08-04T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "iren"
+        },
+        {
+          "id": "news-52ce7170af0b2785ae1f2524",
+          "url": "https://iren.gcs-web.com/news-releases/news-release-details/iren-delivers-horizon-1-microsoft-and-achieves-nvidia-exemplar",
+          "date": "2026-08-13T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "iren"
+        },
+        {
+          "id": "news-196076f43296fc1fa956a87c",
+          "url": "https://api.quotemedia.com/supplement/news-story/?webmasterId=102691&storyId=5245566484765283",
+          "date": "2026-06-03T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "iren"
+        },
+        {
+          "id": "news-629e8ab46cb2b69392c10aac",
+          "url": "https://www.prnewswire.com/news-releases/iren-and-be-networks-accelerate-deployment-of-large-scale-ai-factory-with-nvidia-dsx-air-302786353.html",
+          "date": "2026-06-01T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "iren"
+        },
+        {
+          "id": "news-6efdc261706c21bcbf8a68ce",
+          "url": "https://api.quotemedia.com/supplement/news-story/?webmasterId=102691&storyId=5016163163930818",
+          "date": "2026-05-05T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "iren"
+        }
+      ]
+    },
+    {
+      "pairId": "asml",
+      "name": "ASML",
+      "stories": 8,
+      "months": {
+        "2025-11": 0,
+        "2025-12": 0,
+        "2026-01": 1,
+        "2026-02": 0,
+        "2026-03": 0,
+        "2026-04": 1,
+        "2026-05": 1,
+        "2026-06": 0,
+        "2026-07": 2,
+        "2026-08": 0,
+        "2026-09": 3,
+        "2026-10": 0
+      },
+      "missingMonths": [
+        "2025-11",
+        "2025-12",
+        "2026-02",
+        "2026-03",
+        "2026-06",
+        "2026-08",
+        "2026-10"
+      ],
+      "volumePass": false,
+      "sourceDiversityPass": true,
+      "primaryOwners": [
+        "asml"
+      ],
+      "independentOwners": [
+        "reuters.com"
+      ],
+      "unverifiedDomains": [],
+      "officialDiscoveryHomepage": "https://www.asml.com/en/news/press-releases",
+      "officialAutomatedFeed": false,
+      "discoveryFeeds": [
+        "bbc-business",
+        "cnbc-business",
+        "stock-asml"
+      ],
+      "sources": [
+        {
+          "id": "news-8d63c8c1f3c5aaa01111657f",
+          "url": "https://investor.asml.com/news-releases/news-release-details/samsung-electronics-and-asml-expand-strategic-collaboration-next-generation-semiconductor-manufacturing",
+          "date": "2026-09-08T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "asml"
+        },
+        {
+          "id": "news-e3c857f95d1c30b05a646ca2",
+          "url": "https://investor.asml.com/news-releases/news-release-details/intel-foundry-and-asml-collaborate-accelerate-industry-readiness-high-na-euv",
+          "date": "2026-09-08T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "asml"
+        },
+        {
+          "id": "news-a7798e3b96ea447424ab9446",
+          "url": "https://investor.asml.com/news-releases/news-release-details/tata-electronics-and-asml-announce-strategic-partnership-advance-semiconductor-manufacturing-ecosystem-india",
+          "date": "2026-05-16T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "asml"
+        },
+        {
+          "id": "news-33e1658adfe327c8a4b63bef",
+          "url": "https://api.quotemedia.com/supplement/news-story/?webmasterId=102691&storyId=6193127094952514",
+          "date": "2026-09-08T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "asml"
+        },
+        {
+          "id": "news-6ed5ea6f028bce376bd0cfed",
+          "url": "https://api.quotemedia.com/supplement/news-story/?webmasterId=102691&storyId=6084942276707400",
+          "date": "2026-07-15T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "asml"
+        },
+        {
+          "id": "news-2c85ddf31e711e4c72f9e156",
+          "url": "https://www.investing.com/news/stock-market-news/asml-lifts-2026-forecast-as-surging-ai-demand-boosts-new-orders-for-chip-equipment-4614341",
+          "date": "2026-04-15T00:00:00.000Z",
+          "kind": "independent",
+          "owner": "reuters.com"
+        },
+        {
+          "id": "news-411147c926c479dfee60fd61",
+          "url": "https://www.investing.com/news/stock-market-news/asml-q4-bookings-beat-expectations-as-chipmakers-order-more-to-satisfy-ai-demand-4469201",
+          "date": "2026-01-28T00:00:00.000Z",
+          "kind": "independent",
+          "owner": "reuters.com"
+        },
+        {
+          "id": "news-9588208b8a3d8e384ee8de5f",
+          "url": "https://www.investing.com/news/stock-market-news/asml-tops-q2-estimates-on-ai-chip-demand-4792151",
+          "date": "2026-07-15T00:00:00.000Z",
+          "kind": "independent",
+          "owner": "reuters.com"
+        }
+      ]
+    },
+    {
+      "pairId": "ast-spacemobile",
+      "name": "AST SpaceMobile",
+      "stories": 10,
+      "months": {
+        "2025-11": 1,
+        "2025-12": 1,
+        "2026-01": 1,
+        "2026-02": 2,
+        "2026-03": 1,
+        "2026-04": 1,
+        "2026-05": 0,
+        "2026-06": 1,
+        "2026-07": 0,
+        "2026-08": 2,
+        "2026-09": 0,
+        "2026-10": 0
+      },
+      "missingMonths": [
+        "2026-05",
+        "2026-07",
+        "2026-09",
+        "2026-10"
+      ],
+      "volumePass": true,
+      "sourceDiversityPass": false,
+      "primaryOwners": [
+        "ast-spacemobile"
+      ],
+      "independentOwners": [],
+      "unverifiedDomains": [],
+      "officialDiscoveryHomepage": "https://ast-science.com/press-releases/",
+      "officialAutomatedFeed": true,
+      "discoveryFeeds": [
+        "bbc-business",
+        "cnbc-business",
+        "stock-ast-spacemobile",
+        "expanded-official-ast-spacemobile"
+      ],
+      "sources": [
+        {
+          "id": "news-6963dded2d7c3c9dc1b633b9",
+          "url": "https://www.businesswire.com/news/home/20260806189867/en/",
+          "date": "2026-08-06T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "ast-spacemobile"
+        },
+        {
+          "id": "news-96fb30f6e5386073caf75d8b",
+          "url": "https://www.businesswire.com/news/home/20260805761351/en/",
+          "date": "2026-08-05T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "ast-spacemobile"
+        },
+        {
+          "id": "news-bc76f74550ed2dc72148f7f9",
+          "url": "https://www.businesswire.com/news/home/20260617420856/en/",
+          "date": "2026-06-17T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "ast-spacemobile"
+        },
+        {
+          "id": "news-7b82fef9af16299847dd4923",
+          "url": "https://www.businesswire.com/news/home/20260422147378/en/",
+          "date": "2026-04-22T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "ast-spacemobile"
+        },
+        {
+          "id": "news-c92cbc014ee3147240979c5f",
+          "url": "https://www.businesswire.com/news/home/20260303551101/en/",
+          "date": "2026-03-03T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "ast-spacemobile"
+        },
+        {
+          "id": "news-78e7a9a0db64422ff2fc1ae1",
+          "url": "https://www.businesswire.com/news/home/20260222381971/en/",
+          "date": "2026-02-23T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "ast-spacemobile"
+        },
+        {
+          "id": "news-c4e6abb4f016e326c7e53f91",
+          "url": "https://www.businesswire.com/news/home/20260210108166/en/",
+          "date": "2026-02-10T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "ast-spacemobile"
+        },
+        {
+          "id": "news-517f4180d9778e138ae70a17",
+          "url": "https://www.businesswire.com/news/home/20260116850416/en/",
+          "date": "2026-01-16T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "ast-spacemobile"
+        },
+        {
+          "id": "news-d37850cc39bfc7c5b2a50ac7",
+          "url": "https://www.businesswire.com/news/home/20251222922862/en/",
+          "date": "2025-12-24T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "ast-spacemobile"
+        },
+        {
+          "id": "news-f88a861ffe4974eddaf97571",
+          "url": "https://www.businesswire.com/news/home/20251125348790/en/",
+          "date": "2025-11-25T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "ast-spacemobile"
+        }
+      ]
+    },
+    {
+      "pairId": "coherent",
+      "name": "Coherent",
+      "stories": 10,
+      "months": {
+        "2025-11": 0,
+        "2025-12": 0,
+        "2026-01": 1,
+        "2026-02": 0,
+        "2026-03": 6,
+        "2026-04": 0,
+        "2026-05": 0,
+        "2026-06": 1,
+        "2026-07": 0,
+        "2026-08": 0,
+        "2026-09": 2,
+        "2026-10": 0
+      },
+      "missingMonths": [
+        "2025-11",
+        "2025-12",
+        "2026-02",
+        "2026-04",
+        "2026-05",
+        "2026-07",
+        "2026-08",
+        "2026-10"
+      ],
+      "volumePass": true,
+      "sourceDiversityPass": false,
+      "primaryOwners": [
+        "coherent"
+      ],
+      "independentOwners": [],
+      "unverifiedDomains": [],
+      "officialDiscoveryHomepage": "https://www.coherent.com/news/press-releases",
+      "officialAutomatedFeed": false,
+      "discoveryFeeds": [
+        "bbc-business",
+        "cnbc-business",
+        "stock-coherent"
+      ],
+      "sources": [
+        {
+          "id": "news-f83a64a585518ae77716dc38",
+          "url": "https://ir.coherent.com/news-releases/news-release-details/coherent-launches-photonlinktm-integrated-optics-platform-ai",
+          "date": "2026-09-21T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "coherent"
+        },
+        {
+          "id": "news-94e2d7406ab3b94161d1edbd",
+          "url": "https://api.quotemedia.com/supplement/news-story/?webmasterId=102691&storyId=5552822146682926",
+          "date": "2026-09-17T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "coherent"
+        },
+        {
+          "id": "news-8bb8cf6200ebdc34743b8b9e",
+          "url": "https://api.quotemedia.com/supplement/news-story/?webmasterId=102691&storyId=7125076581647041",
+          "date": "2026-06-16T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "coherent"
+        },
+        {
+          "id": "news-c101e46e6a5468bb97762a19",
+          "url": "https://api.quotemedia.com/supplement/news-story/?webmasterId=102691&storyId=5801246365859542",
+          "date": "2026-03-09T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "coherent"
+        },
+        {
+          "id": "news-9d54f364bfcdb1c6477e44c4",
+          "url": "https://api.quotemedia.com/supplement/news-story/?webmasterId=102691&storyId=7993420333614529",
+          "date": "2026-03-06T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "coherent"
+        },
+        {
+          "id": "news-7dc038ba611d483a68b9ec45",
+          "url": "https://api.quotemedia.com/supplement/news-story/?webmasterId=102691&storyId=6296421106804269",
+          "date": "2026-03-05T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "coherent"
+        },
+        {
+          "id": "news-c3f89ebbc1764c0a9cc11566",
+          "url": "https://api.quotemedia.com/supplement/news-story/?webmasterId=102691&storyId=8571904685765234",
+          "date": "2026-03-04T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "coherent"
+        },
+        {
+          "id": "news-c8e9bf6e6cae1da646c4c2d2",
+          "url": "https://api.quotemedia.com/supplement/news-story/?webmasterId=102691&storyId=8563605281475448",
+          "date": "2026-03-04T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "coherent"
+        },
+        {
+          "id": "news-8cbc6ba68f4f7feaf64635c8",
+          "url": "https://api.quotemedia.com/supplement/news-story/?webmasterId=102691&storyId=7436055869894104",
+          "date": "2026-03-02T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "coherent"
+        },
+        {
+          "id": "news-baeca1625a11522ed1fe5ab4",
+          "url": "https://api.quotemedia.com/supplement/news-story/?webmasterId=102691&storyId=5020191828664683",
+          "date": "2026-01-19T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "coherent"
+        }
+      ]
+    },
+    {
+      "pairId": "credo",
+      "name": "Credo Technology",
+      "stories": 11,
+      "months": {
+        "2025-11": 0,
+        "2025-12": 0,
+        "2026-01": 1,
+        "2026-02": 1,
+        "2026-03": 4,
+        "2026-04": 1,
+        "2026-05": 1,
+        "2026-06": 0,
+        "2026-07": 0,
+        "2026-08": 1,
+        "2026-09": 2,
+        "2026-10": 0
+      },
+      "missingMonths": [
+        "2025-11",
+        "2025-12",
+        "2026-06",
+        "2026-07",
+        "2026-10"
+      ],
+      "volumePass": true,
+      "sourceDiversityPass": false,
+      "primaryOwners": [
+        "credo"
+      ],
+      "independentOwners": [],
+      "unverifiedDomains": [],
+      "officialDiscoveryHomepage": "https://investors.credosemi.com/news-events/news-releases",
+      "officialAutomatedFeed": false,
+      "discoveryFeeds": [
+        "bbc-business",
+        "cnbc-business",
+        "stock-credo"
+      ],
+      "sources": [
+        {
+          "id": "news-e074055d93588183043f4e5f",
+          "url": "https://investors.credosemi.com/news-events/news/news-details/2026/Credo-Expands-ZeroFlap-Portfolio-with-224G-Based-1-6T-Optical-Transceivers-Addressing-the-Growing-Demand-for-AI-Network-Infrastructure/default.aspx",
+          "date": "2026-09-15T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "credo"
+        },
+        {
+          "id": "news-9440e1d11cd839f14ae99ff5",
+          "url": "https://www.businesswire.com/news/home/20260915634014/en/",
+          "date": "2026-09-15T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "credo"
+        },
+        {
+          "id": "news-fe2f6f108a694095601b1847",
+          "url": "https://www.businesswire.com/news/home/20260831962360/en/",
+          "date": "2026-08-31T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "credo"
+        },
+        {
+          "id": "news-36e8429a32795cbee1ae468f",
+          "url": "https://www.businesswire.com/news/home/20260527239270/en/",
+          "date": "2026-05-28T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "credo"
+        },
+        {
+          "id": "news-1b62ee33d88999b059a28e05",
+          "url": "https://www.businesswire.com/news/home/20260413933103/en/",
+          "date": "2026-04-13T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "credo"
+        },
+        {
+          "id": "news-be1abd5b3ed20ab7547a5b79",
+          "url": "https://www.businesswire.com/news/home/20260317077875/en/",
+          "date": "2026-03-17T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "credo"
+        },
+        {
+          "id": "news-3be2c6d2d1a82050636e5705",
+          "url": "https://www.businesswire.com/news/home/20260317583466/en/",
+          "date": "2026-03-17T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "credo"
+        },
+        {
+          "id": "news-2d02a063be393df4e040d413",
+          "url": "https://www.businesswire.com/news/home/20260317365246/en/",
+          "date": "2026-03-17T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "credo"
+        },
+        {
+          "id": "news-ab084a9d2a66d262c5e442fc",
+          "url": "https://www.businesswire.com/news/home/20260224542178/en/",
+          "date": "2026-03-02T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "credo"
+        },
+        {
+          "id": "news-6615833208cdf389a5f271df",
+          "url": "https://www.businesswire.com/news/home/20260225947668/en/",
+          "date": "2026-02-25T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "credo"
+        },
+        {
+          "id": "news-ca83d55719098d5b6763091e",
+          "url": "https://www.businesswire.com/news/home/20260129771160/en/",
+          "date": "2026-01-29T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "credo"
+        }
+      ]
+    },
+    {
+      "pairId": "usa-rare-earth",
+      "name": "USA Rare Earth",
+      "stories": 12,
+      "months": {
+        "2025-11": 0,
+        "2025-12": 0,
+        "2026-01": 0,
+        "2026-02": 0,
+        "2026-03": 1,
+        "2026-04": 1,
+        "2026-05": 2,
+        "2026-06": 4,
+        "2026-07": 1,
+        "2026-08": 1,
+        "2026-09": 2,
+        "2026-10": 0
+      },
+      "missingMonths": [
+        "2025-11",
+        "2025-12",
+        "2026-01",
+        "2026-02",
+        "2026-10"
+      ],
+      "volumePass": true,
+      "sourceDiversityPass": false,
+      "primaryOwners": [
+        "usa-rare-earth"
+      ],
+      "independentOwners": [],
+      "unverifiedDomains": [],
+      "officialDiscoveryHomepage": "https://www.usare.com/news",
+      "officialAutomatedFeed": false,
+      "discoveryFeeds": [
+        "bbc-business",
+        "cnbc-business",
+        "stock-usa-rare-earth"
+      ],
+      "sources": [
+        {
+          "id": "news-b9bd3e2bcdcc95fe6ebdff24",
+          "url": "https://investors.usare.com/news-releases/news-release-details/usa-rare-earth-pasqal-and-riven-systems-partner-advance-next",
+          "date": "2026-09-17T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "usa-rare-earth"
+        },
+        {
+          "id": "news-c82638336e78683e198a3204",
+          "url": "https://investors.usare.com/news-releases/news-release-details/usa-rare-earth-finalizes-definitive-agreements-us-department",
+          "date": "2026-06-03T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "usa-rare-earth"
+        },
+        {
+          "id": "news-ffe9cde65aba8f02c31123dd",
+          "url": "https://investors.usare.com/news-releases/news-release-details/usa-rare-earth-announces-definitive-agreement-acquire-serra",
+          "date": "2026-04-20T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "usa-rare-earth"
+        },
+        {
+          "id": "news-bd585c3fbd3af98be913dfab",
+          "url": "https://investors.usare.com/news-releases/news-release-details/usa-rare-earth-achieves-major-operational-and-strategic",
+          "date": "2026-03-26T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "usa-rare-earth"
+        },
+        {
+          "id": "news-d429b391b84184f43f030db2",
+          "url": "https://api.quotemedia.com/supplement/news-story/?webmasterId=102691&storyId=7850084314827690",
+          "date": "2026-09-04T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "usa-rare-earth"
+        },
+        {
+          "id": "news-b5672572ba86fdf62af8722e",
+          "url": "https://investors.usare.com/news-releases/news-release-details/usa-rare-earth-enters-definitive-agreements-strategic-investment",
+          "date": "2026-07-23T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "usa-rare-earth"
+        },
+        {
+          "id": "news-520bcc9b49f0ef4fb92377a3",
+          "url": "https://investors.usare.com/news-releases/news-release-details/usa-rare-earth-expands-commitment-france-plans-additional",
+          "date": "2026-06-01T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "usa-rare-earth"
+        },
+        {
+          "id": "news-a3c075ca31560efa978d4911",
+          "url": "https://api.quotemedia.com/supplement/news-story/?webmasterId=102691&storyId=5417884791608072",
+          "date": "2026-08-24T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "usa-rare-earth"
+        },
+        {
+          "id": "news-d3136ece63104542805144c7",
+          "url": "https://api.quotemedia.com/supplement/news-story/?webmasterId=102691&storyId=5026033812479635",
+          "date": "2026-06-15T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "usa-rare-earth"
+        },
+        {
+          "id": "news-9ccfc09e5d775aa5caa6fa12",
+          "url": "https://api.quotemedia.com/supplement/news-story/?webmasterId=102691&storyId=5632231210652588",
+          "date": "2026-06-02T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "usa-rare-earth"
+        },
+        {
+          "id": "news-c94e99de6172e31aae887c53",
+          "url": "https://api.quotemedia.com/supplement/news-story/?webmasterId=102691&storyId=8812720229188382",
+          "date": "2026-05-21T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "usa-rare-earth"
+        },
+        {
+          "id": "news-26a2d34a692f563f208b16b9",
+          "url": "https://api.quotemedia.com/supplement/news-story/?webmasterId=102691&storyId=8639318044495490",
+          "date": "2026-05-12T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "usa-rare-earth"
+        }
+      ]
+    },
+    {
+      "pairId": "astera-labs",
+      "name": "Astera Labs",
+      "stories": 6,
+      "months": {
+        "2025-11": 0,
+        "2025-12": 0,
+        "2026-01": 1,
+        "2026-02": 1,
+        "2026-03": 0,
+        "2026-04": 0,
+        "2026-05": 1,
+        "2026-06": 1,
+        "2026-07": 1,
+        "2026-08": 0,
+        "2026-09": 1,
+        "2026-10": 0
+      },
+      "missingMonths": [
+        "2025-11",
+        "2025-12",
+        "2026-03",
+        "2026-04",
+        "2026-08",
+        "2026-10"
+      ],
+      "volumePass": false,
+      "sourceDiversityPass": false,
+      "primaryOwners": [
+        "astera-labs"
+      ],
+      "independentOwners": [],
+      "unverifiedDomains": [],
+      "officialDiscoveryHomepage": "https://www.asteralabs.com/news/",
+      "officialAutomatedFeed": true,
+      "discoveryFeeds": [
+        "bbc-business",
+        "cnbc-business",
+        "stock-astera-labs",
+        "expanded-official-astera-labs"
+      ],
+      "sources": [
+        {
+          "id": "news-2fe3975e82c901e3d808c29b",
+          "url": "https://ir.asteralabs.com/news-releases/news-release-details/astera-labs-bolsters-leo-smart-memory-controller-family-agentic",
+          "date": "2026-09-15T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "astera-labs"
+        },
+        {
+          "id": "news-02962151363f7b2c04d9ed5b",
+          "url": "https://ir.asteralabs.com/news-releases/news-release-details/astera-labs-expands-taiwan-operations-accelerate-global-ai",
+          "date": "2026-06-02T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "astera-labs"
+        },
+        {
+          "id": "news-a3c356010ac841adf1f322f1",
+          "url": "https://ir.asteralabs.com/news-releases/news-release-details/astera-labs-expands-global-footprint-new-israel-design-center",
+          "date": "2026-02-09T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "astera-labs"
+        },
+        {
+          "id": "news-130ac7ab002766b881f8b3c1",
+          "url": "https://ir.asteralabs.com/news-releases/news-release-details/astera-labs-expands-taurus-family-industrys-first-ocp-standard",
+          "date": "2026-07-21T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "astera-labs"
+        },
+        {
+          "id": "news-c38ef8cb30625e4217f24ce4",
+          "url": "https://www.asteralabs.com/news/astera-labs-broadens-scorpio-x-series-smart-fabric-switch-roadmap-to-address-expanding-scale-up-market-opportunities/",
+          "date": "2026-01-22T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "astera-labs"
+        },
+        {
+          "id": "news-cc157036132b4f1c78c20856",
+          "url": "https://api.quotemedia.com/supplement/news-story/?webmasterId=102691&storyId=5187910708318991",
+          "date": "2026-05-05T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "astera-labs"
+        }
+      ]
+    },
+    {
+      "pairId": "circle",
+      "name": "Circle",
+      "stories": 11,
+      "months": {
+        "2025-11": 0,
+        "2025-12": 0,
+        "2026-01": 0,
+        "2026-02": 0,
+        "2026-03": 1,
+        "2026-04": 1,
+        "2026-05": 1,
+        "2026-06": 1,
+        "2026-07": 4,
+        "2026-08": 0,
+        "2026-09": 3,
+        "2026-10": 0
+      },
+      "missingMonths": [
+        "2025-11",
+        "2025-12",
+        "2026-01",
+        "2026-02",
+        "2026-08",
+        "2026-10"
+      ],
+      "volumePass": true,
+      "sourceDiversityPass": false,
+      "primaryOwners": [
+        "circle"
+      ],
+      "independentOwners": [],
+      "unverifiedDomains": [],
+      "officialDiscoveryHomepage": "https://www.circle.com/pressroom",
+      "officialAutomatedFeed": false,
+      "discoveryFeeds": [
+        "bbc-business",
+        "cnbc-business",
+        "stock-circle"
+      ],
+      "sources": [
+        {
+          "id": "news-1f0a99cb10e92651fb26faf2",
+          "url": "https://www.circle.com/pressroom/circle-launches-arc-mainnet-an-economic-operating-system-for-the-internet",
+          "date": "2026-09-16T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "circle"
+        },
+        {
+          "id": "news-8cd674bb8f8cb94d8c3aaefe",
+          "url": "https://www.businesswire.com/news/home/20260922468799/en/",
+          "date": "2026-09-22T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "circle"
+        },
+        {
+          "id": "news-db3963f115ad9e5bd7f69930",
+          "url": "https://www.businesswire.com/news/home/20260908409825/en/",
+          "date": "2026-09-08T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "circle"
+        },
+        {
+          "id": "news-466004c75babdb247d3a9150",
+          "url": "https://www.businesswire.com/news/home/20260731400151/en/",
+          "date": "2026-07-31T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "circle"
+        },
+        {
+          "id": "news-37276a21f99ff07a1180a545",
+          "url": "https://www.businesswire.com/news/home/20260727291555/en/",
+          "date": "2026-07-27T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "circle"
+        },
+        {
+          "id": "news-77af4a2e130191bea6f608f4",
+          "url": "https://api.quotemedia.com/supplement/news-story/?webmasterId=102691&storyId=7961640471874362",
+          "date": "2026-07-13T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "circle"
+        },
+        {
+          "id": "news-bfae79640ff8c95aa1991078",
+          "url": "https://www.businesswire.com/news/home/20260710400969/en/",
+          "date": "2026-07-10T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "circle"
+        },
+        {
+          "id": "news-8bd3bbc0966a6f61e7043af1",
+          "url": "https://www.prnewswire.com/news-releases/masspay-expands-stablecoin-payout-capabilities-through-circle-payments-network-cpn-managed-payments-302794354.html",
+          "date": "2026-06-09T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "circle"
+        },
+        {
+          "id": "news-41425fc2b338bd1c41ffbd23",
+          "url": "https://www.businesswire.com/news/home/20260511078086/en/",
+          "date": "2026-05-11T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "circle"
+        },
+        {
+          "id": "news-2acc4977cf4bc3fb9d372bec",
+          "url": "https://www.businesswire.com/news/home/20260408279998/en/",
+          "date": "2026-04-08T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "circle"
+        },
+        {
+          "id": "news-3f9750dbeca6cbaefa0b8fc4",
+          "url": "https://www.businesswire.com/news/home/20260324573417/en/",
+          "date": "2026-03-24T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "circle"
+        }
+      ]
+    },
+    {
+      "pairId": "micron",
+      "name": "Micron",
+      "stories": 10,
+      "months": {
+        "2025-11": 0,
+        "2025-12": 0,
+        "2026-01": 0,
+        "2026-02": 0,
+        "2026-03": 0,
+        "2026-04": 0,
+        "2026-05": 0,
+        "2026-06": 1,
+        "2026-07": 5,
+        "2026-08": 2,
+        "2026-09": 2,
+        "2026-10": 0
+      },
+      "missingMonths": [
+        "2025-11",
+        "2025-12",
+        "2026-01",
+        "2026-02",
+        "2026-03",
+        "2026-04",
+        "2026-05",
+        "2026-10"
+      ],
+      "volumePass": true,
+      "sourceDiversityPass": false,
+      "primaryOwners": [
+        "micron"
+      ],
+      "independentOwners": [],
+      "unverifiedDomains": [],
+      "officialDiscoveryHomepage": "https://investors.micron.com/news-releases",
+      "officialAutomatedFeed": false,
+      "discoveryFeeds": [
+        "bbc-business",
+        "cnbc-business",
+        "stock-micron"
+      ],
+      "sources": [
+        {
+          "id": "news-6742c60c8638680bacd8d1be",
+          "url": "https://investors.micron.com/news/press-release/2026/Micron-Technology-Inc--Reports-Record-Fiscal-Fourth-Quarter-and-Full-Year-2026-Results/default.aspx",
+          "date": "2026-09-30T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "micron"
+        },
+        {
+          "id": "news-e0ce57ea1045fd625e810301",
+          "url": "https://api.quotemedia.com/supplement/news-story/?webmasterId=102691&storyId=6987271205934885",
+          "date": "2026-09-15T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "micron"
+        },
+        {
+          "id": "news-656bf873d0dc52978e1a64ad",
+          "url": "https://api.quotemedia.com/supplement/news-story/?webmasterId=102691&storyId=4853869529724354",
+          "date": "2026-08-20T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "micron"
+        },
+        {
+          "id": "news-6156589b2aa9f8b5a810350d",
+          "url": "https://api.quotemedia.com/supplement/news-story/?webmasterId=102691&storyId=6624632287010875",
+          "date": "2026-08-13T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "micron"
+        },
+        {
+          "id": "news-8a6741ef0d25f488d89c5443",
+          "url": "https://api.quotemedia.com/supplement/news-story/?webmasterId=102691&storyId=6488781640300093",
+          "date": "2026-07-16T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "micron"
+        },
+        {
+          "id": "news-9de4baeb5097d60786b251f7",
+          "url": "https://api.quotemedia.com/supplement/news-story/?webmasterId=102691&storyId=6598687494626888",
+          "date": "2026-07-09T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "micron"
+        },
+        {
+          "id": "news-8429bd3e7996f04f07c76755",
+          "url": "https://api.quotemedia.com/supplement/news-story/?webmasterId=102691&storyId=4984177172611018",
+          "date": "2026-07-09T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "micron"
+        },
+        {
+          "id": "news-347c025509011ebb46a1a059",
+          "url": "https://api.quotemedia.com/supplement/news-story/?webmasterId=102691&storyId=8344992673066288",
+          "date": "2026-07-06T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "micron"
+        },
+        {
+          "id": "news-b5ce80304a6e8ab93517edd1",
+          "url": "https://api.quotemedia.com/supplement/news-story/?webmasterId=102691&storyId=6214349072591680",
+          "date": "2026-07-01T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "micron"
+        },
+        {
+          "id": "news-eb8f93770510e96be6cffcb4",
+          "url": "https://api.quotemedia.com/supplement/news-story/?webmasterId=102691&storyId=5289758477399901",
+          "date": "2026-06-22T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "micron"
+        }
+      ]
+    },
+    {
+      "pairId": "sandisk",
+      "name": "Sandisk",
+      "stories": 9,
+      "months": {
+        "2025-11": 1,
+        "2025-12": 0,
+        "2026-01": 1,
+        "2026-02": 1,
+        "2026-03": 0,
+        "2026-04": 0,
+        "2026-05": 0,
+        "2026-06": 0,
+        "2026-07": 1,
+        "2026-08": 5,
+        "2026-09": 0,
+        "2026-10": 0
+      },
+      "missingMonths": [
+        "2025-12",
+        "2026-03",
+        "2026-04",
+        "2026-05",
+        "2026-06",
+        "2026-09",
+        "2026-10"
+      ],
+      "volumePass": false,
+      "sourceDiversityPass": false,
+      "primaryOwners": [
+        "sandisk"
+      ],
+      "independentOwners": [],
+      "unverifiedDomains": [],
+      "officialDiscoveryHomepage": "https://investor.sandisk.com/news-releases",
+      "officialAutomatedFeed": false,
+      "discoveryFeeds": [
+        "bbc-business",
+        "cnbc-business",
+        "stock-sandisk"
+      ],
+      "sources": [
+        {
+          "id": "news-393a41fa386a2ca4592780cc",
+          "url": "https://investor.sandisk.com/news-releases/news-release-details/sandisk-announces-sampling-bics10-1tb-tlc-3d-nand-flash-memory",
+          "date": "2026-07-02T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "sandisk"
+        },
+        {
+          "id": "news-2449b23fb49d9d553dddb269",
+          "url": "https://investor.sandisk.com/news-releases/news-release-details/kioxia-and-sandisk-extend-yokkaichi-joint-venture-agreement",
+          "date": "2026-01-29T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "sandisk"
+        },
+        {
+          "id": "news-0401960ac175c10dd7c7f5a3",
+          "url": "https://www.sandisk.com/company/newsroom/press-releases/2026/2026-08-20-sandisk-introduces-nas-ssds-to-power-fast-high-endurance-storage-for-prosumers-and-small-businesses",
+          "date": "2026-08-20T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "sandisk"
+        },
+        {
+          "id": "news-3b2d44c7977497597a2294f7",
+          "url": "https://www.sandisk.com/company/newsroom/press-releases/2026/2026-02-25-sandisk-and-sk-hynix-begin-global-standardization-of-next-generation-memory-solution-high-bandwidth-flash-hbf",
+          "date": "2026-02-26T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "sandisk"
+        },
+        {
+          "id": "news-076bed04fa41b812f3d7fa97",
+          "url": "https://www.sandisk.com/company/newsroom/press-releases/2026/2026-08-03-Sandisk-and-sk-hynix-advance-global-standardization-of-hbf",
+          "date": "2026-08-03T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "sandisk"
+        },
+        {
+          "id": "news-647ef533398afe6bb5e6d396",
+          "url": "https://www.businesswire.com/news/home/20260827797147/en/",
+          "date": "2026-08-27T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "sandisk"
+        },
+        {
+          "id": "news-aa4acf343bc219ffa9377833",
+          "url": "https://investor.sandisk.com/news-releases/news-release-details/kioxia-and-sandisk-unveil-new-high-performance-qlc-3d-flash",
+          "date": "2026-08-12T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "sandisk"
+        },
+        {
+          "id": "news-c4285b0f7e255a93ba207d2b",
+          "url": "https://www.businesswire.com/news/home/20260804147821/en/",
+          "date": "2026-08-04T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "sandisk"
+        },
+        {
+          "id": "news-f88863deef6dfdc1a9586903",
+          "url": "https://www.prnewswire.com/news-releases/sandisk-set-to-join-sp-500-upwork-first-interstate-bancsystem-ptc-therapeutics-to-join-sp-smallcap-600-302625036.html",
+          "date": "2025-11-24T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "sandisk"
+        }
+      ]
+    },
+    {
+      "pairId": "amd",
+      "name": "Advanced Micro Devices",
+      "stories": 16,
+      "months": {
+        "2025-11": 0,
+        "2025-12": 0,
+        "2026-01": 0,
+        "2026-02": 0,
+        "2026-03": 0,
+        "2026-04": 0,
+        "2026-05": 1,
+        "2026-06": 2,
+        "2026-07": 4,
+        "2026-08": 6,
+        "2026-09": 3,
+        "2026-10": 0
+      },
+      "missingMonths": [
+        "2025-11",
+        "2025-12",
+        "2026-01",
+        "2026-02",
+        "2026-03",
+        "2026-04",
+        "2026-10"
+      ],
+      "volumePass": true,
+      "sourceDiversityPass": false,
+      "primaryOwners": [
+        "amd"
+      ],
+      "independentOwners": [],
+      "unverifiedDomains": [],
+      "officialDiscoveryHomepage": "https://ir.amd.com/news-events/press-releases",
+      "officialAutomatedFeed": true,
+      "discoveryFeeds": [
+        "bbc-business",
+        "cnbc-business",
+        "stock-amd",
+        "expanded-official-amd"
+      ],
+      "sources": [
+        {
+          "id": "news-37d0bbec8bf0a833ce53e88b",
+          "url": "https://newsroom.amd.com/news/amd-perplexity-agentic-pcs/",
+          "date": "2026-09-24T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "amd"
+        },
+        {
+          "id": "news-70c4b6d9d4f604f1850b65bb",
+          "url": "https://newsroom.amd.com/news/amd-cisco-humain-expand-saudi-arabia-ai-infrastructure/",
+          "date": "2026-08-31T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "amd"
+        },
+        {
+          "id": "news-27ef442b7923579c4f4f89e4",
+          "url": "https://newsroom.amd.com/news/amd-supermicro-and-spectro-cloud-launch-turnkey-solution-to-scale-enterprise-ai-coding/",
+          "date": "2026-08-05T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "amd"
+        },
+        {
+          "id": "news-a94673e66302e94151fa3389",
+          "url": "https://newsroom.amd.com/news/amd-saudi-arabia-digital-cooperation-organization-open-developer-ecosystem/",
+          "date": "2026-08-28T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "amd"
+        },
+        {
+          "id": "news-2ff17011530b1676102b8b04",
+          "url": "https://newsroom.amd.com/news/amd-sampling-versal-ai-core-adaptive-soc/",
+          "date": "2026-09-30T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "amd"
+        },
+        {
+          "id": "news-9d17dd86293e69186f6f55f4",
+          "url": "https://newsroom.amd.com/news/amd-acquires-taalas-ai-inference/",
+          "date": "2026-08-06T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "amd"
+        },
+        {
+          "id": "news-026bb722166dfa91daa897a5",
+          "url": "https://newsroom.amd.com/news/amd-acquire-world-labs/",
+          "date": "2026-09-28T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "amd"
+        },
+        {
+          "id": "news-10b0e86b07cb19b043a990b0",
+          "url": "https://api.quotemedia.com/supplement/news-story/?webmasterId=102691&storyId=6663856662582778",
+          "date": "2026-08-31T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "amd"
+        },
+        {
+          "id": "news-a4bff655d299a2be77f06959",
+          "url": "https://www.businesswire.com/news/home/20260727256371/en/",
+          "date": "2026-07-28T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "amd"
+        },
+        {
+          "id": "news-73bc90d24729188f39dea860",
+          "url": "https://api.quotemedia.com/supplement/news-story/?webmasterId=102691&storyId=5144082596620357",
+          "date": "2026-08-06T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "amd"
+        },
+        {
+          "id": "news-55275a222c5473de6ee095b7",
+          "url": "https://api.quotemedia.com/supplement/news-story/?webmasterId=102691&storyId=9002901634624484",
+          "date": "2026-07-23T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "amd"
+        },
+        {
+          "id": "news-86706d1716274400d079fca3",
+          "url": "https://api.quotemedia.com/supplement/news-story/?webmasterId=102691&storyId=6115297921346397",
+          "date": "2026-07-22T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "amd"
+        },
+        {
+          "id": "news-3d0a8efd14e88cdfcc51368f",
+          "url": "https://api.quotemedia.com/supplement/news-story/?webmasterId=102691&storyId=5660056437771628",
+          "date": "2026-07-20T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "amd"
+        },
+        {
+          "id": "news-de8fe2a9e9761a884854768d",
+          "url": "https://api.quotemedia.com/supplement/news-story/?webmasterId=102691&storyId=5849711783580169",
+          "date": "2026-06-16T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "amd"
+        },
+        {
+          "id": "news-3313884f7c33588b082fcecf",
+          "url": "https://api.quotemedia.com/supplement/news-story/?webmasterId=102691&storyId=7749580955489090",
+          "date": "2026-06-08T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "amd"
+        },
+        {
+          "id": "news-59856df791f5ef49c660ed22",
+          "url": "https://api.quotemedia.com/supplement/news-story/?webmasterId=102691&storyId=7310936586185981",
+          "date": "2026-05-21T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "amd"
+        }
+      ]
+    },
+    {
+      "pairId": "ishares-korea",
+      "name": "iShares MSCI South Korea ETF",
+      "stories": 5,
+      "months": {
+        "2025-11": 0,
+        "2025-12": 0,
+        "2026-01": 0,
+        "2026-02": 0,
+        "2026-03": 0,
+        "2026-04": 0,
+        "2026-05": 0,
+        "2026-06": 0,
+        "2026-07": 2,
+        "2026-08": 0,
+        "2026-09": 2,
+        "2026-10": 1
+      },
+      "missingMonths": [
+        "2025-11",
+        "2025-12",
+        "2026-01",
+        "2026-02",
+        "2026-03",
+        "2026-04",
+        "2026-05",
+        "2026-06",
+        "2026-08"
+      ],
+      "volumePass": false,
+      "sourceDiversityPass": false,
+      "primaryOwners": [
+        "motir.go.kr"
+      ],
+      "independentOwners": [],
+      "unverifiedDomains": [
+        "etftrends.com"
+      ],
+      "officialDiscoveryHomepage": "https://www.ishares.com/us/insights",
+      "officialAutomatedFeed": false,
+      "discoveryFeeds": [
+        "bbc-business",
+        "cnbc-business",
+        "stock-ishares-korea"
+      ],
+      "sources": [
+        {
+          "id": "news-d595ffc81905d1b35954c511",
+          "url": "https://english.motir.go.kr/eng/article/EATCLdfa319ada/2743/view",
+          "date": "2026-10-01T00:00:00.000Z",
+          "kind": "primary",
+          "owner": "motir.go.kr"
+        },
+        {
+          "id": "news-607af6d796ab2d5fecfd74db",
+          "url": "https://english.motir.go.kr/eng/article/EATCLdfa319ada/2719/view",
+          "date": "2026-09-01T00:00:00.000Z",
+          "kind": "primary",
+          "owner": "motir.go.kr"
+        },
+        {
+          "id": "news-b8f829d99aaf8a46854ed101",
+          "url": "https://english.motir.go.kr/eng/article/EATCLdfa319ada/2677/view",
+          "date": "2026-07-01T00:00:00.000Z",
+          "kind": "primary",
+          "owner": "motir.go.kr"
+        },
+        {
+          "id": "news-cd2819aa997173bbdf90166f",
+          "url": "https://english.motir.go.kr/eng/article/EATCLdfa319ada/2731/view",
+          "date": "2026-09-14T00:00:00.000Z",
+          "kind": "primary",
+          "owner": "motir.go.kr"
+        },
+        {
+          "id": "news-d096d8e622901c1b9ea6850d",
+          "url": "https://www.etftrends.com/equity-etf-content-hub/south-korea-semiconductors-last-weeks-top-etf-inflows/",
+          "date": "2026-07-20T20:51:38.000Z",
+          "kind": "unverified",
+          "owner": "etftrends.com"
+        }
+      ]
+    },
+    {
+      "pairId": "intel",
+      "name": "Intel",
+      "stories": 9,
+      "months": {
+        "2025-11": 0,
+        "2025-12": 0,
+        "2026-01": 1,
+        "2026-02": 0,
+        "2026-03": 0,
+        "2026-04": 1,
+        "2026-05": 1,
+        "2026-06": 2,
+        "2026-07": 1,
+        "2026-08": 0,
+        "2026-09": 2,
+        "2026-10": 1
+      },
+      "missingMonths": [
+        "2025-11",
+        "2025-12",
+        "2026-02",
+        "2026-03",
+        "2026-08"
+      ],
+      "volumePass": false,
+      "sourceDiversityPass": false,
+      "primaryOwners": [
+        "intel"
+      ],
+      "independentOwners": [],
+      "unverifiedDomains": [],
+      "officialDiscoveryHomepage": "https://newsroom.intel.com/",
+      "officialAutomatedFeed": false,
+      "discoveryFeeds": [
+        "bbc-business",
+        "cnbc-business",
+        "stock-intel"
+      ],
+      "sources": [
+        {
+          "id": "news-7130b0062cb4e4ea24977ddc",
+          "url": "https://www.intel.com/content/www/us/en/newsroom/news/client-computing/googlebook-launches-with-intel-core-ultra-series-3-processors.html",
+          "date": "2026-09-21T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "intel"
+        },
+        {
+          "id": "news-8ccaf4f285aa30b67eeb1d27",
+          "url": "https://api.quotemedia.com/supplement/news-story/?webmasterId=102691&storyId=6752665432498601",
+          "date": "2026-10-06T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "intel"
+        },
+        {
+          "id": "news-b79ca9524c29d3bc108bb60e",
+          "url": "https://www.businesswire.com/news/home/20260907972389/en/",
+          "date": "2026-09-08T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "intel"
+        },
+        {
+          "id": "news-afc0b682743dd5867b890254",
+          "url": "https://www.businesswire.com/news/home/20260721378476/en/",
+          "date": "2026-07-21T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "intel"
+        },
+        {
+          "id": "news-bf6549566bb0d795c9bfa73f",
+          "url": "https://www.prnewswire.com/news-releases/hitachi-and-intel-announce-strategic-collaboration-to-accelerate-ai-transformation-across-key-industries-302792155.html",
+          "date": "2026-06-05T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "intel"
+        },
+        {
+          "id": "news-cb18212006816f17455ee212",
+          "url": "https://www.businesswire.com/news/home/20260601425603/en/",
+          "date": "2026-06-02T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "intel"
+        },
+        {
+          "id": "news-78590602c817ee07b7bcaede",
+          "url": "https://www.businesswire.com/news/home/20260514583522/en/",
+          "date": "2026-05-14T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "intel"
+        },
+        {
+          "id": "news-8a9e0a4a00357e66cb52bf3d",
+          "url": "https://www.businesswire.com/news/home/20260409055389/en/",
+          "date": "2026-04-09T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "intel"
+        },
+        {
+          "id": "news-079abe90ac228bcd2622144a",
+          "url": "https://www.businesswire.com/news/home/20260105738564/en/",
+          "date": "2026-01-05T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "intel"
+        }
+      ]
+    },
+    {
+      "pairId": "lumentum",
+      "name": "Lumentum",
+      "stories": 7,
+      "months": {
+        "2025-11": 0,
+        "2025-12": 0,
+        "2026-01": 0,
+        "2026-02": 1,
+        "2026-03": 4,
+        "2026-04": 0,
+        "2026-05": 1,
+        "2026-06": 0,
+        "2026-07": 0,
+        "2026-08": 0,
+        "2026-09": 1,
+        "2026-10": 0
+      },
+      "missingMonths": [
+        "2025-11",
+        "2025-12",
+        "2026-01",
+        "2026-04",
+        "2026-06",
+        "2026-07",
+        "2026-08",
+        "2026-10"
+      ],
+      "volumePass": false,
+      "sourceDiversityPass": false,
+      "primaryOwners": [
+        "lumentum"
+      ],
+      "independentOwners": [],
+      "unverifiedDomains": [
+        "yahoo.com"
+      ],
+      "officialDiscoveryHomepage": "https://investor.lumentum.com/news/default.aspx",
+      "officialAutomatedFeed": true,
+      "discoveryFeeds": [
+        "bbc-business",
+        "cnbc-business",
+        "stock-lumentum",
+        "expanded-official-lumentum"
+      ],
+      "sources": [
+        {
+          "id": "news-069eadb20d68fe25d53dd89e",
+          "url": "https://investor.lumentum.com/financial-news-releases/news-details/2026/Lumentum-to-Demonstrate-DWDM-ELSFP-Laser-Module-for-OCI-MSA-Applications-at-ECOC-2026/default.aspx",
+          "date": "2026-09-21T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "lumentum"
+        },
+        {
+          "id": "news-b9bafb6a12eefbc2f7f012c3",
+          "url": "https://investor.lumentum.com/financial-news-releases/news-details/2026/NVIDIA-Announces-Strategic-Partnership-With-Lumentum-to-Develop-State-of-the-Art-Optics-Technology/default.aspx",
+          "date": "2026-03-02T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "lumentum"
+        },
+        {
+          "id": "news-e40c9ba9da9f5ec5cf72ca13",
+          "url": "https://investor.lumentum.com/financial-news-releases/news-details/2026/Lumentum-Showcases-Breakthrough-Optical-Scale-Up-Demonstration-at-OFC-2026-Using-VCSEL-Technology/default.aspx",
+          "date": "2026-03-17T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "lumentum"
+        },
+        {
+          "id": "news-6d1c8aeed6d5cbfe164b81ff",
+          "url": "https://investor.lumentum.com/financial-news-releases/news-details/2026/Lumentum-Announces-New-U-S--Manufacturing-Facility-to-Produce-Advanced-Lasers-for-the-Worlds-Largest-AI-Data-Centers/default.aspx",
+          "date": "2026-03-26T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "lumentum"
+        },
+        {
+          "id": "news-ea0a58957675299c8b151e20",
+          "url": "https://investor.lumentum.com/financial-news-releases/news-details/2026/Lumentum-Joins-the-Nasdaq-100-Index-Achieving-New-Milestone-in-Global-Growth/default.aspx",
+          "date": "2026-05-11T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "lumentum"
+        },
+        {
+          "id": "news-850359ea92d4f030e0f54dda",
+          "url": "https://investor.lumentum.com/financial-news-releases/news-details/2026/Lumentum-to-Join-the-SP-500-Index/default.aspx",
+          "date": "2026-03-10T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "lumentum"
+        },
+        {
+          "id": "news-d03c1876f3bb917f214046d3",
+          "url": "https://finance.yahoo.com/news/lumentum-lite-soars-time-high-080740149.html",
+          "date": "2026-02-06T08:07:40.000Z",
+          "kind": "unverified",
+          "owner": "yahoo.com"
+        }
+      ]
+    },
+    {
+      "pairId": "meta",
+      "name": "Meta",
+      "stories": 15,
+      "months": {
+        "2025-11": 0,
+        "2025-12": 0,
+        "2026-01": 1,
+        "2026-02": 0,
+        "2026-03": 0,
+        "2026-04": 1,
+        "2026-05": 0,
+        "2026-06": 0,
+        "2026-07": 5,
+        "2026-08": 0,
+        "2026-09": 8,
+        "2026-10": 0
+      },
+      "missingMonths": [
+        "2025-11",
+        "2025-12",
+        "2026-02",
+        "2026-03",
+        "2026-05",
+        "2026-06",
+        "2026-08",
+        "2026-10"
+      ],
+      "volumePass": true,
+      "sourceDiversityPass": true,
+      "primaryOwners": [
+        "meta"
+      ],
+      "independentOwners": [
+        "axios.com"
+      ],
+      "unverifiedDomains": [],
+      "officialDiscoveryHomepage": "https://about.fb.com/news/",
+      "officialAutomatedFeed": true,
+      "discoveryFeeds": [
+        "bbc-business",
+        "cnbc-business",
+        "stock-meta",
+        "expanded-official-meta",
+        "industry-tech"
+      ],
+      "sources": [
+        {
+          "id": "news-aab64db52fc2be6132b6d9e6",
+          "url": "https://about.fb.com/news/2026/09/launching-meta-enterprise-platform/",
+          "date": "2026-09-28T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "meta"
+        },
+        {
+          "id": "news-0dd0027d29aaf733a4415969",
+          "url": "https://about.fb.com/news/2026/09/introducing-meta-one-subscription-service-more-features-ai/",
+          "date": "2026-09-15T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "meta"
+        },
+        {
+          "id": "news-a9f6e1d4da78ad3344dfc940",
+          "url": "https://about.fb.com/news/2026/09/introducing-muse-personal-ai-agent/",
+          "date": "2026-09-08T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "meta"
+        },
+        {
+          "id": "news-15dd7ab4c7ef1b7b59d00a9a",
+          "url": "https://about.fb.com/news/2026/09/introducing-meta-vr-glasses-3d-movies-immersive-live-sports-100-grams/",
+          "date": "2026-09-23T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "meta"
+        },
+        {
+          "id": "news-d338516b1fb74c0ddc100627",
+          "url": "https://about.fb.com/news/2026/09/threads-expands-podcast-toolkit-for-creators-and-listeners/",
+          "date": "2026-09-16T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "meta"
+        },
+        {
+          "id": "news-c60dc165ed00ecbe5108b5c4",
+          "url": "https://about.fb.com/news/2026/09/threads-introduces-parental-supervision-for-teens-in-apac/",
+          "date": "2026-09-16T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "meta"
+        },
+        {
+          "id": "news-50674b954710f34e059609ea",
+          "url": "https://about.fb.com/news/2026/07/whatsapp-web-calling-new-features/",
+          "date": "2026-07-28T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "meta"
+        },
+        {
+          "id": "news-6626470dee2c14f783046fe9",
+          "url": "https://about.fb.com/news/2026/07/introducing-seller-app-facebook-marketplace/",
+          "date": "2026-07-24T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "meta"
+        },
+        {
+          "id": "news-3adec5376bae6e771042cd99",
+          "url": "https://about.fb.com/news/2026/07/introducing-facebook-verified/",
+          "date": "2026-07-24T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "meta"
+        },
+        {
+          "id": "news-de58a610ba97701c2c717a72",
+          "url": "https://about.fb.com/news/2026/07/the-2026-summer-of-football-a-record-breaking-moment-across-meta/",
+          "date": "2026-07-17T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "meta"
+        },
+        {
+          "id": "news-d6076f801acf170a4fdc9fd6",
+          "url": "https://www.prnewswire.com/news-releases/dolby-and-meta-expand-dolby-atmos-and-dolby-vision-across-metas-ecosystem-302888324.html",
+          "date": "2026-09-23T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "meta"
+        },
+        {
+          "id": "news-8d28888a56be59d5b04f96da",
+          "url": "https://www.prnewswire.com/news-releases/meta-announces-new-strategic-venture-with-blackrock-to-develop-data-center-in-el-paso-302836040.html",
+          "date": "2026-07-28T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "meta"
+        },
+        {
+          "id": "news-854ff72238ba12bc45f07c12",
+          "url": "https://api.quotemedia.com/supplement/news-story/?webmasterId=102691&storyId=6164506569272644",
+          "date": "2026-04-14T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "meta"
+        },
+        {
+          "id": "news-58690cabf47904f495b9b1df",
+          "url": "https://www.businesswire.com/news/home/20260126071751/en/",
+          "date": "2026-01-27T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "meta"
+        },
+        {
+          "id": "news-df6322196715af6f0dc4c2d1",
+          "url": "https://about.fb.com/news/2026/09/introducing-muse-small-business/",
+          "date": "2026-09-29T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "meta"
+        },
+        {
+          "id": "news-258e45fdb3f28a329157faa8",
+          "url": "https://www.axios.com/2026/09/29/meta-muse-ai-small-business",
+          "date": "2026-09-29T00:00:00.000Z",
+          "kind": "independent",
+          "owner": "axios.com"
+        }
+      ]
+    },
+    {
+      "pairId": "palantir",
+      "name": "Palantir",
+      "stories": 10,
+      "months": {
+        "2025-11": 0,
+        "2025-12": 0,
+        "2026-01": 0,
+        "2026-02": 0,
+        "2026-03": 0,
+        "2026-04": 0,
+        "2026-05": 0,
+        "2026-06": 4,
+        "2026-07": 1,
+        "2026-08": 0,
+        "2026-09": 4,
+        "2026-10": 1
+      },
+      "missingMonths": [
+        "2025-11",
+        "2025-12",
+        "2026-01",
+        "2026-02",
+        "2026-03",
+        "2026-04",
+        "2026-05",
+        "2026-08"
+      ],
+      "volumePass": true,
+      "sourceDiversityPass": false,
+      "primaryOwners": [
+        "global.fujitsu",
+        "palantir"
+      ],
+      "independentOwners": [],
+      "unverifiedDomains": [],
+      "officialDiscoveryHomepage": "https://investors.palantir.com/news-events/news-releases",
+      "officialAutomatedFeed": false,
+      "discoveryFeeds": [
+        "bbc-business",
+        "cnbc-business",
+        "stock-palantir",
+        "industry-tech"
+      ],
+      "sources": [
+        {
+          "id": "news-c30da25720bdee7ee9a99db8",
+          "url": "https://global.fujitsu/en-global/pr/news/2026/09/10-01",
+          "date": "2026-09-10T00:00:00.000Z",
+          "kind": "primary",
+          "owner": "global.fujitsu"
+        },
+        {
+          "id": "news-6c507d4a1f4930ee4f346b05",
+          "url": "https://www.businesswire.com/news/home/20261001185115/en/",
+          "date": "2026-10-01T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "palantir"
+        },
+        {
+          "id": "news-cd17aa11fd6546cc5ea3af9b",
+          "url": "https://www.businesswire.com/news/home/20260910841511/en/",
+          "date": "2026-09-10T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "palantir"
+        },
+        {
+          "id": "news-253384cd01e323e446ef0868",
+          "url": "https://www.prnewswire.com/news-releases/pwc-and-palantir-expand-strategic-alliance-to-help-organizations-scale-enterprise-ai-302868284.html",
+          "date": "2026-09-03T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "palantir"
+        },
+        {
+          "id": "news-a87f0ce0ddac9c8c34b576be",
+          "url": "https://www.businesswire.com/news/home/20260901157594/en/",
+          "date": "2026-09-01T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "palantir"
+        },
+        {
+          "id": "news-159a05f3c1bf08988803ce56",
+          "url": "https://api.quotemedia.com/supplement/news-story/?webmasterId=102691&storyId=6511838166636172",
+          "date": "2026-07-09T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "palantir"
+        },
+        {
+          "id": "news-a39afd3006ed9c223b49dad8",
+          "url": "https://www.businesswire.com/news/home/20260629390275/en/",
+          "date": "2026-06-29T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "palantir"
+        },
+        {
+          "id": "news-b7c075dab7e50076e3ed6f0f",
+          "url": "https://www.businesswire.com/news/home/20260629839600/en/",
+          "date": "2026-06-29T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "palantir"
+        },
+        {
+          "id": "news-68e6f64b0275c9af305ceb22",
+          "url": "https://www.businesswire.com/news/home/20260623062799/en/",
+          "date": "2026-06-23T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "palantir"
+        },
+        {
+          "id": "news-9ea1a5e4776a9a5595f22f18",
+          "url": "https://www.businesswire.com/news/home/20260604988849/en/",
+          "date": "2026-06-04T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "palantir"
+        }
+      ]
+    },
+    {
+      "pairId": "bloom-energy",
+      "name": "Bloom Energy",
+      "stories": 6,
+      "months": {
+        "2025-11": 0,
+        "2025-12": 0,
+        "2026-01": 0,
+        "2026-02": 0,
+        "2026-03": 0,
+        "2026-04": 1,
+        "2026-05": 0,
+        "2026-06": 1,
+        "2026-07": 1,
+        "2026-08": 2,
+        "2026-09": 1,
+        "2026-10": 0
+      },
+      "missingMonths": [
+        "2025-11",
+        "2025-12",
+        "2026-01",
+        "2026-02",
+        "2026-03",
+        "2026-05",
+        "2026-10"
+      ],
+      "volumePass": false,
+      "sourceDiversityPass": false,
+      "primaryOwners": [
+        "bloom-energy"
+      ],
+      "independentOwners": [],
+      "unverifiedDomains": [],
+      "officialDiscoveryHomepage": "https://www.bloomenergy.com/news/",
+      "officialAutomatedFeed": true,
+      "discoveryFeeds": [
+        "bbc-business",
+        "cnbc-business",
+        "stock-bloom-energy",
+        "expanded-official-bloom-energy",
+        "industry-energy"
+      ],
+      "sources": [
+        {
+          "id": "news-e6e2967c402455338531de15",
+          "url": "https://www.bloomenergy.com/news/philadelphia-76ers-and-bloom-energy-announce-multi-year-partnership-and-patch-deal/",
+          "date": "2026-09-28T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "bloom-energy"
+        },
+        {
+          "id": "news-dc47c39afc3a2a962ffd6a29",
+          "url": "https://www.bloomenergy.com/news/bloom-energy-introduces-power-connect/",
+          "date": "2026-08-19T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "bloom-energy"
+        },
+        {
+          "id": "news-14c4df340d60d40f9248834f",
+          "url": "https://www.bloomenergy.com/news/brookfield-and-bloom-energy-expand-ai-infrastructure-partnership/",
+          "date": "2026-06-30T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "bloom-energy"
+        },
+        {
+          "id": "news-ac7a13aabe0473977bb56d2e",
+          "url": "https://www.bloomenergy.com/news/bloom-energy-and-oracle-expand-strategic-partnership-to-deploy-up-to-2-8-gw-to-accelerate-ai-infrastructure-build-out/",
+          "date": "2026-04-13T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "bloom-energy"
+        },
+        {
+          "id": "news-b628f80954e4b887a4346ee0",
+          "url": "https://www.bloomenergy.com/news/bloom-energy-continues-to-set-the-standard-for-ai-onsite-power-with-expanded-mitac-partnership/",
+          "date": "2026-08-06T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "bloom-energy"
+        },
+        {
+          "id": "news-b2c0964adb058ec32e8460a6",
+          "url": "https://www.prnewswire.com/news-releases/industrial-development-funding-and-oaktree-announce-1-7-billion-project-investment-in-bloom-energy-fuel-cells-for-nebius-ai-infrastructure-build-out-302827566.html",
+          "date": "2026-07-16T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "bloom-energy"
+        }
+      ]
+    },
+    {
+      "pairId": "amazon",
+      "name": "Amazon",
+      "stories": 10,
+      "months": {
+        "2025-11": 0,
+        "2025-12": 0,
+        "2026-01": 0,
+        "2026-02": 0,
+        "2026-03": 0,
+        "2026-04": 1,
+        "2026-05": 5,
+        "2026-06": 0,
+        "2026-07": 0,
+        "2026-08": 1,
+        "2026-09": 3,
+        "2026-10": 0
+      },
+      "missingMonths": [
+        "2025-11",
+        "2025-12",
+        "2026-01",
+        "2026-02",
+        "2026-03",
+        "2026-06",
+        "2026-07",
+        "2026-10"
+      ],
+      "volumePass": true,
+      "sourceDiversityPass": false,
+      "primaryOwners": [
+        "amazon"
+      ],
+      "independentOwners": [],
+      "unverifiedDomains": [],
+      "officialDiscoveryHomepage": "https://www.aboutamazon.com/news",
+      "officialAutomatedFeed": false,
+      "discoveryFeeds": [
+        "bbc-business",
+        "cnbc-business",
+        "stock-amazon",
+        "industry-retail"
+      ],
+      "sources": [
+        {
+          "id": "news-c8ef97b6c9769f87d05c7324",
+          "url": "https://www.businesswire.com/news/home/20260930235521/en/",
+          "date": "2026-09-30T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "amazon"
+        },
+        {
+          "id": "news-6af8996cac26e859f0c4fb7f",
+          "url": "https://www.businesswire.com/news/home/20260924891256/en/",
+          "date": "2026-09-24T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "amazon"
+        },
+        {
+          "id": "news-c27d43774bfe94706fed1be1",
+          "url": "https://www.businesswire.com/news/home/20260921920176/en/",
+          "date": "2026-09-21T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "amazon"
+        },
+        {
+          "id": "news-98b39f49209a4b5c7a24e00e",
+          "url": "https://api.quotemedia.com/supplement/news-story/?webmasterId=102691&storyId=7795897468951555",
+          "date": "2026-08-26T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "amazon"
+        },
+        {
+          "id": "news-ea7c4f965d31061996c22f47",
+          "url": "https://www.businesswire.com/news/home/20260513287547/en/",
+          "date": "2026-05-13T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "amazon"
+        },
+        {
+          "id": "news-2667bfdda466a1ba722caab2",
+          "url": "https://www.businesswire.com/news/home/20260513436245/en/",
+          "date": "2026-05-13T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "amazon"
+        },
+        {
+          "id": "news-d2383421c449e108b9c922de",
+          "url": "https://www.businesswire.com/news/home/20260507222067/en/",
+          "date": "2026-05-07T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "amazon"
+        },
+        {
+          "id": "news-1d3c6e229649df0288b44479",
+          "url": "https://www.businesswire.com/news/home/20260506335808/en/",
+          "date": "2026-05-07T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "amazon"
+        },
+        {
+          "id": "news-35df60bda4734caf936f864b",
+          "url": "https://www.businesswire.com/news/home/20260504242139/en/",
+          "date": "2026-05-04T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "amazon"
+        },
+        {
+          "id": "news-7cae2f452b1249dc0716898e",
+          "url": "https://www.businesswire.com/news/home/20260424641117/en/",
+          "date": "2026-04-24T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "amazon"
+        }
+      ]
+    },
+    {
+      "pairId": "direxion-soxs",
+      "name": "Semis 3× Short",
+      "stories": 3,
+      "months": {
+        "2025-11": 0,
+        "2025-12": 0,
+        "2026-01": 0,
+        "2026-02": 0,
+        "2026-03": 0,
+        "2026-04": 0,
+        "2026-05": 0,
+        "2026-06": 1,
+        "2026-07": 2,
+        "2026-08": 0,
+        "2026-09": 0,
+        "2026-10": 0
+      },
+      "missingMonths": [
+        "2025-11",
+        "2025-12",
+        "2026-01",
+        "2026-02",
+        "2026-03",
+        "2026-04",
+        "2026-05",
+        "2026-08",
+        "2026-09",
+        "2026-10"
+      ],
+      "volumePass": false,
+      "sourceDiversityPass": false,
+      "primaryOwners": [],
+      "independentOwners": [
+        "reuters.com"
+      ],
+      "unverifiedDomains": [
+        "yahoo.com"
+      ],
+      "officialDiscoveryHomepage": "https://www.direxion.com/education",
+      "officialAutomatedFeed": false,
+      "discoveryFeeds": [
+        "bbc-business",
+        "cnbc-business",
+        "stock-direxion-soxs"
+      ],
+      "sources": [
+        {
+          "id": "news-de90b677fa34a45a1e8b0ef9",
+          "url": "https://www.investing.com/news/stock-market-news/chip-stocks-plunge-but-bargain-hunters-limit-scale-of-tech-rout-4755018",
+          "date": "2026-06-23T00:00:00.000Z",
+          "kind": "independent",
+          "owner": "reuters.com"
+        },
+        {
+          "id": "news-7889316ac21a93e1e5b8529e",
+          "url": "https://www.investing.com/news/economy-news/trading-day-sinking-chips-4797014",
+          "date": "2026-07-16T00:00:00.000Z",
+          "kind": "independent",
+          "owner": "reuters.com"
+        },
+        {
+          "id": "news-8a36ff431f1c29f666a62717",
+          "url": "https://finance.yahoo.com/markets/stocks/articles/why-soxs-semiconductor-bear-etf-163105925.html",
+          "date": "2026-07-19T16:31:05.000Z",
+          "kind": "unverified",
+          "owner": "yahoo.com"
+        }
+      ]
+    },
+    {
+      "pairId": "dell",
+      "name": "Dell",
+      "stories": 11,
+      "months": {
+        "2025-11": 1,
+        "2025-12": 0,
+        "2026-01": 1,
+        "2026-02": 1,
+        "2026-03": 4,
+        "2026-04": 1,
+        "2026-05": 1,
+        "2026-06": 0,
+        "2026-07": 0,
+        "2026-08": 1,
+        "2026-09": 1,
+        "2026-10": 0
+      },
+      "missingMonths": [
+        "2025-12",
+        "2026-06",
+        "2026-07",
+        "2026-10"
+      ],
+      "volumePass": true,
+      "sourceDiversityPass": false,
+      "primaryOwners": [
+        "dell"
+      ],
+      "independentOwners": [],
+      "unverifiedDomains": [],
+      "officialDiscoveryHomepage": "https://www.dell.com/en-us/dt/corporate/newsroom.htm",
+      "officialAutomatedFeed": false,
+      "discoveryFeeds": [
+        "bbc-business",
+        "cnbc-business",
+        "stock-dell"
+      ],
+      "sources": [
+        {
+          "id": "news-5a5afee601d46091c10afe79",
+          "url": "https://www.dell.com/en-au/dt/corporate/newsroom/announcements/detailpage.press-releases~usa~2026~09~dell-technologies-introduces-xps-googlebook-the-first-xps-laptop-built-for-gemini-intelligence.htm",
+          "date": "2026-09-21T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "dell"
+        },
+        {
+          "id": "news-d84ca74f294e402076aebced",
+          "url": "https://www.businesswire.com/news/home/20260818927792/en/",
+          "date": "2026-08-18T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "dell"
+        },
+        {
+          "id": "news-4ce7711fb16ddd7304efcbaf",
+          "url": "https://www.businesswire.com/news/home/20260518580963/en/",
+          "date": "2026-05-18T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "dell"
+        },
+        {
+          "id": "news-25ab1aee15dcc4da9a260416",
+          "url": "https://www.prnewswire.com/news-releases/trust3-ai-and-dell-technologies-partner-to-deliver-secure-governed-ai-ready-data-lakehouse-infrastructure-302758220.html",
+          "date": "2026-04-30T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "dell"
+        },
+        {
+          "id": "news-4995c47cf429af36b716c308",
+          "url": "https://www.businesswire.com/news/home/20260325890628/en/",
+          "date": "2026-03-25T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "dell"
+        },
+        {
+          "id": "news-8c99e58cd6b82e6f5a685b80",
+          "url": "https://www.businesswire.com/news/home/20260323998903/en/",
+          "date": "2026-03-23T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "dell"
+        },
+        {
+          "id": "news-d78e045fd5f64835c11b6cc9",
+          "url": "https://www.prnewswire.com/news-releases/dell-ai-factory-with-nvidia-delivers-proven-path-to-enterprise-ai-roi-302715157.html",
+          "date": "2026-03-16T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "dell"
+        },
+        {
+          "id": "news-a4842de963730c2e0a1c2426",
+          "url": "https://www.businesswire.com/news/home/20260316408062/en/",
+          "date": "2026-03-16T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "dell"
+        },
+        {
+          "id": "news-20c4ed6208f8bcda4f04873a",
+          "url": "https://www.businesswire.com/news/home/20260217741670/en/",
+          "date": "2026-02-17T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "dell"
+        },
+        {
+          "id": "news-18d9ab6161863e3ea6355527",
+          "url": "https://www.businesswire.com/news/home/20260106184003/en/",
+          "date": "2026-01-06T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "dell"
+        },
+        {
+          "id": "news-01452ce6d478e141dda810a5",
+          "url": "https://www.businesswire.com/news/home/20251117600629/en/",
+          "date": "2025-11-17T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "dell"
+        }
+      ]
+    },
+    {
+      "pairId": "fluence",
+      "name": "Fluence Energy",
+      "stories": 4,
+      "months": {
+        "2025-11": 0,
+        "2025-12": 0,
+        "2026-01": 0,
+        "2026-02": 0,
+        "2026-03": 0,
+        "2026-04": 0,
+        "2026-05": 0,
+        "2026-06": 1,
+        "2026-07": 1,
+        "2026-08": 1,
+        "2026-09": 1,
+        "2026-10": 0
+      },
+      "missingMonths": [
+        "2025-11",
+        "2025-12",
+        "2026-01",
+        "2026-02",
+        "2026-03",
+        "2026-04",
+        "2026-05",
+        "2026-10"
+      ],
+      "volumePass": false,
+      "sourceDiversityPass": true,
+      "primaryOwners": [
+        "fluence"
+      ],
+      "independentOwners": [
+        "pv-magazine.de"
+      ],
+      "unverifiedDomains": [],
+      "officialDiscoveryHomepage": "https://ir.fluenceenergy.com/news-events/news-releases",
+      "officialAutomatedFeed": true,
+      "discoveryFeeds": [
+        "official-fluence",
+        "bbc-business",
+        "cnbc-business",
+        "stock-fluence",
+        "industry-energy"
+      ],
+      "sources": [
+        {
+          "id": "news-e1ebb507a57cb8b71c01a3bb",
+          "url": "https://ir.fluenceenergy.com/news-releases/news-release-details/fluence-secures-long-term-battery-supply-through-multiyear",
+          "date": "2026-09-24T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "fluence"
+        },
+        {
+          "id": "news-ee9173c7c2ed9f955eb79252",
+          "url": "https://ir.fluenceenergy.com/news-releases/news-release-details/fluence-advances-smartstack-energy-storage-platform-high-density",
+          "date": "2026-06-23T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "fluence"
+        },
+        {
+          "id": "news-19a268be6db3e3fc553bf0f8",
+          "url": "https://ir.fluenceenergy.com/news-releases/news-release-details/fluence-provide-us-domestic-content-smartstack-system-avantus",
+          "date": "2026-07-13T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "fluence"
+        },
+        {
+          "id": "news-a0166e2f3677272e4ab1b411",
+          "url": "https://ir.fluenceenergy.com/news-releases/news-release-details/fluence-and-leag-clean-power-start-construction-their-second",
+          "date": "2026-08-13T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "fluence"
+        },
+        {
+          "id": "news-b99190fa9a7ac23fd6c0a4e9",
+          "url": "https://www.pv-magazine.de/2026/08/13/baustart-fuer-gridbattery-heinersbrueck-mit-400-megawattstunden/",
+          "date": "2026-08-13T00:00:00.000Z",
+          "kind": "independent",
+          "owner": "pv-magazine.de"
+        }
+      ]
+    },
+    {
+      "pairId": "applied-materials",
+      "name": "Applied Materials",
+      "stories": 12,
+      "months": {
+        "2025-11": 0,
+        "2025-12": 0,
+        "2026-01": 0,
+        "2026-02": 0,
+        "2026-03": 1,
+        "2026-04": 1,
+        "2026-05": 3,
+        "2026-06": 4,
+        "2026-07": 0,
+        "2026-08": 0,
+        "2026-09": 1,
+        "2026-10": 2
+      },
+      "missingMonths": [
+        "2025-11",
+        "2025-12",
+        "2026-01",
+        "2026-02",
+        "2026-07",
+        "2026-08"
+      ],
+      "volumePass": true,
+      "sourceDiversityPass": false,
+      "primaryOwners": [
+        "applied-materials"
+      ],
+      "independentOwners": [],
+      "unverifiedDomains": [],
+      "officialDiscoveryHomepage": "https://ir.appliedmaterials.com/news-releases",
+      "officialAutomatedFeed": false,
+      "discoveryFeeds": [
+        "bbc-business",
+        "cnbc-business",
+        "stock-applied-materials"
+      ],
+      "sources": [
+        {
+          "id": "news-a8213675ebc25d02bf487012",
+          "url": "https://investors.appliedmaterials.com/news-releases/news-release-details/applied-materials-and-kioxia-partner-epic-center-advance-next",
+          "date": "2026-09-29T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "applied-materials"
+        },
+        {
+          "id": "news-6a7d4c85021cc968a27d3605",
+          "url": "https://investors.appliedmaterials.com/news-releases/news-release-details/applied-materials-and-besi-expand-strategic-partnership-advance",
+          "date": "2026-10-01T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "applied-materials"
+        },
+        {
+          "id": "news-bd4a68be21066a4dcf0c82de",
+          "url": "https://investors.appliedmaterials.com/news-releases/news-release-details/applied-materials-unveils-senztm-fully-integrated-visual-system",
+          "date": "2026-06-17T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "applied-materials"
+        },
+        {
+          "id": "news-b8967aa05bc58b5564cab911",
+          "url": "https://investors.appliedmaterials.com/news-releases/news-release-details/applied-materials-unveils-deposition-and-selective-etch-systems",
+          "date": "2026-06-15T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "applied-materials"
+        },
+        {
+          "id": "news-b579e93cd9286c29226bdf10",
+          "url": "https://investors.appliedmaterials.com/news-releases/news-release-details/applied-materials-introduces-new-systems-accelerate-dram-and",
+          "date": "2026-06-25T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "applied-materials"
+        },
+        {
+          "id": "news-7239cbf74488c4253b547f3e",
+          "url": "https://investors.appliedmaterials.com/news-releases/news-release-details/applied-materials-introduces-deposition-systems-angstrom-era",
+          "date": "2026-04-08T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "applied-materials"
+        },
+        {
+          "id": "news-b7c52c647cbab0c084db62ef",
+          "url": "https://investors.appliedmaterials.com/news-releases/news-release-details/applied-materials-expands-singapore-manufacturing-support-ai",
+          "date": "2026-06-10T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "applied-materials"
+        },
+        {
+          "id": "news-72cee0b710b7fbe536cec5b3",
+          "url": "https://investors.appliedmaterials.com/news-releases/news-release-details/applied-materials-and-sk-hynix-announce-long-term-rd-partnership",
+          "date": "2026-03-10T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "applied-materials"
+        },
+        {
+          "id": "news-244a01e9efaedeca23ad636f",
+          "url": "https://investors.appliedmaterials.com/news-releases/news-release-details/applied-materials-and-intel-collaborate-accelerate-chipmaking",
+          "date": "2026-10-06T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "applied-materials"
+        },
+        {
+          "id": "news-debc309ba4eecc177a4edb93",
+          "url": "https://api.quotemedia.com/supplement/news-story/?webmasterId=102691&storyId=7455622207588118",
+          "date": "2026-05-26T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "applied-materials"
+        },
+        {
+          "id": "news-20837f511471bd792904a247",
+          "url": "https://api.quotemedia.com/supplement/news-story/?webmasterId=102691&storyId=5804701256823174",
+          "date": "2026-05-20T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "applied-materials"
+        },
+        {
+          "id": "news-eaddb41a43674a167c668c5a",
+          "url": "https://api.quotemedia.com/supplement/news-story/?webmasterId=102691&storyId=7101860011834116",
+          "date": "2026-05-11T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "applied-materials"
+        }
+      ]
+    },
+    {
+      "pairId": "direxion-soxl",
+      "name": "Semis 3× Long",
+      "stories": 8,
+      "months": {
+        "2025-11": 0,
+        "2025-12": 0,
+        "2026-01": 0,
+        "2026-02": 1,
+        "2026-03": 0,
+        "2026-04": 0,
+        "2026-05": 0,
+        "2026-06": 3,
+        "2026-07": 1,
+        "2026-08": 2,
+        "2026-09": 0,
+        "2026-10": 1
+      },
+      "missingMonths": [
+        "2025-11",
+        "2025-12",
+        "2026-01",
+        "2026-03",
+        "2026-04",
+        "2026-05",
+        "2026-09"
+      ],
+      "volumePass": false,
+      "sourceDiversityPass": false,
+      "primaryOwners": [
+        "semiconductors.org"
+      ],
+      "independentOwners": [],
+      "unverifiedDomains": [
+        "t.co",
+        "yahoo.com"
+      ],
+      "officialDiscoveryHomepage": "https://www.direxion.com/education",
+      "officialAutomatedFeed": false,
+      "discoveryFeeds": [
+        "bbc-business",
+        "cnbc-business",
+        "stock-direxion-soxl"
+      ],
+      "sources": [
+        {
+          "id": "news-8bb413315dc3d0e2d5c1b68d",
+          "url": "https://www.semiconductors.org/global-semiconductor-sales-increase-35-1-from-q1-2026-to-q2-2026/",
+          "date": "2026-08-06T00:00:00.000Z",
+          "kind": "primary",
+          "owner": "semiconductors.org"
+        },
+        {
+          "id": "news-c7069812eb34feb198324238",
+          "url": "https://www.semiconductors.org/global-annual-semiconductor-sales-increase-25-6-to-791-7-billion-in-2025/",
+          "date": "2026-02-06T00:00:00.000Z",
+          "kind": "primary",
+          "owner": "semiconductors.org"
+        },
+        {
+          "id": "news-73ac2865b8f268d1d8f24d3d",
+          "url": "https://www.semiconductors.org/global-semiconductor-sales-increase-11-month-to-month-in-april/",
+          "date": "2026-06-05T00:00:00.000Z",
+          "kind": "primary",
+          "owner": "semiconductors.org"
+        },
+        {
+          "id": "news-fc41e1ef598808825bbf9d76",
+          "url": "https://www.semiconductors.org/year-to-date-global-semiconductor-sales-top-1-trillion-through-august/",
+          "date": "2026-10-05T00:00:00.000Z",
+          "kind": "primary",
+          "owner": "semiconductors.org"
+        },
+        {
+          "id": "news-a6d52d3196d8879f621bced9",
+          "url": "https://t.co/BjBPdzdzXu",
+          "date": "2026-07-06T00:00:00.000Z",
+          "kind": "unverified",
+          "owner": "t.co"
+        },
+        {
+          "id": "news-9ffa4b70f0befe1baaa6779a",
+          "url": "https://finance.yahoo.com/markets/stocks/articles/intel-amd-jump-7-chip-161810023.html",
+          "date": "2026-06-30T16:18:10.000Z",
+          "kind": "unverified",
+          "owner": "yahoo.com"
+        },
+        {
+          "id": "news-1b9c578c41c831d0798ad05b",
+          "url": "https://finance.yahoo.com/markets/stocks/articles/heres-why-direxion-daily-semiconductor-170802461.html",
+          "date": "2026-06-08T17:08:02.000Z",
+          "kind": "unverified",
+          "owner": "yahoo.com"
+        },
+        {
+          "id": "news-1238af9d70bdc42d669677a8",
+          "url": "https://finance.yahoo.com/markets/stocks/articles/why-direxion-daily-semiconductor-bull-154247447.html",
+          "date": "2026-08-04T15:42:47.000Z",
+          "kind": "unverified",
+          "owner": "yahoo.com"
+        }
+      ]
+    },
+    {
+      "pairId": "moderna",
+      "name": "Moderna",
+      "stories": 11,
+      "months": {
+        "2025-11": 1,
+        "2025-12": 1,
+        "2026-01": 1,
+        "2026-02": 3,
+        "2026-03": 0,
+        "2026-04": 1,
+        "2026-05": 0,
+        "2026-06": 1,
+        "2026-07": 0,
+        "2026-08": 3,
+        "2026-09": 0,
+        "2026-10": 0
+      },
+      "missingMonths": [
+        "2026-03",
+        "2026-05",
+        "2026-07",
+        "2026-09",
+        "2026-10"
+      ],
+      "volumePass": true,
+      "sourceDiversityPass": false,
+      "primaryOwners": [
+        "moderna"
+      ],
+      "independentOwners": [],
+      "unverifiedDomains": [],
+      "officialDiscoveryHomepage": "https://investors.modernatx.com/news-and-events/press-releases",
+      "officialAutomatedFeed": false,
+      "discoveryFeeds": [
+        "bbc-business",
+        "cnbc-business",
+        "stock-moderna",
+        "industry-biotech"
+      ],
+      "sources": [
+        {
+          "id": "news-d526e4f7207d23c80a24e02b",
+          "url": "https://api.quotemedia.com/supplement/news-story/?webmasterId=102691&storyId=5391658462991287",
+          "date": "2026-08-27T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "moderna"
+        },
+        {
+          "id": "news-775c44c3e42800b64a54bf94",
+          "url": "https://api.quotemedia.com/supplement/news-story/?webmasterId=102691&storyId=4801915282452025",
+          "date": "2026-08-05T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "moderna"
+        },
+        {
+          "id": "news-d420a55f86fe426ba5322e90",
+          "url": "https://api.quotemedia.com/supplement/news-story/?webmasterId=102691&storyId=4934808867799048",
+          "date": "2026-06-01T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "moderna"
+        },
+        {
+          "id": "news-b5bf86b8b813ce8d4b25c1ff",
+          "url": "https://api.quotemedia.com/supplement/news-story/?webmasterId=102691&storyId=4806394309889623",
+          "date": "2026-02-10T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "moderna"
+        },
+        {
+          "id": "news-0c3e728bfce7ae76e8971d62",
+          "url": "https://api.quotemedia.com/supplement/news-story/?webmasterId=102691&storyId=5477880263899463",
+          "date": "2025-11-19T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "moderna"
+        },
+        {
+          "id": "news-1a83db4db5c3b5da0ca6cb6e",
+          "url": "https://www.businesswire.com/news/home/20260819675697/en/",
+          "date": "2026-08-19T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "moderna"
+        },
+        {
+          "id": "news-1058cb9880af519d9a6c0833",
+          "url": "https://api.quotemedia.com/supplement/news-story/?webmasterId=102691&storyId=6037570860109793",
+          "date": "2026-04-21T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "moderna"
+        },
+        {
+          "id": "news-c1b5766e7f2d663061b1635e",
+          "url": "https://api.quotemedia.com/supplement/news-story/?webmasterId=102691&storyId=8245752892462590",
+          "date": "2026-02-27T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "moderna"
+        },
+        {
+          "id": "news-cf43ddf20232515ad6d2315d",
+          "url": "https://api.quotemedia.com/supplement/news-story/?webmasterId=102691&storyId=8201845178897387",
+          "date": "2026-02-17T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "moderna"
+        },
+        {
+          "id": "news-0485e6700a9f003a9cfb9ec5",
+          "url": "https://api.quotemedia.com/supplement/news-story/?webmasterId=102691&storyId=7585547225835569",
+          "date": "2026-01-20T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "moderna"
+        },
+        {
+          "id": "news-508b5f6e6d055ec6b0a81cf8",
+          "url": "https://api.quotemedia.com/supplement/news-story/?webmasterId=102691&storyId=6130297639445566",
+          "date": "2025-12-18T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "moderna"
+        }
+      ]
+    },
+    {
+      "pairId": "paypal",
+      "name": "PayPal",
+      "stories": 18,
+      "months": {
+        "2025-11": 4,
+        "2025-12": 0,
+        "2026-01": 5,
+        "2026-02": 2,
+        "2026-03": 0,
+        "2026-04": 2,
+        "2026-05": 1,
+        "2026-06": 1,
+        "2026-07": 1,
+        "2026-08": 1,
+        "2026-09": 1,
+        "2026-10": 0
+      },
+      "missingMonths": [
+        "2025-12",
+        "2026-03",
+        "2026-10"
+      ],
+      "volumePass": true,
+      "sourceDiversityPass": false,
+      "primaryOwners": [
+        "paypal"
+      ],
+      "independentOwners": [],
+      "unverifiedDomains": [],
+      "officialDiscoveryHomepage": "https://newsroom.paypal-corp.com/",
+      "officialAutomatedFeed": true,
+      "discoveryFeeds": [
+        "bbc-business",
+        "cnbc-business",
+        "stock-paypal",
+        "expanded-official-paypal",
+        "industry-finance"
+      ],
+      "sources": [
+        {
+          "id": "news-b8057b07acefc5e82c493bb3",
+          "url": "https://newsroom.paypal-corp.com/2026-09-16-Venmo-Kicks-Off-2026-2027-NIL-Season-with-Nine-Standout-Student-Athletes-and-Introduces-Money-Moves",
+          "date": "2026-09-16T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "paypal"
+        },
+        {
+          "id": "news-49a37c7fca9adbe6d9ca4d83",
+          "url": "https://newsroom.paypal-corp.com/2026-08-19-PayPal-and-Venmo-Expand-to-Tuition-Payments-in-New-Integrations-with-Illumia,-Nelnet-Campus-Commerce,-and-TouchNet",
+          "date": "2026-08-19T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "paypal"
+        },
+        {
+          "id": "news-53c117e509084444dc5adcb7",
+          "url": "https://newsroom.paypal-corp.com/2026-07-PayPal-and-Amazon-Launch-Buy-Now-Pay-Later-for-Customers-in-Germany-and-Austria",
+          "date": "2026-07-28T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "paypal"
+        },
+        {
+          "id": "news-7dd52a190ad8230cedf9a24b",
+          "url": "https://newsroom.paypal-corp.com/2026-04-PayPal-Adds-Pix-to-Power-Growth-for-Millions-of-Small-Businesses-in-Brazil",
+          "date": "2026-04-13T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "paypal"
+        },
+        {
+          "id": "news-cc08141bb62f17ea75a6ba1e",
+          "url": "https://newsroom.paypal-corp.com/2026-02-25-Rainforest-Launches-Embedded-PayPal-Integration-for-Vertical-Software-Platforms",
+          "date": "2026-02-25T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "paypal"
+        },
+        {
+          "id": "news-193acbceffb565dd893c863f",
+          "url": "https://newsroom.paypal-corp.com/2026-06-02-Hey-Savi-and-PayPal-Launch-UKs-First-Agentic-Commerce-Platform-with-In-App-Checkout-Debenhams-Group-Joins-as-First-Retail-Adopter",
+          "date": "2026-06-02T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "paypal"
+        },
+        {
+          "id": "news-1dddc9542ed36dda2d60a93c",
+          "url": "https://newsroom.paypal-corp.com/2026-01-20-PayPal-Introduces-Free-DIY-Tax-Filing-for-PayPal-Debit-Card-Customers",
+          "date": "2026-01-20T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "paypal"
+        },
+        {
+          "id": "news-b3a95e2b1e71e4c93d5870bc",
+          "url": "https://newsroom.paypal-corp.com/2026-01-13-Deutsche-Bank-Expands-Support-for-PayPal-to-Strengthen-Global-Payment-Capabilities",
+          "date": "2026-01-13T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "paypal"
+        },
+        {
+          "id": "news-ef346f2c2a00f7cdca8beaaa",
+          "url": "https://newsroom.paypal-corp.com/2025-11-PayPal-and-Perplexity-Launch-Instant-Buy",
+          "date": "2025-11-25T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "paypal"
+        },
+        {
+          "id": "news-3884d83cc071ba3cefb7a694",
+          "url": "https://newsroom.paypal-corp.com/2026-01-06-PayPal-Ads-Launches-Transaction-Graph-Insights-and-Measurement-to-Improve-Commerce-Advertising-Outcomes",
+          "date": "2026-01-06T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "paypal"
+        },
+        {
+          "id": "news-ea6e6669520d41ed1c74535e",
+          "url": "https://newsroom.paypal-corp.com/2026-01-08-PayPal-Powers-Microsofts-Launch-of-Copilot-Checkout",
+          "date": "2026-01-08T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "paypal"
+        },
+        {
+          "id": "news-3df8f54f22a82dd8cf04d0ff",
+          "url": "https://newsroom.paypal-corp.com/2026-01-22-PayPal-to-Acquire-Cymbio,-Accelerating-Agentic-Commerce-Capabilities",
+          "date": "2026-01-22T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "paypal"
+        },
+        {
+          "id": "news-58c5db5a449a08172c35cc07",
+          "url": "https://newsroom.paypal-corp.com/2025-11-17PayPal-and-KKR-Renew-Agreement-for-European-Pay-Later-Receivables",
+          "date": "2025-11-17T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "paypal"
+        },
+        {
+          "id": "news-e9f3d4fdcdc59992958354cb",
+          "url": "https://www.prnewswire.com/news-releases/seattle-seahawks-and-paypal-announce-paypal-as-the-teams-official-fan-to-fan-payments--exclusive-digital-ticket-payment-processing-partner-302767882.html",
+          "date": "2026-05-11T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "paypal"
+        },
+        {
+          "id": "news-bf2485b8e2d1865cf528750b",
+          "url": "https://www.prnewswire.com/news-releases/paypal-brings-new-commerce-grade-identity-solution-to-advertising-industry-302753802.html",
+          "date": "2026-04-27T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "paypal"
+        },
+        {
+          "id": "news-22f0a64dce106610180178d4",
+          "url": "https://www.prnewswire.com/news-releases/sabre-paypal-and-mindtrip-partner-to-deliver-the-industrys-first-end-to-end-agentic-ai-experience-for-travel-302686303.html",
+          "date": "2026-02-12T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "paypal"
+        },
+        {
+          "id": "news-e40292947e3cab85acf13e82",
+          "url": "https://www.prnewswire.com/news-releases/lfc-welcomes-paypal-as-clubs-official-digital-payments-partner-302619490.html",
+          "date": "2025-11-19T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "paypal"
+        },
+        {
+          "id": "news-6635247885ef0ae5f3e8ea36",
+          "url": "https://newsroom.paypal-corp.com/2025-11-10-Venmo-Introduces-Venmo-Stash-to-Reinvent-Rewards",
+          "date": "2025-11-10T00:00:00.000Z",
+          "kind": "issuer",
+          "owner": "paypal"
+        }
+      ]
+    },
+    {
+      "pairId": "proshares-sqqq",
+      "name": "ProShares UltraPro Short QQQ",
+      "stories": 2,
+      "months": {
+        "2025-11": 0,
+        "2025-12": 0,
+        "2026-01": 0,
+        "2026-02": 0,
+        "2026-03": 0,
+        "2026-04": 0,
+        "2026-05": 0,
+        "2026-06": 1,
+        "2026-07": 1,
+        "2026-08": 0,
+        "2026-09": 0,
+        "2026-10": 0
+      },
+      "missingMonths": [
+        "2025-11",
+        "2025-12",
+        "2026-01",
+        "2026-02",
+        "2026-03",
+        "2026-04",
+        "2026-05",
+        "2026-08",
+        "2026-09",
+        "2026-10"
+      ],
+      "volumePass": false,
+      "sourceDiversityPass": false,
+      "primaryOwners": [],
+      "independentOwners": [
+        "reuters.com"
+      ],
+      "unverifiedDomains": [],
+      "officialDiscoveryHomepage": "https://www.proshares.com/browse-all-insights",
+      "officialAutomatedFeed": false,
+      "discoveryFeeds": [
+        "bbc-business",
+        "cnbc-business",
+        "stock-proshares-sqqq"
+      ],
+      "sources": [
+        {
+          "id": "news-5e645f5b5a224874d7486f7d",
+          "url": "https://www.investing.com/news/stock-market-news/chip-stocks-plunge-but-bargain-hunters-limit-scale-of-tech-rout-4755018",
+          "date": "2026-06-23T00:00:00.000Z",
+          "kind": "independent",
+          "owner": "reuters.com"
+        },
+        {
+          "id": "news-75ca3f3e4f83adcbb31b479f",
+          "url": "https://www.investing.com/news/economy-news/trading-day-sinking-chips-4797014",
+          "date": "2026-07-16T00:00:00.000Z",
+          "kind": "independent",
+          "owner": "reuters.com"
+        }
+      ]
+    }
+  ]
+}

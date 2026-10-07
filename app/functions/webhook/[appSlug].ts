@@ -3,7 +3,7 @@ import { Env, handleWebhookRequest } from "../webhook.js";
 import { WARPLETS_APP_SLUG } from "../../shared/warpletsApp.js";
 import { STONKLETS_APP_SLUG } from "../../shared/stonkletsApp.js";
 
-const VALID_APP_SLUGS = new Set<AppSlug>(["app", "drop", WARPLETS_APP_SLUG, STONKLETS_APP_SLUG, "million"]);
+const VALID_APP_SLUGS = new Set<AppSlug>(["app", "drop", WARPLETS_APP_SLUG, STONKLETS_APP_SLUG, "million", "social"]);
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
   const rawAppSlug = context.params?.appSlug;

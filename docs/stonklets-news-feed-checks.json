@@ -1,0 +1,691 @@
+[
+  {
+    "feed": {
+      "id": "expanded-official-gamestop",
+      "publisher": "GameStop",
+      "owner": "GameStop",
+      "url": "https://investor.gamestop.com/rss/news-releases.xml",
+      "pairIds": [
+        "gamestop"
+      ],
+      "priority": 0,
+      "hosts": [
+        "investor.gamestop.com"
+      ],
+      "enabled": false,
+      "method": "public-rss"
+    },
+    "error": "Error: Source HTTP 403",
+    "checkedAt": "2026-10-07T04:28:09.868Z"
+  },
+  {
+    "feed": {
+      "id": "expanded-official-tether-gold",
+      "publisher": "Tether Gold",
+      "owner": "Tether Gold",
+      "url": "https://tether.io/feed/",
+      "pairIds": [
+        "tether-gold"
+      ],
+      "priority": 0,
+      "hosts": [
+        "tether.io",
+        "wdk.tether.io"
+      ],
+      "enabled": true,
+      "method": "public-rss"
+    },
+    "status": 200,
+    "datedArticles": 5,
+    "checkedAt": "2026-10-07T04:28:09.927Z"
+  },
+  {
+    "feed": {
+      "id": "expanded-official-strategy",
+      "publisher": "Strategy",
+      "owner": "Strategy",
+      "url": "https://www.strategy.com/press/rss",
+      "pairIds": [
+        "strategy"
+      ],
+      "priority": 0,
+      "hosts": [
+        "www.strategy.com"
+      ],
+      "enabled": false,
+      "method": "public-rss"
+    },
+    "error": "Error: Source HTTP 403",
+    "checkedAt": "2026-10-07T04:28:10.155Z"
+  },
+  {
+    "feed": {
+      "id": "expanded-official-iren",
+      "publisher": "IREN",
+      "owner": "IREN",
+      "url": "https://investors.iren.com/rss/news-releases.xml",
+      "pairIds": [
+        "iren"
+      ],
+      "priority": 0,
+      "hosts": [
+        "investors.iren.com"
+      ],
+      "enabled": false,
+      "method": "public-rss"
+    },
+    "error": "TypeError: fetch failed",
+    "checkedAt": "2026-10-07T04:28:10.270Z"
+  },
+  {
+    "feed": {
+      "id": "expanded-official-tesla",
+      "publisher": "Tesla",
+      "owner": "Tesla",
+      "url": "https://ir.tesla.com/rss/news-releases.xml",
+      "pairIds": [
+        "tesla"
+      ],
+      "priority": 0,
+      "hosts": [
+        "ir.tesla.com"
+      ],
+      "enabled": false,
+      "method": "public-rss"
+    },
+    "error": "Error: Source HTTP 404",
+    "checkedAt": "2026-10-07T04:28:10.317Z"
+  },
+  {
+    "feed": {
+      "id": "expanded-official-super-micro",
+      "publisher": "Super Micro Computer",
+      "owner": "Super Micro Computer",
+      "url": "https://ir.supermicro.com/rss/pressrelease.aspx",
+      "pairIds": [
+        "super-micro"
+      ],
+      "priority": 0,
+      "hosts": [
+        "ir.supermicro.com"
+      ],
+      "enabled": false,
+      "method": "public-rss"
+    },
+    "error": "Error: Source HTTP 403",
+    "checkedAt": "2026-10-07T04:28:10.478Z"
+  },
+  {
+    "feed": {
+      "id": "expanded-official-coherent",
+      "publisher": "Coherent",
+      "owner": "Coherent",
+      "url": "https://investor.coherent.com/rss/news-releases.xml",
+      "pairIds": [
+        "coherent"
+      ],
+      "priority": 0,
+      "hosts": [
+        "investor.coherent.com"
+      ],
+      "enabled": false,
+      "method": "public-rss"
+    },
+    "error": "TypeError: fetch failed",
+    "checkedAt": "2026-10-07T04:28:10.722Z"
+  },
+  {
+    "feed": {
+      "id": "expanded-official-credo",
+      "publisher": "Credo Technology",
+      "owner": "Credo Technology",
+      "url": "https://investors.credosemi.com/rss/news-releases.xml",
+      "pairIds": [
+        "credo"
+      ],
+      "priority": 0,
+      "hosts": [
+        "investors.credosemi.com"
+      ],
+      "enabled": false,
+      "method": "public-rss"
+    },
+    "error": "Error: Source HTTP 403",
+    "checkedAt": "2026-10-07T04:28:11.203Z"
+  },
+  {
+    "feed": {
+      "id": "expanded-official-asml",
+      "publisher": "ASML",
+      "owner": "ASML",
+      "url": "https://www.asml.com/en/news/press-releases/rss",
+      "pairIds": [
+        "asml"
+      ],
+      "priority": 0,
+      "hosts": [
+        "www.asml.com"
+      ],
+      "enabled": false,
+      "method": "public-rss"
+    },
+    "error": "TypeError: fetch failed",
+    "checkedAt": "2026-10-07T04:28:11.263Z"
+  },
+  {
+    "feed": {
+      "id": "expanded-official-ast-spacemobile",
+      "publisher": "AST SpaceMobile",
+      "owner": "AST SpaceMobile",
+      "url": "https://ast-science.com/feed/",
+      "pairIds": [
+        "ast-spacemobile"
+      ],
+      "priority": 0,
+      "hosts": [
+        "ast-science.com"
+      ],
+      "enabled": true,
+      "method": "public-rss"
+    },
+    "status": 200,
+    "datedArticles": 10,
+    "checkedAt": "2026-10-07T04:28:11.651Z"
+  },
+  {
+    "feed": {
+      "id": "expanded-official-astera-labs",
+      "publisher": "Astera Labs",
+      "owner": "Astera Labs",
+      "url": "https://www.asteralabs.com/feed/",
+      "pairIds": [
+        "astera-labs"
+      ],
+      "priority": 0,
+      "hosts": [
+        "www.asteralabs.com"
+      ],
+      "enabled": true,
+      "method": "public-rss"
+    },
+    "status": 200,
+    "datedArticles": 10,
+    "checkedAt": "2026-10-07T04:28:11.740Z"
+  },
+  {
+    "feed": {
+      "id": "expanded-official-trump-media",
+      "publisher": "Trump Media & Technology Group",
+      "owner": "Trump Media & Technology Group",
+      "url": "https://ir.tmtgcorp.com/rss/news-releases.xml",
+      "pairIds": [
+        "trump-media"
+      ],
+      "priority": 0,
+      "hosts": [
+        "ir.tmtgcorp.com"
+      ],
+      "enabled": false,
+      "method": "public-rss"
+    },
+    "error": "Error: Source HTTP 404",
+    "checkedAt": "2026-10-07T04:28:11.752Z"
+  },
+  {
+    "feed": {
+      "id": "expanded-official-micron",
+      "publisher": "Micron",
+      "owner": "Micron",
+      "url": "https://investors.micron.com/rss/news-releases.xml",
+      "pairIds": [
+        "micron"
+      ],
+      "priority": 0,
+      "hosts": [
+        "investors.micron.com"
+      ],
+      "enabled": false,
+      "method": "public-rss"
+    },
+    "error": "Error: Source HTTP 403",
+    "checkedAt": "2026-10-07T04:28:11.823Z"
+  },
+  {
+    "feed": {
+      "id": "expanded-official-amd",
+      "publisher": "Advanced Micro Devices",
+      "owner": "Advanced Micro Devices",
+      "url": "https://ir.amd.com/news-events/press-releases/rss",
+      "pairIds": [
+        "amd"
+      ],
+      "priority": 0,
+      "hosts": [
+        "ir.amd.com"
+      ],
+      "enabled": true,
+      "method": "public-rss"
+    },
+    "status": 200,
+    "datedArticles": 10,
+    "checkedAt": "2026-10-07T04:28:12.072Z"
+  },
+  {
+    "feed": {
+      "id": "expanded-official-intel",
+      "publisher": "Intel",
+      "owner": "Intel",
+      "url": "https://newsroom.intel.com/feed/",
+      "pairIds": [
+        "intel"
+      ],
+      "priority": 0,
+      "hosts": [
+        "newsroom.intel.com"
+      ],
+      "enabled": false,
+      "method": "public-rss"
+    },
+    "error": "TypeError: fetch failed",
+    "checkedAt": "2026-10-07T04:28:12.905Z"
+  },
+  {
+    "feed": {
+      "id": "expanded-official-lumentum",
+      "publisher": "Lumentum",
+      "owner": "Lumentum",
+      "url": "https://investor.lumentum.com/rss/pressrelease.aspx",
+      "pairIds": [
+        "lumentum"
+      ],
+      "priority": 0,
+      "hosts": [
+        "investor.lumentum.com"
+      ],
+      "enabled": true,
+      "method": "public-rss"
+    },
+    "status": 200,
+    "datedArticles": 10,
+    "checkedAt": "2026-10-07T04:28:13.077Z"
+  },
+  {
+    "feed": {
+      "id": "expanded-official-meta",
+      "publisher": "Meta",
+      "owner": "Meta",
+      "url": "https://about.fb.com/news/feed/",
+      "pairIds": [
+        "meta"
+      ],
+      "priority": 0,
+      "hosts": [
+        "about.fb.com"
+      ],
+      "enabled": true,
+      "method": "public-rss"
+    },
+    "status": 200,
+    "datedArticles": 10,
+    "checkedAt": "2026-10-07T04:28:13.482Z"
+  },
+  {
+    "feed": {
+      "id": "expanded-official-palantir",
+      "publisher": "Palantir",
+      "owner": "Palantir",
+      "url": "https://investors.palantir.com/rss/news-releases.xml",
+      "pairIds": [
+        "palantir"
+      ],
+      "priority": 0,
+      "hosts": [
+        "investors.palantir.com"
+      ],
+      "enabled": false,
+      "method": "public-rss"
+    },
+    "error": "TypeError: fetch failed",
+    "checkedAt": "2026-10-07T04:28:14.168Z"
+  },
+  {
+    "feed": {
+      "id": "expanded-official-bloom-energy",
+      "publisher": "Bloom Energy",
+      "owner": "Bloom Energy",
+      "url": "https://www.bloomenergy.com/feed/",
+      "pairIds": [
+        "bloom-energy"
+      ],
+      "priority": 0,
+      "hosts": [
+        "www.bloomenergy.com",
+        "investor.bloomenergy.com"
+      ],
+      "enabled": true,
+      "method": "public-rss"
+    },
+    "status": 200,
+    "datedArticles": 10,
+    "checkedAt": "2026-10-07T04:28:14.215Z"
+  },
+  {
+    "feed": {
+      "id": "expanded-official-moderna",
+      "publisher": "Moderna",
+      "owner": "Moderna",
+      "url": "https://investors.modernatx.com/rss/news-releases.xml",
+      "pairIds": [
+        "moderna"
+      ],
+      "priority": 0,
+      "hosts": [
+        "investors.modernatx.com"
+      ],
+      "enabled": false,
+      "method": "public-rss"
+    },
+    "error": "Error: Source HTTP 404",
+    "checkedAt": "2026-10-07T04:28:15.513Z"
+  },
+  {
+    "feed": {
+      "id": "expanded-official-paypal",
+      "publisher": "PayPal",
+      "owner": "PayPal",
+      "url": "https://newsroom.paypal-corp.com/news?pagetemplate=rss",
+      "pairIds": [
+        "paypal"
+      ],
+      "priority": 0,
+      "hosts": [
+        "newsroom.paypal-corp.com"
+      ],
+      "enabled": true,
+      "method": "public-rss"
+    },
+    "status": 200,
+    "datedArticles": 5,
+    "checkedAt": "2026-10-07T04:28:16.171Z"
+  },
+  {
+    "feed": {
+      "id": "industry-space",
+      "publisher": "Space.com",
+      "owner": "Space.com",
+      "url": "https://www.space.com/feeds/all",
+      "pairIds": [
+        "spacex",
+        "ast-spacemobile"
+      ],
+      "priority": 1,
+      "hosts": [
+        "www.space.com"
+      ],
+      "enabled": false,
+      "method": "public-rss"
+    },
+    "error": "TypeError: fetch failed",
+    "checkedAt": "2026-10-07T04:28:16.805Z"
+  },
+  {
+    "feed": {
+      "id": "industry-chips",
+      "publisher": "Tom's Hardware",
+      "owner": "Tom's Hardware",
+      "url": "https://www.tomshardware.com/feeds/all",
+      "pairIds": [
+        "sk-hynix",
+        "nvidia",
+        "super-micro",
+        "asml",
+        "coherent",
+        "credo",
+        "astera-labs",
+        "micron",
+        "sandisk",
+        "amd",
+        "intel",
+        "lumentum",
+        "dell",
+        "applied-materials"
+      ],
+      "priority": 1,
+      "hosts": [
+        "www.tomshardware.com"
+      ],
+      "enabled": false,
+      "method": "public-rss"
+    },
+    "error": "TypeError: fetch failed",
+    "checkedAt": "2026-10-07T04:28:17.554Z"
+  },
+  {
+    "feed": {
+      "id": "industry-tech",
+      "publisher": "TechCrunch",
+      "owner": "TechCrunch",
+      "url": "https://techcrunch.com/feed/",
+      "pairIds": [
+        "apple",
+        "microsoft",
+        "alphabet",
+        "alibaba",
+        "meta",
+        "palantir"
+      ],
+      "priority": 1,
+      "hosts": [
+        "techcrunch.com"
+      ],
+      "enabled": true,
+      "method": "public-rss"
+    },
+    "status": 200,
+    "datedArticles": 20,
+    "checkedAt": "2026-10-07T04:28:18.001Z"
+  },
+  {
+    "feed": {
+      "id": "industry-finance",
+      "publisher": "Finextra",
+      "owner": "Finextra",
+      "url": "https://www.finextra.com/rss/headlines.aspx",
+      "pairIds": [
+        "robinhood",
+        "paypal"
+      ],
+      "priority": 1,
+      "hosts": [
+        "www.finextra.com"
+      ],
+      "enabled": true,
+      "method": "public-rss"
+    },
+    "status": 200,
+    "datedArticles": 42,
+    "checkedAt": "2026-10-07T04:28:18.215Z"
+  },
+  {
+    "feed": {
+      "id": "industry-retail",
+      "publisher": "Retail Dive",
+      "owner": "Retail Dive",
+      "url": "https://www.retaildive.com/feeds/news/",
+      "pairIds": [
+        "gamestop",
+        "amazon"
+      ],
+      "priority": 1,
+      "hosts": [
+        "www.retaildive.com"
+      ],
+      "enabled": true,
+      "method": "public-rss"
+    },
+    "status": 200,
+    "datedArticles": 10,
+    "checkedAt": "2026-10-07T04:28:18.434Z"
+  },
+  {
+    "feed": {
+      "id": "industry-media",
+      "publisher": "Variety",
+      "owner": "Variety",
+      "url": "https://variety.com/feed/",
+      "pairIds": [
+        "netflix",
+        "trump-media"
+      ],
+      "priority": 1,
+      "hosts": [
+        "variety.com"
+      ],
+      "enabled": true,
+      "method": "public-rss"
+    },
+    "status": 200,
+    "datedArticles": 10,
+    "checkedAt": "2026-10-07T04:28:18.592Z"
+  },
+  {
+    "feed": {
+      "id": "industry-crypto",
+      "publisher": "CoinDesk",
+      "owner": "CoinDesk",
+      "url": "https://www.coindesk.com/arc/outboundfeeds/rss/",
+      "pairIds": [
+        "strategy",
+        "bitmine",
+        "iren",
+        "circle"
+      ],
+      "priority": 1,
+      "hosts": [
+        "www.coindesk.com"
+      ],
+      "enabled": false,
+      "method": "public-rss"
+    },
+    "error": "TypeError: fetch failed",
+    "checkedAt": "2026-10-07T04:28:18.735Z"
+  },
+  {
+    "feed": {
+      "id": "industry-metals",
+      "publisher": "Mining.com",
+      "owner": "Mining.com",
+      "url": "https://www.mining.com/feed/",
+      "pairIds": [
+        "usa-rare-earth"
+      ],
+      "priority": 1,
+      "hosts": [
+        "www.mining.com"
+      ],
+      "enabled": false,
+      "method": "public-rss"
+    },
+    "error": "Error: Source HTTP 403",
+    "checkedAt": "2026-10-07T04:28:18.861Z"
+  },
+  {
+    "feed": {
+      "id": "industry-energy",
+      "publisher": "Energy-Storage.news",
+      "owner": "Energy-Storage.news",
+      "url": "https://www.energy-storage.news/feed/",
+      "pairIds": [
+        "tesla",
+        "bloom-energy",
+        "fluence"
+      ],
+      "priority": 1,
+      "hosts": [
+        "www.energy-storage.news"
+      ],
+      "enabled": true,
+      "method": "public-rss"
+    },
+    "status": 200,
+    "datedArticles": 50,
+    "checkedAt": "2026-10-07T04:28:19.199Z"
+  },
+  {
+    "feed": {
+      "id": "expanded-official-usa-rare-earth",
+      "publisher": "USA Rare Earth",
+      "owner": "USA Rare Earth",
+      "url": "https://investors.usare.com/rss/news-releases.xml",
+      "pairIds": [
+        "usa-rare-earth"
+      ],
+      "priority": 0,
+      "hosts": [
+        "investors.usare.com"
+      ],
+      "enabled": false,
+      "method": "public-rss"
+    },
+    "error": "TimeoutError: The operation was aborted due to timeout",
+    "checkedAt": "2026-10-07T04:28:19.205Z"
+  },
+  {
+    "feed": {
+      "id": "industry-biotech",
+      "publisher": "BioPharma Dive",
+      "owner": "BioPharma Dive",
+      "url": "https://www.biopharmadive.com/feeds/news/",
+      "pairIds": [
+        "moderna"
+      ],
+      "priority": 1,
+      "hosts": [
+        "www.biopharmadive.com"
+      ],
+      "enabled": true,
+      "method": "public-rss"
+    },
+    "status": 200,
+    "datedArticles": 10,
+    "checkedAt": "2026-10-07T04:28:19.339Z"
+  },
+  {
+    "feed": {
+      "id": "expanded-official-sandisk",
+      "publisher": "Sandisk",
+      "owner": "Sandisk",
+      "url": "https://investor.sandisk.com/rss/news-releases.xml",
+      "pairIds": [
+        "sandisk"
+      ],
+      "priority": 0,
+      "hosts": [
+        "investor.sandisk.com"
+      ],
+      "enabled": false,
+      "method": "public-rss"
+    },
+    "error": "TimeoutError: The operation was aborted due to timeout",
+    "checkedAt": "2026-10-07T04:28:19.755Z"
+  },
+  {
+    "feed": {
+      "id": "expanded-official-applied-materials",
+      "publisher": "Applied Materials",
+      "owner": "Applied Materials",
+      "url": "https://ir.appliedmaterials.com/rss/news-releases.xml",
+      "pairIds": [
+        "applied-materials"
+      ],
+      "priority": 0,
+      "hosts": [
+        "ir.appliedmaterials.com"
+      ],
+      "enabled": false,
+      "method": "public-rss"
+    },
+    "error": "TimeoutError: The operation was aborted due to timeout",
+    "checkedAt": "2026-10-07T04:28:22.179Z"
+  }
+]

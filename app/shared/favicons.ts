@@ -1,9 +1,10 @@
 import { isWarpletsAppHostname } from "./warpletsApp.js";
 import { isStonkletsAppHostname } from "./stonkletsApp.js";
 
-export type AppFaviconKey = "app" | "warplets" | "stonklets" | "drop";
+export type AppFaviconKey = "app" | "warplets" | "stonklets" | "drop" | "social";
 
 export const APP_FAVICONS: Readonly<Record<AppFaviconKey, { png: string; ico: string }>> = {
+  social: {png:"/favicon-10x-v2.png",ico:"/favicon-10x-v2.ico"},
   app: { png: "/favicon-10x-v2.png", ico: "/favicon-10x-v2.ico" },
   warplets: { png: "/favicon-warplets-v2.png", ico: "/favicon-warplets-v2.ico" },
   stonklets: { png: "/favicon-stonklet.png", ico: "/favicon-stonklet.ico" },
@@ -12,6 +13,7 @@ export const APP_FAVICONS: Readonly<Record<AppFaviconKey, { png: string; ico: st
 
 export function getHostnameFaviconKey(hostname: string): AppFaviconKey {
   const normalized = hostname.toLowerCase();
+  if (["social.10x.meme", "social-local.10x.meme"].includes(normalized)) return "social";
   if (normalized === "drop.10x.meme" || normalized === "drop-dev.10x.meme" || normalized === "drop-local.10x.meme") {
     return "drop";
   }

@@ -31,6 +31,7 @@ captureWarpmojiAttribution();
 captureHolderOutreachAttribution();
 
 const App = lazy(() => import("./App.tsx"));
+const SocialApp = lazy(() => import("./SocialApp.tsx"));
 const DropApp = lazy(() => import("./DropClosedApp.tsx"));
 const SearchApp = lazy(() => import("./SearchApp.tsx"));
 const StonkletsApp = lazy(() => import("./StonkletsApp.tsx"));
@@ -113,6 +114,7 @@ function resolveActiveApp() {
   if (cleanPath === "/developer") return <DeveloperPage />;
   if (cleanPath === "/link-bot") return <BotLinkPage />;
   if (cleanPath === "/tabs") return <TabsEntryPage />;
+  if (["social.10x.meme", "social-local.10x.meme"].includes(hostname) || cleanPath === "/social" || cleanPath.startsWith("/social/")) return <SocialApp />;
 
   if (hostname === "drop.10x.meme" || hostname === "drop-local.10x.meme" || hostname === "drop-dev.10x.meme") return <DropApp />;
   if ((WARPLETS_APP_HOSTS as readonly string[]).includes(hostname)) return <SearchApp />;

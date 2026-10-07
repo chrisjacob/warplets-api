@@ -1,0 +1,7 @@
+{
+  "name": "10x-social-development-tools",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Optional isolated contract and browser verification tools",
+  "dependencies": { "solc": "0.8.24", "ganache": "7.9.2", "playwright": "1.58.2" }
+}

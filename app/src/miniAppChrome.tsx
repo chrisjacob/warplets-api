@@ -16,7 +16,7 @@ import {
   STONKLETS_PUBLIC_NAME,
 } from "../shared/stonkletsApp";
 
-export type AppSlug = "app" | "drop" | typeof WARPLETS_APP_SLUG | typeof STONKLETS_APP_SLUG | "million";
+export type AppSlug = "app" | "drop" | typeof WARPLETS_APP_SLUG | typeof STONKLETS_APP_SLUG | "million" | "social";
 
 // Temporarily hidden menu content. Keep the definitions below intact so these
 // cards and sections can be restored by removing their entries here.
@@ -49,6 +49,7 @@ type MenuCard = {
 };
 
 const APP_CONFIGS: Record<AppSlug, AppConfig> = {
+  social: { slug: "social", appName: "10X Social", headerTitle: "10X Social", ctaLabel: "Explore the feed", absoluteUrl: "https://social.10x.meme/", iconUrl: "https://social.10x.meme/icon.png", imageUrl: "https://social.10x.meme/embed.png", available: true },
   app: {
     slug: "app",
     appName: "10X",
@@ -102,6 +103,7 @@ const APP_CONFIGS: Record<AppSlug, AppConfig> = {
 };
 
 const HOSTS_BY_APP: Record<AppSlug, string[]> = {
+  social: ["social.10x.meme", "social-local.10x.meme"],
   app: ["app.10x.meme", "app-dev.10x.meme", "app-local.10x.meme"],
   drop: ["drop.10x.meme", "drop-dev.10x.meme", "drop-local.10x.meme"],
   warplets: [...WARPLETS_APP_HOSTS],
@@ -119,6 +121,7 @@ function getEnvTier(hostname: string): EnvTier {
 }
 
 const APP_URLS: Record<AppSlug, Record<EnvTier, string>> = {
+  social: {prod:"https://social.10x.meme/",dev:"https://social.10x.meme/",local:"https://social-local.10x.meme/"},
   app: {
     prod: "https://app.10x.meme/",
     dev: "https://app-dev.10x.meme/",
@@ -695,7 +698,7 @@ export function MiniAppMenuPage({ appSlug }: { appSlug: AppSlug }) {
 
   const showCurrentCardToast = () => setCurrentCardToastId(Date.now());
 
-  const miniAppCards: MenuCard[] = ["app", "drop", WARPLETS_APP_SLUG, STONKLETS_APP_SLUG].map((slug) => {
+  const miniAppCards: MenuCard[] = ["app", "drop", WARPLETS_APP_SLUG, STONKLETS_APP_SLUG, "social"].map((slug) => {
     const config = APP_CONFIGS[slug as AppSlug];
     const isCurrent = appSlug === config.slug;
     return {
@@ -711,7 +714,9 @@ export function MiniAppMenuPage({ appSlug }: { appSlug: AppSlug }) {
               : config.slug === STONKLETS_APP_SLUG
                 ? "MEME STOCK MARKET. Can a meme market outperform the real market?"
                 : "Search, collect, trade, and explore 10X Warplets.",
-      imageUrl: config.slug === "app"
+      imageUrl: config.slug === "social"
+        ? "/embed.png"
+        : config.slug === "app"
         ? "/menu/menu-10x-app.png"
         : config.slug === WARPLETS_APP_SLUG
           ? "/menu/10xwarplets.jpg"

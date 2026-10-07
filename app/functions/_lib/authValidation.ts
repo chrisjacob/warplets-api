@@ -5,6 +5,7 @@ export const BASE_MAINNET_CHAIN_ID = 8453;
 export const BASE_SEPOLIA_CHAIN_ID = 84532;
 export const AUTH_NONCE_TTL_MS = 5 * 60 * 1000;
 const LOCAL_HTTPS_TUNNEL_HOSTS = new Set([
+  "social-local.10x.meme",
   "app-local.10x.meme",
   "drop-local.10x.meme",
   "million-local.10x.meme",

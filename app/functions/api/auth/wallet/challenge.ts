@@ -8,7 +8,7 @@ interface ChallengePayload { address?: unknown; chainId?: unknown }
 const PENDING_WALLET_ADDRESS = "pending";
 
 function signInStatement(hostname: string): string {
-  const appName = hostname.toLowerCase().startsWith("warplet") ? "10X Warplets" : "10X.MEME";
+  const appName = hostname.toLowerCase().startsWith("social") ? "10X Social" : hostname.toLowerCase().startsWith("warplet") ? "10X Warplets" : "10X.MEME";
   return `Sign in to ${appName}. This request does not trigger a blockchain transaction.`;
 }
 

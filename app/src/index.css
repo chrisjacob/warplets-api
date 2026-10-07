@@ -2134,7 +2134,7 @@ html[data-entry-point="pwa"] .miniapp-shell__content {
 
 /* Keep Stonklets on the same compact mini-app visual contract as Warplets. */
 .stonklets-main{width:min(448px,100%);padding:16px 16px 48px;font-family:inherit}
-.stonklets-market-page{padding-top:24px}
+.stonklets-market-page{padding-top:0}
 .stonklets-market-heading{container-type:inline-size;width:100%;margin-bottom:20px;text-align:center}
 .stonklets-market-heading h1{width:100%;margin:0;color:#00ff00;font-size:8.1cqi;font-weight:900;line-height:1.15;letter-spacing:-.04em;white-space:nowrap}
 .stonklets-market-heading p{margin:8px 0 0;color:#8bbf8b;font-size:14px;line-height:1.5}
@@ -2376,3 +2376,26 @@ a.stonklets-trade{display:flex;align-items:center;justify-content:center;box-siz
 .stonklet-share-contract{flex-shrink:0;white-space:nowrap;margin-top:13px;padding:7px 4px;border:1px solid rgb(238 220 90 / 20%);border-radius:4px;background:rgb(238 220 90 / 7%);color:#b8b07b;font-size:8.5px;line-height:12px;text-align:center;letter-spacing:-.045em}
 
 .stonklet-share-square .stonklets-chart-price-range{font-size:13px;height:22px;bottom:10px}
+
+/* Embedded trading cards share the news carousel border. */
+.stonklets-trending-news .stonklets-pair{border:0;border-radius:0;box-shadow:none;margin-bottom:0}
+
+.stonklets-news-square{display:grid;place-items:center;flex:0 0 28px;width:28px;height:28px;border:1px solid #00ff0099;border-radius:4px;color:#00ff00;cursor:pointer}
+.stonklets-news-square:hover{background:#00ff001a}
+.stonklets-news-pagination{display:flex;align-items:center;justify-content:flex-start;min-width:0}
+.stonklets-news-pagination .stonk-onboard-dot{min-width:0;width:20px;flex:0 1 20px;height:32px}
+.stonklets-news-pagination .stonk-onboard-dot .is-active{width:12px}
+
+.stonklets-news-headline-row{display:flex;align-items:center;gap:12px;min-width:0}
+.stonklets-news-identity{flex:0 0 56px;width:56px}
+.stonklets-news-identity .stonklets-identity-image{width:56px;height:56px;flex-basis:56px}
+.stonklets-news-headline-clamped{min-width:0;flex:1;line-height:1.375;height:4.125em;overflow:hidden}
+.stonklets-news-headline-clamped{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3}
+
+.stonklets-news-sentinel{height:1px;margin-bottom:-1px}
+.stonklets-news-inline{border-bottom:1px solid #00ff0033}
+.stonklets-news-date,.stonklets-news-sector{display:inline-block;vertical-align:middle;font-weight:400;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10px;line-height:14px;border:1px solid #00ff0040;border-radius:3px;padding:0 4px;color:#8bbf8b}
+
+.stonklets-news-date{color:#00ff00;background:rgb(0 255 0 / 7%)}
+
+.stonklets-news-attribution { font-size: 10px; line-height: 14px; font-weight: 400; color: #8eb98e; vertical-align: middle; white-space: nowrap; }

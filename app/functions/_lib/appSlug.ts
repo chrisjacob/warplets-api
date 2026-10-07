@@ -11,12 +11,13 @@ import {
   STONKLETS_APP_SLUG,
 } from "../../shared/stonkletsApp.js";
 
-export type AppSlug = "app" | "drop" | typeof WARPLETS_APP_SLUG | typeof STONKLETS_APP_SLUG | "million";
+export type AppSlug = "app" | "drop" | typeof WARPLETS_APP_SLUG | typeof STONKLETS_APP_SLUG | "million" | "social";
 export type NotificationAudienceSlug = AppSlug | "all";
 
-const VALID_APP_SLUGS = new Set<AppSlug>(["app", "drop", WARPLETS_APP_SLUG, STONKLETS_APP_SLUG, "million"]);
+const VALID_APP_SLUGS = new Set<AppSlug>(["app", "drop", WARPLETS_APP_SLUG, STONKLETS_APP_SLUG, "million", "social"]);
 const VALID_AUDIENCE_SLUGS = new Set<NotificationAudienceSlug>([
   "all",
+  "social",
   "app",
   "drop",
   WARPLETS_APP_SLUG,
@@ -42,6 +43,7 @@ export function normalizeNotificationAudienceSlug(
 }
 
 export function resolveAppSlugFromUrl(url: URL): AppSlug {
+  if (["social.10x.meme", "social-local.10x.meme"].includes(url.hostname) || url.pathname === "/social" || url.pathname.startsWith("/social/")) return "social";
   const hostname = url.hostname.toLowerCase();
   const cleanPath = url.pathname.replace(/\/+$/, "") || "/";
 
@@ -59,6 +61,7 @@ export function resolveAppSlugFromUrl(url: URL): AppSlug {
 }
 
 export function getDefaultLaunchUrl(appSlug: AppSlug): string {
+  if (appSlug === "social") return "https://social.10x.meme/";
   if (appSlug === "drop") return "https://drop.10x.meme/";
   if (appSlug === WARPLETS_APP_SLUG) return `${WARPLETS_APP_ORIGINS.prod}/`;
   if (appSlug === STONKLETS_APP_SLUG) return `${STONKLETS_APP_ORIGINS.prod}/`;
@@ -71,6 +74,7 @@ export function resolveAppSlugFromAppFid(
   mapping: Partial<Record<AppSlug, number>> = {}
 ): AppSlug | null {
   if (typeof appFid !== "number") return null;
+  if (mapping.social != null && appFid === mapping.social) return "social";
 
   if (mapping.app != null && appFid === mapping.app) return "app";
   if (mapping.drop != null && appFid === mapping.drop) return "drop";

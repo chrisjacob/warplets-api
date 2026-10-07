@@ -6,14 +6,54 @@ import { composeFarcasterPost, openAppUrl } from "./surfaceAdapter";
 import { stonkletShare } from "../shared/stonkletsShare";
 import type { StonkletCatalogEntry } from "../shared/stonkletsCatalog";
 import type { StonkletChangeRange } from "../shared/stonkletsTime";
+import { stonkletThesisShare } from "../shared/stonkletsThesisShare";
+import { newsSource, type ShareNews, type NewsResponse } from "../shared/stonkletsNews";
 
 const smallButton = "flex h-6 cursor-pointer items-center justify-center rounded-md border border-[#00FF00]/35 bg-black px-2.5 text-[11px] font-black text-[#00FF00] shadow-[2px_3px_0_#008000] hover:bg-[#041204] disabled:opacity-40";
 const shareButton = "w-full cursor-pointer rounded-[20px] border border-[#009900] bg-[#00FF00] px-3 py-3 text-sm font-bold text-[rgb(0,80,0)] shadow-[3px_6px_0_#008000] hover:bg-[#33ff33]";
 
-export default function StonkletShareModal({ entry, range, onClose, onMessage }: {
+export default function StonkletShareModal({ entry, range, onClose, onMessage, thesis }: {
   entry: StonkletCatalogEntry; range: StonkletChangeRange; onClose: () => void; onMessage: (text: string, kind: "success" | "error") => void;
+  thesis?: ShareNews | null;
 }) {
-  const share = stonkletShare(entry, location.hostname, range);
+  const [savedThesis, setSavedThesis] = useState<ShareNews | null>(() => thesis ? structuredClone(thesis) : null);
+  const [pendingThesis, setPendingThesis] = useState(() => !thesis && Boolean((new URLSearchParams(location.search).get("news") ?? new URLSearchParams(location.search).get("thesis"))));
+  const [thesisShareReady, setThesisShareReady] = useState(false);
+  useEffect(() => {
+    if (thesis) return;
+    const id = (new URLSearchParams(location.search).get("news") ?? new URLSearchParams(location.search).get("thesis"));
+    if (!id) return;
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 10_000);
+    let disposed = false;
+    void fetch(`/api/stonklets/news?news=${encodeURIComponent(id)}`, { signal: controller.signal })
+      .then(async response => response.ok ? await response.json() as NewsResponse : null)
+      .then(result => { if (!disposed && result?.news?.id === id && result.news.pairId === entry.id) setSavedThesis(result.news); })
+      .catch(() => undefined)
+      .finally(() => { clearTimeout(timeout); if (!disposed) setPendingThesis(false); });
+    return () => { disposed = true; clearTimeout(timeout); controller.abort(); };
+  }, [entry.id, thesis]);
+  const normalShare = stonkletShare(entry, location.hostname, pendingThesis ? "1h" : range);
+  const thesisShare = savedThesis ? stonkletThesisShare(entry, location.hostname, savedThesis) : null;
+  const share = thesisShare ?? normalShare;
+  const sharingDisabled = pendingThesis || Boolean(savedThesis && (!thesisShareReady || savedThesis.withdrawnAt));
+  useEffect(() => {
+    if (!savedThesis) return;
+    let disposed = false;
+    const controller = new AbortController();
+    const validate = async () => {
+      try {
+        const response = await fetch(`/api/stonklets/news?news=${encodeURIComponent(savedThesis.id)}&validate=1`, { cache: "no-store", signal: controller.signal });
+        const result = response.ok ? await response.json() as NewsResponse : null;
+        if (disposed) return;
+        setThesisShareReady(Boolean(result?.news?.id === savedThesis.id && result.news.pairId === entry.id && !result.news.withdrawnAt));
+        if (result?.news?.withdrawnAt) setSavedThesis(current => current ? { ...current, withdrawnAt: result.news!.withdrawnAt, withdrawalReason: result.news!.withdrawalReason } : current);
+      } catch { if (!disposed) setThesisShareReady(false); }
+    };
+    void validate();
+    const interval = window.setInterval(() => void validate(), 30_000);
+    return () => { disposed = true; controller.abort(); clearInterval(interval); };
+  }, [savedThesis?.id, entry.id]);
   const titleId = useId();
   const panel = useRef<HTMLDivElement>(null);
   const [retry, setRetry] = useState(0);
@@ -44,6 +84,7 @@ export default function StonkletShareModal({ entry, range, onClose, onMessage }:
     const timeout = window.setTimeout(() => controller.abort(), 120_000);
     let disposed = false;
     const render = async () => {
+      if (savedThesis && entry.launchStatus !== "launched") throw new Error("Prelaunch artwork only");
       while (!controller.signal.aborted && Date.now() < deadline) {
         const response = await fetch(share.image, { signal: controller.signal });
         if (response.status === 202) {
@@ -77,7 +118,7 @@ export default function StonkletShareModal({ entry, range, onClose, onMessage }:
     const key = (event: KeyboardEvent) => {
       if (event.key === "Escape") onClose();
       if (event.key !== "Tab") return;
-      const focusable = Array.from(panel.current?.querySelectorAll<HTMLElement>('button:not(:disabled),a[href]') ?? []);
+      const focusable = Array.from(panel.current?.querySelectorAll<HTMLElement>('button:not(:disabled),a[href],summary') ?? []).filter(element => !element.closest("details:not([open])") || element.tagName === "SUMMARY");
       const first = focusable[0], last = focusable.at(-1);
       if (event.shiftKey && (document.activeElement === first || document.activeElement === panel.current)) { event.preventDefault(); last?.focus(); }
       else if (!event.shiftKey && (document.activeElement === last || document.activeElement === panel.current)) { event.preventDefault(); first?.focus(); }
@@ -120,13 +161,16 @@ export default function StonkletShareModal({ entry, range, onClose, onMessage }:
   return <AppViewport className="app-modal-viewport fixed inset-0 z-[90] flex items-end justify-center bg-black/80 p-4 sm:items-center" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
     <div ref={panel} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby={titleId} className="app-modal-panel flex max-h-[92vh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-[#00FF00]/35 bg-black shadow-2xl">
       <div className="app-modal-header flex items-center justify-between gap-3 border-b border-[#00FF00]/20 bg-black px-4 py-3">
-        <h2 id={titleId} className="min-w-0 truncate text-base font-bold text-[#8bbf8b]"><span className="text-[#00FF00]">Share</span> {entry.stonklet.name}</h2>
+        <h2 id={titleId} className="min-w-0 truncate text-base font-bold text-[#8bbf8b]"><span className="text-[#00FF00]">Share</span> {savedThesis ? "10X News" : entry.stonklet.name}</h2>
         <button type="button" aria-label="Close share preview" title="Close" onClick={onClose} className="identity-link-close"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg></button>
       </div>
       <OverlayScrollbarsComponent className="app-modal-scroll-body overflow-auto px-4 py-4" defer options={{ scrollbars: { theme: "os-theme-10x", autoHide: "scroll", clickScroll: true } }}>
+        {pendingThesis && <p role="status" className="mb-3 text-sm text-[#8bbf8b]">Loading news...</p>}
+        {savedThesis && Date.now() - Date.parse(newsSource(savedThesis)?.publishedAt ?? "") > 30 * 86400_000 && <p className="mb-3 text-xs text-[#8bbf8b]">Archived news - Published {new Date(newsSource(savedThesis)!.publishedAt).toLocaleDateString()}</p>}
+        {savedThesis?.withdrawnAt && <p role="alert" className="mb-3 text-sm text-rose-300">News withdrawn: {savedThesis.withdrawalReason}. Sharing is disabled.</p>}
         <div className="rounded-xl border border-[#00FF00]/25 bg-[#041204]/80 p-3">
-          <div className="mb-2 flex items-center justify-between"><b className="text-xs uppercase text-[#00FF00]">Post</b><button type="button" className={smallButton} onClick={() => run(copyPost(), "Post copied.")}>Copy</button></div>
-          <pre className="select-text whitespace-pre-wrap break-words font-sans text-sm leading-snug text-[#8bbf8b]"><strong>{share.title}</strong>{share.text.slice(share.title.length)}</pre>
+          <div className="mb-2 flex items-center justify-between"><b className="text-xs uppercase text-[#00FF00]">{savedThesis ? "News Post" : "Post"}</b><button type="button" className={smallButton} disabled={sharingDisabled} onClick={() => run(copyPost(), "Post copied.")}>Copy</button></div>
+          <pre className="select-text whitespace-pre-wrap break-words font-sans text-sm leading-snug text-[#8bbf8b]">{savedThesis ? share.text : <><strong>{share.title}</strong>{share.text.slice(share.title.length)}</>}</pre>
         </div>
         <div className="mt-3 grid grid-cols-2 gap-3">{images.map((image, index) => <div key={image.src}>
           <div className="relative aspect-square overflow-hidden rounded-lg border border-[#00FF00]/25 bg-black">
@@ -141,7 +185,7 @@ export default function StonkletShareModal({ entry, range, onClose, onMessage }:
           <div className="mt-2 grid grid-cols-2 gap-2"><button type="button" className={smallButton} disabled={!loaded.has(index) || busy !== null} onClick={() => run(copyImage(index), "Image copied.")}>{busy === index ? "Copying…" : "Copy"}</button><button type="button" className={smallButton} disabled={!loaded.has(index)} onClick={() => run(openAppUrl(image.src), "Image opened. Use your browser controls to save it.")}>Download</button></div>
         </div>)}</div>
       </OverlayScrollbarsComponent>
-      <div className="app-modal-footer grid grid-cols-2 gap-2 border-t border-[#00FF00]/20 bg-black px-4 py-3"><button className={shareButton} onClick={() => run(composeFarcasterPost(share.text, [share.url]))}>Share on Farcaster</button><button className={shareButton} onClick={() => run(openAppUrl(`https://twitter.com/intent/tweet?text=${encodeURIComponent(share.text)}`))}>Share on X (Twitter)</button></div>
+      <div className="app-modal-footer grid grid-cols-2 gap-2 border-t border-[#00FF00]/20 bg-black px-4 py-3"><button disabled={sharingDisabled} className={shareButton} onClick={() => run(composeFarcasterPost(thesisShare?.farcasterText ?? share.text, [share.url]))}>Share on Farcaster</button><button disabled={sharingDisabled} className={shareButton} onClick={() => run(openAppUrl(`https://twitter.com/intent/tweet?text=${encodeURIComponent(thesisShare?.twitterText ?? share.text)}`))}>Share on X (Twitter)</button></div>
     </div>
   </AppViewport>;
 }

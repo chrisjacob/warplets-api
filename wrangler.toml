@@ -46,6 +46,9 @@ OPENSEA_MARKET_INGEST_INTERVAL_MINUTES = "10"
 STONKLETS_MARKET_INGEST_ENABLED = "true"
 STONKLETS_MARKET_INGEST_INTERVAL_MINUTES = "5"
 STONKLETS_DAILY_NOTIFICATIONS_ENABLED = "true"
+# Collect unpublished hourly positive news; D1 control enforces the seven-day trial.
+STONKLETS_SPOTLIGHT_ENABLED = "true"
+STONKLETS_SPOTLIGHT_AI_ENABLED = "true"
 STONKLETS_CMC_ENABLED = "true"
 STONKLETS_CMC_QUOTES_INTERVAL_MINUTES = "10"
 STONKLETS_CMC_HOLDER_TARGET_HOURS = "24"
@@ -55,6 +58,8 @@ STONKLETS_CMC_MONTHLY_CREDIT_BUDGET = "14000"
 # official BNB Chain RPC is used as a fallback for read-only Flap state calls.
 # Secret: COINMARKETCAP_API_KEY (scheduled Stonklets market enrichment).
 
+[ai]
+binding = "SPOTLIGHT_AI"
 
 [[routes]]
 pattern = "api.10x.meme"
@@ -80,6 +85,18 @@ queue = "warplets-notifications"
 max_batch_size = 20
 max_batch_timeout = 5
 max_retries = 3
+
+[[queues.producers]]
+binding = "STONKLET_NEWS_QUEUE"
+queue = "stonklets-news"
+
+[[queues.consumers]]
+queue = "stonklets-news"
+max_batch_size = 1
+max_batch_timeout = 5
+max_concurrency = 4
+max_retries = 2
+dead_letter_queue = "stonklets-news-dead"
 
 [env.dev]
 name = "api-dev"

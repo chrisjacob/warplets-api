@@ -28,6 +28,9 @@ import { isStonkletsFlapPreview } from "../shared/stonkletsFlapPreview";
 import { isStonkletsVotesPreview, mockVoteCount } from "../shared/stonkletsVotes";
 import StonkletLaunchVotes from "./StonkletLaunchVotes";
 import StonkletShareModal from "./StonkletShareModal";
+import type { ShareNews } from "../shared/stonkletsNews";
+import StonkletSpotlight from "./StonkletSpotlight";
+import { validNewsId } from "../shared/stonkletsSpotlight";
 import EmailWaitlistCta from "./EmailWaitlistCta";
 import StonkletsAirdropsCta from "./StonkletsAirdropsCta";
 import { stonkletFromSharePath } from "../shared/stonkletsShare";
@@ -85,12 +88,12 @@ const MARKET_LOADING_INTERVAL_MS = 3_000;
 function getMarketLoadingMessage(elapsedMs: number): string {
   const suffix = MARKET_LOADING_SUFFIXES[Math.floor(elapsedMs / MARKET_LOADING_INTERVAL_MS) % MARKET_LOADING_SUFFIXES.length]!;
   const cycleElapsed = elapsedMs % MARKET_LOADING_INTERVAL_MS;
-  const typeDuration = 1_000;
-  const holdDuration = 1_750;
+  const typeDuration = suffix.length * 38;
   const deleteDuration = 250;
+  const holdDuration = MARKET_LOADING_INTERVAL_MS - typeDuration - deleteDuration;
   let visibleCharacters = suffix.length;
   if (cycleElapsed < typeDuration) {
-    visibleCharacters = Math.ceil((suffix.length * cycleElapsed) / typeDuration);
+    visibleCharacters = Math.floor(cycleElapsed / 38);
   } else if (cycleElapsed >= typeDuration + holdDuration) {
     visibleCharacters = Math.floor(suffix.length * (1 - Math.min(1, (cycleElapsed - typeDuration - holdDuration) / deleteDuration)));
   }
@@ -454,7 +457,7 @@ export default function StonkletsApp() {
     () => forceBstocksNotice || !hasAcceptedBstocksNotice({ getItem: (key) => onboardingStorage()?.getItem(key) ?? null }),
   );
   const [search, setSearch] = useState(initial.get("q") ?? "");
-  const [market, setMarket] = useState<MarketSide>(safeParam<MarketSide>(initial.get("market"), ["stock", "stonklet"], "stonklet"));
+  const [market, setMarket] = useState<MarketSide>(safeParam<MarketSide>(initial.get("market"), ["stock", "stonklet"], "stock"));
   const [order, setOrder] = useState<OrderKey>(safeParam(initial.get("order"), ORDER_OPTIONS.map((option) => option.key), "trending"));
   const [direction, setDirection] = useState<Direction>(safeParam<Direction>(initial.get("dir"), ["asc", "desc"], initial.get("order") === "az" ? "asc" : "desc"));
   const [changeRange, setChangeRange] = useState<StonkletChangeRange>(() => parseStonkletChangeRange(initial.get("change")) ?? DEFAULT_STONKLET_CHANGE_RANGE);
@@ -482,7 +485,8 @@ export default function StonkletsApp() {
   const closeToast = useCallback(() => setToast(null), []);
   const [launchPrompt, setLaunchPrompt] = useState(false);
   const [shareEntry, setShareEntry] = useState(() => stonkletFromSharePath(window.location.pathname) ?? null);
-  const closeShare = useCallback(() => setShareEntry(null), []);
+  const [shareThesis, setShareThesis] = useState<ShareNews | null>(null);
+  const closeShare = useCallback(() => { setShareEntry(null); setShareThesis(null); }, []);
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [showUpcoming, setShowUpcoming] = useState(false);
   const [headerAccountAnchor, setHeaderAccountAnchor] = useState<"title" | "avatar" | null>(null);
@@ -652,16 +656,29 @@ export default function StonkletsApp() {
       setMarketLoadingMessage(MARKET_LOADING_PREFIX);
       return;
     }
-    const startedAt = Date.now();
-    setMarketLoadingMessage(getMarketLoadingMessage(0));
-    const interval = window.setInterval(() => setMarketLoadingMessage(getMarketLoadingMessage(Date.now() - startedAt)), 1_000);
-    return () => window.clearInterval(interval);
+    const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
+    let interval: number | undefined;
+    const restart = () => {
+      window.clearInterval(interval);
+      if (motion.matches) {
+        setMarketLoadingMessage(`${MARKET_LOADING_PREFIX}${MARKET_LOADING_SUFFIXES[0]}`);
+        return;
+      }
+      const startedAt = performance.now();
+      setMarketLoadingMessage(getMarketLoadingMessage(0));
+      interval = window.setInterval(() => setMarketLoadingMessage(getMarketLoadingMessage(performance.now() - startedAt)), 38);
+    };
+    restart();
+    motion.addEventListener("change", restart);
+    return () => { window.clearInterval(interval); motion.removeEventListener("change", restart); };
   }, [loading]);
   useEffect(() => {
     if (page !== "market") return;
     const params = new URLSearchParams();
+    const newsId = initial.get("news") ?? initial.get("thesis");
+    if (newsId && validNewsId(newsId)) params.set("news", newsId);
     if (search) params.set("q", search);
-    if (market !== "stonklet") params.set("market", market);
+    if (market !== "stock") params.set("market", market);
     if (order !== "trending") params.set("order", order);
     if (direction !== (order === "az" ? "asc" : "desc")) params.set("dir", direction);
     if (changeRange !== DEFAULT_STONKLET_CHANGE_RANGE) params.set("change", changeRange);
@@ -771,17 +788,17 @@ export default function StonkletsApp() {
     if (next === order) setDirection((value) => value === "asc" ? "desc" : "asc");
     else { setOrder(next); setDirection(next === "az" ? "asc" : "desc"); }
   };
-  const renderPairs = (items: MarketEntry[]) => items.map((entry) => {
-    const first: MarketSide = market;
-    const second: MarketSide = market === "stock" ? "stonklet" : "stock";
-    const assets = isSingleLayout(resultLayout) ? [first] : [first, second];
+  const renderPairs = (items: MarketEntry[], pairLayout: Layout = resultLayout, firstAsset: MarketSide = market, includeNews = true) => items.map((entry) => {
+    const first: MarketSide = firstAsset;
+    const second: MarketSide = firstAsset === "stock" ? "stonklet" : "stock";
+    const assets = isSingleLayout(pairLayout) ? [first] : [first, second];
     const isFavourite = (asset: MarketSide) => (asset === "stock" ? stockFavourites : favourites).has(entry.id);
     const isBusy = (asset: MarketSide) => busyFavourite === `${entry.id}:${asset}`;
-    return <article className={`stonklets-pair${resultLayout === "single-grid" ? " stonklets-pair--single-grid" : ""}${resultLayout === "single-chart" ? " stonklets-pair--single-chart" : ""}`} key={entry.id}
+    return <article className={`stonklets-pair${pairLayout === "single-grid" ? " stonklets-pair--single-grid" : ""}${pairLayout === "single-chart" ? " stonklets-pair--single-chart" : ""}`} key={entry.id}
       onClickCapture={(event) => {
         if (!(event.target instanceof Element) || !event.target.closest(".stonklets-card-identity,.stonklets-compact-identity,.stonklets-heart,.stonklets-trade")) return;
         const tradeLink = event.target.closest("a.stonklets-trade");
-        setShareEntry(entry);
+        setShareThesis(null); setShareEntry(entry);
         // Let Favourite/Vote reach the button's save handler as well as sharing.
         if (event.target.closest(".stonklets-heart,button.stonklets-trade")) return;
         event.stopPropagation();
@@ -799,13 +816,14 @@ export default function StonkletsApp() {
       }}
       onKeyDown={(event) => {
         if ((event.key === "Enter" || event.key === " ") && event.target instanceof Element && event.target.closest(".stonklets-card-identity,.stonklets-compact-identity")) {
-          event.preventDefault(); setShareEntry(entry);
+          event.preventDefault(); setShareThesis(null); setShareEntry(entry);
           if (isInMiniAppContext) void hapticTap();
         }
       }}>
-      {isGridLayout(resultLayout)
+      {includeNews && !isGridLayout(pairLayout) && <StonkletSpotlight pairId={entry.id} renderIdentity={pair => <IdentityImage key={pair.id} src={pair.stonklet.image} label={pair.stonklet.symbol} kind="stonklet" pairedStockLogo={pair.stock.logo} />} onShare={(pair, story) => { setShareThesis(story); setShareEntry(pair); }} />}
+      {isGridLayout(pairLayout)
         ? assets.map((asset) => <CompactRow key={asset} entry={entry} asset={asset} range={changeRange} favourite={isFavourite(asset)} busy={isBusy(asset)} onFavourite={() => void toggleFavourite(entry, asset)} />)
-        : <div className={`stonklets-chart-pair${resultLayout === "single-chart" ? " stonklets-chart-pair--single" : ""}`}>{assets.map((asset) => <AssetCard key={asset} entry={entry} asset={asset} range={changeRange} favourite={isFavourite(asset)} busy={isBusy(asset)} onFavourite={() => void toggleFavourite(entry, asset)} />)}</div>}
+        : <div className={`stonklets-chart-pair${pairLayout === "single-chart" ? " stonklets-chart-pair--single" : ""}`}>{assets.map((asset) => <AssetCard key={asset} entry={entry} asset={asset} range={changeRange} favourite={isFavourite(asset)} busy={isBusy(asset)} onFavourite={() => void toggleFavourite(entry, asset)} />)}</div>}
     </article>;
   });
   const renderGroup = (name: "Launched" | "Voting" | "Upcoming", items: MarketEntry[]) => <section className="stonklets-market-group" aria-labelledby={`stonklets-group-${name.toLowerCase()}`}>
@@ -883,7 +901,8 @@ export default function StonkletsApp() {
         </section>
         {stale && <p className="stonklets-state">{delayedSymbols.length ? `Quotes delayed for ${delayedSymbols.join(", ")}. Last-known values are shown for those tokens.` : "Refreshing market quotes…"}</p>}
         {marketError && <p className="stonklets-state is-error">{marketError}. Catalog and voting remain available.</p>}
-        {loading && <p className="stonklets-loading" aria-live="polite">{marketLoadingMessage}</p>}
+        {loading && <p className="stonklets-loading" role="status"><span className="sr-only">Loading Stonklets market data.</span><span aria-hidden="true">{marketLoadingMessage}</span></p>}
+        {!search.trim() && !favouritesOnly && <StonkletSpotlight renderIdentity={entry => <IdentityImage key={entry.id} src={entry.stonklet.image} label={entry.stonklet.symbol} kind="stonklet" pairedStockLogo={entry.stock.logo} />} renderPair={pairId => renderPairs(entries.filter(entry => entry.id === pairId), "chart", market, false)} onShare={(entry, thesis) => { setShareThesis(thesis); setShareEntry(entry); }} />}
         {renderGroup("Launched", launchedEntries)}
         {votingEntries.length > 0 && renderGroup("Voting", votingEntries)}
         {renderGroup("Upcoming", upcomingEntries)}
@@ -895,7 +914,7 @@ export default function StonkletsApp() {
       </div>}
     </main><SiteFooter legalSuffix={<a href="https://www.tradingview.com/" target="_blank" rel="noreferrer" className="font-bold text-[#00FF00] underline decoration-[#00FF00] underline-offset-2 hover:text-[#8bff8b]">Charts by TradingView</a>} /></>}
     <WebConnectModal farcasterMiniAppUrl="https://farcaster.xyz/miniapps/Ozxi56EEeUTa/10x-stonklets" open={connectOpen} onClose={() => setConnectOpen(false)} identityConnected={Boolean(session?.farcasterFid)} onWalletConnected={() => { void refreshSession(); void loadFavourites(); setConnectOpen(false); }} farcasterControl={<FarcasterSignInControl connected={Boolean(session?.farcasterFid)} onAuthenticated={() => { void refreshSession(); setConnectOpen(false); void loadFavourites(); }} />} />
-    {shareEntry && <StonkletShareModal entry={shareEntry} range={changeRange} onClose={closeShare} onMessage={showToast} />}
+    {shareEntry && <StonkletShareModal key={`${shareEntry.id}:${shareThesis?.id ?? "token"}`} entry={shareEntry} range={changeRange} thesis={shareThesis} onClose={closeShare} onMessage={showToast} />}
     {toast && <StonkletsToast toast={toast} onClose={closeToast} />}</>}
   </MiniAppShell>;
 }

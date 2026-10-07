@@ -1,6 +1,10 @@
+import { isSocialRoute, socialHtml, socialManifest } from "./shared/socialMetadata";
 import { defineConfig } from "vite";
+import { localStonkletsMarket } from "./localStonkletsMarket";
+import { localSpotlightPreview } from "./localSpotlightPreview";
 import { stonkletFromSharePath, stonkletShare } from "./shared/stonkletsShare";
 import { STONKLETS_CATALOG } from "./shared/stonkletsCatalog";
+import { validNewsId } from "./shared/stonkletsSpotlight";
 import { parseStonkletChangeRange } from "./shared/stonkletsTime";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
@@ -450,6 +454,8 @@ export default defineConfig({
     exclude: ["@sqlite.org/sqlite-wasm"],
   },
   plugins: [
+    localStonkletsMarket(),
+    localSpotlightPreview(),
     react(),
     tailwindcss(),
     {
@@ -459,6 +465,14 @@ export default defineConfig({
         server.middlewares.use((req, res, next) => {
           const hostname = (req.headers.host ?? "").split(":")[0].toLowerCase();
           const pathname = (req.url ?? "/").split("?")[0];
+          if (pathname === "/.well-known/farcaster.json" && isSocialRoute(hostname, "/")) {
+            res.setHeader("Content-Type", "application/json");
+            res.setHeader("Cache-Control", "no-store");
+            let association;
+            try { const raw=JSON.parse(process.env.SOCIAL_ACCOUNT_ASSOCIATION_JSON || "null"); if(raw && JSON.parse(Buffer.from(raw.payload,"base64url").toString()).domain===hostname) association=raw; } catch {}
+            res.end(JSON.stringify(socialManifest(hostname, association)));
+            return;
+          }
           if (pathname === "/.well-known/farcaster.json" && isWarpletsAppHostname(hostname)) {
             const association = parseWarpletsAccountAssociation(hostname);
             res.statusCode = 200;
@@ -525,7 +539,7 @@ export default defineConfig({
           routeKey === "drop" ? getLocalDropShareImageUrl(query) : undefined;
         const searchShareImageUrl = searchWarpletImageUrl ?? searchResultsImageUrl;
         const sharedStonklet = routeKey === "stonklets" ? stonkletFromSharePath(reqPath) : undefined;
-        const stonkletMeta = sharedStonklet ? stonkletShare(sharedStonklet, baseHostname, parseStonkletChangeRange(new URLSearchParams(query).get("change")) ?? "24h") : undefined;
+        const stonkletMeta = sharedStonklet ? stonkletShare(sharedStonklet, baseHostname, parseStonkletChangeRange(new URLSearchParams(query).get("change")) ?? "24h", new URLSearchParams(query).get("news") ?? new URLSearchParams(query).get("thesis")) : undefined;
         const routeImageUrl = stonkletMeta?.ogImage ?? (routeKey === "stop" ? STOP_IMAGE_URL : searchShareImageUrl ?? dropShareImageUrl);
         const splashImageUrl = routeKey === "drop"
           ? `${baseUrl}/splash_drop2.png`
@@ -625,12 +639,14 @@ export default defineConfig({
           );
         }
 
+        if (isSocialRoute(baseHostname, reqPath)) return socialHtml(nextHtml, baseUrl, reqPath);
         return nextHtml;
       },
     },
   ],
   server: {
     allowedHosts: [
+      "social-local.10x.meme",
       "app-local.10x.meme",
       "drop-local.10x.meme",
       WARPLETS_APP_HOSTS[0],
@@ -643,6 +659,13 @@ export default defineConfig({
       [`^/(?:bull|bear|${STONKLETS_CATALOG.map((entry) => encodeURIComponent(entry.stonklet.symbol.toLowerCase()).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})/?(?:\\?.*)?$`]: {
         target: localApiTarget,
         changeOrigin: false,
+        bypass(request) {
+          // News previews and their archives live in the Vite middleware. Serve
+          // their app HTML here too, independent of the local Pages worker.
+          const params = new URL(request.url ?? "/", "http://localhost").searchParams;
+          const news = params.get("news") ?? params.get("thesis");
+          if (news && validNewsId(news)) return request.url;
+        },
         configure(proxy) {
           proxy.on("proxyReq", (proxyRequest, request) => {
             const host = (request.headers.host ?? "").split(":")[0];
@@ -671,7 +694,7 @@ export default defineConfig({
                 // Leave malformed origins untouched so the API rejects them.
               }
             }
-            if (requestHost === WARPLETS_APP_HOSTS[0] || requestHost === STONKLETS_APP_HOSTS[0]) {
+            if (requestHost === "social-local.10x.meme" || requestHost === WARPLETS_APP_HOSTS[0] || requestHost === STONKLETS_APP_HOSTS[0]) {
               proxyRequest.setHeader("x-10x-public-origin", `https://${requestHost}`);
             }
           });

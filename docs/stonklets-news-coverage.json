@@ -1,0 +1,228 @@
+{
+  "checkedAt": "2026-10-07T04:11:12.105Z",
+  "stocks": 44,
+  "stories": 338,
+  "fullCarousels": 22,
+  "coverage": [
+    {
+      "pairId": "spacex",
+      "count": 6,
+      "newest": "2026-10-01T00:00:00.000Z"
+    },
+    {
+      "pairId": "sk-hynix",
+      "count": 9,
+      "newest": "2026-09-18T05:59:25.000Z"
+    },
+    {
+      "pairId": "spy",
+      "count": 1,
+      "newest": "2026-10-06T00:00:00.000Z"
+    },
+    {
+      "pairId": "tether-gold",
+      "count": 6,
+      "newest": "2026-09-09T00:00:00.000Z"
+    },
+    {
+      "pairId": "invesco-qqq",
+      "count": 1,
+      "newest": "2026-09-17T00:00:00.000Z"
+    },
+    {
+      "pairId": "nvidia",
+      "count": 10,
+      "newest": "2026-09-28T11:00:00.000Z"
+    },
+    {
+      "pairId": "apple",
+      "count": 10,
+      "newest": "2026-09-29T17:00:57.163Z"
+    },
+    {
+      "pairId": "tesla",
+      "count": 10,
+      "newest": "2026-09-17T00:00:00.000Z"
+    },
+    {
+      "pairId": "microsoft",
+      "count": 10,
+      "newest": "2026-09-29T00:00:00.000Z"
+    },
+    {
+      "pairId": "alphabet",
+      "count": 6,
+      "newest": "2026-09-30T00:00:00.000Z"
+    },
+    {
+      "pairId": "robinhood",
+      "count": 10,
+      "newest": "2026-09-30T00:00:00.000Z"
+    },
+    {
+      "pairId": "alibaba",
+      "count": 6,
+      "newest": "2026-09-25T00:00:00.000Z"
+    },
+    {
+      "pairId": "gamestop",
+      "count": 4,
+      "newest": "2026-07-15T00:00:00.000Z"
+    },
+    {
+      "pairId": "netflix",
+      "count": 6,
+      "newest": "2026-10-02T00:00:00.000Z"
+    },
+    {
+      "pairId": "strategy",
+      "count": 8,
+      "newest": "2026-09-28T00:00:00.000Z"
+    },
+    {
+      "pairId": "trump-media",
+      "count": 5,
+      "newest": "2026-07-16T00:00:00.000Z"
+    },
+    {
+      "pairId": "bitmine",
+      "count": 10,
+      "newest": "2026-09-28T00:00:00.000Z"
+    },
+    {
+      "pairId": "super-micro",
+      "count": 10,
+      "newest": "2026-09-23T00:00:00.000Z"
+    },
+    {
+      "pairId": "iren",
+      "count": 10,
+      "newest": "2026-08-13T00:00:00.000Z"
+    },
+    {
+      "pairId": "asml",
+      "count": 8,
+      "newest": "2026-09-08T00:00:00.000Z"
+    },
+    {
+      "pairId": "ast-spacemobile",
+      "count": 10,
+      "newest": "2026-08-06T00:00:00.000Z"
+    },
+    {
+      "pairId": "coherent",
+      "count": 10,
+      "newest": "2026-09-21T00:00:00.000Z"
+    },
+    {
+      "pairId": "credo",
+      "count": 10,
+      "newest": "2026-09-15T00:00:00.000Z"
+    },
+    {
+      "pairId": "usa-rare-earth",
+      "count": 10,
+      "newest": "2026-09-17T00:00:00.000Z"
+    },
+    {
+      "pairId": "astera-labs",
+      "count": 6,
+      "newest": "2026-09-15T00:00:00.000Z"
+    },
+    {
+      "pairId": "circle",
+      "count": 10,
+      "newest": "2026-09-22T00:00:00.000Z"
+    },
+    {
+      "pairId": "micron",
+      "count": 10,
+      "newest": "2026-09-30T00:00:00.000Z"
+    },
+    {
+      "pairId": "sandisk",
+      "count": 9,
+      "newest": "2026-08-27T00:00:00.000Z"
+    },
+    {
+      "pairId": "amd",
+      "count": 10,
+      "newest": "2026-09-30T00:00:00.000Z"
+    },
+    {
+      "pairId": "ishares-korea",
+      "count": 4,
+      "newest": "2026-10-01T00:00:00.000Z"
+    },
+    {
+      "pairId": "intel",
+      "count": 9,
+      "newest": "2026-10-06T00:00:00.000Z"
+    },
+    {
+      "pairId": "lumentum",
+      "count": 6,
+      "newest": "2026-09-21T00:00:00.000Z"
+    },
+    {
+      "pairId": "meta",
+      "count": 10,
+      "newest": "2026-09-28T00:00:00.000Z"
+    },
+    {
+      "pairId": "palantir",
+      "count": 10,
+      "newest": "2026-10-01T00:00:00.000Z"
+    },
+    {
+      "pairId": "bloom-energy",
+      "count": 6,
+      "newest": "2026-09-28T00:00:00.000Z"
+    },
+    {
+      "pairId": "amazon",
+      "count": 10,
+      "newest": "2026-10-06T19:08:21.000Z"
+    },
+    {
+      "pairId": "direxion-soxs",
+      "count": 2,
+      "newest": "2026-07-16T00:00:00.000Z"
+    },
+    {
+      "pairId": "dell",
+      "count": 10,
+      "newest": "2026-09-21T00:00:00.000Z"
+    },
+    {
+      "pairId": "fluence",
+      "count": 3,
+      "newest": "2026-09-24T13:00:50.000Z"
+    },
+    {
+      "pairId": "applied-materials",
+      "count": 10,
+      "newest": "2026-10-06T00:00:00.000Z"
+    },
+    {
+      "pairId": "direxion-soxl",
+      "count": 5,
+      "newest": "2026-10-05T00:00:00.000Z"
+    },
+    {
+      "pairId": "moderna",
+      "count": 10,
+      "newest": "2026-08-27T00:00:00.000Z"
+    },
+    {
+      "pairId": "paypal",
+      "count": 10,
+      "newest": "2026-09-16T00:00:00.000Z"
+    },
+    {
+      "pairId": "proshares-sqqq",
+      "count": 2,
+      "newest": "2026-07-16T00:00:00.000Z"
+    }
+  ]
+}

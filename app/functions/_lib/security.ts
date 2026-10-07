@@ -49,6 +49,11 @@ const DEFAULT_CSP = [
   "base-uri 'self'",
 ].join("; ");
 
+// X's official widget is only enabled on the Social surface.
+export const SOCIAL_CSP = DEFAULT_CSP
+  .replace("script-src 'self'", "script-src 'self' https://platform.twitter.com")
+  .replace("frame-src 'self'", "frame-src 'self' https://platform.twitter.com https://syndication.twitter.com");
+
 function cloneHeaders(headers?: HeadersInit): Headers {
   return new Headers(headers);
 }

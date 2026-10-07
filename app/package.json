@@ -15,6 +15,7 @@
     "local:tunnel": "node ../scripts/dev-tunnel-app.mjs",
     "local:tunnel:app": "node ../scripts/dev-tunnel-app.mjs",
     "local:tunnel:drop": "node ../scripts/dev-tunnel-drop.mjs",
+    "local:tunnel:social": "node ../scripts/dev-tunnel-social.mjs",
     "local:tunnel:stonklet": "node ../scripts/dev-tunnel-stonklet.mjs",
     "local:tunnel:warplet": "node ../scripts/dev-tunnel-warplet.mjs",
     "web-push:generate-keys": "node ../scripts/generate-vapid-keys.mjs",
@@ -49,6 +50,7 @@
     "react-dom": "19.2.5",
     "recharts": "^2.15.4",
     "swr": "^2.4.2",
+    "tldts": "^7.4.16",
     "tw-animate-css": "^1.4.0",
     "viem": "^2.55.19"
   },
