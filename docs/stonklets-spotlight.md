@@ -112,11 +112,11 @@ Do not apply unrelated migrations as part of this release. The existing
 STONKLETS_SPOTLIGHT_ENABLED flag controls dispatch. Migration 0077 resets the v4
 trial to shadow (or preserves off); public reads stay gated.
 
-Activation requires seven elapsed days and complete v4 observations on seven
-distinct dates, then an explicit authenticated admin live action. Activation and
-publication of existing eligible records are atomic. Backfilling never activates
-publication or counts as observed days. Inspect coverage, mapping rejections,
-source/queue failures, duplicate rates and usage before activation.
+Activation uses an explicit authenticated admin live action with no waiting period
+or observed-day requirement. Activation and publication of existing records are
+atomic; withdrawals remain excluded. Backfilling does not change the selected
+mode. The owner authorized immediate production activation on 7 October 2026.
+Continue monitoring coverage, mapping rejections, source failures and usage.
 
 The dev-only Vite service restores the reviewed historical snapshot immediately,
 collects up to eleven calendar months available in supported feeds, and persists archives at
@@ -130,7 +130,7 @@ Their old seven-day note describes that historical import, not the v4 policy.
 Focused tests cover selection, eleven-calendar-month expiry, source preference, mappings,
 negative/neutral headlines, archives, withdrawals, quote-independent publication,
 idempotent deliveries, bounded failures, source isolation, API limits and the
-seven-day gate. Browser checks cover both layouts, Upcoming news, exact-story
+immediate activation and withdrawal preservation. Browser checks cover both layouts, Upcoming news, exact-story
 sharing, no nested hero carousel, fixed heights and mobile overflow. Run app and
 Worker typechecks, production build, security preflight and performance budget.
 
@@ -171,7 +171,7 @@ After editing the reviewed manifest run:
 
 Backfill inserts are idempotent. They preserve production shadow mode, do not
 count as observed trial days and do not deploy the shared Worker. The expanded
-pipeline still requires seven observed days before activation.
+pipeline can be activated immediately by an authorized administrator.
 
 ## Coverage improvements (7 October 2026)
 

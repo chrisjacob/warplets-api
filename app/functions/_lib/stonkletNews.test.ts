@@ -1,7 +1,7 @@
 import {afterEach,beforeEach,describe,it,expect,vi} from "vitest";
 import {DatabaseSync} from "node:sqlite";
 import {readFileSync} from "node:fs";
-import {readNews,storeNews,scheduleStonkletNews,processNewsJob} from "./stonkletNews";
+import {activateNews,readNews,storeNews,scheduleStonkletNews,processNewsJob} from "./stonkletNews";
 import {legacyNews} from "../../shared/stonkletsNews";
 import saved from "../../shared/stonkletsNewsPreview.json";
 import {NEWS_FEEDS,fetchNewsFeed} from "./stonkletNewsResearch";
@@ -11,6 +11,18 @@ function database(){sqlite=new DatabaseSync(":memory:");sqlite.exec("PRAGMA fore
 beforeEach(()=>vi.clearAllMocks());
 afterEach(()=>{sqlite?.close();vi.restoreAllMocks()});
 describe("news persistence and isolation",()=>{
+ it("activates immediately with no observed days, preserves withdrawals, and publishes later arrivals",async()=>{
+  const db=database(),first=legacyNews(saved[0] as never),withdrawn=legacyNews(saved[1] as never);
+  await storeNews(db,first);await storeNews(db,withdrawn);
+  sqlite.prepare("UPDATE stonklet_news_links SET withdrawn_at='2026-10-07' WHERE id=?").run(withdrawn.id);
+  expect(await activateNews(db,'2026-10-01T01:00:00Z')).toBe(true);
+  expect(sqlite.prepare("SELECT mode FROM stonklet_spotlight_control").get()?.mode).toBe('live');
+  expect(sqlite.prepare("SELECT published FROM stonklet_news_links WHERE id=?").get(first.id)?.published).toBe(1);
+  expect(sqlite.prepare("SELECT published FROM stonklet_news_links WHERE id=?").get(withdrawn.id)?.published).toBe(0);
+  const later=legacyNews(saved[2] as never);await storeNews(db,later);
+  expect(sqlite.prepare("SELECT published FROM stonklet_news_links WHERE id=?").get(later.id)?.published).toBe(1);
+  expect((await readNews(db,{},new Date('2026-10-07'))).entries.length).toBeGreaterThan(0);
+ });
  it("dispatches Marketaux only when enabled and acknowledges quota stops without RSS fallback",async()=>{
   const db=database(),send=vi.fn(async(_job:unknown)=>{}),clock=new Date('2026-10-07T00:05:00Z');
   const env={WARPLETS:db,STONKLETS_SPOTLIGHT_ENABLED:'true',STONKLET_NEWS_QUEUE:{send} as never,MARKETAUX_NEWS_ENABLED:'true',MARKETAUX_API_TOKEN:'test'};

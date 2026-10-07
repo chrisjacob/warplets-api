@@ -46,7 +46,7 @@ OPENSEA_MARKET_INGEST_INTERVAL_MINUTES = "10"
 STONKLETS_MARKET_INGEST_ENABLED = "true"
 STONKLETS_MARKET_INGEST_INTERVAL_MINUTES = "5"
 STONKLETS_DAILY_NOTIFICATIONS_ENABLED = "true"
-# Collect unpublished hourly positive news; D1 control enforces the seven-day trial.
+# Collect hourly positive news; D1 control supports explicit live/shadow/off modes.
 STONKLETS_SPOTLIGHT_ENABLED = "true"
 STONKLETS_SPOTLIGHT_AI_ENABLED = "true"
 STONKLETS_CMC_ENABLED = "true"

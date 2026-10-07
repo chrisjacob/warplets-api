@@ -1,4 +1,4 @@
-import { readNews } from "../../_lib/stonkletNews";
+import { activateNews, readNews } from "../../_lib/stonkletNews";
 import { NEWS_FEEDS, NEWS_IDENTITIES } from "../../_lib/stonkletNewsResearch";
 import { newsHistoryCutoff } from "../../../shared/stonkletsNewsDates";
 import { readSpotlight, type SpotlightEnv } from "../../_lib/stonkletSpotlight.js";
@@ -46,14 +46,7 @@ export const onRequestPost: PagesFunction<Env> = async context => {
   }
   if (!["off", "shadow", "live"].includes(body.mode ?? "")) return jsonSecure({ error: "invalid_action" }, { status: 400 });
   if (body.mode === "live") {
-    await db.batch([db.prepare(`UPDATE stonklet_spotlight_control SET mode='live',updated_at=? WHERE id=1
-      AND strategy_version='narrative-news-v4' AND julianday(trial_started_at)<=julianday('now','-7 days')
-      AND (SELECT COUNT(DISTINCT substr(evaluated_at,1,10)) FROM stonklet_news_runs WHERE status='complete'
-        AND julianday(evaluated_at)>=julianday(trial_started_at))>=7`).bind(now),
-      db.prepare("UPDATE stonklet_news_links SET published=1 WHERE withdrawn_at IS NULL AND EXISTS(SELECT 1 FROM stonklet_spotlight_control WHERE id=1 AND mode='live' AND updated_at=?)").bind(now),
-    ]);
-    const result = await db.prepare("SELECT id FROM stonklet_spotlight_control WHERE id=1 AND mode='live' AND updated_at=?").bind(now).first();
-    if (!result) return jsonSecure({ error: "seven_day_shadow_trial_required" }, { status: 409 });
+    if (!await activateNews(db,now)) return jsonSecure({ error: "news_pipeline_not_initialized" }, { status: 409 });
   } else {
     await db.prepare("UPDATE stonklet_spotlight_control SET mode=?,updated_at=? WHERE id=1").bind(body.mode!, now).run();
   }

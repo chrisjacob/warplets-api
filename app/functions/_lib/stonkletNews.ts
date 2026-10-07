@@ -8,6 +8,14 @@ import { marketauxEnabled, marketauxFeed, marketauxFeedsForHour, fetchMarketauxN
 export interface NewsJob { kind:"stonklet-news"; hour:string; sourceId:string }
 export interface NewsEnv extends MarketauxEnv { STONKLET_NEWS_QUEUE?:Queue<NewsJob>; STONKLETS_SPOTLIGHT_ENABLED?:string }
 const fields=`l.id,l.pair_id,l.relation,l.evidence,l.selected_at,l.published,l.withdrawn_at,l.withdrawal_reason,a.id article_id,a.narrative_key,a.headline,a.domain,a.priority,a.source_json,a.published_at`;
+/** Explicit admin activation; no elapsed-time or observation-count requirement. */
+export async function activateNews(db:D1Database,now=new Date().toISOString()):Promise<boolean>{
+ await db.batch([
+  db.prepare("UPDATE stonklet_spotlight_control SET mode='live',updated_at=? WHERE id=1 AND strategy_version='narrative-news-v4'").bind(now),
+  db.prepare("UPDATE stonklet_news_links SET published=1 WHERE withdrawn_at IS NULL AND EXISTS(SELECT 1 FROM stonklet_spotlight_control WHERE id=1 AND mode='live' AND strategy_version='narrative-news-v4' AND updated_at=?)").bind(now),
+ ]);
+ return !!await db.prepare("SELECT id FROM stonklet_spotlight_control WHERE id=1 AND mode='live' AND strategy_version='narrative-news-v4' AND updated_at=?").bind(now).first();
+}
 function fromRow(row:Record<string,unknown>):NewsItem {
  const source=JSON.parse(String(row.source_json));return {id:String(row.id),articleId:String(row.article_id),narrativeKey:String(row.narrative_key),pairId:String(row.pair_id),strategy:"narrative-news-v4",headline:String(row.headline),selectedAt:String(row.selected_at),sourceDomain:String(row.domain)||sourceDomain(source.url),relation:row.relation as "direct"|"sector",evidence:String(row.evidence),sources:[source],leadSourceId:source.id,sourcePriority:Number(row.priority),published:!!row.published,withdrawnAt:row.withdrawn_at as string|null,withdrawalReason:row.withdrawal_reason as string|null};
 }
