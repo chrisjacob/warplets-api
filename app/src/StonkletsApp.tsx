@@ -428,7 +428,7 @@ function CompactRow({ entry, asset, range, favourite, busy, onFavourite }: { ent
     <div className="stonklets-compact-identity" role="button" tabIndex={0} aria-label={`Share ${entry.stonklet.name}`}><IdentityImage key={`${entry.id}:${asset}`} src={asset === "stock" ? entry.stock.logo : entry.stonklet.image} label={identity.symbol} kind={asset} pairedStockLogo={asset === "stonklet" ? entry.stock.logo : undefined} /><span><b>{identity.symbol}</b><small>{identity.name}</small></span></div>
     {unlaunchedStonklet
       ? <StonkletLaunchVotes id={entry.id} name={entry.stonklet.name} count={entry.favourites} compact />
-      : <><span data-label="MCap">{compactNumber(metrics.marketCap, true)}</span><span data-label="24h Vol">{compactNumber(metrics.volume24h, true)}</span><span data-label="Holders">{compactNumber(metrics.holders)}</span><span data-label={STONKLET_CHANGE_RANGE_LABELS[range]} className={periodChange == null ? "" : periodChange >= 0 ? "is-positive" : "is-negative"}>{changeText(periodChange)}</span></>}
+      : <><span data-label="MCap">{compactNumber(metrics.marketCap, true)}</span><span data-label="24h Vol">{compactNumber(metrics.volume24h, true)}</span><span data-label={STONKLET_CHANGE_RANGE_LABELS[range]} className={periodChange == null ? "" : periodChange >= 0 ? "is-positive" : "is-negative"}>{changeText(periodChange)}</span></>}
     <Heart active={favourite} count={asset === "stock" ? entry.stockFavourites : entry.favourites} disabled={busy} onClick={onFavourite} />
     {unlaunchedStonklet ? <button type="button" className="stonklets-trade stonklets-grid-cta" disabled={busy} onClick={onFavourite} title={ctaLabel} aria-label={ctaLabel}>Vote</button>
       : tradeUrl ? <a className="stonklets-trade stonklets-grid-cta" href={tradeUrl} target="_blank" rel="noopener noreferrer" title={ctaLabel} aria-label={ctaLabel}>Trade</a>
@@ -831,7 +831,7 @@ export default function StonkletsApp() {
     {name === "Upcoming" && !search.trim() && <button type="button" className="stonklets-upcoming-toggle" onClick={() => setShowUpcoming((value) => !value)} aria-expanded={showUpcoming}>{showUpcoming ? "Hide Upcoming Tokens" : "Show Upcoming Tokens"}</button>}
     {(name !== "Upcoming" || showUpcoming || Boolean(search.trim())) && <>
     {items.length > 0 ? <div className={`stonklets-results${name === "Upcoming" ? " stonklets-results--upcoming" : ""}${isGridLayout(resultLayout) ? " stonklets-results--grid" : ""}${resultLayout === "single-grid" ? " stonklets-results--single-grid" : ""}`}>
-      {isGridLayout(resultLayout) && <div className="stonklets-compact-head"><span aria-hidden="true" /><span>MCap</span><span>24h Vol</span><span>Hold</span><span>{STONKLET_CHANGE_RANGE_LABELS[changeRange].toUpperCase()}</span></div>}
+      {isGridLayout(resultLayout) && <div className="stonklets-compact-head"><span aria-hidden="true" /><span>MCap</span><span>24h Vol</span><span>{STONKLET_CHANGE_RANGE_LABELS[changeRange].toUpperCase()}</span></div>}
       {renderPairs(items)}
     </div> : !loading && <p className="stonklets-group-empty">{search || favouritesOnly ? "No matching tokens." : name === "Launched" ? "No Stonklets launched yet." : name === "Voting" ? "No Stonklets awaiting votes." : "No upcoming tokens."}</p>}
     </>}

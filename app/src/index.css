@@ -2246,9 +2246,9 @@ html[data-entry-point="pwa"] .miniapp-shell__content {
 .stonklets-heart--grid.is-active{color:#00ff00}
 .stonklets-heart--grid:hover:not(:disabled),.stonklets-heart--grid:focus-visible:not(:disabled){background:transparent;color:#00ff00;outline:none}
 .stonklets-heart--grid b{font-size:10px;line-height:14px}
-.stonklets-grid-cta{height:26px;margin:0 0 3px;padding:0 6px;border:1px solid #009900;border-radius:8px;font-size:9px;line-height:11px;box-shadow:2px 3px 0 #008000}
+.stonklets-grid-cta{height:28px;margin:0 0 3px;padding:0 8px;border:1px solid #009900;border-radius:8px;font-size:9px;line-height:11px;box-shadow:2px 3px 0 #008000}
 .stonklets-grid-cta:active:not(:disabled){transform:translate(1px,1.5px);box-shadow:1px 1px 0 #008000}
-.stonklets-grid-launch-panel{grid-column:2/6;display:flex;height:32px;min-width:0;align-items:center;justify-content:center;overflow:hidden;padding:0 5px;border:1px solid rgba(255,255,0,.55);border-radius:7px;background:rgba(255,255,0,.12);color:#ffff00;font-size:clamp(7px,2vw,10px);font-weight:700;line-height:12px;text-align:center;white-space:nowrap;text-overflow:ellipsis}
+.stonklets-grid-launch-panel{grid-column:2/5;display:flex;height:32px;min-width:0;align-items:center;justify-content:center;overflow:hidden;padding:0 5px;border:1px solid rgba(255,255,0,.55);border-radius:7px;background:rgba(255,255,0,.12);color:#ffff00;font-size:clamp(7px,2vw,10px);font-weight:700;line-height:12px;text-align:center;white-space:nowrap;text-overflow:ellipsis}
 @media(max-width:520px){.stonklets-compact-row{padding:3px 5px;font-size:9px}.stonklets-compact-identity b{font-size:11px}.stonklets-compact-identity small{font-size:9px}.stonklets-heart--grid{min-width:34px;padding-inline:4px;gap:3px}.stonklets-grid-cta{padding-inline:4px;font-size:9px}}
 
 /* Keep the chart-card data and prelaunch message aligned at the same height. */
@@ -2295,13 +2295,13 @@ a.stonklets-trade{display:flex;align-items:center;justify-content:center;box-siz
 .stonklets-chart-pair{gap:0;background:transparent}
 .stonklets-compact-row+.stonklets-compact-row{border-top:0}
 
-/* Seven-column Market grid after replacing Price with Holders. */
-.stonklets-compact-head,.stonklets-compact-row{grid-template-columns:minmax(92px,1.7fr) minmax(0,.75fr) minmax(0,.85fr) minmax(0,.75fr) minmax(0,.8fr) minmax(0,.68fr) minmax(0,.62fr)}
-.stonklets-compact-head,.stonklets-results--grid{width:calc(100% + 32px);max-width:none;margin-right:-16px;margin-left:-16px}
+/* Six-column Market grid: identity, market cap, volume, change, favourite and action. */
+.stonklets-compact-head,.stonklets-compact-row{grid-template-columns:minmax(104px,2fr) minmax(0,.72fr) minmax(0,.82fr) minmax(0,.78fr) minmax(40px,.68fr) minmax(54px,.78fr)}
+.stonklets-compact-head,.stonklets-results--grid{width:100%;max-width:none;margin-right:0;margin-left:0}
 .stonklets-results--grid .stonklets-compact-head{width:100%;margin-right:0;margin-left:0}
 .stonklets-card-metrics{grid-template-columns:repeat(3,minmax(0,1fr))}
 @media(max-width:520px){
-  .stonklets-compact-head,.stonklets-compact-row{grid-template-columns:minmax(78px,1.6fr) minmax(0,.7fr) minmax(0,.76fr) minmax(0,.7fr) minmax(0,.72fr) minmax(0,.64fr) minmax(0,.58fr)}
+  .stonklets-compact-head,.stonklets-compact-row{grid-template-columns:minmax(84px,1.75fr) minmax(0,.72fr) minmax(0,.8fr) minmax(0,.74fr) minmax(36px,.62fr) minmax(48px,.72fr)}
 }
 
 /* Use the extra width available in Single Chart layout. */
@@ -2389,13 +2389,11 @@ a.stonklets-trade{display:flex;align-items:center;justify-content:center;box-siz
 .stonklets-news-headline-row{display:flex;align-items:center;gap:12px;min-width:0}
 .stonklets-news-identity{flex:0 0 56px;width:56px}
 .stonklets-news-identity .stonklets-identity-image{width:56px;height:56px;flex-basis:56px}
-.stonklets-news-headline-clamped{min-width:0;flex:1;line-height:1.375;height:4.125em;overflow:hidden}
-.stonklets-news-headline-clamped{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3}
+.stonklets-news-headline-clamped{position:relative;display:block;min-width:0;flex:1;line-height:1.375;height:4.125em;overflow:hidden}
+.stonklets-news-headline-clamped [data-news-text]{overflow-wrap:anywhere}
 
 .stonklets-news-sentinel{height:1px;margin-bottom:-1px}
 .stonklets-news-inline{border-bottom:1px solid #00ff0033}
 .stonklets-news-date,.stonklets-news-sector{display:inline-block;vertical-align:middle;font-weight:400;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10px;line-height:14px;border:1px solid #00ff0040;border-radius:3px;padding:0 4px;color:#8bbf8b}
 
 .stonklets-news-date{color:#00ff00;background:rgb(0 255 0 / 7%)}
-
-.stonklets-news-attribution { font-size: 10px; line-height: 14px; font-weight: 400; color: #8eb98e; vertical-align: middle; white-space: nowrap; }

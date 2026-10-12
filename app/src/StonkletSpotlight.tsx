@@ -38,7 +38,7 @@ export default function StonkletSpotlight({ onShare, renderPair, renderIdentity,
     const interval = window.setInterval(() => {
       if (document.hidden || document.querySelector('[role="dialog"]')) return;
       setActiveId(current => ids[(Math.max(0, ids.indexOf(current ?? "")) + 1) % ids.length]!);
-    }, 5000);
+    }, 10000);
     return () => window.clearInterval(interval);
   }, [storyIds, titleHovered, focusWithin, activeId, visible, reduced]);
   const index = Math.max(0, stories.findIndex(item => item.id === activeId));
@@ -48,22 +48,27 @@ export default function StonkletSpotlight({ onShare, renderPair, renderIdentity,
   const lead = newsSource(thesis);
   const headline = thesis.headline ?? lead?.title ?? "";
   const navigate = (next: number) => setActiveId(stories[(next + stories.length) % stories.length]!.id);
-  return <div ref={root}><section onFocusCapture={event => setFocusWithin(event.target instanceof Element && event.target.matches(":focus-visible"))} onBlurCapture={event => { if (!event.currentTarget.contains(event.relatedTarget)) setFocusWithin(false); }} aria-label={pairId ? `${entry.stock.name} news` : "10X News: Trade The Narrative"} aria-roledescription="carousel" className={`stonklets-trending-news overflow-hidden bg-[#041204] text-[#b8d7b8] ${pairId ? "stonklets-news-inline" : "my-4 rounded-2xl border border-[#00ff00]/60"}`}>
+  return <div ref={root}><section onFocusCapture={event => setFocusWithin(event.target instanceof Element && event.target.matches(":focus-visible"))} onBlurCapture={event => { if (!event.currentTarget.contains(event.relatedTarget)) setFocusWithin(false); }} aria-label={pairId ? `${entry.stock.name} news` : "Trade The News"} aria-roledescription="carousel" className={`stonklets-trending-news overflow-hidden bg-[#041204] text-[#b8d7b8] ${pairId ? "stonklets-news-inline" : "my-4 rounded-2xl border border-[#00ff00]/60"}`}>
     <div className="relative p-4">
       {!pairId && <button type="button" aria-label={expanded ? "Collapse trade the news" : "Expand trade the news"} aria-expanded={expanded} aria-controls={chartsId} className="stonklets-news-square absolute right-3 top-3" onClick={() => setExpanded(value => !value)}>
         <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d={expanded ? "m6 15 6-6 6 6" : "m6 9 6 6 6-6"} /></svg>
       </button>}
-      {!pairId && <h2 className="mb-3 pr-9 font-black text-[#00ff00]">10X News: Trade The Narrative</h2>}
+      {!pairId && <h2 className="mb-3 pr-9 font-black text-[#00ff00]">Trade The News</h2>}
       <div className="stonklets-news-headline-row" role="group" aria-roledescription="slide" aria-label={`${index + 1} of ${stories.length}`}>
         <div className="stonklets-news-identity">{renderIdentity(entry)}</div>
-        <StonkletNewsHeadline headline={headline} url={lead?.url} publishedAt={lead?.publishedAt} attribution={lead?.publisher === "Yahoo Finance" ? "Yahoo Finance" : undefined} sector={thesis.relation === "sector"} evidence={thesis.evidence} expanded={expanded} onHover={setTitleHovered} />
+        <StonkletNewsHeadline headline={headline} url={lead?.url} publishedAt={lead?.publishedAt} sector={thesis.relation === "sector"} evidence={thesis.evidence} expanded={expanded} onHover={setTitleHovered} />
       </div>
       <div className="mt-3 flex items-center justify-between gap-2">
       <nav className="stonklets-news-pagination" aria-label="Trade the news slides" onKeyDown={event => { if (event.key === "ArrowLeft" || event.key === "ArrowRight") { event.preventDefault(); navigate(index + (event.key === "ArrowRight" ? 1 : -1)); } }}>
         {stories.map((story, i) => <button key={story.id} type="button" aria-label={`Go to news ${i + 1}`} aria-current={i === index ? "step" : undefined} onClick={() => navigate(i)} className="stonk-onboard-dot"><span className={i === index ? "is-active" : ""} /></button>)}
       </nav>
       <div className="flex shrink-0 items-center gap-2">
-      <button type="button" aria-label="Next news" disabled={stories.length < 2} className="cursor-pointer rounded-lg border border-[#00ff00]/60 px-3 py-1.5 text-sm font-bold text-[#00ff00] hover:bg-[#00ff00]/10 disabled:opacity-40" onClick={() => navigate(index + 1)}>Next</button>
+      <button type="button" aria-label="Previous news" disabled={stories.length < 2} className="grid h-8 w-8 shrink-0 cursor-pointer place-items-center rounded-lg border border-[#00ff00]/60 text-[#00ff00] hover:bg-[#00ff00]/10 disabled:cursor-default disabled:opacity-40" onClick={() => navigate(index - 1)}>
+        <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6" /></svg>
+      </button>
+      <button type="button" aria-label="Next news" disabled={stories.length < 2} className="grid h-8 w-8 shrink-0 cursor-pointer place-items-center rounded-lg border border-[#00ff00]/60 text-[#00ff00] hover:bg-[#00ff00]/10 disabled:cursor-default disabled:opacity-40" onClick={() => navigate(index + 1)}>
+        <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6" /></svg>
+      </button>
       <button type="button" className="stonklets-news-share h-8 shrink-0 cursor-pointer rounded-lg border border-[#00FF00]/55 bg-[#00FF00] px-3 text-xs font-bold text-[rgb(0,80,0)] hover:bg-[#33ff33]" onClick={() => onShare(entry, structuredClone(thesis))}>Share</button>
       </div>
       </div>
