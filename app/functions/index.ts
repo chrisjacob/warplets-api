@@ -40,8 +40,10 @@ import { APP_FAVICONS, buildFaviconLinks, getHostnameFaviconKey } from "../share
 import { getTwitterCardImageUrl } from "../shared/twitterCardImage.js";
 import { stonkletFromSharePath, stonkletShare } from "../shared/stonkletsShare.js";
 import { parseStonkletChangeRange } from "../shared/stonkletsTime.js";
+import { isNetworkRoute, networkHtml, NETWORK_CSP } from "../shared/network/metadata.js";
 
 type PagesEnv = StatsSharesEnv & {
+  NETWORK_ENABLED?: string;
   ASSETS: Fetcher;
   WARPLETS_ACCOUNT_ASSOCIATION_JSON?: string;
   STONKLETS_ACCOUNT_ASSOCIATION_JSON?: string;
@@ -377,7 +379,7 @@ export function buildCanonicalUrl(requestUrl: URL): string {
 export function getPublicPageRequestUrl(request: Request): URL {
   const current = new URL(request.url);
   const forwardedOrigin = request.headers.get("x-10x-public-origin")?.trim();
-  if (current.protocol !== "http:" || (!isWarpletsAppHostname(current.hostname) && !isStonkletsAppHostname(current.hostname))) {
+  if (current.protocol !== "http:" || (!isWarpletsAppHostname(current.hostname) && !isStonkletsAppHostname(current.hostname) && !isNetworkRoute(current.hostname,"/"))) {
     return current;
   }
   const forwardedProto = request.headers.get("x-forwarded-proto")
@@ -729,6 +731,15 @@ function getStatsSnapshotMeta(snapshot: StatsShareSnapshot): { title: string; de
 
 export const onRequestGet: PagesFunction<PagesEnv> = async (context) => {
   const requestUrl = getPublicPageRequestUrl(context.request);
+  if (isNetworkRoute(requestUrl.hostname, requestUrl.pathname)) {
+    if (context.env.NETWORK_ENABLED !== 'true') return applySecurityHeaders(new Response('Network is not enabled', { status: 404 }));
+    if (requestUrl.pathname === '/.well-known/farcaster.json') return applySecurityHeaders(new Response('Not registered as a Mini App', { status: 404 }));
+    const response = await context.next();
+    if (!response.headers.get('content-type')?.includes('text/html')) return applySecurityHeaders(response);
+    const headers = new Headers(response.headers); headers.delete('content-length'); headers.set('cache-control', 'no-store');
+    if (requestUrl.hostname.includes('-local.')) headers.set('x-robots-tag', 'noindex, nofollow');
+    return applySecurityHeaders(new Response(networkHtml(await response.text(), requestUrl.origin, requestUrl.pathname), { status: response.status, headers }), { csp: NETWORK_CSP });
+  }
 
   if (requestUrl.pathname === "/favicon.ico") {
     const favicon = APP_FAVICONS[getHostnameFaviconKey(requestUrl.hostname)];
@@ -879,7 +890,7 @@ export const onRequestGet: PagesFunction<PagesEnv> = async (context) => {
       : undefined;
   const searchShareImageUrl = searchWarpletImageUrl ?? searchResultsImageUrl ?? (perksShareContent ? getPerksShareImageUrl(perksShareContent) : undefined);
   const sharedStonklet = routeKey === "stonklets" ? stonkletFromSharePath(requestUrl.pathname) : undefined;
-  const stonkletShareMeta = sharedStonklet ? stonkletShare(sharedStonklet, requestUrl.hostname, parseStonkletChangeRange(requestUrl.searchParams.get("change")) ?? "24h") : undefined;
+  const stonkletShareMeta = sharedStonklet ? stonkletShare(sharedStonklet, requestUrl.hostname, parseStonkletChangeRange(requestUrl.searchParams.get("change")) ?? "24h", requestUrl.searchParams.get("news") ?? requestUrl.searchParams.get("thesis")) : undefined;
   const routeImageUrl = stonkletShareMeta?.ogImage ?? statsShareOgImageUrl ?? (routeKey === "stop" ? STOP_IMAGE_URL : searchShareImageUrl ?? dropShareImageUrl);
   const isSharedContentDeepLink = Boolean(
     stonkletShareMeta ||

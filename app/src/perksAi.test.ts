@@ -1,5 +1,5 @@
 import { existsSync } from "node:fs";
-import { resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { PERKS_DEFINITIONS } from "./perksMockData";
 
@@ -20,7 +20,7 @@ describe("AI perk tool badges", () => {
     ]);
     for (const badge of badges) {
       expect(badge.logoSrc).toMatch(/^\/perks\/ai-tools\/[a-z0-9-]+\.(png|svg)$/);
-      expect(existsSync(resolve(process.cwd(), "public", badge.logoSrc.slice(1)))).toBe(true);
+      expect(existsSync(fileURLToPath(new URL(`../public${badge.logoSrc}`, import.meta.url)))).toBe(true);
       expect(badge.tagline.length).toBeGreaterThan(20);
     }
   });

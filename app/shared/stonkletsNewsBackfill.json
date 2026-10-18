@@ -1,0 +1,126 @@
+{
+  "reviewedAt": "2026-10-06T12:27:49.240Z",
+  "note": "One-time requested backfill from official sources, September 18–October 6, 2026. Publication dates are original; social engagement is not measured. Manual review permits older announcements without widening hourly discovery beyond seven days.",
+  "entries": [
+    {
+      "pairId": "apple",
+      "source": {
+        "title": "Final Cut Camera now supports variable aperture on iPhone 18 Pro",
+        "publishedAt": "2026-09-29T17:00:57.163Z",
+        "url": "https://www.apple.com/newsroom/2026/09/final-cut-camera-now-supports-variable-aperture-on-iphone-18-pro/",
+        "id": "https://www.apple.com/newsroom/2026/09/final-cut-camera-now-supports-variable-aperture-on-iphone-18-pro/",
+        "publisher": "Apple",
+        "fetchedAt": "2026-10-06T12:27:47.708Z"
+      },
+      "reason": "Product feature release"
+    },
+    {
+      "pairId": "apple",
+      "source": {
+        "title": "New updates coming to Apple Creator Studio",
+        "publishedAt": "2026-09-29T17:00:02.643Z",
+        "url": "https://www.apple.com/newsroom/2026/09/new-updates-coming-to-apple-creator-studio/",
+        "id": "https://www.apple.com/newsroom/2026/09/new-updates-coming-to-apple-creator-studio/",
+        "publisher": "Apple",
+        "fetchedAt": "2026-10-06T12:27:47.709Z"
+      },
+      "reason": "Creator software product updates"
+    },
+    {
+      "pairId": "nvidia",
+      "source": {
+        "title": "NVIDIA Announces a $150 Billion Share Repurchase Authorization Increase",
+        "publishedAt": "2026-09-28T11:00:00.000Z",
+        "url": "https://nvidianews.nvidia.com/news/nvidia-announces-a-150-billion-share-repurchase-authorization-increase",
+        "id": "https://nvidianews.nvidia.com/news/nvidia-announces-a-150-billion-share-repurchase-authorization-increase",
+        "publisher": "NVIDIA",
+        "fetchedAt": "2026-10-06T12:27:47.710Z"
+      },
+      "reason": "Increased share repurchase authorization"
+    },
+    {
+      "pairId": "nvidia",
+      "source": {
+        "title": "NVIDIA Launches Open Agent Safety Platform to Secure Agents From Testing to Deployment",
+        "publishedAt": "2026-09-28T09:00:00.000Z",
+        "url": "https://nvidianews.nvidia.com/news/open-agent-safety-platform",
+        "id": "https://nvidianews.nvidia.com/news/open-agent-safety-platform",
+        "publisher": "NVIDIA",
+        "fetchedAt": "2026-10-06T12:27:47.711Z"
+      },
+      "reason": "Agent safety product launch"
+    },
+    {
+      "pairId": "alphabet",
+      "source": {
+        "title": "Why we're backing America's existing nuclear plants",
+        "publishedAt": "2026-10-06T10:00:00.000Z",
+        "url": "https://blog.google/company-news/why-were-backing-americas-existing-nuclear-plants/",
+        "id": "https://blog.google/company-news/why-were-backing-americas-existing-nuclear-plants/",
+        "publisher": "Google",
+        "fetchedAt": "2026-10-06T12:27:47.713Z"
+      },
+      "reason": "Support for nuclear generation to supply growing power demand"
+    },
+    {
+      "pairId": "alphabet",
+      "source": {
+        "title": "Our Project Suncatcher prototype satellite is in orbit.",
+        "publishedAt": "2026-10-01T23:30:00.000Z",
+        "url": "https://blog.google/innovation-and-ai/models-and-research/google-research/project-suncatcher-prototype/",
+        "id": "https://blog.google/innovation-and-ai/models-and-research/google-research/project-suncatcher-prototype/",
+        "publisher": "Google",
+        "fetchedAt": "2026-10-06T12:27:47.714Z"
+      },
+      "reason": "Prototype satellite deployment milestone"
+    },
+    {
+      "pairId": "microsoft",
+      "source": {
+        "title": "Introducing the new Copilot with Home, Code and Autopilot",
+        "publishedAt": "2026-09-25T12:03:50.000Z",
+        "url": "https://blogs.microsoft.com/blog/2026/09/25/introducing-the-new-copilot-with-home-code-and-autopilot/",
+        "id": "https://blogs.microsoft.com/blog/2026/09/25/introducing-the-new-copilot-with-home-code-and-autopilot/",
+        "publisher": "Microsoft",
+        "fetchedAt": "2026-10-06T12:27:47.716Z"
+      },
+      "reason": "Copilot product launch"
+    },
+    {
+      "pairId": "sk-hynix",
+      "source": {
+        "title": "SK hynix Launches ‘SK hynix Ventures’ in Silicon Valley to Expand Global AI Ecosystem Investment",
+        "publishedAt": "2026-09-18T05:59:25.000Z",
+        "url": "https://news.skhynix.com/en/sk-hynix-ventures/",
+        "id": "https://news.skhynix.com/en/sk-hynix-ventures/",
+        "publisher": "SK hynix",
+        "fetchedAt": "2026-10-06T12:27:47.718Z"
+      },
+      "reason": "Venture investment expansion"
+    },
+    {
+      "pairId": "fluence",
+      "source": {
+        "title": "Fluence Secures Long-Term Battery Supply Through Multiyear Agreement with EVE Power",
+        "publishedAt": "2026-09-24T13:00:50.000Z",
+        "url": "https://ir.fluenceenergy.com/news-releases/news-release-details/fluence-secures-long-term-battery-supply-through-multiyear",
+        "id": "https://ir.fluenceenergy.com/news-releases/news-release-details/fluence-secures-long-term-battery-supply-through-multiyear",
+        "publisher": "Fluence",
+        "fetchedAt": "2026-10-06T12:27:47.720Z"
+      },
+      "reason": "Multiyear battery supply agreement"
+    },
+    {
+      "pairId": "robinhood",
+      "source": {
+        "id": "https://robinhood.com/us/en/newsroom/hood-summit-2026/",
+        "url": "https://robinhood.com/us/en/newsroom/hood-summit-2026/",
+        "title": "Robinhood Puts the Power of Hedge Funds in Every Trader's Pocket",
+        "publisher": "Robinhood",
+        "publishedAt": "2026-09-29T05:00:00.000Z",
+        "fetchedAt": "2026-10-06T12:27:47.720Z"
+      },
+      "reason": "Active trading product announcements; future availability remains qualified in the source"
+    }
+  ]
+}

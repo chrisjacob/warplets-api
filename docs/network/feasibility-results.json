@@ -1,0 +1,146 @@
+{
+  "schemaVersion": 1,
+  "startedAt": "2026-10-17T10:54:49.791Z",
+  "finishedAt": "2026-10-17T10:55:42.118Z",
+  "purpose": "Internal feasibility sample; not public network statistics",
+  "samplePolicy": "First and last page from every reported identity shard, plus three existing project FIDs. Non-random and not representative.",
+  "requestLimit": 360,
+  "requests": 181,
+  "providerRequests": {
+    "farcaster.xyz": 2,
+    "fc.dylanbrodeur.org": 1,
+    "snapchain-api.neynar.com": 29,
+    "api.neynar.com": 149
+  },
+  "failures": {},
+  "sources": {
+    "officialVote": {
+      "page": "https://farcaster.xyz/~/vote",
+      "bundle": "https://farcaster.xyz/assets/index-cd8plQi8.js",
+      "bundleSha256": "fee3cd46c77eabe5104d3dc0f30587f1f521b811bfe2db896f5b82b9fb32adbe",
+      "contract": "0x4ecfed276c566aeb49da1f3a888e8dbb7263028d",
+      "chainId": 8453,
+      "primaryType": "OptIn",
+      "agreement": "bafkreidd42t6fegjniiheqj2omiucv222sjqhprokfiqdufd5xxmdcfxt4",
+      "fidInSignedMessage": true,
+      "leaveUsesApplicationApi": true,
+      "currentDecisionCanChange": true,
+      "abiVerified": false,
+      "eligibilityVerified": false,
+      "publicRejectionSourceVerified": false
+    },
+    "referenceTracker": {
+      "url": "https://fc.dylanbrodeur.org/api/stats",
+      "contract": "0x4ecfed276c566aeb49da1f3a888e8dbb7263028d",
+      "observedSigners": 16575,
+      "observedMints": 16580,
+      "deployBlock": 52601136,
+      "scannedToBlock": 52722430,
+      "updatedAt": "2026-10-17T10:50:07.767Z",
+      "authoritativeCurrentFidStatus": false
+    },
+    "registry": {
+      "url": "https://snapchain-api.neynar.com/v1/info",
+      "version": "0.14.2",
+      "reportedRegistrations": 3355055,
+      "shardRegistrations": [
+        {
+          "shardId": 1,
+          "registrations": 1677670
+        },
+        {
+          "shardId": 2,
+          "registrations": 1677385
+        }
+      ],
+      "independentlyEnumerated": false
+    }
+  },
+  "gates": {
+    "officialContractAddress": true,
+    "votingAbiAndCurrentStatus": false,
+    "completeRegistryEnumeration": false,
+    "rawSnapchainProfileTokenAssignments": false,
+    "reliableBaseValuation": false,
+    "refreshWithinExistingBudget": false,
+    "safeToImplementDashboard": false
+  },
+  "profiles": {
+    "requestedFids": 376,
+    "retrievedFids": 376,
+    "failedOrMissingFids": 0,
+    "samplePopulation": 376,
+    "countryAssignedFromHydratedData": 0,
+    "countryNotAssignableFromHydratedData": 376,
+    "locationAbsenceVerified": false,
+    "note": "Missing hydrated location fields are source-unavailable, not verified unknown locations. Consult the separate official-client probe.",
+    "mappedPlusUnmappedReconciles": true,
+    "withVerifiedEvmWallets": 171,
+    "distinctVerifiedEvmWallets": 348,
+    "sharedWalletsWithinSample": 0,
+    "hydratedProfileTokenFieldPresent": 0
+  },
+  "profileTokens": {
+    "sampleFids": 24,
+    "observations": {
+      "not_observed": 24
+    },
+    "productionAssignmentsVerified": false
+  },
+  "economics": {
+    "chainId": 8453,
+    "walletScope": "verified",
+    "attemptedWallets": 100,
+    "completeWallets": 91,
+    "unavailableWallets": 9,
+    "zeroSupportedValueWallets": 14,
+    "balancePagesRequested": 145,
+    "excludedBalances": {
+      "unsupported": 5413
+    },
+    "supportedAssets": [
+      "ETH",
+      "WETH",
+      "USDC",
+      "cbBTC"
+    ],
+    "provider": "Neynar onchain token balances",
+    "quotePolicy": "Allowlisted Base assets with explicit positive price_usd; balance_usd alone is rejected.",
+    "nativeCoverageVerified": false,
+    "blockTimestampVerified": false,
+    "priceTimestampVerified": false,
+    "reliableProductionValuationVerified": false
+  },
+  "countrySample": {
+    "warning": "Internal non-representative sample. Vote and token affiliation columns are unavailable; monetary values are withheld pending timestamp/native-coverage validation.",
+    "rows": [
+      {
+        "country": "UNMAPPED_OR_SOURCE_UNAVAILABLE",
+        "population": 376,
+        "measuredFids": 43,
+        "yes": null,
+        "no": null,
+        "noRecord": null,
+        "profileTokenAffiliations": null,
+        "walletValueUsd": null
+      }
+    ],
+    "suppressedGroups": 0,
+    "walletAttributionReconciles": true,
+    "ambiguityCheckedAcrossFullNetwork": false
+  },
+  "capacity": {
+    "callCountLowerBounds": {
+      "hydratedProfileSweep": 33551,
+      "perFidTokenSweep": 3355055,
+      "hourlyPerFidTokenCallsPer30Days": 2415639600
+    },
+    "fullNetworkWalletCount": null,
+    "remainingMonthlyCredits": null,
+    "endpointCreditTariffs": null,
+    "exportEntitlementVerified": false,
+    "sharedD1HeadroomVerified": false,
+    "costWithinExistingSubscriptionVerified": false,
+    "note": "Wallet estimate omitted: a non-random sample cannot estimate full-network distinct wallets. Credit rates and subscription headroom require account evidence. REST sweep counts exclude pagination and retries."
+  }
+}

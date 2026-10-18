@@ -1,0 +1,639 @@
+{
+  "checkedAt": "2026-10-07T04:41:17.880Z",
+  "requests": 36,
+  "limit": 200,
+  "notes": "Original datePublished only. Cached 24h. At most three linked archive pages and four article pages per issuer per run. Optional --month prioritizes dated links and filters candidates. Candidates require human evidence/identity/duplicate review; never auto-published.",
+  "sources": [
+    {
+      "pairId": "spacex",
+      "url": "https://www.spacex.com/updates/",
+      "checkedAt": "2026-10-07T04:41:17.880Z",
+      "parsed": 0,
+      "errors": [],
+      "status": "reachable"
+    },
+    {
+      "pairId": "spy",
+      "url": "https://www.ssga.com/us/en/individual/insights",
+      "checkedAt": "2026-10-07T04:41:17.880Z",
+      "parsed": 0,
+      "errors": [],
+      "status": "reachable"
+    },
+    {
+      "pairId": "invesco-qqq",
+      "url": "https://www.invesco.com/qqq-etf/en/insights.html",
+      "checkedAt": "2026-10-07T04:41:17.880Z",
+      "parsed": 0,
+      "errors": [
+        {
+          "url": "https://www.invesco.com/qqq-etf/en/insights.html",
+          "error": "Error: HTTP 404"
+        }
+      ],
+      "status": "unavailable"
+    },
+    {
+      "pairId": "tether-gold",
+      "url": "https://tether.io/news/",
+      "checkedAt": "2026-10-07T04:41:17.880Z",
+      "parsed": 0,
+      "errors": [
+        {
+          "url": "https://tether.io/news",
+          "error": "TypeError: fetch failed"
+        },
+        {
+          "url": "https://tether.io/blog",
+          "error": "TypeError: fetch failed"
+        }
+      ],
+      "status": "reachable"
+    },
+    {
+      "pairId": "nvidia",
+      "url": "https://nvidianews.nvidia.com/",
+      "checkedAt": "2026-10-07T04:41:17.880Z",
+      "parsed": 0,
+      "errors": [],
+      "status": "reachable"
+    },
+    {
+      "pairId": "tesla",
+      "url": "https://ir.tesla.com/press",
+      "checkedAt": "2026-10-07T04:41:17.880Z",
+      "parsed": 0,
+      "errors": [
+        {
+          "url": "https://ir.tesla.com/press",
+          "error": "Error: HTTP 403"
+        }
+      ],
+      "status": "unavailable"
+    },
+    {
+      "pairId": "sk-hynix",
+      "url": "https://news.skhynix.com/en/",
+      "checkedAt": "2026-10-07T04:41:17.880Z",
+      "parsed": 0,
+      "errors": [],
+      "status": "reachable"
+    },
+    {
+      "pairId": "microsoft",
+      "url": "https://blogs.microsoft.com/",
+      "checkedAt": "2026-10-07T04:41:17.880Z",
+      "parsed": 4,
+      "errors": [],
+      "status": "reachable"
+    },
+    {
+      "pairId": "apple",
+      "url": "https://www.apple.com/newsroom/",
+      "checkedAt": "2026-10-07T04:41:17.880Z",
+      "parsed": 0,
+      "errors": [
+        {
+          "url": "https://www.apple.com/ru/newsroom/",
+          "error": "TypeError: fetch failed"
+        }
+      ],
+      "status": "reachable"
+    },
+    {
+      "pairId": "alphabet",
+      "url": "https://blog.google/",
+      "checkedAt": "2026-10-07T04:41:17.880Z",
+      "parsed": 1,
+      "errors": [],
+      "status": "reachable"
+    },
+    {
+      "pairId": "gamestop",
+      "url": "https://investor.gamestop.com/newsroom",
+      "checkedAt": "2026-10-07T04:41:17.880Z",
+      "parsed": 0,
+      "errors": [
+        {
+          "url": "https://investor.gamestop.com/newsroom",
+          "error": "Error: HTTP 403"
+        }
+      ],
+      "status": "unavailable"
+    },
+    {
+      "pairId": "netflix",
+      "url": "https://about.netflix.com/en/news",
+      "checkedAt": "2026-10-07T04:41:17.880Z",
+      "parsed": 0,
+      "errors": [
+        {
+          "url": "https://about.netflix.com/en/news",
+          "error": "Error: HTTP 404"
+        }
+      ],
+      "status": "unavailable"
+    },
+    {
+      "pairId": "strategy",
+      "url": "https://www.strategy.com/press",
+      "checkedAt": "2026-10-07T04:41:17.880Z",
+      "parsed": 0,
+      "errors": [
+        {
+          "url": "https://www.strategy.com/press",
+          "error": "Error: HTTP 403"
+        }
+      ],
+      "status": "unavailable"
+    },
+    {
+      "pairId": "robinhood",
+      "url": "https://robinhood.com/newsroom/",
+      "checkedAt": "2026-10-07T04:41:17.880Z",
+      "parsed": 0,
+      "errors": [
+        {
+          "url": "https://robinhood.com/newsroom",
+          "error": "TypeError: fetch failed"
+        },
+        {
+          "url": "https://robinhood.com/newsroom/category/news",
+          "error": "TypeError: fetch failed"
+        }
+      ],
+      "status": "reachable"
+    },
+    {
+      "pairId": "alibaba",
+      "url": "https://www.alibabagroup.com/en-US/press-releases",
+      "checkedAt": "2026-10-07T04:41:17.880Z",
+      "parsed": 0,
+      "errors": [],
+      "status": "reachable"
+    },
+    {
+      "pairId": "bitmine",
+      "url": "https://www.bitminetech.io/news",
+      "checkedAt": "2026-10-07T04:41:17.880Z",
+      "parsed": 0,
+      "errors": [
+        {
+          "url": "https://www.bitminetech.io/news",
+          "error": "Error: HTTP 404"
+        }
+      ],
+      "status": "unavailable"
+    },
+    {
+      "pairId": "trump-media",
+      "url": "https://ir.tmtgcorp.com/news-events/press-releases",
+      "checkedAt": "2026-10-07T04:41:17.880Z",
+      "parsed": 0,
+      "errors": [
+        {
+          "url": "https://ir.tmtgcorp.com/news-events/press-releases",
+          "error": "TypeError: fetch failed"
+        }
+      ],
+      "status": "unavailable"
+    },
+    {
+      "pairId": "super-micro",
+      "url": "https://ir.supermicro.com/news/default.aspx",
+      "checkedAt": "2026-10-07T04:41:17.880Z",
+      "parsed": 0,
+      "errors": [
+        {
+          "url": "https://ir.supermicro.com/news/%7B%7Burl%7D%7D",
+          "error": "Error: HTTP 403"
+        },
+        {
+          "url": "https://ir.supermicro.com/news/%7B%7BdocUrl%7D%7D",
+          "error": "Error: HTTP 403"
+        }
+      ],
+      "status": "reachable"
+    },
+    {
+      "pairId": "asml",
+      "url": "https://www.asml.com/en/news/press-releases",
+      "checkedAt": "2026-10-07T04:41:17.880Z",
+      "parsed": 0,
+      "errors": [
+        {
+          "url": "https://www.asml.com/en/news/press-releases",
+          "error": "TypeError: fetch failed"
+        }
+      ],
+      "status": "unavailable"
+    },
+    {
+      "pairId": "ast-spacemobile",
+      "url": "https://ast-science.com/press-releases/",
+      "checkedAt": "2026-10-07T04:41:17.880Z",
+      "parsed": 0,
+      "errors": [
+        {
+          "url": "https://ast-science.com/press-releases/",
+          "error": "TypeError: fetch failed"
+        }
+      ],
+      "status": "unavailable"
+    },
+    {
+      "pairId": "credo",
+      "url": "https://investors.credosemi.com/news-events/news-releases",
+      "checkedAt": "2026-10-07T04:41:17.880Z",
+      "parsed": 0,
+      "errors": [
+        {
+          "url": "https://investors.credosemi.com/news-events/news-releases",
+          "error": "Error: HTTP 403"
+        }
+      ],
+      "status": "unavailable"
+    },
+    {
+      "pairId": "iren",
+      "url": "https://iren.com/investors/news",
+      "checkedAt": "2026-10-07T04:41:17.880Z",
+      "parsed": 0,
+      "errors": [],
+      "status": "reachable"
+    },
+    {
+      "pairId": "astera-labs",
+      "url": "https://www.asteralabs.com/news/",
+      "checkedAt": "2026-10-07T04:41:17.880Z",
+      "parsed": 0,
+      "errors": [
+        {
+          "url": "https://www.asteralabs.com/news/",
+          "error": "TypeError: fetch failed"
+        }
+      ],
+      "status": "unavailable"
+    },
+    {
+      "pairId": "coherent",
+      "url": "https://www.coherent.com/news/press-releases",
+      "checkedAt": "2026-10-07T04:41:17.880Z",
+      "parsed": 0,
+      "errors": [],
+      "status": "reachable"
+    },
+    {
+      "pairId": "usa-rare-earth",
+      "url": "https://www.usare.com/news",
+      "checkedAt": "2026-10-07T04:41:17.880Z",
+      "parsed": 0,
+      "errors": [
+        {
+          "url": "https://www.usare.com/news",
+          "error": "Error: HTTP 404"
+        }
+      ],
+      "status": "unavailable"
+    },
+    {
+      "pairId": "micron",
+      "url": "https://investors.micron.com/news-releases",
+      "checkedAt": "2026-10-07T04:41:17.880Z",
+      "parsed": 0,
+      "errors": [
+        {
+          "url": "https://investors.micron.com/news-releases",
+          "error": "Error: HTTP 403"
+        }
+      ],
+      "status": "unavailable"
+    },
+    {
+      "pairId": "circle",
+      "url": "https://www.circle.com/pressroom",
+      "checkedAt": "2026-10-07T04:41:17.880Z",
+      "parsed": 0,
+      "errors": [],
+      "status": "reachable"
+    },
+    {
+      "pairId": "ishares-korea",
+      "url": "https://www.ishares.com/us/insights",
+      "checkedAt": "2026-10-07T04:41:17.880Z",
+      "parsed": 0,
+      "errors": [
+        {
+          "url": "https://www.ishares.com/us/insights",
+          "error": "TypeError: fetch failed"
+        }
+      ],
+      "status": "unavailable"
+    },
+    {
+      "pairId": "amd",
+      "url": "https://ir.amd.com/news-events/press-releases",
+      "checkedAt": "2026-10-07T04:41:17.880Z",
+      "parsed": 0,
+      "errors": [],
+      "status": "reachable"
+    },
+    {
+      "pairId": "intel",
+      "url": "https://newsroom.intel.com/",
+      "checkedAt": "2026-10-07T04:41:17.880Z",
+      "parsed": 0,
+      "errors": [
+        {
+          "url": "https://newsroom.intel.com/",
+          "error": "TypeError: fetch failed"
+        }
+      ],
+      "status": "unavailable"
+    },
+    {
+      "pairId": "lumentum",
+      "url": "https://investor.lumentum.com/news/default.aspx",
+      "checkedAt": "2026-10-07T04:41:17.880Z",
+      "parsed": 0,
+      "errors": [
+        {
+          "url": "https://investor.lumentum.com/news/default.aspx",
+          "error": "Error: HTTP 404"
+        }
+      ],
+      "status": "unavailable"
+    },
+    {
+      "pairId": "palantir",
+      "url": "https://investors.palantir.com/news-events/news-releases",
+      "checkedAt": "2026-10-07T04:41:17.880Z",
+      "parsed": 0,
+      "errors": [],
+      "status": "reachable"
+    },
+    {
+      "pairId": "bloom-energy",
+      "url": "https://www.bloomenergy.com/news/",
+      "checkedAt": "2026-10-07T04:41:17.880Z",
+      "parsed": 0,
+      "errors": [
+        {
+          "url": "https://www.bloomenergy.com/news/",
+          "error": "TypeError: fetch failed"
+        }
+      ],
+      "status": "unavailable"
+    },
+    {
+      "pairId": "meta",
+      "url": "https://about.fb.com/news/",
+      "checkedAt": "2026-10-07T04:41:17.880Z",
+      "parsed": 4,
+      "errors": [],
+      "status": "reachable"
+    },
+    {
+      "pairId": "direxion-soxs",
+      "url": "https://www.direxion.com/education",
+      "checkedAt": "2026-10-07T04:41:17.880Z",
+      "parsed": 0,
+      "errors": [
+        {
+          "url": "https://www.direxion.com/education",
+          "error": "Error: HTTP 403"
+        }
+      ],
+      "status": "unavailable"
+    },
+    {
+      "pairId": "amazon",
+      "url": "https://www.aboutamazon.com/news",
+      "checkedAt": "2026-10-07T04:41:17.880Z",
+      "parsed": 4,
+      "errors": [],
+      "status": "reachable"
+    },
+    {
+      "pairId": "dell",
+      "url": "https://www.dell.com/en-us/dt/corporate/newsroom.htm",
+      "checkedAt": "2026-10-07T04:41:17.880Z",
+      "parsed": 0,
+      "errors": [],
+      "status": "reachable"
+    },
+    {
+      "pairId": "sandisk",
+      "url": "https://investor.sandisk.com/news-releases",
+      "checkedAt": "2026-10-07T04:41:17.880Z",
+      "parsed": 0,
+      "errors": [
+        {
+          "url": "https://investor.sandisk.com/news-releases",
+          "error": "TimeoutError: The operation was aborted due to timeout"
+        }
+      ],
+      "status": "unavailable"
+    },
+    {
+      "pairId": "direxion-soxl",
+      "url": "https://www.direxion.com/education",
+      "checkedAt": "2026-10-07T04:41:17.880Z",
+      "parsed": 0,
+      "errors": [
+        {
+          "url": "https://www.direxion.com/education",
+          "error": "TypeError: fetch failed"
+        }
+      ],
+      "status": "unavailable"
+    },
+    {
+      "pairId": "moderna",
+      "url": "https://investors.modernatx.com/news-and-events/press-releases",
+      "checkedAt": "2026-10-07T04:41:17.880Z",
+      "parsed": 0,
+      "errors": [
+        {
+          "url": "https://investors.modernatx.com/news-and-events/press-releases",
+          "error": "Error: HTTP 404"
+        }
+      ],
+      "status": "unavailable"
+    },
+    {
+      "pairId": "paypal",
+      "url": "https://newsroom.paypal-corp.com/",
+      "checkedAt": "2026-10-07T04:41:17.880Z",
+      "parsed": 0,
+      "errors": [],
+      "status": "reachable"
+    },
+    {
+      "pairId": "fluence",
+      "url": "https://ir.fluenceenergy.com/news-events/news-releases",
+      "checkedAt": "2026-10-07T04:41:17.880Z",
+      "parsed": 0,
+      "errors": [
+        {
+          "url": "https://ir.fluenceenergy.com/news-events/news-releases",
+          "error": "TimeoutError: The operation was aborted due to timeout"
+        }
+      ],
+      "status": "unavailable"
+    },
+    {
+      "pairId": "proshares-sqqq",
+      "url": "https://www.proshares.com/browse-all-insights",
+      "checkedAt": "2026-10-07T04:41:17.880Z",
+      "parsed": 0,
+      "errors": [],
+      "status": "reachable"
+    },
+    {
+      "pairId": "applied-materials",
+      "url": "https://ir.appliedmaterials.com/news-releases",
+      "checkedAt": "2026-10-07T04:41:17.880Z",
+      "parsed": 0,
+      "errors": [
+        {
+          "url": "https://ir.appliedmaterials.com/news-releases",
+          "error": "TimeoutError: The operation was aborted due to timeout"
+        }
+      ],
+      "status": "unavailable"
+    }
+  ],
+  "candidates": [
+    {
+      "url": "https://blog.google/company-news/outreach-and-initiatives/arts-culture/frieze-london-2026/",
+      "headline": "Meet the artist who built a giant spider for a virtual world",
+      "publishedAt": "2026-10-06T13:30:00.000Z",
+      "evidenceKind": "article-body",
+      "status": "needs-review",
+      "pairId": "alphabet",
+      "discoveredAt": "2026-10-07T04:41:17.880Z",
+      "evidenceCharacters": 5023
+    },
+    {
+      "url": "https://blogs.microsoft.com/blog/2026/10/01/microsoft-365-and-linkedin-leadership-update/",
+      "headline": "Microsoft 365 and LinkedIn leadership update",
+      "publishedAt": "2026-10-01T15:03:27.000Z",
+      "evidenceKind": "article-body",
+      "status": "needs-review",
+      "pairId": "microsoft",
+      "discoveredAt": "2026-10-07T04:41:17.880Z",
+      "evidenceCharacters": 5880
+    },
+    {
+      "url": "https://blogs.microsoft.com/blog/2026/09/28/new-microsoft-data-innovations-unlock-what-only-your-business-knows/",
+      "headline": "New Microsoft data innovations unlock what only your business knows",
+      "publishedAt": "2026-09-29T06:30:04.000Z",
+      "evidenceKind": "article-body",
+      "status": "needs-review",
+      "pairId": "microsoft",
+      "discoveredAt": "2026-10-07T04:41:17.880Z",
+      "evidenceCharacters": 9414
+    },
+    {
+      "url": "https://blogs.microsoft.com/blog/2026/09/25/introducing-the-new-copilot-with-home-code-and-autopilot/",
+      "headline": "Introducing the new Copilot with Home, Code and Autopilot",
+      "publishedAt": "2026-09-25T12:03:50.000Z",
+      "evidenceKind": "article-body",
+      "status": "needs-review",
+      "pairId": "microsoft",
+      "discoveredAt": "2026-10-07T04:41:17.880Z",
+      "evidenceCharacters": 12000
+    },
+    {
+      "url": "https://blogs.microsoft.com/blog/2026/09/17/what-weve-learned-from-microsofts-own-ai-transformation/",
+      "headline": "What we’ve learned from Microsoft&#8217;s own AI transformation",
+      "publishedAt": "2026-09-17T14:00:05.000Z",
+      "evidenceKind": "article-body",
+      "status": "needs-review",
+      "pairId": "microsoft",
+      "discoveredAt": "2026-10-07T04:41:17.880Z",
+      "evidenceCharacters": 12000
+    },
+    {
+      "url": "https://www.aboutamazon.com/news/retail/best-prime-big-deal-days-2026-top-deals",
+      "headline": "Prime Big Deal Days 2026: 165 best deals to shop now",
+      "publishedAt": "2026-10-06T07:22:02.394Z",
+      "evidenceKind": "article-body",
+      "status": "needs-review",
+      "pairId": "amazon",
+      "discoveredAt": "2026-10-07T04:41:17.880Z",
+      "evidenceCharacters": 12000
+    },
+    {
+      "url": "https://www.aboutamazon.com/news/retail/amazon-prime-big-deals-day-2026-when-october-6-7",
+      "headline": "Prime Big Deal Days 2026 is set for October 6-7, 2026",
+      "publishedAt": "2026-09-15T04:30:05.600Z",
+      "evidenceKind": "article-body",
+      "status": "needs-review",
+      "pairId": "amazon",
+      "discoveredAt": "2026-10-07T04:41:17.880Z",
+      "evidenceCharacters": 8960
+    },
+    {
+      "url": "https://www.aboutamazon.com/news/retail/prime-big-deal-days-2026-best-deals-amazon",
+      "headline": "Prime Big Deal Days 2026: Early deals available now",
+      "publishedAt": "2026-09-15T04:30:23.888Z",
+      "evidenceKind": "article-body",
+      "status": "needs-review",
+      "pairId": "amazon",
+      "discoveredAt": "2026-10-07T04:41:17.880Z",
+      "evidenceCharacters": 5995
+    },
+    {
+      "url": "https://www.aboutamazon.com/news/retail/prime-big-deal-days-best-deals-savings-2026",
+      "headline": "Prime Big Deal Days 2026: Save on top deals on tech, home, beauty, and more this fall",
+      "publishedAt": "2026-09-30T04:30:12.521Z",
+      "evidenceKind": "article-body",
+      "status": "needs-review",
+      "pairId": "amazon",
+      "discoveredAt": "2026-10-07T04:41:17.880Z",
+      "evidenceCharacters": 11694
+    },
+    {
+      "url": "https://about.fb.com/news/2026/09/introducing-muse-small-business/",
+      "headline": "The Future Is for Everyone: Muse for Small Business",
+      "publishedAt": "2026-09-29T09:30:04.000Z",
+      "evidenceKind": "article-body",
+      "status": "needs-review",
+      "pairId": "meta",
+      "discoveredAt": "2026-10-07T04:41:17.880Z",
+      "evidenceCharacters": 3451
+    },
+    {
+      "url": "https://about.fb.com/news/2026/09/find-community-forum-dedicated-app-facebook-groups/",
+      "headline": "Find Your Community With Forum, a Dedicated App for Facebook Groups",
+      "publishedAt": "2026-09-29T16:00:05.000Z",
+      "evidenceKind": "article-body",
+      "status": "needs-review",
+      "pairId": "meta",
+      "discoveredAt": "2026-10-07T04:41:17.880Z",
+      "evidenceCharacters": 3307
+    },
+    {
+      "url": "https://about.fb.com/news/2026/09/launching-meta-enterprise-platform/",
+      "headline": "Launching Meta Enterprise Platform",
+      "publishedAt": "2026-09-28T12:36:14.000Z",
+      "evidenceKind": "article-body",
+      "status": "needs-review",
+      "pairId": "meta",
+      "discoveredAt": "2026-10-07T04:41:17.880Z",
+      "evidenceCharacters": 2328
+    },
+    {
+      "url": "https://about.fb.com/news/2026/09/the-biggest-news-from-connect-2026/",
+      "headline": "The Biggest News From Connect 2026",
+      "publishedAt": "2026-09-24T21:15:55.000Z",
+      "evidenceKind": "article-body",
+      "status": "needs-review",
+      "pairId": "meta",
+      "discoveredAt": "2026-10-07T04:41:17.880Z",
+      "evidenceCharacters": 6706
+    }
+  ]
+}

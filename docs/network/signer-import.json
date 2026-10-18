@@ -1,0 +1,24 @@
+{
+  "observedAt": "2026-10-17T12:29:23.540677+00:00",
+  "scope": "Acceptance cohort only; no full Farcaster import",
+  "confirmedFids": 16931,
+  "officialConfirmations": 16929,
+  "independentlyChainVerified": 5,
+  "trackerCandidates": 16945,
+  "candidateProfilesObserved": 16938,
+  "retryPending": 7,
+  "knownCountries": 98,
+  "chainScan": {
+    "fromBlock": 52601136,
+    "throughBlock": 52613885,
+    "targetBlock": 52724273,
+    "complete": false
+  },
+  "productionEnabled": false,
+  "paidProviderCallsForThisImport": 0,
+  "remaining": [
+    "Complete independent chain reconciliation after public RPC quota reset or with an existing dedicated RPC.",
+    "Validate Base wallet valuation and complete 30-day activity.",
+    "Review local preview before public production launch."
+  ]
+}

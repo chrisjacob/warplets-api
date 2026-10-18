@@ -229,6 +229,35 @@ async function dexPaprikaToken(address: string): Promise<unknown> {
   return fetchJson(`${DEXPAPRIKA_BASE}/tokens/${encodeURIComponent(address.toLowerCase())}`);
 }
 
+// Some quote assets (including NUGGET's XAUT0) have no Binance/CMC quote.
+// Keep an independent, contract-matched source for transient provider failures.
+async function bondingQuote(address: string, now: string): Promise<MarketMetrics | null> {
+  try {
+    const payload = await fetchJson(`${DEXPAPRIKA_BASE}/tokens/${encodeURIComponent(address)}`, undefined, 60);
+    const root = payload as { id?: string } | null;
+    const quote = normalizeDexPaprikaToken(payload, now);
+    const age = Date.parse(now) - Date.parse(quote.updatedAt ?? "");
+    if (root?.id?.toLowerCase() === address && quote.price != null && quote.price > 0
+      && age >= -60_000 && age < FRESH_MS) return quote;
+    throw new Error("Invalid or expired quote");
+  } catch (error) {
+    console.warn("stonklets_bonding_quote_fallback", { address, message: error instanceof Error ? error.message : String(error) });
+  }
+  try {
+    const payload = await fetchJson(`${GECKOTERMINAL_BASE}/tokens/${encodeURIComponent(address)}`, undefined, 60) as {
+      data?: { attributes?: { address?: string; price_usd?: unknown } };
+    };
+    const attributes = payload?.data?.attributes;
+    const price = finiteNumber(attributes?.price_usd);
+    if (attributes?.address?.toLowerCase() !== address || price == null || price <= 0) throw new Error("Invalid quote");
+    // This endpoint supplies a current quote without a trade timestamp.
+    return { ...emptyMarketMetrics(), price, updatedAt: now, status: "live" };
+  } catch (error) {
+    console.warn("stonklets_bonding_quote_failed", { address, message: error instanceof Error ? error.message : String(error) });
+    return null;
+  }
+}
+
 export function geckoRangeConfig(range: StonkletChangeRange): { timeframe: "minute" | "hour" | "day"; aggregate: number; limit: number } {
   if (range === "1h") return { timeframe: "minute", aggregate: 1, limit: 61 };
   if (range === "24h") return { timeframe: "minute", aggregate: 5, limit: 289 };
@@ -372,7 +401,7 @@ export async function refreshStonkletDemoMarket(env: StonkletMarketIngestEnv, pr
   };
   const [tokenPayloads, quotePayloads, chartPayloads] = await Promise.all([
     Promise.all(migrated.map(async ({ token }) => [token.contractAddress.toLowerCase(), await safeToken(token.contractAddress)] as const)),
-    Promise.all([...quoteAddresses].filter(address => stockQuotes.get(address)?.status !== "live").map(async (address) => [address, await safeToken(address)] as const)),
+    Promise.all([...quoteAddresses].filter(address => stockQuotes.get(address)?.status !== "live").map(async (address) => [address, await bondingQuote(address, now)] as const)),
     Promise.all(migrated.map(async ({ token }) => [token.contractAddress.toLowerCase(), await geckoChart(token).catch(() => [])] as const)),
   ]);
   const tokenData = new Map(tokenPayloads);
@@ -392,8 +421,7 @@ export async function refreshStonkletDemoMarket(env: StonkletMarketIngestEnv, pr
       provider = "flap+dexpaprika";
     } else {
       const quoteAddress = flap.quoteTokenAddress === "0x0000000000000000000000000000000000000000" ? WBNB.toLowerCase() : flap.quoteTokenAddress;
-      const dexQuote = normalizeDexPaprikaToken(quoteData.get(quoteAddress), now);
-      const quoteMetrics = dexQuote.price != null && dexQuote.price > 0 ? dexQuote : stockQuotes.get(quoteAddress) ?? emptyMarketMetrics();
+      const quoteMetrics = quoteData.get(quoteAddress) ?? stockQuotes.get(quoteAddress) ?? emptyMarketMetrics();
       const quoteUsd = quoteMetrics.price;
       const priceInQuote = Number(flap.price) / 1e18;
       const reserveInQuote = Number(flap.reserve) / 1e18;

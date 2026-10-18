@@ -1,0 +1,53 @@
+{
+  "schemaVersion": 1,
+  "startedAt": "2026-10-17T11:08:06.688Z",
+  "finishedAt": "2026-10-17T11:09:04.978Z",
+  "purpose": "Internal source validation, not public network totals",
+  "source": "https://client.farcaster.xyz/v2/user?fid={fid}",
+  "policy": "FID 1 through 100; intentionally biased early-account sample. No cookies, credentials, account mutations, or individual data retained.",
+  "requestedMaximum": 100,
+  "retrieved": 100,
+  "failures": {},
+  "locations": {
+    "canonicalCountries": 31,
+    "unknownOrUnnormalized": 69,
+    "descriptionsReturned": 31,
+    "denominatorReconciles": true
+  },
+  "tokens": {
+    "statuses": {
+      "none": 10,
+      "assigned": 6,
+      "not_returned": 84
+    },
+    "distinctCanonicalAssets": 5
+  },
+  "currentStatus": {
+    "fieldAvailable": 100,
+    "chainReconciled": false,
+    "rejectionEvidenceSemanticsVerified": false,
+    "note": "Official application status is observable. It is not independently reconciled onchain voting evidence; moderated_out is never classified as No."
+  },
+  "countrySample": [
+    {
+      "country": "UNKNOWN_OR_UNNORMALIZED",
+      "population": 69,
+      "officialStatusBreakdown": null,
+      "assignedTokenProfiles": null,
+      "walletValueUsd": null
+    },
+    {
+      "country": "US",
+      "population": 25,
+      "officialStatusBreakdown": null,
+      "assignedTokenProfiles": null,
+      "walletValueUsd": null
+    }
+  ],
+  "limitations": [
+    "This client endpoint is not a verified supported bulk data/indexer contract.",
+    "Permitted full-network request volume and incremental refresh access are unverified.",
+    "Missing profileToken is retained as not_returned until absence semantics are verified.",
+    "Wallet valuations require the same complete FID cohort and timestamped source snapshots; omitted here."
+  ]
+}

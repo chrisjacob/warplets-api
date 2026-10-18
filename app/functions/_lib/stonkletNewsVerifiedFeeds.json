@@ -1,0 +1,225 @@
+[
+  {
+    "id": "expanded-official-tether-gold",
+    "publisher": "Tether Gold",
+    "owner": "Tether Gold",
+    "url": "https://tether.io/feed/",
+    "pairIds": [
+      "tether-gold"
+    ],
+    "priority": 0,
+    "hosts": [
+      "tether.io",
+      "wdk.tether.io"
+    ],
+    "enabled": true,
+    "method": "public-rss",
+    "requireIdentity": true
+  },
+  {
+    "id": "expanded-official-ast-spacemobile",
+    "publisher": "AST SpaceMobile",
+    "owner": "AST SpaceMobile",
+    "url": "https://ast-science.com/feed/",
+    "pairIds": [
+      "ast-spacemobile"
+    ],
+    "priority": 0,
+    "hosts": [
+      "ast-science.com"
+    ],
+    "enabled": true,
+    "method": "public-rss"
+  },
+  {
+    "id": "expanded-official-astera-labs",
+    "publisher": "Astera Labs",
+    "owner": "Astera Labs",
+    "url": "https://www.asteralabs.com/feed/",
+    "pairIds": [
+      "astera-labs"
+    ],
+    "priority": 0,
+    "hosts": [
+      "www.asteralabs.com"
+    ],
+    "enabled": true,
+    "method": "public-rss"
+  },
+  {
+    "id": "expanded-official-amd",
+    "publisher": "Advanced Micro Devices",
+    "owner": "Advanced Micro Devices",
+    "url": "https://ir.amd.com/news-events/press-releases/rss",
+    "pairIds": [
+      "amd"
+    ],
+    "priority": 0,
+    "hosts": [
+      "ir.amd.com"
+    ],
+    "enabled": true,
+    "method": "public-rss"
+  },
+  {
+    "id": "expanded-official-lumentum",
+    "publisher": "Lumentum",
+    "owner": "Lumentum",
+    "url": "https://investor.lumentum.com/rss/pressrelease.aspx",
+    "pairIds": [
+      "lumentum"
+    ],
+    "priority": 0,
+    "hosts": [
+      "investor.lumentum.com"
+    ],
+    "enabled": true,
+    "method": "public-rss"
+  },
+  {
+    "id": "expanded-official-meta",
+    "publisher": "Meta",
+    "owner": "Meta",
+    "url": "https://about.fb.com/news/feed/",
+    "pairIds": [
+      "meta"
+    ],
+    "priority": 0,
+    "hosts": [
+      "about.fb.com"
+    ],
+    "enabled": true,
+    "method": "public-rss"
+  },
+  {
+    "id": "expanded-official-bloom-energy",
+    "publisher": "Bloom Energy",
+    "owner": "Bloom Energy",
+    "url": "https://www.bloomenergy.com/feed/",
+    "pairIds": [
+      "bloom-energy"
+    ],
+    "priority": 0,
+    "hosts": [
+      "www.bloomenergy.com",
+      "investor.bloomenergy.com"
+    ],
+    "enabled": true,
+    "method": "public-rss"
+  },
+  {
+    "id": "expanded-official-paypal",
+    "publisher": "PayPal",
+    "owner": "PayPal",
+    "url": "https://newsroom.paypal-corp.com/news?pagetemplate=rss",
+    "pairIds": [
+      "paypal"
+    ],
+    "priority": 0,
+    "hosts": [
+      "newsroom.paypal-corp.com"
+    ],
+    "enabled": true,
+    "method": "public-rss"
+  },
+  {
+    "id": "industry-tech",
+    "publisher": "TechCrunch",
+    "owner": "TechCrunch",
+    "url": "https://techcrunch.com/feed/",
+    "pairIds": [
+      "apple",
+      "microsoft",
+      "alphabet",
+      "alibaba",
+      "meta",
+      "palantir"
+    ],
+    "priority": 1,
+    "hosts": [
+      "techcrunch.com"
+    ],
+    "enabled": true,
+    "method": "public-rss"
+  },
+  {
+    "id": "industry-finance",
+    "publisher": "Finextra",
+    "owner": "Finextra",
+    "url": "https://www.finextra.com/rss/headlines.aspx",
+    "pairIds": [
+      "robinhood",
+      "paypal"
+    ],
+    "priority": 1,
+    "hosts": [
+      "www.finextra.com"
+    ],
+    "enabled": true,
+    "method": "public-rss"
+  },
+  {
+    "id": "industry-retail",
+    "publisher": "Retail Dive",
+    "owner": "Retail Dive",
+    "url": "https://www.retaildive.com/feeds/news/",
+    "pairIds": [
+      "gamestop",
+      "amazon"
+    ],
+    "priority": 1,
+    "hosts": [
+      "www.retaildive.com"
+    ],
+    "enabled": true,
+    "method": "public-rss"
+  },
+  {
+    "id": "industry-media",
+    "publisher": "Variety",
+    "owner": "Variety",
+    "url": "https://variety.com/feed/",
+    "pairIds": [
+      "netflix",
+      "trump-media"
+    ],
+    "priority": 1,
+    "hosts": [
+      "variety.com"
+    ],
+    "enabled": true,
+    "method": "public-rss"
+  },
+  {
+    "id": "industry-energy",
+    "publisher": "Energy-Storage.news",
+    "owner": "Energy-Storage.news",
+    "url": "https://www.energy-storage.news/feed/",
+    "pairIds": [
+      "tesla",
+      "bloom-energy",
+      "fluence"
+    ],
+    "priority": 1,
+    "hosts": [
+      "www.energy-storage.news"
+    ],
+    "enabled": true,
+    "method": "public-rss"
+  },
+  {
+    "id": "industry-biotech",
+    "publisher": "BioPharma Dive",
+    "owner": "BioPharma Dive",
+    "url": "https://www.biopharmadive.com/feeds/news/",
+    "pairIds": [
+      "moderna"
+    ],
+    "priority": 1,
+    "hosts": [
+      "www.biopharmadive.com"
+    ],
+    "enabled": true,
+    "method": "public-rss"
+  }
+]

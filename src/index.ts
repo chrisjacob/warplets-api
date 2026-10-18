@@ -1,3 +1,4 @@
+import { processNewsJob, type NewsJob } from "../app/functions/_lib/stonkletNews";
 import { createApp } from "./app";
 import {
 	scheduleProductionTasks,
@@ -22,14 +23,21 @@ export default {
 	},
 
 	async queue(
-		batch: MessageBatch<NotificationQueueWakeMessage>,
+		batch: MessageBatch<NotificationQueueWakeMessage | NewsJob>,
 		env: ProductionScheduledEnv,
 	): Promise<void> {
+        if (batch.queue?.startsWith("stonklets-news")) {
+            await Promise.all(batch.messages.map(async message => {
+                try { await processNewsJob(env, message.body as NewsJob); message.ack(); }
+                catch (error) { console.error("stonklet_news_job_failed", String(error).slice(0,250)); message.retry({ delaySeconds: 180 }); }
+            }));
+            return;
+        }
 		try {
 			await processNotificationQueue(
 				env,
 				Math.min(100, Math.max(20, batch.messages.length)),
-				batch.messages.map((message) => Number(message.body?.queueId)),
+				batch.messages.map((message) => Number((message.body as NotificationQueueWakeMessage)?.queueId)),
 			);
 			batch.ackAll();
 		} catch (error) {

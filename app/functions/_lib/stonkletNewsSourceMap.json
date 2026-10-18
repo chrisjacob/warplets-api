@@ -1,0 +1,682 @@
+{
+  "identities": [
+    {
+      "pairId": "spacex",
+      "officialArchive": "https://www.spacex.com/updates/",
+      "officialFeedCandidate": null,
+      "industrySourceIds": [
+        "reuters",
+        "space"
+      ],
+      "archiveStatus": "reachable",
+      "checkedAt": "2026-10-07T04:30:42.277Z"
+    },
+    {
+      "pairId": "sk-hynix",
+      "officialArchive": "https://news.skhynix.com/en/",
+      "officialFeedCandidate": null,
+      "industrySourceIds": [
+        "reuters",
+        "chips"
+      ],
+      "archiveStatus": "reachable",
+      "checkedAt": "2026-10-07T04:30:42.277Z"
+    },
+    {
+      "pairId": "spy",
+      "officialArchive": "https://www.ssga.com/us/en/individual/insights",
+      "officialFeedCandidate": null,
+      "industrySourceIds": [
+        "reuters",
+        "funds"
+      ],
+      "archiveStatus": "reachable",
+      "checkedAt": "2026-10-07T04:30:42.277Z"
+    },
+    {
+      "pairId": "tether-gold",
+      "officialArchive": "https://tether.io/news/",
+      "officialFeedCandidate": "https://tether.io/feed/",
+      "industrySourceIds": [
+        "reuters",
+        "gold"
+      ],
+      "archiveStatus": "reachable",
+      "checkedAt": "2026-10-07T04:30:42.277Z"
+    },
+    {
+      "pairId": "invesco-qqq",
+      "officialArchive": "https://www.invesco.com/qqq-etf/en/insights.html",
+      "officialFeedCandidate": null,
+      "industrySourceIds": [
+        "reuters",
+        "funds"
+      ],
+      "archiveStatus": "unavailable",
+      "checkedAt": "2026-10-07T04:30:42.277Z"
+    },
+    {
+      "pairId": "nvidia",
+      "officialArchive": "https://nvidianews.nvidia.com/",
+      "officialFeedCandidate": null,
+      "industrySourceIds": [
+        "reuters",
+        "chips"
+      ],
+      "archiveStatus": "reachable",
+      "checkedAt": "2026-10-07T04:30:42.277Z"
+    },
+    {
+      "pairId": "apple",
+      "officialArchive": "https://www.apple.com/newsroom/",
+      "officialFeedCandidate": null,
+      "industrySourceIds": [
+        "reuters",
+        "tech"
+      ],
+      "archiveStatus": "reachable",
+      "checkedAt": "2026-10-07T04:30:42.277Z"
+    },
+    {
+      "pairId": "tesla",
+      "officialArchive": "https://ir.tesla.com/press",
+      "officialFeedCandidate": "https://ir.tesla.com/rss/news-releases.xml",
+      "industrySourceIds": [
+        "reuters",
+        "energy"
+      ],
+      "archiveStatus": "unavailable",
+      "checkedAt": "2026-10-07T04:30:42.277Z"
+    },
+    {
+      "pairId": "microsoft",
+      "officialArchive": "https://blogs.microsoft.com/",
+      "officialFeedCandidate": null,
+      "industrySourceIds": [
+        "reuters",
+        "tech"
+      ],
+      "archiveStatus": "reachable",
+      "checkedAt": "2026-10-07T04:30:42.277Z"
+    },
+    {
+      "pairId": "alphabet",
+      "officialArchive": "https://blog.google/",
+      "officialFeedCandidate": null,
+      "industrySourceIds": [
+        "reuters",
+        "tech"
+      ],
+      "archiveStatus": "reachable",
+      "checkedAt": "2026-10-07T04:30:42.277Z"
+    },
+    {
+      "pairId": "robinhood",
+      "officialArchive": "https://robinhood.com/newsroom/",
+      "officialFeedCandidate": null,
+      "industrySourceIds": [
+        "reuters",
+        "finance"
+      ],
+      "archiveStatus": "reachable",
+      "checkedAt": "2026-10-07T04:30:42.277Z"
+    },
+    {
+      "pairId": "alibaba",
+      "officialArchive": "https://www.alibabagroup.com/en-US/press-releases",
+      "officialFeedCandidate": null,
+      "industrySourceIds": [
+        "reuters",
+        "tech"
+      ],
+      "archiveStatus": "reachable",
+      "checkedAt": "2026-10-07T04:30:42.277Z"
+    },
+    {
+      "pairId": "gamestop",
+      "officialArchive": "https://investor.gamestop.com/newsroom",
+      "officialFeedCandidate": "https://investor.gamestop.com/rss/news-releases.xml",
+      "industrySourceIds": [
+        "reuters",
+        "retail"
+      ],
+      "archiveStatus": "unavailable",
+      "checkedAt": "2026-10-07T04:30:42.277Z"
+    },
+    {
+      "pairId": "netflix",
+      "officialArchive": "https://about.netflix.com/en/news",
+      "officialFeedCandidate": null,
+      "industrySourceIds": [
+        "reuters",
+        "media"
+      ],
+      "archiveStatus": "unavailable",
+      "checkedAt": "2026-10-07T04:30:42.277Z"
+    },
+    {
+      "pairId": "strategy",
+      "officialArchive": "https://www.strategy.com/press",
+      "officialFeedCandidate": "https://www.strategy.com/press/rss",
+      "industrySourceIds": [
+        "reuters",
+        "crypto"
+      ],
+      "archiveStatus": "unavailable",
+      "checkedAt": "2026-10-07T04:30:42.277Z"
+    },
+    {
+      "pairId": "trump-media",
+      "officialArchive": "https://ir.tmtgcorp.com/news-events/press-releases",
+      "officialFeedCandidate": "https://ir.tmtgcorp.com/rss/news-releases.xml",
+      "industrySourceIds": [
+        "reuters",
+        "media"
+      ],
+      "archiveStatus": "unavailable",
+      "checkedAt": "2026-10-07T04:30:42.277Z"
+    },
+    {
+      "pairId": "bitmine",
+      "officialArchive": "https://www.bitminetech.io/news",
+      "officialFeedCandidate": null,
+      "industrySourceIds": [
+        "reuters",
+        "crypto"
+      ],
+      "archiveStatus": "unavailable",
+      "checkedAt": "2026-10-07T04:30:42.277Z"
+    },
+    {
+      "pairId": "super-micro",
+      "officialArchive": "https://ir.supermicro.com/news/default.aspx",
+      "officialFeedCandidate": "https://ir.supermicro.com/rss/pressrelease.aspx",
+      "industrySourceIds": [
+        "reuters",
+        "chips"
+      ],
+      "archiveStatus": "reachable",
+      "checkedAt": "2026-10-07T04:30:42.277Z"
+    },
+    {
+      "pairId": "iren",
+      "officialArchive": "https://iren.com/investors/news",
+      "officialFeedCandidate": "https://investors.iren.com/rss/news-releases.xml",
+      "industrySourceIds": [
+        "reuters",
+        "crypto"
+      ],
+      "archiveStatus": "reachable",
+      "checkedAt": "2026-10-07T04:30:42.277Z"
+    },
+    {
+      "pairId": "asml",
+      "officialArchive": "https://www.asml.com/en/news/press-releases",
+      "officialFeedCandidate": "https://www.asml.com/en/news/press-releases/rss",
+      "industrySourceIds": [
+        "reuters",
+        "chips"
+      ],
+      "archiveStatus": "unavailable",
+      "checkedAt": "2026-10-07T04:30:42.277Z"
+    },
+    {
+      "pairId": "ast-spacemobile",
+      "officialArchive": "https://ast-science.com/press-releases/",
+      "officialFeedCandidate": "https://ast-science.com/feed/",
+      "industrySourceIds": [
+        "reuters",
+        "space"
+      ],
+      "archiveStatus": "unavailable",
+      "checkedAt": "2026-10-07T04:30:42.277Z"
+    },
+    {
+      "pairId": "coherent",
+      "officialArchive": "https://www.coherent.com/news/press-releases",
+      "officialFeedCandidate": "https://investor.coherent.com/rss/news-releases.xml",
+      "industrySourceIds": [
+        "reuters",
+        "chips"
+      ],
+      "archiveStatus": "reachable",
+      "checkedAt": "2026-10-07T04:30:42.277Z"
+    },
+    {
+      "pairId": "credo",
+      "officialArchive": "https://investors.credosemi.com/news-events/news-releases",
+      "officialFeedCandidate": "https://investors.credosemi.com/rss/news-releases.xml",
+      "industrySourceIds": [
+        "reuters",
+        "chips"
+      ],
+      "archiveStatus": "unavailable",
+      "checkedAt": "2026-10-07T04:30:42.277Z"
+    },
+    {
+      "pairId": "usa-rare-earth",
+      "officialArchive": "https://www.usare.com/news",
+      "officialFeedCandidate": "https://investors.usare.com/rss/news-releases.xml",
+      "industrySourceIds": [
+        "reuters",
+        "metals"
+      ],
+      "archiveStatus": "unavailable",
+      "checkedAt": "2026-10-07T04:30:42.277Z"
+    },
+    {
+      "pairId": "astera-labs",
+      "officialArchive": "https://www.asteralabs.com/news/",
+      "officialFeedCandidate": "https://www.asteralabs.com/feed/",
+      "industrySourceIds": [
+        "reuters",
+        "chips"
+      ],
+      "archiveStatus": "unavailable",
+      "checkedAt": "2026-10-07T04:30:42.277Z"
+    },
+    {
+      "pairId": "circle",
+      "officialArchive": "https://www.circle.com/pressroom",
+      "officialFeedCandidate": null,
+      "industrySourceIds": [
+        "reuters",
+        "crypto"
+      ],
+      "archiveStatus": "reachable",
+      "checkedAt": "2026-10-07T04:30:42.277Z"
+    },
+    {
+      "pairId": "micron",
+      "officialArchive": "https://investors.micron.com/news-releases",
+      "officialFeedCandidate": "https://investors.micron.com/rss/news-releases.xml",
+      "industrySourceIds": [
+        "reuters",
+        "chips"
+      ],
+      "archiveStatus": "unavailable",
+      "checkedAt": "2026-10-07T04:30:42.277Z"
+    },
+    {
+      "pairId": "sandisk",
+      "officialArchive": "https://investor.sandisk.com/news-releases",
+      "officialFeedCandidate": "https://investor.sandisk.com/rss/news-releases.xml",
+      "industrySourceIds": [
+        "reuters",
+        "chips"
+      ],
+      "archiveStatus": "unavailable",
+      "checkedAt": "2026-10-07T04:30:42.277Z"
+    },
+    {
+      "pairId": "amd",
+      "officialArchive": "https://ir.amd.com/news-events/press-releases",
+      "officialFeedCandidate": "https://ir.amd.com/news-events/press-releases/rss",
+      "industrySourceIds": [
+        "reuters",
+        "chips"
+      ],
+      "archiveStatus": "reachable",
+      "checkedAt": "2026-10-07T04:30:42.277Z"
+    },
+    {
+      "pairId": "ishares-korea",
+      "officialArchive": "https://www.ishares.com/us/insights",
+      "officialFeedCandidate": null,
+      "industrySourceIds": [
+        "reuters",
+        "funds"
+      ],
+      "archiveStatus": "unavailable",
+      "checkedAt": "2026-10-07T04:30:42.277Z"
+    },
+    {
+      "pairId": "intel",
+      "officialArchive": "https://newsroom.intel.com/",
+      "officialFeedCandidate": "https://newsroom.intel.com/feed/",
+      "industrySourceIds": [
+        "reuters",
+        "chips"
+      ],
+      "archiveStatus": "unavailable",
+      "checkedAt": "2026-10-07T04:30:42.277Z"
+    },
+    {
+      "pairId": "lumentum",
+      "officialArchive": "https://investor.lumentum.com/news/default.aspx",
+      "officialFeedCandidate": "https://investor.lumentum.com/rss/pressrelease.aspx",
+      "industrySourceIds": [
+        "reuters",
+        "chips"
+      ],
+      "archiveStatus": "unavailable",
+      "checkedAt": "2026-10-07T04:30:42.277Z"
+    },
+    {
+      "pairId": "meta",
+      "officialArchive": "https://about.fb.com/news/",
+      "officialFeedCandidate": "https://about.fb.com/news/feed/",
+      "industrySourceIds": [
+        "reuters",
+        "tech"
+      ],
+      "archiveStatus": "reachable",
+      "checkedAt": "2026-10-07T04:30:42.277Z"
+    },
+    {
+      "pairId": "palantir",
+      "officialArchive": "https://investors.palantir.com/news-events/news-releases",
+      "officialFeedCandidate": "https://investors.palantir.com/rss/news-releases.xml",
+      "industrySourceIds": [
+        "reuters",
+        "tech"
+      ],
+      "archiveStatus": "reachable",
+      "checkedAt": "2026-10-07T04:30:42.277Z"
+    },
+    {
+      "pairId": "bloom-energy",
+      "officialArchive": "https://www.bloomenergy.com/news/",
+      "officialFeedCandidate": "https://www.bloomenergy.com/feed/",
+      "industrySourceIds": [
+        "reuters",
+        "energy"
+      ],
+      "archiveStatus": "unavailable",
+      "checkedAt": "2026-10-07T04:30:42.277Z"
+    },
+    {
+      "pairId": "amazon",
+      "officialArchive": "https://www.aboutamazon.com/news",
+      "officialFeedCandidate": null,
+      "industrySourceIds": [
+        "reuters",
+        "retail"
+      ],
+      "archiveStatus": "reachable",
+      "checkedAt": "2026-10-07T04:30:42.277Z"
+    },
+    {
+      "pairId": "direxion-soxs",
+      "officialArchive": "https://www.direxion.com/education",
+      "officialFeedCandidate": null,
+      "industrySourceIds": [
+        "reuters",
+        "funds"
+      ],
+      "archiveStatus": "unavailable",
+      "checkedAt": "2026-10-07T04:30:42.277Z"
+    },
+    {
+      "pairId": "dell",
+      "officialArchive": "https://www.dell.com/en-us/dt/corporate/newsroom.htm",
+      "officialFeedCandidate": null,
+      "industrySourceIds": [
+        "reuters",
+        "chips"
+      ],
+      "archiveStatus": "reachable",
+      "checkedAt": "2026-10-07T04:30:42.277Z"
+    },
+    {
+      "pairId": "fluence",
+      "officialArchive": "https://ir.fluenceenergy.com/news-events/news-releases",
+      "officialFeedCandidate": null,
+      "industrySourceIds": [
+        "reuters",
+        "energy"
+      ],
+      "archiveStatus": "unavailable",
+      "checkedAt": "2026-10-07T04:30:42.277Z"
+    },
+    {
+      "pairId": "applied-materials",
+      "officialArchive": "https://ir.appliedmaterials.com/news-releases",
+      "officialFeedCandidate": "https://ir.appliedmaterials.com/rss/news-releases.xml",
+      "industrySourceIds": [
+        "reuters",
+        "chips"
+      ],
+      "archiveStatus": "unavailable",
+      "checkedAt": "2026-10-07T04:30:42.277Z"
+    },
+    {
+      "pairId": "direxion-soxl",
+      "officialArchive": "https://www.direxion.com/education",
+      "officialFeedCandidate": null,
+      "industrySourceIds": [
+        "reuters",
+        "funds"
+      ],
+      "archiveStatus": "unavailable",
+      "checkedAt": "2026-10-07T04:30:42.277Z"
+    },
+    {
+      "pairId": "moderna",
+      "officialArchive": "https://investors.modernatx.com/news-and-events/press-releases",
+      "officialFeedCandidate": "https://investors.modernatx.com/rss/news-releases.xml",
+      "industrySourceIds": [
+        "reuters",
+        "biotech"
+      ],
+      "archiveStatus": "unavailable",
+      "checkedAt": "2026-10-07T04:30:42.277Z"
+    },
+    {
+      "pairId": "paypal",
+      "officialArchive": "https://newsroom.paypal-corp.com/",
+      "officialFeedCandidate": "https://newsroom.paypal-corp.com/news?pagetemplate=rss",
+      "industrySourceIds": [
+        "reuters",
+        "finance"
+      ],
+      "archiveStatus": "reachable",
+      "checkedAt": "2026-10-07T04:30:42.277Z"
+    },
+    {
+      "pairId": "proshares-sqqq",
+      "officialArchive": "https://www.proshares.com/browse-all-insights",
+      "officialFeedCandidate": null,
+      "industrySourceIds": [
+        "reuters",
+        "funds"
+      ],
+      "archiveStatus": "reachable",
+      "checkedAt": "2026-10-07T04:30:42.277Z"
+    }
+  ],
+  "industry": [
+    {
+      "id": "reuters",
+      "publisher": "Reuters",
+      "archive": "https://www.reuters.com/markets/companies/",
+      "feedCandidate": null,
+      "pairIds": [
+        "spacex",
+        "sk-hynix",
+        "spy",
+        "tether-gold",
+        "invesco-qqq",
+        "nvidia",
+        "apple",
+        "tesla",
+        "microsoft",
+        "alphabet",
+        "robinhood",
+        "alibaba",
+        "gamestop",
+        "netflix",
+        "strategy",
+        "trump-media",
+        "bitmine",
+        "super-micro",
+        "iren",
+        "asml",
+        "ast-spacemobile",
+        "coherent",
+        "credo",
+        "usa-rare-earth",
+        "astera-labs",
+        "circle",
+        "micron",
+        "sandisk",
+        "amd",
+        "ishares-korea",
+        "intel",
+        "lumentum",
+        "meta",
+        "palantir",
+        "bloom-energy",
+        "amazon",
+        "direxion-soxs",
+        "dell",
+        "fluence",
+        "applied-materials",
+        "direxion-soxl",
+        "moderna",
+        "paypal",
+        "proshares-sqqq"
+      ]
+    },
+    {
+      "id": "space",
+      "publisher": "Space.com",
+      "archive": "https://www.space.com/space-exploration",
+      "feedCandidate": "https://www.space.com/feeds/all",
+      "pairIds": [
+        "spacex",
+        "ast-spacemobile"
+      ]
+    },
+    {
+      "id": "chips",
+      "publisher": "Tom's Hardware",
+      "archive": "https://www.tomshardware.com/tech-industry",
+      "feedCandidate": "https://www.tomshardware.com/feeds/all",
+      "pairIds": [
+        "sk-hynix",
+        "nvidia",
+        "super-micro",
+        "asml",
+        "coherent",
+        "credo",
+        "astera-labs",
+        "micron",
+        "sandisk",
+        "amd",
+        "intel",
+        "lumentum",
+        "dell",
+        "applied-materials"
+      ]
+    },
+    {
+      "id": "funds",
+      "publisher": "ETF.com",
+      "archive": "https://www.etf.com/sections/news",
+      "feedCandidate": null,
+      "pairIds": [
+        "spy",
+        "invesco-qqq",
+        "ishares-korea",
+        "direxion-soxs",
+        "direxion-soxl",
+        "proshares-sqqq"
+      ]
+    },
+    {
+      "id": "gold",
+      "publisher": "Kitco",
+      "archive": "https://www.kitco.com/news",
+      "feedCandidate": null,
+      "pairIds": [
+        "tether-gold"
+      ]
+    },
+    {
+      "id": "tech",
+      "publisher": "TechCrunch",
+      "archive": "https://techcrunch.com/",
+      "feedCandidate": "https://techcrunch.com/feed/",
+      "pairIds": [
+        "apple",
+        "microsoft",
+        "alphabet",
+        "alibaba",
+        "meta",
+        "palantir"
+      ]
+    },
+    {
+      "id": "finance",
+      "publisher": "Finextra",
+      "archive": "https://www.finextra.com/news",
+      "feedCandidate": "https://www.finextra.com/rss/headlines.aspx",
+      "pairIds": [
+        "robinhood",
+        "paypal"
+      ]
+    },
+    {
+      "id": "retail",
+      "publisher": "Retail Dive",
+      "archive": "https://www.retaildive.com/",
+      "feedCandidate": "https://www.retaildive.com/feeds/news/",
+      "pairIds": [
+        "gamestop",
+        "amazon"
+      ]
+    },
+    {
+      "id": "media",
+      "publisher": "Variety",
+      "archive": "https://variety.com/",
+      "feedCandidate": "https://variety.com/feed/",
+      "pairIds": [
+        "netflix",
+        "trump-media"
+      ]
+    },
+    {
+      "id": "crypto",
+      "publisher": "CoinDesk",
+      "archive": "https://www.coindesk.com/",
+      "feedCandidate": "https://www.coindesk.com/arc/outboundfeeds/rss/",
+      "pairIds": [
+        "strategy",
+        "bitmine",
+        "iren",
+        "circle"
+      ]
+    },
+    {
+      "id": "metals",
+      "publisher": "Mining.com",
+      "archive": "https://www.mining.com/",
+      "feedCandidate": "https://www.mining.com/feed/",
+      "pairIds": [
+        "usa-rare-earth"
+      ]
+    },
+    {
+      "id": "energy",
+      "publisher": "Energy-Storage.news",
+      "archive": "https://www.energy-storage.news/",
+      "feedCandidate": "https://www.energy-storage.news/feed/",
+      "pairIds": [
+        "tesla",
+        "bloom-energy",
+        "fluence"
+      ]
+    },
+    {
+      "id": "biotech",
+      "publisher": "BioPharma Dive",
+      "archive": "https://www.biopharmadive.com/",
+      "feedCandidate": "https://www.biopharmadive.com/feeds/news/",
+      "pairIds": [
+        "moderna"
+      ]
+    }
+  ]
+}

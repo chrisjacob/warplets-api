@@ -1,3 +1,4 @@
+import MiniAppPageHero from "./MiniAppPageHero";
 import { AppViewport, AppFloatingPortal, getElementScale } from "./AppViewport";
 import { CSSProperties, Component, Fragment, KeyboardEvent as ReactKeyboardEvent, MouseEvent, PointerEvent as ReactPointerEvent, ReactNode, Suspense, cloneElement, isValidElement, lazy, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
@@ -3731,6 +3732,13 @@ function SearchPageNavigation({
 
   return (
     <div className="mx-auto w-full max-w-md px-4 pt-4">
+      {route.page === "search" && (
+        <MiniAppPageHero
+          title="10X NFT COLLECTION"
+          subtitle={<><strong>Rarity was earned.</strong> Airdrops are coming.</>}
+          tagline="Take the green pill 🟢"
+        />
+      )}
       <SearchSegmentedTabs
         options={[
           { id: "search", label: "Search" },

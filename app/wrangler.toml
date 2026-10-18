@@ -13,6 +13,9 @@ bucket_name = "warplets-stats-shares"
 preview_bucket_name = "warplets-stats-shares-preview"
 
 [vars]
+NETWORK_ENABLED = "false"
+NETWORK_INGEST_ENABLED = "false"
+NETWORK_WALLETS_ENABLED = "false"
 # Farcaster FID of each registered mini-app — used to scope notification tokens
 # to the correct app_slug. Not sensitive (public Farcaster account IDs).
 APP_APP_FID = "9152"
@@ -104,6 +107,9 @@ binding = "STATS_SHARE_IMAGES"
 bucket_name = "warplets-stats-shares-preview"
 
 [env.preview.vars]
+NETWORK_ENABLED = "false"
+NETWORK_INGEST_ENABLED = "false"
+NETWORK_WALLETS_ENABLED = "false"
 APP_APP_FID = "9152"
 BASE_APP_URL = "https://warplet-dev.10x.meme"
 BASE_NOTIFICATIONS_ENABLED = "false"
