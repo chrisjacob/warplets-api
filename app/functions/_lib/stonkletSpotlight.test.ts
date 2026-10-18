@@ -146,14 +146,11 @@ describe("hourly trending news persistence", () => {
     expect(await runStonkletSpotlight({ WARPLETS: db, STONKLETS_SPOTLIGHT_ENABLED: "true" }, now)).toBe("insufficient-coverage");
     expect(loadSpotlightResearch).not.toHaveBeenCalled();
   });
-  it("requires an authorized completed seven-day trial, and preserves withdrawn history", async () => {
+  it("allows authorized immediate activation and preserves withdrawn history", async () => {
     const db = database(), env = { WARPLETS: db, STONKLETS_SPOTLIGHT_ENABLED: "true" };
     await runStonkletSpotlight(env, now);
     sqlite.exec(readFileSync(new URL("../../../migrations/0077_stonklet_narrative_news.sql", import.meta.url), "utf8"));
     const post = (body: object) => onRequestPost({ env, request: new Request("https://example.test/api/admin/stonklet-spotlight", { method: "POST", body: JSON.stringify(body) }) } as never);
-    expect((await post({ mode: "live" })).status).toBe(409);
-    sqlite.exec("UPDATE stonklet_spotlight_control SET trial_started_at=datetime('now','-8 days')");
-    for (let day = 1; day <= 7; day++) sqlite.prepare("INSERT INTO stonklet_news_runs(hour,expected,status,evaluated_at) VALUES (?,1,'complete',datetime('now',?))").run(`news-v3:day-${day}`, `-${day} days`);
     expect((await post({ mode: "live" })).status).toBe(200);
     const shadow = (await readSpotlight(db, null, true)).thesis!;
     sqlite.prepare("UPDATE stonklet_spotlight_theses SET published=1 WHERE id=?").run(shadow.id);
@@ -162,6 +159,7 @@ describe("hourly trending news persistence", () => {
     expect((await readSpotlight(db)).thesis).toBeNull();
     expect((await readSpotlight(db, shadow.id)).status).toBe("withdrawn");
     vi.mocked(requireAdminScope).mockResolvedValue({ ok: false, response: new Response(null, { status: 401 }) });
+    expect((await post({ mode: "live" })).status).toBe(401);
     expect((await post({ mode: "off" })).status).toBe(401);
   });
 });

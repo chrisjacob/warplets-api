@@ -123,9 +123,6 @@ importers:
       canvas-confetti:
         specifier: ^1.9.4
         version: 1.9.4
-      hls.js:
-        specifier: ^1.6.16
-        version: 1.6.16
       lightweight-charts:
         specifier: 5.0.0
         version: 5.0.0
@@ -4664,9 +4661,6 @@ packages:
   hex-rgb@4.3.0:
     resolution: {integrity: sha512-Ox1pJVrDCyGHMG9CFg1tmrRUMRPRsAWYc/PinY0XzJU4K7y7vjNoLKIQ7BR5UJMCxNN8EM1MNDmHWA/B3aZUuw==}
     engines: {node: '>=6'}
-
-  hls.js@1.6.16:
-    resolution: {integrity: sha512-VSIRpLfRwlAAdGL4wiTucx2ScRipo0ed1FBatWkyt832jC4CReKstga6yIhYVwGu9LOBjuX9wzmRMeQdBJtzEA==}
 
   hoist-non-react-statics@3.3.2:
     resolution: {integrity: sha512-/gGivxi8JPKWNm/W0jSmzcMPpfpPLc3dY/6GxhX2hQ9iGj3aDfklV4ET7NjKpSinLpJ5vafa9iiGIEZg10SfBw==}
@@ -11156,8 +11150,6 @@ snapshots:
       function-bind: 1.1.2
 
   hex-rgb@4.3.0: {}
-
-  hls.js@1.6.16: {}
 
   hoist-non-react-statics@3.3.2:
     dependencies:

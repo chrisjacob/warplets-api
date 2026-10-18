@@ -1,3 +1,4 @@
+import { primaryNewsCompany } from "./stonkletsNewsOwnership";
 import { newsHistoryCutoff } from "./stonkletsNewsDates";
 import reviewedFingerprints from "./stonkletsNarrativeReviews.json";
 import { sha256, stringToHex } from "viem";
@@ -43,7 +44,7 @@ export function reconcileNarrative(item: NewsItem, prior: Iterable<NewsItem>): N
 export async function newsHash(value: string): Promise<string> { return Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value)))).map(byte => byte.toString(16).padStart(2,"0")).join("").slice(0,24); }
 export function canonicalNewsUrl(value: string): string {
   const url = new URL(value); if (!sourceDomain(value)) throw new Error("Unsafe source URL");
-  url.hash = ""; for (const key of [...url.searchParams.keys()]) if (/^(utm_|fbclid|gclid)/i.test(key)) url.searchParams.delete(key);
+  url.hash = ""; for (const key of [...url.searchParams.keys()]) if (/^(utm_|fbclid$|gclid$|\.tsrc$)/i.test(key)) url.searchParams.delete(key);
   return url.href;
 }
 /** Only exact checked-in editorial reviews can bypass keyword heuristics. */
@@ -58,7 +59,7 @@ export function reviewedNarrative(item: NewsItem): boolean {
 }
 export function selectNews(items: readonly NewsItem[], pairId?: string, now = Date.now()): NewsItem[] {
   const cutoff = newsHistoryCutoff(now);
-  const eligible = items.filter(item => { const date = Date.parse(newsSource(item)?.publishedAt ?? ""); return !item.withdrawnAt && (qualifyingNarrative(newsSource(item)!, now) || reviewedNarrative(item)) && date >= cutoff && date <= now && (pairId ? item.pairId === pairId : STONKLETS_BY_ID.get(item.pairId)?.launchStatus === "launched"); });
+  const eligible = items.filter(item => { const date = Date.parse(newsSource(item)?.publishedAt ?? ""); const owner = primaryNewsCompany(item.headline); return (!owner || owner === item.pairId) && !item.withdrawnAt && (qualifyingNarrative(newsSource(item)!, now) || reviewedNarrative(item)) && date >= cutoff && date <= now && (pairId ? item.pairId === pairId : STONKLETS_BY_ID.get(item.pairId)?.launchStatus === "launched"); });
   // Select the best original source for each repeated narrative before sorting the feed.
   const distinct = new Map<string, NewsItem>();
   for (const item of eligible) { const key = `${item.pairId}:${item.narrativeKey}`; const old = distinct.get(key); if (!old || item.sourcePriority < old.sourcePriority || (item.sourcePriority === old.sourcePriority && newsSource(item)!.publishedAt > newsSource(old)!.publishedAt)) distinct.set(key,item); }

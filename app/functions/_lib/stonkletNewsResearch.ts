@@ -1,3 +1,4 @@
+import { NEWS_COMPANY_IDENTITIES, primaryNewsCompany } from "../../shared/stonkletsNewsOwnership";
 import { newsHistoryCutoff } from "../../shared/stonkletsNewsDates";
 import sourceMap from "./stonkletNewsSourceMap.json";
 import verifiedFeeds from "./stonkletNewsVerifiedFeeds.json";
@@ -8,11 +9,7 @@ export { qualifyingNarrative } from "../../shared/stonkletsNewsEligibility";
 import { canonicalNewsUrl, newsHash, normalizedHeadline, sourceDomain, type NewsItem } from "../../shared/stonkletsNews";
 import type { ThesisSource } from "../../shared/stonkletsSpotlight";
 export interface NewsFeed { id: string; publisher: string; url: string; hosts: string[]; pairIds: string[]; enabled: boolean; priority: number; method: "public-rss" | "marketaux-api"; owner: string; requireIdentity?:boolean }
-const aliases: Record<string,string[]> = {
- "spacex":["SpaceX","Starlink"],
- "alphabet":["Google","Alphabet","Gemini"],"amazon":["Amazon","AWS"],"nvidia":["NVIDIA","GeForce"],"microsoft":["Microsoft","Copilot"],"meta":["Meta","Meta Platforms","Facebook","Instagram"],"bitmine":["BitMine","BitMine Immersion Technologies"],"circle":["Circle Internet","Circle (CRCL)","Circle's"],"coherent":["Coherent Corp","Coherent Corporation","Coherent's"],"amd":["AMD","Advanced Micro Devices"],"strategy":["MicroStrategy","Strategy (MSTR)"],"trump-media":["Trump Media","Truth Social"],"tether-gold":["Tether Gold","XAUT"],"spy":["SPDR S&P 500"],"invesco-qqq":["Invesco QQQ"],"direxion-soxs":["SOXS","Direxion Daily Semiconductor Bear"],"direxion-soxl":["SOXL","Direxion Daily Semiconductor Bull"],"proshares-sqqq":["SQQQ","ProShares UltraPro Short QQQ"],"ishares-korea":["iShares MSCI South Korea"],"usa-rare-earth":["USA Rare Earth"],"super-micro":["Super Micro","Supermicro"],"ast-spacemobile":["AST SpaceMobile"]
-};
-export const NEWS_IDENTITIES = STONKLETS_CATALOG.map(entry => ({ pairId: entry.id, aliases: aliases[entry.id] ?? [entry.stock.name], homepage: sourceMap.identities.find(source => source.pairId === entry.id)?.officialArchive ?? SPOTLIGHT_RESEARCH[entry.id]?.homepage ?? null }));
+export const NEWS_IDENTITIES = STONKLETS_CATALOG.map(entry => ({ pairId: entry.id, aliases: NEWS_COMPANY_IDENTITIES.find(item => item.pairId === entry.id)!.aliases, homepage: sourceMap.identities.find(source => source.pairId === entry.id)?.officialArchive ?? SPOTLIGHT_RESEARCH[entry.id]?.homepage ?? null }));
 // Public, stock-specific RSS discovery. Tickers are fixed catalog mappings, never user input.
 // Yahoo supplies syndicated headlines; retain its title/link and display source attribution.
 export const STOCK_NEWS_SYMBOLS: Readonly<Record<string,string>> = {
@@ -36,14 +33,14 @@ for(const [pairId,symbol] of Object.entries(STOCK_NEWS_SYMBOLS)) feeds.set(`stoc
 for (const feed of verifiedFeeds) feeds.set(feed.url, feed as NewsFeed);
 export const NEWS_FEEDS = [...feeds.values()];
 export const MAX_NEWS_FEEDS = 100, MAX_NEWS_ITEMS = 50;
-const escape = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g,"\\$&");
 export function newsAssociations(feed: NewsFeed, source: ThesisSource): {pairId:string;relation:"direct"|"sector";evidence:string}[] {
-  if (feed.priority === 0 && !feed.requireIdentity) return feed.pairIds.map(pairId=>({pairId,relation:"direct",evidence:`Official ${feed.publisher} announcement`}));
+  if (feed.priority === 0 && !feed.requireIdentity) return [primaryNewsCompany(source.title) ?? [...feed.pairIds].sort()[0]!].filter(pairId=>feed.pairIds.includes(pairId)).map(pairId=>({pairId,relation:"direct",evidence:`Official ${feed.publisher} announcement`}));
   const text = `${source.title} ${source.excerpt ?? ""}`;
-  const direct = NEWS_IDENTITIES.filter(item=>feed.pairIds.includes(item.pairId) && item.aliases.some(alias=>new RegExp(`\\b${escape(alias)}(?:\\b|$)`,"i").test(source.title)))
+  const primary = primaryNewsCompany(source.title);
+  const direct = NEWS_IDENTITIES.filter(item=>feed.pairIds.includes(item.pairId) && item.pairId === primary)
     .map(item=>({pairId:item.pairId,relation:"direct" as const,evidence:source.excerpt ?? source.title}));
   // Narrow reviewed macro mapping: US online retail demand -> Amazon, never company-specific revenue.
-  if (!direct.length && /(?:\bUS\b|\bU\.S\.|\bUnited States\b)/i.test(text) && /\b(?:e-commerce|online retail|online shopping)\b/i.test(text)
+  if (!primary && !direct.length && /(?:\bUS\b|\bU\.S\.|\bUnited States\b)/i.test(text) && /\b(?:e-commerce|online retail|online shopping)\b/i.test(text)
       && /\b(?:grew|grows?|growth|increased?|rose|rises?)\b/i.test(text) && feed.pairIds.includes("amazon"))
     return [{pairId:"amazon",relation:"sector",evidence:"US online retail demand is a potential Amazon tailwind; the report does not establish Amazon-specific growth."}];
   return direct;

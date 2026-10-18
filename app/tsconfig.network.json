@@ -1,0 +1,5 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "types": ["@cloudflare/workers-types", "node"] },
+  "include": ["src/network", "shared/network", "functions/_lib/network", "functions/api/network", "functions/api/admin/network.ts"]
+}

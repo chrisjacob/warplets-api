@@ -1,3 +1,4 @@
+import { primaryNewsCompany } from "./stonkletsNewsOwnership";
 ﻿import {describe,it,expect} from "vitest";
 import {legacyNews,sameNarrative,selectNews,sourceDomain, type NewsItem} from "./stonkletsNews";
 import saved from "./stonkletsNewsPreview.json";
@@ -28,4 +29,29 @@ describe("research coverage and evidence",()=>{
  it("does not invent company-specific growth from sector evidence or invert leveraged exposure",()=>{const feed=NEWS_FEEDS.find(e=>e.id==="bbc-business")!;const source={...entries[0]!.sources[0]!,title:"US online shopping sales grew 20% year on year",excerpt:"Quarterly industry report."};const associations=newsAssociations(feed,source);expect(associations).toEqual([expect.objectContaining({pairId:"amazon",relation:"sector"})]);expect(associations[0]!.evidence).toContain("does not establish Amazon-specific");expect(newsAssociations(feed,{...source,title:"Semiconductor sales grew 20%"})).toEqual([]);expect(newsAssociations(feed,{...source,title:"Amazon online shopping sales grew 20%"})[0]?.relation).toBe("direct");});
  it("rejects negative, neutral, promotional or unsupported stories",()=>{for(const title of ["Company warns of record losses","New guide to growth","Company will report earnings","Company could launch a product","Sponsored: Company launches a product","Company launches new product but cuts guidance","Apple faces record fines","Company revenue grows despite profit plunge"]){expect(qualifyingNarrative({...entries[0]!.sources[0]!,title,excerpt:"",publishedAt:new Date(now).toISOString()},now),title).toBe(false);}});
  it("collects product news without any market metrics and enforces canonical hosts",async()=>{const feed=NEWS_FEEDS.find(e=>e.id==="official-microsoft")!;const xml=`<rss><item><title>Microsoft launches a new Copilot product</title><link>https://blogs.microsoft.com/product?utm_source=feed</link><pubDate>2026-09-20</pubDate></item><item><title>Microsoft launches other product</title><link>https://evil.example/story</link><pubDate>2026-09-20</pubDate></item></rss>`;const result=await collectNewsItems(xml,feed,new Date(now).toISOString());expect(result.items).toHaveLength(1);expect(result.items[0]!.sources[0]!.url).toBe("https://blogs.microsoft.com/product");expect(result.items[0]!.sourceDomain).toBe("microsoft.com");expect("returns" in result.items[0]!).toBe(false);});
+});
+
+describe("exclusive news ownership", () => {
+ const headline = "Amazon, Google Face New Smart Home Rival as Apple Lines Up Doorbell, Lock and Camera Launches: Report";
+ it("assigns the smart-home launch to Apple independently of discovery feed", () => {
+  expect(primaryNewsCompany(headline)).toBe("apple");
+  for (const pair of ["apple", "alphabet", "amazon"]) {
+   const source = {...entries[0]!.sources[0]!, title: headline};
+   const associations = newsAssociations(NEWS_FEEDS.find(feed => feed.id === `stock-${pair}`)!, source);
+   expect(associations.map(item => item.pairId)).toEqual(pair === "apple" ? ["apple"] : []);
+  }
+ });
+ it("hides saved rival links even when reading only that rival's history", () => {
+  const source = {...entries[0]!.sources[0]!, title: headline, excerpt: "Apple launches new smart home products.", publishedAt: "2026-10-06T00:00:00Z"};
+  const apple = {...entries[0]!, headline, sources: [source], leadSourceId: source.id};
+  const google = {...apple, id: "google-duplicate", pairId: "alphabet"};
+  expect(selectNews([apple, google], "apple", now)).toEqual([apple]);
+  expect(selectNews([google], "alphabet", now)).toEqual([]);
+  expect(selectNews([google, apple], undefined, now)).toEqual([apple]);
+ });
+ it("prefers action subjects over rival mentions and chooses a consistent owner", () => {
+  expect(primaryNewsCompany("Google rival Apple launches new camera")).toBe("apple");
+  expect(primaryNewsCompany("Apple and Google announce a partnership")).toBe("alphabet");
+  expect(primaryNewsCompany("New strategy launches for retail growth")).toBeUndefined();
+ });
 });

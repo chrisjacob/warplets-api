@@ -1,9 +1,11 @@
+import { isRetiredAppRoute } from "../shared/retiredApps";
 import { Component, StrictMode, Suspense, lazy, useEffect, useState, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import "./index.css";
 import { initializePwa, isEmbeddedWebView, isLikelyBaseAppBrowser } from "./pwa";
 import { WARPLETS_APP_HOSTS, WARPLETS_APP_PATH } from "../shared/warpletsApp";
 import { STONKLETS_APP_HOSTS, STONKLETS_APP_PATH } from "../shared/stonkletsApp";
+import { isNetworkRoute } from "../shared/network/model";
 import { captureWarpmojiAttribution } from "./analytics";
 import { clearLocalCacheIfRequested } from "./localCacheReset";
 import { claimPreloadRecovery } from "./preloadRecovery";
@@ -26,12 +28,12 @@ function configureHomePwaMetadata(): void {
 
 clearLocalCacheIfRequested(window);
 configureHomePwaMetadata();
-initializePwa();
+if (!isNetworkRoute(window.location.hostname, window.location.pathname)) initializePwa();
 captureWarpmojiAttribution();
 captureHolderOutreachAttribution();
 
 const App = lazy(() => import("./App.tsx"));
-const SocialApp = lazy(() => import("./SocialApp.tsx"));
+const NetworkApp = lazy(() => import("./network/NetworkApp.tsx"));
 const DropApp = lazy(() => import("./DropClosedApp.tsx"));
 const SearchApp = lazy(() => import("./SearchApp.tsx"));
 const StonkletsApp = lazy(() => import("./StonkletsApp.tsx"));
@@ -94,6 +96,8 @@ if (typeof window !== "undefined") {
 
 function resolveActiveApp() {
   const { hostname, pathname } = window.location;
+  if (isRetiredAppRoute(hostname, pathname)) return <main><h1>Page not found</h1><a href="/">Return home</a></main>;
+  if (isNetworkRoute(hostname, pathname)) return <NetworkApp />;
   const cleanPath = pathname.replace(/\/+$/, "") || "/";
   const stonkletRenderId = new URLSearchParams(window.location.search).get("shareRender");
   if (cleanPath === "/stonklets" && stonkletRenderId) return <StonkletShareRender id={stonkletRenderId} />;
@@ -114,7 +118,6 @@ function resolveActiveApp() {
   if (cleanPath === "/developer") return <DeveloperPage />;
   if (cleanPath === "/link-bot") return <BotLinkPage />;
   if (cleanPath === "/tabs") return <TabsEntryPage />;
-  if (["social.10x.meme", "social-local.10x.meme"].includes(hostname) || cleanPath === "/social" || cleanPath.startsWith("/social/")) return <SocialApp />;
 
   if (hostname === "drop.10x.meme" || hostname === "drop-local.10x.meme" || hostname === "drop-dev.10x.meme") return <DropApp />;
   if ((WARPLETS_APP_HOSTS as readonly string[]).includes(hostname)) return <SearchApp />;

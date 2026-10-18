@@ -29,7 +29,6 @@ export interface Env {
   DROP_APP_FID?: string;
   WARPLETS_APP_FID?: string;
   STONKLETS_APP_FID?: string;
-  SOCIAL_APP_FID?: string;
   MILLION_APP_FID?: string;
 }
 
@@ -53,7 +52,7 @@ function resolveAppSlugFromWebhookPath(url: URL): AppSlug | null {
   }
 
   const rawSlug = segments[1];
-  if (!["app", "drop", WARPLETS_APP_SLUG, STONKLETS_APP_SLUG, "million", "social"].includes(rawSlug)) {
+  if (!["app", "drop", WARPLETS_APP_SLUG, STONKLETS_APP_SLUG, "million"].includes(rawSlug)) {
     return null;
   }
 
@@ -180,7 +179,6 @@ export async function handleWebhookRequest(
     drop: parseOptionalInt(env.DROP_APP_FID),
     warplets: parseOptionalInt(env.WARPLETS_APP_FID),
     stonklets: parseOptionalInt(env.STONKLETS_APP_FID),
-    social: parseOptionalInt(env.SOCIAL_APP_FID),
     million: parseOptionalInt(env.MILLION_APP_FID),
   });
 

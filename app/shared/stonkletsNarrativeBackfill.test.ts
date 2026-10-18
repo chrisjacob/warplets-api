@@ -1,3 +1,4 @@
+import { primaryNewsCompany } from "./stonkletsNewsOwnership";
 import { describe, it, expect } from "vitest";
 import backfill from "./stonkletsNarrativeBackfill.json";
 import { legacyNews, reviewedNarrative, selectNews, sourceDomain, validNewsItem, type NewsItem } from "./stonkletsNews";
@@ -19,7 +20,12 @@ describe("reviewed historical narratives", () => {
       expect(validNewsItem(item), item.headline).toBe(true);
       expect(item.sourceDomain).toBe(sourceDomain(item.sources[0]!.url));
       expect(reviewedNarrative(item)).toBe(true);
-      expect(selectNews([item], item.pairId, now)).toHaveLength(1);
+      const selected = selectNews([item], item.pairId, now);
+      // Editorial approval still validates the story, but does not override exclusive ownership.
+      if (!selected.length) {
+        expect(primaryNewsCompany(item.headline), item.headline).toBeDefined();
+        expect(primaryNewsCompany(item.headline), item.headline).not.toBe(item.pairId);
+      } else expect(selected).toEqual([item]);
       expect("returns" in item).toBe(false);
     }
     expect(new Set(entries.map(item => item.id)).size).toBe(entries.length);

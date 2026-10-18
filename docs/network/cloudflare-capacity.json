@@ -1,0 +1,14 @@
+{
+  "observedDate": "2026-10-17",
+  "sourceCommand": "node node_modules/wrangler/bin/wrangler.js d1 info warplets --json",
+  "readOnly": true,
+  "database": "warplets",
+  "databaseSizeBytes": 160485376,
+  "tables": 122,
+  "readQueries24h": 107024,
+  "writeQueries24h": 162868,
+  "rowsRead24h": 235408679,
+  "rowsWritten24h": 418455,
+  "readReplication": "disabled",
+  "note": "Capacity observation, not a load test. Network storage/index sizes, projected row operations, available paid quotas, and effects on other apps remain unverified. No writes or deployments were performed."
+}

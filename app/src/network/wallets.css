@@ -1,0 +1,5 @@
+.network-wallet-coverage{margin:20px 0 22px}.network-wallet-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));padding:0 20px;gap:20px}.network-wallet-metrics small{font-size:9px;letter-spacing:.07em;color:var(--nm)}.network-wallet-metrics strong{display:block;margin-top:8px;font-size:22px;font-weight:400;overflow-wrap:anywhere}.network-filter-fields{grid-template-columns:repeat(6,minmax(0,1fr)) auto}.network-kpis .network-wallet-value{font-size:clamp(25px,2.6vw,43px);overflow-wrap:anywhere}
+@media(max-width:1100px){.network-filter-fields{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:760px){.network-filter-fields{grid-template-columns:repeat(2,minmax(0,1fr))}.network-wallet-metrics{gap:12px;grid-template-columns:1fr}.network-wallet-metrics>div{border-bottom:1px solid var(--nb);padding-bottom:12px}.network-wallet-metrics strong{font-size:21px}.network-kpis .network-wallet-value{font-size:27px}}
+
+.network-leaderboard .network-tabs{flex-wrap:wrap;row-gap:8px}

@@ -1,7 +1,7 @@
 import {createRequire} from 'node:module';
 import assert from 'node:assert/strict';
-let require=createRequire(new URL('./social-tools/package.json',import.meta.url));
-try{require.resolve('playwright')}catch{require=createRequire(new URL('../.tmp/social-browser-tools/package.json',import.meta.url))}
+let require=createRequire(new URL('./browser-tools/package.json',import.meta.url));
+try{require.resolve('playwright')}catch{require=createRequire(new URL('../.tmp/browser-tools/package.json',import.meta.url))}
 const {chromium}=require('playwright');
 const origin=process.env.STONKLETS_TEST_ORIGIN||'http://127.0.0.1:5199';
 const browser=await chromium.launch({channel:'chrome',headless:true});

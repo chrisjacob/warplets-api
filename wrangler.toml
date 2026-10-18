@@ -10,6 +10,8 @@ compatibility_flags = ["nodejs_compat"]
 crons = ["* * * * *"]
 
 [vars]
+NETWORK_INGEST_ENABLED = "false"
+NETWORK_WALLETS_ENABLED = "false"
 WARPLETS_APP_ORIGIN = "https://warplet.10x.meme"
 SEARCH_API_ORIGIN = "https://app.10x.meme"
 BASE_NOTIFICATIONS_ENABLED = "true"
@@ -105,6 +107,8 @@ routes = []
 workers_dev = false
 
 [env.dev.vars]
+NETWORK_INGEST_ENABLED = "false"
+NETWORK_WALLETS_ENABLED = "false"
 SNAP_PUBLIC_BASE_URL = "https://api-dev.10x.meme"
 WARPLETS_APP_ORIGIN = "https://warplet-dev.10x.meme"
 SEARCH_API_ORIGIN = "https://app-dev.10x.meme"

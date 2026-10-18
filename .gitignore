@@ -21,6 +21,8 @@ drop-tunnel.err.log
 .tmp-pages-worker.mjs
 tmp/
 .tmp/
+__pycache__/
+*.pyc
 .pnpm-store/
 resend-identity-rollback-*.json
 

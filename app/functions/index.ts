@@ -8,7 +8,7 @@ const APPLE_TOUCH_ICON_LINK_REGEX = /<link\s+rel="apple-touch-icon"[^>]*>/i;
 const APPLICATION_NAME_META_REGEX = /<meta\s+name="application-name"[^>]*>/i;
 const APPLE_APP_TITLE_META_REGEX = /<meta\s+name="apple-mobile-web-app-title"[^>]*>/i;
 const BASE_APP_ID_META_REGEX = /<meta\s+name="base:app_id"[^>]*>/i;
-import { applySecurityHeaders, SOCIAL_CSP } from "./_lib/security.js";
+import { applySecurityHeaders } from "./_lib/security.js";
 import { resolveStatsFriendFilterFid } from "./_lib/stats.js";
 import {
   ensureStatsShareSnapshot,
@@ -40,14 +40,13 @@ import { APP_FAVICONS, buildFaviconLinks, getHostnameFaviconKey } from "../share
 import { getTwitterCardImageUrl } from "../shared/twitterCardImage.js";
 import { stonkletFromSharePath, stonkletShare } from "../shared/stonkletsShare.js";
 import { parseStonkletChangeRange } from "../shared/stonkletsTime.js";
-import { isSocialRoute, socialHtml, socialManifest } from "../shared/socialMetadata.js";
+import { isNetworkRoute, networkHtml, NETWORK_CSP } from "../shared/network/metadata.js";
 
 type PagesEnv = StatsSharesEnv & {
+  NETWORK_ENABLED?: string;
   ASSETS: Fetcher;
   WARPLETS_ACCOUNT_ASSOCIATION_JSON?: string;
   STONKLETS_ACCOUNT_ASSOCIATION_JSON?: string;
-  SOCIAL_ACCOUNT_ASSOCIATION_JSON?: string;
-  SOCIAL_BASE_APP_ID?: string;
 };
 
 const DROP_SHARE_TITLE = "10X Warplets (10K NFT Drop)";
@@ -380,7 +379,7 @@ export function buildCanonicalUrl(requestUrl: URL): string {
 export function getPublicPageRequestUrl(request: Request): URL {
   const current = new URL(request.url);
   const forwardedOrigin = request.headers.get("x-10x-public-origin")?.trim();
-  if (current.protocol !== "http:" || (!isWarpletsAppHostname(current.hostname) && !isStonkletsAppHostname(current.hostname) && !isSocialRoute(current.hostname,"/"))) {
+  if (current.protocol !== "http:" || (!isWarpletsAppHostname(current.hostname) && !isStonkletsAppHostname(current.hostname) && !isNetworkRoute(current.hostname,"/"))) {
     return current;
   }
   const forwardedProto = request.headers.get("x-forwarded-proto")
@@ -732,23 +731,14 @@ function getStatsSnapshotMeta(snapshot: StatsShareSnapshot): { title: string; de
 
 export const onRequestGet: PagesFunction<PagesEnv> = async (context) => {
   const requestUrl = getPublicPageRequestUrl(context.request);
-
-  if (isSocialRoute(requestUrl.hostname, requestUrl.pathname)) {
-    if (requestUrl.pathname === "/.well-known/farcaster.json") return applySecurityHeaders(Response.json(socialManifest(requestUrl.hostname, parseAccountAssociation(context.env.SOCIAL_ACCOUNT_ASSOCIATION_JSON, requestUrl.hostname)), {headers:{"cache-control":"no-store"}}));
-    if (requestUrl.pathname !== "/favicon.ico") {
-      const response = await context.next();
-      if (!response.headers.get("content-type")?.includes("text/html")) return applySecurityHeaders(response);
-      let title = "10X Social", description = "One focused daily feed where posts receive a real chance to be seen and go viral.";
-      const id = requestUrl.pathname.match(/\/post\/([a-zA-Z0-9-]+)$/)?.[1];
-      if (id) {
-        const post = await context.env.WARPLETS.prepare("SELECT p.text,m.username FROM social_posts p JOIN social_members m ON m.id=p.member_id WHERE p.id=? AND p.status='visible' AND m.status='active'").bind(id).first<{text:string;username:string}>().catch(()=>null);
-        if (post) { title = `${post.username} on 10X Social`; description = post.text.slice(0,250); }
-      }
-      const html = socialHtml(await response.text(), requestUrl.origin, requestUrl.pathname, title, description, context.env.SOCIAL_BASE_APP_ID);
-      const headers = new Headers(response.headers); headers.delete("content-length"); headers.set("cache-control","no-store");
-      if (requestUrl.hostname.includes("-local.")) headers.set("x-robots-tag","noindex, nofollow");
-      return applySecurityHeaders(new Response(html,{status:response.status,headers}), { csp: SOCIAL_CSP });
-    }
+  if (isNetworkRoute(requestUrl.hostname, requestUrl.pathname)) {
+    if (context.env.NETWORK_ENABLED !== 'true') return applySecurityHeaders(new Response('Network is not enabled', { status: 404 }));
+    if (requestUrl.pathname === '/.well-known/farcaster.json') return applySecurityHeaders(new Response('Not registered as a Mini App', { status: 404 }));
+    const response = await context.next();
+    if (!response.headers.get('content-type')?.includes('text/html')) return applySecurityHeaders(response);
+    const headers = new Headers(response.headers); headers.delete('content-length'); headers.set('cache-control', 'no-store');
+    if (requestUrl.hostname.includes('-local.')) headers.set('x-robots-tag', 'noindex, nofollow');
+    return applySecurityHeaders(new Response(networkHtml(await response.text(), requestUrl.origin, requestUrl.pathname), { status: response.status, headers }), { csp: NETWORK_CSP });
   }
 
   if (requestUrl.pathname === "/favicon.ico") {

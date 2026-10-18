@@ -1,4 +1,5 @@
-import { isSocialRoute, socialHtml, socialManifest } from "./shared/socialMetadata";
+import { isRetiredAppRoute } from "./shared/retiredApps";
+import { isNetworkRoute, networkHtml } from "./shared/network/metadata";
 import { defineConfig } from "vite";
 import { localStonkletsMarket } from "./localStonkletsMarket";
 import { localSpotlightPreview } from "./localSpotlightPreview";
@@ -439,8 +440,6 @@ const MINIAPP_FRAME_ANCESTORS = [
   "https://*.farcaster.xyz",
   "https://warpcast.com",
   "https://*.warpcast.com",
-  "https://10x-social.pages.dev",
-  "https://10x.social",
 ].join(" ");
 
 export default defineConfig({
@@ -465,14 +464,7 @@ export default defineConfig({
         server.middlewares.use((req, res, next) => {
           const hostname = (req.headers.host ?? "").split(":")[0].toLowerCase();
           const pathname = (req.url ?? "/").split("?")[0];
-          if (pathname === "/.well-known/farcaster.json" && isSocialRoute(hostname, "/")) {
-            res.setHeader("Content-Type", "application/json");
-            res.setHeader("Cache-Control", "no-store");
-            let association;
-            try { const raw=JSON.parse(process.env.SOCIAL_ACCOUNT_ASSOCIATION_JSON || "null"); if(raw && JSON.parse(Buffer.from(raw.payload,"base64url").toString()).domain===hostname) association=raw; } catch {}
-            res.end(JSON.stringify(socialManifest(hostname, association)));
-            return;
-          }
+          if (isRetiredAppRoute(hostname, pathname)) { res.statusCode = 404; res.end("Not found"); return; }
           if (pathname === "/.well-known/farcaster.json" && isWarpletsAppHostname(hostname)) {
             const association = parseWarpletsAccountAssociation(hostname);
             res.statusCode = 200;
@@ -519,6 +511,7 @@ export default defineConfig({
         const baseUrl = process.env.VITE_MINIAPP_BASE_URL?.replace(/\/$/, "") || "";
         if (!baseUrl) return html;
         const baseHostname = new URL(baseUrl).hostname;
+        if (isNetworkRoute(baseHostname, reqPath)) return networkHtml(html, baseUrl, reqPath);
         const routeKey = getRouteKey(reqPath, baseHostname);
         const config = getMiniAppConfig(routeKey);
         const launchPath = getLaunchPath(routeKey, baseHostname);
@@ -639,14 +632,13 @@ export default defineConfig({
           );
         }
 
-        if (isSocialRoute(baseHostname, reqPath)) return socialHtml(nextHtml, baseUrl, reqPath);
         return nextHtml;
       },
     },
   ],
   server: {
     allowedHosts: [
-      "social-local.10x.meme",
+      "network-local.10x.meme",
       "app-local.10x.meme",
       "drop-local.10x.meme",
       WARPLETS_APP_HOSTS[0],
@@ -694,7 +686,7 @@ export default defineConfig({
                 // Leave malformed origins untouched so the API rejects them.
               }
             }
-            if (requestHost === "social-local.10x.meme" || requestHost === WARPLETS_APP_HOSTS[0] || requestHost === STONKLETS_APP_HOSTS[0]) {
+            if (requestHost === WARPLETS_APP_HOSTS[0] || requestHost === STONKLETS_APP_HOSTS[0]) {
               proxyRequest.setHeader("x-10x-public-origin", `https://${requestHost}`);
             }
           });

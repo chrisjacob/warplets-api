@@ -45,14 +45,9 @@ const DEFAULT_CSP = [
   "frame-src 'self' https://www.youtube-nocookie.com https://www.youtube.com",
   "worker-src 'self' blob:",
   "connect-src 'self' https: wss://relay.walletconnect.com wss://relay.walletconnect.org",
-  "frame-ancestors 'self' https://farcaster.xyz https://*.farcaster.xyz https://warpcast.com https://*.warpcast.com https://10x-social.pages.dev https://10x.social",
+  "frame-ancestors 'self' https://farcaster.xyz https://*.farcaster.xyz https://warpcast.com https://*.warpcast.com",
   "base-uri 'self'",
 ].join("; ");
-
-// X's official widget is only enabled on the Social surface.
-export const SOCIAL_CSP = DEFAULT_CSP
-  .replace("script-src 'self'", "script-src 'self' https://platform.twitter.com")
-  .replace("frame-src 'self'", "frame-src 'self' https://platform.twitter.com https://syndication.twitter.com");
 
 function cloneHeaders(headers?: HeadersInit): Headers {
   return new Headers(headers);

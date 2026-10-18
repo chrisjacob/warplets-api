@@ -28,8 +28,8 @@ import {
 import { scheduleTasks, type ScheduledTasks } from "./scheduled-runner";
 import { runStonkletsDailyNotifications, type StonkletsDailyNotificationEnv } from "../app/functions/_lib/stonkletsDailyNotifications";
 import { scheduleStonkletNews, type NewsEnv } from "../app/functions/_lib/stonkletNews";
-import { ingestSocial } from "../app/functions/_lib/socialIngestion";
-import type { SocialEnv } from "../app/functions/_lib/socialStore";
+import { advanceNetwork } from "../app/functions/_lib/network/ingest";
+import type { NetworkEnv } from "../app/functions/_lib/network/store";
 
 export type ProductionScheduledEnv = OpenseaSyncEnv &
 	OpenSeaMarketEnv &
@@ -38,7 +38,7 @@ export type ProductionScheduledEnv = OpenseaSyncEnv &
 	WarpletNotificationEnv &
 	EmailIdentityEnv &
 	EmailOnboardingEnv &
-	StonkletMarketIngestEnv & StonkletsDailyNotificationEnv & NewsEnv & SocialEnv;
+	StonkletMarketIngestEnv & StonkletsDailyNotificationEnv & NewsEnv & NetworkEnv;
 
 export type ProductionScheduledTasks = ScheduledTasks<ProductionScheduledEnv>;
 
@@ -62,6 +62,5 @@ export function scheduleProductionTasks(
 	tasks: ProductionScheduledTasks = productionScheduledTasks,
 ): void {
 	scheduleTasks(env, ctx, tasks);
-  // Separate opt-in task keeps existing scheduler task contracts compatible.
-  ctx.waitUntil(ingestSocial(env).catch(error => console.error("social_ingestion_failed", error instanceof Error ? error.message : String(error))));
+  if (env.NETWORK_INGEST_ENABLED === 'true') ctx.waitUntil(advanceNetwork(env).catch(() => console.error('network_ingestion_failed')));
 }
