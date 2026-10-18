@@ -24,7 +24,7 @@ describe("official research provenance", () => {
     const run = vi.fn(async (_model: string, input: { messages: { content: string }[] }) => ({ response: JSON.stringify([JSON.parse(input.messages[1]!.content).sources[0].id]) }));
     const env = { WARPLETS: db, SPOTLIGHT_AI: { run } as unknown as Ai, STONKLETS_SPOTLIGHT_AI_ENABLED: "true" };
     vi.stubGlobal("fetch", vi.fn(async (url: string) => {
-      if (url.includes("data.sec.gov")) return Response.json({ cik: url.match(/CIK(\d+)/)![1], filings: { recent: { form: [] } } });
+      if (new URL(url).hostname === "data.sec.gov") return Response.json({ cik: url.match(/CIK(\d+)/)![1], filings: { recent: { form: [] } } });
       const origin = new URL(url).origin;
       return new Response(`<rss><item><title>Monetary policy announcement</title><link>${origin}/official-update</link><pubDate>${now}</pubDate></item></rss>`);
     }));

@@ -1,3 +1,4 @@
+import { newsText as clean } from '../../shared/newsText';
 import type { ThesisSource } from "../../shared/stonkletsSpotlight.js";
 import { catalystScore } from "../../shared/stonkletsCatalyst.js";
 
@@ -51,11 +52,6 @@ async function boundedText(url: string): Promise<string> {
     }
     return result + decoder.decode();
   } finally { await reader.cancel().catch(() => undefined); reader.releaseLock(); }
-}
-function clean(value: string): string {
-  return value.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1").replace(/<[^>]*>/g, " ")
-    .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'")
-    .replace(/[\u0000-\u001f]/g, " ").replace(/\s+/g, " ").trim();
 }
 export function explicitEventDate(title: string, publishedAt: string): string | undefined {
   if (!/\b(?:earnings|conference|results|event|webcast|meeting)\b/i.test(title)) return;

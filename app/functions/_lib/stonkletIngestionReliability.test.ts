@@ -57,7 +57,7 @@ describe("market refresh resilience", () => {
     vi.mocked(loadStockMetricsBatch).mockResolvedValue(metrics);
     const { env, fetcher } = fixture();
     const original = fetcher.getMockImplementation()!;
-    fetcher.mockImplementation(async (url, init) => url.includes("dexpaprika.com")
+    fetcher.mockImplementation(async (url, init) => new URL(url).hostname === "api.dexpaprika.com"
       ? Response.json({ id: nugget.stock.contractAddress!.toLowerCase(), summary: { price_usd: 4100 }, last_updated: new Date().toISOString() })
       : original(url, init));
     const snapshots = await refreshStonkletDemoMarket(env as never);
@@ -73,8 +73,8 @@ describe("market refresh resilience", () => {
     const { env, fetcher } = fixture();
     const original = fetcher.getMockImplementation()!;
     fetcher.mockImplementation(async (url, init) => {
-      if (url.includes("geckoterminal.com")) return Response.json({ data: { attributes: { address, price_usd: "4200" } } });
-      if (url.includes("dexpaprika.com") && failure === "expired") return Response.json({ id: address, summary: { price_usd: 4000 }, last_updated: "2020-01-01T00:00:00Z" });
+      if (new URL(url).hostname === "api.geckoterminal.com") return Response.json({ data: { attributes: { address, price_usd: "4200" } } });
+      if (new URL(url).hostname === "api.dexpaprika.com" && failure === "expired") return Response.json({ id: address, summary: { price_usd: 4000 }, last_updated: "2020-01-01T00:00:00Z" });
       return original(url, init);
     });
     const snapshots = await refreshStonkletDemoMarket(env as never, [previous(nugget)]);
@@ -90,7 +90,7 @@ describe("market refresh resilience", () => {
     const { env, fetcher } = fixture();
     const original = fetcher.getMockImplementation()!;
     fetcher.mockImplementation(async (url, init) => {
-      if (url.includes("geckoterminal.com") && failure !== "unavailable") return Response.json({ data: { attributes: {
+      if (new URL(url).hostname === "api.geckoterminal.com" && failure !== "unavailable") return Response.json({ data: { attributes: {
         address: failure === "wrong contract" ? "0x0000" : nugget.stock.contractAddress,
         price_usd: failure === "invalid price" ? "-1" : "4200",
       } } });
