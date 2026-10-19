@@ -16,7 +16,7 @@ function events(fid = 42) {
   return [{ ...base, topics: [NETWORK_TRANSFER_TOPIC, word(0), recipient, word(fid)], logIndex: '0x1' }, { ...base, topics: [NETWORK_ACCEPTANCE_TOPIC, word(fid), recipient], logIndex: '0x2' }];
 }
 const instances: DatabaseSync[] = [];
-function database() { const db = new DatabaseSync(':memory:'); instances.push(db); for (const migration of ['0095_network.sql', '0096_network_members.sql','0097_network_wallets.sql']) db.exec(readFileSync(new URL(`../../../../migrations/${migration}`, import.meta.url).pathname.replace(/^\/(\w:)/, '$1'), 'utf8')); return { db, env: { WARPLETS: sqliteD1(db), NETWORK_INGEST_ENABLED: 'true', NETWORK_SCAN_BATCH: '1' } as NetworkEnv }; }
+function database() { const db = new DatabaseSync(':memory:'); instances.push(db); for (const migration of ['0095_network.sql', '0096_network_members.sql','0097_network_wallets.sql','0098_network_activity.sql','0099_network_alchemy.sql','0100_network_geography.sql','0101_network_geography_matching.sql','0102_network_warplet_holders.sql']) db.exec(readFileSync(new URL(`../../../../migrations/${migration}`, import.meta.url).pathname.replace(/^\/(\w:)/, '$1'), 'utf8')); return { db, env: { WARPLETS: sqliteD1(db), NETWORK_INGEST_ENABLED: 'true', NETWORK_SCAN_BATCH: '1' } as NetworkEnv }; }
 afterEach(() => { vi.unstubAllGlobals(); for (const db of instances.splice(0)) db.close(); });
 function snapshot(): NetworkSnapshot { return { id: '1730000000000-12345678-1234-1234-1234-123456789abc', createdAt: Date.now(), cohort: 'acceptance-signers', chain: 'Base', scan: { fromBlock: 1, throughBlock: 2, targetBlock: 2, complete: true }, population: 100, profilesObserved: 80, profileOldestAt: Date.now(), tokens: [{ id: 'eip155:8453/erc20:0x' + 'a'.repeat(40), name: 'Example', symbol: 'EX' }], adoption: [], cells: [
   { country: 'US', location: 'known', token: null, tokenStatus: 'none', vote: 'opted_in', acceptedDay: '2026-10-16', count: 60 },
@@ -44,6 +44,40 @@ describe('cross-filtered public statistics', () => {
 });
 describe('durable storage and bounded ingestion', () => {
   it('reserves attempts atomically and stops at the combined provider budget', async () => { const { env } = database(); env.NETWORK_REQUESTS_PER_DAY = '1'; await reserveRequest(env, 'base'); await expect(reserveRequest(env, 'official-client')).rejects.toThrow('budget'); });
+  it('backfills missing raw locations for unknown countries before stale known profiles, without refetching observed blanks',async()=>{
+    const {env,db}=database(),now=Date.now();env.NETWORK_PROFILE_BATCH='1';
+    db.prepare("INSERT INTO network_sync VALUES('candidate_refresh',?,?)").run(JSON.stringify(now),now);
+    for(const fid of [1,2,3,4])db.prepare('INSERT INTO network_confirmed(fid,observed_at) VALUES(?,?)').run(fid,now);
+    // A routine stale profile, two legacy unknowns (one with mismatched raw
+    // observation), and a recent genuine blank that must not re-enter the queue.
+    for(const [fid,country,at] of [[1,'AU',now-2*86400000],[2,null,now],[3,null,now],[4,null,now]])db.prepare("INSERT INTO network_profiles(fid,country,location_status,token_status,opt_in_status,observed_at) VALUES(?,?,'unknown','none','opted_in',?)").run(fid,country,at);
+    db.prepare("INSERT INTO network_profile_locations(fid,description,observed_at) VALUES(1,'Sydney, Australia',?)").run(now-2*86400000);
+    db.prepare("INSERT INTO network_profile_locations(fid,description,observed_at) VALUES(3,'Old text',?)").run(now-1);
+    db.prepare("INSERT INTO network_profile_locations(fid,description,observed_at) VALUES(4,'',?)").run(now);
+    const requested:number[]=[];
+    vi.stubGlobal('fetch',vi.fn(async(url:string)=>{
+      const fid=Number(new URL(url).searchParams.get('fid'));requested.push(fid);
+      return Response.json({result:{user:{fid,profile:{location:{description:fid===2?'Sydney, Australia':''}},viewerContext:{optInStatus:'opted_in'}}}});
+    }));
+    await advanceNetwork(env,{locationBackfillOnly:true});
+    expect(requested).toEqual([2]);
+    expect(db.prepare('SELECT description,country FROM network_profile_locations WHERE fid=2').get()).toMatchObject({description:'Sydney, Australia',country:'AU'});
+    await advanceNetwork(env,{locationBackfillOnly:true});
+    expect(requested).toEqual([2,3]);
+    await advanceNetwork(env,{locationBackfillOnly:true});
+    expect(requested).toEqual([2,3]);
+    await advanceNetwork(env,{profilesOnly:true});
+    expect(requested).toEqual([2,3,1]);
+    await advanceNetwork(env,{profilesOnly:true});
+    expect(requested).toEqual([2,3,1]);
+  });
+  it('caps the higher combined daily allowance without weakening the monthly budget',async()=>{
+    const {env,db}=database();env.NETWORK_REQUESTS_PER_DAY='9999999';
+    db.prepare('INSERT INTO network_budgets VALUES(?,?,?)').run(new Date().toISOString().slice(0,10),'official-client',99999);
+    await reserveRequest(env,'alchemy-base');
+    await expect(reserveRequest(env,'official-client')).rejects.toThrow('budget');
+    expect(db.prepare('SELECT SUM(attempts) n FROM network_budgets').get()?.n).toBe(100000);
+  });
   it('has no side effects while disabled', async () => { const { env, db } = database(); env.NETWORK_INGEST_ENABLED = 'false'; expect(await advanceNetwork(env)).toEqual({ status: 'disabled' }); expect(db.prepare('SELECT COUNT(*) AS n FROM network_budgets').get()?.n).toBe(0); });
   it('replays orphaned events and invalidates affected historical snapshots on a reorg', async () => {
     const { env, db } = database(), block = NETWORK_DEPLOY_BLOCK + 49;

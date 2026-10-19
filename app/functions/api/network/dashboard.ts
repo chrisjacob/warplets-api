@@ -14,6 +14,7 @@ export const onRequestGet: PagesFunction<NetworkEnv> = async context => {
     : await context.env.WARPLETS.prepare('SELECT payload FROM network_snapshots WHERE id=?').bind(filters.snapshot).first<{ payload: string }>();
   if (!row && filters.snapshot !== 'current') return jsonSecure({ error: 'Snapshot not found' }, { status: 404 });
   const snapshot = row ? JSON.parse(row.payload) as NetworkSnapshot : null;
+  if(filters.warplet==='holders'&&snapshot?.warplets?.status!=='ready')return jsonSecure({error:'Saved Warplets ownership is not available in this snapshot'}, {status:503});
   const body = buildNetworkDashboard(snapshot, filters);
   return jsonSecure(body);
   });

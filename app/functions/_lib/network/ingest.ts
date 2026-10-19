@@ -1,3 +1,4 @@
+import { importNetworkActivity } from './activity';
 import { NETWORK_CONTRACT, NETWORK_DEPLOY_BLOCK } from '../../../shared/network/model';
 import { networkIdentity, normalizeNetworkProfile } from '../../../shared/network/normalize';
 import { decodeAcceptanceLogs, networkFetchJson } from './source';
@@ -52,14 +53,14 @@ export async function refreshNetworkCandidates(env: NetworkEnv, force = false) {
   await syncSet(env.WARPLETS, 'candidate_refresh', at);
 }
 
-export async function advanceNetwork(env: NetworkEnv, options: { publish?: boolean; scanOnly?: boolean; profilesOnly?: boolean } = {}) {
+export async function advanceNetwork(env: NetworkEnv, options: { publish?: boolean; scanOnly?: boolean; profilesOnly?: boolean; locationBackfillOnly?: boolean } = {}) {
   if (env.NETWORK_INGEST_ENABLED !== 'true') return { status: 'disabled' };
   const db = env.WARPLETS, owner = crypto.randomUUID(), now = Date.now();
   const lease = await db.prepare(`INSERT INTO network_leases(name,owner,expires_at) VALUES('ingestion',?,?) ON CONFLICT(name) DO UPDATE SET owner=excluded.owner,expires_at=excluded.expires_at WHERE network_leases.expires_at<? RETURNING owner`).bind(owner, now + 300_000, now).first<{ owner: string }>();
   if (lease?.owner !== owner) return { status: 'busy' };
   let eventsSaved = 0, profilesSaved = 0;
   try {
-    if (!options.profilesOnly && (options.scanOnly || await syncGet(db, 'chain_retry_after', 0) <= now)) {
+    if (!options.profilesOnly && !options.locationBackfillOnly && (options.scanOnly || await syncGet(db, 'chain_retry_after', 0) <= now)) {
       try {
       const head = integer(await rpc(env, 'eth_blockNumber', []));
       const cursor = await syncGet<Cursor>(db, 'scan', { block: NETWORK_DEPLOY_BLOCK - 1, hash: '', target: head - 64 });
@@ -107,15 +108,22 @@ export async function advanceNetwork(env: NetworkEnv, options: { publish?: boole
       }
     }
     if (!options.scanOnly && await syncGet(db, 'official_cooldown', 0) < Date.now()) {
-      await refreshNetworkCandidates(env);
+      if (!options.locationBackfillOnly) await refreshNetworkCandidates(env);
       const refresh = bounded(env.NETWORK_PROFILE_REFRESH_HOURS, 24, 168) * 3_600_000;
-      const rows = await db.prepare(`SELECT s.fid FROM (SELECT fid FROM network_events UNION SELECT fid FROM network_candidates UNION SELECT fid FROM network_confirmed) s LEFT JOIN network_profiles p ON p.fid=s.fid LEFT JOIN network_profile_failures f ON f.fid=s.fid WHERE (p.fid IS NULL OR p.observed_at<?) AND (f.fid IS NULL OR f.retry_after<?) ORDER BY COALESCE(p.observed_at,0),s.fid LIMIT ?`)
-        .bind(Date.now() - refresh, Date.now(), bounded(env.NETWORK_PROFILE_BATCH, 20, 100)).all<{ fid: number }>();
+      // Legacy imports discarded raw text even for unknown-country profiles.
+      // Backfill missing/current observations before routine age-based refreshes;
+      // an observed empty description is complete, not a reason to refetch.
+      const missingLocation = '(g.fid IS NULL OR g.observed_at<>p.observed_at)';
+      const cohort=options.locationBackfillOnly?'SELECT fid FROM network_events UNION SELECT fid FROM network_confirmed':'SELECT fid FROM network_events UNION SELECT fid FROM network_candidates UNION SELECT fid FROM network_confirmed';
+      const needsRefresh=options.locationBackfillOnly?`${missingLocation} AND p.observed_at>=?`:`p.fid IS NULL OR p.observed_at<? OR ${missingLocation}`;
+      const rows = await db.prepare(`SELECT s.fid FROM (${cohort}) s LEFT JOIN network_profiles p ON p.fid=s.fid LEFT JOIN network_profile_failures f ON f.fid=s.fid LEFT JOIN network_profile_locations g ON g.fid=s.fid WHERE (${needsRefresh}) AND (f.fid IS NULL OR f.retry_after<?) ORDER BY CASE WHEN p.fid IS NOT NULL AND p.country IS NULL AND ${missingLocation} THEN 0 WHEN p.fid IS NULL THEN 1 WHEN ${missingLocation} THEN 2 ELSE 3 END,COALESCE(p.observed_at,0),s.fid LIMIT ?`)
+        .bind(options.locationBackfillOnly?0:Date.now() - refresh, Date.now(), bounded(env.NETWORK_PROFILE_BATCH, 20, 100)).all<{ fid: number }>();
       // Four bounded readers; errors preserve the previous profile and are retried on a later run.
       let index = 0, paused = false;
       const workers = await Promise.allSettled(Array.from({ length: Math.min(4, rows.results.length) }, async () => {
         while (index < rows.results.length && !paused) {
           const { fid } = rows.results[index++];
+          if(options.locationBackfillOnly) await new Promise(resolve=>setTimeout(resolve,1000));
           await reserveRequest(env, 'official-client');
           try {
             const payload = await networkFetchJson(`https://client.farcaster.xyz/v2/user?fid=${fid}`, {}, 256_000);
@@ -133,13 +141,19 @@ export async function advanceNetwork(env: NetworkEnv, options: { publish?: boole
       const failure = workers.find(w => w.status === 'rejected');
       if (failure?.status === 'rejected') throw failure.reason;
     }
-    if (!options.scanOnly) {
+    if (!options.scanOnly && !options.locationBackfillOnly) {
       try { await refreshWalletPrices(env); }
       catch { await syncSet(db,'wallet_price_failure',{at:Date.now(),message:'Price refresh unavailable; previous accepted observations retained'}); }
     }
-    if (!options.scanOnly && env.NETWORK_WALLETS_ENABLED === 'true') {
-      try { await importWalletAssociations(env); await importWalletValue(env); }
+    if (!options.scanOnly && !options.locationBackfillOnly && env.NETWORK_WALLETS_ENABLED === 'true') {
+      try { await importWalletAssociations(env); }
+      catch { await syncSet(db, 'wallet_association_failure', {at:Date.now(),message:'Wallet association source unavailable or budget reached'}); }
+      try { await importWalletValue(env); }
       catch { await syncSet(db, 'wallet_failure', {at:Date.now(),message:'Wallet source unavailable or budget reached; previous values retained'}); }
+    }
+    if (!options.scanOnly && !options.profilesOnly && !options.locationBackfillOnly) {
+      try { await importNetworkActivity(env); }
+      catch { await syncSet(db,'activity_failure',{at:Date.now(),message:'Activity source unavailable or budget reached; positive observations retained'}); }
     }
     const snapshot = await publishSnapshot(db, options.publish);
     await syncSet(db, 'last_success', { at: Date.now(), eventsSaved, profilesSaved });

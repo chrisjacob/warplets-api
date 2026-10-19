@@ -1,7 +1,8 @@
+import {alchemyWalletBalances,alchemyTokenMetadata} from './alchemy';
 import { networkFetchJson } from './source';
 import { bounded, reserveRequest, syncGet, syncSet, type NetworkEnv } from './store';
 const ADDRESS = /^0x[a-f0-9]{40}$/i;
-export interface WalletEnv extends NetworkEnv { NEYNAR_API_KEY?: string; NETWORK_WALLET_CREDITS?: string }
+export interface WalletEnv extends NetworkEnv { NEYNAR_API_KEY?: string; NETWORK_WALLET_CREDITS?: string; ALCHEMY_API_KEY?: string; NETWORK_ALCHEMY_CU?: string }
 export const NATIVE_ASSET = 'eip155:8453/slip44:60';
 export interface PricedPosition { id: string; symbol: string; name: string; balance: string; decimals: number; priceUsd: string; usdUnits: string; quotedAt: number }
 export function decimalScale(value: string, decimals: number): bigint {
@@ -20,7 +21,7 @@ export function acceptedQuote(value: unknown, asset: string, now = Date.now()): 
   if (asset !== NATIVE_ASSET && (!Number.isSafeInteger(q.decimals) || q.decimals! < 0 || q.decimals! > 36)) return null;
   return q;
 }
-export async function neynarRead(env: WalletEnv, path: string, maximumCredits: number) {
+export async function neynarRead(env: WalletEnv, path: string, maximumCredits: number, target: 'api' | 'snapchain' = 'api') {
   if (!env.NEYNAR_API_KEY) throw Error('Existing Neynar key is required');
   const limit = bounded(env.NETWORK_WALLET_CREDITS, 100_000, 10_000_000);
   const month = new Date().toISOString().slice(0, 7);
@@ -29,7 +30,8 @@ export async function neynarRead(env: WalletEnv, path: string, maximumCredits: n
     .bind(month, maximumCredits, maximumCredits, limit, limit).first();
   if (!reserved) throw Error('Network wallet credit cap reached');
   await reserveRequest(env, 'neynar-wallets');
-  const payload=await networkFetchJson(`https://api.neynar.com${path}`, { headers: { 'x-api-key': env.NEYNAR_API_KEY } }, 2_000_000);
+  const host=target==='snapchain'?'snapchain-api.neynar.com':'api.neynar.com';
+  const payload=await networkFetchJson(`https://${host}${path}`, { headers: { 'x-api-key': env.NEYNAR_API_KEY } }, 2_000_000);
   const page=payload as {balances?:unknown[];next?:{cursor?:unknown}};
   if(path.startsWith('/v2/onchain/token/balances?')&&Array.isArray(page.balances)&&page.balances.length<=100&&page.next&&Object.hasOwn(page.next,'cursor')) {
     const refund=maximumCredits-Math.max(1,page.balances.length)*10;
@@ -44,7 +46,7 @@ async function quoteAssets(env: WalletEnv, assets: string[]) {
   for(let i=0;i<assets.length;i+=90){const batch=assets.slice(i,i+90);const result=await env.WARPLETS.prepare(`SELECT asset,payload,observed_at FROM network_asset_prices WHERE asset IN (${batch.map(()=>'?').join(',')})`).bind(...batch).all<{asset:string;payload:string;observed_at:number}>();for(const row of result.results)cachedAssets.set(row.asset,row);}
   for (const asset of assets) {
     const cached=cachedAssets.get(asset);
-    if (cached && cached.observed_at > Date.now() - 3_600_000) quotes.set(asset, JSON.parse(cached.payload));
+    if (cached && cached.observed_at > Date.now() - (cached.payload==='null'?86_400_000:3_600_000)) quotes.set(asset, JSON.parse(cached.payload));
     else missing.push(asset);
   }
   for (let i=0;i<missing.length;i+=50) {
@@ -82,14 +84,31 @@ export function priceBalances(rows: Balance[], quotes: Map<string,unknown>, now 
 }
 async function valueNextWallet(env: WalletEnv) {
   if (await syncGet(env.WARPLETS,'wallet_cooldown',0)>Date.now()) return {status:'cooldown'};
-  const row=await env.WARPLETS.prepare(`SELECT DISTINCT l.address FROM network_wallet_links l JOIN (SELECT fid FROM network_events UNION SELECT fid FROM network_confirmed) c ON c.fid=l.fid LEFT JOIN network_wallet_values v ON v.address=l.address LEFT JOIN network_wallet_retries r ON r.address=l.address
-    WHERE (v.address IS NULL OR v.observed_at<?) AND (r.address IS NULL OR r.retry_after<?) ORDER BY COALESCE(v.observed_at,0),l.address LIMIT 1`).bind(Date.now()-86_400_000,Date.now()).first<{address:string}>();
+  const legacy=env.ALCHEMY_API_KEY?"v.address IS NOT NULL AND v.source<>'alchemy-base+defillama'":'0';
+  const row=await env.WARPLETS.prepare(`SELECT l.address FROM network_wallet_links l JOIN (SELECT fid FROM network_events UNION SELECT fid FROM network_confirmed) c ON c.fid=l.fid LEFT JOIN network_wallet_values v ON v.address=l.address LEFT JOIN network_wallet_retries r ON r.address=l.address
+    WHERE (v.address IS NULL OR v.observed_at<? OR (${legacy})) AND (r.address IS NULL OR r.retry_after<?) GROUP BY l.address ORDER BY CASE WHEN (${legacy}) THEN 0 ELSE 1 END,(v.address IS NULL) DESC,COALESCE(v.observed_at,0),MIN(l.fid),l.address LIMIT 1`).bind(Date.now()-(env.ALCHEMY_API_KEY?7:1)*86_400_000,Date.now()).first<{address:string}>();
   if (!row) {
-    const remaining=await env.WARPLETS.prepare(`SELECT COUNT(DISTINCT l.address) n FROM network_wallet_links l JOIN (SELECT fid FROM network_events UNION SELECT fid FROM network_confirmed) c ON c.fid=l.fid LEFT JOIN network_wallet_values v ON v.address=l.address WHERE v.address IS NULL OR v.observed_at<?`).bind(Date.now()-86_400_000).first<{n:number}>();
+    const remaining=await env.WARPLETS.prepare(`SELECT COUNT(DISTINCT l.address) n FROM network_wallet_links l JOIN (SELECT fid FROM network_events UNION SELECT fid FROM network_confirmed) c ON c.fid=l.fid LEFT JOIN network_wallet_values v ON v.address=l.address WHERE v.address IS NULL OR v.observed_at<? OR (${legacy})`).bind(Date.now()-(env.ALCHEMY_API_KEY?7:1)*86_400_000).first<{n:number}>();
     return {status:remaining?.n?'waiting':'complete'};
   }
   try {
-    const balances: Balance[]=[]; let cursor=''; const cursors=new Set<string>(); let done=false;
+    const balances: Balance[]=[];
+    let result:ReturnType<typeof priceBalances>;
+    if(env.ALCHEMY_API_KEY) {
+      const raw=await alchemyWalletBalances(env,row.address);
+      const quotes=await quoteAssets(env,[NATIVE_ASSET,...raw.tokens.map(token=>assetId(token.address)),...raw.unavailable.map(assetId)]);
+      balances.push({network:'base',address:'0x'+'e'.repeat(40),balance:raw.native,decimals:18,name:'Ether',symbol:'ETH'});
+      for(const token of raw.tokens) {
+        const quote=acceptedQuote(quotes.get(assetId(token.address)),assetId(token.address));
+        // Unpriced tokens need no paid metadata call. They still count as excluded.
+        const metadata=quote?await alchemyTokenMetadata(env,token.address):null;
+        balances.push({network:'base',...token,decimals:metadata?.decimals??-1,name:metadata?.name,symbol:metadata?.symbol});
+      }
+      if(raw.unavailable.some(address=>acceptedQuote(quotes.get(assetId(address)),assetId(address))))throw Error('Priced Alchemy token balance unavailable');
+      result=priceBalances(balances,quotes);
+      result.excluded+=raw.unavailable.length;
+    } else {
+    let cursor=''; const cursors=new Set<string>(); let done=false;
     for (let page=0;page<20;page++) {
       const data=await neynarRead(env,`/v2/onchain/token/balances?networks=base&address=${row.address}&limit=100${cursor?`&cursor=${encodeURIComponent(cursor)}`:''}`,1000) as {balances:Balance[];next:{cursor:string|null}};
       if (!Array.isArray(data.balances) || data.balances.length>100 || !data.next || !Object.hasOwn(data.next,'cursor')) throw Error('Incomplete wallet balance page');
@@ -100,18 +119,19 @@ async function valueNextWallet(env: WalletEnv) {
     }
     if (!done) throw Error('Wallet pagination cap reached');
     const assets=[...new Set(balances.filter(b=>typeof b.address==='string'&&ADDRESS.test(b.address)&&typeof b.balance==='string'&&/^\d{1,80}$/.test(b.balance)&&BigInt(b.balance)>0n).map(b=>assetId(b.address)))];
-    const result=priceBalances(balances,await quoteAssets(env,assets));
+    result=priceBalances(balances,await quoteAssets(env,assets));
+    }
     const oldest=result.positions.length?Math.min(...result.positions.map(p=>p.quotedAt)):null;
-    await env.WARPLETS.prepare(`INSERT INTO network_wallet_values(address,usd_units,positions,excluded,observed_at,price_oldest_at) VALUES(?,?,?,?,?,?) ON CONFLICT(address) DO UPDATE SET usd_units=excluded.usd_units,positions=excluded.positions,excluded=excluded.excluded,observed_at=excluded.observed_at,price_oldest_at=excluded.price_oldest_at`)
-      .bind(row.address,result.usdUnits,JSON.stringify(result.positions),result.excluded,Date.now(),oldest).run();
+    await env.WARPLETS.prepare(`INSERT INTO network_wallet_values(address,usd_units,positions,excluded,observed_at,price_oldest_at,source) VALUES(?,?,?,?,?,?,?) ON CONFLICT(address) DO UPDATE SET usd_units=excluded.usd_units,positions=excluded.positions,excluded=excluded.excluded,observed_at=excluded.observed_at,price_oldest_at=excluded.price_oldest_at,source=excluded.source`)
+      .bind(row.address,result.usdUnits,JSON.stringify(result.positions),result.excluded,Date.now(),oldest,env.ALCHEMY_API_KEY?'alchemy-base+defillama':'neynar-base+defillama').run();
     await env.WARPLETS.prepare('DELETE FROM network_wallet_retries WHERE address=?').bind(row.address).run();
     return {status:'valued',excluded:result.excluded,pricedAssets:result.positions.length};
   } catch(error) {
     const message=error instanceof Error?error.message:'';
-    if (/credit cap|budget exhausted/.test(message)) throw error;
+    if (/credit cap|budget exhausted|Alchemy rate pause|Alchemy key is missing or invalid/.test(message)) throw error;
     await env.WARPLETS.prepare('INSERT INTO network_wallet_retries(address,retry_after) VALUES(?,?) ON CONFLICT(address) DO UPDATE SET retry_after=excluded.retry_after').bind(row.address,Date.now()+3_600_000).run();
-    if (/HTTP (429|402|403)/.test(message)) {await syncSet(env.WARPLETS,'wallet_cooldown',Date.now()+900_000);throw error;}
-    return {status:'retry'};
+    if (/HTTP (429|401|402|403)|Alchemy RPC request rejected/.test(message)) {await syncSet(env.WARPLETS,'wallet_cooldown',Date.now()+900_000);throw error;}
+    return {status:'retry',reason:/^(Invalid Alchemy|Duplicate Alchemy|Alchemy pagination|Priced Alchemy)/.test(message)?message:'Source read failed; retry deferred'};
   }
 }
 export async function importWalletValue(env: WalletEnv) {

@@ -1,5 +1,5 @@
 import type { NetworkEconomics } from '../../shared/network/model';
-export const walletUsd=(value:string|null|undefined,compact=false)=>value==null?'—':new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',maximumFractionDigits:2,notation:compact?'compact':'standard'}).format(Number(value));
+export const walletUsd=(value:string|null|undefined,compact=false)=>value==null?'—':new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',maximumFractionDigits:compact?1:0,notation:compact?'compact':'standard'}).format(Math.ceil(Number(value)));
 const when=(value:number|null|undefined)=>value?new Date(value).toLocaleString([], {dateStyle:'medium',timeStyle:'short'}):'Not observed';
 export default function NetworkWalletCoverage({economics}:{economics:NetworkEconomics|undefined}){
   if(!economics?.coverage)return null;
@@ -8,7 +8,7 @@ export default function NetworkWalletCoverage({economics}:{economics:NetworkEcon
     <p className="network-note">Selected supported value: {walletUsd(economics.totalUsd)}. Whole-cohort import coverage: {c.measuredWallets.toLocaleString()} distinct verified wallets measured; {c.associationsObserved.toLocaleString()} FIDs checked for wallet associations. {economics.status!=='ready'?'The displayed value covers measured wallets only. Pending wallets are not counted as zero.':''} {economics.stale?'Some last-valid balances or price quotes are overdue for refresh.':''}</p>
     <div className="network-wallet-metrics"><div><small>AVERAGE COMPLETE PORTFOLIO</small><strong>{walletUsd(economics.averageUsd)}</strong></div><div><small>MEDIAN COMPLETE PORTFOLIO</small><strong>{walletUsd(economics.medianUsd)}</strong></div><div><small>SHARED / UNALLOCATED VALUE</small><strong>{walletUsd(economics.unallocatedUsd)}</strong></div></div>
     <p className="network-note">Average and median use {economics.measuredAccounts?.toLocaleString()??0} fully retrieved, unambiguously attributed accounts in this selection. Shared-wallet value is included once in the unfiltered global total and excluded from country/token allocations.</p>
-    <p className="network-note">Balances observed {when(c.oldestBalanceAt)} — {when(c.latestBalanceAt)} · oldest accepted quote {when(c.oldestPriceAt)} · {c.excludedBalances.toLocaleString()} unsupported or unpriced balances excluded across the cohort.</p>
+    <p className="network-note">{c.balanceRefreshHours===168?'Weekly rotating refresh · ':''}Balances observed {when(c.oldestBalanceAt)} — {when(c.latestBalanceAt)} · oldest accepted quote {when(c.oldestPriceAt)} · {c.excludedBalances.toLocaleString()} unsupported or unpriced balances excluded across the cohort.</p>
     <p className="network-note">Top token held means the largest independently priced USD position, combined across an account’s verified Base wallets. Includes native ETH and stablecoins. Unpriced assets cannot establish a top holding. Profile tokens remain a separate self-declared affiliation.</p>
   </section>;
 }

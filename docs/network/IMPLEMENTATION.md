@@ -50,7 +50,7 @@ confirmation's observation time is never backdated into a signing date.
   Farcaster FID links. Search by username, display name or FID, with keyset
   pagination and country/location/status/token cross-filters. Per the updated
   product direction, public profile counts and directory entries are visible
-  at every group size. Individual financial valuations remain unpublished.
+  at every group size. Member cards show supported Base verified-wallet estimates, following the user’s explicit request. Partial portfolios are labelled; shared wallets remain unattributed.
   Historical snapshots contain aggregates only; the directory clearly requires
   the latest observation. The aggregate cube is not returned by public APIs.
 - Immutable snapshots, read-only cached public APIs, request budgets, leases,
@@ -118,7 +118,7 @@ own bounded execution. No remote D1 migration or production deployment was run.
   `NETWORK_PROFILE_REFRESH_HOURS` supports 1–168 hours, subject to the request cap.
 - Production batches default to eight 50-block ranges and 20 profiles per run;
   local bootstrap uses 50 ranges / 100 profiles. Only four readers run concurrently.
-- Default caps are 25,000 total source attempts/day and 600,000/month, including
+- Default caps are 100,000 total source attempts/day and 600,000/month, including
   failed/fallback requests. These are request caps, not credit/dollar estimates.
   No paid Neynar requests or paid fallback is used for signer/profile ingestion.
 - Snapshots publish at most every ten minutes during routine work; local
@@ -177,3 +177,8 @@ To remove Network later: disable both flags, remove its hostname/tunnel route,
 remove its lazy frontend/metadata/scheduler integrations, then explicitly drop
 only the `network_*` tables and expire only `network:` KV keys. Do not delete or
 replace the shared D1/KV resources. Keep migration history intact.
+
+See [UI and monthly participation](UI_ACTIVITY.md) for the 19 October interface,
+Man-Months, source coverage and retained wallet budget.
+
+Country, state/province and city navigation are implemented for the local preview. See [GEOGRAPHY.md](GEOGRAPHY.md) for canonical matching, map assets, migration 0100 and staged production seed requirements.

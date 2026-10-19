@@ -1,6 +1,10 @@
 # Network verified-wallet valuation
 
-Local preview implementation, 18 October 2026. Production collection remains off.
+Local preview implementation. Production collection remains off.
+
+**19 October update:** [Alchemy backfill](ALCHEMY.md) now supplies balances when
+the local Alchemy key is present, with a separate 10M-CU hard monthly cap.
+The Neynar credit cap remains 100,000. Earlier pilot notes below are historical.
 
 ## Scope and status
 
@@ -68,7 +72,7 @@ exist do not acquire synthetic wallet history.
   1,000, then release unused reservation using ten per returned object (minimum
   ten). Failed requests retain their reservation. These upper-bound reservations
   are not an account billing statement or proof of unused subscription credits.
-- Existing Network source-request caps (25,000/day, 600,000/month) include
+- Existing Network source-request caps (100,000/day, 600,000/month) include
   Neynar and price requests. Reaching either cap pauses work rather than raising
   a limit. Provider keys remain server-side; public GETs never call providers.
 
@@ -87,3 +91,17 @@ change or source reset; existing fresh wallets are skipped.
 Sources: [Neynar balances](https://docs.neynar.com/reference/get-wallet-balances),
 [Neynar public pricing](https://dev.neynar.com/pricing),
 [DefiLlama prices](https://coins.llama.fi/prices/current/coingecko:ethereum).
+
+## Member directory (19 October)
+
+Member cards include canonical public location and supported Base verified-wallet
+estimates on request. Portfolios use cached balances and current accepted cached
+quotes, falling back to last valid estimates with a stale label. No provider calls
+are made when browsing members. Only the 24 visible members' portfolios load.
+Shared-wallet ownership is checked across the whole signer cohort regardless of
+filters; ambiguous portfolios show no personal estimate. Missing measurements
+are pending, distinct from a fully measured zero; partial estimates show partial.
+
+Wallet collection remains limited by the combined 100,000 requests/day budget as
+well as Alchemy CU caps. A daily-budget pause resumes after midnight UTC. These
+are local safety limits, not evidence that the provider's free tier was exhausted.

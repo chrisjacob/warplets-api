@@ -1,0 +1,26 @@
+{
+  "cities500.zip": {
+    "url": "https://download.geonames.org/export/dump/cities500.zip",
+    "sha256": "56c9e2dc0344e2bbeb82c97ed43e0d65120e92d957283fe61d7eec79279245ce"
+  },
+  "admin1.txt": {
+    "url": "https://download.geonames.org/export/dump/admin1CodesASCII.txt",
+    "sha256": "1da92a6323a5fec3176f3f743bf4cf4040fd56a876da55e46fbca23c863aa60a"
+  },
+  "PH.zip": {
+    "url": "https://download.geonames.org/export/dump/PH.zip",
+    "sha256": "ab103a8fc700b560aaed48a4783614372ca5037123dfd7f4294e919853d1a963"
+  },
+  "admin2.txt": {
+    "url": "https://download.geonames.org/export/dump/admin2Codes.txt",
+    "sha256": "985b37390cad51f51b03897e503748db5acddfd9442438532cfab1ac9fd1cbcd"
+  },
+  "countryInfo.txt": {
+    "url": "https://download.geonames.org/export/dump/countryInfo.txt",
+    "sha256": "c55f638cfaafb4fe45a9aa15120a0f1f78e8a34a8e1847d7b9320cf740fbc9ab"
+  },
+  "states.json": {
+    "url": "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_admin_1_states_provinces.geojson",
+    "sha256": "22d0e3ad85eb3e27f17cabf8ba2d50e554fbc27a87796ff891d958185da62fb5"
+  }
+}
