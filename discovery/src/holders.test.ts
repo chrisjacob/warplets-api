@@ -31,7 +31,7 @@ describe("supply-reconciled token-owner concentration", () => {
     const e = await evidence(), h = await analyzeHolders(e, now.toISOString());
     expect(h).toMatchObject({ status: "verified", holder_count: 120, account_count: 121, top1_pct: .5, top10_pct: 5, pool_pct: 40, creator_pct: .5, inventoried_raw: "1000000000" });
     const c = (await fixtureCandidates(now))[0]!;
-    expect(assess({ ...c, holders: h, risk: { ...c.risk, holder_concentration: "verified" } }, DEFAULT_POLICY, now).eligibility).toBe("eligible");
+    expect(assess({ ...c, holders: h, risk: { ...c.risk, holder_concentration: "verified" } }, { ...DEFAULT_POLICY, require_wallet_analysis: false }, now).eligibility).toBe("eligible");
   });
   it("aggregates split accounts under one owner instead of diluting concentration", async () => {
     const e = await evidence();

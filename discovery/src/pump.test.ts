@@ -14,6 +14,13 @@ describe("Solana encoding and canonical addresses", () => {
   });
 });
 describe("Pump proof verification against pinned instruction layouts", () => {
+  it("accepts zero-byte unrelated instructions without treating them as Pump evidence", async () => {
+    const b = await syntheticBundle();
+    b.creation.transaction.message.instructions.push({ programIdIndex: 0, accounts: [], data: "" });
+    expect(await creationProof(b.creation, b.mint, new Date().toISOString())).not.toBeNull();
+    b.creation.transaction.message.instructions = [{ programIdIndex: 0, accounts: [], data: "" }];
+    expect(await creationProof(b.creation, b.mint, new Date().toISOString())).toBeNull();
+  });
   it("verifies separate creation, migration CPI and initialized canonical state", async () => {
     const b = await syntheticBundle();
     const origin = await creationProof(b.creation, b.mint, new Date().toISOString());

@@ -15,7 +15,9 @@
     "TENX_RPC_URL": "https://api.mainnet-beta.solana.com",
     "TENX_RPC_DAILY_LIMIT": "5000",
     "TENX_MARKET_DAILY_LIMIT": "600",
-    "TENX_MARKET_ENABLED": "false"
+    "TENX_MARKET_ENABLED": "false",
+    "TENX_WALLET_ANALYSIS_ENABLED": "true",
+    "TENX_WALLET_RPC_DAILY_LIMIT": "800"
   },
   "d1_databases": [{
     "binding": "TENX_DB",

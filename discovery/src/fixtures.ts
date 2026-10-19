@@ -64,7 +64,7 @@ export async function fixtureCandidates(now = new Date()): Promise<Candidate[]> 
     creation: creation.proof, graduation: await graduationProof(bundle.graduation, migration, now.toISOString()),
     verification: "verified", verification_reasons: [],
     risk: await verifyState(migration, bundle.accounts, now.toISOString(), bundle.graduation.slot),
-    holders: null,
+    holders: null, wallet_analysis: null,
     market: { source: "geckoterminal", fetched_at: now.toISOString(), observed_at: null, price_usd: 0.001, market_cap_usd: 200_000, fdv_usd: 250_000, liquidity_usd: 50_000, volume_24h_usd: 10_000, image_url: null },
     first_seen_at: now.toISOString(), checked_at: now.toISOString(), mode: "fixture",
   };

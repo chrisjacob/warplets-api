@@ -1,0 +1,129 @@
+import { z } from "zod";
+import { Address, ProofSchema, Signature } from "./model";
+import { HolderSchema } from "./holder-model";
+import { analyzeHolders, HolderEvidenceSchema } from "./holders";
+import { MAINNET_GENESIS, SignatureRows, TransactionSchema } from "./rpc";
+import { WalletTransactionSchema, type WalletTransaction } from "./wallet-rpc";
+import { creationRoles, fundingTransfers, verifiedTrades } from "./wallet-trades";
+import { WalletAnalysisSchema, type WalletAnalysis, type VerifiedTrade } from "./wallet-model";
+import { base64, hashJson, Reader } from "./solana";
+import { ATA } from "./pump";
+import { findPda, publicKey } from "./solana";
+
+export const WalletEvidenceSchema = z.object({
+  version: z.literal("wallet-input-v1"), observed_at: z.string().datetime(), cluster: z.literal(MAINNET_GENESIS),
+  asset: z.object({ address: Address, pool: Address, token_program: Address, creation: ProofSchema.nullable(), graduation: ProofSchema.nullable() }).strict(),
+  records: z.array(z.object({ signature: Signature, fetched_at: z.string().datetime(), status: z.enum(["available", "missing", "unsupported"]), purposes: z.array(z.enum(["origin", "early", "recent", "wallet"])).max(4), transaction: WalletTransactionSchema.nullable() }).strict()).max(16),
+  histories: z.array(z.object({ address: Address, purpose: z.enum(["curve", "pool", "wallet"]), fetched_at: z.string().datetime(), rows: SignatureRows }).strict()).max(8),
+  holders: z.object({ analysis: HolderSchema, evidence: HolderEvidenceSchema }).strict().nullable(),
+  prior_losses: z.array(z.object({ wallet: Address, tokens: z.array(Address).max(100), report_hashes: z.array(z.string().regex(/^[a-f0-9]{64}$/)).max(30) }).strict()).max(20),
+  gaps: z.array(z.string()).max(40),
+}).strict();
+export type WalletEvidence = z.infer<typeof WalletEvidenceSchema>;
+const ratio = (amount: bigint, supply: bigint) => Number((amount * 100000000n + supply - 1n) / supply) / 1000000;
+const distinct = <T>(items: T[]) => [...new Set(items)];
+export async function analyzeWalletEvidence(raw: WalletEvidence): Promise<WalletAnalysis> {
+  const input = WalletEvidenceSchema.parse(raw), { asset } = input;
+  const gaps = new Set([...input.gaps, "actual_bundle_membership_unknown", "beneficial_owner_links_unknown", "historical_wallet_coverage_incomplete", "exchange_or_sponsor_funding_possible", "cross_token_pnl_and_fees_unknown"]);
+  const available: WalletTransaction[] = [], seen = new Set<string>();
+  for (const record of input.records) {
+    if (seen.has(record.signature)) throw new Error("duplicate_wallet_transaction"); seen.add(record.signature);
+    if (record.status !== "available") { if (record.transaction !== null) throw new Error("invalid_wallet_record"); continue; }
+    if (!record.transaction || record.transaction.transaction.signatures[0] !== record.signature) throw new Error("wallet_record_signature_mismatch");
+    if (Date.parse(record.fetched_at) > Date.parse(input.observed_at) || record.transaction.blockTime === null || record.transaction.blockTime * 1000 > Date.parse(input.observed_at)) throw new Error("wallet_record_from_future");
+    // A history row cannot be swapped for a different slot/transaction response.
+    for (const history of input.histories) for (const row of history.rows.filter(r => r.signature === record.signature)) {
+      if (row.slot !== record.transaction.slot || row.err !== null || row.confirmationStatus !== "finalized") throw new Error("wallet_history_transaction_mismatch");
+    }
+    available.push(record.transaction);
+  }
+  for (const proof of [asset.creation, asset.graduation]) {
+    const tx = available.find(t => t.transaction.signatures[0] === proof?.signature);
+    if (tx && proof && (tx.slot !== proof.slot || await hashJson(TransactionSchema.parse(tx)) !== proof.payload_hash)) throw new Error("wallet_origin_proof_mismatch");
+  }
+  const origin = available.find(tx => tx.transaction.signatures[0] === asset.creation?.signature);
+  const roles = origin ? await creationRoles(origin, asset.address) : [];
+  if (!roles.length) gaps.add("creation_wallets_unverified");
+  const tradeMap = new Map<string, VerifiedTrade>();
+  for (const tx of available) {
+    try {
+      const result = await verifiedTrades(tx, asset.address, asset.pool);
+      result.gaps.forEach(g => gaps.add(g));
+      for (const t of result.trades) tradeMap.set(`${t.signature}:${t.instruction_index}`, t);
+    } catch { gaps.add("transaction_not_certified_for_trade_analysis"); }
+  }
+  const trades = [...tradeMap.values()].sort((a, b) => a.slot - b.slot || a.signature.localeCompare(b.signature) || a.instruction_index.localeCompare(b.instruction_index)).slice(0, 100);
+  if (tradeMap.size > 100) gaps.add("trade_output_limit");
+  const buyers = distinct(trades.filter(t => t.side === "buy").map(t => t.wallet));
+  if (buyers.some(wallet => !input.histories.some(h => h.purpose === "wallet" && h.address === wallet))) gaps.add("buyer_funding_histories_not_all_sampled");
+  const devs = new Set(roles.filter(r => r.signed).map(r => r.wallet));
+  const tracked = new Set([...roles.map(r => r.wallet), ...buyers, ...trades.filter(t => t.side === "sell").map(t => t.wallet)].slice(0, 20));
+  if (distinct([...roles.map(r => r.wallet), ...trades.map(t => t.wallet)]).length > 20) gaps.add("wallet_output_limit");
+  const funding = (await Promise.all(available.map(async tx => { try { return await fundingTransfers(tx, tracked, trades); } catch { return []; } }))).flat().slice(0, 100);
+  const early = trades.filter(t => t.side === "buy" && asset.creation && t.slot >= asset.creation.slot && t.slot <= asset.creation.slot + 20);
+  const slotGroups = new Map<number, Set<string>>(), transactionGroups = new Map<string, Set<string>>(), feeGroups = new Map<string, Set<string>>();
+  for (const t of early) {
+    slotGroups.set(t.slot, new Set([...(slotGroups.get(t.slot) ?? []), t.wallet]));
+    transactionGroups.set(t.signature, new Set([...(transactionGroups.get(t.signature) ?? []), t.wallet]));
+    feeGroups.set(t.fee_payer, new Set([...(feeGroups.get(t.fee_payer) ?? []), t.wallet]));
+  }
+  const linked = funding.filter(f => f.before_sampled_buy && buyers.includes(f.to));
+  const byFunder = new Map<string, Set<string>>();
+  for (const f of linked) byFunder.set(f.from, new Set([...(byFunder.get(f.from) ?? []), f.to]));
+  const commonBuyers = distinct([...byFunder.values()].filter(s => s.size >= 2).flatMap(s => [...s]));
+  const devFunded = distinct(linked.filter(f => devs.has(f.from) && f.from !== f.to).map(f => f.to));
+  const roundTrips = distinct(trades.filter(t => trades.some(other => other.wallet === t.wallet && other.signature === t.signature && other.side !== t.side)).map(t => t.wallet));
+  const signals: WalletAnalysis["signals"] = [];
+  const add = (code: string, wallets: string[], signatures: string[], strength: "observed" | "heuristic" = "heuristic") => {
+    if (signals.length < 20) signals.push({ code, wallets: distinct(wallets).slice(0, 20), signatures: distinct(signatures).slice(0, 20), strength });
+  };
+  for (const [slot, group] of slotGroups) if (group.size >= 3) add("same_slot_early_buys", [...group], early.filter(t => t.slot === slot).map(t => t.signature));
+  for (const [signature, group] of transactionGroups) if (group.size >= 2) add("same_transaction_early_buys", [...group], [signature], "observed");
+  for (const [payer, group] of feeGroups) if (group.size >= 2) add("shared_early_fee_payer", [payer, ...group], early.filter(t => t.fee_payer === payer).map(t => t.signature));
+  if (commonBuyers.length) add("shared_direct_funding_source", commonBuyers, linked.filter(f => commonBuyers.includes(f.to)).map(f => f.signature));
+  if (devFunded.length) add("creation_wallet_funded_buyers", devFunded, linked.filter(f => devs.has(f.from)).map(f => f.signature), "observed");
+  if (roundTrips.length) add("same_transaction_round_trip", roundTrips, trades.filter(t => roundTrips.includes(t.wallet)).map(t => t.signature), "observed");
+  const devSales = trades.filter(t => devs.has(t.wallet) && t.side === "sell");
+  if (devSales.length) add("creation_wallet_sales_observed", devSales.map(t => t.wallet), devSales.map(t => t.signature), "observed");
+  let supply: bigint | null = null;
+  const balances = new Map<string, bigint>();
+  if (input.holders) {
+    const h = input.holders.analysis, replay = await analyzeHolders(input.holders.evidence, h.observed_at);
+    if (await hashJson(replay) !== await hashJson(h) || input.holders.evidence.mint !== asset.address || input.holders.evidence.pool !== asset.pool || input.holders.evidence.program !== asset.token_program) throw new Error("wallet_holder_snapshot_mismatch");
+    if (h.status === "verified" && h.layout_certified && Date.parse(input.observed_at) >= Date.parse(h.observed_at) && Date.parse(input.observed_at) - Date.parse(h.observed_at) <= 1800000) {
+      supply = BigInt(h.supply_raw);
+      const vault = await findPda(ATA, [publicKey(asset.pool), publicKey(asset.token_program), publicKey(asset.address)]);
+      for (const row of input.holders.evidence.inventory.value) {
+        if (row.pubkey === vault) continue;
+        const r = new Reader(base64(row.account.data[0])); r.key(); const owner = r.key(), amount = r.u64(); balances.set(owner, (balances.get(owner) ?? 0n) + amount);
+      }
+    } else gaps.add("wallet_current_holdings_unverified_or_stale");
+  } else gaps.add("wallet_current_holdings_unverified_or_stale");
+  const wallets: WalletAnalysis["wallets"] = [];
+  for (const wallet of tracked) {
+    const own = trades.filter(t => t.wallet === wallet), history = input.histories.find(h => h.purpose === "wallet" && h.address === wallet);
+    const prior = input.prior_losses.find(p => p.wallet === wallet);
+    const losses = devs.has(wallet) || own.length ? distinct(prior?.tokens.filter(token => token !== asset.address) ?? []).length : 0;
+    if (losses >= 2) add("prior_distinct_token_loss_associations", [wallet], [], "observed");
+    const bought = own.filter(t => t.side === "buy").reduce((n, t) => n + BigInt(t.base_amount_raw), 0n), sold = own.filter(t => t.side === "sell").reduce((n, t) => n + BigInt(t.base_amount_raw), 0n);
+    const roleNames = [...roles.filter(r => r.wallet === wallet).map(r => r.role), ...(own.some(t => t.side === "buy") ? ["buyer" as const] : []), ...(own.some(t => t.side === "sell") ? ["seller" as const] : [])];
+    wallets.push({ wallet, roles: distinct(roleNames), signed_creation: devs.has(wallet), buys: own.filter(t => t.side === "buy").length, sells: own.filter(t => t.side === "sell").length, bought_raw: bought.toString(), sold_raw: sold.toString(), net_bought_raw: (bought - sold).toString(), current_supply_pct: supply ? ratio(balances.get(wallet) ?? 0n, supply) : null,
+      oldest_observed_reference_at: history?.rows.filter(r => r.blockTime !== null).map(r => new Date(r.blockTime! * 1000).toISOString()).sort()[0] ?? null,
+      history_signatures: history?.rows.length ?? 0, history_complete: false, prior_loss_associations: losses,
+      gaps: ["lifetime_wallet_history_unknown", ...(history ? [] : ["wallet_history_not_sampled"]), ...(roles.some(r => r.wallet === wallet && !r.signed) ? ["declared_role_not_signed_creation"] : [])],
+    });
+  }
+  const curveHistories = input.histories.filter(h => h.purpose === "curve");
+  const reached = Boolean(asset.creation && curveHistories.some(h => h.rows.some(r => r.signature === asset.creation!.signature)));
+  if (!reached) gaps.add("early_history_window_not_reached");
+  if (!buyers.length) gaps.add("verified_buyer_sample_unavailable");
+  if (input.records.some(r => r.status !== "available")) gaps.add("transactions_missing_or_unsupported");
+  return WalletAnalysisSchema.parse({
+    version: "wallet-signals-v1", observed_at: input.observed_at, evidence_hash: await hashJson(input), status: signals.length ? "signals_detected" : trades.length ? "no_signal_in_sample" : "unavailable",
+    source: "solana-finalized-rpc", coverage: "bounded_sample", actual_bundle_membership: "unknown", exhaustive: false,
+    creation_slot: asset.creation?.slot ?? null, holder_snapshot_at: input.holders?.analysis.observed_at ?? null,
+    scope: { curve_pages: curveHistories.length, early_window_reached: reached, signatures_considered: input.histories.reduce((n, h) => n + h.rows.length, 0), transactions_examined: available.length, unsupported_or_missing_transactions: input.records.filter(r => r.status !== "available").length, wallet_histories_examined: input.histories.filter(h => h.purpose === "wallet").length },
+    metrics: { verified_buys: trades.filter(t => t.side === "buy").length, verified_sells: trades.filter(t => t.side === "sell").length, distinct_buyers: buyers.length, max_same_slot_buyers: Math.max(0, ...[...slotGroups.values()].map(s => s.size)), max_same_transaction_buyers: Math.max(0, ...[...transactionGroups.values()].map(s => s.size)), shared_funder_buyers: commonBuyers.length, dev_funded_buyers: devFunded.length, dev_funded_supply_pct: supply ? ratio(devFunded.reduce((n, wallet) => n + (balances.get(wallet) ?? 0n), 0n), supply) : null, dev_sold_supply_pct: supply ? ratio(devSales.reduce((n, t) => n + BigInt(t.base_amount_raw), 0n), supply) : null, round_trip_wallets: roundTrips.length },
+    signals, trades, funding, wallets, gaps: [...gaps].slice(0, 50),
+  });
+}

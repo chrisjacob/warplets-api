@@ -66,6 +66,12 @@ async function tick() {
     });
     if (response.ok) console.log("Discovery cycle:", JSON.stringify(await response.json()));
     else console.warn("Discovery cycle HTTP", response.status);
+    const wallet = await fetch(`${base}/api/10x/admin/wallet-refresh`, {
+      method: "POST", headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+      body: JSON.stringify({ reason: "Local bounded bundle and wallet analysis timer" }), signal: AbortSignal.timeout(300000),
+    });
+    if (wallet.ok) console.log("Wallet cycle:", JSON.stringify(await wallet.json()));
+    else console.warn("Wallet cycle HTTP", wallet.status);
   } catch { console.warn("Local discovery refresh interrupted; durable state retained."); }
   finally { busy = false; }
 }

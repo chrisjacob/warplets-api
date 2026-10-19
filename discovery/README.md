@@ -1,6 +1,8 @@
 # Local Solana discovery
 
-Implemented 20 October 2026, extended with holder analysis, images, charts and daily research. **Local runtime only. No deployment, signer, transaction broadcast, token mint, live voting, reward payment or treasury action.** The existing `/` and `/thesis` behavior is preserved. [Current review and operating checkpoint](../docs/10x/07-holder-research-review.md).
+Implemented 20 October 2026, extended with holder analysis, charts, daily research and bundle/wallet signals. **Local runtime only. No deployment, signer, transaction broadcast, token mint, live voting, reward payment or treasury action.** The existing `/` and `/thesis` behavior is preserved. [Current review and operating checkpoint](../docs/10x/08-wallet-risk-review.md).
+
+Wallet collection runs automatically inside an 800-call/day allowance within the global 5,000 RPC cap. Inspect creation/buyer roles, verified trades, direct funding links, sampled sales and explicit coverage gaps on token pages. Actual bundle membership and lifetime wallet history remain unknown. `node scripts/discovery-operator.mjs wallet-refresh [stored-mint]` runs a bounded authenticated sample; public evidence/profile reads use cached local data only. `TENX_WALLET_ANALYSIS_ENABLED` and `TENX_WALLET_RPC_DAILY_LIMIT` control the local loop. Proposed local v3 policy adds conservative wallet coverage and exposure gates; research proposals remain inactive.
 
 ## Review
 

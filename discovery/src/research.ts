@@ -4,7 +4,7 @@ import { OutcomeSchema, ReviewSchema, type Outcome, type Review } from "./resear
 import { hashJson } from "./solana";
 import { researchDay } from "./store";
 
-const CohortSchema = z.object({ candidate: AssessedCandidateSchema, selected_at: z.string().datetime(), policy: z.unknown() });
+const CohortSchema = z.object({ candidate: AssessedCandidateSchema, selected_at: z.string().datetime(), policy: z.unknown(), cohort_kind: z.literal("first_wallet_sample").optional() });
 type Cohort = z.infer<typeof CohortSchema>;
 const change = (start: number | null | undefined, end: number | null | undefined) => {
   const value = start != null && start > 0 && end != null ? (end / start - 1) * 100 : null;
@@ -30,11 +30,17 @@ export function measureOutcome(cohort: Cohort, history: Market[], inputHash: str
   if (!endpoint) gaps.push("24h_endpoint_missing");
   if (points.length < 12) gaps.push("sparse_price_history");
   const h = c.holders;
+  const snapshot = c.wallet_analysis;
+  const w = snapshot && selected >= Date.parse(snapshot.observed_at) && selected - Date.parse(snapshot.observed_at) <= 3600000 && snapshot.status !== "unavailable" ? snapshot : null;
   const wallets: Outcome["wallets"] = [];
   if (h?.creator && h.payload_hash) wallets.push({ wallet: h.creator, role: "creation_user", evidence_hash: h.payload_hash });
   for (const owner of h?.owners ?? []) if (owner.role === "holder" && owner.supply_pct >= 5 && h?.payload_hash) wallets.push({ wallet: owner.owner, role: "large_owner", evidence_hash: h.payload_hash });
+  for (const profile of w?.wallets ?? []) for (const role of profile.roles) {
+    if (role === "declared_creator" || role === "creation_user" && !profile.signed_creation) continue;
+    if (!wallets.some(row => row.wallet === profile.wallet && row.role === role)) wallets.push({ wallet: profile.wallet, role, evidence_hash: w!.evidence_hash });
+  }
   return OutcomeSchema.parse({
-    address: c.address, symbol: c.symbol, recommended: c.eligibility === "eligible", selected_at: cohort.selected_at, input_hash: inputHash,
+    address: c.address, symbol: c.symbol, recommended: c.eligibility === "eligible", cohort_kind: c.eligibility === "eligible" ? "first_recommendation" : cohort.cohort_kind ?? "first_observation", selected_at: cohort.selected_at, input_hash: inputHash,
     status: !mature ? "pending" : measured ? "measured" : "insufficient_data",
     outcome: !mature || !measured ? "unmeasured" : returns <= -80 || (liquidity !== null && liquidity <= -80) ? "severe_loss_signal" : returns > 10 ? "positive" : returns < -10 ? "negative" : "flat",
     return_24h_pct: returns, observed_max_drawdown_pct: drawdown, liquidity_change_pct: liquidity, endpoint_at: mature && endpoint ? endpoint.fetched_at : null,
@@ -42,6 +48,8 @@ export function measureOutcome(cohort: Cohort, history: Market[], inputHash: str
       holders: h?.status === "verified" ? h.holder_count : null, top1_pct: h?.status === "verified" ? h.top1_pct : null, top10_pct: h?.status === "verified" ? h.top10_pct : null, creator_pct: h?.status === "verified" ? h.creator_pct : null,
       liquidity_usd: baseline?.liquidity_usd ?? null, volume_24h_usd: baseline?.volume_24h_usd ?? null,
       fees_produced_usd: null, bundle_risk: "unknown", buyer_wallet_risk: "unknown",
+      same_slot_buyers: w?.metrics.max_same_slot_buyers ?? null, shared_funder_buyers: w?.metrics.shared_funder_buyers ?? null,
+      dev_funded_supply_pct: w?.metrics.dev_funded_supply_pct ?? null, dev_sold_supply_pct: w?.metrics.dev_sold_supply_pct ?? null, sampled_buyers: w?.metrics.distinct_buyers ?? null,
     }, wallets,
   });
 }
@@ -55,6 +63,8 @@ export function proposeRules(outcomes: Outcome[]): Review["proposals"] {
   for (const [feature, thresholds, direction] of [
     ["top1_pct", [5, 10, 15], "maximum"], ["top10_pct", [20, 35, 50], "maximum"],
     ["holders", [50, 100, 200], "minimum"], ["liquidity_usd", [15000, 25000, 50000], "minimum"],
+    ["dev_funded_supply_pct", [5, 10, 20], "maximum"], ["dev_sold_supply_pct", [1, 5, 10], "maximum"],
+    ["shared_funder_buyers", [1, 2, 3], "maximum"], ["same_slot_buyers", [2, 3, 5], "maximum"],
   ] as const) {
     const samples = train.filter(o => o.features[feature] !== null);
     const holdout = validation.filter(o => o.features[feature] !== null);
@@ -90,9 +100,10 @@ export async function runReviews(db: D1Database, now = new Date()): Promise<{ da
   for (let back = 1; back <= 3; back++) {
     const day = new Date(`${today}T12:00:00Z`); day.setUTCDate(day.getUTCDate() - back);
     const key = day.toISOString().slice(0, 10);
-    const entries = await db.prepare(`SELECT c.address,COALESCE(s.payload,c.payload) AS payload,COALESCE(s.input_hash,c.input_hash) AS input_hash
+    const entries = await db.prepare(`SELECT c.address,COALESCE(s.payload,w.payload,c.payload) AS payload,COALESCE(s.input_hash,w.input_hash,c.input_hash) AS input_hash
       FROM tenx_cohorts c LEFT JOIN tenx_selections s ON s.day=c.day AND s.address=c.address
-      WHERE c.day=?1 ORDER BY CASE WHEN s.address IS NOT NULL THEN 0 ELSE 1 END,COALESCE(s.selected_at,c.selected_at),c.address LIMIT 100`).bind(key).all<{ address: string; payload: string; input_hash: string }>();
+      LEFT JOIN tenx_wallet_cohorts w ON w.day=c.day AND w.address=c.address
+      WHERE c.day=?1 ORDER BY CASE WHEN s.address IS NOT NULL THEN 0 ELSE 1 END,COALESCE(s.selected_at,w.selected_at,c.selected_at),c.address LIMIT 100`).bind(key).all<{ address: string; payload: string; input_hash: string }>();
     if (!entries.results.length && back > 1) continue;
     const outcomes: Outcome[] = [];
     for (const entry of entries.results) {

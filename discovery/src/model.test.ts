@@ -4,10 +4,10 @@ import { assess, DEFAULT_POLICY, shortlist, type Candidate } from "./model";
 import { toBase58 } from "./solana";
 
 const now = new Date("2026-10-20T00:00:00Z");
-const sandbox = { ...DEFAULT_POLICY, require_holder_evidence: false };
+const sandbox = { ...DEFAULT_POLICY, require_holder_evidence: false, require_wallet_analysis: false };
 describe("eligibility and capped deterministic shortlist", () => {
   it("does not silently waive unavailable holder analysis", async () => {
-    expect(assess((await fixtureCandidates(now))[0]!, DEFAULT_POLICY, now)).toMatchObject({ eligibility: "provisional", reasons: ["holder_concentration_unknown"], launch_eligible: false });
+    expect(assess((await fixtureCandidates(now))[0]!, DEFAULT_POLICY, now)).toMatchObject({ eligibility: "provisional", reasons: ["holder_concentration_unknown", "wallet_analysis_unavailable"], launch_eligible: false });
   });
   it("keeps an old token excluded even with a newly created pool", async () => {
     const old = (await fixtureCandidates(now))[1]!;

@@ -38,7 +38,9 @@ export async function saveCandidate(db: D1Database, candidate: Candidate, transa
     if (prior && prior.payload_hash !== proof.payload_hash) throw new Error("conflicting_immutable_proof");
   }
   const statements = [db.prepare(`INSERT INTO tenx_candidates(address,pool,payload,checked_at,mode) VALUES(?1,?2,?3,?4,?5)
-    ON CONFLICT(mode,address) DO UPDATE SET pool=excluded.pool,payload=excluded.payload,checked_at=excluded.checked_at`)
+    ON CONFLICT(mode,address) DO UPDATE SET pool=excluded.pool,payload=json_set(excluded.payload,
+      '$.wallet_analysis',json(CASE WHEN COALESCE(json_extract(tenx_candidates.payload,'$.wallet_analysis.observed_at'),'')>COALESCE(json_extract(excluded.payload,'$.wallet_analysis.observed_at'),'') THEN json_extract(tenx_candidates.payload,'$.wallet_analysis') ELSE json_extract(excluded.payload,'$.wallet_analysis') END),
+      '$.market',json(CASE WHEN COALESCE(json_extract(tenx_candidates.payload,'$.market.fetched_at'),'')>COALESCE(json_extract(excluded.payload,'$.market.fetched_at'),'') THEN json_extract(tenx_candidates.payload,'$.market') ELSE json_extract(excluded.payload,'$.market') END)),checked_at=excluded.checked_at`)
     .bind(candidate.address, candidate.pool, JSON.stringify(candidate), candidate.checked_at, candidate.mode)];
   if (candidate.mode === "live") {
     if (candidate.market) statements.push(db.prepare("INSERT OR IGNORE INTO tenx_market_history(address,fetched_at,payload) VALUES(?1,?2,?3)")
@@ -49,12 +51,6 @@ export async function saveCandidate(db: D1Database, candidate: Candidate, transa
       for (const owner of candidate.holders.owners.filter(o => o.role === "holder" && o.supply_pct >= 5)) statements.push(db.prepare("INSERT OR IGNORE INTO tenx_wallet_signals(wallet,address,role,evidence_hash,observed_at) VALUES(?1,?2,'large_owner',?3,?4)").bind(owner.owner, candidate.address, candidate.holders.payload_hash, candidate.checked_at));
       if (candidate.holders.creator) statements.push(db.prepare("INSERT OR IGNORE INTO tenx_wallet_signals(wallet,address,role,evidence_hash,observed_at) VALUES(?1,?2,'creation_user',?3,?4)").bind(candidate.holders.creator, candidate.address, candidate.holders.payload_hash, candidate.checked_at));
     }
-    const selected = assess(candidate, DEFAULT_POLICY, new Date(candidate.checked_at));
-    const cohort = { candidate: selected, policy: DEFAULT_POLICY, selected_at: candidate.checked_at };
-    statements.push(db.prepare("INSERT OR IGNORE INTO tenx_cohorts(day,address,selected_at,recommended,input_hash,payload) VALUES(?1,?2,?3,?4,?5,?6)")
-      .bind(researchDay(new Date(candidate.checked_at)), candidate.address, candidate.checked_at, selected.eligibility === "eligible" ? 1 : 0, await hashJson(cohort), JSON.stringify(cohort)));
-    if (selected.eligibility === "eligible") statements.push(db.prepare("INSERT OR IGNORE INTO tenx_selections(day,address,selected_at,input_hash,payload) VALUES(?1,?2,?3,?4,?5)")
-      .bind(researchDay(new Date(candidate.checked_at)), candidate.address, candidate.checked_at, await hashJson(cohort), JSON.stringify(cohort)));
     for (const proof of [candidate.creation, candidate.graduation]) {
       if (!proof) continue;
       statements.push(db.prepare(`INSERT INTO tenx_proofs(address,kind,signature,instruction_index,slot,payload_hash,payload)
@@ -69,16 +65,33 @@ export async function saveCandidate(db: D1Database, candidate: Candidate, transa
       .bind(await hashJson(state), candidate.address, state.context.slot, JSON.stringify(state), candidate.checked_at));
   }
   await db.batch(statements);
+  if (candidate.mode === "live") {
+    const saved = await db.prepare("SELECT payload FROM tenx_candidates WHERE mode='live' AND address=?1").bind(candidate.address).first<{ payload: string }>();
+    if (saved) {
+      const current = CandidateSchema.parse(JSON.parse(saved.payload));
+      // A concurrent market/wallet refresh must neither be overwritten nor
+      // enter a frozen cohort with a timestamp preceding its evidence.
+      const at = [current.checked_at, current.market?.fetched_at, current.wallet_analysis?.observed_at].filter((s): s is string => Boolean(s)).sort().at(-1)!;
+      await captureCohort(db, current, at);
+    }
+  }
 }
 export function researchDay(now: Date): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "Australia/Sydney", year: "numeric", month: "2-digit", day: "2-digit" }).format(now);
 }
 export async function captureCohort(db: D1Database, candidate: Candidate, at: string): Promise<void> {
   if (candidate.mode !== "live") return;
+  // Independent refreshes may finish while another loop is fetching. Never
+  // timestamp a frozen input before evidence that is already merged into it.
+  at = [at, candidate.checked_at, candidate.market?.fetched_at, candidate.wallet_analysis?.observed_at].filter((s): s is string => Boolean(s)).sort().at(-1)!;
   const selected = assess(candidate, DEFAULT_POLICY, new Date(at));
   const payload = { candidate: selected, policy: DEFAULT_POLICY, selected_at: at };
   const inputHash = await hashJson(payload), day = researchDay(new Date(at));
   const statements = [db.prepare("INSERT OR IGNORE INTO tenx_cohorts(day,address,selected_at,recommended,input_hash,payload) VALUES(?1,?2,?3,?4,?5,?6)").bind(day, candidate.address, at, selected.eligibility === "eligible" ? 1 : 0, inputHash, JSON.stringify(payload))];
+  if (candidate.wallet_analysis && candidate.wallet_analysis.status !== "unavailable" && Date.parse(at) - Date.parse(candidate.wallet_analysis.observed_at) <= DEFAULT_POLICY.max_wallet_age_seconds * 1000) {
+    const walletPayload = { ...payload, cohort_kind: "first_wallet_sample" }, walletHash = await hashJson(walletPayload);
+    statements.push(db.prepare("INSERT OR IGNORE INTO tenx_wallet_cohorts(day,address,selected_at,input_hash,payload) VALUES(?1,?2,?3,?4,?5)").bind(day, candidate.address, at, walletHash, JSON.stringify(walletPayload)));
+  }
   if (selected.eligibility === "eligible") statements.push(db.prepare("INSERT OR IGNORE INTO tenx_selections(day,address,selected_at,input_hash,payload) VALUES(?1,?2,?3,?4,?5)").bind(day, candidate.address, at, inputHash, JSON.stringify(payload)));
   await db.batch(statements);
 }

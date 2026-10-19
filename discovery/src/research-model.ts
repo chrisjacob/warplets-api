@@ -6,17 +6,21 @@ export const FeaturesSchema = z.object({
   holders: z.number().nullable(), top1_pct: z.number().nullable(), top10_pct: z.number().nullable(), creator_pct: z.number().nullable(),
   liquidity_usd: z.number().nullable(), volume_24h_usd: z.number().nullable(),
   fees_produced_usd: z.null(), bundle_risk: z.literal("unknown"), buyer_wallet_risk: z.literal("unknown"),
+  same_slot_buyers: z.number().nullable().default(null), shared_funder_buyers: z.number().nullable().default(null),
+  dev_funded_supply_pct: z.number().nullable().default(null), dev_sold_supply_pct: z.number().nullable().default(null),
+  sampled_buyers: z.number().nullable().default(null),
 });
 export const OutcomeSchema = z.object({
   address: z.string(), symbol: z.string(), recommended: z.boolean(), selected_at: z.string(), input_hash: z.string(),
+  cohort_kind: z.enum(["first_observation", "first_wallet_sample", "first_recommendation"]).default("first_observation"),
   status: z.enum(["pending", "measured", "insufficient_data"]), outcome: z.enum(["severe_loss_signal", "positive", "negative", "flat", "unmeasured"]),
   return_24h_pct: z.number().nullable(), observed_max_drawdown_pct: z.number().nullable(), liquidity_change_pct: z.number().nullable(),
   endpoint_at: z.string().nullable(), gaps: z.array(z.string()), features: FeaturesSchema,
-  wallets: z.array(z.object({ wallet: z.string(), role: z.enum(["creation_user", "large_owner"]), evidence_hash: z.string() })).max(21),
+  wallets: z.array(z.object({ wallet: z.string(), role: z.enum(["creation_user", "large_owner", "buyer", "seller"]), evidence_hash: z.string() })).max(61),
 });
 export type Outcome = z.infer<typeof OutcomeSchema>;
 export const ProposalSchema = z.object({
-  feature: z.enum(["top1_pct", "top10_pct", "holders", "liquidity_usd"]), threshold: z.number(),
+  feature: z.enum(["top1_pct", "top10_pct", "holders", "liquidity_usd", "dev_funded_supply_pct", "dev_sold_supply_pct", "shared_funder_buyers", "same_slot_buyers"]), threshold: z.number(),
   direction: z.enum(["maximum", "minimum"]), train_count: z.number(), validation_count: z.number(),
   validation_flagged: z.number(), validation_loss_precision: z.number(), validation_nonloss_excluded: z.number(),
   validation_baseline_loss_rate: z.number(),

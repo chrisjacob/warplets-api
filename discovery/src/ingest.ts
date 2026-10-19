@@ -102,14 +102,16 @@ export async function runCycle(settings: Settings, now = new Date()): Promise<Re
     ]);
     return { state: "succeeded", id, rpc_calls: rpc.calls, processed, adapter_version: ADAPTER_VERSION };
   } catch (error) {
-    const code = error instanceof SourceError ? error.code : "verification_or_schema_error";
+    const code = error instanceof SourceError ? error.code : error instanceof Error && /^[a-z0-9_]{1,80}$/.test(error.message) ? error.message : "verification_or_schema_error";
     const retry = error instanceof SourceError ? error.retryAfterSeconds : 120;
     await db.batch([
       db.prepare("UPDATE tenx_jobs SET state='failed',finished_at=?1,rpc_calls=?2,processed=?3,error_code=?4 WHERE id=?5").bind(new Date().toISOString(), rpc.calls, processed, code, id),
       db.prepare("UPDATE tenx_control SET last_error=?1,retry_after=?2,lease_owner=NULL,lease_until=NULL WHERE id=1 AND lease_owner=?3")
         .bind(code, new Date(now.getTime() + retry * 1000).toISOString(), id),
     ]);
-    console.warn(JSON.stringify({ event: "tenx_cycle_failed", job: id, code, rpc_calls: rpc.calls }));
+    console.warn(JSON.stringify({ event: "tenx_cycle_failed", job: id, code, rpc_calls: rpc.calls,
+      ...(error && typeof error === "object" && "issues" in error && Array.isArray(error.issues) ? { schema_paths: error.issues.slice(0, 5).map(issue => ({ path: issue.path, code: issue.code })) } : {}),
+    }));
     return { state: "failed", id, error_code: code, rpc_calls: rpc.calls };
   }
 }
@@ -173,7 +175,7 @@ async function inspectLead(rpc: RpcClient, migration: Migration, tx: Transaction
     chain: "solana", address: lead.address, pool: lead.pool, name, symbol, creation,
     graduation: await graduationProof(tx, migration, at),
     verification: rejected ? "rejected" : creation && risk.pool_reserves_verified ? "verified" : "provisional",
-    verification_reasons: reasons, risk, holders, market: existing?.market ?? null,
+    verification_reasons: reasons, risk, holders, wallet_analysis: existing?.wallet_analysis ?? null, market: existing?.market ?? null,
     first_seen_at: lead.first_seen_at, checked_at: at, mode: "live",
   });
   return { candidate, transactions, state, holderEvidence };

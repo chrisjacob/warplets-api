@@ -20,7 +20,7 @@ export function instructions(tx: Transaction): ResolvedInstruction[] {
   const resolve = (ix: Transaction["transaction"]["message"]["instructions"][number], top: number, inner: number | null) => {
     const program = keys[ix.programIdIndex];
     if (!program || ix.accounts.some(index => !keys[index])) throw new Error("invalid_account_index");
-    rows.push({ program, accounts: ix.accounts.map(index => keys[index]!), data: fromBase58(ix.data), path: inner === null ? `${top}` : `${top}.${inner}`, top, inner, stack: ix.stackHeight ?? null });
+    rows.push({ program, accounts: ix.accounts.map(index => keys[index]!), data: ix.data === "" ? new Uint8Array() : fromBase58(ix.data), path: inner === null ? `${top}` : `${top}.${inner}`, top, inner, stack: ix.stackHeight ?? null });
   };
   tx.transaction.message.instructions.forEach((ix, index) => resolve(ix, index, null));
   tx.meta?.innerInstructions?.forEach(group => {

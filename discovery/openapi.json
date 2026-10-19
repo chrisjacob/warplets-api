@@ -403,6 +403,111 @@
         ]
       }
     },
+    "/api/10x/wallet-evidence/{hash}": {
+      "get": {
+        "summary": "Replayable finalized transaction sample, funding links, holder inputs and local outcome associations",
+        "responses": {
+          "200": {
+            "description": "Success; cached public data includes timestamps, source freshness and coverage",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "401": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "403": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "404": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "409": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "413": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "415": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "503": {
+            "description": "Structured JSON error; no provider secrets"
+          }
+        },
+        "parameters": [
+          {
+            "name": "hash",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            }
+          }
+        ]
+      }
+    },
+    "/api/10x/wallets/solana/{address}": {
+      "get": {
+        "summary": "Cached wallet profiles across at most 20 locally analyzed tokens; incomplete lifetime coverage",
+        "responses": {
+          "200": {
+            "description": "Success; cached public data includes timestamps, source freshness and coverage",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "401": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "403": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "404": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "409": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "413": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "415": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "503": {
+            "description": "Structured JSON error; no provider secrets"
+          }
+        },
+        "parameters": [
+          {
+            "name": "address",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 32,
+              "maxLength": 44
+            }
+          }
+        ]
+      }
+    },
     "/api/10x/history/solana/{address}": {
       "get": {
         "summary": "Saved local price and nullable market cap observations; no invented backfill",
@@ -723,6 +828,77 @@
                     "type": "string",
                     "minLength": 3,
                     "maxLength": 300
+                  }
+                },
+                "required": [
+                  "reason"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success; cached public data includes timestamps, source freshness and coverage",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "401": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "403": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "404": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "409": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "413": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "415": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "503": {
+            "description": "Structured JSON error; no provider secrets"
+          }
+        }
+      }
+    },
+    "/api/10x/admin/wallet-refresh": {
+      "post": {
+        "summary": "Analyze one stored live token within the wallet and global free RPC budgets; respects pause, lease and provider backoff",
+        "security": [
+          {
+            "localOperator": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 300
+                  },
+                  "address": {
+                    "type": "string",
+                    "minLength": 32,
+                    "maxLength": 44
                   }
                 },
                 "required": [
@@ -1780,6 +1956,539 @@
               }
             ]
           },
+          "wallet_analysis": {
+            "default": null,
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "version": {
+                    "type": "string",
+                    "const": "wallet-signals-v1"
+                  },
+                  "observed_at": {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                  },
+                  "evidence_hash": {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{64}$"
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "signals_detected",
+                      "no_signal_in_sample",
+                      "unavailable"
+                    ]
+                  },
+                  "source": {
+                    "type": "string",
+                    "const": "solana-finalized-rpc"
+                  },
+                  "coverage": {
+                    "type": "string",
+                    "const": "bounded_sample"
+                  },
+                  "actual_bundle_membership": {
+                    "type": "string",
+                    "const": "unknown"
+                  },
+                  "exhaustive": {
+                    "type": "boolean",
+                    "const": false
+                  },
+                  "creation_slot": {
+                    "anyOf": [
+                      {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "holder_snapshot_at": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "date-time",
+                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "scope": {
+                    "type": "object",
+                    "properties": {
+                      "curve_pages": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      },
+                      "early_window_reached": {
+                        "type": "boolean"
+                      },
+                      "signatures_considered": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      },
+                      "transactions_examined": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      },
+                      "unsupported_or_missing_transactions": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      },
+                      "wallet_histories_examined": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      }
+                    },
+                    "required": [
+                      "curve_pages",
+                      "early_window_reached",
+                      "signatures_considered",
+                      "transactions_examined",
+                      "unsupported_or_missing_transactions",
+                      "wallet_histories_examined"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "metrics": {
+                    "type": "object",
+                    "properties": {
+                      "verified_buys": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      },
+                      "verified_sells": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      },
+                      "distinct_buyers": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      },
+                      "max_same_slot_buyers": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      },
+                      "max_same_transaction_buyers": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      },
+                      "shared_funder_buyers": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      },
+                      "dev_funded_buyers": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      },
+                      "dev_funded_supply_pct": {
+                        "anyOf": [
+                          {
+                            "type": "number",
+                            "minimum": 0,
+                            "maximum": 100
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "dev_sold_supply_pct": {
+                        "anyOf": [
+                          {
+                            "type": "number",
+                            "minimum": 0
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "round_trip_wallets": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      }
+                    },
+                    "required": [
+                      "verified_buys",
+                      "verified_sells",
+                      "distinct_buyers",
+                      "max_same_slot_buyers",
+                      "max_same_transaction_buyers",
+                      "shared_funder_buyers",
+                      "dev_funded_buyers",
+                      "dev_funded_supply_pct",
+                      "dev_sold_supply_pct",
+                      "round_trip_wallets"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "signals": {
+                    "maxItems": 20,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "strength": {
+                          "type": "string",
+                          "enum": [
+                            "observed",
+                            "heuristic"
+                          ]
+                        },
+                        "wallets": {
+                          "maxItems": 20,
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "maxLength": 44
+                          }
+                        },
+                        "signatures": {
+                          "maxItems": 20,
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "pattern": "^[1-9A-HJ-NP-Za-km-z]{64,88}$"
+                          }
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "strength",
+                        "wallets",
+                        "signatures"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "trades": {
+                    "maxItems": 100,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "signature": {
+                          "type": "string",
+                          "pattern": "^[1-9A-HJ-NP-Za-km-z]{64,88}$"
+                        },
+                        "slot": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "block_time": {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                        },
+                        "instruction_index": {
+                          "type": "string"
+                        },
+                        "program": {
+                          "type": "string",
+                          "maxLength": 44
+                        },
+                        "instruction": {
+                          "type": "string"
+                        },
+                        "side": {
+                          "type": "string",
+                          "enum": [
+                            "buy",
+                            "sell"
+                          ]
+                        },
+                        "wallet": {
+                          "type": "string",
+                          "maxLength": 44
+                        },
+                        "fee_payer": {
+                          "type": "string",
+                          "maxLength": 44
+                        },
+                        "base_amount_raw": {
+                          "type": "string",
+                          "maxLength": 30,
+                          "pattern": "^\\d+$"
+                        },
+                        "quote_amount_raw": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "maxLength": 30,
+                              "pattern": "^\\d+$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "quote_kind": {
+                          "type": "string",
+                          "enum": [
+                            "native_lamports",
+                            "wsol_raw"
+                          ]
+                        },
+                        "net_wallet_base_raw": {
+                          "type": "string",
+                          "maxLength": 31,
+                          "pattern": "^-?\\d+$"
+                        },
+                        "transaction_hash": {
+                          "type": "string",
+                          "pattern": "^[a-f0-9]{64}$"
+                        }
+                      },
+                      "required": [
+                        "signature",
+                        "slot",
+                        "block_time",
+                        "instruction_index",
+                        "program",
+                        "instruction",
+                        "side",
+                        "wallet",
+                        "fee_payer",
+                        "base_amount_raw",
+                        "quote_amount_raw",
+                        "quote_kind",
+                        "net_wallet_base_raw",
+                        "transaction_hash"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "funding": {
+                    "maxItems": 100,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "from": {
+                          "type": "string",
+                          "maxLength": 44
+                        },
+                        "to": {
+                          "type": "string",
+                          "maxLength": 44
+                        },
+                        "lamports_raw": {
+                          "type": "string",
+                          "maxLength": 30,
+                          "pattern": "^\\d+$"
+                        },
+                        "signature": {
+                          "type": "string",
+                          "pattern": "^[1-9A-HJ-NP-Za-km-z]{64,88}$"
+                        },
+                        "slot": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "block_time": {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                        },
+                        "transaction_hash": {
+                          "type": "string",
+                          "pattern": "^[a-f0-9]{64}$"
+                        },
+                        "before_sampled_buy": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "from",
+                        "to",
+                        "lamports_raw",
+                        "signature",
+                        "slot",
+                        "block_time",
+                        "transaction_hash",
+                        "before_sampled_buy"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "wallets": {
+                    "maxItems": 20,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "wallet": {
+                          "type": "string",
+                          "maxLength": 44
+                        },
+                        "roles": {
+                          "maxItems": 4,
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "enum": [
+                              "creation_user",
+                              "declared_creator",
+                              "buyer",
+                              "seller"
+                            ]
+                          }
+                        },
+                        "signed_creation": {
+                          "type": "boolean"
+                        },
+                        "buys": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "sells": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "bought_raw": {
+                          "type": "string",
+                          "maxLength": 30,
+                          "pattern": "^\\d+$"
+                        },
+                        "sold_raw": {
+                          "type": "string",
+                          "maxLength": 30,
+                          "pattern": "^\\d+$"
+                        },
+                        "net_bought_raw": {
+                          "type": "string",
+                          "pattern": "^-?\\d+$"
+                        },
+                        "current_supply_pct": {
+                          "anyOf": [
+                            {
+                              "type": "number",
+                              "minimum": 0,
+                              "maximum": 100
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "oldest_observed_reference_at": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "history_signatures": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "history_complete": {
+                          "type": "boolean",
+                          "const": false
+                        },
+                        "prior_loss_associations": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "gaps": {
+                          "maxItems": 20,
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "required": [
+                        "wallet",
+                        "roles",
+                        "signed_creation",
+                        "buys",
+                        "sells",
+                        "bought_raw",
+                        "sold_raw",
+                        "net_bought_raw",
+                        "current_supply_pct",
+                        "oldest_observed_reference_at",
+                        "history_signatures",
+                        "history_complete",
+                        "prior_loss_associations",
+                        "gaps"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "gaps": {
+                    "maxItems": 50,
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "version",
+                  "observed_at",
+                  "evidence_hash",
+                  "status",
+                  "source",
+                  "coverage",
+                  "actual_bundle_membership",
+                  "exhaustive",
+                  "creation_slot",
+                  "holder_snapshot_at",
+                  "scope",
+                  "metrics",
+                  "signals",
+                  "trades",
+                  "funding",
+                  "wallets",
+                  "gaps"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "mode": {
             "type": "string",
             "enum": [
@@ -1833,6 +2542,7 @@
           "first_seen_at",
           "checked_at",
           "holders",
+          "wallet_analysis",
           "mode",
           "eligibility",
           "reasons",
@@ -1916,7 +2626,8 @@
             "type": "string",
             "enum": [
               "discovery-local-v1",
-              "discovery-local-v2"
+              "discovery-local-v2",
+              "discovery-local-v3"
             ]
           },
           "max_candidates": {
@@ -1978,6 +2689,34 @@
             "type": "integer",
             "exclusiveMinimum": 0,
             "maximum": 9007199254740991
+          },
+          "require_wallet_analysis": {
+            "default": false,
+            "type": "boolean"
+          },
+          "min_sampled_buyers": {
+            "default": 3,
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 20
+          },
+          "max_wallet_age_seconds": {
+            "default": 3600,
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          },
+          "max_dev_funded_supply_pct": {
+            "default": 20,
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "max_dev_sold_supply_pct": {
+            "default": 5,
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100
           }
         },
         "required": [
@@ -1993,7 +2732,12 @@
           "max_top1_pct",
           "max_top10_pct",
           "max_creator_pct",
-          "max_holder_age_seconds"
+          "max_holder_age_seconds",
+          "require_wallet_analysis",
+          "min_sampled_buyers",
+          "max_wallet_age_seconds",
+          "max_dev_funded_supply_pct",
+          "max_dev_sold_supply_pct"
         ],
         "additionalProperties": false
       },
@@ -2692,6 +3436,539 @@
                         }
                       ]
                     },
+                    "wallet_analysis": {
+                      "default": null,
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "version": {
+                              "type": "string",
+                              "const": "wallet-signals-v1"
+                            },
+                            "observed_at": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                            },
+                            "evidence_hash": {
+                              "type": "string",
+                              "pattern": "^[a-f0-9]{64}$"
+                            },
+                            "status": {
+                              "type": "string",
+                              "enum": [
+                                "signals_detected",
+                                "no_signal_in_sample",
+                                "unavailable"
+                              ]
+                            },
+                            "source": {
+                              "type": "string",
+                              "const": "solana-finalized-rpc"
+                            },
+                            "coverage": {
+                              "type": "string",
+                              "const": "bounded_sample"
+                            },
+                            "actual_bundle_membership": {
+                              "type": "string",
+                              "const": "unknown"
+                            },
+                            "exhaustive": {
+                              "type": "boolean",
+                              "const": false
+                            },
+                            "creation_slot": {
+                              "anyOf": [
+                                {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 9007199254740991
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "holder_snapshot_at": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "format": "date-time",
+                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "scope": {
+                              "type": "object",
+                              "properties": {
+                                "curve_pages": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "early_window_reached": {
+                                  "type": "boolean"
+                                },
+                                "signatures_considered": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "transactions_examined": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "unsupported_or_missing_transactions": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "wallet_histories_examined": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                }
+                              },
+                              "required": [
+                                "curve_pages",
+                                "early_window_reached",
+                                "signatures_considered",
+                                "transactions_examined",
+                                "unsupported_or_missing_transactions",
+                                "wallet_histories_examined"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "metrics": {
+                              "type": "object",
+                              "properties": {
+                                "verified_buys": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "verified_sells": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "distinct_buyers": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "max_same_slot_buyers": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "max_same_transaction_buyers": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "shared_funder_buyers": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "dev_funded_buyers": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "dev_funded_supply_pct": {
+                                  "anyOf": [
+                                    {
+                                      "type": "number",
+                                      "minimum": 0,
+                                      "maximum": 100
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "dev_sold_supply_pct": {
+                                  "anyOf": [
+                                    {
+                                      "type": "number",
+                                      "minimum": 0
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "round_trip_wallets": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                }
+                              },
+                              "required": [
+                                "verified_buys",
+                                "verified_sells",
+                                "distinct_buyers",
+                                "max_same_slot_buyers",
+                                "max_same_transaction_buyers",
+                                "shared_funder_buyers",
+                                "dev_funded_buyers",
+                                "dev_funded_supply_pct",
+                                "dev_sold_supply_pct",
+                                "round_trip_wallets"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "signals": {
+                              "maxItems": 20,
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "code": {
+                                    "type": "string"
+                                  },
+                                  "strength": {
+                                    "type": "string",
+                                    "enum": [
+                                      "observed",
+                                      "heuristic"
+                                    ]
+                                  },
+                                  "wallets": {
+                                    "maxItems": 20,
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string",
+                                      "maxLength": 44
+                                    }
+                                  },
+                                  "signatures": {
+                                    "maxItems": 20,
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string",
+                                      "pattern": "^[1-9A-HJ-NP-Za-km-z]{64,88}$"
+                                    }
+                                  }
+                                },
+                                "required": [
+                                  "code",
+                                  "strength",
+                                  "wallets",
+                                  "signatures"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "trades": {
+                              "maxItems": 100,
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "signature": {
+                                    "type": "string",
+                                    "pattern": "^[1-9A-HJ-NP-Za-km-z]{64,88}$"
+                                  },
+                                  "slot": {
+                                    "type": "integer",
+                                    "minimum": 0,
+                                    "maximum": 9007199254740991
+                                  },
+                                  "block_time": {
+                                    "type": "string",
+                                    "format": "date-time",
+                                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                                  },
+                                  "instruction_index": {
+                                    "type": "string"
+                                  },
+                                  "program": {
+                                    "type": "string",
+                                    "maxLength": 44
+                                  },
+                                  "instruction": {
+                                    "type": "string"
+                                  },
+                                  "side": {
+                                    "type": "string",
+                                    "enum": [
+                                      "buy",
+                                      "sell"
+                                    ]
+                                  },
+                                  "wallet": {
+                                    "type": "string",
+                                    "maxLength": 44
+                                  },
+                                  "fee_payer": {
+                                    "type": "string",
+                                    "maxLength": 44
+                                  },
+                                  "base_amount_raw": {
+                                    "type": "string",
+                                    "maxLength": 30,
+                                    "pattern": "^\\d+$"
+                                  },
+                                  "quote_amount_raw": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string",
+                                        "maxLength": 30,
+                                        "pattern": "^\\d+$"
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
+                                  "quote_kind": {
+                                    "type": "string",
+                                    "enum": [
+                                      "native_lamports",
+                                      "wsol_raw"
+                                    ]
+                                  },
+                                  "net_wallet_base_raw": {
+                                    "type": "string",
+                                    "maxLength": 31,
+                                    "pattern": "^-?\\d+$"
+                                  },
+                                  "transaction_hash": {
+                                    "type": "string",
+                                    "pattern": "^[a-f0-9]{64}$"
+                                  }
+                                },
+                                "required": [
+                                  "signature",
+                                  "slot",
+                                  "block_time",
+                                  "instruction_index",
+                                  "program",
+                                  "instruction",
+                                  "side",
+                                  "wallet",
+                                  "fee_payer",
+                                  "base_amount_raw",
+                                  "quote_amount_raw",
+                                  "quote_kind",
+                                  "net_wallet_base_raw",
+                                  "transaction_hash"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "funding": {
+                              "maxItems": 100,
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "from": {
+                                    "type": "string",
+                                    "maxLength": 44
+                                  },
+                                  "to": {
+                                    "type": "string",
+                                    "maxLength": 44
+                                  },
+                                  "lamports_raw": {
+                                    "type": "string",
+                                    "maxLength": 30,
+                                    "pattern": "^\\d+$"
+                                  },
+                                  "signature": {
+                                    "type": "string",
+                                    "pattern": "^[1-9A-HJ-NP-Za-km-z]{64,88}$"
+                                  },
+                                  "slot": {
+                                    "type": "integer",
+                                    "minimum": 0,
+                                    "maximum": 9007199254740991
+                                  },
+                                  "block_time": {
+                                    "type": "string",
+                                    "format": "date-time",
+                                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                                  },
+                                  "transaction_hash": {
+                                    "type": "string",
+                                    "pattern": "^[a-f0-9]{64}$"
+                                  },
+                                  "before_sampled_buy": {
+                                    "type": "boolean"
+                                  }
+                                },
+                                "required": [
+                                  "from",
+                                  "to",
+                                  "lamports_raw",
+                                  "signature",
+                                  "slot",
+                                  "block_time",
+                                  "transaction_hash",
+                                  "before_sampled_buy"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "wallets": {
+                              "maxItems": 20,
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "wallet": {
+                                    "type": "string",
+                                    "maxLength": 44
+                                  },
+                                  "roles": {
+                                    "maxItems": 4,
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string",
+                                      "enum": [
+                                        "creation_user",
+                                        "declared_creator",
+                                        "buyer",
+                                        "seller"
+                                      ]
+                                    }
+                                  },
+                                  "signed_creation": {
+                                    "type": "boolean"
+                                  },
+                                  "buys": {
+                                    "type": "integer",
+                                    "minimum": 0,
+                                    "maximum": 9007199254740991
+                                  },
+                                  "sells": {
+                                    "type": "integer",
+                                    "minimum": 0,
+                                    "maximum": 9007199254740991
+                                  },
+                                  "bought_raw": {
+                                    "type": "string",
+                                    "maxLength": 30,
+                                    "pattern": "^\\d+$"
+                                  },
+                                  "sold_raw": {
+                                    "type": "string",
+                                    "maxLength": 30,
+                                    "pattern": "^\\d+$"
+                                  },
+                                  "net_bought_raw": {
+                                    "type": "string",
+                                    "pattern": "^-?\\d+$"
+                                  },
+                                  "current_supply_pct": {
+                                    "anyOf": [
+                                      {
+                                        "type": "number",
+                                        "minimum": 0,
+                                        "maximum": 100
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
+                                  "oldest_observed_reference_at": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string",
+                                        "format": "date-time",
+                                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
+                                  "history_signatures": {
+                                    "type": "integer",
+                                    "minimum": 0,
+                                    "maximum": 9007199254740991
+                                  },
+                                  "history_complete": {
+                                    "type": "boolean",
+                                    "const": false
+                                  },
+                                  "prior_loss_associations": {
+                                    "type": "integer",
+                                    "minimum": 0,
+                                    "maximum": 9007199254740991
+                                  },
+                                  "gaps": {
+                                    "maxItems": 20,
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                },
+                                "required": [
+                                  "wallet",
+                                  "roles",
+                                  "signed_creation",
+                                  "buys",
+                                  "sells",
+                                  "bought_raw",
+                                  "sold_raw",
+                                  "net_bought_raw",
+                                  "current_supply_pct",
+                                  "oldest_observed_reference_at",
+                                  "history_signatures",
+                                  "history_complete",
+                                  "prior_loss_associations",
+                                  "gaps"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "gaps": {
+                              "maxItems": 50,
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            }
+                          },
+                          "required": [
+                            "version",
+                            "observed_at",
+                            "evidence_hash",
+                            "status",
+                            "source",
+                            "coverage",
+                            "actual_bundle_membership",
+                            "exhaustive",
+                            "creation_slot",
+                            "holder_snapshot_at",
+                            "scope",
+                            "metrics",
+                            "signals",
+                            "trades",
+                            "funding",
+                            "wallets",
+                            "gaps"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "mode": {
                       "type": "string",
                       "enum": [
@@ -2745,6 +4022,7 @@
                     "first_seen_at",
                     "checked_at",
                     "holders",
+                    "wallet_analysis",
                     "mode",
                     "eligibility",
                     "reasons",
@@ -3502,6 +4780,539 @@
                   }
                 ]
               },
+              "wallet_analysis": {
+                "default": null,
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "version": {
+                        "type": "string",
+                        "const": "wallet-signals-v1"
+                      },
+                      "observed_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                      },
+                      "evidence_hash": {
+                        "type": "string",
+                        "pattern": "^[a-f0-9]{64}$"
+                      },
+                      "status": {
+                        "type": "string",
+                        "enum": [
+                          "signals_detected",
+                          "no_signal_in_sample",
+                          "unavailable"
+                        ]
+                      },
+                      "source": {
+                        "type": "string",
+                        "const": "solana-finalized-rpc"
+                      },
+                      "coverage": {
+                        "type": "string",
+                        "const": "bounded_sample"
+                      },
+                      "actual_bundle_membership": {
+                        "type": "string",
+                        "const": "unknown"
+                      },
+                      "exhaustive": {
+                        "type": "boolean",
+                        "const": false
+                      },
+                      "creation_slot": {
+                        "anyOf": [
+                          {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "holder_snapshot_at": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "scope": {
+                        "type": "object",
+                        "properties": {
+                          "curve_pages": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          "early_window_reached": {
+                            "type": "boolean"
+                          },
+                          "signatures_considered": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          "transactions_examined": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          "unsupported_or_missing_transactions": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          "wallet_histories_examined": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          }
+                        },
+                        "required": [
+                          "curve_pages",
+                          "early_window_reached",
+                          "signatures_considered",
+                          "transactions_examined",
+                          "unsupported_or_missing_transactions",
+                          "wallet_histories_examined"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "metrics": {
+                        "type": "object",
+                        "properties": {
+                          "verified_buys": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          "verified_sells": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          "distinct_buyers": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          "max_same_slot_buyers": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          "max_same_transaction_buyers": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          "shared_funder_buyers": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          "dev_funded_buyers": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          "dev_funded_supply_pct": {
+                            "anyOf": [
+                              {
+                                "type": "number",
+                                "minimum": 0,
+                                "maximum": 100
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "dev_sold_supply_pct": {
+                            "anyOf": [
+                              {
+                                "type": "number",
+                                "minimum": 0
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "round_trip_wallets": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          }
+                        },
+                        "required": [
+                          "verified_buys",
+                          "verified_sells",
+                          "distinct_buyers",
+                          "max_same_slot_buyers",
+                          "max_same_transaction_buyers",
+                          "shared_funder_buyers",
+                          "dev_funded_buyers",
+                          "dev_funded_supply_pct",
+                          "dev_sold_supply_pct",
+                          "round_trip_wallets"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "signals": {
+                        "maxItems": 20,
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "code": {
+                              "type": "string"
+                            },
+                            "strength": {
+                              "type": "string",
+                              "enum": [
+                                "observed",
+                                "heuristic"
+                              ]
+                            },
+                            "wallets": {
+                              "maxItems": 20,
+                              "type": "array",
+                              "items": {
+                                "type": "string",
+                                "maxLength": 44
+                              }
+                            },
+                            "signatures": {
+                              "maxItems": 20,
+                              "type": "array",
+                              "items": {
+                                "type": "string",
+                                "pattern": "^[1-9A-HJ-NP-Za-km-z]{64,88}$"
+                              }
+                            }
+                          },
+                          "required": [
+                            "code",
+                            "strength",
+                            "wallets",
+                            "signatures"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "trades": {
+                        "maxItems": 100,
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "signature": {
+                              "type": "string",
+                              "pattern": "^[1-9A-HJ-NP-Za-km-z]{64,88}$"
+                            },
+                            "slot": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            "block_time": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                            },
+                            "instruction_index": {
+                              "type": "string"
+                            },
+                            "program": {
+                              "type": "string",
+                              "maxLength": 44
+                            },
+                            "instruction": {
+                              "type": "string"
+                            },
+                            "side": {
+                              "type": "string",
+                              "enum": [
+                                "buy",
+                                "sell"
+                              ]
+                            },
+                            "wallet": {
+                              "type": "string",
+                              "maxLength": 44
+                            },
+                            "fee_payer": {
+                              "type": "string",
+                              "maxLength": 44
+                            },
+                            "base_amount_raw": {
+                              "type": "string",
+                              "maxLength": 30,
+                              "pattern": "^\\d+$"
+                            },
+                            "quote_amount_raw": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "maxLength": 30,
+                                  "pattern": "^\\d+$"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "quote_kind": {
+                              "type": "string",
+                              "enum": [
+                                "native_lamports",
+                                "wsol_raw"
+                              ]
+                            },
+                            "net_wallet_base_raw": {
+                              "type": "string",
+                              "maxLength": 31,
+                              "pattern": "^-?\\d+$"
+                            },
+                            "transaction_hash": {
+                              "type": "string",
+                              "pattern": "^[a-f0-9]{64}$"
+                            }
+                          },
+                          "required": [
+                            "signature",
+                            "slot",
+                            "block_time",
+                            "instruction_index",
+                            "program",
+                            "instruction",
+                            "side",
+                            "wallet",
+                            "fee_payer",
+                            "base_amount_raw",
+                            "quote_amount_raw",
+                            "quote_kind",
+                            "net_wallet_base_raw",
+                            "transaction_hash"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "funding": {
+                        "maxItems": 100,
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "from": {
+                              "type": "string",
+                              "maxLength": 44
+                            },
+                            "to": {
+                              "type": "string",
+                              "maxLength": 44
+                            },
+                            "lamports_raw": {
+                              "type": "string",
+                              "maxLength": 30,
+                              "pattern": "^\\d+$"
+                            },
+                            "signature": {
+                              "type": "string",
+                              "pattern": "^[1-9A-HJ-NP-Za-km-z]{64,88}$"
+                            },
+                            "slot": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            "block_time": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                            },
+                            "transaction_hash": {
+                              "type": "string",
+                              "pattern": "^[a-f0-9]{64}$"
+                            },
+                            "before_sampled_buy": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": [
+                            "from",
+                            "to",
+                            "lamports_raw",
+                            "signature",
+                            "slot",
+                            "block_time",
+                            "transaction_hash",
+                            "before_sampled_buy"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "wallets": {
+                        "maxItems": 20,
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "wallet": {
+                              "type": "string",
+                              "maxLength": 44
+                            },
+                            "roles": {
+                              "maxItems": 4,
+                              "type": "array",
+                              "items": {
+                                "type": "string",
+                                "enum": [
+                                  "creation_user",
+                                  "declared_creator",
+                                  "buyer",
+                                  "seller"
+                                ]
+                              }
+                            },
+                            "signed_creation": {
+                              "type": "boolean"
+                            },
+                            "buys": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            "sells": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            "bought_raw": {
+                              "type": "string",
+                              "maxLength": 30,
+                              "pattern": "^\\d+$"
+                            },
+                            "sold_raw": {
+                              "type": "string",
+                              "maxLength": 30,
+                              "pattern": "^\\d+$"
+                            },
+                            "net_bought_raw": {
+                              "type": "string",
+                              "pattern": "^-?\\d+$"
+                            },
+                            "current_supply_pct": {
+                              "anyOf": [
+                                {
+                                  "type": "number",
+                                  "minimum": 0,
+                                  "maximum": 100
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "oldest_observed_reference_at": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "format": "date-time",
+                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "history_signatures": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            "history_complete": {
+                              "type": "boolean",
+                              "const": false
+                            },
+                            "prior_loss_associations": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            "gaps": {
+                              "maxItems": 20,
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            }
+                          },
+                          "required": [
+                            "wallet",
+                            "roles",
+                            "signed_creation",
+                            "buys",
+                            "sells",
+                            "bought_raw",
+                            "sold_raw",
+                            "net_bought_raw",
+                            "current_supply_pct",
+                            "oldest_observed_reference_at",
+                            "history_signatures",
+                            "history_complete",
+                            "prior_loss_associations",
+                            "gaps"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "gaps": {
+                        "maxItems": 50,
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "required": [
+                      "version",
+                      "observed_at",
+                      "evidence_hash",
+                      "status",
+                      "source",
+                      "coverage",
+                      "actual_bundle_membership",
+                      "exhaustive",
+                      "creation_slot",
+                      "holder_snapshot_at",
+                      "scope",
+                      "metrics",
+                      "signals",
+                      "trades",
+                      "funding",
+                      "wallets",
+                      "gaps"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
               "mode": {
                 "type": "string",
                 "enum": [
@@ -3555,6 +5366,7 @@
               "first_seen_at",
               "checked_at",
               "holders",
+              "wallet_analysis",
               "mode",
               "eligibility",
               "reasons",
@@ -3751,7 +5563,8 @@
                     "type": "string",
                     "enum": [
                       "discovery-local-v1",
-                      "discovery-local-v2"
+                      "discovery-local-v2",
+                      "discovery-local-v3"
                     ]
                   },
                   "max_candidates": {
@@ -3813,6 +5626,34 @@
                     "type": "integer",
                     "exclusiveMinimum": 0,
                     "maximum": 9007199254740991
+                  },
+                  "require_wallet_analysis": {
+                    "default": false,
+                    "type": "boolean"
+                  },
+                  "min_sampled_buyers": {
+                    "default": 3,
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 20
+                  },
+                  "max_wallet_age_seconds": {
+                    "default": 3600,
+                    "type": "integer",
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "max_dev_funded_supply_pct": {
+                    "default": 20,
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100
+                  },
+                  "max_dev_sold_supply_pct": {
+                    "default": 5,
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100
                   }
                 },
                 "required": [
@@ -3828,7 +5669,12 @@
                   "max_top1_pct",
                   "max_top10_pct",
                   "max_creator_pct",
-                  "max_holder_age_seconds"
+                  "max_holder_age_seconds",
+                  "require_wallet_analysis",
+                  "min_sampled_buyers",
+                  "max_wallet_age_seconds",
+                  "max_dev_funded_supply_pct",
+                  "max_dev_sold_supply_pct"
                 ],
                 "additionalProperties": false
               },
@@ -3919,6 +5765,59 @@
                   "review_timezone",
                   "review_cadence",
                   "refresh_cadence"
+                ],
+                "additionalProperties": false
+              },
+              "wallet_automation": {
+                "type": "object",
+                "properties": {
+                  "enabled": {
+                    "type": "boolean"
+                  },
+                  "daily_limit": {
+                    "type": "number"
+                  },
+                  "daily_used": {
+                    "type": "number"
+                  },
+                  "last_success": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "next_refresh_at": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "last_error": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "enabled",
+                  "daily_limit",
+                  "daily_used",
+                  "last_success",
+                  "next_refresh_at",
+                  "last_error"
                 ],
                 "additionalProperties": false
               }
@@ -4367,6 +6266,15 @@
                           "input_hash": {
                             "type": "string"
                           },
+                          "cohort_kind": {
+                            "default": "first_observation",
+                            "type": "string",
+                            "enum": [
+                              "first_observation",
+                              "first_wallet_sample",
+                              "first_recommendation"
+                            ]
+                          },
                           "status": {
                             "type": "string",
                             "enum": [
@@ -4504,6 +6412,61 @@
                               "buyer_wallet_risk": {
                                 "type": "string",
                                 "const": "unknown"
+                              },
+                              "same_slot_buyers": {
+                                "default": null,
+                                "anyOf": [
+                                  {
+                                    "type": "number"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "shared_funder_buyers": {
+                                "default": null,
+                                "anyOf": [
+                                  {
+                                    "type": "number"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "dev_funded_supply_pct": {
+                                "default": null,
+                                "anyOf": [
+                                  {
+                                    "type": "number"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "dev_sold_supply_pct": {
+                                "default": null,
+                                "anyOf": [
+                                  {
+                                    "type": "number"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "sampled_buyers": {
+                                "default": null,
+                                "anyOf": [
+                                  {
+                                    "type": "number"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
                               }
                             },
                             "required": [
@@ -4515,12 +6478,17 @@
                               "volume_24h_usd",
                               "fees_produced_usd",
                               "bundle_risk",
-                              "buyer_wallet_risk"
+                              "buyer_wallet_risk",
+                              "same_slot_buyers",
+                              "shared_funder_buyers",
+                              "dev_funded_supply_pct",
+                              "dev_sold_supply_pct",
+                              "sampled_buyers"
                             ],
                             "additionalProperties": false
                           },
                           "wallets": {
-                            "maxItems": 21,
+                            "maxItems": 61,
                             "type": "array",
                             "items": {
                               "type": "object",
@@ -4532,7 +6500,9 @@
                                   "type": "string",
                                   "enum": [
                                     "creation_user",
-                                    "large_owner"
+                                    "large_owner",
+                                    "buyer",
+                                    "seller"
                                   ]
                                 },
                                 "evidence_hash": {
@@ -4554,6 +6524,7 @@
                           "recommended",
                           "selected_at",
                           "input_hash",
+                          "cohort_kind",
                           "status",
                           "outcome",
                           "return_24h_pct",
@@ -4579,7 +6550,11 @@
                               "top1_pct",
                               "top10_pct",
                               "holders",
-                              "liquidity_usd"
+                              "liquidity_usd",
+                              "dev_funded_supply_pct",
+                              "dev_sold_supply_pct",
+                              "shared_funder_buyers",
+                              "same_slot_buyers"
                             ]
                           },
                           "threshold": {
@@ -4714,6 +6689,10 @@
                   "recommended": {
                     "type": "number"
                   },
+                  "wallet_samples": {
+                    "default": 0,
+                    "type": "number"
+                  },
                   "last_snapshot_at": {
                     "anyOf": [
                       {
@@ -4729,6 +6708,7 @@
                   "day",
                   "tokens",
                   "recommended",
+                  "wallet_samples",
                   "last_snapshot_at"
                 ],
                 "additionalProperties": false

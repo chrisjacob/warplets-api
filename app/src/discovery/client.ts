@@ -11,13 +11,14 @@ const Common = z.object({
 export const ListResponse = Common.extend({ data: z.object({ candidates: z.array(AssessedCandidateSchema).max(100), mode: z.enum(["live", "fixture"]), counts: z.object({ eligible: z.number(), provisional: z.number(), excluded: z.number() }) }), next_cursor: z.string().nullable() });
 export const DetailResponse = Common.extend({ data: AssessedCandidateSchema });
 export const HistoryResponse = Common.extend({ data: HistorySchema });
-export const ReviewsResponse = Common.extend({ data: z.object({ reports: z.array(ReviewSchema).max(7), automatic_policy_changes: z.literal(false), collection: z.object({ day: z.string(), tokens: z.number(), recommended: z.number(), last_snapshot_at: z.string().nullable() }) }) });
+export const ReviewsResponse = Common.extend({ data: z.object({ reports: z.array(ReviewSchema).max(7), automatic_policy_changes: z.literal(false), collection: z.object({ day: z.string(), tokens: z.number(), recommended: z.number(), wallet_samples: z.number().default(0), last_snapshot_at: z.string().nullable() }) }) });
 export const StatusResponse = Common.extend({ data: z.object({
   local_only: z.literal(true), paused: z.boolean(), running: z.boolean(), last_error: z.string().nullable(), retry_after: z.string().nullable(),
   pending_signatures: z.number(), usage: z.array(z.object({ provider: z.string(), used: z.number() })),
   daily_limits: z.object({ rpc: z.number(), market: z.number() }), adapter_version: z.string(), policy: PolicySchema,
   capabilities: z.object({ discovery: z.boolean(), voting: z.literal(false), launches: z.literal(false), signing: z.literal(false), rewards: z.literal(false), social_publishing: z.literal(false) }),
   automation: z.object({ heartbeat_at: z.string().nullable(), next_refresh_at: z.string().nullable(), reviewed_at: z.string().nullable(), review_timezone: z.string(), review_cadence: z.string(), refresh_cadence: z.string() }).optional(),
+  wallet_automation: z.object({ enabled: z.boolean(), daily_limit: z.number(), daily_used: z.number(), last_success: z.string().nullable(), next_refresh_at: z.string().nullable(), last_error: z.string().nullable() }).optional(),
 }) });
 export type ListData = z.infer<typeof ListResponse>;
 export type StatusData = z.infer<typeof StatusResponse>;
@@ -29,6 +30,11 @@ export async function getJson<T>(url: string, schema: z.ZodType<T>, signal?: Abo
   return result.data;
 }
 export const readableReason = (code: string) => ({
+  wallet_analysis_unavailable: "Wallet analysis is not yet available",
+  wallet_analysis_stale: "Wallet sample needs refreshing",
+  verified_buyer_sample_too_small: "Too few verified buyers in the sample",
+  wallet_sample_coverage_incomplete: "Transaction or buyer funding coverage is incomplete",
+  wallet_exposure_unverified: "Creation-wallet exposure cannot be verified",
   holder_concentration_unknown: "Holder concentration has not been verified",
   creation_history_scan_limit: "Creation is beyond the bounded history scan",
   creation_history_unavailable: "Creation history is unavailable",

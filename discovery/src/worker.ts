@@ -3,6 +3,7 @@ import { z } from "zod";
 import { Address, assess, CandidateSchema, DEFAULT_POLICY, MarketSchema, PolicySchema, Signature, shortlist } from "./model";
 import { runReviews } from "./research";
 import { runMarketCycle } from "./market-cycle";
+import { runWalletCycle, walletStatus } from "./wallet-cycle";
 import { ADAPTER_VERSION } from "./pump";
 import { boundedJson } from "./rpc";
 import { audit, candidates, control, dryRun, researchDay, saveCandidate } from "./store";
@@ -30,6 +31,8 @@ function settings(env: Env) {
     rpcDailyLimit: z.coerce.number().int().min(1).max(10_000).parse(env.TENX_RPC_DAILY_LIMIT),
     marketDailyLimit: z.coerce.number().int().min(1).max(1000).parse(env.TENX_MARKET_DAILY_LIMIT),
     marketEnabled: env.TENX_MARKET_ENABLED === "true",
+    walletEnabled: env.TENX_WALLET_ANALYSIS_ENABLED === "true",
+    walletDailyLimit: z.coerce.number().int().min(1).max(2000).parse(env.TENX_WALLET_RPC_DAILY_LIMIT),
     paced: true,
     batchedMarket: true,
     transport,
@@ -62,6 +65,7 @@ async function status(env: Env) {
     adapter_version: ADAPTER_VERSION, policy: DEFAULT_POLICY,
     automation: { heartbeat_at: state.heartbeat_at, next_refresh_at: state.next_refresh_at, reviewed_at: state.reviewed_at, review_timezone: "Australia/Sydney", review_cadence: "hourly catch-up of prior three days", refresh_cadence: "paced across the remaining free daily budget" },
     market_automation: marketState,
+    wallet_automation: await walletStatus(env.TENX_DB, Number(env.TENX_WALLET_RPC_DAILY_LIMIT), env.TENX_WALLET_ANALYSIS_ENABLED === "true"),
     capabilities: { discovery: true, voting: false, launches: false, signing: false, rewards: false, social_publishing: false },
   };
 }
@@ -123,6 +127,17 @@ export async function handle(request: Request, env: Env): Promise<Response> {
     const row = await env.TENX_DB.prepare("SELECT address,slot,payload,observed_at FROM tenx_account_evidence WHERE payload_hash=?1").bind(accountEvidence[1]!).first<{ address: string; slot: number; payload: string; observed_at: string }>();
     return row ? json(await envelope(env, { ...row, payload_hash: accountEvidence[1], payload: JSON.parse(row.payload) })) : json({ error: "evidence_not_found" }, 404);
   }
+  const walletEvidence = path.match(/^\/api\/10x\/wallet-evidence\/([a-f0-9]{64})$/);
+  if (method === "GET" && walletEvidence) {
+    const row = await env.TENX_DB.prepare("SELECT address,payload,observed_at FROM tenx_wallet_evidence WHERE payload_hash=?1").bind(walletEvidence[1]!).first<{ address: string; payload: string; observed_at: string }>();
+    return row ? json(await envelope(env, { address: row.address, payload_hash: walletEvidence[1], observed_at: row.observed_at, payload: JSON.parse(row.payload) })) : json({ error: "evidence_not_found" }, 404);
+  }
+  const walletProfiles = path.match(/^\/api\/10x\/wallets\/solana\/([^/]+)$/);
+  if (method === "GET" && walletProfiles) {
+    const wallet = Address.parse(walletProfiles[1]);
+    const rows = await env.TENX_DB.prepare("SELECT address,payload_hash,payload,observed_at FROM tenx_wallet_profiles WHERE wallet=?1 ORDER BY observed_at DESC LIMIT 20").bind(wallet).all<{ address: string; payload_hash: string; payload: string; observed_at: string }>();
+    return json(await envelope(env, { wallet, scope: "local_observed_tokens_only", profiles: rows.results.map(row => ({ ...row, payload: JSON.parse(row.payload) })) }));
+  }
   const holderEvidence = path.match(/^\/api\/10x\/holder-evidence\/([a-f0-9]{64})$/);
   if (method === "GET" && holderEvidence) {
     const row = await env.TENX_DB.prepare("SELECT address,slot,payload,observed_at FROM tenx_holder_evidence WHERE payload_hash=?1").bind(holderEvidence[1]!).first<{ address: string; slot: number; payload: string; observed_at: string }>();
@@ -140,7 +155,8 @@ export async function handle(request: Request, env: Env): Promise<Response> {
     const day = researchDay(new Date());
     const collected = await env.TENX_DB.prepare("SELECT COUNT(*) AS tokens,MAX(selected_at) AS last_snapshot_at FROM tenx_cohorts WHERE day=?1").bind(day).first<{ tokens: number; last_snapshot_at: string | null }>();
     const recommendations = await env.TENX_DB.prepare("SELECT COUNT(*) AS count FROM tenx_selections WHERE day=?1").bind(day).first<{ count: number }>();
-    return json(await envelope(env, { reports: rows.results.map(row => JSON.parse(row.payload)), automatic_policy_changes: false, collection: { day, tokens: collected?.tokens ?? 0, recommended: recommendations?.count ?? 0, last_snapshot_at: collected?.last_snapshot_at ?? null } }));
+    const wallets = await env.TENX_DB.prepare("SELECT COUNT(*) AS count FROM tenx_wallet_cohorts WHERE day=?1").bind(day).first<{ count: number }>();
+    return json(await envelope(env, { reports: rows.results.map(row => JSON.parse(row.payload)), automatic_policy_changes: false, collection: { day, tokens: collected?.tokens ?? 0, recommended: recommendations?.count ?? 0, wallet_samples: wallets?.count ?? 0, last_snapshot_at: collected?.last_snapshot_at ?? null } }));
   }
   if (method === "GET" && path === "/api/10x/admin/jobs") {
     const jobs = await env.TENX_DB.prepare("SELECT * FROM tenx_jobs ORDER BY started_at DESC LIMIT 30").all();
@@ -167,6 +183,11 @@ export async function handle(request: Request, env: Env): Promise<Response> {
       return json(await runCycle({ ...settings(env), paced: !force }));
     }
     if (path === "/api/10x/admin/market-refresh") return json(await runMarketCycle(settings(env)));
+    if (path === "/api/10x/admin/wallet-refresh") {
+      const query = z.object({ address: Address.optional() }).passthrough().parse(body);
+      await audit(env.TENX_DB, "wallet_refresh_requested", reason, { address: query.address ?? "next_due_candidate" });
+      return json(await runWalletCycle(settings(env), query.address));
+    }
     if (path === "/api/10x/admin/pause") {
       const paused = z.object({ paused: z.boolean() }).passthrough().parse(body).paused;
       await audit(env.TENX_DB, paused ? "pause" : "resume", reason, { paused });
