@@ -1,0 +1,18 @@
+{
+  "mint": "GffMM7NeaAYhbpNecWpa6bKEMSYszbQUvk7RNuJ5pump",
+  "proof": {
+    "kind": "creation",
+    "signature": "5fziSE5VDpPfiacme7wbxMCDhtE398eqjeNDUdhQvwK9D3gj2sMPzNjR74BBzJY1T8Ad5i9nGaPQ5BGhiTduYPwV",
+    "slot": 458857129,
+    "block_time": "2026-10-19T13:54:16.000Z",
+    "instruction": "create_v2",
+    "instruction_index": "2",
+    "program": "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P",
+    "payload_hash": "5e8fa0e1a6174d8284c78ab1238e336855f9501de06d47e1457bf8994e320fbe",
+    "fetched_at": "2026-10-19T13:54:26.101Z",
+    "source": "solana-finalized-rpc",
+    "adapter_version": "pump-639b87fb45c3-v1"
+  },
+  "name": "Privacy Protocol Cat",
+  "symbol": "NOOKCAT"
+}

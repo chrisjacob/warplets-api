@@ -26,6 +26,7 @@ import {
 import { WARPLETS_APP_ORIGINS } from "../shared/warpletsApp";
 
 const FarcasterSignInControl = lazy(() => import("./FarcasterSignInControl"));
+const DiscoveryPage = lazy(() => import("./discovery/DiscoveryPage"));
 
 type ViewerProfile = {
   fid: number;
@@ -139,6 +140,7 @@ function HomeAccountControl({
         )}
         {open && (
           <AppViewport portalled={centered} onMouseDown={(event) => event.stopPropagation()} className={`search-header-account-menu${centered ? " search-header-account-menu--centered" : ""}`} role="menu">
+            {import.meta.env.DEV && <a href="/discover" role="menuitem" onClick={() => onOpenChange(false)}>Discover Solana</a>}
             <a href="/thesis" role="menuitem" onClick={() => onOpenChange(false)}>The 10X Thesis</a>
             {!isInMiniAppContext && (
               <button type="button" role="menuitem" className="search-header-account-menu__connection" onClick={() => runMenuAction(onOpen)}>
@@ -187,6 +189,7 @@ function HomeAccountControl({
       </button>
       {open && (
         <AppViewport portalled={centered} onMouseDown={(event) => event.stopPropagation()} className={`search-header-account-menu${centered ? " search-header-account-menu--centered" : ""}`} role="menu">
+          {import.meta.env.DEV && <a href="/discover" role="menuitem" onClick={() => onOpenChange(false)}>Discover Solana</a>}
           <a href="/thesis" role="menuitem" onClick={() => onOpenChange(false)}>The 10X Thesis</a>
           {!isInMiniAppContext && (
             <button type="button" role="menuitem" className="search-header-account-menu__connection" onClick={() => runMenuAction(onOpen)}>
@@ -226,7 +229,7 @@ function HomeAccountControl({
   );
 }
 
-export default function App({ page = "home" }: { page?: "home" | "thesis" }) {
+export default function App({ page = "home" }: { page?: "home" | "thesis" | "discovery" }) {
   const isThesisRoute = page === "thesis";
   const walletController = useWalletController();
   const [showAddAppPrompt, setShowAddAppPrompt] = useState(false);
@@ -400,8 +403,8 @@ export default function App({ page = "home" }: { page?: "home" | "thesis" }) {
   }, [applySession]);
 
   useEffect(() => {
-    document.title = isThesisRoute ? "10X.MEME — The 10X Thesis" : "10X.MEME";
-  }, [isThesisRoute]);
+    document.title = isThesisRoute ? "10X.MEME — The 10X Thesis" : page === "discovery" ? "10X.MEME — Solana Discovery" : "10X.MEME";
+  }, [isThesisRoute, page]);
   useEffect(() => {
     if (!actionError) return;
     const id = window.setTimeout(() => setActionError(""), 5_000);
@@ -595,6 +598,8 @@ export default function App({ page = "home" }: { page?: "home" | "thesis" }) {
 
         {isMenuRoute ? (
           <MiniAppMenuPage appSlug="app" />
+        ) : page === "discovery" ? (
+          <Suspense fallback={<p role="status" className="p-6 text-center text-[#b8d7b8]">Loading discovery…</p>}><DiscoveryPage path={window.location.pathname} /></Suspense>
         ) : isThesisRoute ? (
           <main className="mx-auto w-full max-w-md px-4 pb-12 pt-6">
             <header className="text-center">

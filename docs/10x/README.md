@@ -2,6 +2,8 @@
 
 Planning checkpoint: 20 October 2026 (Australia/Sydney). Product specification: v1.1, 17 October 2026.
 
+Subsequent implementation: [morning review checkpoint](06-discovery-review.md) and [local Solana discovery guide](../../discovery/README.md). The local service, evidence verification, APIs, screens and tests are now implemented; the planning checkpoint below remains the original kickoff record.
+
 The homepage is intentionally empty within the existing app shell. The previous landing experience lives at `/thesis`, linked as **The 10X Thesis** in both connected and disconnected title/account dropdowns. This checkpoint prepares the app and implementation plan; it does not implement or claim a live discovery service, economic validation, or devnet launch proof.
 
 ## Source documents and authority

@@ -1,0 +1,27 @@
+{
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  "name": "10x-discovery-local",
+  "main": "src/worker.ts",
+  // Newest date supported by the repository's installed workerd binary.
+  "compatibility_date": "2026-09-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": false,
+  "preview_urls": false,
+  "observability": { "enabled": true },
+  "vars": {
+    "TENX_LOCAL_ONLY": "true",
+    "TENX_NODE_RELAY": "false",
+    "TENX_ADMIN_TOKEN": "",
+    "TENX_RPC_URL": "https://api.mainnet-beta.solana.com",
+    "TENX_RPC_DAILY_LIMIT": "3000",
+    "TENX_MARKET_DAILY_LIMIT": "600",
+    "TENX_MARKET_ENABLED": "false"
+  },
+  "d1_databases": [{
+    "binding": "TENX_DB",
+    "database_name": "10x-discovery-local",
+    "database_id": "00000000-0000-0000-0000-000000000010",
+    "migrations_dir": "migrations",
+    "remote": false
+  }]
+}

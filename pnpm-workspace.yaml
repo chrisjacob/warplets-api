@@ -3,6 +3,7 @@ packages:
   - web
   - snap
   - bots
+  - discovery
   - extensions/10x-tabs
 
 minimumReleaseAge: 1440

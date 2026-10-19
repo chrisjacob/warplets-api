@@ -1,0 +1,213 @@
+{
+  "revision": "639b87fb45c3adeffa6f7c4a1bf0cb85e392bf22",
+  "pump_program": "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P",
+  "amm_program": "pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA",
+  "pump_sha256": "7616681ea557975f9f623ac211080f22a93060781eaf4765b0a488d980997207",
+  "amm_sha256": "b7d8c57a4d9c4dd0109a9ab893052352333252d4eedced10ac091d4d66cab89b",
+  "instructions": [
+    {
+      "name": "create",
+      "accounts": [
+        "mint",
+        "mint_authority",
+        "bonding_curve",
+        "associated_bonding_curve",
+        "global",
+        "mpl_token_metadata",
+        "metadata",
+        "user",
+        "system_program",
+        "token_program",
+        "associated_token_program",
+        "rent",
+        "event_authority",
+        "program"
+      ],
+      "discriminator": [
+        24,
+        30,
+        200,
+        40,
+        5,
+        28,
+        7,
+        119
+      ]
+    },
+    {
+      "name": "create_v2",
+      "accounts": [
+        "mint",
+        "mint_authority",
+        "bonding_curve",
+        "associated_bonding_curve",
+        "global",
+        "user",
+        "system_program",
+        "token_program",
+        "associated_token_program",
+        "mayhem_program_id",
+        "global_params",
+        "sol_vault",
+        "mayhem_state",
+        "mayhem_token_vault",
+        "event_authority",
+        "program"
+      ],
+      "discriminator": [
+        214,
+        144,
+        76,
+        236,
+        95,
+        139,
+        49,
+        180
+      ]
+    },
+    {
+      "name": "migrate",
+      "accounts": [
+        "global",
+        "withdraw_authority",
+        "mint",
+        "bonding_curve",
+        "associated_bonding_curve",
+        "user",
+        "system_program",
+        "token_program",
+        "pump_amm",
+        "pool",
+        "pool_authority",
+        "pool_authority_mint_account",
+        "pool_authority_wsol_account",
+        "amm_global_config",
+        "wsol_mint",
+        "lp_mint",
+        "user_pool_token_account",
+        "pool_base_token_account",
+        "pool_quote_token_account",
+        "token_2022_program",
+        "associated_token_program",
+        "pump_amm_event_authority",
+        "event_authority",
+        "program",
+        "rent"
+      ],
+      "discriminator": [
+        155,
+        234,
+        231,
+        146,
+        236,
+        158,
+        162,
+        30
+      ]
+    },
+    {
+      "name": "migrate_v2",
+      "accounts": [
+        "global",
+        "withdraw_authority",
+        "base_mint",
+        "quote_mint",
+        "bonding_curve",
+        "associated_base_bonding_curve",
+        "associated_quote_bonding_curve",
+        "user",
+        "system_program",
+        "pump_amm",
+        "pool",
+        "pool_authority",
+        "pool_authority_mint_account",
+        "pool_authority_quote_account",
+        "amm_global_config",
+        "lp_mint",
+        "user_pool_token_account",
+        "pool_base_token_account",
+        "pool_quote_token_account",
+        "base_token_program",
+        "quote_token_program",
+        "token_2022_program",
+        "associated_token_program",
+        "pump_amm_event_authority",
+        "rent",
+        "event_authority",
+        "program"
+      ],
+      "discriminator": [
+        187,
+        203,
+        18,
+        31,
+        206,
+        237,
+        254,
+        41
+      ]
+    }
+  ],
+  "create_pool": {
+    "accounts": [
+      "pool",
+      "global_config",
+      "creator",
+      "base_mint",
+      "quote_mint",
+      "lp_mint",
+      "user_base_token_account",
+      "user_quote_token_account",
+      "user_pool_token_account",
+      "pool_base_token_account",
+      "pool_quote_token_account",
+      "system_program",
+      "token_2022_program",
+      "base_token_program",
+      "quote_token_program",
+      "associated_token_program",
+      "event_authority",
+      "program"
+    ],
+    "discriminator": [
+      233,
+      146,
+      209,
+      142,
+      207,
+      104,
+      64,
+      188
+    ]
+  },
+  "pool_discriminator": [
+    241,
+    154,
+    109,
+    4,
+    17,
+    177,
+    109,
+    188
+  ],
+  "curve_discriminator": [
+    23,
+    183,
+    248,
+    55,
+    96,
+    216,
+    172,
+    96
+  ],
+  "global_discriminator": [
+    167,
+    232,
+    232,
+    177,
+    200,
+    108,
+    114,
+    127
+  ]
+}

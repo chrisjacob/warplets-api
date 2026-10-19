@@ -646,6 +646,12 @@ export default defineConfig({
       "million-local.10x.meme",
     ],
     proxy: {
+      // Local discovery has its own isolated Worker/database. This Vite-only
+      // proxy never changes the deployed Pages Functions or existing app API.
+      "/api/10x": {
+        target: "http://127.0.0.1:8794",
+        changeOrigin: true,
+      },
       // Token deep links need the Pages Function's selected-token OG metadata,
       // even when the dev server was started without VITE_MINIAPP_BASE_URL.
       [`^/(?:bull|bear|${STONKLETS_CATALOG.map((entry) => encodeURIComponent(entry.stonklet.symbol.toLowerCase()).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})/?(?:\\?.*)?$`]: {

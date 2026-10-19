@@ -131,7 +131,8 @@ function resolveActiveApp() {
   if (cleanPath === "/stop" || cleanPath.startsWith("/stop/")) return <StopApp />;
   if (cleanPath === "/unsubscribe" || cleanPath.startsWith("/unsubscribe/")) return <UnsubscribeApp />;
 
-  return <App page={cleanPath === "/thesis" ? "thesis" : "home"} />;
+  const discoveryRoute = import.meta.env.DEV && (cleanPath === "/discover" || cleanPath === "/status" || cleanPath === "/admin/10x" || /^\/token\/solana\/[^/]+$/.test(cleanPath));
+  return <App page={discoveryRoute ? "discovery" : cleanPath === "/thesis" ? "thesis" : "home"} />;
 }
 
 function RootRouter() {
