@@ -1,7 +1,7 @@
 import { createServer } from "node:http";
 import { timingSafeEqual } from "node:crypto";
 
-const methods = new Set(["getGenesisHash", "getSlot", "getSignaturesForAddress", "getTransaction", "getMultipleAccounts"]);
+const methods = new Set(["getGenesisHash", "getSlot", "getSignaturesForAddress", "getTransaction", "getMultipleAccounts", "getProgramAccounts"]);
 export async function startRelay({ token, rpcUrl, port = 8795, transport = fetch }) {
   const rpc = new URL(rpcUrl);
   if (rpc.protocol !== "https:" || rpc.username || rpc.password || token.length < 32) throw new Error("Invalid local relay configuration");
@@ -17,10 +17,16 @@ export async function startRelay({ token, rpcUrl, port = 8795, transport = fetch
         for await (const chunk of request) { size += chunk.length; if (size > 32_000) { response.writeHead(413); response.end(); return; } chunks.push(chunk); }
         const body = Buffer.concat(chunks).toString("utf8"), parsed = JSON.parse(body);
         if (Array.isArray(parsed) || parsed.jsonrpc !== "2.0" || !methods.has(parsed.method) || !Array.isArray(parsed.params)) { response.writeHead(400); response.end(); return; }
+        if (parsed.method === "getProgramAccounts") {
+          const [program, config] = parsed.params;
+          if (!["TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA", "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"].includes(program) || config?.commitment !== "finalized" || config?.withContext !== true || config?.encoding !== "base64" || config?.dataSlice?.offset !== 0 || config?.dataSlice?.length !== 166 || config?.filters?.length !== 1 || config?.filters[0]?.memcmp?.offset !== 0 || !/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(config?.filters[0]?.memcmp?.bytes ?? "")) { response.writeHead(400); response.end(); return; }
+        }
         target = rpc.href; init = { method: "POST", headers: { "content-type": "application/json" }, body };
-      } else if (request.method === "GET" && /^\/market\/pools\/[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(request.url ?? "")) {
-        target = `https://api.geckoterminal.com/api/v2/networks/solana/pools/${request.url.split("/").at(-1)}`;
-        init = { headers: { accept: "application/json" } }; limit = 100_000;
+      } else if (request.method === "GET" && /^\/market\/pools\/(?:multi\/)?[1-9A-HJ-NP-Za-km-z,]{32,1350}$/.test(request.url ?? "")) {
+        const addresses = request.url.split("/").at(-1).split(",");
+        if (addresses.length > 30 || addresses.some(a => !/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(a)) || (!request.url.includes("/multi/") && addresses.length > 1)) { response.writeHead(400); response.end(); return; }
+        target = `https://api.geckoterminal.com/api/v2/networks/solana/pools/${request.url.includes("/multi/") ? "multi/" : ""}${addresses.join(",")}?include=base_token`;
+        init = { headers: { accept: "application/json" } }; limit = 500_000;
       } else { response.writeHead(404); response.end(); return; }
       const upstream = await transport(target, { ...init, redirect: "manual", signal: AbortSignal.timeout(10_000) });
       if (!upstream.ok || !upstream.body) { await upstream.body?.cancel(); response.writeHead(upstream.status >= 300 ? upstream.status : 502); response.end(); return; }

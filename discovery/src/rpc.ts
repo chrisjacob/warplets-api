@@ -42,18 +42,21 @@ export const TransactionSchema = z.object({
 export type Transaction = z.infer<typeof TransactionSchema>;
 export const AccountSchema = z.object({
   owner: Address, executable: z.boolean(), data: z.tuple([z.string().max(2_000_000), z.literal("base64")]),
+  space: z.number().int().nonnegative().max(10000000).optional(),
 });
 export type Account = z.infer<typeof AccountSchema>;
 export const AccountsSchema = z.object({
   context: z.object({ slot: z.number().int().safe().nonnegative() }), value: z.array(AccountSchema.nullable()).max(100),
 });
 export type Accounts = z.infer<typeof AccountsSchema>;
+export const InventorySchema = z.object({ context: z.object({ slot: z.number().int().safe().nonnegative() }), value: z.array(z.object({ pubkey: Address, account: AccountSchema })).max(5000) });
+export type Inventory = z.infer<typeof InventorySchema>;
 export const SignatureRows = z.array(z.object({
   signature: Signature, slot: z.number().int().safe().nonnegative(), err: z.unknown(),
   blockTime: z.number().int().nullable(), confirmationStatus: z.string().nullable(),
 })).max(1000);
 export type SignatureRow = z.infer<typeof SignatureRows>[number];
-type Method = "getGenesisHash" | "getSlot" | "getSignaturesForAddress" | "getTransaction" | "getMultipleAccounts";
+type Method = "getGenesisHash" | "getSlot" | "getSignaturesForAddress" | "getTransaction" | "getMultipleAccounts" | "getProgramAccounts";
 export type Reserve = (provider: "rpc" | "market") => Promise<void>;
 export const MAINNET_GENESIS = "5eykt4UsFv8P8NJdTREpY1vzqKqZKvdpKuc147dw2N9d";
 
@@ -110,6 +113,15 @@ export class RpcClient {
     addresses.forEach(a => Address.parse(a));
     const result = AccountsSchema.parse(await this.call("getMultipleAccounts", [addresses, { commitment: "finalized", encoding: "base64", ...(minContextSlot === undefined ? {} : { minContextSlot }) }]));
     if (result.value.length !== addresses.length || (minContextSlot !== undefined && result.context.slot < minContextSlot)) throw new SourceError("account_context_mismatch");
+    return result;
+  }
+  async inventory(program: string, mint: string, minContextSlot: number): Promise<Inventory> {
+    Address.parse(program); Address.parse(mint);
+    const result = InventorySchema.parse(await this.call("getProgramAccounts", [program, {
+      commitment: "finalized", withContext: true, encoding: "base64", minContextSlot,
+      dataSlice: { offset: 0, length: 166 }, filters: [{ memcmp: { offset: 0, bytes: mint } }],
+    }]));
+    if (result.context.slot < minContextSlot) throw new SourceError("holder_inventory_stale");
     return result;
   }
 }

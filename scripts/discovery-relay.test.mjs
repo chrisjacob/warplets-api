@@ -17,7 +17,8 @@ test("loopback relay authenticates and forwards only whitelisted read methods", 
     assert.equal((await fetch(`${url}/https://evil.example`, { headers: { "x-tenx-local-relay": token } })).status, 404);
     assert.equal(calls.length, 1);
     assert.equal((await fetch(`${url}/market/pools/So11111111111111111111111111111111111111112`, { headers: { "x-tenx-local-relay": token } })).status, 200);
-    assert.equal(calls[1].url, "https://api.geckoterminal.com/api/v2/networks/solana/pools/So11111111111111111111111111111111111111112");
+    assert.equal(calls[1].url, "https://api.geckoterminal.com/api/v2/networks/solana/pools/So11111111111111111111111111111111111111112?include=base_token");
+    assert.equal((await fetch(`${url}/rpc`, { ...options, body: JSON.stringify({ jsonrpc: "2.0", id: 3, method: "getProgramAccounts", params: ["arbitrary", {}] }) })).status, 400);
     assert.equal((await fetch(`${url}/rpc`, { ...options, body: "x".repeat(33_000) })).status, 413);
   } finally { await new Promise(resolve => server.close(resolve)); }
 });

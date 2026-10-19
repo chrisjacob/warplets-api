@@ -13,7 +13,7 @@
     "TENX_NODE_RELAY": "false",
     "TENX_ADMIN_TOKEN": "",
     "TENX_RPC_URL": "https://api.mainnet-beta.solana.com",
-    "TENX_RPC_DAILY_LIMIT": "3000",
+    "TENX_RPC_DAILY_LIMIT": "5000",
     "TENX_MARKET_DAILY_LIMIT": "600",
     "TENX_MARKET_ENABLED": "false"
   },

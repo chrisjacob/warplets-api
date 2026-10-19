@@ -453,6 +453,22 @@ export default defineConfig({
     exclude: ["@sqlite.org/sqlite-wasm"],
   },
   plugins: [
+    {
+      name: "tenx-discovery-shared-contracts",
+      apply: "serve",
+      configureServer(server) {
+        server.watcher.add(["model.ts", "holder-model.ts", "research-model.ts", "images.ts"].map(file => path.resolve(repoRoot, "discovery/src", file)));
+      },
+      handleHotUpdate(context) {
+        const relative = path.relative(path.resolve(repoRoot, "discovery/src"), context.file);
+        if (!["model.ts", "holder-model.ts", "research-model.ts", "images.ts"].includes(relative)) return;
+        // These strict Zod contracts are shared with another dev process.
+        // Reload them together rather than leaving an old browser schema alive.
+        context.server.moduleGraph.invalidateAll();
+        context.server.ws.send({ type: "full-reload" });
+        return [];
+      },
+    },
     localStonkletsMarket(),
     localSpotlightPreview(),
     react(),

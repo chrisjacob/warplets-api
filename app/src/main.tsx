@@ -131,7 +131,7 @@ function resolveActiveApp() {
   if (cleanPath === "/stop" || cleanPath.startsWith("/stop/")) return <StopApp />;
   if (cleanPath === "/unsubscribe" || cleanPath.startsWith("/unsubscribe/")) return <UnsubscribeApp />;
 
-  const discoveryRoute = import.meta.env.DEV && (cleanPath === "/discover" || cleanPath === "/status" || cleanPath === "/admin/10x" || /^\/token\/solana\/[^/]+$/.test(cleanPath));
+  const discoveryRoute = import.meta.env.DEV && (cleanPath === "/discover" || cleanPath === "/research" || cleanPath === "/status" || cleanPath === "/admin/10x" || /^\/token\/solana\/[^/]+$/.test(cleanPath));
   return <App page={discoveryRoute ? "discovery" : cleanPath === "/thesis" ? "thesis" : "home"} />;
 }
 

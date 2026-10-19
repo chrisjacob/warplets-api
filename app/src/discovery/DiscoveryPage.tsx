@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { AssessedCandidate, Proof } from "../../../discovery/src/model";
-import { DetailResponse, getJson, ListResponse, readableReason, StatusResponse, type ListData } from "./client";
+import { DetailResponse, getJson, ListResponse, readableReason, ReviewsResponse, StatusResponse, type ListData } from "./client";
+import { TokenHistory, TokenImage } from "./TokenMarket";
 import "./discovery.css";
 
 const money = (value: number | null | undefined) => value == null ? "Unavailable" : value > 0 && value < 0.000001 ? `$${value.toExponential(3)}` : new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: value < 1 ? 6 : 0 }).format(value);
@@ -40,11 +41,12 @@ function Freshness({ data }: { data: Pick<ListData, "as_of" | "coverage" | "sour
 function CandidateCard({ candidate: c }: { candidate: AssessedCandidate }) {
   const fixture = c.mode === "fixture";
   return <article className="tenx-candidate">
-    <div className="tenx-row"><span className="tenx-token-icon" aria-hidden="true">{c.symbol.slice(0, 2)}</span><div className="tenx-token-name"><h2><a href={`/token/solana/${c.address}${fixture ? "?mode=fixture" : ""}`}>{c.name}</a></h2><p>{c.symbol} <span>· Solana · OG token</span></p></div><Badge status={c.eligibility} /></div>
+    <div className="tenx-row"><TokenImage url={c.market?.image_url} name={c.name} symbol={c.symbol} /><div className="tenx-token-name"><h2><a href={`/token/solana/${c.address}${fixture ? "?mode=fixture" : ""}`}>{c.name}</a></h2><p>{c.symbol} <span>· Solana · OG token</span></p></div><Badge status={c.eligibility} /></div>
     <p className="tenx-address">{c.address}</p>
     <div className="tenx-metrics"><div><span>Market cap</span><strong>{money(c.market?.market_cap_usd)}</strong></div><div><span>Liquidity</span><strong>{money(c.market?.liquidity_usd)}</strong></div><div><span>Chain evidence</span><strong>{fixture ? "Simulated" : c.verification === "verified" ? "Verified origin + migration" : "Incomplete"}</strong></div></div>
     <p className="tenx-reason">{c.reasons.slice(0, 2).map(readableReason).join(" · ") || "Meets the current local discovery policy"}</p>
-    <div className="tenx-card-bottom"><span>{c.creation ? `Created ${time(c.creation.block_time)}` : "Token creation time unknown"}</span><a href={`/token/solana/${c.address}${fixture ? "?mode=fixture" : ""}`}>Inspect evidence →</a></div>
+    <p className="tenx-holder-summary">{c.holders ? `${c.holders.holder_count} owners · largest ${c.holders.top1_pct?.toFixed(2) ?? "?"}% · ${c.holders.status} inventory` : "Holder inventory pending"}</p>
+    <div className="tenx-card-bottom"><span>{c.creation ? `Created ${time(c.creation.block_time)}` : "Token creation time unknown"}</span><a href={`/token/solana/${c.address}${fixture ? "?mode=fixture" : ""}`}>Charts & evidence →</a></div>
   </article>;
 }
 function Discover() {
@@ -68,19 +70,48 @@ function CandidateDetail({ address }: { address: string }) {
   const url = `/api/10x/candidates/solana/${encodeURIComponent(address)}?mode=${mode}`;
   const { data, error } = useRemote(signal => getJson(url, DetailResponse, signal), url);
   const [copied, setCopied] = useState(false);
-  if (error) return <p role="alert" className="tenx-notice">{error}</p>;
-  if (!data) return <p role="status" className="tenx-empty">Loading candidate evidence…</p>;
+  if (!data) return error ? <p role="alert" className="tenx-notice">{error}</p> : <p role="status" className="tenx-empty">Loading candidate evidence…</p>;
   const c = data.data, fixture = c.mode === "fixture";
   return <>
     <a href="/discover" className="tenx-back">← All contenders</a>
-    <header className="tenx-heading"><p className="tenx-eyebrow">SOLANA / OG TOKEN</p><h1>{c.name}</h1><div className="tenx-row"><span>{c.symbol}</span><Badge status={c.eligibility} /></div></header>
+    {error && <p role="alert" className="tenx-notice">{error} The last verified response remains visible.</p>}
+    <header className="tenx-heading"><p className="tenx-eyebrow">SOLANA / OG TOKEN</p><div className="tenx-token-heading"><TokenImage url={c.market?.image_url} name={c.name} symbol={c.symbol} /><h1>{c.name}</h1></div><div className="tenx-row"><span>{c.symbol}</span><Badge status={c.eligibility} /></div></header>
     {fixture && <aside className="tenx-notice">SIMULATION — addresses and proofs in this example are synthetic.</aside>}
+    {!fixture && <TokenHistory address={c.address} />}
     <section className="tenx-panel"><h2>Token identity</h2><p className="tenx-address">{c.address}</p><button className="tenx-button tenx-button--quiet" onClick={() => void navigator.clipboard.writeText(c.address).then(() => setCopied(true)).catch(() => setCopied(false))}>{copied ? "Copied" : "Copy full address"}</button>
       <p className="tenx-address">PumpSwap pool: {c.pool}</p>{!fixture && <a href={`https://solscan.io/token/${c.address}`} target="_blank" rel="noopener noreferrer">View token on Solscan ↗</a>}</section>
     <section className="tenx-panel"><h2>Eligibility review</h2><ul>{c.reasons.map(reason => <li key={reason}>{readableReason(reason)}</li>)}</ul><p>Launches and voting are disabled. This review is not a guarantee of token safety.</p></section>
     <Evidence proof={c.creation} label="Original token creation" fixture={fixture} /><Evidence proof={c.graduation} label="Pump → PumpSwap graduation" fixture={fixture} />
     <section className="tenx-panel"><h2>Market snapshot</h2><dl><dt>Market cap</dt><dd>{money(c.market?.market_cap_usd)}</dd><dt>FDV (separate)</dt><dd>{money(c.market?.fdv_usd)}</dd><dt>Price</dt><dd>{money(c.market?.price_usd)}</dd><dt>Liquidity</dt><dd>{money(c.market?.liquidity_usd)}</dd></dl><p>{c.market ? `Source: GeckoTerminal · fetched ${time(c.market.fetched_at)}. Provider observation time is unavailable.` : "Market enrichment is off or unavailable. No values have been invented."}</p></section>
-    <section className="tenx-panel"><h2>Onchain risk checks</h2><dl><dt>Mint authority</dt><dd>{c.risk.mint_authority}</dd><dt>Freeze authority</dt><dd>{c.risk.freeze_authority}</dd><dt>Pool reserves</dt><dd>{c.risk.pool_reserves_verified ? "Verified initialized + nonzero" : "Unverified"}</dd><dt>Holder concentration</dt><dd>Unknown</dd><dt>Finalized account slot</dt><dd>{c.risk.context_slot?.toLocaleString() ?? "Unavailable"}</dd></dl><p>Observed {time(c.risk.observed_at)}</p>{!fixture && c.risk.payload_hash && <a href={`/api/10x/account-evidence/${c.risk.payload_hash}`} target="_blank" rel="noopener noreferrer">Inspect saved account evidence ↗</a>}</section>
+    <HolderPanel candidate={c} />
+    <section className="tenx-panel"><h2>Onchain risk checks</h2><dl><dt>Mint authority</dt><dd>{c.risk.mint_authority}</dd><dt>Freeze authority</dt><dd>{c.risk.freeze_authority}</dd><dt>Pool reserves</dt><dd>{c.risk.pool_reserves_verified ? "Verified initialized + nonzero" : "Unverified"}</dd><dt>Finalized account slot</dt><dd>{c.risk.context_slot?.toLocaleString() ?? "Unavailable"}</dd></dl><p>Observed {time(c.risk.observed_at)}</p>{!fixture && c.risk.payload_hash && <a href={`/api/10x/account-evidence/${c.risk.payload_hash}`} target="_blank" rel="noopener noreferrer">Inspect saved account evidence ↗</a>}</section>
+  </>;
+}
+function HolderPanel({ candidate: c }: { candidate: AssessedCandidate }) {
+  const h = c.holders, percent = (n: number | null) => n === null ? "Unknown" : `${n.toFixed(2)}%`;
+  return <section className="tenx-panel"><div className="tenx-row"><h2>Holder concentration</h2><Badge status={h?.status ?? "unverified"} /></div>
+    {h ? <><dl><dt>Positive-balance owners</dt><dd>{h.holder_count.toLocaleString()}{h.status === "partial" ? " (lower bound)" : ""}</dd><dt>Largest owner / total supply</dt><dd>{percent(h.top1_pct)}</dd><dt>Top ten owners / supply</dt><dd>{percent(h.top10_pct)}</dd><dt>Creation user / supply</dt><dd>{percent(h.creator_pct)}</dd><dt>Canonical pool vault / supply</dt><dd>{percent(h.pool_pct)}</dd><dt>Account type & size</dt><dd>{h.layout_certified ? "Certified" : "Legacy evidence; cannot pass"}</dd><dt>Finalized inventory slot</dt><dd>{h.context_slot?.toLocaleString() ?? "Unavailable"}</dd></dl>
+      <p>Observed {time(h.observed_at)}. Owners are aggregated across token accounts. Only the exact canonical pool vault is exempt from holder concentration. Shares use total minted supply.</p>
+      <p>Supply reconciliation: {h.inventoried_raw} / {h.supply_raw} raw units across {h.account_count} accounts.</p>
+      {h.payload_hash && c.mode === "live" && <a href={`/api/10x/holder-evidence/${h.payload_hash}`} target="_blank" rel="noopener noreferrer">Replayable holder evidence ↗</a>}
+      <details><summary>Largest owners and classification gaps</summary><div className="tenx-table-scroll"><table><thead><tr><th>Owner</th><th>Supply</th><th>Role</th></tr></thead><tbody>{h.owners.map(o => <tr key={`${o.role}:${o.owner}`}><td className="tenx-address">{o.owner}</td><td>{percent(o.supply_pct)}</td><td>{o.role.replaceAll("_", " ")}</td></tr>)}</tbody></table></div><ul>{h.gaps.map(g => <li key={g}>{readableReason(g)}</li>)}</ul></details>
+    </> : <p>No reconciled owner inventory yet. This token cannot pass the holder gate.</p>}
+    <p>Separate addresses may share a controller. Account owners are not a verified beneficial-owner or Sybil count. Bundle risk, fees produced, buyer-wallet history and LP lock status remain unknown.</p>
+  </section>;
+}
+function ResearchView() {
+  const { data, error } = useRemote(signal => getJson("/api/10x/research/reviews", ReviewsResponse, signal), "reviews");
+  return <><header className="tenx-heading"><p className="tenx-eyebrow">RESEARCH / DAILY REVIEW</p><h1>Learn from yesterday.</h1><p>Frozen selection-time metrics, later outcomes, and testable filter proposals. Missing evidence remains visible.</p></header>
+    <aside className="tenx-notice">Reviews run automatically on the local timer, using Australia/Sydney calendar days. Recommendations are tracked separately from observed tokens. Proposed rules do not change the active policy.</aside>
+    {data && <section className="tenx-panel"><h2>Collecting today · {data.data.collection.day}</h2><p>{data.data.collection.tokens} observed tokens · {data.data.collection.recommended} recommended selections. First observations and first eligible recommendations are retained separately.</p><p>Last snapshot: {time(data.data.collection.last_snapshot_at)}. Each 24-hour outcome remains pending until its observation window matures and an acceptable endpoint is available.</p></section>}
+    {error && <p role="alert">{error}</p>}{data?.data.reports.map(report => <section className="tenx-panel" key={report.input_hash}><div className="tenx-row"><h2>{report.day}</h2><span>{report.counts.measured} measured / {report.counts.observed} tracked</span></div>
+      <dl><dt>Recommended at selection</dt><dd>{report.counts.recommended}</dd><dt>24h windows pending</dt><dd>{report.counts.pending}</dd><dt>Insufficient outcome data</dt><dd>{report.counts.insufficient_data}</dd><dt>Severe loss signals</dt><dd>{report.counts.severe_loss_signals}</dd></dl>
+      {!report.counts.observed && <p>No selection-time snapshots were captured for this day. The review loop starts collecting now; no past selections have been invented.</p>}
+      <h3>Filter improvement proposals</h3>{report.proposals.length ? report.proposals.map((p, i) => <p key={i}>{p.feature}: {p.direction} {p.threshold}. Holdout loss precision {(p.validation_loss_precision * 100).toFixed(0)}% across {p.validation_flagged} flagged outcomes; {p.validation_nonloss_excluded} non-loss outcomes would be excluded. Research proposal; inactive.</p>) : <p>No supported rule changes yet. Proposals require at least 40 measured outcomes, adequate feature coverage and a chronological holdout.</p>}
+      {!!report.wallet_watch.length && <details><summary>Wallet associations to investigate ({report.wallet_watch.length})</summary>{report.wallet_watch.map(w => <p key={w.wallet} className="tenx-address">{w.wallet}: {w.severe_loss_associations} distinct severe-loss associations as {w.role}. This is an association to review, not a fraud finding or automatic ban.</p>)}</details>}
+      {!!report.outcomes.length && <details><summary>Outcome ledger and frozen features</summary><div className="tenx-table-scroll"><table><thead><tr><th>Token</th><th>Cohort</th><th>24h return</th><th>Liquidity change</th><th>Result</th></tr></thead><tbody>{report.outcomes.map(o => <tr key={o.address}><td><a href={`/token/solana/${o.address}`}>{o.symbol}</a><details><summary>Inputs</summary><pre className="tenx-result">{JSON.stringify({ selected_at: o.selected_at, input_hash: o.input_hash, features: o.features, gaps: o.gaps }, null, 2)}</pre></details></td><td>{o.recommended ? "Recommended" : "Observed"}</td><td>{o.return_24h_pct === null ? "Unavailable" : `${o.return_24h_pct.toFixed(2)}%`}</td><td>{o.liquidity_change_pct === null ? "Unavailable" : `${o.liquidity_change_pct.toFixed(2)}%`}</td><td>{o.status === "measured" ? readableReason(o.outcome) : readableReason(o.status)}</td></tr>)}</tbody></table></div></details>}
+      <p>Fees produced, bundle risk and buyer-wallet histories are not yet measured. Losses and disappearing liquidity are signals to investigate, not proof of a scam or rug pull.</p><details><summary>Report provenance</summary><p className="tenx-address">{report.input_hash}</p><p>Generated {time(report.created_at)} · {report.version}</p><ul>{report.gaps.map(g => <li key={g}>{readableReason(g)}</li>)}</ul></details>
+    </section>)}{data && !data.data.reports.length && <p className="tenx-empty">The first daily report will appear after the local maintenance tick.</p>}
   </>;
 }
 function StatusView() {
@@ -88,7 +119,8 @@ function StatusView() {
   return <><header className="tenx-heading"><p className="tenx-eyebrow">DATA / OPERATIONS</p><h1>Know what’s fresh.</h1><p>Source coverage, proof gaps and free-service budgets, in plain sight.</p></header>
     {error && <p role="alert" className="tenx-notice">{error}</p>}{data ? <><Freshness data={data} /><section className="tenx-panel"><h2>Local ingestion</h2><dl><dt>State</dt><dd>{data.data.paused ? "Paused" : data.data.running ? "Refreshing" : "Waiting for next tick"}</dd><dt>Last source issue</dt><dd>{data.data.last_error ? readableReason(data.data.last_error) : "None recorded"}</dd><dt>Queued signatures</dt><dd>{data.data.pending_signatures}</dd><dt>Market provider</dt><dd>{data.coverage.market_enabled ? "GeckoTerminal enabled locally" : "Off pending usage review"}</dd><dt>Proof adapter</dt><dd className="tenx-address">{data.data.adapter_version}</dd></dl></section>
       <section className="tenx-panel"><h2>Daily source budgets · UTC</h2>{(["rpc", "market"] as const).map(provider => { const used = data.data.usage.find(u => u.provider === provider)?.used ?? 0, limit = data.data.daily_limits[provider]; return <div className="tenx-budget" key={provider}><div className="tenx-row"><strong>{provider === "rpc" ? "Solana public RPC" : "Market enrichment"}</strong><span>{used} / {limit}</span></div><meter min={0} max={limit} value={used} aria-label={`${provider} daily requests`} /></div>; })}<p>Budgets pause work when exhausted. No paid upgrade or onchain transaction is enabled.</p></section>
-    <section className="tenx-panel"><h2>Coverage limits</h2><ul><li>Recent Pump migration-authority activity only; scans are bounded and may miss transactions.</li><li>Creation search inspects at most 3,000 bonding-curve signatures and three historical transactions.</li><li>WSOL-quoted canonical PumpSwap pools only.</li><li>Holder concentration remains unverified and blocks eligibility.</li><li>Provider market cap can be unavailable even when FDV exists.</li></ul></section>
+    <section className="tenx-panel"><h2>Local automation</h2><dl><dt>Timer heartbeat</dt><dd>{time(data.data.automation?.heartbeat_at ?? null)}</dd><dt>Next paced source refresh</dt><dd>{time(data.data.automation?.next_refresh_at ?? null)}</dd><dt>Last daily review check</dt><dd>{time(data.data.automation?.reviewed_at ?? null)}</dd></dl><p>Source requests are paced across the remaining free daily budget. Daily reports catch up hourly, even when source work is paused or exhausted. The workstation must be awake.</p><a href="/research">Review outcomes & proposals →</a></section>
+    <section className="tenx-panel"><h2>Coverage limits</h2><ul><li>Recent Pump migration-authority activity only; scans are bounded and may miss transactions.</li><li>Creation search inspects at most 3,000 bonding-curve signatures and three historical transactions.</li><li>WSOL-quoted canonical PumpSwap pools only.</li><li>Holder analysis requires a supply-reconciled owner inventory. Partial inventories cannot pass.</li><li>Provider market cap can be unavailable even when FDV exists.</li></ul></section>
     </> : !error && <p role="status">Loading source status…</p>}</>;
 }
 function AdminView() {
@@ -112,5 +144,5 @@ function AdminView() {
 export default function DiscoveryPage({ path }: { path: string }) {
   const clean = path.replace(/\/+$/, "");
   const match = clean.match(/^\/token\/solana\/([^/]+)$/);
-  return <main className="tenx-discovery"><nav aria-label="10X discovery navigation" className="tenx-nav"><a href="/discover" aria-current={clean === "/discover" ? "page" : undefined}>Discover</a><a href="/status" aria-current={clean === "/status" ? "page" : undefined}>Data status</a><a href="/admin/10x" aria-current={clean === "/admin/10x" ? "page" : undefined}>Admin</a><a href="/thesis">Thesis ↗</a></nav>{match ? <CandidateDetail key={match[1]} address={match[1]!} /> : clean === "/status" ? <StatusView /> : clean === "/admin/10x" ? <AdminView /> : <Discover />}</main>;
+  return <main className="tenx-discovery"><nav aria-label="10X discovery navigation" className="tenx-nav"><a href="/discover" aria-current={clean === "/discover" ? "page" : undefined}>Discover</a><a href="/research" aria-current={clean === "/research" ? "page" : undefined}>Daily review</a><a href="/status" aria-current={clean === "/status" ? "page" : undefined}>Data status</a><a href="/admin/10x" aria-current={clean === "/admin/10x" ? "page" : undefined}>Admin</a><a href="/thesis">Thesis ↗</a></nav>{match ? <CandidateDetail key={match[1]} address={match[1]!} /> : clean === "/status" ? <StatusView /> : clean === "/research" ? <ResearchView /> : clean === "/admin/10x" ? <AdminView /> : <Discover />}</main>;
 }

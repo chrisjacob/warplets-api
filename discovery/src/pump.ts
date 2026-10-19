@@ -103,6 +103,14 @@ export async function creationProof(tx: Transaction, mint: string, fetchedAt: st
   }
   return null;
 }
+export async function creationUser(tx: Transaction, mint: string): Promise<string | null> {
+  if (!await creationProof(tx, mint, new Date(tx.blockTime! * 1000).toISOString())) return null;
+  const ix = instructions(tx).find(ix => {
+    const d = descriptor(ix, ["create", "create_v2"]);
+    return d && mapped(ix, d.accounts).mint === mint;
+  });
+  return ix ? mapped(ix, descriptor(ix, ["create", "create_v2"])!.accounts).user ?? null : null;
+}
 export async function graduationProof(tx: Transaction, migration: Migration, fetchedAt: string): Promise<Proof> {
   const d = descriptor(migration.ix, ["migrate", "migrate_v2"]);
   if (!d) throw new Error("unsupported_migration");

@@ -3,7 +3,10 @@ import { DatabaseSync } from "node:sqlite";
 import { readFileSync } from "node:fs";
 import { sqliteD1 } from "../../app/functions/_lib/sqliteTestDb";
 import { fixtureCandidates, syntheticBundle } from "./fixtures";
-import { acquire, control, dryRun, reserveQuota, saveCandidate } from "./store";
+import { acquire, captureCohort, control, dryRun, reserveQuota, saveCandidate } from "./store";
+import { runReviews } from "./research";
+import { runMarketCycle } from "./market-cycle";
+import { DEFAULT_POLICY } from "./model";
 import worker, { handle, type LocalEnv } from "./worker";
 import { boundedJson, MAINNET_GENESIS, RpcClient } from "./rpc";
 import { runCycle } from "./ingest";
@@ -15,6 +18,7 @@ function fixture() {
   db.exec(readFileSync(new URL("../migrations/0001_discovery.sql", import.meta.url), "utf8"));
   db.exec(readFileSync(new URL("../migrations/0002_account_evidence.sql", import.meta.url), "utf8"));
   db.exec(readFileSync(new URL("../migrations/0003_fixture_isolation.sql", import.meta.url), "utf8"));
+  db.exec(readFileSync(new URL("../migrations/0004_research_history.sql", import.meta.url), "utf8"));
   const d1 = sqliteD1(db);
   const env: LocalEnv = { TENX_DB: d1, TENX_LOCAL_ONLY: "true", TENX_NODE_RELAY: "false", TENX_ADMIN_TOKEN: "a".repeat(64), TENX_RPC_URL: "https://api.mainnet-beta.solana.com", TENX_RPC_DAILY_LIMIT: "3000", TENX_MARKET_DAILY_LIMIT: "600", TENX_MARKET_ENABLED: "false" };
   return { db, d1, env };
@@ -22,6 +26,44 @@ function fixture() {
 const req = (path: string, init?: RequestInit) => new Request(`http://127.0.0.1:8794/api/10x/${path}`, init);
 function admin(body: unknown, token = "a".repeat(64)): RequestInit { return { method: "POST", headers: { authorization: `Bearer ${token}`, "content-type": "application/json" }, body: JSON.stringify(body) }; }
 describe("durable discovery state and public/admin API", () => {
+  it("retains immutable observation and first recommendation snapshots separately", async () => {
+    const { d1 } = fixture(), now = new Date("2026-10-20T00:00:00Z"), c = { ...(await fixtureCandidates(now))[0]!, mode: "live" as const };
+    await captureCohort(d1, c, now.toISOString());
+    const initial = await d1.prepare("SELECT payload,input_hash FROM tenx_cohorts").first();
+    const h = { version: "owners-v2" as const, layout_certified: true, status: "verified" as const, observed_at: now.toISOString(), context_slot: 30000, payload_hash: "a".repeat(64), supply_raw: "1000", inventoried_raw: "1000", account_count: 201, holder_count: 200, top1_pct: 1, top10_pct: 10, pool_pct: 50, creator_pct: 0, creator: c.address, owners: [], gaps: [] };
+    await captureCohort(d1, { ...c, holders: h }, now.toISOString());
+    expect(await d1.prepare("SELECT payload,input_hash FROM tenx_cohorts").first()).toEqual(initial);
+    expect((await d1.prepare("SELECT count(*) AS n FROM tenx_selections").first<{ n: number }>())?.n).toBe(1);
+    expect(await d1.prepare("SELECT payload FROM tenx_selections").first()).not.toEqual({ payload: (initial as { payload: string }).payload });
+  });
+  it("creates idempotent daily report revisions without provider calls and keeps absent outcomes unknown", async () => {
+    const { d1, env } = fixture(), prior = new Date("2026-10-18T00:00:00Z"), c = { ...(await fixtureCandidates(prior))[0]!, mode: "live" as const };
+    await saveCandidate(d1, c);
+    await runReviews(d1, new Date("2026-10-19T03:00:00Z")); await runReviews(d1, new Date("2026-10-19T04:00:00Z"));
+    expect((await d1.prepare("SELECT count(*) AS n FROM tenx_reviews").first<{ n: number }>())?.n).toBe(1);
+    const response = await (await handle(req("research/reviews"), env)).json() as { data: { reports: { counts: { measured: number; insufficient_data: number } }[]; automatic_policy_changes: boolean } };
+    expect(response.data.reports[0]?.counts).toMatchObject({ measured: 0, insufficient_data: 1 }); expect(response.data.automatic_policy_changes).toBe(false);
+    expect((await d1.prepare("SELECT count(*) AS n FROM tenx_usage").first<{ n: number }>())?.n).toBe(0);
+  });
+  it("batches market history under a lease, preserves risk data and validates history queries", async () => {
+    const { d1, env } = fixture(), now = new Date(), c = { ...(await fixtureCandidates(now))[0]!, mode: "live" as const };
+    await saveCandidate(d1, c);
+    const transport = vi.fn(async () => Response.json({ data: [{ attributes: { address: c.pool, base_token_price_usd: ".002", market_cap_usd: null, fdv_usd: "400000", reserve_in_usd: "50000", volume_usd: { h24: "5000" } }, relationships: { base_token: { data: { id: `solana_${c.address}` } } } }], included: [{ id: `solana_${c.address}`, type: "token", attributes: { image_url: "https://assets.geckoterminal.com/valid" } }] }));
+    const settings = { db: d1, rpcUrl: "https://rpc.example", rpcDailyLimit: 100, marketDailyLimit: 100, marketEnabled: true, transport };
+    expect(await runMarketCycle(settings, new Date(now.getTime() + 1000))).toMatchObject({ state: "succeeded", updated: 1 });
+    expect(await runMarketCycle(settings, new Date(now.getTime() + 2000))).toMatchObject({ state: "waiting" }); expect(transport).toHaveBeenCalledTimes(1);
+    const saved = JSON.parse((await d1.prepare("SELECT payload FROM tenx_candidates WHERE mode='live'").first<{ payload: string }>())!.payload);
+    expect(saved.risk).toEqual(c.risk); expect(saved.checked_at).toBe(c.checked_at); expect(saved.market.image_url).toBe("https://assets.geckoterminal.com/valid");
+    const history = await (await handle(req(`history/solana/${c.address}?hours=24`), env)).json() as { data: { points: unknown[] } };
+    expect(history.data.points).toHaveLength(2); expect((await worker.fetch(req(`history/solana/${c.address}?hours=999`), env)).status).toBe(400);
+  });
+  it("paces chain refresh without source calls before the scheduled next tick", async () => {
+    const { d1 } = fixture(), now = new Date();
+    await d1.prepare("UPDATE tenx_control SET next_refresh_at=?1 WHERE id=1").bind(new Date(now.getTime() + 300000).toISOString()).run();
+    const transport = vi.fn();
+    expect(await runCycle({ db: d1, rpcUrl: "https://rpc.example", rpcDailyLimit: 5000, marketDailyLimit: 600, marketEnabled: false, paced: true, transport }, now)).toMatchObject({ state: "waiting" }); expect(transport).not.toHaveBeenCalled();
+    expect(DEFAULT_POLICY.version).toBe("discovery-local-v2");
+  });
   it("reserves quotas atomically, including concurrent requests", async () => {
     const { d1 } = fixture(), reserve = reserveQuota(d1, { rpc: 3, market: 2 }, new Date());
     const result = await Promise.allSettled(Array.from({ length: 10 }, () => reserve("rpc")));

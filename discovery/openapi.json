@@ -351,6 +351,161 @@
         ]
       }
     },
+    "/api/10x/holder-evidence/{hash}": {
+      "get": {
+        "summary": "Replayable finalized owner inventory and reconciled mint supply",
+        "responses": {
+          "200": {
+            "description": "Success; cached public data includes timestamps, source freshness and coverage",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "401": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "403": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "404": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "409": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "413": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "415": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "503": {
+            "description": "Structured JSON error; no provider secrets"
+          }
+        },
+        "parameters": [
+          {
+            "name": "hash",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            }
+          }
+        ]
+      }
+    },
+    "/api/10x/history/solana/{address}": {
+      "get": {
+        "summary": "Saved local price and nullable market cap observations; no invented backfill",
+        "responses": {
+          "200": {
+            "description": "Success; cached public data includes timestamps, source freshness and coverage",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HistoryResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "401": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "403": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "404": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "409": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "413": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "415": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "503": {
+            "description": "Structured JSON error; no provider secrets"
+          }
+        },
+        "parameters": [
+          {
+            "name": "address",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "hours",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 168,
+              "default": 24
+            }
+          }
+        ]
+      }
+    },
+    "/api/10x/research/reviews": {
+      "get": {
+        "summary": "Daily outcome reports, chronological holdout proposals and evidence-based wallet associations",
+        "responses": {
+          "200": {
+            "description": "Success; cached public data includes timestamps, source freshness and coverage",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "401": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "403": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "404": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "409": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "413": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "415": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "503": {
+            "description": "Structured JSON error; no provider secrets"
+          }
+        }
+      }
+    },
     "/api/10x/system/status": {
       "get": {
         "summary": "Freshness, declared coverage gaps, UTC provider budgets and pauses",
@@ -481,7 +636,209 @@
     },
     "/api/10x/admin/refresh": {
       "post": {
-        "summary": "Run one bounded idempotent refresh",
+        "summary": "Run one bounded idempotent refresh; force skips pacing only, never pause, lease, quota or provider backoff",
+        "security": [
+          {
+            "localOperator": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 300
+                  },
+                  "force": {
+                    "type": "boolean",
+                    "default": false
+                  }
+                },
+                "required": [
+                  "reason"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success; cached public data includes timestamps, source freshness and coverage",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "401": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "403": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "404": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "409": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "413": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "415": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "503": {
+            "description": "Structured JSON error; no provider secrets"
+          }
+        }
+      }
+    },
+    "/api/10x/admin/market-refresh": {
+      "post": {
+        "summary": "Refresh up to 30 cached pool markets using one free source request",
+        "security": [
+          {
+            "localOperator": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 300
+                  }
+                },
+                "required": [
+                  "reason"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success; cached public data includes timestamps, source freshness and coverage",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "401": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "403": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "404": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "409": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "413": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "415": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "503": {
+            "description": "Structured JSON error; no provider secrets"
+          }
+        }
+      }
+    },
+    "/api/10x/admin/maintenance": {
+      "post": {
+        "summary": "Record local heartbeat and catch up daily reviews without provider calls",
+        "security": [
+          {
+            "localOperator": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 300
+                  }
+                },
+                "required": [
+                  "reason"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success; cached public data includes timestamps, source freshness and coverage",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "401": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "403": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "404": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "409": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "413": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "415": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "503": {
+            "description": "Structured JSON error; no provider secrets"
+          }
+        }
+      }
+    },
+    "/api/10x/admin/review": {
+      "post": {
+        "summary": "Recompute prior daily outcome reports; proposals remain inactive",
         "security": [
           {
             "localOperator": []
@@ -1044,7 +1401,11 @@
               },
               "holder_concentration": {
                 "type": "string",
-                "const": "unknown"
+                "enum": [
+                  "unknown",
+                  "verified",
+                  "partial"
+                ]
               },
               "pool_reserves_verified": {
                 "type": "boolean"
@@ -1180,6 +1541,18 @@
                         "type": "null"
                       }
                     ]
+                  },
+                  "image_url": {
+                    "default": null,
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 2048
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
                   }
                 },
                 "required": [
@@ -1190,7 +1563,8 @@
                   "market_cap_usd",
                   "fdv_usd",
                   "liquidity_usd",
-                  "volume_24h_usd"
+                  "volume_24h_usd",
+                  "image_url"
                 ],
                 "additionalProperties": false
               },
@@ -1208,6 +1582,203 @@
             "type": "string",
             "format": "date-time",
             "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+          },
+          "holders": {
+            "default": null,
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "version": {
+                    "type": "string",
+                    "enum": [
+                      "owners-v1",
+                      "owners-v2"
+                    ]
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "verified",
+                      "partial",
+                      "unavailable"
+                    ]
+                  },
+                  "layout_certified": {
+                    "default": false,
+                    "type": "boolean"
+                  },
+                  "observed_at": {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                  },
+                  "context_slot": {
+                    "anyOf": [
+                      {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "payload_hash": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "pattern": "^[a-f0-9]{64}$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "supply_raw": {
+                    "type": "string",
+                    "pattern": "^\\d+$"
+                  },
+                  "inventoried_raw": {
+                    "type": "string",
+                    "pattern": "^\\d+$"
+                  },
+                  "account_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "holder_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "top1_pct": {
+                    "anyOf": [
+                      {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 100
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "top10_pct": {
+                    "anyOf": [
+                      {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 100
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "pool_pct": {
+                    "anyOf": [
+                      {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 100
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "creator_pct": {
+                    "anyOf": [
+                      {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 100
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "creator": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "owners": {
+                    "maxItems": 20,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "owner": {
+                          "type": "string"
+                        },
+                        "amount_raw": {
+                          "type": "string"
+                        },
+                        "supply_pct": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 100
+                        },
+                        "role": {
+                          "type": "string",
+                          "enum": [
+                            "holder",
+                            "canonical_pool_vault"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "owner",
+                        "amount_raw",
+                        "supply_pct",
+                        "role"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "gaps": {
+                    "maxItems": 20,
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "version",
+                  "status",
+                  "layout_certified",
+                  "observed_at",
+                  "context_slot",
+                  "payload_hash",
+                  "supply_raw",
+                  "inventoried_raw",
+                  "account_count",
+                  "holder_count",
+                  "top1_pct",
+                  "top10_pct",
+                  "pool_pct",
+                  "creator_pct",
+                  "creator",
+                  "owners",
+                  "gaps"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "mode": {
             "type": "string",
@@ -1261,6 +1832,7 @@
           "market",
           "first_seen_at",
           "checked_at",
+          "holders",
           "mode",
           "eligibility",
           "reasons",
@@ -1342,7 +1914,10 @@
         "properties": {
           "version": {
             "type": "string",
-            "const": "discovery-local-v1"
+            "enum": [
+              "discovery-local-v1",
+              "discovery-local-v2"
+            ]
           },
           "max_candidates": {
             "type": "integer",
@@ -1373,6 +1948,36 @@
           },
           "require_holder_evidence": {
             "type": "boolean"
+          },
+          "min_holders": {
+            "default": 100,
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100000
+          },
+          "max_top1_pct": {
+            "default": 10,
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "max_top10_pct": {
+            "default": 35,
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "max_creator_pct": {
+            "default": 5,
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "max_holder_age_seconds": {
+            "default": 1800,
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
           }
         },
         "required": [
@@ -1383,7 +1988,12 @@
           "min_liquidity_usd",
           "max_market_age_seconds",
           "max_risk_age_seconds",
-          "require_holder_evidence"
+          "require_holder_evidence",
+          "min_holders",
+          "max_top1_pct",
+          "max_top10_pct",
+          "max_creator_pct",
+          "max_holder_age_seconds"
         ],
         "additionalProperties": false
       },
@@ -1703,7 +2313,11 @@
                         },
                         "holder_concentration": {
                           "type": "string",
-                          "const": "unknown"
+                          "enum": [
+                            "unknown",
+                            "verified",
+                            "partial"
+                          ]
                         },
                         "pool_reserves_verified": {
                           "type": "boolean"
@@ -1839,6 +2453,18 @@
                                   "type": "null"
                                 }
                               ]
+                            },
+                            "image_url": {
+                              "default": null,
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "maxLength": 2048
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
                             }
                           },
                           "required": [
@@ -1849,7 +2475,8 @@
                             "market_cap_usd",
                             "fdv_usd",
                             "liquidity_usd",
-                            "volume_24h_usd"
+                            "volume_24h_usd",
+                            "image_url"
                           ],
                           "additionalProperties": false
                         },
@@ -1867,6 +2494,203 @@
                       "type": "string",
                       "format": "date-time",
                       "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                    },
+                    "holders": {
+                      "default": null,
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "version": {
+                              "type": "string",
+                              "enum": [
+                                "owners-v1",
+                                "owners-v2"
+                              ]
+                            },
+                            "status": {
+                              "type": "string",
+                              "enum": [
+                                "verified",
+                                "partial",
+                                "unavailable"
+                              ]
+                            },
+                            "layout_certified": {
+                              "default": false,
+                              "type": "boolean"
+                            },
+                            "observed_at": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                            },
+                            "context_slot": {
+                              "anyOf": [
+                                {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 9007199254740991
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "payload_hash": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "pattern": "^[a-f0-9]{64}$"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "supply_raw": {
+                              "type": "string",
+                              "pattern": "^\\d+$"
+                            },
+                            "inventoried_raw": {
+                              "type": "string",
+                              "pattern": "^\\d+$"
+                            },
+                            "account_count": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            "holder_count": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            "top1_pct": {
+                              "anyOf": [
+                                {
+                                  "type": "number",
+                                  "minimum": 0,
+                                  "maximum": 100
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "top10_pct": {
+                              "anyOf": [
+                                {
+                                  "type": "number",
+                                  "minimum": 0,
+                                  "maximum": 100
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "pool_pct": {
+                              "anyOf": [
+                                {
+                                  "type": "number",
+                                  "minimum": 0,
+                                  "maximum": 100
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "creator_pct": {
+                              "anyOf": [
+                                {
+                                  "type": "number",
+                                  "minimum": 0,
+                                  "maximum": 100
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "creator": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "owners": {
+                              "maxItems": 20,
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "owner": {
+                                    "type": "string"
+                                  },
+                                  "amount_raw": {
+                                    "type": "string"
+                                  },
+                                  "supply_pct": {
+                                    "type": "number",
+                                    "minimum": 0,
+                                    "maximum": 100
+                                  },
+                                  "role": {
+                                    "type": "string",
+                                    "enum": [
+                                      "holder",
+                                      "canonical_pool_vault"
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "owner",
+                                  "amount_raw",
+                                  "supply_pct",
+                                  "role"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "gaps": {
+                              "maxItems": 20,
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            }
+                          },
+                          "required": [
+                            "version",
+                            "status",
+                            "layout_certified",
+                            "observed_at",
+                            "context_slot",
+                            "payload_hash",
+                            "supply_raw",
+                            "inventoried_raw",
+                            "account_count",
+                            "holder_count",
+                            "top1_pct",
+                            "top10_pct",
+                            "pool_pct",
+                            "creator_pct",
+                            "creator",
+                            "owners",
+                            "gaps"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
                     },
                     "mode": {
                       "type": "string",
@@ -1920,6 +2744,7 @@
                     "market",
                     "first_seen_at",
                     "checked_at",
+                    "holders",
                     "mode",
                     "eligibility",
                     "reasons",
@@ -2298,7 +3123,11 @@
                   },
                   "holder_concentration": {
                     "type": "string",
-                    "const": "unknown"
+                    "enum": [
+                      "unknown",
+                      "verified",
+                      "partial"
+                    ]
                   },
                   "pool_reserves_verified": {
                     "type": "boolean"
@@ -2434,6 +3263,18 @@
                             "type": "null"
                           }
                         ]
+                      },
+                      "image_url": {
+                        "default": null,
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "maxLength": 2048
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
                       }
                     },
                     "required": [
@@ -2444,7 +3285,8 @@
                       "market_cap_usd",
                       "fdv_usd",
                       "liquidity_usd",
-                      "volume_24h_usd"
+                      "volume_24h_usd",
+                      "image_url"
                     ],
                     "additionalProperties": false
                   },
@@ -2462,6 +3304,203 @@
                 "type": "string",
                 "format": "date-time",
                 "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+              },
+              "holders": {
+                "default": null,
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "version": {
+                        "type": "string",
+                        "enum": [
+                          "owners-v1",
+                          "owners-v2"
+                        ]
+                      },
+                      "status": {
+                        "type": "string",
+                        "enum": [
+                          "verified",
+                          "partial",
+                          "unavailable"
+                        ]
+                      },
+                      "layout_certified": {
+                        "default": false,
+                        "type": "boolean"
+                      },
+                      "observed_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                      },
+                      "context_slot": {
+                        "anyOf": [
+                          {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "payload_hash": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "pattern": "^[a-f0-9]{64}$"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "supply_raw": {
+                        "type": "string",
+                        "pattern": "^\\d+$"
+                      },
+                      "inventoried_raw": {
+                        "type": "string",
+                        "pattern": "^\\d+$"
+                      },
+                      "account_count": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "holder_count": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "top1_pct": {
+                        "anyOf": [
+                          {
+                            "type": "number",
+                            "minimum": 0,
+                            "maximum": 100
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "top10_pct": {
+                        "anyOf": [
+                          {
+                            "type": "number",
+                            "minimum": 0,
+                            "maximum": 100
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "pool_pct": {
+                        "anyOf": [
+                          {
+                            "type": "number",
+                            "minimum": 0,
+                            "maximum": 100
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "creator_pct": {
+                        "anyOf": [
+                          {
+                            "type": "number",
+                            "minimum": 0,
+                            "maximum": 100
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "creator": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "owners": {
+                        "maxItems": 20,
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "owner": {
+                              "type": "string"
+                            },
+                            "amount_raw": {
+                              "type": "string"
+                            },
+                            "supply_pct": {
+                              "type": "number",
+                              "minimum": 0,
+                              "maximum": 100
+                            },
+                            "role": {
+                              "type": "string",
+                              "enum": [
+                                "holder",
+                                "canonical_pool_vault"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "owner",
+                            "amount_raw",
+                            "supply_pct",
+                            "role"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "gaps": {
+                        "maxItems": 20,
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "required": [
+                      "version",
+                      "status",
+                      "layout_certified",
+                      "observed_at",
+                      "context_slot",
+                      "payload_hash",
+                      "supply_raw",
+                      "inventoried_raw",
+                      "account_count",
+                      "holder_count",
+                      "top1_pct",
+                      "top10_pct",
+                      "pool_pct",
+                      "creator_pct",
+                      "creator",
+                      "owners",
+                      "gaps"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
               },
               "mode": {
                 "type": "string",
@@ -2515,6 +3554,7 @@
               "market",
               "first_seen_at",
               "checked_at",
+              "holders",
               "mode",
               "eligibility",
               "reasons",
@@ -2709,7 +3749,10 @@
                 "properties": {
                   "version": {
                     "type": "string",
-                    "const": "discovery-local-v1"
+                    "enum": [
+                      "discovery-local-v1",
+                      "discovery-local-v2"
+                    ]
                   },
                   "max_candidates": {
                     "type": "integer",
@@ -2740,6 +3783,36 @@
                   },
                   "require_holder_evidence": {
                     "type": "boolean"
+                  },
+                  "min_holders": {
+                    "default": 100,
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 100000
+                  },
+                  "max_top1_pct": {
+                    "default": 10,
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100
+                  },
+                  "max_top10_pct": {
+                    "default": 35,
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100
+                  },
+                  "max_creator_pct": {
+                    "default": 5,
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100
+                  },
+                  "max_holder_age_seconds": {
+                    "default": 1800,
+                    "type": "integer",
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991
                   }
                 },
                 "required": [
@@ -2750,7 +3823,12 @@
                   "min_liquidity_usd",
                   "max_market_age_seconds",
                   "max_risk_age_seconds",
-                  "require_holder_evidence"
+                  "require_holder_evidence",
+                  "min_holders",
+                  "max_top1_pct",
+                  "max_top10_pct",
+                  "max_creator_pct",
+                  "max_holder_age_seconds"
                 ],
                 "additionalProperties": false
               },
@@ -2790,6 +3868,59 @@
                   "social_publishing"
                 ],
                 "additionalProperties": false
+              },
+              "automation": {
+                "type": "object",
+                "properties": {
+                  "heartbeat_at": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "next_refresh_at": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "reviewed_at": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "review_timezone": {
+                    "type": "string"
+                  },
+                  "review_cadence": {
+                    "type": "string"
+                  },
+                  "refresh_cadence": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "heartbeat_at",
+                  "next_refresh_at",
+                  "reviewed_at",
+                  "review_timezone",
+                  "review_cadence",
+                  "refresh_cadence"
+                ],
+                "additionalProperties": false
               }
             },
             "required": [
@@ -2804,6 +3935,809 @@
               "adapter_version",
               "policy",
               "capabilities"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "api_version",
+          "trace_id",
+          "as_of",
+          "served_at",
+          "policy_version",
+          "source_freshness",
+          "coverage",
+          "data"
+        ],
+        "additionalProperties": false
+      },
+      "HistoryResponse": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "api_version": {
+            "type": "string",
+            "const": "10x-discovery-v1"
+          },
+          "trace_id": {
+            "type": "string"
+          },
+          "as_of": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "served_at": {
+            "type": "string"
+          },
+          "policy_version": {
+            "type": "string"
+          },
+          "source_freshness": {
+            "type": "object",
+            "properties": {
+              "last_harvest": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "last_success": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "stale": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "last_harvest",
+              "last_success",
+              "stale"
+            ],
+            "additionalProperties": false
+          },
+          "coverage": {
+            "type": "object",
+            "properties": {
+              "exhaustive": {
+                "type": "boolean",
+                "const": false
+              },
+              "scope": {
+                "type": "string"
+              },
+              "history_limit": {
+                "type": "number"
+              },
+              "quote_support": {
+                "type": "string"
+              },
+              "holder_classification": {
+                "type": "string"
+              },
+              "market_enabled": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "exhaustive",
+              "scope",
+              "history_limit",
+              "quote_support",
+              "holder_classification",
+              "market_enabled"
+            ],
+            "additionalProperties": false
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "address": {
+                "type": "string"
+              },
+              "source": {
+                "type": "string",
+                "const": "geckoterminal"
+              },
+              "coverage": {
+                "type": "string",
+                "const": "local_observations_only"
+              },
+              "points": {
+                "maxItems": 1000,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "source": {
+                      "type": "string",
+                      "const": "geckoterminal"
+                    },
+                    "fetched_at": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                    },
+                    "observed_at": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "price_usd": {
+                      "anyOf": [
+                        {
+                          "type": "number",
+                          "minimum": 0
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "market_cap_usd": {
+                      "anyOf": [
+                        {
+                          "type": "number",
+                          "minimum": 0
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "fdv_usd": {
+                      "anyOf": [
+                        {
+                          "type": "number",
+                          "minimum": 0
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "liquidity_usd": {
+                      "anyOf": [
+                        {
+                          "type": "number",
+                          "minimum": 0
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "volume_24h_usd": {
+                      "anyOf": [
+                        {
+                          "type": "number",
+                          "minimum": 0
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "image_url": {
+                      "default": null,
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "maxLength": 2048
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "source",
+                    "fetched_at",
+                    "observed_at",
+                    "price_usd",
+                    "market_cap_usd",
+                    "fdv_usd",
+                    "liquidity_usd",
+                    "volume_24h_usd",
+                    "image_url"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "address",
+              "source",
+              "coverage",
+              "points"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "api_version",
+          "trace_id",
+          "as_of",
+          "served_at",
+          "policy_version",
+          "source_freshness",
+          "coverage",
+          "data"
+        ],
+        "additionalProperties": false
+      },
+      "ReviewsResponse": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "api_version": {
+            "type": "string",
+            "const": "10x-discovery-v1"
+          },
+          "trace_id": {
+            "type": "string"
+          },
+          "as_of": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "served_at": {
+            "type": "string"
+          },
+          "policy_version": {
+            "type": "string"
+          },
+          "source_freshness": {
+            "type": "object",
+            "properties": {
+              "last_harvest": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "last_success": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "stale": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "last_harvest",
+              "last_success",
+              "stale"
+            ],
+            "additionalProperties": false
+          },
+          "coverage": {
+            "type": "object",
+            "properties": {
+              "exhaustive": {
+                "type": "boolean",
+                "const": false
+              },
+              "scope": {
+                "type": "string"
+              },
+              "history_limit": {
+                "type": "number"
+              },
+              "quote_support": {
+                "type": "string"
+              },
+              "holder_classification": {
+                "type": "string"
+              },
+              "market_enabled": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "exhaustive",
+              "scope",
+              "history_limit",
+              "quote_support",
+              "holder_classification",
+              "market_enabled"
+            ],
+            "additionalProperties": false
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "reports": {
+                "maxItems": 7,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "day": {
+                      "type": "string"
+                    },
+                    "timezone": {
+                      "type": "string",
+                      "const": "Australia/Sydney"
+                    },
+                    "version": {
+                      "type": "string",
+                      "const": "outcomes-v1"
+                    },
+                    "input_hash": {
+                      "type": "string"
+                    },
+                    "created_at": {
+                      "type": "string"
+                    },
+                    "policy_activation": {
+                      "type": "string",
+                      "const": "review_required"
+                    },
+                    "counts": {
+                      "type": "object",
+                      "properties": {
+                        "observed": {
+                          "type": "number"
+                        },
+                        "recommended": {
+                          "type": "number"
+                        },
+                        "measured": {
+                          "type": "number"
+                        },
+                        "pending": {
+                          "type": "number"
+                        },
+                        "insufficient_data": {
+                          "type": "number"
+                        },
+                        "severe_loss_signals": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "observed",
+                        "recommended",
+                        "measured",
+                        "pending",
+                        "insufficient_data",
+                        "severe_loss_signals"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "outcomes": {
+                      "maxItems": 100,
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "address": {
+                            "type": "string"
+                          },
+                          "symbol": {
+                            "type": "string"
+                          },
+                          "recommended": {
+                            "type": "boolean"
+                          },
+                          "selected_at": {
+                            "type": "string"
+                          },
+                          "input_hash": {
+                            "type": "string"
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "pending",
+                              "measured",
+                              "insufficient_data"
+                            ]
+                          },
+                          "outcome": {
+                            "type": "string",
+                            "enum": [
+                              "severe_loss_signal",
+                              "positive",
+                              "negative",
+                              "flat",
+                              "unmeasured"
+                            ]
+                          },
+                          "return_24h_pct": {
+                            "anyOf": [
+                              {
+                                "type": "number"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "observed_max_drawdown_pct": {
+                            "anyOf": [
+                              {
+                                "type": "number"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "liquidity_change_pct": {
+                            "anyOf": [
+                              {
+                                "type": "number"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "endpoint_at": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "gaps": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "features": {
+                            "type": "object",
+                            "properties": {
+                              "holders": {
+                                "anyOf": [
+                                  {
+                                    "type": "number"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "top1_pct": {
+                                "anyOf": [
+                                  {
+                                    "type": "number"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "top10_pct": {
+                                "anyOf": [
+                                  {
+                                    "type": "number"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "creator_pct": {
+                                "anyOf": [
+                                  {
+                                    "type": "number"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "liquidity_usd": {
+                                "anyOf": [
+                                  {
+                                    "type": "number"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "volume_24h_usd": {
+                                "anyOf": [
+                                  {
+                                    "type": "number"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "fees_produced_usd": {
+                                "type": "null"
+                              },
+                              "bundle_risk": {
+                                "type": "string",
+                                "const": "unknown"
+                              },
+                              "buyer_wallet_risk": {
+                                "type": "string",
+                                "const": "unknown"
+                              }
+                            },
+                            "required": [
+                              "holders",
+                              "top1_pct",
+                              "top10_pct",
+                              "creator_pct",
+                              "liquidity_usd",
+                              "volume_24h_usd",
+                              "fees_produced_usd",
+                              "bundle_risk",
+                              "buyer_wallet_risk"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "wallets": {
+                            "maxItems": 21,
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "wallet": {
+                                  "type": "string"
+                                },
+                                "role": {
+                                  "type": "string",
+                                  "enum": [
+                                    "creation_user",
+                                    "large_owner"
+                                  ]
+                                },
+                                "evidence_hash": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "wallet",
+                                "role",
+                                "evidence_hash"
+                              ],
+                              "additionalProperties": false
+                            }
+                          }
+                        },
+                        "required": [
+                          "address",
+                          "symbol",
+                          "recommended",
+                          "selected_at",
+                          "input_hash",
+                          "status",
+                          "outcome",
+                          "return_24h_pct",
+                          "observed_max_drawdown_pct",
+                          "liquidity_change_pct",
+                          "endpoint_at",
+                          "gaps",
+                          "features",
+                          "wallets"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "proposals": {
+                      "maxItems": 12,
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "feature": {
+                            "type": "string",
+                            "enum": [
+                              "top1_pct",
+                              "top10_pct",
+                              "holders",
+                              "liquidity_usd"
+                            ]
+                          },
+                          "threshold": {
+                            "type": "number"
+                          },
+                          "direction": {
+                            "type": "string",
+                            "enum": [
+                              "maximum",
+                              "minimum"
+                            ]
+                          },
+                          "train_count": {
+                            "type": "number"
+                          },
+                          "validation_count": {
+                            "type": "number"
+                          },
+                          "validation_flagged": {
+                            "type": "number"
+                          },
+                          "validation_loss_precision": {
+                            "type": "number"
+                          },
+                          "validation_nonloss_excluded": {
+                            "type": "number"
+                          },
+                          "validation_baseline_loss_rate": {
+                            "type": "number"
+                          },
+                          "activated": {
+                            "type": "boolean",
+                            "const": false
+                          },
+                          "status": {
+                            "type": "string",
+                            "const": "research_proposal"
+                          }
+                        },
+                        "required": [
+                          "feature",
+                          "threshold",
+                          "direction",
+                          "train_count",
+                          "validation_count",
+                          "validation_flagged",
+                          "validation_loss_precision",
+                          "validation_nonloss_excluded",
+                          "validation_baseline_loss_rate",
+                          "activated",
+                          "status"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "wallet_watch": {
+                      "maxItems": 50,
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "wallet": {
+                            "type": "string"
+                          },
+                          "role": {
+                            "type": "string"
+                          },
+                          "distinct_tokens": {
+                            "type": "number"
+                          },
+                          "severe_loss_associations": {
+                            "type": "number"
+                          },
+                          "evidence_hashes": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "label": {
+                            "type": "string",
+                            "const": "review_association_not_fraud_finding"
+                          }
+                        },
+                        "required": [
+                          "wallet",
+                          "role",
+                          "distinct_tokens",
+                          "severe_loss_associations",
+                          "evidence_hashes",
+                          "label"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "gaps": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "required": [
+                    "day",
+                    "timezone",
+                    "version",
+                    "input_hash",
+                    "created_at",
+                    "policy_activation",
+                    "counts",
+                    "outcomes",
+                    "proposals",
+                    "wallet_watch",
+                    "gaps"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "automatic_policy_changes": {
+                "type": "boolean",
+                "const": false
+              },
+              "collection": {
+                "type": "object",
+                "properties": {
+                  "day": {
+                    "type": "string"
+                  },
+                  "tokens": {
+                    "type": "number"
+                  },
+                  "recommended": {
+                    "type": "number"
+                  },
+                  "last_snapshot_at": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "day",
+                  "tokens",
+                  "recommended",
+                  "last_snapshot_at"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "reports",
+              "automatic_policy_changes",
+              "collection"
             ],
             "additionalProperties": false
           }

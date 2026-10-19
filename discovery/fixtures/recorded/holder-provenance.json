@@ -1,0 +1,12 @@
+{
+  "source": "https://api.mainnet-beta.solana.com",
+  "commitment": "finalized",
+  "captured_at": "2026-10-19T22:39:09.381Z",
+  "stored_payload_hash": "83fe6e52e7ff0c5450f77d8c17f67bb3cd1ae467cb6174c6d7728fd65a7c687b",
+  "methods": [
+    "getProgramAccounts",
+    "getMultipleAccounts"
+  ],
+  "read_only": true,
+  "warning": "Historical RPC-attested owner inventory only; not current eligibility, beneficial ownership, or proof of safety."
+}

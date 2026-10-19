@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { ListResponse, StatusResponse } from "../app/src/discovery/client";
+import { HistoryResponse, ListResponse, ReviewsResponse, StatusResponse } from "../app/src/discovery/client";
+import { analyzeHolders, HolderEvidenceSchema } from "../discovery/src/holders";
 import { creationProof, migrations, verifyState } from "../discovery/src/pump";
 import { AccountsSchema, TransactionSchema } from "../discovery/src/rpc";
 import { hashJson } from "../discovery/src/solana";
@@ -36,6 +37,18 @@ for (const candidate of list.data.candidates.slice(0, 4)) {
     assert.equal(risk.context_slot, candidate.risk.context_slot); accountSnapshots++;
   }
 }
+let holderSnapshots = 0;
+for (const candidate of list.data.candidates.filter(c => c.holders?.payload_hash).slice(0, 3)) {
+  const saved = await get(`holder-evidence/${candidate.holders!.payload_hash}`);
+  const payload = HolderEvidenceSchema.parse(saved.data.payload);
+  assert.equal(await hashJson(payload), candidate.holders!.payload_hash);
+  const replayed = await analyzeHolders(payload, candidate.holders!.observed_at);
+  assert.deepEqual(replayed, candidate.holders); holderSnapshots++;
+}
+const sample = list.data.candidates.find(c => c.market);
+const history = sample ? HistoryResponse.parse(await get(`history/solana/${sample.address}?hours=168`)) : null;
+const reviews = ReviewsResponse.parse(await get("research/reviews"));
+assert.ok(reviews.data.reports.every(r => r.proposals.every(p => p.activated === false)));
 const token = readFileSync(new URL("../discovery/.dev.vars", import.meta.url), "utf8").match(/^TENX_ADMIN_TOKEN=([a-f0-9]{64})\s*$/m)?.[1];
 assert.ok(token);
 const jobResponse = await fetch(`${base}/admin/jobs`, { headers: { authorization: `Bearer ${token}` } });
@@ -43,4 +56,4 @@ assert.equal(jobResponse.status, 200); assert.ok(!(await jobResponse.text()).inc
 const dryResponse = await fetch(`${base}/admin/dry-run`, { method: "POST", headers: { authorization: `Bearer ${token}`, "content-type": "application/json" }, body: JSON.stringify({ reason: "Local milestone smoke check" }) });
 assert.equal(dryResponse.status, 200);
 const dry = await dryResponse.json(); assert.equal(dry.launch_enabled, false); assert.equal(await hashJson(dry.inputs), dry.input_hash);
-console.log(JSON.stringify({ candidates: list.data.candidates.length, counts: list.data.counts, paired_proofs_replayed: paired, account_snapshots_replayed: accountSnapshots, admin_unauthorized: 401, authenticated_jobs: 200, election: dry.outcome, launch_enabled: false, source_requests_made_by_this_check: 0 }, null, 2));
+console.log(JSON.stringify({ candidates: list.data.candidates.length, counts: list.data.counts, paired_proofs_replayed: paired, account_snapshots_replayed: accountSnapshots, holder_snapshots_replayed: holderSnapshots, tokens_with_images: list.data.candidates.filter(c => c.market?.image_url).length, history_samples: history?.data.points.length ?? 0, daily_reports: reviews.data.reports.length, admin_unauthorized: 401, authenticated_jobs: 200, election: dry.outcome, launch_enabled: false, source_requests_made_by_this_check: 0 }, null, 2));

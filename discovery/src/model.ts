@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { validAddress } from "./solana";
+import { HolderSchema } from "./holder-model";
 
 export const Address = z.string().max(44).refine(validAddress, "Invalid Solana address");
 export const Signature = z.string().regex(/^[1-9A-HJ-NP-Za-km-z]{64,88}$/);
@@ -20,6 +21,7 @@ export const MarketSchema = z.object({
   fdv_usd: z.number().finite().nonnegative().nullable(),
   liquidity_usd: z.number().finite().nonnegative().nullable(),
   volume_24h_usd: z.number().finite().nonnegative().nullable(),
+  image_url: z.string().max(2048).nullable().default(null),
 }).strict();
 export type Market = z.infer<typeof MarketSchema>;
 export const CandidateSchema = z.object({
@@ -32,27 +34,32 @@ export const CandidateSchema = z.object({
     mint_authority: z.enum(["revoked", "active", "unknown"]),
     freeze_authority: z.enum(["revoked", "active", "unknown"]),
     token_program: z.string(), mint_extensions: z.array(z.number().int()),
-    holder_concentration: z.literal("unknown"),
+    holder_concentration: z.enum(["unknown", "verified", "partial"]),
     pool_reserves_verified: z.boolean(), observed_at: z.string().datetime().nullable(),
     context_slot: z.number().int().safe().nonnegative().nullable().default(null),
     payload_hash: z.string().regex(/^[a-f0-9]{64}$/).nullable().default(null),
   }).strict(),
   market: MarketSchema.nullable(), first_seen_at: z.string().datetime(), checked_at: z.string().datetime(),
+  holders: HolderSchema.nullable().default(null),
   mode: z.enum(["live", "fixture"]),
 }).strict();
 export type Candidate = z.infer<typeof CandidateSchema>;
 export const PolicySchema = z.object({
-  version: z.literal("discovery-local-v1"), max_candidates: z.number().int().min(1).max(100),
+  version: z.enum(["discovery-local-v1", "discovery-local-v2"]), max_candidates: z.number().int().min(1).max(100),
   max_age_hours: z.literal(24), min_market_cap_usd: z.number().finite().nonnegative(),
   min_liquidity_usd: z.number().finite().nonnegative(), max_market_age_seconds: z.number().int().positive(),
   max_risk_age_seconds: z.number().int().positive(), require_holder_evidence: z.boolean(),
+  min_holders: z.number().int().min(1).max(100000).default(100),
+  max_top1_pct: z.number().min(0).max(100).default(10), max_top10_pct: z.number().min(0).max(100).default(35),
+  max_creator_pct: z.number().min(0).max(100).default(5), max_holder_age_seconds: z.number().int().positive().default(1800),
 }).strict();
 export type Policy = z.infer<typeof PolicySchema>;
 export const DEFAULT_POLICY: Policy = {
-  version: "discovery-local-v1", max_candidates: 100, max_age_hours: 24,
+  version: "discovery-local-v2", max_candidates: 100, max_age_hours: 24,
   min_market_cap_usd: 100_000, min_liquidity_usd: 25_000,
   max_market_age_seconds: 180, max_risk_age_seconds: 600,
   require_holder_evidence: true,
+  min_holders: 100, max_top1_pct: 10, max_top10_pct: 35, max_creator_pct: 5, max_holder_age_seconds: 1800,
 };
 export const AssessedCandidateSchema = CandidateSchema.extend({
   eligibility: z.enum(["eligible", "provisional", "excluded"]),
@@ -77,7 +84,19 @@ export function assess(candidate: Candidate, policy: Policy, now: Date): Assesse
   }
   if (!candidate.risk.pool_reserves_verified) unknown.push("pool_reserves_unverified");
   if (!candidate.risk.observed_at || now.getTime() - Date.parse(candidate.risk.observed_at) > policy.max_risk_age_seconds * 1000) unknown.push("risk_evidence_stale");
-  if (policy.require_holder_evidence) unknown.push("holder_concentration_unknown");
+  if (policy.require_holder_evidence) {
+    const h = candidate.holders;
+    if (!h || h.status !== "verified" || h.version !== "owners-v2" || !h.layout_certified) unknown.push("holder_concentration_unknown");
+    if (h) {
+      if (now.getTime() - Date.parse(h.observed_at) > policy.max_holder_age_seconds * 1000 || Date.parse(h.observed_at) > now.getTime()) unknown.push("holder_evidence_stale");
+      // Partial inventories can demonstrate a failure, but cannot establish a pass.
+      if (h.top1_pct !== null && h.top1_pct > policy.max_top1_pct) exclude.push("top_holder_concentration_high");
+      if (h.top10_pct !== null && h.top10_pct > policy.max_top10_pct) exclude.push("top10_concentration_high");
+      if (h.creator_pct !== null && h.creator_pct > policy.max_creator_pct) exclude.push("creator_concentration_high");
+      if (h.status === "verified" && h.holder_count < policy.min_holders) exclude.push("too_few_holders");
+      if (h.creator_pct === null) unknown.push("creator_holdings_unknown");
+    }
+  }
   const market = candidate.market;
   if (!market) unknown.push("market_data_unavailable");
   else {
@@ -101,6 +120,7 @@ export function shortlist(candidates: Candidate[], policy: Policy, now: Date): A
     (b.market?.liquidity_usd ?? 0) - (a.market?.liquidity_usd ?? 0) ||
     (a.creation?.block_time ?? "").localeCompare(b.creation?.block_time ?? "") || a.address.localeCompare(b.address));
   const ranked = eligible.slice(0, policy.max_candidates).map((c, i) => ({ ...c, rank: i + 1 }));
-  const rest = rows.filter(c => c.eligibility !== "eligible").sort((a, b) => b.checked_at.localeCompare(a.checked_at) || a.address.localeCompare(b.address));
+  const recent = (c: Candidate) => !c.creation || now.getTime() - Date.parse(c.creation.block_time) <= 86400000;
+  const rest = rows.filter(c => c.eligibility !== "eligible").sort((a, b) => Number(recent(b)) - Number(recent(a)) || b.first_seen_at.localeCompare(a.first_seen_at) || a.address.localeCompare(b.address));
   return [...ranked, ...rest].slice(0, policy.max_candidates);
 }

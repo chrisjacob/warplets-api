@@ -49,6 +49,17 @@ console.log("Local discovery ready on port 8794. Timer: 60s. Operator token stay
 async function tick() {
   if (busy || stopping) return; busy = true;
   try {
+    const maintenance = await fetch(`${base}/api/10x/admin/maintenance`, {
+      method: "POST", headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+      body: JSON.stringify({ reason: "Local timer heartbeat and daily outcome review" }), signal: AbortSignal.timeout(120_000),
+    });
+    if (!maintenance.ok) console.warn("Discovery maintenance HTTP", maintenance.status);
+    const market = await fetch(`${base}/api/10x/admin/market-refresh`, {
+      method: "POST", headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+      body: JSON.stringify({ reason: "Local batched chart and image refresh" }), signal: AbortSignal.timeout(60000),
+    });
+    if (market.ok) console.log("Market cycle:", JSON.stringify(await market.json()));
+    else console.warn("Market cycle HTTP", market.status);
     const response = await fetch(`${base}/api/10x/admin/refresh`, {
       method: "POST", headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
       body: JSON.stringify({ reason: "Local bounded discovery timer" }), signal: AbortSignal.timeout(360_000),
