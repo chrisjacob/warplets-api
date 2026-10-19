@@ -14,9 +14,10 @@ export async function walletSnapshot(db: D1Database) {
   summary.expectedWallets=owners.size;
   let cursor='';
   for(;;){
-    const rows=await db.prepare(`SELECT address,usd_units,positions,excluded,observed_at,price_oldest_at FROM network_wallet_values WHERE address>? ORDER BY address LIMIT 500`).bind(cursor).all<{address:string;usd_units:string;positions:string;excluded:number;observed_at:number;price_oldest_at:number|null}>();
+    const rows=await db.prepare(`SELECT address,usd_units,positions,excluded,observed_at,price_oldest_at,source FROM network_wallet_values WHERE address>? ORDER BY address LIMIT 500`).bind(cursor).all<{address:string;usd_units:string;positions:string;excluded:number;observed_at:number;price_oldest_at:number|null;source:string}>();
     for(const row of rows.results){
       const owner=owners.get(row.address);if(!owner)continue;
+      if(row.source==='alchemy-base+defillama')summary.balanceRefreshHours=168;
       summary.measuredWallets++;summary.excludedBalances+=row.excluded;
       summary.oldestBalanceAt=Math.min(summary.oldestBalanceAt??row.observed_at,row.observed_at);summary.latestBalanceAt=Math.max(summary.latestBalanceAt??row.observed_at,row.observed_at);
       const positions=JSON.parse(row.positions??'[]') as PricedPosition[];
@@ -52,7 +53,7 @@ export async function walletSnapshot(db: D1Database) {
 }
 export function mergeWalletCells(rows:(NetworkCell&{fid:number})[], presentation:Awaited<ReturnType<typeof walletSnapshot>>['presentation']) {
   const cells=new Map<string,NetworkCell>();
-  for(const row of rows){const {fid,...profile}=row;const wallet=presentation.get(fid)??{held:'unavailable',walletUsdUnits:'0',portfolioValues:[]};const key=JSON.stringify([profile.country,profile.location,profile.token,profile.tokenStatus,profile.vote,profile.acceptedDay,wallet.held]);const previous=cells.get(key);
+  for(const row of rows){const {fid,...profile}=row;const wallet=presentation.get(fid)??{held:'unavailable',walletUsdUnits:'0',portfolioValues:[]};const key=JSON.stringify([profile.country,profile.state??null,profile.city??null,profile.location,profile.token,profile.tokenStatus,profile.vote,profile.acceptedDay,wallet.held,profile.activityMonths??[],profile.warpletHolder??false]);const previous=cells.get(key);
     if(previous){previous.count++;previous.walletUsdUnits=(BigInt(previous.walletUsdUnits??'0')+BigInt(wallet.walletUsdUnits)).toString();previous.portfolioValues!.push(...wallet.portfolioValues);}
     else cells.set(key,{...profile,count:1,...wallet,portfolioValues:[...wallet.portfolioValues]});
   }

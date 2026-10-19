@@ -14,7 +14,7 @@ const token=`eip155:8453/erc20:${address(999)}`;
 const units=(dollars:number)=>(BigInt(dollars)*100_000_000n).toString();
 function fixture(){
   const db=new DatabaseSync(':memory:');databases.push(db);
-  for(const file of ['0095_network.sql','0096_network_members.sql','0097_network_wallets.sql'])db.exec(readFileSync(new URL(`../../../../migrations/${file}`,import.meta.url),'utf8'));
+  for(const file of ['0095_network.sql','0096_network_members.sql','0097_network_wallets.sql','0098_network_activity.sql','0099_network_alchemy.sql','0100_network_geography.sql','0101_network_geography_matching.sql','0102_network_warplet_holders.sql'])db.exec(readFileSync(new URL(`../../../../migrations/${file}`,import.meta.url),'utf8'));
   for(let fid=1;fid<=5;fid++){
     db.prepare('INSERT INTO network_confirmed(fid,observed_at) VALUES(?,?)').run(fid,Date.now());
     db.prepare('INSERT INTO network_wallet_associations(fid,observed_at) VALUES(?,?)').run(fid,Date.now());
