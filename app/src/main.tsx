@@ -131,7 +131,7 @@ function resolveActiveApp() {
   if (cleanPath === "/stop" || cleanPath.startsWith("/stop/")) return <StopApp />;
   if (cleanPath === "/unsubscribe" || cleanPath.startsWith("/unsubscribe/")) return <UnsubscribeApp />;
 
-  return <App />;
+  return <App page={cleanPath === "/thesis" ? "thesis" : "home"} />;
 }
 
 function RootRouter() {

@@ -139,6 +139,7 @@ function HomeAccountControl({
         )}
         {open && (
           <AppViewport portalled={centered} onMouseDown={(event) => event.stopPropagation()} className={`search-header-account-menu${centered ? " search-header-account-menu--centered" : ""}`} role="menu">
+            <a href="/thesis" role="menuitem" onClick={() => onOpenChange(false)}>The 10X Thesis</a>
             {!isInMiniAppContext && (
               <button type="button" role="menuitem" className="search-header-account-menu__connection" onClick={() => runMenuAction(onOpen)}>
                 <span className="search-header-account-menu__avatar-frame"><img src="/base.webp" alt="" /></span>
@@ -186,6 +187,7 @@ function HomeAccountControl({
       </button>
       {open && (
         <AppViewport portalled={centered} onMouseDown={(event) => event.stopPropagation()} className={`search-header-account-menu${centered ? " search-header-account-menu--centered" : ""}`} role="menu">
+          <a href="/thesis" role="menuitem" onClick={() => onOpenChange(false)}>The 10X Thesis</a>
           {!isInMiniAppContext && (
             <button type="button" role="menuitem" className="search-header-account-menu__connection" onClick={() => runMenuAction(onOpen)}>
               <span className="search-header-account-menu__avatar-frame"><img src="/base.webp" alt="" /></span>
@@ -224,7 +226,8 @@ function HomeAccountControl({
   );
 }
 
-export default function App() {
+export default function App({ page = "home" }: { page?: "home" | "thesis" }) {
+  const isThesisRoute = page === "thesis";
   const walletController = useWalletController();
   const [showAddAppPrompt, setShowAddAppPrompt] = useState(false);
   const [notificationsOnlyPrompt, setNotificationsOnlyPrompt] = useState(false);
@@ -396,7 +399,9 @@ export default function App() {
     void initialize();
   }, [applySession]);
 
-  useEffect(() => { document.title = "10X.MEME — The 10X Thesis"; }, []);
+  useEffect(() => {
+    document.title = isThesisRoute ? "10X.MEME — The 10X Thesis" : "10X.MEME";
+  }, [isThesisRoute]);
   useEffect(() => {
     if (!actionError) return;
     const id = window.setTimeout(() => setActionError(""), 5_000);
@@ -422,7 +427,7 @@ export default function App() {
     }, { threshold: 0.12, rootMargin: "0px 0px -8% 0px" });
     observer.observe(section);
     return () => observer.disconnect();
-  }, []);
+  }, [isThesisRoute, isMenuRoute]);
 
   useEffect(() => {
     if (!webConnectOpen || isInMiniAppContext || viewerProfile) return;
@@ -590,7 +595,7 @@ export default function App() {
 
         {isMenuRoute ? (
           <MiniAppMenuPage appSlug="app" />
-        ) : (
+        ) : isThesisRoute ? (
           <main className="mx-auto w-full max-w-md px-4 pb-12 pt-6">
             <header className="text-center">
               <p className="text-lg font-black uppercase tracking-[0.18em] text-[#7959ff] drop-shadow-[0_0_5px_rgba(121,89,255,0.55)]">The 10X Thesis</p>
@@ -665,6 +670,8 @@ export default function App() {
               </div>
             )}
           </main>
+        ) : (
+          <main aria-label="10X.MEME home" className="mx-auto min-h-[60vh] w-full max-w-md" />
         )}
         <SiteFooter />
       </div>

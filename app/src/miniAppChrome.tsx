@@ -233,6 +233,7 @@ function pushMiniAppRoute(appSlug: AppSlug, path: string) {
     "",
     path
   );
+  window.dispatchEvent(new PopStateEvent("popstate", { state: window.history.state }));
 }
 
 function getCanGoBack(appSlug: AppSlug): boolean {
@@ -373,6 +374,7 @@ export function useMiniAppChrome(appSlug: AppSlug) {
           "",
           rootPath
         );
+        window.dispatchEvent(new PopStateEvent("popstate", { state: window.history.state }));
         syncRouteStateNow();
       }
     };
