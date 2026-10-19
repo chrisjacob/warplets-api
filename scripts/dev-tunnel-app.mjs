@@ -4,10 +4,18 @@ import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 
-const VITE_PORT = 5173;
+const VITE_PORT = Number(process.env.APP_LOCAL_VITE_PORT || 5173);
+if (!Number.isInteger(VITE_PORT) || VITE_PORT < 1 || VITE_PORT > 65535) {
+  throw new Error("APP_LOCAL_VITE_PORT must be an integer from 1 to 65535");
+}
 const API_PORT = 8788;
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const appDir = path.resolve(__dirname, "../app");
+// An isolated store lets a preview start without repairing or resetting other
+// local apps' data. Migrations and the API must always use the same store.
+const localPersistArgs = process.env.APP_LOCAL_PERSIST_TO?.trim()
+  ? ["--persist-to", process.env.APP_LOCAL_PERSIST_TO.trim()]
+  : [];
 
 const PUBLIC_URL = "https://app-local.10x.meme";
 const LOCAL_MINIAPP_BASE_URL = PUBLIC_URL;
@@ -18,7 +26,7 @@ function applyLocalMigrations() {
   console.log("Applying pending local D1 migrations...");
   const result = spawnSync(
     "pnpm",
-    ["wrangler", "d1", "migrations", "apply", "warplets", "--local"],
+    ["wrangler", "d1", "migrations", "apply", "warplets", "--local", ...localPersistArgs],
     {
       cwd: appDir,
       shell: process.platform === "win32",
@@ -72,6 +80,7 @@ function spawnApiWorker(port) {
     ".",
     "--port",
     String(port),
+    ...localPersistArgs,
     "--binding",
     `APP_SESSION_SECRET=${LOCAL_APP_SESSION_SECRET}`,
     "--binding",
@@ -142,9 +151,9 @@ async function waitForApi(port) {
 }
 
 async function main() {
-  applyLocalMigrations();
   await ensurePortAvailable(VITE_PORT, "Vite");
   await ensurePortAvailable(API_PORT, "API");
+  applyLocalMigrations();
 
   console.log(`Stable dev URL: ${PUBLIC_URL}`);
   console.log(`Local dev URL:  http://localhost:${VITE_PORT}`);
