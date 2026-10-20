@@ -1,4 +1,5 @@
-import { LaunchResult, LaunchScenario, LAUNCH_MATH_REVISION, METEORA_REVISION, type LaunchInput } from "./launch-model";
+import { AnyLaunchScenario, LaunchResult, LaunchScenario, LAUNCH_MATH_REVISION, METEORA_REVISION, type LaunchInput } from "./launch-model";
+import {evaluateFeeLaunch,feeSeedScenario} from "./launch-fees";
 import { amountA, amountB, curveSwap, liquidityFromA, LaunchError, MAX_SQRT, MIN_SQRT, Q128, Q64, U128_MAX, U64_MAX } from "./launch-curve";
 export { LaunchError } from "./launch-curve";
 type Pool = "native" | "og" | "tenx";
@@ -10,7 +11,7 @@ function fraction(n:bigint,d:bigint){const g=gcd(n,d);return {numerator:(n/g).to
 function fixed(n:bigint,d:bigint){const sign=n<0n?"-":"",v=(n<0n?-n:n)*100000000n/d;return `${sign}${v/100000000n}.${(v%100000000n).toString().padStart(8,"0")}`;}
 function price(sqrt:bigint,p:LaunchInput["pools"][Pool],decimals:number){return fraction(sqrt*sqrt*10n**BigInt(decimals)*BigInt(p.quote_native.numerator),Q128*10n**BigInt(p.quote_decimals)*BigInt(p.quote_native.denominator));}
 const raw=(n:bigint)=>{if(n<0n||n>U64_MAX)throw new LaunchError("launch_u64_inventory_bound");return n.toString();};
-export function evaluateLaunch(rawInput:unknown){
+export function evaluateNetLaunch(rawInput:unknown){
   const input=LaunchScenario.parse(rawInput),supply=BigInt(input.supply_raw);
   if(supply%10n!==0n)throw new LaunchError("launch_supply_requires_exact_tenths");
   if(input.pools.native.quote_decimals!==9||input.pools.native.quote_native.numerator!=="1"||input.pools.native.quote_native.denominator!=="1")throw new LaunchError("launch_native_quote_must_be_sol");
@@ -52,4 +53,8 @@ export function exampleLaunch():LaunchInput{
   return LaunchScenario.parse({version:"launch-curve-lab-v1",as_of:new Date().toISOString(),chain:"solana",attn_asset:"SIM-ATTN",attn_decimals:9,supply_raw:"1000000000000000",native_quote_budget_raw:"1000000000000000",reference_attn_native:{numerator:"1",denominator:"1"},max_opening_divergence_bps:100,
     pools:{native:range(q/2n,q,q*2n),og:range(q,q,q*2n,9),tenx:range(q,q,q*2n,9)},
     trades:[{pool:"og",direction:"attn_to_quote",net_input_raw:"1000000000"},{pool:"og",direction:"quote_to_attn",net_input_raw:"1000000000000"},{pool:"og",direction:"attn_to_quote",net_input_raw:"500000000000"},{pool:"tenx",direction:"quote_to_attn",net_input_raw:"1000000000000"},{pool:"native",direction:"quote_to_attn",net_input_raw:"1000000000000"},{pool:"tenx",direction:"quote_to_attn",net_input_raw:"1000000000000000"}]});
+}
+export function evaluateLaunch(rawInput:unknown){
+  const input=AnyLaunchScenario.parse(rawInput);
+  return input.version==="launch-curve-lab-v1"?evaluateNetLaunch(input):evaluateFeeLaunch(input,evaluateNetLaunch(feeSeedScenario(input)));
 }

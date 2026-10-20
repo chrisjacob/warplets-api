@@ -18,7 +18,6 @@ export const LaunchScenario = z.object({
   trades: z.array(z.object({ pool: z.enum(["native", "og", "tenx"]), direction: z.enum(["quote_to_attn", "attn_to_quote"]), net_input_raw: PositiveRaw }).strict()).max(24),
 }).strict();
 export type LaunchInput = z.infer<typeof LaunchScenario>;
-export const LaunchRequest = z.object({ request_id: z.uuid(), reason: z.string().trim().min(3).max(300), scenario: LaunchScenario }).strict();
 const Amount = integer(130), SignedDecimal = z.string().regex(/^-?\d+\.\d{8}$/).max(150);
 const Price = z.object({ numerator: Amount, denominator: Amount }).strict();
 export const LaunchCurveState = z.object({ sqrt_price: Amount, attn_raw: LaunchRaw, quote_raw: LaunchRaw, marginal_native_per_attn: Price }).strict();
@@ -46,6 +45,31 @@ export const LaunchResult = z.object({
   gaps: z.array(z.string()).max(16),
 }).strict();
 const Hash = z.string().regex(/^[a-f0-9]{64}$/);
-export const LaunchRecord = z.object({ id: z.uuid(), created_at: z.iso.datetime(), reason: z.string(), request_hash: Hash, input_hash: Hash, result_hash: Hash, record_hash: Hash, inputs: LaunchScenario, result: LaunchResult }).strict();
+export const FEE_MATH_REVISION="meteora-onlyb-static-79ebbfe-v2";
+export const LaunchFeeConfig=z.object({
+  collect_fee_mode:z.literal("only_quote"),fee_version:z.literal(1),base_fee_schedule:z.literal("static"),dynamic_fee_enabled:z.literal(false),
+  fee_numerator:LaunchRaw.refine(v=>/^(0|[1-9]\d*)$/.test(v)&&v.length<=20&&BigInt(v)>=100000n&&BigInt(v)<=990000000n,"Fee version 1 requires 1–9900 bps"),
+  protocol_fee_percent:z.number().int().min(0).max(100),referral_fee_percent:z.number().int().min(0).max(100),compounding_fee_bps:z.literal(0),
+}).strict();
+export const FeeLaunchScenario=LaunchScenario.omit({version:true,pools:true,trades:true}).extend({
+  version:z.literal("launch-fee-lab-v2"),
+  pools:z.object({native:LaunchPoolInput.extend({fees:LaunchFeeConfig}),og:LaunchPoolInput.extend({fees:LaunchFeeConfig}),tenx:LaunchPoolInput.extend({fees:LaunchFeeConfig})}).strict(),
+  trades:z.array(z.object({pool:z.enum(["native","og","tenx"]),direction:z.enum(["quote_to_attn","attn_to_quote"]),gross_input_raw:PositiveRaw,minimum_output_raw:LaunchRaw,has_referral:z.boolean()}).strict()).max(24),
+}).strict();
+export type FeeLaunchInput=z.infer<typeof FeeLaunchScenario>;
+export const LaunchFeeTotals=z.object({total_fee_raw:Amount,lp_claiming_fee_raw:Amount,protocol_fee_raw:Amount,referral_fee_raw:Amount}).strict();
+export const FeeLaunchStep=LaunchStep.omit({status:true}).extend({
+  status:z.enum(["simulated","range_exhausted","zero_output","inventory_or_u64_bound","fee_consumes_input","minimum_output_not_met"]),
+  gross_input_raw:LaunchRaw,trader_debit_raw:LaunchRaw,trader_output_raw:LaunchRaw,minimum_output_raw:LaunchRaw,fees_on_input:z.boolean(),
+  total_fee_raw:LaunchRaw,lp_claiming_fee_raw:LaunchRaw,protocol_fee_raw:LaunchRaw,referral_fee_raw:LaunchRaw,
+}).strict();
+export const FeeLaunchResult=LaunchResult.omit({version:true,math_revision:true,scope:true,pools:true,steps:true,fees_modeled:true}).extend({
+  version:z.literal("launch-fee-lab-v2"),math_revision:z.literal(FEE_MATH_REVISION),scope:z.literal("concentrated_liquidity_static_only_quote_exact_input"),fees_modeled:z.literal(true),program_execution_verified:z.literal(false),
+  pools:z.array(LaunchPoolResult.extend({fees:LaunchFeeConfig,fee_totals:LaunchFeeTotals})).length(3),steps:z.array(FeeLaunchStep).max(24),
+}).strict();
+export const AnyLaunchScenario=z.discriminatedUnion("version",[LaunchScenario,FeeLaunchScenario]);
+export const AnyLaunchResult=z.discriminatedUnion("version",[LaunchResult,FeeLaunchResult]);
+export const LaunchRequest = z.object({ request_id: z.uuid(), reason: z.string().trim().min(3).max(300), scenario: AnyLaunchScenario }).strict();
+export const LaunchRecord = z.object({ id: z.uuid(), created_at: z.iso.datetime(), reason: z.string(), request_hash: Hash, input_hash: Hash, result_hash: Hash, record_hash: Hash, inputs: AnyLaunchScenario, result: AnyLaunchResult }).strict();
 export const LaunchSummary = LaunchRecord.omit({ reason: true, request_hash: true, input_hash: true, inputs: true });
 export const LaunchList = z.object({ scope: z.literal("local_hypothetical_launch_curve_lab"), runs: z.array(LaunchSummary).max(5) }).strict();

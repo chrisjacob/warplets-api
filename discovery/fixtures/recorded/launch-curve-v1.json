@@ -1,0 +1,377 @@
+{
+  "id": "68c57dfc-39fb-446b-96ab-b814aaa45923",
+  "created_at": "2026-10-20T16:44:03.253Z",
+  "reason": "Review local hypothetical three-pool net curve math; no execution",
+  "request_hash": "8512937a68f4904107ba243727e0874cbfe6427d773eef72f9d1e95623db6007",
+  "input_hash": "1b2c3cd089c6c2201c86a805bf2ac888a87dc9a28a092c15b92a68a814ddc38b",
+  "result_hash": "9adb326a7fab1b001df706f881981e91544bee05616cec26db0358542c43e167",
+  "record_hash": "59b2903f21179d8884480714107c93d0fc84b9b81819c359d5d8c90fcd5de31e",
+  "inputs": {
+    "version": "launch-curve-lab-v1",
+    "as_of": "2026-10-20T16:44:03.148Z",
+    "chain": "solana",
+    "attn_asset": "SIM-ATTN",
+    "attn_decimals": 9,
+    "supply_raw": "1000000000000000",
+    "native_quote_budget_raw": "1000000000000000",
+    "reference_attn_native": {
+      "numerator": "1",
+      "denominator": "1"
+    },
+    "max_opening_divergence_bps": 100,
+    "pools": {
+      "native": {
+        "quote_decimals": 9,
+        "quote_native": {
+          "numerator": "1",
+          "denominator": "1"
+        },
+        "sqrt_min": "9223372036854775808",
+        "sqrt_initial": "18446744073709551616",
+        "sqrt_max": "36893488147419103232"
+      },
+      "og": {
+        "quote_decimals": 9,
+        "quote_native": {
+          "numerator": "1",
+          "denominator": "1"
+        },
+        "sqrt_min": "18446744073709551616",
+        "sqrt_initial": "18446744073709551616",
+        "sqrt_max": "36893488147419103232"
+      },
+      "tenx": {
+        "quote_decimals": 9,
+        "quote_native": {
+          "numerator": "1",
+          "denominator": "1"
+        },
+        "sqrt_min": "18446744073709551616",
+        "sqrt_initial": "18446744073709551616",
+        "sqrt_max": "36893488147419103232"
+      }
+    },
+    "trades": [
+      {
+        "pool": "og",
+        "direction": "attn_to_quote",
+        "net_input_raw": "1000000000"
+      },
+      {
+        "pool": "og",
+        "direction": "quote_to_attn",
+        "net_input_raw": "1000000000000"
+      },
+      {
+        "pool": "og",
+        "direction": "attn_to_quote",
+        "net_input_raw": "500000000000"
+      },
+      {
+        "pool": "tenx",
+        "direction": "quote_to_attn",
+        "net_input_raw": "1000000000000"
+      },
+      {
+        "pool": "native",
+        "direction": "quote_to_attn",
+        "net_input_raw": "1000000000000"
+      },
+      {
+        "pool": "tenx",
+        "direction": "quote_to_attn",
+        "net_input_raw": "1000000000000000"
+      }
+    ]
+  },
+  "result": {
+    "version": "launch-curve-lab-v1",
+    "math_revision": "meteora-cl-79ebbfe-v1",
+    "sdk_version": "1.5.1",
+    "source_commit": "79ebbfe59a225e641a2f37cd03404f26de1b0c8e",
+    "as_of": "2026-10-20T16:44:03.148Z",
+    "source": "hypothetical_operator_inputs",
+    "scope": "concentrated_liquidity_net_curve_only",
+    "supply_raw": "1000000000000000",
+    "attn_decimals": 9,
+    "campaign_reserve_raw": "100000000000000",
+    "native_quote_required_raw": "500000000000000",
+    "native_quote_budget_raw": "1000000000000000",
+    "pools": [
+      {
+        "pool": "native",
+        "quote_asset": "SIM-SOL",
+        "quote_decimals": 9,
+        "allocation_bps": 5000,
+        "allocated_attn_raw": "500000000000000",
+        "unseeded_attn_raw": "0",
+        "liquidity_q64": "18446744073709551616000000000000000",
+        "sqrt_min": "9223372036854775808",
+        "sqrt_max": "36893488147419103232",
+        "initial": {
+          "sqrt_price": "18446744073709551616",
+          "attn_raw": "500000000000000",
+          "quote_raw": "500000000000000",
+          "marginal_native_per_attn": {
+            "numerator": "1",
+            "denominator": "1"
+          }
+        },
+        "final": {
+          "sqrt_price": "18465190817783261167",
+          "attn_raw": "499000999001000",
+          "quote_raw": "501000000000000",
+          "marginal_native_per_attn": {
+            "numerator": "340963271937147261306015704933730201889",
+            "denominator": "340282366920938463463374607431768211456"
+          }
+        },
+        "opening_deviation_bps": "0.00000000",
+        "opening_divergence_exceeded": false,
+        "remaining_net_quote_to_upper_raw": "999000000000001",
+        "remaining_net_attn_to_lower_raw": "1000999000999001"
+      },
+      {
+        "pool": "og",
+        "quote_asset": "SIM-OG",
+        "quote_decimals": 9,
+        "allocation_bps": 2000,
+        "allocated_attn_raw": "200000000000000",
+        "unseeded_attn_raw": "0",
+        "liquidity_q64": "7378697629483820646400000000000000",
+        "sqrt_min": "18446744073709551616",
+        "sqrt_max": "36893488147419103232",
+        "initial": {
+          "sqrt_price": "18446744073709551616",
+          "attn_raw": "200000000000000",
+          "quote_raw": "0",
+          "marginal_native_per_attn": {
+            "numerator": "1",
+            "denominator": "1"
+          }
+        },
+        "final": {
+          "sqrt_price": "18469716070942425768",
+          "attn_raw": "199502493765587",
+          "quote_raw": "498125786125",
+          "marginal_native_per_attn": {
+            "numerator": "5330162683456701837576742966377974841",
+            "denominator": "5316911983139663491615228241121378304"
+          }
+        },
+        "opening_deviation_bps": "0.00000000",
+        "opening_divergence_exceeded": false,
+        "remaining_net_quote_to_upper_raw": "399501874213876",
+        "remaining_net_attn_to_lower_raw": "497506234414"
+      },
+      {
+        "pool": "tenx",
+        "quote_asset": "SIM-10X",
+        "quote_decimals": 9,
+        "allocation_bps": 2000,
+        "allocated_attn_raw": "200000000000000",
+        "unseeded_attn_raw": "0",
+        "liquidity_q64": "7378697629483820646400000000000000",
+        "sqrt_min": "18446744073709551616",
+        "sqrt_max": "36893488147419103232",
+        "initial": {
+          "sqrt_price": "18446744073709551616",
+          "attn_raw": "200000000000000",
+          "quote_raw": "0",
+          "marginal_native_per_attn": {
+            "numerator": "1",
+            "denominator": "1"
+          }
+        },
+        "final": {
+          "sqrt_price": "18492860933893825495",
+          "attn_raw": "199002493765587",
+          "quote_raw": "1000000000000",
+          "marginal_native_per_attn": {
+            "numerator": "341985905520336411644608697685511995025",
+            "denominator": "340282366920938463463374607431768211456"
+          }
+        },
+        "opening_deviation_bps": "0.00000000",
+        "opening_divergence_exceeded": false,
+        "remaining_net_quote_to_upper_raw": "399000000000001",
+        "remaining_net_attn_to_lower_raw": "997506234414"
+      }
+    ],
+    "steps": [
+      {
+        "index": 0,
+        "pool": "og",
+        "direction": "attn_to_quote",
+        "net_input_raw": "1000000000",
+        "curve_output_raw": "0",
+        "status": "range_exhausted",
+        "before": {
+          "sqrt_price": "18446744073709551616",
+          "attn_raw": "200000000000000",
+          "quote_raw": "0",
+          "marginal_native_per_attn": {
+            "numerator": "1",
+            "denominator": "1"
+          }
+        },
+        "after": {
+          "sqrt_price": "18446744073709551616",
+          "attn_raw": "200000000000000",
+          "quote_raw": "0",
+          "marginal_native_per_attn": {
+            "numerator": "1",
+            "denominator": "1"
+          }
+        }
+      },
+      {
+        "index": 1,
+        "pool": "og",
+        "direction": "quote_to_attn",
+        "net_input_raw": "1000000000000",
+        "curve_output_raw": "997506234413",
+        "status": "simulated",
+        "before": {
+          "sqrt_price": "18446744073709551616",
+          "attn_raw": "200000000000000",
+          "quote_raw": "0",
+          "marginal_native_per_attn": {
+            "numerator": "1",
+            "denominator": "1"
+          }
+        },
+        "after": {
+          "sqrt_price": "18492860933893825495",
+          "attn_raw": "199002493765587",
+          "quote_raw": "1000000000000",
+          "marginal_native_per_attn": {
+            "numerator": "341985905520336411644608697685511995025",
+            "denominator": "340282366920938463463374607431768211456"
+          }
+        }
+      },
+      {
+        "index": 2,
+        "pool": "og",
+        "direction": "attn_to_quote",
+        "net_input_raw": "500000000000",
+        "curve_output_raw": "501874213875",
+        "status": "simulated",
+        "before": {
+          "sqrt_price": "18492860933893825495",
+          "attn_raw": "199002493765587",
+          "quote_raw": "1000000000000",
+          "marginal_native_per_attn": {
+            "numerator": "341985905520336411644608697685511995025",
+            "denominator": "340282366920938463463374607431768211456"
+          }
+        },
+        "after": {
+          "sqrt_price": "18469716070942425768",
+          "attn_raw": "199502493765587",
+          "quote_raw": "498125786125",
+          "marginal_native_per_attn": {
+            "numerator": "5330162683456701837576742966377974841",
+            "denominator": "5316911983139663491615228241121378304"
+          }
+        }
+      },
+      {
+        "index": 3,
+        "pool": "tenx",
+        "direction": "quote_to_attn",
+        "net_input_raw": "1000000000000",
+        "curve_output_raw": "997506234413",
+        "status": "simulated",
+        "before": {
+          "sqrt_price": "18446744073709551616",
+          "attn_raw": "200000000000000",
+          "quote_raw": "0",
+          "marginal_native_per_attn": {
+            "numerator": "1",
+            "denominator": "1"
+          }
+        },
+        "after": {
+          "sqrt_price": "18492860933893825495",
+          "attn_raw": "199002493765587",
+          "quote_raw": "1000000000000",
+          "marginal_native_per_attn": {
+            "numerator": "341985905520336411644608697685511995025",
+            "denominator": "340282366920938463463374607431768211456"
+          }
+        }
+      },
+      {
+        "index": 4,
+        "pool": "native",
+        "direction": "quote_to_attn",
+        "net_input_raw": "1000000000000",
+        "curve_output_raw": "999000999000",
+        "status": "simulated",
+        "before": {
+          "sqrt_price": "18446744073709551616",
+          "attn_raw": "500000000000000",
+          "quote_raw": "500000000000000",
+          "marginal_native_per_attn": {
+            "numerator": "1",
+            "denominator": "1"
+          }
+        },
+        "after": {
+          "sqrt_price": "18465190817783261167",
+          "attn_raw": "499000999001000",
+          "quote_raw": "501000000000000",
+          "marginal_native_per_attn": {
+            "numerator": "340963271937147261306015704933730201889",
+            "denominator": "340282366920938463463374607431768211456"
+          }
+        }
+      },
+      {
+        "index": 5,
+        "pool": "tenx",
+        "direction": "quote_to_attn",
+        "net_input_raw": "1000000000000000",
+        "curve_output_raw": "0",
+        "status": "range_exhausted",
+        "before": {
+          "sqrt_price": "18492860933893825495",
+          "attn_raw": "199002493765587",
+          "quote_raw": "1000000000000",
+          "marginal_native_per_attn": {
+            "numerator": "341985905520336411644608697685511995025",
+            "denominator": "340282366920938463463374607431768211456"
+          }
+        },
+        "after": {
+          "sqrt_price": "18492860933893825495",
+          "attn_raw": "199002493765587",
+          "quote_raw": "1000000000000",
+          "marginal_native_per_attn": {
+            "numerator": "341985905520336411644608697685511995025",
+            "denominator": "340282366920938463463374607431768211456"
+          }
+        }
+      }
+    ],
+    "launch_enabled": false,
+    "transfers_enabled": false,
+    "policy_approved": false,
+    "fees_modeled": false,
+    "locks_verified": false,
+    "external_prices_verified": false,
+    "provider_requests": 0,
+    "gaps": [
+      "hypothetical_prices_and_inventory",
+      "net_curve_inputs_after_unmodeled_fees",
+      "fee_modes_dynamic_fees_and_transfer_extensions_not_certified",
+      "pool_creation_activation_and_locks_not_verified",
+      "same_chain_10x_issuance_and_viability_unverified",
+      "no_transaction_simulation_or_signer",
+      "cross_pool_routes_and_arbitrage_profit_not_certified",
+      "D08_D09_D10_D14_D15_D16_open"
+    ]
+  }
+}
