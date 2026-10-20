@@ -30,6 +30,12 @@ export async function getJson<T>(url: string, schema: z.ZodType<T>, signal?: Abo
   return result.data;
 }
 export const readableReason = (code: string) => ({
+  pre_buy_funding_coverage_partial: "Pre-buy funding coverage is still partial",
+  funding_paging_pending: "Older funding pages remain to be scanned",
+  funding_transactions_pending: "Returned transactions remain to be examined",
+  provider_history_ended_before_window_boundary: "Provider history ended before a dated one-hour boundary; coverage is uncertain",
+  funding_transaction_missing_or_unsupported: "Some funding transactions are unavailable, unsupported or omitted from this snapshot",
+  shared_creation_and_buyer_funder: "Creation and buyer wallets share an observed direct funder",
   wallet_analysis_unavailable: "Wallet analysis is not yet available",
   wallet_analysis_stale: "Wallet sample needs refreshing",
   verified_buyer_sample_too_small: "Too few verified buyers in the sample",

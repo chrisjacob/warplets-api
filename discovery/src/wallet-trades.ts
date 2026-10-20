@@ -5,6 +5,7 @@ import { bytesEqual, findPda, hashJson, publicKey, Reader } from "./solana";
 import { TransactionSchema } from "./rpc";
 import { keys, signer, type WalletTransaction } from "./wallet-rpc";
 import { TradeSchema, type Funding, type VerifiedTrade } from "./wallet-model";
+import type { FundingAnchor } from "./funding-history";
 
 const SYSTEM = "11111111111111111111111111111111";
 type Ix = ReturnType<typeof instructions>[number];
@@ -121,7 +122,7 @@ export async function creationRoles(tx: WalletTransaction, mint: string): Promis
   }
   return [];
 }
-export async function fundingTransfers(tx: WalletTransaction, tracked: Set<string>, trades: VerifiedTrade[]): Promise<Funding[]> {
+export async function fundingTransfers(tx: WalletTransaction, tracked: Set<string>, trades: VerifiedTrade[], anchors?: FundingAnchor[]): Promise<Funding[]> {
   validWalletTransaction(tx); const found: Funding[] = [], transactionHash = await hashJson(tx);
   for (const ix of instructions(tx)) {
     // Top-level, directly signed System transfers only. Rent, wrapped-SOL
@@ -132,7 +133,10 @@ export async function fundingTransfers(tx: WalletTransaction, tracked: Set<strin
     const first = trades.filter(t => t.wallet === to && t.side === "buy").sort((a, b) => a.slot - b.slot || a.signature.localeCompare(b.signature))[0];
     const time = tx.blockTime! * 1000, buyTime = first ? Date.parse(first.block_time) : null;
     const precedes = first && (tx.slot < first.slot || first.signature === tx.transaction.signatures[0] && ix.top < Number(first.instruction_index.split(".")[0]));
-    found.push({ from, to, lamports_raw: amount.toString(), signature: tx.transaction.signatures[0]!, slot: tx.slot, block_time: new Date(time).toISOString(), transaction_hash: transactionHash, before_sampled_buy: Boolean(precedes && buyTime !== null && time <= buyTime && buyTime - time <= 3600000) });
+    const creation = anchors?.find(a => a.wallet === to && a.kind === "signed_creation"), createdAt = creation ? Date.parse(creation.block_time) : null;
+    found.push({ from, to, lamports_raw: amount.toString(), signature: tx.transaction.signatures[0]!, slot: tx.slot, block_time: new Date(time).toISOString(), transaction_hash: transactionHash, before_sampled_buy: Boolean(precedes && buyTime !== null && time <= buyTime && buyTime - time <= 3600000),
+      ...(anchors ? { before_signed_creation: Boolean(creation && tx.slot < creation.slot && createdAt !== null && time <= createdAt && createdAt - time <= 3600000) } : {}),
+    });
   }
   return found;
 }

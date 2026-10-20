@@ -9,6 +9,7 @@ import { hashJson } from "./solana";
 import { HolderEvidenceSchema } from "./holders";
 import { ReviewSchema } from "./research-model";
 import type { Settings } from "./ingest";
+import { collectFundingHistories, type FundingAnchor } from "./funding-history";
 
 export type WalletSettings = Settings & { walletEnabled: boolean; walletDailyLimit: number };
 export async function walletStatus(db: D1Database, limit: number, enabled: boolean) {
@@ -29,11 +30,13 @@ export function reserveWalletQuota(db: D1Database, settings: WalletSettings, now
 async function collect(settings: WalletSettings, candidate: Candidate, rpc: RpcClient): Promise<WalletEvidence> {
   const db = settings.db;
   const records: WalletEvidence["records"] = [], histories: WalletEvidence["histories"] = [], gaps = new Set<string>();
+  let recordBytes = 0;
   async function read(signature: string, purpose: WalletEvidence["records"][number]["purposes"][number], expectedSlot?: number) {
     const already = records.find(r => r.signature === signature);
     if (already) { if (!already.purposes.includes(purpose)) already.purposes.push(purpose); return already.transaction; }
-    if (records.length >= 12 || rpc.calls >= 17) { gaps.add("wallet_transaction_sample_limit"); return null; }
+    if (records.length >= 64) { gaps.add("wallet_transaction_sample_limit"); return null; }
     const cached = await db.prepare("SELECT payload,payload_hash,fetched_at FROM tenx_wallet_transactions WHERE signature=?1").bind(signature).first<{ payload: string; payload_hash: string; fetched_at: string }>();
+    if (!cached && rpc.calls >= 18) { gaps.add("wallet_funding_history_budget_limited"); return null; }
     let transaction, fetched = cached?.fetched_at ?? new Date().toISOString();
     try {
       transaction = cached ? WalletTransactionSchema.parse(JSON.parse(cached.payload)) : await walletTransaction(rpc, signature);
@@ -45,6 +48,8 @@ async function collect(settings: WalletSettings, candidate: Candidate, rpc: RpcC
         if (new TextEncoder().encode(payload).length > 250000) throw new Error("wallet_transaction_too_large");
         await db.prepare("INSERT OR IGNORE INTO tenx_wallet_transactions(signature,payload_hash,payload,fetched_at) VALUES(?1,?2,?3,?4)").bind(signature, hash, payload, fetched).run();
       }
+      const size = transaction ? new TextEncoder().encode(JSON.stringify(transaction)).length : 0;
+      if (recordBytes + size > 900000) { gaps.add("wallet_transaction_sample_limit"); return null; } recordBytes += size;
       records.push({ signature, purposes: [purpose], status: transaction ? "available" : "missing", transaction, fetched_at: fetched });
       return transaction;
     } catch (error) {
@@ -70,20 +75,26 @@ async function collect(settings: WalletSettings, candidate: Candidate, rpc: RpcC
     for (const row of early) await read(row.signature, "early", row.slot);
   } else gaps.add("creation_slot_unknown");
   const recent = await history(candidate.pool, "pool", 12);
-  for (const row of recent.filter(r => r.err === null && r.confirmationStatus === "finalized").slice(0, 3)) await read(row.signature, "recent", row.slot);
+  for (const row of recent.filter(r => r.err === null && r.confirmationStatus === "finalized").slice(0, 2)) await read(row.signature, "recent", row.slot);
   const trades = (await Promise.all(records.filter(r => r.transaction).map(async r => {
     try { return (await verifiedTrades(r.transaction!, candidate.address, candidate.pool)).trades; } catch { return []; }
   }))).flat();
   const buyers = [...new Set(trades.filter(t => t.side === "buy").sort((a, b) => a.slot - b.slot || a.wallet.localeCompare(b.wallet)).map(t => t.wallet))];
-  const selected = [...new Set([...roles.filter(r => r.signed).map(r => r.wallet), ...buyers])].slice(0, 3);
-  for (const wallet of selected) {
-    if (rpc.calls >= 16) { gaps.add("wallet_funding_history_budget_limited"); break; }
-    const rows = await history(wallet, "wallet", 20);
-    const firstBuy = trades.filter(t => t.wallet === wallet && t.side === "buy").sort((a, b) => a.slot - b.slot)[0];
-    const limit = firstBuy?.slot ?? candidate.creation?.slot ?? Number.MAX_SAFE_INTEGER;
-    const prior = rows.filter(r => r.err === null && r.confirmationStatus === "finalized" && r.slot <= limit).slice(-1)[0];
-    if (prior) await read(prior.signature, "wallet", prior.slot); else gaps.add("pre_buy_funding_history_unavailable");
+  const anchors: FundingAnchor[] = [];
+  if (candidate.creation) for (const role of roles.filter(r => r.signed)) if (!anchors.some(a => a.wallet === role.wallet)) anchors.push({ wallet: role.wallet, signature: candidate.creation.signature, slot: candidate.creation.slot, block_time: candidate.creation.block_time, kind: "signed_creation" });
+  for (const wallet of buyers) {
+    if (anchors.some(a => a.wallet === wallet)) continue;
+    const first = trades.filter(t => t.wallet === wallet && t.side === "buy").sort((a, b) => a.slot - b.slot || a.signature.localeCompare(b.signature))[0]!;
+    anchors.push({ wallet, signature: first.signature, slot: first.slot, block_time: first.block_time, kind: "sampled_buy" });
   }
+  if (anchors.length > 8) gaps.add("funding_wallet_limit");
+  const scans = await collectFundingHistories(db, rpc, candidate.address, anchors, async (signature, slot, status) => {
+    if (!records.some(r => r.signature === signature) && records.length >= 64) { gaps.add("wallet_transaction_sample_limit"); return null; }
+    if (status && !records.some(r => r.signature === signature)) records.push({ signature, purposes: ["wallet"], status, transaction: null, fetched_at: new Date().toISOString() });
+    else await read(signature, "wallet", slot);
+    const record = records.find(r => r.signature === signature);
+    return record ? { transaction: record.transaction, status: record.status } : null;
+  });
   let holders: WalletEvidence["holders"] = null;
   if (candidate.holders?.payload_hash) {
     const saved = await db.prepare("SELECT payload FROM tenx_holder_evidence WHERE payload_hash=?1").bind(candidate.holders.payload_hash).first<{ payload: string }>();
@@ -95,7 +106,7 @@ async function collect(settings: WalletSettings, candidate: Candidate, rpc: RpcC
     if (![...roles.map(r => r.wallet), ...buyers].includes(w.wallet)) continue;
     const entry = priorLosses.get(w.wallet) ?? { tokens: new Set(), hashes: new Set() }; entry.tokens.add(outcome.address); entry.hashes.add(report.input_hash); priorLosses.set(w.wallet, entry);
   }
-  return WalletEvidenceSchema.parse({ version: "wallet-input-v1", observed_at: new Date().toISOString(), cluster: MAINNET_GENESIS,
+  return WalletEvidenceSchema.parse({ version: "wallet-input-v2", funding_scans: scans, observed_at: new Date().toISOString(), cluster: MAINNET_GENESIS,
     asset: { address: candidate.address, pool: candidate.pool, token_program: candidate.risk.token_program, creation: candidate.creation, graduation: candidate.graduation }, records, histories, holders,
     prior_losses: [...priorLosses].slice(0, 20).map(([wallet, p]) => ({ wallet, tokens: [...p.tokens].sort().slice(0, 100), report_hashes: [...p.hashes].sort().slice(0, 30) })), gaps: [...gaps] });
 }

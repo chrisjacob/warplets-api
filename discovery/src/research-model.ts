@@ -9,6 +9,7 @@ export const FeaturesSchema = z.object({
   same_slot_buyers: z.number().nullable().default(null), shared_funder_buyers: z.number().nullable().default(null),
   dev_funded_supply_pct: z.number().nullable().default(null), dev_sold_supply_pct: z.number().nullable().default(null),
   sampled_buyers: z.number().nullable().default(null),
+  funding_windows_examined: z.number().nullable().default(null), funding_wallets_tracked: z.number().nullable().default(null),
 });
 export const OutcomeSchema = z.object({
   address: z.string(), symbol: z.string(), recommended: z.boolean(), selected_at: z.string(), input_hash: z.string(),

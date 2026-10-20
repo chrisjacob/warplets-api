@@ -50,6 +50,7 @@ export function measureOutcome(cohort: Cohort, history: Market[], inputHash: str
       fees_produced_usd: null, bundle_risk: "unknown", buyer_wallet_risk: "unknown",
       same_slot_buyers: w?.metrics.max_same_slot_buyers ?? null, shared_funder_buyers: w?.metrics.shared_funder_buyers ?? null,
       dev_funded_supply_pct: w?.metrics.dev_funded_supply_pct ?? null, dev_sold_supply_pct: w?.metrics.dev_sold_supply_pct ?? null, sampled_buyers: w?.metrics.distinct_buyers ?? null,
+      funding_windows_examined: w?.funding_coverage?.filter(c => c.status === "window_examined").length ?? null, funding_wallets_tracked: w?.funding_coverage?.length ?? null,
     }, wallets,
   });
 }
