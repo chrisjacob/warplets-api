@@ -2,6 +2,8 @@
 
 Planning checkpoint: 20 October 2026 (Australia/Sydney). Product specification: v1.1, 17 October 2026.
 
+Restarting the workstation or continuing in a new Codex chat? Read the [restart and resume handoff](RESTART.md) for the checkpoint, source documents, standing constraints, preserved local stores and preview recovery steps.
+
 Latest engineering review: [security fixes and credential follow-up](29-security-review.md), including private preview file blocking, patched Vite, signed action identities, local credential rotation and admin request boundaries. Provider credential rotation remains required. Local only; evidence gates unchanged.
 
 Previous engineering review: [measured performance improvements](28-performance-review.md), including compact Discover cards, deferred wallet code, retained-shell navigation and an aggregate startup budget.
