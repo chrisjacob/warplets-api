@@ -13,6 +13,8 @@ import worker, { type LocalEnv } from "./worker";
 import { WalletTransactionSchema } from "./wallet-rpc";
 import { saveCandidate } from "./store";
 import { referenceMicros } from "./backing-history";
+import { emptyWindow } from "./backing-window-model";
+import { MAINNET_GENESIS } from "./rpc";
 
 const databases: DatabaseSync[]=[];
 afterEach(()=>{databases.splice(0).forEach(db=>db.close());vi.restoreAllMocks();});
@@ -51,6 +53,20 @@ function database(){
 async function putCandidate(db:D1Database,c:Candidate){await db.prepare("INSERT OR REPLACE INTO tenx_candidates(address,pool,mode,payload,checked_at) VALUES(?,?,'live',?,?)").bind(c.address,c.pool,JSON.stringify(c),c.checked_at).run();}
 const request=(id=crypto.randomUUID())=>({request_id:id,reason:"Offline prospective backing experiment",duration_minutes:1,assumptions});
 describe("finalized-cache backing ledger and frozen experiments",()=>{
+  it("uses v3 provider-window coverage without turning it into live votes, and holds missing reversals",async()=>{
+    const {opening,evidence}=await sample();opening.source_evidence_version="wallet-window-v1";evidence.transactions=[await transaction(),await transaction(key(9),32)];
+    await expect(evaluateBacking(opening,evidence)).rejects.toThrow("backing_window_requires_cutoff_history");
+    opening.cutoff_evidence_version="candidate-journal-v1";evidence.cutoff={version:"candidate-journal-v1",baseline_recorded_at:opening.starts_at,history_limited:false,selected:[{address:opening.candidates[0]!.address,sequence:null,recorded_at:opening.starts_at,payload_hash:await hashJson(opening.candidates[0]!)}],prices:[]};
+    const finality={genesis:MAINNET_GENESIS,commitment:"finalized",slot:30000,block_time:Math.floor(now.getTime()/1000)+61,fetched_at:new Date(now.getTime()+65000).toISOString(),source_hash:"a".repeat(64)} as const;
+    const window={...emptyWindow(),finality,reserved_calls:8,last_error:null};evidence.window=window;
+    for(const [index,member] of opening.members.entries()){
+      const tx=evidence.transactions[index]!.transaction;
+      const rows=[{signature:tx.transaction.signatures[0]!,slot:tx.slot,err:null,blockTime:tx.blockTime,confirmationStatus:"finalized"},{signature:toBase58(new Uint8Array(64).fill(100+index)),slot:1,err:null,blockTime:Math.floor(now.getTime()/1000)-1,confirmationStatus:"finalized"}];
+      window.pages.push({address:member.address,before:null,limit:50,min_context_slot:30000,fetched_at:new Date(now.getTime()+66000).toISOString(),rows,rows_hash:await hashJson(rows)});
+    }
+    const covered=await evaluateBacking(opening,evidence);expect(covered.source_coverage!.status).toBe("rpc_window_covered");expect(covered.groups[0]!.linear_projection_micros).toBe("100000000");expect(covered.voting_enabled).toBe(false);expect(covered.winner_address).toBeNull();
+    evidence.transactions.pop();const missing=await evaluateBacking(opening,evidence);expect(missing.source_coverage!.bodies_missing).toBe(1);expect(missing.groups[0]!.linear_projection_micros).toBe("0");expect(missing.groups[0]!.reasons).toContain("wallet_window_coverage_incomplete");
+  });
   it("decodes real instruction paths, groups multiple signed wallets under one cap and gives zero live votes",async()=>{
     const {opening,evidence}=await sample();expect(assess(opening.candidates[0]!,DEFAULT_POLICY,now).eligibility).toBe("eligible");
     evidence.transactions=[await transaction(),await transaction(key(9),32)];
@@ -122,7 +138,7 @@ describe("finalized-cache backing ledger and frozen experiments",()=>{
     const t=await transaction();sqlite.prepare("INSERT INTO tenx_wallet_transactions VALUES(?,?,?,?)").run(t.signature,t.payload_hash,JSON.stringify(t.transaction),t.fetched_at);
     sqlite.prepare("INSERT INTO tenx_identity_wallets VALUES(?,?,?)").run(key(9),identity,new Date(now.getTime()+10000).toISOString());
     const deadline=new Date(now.getTime()+360000),frozen=await freezeBacking(db,r.request_id,deadline);expect(frozen).toMatchObject({state:"frozen",entries:1,groups:1,replay:"hash_checked"});
-    const record=await backingRecord(db,r.request_id);expect(record!.opening.members).toHaveLength(1);expect(record!.result.groups[0]!.linear_projection_micros).toBe("100000000");
+    const record=await backingRecord(db,r.request_id);expect(record!.opening.members).toHaveLength(1);expect(record!.result.groups[0]!.linear_projection_micros).toBe("0");expect(record!.result.groups[0]!.reasons).toContain("wallet_window_coverage_incomplete");
     sqlite.exec("DELETE FROM tenx_wallet_transactions;DELETE FROM tenx_identity_wallets");await putCandidate(db,{...c,holders:null});
     expect((await backingRecord(db,r.request_id))!.record_hash).toBe(record!.record_hash);expect((await freezeBacking(db,r.request_id,deadline)).record_hash).toBe(record!.record_hash);
     const publicList=await backingList(db);expect(JSON.stringify(publicList)).not.toContain(identity);expect(JSON.stringify(publicList)).not.toContain(key(8));expect(provider).not.toHaveBeenCalled();
@@ -191,7 +207,7 @@ describe("finalized-cache backing ledger and frozen experiments",()=>{
     const captured=sqlite.prepare("SELECT * FROM tenx_backing_candidate_history").get();expect(captured?.recorded_at).toBe(new Date(now.getTime()+59000).toISOString());
     setClock(new Date(now.getTime()+61000));await putCandidate(db,c);
     await freezeBacking(db,r.request_id,new Date(now.getTime()+360000));
-    const record=(await backingRecord(db,r.request_id))!;expect(record.result.algorithm).toBe("backing-experiment-v2");expect(record.evidence.closing_candidates[0]!.holders).toBeNull();expect(record.result.projections[0]!.eligible_at_close).toBe(false);
+    const record=(await backingRecord(db,r.request_id))!;expect(record.result.algorithm).toBe("backing-experiment-v3");expect(record.evidence.closing_candidates[0]!.holders).toBeNull();expect(record.result.projections[0]!.eligible_at_close).toBe(false);
     expect(()=>sqlite.exec("UPDATE tenx_backing_candidate_history SET recorded_at='2026-10-20T00:00:00.000Z'")).toThrow("backing_history_immutable");
     expect(()=>sqlite.exec("DELETE FROM tenx_backing_candidate_history")).toThrow("backing_history_immutable");
     expect(record.evidence.cutoff!.selected[0]!.sequence).not.toBeNull();

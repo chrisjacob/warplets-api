@@ -3,6 +3,8 @@ import { assess, CandidateSchema, DEFAULT_POLICY, shortlist } from "./model";
 import { hashJson } from "./solana";
 import { verifiedTrades, validWalletTransaction } from "./wallet-trades";
 import { retainedCutoff, validateCutoff, priceReferences } from "./backing-history";
+import { retainedWindow, windowCoverage, expectedWindowRows } from "./backing-window";
+import { emptyWindow } from "./backing-window-model";
 import { BackingEvidence, BackingListResponse, BackingOpening, BackingRecord, BackingResult, BackingSummary, OpenBackingRequest, type Opening, type Evidence, type Result, type Record as RunRecord } from "./backing-model";
 
 export class BackingError extends Error { constructor(message: string, readonly status = 503) { super(message); } }
@@ -15,6 +17,7 @@ function sqrt(value: bigint): bigint {
   while (y < x) { x = y; y = (x + value / x) / 2n; } return x;
 }
 function checkOpening(opening:Opening){
+  if(opening.source_evidence_version&&!opening.cutoff_evidence_version)throw new BackingError("backing_window_requires_cutoff_history");
   const start=Date.parse(opening.starts_at),end=Date.parse(opening.ends_at);
   if(!(end>start&&end-start<=86400000&&Date.parse(opening.deadline)===end+300000))throw new BackingError("backing_window_mismatch");
   if(opening.candidates.some(c=>c.mode!=="live"))throw new BackingError("backing_fixture_input");
@@ -26,6 +29,8 @@ export async function evaluateBacking(rawOpening: Opening, rawEvidence: Evidence
   const opening = BackingOpening.parse(rawOpening), evidence = BackingEvidence.parse(rawEvidence);
   checkOpening(opening);
   await validateCutoff(opening,evidence);
+  if(Boolean(opening.source_evidence_version)!==Boolean(evidence.window))throw new BackingError("backing_window_evidence_mismatch");
+  const sourceCoverage=evidence.window?await windowCoverage(opening,evidence.window,evidence.transactions):undefined;
   const start = Date.parse(opening.starts_at), end = Date.parse(opening.ends_at), deadline = Date.parse(opening.deadline);
   if (!(end > start && end - start <= 86400000 && deadline === end + 300000 && Date.parse(evidence.frozen_at) >= deadline)) throw new BackingError("backing_window_mismatch");
   const tokens = new Map(opening.candidates.map(c => [c.address, c])), closing = new Map(evidence.closing_candidates.map(c => [c.address, c]));
@@ -57,6 +62,7 @@ export async function evaluateBacking(rawOpening: Opening, rawEvidence: Evidence
         const key = `${candidate.address}:${trade.signature}:${trade.instruction_index}`, hash = await hashJson(trade);
         if (seen.has(key)) { if (seen.get(key) !== hash) throw new BackingError("backing_conflicting_instruction"); continue; } seen.set(key, hash);
         const reasons: string[] = [];
+        if(sourceCoverage&&sourceCoverage.status!=="rpc_window_covered")reasons.push("wallet_window_coverage_incomplete");
         if (!atOpen.get(candidate.address)) reasons.push("candidate_ineligible_at_open");
         if (!atClose.get(candidate.address)) reasons.push("candidate_ineligible_at_close");
         if (!members.has(trade.wallet)) reasons.push("wallet_not_linked_at_open");
@@ -106,11 +112,11 @@ export async function evaluateBacking(rawOpening: Opening, rawEvidence: Evidence
       identities_projected: own.filter(g => !g.reasons.length).length, identities_held: own.filter(g => g.reasons.length).length };
   }).sort((a,b) => ascii(a.mint,b.mint));
   const references=evidence.cutoff?priceReferences(entries,evidence):undefined;
-  return BackingResult.parse({ version: "backing-result-v1", algorithm: opening.cutoff_evidence_version?"backing-experiment-v2":"backing-experiment-v1", outcome: "withheld", winner_address: null, voting_enabled: false, rewards_enabled: false,
+  return BackingResult.parse({ version: "backing-result-v1", algorithm: opening.source_evidence_version?"backing-experiment-v3":opening.cutoff_evidence_version?"backing-experiment-v2":"backing-experiment-v1", outcome: "withheld", winner_address: null, voting_enabled: false, rewards_enabled: false,
     pricing: "hypothetical_fixed_SOL_USD_not_verified_valuation", coverage: "bounded_cache_not_exhaustive", entries, groups, projections,
     ignored_transactions: ignored, max_examined_slot: records.length ? Math.max(...records.map(r => r.transaction.slot)) : null,
     gaps: ["source_coverage_not_exhaustive", "historical_USD_valuation_unverified", "genuine_buyer_and_sybil_checks_unverified", "daily_cross_window_cap_not_implemented", "independent_finalized_slot_watermark_not_available", "D07_scoring_not_approved", "no_live_vote_credit", ...(evidence.scan_limited ? ["transaction_scan_limit_reached"] : []), ...(evidence.cutoff?.history_limited?["cutoff_history_capacity_or_candidate_loss"]:[]), ...(evidence.cutoff?["provider_prices_are_references_only"]:[])],
-    ...(references?{price_references:references,coverage_detail:{cutoff:evidence.cutoff!.history_limited?"history_limited":"retained",snapshots_retained:evidence.cutoff!.selected.filter(s=>s.sequence!==null).length,references_available:references.filter(r=>r.status==="provider_reference_only").length,references_missing:references.filter(r=>r.status==="unavailable").length,verified_usd_trades:0}}:{}) });
+    ...(references?{price_references:references,coverage_detail:{cutoff:evidence.cutoff!.history_limited?"history_limited":"retained",snapshots_retained:evidence.cutoff!.selected.filter(s=>s.sequence!==null).length,references_available:references.filter(r=>r.status==="provider_reference_only").length,references_missing:references.filter(r=>r.status==="unavailable").length,verified_usd_trades:0}}:{}),...(sourceCoverage?{source_coverage:sourceCoverage}:{}) });
 }
 type Row = { id: string; request_hash: string; opening: string; opening_hash: string; state: string; evidence: string | null; evidence_hash: string | null; result: string | null; result_hash: string | null; record_hash: string | null; last_error: string | null; admitted_at?:string|null; history_limited?:number };
 async function row(db: D1Database,id: string) { return db.prepare("SELECT * FROM tenx_backing_runs WHERE id=?").bind(z.uuid().parse(id)).first<Row>(); }
@@ -134,7 +140,7 @@ async function summary(saved: Row) {
     frozen_wallet_count: opening.members.length, entries: result?.entries.length ?? 0, groups: result?.groups.length ?? 0, projections: result?.projections ?? [],
     entry_reasons: Object.fromEntries([...new Set(result?.entries.flatMap(e=>e.reasons) ?? [])].sort(ascii).map(reason=>[reason,result!.entries.filter(e=>e.reasons.includes(reason)).length])),
     opening_hash: saved.opening_hash, record_hash: saved.record_hash, replay: result ? "hash_checked" : "pending", last_error: saved.last_error, outcome: "withheld", voting_enabled: false,
-    gaps: result?.gaps ?? ["prospective_window_waiting_for_source_deadline", "no_live_vote_credit"], ...(opening.cutoff_evidence_version?{cutoff_evidence_version:opening.cutoff_evidence_version}:{}), ...(result?.coverage_detail?{coverage_detail:result.coverage_detail}:{}) });
+    gaps: result?.gaps ?? ["prospective_window_waiting_for_source_deadline", "no_live_vote_credit"], ...(opening.cutoff_evidence_version?{cutoff_evidence_version:opening.cutoff_evidence_version}:{}), ...(result?.coverage_detail?{coverage_detail:result.coverage_detail}:{}),...(opening.source_evidence_version?{source_evidence_version:opening.source_evidence_version}:{}),...(result?.source_coverage?{source_coverage:result.source_coverage}:{}) });
 }
 export async function backingList(db: D1Database) {
   const saved = await db.prepare("SELECT id,request_hash,opening,opening_hash,state,result,result_hash,evidence_hash,record_hash,last_error FROM tenx_backing_runs ORDER BY created_at DESC,id LIMIT 10").all<Row>();
@@ -152,12 +158,13 @@ export async function openBacking(db: D1Database, raw: unknown, now = new Date()
   const members:unknown[]=JSON.parse(membership!.members);
   if(members.length>1000)throw new BackingError("backing_membership_capacity_limit");
   const opening = BackingOpening.parse({ version: "backing-opening-v1", id: request.request_id, starts_at: start, ends_at: end, deadline: new Date(Date.parse(end)+300000).toISOString(),
-    policy: DEFAULT_POLICY, assumptions: request.assumptions, candidates: selected, members, candidate_scope: "up_to_20_observed_contenders",cutoff_evidence_version:"candidate-journal-v1" });
+    policy: DEFAULT_POLICY, assumptions: request.assumptions, candidates: selected, members, candidate_scope: "up_to_20_observed_contenders",cutoff_evidence_version:"candidate-journal-v1",source_evidence_version:"wallet-window-v1" });
   checkOpening(opening);
   bounded(opening,650000); const openingHash = await hashJson(opening);
   await db.batch([
     db.prepare("INSERT OR IGNORE INTO tenx_backing_runs(id,request_hash,created_at,ends_at,deadline,state,opening,opening_hash,admitted_at) SELECT ?,?,?,?,?,'open',?,?,strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE NOT EXISTS(SELECT 1 FROM tenx_backing_runs WHERE state='open') AND (SELECT COUNT(*) FROM tenx_backing_runs WHERE substr(created_at,1,10)=?)<20 AND (SELECT COALESCE(MAX(rowid),0) FROM tenx_identity_audit)=? AND strftime('%Y-%m-%dT%H:%M:%fZ','now')>=? AND strftime('%Y-%m-%dT%H:%M:%fZ','now')<? AND NOT EXISTS(SELECT 1 FROM json_each(?) f LEFT JOIN tenx_candidates c ON c.address=json_extract(f.value,'$.address') AND c.mode='live' WHERE c.payload IS NULL OR c.payload<>json_extract(f.value,'$.payload'))").bind(opening.id,requestHash,start,end,opening.deadline,JSON.stringify(opening),openingHash,start.slice(0,10),membership!.watermark,start,end,JSON.stringify(selected.map(c=>({address:c.address,payload:all.results.find(r=>JSON.parse(r.payload).address===c.address)!.payload})))),
     db.prepare("INSERT OR IGNORE INTO tenx_audit(id,action,actor,reason,data_hash,created_at) SELECT ?,'backing_open','local-operator',?,?,? WHERE EXISTS(SELECT 1 FROM tenx_backing_runs WHERE id=? AND opening_hash=?)").bind(`backing-open:${opening.id}`,request.reason,openingHash,start,opening.id,openingHash),
+    db.prepare("INSERT OR IGNORE INTO tenx_backing_window_index(run_id,payload) SELECT ?,? WHERE EXISTS(SELECT 1 FROM tenx_backing_runs WHERE id=? AND opening_hash=?)").bind(opening.id,JSON.stringify(emptyWindow()),opening.id,openingHash),
   ]);
   const saved = await row(db,opening.id);
   if (!saved) throw new BackingError("backing_active_daily_limit_or_membership_changed",409);
@@ -170,7 +177,9 @@ export async function freezeBacking(db: D1Database,id: string, now = new Date())
   const opening = BackingOpening.parse(JSON.parse(saved.opening));
   if (await hashJson(opening) !== saved.opening_hash) throw new BackingError("backing_opening_hash_mismatch");
   if (now.toISOString() < opening.deadline) throw new BackingError("backing_source_deadline_not_reached",409);
-  const inventory = await db.prepare("SELECT signature,length(CAST(payload AS BLOB)) AS bytes FROM tenx_wallet_transactions WHERE fetched_at>=? AND fetched_at<=? AND json_extract(payload,'$.blockTime')>=? AND json_extract(payload,'$.blockTime')<? ORDER BY fetched_at,signature LIMIT 101").bind(opening.starts_at,opening.deadline,Date.parse(opening.starts_at)/1000,Date.parse(opening.ends_at)/1000).all<{signature:string;bytes:number}>();
+  const window=opening.source_evidence_version?await retainedWindow(db,id):null;
+  const priority=window?expectedWindowRows(opening,window.pages).map(r=>r.signature):[];
+  const inventory = await db.prepare("SELECT signature,length(CAST(payload AS BLOB)) AS bytes FROM tenx_wallet_transactions WHERE fetched_at>=? AND fetched_at<=? AND json_extract(payload,'$.blockTime')>=? AND json_extract(payload,'$.blockTime')<? ORDER BY CASE WHEN signature IN (SELECT value FROM json_each(?)) THEN 0 ELSE 1 END,fetched_at,signature LIMIT 101").bind(opening.starts_at,opening.deadline,Date.parse(opening.starts_at)/1000,Date.parse(opening.ends_at)/1000,JSON.stringify(priority)).all<{signature:string;bytes:number}>();
   const selected: string[] = []; let bytes=0;
   for (const r of inventory.results) { if (selected.length===100 || bytes+r.bytes>750000) break; selected.push(r.signature); bytes+=r.bytes; }
   const transactions = await db.prepare("SELECT signature,payload_hash,fetched_at,payload FROM tenx_wallet_transactions WHERE signature IN (SELECT value FROM json_each(?)) ORDER BY fetched_at,signature").bind(JSON.stringify(selected)).all<{signature:string;payload_hash:string;fetched_at:string;payload:string}>();
@@ -179,7 +188,7 @@ export async function freezeBacking(db: D1Database,id: string, now = new Date())
   const revoked = await db.prepare("SELECT DISTINCT address FROM tenx_identity_audit WHERE action='unlink' AND created_at>=? AND created_at<=? AND address IN (SELECT value FROM json_each(?)) ORDER BY address").bind(opening.starts_at,opening.deadline,JSON.stringify(opening.members.map(m=>m.address))).all<{address:string}>();
   // Explicitly bounded cache, never claimed to be an exhaustive election index.
   const evidence = BackingEvidence.parse({ version:"backing-evidence-v1",frozen_at:now.toISOString(),closing_candidates:retained?.closing??closing.results.map(r=>CandidateSchema.parse(JSON.parse(r.payload))),revoked_wallets:revoked.results.map(r=>r.address),
-    transactions:transactions.results.map(r=>({signature:r.signature,payload_hash:r.payload_hash,fetched_at:r.fetched_at,transaction:JSON.parse(r.payload)})),scan_limited:inventory.results.length>selected.length,source:"cached_finalized_mainnet_rpc",...(retained?{cutoff:retained.cutoff}:{}) });
+    transactions:transactions.results.map(r=>({signature:r.signature,payload_hash:r.payload_hash,fetched_at:r.fetched_at,transaction:JSON.parse(r.payload)})),scan_limited:inventory.results.length>selected.length,source:"cached_finalized_mainnet_rpc",...(retained?{cutoff:retained.cutoff}:{}),...(window?{window}:{}) });
   bounded(evidence,950000); const result = await evaluateBacking(opening,evidence); bounded(result,250000);
   const evidenceHash=await hashJson(evidence),resultHash=await hashJson(result);
   const recordHash = await hashJson({opening_hash:saved.opening_hash,evidence_hash:evidenceHash,result_hash:resultHash});

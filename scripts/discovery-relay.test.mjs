@@ -30,6 +30,17 @@ test("loopback relay authenticates and forwards only whitelisted read methods", 
     assert.equal(calls.length, 4);
   } finally { await new Promise(resolve => server.close(resolve)); }
 });
+test("finalized block-time reads accept only a single safe slot and cannot send transactions",async()=>{
+  const token="read-block-time-".repeat(4),calls=[];
+  const server=await startRelay({token,rpcUrl:"https://api.mainnet-beta.solana.com",port:0,transport:async(_url,init)=>{calls.push(JSON.parse(init.body));return Response.json({result:1234567890});}});
+  const url=`http://127.0.0.1:${server.address().port}/rpc`;
+  const request=(method,params)=>fetch(url,{method:"POST",headers:{"x-tenx-local-relay":token},body:JSON.stringify({jsonrpc:"2.0",id:1,method,params})});
+  try{
+    assert.equal((await request("getBlockTime",[30000])).status,200);
+    for(const params of [[],[-1],[1.5],[Number.MAX_SAFE_INTEGER+1],[30000,40000],["30000"]])assert.equal((await request("getBlockTime",params)).status,400);
+    assert.equal((await request("sendTransaction",["payload"])).status,400);assert.equal(calls.length,1);
+  }finally{await new Promise(resolve=>server.close(resolve));}
+});
 test("RPC starts are spaced across concurrent requests and a provider 429 is shared",async()=>{
   const token="test-shared-rate-".repeat(4),starts=[];let limited=false;
   const server=await startRelay({token,rpcUrl:"https://api.mainnet-beta.solana.com",port:0,transport:async()=>{starts.push(Date.now());return limited?new Response(null,{status:429,headers:{"retry-after":"1200"}}):Response.json({result:"ok"})}});

@@ -33,6 +33,7 @@ export const StatusResponse = Common.extend({ data: z.object({
   capabilities: z.object({ discovery: z.boolean(), voting: z.literal(false), launches: z.literal(false), signing: z.literal(false), rewards: z.literal(false), social_publishing: z.literal(false) }),
   automation: z.object({ heartbeat_at: z.string().nullable(), next_refresh_at: z.string().nullable(), reviewed_at: z.string().nullable(), review_timezone: z.string(), review_cadence: z.string(), refresh_cadence: z.string() }).optional(),
   wallet_automation: z.object({ enabled: z.boolean(), daily_limit: z.number(), daily_used: z.number(), last_success: z.string().nullable(), next_refresh_at: z.string().nullable(), last_error: z.string().nullable() }).optional(),
+  backing_index_automation:z.object({enabled:z.boolean(),daily_limit:z.number(),daily_used:z.number(),scope:z.literal("subset_of_wallet_and_global_RPC_limits")}).optional(),
   election_automation: ElectionAutomationSchema.optional(),
   market_provider: z.enum(["geckoterminal", "dexscreener"]).optional(),
   artwork_automation: z.object({ next_refresh_at: z.string().nullable(), last_error: z.string().nullable() }).optional(),

@@ -61,7 +61,7 @@ export const SignatureRows = z.array(z.object({
   blockTime: z.number().int().nullable(), confirmationStatus: z.string().nullable(),
 })).max(1000);
 export type SignatureRow = z.infer<typeof SignatureRows>[number];
-type Method = "getGenesisHash" | "getSlot" | "getSignaturesForAddress" | "getTransaction" | "getMultipleAccounts" | "getProgramAccounts";
+type Method = "getGenesisHash" | "getSlot" | "getBlockTime" | "getSignaturesForAddress" | "getTransaction" | "getMultipleAccounts" | "getProgramAccounts";
 export type Reserve = (provider: "rpc" | "market") => Promise<void>;
 export const MAINNET_GENESIS = "5eykt4UsFv8P8NJdTREpY1vzqKqZKvdpKuc147dw2N9d";
 

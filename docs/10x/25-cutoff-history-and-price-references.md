@@ -1,5 +1,7 @@
 # Retained cutoff evidence and historical price references
 
+Follow-on: [prospective wallet-window history and RPC finality observations](26-wallet-window-coverage.md). New V3 rehearsals retain this cutoff/price evidence and add bounded source manifests; original V1/V2 records remain unchanged.
+
 Local PRD §§5.2–5.3 / P6 continuation, 20 October 2026. New backing rehearsals preserve committed candidate updates through cutoff and retain bounded pre-trade provider price references. All outcomes remain withheld, winners null, and votes/rewards disabled. Existing discovery gates and provider allowances are unchanged.
 
 ## Cutoff evidence

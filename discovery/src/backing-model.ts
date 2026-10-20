@@ -2,6 +2,7 @@ import { z } from "zod";
 import { Address, CandidateSchema, PolicySchema } from "./model";
 import { TradeSchema } from "./wallet-model";
 import { WalletTransactionSchema } from "./wallet-rpc";
+import { WindowEvidence, WindowCoverage } from "./backing-window-model";
 
 const Hash = z.string().regex(/^[a-f0-9]{64}$/), Raw = z.string().regex(/^-?\d+$/).max(80);
 export const BackingAssumptions = z.object({
@@ -17,6 +18,7 @@ export const BackingOpening = z.object({
   members: z.array(z.object({ address: Address, identity_id: z.uuid(), linked_at: z.iso.datetime() }).strict()).max(1000),
   candidate_scope: z.literal("up_to_20_observed_contenders"),
   cutoff_evidence_version: z.literal("candidate-journal-v1").optional(),
+  source_evidence_version:z.literal("wallet-window-v1").optional(),
 }).strict();
 export const CutoffEvidence = z.object({
   version: z.literal("candidate-journal-v1"), baseline_recorded_at: z.iso.datetime(), history_limited: z.boolean(),
@@ -30,6 +32,7 @@ export const BackingEvidence = z.object({
   revoked_wallets: z.array(Address).max(1000), transactions: z.array(CachedBackingTransaction).max(100),
   scan_limited: z.boolean(), source: z.literal("cached_finalized_mainnet_rpc"),
   cutoff: CutoffEvidence.optional(),
+  window:WindowEvidence.optional(),
 }).strict();
 export const PriceReference = z.object({
   mint: Address, signature: z.string(), instruction_index: z.string(),
@@ -47,13 +50,14 @@ export const BackingGroup = z.object({
   linear_projection_micros: Raw, sqrt_projection_micros: Raw, reasons: z.array(z.string()).max(30),
 }).strict();
 export const BackingResult = z.object({
-  version: z.literal("backing-result-v1"), algorithm: z.enum(["backing-experiment-v1","backing-experiment-v2"]),
+  version: z.literal("backing-result-v1"), algorithm: z.enum(["backing-experiment-v1","backing-experiment-v2","backing-experiment-v3"]),
   outcome: z.literal("withheld"), winner_address: z.null(), voting_enabled: z.literal(false), rewards_enabled: z.literal(false),
   pricing: z.literal("hypothetical_fixed_SOL_USD_not_verified_valuation"), coverage: z.literal("bounded_cache_not_exhaustive"),
   entries: z.array(BackingEntry).max(1000), groups: z.array(BackingGroup).max(1000),
   projections: z.array(z.object({ mint: Address, symbol: z.string(), eligible_at_open: z.boolean(), eligible_at_close: z.boolean(), linear_micros: Raw, sqrt_micros: Raw, identities_projected: z.number().int(), identities_held: z.number().int() }).strict()).max(20),
   ignored_transactions: z.number().int().nonnegative(), max_examined_slot: z.number().int().safe().nullable(), gaps: z.array(z.string()).max(30),
   coverage_detail: BackingCoverage.optional(), price_references: z.array(PriceReference).max(1000).optional(),
+  source_coverage:WindowCoverage.optional(),
 }).strict();
 export const BackingRecord = z.object({ opening: BackingOpening, opening_hash: Hash, evidence: BackingEvidence, evidence_hash: Hash, result: BackingResult, result_hash: Hash, record_hash: Hash }).strict();
 export const BackingSummary = z.object({
@@ -64,6 +68,7 @@ export const BackingSummary = z.object({
   opening_hash: Hash, record_hash: Hash.nullable(), replay: z.enum(["pending", "hash_checked"]), last_error: z.string().nullable(),
   outcome: z.literal("withheld"), voting_enabled: z.literal(false), gaps: z.array(z.string()),
   coverage_detail: BackingCoverage.optional(), cutoff_evidence_version: z.literal("candidate-journal-v1").optional(),
+  source_coverage:WindowCoverage.optional(),source_evidence_version:z.literal("wallet-window-v1").optional(),
 }).strict();
 export const BackingListResponse = z.object({ scope: z.literal("local_backing_rehearsals"), runs: z.array(BackingSummary).max(10), provider_requests: z.literal(0), voting_enabled: z.literal(false) }).strict();
 export type Opening = z.infer<typeof BackingOpening>;

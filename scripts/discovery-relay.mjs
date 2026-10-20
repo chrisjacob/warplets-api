@@ -1,7 +1,7 @@
 import { createServer } from "node:http";
 import { timingSafeEqual } from "node:crypto";
 
-const methods = new Set(["getGenesisHash", "getSlot", "getSignaturesForAddress", "getTransaction", "getMultipleAccounts", "getProgramAccounts"]);
+const methods = new Set(["getGenesisHash", "getSlot", "getBlockTime", "getSignaturesForAddress", "getTransaction", "getMultipleAccounts", "getProgramAccounts"]);
 export async function startRelay({ token, rpcUrl, port = 8795, transport = fetch }) {
   const rpc = new URL(rpcUrl);
   if (rpc.protocol !== "https:" || rpc.username || rpc.password || token.length < 32) throw new Error("Invalid local relay configuration");
@@ -18,6 +18,7 @@ export async function startRelay({ token, rpcUrl, port = 8795, transport = fetch
         for await (const chunk of request) { size += chunk.length; if (size > 32_000) { response.writeHead(413); response.end(); return; } chunks.push(chunk); }
         const body = Buffer.concat(chunks).toString("utf8"), parsed = JSON.parse(body);
         if (Array.isArray(parsed) || parsed.jsonrpc !== "2.0" || !methods.has(parsed.method) || !Array.isArray(parsed.params)) { response.writeHead(400); response.end(); return; }
+        if(parsed.method==="getBlockTime"&&(parsed.params.length!==1||!Number.isSafeInteger(parsed.params[0])||parsed.params[0]<0)){response.writeHead(400);response.end();return;}
         if (parsed.method === "getProgramAccounts") {
           const [program, config] = parsed.params;
           if (!["TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA", "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"].includes(program) || config?.commitment !== "finalized" || config?.withContext !== true || config?.encoding !== "base64" || config?.dataSlice?.offset !== 0 || config?.dataSlice?.length !== 166 || config?.filters?.length !== 1 || config?.filters[0]?.memcmp?.offset !== 0 || !/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(config?.filters[0]?.memcmp?.bytes ?? "")) { response.writeHead(400); response.end(); return; }

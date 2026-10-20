@@ -3073,6 +3073,119 @@
           "cutoff_evidence_version": {
             "type": "string",
             "const": "candidate-journal-v1"
+          },
+          "source_coverage": {
+            "type": "object",
+            "properties": {
+              "scope": {
+                "type": "string",
+                "const": "bounded_RPC_wallet_history"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "rpc_window_covered",
+                  "incomplete",
+                  "no_linked_wallets"
+                ]
+              },
+              "wallets_requested": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 1000
+              },
+              "wallets_tracked": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 16
+              },
+              "wallet_boundaries_reached": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 16
+              },
+              "pages": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 16
+              },
+              "signatures_in_window": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 800
+              },
+              "bodies_retained": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 100
+              },
+              "bodies_missing": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 800
+              },
+              "finalized_slot": {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "finalized_block_time": {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "reserved_calls": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 64
+              },
+              "independent_finality_verified": {
+                "type": "boolean",
+                "const": false
+              },
+              "gaps": {
+                "maxItems": 30,
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": [
+              "scope",
+              "status",
+              "wallets_requested",
+              "wallets_tracked",
+              "wallet_boundaries_reached",
+              "pages",
+              "signatures_in_window",
+              "bodies_retained",
+              "bodies_missing",
+              "finalized_slot",
+              "finalized_block_time",
+              "reserved_calls",
+              "independent_finality_verified",
+              "gaps"
+            ],
+            "additionalProperties": false
+          },
+          "source_evidence_version": {
+            "type": "string",
+            "const": "wallet-window-v1"
           }
         },
         "required": [
@@ -3343,6 +3456,119 @@
                 "cutoff_evidence_version": {
                   "type": "string",
                   "const": "candidate-journal-v1"
+                },
+                "source_coverage": {
+                  "type": "object",
+                  "properties": {
+                    "scope": {
+                      "type": "string",
+                      "const": "bounded_RPC_wallet_history"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "rpc_window_covered",
+                        "incomplete",
+                        "no_linked_wallets"
+                      ]
+                    },
+                    "wallets_requested": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 1000
+                    },
+                    "wallets_tracked": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 16
+                    },
+                    "wallet_boundaries_reached": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 16
+                    },
+                    "pages": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 16
+                    },
+                    "signatures_in_window": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 800
+                    },
+                    "bodies_retained": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 100
+                    },
+                    "bodies_missing": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 800
+                    },
+                    "finalized_slot": {
+                      "anyOf": [
+                        {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "finalized_block_time": {
+                      "anyOf": [
+                        {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "reserved_calls": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 64
+                    },
+                    "independent_finality_verified": {
+                      "type": "boolean",
+                      "const": false
+                    },
+                    "gaps": {
+                      "maxItems": 30,
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "required": [
+                    "scope",
+                    "status",
+                    "wallets_requested",
+                    "wallets_tracked",
+                    "wallet_boundaries_reached",
+                    "pages",
+                    "signatures_in_window",
+                    "bodies_retained",
+                    "bodies_missing",
+                    "finalized_slot",
+                    "finalized_block_time",
+                    "reserved_calls",
+                    "independent_finality_verified",
+                    "gaps"
+                  ],
+                  "additionalProperties": false
+                },
+                "source_evidence_version": {
+                  "type": "string",
+                  "const": "wallet-window-v1"
                 }
               },
               "required": [
@@ -5119,6 +5345,10 @@
               "cutoff_evidence_version": {
                 "type": "string",
                 "const": "candidate-journal-v1"
+              },
+              "source_evidence_version": {
+                "type": "string",
+                "const": "wallet-window-v1"
               }
             },
             "required": [
@@ -7233,6 +7463,228 @@
                   "prices"
                 ],
                 "additionalProperties": false
+              },
+              "window": {
+                "type": "object",
+                "properties": {
+                  "version": {
+                    "type": "string",
+                    "const": "wallet-window-v1"
+                  },
+                  "finality": {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "genesis": {
+                            "type": "string",
+                            "const": "5eykt4UsFv8P8NJdTREpY1vzqKqZKvdpKuc147dw2N9d"
+                          },
+                          "commitment": {
+                            "type": "string",
+                            "const": "finalized"
+                          },
+                          "slot": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "block_time": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "fetched_at": {
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                          },
+                          "source_hash": {
+                            "type": "string",
+                            "pattern": "^[a-f0-9]{64}$"
+                          }
+                        },
+                        "required": [
+                          "genesis",
+                          "commitment",
+                          "slot",
+                          "block_time",
+                          "fetched_at",
+                          "source_hash"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "pages": {
+                    "maxItems": 16,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "address": {
+                          "type": "string",
+                          "maxLength": 44
+                        },
+                        "before": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "pattern": "^[1-9A-HJ-NP-Za-km-z]{64,88}$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "limit": {
+                          "type": "number",
+                          "const": 50
+                        },
+                        "min_context_slot": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "fetched_at": {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                        },
+                        "rows": {
+                          "maxItems": 50,
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "signature": {
+                                "type": "string",
+                                "pattern": "^[1-9A-HJ-NP-Za-km-z]{64,88}$"
+                              },
+                              "slot": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 9007199254740991
+                              },
+                              "err": {},
+                              "blockTime": {
+                                "anyOf": [
+                                  {
+                                    "type": "integer",
+                                    "minimum": -9007199254740991,
+                                    "maximum": 9007199254740991
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "confirmationStatus": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              }
+                            },
+                            "required": [
+                              "signature",
+                              "slot",
+                              "err",
+                              "blockTime",
+                              "confirmationStatus"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "rows_hash": {
+                          "type": "string",
+                          "pattern": "^[a-f0-9]{64}$"
+                        }
+                      },
+                      "required": [
+                        "address",
+                        "before",
+                        "limit",
+                        "min_context_slot",
+                        "fetched_at",
+                        "rows",
+                        "rows_hash"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "processed": {
+                    "maxItems": 100,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "pattern": "^[1-9A-HJ-NP-Za-km-z]{64,88}$"
+                    }
+                  },
+                  "unavailable": {
+                    "maxItems": 100,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "signature": {
+                          "type": "string",
+                          "pattern": "^[1-9A-HJ-NP-Za-km-z]{64,88}$"
+                        },
+                        "reason": {
+                          "type": "string",
+                          "enum": [
+                            "missing",
+                            "unsupported",
+                            "oversized"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "signature",
+                        "reason"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "capacity_limited": {
+                    "type": "boolean"
+                  },
+                  "reserved_calls": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 64
+                  },
+                  "last_error": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 100
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "version",
+                  "finality",
+                  "pages",
+                  "processed",
+                  "unavailable",
+                  "capacity_limited",
+                  "reserved_calls",
+                  "last_error"
+                ],
+                "additionalProperties": false
               }
             },
             "required": [
@@ -7261,7 +7713,8 @@
                 "type": "string",
                 "enum": [
                   "backing-experiment-v1",
-                  "backing-experiment-v2"
+                  "backing-experiment-v2",
+                  "backing-experiment-v3"
                 ]
               },
               "outcome": {
@@ -7728,6 +8181,115 @@
                   ],
                   "additionalProperties": false
                 }
+              },
+              "source_coverage": {
+                "type": "object",
+                "properties": {
+                  "scope": {
+                    "type": "string",
+                    "const": "bounded_RPC_wallet_history"
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "rpc_window_covered",
+                      "incomplete",
+                      "no_linked_wallets"
+                    ]
+                  },
+                  "wallets_requested": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 1000
+                  },
+                  "wallets_tracked": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 16
+                  },
+                  "wallet_boundaries_reached": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 16
+                  },
+                  "pages": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 16
+                  },
+                  "signatures_in_window": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 800
+                  },
+                  "bodies_retained": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 100
+                  },
+                  "bodies_missing": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 800
+                  },
+                  "finalized_slot": {
+                    "anyOf": [
+                      {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "finalized_block_time": {
+                    "anyOf": [
+                      {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "reserved_calls": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 64
+                  },
+                  "independent_finality_verified": {
+                    "type": "boolean",
+                    "const": false
+                  },
+                  "gaps": {
+                    "maxItems": 30,
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "scope",
+                  "status",
+                  "wallets_requested",
+                  "wallets_tracked",
+                  "wallet_boundaries_reached",
+                  "pages",
+                  "signatures_in_window",
+                  "bodies_retained",
+                  "bodies_missing",
+                  "finalized_slot",
+                  "finalized_block_time",
+                  "reserved_calls",
+                  "independent_finality_verified",
+                  "gaps"
+                ],
+                "additionalProperties": false
               }
             },
             "required": [
@@ -19922,6 +20484,31 @@
                   "last_success",
                   "next_refresh_at",
                   "last_error"
+                ],
+                "additionalProperties": false
+              },
+              "backing_index_automation": {
+                "type": "object",
+                "properties": {
+                  "enabled": {
+                    "type": "boolean"
+                  },
+                  "daily_limit": {
+                    "type": "number"
+                  },
+                  "daily_used": {
+                    "type": "number"
+                  },
+                  "scope": {
+                    "type": "string",
+                    "const": "subset_of_wallet_and_global_RPC_limits"
+                  }
+                },
+                "required": [
+                  "enabled",
+                  "daily_limit",
+                  "daily_used",
+                  "scope"
                 ],
                 "additionalProperties": false
               },

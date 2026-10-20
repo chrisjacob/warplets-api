@@ -2,6 +2,7 @@ import { timingSafeEqual } from "node:crypto";
 import { z } from "zod";
 import { identityRoute } from "./identity";
 import { backingList, backingRecord, BackingError, freezeBacking, openBacking, settleBacking } from "./backing";
+import { runBackingIndex, backingIndexLimit } from "./backing-index";
 import { Address, assess, CandidateSchema, DEFAULT_POLICY, MarketSchema, Signature, shortlist } from "./model";
 import { runReviews } from "./research";
 import { runMarketCycle } from "./market-cycle";
@@ -86,6 +87,7 @@ async function status(env: Env) {
     local_only: true, paused: Boolean(state.paused), running: Boolean(state.lease_until && state.lease_until > new Date().toISOString()),
     last_error: state.last_error, retry_after: state.retry_after, pending_signatures: count?.count ?? 0,
     usage: usage.results, daily_limits: { rpc: Number(env.TENX_RPC_DAILY_LIMIT), market: Number(env.TENX_MARKET_DAILY_LIMIT), artwork: 120, wallet_catchup: catchupLimit(Number(env.TENX_WALLET_RPC_DAILY_LIMIT)) },
+    backing_index_automation:{enabled:env.TENX_WALLET_ANALYSIS_ENABLED==="true",daily_limit:backingIndexLimit(Number(env.TENX_WALLET_RPC_DAILY_LIMIT)),daily_used:(await env.TENX_DB.prepare("SELECT used FROM tenx_backing_index_usage WHERE day=?").bind(new Date().toISOString().slice(0,10)).first<{used:number}>())?.used??0,scope:"subset_of_wallet_and_global_RPC_limits"},
     adapter_version: ADAPTER_VERSION, policy: DEFAULT_POLICY,
     market_provider: env.TENX_MARKET_PROVIDER,
     automation: { heartbeat_at: state.heartbeat_at, next_refresh_at: state.next_refresh_at, reviewed_at: state.reviewed_at, review_timezone: "Australia/Sydney", review_cadence: "hourly catch-up of prior three days", refresh_cadence: "paced across the remaining free daily budget" },
@@ -257,7 +259,8 @@ export async function handle(request: Request, env: Env): Promise<Response> {
       const now = new Date(), state = await control(env.TENX_DB);
       await env.TENX_DB.prepare("UPDATE tenx_control SET heartbeat_at=?1 WHERE id=1").bind(now.toISOString()).run();
       const diagnostics = await runSignalCycle(env.TENX_DB);
-      const backing = await settleBacking(env.TENX_DB,now);
+      const backing_index=await runBackingIndex(settings(env));
+      const backing = await settleBacking(env.TENX_DB,new Date());
       let election: { id?: string; state: string; error?: string };
       try { election = await dailyElection(env.TENX_DB); }
       catch (error) { election = { state: "failed", error: error instanceof ElectionError ? error.message : "election_unavailable" }; }
@@ -265,9 +268,9 @@ export async function handle(request: Request, env: Env): Promise<Response> {
       if (path.endsWith("/review") || !state.reviewed_at || now.getTime() - Date.parse(state.reviewed_at) >= 3600000) {
         const review = await runReviews(env.TENX_DB, now);
         await env.TENX_DB.prepare("UPDATE tenx_control SET reviewed_at=?1 WHERE id=1").bind(now.toISOString()).run();
-        return json({ local: true, review, election, diagnostics, backing });
+        return json({ local: true, review, election, diagnostics, backing, backing_index });
       }
-      return json({ local: true, review: "waiting_for_hourly_tick", election, diagnostics, backing });
+      return json({ local: true, review: "waiting_for_hourly_tick", election, diagnostics, backing, backing_index });
     }
     if (path === "/api/10x/admin/refresh") {
       await audit(env.TENX_DB, "refresh_requested", reason, {});
