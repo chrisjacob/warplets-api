@@ -5,6 +5,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import net from "node:net";
 import { startRelay } from "./discovery-relay.mjs";
+import { discoveryLifecycle } from "./discovery-lifecycle.mjs";
 
 const dir = fileURLToPath(new URL("../discovery/", import.meta.url));
 const base = "http://127.0.0.1:8794";
@@ -30,62 +31,73 @@ run(["d1", "migrations", "apply", "TENX_DB", "--local", "--config", "wrangler.lo
 const vars = readFileSync(varsFile, "utf8");
 const relay = /\bTENX_NODE_RELAY=true\b/.test(vars) ? await startRelay({ token, rpcUrl: "https://api.mainnet-beta.solana.com" }) : null;
 const child = spawn("pnpm", ["exec", "wrangler", "dev", "--local", "--config", "wrangler.local.jsonc", "--port", "8794", "--ip", "127.0.0.1", "--inspector-port", "9237", "--persist-to", persist], { cwd: dir, stdio: "inherit", shell: process.platform === "win32" });
-let stopping = false, busy = false;
-let timer;
-function stop() {
-  if (stopping) return; stopping = true; clearInterval(timer); relay?.close();
-  if (process.platform === "win32" && child.pid) spawnSync("taskkill.exe", ["/PID", String(child.pid), "/T", "/F"], { stdio: "ignore", windowsHide: true });
-  else child.kill();
-}
+let busy = false;
+const lifecycle = discoveryLifecycle({
+  child, relay,
+  terminateChild() {
+    if (process.platform === "win32" && child.pid) spawnSync("taskkill.exe", ["/PID", String(child.pid), "/T", "/F"], { stdio: "ignore", windowsHide: true });
+    else child.kill();
+  },
+  onWorkerFailure() {
+    process.exitCode = 1;
+    console.warn("Local discovery Worker exited; launcher stopping for supervisor recovery.");
+  },
+});
+const stop = () => lifecycle.stop();
 process.on("SIGINT", stop); process.on("SIGTERM", stop);
-child.on("exit", () => { stopping = true; clearInterval(timer); relay?.close(); });
 const deadline = Date.now() + 90_000;
-while (Date.now() < deadline && !stopping) {
-  try { if ((await fetch(`${base}/api/10x/health`, { signal: AbortSignal.timeout(2000) })).ok) break; } catch { /* booting */ }
+while (Date.now() < deadline && !lifecycle.stopping) {
+  try {
+    const response = await fetch(`${base}/api/10x/health`, { signal: lifecycle.signal(2000), redirect: "manual" });
+    const ready = response.ok;
+    await response.body?.cancel();
+    if (ready) break;
+  } catch { /* booting */ }
   await new Promise(resolve => setTimeout(resolve, 500));
 }
-if (stopping || Date.now() >= deadline) { stop(); throw new Error("Local discovery did not become ready"); }
+if (lifecycle.stopping || Date.now() >= deadline) { stop(); throw new Error("Local discovery did not become ready"); }
 console.log("Local discovery ready on port 8794. Timer: 60s. Operator token stays in discovery/.dev.vars.");
 async function tick() {
-  if (busy || stopping) return; busy = true;
+  if (busy || lifecycle.stopping) return; busy = true;
   try {
     const maintenance = await fetch(`${base}/api/10x/admin/maintenance`, {
       method: "POST", headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
-      body: JSON.stringify({ reason: "Local timer heartbeat and daily outcome review" }), signal: AbortSignal.timeout(120_000),
+      body: JSON.stringify({ reason: "Local timer heartbeat and daily outcome review" }), signal: lifecycle.signal(120_000), redirect: "manual",
     });
     if (!maintenance.ok) console.warn("Discovery maintenance HTTP", maintenance.status);
+    await maintenance.body?.cancel();
     const market = await fetch(`${base}/api/10x/admin/market-refresh`, {
       method: "POST", headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
-      body: JSON.stringify({ reason: "Local batched chart and image refresh" }), signal: AbortSignal.timeout(60000),
+      body: JSON.stringify({ reason: "Local batched chart and image refresh" }), signal: lifecycle.signal(60000), redirect: "manual",
     });
     if (market.ok) console.log("Market cycle:", JSON.stringify(await market.json()));
-    else console.warn("Market cycle HTTP", market.status);
+    else { console.warn("Market cycle HTTP", market.status); await market.body?.cancel(); }
     const artwork = await fetch(`${base}/api/10x/admin/artwork-refresh`, {
       method: "POST", headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
-      body: JSON.stringify({ reason: "Local cached token artwork refresh" }), signal: AbortSignal.timeout(60000),
+      body: JSON.stringify({ reason: "Local cached token artwork refresh" }), signal: lifecycle.signal(60000), redirect: "manual",
     });
     if (artwork.ok) console.log("Artwork cycle:", JSON.stringify(await artwork.json()));
-    else console.warn("Artwork cycle HTTP", artwork.status);
+    else { console.warn("Artwork cycle HTTP", artwork.status); await artwork.body?.cancel(); }
     const quality = await fetch(`${base}/api/10x/admin/quality-refresh`, {
       method: "POST", headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
-      body: JSON.stringify({ reason: "Local focused contender risk and holder refresh" }), signal: AbortSignal.timeout(180000),
+      body: JSON.stringify({ reason: "Local focused contender risk and holder refresh" }), signal: lifecycle.signal(180000), redirect: "manual",
     });
     if (quality.ok) console.log("Quality cycle:", JSON.stringify(await quality.json()));
-    else console.warn("Quality cycle HTTP", quality.status);
+    else { console.warn("Quality cycle HTTP", quality.status); await quality.body?.cancel(); }
     const response = await fetch(`${base}/api/10x/admin/refresh`, {
       method: "POST", headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
-      body: JSON.stringify({ reason: "Local bounded discovery timer" }), signal: AbortSignal.timeout(360_000),
+      body: JSON.stringify({ reason: "Local bounded discovery timer" }), signal: lifecycle.signal(360_000), redirect: "manual",
     });
     if (response.ok) console.log("Discovery cycle:", JSON.stringify(await response.json()));
-    else console.warn("Discovery cycle HTTP", response.status);
+    else { console.warn("Discovery cycle HTTP", response.status); await response.body?.cancel(); }
     const wallet = await fetch(`${base}/api/10x/admin/wallet-refresh`, {
       method: "POST", headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
-      body: JSON.stringify({ reason: "Local bounded bundle and wallet analysis timer" }), signal: AbortSignal.timeout(300000),
+      body: JSON.stringify({ reason: "Local bounded bundle and wallet analysis timer" }), signal: lifecycle.signal(300000), redirect: "manual",
     });
     if (wallet.ok) console.log("Wallet cycle:", JSON.stringify(await wallet.json()));
-    else console.warn("Wallet cycle HTTP", wallet.status);
+    else { console.warn("Wallet cycle HTTP", wallet.status); await wallet.body?.cancel(); }
   } catch { console.warn("Local discovery refresh interrupted; durable state retained."); }
   finally { busy = false; }
 }
 await tick();
-timer = setInterval(() => { void tick(); }, 60_000);
+lifecycle.repeat(() => { void tick(); }, 60_000);

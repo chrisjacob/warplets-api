@@ -1,5 +1,7 @@
 # 10X.MEME engineering kickoff
 
+Latest recovery milestone: [isolated preview restoration and launcher shutdown](50-preview-recovery.md). The existing supervisor now loads a launcher that aborts pending local requests and cannot recreate a timer after Worker exit. Free budgets, pause/backoff, all evidence gates and the 0/10 coverage gap remain. No deploy.
+
 Planning checkpoint: 20 October 2026 (Australia/Sydney). Product specification: v1.1, 17 October 2026.
 
 Restarting the workstation or continuing in a new Codex chat? Read the [restart and resume handoff](RESTART.md) for the checkpoint, source documents, standing constraints, preserved local stores and preview recovery steps.
