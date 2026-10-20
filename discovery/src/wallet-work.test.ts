@@ -41,6 +41,47 @@ async function setup() {
   return { db, input, candidate, transport, rpc, settings };
 }
 describe("funding continuations keep eligibility snapshots honest", () => {
+  it.each(["version", "layout"])("retains an unsupported %s body once while other funding windows advance", async (failure) => {
+    const { db, candidate, input, transport, rpc } = await setup();
+    const original = transport.getMockImplementation()!, scan = structuredClone(input.funding_scans![0]!);
+    scan.pages = [{ before: scan.anchor.signature, fetched_at: input.observed_at, rows: [
+      { signature: signature(92), slot: scan.anchor.slot - 1, blockTime: Date.parse(scan.anchor.block_time) / 1000 - 10, err: null, confirmationStatus: "finalized" },
+      { signature: signature(93), slot: scan.anchor.slot - 2, blockTime: Date.parse(scan.anchor.block_time) / 1000 - 3601, err: null, confirmationStatus: "finalized" },
+    ] }];
+    const normalized=FundingScanSchema.parse(scan);
+    await db.prepare("INSERT INTO tenx_funding_scans(address,wallet,anchor_signature,payload,payload_hash,attempted_at) VALUES(?1,?2,?3,?4,?5,?6)").bind(candidate.address,scan.wallet,scan.anchor.signature,JSON.stringify(normalized),await hashJson(normalized),scan.attempted_at).run();
+    transport.mockImplementation(async (url,init) => {
+      const b=JSON.parse(String(init?.body));
+      if (b.method === "getTransaction") return Response.json(failure === "version" ? {jsonrpc:"2.0",id:b.id,error:{code:-32015,message:"unsupported"}} : {jsonrpc:"2.0",id:b.id,result:{version:1}});
+      return original(url,init);
+    });
+    const before=await db.prepare("SELECT payload FROM tenx_candidates").all();
+    const first=await continueFunding(db,candidate,rpc());
+    expect(first.examined_windows).toBe(2);
+    expect(first.gaps).toContain("funding_transaction_missing_or_unsupported");
+    const saved=JSON.parse((await db.prepare("SELECT payload FROM tenx_funding_scans WHERE wallet=?1").bind(scan.wallet).first<{payload:string}>())!.payload);
+    expect(saved.examined).toEqual([{signature:signature(92),status:"unsupported"}]);
+    const second=await continueFunding(db,candidate,rpc());
+    expect(second).toMatchObject({examined_windows:3,stage:"source_limited"});
+    expect(transport.mock.calls.filter(([,init])=>JSON.parse(String(init?.body)).method==="getTransaction")).toHaveLength(1);
+    expect(await db.prepare("SELECT payload FROM tenx_candidates").all()).toEqual(before);
+    expect((await walletPlan(db,candidate)).stage).toBe("source_limited");
+  });
+  it("does not mislabel transient provider errors as terminal unsupported evidence", async () => {
+    const {db,candidate,input,transport,rpc}=await setup(),original=transport.getMockImplementation()!;
+    transport.mockImplementation(async(url,init)=>{
+      const b=JSON.parse(String(init?.body));
+      if(b.method==="getTransaction")return new Response(null,{status:429,headers:{"retry-after":"300"}});
+      if(b.method==="getSignaturesForAddress"){
+        const anchor=input.funding_scans!.find(s=>s.wallet===b.params[0])!.anchor;
+        return Response.json({jsonrpc:"2.0",id:b.id,result:[{signature:signature(92),slot:anchor.slot-1,blockTime:Date.parse(anchor.block_time)/1000-10,err:null,confirmationStatus:"finalized"},{signature:signature(93),slot:anchor.slot-2,blockTime:Date.parse(anchor.block_time)/1000-3601,err:null,confirmationStatus:"finalized"}]});
+      }
+      return original(url,init);
+    });
+    await expect(continueFunding(db,candidate,rpc())).rejects.toThrow("rpc_rate_limited");
+    const saved=await db.prepare("SELECT payload FROM tenx_funding_scans").all<{payload:string}>();
+    expect(saved.results).toHaveLength(1);expect(JSON.parse(saved.results[0]!.payload).examined).toEqual([]);
+  });
   it("resumes exact saved anchors with no trade resampling and no candidate timestamp changes", async () => {
     const { db, candidate, transport, rpc } = await setup();
     const before = await db.prepare("SELECT payload FROM tenx_candidates WHERE mode='live'").first();

@@ -6,7 +6,9 @@ Latest engineering review: [security fixes and credential follow-up](29-security
 
 Previous engineering review: [measured performance improvements](28-performance-review.md), including compact Discover cards, deferred wallet code, retained-shell navigation and an aggregate startup budget.
 
-Current checkpoint: [signed external-content submission and moderation](30-content-review.md). Local ten-day review campaigns, canonical URL deduplication, signed contributor sessions, private moderation/appeals and hash-linked review histories; authorship and engagement remain unverified, with no reward credit.
+Current checkpoint: [version-aware Solana transaction coverage](31-transaction-v1-coverage.md). Strict v1 JSON reads preserve resource config; unsupported continuation bodies remain explicit, non-repeating gaps. All eligibility gates and free-service quotas remain; ten eligible tokens and retained live v1 certification are still outstanding.
+
+Previous checkpoint: [signed external-content submission and moderation](30-content-review.md). Local ten-day review campaigns, canonical URL deduplication, signed contributor sessions, private moderation/appeals and hash-linked review histories; authorship and engagement remain unverified, with no reward credit.
 
 Previous checkpoint: [local attention campaign reward accounting lab](27-attention-reward-lab.md). Ten-day/10% isolated reserves, raw ranks and both proposed boost models can be rehearsed with hypothetical inputs; no live rewards or economic policy activation.
 

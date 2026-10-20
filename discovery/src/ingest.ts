@@ -76,9 +76,9 @@ export async function runCycle(settings: Settings, now = new Date()): Promise<Re
       let tx;
       try { tx = await rpc.transaction(row.signature); }
       catch (error) {
-        if (!(error instanceof SourceError) || error.code !== "unsupported_transaction_version") throw error;
+        if (!(error instanceof SourceError) || !["unsupported_transaction_version", "transaction_layout_unsupported"].includes(error.code)) throw error;
         await assertOwner();
-        await db.prepare("UPDATE tenx_pending_signatures SET processed_at=?1,result='unsupported_transaction_version' WHERE signature=?2").bind(at, row.signature).run();
+        await db.prepare("UPDATE tenx_pending_signatures SET processed_at=?1,result=?2 WHERE signature=?3").bind(at, error.code, row.signature).run();
         continue;
       }
       await assertOwner();
@@ -160,8 +160,8 @@ async function inspectLead(rpc: RpcClient, migration: Migration, tx: Transaction
       let origin;
       try { origin = await rpc.transaction(row.signature); }
       catch (error) {
-        if (!(error instanceof SourceError) || error.code !== "unsupported_transaction_version") throw error;
-        reasons.push("creation_transaction_version_unsupported"); continue;
+        if (!(error instanceof SourceError) || !["unsupported_transaction_version", "transaction_layout_unsupported"].includes(error.code)) throw error;
+        reasons.push(error.code === "transaction_layout_unsupported" ? "creation_transaction_layout_unsupported" : "creation_transaction_version_unsupported"); continue;
       }
       if (!origin || origin.meta?.err !== null) continue;
       const result = await creationProof(origin, lead.address, at);

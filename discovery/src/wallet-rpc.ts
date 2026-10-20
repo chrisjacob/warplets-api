@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { Address, Signature } from "./model";
-import { RpcClient, SourceError, TransactionSchema } from "./rpc";
+import { RpcClient, SourceError, TransactionSchema, assertSupportedTransactionFormat, MAX_TRANSACTION_VERSION } from "./rpc";
 
 const TokenBalance = z.object({
   accountIndex: z.number().int().min(0).max(255), mint: Address, owner: Address.optional(), programId: Address.optional(),
@@ -8,7 +8,7 @@ const TokenBalance = z.object({
 });
 // Keep this parser separate: enriching historical proof normalization would
 // change existing creation/graduation hashes.
-export const WalletTransactionSchema = TransactionSchema.extend({
+export const WalletTransactionSchema = TransactionSchema.safeExtend({
   transaction: TransactionSchema.shape.transaction.extend({ message: TransactionSchema.shape.transaction.shape.message.extend({
     header: z.object({ numRequiredSignatures: z.number().int().min(1).max(64) }),
   }) }),
@@ -23,8 +23,10 @@ export const WalletTransactionSchema = TransactionSchema.extend({
 export type WalletTransaction = z.infer<typeof WalletTransactionSchema>;
 export async function walletTransaction(rpc: RpcClient, signature: string): Promise<WalletTransaction | null> {
   Signature.parse(signature);
-  const raw = await rpc.call("getTransaction", [signature, { commitment: "finalized", encoding: "json", maxSupportedTransactionVersion: 0 }]);
+  const raw = await rpc.call("getTransaction", [signature, { commitment: "finalized", encoding: "json", maxSupportedTransactionVersion: MAX_TRANSACTION_VERSION }]);
   if (raw === null) return null;
+  try { assertSupportedTransactionFormat(raw); }
+  catch (error) { if (error instanceof SourceError && error.code === "transaction_layout_unsupported") throw new SourceError("wallet_transaction_layout_unsupported"); throw error; }
   const parsed = WalletTransactionSchema.safeParse(raw);
   if (!parsed.success) throw new SourceError("wallet_transaction_layout_unsupported");
   if (parsed.data.transaction.signatures[0] !== signature) throw new SourceError("transaction_signature_mismatch");

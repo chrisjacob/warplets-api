@@ -3,7 +3,7 @@ import { analyzeWalletEvidence, WalletEvidenceSchema, type WalletEvidence } from
 import { hashJson } from "./solana";
 import { collectFundingHistories, fundingTask, FundingScanSchema, type FundingAnchor } from "./funding-history";
 import { walletTransaction, WalletTransactionSchema } from "./wallet-rpc";
-import { RpcClient } from "./rpc";
+import { RpcClient, SourceError } from "./rpc";
 import { WalletWorkSchema, type WalletWork } from "./wallet-work-model";
 import { candidates } from "./store";
 import { creationRoles, verifiedTrades } from "./wallet-trades";
@@ -85,7 +85,19 @@ export async function continueFunding(db: D1Database, candidate: Candidate, rpc:
     if (status) { const record = { signature, status, transaction: null, purposes: ["wallet" as const], fetched_at: new Date().toISOString() }; records.push(record); return record; }
     const cached = await db.prepare("SELECT payload,payload_hash,fetched_at FROM tenx_wallet_transactions WHERE signature=?1").bind(signature).first<{payload:string;payload_hash:string;fetched_at:string}>();
     if (!cached && rpc.calls >= 18) return null;
-    const transaction = cached ? WalletTransactionSchema.parse(JSON.parse(cached.payload)) : await walletTransaction(rpc, signature);
+    let transaction;
+    try { transaction = cached ? WalletTransactionSchema.parse(JSON.parse(cached.payload)) : await walletTransaction(rpc, signature); }
+    catch (error) {
+      // A terminal source/layout gap must be retained in this exact window,
+      // rather than failing the turn and purchasing the same body repeatedly.
+      // Corrupt caches, mismatched signatures/slots and transient RPC errors
+      // still fail closed and keep their existing backoff behavior.
+      if (!cached && error instanceof SourceError && ["unsupported_transaction_version", "wallet_transaction_layout_unsupported"].includes(error.code)) {
+        const record = { signature, status: "unsupported" as const, transaction: null, purposes: ["wallet" as const], fetched_at: new Date().toISOString() };
+        records.push(record); return record;
+      }
+      throw error;
+    }
     if (transaction && (transaction.slot !== slot || transaction.transaction.signatures[0] !== signature)) throw new Error("wallet_signature_slot_mismatch");
     if (transaction && cached && await hashJson(transaction) !== cached.payload_hash) throw new Error("wallet_cache_hash_mismatch");
     const payload = JSON.stringify(transaction), size = new TextEncoder().encode(payload).length, fetched = cached?.fetched_at ?? new Date().toISOString();

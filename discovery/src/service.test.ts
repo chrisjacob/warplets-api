@@ -10,7 +10,7 @@ import { DEFAULT_POLICY } from "./model";
 import worker, { handle, type LocalEnv } from "./worker";
 import { boundedJson, MAINNET_GENESIS, RpcClient } from "./rpc";
 import { runCycle } from "./ingest";
-import { gateSample, walletInput } from "./wallet-fixtures.test-helper";
+import { gateSample, walletInput, signature } from "./wallet-fixtures.test-helper";
 import { reserveWalletQuota, runWalletCycle } from "./wallet-cycle";
 import { WSOL } from "./pump";
 import { CandidateCardSchema, candidateCard } from "./candidate-card";
@@ -310,6 +310,23 @@ describe("durable discovery state and public/admin API", () => {
     const calls = transport.mock.calls.length;
     expect(await runCycle(settings, now)).toMatchObject({ state: "duplicate" }); expect(transport).toHaveBeenCalledTimes(calls);
   });
+  it("records an unsupported inbox layout and advances other signatures without retrying that body", async () => {
+    const {d1}=fixture(),now=new Date("2026-10-20T00:00:00Z");
+    await d1.prepare("UPDATE tenx_control SET last_harvest=?1 WHERE id=1").bind(now.toISOString()).run();
+    for(const n of [91,92])await d1.prepare("INSERT INTO tenx_pending_signatures(signature,slot,queued_at) VALUES(?1,?2,?3)").bind(signature(n),10000-n,now.toISOString()).run();
+    const transport=vi.fn(async(_url:unknown,init?:RequestInit)=>{
+      const b=JSON.parse(String(init?.body));
+      return Response.json({jsonrpc:"2.0",id:b.id,result:b.method==="getGenesisHash"?MAINNET_GENESIS:b.params[0]===signature(91)?{version:1}:null});
+    });
+    const settings={db:d1,rpcUrl:"https://rpc.example",rpcDailyLimit:100,marketDailyLimit:10,marketEnabled:false,transport};
+    expect(await runCycle(settings,now)).toMatchObject({state:"succeeded",rpc_calls:3});
+    expect(await d1.prepare("SELECT result FROM tenx_pending_signatures WHERE signature=?1").bind(signature(91)).first()).toEqual({result:"transaction_layout_unsupported"});
+    expect(await runCycle(settings,new Date(now.getTime()+60000))).toMatchObject({state:"succeeded",rpc_calls:2});
+    const bodies=transport.mock.calls.map(([,init])=>JSON.parse(String(init?.body))).filter(b=>b.method==="getTransaction");
+    expect(bodies.filter(b=>b.params[0]===signature(91))).toHaveLength(1);
+    expect(bodies.filter(b=>b.params[0]===signature(92))).toHaveLength(2); // Archival null stays retryable.
+    expect((await d1.prepare("SELECT count(*) AS n FROM tenx_candidates").first<{n:number}>())!.n).toBe(0);
+  });
   it("rejects an attempt to replace an immutable proof", async () => {
     const { d1 } = fixture(), c = { ...(await fixtureCandidates())[0]!, mode: "live" as const };
     await saveCandidate(d1, c);
@@ -325,7 +342,7 @@ describe("bounded read-only RPC adapter", () => {
       return Response.json({ jsonrpc: "2.0", id: body.id, result: body.method === "getGenesisHash" ? MAINNET_GENESIS : bundle.creation });
     });
     await rpc.checkCluster(); await rpc.transaction(bundle.creation.transaction.signatures[0]!);
-    expect(calls[1]?.params[1]).toEqual({ commitment: "finalized", encoding: "json", maxSupportedTransactionVersion: 0 });
+    expect(calls[1]?.params[1]).toEqual({ commitment: "finalized", encoding: "json", maxSupportedTransactionVersion: 1 });
   });
   it("fails closed for a wrong cluster, signature mismatch, and unsupported versions", async () => {
     const b = await syntheticBundle();

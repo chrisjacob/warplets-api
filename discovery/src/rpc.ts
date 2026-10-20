@@ -31,19 +31,46 @@ const InstructionSchema = z.object({
   accounts: z.array(z.number().int().min(0).max(255)).max(256),
   data: z.string().max(10_000), stackHeight: z.number().int().positive().nullable().optional(),
 });
+// Pinned Agave v4.2.2 UiTransactionConfig. Fees remain sourced from meta.fee;
+// these are message resource settings, not Pump/PumpSwap trading fees.
+export const TransactionConfigSchema = z.object({
+  priorityFee: z.number().int().safe().nonnegative().nullable(),
+  computeUnitLimit: z.number().int().min(0).max(0xffffffff).nullable(),
+  loadedAccountsDataSizeLimit: z.number().int().min(0).max(0xffffffff).nullable(),
+  heapSize: z.number().int().min(0).max(0xffffffff).nullable(),
+}).strict();
+export const MAX_TRANSACTION_VERSION = 1;
 export const TransactionSchema = z.object({
   slot: z.number().int().safe().nonnegative(), blockTime: z.number().int().nonnegative().nullable(),
-  version: z.union([z.literal("legacy"), z.literal(0)]).optional(),
+  version: z.union([z.literal("legacy"), z.literal(0), z.literal(1)]).optional(),
   transaction: z.object({
     signatures: z.array(Signature).min(1).max(64),
-    message: z.object({ accountKeys: z.array(Address).max(256), instructions: z.array(InstructionSchema).max(256) }),
+    message: z.object({ accountKeys: z.array(Address).max(256), instructions: z.array(InstructionSchema).max(256), transactionConfig: TransactionConfigSchema.optional() }),
   }),
   meta: z.object({
     err: z.unknown(),
     innerInstructions: z.array(z.object({ index: z.number().int().nonnegative(), instructions: z.array(InstructionSchema).max(1024) })).nullable(),
     loadedAddresses: z.object({ writable: z.array(Address), readonly: z.array(Address) }).optional(),
   }).nullable(),
+}).superRefine((tx, context) => {
+  const config = tx.transaction.message.transactionConfig;
+  if ((tx.version === 1) !== (config !== undefined)) context.addIssue({ code: "custom", message: "transaction_version_config_mismatch" });
+  if (tx.version === 1 && ((tx.meta?.loadedAddresses?.writable.length ?? 0) || (tx.meta?.loadedAddresses?.readonly.length ?? 0))) context.addIssue({ code: "custom", message: "v1_lookup_addresses_not_allowed" });
 });
+export function assertSupportedTransactionFormat(raw: unknown): void {
+  const value = z.object({ version: z.unknown().optional() }).safeParse(raw);
+  if (!value.success) throw new SourceError("transaction_layout_unsupported");
+  if (value.data.version !== undefined && !["legacy", 0, 1].includes(value.data.version as string | number)) throw new SourceError("unsupported_transaction_version");
+  if (value.data.version !== 1) return;
+  const parsed = z.object({ transaction: z.object({ signatures: z.array(Signature).min(1).max(64), message: z.object({
+    accountKeys: z.array(Address).min(1).max(256), transactionConfig: TransactionConfigSchema,
+    addressTableLookups: z.array(z.never()).max(0).optional(),
+    header: z.object({ numRequiredSignatures: z.number().int().min(1).max(64), numReadonlySignedAccounts: z.number().int().min(0).max(255), numReadonlyUnsignedAccounts: z.number().int().min(0).max(255) }),
+  }) }) }).safeParse(raw);
+  if (!parsed.success) throw new SourceError("transaction_layout_unsupported");
+  const { signatures, message } = parsed.data.transaction, header = message.header;
+  if (header.numRequiredSignatures !== signatures.length || header.numRequiredSignatures > message.accountKeys.length || header.numReadonlySignedAccounts >= header.numRequiredSignatures || header.numReadonlyUnsignedAccounts > message.accountKeys.length - header.numRequiredSignatures) throw new SourceError("transaction_layout_unsupported");
+}
 export type Transaction = z.infer<typeof TransactionSchema>;
 export const AccountSchema = z.object({
   owner: Address, executable: z.boolean(), data: z.tuple([z.string().max(2_000_000), z.literal("base64")]),
@@ -109,9 +136,12 @@ export class RpcClient {
   }
   async transaction(signature: string): Promise<Transaction | null> {
     Signature.parse(signature);
-    const value = await this.call("getTransaction", [signature, { commitment: "finalized", encoding: "json", maxSupportedTransactionVersion: 0 }]);
+    const value = await this.call("getTransaction", [signature, { commitment: "finalized", encoding: "json", maxSupportedTransactionVersion: MAX_TRANSACTION_VERSION }]);
     if (value === null) return null;
-    const tx = TransactionSchema.parse(value);
+    assertSupportedTransactionFormat(value);
+    const parsed = TransactionSchema.safeParse(value);
+    if (!parsed.success) throw new SourceError("transaction_layout_unsupported");
+    const tx = parsed.data;
     if (tx.transaction.signatures[0] !== signature) throw new SourceError("transaction_signature_mismatch");
     return tx;
   }

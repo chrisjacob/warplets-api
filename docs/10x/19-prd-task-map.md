@@ -18,6 +18,8 @@ Reviewed 20 October 2026 against the entire [PRD v1.1](spec/10X_MEME_FULL_PRD_v1
 
 ## Ordered work packages
 
+P3/P6 update, 21 October: [strict v1 transaction reads and terminal funding-gap retention](31-transaction-v1-coverage.md) are implemented locally. Historical hashes, evidence gates and provider allowances remain unchanged. Live v1 fixture certification and bounded recovery of previously unsupported checkpoints remain next; the ten-token target is still unmet.
+
 P6 update: [retained cutoff snapshots/provider references](25-cutoff-history-and-price-references.md) now have [bounded frozen-wallet history collection and RPC finality observations](26-wallet-window-coverage.md), with offline source manifests and explicit missing evidence. Verified historical USD, independently complete source/finality coverage and stronger membership evidence remain outstanding.
 
 Effort estimates are engineering ranges, not delivery promises. They exclude outcome maturation, provider decisions, audits and founder decisions. Tasks use local data/offline fixtures first and create no paid resources or onchain transactions.
