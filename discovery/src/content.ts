@@ -8,7 +8,7 @@ import { CONTENT_LIMITS as limits } from "./content-limits";
 type Principal = Awaited<ReturnType<typeof requireContentIdentity>>;
 type Snapshot = z.infer<typeof ContentSnapshot>;
 type Event = z.infer<typeof ContentEvent>;
-type Row = { id: string; campaign_id: string; identity_id: string; canonical_url: string; created_at: string; updated_at: string; status: string; revision: number; request_hash: string; snapshot: string; event_hash: string };
+export type ContentRow = { id: string; campaign_id: string; identity_id: string; canonical_url: string; created_at: string; updated_at: string; status: string; revision: number; request_hash: string; snapshot: string; event_hash: string };
 const day = (at: Date) => [at.toISOString().slice(0, 10) + "T00:00:00.000Z", new Date(at.getTime() + 86400000).toISOString().slice(0, 10) + "T00:00:00.000Z"];
 function fail(message: string, status = 409): never { throw new ContentError(message, status); }
 const eventHash = ({ hash: _hash, ...event }: Event) => hashJson(event);
@@ -22,6 +22,9 @@ function transition(status: string, action: Event["action"], next: string) {
 export async function contentCampaign(db: D1Database, id: string) {
   const row = await db.prepare("SELECT * FROM tenx_content_campaigns WHERE id=?").bind(z.uuid().parse(id)).first<{ id: string; created_at: string; ends_at: string; request_hash: string; record: string }>();
   if (!row) return null;
+  return decodeContentCampaignRow(row);
+}
+export async function decodeContentCampaignRow(row: { id: string; created_at: string; ends_at: string; request_hash: string; record: string }) {
   const record = ContentCampaign.parse(JSON.parse(row.record)), { record_hash, ...value } = record;
   if (await hashJson(value) !== record_hash || row.id !== record.id || row.created_at !== record.starts_at || row.ends_at !== record.ends_at || row.request_hash !== record.request_hash || Date.parse(record.ends_at) - Date.parse(record.starts_at) !== 10 * 86400000) fail("content_campaign_integrity_failed", 503);
   return record;
@@ -40,19 +43,23 @@ export async function createContentCampaign(db: D1Database, raw: unknown, at = n
   if (saved.request_hash !== request_hash) fail("content_request_conflict");
   return saved;
 }
-async function rowFor(db: D1Database, id: string) { return db.prepare("SELECT * FROM tenx_content_submissions WHERE id=?").bind(z.uuid().parse(id)).first<Row>(); }
-async function checkSnapshot(row: Row) {
+async function rowFor(db: D1Database, id: string) { return db.prepare("SELECT * FROM tenx_content_submissions WHERE id=?").bind(z.uuid().parse(id)).first<ContentRow>(); }
+async function checkSnapshot(row: ContentRow) {
   const snapshot = ContentSnapshot.parse(JSON.parse(row.snapshot));
   if (snapshot.id !== row.id || snapshot.identity_id !== row.identity_id || snapshot.campaign_id !== row.campaign_id || snapshot.content.canonical_url !== row.canonical_url || snapshot.status !== row.status || snapshot.revision !== row.revision || snapshot.created_at !== row.created_at || snapshot.updated_at !== row.updated_at) fail("content_snapshot_integrity_failed", 503);
   return snapshot;
 }
-export async function contentRecord(db: D1Database, id: string, owner?: string) {
-  // One SQLite statement reads the projection and ordered history at the same
-  // snapshot, so a concurrent review cannot produce a false integrity failure.
-  const row = await db.prepare(`SELECT s.*,(SELECT json_group_array(json_object('id',id,'submission_id',submission_id,'revision',revision,'created_at',created_at,'request_hash',request_hash,'event',event))
+export const CONTENT_RECORD_SELECT = `SELECT s.*,(SELECT json_group_array(json_object('id',id,'submission_id',submission_id,'revision',revision,'created_at',created_at,'request_hash',request_hash,'event',event))
     FROM (SELECT * FROM tenx_content_events WHERE submission_id=s.id ORDER BY revision LIMIT 21)) AS history
-    FROM tenx_content_submissions s WHERE s.id=?`).bind(z.uuid().parse(id)).first<Row & { history: string }>();
+    FROM tenx_content_submissions s WHERE s.id=?`;
+export async function contentRecord(db: D1Database, id: string, owner?: string) {
+  const row = await db.prepare(CONTENT_RECORD_SELECT).bind(z.uuid().parse(id)).first<ContentRow & { history: string }>();
   if (!row || (owner !== undefined && owner !== row.identity_id)) return null;
+  return ContentRecord.parse({ ...await decodeContentHistoryRow(row), visibility_held: await contentVisibilityHeld(db, id) });
+}
+// Pure replay shared by live reads and private offline case verification.
+export async function decodeContentHistoryRow(row: ContentRow & { history: string }) {
+  const id = row.id;
   const snapshot = await checkSnapshot(row);
   const rows = JSON.parse(row.history) as { id: string; submission_id: string; revision: number; created_at: string; request_hash: string; event: string }[];
   if (rows.length !== snapshot.revision + 1) fail("content_history_integrity_failed", 503);
@@ -68,7 +75,7 @@ export async function contentRecord(db: D1Database, id: string, owner?: string) 
     events.push(event);
   }
   if (events.at(-1)?.hash !== row.event_hash || await hashJson(events.at(-1)!.snapshot) !== await hashJson(snapshot) || events[0]!.request_hash !== row.request_hash) fail("content_history_integrity_failed", 503);
-  return ContentRecord.parse({ snapshot, events, visibility_held:await contentVisibilityHeld(db,id), replay: "verified", source_requests: 0 });
+  return ContentRecord.omit({ visibility_held: true }).parse({ snapshot, events, replay: "verified", source_requests: 0 });
 }
 export async function submitContent(db: D1Database, raw: unknown, p: Principal, at = new Date()) {
   const input = ContentSubmissionRequest.parse(raw), url = canonicalContentUrl(input.url);
@@ -168,7 +175,7 @@ export async function contentPage(db: D1Database, filter: { owner?: string; camp
   if (filter.campaign) { clauses.push("campaign_id=?"); values.push(z.uuid().parse(filter.campaign)); }
   if (filter.public || filter.status) { clauses.push("status=?"); values.push(filter.public ? "VISIBLE" : ContentStatus.parse(filter.status)); }
   if(filter.public)clauses.push("NOT EXISTS(SELECT 1 FROM tenx_content_reports r WHERE r.submission_id=tenx_content_submissions.id AND r.status='UPHELD')");
-  const rows = await db.prepare(`SELECT * FROM tenx_content_submissions WHERE ${clauses.join(" AND ")} ORDER BY updated_at DESC,id DESC LIMIT 21`).bind(...values).all<Row>();
+  const rows = await db.prepare(`SELECT * FROM tenx_content_submissions WHERE ${clauses.join(" AND ")} ORDER BY updated_at DESC,id DESC LIMIT 21`).bind(...values).all<ContentRow>();
   const submissions = [],held_submission_ids:string[]=[];
   for (const row of rows.results.slice(0, 20)) {
     // Public projection checks the complete retained review history too.

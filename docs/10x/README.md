@@ -6,7 +6,9 @@ Latest engineering review: [security fixes and credential follow-up](29-security
 
 Previous engineering review: [measured performance improvements](28-performance-review.md), including compact Discover cards, deferred wallet code, retained-shell navigation and an aggregate startup budget.
 
-Current checkpoint: [partial-launch recovery exercises](44-launch-recovery-lab.md). The new `/launch-recovery` page rehearses lost responses, restarts, duplicate work, missing lock checks and changed source/configuration evidence, with immutable local save/replay. Effects are retained and modeled announcements are held when checks fail. This is not a production executor or durable step journal; no signing, chain query, publication or deployment occurs.
+Current checkpoint: [private moderation case export](45-content-case-export.md). Operators can explicitly download a bounded, transactionally consistent submission/report/follow-up case and replay its histories offline with an independently retained checksum. Reporter details stay operator-only; export does not release holds, delete data or grant rewards. Retention/archival policy and verified authorship remain open. Local only; zero provider calls, no deployment.
+
+Previous checkpoint: [partial-launch recovery exercises](44-launch-recovery-lab.md). The new `/launch-recovery` page rehearses lost responses, restarts, duplicate work, missing lock checks and changed source/configuration evidence, with immutable local save/replay. Effects are retained and modeled announcements are held when checks fail. This is not a production executor or durable step journal; no signing, chain query, publication or deployment occurs.
 
 Previous checkpoint: [funded linear opening-fee rehearsals](43-timed-opening-fees.md). Timestamp activation guards, per-pool linear schedules, frozen earlier fills and complete route rollback now have independent pinned SDK vectors. V1–v4 replay is unchanged; actual activation, volatility-based fees, locks and devnet execution remain unverified. Local only; no deployment or financial action.
 

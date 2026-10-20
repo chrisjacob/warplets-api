@@ -129,3 +129,6 @@ export async function holdReviews(db:D1Database,filter:{owner?:string;status?:st
   const records=await Promise.all(rows.results.slice(0,20).map(decode)),last=rows.results[19];
   return HoldReviewPage.parse({as_of:at.toISOString(),reviews:records.map(r=>r.snapshot),next_cursor:rows.results.length>20?`${last!.updated_at}|${last!.id}`:null,source_requests:0});
 }
+
+export { select as CONTENT_HOLD_SELECT, decode as decodeContentHoldRow };
+export type { Row as ContentHoldRow };

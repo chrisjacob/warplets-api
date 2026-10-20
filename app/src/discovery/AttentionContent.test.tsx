@@ -6,6 +6,7 @@ import {ReportSnapshot} from "../../../discovery/src/content-report-model";
 import {HoldReviewsPanel,HoldReviewMessage} from "./ContentHoldReviews";
 import {HoldReviewEvent} from "../../../discovery/src/content-hold-model";
 import {ContentOperationsPanel} from "./ContentOperations";
+import {ContentCaseExportPanel} from "./ContentCaseExport";
 it("renders untrusted author/comment as text and external links without embedding or referrer access", () => {
   const html = renderToStaticMarkup(<ContentLink item={{ content: { canonical_url: "https://example.com/post", platform: "web", category: "meme", author_claim: '<img src=x onerror="alert(1)">', comment: "<script>steal()</script>", permission_to_feature: true, rights_confirmed: true }, status: "VISIBLE", updated_at: "2026-10-21T00:00:00.000Z", revision: 1 }} />);
   expect(html).toContain("&lt;img"); expect(html).toContain("&lt;script&gt;");
@@ -27,4 +28,10 @@ it("gates contributor review administration and renders contributor-visible repl
 it("requires the operator token before loading private content operations",()=>{
   const html=renderToStaticMarkup(<ContentOperationsPanel token=""/>);
   expect(html).toContain("Content operations · private");expect(html).toContain("button class=\"tenx-button\" disabled");expect(html).toContain("Enter the operator token");expect(html).not.toContain("<table");expect(html).toContain("no moderation, eligibility or reward decisions");
+});
+it("requires operator access and an explicit case request before any confidential download",()=>{
+  const html=renderToStaticMarkup(<ContentCaseExportPanel token=""/>);
+  expect(html).toContain("Private moderation case export");expect(html).toContain('input disabled');expect(html).toContain('button class="tenx-button" disabled');
+  expect(html).toContain("confidential reporter identities");expect(html).toContain("Nothing is uploaded or downloaded automatically");
+  expect(html).not.toContain("Download confidential JSON");expect(html).not.toContain("<iframe");expect(html).not.toContain("<img");
 });

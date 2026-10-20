@@ -11,6 +11,7 @@ import {HoldReviewPage,HoldReviewRecord} from "../discovery/src/content-hold-mod
 import {ContentOperations} from "../discovery/src/content-operations-model";
 import { IdentityChallengeResponse, IdentitySessionResponse } from "../discovery/src/identity-model";
 import {ContentReportPage,ContentReportRecord} from "../discovery/src/content-report-model";
+import {verifyContentCaseExport} from "../discovery/src/content-export";
 
 // Disposable keys and a separate database: never signs with user wallets or
 // writes synthetic submissions into the live local application database.
@@ -103,6 +104,16 @@ try {
   assert.equal((await call("admin/attention/hold-reviews/review",{...caseReply,request_id:crypto.randomUUID(),expected_revision:2,decision:"CLOSED",note:"Conversation closed; original hold requires separate review"},undefined,true)).status,200);
   const conversation=HoldReviewRecord.parse(await (await call(`attention/hold-reviews/${holdRequest.request_id}`,undefined,contributor.cookie)).json());
   assert.deepEqual(conversation.events.map(e=>e.snapshot.status),["OPEN","NEEDS_INFO","RESUBMITTED","CLOSED"]);assert.equal(conversation.visibility_held,true);
+  const exportPath=`admin/attention/submissions/${target.id}/export`;
+  assert.equal((await call(exportPath,undefined,contributor.cookie)).status,401);
+  assert.equal((await call(exportPath,undefined,undefined,true,{origin:"https://evil.example"})).status,403);
+  const exportedResponse=await call(exportPath,undefined,undefined,true);assert.equal(exportedResponse.status,200);assert.equal(exportedResponse.headers.get("cache-control"),"no-store");
+  const exported=await verifyContentCaseExport(await exportedResponse.json());assert.equal(exported.visibility_held,true);assert.equal(exported.manifest.reports,1);assert.equal(exported.manifest.hold_reviews,1);assert.equal(exported.hold_reviews[0]!.events.length,4);
+  const artifactFile=`${folder}/private-case.json`;writeFileSync(artifactFile,JSON.stringify(exported));
+  const verifier=fileURLToPath(new URL("../scripts/verify-content-case-export.ts",import.meta.url)),tsx=fileURLToPath(new URL("../node_modules/tsx/dist/cli.mjs",import.meta.url));
+  const offline=await execute(process.execPath,[tsx,verifier,artifactFile,exported.export_hash],options);assert.equal(JSON.parse(offline.stdout).verified,true);
+  const wrongHash=exported.export_hash==="0".repeat(64)?"1".repeat(64):"0".repeat(64);
+  await assert.rejects(execute(process.execPath,[tsx,verifier,artifactFile,wrongHash],options));
   assert.deepEqual(ContentRecord.parse(await (await call(`admin/attention/submissions/${target.id}`,undefined,undefined,true)).json()),held);
   assert.equal(HoldReviewPage.parse(await (await call("attention/hold-reviews/mine",undefined,contributor.cookie)).json()).reviews.length,1);
   assert.equal((await call("admin/attention/operations",undefined,contributor.cookie)).status,401);
@@ -115,6 +126,8 @@ try {
   assert.equal((await call("admin/attention/reports/review",{...reportDecision,request_id:crypto.randomUUID(),expected_revision:1,decision:"RELEASED"},undefined,true)).status,200);
   assert(ContentCampaignDetail.parse(await (await publicDetail()).json()).feed.submissions.some(s=>s.id===target.id));
   const releasedOperations=ContentOperations.parse(await (await call("admin/attention/operations",undefined,undefined,true)).json());assert.equal(releasedOperations.holds.held_submissions,0);
+  const releasedExport=await verifyContentCaseExport(await (await call(exportPath,undefined,undefined,true)).json());assert.equal(releasedExport.visibility_held,false);assert.deepEqual(releasedExport.hold_reviews,exported.hold_reviews);assert.deepEqual(releasedExport.content,exported.content);
+  console.log(JSON.stringify({content_case_export:"private transactional snapshot and offline CLI verified",held_at_capture:exported.visibility_held,held_after_separate_release:releasedExport.visibility_held,history_events:exported.manifest.events,independent_checksum_mismatch:"rejected",artifact:artifactFile,provider_requests:0}));
   const reportHistory=ContentReportRecord.parse(await (await call(`attention/reports/${claim.request_id}`,undefined,users[1]!.cookie)).json());assert.deepEqual(reportHistory.events.map(e=>e.snapshot.status),["OPEN","UPHELD","RELEASED"]);
   assert.equal(ContentReportPage.parse(await (await call("attention/reports/mine",undefined,users[1]!.cookie)).json()).reports.length,1);
   assert.equal((await call("identity/logout", {}, users[0]!.cookie)).status, 200);

@@ -5,10 +5,13 @@ import { API_HEADERS, adminJson } from "./request-security";
 import {contentReportRecord,contentReports,reviewContentReport,submitContentReport} from "./content-reports";
 import {holdReviewRecord,holdReviews,replyHoldReview,requestHoldReview} from "./content-holds";
 import {contentOperations} from "./content-operations";
+import {contentCaseExport} from "./content-export";
 export async function contentRoute(request: Request, db: D1Database, admin: boolean, at = new Date()): Promise<Response> {
   const url = new URL(request.url), path = url.pathname.replace(/\/+$/, ""), cursor = url.searchParams.get("cursor");
   const json = (data: unknown, status = 200) => Response.json(data, { status, headers: { ...API_HEADERS, vary: "Cookie" } });
   if (admin) {
+    const exported=path.match(/^\/api\/10x\/admin\/attention\/submissions\/([^/]+)\/export$/);
+    if(request.method==="GET"&&exported)return json(await contentCaseExport(db,exported[1]!));
     if(request.method==="GET"&&path==="/api/10x/admin/attention/operations")return json(await contentOperations(db,at));
     if(request.method==="POST"&&path==="/api/10x/admin/attention/hold-reviews/review")return json(await replyHoldReview(db,await adminJson(request),null,new Date()));
     if(request.method==="GET"&&path==="/api/10x/admin/attention/hold-reviews")return json(await holdReviews(db,{status:url.searchParams.get("status")??undefined,cursor},at));

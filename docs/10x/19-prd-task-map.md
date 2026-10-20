@@ -18,6 +18,8 @@ Reviewed 20 October 2026 against the entire [PRD v1.1](spec/10X_MEME_FULL_PRD_v1
 
 ## Ordered work packages
 
+P8a export update, 21 October: [private moderation case exports](45-content-case-export.md) now bundle one retained campaign/submission/report/follow-up case from a consistent bounded read, with unchanged history replay, component hashes, explicit confidential download and offline verification. Oversized cases fail without truncation; no holds, visibility, rewards or data are changed. Checksums are not signatures or proof of allegation truth/completeness; independently retain the original checksum. Automated archival/restore, approved retention policy, authorship and validated attention inputs remain open.
+
 P4/P7 recovery update, 21 October: [local partial-launch recovery exercises](44-launch-recovery-lab.md) now expose stable step identities, separate mock source/journal state, lost-response reconciliation, explicit bounded failed retries, restart/pause freshness, conflict/receipt-loss holds and independent critical checks before modeled announcement. Immutable scenarios replay after database reopen; no real transaction or publication occurs. Real durable execution, adapter finality/expiry, lock/fee proofs and devnet fault receipts remain open.
 
 P3 capacity update, 21 October: [versioned wider direct funding collection](41-wallet-funding-capacity.md) can cover up to the existing twenty-wallet output capacity while retaining the same evidence gates, twelve-body window bounds and daily RPC caps. A bounded six-call local exercise completed one more window (3/9 → 4/9), then stopped at an oversized window. Original candidate time/hash stayed unchanged; **0/10 eligible** remains the actual result.

@@ -4881,6 +4881,51 @@
           }
         ]
       }
+    },
+    "/api/10x/admin/attention/submissions/{id}/export": {
+      "get": {
+        "summary": "Private read-only moderation case export with verified histories and offline checksum",
+        "description": "Local operator bearer authorization and existing browser-origin admission required. Confidential reporter identities, claims and notes. One transactional D1 read batch; no provider calls or mutation. Complete retained case up to 10 reports, 20 hold reviews and 1 MiB; oversize fails without truncation. No authorship, allegation validity or deletion authority. Independently retain export_hash to detect replacement or omission.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "security": [
+          {
+            "localOperator": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Confidential no-store content-case-export-v1 JSON with campaign, content/report/hold histories, current featuring hold, component manifest hashes and export_hash. No signatures or rewards."
+          },
+          "400": {
+            "description": "Invalid UUID"
+          },
+          "401": {
+            "description": "Operator authorization required; signed owners cannot export"
+          },
+          "403": {
+            "description": "Browser origin rejected"
+          },
+          "404": {
+            "description": "Submission absent"
+          },
+          "413": {
+            "description": "Case exceeds explicit count or byte bound; no partial export"
+          },
+          "503": {
+            "description": "Local runtime disabled or retained history integrity failed"
+          }
+        }
+      }
     }
   },
   "components": {

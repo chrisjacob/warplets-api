@@ -12,6 +12,9 @@ import {contentReportRecord,contentReports,reviewContentReport,submitContentRepo
 import {holdReviewRecord,holdReviews,replyHoldReview,requestHoldReview} from "./content-holds";
 import {contentOperations} from "./content-operations";
 import {CONTENT_LIMITS} from "./content-limits";
+import {contentCaseExport,verifyContentCaseExport,checkContentExportSize} from "./content-export";
+import {ContentCasePayload,CONTENT_EXPORT_MAX_BYTES} from "./content-export-model";
+import {hashJson} from "./solana";
 const instances: DatabaseSync[] = [], origin = "https://app-local.10x.meme", token = "a".repeat(64);
 afterEach(() => { instances.splice(0).forEach(db => db.close()); vi.restoreAllMocks(); vi.useRealTimers(); });
 async function fixture() {
@@ -39,6 +42,105 @@ async function fixture() {
   const review = (id: string, revision = 0, decision = "VISIBLE") => ({ request_id: crypto.randomUUID(), submission_id: id, expected_revision: revision, decision, reason: "Manual local review; authorship and metrics remain unverified" });
   return { sqlite, db, at, env, call, request, owner, other, login, campaign, campaignInput, input, review };
 }
+describe("private content case exports",()=>{
+  async function heldCase(){
+    const f=await fixture(),input=f.input();await submitContent(f.db,input,f.owner.principal,f.at);await changeContent(f.db,f.review(input.request_id),null,f.at);
+    const reports=[];
+    for(const user of [f.owner,f.other]){
+      const report={request_id:crypto.randomUUID(),submission_id:input.request_id,category:"impersonation",reason:"Confidential reporter statement; not a verified allegation",evidence_url:"https://example.com/private-evidence",good_faith:true};
+      await submitContentReport(f.db,report,user.principal,f.at);reports.push(report);
+    }
+    const decision=(report_id:string,expected_revision=0,decision="UPHELD")=>({request_id:crypto.randomUUID(),report_id,expected_revision,decision,reason:"Independent local manual review of the concern"});
+    await reviewContentReport(f.db,decision(reports[0]!.request_id),f.at);
+    const hold={request_id:crypto.randomUUID(),submission_id:input.request_id,note:"Private contributor permission and hold follow-up",reference_url:null};
+    await requestHoldReview(f.db,hold,f.owner.principal,f.at);
+    const reply={request_id:crypto.randomUUID(),review_id:hold.request_id,expected_revision:0,decision:"NEEDS_INFO",note:"Please provide the public permission reference",reference_url:null};
+    await replyHoldReview(f.db,reply,null,f.at);
+    await replyHoldReview(f.db,{...reply,request_id:crypto.randomUUID(),expected_revision:1,decision:"RESUBMITTED"},f.owner.principal,f.at);
+    await replyHoldReview(f.db,{...reply,request_id:crypto.randomUUID(),expected_revision:2,decision:"CLOSED"},null,f.at);
+    await reviewContentReport(f.db,decision(reports[1]!.request_id),f.at);
+    return {...f,input,reports,hold,decision};
+  }
+  async function rehash(raw:Awaited<ReturnType<typeof contentCaseExport>>){
+    const {export_hash:_hash,...data}=raw;
+    const payload=ContentCasePayload.parse(data);
+    payload.manifest={reports:payload.reports.length,hold_reviews:payload.hold_reviews.length,events:payload.content.events.length+payload.reports.reduce((n,r)=>n+r.events.length,0)+payload.hold_reviews.reduce((n,r)=>n+r.events.length,0),campaign_hash:await hashJson(payload.campaign),content_hash:await hashJson(payload.content),reports_hash:await hashJson(payload.reports),hold_reviews_hash:await hashJson(payload.hold_reviews)};
+    return {...payload,export_hash:await hashJson(payload)};
+  }
+  it("exports one consistent, read-only case and verifies offline without disclosing reporters to contributors",async()=>{
+    const f=await heldCase(),before=f.sqlite.prepare("SELECT total_changes() AS n").get(),outside=vi.spyOn(globalThis,"fetch").mockRejectedValue(Error("No providers")),batch=vi.spyOn(f.db,"batch");
+    const record=await contentCaseExport(f.db,f.input.request_id);
+    expect(batch).toHaveBeenCalledTimes(1);expect(batch.mock.calls[0]![0]).toHaveLength(4);
+    expect(record.manifest).toMatchObject({reports:2,hold_reviews:1,events:10});expect(record.visibility_held).toBe(true);
+    expect(record.hold_reviews[0]!.snapshot.status).toBe("CLOSED");expect(record.source_requests).toBe(0);expect(record.rewards_enabled).toBe(false);
+    expect(record.reports.map(r=>r.snapshot.id)).toEqual(record.reports.map(r=>r.snapshot.id).sort());
+    expect(f.sqlite.prepare("SELECT total_changes() AS n").get()).toEqual(before);expect(outside).not.toHaveBeenCalled();
+    expect(await verifyContentCaseExport(JSON.parse(JSON.stringify(record)),record.export_hash)).toEqual(record);
+    const own=await (await f.call(`attention/mine/${f.input.request_id}`,undefined,f.owner.cookie)).text();
+    for(const secret of [f.reports[0]!.reason,f.reports[0]!.request_id,f.hold.note])expect(own).not.toContain(secret);
+    const publicFeed=await (await f.call(`attention/campaigns/${f.campaign.id}`)).text();expect(publicFeed).not.toContain(f.input.url);expect(publicFeed).not.toContain(f.reports[0]!.reason);
+    // Offline replay needs neither a database connection nor a current session.
+    instances.splice(instances.indexOf(f.sqlite),1);f.sqlite.close();expect(await verifyContentCaseExport(record)).toEqual(record);
+  });
+  it("requires local operator access and protects export reads from signed owners and foreign origins",async()=>{
+    const f=await fixture(),input=f.input();await submitContent(f.db,input,f.owner.principal,f.at);const path=`admin/attention/submissions/${input.request_id}/export`,auth={authorization:`Bearer ${token}`};
+    expect((await f.call(path)).status).toBe(401);expect((await f.call(path,undefined,f.owner.cookie)).status).toBe(401);
+    expect((await f.call(path,undefined,undefined,{...auth,origin:"https://evil.example"})).status).toBe(403);
+    const response=await f.call(path,undefined,undefined,auth);expect(response.status).toBe(200);expect(response.headers.get("cache-control")).toBe("no-store");expect(response.headers.get("vary")).toBe("Cookie");await verifyContentCaseExport(await response.json());
+    expect((await f.call(`admin/attention/submissions/${crypto.randomUUID()}/export`,undefined,undefined,auth)).status).toBe(404);
+    expect((await f.call("admin/attention/submissions/not-a-uuid/export",undefined,undefined,auth)).status).toBe(400);
+    expect((await f.call(path,{},undefined,auth)).status).toBe(404);
+    expect((await worker.fetch(f.request(path,undefined,undefined,auth),{...f.env,TENX_LOCAL_ONLY:"false"})).status).toBe(503);
+  });
+  it("keeps independent report holds after conversation closure and takes a consistent snapshot during review",async()=>{
+    const f=await heldCase();const before=await contentCaseExport(f.db,f.input.request_id);
+    const [during]=await Promise.all([contentCaseExport(f.db,f.input.request_id),reviewContentReport(f.db,f.decision(f.reports[0]!.request_id,1,"RELEASED"),f.at)]);
+    expect(during.reports).toEqual(before.reports);expect(during.visibility_held).toBe(true);
+    const after=await contentCaseExport(f.db,f.input.request_id);expect(after.visibility_held).toBe(true);expect(after.reports.filter(r=>r.snapshot.status==="UPHELD")).toHaveLength(1);
+    expect(after.hold_reviews).toEqual(before.hold_reviews);
+    await reviewContentReport(f.db,f.decision(f.reports[1]!.request_id,1,"RELEASED"),f.at);
+    const released=await contentCaseExport(f.db,f.input.request_id);expect(released.visibility_held).toBe(false);expect(released.content).toEqual(before.content);expect(released.hold_reviews).toEqual(before.hold_reviews);
+  });
+  it.each(["content","report","hold","visibility","campaign","future","duplicate","order","missing_event","manifest"])("rejects %s tampering even with a newly computed artifact checksum",async(kind)=>{
+    const f=await heldCase(),value=await contentCaseExport(f.db,f.input.request_id);
+    if(kind==="content")value.content.events[0]!.reason="Tampered original submission explanation";
+    if(kind==="report")value.reports[0]!.snapshot.target_content_hash="b".repeat(64);
+    if(kind==="hold")value.hold_reviews[0]!.snapshot.owner_identity_id=crypto.randomUUID();
+    if(kind==="visibility")value.visibility_held=false;
+    if(kind==="campaign")value.campaign.id=crypto.randomUUID();
+    if(kind==="future")value.captured_at=new Date(f.at.getTime()-1000).toISOString();
+    if(kind==="duplicate")value.reports.push(value.reports[0]!);
+    if(kind==="order")value.reports.reverse();
+    if(kind==="missing_event")value.hold_reviews[0]!.events.pop();
+    const modified=await rehash(value);if(kind==="manifest"){modified.manifest.events++;const {export_hash:_h,...p}=modified;modified.export_hash=await hashJson(p);}
+    await expect(verifyContentCaseExport(modified)).rejects.toThrow();
+  });
+  it("detects ordinary edits and binds omissions to an independently retained checksum",async()=>{
+    const f=await heldCase(),value=await contentCaseExport(f.db,f.input.request_id),expected=value.export_hash;
+    value.reports[0]!.events[0]!.reason="A malicious edit must fail the original checksum";
+    await expect(verifyContentCaseExport(value)).rejects.toThrow();
+    const original=await contentCaseExport(f.db,f.input.request_id);original.reports=original.reports.filter(r=>r.snapshot.id!==f.reports[0]!.request_id);
+    const omitted=await rehash(original);await expect(verifyContentCaseExport(omitted,expected)).rejects.toThrow();
+    // A self-rehashed artifact is not an authority or a proof of completeness.
+    expect((await verifyContentCaseExport(omitted)).authority).toBe("local_database_history_only");
+  });
+  it.each(["reports","follow-ups","bytes"])("fails oversized %s without returning a truncated artifact",async(kind)=>{
+    const f=await heldCase(),base=f.db.batch.bind(f.db);
+    vi.spyOn(f.db,"batch").mockImplementation(async statements=>{
+      const result=await base(statements);
+      if(kind==="reports")result[2]!.results=Array(11).fill(result[2]!.results[0]);
+      if(kind==="follow-ups")result[3]!.results=Array(21).fill(result[3]!.results[0]);
+      if(kind==="bytes")result[0]!.results[0]={snapshot:"語".repeat(CONTENT_EXPORT_MAX_BYTES/2)};
+      return result;
+    });
+    await expect(contentCaseExport(f.db,f.input.request_id)).rejects.toMatchObject({status:413});
+  });
+  it("measures UTF-8 bytes rather than characters before replay",()=>{
+    expect(()=>checkContentExportSize("a".repeat(CONTENT_EXPORT_MAX_BYTES))).not.toThrow();
+    expect(()=>checkContentExportSize("a".repeat(CONTENT_EXPORT_MAX_BYTES+1))).toThrow();
+    expect(()=>checkContentExportSize("語".repeat(Math.floor(CONTENT_EXPORT_MAX_BYTES/2)))).toThrow();
+  });
+});
 describe("private content operations",()=>{
   it("requires operator authorization, exposes only aggregate counters and performs no writes or provider calls",async()=>{
     const f=await fixture(),before=f.sqlite.prepare("SELECT total_changes() AS n").get(),outside=vi.spyOn(globalThis,"fetch").mockRejectedValue(Error("No provider requests"));

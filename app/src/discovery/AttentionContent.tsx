@@ -6,6 +6,7 @@ import {contentApi as api} from "./contentApi";
 import {ContentReportForm,ContentReportsPanel} from "./ContentReports";
 import {HoldReviewForm,HoldReviewsPanel} from "./ContentHoldReviews";
 import {ContentOperationsPanel} from "./ContentOperations";
+import {ContentCaseExportPanel} from "./ContentCaseExport";
 
 type Submission = z.infer<typeof ContentSnapshot>;
 type Campaign = z.infer<typeof PublicContentCampaign>;
@@ -129,6 +130,7 @@ export function ContentModerationLab({ token }: { token: string }) {
     <ContentOperationsPanel token={token}/>
     <ContentReportsPanel token={token}/>
     <HoldReviewsPanel key={token} token={token}/>
+    <ContentCaseExportPanel key={token} token={token}/>
   </section>;
 }
 function ReviewSubmission({ item, token, changed }: { item: Submission; token: string; changed: () => void }) {

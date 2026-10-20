@@ -110,3 +110,6 @@ export async function contentReports(db:D1Database,filter:{owner?:string;status?
   const rows=await db.prepare(`${select} WHERE ${clauses.join(" AND ")} ORDER BY r.updated_at DESC,r.id DESC LIMIT 21`).bind(...args).all<Row>();
   const records=await Promise.all(rows.results.slice(0,20).map(decode)),last=rows.results[19];return ContentReportPage.parse({as_of:at.toISOString(),reports:records.map(r=>r.snapshot),next_cursor:rows.results.length>20?`${last!.updated_at}|${last!.id}`:null,source_requests:0});
 }
+
+export { select as CONTENT_REPORT_SELECT, decode as decodeContentReportRow };
+export type { Row as ContentReportRow };
