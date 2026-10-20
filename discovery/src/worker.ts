@@ -1,6 +1,6 @@
 import { timingSafeEqual } from "node:crypto";
 import { z } from "zod";
-import { Address, assess, CandidateSchema, DEFAULT_POLICY, MarketSchema, PolicySchema, Signature, shortlist } from "./model";
+import { Address, assess, CandidateSchema, DEFAULT_POLICY, MarketSchema, Signature, shortlist } from "./model";
 import { runReviews } from "./research";
 import { runMarketCycle } from "./market-cycle";
 import { runWalletCycle, walletStatus } from "./wallet-cycle";
@@ -20,6 +20,7 @@ import { WalletEvidenceSchema } from "./wallet-analysis";
 import { artworkFor, runArtworkCycle } from "./artwork";
 import { safeMetadataUrl } from "./images";
 import { catchupLimit, replayLegacyWallets, walletWork } from "./wallet-work";
+import { createPolicyPreview, policyPreviewRecord, PolicyPreviewError, publicPolicy } from "./policies";
 
 // Widen generated literal vars so ignored .dev.vars overrides stay type-safe.
 export type LocalEnv = { [K in keyof Cloudflare.Env]: Cloudflare.Env[K] extends string ? string : Cloudflare.Env[K] };
@@ -117,7 +118,12 @@ export async function handle(request: Request, env: Env): Promise<Response> {
     if (!record) return json({ error: "election_not_found" }, 404);
     return json(await envelope(env, { record, replay: await replayElection(record) }));
   }
-  if (method === "GET" && path === "/api/10x/transparency/policies") return json(await envelope(env, { policy: DEFAULT_POLICY, status: "proposed_local_policy", display_score: "liquidity descending, then creation timestamp, then address; not a voting score" }));
+  if (method === "GET" && path === "/api/10x/transparency/policies") return json(await envelope(env, await publicPolicy()));
+  const policyRecord = path.match(/^\/api\/10x\/admin\/policies\/previews\/([^/]+)$/);
+  if (method === "GET" && policyRecord) {
+    const record = await policyPreviewRecord(env.TENX_DB, policyRecord[1]!);
+    return record ? json({ record, replay: "verified" }) : json({ error: "policy_preview_not_found" }, 404);
+  }
   if (method === "GET" && path === "/api/10x/candidates") {
     const query = z.object({
       limit: z.coerce.number().int().min(1).max(100).default(25),
@@ -262,9 +268,7 @@ export async function handle(request: Request, env: Env): Promise<Response> {
       return json(await dryRun(env.TENX_DB, undefined, request_id, reason));
     }
     if (path === "/api/10x/admin/policies/preview") {
-      const policy = PolicySchema.parse(z.object({ policy: z.unknown() }).passthrough().parse(body).policy);
-      const preview = shortlist(await candidates(env.TENX_DB), policy, new Date());
-      return json({ activated: false, policy, candidates: preview, live_policy: DEFAULT_POLICY });
+      return json({ record: await createPolicyPreview(env.TENX_DB, body), replay: "verified" });
     }
   }
   return json({ error: "not_found" }, 404);
@@ -273,6 +277,7 @@ export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     try { return await handle(request, env); }
     catch (error) {
+      if (error instanceof PolicyPreviewError) return json({ error: error.message }, error.message === "policy_preview_daily_limit" ? 429 : error.message === "policy_preview_request_conflict" ? 409 : error.message.startsWith("policy_preview_cannot") || error.message === "policy_evidence_gates_locked" ? 400 : 503);
       if (error instanceof ElectionError) return json({ error: error.message }, 503);
       if (error instanceof z.ZodError || error instanceof SyntaxError) return json({ error: "invalid_request_or_data" }, 400);
       console.error(JSON.stringify({ event: "tenx_request_failed", trace_id: crypto.randomUUID() }));

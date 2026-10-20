@@ -46,6 +46,9 @@
           "415": {
             "description": "Structured JSON error; no provider secrets"
           },
+          "429": {
+            "description": "Structured JSON error; no provider secrets"
+          },
           "503": {
             "description": "Structured JSON error; no provider secrets"
           }
@@ -87,6 +90,9 @@
           "415": {
             "description": "Structured JSON error; no provider secrets"
           },
+          "429": {
+            "description": "Structured JSON error; no provider secrets"
+          },
           "503": {
             "description": "Structured JSON error; no provider secrets"
           }
@@ -126,6 +132,9 @@
             "description": "Structured JSON error; no provider secrets"
           },
           "415": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "429": {
             "description": "Structured JSON error; no provider secrets"
           },
           "503": {
@@ -180,6 +189,9 @@
           "415": {
             "description": "Structured JSON error; no provider secrets"
           },
+          "429": {
+            "description": "Structured JSON error; no provider secrets"
+          },
           "503": {
             "description": "Structured JSON error; no provider secrets"
           }
@@ -219,6 +231,9 @@
             "description": "Structured JSON error; no provider secrets"
           },
           "415": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "429": {
             "description": "Structured JSON error; no provider secrets"
           },
           "503": {
@@ -323,6 +338,9 @@
           "415": {
             "description": "Structured JSON error; no provider secrets"
           },
+          "429": {
+            "description": "Structured JSON error; no provider secrets"
+          },
           "503": {
             "description": "Structured JSON error; no provider secrets"
           }
@@ -362,6 +380,9 @@
             "description": "Structured JSON error; no provider secrets"
           },
           "415": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "429": {
             "description": "Structured JSON error; no provider secrets"
           },
           "503": {
@@ -415,6 +436,9 @@
             "description": "Structured JSON error; no provider secrets"
           },
           "415": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "429": {
             "description": "Structured JSON error; no provider secrets"
           },
           "503": {
@@ -481,6 +505,9 @@
           "415": {
             "description": "Structured JSON error; no provider secrets"
           },
+          "429": {
+            "description": "Structured JSON error; no provider secrets"
+          },
           "503": {
             "description": "Structured JSON error; no provider secrets"
           }
@@ -532,6 +559,9 @@
             "description": "Structured JSON error; no provider secrets"
           },
           "415": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "429": {
             "description": "Structured JSON error; no provider secrets"
           },
           "503": {
@@ -586,6 +616,9 @@
           "415": {
             "description": "Structured JSON error; no provider secrets"
           },
+          "429": {
+            "description": "Structured JSON error; no provider secrets"
+          },
           "503": {
             "description": "Structured JSON error; no provider secrets"
           }
@@ -636,6 +669,9 @@
             "description": "Structured JSON error; no provider secrets"
           },
           "415": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "429": {
             "description": "Structured JSON error; no provider secrets"
           },
           "503": {
@@ -690,6 +726,9 @@
           "415": {
             "description": "Structured JSON error; no provider secrets"
           },
+          "429": {
+            "description": "Structured JSON error; no provider secrets"
+          },
           "503": {
             "description": "Structured JSON error; no provider secrets"
           }
@@ -741,6 +780,9 @@
             "description": "Structured JSON error; no provider secrets"
           },
           "415": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "429": {
             "description": "Structured JSON error; no provider secrets"
           },
           "503": {
@@ -805,6 +847,9 @@
           "415": {
             "description": "Structured JSON error; no provider secrets"
           },
+          "429": {
+            "description": "Structured JSON error; no provider secrets"
+          },
           "503": {
             "description": "Structured JSON error; no provider secrets"
           }
@@ -846,6 +891,9 @@
           "415": {
             "description": "Structured JSON error; no provider secrets"
           },
+          "429": {
+            "description": "Structured JSON error; no provider secrets"
+          },
           "503": {
             "description": "Structured JSON error; no provider secrets"
           }
@@ -885,6 +933,9 @@
             "description": "Structured JSON error; no provider secrets"
           },
           "415": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "429": {
             "description": "Structured JSON error; no provider secrets"
           },
           "503": {
@@ -939,6 +990,9 @@
           "415": {
             "description": "Structured JSON error; no provider secrets"
           },
+          "429": {
+            "description": "Structured JSON error; no provider secrets"
+          },
           "503": {
             "description": "Structured JSON error; no provider secrets"
           }
@@ -947,14 +1001,14 @@
     },
     "/api/10x/transparency/policies": {
       "get": {
-        "summary": "Proposed local discovery policy and deterministic display ordering",
+        "summary": "Actual local policy/hash, approval status, locked gates and separate review-only diagnostics",
         "responses": {
           "200": {
             "description": "Success; cached public data includes timestamps, source freshness and coverage",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "$ref": "#/components/schemas/PoliciesResponse"
                 }
               }
             }
@@ -978,6 +1032,9 @@
             "description": "Structured JSON error; no provider secrets"
           },
           "415": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "429": {
             "description": "Structured JSON error; no provider secrets"
           },
           "503": {
@@ -1019,6 +1076,9 @@
             "description": "Structured JSON error; no provider secrets"
           },
           "415": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "429": {
             "description": "Structured JSON error; no provider secrets"
           },
           "503": {
@@ -1096,6 +1156,9 @@
           "415": {
             "description": "Structured JSON error; no provider secrets"
           },
+          "429": {
+            "description": "Structured JSON error; no provider secrets"
+          },
           "503": {
             "description": "Structured JSON error; no provider secrets"
           }
@@ -1160,6 +1223,9 @@
             "description": "Structured JSON error; no provider secrets"
           },
           "415": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "429": {
             "description": "Structured JSON error; no provider secrets"
           },
           "503": {
@@ -1228,6 +1294,9 @@
           "415": {
             "description": "Structured JSON error; no provider secrets"
           },
+          "429": {
+            "description": "Structured JSON error; no provider secrets"
+          },
           "503": {
             "description": "Structured JSON error; no provider secrets"
           }
@@ -1294,6 +1363,9 @@
           "415": {
             "description": "Structured JSON error; no provider secrets"
           },
+          "429": {
+            "description": "Structured JSON error; no provider secrets"
+          },
           "503": {
             "description": "Structured JSON error; no provider secrets"
           }
@@ -1358,6 +1430,9 @@
             "description": "Structured JSON error; no provider secrets"
           },
           "415": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "429": {
             "description": "Structured JSON error; no provider secrets"
           },
           "503": {
@@ -1431,6 +1506,9 @@
           "415": {
             "description": "Structured JSON error; no provider secrets"
           },
+          "429": {
+            "description": "Structured JSON error; no provider secrets"
+          },
           "503": {
             "description": "Structured JSON error; no provider secrets"
           }
@@ -1497,6 +1575,9 @@
           "415": {
             "description": "Structured JSON error; no provider secrets"
           },
+          "429": {
+            "description": "Structured JSON error; no provider secrets"
+          },
           "503": {
             "description": "Structured JSON error; no provider secrets"
           }
@@ -1561,6 +1642,9 @@
             "description": "Structured JSON error; no provider secrets"
           },
           "415": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "429": {
             "description": "Structured JSON error; no provider secrets"
           },
           "503": {
@@ -1633,6 +1717,9 @@
           "415": {
             "description": "Structured JSON error; no provider secrets"
           },
+          "429": {
+            "description": "Structured JSON error; no provider secrets"
+          },
           "503": {
             "description": "Structured JSON error; no provider secrets"
           }
@@ -1697,6 +1784,9 @@
             "description": "Structured JSON error; no provider secrets"
           },
           "415": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "429": {
             "description": "Structured JSON error; no provider secrets"
           },
           "503": {
@@ -1769,6 +1859,9 @@
           "415": {
             "description": "Structured JSON error; no provider secrets"
           },
+          "429": {
+            "description": "Structured JSON error; no provider secrets"
+          },
           "503": {
             "description": "Structured JSON error; no provider secrets"
           }
@@ -1777,7 +1870,7 @@
     },
     "/api/10x/admin/policies/preview": {
       "post": {
-        "summary": "Preview a policy without activating it",
+        "summary": "Freeze and compare stricter numeric thresholds; locked evidence gates, no activation, zero provider calls, 20 new previews per UTC day",
         "security": [
           {
             "localOperator": []
@@ -1788,21 +1881,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "properties": {
-                  "reason": {
-                    "type": "string",
-                    "minLength": 3,
-                    "maxLength": 300
-                  },
-                  "policy": {
-                    "$ref": "#/components/schemas/DiscoveryPolicy"
-                  }
-                },
-                "required": [
-                  "reason",
-                  "policy"
-                ]
+                "$ref": "#/components/schemas/PolicyPreviewRequest"
               }
             }
           }
@@ -1813,7 +1892,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "$ref": "#/components/schemas/PolicyPreviewResponse"
                 }
               }
             }
@@ -1839,10 +1918,73 @@
           "415": {
             "description": "Structured JSON error; no provider secrets"
           },
+          "429": {
+            "description": "Structured JSON error; no provider secrets"
+          },
           "503": {
             "description": "Structured JSON error; no provider secrets"
           }
         }
+      }
+    },
+    "/api/10x/admin/policies/previews/{id}": {
+      "get": {
+        "summary": "Load retained policy comparison and verify hashes/replay; authenticated, no-store",
+        "responses": {
+          "200": {
+            "description": "Success; cached public data includes timestamps, source freshness and coverage",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PolicyPreviewResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "401": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "403": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "404": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "409": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "413": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "415": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "429": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "503": {
+            "description": "Structured JSON error; no provider secrets"
+          }
+        },
+        "security": [
+          {
+            "localOperator": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ]
       }
     }
   },
@@ -3794,6 +3936,2465 @@
           "max_wallet_age_seconds",
           "max_dev_funded_supply_pct",
           "max_dev_sold_supply_pct"
+        ],
+        "additionalProperties": false
+      },
+      "PolicyEdits": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "min_market_cap_usd": {
+            "type": "number",
+            "minimum": 0
+          },
+          "min_liquidity_usd": {
+            "type": "number",
+            "minimum": 0
+          },
+          "min_holders": {
+            "default": 100,
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100000
+          },
+          "min_sampled_buyers": {
+            "default": 3,
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 20
+          },
+          "max_top1_pct": {
+            "default": 10,
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "max_top10_pct": {
+            "default": 35,
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "max_creator_pct": {
+            "default": 5,
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "max_dev_funded_supply_pct": {
+            "default": 20,
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "max_dev_sold_supply_pct": {
+            "default": 5,
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100
+          }
+        },
+        "additionalProperties": false
+      },
+      "PolicyPreviewRequest": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "request_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 300
+          },
+          "edits": {
+            "type": "object",
+            "properties": {
+              "min_market_cap_usd": {
+                "type": "number",
+                "minimum": 0
+              },
+              "min_liquidity_usd": {
+                "type": "number",
+                "minimum": 0
+              },
+              "min_holders": {
+                "default": 100,
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 100000
+              },
+              "min_sampled_buyers": {
+                "default": 3,
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 20
+              },
+              "max_top1_pct": {
+                "default": 10,
+                "type": "number",
+                "minimum": 0,
+                "maximum": 100
+              },
+              "max_top10_pct": {
+                "default": 35,
+                "type": "number",
+                "minimum": 0,
+                "maximum": 100
+              },
+              "max_creator_pct": {
+                "default": 5,
+                "type": "number",
+                "minimum": 0,
+                "maximum": 100
+              },
+              "max_dev_funded_supply_pct": {
+                "default": 20,
+                "type": "number",
+                "minimum": 0,
+                "maximum": 100
+              },
+              "max_dev_sold_supply_pct": {
+                "default": 5,
+                "type": "number",
+                "minimum": 0,
+                "maximum": 100
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "request_id",
+          "reason",
+          "edits"
+        ],
+        "additionalProperties": false
+      },
+      "PolicyPreviewResponse": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "record": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "created_at": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+              },
+              "reason": {
+                "type": "string",
+                "minLength": 3,
+                "maxLength": 300
+              },
+              "request_hash": {
+                "type": "string",
+                "minLength": 64,
+                "maxLength": 64
+              },
+              "input_hash": {
+                "type": "string",
+                "minLength": 64,
+                "maxLength": 64
+              },
+              "result_hash": {
+                "type": "string",
+                "minLength": 64,
+                "maxLength": 64
+              },
+              "record_hash": {
+                "type": "string",
+                "minLength": 64,
+                "maxLength": 64
+              },
+              "inputs": {
+                "type": "object",
+                "properties": {
+                  "version": {
+                    "type": "string",
+                    "const": "policy-preview-v1"
+                  },
+                  "baseline": {
+                    "type": "object",
+                    "properties": {
+                      "version": {
+                        "type": "string",
+                        "const": "election-input-v1"
+                      },
+                      "rules_version": {
+                        "type": "string",
+                        "const": "discovery-election-v1"
+                      },
+                      "as_of": {
+                        "type": "string",
+                        "format": "date-time",
+                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                      },
+                      "policy": {
+                        "type": "object",
+                        "properties": {
+                          "version": {
+                            "type": "string",
+                            "enum": [
+                              "discovery-local-v1",
+                              "discovery-local-v2",
+                              "discovery-local-v3"
+                            ]
+                          },
+                          "max_candidates": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 100
+                          },
+                          "max_age_hours": {
+                            "type": "number",
+                            "const": 24
+                          },
+                          "min_market_cap_usd": {
+                            "type": "number",
+                            "minimum": 0
+                          },
+                          "min_liquidity_usd": {
+                            "type": "number",
+                            "minimum": 0
+                          },
+                          "max_market_age_seconds": {
+                            "type": "integer",
+                            "exclusiveMinimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "max_risk_age_seconds": {
+                            "type": "integer",
+                            "exclusiveMinimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "require_holder_evidence": {
+                            "type": "boolean"
+                          },
+                          "min_holders": {
+                            "default": 100,
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 100000
+                          },
+                          "max_top1_pct": {
+                            "default": 10,
+                            "type": "number",
+                            "minimum": 0,
+                            "maximum": 100
+                          },
+                          "max_top10_pct": {
+                            "default": 35,
+                            "type": "number",
+                            "minimum": 0,
+                            "maximum": 100
+                          },
+                          "max_creator_pct": {
+                            "default": 5,
+                            "type": "number",
+                            "minimum": 0,
+                            "maximum": 100
+                          },
+                          "max_holder_age_seconds": {
+                            "default": 1800,
+                            "type": "integer",
+                            "exclusiveMinimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "require_wallet_analysis": {
+                            "default": false,
+                            "type": "boolean"
+                          },
+                          "min_sampled_buyers": {
+                            "default": 3,
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 20
+                          },
+                          "max_wallet_age_seconds": {
+                            "default": 3600,
+                            "type": "integer",
+                            "exclusiveMinimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "max_dev_funded_supply_pct": {
+                            "default": 20,
+                            "type": "number",
+                            "minimum": 0,
+                            "maximum": 100
+                          },
+                          "max_dev_sold_supply_pct": {
+                            "default": 5,
+                            "type": "number",
+                            "minimum": 0,
+                            "maximum": 100
+                          }
+                        },
+                        "required": [
+                          "version",
+                          "max_candidates",
+                          "max_age_hours",
+                          "min_market_cap_usd",
+                          "min_liquidity_usd",
+                          "max_market_age_seconds",
+                          "max_risk_age_seconds",
+                          "require_holder_evidence",
+                          "min_holders",
+                          "max_top1_pct",
+                          "max_top10_pct",
+                          "max_creator_pct",
+                          "max_holder_age_seconds",
+                          "require_wallet_analysis",
+                          "min_sampled_buyers",
+                          "max_wallet_age_seconds",
+                          "max_dev_funded_supply_pct",
+                          "max_dev_sold_supply_pct"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "candidates": {
+                        "maxItems": 500,
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "chain": {
+                              "type": "string",
+                              "const": "solana"
+                            },
+                            "address": {
+                              "type": "string",
+                              "maxLength": 44
+                            },
+                            "pool": {
+                              "type": "string",
+                              "maxLength": 44
+                            },
+                            "name": {
+                              "type": "string",
+                              "maxLength": 100
+                            },
+                            "symbol": {
+                              "type": "string",
+                              "maxLength": 32
+                            },
+                            "creation": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": {
+                                      "type": "string",
+                                      "enum": [
+                                        "creation",
+                                        "graduation"
+                                      ]
+                                    },
+                                    "signature": {
+                                      "type": "string",
+                                      "pattern": "^[1-9A-HJ-NP-Za-km-z]{64,88}$"
+                                    },
+                                    "slot": {
+                                      "type": "integer",
+                                      "minimum": -9007199254740991,
+                                      "maximum": 9007199254740991
+                                    },
+                                    "block_time": {
+                                      "type": "string",
+                                      "format": "date-time",
+                                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                                    },
+                                    "instruction": {
+                                      "type": "string"
+                                    },
+                                    "instruction_index": {
+                                      "type": "string"
+                                    },
+                                    "program": {
+                                      "type": "string",
+                                      "maxLength": 44
+                                    },
+                                    "payload_hash": {
+                                      "type": "string",
+                                      "pattern": "^[a-f0-9]{64}$"
+                                    },
+                                    "fetched_at": {
+                                      "type": "string",
+                                      "format": "date-time",
+                                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                                    },
+                                    "source": {
+                                      "type": "string",
+                                      "const": "solana-finalized-rpc"
+                                    },
+                                    "adapter_version": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "kind",
+                                    "signature",
+                                    "slot",
+                                    "block_time",
+                                    "instruction",
+                                    "instruction_index",
+                                    "program",
+                                    "payload_hash",
+                                    "fetched_at",
+                                    "source",
+                                    "adapter_version"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "graduation": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": {
+                                      "type": "string",
+                                      "enum": [
+                                        "creation",
+                                        "graduation"
+                                      ]
+                                    },
+                                    "signature": {
+                                      "type": "string",
+                                      "pattern": "^[1-9A-HJ-NP-Za-km-z]{64,88}$"
+                                    },
+                                    "slot": {
+                                      "type": "integer",
+                                      "minimum": -9007199254740991,
+                                      "maximum": 9007199254740991
+                                    },
+                                    "block_time": {
+                                      "type": "string",
+                                      "format": "date-time",
+                                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                                    },
+                                    "instruction": {
+                                      "type": "string"
+                                    },
+                                    "instruction_index": {
+                                      "type": "string"
+                                    },
+                                    "program": {
+                                      "type": "string",
+                                      "maxLength": 44
+                                    },
+                                    "payload_hash": {
+                                      "type": "string",
+                                      "pattern": "^[a-f0-9]{64}$"
+                                    },
+                                    "fetched_at": {
+                                      "type": "string",
+                                      "format": "date-time",
+                                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                                    },
+                                    "source": {
+                                      "type": "string",
+                                      "const": "solana-finalized-rpc"
+                                    },
+                                    "adapter_version": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "kind",
+                                    "signature",
+                                    "slot",
+                                    "block_time",
+                                    "instruction",
+                                    "instruction_index",
+                                    "program",
+                                    "payload_hash",
+                                    "fetched_at",
+                                    "source",
+                                    "adapter_version"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "verification": {
+                              "type": "string",
+                              "enum": [
+                                "verified",
+                                "provisional",
+                                "rejected"
+                              ]
+                            },
+                            "verification_reasons": {
+                              "maxItems": 32,
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            },
+                            "risk": {
+                              "type": "object",
+                              "properties": {
+                                "mint_authority": {
+                                  "type": "string",
+                                  "enum": [
+                                    "revoked",
+                                    "active",
+                                    "unknown"
+                                  ]
+                                },
+                                "freeze_authority": {
+                                  "type": "string",
+                                  "enum": [
+                                    "revoked",
+                                    "active",
+                                    "unknown"
+                                  ]
+                                },
+                                "token_program": {
+                                  "type": "string"
+                                },
+                                "mint_extensions": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "integer",
+                                    "minimum": -9007199254740991,
+                                    "maximum": 9007199254740991
+                                  }
+                                },
+                                "holder_concentration": {
+                                  "type": "string",
+                                  "enum": [
+                                    "unknown",
+                                    "verified",
+                                    "partial"
+                                  ]
+                                },
+                                "pool_reserves_verified": {
+                                  "type": "boolean"
+                                },
+                                "observed_at": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                      "format": "date-time",
+                                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "context_slot": {
+                                  "default": null,
+                                  "anyOf": [
+                                    {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 9007199254740991
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "payload_hash": {
+                                  "default": null,
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                      "pattern": "^[a-f0-9]{64}$"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "mint_authority",
+                                "freeze_authority",
+                                "token_program",
+                                "mint_extensions",
+                                "holder_concentration",
+                                "pool_reserves_verified",
+                                "observed_at",
+                                "context_slot",
+                                "payload_hash"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "market": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "source": {
+                                      "type": "string",
+                                      "enum": [
+                                        "geckoterminal",
+                                        "dexscreener"
+                                      ]
+                                    },
+                                    "fetched_at": {
+                                      "type": "string",
+                                      "format": "date-time",
+                                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                                    },
+                                    "observed_at": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "format": "date-time",
+                                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "price_usd": {
+                                      "anyOf": [
+                                        {
+                                          "type": "number",
+                                          "minimum": 0
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "market_cap_usd": {
+                                      "anyOf": [
+                                        {
+                                          "type": "number",
+                                          "minimum": 0
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "fdv_usd": {
+                                      "anyOf": [
+                                        {
+                                          "type": "number",
+                                          "minimum": 0
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "liquidity_usd": {
+                                      "anyOf": [
+                                        {
+                                          "type": "number",
+                                          "minimum": 0
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "volume_24h_usd": {
+                                      "anyOf": [
+                                        {
+                                          "type": "number",
+                                          "minimum": 0
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "image_url": {
+                                      "default": null,
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "maxLength": 2048
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    }
+                                  },
+                                  "required": [
+                                    "source",
+                                    "fetched_at",
+                                    "observed_at",
+                                    "price_usd",
+                                    "market_cap_usd",
+                                    "fdv_usd",
+                                    "liquidity_usd",
+                                    "volume_24h_usd",
+                                    "image_url"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "first_seen_at": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                            },
+                            "checked_at": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                            },
+                            "holders": {
+                              "default": null,
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "version": {
+                                      "type": "string",
+                                      "enum": [
+                                        "owners-v1",
+                                        "owners-v2"
+                                      ]
+                                    },
+                                    "status": {
+                                      "type": "string",
+                                      "enum": [
+                                        "verified",
+                                        "partial",
+                                        "unavailable"
+                                      ]
+                                    },
+                                    "layout_certified": {
+                                      "default": false,
+                                      "type": "boolean"
+                                    },
+                                    "observed_at": {
+                                      "type": "string",
+                                      "format": "date-time",
+                                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                                    },
+                                    "context_slot": {
+                                      "anyOf": [
+                                        {
+                                          "type": "integer",
+                                          "minimum": 0,
+                                          "maximum": 9007199254740991
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "payload_hash": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "pattern": "^[a-f0-9]{64}$"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "supply_raw": {
+                                      "type": "string",
+                                      "pattern": "^\\d+$"
+                                    },
+                                    "inventoried_raw": {
+                                      "type": "string",
+                                      "pattern": "^\\d+$"
+                                    },
+                                    "account_count": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 9007199254740991
+                                    },
+                                    "holder_count": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 9007199254740991
+                                    },
+                                    "top1_pct": {
+                                      "anyOf": [
+                                        {
+                                          "type": "number",
+                                          "minimum": 0,
+                                          "maximum": 100
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "top10_pct": {
+                                      "anyOf": [
+                                        {
+                                          "type": "number",
+                                          "minimum": 0,
+                                          "maximum": 100
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "pool_pct": {
+                                      "anyOf": [
+                                        {
+                                          "type": "number",
+                                          "minimum": 0,
+                                          "maximum": 100
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "creator_pct": {
+                                      "anyOf": [
+                                        {
+                                          "type": "number",
+                                          "minimum": 0,
+                                          "maximum": 100
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "creator": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "owners": {
+                                      "maxItems": 20,
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "properties": {
+                                          "owner": {
+                                            "type": "string"
+                                          },
+                                          "amount_raw": {
+                                            "type": "string"
+                                          },
+                                          "supply_pct": {
+                                            "type": "number",
+                                            "minimum": 0,
+                                            "maximum": 100
+                                          },
+                                          "role": {
+                                            "type": "string",
+                                            "enum": [
+                                              "holder",
+                                              "canonical_pool_vault"
+                                            ]
+                                          }
+                                        },
+                                        "required": [
+                                          "owner",
+                                          "amount_raw",
+                                          "supply_pct",
+                                          "role"
+                                        ],
+                                        "additionalProperties": false
+                                      }
+                                    },
+                                    "gaps": {
+                                      "maxItems": 20,
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string"
+                                      }
+                                    }
+                                  },
+                                  "required": [
+                                    "version",
+                                    "status",
+                                    "layout_certified",
+                                    "observed_at",
+                                    "context_slot",
+                                    "payload_hash",
+                                    "supply_raw",
+                                    "inventoried_raw",
+                                    "account_count",
+                                    "holder_count",
+                                    "top1_pct",
+                                    "top10_pct",
+                                    "pool_pct",
+                                    "creator_pct",
+                                    "creator",
+                                    "owners",
+                                    "gaps"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "wallet_analysis": {
+                              "default": null,
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "version": {
+                                      "type": "string",
+                                      "enum": [
+                                        "wallet-signals-v1",
+                                        "wallet-signals-v2",
+                                        "wallet-signals-v3",
+                                        "wallet-signals-v4"
+                                      ]
+                                    },
+                                    "observed_at": {
+                                      "type": "string",
+                                      "format": "date-time",
+                                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                                    },
+                                    "evidence_hash": {
+                                      "type": "string",
+                                      "pattern": "^[a-f0-9]{64}$"
+                                    },
+                                    "funding_coverage": {
+                                      "maxItems": 8,
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "properties": {
+                                          "wallet": {
+                                            "type": "string",
+                                            "maxLength": 44
+                                          },
+                                          "anchor_signature": {
+                                            "type": "string",
+                                            "pattern": "^[1-9A-HJ-NP-Za-km-z]{64,88}$"
+                                          },
+                                          "anchor_kind": {
+                                            "type": "string",
+                                            "enum": [
+                                              "sampled_buy",
+                                              "signed_creation",
+                                              "funding_transfer"
+                                            ]
+                                          },
+                                          "anchor_at": {
+                                            "type": "string",
+                                            "format": "date-time",
+                                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                                          },
+                                          "window_start": {
+                                            "type": "string",
+                                            "format": "date-time",
+                                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                                          },
+                                          "pages": {
+                                            "type": "integer",
+                                            "minimum": -9007199254740991,
+                                            "maximum": 9007199254740991
+                                          },
+                                          "signatures": {
+                                            "type": "integer",
+                                            "minimum": -9007199254740991,
+                                            "maximum": 9007199254740991
+                                          },
+                                          "transactions_in_window": {
+                                            "type": "integer",
+                                            "minimum": -9007199254740991,
+                                            "maximum": 9007199254740991
+                                          },
+                                          "transactions_examined": {
+                                            "type": "integer",
+                                            "minimum": -9007199254740991,
+                                            "maximum": 9007199254740991
+                                          },
+                                          "status": {
+                                            "type": "string",
+                                            "enum": [
+                                              "partial",
+                                              "window_examined"
+                                            ]
+                                          },
+                                          "boundary_reached": {
+                                            "type": "boolean"
+                                          },
+                                          "gaps": {
+                                            "type": "array",
+                                            "items": {
+                                              "type": "string"
+                                            }
+                                          }
+                                        },
+                                        "required": [
+                                          "wallet",
+                                          "anchor_signature",
+                                          "anchor_kind",
+                                          "anchor_at",
+                                          "window_start",
+                                          "pages",
+                                          "signatures",
+                                          "transactions_in_window",
+                                          "transactions_examined",
+                                          "status",
+                                          "boundary_reached",
+                                          "gaps"
+                                        ],
+                                        "additionalProperties": false
+                                      }
+                                    },
+                                    "second_hop": {
+                                      "type": "object",
+                                      "properties": {
+                                        "depth": {
+                                          "type": "number",
+                                          "const": 2
+                                        },
+                                        "eligible_funders": {
+                                          "type": "integer",
+                                          "minimum": 0,
+                                          "maximum": 9007199254740991
+                                        },
+                                        "coverage": {
+                                          "maxItems": 4,
+                                          "type": "array",
+                                          "items": {
+                                            "type": "object",
+                                            "properties": {
+                                              "wallet": {
+                                                "type": "string",
+                                                "maxLength": 44
+                                              },
+                                              "anchor_signature": {
+                                                "type": "string",
+                                                "pattern": "^[1-9A-HJ-NP-Za-km-z]{64,88}$"
+                                              },
+                                              "anchor_kind": {
+                                                "type": "string",
+                                                "enum": [
+                                                  "sampled_buy",
+                                                  "signed_creation",
+                                                  "funding_transfer"
+                                                ]
+                                              },
+                                              "anchor_at": {
+                                                "type": "string",
+                                                "format": "date-time",
+                                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                                              },
+                                              "window_start": {
+                                                "type": "string",
+                                                "format": "date-time",
+                                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                                              },
+                                              "pages": {
+                                                "type": "integer",
+                                                "minimum": -9007199254740991,
+                                                "maximum": 9007199254740991
+                                              },
+                                              "signatures": {
+                                                "type": "integer",
+                                                "minimum": -9007199254740991,
+                                                "maximum": 9007199254740991
+                                              },
+                                              "transactions_in_window": {
+                                                "type": "integer",
+                                                "minimum": -9007199254740991,
+                                                "maximum": 9007199254740991
+                                              },
+                                              "transactions_examined": {
+                                                "type": "integer",
+                                                "minimum": -9007199254740991,
+                                                "maximum": 9007199254740991
+                                              },
+                                              "status": {
+                                                "type": "string",
+                                                "enum": [
+                                                  "partial",
+                                                  "window_examined"
+                                                ]
+                                              },
+                                              "boundary_reached": {
+                                                "type": "boolean"
+                                              },
+                                              "gaps": {
+                                                "type": "array",
+                                                "items": {
+                                                  "type": "string"
+                                                }
+                                              }
+                                            },
+                                            "required": [
+                                              "wallet",
+                                              "anchor_signature",
+                                              "anchor_kind",
+                                              "anchor_at",
+                                              "window_start",
+                                              "pages",
+                                              "signatures",
+                                              "transactions_in_window",
+                                              "transactions_examined",
+                                              "status",
+                                              "boundary_reached",
+                                              "gaps"
+                                            ],
+                                            "additionalProperties": false
+                                          }
+                                        },
+                                        "paths": {
+                                          "maxItems": 50,
+                                          "type": "array",
+                                          "items": {
+                                            "type": "object",
+                                            "properties": {
+                                              "source": {
+                                                "type": "string",
+                                                "maxLength": 44
+                                              },
+                                              "intermediary": {
+                                                "type": "string",
+                                                "maxLength": 44
+                                              },
+                                              "target": {
+                                                "type": "string",
+                                                "maxLength": 44
+                                              },
+                                              "target_role": {
+                                                "type": "string",
+                                                "enum": [
+                                                  "signed_creation",
+                                                  "early_buyer"
+                                                ]
+                                              },
+                                              "upstream": {
+                                                "type": "object",
+                                                "properties": {
+                                                  "from": {
+                                                    "type": "string",
+                                                    "maxLength": 44
+                                                  },
+                                                  "to": {
+                                                    "type": "string",
+                                                    "maxLength": 44
+                                                  },
+                                                  "lamports_raw": {
+                                                    "type": "string",
+                                                    "maxLength": 30,
+                                                    "pattern": "^\\d+$"
+                                                  },
+                                                  "signature": {
+                                                    "type": "string",
+                                                    "pattern": "^[1-9A-HJ-NP-Za-km-z]{64,88}$"
+                                                  },
+                                                  "slot": {
+                                                    "type": "integer",
+                                                    "minimum": 0,
+                                                    "maximum": 9007199254740991
+                                                  },
+                                                  "block_time": {
+                                                    "type": "string",
+                                                    "format": "date-time",
+                                                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                                                  },
+                                                  "instruction_index": {
+                                                    "type": "integer",
+                                                    "minimum": 0,
+                                                    "maximum": 9007199254740991
+                                                  },
+                                                  "transaction_hash": {
+                                                    "type": "string",
+                                                    "pattern": "^[a-f0-9]{64}$"
+                                                  }
+                                                },
+                                                "required": [
+                                                  "from",
+                                                  "to",
+                                                  "lamports_raw",
+                                                  "signature",
+                                                  "slot",
+                                                  "block_time",
+                                                  "instruction_index",
+                                                  "transaction_hash"
+                                                ],
+                                                "additionalProperties": false
+                                              },
+                                              "downstream": {
+                                                "type": "object",
+                                                "properties": {
+                                                  "from": {
+                                                    "type": "string",
+                                                    "maxLength": 44
+                                                  },
+                                                  "to": {
+                                                    "type": "string",
+                                                    "maxLength": 44
+                                                  },
+                                                  "lamports_raw": {
+                                                    "type": "string",
+                                                    "maxLength": 30,
+                                                    "pattern": "^\\d+$"
+                                                  },
+                                                  "signature": {
+                                                    "type": "string",
+                                                    "pattern": "^[1-9A-HJ-NP-Za-km-z]{64,88}$"
+                                                  },
+                                                  "slot": {
+                                                    "type": "integer",
+                                                    "minimum": 0,
+                                                    "maximum": 9007199254740991
+                                                  },
+                                                  "block_time": {
+                                                    "type": "string",
+                                                    "format": "date-time",
+                                                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                                                  },
+                                                  "instruction_index": {
+                                                    "type": "integer",
+                                                    "minimum": 0,
+                                                    "maximum": 9007199254740991
+                                                  },
+                                                  "transaction_hash": {
+                                                    "type": "string",
+                                                    "pattern": "^[a-f0-9]{64}$"
+                                                  }
+                                                },
+                                                "required": [
+                                                  "from",
+                                                  "to",
+                                                  "lamports_raw",
+                                                  "signature",
+                                                  "slot",
+                                                  "block_time",
+                                                  "instruction_index",
+                                                  "transaction_hash"
+                                                ],
+                                                "additionalProperties": false
+                                              }
+                                            },
+                                            "required": [
+                                              "source",
+                                              "intermediary",
+                                              "target",
+                                              "target_role",
+                                              "upstream",
+                                              "downstream"
+                                            ],
+                                            "additionalProperties": false
+                                          }
+                                        },
+                                        "gaps": {
+                                          "maxItems": 30,
+                                          "type": "array",
+                                          "items": {
+                                            "type": "string"
+                                          }
+                                        }
+                                      },
+                                      "required": [
+                                        "depth",
+                                        "eligible_funders",
+                                        "coverage",
+                                        "paths",
+                                        "gaps"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    "status": {
+                                      "type": "string",
+                                      "enum": [
+                                        "signals_detected",
+                                        "no_signal_in_sample",
+                                        "unavailable"
+                                      ]
+                                    },
+                                    "source": {
+                                      "type": "string",
+                                      "const": "solana-finalized-rpc"
+                                    },
+                                    "coverage": {
+                                      "type": "string",
+                                      "const": "bounded_sample"
+                                    },
+                                    "actual_bundle_membership": {
+                                      "type": "string",
+                                      "const": "unknown"
+                                    },
+                                    "exhaustive": {
+                                      "type": "boolean",
+                                      "const": false
+                                    },
+                                    "creation_slot": {
+                                      "anyOf": [
+                                        {
+                                          "type": "integer",
+                                          "minimum": 0,
+                                          "maximum": 9007199254740991
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "holder_snapshot_at": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "format": "date-time",
+                                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "scope": {
+                                      "type": "object",
+                                      "properties": {
+                                        "curve_pages": {
+                                          "type": "integer",
+                                          "minimum": -9007199254740991,
+                                          "maximum": 9007199254740991
+                                        },
+                                        "early_window_reached": {
+                                          "type": "boolean"
+                                        },
+                                        "signatures_considered": {
+                                          "type": "integer",
+                                          "minimum": -9007199254740991,
+                                          "maximum": 9007199254740991
+                                        },
+                                        "transactions_examined": {
+                                          "type": "integer",
+                                          "minimum": -9007199254740991,
+                                          "maximum": 9007199254740991
+                                        },
+                                        "unsupported_or_missing_transactions": {
+                                          "type": "integer",
+                                          "minimum": -9007199254740991,
+                                          "maximum": 9007199254740991
+                                        },
+                                        "wallet_histories_examined": {
+                                          "type": "integer",
+                                          "minimum": -9007199254740991,
+                                          "maximum": 9007199254740991
+                                        }
+                                      },
+                                      "required": [
+                                        "curve_pages",
+                                        "early_window_reached",
+                                        "signatures_considered",
+                                        "transactions_examined",
+                                        "unsupported_or_missing_transactions",
+                                        "wallet_histories_examined"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    "metrics": {
+                                      "type": "object",
+                                      "properties": {
+                                        "verified_buys": {
+                                          "type": "integer",
+                                          "minimum": -9007199254740991,
+                                          "maximum": 9007199254740991
+                                        },
+                                        "verified_sells": {
+                                          "type": "integer",
+                                          "minimum": -9007199254740991,
+                                          "maximum": 9007199254740991
+                                        },
+                                        "distinct_buyers": {
+                                          "type": "integer",
+                                          "minimum": -9007199254740991,
+                                          "maximum": 9007199254740991
+                                        },
+                                        "max_same_slot_buyers": {
+                                          "type": "integer",
+                                          "minimum": -9007199254740991,
+                                          "maximum": 9007199254740991
+                                        },
+                                        "max_same_transaction_buyers": {
+                                          "type": "integer",
+                                          "minimum": -9007199254740991,
+                                          "maximum": 9007199254740991
+                                        },
+                                        "shared_funder_buyers": {
+                                          "type": "integer",
+                                          "minimum": -9007199254740991,
+                                          "maximum": 9007199254740991
+                                        },
+                                        "dev_funded_buyers": {
+                                          "type": "integer",
+                                          "minimum": -9007199254740991,
+                                          "maximum": 9007199254740991
+                                        },
+                                        "dev_funded_supply_pct": {
+                                          "anyOf": [
+                                            {
+                                              "type": "number",
+                                              "minimum": 0,
+                                              "maximum": 100
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ]
+                                        },
+                                        "dev_sold_supply_pct": {
+                                          "anyOf": [
+                                            {
+                                              "type": "number",
+                                              "minimum": 0
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ]
+                                        },
+                                        "round_trip_wallets": {
+                                          "type": "integer",
+                                          "minimum": -9007199254740991,
+                                          "maximum": 9007199254740991
+                                        }
+                                      },
+                                      "required": [
+                                        "verified_buys",
+                                        "verified_sells",
+                                        "distinct_buyers",
+                                        "max_same_slot_buyers",
+                                        "max_same_transaction_buyers",
+                                        "shared_funder_buyers",
+                                        "dev_funded_buyers",
+                                        "dev_funded_supply_pct",
+                                        "dev_sold_supply_pct",
+                                        "round_trip_wallets"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    "signals": {
+                                      "maxItems": 20,
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "properties": {
+                                          "code": {
+                                            "type": "string"
+                                          },
+                                          "strength": {
+                                            "type": "string",
+                                            "enum": [
+                                              "observed",
+                                              "heuristic"
+                                            ]
+                                          },
+                                          "wallets": {
+                                            "maxItems": 20,
+                                            "type": "array",
+                                            "items": {
+                                              "type": "string",
+                                              "maxLength": 44
+                                            }
+                                          },
+                                          "signatures": {
+                                            "maxItems": 20,
+                                            "type": "array",
+                                            "items": {
+                                              "type": "string",
+                                              "pattern": "^[1-9A-HJ-NP-Za-km-z]{64,88}$"
+                                            }
+                                          }
+                                        },
+                                        "required": [
+                                          "code",
+                                          "strength",
+                                          "wallets",
+                                          "signatures"
+                                        ],
+                                        "additionalProperties": false
+                                      }
+                                    },
+                                    "trades": {
+                                      "maxItems": 100,
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "properties": {
+                                          "signature": {
+                                            "type": "string",
+                                            "pattern": "^[1-9A-HJ-NP-Za-km-z]{64,88}$"
+                                          },
+                                          "slot": {
+                                            "type": "integer",
+                                            "minimum": 0,
+                                            "maximum": 9007199254740991
+                                          },
+                                          "block_time": {
+                                            "type": "string",
+                                            "format": "date-time",
+                                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                                          },
+                                          "instruction_index": {
+                                            "type": "string"
+                                          },
+                                          "program": {
+                                            "type": "string",
+                                            "maxLength": 44
+                                          },
+                                          "instruction": {
+                                            "type": "string"
+                                          },
+                                          "side": {
+                                            "type": "string",
+                                            "enum": [
+                                              "buy",
+                                              "sell"
+                                            ]
+                                          },
+                                          "wallet": {
+                                            "type": "string",
+                                            "maxLength": 44
+                                          },
+                                          "fee_payer": {
+                                            "type": "string",
+                                            "maxLength": 44
+                                          },
+                                          "base_amount_raw": {
+                                            "type": "string",
+                                            "maxLength": 30,
+                                            "pattern": "^\\d+$"
+                                          },
+                                          "quote_amount_raw": {
+                                            "anyOf": [
+                                              {
+                                                "type": "string",
+                                                "maxLength": 30,
+                                                "pattern": "^\\d+$"
+                                              },
+                                              {
+                                                "type": "null"
+                                              }
+                                            ]
+                                          },
+                                          "quote_kind": {
+                                            "type": "string",
+                                            "enum": [
+                                              "native_lamports",
+                                              "wsol_raw"
+                                            ]
+                                          },
+                                          "net_wallet_base_raw": {
+                                            "type": "string",
+                                            "maxLength": 31,
+                                            "pattern": "^-?\\d+$"
+                                          },
+                                          "transaction_hash": {
+                                            "type": "string",
+                                            "pattern": "^[a-f0-9]{64}$"
+                                          },
+                                          "quote_account_proof": {
+                                            "type": "string",
+                                            "const": "temporary_wsol_lifecycle"
+                                          }
+                                        },
+                                        "required": [
+                                          "signature",
+                                          "slot",
+                                          "block_time",
+                                          "instruction_index",
+                                          "program",
+                                          "instruction",
+                                          "side",
+                                          "wallet",
+                                          "fee_payer",
+                                          "base_amount_raw",
+                                          "quote_amount_raw",
+                                          "quote_kind",
+                                          "net_wallet_base_raw",
+                                          "transaction_hash"
+                                        ],
+                                        "additionalProperties": false
+                                      }
+                                    },
+                                    "funding": {
+                                      "maxItems": 100,
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "properties": {
+                                          "from": {
+                                            "type": "string",
+                                            "maxLength": 44
+                                          },
+                                          "to": {
+                                            "type": "string",
+                                            "maxLength": 44
+                                          },
+                                          "lamports_raw": {
+                                            "type": "string",
+                                            "maxLength": 30,
+                                            "pattern": "^\\d+$"
+                                          },
+                                          "signature": {
+                                            "type": "string",
+                                            "pattern": "^[1-9A-HJ-NP-Za-km-z]{64,88}$"
+                                          },
+                                          "slot": {
+                                            "type": "integer",
+                                            "minimum": 0,
+                                            "maximum": 9007199254740991
+                                          },
+                                          "block_time": {
+                                            "type": "string",
+                                            "format": "date-time",
+                                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                                          },
+                                          "transaction_hash": {
+                                            "type": "string",
+                                            "pattern": "^[a-f0-9]{64}$"
+                                          },
+                                          "before_sampled_buy": {
+                                            "type": "boolean"
+                                          },
+                                          "before_signed_creation": {
+                                            "type": "boolean"
+                                          }
+                                        },
+                                        "required": [
+                                          "from",
+                                          "to",
+                                          "lamports_raw",
+                                          "signature",
+                                          "slot",
+                                          "block_time",
+                                          "transaction_hash",
+                                          "before_sampled_buy"
+                                        ],
+                                        "additionalProperties": false
+                                      }
+                                    },
+                                    "wallets": {
+                                      "maxItems": 20,
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "properties": {
+                                          "wallet": {
+                                            "type": "string",
+                                            "maxLength": 44
+                                          },
+                                          "roles": {
+                                            "maxItems": 4,
+                                            "type": "array",
+                                            "items": {
+                                              "type": "string",
+                                              "enum": [
+                                                "creation_user",
+                                                "declared_creator",
+                                                "buyer",
+                                                "seller"
+                                              ]
+                                            }
+                                          },
+                                          "signed_creation": {
+                                            "type": "boolean"
+                                          },
+                                          "buys": {
+                                            "type": "integer",
+                                            "minimum": 0,
+                                            "maximum": 9007199254740991
+                                          },
+                                          "sells": {
+                                            "type": "integer",
+                                            "minimum": 0,
+                                            "maximum": 9007199254740991
+                                          },
+                                          "bought_raw": {
+                                            "type": "string",
+                                            "maxLength": 30,
+                                            "pattern": "^\\d+$"
+                                          },
+                                          "sold_raw": {
+                                            "type": "string",
+                                            "maxLength": 30,
+                                            "pattern": "^\\d+$"
+                                          },
+                                          "net_bought_raw": {
+                                            "type": "string",
+                                            "pattern": "^-?\\d+$"
+                                          },
+                                          "current_supply_pct": {
+                                            "anyOf": [
+                                              {
+                                                "type": "number",
+                                                "minimum": 0,
+                                                "maximum": 100
+                                              },
+                                              {
+                                                "type": "null"
+                                              }
+                                            ]
+                                          },
+                                          "oldest_observed_reference_at": {
+                                            "anyOf": [
+                                              {
+                                                "type": "string",
+                                                "format": "date-time",
+                                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                                              },
+                                              {
+                                                "type": "null"
+                                              }
+                                            ]
+                                          },
+                                          "history_signatures": {
+                                            "type": "integer",
+                                            "minimum": 0,
+                                            "maximum": 9007199254740991
+                                          },
+                                          "history_complete": {
+                                            "type": "boolean",
+                                            "const": false
+                                          },
+                                          "prior_loss_associations": {
+                                            "type": "integer",
+                                            "minimum": 0,
+                                            "maximum": 9007199254740991
+                                          },
+                                          "gaps": {
+                                            "maxItems": 20,
+                                            "type": "array",
+                                            "items": {
+                                              "type": "string"
+                                            }
+                                          }
+                                        },
+                                        "required": [
+                                          "wallet",
+                                          "roles",
+                                          "signed_creation",
+                                          "buys",
+                                          "sells",
+                                          "bought_raw",
+                                          "sold_raw",
+                                          "net_bought_raw",
+                                          "current_supply_pct",
+                                          "oldest_observed_reference_at",
+                                          "history_signatures",
+                                          "history_complete",
+                                          "prior_loss_associations",
+                                          "gaps"
+                                        ],
+                                        "additionalProperties": false
+                                      }
+                                    },
+                                    "gaps": {
+                                      "maxItems": 50,
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string"
+                                      }
+                                    }
+                                  },
+                                  "required": [
+                                    "version",
+                                    "observed_at",
+                                    "evidence_hash",
+                                    "status",
+                                    "source",
+                                    "coverage",
+                                    "actual_bundle_membership",
+                                    "exhaustive",
+                                    "creation_slot",
+                                    "holder_snapshot_at",
+                                    "scope",
+                                    "metrics",
+                                    "signals",
+                                    "trades",
+                                    "funding",
+                                    "wallets",
+                                    "gaps"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "mode": {
+                              "type": "string",
+                              "enum": [
+                                "live",
+                                "fixture"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "chain",
+                            "address",
+                            "pool",
+                            "name",
+                            "symbol",
+                            "creation",
+                            "graduation",
+                            "verification",
+                            "verification_reasons",
+                            "risk",
+                            "market",
+                            "first_seen_at",
+                            "checked_at",
+                            "holders",
+                            "wallet_analysis",
+                            "mode"
+                          ],
+                          "additionalProperties": false
+                        }
+                      }
+                    },
+                    "required": [
+                      "version",
+                      "rules_version",
+                      "as_of",
+                      "policy",
+                      "candidates"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "proposed_policy": {
+                    "type": "object",
+                    "properties": {
+                      "version": {
+                        "type": "string",
+                        "enum": [
+                          "discovery-local-v1",
+                          "discovery-local-v2",
+                          "discovery-local-v3"
+                        ]
+                      },
+                      "max_candidates": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 100
+                      },
+                      "max_age_hours": {
+                        "type": "number",
+                        "const": 24
+                      },
+                      "min_market_cap_usd": {
+                        "type": "number",
+                        "minimum": 0
+                      },
+                      "min_liquidity_usd": {
+                        "type": "number",
+                        "minimum": 0
+                      },
+                      "max_market_age_seconds": {
+                        "type": "integer",
+                        "exclusiveMinimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "max_risk_age_seconds": {
+                        "type": "integer",
+                        "exclusiveMinimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "require_holder_evidence": {
+                        "type": "boolean"
+                      },
+                      "min_holders": {
+                        "default": 100,
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 100000
+                      },
+                      "max_top1_pct": {
+                        "default": 10,
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 100
+                      },
+                      "max_top10_pct": {
+                        "default": 35,
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 100
+                      },
+                      "max_creator_pct": {
+                        "default": 5,
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 100
+                      },
+                      "max_holder_age_seconds": {
+                        "default": 1800,
+                        "type": "integer",
+                        "exclusiveMinimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "require_wallet_analysis": {
+                        "default": false,
+                        "type": "boolean"
+                      },
+                      "min_sampled_buyers": {
+                        "default": 3,
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 20
+                      },
+                      "max_wallet_age_seconds": {
+                        "default": 3600,
+                        "type": "integer",
+                        "exclusiveMinimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "max_dev_funded_supply_pct": {
+                        "default": 20,
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 100
+                      },
+                      "max_dev_sold_supply_pct": {
+                        "default": 5,
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 100
+                      }
+                    },
+                    "required": [
+                      "version",
+                      "max_candidates",
+                      "max_age_hours",
+                      "min_market_cap_usd",
+                      "min_liquidity_usd",
+                      "max_market_age_seconds",
+                      "max_risk_age_seconds",
+                      "require_holder_evidence",
+                      "min_holders",
+                      "max_top1_pct",
+                      "max_top10_pct",
+                      "max_creator_pct",
+                      "max_holder_age_seconds",
+                      "require_wallet_analysis",
+                      "min_sampled_buyers",
+                      "max_wallet_age_seconds",
+                      "max_dev_funded_supply_pct",
+                      "max_dev_sold_supply_pct"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "required": [
+                  "version",
+                  "baseline",
+                  "proposed_policy"
+                ],
+                "additionalProperties": false
+              },
+              "result": {
+                "type": "object",
+                "properties": {
+                  "baseline": {
+                    "type": "object",
+                    "properties": {
+                      "version": {
+                        "type": "string",
+                        "const": "election-result-v1"
+                      },
+                      "as_of": {
+                        "type": "string",
+                        "format": "date-time",
+                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                      },
+                      "outcome": {
+                        "type": "string",
+                        "enum": [
+                          "simulated_winner",
+                          "no_eligible_winner"
+                        ]
+                      },
+                      "winner_address": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "maxLength": 44
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "ranking_rule": {
+                        "type": "string",
+                        "const": "eligible liquidity descending, creation ascending, address ASCII ascending"
+                      },
+                      "counts": {
+                        "type": "object",
+                        "properties": {
+                          "observed": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "eligible": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "provisional": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "excluded": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "shortlisted": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 100
+                          }
+                        },
+                        "required": [
+                          "observed",
+                          "eligible",
+                          "provisional",
+                          "excluded",
+                          "shortlisted"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "candidates": {
+                        "maxItems": 500,
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "address": {
+                              "type": "string",
+                              "maxLength": 44
+                            },
+                            "symbol": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            },
+                            "eligibility": {
+                              "type": "string",
+                              "enum": [
+                                "eligible",
+                                "provisional",
+                                "excluded"
+                              ]
+                            },
+                            "reasons": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            },
+                            "rank": {
+                              "anyOf": [
+                                {
+                                  "type": "integer",
+                                  "exclusiveMinimum": 0,
+                                  "maximum": 9007199254740991
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "created_at": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "format": "date-time",
+                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "market_cap_usd": {
+                              "anyOf": [
+                                {
+                                  "type": "number"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "liquidity_usd": {
+                              "anyOf": [
+                                {
+                                  "type": "number"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            }
+                          },
+                          "required": [
+                            "address",
+                            "symbol",
+                            "name",
+                            "eligibility",
+                            "reasons",
+                            "rank",
+                            "created_at",
+                            "market_cap_usd",
+                            "liquidity_usd"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "voting_enabled": {
+                        "type": "boolean",
+                        "const": false
+                      },
+                      "launch_enabled": {
+                        "type": "boolean",
+                        "const": false
+                      },
+                      "gaps": {
+                        "maxItems": 20,
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "required": [
+                      "version",
+                      "as_of",
+                      "outcome",
+                      "winner_address",
+                      "ranking_rule",
+                      "counts",
+                      "candidates",
+                      "voting_enabled",
+                      "launch_enabled",
+                      "gaps"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "proposed": {
+                    "type": "object",
+                    "properties": {
+                      "version": {
+                        "type": "string",
+                        "const": "election-result-v1"
+                      },
+                      "as_of": {
+                        "type": "string",
+                        "format": "date-time",
+                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                      },
+                      "outcome": {
+                        "type": "string",
+                        "enum": [
+                          "simulated_winner",
+                          "no_eligible_winner"
+                        ]
+                      },
+                      "winner_address": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "maxLength": 44
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "ranking_rule": {
+                        "type": "string",
+                        "const": "eligible liquidity descending, creation ascending, address ASCII ascending"
+                      },
+                      "counts": {
+                        "type": "object",
+                        "properties": {
+                          "observed": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "eligible": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "provisional": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "excluded": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "shortlisted": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 100
+                          }
+                        },
+                        "required": [
+                          "observed",
+                          "eligible",
+                          "provisional",
+                          "excluded",
+                          "shortlisted"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "candidates": {
+                        "maxItems": 500,
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "address": {
+                              "type": "string",
+                              "maxLength": 44
+                            },
+                            "symbol": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            },
+                            "eligibility": {
+                              "type": "string",
+                              "enum": [
+                                "eligible",
+                                "provisional",
+                                "excluded"
+                              ]
+                            },
+                            "reasons": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            },
+                            "rank": {
+                              "anyOf": [
+                                {
+                                  "type": "integer",
+                                  "exclusiveMinimum": 0,
+                                  "maximum": 9007199254740991
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "created_at": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "format": "date-time",
+                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "market_cap_usd": {
+                              "anyOf": [
+                                {
+                                  "type": "number"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "liquidity_usd": {
+                              "anyOf": [
+                                {
+                                  "type": "number"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            }
+                          },
+                          "required": [
+                            "address",
+                            "symbol",
+                            "name",
+                            "eligibility",
+                            "reasons",
+                            "rank",
+                            "created_at",
+                            "market_cap_usd",
+                            "liquidity_usd"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "voting_enabled": {
+                        "type": "boolean",
+                        "const": false
+                      },
+                      "launch_enabled": {
+                        "type": "boolean",
+                        "const": false
+                      },
+                      "gaps": {
+                        "maxItems": 20,
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "required": [
+                      "version",
+                      "as_of",
+                      "outcome",
+                      "winner_address",
+                      "ranking_rule",
+                      "counts",
+                      "candidates",
+                      "voting_enabled",
+                      "launch_enabled",
+                      "gaps"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "changed": {
+                    "maxItems": 500,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "address": {
+                          "type": "string"
+                        },
+                        "symbol": {
+                          "type": "string"
+                        },
+                        "before": {
+                          "type": "string",
+                          "enum": [
+                            "eligible",
+                            "provisional",
+                            "excluded"
+                          ]
+                        },
+                        "after": {
+                          "type": "string",
+                          "enum": [
+                            "eligible",
+                            "provisional",
+                            "excluded"
+                          ]
+                        },
+                        "added_reasons": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "removed_reasons": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "required": [
+                        "address",
+                        "symbol",
+                        "before",
+                        "after",
+                        "added_reasons",
+                        "removed_reasons"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "activated": {
+                    "type": "boolean",
+                    "const": false
+                  },
+                  "provider_requests": {
+                    "type": "number",
+                    "const": 0
+                  }
+                },
+                "required": [
+                  "baseline",
+                  "proposed",
+                  "changed",
+                  "activated",
+                  "provider_requests"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "id",
+              "created_at",
+              "reason",
+              "request_hash",
+              "input_hash",
+              "result_hash",
+              "record_hash",
+              "inputs",
+              "result"
+            ],
+            "additionalProperties": false
+          },
+          "replay": {
+            "type": "string",
+            "const": "verified"
+          }
+        },
+        "required": [
+          "record",
+          "replay"
         ],
         "additionalProperties": false
       },
@@ -7142,6 +9743,300 @@
               "reasons",
               "rank",
               "launch_eligible"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "api_version",
+          "trace_id",
+          "as_of",
+          "served_at",
+          "policy_version",
+          "source_freshness",
+          "coverage",
+          "data"
+        ],
+        "additionalProperties": false
+      },
+      "PoliciesResponse": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "api_version": {
+            "type": "string",
+            "const": "10x-discovery-v1"
+          },
+          "trace_id": {
+            "type": "string"
+          },
+          "as_of": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "served_at": {
+            "type": "string"
+          },
+          "policy_version": {
+            "type": "string"
+          },
+          "source_freshness": {
+            "type": "object",
+            "properties": {
+              "last_harvest": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "last_success": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "stale": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "last_harvest",
+              "last_success",
+              "stale"
+            ],
+            "additionalProperties": false
+          },
+          "coverage": {
+            "type": "object",
+            "properties": {
+              "exhaustive": {
+                "type": "boolean",
+                "const": false
+              },
+              "scope": {
+                "type": "string"
+              },
+              "history_limit": {
+                "type": "number"
+              },
+              "quote_support": {
+                "type": "string"
+              },
+              "holder_classification": {
+                "type": "string"
+              },
+              "market_enabled": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "exhaustive",
+              "scope",
+              "history_limit",
+              "quote_support",
+              "holder_classification",
+              "market_enabled"
+            ],
+            "additionalProperties": false
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "policy": {
+                "type": "object",
+                "properties": {
+                  "version": {
+                    "type": "string",
+                    "enum": [
+                      "discovery-local-v1",
+                      "discovery-local-v2",
+                      "discovery-local-v3"
+                    ]
+                  },
+                  "max_candidates": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 100
+                  },
+                  "max_age_hours": {
+                    "type": "number",
+                    "const": 24
+                  },
+                  "min_market_cap_usd": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "min_liquidity_usd": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "max_market_age_seconds": {
+                    "type": "integer",
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "max_risk_age_seconds": {
+                    "type": "integer",
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "require_holder_evidence": {
+                    "type": "boolean"
+                  },
+                  "min_holders": {
+                    "default": 100,
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 100000
+                  },
+                  "max_top1_pct": {
+                    "default": 10,
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100
+                  },
+                  "max_top10_pct": {
+                    "default": 35,
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100
+                  },
+                  "max_creator_pct": {
+                    "default": 5,
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100
+                  },
+                  "max_holder_age_seconds": {
+                    "default": 1800,
+                    "type": "integer",
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "require_wallet_analysis": {
+                    "default": false,
+                    "type": "boolean"
+                  },
+                  "min_sampled_buyers": {
+                    "default": 3,
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 20
+                  },
+                  "max_wallet_age_seconds": {
+                    "default": 3600,
+                    "type": "integer",
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "max_dev_funded_supply_pct": {
+                    "default": 20,
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100
+                  },
+                  "max_dev_sold_supply_pct": {
+                    "default": 5,
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100
+                  }
+                },
+                "required": [
+                  "version",
+                  "max_candidates",
+                  "max_age_hours",
+                  "min_market_cap_usd",
+                  "min_liquidity_usd",
+                  "max_market_age_seconds",
+                  "max_risk_age_seconds",
+                  "require_holder_evidence",
+                  "min_holders",
+                  "max_top1_pct",
+                  "max_top10_pct",
+                  "max_creator_pct",
+                  "max_holder_age_seconds",
+                  "require_wallet_analysis",
+                  "min_sampled_buyers",
+                  "max_wallet_age_seconds",
+                  "max_dev_funded_supply_pct",
+                  "max_dev_sold_supply_pct"
+                ],
+                "additionalProperties": false
+              },
+              "policy_hash": {
+                "type": "string",
+                "minLength": 64,
+                "maxLength": 64
+              },
+              "status": {
+                "type": "string",
+                "const": "proposed_local_policy"
+              },
+              "approved_by": {
+                "type": "null"
+              },
+              "activation_enabled": {
+                "type": "boolean",
+                "const": false
+              },
+              "display_score": {
+                "type": "string"
+              },
+              "diagnostics": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "rule": {
+                      "type": "string"
+                    },
+                    "classification": {
+                      "type": "string",
+                      "const": "review_only"
+                    }
+                  },
+                  "required": [
+                    "name",
+                    "rule",
+                    "classification"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "gaps": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": [
+              "policy",
+              "policy_hash",
+              "status",
+              "approved_by",
+              "activation_enabled",
+              "display_score",
+              "diagnostics",
+              "gaps"
             ],
             "additionalProperties": false
           }

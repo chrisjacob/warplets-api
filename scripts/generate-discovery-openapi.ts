@@ -3,10 +3,11 @@ import { z } from "zod";
 import { AssessedCandidateSchema, PolicySchema, ProofSchema } from "../discovery/src/model";
 import { ArtworkResponseSchema } from "../discovery/src/artwork-model";
 import { WalletWorkResponseSchema } from "../discovery/src/wallet-work-model";
-import { ActivityResponse, CoverageResponse, DetailResponse, ElectionDetailResponse, ElectionsResponse, HistoryResponse, ListResponse, ReviewsResponse, StatusResponse } from "../app/src/discovery/client";
+import { PolicyEditsSchema, PolicyPreviewResponseSchema, PreviewRequestSchema } from "../discovery/src/policy-model";
+import { ActivityResponse, CoverageResponse, DetailResponse, ElectionDetailResponse, ElectionsResponse, HistoryResponse, ListResponse, PoliciesResponse, ReviewsResponse, StatusResponse } from "../app/src/discovery/client";
 
 const ok = { description: "Success; cached public data includes timestamps, source freshness and coverage", content: { "application/json": { schema: { type: "object" } } } };
-const errors = Object.fromEntries([400, 401, 403, 404, 409, 413, 415, 503].map(code => [code, { description: "Structured JSON error; no provider secrets" }]));
+const errors = Object.fromEntries([400, 401, 403, 404, 409, 413, 415, 429, 503].map(code => [code, { description: "Structured JSON error; no provider secrets" }]));
 const read = (summary: string, extra: object = {}) => ({ get: { summary, responses: { 200: ok, ...errors }, ...extra } });
 const responseSchema = (name: string) => ({ responses: { 200: { ...ok, content: { "application/json": { schema: { $ref: `#/components/schemas/${name}` } } } }, ...errors } });
 const reason = { type: "string", minLength: 3, maxLength: 300 };
@@ -34,7 +35,7 @@ const spec = {
     "/api/10x/elections": read("Latest ten immutable local discovery rehearsals; no community voting or launch authority", responseSchema("ElectionsResponse")),
     "/api/10x/elections/{id}": read("Frozen candidate inventory/policy and verified deterministic replay; zero provider requests", { ...responseSchema("ElectionDetailResponse"), parameters: [parameter("id", "path", { type: "string", pattern: "^(daily-[0-9]{4}-[0-9]{2}-[0-9]{2}|manual-[0-9a-f-]{36})$" }, true)] }),
     "/api/10x/system/status": read("Freshness, declared coverage gaps, UTC provider budgets and pauses", responseSchema("SystemStatusResponse")),
-    "/api/10x/transparency/policies": read("Proposed local discovery policy and deterministic display ordering"),
+    "/api/10x/transparency/policies": read("Actual local policy/hash, approval status, locked gates and separate review-only diagnostics", responseSchema("PoliciesResponse")),
     "/api/10x/admin/jobs": read("Restricted recent jobs and dry-run hashes", { security: [{ localOperator: [] }] }),
     "/api/10x/admin/refresh": post("Run one bounded idempotent refresh; force skips pacing only, never pause, lease, quota or provider backoff", { force: { type: "boolean", default: false } }),
     "/api/10x/admin/market-refresh": post("Refresh up to 30 cached pool markets using one free source request"),
@@ -47,7 +48,8 @@ const spec = {
     "/api/10x/admin/pause": post("Pause or resume discovery; preserve evidence and balances", { paused: { type: "boolean" } }, ["paused"]),
     "/api/10x/admin/seed-fixtures": post("Seed synthetic examples in a separate fixture view"),
     "/api/10x/admin/dry-run": post("Freeze live inputs and simulate selection; retry with the same request_id to return the original snapshot and one audit", { request_id: { type: "string", format: "uuid" } }),
-    "/api/10x/admin/policies/preview": post("Preview a policy without activating it", { policy: { $ref: "#/components/schemas/DiscoveryPolicy" } }, ["policy"]),
+    "/api/10x/admin/policies/preview": { post: { ...post("Freeze and compare stricter numeric thresholds; locked evidence gates, no activation, zero provider calls, 20 new previews per UTC day").post, ...responseSchema("PolicyPreviewResponse"), requestBody: { required: true, content: { "application/json": { schema: { $ref: "#/components/schemas/PolicyPreviewRequest" } } } } } },
+    "/api/10x/admin/policies/previews/{id}": read("Load retained policy comparison and verify hashes/replay; authenticated, no-store", { ...responseSchema("PolicyPreviewResponse"), security: [{ localOperator: [] }], parameters: [parameter("id", "path", { type: "string", format: "uuid" }, true)] }),
   },
   components: { securitySchemes: { localOperator: { type: "http", scheme: "bearer", description: "Random local operator token; not stored in browser storage or source control" } }, schemas: {
     Candidate: z.toJSONSchema(AssessedCandidateSchema, { unrepresentable: "any" }),
@@ -55,8 +57,12 @@ const spec = {
     WalletWorkResponse: z.toJSONSchema(WalletWorkResponseSchema),
     Proof: z.toJSONSchema(ProofSchema, { unrepresentable: "any" }),
     DiscoveryPolicy: z.toJSONSchema(PolicySchema),
+    PolicyEdits: z.toJSONSchema(PolicyEditsSchema),
+    PolicyPreviewRequest: z.toJSONSchema(PreviewRequestSchema),
+    PolicyPreviewResponse: z.toJSONSchema(PolicyPreviewResponseSchema, { unrepresentable: "any" }),
     CandidateListResponse: z.toJSONSchema(ListResponse, { unrepresentable: "any" }),
     CandidateDetailResponse: z.toJSONSchema(DetailResponse, { unrepresentable: "any" }),
+    PoliciesResponse: z.toJSONSchema(PoliciesResponse, { unrepresentable: "any" }),
     SystemStatusResponse: z.toJSONSchema(StatusResponse, { unrepresentable: "any" }),
     HistoryResponse: z.toJSONSchema(HistoryResponse, { unrepresentable: "any" }),
     ReviewsResponse: z.toJSONSchema(ReviewsResponse, { unrepresentable: "any" }),
