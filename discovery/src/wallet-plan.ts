@@ -1,5 +1,5 @@
 import { assess, DEFAULT_POLICY, type Candidate } from "./model";
-import { fundingTask, loadFundingCheckpoints } from "./funding-history";
+import { fundingTask, loadFundingCheckpoints,recoverCachedFunding } from "./funding-history";
 import { priorWalletEvidence } from "./wallet-work";
 import { WalletTransactionSchema } from "./wallet-rpc";
 import { hashJson } from "./solana";
@@ -11,11 +11,13 @@ import { analyzeWalletEvidence } from "./wallet-analysis";
 // Read-only planning: estimates describe the known remaining work, never a
 // guarantee of completion or a substitute for a fresh eligibility snapshot.
 export async function walletPlan(db: D1Database, c: Candidate, now = new Date()): Promise<WalletPlan> {
-  const base = {address:c.address,symbol:c.symbol,source_evidence_hash:c.wallet_analysis?.evidence_hash ?? null,snapshot_at:c.wallet_analysis?.observed_at ?? null,windows:0,examined_windows:0,blocked_windows:0,pending_bodies:0,cached_pending_bodies:0,minimum_rpc_calls:null,gaps:[] as string[]};
+  const base = {address:c.address,symbol:c.symbol,source_evidence_hash:c.wallet_analysis?.evidence_hash ?? null,snapshot_at:c.wallet_analysis?.observed_at ?? null,windows:0,examined_windows:0,blocked_windows:0,pending_bodies:0,cached_pending_bodies:0,cached_recoverable_markers:0,minimum_rpc_calls:null,gaps:[] as string[]};
   try {
     const prior = await priorWalletEvidence(db,c);
     if (!prior?.funding_scans?.length || c.wallet_analysis?.version !== "wallet-signals-v4") return WalletPlanSchema.parse({...base,stage:"new_snapshot"});
-    const scans = await loadFundingCheckpoints(db,c.address,prior.funding_scans.map(s=>s.anchor));
+    const loaded = await loadFundingCheckpoints(db,c.address,prior.funding_scans.map(s=>s.anchor));
+    const recovery=await recoverCachedFunding(db,loaded,now),scans=recovery.scans;
+    base.cached_recoverable_markers=recovery.recovered.length;
     if (scans.some(s=>Date.parse(s.attempted_at)>now.getTime() || s.pages.some(p=>Date.parse(p.fetched_at)>now.getTime()))) throw new Error("funding_checkpoint_from_future");
     const tasks = scans.map(fundingTask), pending = new Map(tasks.flatMap(t=>t.pending).map(r=>[r.signature,r]));
     const gaps = [...new Set(tasks.flatMap(t=>t.gaps))];
@@ -26,6 +28,7 @@ export async function walletPlan(db: D1Database, c: Candidate, now = new Date())
     // A checkpoint's "available" marker alone cannot certify a completed
     // window. Replay every retained body before scheduling more provider work.
     const records=structuredClone(prior.records);
+    for(const record of recovery.records){const previous=records.findIndex(r=>r.signature===record.signature);if(previous>=0)records[previous]={...record,purposes:records[previous]!.purposes};else records.push({...record,purposes:["wallet"]});}
     for (const scan of scans) for (const entry of scan.examined) {
       if (records.some(r=>r.signature===entry.signature)) continue;
       const saved=await db.prepare("SELECT payload,payload_hash,fetched_at FROM tenx_wallet_transactions WHERE signature=?1").bind(entry.signature).first<{payload:string;payload_hash:string;fetched_at:string}>();

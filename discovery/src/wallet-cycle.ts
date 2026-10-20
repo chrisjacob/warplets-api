@@ -121,11 +121,11 @@ async function collect(settings: WalletSettings, candidate: Candidate, rpc: RpcC
   };
   // Direct pre-buy coverage is an eligibility gate. Second-hop expansion uses
   // the remaining calls after direct work, within the same 18-call ceiling.
-  const scans = await collectFundingHistories(db, rpc, candidate.address, anchors, readFunding, { rpcCeiling: 18 });
+  const scans = await collectFundingHistories(db, rpc, candidate.address, anchors, readFunding, { rpcCeiling: 18,cacheRecovery:true });
   const devs = new Set(roles.filter(r => r.signed).map(r => r.wallet));
   const baseTransactions = records.flatMap(r => r.transaction ? [r.transaction] : []);
   const outflows = await buildSecondHopOutflows(baseTransactions, candidate.address, candidate.pool, candidate.creation?.slot ?? null, devs, scans.map(s => s.anchor), true);
-  const secondScans = await collectFundingHistories(db, rpc, candidate.address, secondHopAnchors(outflows, devs), readFunding, { secondHop: true });
+  const secondScans = await collectFundingHistories(db, rpc, candidate.address, secondHopAnchors(outflows, devs), readFunding, { secondHop: true,cacheRecovery:true });
   let holders: WalletEvidence["holders"] = null;
   if (candidate.holders?.payload_hash) {
     const saved = await db.prepare("SELECT payload FROM tenx_holder_evidence WHERE payload_hash=?1").bind(candidate.holders.payload_hash).first<{ payload: string }>();

@@ -16,6 +16,7 @@ import { WalletTransactionSchema } from "./wallet-rpc";
 import { compareCollectionPotential, comparePotential } from "./priority";
 import { compareWalletPlans, walletPlan, walletPlans } from "./wallet-plan";
 import { FundingScanSchema, type FundingScan } from "./funding-history";
+import realFunding from "../fixtures/recorded/v1-wallet-funding.json";
 const opened: DatabaseSync[] = [];
 afterEach(() => { opened.splice(0).forEach(d => d.close()); vi.restoreAllMocks(); });
 async function setup() {
@@ -170,6 +171,19 @@ describe("funding continuations keep eligibility snapshots honest", () => {
 });
 
 describe("budget-aware funding plans",()=>{
+  it("plans and consumes a recovered cached v1 marker without freshening an old candidate",async()=>{
+    const f=await setup(),at=realFunding.recorded_at,anchor=FundingScanSchema.shape.anchor.parse(realFunding.anchor),tx=WalletTransactionSchema.parse(realFunding.transaction),anchorTx=WalletTransactionSchema.parse(realFunding.anchor_transaction);
+    const scan=FundingScanSchema.parse({wallet:anchor.wallet,anchor,lookback_seconds:3600,attempted_at:at,examined:[{signature:realFunding.signature,status:"unsupported"}],pages:[{before:anchor.signature,fetched_at:at,rows:[{signature:realFunding.signature,slot:tx.slot,blockTime:tx.blockTime,err:null,confirmationStatus:"finalized"},{signature:signature(210),slot:tx.slot-1,blockTime:Date.parse(anchor.block_time)/1000-3601,err:null,confirmationStatus:"finalized"}]}]});
+    const input:WalletEvidence={version:"wallet-input-v4",observed_at:at,cluster:MAINNET_GENESIS,asset:{address:realFunding.mint,pool:realFunding.pool,token_program:f.input.asset.token_program,creation:null,graduation:null},records:[{signature:anchor.signature,status:"available",transaction:anchorTx,fetched_at:at,purposes:["recent"]},{signature:realFunding.signature,status:"unsupported",transaction:null,fetched_at:at,purposes:["wallet"]}],histories:[],holders:null,prior_losses:[],funding_scans:[scan],second_hop_scans:[],gaps:[]};
+    const analysis=await analyzeWalletEvidence(input),candidate={...f.candidate,address:realFunding.mint,pool:realFunding.pool,creation:null,graduation:null,wallet_analysis:analysis};
+    await saveCandidate(f.db,candidate);await f.db.prepare("INSERT INTO tenx_wallet_evidence(payload_hash,address,payload,observed_at) VALUES(?,?,?,?)").bind(analysis.evidence_hash,candidate.address,JSON.stringify(input),at).run();await checkpoint(f.db,candidate.address,scan);
+    await f.db.prepare("INSERT INTO tenx_wallet_transactions(signature,payload_hash,payload,fetched_at) VALUES(?,?,?,?)").bind(realFunding.signature,realFunding.transaction_hash,JSON.stringify(tx),at).run();
+    const before=await f.db.prepare("SELECT payload FROM tenx_candidates ORDER BY address").all(),oldScan=await f.db.prepare("SELECT payload FROM tenx_funding_scans WHERE address=?").bind(candidate.address).first();
+    expect(await walletPlan(f.db,candidate)).toMatchObject({stage:"refresh_required",windows:1,examined_windows:1,cached_recoverable_markers:1});expect(await f.db.prepare("SELECT payload FROM tenx_funding_scans WHERE address=?").bind(candidate.address).first()).toEqual(oldScan);
+    const work=await continueFunding(f.db,candidate,f.rpc());expect(work).toMatchObject({stage:"refresh_required",examined_windows:1,rpc_calls:1});expect(f.transport.mock.calls.every(([,init])=>JSON.parse(String(init?.body)).method==="getGenesisHash")).toBe(true);
+    expect(await f.db.prepare("SELECT payload FROM tenx_candidates ORDER BY address").all()).toEqual(before);expect(candidate.wallet_analysis.observed_at).toBe(at);expect((await walletPlan(f.db,candidate)).cached_recoverable_markers).toBe(0);
+    expect(await analyzeWalletEvidence(input)).toEqual(analysis);
+  });
   async function checkpoint(db:D1Database,address:string,scan:FundingScan){
     scan=FundingScanSchema.parse(scan);
     await db.prepare("INSERT INTO tenx_funding_scans(address,wallet,anchor_signature,payload,payload_hash,attempted_at) VALUES(?1,?2,?3,?4,?5,?6) ON CONFLICT(address,wallet,anchor_signature) DO UPDATE SET payload=excluded.payload,payload_hash=excluded.payload_hash").bind(address,scan.wallet,scan.anchor.signature,JSON.stringify(scan),await hashJson(scan),scan.attempted_at).run();

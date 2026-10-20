@@ -15908,6 +15908,11 @@
                         }
                       ]
                     },
+                    "cached_recoverable_markers": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 96
+                    },
                     "minimum_rpc_calls": {
                       "anyOf": [
                         {

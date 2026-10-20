@@ -5,6 +5,7 @@ export const WalletPlanSchema = z.object({
   stage: z.enum(["new_snapshot", "direct_funding", "refresh_required", "source_limited", "cache_invalid"]),
   windows: z.number().int().nonnegative(), examined_windows: z.number().int().nonnegative(), blocked_windows: z.number().int().nonnegative(),
   pending_bodies: z.number().int().nonnegative(), cached_pending_bodies: z.number().int().nonnegative().nullable(),
+  cached_recoverable_markers:z.number().int().nonnegative().max(96).optional(),
   minimum_rpc_calls: z.number().int().positive().nullable(), gaps: z.array(z.string()),
 }).strict();
 export type WalletPlan = z.infer<typeof WalletPlanSchema>;

@@ -80,10 +80,11 @@ export async function continueFunding(db: D1Database, candidate: Candidate, rpc:
   let bytes = records.reduce((n, r) => n + new TextEncoder().encode(JSON.stringify(r.transaction)).length, 0);
   await rpc.checkCluster();
   const read = async (signature: string, slot: number, status?: "missing" | "unsupported") => {
-    const existing = records.find(r => r.signature === signature); if (existing) return existing;
-    if (records.length >= 64) { gaps.add("wallet_transaction_sample_limit"); return null; }
-    if (status) { const record = { signature, status, transaction: null, purposes: ["wallet" as const], fetched_at: new Date().toISOString() }; records.push(record); return record; }
+    const existing = records.find(r => r.signature === signature); if (existing?.status==="available") return existing;
+    if (!existing&&records.length >= 64) { gaps.add("wallet_transaction_sample_limit"); return null; }
     const cached = await db.prepare("SELECT payload,payload_hash,fetched_at FROM tenx_wallet_transactions WHERE signature=?1").bind(signature).first<{payload:string;payload_hash:string;fetched_at:string}>();
+    if(!cached&&existing)return existing;
+    if (status&&!cached) { const record = { signature, status, transaction: null, purposes: ["wallet" as const], fetched_at: new Date().toISOString() }; records.push(record); return record; }
     if (!cached && rpc.calls >= 18) return null;
     let transaction;
     try { transaction = cached ? WalletTransactionSchema.parse(JSON.parse(cached.payload)) : await walletTransaction(rpc, signature); }
@@ -104,9 +105,10 @@ export async function continueFunding(db: D1Database, candidate: Candidate, rpc:
     if (size > 250000) throw new Error("wallet_transaction_too_large");
     if (transaction && !cached) await db.prepare("INSERT OR IGNORE INTO tenx_wallet_transactions(signature,payload_hash,payload,fetched_at) VALUES(?1,?2,?3,?4)").bind(signature, await hashJson(transaction), payload, fetched).run();
     if (bytes + size > 900000) { gaps.add("wallet_transaction_sample_limit"); return null; } bytes += size;
-    const record = { signature, status: transaction ? "available" as const : "missing" as const, transaction, purposes: ["wallet" as const], fetched_at: fetched }; records.push(record); return record;
+    const record = { signature, status: transaction ? "available" as const : "missing" as const, transaction, purposes:existing?.purposes??["wallet" as const], fetched_at: fetched };
+    if(existing)records[records.indexOf(existing)]=record;else records.push(record);return record;
   };
-  const scans = await collectFundingHistories(db, rpc, candidate.address, prior.funding_scans.map(s => s.anchor), read);
+  const scans = await collectFundingHistories(db, rpc, candidate.address, prior.funding_scans.map(s => s.anchor), read,{cacheRecovery:true});
   // Replay all old/new bodies and exact anchors before describing progress.
   // This temporary replay cannot become a fresh eligibility observation.
   const replay = await analyzeWalletEvidence({ ...prior, observed_at: new Date().toISOString(), records, funding_scans: scans, gaps: [...gaps] });

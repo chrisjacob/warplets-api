@@ -6,7 +6,9 @@ Latest engineering review: [security fixes and credential follow-up](29-security
 
 Previous engineering review: [measured performance improvements](28-performance-review.md), including compact Discover cards, deferred wallet code, retained-shell navigation and an aggregate startup budget.
 
-Current checkpoint: [private content operations](35-content-operations.md). Moderators can inspect queue age, UTC quota headroom, independent hold counts and bounded payload-size samples without exposing messages or identities. Admission limits are shared with write guards; no deletion, reward or evidence decisions are introduced.
+Current checkpoint: [cached funding recovery and real v1 wallet fixtures](36-cached-funding-recovery.md). Missing/unsupported references can reuse exact hash-checked cached bodies without replacement source requests. Candidate freshness and historical snapshots remain unchanged; the ten-eligible-token target remains open.
+
+Previous checkpoint: [private content operations](35-content-operations.md). Moderators can inspect queue age, UTC quota headroom, independent hold counts and bounded payload-size samples without exposing messages or identities. Admission limits are shared with write guards; no deletion, reward or evidence decisions are introduced.
 
 Previous checkpoint: [private contributor hold reviews](34-contributor-hold-reviews.md). A signed submission owner can request a private review, supply one additional response if asked, and read contributor-visible moderator replies. Complaint details stay private; closing a conversation never releases a hold. No authorship or reward credit is granted.
 

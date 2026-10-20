@@ -18,6 +18,8 @@ Reviewed 20 October 2026 against the entire [PRD v1.1](spec/10X_MEME_FULL_PRD_v1
 
 ## Ordered work packages
 
+P3/P6 cache update, 21 October: [cached funding recovery and recorded v1 wallet examples](36-cached-funding-recovery.md) now allow exact saved bodies to resolve prior missing/unsupported checkpoint markers without replacement RPC reads. Planning is read-only, repair preserves old candidate/evidence timestamps, and all gates/bounds remain. Two real v1 wallet fixtures certify one supported buy and a one-lamport pre-buy transfer; broader completeness and the ten-token target remain open.
+
 P8a operations update, 21 October: [private content operations](35-content-operations.md) now exposes queue age, moderator/contributor waiting responsibility, UTC quota usage/headroom, independent holds and bounded payload-size samples. The shared limit constants preserve all existing admission bounds. Aggregate counts are operational projections, not evidence replay; no deletion or hold release occurs. Controlled retention/archival and staffing remain open alongside authorship, near-duplicate evidence and validated attention inputs.
 
 P8a follow-up, 21 October: [private contributor hold reviews](34-contributor-hold-reviews.md) now let the signed submission owner request a review, provide one additional response when asked and read contributor-visible moderator replies. Verified hold-set admission, immutable replay and independent visibility controls preserve reporter privacy and all original holds. Closure does not restore featuring. Source-specific authorship, controlled capacity/retention, near-duplicate evidence and validated attention inputs remain next.

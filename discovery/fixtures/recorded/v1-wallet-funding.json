@@ -1,0 +1,1094 @@
+{
+  "source": "solana-finalized-rpc",
+  "recorded_at": "2026-10-20T15:21:37.772Z",
+  "signature": "4kCnVqAYpgXoqcH9cL8rLJuvBwTvQjS6DaHVdp331US9E8WbCtaXaC6epNDwEQHCK6PSALHoN1SgidbcNbj3DHM4",
+  "transaction_hash": "5bb10dc2da7a75e0b698b3a37e260a108cccc7448a029541e3d96d420f46abea",
+  "mint": "3ar87fijrVnompCwXnm3H7Ks2nrHKsdsK1o96Hgbpump",
+  "pool": "4FLukc1Se2gaEnZf7vELyKxYSaedFhHDfnSBmAmrENWf",
+  "transaction": {
+    "slot": 459068017,
+    "blockTime": 1792464018,
+    "version": 1,
+    "transaction": {
+      "signatures": [
+        "4kCnVqAYpgXoqcH9cL8rLJuvBwTvQjS6DaHVdp331US9E8WbCtaXaC6epNDwEQHCK6PSALHoN1SgidbcNbj3DHM4"
+      ],
+      "message": {
+        "accountKeys": [
+          "ERJKmhnX89zyh85nCSEjeFvMqnxELn4SzrXBBSdbcz4s",
+          "EoeLgAQHAGetyrg7eD37NqsxpP6EUzp6fu22NMUdga3d",
+          "9sPbkBQoUecdW4QfRsHbmYFozwPgXba19a8UxLp8Xw9y",
+          "E9vtqrW4JJnfQupxWR1hmoKPwAnTbTUqjyz82VXyoVPU",
+          "6G3QpsT9P3FexK63o8mUbfuEKf1VQZyvQs1Q9JcAWv5g",
+          "7tzULBNsvUtZnhwkBq8hq2mw3Zd6stuAmmV3pcgGKVbu",
+          "AoKuruNJxobLxeXxyH9L35aW2wv2bpDXAFW6rGKEsAb1",
+          "4nKD4x65kC8zCevgJ8RpW6Ex7QCo3TF165mWRrpkBVBL",
+          "APDKxyPtzgtaT5Ndvdu2TWQhdzF1jHnBwb2BkGwwNCmF",
+          "6ak4nTmJdsMfQKWhmKqpaHXFWCQLXf5q4ekitZAuxTCq",
+          "2nvz1hFLCZKbmvG1cYzMXsUz48yC3bexBqWRsVyNgczF",
+          "8GJUHh2DjTqUofMsXnHPWz4VNEV1BXt1ZJ5G1kPAJRaB",
+          "8UMmw3JPkhaWHSPaaFfmBvYC1TaN8nKS9WiNwAeyN8hA",
+          "3cs6zuLmvQEZkYfdbfkuJhQ8Pv5g4corC1DuYGTRE7Z1",
+          "6vPBziQ89jiDdDuad7PwEJ5mXGtRZGLkDXzT57Qd3axM",
+          "5t8E1DCVyDFkwMdW3wFf1vwcHupPRvaw6WE9yiuuLMUY",
+          "98keZbffpD5vX1gmz6rvJzQt1hdUZ1ei8VZ4mtQikSnz",
+          "C4BSjnA6pzJHJ5zCGWBbgNxhPN3bQwfVJecyw4HVhRG5",
+          "Eg2yRoyc8guRrmzwH8EkJ4zvm4bsRoS4WJ2kbr7NZjQT",
+          "67iTvzjksBq9eGPedavyq7hYmhNsWdB7Cy1v7noEFYzS",
+          "T32cjbC55utXq1b8zqn7rvfRTEPxiiENQiHaTc3FMAb",
+          "CUkap7yN86uBpXpCQ8NSnaWZLbauDnXnk1gSJQhDL9F9",
+          "5wscywow54rvkryJxGSEUL1su6eJny8PHCv52A5aG84b",
+          "MTuoJd8YWmUQAcs4rfGTSciKSXEFxTpU1rwBrHSURXt",
+          "2ViYNNGtFbxwfemXia9qrdMTgVhKbw3ZnGP4XiwTvyTQ",
+          "2j1FBho5YfHSoJSSaZGZ2hxpmD166V1urwCXU2BuNBXr",
+          "6MRm6SyJ6YmaASVVu4JKH8rHGPoHZovCZnyAnYtd7Dgj",
+          "HGQvNABVSvCkLfRUayjRup5mjyF776RroH9WFkqtYdh1",
+          "4zngrNrgwe5LoTExEmuQg1pdEGg4DmEvcVMhMUEicACv",
+          "iCuP4nCzdKEJ8uw8cAZVe9mc8cQs7oKGMcdjLnGeG4c",
+          "3wbUZewnQQwSbv8YRXr6iqSRGdZ5VEzrqGpBSk8h96cB",
+          "8U4Ma8aCbVV49Uyja6TomhontLVb5E9SoCWZ9wn9P8Fi",
+          "4YBccGdSUWV94QivhvzX5Q1nK9SQysAWGTxRe7A5gpL6",
+          "EcHWCa5dzfnhwnzAQxcEcMPWz2RPKEdgBMJRu5u8z6pj",
+          "78JZHDAfk8JZwBZv3qw3zQp6295d52jXSYKHj9P2caLg",
+          "7p4AkPb9AQHhzmUHF2kUaHdXp2xizrUnmn7vQw9D4GXD",
+          "EoW8VGi13VttuzvnGoQgevoMGEGDVUq5daPwReynR13W",
+          "H3f3qpZMYnh7ku4Nr5moqosbRvxxMVYEfw45uK62itqG",
+          "38ADqe8xukFzSiEdNgRbMJwDwgMx4fFMa3fziyWKBvFk",
+          "C2qgczgRyEuy1EoJHmR7vQJkbCRU3S2NQLTvyFQvmA6N",
+          "5C5nipvgZL9nSCz5ESsv5KRNp3i782RDXHztFa2aieWa",
+          "9qnMXK7W1FFfekDNUw6ZzojcAMCFs1C9iLvuKtvZRhA1",
+          "EmHXj611hdYn9cP36xYqpKwuNNqLTndBN7tNBixaZmtb",
+          "5kfSZmHinwdYL4NNHBe8W9QMEY36UC6YN69aypYZ6Hwj",
+          "FQfTd7s1ot4VL7Jjn3szHbnoJCzhLSwqFJiaSMoXJeMd",
+          "6fhCCab6DUbAW5AdmCF4iWFjLSHj9qZd2e6XQ7ramgee",
+          "AtbYANC9sJEZMdHfaXJW3DF3iqf2WLR1VMsC99SzsUSe",
+          "5su4QavVkSkYk4iaM47F6pTVqMMaiuDvyVAV9vjXqU9n",
+          "2YVfe9f4gw5RUCdhbE84aEaANUjCKqMu5nwURLEPGc75",
+          "3VUNtVtjjx5ckUojT7UocJ5fbuAJRsNUXNfTBnPte9vC",
+          "QHYKt1B7bBJsohxS4TV9Tfs3sjXYYbYmipRA2QVJRJY",
+          "HEBKKda8LeTv9PkLXNobWcbBDqChUhGGHNE1SgAzhRw6",
+          "5263WHE9cjVPrLxfcRDbszvrfT8hESstZYfbSeDoMNSn",
+          "yf6i6uyH8NLive9Em53Eg2r6cG65biVXjb531h3RKr9",
+          "7kHCxFPbzQaZ2aCMz9CbbnAzQry6M8KuK799DgtcyxsX",
+          "E6rUq5BtBnY9Zfg6WF4e8qsEZWBa8eYEM1aRGYaz278d",
+          "257UabWvngELRGvtb1SMtS9ZMLbXi9ASMKpS8RoYvVbq",
+          "CWQ3qMynooAmGTdHSoJ7o3U8rvJ1DThQN1EMUM1rYbz2",
+          "BndWFoDCnuAHxVztPjva9jabHjYwFNd8ZJXuwk4n3j4E",
+          "45KXuo1L44BHFBqdEunuTAvAayEndiGecL7Jh2azVmdk",
+          "CZ6yQyLXwMjD7PiLFejBgKVPFdoZd2axjfL2JaguCmL",
+          "12KmD8RxAhCUTX1s7PBtUdkTbNdehdkQgaN48deqEPVX",
+          "GWAgs4d2dX7fUNNoqEvBs19FpLDTJrv3RNj9JA5oxP9a",
+          "11111111111111111111111111111111"
+        ],
+        "instructions": [
+          {
+            "programIdIndex": 63,
+            "accounts": [
+              0,
+              1
+            ],
+            "data": "3Bxs412MvVNQj175",
+            "stackHeight": 1
+          },
+          {
+            "programIdIndex": 63,
+            "accounts": [
+              0,
+              2
+            ],
+            "data": "3Bxs412MvVNQj175",
+            "stackHeight": 1
+          },
+          {
+            "programIdIndex": 63,
+            "accounts": [
+              0,
+              3
+            ],
+            "data": "3Bxs412MvVNQj175",
+            "stackHeight": 1
+          },
+          {
+            "programIdIndex": 63,
+            "accounts": [
+              0,
+              4
+            ],
+            "data": "3Bxs412MvVNQj175",
+            "stackHeight": 1
+          },
+          {
+            "programIdIndex": 63,
+            "accounts": [
+              0,
+              5
+            ],
+            "data": "3Bxs412MvVNQj175",
+            "stackHeight": 1
+          },
+          {
+            "programIdIndex": 63,
+            "accounts": [
+              0,
+              6
+            ],
+            "data": "3Bxs412MvVNQj175",
+            "stackHeight": 1
+          },
+          {
+            "programIdIndex": 63,
+            "accounts": [
+              0,
+              7
+            ],
+            "data": "3Bxs412MvVNQj175",
+            "stackHeight": 1
+          },
+          {
+            "programIdIndex": 63,
+            "accounts": [
+              0,
+              8
+            ],
+            "data": "3Bxs412MvVNQj175",
+            "stackHeight": 1
+          },
+          {
+            "programIdIndex": 63,
+            "accounts": [
+              0,
+              9
+            ],
+            "data": "3Bxs412MvVNQj175",
+            "stackHeight": 1
+          },
+          {
+            "programIdIndex": 63,
+            "accounts": [
+              0,
+              10
+            ],
+            "data": "3Bxs412MvVNQj175",
+            "stackHeight": 1
+          },
+          {
+            "programIdIndex": 63,
+            "accounts": [
+              0,
+              11
+            ],
+            "data": "3Bxs412MvVNQj175",
+            "stackHeight": 1
+          },
+          {
+            "programIdIndex": 63,
+            "accounts": [
+              0,
+              12
+            ],
+            "data": "3Bxs412MvVNQj175",
+            "stackHeight": 1
+          },
+          {
+            "programIdIndex": 63,
+            "accounts": [
+              0,
+              13
+            ],
+            "data": "3Bxs412MvVNQj175",
+            "stackHeight": 1
+          },
+          {
+            "programIdIndex": 63,
+            "accounts": [
+              0,
+              14
+            ],
+            "data": "3Bxs412MvVNQj175",
+            "stackHeight": 1
+          },
+          {
+            "programIdIndex": 63,
+            "accounts": [
+              0,
+              15
+            ],
+            "data": "3Bxs412MvVNQj175",
+            "stackHeight": 1
+          },
+          {
+            "programIdIndex": 63,
+            "accounts": [
+              0,
+              16
+            ],
+            "data": "3Bxs412MvVNQj175",
+            "stackHeight": 1
+          },
+          {
+            "programIdIndex": 63,
+            "accounts": [
+              0,
+              17
+            ],
+            "data": "3Bxs412MvVNQj175",
+            "stackHeight": 1
+          },
+          {
+            "programIdIndex": 63,
+            "accounts": [
+              0,
+              18
+            ],
+            "data": "3Bxs412MvVNQj175",
+            "stackHeight": 1
+          },
+          {
+            "programIdIndex": 63,
+            "accounts": [
+              0,
+              19
+            ],
+            "data": "3Bxs412MvVNQj175",
+            "stackHeight": 1
+          },
+          {
+            "programIdIndex": 63,
+            "accounts": [
+              0,
+              20
+            ],
+            "data": "3Bxs412MvVNQj175",
+            "stackHeight": 1
+          },
+          {
+            "programIdIndex": 63,
+            "accounts": [
+              0,
+              21
+            ],
+            "data": "3Bxs412MvVNQj175",
+            "stackHeight": 1
+          },
+          {
+            "programIdIndex": 63,
+            "accounts": [
+              0,
+              22
+            ],
+            "data": "3Bxs412MvVNQj175",
+            "stackHeight": 1
+          },
+          {
+            "programIdIndex": 63,
+            "accounts": [
+              0,
+              23
+            ],
+            "data": "3Bxs412MvVNQj175",
+            "stackHeight": 1
+          },
+          {
+            "programIdIndex": 63,
+            "accounts": [
+              0,
+              24
+            ],
+            "data": "3Bxs412MvVNQj175",
+            "stackHeight": 1
+          },
+          {
+            "programIdIndex": 63,
+            "accounts": [
+              0,
+              25
+            ],
+            "data": "3Bxs412MvVNQj175",
+            "stackHeight": 1
+          },
+          {
+            "programIdIndex": 63,
+            "accounts": [
+              0,
+              26
+            ],
+            "data": "3Bxs412MvVNQj175",
+            "stackHeight": 1
+          },
+          {
+            "programIdIndex": 63,
+            "accounts": [
+              0,
+              27
+            ],
+            "data": "3Bxs412MvVNQj175",
+            "stackHeight": 1
+          },
+          {
+            "programIdIndex": 63,
+            "accounts": [
+              0,
+              28
+            ],
+            "data": "3Bxs412MvVNQj175",
+            "stackHeight": 1
+          },
+          {
+            "programIdIndex": 63,
+            "accounts": [
+              0,
+              29
+            ],
+            "data": "3Bxs412MvVNQj175",
+            "stackHeight": 1
+          },
+          {
+            "programIdIndex": 63,
+            "accounts": [
+              0,
+              30
+            ],
+            "data": "3Bxs412MvVNQj175",
+            "stackHeight": 1
+          },
+          {
+            "programIdIndex": 63,
+            "accounts": [
+              0,
+              31
+            ],
+            "data": "3Bxs412MvVNQj175",
+            "stackHeight": 1
+          },
+          {
+            "programIdIndex": 63,
+            "accounts": [
+              0,
+              32
+            ],
+            "data": "3Bxs412MvVNQj175",
+            "stackHeight": 1
+          },
+          {
+            "programIdIndex": 63,
+            "accounts": [
+              0,
+              33
+            ],
+            "data": "3Bxs412MvVNQj175",
+            "stackHeight": 1
+          },
+          {
+            "programIdIndex": 63,
+            "accounts": [
+              0,
+              34
+            ],
+            "data": "3Bxs412MvVNQj175",
+            "stackHeight": 1
+          },
+          {
+            "programIdIndex": 63,
+            "accounts": [
+              0,
+              35
+            ],
+            "data": "3Bxs412MvVNQj175",
+            "stackHeight": 1
+          },
+          {
+            "programIdIndex": 63,
+            "accounts": [
+              0,
+              36
+            ],
+            "data": "3Bxs412MvVNQj175",
+            "stackHeight": 1
+          },
+          {
+            "programIdIndex": 63,
+            "accounts": [
+              0,
+              37
+            ],
+            "data": "3Bxs412MvVNQj175",
+            "stackHeight": 1
+          },
+          {
+            "programIdIndex": 63,
+            "accounts": [
+              0,
+              38
+            ],
+            "data": "3Bxs412MvVNQj175",
+            "stackHeight": 1
+          },
+          {
+            "programIdIndex": 63,
+            "accounts": [
+              0,
+              39
+            ],
+            "data": "3Bxs412MvVNQj175",
+            "stackHeight": 1
+          },
+          {
+            "programIdIndex": 63,
+            "accounts": [
+              0,
+              40
+            ],
+            "data": "3Bxs412MvVNQj175",
+            "stackHeight": 1
+          },
+          {
+            "programIdIndex": 63,
+            "accounts": [
+              0,
+              41
+            ],
+            "data": "3Bxs412MvVNQj175",
+            "stackHeight": 1
+          },
+          {
+            "programIdIndex": 63,
+            "accounts": [
+              0,
+              42
+            ],
+            "data": "3Bxs412MvVNQj175",
+            "stackHeight": 1
+          },
+          {
+            "programIdIndex": 63,
+            "accounts": [
+              0,
+              43
+            ],
+            "data": "3Bxs412MvVNQj175",
+            "stackHeight": 1
+          },
+          {
+            "programIdIndex": 63,
+            "accounts": [
+              0,
+              44
+            ],
+            "data": "3Bxs412MvVNQj175",
+            "stackHeight": 1
+          },
+          {
+            "programIdIndex": 63,
+            "accounts": [
+              0,
+              45
+            ],
+            "data": "3Bxs412MvVNQj175",
+            "stackHeight": 1
+          },
+          {
+            "programIdIndex": 63,
+            "accounts": [
+              0,
+              46
+            ],
+            "data": "3Bxs412MvVNQj175",
+            "stackHeight": 1
+          },
+          {
+            "programIdIndex": 63,
+            "accounts": [
+              0,
+              47
+            ],
+            "data": "3Bxs412MvVNQj175",
+            "stackHeight": 1
+          },
+          {
+            "programIdIndex": 63,
+            "accounts": [
+              0,
+              48
+            ],
+            "data": "3Bxs412MvVNQj175",
+            "stackHeight": 1
+          },
+          {
+            "programIdIndex": 63,
+            "accounts": [
+              0,
+              49
+            ],
+            "data": "3Bxs412MvVNQj175",
+            "stackHeight": 1
+          },
+          {
+            "programIdIndex": 63,
+            "accounts": [
+              0,
+              50
+            ],
+            "data": "3Bxs412MvVNQj175",
+            "stackHeight": 1
+          },
+          {
+            "programIdIndex": 63,
+            "accounts": [
+              0,
+              51
+            ],
+            "data": "3Bxs412MvVNQj175",
+            "stackHeight": 1
+          },
+          {
+            "programIdIndex": 63,
+            "accounts": [
+              0,
+              52
+            ],
+            "data": "3Bxs412MvVNQj175",
+            "stackHeight": 1
+          },
+          {
+            "programIdIndex": 63,
+            "accounts": [
+              0,
+              53
+            ],
+            "data": "3Bxs412MvVNQj175",
+            "stackHeight": 1
+          },
+          {
+            "programIdIndex": 63,
+            "accounts": [
+              0,
+              54
+            ],
+            "data": "3Bxs412MvVNQj175",
+            "stackHeight": 1
+          },
+          {
+            "programIdIndex": 63,
+            "accounts": [
+              0,
+              55
+            ],
+            "data": "3Bxs412MvVNQj175",
+            "stackHeight": 1
+          },
+          {
+            "programIdIndex": 63,
+            "accounts": [
+              0,
+              56
+            ],
+            "data": "3Bxs412MvVNQj175",
+            "stackHeight": 1
+          },
+          {
+            "programIdIndex": 63,
+            "accounts": [
+              0,
+              57
+            ],
+            "data": "3Bxs412MvVNQj175",
+            "stackHeight": 1
+          },
+          {
+            "programIdIndex": 63,
+            "accounts": [
+              0,
+              58
+            ],
+            "data": "3Bxs412MvVNQj175",
+            "stackHeight": 1
+          },
+          {
+            "programIdIndex": 63,
+            "accounts": [
+              0,
+              59
+            ],
+            "data": "3Bxs412MvVNQj175",
+            "stackHeight": 1
+          },
+          {
+            "programIdIndex": 63,
+            "accounts": [
+              0,
+              60
+            ],
+            "data": "3Bxs412MvVNQj175",
+            "stackHeight": 1
+          },
+          {
+            "programIdIndex": 63,
+            "accounts": [
+              0,
+              61
+            ],
+            "data": "3Bxs412MvVNQj175",
+            "stackHeight": 1
+          },
+          {
+            "programIdIndex": 63,
+            "accounts": [
+              0,
+              62
+            ],
+            "data": "3Bxs412MvVNQj175",
+            "stackHeight": 1
+          }
+        ],
+        "transactionConfig": {
+          "priorityFee": null,
+          "computeUnitLimit": 200000,
+          "loadedAccountsDataSizeLimit": 67108864,
+          "heapSize": null
+        },
+        "header": {
+          "numRequiredSignatures": 1
+        }
+      }
+    },
+    "meta": {
+      "err": null,
+      "innerInstructions": [],
+      "loadedAddresses": {
+        "writable": [],
+        "readonly": []
+      },
+      "preTokenBalances": [],
+      "postTokenBalances": [],
+      "preBalances": [
+        9174710,
+        4784317365,
+        395226921,
+        209030100,
+        704889679,
+        977576677,
+        335570398,
+        2949603637,
+        8155499612,
+        8816592210,
+        7557132970,
+        103491348,
+        965855383,
+        413157642,
+        724363836,
+        16475219606,
+        2224475107,
+        4665351659,
+        298033515,
+        4306942073,
+        1070272420,
+        954294621,
+        3557504463,
+        171837365,
+        4548248619,
+        3288168131,
+        10405965356,
+        10174225533,
+        4315723107,
+        25971322873,
+        1684862840,
+        2880125118,
+        199582874565,
+        132543076,
+        545809416,
+        897762284,
+        3908047976,
+        142793238,
+        105426530,
+        3494297854,
+        1175939517,
+        371451610,
+        284226093,
+        28446005445,
+        71036544540,
+        414447677,
+        397927177,
+        20290550170,
+        14521533401,
+        101855039535,
+        108622436,
+        15760379519,
+        563191181,
+        3036536943,
+        452835959,
+        3936820833,
+        3706705551,
+        469842850,
+        5491298862,
+        2879999252,
+        2886523071,
+        125791661,
+        243196259,
+        1
+      ],
+      "postBalances": [
+        9169648,
+        4784317366,
+        395226922,
+        209030101,
+        704889680,
+        977576678,
+        335570399,
+        2949603638,
+        8155499613,
+        8816592211,
+        7557132971,
+        103491349,
+        965855384,
+        413157643,
+        724363837,
+        16475219607,
+        2224475108,
+        4665351660,
+        298033516,
+        4306942074,
+        1070272421,
+        954294622,
+        3557504464,
+        171837366,
+        4548248620,
+        3288168132,
+        10405965357,
+        10174225534,
+        4315723108,
+        25971322874,
+        1684862841,
+        2880125119,
+        199582874566,
+        132543077,
+        545809417,
+        897762285,
+        3908047977,
+        142793239,
+        105426531,
+        3494297855,
+        1175939518,
+        371451611,
+        284226094,
+        28446005446,
+        71036544541,
+        414447678,
+        397927178,
+        20290550171,
+        14521533402,
+        101855039536,
+        108622437,
+        15760379520,
+        563191182,
+        3036536944,
+        452835960,
+        3936820834,
+        3706705552,
+        469842851,
+        5491298863,
+        2879999253,
+        2886523072,
+        125791662,
+        243196260,
+        1
+      ],
+      "fee": 5000
+    }
+  },
+  "anchor": {
+    "wallet": "38ADqe8xukFzSiEdNgRbMJwDwgMx4fFMa3fziyWKBvFk",
+    "signature": "287LZR9TJ4R62Gk3LzpJVKV9HLyFqwJM3xTG9TAxT7W1hhnpeWfG3EpgVK8myTDoMkGCx2Y1nS2nEvyS4pWF7BsT",
+    "slot": 459070747,
+    "block_time": "2026-10-20T02:50:18.000Z",
+    "kind": "sampled_buy"
+  },
+  "anchor_transaction": {
+    "slot": 459070747,
+    "blockTime": 1792464618,
+    "version": "legacy",
+    "transaction": {
+      "signatures": [
+        "287LZR9TJ4R62Gk3LzpJVKV9HLyFqwJM3xTG9TAxT7W1hhnpeWfG3EpgVK8myTDoMkGCx2Y1nS2nEvyS4pWF7BsT"
+      ],
+      "message": {
+        "accountKeys": [
+          "38ADqe8xukFzSiEdNgRbMJwDwgMx4fFMa3fziyWKBvFk",
+          "33jkZHUbc1YH1dHA9yDkLdczHsG8E6fKHoiCtQ5XKcpa",
+          "4vieeGHPYPG2MmyPRcYjdiDmmhN3ww7hsFNap8pVN3Ey",
+          "5YxQFdt3Tr9zJLvkFccqXVUwhdTWJQc1fFg2YPbxvxeD",
+          "9AvmkagAPwc7jaNJpg771PAUKXs8jPeresahA89UnkVX",
+          "9W1uvo9fRmzq9q2z6afE98ejzQjtQ27SoKiXRKi7HQjB",
+          "DQzLYPgNArJJDyKbPWJFRzxZV67XLhy4R7BWYX6tgzhF",
+          "EQik5xCKUcjRxBCiEZ6QMLDnZXJMRTmNc4Hua3f7J6jy",
+          "HCQowTqQj2hwowoXn5zRM23tSnYcmjzBMTisjNZdDySw",
+          "11111111111111111111111111111111",
+          "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P",
+          "ComputeBudget111111111111111111111111111111",
+          "So11111111111111111111111111111111111111112",
+          "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+          "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+          "3ar87fijrVnompCwXnm3H7Ks2nrHKsdsK1o96Hgbpump",
+          "4wTV1YmiEkRvAtNtsSGPtUrqRYQMe5SKy2uB4Jjaxnjf",
+          "8Wf5TiAheLUqBrKXeYg2JtAFFMWtKdG2BSFgqUcPVwTt",
+          "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL",
+          "Ce6TQqeHC9p8KetsN6JsjHK7UTZk7nasjjnr7XxXp9F1"
+        ],
+        "instructions": [
+          {
+            "programIdIndex": 11,
+            "accounts": [],
+            "data": "3Jv73z5Y9SRV",
+            "stackHeight": 1
+          },
+          {
+            "programIdIndex": 11,
+            "accounts": [],
+            "data": "EJN6DV",
+            "stackHeight": 1
+          },
+          {
+            "programIdIndex": 9,
+            "accounts": [
+              0,
+              2
+            ],
+            "data": "3Bxs4PckVVt51W8w",
+            "stackHeight": 1
+          },
+          {
+            "programIdIndex": 18,
+            "accounts": [
+              0,
+              6,
+              0,
+              15,
+              9,
+              14
+            ],
+            "data": "1",
+            "stackHeight": 1
+          },
+          {
+            "programIdIndex": 10,
+            "accounts": [
+              16,
+              15,
+              12,
+              14,
+              13,
+              5,
+              4,
+              8,
+              0,
+              6,
+              1,
+              7,
+              17,
+              3,
+              9,
+              19,
+              10
+            ],
+            "data": "MboJmZWNSpA95NhGm4gNuMA5EfeK1E2nb",
+            "stackHeight": 1
+          }
+        ],
+        "header": {
+          "numRequiredSignatures": 1
+        }
+      }
+    },
+    "meta": {
+      "err": null,
+      "innerInstructions": [
+        {
+          "index": 3,
+          "instructions": [
+            {
+              "programIdIndex": 14,
+              "accounts": [
+                15
+              ],
+              "data": "84eT",
+              "stackHeight": 2
+            },
+            {
+              "programIdIndex": 9,
+              "accounts": [
+                0,
+                6
+              ],
+              "data": "111157Vt9WuCLrLm8Bv7v3tbuxTXo5Bq7vv6Fb1ngBYUyZPEU62jGZ4xnkMV46KCckXWDq",
+              "stackHeight": 2
+            },
+            {
+              "programIdIndex": 14,
+              "accounts": [
+                6
+              ],
+              "data": "P",
+              "stackHeight": 2
+            },
+            {
+              "programIdIndex": 14,
+              "accounts": [
+                6,
+                15
+              ],
+              "data": "6PFrtmqfmCbXpiCL9TqcvqHNcSZwmUQX4GxqrDZC8V4gi",
+              "stackHeight": 2
+            }
+          ]
+        },
+        {
+          "index": 4,
+          "instructions": [
+            {
+              "programIdIndex": 14,
+              "accounts": [
+                4,
+                15,
+                6,
+                5
+              ],
+              "data": "gnoECxmtDWss3",
+              "stackHeight": 2
+            },
+            {
+              "programIdIndex": 9,
+              "accounts": [
+                0,
+                5
+              ],
+              "data": "3Bxs4ThwQbE4vyj5",
+              "stackHeight": 2
+            },
+            {
+              "programIdIndex": 10,
+              "accounts": [
+                19
+              ],
+              "data": "xP5X2rtd7D1PF6YVZfjxs4pLaVMjPz21HYBYErRoQDZ2zYTt5kpKCzEWdR7fJGGVXCt1U73jhnEnNHuWK2NHWYfLTxkzSyZ1gfE6uDAv9LhaXgDMFWnP3WnPrQdZoAZHRxhGuiJg49We38ciZbtqP25qa79Ng7htgXXPtErzhYcFHrGYpXfw9bScTkbCR96zPkE7otpgGVnNEnRvzUvFS7sJ3jXYSZb7w2GhcNUyUzpn9CkhHiuHEuJdNmG8HGWGRRX3REnhNGxvjV94b8WYXno2vPUzrPW7PxCC3uvJwqRaqqsyFtGYqA8JLbcq8EZauzPqbSuJWiZWcDQBr7R5PZdX7GX5K3yA7NEwkrXvjNABLMY8GgP7tqaiKpq9kXbDN7Umaq1vtTJbhcmQWrL98jPEzJFGkdzsXHLh7BGty27SBSYNCRcVYVvnHppBe9uVgBbMRnng3cLqerFtLPHHNyBFGRrAKFGeLtNwkar6QVYXHZDjGhto5pUFDiy8yagd8MRG8UyzWUbUWkaeVuxA3viq8wzboUAVhxHC52cUMsLnAfTLvywm",
+              "stackHeight": 2
+            }
+          ]
+        }
+      ],
+      "loadedAddresses": {
+        "writable": [],
+        "readonly": []
+      },
+      "preTokenBalances": [
+        {
+          "accountIndex": 4,
+          "mint": "3ar87fijrVnompCwXnm3H7Ks2nrHKsdsK1o96Hgbpump",
+          "owner": "9W1uvo9fRmzq9q2z6afE98ejzQjtQ27SoKiXRKi7HQjB",
+          "programId": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+          "uiTokenAmount": {
+            "amount": "965387096774194",
+            "decimals": 6
+          }
+        }
+      ],
+      "postTokenBalances": [
+        {
+          "accountIndex": 4,
+          "mint": "3ar87fijrVnompCwXnm3H7Ks2nrHKsdsK1o96Hgbpump",
+          "owner": "9W1uvo9fRmzq9q2z6afE98ejzQjtQ27SoKiXRKi7HQjB",
+          "programId": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+          "uiTokenAmount": {
+            "amount": "965383788583933",
+            "decimals": 6
+          }
+        },
+        {
+          "accountIndex": 6,
+          "mint": "3ar87fijrVnompCwXnm3H7Ks2nrHKsdsK1o96Hgbpump",
+          "owner": "38ADqe8xukFzSiEdNgRbMJwDwgMx4fFMa3fziyWKBvFk",
+          "programId": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+          "uiTokenAmount": {
+            "amount": "3308190261",
+            "decimals": 6
+          }
+        }
+      ],
+      "preBalances": [
+        105066904,
+        0,
+        4918676700,
+        2824395812,
+        1513840,
+        1001493520,
+        0,
+        1844400,
+        0,
+        1,
+        9693912471,
+        1,
+        1853533642221,
+        230130698,
+        70228638,
+        2738120,
+        4089842911,
+        37292293,
+        3388612899,
+        168261611
+      ],
+      "postBalances": [
+        103400564,
+        0,
+        4918681700,
+        2824396281,
+        1513840,
+        1001593051,
+        1513840,
+        1844400,
+        0,
+        1,
+        9693912471,
+        1,
+        1853533642221,
+        230130698,
+        70228638,
+        2738120,
+        4089842911,
+        37292293,
+        3388612899,
+        168261611
+      ],
+      "fee": 47500
+    }
+  },
+  "anchor_transaction_hash": "a2ffb8122c85098690a9b3b1ee762dbb54b6f3d265d87ec30b66b0fc8a135a39",
+  "expected_trades": [
+    {
+      "signature": "287LZR9TJ4R62Gk3LzpJVKV9HLyFqwJM3xTG9TAxT7W1hhnpeWfG3EpgVK8myTDoMkGCx2Y1nS2nEvyS4pWF7BsT",
+      "slot": 459070747,
+      "block_time": "2026-10-20T02:50:18.000Z",
+      "instruction_index": "4",
+      "program": "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P",
+      "instruction": "buy_exact_quote_in_v3",
+      "side": "buy",
+      "wallet": "38ADqe8xukFzSiEdNgRbMJwDwgMx4fFMa3fziyWKBvFk",
+      "fee_payer": "38ADqe8xukFzSiEdNgRbMJwDwgMx4fFMa3fziyWKBvFk",
+      "base_amount_raw": "3308190261",
+      "quote_amount_raw": "100000",
+      "quote_kind": "native_lamports",
+      "net_wallet_base_raw": "3308190261",
+      "transaction_hash": "a2ffb8122c85098690a9b3b1ee762dbb54b6f3d265d87ec30b66b0fc8a135a39"
+    }
+  ],
+  "expected_funding": [
+    {
+      "from": "ERJKmhnX89zyh85nCSEjeFvMqnxELn4SzrXBBSdbcz4s",
+      "to": "38ADqe8xukFzSiEdNgRbMJwDwgMx4fFMa3fziyWKBvFk",
+      "lamports_raw": "1",
+      "signature": "4kCnVqAYpgXoqcH9cL8rLJuvBwTvQjS6DaHVdp331US9E8WbCtaXaC6epNDwEQHCK6PSALHoN1SgidbcNbj3DHM4",
+      "slot": 459068017,
+      "block_time": "2026-10-20T02:40:18.000Z",
+      "transaction_hash": "5bb10dc2da7a75e0b698b3a37e260a108cccc7448a029541e3d96d420f46abea",
+      "before_sampled_buy": true,
+      "before_signed_creation": false
+    }
+  ]
+}

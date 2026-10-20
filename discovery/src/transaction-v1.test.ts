@@ -6,6 +6,8 @@ import { hashJson, toBase58 } from "./solana";
 import { fundingTransfers, verifiedTrades } from "./wallet-trades";
 import recorded from "../fixtures/recorded/temporary-wsol-trade.json";
 import recordedMigration from "../fixtures/recorded/v1-pump-migration.json";
+import recordedWalletTrade from "../fixtures/recorded/v1-wallet-trade.json";
+import recordedWalletFunding from "../fixtures/recorded/v1-wallet-funding.json";
 import {graduationProof,migrations,WSOL} from "./pump";
 
 // Synthetic RPC layout based on pinned Agave v4.2.2 UiRawMessage /
@@ -25,6 +27,15 @@ function reader(raw: unknown) {
   return { rpc: new RpcClient("https://rpc.example", reserve, transport), reserve, transport };
 }
 describe("version-aware finalized transaction reads", () => {
+  it("replays a real v1 wallet swap and pre-buy funding transfer from metered collection",async()=>{
+    const swap=WalletTransactionSchema.parse(recordedWalletTrade.transaction),funding=WalletTransactionSchema.parse(recordedWalletFunding.transaction),anchor=WalletTransactionSchema.parse(recordedWalletFunding.anchor_transaction);
+    expect(swap.version).toBe(1);expect(funding.version).toBe(1);
+    expect(await hashJson(swap)).toBe(recordedWalletTrade.transaction_hash);expect(await hashJson(funding)).toBe(recordedWalletFunding.transaction_hash);expect(await hashJson(anchor)).toBe(recordedWalletFunding.anchor_transaction_hash);
+    expect(swap.transaction.signatures[0]).toBe(recordedWalletTrade.signature);expect(funding.transaction.signatures[0]).toBe(recordedWalletFunding.signature);
+    const result=await verifiedTrades(swap,recordedWalletTrade.mint,recordedWalletTrade.pool,{temporaryWsol:true});expect(result).toEqual(recordedWalletTrade.expected);expect(result.trades).toHaveLength(1);expect(result.gaps).toEqual([]);
+    const trades=(await verifiedTrades(anchor,recordedWalletFunding.mint,recordedWalletFunding.pool,{temporaryWsol:true})).trades;expect(trades).toEqual(recordedWalletFunding.expected_trades);
+    const found=await fundingTransfers(funding,new Set([recordedWalletFunding.anchor.wallet]),trades,[recordedWalletFunding.anchor as any]);expect(found).toEqual(recordedWalletFunding.expected_funding);expect(found).toHaveLength(1);expect(found[0]!.before_sampled_buy).toBe(true);
+  });
   it("replays the real finalized v1 migration recovered by the metered local collector",async()=>{
     const tx=TransactionSchema.parse(recordedMigration.transaction);
     expect(recordedMigration.source).toBe("solana-finalized-rpc");expect(tx.version).toBe(1);
