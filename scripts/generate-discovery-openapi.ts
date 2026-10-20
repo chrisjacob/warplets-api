@@ -1,7 +1,7 @@
 import { writeFileSync } from "node:fs";
 import { z } from "zod";
 import { AssessedCandidateSchema, PolicySchema, ProofSchema } from "../discovery/src/model";
-import { CoverageResponse, DetailResponse, ElectionDetailResponse, ElectionsResponse, HistoryResponse, ListResponse, ReviewsResponse, StatusResponse } from "../app/src/discovery/client";
+import { ActivityResponse, CoverageResponse, DetailResponse, ElectionDetailResponse, ElectionsResponse, HistoryResponse, ListResponse, ReviewsResponse, StatusResponse } from "../app/src/discovery/client";
 
 const ok = { description: "Success; cached public data includes timestamps, source freshness and coverage", content: { "application/json": { schema: { type: "object" } } } };
 const errors = Object.fromEntries([400, 401, 403, 404, 409, 413, 415, 503].map(code => [code, { description: "Structured JSON error; no provider secrets" }]));
@@ -18,6 +18,7 @@ const spec = {
     "/api/10x/chains": read("Discovery capabilities, separate from launch support"),
     "/api/10x/candidates": read("At most 100 eligible/provisional/excluded candidates", { ...responseSchema("CandidateListResponse"), parameters: [parameter("limit", "query", { type: "integer", minimum: 1, maximum: 100, default: 25 }), parameter("mode", "query", { enum: ["live", "fixture"], default: "live" }), parameter("status", "query", { enum: ["all", "eligible", "provisional", "excluded"] }), parameter("age", "query", { enum: ["all", "24h"], default: "all", description: "24h requires independently verified token creation time; the Discover view uses 24h" }), parameter("cursor", "query", { type: "string", maxLength: 300, description: "Opaque snapshot-bound cursor; 409 requires refresh" })] }),
     "/api/10x/discovery/coverage": read("Cached progress toward ten eligible tokens, actual 24h coverage and blocking evidence gaps; target never waives a gate", responseSchema("CoverageResponse")),
+    "/api/10x/activity/solana/{address}": read("Cached, replayed network fees for verified swap transactions and observed price steps; organic activity and protocol/LP fees remain unverified", {...responseSchema("ActivityResponse"),parameters:[parameter("address","path",{type:"string",minLength:32,maxLength:44},true)]}),
     "/api/10x/candidates/solana/{address}": read("Candidate identity, separate origin/migration proofs and risk", { ...responseSchema("CandidateDetailResponse"), parameters: [parameter("address", "path", { type: "string", minLength: 32, maxLength: 44 }, true), parameter("mode", "query", { enum: ["live", "fixture"] })] }),
     "/api/10x/evidence/{signature}": read("Saved normalized RPC transaction and SHA-256 evidence hash", { parameters: [parameter("signature", "path", { type: "string", minLength: 64, maxLength: 88 }, true)] }),
     "/api/10x/account-evidence/{hash}": read("Saved finalized mint, pool, vault and curve account snapshot", { parameters: [parameter("hash", "path", { type: "string", pattern: "^[a-f0-9]{64}$" }, true)] }),
@@ -54,6 +55,7 @@ const spec = {
     ElectionsResponse: z.toJSONSchema(ElectionsResponse, { unrepresentable: "any" }),
     ElectionDetailResponse: z.toJSONSchema(ElectionDetailResponse, { unrepresentable: "any" }),
     CoverageResponse: z.toJSONSchema(CoverageResponse, { unrepresentable: "any" }),
+    ActivityResponse: z.toJSONSchema(ActivityResponse, { unrepresentable: "any" }),
   } },
 };
 writeFileSync(new URL("../discovery/openapi.json", import.meta.url), `${JSON.stringify(spec, null, 2)}\n`);

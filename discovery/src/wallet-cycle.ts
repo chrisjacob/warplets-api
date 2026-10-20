@@ -73,8 +73,26 @@ async function collect(settings: WalletSettings, candidate: Candidate, rpc: RpcC
     const curve = await curveAddress(candidate.address);
     // Anchor at the verified graduation so post-migration spam/volume cannot
     // consume the early-buy search budget or hide the creation window.
-    let rows = await history(curve, "curve", 1000, candidate.graduation?.signature);
-    if (rows.length === 1000 && !rows.some(r => r.signature === candidate.creation!.signature)) rows = await history(curve, "curve", 1000, rows.at(-1)!.signature);
+    let cached: WalletEvidence["histories"] = [];
+    if (candidate.wallet_analysis?.version === "wallet-signals-v4") {
+      const saved = await db.prepare("SELECT payload FROM tenx_wallet_evidence WHERE payload_hash=?1 AND address=?2").bind(candidate.wallet_analysis.evidence_hash,candidate.address).first<{payload:string}>();
+      if (saved) {
+        const prior = WalletEvidenceSchema.parse(JSON.parse(saved.payload));
+        if (await hashJson(prior) !== candidate.wallet_analysis.evidence_hash) throw new Error("wallet_evidence_cache_hash_mismatch");
+        if (prior.asset.address !== candidate.address || prior.asset.pool !== candidate.pool || prior.asset.creation?.payload_hash !== candidate.creation.payload_hash || prior.asset.creation?.signature !== candidate.creation.signature) throw new Error("wallet_evidence_cache_asset_mismatch");
+        const pages = prior.histories.filter(h => h.purpose === "curve" && h.address === curve);
+        // Finalized creation-window history is immutable. Reuse only a sample
+        // that actually reached the independently verified creation, with its
+        // original fetch timestamps; recent pool activity is still read afresh.
+        if (pages.some(h => h.rows.some(r => r.signature === candidate.creation!.signature && r.slot === candidate.creation!.slot && r.err === null && r.confirmationStatus === "finalized"))) cached = pages;
+      }
+    }
+    let rows: SignatureRow[];
+    if (cached.length) { histories.push(...cached); rows = cached.at(-1)!.rows; }
+    else {
+      rows = await history(curve, "curve", 1000, candidate.graduation?.signature);
+      if (rows.length === 1000 && !rows.some(r => r.signature === candidate.creation!.signature)) rows = await history(curve, "curve", 1000, rows.at(-1)!.signature);
+    }
     const early = rows.filter(r => r.err === null && r.confirmationStatus === "finalized" && r.slot >= candidate.creation!.slot && r.slot <= candidate.creation!.slot + 20).slice(-5).reverse();
     for (const row of early) await read(row.signature, "early", row.slot);
   } else gaps.add("creation_slot_unknown");
@@ -100,7 +118,9 @@ async function collect(settings: WalletSettings, candidate: Candidate, rpc: RpcC
     const record = records.find(r => r.signature === signature);
     return record ? { transaction: record.transaction, status: record.status } : null;
   };
-  const scans = await collectFundingHistories(db, rpc, candidate.address, anchors, readFunding, { rpcCeiling: 14 });
+  // Direct pre-buy coverage is an eligibility gate. Second-hop expansion uses
+  // the remaining calls after direct work, within the same 18-call ceiling.
+  const scans = await collectFundingHistories(db, rpc, candidate.address, anchors, readFunding, { rpcCeiling: 18 });
   const devs = new Set(roles.filter(r => r.signed).map(r => r.wallet));
   const baseTransactions = records.flatMap(r => r.transaction ? [r.transaction] : []);
   const outflows = await buildSecondHopOutflows(baseTransactions, candidate.address, candidate.pool, candidate.creation?.slot ?? null, devs, scans.map(s => s.anchor), true);
@@ -136,7 +156,7 @@ export async function runWalletCycle(settings: WalletSettings, address?: string,
     const all = await candidates(db), active = shortlist(all, DEFAULT_POLICY, now);
     const attempts = await db.prepare("SELECT address,attempted_at,next_attempt_at FROM tenx_wallet_attempts").all<{ address: string; attempted_at: string; next_attempt_at: string }>();
     const tried = new Map(attempts.results.map(r => [r.address, r]));
-    let candidate = address ? all.find(c => c.address === address) : active.filter(c => potential(c, DEFAULT_POLICY, now) && (!tried.get(c.address) || tried.get(c.address)!.next_attempt_at <= at)).sort((a, b) => comparePotential(a, b, DEFAULT_POLICY, now) || (tried.get(a.address)?.attempted_at ?? "").localeCompare(tried.get(b.address)?.attempted_at ?? ""))[0];
+    let candidate = address ? all.find(c => c.address === address) : active.filter(c => potential(c, DEFAULT_POLICY, now) && (!tried.get(c.address) || tried.get(c.address)!.next_attempt_at <= at)).sort((a, b) => (tried.get(a.address)?.attempted_at ?? "").localeCompare(tried.get(b.address)?.attempted_at ?? "") || comparePotential(a, b, DEFAULT_POLICY, now))[0];
     if (address && !candidate) {
       const saved = await db.prepare("SELECT payload FROM tenx_candidates WHERE mode='live' AND address=?1").bind(address).first<{ payload: string }>();
       if (saved) candidate = CandidateSchema.parse(JSON.parse(saved.payload));

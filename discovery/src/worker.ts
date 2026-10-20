@@ -15,6 +15,8 @@ import { dailyElection, ElectionError, electionAutomation, electionRecord, elect
 import { qualityStatus, runQualityCycle } from "./quality-cycle";
 import { discoveryCoverage } from "./coverage";
 import { createdWithinWindow } from "./priority";
+import { activitySummary } from "./activity";
+import { WalletEvidenceSchema } from "./wallet-analysis";
 
 // Widen generated literal vars so ignored .dev.vars overrides stay type-safe.
 export type LocalEnv = { [K in keyof Cloudflare.Env]: Cloudflare.Env[K] extends string ? string : Cloudflare.Env[K] };
@@ -128,6 +130,16 @@ export async function handle(request: Request, env: Env): Promise<Response> {
       candidates: filtered.slice(offset, next), mode: query.mode,
       counts: { eligible: rows.filter(c => c.eligibility === "eligible").length, provisional: rows.filter(c => c.eligibility === "provisional").length, excluded: rows.filter(c => c.eligibility === "excluded").length },
     }, { next_cursor: next < filtered.length ? btoa(JSON.stringify({ snapshot, offset: next, status: query.status, mode: query.mode, age: query.age })) : null }));
+  }
+  const activity = path.match(/^\/api\/10x\/activity\/solana\/([^/]+)$/);
+  if (method === "GET" && activity) {
+    const address = Address.parse(activity[1]), now = new Date();
+    const saved = await env.TENX_DB.prepare("SELECT payload FROM tenx_candidates WHERE address=?1 AND mode='live'").bind(address).first<{payload:string}>();
+    if (!saved) return json({error:"candidate_not_found"},404);
+    const candidate=CandidateSchema.parse(JSON.parse(saved.payload));
+    const evidence=candidate.wallet_analysis ? await env.TENX_DB.prepare("SELECT payload FROM tenx_wallet_evidence WHERE address=?1 AND payload_hash=?2").bind(address,candidate.wallet_analysis.evidence_hash).first<{payload:string}>() : null;
+    const history=await env.TENX_DB.prepare("SELECT payload FROM tenx_market_history WHERE address=?1 AND fetched_at>=?2 ORDER BY fetched_at DESC LIMIT 1000").bind(address,new Date(now.getTime()-86400000).toISOString()).all<{payload:string}>();
+    return json(await envelope(env,await activitySummary(candidate,evidence?WalletEvidenceSchema.parse(JSON.parse(evidence.payload)):null,history.results.map(r=>MarketSchema.parse(JSON.parse(r.payload))),now)));
   }
   const detail = path.match(/^\/api\/10x\/candidates\/solana\/([^/]+)$/);
   if (method === "GET" && detail) {

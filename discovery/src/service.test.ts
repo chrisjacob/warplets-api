@@ -71,9 +71,15 @@ describe("durable discovery state and public/admin API", () => {
     const before = transport.mock.calls.filter(([, init]) => JSON.parse(String(init?.body)).method === "getTransaction").length;
     expect(await runWalletCycle(settings, base.address)).toMatchObject({ state: "succeeded", verified_buys: 3 });
     expect(transport.mock.calls.filter(([, init]) => JSON.parse(String(init?.body)).method === "getTransaction")).toHaveLength(before);
+    expect(transport.mock.calls.filter(([,init])=>{const b=JSON.parse(String(init?.body));return b.method==="getSignaturesForAddress" && b.params[0]===input.histories[0]!.address})).toHaveLength(1);
     const evidence = await handle(req(`wallet-evidence/${first.evidence_hash}`), env); expect(evidence.status).toBe(200);
+    const provider=vi.spyOn(globalThis,"fetch");
+    const activity=await handle(req(`activity/solana/${base.address}`),env);
+    expect(activity.status).toBe(200);expect(await activity.json()).toMatchObject({data:{organic_trading:"unverified",fees:{network_fee_lamports_raw:"15000",transactions:3}}});expect(provider).not.toHaveBeenCalled();
     expect((await d1.prepare("SELECT count(*) AS n FROM tenx_wallet_transactions").first<{ n: number }>())?.n).toBe(4);
     expect((await d1.prepare("SELECT count(*) AS n FROM tenx_wallet_profiles").first<{ n: number }>())?.n).toBe(4);
+    await d1.prepare("UPDATE tenx_wallet_evidence SET payload=json_set(payload,'$.gaps',json('[\"tampered\"]')) WHERE payload_hash=?1").bind((await runWalletCycle(settings,base.address)).evidence_hash).run();
+    expect(await runWalletCycle(settings,base.address)).toMatchObject({state:"failed",error_code:"wallet_evidence_cache_hash_mismatch"});
   });
   it("preserves newer independent wallet and market snapshots when older chain work completes", async () => {
     const { d1 } = fixture(), c = { ...(await fixtureCandidates(new Date("2026-10-20T00:00:00Z")))[0]!, mode: "live" as const }, w = await gateSample();

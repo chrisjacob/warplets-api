@@ -3,6 +3,7 @@ import { AssessedCandidateSchema, PolicySchema } from "../../../discovery/src/mo
 import { HistorySchema, ReviewSchema } from "../../../discovery/src/research-model";
 import { ElectionRecordSchema, ElectionReplaySchema, ElectionSummarySchema } from "../../../discovery/src/election-model";
 import { CoverageSchema } from "../../../discovery/src/coverage-model";
+import { ActivitySchema } from "../../../discovery/src/activity-model";
 
 const Common = z.object({
   api_version: z.literal("10x-discovery-v1"), trace_id: z.string(), as_of: z.string().nullable(), served_at: z.string(),
@@ -13,6 +14,7 @@ const Common = z.object({
 export const ListResponse = Common.extend({ data: z.object({ candidates: z.array(AssessedCandidateSchema).max(100), mode: z.enum(["live", "fixture"]), counts: z.object({ eligible: z.number(), provisional: z.number(), excluded: z.number() }) }), next_cursor: z.string().nullable() });
 export const DetailResponse = Common.extend({ data: AssessedCandidateSchema });
 export const CoverageResponse = Common.extend({ data: CoverageSchema });
+export const ActivityResponse = Common.extend({ data: ActivitySchema });
 const ElectionAutomationSchema = z.object({ last_error: z.string().nullable(), latest_id: z.string().nullable(), last_snapshot_at: z.string().nullable() });
 export const ElectionsResponse = Common.extend({ data: z.object({ runs: z.array(ElectionSummarySchema).max(10), automation: ElectionAutomationSchema, schedule: z.string(), voting_enabled: z.literal(false), launch_enabled: z.literal(false) }) });
 export const ElectionDetailResponse = Common.extend({ data: z.object({ record: ElectionRecordSchema, replay: ElectionReplaySchema }) });

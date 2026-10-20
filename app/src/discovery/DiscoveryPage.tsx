@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { AssessedCandidate, Proof } from "../../../discovery/src/model";
-import { CoverageResponse, DetailResponse, ElectionDetailResponse, ElectionsResponse, getJson, ListResponse, marketSource, readableReason, ReviewsResponse, StatusResponse, type ListData } from "./client";
+import { ActivityResponse, CoverageResponse, DetailResponse, ElectionDetailResponse, ElectionsResponse, getJson, ListResponse, marketSource, readableReason, ReviewsResponse, StatusResponse, type ListData } from "./client";
 import type { ElectionSummary } from "../../../discovery/src/election-model";
 import { TokenHistory, TokenImage } from "./TokenMarket";
 import { WalletAnalysisPanel } from "./WalletAnalysis";
@@ -84,7 +84,7 @@ function CandidateDetail({ address }: { address: string }) {
     {error && <p role="alert" className="tenx-notice">{error} The last verified response remains visible.</p>}
     <header className="tenx-heading"><p className="tenx-eyebrow">SOLANA / OG TOKEN</p><div className="tenx-token-heading"><TokenImage url={c.market?.image_url} name={c.name} symbol={c.symbol} /><h1>{c.name}</h1></div><div className="tenx-row"><span>{c.symbol}</span><Badge status={c.eligibility} /></div></header>
     {fixture && <aside className="tenx-notice">SIMULATION — addresses and proofs in this example are synthetic.</aside>}
-    {!fixture && <TokenHistory address={c.address} />}
+    {!fixture && <><TradingActivity address={c.address} /><TokenHistory address={c.address} /></>}
     <section className="tenx-panel"><h2>Token identity</h2><p className="tenx-address">{c.address}</p><button className="tenx-button tenx-button--quiet" onClick={() => void navigator.clipboard.writeText(c.address).then(() => setCopied(true)).catch(() => setCopied(false))}>{copied ? "Copied" : "Copy full address"}</button>
       <p className="tenx-address">PumpSwap pool: {c.pool}</p>{!fixture && <a href={`https://solscan.io/token/${c.address}`} target="_blank" rel="noopener noreferrer">View token on Solscan ↗</a>}</section>
     <section className="tenx-panel"><h2>Eligibility review</h2><ul>{c.reasons.map(reason => <li key={reason}>{readableReason(reason)}</li>)}</ul><p>Launches and voting are disabled. This review is not a guarantee of token safety.</p></section>
@@ -105,6 +105,18 @@ function HolderPanel({ candidate: c }: { candidate: AssessedCandidate }) {
       <details><summary>Largest owners and classification gaps</summary><div className="tenx-table-scroll"><table><thead><tr><th>Owner</th><th>Supply</th><th>Role</th></tr></thead><tbody>{h.owners.map(o => <tr key={`${o.role}:${o.owner}`}><td className="tenx-address">{o.owner}</td><td>{percent(o.supply_pct)}</td><td>{o.role.replaceAll("_", " ")}</td></tr>)}</tbody></table></div><ul>{h.gaps.map(g => <li key={g}>{readableReason(g)}</li>)}</ul></details>
     </> : <p>No reconciled owner inventory yet. This token cannot pass the holder gate.</p>}
     <p>Separate addresses may share a controller. Account owners are not a verified beneficial-owner or Sybil count. Fees produced and LP lock status remain unknown. Inspect the wallet panel for sampled trading and funding evidence.</p>
+  </section>;
+}
+function TradingActivity({address}:{address:string}) {
+  const url=`/api/10x/activity/solana/${encodeURIComponent(address)}`, {data,error}=useRemote(signal=>getJson(url,ActivityResponse,signal),url), a=data?.data;
+  const sol=(raw:string|null)=>raw===null?"Unavailable":`${BigInt(raw)/1000000000n}.${(BigInt(raw)%1000000000n).toString().padStart(9,"0")} SOL`;
+  return <section className="tenx-panel" id="trading-activity"><h2>Fees & price behaviour</h2><p>Paid fees and price changes help describe trading. Organic activity and reported-volume authenticity remain unverified.</p>
+    {error && <p role="alert">Activity evidence could not refresh. {a?"The last observation remains visible.":"Check Data status."}</p>}
+    {a ? <><dl><dt>Network fees in verified swap transactions</dt><dd>{sol(a.fees.network_fee_lamports_raw)}</dd><dt>Sampled swap transactions / trades</dt><dd>{a.fees.transactions} / {a.fees.trades}</dd><dt>Distinct fee payers</dt><dd>{a.fees.distinct_payers}</dd><dt>Largest payer / transactions</dt><dd>{a.fees.largest_payer_transaction_pct===null?"Unavailable":`${a.fees.largest_payer_transaction_pct.toFixed(1)}%`}</dd><dt>Sampled buyers / sellers</dt><dd>{a.wallets?`${a.wallets.buyers} / ${a.wallets.sellers}`:"Unavailable"}</dd><dt>Sampled round-trip wallets</dt><dd>{a.wallets?.round_trips??"Unavailable"}</dd><dt>Buyers with a shared funder</dt><dd>{a.wallets?.shared_funder_buyers??"Unavailable"}</dd><dt>Saved positive price observations · 24h</dt><dd>{a.prices.samples}</dd><dt>Up / down / unchanged steps</dt><dd>{a.prices.upward_steps} / {a.prices.downward_steps} / {a.prices.unchanged_steps}</dd><dt>Largest comparable price step</dt><dd>{a.prices.largest_step_pct===null?"Unavailable":`${a.prices.largest_step_pct.toFixed(2)}%`}</dd><dt>Continuous sampled return</dt><dd>{a.prices.continuous_return_pct===null?"Unavailable":`${a.prices.continuous_return_pct.toFixed(2)}%`}</dd></dl>
+      <p>Wallet sample: {time(a.wallet_observed_at)}. Latest price observation: {time(a.prices.last_at)}. Prices are saved provider observations. Missing values, duplicate times, source changes and gaps over 30 minutes break comparisons.</p>
+      <p>Network fees count each successful verified swap transaction once. The whole transaction can contain other actions. Protocol trading fees, LP fees and bot ownership remain unknown. Shared fee payers and separate wallets can have several explanations. These diagnostics do not change eligibility.</p>
+      <details><summary>Evidence & coverage gaps</summary><ul>{a.gaps.map(g=><li key={g}>{readableReason(g)}</li>)}</ul><a href={url} target="_blank" rel="noopener noreferrer">Inspect cached activity evidence ↗</a>{a.wallet_evidence_hash && <p><a href={`/api/10x/wallet-evidence/${a.wallet_evidence_hash}`} target="_blank" rel="noopener noreferrer">Inspect underlying transaction sample ↗</a></p>}</details>
+    </> : !error && <p role="status">Reading saved activity observations…</p>}
   </section>;
 }
 function ResearchView() {
