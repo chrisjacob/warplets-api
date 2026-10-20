@@ -3,7 +3,7 @@ import { analyzeWalletEvidence, WalletEvidenceSchema, type WalletEvidence } from
 import { creationRoles, verifiedTrades } from "./wallet-trades";
 import { walletTransaction, WalletTransactionSchema } from "./wallet-rpc";
 import { candidates, captureCohort, control, reserveQuota } from "./store";
-import { MAINNET_GENESIS, RpcClient, SourceError, SignatureRows, type SignatureRow } from "./rpc";
+import { MAINNET_GENESIS, RpcClient, SourceError, SignatureRows, persistRpcBackoff, type SignatureRow } from "./rpc";
 import { curveAddress } from "./pump";
 import { hashJson } from "./solana";
 import { HolderEvidenceSchema } from "./holders";
@@ -11,6 +11,7 @@ import { ReviewSchema } from "./research-model";
 import type { Settings } from "./ingest";
 import { collectFundingHistories, type FundingAnchor } from "./funding-history";
 import { buildSecondHopOutflows, secondHopAnchors } from "./second-hop";
+import { comparePotential, potential } from "./priority";
 
 export type WalletSettings = Settings & { walletEnabled: boolean; walletDailyLimit: number };
 export async function walletStatus(db: D1Database, limit: number, enabled: boolean) {
@@ -70,15 +71,18 @@ async function collect(settings: WalletSettings, candidate: Candidate, rpc: RpcC
   const roles = origin ? await creationRoles(origin, candidate.address) : [];
   if (candidate.creation) {
     const curve = await curveAddress(candidate.address);
-    let rows = await history(curve, "curve", 1000);
+    // Anchor at the verified graduation so post-migration spam/volume cannot
+    // consume the early-buy search budget or hide the creation window.
+    let rows = await history(curve, "curve", 1000, candidate.graduation?.signature);
     if (rows.length === 1000 && !rows.some(r => r.signature === candidate.creation!.signature)) rows = await history(curve, "curve", 1000, rows.at(-1)!.signature);
     const early = rows.filter(r => r.err === null && r.confirmationStatus === "finalized" && r.slot >= candidate.creation!.slot && r.slot <= candidate.creation!.slot + 20).slice(-5).reverse();
     for (const row of early) await read(row.signature, "early", row.slot);
   } else gaps.add("creation_slot_unknown");
-  const recent = await history(candidate.pool, "pool", 12);
-  for (const row of recent.filter(r => r.err === null && r.confirmationStatus === "finalized").slice(0, 2)) await read(row.signature, "recent", row.slot);
+  const recent = await history(candidate.pool, "pool", 24);
+  const successful = recent.filter(r => r.err === null && r.confirmationStatus === "finalized"), count = Math.min(5, successful.length);
+  for (let i = 0; i < count; i++) { const row = successful[count === 1 ? 0 : Math.floor(i * (successful.length - 1) / (count - 1))]!; await read(row.signature, "recent", row.slot); }
   const trades = (await Promise.all(records.filter(r => r.transaction).map(async r => {
-    try { return (await verifiedTrades(r.transaction!, candidate.address, candidate.pool)).trades; } catch { return []; }
+    try { return (await verifiedTrades(r.transaction!, candidate.address, candidate.pool, { temporaryWsol: true })).trades; } catch { return []; }
   }))).flat();
   const buyers = [...new Set(trades.filter(t => t.side === "buy").sort((a, b) => a.slot - b.slot || a.wallet.localeCompare(b.wallet)).map(t => t.wallet))];
   const anchors: FundingAnchor[] = [];
@@ -99,7 +103,7 @@ async function collect(settings: WalletSettings, candidate: Candidate, rpc: RpcC
   const scans = await collectFundingHistories(db, rpc, candidate.address, anchors, readFunding, { rpcCeiling: 14 });
   const devs = new Set(roles.filter(r => r.signed).map(r => r.wallet));
   const baseTransactions = records.flatMap(r => r.transaction ? [r.transaction] : []);
-  const outflows = await buildSecondHopOutflows(baseTransactions, candidate.address, candidate.pool, candidate.creation?.slot ?? null, devs, scans.map(s => s.anchor));
+  const outflows = await buildSecondHopOutflows(baseTransactions, candidate.address, candidate.pool, candidate.creation?.slot ?? null, devs, scans.map(s => s.anchor), true);
   const secondScans = await collectFundingHistories(db, rpc, candidate.address, secondHopAnchors(outflows, devs), readFunding, { secondHop: true });
   let holders: WalletEvidence["holders"] = null;
   if (candidate.holders?.payload_hash) {
@@ -112,14 +116,16 @@ async function collect(settings: WalletSettings, candidate: Candidate, rpc: RpcC
     if (![...roles.map(r => r.wallet), ...buyers].includes(w.wallet)) continue;
     const entry = priorLosses.get(w.wallet) ?? { tokens: new Set(), hashes: new Set() }; entry.tokens.add(outcome.address); entry.hashes.add(report.input_hash); priorLosses.set(w.wallet, entry);
   }
-  return WalletEvidenceSchema.parse({ version: "wallet-input-v3", funding_scans: scans, second_hop_scans: secondScans, observed_at: new Date().toISOString(), cluster: MAINNET_GENESIS,
+  return WalletEvidenceSchema.parse({ version: "wallet-input-v4", funding_scans: scans, second_hop_scans: secondScans, observed_at: new Date().toISOString(), cluster: MAINNET_GENESIS,
     asset: { address: candidate.address, pool: candidate.pool, token_program: candidate.risk.token_program, creation: candidate.creation, graduation: candidate.graduation }, records, histories, holders,
     prior_losses: [...priorLosses].slice(0, 20).map(([wallet, p]) => ({ wallet, tokens: [...p.tokens].sort().slice(0, 100), report_hashes: [...p.hashes].sort().slice(0, 30) })), gaps: [...gaps] });
 }
 export async function runWalletCycle(settings: WalletSettings, address?: string, now = new Date()): Promise<Record<string, unknown>> {
   const db = settings.db, at = now.toISOString(), owner = crypto.randomUUID();
   if (!settings.walletEnabled) return { state: "disabled" };
-  if ((await control(db)).paused) return { state: "paused" };
+  const shared = await control(db);
+  if (shared.paused) return { state: "paused" };
+  if (shared.retry_after && shared.retry_after > at && shared.last_error?.startsWith("rpc_")) return { state: "waiting", reason: "shared_rpc_backoff" };
   if (address) Address.parse(address);
   const rpc = new RpcClient(settings.rpcUrl, reserveWalletQuota(db, settings, now), settings.transport, 18);
   const lease = await db.prepare(`UPDATE tenx_wallet_control SET lease_owner=?1,lease_until=?2 WHERE id=1 AND (lease_until IS NULL OR lease_until<?3) AND ((?4=1 AND last_error IS NULL) OR next_refresh_at IS NULL OR next_refresh_at<=?3) RETURNING id`)
@@ -130,7 +136,7 @@ export async function runWalletCycle(settings: WalletSettings, address?: string,
     const all = await candidates(db), active = shortlist(all, DEFAULT_POLICY, now);
     const attempts = await db.prepare("SELECT address,attempted_at,next_attempt_at FROM tenx_wallet_attempts").all<{ address: string; attempted_at: string; next_attempt_at: string }>();
     const tried = new Map(attempts.results.map(r => [r.address, r]));
-    let candidate = address ? all.find(c => c.address === address) : active.filter(c => !tried.get(c.address) || tried.get(c.address)!.next_attempt_at <= at).sort((a, b) => (tried.get(a.address)?.attempted_at ?? "").localeCompare(tried.get(b.address)?.attempted_at ?? "") || a.address.localeCompare(b.address))[0];
+    let candidate = address ? all.find(c => c.address === address) : active.filter(c => potential(c, DEFAULT_POLICY, now) && (!tried.get(c.address) || tried.get(c.address)!.next_attempt_at <= at)).sort((a, b) => comparePotential(a, b, DEFAULT_POLICY, now) || (tried.get(a.address)?.attempted_at ?? "").localeCompare(tried.get(b.address)?.attempted_at ?? ""))[0];
     if (address && !candidate) {
       const saved = await db.prepare("SELECT payload FROM tenx_candidates WHERE mode='live' AND address=?1").bind(address).first<{ payload: string }>();
       if (saved) candidate = CandidateSchema.parse(JSON.parse(saved.payload));
@@ -156,6 +162,7 @@ export async function runWalletCycle(settings: WalletSettings, address?: string,
     if (current) await captureCohort(db, CandidateSchema.parse(JSON.parse(current.payload)), evidence.observed_at);
     return { state: "succeeded", address: candidate.address, rpc_calls: rpc.calls, evidence_hash: analysis.evidence_hash, status: analysis.status, verified_buys: analysis.metrics.verified_buys, signals: analysis.signals.map(s => s.code) };
   } catch (error) {
+    await persistRpcBackoff(db, error, now);
     const code = error instanceof SourceError ? error.code : error instanceof Error && /^[a-z0-9_]{1,80}$/.test(error.message) ? error.message : "wallet_evidence_not_certified";
     const retry = error instanceof SourceError ? error.retryAfterSeconds : 300;
     await db.prepare("UPDATE tenx_wallet_control SET lease_owner=NULL,lease_until=NULL,next_refresh_at=?1,last_error=?2 WHERE id=1 AND lease_owner=?3").bind(new Date(now.getTime() + retry * 1000).toISOString(), code, owner).run();

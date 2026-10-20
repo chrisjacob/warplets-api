@@ -1,4 +1,5 @@
-import { CandidateSchema, type Candidate } from "./model";
+import { CandidateSchema, MarketSchema, type Candidate } from "./model";
+import { dueLeads } from "./lead-queue";
 import { ADAPTER_VERSION, creationProof, creationUser, graduationProof, migrationAuthority, migrations, PUMP, verifyState, WSOL, type Migration } from "./pump";
 import { analyzeHolders, type HolderEvidence } from "./holders";
 import { marketForPool } from "./market";
@@ -11,6 +12,9 @@ export type Settings = {
   transport?: typeof fetch;
   paced?: boolean;
   batchedMarket?: boolean;
+  marketProvider?: "geckoterminal" | "dexscreener";
+  qualityEnabled?: boolean; qualityDailyLimit?: number;
+  walletEnabled?: boolean; walletDailyLimit?: number;
 };
 export async function runCycle(settings: Settings, now = new Date()): Promise<Record<string, unknown>> {
   const db = settings.db, at = now.toISOString();
@@ -27,7 +31,18 @@ export async function runCycle(settings: Settings, now = new Date()): Promise<Re
     await db.prepare("INSERT INTO tenx_jobs(id,kind,state,started_at) VALUES(?1,'refresh','running',?2)").bind(id, at).run();
     if (settings.paced) {
     const usage = await db.prepare("SELECT used FROM tenx_usage WHERE provider='rpc' AND day=?1").bind(at.slice(0, 10)).first<{ used: number }>();
-    const remaining = Math.max(1, settings.rpcDailyLimit - (usage?.used ?? 0));
+    const quality = settings.qualityEnabled ? await db.prepare("SELECT used FROM tenx_quality_usage WHERE day=?1").bind(at.slice(0, 10)).first<{ used: number }>() : null;
+    const wallets = settings.walletEnabled ? await db.prepare("SELECT used FROM tenx_wallet_usage WHERE day=?1").bind(at.slice(0, 10)).first<{ used: number }>() : null;
+    const reserved = (settings.qualityEnabled ? Math.max(0, (settings.qualityDailyLimit ?? 0) - (quality?.used ?? 0)) : 0) + (settings.walletEnabled ? Math.max(0, (settings.walletDailyLimit ?? 0) - (wallets?.used ?? 0)) : 0);
+    const remaining = settings.rpcDailyLimit - (usage?.used ?? 0) - reserved;
+    if (remaining <= 0) {
+      const next = `${new Date(now.getTime() + 86400000).toISOString().slice(0, 10)}T00:00:00.000Z`;
+      await db.batch([
+        db.prepare("UPDATE tenx_jobs SET state='skipped',finished_at=?1,error_code='rpc_budget_reserved_for_contenders' WHERE id=?2").bind(at, id),
+        db.prepare("UPDATE tenx_control SET next_refresh_at=?1,lease_owner=NULL,lease_until=NULL WHERE id=1 AND lease_owner=?2").bind(next, id),
+      ]);
+      return { state: "waiting", reason: "rpc_budget_reserved_for_contenders", next_refresh_at: next };
+    }
     const secondsLeft = (Date.parse(`${new Date(now.getTime() + 86400000).toISOString().slice(0, 10)}T00:00:00Z`) - now.getTime()) / 1000;
     // Reserve room for a worst-case 24-call cycle throughout the remaining day.
     const spacing = Math.min(secondsLeft + 60, Math.max(300, Math.min(3600, Math.ceil(secondsLeft * 24 / remaining))));
@@ -72,9 +87,8 @@ export async function runCycle(settings: Settings, now = new Date()): Promise<Re
       } catch { outcome = "unsupported_or_invalid_transaction"; }
       await db.prepare("UPDATE tenx_pending_signatures SET processed_at=?1,result=?2 WHERE signature=?3").bind(at, outcome, row.signature).run();
     }
-    const leads = await db.prepare(`SELECT * FROM tenx_leads WHERE next_attempt_at IS NULL OR next_attempt_at<=?1
-      ORDER BY CASE WHEN checked_at IS NULL THEN 0 ELSE 1 END,checked_at LIMIT 1`).bind(at).all<Lead>();
-    for (const lead of leads.results) {
+    for (const lead of await dueLeads(db, at)) {
+      if (rpc.calls > 14) break; // Leave the bounded worst-case nine calls for inspection.
       const tx = TransactionSchema.parse(JSON.parse(lead.migration_tx));
       const migration = (await migrations(tx)).find(m => m.address === lead.address && m.pool === lead.pool);
       if (!migration) throw new SourceError("stored_migration_invalid");
@@ -85,6 +99,10 @@ export async function runCycle(settings: Settings, now = new Date()): Promise<Re
         if (saved) knownCreator = await creationUser(TransactionSchema.parse(JSON.parse(saved.payload)), lead.address);
       }
       const result = await inspectLead(rpc, migration, tx, lead, existing, at, knownCreator);
+      if (lead.market_payload) {
+        const market = MarketSchema.parse(JSON.parse(lead.market_payload));
+        if (!result.candidate.market || market.fetched_at > result.candidate.market.fetched_at) result.candidate.market = market;
+      }
       let marketError: string | null = null;
       if (settings.marketEnabled && !settings.batchedMarket) {
         try { result.candidate.market = await marketForPool(lead.pool, lead.address, reserve, at, settings.transport); }

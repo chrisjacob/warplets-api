@@ -2,6 +2,7 @@ import { z } from "zod";
 import { AssessedCandidateSchema, PolicySchema } from "../../../discovery/src/model";
 import { HistorySchema, ReviewSchema } from "../../../discovery/src/research-model";
 import { ElectionRecordSchema, ElectionReplaySchema, ElectionSummarySchema } from "../../../discovery/src/election-model";
+import { CoverageSchema } from "../../../discovery/src/coverage-model";
 
 const Common = z.object({
   api_version: z.literal("10x-discovery-v1"), trace_id: z.string(), as_of: z.string().nullable(), served_at: z.string(),
@@ -11,6 +12,7 @@ const Common = z.object({
 });
 export const ListResponse = Common.extend({ data: z.object({ candidates: z.array(AssessedCandidateSchema).max(100), mode: z.enum(["live", "fixture"]), counts: z.object({ eligible: z.number(), provisional: z.number(), excluded: z.number() }) }), next_cursor: z.string().nullable() });
 export const DetailResponse = Common.extend({ data: AssessedCandidateSchema });
+export const CoverageResponse = Common.extend({ data: CoverageSchema });
 const ElectionAutomationSchema = z.object({ last_error: z.string().nullable(), latest_id: z.string().nullable(), last_snapshot_at: z.string().nullable() });
 export const ElectionsResponse = Common.extend({ data: z.object({ runs: z.array(ElectionSummarySchema).max(10), automation: ElectionAutomationSchema, schedule: z.string(), voting_enabled: z.literal(false), launch_enabled: z.literal(false) }) });
 export const ElectionDetailResponse = Common.extend({ data: z.object({ record: ElectionRecordSchema, replay: ElectionReplaySchema }) });
@@ -24,9 +26,12 @@ export const StatusResponse = Common.extend({ data: z.object({
   automation: z.object({ heartbeat_at: z.string().nullable(), next_refresh_at: z.string().nullable(), reviewed_at: z.string().nullable(), review_timezone: z.string(), review_cadence: z.string(), refresh_cadence: z.string() }).optional(),
   wallet_automation: z.object({ enabled: z.boolean(), daily_limit: z.number(), daily_used: z.number(), last_success: z.string().nullable(), next_refresh_at: z.string().nullable(), last_error: z.string().nullable() }).optional(),
   election_automation: ElectionAutomationSchema.optional(),
+  market_provider: z.enum(["geckoterminal", "dexscreener"]).optional(),
+  quality_automation: z.object({ enabled: z.boolean(), daily_limit: z.number(), daily_used: z.number(), last_success: z.string().nullable(), next_refresh_at: z.string().nullable(), last_error: z.string().nullable(), targets: z.number() }).optional(),
 }) });
 export type ListData = z.infer<typeof ListResponse>;
 export type StatusData = z.infer<typeof StatusResponse>;
+export const marketSource = (source: string) => source === "dexscreener" ? "DEX Screener" : source === "mixed" ? "GeckoTerminal + DEX Screener" : "GeckoTerminal";
 export async function getJson<T>(url: string, schema: z.ZodType<T>, signal?: AbortSignal): Promise<T> {
   const response = await fetch(url, { signal, cache: "no-store" });
   if (!response.ok) throw new Error(`Discovery service unavailable (${response.status}).`);

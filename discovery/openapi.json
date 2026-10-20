@@ -170,6 +170,19 @@
             }
           },
           {
+            "name": "age",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "all",
+                "24h"
+              ],
+              "default": "all",
+              "description": "24h requires independently verified token creation time; the Discover view uses 24h"
+            }
+          },
+          {
             "name": "cursor",
             "in": "query",
             "required": false,
@@ -180,6 +193,47 @@
             }
           }
         ]
+      }
+    },
+    "/api/10x/discovery/coverage": {
+      "get": {
+        "summary": "Cached progress toward ten eligible tokens, actual 24h coverage and blocking evidence gaps; target never waives a gate",
+        "responses": {
+          "200": {
+            "description": "Success; cached public data includes timestamps, source freshness and coverage",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CoverageResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "401": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "403": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "404": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "409": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "413": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "415": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "503": {
+            "description": "Structured JSON error; no provider secrets"
+          }
+        }
       }
     },
     "/api/10x/candidates/solana/{address}": {
@@ -905,6 +959,72 @@
     "/api/10x/admin/market-refresh": {
       "post": {
         "summary": "Refresh up to 30 cached pool markets using one free source request",
+        "security": [
+          {
+            "localOperator": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 300
+                  }
+                },
+                "required": [
+                  "reason"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success; cached public data includes timestamps, source freshness and coverage",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "401": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "403": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "404": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "409": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "413": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "415": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "503": {
+            "description": "Structured JSON error; no provider secrets"
+          }
+        }
+      }
+    },
+    "/api/10x/admin/quality-refresh": {
+      "post": {
+        "summary": "Refresh risk for up to ten current contenders and rotate holder inventories inside quality/global RPC caps; respects pacing and backoff",
         "security": [
           {
             "localOperator": []
@@ -1741,7 +1861,10 @@
                 "properties": {
                   "source": {
                     "type": "string",
-                    "const": "geckoterminal"
+                    "enum": [
+                      "geckoterminal",
+                      "dexscreener"
+                    ]
                   },
                   "fetched_at": {
                     "type": "string",
@@ -2064,7 +2187,8 @@
                     "enum": [
                       "wallet-signals-v1",
                       "wallet-signals-v2",
-                      "wallet-signals-v3"
+                      "wallet-signals-v3",
+                      "wallet-signals-v4"
                     ]
                   },
                   "observed_at": {
@@ -2708,6 +2832,10 @@
                         "transaction_hash": {
                           "type": "string",
                           "pattern": "^[a-f0-9]{64}$"
+                        },
+                        "quote_account_proof": {
+                          "type": "string",
+                          "const": "temporary_wsol_lifecycle"
                         }
                       },
                       "required": [
@@ -3570,7 +3698,10 @@
                           "properties": {
                             "source": {
                               "type": "string",
-                              "const": "geckoterminal"
+                              "enum": [
+                                "geckoterminal",
+                                "dexscreener"
+                              ]
                             },
                             "fetched_at": {
                               "type": "string",
@@ -3893,7 +4024,8 @@
                               "enum": [
                                 "wallet-signals-v1",
                                 "wallet-signals-v2",
-                                "wallet-signals-v3"
+                                "wallet-signals-v3",
+                                "wallet-signals-v4"
                               ]
                             },
                             "observed_at": {
@@ -4537,6 +4669,10 @@
                                   "transaction_hash": {
                                     "type": "string",
                                     "pattern": "^[a-f0-9]{64}$"
+                                  },
+                                  "quote_account_proof": {
+                                    "type": "string",
+                                    "const": "temporary_wsol_lifecycle"
                                   }
                                 },
                                 "required": [
@@ -5263,7 +5399,10 @@
                     "properties": {
                       "source": {
                         "type": "string",
-                        "const": "geckoterminal"
+                        "enum": [
+                          "geckoterminal",
+                          "dexscreener"
+                        ]
                       },
                       "fetched_at": {
                         "type": "string",
@@ -5586,7 +5725,8 @@
                         "enum": [
                           "wallet-signals-v1",
                           "wallet-signals-v2",
-                          "wallet-signals-v3"
+                          "wallet-signals-v3",
+                          "wallet-signals-v4"
                         ]
                       },
                       "observed_at": {
@@ -6230,6 +6370,10 @@
                             "transaction_hash": {
                               "type": "string",
                               "pattern": "^[a-f0-9]{64}$"
+                            },
+                            "quote_account_proof": {
+                              "type": "string",
+                              "const": "temporary_wsol_lifecycle"
                             }
                           },
                           "required": [
@@ -7005,6 +7149,70 @@
                   "last_snapshot_at"
                 ],
                 "additionalProperties": false
+              },
+              "market_provider": {
+                "type": "string",
+                "enum": [
+                  "geckoterminal",
+                  "dexscreener"
+                ]
+              },
+              "quality_automation": {
+                "type": "object",
+                "properties": {
+                  "enabled": {
+                    "type": "boolean"
+                  },
+                  "daily_limit": {
+                    "type": "number"
+                  },
+                  "daily_used": {
+                    "type": "number"
+                  },
+                  "last_success": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "next_refresh_at": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "last_error": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "targets": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "enabled",
+                  "daily_limit",
+                  "daily_used",
+                  "last_success",
+                  "next_refresh_at",
+                  "last_error",
+                  "targets"
+                ],
+                "additionalProperties": false
               }
             },
             "required": [
@@ -7137,7 +7345,11 @@
               },
               "source": {
                 "type": "string",
-                "const": "geckoterminal"
+                "enum": [
+                  "geckoterminal",
+                  "dexscreener",
+                  "mixed"
+                ]
               },
               "coverage": {
                 "type": "string",
@@ -7151,7 +7363,10 @@
                   "properties": {
                     "source": {
                       "type": "string",
-                      "const": "geckoterminal"
+                      "enum": [
+                        "geckoterminal",
+                        "dexscreener"
+                      ]
                     },
                     "fetched_at": {
                       "type": "string",
@@ -9153,7 +9368,10 @@
                                   "properties": {
                                     "source": {
                                       "type": "string",
-                                      "const": "geckoterminal"
+                                      "enum": [
+                                        "geckoterminal",
+                                        "dexscreener"
+                                      ]
                                     },
                                     "fetched_at": {
                                       "type": "string",
@@ -9476,7 +9694,8 @@
                                       "enum": [
                                         "wallet-signals-v1",
                                         "wallet-signals-v2",
-                                        "wallet-signals-v3"
+                                        "wallet-signals-v3",
+                                        "wallet-signals-v4"
                                       ]
                                     },
                                     "observed_at": {
@@ -10120,6 +10339,10 @@
                                           "transaction_hash": {
                                             "type": "string",
                                             "pattern": "^[a-f0-9]{64}$"
+                                          },
+                                          "quote_account_proof": {
+                                            "type": "string",
+                                            "const": "temporary_wsol_lifecycle"
                                           }
                                         },
                                         "required": [
@@ -10437,6 +10660,186 @@
             "required": [
               "record",
               "replay"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "api_version",
+          "trace_id",
+          "as_of",
+          "served_at",
+          "policy_version",
+          "source_freshness",
+          "coverage",
+          "data"
+        ],
+        "additionalProperties": false
+      },
+      "CoverageResponse": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "api_version": {
+            "type": "string",
+            "const": "10x-discovery-v1"
+          },
+          "trace_id": {
+            "type": "string"
+          },
+          "as_of": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "served_at": {
+            "type": "string"
+          },
+          "policy_version": {
+            "type": "string"
+          },
+          "source_freshness": {
+            "type": "object",
+            "properties": {
+              "last_harvest": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "last_success": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "stale": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "last_harvest",
+              "last_success",
+              "stale"
+            ],
+            "additionalProperties": false
+          },
+          "coverage": {
+            "type": "object",
+            "properties": {
+              "exhaustive": {
+                "type": "boolean",
+                "const": false
+              },
+              "scope": {
+                "type": "string"
+              },
+              "history_limit": {
+                "type": "number"
+              },
+              "quote_support": {
+                "type": "string"
+              },
+              "holder_classification": {
+                "type": "string"
+              },
+              "market_enabled": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "exhaustive",
+              "scope",
+              "history_limit",
+              "quote_support",
+              "holder_classification",
+              "market_enabled"
+            ],
+            "additionalProperties": false
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "target": {
+                "type": "number",
+                "const": 10
+              },
+              "observed": {
+                "type": "number"
+              },
+              "created_24h": {
+                "type": "number"
+              },
+              "creation_unknown": {
+                "type": "number"
+              },
+              "eligible": {
+                "type": "number"
+              },
+              "market_floor_met": {
+                "type": "number"
+              },
+              "holder_checks_met": {
+                "type": "number"
+              },
+              "remaining": {
+                "type": "number"
+              },
+              "blockers": {
+                "maxItems": 12,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "count": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "count"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "at": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+              },
+              "scope": {
+                "type": "string",
+                "const": "stored_candidates_not_exhaustive"
+              }
+            },
+            "required": [
+              "target",
+              "observed",
+              "created_24h",
+              "creation_unknown",
+              "eligible",
+              "market_floor_met",
+              "holder_checks_met",
+              "remaining",
+              "blockers",
+              "at",
+              "scope"
             ],
             "additionalProperties": false
           }

@@ -1,6 +1,6 @@
 // A token metadata URL is not a fetch instruction. Only these public image
 // gateways are permitted; localhost, credentials, custom ports and data URLs fail.
-const hosts = new Set(["coin-images.coingecko.com", "assets.coingecko.com", "coin-images.geckoterminal.com", "assets.geckoterminal.com", "ipfs.io", "gateway.pinata.cloud", "pump.mypinata.cloud", "cdn.pump.fun"]);
+const hosts = new Set(["coin-images.coingecko.com", "assets.coingecko.com", "coin-images.geckoterminal.com", "assets.geckoterminal.com", "cdn.dexscreener.com", "dd.dexscreener.com", "ipfs.io", "gateway.pinata.cloud", "pump.mypinata.cloud", "cdn.pump.fun"]);
 export function safeTokenImage(value: unknown): string | null {
   if (typeof value !== "string" || value.length > 2048) return null;
   try {

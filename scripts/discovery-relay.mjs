@@ -5,6 +5,7 @@ const methods = new Set(["getGenesisHash", "getSlot", "getSignaturesForAddress",
 export async function startRelay({ token, rpcUrl, port = 8795, transport = fetch }) {
   const rpc = new URL(rpcUrl);
   if (rpc.protocol !== "https:" || rpc.username || rpc.password || token.length < 32) throw new Error("Invalid local relay configuration");
+  let nextRpcAt = 0, rpcCooldownUntil = 0;
   const server = createServer(async (request, response) => {
     const supplied = Buffer.from(request.headers["x-tenx-local-relay"] ?? "");
     const expected = Buffer.from(token);
@@ -27,9 +28,23 @@ export async function startRelay({ token, rpcUrl, port = 8795, transport = fetch
         if (addresses.length > 30 || addresses.some(a => !/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(a)) || (!request.url.includes("/multi/") && addresses.length > 1)) { response.writeHead(400); response.end(); return; }
         target = `https://api.geckoterminal.com/api/v2/networks/solana/pools/${request.url.includes("/multi/") ? "multi/" : ""}${addresses.join(",")}?include=base_token`;
         init = { headers: { accept: "application/json" } }; limit = 500_000;
+      } else if (request.method === "GET" && /^\/dex\/tokens\/[1-9A-HJ-NP-Za-km-z,]{32,1350}$/.test(request.url ?? "")) {
+        const addresses = request.url.split("/").at(-1).split(",");
+        if (addresses.length > 30 || addresses.some(a => !/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(a))) { response.writeHead(400); response.end(); return; }
+        target = `https://api.dexscreener.com/tokens/v1/solana/${addresses.join(",")}`;
+        init = { headers: { accept: "application/json" } }; limit = 1_000_000;
       } else { response.writeHead(404); response.end(); return; }
+      if (target === rpc.href) {
+        if (rpcCooldownUntil > Date.now()) { response.writeHead(429, { "retry-after": String(Math.ceil((rpcCooldownUntil - Date.now()) / 1000)) }); response.end(); return; }
+        const start = Math.max(Date.now(), nextRpcAt), delay = start - Date.now();
+        if (delay > 3000) { response.writeHead(429, { "retry-after": "300" }); response.end(); return; }
+        nextRpcAt = start + 500;
+        if (delay > 0) await new Promise(resolve => setTimeout(resolve, delay));
+        if (rpcCooldownUntil > Date.now()) { response.writeHead(429, { "retry-after": String(Math.ceil((rpcCooldownUntil - Date.now()) / 1000)) }); response.end(); return; }
+      }
       const upstream = await transport(target, { ...init, redirect: "manual", signal: AbortSignal.timeout(10_000) });
-      if (!upstream.ok || !upstream.body) { await upstream.body?.cancel(); response.writeHead(upstream.status >= 300 ? upstream.status : 502); response.end(); return; }
+      if (upstream.status === 429 && target === rpc.href) { const raw = upstream.headers.get("retry-after"), seconds = raw && /^\d+$/.test(raw) ? Number(raw) : raw ? Math.ceil((Date.parse(raw) - Date.now()) / 1000) : 300; rpcCooldownUntil = Date.now() + Math.max(300, Number.isFinite(seconds) ? Math.min(31536000, seconds) : 300) * 1000; }
+      if (!upstream.ok || !upstream.body) { await upstream.body?.cancel(); response.writeHead(upstream.status >= 300 ? upstream.status : 502, upstream.headers.has("retry-after") ? { "retry-after": upstream.headers.get("retry-after") } : {}); response.end(); return; }
       const reader = upstream.body.getReader(); const chunks = []; let size = 0;
       try {
         while (true) { const chunk = await reader.read(); if (chunk.done) break; size += chunk.value.length; if (size > limit) { await reader.cancel(); throw new Error("Response limit"); } chunks.push(chunk.value); }

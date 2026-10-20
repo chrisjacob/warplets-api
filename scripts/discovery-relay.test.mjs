@@ -18,7 +18,15 @@ test("loopback relay authenticates and forwards only whitelisted read methods", 
     assert.equal(calls.length, 1);
     assert.equal((await fetch(`${url}/market/pools/So11111111111111111111111111111111111111112`, { headers: { "x-tenx-local-relay": token } })).status, 200);
     assert.equal(calls[1].url, "https://api.geckoterminal.com/api/v2/networks/solana/pools/So11111111111111111111111111111111111111112?include=base_token");
+    assert.equal((await fetch(`${url}/dex/tokens/So11111111111111111111111111111111111111112`, { headers: { "x-tenx-local-relay": token } })).status, 200);
+    assert.equal(calls[2].url, "https://api.dexscreener.com/tokens/v1/solana/So11111111111111111111111111111111111111112");
     assert.equal((await fetch(`${url}/rpc`, { ...options, body: JSON.stringify({ jsonrpc: "2.0", id: 3, method: "getProgramAccounts", params: ["arbitrary", {}] }) })).status, 400);
     assert.equal((await fetch(`${url}/rpc`, { ...options, body: "x".repeat(33_000) })).status, 413);
   } finally { await new Promise(resolve => server.close(resolve)); }
+});
+test("RPC starts are spaced across concurrent requests and a provider 429 is shared",async()=>{
+  const token="test-shared-rate-".repeat(4),starts=[];let limited=false;
+  const server=await startRelay({token,rpcUrl:"https://api.mainnet-beta.solana.com",port:0,transport:async()=>{starts.push(Date.now());return limited?new Response(null,{status:429,headers:{"retry-after":"1200"}}):Response.json({result:"ok"})}});
+  const url=`http://127.0.0.1:${server.address().port}/rpc`,options={method:"POST",headers:{"x-tenx-local-relay":token},body:JSON.stringify({jsonrpc:"2.0",id:1,method:"getGenesisHash",params:[]})};
+  try{const results=await Promise.all([fetch(url,options),fetch(url,options),fetch(url,options)]);assert.ok(results.every(r=>r.ok));assert.ok(starts[1]-starts[0]>=450);assert.ok(starts[2]-starts[1]>=450);limited=true;assert.equal((await fetch(url,options)).status,429);assert.equal((await fetch(url,options)).status,429);assert.equal(starts.length,4);}finally{await new Promise(resolve=>server.close(resolve))}
 });

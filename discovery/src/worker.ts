@@ -12,6 +12,9 @@ import { runCycle } from "./ingest";
 import { hashJson } from "./solana";
 import { ElectionId } from "./election-model";
 import { dailyElection, ElectionError, electionAutomation, electionRecord, electionSummaries, replayElection } from "./elections";
+import { qualityStatus, runQualityCycle } from "./quality-cycle";
+import { discoveryCoverage } from "./coverage";
+import { createdWithinWindow } from "./priority";
 
 // Widen generated literal vars so ignored .dev.vars overrides stay type-safe.
 export type LocalEnv = { [K in keyof Cloudflare.Env]: Cloudflare.Env[K] extends string ? string : Cloudflare.Env[K] };
@@ -24,7 +27,8 @@ function settings(env: Env) {
   const transport: typeof fetch | undefined = env.TENX_NODE_RELAY === "true" ? async (input, init) => {
     const target = new URL(String(input));
     const market = target.hostname === "api.geckoterminal.com" && /^\/api\/v2\/networks\/solana\/pools\/(?:multi\/)?[1-9A-HJ-NP-Za-km-z,]{32,1350}$/.test(target.pathname);
-    const path = target.href === new URL(env.TENX_RPC_URL).href ? "/rpc" : market ? target.pathname.replace("/api/v2/networks/solana", "/market") : null;
+    const dex = target.hostname === "api.dexscreener.com" && /^\/tokens\/v1\/solana\/[1-9A-HJ-NP-Za-km-z,]{32,1350}$/.test(target.pathname);
+    const path = target.href === new URL(env.TENX_RPC_URL).href ? "/rpc" : market ? target.pathname.replace("/api/v2/networks/solana", "/market") : dex ? target.pathname.replace("/tokens/v1/solana/", "/dex/tokens/") : null;
     if (!path) throw new Error("relay_target_not_allowed");
     return fetch(`http://127.0.0.1:8795${path}`, { method: path === "/rpc" ? "POST" : "GET", headers: { "x-tenx-local-relay": env.TENX_ADMIN_TOKEN, "content-type": "application/json" }, ...(path === "/rpc" ? { body: init?.body } : {}), signal: init?.signal, redirect: "manual" });
   } : undefined;
@@ -33,8 +37,11 @@ function settings(env: Env) {
     rpcDailyLimit: z.coerce.number().int().min(1).max(10_000).parse(env.TENX_RPC_DAILY_LIMIT),
     marketDailyLimit: z.coerce.number().int().min(1).max(1000).parse(env.TENX_MARKET_DAILY_LIMIT),
     marketEnabled: env.TENX_MARKET_ENABLED === "true",
+    marketProvider: z.enum(["geckoterminal", "dexscreener"]).parse(env.TENX_MARKET_PROVIDER),
     walletEnabled: env.TENX_WALLET_ANALYSIS_ENABLED === "true",
     walletDailyLimit: z.coerce.number().int().min(1).max(2000).parse(env.TENX_WALLET_RPC_DAILY_LIMIT),
+    qualityEnabled: env.TENX_QUALITY_ENABLED === "true",
+    qualityDailyLimit: z.coerce.number().int().min(1).max(2000).parse(env.TENX_QUALITY_RPC_DAILY_LIMIT),
     paced: true,
     batchedMarket: true,
     transport,
@@ -65,10 +72,12 @@ async function status(env: Env) {
     last_error: state.last_error, retry_after: state.retry_after, pending_signatures: count?.count ?? 0,
     usage: usage.results, daily_limits: { rpc: Number(env.TENX_RPC_DAILY_LIMIT), market: Number(env.TENX_MARKET_DAILY_LIMIT) },
     adapter_version: ADAPTER_VERSION, policy: DEFAULT_POLICY,
+    market_provider: env.TENX_MARKET_PROVIDER,
     automation: { heartbeat_at: state.heartbeat_at, next_refresh_at: state.next_refresh_at, reviewed_at: state.reviewed_at, review_timezone: "Australia/Sydney", review_cadence: "hourly catch-up of prior three days", refresh_cadence: "paced across the remaining free daily budget" },
     market_automation: marketState,
     wallet_automation: await walletStatus(env.TENX_DB, Number(env.TENX_WALLET_RPC_DAILY_LIMIT), env.TENX_WALLET_ANALYSIS_ENABLED === "true"),
     election_automation: await electionAutomation(env.TENX_DB),
+    quality_automation: await qualityStatus(env.TENX_DB, Number(env.TENX_QUALITY_RPC_DAILY_LIMIT), env.TENX_QUALITY_ENABLED === "true"),
     capabilities: { discovery: true, voting: false, launches: false, signing: false, rewards: false, social_publishing: false },
   };
 }
@@ -85,6 +94,7 @@ export async function handle(request: Request, env: Env): Promise<Response> {
   if (method === "GET" && path === "/api/10x/health") return json({ local: true, ready: true });
   if (method === "GET" && path === "/api/10x/chains") return json(await envelope(env, [{ id: "solana", discover_enabled: true, vote_enabled: false, launch_enabled: false }]));
   if (method === "GET" && path === "/api/10x/system/status") return json(await envelope(env, await status(env)));
+  if (method === "GET" && path === "/api/10x/discovery/coverage") return json(await envelope(env, discoveryCoverage(await candidates(env.TENX_DB), DEFAULT_POLICY, new Date())));
   if (method === "GET" && path === "/api/10x/elections") return json(await envelope(env, { runs: await electionSummaries(env.TENX_DB), automation: await electionAutomation(env.TENX_DB), schedule: "First local maintenance tick each UTC day; actual observation time, no missed-day backfill", voting_enabled: false, launch_enabled: false }));
   const electionMatch = path.match(/^\/api\/10x\/elections\/([^/]+)$/);
   if (method === "GET" && electionMatch) {
@@ -98,24 +108,26 @@ export async function handle(request: Request, env: Env): Promise<Response> {
       limit: z.coerce.number().int().min(1).max(100).default(25),
       mode: z.enum(["live", "fixture"]).default("live"),
       status: z.enum(["all", "eligible", "provisional", "excluded"]).default("all"),
+      age: z.enum(["all", "24h"]).default("all"),
       cursor: z.string().max(300).optional(),
     }).strict().parse(Object.fromEntries(url.searchParams));
-    const rows = shortlist(await candidates(env.TENX_DB, query.mode), DEFAULT_POLICY, new Date());
+    const now = new Date(), stored = await candidates(env.TENX_DB, query.mode);
+    const rows = shortlist(query.age === "24h" ? stored.filter(c => createdWithinWindow(c, now)) : stored, DEFAULT_POLICY, now);
     const snapshot = await hashJson(rows);
     const filtered = query.status === "all" ? rows : rows.filter(c => c.eligibility === query.status);
     let offset = 0;
     if (query.cursor) {
       let decoded: unknown;
       try { decoded = JSON.parse(atob(query.cursor)); } catch { return json({ error: "invalid_cursor" }, 400); }
-      const cursor = z.object({ snapshot: z.string(), offset: z.number().int().min(0).max(100), status: z.string(), mode: z.string() }).strict().parse(decoded);
-      if (cursor.snapshot !== snapshot || cursor.status !== query.status || cursor.mode !== query.mode) return json({ error: "cursor_expired_refresh_required" }, 409);
+      const cursor = z.object({ snapshot: z.string(), offset: z.number().int().min(0).max(100), status: z.string(), mode: z.string(), age: z.enum(["all", "24h"]).default("all") }).strict().parse(decoded);
+      if (cursor.snapshot !== snapshot || cursor.status !== query.status || cursor.mode !== query.mode || cursor.age !== query.age) return json({ error: "cursor_expired_refresh_required" }, 409);
       offset = cursor.offset;
     }
     const next = offset + query.limit;
     return json(await envelope(env, {
       candidates: filtered.slice(offset, next), mode: query.mode,
       counts: { eligible: rows.filter(c => c.eligibility === "eligible").length, provisional: rows.filter(c => c.eligibility === "provisional").length, excluded: rows.filter(c => c.eligibility === "excluded").length },
-    }, { next_cursor: next < filtered.length ? btoa(JSON.stringify({ snapshot, offset: next, status: query.status, mode: query.mode })) : null }));
+    }, { next_cursor: next < filtered.length ? btoa(JSON.stringify({ snapshot, offset: next, status: query.status, mode: query.mode, age: query.age })) : null }));
   }
   const detail = path.match(/^\/api\/10x\/candidates\/solana\/([^/]+)$/);
   if (method === "GET" && detail) {
@@ -158,7 +170,8 @@ export async function handle(request: Request, env: Env): Promise<Response> {
     const address = Address.parse(history[1]);
     const query = z.object({ hours: z.coerce.number().int().min(1).max(168).default(24) }).strict().parse(Object.fromEntries(url.searchParams));
     const rows = await env.TENX_DB.prepare("SELECT payload FROM tenx_market_history WHERE address=?1 AND fetched_at>=?2 ORDER BY fetched_at DESC LIMIT 1000").bind(address, new Date(Date.now() - query.hours * 3600000).toISOString()).all<{ payload: string }>();
-    return json(await envelope(env, { address, source: "geckoterminal", coverage: "local_observations_only", points: rows.results.reverse().map(row => MarketSchema.parse(JSON.parse(row.payload))) }));
+    const points = rows.results.reverse().map(row => MarketSchema.parse(JSON.parse(row.payload))), sources = [...new Set(points.map(p => p.source))];
+    return json(await envelope(env, { address, source: sources.length > 1 ? "mixed" : sources[0] ?? env.TENX_MARKET_PROVIDER, coverage: "local_observations_only", points }));
   }
   if (method === "GET" && path === "/api/10x/research/reviews") {
     const rows = await env.TENX_DB.prepare(`SELECT payload FROM (SELECT payload,day,ROW_NUMBER() OVER(PARTITION BY day ORDER BY created_at DESC,input_hash) AS position FROM tenx_reviews) WHERE position=1 ORDER BY day DESC LIMIT 7`).all<{ payload: string }>();
@@ -197,6 +210,7 @@ export async function handle(request: Request, env: Env): Promise<Response> {
       return json(await runCycle({ ...settings(env), paced: !force }));
     }
     if (path === "/api/10x/admin/market-refresh") return json(await runMarketCycle(settings(env)));
+    if (path === "/api/10x/admin/quality-refresh") return json(await runQualityCycle(settings(env)));
     if (path === "/api/10x/admin/wallet-refresh") {
       const query = z.object({ address: Address.optional() }).passthrough().parse(body);
       await audit(env.TENX_DB, "wallet_refresh_requested", reason, { address: query.address ?? "next_due_candidate" });

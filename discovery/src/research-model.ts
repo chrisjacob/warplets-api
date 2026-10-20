@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { MarketSchema } from "./model";
 
-export const HistorySchema = z.object({ address: z.string(), source: z.literal("geckoterminal"), coverage: z.literal("local_observations_only"), points: z.array(MarketSchema).max(1000) });
+export const HistorySchema = z.object({ address: z.string(), source: z.enum(["geckoterminal", "dexscreener", "mixed"]), coverage: z.literal("local_observations_only"), points: z.array(MarketSchema).max(1000) });
 export const FeaturesSchema = z.object({
   holders: z.number().nullable(), top1_pct: z.number().nullable(), top10_pct: z.number().nullable(), creator_pct: z.number().nullable(),
   liquidity_usd: z.number().nullable(), volume_24h_usd: z.number().nullable(),

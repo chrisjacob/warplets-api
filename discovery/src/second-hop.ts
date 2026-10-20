@@ -35,8 +35,8 @@ export function secondHopAnchors(outflows: FundingEdge[], devs: Set<string>): Fu
     return { wallet, signature: edge.signature, slot: edge.slot, block_time: edge.block_time, kind: "funding_transfer", instruction_index: edge.instruction_index };
   });
 }
-export async function buildSecondHopOutflows(transactions: WalletTransaction[], mint: string, pool: string, creationSlot: number | null, devs: Set<string>, anchors: FundingAnchor[]) {
-  const trades = (await Promise.all(transactions.map(async tx => (await verifiedTrades(tx, mint, pool)).trades))).flat().sort((a, b) => a.slot - b.slot || a.signature.localeCompare(b.signature) || a.instruction_index.localeCompare(b.instruction_index)).slice(0, 100);
+export async function buildSecondHopOutflows(transactions: WalletTransaction[], mint: string, pool: string, creationSlot: number | null, devs: Set<string>, anchors: FundingAnchor[], temporaryWsol = false) {
+  const trades = (await Promise.all(transactions.map(async tx => (await verifiedTrades(tx, mint, pool, { temporaryWsol })).trades))).flat().sort((a, b) => a.slot - b.slot || a.signature.localeCompare(b.signature) || a.instruction_index.localeCompare(b.instruction_index)).slice(0, 100);
   const early = new Set(trades.filter(t => t.side === "buy" && creationSlot !== null && t.slot >= creationSlot && t.slot <= creationSlot + 20).map(t => t.wallet));
   const targets = new Set([...devs, ...early]);
   const funding = (await Promise.all(transactions.map(tx => fundingTransfers(tx, targets, trades, anchors)))).flat();

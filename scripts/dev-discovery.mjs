@@ -60,6 +60,12 @@ async function tick() {
     });
     if (market.ok) console.log("Market cycle:", JSON.stringify(await market.json()));
     else console.warn("Market cycle HTTP", market.status);
+    const quality = await fetch(`${base}/api/10x/admin/quality-refresh`, {
+      method: "POST", headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+      body: JSON.stringify({ reason: "Local focused contender risk and holder refresh" }), signal: AbortSignal.timeout(180000),
+    });
+    if (quality.ok) console.log("Quality cycle:", JSON.stringify(await quality.json()));
+    else console.warn("Quality cycle HTTP", quality.status);
     const response = await fetch(`${base}/api/10x/admin/refresh`, {
       method: "POST", headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
       body: JSON.stringify({ reason: "Local bounded discovery timer" }), signal: AbortSignal.timeout(360_000),

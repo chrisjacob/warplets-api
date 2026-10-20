@@ -43,4 +43,8 @@ describe("eligibility and capped deterministic shortlist", () => {
     const row = assess({ ...c, risk: { ...c.risk, freeze_authority: "active" } }, sandbox, now);
     expect(row.verification).toBe("verified"); expect(row.eligibility).toBe("excluded"); expect(row.rank).toBeNull();
   });
+  it("does not bury promising provisional contenders behind a hundred newer exclusions", async()=>{
+    const c=(await fixtureCandidates(now))[0]!, rejects=Array.from({length:110},(_,i)=>({...c,address:toBase58(Uint8Array.from({length:32},(_,n)=>n===0?i+1:5)),market:{...c.market!,liquidity_usd:1}}));
+    const rows=shortlist([...rejects,c],DEFAULT_POLICY,now);expect(rows[0]?.address).toBe(c.address);expect(rows[0]?.eligibility).toBe("provisional");expect(rows).toHaveLength(100);
+  });
 });

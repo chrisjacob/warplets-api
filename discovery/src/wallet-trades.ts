@@ -6,6 +6,7 @@ import { TransactionSchema } from "./rpc";
 import { keys, signer, type WalletTransaction } from "./wallet-rpc";
 import { TradeSchema, type Funding, type VerifiedTrade } from "./wallet-model";
 import type { FundingAnchor } from "./funding-history";
+import { temporaryWsolOwner } from "./temporary-wsol";
 
 const SYSTEM = "11111111111111111111111111111111";
 type Ix = ReturnType<typeof instructions>[number];
@@ -60,7 +61,7 @@ function walletNet(tx: WalletTransaction, wallet: string, mint: string): bigint 
   const sum = (rows: NonNullable<WalletTransaction["meta"]>["preTokenBalances"]) => rows.filter(b => b.owner === wallet && b.mint === mint).reduce((n, b) => n + BigInt(b.uiTokenAmount.amount), 0n);
   return sum(tx.meta!.postTokenBalances) - sum(tx.meta!.preTokenBalances);
 }
-export async function verifiedTrades(tx: WalletTransaction, mint: string, pool: string): Promise<{ trades: VerifiedTrade[]; gaps: string[] }> {
+export async function verifiedTrades(tx: WalletTransaction, mint: string, pool: string, options: { temporaryWsol?: boolean } = {}): Promise<{ trades: VerifiedTrade[]; gaps: string[] }> {
   validWalletTransaction(tx);
   const all = instructions(tx), canonical = await canonicalPool(mint), curve = await curveAddress(mint);
   if (pool !== canonical.pool) throw new Error("noncanonical_wallet_pool");
@@ -77,6 +78,7 @@ export async function verifiedTrades(tx: WalletTransaction, mint: string, pool: 
     const side = d.name.startsWith("buy") ? "buy" : "sell", children = descendants(all, ix);
     let vault: string, userBase: string, quoteAmount: bigint | null = null;
     let quoteKind: "native_lamports" | "wsol_raw";
+    let temporaryQuote = false;
     if (ix.program === PUMP) {
       vault = a.associated_bonding_curve ?? a.associated_base_bonding_curve!;
       userBase = a.associated_user ?? a.associated_base_user!;
@@ -92,7 +94,10 @@ export async function verifiedTrades(tx: WalletTransaction, mint: string, pool: 
     } else if (ix.program === AMM) {
       vault = a.pool_base_token_account!; userBase = a.user_base_token_account!;
       if (a.pool !== pool || a.quote_mint !== WSOL || a.quote_token_program !== TOKEN || vault !== await ata(pool, tokenProgram, mint) || a.pool_quote_token_account !== await ata(pool, TOKEN, WSOL)) { gaps.add("noncanonical_trade_accounts"); continue; }
-      if (!ownsAccount(tx, a.user_quote_token_account!, user, WSOL, TOKEN)) { gaps.add("quote_trade_accounts_unverified"); continue; }
+      if (!ownsAccount(tx, a.user_quote_token_account!, user, WSOL, TOKEN)) {
+        if (!options.temporaryWsol || !temporaryWsolOwner(tx, a.user_quote_token_account!, user, ix)) { gaps.add("quote_trade_accounts_unverified"); continue; }
+        temporaryQuote = true;
+      }
       quoteKind = "wsol_raw";
       quoteAmount = tokenFlow(children, side === "buy" ? a.user_quote_token_account! : a.pool_quote_token_account!, side === "buy" ? a.pool_quote_token_account! : a.user_quote_token_account!, TOKEN, WSOL) || null;
       if (quoteAmount === null) { gaps.add("amm_quote_transfer_unverified"); continue; }
@@ -106,6 +111,7 @@ export async function verifiedTrades(tx: WalletTransaction, mint: string, pool: 
       instruction_index: ix.path, program: ix.program, instruction: d.name, side, wallet: user,
       fee_payer: tx.transaction.message.accountKeys[0], base_amount_raw: amount.toString(), quote_amount_raw: quoteAmount?.toString() ?? null,
       quote_kind: quoteKind, net_wallet_base_raw: walletNet(tx, user, mint).toString(), transaction_hash: transactionHash,
+      ...(temporaryQuote ? { quote_account_proof: "temporary_wsol_lifecycle" } : {}),
     }));
   }
   return { trades, gaps: [...gaps] };

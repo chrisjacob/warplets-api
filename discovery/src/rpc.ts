@@ -4,6 +4,11 @@ import { Address, Signature } from "./model";
 export class SourceError extends Error {
   constructor(readonly code: string, readonly retryAfterSeconds = 60) { super(code); }
 }
+export async function persistRpcBackoff(db: D1Database, error: unknown, now: Date): Promise<void> {
+  if (!(error instanceof SourceError) || error.code !== "rpc_rate_limited") return;
+  const until = new Date(now.getTime() + error.retryAfterSeconds * 1000).toISOString();
+  await db.prepare("UPDATE tenx_control SET last_error='rpc_rate_limited',retry_after=?1 WHERE id=1 AND (retry_after IS NULL OR retry_after<?1)").bind(until).run();
+}
 export async function boundedJson(response: Response, limit = 3_000_000): Promise<unknown> {
   if (!response.body) throw new SourceError("empty_response");
   const reader = response.body.getReader();
@@ -84,7 +89,8 @@ export class RpcClient {
     }
     if (!response.ok) {
       await response.body?.cancel();
-      throw new SourceError(response.status === 429 ? "rpc_rate_limited" : "rpc_http_error", response.status === 429 ? 300 : 120);
+      const rawRetry = response.headers.get("retry-after"), seconds = rawRetry && /^\d+$/.test(rawRetry) ? Number(rawRetry) : rawRetry ? Math.ceil((Date.parse(rawRetry) - Date.now()) / 1000) : 300;
+      throw new SourceError(response.status === 429 ? "rpc_rate_limited" : "rpc_http_error", response.status === 429 ? Math.max(300, Number.isFinite(seconds) ? Math.min(31536000, seconds) : 300) : 120);
     }
     const envelope = z.object({ jsonrpc: z.literal("2.0"), id: z.number(), result: z.unknown().optional(), error: z.unknown().optional() }).parse(await boundedJson(response));
     if (envelope.error) {

@@ -2,6 +2,7 @@ import { z } from "zod";
 import { validAddress } from "./solana";
 import { HolderSchema } from "./holder-model";
 import { WalletAnalysisSchema } from "./wallet-model";
+import { comparePotential } from "./priority";
 
 export const Address = z.string().max(44).refine(validAddress, "Invalid Solana address");
 export const Signature = z.string().regex(/^[1-9A-HJ-NP-Za-km-z]{64,88}$/);
@@ -15,7 +16,7 @@ export const ProofSchema = z.object({
 }).strict();
 export type Proof = z.infer<typeof ProofSchema>;
 export const MarketSchema = z.object({
-  source: z.literal("geckoterminal"), fetched_at: z.string().datetime(),
+  source: z.enum(["geckoterminal", "dexscreener"]), fetched_at: z.string().datetime(),
   observed_at: z.string().datetime().nullable(),
   price_usd: z.number().finite().nonnegative().nullable(),
   market_cap_usd: z.number().finite().nonnegative().nullable(),
@@ -142,6 +143,6 @@ export function shortlist(candidates: Candidate[], policy: Policy, now: Date): A
     (a.creation?.block_time ?? "").localeCompare(b.creation?.block_time ?? "") || a.address.localeCompare(b.address));
   const ranked = eligible.slice(0, policy.max_candidates).map((c, i) => ({ ...c, rank: i + 1 }));
   const recent = (c: Candidate) => !c.creation || now.getTime() - Date.parse(c.creation.block_time) <= 86400000;
-  const rest = rows.filter(c => c.eligibility !== "eligible").sort((a, b) => Number(recent(b)) - Number(recent(a)) || b.first_seen_at.localeCompare(a.first_seen_at) || a.address.localeCompare(b.address));
+  const rest = rows.filter(c => c.eligibility !== "eligible").sort((a, b) => Number(recent(b)) - Number(recent(a)) || Number(a.eligibility === "excluded") - Number(b.eligibility === "excluded") || comparePotential(a, b, policy, now) || b.first_seen_at.localeCompare(a.first_seen_at));
   return [...ranked, ...rest].slice(0, policy.max_candidates);
 }

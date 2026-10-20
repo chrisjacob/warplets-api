@@ -12,6 +12,7 @@ export const TradeSchema = z.object({
   fee_payer: Key, base_amount_raw: Raw, quote_amount_raw: Raw.nullable(),
   quote_kind: z.enum(["native_lamports", "wsol_raw"]), net_wallet_base_raw: z.string().regex(/^-?\d+$/).max(31),
   transaction_hash: Hash,
+  quote_account_proof: z.literal("temporary_wsol_lifecycle").optional(),
 }).strict();
 export type VerifiedTrade = z.infer<typeof TradeSchema>;
 export const FundingSchema = z.object({
@@ -38,7 +39,7 @@ export const SecondHopSchema = z.object({ depth: z.literal(2), eligible_funders:
 }).strict();
 export type SecondHop = z.infer<typeof SecondHopSchema>;
 export const WalletAnalysisSchema = z.object({
-  version: z.enum(["wallet-signals-v1", "wallet-signals-v2", "wallet-signals-v3"]), observed_at: z.string().datetime(), evidence_hash: Hash,
+  version: z.enum(["wallet-signals-v1", "wallet-signals-v2", "wallet-signals-v3", "wallet-signals-v4"]), observed_at: z.string().datetime(), evidence_hash: Hash,
   funding_coverage: z.array(FundingCoverageSchema).max(8).optional(),
   second_hop: SecondHopSchema.optional(),
   status: z.enum(["signals_detected", "no_signal_in_sample", "unavailable"]),

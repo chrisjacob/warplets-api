@@ -40,6 +40,8 @@ export async function saveCandidate(db: D1Database, candidate: Candidate, transa
   }
   const statements = [db.prepare(`INSERT INTO tenx_candidates(address,pool,payload,checked_at,mode) VALUES(?1,?2,?3,?4,?5)
     ON CONFLICT(mode,address) DO UPDATE SET pool=excluded.pool,payload=json_set(excluded.payload,
+      '$.risk',json(CASE WHEN COALESCE(json_extract(tenx_candidates.payload,'$.risk.observed_at'),'')>COALESCE(json_extract(excluded.payload,'$.risk.observed_at'),'') THEN json_extract(tenx_candidates.payload,'$.risk') ELSE json_extract(excluded.payload,'$.risk') END),
+      '$.holders',json(CASE WHEN COALESCE(json_extract(tenx_candidates.payload,'$.holders.observed_at'),'')>COALESCE(json_extract(excluded.payload,'$.holders.observed_at'),'') THEN json_extract(tenx_candidates.payload,'$.holders') ELSE json_extract(excluded.payload,'$.holders') END),
       '$.wallet_analysis',json(CASE WHEN COALESCE(json_extract(tenx_candidates.payload,'$.wallet_analysis.observed_at'),'')>COALESCE(json_extract(excluded.payload,'$.wallet_analysis.observed_at'),'') THEN json_extract(tenx_candidates.payload,'$.wallet_analysis') ELSE json_extract(excluded.payload,'$.wallet_analysis') END),
       '$.market',json(CASE WHEN COALESCE(json_extract(tenx_candidates.payload,'$.market.fetched_at'),'')>COALESCE(json_extract(excluded.payload,'$.market.fetched_at'),'') THEN json_extract(tenx_candidates.payload,'$.market') ELSE json_extract(excluded.payload,'$.market') END)),checked_at=excluded.checked_at`)
     .bind(candidate.address, candidate.pool, JSON.stringify(candidate), candidate.checked_at, candidate.mode)];
@@ -72,7 +74,7 @@ export async function saveCandidate(db: D1Database, candidate: Candidate, transa
       const current = CandidateSchema.parse(JSON.parse(saved.payload));
       // A concurrent market/wallet refresh must neither be overwritten nor
       // enter a frozen cohort with a timestamp preceding its evidence.
-      const at = [current.checked_at, current.market?.fetched_at, current.wallet_analysis?.observed_at].filter((s): s is string => Boolean(s)).sort().at(-1)!;
+      const at = [current.checked_at, current.risk.observed_at, current.holders?.observed_at, current.market?.fetched_at, current.wallet_analysis?.observed_at].filter((s): s is string => Boolean(s)).sort().at(-1)!;
       await captureCohort(db, current, at);
     }
   }
@@ -84,7 +86,7 @@ export async function captureCohort(db: D1Database, candidate: Candidate, at: st
   if (candidate.mode !== "live") return;
   // Independent refreshes may finish while another loop is fetching. Never
   // timestamp a frozen input before evidence that is already merged into it.
-  at = [at, candidate.checked_at, candidate.market?.fetched_at, candidate.wallet_analysis?.observed_at].filter((s): s is string => Boolean(s)).sort().at(-1)!;
+  at = [at, candidate.checked_at, candidate.risk.observed_at, candidate.holders?.observed_at, candidate.market?.fetched_at, candidate.wallet_analysis?.observed_at].filter((s): s is string => Boolean(s)).sort().at(-1)!;
   const selected = assess(candidate, DEFAULT_POLICY, new Date(at));
   const payload = { candidate: selected, policy: DEFAULT_POLICY, selected_at: at };
   const inputHash = await hashJson(payload), day = researchDay(new Date(at));

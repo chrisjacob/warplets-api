@@ -12,6 +12,7 @@ import { boundedJson, MAINNET_GENESIS, RpcClient } from "./rpc";
 import { runCycle } from "./ingest";
 import { gateSample, walletInput } from "./wallet-fixtures.test-helper";
 import { reserveWalletQuota, runWalletCycle } from "./wallet-cycle";
+import { WSOL } from "./pump";
 
 const instances: DatabaseSync[] = [];
 afterEach(() => { instances.splice(0).forEach(db => db.close()); vi.restoreAllMocks(); });
@@ -26,8 +27,10 @@ function fixture() {
   db.exec(readFileSync(new URL("../migrations/0007_funding_history.sql", import.meta.url), "utf8"));
   db.exec(readFileSync(new URL("../migrations/0008_second_hop.sql", import.meta.url), "utf8"));
   db.exec(readFileSync(new URL("../migrations/0009_elections.sql", import.meta.url), "utf8"));
+  db.exec(readFileSync(new URL("../migrations/0010_quality_refresh.sql", import.meta.url), "utf8"));
+  db.exec(readFileSync(new URL("../migrations/0011_lead_markets.sql", import.meta.url), "utf8"));
   const d1 = sqliteD1(db);
-  const env: LocalEnv = { TENX_DB: d1, TENX_LOCAL_ONLY: "true", TENX_NODE_RELAY: "false", TENX_ADMIN_TOKEN: "a".repeat(64), TENX_RPC_URL: "https://api.mainnet-beta.solana.com", TENX_RPC_DAILY_LIMIT: "3000", TENX_MARKET_DAILY_LIMIT: "600", TENX_MARKET_ENABLED: "false", TENX_WALLET_ANALYSIS_ENABLED: "true", TENX_WALLET_RPC_DAILY_LIMIT: "800" };
+  const env: LocalEnv = { TENX_DB: d1, TENX_LOCAL_ONLY: "true", TENX_NODE_RELAY: "false", TENX_ADMIN_TOKEN: "a".repeat(64), TENX_RPC_URL: "https://api.mainnet-beta.solana.com", TENX_RPC_DAILY_LIMIT: "3000", TENX_MARKET_DAILY_LIMIT: "600", TENX_MARKET_PROVIDER: "geckoterminal", TENX_QUALITY_ENABLED: "true", TENX_QUALITY_RPC_DAILY_LIMIT: "1800", TENX_MARKET_ENABLED: "false", TENX_WALLET_ANALYSIS_ENABLED: "true", TENX_WALLET_RPC_DAILY_LIMIT: "800" };
   return { db, d1, env };
 }
 const req = (path: string, init?: RequestInit) => new Request(`http://127.0.0.1:8794/api/10x/${path}`, init);
@@ -48,6 +51,12 @@ describe("durable discovery state and public/admin API", () => {
     const { d1 } = fixture(), c = { ...(await fixtureCandidates(new Date("2026-10-20T00:00:00Z")))[0]!, mode: "live" as const }, w = await gateSample();
     await captureCohort(d1, { ...c, wallet_analysis: { ...w, observed_at: "2026-10-20T00:01:00Z" } }, "2026-10-20T00:00:00Z");
     expect((await d1.prepare("SELECT selected_at FROM tenx_cohorts").first<{ selected_at: string }>())?.selected_at).toBe("2026-10-20T00:01:00Z");
+  });
+  it("preserves newer risk/holder observations when older discovery work finishes",async()=>{
+    const {d1}=fixture(),at=new Date("2026-10-20T00:00:00Z"),c={...(await fixtureCandidates(at))[0]!,mode:"live" as const};
+    const later="2026-10-20T00:10:00.000Z";await saveCandidate(d1,{...c,risk:{...c.risk,observed_at:later}});await saveCandidate(d1,c);
+    const saved=JSON.parse((await d1.prepare("SELECT payload FROM tenx_candidates WHERE mode='live'").first<{payload:string}>())!.payload);
+    expect(saved.risk.observed_at).toBe(later);expect((await d1.prepare("SELECT selected_at FROM tenx_cohorts").first<{selected_at:string}>())?.selected_at).toBe(later);
   });
   it("collects, persists, exposes and reuses immutable wallet transactions through the complete local pipeline", async () => {
     const { d1, env } = fixture(), input = await walletInput(), base = (await fixtureCandidates())[0]!;
@@ -129,12 +138,27 @@ describe("durable discovery state and public/admin API", () => {
     const history = await (await handle(req(`history/solana/${c.address}?hours=24`), env)).json() as { data: { points: unknown[] } };
     expect(history.data.points).toHaveLength(2); expect((await worker.fetch(req(`history/solana/${c.address}?hours=999`), env)).status).toBe(400);
   });
+  it("screens uninspected migrations in one market request without publishing unverified candidates", async () => {
+    const { d1 } = fixture(), now = new Date(), b = await syntheticBundle(now, 91), at = now.toISOString();
+    await d1.prepare("INSERT INTO tenx_leads(address,pool,migration_tx,migration_signature,first_seen_at) VALUES(?1,?2,?3,?4,?5)").bind(b.mint,b.pool,JSON.stringify(b.graduation),b.graduation.transaction.signatures[0]!,at).run();
+    const transport = vi.fn(async () => Response.json([{chainId:"solana",pairAddress:b.pool,baseToken:{address:b.mint},quoteToken:{address:WSOL},marketCap:200000,liquidity:{usd:50000}}]));
+    expect(await runMarketCycle({db:d1,rpcUrl:"https://rpc.example",rpcDailyLimit:5000,marketDailyLimit:600,marketEnabled:true,marketProvider:"dexscreener",transport},now)).toMatchObject({state:"succeeded",requested:1,updated:1});
+    expect(transport).toHaveBeenCalledOnce();
+    expect(JSON.parse((await d1.prepare("SELECT payload FROM tenx_lead_markets WHERE address=?1").bind(b.mint).first<{payload:string}>())!.payload)).toMatchObject({market_cap_usd:200000});
+    expect((await d1.prepare("SELECT count(*) AS n FROM tenx_candidates").first<{n:number}>())?.n).toBe(0);
+    expect((await d1.prepare("SELECT used FROM tenx_usage WHERE provider='market'").first<{used:number}>())?.used).toBe(1);
+  });
   it("paces chain refresh without source calls before the scheduled next tick", async () => {
     const { d1 } = fixture(), now = new Date();
     await d1.prepare("UPDATE tenx_control SET next_refresh_at=?1 WHERE id=1").bind(new Date(now.getTime() + 300000).toISOString()).run();
     const transport = vi.fn();
     expect(await runCycle({ db: d1, rpcUrl: "https://rpc.example", rpcDailyLimit: 5000, marketDailyLimit: 600, marketEnabled: false, paced: true, transport }, now)).toMatchObject({ state: "waiting" }); expect(transport).not.toHaveBeenCalled();
     expect(DEFAULT_POLICY.version).toBe("discovery-local-v3");
+  });
+  it("reserves the remaining free budget for contender checks instead of spending it on discovery",async()=>{
+    const {d1}=fixture(),now=new Date("2026-10-20T00:00:00Z"),transport=vi.fn();
+    const result=await runCycle({db:d1,rpcUrl:"https://rpc.example",rpcDailyLimit:100,marketDailyLimit:600,marketEnabled:false,paced:true,qualityEnabled:true,qualityDailyLimit:80,walletEnabled:true,walletDailyLimit:30,transport},now);
+    expect(result).toMatchObject({state:"waiting",reason:"rpc_budget_reserved_for_contenders"});expect(transport).not.toHaveBeenCalled();expect((await control(d1)).lease_owner).toBeNull();expect((await control(d1)).retry_after).toBeNull();
   });
   it("reserves quotas atomically, including concurrent requests", async () => {
     const { d1 } = fixture(), reserve = reserveQuota(d1, { rpc: 3, market: 2 }, new Date());
@@ -194,6 +218,13 @@ describe("durable discovery state and public/admin API", () => {
     expect(new Set([...first.data.candidates, ...second.data.candidates].map(c => c.address)).size).toBe(4);
     const c = (await fixtureCandidates())[0]!; c.name = "changed snapshot"; await saveCandidate(d1, c);
     expect((await handle(req(`candidates?mode=fixture&cursor=${encodeURIComponent(first.next_cursor)}`), env)).status).toBe(409);
+  });
+  it("filters by verified 24h token creation and binds cursors to the age view",async()=>{
+    const {env,d1}=fixture();for(const c of await fixtureCandidates())await saveCandidate(d1,c);
+    const first=await(await handle(req("candidates?mode=fixture&age=24h&limit=1"),env)).json() as {data:{candidates:{symbol:string}[]};next_cursor:string};
+    expect(first.data.candidates).toHaveLength(1);
+    expect((await handle(req(`candidates?mode=fixture&age=all&limit=1&cursor=${encodeURIComponent(first.next_cursor)}`),env)).status).toBe(409);
+    const all=await(await handle(req("candidates?mode=fixture&age=24h&limit=100"),env)).json()as{data:{candidates:{symbol:string}[]}};expect(all.data.candidates.map(c=>c.symbol)).not.toContain("OLD");expect(all.data.candidates).toHaveLength(3);
   });
   it("persists pause reason and never enables financial capabilities", async () => {
     const { env, d1 } = fixture();
@@ -260,6 +291,14 @@ describe("bounded read-only RPC adapter", () => {
     await expect(rpc.checkCluster()).rejects.toThrow("rpc_rate_limited");
     await expect(rpc.checkCluster()).rejects.toThrow("cycle_rpc_budget_exhausted");
     expect(transport).toHaveBeenCalledTimes(1); expect(reserve).toHaveBeenCalledTimes(1);
+  });
+  it("honors longer numeric or HTTP-date provider cooldowns with a five-minute minimum", async () => {
+    vi.spyOn(Date,"now").mockReturnValue(Date.parse("2026-10-20T00:00:00Z"));
+    for (const [header,seconds] of [["900",900],["Tue, 20 Oct 2026 00:20:00 GMT",1200],["1",300],["invalid",300]] as const) {
+      const transport=vi.fn(async()=>new Response(null,{status:429,headers:{"retry-after":header}}));
+      await expect(new RpcClient("https://rpc.example",async()=>{},transport).checkCluster()).rejects.toMatchObject({code:"rpc_rate_limited",retryAfterSeconds:seconds});
+      expect(transport).toHaveBeenCalledOnce();
+    }
   });
   it("cancels oversized streams before parsing", async () => {
     await expect(boundedJson(new Response("x".repeat(200)), 100)).rejects.toThrow("response_too_large");
