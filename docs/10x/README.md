@@ -6,7 +6,9 @@ Latest engineering review: [security fixes and credential follow-up](29-security
 
 Previous engineering review: [measured performance improvements](28-performance-review.md), including compact Discover cards, deferred wallet code, retained-shell navigation and an aggregate startup budget.
 
-Current checkpoint: [static quote-only fee accounting](39-launch-fee-accounting.md). Versioned gross/net quotes, minimum receipts and separate principal/LP/protocol/referral accruals extend the three-pool lab; 240 pinned SDK vectors and unchanged original v1 replay are checked. Dynamic fees, funded routes, actual claims/locks and devnet receipts remain open. Local only; no deploy or execution.
+Current checkpoint: [hypothetical funded routes and ordered competition](40-funded-routes-and-ordering.md). Trader balance bounds, two-leg receipt propagation and whole-action rollback now extend the static fee lab. Race/no-race presets expose the effect of an intervening buy on an unchanged minimum receipt. Closed-cycle arbitrage, dynamic fees and actual route/lock/devnet proofs remain open. Local only; no deploy or execution.
+
+Previous checkpoint: [static quote-only fee accounting](39-launch-fee-accounting.md). Versioned gross/net quotes, minimum receipts and separate principal/LP/protocol/referral accruals extend the three-pool lab; 240 pinned SDK vectors and unchanged original v1 replay are checked. Dynamic fees, funded routes, actual claims/locks and devnet receipts remain open. Local only; no deploy or execution.
 
 Previous checkpoint: [pinned three-pool net curve lab](38-launch-curve-lab.md). Exact 50/20/20/10 allocation, ATTN-only OG/$10X inception, SDK-checked integer deposits/probes, opening divergence and immutable replay are available locally. This is a mathematical subset; complete fees/routes/locks/devnet simulation and production financial decisions remain open. No deploy or execution.
 

@@ -67,8 +67,42 @@ export const FeeLaunchResult=LaunchResult.omit({version:true,math_revision:true,
   version:z.literal("launch-fee-lab-v2"),math_revision:z.literal(FEE_MATH_REVISION),scope:z.literal("concentrated_liquidity_static_only_quote_exact_input"),fees_modeled:z.literal(true),program_execution_verified:z.literal(false),
   pools:z.array(LaunchPoolResult.extend({fees:LaunchFeeConfig,fee_totals:LaunchFeeTotals})).length(3),steps:z.array(FeeLaunchStep).max(24),
 }).strict();
-export const AnyLaunchScenario=z.discriminatedUnion("version",[LaunchScenario,FeeLaunchScenario]);
-export const AnyLaunchResult=z.discriminatedUnion("version",[LaunchResult,FeeLaunchResult]);
+export const ROUTE_MATH_REVISION="meteora-funded-routes-79ebbfe-v3";
+const PoolId=z.enum(["native","og","tenx"]),TraderId=z.string().regex(/^[a-z][a-z0-9_-]{0,23}$/);
+export const LaunchBalances=z.object({attn:LaunchRaw,native:LaunchRaw,og:LaunchRaw,tenx:LaunchRaw}).strict();
+const ActionBase={trader:TraderId,gross_input_raw:PositiveRaw,minimum_output_raw:LaunchRaw,has_referral:z.boolean()};
+export const LaunchAction=z.discriminatedUnion("kind",[
+  z.object({...ActionBase,kind:z.literal("swap"),pool:PoolId,direction:z.enum(["quote_to_attn","attn_to_quote"])}).strict(),
+  z.object({...ActionBase,kind:z.literal("route"),from_pool:PoolId,to_pool:PoolId,minimum_attn_raw:LaunchRaw}).strict(),
+]);
+export const RouteLaunchScenario=FeeLaunchScenario.omit({version:true,trades:true}).extend({
+  version:z.literal("launch-route-lab-v3"),
+  traders:z.array(z.object({id:TraderId,balances:LaunchBalances.extend({attn:z.literal("0")})}).strict()).min(1).max(8),
+  actions:z.array(LaunchAction).max(12),
+}).strict().superRefine((s,ctx)=>{
+  const ids=new Set(s.traders.map(t=>t.id));
+  if(ids.size!==s.traders.length)ctx.addIssue({code:"custom",path:["traders"],message:"Trader aliases must be unique"});
+  s.actions.forEach((a,i)=>{if(!ids.has(a.trader))ctx.addIssue({code:"custom",path:["actions",i,"trader"],message:"Unknown trader alias"});
+    if(a.kind==="route"&&a.from_pool===a.to_pool)ctx.addIssue({code:"custom",path:["actions",i,"to_pool"],message:"Route requires two distinct quote pools"});});
+});
+export type RouteLaunchInput=z.infer<typeof RouteLaunchScenario>;
+export const LaunchActionResult=z.object({
+  index:z.number().int(),kind:z.enum(["swap","route"]),trader:TraderId,
+  status:z.enum([...FeeLaunchStep.shape.status.options,"insufficient_balance","trader_u64_bound"]),
+  input_asset:z.enum(["attn","native","og","tenx"]),output_asset:z.enum(["attn","native","og","tenx"]),
+  requested_input_raw:LaunchRaw,trader_debit_raw:LaunchRaw,trader_output_raw:LaunchRaw,minimum_output_raw:LaunchRaw,
+  before_balances:LaunchBalances,after_balances:LaunchBalances,
+  attempted_leg_statuses:z.array(FeeLaunchStep.shape.status).max(2),rejected_leg_index:z.number().int().min(0).max(1).nullable(),
+  committed_step_indexes:z.array(z.number().int().min(0).max(23)).max(2),
+}).strict();
+export const RouteLaunchResult=FeeLaunchResult.omit({version:true,math_revision:true,scope:true}).extend({
+  version:z.literal("launch-route-lab-v3"),math_revision:z.literal(ROUTE_MATH_REVISION),scope:z.literal("hypothetical_funded_static_quote_routes"),
+  route_execution_verified:z.literal(false),
+  traders:z.array(z.object({id:TraderId,initial:LaunchBalances,final:LaunchBalances}).strict()).min(1).max(8),
+  actions:z.array(LaunchActionResult).max(12),
+}).strict();
+export const AnyLaunchScenario=z.discriminatedUnion("version",[LaunchScenario,FeeLaunchScenario,RouteLaunchScenario]);
+export const AnyLaunchResult=z.discriminatedUnion("version",[LaunchResult,FeeLaunchResult,RouteLaunchResult]);
 export const LaunchRequest = z.object({ request_id: z.uuid(), reason: z.string().trim().min(3).max(300), scenario: AnyLaunchScenario }).strict();
 export const LaunchRecord = z.object({ id: z.uuid(), created_at: z.iso.datetime(), reason: z.string(), request_hash: Hash, input_hash: Hash, result_hash: Hash, record_hash: Hash, inputs: AnyLaunchScenario, result: AnyLaunchResult }).strict();
 export const LaunchSummary = LaunchRecord.omit({ reason: true, request_hash: true, input_hash: true, inputs: true });
