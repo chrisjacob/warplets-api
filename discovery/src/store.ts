@@ -1,7 +1,8 @@
-import { assess, CandidateSchema, DEFAULT_POLICY, shortlist, type Candidate } from "./model";
+import { assess, CandidateSchema, DEFAULT_POLICY, type Candidate } from "./model";
 import type { HolderEvidence } from "./holders";
 import { SourceError, type Reserve, type Transaction, type Accounts } from "./rpc";
 import { hashJson } from "./solana";
+import { createElection } from "./elections";
 
 export type Control = {
   paused: number; lease_owner: string | null; lease_until: string | null;
@@ -99,19 +100,9 @@ export async function candidates(db: D1Database, mode: "live" | "fixture" = "liv
   const rows = await db.prepare("SELECT payload FROM tenx_candidates WHERE mode=?1 ORDER BY checked_at DESC LIMIT 500").bind(mode).all<{ payload: string }>();
   return rows.results.map(row => CandidateSchema.parse(JSON.parse(row.payload)));
 }
-export async function dryRun(db: D1Database, now: Date): Promise<unknown> {
-  const ranked = shortlist(await candidates(db), DEFAULT_POLICY, now);
-  const eligible = ranked.filter(row => row.eligibility === "eligible");
-  const inputs = { policy: DEFAULT_POLICY, as_of: now.toISOString(), candidates: ranked };
-  const inputHash = await hashJson(inputs);
-  const payload = {
-    id: crypto.randomUUID(), input_hash: inputHash, policy: DEFAULT_POLICY,
-    as_of: now.toISOString(), mode: "dry_run", outcome: eligible.length ? "simulated_winner" : "no_eligible_winner",
-    winner_address: eligible[0]?.address ?? null, launch_enabled: false, inputs,
-  };
-  await db.prepare("INSERT OR IGNORE INTO tenx_dry_runs(id,input_hash,payload,created_at) VALUES(?1,?2,?3,?4)")
-    .bind(payload.id, inputHash, JSON.stringify(payload), now.toISOString()).run();
-  return payload;
+export async function dryRun(db: D1Database, now?: Date, requestId: string = crypto.randomUUID(), reason = "Operator requested local election rehearsal") {
+  const record = await createElection(db, { id: `manual-${requestId}`, kind: "manual", reason, now });
+  return { ...record.result, ...record, mode: "dry_run", policy: record.inputs.policy };
 }
 export async function audit(db: D1Database, action: string, reason: string, data: unknown, actor = "local-operator"): Promise<void> {
   await db.prepare("INSERT INTO tenx_audit(id,action,actor,reason,data_hash,created_at) VALUES(?1,?2,?3,?4,?5,?6)")

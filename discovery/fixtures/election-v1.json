@@ -1,0 +1,350 @@
+{
+  "id": "manual-00000000-0000-4000-8000-000000000003",
+  "kind": "manual",
+  "day": "2026-10-20",
+  "created_at": "2026-10-20T00:00:00.000Z",
+  "input_hash": "560da6b2687d20e8276af2f1b31b8cc3359bd5b4e7b79227a234c95122217790",
+  "result_hash": "80391bcd07d189af1c197e51b28a26d00841ea532e3845284246ee4cf8f07868",
+  "record_hash": "467ef1763b747b6100bfa75c97579c981c72d35297641b34eb0823e6c2b18008",
+  "result": {
+    "version": "election-result-v1",
+    "as_of": "2026-10-20T00:00:00.000Z",
+    "outcome": "simulated_winner",
+    "winner_address": "3mg7sM6RFEBHiiFotFNfvteH1WdFcc9cujKuPaqZdfDz",
+    "ranking_rule": "eligible liquidity descending, creation ascending, address ASCII ascending",
+    "counts": {
+      "observed": 4,
+      "eligible": 1,
+      "provisional": 2,
+      "excluded": 1,
+      "shortlisted": 1
+    },
+    "candidates": [
+      {
+        "address": "3mg7sM6RFEBHiiFotFNfvteH1WdFcc9cujKuPaqZdfDz",
+        "symbol": "SIM",
+        "name": "Simulation Meme",
+        "eligibility": "eligible",
+        "reasons": [],
+        "rank": 1,
+        "created_at": "2026-10-19T23:00:00.000Z",
+        "market_cap_usd": 200000,
+        "liquidity_usd": 50000
+      },
+      {
+        "address": "3qbR1eZRqXUWroWKKYhbDmR3FfqTHfqSU8zZSxtANzYh",
+        "symbol": "OLD",
+        "name": "Old Token / New Pool",
+        "eligibility": "excluded",
+        "reasons": [
+          "token_older_than_24h"
+        ],
+        "rank": null,
+        "created_at": "2026-10-18T00:00:00.000Z",
+        "market_cap_usd": 200000,
+        "liquidity_usd": 50000
+      },
+      {
+        "address": "3uWi9x2SRpmjztkpkr2WWeBoVq3exjXG2YfDWLvm8KsQ",
+        "symbol": "WAIT",
+        "name": "No Migration Evidence",
+        "eligibility": "provisional",
+        "reasons": [
+          "graduation_unverified",
+          "chain_verification_incomplete"
+        ],
+        "rank": null,
+        "created_at": "2026-10-19T23:00:00.000Z",
+        "market_cap_usd": 200000,
+        "liquidity_usd": 50000
+      },
+      {
+        "address": "3yS1JFVT284y8z1LC9MRoWxZjzFrdoD5axKsZiyMsfC7",
+        "symbol": "FDV",
+        "name": "FDV Is Not Market Cap",
+        "eligibility": "provisional",
+        "reasons": [
+          "market_cap_unknown_not_fdv"
+        ],
+        "rank": null,
+        "created_at": "2026-10-19T23:00:00.000Z",
+        "market_cap_usd": null,
+        "liquidity_usd": 50000
+      }
+    ],
+    "voting_enabled": false,
+    "launch_enabled": false,
+    "gaps": [
+      "bounded_local_candidate_inventory",
+      "proposed_local_policy",
+      "community_backing_not_enabled",
+      "launch_adapters_not_certified",
+      "no_onchain_execution"
+    ]
+  },
+  "inputs": {
+    "version": "election-input-v1",
+    "rules_version": "discovery-election-v1",
+    "as_of": "2026-10-20T00:00:00.000Z",
+    "policy": {
+      "version": "discovery-local-v3",
+      "max_candidates": 100,
+      "max_age_hours": 24,
+      "min_market_cap_usd": 100000,
+      "min_liquidity_usd": 25000,
+      "max_market_age_seconds": 180,
+      "max_risk_age_seconds": 600,
+      "require_holder_evidence": false,
+      "min_holders": 100,
+      "max_top1_pct": 10,
+      "max_top10_pct": 35,
+      "max_creator_pct": 5,
+      "max_holder_age_seconds": 1800,
+      "require_wallet_analysis": false,
+      "min_sampled_buyers": 3,
+      "max_wallet_age_seconds": 3600,
+      "max_dev_funded_supply_pct": 20,
+      "max_dev_sold_supply_pct": 5
+    },
+    "candidates": [
+      {
+        "chain": "solana",
+        "address": "3mg7sM6RFEBHiiFotFNfvteH1WdFcc9cujKuPaqZdfDz",
+        "pool": "8pspQXWpxVTBT2J7TSAMU6dJAVt7woCQyC5aUh6fqbdT",
+        "name": "Simulation Meme",
+        "symbol": "SIM",
+        "creation": {
+          "kind": "creation",
+          "signature": "CeD7gRMFdZKnrBxCWczhvDmfAz4ke5NFKvqAi9jSwzCQReUhecVgBJb112WuuR9eVmzFDwMsQDWEa1WWhbF3aoB",
+          "slot": 10000,
+          "block_time": "2026-10-19T23:00:00.000Z",
+          "instruction": "create",
+          "instruction_index": "0",
+          "program": "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P",
+          "payload_hash": "34e5bb46ccb62b0b1fcd9504f9ac78a335003588964b211b0e3ccf7e616887c3",
+          "fetched_at": "2026-10-20T00:00:00.000Z",
+          "source": "solana-finalized-rpc",
+          "adapter_version": "pump-639b87fb45c3-v1"
+        },
+        "graduation": {
+          "kind": "graduation",
+          "signature": "QHREMqhWG7eahNuQ2EzQqSYKLy8WH9jVerfLRJTttyPorHxQJDzMMcB1142poqJHzYyVSsijoS1U9222QBV6AbM",
+          "slot": 20000,
+          "block_time": "2026-10-19T23:30:00.000Z",
+          "instruction": "migrate",
+          "instruction_index": "0",
+          "program": "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P",
+          "payload_hash": "b0dda4ecefe43d2e9f3ce1b8a243b853af689aed2693db1303c5529904a9e258",
+          "fetched_at": "2026-10-20T00:00:00.000Z",
+          "source": "solana-finalized-rpc",
+          "adapter_version": "pump-639b87fb45c3-v1"
+        },
+        "verification": "verified",
+        "verification_reasons": [],
+        "risk": {
+          "mint_authority": "revoked",
+          "freeze_authority": "revoked",
+          "token_program": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+          "mint_extensions": [],
+          "holder_concentration": "unknown",
+          "pool_reserves_verified": true,
+          "observed_at": "2026-10-20T00:00:00.000Z",
+          "context_slot": 30000,
+          "payload_hash": "401c2e3af7315cfd534b4e818ed488992e7938266b0250b85e0eb11fb2a119be"
+        },
+        "market": {
+          "source": "geckoterminal",
+          "fetched_at": "2026-10-20T00:00:00.000Z",
+          "observed_at": null,
+          "price_usd": 0.001,
+          "market_cap_usd": 200000,
+          "fdv_usd": 250000,
+          "liquidity_usd": 50000,
+          "volume_24h_usd": 10000,
+          "image_url": null
+        },
+        "first_seen_at": "2026-10-20T00:00:00.000Z",
+        "checked_at": "2026-10-20T00:00:00.000Z",
+        "holders": null,
+        "wallet_analysis": null,
+        "mode": "live"
+      },
+      {
+        "chain": "solana",
+        "address": "3qbR1eZRqXUWroWKKYhbDmR3FfqTHfqSU8zZSxtANzYh",
+        "pool": "8pspQXWpxVTBT2J7TSAMU6dJAVt7woCQyC5aUh6fqbdT",
+        "name": "Old Token / New Pool",
+        "symbol": "OLD",
+        "creation": {
+          "kind": "creation",
+          "signature": "CeD7gRMFdZKnrBxCWczhvDmfAz4ke5NFKvqAi9jSwzCQReUhecVgBJb112WuuR9eVmzFDwMsQDWEa1WWhbF3aoB",
+          "slot": 10000,
+          "block_time": "2026-10-18T00:00:00.000Z",
+          "instruction": "create",
+          "instruction_index": "0",
+          "program": "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P",
+          "payload_hash": "34e5bb46ccb62b0b1fcd9504f9ac78a335003588964b211b0e3ccf7e616887c3",
+          "fetched_at": "2026-10-20T00:00:00.000Z",
+          "source": "solana-finalized-rpc",
+          "adapter_version": "pump-639b87fb45c3-v1"
+        },
+        "graduation": {
+          "kind": "graduation",
+          "signature": "QHREMqhWG7eahNuQ2EzQqSYKLy8WH9jVerfLRJTttyPorHxQJDzMMcB1142poqJHzYyVSsijoS1U9222QBV6AbM",
+          "slot": 20000,
+          "block_time": "2026-10-19T23:30:00.000Z",
+          "instruction": "migrate",
+          "instruction_index": "0",
+          "program": "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P",
+          "payload_hash": "b0dda4ecefe43d2e9f3ce1b8a243b853af689aed2693db1303c5529904a9e258",
+          "fetched_at": "2026-10-20T00:00:00.000Z",
+          "source": "solana-finalized-rpc",
+          "adapter_version": "pump-639b87fb45c3-v1"
+        },
+        "verification": "verified",
+        "verification_reasons": [],
+        "risk": {
+          "mint_authority": "revoked",
+          "freeze_authority": "revoked",
+          "token_program": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+          "mint_extensions": [],
+          "holder_concentration": "unknown",
+          "pool_reserves_verified": true,
+          "observed_at": "2026-10-20T00:00:00.000Z",
+          "context_slot": 30000,
+          "payload_hash": "401c2e3af7315cfd534b4e818ed488992e7938266b0250b85e0eb11fb2a119be"
+        },
+        "market": {
+          "source": "geckoterminal",
+          "fetched_at": "2026-10-20T00:00:00.000Z",
+          "observed_at": null,
+          "price_usd": 0.001,
+          "market_cap_usd": 200000,
+          "fdv_usd": 250000,
+          "liquidity_usd": 50000,
+          "volume_24h_usd": 10000,
+          "image_url": null
+        },
+        "first_seen_at": "2026-10-20T00:00:00.000Z",
+        "checked_at": "2026-10-20T00:00:00.000Z",
+        "holders": null,
+        "wallet_analysis": null,
+        "mode": "live"
+      },
+      {
+        "chain": "solana",
+        "address": "3uWi9x2SRpmjztkpkr2WWeBoVq3exjXG2YfDWLvm8KsQ",
+        "pool": "8pspQXWpxVTBT2J7TSAMU6dJAVt7woCQyC5aUh6fqbdT",
+        "name": "No Migration Evidence",
+        "symbol": "WAIT",
+        "creation": {
+          "kind": "creation",
+          "signature": "CeD7gRMFdZKnrBxCWczhvDmfAz4ke5NFKvqAi9jSwzCQReUhecVgBJb112WuuR9eVmzFDwMsQDWEa1WWhbF3aoB",
+          "slot": 10000,
+          "block_time": "2026-10-19T23:00:00.000Z",
+          "instruction": "create",
+          "instruction_index": "0",
+          "program": "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P",
+          "payload_hash": "34e5bb46ccb62b0b1fcd9504f9ac78a335003588964b211b0e3ccf7e616887c3",
+          "fetched_at": "2026-10-20T00:00:00.000Z",
+          "source": "solana-finalized-rpc",
+          "adapter_version": "pump-639b87fb45c3-v1"
+        },
+        "graduation": null,
+        "verification": "provisional",
+        "verification_reasons": [
+          "graduation_unverified"
+        ],
+        "risk": {
+          "mint_authority": "revoked",
+          "freeze_authority": "revoked",
+          "token_program": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+          "mint_extensions": [],
+          "holder_concentration": "unknown",
+          "pool_reserves_verified": true,
+          "observed_at": "2026-10-20T00:00:00.000Z",
+          "context_slot": 30000,
+          "payload_hash": "401c2e3af7315cfd534b4e818ed488992e7938266b0250b85e0eb11fb2a119be"
+        },
+        "market": {
+          "source": "geckoterminal",
+          "fetched_at": "2026-10-20T00:00:00.000Z",
+          "observed_at": null,
+          "price_usd": 0.001,
+          "market_cap_usd": 200000,
+          "fdv_usd": 250000,
+          "liquidity_usd": 50000,
+          "volume_24h_usd": 10000,
+          "image_url": null
+        },
+        "first_seen_at": "2026-10-20T00:00:00.000Z",
+        "checked_at": "2026-10-20T00:00:00.000Z",
+        "holders": null,
+        "wallet_analysis": null,
+        "mode": "live"
+      },
+      {
+        "chain": "solana",
+        "address": "3yS1JFVT284y8z1LC9MRoWxZjzFrdoD5axKsZiyMsfC7",
+        "pool": "8pspQXWpxVTBT2J7TSAMU6dJAVt7woCQyC5aUh6fqbdT",
+        "name": "FDV Is Not Market Cap",
+        "symbol": "FDV",
+        "creation": {
+          "kind": "creation",
+          "signature": "CeD7gRMFdZKnrBxCWczhvDmfAz4ke5NFKvqAi9jSwzCQReUhecVgBJb112WuuR9eVmzFDwMsQDWEa1WWhbF3aoB",
+          "slot": 10000,
+          "block_time": "2026-10-19T23:00:00.000Z",
+          "instruction": "create",
+          "instruction_index": "0",
+          "program": "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P",
+          "payload_hash": "34e5bb46ccb62b0b1fcd9504f9ac78a335003588964b211b0e3ccf7e616887c3",
+          "fetched_at": "2026-10-20T00:00:00.000Z",
+          "source": "solana-finalized-rpc",
+          "adapter_version": "pump-639b87fb45c3-v1"
+        },
+        "graduation": {
+          "kind": "graduation",
+          "signature": "QHREMqhWG7eahNuQ2EzQqSYKLy8WH9jVerfLRJTttyPorHxQJDzMMcB1142poqJHzYyVSsijoS1U9222QBV6AbM",
+          "slot": 20000,
+          "block_time": "2026-10-19T23:30:00.000Z",
+          "instruction": "migrate",
+          "instruction_index": "0",
+          "program": "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P",
+          "payload_hash": "b0dda4ecefe43d2e9f3ce1b8a243b853af689aed2693db1303c5529904a9e258",
+          "fetched_at": "2026-10-20T00:00:00.000Z",
+          "source": "solana-finalized-rpc",
+          "adapter_version": "pump-639b87fb45c3-v1"
+        },
+        "verification": "verified",
+        "verification_reasons": [],
+        "risk": {
+          "mint_authority": "revoked",
+          "freeze_authority": "revoked",
+          "token_program": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+          "mint_extensions": [],
+          "holder_concentration": "unknown",
+          "pool_reserves_verified": true,
+          "observed_at": "2026-10-20T00:00:00.000Z",
+          "context_slot": 30000,
+          "payload_hash": "401c2e3af7315cfd534b4e818ed488992e7938266b0250b85e0eb11fb2a119be"
+        },
+        "market": {
+          "source": "geckoterminal",
+          "fetched_at": "2026-10-20T00:00:00.000Z",
+          "observed_at": null,
+          "price_usd": 0.001,
+          "market_cap_usd": null,
+          "fdv_usd": 250000,
+          "liquidity_usd": 50000,
+          "volume_24h_usd": 10000,
+          "image_url": null
+        },
+        "first_seen_at": "2026-10-20T00:00:00.000Z",
+        "checked_at": "2026-10-20T00:00:00.000Z",
+        "holders": null,
+        "wallet_analysis": null,
+        "mode": "live"
+      }
+    ]
+  }
+}

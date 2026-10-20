@@ -25,6 +25,7 @@ function fixture() {
   db.exec(readFileSync(new URL("../migrations/0006_wallet_research.sql", import.meta.url), "utf8"));
   db.exec(readFileSync(new URL("../migrations/0007_funding_history.sql", import.meta.url), "utf8"));
   db.exec(readFileSync(new URL("../migrations/0008_second_hop.sql", import.meta.url), "utf8"));
+  db.exec(readFileSync(new URL("../migrations/0009_elections.sql", import.meta.url), "utf8"));
   const d1 = sqliteD1(db);
   const env: LocalEnv = { TENX_DB: d1, TENX_LOCAL_ONLY: "true", TENX_NODE_RELAY: "false", TENX_ADMIN_TOKEN: "a".repeat(64), TENX_RPC_URL: "https://api.mainnet-beta.solana.com", TENX_RPC_DAILY_LIMIT: "3000", TENX_MARKET_DAILY_LIMIT: "600", TENX_MARKET_ENABLED: "false", TENX_WALLET_ANALYSIS_ENABLED: "true", TENX_WALLET_RPC_DAILY_LIMIT: "800" };
   return { db, d1, env };

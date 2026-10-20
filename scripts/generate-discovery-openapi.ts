@@ -1,7 +1,7 @@
 import { writeFileSync } from "node:fs";
 import { z } from "zod";
 import { AssessedCandidateSchema, PolicySchema, ProofSchema } from "../discovery/src/model";
-import { DetailResponse, HistoryResponse, ListResponse, ReviewsResponse, StatusResponse } from "../app/src/discovery/client";
+import { DetailResponse, ElectionDetailResponse, ElectionsResponse, HistoryResponse, ListResponse, ReviewsResponse, StatusResponse } from "../app/src/discovery/client";
 
 const ok = { description: "Success; cached public data includes timestamps, source freshness and coverage", content: { "application/json": { schema: { type: "object" } } } };
 const errors = Object.fromEntries([400, 401, 403, 404, 409, 413, 415, 503].map(code => [code, { description: "Structured JSON error; no provider secrets" }]));
@@ -25,17 +25,19 @@ const spec = {
     "/api/10x/wallets/solana/{address}": read("Cached wallet profiles across at most 20 locally analyzed tokens; incomplete lifetime coverage", { parameters: [parameter("address", "path", { type: "string", minLength: 32, maxLength: 44 }, true)] }),
     "/api/10x/history/solana/{address}": read("Saved local price and nullable market cap observations; no invented backfill", { ...responseSchema("HistoryResponse"), parameters: [parameter("address", "path", { type: "string" }, true), parameter("hours", "query", { type: "integer", minimum: 1, maximum: 168, default: 24 })] }),
     "/api/10x/research/reviews": read("Daily outcome reports, chronological holdout proposals and evidence-based wallet associations", responseSchema("ReviewsResponse")),
+    "/api/10x/elections": read("Latest ten immutable local discovery rehearsals; no community voting or launch authority", responseSchema("ElectionsResponse")),
+    "/api/10x/elections/{id}": read("Frozen candidate inventory/policy and verified deterministic replay; zero provider requests", { ...responseSchema("ElectionDetailResponse"), parameters: [parameter("id", "path", { type: "string", pattern: "^(daily-[0-9]{4}-[0-9]{2}-[0-9]{2}|manual-[0-9a-f-]{36})$" }, true)] }),
     "/api/10x/system/status": read("Freshness, declared coverage gaps, UTC provider budgets and pauses", responseSchema("SystemStatusResponse")),
     "/api/10x/transparency/policies": read("Proposed local discovery policy and deterministic display ordering"),
     "/api/10x/admin/jobs": read("Restricted recent jobs and dry-run hashes", { security: [{ localOperator: [] }] }),
     "/api/10x/admin/refresh": post("Run one bounded idempotent refresh; force skips pacing only, never pause, lease, quota or provider backoff", { force: { type: "boolean", default: false } }),
     "/api/10x/admin/market-refresh": post("Refresh up to 30 cached pool markets using one free source request"),
     "/api/10x/admin/wallet-refresh": post("Analyze one stored live token within the wallet and global free RPC budgets; respects pause, lease and provider backoff", { address: { type: "string", minLength: 32, maxLength: 44 } }),
-    "/api/10x/admin/maintenance": post("Record local heartbeat and catch up daily reviews without provider calls"),
+    "/api/10x/admin/maintenance": post("Record local heartbeat, daily actual-time election rehearsal and review catch-up without provider calls"),
     "/api/10x/admin/review": post("Recompute prior daily outcome reports; proposals remain inactive"),
     "/api/10x/admin/pause": post("Pause or resume discovery; preserve evidence and balances", { paused: { type: "boolean" } }, ["paused"]),
     "/api/10x/admin/seed-fixtures": post("Seed synthetic examples in a separate fixture view"),
-    "/api/10x/admin/dry-run": post("Freeze live inputs and simulate selection; never launch"),
+    "/api/10x/admin/dry-run": post("Freeze live inputs and simulate selection; retry with the same request_id to return the original snapshot and one audit", { request_id: { type: "string", format: "uuid" } }),
     "/api/10x/admin/policies/preview": post("Preview a policy without activating it", { policy: { $ref: "#/components/schemas/DiscoveryPolicy" } }, ["policy"]),
   },
   components: { securitySchemes: { localOperator: { type: "http", scheme: "bearer", description: "Random local operator token; not stored in browser storage or source control" } }, schemas: {
@@ -47,6 +49,8 @@ const spec = {
     SystemStatusResponse: z.toJSONSchema(StatusResponse, { unrepresentable: "any" }),
     HistoryResponse: z.toJSONSchema(HistoryResponse, { unrepresentable: "any" }),
     ReviewsResponse: z.toJSONSchema(ReviewsResponse, { unrepresentable: "any" }),
+    ElectionsResponse: z.toJSONSchema(ElectionsResponse, { unrepresentable: "any" }),
+    ElectionDetailResponse: z.toJSONSchema(ElectionDetailResponse, { unrepresentable: "any" }),
   } },
 };
 writeFileSync(new URL("../discovery/openapi.json", import.meta.url), `${JSON.stringify(spec, null, 2)}\n`);

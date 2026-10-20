@@ -2,7 +2,7 @@
 
 Planning checkpoint: 20 October 2026 (Australia/Sydney). Product specification: v1.1, 17 October 2026.
 
-Latest implementation: [second-hop funding evidence](10-second-hop-review.md). Previous milestones: [anchored pre-buy funding history](09-funding-history-review.md), [bundle and wallet signals](08-wallet-risk-review.md), [holder analysis and daily research](07-holder-research-review.md), [initial discovery](06-discovery-review.md). [Local operations guide](../../discovery/README.md). The planning checkpoint below remains the original kickoff record.
+Latest implementation: [replayable local election rehearsals](11-election-review.md). Previous milestones: [second-hop funding evidence](10-second-hop-review.md), [anchored pre-buy funding history](09-funding-history-review.md), [bundle and wallet signals](08-wallet-risk-review.md), [holder analysis and daily research](07-holder-research-review.md), [initial discovery](06-discovery-review.md). [Local operations guide](../../discovery/README.md). The planning checkpoint below remains the original kickoff record.
 
 The homepage is intentionally empty within the existing app shell. The previous landing experience lives at `/thesis`, linked as **The 10X Thesis** in both connected and disconnected title/account dropdowns. This checkpoint prepares the app and implementation plan; it does not implement or claim a live discovery service, economic validation, or devnet launch proof.
 

@@ -1,5 +1,5 @@
 .tenx-discovery{position:relative;max-width:700px;margin:0 auto;padding:20px 16px 42px;color:#dce6df;font-family:"Roboto Mono",monospace;background:rgba(16,16,17,.96);line-height:1.6;min-height:75vh;font-size:12px}
-.tenx-nav{display:flex;gap:5px;justify-content:space-between;border-bottom:1px solid #26332a;padding-bottom:16px;margin-bottom:28px;font-size:11px;font-weight:700}
+.tenx-nav{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;text-align:center;border-bottom:1px solid #26332a;padding-bottom:16px;margin-bottom:28px;font-size:11px;font-weight:700}
 .tenx-nav a{padding:6px 8px;border-radius:5px;color:#9aafa0;text-decoration:none}.tenx-nav a[aria-current]{background:#203322;color:#00ff00}
 .tenx-discovery a{color:#a4f89f;text-underline-offset:4px}.tenx-discovery a:hover{color:#00ff00}.tenx-discovery :focus-visible{outline:2px solid #00ff00;outline-offset:4px}
 .tenx-heading{margin-bottom:24px}.tenx-eyebrow{font-size:10px;letter-spacing:.17em;color:#92a99a;font-weight:700}.tenx-heading h1{font-family:system-ui,sans-serif;font-size:32px;line-height:1.15;font-weight:850;letter-spacing:-.035em;margin:12px 0 16px;overflow-wrap:anywhere}.tenx-heading h1 span{color:#00ff00}.tenx-heading>p:last-child{color:#a0b1a6;font-size:12px;max-width:56ch}

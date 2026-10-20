@@ -10,6 +10,8 @@ import { audit, candidates, control, dryRun, researchDay, saveCandidate } from "
 import { fixtureCandidates } from "./fixtures";
 import { runCycle } from "./ingest";
 import { hashJson } from "./solana";
+import { ElectionId } from "./election-model";
+import { dailyElection, ElectionError, electionAutomation, electionRecord, electionSummaries, replayElection } from "./elections";
 
 // Widen generated literal vars so ignored .dev.vars overrides stay type-safe.
 export type LocalEnv = { [K in keyof Cloudflare.Env]: Cloudflare.Env[K] extends string ? string : Cloudflare.Env[K] };
@@ -66,6 +68,7 @@ async function status(env: Env) {
     automation: { heartbeat_at: state.heartbeat_at, next_refresh_at: state.next_refresh_at, reviewed_at: state.reviewed_at, review_timezone: "Australia/Sydney", review_cadence: "hourly catch-up of prior three days", refresh_cadence: "paced across the remaining free daily budget" },
     market_automation: marketState,
     wallet_automation: await walletStatus(env.TENX_DB, Number(env.TENX_WALLET_RPC_DAILY_LIMIT), env.TENX_WALLET_ANALYSIS_ENABLED === "true"),
+    election_automation: await electionAutomation(env.TENX_DB),
     capabilities: { discovery: true, voting: false, launches: false, signing: false, rewards: false, social_publishing: false },
   };
 }
@@ -82,6 +85,13 @@ export async function handle(request: Request, env: Env): Promise<Response> {
   if (method === "GET" && path === "/api/10x/health") return json({ local: true, ready: true });
   if (method === "GET" && path === "/api/10x/chains") return json(await envelope(env, [{ id: "solana", discover_enabled: true, vote_enabled: false, launch_enabled: false }]));
   if (method === "GET" && path === "/api/10x/system/status") return json(await envelope(env, await status(env)));
+  if (method === "GET" && path === "/api/10x/elections") return json(await envelope(env, { runs: await electionSummaries(env.TENX_DB), automation: await electionAutomation(env.TENX_DB), schedule: "First local maintenance tick each UTC day; actual observation time, no missed-day backfill", voting_enabled: false, launch_enabled: false }));
+  const electionMatch = path.match(/^\/api\/10x\/elections\/([^/]+)$/);
+  if (method === "GET" && electionMatch) {
+    const record = await electionRecord(env.TENX_DB, ElectionId.parse(electionMatch[1]));
+    if (!record) return json({ error: "election_not_found" }, 404);
+    return json(await envelope(env, { record, replay: await replayElection(record) }));
+  }
   if (method === "GET" && path === "/api/10x/transparency/policies") return json(await envelope(env, { policy: DEFAULT_POLICY, status: "proposed_local_policy", display_score: "liquidity descending, then creation timestamp, then address; not a voting score" }));
   if (method === "GET" && path === "/api/10x/candidates") {
     const query = z.object({
@@ -160,7 +170,7 @@ export async function handle(request: Request, env: Env): Promise<Response> {
   }
   if (method === "GET" && path === "/api/10x/admin/jobs") {
     const jobs = await env.TENX_DB.prepare("SELECT * FROM tenx_jobs ORDER BY started_at DESC LIMIT 30").all();
-    const runs = await env.TENX_DB.prepare("SELECT id,input_hash,created_at FROM tenx_dry_runs ORDER BY created_at DESC LIMIT 10").all();
+    const runs = await env.TENX_DB.prepare("SELECT id,json_extract(summary,'$.input_hash') AS input_hash,created_at FROM tenx_election_runs ORDER BY created_at DESC LIMIT 10").all();
     return json(await envelope(env, { ...await status(env), jobs: jobs.results, dry_runs: runs.results }));
   }
   if (method === "POST" && admin) {
@@ -170,12 +180,16 @@ export async function handle(request: Request, env: Env): Promise<Response> {
     if (path === "/api/10x/admin/maintenance" || path === "/api/10x/admin/review") {
       const now = new Date(), state = await control(env.TENX_DB);
       await env.TENX_DB.prepare("UPDATE tenx_control SET heartbeat_at=?1 WHERE id=1").bind(now.toISOString()).run();
+      let election: { id?: string; state: string; error?: string };
+      try { election = await dailyElection(env.TENX_DB); }
+      catch (error) { election = { state: "failed", error: error instanceof ElectionError ? error.message : "election_unavailable" }; }
+      await env.TENX_DB.prepare("UPDATE tenx_control SET election_error=?1 WHERE id=1").bind(election.error ?? null).run();
       if (path.endsWith("/review") || !state.reviewed_at || now.getTime() - Date.parse(state.reviewed_at) >= 3600000) {
         const review = await runReviews(env.TENX_DB, now);
         await env.TENX_DB.prepare("UPDATE tenx_control SET reviewed_at=?1 WHERE id=1").bind(now.toISOString()).run();
-        return json({ local: true, review });
+        return json({ local: true, review, election });
       }
-      return json({ local: true, review: "waiting_for_hourly_tick" });
+      return json({ local: true, review: "waiting_for_hourly_tick", election });
     }
     if (path === "/api/10x/admin/refresh") {
       await audit(env.TENX_DB, "refresh_requested", reason, {});
@@ -200,9 +214,8 @@ export async function handle(request: Request, env: Env): Promise<Response> {
       return json({ mode: "fixture", seeded: 4 });
     }
     if (path === "/api/10x/admin/dry-run") {
-      const result = await dryRun(env.TENX_DB, new Date());
-      await audit(env.TENX_DB, "election_dry_run", reason, result);
-      return json(result);
+      const { request_id } = z.object({ request_id: z.uuid().optional() }).passthrough().parse(body);
+      return json(await dryRun(env.TENX_DB, undefined, request_id, reason));
     }
     if (path === "/api/10x/admin/policies/preview") {
       const policy = PolicySchema.parse(z.object({ policy: z.unknown() }).passthrough().parse(body).policy);
@@ -216,6 +229,7 @@ export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     try { return await handle(request, env); }
     catch (error) {
+      if (error instanceof ElectionError) return json({ error: error.message }, 503);
       if (error instanceof z.ZodError || error instanceof SyntaxError) return json({ error: "invalid_request_or_data" }, 400);
       console.error(JSON.stringify({ event: "tenx_request_failed", trace_id: crypto.randomUUID() }));
       return json({ error: "discovery_unavailable" }, 503);
