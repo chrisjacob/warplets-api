@@ -8,16 +8,19 @@ import { candidates } from "./store";
 import { WalletPlanSchema, WalletPlansResponseSchema, WalletYieldSchema, type WalletPlan } from "./wallet-plan-model";
 import { analyzeWalletEvidence } from "./wallet-analysis";
 import { fundingRecoveryCandidates, fundingRecoveryStatus } from "./funding-recovery";
+import {currentWalletReader,directFundingLimit,expandedFundingScope,fundingSecondHopScope} from "./wallet-funding-scope";
 
 // Read-only planning: estimates describe the known remaining work, never a
 // guarantee of completion or a substitute for a fresh eligibility snapshot.
 export async function walletPlan(db: D1Database, c: Candidate, now = new Date()): Promise<WalletPlan> {
-  const base = {address:c.address,symbol:c.symbol,source_evidence_hash:c.wallet_analysis?.evidence_hash ?? null,snapshot_at:c.wallet_analysis?.observed_at ?? null,windows:0,examined_windows:0,blocked_windows:0,pending_bodies:0,cached_pending_bodies:0,cached_recoverable_markers:0,source_recoverable_markers:0,minimum_rpc_calls:null,gaps:[] as string[]};
+  const base = {address:c.address,symbol:c.symbol,source_evidence_hash:c.wallet_analysis?.evidence_hash ?? null,snapshot_at:c.wallet_analysis?.observed_at ?? null,windows:0,examined_windows:0,blocked_windows:0,pending_bodies:0,cached_pending_bodies:0,cached_recoverable_markers:0,source_recoverable_markers:0,direct_wallet_limit:8 as 8|20,additional_windows:0,minimum_rpc_calls:null,gaps:[] as string[]};
   try {
-    const prior = await priorWalletEvidence(db,c);
-    if (!prior?.funding_scans?.length || c.wallet_analysis?.version !== "wallet-signals-v4") return WalletPlanSchema.parse({...base,stage:"new_snapshot"});
-    const loaded = await loadFundingCheckpoints(db,c.address,prior.funding_scans.map(s=>s.anchor));
-    const recovery=await recoverCachedFunding(db,loaded,now),scans=recovery.scans;
+    const retained = await priorWalletEvidence(db,c);
+    if (!retained?.funding_scans?.length || !currentWalletReader(c.wallet_analysis?.version??"")) return WalletPlanSchema.parse({...base,stage:"new_snapshot"});
+    const prior=await expandedFundingScope(db,retained),limit=directFundingLimit(prior);
+    base.direct_wallet_limit=limit;base.additional_windows=Math.max(0,(prior.funding_scans?.length??0)-retained.funding_scans.length);
+    const loaded = await loadFundingCheckpoints(db,c.address,prior.funding_scans!.map(s=>s.anchor),false,limit);
+    const recovery=await recoverCachedFunding(db,loaded,now,limit),scans=recovery.scans;
     base.cached_recoverable_markers=recovery.recovered.length;
     if (scans.some(s=>Date.parse(s.attempted_at)>now.getTime() || s.pages.some(p=>Date.parse(p.fetched_at)>now.getTime()))) throw new Error("funding_checkpoint_from_future");
     const tasks = scans.map(fundingTask), pending = new Map(tasks.flatMap(t=>t.pending).map(r=>[r.signature,r]));
@@ -25,7 +28,7 @@ export async function walletPlan(db: D1Database, c: Candidate, now = new Date())
     const inputBlocked = prior.gaps.some(g=>["funding_wallet_limit","funding_output_limit","wallet_transaction_sample_limit"].includes(g)) || prior.records.length+[...pending.keys()].filter(s=>!prior.records.some(r=>r.signature===s)).length>64;
     if (inputBlocked) gaps.push("wallet_snapshot_sample_bound");
     const blocked = tasks.filter(t=>t.blocked).length, examined = tasks.filter(t=>t.coverage.status==="window_examined").length;
-    const sourceRecovery = inputBlocked ? [] : await fundingRecoveryCandidates(db,c,prior,now);
+    const sourceRecovery = inputBlocked ? [] : await fundingRecoveryCandidates(db,c,retained,now);
     base.source_recoverable_markers=sourceRecovery.length;
     if(sourceRecovery.length) return WalletPlanSchema.parse({...base,stage:"reader_recovery",windows:scans.length,examined_windows:examined,blocked_windows:blocked,pending_bodies:pending.size,cached_pending_bodies:null,minimum_rpc_calls:1+sourceRecovery.length,gaps});
     if (blocked || inputBlocked) return WalletPlanSchema.parse({...base,stage:"source_limited",windows:scans.length,examined_windows:examined,blocked_windows:blocked,pending_bodies:pending.size,cached_pending_bodies:null,gaps});
@@ -42,7 +45,7 @@ export async function walletPlan(db: D1Database, c: Candidate, now = new Date())
       records.push({signature:entry.signature,transaction:tx,status:"available",fetched_at:saved.fetched_at,purposes:["wallet"]});
     }
     if (records.length+[...pending.keys()].filter(s=>!records.some(r=>r.signature===s)).length>64 || records.reduce((n,r)=>n+new TextEncoder().encode(JSON.stringify(r.transaction)).length,0)>900000) return WalletPlanSchema.parse({...base,stage:"source_limited",windows:scans.length,examined_windows:examined,blocked_windows:blocked,pending_bodies:pending.size,cached_pending_bodies:null,gaps:[...gaps,"wallet_snapshot_sample_bound"]});
-    await analyzeWalletEvidence({...prior,observed_at:now.toISOString(),records,funding_scans:scans});
+    await analyzeWalletEvidence({...prior,observed_at:now.toISOString(),records,funding_scans:scans,second_hop_scans:await fundingSecondHopScope(db,prior,records,scans)});
     let cached = 0;
     for (const row of pending.values()) {
       if (prior.records.some(r=>r.signature===row.signature && r.status==="available" && r.transaction?.slot===row.slot)) { cached++; continue; }

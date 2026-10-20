@@ -9,6 +9,7 @@ import { candidates } from "./store";
 import { creationRoles, verifiedTrades } from "./wallet-trades";
 import { fundingSourceLimited } from "./priority";
 import { recordUnsupportedFundingRead } from "./funding-recovery";
+import {currentWalletReader,directFundingLimit,expandedFundingScope,fundingSecondHopScope} from "./wallet-funding-scope";
 
 export const catchupLimit = (dailyLimit: number) => Math.min(180, Math.floor(dailyLimit / 4 / 18) * 18);
 export async function priorWalletEvidence(db: D1Database, candidate: Candidate): Promise<WalletEvidence | null> {
@@ -25,13 +26,13 @@ export async function walletWork(db: D1Database): Promise<WalletWork[]> {
   const rows = await db.prepare("SELECT w.payload FROM tenx_wallet_work w JOIN tenx_candidates c ON c.address=w.address AND c.mode='live' WHERE w.source_evidence_hash=json_extract(c.payload,'$.wallet_analysis.evidence_hash') ORDER BY w.attempted_at DESC LIMIT 20").all<{payload:string}>();
   return rows.results.map(r => { const work=WalletWorkSchema.parse(JSON.parse(r.payload)); return fundingSourceLimited(work.gaps)?{...work,stage:"source_limited" as const}:work; });
 }
-export const canContinueFunding = (c: Candidate, work?: WalletWork) => c.wallet_analysis?.version === "wallet-signals-v4" && !c.wallet_analysis.funding_coverage?.some(f=>fundingSourceLimited(f.gaps)) && (work ? work.stage === "direct_funding" : Boolean(c.wallet_analysis?.funding_coverage?.some(f => f.gaps.some(g => ["funding_paging_pending", "funding_transactions_pending"].includes(g)))));
+export const canContinueFunding = (c: Candidate, work?: WalletWork) => currentWalletReader(c.wallet_analysis?.version??"") && !c.wallet_analysis?.funding_coverage?.some(f=>fundingSourceLimited(f.gaps)) && (work ? work.stage === "direct_funding" : Boolean(c.wallet_analysis?.funding_coverage?.some(f => f.gaps.some(g => ["funding_paging_pending", "funding_transactions_pending"].includes(g)))));
 
 // Reinterpret cached legacy evidence with the already-certified v4 decoder.
 // This is not a new source observation: all original timestamps survive.
 export async function replayLegacyWallets(db: D1Database): Promise<Record<string, unknown>> {
   const upgraded: { address: string; buyers_before: number; buyers_after: number; observed_at: string }[] = [], errors: { address: string; code: string }[] = [];
-  for (const c of (await candidates(db)).filter(c => c.wallet_analysis && c.wallet_analysis.version !== "wallet-signals-v4").slice(0, 10)) {
+  for (const c of (await candidates(db)).filter(c => c.wallet_analysis && !currentWalletReader(c.wallet_analysis.version)).slice(0, 10)) {
     try {
       const prior = (await priorWalletEvidence(db,c))!, records = structuredClone(prior.records);
       const trades = (await Promise.all(records.flatMap(r => r.transaction ? [r.transaction] : []).map(async tx => { try { return (await verifiedTrades(tx,c.address,c.pool,{temporaryWsol:true})).trades; } catch { return []; } }))).flat().sort((a,b)=>a.slot-b.slot || a.signature.localeCompare(b.signature));
@@ -75,8 +76,9 @@ export async function replayLegacyWallets(db: D1Database): Promise<Record<string
 // Advances checkpoints only. No candidate timestamp, eligibility snapshot,
 // research baseline or wallet profile is updated by a continuation.
 export async function continueFunding(db: D1Database, candidate: Candidate, rpc: RpcClient): Promise<WalletWork> {
-  const prior = await priorWalletEvidence(db, candidate);
-  if (!prior?.funding_scans?.length) throw new Error("funding_continuation_unavailable");
+  const retained = await priorWalletEvidence(db, candidate);
+  if (!retained?.funding_scans?.length) throw new Error("funding_continuation_unavailable");
+  const prior=await expandedFundingScope(db,retained);
   const records = structuredClone(prior.records), gaps = new Set(prior.gaps);
   let bytes = records.reduce((n, r) => n + new TextEncoder().encode(JSON.stringify(r.transaction)).length, 0);
   await rpc.checkCluster();
@@ -110,10 +112,10 @@ export async function continueFunding(db: D1Database, candidate: Candidate, rpc:
     const record = { signature, status: transaction ? "available" as const : "missing" as const, transaction, purposes:existing?.purposes??["wallet" as const], fetched_at: fetched };
     if(existing)records[records.indexOf(existing)]=record;else records.push(record);return record;
   };
-  const scans = await collectFundingHistories(db, rpc, candidate.address, prior.funding_scans.map(s => s.anchor), read,{cacheRecovery:true});
+  const scans = await collectFundingHistories(db, rpc, candidate.address, prior.funding_scans!.map(s => s.anchor), read,{cacheRecovery:true,directWalletLimit:directFundingLimit(prior)});
   // Replay all old/new bodies and exact anchors before describing progress.
   // This temporary replay cannot become a fresh eligibility observation.
-  const replay = await analyzeWalletEvidence({ ...prior, observed_at: new Date().toISOString(), records, funding_scans: scans, gaps: [...gaps] });
+  const replay = await analyzeWalletEvidence({ ...prior, observed_at: new Date().toISOString(), records, funding_scans: scans, second_hop_scans:await fundingSecondHopScope(db,prior,records,scans), gaps: [...gaps] });
   const coverage = replay.funding_coverage ?? [], allGaps = [...new Set(scans.flatMap(s=>fundingTask(s).gaps).concat([...gaps].filter(g => g === "wallet_transaction_sample_limit")))];
   const pending = allGaps.some(g => ["funding_paging_pending", "funding_transactions_pending"].includes(g)) && !fundingSourceLimited(allGaps);
   const work = WalletWorkSchema.parse({ address: candidate.address, symbol: candidate.symbol, source_evidence_hash: candidate.wallet_analysis!.evidence_hash, snapshot_at: candidate.wallet_analysis!.observed_at, attempted_at: new Date().toISOString(), stage: pending ? "direct_funding" : coverage.length && coverage.every(c => c.status === "window_examined") ? "refresh_required" : "source_limited", windows: coverage.length, examined_windows: coverage.filter(c => c.status === "window_examined").length, pending_transactions: coverage.reduce((n, c) => n + Math.max(0, c.transactions_in_window - c.transactions_examined), 0), decoded_transactions: coverage.reduce((n, c) => n + c.transactions_examined, 0), rpc_calls: rpc.calls, gaps: allGaps });

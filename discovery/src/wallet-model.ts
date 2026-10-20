@@ -38,7 +38,7 @@ export const SecondHopSchema = z.object({ depth: z.literal(2), eligible_funders:
   paths: z.array(z.object({ source: Key, intermediary: Key, target: Key, target_role: z.enum(["signed_creation", "early_buyer"]), upstream: FundingEdgeSchema, downstream: FundingEdgeSchema }).strict()).max(50), gaps: z.array(z.string()).max(30),
 }).strict();
 export type SecondHop = z.infer<typeof SecondHopSchema>;
-export const WalletAnalysisSchema = z.object({
+const LegacyWalletAnalysisSchema = z.object({
   version: z.enum(["wallet-signals-v1", "wallet-signals-v2", "wallet-signals-v3", "wallet-signals-v4"]), observed_at: z.string().datetime(), evidence_hash: Hash,
   funding_coverage: z.array(FundingCoverageSchema).max(8).optional(),
   second_hop: SecondHopSchema.optional(),
@@ -58,4 +58,8 @@ export const WalletAnalysisSchema = z.object({
   trades: z.array(TradeSchema).max(100), funding: z.array(FundingSchema).max(100), wallets: z.array(WalletProfileSchema).max(20),
   gaps: z.array(z.string()).max(50),
 }).strict();
+export const WalletAnalysisSchema=z.discriminatedUnion("version",[
+  LegacyWalletAnalysisSchema,
+  LegacyWalletAnalysisSchema.extend({version:z.literal("wallet-signals-v5"),funding_coverage:z.array(FundingCoverageSchema).max(20).optional()}),
+]);
 export type WalletAnalysis = z.infer<typeof WalletAnalysisSchema>;

@@ -12,7 +12,7 @@ import { findPda, publicKey } from "./solana";
 import { FundingScanSchema, fundingCoverage } from "./funding-history";
 import { analyzeSecondHop, buildSecondHopOutflows } from "./second-hop";
 
-export const WalletEvidenceSchema = z.object({
+const LegacyWalletEvidenceSchema = z.object({
   version: z.enum(["wallet-input-v1", "wallet-input-v2", "wallet-input-v3", "wallet-input-v4"]), observed_at: z.string().datetime(), cluster: z.literal(MAINNET_GENESIS),
   funding_scans: z.array(FundingScanSchema).max(8).optional(),
   second_hop_scans: z.array(FundingScanSchema).max(4).optional(),
@@ -23,13 +23,17 @@ export const WalletEvidenceSchema = z.object({
   prior_losses: z.array(z.object({ wallet: Address, tokens: z.array(Address).max(100), report_hashes: z.array(z.string().regex(/^[a-f0-9]{64}$/)).max(30) }).strict()).max(20),
   gaps: z.array(z.string()).max(40),
 }).strict();
+export const WalletEvidenceSchema=z.discriminatedUnion("version",[
+  LegacyWalletEvidenceSchema,
+  LegacyWalletEvidenceSchema.extend({version:z.literal("wallet-input-v5"),funding_scans:z.array(FundingScanSchema).max(20)}),
+]);
 export type WalletEvidence = z.infer<typeof WalletEvidenceSchema>;
 const ratio = (amount: bigint, supply: bigint) => Number((amount * 100000000n + supply - 1n) / supply) / 1000000;
 const distinct = <T>(items: T[]) => [...new Set(items)];
 export async function analyzeWalletEvidence(raw: WalletEvidence): Promise<WalletAnalysis> {
   const input = WalletEvidenceSchema.parse(raw), { asset } = input;
   if (input.version !== "wallet-input-v1" && !input.funding_scans || input.version === "wallet-input-v1" && input.funding_scans) throw new Error("funding_evidence_version_mismatch");
-  const secondHopEnabled = input.version === "wallet-input-v3" || input.version === "wallet-input-v4";
+  const secondHopEnabled = input.version === "wallet-input-v3" || input.version === "wallet-input-v4" || input.version === "wallet-input-v5";
   if (secondHopEnabled ? !input.second_hop_scans : input.second_hop_scans !== undefined) throw new Error("second_hop_evidence_version_mismatch");
   const gaps = new Set([...input.gaps, "actual_bundle_membership_unknown", "beneficial_owner_links_unknown", "historical_wallet_coverage_incomplete", "exchange_or_sponsor_funding_possible", "cross_token_pnl_and_fees_unknown"]);
   const available: WalletTransaction[] = [], seen = new Set<string>();
@@ -54,7 +58,7 @@ export async function analyzeWalletEvidence(raw: WalletEvidence): Promise<Wallet
   const tradeMap = new Map<string, VerifiedTrade>();
   for (const tx of available) {
     try {
-      const result = await verifiedTrades(tx, asset.address, asset.pool, { temporaryWsol: input.version === "wallet-input-v4" });
+      const result = await verifiedTrades(tx, asset.address, asset.pool, { temporaryWsol: input.version === "wallet-input-v4" || input.version === "wallet-input-v5" });
       result.gaps.forEach(g => gaps.add(g));
       for (const t of result.trades) tradeMap.set(`${t.signature}:${t.instruction_index}`, t);
     } catch { gaps.add("transaction_not_certified_for_trade_analysis"); }
@@ -79,6 +83,10 @@ export async function analyzeWalletEvidence(raw: WalletEvidence): Promise<Wallet
   if (buyers.some(wallet => input.version !== "wallet-input-v1" ? !coverage.some(c => c.wallet === wallet && c.status === "window_examined" && (c.anchor_kind === "sampled_buy" || c.anchor_at === trades.find(t => t.side === "buy" && t.wallet === wallet)?.block_time)) : !input.histories.some(h => h.purpose === "wallet" && h.address === wallet))) gaps.add("buyer_funding_histories_not_all_sampled");
   if (coverage.some(c => c.status !== "window_examined")) gaps.add("pre_buy_funding_coverage_partial");
   const devs = new Set(roles.filter(r => r.signed).map(r => r.wallet));
+  // V5 collects up to the existing twenty-wallet output capacity. Every
+  // observed buyer and signed creation wallet still needs an exact scan;
+  // omitted wallets cannot disappear merely because a caller clears a flag.
+  if(input.version==="wallet-input-v5"&&[...devs,...buyers].some(wallet=>!coverage.some(c=>c.wallet===wallet)))gaps.add("funding_wallet_limit");
   const tracked = new Set([...roles.map(r => r.wallet), ...buyers, ...trades.filter(t => t.side === "sell").map(t => t.wallet)].slice(0, 20));
   if (distinct([...roles.map(r => r.wallet), ...trades.map(t => t.wallet)]).length > 20) gaps.add("wallet_output_limit");
   const allFunding = (await Promise.all(available.map(async tx => { try { return await fundingTransfers(tx, tracked, trades, input.funding_scans?.map(s => s.anchor)); } catch { return []; } }))).flat();
@@ -86,7 +94,7 @@ export async function analyzeWalletEvidence(raw: WalletEvidence): Promise<Wallet
   const funding = allFunding.slice(0, 100);
   const early = trades.filter(t => t.side === "buy" && asset.creation && t.slot >= asset.creation.slot && t.slot <= asset.creation.slot + 20);
   const firstHopSignatures = new Set(input.records.filter(r => r.purposes.some(p => p !== "wallet")).map(r => r.signature).concat((input.funding_scans ?? []).flatMap(s => s.examined.map(e => e.signature))));
-  const secondHop = secondHopEnabled ? await analyzeSecondHop(available, await buildSecondHopOutflows(available.filter(t => firstHopSignatures.has(t.transaction.signatures[0]!)), asset.address, asset.pool, asset.creation?.slot ?? null, devs, input.funding_scans!.map(s => s.anchor), input.version === "wallet-input-v4"), devs, input.second_hop_scans!, input.observed_at) : undefined;
+  const secondHop = secondHopEnabled ? await analyzeSecondHop(available, await buildSecondHopOutflows(available.filter(t => firstHopSignatures.has(t.transaction.signatures[0]!)), asset.address, asset.pool, asset.creation?.slot ?? null, devs, input.funding_scans!.map(s => s.anchor), input.version === "wallet-input-v4" || input.version === "wallet-input-v5"), devs, input.second_hop_scans!, input.observed_at) : undefined;
   const slotGroups = new Map<number, Set<string>>(), transactionGroups = new Map<string, Set<string>>(), feeGroups = new Map<string, Set<string>>();
   for (const t of early) {
     slotGroups.set(t.slot, new Set([...(slotGroups.get(t.slot) ?? []), t.wallet]));
@@ -159,7 +167,7 @@ export async function analyzeWalletEvidence(raw: WalletEvidence): Promise<Wallet
   if (!buyers.length) gaps.add("verified_buyer_sample_unavailable");
   if (input.records.some(r => r.status !== "available")) gaps.add("transactions_missing_or_unsupported");
   return WalletAnalysisSchema.parse({
-    version: input.version === "wallet-input-v4" ? "wallet-signals-v4" : input.version === "wallet-input-v3" ? "wallet-signals-v3" : input.version !== "wallet-input-v1" ? "wallet-signals-v2" : "wallet-signals-v1", ...(input.version !== "wallet-input-v1" ? { funding_coverage: coverage } : {}), ...(secondHop ? { second_hop: secondHop } : {}), observed_at: input.observed_at, evidence_hash: await hashJson(input), status: signals.length ? "signals_detected" : trades.length ? "no_signal_in_sample" : "unavailable",
+    version: input.version === "wallet-input-v5" ? "wallet-signals-v5" : input.version === "wallet-input-v4" ? "wallet-signals-v4" : input.version === "wallet-input-v3" ? "wallet-signals-v3" : input.version !== "wallet-input-v1" ? "wallet-signals-v2" : "wallet-signals-v1", ...(input.version !== "wallet-input-v1" ? { funding_coverage: coverage } : {}), ...(secondHop ? { second_hop: secondHop } : {}), observed_at: input.observed_at, evidence_hash: await hashJson(input), status: signals.length ? "signals_detected" : trades.length ? "no_signal_in_sample" : "unavailable",
     source: "solana-finalized-rpc", coverage: "bounded_sample", actual_bundle_membership: "unknown", exhaustive: false,
     creation_slot: asset.creation?.slot ?? null, holder_snapshot_at: input.holders?.analysis.observed_at ?? null,
     scope: { curve_pages: curveHistories.length, early_window_reached: reached, signatures_considered: input.histories.reduce((n, h) => n + h.rows.length, 0) + coverage.reduce((n, c) => n + c.signatures, 0) + (secondHop?.coverage.reduce((n, c) => n + c.signatures, 0) ?? 0), transactions_examined: available.length, unsupported_or_missing_transactions: input.records.filter(r => r.status !== "available").length, wallet_histories_examined: input.version !== "wallet-input-v1" ? coverage.filter(c => c.pages > 0).length + (secondHop?.coverage.filter(c => c.pages > 0).length ?? 0) : input.histories.filter(h => h.purpose === "wallet").length },

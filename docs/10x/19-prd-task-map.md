@@ -18,6 +18,8 @@ Reviewed 20 October 2026 against the entire [PRD v1.1](spec/10X_MEME_FULL_PRD_v1
 
 ## Ordered work packages
 
+P3 capacity update, 21 October: [versioned wider direct funding collection](41-wallet-funding-capacity.md) can cover up to the existing twenty-wallet output capacity while retaining the same evidence gates, twelve-body window bounds and daily RPC caps. A bounded six-call local exercise completed one more window (3/9 → 4/9), then stopped at an oversized window. Original candidate time/hash stayed unchanged; **0/10 eligible** remains the actual result.
+
 P7 route update, 21 October: [hypothetical funded routes and ordered competition](40-funded-routes-and-ordering.md) now enforce per-trader quote/ATTN inventories, pass actual first-leg receipts to second legs and roll back entire rejected actions. The race/no-race presets keep the same minimum receipt; v1/v2 hashes and shared quotas remain unchanged. This covers bounded static two-leg math; changing external rates, closed-cycle arbitrage, dynamic fees and actual execution/lock proofs remain open.
 
 P7 fee update, 21 October: [static quote-only fee accounting](39-launch-fee-accounting.md) adds gross debit/net receipt, explicit minimum receipt and separate principal/LP/protocol/referral accruals. The pinned SDK generated 240 fee vectors; original v1 hashes still replay unchanged, with both versions sharing existing guards and quotas. Dynamic/opening fees, funded routes, lock/claim rights and devnet execution remain unverified; economics and launch authority remain gated.

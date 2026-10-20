@@ -20,9 +20,10 @@ const irreparable = (scan: FundingScan) => fundingTask(scan).gaps.some(g => g !=
 // format-upgrade reads. Missing archives, null bodies and oversized scans stay blocked.
 async function fundingRecoveryPlan(db: D1Database, c: Candidate, prior: WalletEvidence, now: Date): Promise<{rows:FundingRecovery[];retainedBytes:number}> {
   const empty={rows:[],retainedBytes:0};
-  if (prior.version !== "wallet-input-v4" || !prior.funding_scans?.length || prior.gaps.some(g => ["funding_wallet_limit", "funding_output_limit", "wallet_transaction_sample_limit"].includes(g))) return empty;
-  const direct = await loadFundingCheckpoints(db, c.address, prior.funding_scans.map(s => s.anchor));
-  const projected = await recoverCachedFunding(db, direct, now);
+  if (!["wallet-input-v4","wallet-input-v5"].includes(prior.version) || !prior.funding_scans?.length || prior.gaps.some(g => ["funding_wallet_limit", "funding_output_limit", "wallet_transaction_sample_limit"].includes(g))) return empty;
+  const walletLimit=prior.version==="wallet-input-v5"?20:8;
+  const direct = await loadFundingCheckpoints(db, c.address, prior.funding_scans.map(s => s.anchor),false,walletLimit);
+  const projected = await recoverCachedFunding(db, direct, now,walletLimit);
   // Do not spend on second-hop enrichment while an unrelated direct gate is
   // impossible to finish under the current evidence bounds.
   if (projected.scans.some(irreparable)) return empty;

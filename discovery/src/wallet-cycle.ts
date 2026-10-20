@@ -16,6 +16,7 @@ import { catchupLimit, continueFunding, priorWalletEvidence, walletWork } from "
 import { compareWalletPlans, walletPlan } from "./wallet-plan";
 import type { WalletPlan } from "./wallet-plan-model";
 import { recordUnsupportedFundingRead, recoverFundingBodies } from "./funding-recovery";
+import {currentWalletReader,DIRECT_FUNDING_WALLETS} from "./wallet-funding-scope";
 
 export type WalletSettings = Settings & { walletEnabled: boolean; walletDailyLimit: number };
 export async function walletStatus(db: D1Database, limit: number, enabled: boolean) {
@@ -80,7 +81,7 @@ async function collect(settings: WalletSettings, candidate: Candidate, rpc: RpcC
     // Anchor at the verified graduation so post-migration spam/volume cannot
     // consume the early-buy search budget or hide the creation window.
     let cached: WalletEvidence["histories"] = [];
-    if (candidate.wallet_analysis?.version === "wallet-signals-v4" && prior) {
+    if (currentWalletReader(candidate.wallet_analysis?.version??"") && prior) {
       const pages = prior.histories.filter(h => h.purpose === "curve" && h.address === curve);
       // Finalized creation-window history is immutable. Reuse only a sample
       // that actually reached the independently verified creation, with its
@@ -113,7 +114,7 @@ async function collect(settings: WalletSettings, candidate: Candidate, rpc: RpcC
     const first = trades.filter(t => t.wallet === wallet && t.side === "buy").sort((a, b) => a.slot - b.slot || a.signature.localeCompare(b.signature))[0]!;
     anchors.push({ wallet, signature: first.signature, slot: first.slot, block_time: first.block_time, kind: "sampled_buy" });
   }
-  if (anchors.length > 8) gaps.add("funding_wallet_limit");
+  if (anchors.length > DIRECT_FUNDING_WALLETS) gaps.add("funding_wallet_limit");
   const readFunding = async (signature: string, slot: number, status?: "missing" | "unsupported") => {
     if (!records.some(r => r.signature === signature) && records.length >= 64) { gaps.add("wallet_transaction_sample_limit"); return null; }
     if (status && !records.some(r => r.signature === signature)) records.push({ signature, purposes: ["wallet"], status, transaction: null, fetched_at: new Date().toISOString() });
@@ -123,7 +124,7 @@ async function collect(settings: WalletSettings, candidate: Candidate, rpc: RpcC
   };
   // Direct pre-buy coverage is an eligibility gate. Second-hop expansion uses
   // the remaining calls after direct work, within the same 18-call ceiling.
-  const scans = await collectFundingHistories(db, rpc, candidate.address, anchors, readFunding, { rpcCeiling: 18,cacheRecovery:true });
+  const scans = await collectFundingHistories(db, rpc, candidate.address, anchors, readFunding, { rpcCeiling: 18,cacheRecovery:true,directWalletLimit:20 });
   const devs = new Set(roles.filter(r => r.signed).map(r => r.wallet));
   const baseTransactions = records.flatMap(r => r.transaction ? [r.transaction] : []);
   const outflows = await buildSecondHopOutflows(baseTransactions, candidate.address, candidate.pool, candidate.creation?.slot ?? null, devs, scans.map(s => s.anchor), true);
@@ -139,7 +140,7 @@ async function collect(settings: WalletSettings, candidate: Candidate, rpc: RpcC
     if (![...roles.map(r => r.wallet), ...buyers].includes(w.wallet)) continue;
     const entry = priorLosses.get(w.wallet) ?? { tokens: new Set(), hashes: new Set() }; entry.tokens.add(outcome.address); entry.hashes.add(report.input_hash); priorLosses.set(w.wallet, entry);
   }
-  return WalletEvidenceSchema.parse({ version: "wallet-input-v4", funding_scans: scans, second_hop_scans: secondScans, observed_at: new Date().toISOString(), cluster: MAINNET_GENESIS,
+  return WalletEvidenceSchema.parse({ version: "wallet-input-v5", funding_scans: scans, second_hop_scans: secondScans, observed_at: new Date().toISOString(), cluster: MAINNET_GENESIS,
     asset: { address: candidate.address, pool: candidate.pool, token_program: candidate.risk.token_program, creation: candidate.creation, graduation: candidate.graduation }, records, histories, holders,
     prior_losses: [...priorLosses].slice(0, 20).map(([wallet, p]) => ({ wallet, tokens: [...p.tokens].sort().slice(0, 100), report_hashes: [...p.hashes].sort().slice(0, 30) })), gaps: [...gaps] });
 }

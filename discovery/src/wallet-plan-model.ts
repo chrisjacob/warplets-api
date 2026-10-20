@@ -8,6 +8,7 @@ export const WalletPlanSchema = z.object({
   pending_bodies: z.number().int().nonnegative(), cached_pending_bodies: z.number().int().nonnegative().nullable(),
   cached_recoverable_markers:z.number().int().nonnegative().max(96).optional(),
   source_recoverable_markers:z.number().int().nonnegative().max(2).optional(),
+  direct_wallet_limit:z.union([z.literal(8),z.literal(20)]).optional(),additional_windows:z.number().int().min(0).max(20).optional(),
   minimum_rpc_calls: z.number().int().positive().nullable(), gaps: z.array(z.string()),
 }).strict();
 export type WalletPlan = z.infer<typeof WalletPlanSchema>;

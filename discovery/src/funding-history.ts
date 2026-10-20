@@ -56,8 +56,8 @@ export function fundingTask(scan: FundingScan) {
 }
 // Cache-only projection. A prior missing/unsupported observation is never a
 // reason to purchase another body. Reuse requires exact saved finalized rows.
-export async function recoverCachedFunding(db:D1Database,input:FundingScan[],now=new Date()){
-  if(input.length>8)throw new Error("funding_wallet_limit");
+export async function recoverCachedFunding(db:D1Database,input:FundingScan[],now=new Date(),directWalletLimit:8|20=8){
+  if(input.length>directWalletLimit)throw new Error("funding_wallet_limit");
   const scans=structuredClone(input),records:{signature:string;transaction:WalletTransaction;status:"available";fetched_at:string}[]=[],recovered:{scan:number;signature:string;previous_status:"missing"|"unsupported"}[]=[];
   const cached=new Map<string,{payload:string;payload_hash:string;fetched_at:string}|null>();let bytes=0;
   for(const [index,scan] of scans.entries()){
@@ -68,8 +68,8 @@ export async function recoverCachedFunding(db:D1Database,input:FundingScan[],now
     for(const entry of scan.examined.filter(e=>e.status!=="available")){
       if(!cached.has(entry.signature)){
         // Absent early references must not starve a reusable later window.
-        // Eight twelve-body windows bound lookups; the existing global sample
-        // and byte bounds cap materialized bodies independently.
+        // Wider v5 scopes share the same 96-lookup cache ceiling. Existing
+        // global record and byte bounds cap materialized bodies independently.
         if(cached.size>=96||records.length>=64)continue;
         cached.set(entry.signature,await db.prepare("SELECT payload,payload_hash,fetched_at FROM tenx_wallet_transactions WHERE signature=?1").bind(entry.signature).first<{payload:string;payload_hash:string;fetched_at:string}>());
       }
@@ -91,9 +91,9 @@ export async function recoverCachedFunding(db:D1Database,input:FundingScan[],now
   }
   return {scans,records,recovered};
 }
-export async function loadFundingCheckpoints(db: D1Database, address: string, anchors: FundingAnchor[], secondHop = false): Promise<FundingScan[]> {
+export async function loadFundingCheckpoints(db: D1Database, address: string, anchors: FundingAnchor[], secondHop = false,directWalletLimit:8|20=8): Promise<FundingScan[]> {
   const scans: FundingScan[] = [], table = secondHop ? "tenx_second_hop_scans" : "tenx_funding_scans";
-  for (const anchor of anchors.slice(0, secondHop ? 4 : 8)) {
+  for (const anchor of anchors.slice(0, secondHop ? 4 : directWalletLimit)) {
     const anchorKey = secondHop ? `${anchor.signature}:${anchor.instruction_index}` : anchor.signature;
     let saved = await db.prepare(`SELECT payload,payload_hash FROM ${table} WHERE address=?1 AND wallet=?2 AND anchor_signature=?3`).bind(address,anchor.wallet,anchorKey).first<{payload:string;payload_hash:string}>();
     if (!saved && secondHop) {
@@ -110,9 +110,9 @@ export async function loadFundingCheckpoints(db: D1Database, address: string, an
   }
   return scans;
 }
-export async function collectFundingHistories(db: D1Database, rpc: RpcClient, address: string, anchors: FundingAnchor[], read: Read, options: { secondHop?: boolean; rpcCeiling?: number; cacheRecovery?:boolean } = {}): Promise<FundingScan[]> {
-  const original = await loadFundingCheckpoints(db,address,anchors,options.secondHop);
-  const recovery=options.cacheRecovery?await recoverCachedFunding(db,original):{scans:original,records:[],recovered:[]};
+export async function collectFundingHistories(db: D1Database, rpc: RpcClient, address: string, anchors: FundingAnchor[], read: Read, options: { secondHop?: boolean; rpcCeiling?: number; cacheRecovery?:boolean;directWalletLimit?:8|20 } = {}): Promise<FundingScan[]> {
+  const original = await loadFundingCheckpoints(db,address,anchors,options.secondHop,options.directWalletLimit);
+  const recovery=options.cacheRecovery?await recoverCachedFunding(db,original,new Date(),options.directWalletLimit):{scans:original,records:[],recovered:[]};
   const scans=recovery.scans;
   const table = options.secondHop ? "tenx_second_hop_scans" : "tenx_funding_scans", ceiling = Math.min(18, options.rpcCeiling ?? 18);
   // Second-hop progress belongs to an exact outflow instruction. Additional
