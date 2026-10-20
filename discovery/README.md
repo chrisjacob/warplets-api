@@ -171,6 +171,8 @@ See [security rules, validation and gaps](../docs/10x/23-solana-identity.md). `p
 
 ## Funding completion planning
 
+The [cache-only continuation](../docs/10x/51-cache-only-funding.md) now prioritizes bounded verified saved-body/marker adoption with zero RPC calls. `cached_funding` plans show saved checkpoint counts and a zero request estimate; the existing local timer applies the work under candidate, lease and pause guards. This never freshens a wallet snapshot, clears a source issue or waives another window's gap. Source allowances, catch-up reservations and all evidence gates remain unchanged.
+
 The collector detects saved windows that exceed the unchanged twelve-body bound before spending further transaction requests. The automatic wallet loop replays exact checkpoint inputs and retained bodies, skips known source/sample limits, prioritizes finishable work and paces successful turns by actual cost. All quotas, evidence gates, pause/backoff, leases and freshness limits remain unchanged. A continuation never refreshes candidate eligibility.
 
 Local migration `0016_wallet_yield.sql` records actual calls and conservatively confirmed net window completions. `GET /api/10x/discovery/wallet-plan` exposes read-only plans for up to twenty current contenders and measured yield without provider calls. Discover shows costs and gaps; known work is a request lower bound, never a guaranteed completion. Verify with `pnpm exec tsx scripts/check-discovery-wallet-plan.ts`. See [measured result and remaining gaps](../docs/10x/21-funding-yield-review.md). Ten eligible tokens remain an unmet target.

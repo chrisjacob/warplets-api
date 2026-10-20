@@ -7687,6 +7687,78 @@
             ],
             "additionalProperties": false
           },
+          "authorship": {
+            "type": "object",
+            "properties": {
+              "manual_reviews_today": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "manual_review_limit": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "remaining": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "withdrawals_today": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "withdrawal_daily_limit": {
+                "type": "null"
+              }
+            },
+            "required": [
+              "manual_reviews_today",
+              "manual_review_limit",
+              "remaining",
+              "withdrawals_today",
+              "withdrawal_daily_limit"
+            ],
+            "additionalProperties": false
+          },
+          "duplicate_evidence": {
+            "type": "object",
+            "properties": {
+              "recorded_today": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "record_limit": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "remaining": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "withdrawals_today": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "withdrawal_daily_limit": {
+                "type": "null"
+              }
+            },
+            "required": [
+              "recorded_today",
+              "record_limit",
+              "remaining",
+              "withdrawals_today",
+              "withdrawal_daily_limit"
+            ],
+            "additionalProperties": false
+          },
           "storage": {
             "type": "object",
             "properties": {
@@ -7699,8 +7771,8 @@
                 "const": "serialized_payload_bytes_only"
               },
               "tables": {
-                "minItems": 7,
-                "maxItems": 7,
+                "minItems": 9,
+                "maxItems": 9,
                 "type": "array",
                 "items": {
                   "type": "object",
@@ -7714,7 +7786,9 @@
                         "reports",
                         "report_events",
                         "hold_reviews",
-                        "hold_events"
+                        "hold_events",
+                        "authorship_events",
+                        "duplicate_events"
                       ]
                     },
                     "total_rows": {
@@ -7803,6 +7877,8 @@
           "quotas",
           "identity_daily_limits",
           "holds",
+          "authorship",
+          "duplicate_evidence",
           "storage",
           "retention"
         ],
@@ -34121,6 +34197,7 @@
                       "type": "string",
                       "enum": [
                         "new_snapshot",
+                        "cached_funding",
                         "direct_funding",
                         "reader_recovery",
                         "refresh_required",
@@ -34191,7 +34268,7 @@
                       "anyOf": [
                         {
                           "type": "integer",
-                          "exclusiveMinimum": 0,
+                          "minimum": 0,
                           "maximum": 9007199254740991
                         },
                         {

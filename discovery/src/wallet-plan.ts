@@ -1,14 +1,12 @@
 import { assess, DEFAULT_POLICY, type Candidate } from "./model";
-import { fundingTask, loadFundingCheckpoints,recoverCachedFunding } from "./funding-history";
+import { fundingTask, loadFundingCheckpoints } from "./funding-history";
 import { priorWalletEvidence } from "./wallet-work";
-import { WalletTransactionSchema } from "./wallet-rpc";
-import { hashJson } from "./solana";
 import { comparePotential, potential } from "./priority";
 import { candidates } from "./store";
 import { WalletPlanSchema, WalletPlansResponseSchema, WalletYieldSchema, type WalletPlan } from "./wallet-plan-model";
-import { analyzeWalletEvidence } from "./wallet-analysis";
 import { fundingRecoveryCandidates, fundingRecoveryStatus } from "./funding-recovery";
-import {currentWalletReader,directFundingLimit,expandedFundingScope,fundingSecondHopScope} from "./wallet-funding-scope";
+import {currentWalletReader,directFundingLimit,expandedFundingScope} from "./wallet-funding-scope";
+import { FundingCacheCapacityError, projectCachedFunding } from "./funding-cache-work";
 
 // Read-only planning: estimates describe the known remaining work, never a
 // guarantee of completion or a substitute for a fresh eligibility snapshot.
@@ -20,53 +18,32 @@ export async function walletPlan(db: D1Database, c: Candidate, now = new Date())
     const prior=await expandedFundingScope(db,retained),limit=directFundingLimit(prior);
     base.direct_wallet_limit=limit;base.additional_windows=Math.max(0,(prior.funding_scans?.length??0)-retained.funding_scans.length);
     const loaded = await loadFundingCheckpoints(db,c.address,prior.funding_scans!.map(s=>s.anchor),false,limit);
-    const recovery=await recoverCachedFunding(db,loaded,now,limit),scans=recovery.scans;
-    base.cached_recoverable_markers=recovery.recovered.length;
-    if (scans.some(s=>Date.parse(s.attempted_at)>now.getTime() || s.pages.some(p=>Date.parse(p.fetched_at)>now.getTime()))) throw new Error("funding_checkpoint_from_future");
-    const tasks = scans.map(fundingTask), pending = new Map(tasks.flatMap(t=>t.pending).map(r=>[r.signature,r]));
-    const gaps = [...new Set(tasks.flatMap(t=>t.gaps))];
-    const inputBlocked = prior.gaps.some(g=>["funding_wallet_limit","funding_output_limit","wallet_transaction_sample_limit"].includes(g)) || prior.records.length+[...pending.keys()].filter(s=>!prior.records.some(r=>r.signature===s)).length>64;
-    if (inputBlocked) gaps.push("wallet_snapshot_sample_bound");
-    const blocked = tasks.filter(t=>t.blocked).length, examined = tasks.filter(t=>t.coverage.status==="window_examined").length;
-    const sourceRecovery = inputBlocked ? [] : await fundingRecoveryCandidates(db,c,retained,now);
-    base.source_recoverable_markers=sourceRecovery.length;
-    if(sourceRecovery.length) return WalletPlanSchema.parse({...base,stage:"reader_recovery",windows:scans.length,examined_windows:examined,blocked_windows:blocked,pending_bodies:pending.size,cached_pending_bodies:null,minimum_rpc_calls:1+sourceRecovery.length,gaps});
-    if (blocked || inputBlocked) return WalletPlanSchema.parse({...base,stage:"source_limited",windows:scans.length,examined_windows:examined,blocked_windows:blocked,pending_bodies:pending.size,cached_pending_bodies:null,gaps});
-    // A checkpoint's "available" marker alone cannot certify a completed
-    // window. Replay every retained body before scheduling more provider work.
-    const records=structuredClone(prior.records);
-    for(const record of recovery.records){const previous=records.findIndex(r=>r.signature===record.signature);if(previous>=0)records[previous]={...record,purposes:records[previous]!.purposes};else records.push({...record,purposes:["wallet"]});}
-    for (const scan of scans) for (const entry of scan.examined) {
-      if (records.some(r=>r.signature===entry.signature)) continue;
-      const saved=await db.prepare("SELECT payload,payload_hash,fetched_at FROM tenx_wallet_transactions WHERE signature=?1").bind(entry.signature).first<{payload:string;payload_hash:string;fetched_at:string}>();
-      if (!saved) throw new Error("wallet_checkpoint_body_missing");
-      const tx=WalletTransactionSchema.parse(JSON.parse(saved.payload));
-      if (await hashJson(tx)!==saved.payload_hash) throw new Error("wallet_cache_hash_or_identity_mismatch");
-      records.push({signature:entry.signature,transaction:tx,status:"available",fetched_at:saved.fetched_at,purposes:["wallet"]});
-    }
-    if (records.length+[...pending.keys()].filter(s=>!records.some(r=>r.signature===s)).length>64 || records.reduce((n,r)=>n+new TextEncoder().encode(JSON.stringify(r.transaction)).length,0)>900000) return WalletPlanSchema.parse({...base,stage:"source_limited",windows:scans.length,examined_windows:examined,blocked_windows:blocked,pending_bodies:pending.size,cached_pending_bodies:null,gaps:[...gaps,"wallet_snapshot_sample_bound"]});
-    await analyzeWalletEvidence({...prior,observed_at:now.toISOString(),records,funding_scans:scans,second_hop_scans:await fundingSecondHopScope(db,prior,records,scans)});
-    let cached = 0;
-    for (const row of pending.values()) {
-      if (prior.records.some(r=>r.signature===row.signature && r.status==="available" && r.transaction?.slot===row.slot)) { cached++; continue; }
-      const saved = await db.prepare("SELECT payload,payload_hash,fetched_at FROM tenx_wallet_transactions WHERE signature=?1").bind(row.signature).first<{payload:string;payload_hash:string;fetched_at:string}>();
-      if (!saved) continue;
-      const tx = WalletTransactionSchema.parse(JSON.parse(saved.payload));
-      if (await hashJson(tx)!==saved.payload_hash || tx.slot!==row.slot || tx.transaction.signatures[0]!==row.signature || Date.parse(saved.fetched_at)>now.getTime()) throw new Error("wallet_cache_hash_or_identity_mismatch");
-      cached++;
-    }
-    return WalletPlanSchema.parse({...base,windows:scans.length,examined_windows:examined,blocked_windows:blocked,pending_bodies:pending.size,cached_pending_bodies:cached,
-      stage: examined===scans.length ? "refresh_required" : "direct_funding",
-      minimum_rpc_calls: examined===scans.length ? null : 1+pending.size-cached+tasks.filter(t=>t.coverage.gaps.includes("funding_paging_pending")).length,
-      gaps});
+    const tasks = loaded.map(fundingTask);
+    base.windows = loaded.length;
+    base.examined_windows = tasks.filter(t => t.coverage.status === "window_examined").length;
+    base.blocked_windows = tasks.filter(t => t.blocked).length;
+    base.pending_bodies = new Set(tasks.flatMap(t => t.pending.map(r => r.signature))).size;
+    base.gaps = [...new Set(tasks.flatMap(t => t.gaps))];
+    const cache = await projectCachedFunding(db, prior, loaded, now);
+    if (cache.changes.length) return WalletPlanSchema.parse({...base,stage:"cached_funding",cached_pending_bodies:cache.added,cached_recoverable_markers:cache.recovered,minimum_rpc_calls:0});
+    const sourceRecovery = await fundingRecoveryCandidates(db,c,retained,now);
+    base.source_recoverable_markers = sourceRecovery.length;
+    if (sourceRecovery.length) return WalletPlanSchema.parse({...base,stage:"reader_recovery",cached_pending_bodies:null,minimum_rpc_calls:1+sourceRecovery.length});
+    if (base.blocked_windows) return WalletPlanSchema.parse({...base,stage:"source_limited",cached_pending_bodies:null});
+    const complete = base.examined_windows === base.windows;
+    return WalletPlanSchema.parse({...base,stage:complete?"refresh_required":"direct_funding",
+      // Unprobed bodies may already be cached; only known misses contribute
+      // to this lower bound. It never promises the sample can be completed.
+      minimum_rpc_calls:complete?null:1+cache.known_missing+tasks.filter(t=>t.coverage.gaps.includes("funding_paging_pending")).length});
   } catch (error) {
+    if (error instanceof FundingCacheCapacityError) return WalletPlanSchema.parse({...base,stage:"source_limited",gaps:[...new Set([...base.gaps,error.message])]});
     return WalletPlanSchema.parse({...base,stage:"cache_invalid",gaps:[error instanceof Error && /^[a-z0-9_]{1,90}$/.test(error.message) ? error.message : "wallet_plan_replay_failed"]});
   }
 }
 export function compareWalletPlans(a: {candidate:Candidate;plan:WalletPlan}, b: {candidate:Candidate;plan:WalletPlan}, now: Date) {
-  const tier = (p:WalletPlan) => p.stage==="refresh_required"?0:p.stage==="direct_funding"||p.stage==="reader_recovery"?1:p.stage==="new_snapshot"?2:3;
+  const tier = (p:WalletPlan) => p.stage==="cached_funding"?-1:p.stage==="refresh_required"?0:p.stage==="direct_funding"||p.stage==="reader_recovery"?1:p.stage==="new_snapshot"?2:3;
   const other = (c:Candidate) => assess(c,{...DEFAULT_POLICY,require_wallet_analysis:false},now).eligibility==="eligible" ? 0 : 1;
-  return Number(tier(a.plan)===3)-Number(tier(b.plan)===3) || other(a.candidate)-other(b.candidate) || tier(a.plan)-tier(b.plan) || (a.plan.minimum_rpc_calls ?? 19)-(b.plan.minimum_rpc_calls ?? 19);
+  return Number(tier(a.plan)===3)-Number(tier(b.plan)===3) || Number(a.plan.stage!=="cached_funding")-Number(b.plan.stage!=="cached_funding") || other(a.candidate)-other(b.candidate) || tier(a.plan)-tier(b.plan) || (a.plan.minimum_rpc_calls ?? 19)-(b.plan.minimum_rpc_calls ?? 19);
 }
 export async function walletPlans(db: D1Database, now = new Date()) {
   const all=(await candidates(db)).filter(c=>potential(c,DEFAULT_POLICY,now)).sort((a,b)=>comparePotential(a,b,DEFAULT_POLICY,now));

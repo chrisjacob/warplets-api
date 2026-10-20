@@ -17,6 +17,7 @@ import { compareWalletPlans, walletPlan } from "./wallet-plan";
 import type { WalletPlan } from "./wallet-plan-model";
 import { recordUnsupportedFundingRead, recoverFundingBodies } from "./funding-recovery";
 import {currentWalletReader,DIRECT_FUNDING_WALLETS} from "./wallet-funding-scope";
+import { continueCachedFunding, recordCachedFundingWork } from "./funding-cache-work";
 
 export type WalletSettings = Settings & { walletEnabled: boolean; walletDailyLimit: number };
 export async function walletStatus(db: D1Database, limit: number, enabled: boolean) {
@@ -187,10 +188,23 @@ export async function runWalletCycle(settings: WalletSettings, address?: string,
     const left = Math.max(1, settings.walletDailyLimit - (used?.used ?? 0)), seconds = (Date.parse(`${new Date(now.getTime() + 86400000).toISOString().slice(0, 10)}T00:00:00Z`) - now.getTime()) / 1000;
     // A bounded catch-up reserve brings unfinished windows forward without
     // increasing either daily allowance. Normal pacing uses observed work cost.
-    const catchupSlot = rapid && active.filter(c => c.eligibility === "eligible").length < 10 ? await db.prepare("INSERT INTO tenx_usage(provider,day,used) VALUES('wallet_catchup',?1,18) ON CONFLICT(provider,day) DO UPDATE SET used=used+18 WHERE used+18<=?2 RETURNING used").bind(at.slice(0,10),allowance).first() : null;
+    const catchupSlot = selectedPlan.stage !== "cached_funding" && rapid && active.filter(c => c.eligibility === "eligible").length < 10 ? await db.prepare("INSERT INTO tenx_usage(provider,day,used) VALUES('wallet_catchup',?1,18) ON CONFLICT(provider,day) DO UPDATE SET used=used+18 WHERE used+18<=?2 RETURNING used").bind(at.slice(0,10),allowance).first() : null;
     const spacingFor = (cost:number) => catchupSlot ? 60 : Math.min(seconds + 60, Math.max(60, Math.min(7200, Math.ceil(seconds * Math.max(1,Math.min(18,cost)) / left))));
     const spacing = spacingFor(selectedPlan.minimum_rpc_calls ?? work.get(candidate.address)?.rpc_calls ?? 18);
     await db.prepare("UPDATE tenx_wallet_control SET next_refresh_at=?1 WHERE id=1 AND lease_owner=?2").bind(new Date(now.getTime() + spacing * 1000).toISOString(), owner).run();
+    if (selectedPlan.stage === "cached_funding") {
+      kind = "funding";
+      if (!potential(candidate, DEFAULT_POLICY, now)) throw new Error("funding_cache_not_current_contender");
+      try {
+        const progress = await continueCachedFunding(db, candidate, owner, now);
+        if (await recordCachedFundingWork(db, candidate, owner, at, progress, Math.max(0, progress.examined_windows - selectedPlan.examined_windows)))
+          return { state: "progressed", address: candidate.address, rpc_calls: 0, progress, snapshot_updated: false, source: "verified_cache" };
+      } catch (error) {
+        if (!(error instanceof Error && error.message === "funding_cache_checkpoint_or_owner_changed")) throw error;
+      }
+      await db.prepare("UPDATE tenx_wallet_control SET lease_owner=NULL,lease_until=NULL,next_refresh_at=?1 WHERE id=1 AND lease_owner=?2").bind(new Date(Date.now()+60000).toISOString(), owner).run();
+      return { state: "waiting", reason: "funding_cache_checkpoint_or_owner_changed", rpc_calls: 0 };
+    }
     if(selectedPlan.stage === "reader_recovery") {
       kind="funding";
       // Recovery is collection priority only; it cannot bypass the current

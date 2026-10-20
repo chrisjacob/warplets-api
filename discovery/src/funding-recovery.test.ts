@@ -193,7 +193,7 @@ it("commits the verified cache and immutable receipt atomically; leaves checkpoi
   expect(() => f.sqlite.exec("DELETE FROM tenx_funding_reads")).toThrow("funding_read_immutable");
   expect(await f.db.prepare("SELECT payload FROM tenx_candidates").all()).toEqual(before); expect(await f.db.prepare("SELECT * FROM tenx_funding_scans").all()).toEqual(scans);
   expect(await priorWalletEvidence(f.db, f.candidate)).toEqual(f.input);
-  expect(await walletPlan(f.db, f.candidate, now)).toMatchObject({ stage: "refresh_required", cached_recoverable_markers: 1, source_recoverable_markers: 0 });
+  expect(await walletPlan(f.db, f.candidate, now)).toMatchObject({ stage: "cached_funding", cached_recoverable_markers: 1, minimum_rpc_calls: 0, source_recoverable_markers: 0 });
 });
 it.each(["null", "version", "layout", "rate", "identity"])("retains %s recovery results without repeated reads", async failure => {
   const f = await setup(); await f.owner();

@@ -179,7 +179,7 @@ describe("budget-aware funding plans",()=>{
     await saveCandidate(f.db,candidate);await f.db.prepare("INSERT INTO tenx_wallet_evidence(payload_hash,address,payload,observed_at) VALUES(?,?,?,?)").bind(analysis.evidence_hash,candidate.address,JSON.stringify(input),at).run();await checkpoint(f.db,candidate.address,scan);
     await f.db.prepare("INSERT INTO tenx_wallet_transactions(signature,payload_hash,payload,fetched_at) VALUES(?,?,?,?)").bind(realFunding.signature,realFunding.transaction_hash,JSON.stringify(tx),at).run();
     const before=await f.db.prepare("SELECT payload FROM tenx_candidates ORDER BY address").all(),oldScan=await f.db.prepare("SELECT payload FROM tenx_funding_scans WHERE address=?").bind(candidate.address).first();
-    expect(await walletPlan(f.db,candidate)).toMatchObject({stage:"refresh_required",windows:1,examined_windows:1,cached_recoverable_markers:1});expect(await f.db.prepare("SELECT payload FROM tenx_funding_scans WHERE address=?").bind(candidate.address).first()).toEqual(oldScan);
+    expect(await walletPlan(f.db,candidate)).toMatchObject({stage:"cached_funding",windows:1,examined_windows:0,cached_recoverable_markers:1,minimum_rpc_calls:0});expect(await f.db.prepare("SELECT payload FROM tenx_funding_scans WHERE address=?").bind(candidate.address).first()).toEqual(oldScan);
     const work=await continueFunding(f.db,candidate,f.rpc());expect(work).toMatchObject({stage:"refresh_required",examined_windows:1,rpc_calls:1});expect(f.transport.mock.calls.every(([,init])=>JSON.parse(String(init?.body)).method==="getGenesisHash")).toBe(true);
     expect(await f.db.prepare("SELECT payload FROM tenx_candidates ORDER BY address").all()).toEqual(before);expect(candidate.wallet_analysis.observed_at).toBe(at);expect((await walletPlan(f.db,candidate)).cached_recoverable_markers).toBe(0);
     expect(await analyzeWalletEvidence(input)).toEqual(analysis);
@@ -203,11 +203,11 @@ describe("budget-aware funding plans",()=>{
     expect(await runWalletCycle(settings,candidate.address)).toMatchObject({state:"waiting",reason:"source_limited",rpc_calls:0});
     expect(transport).not.toHaveBeenCalled();expect(await db.prepare("SELECT * FROM tenx_wallet_usage").all()).toMatchObject({results:[]});expect(await db.prepare("SELECT payload FROM tenx_candidates").all()).toEqual(before);
   });
-  it("counts reusable saved bodies and rejects poisoned pending cache entries before network work",async()=>{
+  it("rejects unrelated wallet bodies and poisoned pending cache entries before network work",async()=>{
     const {db,candidate,input}=await setup(),scan=structuredClone(input.funding_scans![1]!),tx=input.records[2]!.transaction!;
     scan.pages=[{before:scan.anchor.signature,fetched_at:input.observed_at,rows:[{signature:tx.transaction.signatures[0]!,slot:tx.slot,blockTime:tx.blockTime,err:null,confirmationStatus:"finalized"},{signature:signature(91),slot:tx.slot-1,blockTime:Date.parse(scan.anchor.block_time)/1000-3601,err:null,confirmationStatus:"finalized"}]}];
     await checkpoint(db,candidate.address,scan);
-    const cachedPlan=await walletPlan(db,candidate);expect(cachedPlan,JSON.stringify(cachedPlan)).toMatchObject({stage:"direct_funding",pending_bodies:1,cached_pending_bodies:1,minimum_rpc_calls:4});
+    const cachedPlan=await walletPlan(db,candidate);expect(cachedPlan,JSON.stringify(cachedPlan)).toMatchObject({stage:"cache_invalid",gaps:["funding_wallet_not_referenced"]});
     // The prior input is verified separately; use a genuinely pending cached body.
     const missing=await trade(key(8),9999,"buy",92);missing.blockTime=Date.parse(scan.anchor.block_time)/1000-10;
     scan.pages[0]!.rows[0]={signature:signature(92),slot:missing.slot,blockTime:missing.blockTime,err:null,confirmationStatus:"finalized"};scan.pages[0]!.rows[1]!.slot=missing.slot-1;await checkpoint(db,candidate.address,scan);

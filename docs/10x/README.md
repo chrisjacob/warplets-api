@@ -1,5 +1,7 @@
 # 10X.MEME engineering kickoff
 
+Latest coverage milestone: [cache-only funding continuation](51-cache-only-funding.md). Verified saved transactions now advance bounded checkpoints with zero RPC/catch-up quota, while candidate freshness and all eligibility gates remain unchanged. Data status reports saved progress separately from projected repair. Current live coverage is still 0/10; no deploy.
+
 Latest recovery milestone: [isolated preview restoration and launcher shutdown](50-preview-recovery.md). The existing supervisor now loads a launcher that aborts pending local requests and cannot recreate a timer after Worker exit. Free budgets, pause/backoff, all evidence gates and the 0/10 coverage gap remain. No deploy.
 
 Planning checkpoint: 20 October 2026 (Australia/Sydney). Product specification: v1.1, 17 October 2026.

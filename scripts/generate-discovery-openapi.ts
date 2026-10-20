@@ -1,4 +1,5 @@
 import { writeFileSync } from "node:fs";
+import attentionPaths from "../discovery/openapi-attention-paths.json";
 import { z } from "zod";
 import { InboxRecoveryResponse } from "../discovery/src/inbox-recovery-model";
 import {ContentReportPage,ContentReportRecord,ContentReportRequest,ContentReportReviewRequest} from "../discovery/src/content-report-model";
@@ -117,6 +118,9 @@ const spec = {
     "/api/10x/admin/dry-run": post("Freeze live inputs and simulate selection; retry with the same request_id to return the original snapshot and one audit", { request_id: { type: "string", format: "uuid" } }),
     "/api/10x/admin/policies/preview": { post: { ...post("Freeze and compare stricter numeric thresholds; locked evidence gates, no activation, zero provider calls, 20 new previews per UTC day").post, ...responseSchema("PolicyPreviewResponse"), requestBody: { required: true, content: { "application/json": { schema: { $ref: "#/components/schemas/PolicyPreviewRequest" } } } } } },
     "/api/10x/admin/policies/previews/{id}": read("Load retained policy comparison and verify hashes/replay; authenticated, no-store", { ...responseSchema("PolicyPreviewResponse"), security: [{ localOperator: [] }], parameters: [parameter("id", "path", { type: "string", format: "uuid" }, true)] }),
+    // These existing endpoint descriptions were previously edited only in the
+    // generated output. Retain them on every schema regeneration.
+    ...attentionPaths,
   },
   components: { securitySchemes: { localIdentity: {type:"apiKey", in:"cookie", name:"__Host-tenx_solana", description:"HttpOnly same-origin signed Solana identity session; loopback uses tenx_solana_local. Writes require exact Origin and X-Tenx-Identity: 1, not an operator token."}, localOperator: { type: "http", scheme: "bearer", description: "Random local operator token (32+ bytes); strict Bearer authorization, allowed local Origin and same-origin Fetch Metadata when supplied. Headerless local CLI/timer calls remain supported. Admin JSON bodies are limited to 32,000 bytes. Never stored in browser storage or source control." } }, schemas: {
     ContentCampaignList:z.toJSONSchema(ContentCampaignList), ContentCampaignDetail:z.toJSONSchema(ContentCampaignDetail), ContentCampaign:z.toJSONSchema(ContentCampaign), ContentCampaignRequest:z.toJSONSchema(ContentCampaignRequest), ContentSubmissionRequest:z.toJSONSchema(ContentSubmissionRequest), ContentAppealRequest:z.toJSONSchema(ContentAppealRequest), ContentReviewRequest:z.toJSONSchema(ContentReviewRequest), ContentPage:z.toJSONSchema(ContentPage), ContentRecord:z.toJSONSchema(ContentRecord), ContentChangeResponse:z.toJSONSchema(ContentChangeResponse),

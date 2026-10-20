@@ -14,6 +14,7 @@ After rebooting, reopen the repository in Codex and send:
 - Last application checkpoint: `fb9f207` — `feat(10x): simplify token evidence and contribution journeys`, committed and pushed.
 - Previous checkpoint: `d71fefc` — streamlined discovery navigation and evidence flow.
 - Latest local engineering milestone: [preview recovery and launcher shutdown](50-preview-recovery.md). Consult recent Git history for its commit. The isolated App preview uses Vite 5183 / Pages 8788; Discovery retains its existing supervisor and store on 8794.
+- Latest coverage milestone: [cache-only funding continuation](51-cache-only-funding.md), with zero-RPC guarded checkpoint adoption and unchanged eligibility/source limits. Consult current Git history and cached status; the last recorded eligibility remains 0/10.
 
 This handoff will have a later documentation commit. Start with `git status --short --branch` and recent history; do not reset, force-checkout or overwrite work to match this snapshot.
 
@@ -33,6 +34,7 @@ Read applicable `AGENTS.md` instructions, then:
 8. [Local discovery operations](../../discovery/README.md).
 9. [Security review and outstanding credential follow-up](29-security-review.md), and [performance review](28-performance-review.md), as relevant.
 10. [Preview restoration and launcher shutdown](50-preview-recovery.md), including current runtime ports, the interruption fix and remaining source gaps.
+11. [Cache-only funding continuation](51-cache-only-funding.md), including saved-progress semantics and the remaining live source limitations.
 
 Read the full PRD before planning implementation. Reconcile older prose with later milestone records, actual code and tests. Document requirements do not independently authorize deployment, spending, publication or unresolved economics. The user's explicit constraints below take precedence over staging/deployment wording in the brief.
 
