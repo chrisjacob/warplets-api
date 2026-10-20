@@ -18,6 +18,8 @@ Reviewed 20 October 2026 against the entire [PRD v1.1](spec/10X_MEME_FULL_PRD_v1
 
 ## Ordered work packages
 
+P3 recovery update, 21 October: [bounded migration inbox rechecks](32-migration-inbox-recovery.md) now revisit recent unversioned transaction-version rejections once per reader. Atomic two-per-turn/twenty-per-day admission stays inside existing discovery/RPC limits, retains old failures and exposes cached receipts in Data status. The first normal tick recovered a real v1 migration with a retained replay fixture. Funding-marker recovery and live v1 wallet/funding fixtures remain open; no eligibility gates were relaxed.
+
 P3/P6 update, 21 October: [strict v1 transaction reads and terminal funding-gap retention](31-transaction-v1-coverage.md) are implemented locally. Historical hashes, evidence gates and provider allowances remain unchanged. Live v1 fixture certification and bounded recovery of previously unsupported checkpoints remain next; the ten-token target is still unmet.
 
 P6 update: [retained cutoff snapshots/provider references](25-cutoff-history-and-price-references.md) now have [bounded frozen-wallet history collection and RPC finality observations](26-wallet-window-coverage.md), with offline source manifests and explicit missing evidence. Verified historical USD, independently complete source/finality coverage and stronger membership evidence remain outstanding.

@@ -6,6 +6,7 @@ import { marketForPool } from "./market";
 import { RpcClient, SourceError, TransactionSchema, type Transaction, type Accounts } from "./rpc";
 import { acquire, candidates, control, reserveQuota, saveCandidate, type Lead } from "./store";
 import { findPda, seed } from "./solana";
+import { claimRecovery, finishRecovery, recordUnsupportedRead, recoveryCandidates, type InboxEntry } from "./inbox-recovery";
 
 export type Settings = {
   db: D1Database; rpcUrl: string; rpcDailyLimit: number; marketDailyLimit: number; marketEnabled: boolean;
@@ -71,18 +72,34 @@ export async function runCycle(settings: Settings, now = new Date()): Promise<Re
           .bind(at, rows[0]?.signature ?? state.migration_cursor, id),
       ]);
     }
-    const pending = await db.prepare("SELECT signature FROM tenx_pending_signatures WHERE processed_at IS NULL ORDER BY slot DESC LIMIT 6").all<{ signature: string }>();
-    for (const row of pending.results) {
+    const recovery = await recoveryCandidates(db,now);
+    const pending = await db.prepare("SELECT signature,slot,processed_at,result FROM tenx_pending_signatures WHERE processed_at IS NULL ORDER BY slot DESC LIMIT ?1").bind(6-recovery.length).all<InboxEntry>();
+    for (const row of [...pending.results,...recovery]) {
+      const recovering=row.processed_at!==null;
+      if(recovering&&!await claimRecovery(db,row,id,now))continue;
       let tx;
       try { tx = await rpc.transaction(row.signature); }
       catch (error) {
+        if(recovering) {
+          const code=error instanceof SourceError?error.code:"transaction_read_failed";
+          await finishRecovery(db,row,id,code,null,new Date());
+          if(error instanceof SourceError&&["unsupported_transaction_version","transaction_layout_unsupported"].includes(error.code))continue;
+          throw error;
+        }
         if (!(error instanceof SourceError) || !["unsupported_transaction_version", "transaction_layout_unsupported"].includes(error.code)) throw error;
         await assertOwner();
-        await db.prepare("UPDATE tenx_pending_signatures SET processed_at=?1,result=?2 WHERE signature=?3").bind(at, error.code, row.signature).run();
+        await recordUnsupportedRead(db,row,id,error.code,now);
         continue;
       }
       await assertOwner();
-      if (!tx) continue; // archival miss stays retryable
+      if (!tx) {
+        if(recovering)await finishRecovery(db,row,id,"recovery_archival_missing",null,new Date());
+        continue; // Ordinary archival misses retain their existing retry behavior.
+      }
+      if(recovering&&(tx.slot!==row.slot||tx.blockTime===null||tx.blockTime*1000>now.getTime())) {
+        await finishRecovery(db,row,id,"recovery_transaction_identity_or_time_mismatch",null,new Date());
+        throw new SourceError("recovery_transaction_identity_or_time_mismatch");
+      }
       let outcome = "not_a_migration";
       try {
         for (const migration of await migrations(tx)) {
@@ -93,7 +110,8 @@ export async function runCycle(settings: Settings, now = new Date()): Promise<Re
           outcome = "migration_verified";
         }
       } catch { outcome = "unsupported_or_invalid_transaction"; }
-      await db.prepare("UPDATE tenx_pending_signatures SET processed_at=?1,result=?2 WHERE signature=?3").bind(at, outcome, row.signature).run();
+      if(recovering)await finishRecovery(db,row,id,outcome,tx,new Date());
+      else await db.prepare("UPDATE tenx_pending_signatures SET processed_at=?1,result=?2 WHERE signature=?3").bind(at, outcome, row.signature).run();
     }
     for (const lead of await dueLeads(db, at)) {
       if (rpc.calls > 14) break; // Leave the bounded worst-case nine calls for inspection.

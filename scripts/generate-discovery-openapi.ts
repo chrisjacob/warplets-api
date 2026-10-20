@@ -1,5 +1,6 @@
 import { writeFileSync } from "node:fs";
 import { z } from "zod";
+import { InboxRecoveryResponse } from "../discovery/src/inbox-recovery-model";
 import { CardListResponse } from "../app/src/discovery/client";
 import { RewardList, RewardRecord, RewardRequest } from "../discovery/src/reward-model";
 import { ContentAppealRequest, ContentCampaign, ContentCampaignDetail, ContentCampaignList, ContentCampaignRequest, ContentChangeResponse, ContentPage, ContentRecord, ContentReviewRequest, ContentSubmissionRequest } from "../discovery/src/content-model";
@@ -31,6 +32,7 @@ const spec = {
   openapi: "3.1.0", info: { title: "10X local Solana discovery", version: "0.1.0", description: "Local-only chain discovery and signed-message wallet ownership. No server-held signers, transactions, votes, launches or financial flows. Public reads use stored data; only authenticated refresh makes provider requests." },
   servers: [{ url: "http://127.0.0.1:8794" }],
   paths: {
+    "/api/10x/discovery/inbox-recovery": read("Cached version-upgrade migration recheck receipts and daily subset; zero source calls, no eligibility changes",responseSchema("InboxRecoveryResponse")),
     "/api/10x/attention/campaigns": read("Local ten-day content review campaigns; no real launch or reward budget", { ...responseSchema("ContentCampaignList"), parameters: [parameter("cursor", "query", { type: "string", maxLength: 100 })] }),
     "/api/10x/attention/campaigns/{id}": read("Public reviewed links only; no contributor identity, private moderation reason or pending content", { ...responseSchema("ContentCampaignDetail"), parameters: [parameter("id", "path", { type: "string", format: "uuid" }, true), parameter("cursor", "query", { type: "string", maxLength: 100 })] }),
     "/api/10x/attention/mine": read("Private submissions for the signed Solana browser session; cursor pagination, 20 per page", { ...responseSchema("ContentPage"), security: [{ localIdentity: [] }], parameters: [parameter("cursor", "query", { type: "string", maxLength: 100 })] }),
@@ -127,6 +129,7 @@ const spec = {
     ElectionsResponse: z.toJSONSchema(ElectionsResponse, { unrepresentable: "any" }),
     ElectionDetailResponse: z.toJSONSchema(ElectionDetailResponse, { unrepresentable: "any" }),
     CoverageResponse: z.toJSONSchema(CoverageResponse, { unrepresentable: "any" }),
+    InboxRecoveryResponse: z.toJSONSchema(InboxRecoveryResponse, { unrepresentable: "any" }),
     ActivityResponse: z.toJSONSchema(ActivityResponse, { unrepresentable: "any" }),
   } },
 };

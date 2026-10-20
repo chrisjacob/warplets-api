@@ -15,6 +15,7 @@ import { reserveWalletQuota, runWalletCycle } from "./wallet-cycle";
 import { WSOL } from "./pump";
 import { CandidateCardSchema, candidateCard } from "./candidate-card";
 import { assess } from "./model";
+import { InboxRecoveryResponse } from "./inbox-recovery-model";
 
 const instances: DatabaseSync[] = [];
 afterEach(() => { instances.splice(0).forEach(db => db.close()); vi.restoreAllMocks(); });
@@ -43,6 +44,7 @@ function fixture() {
   db.exec(readFileSync(new URL("../migrations/0021_backing_candidate_scope_guard.sql", import.meta.url), "utf8"));
   db.exec(readFileSync(new URL("../migrations/0022_backing_window_index.sql", import.meta.url), "utf8"));
   db.exec(readFileSync(new URL("../migrations/0023_attention_lab.sql", import.meta.url), "utf8"));
+  db.exec(readFileSync(new URL("../migrations/0025_inbox_recovery.sql", import.meta.url), "utf8"));
   const d1 = sqliteD1(db);
   const env: LocalEnv = { TENX_DB: d1, TENX_LOCAL_ONLY: "true", TENX_NODE_RELAY: "false", TENX_ADMIN_TOKEN: "a".repeat(64), TENX_RPC_URL: "https://api.mainnet-beta.solana.com", TENX_RPC_DAILY_LIMIT: "3000", TENX_MARKET_DAILY_LIMIT: "600", TENX_MARKET_PROVIDER: "geckoterminal", TENX_QUALITY_ENABLED: "true", TENX_QUALITY_RPC_DAILY_LIMIT: "1800", TENX_MARKET_ENABLED: "false", TENX_WALLET_ANALYSIS_ENABLED: "true", TENX_WALLET_RPC_DAILY_LIMIT: "800" };
   return { db, d1, env };
@@ -50,6 +52,14 @@ function fixture() {
 const req = (path: string, init?: RequestInit) => new Request(`http://127.0.0.1:8794/api/10x/${path}`, init);
 function admin(body: unknown, token = "a".repeat(64)): RequestInit { return { method: "POST", headers: { authorization: `Bearer ${token}`, "content-type": "application/json" }, body: JSON.stringify(body) }; }
 describe("durable discovery state and public/admin API", () => {
+  it("serves recovery receipts from saved state without reserving source calls or accepting public writes",async()=>{
+    const {d1,env}=fixture(),outside=vi.spyOn(globalThis,"fetch").mockRejectedValue(new Error("provider forbidden"));
+    const before=await d1.prepare("SELECT * FROM tenx_usage").all();
+    const response=await handle(req("discovery/inbox-recovery"),env);expect(response.status).toBe(200);expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(InboxRecoveryResponse.parse(await response.json()).data).toMatchObject({used_today:0,pending_recent:0,recent:[],provider_requests:0,evidence_gates_changed:false});
+    expect((await handle(req("discovery/inbox-recovery",{method:"POST"}),env)).status).toBe(404);
+    expect(await d1.prepare("SELECT * FROM tenx_usage").all()).toEqual(before);expect(outside).not.toHaveBeenCalled();
+  });
   it("projects compact cards only after full assessment and keeps evidence on detail/default reads", async () => {
     const { d1, env } = fixture(), at = new Date(), examples = await fixtureCandidates(at);
     examples[0].wallet_analysis = await gateSample();

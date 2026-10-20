@@ -21,6 +21,8 @@ import { OperationsPanel } from "./OperationsPanel";
 import { SolanaIdentity } from "./WalletIdentityPage";
 import { BackingLab, BackingPage } from "./BackingRehearsal";
 import { AttentionRewardLab, AttentionRewardsPage } from "./AttentionRewards";
+import { InboxRecoveryPanel } from "./InboxRecoveryPanel";
+import { InboxRecoveryResponse } from "../../../discovery/src/inbox-recovery-model";
 import "./discovery.css";
 
 const LazyAttentionContent = lazy(() => import("./AttentionContent").then(m => ({ default: m.AttentionContentPage })));
@@ -207,8 +209,10 @@ function ElectionsView({ id }: { id?: string }) {
 function StatusView() {
   const { data, error } = useRemote(signal => getJson("/api/10x/system/status", StatusResponse, signal), "status");
   const health=useRemote(signal=>getJson("/api/10x/system/operations",OperationsResponse,signal),"operations");
+  const recovery=useRemote(signal=>getJson("/api/10x/discovery/inbox-recovery",InboxRecoveryResponse,signal),"inbox-recovery");
   return <><header className="tenx-heading"><p className="tenx-eyebrow">DATA / OPERATIONS</p><h1>Know what’s fresh.</h1><p>Source coverage, proof gaps and free-service budgets, in plain sight.</p></header>
     <OperationsPanel data={health.data?.data??null} error={health.error} />
+    <InboxRecoveryPanel data={recovery.data?.data??null} error={recovery.error} />
     {error && <p role="alert" className="tenx-notice">{error}</p>}{data ? <><Freshness data={data} /><section className="tenx-panel"><h2>Local ingestion</h2><dl><dt>State</dt><dd>{data.data.paused ? "Paused" : data.data.running ? "Refreshing" : "Waiting for next tick"}</dd><dt>Last source issue</dt><dd>{data.data.last_error ? readableReason(data.data.last_error) : "None recorded"}</dd><dt>Queued signatures</dt><dd>{data.data.pending_signatures}</dd><dt>Market provider</dt><dd>{data.coverage.market_enabled ? `${marketSource(data.data.market_provider ?? "geckoterminal")} enabled locally` : "Off pending usage review"}</dd><dt>Proof adapter</dt><dd className="tenx-address">{data.data.adapter_version}</dd></dl></section>
       <section className="tenx-panel"><h2>Daily source budgets · UTC</h2>{(["rpc", "market"] as const).map(provider => { const used = data.data.usage.find(u => u.provider === provider)?.used ?? 0, limit = data.data.daily_limits[provider]; return <div className="tenx-budget" key={provider}><div className="tenx-row"><strong>{provider === "rpc" ? "Solana public RPC" : "Market enrichment"}</strong><span>{used} / {limit}</span></div><meter min={0} max={limit} value={used} aria-label={`${provider} daily requests`} /></div>; })}<p>Budgets pause work when exhausted. No paid upgrade or onchain transaction is enabled.</p></section>
     <section className="tenx-panel"><h2>Local automation</h2><dl><dt>Timer heartbeat</dt><dd>{time(data.data.automation?.heartbeat_at ?? null)}</dd><dt>Next paced source refresh</dt><dd>{time(data.data.automation?.next_refresh_at ?? null)}</dd><dt>Last daily review check</dt><dd>{time(data.data.automation?.reviewed_at ?? null)}</dd></dl><p>Source requests are paced across the remaining free daily budget. Daily reports catch up hourly, even when source work is paused or exhausted. The workstation must be awake.</p><a href="/research">Review outcomes & proposals →</a></section>

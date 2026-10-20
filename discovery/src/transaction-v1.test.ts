@@ -5,6 +5,8 @@ import { key, signature, trade, walletInput } from "./wallet-fixtures.test-helpe
 import { hashJson, toBase58 } from "./solana";
 import { fundingTransfers, verifiedTrades } from "./wallet-trades";
 import recorded from "../fixtures/recorded/temporary-wsol-trade.json";
+import recordedMigration from "../fixtures/recorded/v1-pump-migration.json";
+import {graduationProof,migrations,WSOL} from "./pump";
 
 // Synthetic RPC layout based on pinned Agave v4.2.2 UiRawMessage /
 // UiTransactionConfig. This is never presented as recorded chain evidence.
@@ -23,6 +25,20 @@ function reader(raw: unknown) {
   return { rpc: new RpcClient("https://rpc.example", reserve, transport), reserve, transport };
 }
 describe("version-aware finalized transaction reads", () => {
+  it("replays the real finalized v1 migration recovered by the metered local collector",async()=>{
+    const tx=TransactionSchema.parse(recordedMigration.transaction);
+    expect(recordedMigration.source).toBe("solana-finalized-rpc");expect(tx.version).toBe(1);
+    expect(tx.transaction.signatures[0]).toBe(recordedMigration.signature);
+    expect(await hashJson(tx)).toBe(recordedMigration.transaction_hash);
+    expect(tx.transaction.message.transactionConfig).toEqual(recordedMigration.transaction.transaction.message.transactionConfig);
+    const found=(await migrations(tx)).find(m=>m.address===recordedMigration.mint&&m.pool===recordedMigration.pool);
+    expect(found).toBeDefined();expect(found!.quote).toBe(WSOL);
+    const proof=await graduationProof(tx,found!,recordedMigration.recorded_at);
+    expect(proof).toMatchObject({kind:"graduation",signature:recordedMigration.signature,slot:tx.slot,payload_hash:recordedMigration.transaction_hash});
+    // This retained normalized migration does not contain wallet balances or
+    // independently prove creation, holders, funding coverage or eligibility.
+    expect(WalletTransactionSchema.safeParse(tx).success).toBe(false);
+  });
   it("opts in to v1 in both readers and retains the exact resource config", async () => {
     const raw = await v1();
     for (const wallet of [false, true]) {
