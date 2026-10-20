@@ -6,6 +6,7 @@ import {contentHoldSet,contentVisibilityHeld} from "./content-reports";
 import {canonicalContentUrl,ContentError} from "./content-url";
 import type {requireContentIdentity} from "./identity";
 import {hashJson} from "./solana";
+import {CONTENT_LIMITS as limits} from "./content-limits";
 
 type Principal=Awaited<ReturnType<typeof requireContentIdentity>>;
 type Snapshot=z.infer<typeof HoldReviewSnapshot>;
@@ -70,9 +71,9 @@ export async function requestHoldReview(db:D1Database,raw:unknown,p:Principal,at
      SELECT ?,?,?,?,?,?,'OPEN',0,?,?,? WHERE ${sessionSql}
      AND NOT EXISTS(SELECT 1 FROM tenx_content_hold_events WHERE id=?)
      AND EXISTS(SELECT 1 FROM tenx_content_submissions WHERE id=? AND identity_id=?) AND ${holdGuardSql}=?
-     AND (SELECT count(*) FROM tenx_content_hold_reviews WHERE created_at>=? AND created_at<?)<20
-     AND (SELECT count(*) FROM tenx_content_hold_reviews WHERE owner_identity_id=? AND created_at>=? AND created_at<?)<3
-     AND (SELECT count(*) FROM tenx_content_hold_events WHERE created_at>=? AND created_at<?)<100`)
+     AND (SELECT count(*) FROM tenx_content_hold_reviews WHERE created_at>=? AND created_at<?)<${limits.hold_reviews_per_day}
+     AND (SELECT count(*) FROM tenx_content_hold_reviews WHERE owner_identity_id=? AND created_at>=? AND created_at<?)<${limits.hold_reviews_per_identity_day}
+     AND (SELECT count(*) FROM tenx_content_hold_events WHERE created_at>=? AND created_at<?)<${limits.hold_events_per_day}`)
      .bind(snapshot.id,snapshot.submission_id,p.identity_id,holds.hash,now,now,request_hash,JSON.stringify(snapshot),event.hash,...sessionArgs(p,now),event.id,snapshot.submission_id,p.identity_id,snapshot.submission_id,holds.guard,...day(at),p.identity_id,...day(at),...day(at)),
     db.prepare(`INSERT OR IGNORE INTO tenx_content_hold_events(id,review_id,revision,created_at,request_hash,event) SELECT ?,?,0,?,?,?
      WHERE EXISTS(SELECT 1 FROM tenx_content_hold_reviews WHERE id=? AND owner_identity_id=? AND request_hash=? AND event_hash=? AND revision=0)`)
@@ -106,7 +107,7 @@ export async function replyHoldReview(db:D1Database,raw:unknown,p:Principal|null
     db.prepare(`INSERT OR IGNORE INTO tenx_content_hold_events(id,review_id,revision,created_at,request_hash,event) SELECT ?,?,?,?,?,?
      WHERE EXISTS(SELECT 1 FROM tenx_content_hold_reviews WHERE id=? AND revision=? AND event_hash=?)
      ${p?`AND ${sessionSql}`:""}
-     AND (SELECT count(*) FROM tenx_content_hold_events WHERE created_at>=? AND created_at<?)<100`)
+     AND (SELECT count(*) FROM tenx_content_hold_events WHERE created_at>=? AND created_at<?)<${limits.hold_events_per_day}`)
      .bind(event.id,snapshot.id,snapshot.revision,now,request_hash,JSON.stringify(event),snapshot.id,previous.revision,event.previous_hash,...(p?sessionArgs(p,now):[]),...day(at)),
     db.prepare(`UPDATE tenx_content_hold_reviews SET snapshot=?,status=?,revision=?,updated_at=?,event_hash=? WHERE id=? AND revision=? AND event_hash=?
      AND EXISTS(SELECT 1 FROM tenx_content_hold_events WHERE id=? AND request_hash=? AND event=?)`)

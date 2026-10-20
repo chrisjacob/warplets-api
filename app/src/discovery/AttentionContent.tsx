@@ -5,6 +5,7 @@ import { IdentitySessionResponse } from "../../../discovery/src/identity-model";
 import {contentApi as api} from "./contentApi";
 import {ContentReportForm,ContentReportsPanel} from "./ContentReports";
 import {HoldReviewForm,HoldReviewsPanel} from "./ContentHoldReviews";
+import {ContentOperationsPanel} from "./ContentOperations";
 
 type Submission = z.infer<typeof ContentSnapshot>;
 type Campaign = z.infer<typeof PublicContentCampaign>;
@@ -125,6 +126,7 @@ export function ContentModerationLab({ token }: { token: string }) {
     <label>Queue status<select value={status} onChange={e => { setStatus(e.target.value); setQueue(null); }}><option value="">All states</option>{["PENDING", "FLAGGED", "APPEALED", "VISIBLE", "REJECTED"].map(s => <option key={s}>{s}</option>)}</select></label>
     <button className="tenx-button" disabled={!token || busy} onClick={() => void load()}>Load private moderation queue</button><a href="/attention"> View content campaigns →</a><p role="status">{busy ? "Checking local records…" : message}</p>
     {token && queue?.submissions.length === 0 && <p>No submissions in this queue.</p>}{token && queue?.submissions.map(s => <div key={`${s.id}:${s.revision}`}>{queue.held_submission_ids.includes(s.id)&&<p className="tenx-notice">An upheld report holds this link out of the public feed. Ordinary moderation does not release report holds.</p>}<ReviewSubmission item={s} token={token} changed={() => void load()} /></div>)}{token && queue?.next_cursor && <button className="tenx-button" disabled={busy} onClick={() => void load(queue.next_cursor!)}>More queue items</button>}
+    <ContentOperationsPanel token={token}/>
     <ContentReportsPanel token={token}/>
     <HoldReviewsPanel key={token} token={token}/>
   </section>;

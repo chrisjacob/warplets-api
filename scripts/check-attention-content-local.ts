@@ -8,6 +8,7 @@ import { createServer } from "node:net";
 import { toBase58 } from "../discovery/src/solana";
 import { ContentCampaign, ContentCampaignDetail, ContentChangeResponse, ContentPage, ContentRecord } from "../discovery/src/content-model";
 import {HoldReviewPage,HoldReviewRecord} from "../discovery/src/content-hold-model";
+import {ContentOperations} from "../discovery/src/content-operations-model";
 import { IdentityChallengeResponse, IdentitySessionResponse } from "../discovery/src/identity-model";
 import {ContentReportPage,ContentReportRecord} from "../discovery/src/content-report-model";
 
@@ -104,14 +105,22 @@ try {
   assert.deepEqual(conversation.events.map(e=>e.snapshot.status),["OPEN","NEEDS_INFO","RESUBMITTED","CLOSED"]);assert.equal(conversation.visibility_held,true);
   assert.deepEqual(ContentRecord.parse(await (await call(`admin/attention/submissions/${target.id}`,undefined,undefined,true)).json()),held);
   assert.equal(HoldReviewPage.parse(await (await call("attention/hold-reviews/mine",undefined,contributor.cookie)).json()).reviews.length,1);
+  assert.equal((await call("admin/attention/operations",undefined,contributor.cookie)).status,401);
+  const operationsResponse=await call("admin/attention/operations",undefined,undefined,true);assert.equal(operationsResponse.status,200);assert.equal(operationsResponse.headers.get("cache-control"),"no-store");
+  const operations=ContentOperations.parse(await operationsResponse.json());assert.equal(operations.integrity,"projection_counts_only");assert.equal(operations.source_requests,0);
+  assert.deepEqual(operations.holds,{upheld_reports:1,held_submissions:1,visible_but_held:1});
+  assert.equal(operations.quotas.find(q=>q.id==="hold_events")!.used,4);assert.equal(operations.storage.tables.find(t=>t.id==="hold_events")!.sampled_rows,4);
+  assert.equal(operations.queues.find(q=>q.id==="resubmitted_hold_reviews")!.count,0);
+  for(const secret of [claim.reason,claim.request_id,holdRequest.note,contributor.identity,target.content.canonical_url])assert(!JSON.stringify(operations).includes(secret));
   assert.equal((await call("admin/attention/reports/review",{...reportDecision,request_id:crypto.randomUUID(),expected_revision:1,decision:"RELEASED"},undefined,true)).status,200);
   assert(ContentCampaignDetail.parse(await (await publicDetail()).json()).feed.submissions.some(s=>s.id===target.id));
+  const releasedOperations=ContentOperations.parse(await (await call("admin/attention/operations",undefined,undefined,true)).json());assert.equal(releasedOperations.holds.held_submissions,0);
   const reportHistory=ContentReportRecord.parse(await (await call(`attention/reports/${claim.request_id}`,undefined,users[1]!.cookie)).json());assert.deepEqual(reportHistory.events.map(e=>e.snapshot.status),["OPEN","UPHELD","RELEASED"]);
   assert.equal(ContentReportPage.parse(await (await call("attention/reports/mine",undefined,users[1]!.cookie)).json()).reports.length,1);
   assert.equal((await call("identity/logout", {}, users[0]!.cookie)).status, 200);
   assert.equal((await call("attention/mine", undefined, users[0]!.cookie)).status, 401);
   assert.equal((await call("attention/hold-reviews/mine",undefined,users[0]!.cookie)).status,401);
-  console.log(JSON.stringify({contributor_hold_review:"owner-only request, one response, moderator closure, four verified events",original_hold:"retained after conversation closure",reporter_details:"not disclosed to contributor",provider_requests:0}));
+  console.log(JSON.stringify({contributor_hold_review:"owner-only request, one response, moderator closure, four verified events",original_hold:"retained after conversation closure",reporter_details:"not disclosed to contributor",content_operations:"private aggregate quotas, holds and bounded storage verified",provider_requests:0}));
   console.log(JSON.stringify({ isolated_workerd_d1: "passed", signed_submissions: true, canonical_duplicate: "rejected", private_inputs: "protected", competing_reviews: "one admission", owner_appeal: "verified", hash_history: "verified", public_pagination: "verified", private_reports:"verified",upheld_hold:"hidden without changing original status",released_hold:"ordinary visibility restored",report_history:"hash replay verified", revoked_session: "rejected", provider_requests: 0, user_wallets: "unused", live_application_database_writes: 0, rewards: false, deploy: false }, null, 2));
 } finally {
   if (child.pid && child.exitCode === null) {

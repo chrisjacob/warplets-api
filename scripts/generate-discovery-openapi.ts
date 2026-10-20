@@ -3,6 +3,7 @@ import { z } from "zod";
 import { InboxRecoveryResponse } from "../discovery/src/inbox-recovery-model";
 import {ContentReportPage,ContentReportRecord,ContentReportRequest,ContentReportReviewRequest} from "../discovery/src/content-report-model";
 import {HoldReviewPage,HoldReviewRecord,HoldReviewRequest,HoldReviewReply} from "../discovery/src/content-hold-model";
+import {ContentOperations} from "../discovery/src/content-operations-model";
 import { CardListResponse } from "../app/src/discovery/client";
 import { RewardList, RewardRecord, RewardRequest } from "../discovery/src/reward-model";
 import { ContentAppealRequest, ContentCampaign, ContentCampaignDetail, ContentCampaignList, ContentCampaignRequest, ContentChangeResponse, ContentPage, ContentRecord, ContentReviewRequest, ContentSubmissionRequest } from "../discovery/src/content-model";
@@ -40,6 +41,7 @@ const spec = {
     "/api/10x/admin/attention/reports":read("Operator-only report queue; allegations do not auto-hide content",{...responseSchema("ContentReportPage"),security:[{localOperator:[]}],parameters:[parameter("status","query",{enum:["OPEN","UPHELD","DISMISSED","RELEASED"]}),parameter("cursor","query",{type:"string",maxLength:100})]}),
     "/api/10x/admin/attention/reports/{id}":read("Operator-only private report history and replay",{...responseSchema("ContentReportRecord"),security:[{localOperator:[]}],parameters:[parameter("id","path",{type:"string",format:"uuid"},true)]}),
     "/api/10x/admin/attention/reports/review":{post:{...post("Uphold/dismiss a claim or release its independent visibility hold; revision-bound, audit-linked, no reward credit").post,...responseSchema("ContentReportRecord"),requestBody:{required:true,content:{"application/json":{schema:{$ref:"#/components/schemas/ContentReportReviewRequest"}}}}}},
+    "/api/10x/admin/attention/operations": read("Operator-only aggregate backlog, observed UTC quota usage and bounded payload-size samples; no raw private content or provider calls",{...responseSchema("ContentOperations"),security:[{localOperator:[]}]}),
     "/api/10x/attention/hold-reviews": {post:{...identityPost("Owner-only private follow-up for held content; bound to verified hold set, no reporter details or automatic release",{$ref:"#/components/schemas/HoldReviewRequest"},"HoldReviewRecord").post,security:[{localIdentity:[]}]}},
     "/api/10x/attention/hold-reviews/mine": read("Owner-only contributor conversations; 20 per page, no complaint details",{...responseSchema("HoldReviewPage"),security:[{localIdentity:[]}],parameters:[parameter("cursor","query",{type:"string",maxLength:100})]}),
     "/api/10x/attention/hold-reviews/{id}": read("Owner-only hash-verified conversation and current independent hold state",{...responseSchema("HoldReviewRecord"),security:[{localIdentity:[]}],parameters:[parameter("id","path",{type:"string",format:"uuid"},true)]}),
@@ -112,6 +114,7 @@ const spec = {
     ContentCampaignList:z.toJSONSchema(ContentCampaignList), ContentCampaignDetail:z.toJSONSchema(ContentCampaignDetail), ContentCampaign:z.toJSONSchema(ContentCampaign), ContentCampaignRequest:z.toJSONSchema(ContentCampaignRequest), ContentSubmissionRequest:z.toJSONSchema(ContentSubmissionRequest), ContentAppealRequest:z.toJSONSchema(ContentAppealRequest), ContentReviewRequest:z.toJSONSchema(ContentReviewRequest), ContentPage:z.toJSONSchema(ContentPage), ContentRecord:z.toJSONSchema(ContentRecord), ContentChangeResponse:z.toJSONSchema(ContentChangeResponse),
     ContentReportPage:z.toJSONSchema(ContentReportPage),ContentReportRecord:z.toJSONSchema(ContentReportRecord),ContentReportRequest:z.toJSONSchema(ContentReportRequest),ContentReportReviewRequest:z.toJSONSchema(ContentReportReviewRequest),
     HoldReviewPage:z.toJSONSchema(HoldReviewPage),HoldReviewRecord:z.toJSONSchema(HoldReviewRecord),HoldReviewRequest:z.toJSONSchema(HoldReviewRequest),HoldReviewReply:z.toJSONSchema(HoldReviewReply),
+    ContentOperations:z.toJSONSchema(ContentOperations),
     RewardList: z.toJSONSchema(RewardList,{unrepresentable:"any"}),
     RewardRequest: z.toJSONSchema(RewardRequest,{unrepresentable:"any"}),
     RewardResponse: {type:"object",additionalProperties:false,required:["record","replay"],properties:{record:z.toJSONSchema(RewardRecord,{unrepresentable:"any"}),replay:{const:"verified"}}},

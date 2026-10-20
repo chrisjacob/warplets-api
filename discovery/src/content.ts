@@ -4,6 +4,7 @@ import { canonicalContentUrl, ContentError } from "./content-url";
 import { hashJson } from "./solana";
 import type { requireContentIdentity } from "./identity";
 import { contentVisibilityHeld } from "./content-reports";
+import { CONTENT_LIMITS as limits } from "./content-limits";
 type Principal = Awaited<ReturnType<typeof requireContentIdentity>>;
 type Snapshot = z.infer<typeof ContentSnapshot>;
 type Event = z.infer<typeof ContentEvent>;
@@ -31,8 +32,8 @@ export async function createContentCampaign(db: D1Database, raw: unknown, at = n
   const value = { id: input.request_id, title: input.title, og_address: input.og_address, chain: "solana" as const, starts_at: at.toISOString(), ends_at: new Date(at.getTime() + 10 * 86400000).toISOString(), kind: "local_review_only" as const, rewards_enabled: false as const, reason: input.reason, request_hash };
   const record = ContentCampaign.parse({ ...value, record_hash: await hashJson(value) });
   await db.prepare(`INSERT OR IGNORE INTO tenx_content_campaigns(id,created_at,ends_at,request_hash,record)
-    SELECT ?,?,?,?,? WHERE (SELECT count(*) FROM tenx_content_campaigns WHERE ends_at>?)<10
-    AND (SELECT count(*) FROM tenx_content_campaigns WHERE created_at>=? AND created_at<?)<20`)
+    SELECT ?,?,?,?,? WHERE (SELECT count(*) FROM tenx_content_campaigns WHERE ends_at>?)<${limits.open_campaigns}
+    AND (SELECT count(*) FROM tenx_content_campaigns WHERE created_at>=? AND created_at<?)<${limits.campaigns_per_day}`)
     .bind(record.id, record.starts_at, record.ends_at, request_hash, JSON.stringify(record), record.starts_at, ...day(at)).run();
   const saved = await contentCampaign(db, input.request_id);
   if (!saved) fail("content_campaign_limit", 429);
@@ -83,9 +84,9 @@ export async function submitContent(db: D1Database, raw: unknown, p: Principal, 
     db.prepare(`INSERT OR IGNORE INTO tenx_content_submissions(id,campaign_id,identity_id,canonical_url,created_at,updated_at,status,revision,request_hash,snapshot,event_hash)
       SELECT ?,?,?,?,?,?,?,0,?,?,? WHERE ${sessionSql}
       AND EXISTS(SELECT 1 FROM tenx_content_campaigns WHERE id=? AND created_at<=? AND ends_at>?)
-      AND (SELECT count(*) FROM tenx_content_submissions WHERE created_at>=? AND created_at<?)<100
-      AND (SELECT count(*) FROM tenx_content_submissions WHERE identity_id=? AND created_at>=? AND created_at<?)<10
-      AND (SELECT count(*) FROM tenx_content_events WHERE created_at>=? AND created_at<?)<300
+      AND (SELECT count(*) FROM tenx_content_submissions WHERE created_at>=? AND created_at<?)<${limits.submissions_per_day}
+      AND (SELECT count(*) FROM tenx_content_submissions WHERE identity_id=? AND created_at>=? AND created_at<?)<${limits.submissions_per_identity_day}
+      AND (SELECT count(*) FROM tenx_content_events WHERE created_at>=? AND created_at<?)<${limits.content_events_per_day}
       AND EXISTS(SELECT 1 FROM tenx_content_submissions WHERE canonical_url=?)=?`)
       .bind(snapshot.id, snapshot.campaign_id, p.identity_id, url.canonical_url, now, now, snapshot.status, request_hash, JSON.stringify(snapshot), event.hash, ...sessionArgs(p, now), snapshot.campaign_id, now, now, ...day(at), p.identity_id, ...day(at), ...day(at), url.canonical_url, repeated ? 1 : 0),
     db.prepare(`INSERT OR IGNORE INTO tenx_content_events(id,submission_id,revision,created_at,request_hash,event)
@@ -130,7 +131,7 @@ export async function changeContent(db: D1Database, raw: unknown, p: Principal |
   await db.batch([
     db.prepare(`INSERT OR IGNORE INTO tenx_content_events(id,submission_id,revision,created_at,request_hash,event)
       SELECT ?,?,?,?,?,? WHERE EXISTS(SELECT 1 FROM tenx_content_submissions WHERE id=? AND revision=? AND event_hash=?)
-      AND (SELECT count(*) FROM tenx_content_events WHERE created_at>=? AND created_at<?)<300
+      AND (SELECT count(*) FROM tenx_content_events WHERE created_at>=? AND created_at<?)<${limits.content_events_per_day}
       ${p ? `AND ${sessionSql}` : ""}`)
       .bind(event.id, snapshot.id, snapshot.revision, now, request_hash, JSON.stringify(event), snapshot.id, previous.revision, event.previous_hash, ...day(at), ...(p ? sessionArgs(p, now) : [])),
     db.prepare(`UPDATE tenx_content_submissions SET snapshot=?,revision=?,status=?,updated_at=?,event_hash=?

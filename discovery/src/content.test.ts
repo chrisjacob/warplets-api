@@ -10,6 +10,8 @@ import worker, { type LocalEnv } from "./worker";
 import { toBase58 } from "./solana";
 import {contentReportRecord,contentReports,reviewContentReport,submitContentReport} from "./content-reports";
 import {holdReviewRecord,holdReviews,replyHoldReview,requestHoldReview} from "./content-holds";
+import {contentOperations} from "./content-operations";
+import {CONTENT_LIMITS} from "./content-limits";
 const instances: DatabaseSync[] = [], origin = "https://app-local.10x.meme", token = "a".repeat(64);
 afterEach(() => { instances.splice(0).forEach(db => db.close()); vi.restoreAllMocks(); vi.useRealTimers(); });
 async function fixture() {
@@ -37,6 +39,54 @@ async function fixture() {
   const review = (id: string, revision = 0, decision = "VISIBLE") => ({ request_id: crypto.randomUUID(), submission_id: id, expected_revision: revision, decision, reason: "Manual local review; authorship and metrics remain unverified" });
   return { sqlite, db, at, env, call, request, owner, other, login, campaign, campaignInput, input, review };
 }
+describe("private content operations",()=>{
+  it("requires operator authorization, exposes only aggregate counters and performs no writes or provider calls",async()=>{
+    const f=await fixture(),before=f.sqlite.prepare("SELECT total_changes() AS n").get(),outside=vi.spyOn(globalThis,"fetch").mockRejectedValue(Error("No provider requests"));
+    expect((await f.call("admin/attention/operations")).status).toBe(401);
+    expect((await f.call("admin/attention/operations",undefined,f.owner.cookie)).status).toBe(401);
+    expect((await f.call("admin/attention/operations",undefined,undefined,{authorization:`Bearer ${token}`,origin:"https://evil.example"})).status).toBe(403);
+    const response=await f.call("admin/attention/operations",undefined,undefined,{authorization:`Bearer ${token}`});expect(response.status).toBe(200);expect(response.headers.get("cache-control")).toBe("no-store");expect(response.headers.get("vary")).toBe("Cookie");
+    const value=await response.json() as {queues:{count:number;oldest_wait_seconds:number|null}[];source_requests:number;integrity:string};
+    expect(value.queues.every(q=>q.count===0&&q.oldest_wait_seconds===null)).toBe(true);expect(value.source_requests).toBe(0);expect(value.integrity).toBe("projection_counts_only");
+    const text=JSON.stringify(value);for(const secret of [f.owner.principal.identity_id,f.owner.address,f.campaign.id,f.campaign.title,f.campaign.reason])expect(text).not.toContain(secret);
+    expect(f.sqlite.prepare("SELECT total_changes() AS n").get()).toEqual(before);expect(outside).not.toHaveBeenCalled();
+  });
+  it("counts pending/flagged/appealed content, independent holds and who owes a conversation response",async()=>{
+    const f=await fixture();
+    for(const state of ["PENDING","FLAGGED","APPEALED"]){const input=f.input(`https://example.com/ops/${state}`);await submitContent(f.db,input,f.owner.principal,f.at);if(state!=="PENDING")await changeContent(f.db,f.review(input.request_id,0,"FLAGGED"),null,f.at);if(state==="APPEALED")await changeContent(f.db,{request_id:crypto.randomUUID(),submission_id:input.request_id,expected_revision:1,reason:"Owner requests an additional editorial review"},f.owner.principal,f.at);}
+    const input=f.input("https://example.com/ops/held");await submitContent(f.db,input,f.owner.principal,f.at);await changeContent(f.db,f.review(input.request_id),null,f.at);
+    const claims=[];for(const user of [f.owner,f.other]){const claim={request_id:crypto.randomUUID(),submission_id:input.request_id,category:"impersonation",reason:"Private claimant text must never appear in aggregate output",evidence_url:"https://example.com/secret-reference",good_faith:true};await submitContentReport(f.db,claim,user.principal,f.at);claims.push(claim);}
+    const reviewReport=(id:string)=>({request_id:crypto.randomUUID(),report_id:id,expected_revision:0,decision:"UPHELD",reason:"Operator has reviewed this concern independently"});
+    await reviewContentReport(f.db,reviewReport(claims[0]!.request_id),f.at);
+    const request={request_id:crypto.randomUUID(),submission_id:input.request_id,note:"Contributor privately requests a featuring hold review",reference_url:null};await requestHoldReview(f.db,request,f.owner.principal,f.at);
+    const read=()=>contentOperations(f.db,f.at),getQueue=(data:Awaited<ReturnType<typeof read>>,id:string)=>data.queues.find(q=>q.id===id)!;
+    let data=await read();for(const id of ["pending","flagged","appealed","open_reports","open_hold_reviews"])expect(getQueue(data,id).count).toBe(1);expect(data.holds).toEqual({upheld_reports:1,held_submissions:1,visible_but_held:1});
+    const reply={request_id:crypto.randomUUID(),review_id:request.request_id,expected_revision:0,decision:"NEEDS_INFO",note:"Please supply the public permission reference",reference_url:null};
+    await replyHoldReview(f.db,reply,null,f.at);data=await read();expect(getQueue(data,"open_hold_reviews").count).toBe(0);expect(getQueue(data,"contributor_response")).toMatchObject({count:1,waiting_on:"contributor"});
+    await replyHoldReview(f.db,{...reply,request_id:crypto.randomUUID(),expected_revision:1,decision:"RESUBMITTED"},f.owner.principal,f.at);data=await read();expect(getQueue(data,"contributor_response").count).toBe(0);expect(getQueue(data,"resubmitted_hold_reviews")).toMatchObject({count:1,waiting_on:"moderator"});
+    await replyHoldReview(f.db,{...reply,request_id:crypto.randomUUID(),expected_revision:2,decision:"CLOSED"},null,f.at);
+    await reviewContentReport(f.db,reviewReport(claims[1]!.request_id),f.at);data=await read();expect(data.holds).toEqual({upheld_reports:2,held_submissions:1,visible_but_held:1});expect(getQueue(data,"resubmitted_hold_reviews").count).toBe(0);
+    const text=JSON.stringify(data);for(const secret of [request.note,input.url,claims[0]!.reason,claims[0]!.evidence_url,claims[0]!.request_id,f.owner.principal.identity_id])expect(text).not.toContain(secret);
+  });
+  it("uses UTC admission windows and reports waiting age independently of the daily reset",async()=>{
+    const f=await fixture(),input=f.input();await submitContent(f.db,input,f.owner.principal,f.at);
+    const boundary=new Date(f.at.toISOString().slice(0,10)+"T00:00:00.000Z"),after=new Date(boundary.getTime()+86400000);
+    let data=await contentOperations(f.db,f.at);expect(data.day_start).toBe(boundary.toISOString());expect(data.day_end).toBe(after.toISOString());expect(data.quotas.find(q=>q.id==="submissions")).toMatchObject({used:1,limit:CONTENT_LIMITS.submissions_per_day,remaining:99,resets_at:after.toISOString()});
+    data=await contentOperations(f.db,new Date(f.at.getTime()+86400000));expect(data.queues.find(q=>q.id==="pending")).toMatchObject({count:1,waiting_24h:1,oldest_wait_seconds:86400});expect(data.quotas.find(q=>q.id==="submissions")!.used).toBe(0);expect(data.quotas.find(q=>q.id==="open_campaigns")).toMatchObject({used:1,remaining:9,resets_at:null});
+    const expired=await contentOperations(f.db,new Date(f.campaign.ends_at));expect(expired.quotas.find(q=>q.id==="open_campaigns")!.used).toBe(0);
+  });
+  it("measures UTF-8 payload bytes, keeps samples bounded and never returns raw payloads",async()=>{
+    const f=await fixture(),input={...f.input(),author_claim:"Meme creator 🐸",comment:"é語 🐸"};await submitContent(f.db,input,f.owner.principal,f.at);
+    const snapshot=String(f.sqlite.prepare("SELECT snapshot FROM tenx_content_submissions WHERE id=?").get(input.request_id)!.snapshot);
+    let data=await contentOperations(f.db,f.at);expect(data.storage.tables.find(t=>t.id==="submissions")).toMatchObject({total_rows:1,sampled_rows:1,sampled_bytes:Buffer.byteLength(snapshot,"utf8"),complete:true});
+    // Isolated SQL fixture tests an oversized inventory without bypassing real API limits.
+    const add=f.sqlite.prepare("INSERT INTO tenx_content_campaigns(id,created_at,ends_at,request_hash,record) VALUES(?,?,?,?,?)");
+    for(let i=0;i<205;i++)add.run(crypto.randomUUID(),f.at.toISOString(),f.campaign.ends_at,"fixture",JSON.stringify({sample:"🐸"}));
+    data=await contentOperations(f.db,f.at);const table=data.storage.tables.find(t=>t.id==="campaigns")!;expect(table.total_rows).toBe(206);expect(table.sampled_rows).toBe(200);expect(table.complete).toBe(false);expect(data.quotas.find(q=>q.id==="open_campaigns")).toMatchObject({used:206,remaining:0});
+    expect(data.retention).toEqual({automatic_deletion:false,archive_policy:"not_configured",remote_capacity:"uncertified"});expect(JSON.stringify(data)).not.toContain("🐸");
+  });
+});
+
 describe("private contributor hold reviews",()=>{
   async function held(f:Awaited<ReturnType<typeof fixture>>){
     const input=f.input(`https://example.com/held/${crypto.randomUUID()}`);
@@ -89,13 +139,15 @@ describe("private contributor hold reviews",()=>{
     await expect(requestHoldReview(f.db,request(unheld.request_id),f.owner.principal,f.at)).rejects.toThrow("held_content_not_found");
     const target=await held(f),input=request(target.id);
     await expect(requestHoldReview(f.db,{...input,reference_url:"https://127.0.0.1/private"},f.owner.principal,f.at)).rejects.toThrow();
-    const concurrent=await Promise.allSettled([requestHoldReview(f.db,input,f.owner.principal,f.at),requestHoldReview(f.db,request(target.id),f.owner.principal,f.at)]);
-    expect(concurrent.filter(r=>r.status==="fulfilled")).toHaveLength(1);expect(concurrent[0]!.status).toBe("fulfilled");
-    await expect(requestHoldReview(f.db,{...input,note:"Different message under a reused request ID"},f.owner.principal,f.at)).rejects.toThrow("hold_review_request_conflict");
-    const response=reply(input.request_id),competing=await Promise.allSettled([replyHoldReview(f.db,response,null,f.at),replyHoldReview(f.db,reply(input.request_id,0,"CLOSED"),null,f.at)]);
+    const inputs=[input,request(target.id)],concurrent=await Promise.allSettled(inputs.map(value=>requestHoldReview(f.db,value,f.owner.principal,f.at)));
+    expect(concurrent.filter(r=>r.status==="fulfilled")).toHaveLength(1);
+    const admitted=inputs[concurrent.findIndex(r=>r.status==="fulfilled")]!;
+    await expect(requestHoldReview(f.db,{...admitted,note:"Different message under a reused request ID"},f.owner.principal,f.at)).rejects.toThrow("hold_review_request_conflict");
+    const replies=[reply(admitted.request_id),reply(admitted.request_id,0,"CLOSED")],competing=await Promise.allSettled(replies.map(value=>replyHoldReview(f.db,value,null,f.at)));
     expect(competing.filter(r=>r.status==="fulfilled")).toHaveLength(1);
-    expect((await holdReviewRecord(f.db,input.request_id))!.events).toHaveLength(2);
-    await expect(replyHoldReview(f.db,{...response,note:"Reusing an event ID with different content"},null,f.at)).rejects.toThrow("hold_review_request_conflict");
+    expect((await holdReviewRecord(f.db,admitted.request_id))!.events).toHaveLength(2);
+    const acceptedReply=replies[competing.findIndex(r=>r.status==="fulfilled")]!;
+    await expect(replyHoldReview(f.db,{...acceptedReply,note:"Reusing an event ID with different content"},null,f.at)).rejects.toThrow("hold_review_request_conflict");
   });
   it("enforces session revocation inside atomic writes and rolls back failed event insertion",async()=>{
     const f=await fixture(),target=await held(f),another=await held(f),input=request(target.id);

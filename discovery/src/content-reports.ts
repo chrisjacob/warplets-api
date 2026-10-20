@@ -5,6 +5,7 @@ import {canonicalContentUrl,ContentError} from "./content-url";
 import {hashJson} from "./solana";
 import type {requireContentIdentity} from "./identity";
 import {contentRecord} from "./content";
+import {CONTENT_LIMITS as limits} from "./content-limits";
 type Principal=Awaited<ReturnType<typeof requireContentIdentity>>;
 type Snapshot=z.infer<typeof ReportSnapshot>;type Event=z.infer<typeof ReportEvent>;
 type Row={id:string;submission_id:string;reporter_identity_id:string;created_at:string;updated_at:string;status:string;revision:number;request_hash:string;snapshot:string;event_hash:string;history:string;content_snapshot:string};
@@ -68,10 +69,10 @@ export async function submitContentReport(db:D1Database,raw:unknown,p:Principal,
       SELECT ?,?,?,?,?,'OPEN',0,?,?,? WHERE ${sessionSql}
       AND EXISTS(SELECT 1 FROM tenx_content_submissions WHERE id=? AND status='VISIBLE')
       AND NOT EXISTS(SELECT 1 FROM tenx_content_reports WHERE submission_id=? AND status='UPHELD')
-      AND (SELECT count(*) FROM tenx_content_reports WHERE created_at>=? AND created_at<?)<30
-      AND (SELECT count(*) FROM tenx_content_reports WHERE reporter_identity_id=? AND created_at>=? AND created_at<?)<3
-      AND (SELECT count(*) FROM tenx_content_reports WHERE submission_id=?)<10
-      AND (SELECT count(*) FROM tenx_content_report_events WHERE created_at>=? AND created_at<?)<150`)
+      AND (SELECT count(*) FROM tenx_content_reports WHERE created_at>=? AND created_at<?)<${limits.reports_per_day}
+      AND (SELECT count(*) FROM tenx_content_reports WHERE reporter_identity_id=? AND created_at>=? AND created_at<?)<${limits.reports_per_identity_day}
+      AND (SELECT count(*) FROM tenx_content_reports WHERE submission_id=?)<${limits.reports_per_submission}
+      AND (SELECT count(*) FROM tenx_content_report_events WHERE created_at>=? AND created_at<?)<${limits.report_events_per_day}`)
       .bind(snapshot.id,snapshot.submission_id,p.identity_id,now,now,request_hash,JSON.stringify(snapshot),event.hash,...sessionArgs(p,now),snapshot.submission_id,snapshot.submission_id,...day(at),p.identity_id,...day(at),snapshot.submission_id,...day(at)),
     db.prepare(`INSERT OR IGNORE INTO tenx_content_report_events(id,report_id,revision,created_at,request_hash,event) SELECT ?,?,0,?,?,?
       WHERE EXISTS(SELECT 1 FROM tenx_content_reports WHERE id=? AND reporter_identity_id=? AND request_hash=? AND event_hash=? AND revision=0)`)
@@ -92,7 +93,7 @@ export async function reviewContentReport(db:D1Database,raw:unknown,at=new Date(
   await db.batch([
     db.prepare(`INSERT OR IGNORE INTO tenx_content_report_events(id,report_id,revision,created_at,request_hash,event) SELECT ?,?,?,?,?,?
       WHERE EXISTS(SELECT 1 FROM tenx_content_reports WHERE id=? AND revision=? AND event_hash=?)
-      AND (SELECT count(*) FROM tenx_content_report_events WHERE created_at>=? AND created_at<?)<150`)
+      AND (SELECT count(*) FROM tenx_content_report_events WHERE created_at>=? AND created_at<?)<${limits.report_events_per_day}`)
       .bind(event.id,snapshot.id,snapshot.revision,now,request_hash,JSON.stringify(event),snapshot.id,previous.revision,event.previous_hash,...day(at)),
     db.prepare(`UPDATE tenx_content_reports SET snapshot=?,status=?,revision=?,updated_at=?,event_hash=? WHERE id=? AND revision=? AND event_hash=?
       AND EXISTS(SELECT 1 FROM tenx_content_report_events WHERE id=? AND request_hash=? AND event=?)`)
