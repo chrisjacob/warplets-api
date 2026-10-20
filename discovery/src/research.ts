@@ -51,6 +51,8 @@ export function measureOutcome(cohort: Cohort, history: Market[], inputHash: str
       same_slot_buyers: w?.metrics.max_same_slot_buyers ?? null, shared_funder_buyers: w?.metrics.shared_funder_buyers ?? null,
       dev_funded_supply_pct: w?.metrics.dev_funded_supply_pct ?? null, dev_sold_supply_pct: w?.metrics.dev_sold_supply_pct ?? null, sampled_buyers: w?.metrics.distinct_buyers ?? null,
       funding_windows_examined: w?.funding_coverage?.filter(c => c.status === "window_examined").length ?? null, funding_wallets_tracked: w?.funding_coverage?.length ?? null,
+      second_hop_paths: w?.second_hop?.paths.length ?? null, second_hop_windows_examined: w?.second_hop?.coverage.filter(c => c.status === "window_examined").length ?? null,
+      second_hop_sources: w?.second_hop ? new Set(w.second_hop.paths.map(p => p.source)).size : null, second_hop_targets: w?.second_hop ? new Set(w.second_hop.paths.map(p => p.target)).size : null,
     }, wallets,
   });
 }

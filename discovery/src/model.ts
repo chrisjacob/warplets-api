@@ -113,7 +113,7 @@ export function assess(candidate: Candidate, policy: Policy, now: Date): Assesse
       if (!w.wallets.some(wallet => wallet.signed_creation)) unknown.push("signed_creation_wallet_unknown");
       if (!w.scope.early_window_reached || w.scope.unsupported_or_missing_transactions > 0 || w.gaps.some(g => ["wallet_output_limit", "trade_output_limit", "wallet_transaction_sample_limit", "wallet_funding_history_budget_limited", "buyer_funding_histories_not_all_sampled", "transaction_not_certified_for_trade_analysis", "trade_base_transfer_unverified", "trade_token_owner_unverified", "quote_trade_accounts_unverified"].includes(g))) unknown.push("wallet_sample_coverage_incomplete");
       if (w.metrics.dev_funded_supply_pct === null || w.metrics.dev_sold_supply_pct === null) unknown.push("wallet_exposure_unverified");
-      if (w.version === "wallet-signals-v2" && (!w.funding_coverage?.length || w.funding_coverage.some(c => c.status !== "window_examined") || w.gaps.some(g => ["funding_wallet_limit", "funding_output_limit"].includes(g)))) unknown.push("pre_buy_funding_coverage_partial");
+      if (w.version !== "wallet-signals-v1" && (!w.funding_coverage?.length || w.funding_coverage.some(c => c.status !== "window_examined") || w.gaps.some(g => ["funding_wallet_limit", "funding_output_limit"].includes(g)))) unknown.push("pre_buy_funding_coverage_partial");
       if (w.metrics.dev_funded_supply_pct !== null && w.metrics.dev_funded_supply_pct > policy.max_dev_funded_supply_pct) exclude.push("creation_funded_buyer_exposure_high");
       if (w.metrics.dev_sold_supply_pct !== null && w.metrics.dev_sold_supply_pct > policy.max_dev_sold_supply_pct) exclude.push("creation_wallet_sampled_sales_high");
     }

@@ -17,6 +17,7 @@ const row = (n: number, seconds = 10, failed = false): SignatureRow => ({ signat
 function fixture(pages: SignatureRow[][]) {
   const db = new DatabaseSync(":memory:"); dbs.push(db); db.exec(readFileSync(new URL("../migrations/0007_funding_history.sql", import.meta.url), "utf8"));
   const d1 = sqliteD1(db), calls: { address: string; before: string }[] = [];
+  db.exec(readFileSync(new URL("../migrations/0008_second_hop.sql", import.meta.url), "utf8"));
   const rpc = new RpcClient("https://rpc.example", async () => {}, async (_input, init) => {
     const body = JSON.parse(String(init?.body)); expect(body.method).toBe("getSignaturesForAddress"); expect(body.params[1]).toMatchObject({ commitment: "finalized", limit: 50 });
     calls.push({ address: body.params[0], before: body.params[1].before });
@@ -28,6 +29,21 @@ function fixture(pages: SignatureRow[][]) {
 }
 const coverage = (scan: FundingScan) => fundingCoverage(scan, new Set(scan.examined.filter(r => r.status === "available").map(r => r.signature)));
 describe("resumable anchored pre-buy funding windows", () => {
+  it("isolates second-hop progress and reserves RPC room without expanding the cycle ceiling", async () => {
+    const f = fixture([[], []]);
+    await collectFundingHistories(f.d1, f.rpc, key(41), [anchor], f.read);
+    const upstream = { ...anchor, kind: "funding_transfer" as const, instruction_index: 0 };
+    f.rpc.calls = 13;
+    await collectFundingHistories(f.d1, f.rpc, key(41), [upstream], f.read, { secondHop: true, rpcCeiling: 14 }); expect(f.calls).toHaveLength(1);
+    await collectFundingHistories(f.d1, f.rpc, key(41), [upstream], f.read, { secondHop: true }); expect(f.calls).toHaveLength(2);
+    expect((await f.d1.prepare("SELECT count(*) AS n FROM tenx_second_hop_scans").first<{ n: number }>())?.n).toBe(1);
+    expect((await f.d1.prepare("SELECT count(*) AS n FROM tenx_funding_scans").first<{ n: number }>())?.n).toBe(1);
+    await f.d1.prepare("UPDATE tenx_second_hop_scans SET anchor_signature=?1").bind(upstream.signature).run();
+    const before = f.calls.length;
+    await collectFundingHistories(f.d1, f.rpc, key(41), [upstream], f.read, { secondHop: true }); expect(f.calls).toHaveLength(before);
+    await collectFundingHistories(f.d1, f.rpc, key(41), [{ ...upstream, instruction_index: 1 }], f.read, { secondHop: true });
+    expect((await f.d1.prepare("SELECT count(*) AS n FROM tenx_second_hop_scans").first<{ n: number }>())?.n).toBe(2);
+  });
   it("replays real finalized pre-buy funding for six buyers and retains the creation-history gap", async () => {
     const actual = await analyzeWalletEvidence(WalletEvidenceSchema.parse(recordedFunding.evidence));
     expect(actual).toEqual(WalletAnalysisSchema.parse(recordedFunding.expected));

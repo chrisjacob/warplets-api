@@ -30,6 +30,13 @@ export async function getJson<T>(url: string, schema: z.ZodType<T>, signal?: Abo
   return result.data;
 }
 export const readableReason = (code: string) => ({
+  shared_upstream_creation_and_buyer_source: "Creation and early-buyer paths share an upstream source",
+  creation_wallet_to_early_buyer_via_funder: "Signed creation wallet transferred to an early buyer through a funder",
+  second_hop_coverage_partial: "Second-hop history is incomplete",
+  second_hop_history_partial: "Some selected funder histories remain partial or unexamined",
+  funding_sequence_not_coin_provenance: "Transfer sequences do not establish which coins funded the later transfer",
+  single_outflow_anchor_per_funder: "Each funder uses one sampled outflow anchor; other windows can be missed",
+  second_hop_same_slot_order_unknown: "Transfers in separate transactions in the same slot have no verified order",
   pre_buy_funding_coverage_partial: "Pre-buy funding coverage is still partial",
   funding_paging_pending: "Older funding pages remain to be scanned",
   funding_transactions_pending: "Returned transactions remain to be examined",

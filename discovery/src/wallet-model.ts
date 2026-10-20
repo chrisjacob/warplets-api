@@ -21,7 +21,7 @@ export const FundingSchema = z.object({
   before_signed_creation: z.boolean().optional(),
 }).strict();
 export type Funding = z.infer<typeof FundingSchema>;
-export const FundingCoverageSchema = z.object({ wallet: Key, anchor_signature: Sig, anchor_kind: z.enum(["sampled_buy", "signed_creation"]), anchor_at: z.string().datetime(), window_start: z.string().datetime(), pages: z.number().int(), signatures: z.number().int(), transactions_in_window: z.number().int(), transactions_examined: z.number().int(), status: z.enum(["partial", "window_examined"]), boundary_reached: z.boolean(), gaps: z.array(z.string()) }).strict();
+export const FundingCoverageSchema = z.object({ wallet: Key, anchor_signature: Sig, anchor_kind: z.enum(["sampled_buy", "signed_creation", "funding_transfer"]), anchor_at: z.string().datetime(), window_start: z.string().datetime(), pages: z.number().int(), signatures: z.number().int(), transactions_in_window: z.number().int(), transactions_examined: z.number().int(), status: z.enum(["partial", "window_examined"]), boundary_reached: z.boolean(), gaps: z.array(z.string()) }).strict();
 export const WalletProfileSchema = z.object({
   wallet: Key, roles: z.array(z.enum(["creation_user", "declared_creator", "buyer", "seller"])).max(4),
   signed_creation: z.boolean(), buys: z.number().int().nonnegative(), sells: z.number().int().nonnegative(),
@@ -31,9 +31,16 @@ export const WalletProfileSchema = z.object({
   history_signatures: z.number().int().nonnegative(), history_complete: z.literal(false),
   prior_loss_associations: z.number().int().nonnegative(), gaps: z.array(z.string()).max(20),
 }).strict();
+export const FundingEdgeSchema = z.object({ from: Key, to: Key, lamports_raw: Raw, signature: Sig, slot: Slot, block_time: z.string().datetime(), instruction_index: z.number().int().nonnegative(), transaction_hash: Hash }).strict();
+export type FundingEdge = z.infer<typeof FundingEdgeSchema>;
+export const SecondHopSchema = z.object({ depth: z.literal(2), eligible_funders: z.number().int().nonnegative(), coverage: z.array(FundingCoverageSchema).max(4),
+  paths: z.array(z.object({ source: Key, intermediary: Key, target: Key, target_role: z.enum(["signed_creation", "early_buyer"]), upstream: FundingEdgeSchema, downstream: FundingEdgeSchema }).strict()).max(50), gaps: z.array(z.string()).max(30),
+}).strict();
+export type SecondHop = z.infer<typeof SecondHopSchema>;
 export const WalletAnalysisSchema = z.object({
-  version: z.enum(["wallet-signals-v1", "wallet-signals-v2"]), observed_at: z.string().datetime(), evidence_hash: Hash,
+  version: z.enum(["wallet-signals-v1", "wallet-signals-v2", "wallet-signals-v3"]), observed_at: z.string().datetime(), evidence_hash: Hash,
   funding_coverage: z.array(FundingCoverageSchema).max(8).optional(),
+  second_hop: SecondHopSchema.optional(),
   status: z.enum(["signals_detected", "no_signal_in_sample", "unavailable"]),
   source: z.literal("solana-finalized-rpc"), coverage: z.literal("bounded_sample"),
   actual_bundle_membership: z.literal("unknown"), exhaustive: z.literal(false),
