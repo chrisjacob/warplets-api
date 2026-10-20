@@ -24,6 +24,7 @@ import { createPolicyPreview, policyPreviewRecord, PolicyPreviewError, publicPol
 import { runSignalCycle, signalDetail, signalResearch } from "./signal-research";
 import { SignalKind } from "./signal-model";
 import { SignalResearchError } from "./signal-analysis";
+import { walletPlans } from "./wallet-plan";
 
 // Widen generated literal vars so ignored .dev.vars overrides stay type-safe.
 export type LocalEnv = { [K in keyof Cloudflare.Env]: Cloudflare.Env[K] extends string ? string : Cloudflare.Env[K] };
@@ -106,6 +107,7 @@ export async function handle(request: Request, env: Env): Promise<Response> {
   if (method === "GET" && path === "/api/10x/chains") return json(await envelope(env, [{ id: "solana", discover_enabled: true, vote_enabled: false, launch_enabled: false }]));
   if (method === "GET" && path === "/api/10x/system/status") return json(await envelope(env, await status(env)));
   if (method === "GET" && path === "/api/10x/discovery/coverage") return json(await envelope(env, discoveryCoverage(await candidates(env.TENX_DB), DEFAULT_POLICY, new Date())));
+  if (method === "GET" && path === "/api/10x/discovery/wallet-plan") return json(await envelope(env,await walletPlans(env.TENX_DB)));
   if (method === "GET" && path === "/api/10x/discovery/wallet-work") {
     const usage = await env.TENX_DB.prepare("SELECT used FROM tenx_usage WHERE provider='wallet_catchup' AND day=?1").bind(new Date().toISOString().slice(0,10)).first<{used:number}>();
     return json(await envelope(env, { work: await walletWork(env.TENX_DB), catchup_reserved: usage?.used ?? 0, catchup_limit: catchupLimit(Number(env.TENX_WALLET_RPC_DAILY_LIMIT)), snapshot_refresh_required: true }));

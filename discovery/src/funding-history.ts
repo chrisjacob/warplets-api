@@ -44,8 +44,36 @@ export function fundingCoverage(scan: FundingScan, available: Set<string>) {
 }
 
 type Read = (signature: string, slot: number, status?: "missing" | "unsupported") => Promise<{ transaction: WalletTransaction | null; status: "available" | "missing" | "unsupported" } | null>;
+// Scheduling only: preserve the historical coverage decoder and its hashes.
+// An oversized window cannot pass the unchanged twelve-body evidence bound.
+export function fundingTask(scan: FundingScan) {
+  const coverage = fundingCoverage(scan, new Set(scan.examined.filter(e => e.status === "available").map(e => e.signature)));
+  const pending = fundingRows(scan).filter(r => !scan.examined.some(e => e.signature === r.signature));
+  const gaps = [...coverage.gaps, ...(fundingRows(scan).length > 12 ? ["funding_window_exceeds_transaction_bound"] : [])];
+  const blocked = gaps.some(g => ["provider_history_ended_before_window_boundary", "funding_page_limit", "funding_transaction_limit", "funding_window_exceeds_transaction_bound", "funding_transaction_missing_or_unsupported", "funding_signature_time_unknown", "funding_signature_not_finalized"].includes(g));
+  return { coverage, pending, gaps, blocked };
+}
+export async function loadFundingCheckpoints(db: D1Database, address: string, anchors: FundingAnchor[], secondHop = false): Promise<FundingScan[]> {
+  const scans: FundingScan[] = [], table = secondHop ? "tenx_second_hop_scans" : "tenx_funding_scans";
+  for (const anchor of anchors.slice(0, secondHop ? 4 : 8)) {
+    const anchorKey = secondHop ? `${anchor.signature}:${anchor.instruction_index}` : anchor.signature;
+    let saved = await db.prepare(`SELECT payload,payload_hash FROM ${table} WHERE address=?1 AND wallet=?2 AND anchor_signature=?3`).bind(address,anchor.wallet,anchorKey).first<{payload:string;payload_hash:string}>();
+    if (!saved && secondHop) {
+      const previous = await db.prepare(`SELECT payload,payload_hash FROM ${table} WHERE address=?1 AND wallet=?2 AND anchor_signature=?3`).bind(address,anchor.wallet,anchor.signature).first<{payload:string;payload_hash:string}>();
+      if (previous) {
+        const parsed = FundingScanSchema.parse(JSON.parse(previous.payload));
+        if (await hashJson(parsed) !== previous.payload_hash) throw new Error("funding_progress_hash_mismatch");
+        if (await hashJson(parsed.anchor) === await hashJson(anchor)) saved = previous;
+      }
+    }
+    const scan = saved ? FundingScanSchema.parse(JSON.parse(saved.payload)) : FundingScanSchema.parse({wallet:anchor.wallet,anchor,lookback_seconds:3600,pages:[],examined:[],attempted_at:"1970-01-01T00:00:00.000Z"});
+    if (scan.wallet !== anchor.wallet || saved && (await hashJson(scan) !== saved.payload_hash || await hashJson(scan.anchor) !== await hashJson(anchor))) throw new Error("funding_progress_hash_mismatch");
+    fundingTask(scan); scans.push(scan);
+  }
+  return scans;
+}
 export async function collectFundingHistories(db: D1Database, rpc: RpcClient, address: string, anchors: FundingAnchor[], read: Read, options: { secondHop?: boolean; rpcCeiling?: number } = {}): Promise<FundingScan[]> {
-  const scans: FundingScan[] = [];
+  const scans = await loadFundingCheckpoints(db,address,anchors,options.secondHop);
   const table = options.secondHop ? "tenx_second_hop_scans" : "tenx_funding_scans", ceiling = Math.min(18, options.rpcCeiling ?? 18);
   // Second-hop progress belongs to an exact outflow instruction. Additional
   // discovered recipients can reveal an earlier outflow in the same transaction.
@@ -55,30 +83,14 @@ export async function collectFundingHistories(db: D1Database, rpc: RpcClient, ad
     const normalized = FundingScanSchema.parse(scan), payload = JSON.stringify(normalized), hash = await hashJson(normalized);
     await db.prepare(`INSERT INTO ${table}(address,wallet,anchor_signature,payload,payload_hash,attempted_at) VALUES(?1,?2,?3,?4,?5,?6) ON CONFLICT(address,wallet,anchor_signature) DO UPDATE SET payload=excluded.payload,payload_hash=excluded.payload_hash,attempted_at=excluded.attempted_at`).bind(address, scan.wallet, anchorKey(scan.anchor), payload, hash, scan.attempted_at).run();
   }
-  for (const anchor of anchors.slice(0, options.secondHop ? 4 : 8)) {
-    let saved = await db.prepare(`SELECT payload,payload_hash FROM ${table} WHERE address=?1 AND wallet=?2 AND anchor_signature=?3`).bind(address, anchor.wallet, anchorKey(anchor)).first<{ payload: string; payload_hash: string }>();
-    if (!saved && options.secondHop) {
-      // Preserve any local signature-keyed checkpoint only when it certifies
-      // exactly this outflow; a different instruction gets a fresh checkpoint.
-      const previous = await db.prepare(`SELECT payload,payload_hash FROM ${table} WHERE address=?1 AND wallet=?2 AND anchor_signature=?3`).bind(address, anchor.wallet, anchor.signature).first<{ payload: string; payload_hash: string }>();
-      if (previous) {
-        const parsed = FundingScanSchema.parse(JSON.parse(previous.payload));
-        if (await hashJson(parsed) !== previous.payload_hash) throw new Error("funding_progress_hash_mismatch");
-        if (await hashJson(parsed.anchor) === await hashJson(anchor)) saved = previous;
-      }
-    }
-    const scan = saved ? FundingScanSchema.parse(JSON.parse(saved.payload)) : FundingScanSchema.parse({ wallet: anchor.wallet, anchor, lookback_seconds: 3600, pages: [], examined: [], attempted_at: "1970-01-01T00:00:00.000Z" });
-    if (scan.wallet !== anchor.wallet || saved && (await hashJson(scan) !== saved.payload_hash || await hashJson(scan.anchor) !== await hashJson(anchor))) throw new Error("funding_progress_hash_mismatch");
-    fundingCoverage(scan, new Set(scan.examined.filter(e => e.status === "available").map(e => e.signature)));
-    scans.push(scan);
+  for (const scan of scans) {
     // Bring earlier read-only results into this replayable evidence snapshot.
     for (const record of scan.examined) await read(record.signature, fundingRows(scan).find(r => r.signature === record.signature)!.slot, record.status === "available" ? undefined : record.status);
   }
   const pending = scans.filter(scan => {
-    if (scan.examined.length >= 12 && fundingRows(scan).some(r => !scan.examined.some(e => e.signature === r.signature))) return false;
-    const coverage = fundingCoverage(scan, new Set(scan.examined.filter(e => e.status === "available").map(e => e.signature)));
-    return coverage.gaps.includes("funding_paging_pending") || coverage.gaps.includes("funding_transactions_pending");
-  }).sort((a, b) => a.attempted_at.localeCompare(b.attempted_at) || a.wallet.localeCompare(b.wallet));
+    const task = fundingTask(scan);
+    return !task.blocked && (task.coverage.gaps.includes("funding_paging_pending") || task.pending.length > 0);
+  }).sort((a,b) => Number(!fundingTask(a).coverage.boundary_reached)-Number(!fundingTask(b).coverage.boundary_reached) || fundingTask(a).pending.length-fundingTask(b).pending.length || a.attempted_at.localeCompare(b.attempted_at) || a.wallet.localeCompare(b.wallet));
   for (const scan of pending.slice(0, options.secondHop ? 1 : 3)) {
     if (rpc.calls >= ceiling - 1) break;
     const before = scan.pages.at(-1)?.rows.at(-1)?.signature ?? scan.anchor.signature;
@@ -90,6 +102,7 @@ export async function collectFundingHistories(db: D1Database, rpc: RpcClient, ad
       fundingCoverage(scan, new Set(scan.examined.filter(e => e.status === "available").map(e => e.signature)));
       await persist(scan);
     }
+    if (fundingTask(scan).blocked) continue;
     let reads = 0;
     for (const row of fundingRows(scan)) {
       if (scan.examined.some(e => e.signature === row.signature)) continue;

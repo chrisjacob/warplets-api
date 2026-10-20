@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { DatabaseSync } from "node:sqlite";
 import { readFileSync } from "node:fs";
 import { sqliteD1 } from "../../app/functions/_lib/sqliteTestDb";
-import { collectFundingHistories, fundingCoverage, FundingScanSchema, type FundingScan } from "./funding-history";
+import { collectFundingHistories, fundingCoverage, fundingTask, FundingScanSchema, type FundingScan } from "./funding-history";
 import { RpcClient, SourceError, type SignatureRow } from "./rpc";
 import { key, signature, trade, walletInput } from "./wallet-fixtures.test-helper";
 import { analyzeWalletEvidence, WalletEvidenceSchema } from "./wallet-analysis";
@@ -61,11 +61,19 @@ describe("resumable anchored pre-buy funding windows", () => {
     expect(coverage(scans[0]!)).toMatchObject({ status: "window_examined", transactions_examined: 4, boundary_reached: true });
     await collectFundingHistories(f.d1, f.rpc, key(41), [anchor], f.read); expect(f.calls).toHaveLength(2); expect(f.reads).toHaveLength(4);
   });
-  it("drains queued transactions across ticks before paging, and exposes the 12-transaction limit", async () => {
+  it("recognizes impossible windows before spending twelve body reads without changing evidence coverage", async () => {
     const f = fixture([[...Array.from({ length: 14 }, (_, n) => row(40 + n)), row(80, 3601)]]);
     let scan: FundingScan;
     for (let n = 0; n < 5; n++) [scan!] = await collectFundingHistories(f.d1, f.rpc, key(41), [anchor], f.read);
-    expect(f.calls).toHaveLength(1); expect(f.reads).toHaveLength(12); expect(coverage(scan!).gaps).toContain("funding_transaction_limit"); expect(coverage(scan!).status).toBe("partial");
+    expect(f.calls).toHaveLength(1); expect(f.reads).toHaveLength(0); expect(fundingTask(scan!).gaps).toContain("funding_window_exceeds_transaction_bound"); expect(coverage(scan!).gaps).toContain("funding_transactions_pending"); expect(coverage(scan!).status).toBe("partial");
+  });
+  it("drains finishable queued bodies without paging or expanding the per-turn read bound",async()=>{
+    const f=fixture([[...Array.from({length:7},(_,n)=>row(40+n)),row(80,3601)]]);
+    let scan:FundingScan;
+    [scan!]=await collectFundingHistories(f.d1,f.rpc,key(41),[anchor],f.read); expect(f.reads).toHaveLength(3);
+    [scan!]=await collectFundingHistories(f.d1,f.rpc,key(41),[anchor],f.read); expect(f.reads).toHaveLength(6);
+    [scan!]=await collectFundingHistories(f.d1,f.rpc,key(41),[anchor],f.read); expect(f.reads).toHaveLength(7);
+    expect(f.calls).toHaveLength(1);expect(coverage(scan!).status).toBe("window_examined");
   });
   it("retains page and transaction progress through an interruption", async () => {
     const f = fixture([[row(40), row(41), row(42), row(80, 3601)]]); let reads = 0;
@@ -89,7 +97,11 @@ describe("resumable anchored pre-buy funding windows", () => {
   it("keeps null timestamps and unavailable transaction bodies explicit", async () => {
     const f = fixture([[{ ...row(40), blockTime: null }, row(80, 3601)]]);
     const [scan] = await collectFundingHistories(f.d1, f.rpc, key(41), [anchor], async () => ({ transaction: null, status: "unsupported" as const }));
-    expect(coverage(scan!).gaps).toEqual(expect.arrayContaining(["funding_signature_time_unknown", "funding_transaction_missing_or_unsupported"]));
+    expect(coverage(scan!).gaps).toEqual(expect.arrayContaining(["funding_signature_time_unknown", "funding_transactions_pending"]));
+    expect(fundingTask(scan!).blocked).toBe(true);expect(f.reads).toHaveLength(0);
+    const dated=fixture([[row(41),row(80,3601)]]);
+    const [unsupported]=await collectFundingHistories(dated.d1,dated.rpc,key(41),[anchor],async()=>({transaction:null,status:"unsupported" as const}));
+    expect(coverage(unsupported!).gaps).toContain("funding_transaction_missing_or_unsupported");
   });
   it("enforces cursor continuity, duplicate/order checks and persisted hash integrity", async () => {
     const f = fixture([[row(40), row(80, 3601)]]), [scan] = await collectFundingHistories(f.d1, f.rpc, key(41), [anchor], f.read);

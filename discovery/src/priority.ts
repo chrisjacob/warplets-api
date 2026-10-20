@@ -19,7 +19,7 @@ export function comparePotential(a: Candidate, b: Candidate, p: Policy, now: Dat
 }
 // Collection scheduling only. These gaps still block the unchanged policy;
 // the current bounded source cannot finish them by repeating the same reads.
-export const fundingSourceLimited = (gaps: string[]) => gaps.some(g => ["provider_history_ended_before_window_boundary", "funding_page_limit", "funding_transaction_limit", "funding_transaction_missing_or_unsupported", "funding_signature_time_unknown", "funding_signature_not_finalized", "wallet_transaction_sample_limit"].includes(g));
+export const fundingSourceLimited = (gaps: string[]) => gaps.some(g => ["provider_history_ended_before_window_boundary", "funding_page_limit", "funding_transaction_limit", "funding_window_exceeds_transaction_bound", "funding_transaction_missing_or_unsupported", "funding_signature_time_unknown", "funding_signature_not_finalized", "wallet_transaction_sample_limit"].includes(g));
 export function compareCollectionPotential(a: Candidate, b: Candidate, p: Policy, now: Date): number {
   const limited = (c: Candidate) => potential(c,p,now) && c.wallet_analysis?.funding_coverage?.some(f=>fundingSourceLimited(f.gaps)) ? 1 : 0;
   if(potential(a,p,now)&&potential(b,p,now))return limited(a)-limited(b)||comparePotential(a,b,p,now);

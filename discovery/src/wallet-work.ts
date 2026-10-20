@@ -1,7 +1,7 @@
 import type { Candidate } from "./model";
 import { analyzeWalletEvidence, WalletEvidenceSchema, type WalletEvidence } from "./wallet-analysis";
 import { hashJson } from "./solana";
-import { collectFundingHistories, FundingScanSchema, type FundingAnchor } from "./funding-history";
+import { collectFundingHistories, fundingTask, FundingScanSchema, type FundingAnchor } from "./funding-history";
 import { walletTransaction, WalletTransactionSchema } from "./wallet-rpc";
 import { RpcClient } from "./rpc";
 import { WalletWorkSchema, type WalletWork } from "./wallet-work-model";
@@ -98,7 +98,7 @@ export async function continueFunding(db: D1Database, candidate: Candidate, rpc:
   // Replay all old/new bodies and exact anchors before describing progress.
   // This temporary replay cannot become a fresh eligibility observation.
   const replay = await analyzeWalletEvidence({ ...prior, observed_at: new Date().toISOString(), records, funding_scans: scans, gaps: [...gaps] });
-  const coverage = replay.funding_coverage ?? [], allGaps = [...new Set(coverage.flatMap(c => c.gaps).concat([...gaps].filter(g => g === "wallet_transaction_sample_limit")))];
+  const coverage = replay.funding_coverage ?? [], allGaps = [...new Set(scans.flatMap(s=>fundingTask(s).gaps).concat([...gaps].filter(g => g === "wallet_transaction_sample_limit")))];
   const pending = allGaps.some(g => ["funding_paging_pending", "funding_transactions_pending"].includes(g)) && !fundingSourceLimited(allGaps);
   const work = WalletWorkSchema.parse({ address: candidate.address, symbol: candidate.symbol, source_evidence_hash: candidate.wallet_analysis!.evidence_hash, snapshot_at: candidate.wallet_analysis!.observed_at, attempted_at: new Date().toISOString(), stage: pending ? "direct_funding" : coverage.length && coverage.every(c => c.status === "window_examined") ? "refresh_required" : "source_limited", windows: coverage.length, examined_windows: coverage.filter(c => c.status === "window_examined").length, pending_transactions: coverage.reduce((n, c) => n + Math.max(0, c.transactions_in_window - c.transactions_examined), 0), decoded_transactions: coverage.reduce((n, c) => n + c.transactions_examined, 0), rpc_calls: rpc.calls, gaps: allGaps });
   await db.prepare("INSERT INTO tenx_wallet_work(address,source_evidence_hash,payload,attempted_at) VALUES(?1,?2,?3,?4) ON CONFLICT(address) DO UPDATE SET source_evidence_hash=excluded.source_evidence_hash,payload=excluded.payload,attempted_at=excluded.attempted_at").bind(candidate.address, work.source_evidence_hash, JSON.stringify(work), work.attempted_at).run();

@@ -14,6 +14,8 @@ import { assess, DEFAULT_POLICY } from "./model";
 import transient from "../fixtures/recorded/temporary-wsol-trade.json";
 import { WalletTransactionSchema } from "./wallet-rpc";
 import { compareCollectionPotential, comparePotential } from "./priority";
+import { compareWalletPlans, walletPlan, walletPlans } from "./wallet-plan";
+import { FundingScanSchema, type FundingScan } from "./funding-history";
 const opened: DatabaseSync[] = [];
 afterEach(() => { opened.splice(0).forEach(d => d.close()); vi.restoreAllMocks(); });
 async function setup() {
@@ -123,5 +125,75 @@ describe("funding continuations keep eligibility snapshots honest", () => {
     expect(saved.wallet_analysis.version).toBe("wallet-signals-v4");expect(saved.wallet_analysis.observed_at).toBe(at);expect(saved.checked_at).toBe(c.checked_at);expect(saved.wallet_analysis.gaps).toContain("pre_buy_funding_coverage_partial");
     expect(await db.prepare("SELECT payload FROM tenx_cohorts ORDER BY address").all()).toEqual(cohorts);
     expect(await analyzeWalletEvidence(JSON.parse((await db.prepare("SELECT payload FROM tenx_wallet_evidence WHERE payload_hash=?1").bind(saved.wallet_analysis.evidence_hash).first<{payload:string}>())!.payload))).toEqual(saved.wallet_analysis);
+  });
+});
+
+describe("budget-aware funding plans",()=>{
+  async function checkpoint(db:D1Database,address:string,scan:FundingScan){
+    scan=FundingScanSchema.parse(scan);
+    await db.prepare("INSERT INTO tenx_funding_scans(address,wallet,anchor_signature,payload,payload_hash,attempted_at) VALUES(?1,?2,?3,?4,?5,?6) ON CONFLICT(address,wallet,anchor_signature) DO UPDATE SET payload=excluded.payload,payload_hash=excluded.payload_hash").bind(address,scan.wallet,scan.anchor.signature,JSON.stringify(scan),await hashJson(scan),scan.attempted_at).run();
+  }
+  it("plans from verified exact anchors without provider reads or snapshot mutations",async()=>{
+    const {db,candidate,transport}=await setup(),before=await db.prepare("SELECT payload FROM tenx_candidates").all();
+    const network=vi.spyOn(globalThis,"fetch").mockRejectedValue(new Error("network forbidden"));
+    expect(await walletPlan(db,candidate)).toMatchObject({stage:"direct_funding",windows:4,examined_windows:0,minimum_rpc_calls:5});
+    expect(transport).not.toHaveBeenCalled();expect(network).not.toHaveBeenCalled();expect(await db.prepare("SELECT payload FROM tenx_candidates").all()).toEqual(before);
+  });
+  it("skips bodies for a known oversized window and prevents manual retries consuming quota",async()=>{
+    const {db,candidate,input,settings,transport}=await setup(),scan=structuredClone(input.funding_scans![1]!);
+    scan.pages=[{before:scan.anchor.signature,fetched_at:input.observed_at,rows:Array.from({length:13},(_,i)=>({signature:signature(100+i),slot:scan.anchor.slot-i-1,blockTime:Date.parse(scan.anchor.block_time)/1000-1-i,err:null,confirmationStatus:"finalized" as const}))}];
+    await checkpoint(db,candidate.address,scan);
+    const plan=await walletPlan(db,candidate);expect(plan,JSON.stringify(plan)).toMatchObject({stage:"source_limited",blocked_windows:1,pending_bodies:13,cached_pending_bodies:null,minimum_rpc_calls:null});expect(plan.gaps).toContain("funding_window_exceeds_transaction_bound");
+    const before=await db.prepare("SELECT payload FROM tenx_candidates").all();
+    expect(await runWalletCycle(settings,candidate.address)).toMatchObject({state:"waiting",reason:"source_limited",rpc_calls:0});
+    expect(transport).not.toHaveBeenCalled();expect(await db.prepare("SELECT * FROM tenx_wallet_usage").all()).toMatchObject({results:[]});expect(await db.prepare("SELECT payload FROM tenx_candidates").all()).toEqual(before);
+  });
+  it("counts reusable saved bodies and rejects poisoned pending cache entries before network work",async()=>{
+    const {db,candidate,input}=await setup(),scan=structuredClone(input.funding_scans![1]!),tx=input.records[2]!.transaction!;
+    scan.pages=[{before:scan.anchor.signature,fetched_at:input.observed_at,rows:[{signature:tx.transaction.signatures[0]!,slot:tx.slot,blockTime:tx.blockTime,err:null,confirmationStatus:"finalized"},{signature:signature(91),slot:tx.slot-1,blockTime:Date.parse(scan.anchor.block_time)/1000-3601,err:null,confirmationStatus:"finalized"}]}];
+    await checkpoint(db,candidate.address,scan);
+    const cachedPlan=await walletPlan(db,candidate);expect(cachedPlan,JSON.stringify(cachedPlan)).toMatchObject({stage:"direct_funding",pending_bodies:1,cached_pending_bodies:1,minimum_rpc_calls:4});
+    // The prior input is verified separately; use a genuinely pending cached body.
+    const missing=await trade(key(8),9999,"buy",92);missing.blockTime=Date.parse(scan.anchor.block_time)/1000-10;
+    scan.pages[0]!.rows[0]={signature:signature(92),slot:missing.slot,blockTime:missing.blockTime,err:null,confirmationStatus:"finalized"};scan.pages[0]!.rows[1]!.slot=missing.slot-1;await checkpoint(db,candidate.address,scan);
+    await db.prepare("INSERT INTO tenx_wallet_transactions(signature,payload_hash,payload,fetched_at) VALUES(?1,?2,?3,?4)").bind(signature(92),"a".repeat(64),JSON.stringify(missing),input.observed_at).run();
+    expect(await walletPlan(db,candidate)).toMatchObject({stage:"cache_invalid",gaps:["wallet_cache_hash_or_identity_mismatch"]});
+    scan.examined=[{signature:signature(92),status:"available"}];await checkpoint(db,candidate.address,scan);
+    expect(await walletPlan(db,candidate)).toMatchObject({stage:"cache_invalid",gaps:["wallet_cache_hash_or_identity_mismatch"]});
+    await db.prepare("DELETE FROM tenx_wallet_transactions WHERE signature=?1").bind(signature(92)).run();
+    expect(await walletPlan(db,candidate)).toMatchObject({stage:"cache_invalid",gaps:["wallet_checkpoint_body_missing"]});
+  });
+  it("retains source-ended and future/hash-mismatched checkpoint gaps",async()=>{
+    const {db,candidate,input}=await setup(),scan=structuredClone(input.funding_scans![0]!);
+    scan.pages=[{before:scan.anchor.signature,fetched_at:input.observed_at,rows:[]}];await checkpoint(db,candidate.address,scan);
+    expect(await walletPlan(db,candidate)).toMatchObject({stage:"source_limited",gaps:expect.arrayContaining(["provider_history_ended_before_window_boundary"])});
+    scan.pages=[];scan.attempted_at=new Date(Date.now()+3600000).toISOString();await checkpoint(db,candidate.address,scan);
+    expect(await walletPlan(db,candidate)).toMatchObject({stage:"cache_invalid",gaps:["funding_checkpoint_from_future"]});
+    await db.prepare("UPDATE tenx_funding_scans SET payload_hash='bad'").run();expect((await walletPlan(db,candidate)).stage).toBe("cache_invalid");
+  });
+  it("automatically skips known blocked current contenders without consuming RPC allowance",async()=>{
+    const {db,candidate,input,settings,transport}=await setup(),scan=structuredClone(input.funding_scans![0]!);
+    scan.pages=[{before:scan.anchor.signature,fetched_at:input.observed_at,rows:[]}];await checkpoint(db,candidate.address,scan);
+    const current={...candidate,graduation:(await fixtureCandidates())[0]!.graduation,market:{...candidate.market!,market_cap_usd:200000,liquidity_usd:100000}};await saveCandidate(db,current);
+    expect(await runWalletCycle(settings)).toMatchObject({state:"empty"});expect(transport).not.toHaveBeenCalled();
+    expect(await db.prepare("SELECT * FROM tenx_wallet_usage").all()).toMatchObject({results:[]});expect((await walletPlan(db,current)).stage).toBe("source_limited");
+  });
+  it("measures real calls and net completed windows once, separately from eligibility",async()=>{
+    const {db,candidate,settings}=await setup();
+    const before=await db.prepare("SELECT payload FROM tenx_candidates").all();
+    expect(await runWalletCycle(settings,candidate.address)).toMatchObject({state:"progressed",rpc_calls:4,snapshot_updated:false});
+    const stats=await db.prepare("SELECT kind,state,rpc_calls,completed_windows FROM tenx_wallet_runs").all();expect(stats.results).toEqual([{kind:"funding",state:"succeeded",rpc_calls:4,completed_windows:3}]);
+    expect(await walletPlan(db,candidate)).toMatchObject({stage:"direct_funding",examined_windows:3,minimum_rpc_calls:2});
+    expect(await runWalletCycle(settings,candidate.address)).toMatchObject({state:"progressed",rpc_calls:2});
+    expect(await walletPlan(db,candidate)).toMatchObject({stage:"refresh_required",examined_windows:4});
+    const summary=await walletPlans(db);expect(summary.yield).toMatchObject({turns:2,rpc_calls:6,completed_windows:4,failed_turns:0,rpc_per_completed_window:1.5});
+    expect(await db.prepare("SELECT payload FROM tenx_candidates").all()).toEqual(before);
+  });
+  it("compares completion cost without changing eligibility or treating unknowns as free",async()=>{
+    const {db,candidate}=await setup(),plan=await walletPlan(db,candidate);
+    const low={candidate,plan:{...plan,minimum_rpc_calls:2}},high={candidate,plan:{...plan,minimum_rpc_calls:10}};
+    expect(compareWalletPlans(low,high,new Date())).toBeLessThan(0);
+    expect(compareWalletPlans(high,{candidate,plan:{...plan,stage:"new_snapshot",minimum_rpc_calls:null}},new Date())).toBeLessThan(0);
+    expect(assess(candidate,DEFAULT_POLICY,new Date()).eligibility).not.toBe("eligible");
   });
 });

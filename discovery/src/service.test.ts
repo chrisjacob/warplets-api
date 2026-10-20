@@ -33,6 +33,7 @@ function fixture() {
   db.exec(readFileSync(new URL("../migrations/0013_wallet_work.sql", import.meta.url), "utf8"));
   db.exec(readFileSync(new URL("../migrations/0014_policy_previews.sql", import.meta.url), "utf8"));
   db.exec(readFileSync(new URL("../migrations/0015_signal_research.sql", import.meta.url), "utf8"));
+  db.exec(readFileSync(new URL("../migrations/0016_wallet_yield.sql", import.meta.url), "utf8"));
   const d1 = sqliteD1(db);
   const env: LocalEnv = { TENX_DB: d1, TENX_LOCAL_ONLY: "true", TENX_NODE_RELAY: "false", TENX_ADMIN_TOKEN: "a".repeat(64), TENX_RPC_URL: "https://api.mainnet-beta.solana.com", TENX_RPC_DAILY_LIMIT: "3000", TENX_MARKET_DAILY_LIMIT: "600", TENX_MARKET_PROVIDER: "geckoterminal", TENX_QUALITY_ENABLED: "true", TENX_QUALITY_RPC_DAILY_LIMIT: "1800", TENX_MARKET_ENABLED: "false", TENX_WALLET_ANALYSIS_ENABLED: "true", TENX_WALLET_RPC_DAILY_LIMIT: "800" };
   return { db, d1, env };
@@ -62,7 +63,7 @@ describe("durable discovery state and public/admin API", () => {
     const saved=JSON.parse((await d1.prepare("SELECT payload FROM tenx_candidates WHERE mode='live'").first<{payload:string}>())!.payload);
     expect(saved.risk.observed_at).toBe(later);expect((await d1.prepare("SELECT selected_at FROM tenx_cohorts").first<{selected_at:string}>())?.selected_at).toBe(later);
   });
-  it("collects, persists, exposes and reuses immutable wallet transactions through the complete local pipeline", async () => {
+  it("collects, persists and exposes immutable wallet transactions without repeating source-limited work", async () => {
     const { d1, env } = fixture(), input = await walletInput(), base = (await fixtureCandidates())[0]!;
     await saveCandidate(d1, { ...base, mode: "live", creation: input.asset.creation, graduation: null });
     const transport = vi.fn(async (_url: unknown, init?: RequestInit) => {
@@ -73,7 +74,7 @@ describe("durable discovery state and public/admin API", () => {
     const settings = { db: d1, rpcUrl: "https://rpc.example", rpcDailyLimit: 100, marketDailyLimit: 100, marketEnabled: false, walletEnabled: true, walletDailyLimit: 80, transport };
     const first = await runWalletCycle(settings, base.address); expect(first).toMatchObject({ state: "succeeded", verified_buys: 3 });
     const before = transport.mock.calls.filter(([, init]) => JSON.parse(String(init?.body)).method === "getTransaction").length;
-    expect(await runWalletCycle(settings, base.address)).toMatchObject({ state: "succeeded", verified_buys: 3 });
+    expect(await runWalletCycle(settings, base.address)).toMatchObject({ state: "waiting", reason:"source_limited",rpc_calls:0 });
     expect(transport.mock.calls.filter(([, init]) => JSON.parse(String(init?.body)).method === "getTransaction")).toHaveLength(before);
     expect(transport.mock.calls.filter(([,init])=>{const b=JSON.parse(String(init?.body));return b.method==="getSignaturesForAddress" && b.params[0]===input.histories[0]!.address})).toHaveLength(1);
     const evidence = await handle(req(`wallet-evidence/${first.evidence_hash}`), env); expect(evidence.status).toBe(200);
@@ -84,7 +85,15 @@ describe("durable discovery state and public/admin API", () => {
     expect((await d1.prepare("SELECT count(*) AS n FROM tenx_wallet_profiles").first<{ n: number }>())?.n).toBe(4);
     const current = JSON.parse((await d1.prepare("SELECT payload FROM tenx_candidates WHERE mode='live'").first<{payload:string}>())!.payload);
     await d1.prepare("UPDATE tenx_wallet_evidence SET payload=json_set(payload,'$.gaps',json('[\"tampered\"]')) WHERE payload_hash=?1").bind(current.wallet_analysis.evidence_hash).run();
-    expect(await runWalletCycle(settings,base.address)).toMatchObject({state:"failed",error_code:"wallet_evidence_cache_hash_mismatch"});
+    expect(await runWalletCycle(settings,base.address)).toMatchObject({state:"waiting",reason:"cache_invalid",plan:{gaps:["wallet_evidence_cache_hash_mismatch"]},rpc_calls:0});
+  });
+  it("exposes bounded wallet planning and measured yield without provider calls or public writes",async()=>{
+    const {d1,env}=fixture(),provider=vi.spyOn(globalThis,"fetch").mockRejectedValue(new Error("provider forbidden"));
+    const before=await d1.prepare("SELECT payload FROM tenx_candidates").all();
+    const response=await handle(req("discovery/wallet-plan"),env);expect(response.status).toBe(200);expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(await response.json()).toMatchObject({data:{scope:"up_to_20_current_contenders",provider_requests:0,evidence_gates_changed:false,yield:{turns:0,rpc_calls:0,rpc_per_completed_window:null}}});
+    expect(await d1.prepare("SELECT payload FROM tenx_candidates").all()).toEqual(before);expect(provider).not.toHaveBeenCalled();
+    expect((await handle(new Request("http://localhost/api/10x/discovery/wallet-plan",{method:"POST"}),env)).status).toBe(404);
   });
   it("preserves newer independent wallet and market snapshots when older chain work completes", async () => {
     const { d1 } = fixture(), c = { ...(await fixtureCandidates(new Date("2026-10-20T00:00:00Z")))[0]!, mode: "live" as const }, w = await gateSample();

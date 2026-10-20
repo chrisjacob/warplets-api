@@ -1,4 +1,4 @@
-import { Address, assess, CandidateSchema, DEFAULT_POLICY, shortlist, type Candidate } from "./model";
+import { Address, CandidateSchema, DEFAULT_POLICY, shortlist, type Candidate } from "./model";
 import { analyzeWalletEvidence, WalletEvidenceSchema, type WalletEvidence } from "./wallet-analysis";
 import { creationRoles, verifiedTrades } from "./wallet-trades";
 import { walletTransaction, WalletTransactionSchema } from "./wallet-rpc";
@@ -12,7 +12,9 @@ import type { Settings } from "./ingest";
 import { collectFundingHistories, type FundingAnchor } from "./funding-history";
 import { buildSecondHopOutflows, secondHopAnchors } from "./second-hop";
 import { comparePotential, potential } from "./priority";
-import { canContinueFunding, catchupLimit, continueFunding, priorWalletEvidence, walletWork } from "./wallet-work";
+import { catchupLimit, continueFunding, priorWalletEvidence, walletWork } from "./wallet-work";
+import { compareWalletPlans, walletPlan } from "./wallet-plan";
+import type { WalletPlan } from "./wallet-plan-model";
 
 export type WalletSettings = Settings & { walletEnabled: boolean; walletDailyLimit: number };
 export async function walletStatus(db: D1Database, limit: number, enabled: boolean) {
@@ -154,37 +156,45 @@ export async function runWalletCycle(settings: WalletSettings, address?: string,
     .bind(owner, new Date(now.getTime() + 360000).toISOString(), at, address || rapid ? 1 : 0).first();
   if (!lease) return { state: "waiting" };
   let selectedAddress: string | null = null;
+  let selected: Candidate | undefined, selectedPlan: WalletPlan | undefined, kind = "snapshot";
+  const runRow = (state: string, completed: number, buyers: number, error: string | null = null) => db.prepare("INSERT OR IGNORE INTO tenx_wallet_runs(id,address,source_evidence_hash,kind,state,started_at,finished_at,rpc_calls,completed_windows,new_buyers,error_code) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11)").bind(owner,selectedAddress,selected?.wallet_analysis?.evidence_hash ?? null,kind,state,at,new Date().toISOString(),rpc.calls,completed,buyers,error);
   try {
     const work = new Map((await walletWork(db)).map(w => [w.address, w]));
     const attempts = await db.prepare("SELECT address,attempted_at,next_attempt_at FROM tenx_wallet_attempts").all<{ address: string; attempted_at: string; next_attempt_at: string }>();
     const tried = new Map(attempts.results.map(r => [r.address, r]));
-    let candidate = address ? all.find(c => c.address === address) : active.filter(c => potential(c, DEFAULT_POLICY, now) && (!tried.get(c.address) || tried.get(c.address)!.next_attempt_at <= at)).sort((a, b) => {
-      const tier = (c: Candidate) => {
-        const otherChecks = assess(c, { ...DEFAULT_POLICY, require_wallet_analysis: false }, now).eligibility === "eligible";
-        const stage = work.get(c.address)?.stage === "refresh_required" ? 0 : canContinueFunding(c, work.get(c.address)) && (c.wallet_analysis?.metrics.distinct_buyers ?? 0) >= DEFAULT_POLICY.min_sampled_buyers ? 1 : !c.wallet_analysis ? 2 : 3;
-        return (otherChecks ? 0 : 4) + stage;
-      };
-      return tier(a) - tier(b) || (tried.get(a.address)?.attempted_at ?? "").localeCompare(tried.get(b.address)?.attempted_at ?? "") || comparePotential(a, b, DEFAULT_POLICY, now);
-    })[0];
+    const planned = [];
+    if (!address) for (const c of active.filter(c=>potential(c,DEFAULT_POLICY,now) && (!tried.get(c.address) || tried.get(c.address)!.next_attempt_at<=at)).slice(0,20)) {
+      const plan=await walletPlan(db,c,now);
+      if (!["source_limited","cache_invalid"].includes(plan.stage)) planned.push({candidate:c,plan});
+    }
+    planned.sort((a,b)=>compareWalletPlans(a,b,now) || (tried.get(a.candidate.address)?.attempted_at ?? "").localeCompare(tried.get(b.candidate.address)?.attempted_at ?? "") || comparePotential(a.candidate,b.candidate,DEFAULT_POLICY,now));
+    let candidate = address ? all.find(c => c.address === address) : planned[0]?.candidate;
     if (address && !candidate) {
       const saved = await db.prepare("SELECT payload FROM tenx_candidates WHERE mode='live' AND address=?1").bind(address).first<{ payload: string }>();
       if (saved) candidate = CandidateSchema.parse(JSON.parse(saved.payload));
     }
     if (!candidate) { await db.prepare("UPDATE tenx_wallet_control SET lease_owner=NULL,lease_until=NULL,next_refresh_at=?1 WHERE id=1 AND lease_owner=?2").bind(new Date(now.getTime() + 300000).toISOString(), owner).run(); return { state: "empty" }; }
     selectedAddress = candidate.address;
+    selected = candidate; selectedPlan = planned.find(p=>p.candidate.address===candidate.address)?.plan ?? await walletPlan(db,candidate,now);
+    if (["source_limited","cache_invalid"].includes(selectedPlan.stage)) {
+      await db.prepare("UPDATE tenx_wallet_control SET lease_owner=NULL,lease_until=NULL,next_refresh_at=?1 WHERE id=1 AND lease_owner=?2").bind(new Date(now.getTime()+300000).toISOString(),owner).run();
+      return {state:"waiting",reason:selectedPlan.stage,address:candidate.address,plan:selectedPlan,rpc_calls:0};
+    }
     const used = await db.prepare("SELECT used FROM tenx_wallet_usage WHERE day=?1").bind(at.slice(0, 10)).first<{ used: number }>();
     const left = Math.max(1, settings.walletDailyLimit - (used?.used ?? 0)), seconds = (Date.parse(`${new Date(now.getTime() + 86400000).toISOString().slice(0, 10)}T00:00:00Z`) - now.getTime()) / 1000;
     // A bounded catch-up reserve brings unfinished windows forward without
     // increasing either daily allowance. Normal pacing uses observed work cost.
     const catchupSlot = rapid && active.filter(c => c.eligibility === "eligible").length < 10 ? await db.prepare("INSERT INTO tenx_usage(provider,day,used) VALUES('wallet_catchup',?1,18) ON CONFLICT(provider,day) DO UPDATE SET used=used+18 WHERE used+18<=?2 RETURNING used").bind(at.slice(0,10),allowance).first() : null;
-    const estimate = Math.max(2, Math.min(18, work.get(candidate.address)?.rpc_calls ?? 18));
-    const spacing = catchupSlot ? 60 : Math.min(seconds + 60, Math.max(60, Math.min(7200, Math.ceil(seconds * estimate / left))));
+    const spacingFor = (cost:number) => catchupSlot ? 60 : Math.min(seconds + 60, Math.max(60, Math.min(7200, Math.ceil(seconds * Math.max(1,Math.min(18,cost)) / left))));
+    const spacing = spacingFor(selectedPlan.minimum_rpc_calls ?? work.get(candidate.address)?.rpc_calls ?? 18);
     await db.prepare("UPDATE tenx_wallet_control SET next_refresh_at=?1 WHERE id=1 AND lease_owner=?2").bind(new Date(now.getTime() + spacing * 1000).toISOString(), owner).run();
-    if (canContinueFunding(candidate, work.get(candidate.address))) {
+    if (selectedPlan.stage === "direct_funding") {
+      kind = "funding";
       const progress = await continueFunding(db, candidate, rpc);
       await db.batch([
+        runRow("succeeded",Math.max(0,progress.examined_windows-selectedPlan.examined_windows),0),
         db.prepare("INSERT INTO tenx_wallet_attempts(address,attempted_at,next_attempt_at) VALUES(?1,?2,?3) ON CONFLICT(address) DO UPDATE SET attempted_at=excluded.attempted_at,next_attempt_at=excluded.next_attempt_at").bind(candidate.address, at, new Date(now.getTime() + (progress.stage === "refresh_required" ? 60000 : progress.stage === "source_limited" ? 3600000 : 300000)).toISOString()),
-        db.prepare("UPDATE tenx_wallet_control SET lease_owner=NULL,lease_until=NULL,last_address=?1,last_error=NULL WHERE id=1 AND lease_owner=?2").bind(candidate.address,owner),
+        db.prepare("UPDATE tenx_wallet_control SET lease_owner=NULL,lease_until=NULL,last_address=?1,last_error=NULL,next_refresh_at=?3 WHERE id=1 AND lease_owner=?2").bind(candidate.address,owner,new Date(now.getTime()+spacingFor(rpc.calls)*1000).toISOString()),
       ]);
       return { state: "progressed", address: candidate.address, rpc_calls: rpc.calls, progress, snapshot_updated: false };
     }
@@ -192,10 +202,11 @@ export async function runWalletCycle(settings: WalletSettings, address?: string,
     const payload = JSON.stringify(evidence); if (new TextEncoder().encode(payload).length > 1800000) throw new Error("wallet_evidence_size_limit");
     const analysis = await analyzeWalletEvidence(evidence);
     const statements = [
+      runRow("succeeded",Math.max(0,(analysis.funding_coverage?.filter(f=>f.status==="window_examined").length ?? 0)-selectedPlan.examined_windows),Math.max(0,analysis.metrics.distinct_buyers-(candidate.wallet_analysis?.metrics.distinct_buyers ?? 0))),
       db.prepare("INSERT OR IGNORE INTO tenx_wallet_evidence(payload_hash,address,payload,observed_at) VALUES(?1,?2,?3,?4)").bind(analysis.evidence_hash, candidate.address, payload, analysis.observed_at),
       db.prepare("UPDATE tenx_candidates SET payload=json_set(payload,'$.wallet_analysis',json(?1)) WHERE address=?2 AND mode='live'").bind(JSON.stringify(analysis), candidate.address),
       db.prepare("INSERT INTO tenx_wallet_attempts(address,attempted_at,next_attempt_at) VALUES(?1,?2,?3) ON CONFLICT(address) DO UPDATE SET attempted_at=excluded.attempted_at,next_attempt_at=excluded.next_attempt_at").bind(candidate.address, at, new Date(now.getTime() + 3600000).toISOString()),
-      db.prepare("UPDATE tenx_wallet_control SET lease_owner=NULL,lease_until=NULL,last_success=?1,last_address=?2,last_error=NULL WHERE id=1 AND lease_owner=?3").bind(analysis.observed_at, candidate.address, owner),
+      db.prepare("UPDATE tenx_wallet_control SET lease_owner=NULL,lease_until=NULL,last_success=?1,last_address=?2,last_error=NULL,next_refresh_at=?4 WHERE id=1 AND lease_owner=?3").bind(analysis.observed_at, candidate.address, owner,new Date(now.getTime()+spacingFor(rpc.calls)*1000).toISOString()),
       db.prepare("DELETE FROM tenx_wallet_work WHERE address=?1").bind(candidate.address),
     ];
     for (const wallet of analysis.wallets) statements.push(db.prepare("INSERT INTO tenx_wallet_profiles(address,wallet,payload_hash,payload,observed_at) VALUES(?1,?2,?3,?4,?5) ON CONFLICT(address,wallet) DO UPDATE SET payload_hash=excluded.payload_hash,payload=excluded.payload,observed_at=excluded.observed_at").bind(candidate.address, wallet.wallet, analysis.evidence_hash, JSON.stringify(wallet), analysis.observed_at));
@@ -207,6 +218,7 @@ export async function runWalletCycle(settings: WalletSettings, address?: string,
     await persistRpcBackoff(db, error, now);
     const code = error instanceof SourceError ? error.code : error instanceof Error && /^[a-z0-9_]{1,80}$/.test(error.message) ? error.message : "wallet_evidence_not_certified";
     const retry = error instanceof SourceError ? error.retryAfterSeconds : 300;
+    if (selectedAddress) await runRow("failed",0,0,code).run();
     await db.prepare("UPDATE tenx_wallet_control SET lease_owner=NULL,lease_until=NULL,next_refresh_at=?1,last_error=?2 WHERE id=1 AND lease_owner=?3").bind(new Date(now.getTime() + retry * 1000).toISOString(), code, owner).run();
     if (selectedAddress) await db.prepare("INSERT INTO tenx_wallet_attempts(address,attempted_at,next_attempt_at) VALUES(?1,?2,?3) ON CONFLICT(address) DO UPDATE SET attempted_at=excluded.attempted_at,next_attempt_at=excluded.next_attempt_at").bind(selectedAddress, at, new Date(now.getTime() + Math.max(retry, 3600) * 1000).toISOString()).run();
     return { state: "failed", error_code: code, rpc_calls: rpc.calls };

@@ -134,6 +134,12 @@ The policy lab in `/admin/10x` compares stricter numeric thresholds only. It loc
 
 Migration `0014_policy_previews.sql` retains frozen candidate inputs, baseline/proposed results, hashes and reason in the local database, with an atomic audit entry. Authenticated `GET /api/10x/admin/policies/previews/:id` verifies and replays a record. Inputs and results are downloadable from Admin; bearer tokens are never included. Admission is capped at 20 new previews per UTC day, 500 candidates and bounded bytes. Oversized input fails rather than dropping candidates. Retries do not consume a second slot. Public reads and previews make zero provider requests and never alter evidence, elections, research cohorts or the active policy. Comparisons are snapshots, not performance backtests.
 
+## Funding completion planning
+
+The collector detects saved windows that exceed the unchanged twelve-body bound before spending further transaction requests. The automatic wallet loop replays exact checkpoint inputs and retained bodies, skips known source/sample limits, prioritizes finishable work and paces successful turns by actual cost. All quotas, evidence gates, pause/backoff, leases and freshness limits remain unchanged. A continuation never refreshes candidate eligibility.
+
+Local migration `0016_wallet_yield.sql` records actual calls and conservatively confirmed net window completions. `GET /api/10x/discovery/wallet-plan` exposes read-only plans for up to twenty current contenders and measured yield without provider calls. Discover shows costs and gaps; known work is a request lower bound, never a guaranteed completion. Verify with `pnpm exec tsx scripts/check-discovery-wallet-plan.ts`. See [measured result and remaining gaps](../docs/10x/21-funding-yield-review.md). Ten eligible tokens remain an unmet target.
+
 ## Frozen warning-signal research
 
 The existing local maintenance timer now captures separate cap and smooth-rise research baselines, at most three tokens per minute, and finalizes up to five matured outcomes. Each token/signal keeps its first usable snapshot, including unflagged controls. Unknowns stay pending; old selection and wallet cohorts are not enriched with later history. Outcomes target 24 hours plus a two-hour collection grace. Chronological validation removes training outcomes unavailable before holdout collection. Draft proposals remain inactive.

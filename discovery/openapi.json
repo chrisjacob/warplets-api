@@ -99,6 +99,50 @@
         }
       }
     },
+    "/api/10x/discovery/wallet-plan": {
+      "get": {
+        "summary": "Read-only funding plans for up to 20 current contenders and measured local collection yield; request estimates are lower bounds, zero provider calls and unchanged gates",
+        "responses": {
+          "200": {
+            "description": "Success; cached public data includes timestamps, source freshness and coverage",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WalletPlansResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "401": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "403": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "404": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "409": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "413": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "415": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "429": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "503": {
+            "description": "Structured JSON error; no provider secrets"
+          }
+        }
+      }
+    },
     "/api/10x/artwork": {
       "get": {
         "summary": "Cached presentation artwork linked by saved verified Pump creation metadata; never changes eligibility or triggers provider calls",
@@ -3851,6 +3895,213 @@
               "catchup_reserved",
               "catchup_limit",
               "snapshot_refresh_required"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "additionalProperties": false
+      },
+      "WalletPlansResponse": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "at": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+              },
+              "scope": {
+                "type": "string",
+                "const": "up_to_20_current_contenders"
+              },
+              "capped": {
+                "type": "boolean"
+              },
+              "plans": {
+                "maxItems": 20,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "address": {
+                      "type": "string",
+                      "maxLength": 44
+                    },
+                    "symbol": {
+                      "type": "string"
+                    },
+                    "source_evidence_hash": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "snapshot_at": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "stage": {
+                      "type": "string",
+                      "enum": [
+                        "new_snapshot",
+                        "direct_funding",
+                        "refresh_required",
+                        "source_limited",
+                        "cache_invalid"
+                      ]
+                    },
+                    "windows": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "examined_windows": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "blocked_windows": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "pending_bodies": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "cached_pending_bodies": {
+                      "anyOf": [
+                        {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "minimum_rpc_calls": {
+                      "anyOf": [
+                        {
+                          "type": "integer",
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "gaps": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "required": [
+                    "address",
+                    "symbol",
+                    "source_evidence_hash",
+                    "snapshot_at",
+                    "stage",
+                    "windows",
+                    "examined_windows",
+                    "blocked_windows",
+                    "pending_bodies",
+                    "cached_pending_bodies",
+                    "minimum_rpc_calls",
+                    "gaps"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "yield": {
+                "type": "object",
+                "properties": {
+                  "since": {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                  },
+                  "turns": {
+                    "type": "number"
+                  },
+                  "rpc_calls": {
+                    "type": "number"
+                  },
+                  "completed_windows": {
+                    "type": "number"
+                  },
+                  "new_buyer_observations": {
+                    "type": "number"
+                  },
+                  "snapshots": {
+                    "type": "number"
+                  },
+                  "failed_turns": {
+                    "type": "number"
+                  },
+                  "rpc_per_completed_window": {
+                    "anyOf": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "since",
+                  "turns",
+                  "rpc_calls",
+                  "completed_windows",
+                  "new_buyer_observations",
+                  "snapshots",
+                  "failed_turns",
+                  "rpc_per_completed_window"
+                ],
+                "additionalProperties": false
+              },
+              "provider_requests": {
+                "type": "number",
+                "const": 0
+              },
+              "evidence_gates_changed": {
+                "type": "boolean",
+                "const": false
+              }
+            },
+            "required": [
+              "at",
+              "scope",
+              "capped",
+              "plans",
+              "yield",
+              "provider_requests",
+              "evidence_gates_changed"
             ],
             "additionalProperties": false
           }

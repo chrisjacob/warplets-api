@@ -3,6 +3,7 @@ import { z } from "zod";
 import { AssessedCandidateSchema, PolicySchema, ProofSchema } from "../discovery/src/model";
 import { ArtworkResponseSchema } from "../discovery/src/artwork-model";
 import { WalletWorkResponseSchema } from "../discovery/src/wallet-work-model";
+import { WalletPlansResponseSchema } from "../discovery/src/wallet-plan-model";
 import { PolicyEditsSchema, PolicyPreviewResponseSchema, PreviewRequestSchema } from "../discovery/src/policy-model";
 import { SignalDetailSchema } from "../discovery/src/signal-model";
 import { ActivityResponse, CoverageResponse, DetailResponse, ElectionDetailResponse, ElectionsResponse, HistoryResponse, ListResponse, PoliciesResponse, ReviewsResponse, SignalsResponse, StatusResponse } from "../app/src/discovery/client";
@@ -20,6 +21,7 @@ const spec = {
   paths: {
     "/api/10x/health": read("Local service readiness"),
     "/api/10x/discovery/wallet-work": read("Cached resumable direct funding work; does not refresh wallet snapshots or waive eligibility gates", responseSchema("WalletWorkResponse")),
+    "/api/10x/discovery/wallet-plan": read("Read-only funding plans for up to 20 current contenders and measured local collection yield; request estimates are lower bounds, zero provider calls and unchanged gates",responseSchema("WalletPlansResponse")),
     "/api/10x/artwork": read("Cached presentation artwork linked by saved verified Pump creation metadata; never changes eligibility or triggers provider calls", { ...responseSchema("ArtworkResponse"), parameters: [parameter("addresses", "query", { type: "string", description: "One to 100 comma-separated Solana mints" }, true)] }),
     "/api/10x/chains": read("Discovery capabilities, separate from launch support"),
     "/api/10x/candidates": read("At most 100 eligible/provisional/excluded candidates", { ...responseSchema("CandidateListResponse"), parameters: [parameter("limit", "query", { type: "integer", minimum: 1, maximum: 100, default: 25 }), parameter("mode", "query", { enum: ["live", "fixture"], default: "live" }), parameter("status", "query", { enum: ["all", "eligible", "provisional", "excluded"] }), parameter("age", "query", { enum: ["all", "24h"], default: "all", description: "24h requires independently verified token creation time; the Discover view uses 24h" }), parameter("cursor", "query", { type: "string", maxLength: 300, description: "Opaque snapshot-bound cursor; 409 requires refresh" })] }),
@@ -58,6 +60,7 @@ const spec = {
     Candidate: z.toJSONSchema(AssessedCandidateSchema, { unrepresentable: "any" }),
     ArtworkResponse: z.toJSONSchema(ArtworkResponseSchema),
     WalletWorkResponse: z.toJSONSchema(WalletWorkResponseSchema),
+    WalletPlansResponse: z.toJSONSchema(WalletPlansResponseSchema),
     Proof: z.toJSONSchema(ProofSchema, { unrepresentable: "any" }),
     DiscoveryPolicy: z.toJSONSchema(PolicySchema),
     PolicyEdits: z.toJSONSchema(PolicyEditsSchema),
