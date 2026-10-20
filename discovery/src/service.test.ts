@@ -30,6 +30,7 @@ function fixture() {
   db.exec(readFileSync(new URL("../migrations/0010_quality_refresh.sql", import.meta.url), "utf8"));
   db.exec(readFileSync(new URL("../migrations/0011_lead_markets.sql", import.meta.url), "utf8"));
   db.exec(readFileSync(new URL("../migrations/0012_token_artwork.sql", import.meta.url), "utf8"));
+  db.exec(readFileSync(new URL("../migrations/0013_wallet_work.sql", import.meta.url), "utf8"));
   const d1 = sqliteD1(db);
   const env: LocalEnv = { TENX_DB: d1, TENX_LOCAL_ONLY: "true", TENX_NODE_RELAY: "false", TENX_ADMIN_TOKEN: "a".repeat(64), TENX_RPC_URL: "https://api.mainnet-beta.solana.com", TENX_RPC_DAILY_LIMIT: "3000", TENX_MARKET_DAILY_LIMIT: "600", TENX_MARKET_PROVIDER: "geckoterminal", TENX_QUALITY_ENABLED: "true", TENX_QUALITY_RPC_DAILY_LIMIT: "1800", TENX_MARKET_ENABLED: "false", TENX_WALLET_ANALYSIS_ENABLED: "true", TENX_WALLET_RPC_DAILY_LIMIT: "800" };
   return { db, d1, env };
@@ -79,7 +80,8 @@ describe("durable discovery state and public/admin API", () => {
     expect(activity.status).toBe(200);expect(await activity.json()).toMatchObject({data:{organic_trading:"unverified",fees:{network_fee_lamports_raw:"15000",transactions:3}}});expect(provider).not.toHaveBeenCalled();
     expect((await d1.prepare("SELECT count(*) AS n FROM tenx_wallet_transactions").first<{ n: number }>())?.n).toBe(4);
     expect((await d1.prepare("SELECT count(*) AS n FROM tenx_wallet_profiles").first<{ n: number }>())?.n).toBe(4);
-    await d1.prepare("UPDATE tenx_wallet_evidence SET payload=json_set(payload,'$.gaps',json('[\"tampered\"]')) WHERE payload_hash=?1").bind((await runWalletCycle(settings,base.address)).evidence_hash).run();
+    const current = JSON.parse((await d1.prepare("SELECT payload FROM tenx_candidates WHERE mode='live'").first<{payload:string}>())!.payload);
+    await d1.prepare("UPDATE tenx_wallet_evidence SET payload=json_set(payload,'$.gaps',json('[\"tampered\"]')) WHERE payload_hash=?1").bind(current.wallet_analysis.evidence_hash).run();
     expect(await runWalletCycle(settings,base.address)).toMatchObject({state:"failed",error_code:"wallet_evidence_cache_hash_mismatch"});
   });
   it("preserves newer independent wallet and market snapshots when older chain work completes", async () => {

@@ -52,6 +52,47 @@
         }
       }
     },
+    "/api/10x/discovery/wallet-work": {
+      "get": {
+        "summary": "Cached resumable direct funding work; does not refresh wallet snapshots or waive eligibility gates",
+        "responses": {
+          "200": {
+            "description": "Success; cached public data includes timestamps, source freshness and coverage",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WalletWorkResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "401": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "403": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "404": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "409": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "413": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "415": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "503": {
+            "description": "Structured JSON error; no provider secrets"
+          }
+        }
+      }
+    },
     "/api/10x/artwork": {
       "get": {
         "summary": "Cached presentation artwork linked by saved verified Pump creation metadata; never changes eligibility or triggers provider calls",
@@ -1064,6 +1105,72 @@
     "/api/10x/admin/market-refresh": {
       "post": {
         "summary": "Refresh up to 30 cached pool markets using one free source request",
+        "security": [
+          {
+            "localOperator": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 300
+                  }
+                },
+                "required": [
+                  "reason"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success; cached public data includes timestamps, source freshness and coverage",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "401": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "403": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "404": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "409": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "413": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "415": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "503": {
+            "description": "Structured JSON error; no provider secrets"
+          }
+        }
+      }
+    },
+    "/api/10x/admin/wallet-replay": {
+      "post": {
+        "summary": "Reinterpret up to ten cached legacy wallet inputs with the certified v4 decoder; preserve observation timestamps and all gates, zero provider calls",
         "security": [
           {
             "localOperator": []
@@ -3379,6 +3486,120 @@
               ],
               "additionalProperties": false
             }
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "additionalProperties": false
+      },
+      "WalletWorkResponse": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "work": {
+                "maxItems": 20,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "address": {
+                      "type": "string"
+                    },
+                    "symbol": {
+                      "type": "string"
+                    },
+                    "source_evidence_hash": {
+                      "type": "string"
+                    },
+                    "snapshot_at": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                    },
+                    "attempted_at": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                    },
+                    "stage": {
+                      "type": "string",
+                      "enum": [
+                        "direct_funding",
+                        "refresh_required",
+                        "source_limited"
+                      ]
+                    },
+                    "windows": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "examined_windows": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "pending_transactions": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "decoded_transactions": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "rpc_calls": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "gaps": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "required": [
+                    "address",
+                    "symbol",
+                    "source_evidence_hash",
+                    "snapshot_at",
+                    "attempted_at",
+                    "stage",
+                    "windows",
+                    "examined_windows",
+                    "pending_transactions",
+                    "decoded_transactions",
+                    "rpc_calls",
+                    "gaps"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "catchup_reserved": {
+                "type": "number"
+              },
+              "catchup_limit": {
+                "type": "number"
+              },
+              "snapshot_refresh_required": {
+                "type": "boolean",
+                "const": true
+              }
+            },
+            "required": [
+              "work",
+              "catchup_reserved",
+              "catchup_limit",
+              "snapshot_refresh_required"
+            ],
+            "additionalProperties": false
           }
         },
         "required": [
@@ -7093,6 +7314,12 @@
                     "type": "number"
                   },
                   "market": {
+                    "type": "number"
+                  },
+                  "artwork": {
+                    "type": "number"
+                  },
+                  "wallet_catchup": {
                     "type": "number"
                   }
                 },

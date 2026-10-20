@@ -23,7 +23,7 @@ export const ReviewsResponse = Common.extend({ data: z.object({ reports: z.array
 export const StatusResponse = Common.extend({ data: z.object({
   local_only: z.literal(true), paused: z.boolean(), running: z.boolean(), last_error: z.string().nullable(), retry_after: z.string().nullable(),
   pending_signatures: z.number(), usage: z.array(z.object({ provider: z.string(), used: z.number() })),
-  daily_limits: z.object({ rpc: z.number(), market: z.number() }), adapter_version: z.string(), policy: PolicySchema,
+  daily_limits: z.object({ rpc: z.number(), market: z.number(), artwork: z.number().optional(), wallet_catchup: z.number().optional() }), adapter_version: z.string(), policy: PolicySchema,
   capabilities: z.object({ discovery: z.boolean(), voting: z.literal(false), launches: z.literal(false), signing: z.literal(false), rewards: z.literal(false), social_publishing: z.literal(false) }),
   automation: z.object({ heartbeat_at: z.string().nullable(), next_refresh_at: z.string().nullable(), reviewed_at: z.string().nullable(), review_timezone: z.string(), review_cadence: z.string(), refresh_cadence: z.string() }).optional(),
   wallet_automation: z.object({ enabled: z.boolean(), daily_limit: z.number(), daily_used: z.number(), last_success: z.string().nullable(), next_refresh_at: z.string().nullable(), last_error: z.string().nullable() }).optional(),

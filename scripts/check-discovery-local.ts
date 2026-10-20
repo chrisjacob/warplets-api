@@ -18,8 +18,12 @@ const status = StatusResponse.parse(await get("system/status"));
 assert.ok(list.data.candidates.length <= 100);
 assert.ok(list.data.candidates.every(c => c.mode === "live" && c.launch_eligible === false));
 for (const usage of status.data.usage) {
-  assert.ok(usage.used <= status.data.daily_limits[usage.provider as "rpc" | "market"]);
+  assert.ok(Object.hasOwn(status.data.daily_limits, usage.provider), `Unknown budget counter: ${usage.provider}`);
+  const limit = status.data.daily_limits[usage.provider as keyof typeof status.data.daily_limits];
+  assert.ok(limit !== undefined && usage.used <= limit, `${usage.provider}: ${usage.used}/${limit}`);
 }
+assert.ok(status.data.wallet_automation && status.data.wallet_automation.daily_used <= status.data.wallet_automation.daily_limit);
+if (status.data.quality_automation) assert.ok(status.data.quality_automation.daily_used <= status.data.quality_automation.daily_limit);
 assert.equal((await fetch(`${base}/admin/jobs`)).status, 401);
 let paired = 0, accountSnapshots = 0;
 for (const candidate of list.data.candidates.slice(0, 4)) {

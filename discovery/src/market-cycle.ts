@@ -4,7 +4,7 @@ import { candidates, captureCohort, control, reserveQuota } from "./store";
 import { SourceError } from "./rpc";
 import type { Settings } from "./ingest";
 import { dexMarkets } from "./dex-market";
-import { comparePotential, createdWithinWindow } from "./priority";
+import { compareCollectionPotential, createdWithinWindow } from "./priority";
 
 export async function runMarketCycle(settings: Settings, now = new Date()): Promise<Record<string, unknown>> {
   if (!settings.marketEnabled) return { state: "disabled" };
@@ -22,7 +22,7 @@ export async function runMarketCycle(settings: Settings, now = new Date()): Prom
     const attempted = new Map(attempts.results.map(row => [row.address, row.attempted_at]));
     // Ten current contenders receive every batch, up to ten slots screen
     // migrations, and the remaining slots rotate through discovery/research.
-    const focus = all.filter(c => createdWithinWindow(c, now)).sort((a, b) => comparePotential(a, b, DEFAULT_POLICY, now)).slice(0, 10);
+    const focus = all.filter(c => createdWithinWindow(c, now)).sort((a, b) => compareCollectionPotential(a, b, DEFAULT_POLICY, now)).slice(0, 10);
     const focused = new Set(focus.map(c => c.address));
     const leads = await db.prepare(`SELECT l.address,l.pool FROM tenx_leads l LEFT JOIN tenx_lead_markets m ON m.address=l.address WHERE l.checked_at IS NULL AND json_extract(l.migration_tx,'$.blockTime')>=?1 AND (m.attempted_at IS NULL OR m.attempted_at<=?2) ORDER BY m.attempted_at,l.first_seen_at DESC,l.address LIMIT 10`).bind(Math.floor(now.getTime() / 1000) - 86400, new Date(now.getTime() - 900000).toISOString()).all<{ address: string; pool: string }>();
     const pending = leads.results.filter(l => !focused.has(l.address)), pendingSet = new Set(pending.map(l => l.address));

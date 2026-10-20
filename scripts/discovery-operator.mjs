@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 const action = process.argv[2] ?? "status";
-const routes = { status: "system/status", jobs: "admin/jobs", refresh: "admin/refresh", pause: "admin/pause", resume: "admin/pause", fixtures: "admin/seed-fixtures", "dry-run": "admin/dry-run", review: "admin/review", maintenance: "admin/maintenance", "market-refresh": "admin/market-refresh", "artwork-refresh": "admin/artwork-refresh", "wallet-refresh": "admin/wallet-refresh", "quality-refresh": "admin/quality-refresh" };
+const routes = { status: "system/status", jobs: "admin/jobs", refresh: "admin/refresh", pause: "admin/pause", resume: "admin/pause", fixtures: "admin/seed-fixtures", "dry-run": "admin/dry-run", review: "admin/review", maintenance: "admin/maintenance", "market-refresh": "admin/market-refresh", "artwork-refresh": "admin/artwork-refresh", "wallet-refresh": "admin/wallet-refresh", "wallet-replay": "admin/wallet-replay", "quality-refresh": "admin/quality-refresh" };
 if (!(action in routes)) throw new Error(`Use one of: ${Object.keys(routes).join(", ")}`);
 const readOnly = action === "status" || action === "jobs";
 const token = readFileSync(new URL("../discovery/.dev.vars", import.meta.url), "utf8").match(/^TENX_ADMIN_TOKEN=([a-f0-9]{64})\s*$/m)?.[1];

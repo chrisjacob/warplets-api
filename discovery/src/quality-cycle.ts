@@ -3,7 +3,7 @@ import { candidates, control, reserveQuota, saveCandidate } from "./store";
 import { RpcClient, SourceError, TransactionSchema, persistRpcBackoff, type Inventory, type Accounts } from "./rpc";
 import { creationUser, migrations, verifyState, type Migration } from "./pump";
 import { analyzeHolders, type HolderEvidence } from "./holders";
-import { comparePotential, createdWithinWindow } from "./priority";
+import { compareCollectionPotential, createdWithinWindow } from "./priority";
 import type { Settings } from "./ingest";
 
 export type QualitySettings = Settings & { qualityEnabled: boolean; qualityDailyLimit: number };
@@ -30,7 +30,7 @@ export async function runQualityCycle(s: QualitySettings, now = new Date()): Pro
   if (!lease) return { state: "waiting" };
   const rpc = new RpcClient(s.rpcUrl, reserveQualityQuota(db, s, now), s.transport, 18);
   try {
-    const focus = (await candidates(db)).filter(c => createdWithinWindow(c, now) && c.creation && c.graduation && c.verification !== "rejected" && (c.market?.liquidity_usd ?? 0) >= DEFAULT_POLICY.min_liquidity_usd && (c.market?.market_cap_usd == null || c.market.market_cap_usd >= DEFAULT_POLICY.min_market_cap_usd)).sort((a, b) => comparePotential(a, b, DEFAULT_POLICY, now)).slice(0, 10);
+    const focus = (await candidates(db)).filter(c => createdWithinWindow(c, now) && c.creation && c.graduation && c.verification !== "rejected" && (c.market?.liquidity_usd ?? 0) >= DEFAULT_POLICY.min_liquidity_usd && (c.market?.market_cap_usd == null || c.market.market_cap_usd >= DEFAULT_POLICY.min_market_cap_usd)).sort((a, b) => compareCollectionPotential(a, b, DEFAULT_POLICY, now)).slice(0, 10);
     const targets: Target[] = [];
     for (const candidate of focus) {
       const lead = await db.prepare("SELECT migration_tx FROM tenx_leads WHERE address=?1").bind(candidate.address).first<{ migration_tx: string }>();
@@ -64,7 +64,7 @@ export async function runQualityCycle(s: QualitySettings, now = new Date()): Pro
       await db.prepare("INSERT INTO tenx_quality_attempts(address,state_at) VALUES(?1,?2) ON CONFLICT(address) DO UPDATE SET state_at=excluded.state_at").bind(t.candidate.address, at).run();
     }
     const attempts = await db.prepare("SELECT address,holder_at FROM tenx_quality_attempts").all<{ address: string; holder_at: string | null }>(), tried = new Map(attempts.results.map(r => [r.address, r.holder_at]));
-    const due = valid.filter(t => !t.candidate.holders || now.getTime() - Date.parse(t.candidate.holders.observed_at) >= 20 * 60000).sort((a, b) => (tried.get(a.candidate.address) ?? "").localeCompare(tried.get(b.candidate.address) ?? "") || comparePotential(a.candidate, b.candidate, DEFAULT_POLICY, now));
+    const due = valid.filter(t => !t.candidate.holders || now.getTime() - Date.parse(t.candidate.holders.observed_at) >= 20 * 60000).sort((a, b) => (tried.get(a.candidate.address) ?? "").localeCompare(tried.get(b.candidate.address) ?? "") || compareCollectionPotential(a.candidate, b.candidate, DEFAULT_POLICY, now));
     // Bootstrap missing inventories; steady state rotates two owners per five
     // minutes, using one shared mint read after the finalized inventories.
     const count = due.filter(t => !tried.get(t.candidate.address)).length >= 2 ? 8 : 2;

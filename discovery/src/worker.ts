@@ -19,6 +19,7 @@ import { activitySummary } from "./activity";
 import { WalletEvidenceSchema } from "./wallet-analysis";
 import { artworkFor, runArtworkCycle } from "./artwork";
 import { safeMetadataUrl } from "./images";
+import { catchupLimit, replayLegacyWallets, walletWork } from "./wallet-work";
 
 // Widen generated literal vars so ignored .dev.vars overrides stay type-safe.
 export type LocalEnv = { [K in keyof Cloudflare.Env]: Cloudflare.Env[K] extends string ? string : Cloudflare.Env[K] };
@@ -75,7 +76,7 @@ async function status(env: Env) {
   return {
     local_only: true, paused: Boolean(state.paused), running: Boolean(state.lease_until && state.lease_until > new Date().toISOString()),
     last_error: state.last_error, retry_after: state.retry_after, pending_signatures: count?.count ?? 0,
-    usage: usage.results, daily_limits: { rpc: Number(env.TENX_RPC_DAILY_LIMIT), market: Number(env.TENX_MARKET_DAILY_LIMIT) },
+    usage: usage.results, daily_limits: { rpc: Number(env.TENX_RPC_DAILY_LIMIT), market: Number(env.TENX_MARKET_DAILY_LIMIT), artwork: 120, wallet_catchup: catchupLimit(Number(env.TENX_WALLET_RPC_DAILY_LIMIT)) },
     adapter_version: ADAPTER_VERSION, policy: DEFAULT_POLICY,
     market_provider: env.TENX_MARKET_PROVIDER,
     automation: { heartbeat_at: state.heartbeat_at, next_refresh_at: state.next_refresh_at, reviewed_at: state.reviewed_at, review_timezone: "Australia/Sydney", review_cadence: "hourly catch-up of prior three days", refresh_cadence: "paced across the remaining free daily budget" },
@@ -101,6 +102,10 @@ export async function handle(request: Request, env: Env): Promise<Response> {
   if (method === "GET" && path === "/api/10x/chains") return json(await envelope(env, [{ id: "solana", discover_enabled: true, vote_enabled: false, launch_enabled: false }]));
   if (method === "GET" && path === "/api/10x/system/status") return json(await envelope(env, await status(env)));
   if (method === "GET" && path === "/api/10x/discovery/coverage") return json(await envelope(env, discoveryCoverage(await candidates(env.TENX_DB), DEFAULT_POLICY, new Date())));
+  if (method === "GET" && path === "/api/10x/discovery/wallet-work") {
+    const usage = await env.TENX_DB.prepare("SELECT used FROM tenx_usage WHERE provider='wallet_catchup' AND day=?1").bind(new Date().toISOString().slice(0,10)).first<{used:number}>();
+    return json(await envelope(env, { work: await walletWork(env.TENX_DB), catchup_reserved: usage?.used ?? 0, catchup_limit: catchupLimit(Number(env.TENX_WALLET_RPC_DAILY_LIMIT)), snapshot_refresh_required: true }));
+  }
   if (method === "GET" && path === "/api/10x/artwork") {
     const addresses = z.array(Address).min(1).max(100).parse((url.searchParams.get("addresses") ?? "").split(","));
     return json(await envelope(env, await artworkFor(env.TENX_DB, addresses)));
@@ -230,6 +235,10 @@ export async function handle(request: Request, env: Env): Promise<Response> {
       return json(await runCycle({ ...settings(env), paced: !force }));
     }
     if (path === "/api/10x/admin/market-refresh") return json(await runMarketCycle(settings(env)));
+    if (path === "/api/10x/admin/wallet-replay") {
+      await audit(env.TENX_DB,"cached_wallet_replay_requested",reason,{});
+      return json(await replayLegacyWallets(env.TENX_DB));
+    }
     if (path === "/api/10x/admin/artwork-refresh") return json(await runArtworkCycle(settings(env)));
     if (path === "/api/10x/admin/quality-refresh") return json(await runQualityCycle(settings(env)));
     if (path === "/api/10x/admin/wallet-refresh") {

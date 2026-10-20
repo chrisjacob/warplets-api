@@ -41,7 +41,7 @@ export async function startRelay({ token, rpcUrl, port = 8795, transport = fetch
         if (rpcCooldownUntil > Date.now()) { response.writeHead(429, { "retry-after": String(Math.ceil((rpcCooldownUntil - Date.now()) / 1000)) }); response.end(); return; }
         const start = Math.max(Date.now(), nextRpcAt), delay = start - Date.now();
         if (delay > 3000) { response.writeHead(429, { "retry-after": "300" }); response.end(); return; }
-        nextRpcAt = start + 500;
+        nextRpcAt = start + 1000;
         if (delay > 0) await new Promise(resolve => setTimeout(resolve, delay));
         if (rpcCooldownUntil > Date.now()) { response.writeHead(429, { "retry-after": String(Math.ceil((rpcCooldownUntil - Date.now()) / 1000)) }); response.end(); return; }
       }
