@@ -3,6 +3,7 @@ import { ContentAppealRequest, ContentCampaign, ContentCampaignList, ContentCamp
 import { canonicalContentUrl, ContentError } from "./content-url";
 import { hashJson } from "./solana";
 import type { requireContentIdentity } from "./identity";
+import { contentVisibilityHeld } from "./content-reports";
 type Principal = Awaited<ReturnType<typeof requireContentIdentity>>;
 type Snapshot = z.infer<typeof ContentSnapshot>;
 type Event = z.infer<typeof ContentEvent>;
@@ -66,7 +67,7 @@ export async function contentRecord(db: D1Database, id: string, owner?: string) 
     events.push(event);
   }
   if (events.at(-1)?.hash !== row.event_hash || await hashJson(events.at(-1)!.snapshot) !== await hashJson(snapshot) || events[0]!.request_hash !== row.request_hash) fail("content_history_integrity_failed", 503);
-  return ContentRecord.parse({ snapshot, events, replay: "verified", source_requests: 0 });
+  return ContentRecord.parse({ snapshot, events, visibility_held:await contentVisibilityHeld(db,id), replay: "verified", source_requests: 0 });
 }
 export async function submitContent(db: D1Database, raw: unknown, p: Principal, at = new Date()) {
   const input = ContentSubmissionRequest.parse(raw), url = canonicalContentUrl(input.url);
@@ -165,14 +166,16 @@ export async function contentPage(db: D1Database, filter: { owner?: string; camp
   if (filter.owner) { clauses.push("identity_id=?"); values.push(z.uuid().parse(filter.owner)); }
   if (filter.campaign) { clauses.push("campaign_id=?"); values.push(z.uuid().parse(filter.campaign)); }
   if (filter.public || filter.status) { clauses.push("status=?"); values.push(filter.public ? "VISIBLE" : ContentStatus.parse(filter.status)); }
+  if(filter.public)clauses.push("NOT EXISTS(SELECT 1 FROM tenx_content_reports r WHERE r.submission_id=tenx_content_submissions.id AND r.status='UPHELD')");
   const rows = await db.prepare(`SELECT * FROM tenx_content_submissions WHERE ${clauses.join(" AND ")} ORDER BY updated_at DESC,id DESC LIMIT 21`).bind(...values).all<Row>();
-  const submissions = [];
+  const submissions = [],held_submission_ids:string[]=[];
   for (const row of rows.results.slice(0, 20)) {
     // Public projection checks the complete retained review history too.
     const record = await contentRecord(db, row.id, filter.owner);
-    if (!record || (filter.public && record.snapshot.status !== "VISIBLE")) fail("content_projection_changed_retry", 409);
+    if (!record || (filter.public && (record.snapshot.status !== "VISIBLE"||record.visibility_held))) fail("content_projection_changed_retry", 409);
+    if(record.visibility_held)held_submission_ids.push(record.snapshot.id);
     submissions.push(record.snapshot);
   }
-  const last = rows.results[19], page = { scope: "local_content_review", as_of: at.toISOString(), submissions, next_cursor: rows.results.length > 20 ? `${last!.updated_at}|${last!.id}` : null, rewards_enabled: false };
+  const last = rows.results[19], page = { scope: "local_content_review", as_of: at.toISOString(), submissions, held_submission_ids, next_cursor: rows.results.length > 20 ? `${last!.updated_at}|${last!.id}` : null, rewards_enabled: false };
   return filter.public ? PublicContentPage.parse({ ...page, submissions: submissions.map(({ identity_id: _owner, ...s }) => s) }) : ContentPage.parse(page);
 }

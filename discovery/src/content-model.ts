@@ -12,12 +12,12 @@ export const ContentSnapshot = z.object({ id: z.uuid(), campaign_id: z.uuid(), i
   authorship: z.literal("unverified"), engagement: z.literal("unavailable"), reward_eligible: z.literal(false),
 }).strict();
 export const ContentEvent = z.object({ id: z.uuid(), submission_id: z.uuid(), revision: z.number().int().min(0).max(19), actor: z.string(), action: z.enum(["submit", "review", "appeal"]), reason: Reason, created_at: z.iso.datetime(), request_hash: Hash, previous_hash: Hash.nullable(), snapshot: ContentSnapshot, hash: Hash }).strict();
-export const ContentRecord = z.object({ snapshot: ContentSnapshot, events: z.array(ContentEvent).min(1).max(20), replay: z.literal("verified"), source_requests: z.literal(0) }).strict();
+export const ContentRecord = z.object({ snapshot: ContentSnapshot, events: z.array(ContentEvent).min(1).max(20), visibility_held:z.boolean(), replay: z.literal("verified"), source_requests: z.literal(0) }).strict();
 export const ContentReviewRequest = z.object({ request_id: z.uuid(), submission_id: z.uuid(), expected_revision: z.number().int().min(0).max(18), decision: z.enum(["VISIBLE", "FLAGGED", "REJECTED"]), reason: Reason }).strict();
 export const ContentAppealRequest = z.object({ request_id: z.uuid(), submission_id: z.uuid(), expected_revision: z.number().int().min(0).max(18), reason: Reason }).strict();
 export const PublicContent = ContentSnapshot.omit({ identity_id: true });
 export const ContentCampaignList = z.object({ scope: z.literal("local_content_review"), as_of: z.iso.datetime(), campaigns: z.array(PublicContentCampaign).max(20), next_cursor: z.string().nullable() }).strict();
-export const ContentPage = z.object({ scope: z.literal("local_content_review"), as_of: z.iso.datetime(), submissions: z.array(ContentSnapshot).max(20), next_cursor: z.string().nullable(), rewards_enabled: z.literal(false) }).strict();
+export const ContentPage = z.object({ scope: z.literal("local_content_review"), as_of: z.iso.datetime(), submissions: z.array(ContentSnapshot).max(20), held_submission_ids:z.array(z.uuid()).max(20), next_cursor: z.string().nullable(), rewards_enabled: z.literal(false) }).strict();
 export const PublicContentPage = ContentPage.extend({ submissions: z.array(PublicContent).max(20) }).strict();
 export const ContentCampaignDetail = z.object({ campaign: PublicContentCampaign, feed: PublicContentPage }).strict();
 export const ContentChangeResponse = z.object({ event: ContentEvent, replay: z.literal("verified") }).strict();

@@ -2,19 +2,12 @@ import { useEffect, useRef, useState } from "react";
 import { z } from "zod";
 import { ContentCampaign, ContentCampaignList, ContentCampaignRequest, ContentPage, ContentRecord, ContentReviewRequest, ContentSubmissionRequest, PublicContentCampaign, PublicContentPage, type ContentSnapshot } from "../../../discovery/src/content-model";
 import { IdentitySessionResponse } from "../../../discovery/src/identity-model";
+import {contentApi as api} from "./contentApi";
+import {ContentReportForm,ContentReportsPanel} from "./ContentReports";
 
 type Submission = z.infer<typeof ContentSnapshot>;
 type Campaign = z.infer<typeof PublicContentCampaign>;
 const displayDate = (value: string) => new Date(value).toLocaleString();
-async function api(path: string, options: { token?: string; body?: unknown; signal?: AbortSignal } = {}) {
-  const r = await fetch(`/api/10x/${path}`, { credentials: "same-origin", cache: "no-store", signal: options.signal,
-    headers: { ...(options.token ? { authorization: `Bearer ${options.token}` } : {}), ...(options.body === undefined ? {} : { "content-type": "application/json", "x-tenx-identity": "1" }) },
-    ...(options.body === undefined ? {} : { method: "POST", body: JSON.stringify(options.body) }),
-  });
-  const value: unknown = await r.json();
-  if (!r.ok) { const error = z.object({ error: z.string() }).safeParse(value); throw new Error((error.success ? error.data.error : `Request failed (${r.status})`).replaceAll("_", " ")); }
-  return value;
-}
 export function ContentLink({ item }: { item: Pick<Submission, "content" | "status" | "updated_at" | "revision"> }) {
   return <><div className="tenx-row"><strong>{item.content.category} · {item.content.platform}</strong><span className="tenx-badge">{item.status}</span></div>
     <a className="tenx-content-url" href={item.content.canonical_url} target="_blank" rel="ugc nofollow noopener noreferrer" referrerPolicy="no-referrer">{item.content.canonical_url} ↗</a>
@@ -62,7 +55,7 @@ export function AttentionContentPage({ campaignId, submitOnly = false }: { campa
           if (current === epoch.current) setMine(own);
         }
         if (current === epoch.current) setError(errors.join(" "));
-      } catch (e) { if (!signal.aborted && current === epoch.current) { setError(e instanceof Error ? e.message : "Content unavailable"); setMine(null); setFeed(null); } }
+      } catch (e) { if (!signal.aborted && current === epoch.current) { setError(e instanceof Error ? e.message : "Content unavailable"); setSession(false); setMine(null); setFeed(null); } }
     };
     void refresh(); const onFocus = () => void refresh(); window.addEventListener("focus", onFocus);
     const timer = window.setInterval(() => { if (document.visibilityState === "visible") void refresh(); }, 15000);
@@ -83,7 +76,7 @@ export function AttentionContentPage({ campaignId, submitOnly = false }: { campa
       if (kind === "campaigns" && campaignCursor) {
         const next = ContentCampaignList.parse(await api(`attention/campaigns?cursor=${encodeURIComponent(campaignCursor)}`)); setCampaigns(current => [...current, ...next.campaigns]); setCampaignCursor(next.next_cursor);
       } else if (kind === "mine" && mine?.next_cursor) {
-        const next = ContentPage.parse(await api(`attention/mine?cursor=${encodeURIComponent(mine.next_cursor)}`)); setMine(current => current ? { ...next, submissions: [...current.submissions, ...next.submissions] } : next);
+        const next = ContentPage.parse(await api(`attention/mine?cursor=${encodeURIComponent(mine.next_cursor)}`)); setMine(current => current ? { ...next, held_submission_ids:[...new Set([...current.held_submission_ids,...next.held_submission_ids])], submissions: [...current.submissions, ...next.submissions] } : next);
       } else if (kind === "feed" && feed?.next_cursor) {
         const next = z.object({ feed: PublicContentPage }).passthrough().parse(await api(`attention/campaigns/${selected}?cursor=${encodeURIComponent(feed.next_cursor)}`)); setFeed(current => current ? { ...next.feed, submissions: [...current.submissions, ...next.feed.submissions] } : next.feed);
       }
@@ -105,16 +98,17 @@ export function AttentionContentPage({ campaignId, submitOnly = false }: { campa
         <label className="tenx-content-check"><input type="checkbox" required checked={permission} onChange={e => setPermission(e.target.checked)} /> I allow this URL, author claim and commentary to be featured after review.</label>
         <p>No social post is published by this action. Do not submit private links, credentials, personal information or copied media.</p><button className="tenx-button" type="submit" disabled={!selected || !permission || !rights}>Submit for review</button>
       </fieldset></form></section>
-    {selected && !submitOnly && <section className="tenx-panel"><h2>Reviewed links</h2><p>Visible after manual review. Visibility verifies neither authorship nor engagement.</p>{feed?.submissions.length === 0 && <p>No visible links yet.</p>}{feed?.submissions.map(s => <article className="tenx-content-item" key={s.id}><ContentLink item={s} /></article>)}{feed?.next_cursor && <button className="tenx-button" disabled={busy} onClick={() => void more("feed")}>More reviewed links</button>}</section>}
-    {session && <section className="tenx-panel"><h2>My submissions · private</h2><p>Pending, flagged and rejected submissions are visible only to you and the local operator. Appeals do not restore public visibility automatically.</p>{mine?.submissions.length === 0 && <p>No submissions from this identity yet.</p>}{mine?.submissions.map(s => <OwnSubmission key={`${s.id}:${s.revision}`} item={s} changed={() => setVersion(v => v + 1)} />)}{mine?.next_cursor && <button className="tenx-button" disabled={busy} onClick={() => void more("mine")}>More of my submissions</button>}</section>}
+    {selected && !submitOnly && <section className="tenx-panel"><h2>Reviewed links</h2><p>Visible after manual review. Visibility verifies neither authorship nor engagement.</p>{feed?.submissions.length === 0 && <p>No visible links yet.</p>}{feed?.submissions.map(s => <article className="tenx-content-item" key={s.id}><ContentLink item={s} /><ContentReportForm submissionId={s.id} signedIn={session}/></article>)}{feed?.next_cursor && <button className="tenx-button" disabled={busy} onClick={() => void more("feed")}>More reviewed links</button>}</section>}
+    {session && <section className="tenx-panel"><h2>My submissions · private</h2><p>Pending, flagged and rejected submissions are visible only to you and the local operator. Appeals do not restore public visibility automatically.</p>{mine?.submissions.length === 0 && <p>No submissions from this identity yet.</p>}{mine?.submissions.map(s => <OwnSubmission key={`${s.id}:${s.revision}`} item={s} held={mine.held_submission_ids.includes(s.id)} changed={() => setVersion(v => v + 1)} />)}{mine?.next_cursor && <button className="tenx-button" disabled={busy} onClick={() => void more("mine")}>More of my submissions</button>}</section>}
+    {session&&<ContentReportsPanel/>}
   </>;
 }
-function OwnSubmission({ item, changed }: { item: Submission; changed: () => void }) {
+function OwnSubmission({ item, held, changed }: { item: Submission; held:boolean; changed: () => void }) {
   const [reason, setReason] = useState(""), [message, setMessage] = useState(""), [busy, setBusy] = useState(false), [id, setId] = useState(() => crypto.randomUUID());
   const canAppeal = ["FLAGGED", "REJECTED"].includes(item.status) && item.revision < 19;
   async function appeal() { setBusy(true); try { await api("attention/appeals", { body: { request_id: id, submission_id: item.id, expected_revision: item.revision, reason } }); changed(); } catch (e) { setMessage(e instanceof Error ? e.message : "Appeal failed"); } finally { setBusy(false); } }
   async function evidence() { setBusy(true); try { const record = ContentRecord.parse(await api(`attention/mine/${item.id}`)); setMessage(record.events.map(e => `${e.action}: ${e.reason}`).join(" · ")); } catch (e) { setMessage(e instanceof Error ? e.message : "History unavailable"); } finally { setBusy(false); } }
-  return <article className="tenx-content-item"><ContentLink item={item} /><button className="tenx-button" disabled={busy} onClick={() => void evidence()}>Show my review history</button>{canAppeal && <form className="tenx-content-form" onSubmit={e => { e.preventDefault(); void appeal(); }}><label>Appeal reason<textarea required minLength={3} maxLength={500} value={reason} onChange={e => { setReason(e.target.value); setId(crypto.randomUUID()); }} /></label><button className="tenx-button" disabled={busy || reason.trim().length < 3}>Request another review</button></form>}<p role="status">{message}</p></article>;
+  return <article className="tenx-content-item"><ContentLink item={item} />{held&&<p className="tenx-notice">Featuring is on hold after a report review. The original moderation state above is retained; all report holds must be released before this link can appear publicly.</p>}<button className="tenx-button" disabled={busy} onClick={() => void evidence()}>Show my review history</button>{canAppeal && <form className="tenx-content-form" onSubmit={e => { e.preventDefault(); void appeal(); }}><label>Appeal reason<textarea required minLength={3} maxLength={500} value={reason} onChange={e => { setReason(e.target.value); setId(crypto.randomUUID()); }} /></label><button className="tenx-button" disabled={busy || reason.trim().length < 3}>Request another review</button></form>}<p role="status">{message}</p></article>;
 }
 export function ContentModerationLab({ token }: { token: string }) {
   const [title, setTitle] = useState(""), [address, setAddress] = useState(""), [reason, setReason] = useState(""), [id, setId] = useState(() => crypto.randomUUID());
@@ -128,7 +122,8 @@ export function ContentModerationLab({ token }: { token: string }) {
     <details><summary>Open a local review campaign</summary><form onChange={() => setId(crypto.randomUUID())} onSubmit={e => { e.preventDefault(); void create(); }}><fieldset disabled={!token || busy}><legend>Review campaign setup</legend><label>Campaign title<input required minLength={3} maxLength={100} value={title} onChange={e => setTitle(e.target.value)} /></label><label>OG Solana mint<input required maxLength={44} value={address} onChange={e => setAddress(e.target.value)} /></label><label>Setup reason<textarea required minLength={3} maxLength={500} value={reason} onChange={e => setReason(e.target.value)} /></label><button className="tenx-button">Open ten-day review window</button></fieldset></form></details>
     <label>Queue status<select value={status} onChange={e => { setStatus(e.target.value); setQueue(null); }}><option value="">All states</option>{["PENDING", "FLAGGED", "APPEALED", "VISIBLE", "REJECTED"].map(s => <option key={s}>{s}</option>)}</select></label>
     <button className="tenx-button" disabled={!token || busy} onClick={() => void load()}>Load private moderation queue</button><a href="/attention"> View content campaigns →</a><p role="status">{busy ? "Checking local records…" : message}</p>
-    {token && queue?.submissions.length === 0 && <p>No submissions in this queue.</p>}{token && queue?.submissions.map(s => <ReviewSubmission key={`${s.id}:${s.revision}`} item={s} token={token} changed={() => void load()} />)}{token && queue?.next_cursor && <button className="tenx-button" disabled={busy} onClick={() => void load(queue.next_cursor!)}>More queue items</button>}
+    {token && queue?.submissions.length === 0 && <p>No submissions in this queue.</p>}{token && queue?.submissions.map(s => <div key={`${s.id}:${s.revision}`}>{queue.held_submission_ids.includes(s.id)&&<p className="tenx-notice">An upheld report holds this link out of the public feed. Ordinary moderation does not release report holds.</p>}<ReviewSubmission item={s} token={token} changed={() => void load()} /></div>)}{token && queue?.next_cursor && <button className="tenx-button" disabled={busy} onClick={() => void load(queue.next_cursor!)}>More queue items</button>}
+    <ContentReportsPanel token={token}/>
   </section>;
 }
 function ReviewSubmission({ item, token, changed }: { item: Submission; token: string; changed: () => void }) {

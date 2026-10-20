@@ -8,11 +8,12 @@ import { canonicalContentUrl } from "./content-url";
 import { changeContent, contentCampaign, contentCampaigns, contentPage, contentRecord, createContentCampaign, submitContent } from "./content";
 import worker, { type LocalEnv } from "./worker";
 import { toBase58 } from "./solana";
+import {contentReportRecord,contentReports,reviewContentReport,submitContentReport} from "./content-reports";
 const instances: DatabaseSync[] = [], origin = "https://app-local.10x.meme", token = "a".repeat(64);
 afterEach(() => { instances.splice(0).forEach(db => db.close()); vi.restoreAllMocks(); vi.useRealTimers(); });
 async function fixture() {
   const sqlite = new DatabaseSync(":memory:"); instances.push(sqlite); sqlite.exec("PRAGMA foreign_keys=ON");
-  for (const name of ["0018_solana_identity.sql", "0024_content_review.sql"]) sqlite.exec(readFileSync(new URL(`../migrations/${name}`, import.meta.url), "utf8"));
+  for (const name of ["0018_solana_identity.sql", "0024_content_review.sql", "0026_content_reports.sql"]) sqlite.exec(readFileSync(new URL(`../migrations/${name}`, import.meta.url), "utf8"));
   const base = sqliteD1(sqlite); let tail: Promise<unknown> = Promise.resolve();
   const db = { ...base, batch(statements: D1PreparedStatement[]) { const result = tail.then(() => base.batch(statements)); tail = result.catch(() => {}); return result; } } as D1Database;
   const at = new Date();
@@ -47,6 +48,105 @@ describe("safe URL identity without network access", () => {
   });
   it("rejects executable, credential-bearing and local/private literal URLs", () => {
     for (const value of ["javascript:alert(1)", "http://example.com/", "https://user:pass@example.com/", "https://127.0.0.1/x", "https://2130706433/x", "https://[::1]/", "https://localhost/x", "https://a.local/x", "https://example.com:8443/", "https://example.com/?api_key=private", "https://example.com/\n"]) expect(() => canonicalContentUrl(value)).toThrow();
+  });
+});
+
+describe("private content reports and independent visibility holds",()=>{
+  async function published(f:Awaited<ReturnType<typeof fixture>>,suffix=crypto.randomUUID()){
+    const input=f.input(`https://example.com/reportable/${suffix}`);await submitContent(f.db,input,f.owner.principal,f.at);await changeContent(f.db,f.review(input.request_id),null,f.at);return input.request_id;
+  }
+  const report=(id:string)=>({request_id:crypto.randomUUID(),submission_id:id,category:"rights_or_permission",reason:"Private evidence of missing permission",evidence_url:"https://example.com/public-reference?utm_source=test",good_faith:true});
+  const review=(id:string,revision=0,decision="UPHELD")=>({request_id:crypto.randomUUID(),report_id:id,expected_revision:revision,decision,reason:"Local moderator reviewed the evidence carefully"});
+  it("requires a signed session and keeps allegations, references and reporter identity private",async()=>{
+    const f=await fixture(),id=await published(f),input=report(id),outside=vi.spyOn(globalThis,"fetch").mockRejectedValue(Error("No external requests"));
+    expect((await f.call("attention/reports",input)).status).toBe(401);
+    expect((await f.call("attention/reports",input,f.other.cookie,{origin:"https://evil.example"})).status).toBe(403);
+    expect((await f.call("attention/reports",input,f.other.cookie,{"x-tenx-identity":""})).status).toBe(403);
+    expect((await f.call("attention/reports",{...input,reason:"x".repeat(4500)},f.other.cookie)).status).toBe(413);
+    expect((await f.call("attention/reports",{...input,good_faith:false},f.other.cookie)).status).toBe(400);
+    const response=await f.call("attention/reports",input,f.other.cookie);expect(response.status).toBe(200);expect(response.headers.get("vary")).toBe("Cookie");expect(response.headers.get("cache-control")).toBe("no-store");
+    expect((await contentRecord(f.db,id))!.visibility_held).toBe(false);
+    const publicResponse=await f.call(`attention/campaigns/${f.campaign.id}`),text=await publicResponse.text();expect(text).toContain(id);
+    for(const secret of [input.reason,"public-reference",f.other.principal.identity_id,input.request_id])expect(text).not.toContain(secret);
+    expect((await f.call(`attention/reports/${input.request_id}`,undefined,f.owner.cookie)).status).toBe(404);
+    expect((await f.call(`admin/attention/reports/${input.request_id}`)).status).toBe(401);
+    expect((await f.call("admin/attention/reports/review",review(input.request_id),f.other.cookie)).status).toBe(401);
+    expect((await contentReports(f.db,{owner:f.owner.principal.identity_id,cursor:null})).reports).toEqual([]);
+    expect((await contentReports(f.db,{owner:f.other.principal.identity_id,cursor:null})).reports).toHaveLength(1);expect(outside).not.toHaveBeenCalled();
+  });
+  it("holds upheld reports independently of content appeals and never rewrites original hashes or grants rewards",async()=>{
+    const f=await fixture(),id=await published(f),before=(await contentRecord(f.db,id))!,input=report(id);
+    await submitContentReport(f.db,input,f.other.principal,f.at);await reviewContentReport(f.db,review(input.request_id),f.at);
+    const held=(await contentRecord(f.db,id))!;expect(held.snapshot).toEqual(before.snapshot);expect(held.events).toEqual(before.events);expect(held.visibility_held).toBe(true);expect(held.snapshot.reward_eligible).toBe(false);
+    expect((await contentPage(f.db,{campaign:f.campaign.id,public:true,cursor:null},f.at)).submissions).toEqual([]);
+    const own=await contentPage(f.db,{owner:f.owner.principal.identity_id,cursor:null},f.at);expect(own.held_submission_ids).toEqual([id]);expect(JSON.stringify(own)).not.toContain(input.reason);
+    await changeContent(f.db,f.review(id,1,"FLAGGED"),null,f.at);
+    await changeContent(f.db,{request_id:crypto.randomUUID(),submission_id:id,expected_revision:2,reason:"Owner requests another ordinary content review"},f.owner.principal,f.at);
+    await changeContent(f.db,f.review(id,3,"VISIBLE"),null,f.at);
+    expect((await contentPage(f.db,{campaign:f.campaign.id,public:true,cursor:null},f.at)).submissions).toEqual([]);
+    await reviewContentReport(f.db,review(input.request_id,1,"RELEASED"),f.at);
+    expect((await contentPage(f.db,{campaign:f.campaign.id,public:true,cursor:null},f.at)).submissions).toHaveLength(1);
+    expect((await contentReportRecord(f.db,input.request_id))!.events.map(e=>e.snapshot.status)).toEqual(["OPEN","UPHELD","RELEASED"]);
+  });
+  it("requires all independent holds to release and keeps ordinary rejected content hidden afterward",async()=>{
+    const f=await fixture(),third=await f.login(),id=await published(f),a=report(id),b=report(id);
+    await submitContentReport(f.db,a,f.other.principal,f.at);await submitContentReport(f.db,b,third.principal,f.at);
+    await reviewContentReport(f.db,review(a.request_id),f.at);await reviewContentReport(f.db,review(b.request_id),f.at);
+    await reviewContentReport(f.db,review(a.request_id,1,"RELEASED"),f.at);expect((await contentRecord(f.db,id))!.visibility_held).toBe(true);
+    await changeContent(f.db,f.review(id,1,"REJECTED"),null,f.at);await reviewContentReport(f.db,review(b.request_id,1,"RELEASED"),f.at);
+    expect((await contentRecord(f.db,id))!.visibility_held).toBe(false);expect((await contentPage(f.db,{campaign:f.campaign.id,public:true,cursor:null},f.at)).submissions).toEqual([]);
+  });
+  it("deduplicates report races and retries without appending a second claim or changed review",async()=>{
+    const f=await fixture(),id=await published(f),input=report(id);
+    const records=await Promise.all([submitContentReport(f.db,input,f.other.principal,f.at),submitContentReport(f.db,input,f.other.principal,f.at)]);expect(records[0]).toEqual(records[1]);
+    await expect(submitContentReport(f.db,{...input,request_id:crypto.randomUUID()},f.other.principal,f.at)).rejects.toMatchObject({message:"content_already_reported"});
+    await expect(submitContentReport(f.db,{...input,reason:"A changed private allegation"},f.other.principal,f.at)).rejects.toMatchObject({message:"content_report_request_conflict"});
+    const decision=review(input.request_id);await reviewContentReport(f.db,decision,f.at);await reviewContentReport(f.db,review(input.request_id,1,"RELEASED"),f.at);
+    expect((await reviewContentReport(f.db,decision,f.at)).snapshot.status).toBe("RELEASED");
+    expect((await contentReportRecord(f.db,input.request_id))!.events).toHaveLength(3);
+    await expect(reviewContentReport(f.db,{...decision,reason:"Changed reuse of the same review request"},f.at)).rejects.toMatchObject({message:"content_report_request_conflict"});
+  });
+  it("atomically rolls back create/review faults and admits one competing moderator decision",async()=>{
+    const f=await fixture(),id=await published(f),input=report(id);
+    f.sqlite.exec("CREATE TRIGGER report_fault BEFORE INSERT ON tenx_content_report_events BEGIN SELECT RAISE(ABORT,'report fault'); END");
+    await expect(submitContentReport(f.db,input,f.other.principal,f.at)).rejects.toThrow("report fault");expect(f.sqlite.prepare("SELECT count(*) n FROM tenx_content_reports").get()?.n).toBe(0);f.sqlite.exec("DROP TRIGGER report_fault");
+    await submitContentReport(f.db,input,f.other.principal,f.at);
+    f.sqlite.exec("CREATE TRIGGER report_fault BEFORE UPDATE ON tenx_content_reports BEGIN SELECT RAISE(ABORT,'report fault'); END");
+    await expect(reviewContentReport(f.db,review(input.request_id),f.at)).rejects.toThrow("report fault");expect((await contentReportRecord(f.db,input.request_id))!.events).toHaveLength(1);f.sqlite.exec("DROP TRIGGER report_fault");
+    const results=await Promise.allSettled([reviewContentReport(f.db,review(input.request_id),f.at),reviewContentReport(f.db,review(input.request_id,0,"DISMISSED"),f.at)]);expect(results.filter(r=>r.status==="fulfilled")).toHaveLength(1);expect((await contentReportRecord(f.db,input.request_id))!.events).toHaveLength(2);
+  });
+  it("bounds concurrent reporter, global and per-submission admissions without hiding unreviewed claims",async()=>{
+    const f=await fixture(),targets:string[]=[];for(let n=0;n<4;n++)targets.push(await published(f));
+    const attempts=await Promise.allSettled(targets.map(id=>submitContentReport(f.db,report(id),f.other.principal,f.at)));expect(attempts.filter(r=>r.status==="fulfilled")).toHaveLength(3);
+    const users:Awaited<ReturnType<typeof f.login>>[]=[];for(let n=0;n<10;n++)users.push(await f.login());
+    const global=await Promise.allSettled(Array.from({length:30},(_,n)=>submitContentReport(f.db,report(targets[n%4]!),users[Math.floor(n/3)]!.principal,f.at)));expect(global.filter(r=>r.status==="fulfilled")).toHaveLength(27);
+    expect(f.sqlite.prepare("SELECT count(*) n FROM tenx_content_reports").get()?.n).toBe(30);expect((await contentPage(f.db,{campaign:f.campaign.id,public:true,cursor:null},f.at)).submissions).toHaveLength(4);
+    const first=await contentReports(f.db,{status:"OPEN",cursor:null},f.at);expect(first.reports).toHaveLength(20);expect(first.next_cursor).not.toBeNull();
+    const second=await contentReports(f.db,{status:"OPEN",cursor:first.next_cursor},f.at);expect(second.reports).toHaveLength(10);expect(new Set([...first.reports,...second.reports].map(r=>r.id)).size).toBe(30);
+  });
+  it("caps one target at ten reports and refuses hidden targets, unsafe reference URLs and revoked sessions",async()=>{
+    const f=await fixture(),id=await published(f),users=[f.other];for(let n=0;n<10;n++)users.push(await f.login());
+    const results=await Promise.allSettled(users.map(u=>submitContentReport(f.db,report(id),u.principal,f.at)));expect(results.filter(r=>r.status==="fulfilled")).toHaveLength(10);
+    const hidden=f.input();await submitContent(f.db,hidden,f.owner.principal,f.at);await expect(submitContentReport(f.db,report(hidden.request_id),f.other.principal,f.at)).rejects.toMatchObject({status:404});
+    await expect(submitContentReport(f.db,{...report(id),evidence_url:"https://127.0.0.1/private"},f.owner.principal,f.at)).rejects.toThrow();
+    const another=await published(f);f.sqlite.prepare("UPDATE tenx_identity_sessions SET revoked_at=? WHERE token_hash=?").run(f.at.toISOString(),f.other.principal.token_hash);
+    await expect(submitContentReport(f.db,report(another),f.other.principal,f.at)).rejects.toMatchObject({message:"content_report_limit_or_session_changed"});
+  });
+  it("detects report history/projection corruption before exposing a public link and preserves immutable events",async()=>{
+    const f=await fixture(),id=await published(f),input=report(id);await submitContentReport(f.db,input,f.other.principal,f.at);
+    expect(()=>f.sqlite.exec("UPDATE tenx_content_report_events SET request_hash='bad'")).toThrow("immutable_report_event");expect(()=>f.sqlite.exec("DELETE FROM tenx_content_reports")).toThrow("immutable_report_identity");
+    f.sqlite.exec("DROP TRIGGER tenx_report_event_no_update");const row=f.sqlite.prepare("SELECT id,event FROM tenx_content_report_events").get()!,event=JSON.parse(String(row.event));event.reason="Changed historical private explanation";f.sqlite.prepare("UPDATE tenx_content_report_events SET event=? WHERE id=?").run(JSON.stringify(event),String(row.id));
+    await expect(contentReportRecord(f.db,input.request_id)).rejects.toMatchObject({message:"content_report_history_integrity_failed"});
+    await expect(contentPage(f.db,{campaign:f.campaign.id,public:true,cursor:null},f.at)).rejects.toMatchObject({message:"content_report_history_integrity_failed"});
+  });
+  it("preserves references without fetching them and enforces strict revision/time transitions",async()=>{
+    const f=await fixture(),id=await published(f),input=report(id),saved=await submitContentReport(f.db,input,f.other.principal,f.at);
+    expect(saved.snapshot.evidence_url).toBe("https://example.com/public-reference");
+    await expect(reviewContentReport(f.db,review(input.request_id,0,"RELEASED"),f.at)).rejects.toMatchObject({message:"content_report_invalid_transition"});
+    await expect(reviewContentReport(f.db,review(input.request_id),new Date(f.at.getTime()-1))).rejects.toMatchObject({message:"content_report_time_conflict"});
+    await reviewContentReport(f.db,review(input.request_id,0,"DISMISSED"),f.at);
+    await expect(reviewContentReport(f.db,review(input.request_id,1,"UPHELD"),f.at)).rejects.toMatchObject({message:"content_report_invalid_transition"});
+    await expect(contentReports(f.db,{cursor:"not-a-cursor"},f.at)).rejects.toThrow();
   });
 });
 describe("signed content submission and moderation", () => {

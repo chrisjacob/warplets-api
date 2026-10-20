@@ -8,6 +8,7 @@ import { createServer } from "node:net";
 import { toBase58 } from "../discovery/src/solana";
 import { ContentCampaign, ContentCampaignDetail, ContentChangeResponse, ContentPage, ContentRecord } from "../discovery/src/content-model";
 import { IdentityChallengeResponse, IdentitySessionResponse } from "../discovery/src/identity-model";
+import {ContentReportPage,ContentReportRecord} from "../discovery/src/content-report-model";
 
 // Disposable keys and a separate database: never signs with user wallets or
 // writes synthetic submissions into the live local application database.
@@ -75,9 +76,23 @@ try {
   const second = ContentCampaignDetail.parse(await (await call(`attention/campaigns/${campaign.id}?cursor=${encodeURIComponent(first.feed.next_cursor)}`)).json()); assert(second.feed.submissions.length >= 1);
   assert.equal(new Set([...first.feed.submissions, ...second.feed.submissions].map(s => s.id)).size, first.feed.submissions.length + second.feed.submissions.length);
   const queue = ContentPage.parse(await (await call("admin/attention/queue", undefined, undefined, true)).json()); assert.equal(queue.submissions.length, 20);
+  const target=first.feed.submissions[0]!,claim={request_id:crypto.randomUUID(),submission_id:target.id,category:"impersonation",reason:"Synthetic private report for isolated runtime review",evidence_url:"https://example.com/evidence",good_faith:true};
+  assert.equal((await call("attention/reports",claim)).status,401);
+  const reportResponse=await call("attention/reports",claim,users[1]!.cookie);assert.equal(reportResponse.status,200);
+  const report=ContentReportRecord.parse(await reportResponse.json());assert.equal(report.snapshot.status,"OPEN");
+  assert.equal((await call(`attention/reports/${claim.request_id}`,undefined,users[0]!.cookie)).status,404);
+  const textWithReport=await (await publicDetail()).text();assert(!textWithReport.includes(claim.reason));assert(!textWithReport.includes(claim.request_id));
+  const reportDecision={request_id:crypto.randomUUID(),report_id:claim.request_id,expected_revision:0,decision:"UPHELD",reason:"Synthetic operator reviewed the private concern"};
+  assert.equal((await call("admin/attention/reports/review",reportDecision,undefined,true)).status,200);
+  const held=ContentRecord.parse(await (await call(`admin/attention/submissions/${target.id}`,undefined,undefined,true)).json());assert.equal(held.visibility_held,true);assert.equal(held.snapshot.status,"VISIBLE");assert.equal(held.snapshot.reward_eligible,false);
+  assert(!ContentCampaignDetail.parse(await (await publicDetail()).json()).feed.submissions.some(s=>s.id===target.id));
+  assert.equal((await call("admin/attention/reports/review",{...reportDecision,request_id:crypto.randomUUID(),expected_revision:1,decision:"RELEASED"},undefined,true)).status,200);
+  assert(ContentCampaignDetail.parse(await (await publicDetail()).json()).feed.submissions.some(s=>s.id===target.id));
+  const reportHistory=ContentReportRecord.parse(await (await call(`attention/reports/${claim.request_id}`,undefined,users[1]!.cookie)).json());assert.deepEqual(reportHistory.events.map(e=>e.snapshot.status),["OPEN","UPHELD","RELEASED"]);
+  assert.equal(ContentReportPage.parse(await (await call("attention/reports/mine",undefined,users[1]!.cookie)).json()).reports.length,1);
   assert.equal((await call("identity/logout", {}, users[0]!.cookie)).status, 200);
   assert.equal((await call("attention/mine", undefined, users[0]!.cookie)).status, 401);
-  console.log(JSON.stringify({ isolated_workerd_d1: "passed", signed_submissions: true, canonical_duplicate: "rejected", private_inputs: "protected", competing_reviews: "one admission", owner_appeal: "verified", hash_history: "verified", public_pagination: "verified", revoked_session: "rejected", provider_requests: 0, user_wallets: "unused", live_application_database_writes: 0, rewards: false, deploy: false }, null, 2));
+  console.log(JSON.stringify({ isolated_workerd_d1: "passed", signed_submissions: true, canonical_duplicate: "rejected", private_inputs: "protected", competing_reviews: "one admission", owner_appeal: "verified", hash_history: "verified", public_pagination: "verified", private_reports:"verified",upheld_hold:"hidden without changing original status",released_hold:"ordinary visibility restored",report_history:"hash replay verified", revoked_session: "rejected", provider_requests: 0, user_wallets: "unused", live_application_database_writes: 0, rewards: false, deploy: false }, null, 2));
 } finally {
   if (child.pid && child.exitCode === null) {
     if (process.platform === "win32") await execute("taskkill", ["/PID", String(child.pid), "/T", "/F"], { windowsHide: true }).catch(() => {});

@@ -1,6 +1,7 @@
 import { writeFileSync } from "node:fs";
 import { z } from "zod";
 import { InboxRecoveryResponse } from "../discovery/src/inbox-recovery-model";
+import {ContentReportPage,ContentReportRecord,ContentReportRequest,ContentReportReviewRequest} from "../discovery/src/content-report-model";
 import { CardListResponse } from "../app/src/discovery/client";
 import { RewardList, RewardRecord, RewardRequest } from "../discovery/src/reward-model";
 import { ContentAppealRequest, ContentCampaign, ContentCampaignDetail, ContentCampaignList, ContentCampaignRequest, ContentChangeResponse, ContentPage, ContentRecord, ContentReviewRequest, ContentSubmissionRequest } from "../discovery/src/content-model";
@@ -32,6 +33,12 @@ const spec = {
   openapi: "3.1.0", info: { title: "10X local Solana discovery", version: "0.1.0", description: "Local-only chain discovery and signed-message wallet ownership. No server-held signers, transactions, votes, launches or financial flows. Public reads use stored data; only authenticated refresh makes provider requests." },
   servers: [{ url: "http://127.0.0.1:8794" }],
   paths: {
+    "/api/10x/attention/reports":{post:{...identityPost("Private good-faith concern about a visible link; does not hide it or establish the claim",{$ref:"#/components/schemas/ContentReportRequest"},"ContentReportRecord").post,security:[{localIdentity:[]}] }},
+    "/api/10x/attention/reports/mine":read("Signed reporter-only claims; private explanations and cursor pagination",{...responseSchema("ContentReportPage"),security:[{localIdentity:[]}],parameters:[parameter("cursor","query",{type:"string",maxLength:100})]}),
+    "/api/10x/attention/reports/{id}":read("Reporter-only retained report history and hash verification",{...responseSchema("ContentReportRecord"),security:[{localIdentity:[]}],parameters:[parameter("id","path",{type:"string",format:"uuid"},true)]}),
+    "/api/10x/admin/attention/reports":read("Operator-only report queue; allegations do not auto-hide content",{...responseSchema("ContentReportPage"),security:[{localOperator:[]}],parameters:[parameter("status","query",{enum:["OPEN","UPHELD","DISMISSED","RELEASED"]}),parameter("cursor","query",{type:"string",maxLength:100})]}),
+    "/api/10x/admin/attention/reports/{id}":read("Operator-only private report history and replay",{...responseSchema("ContentReportRecord"),security:[{localOperator:[]}],parameters:[parameter("id","path",{type:"string",format:"uuid"},true)]}),
+    "/api/10x/admin/attention/reports/review":{post:{...post("Uphold/dismiss a claim or release its independent visibility hold; revision-bound, audit-linked, no reward credit").post,...responseSchema("ContentReportRecord"),requestBody:{required:true,content:{"application/json":{schema:{$ref:"#/components/schemas/ContentReportReviewRequest"}}}}}},
     "/api/10x/discovery/inbox-recovery": read("Cached version-upgrade migration recheck receipts and daily subset; zero source calls, no eligibility changes",responseSchema("InboxRecoveryResponse")),
     "/api/10x/attention/campaigns": read("Local ten-day content review campaigns; no real launch or reward budget", { ...responseSchema("ContentCampaignList"), parameters: [parameter("cursor", "query", { type: "string", maxLength: 100 })] }),
     "/api/10x/attention/campaigns/{id}": read("Public reviewed links only; no contributor identity, private moderation reason or pending content", { ...responseSchema("ContentCampaignDetail"), parameters: [parameter("id", "path", { type: "string", format: "uuid" }, true), parameter("cursor", "query", { type: "string", maxLength: 100 })] }),
@@ -95,6 +102,7 @@ const spec = {
   },
   components: { securitySchemes: { localIdentity: {type:"apiKey", in:"cookie", name:"__Host-tenx_solana", description:"HttpOnly same-origin signed Solana identity session; loopback uses tenx_solana_local. Writes require exact Origin and X-Tenx-Identity: 1, not an operator token."}, localOperator: { type: "http", scheme: "bearer", description: "Random local operator token (32+ bytes); strict Bearer authorization, allowed local Origin and same-origin Fetch Metadata when supplied. Headerless local CLI/timer calls remain supported. Admin JSON bodies are limited to 32,000 bytes. Never stored in browser storage or source control." } }, schemas: {
     ContentCampaignList:z.toJSONSchema(ContentCampaignList), ContentCampaignDetail:z.toJSONSchema(ContentCampaignDetail), ContentCampaign:z.toJSONSchema(ContentCampaign), ContentCampaignRequest:z.toJSONSchema(ContentCampaignRequest), ContentSubmissionRequest:z.toJSONSchema(ContentSubmissionRequest), ContentAppealRequest:z.toJSONSchema(ContentAppealRequest), ContentReviewRequest:z.toJSONSchema(ContentReviewRequest), ContentPage:z.toJSONSchema(ContentPage), ContentRecord:z.toJSONSchema(ContentRecord), ContentChangeResponse:z.toJSONSchema(ContentChangeResponse),
+    ContentReportPage:z.toJSONSchema(ContentReportPage),ContentReportRecord:z.toJSONSchema(ContentReportRecord),ContentReportRequest:z.toJSONSchema(ContentReportRequest),ContentReportReviewRequest:z.toJSONSchema(ContentReportReviewRequest),
     RewardList: z.toJSONSchema(RewardList,{unrepresentable:"any"}),
     RewardRequest: z.toJSONSchema(RewardRequest,{unrepresentable:"any"}),
     RewardResponse: {type:"object",additionalProperties:false,required:["record","replay"],properties:{record:z.toJSONSchema(RewardRecord,{unrepresentable:"any"}),replay:{const:"verified"}}},

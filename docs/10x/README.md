@@ -6,7 +6,9 @@ Latest engineering review: [security fixes and credential follow-up](29-security
 
 Previous engineering review: [measured performance improvements](28-performance-review.md), including compact Discover cards, deferred wallet code, retained-shell navigation and an aggregate startup budget.
 
-Current checkpoint: [bounded migration inbox recovery](32-migration-inbox-recovery.md). Earlier version rejections receive one audited recheck per reader, at most two per discovery turn and twenty per UTC day inside unchanged RPC limits. The first normal tick recovered a real v1 migration, now retained and replay-tested. Data status exposes admissions and gaps. Ten eligible tokens and live v1 wallet/funding certification remain outstanding.
+Current checkpoint: [private content reports and reversible visibility holds](33-content-reports-and-holds.md). Signed concerns remain private; allegations alone do not hide links. Moderator-upheld holds cannot be bypassed by ordinary content appeals, and release preserves the original history and every other hold. No authorship or reward credit is granted.
+
+Previous checkpoint: [bounded migration inbox recovery](32-migration-inbox-recovery.md). Earlier version rejections receive one audited recheck per reader, at most two per discovery turn and twenty per UTC day inside unchanged RPC limits. The first normal tick recovered a real v1 migration, now retained and replay-tested. Data status exposes admissions and gaps. Ten eligible tokens and live v1 wallet/funding certification remain outstanding.
 
 Previous checkpoint: [version-aware Solana transaction coverage](31-transaction-v1-coverage.md). Strict v1 JSON reads preserve resource config; unsupported continuation bodies remain explicit, non-repeating gaps. All eligibility gates and free-service quotas remain intact.
 

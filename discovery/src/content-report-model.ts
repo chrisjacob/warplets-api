@@ -1,0 +1,10 @@
+import {z} from "zod";
+const Hash=z.string().regex(/^[a-f0-9]{64}$/),Reason=z.string().trim().min(10).max(600);
+export const ReportStatus=z.enum(["OPEN","UPHELD","DISMISSED","RELEASED"]);
+export const ReportCategory=z.enum(["rights_or_permission","impersonation","unsafe_content","spam_or_manipulation"]);
+export const ContentReportRequest=z.object({request_id:z.uuid(),submission_id:z.uuid(),category:ReportCategory,reason:Reason,evidence_url:z.string().trim().max(2048).nullable(),good_faith:z.literal(true)}).strict();
+export const ReportSnapshot=z.object({id:z.uuid(),submission_id:z.uuid(),reporter_identity_id:z.uuid(),category:ReportCategory,reason:Reason,evidence_url:z.url().max(2048).nullable(),target_url:z.url().max(2048),target_content_hash:Hash,good_faith:z.literal(true),created_at:z.iso.datetime(),updated_at:z.iso.datetime(),revision:z.number().int().min(0).max(2),status:ReportStatus}).strict();
+export const ReportEvent=z.object({id:z.uuid(),report_id:z.uuid(),revision:z.number().int().min(0).max(2),actor:z.string(),action:z.enum(["report","review"]),reason:Reason,created_at:z.iso.datetime(),request_hash:Hash,previous_hash:Hash.nullable(),snapshot:ReportSnapshot,hash:Hash}).strict();
+export const ContentReportRecord=z.object({snapshot:ReportSnapshot,events:z.array(ReportEvent).min(1).max(3),replay:z.literal("verified"),source_requests:z.literal(0)}).strict();
+export const ContentReportReviewRequest=z.object({request_id:z.uuid(),report_id:z.uuid(),expected_revision:z.number().int().min(0).max(1),decision:z.enum(["UPHELD","DISMISSED","RELEASED"]),reason:Reason}).strict();
+export const ContentReportPage=z.object({as_of:z.iso.datetime(),reports:z.array(ReportSnapshot).max(20),next_cursor:z.string().nullable(),source_requests:z.literal(0)}).strict();
