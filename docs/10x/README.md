@@ -6,7 +6,9 @@ Latest engineering review: [security fixes and credential follow-up](29-security
 
 Previous engineering review: [measured performance improvements](28-performance-review.md), including compact Discover cards, deferred wallet code, retained-shell navigation and an aggregate startup budget.
 
-Current checkpoint: [private content reports and reversible visibility holds](33-content-reports-and-holds.md). Signed concerns remain private; allegations alone do not hide links. Moderator-upheld holds cannot be bypassed by ordinary content appeals, and release preserves the original history and every other hold. No authorship or reward credit is granted.
+Current checkpoint: [private contributor hold reviews](34-contributor-hold-reviews.md). A signed submission owner can request a private review, supply one additional response if asked, and read contributor-visible moderator replies. Complaint details stay private; closing a conversation never releases a hold. No authorship or reward credit is granted.
+
+Previous checkpoint: [private content reports and reversible visibility holds](33-content-reports-and-holds.md). Signed concerns remain private; allegations alone do not hide links. Moderator-upheld holds cannot be bypassed by ordinary content appeals, and release preserves the original history and every other hold.
 
 Previous checkpoint: [bounded migration inbox recovery](32-migration-inbox-recovery.md). Earlier version rejections receive one audited recheck per reader, at most two per discovery turn and twenty per UTC day inside unchanged RPC limits. The first normal tick recovered a real v1 migration, now retained and replay-tested. Data status exposes admissions and gaps. Ten eligible tokens and live v1 wallet/funding certification remain outstanding.
 

@@ -40,9 +40,15 @@ export async function contentReportRecord(db:D1Database,id:string,owner?:string)
 // Only a verified upheld report creates a hold. Pending allegations confer no
 // takedown power; public reads fail closed on a corrupted report projection.
 export async function contentVisibilityHeld(db:D1Database,id:string):Promise<boolean>{
+  return (await contentHoldSet(db,id)).guard.length>0;
+}
+// Internal admission guard only: never return report IDs or complaint details to contributors.
+export async function contentHoldSet(db:D1Database,id:string){
   const rows=await db.prepare(`${select} WHERE r.submission_id=? LIMIT 11`).bind(id).all<Row>();
   if(rows.results.length>10)fail("content_report_bound_exceeded",503);
-  const records=await Promise.all(rows.results.map(decode));return records.some(r=>r.snapshot.status==="UPHELD");
+  const records=await Promise.all(rows.results.map(decode));
+  const guard=records.filter(r=>r.snapshot.status==="UPHELD").map(r=>`${r.snapshot.id}:${r.events.at(-1)!.hash}`).sort().join("|");
+  return {guard,hash:await hashJson(guard)};
 }
 async function makeEvent(id:string,snapshot:Snapshot,actor:string,action:Event["action"],reason:string,request_hash:string,previous_hash:string|null){
   const value=ReportEvent.omit({hash:true}).parse({id,report_id:snapshot.id,revision:snapshot.revision,actor,action,reason,created_at:snapshot.updated_at,request_hash,previous_hash,snapshot});return ReportEvent.parse({...value,hash:await hashJson(value)});

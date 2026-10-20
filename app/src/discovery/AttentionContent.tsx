@@ -4,6 +4,7 @@ import { ContentCampaign, ContentCampaignList, ContentCampaignRequest, ContentPa
 import { IdentitySessionResponse } from "../../../discovery/src/identity-model";
 import {contentApi as api} from "./contentApi";
 import {ContentReportForm,ContentReportsPanel} from "./ContentReports";
+import {HoldReviewForm,HoldReviewsPanel} from "./ContentHoldReviews";
 
 type Submission = z.infer<typeof ContentSnapshot>;
 type Campaign = z.infer<typeof PublicContentCampaign>;
@@ -101,6 +102,7 @@ export function AttentionContentPage({ campaignId, submitOnly = false }: { campa
     {selected && !submitOnly && <section className="tenx-panel"><h2>Reviewed links</h2><p>Visible after manual review. Visibility verifies neither authorship nor engagement.</p>{feed?.submissions.length === 0 && <p>No visible links yet.</p>}{feed?.submissions.map(s => <article className="tenx-content-item" key={s.id}><ContentLink item={s} /><ContentReportForm submissionId={s.id} signedIn={session}/></article>)}{feed?.next_cursor && <button className="tenx-button" disabled={busy} onClick={() => void more("feed")}>More reviewed links</button>}</section>}
     {session && <section className="tenx-panel"><h2>My submissions · private</h2><p>Pending, flagged and rejected submissions are visible only to you and the local operator. Appeals do not restore public visibility automatically.</p>{mine?.submissions.length === 0 && <p>No submissions from this identity yet.</p>}{mine?.submissions.map(s => <OwnSubmission key={`${s.id}:${s.revision}`} item={s} held={mine.held_submission_ids.includes(s.id)} changed={() => setVersion(v => v + 1)} />)}{mine?.next_cursor && <button className="tenx-button" disabled={busy} onClick={() => void more("mine")}>More of my submissions</button>}</section>}
     {session&&<ContentReportsPanel/>}
+    {session&&<HoldReviewsPanel refreshKey={version}/>}
   </>;
 }
 function OwnSubmission({ item, held, changed }: { item: Submission; held:boolean; changed: () => void }) {
@@ -108,7 +110,7 @@ function OwnSubmission({ item, held, changed }: { item: Submission; held:boolean
   const canAppeal = ["FLAGGED", "REJECTED"].includes(item.status) && item.revision < 19;
   async function appeal() { setBusy(true); try { await api("attention/appeals", { body: { request_id: id, submission_id: item.id, expected_revision: item.revision, reason } }); changed(); } catch (e) { setMessage(e instanceof Error ? e.message : "Appeal failed"); } finally { setBusy(false); } }
   async function evidence() { setBusy(true); try { const record = ContentRecord.parse(await api(`attention/mine/${item.id}`)); setMessage(record.events.map(e => `${e.action}: ${e.reason}`).join(" · ")); } catch (e) { setMessage(e instanceof Error ? e.message : "History unavailable"); } finally { setBusy(false); } }
-  return <article className="tenx-content-item"><ContentLink item={item} />{held&&<p className="tenx-notice">Featuring is on hold after a report review. The original moderation state above is retained; all report holds must be released before this link can appear publicly.</p>}<button className="tenx-button" disabled={busy} onClick={() => void evidence()}>Show my review history</button>{canAppeal && <form className="tenx-content-form" onSubmit={e => { e.preventDefault(); void appeal(); }}><label>Appeal reason<textarea required minLength={3} maxLength={500} value={reason} onChange={e => { setReason(e.target.value); setId(crypto.randomUUID()); }} /></label><button className="tenx-button" disabled={busy || reason.trim().length < 3}>Request another review</button></form>}<p role="status">{message}</p></article>;
+  return <article className="tenx-content-item"><ContentLink item={item} />{held&&<><p className="tenx-notice">Featuring is on hold after a report review. The original moderation state above is retained; all report holds must be released before this link can appear publicly.</p><HoldReviewForm submissionId={item.id} changed={changed}/></>}<button className="tenx-button" disabled={busy} onClick={() => void evidence()}>Show my review history</button>{canAppeal && <form className="tenx-content-form" onSubmit={e => { e.preventDefault(); void appeal(); }}><label>Appeal reason<textarea required minLength={3} maxLength={500} value={reason} onChange={e => { setReason(e.target.value); setId(crypto.randomUUID()); }} /></label><button className="tenx-button" disabled={busy || reason.trim().length < 3}>Request another review</button></form>}<p role="status">{message}</p></article>;
 }
 export function ContentModerationLab({ token }: { token: string }) {
   const [title, setTitle] = useState(""), [address, setAddress] = useState(""), [reason, setReason] = useState(""), [id, setId] = useState(() => crypto.randomUUID());
@@ -124,6 +126,7 @@ export function ContentModerationLab({ token }: { token: string }) {
     <button className="tenx-button" disabled={!token || busy} onClick={() => void load()}>Load private moderation queue</button><a href="/attention"> View content campaigns →</a><p role="status">{busy ? "Checking local records…" : message}</p>
     {token && queue?.submissions.length === 0 && <p>No submissions in this queue.</p>}{token && queue?.submissions.map(s => <div key={`${s.id}:${s.revision}`}>{queue.held_submission_ids.includes(s.id)&&<p className="tenx-notice">An upheld report holds this link out of the public feed. Ordinary moderation does not release report holds.</p>}<ReviewSubmission item={s} token={token} changed={() => void load()} /></div>)}{token && queue?.next_cursor && <button className="tenx-button" disabled={busy} onClick={() => void load(queue.next_cursor!)}>More queue items</button>}
     <ContentReportsPanel token={token}/>
+    <HoldReviewsPanel key={token} token={token}/>
   </section>;
 }
 function ReviewSubmission({ item, token, changed }: { item: Submission; token: string; changed: () => void }) {

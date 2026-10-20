@@ -7,6 +7,7 @@ import { promisify } from "node:util";
 import { createServer } from "node:net";
 import { toBase58 } from "../discovery/src/solana";
 import { ContentCampaign, ContentCampaignDetail, ContentChangeResponse, ContentPage, ContentRecord } from "../discovery/src/content-model";
+import {HoldReviewPage,HoldReviewRecord} from "../discovery/src/content-hold-model";
 import { IdentityChallengeResponse, IdentitySessionResponse } from "../discovery/src/identity-model";
 import {ContentReportPage,ContentReportRecord} from "../discovery/src/content-report-model";
 
@@ -86,12 +87,31 @@ try {
   assert.equal((await call("admin/attention/reports/review",reportDecision,undefined,true)).status,200);
   const held=ContentRecord.parse(await (await call(`admin/attention/submissions/${target.id}`,undefined,undefined,true)).json());assert.equal(held.visibility_held,true);assert.equal(held.snapshot.status,"VISIBLE");assert.equal(held.snapshot.reward_eligible,false);
   assert(!ContentCampaignDetail.parse(await (await publicDetail()).json()).feed.submissions.some(s=>s.id===target.id));
+  const contributor=users.find(u=>u.identity===held.snapshot.identity_id)!;
+  const outsider=users.find(u=>u.identity!==held.snapshot.identity_id)!;
+  const holdRequest={request_id:crypto.randomUUID(),submission_id:target.id,note:"Synthetic contributor asks for a featuring hold review",reference_url:"https://example.com/public-permission"};
+  assert.equal((await call("attention/hold-reviews",holdRequest)).status,401);
+  assert.equal((await call("attention/hold-reviews",holdRequest,outsider.cookie)).status,404);
+  const requested=await call("attention/hold-reviews",holdRequest,contributor.cookie);assert.equal(requested.status,200);
+  const caseRecord=HoldReviewRecord.parse(await requested.json());assert.equal(caseRecord.snapshot.status,"OPEN");
+  for(const secret of [claim.request_id,claim.reason,claim.evidence_url,reportDecision.reason])assert(!JSON.stringify(caseRecord).includes(secret));
+  assert.equal((await call(`attention/hold-reviews/${holdRequest.request_id}`,undefined,outsider.cookie)).status,404);
+  const caseReply={request_id:crypto.randomUUID(),review_id:holdRequest.request_id,expected_revision:0,decision:"NEEDS_INFO",note:"Synthetic moderator requests a public permission reference",reference_url:null};
+  assert.equal((await call("admin/attention/hold-reviews/review",caseReply,undefined,true)).status,200);
+  assert.equal((await call("attention/hold-reviews/respond",{...caseReply,request_id:crypto.randomUUID(),expected_revision:1,decision:"RESUBMITTED",note:"Synthetic contributor supplies the requested public reference"},contributor.cookie)).status,200);
+  assert.equal((await call("admin/attention/hold-reviews/review",{...caseReply,request_id:crypto.randomUUID(),expected_revision:2,decision:"CLOSED",note:"Conversation closed; original hold requires separate review"},undefined,true)).status,200);
+  const conversation=HoldReviewRecord.parse(await (await call(`attention/hold-reviews/${holdRequest.request_id}`,undefined,contributor.cookie)).json());
+  assert.deepEqual(conversation.events.map(e=>e.snapshot.status),["OPEN","NEEDS_INFO","RESUBMITTED","CLOSED"]);assert.equal(conversation.visibility_held,true);
+  assert.deepEqual(ContentRecord.parse(await (await call(`admin/attention/submissions/${target.id}`,undefined,undefined,true)).json()),held);
+  assert.equal(HoldReviewPage.parse(await (await call("attention/hold-reviews/mine",undefined,contributor.cookie)).json()).reviews.length,1);
   assert.equal((await call("admin/attention/reports/review",{...reportDecision,request_id:crypto.randomUUID(),expected_revision:1,decision:"RELEASED"},undefined,true)).status,200);
   assert(ContentCampaignDetail.parse(await (await publicDetail()).json()).feed.submissions.some(s=>s.id===target.id));
   const reportHistory=ContentReportRecord.parse(await (await call(`attention/reports/${claim.request_id}`,undefined,users[1]!.cookie)).json());assert.deepEqual(reportHistory.events.map(e=>e.snapshot.status),["OPEN","UPHELD","RELEASED"]);
   assert.equal(ContentReportPage.parse(await (await call("attention/reports/mine",undefined,users[1]!.cookie)).json()).reports.length,1);
   assert.equal((await call("identity/logout", {}, users[0]!.cookie)).status, 200);
   assert.equal((await call("attention/mine", undefined, users[0]!.cookie)).status, 401);
+  assert.equal((await call("attention/hold-reviews/mine",undefined,users[0]!.cookie)).status,401);
+  console.log(JSON.stringify({contributor_hold_review:"owner-only request, one response, moderator closure, four verified events",original_hold:"retained after conversation closure",reporter_details:"not disclosed to contributor",provider_requests:0}));
   console.log(JSON.stringify({ isolated_workerd_d1: "passed", signed_submissions: true, canonical_duplicate: "rejected", private_inputs: "protected", competing_reviews: "one admission", owner_appeal: "verified", hash_history: "verified", public_pagination: "verified", private_reports:"verified",upheld_hold:"hidden without changing original status",released_hold:"ordinary visibility restored",report_history:"hash replay verified", revoked_session: "rejected", provider_requests: 0, user_wallets: "unused", live_application_database_writes: 0, rewards: false, deploy: false }, null, 2));
 } finally {
   if (child.pid && child.exitCode === null) {

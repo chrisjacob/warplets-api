@@ -9,11 +9,12 @@ import { changeContent, contentCampaign, contentCampaigns, contentPage, contentR
 import worker, { type LocalEnv } from "./worker";
 import { toBase58 } from "./solana";
 import {contentReportRecord,contentReports,reviewContentReport,submitContentReport} from "./content-reports";
+import {holdReviewRecord,holdReviews,replyHoldReview,requestHoldReview} from "./content-holds";
 const instances: DatabaseSync[] = [], origin = "https://app-local.10x.meme", token = "a".repeat(64);
 afterEach(() => { instances.splice(0).forEach(db => db.close()); vi.restoreAllMocks(); vi.useRealTimers(); });
 async function fixture() {
   const sqlite = new DatabaseSync(":memory:"); instances.push(sqlite); sqlite.exec("PRAGMA foreign_keys=ON");
-  for (const name of ["0018_solana_identity.sql", "0024_content_review.sql", "0026_content_reports.sql"]) sqlite.exec(readFileSync(new URL(`../migrations/${name}`, import.meta.url), "utf8"));
+  for (const name of ["0018_solana_identity.sql", "0024_content_review.sql", "0026_content_reports.sql", "0027_content_hold_reviews.sql"]) sqlite.exec(readFileSync(new URL(`../migrations/${name}`, import.meta.url), "utf8"));
   const base = sqliteD1(sqlite); let tail: Promise<unknown> = Promise.resolve();
   const db = { ...base, batch(statements: D1PreparedStatement[]) { const result = tail.then(() => base.batch(statements)); tail = result.catch(() => {}); return result; } } as D1Database;
   const at = new Date();
@@ -36,6 +37,129 @@ async function fixture() {
   const review = (id: string, revision = 0, decision = "VISIBLE") => ({ request_id: crypto.randomUUID(), submission_id: id, expected_revision: revision, decision, reason: "Manual local review; authorship and metrics remain unverified" });
   return { sqlite, db, at, env, call, request, owner, other, login, campaign, campaignInput, input, review };
 }
+describe("private contributor hold reviews",()=>{
+  async function held(f:Awaited<ReturnType<typeof fixture>>){
+    const input=f.input(`https://example.com/held/${crypto.randomUUID()}`);
+    await submitContent(f.db,input,f.owner.principal,f.at);await changeContent(f.db,f.review(input.request_id),null,f.at);
+    const claim={request_id:crypto.randomUUID(),submission_id:input.request_id,category:"impersonation",reason:"Secret claimant explanation for moderators only",evidence_url:"https://example.com/private-claim-reference",good_faith:true};
+    await submitContentReport(f.db,claim,f.other.principal,f.at);
+    await reviewContentReport(f.db,{request_id:crypto.randomUUID(),report_id:claim.request_id,expected_revision:0,decision:"UPHELD",reason:"Private original moderator reasoning"},f.at);
+    return {id:input.request_id,claim};
+  }
+  const request=(id:string)=>({request_id:crypto.randomUUID(),submission_id:id,note:"Contributor asks to review the featuring hold",reference_url:"https://example.com/permission?utm_source=test"});
+  const reply=(id:string,revision=0,decision="NEEDS_INFO")=>({request_id:crypto.randomUUID(),review_id:id,expected_revision:revision,decision,note:"Public permission reference would help this review",reference_url:null});
+  it("requires signed owner admission and keeps original complaints and conversations private",async()=>{
+    const f=await fixture(),target=await held(f),input=request(target.id),outside=vi.spyOn(globalThis,"fetch").mockRejectedValue(Error("No source requests"));
+    expect((await f.call("attention/hold-reviews",input)).status).toBe(401);
+    expect((await f.call("attention/hold-reviews",input,f.other.cookie)).status).toBe(404);
+    expect((await f.call("attention/hold-reviews",input,f.owner.cookie,{origin:"https://evil.example"})).status).toBe(403);
+    expect((await f.call("attention/hold-reviews",input,f.owner.cookie,{"x-tenx-identity":""})).status).toBe(403);
+    expect((await f.call("attention/hold-reviews",{...input,note:"x".repeat(4500)},f.owner.cookie)).status).toBe(413);
+    expect((await f.call("attention/hold-reviews",{...input,owner_identity_id:f.owner.principal.identity_id},f.owner.cookie)).status).toBe(400);
+    const response=await f.call("attention/hold-reviews",input,f.owner.cookie);expect(response.status).toBe(200);expect(response.headers.get("cache-control")).toBe("no-store");expect(response.headers.get("vary")).toBe("Cookie");
+    const text=await response.text();for(const secret of [target.claim.request_id,target.claim.reason,target.claim.evidence_url,f.other.principal.identity_id,"Private original moderator reasoning"])expect(text).not.toContain(secret);
+    expect(text).toContain("https://example.com/permission");
+    expect((await f.call(`attention/hold-reviews/${input.request_id}`,undefined,f.other.cookie)).status).toBe(404);
+    expect((await f.call(`admin/attention/hold-reviews/${input.request_id}`)).status).toBe(401);
+    expect((await holdReviews(f.db,{owner:f.other.principal.identity_id,cursor:null})).reviews).toEqual([]);
+    expect((await holdReviews(f.db,{owner:f.owner.principal.identity_id,cursor:null})).reviews).toHaveLength(1);
+    expect(outside).not.toHaveBeenCalled();
+  });
+  it("bounds the information round, replays all messages and never releases a hold or rewrites source content",async()=>{
+    const f=await fixture(),target=await held(f),before=(await contentRecord(f.db,target.id))!,claimBefore=await contentReportRecord(f.db,target.claim.request_id),input=request(target.id);
+    const initial=await requestHoldReview(f.db,input,f.owner.principal,f.at);
+    await expect(replyHoldReview(f.db,reply(input.request_id),f.owner.principal,f.at)).rejects.toThrow("hold_review_invalid_transition");
+    await expect(replyHoldReview(f.db,reply(input.request_id,0,"RESUBMITTED"),null,f.at)).rejects.toThrow("hold_review_invalid_transition");
+    await replyHoldReview(f.db,reply(input.request_id),null,f.at);
+    await replyHoldReview(f.db,reply(input.request_id,1,"RESUBMITTED"),f.owner.principal,f.at);
+    await expect(replyHoldReview(f.db,reply(input.request_id,2),null,f.at)).rejects.toThrow("hold_review_invalid_transition");
+    const close=reply(input.request_id,2,"CLOSED"),closed=await replyHoldReview(f.db,close,null,f.at);
+    expect(closed.events.map(e=>e.snapshot.status)).toEqual(["OPEN","NEEDS_INFO","RESUBMITTED","CLOSED"]);expect(closed.replay).toBe("verified");expect(closed.visibility_held).toBe(true);
+    expect(await contentRecord(f.db,target.id)).toEqual(before);expect(await contentReportRecord(f.db,target.claim.request_id)).toEqual(claimBefore);
+    expect((await contentPage(f.db,{campaign:f.campaign.id,public:true,cursor:null},f.at)).submissions).toEqual([]);
+    expect(await replyHoldReview(f.db,close,null,f.at)).toEqual(closed);
+    expect((await requestHoldReview(f.db,input,f.owner.principal,f.at)).events).toHaveLength(4);
+    await expect(requestHoldReview(f.db,request(target.id),f.owner.principal,f.at)).rejects.toThrow("hold_review_already_requested");
+    expect(initial.events).toHaveLength(1);
+    await reviewContentReport(f.db,{request_id:crypto.randomUUID(),report_id:target.claim.request_id,expected_revision:1,decision:"RELEASED",reason:"Original report reviewed separately and hold released"},f.at);
+    const released=(await holdReviewRecord(f.db,input.request_id))!;expect(released.events).toEqual(closed.events);expect(released.visibility_held).toBe(false);
+  });
+  it("rejects unheld targets and unsafe references, with idempotent and concurrent admission",async()=>{
+    const f=await fixture(),unheld=f.input();await submitContent(f.db,unheld,f.owner.principal,f.at);
+    await expect(requestHoldReview(f.db,request(unheld.request_id),f.owner.principal,f.at)).rejects.toThrow("held_content_not_found");
+    const target=await held(f),input=request(target.id);
+    await expect(requestHoldReview(f.db,{...input,reference_url:"https://127.0.0.1/private"},f.owner.principal,f.at)).rejects.toThrow();
+    const concurrent=await Promise.allSettled([requestHoldReview(f.db,input,f.owner.principal,f.at),requestHoldReview(f.db,request(target.id),f.owner.principal,f.at)]);
+    expect(concurrent.filter(r=>r.status==="fulfilled")).toHaveLength(1);expect(concurrent[0]!.status).toBe("fulfilled");
+    await expect(requestHoldReview(f.db,{...input,note:"Different message under a reused request ID"},f.owner.principal,f.at)).rejects.toThrow("hold_review_request_conflict");
+    const response=reply(input.request_id),competing=await Promise.allSettled([replyHoldReview(f.db,response,null,f.at),replyHoldReview(f.db,reply(input.request_id,0,"CLOSED"),null,f.at)]);
+    expect(competing.filter(r=>r.status==="fulfilled")).toHaveLength(1);
+    expect((await holdReviewRecord(f.db,input.request_id))!.events).toHaveLength(2);
+    await expect(replyHoldReview(f.db,{...response,note:"Reusing an event ID with different content"},null,f.at)).rejects.toThrow("hold_review_request_conflict");
+  });
+  it("enforces session revocation inside atomic writes and rolls back failed event insertion",async()=>{
+    const f=await fixture(),target=await held(f),another=await held(f),input=request(target.id);
+    f.sqlite.exec("CREATE TRIGGER fail_hold_event BEFORE INSERT ON tenx_content_hold_events BEGIN SELECT RAISE(ABORT,'test_hold_failure'); END");
+    await expect(requestHoldReview(f.db,input,f.owner.principal,f.at)).rejects.toThrow("test_hold_failure");
+    expect(f.sqlite.prepare("SELECT count(*) AS n FROM tenx_content_hold_reviews").get()).toEqual({n:0});f.sqlite.exec("DROP TRIGGER fail_hold_event");
+    await requestHoldReview(f.db,input,f.owner.principal,f.at);await replyHoldReview(f.db,reply(input.request_id),null,f.at);
+    f.sqlite.prepare("UPDATE tenx_identity_sessions SET revoked_at=? WHERE identity_id=?").run(f.at.toISOString(),f.owner.principal.identity_id);
+    await expect(replyHoldReview(f.db,reply(input.request_id,1,"RESUBMITTED"),f.owner.principal,f.at)).rejects.toThrow("hold_review_revision_session_or_daily_limit");
+    expect((await holdReviewRecord(f.db,input.request_id))!.snapshot.status).toBe("NEEDS_INFO");
+    await expect(requestHoldReview(f.db,request(another.id),f.owner.principal,f.at)).rejects.toThrow("hold_review_limit_session_or_hold_changed");
+  });
+  it("refuses a new conversation if the verified hold set changes before its atomic insert",async()=>{
+    const f=await fixture(),target=await held(f),input=request(target.id);let intercepted=false;
+    const racing={...f.db,async batch(statements:D1PreparedStatement[]){
+      if(!intercepted){intercepted=true;await reviewContentReport(f.db,{request_id:crypto.randomUUID(),report_id:target.claim.request_id,expected_revision:1,decision:"RELEASED",reason:"Separate release during contributor request admission"},f.at);}
+      return f.db.batch(statements);
+    }} as D1Database;
+    await expect(requestHoldReview(racing,input,f.owner.principal,f.at)).rejects.toThrow("hold_review_limit_session_or_hold_changed");
+    expect(f.sqlite.prepare("SELECT count(*) AS n FROM tenx_content_hold_reviews").get()).toEqual({n:0});
+    expect((await contentRecord(f.db,target.id))!.visibility_held).toBe(false);
+  });
+  it("rejects reused reply IDs as new cases without leaving an unauditable projection",async()=>{
+    const f=await fixture(),target=await held(f),input=request(target.id);await requestHoldReview(f.db,input,f.owner.principal,f.at);
+    const response=reply(input.request_id);await replyHoldReview(f.db,response,null,f.at);
+    const another=await held(f);
+    await expect(requestHoldReview(f.db,{...request(another.id),request_id:response.request_id},f.owner.principal,f.at)).rejects.toThrow("hold_review_request_conflict");
+    expect(f.sqlite.prepare("SELECT count(*) AS n FROM tenx_content_hold_reviews").get()).toEqual({n:1});
+  });
+  it("rechecks the session after a slowly streamed hold request body",async()=>{
+    const f=await fixture(),target=await held(f),input=request(target.id);
+    const body=new ReadableStream<Uint8Array>({pull(controller){
+      f.sqlite.prepare("UPDATE tenx_identity_sessions SET revoked_at=? WHERE identity_id=?").run(f.at.toISOString(),f.owner.principal.identity_id);
+      controller.enqueue(new TextEncoder().encode(JSON.stringify(input)));controller.close();
+    }},{highWaterMark:0});
+    const headers=f.request("attention/hold-reviews",{},f.owner.cookie).headers;
+    const delayed=new Request("http://127.0.0.1:8794/api/10x/attention/hold-reviews",{method:"POST",headers,body,duplex:"half"} as RequestInit);
+    expect((await worker.fetch(delayed,f.env)).status).toBe(401);
+    expect(f.sqlite.prepare("SELECT count(*) AS n FROM tenx_content_hold_reviews").get()).toEqual({n:0});
+  });
+  it("fails closed on changed audit history or mismatched source content and preserves immutable records",async()=>{
+    const f=await fixture(),target=await held(f),input=request(target.id);await requestHoldReview(f.db,input,f.owner.principal,f.at);
+    expect(()=>f.sqlite.exec("DELETE FROM tenx_content_hold_events")).toThrow("immutable_hold_event");
+    expect(()=>f.sqlite.exec("DELETE FROM tenx_content_hold_reviews")).toThrow("immutable_hold_identity");
+    expect(()=>f.sqlite.exec("UPDATE tenx_content_hold_reviews SET hold_set_hash='bad'")).toThrow("immutable_hold_identity");
+    f.sqlite.exec("DROP TRIGGER tenx_hold_event_no_update");
+    const row=f.sqlite.prepare("SELECT event FROM tenx_content_hold_events WHERE id=?").get(input.request_id) as {event:string},event=JSON.parse(row.event);event.note="A tampered contributor message";
+    f.sqlite.prepare("UPDATE tenx_content_hold_events SET event=? WHERE id=?").run(JSON.stringify(event),input.request_id);
+    await expect(holdReviewRecord(f.db,input.request_id)).rejects.toThrow("hold_review_history_integrity_failed");
+    await expect(holdReviews(f.db,{owner:f.owner.principal.identity_id,cursor:null})).rejects.toThrow("hold_review_history_integrity_failed");
+  });
+  it("enforces per-owner daily admission without suppressing existing conversations",async()=>{
+    const f=await fixture();
+    for(let i=0;i<3;i++){const target=await held(f);await requestHoldReview(f.db,request(target.id),f.owner.principal,f.at);}
+    // Reporting also has its own three/day bound; use a different claimant for the fourth target.
+    const claimant=await f.login(),input=f.input("https://example.com/fourth");await submitContent(f.db,input,f.owner.principal,f.at);await changeContent(f.db,f.review(input.request_id),null,f.at);
+    const claim={request_id:crypto.randomUUID(),submission_id:input.request_id,category:"impersonation",reason:"Another private concern requiring review",evidence_url:null,good_faith:true};await submitContentReport(f.db,claim,claimant.principal,f.at);await reviewContentReport(f.db,{request_id:crypto.randomUUID(),report_id:claim.request_id,expected_revision:0,decision:"UPHELD",reason:"An additional held target for the daily bound"},f.at);
+    await expect(requestHoldReview(f.db,request(input.request_id),f.owner.principal,f.at)).rejects.toThrow("hold_review_limit_session_or_hold_changed");
+    const page=await holdReviews(f.db,{owner:f.owner.principal.identity_id,cursor:null},f.at);expect(page.reviews).toHaveLength(3);expect(page.next_cursor).toBeNull();
+    expect((await holdReviews(f.db,{owner:f.owner.principal.identity_id,cursor:`${page.reviews[0]!.updated_at}|${page.reviews[0]!.id}`},f.at)).reviews).toHaveLength(2);
+    await expect(holdReviews(f.db,{status:"UPHELD",cursor:null})).rejects.toThrow();
+  });
+});
+
 describe("safe URL identity without network access", () => {
   it("deduplicates platform aliases and tracking while preserving meaningful web query/path distinctions", () => {
     expect(canonicalContentUrl("https://twitter.com/Alice/status/12345?utm_source=x#text")).toEqual(canonicalContentUrl("https://x.com/i/status/12345"));
