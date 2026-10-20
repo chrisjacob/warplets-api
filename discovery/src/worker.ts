@@ -1,4 +1,5 @@
-import { timingSafeEqual } from "node:crypto";
+import { API_HEADERS, LOCAL_ORIGINS, authorized, requireAdminBrowser, adminJson, RequestSecurityError } from "./request-security";
+export { authorized } from "./request-security";
 import { createRewards, rewardList, rewardRecord } from "./rewards";
 import { RewardError } from "./reward-math";
 import { z } from "zod";
@@ -11,7 +12,6 @@ import { runReviews } from "./research";
 import { runMarketCycle } from "./market-cycle";
 import { runWalletCycle, walletStatus } from "./wallet-cycle";
 import { ADAPTER_VERSION } from "./pump";
-import { boundedJson } from "./rpc";
 import { audit, candidates, control, dryRun, researchDay, saveCandidate } from "./store";
 import { fixtureCandidates } from "./fixtures";
 import { runCycle } from "./ingest";
@@ -38,8 +38,8 @@ import { WatchdogReportSchema } from "./operations-model";
 export type LocalEnv = { [K in keyof Cloudflare.Env]: Cloudflare.Env[K] extends string ? string : Cloudflare.Env[K] };
 type Env = LocalEnv;
 const loopback = new Set(["localhost", "127.0.0.1", "[::1]"]);
-const origins = new Set(["https://app-local.10x.meme", "http://localhost:5183", "http://127.0.0.1:5183", "http://localhost:8794", "http://127.0.0.1:8794"]);
-const headers = { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", "x-content-type-options": "nosniff", "referrer-policy": "no-referrer" };
+const origins = LOCAL_ORIGINS;
+const headers = API_HEADERS;
 function json(data: unknown, status = 200): Response { return Response.json(data, { status, headers }); }
 function settings(env: Env) {
   const transport: typeof fetch | undefined = env.TENX_NODE_RELAY === "true" ? async (input, init) => {
@@ -65,11 +65,6 @@ function settings(env: Env) {
     batchedMarket: true,
     transport,
   };
-}
-export function authorized(request: Request, token: string): boolean {
-  const supplied = request.headers.get("authorization")?.replace(/^Bearer /, "") ?? "";
-  const expectedBytes = new TextEncoder().encode(token), suppliedBytes = new TextEncoder().encode(supplied);
-  return expectedBytes.length >= 32 && suppliedBytes.length === expectedBytes.length && timingSafeEqual(expectedBytes, suppliedBytes);
 }
 async function envelope(env: Env, data: unknown, extra: Record<string, unknown> = {}) {
   const state = await control(env.TENX_DB);
@@ -110,6 +105,10 @@ export async function handle(request: Request, env: Env): Promise<Response> {
   const admin = path.startsWith("/api/10x/admin/");
   const method = request.method;
   if (admin && !authorized(request, env.TENX_ADMIN_TOKEN)) return json({ error: "admin_authentication_required" }, 401);
+  if (admin) {
+    try { requireAdminBrowser(request); }
+    catch (error) { if (error instanceof RequestSecurityError) return json({ error: error.message }, error.status); throw error; }
+  }
   if (method !== "GET" && method !== "POST") return json({ error: "method_not_allowed" }, 405);
   if (method === "GET" && path === "/api/10x/rewards/lab") return json(await rewardList(env.TENX_DB));
   const rewardMatch = path.match(/^\/api\/10x\/admin\/rewards\/lab\/([^/]+)$/);
@@ -253,8 +252,7 @@ export async function handle(request: Request, env: Env): Promise<Response> {
     return json(await envelope(env, { ...await status(env), jobs: jobs.results, dry_runs: runs.results }));
   }
   if (method === "POST" && admin) {
-    if (!(request.headers.get("content-type") ?? "").startsWith("application/json")) return json({ error: "json_required" }, 415);
-    const body = await boundedJson(new Response(request.body), 32_000);
+    const body = await adminJson(request);
     const reason = z.object({ reason: z.string().min(3).max(300) }).passthrough().parse(body).reason;
     if (path === "/api/10x/admin/rewards/lab") return json({ record: await createRewards(env.TENX_DB, body), replay: "verified" });
     if (path === "/api/10x/admin/backing/open") return json(await openBacking(env.TENX_DB,body));
@@ -325,6 +323,7 @@ export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     try { return await handle(request, env); }
     catch (error) {
+      if (error instanceof RequestSecurityError) return json({ error: error.message }, error.status);
       if (error instanceof RewardError) return json({ error: error.message }, error.message === "reward_daily_limit" ? 429 : error.message === "reward_request_conflict" ? 409 : error.message.includes("mismatch") ? 503 : 400);
       if(error instanceof BackingError)return json({error:error.message},error.status);
       if(error instanceof OperationsError)return json({error:error.message},503);

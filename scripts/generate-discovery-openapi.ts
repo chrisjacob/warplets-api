@@ -80,7 +80,7 @@ const spec = {
     "/api/10x/admin/policies/preview": { post: { ...post("Freeze and compare stricter numeric thresholds; locked evidence gates, no activation, zero provider calls, 20 new previews per UTC day").post, ...responseSchema("PolicyPreviewResponse"), requestBody: { required: true, content: { "application/json": { schema: { $ref: "#/components/schemas/PolicyPreviewRequest" } } } } } },
     "/api/10x/admin/policies/previews/{id}": read("Load retained policy comparison and verify hashes/replay; authenticated, no-store", { ...responseSchema("PolicyPreviewResponse"), security: [{ localOperator: [] }], parameters: [parameter("id", "path", { type: "string", format: "uuid" }, true)] }),
   },
-  components: { securitySchemes: { localOperator: { type: "http", scheme: "bearer", description: "Random local operator token; not stored in browser storage or source control" } }, schemas: {
+  components: { securitySchemes: { localOperator: { type: "http", scheme: "bearer", description: "Random local operator token (32+ bytes); strict Bearer authorization, allowed local Origin and same-origin Fetch Metadata when supplied. Headerless local CLI/timer calls remain supported. Admin JSON bodies are limited to 32,000 bytes. Never stored in browser storage or source control." } }, schemas: {
     RewardList: z.toJSONSchema(RewardList,{unrepresentable:"any"}),
     RewardRequest: z.toJSONSchema(RewardRequest,{unrepresentable:"any"}),
     RewardResponse: {type:"object",additionalProperties:false,required:["record","replay"],properties:{record:z.toJSONSchema(RewardRecord,{unrepresentable:"any"}),replay:{const:"verified"}}},

@@ -108,21 +108,9 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   }
   const body = parsed.value as RequestBody;
 
-  const requestUrl = new URL(context.request.url);
   const sessionToken = asNonEmptyString(body.sessionToken);
-  const bodyFid = typeof body.fid === "number" && Number.isInteger(body.fid) && body.fid > 0 ? body.fid : null;
   const session = await verifyActionSessionToken(context.env.ACTION_SESSION_SECRET, sessionToken);
-  const allowInsecureFallback =
-    context.env.ALLOW_INSECURE_ACTION_FID_FALLBACK === "1" &&
-    (
-      requestUrl.hostname.includes("-local.") ||
-      requestUrl.hostname.includes("-dev.") ||
-      requestUrl.hostname.endsWith(".pages.dev") ||
-      requestUrl.hostname === "127.0.0.1" ||
-      requestUrl.hostname === "localhost" ||
-      requestUrl.hostname === "::1"
-    );
-  const fid = session.valid ? session.fid : (allowInsecureFallback ? bodyFid : null);
+  const fid = session.valid ? session.fid : null;
   if (!fid) {
     return jsonSecure({ error: "Unauthorized action session" }, { status: 401 });
   }

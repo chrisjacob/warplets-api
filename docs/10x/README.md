@@ -2,7 +2,9 @@
 
 Planning checkpoint: 20 October 2026 (Australia/Sydney). Product specification: v1.1, 17 October 2026.
 
-Latest engineering review: [measured performance improvements](28-performance-review.md), including compact Discover cards, deferred wallet code, retained-shell navigation and an aggregate startup budget. Local only; evidence gates unchanged.
+Latest engineering review: [security fixes and credential follow-up](29-security-review.md), including private preview file blocking, patched Vite, signed action identities, local credential rotation and admin request boundaries. Provider credential rotation remains required. Local only; evidence gates unchanged.
+
+Previous engineering review: [measured performance improvements](28-performance-review.md), including compact Discover cards, deferred wallet code, retained-shell navigation and an aggregate startup budget.
 
 Current checkpoint: [local attention campaign reward accounting lab](27-attention-reward-lab.md). Ten-day/10% isolated reserves, raw ranks and both proposed boost models can now be rehearsed with hypothetical inputs; no live rewards or economic policy activation.
 

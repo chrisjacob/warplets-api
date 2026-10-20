@@ -1,4 +1,5 @@
 import { ed25519 } from "@noble/curves/ed25519.js";
+import { API_HEADERS } from "./request-security";
 import { IdentityChallengeRequest, IdentityChallengeResponse, IdentitySessionResponse, IdentityVerifyRequest } from "./identity-model";
 import { hashBytes, publicKey, toBase58 } from "./solana";
 
@@ -60,12 +61,12 @@ async function view(db: D1Database, session: Session | null) {
   return IdentitySessionResponse.parse({ authenticated: Boolean(identity), identity_id: identity, expires_at: identity ? session!.expires_at : null, wallets, scope: "local_solana_identity", voting_enabled: false, human_verification: "unverified" });
 }
 function response(value: unknown, setCookie?: string) {
-  return Response.json(value, { headers: { "cache-control": "no-store", "x-content-type-options": "nosniff", "referrer-policy": "no-referrer", "vary": "Cookie", ...(setCookie ? { "set-cookie": setCookie } : {}) } });
+  return Response.json(value, { headers: { ...API_HEADERS, "vary": "Cookie", ...(setCookie ? { "set-cookie": setCookie } : {}) } });
 }
 export async function identityRoute(request: Request, db: D1Database, at = new Date()): Promise<Response> {
   try { return await route(request, db, at); }
   catch (error) {
-    if (error instanceof IdentityError) return new Response(JSON.stringify({ error: error.message }), { status: error.status, headers: { "content-type": "application/json", "cache-control": "no-store" } });
+    if (error instanceof IdentityError) return Response.json({ error: error.message }, { status: error.status, headers: { ...API_HEADERS, "vary": "Cookie" } });
     throw error;
   }
 }

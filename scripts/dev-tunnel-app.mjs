@@ -19,8 +19,6 @@ const localPersistArgs = process.env.APP_LOCAL_PERSIST_TO?.trim()
 
 const PUBLIC_URL = "https://app-local.10x.meme";
 const LOCAL_MINIAPP_BASE_URL = PUBLIC_URL;
-const LOCAL_APP_SESSION_SECRET = "app-local-only-session-secret-do-not-use-live-v1";
-const LOCAL_ACTION_SESSION_SECRET = "app-local-only-action-secret-do-not-use-live-v1";
 
 function applyLocalMigrations() {
   console.log("Applying pending local D1 migrations...");
@@ -81,15 +79,9 @@ function spawnApiWorker(port) {
     "--port",
     String(port),
     ...localPersistArgs,
-    "--binding",
-    `APP_SESSION_SECRET=${LOCAL_APP_SESSION_SECRET}`,
-    "--binding",
-    `ACTION_SESSION_SECRET=${LOCAL_ACTION_SESSION_SECRET}`,
   ];
-  for (const name of ["VAPID_PUBLIC_KEY", "VAPID_PRIVATE_KEY", "VAPID_SUBJECT"]) {
-    const value = process.env[name]?.trim();
-    if (value) args.push("--binding", `${name}=${value}`);
-  }
+  // Wrangler loads secrets from ignored app/.dev.vars; never override them
+  // with public placeholders or expose private keys in process arguments.
   return spawn(command, args, {
     cwd: appDir,
     shell: process.platform === "win32",

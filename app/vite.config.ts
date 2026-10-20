@@ -1,6 +1,7 @@
 import { isRetiredAppRoute } from "./shared/retiredApps";
 import { isNetworkRoute, networkHtml } from "./shared/network/metadata";
 import { defineConfig } from "vite";
+import { LOCAL_PRIVATE_FILES, localPreviewSecurity } from "./localPreviewSecurity";
 import { localStonkletsMarket } from "./localStonkletsMarket";
 import { localSpotlightPreview } from "./localSpotlightPreview";
 import { stonkletFromSharePath, stonkletShare } from "./shared/stonkletsShare";
@@ -454,6 +455,7 @@ export default defineConfig({
     exclude: ["@sqlite.org/sqlite-wasm"],
   },
   plugins: [
+    localPreviewSecurity(),
     {
       name: "tenx-discovery-shared-contracts",
       apply: "serve",
@@ -654,6 +656,12 @@ export default defineConfig({
     },
   ],
   server: {
+    fs: {
+      strict: true,
+      // Workspace source imports are public in development. Ignored runtime
+      // files are not: Vite's default deny list does not include .dev.vars.
+      deny: LOCAL_PRIVATE_FILES,
+    },
     allowedHosts: [
       "network-local.10x.meme",
       "app-local.10x.meme",

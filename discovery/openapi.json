@@ -2964,7 +2964,7 @@
       "localOperator": {
         "type": "http",
         "scheme": "bearer",
-        "description": "Random local operator token; not stored in browser storage or source control"
+        "description": "Random local operator token (32+ bytes); strict Bearer authorization, allowed local Origin and same-origin Fetch Metadata when supplied. Headerless local CLI/timer calls remain supported. Admin JSON bodies are limited to 32,000 bytes. Never stored in browser storage or source control."
       }
     },
     "schemas": {
