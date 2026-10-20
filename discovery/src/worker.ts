@@ -21,6 +21,9 @@ import { artworkFor, runArtworkCycle } from "./artwork";
 import { safeMetadataUrl } from "./images";
 import { catchupLimit, replayLegacyWallets, walletWork } from "./wallet-work";
 import { createPolicyPreview, policyPreviewRecord, PolicyPreviewError, publicPolicy } from "./policies";
+import { runSignalCycle, signalDetail, signalResearch } from "./signal-research";
+import { SignalKind } from "./signal-model";
+import { SignalResearchError } from "./signal-analysis";
 
 // Widen generated literal vars so ignored .dev.vars overrides stay type-safe.
 export type LocalEnv = { [K in keyof Cloudflare.Env]: Cloudflare.Env[K] extends string ? string : Cloudflare.Env[K] };
@@ -119,6 +122,12 @@ export async function handle(request: Request, env: Env): Promise<Response> {
     return json(await envelope(env, { record, replay: await replayElection(record) }));
   }
   if (method === "GET" && path === "/api/10x/transparency/policies") return json(await envelope(env, await publicPolicy()));
+  if (method === "GET" && path === "/api/10x/research/signals") return json(await envelope(env, await signalResearch(env.TENX_DB)));
+  const signalEvidence = path.match(/^\/api\/10x\/research\/signals\/solana\/([^/]+)\/([^/]+)$/);
+  if (method === "GET" && signalEvidence) {
+    const detail = await signalDetail(env.TENX_DB,Address.parse(signalEvidence[1]),SignalKind.parse(signalEvidence[2]));
+    return detail ? json(detail) : json({ error: "signal_cohort_not_found" },404);
+  }
   const policyRecord = path.match(/^\/api\/10x\/admin\/policies\/previews\/([^/]+)$/);
   if (method === "GET" && policyRecord) {
     const record = await policyPreviewRecord(env.TENX_DB, policyRecord[1]!);
@@ -224,6 +233,7 @@ export async function handle(request: Request, env: Env): Promise<Response> {
     if (path === "/api/10x/admin/maintenance" || path === "/api/10x/admin/review") {
       const now = new Date(), state = await control(env.TENX_DB);
       await env.TENX_DB.prepare("UPDATE tenx_control SET heartbeat_at=?1 WHERE id=1").bind(now.toISOString()).run();
+      const diagnostics = await runSignalCycle(env.TENX_DB);
       let election: { id?: string; state: string; error?: string };
       try { election = await dailyElection(env.TENX_DB); }
       catch (error) { election = { state: "failed", error: error instanceof ElectionError ? error.message : "election_unavailable" }; }
@@ -231,9 +241,9 @@ export async function handle(request: Request, env: Env): Promise<Response> {
       if (path.endsWith("/review") || !state.reviewed_at || now.getTime() - Date.parse(state.reviewed_at) >= 3600000) {
         const review = await runReviews(env.TENX_DB, now);
         await env.TENX_DB.prepare("UPDATE tenx_control SET reviewed_at=?1 WHERE id=1").bind(now.toISOString()).run();
-        return json({ local: true, review, election });
+        return json({ local: true, review, election, diagnostics });
       }
-      return json({ local: true, review: "waiting_for_hourly_tick", election });
+      return json({ local: true, review: "waiting_for_hourly_tick", election, diagnostics });
     }
     if (path === "/api/10x/admin/refresh") {
       await audit(env.TENX_DB, "refresh_requested", reason, {});
@@ -277,6 +287,7 @@ export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     try { return await handle(request, env); }
     catch (error) {
+      if (error instanceof SignalResearchError) return json({ error: error.message },503);
       if (error instanceof PolicyPreviewError) return json({ error: error.message }, error.message === "policy_preview_daily_limit" ? 429 : error.message === "policy_preview_request_conflict" ? 409 : error.message.startsWith("policy_preview_cannot") || error.message === "policy_evidence_gates_locked" ? 400 : 503);
       if (error instanceof ElectionError) return json({ error: error.message }, 503);
       if (error instanceof z.ZodError || error instanceof SyntaxError) return json({ error: "invalid_request_or_data" }, 400);

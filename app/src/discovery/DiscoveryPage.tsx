@@ -9,6 +9,8 @@ import { WalletAnalysisPanel } from "./WalletAnalysis";
 import { feeSol, TradingFeesPanel } from "./TradingFees";
 import { WalletWorkResponseSchema } from "../../../discovery/src/wallet-work-model";
 import { PolicyLab, PolicyView } from "./PolicyReview";
+import { SignalResearch } from "./SignalResearch";
+import { SignalsResponse } from "./client";
 import "./discovery.css";
 
 const money = (value: number | null | undefined) => value == null ? "Unavailable" : value > 0 && value < 0.000001 ? `$${value.toExponential(3)}` : new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: value < 1 ? 6 : 0 }).format(value);
@@ -144,8 +146,10 @@ function TradingActivity({address}:{address:string}) {
 }
 function ResearchView() {
   const { data, error } = useRemote(signal => getJson("/api/10x/research/reviews", ReviewsResponse, signal), "reviews");
+  const signals = useRemote(signal => getJson("/api/10x/research/signals",SignalsResponse,signal),"signals");
   return <><header className="tenx-heading"><p className="tenx-eyebrow">RESEARCH / DAILY REVIEW</p><h1>Learn from yesterday.</h1><p>Frozen selection-time metrics, later outcomes, and testable filter proposals. Missing evidence remains visible.</p></header>
     <aside className="tenx-notice">Reviews run automatically on the local timer, using Australia/Sydney calendar days. Recommendations are tracked separately from observed tokens. Proposed rules do not change the active policy.</aside>
+    <SignalResearch data={signals.data?.data ?? null} error={signals.error} />
     {data && <section className="tenx-panel"><h2>Collecting today · {data.data.collection.day}</h2><p>{data.data.collection.tokens} observed tokens · {data.data.collection.recommended} recommended selections. First observations and first eligible recommendations are retained separately. {data.data.collection.wallet_samples} usable wallet-sample baselines are frozen for later outcome review.</p><p>Last snapshot: {time(data.data.collection.last_snapshot_at)}. Each 24-hour outcome remains pending until its observation window matures and an acceptable endpoint is available.</p></section>}
     {error && <p role="alert">{error}</p>}{data?.data.reports.map(report => <section className="tenx-panel" key={report.input_hash}><div className="tenx-row"><h2>{report.day}</h2><span>{report.counts.measured} measured / {report.counts.observed} tracked</span></div>
       <dl><dt>Recommended at selection</dt><dd>{report.counts.recommended}</dd><dt>24h windows pending</dt><dd>{report.counts.pending}</dd><dt>Insufficient outcome data</dt><dd>{report.counts.insufficient_data}</dd><dt>Severe loss signals</dt><dd>{report.counts.severe_loss_signals}</dd></dl>

@@ -4,7 +4,8 @@ import { AssessedCandidateSchema, PolicySchema, ProofSchema } from "../discovery
 import { ArtworkResponseSchema } from "../discovery/src/artwork-model";
 import { WalletWorkResponseSchema } from "../discovery/src/wallet-work-model";
 import { PolicyEditsSchema, PolicyPreviewResponseSchema, PreviewRequestSchema } from "../discovery/src/policy-model";
-import { ActivityResponse, CoverageResponse, DetailResponse, ElectionDetailResponse, ElectionsResponse, HistoryResponse, ListResponse, PoliciesResponse, ReviewsResponse, StatusResponse } from "../app/src/discovery/client";
+import { SignalDetailSchema } from "../discovery/src/signal-model";
+import { ActivityResponse, CoverageResponse, DetailResponse, ElectionDetailResponse, ElectionsResponse, HistoryResponse, ListResponse, PoliciesResponse, ReviewsResponse, SignalsResponse, StatusResponse } from "../app/src/discovery/client";
 
 const ok = { description: "Success; cached public data includes timestamps, source freshness and coverage", content: { "application/json": { schema: { type: "object" } } } };
 const errors = Object.fromEntries([400, 401, 403, 404, 409, 413, 415, 429, 503].map(code => [code, { description: "Structured JSON error; no provider secrets" }]));
@@ -32,6 +33,8 @@ const spec = {
     "/api/10x/wallets/solana/{address}": read("Cached wallet profiles across at most 20 locally analyzed tokens; incomplete lifetime coverage", { parameters: [parameter("address", "path", { type: "string", minLength: 32, maxLength: 44 }, true)] }),
     "/api/10x/history/solana/{address}": read("Saved local price and nullable market cap observations; no invented backfill", { ...responseSchema("HistoryResponse"), parameters: [parameter("address", "path", { type: "string" }, true), parameter("hours", "query", { type: "integer", minimum: 1, maximum: 168, default: 24 })] }),
     "/api/10x/research/reviews": read("Daily outcome reports, chronological holdout proposals and evidence-based wallet associations", responseSchema("ReviewsResponse")),
+    "/api/10x/research/signals": read("Separate first-usable diagnostic cohorts, delayed 24h outcomes and time-purged holdout checks; latest 1000, no policy activation or provider calls",responseSchema("SignalsResponse")),
+    "/api/10x/research/signals/solana/{address}/{signal}": read("Frozen diagnostic input, verified feature replay and hash-checked outcome; no provider calls",{...responseSchema("SignalDetailResponse"),parameters:[parameter("address","path",{type:"string",minLength:32,maxLength:44},true),parameter("signal","path",{enum:["new_token_high_cap","smooth_price_rise"]},true)]}),
     "/api/10x/elections": read("Latest ten immutable local discovery rehearsals; no community voting or launch authority", responseSchema("ElectionsResponse")),
     "/api/10x/elections/{id}": read("Frozen candidate inventory/policy and verified deterministic replay; zero provider requests", { ...responseSchema("ElectionDetailResponse"), parameters: [parameter("id", "path", { type: "string", pattern: "^(daily-[0-9]{4}-[0-9]{2}-[0-9]{2}|manual-[0-9a-f-]{36})$" }, true)] }),
     "/api/10x/system/status": read("Freshness, declared coverage gaps, UTC provider budgets and pauses", responseSchema("SystemStatusResponse")),
@@ -60,6 +63,8 @@ const spec = {
     PolicyEdits: z.toJSONSchema(PolicyEditsSchema),
     PolicyPreviewRequest: z.toJSONSchema(PreviewRequestSchema),
     PolicyPreviewResponse: z.toJSONSchema(PolicyPreviewResponseSchema, { unrepresentable: "any" }),
+    SignalDetailResponse: z.toJSONSchema(SignalDetailSchema, { unrepresentable: "any" }),
+    SignalsResponse: z.toJSONSchema(SignalsResponse, { unrepresentable: "any" }),
     CandidateListResponse: z.toJSONSchema(ListResponse, { unrepresentable: "any" }),
     CandidateDetailResponse: z.toJSONSchema(DetailResponse, { unrepresentable: "any" }),
     PoliciesResponse: z.toJSONSchema(PoliciesResponse, { unrepresentable: "any" }),

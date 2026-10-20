@@ -1,14 +1,15 @@
 import type { Market } from "./model";
 
 // Unvalidated review heuristic only. No eligibility, ranking or organic-trading claim.
-export const PRICE_PATTERN_RULE = Object.freeze({
+export const PRICE_PATTERN_RULE_V1 = Object.freeze({
   version: "sampled-linear-rise-v1", window_ms: 86_400_000,
   min_samples: 20, min_span_ms: 3_600_000, max_gap_ms: 600_000,
   min_return_pct: 5, min_upward_step_pct: 90, max_drawdown_pct: 1, min_linear_r_squared: 0.98,
 });
 
-export function pricePatternReview(points: readonly Market[], now: Date) {
-  const rule = PRICE_PATTERN_RULE, gaps = new Set<string>();
+export const PRICE_PATTERN_RULE = PRICE_PATTERN_RULE_V1;
+export function pricePatternReviewV1(points: readonly Market[], now: Date) {
+  const rule = PRICE_PATTERN_RULE_V1, gaps = new Set<string>();
   // Only the latest continuous run is assessed. Never join different sources,
   // duplicate timestamps, missing prices or long gaps to manufacture a trend.
   const ordered = points.filter(p => {
@@ -63,3 +64,5 @@ export function pricePatternReview(points: readonly Market[], now: Date) {
   const flagged = xy > 0 && metrics.return_pct >= rule.min_return_pct && metrics.upward_step_pct >= rule.min_upward_step_pct && drawdown <= rule.max_drawdown_pct && rSquared !== null && rSquared >= rule.min_linear_r_squared;
   return { ...base, status: flagged ? "review" as const : "not_flagged" as const, metrics };
 }
+// The display may move to another version; retained research keeps the v1 decoder.
+export const pricePatternReview = pricePatternReviewV1;

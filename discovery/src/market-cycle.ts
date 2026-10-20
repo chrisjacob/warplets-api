@@ -16,7 +16,10 @@ export async function runMarketCycle(settings: Settings, now = new Date()): Prom
   if (!lease) return { state: "waiting" };
   try {
     const all = await candidates(db), active = shortlist(all, DEFAULT_POLICY, now);
-    const cohort = await db.prepare(`SELECT address FROM tenx_cohorts WHERE selected_at>=?1 GROUP BY address ORDER BY MIN(selected_at) DESC LIMIT 200`).bind(new Date(now.getTime() - 26 * 3600000).toISOString()).all<{ address: string }>();
+    const cohort = await db.prepare(`SELECT address FROM (
+      SELECT address,selected_at AS tracked_at FROM tenx_cohorts WHERE selected_at>=?1
+      UNION ALL SELECT address,captured_at AS tracked_at FROM tenx_signal_cohorts WHERE captured_at>=?1
+      ) GROUP BY address ORDER BY MAX(tracked_at) DESC,address LIMIT 200`).bind(new Date(now.getTime() - 26 * 3600000).toISOString()).all<{ address: string }>();
     const tracked = new Set([...active.map(c => c.address), ...cohort.results.map(c => c.address)]);
     const attempts = await db.prepare("SELECT address,attempted_at FROM tenx_market_attempts").all<{ address: string; attempted_at: string }>();
     const attempted = new Map(attempts.results.map(row => [row.address, row.attempted_at]));
