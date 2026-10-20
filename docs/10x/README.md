@@ -2,6 +2,8 @@
 
 Planning checkpoint: 20 October 2026 (Australia/Sydney). Product specification: v1.1, 17 October 2026.
 
+Current checkpoint: [local attention campaign reward accounting lab](27-attention-reward-lab.md). Ten-day/10% isolated reserves, raw ranks and both proposed boost models can now be rehearsed with hypothetical inputs; no live rewards or economic policy activation.
+
 Current P6 milestone: [bounded signed-wallet window collection and RPC finality observations](26-wallet-window-coverage.md), with a retained coverage manifest, strict free-budget subset and unchanged live-vote restrictions.
 
 Previous checkpoint: [retained cutoff risk evidence and pre-trade price references](25-cutoff-history-and-price-references.md). The earlier backing foundation is listed below. Historical USD remains unverified; outcomes stay withheld.

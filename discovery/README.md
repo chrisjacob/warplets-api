@@ -14,6 +14,7 @@ Wallet collection runs automatically inside an 800-call/day allowance within the
 
 ## Review
 
+- [Campaign reward lab](https://app-local.10x.meme/rewards): hypothetical ten-day/10% accounting, separate edition reserves and both proposed boost models. Protected editor/replay/download in Admin; no verified content, entitlements or claims. [Checkpoint and local smoke check](../docs/10x/27-attention-reward-lab.md).
 - [Rehearsals](https://app-local.10x.meme/elections): daily/operator discovery snapshots, frozen decisions/policy and zero-provider replay. No community votes or launch authority. The first UTC-day maintenance tick records actual-time readiness; sleeping days are not backfilled. Run `pnpm exec tsx scripts/check-discovery-elections.ts [run-id]` to replay independently. Current snapshots stop visibly above 500 retained candidates / 1.6 MB inputs; see the review checkpoint for archival work still needed.
 - [Discover](https://app-local.10x.meme/discover): live observed candidates, separate eligible/provisional/excluded views and explicitly synthetic examples.
 - [Data status](https://app-local.10x.meme/status): freshness, bounded coverage, UTC provider quotas and pause/error state.

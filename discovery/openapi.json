@@ -11,6 +11,169 @@
     }
   ],
   "paths": {
+    "/api/10x/rewards/lab": {
+      "get": {
+        "summary": "Latest five hypothetical attention scenarios; hash-checked aggregates, no participant inputs or provider requests",
+        "responses": {
+          "200": {
+            "description": "Success; cached public data includes timestamps, source freshness and coverage",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RewardList"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "401": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "403": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "404": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "409": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "413": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "415": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "429": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "503": {
+            "description": "Structured JSON error; no provider secrets"
+          }
+        }
+      }
+    },
+    "/api/10x/admin/rewards/lab": {
+      "post": {
+        "summary": "Freeze and replay offline ten-day/ten-percent attention accounting; both unapproved boost options, 20 scenarios per UTC day, no claims",
+        "security": [
+          {
+            "localOperator": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RewardRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success; cached public data includes timestamps, source freshness and coverage",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RewardResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "401": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "403": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "404": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "409": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "413": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "415": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "429": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "503": {
+            "description": "Structured JSON error; no provider secrets"
+          }
+        }
+      }
+    },
+    "/api/10x/admin/rewards/lab/{id}": {
+      "get": {
+        "summary": "Operator-only frozen inputs, raw ranks and deterministic accounting replay; no provider requests",
+        "responses": {
+          "200": {
+            "description": "Success; cached public data includes timestamps, source freshness and coverage",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RewardResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "401": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "403": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "404": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "409": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "413": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "415": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "429": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "503": {
+            "description": "Structured JSON error; no provider secrets"
+          }
+        },
+        "security": [
+          {
+            "localOperator": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ]
+      }
+    },
     "/api/10x/backing": {
       "get": {
         "summary": "Latest ten local prospective backing experiments; hash-checked aggregates only, no wallet membership or RPC calls; all outcomes withheld",
@@ -2785,6 +2948,1094 @@
       }
     },
     "schemas": {
+      "RewardList": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "scope": {
+            "type": "string",
+            "const": "local_hypothetical_attention_lab"
+          },
+          "runs": {
+            "maxItems": 5,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                },
+                "created_at": {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                },
+                "result_hash": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                },
+                "record_hash": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                },
+                "result": {
+                  "type": "object",
+                  "properties": {
+                    "version": {
+                      "type": "string",
+                      "const": "attention-lab-v1"
+                    },
+                    "as_of": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                    },
+                    "source": {
+                      "type": "string",
+                      "const": "hypothetical_operator_inputs"
+                    },
+                    "max_overlap": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 10
+                    },
+                    "active_campaigns": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 10
+                    },
+                    "spotlight_id": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "combined_cap_bps": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "bonus_pool_bps": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "policy_approved": {
+                      "type": "boolean",
+                      "const": false
+                    },
+                    "claims_enabled": {
+                      "type": "boolean",
+                      "const": false
+                    },
+                    "transfers_enabled": {
+                      "type": "boolean",
+                      "const": false
+                    },
+                    "provider_requests": {
+                      "type": "number",
+                      "const": 0
+                    },
+                    "campaigns": {
+                      "maxItems": 10,
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
+                          "asset": {
+                            "type": "string"
+                          },
+                          "decimals": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          "starts_at": {
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                          },
+                          "ends_at": {
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                          },
+                          "state": {
+                            "type": "string",
+                            "enum": [
+                              "future",
+                              "active",
+                              "past"
+                            ]
+                          },
+                          "supply_raw": {
+                            "type": "string",
+                            "maxLength": 24,
+                            "pattern": "^(0|[1-9]\\d*)$"
+                          },
+                          "reserve_raw": {
+                            "type": "string",
+                            "maxLength": 24,
+                            "pattern": "^(0|[1-9]\\d*)$"
+                          },
+                          "schedule_dust_raw": {
+                            "type": "string",
+                            "maxLength": 24,
+                            "pattern": "^(0|[1-9]\\d*)$"
+                          },
+                          "option_a_raw": {
+                            "type": "string",
+                            "maxLength": 24,
+                            "pattern": "^(0|[1-9]\\d*)$"
+                          },
+                          "option_b_raw": {
+                            "type": "string",
+                            "maxLength": 24,
+                            "pattern": "^(0|[1-9]\\d*)$"
+                          },
+                          "periods": {
+                            "minItems": 10,
+                            "maxItems": 10,
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "day": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 9
+                                },
+                                "starts_at": {
+                                  "type": "string",
+                                  "format": "date-time",
+                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                                },
+                                "ends_at": {
+                                  "type": "string",
+                                  "format": "date-time",
+                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                                },
+                                "tranche_raw": {
+                                  "type": "string",
+                                  "maxLength": 24,
+                                  "pattern": "^(0|[1-9]\\d*)$"
+                                },
+                                "status": {
+                                  "type": "string",
+                                  "enum": [
+                                    "scheduled",
+                                    "raw_evidence_gap",
+                                    "boost_evidence_gap",
+                                    "no_eligible_points",
+                                    "projected"
+                                  ]
+                                },
+                                "included": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 9007199254740991
+                                },
+                                "excluded": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 9007199254740991
+                                },
+                                "option_a_raw": {
+                                  "type": "string",
+                                  "maxLength": 24,
+                                  "pattern": "^(0|[1-9]\\d*)$"
+                                },
+                                "option_b_raw": {
+                                  "type": "string",
+                                  "maxLength": 24,
+                                  "pattern": "^(0|[1-9]\\d*)$"
+                                },
+                                "unallocated_a_raw": {
+                                  "type": "string",
+                                  "maxLength": 24,
+                                  "pattern": "^(0|[1-9]\\d*)$"
+                                },
+                                "unallocated_b_raw": {
+                                  "type": "string",
+                                  "maxLength": 24,
+                                  "pattern": "^(0|[1-9]\\d*)$"
+                                }
+                              },
+                              "required": [
+                                "day",
+                                "starts_at",
+                                "ends_at",
+                                "tranche_raw",
+                                "status",
+                                "included",
+                                "excluded",
+                                "option_a_raw",
+                                "option_b_raw",
+                                "unallocated_a_raw",
+                                "unallocated_b_raw"
+                              ],
+                              "additionalProperties": false
+                            }
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "asset",
+                          "decimals",
+                          "starts_at",
+                          "ends_at",
+                          "state",
+                          "supply_raw",
+                          "reserve_raw",
+                          "schedule_dust_raw",
+                          "option_a_raw",
+                          "option_b_raw",
+                          "periods"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "version",
+                    "as_of",
+                    "source",
+                    "max_overlap",
+                    "active_campaigns",
+                    "spotlight_id",
+                    "combined_cap_bps",
+                    "bonus_pool_bps",
+                    "policy_approved",
+                    "claims_enabled",
+                    "transfers_enabled",
+                    "provider_requests",
+                    "campaigns"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "id",
+                "created_at",
+                "result_hash",
+                "record_hash",
+                "result"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "scope",
+          "runs"
+        ],
+        "additionalProperties": false
+      },
+      "RewardRequest": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "request_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 300
+          },
+          "scenario": {
+            "type": "object",
+            "properties": {
+              "version": {
+                "type": "string",
+                "const": "attention-lab-v1"
+              },
+              "as_of": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+              },
+              "combined_cap_bps": {
+                "type": "integer",
+                "minimum": 10000,
+                "maximum": 50000
+              },
+              "bonus_pool_bps": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 10000
+              },
+              "spotlight_id": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "campaigns": {
+                "minItems": 1,
+                "maxItems": 10,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "asset": {
+                      "type": "string",
+                      "pattern": "^SIM-[A-Z0-9-]{1,24}$"
+                    },
+                    "starts_at": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                    },
+                    "supply_raw": {
+                      "type": "string",
+                      "maxLength": 20,
+                      "pattern": "^(0|[1-9]\\d*)$"
+                    },
+                    "decimals": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9
+                    },
+                    "daily_weights_bps": {
+                      "minItems": 10,
+                      "maxItems": 10,
+                      "type": "array",
+                      "items": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 10000
+                      }
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "asset",
+                    "starts_at",
+                    "supply_raw",
+                    "decimals",
+                    "daily_weights_bps"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "scores": {
+                "maxItems": 80,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "campaign_id": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "day": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9
+                    },
+                    "participant": {
+                      "type": "string",
+                      "pattern": "^[a-zA-Z0-9_-]{1,32}$"
+                    },
+                    "raw_points": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "maxLength": 20,
+                          "pattern": "^(0|[1-9]\\d*)$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "raw_observed_at": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "boost_bps": {
+                      "anyOf": [
+                        {
+                          "type": "integer",
+                          "minimum": 10000,
+                          "maximum": 50000
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "boost_observed_at": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "disposition": {
+                      "type": "string",
+                      "enum": [
+                        "included",
+                        "quarantined",
+                        "rejected"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "campaign_id",
+                    "day",
+                    "participant",
+                    "raw_points",
+                    "raw_observed_at",
+                    "boost_bps",
+                    "boost_observed_at",
+                    "disposition"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "version",
+              "as_of",
+              "combined_cap_bps",
+              "bonus_pool_bps",
+              "spotlight_id",
+              "campaigns",
+              "scores"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "request_id",
+          "reason",
+          "scenario"
+        ],
+        "additionalProperties": false
+      },
+      "RewardResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "record",
+          "replay"
+        ],
+        "properties": {
+          "record": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "created_at": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+              },
+              "reason": {
+                "type": "string",
+                "minLength": 3,
+                "maxLength": 300
+              },
+              "request_hash": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              "input_hash": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              "result_hash": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              "record_hash": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              "inputs": {
+                "type": "object",
+                "properties": {
+                  "version": {
+                    "type": "string",
+                    "const": "attention-lab-v1"
+                  },
+                  "as_of": {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                  },
+                  "combined_cap_bps": {
+                    "type": "integer",
+                    "minimum": 10000,
+                    "maximum": 50000
+                  },
+                  "bonus_pool_bps": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 10000
+                  },
+                  "spotlight_id": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "campaigns": {
+                    "minItems": 1,
+                    "maxItems": 10,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                        },
+                        "asset": {
+                          "type": "string",
+                          "pattern": "^SIM-[A-Z0-9-]{1,24}$"
+                        },
+                        "starts_at": {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                        },
+                        "supply_raw": {
+                          "type": "string",
+                          "maxLength": 20,
+                          "pattern": "^(0|[1-9]\\d*)$"
+                        },
+                        "decimals": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9
+                        },
+                        "daily_weights_bps": {
+                          "minItems": 10,
+                          "maxItems": 10,
+                          "type": "array",
+                          "items": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 10000
+                          }
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "asset",
+                        "starts_at",
+                        "supply_raw",
+                        "decimals",
+                        "daily_weights_bps"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "scores": {
+                    "maxItems": 80,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "campaign_id": {
+                          "type": "string",
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                        },
+                        "day": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9
+                        },
+                        "participant": {
+                          "type": "string",
+                          "pattern": "^[a-zA-Z0-9_-]{1,32}$"
+                        },
+                        "raw_points": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "maxLength": 20,
+                              "pattern": "^(0|[1-9]\\d*)$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "raw_observed_at": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "boost_bps": {
+                          "anyOf": [
+                            {
+                              "type": "integer",
+                              "minimum": 10000,
+                              "maximum": 50000
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "boost_observed_at": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "disposition": {
+                          "type": "string",
+                          "enum": [
+                            "included",
+                            "quarantined",
+                            "rejected"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "campaign_id",
+                        "day",
+                        "participant",
+                        "raw_points",
+                        "raw_observed_at",
+                        "boost_bps",
+                        "boost_observed_at",
+                        "disposition"
+                      ],
+                      "additionalProperties": false
+                    }
+                  }
+                },
+                "required": [
+                  "version",
+                  "as_of",
+                  "combined_cap_bps",
+                  "bonus_pool_bps",
+                  "spotlight_id",
+                  "campaigns",
+                  "scores"
+                ],
+                "additionalProperties": false
+              },
+              "result": {
+                "type": "object",
+                "properties": {
+                  "version": {
+                    "type": "string",
+                    "const": "attention-lab-v1"
+                  },
+                  "as_of": {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                  },
+                  "source": {
+                    "type": "string",
+                    "const": "hypothetical_operator_inputs"
+                  },
+                  "max_overlap": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 10
+                  },
+                  "active_campaigns": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 10
+                  },
+                  "spotlight_id": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "combined_cap_bps": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  "bonus_pool_bps": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  "policy_approved": {
+                    "type": "boolean",
+                    "const": false
+                  },
+                  "claims_enabled": {
+                    "type": "boolean",
+                    "const": false
+                  },
+                  "transfers_enabled": {
+                    "type": "boolean",
+                    "const": false
+                  },
+                  "provider_requests": {
+                    "type": "number",
+                    "const": 0
+                  },
+                  "campaigns": {
+                    "minItems": 1,
+                    "maxItems": 10,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                        },
+                        "asset": {
+                          "type": "string"
+                        },
+                        "decimals": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "starts_at": {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                        },
+                        "ends_at": {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                        },
+                        "state": {
+                          "type": "string",
+                          "enum": [
+                            "future",
+                            "active",
+                            "past"
+                          ]
+                        },
+                        "supply_raw": {
+                          "type": "string",
+                          "maxLength": 24,
+                          "pattern": "^(0|[1-9]\\d*)$"
+                        },
+                        "reserve_raw": {
+                          "type": "string",
+                          "maxLength": 24,
+                          "pattern": "^(0|[1-9]\\d*)$"
+                        },
+                        "schedule_dust_raw": {
+                          "type": "string",
+                          "maxLength": 24,
+                          "pattern": "^(0|[1-9]\\d*)$"
+                        },
+                        "option_a_raw": {
+                          "type": "string",
+                          "maxLength": 24,
+                          "pattern": "^(0|[1-9]\\d*)$"
+                        },
+                        "option_b_raw": {
+                          "type": "string",
+                          "maxLength": 24,
+                          "pattern": "^(0|[1-9]\\d*)$"
+                        },
+                        "periods": {
+                          "minItems": 10,
+                          "maxItems": 10,
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "day": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 9
+                              },
+                              "starts_at": {
+                                "type": "string",
+                                "format": "date-time",
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                              },
+                              "ends_at": {
+                                "type": "string",
+                                "format": "date-time",
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                              },
+                              "tranche_raw": {
+                                "type": "string",
+                                "maxLength": 24,
+                                "pattern": "^(0|[1-9]\\d*)$"
+                              },
+                              "status": {
+                                "type": "string",
+                                "enum": [
+                                  "scheduled",
+                                  "raw_evidence_gap",
+                                  "boost_evidence_gap",
+                                  "no_eligible_points",
+                                  "projected"
+                                ]
+                              },
+                              "included": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 9007199254740991
+                              },
+                              "excluded": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 9007199254740991
+                              },
+                              "option_a_raw": {
+                                "type": "string",
+                                "maxLength": 24,
+                                "pattern": "^(0|[1-9]\\d*)$"
+                              },
+                              "option_b_raw": {
+                                "type": "string",
+                                "maxLength": 24,
+                                "pattern": "^(0|[1-9]\\d*)$"
+                              },
+                              "unallocated_a_raw": {
+                                "type": "string",
+                                "maxLength": 24,
+                                "pattern": "^(0|[1-9]\\d*)$"
+                              },
+                              "unallocated_b_raw": {
+                                "type": "string",
+                                "maxLength": 24,
+                                "pattern": "^(0|[1-9]\\d*)$"
+                              },
+                              "participants": {
+                                "maxItems": 80,
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "participant": {
+                                      "type": "string",
+                                      "pattern": "^[a-zA-Z0-9_-]{1,32}$"
+                                    },
+                                    "rank": {
+                                      "anyOf": [
+                                        {
+                                          "type": "integer",
+                                          "exclusiveMinimum": 0,
+                                          "maximum": 9007199254740991
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "raw_points": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "maxLength": 20,
+                                          "pattern": "^(0|[1-9]\\d*)$"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "effective_boost_bps": {
+                                      "anyOf": [
+                                        {
+                                          "type": "integer",
+                                          "minimum": -9007199254740991,
+                                          "maximum": 9007199254740991
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "base_b_raw": {
+                                      "type": "string",
+                                      "maxLength": 24,
+                                      "pattern": "^(0|[1-9]\\d*)$"
+                                    },
+                                    "option_a_raw": {
+                                      "type": "string",
+                                      "maxLength": 24,
+                                      "pattern": "^(0|[1-9]\\d*)$"
+                                    },
+                                    "option_b_raw": {
+                                      "type": "string",
+                                      "maxLength": 24,
+                                      "pattern": "^(0|[1-9]\\d*)$"
+                                    },
+                                    "reasons": {
+                                      "maxItems": 5,
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string"
+                                      }
+                                    }
+                                  },
+                                  "required": [
+                                    "participant",
+                                    "rank",
+                                    "raw_points",
+                                    "effective_boost_bps",
+                                    "base_b_raw",
+                                    "option_a_raw",
+                                    "option_b_raw",
+                                    "reasons"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              }
+                            },
+                            "required": [
+                              "day",
+                              "starts_at",
+                              "ends_at",
+                              "tranche_raw",
+                              "status",
+                              "included",
+                              "excluded",
+                              "option_a_raw",
+                              "option_b_raw",
+                              "unallocated_a_raw",
+                              "unallocated_b_raw",
+                              "participants"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "asset",
+                        "decimals",
+                        "starts_at",
+                        "ends_at",
+                        "state",
+                        "supply_raw",
+                        "reserve_raw",
+                        "schedule_dust_raw",
+                        "option_a_raw",
+                        "option_b_raw",
+                        "periods"
+                      ],
+                      "additionalProperties": false
+                    }
+                  }
+                },
+                "required": [
+                  "version",
+                  "as_of",
+                  "source",
+                  "max_overlap",
+                  "active_campaigns",
+                  "spotlight_id",
+                  "combined_cap_bps",
+                  "bonus_pool_bps",
+                  "policy_approved",
+                  "claims_enabled",
+                  "transfers_enabled",
+                  "provider_requests",
+                  "campaigns"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "id",
+              "created_at",
+              "reason",
+              "request_hash",
+              "input_hash",
+              "result_hash",
+              "record_hash",
+              "inputs",
+              "result"
+            ],
+            "additionalProperties": false
+          },
+          "replay": {
+            "const": "verified"
+          }
+        }
+      },
       "OpenBackingRequest": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",

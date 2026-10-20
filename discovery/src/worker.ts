@@ -1,4 +1,6 @@
 import { timingSafeEqual } from "node:crypto";
+import { createRewards, rewardList, rewardRecord } from "./rewards";
+import { RewardError } from "./reward-math";
 import { z } from "zod";
 import { identityRoute } from "./identity";
 import { backingList, backingRecord, BackingError, freezeBacking, openBacking, settleBacking } from "./backing";
@@ -108,6 +110,12 @@ export async function handle(request: Request, env: Env): Promise<Response> {
   const method = request.method;
   if (admin && !authorized(request, env.TENX_ADMIN_TOKEN)) return json({ error: "admin_authentication_required" }, 401);
   if (method !== "GET" && method !== "POST") return json({ error: "method_not_allowed" }, 405);
+  if (method === "GET" && path === "/api/10x/rewards/lab") return json(await rewardList(env.TENX_DB));
+  const rewardMatch = path.match(/^\/api\/10x\/admin\/rewards\/lab\/([^/]+)$/);
+  if (method === "GET" && rewardMatch) {
+    const record = await rewardRecord(env.TENX_DB, rewardMatch[1]);
+    return record ? json({ record, replay: "verified" }) : json({ error: "reward_not_found" }, 404);
+  }
   if (method === "POST" && request.headers.has("origin") && !origins.has(request.headers.get("origin")!)) return json({ error: "origin_not_allowed" }, 403);
   if (method === "POST" && !admin) return json({ error: "not_found" }, 404);
   if (method === "GET" && path === "/api/10x/health") return json({ local: true, ready: true });
@@ -246,6 +254,7 @@ export async function handle(request: Request, env: Env): Promise<Response> {
     if (!(request.headers.get("content-type") ?? "").startsWith("application/json")) return json({ error: "json_required" }, 415);
     const body = await boundedJson(new Response(request.body), 32_000);
     const reason = z.object({ reason: z.string().min(3).max(300) }).passthrough().parse(body).reason;
+    if (path === "/api/10x/admin/rewards/lab") return json({ record: await createRewards(env.TENX_DB, body), replay: "verified" });
     if (path === "/api/10x/admin/backing/open") return json(await openBacking(env.TENX_DB,body));
     if (path === "/api/10x/admin/backing/freeze") {
       const input=z.object({reason:z.string().min(3).max(300),request_id:z.uuid()}).strict().parse(body);
@@ -314,6 +323,7 @@ export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     try { return await handle(request, env); }
     catch (error) {
+      if (error instanceof RewardError) return json({ error: error.message }, error.message === "reward_daily_limit" ? 429 : error.message === "reward_request_conflict" ? 409 : error.message.includes("mismatch") ? 503 : 400);
       if(error instanceof BackingError)return json({error:error.message},error.status);
       if(error instanceof OperationsError)return json({error:error.message},503);
       if (error instanceof SignalResearchError) return json({ error: error.message },503);

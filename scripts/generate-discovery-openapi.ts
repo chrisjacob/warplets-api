@@ -1,5 +1,6 @@
 import { writeFileSync } from "node:fs";
 import { z } from "zod";
+import { RewardList, RewardRecord, RewardRequest } from "../discovery/src/reward-model";
 import { AssessedCandidateSchema, PolicySchema, ProofSchema } from "../discovery/src/model";
 import { ArtworkResponseSchema } from "../discovery/src/artwork-model";
 import { WalletWorkResponseSchema } from "../discovery/src/wallet-work-model";
@@ -27,6 +28,9 @@ const spec = {
   openapi: "3.1.0", info: { title: "10X local Solana discovery", version: "0.1.0", description: "Local-only chain discovery and signed-message wallet ownership. No server-held signers, transactions, votes, launches or financial flows. Public reads use stored data; only authenticated refresh makes provider requests." },
   servers: [{ url: "http://127.0.0.1:8794" }],
   paths: {
+    "/api/10x/rewards/lab": read("Latest five hypothetical attention scenarios; hash-checked aggregates, no participant inputs or provider requests", responseSchema("RewardList")),
+    "/api/10x/admin/rewards/lab": {post:{...post("Freeze and replay offline ten-day/ten-percent attention accounting; both unapproved boost options, 20 scenarios per UTC day, no claims").post,...responseSchema("RewardResponse"),requestBody:{required:true,content:{"application/json":{schema:{$ref:"#/components/schemas/RewardRequest"}}}}}},
+    "/api/10x/admin/rewards/lab/{id}": read("Operator-only frozen inputs, raw ranks and deterministic accounting replay; no provider requests", {...responseSchema("RewardResponse"),security:[{localOperator:[]}],parameters:[parameter("id","path",{type:"string",format:"uuid"},true)]}),
     "/api/10x/backing": read("Latest ten local prospective backing experiments; hash-checked aggregates only, no wallet membership or RPC calls; all outcomes withheld",responseSchema("BackingListResponse")),
     "/api/10x/admin/backing/open": {post:{...post("Freeze up to 20 contenders under all current gates and signed wallet membership before a prospective window; one open, 20/day, explicit hypothetical USD assumptions").post,...responseSchema("BackingSummary"),requestBody:{required:true,content:{"application/json":{schema:{$ref:"#/components/schemas/OpenBackingRequest"}}}}}},
     "/api/10x/admin/backing/freeze": {post:{...post("After fixed end + five minute source deadline, freeze up to 100 cached finalized transaction bodies; no new provider requests or live votes").post,...responseSchema("BackingSummary"),requestBody:{required:true,content:{"application/json":{schema:{type:"object",additionalProperties:false,required:["reason","request_id"],properties:{reason,request_id:{type:"string",format:"uuid"}}}}}}}},
@@ -75,6 +79,9 @@ const spec = {
     "/api/10x/admin/policies/previews/{id}": read("Load retained policy comparison and verify hashes/replay; authenticated, no-store", { ...responseSchema("PolicyPreviewResponse"), security: [{ localOperator: [] }], parameters: [parameter("id", "path", { type: "string", format: "uuid" }, true)] }),
   },
   components: { securitySchemes: { localOperator: { type: "http", scheme: "bearer", description: "Random local operator token; not stored in browser storage or source control" } }, schemas: {
+    RewardList: z.toJSONSchema(RewardList,{unrepresentable:"any"}),
+    RewardRequest: z.toJSONSchema(RewardRequest,{unrepresentable:"any"}),
+    RewardResponse: {type:"object",additionalProperties:false,required:["record","replay"],properties:{record:z.toJSONSchema(RewardRecord,{unrepresentable:"any"}),replay:{const:"verified"}}},
     OpenBackingRequest:z.toJSONSchema(OpenBackingRequest),
     BackingSummary:z.toJSONSchema(BackingSummary),
     BackingListResponse:z.toJSONSchema(BackingListResponse),
