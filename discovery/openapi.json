@@ -15871,6 +15871,7 @@
                       "enum": [
                         "new_snapshot",
                         "direct_funding",
+                        "reader_recovery",
                         "refresh_required",
                         "source_limited",
                         "cache_invalid"
@@ -15912,6 +15913,11 @@
                       "type": "integer",
                       "minimum": 0,
                       "maximum": 96
+                    },
+                    "source_recoverable_markers": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 2
                     },
                     "minimum_rpc_calls": {
                       "anyOf": [
@@ -15995,6 +16001,158 @@
                   "snapshots",
                   "failed_turns",
                   "rpc_per_completed_window"
+                ],
+                "additionalProperties": false
+              },
+              "reader_recovery": {
+                "type": "object",
+                "properties": {
+                  "reader_version": {
+                    "type": "string",
+                    "const": "solana-json-legacy-v0-v1-r1"
+                  },
+                  "daily_limit": {
+                    "type": "number",
+                    "const": 20
+                  },
+                  "per_turn_limit": {
+                    "type": "number",
+                    "const": 2
+                  },
+                  "used_today": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "remaining_today": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "recent": {
+                    "maxItems": 10,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "signature": {
+                          "type": "string",
+                          "pattern": "^[1-9A-HJ-NP-Za-km-z]{64,88}$"
+                        },
+                        "address": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "maxLength": 44
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "hop": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "enum": [
+                                "direct",
+                                "second"
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "reader_version": {
+                          "type": "string",
+                          "maxLength": 80
+                        },
+                        "expected_slot": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "started_at": {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                        },
+                        "finished_at": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "state": {
+                          "type": "string",
+                          "enum": [
+                            "reading",
+                            "finished"
+                          ]
+                        },
+                        "outcome": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "maxLength": 80
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "payload_hash": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "pattern": "^[a-f0-9]{64}$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "signature",
+                        "address",
+                        "hop",
+                        "reader_version",
+                        "expected_slot",
+                        "started_at",
+                        "finished_at",
+                        "state",
+                        "outcome",
+                        "payload_hash"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "provider_requests": {
+                    "type": "number",
+                    "const": 0
+                  },
+                  "evidence_gates_changed": {
+                    "type": "boolean",
+                    "const": false
+                  }
+                },
+                "required": [
+                  "reader_version",
+                  "daily_limit",
+                  "per_turn_limit",
+                  "used_today",
+                  "remaining_today",
+                  "recent",
+                  "provider_requests",
+                  "evidence_gates_changed"
                 ],
                 "additionalProperties": false
               },

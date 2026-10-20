@@ -45,6 +45,7 @@ function fixture() {
   db.exec(readFileSync(new URL("../migrations/0022_backing_window_index.sql", import.meta.url), "utf8"));
   db.exec(readFileSync(new URL("../migrations/0023_attention_lab.sql", import.meta.url), "utf8"));
   db.exec(readFileSync(new URL("../migrations/0025_inbox_recovery.sql", import.meta.url), "utf8"));
+  db.exec(readFileSync(new URL("../migrations/0028_funding_reader_recovery.sql", import.meta.url), "utf8"));
   const d1 = sqliteD1(db);
   const env: LocalEnv = { TENX_DB: d1, TENX_LOCAL_ONLY: "true", TENX_NODE_RELAY: "false", TENX_ADMIN_TOKEN: "a".repeat(64), TENX_RPC_URL: "https://api.mainnet-beta.solana.com", TENX_RPC_DAILY_LIMIT: "3000", TENX_MARKET_DAILY_LIMIT: "600", TENX_MARKET_PROVIDER: "geckoterminal", TENX_QUALITY_ENABLED: "true", TENX_QUALITY_RPC_DAILY_LIMIT: "1800", TENX_MARKET_ENABLED: "false", TENX_WALLET_ANALYSIS_ENABLED: "true", TENX_WALLET_RPC_DAILY_LIMIT: "800" };
   return { db, d1, env };
@@ -132,7 +133,7 @@ describe("durable discovery state and public/admin API", () => {
     const {d1,env}=fixture(),provider=vi.spyOn(globalThis,"fetch").mockRejectedValue(new Error("provider forbidden"));
     const before=await d1.prepare("SELECT payload FROM tenx_candidates").all();
     const response=await handle(req("discovery/wallet-plan"),env);expect(response.status).toBe(200);expect(response.headers.get("cache-control")).toBe("no-store");
-    expect(await response.json()).toMatchObject({data:{scope:"up_to_20_current_contenders",provider_requests:0,evidence_gates_changed:false,yield:{turns:0,rpc_calls:0,rpc_per_completed_window:null}}});
+    expect(await response.json()).toMatchObject({data:{scope:"up_to_20_current_contenders",provider_requests:0,evidence_gates_changed:false,reader_recovery:{daily_limit:20,per_turn_limit:2,used_today:0,remaining_today:20,recent:[],provider_requests:0,evidence_gates_changed:false},yield:{turns:0,rpc_calls:0,rpc_per_completed_window:null}}});
     expect(await d1.prepare("SELECT payload FROM tenx_candidates").all()).toEqual(before);expect(provider).not.toHaveBeenCalled();
     expect((await handle(new Request("http://localhost/api/10x/discovery/wallet-plan",{method:"POST"}),env)).status).toBe(404);
   });

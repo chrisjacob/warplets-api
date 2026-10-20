@@ -8,6 +8,7 @@ import { WalletWorkSchema, type WalletWork } from "./wallet-work-model";
 import { candidates } from "./store";
 import { creationRoles, verifiedTrades } from "./wallet-trades";
 import { fundingSourceLimited } from "./priority";
+import { recordUnsupportedFundingRead } from "./funding-recovery";
 
 export const catchupLimit = (dailyLimit: number) => Math.min(180, Math.floor(dailyLimit / 4 / 18) * 18);
 export async function priorWalletEvidence(db: D1Database, candidate: Candidate): Promise<WalletEvidence | null> {
@@ -94,6 +95,7 @@ export async function continueFunding(db: D1Database, candidate: Candidate, rpc:
       // Corrupt caches, mismatched signatures/slots and transient RPC errors
       // still fail closed and keep their existing backoff behavior.
       if (!cached && error instanceof SourceError && ["unsupported_transaction_version", "wallet_transaction_layout_unsupported"].includes(error.code)) {
+        await recordUnsupportedFundingRead(db,signature,slot,error.code);
         const record = { signature, status: "unsupported" as const, transaction: null, purposes: ["wallet" as const], fetched_at: new Date().toISOString() };
         records.push(record); return record;
       }

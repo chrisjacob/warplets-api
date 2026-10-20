@@ -15,6 +15,7 @@ import { comparePotential, potential } from "./priority";
 import { catchupLimit, continueFunding, priorWalletEvidence, walletWork } from "./wallet-work";
 import { compareWalletPlans, walletPlan } from "./wallet-plan";
 import type { WalletPlan } from "./wallet-plan-model";
+import { recordUnsupportedFundingRead, recoverFundingBodies } from "./funding-recovery";
 
 export type WalletSettings = Settings & { walletEnabled: boolean; walletDailyLimit: number };
 export async function walletStatus(db: D1Database, limit: number, enabled: boolean) {
@@ -60,6 +61,7 @@ async function collect(settings: WalletSettings, candidate: Candidate, rpc: RpcC
       return transaction;
     } catch (error) {
       if (error instanceof SourceError && ["unsupported_transaction_version", "wallet_transaction_layout_unsupported"].includes(error.code)) {
+        if(expectedSlot!==undefined) await recordUnsupportedFundingRead(db,signature,expectedSlot,error.code);
         records.push({ signature, purposes: [purpose], status: "unsupported", transaction: null, fetched_at: new Date().toISOString() }); return null;
       }
       throw error;
@@ -188,6 +190,21 @@ export async function runWalletCycle(settings: WalletSettings, address?: string,
     const spacingFor = (cost:number) => catchupSlot ? 60 : Math.min(seconds + 60, Math.max(60, Math.min(7200, Math.ceil(seconds * Math.max(1,Math.min(18,cost)) / left))));
     const spacing = spacingFor(selectedPlan.minimum_rpc_calls ?? work.get(candidate.address)?.rpc_calls ?? 18);
     await db.prepare("UPDATE tenx_wallet_control SET next_refresh_at=?1 WHERE id=1 AND lease_owner=?2").bind(new Date(now.getTime() + spacing * 1000).toISOString(), owner).run();
+    if(selectedPlan.stage === "reader_recovery") {
+      kind="funding";
+      // Recovery is collection priority only; it cannot bypass the current
+      // contender/age/risk filter, including on an explicit operator request.
+      if(!potential(candidate,DEFAULT_POLICY,now)) throw new Error("funding_recovery_not_current_contender");
+      const prior=await priorWalletEvidence(db,candidate);
+      if(!prior) throw new Error("funding_recovery_evidence_missing");
+      const recovery=await recoverFundingBodies(db,candidate,prior,rpc,owner,now);
+      await db.batch([
+        runRow("succeeded",0,0),
+        db.prepare("INSERT INTO tenx_wallet_attempts(address,attempted_at,next_attempt_at) VALUES(?1,?2,?3) ON CONFLICT(address) DO UPDATE SET attempted_at=excluded.attempted_at,next_attempt_at=excluded.next_attempt_at").bind(candidate.address,at,new Date(now.getTime()+60000).toISOString()),
+        db.prepare("UPDATE tenx_wallet_control SET lease_owner=NULL,lease_until=NULL,last_address=?1,last_error=NULL,next_refresh_at=?3 WHERE id=1 AND lease_owner=?2").bind(candidate.address,owner,new Date(now.getTime()+spacingFor(rpc.calls)*1000).toISOString()),
+      ]);
+      return {state:"progressed",address:candidate.address,rpc_calls:rpc.calls,recovery,snapshot_updated:false};
+    }
     if (selectedPlan.stage === "direct_funding") {
       kind = "funding";
       const progress = await continueFunding(db, candidate, rpc);

@@ -7,11 +7,12 @@ import { comparePotential, potential } from "./priority";
 import { candidates } from "./store";
 import { WalletPlanSchema, WalletPlansResponseSchema, WalletYieldSchema, type WalletPlan } from "./wallet-plan-model";
 import { analyzeWalletEvidence } from "./wallet-analysis";
+import { fundingRecoveryCandidates, fundingRecoveryStatus } from "./funding-recovery";
 
 // Read-only planning: estimates describe the known remaining work, never a
 // guarantee of completion or a substitute for a fresh eligibility snapshot.
 export async function walletPlan(db: D1Database, c: Candidate, now = new Date()): Promise<WalletPlan> {
-  const base = {address:c.address,symbol:c.symbol,source_evidence_hash:c.wallet_analysis?.evidence_hash ?? null,snapshot_at:c.wallet_analysis?.observed_at ?? null,windows:0,examined_windows:0,blocked_windows:0,pending_bodies:0,cached_pending_bodies:0,cached_recoverable_markers:0,minimum_rpc_calls:null,gaps:[] as string[]};
+  const base = {address:c.address,symbol:c.symbol,source_evidence_hash:c.wallet_analysis?.evidence_hash ?? null,snapshot_at:c.wallet_analysis?.observed_at ?? null,windows:0,examined_windows:0,blocked_windows:0,pending_bodies:0,cached_pending_bodies:0,cached_recoverable_markers:0,source_recoverable_markers:0,minimum_rpc_calls:null,gaps:[] as string[]};
   try {
     const prior = await priorWalletEvidence(db,c);
     if (!prior?.funding_scans?.length || c.wallet_analysis?.version !== "wallet-signals-v4") return WalletPlanSchema.parse({...base,stage:"new_snapshot"});
@@ -24,6 +25,9 @@ export async function walletPlan(db: D1Database, c: Candidate, now = new Date())
     const inputBlocked = prior.gaps.some(g=>["funding_wallet_limit","funding_output_limit","wallet_transaction_sample_limit"].includes(g)) || prior.records.length+[...pending.keys()].filter(s=>!prior.records.some(r=>r.signature===s)).length>64;
     if (inputBlocked) gaps.push("wallet_snapshot_sample_bound");
     const blocked = tasks.filter(t=>t.blocked).length, examined = tasks.filter(t=>t.coverage.status==="window_examined").length;
+    const sourceRecovery = inputBlocked ? [] : await fundingRecoveryCandidates(db,c,prior,now);
+    base.source_recoverable_markers=sourceRecovery.length;
+    if(sourceRecovery.length) return WalletPlanSchema.parse({...base,stage:"reader_recovery",windows:scans.length,examined_windows:examined,blocked_windows:blocked,pending_bodies:pending.size,cached_pending_bodies:null,minimum_rpc_calls:1+sourceRecovery.length,gaps});
     if (blocked || inputBlocked) return WalletPlanSchema.parse({...base,stage:"source_limited",windows:scans.length,examined_windows:examined,blocked_windows:blocked,pending_bodies:pending.size,cached_pending_bodies:null,gaps});
     // A checkpoint's "available" marker alone cannot certify a completed
     // window. Replay every retained body before scheduling more provider work.
@@ -57,7 +61,7 @@ export async function walletPlan(db: D1Database, c: Candidate, now = new Date())
   }
 }
 export function compareWalletPlans(a: {candidate:Candidate;plan:WalletPlan}, b: {candidate:Candidate;plan:WalletPlan}, now: Date) {
-  const tier = (p:WalletPlan) => p.stage==="refresh_required"?0:p.stage==="direct_funding"?1:p.stage==="new_snapshot"?2:3;
+  const tier = (p:WalletPlan) => p.stage==="refresh_required"?0:p.stage==="direct_funding"||p.stage==="reader_recovery"?1:p.stage==="new_snapshot"?2:3;
   const other = (c:Candidate) => assess(c,{...DEFAULT_POLICY,require_wallet_analysis:false},now).eligibility==="eligible" ? 0 : 1;
   return Number(tier(a.plan)===3)-Number(tier(b.plan)===3) || other(a.candidate)-other(b.candidate) || tier(a.plan)-tier(b.plan) || (a.plan.minimum_rpc_calls ?? 19)-(b.plan.minimum_rpc_calls ?? 19);
 }
@@ -71,5 +75,5 @@ export async function walletPlans(db: D1Database, now = new Date()) {
     COALESCE(SUM(new_buyers),0) AS new_buyer_observations,COALESCE(SUM(kind='snapshot' AND state='succeeded'),0) AS snapshots,COALESCE(SUM(state='failed'),0) AS failed_turns
     FROM tenx_wallet_runs WHERE finished_at>=?1 AND finished_at<=?2`).bind(since,now.toISOString()).first<{turns:number;rpc_calls:number;completed_windows:number;new_buyer_observations:number;snapshots:number;failed_turns:number}>();
   const result=WalletYieldSchema.parse({...stats,since,rpc_per_completed_window:stats?.completed_windows ? stats.rpc_calls/stats.completed_windows : null});
-  return WalletPlansResponseSchema.shape.data.parse({at:now.toISOString(),scope:"up_to_20_current_contenders",capped:all.length>20,plans:planned.map(p=>p.plan),yield:result,provider_requests:0,evidence_gates_changed:false});
+  return WalletPlansResponseSchema.shape.data.parse({at:now.toISOString(),scope:"up_to_20_current_contenders",capped:all.length>20,plans:planned.map(p=>p.plan),yield:result,reader_recovery:await fundingRecoveryStatus(db,now),provider_requests:0,evidence_gates_changed:false});
 }
