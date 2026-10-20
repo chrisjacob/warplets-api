@@ -20,7 +20,8 @@ describe("cached fee and price evidence without an organic-trading claim",()=>{
     failed.transaction!.meta!.err={InstructionError:[0,"failed"]};input.records.push(failed);
     candidate.wallet_analysis=await analyzeWalletEvidence(input);
     const result=await activitySummary(candidate,input,[],now);
-    expect(result.fees).toMatchObject({transactions:2,trades:3,network_fee_lamports_raw:"10000",distinct_payers:2,protocol_trading_fees:null,lp_fees:null});
+    expect(result.fees).toMatchObject({transactions:2,trades:3,network_fee_lamports_raw:"10000",distinct_payers:2});
+    expect(result.trading_fees).toMatchObject({status:"unavailable",total_fee_raw:null,verified_trades:0,unverified_trades:3});
     expect(result.organic_trading).toBe("unverified");expect(result.volume_authenticity).toBe("unverified");
   });
   it("rejects a changed or cross-token wallet evidence root",async()=>{

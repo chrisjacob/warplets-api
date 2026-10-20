@@ -238,7 +238,7 @@
     },
     "/api/10x/activity/solana/{address}": {
       "get": {
-        "summary": "Cached, replayed network fees for verified swap transactions and observed price steps; organic activity and protocol/LP fees remain unverified",
+        "summary": "Cached network fees, event/execution-reconciled Pump/PumpSwap trading fee components and price steps; organic activity remains unverified and fee coverage gaps stay explicit",
         "responses": {
           "200": {
             "description": "Success; cached public data includes timestamps, source freshness and coverage",
@@ -11088,12 +11088,6 @@
                         "type": "null"
                       }
                     ]
-                  },
-                  "protocol_trading_fees": {
-                    "type": "null"
-                  },
-                  "lp_fees": {
-                    "type": "null"
                   }
                 },
                 "required": [
@@ -11101,9 +11095,352 @@
                   "transactions",
                   "trades",
                   "distinct_payers",
-                  "largest_payer_transaction_pct",
-                  "protocol_trading_fees",
-                  "lp_fees"
+                  "largest_payer_transaction_pct"
+                ],
+                "additionalProperties": false
+              },
+              "trading_fees": {
+                "type": "object",
+                "properties": {
+                  "version": {
+                    "type": "string",
+                    "const": "pump-fees-v1"
+                  },
+                  "descriptor_revision": {
+                    "type": "string"
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "verified_sample",
+                      "partial",
+                      "unavailable"
+                    ]
+                  },
+                  "scope": {
+                    "type": "string",
+                    "const": "verified_swap_sample_not_24h_totals"
+                  },
+                  "quote_mint": {
+                    "type": "string"
+                  },
+                  "quote_decimals": {
+                    "type": "number",
+                    "const": 9
+                  },
+                  "sampled_trades": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "verified_trades": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "unverified_trades": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "protocol_gross_raw": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 30,
+                        "pattern": "^\\d+$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "protocol_net_raw": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 30,
+                        "pattern": "^\\d+$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "buyback_raw": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 30,
+                        "pattern": "^\\d+$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "creator_raw": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 30,
+                        "pattern": "^\\d+$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "lp_raw": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 30,
+                        "pattern": "^\\d+$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "total_fee_raw": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 30,
+                        "pattern": "^\\d+$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "quote_volume_raw": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 30,
+                        "pattern": "^\\d+$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "rows": {
+                    "maxItems": 100,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "signature": {
+                          "type": "string"
+                        },
+                        "instruction_index": {
+                          "type": "string"
+                        },
+                        "event_instruction_index": {
+                          "type": "string"
+                        },
+                        "program": {
+                          "type": "string",
+                          "enum": [
+                            "pump",
+                            "pumpswap"
+                          ]
+                        },
+                        "side": {
+                          "type": "string",
+                          "enum": [
+                            "buy",
+                            "sell"
+                          ]
+                        },
+                        "slot": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "block_time": {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                        },
+                        "wallet": {
+                          "type": "string"
+                        },
+                        "quote_amount_raw": {
+                          "type": "string",
+                          "maxLength": 30,
+                          "pattern": "^\\d+$"
+                        },
+                        "protocol_gross_raw": {
+                          "type": "string",
+                          "maxLength": 30,
+                          "pattern": "^\\d+$"
+                        },
+                        "protocol_net_raw": {
+                          "type": "string",
+                          "maxLength": 30,
+                          "pattern": "^\\d+$"
+                        },
+                        "buyback_raw": {
+                          "type": "string",
+                          "maxLength": 30,
+                          "pattern": "^\\d+$"
+                        },
+                        "creator_raw": {
+                          "type": "string",
+                          "maxLength": 30,
+                          "pattern": "^\\d+$"
+                        },
+                        "lp_raw": {
+                          "type": "string",
+                          "maxLength": 30,
+                          "pattern": "^\\d+$"
+                        },
+                        "total_fee_raw": {
+                          "type": "string",
+                          "maxLength": 30,
+                          "pattern": "^\\d+$"
+                        },
+                        "verification": {
+                          "type": "string",
+                          "const": "event_and_execution_reconciled"
+                        },
+                        "transaction_hash": {
+                          "type": "string",
+                          "pattern": "^[a-f0-9]{64}$"
+                        },
+                        "event_hash": {
+                          "type": "string",
+                          "pattern": "^[a-f0-9]{64}$"
+                        },
+                        "transfers": {
+                          "maxItems": 4,
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "component": {
+                                "type": "string",
+                                "enum": [
+                                  "quote",
+                                  "protocol",
+                                  "creator",
+                                  "buyback"
+                                ]
+                              },
+                              "instruction_index": {
+                                "type": "string"
+                              },
+                              "from": {
+                                "type": "string"
+                              },
+                              "to": {
+                                "type": "string"
+                              },
+                              "amount_raw": {
+                                "type": "string",
+                                "maxLength": 30,
+                                "pattern": "^\\d+$"
+                              }
+                            },
+                            "required": [
+                              "component",
+                              "instruction_index",
+                              "from",
+                              "to",
+                              "amount_raw"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "gaps": {
+                          "maxItems": 10,
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "required": [
+                        "signature",
+                        "instruction_index",
+                        "event_instruction_index",
+                        "program",
+                        "side",
+                        "slot",
+                        "block_time",
+                        "wallet",
+                        "quote_amount_raw",
+                        "protocol_gross_raw",
+                        "protocol_net_raw",
+                        "buyback_raw",
+                        "creator_raw",
+                        "lp_raw",
+                        "total_fee_raw",
+                        "verification",
+                        "transaction_hash",
+                        "event_hash",
+                        "transfers",
+                        "gaps"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "unverified": {
+                    "maxItems": 100,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "signature": {
+                          "type": "string"
+                        },
+                        "instruction_index": {
+                          "type": "string"
+                        },
+                        "reason": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "signature",
+                        "instruction_index",
+                        "reason"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "gaps": {
+                    "maxItems": 20,
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "version",
+                  "descriptor_revision",
+                  "status",
+                  "scope",
+                  "quote_mint",
+                  "quote_decimals",
+                  "sampled_trades",
+                  "verified_trades",
+                  "unverified_trades",
+                  "protocol_gross_raw",
+                  "protocol_net_raw",
+                  "buyback_raw",
+                  "creator_raw",
+                  "lp_raw",
+                  "total_fee_raw",
+                  "quote_volume_raw",
+                  "rows",
+                  "unverified",
+                  "gaps"
                 ],
                 "additionalProperties": false
               },
@@ -11249,6 +11586,7 @@
               "wallet_evidence_hash",
               "wallet_observed_at",
               "fees",
+              "trading_fees",
               "wallets",
               "prices",
               "gaps"

@@ -42,6 +42,22 @@ export async function getJson<T>(url: string, schema: z.ZodType<T>, signal?: Abo
   return result.data;
 }
 export const readableReason = (code: string) => ({
+  fee_event_extension_uninterpreted: "The event has appended fields outside the pinned layout; known fee components reconcile, but extension coverage is incomplete",
+  fee_additional_transfers_unclassified: "Additional transfers, such as account funding, are excluded from fee totals",
+  fee_other_program_events_uninterpreted: "Other program events are outside this fee decoder; the known fee components are shown separately",
+  fee_quote_flow_unreconciled: "Additional or unchecked quote transfers prevent fee and LP-retention reconciliation",
+  fee_special_routing_unsupported: "Cashback, holder-reward or fee-sharing routing needs separate certification",
+  fee_native_sell_balance_attribution_unsupported: "Native Pump sell fees need independent balance-attribution support",
+  fee_instruction_layout_unsupported: "This swap's fee account layout is not yet certified",
+  fee_event_missing_or_unsupported: "No supported fee event was found inside this swap",
+  fee_event_ambiguous: "Multiple fee events prevent unambiguous swap attribution",
+  fee_transfer_missing_or_ambiguous: "A fee payment could not be reconciled to one exact transfer",
+  fee_buyback_transfer_missing_or_ambiguous: "The buyback portion could not be reconciled to one exact remaining payment",
+  fee_event_or_execution_invalid: "Fee event or execution data could not be certified",
+  fee_arithmetic_mismatch: "Fee amounts do not match emitted rates or quote-flow arithmetic",
+  fee_verified_trade_sample_unavailable: "No verified swaps are available for fee analysis",
+  trading_fee_coverage_partial: "Some fee layouts, events or transfers remain unverified",
+  trading_fees_unavailable: "Trading fees cannot yet be verified from the saved transactions",
   bounded_local_candidate_inventory: "Only candidates retained by the bounded local discovery scan were considered",
   proposed_local_policy: "Thresholds are local proposals awaiting review",
   community_backing_not_enabled: "Wallet-backed community voting is not enabled",
