@@ -121,6 +121,8 @@ Preview: **https://app-local.10x.meme**. Reuse this tunnel; do not create or dep
 
 ## Continue implementation
 
+Latest user priority: review Pump.fun **Kimchi** `CSocnzcRpgSCr1naKcNTieWZUxb6rABe45j844m7pump` and its “vamps” before further general PRD work. See [Kimchi review and source gaps](52-kimchi-review.md). Initial page-based review and a different cached mint's chain/account/holder replay are recorded. The target remains uncertified and absent from local collection at lookup; next work is bounded exact-mint intake and properly verified non-WSOL quote coverage. Original/copycat attribution and deeper target funding analysis remain open. Preserve existing source limits and gates.
+
 Briefly report the recovered checkpoint, preview/collector health, current coverage gaps and the highest-priority remaining task. Then continue the next justified PRD milestone within these constraints, incorporating any newer user instruction. Do not redo completed milestones or assume that every PRD feature is implemented.
 
 Keep the ten-recent-eligible-token coverage goal visible while improving the product. Validate meaningful changes with appropriate tests, typechecks/build checks and browser QA; use isolated fixtures rather than fake production-looking records in the main local store. Update progress documents with completed work, evidence, unresolved assumptions and next tasks. Commit and push the relevant changes. **No deploy.**

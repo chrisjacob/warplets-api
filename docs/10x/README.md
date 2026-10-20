@@ -1,5 +1,7 @@
 # 10X.MEME engineering kickoff
 
+Latest token review: [confirmed Kimchi and paired/lookalike tokens](52-kimchi-review.md). Pump reports substantial target concentration; the exact target is absent from the local collector and remains uncertified. A different cached Kimchi mint fails replayed concentration gates. Exact-mint intake and non-WSOL quote coverage are the next identified engineering gaps; all gates remain unchanged.
+
 Latest coverage milestone: [cache-only funding continuation](51-cache-only-funding.md). Verified saved transactions now advance bounded checkpoints with zero RPC/catch-up quota, while candidate freshness and all eligibility gates remain unchanged. Data status reports saved progress separately from projected repair. Current live coverage is still 0/10; no deploy.
 
 Latest recovery milestone: [isolated preview restoration and launcher shutdown](50-preview-recovery.md). The existing supervisor now loads a launcher that aborts pending local requests and cannot recreate a timer after Worker exit. Free budgets, pause/backoff, all evidence gates and the 0/10 coverage gap remain. No deploy.
