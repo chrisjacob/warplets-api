@@ -12,7 +12,7 @@ const groups = [
     { href: "/status", label: "Data status" },
     { href: "/thesis", label: "The 10X Thesis" },
   ] },
-  { label: "Local tools · simulations", links: [
+  { label: "Tools · local simulations", links: [
     { href: "/elections", label: "Selection rehearsals" },
     { href: "/backing", label: "Backing lab" },
     { href: "/launch-lab", label: "Curve lab" },

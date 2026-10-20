@@ -13,7 +13,7 @@ it("keeps three primary destinations and retains all research and local tools in
   expect(html).not.toMatch(/<details[^>]*\bopen[= >]/);
   for (const route of ["/research", "/elections", "/status", "/transparency", "/backing", "/launch-lab", "/launch-recovery", "/rewards", "/admin/10x", "/thesis"]) expect(html).toContain(`href="${route}"`);
   expect(html).toContain("The 10X Thesis");
-  expect(html).toContain("Local tools · simulations");
+  expect(html).toContain("Tools · local simulations");
 });
 
 it.each([

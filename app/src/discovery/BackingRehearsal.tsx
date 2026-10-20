@@ -1,3 +1,4 @@
+import { SimulationNotice } from "./SimulationNotice";
 import { useEffect,useState } from "react";
 import { BackingListResponse, BackingRecord, BackingSummary, OpenBackingRequest } from "../../../discovery/src/backing-model";
 import type { z } from "zod";
@@ -25,6 +26,7 @@ function WindowSummary({run}:{run:Summary}){
   return <article className="tenx-panel tenx-backing-window"><div className="tenx-row"><h2>{run.state==="open"?"Prospective window open":"Frozen backing rehearsal"}</h2><span className="tenx-badge">No votes</span></div>
     <p>Trading window: {date(run.starts_at)} → {date(run.ends_at)}. Source deadline: {date(run.deadline)}.</p>
     <div className="tenx-metrics"><div><span>Frozen contenders</span><strong>{run.candidate_count}</strong></div><div><span>Eligible at opening</span><strong>{run.eligible_at_open}</strong></div><div><span>Linked wallets at opening</span><strong>{run.frozen_wallet_count}</strong></div></div>
+    <details><summary>Inspect window evidence & projections</summary>
     <p>{run.entries} decoded trade instructions · {run.groups} identity/token groups. Up to 20 contenders and 100 cached transactions; collection is incomplete.</p>
     {run.source_evidence_version&&!run.source_coverage&&<p><strong>Wallet-window collection:</strong> After trading ends, local maintenance scans up to 16 frozen signed wallets within the fixed source grace period. It uses a bounded share of the existing wallet/RPC allowance. Missing pages or bodies will hold experimental projections.</p>}
     {run.source_coverage&&<div className="tenx-panel"><h3>Wallet-window evidence</h3><p><strong>{words(run.source_coverage.status)}</strong> · {run.source_coverage.wallets_tracked}/{run.source_coverage.wallets_requested} frozen wallets tracked · {run.source_coverage.wallet_boundaries_reached} older history boundaries reached · {run.source_coverage.bodies_retained}/{run.source_coverage.signatures_in_window} in-window bodies retained.</p><p>{run.source_coverage.finalized_slot===null?"No qualifying finalized-slot observation retained.":`RPC-reported finalized slot ${run.source_coverage.finalized_slot}, estimated block time ${date(new Date(run.source_coverage.finalized_block_time!*1000).toISOString())}.`} Independent finality and exhaustive history remain unverified. {run.source_coverage.reserved_calls} calls reserved from existing allowances.</p><details><summary>Source coverage gaps</summary><ul>{run.source_coverage.gaps.map(g=><li key={g}>{words(g)}</li>)}</ul></details></div>}
@@ -36,14 +38,15 @@ function WindowSummary({run}:{run:Summary}){
       {Object.keys(run.entry_reasons).length>0 && <details><summary>Why trade instructions were held</summary><ul>{Object.entries(run.entry_reasons).map(([reason,count])=><li key={reason}>{words(reason)}: {count}</li>)}</ul><p>One instruction can have multiple reasons. Signals are review evidence, not a finding of fraud.</p></details>}
       <p>Stored output hashes checked. Full transaction decoding and deterministic replay are available to the local operator.</p>
     </>}
+    </details>
     {run.last_error && <p role="alert" className="tenx-error">Automatic freeze needs attention: {words(run.last_error)}. No evidence checks were bypassed.</p>}
     <details><summary>Frozen hashes, scope and gaps</summary><p className="tenx-address">Opening: {run.opening_hash}</p>{run.record_hash&&<p className="tenx-address">Record: {run.record_hash}</p>}<ul>{run.gaps.map(g=><li key={g}>{words(g)}</li>)}</ul><p>Request: {run.id}</p></details>
   </article>;
 }
 export function BackingPage(){
   const {data,error}=useBacking();
-  return <><header className="tenx-heading"><p className="tenx-eyebrow">LOCAL / BACKING REHEARSALS</p><h1>Inspect the buys.<br/><span>Rehearse the rules.</span></h1><p>Test frozen wallet membership and decoded Pump/PumpSwap purchases and sales. A buy link, wallet connection or old holding never becomes a vote.</p></header>
-    <aside className="tenx-notice"><strong>Outcomes are withheld</strong><p>The cache is sampled, historical USD valuation and genuine-buyer checks are incomplete, and voting rules remain unapproved. Linear and square-root comparisons are experiments. No winner, live votes or rewards are produced.</p></aside>
+  return <><header className="tenx-heading"><p className="tenx-eyebrow">LOCAL / BACKING REHEARSALS</p><h1>Backing lab</h1><p>Explore how recorded purchases would be assessed.</p></header>
+    <SimulationNotice><p>Outcomes are withheld. The cache is sampled, historical USD valuation and genuine-buyer checks are incomplete, and voting rules remain unapproved. Linear and square-root comparisons are experiments. No winner, live votes or rewards are produced. A buy link, wallet connection or old holding never becomes a vote.</p></SimulationNotice>
     <div className="tenx-inline-links"><a href="/wallets">Link a Solana wallet →</a><a href="/admin/10x">Local rehearsal controls →</a><a href="/elections">Discovery rehearsals →</a></div>
     {error&&<p role="alert" className="tenx-error">{error}</p>}{!data&&!error&&<p role="status">Loading backing rehearsals…</p>}
     {data&&!data.runs.length&&<section className="tenx-panel"><h2>No prospective window yet</h2><p>A local operator can open a window in Admin. Candidate policy and signed wallet membership are frozen before trading begins; previous trades and later wallet links are excluded.</p></section>}

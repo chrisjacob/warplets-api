@@ -6,7 +6,9 @@ Latest engineering review: [security fixes and credential follow-up](29-security
 
 Previous engineering review: [measured performance improvements](28-performance-review.md), including compact Discover cards, deferred wallet code, retained-shell navigation and an aggregate startup budget.
 
-Current checkpoint: [streamlined discovery experience](48-discovery-experience.md). Three primary destinations, grouped secondary tools, token cards before on-demand collection diagnostics, readable text and eligibility/charts before detailed activity analysis. Warnings and evidence gates remain intact; the ten-eligible-token target is still unmet. Local only; no deployment or backend changes.
+Current checkpoint: [customer journeys and progressive evidence](49-customer-journeys.md). Token values, risk summaries and charts precede expandable evidence; collection diagnostics live in Data status. Content has useful empty states and open-campaign submission steps, with validated task return after explicit Solana sign-in. Labs share a concise simulation boundary. All evidence gates and signing safeguards remain; local only, no deployment.
+
+Previous checkpoint: [streamlined discovery experience](48-discovery-experience.md). Three primary destinations, grouped secondary tools, token cards before on-demand collection diagnostics, readable text and eligibility/charts before detailed activity analysis. Warnings and evidence gates remain intact; the ten-eligible-token target is still unmet. Local only; no deployment or backend changes.
 
 Previous checkpoint: [near-duplicate source-excerpt evidence](47-near-duplicate-excerpt-evidence.md). Operators can explicitly record/withdraw short inspected excerpts, compare a bounded private corpus with clear sampling/media gaps, and download a replayable confidential report. V3 cases include excerpt histories; v1/v2 still replay. Source text is not inferred from commentary or scraped. No automatic moderation, wallet allegation, ranking or reward action; local only, zero provider calls and no deployment.
 

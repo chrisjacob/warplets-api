@@ -7,7 +7,7 @@ const txLink = (signature: string) => <a href={`https://solscan.io/tx/${signatur
 const walletLink = (wallet: string) => <a href={`https://solscan.io/account/${wallet}`} title={wallet} target="_blank" rel="noopener noreferrer">{short(wallet)} ↗</a>;
 const sol = (raw: string) => { const value = raw.padStart(10, "0"), fraction = value.slice(-9).replace(/0+$/, ""); return `${value.slice(0, -9)}${fraction ? `.${fraction}` : ""}`; };
 export function WalletAnalysisPanel({ analysis: w }: { analysis: WalletAnalysis | null }) {
-  return <section className="tenx-panel" id="wallet-analysis"><div className="tenx-row"><h2>Bundle & wallet analysis</h2><span className="tenx-badge">{w ? readableReason(w.status) : "Pending"}</span></div>
+  return <section className="tenx-panel" id="wallet-analysis"><div className="tenx-row"><h2>Bundle & wallet analysis</h2><span className="tenx-badge">{w?.status === "signals_detected" ? "Connections to review" : w?.status === "no_signal_in_sample" ? "No supported signal · sample only" : "Checks unavailable"}</span></div>
     <p>Actual bundle membership: <strong>unknown</strong>. Same-slot buys, shared funding and shared fee payers can suggest coordination; they do not prove a bundle or common control.</p>
     {w ? <>
       <p>Finalized transaction sample · observed {new Date(w.observed_at).toLocaleString()} · {w.exhaustive ? "" : "bounded coverage"}. No signal in this sample is not a safety rating.</p>

@@ -76,11 +76,16 @@ function formatShortWallet(address: string): string {
   return address.length > 12 ? `${address.slice(0, 6)}…${address.slice(-4)}` : address;
 }
 
+// The consumer validates this same-origin navigation hint after verified sign-in.
+// Keep discovery modules out of the shared home startup chunk.
+const solanaAccountHref = () => window.location.pathname === "/wallets" ? "/wallets" : `/wallets?returnTo=${encodeURIComponent(window.location.pathname + window.location.search + window.location.hash)}`;
+
 function HomeAccountControl({
   isInMiniAppContext,
   viewerProfile,
   walletAddress,
   showInstallWebApp,
+  showTrigger = true,
   open,
   centered,
   onOpenChange,
@@ -94,6 +99,7 @@ function HomeAccountControl({
   viewerProfile: ViewerProfile | null;
   walletAddress: string | null;
   showInstallWebApp: boolean;
+  showTrigger?: boolean;
   open: boolean;
   centered: boolean;
   onOpenChange: (open: boolean) => void;
@@ -133,7 +139,7 @@ function HomeAccountControl({
   if (!connected) {
     return (
       <div className="search-header-account" ref={rootRef}>
-        {!isInMiniAppContext && (
+        {showTrigger && !isInMiniAppContext && (
           <button type="button" className="search-header-connect-button" onClick={() => { void hapticTap(); onOpen(); }}>
             Connect
           </button>
@@ -142,10 +148,11 @@ function HomeAccountControl({
           <AppViewport portalled={centered} onMouseDown={(event) => event.stopPropagation()} className={`search-header-account-menu${centered ? " search-header-account-menu--centered" : ""}`} role="menu">
             {import.meta.env.DEV && <a href="/discover" role="menuitem" onClick={() => onOpenChange(false)}>Discover Solana</a>}
             <a href="/thesis" role="menuitem" onClick={() => onOpenChange(false)}>The 10X Thesis</a>
+            <a href={solanaAccountHref()} role="menuitem" onClick={() => onOpenChange(false)}>Solana sign-in & wallets</a>
             {!isInMiniAppContext && (
               <button type="button" role="menuitem" className="search-header-account-menu__connection" onClick={() => runMenuAction(onOpen)}>
                 <span className="search-header-account-menu__avatar-frame"><img src="/base.webp" alt="" /></span>
-                <span>Connect wallet</span>
+                <span>Connect EVM wallet</span>
               </button>
             )}
             <button type="button" role="menuitem" className="search-header-account-menu__connection" onClick={() => isInMiniAppContext ? onOpenChange(false) : runMenuAction(onOpen)}>
@@ -162,7 +169,7 @@ function HomeAccountControl({
 
   return (
     <div className="search-header-account" ref={rootRef}>
-      <button
+      {showTrigger && <button
         type="button"
         className="search-header-avatar-button"
         aria-haspopup="menu"
@@ -186,15 +193,16 @@ function HomeAccountControl({
             </span>
           )}
         </span>
-      </button>
+      </button>}
       {open && (
         <AppViewport portalled={centered} onMouseDown={(event) => event.stopPropagation()} className={`search-header-account-menu${centered ? " search-header-account-menu--centered" : ""}`} role="menu">
           {import.meta.env.DEV && <a href="/discover" role="menuitem" onClick={() => onOpenChange(false)}>Discover Solana</a>}
           <a href="/thesis" role="menuitem" onClick={() => onOpenChange(false)}>The 10X Thesis</a>
+            <a href={solanaAccountHref()} role="menuitem" onClick={() => onOpenChange(false)}>Solana sign-in & wallets</a>
           {!isInMiniAppContext && (
             <button type="button" role="menuitem" className="search-header-account-menu__connection" onClick={() => runMenuAction(onOpen)}>
               <span className="search-header-account-menu__avatar-frame"><img src="/base.webp" alt="" /></span>
-              <span>{walletAddress ? formatShortWallet(walletAddress) : "Connect wallet"}</span>
+              <span>{walletAddress ? formatShortWallet(walletAddress) : "Connect EVM wallet"}</span>
             </button>
           )}
           <button
@@ -579,7 +587,8 @@ export default function App({ page = "home" }: { page?: "home" | "thesis" | "dis
           onMenu={actions.openMenu}
           onTitleMenu={handleHeaderTitleMenuToggle}
           rightAccessory={(
-            <HomeAccountControl
+            <>{page === "discovery" && <a className="search-header-connect-button tenx-solana-entry" aria-label="Solana sign-in and wallets" href={solanaAccountHref()}><span className="tenx-solana-label">Solana </span>wallets</a>}<HomeAccountControl
+              showTrigger={page !== "discovery"}
               isInMiniAppContext={isInMiniAppContext}
               viewerProfile={viewerProfile}
               walletAddress={walletController.session?.address ?? null}
@@ -592,7 +601,7 @@ export default function App({ page = "home" }: { page?: "home" | "thesis" | "dis
               onEnableNotifications={handleEnableNotifications}
               onInstallWebApp={() => window.dispatchEvent(new CustomEvent("10x:open-pwa-install"))}
               onDisconnect={handleDisconnect}
-            />
+            /></>
           )}
         />
 

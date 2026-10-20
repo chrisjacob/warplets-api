@@ -4,7 +4,10 @@ import type { CandidateCard as Card } from "../../../discovery/src/candidate-car
 import { CardListResponse } from "./client";
 import { navigateDiscovery } from "./navigation";
 import { DiscoveryNav } from "./DiscoveryNav";
-import { CollectionDetails } from "./CollectionDetails";
+import { CollectionDetails, isCollectionAnchor } from "./CollectionDetails";
+import { EvidenceDisclosure } from "./EvidenceDisclosure";
+import { EligibilityOverview, TokenMarketOverview, WalletRiskSummary, creationAge, eligibilityMeaning, shortBlocker, marketSnapshotStale } from "./TokenOverview";
+import { SimulationNotice } from "./SimulationNotice";
 import { DEFAULT_POLICY } from "../../../discovery/src/model";
 import { reportedCapReview } from "../../../discovery/src/market-review";
 import { ActivityResponse, CoverageResponse, DetailResponse, ElectionDetailResponse, ElectionsResponse, getJson, marketSource, readableReason, ReviewsResponse, StatusResponse, type ListData } from "./client";
@@ -59,7 +62,7 @@ function Badge({ status }: { status: string }) { return <span className={`tenx-b
 function MarketCapReview({ candidate, detailed = false }: { candidate: Pick<Card, "market" | "creation">; detailed?: boolean }) {
   const review = reportedCapReview(candidate, new Date(), DEFAULT_POLICY.max_market_age_seconds);
   if (!review) return null;
-  return <aside className="tenx-notice"><strong>High reported cap for a new token · review</strong><p>{money(review.market_cap_usd)} reported cap · created {review.age_hours.toFixed(1)} hours ago. Review supply, pool depth and connected wallets.</p>
+  return <aside className="tenx-notice"><strong>High reported cap for a new token · review</strong><p>{detailed ? `${money(review.market_cap_usd)} reported cap · created ${review.age_hours.toFixed(1)} hours ago. Review supply, pool depth and connected wallets.` : "Reported cap above $10M within 24 hours of creation."}</p>
     {detailed && <><p>Reported snapshot fetched {time(review.fetched_at)}. {review.market_stale ? "Snapshot is stale or has an invalid timestamp." : "Within the current freshness window."}</p><details><summary>Why this is flagged</summary><p>Above $10M within 24 hours is a review heuristic, not a fraud finding or an eligibility rule. Inspect holder concentration alongside wallet evidence. Reported liquidity / market cap: {review.liquidity_to_cap_pct === null ? "Unavailable" : `${review.liquidity_to_cap_pct.toFixed(2)}%`}. This ratio does not measure cash backing or executable exit liquidity. Market cap remains provider reported; FDV is not substituted.</p></details></>}
     {!detailed && review.market_stale && <p>Saved market snapshot is stale or has an invalid timestamp.</p>}
   </aside>;
@@ -74,20 +77,20 @@ function Evidence({ proof, label, fixture }: { proof: Proof | null; label: strin
   </section>;
 }
 function Freshness({ data }: { data: Pick<ListData, "as_of" | "coverage" | "source_freshness"> }) {
-  return <aside className="tenx-freshness" role="status"><span className={`tenx-dot ${data.source_freshness.stale ? "tenx-dot--stale" : ""}`} />
-    <div><strong>{data.source_freshness.stale ? "Data needs refreshing" : "Saved observations"}</strong><p>Last successful refresh: {time(data.as_of)} · Coverage is incomplete.</p><a href="/status">Data status</a> · <a href="#coverage">Collection details</a></div>
+  return <aside className="tenx-freshness tenx-freshness--compact" role="status"><span className={`tenx-dot ${data.source_freshness.stale ? "tenx-dot--stale" : ""}`} />
+    <div><strong>{data.source_freshness.stale ? "Data needs refreshing" : "Saved observations"}</strong><span> · Updated {time(data.as_of)} · Coverage incomplete. </span><a href="/status#coverage">Data status →</a></div>
   </aside>;
 }
 function CandidateCard({ candidate: c, metadataUrl }: { candidate: Card; metadataUrl?: string | null }) {
   const fixture = c.mode === "fixture";
   return <article className="tenx-candidate">
     <div className="tenx-candidate-heading"><a className="tenx-artwork-link" href={`/token/solana/${c.address}${fixture ? "?mode=fixture" : ""}`} aria-label={`Inspect ${c.name} (${c.address})`}><TokenImage url={c.market?.image_url} metadataUrl={metadataUrl} name={c.name} symbol={c.symbol} /></a><div className="tenx-token-name"><h2><a href={`/token/solana/${c.address}${fixture ? "?mode=fixture" : ""}`}>{c.name}</a></h2><p>{c.symbol} <span>· Solana · OG token</span></p><Badge status={c.eligibility} /></div></div>
-    <p className="tenx-address">{c.address}</p>
-    <div className="tenx-metrics"><div><span>Market cap</span><strong>{money(c.market?.market_cap_usd)}</strong></div><div><span>Liquidity</span><strong>{money(c.market?.liquidity_usd)}</strong></div><div><span>Chain evidence</span><strong>{fixture ? "Simulated" : c.verification === "verified" ? "Verified origin + migration" : "Incomplete"}</strong></div></div>
+    <div className="tenx-metrics"><div><span>Market cap</span><strong>{money(c.market?.market_cap_usd)}</strong></div><div><span>Liquidity</span><strong>{money(c.market?.liquidity_usd)}</strong></div><div><span>Created</span><strong>{creationAge(c.creation?.block_time)}</strong></div></div>
+    {c.market && marketSnapshotStale(c.market) && <p className="tenx-market-warning">Market data needs refreshing.</p>}
     <MarketCapReview candidate={c} />
-    <p className="tenx-reason">{c.reasons.slice(0, 2).map(readableReason).join(" · ") || "Meets the current local discovery policy"}</p>
-    <p className="tenx-holder-summary">{c.holders ? `${c.holders.holder_count} owners · largest ${c.holders.top1_pct?.toFixed(2) ?? "?"}% · ${c.holders.status} inventory` : "Holder inventory pending"}</p>
-    <div className="tenx-card-bottom"><span>{c.creation ? `Created ${time(c.creation.block_time)}` : "Token creation time unknown"}</span><a href={`/token/solana/${c.address}${fixture ? "?mode=fixture" : ""}`}>Charts & evidence →</a></div>
+    <p className="tenx-reason"><strong>{eligibilityMeaning(c.eligibility)}</strong>{c.reasons.length ? ` — ${c.reasons.slice(0, 2).map(shortBlocker).join(" · ")}` : ". Eligibility is not a safety rating."}</p>
+    <details className="tenx-card-evidence"><summary>Token identity & checks</summary><p className="tenx-address">{c.address}</p><p>{fixture ? "Simulated origin evidence" : c.verification === "verified" ? "Original creation and graduation verified" : "Origin checks incomplete"}</p><p>{c.holders ? `${c.holders.holder_count} owners · largest ${c.holders.top1_pct?.toFixed(2) ?? "?"}% · ${c.holders.status} saved inventory` : "Holder inventory pending"}</p>{!fixture && <a href={`https://solscan.io/token/${c.address}`} target="_blank" rel="noopener noreferrer">View mint on Solscan ↗</a>}</details>
+    <div className="tenx-card-bottom"><span>Solana · original token</span><a href={`/token/solana/${c.address}${fixture ? "?mode=fixture" : ""}`}>Charts & evidence →</a></div>
   </article>;
 }
 function DiscoveryDiagnostics() {
@@ -103,6 +106,11 @@ function DiscoveryDiagnostics() {
   </>;
 }
 function Discover() {
+  useEffect(() => {
+    const moveLegacyAnchor = () => { if (isCollectionAnchor(window.location.hash)) window.location.replace('/status' + window.location.hash); };
+    moveLegacyAnchor(); window.addEventListener('hashchange', moveLegacyAnchor);
+    return () => window.removeEventListener('hashchange', moveLegacyAnchor);
+  }, []);
   const [mode, setMode] = useState<"live" | "fixture">("live"), [filter, setFilter] = useState("all");
   const [age, setAge] = useState("24h");
   const url = `/api/10x/candidates?mode=${mode}&limit=100&view=cards&status=${filter}&age=${mode === "fixture" ? "all" : age}`;
@@ -120,7 +128,6 @@ function Discover() {
       {!!capReviews && <p className="tenx-footnote">{capReviews} tokens have reported caps above $10M within 24 hours of verified creation. Each is flagged for review; this does not change eligibility or ranking.</p>}
       <p className="tenx-footnote">Checks do not guarantee safety. Images and names can be copied; confirm the mint address.</p>
     </> : !error && <p role="status" className="tenx-empty">Loading discovery…</p>}
-    {mode === "live" && <CollectionDetails><DiscoveryDiagnostics /></CollectionDetails>}
     <details className="tenx-list-options"><summary>About this list & example data</summary><p>Creation and graduation are verified separately. A new pool alone does not qualify a token. Buying links do not count as votes. Artwork comes from market providers or metadata linked at Pump creation.</p><label>Data source<select value={mode} onChange={e => setMode(e.target.value as "live" | "fixture")}><option value="live">Saved live observations</option><option value="fixture">Simulation examples</option></select></label></details>
   </>;
 }
@@ -136,24 +143,37 @@ function CandidateDetail({ address }: { address: string }) {
     <a href="/discover" className="tenx-back">← All contenders</a>
     {error && <p role="alert" className="tenx-notice">{error} The last verified response remains visible.</p>}
     <header className="tenx-heading"><p className="tenx-eyebrow">SOLANA / OG TOKEN</p><div className="tenx-token-heading"><TokenImage url={c.market?.image_url} metadataUrl={artwork[address]?.image_url} name={c.name} symbol={c.symbol} large /><div className="tenx-token-name"><h1>{c.name}</h1><div className="tenx-row"><span>{c.symbol}</span><Badge status={c.eligibility} /></div></div></div></header>
-    {fixture && <aside className="tenx-notice">SIMULATION — addresses and proofs in this example are synthetic.</aside>}
+    {fixture && <aside className="tenx-notice">SIMULATION — token identities, proofs and market values are synthetic examples.</aside>}
+    <div className="tenx-token-identity"><span className="tenx-address">{c.address}</span><button className="tenx-button tenx-button--quiet" onClick={() => void navigator.clipboard.writeText(c.address).then(() => setCopied(true)).catch(() => setCopied(false))}>{copied ? "Copied" : "Copy mint"}</button>{!fixture && <a href={`https://solscan.io/token/${c.address}`} target="_blank" rel="noopener noreferrer">Explorer ↗</a>}</div>
+    <TokenMarketOverview candidate={c} />
+    <EligibilityOverview status={c.eligibility} reasons={c.reasons} />
     <MarketCapReview candidate={c} detailed />
-    <section className="tenx-panel"><h2>Eligibility review</h2><ul>{c.reasons.map(reason => <li key={reason}>{readableReason(reason)}</li>)}</ul><p>Launches and voting are disabled. This review is not a guarantee of token safety.</p></section>
+    {(c.wallet_analysis?.signals.length || c.wallet_analysis?.status === "signals_detected") ? <WalletRiskSummary candidate={c} /> : null}
     {!fixture && <TokenHistory address={c.address} />}
+    <h2 className="tenx-evidence-title" id="evidence">Supporting evidence</h2>
+    <p className="tenx-footnote">Launches and voting are disabled. Verified checks do not guarantee safety.</p>
+    <EvidenceDisclosure id="identity-evidence" title="Token identity & artwork sources">
     <section className="tenx-panel"><h2>Token identity</h2><p className="tenx-address">{c.address}</p><button className="tenx-button tenx-button--quiet" onClick={() => void navigator.clipboard.writeText(c.address).then(() => setCopied(true)).catch(() => setCopied(false))}>{copied ? "Copied" : "Copy full address"}</button>
       <p className="tenx-address">PumpSwap pool: {c.pool}</p>{!fixture && <a href={`https://solscan.io/token/${c.address}`} target="_blank" rel="noopener noreferrer">View token on Solscan ↗</a>}</section>
     {!fixture && artwork[address]?.metadata_uri && <details className="tenx-panel"><summary>Artwork source</summary><p>Presentation metadata linked by this mint’s saved Pump creation. Artwork can be copied and does not establish authenticity or eligibility. Market-provider images take precedence when available.</p><p>Metadata fetched {time(artwork[address]!.fetched_at)}. {artwork[address]!.error ? "Image unavailable from this metadata source." : "The creation link and metadata response hash are retained."}</p><a href={artwork[address]!.metadata_uri!} target="_blank" rel="noopener noreferrer">View creation-linked metadata ↗</a><p className="tenx-address">Metadata hash: {artwork[address]!.metadata_hash ?? "Unavailable"}</p></details>}
+    </EvidenceDisclosure>
+    <EvidenceDisclosure id="origin-evidence" title="Creation & graduation evidence" summary={fixture ? "Synthetic example" : c.verification === "verified" ? "Origin transactions verified" : "Origin checks incomplete"}>
     <Evidence proof={c.creation} label="Original token creation" fixture={fixture} /><Evidence proof={c.graduation} label="Pump → PumpSwap graduation" fixture={fixture} />
+    </EvidenceDisclosure>
+    <EvidenceDisclosure id="market-evidence" title="Market source & reported values">
     <section className="tenx-panel"><h2>Market snapshot</h2><dl><dt>Market cap (provider reported)</dt><dd>{money(c.market?.market_cap_usd)}</dd><dt>FDV (separate)</dt><dd>{money(c.market?.fdv_usd)}</dd><dt>Price</dt><dd>{money(c.market?.price_usd)}</dd><dt>Liquidity</dt><dd>{money(c.market?.liquidity_usd)}</dd></dl><p>{c.market ? `Source: ${marketSource(c.market.source)} · fetched ${time(c.market.fetched_at)}. Provider observation time is unavailable; market cap is not an independent circulating-supply audit.` : "Market enrichment is off or unavailable. No values have been invented."}</p></section>
-    {!fixture && <TradingActivity address={c.address} />}
-    <HolderPanel candidate={c} />
-    <WalletAnalysisPanel analysis={c.wallet_analysis} />
+    </EvidenceDisclosure>
+    {!fixture && <EvidenceDisclosure id="activity-evidence" title="Trading fees & activity" summary="Sampled transactions; organic activity unverified"><TradingActivity address={c.address} /></EvidenceDisclosure>}
+    <EvidenceDisclosure id="holder-evidence" title="Holder concentration evidence" summary={c.holders ? `${c.holders.holder_count} saved owners · ${c.holders.status} inventory` : "Inventory pending"}><HolderPanel candidate={c} /></EvidenceDisclosure>
+    <EvidenceDisclosure id="wallet-evidence" title="Wallet & funding evidence" summary={c.wallet_analysis?.status === "signals_detected" ? "Connections to review" : c.wallet_analysis?.status === "no_signal_in_sample" ? "No supported signal in sample · coverage limits apply" : "Wallet checks unavailable"}><WalletAnalysisPanel analysis={c.wallet_analysis} /></EvidenceDisclosure>
+    <EvidenceDisclosure id="account-evidence" title="Onchain permissions & reserves">
     <section className="tenx-panel"><h2>Onchain risk checks</h2><dl><dt>Mint authority</dt><dd>{c.risk.mint_authority}</dd><dt>Freeze authority</dt><dd>{c.risk.freeze_authority}</dd><dt>Pool reserves</dt><dd>{c.risk.pool_reserves_verified ? "Verified initialized + nonzero" : "Unverified"}</dd><dt>Finalized account slot</dt><dd>{c.risk.context_slot?.toLocaleString() ?? "Unavailable"}</dd></dl><p>Observed {time(c.risk.observed_at)}</p>{!fixture && c.risk.payload_hash && <a href={`/api/10x/account-evidence/${c.risk.payload_hash}`} target="_blank" rel="noopener noreferrer">Inspect saved account evidence ↗</a>}</section>
+    </EvidenceDisclosure>
   </>;
 }
 function HolderPanel({ candidate: c }: { candidate: AssessedCandidate }) {
   const h = c.holders, percent = (n: number | null) => n === null ? "Unknown" : `${n.toFixed(2)}%`;
-  return <section className="tenx-panel"><div className="tenx-row"><h2>Holder concentration</h2><Badge status={h?.status ?? "unverified"} /></div>
+  return <section className="tenx-panel"><div className="tenx-row"><h2>Holder concentration</h2><span className={`tenx-badge tenx-badge--${h?.status ?? "unverified"}`}>Inventory {h?.status ?? "unverified"}</span></div>
     {h ? <><dl><dt>Positive-balance owners</dt><dd>{h.holder_count.toLocaleString()}{h.status === "partial" ? " (lower bound)" : ""}</dd><dt>Largest owner / total supply</dt><dd>{percent(h.top1_pct)}</dd><dt>Top ten owners / supply</dt><dd>{percent(h.top10_pct)}</dd><dt>Creation user / supply</dt><dd>{percent(h.creator_pct)}</dd><dt>Canonical pool vault / supply</dt><dd>{percent(h.pool_pct)}</dd><dt>Account type & size</dt><dd>{h.layout_certified ? "Certified" : "Legacy evidence; cannot pass"}</dd><dt>Finalized inventory slot</dt><dd>{h.context_slot?.toLocaleString() ?? "Unavailable"}</dd></dl>
       <p>Observed {time(h.observed_at)}. Owners are aggregated across token accounts. Only the exact canonical pool vault is exempt from holder concentration. Shares use total minted supply.</p>
       <p>Supply reconciliation: {h.inventoried_raw} / {h.supply_raw} raw units across {h.account_count} accounts.</p>
@@ -206,7 +226,7 @@ function ElectionsView({ id }: { id?: string }) {
   const detail = useRemote(signal => id ? getJson(`/api/10x/elections/${encodeURIComponent(id)}`, ElectionDetailResponse, signal) : Promise.resolve(null), id ?? "no-election-detail");
   const record = detail.data?.data.record, error = id ? detail.error : index.error;
   return <><header className="tenx-heading"><p className="tenx-eyebrow">DISCOVERY / ELECTION REHEARSALS</p><h1>Every selection, inspectable.</h1><p>Frozen local evidence, repeatable ranking, and an explicit no-winner outcome.</p></header>
-    <aside className="tenx-notice">Discovery rehearsals use the proposed local eligibility policy, then liquidity, creation time and address to break ties. Community purchases do not count as votes yet. A simulated winner cannot trigger a launch.</aside>
+    <SimulationNotice><p>Discovery rehearsals use the proposed local eligibility policy, then liquidity, creation time and address to break ties. Community purchases do not count as votes yet. A simulated winner cannot trigger a launch.</p></SimulationNotice>
     {index.data?.data.automation.last_error && <p role="alert" className="tenx-notice">Daily rehearsal needs attention: {readableReason(index.data.data.automation.last_error)}. Previous snapshots are retained; the next maintenance tick retries.</p>}
     {error && <p role="alert" className="tenx-notice">{error} {record ? "The previously verified snapshot remains visible." : "No unverified result is shown."}</p>}
     {id ? <><a className="tenx-back" href="/elections">← All rehearsals</a>{record ? <><ElectionSummaryPanel run={record} />
@@ -224,6 +244,7 @@ function StatusView() {
   const health=useRemote(signal=>getJson("/api/10x/system/operations",OperationsResponse,signal),"operations");
   const recovery=useRemote(signal=>getJson("/api/10x/discovery/inbox-recovery",InboxRecoveryResponse,signal),"inbox-recovery");
   return <><header className="tenx-heading"><p className="tenx-eyebrow">DATA / OPERATIONS</p><h1>Know what’s fresh.</h1><p>Source coverage, proof gaps and free-service budgets, in plain sight.</p></header>
+    <CollectionDetails><DiscoveryDiagnostics /></CollectionDetails>
     <OperationsPanel data={health.data?.data??null} error={health.error} />
     <InboxRecoveryPanel data={recovery.data?.data??null} error={recovery.error} />
     {error && <p role="alert" className="tenx-notice">{error}</p>}{data ? <><Freshness data={data} /><section className="tenx-panel"><h2>Local ingestion</h2><dl><dt>State</dt><dd>{data.data.paused ? "Paused" : data.data.running ? "Refreshing" : "Waiting for next tick"}</dd><dt>Last source issue</dt><dd>{data.data.last_error ? readableReason(data.data.last_error) : "None recorded"}</dd><dt>Queued signatures</dt><dd>{data.data.pending_signatures}</dd><dt>Market provider</dt><dd>{data.coverage.market_enabled ? `${marketSource(data.data.market_provider ?? "geckoterminal")} enabled locally` : "Off pending usage review"}</dd><dt>Proof adapter</dt><dd className="tenx-address">{data.data.adapter_version}</dd></dl></section>

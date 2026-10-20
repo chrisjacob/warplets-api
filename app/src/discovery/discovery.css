@@ -71,3 +71,34 @@
 .tenx-collection-details[open]>summary{margin-bottom:12px}.tenx-list-options p{color:#9bb0a2;margin:12px 0}
 .tenx-list-options select{display:block;max-width:100%;padding:10px;margin-top:6px;background:#191d1a;border:1px solid #3c4e41;border-radius:6px;color:#e2ede6}
 @media(max-width:480px){.tenx-nav--compact{font-size:12px}.tenx-more-links{grid-template-columns:1fr;gap:12px}.tenx-heading--discover h1{font-size:28px}.tenx-toolbar{gap:8px}.tenx-toolbar select{font-size:12px}}
+
+.tenx-discovery{font-size:15px}.tenx-heading>p:last-child,.tenx-panel p,.tenx-evidence p,.tenx-panel ul,.tenx-panel summary,.tenx-evidence summary{font-size:14px}
+.tenx-discovery .tenx-table-scroll table,.tenx-panel dl,.tenx-evidence dl{font-size:12px}
+.tenx-address{font-size:12px}.tenx-identity-message{font-size:13px}
+.tenx-market-overview{margin:18px 0 16px;padding:14px;border:1px solid #30453a;border-radius:10px;background:#141a16}
+.tenx-market-overview dl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.tenx-market-overview dt{font-size:12px;color:#9bb0a2}.tenx-market-overview dd{font-size:20px;font-weight:750;margin:4px 0;overflow-wrap:anywhere}.tenx-market-overview p{font-size:12px;color:#9bb0a2;margin:12px 0 0}
+.tenx-token-identity{display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin:12px 0}.tenx-token-identity .tenx-address{flex:1 1 100%;margin:0}.tenx-token-identity a{font-size:13px}
+.tenx-check-summary h2{margin-bottom:0}.tenx-check-summary p{margin-bottom:0}.tenx-check-summary details{margin-top:8px}
+.tenx-evidence-title{font-size:18px;font-weight:750;margin:28px 0 12px;scroll-margin-top:20px}
+.tenx-evidence-disclosure{border:1px solid #30453a;border-radius:10px;margin:12px 0;background:#141a16;scroll-margin-top:20px}
+.tenx-evidence-disclosure>summary{padding:16px;min-height:56px;font-size:15px;font-weight:650;cursor:pointer;color:#dce6df}.tenx-evidence-disclosure>summary small{display:block;margin:5px 0 0 16px;font-size:12px;font-weight:400;color:#a4b6aa}
+.tenx-evidence-body{padding:0 12px 12px}.tenx-evidence-body>.tenx-panel,.tenx-evidence-body>.tenx-evidence{border:0;padding:12px;margin-bottom:0}
+.tenx-discovery [id]{scroll-margin-top:20px}.tenx-card-evidence{margin-top:12px;font-size:13px}.tenx-card-evidence>summary{padding:8px 0;cursor:pointer}.tenx-card-evidence p{margin:8px 0;color:#9bb0a2}
+.tenx-preview-notice{border-left:3px solid #6e5f31;padding:10px 14px;margin:18px 0;color:#d9ceaa;font-size:14px}.tenx-preview-notice details{margin-top:8px}.tenx-preview-notice summary{cursor:pointer;min-height:32px}.tenx-preview-notice p{line-height:1.65;margin-top:8px}
+.tenx-simulation{font-size:14px}.tenx-simulation>details{margin-top:8px}.tenx-simulation>details>summary{min-height:36px;cursor:pointer;padding:6px 0}.tenx-simulation>p{font-size:14px}.tenx-simulation h2{font-size:15px;margin-top:16px}
+.tenx-button{display:inline-flex;align-items:center;justify-content:center;text-decoration:none;font-size:13px}.tenx-discovery a.tenx-button{color:#102511}.tenx-discovery a.tenx-button--quiet{color:#b4e0bc}
+.tenx-chart-ranges button{min-height:44px;min-width:44px;font-size:12px}.tenx-chart h3,.tenx-chart-empty h3,.tenx-panel>h3{font-size:14px}.tenx-chart svg text{font:11px monospace}.tenx-chart-scrubber{font-size:12px}
+.tenx-linked-wallets .tenx-address{font-size:12px}.tenx-linked-wallets small{font-size:12px}.tenx-identity-message{font:13px/1.65 monospace;white-space:pre-wrap;overflow-wrap:anywhere}
+@media(min-width:600px){.tenx-market-overview dl{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media(max-width:380px){.tenx-stats--compact>div{flex-wrap:wrap;gap:2px 6px}.tenx-market-overview dd{font-size:18px}}
+.tenx-freshness--compact{align-items:baseline;padding:10px 12px;font-size:12px}.tenx-freshness--compact strong{font-size:12px}.tenx-freshness--compact .tenx-dot{margin-top:0}
+.tenx-heading--discover{margin-bottom:12px}.tenx-heading--discover h1{margin-block:8px 10px}.tenx-heading--discover>p:last-child{font-size:14px}
+.search-header-connect-button.tenx-solana-entry{min-height:44px!important;text-decoration:none;gap:4px}
+.tenx-market-warning{color:#e5d49b;font-size:13px;font-weight:650;margin-block:8px}
+.tenx-task-return{font-size:14px;color:#a4b6aa;line-height:1.65;margin:16px 0}.tenx-task-return>a{display:inline-block;margin:6px 0}
+.tenx-panel details>summary{font-size:14px;min-height:44px;padding-block:10px;line-height:1.4}
+.tenx-discovery .tenx-table-scroll th,.tenx-discovery .tenx-table-scroll td,.tenx-discovery .tenx-table-scroll td p{font-size:12px}
+.tenx-result{font-size:12px}
+.tenx-reason,.tenx-notice,.tenx-market-warning{font-size:14px}
+.tenx-market-overview dt{min-height:2.8em;line-height:1.4}
+@media(max-width:480px){.tenx-solana-label{display:none}}

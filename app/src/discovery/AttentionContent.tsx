@@ -9,6 +9,7 @@ import {ContentOperationsPanel} from "./ContentOperations";
 import {ContentCaseExportPanel} from "./ContentCaseExport";
 import {ContentAuthorshipPanel,ContentAuthorshipCheck} from "./ContentAuthorship";
 import {ContentDuplicatesPanel} from "./ContentDuplicates";
+import { campaignPhase, ContentEmptyState, ContentPreviewNotice, SubmissionJourney } from "./ContentJourney";
 
 type Submission = z.infer<typeof ContentSnapshot>;
 type Campaign = z.infer<typeof PublicContentCampaign>;
@@ -19,12 +20,12 @@ export function ContentLink({ item }: { item: Pick<Submission, "content" | "stat
     <p>Author claim: {item.content.author_claim} · unverified</p>{item.content.comment && <p>{item.content.comment}</p>}
     <p className="tenx-muted">Reviewed state as of {displayDate(item.updated_at)} · revision {item.revision}. Engagement unavailable; no reward credit.</p></>;
 }
-function CampaignCard({ campaign }: { campaign: Campaign }) {
-  const ended = Date.now() >= Date.parse(campaign.ends_at);
-  return <article className="tenx-panel"><p className="tenx-eyebrow">Solana · local review campaign · {ended ? "ended" : "open"}</p><h2><a href={`/campaign/${campaign.id}`}>{campaign.title}</a></h2>
-    <p>Ten-day review window: {displayDate(campaign.starts_at)} → {displayDate(campaign.ends_at)} (end exclusive).</p>
-    <p>OG address supplied for this review: <a href={`https://solscan.io/token/${campaign.og_address}`} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer"><code>{campaign.og_address}</code> ↗</a>. Campaign setup does not verify this project's eligibility or endorsement.</p>
-    <a href={`/submit?campaign=${campaign.id}`}>Submit an external content link →</a></article>;
+function CampaignCard({ campaign, allowSubmit = true }: { campaign: Campaign; allowSubmit?: boolean }) {
+  const phase = campaignPhase(campaign);
+  return <article className="tenx-panel"><p className="tenx-eyebrow">Solana · local review campaign · {phase}</p><h2><a href={`/campaign/${campaign.id}`}>{campaign.title}</a></h2>
+    <p>{phase === "upcoming" ? "Opens" : "Opened"} {displayDate(campaign.starts_at)} · {phase === "closed" ? "closed" : "closes"} {displayDate(campaign.ends_at)}.</p>
+    <details><summary>Campaign token & review scope</summary><p>OG address supplied for this review: <a href={`https://solscan.io/token/${campaign.og_address}`} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer"><code>{campaign.og_address}</code> ↗</a>. Campaign setup does not verify this project's eligibility or endorsement.</p></details>
+    {allowSubmit && phase === "open" && <a className="tenx-button" href={`/submit?campaign=${campaign.id}`}>Submit content →</a>}</article>;
 }
 export function AttentionContentPage({ campaignId, submitOnly = false }: { campaignId?: string; submitOnly?: boolean }) {
   const queryId = new URLSearchParams(window.location.search).get("campaign");
@@ -87,12 +88,13 @@ export function AttentionContentPage({ campaignId, submitOnly = false }: { campa
       }
     } catch (e) { setError(e instanceof Error ? e.message : "Page unavailable"); } finally { setBusy(false); }
   }
-  return <><header><p className="tenx-eyebrow">PRD · external content & moderation</p><h1>{submitOnly ? "Submit your content" : campaignId ? "Campaign content" : "Bring the meme to life."}</h1><p>Create content on any platform, then submit its link for review.</p></header>
-    <section className="tenx-panel tenx-notice"><h2>Local review campaigns</h2><p>These ten-day review windows are separate from real spotlights and the reward accounting lab. No ATTN has been issued, no scores or claims are enabled, and submissions receive no reward credit.</p><p>Wallet ownership identifies the submitter; it does not prove social authorship or a unique human. External engagement is unavailable. Links open only when you choose them; content is not embedded or fetched automatically.</p><a href="/rewards">Explore hypothetical reward accounting →</a></section>
+  const selectedCampaign = (detail?.id === selected ? detail : null) ?? campaigns.find(c => c.id === selected) ?? null;
+  return <><header className="tenx-heading"><p className="tenx-eyebrow">CONTENT / COMMUNITY</p><h1>{submitOnly ? "Submit your content" : campaignId ? "Campaign content" : "Community content"}</h1><p>{submitOnly ? "Share a link to something you created." : "Explore campaigns and contribute your memes, videos and stories."}</p></header>
+    <ContentPreviewNotice />
     {error && <p className="tenx-error" role="alert">{error}</p>}{message && <p role="status">{message}</p>}
-    {!campaignId && !submitOnly && <section aria-label="Local review campaigns">{!loaded ? <p role="status">Loading local review campaigns…</p> : campaigns.length === 0 ? <p className="tenx-panel">No local review campaigns yet. The operator can open one in <a href="/admin/10x#content-review">Admin</a>.</p> : campaigns.map(c => <CampaignCard key={c.id} campaign={c} />)}{campaignCursor && <button className="tenx-button" disabled={busy} onClick={() => void more("campaigns")}>More campaigns</button>}</section>}
-    {detail && <CampaignCard campaign={detail} />}
-    <section className="tenx-panel tenx-content-form" id="submit"><h2>Submit a link</h2><p>{session ? "Signed Solana identity active. Author claims still require separate verification." : <>Sign in with your Solana wallet on <a href="/wallets">My wallets</a>, then return here. Wallet connection alone does not sign you in.</>}</p>
+    {!campaignId && !submitOnly && <section aria-label="Review campaigns">{!loaded || !campaigns.length ? <ContentEmptyState loading={!loaded} /> : campaigns.map(c => <CampaignCard key={c.id} campaign={c} />)}{campaignCursor && <button className="tenx-button" disabled={busy} onClick={() => void more("campaigns")}>More campaigns</button>}</section>}
+    {detail && <CampaignCard campaign={detail} allowSubmit={!submitOnly} />}
+    {submitOnly && <SubmissionJourney campaign={selectedCampaign} campaigns={campaigns} loaded={loaded} signedIn={session} selected={selected}><section className="tenx-panel tenx-content-form" id="submit"><h2>Submit to {selectedCampaign?.title}</h2><p>Your link will be reviewed before it appears publicly.</p>
       <form onSubmit={e => { e.preventDefault(); void submit(); }} onChange={() => setRequestId(crypto.randomUUID())}><fieldset disabled={!session || busy}><legend>External content details</legend>
         <label>Review campaign<select required value={selected} onChange={e => { setSelected(e.target.value); setDetail(null); setFeed(null); }}><option value="">Choose a campaign</option>{[...campaigns, ...(detail && !campaigns.some(c => c.id === detail.id) ? [detail] : [])].map(c => <option key={c.id} value={c.id}>{c.title}</option>)}</select></label>
         <label>Public HTTPS content URL<input required type="url" maxLength={2048} value={url} onChange={e => setUrl(e.target.value)} placeholder="https://…" /></label>
@@ -102,11 +104,11 @@ export function AttentionContentPage({ campaignId, submitOnly = false }: { campa
         <label className="tenx-content-check"><input type="checkbox" required checked={rights} onChange={e => setRights(e.target.checked)} /> I created this content or have permission to submit it.</label>
         <label className="tenx-content-check"><input type="checkbox" required checked={permission} onChange={e => setPermission(e.target.checked)} /> I allow this URL, author claim and commentary to be featured after review.</label>
         <p>No social post is published by this action. Do not submit private links, credentials, personal information or copied media.</p><button className="tenx-button" type="submit" disabled={!selected || !permission || !rights}>Submit for review</button>
-      </fieldset></form></section>
+      </fieldset></form></section></SubmissionJourney>}
+    {submitOnly && !selected && campaignCursor && <button className="tenx-button" disabled={busy} onClick={() => void more("campaigns")}>More campaigns</button>}
     {selected && !submitOnly && <section className="tenx-panel"><h2>Reviewed links</h2><p>Visible after manual review. Visibility verifies neither authorship nor engagement.</p>{feed?.submissions.length === 0 && <p>No visible links yet.</p>}{feed?.submissions.map(s => <article className="tenx-content-item" key={s.id}><ContentLink item={s} /><ContentAuthorshipCheck submissionId={s.id}/><ContentReportForm submissionId={s.id} signedIn={session}/></article>)}{feed?.next_cursor && <button className="tenx-button" disabled={busy} onClick={() => void more("feed")}>More reviewed links</button>}</section>}
     {session && <section className="tenx-panel"><h2>My submissions · private</h2><p>Pending, flagged and rejected submissions are visible only to you and the local operator. Appeals do not restore public visibility automatically.</p>{mine?.submissions.length === 0 && <p>No submissions from this identity yet.</p>}{mine?.submissions.map(s => <OwnSubmission key={`${s.id}:${s.revision}`} item={s} held={mine.held_submission_ids.includes(s.id)} changed={() => setVersion(v => v + 1)} />)}{mine?.next_cursor && <button className="tenx-button" disabled={busy} onClick={() => void more("mine")}>More of my submissions</button>}</section>}
-    {session&&<ContentReportsPanel/>}
-    {session&&<HoldReviewsPanel refreshKey={version}/>}
+    {session && <details className="tenx-panel"><summary>My reports & review requests</summary><ContentReportsPanel/><HoldReviewsPanel refreshKey={version}/></details>}
   </>;
 }
 function OwnSubmission({ item, held, changed }: { item: Submission; held:boolean; changed: () => void }) {
