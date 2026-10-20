@@ -1,5 +1,6 @@
 import { writeFileSync } from "node:fs";
 import { z } from "zod";
+import { CardListResponse } from "../app/src/discovery/client";
 import { RewardList, RewardRecord, RewardRequest } from "../discovery/src/reward-model";
 import { AssessedCandidateSchema, PolicySchema, ProofSchema } from "../discovery/src/model";
 import { ArtworkResponseSchema } from "../discovery/src/artwork-model";
@@ -16,6 +17,7 @@ const ok = { description: "Success; cached public data includes timestamps, sour
 const errors = Object.fromEntries([400, 401, 403, 404, 409, 413, 415, 429, 503].map(code => [code, { description: "Structured JSON error; no provider secrets" }]));
 const read = (summary: string, extra: object = {}) => ({ get: { summary, responses: { 200: ok, ...errors }, ...extra } });
 const responseSchema = (name: string) => ({ responses: { 200: { ...ok, content: { "application/json": { schema: { $ref: `#/components/schemas/${name}` } } } }, ...errors } });
+const candidateResponses = { responses: { 200: { ...ok, content: { "application/json": { schema: { oneOf: [{ $ref: "#/components/schemas/CandidateListResponse" }, { $ref: "#/components/schemas/CandidateCardsResponse" }] } } } }, ...errors } };
 const reason = { type: "string", minLength: 3, maxLength: 300 };
 const post = (summary: string, properties: object = {}, required: string[] = []) => ({ post: { summary, security: [{ localOperator: [] }], requestBody: { required: true, content: { "application/json": { schema: { type: "object", properties: { reason, ...properties }, required: ["reason", ...required] } } } }, responses: { 200: ok, ...errors } } });
 const parameter = (name: string, where: "query" | "path", schema: object, required = false) => ({ name, in: where, required, schema });
@@ -44,7 +46,7 @@ const spec = {
     "/api/10x/discovery/wallet-plan": read("Read-only funding plans for up to 20 current contenders and measured local collection yield; request estimates are lower bounds, zero provider calls and unchanged gates",responseSchema("WalletPlansResponse")),
     "/api/10x/artwork": read("Cached presentation artwork linked by saved verified Pump creation metadata; never changes eligibility or triggers provider calls", { ...responseSchema("ArtworkResponse"), parameters: [parameter("addresses", "query", { type: "string", description: "One to 100 comma-separated Solana mints" }, true)] }),
     "/api/10x/chains": read("Discovery capabilities, separate from launch support"),
-    "/api/10x/candidates": read("At most 100 eligible/provisional/excluded candidates", { ...responseSchema("CandidateListResponse"), parameters: [parameter("limit", "query", { type: "integer", minimum: 1, maximum: 100, default: 25 }), parameter("mode", "query", { enum: ["live", "fixture"], default: "live" }), parameter("status", "query", { enum: ["all", "eligible", "provisional", "excluded"] }), parameter("age", "query", { enum: ["all", "24h"], default: "all", description: "24h requires independently verified token creation time; the Discover view uses 24h" }), parameter("cursor", "query", { type: "string", maxLength: 300, description: "Opaque snapshot-bound cursor; 409 requires refresh" })] }),
+    "/api/10x/candidates": read("At most 100 eligible/provisional/excluded candidates", { ...candidateResponses, parameters: [parameter("limit", "query", { type: "integer", minimum: 1, maximum: 100, default: 25 }), parameter("mode", "query", { enum: ["live", "fixture"], default: "live" }), parameter("status", "query", { enum: ["all", "eligible", "provisional", "excluded"] }), parameter("age", "query", { enum: ["all", "24h"], default: "all", description: "24h requires independently verified token creation time; the Discover view uses 24h" }), parameter("view", "query", { enum: ["full", "cards"], default: "full", description: "Compact cards project only after full evidence assessment; cursors bind the view" }), parameter("cursor", "query", { type: "string", maxLength: 300, description: "Opaque snapshot-bound cursor; 409 requires refresh" })] }),
     "/api/10x/discovery/coverage": read("Cached progress toward ten eligible tokens, actual 24h coverage and blocking evidence gaps; target never waives a gate", responseSchema("CoverageResponse")),
     "/api/10x/activity/solana/{address}": read("Cached network fees, event/execution-reconciled Pump/PumpSwap trading fee components and price steps; organic activity remains unverified and fee coverage gaps stay explicit", {...responseSchema("ActivityResponse"),parameters:[parameter("address","path",{type:"string",minLength:32,maxLength:44},true)]}),
     "/api/10x/candidates/solana/{address}": read("Candidate identity, separate origin/migration proofs and risk", { ...responseSchema("CandidateDetailResponse"), parameters: [parameter("address", "path", { type: "string", minLength: 32, maxLength: 44 }, true), parameter("mode", "query", { enum: ["live", "fixture"] })] }),
@@ -104,6 +106,7 @@ const spec = {
     SignalDetailResponse: z.toJSONSchema(SignalDetailSchema, { unrepresentable: "any" }),
     SignalsResponse: z.toJSONSchema(SignalsResponse, { unrepresentable: "any" }),
     CandidateListResponse: z.toJSONSchema(ListResponse, { unrepresentable: "any" }),
+    CandidateCardsResponse: z.toJSONSchema(CardListResponse, { unrepresentable: "any" }),
     CandidateDetailResponse: z.toJSONSchema(DetailResponse, { unrepresentable: "any" }),
     PoliciesResponse: z.toJSONSchema(PoliciesResponse, { unrepresentable: "any" }),
     SystemStatusResponse: z.toJSONSchema(StatusResponse, { unrepresentable: "any" }),

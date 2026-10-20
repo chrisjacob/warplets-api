@@ -929,7 +929,14 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/CandidateListResponse"
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/CandidateListResponse"
+                    },
+                    {
+                      "$ref": "#/components/schemas/CandidateCardsResponse"
+                    }
+                  ]
                 }
               }
             }
@@ -1010,6 +1017,19 @@
               ],
               "default": "all",
               "description": "24h requires independently verified token creation time; the Discover view uses 24h"
+            }
+          },
+          {
+            "name": "view",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "full",
+                "cards"
+              ],
+              "default": "full",
+              "description": "Compact cards project only after full evidence assessment; cursors bind the view"
             }
           },
           {
@@ -19288,6 +19308,409 @@
                     "reasons",
                     "rank",
                     "launch_eligible"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "mode": {
+                "type": "string",
+                "enum": [
+                  "live",
+                  "fixture"
+                ]
+              },
+              "counts": {
+                "type": "object",
+                "properties": {
+                  "eligible": {
+                    "type": "number"
+                  },
+                  "provisional": {
+                    "type": "number"
+                  },
+                  "excluded": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "eligible",
+                  "provisional",
+                  "excluded"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "candidates",
+              "mode",
+              "counts"
+            ],
+            "additionalProperties": false
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "api_version",
+          "trace_id",
+          "as_of",
+          "served_at",
+          "policy_version",
+          "source_freshness",
+          "coverage",
+          "data",
+          "next_cursor"
+        ],
+        "additionalProperties": false
+      },
+      "CandidateCardsResponse": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "api_version": {
+            "type": "string",
+            "const": "10x-discovery-v1"
+          },
+          "trace_id": {
+            "type": "string"
+          },
+          "as_of": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "served_at": {
+            "type": "string"
+          },
+          "policy_version": {
+            "type": "string"
+          },
+          "source_freshness": {
+            "type": "object",
+            "properties": {
+              "last_harvest": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "last_success": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "stale": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "last_harvest",
+              "last_success",
+              "stale"
+            ],
+            "additionalProperties": false
+          },
+          "coverage": {
+            "type": "object",
+            "properties": {
+              "exhaustive": {
+                "type": "boolean",
+                "const": false
+              },
+              "scope": {
+                "type": "string"
+              },
+              "history_limit": {
+                "type": "number"
+              },
+              "quote_support": {
+                "type": "string"
+              },
+              "holder_classification": {
+                "type": "string"
+              },
+              "market_enabled": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "exhaustive",
+              "scope",
+              "history_limit",
+              "quote_support",
+              "holder_classification",
+              "market_enabled"
+            ],
+            "additionalProperties": false
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "candidates": {
+                "maxItems": 100,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "chain": {
+                      "type": "string",
+                      "const": "solana"
+                    },
+                    "address": {
+                      "type": "string",
+                      "maxLength": 44
+                    },
+                    "name": {
+                      "type": "string",
+                      "maxLength": 100
+                    },
+                    "symbol": {
+                      "type": "string",
+                      "maxLength": 32
+                    },
+                    "mode": {
+                      "type": "string",
+                      "enum": [
+                        "live",
+                        "fixture"
+                      ]
+                    },
+                    "verification": {
+                      "type": "string",
+                      "enum": [
+                        "verified",
+                        "provisional",
+                        "rejected"
+                      ]
+                    },
+                    "market": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "source": {
+                              "type": "string",
+                              "enum": [
+                                "geckoterminal",
+                                "dexscreener"
+                              ]
+                            },
+                            "fetched_at": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                            },
+                            "observed_at": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "format": "date-time",
+                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "price_usd": {
+                              "anyOf": [
+                                {
+                                  "type": "number",
+                                  "minimum": 0
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "market_cap_usd": {
+                              "anyOf": [
+                                {
+                                  "type": "number",
+                                  "minimum": 0
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "fdv_usd": {
+                              "anyOf": [
+                                {
+                                  "type": "number",
+                                  "minimum": 0
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "liquidity_usd": {
+                              "anyOf": [
+                                {
+                                  "type": "number",
+                                  "minimum": 0
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "volume_24h_usd": {
+                              "anyOf": [
+                                {
+                                  "type": "number",
+                                  "minimum": 0
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "image_url": {
+                              "default": null,
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "maxLength": 2048
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            }
+                          },
+                          "required": [
+                            "source",
+                            "fetched_at",
+                            "observed_at",
+                            "price_usd",
+                            "market_cap_usd",
+                            "fdv_usd",
+                            "liquidity_usd",
+                            "volume_24h_usd",
+                            "image_url"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "eligibility": {
+                      "type": "string",
+                      "enum": [
+                        "eligible",
+                        "provisional",
+                        "excluded"
+                      ]
+                    },
+                    "reasons": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "creation": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "block_time": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                            }
+                          },
+                          "required": [
+                            "block_time"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "holders": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "status": {
+                              "type": "string",
+                              "enum": [
+                                "verified",
+                                "partial",
+                                "unavailable"
+                              ]
+                            },
+                            "holder_count": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            "top1_pct": {
+                              "anyOf": [
+                                {
+                                  "type": "number",
+                                  "minimum": 0,
+                                  "maximum": 100
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            }
+                          },
+                          "required": [
+                            "status",
+                            "holder_count",
+                            "top1_pct"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "chain",
+                    "address",
+                    "name",
+                    "symbol",
+                    "mode",
+                    "verification",
+                    "market",
+                    "eligibility",
+                    "reasons",
+                    "creation",
+                    "holders"
                   ],
                   "additionalProperties": false
                 }

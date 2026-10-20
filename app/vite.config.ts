@@ -444,6 +444,7 @@ const MINIAPP_FRAME_ANCESTORS = [
 
 export default defineConfig({
   build: {
+    manifest: true,
     chunkSizeWarningLimit: 700,
   },
   optimizeDeps: {

@@ -1,12 +1,7 @@
 import { useSyncExternalStore } from "react";
 import { authenticateBaseWallet, authenticateWallet, loadAppSession, logoutAppPrincipal } from "./appSession";
 import { trackAppEvent } from "./analytics";
-import {
-  ensureBaseChain,
-  getWalletAccounts,
-  preferBaseChainBeforeConnect,
-  type EthereumProvider,
-} from "./walletTrade";
+import type { EthereumProvider } from "./walletTrade";
 import { appendWalletConnectDiagnostic, requestTrustConnectSessionDisconnect } from "./walletConnectDiagnostics";
 import { getRuntimeAppIconPath, getRuntimeAppName } from "./brandAssets";
 import { isLikelyBaseAppBrowser } from "./pwa";
@@ -113,6 +108,7 @@ async function activate(
   appendWalletConnectDiagnostic("wallet.activate_started", { connectorId, hasProvidedAddress: Boolean(providedAddress), alreadyAuthenticated });
   trackAppEvent("connector_selected", { connector: connectorId });
   try {
+    const { ensureBaseChain, getWalletAccounts, preferBaseChainBeforeConnect } = await import("./walletTrade");
     if (connectorId === "legacy-injected" && !providedAddress) {
       await preferBaseChainBeforeConnect(provider);
     }
@@ -350,6 +346,7 @@ export async function disconnectWallet(): Promise<void> {
 }
 
 export async function getConnectedProviderAndAccount(): Promise<{ provider: EthereumProvider; account: string }> {
+  const { getWalletAccounts, ensureBaseChain } = await import("./walletTrade");
   if (!state.session) throw new Error("Connect a wallet to continue");
   const accounts = await getWalletAccounts(state.session.provider);
   const account = normalizeAddress(accounts[0]);

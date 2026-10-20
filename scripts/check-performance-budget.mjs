@@ -46,6 +46,23 @@ if (/^import\s+.*from\s+["']lightweight-charts["']/m.test(stonkletsSource)) {
   failures.push("Lightweight Charts has regressed to a static runtime import");
 }
 
+// Per-file caps miss startup regressions spread over multiple shared chunks.
+// Follow static imports only: opening connection options may load more on demand.
+const manifest = JSON.parse(readFileSync(join(distAssets, "..", ".vite", "manifest.json"), "utf8"));
+const startup = new Set();
+function visitStartup(key) {
+  if (startup.has(key)) return;
+  startup.add(key);
+  if (!manifest[key]) throw new Error(`Missing startup manifest entry: ${key}`);
+  for (const dependency of manifest[key].imports ?? []) visitStartup(dependency);
+}
+visitStartup("src/App.tsx");
+const startupFiles = new Set([...startup].map(key => manifest[key].file).filter(file => file.endsWith(".js")));
+const startupGzip = [...startupFiles].reduce((total, file) => total + gzipSync(readFileSync(join(distAssets, "..", file))).length, 0);
+if (startupGzip > 250 * 1024) failures.push(`Home shell static startup is ${(startupGzip / 1024).toFixed(1)} KiB gzip (limit 250 KiB)`);
+for (const key of startup) if (["WebConnectModal", "walletTrade"].includes(manifest[key].name)) failures.push(`${manifest[key].name} must stay outside the home shell's static startup graph`);
+console.log(`Home shell static startup: ${(startupGzip / 1024).toFixed(1)} KiB gzip across ${startupFiles.size} chunks.`);
+
 if (failures.length > 0) {
   console.error("Performance budget failed:\n- " + failures.join("\n- "));
   process.exit(1);

@@ -1,4 +1,5 @@
 import { isRetiredAppRoute } from "../shared/retiredApps";
+import { isDiscoveryPath } from "./discovery/navigation";
 import { Component, StrictMode, Suspense, lazy, useEffect, useState, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import "./index.css";
@@ -131,7 +132,7 @@ function resolveActiveApp() {
   if (cleanPath === "/stop" || cleanPath.startsWith("/stop/")) return <StopApp />;
   if (cleanPath === "/unsubscribe" || cleanPath.startsWith("/unsubscribe/")) return <UnsubscribeApp />;
 
-  const discoveryRoute = import.meta.env.DEV && (cleanPath === "/discover" || cleanPath === "/backing" || cleanPath === "/rewards" || cleanPath === "/wallets" || cleanPath === "/research" || cleanPath === "/transparency" || cleanPath === "/status" || cleanPath === "/admin/10x" || /^\/elections(?:\/[^/]+)?$/.test(cleanPath) || /^\/token\/solana\/[^/]+$/.test(cleanPath));
+  const discoveryRoute = import.meta.env.DEV && isDiscoveryPath(cleanPath);
   return <App page={discoveryRoute ? "discovery" : cleanPath === "/thesis" ? "thesis" : "home"} />;
 }
 

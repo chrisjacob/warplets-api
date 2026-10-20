@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { CandidateCardSchema } from "../../../discovery/src/candidate-card";
 import { AssessedCandidateSchema, PolicySchema } from "../../../discovery/src/model";
 import { HistorySchema, ReviewSchema } from "../../../discovery/src/research-model";
 import { ElectionRecordSchema, ElectionReplaySchema, ElectionSummarySchema } from "../../../discovery/src/election-model";
@@ -15,6 +16,7 @@ const Common = z.object({
   coverage: z.object({ exhaustive: z.literal(false), scope: z.string(), history_limit: z.number(), quote_support: z.string(), holder_classification: z.string(), market_enabled: z.boolean() }),
 });
 export const ListResponse = Common.extend({ data: z.object({ candidates: z.array(AssessedCandidateSchema).max(100), mode: z.enum(["live", "fixture"]), counts: z.object({ eligible: z.number(), provisional: z.number(), excluded: z.number() }) }), next_cursor: z.string().nullable() });
+export const CardListResponse = ListResponse.extend({ data: ListResponse.shape.data.extend({ candidates: z.array(CandidateCardSchema).max(100) }) });
 export const DetailResponse = Common.extend({ data: AssessedCandidateSchema });
 export const CoverageResponse = Common.extend({ data: CoverageSchema });
 export const ActivityResponse = Common.extend({ data: ActivitySchema });

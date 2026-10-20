@@ -1,8 +1,11 @@
 import { useEffect, useState } from "react";
 import type { AssessedCandidate, Proof } from "../../../discovery/src/model";
+import type { CandidateCard as Card } from "../../../discovery/src/candidate-card";
+import { CardListResponse } from "./client";
+import { navigateDiscovery } from "./navigation";
 import { DEFAULT_POLICY } from "../../../discovery/src/model";
 import { reportedCapReview } from "../../../discovery/src/market-review";
-import { ActivityResponse, CoverageResponse, DetailResponse, ElectionDetailResponse, ElectionsResponse, getJson, ListResponse, marketSource, readableReason, ReviewsResponse, StatusResponse, type ListData } from "./client";
+import { ActivityResponse, CoverageResponse, DetailResponse, ElectionDetailResponse, ElectionsResponse, getJson, marketSource, readableReason, ReviewsResponse, StatusResponse, type ListData } from "./client";
 import type { ElectionSummary } from "../../../discovery/src/election-model";
 import { TokenHistory, TokenImage, useTokenArtwork } from "./TokenMarket";
 import { WalletAnalysisPanel } from "./WalletAnalysis";
@@ -40,7 +43,7 @@ function useRemote<T>(load: (signal: AbortSignal) => Promise<T>, key: string) {
   return { data, error };
 }
 function Badge({ status }: { status: string }) { return <span className={`tenx-badge tenx-badge--${status}`}>{status}</span>; }
-function MarketCapReview({ candidate, detailed = false }: { candidate: AssessedCandidate; detailed?: boolean }) {
+function MarketCapReview({ candidate, detailed = false }: { candidate: Pick<Card, "market" | "creation">; detailed?: boolean }) {
   const review = reportedCapReview(candidate, new Date(), DEFAULT_POLICY.max_market_age_seconds);
   if (!review) return null;
   return <aside className="tenx-notice"><strong>High reported cap for a new token · review</strong><p>{money(review.market_cap_usd)} reported cap · created {review.age_hours.toFixed(1)} hours ago. Review supply, pool depth and connected wallets.</p>
@@ -62,7 +65,7 @@ function Freshness({ data }: { data: Pick<ListData, "as_of" | "coverage" | "sour
     <div><strong>{data.source_freshness.stale ? "Data needs refreshing" : "Local ingestion connected"}</strong><p>Last successful refresh: {time(data.as_of)}</p><p>Bounded coverage · finalized Pump → PumpSwap · WSOL quotes</p></div>
   </aside>;
 }
-function CandidateCard({ candidate: c, metadataUrl }: { candidate: AssessedCandidate; metadataUrl?: string | null }) {
+function CandidateCard({ candidate: c, metadataUrl }: { candidate: Card; metadataUrl?: string | null }) {
   const fixture = c.mode === "fixture";
   return <article className="tenx-candidate">
     <div className="tenx-candidate-heading"><a className="tenx-artwork-link" href={`/token/solana/${c.address}${fixture ? "?mode=fixture" : ""}`} aria-label={`Inspect ${c.name} (${c.address})`}><TokenImage url={c.market?.image_url} metadataUrl={metadataUrl} name={c.name} symbol={c.symbol} /></a><div className="tenx-token-name"><h2><a href={`/token/solana/${c.address}${fixture ? "?mode=fixture" : ""}`}>{c.name}</a></h2><p>{c.symbol} <span>· Solana · OG token</span></p><Badge status={c.eligibility} /></div></div>
@@ -77,8 +80,8 @@ function CandidateCard({ candidate: c, metadataUrl }: { candidate: AssessedCandi
 function Discover() {
   const [mode, setMode] = useState<"live" | "fixture">("live"), [filter, setFilter] = useState("all");
   const [age, setAge] = useState("24h");
-  const url = `/api/10x/candidates?mode=${mode}&limit=100&status=${filter}&age=${mode === "fixture" ? "all" : age}`;
-  const { data, error } = useRemote(signal => getJson(url, ListResponse, signal), url);
+  const url = `/api/10x/candidates?mode=${mode}&limit=100&view=cards&status=${filter}&age=${mode === "fixture" ? "all" : age}`;
+  const { data, error } = useRemote(signal => getJson(url, CardListResponse, signal), url);
   const coverage = useRemote(signal => getJson("/api/10x/discovery/coverage", CoverageResponse, signal), "coverage");
   const artwork = useTokenArtwork(mode === "live" ? data?.data.candidates.map(c => c.address) ?? [] : []);
   const walletWork = useRemote(signal => getJson("/api/10x/discovery/wallet-work", WalletWorkResponseSchema, signal), "wallet-work");
@@ -237,5 +240,5 @@ export default function DiscoveryPage({ path }: { path: string }) {
   const clean = path.replace(/\/+$/, "");
   const match = clean.match(/^\/token\/solana\/([^/]+)$/);
   const election = clean.match(/^\/elections(?:\/([^/]+))?$/);
-  return <main className="tenx-discovery"><nav aria-label="10X discovery navigation" className="tenx-nav"><a href="/discover" aria-current={clean === "/discover" ? "page" : undefined}>Discover</a><a href="/research" aria-current={clean === "/research" ? "page" : undefined}>Daily review</a><a href="/elections" aria-current={election ? "page" : undefined}>Rehearsals</a><a href="/status" aria-current={clean === "/status" ? "page" : undefined}>Data status</a><a href="/transparency" aria-current={clean === "/transparency" ? "page" : undefined}>Rules</a><a href="/backing" aria-current={clean === "/backing" ? "page" : undefined}>Backing lab</a><a href="/rewards" aria-current={clean === "/rewards" ? "page" : undefined}>Reward lab</a><a href="/wallets" aria-current={clean === "/wallets" ? "page" : undefined}>My wallets</a><a href="/admin/10x" aria-current={clean === "/admin/10x" ? "page" : undefined}>Admin</a><a href="/thesis">Thesis ↗</a></nav>{match ? <CandidateDetail key={match[1]} address={match[1]!} /> : election ? <ElectionsView key={election[1] ?? "index"} id={election[1]} /> : clean === "/status" ? <StatusView /> : clean === "/transparency" ? <PolicyView /> : clean === "/research" ? <ResearchView /> : clean === "/backing" ? <BackingPage /> : clean === "/rewards" ? <AttentionRewardsPage /> : clean === "/wallets" ? <SolanaIdentity /> : clean === "/admin/10x" ? <AdminView /> : <Discover />}</main>;
+  return <main className="tenx-discovery" tabIndex={-1} onClick={navigateDiscovery}><nav aria-label="10X discovery navigation" className="tenx-nav"><a href="/discover" aria-current={clean === "/discover" ? "page" : undefined}>Discover</a><a href="/research" aria-current={clean === "/research" ? "page" : undefined}>Daily review</a><a href="/elections" aria-current={election ? "page" : undefined}>Rehearsals</a><a href="/status" aria-current={clean === "/status" ? "page" : undefined}>Data status</a><a href="/transparency" aria-current={clean === "/transparency" ? "page" : undefined}>Rules</a><a href="/backing" aria-current={clean === "/backing" ? "page" : undefined}>Backing lab</a><a href="/rewards" aria-current={clean === "/rewards" ? "page" : undefined}>Reward lab</a><a href="/wallets" aria-current={clean === "/wallets" ? "page" : undefined}>My wallets</a><a href="/admin/10x" aria-current={clean === "/admin/10x" ? "page" : undefined}>Admin</a><a href="/thesis">Thesis ↗</a></nav>{match ? <CandidateDetail key={match[1]} address={match[1]!} /> : election ? <ElectionsView key={election[1] ?? "index"} id={election[1]} /> : clean === "/status" ? <StatusView /> : clean === "/transparency" ? <PolicyView /> : clean === "/research" ? <ResearchView /> : clean === "/backing" ? <BackingPage /> : clean === "/rewards" ? <AttentionRewardsPage /> : clean === "/wallets" ? <SolanaIdentity /> : clean === "/admin/10x" ? <AdminView /> : <Discover />}</main>;
 }

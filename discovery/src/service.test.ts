@@ -13,6 +13,8 @@ import { runCycle } from "./ingest";
 import { gateSample, walletInput } from "./wallet-fixtures.test-helper";
 import { reserveWalletQuota, runWalletCycle } from "./wallet-cycle";
 import { WSOL } from "./pump";
+import { CandidateCardSchema, candidateCard } from "./candidate-card";
+import { assess } from "./model";
 
 const instances: DatabaseSync[] = [];
 afterEach(() => { instances.splice(0).forEach(db => db.close()); vi.restoreAllMocks(); });
@@ -48,6 +50,28 @@ function fixture() {
 const req = (path: string, init?: RequestInit) => new Request(`http://127.0.0.1:8794/api/10x/${path}`, init);
 function admin(body: unknown, token = "a".repeat(64)): RequestInit { return { method: "POST", headers: { authorization: `Bearer ${token}`, "content-type": "application/json" }, body: JSON.stringify(body) }; }
 describe("durable discovery state and public/admin API", () => {
+  it("projects compact cards only after full assessment and keeps evidence on detail/default reads", async () => {
+    const { d1, env } = fixture(), at = new Date(), examples = await fixtureCandidates(at);
+    examples[0].wallet_analysis = await gateSample();
+    for (const c of examples) await saveCandidate(d1, c);
+    const full = await (await handle(req("candidates?mode=fixture&limit=100"), env)).json() as { data: { candidates: unknown[]; counts: unknown } };
+    const compact = await (await handle(req("candidates?mode=fixture&limit=100&view=cards"), env)).json() as { data: { candidates: unknown[]; counts: unknown } };
+    expect(compact.data.counts).toEqual(full.data.counts);
+    expect(compact.data.candidates.map(c => CandidateCardSchema.parse(c).address)).toEqual(full.data.candidates.map(c => (c as { address: string }).address));
+    for (const raw of compact.data.candidates) {
+      const card = CandidateCardSchema.parse(raw), original = examples.find(c => c.address === card.address)!;
+      const assessed = assess(original, DEFAULT_POLICY, at);
+      expect(card.eligibility).toBe(assessed.eligibility); expect(card.reasons).toEqual(assessed.reasons);
+      expect(raw).not.toHaveProperty("wallet_analysis"); expect(raw).not.toHaveProperty("risk"); expect(raw).not.toHaveProperty("holders.owners"); expect(raw).not.toHaveProperty("creation.signature");
+      expect(candidateCard(assessed)).toEqual(card);
+    }
+    expect(JSON.stringify(compact.data).length).toBeLessThan(JSON.stringify(full.data).length * 0.65);
+    const first = await (await handle(req("candidates?mode=fixture&limit=1&view=cards"), env)).json() as { next_cursor: string };
+    expect((await handle(req(`candidates?mode=fixture&limit=1&cursor=${encodeURIComponent(first.next_cursor)}`), env)).status).toBe(409);
+    expect((await handle(req(`candidates?mode=fixture&limit=1&view=cards&cursor=${encodeURIComponent(first.next_cursor)}`), env)).status).toBe(200);
+    const detail = await (await handle(req(`candidates/solana/${examples[0].address}?mode=fixture`), env)).json() as { data: unknown };
+    expect(JSON.stringify(detail)).toContain("wallet_analysis"); expect(JSON.stringify(full.data)).toContain("wallet_analysis");
+  });
   it("retains first discovery but measures wallet research from its later immutable baseline", async () => {
     const { d1 } = fixture(), at = new Date("2026-10-18T00:00:00Z"), c = { ...(await fixtureCandidates(at))[0]!, mode: "live" as const }, w = await gateSample();
     await captureCohort(d1, c, at.toISOString());

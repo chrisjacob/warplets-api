@@ -14,7 +14,6 @@ import { PwaControls } from "./PwaControls";
 import SiteFooter from "./SiteFooter";
 import { isEmbeddedWebView, isLikelyBaseAppBrowser, isStandaloneDisplay, subscribeToWebPush } from "./pwa";
 import { FARCASTER_NOTIFICATIONS_MANUAL_ENABLE_MESSAGE, getEmbeddedWalletProvider } from "./surfaceAdapter";
-import { WebConnectModal } from "./WebConnectModal";
 import {
   configureFarcasterWallet,
   disconnectWallet,
@@ -27,6 +26,7 @@ import { WARPLETS_APP_ORIGINS } from "../shared/warpletsApp";
 
 const FarcasterSignInControl = lazy(() => import("./FarcasterSignInControl"));
 const DiscoveryPage = lazy(() => import("./discovery/DiscoveryPage"));
+const WebConnectModal = lazy(() => import("./WebConnectModal").then(module => ({ default: module.WebConnectModal })));
 
 type ViewerProfile = {
   fid: number;
@@ -523,8 +523,8 @@ export default function App({ page = "home" }: { page?: "home" | "thesis" | "dis
           onMessage={(kind, message) => setHomeToast({ kind, message })}
         />
       )}
-      {!isInMiniAppContext && (
-        <WebConnectModal
+      {!isInMiniAppContext && webConnectOpen && (
+        <Suspense fallback={<div role="status" className="p-4 text-center text-[#b8d7b8]">Loading connection options… <button type="button" onClick={() => setWebConnectOpen(false)}>Cancel</button></div>}><WebConnectModal
           open={webConnectOpen}
           onClose={() => { setWebConnectOpen(false); setWebConnectIdentityError(null); }}
           identityError={webConnectIdentityError}
@@ -544,7 +544,7 @@ export default function App({ page = "home" }: { page?: "home" | "thesis" | "dis
               />
             </Suspense>
           )}
-        />
+        /></Suspense>
       )}
 
       {homeToast && (

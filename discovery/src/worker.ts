@@ -2,6 +2,7 @@ import { timingSafeEqual } from "node:crypto";
 import { createRewards, rewardList, rewardRecord } from "./rewards";
 import { RewardError } from "./reward-math";
 import { z } from "zod";
+import { candidateCard } from "./candidate-card";
 import { identityRoute } from "./identity";
 import { backingList, backingRecord, BackingError, freezeBacking, openBacking, settleBacking } from "./backing";
 import { runBackingIndex, backingIndexLimit } from "./backing-index";
@@ -163,6 +164,7 @@ export async function handle(request: Request, env: Env): Promise<Response> {
       mode: z.enum(["live", "fixture"]).default("live"),
       status: z.enum(["all", "eligible", "provisional", "excluded"]).default("all"),
       age: z.enum(["all", "24h"]).default("all"),
+      view: z.enum(["full", "cards"]).default("full"),
       cursor: z.string().max(300).optional(),
     }).strict().parse(Object.fromEntries(url.searchParams));
     const now = new Date(), stored = await candidates(env.TENX_DB, query.mode);
@@ -173,15 +175,15 @@ export async function handle(request: Request, env: Env): Promise<Response> {
     if (query.cursor) {
       let decoded: unknown;
       try { decoded = JSON.parse(atob(query.cursor)); } catch { return json({ error: "invalid_cursor" }, 400); }
-      const cursor = z.object({ snapshot: z.string(), offset: z.number().int().min(0).max(100), status: z.string(), mode: z.string(), age: z.enum(["all", "24h"]).default("all") }).strict().parse(decoded);
-      if (cursor.snapshot !== snapshot || cursor.status !== query.status || cursor.mode !== query.mode || cursor.age !== query.age) return json({ error: "cursor_expired_refresh_required" }, 409);
+      const cursor = z.object({ snapshot: z.string(), offset: z.number().int().min(0).max(100), status: z.string(), mode: z.string(), age: z.enum(["all", "24h"]).default("all"), view: z.enum(["full", "cards"]).default("full") }).strict().parse(decoded);
+      if (cursor.snapshot !== snapshot || cursor.status !== query.status || cursor.mode !== query.mode || cursor.age !== query.age || cursor.view !== query.view) return json({ error: "cursor_expired_refresh_required" }, 409);
       offset = cursor.offset;
     }
     const next = offset + query.limit;
     return json(await envelope(env, {
-      candidates: filtered.slice(offset, next), mode: query.mode,
+      candidates: query.view === "cards" ? filtered.slice(offset, next).map(candidateCard) : filtered.slice(offset, next), mode: query.mode,
       counts: { eligible: rows.filter(c => c.eligibility === "eligible").length, provisional: rows.filter(c => c.eligibility === "provisional").length, excluded: rows.filter(c => c.eligibility === "excluded").length },
-    }, { next_cursor: next < filtered.length ? btoa(JSON.stringify({ snapshot, offset: next, status: query.status, mode: query.mode, age: query.age })) : null }));
+    }, { next_cursor: next < filtered.length ? btoa(JSON.stringify({ snapshot, offset: next, status: query.status, mode: query.mode, age: query.age, view: query.view })) : null }));
   }
   const activity = path.match(/^\/api\/10x\/activity\/solana\/([^/]+)$/);
   if (method === "GET" && activity) {
