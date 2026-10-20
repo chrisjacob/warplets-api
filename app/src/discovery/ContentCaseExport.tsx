@@ -7,7 +7,8 @@ type CaseExport=z.infer<typeof ContentCaseExport>;
 export function ContentCaseExportSummary({data}:{data:CaseExport}){
   return <div><p>Submission <code>{data.content.snapshot.id}</code> · captured {new Date(data.captured_at).toLocaleString()}.</p>
     <p>{data.manifest.events} verified history events · {data.manifest.reports} private reports · {data.manifest.hold_reviews} contributor follow-ups.</p>
-    {data.version==="content-case-export-v2"&&<p>{data.manifest.authorship_events} manual authorship history events. Authorship and reward qualification remain separate from visibility.</p>}
+    {data.version!=="content-case-export-v1"&&<p>{data.manifest.authorship_events} manual authorship history events. Authorship and reward qualification remain separate from visibility.</p>}
+    {data.version==="content-case-export-v3"&&<p>{data.manifest.duplicate_evidence_events} private source-excerpt evidence events. Cross-submission comparisons require a separately captured comparison report.</p>}
     <p>Featuring hold: {data.visibility_held?"active":"none at capture"}. Closing a follow-up does not release an upheld report.</p>
     <p className="tenx-muted">Checksum <code className="tenx-content-url">{data.export_hash}</code>. Keep a separate copy to check the original artifact later. Checksums verify retained history consistency; they are not signatures, proof of authorship or proof an allegation is true.</p></div>;
 }
@@ -36,7 +37,7 @@ export function ContentCaseExportPanel({token}:{token:string}){
     link.href=url;link.download=`10x-private-case-${data.content.snapshot.id}.json`;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
   }
   return <section id="content-case-export" className="tenx-panel tenx-content-form"><h2>Private moderation case export</h2>
-    <p>Download one submission with its campaign, review history, reports and contributor follow-ups. Includes confidential reporter identities, allegations and private notes. Store and share the file carefully. Nothing is uploaded or downloaded automatically.</p>
+    <p>Download one submission with its campaign, review history, reports, contributor follow-ups and recorded authorship/excerpt evidence. Includes confidential reporter identities, allegations and private notes. Store and share the file carefully. Nothing is uploaded or downloaded automatically.</p>
     <p className="tenx-muted">Local records only; zero provider requests. At most 10 reports, 20 follow-ups and 1 MiB per case. Larger cases fail explicitly. Exporting does not delete, publish, release holds or grant rewards. Automated archival and retention policies remain unconfigured.</p>
     <label>Submission UUID<input value={id} disabled={!token||busy} onChange={e=>{setId(e.target.value.trim());setData(null);setError("");}} placeholder="Paste a submission UUID from the review queue"/></label>
     <button className="tenx-button" disabled={!token||busy||!z.uuid().safeParse(id).success} onClick={()=>void load()}>Verify private case</button>

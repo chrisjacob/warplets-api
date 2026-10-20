@@ -7,10 +7,14 @@ import {holdReviewRecord,holdReviews,replyHoldReview,requestHoldReview} from "./
 import {contentOperations} from "./content-operations";
 import {contentCaseExport} from "./content-export";
 import {contentAuthorship,publicAuthorship,reviewAuthorship} from "./content-authorship";
+import {duplicateEvidence,recordDuplicateEvidence,contentDuplicates} from "./content-duplicates";
 export async function contentRoute(request: Request, db: D1Database, admin: boolean, at = new Date()): Promise<Response> {
   const url = new URL(request.url), path = url.pathname.replace(/\/+$/, ""), cursor = url.searchParams.get("cursor");
   const json = (data: unknown, status = 200) => Response.json(data, { status, headers: { ...API_HEADERS, vary: "Cookie" } });
   if (admin) {
+    if(request.method==="POST"&&path==="/api/10x/admin/attention/duplicate-evidence")return json(await recordDuplicateEvidence(db,await adminJson(request),new Date()));
+    const duplicate=path.match(/^\/api\/10x\/admin\/attention\/submissions\/([^/]+)\/(duplicate-evidence|duplicates)$/);
+    if(request.method==="GET"&&duplicate)return json(duplicate[2]==="duplicates"?await contentDuplicates(db,duplicate[1]!):await duplicateEvidence(db,duplicate[1]!));
     if(request.method==="POST"&&path==="/api/10x/admin/attention/authorship/review")return json(await reviewAuthorship(db,await adminJson(request),new Date()));
     const authorship=path.match(/^\/api\/10x\/admin\/attention\/submissions\/([^/]+)\/authorship$/);
     if(request.method==="GET"&&authorship)return json(await contentAuthorship(db,authorship[1]!));

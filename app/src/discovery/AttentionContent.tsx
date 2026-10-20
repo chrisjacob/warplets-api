@@ -8,6 +8,7 @@ import {HoldReviewForm,HoldReviewsPanel} from "./ContentHoldReviews";
 import {ContentOperationsPanel} from "./ContentOperations";
 import {ContentCaseExportPanel} from "./ContentCaseExport";
 import {ContentAuthorshipPanel,ContentAuthorshipCheck} from "./ContentAuthorship";
+import {ContentDuplicatesPanel} from "./ContentDuplicates";
 
 type Submission = z.infer<typeof ContentSnapshot>;
 type Campaign = z.infer<typeof PublicContentCampaign>;
@@ -133,6 +134,7 @@ export function ContentModerationLab({ token }: { token: string }) {
     <HoldReviewsPanel key={`hold:${token}`} token={token}/>
     <ContentCaseExportPanel key={`export:${token}`} token={token}/>
     <ContentAuthorshipPanel key={`authorship:${token}`} token={token}/>
+    <ContentDuplicatesPanel key={`duplicates:${token}`} token={token}/>
   </section>;
 }
 function ReviewSubmission({ item, token, changed }: { item: Submission; token: string; changed: () => void }) {

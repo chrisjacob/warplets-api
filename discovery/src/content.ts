@@ -49,6 +49,7 @@ async function checkSnapshot(row: ContentRow) {
   if (snapshot.id !== row.id || snapshot.identity_id !== row.identity_id || snapshot.campaign_id !== row.campaign_id || snapshot.content.canonical_url !== row.canonical_url || snapshot.status !== row.status || snapshot.revision !== row.revision || snapshot.created_at !== row.created_at || snapshot.updated_at !== row.updated_at) fail("content_snapshot_integrity_failed", 503);
   return snapshot;
 }
+export {checkSnapshot as decodeContentSnapshotRow};
 export const CONTENT_RECORD_SELECT = `SELECT s.*,(SELECT json_group_array(json_object('id',id,'submission_id',submission_id,'revision',revision,'created_at',created_at,'request_hash',request_hash,'event',event))
     FROM (SELECT * FROM tenx_content_events WHERE submission_id=s.id ORDER BY revision LIMIT 21)) AS history
     FROM tenx_content_submissions s WHERE s.id=?`;

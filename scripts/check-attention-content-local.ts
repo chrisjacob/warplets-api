@@ -13,6 +13,8 @@ import { IdentityChallengeResponse, IdentitySessionResponse } from "../discovery
 import {ContentReportPage,ContentReportRecord} from "../discovery/src/content-report-model";
 import {verifyContentCaseExport} from "../discovery/src/content-export";
 import {AuthorshipHistory,AuthorshipSummary} from "../discovery/src/content-authorship-model";
+import {DuplicateEvidence} from "../discovery/src/content-duplicates-model";
+import {verifyDuplicateReport} from "../discovery/src/content-duplicates-math";
 
 // Disposable keys and a separate database: never signs with user wallets or
 // writes synthetic submissions into the live local application database.
@@ -151,6 +153,30 @@ try {
   assert.deepEqual(finalExport.content,exported.content);assert.deepEqual(finalExport.hold_reviews,exported.hold_reviews);
   const finalFile=`${folder}/withdrawn-author-case-v2.json`;writeFileSync(finalFile,JSON.stringify(finalExport));const withdrawnOffline=await execute(process.execPath,[tsx,verifier,finalFile,finalExport.export_hash],options);assert.equal(JSON.parse(withdrawnOffline.stdout).verified,true);
   const authorOps=ContentOperations.parse(await (await call("admin/attention/operations",undefined,undefined,true)).json());assert.equal(authorOps.authorship.manual_reviews_today,1);assert.equal(authorOps.authorship.withdrawals_today,1);assert.equal(authorOps.storage.tables.find(t=>t.id==="authorship_events")!.total_rows,2);
+  const duplicatePath=`admin/attention/submissions/${target.id}/duplicates`,evidencePath=`admin/attention/submissions/${target.id}/duplicate-evidence`,sourceExcerpt="abcdefghijklmnopqrstuvwxyz".repeat(3),comparisonTarget=first.feed.submissions.find(s=>s.id!==target.id)!;
+  assert.equal((await call(duplicatePath,undefined,undefined,true)).status,409);
+  assert.equal((await call(evidencePath,undefined,contributor.cookie)).status,401);assert.equal((await call(duplicatePath,undefined,contributor.cookie)).status,401);
+  assert.equal((await call(duplicatePath,undefined,undefined,true,{origin:"https://evil.example"})).status,403);
+  const excerptRequest={request_id:crypto.randomUUID(),submission_id:target.id,expected_revision:-1,action:"RECORD",excerpt:sourceExcerpt,source_inspected:true,reason:"Synthetic short excerpt inspection; no real copied source text"};
+  assert.equal((await call("admin/attention/duplicate-evidence",excerptRequest,contributor.cookie)).status,401);
+  assert.equal((await call("admin/attention/duplicate-evidence",{...excerptRequest,source_inspected:false},undefined,true)).status,400);
+  assert.equal((await call("admin/attention/duplicate-evidence",excerptRequest,undefined,true)).status,200);assert.equal((await call("admin/attention/duplicate-evidence",excerptRequest,undefined,true)).status,200);
+  const otherExcerpt={...excerptRequest,request_id:crypto.randomUUID(),submission_id:comparisonTarget.id,excerpt:sourceExcerpt+"12345"};assert.equal((await call("admin/attention/duplicate-evidence",otherExcerpt,undefined,true)).status,200);
+  assert.equal(DuplicateEvidence.parse(await (await call(evidencePath,undefined,undefined,true)).json()).events.length,1);
+  const compared=await call(duplicatePath,undefined,undefined,true);assert.equal(compared.status,200);assert.equal(compared.headers.get("cache-control"),"no-store");
+  const duplicateReport=await verifyDuplicateReport(await compared.json());assert.equal(duplicateReport.coverage.compared,1);assert.equal(duplicateReport.result.matches[0]!.score_bps,8387);assert.equal(duplicateReport.automatic_decisions,false);
+  const comparisonFile=`${folder}/private-excerpt-comparison.json`,comparisonVerifier=fileURLToPath(new URL("../scripts/verify-content-duplicates.ts",import.meta.url));writeFileSync(comparisonFile,JSON.stringify(duplicateReport));
+  const verifiedComparison=await execute(process.execPath,[tsx,comparisonVerifier,comparisonFile,duplicateReport.report_hash],options);assert.equal(JSON.parse(verifiedComparison.stdout).verified,true);await assert.rejects(execute(process.execPath,[tsx,comparisonVerifier,comparisonFile,"0".repeat(64)],options));
+  const v3=await verifyContentCaseExport(await (await call(exportPath,undefined,undefined,true)).json());assert(v3.version==="content-case-export-v3");assert.equal(v3.manifest.duplicate_evidence_events,1);assert.equal(v3.manifest.authorship_events,2);assert.deepEqual(v3.content,finalExport.content);
+  const v3File=`${folder}/excerpt-case-v3.json`;writeFileSync(v3File,JSON.stringify(v3));assert.equal(JSON.parse((await execute(process.execPath,[tsx,verifier,v3File,v3.export_hash],options)).stdout).verified,true);
+  const withdrawExcerpt=(submission_id:string)=>({...excerptRequest,request_id:crypto.randomUUID(),submission_id,expected_revision:0,action:"WITHDRAW",excerpt:null,source_inspected:false,reason:"Synthetic inspected excerpt withdrawn; original histories retained"});
+  assert.equal((await call("admin/attention/duplicate-evidence",withdrawExcerpt(comparisonTarget.id),undefined,true)).status,200);
+  assert.equal((await verifyDuplicateReport(await (await call(duplicatePath,undefined,undefined,true)).json())).coverage.compared,0);
+  assert.equal((await verifyDuplicateReport(duplicateReport,duplicateReport.report_hash)).result.matches[0]!.score_bps,8387);
+  assert.equal((await call("admin/attention/duplicate-evidence",withdrawExcerpt(target.id),undefined,true)).status,200);assert.equal((await call(duplicatePath,undefined,undefined,true)).status,409);
+  const duplicateOps=ContentOperations.parse(await (await call("admin/attention/operations",undefined,undefined,true)).json());assert.equal(duplicateOps.duplicate_evidence.recorded_today,2);assert.equal(duplicateOps.duplicate_evidence.withdrawals_today,2);assert.equal(duplicateOps.storage.tables.find(t=>t.id==="duplicate_events")!.total_rows,4);
+  assert.equal(AuthorshipSummary.parse(await (await call(publicAuthorPath)).json()).status,"WITHDRAWN");assert(!((await (await publicDetail()).text()).includes(sourceExcerpt)));assert.equal(ContentRecord.parse(await (await call(`attention/mine/${target.id}`,undefined,contributor.cookie)).json()).snapshot.reward_eligible,false);
+  console.log(JSON.stringify({near_duplicate_evidence:"private source excerpts, score, withdrawal and frozen offline replay passed",compared:1,score_bps:8387,comparison_after_withdrawal:0,case_export_v3:"passed",public_excerpt_disclosure:false,automatic_decisions:false,provider_requests:0}));
   console.log(JSON.stringify({manual_authorship:"explicit review, idempotent retry and withdrawal verified",public_summary:"no private references or notes",held_summary:"404",cryptographic_account_control:"unverified",v1_and_v2_offline_replay:"passed",authorship_events:2,provider_requests:0}));
   console.log(JSON.stringify({content_case_export:"private transactional snapshot and offline CLI verified",held_at_capture:exported.visibility_held,held_after_separate_release:releasedExport.visibility_held,history_events:exported.manifest.events,independent_checksum_mismatch:"rejected",artifact:artifactFile,provider_requests:0}));
   const reportHistory=ContentReportRecord.parse(await (await call(`attention/reports/${claim.request_id}`,undefined,users[1]!.cookie)).json());assert.deepEqual(reportHistory.events.map(e=>e.snapshot.status),["OPEN","UPHELD","RELEASED"]);

@@ -3,6 +3,7 @@ import {ContentCampaign,ContentRecord} from "./content-model";
 import {ContentReportRecord} from "./content-report-model";
 import {HoldReviewRecord} from "./content-hold-model";
 import {AuthorshipHistory} from "./content-authorship-model";
+import {DuplicateEvidence} from "./content-duplicates-model";
 
 export const CONTENT_EXPORT_MAX_BYTES=1024*1024;
 export const CONTENT_EXPORT_REPORT_LIMIT=10;
@@ -21,4 +22,6 @@ export const ContentCasePayload=z.object({
 }).strict();
 export const ContentCasePayloadV2=ContentCasePayload.extend({version:z.literal("content-case-export-v2"),authorship:AuthorshipHistory,
   manifest:ContentCasePayload.shape.manifest.extend({authorship_hash:hash,authorship_events:z.number().int().min(1).max(10)})});
-export const ContentCaseExport=z.discriminatedUnion("version",[ContentCasePayload.extend({export_hash:hash}),ContentCasePayloadV2.extend({export_hash:hash})]);
+export const ContentCasePayloadV3=ContentCasePayload.extend({version:z.literal("content-case-export-v3"),authorship:AuthorshipHistory,duplicate_evidence:DuplicateEvidence,
+  manifest:ContentCasePayload.shape.manifest.extend({authorship_hash:hash,authorship_events:z.number().int().min(0).max(10),duplicate_evidence_hash:hash,duplicate_evidence_events:z.number().int().min(1).max(6)})});
+export const ContentCaseExport=z.discriminatedUnion("version",[ContentCasePayload.extend({export_hash:hash}),ContentCasePayloadV2.extend({export_hash:hash}),ContentCasePayloadV3.extend({export_hash:hash})]);

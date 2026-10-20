@@ -4904,7 +4904,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Confidential no-store content-case-export-v1 for cases without authorship events; v2 adds immutable AuthorshipHistory, authorship component hash and event counts. Both versions replay offline; neither grants cryptographic authorship or rewards."
+            "description": "Confidential no-store case export: v1 original histories; v2 adds authorship; v3 adds the submission's complete source-excerpt history plus authorship (possibly empty). New streams are component-hashed and counted. Standalone comparison artifacts capture other submissions separately. All three versions replay offline; no digital signature, authorship, originality or reward certification."
           },
           "400": {
             "description": "Invalid UUID"
@@ -5032,6 +5032,137 @@
           },
           "503": {
             "description": "Local runtime disabled or history integrity failure"
+          }
+        }
+      }
+    },
+    "/api/10x/admin/attention/duplicate-evidence": {
+      "post": {
+        "summary": "Record or withdraw a private manually inspected short source excerpt; no automatic moderation",
+        "description": "Stable request UUID, submission UUID, expected revision (-1 initially), RECORD/WITHDRAW, excerpt, source_inspected and private reason. At most 600 excerpt characters, at least 60 normalized characters and 20 distinct character five-grams. Twenty new records per UTC day; withdrawal bypasses that quota. Six immutable events per submission; final slot reserved for withdrawal. No content scraping, embedding, social API, plagiarism verdict, hold release or reward credit.",
+        "security": [
+          {
+            "localOperator": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Verified hash-linked DuplicateEvent; exact retry returns the original event"
+          },
+          "400": {
+            "description": "Invalid UUID, excerpt/inspection input or insufficient normalized text"
+          },
+          "401": {
+            "description": "Local operator bearer required; signed contributors cannot access private excerpts"
+          },
+          "403": {
+            "description": "Browser origin or bounded JSON admission rejected"
+          },
+          "404": {
+            "description": "Submission absent"
+          },
+          "409": {
+            "description": "No active excerpt, stale revision, invalid transition, UUID conflict or daily source-record quota"
+          },
+          "413": {
+            "description": "Captured inputs/report exceed explicit UTF-8 byte bound; no partial report"
+          },
+          "503": {
+            "description": "Local runtime disabled or retained history integrity failure"
+          }
+        }
+      }
+    },
+    "/api/10x/admin/attention/submissions/{id}/duplicate-evidence": {
+      "get": {
+        "summary": "Replay private inspected source-excerpt history",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "security": [
+          {
+            "localOperator": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "DuplicateEvidence with target anchors and zero to six complete immutable events; no-store."
+          },
+          "400": {
+            "description": "Invalid UUID, excerpt/inspection input or insufficient normalized text"
+          },
+          "401": {
+            "description": "Local operator bearer required; signed contributors cannot access private excerpts"
+          },
+          "403": {
+            "description": "Browser origin or bounded JSON admission rejected"
+          },
+          "404": {
+            "description": "Submission absent"
+          },
+          "409": {
+            "description": "No active excerpt, stale revision, invalid transition, UUID conflict or daily source-record quota"
+          },
+          "413": {
+            "description": "Captured inputs/report exceed explicit UTF-8 byte bound; no partial report"
+          },
+          "503": {
+            "description": "Local runtime disabled or retained history integrity failure"
+          }
+        }
+      }
+    },
+    "/api/10x/admin/attention/submissions/{id}/duplicates": {
+      "get": {
+        "summary": "Compare the latest 50 other active recorded source excerpts across campaigns",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "security": [
+          {
+            "localOperator": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "PrivateDuplicateReport v1 with captured complete excerpt histories, normalized five-gram Jaccard scores, experimental 6500-bps review threshold, top ten matches, total matches, omitted sample counts, explicit unobserved/media gaps and report_hash. Database projection checks and excerpt replay; no original submission history certification. Two-MiB bound; read-only/no provider calls. Offline replay does not certify external source truth or complete corpus coverage."
+          },
+          "400": {
+            "description": "Invalid UUID, excerpt/inspection input or insufficient normalized text"
+          },
+          "401": {
+            "description": "Local operator bearer required; signed contributors cannot access private excerpts"
+          },
+          "403": {
+            "description": "Browser origin or bounded JSON admission rejected"
+          },
+          "404": {
+            "description": "Submission absent"
+          },
+          "409": {
+            "description": "No active excerpt, stale revision, invalid transition, UUID conflict or daily source-record quota"
+          },
+          "413": {
+            "description": "Captured inputs/report exceed explicit UTF-8 byte bound; no partial report"
+          },
+          "503": {
+            "description": "Local runtime disabled or retained history integrity failure"
           }
         }
       }

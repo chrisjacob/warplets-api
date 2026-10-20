@@ -4,6 +4,7 @@ import {parseEnv} from "node:util";
 import {ContentOperations} from "../discovery/src/content-operations-model";
 import {CONTENT_LIMITS as limits} from "../discovery/src/content-limits";
 import {AUTHORSHIP_REVIEW_DAILY_LIMIT} from "../discovery/src/content-authorship-model";
+import {DUPLICATE_DAILY_LIMIT} from "../discovery/src/content-duplicates-model";
 
 // Read-only loopback check: credentials never leave memory or appear in output.
 const url="http://127.0.0.1:8794/api/10x/admin/attention/operations";
@@ -23,5 +24,7 @@ for(const t of data.storage.tables){assert(t.sampled_rows<=200);assert(t.sampled
 assert.equal(data.retention.automatic_deletion,false);
 assert.equal(data.authorship.manual_review_limit,AUTHORSHIP_REVIEW_DAILY_LIMIT);assert.equal(data.authorship.remaining,Math.max(0,AUTHORSHIP_REVIEW_DAILY_LIMIT-data.authorship.manual_reviews_today));assert.equal(data.authorship.withdrawal_daily_limit,null);
 assert(data.storage.tables.some(t=>t.id==="authorship_events"));
+assert.equal(data.duplicate_evidence.record_limit,DUPLICATE_DAILY_LIMIT);assert.equal(data.duplicate_evidence.remaining,Math.max(0,DUPLICATE_DAILY_LIMIT-data.duplicate_evidence.recorded_today));assert.equal(data.duplicate_evidence.withdrawal_daily_limit,null);assert(data.storage.tables.some(t=>t.id==="duplicate_events"));
+console.log(JSON.stringify({private_excerpt_capacity:data.duplicate_evidence,provider_requests:0,writes:0}));
 console.log(JSON.stringify({manual_authorship_capacity:data.authorship,provider_requests:0,writes:0}));
 console.log(JSON.stringify({private_content_operations:"passed",as_of:data.as_of,queue_counts:data.queues.map(q=>({queue:q.id,waiting_on:q.waiting_on,count:q.count,waiting_24h:q.waiting_24h})),quota_counts:data.quotas.map(q=>({resource:q.id,used:q.used,limit:q.limit,remaining:q.remaining})),payload_sample_rows:data.storage.tables.reduce((n,t)=>n+t.sampled_rows,0),unauthorized:"denied",foreign_origin:"denied",source_requests:0,writes:0,policy_gates_changed:false,deploy:false},null,2));

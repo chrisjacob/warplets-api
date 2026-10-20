@@ -16,11 +16,13 @@ import {contentCaseExport,verifyContentCaseExport,checkContentExportSize} from "
 import {ContentCasePayload,CONTENT_EXPORT_MAX_BYTES} from "./content-export-model";
 import {hashJson} from "./solana";
 import {contentAuthorship,publicAuthorship,reviewAuthorship,verifyAuthorshipHistory} from "./content-authorship";
+import {duplicateEvidence,recordDuplicateEvidence,contentDuplicates} from "./content-duplicates";
+import {verifyDuplicateReport} from "./content-duplicates-math";
 const instances: DatabaseSync[] = [], origin = "https://app-local.10x.meme", token = "a".repeat(64);
 afterEach(() => { instances.splice(0).forEach(db => db.close()); vi.restoreAllMocks(); vi.useRealTimers(); });
 async function fixture() {
   const sqlite = new DatabaseSync(":memory:"); instances.push(sqlite); sqlite.exec("PRAGMA foreign_keys=ON");
-  for (const name of ["0018_solana_identity.sql", "0024_content_review.sql", "0026_content_reports.sql", "0027_content_hold_reviews.sql", "0031_content_authorship.sql"]) sqlite.exec(readFileSync(new URL(`../migrations/${name}`, import.meta.url), "utf8"));
+  for (const name of ["0018_solana_identity.sql", "0024_content_review.sql", "0026_content_reports.sql", "0027_content_hold_reviews.sql", "0031_content_authorship.sql", "0032_content_duplicate_evidence.sql"]) sqlite.exec(readFileSync(new URL(`../migrations/${name}`, import.meta.url), "utf8"));
   const base = sqliteD1(sqlite); let tail: Promise<unknown> = Promise.resolve();
   const db = { ...base, batch(statements: D1PreparedStatement[]) { const result = tail.then(() => base.batch(statements)); tail = result.catch(() => {}); return result; } } as D1Database;
   const at = new Date();
@@ -43,6 +45,96 @@ async function fixture() {
   const review = (id: string, revision = 0, decision = "VISIBLE") => ({ request_id: crypto.randomUUID(), submission_id: id, expected_revision: revision, decision, reason: "Manual local review; authorship and metrics remain unverified" });
   return { sqlite, db, at, env, call, request, owner, other, login, campaign, campaignInput, input, review };
 }
+describe("private near-duplicate source evidence",()=>{
+  const source="abcdefghijklmnopqrstuvwxyz".repeat(3);
+  async function duplicateCase(){
+    const f=await fixture(),subjectInput=f.input();await submitContent(f.db,subjectInput,f.owner.principal,f.at);
+    const excerptInput=(submission_id=subjectInput.request_id,expected_revision=-1,action="RECORD",excerpt:string|null=source)=>({request_id:crypto.randomUUID(),submission_id,expected_revision,action,excerpt:action==="WITHDRAW"?null:excerpt,source_inspected:action==="RECORD",reason:"Private operator-observed short source excerpt for local review"});
+    return {...f,subjectInput,excerptInput};
+  }
+  it("compares inspected source excerpts, never identical claims/commentary or absent evidence, without writing on reads",async()=>{
+    const f=await duplicateCase(),other=f.input("https://example.com/other");await submitContent(f.db,other,f.other.principal,f.at);
+    const original=await contentRecord(f.db,f.subjectInput.request_id),outside=vi.spyOn(globalThis,"fetch").mockRejectedValue(Error("No source fetch"));
+    await expect(contentDuplicates(f.db,f.subjectInput.request_id)).rejects.toMatchObject({status:409});
+    await recordDuplicateEvidence(f.db,f.excerptInput(),f.at);
+    let report=await contentDuplicates(f.db,f.subjectInput.request_id);expect(report.coverage.compared).toBe(0);expect(report.coverage.external_content_complete).toBe(false);expect(report.result.matches).toEqual([]);
+    await recordDuplicateEvidence(f.db,f.excerptInput(other.request_id,-1,"RECORD",source+"12345"),f.at);
+    const before=f.sqlite.prepare("SELECT total_changes() AS n").get(),batch=vi.spyOn(f.db,"batch");
+    report=await contentDuplicates(f.db,f.subjectInput.request_id);expect(batch).toHaveBeenCalledTimes(1);expect(batch.mock.calls[0]![0]).toHaveLength(3);
+    expect(report.result.matches[0]).toMatchObject({submission_id:other.request_id,kind:"SIMILAR_EXCERPT",score_bps:8387});expect(report.coverage.compared).toBe(1);
+    expect(f.sqlite.prepare("SELECT total_changes() AS n").get()).toEqual(before);expect(await contentRecord(f.db,f.subjectInput.request_id)).toEqual(original);expect((await contentAuthorship(f.db,f.subjectInput.request_id)).events).toEqual([]);expect(outside).not.toHaveBeenCalled();
+  });
+  it("requires the operator for recording, history and comparisons; references and excerpts never enter public or owner views",async()=>{
+    const f=await duplicateCase(),auth={authorization:`Bearer ${token}`},path=`admin/attention/submissions/${f.subjectInput.request_id}`;
+    for(const suffix of ["duplicate-evidence","duplicates"]){expect((await f.call(`${path}/${suffix}`)).status).toBe(401);expect((await f.call(`${path}/${suffix}`,undefined,f.owner.cookie)).status).toBe(401);expect((await f.call(`${path}/${suffix}`,undefined,undefined,{...auth,origin:"https://evil.example"})).status).toBe(403);}
+    expect((await f.call("admin/attention/duplicate-evidence",f.excerptInput(),f.owner.cookie)).status).toBe(401);
+    expect((await f.call("admin/attention/duplicate-evidence",f.excerptInput(),undefined,{...auth,origin:"https://evil.example"})).status).toBe(403);
+    expect((await f.call("admin/attention/duplicate-evidence",f.excerptInput(),undefined,auth)).status).toBe(200);
+    const response=await f.call(`${path}/duplicates`,undefined,undefined,auth);expect(response.status).toBe(200);expect(response.headers.get("cache-control")).toBe("no-store");expect(response.headers.get("vary")).toBe("Cookie");await verifyDuplicateReport(await response.json());
+    expect((await f.call("admin/attention/submissions/invalid/duplicates",undefined,undefined,auth)).status).toBe(400);expect((await f.call(`admin/attention/submissions/${crypto.randomUUID()}/duplicates`,undefined,undefined,auth)).status).toBe(404);
+    expect((await worker.fetch(f.request(`${path}/duplicates`,undefined,undefined,auth),{...f.env,TENX_LOCAL_ONLY:"false"})).status).toBe(503);
+    const ownerText=await (await f.call(`attention/mine/${f.subjectInput.request_id}`,undefined,f.owner.cookie)).text();expect(ownerText).not.toContain(source);expect(ownerText).not.toContain(f.excerptInput().reason);
+    const publicText=await (await f.call(`attention/campaigns/${f.campaign.id}`)).text();expect(publicText).not.toContain(source);
+    expect((await f.call(`attention/submissions/${f.subjectInput.request_id}/duplicates`,undefined,f.owner.cookie)).status).toBe(404);
+  });
+  it("withdraws and replaces evidence without rewriting frozen comparisons or changing moderation holds",async()=>{
+    const f=await duplicateCase(),other=f.input("https://example.com/held-other");await submitContent(f.db,other,f.other.principal,f.at);
+    await changeContent(f.db,f.review(f.subjectInput.request_id),null,f.at);const reportId=crypto.randomUUID();await submitContentReport(f.db,{request_id:reportId,submission_id:f.subjectInput.request_id,category:"impersonation",reason:"Independent content report with a separate visibility hold",evidence_url:null,good_faith:true},f.other.principal,f.at);
+    await reviewContentReport(f.db,{request_id:crypto.randomUUID(),report_id:reportId,expected_revision:0,decision:"UPHELD",reason:"Independent manual concern upheld for this content link"},f.at);
+    await recordDuplicateEvidence(f.db,f.excerptInput(),f.at);await recordDuplicateEvidence(f.db,f.excerptInput(other.request_id),f.at);
+    const before=await contentDuplicates(f.db,f.subjectInput.request_id);expect(before.result.matching_candidates).toBe(1);
+    const pending=contentDuplicates(f.db,f.subjectInput.request_id);await recordDuplicateEvidence(f.db,f.excerptInput(other.request_id,0,"WITHDRAW"),f.at);const during=await pending;expect(during.coverage.compared).toBe(1);
+    expect((await contentDuplicates(f.db,f.subjectInput.request_id)).coverage.compared).toBe(0);
+    await recordDuplicateEvidence(f.db,f.excerptInput(other.request_id,1,"RECORD",source+"12345"),f.at);expect((await contentDuplicates(f.db,f.subjectInput.request_id)).result.matches[0]!.score_bps).toBe(8387);
+    expect((await contentRecord(f.db,f.subjectInput.request_id))!.visibility_held).toBe(true);expect((await contentRecord(f.db,other.request_id))!.snapshot.status).toBe("PENDING");
+    const ops=await contentOperations(f.db,f.at);expect(ops.duplicate_evidence).toEqual({recorded_today:3,record_limit:20,remaining:17,withdrawals_today:1,withdrawal_daily_limit:null});expect(ops.storage.tables.find(t=>t.id==="duplicate_events")).toMatchObject({total_rows:4,sampled_rows:4,complete:true});
+    instances.splice(instances.indexOf(f.sqlite),1);f.sqlite.close();expect(await verifyDuplicateReport(before,before.report_hash)).toEqual(before);
+  });
+  it("keeps exact idempotent retries and admits only one concurrent head extension",async()=>{
+    const f=await duplicateCase(),request=f.excerptInput();const same=await Promise.all([recordDuplicateEvidence(f.db,request,f.at),recordDuplicateEvidence(f.db,request,f.at)]);expect(same[0]).toEqual(same[1]);
+    await expect(recordDuplicateEvidence(f.db,{...request,reason:"Changed reason for the original request identifier"},f.at)).rejects.toMatchObject({status:409});
+    const result=await Promise.allSettled([recordDuplicateEvidence(f.db,f.excerptInput(undefined,0,"WITHDRAW"),f.at),recordDuplicateEvidence(f.db,f.excerptInput(undefined,0,"WITHDRAW"),f.at)]);expect(result.filter(r=>r.status==="fulfilled")).toHaveLength(1);
+    expect((await recordDuplicateEvidence(f.db,request,f.at)).event).toEqual(same[0]!.event);
+  });
+  it.each(["unchecked","missing","too_short","repetitive","withdraw_first","wrong_revision","backdated"])("rejects %s source evidence without creating an event",async(kind)=>{
+    const f=await duplicateCase(),request=f.excerptInput();if(kind==="unchecked")request.source_inspected=false;if(kind==="missing")request.excerpt=null;if(kind==="too_short")request.excerpt="A short caption";if(kind==="repetitive")request.excerpt="a".repeat(100);if(kind==="withdraw_first"){request.action="WITHDRAW";request.excerpt=null;request.source_inspected=false;}if(kind==="wrong_revision")request.expected_revision=0;
+    await expect(recordDuplicateEvidence(f.db,request,kind==="backdated"?new Date(f.at.getTime()-1):f.at)).rejects.toThrow();expect((await duplicateEvidence(f.db,f.subjectInput.request_id)).events).toHaveLength(0);
+  });
+  it("enforces atomic UTC admission while retaining withdrawal and retry at capacity",async()=>{
+    const f=await duplicateCase(),ids=[f.subjectInput.request_id];for(let i=1;i<21;i++){const input=f.input(`https://example.com/excerpt-quota/${i}`);await submitContent(f.db,input,(i<10?f.owner:i<20?f.other:await f.login()).principal,f.at);ids.push(input.request_id);}
+    const first=f.excerptInput();await recordDuplicateEvidence(f.db,first,f.at);for(const id of ids.slice(1,19))await recordDuplicateEvidence(f.db,f.excerptInput(id),f.at);
+    const results=await Promise.allSettled(ids.slice(19).map(id=>recordDuplicateEvidence(f.db,f.excerptInput(id),f.at)));expect(results.filter(r=>r.status==="fulfilled")).toHaveLength(1);
+    await recordDuplicateEvidence(f.db,f.excerptInput(undefined,0,"WITHDRAW"),f.at);await expect(recordDuplicateEvidence(f.db,f.excerptInput(undefined,1),f.at)).rejects.toMatchObject({status:409});expect((await recordDuplicateEvidence(f.db,first,f.at)).event.id).toBe(first.request_id);
+    const tomorrow=new Date(f.at.toISOString().slice(0,10)+"T00:00:00.000Z");tomorrow.setUTCDate(tomorrow.getUTCDate()+1);await recordDuplicateEvidence(f.db,f.excerptInput(undefined,1),tomorrow);
+    expect((await contentOperations(f.db,tomorrow)).duplicate_evidence).toMatchObject({recorded_today:1,remaining:19});
+  });
+  it("retains immutable bounded history ending withdrawn and fails closed on corrupted row metadata",async()=>{
+    const f=await duplicateCase(),first=f.excerptInput();await recordDuplicateEvidence(f.db,first,f.at);for(let r=1;r<6;r++)await recordDuplicateEvidence(f.db,f.excerptInput(undefined,r-1,r%2?"WITHDRAW":"RECORD"),f.at);
+    const history=await duplicateEvidence(f.db,f.subjectInput.request_id);expect(history.events).toHaveLength(6);expect(history.events.at(-1)!.action).toBe("WITHDRAW");await expect(contentDuplicates(f.db,f.subjectInput.request_id)).rejects.toMatchObject({status:409});
+    expect(()=>f.sqlite.prepare("DELETE FROM tenx_content_duplicate_events WHERE id=?").run(first.request_id)).toThrow("immutable_duplicate_evidence");expect(()=>f.sqlite.prepare("UPDATE tenx_content_duplicate_events SET event_hash='bad' WHERE id=?").run(first.request_id)).toThrow("immutable_duplicate_evidence");
+    await expect(recordDuplicateEvidence(f.db,f.excerptInput(undefined,5),f.at)).rejects.toThrow();expect((await recordDuplicateEvidence(f.db,first,f.at)).event.id).toBe(first.request_id);
+    f.sqlite.exec("DROP TRIGGER tenx_duplicate_no_update");f.sqlite.prepare("UPDATE tenx_content_duplicate_events SET event_hash='bad' WHERE id=?").run(first.request_id);await expect(duplicateEvidence(f.db,f.subjectInput.request_id)).rejects.toThrow();
+  });
+  it("emits v3 case exports with source evidence while preserving v1/v2 and rejecting rehashed excerpt edits",async()=>{
+    const f=await duplicateCase(),v1=await contentCaseExport(f.db,f.subjectInput.request_id);await recordDuplicateEvidence(f.db,f.excerptInput(),f.at);
+    const v3=await contentCaseExport(f.db,f.subjectInput.request_id);expect(v3.version).toBe("content-case-export-v3");if(v3.version!=="content-case-export-v3")throw Error("v3 expected");
+    expect(v3.manifest).toMatchObject({authorship_events:0,duplicate_evidence_events:1,events:2});expect(v3.content).toEqual(v1.content);expect(await verifyContentCaseExport(v1,v1.export_hash)).toEqual(v1);expect(await verifyContentCaseExport(v3,v3.export_hash)).toEqual(v3);
+    v3.duplicate_evidence.events[0]!.excerpt=source+"12345";v3.manifest.duplicate_evidence_hash=await hashJson(v3.duplicate_evidence);const {export_hash:_h,...payload}=v3;v3.export_hash=await hashJson(payload);await expect(verifyContentCaseExport(v3)).rejects.toThrow();
+  });
+  it("takes the latest 50 active excerpts across campaigns and explicitly counts older omitted records",async()=>{
+    const f=await duplicateCase(),users=[f.owner,f.other,await f.login(),await f.login(),await f.login(),await f.login()],ids=[f.subjectInput.request_id];
+    const second=await createContentCampaign(f.db,{...f.campaignInput,request_id:crypto.randomUUID(),title:"Second local excerpt comparison campaign"},f.at);
+    for(let i=1;i<52;i++){const input={...f.input(`https://example.com/excerpt-sample/${i}`),campaign_id:i%2?f.campaign.id:second.id};await submitContent(f.db,input,users[Math.floor(i/10)]!.principal,f.at);ids.push(input.request_id);}
+    for(let i=0;i<ids.length;i++)await recordDuplicateEvidence(f.db,f.excerptInput(ids[i]),new Date(f.at.getTime()+Math.floor(i/20)*86400000));
+    vi.useFakeTimers();vi.setSystemTime(new Date(f.at.getTime()+3*86400000));
+    const report=await contentDuplicates(f.db,f.subjectInput.request_id);expect(report.coverage).toMatchObject({available_candidates:51,compared:50,omitted:1,sample_complete:false,external_content_complete:false});expect(report.result.matching_candidates).toBe(50);expect(report.result.matches).toHaveLength(10);expect(await verifyDuplicateReport(report)).toEqual(report);
+  });
+  it("rejects an oversized captured comparison before decoding and never returns partial evidence",async()=>{
+    const f=await duplicateCase();await recordDuplicateEvidence(f.db,f.excerptInput(),f.at);const base=f.db.batch.bind(f.db);
+    vi.spyOn(f.db,"batch").mockImplementation(async statements=>{const result=await base(statements);result[0]!.results[0]={duplicate_history:"語".repeat(1100000)};return result;});
+    await expect(contentDuplicates(f.db,f.subjectInput.request_id)).rejects.toMatchObject({status:413});
+  });
+});
 describe("manual authorship review",()=>{
   async function authorshipCase(){
     const f=await fixture(),input=f.input();await submitContent(f.db,input,f.owner.principal,f.at);
@@ -176,7 +268,7 @@ describe("private content case exports",()=>{
   it("exports one consistent, read-only case and verifies offline without disclosing reporters to contributors",async()=>{
     const f=await heldCase(),before=f.sqlite.prepare("SELECT total_changes() AS n").get(),outside=vi.spyOn(globalThis,"fetch").mockRejectedValue(Error("No providers")),batch=vi.spyOn(f.db,"batch");
     const record=await contentCaseExport(f.db,f.input.request_id);
-    expect(batch).toHaveBeenCalledTimes(1);expect(batch.mock.calls[0]![0]).toHaveLength(5);
+    expect(batch).toHaveBeenCalledTimes(1);expect(batch.mock.calls[0]![0]).toHaveLength(6);
     expect(record.manifest).toMatchObject({reports:2,hold_reviews:1,events:10});expect(record.visibility_held).toBe(true);
     expect(record.hold_reviews[0]!.snapshot.status).toBe("CLOSED");expect(record.source_requests).toBe(0);expect(record.rewards_enabled).toBe(false);
     expect(record.reports.map(r=>r.snapshot.id)).toEqual(record.reports.map(r=>r.snapshot.id).sort());
