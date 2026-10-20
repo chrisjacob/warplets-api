@@ -1,5 +1,6 @@
 import { timingSafeEqual } from "node:crypto";
 import { z } from "zod";
+import { identityRoute } from "./identity";
 import { Address, assess, CandidateSchema, DEFAULT_POLICY, MarketSchema, Signature, shortlist } from "./model";
 import { runReviews } from "./research";
 import { runMarketCycle } from "./market-cycle";
@@ -99,6 +100,7 @@ export async function handle(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
   if (env.TENX_LOCAL_ONLY !== "true" || !loopback.has(url.hostname)) return json({ error: "local_runtime_required" }, 503);
   const path = url.pathname.replace(/\/+$/, "");
+  if (path.startsWith("/api/10x/identity/")) return identityRoute(request, env.TENX_DB);
   const admin = path.startsWith("/api/10x/admin/");
   const method = request.method;
   if (admin && !authorized(request, env.TENX_ADMIN_TOKEN)) return json({ error: "admin_authentication_required" }, 401);

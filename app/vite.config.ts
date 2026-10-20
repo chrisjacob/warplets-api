@@ -667,6 +667,16 @@ export default defineConfig({
       "/api/10x": {
         target: "http://127.0.0.1:8794",
         changeOrigin: true,
+        configure(proxy) {
+          proxy.on("proxyReq", (proxyRequest, request) => {
+            // Override client-supplied forwarding; identity challenges/cookies
+            // bind to this allowlisted browser origin, not the Worker host.
+            proxyRequest.removeHeader("x-10x-identity-origin");
+            const host = (request.headers.host ?? "").toLowerCase();
+            if (host === "app-local.10x.meme") proxyRequest.setHeader("x-10x-identity-origin", "https://app-local.10x.meme");
+            else if (host === "localhost:5183" || host === "127.0.0.1:5183") proxyRequest.setHeader("x-10x-identity-origin", `http://${host}`);
+          });
+        },
       },
       // Token deep links need the Pages Function's selected-token OG metadata,
       // even when the dev server was started without VITE_MINIAPP_BASE_URL.

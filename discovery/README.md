@@ -140,6 +140,12 @@ The existing supervisor now checks timer progress independently of the launcher,
 
 Local migration `0017_operations.sql` retains recent authenticated observations and transitions without provider calls. Run `node --test scripts/discovery-watchdog.test.mjs` and `pnpm --dir discovery test -- src/reliability-14d.test.ts` for offline fault checks; `pnpm exec tsx scripts/check-discovery-operations.ts` checks the running local installation. See [scope, results and remaining PRD acceptance work](../docs/10x/22-local-reliability-review.md). Future risk/market timestamps now fail the existing freshness checks; no thresholds or evidence gates were relaxed.
 
+## Signed Solana ownership
+
+Development route `/wallets` links Solana wallets to a separate local 10X identity using expiring, single-use signed messages. It does not merge EVM/Farcaster accounts or grant votes, transactions or rewards. Local migration `0018_solana_identity.sql` adds ownership, hashed sessions/challenges and audit tables. `/api/10x/identity/session`, `/challenge`, `/verify` and `/logout` use browser-bound public auth, separate from the operator token. The existing local-runtime guard still applies.
+
+See [security rules, validation and gaps](../docs/10x/23-solana-identity.md). `pnpm exec tsx scripts/check-solana-identity.ts` checks real signatures and concurrency in an isolated local Workerd/D1 with disposable keys and zero provider/live-database writes. No user wallet is used. Hardware/off-chain-only formats, unified multi-chain identity and live backing remain future work.
+
 ## Funding completion planning
 
 The collector detects saved windows that exceed the unchanged twelve-body bound before spending further transaction requests. The automatic wallet loop replays exact checkpoint inputs and retained bodies, skips known source/sample limits, prioritizes finishable work and paces successful turns by actual cost. All quotas, evidence gates, pause/backoff, leases and freshness limits remain unchanged. A continuation never refreshes candidate eligibility.

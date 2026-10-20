@@ -7,6 +7,7 @@ import { WalletPlansResponseSchema } from "../discovery/src/wallet-plan-model";
 import { PolicyEditsSchema, PolicyPreviewResponseSchema, PreviewRequestSchema } from "../discovery/src/policy-model";
 import { SignalDetailSchema } from "../discovery/src/signal-model";
 import { OperationsSchema, WatchdogReportSchema } from "../discovery/src/operations-model";
+import { IdentityChallengeRequest, IdentityChallengeResponse, IdentitySessionResponse, IdentityVerifyRequest } from "../discovery/src/identity-model";
 import { ActivityResponse, CoverageResponse, DetailResponse, ElectionDetailResponse, ElectionsResponse, HistoryResponse, ListResponse, PoliciesResponse, ReviewsResponse, SignalsResponse, StatusResponse } from "../app/src/discovery/client";
 
 const ok = { description: "Success; cached public data includes timestamps, source freshness and coverage", content: { "application/json": { schema: { type: "object" } } } };
@@ -16,10 +17,19 @@ const responseSchema = (name: string) => ({ responses: { 200: { ...ok, content: 
 const reason = { type: "string", minLength: 3, maxLength: 300 };
 const post = (summary: string, properties: object = {}, required: string[] = []) => ({ post: { summary, security: [{ localOperator: [] }], requestBody: { required: true, content: { "application/json": { schema: { type: "object", properties: { reason, ...properties }, required: ["reason", ...required] } } } }, responses: { 200: ok, ...errors } } });
 const parameter = (name: string, where: "query" | "path", schema: object, required = false) => ({ name, in: where, required, schema });
+const identityPost = (summary: string, requestSchema: object, response: string) => ({ post: {
+  summary, description: "Local-only browser flow. Exact allowlisted Origin, application/json and X-Tenx-Identity: 1 required. HttpOnly browser session and single-use challenge bind verification. No RPC, transactions, votes or operator token.",
+  parameters: [parameter("X-Tenx-Identity", "header", { const: "1" }, true), parameter("Origin", "header", { type: "string" }, true)],
+  requestBody: { required: true, content: { "application/json": { schema: requestSchema } } }, ...responseSchema(response),
+} });
 const spec = {
-  openapi: "3.1.0", info: { title: "10X local Solana discovery", version: "0.1.0", description: "Local-only, read-only chain discovery. No signing, votes, launches or financial flows. Public reads use stored data; only authenticated refresh makes provider requests." },
+  openapi: "3.1.0", info: { title: "10X local Solana discovery", version: "0.1.0", description: "Local-only chain discovery and signed-message wallet ownership. No server-held signers, transactions, votes, launches or financial flows. Public reads use stored data; only authenticated refresh makes provider requests." },
   servers: [{ url: "http://127.0.0.1:8794" }],
   paths: {
+    "/api/10x/identity/session": read("Current local Solana identity and linked wallets; HttpOnly cookie, no provider calls; separate from Warplets/Farcaster", responseSchema("IdentitySessionResponse")),
+    "/api/10x/identity/challenge": identityPost("Issue exact domain/address/chain/intent/browser-bound 5-minute challenge; 10 per browser/minute, 500 globally per UTC day", { $ref: "#/components/schemas/IdentityChallengeRequest" }, "IdentityChallengeResponse"),
+    "/api/10x/identity/verify": identityPost("Verify exact stored message with strict Ed25519; atomic consumption, ownership, rotation and audit. Signed unlink revokes every identity session; last wallet is retained", { $ref: "#/components/schemas/IdentityVerifyRequest" }, "IdentitySessionResponse"),
+    "/api/10x/identity/logout": identityPost("Revoke this browser session and its outstanding challenges; retain wallet links", { type: "object", additionalProperties: false, maxProperties: 0 }, "IdentitySessionResponse"),
     "/api/10x/health": read("Local service readiness"),
     "/api/10x/discovery/wallet-work": read("Cached resumable direct funding work; does not refresh wallet snapshots or waive eligibility gates", responseSchema("WalletWorkResponse")),
     "/api/10x/discovery/wallet-plan": read("Read-only funding plans for up to 20 current contenders and measured local collection yield; request estimates are lower bounds, zero provider calls and unchanged gates",responseSchema("WalletPlansResponse")),
@@ -60,6 +70,10 @@ const spec = {
     "/api/10x/admin/policies/previews/{id}": read("Load retained policy comparison and verify hashes/replay; authenticated, no-store", { ...responseSchema("PolicyPreviewResponse"), security: [{ localOperator: [] }], parameters: [parameter("id", "path", { type: "string", format: "uuid" }, true)] }),
   },
   components: { securitySchemes: { localOperator: { type: "http", scheme: "bearer", description: "Random local operator token; not stored in browser storage or source control" } }, schemas: {
+    IdentityChallengeRequest: z.toJSONSchema(IdentityChallengeRequest),
+    IdentityChallengeResponse: z.toJSONSchema(IdentityChallengeResponse),
+    IdentityVerifyRequest: z.toJSONSchema(IdentityVerifyRequest),
+    IdentitySessionResponse: z.toJSONSchema(IdentitySessionResponse),
     Candidate: z.toJSONSchema(AssessedCandidateSchema, { unrepresentable: "any" }),
     ArtworkResponse: z.toJSONSchema(ArtworkResponseSchema),
     WalletWorkResponse: z.toJSONSchema(WalletWorkResponseSchema),
