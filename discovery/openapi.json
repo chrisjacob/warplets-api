@@ -1653,9 +1653,172 @@
         }
       }
     },
+    "/api/10x/launches/recovery-lab": {
+      "get": {
+        "summary": "Latest five immutable hypothetical recovery exercises; no real transaction or publication",
+        "responses": {
+          "200": {
+            "description": "Success; cached public data includes timestamps, source freshness and coverage",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecoveryList"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "401": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "403": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "404": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "409": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "413": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "415": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "429": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "503": {
+            "description": "Structured JSON error; no provider secrets"
+          }
+        }
+      }
+    },
+    "/api/10x/admin/launches/recovery-lab": {
+      "post": {
+        "summary": "Save/replay a bounded offline recovery exercise; ten new exercises per UTC day; no execution journal or signer",
+        "security": [
+          {
+            "localOperator": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecoveryRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success; cached public data includes timestamps, source freshness and coverage",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecoveryResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "401": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "403": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "404": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "409": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "413": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "415": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "429": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "503": {
+            "description": "Structured JSON error; no provider secrets"
+          }
+        }
+      }
+    },
+    "/api/10x/admin/launches/recovery-lab/{id}": {
+      "get": {
+        "summary": "Private full recovery scenario and deterministic replay",
+        "responses": {
+          "200": {
+            "description": "Success; cached public data includes timestamps, source freshness and coverage",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecoveryResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "401": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "403": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "404": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "409": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "413": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "415": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "429": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "503": {
+            "description": "Structured JSON error; no provider secrets"
+          }
+        },
+        "security": [
+          {
+            "localOperator": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ]
+      }
+    },
     "/api/10x/launches/lab": {
       "get": {
-        "summary": "Latest five hypothetical three-pool rehearsals: v1 net curve, v2 static quote-only fees or v3 hypothetical funded routes; no execution, signing or provider requests",
+        "summary": "Latest five versioned hypothetical three-pool curve, fee, funded-route, cycle or timed-fee rehearsals; no execution, signing or provider requests",
         "responses": {
           "200": {
             "description": "Success; cached public data includes timestamps, source freshness and coverage",
@@ -1699,7 +1862,7 @@
     },
     "/api/10x/admin/launches/lab": {
       "post": {
-        "summary": "Freeze and replay pinned Meteora v1 net curve, v2 static OnlyB fees or v3 bounded trader/atomic-route math; fixed 50/20/20/10, shared twenty scenarios per UTC day, no launch authority",
+        "summary": "Freeze and replay versioned curve, static fee, funded route, independent cycle or linear opening-fee math; fixed 50/20/20/10, shared twenty scenarios per UTC day, no launch authority",
         "security": [
           {
             "localOperator": []
@@ -7655,6 +7818,1286 @@
           "runs"
         ],
         "additionalProperties": false
+      },
+      "RecoveryList": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "scope": {
+            "type": "string",
+            "const": "local_launch_recovery_exercises"
+          },
+          "runs": {
+            "maxItems": 5,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                },
+                "created_at": {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                },
+                "result_hash": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                },
+                "record_hash": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                },
+                "result": {
+                  "type": "object",
+                  "properties": {
+                    "version": {
+                      "type": "string",
+                      "const": "offline-launch-recovery-v1"
+                    },
+                    "revision": {
+                      "type": "string",
+                      "const": "offline-launch-recovery-v1"
+                    },
+                    "scope": {
+                      "type": "string",
+                      "const": "hypothetical_launch_recovery_exercise"
+                    },
+                    "as_of": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                    },
+                    "modeled_state": {
+                      "type": "string",
+                      "enum": [
+                        "BLOCKED",
+                        "FUNDED",
+                        "TOKEN_CREATED",
+                        "NATIVE_POOL_CREATED",
+                        "OG_POOL_CREATED",
+                        "TENX_POOL_CREATED",
+                        "LOCKS_VERIFIED",
+                        "ACTIVE",
+                        "RECOVERY_REQUIRED",
+                        "ABORTED"
+                      ]
+                    },
+                    "steps": {
+                      "minItems": 5,
+                      "maxItems": 5,
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "step": {
+                            "type": "string",
+                            "enum": [
+                              "create_token",
+                              "create_native_pool",
+                              "create_og_pool",
+                              "create_tenx_pool",
+                              "lock_positions"
+                            ]
+                          },
+                          "idempotency_key": {
+                            "type": "string",
+                            "maxLength": 70
+                          },
+                          "phase": {
+                            "type": "string",
+                            "enum": [
+                              "not_started",
+                              "intent",
+                              "ready",
+                              "submitted",
+                              "uncertain",
+                              "failed",
+                              "confirmed",
+                              "conflict"
+                            ]
+                          },
+                          "attempts": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 2
+                          },
+                          "tx_alias": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "pattern": "^sim-tx-[a-z_]+-[12]$"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "receipts": {
+                            "maxItems": 2,
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "tx_alias": {
+                                  "type": "string",
+                                  "pattern": "^sim-tx-[a-z_]+-[12]$"
+                                },
+                                "status": {
+                                  "type": "string",
+                                  "enum": [
+                                    "pending",
+                                    "finalized",
+                                    "failed",
+                                    "missing"
+                                  ]
+                                },
+                                "configuration_matches": {
+                                  "type": "boolean"
+                                },
+                                "resource_matches": {
+                                  "type": "boolean"
+                                },
+                                "effect_applied": {
+                                  "type": "boolean"
+                                },
+                                "revision": {
+                                  "type": "integer",
+                                  "minimum": 1,
+                                  "maximum": 160
+                                }
+                              },
+                              "required": [
+                                "tx_alias",
+                                "status",
+                                "configuration_matches",
+                                "resource_matches",
+                                "effect_applied",
+                                "revision"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "effects": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 2
+                          },
+                          "uncertain": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "step",
+                          "idempotency_key",
+                          "phase",
+                          "attempts",
+                          "tx_alias",
+                          "receipts",
+                          "effects",
+                          "uncertain"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "restarts": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 80
+                    },
+                    "modeled_announcements": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 1
+                    },
+                    "trace": {
+                      "maxItems": 80,
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "index": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 79
+                          },
+                          "event": {
+                            "type": "string",
+                            "enum": [
+                              "tick",
+                              "reconcile",
+                              "submit",
+                              "chain_status",
+                              "retry_failed",
+                              "restart",
+                              "pause",
+                              "resume",
+                              "abort",
+                              "announce",
+                              "configuration_change",
+                              "verify"
+                            ]
+                          },
+                          "outcome": {
+                            "type": "string",
+                            "maxLength": 80
+                          },
+                          "modeled_state": {
+                            "type": "string",
+                            "enum": [
+                              "BLOCKED",
+                              "FUNDED",
+                              "TOKEN_CREATED",
+                              "NATIVE_POOL_CREATED",
+                              "OG_POOL_CREATED",
+                              "TENX_POOL_CREATED",
+                              "LOCKS_VERIFIED",
+                              "ACTIVE",
+                              "RECOVERY_REQUIRED",
+                              "ABORTED"
+                            ]
+                          },
+                          "phases": {
+                            "minItems": 5,
+                            "maxItems": 5,
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "enum": [
+                                "not_started",
+                                "intent",
+                                "ready",
+                                "submitted",
+                                "uncertain",
+                                "failed",
+                                "confirmed",
+                                "conflict"
+                              ]
+                            }
+                          },
+                          "submissions": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 10
+                          },
+                          "effects": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 10
+                          },
+                          "announcements": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 1
+                          }
+                        },
+                        "required": [
+                          "index",
+                          "event",
+                          "outcome",
+                          "modeled_state",
+                          "phases",
+                          "submissions",
+                          "effects",
+                          "announcements"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "launch_enabled": {
+                      "type": "boolean",
+                      "const": false
+                    },
+                    "signing_enabled": {
+                      "type": "boolean",
+                      "const": false
+                    },
+                    "publishing_enabled": {
+                      "type": "boolean",
+                      "const": false
+                    },
+                    "chain_evidence_verified": {
+                      "type": "boolean",
+                      "const": false
+                    },
+                    "provider_requests": {
+                      "type": "number",
+                      "const": 0
+                    },
+                    "gaps": {
+                      "maxItems": 12,
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "required": [
+                    "version",
+                    "revision",
+                    "scope",
+                    "as_of",
+                    "modeled_state",
+                    "steps",
+                    "restarts",
+                    "modeled_announcements",
+                    "trace",
+                    "launch_enabled",
+                    "signing_enabled",
+                    "publishing_enabled",
+                    "chain_evidence_verified",
+                    "provider_requests",
+                    "gaps"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "id",
+                "created_at",
+                "result_hash",
+                "record_hash",
+                "result"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "scope",
+          "runs"
+        ],
+        "additionalProperties": false
+      },
+      "RecoveryRequest": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "request_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 300
+          },
+          "scenario": {
+            "type": "object",
+            "properties": {
+              "version": {
+                "type": "string",
+                "const": "offline-launch-recovery-v1"
+              },
+              "as_of": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+              },
+              "edition_alias": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_-]{0,23}$"
+              },
+              "configuration_fingerprint": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              "assumed_preflight": {
+                "type": "object",
+                "properties": {
+                  "winner_frozen": {
+                    "type": "boolean"
+                  },
+                  "simulation_passed": {
+                    "type": "boolean"
+                  },
+                  "budget_funded": {
+                    "type": "boolean"
+                  },
+                  "same_chain_tenx_ready": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "winner_frozen",
+                  "simulation_passed",
+                  "budget_funded",
+                  "same_chain_tenx_ready"
+                ],
+                "additionalProperties": false
+              },
+              "events": {
+                "minItems": 1,
+                "maxItems": 80,
+                "type": "array",
+                "items": {
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string",
+                          "const": "tick"
+                        }
+                      },
+                      "required": [
+                        "kind"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string",
+                          "const": "reconcile"
+                        },
+                        "step": {
+                          "type": "string",
+                          "enum": [
+                            "create_token",
+                            "create_native_pool",
+                            "create_og_pool",
+                            "create_tenx_pool",
+                            "lock_positions"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "step"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string",
+                          "const": "submit"
+                        },
+                        "step": {
+                          "type": "string",
+                          "enum": [
+                            "create_token",
+                            "create_native_pool",
+                            "create_og_pool",
+                            "create_tenx_pool",
+                            "lock_positions"
+                          ]
+                        },
+                        "outcome": {
+                          "type": "string",
+                          "enum": [
+                            "pending",
+                            "finalized",
+                            "failed"
+                          ]
+                        },
+                        "lose_response": {
+                          "type": "boolean"
+                        },
+                        "configuration_matches": {
+                          "type": "boolean"
+                        },
+                        "resource_matches": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "step",
+                        "outcome",
+                        "lose_response",
+                        "configuration_matches",
+                        "resource_matches"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string",
+                          "const": "chain_status"
+                        },
+                        "step": {
+                          "type": "string",
+                          "enum": [
+                            "create_token",
+                            "create_native_pool",
+                            "create_og_pool",
+                            "create_tenx_pool",
+                            "lock_positions"
+                          ]
+                        },
+                        "attempt": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 2
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "finalized",
+                            "failed",
+                            "missing"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "step",
+                        "attempt",
+                        "status"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string",
+                          "const": "retry_failed"
+                        },
+                        "step": {
+                          "type": "string",
+                          "enum": [
+                            "create_token",
+                            "create_native_pool",
+                            "create_og_pool",
+                            "create_tenx_pool",
+                            "lock_positions"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "step"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string",
+                          "enum": [
+                            "restart",
+                            "pause",
+                            "resume",
+                            "abort",
+                            "announce"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "kind"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string",
+                          "const": "configuration_change"
+                        },
+                        "fingerprint": {
+                          "type": "string",
+                          "pattern": "^[a-f0-9]{64}$"
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "fingerprint"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string",
+                          "const": "verify"
+                        },
+                        "deployment_matches": {
+                          "type": "boolean"
+                        },
+                        "permanent_locks": {
+                          "type": "boolean"
+                        },
+                        "fee_rights": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "deployment_matches",
+                        "permanent_locks",
+                        "fee_rights"
+                      ],
+                      "additionalProperties": false
+                    }
+                  ]
+                }
+              }
+            },
+            "required": [
+              "version",
+              "as_of",
+              "edition_alias",
+              "configuration_fingerprint",
+              "assumed_preflight",
+              "events"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "request_id",
+          "reason",
+          "scenario"
+        ],
+        "additionalProperties": false
+      },
+      "RecoveryResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "record",
+          "replay"
+        ],
+        "properties": {
+          "record": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "created_at": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+              },
+              "reason": {
+                "type": "string"
+              },
+              "request_hash": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              "input_hash": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              "result_hash": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              "record_hash": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              "inputs": {
+                "type": "object",
+                "properties": {
+                  "version": {
+                    "type": "string",
+                    "const": "offline-launch-recovery-v1"
+                  },
+                  "as_of": {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                  },
+                  "edition_alias": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-z0-9_-]{0,23}$"
+                  },
+                  "configuration_fingerprint": {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{64}$"
+                  },
+                  "assumed_preflight": {
+                    "type": "object",
+                    "properties": {
+                      "winner_frozen": {
+                        "type": "boolean"
+                      },
+                      "simulation_passed": {
+                        "type": "boolean"
+                      },
+                      "budget_funded": {
+                        "type": "boolean"
+                      },
+                      "same_chain_tenx_ready": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "winner_frozen",
+                      "simulation_passed",
+                      "budget_funded",
+                      "same_chain_tenx_ready"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "events": {
+                    "minItems": 1,
+                    "maxItems": 80,
+                    "type": "array",
+                    "items": {
+                      "oneOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": {
+                              "type": "string",
+                              "const": "tick"
+                            }
+                          },
+                          "required": [
+                            "kind"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": {
+                              "type": "string",
+                              "const": "reconcile"
+                            },
+                            "step": {
+                              "type": "string",
+                              "enum": [
+                                "create_token",
+                                "create_native_pool",
+                                "create_og_pool",
+                                "create_tenx_pool",
+                                "lock_positions"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "kind",
+                            "step"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": {
+                              "type": "string",
+                              "const": "submit"
+                            },
+                            "step": {
+                              "type": "string",
+                              "enum": [
+                                "create_token",
+                                "create_native_pool",
+                                "create_og_pool",
+                                "create_tenx_pool",
+                                "lock_positions"
+                              ]
+                            },
+                            "outcome": {
+                              "type": "string",
+                              "enum": [
+                                "pending",
+                                "finalized",
+                                "failed"
+                              ]
+                            },
+                            "lose_response": {
+                              "type": "boolean"
+                            },
+                            "configuration_matches": {
+                              "type": "boolean"
+                            },
+                            "resource_matches": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": [
+                            "kind",
+                            "step",
+                            "outcome",
+                            "lose_response",
+                            "configuration_matches",
+                            "resource_matches"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": {
+                              "type": "string",
+                              "const": "chain_status"
+                            },
+                            "step": {
+                              "type": "string",
+                              "enum": [
+                                "create_token",
+                                "create_native_pool",
+                                "create_og_pool",
+                                "create_tenx_pool",
+                                "lock_positions"
+                              ]
+                            },
+                            "attempt": {
+                              "type": "integer",
+                              "minimum": 1,
+                              "maximum": 2
+                            },
+                            "status": {
+                              "type": "string",
+                              "enum": [
+                                "finalized",
+                                "failed",
+                                "missing"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "kind",
+                            "step",
+                            "attempt",
+                            "status"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": {
+                              "type": "string",
+                              "const": "retry_failed"
+                            },
+                            "step": {
+                              "type": "string",
+                              "enum": [
+                                "create_token",
+                                "create_native_pool",
+                                "create_og_pool",
+                                "create_tenx_pool",
+                                "lock_positions"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "kind",
+                            "step"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": {
+                              "type": "string",
+                              "enum": [
+                                "restart",
+                                "pause",
+                                "resume",
+                                "abort",
+                                "announce"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "kind"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": {
+                              "type": "string",
+                              "const": "configuration_change"
+                            },
+                            "fingerprint": {
+                              "type": "string",
+                              "pattern": "^[a-f0-9]{64}$"
+                            }
+                          },
+                          "required": [
+                            "kind",
+                            "fingerprint"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": {
+                              "type": "string",
+                              "const": "verify"
+                            },
+                            "deployment_matches": {
+                              "type": "boolean"
+                            },
+                            "permanent_locks": {
+                              "type": "boolean"
+                            },
+                            "fee_rights": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": [
+                            "kind",
+                            "deployment_matches",
+                            "permanent_locks",
+                            "fee_rights"
+                          ],
+                          "additionalProperties": false
+                        }
+                      ]
+                    }
+                  }
+                },
+                "required": [
+                  "version",
+                  "as_of",
+                  "edition_alias",
+                  "configuration_fingerprint",
+                  "assumed_preflight",
+                  "events"
+                ],
+                "additionalProperties": false
+              },
+              "result": {
+                "type": "object",
+                "properties": {
+                  "version": {
+                    "type": "string",
+                    "const": "offline-launch-recovery-v1"
+                  },
+                  "revision": {
+                    "type": "string",
+                    "const": "offline-launch-recovery-v1"
+                  },
+                  "scope": {
+                    "type": "string",
+                    "const": "hypothetical_launch_recovery_exercise"
+                  },
+                  "as_of": {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                  },
+                  "modeled_state": {
+                    "type": "string",
+                    "enum": [
+                      "BLOCKED",
+                      "FUNDED",
+                      "TOKEN_CREATED",
+                      "NATIVE_POOL_CREATED",
+                      "OG_POOL_CREATED",
+                      "TENX_POOL_CREATED",
+                      "LOCKS_VERIFIED",
+                      "ACTIVE",
+                      "RECOVERY_REQUIRED",
+                      "ABORTED"
+                    ]
+                  },
+                  "steps": {
+                    "minItems": 5,
+                    "maxItems": 5,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "step": {
+                          "type": "string",
+                          "enum": [
+                            "create_token",
+                            "create_native_pool",
+                            "create_og_pool",
+                            "create_tenx_pool",
+                            "lock_positions"
+                          ]
+                        },
+                        "idempotency_key": {
+                          "type": "string",
+                          "maxLength": 70
+                        },
+                        "phase": {
+                          "type": "string",
+                          "enum": [
+                            "not_started",
+                            "intent",
+                            "ready",
+                            "submitted",
+                            "uncertain",
+                            "failed",
+                            "confirmed",
+                            "conflict"
+                          ]
+                        },
+                        "attempts": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 2
+                        },
+                        "tx_alias": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "pattern": "^sim-tx-[a-z_]+-[12]$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "receipts": {
+                          "maxItems": 2,
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "tx_alias": {
+                                "type": "string",
+                                "pattern": "^sim-tx-[a-z_]+-[12]$"
+                              },
+                              "status": {
+                                "type": "string",
+                                "enum": [
+                                  "pending",
+                                  "finalized",
+                                  "failed",
+                                  "missing"
+                                ]
+                              },
+                              "configuration_matches": {
+                                "type": "boolean"
+                              },
+                              "resource_matches": {
+                                "type": "boolean"
+                              },
+                              "effect_applied": {
+                                "type": "boolean"
+                              },
+                              "revision": {
+                                "type": "integer",
+                                "minimum": 1,
+                                "maximum": 160
+                              }
+                            },
+                            "required": [
+                              "tx_alias",
+                              "status",
+                              "configuration_matches",
+                              "resource_matches",
+                              "effect_applied",
+                              "revision"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "effects": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 2
+                        },
+                        "uncertain": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "step",
+                        "idempotency_key",
+                        "phase",
+                        "attempts",
+                        "tx_alias",
+                        "receipts",
+                        "effects",
+                        "uncertain"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "restarts": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 80
+                  },
+                  "modeled_announcements": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 1
+                  },
+                  "trace": {
+                    "maxItems": 80,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "index": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 79
+                        },
+                        "event": {
+                          "type": "string",
+                          "enum": [
+                            "tick",
+                            "reconcile",
+                            "submit",
+                            "chain_status",
+                            "retry_failed",
+                            "restart",
+                            "pause",
+                            "resume",
+                            "abort",
+                            "announce",
+                            "configuration_change",
+                            "verify"
+                          ]
+                        },
+                        "outcome": {
+                          "type": "string",
+                          "maxLength": 80
+                        },
+                        "modeled_state": {
+                          "type": "string",
+                          "enum": [
+                            "BLOCKED",
+                            "FUNDED",
+                            "TOKEN_CREATED",
+                            "NATIVE_POOL_CREATED",
+                            "OG_POOL_CREATED",
+                            "TENX_POOL_CREATED",
+                            "LOCKS_VERIFIED",
+                            "ACTIVE",
+                            "RECOVERY_REQUIRED",
+                            "ABORTED"
+                          ]
+                        },
+                        "phases": {
+                          "minItems": 5,
+                          "maxItems": 5,
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "enum": [
+                              "not_started",
+                              "intent",
+                              "ready",
+                              "submitted",
+                              "uncertain",
+                              "failed",
+                              "confirmed",
+                              "conflict"
+                            ]
+                          }
+                        },
+                        "submissions": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 10
+                        },
+                        "effects": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 10
+                        },
+                        "announcements": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 1
+                        }
+                      },
+                      "required": [
+                        "index",
+                        "event",
+                        "outcome",
+                        "modeled_state",
+                        "phases",
+                        "submissions",
+                        "effects",
+                        "announcements"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "launch_enabled": {
+                    "type": "boolean",
+                    "const": false
+                  },
+                  "signing_enabled": {
+                    "type": "boolean",
+                    "const": false
+                  },
+                  "publishing_enabled": {
+                    "type": "boolean",
+                    "const": false
+                  },
+                  "chain_evidence_verified": {
+                    "type": "boolean",
+                    "const": false
+                  },
+                  "provider_requests": {
+                    "type": "number",
+                    "const": 0
+                  },
+                  "gaps": {
+                    "maxItems": 12,
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "version",
+                  "revision",
+                  "scope",
+                  "as_of",
+                  "modeled_state",
+                  "steps",
+                  "restarts",
+                  "modeled_announcements",
+                  "trace",
+                  "launch_enabled",
+                  "signing_enabled",
+                  "publishing_enabled",
+                  "chain_evidence_verified",
+                  "provider_requests",
+                  "gaps"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "id",
+              "created_at",
+              "reason",
+              "request_hash",
+              "input_hash",
+              "result_hash",
+              "record_hash",
+              "inputs",
+              "result"
+            ],
+            "additionalProperties": false
+          },
+          "replay": {
+            "const": "verified"
+          }
+        }
       },
       "LaunchList": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",

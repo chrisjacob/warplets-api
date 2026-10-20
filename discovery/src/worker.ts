@@ -6,6 +6,8 @@ import { createRewards, rewardList, rewardRecord } from "./rewards";
 import { RewardError } from "./reward-math";
 import { createLaunch, launchList, launchRecord } from "./launch-lab";
 import { LaunchError } from "./launch-math";
+import {createRecovery,recoveryList,recoveryRecord} from "./launch-recovery-store";
+import {RecoveryError} from "./launch-recovery-math";
 import { z } from "zod";
 import { candidateCard } from "./candidate-card";
 import { identityRoute, IdentityError } from "./identity";
@@ -118,6 +120,9 @@ export async function handle(request: Request, env: Env): Promise<Response> {
   if (path.startsWith("/api/10x/attention/") || path.startsWith("/api/10x/admin/attention/")) return contentRoute(request, env.TENX_DB, admin);
   if (method === "GET" && path === "/api/10x/rewards/lab") return json(await rewardList(env.TENX_DB));
   if(method==="GET"&&path==="/api/10x/launches/lab")return json(await launchList(env.TENX_DB));
+  if(method==="GET"&&path==="/api/10x/launches/recovery-lab")return json(await recoveryList(env.TENX_DB));
+  const recoveryMatch=path.match(/^\/api\/10x\/admin\/launches\/recovery-lab\/([^/]+)$/);
+  if(method==="GET"&&recoveryMatch){const record=await recoveryRecord(env.TENX_DB,recoveryMatch[1]);return record?json({record,replay:"verified"}):json({error:"recovery_record_not_found"},404);}
   const launchMatch=path.match(/^\/api\/10x\/admin\/launches\/lab\/([^/]+)$/);
   if(method==="GET"&&launchMatch){const record=await launchRecord(env.TENX_DB,launchMatch[1]);return record?json({record,replay:"verified"}):json({error:"launch_record_not_found"},404);}
   const rewardMatch = path.match(/^\/api\/10x\/admin\/rewards\/lab\/([^/]+)$/);
@@ -264,6 +269,7 @@ export async function handle(request: Request, env: Env): Promise<Response> {
   if (method === "POST" && admin) {
     const body = await adminJson(request);
     if(path==="/api/10x/admin/launches/lab")return json({record:await createLaunch(env.TENX_DB,body),replay:"verified"});
+    if(path==="/api/10x/admin/launches/recovery-lab")return json({record:await createRecovery(env.TENX_DB,body),replay:"verified"});
     const reason = z.object({ reason: z.string().min(3).max(300) }).passthrough().parse(body).reason;
     if (path === "/api/10x/admin/rewards/lab") return json({ record: await createRewards(env.TENX_DB, body), replay: "verified" });
     if (path === "/api/10x/admin/backing/open") return json(await openBacking(env.TENX_DB,body));
@@ -339,6 +345,7 @@ export default {
       }
       if (error instanceof RequestSecurityError) return json({ error: error.message }, error.status);
       if(error instanceof LaunchError)return json({error:error.message},error.status);
+      if(error instanceof RecoveryError)return json({error:error.message},error.status);
       if (error instanceof RewardError) return json({ error: error.message }, error.message === "reward_daily_limit" ? 429 : error.message === "reward_request_conflict" ? 409 : error.message.includes("mismatch") ? 503 : 400);
       if(error instanceof BackingError)return json({error:error.message},error.status);
       if(error instanceof OperationsError)return json({error:error.message},503);

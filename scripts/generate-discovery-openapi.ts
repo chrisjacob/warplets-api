@@ -6,6 +6,7 @@ import {HoldReviewPage,HoldReviewRecord,HoldReviewRequest,HoldReviewReply} from 
 import {ContentOperations} from "../discovery/src/content-operations-model";
 import { CardListResponse } from "../app/src/discovery/client";
 import { RewardList, RewardRecord, RewardRequest } from "../discovery/src/reward-model";
+import {RecoveryList,RecoveryRecord,RecoveryRequest} from "../discovery/src/launch-recovery-model";
 import { LaunchList, LaunchRecord, LaunchRequest } from "../discovery/src/launch-model";
 import { ContentAppealRequest, ContentCampaign, ContentCampaignDetail, ContentCampaignList, ContentCampaignRequest, ContentChangeResponse, ContentPage, ContentRecord, ContentReviewRequest, ContentSubmissionRequest } from "../discovery/src/content-model";
 import { AssessedCandidateSchema, PolicySchema, ProofSchema } from "../discovery/src/model";
@@ -62,8 +63,11 @@ const spec = {
     "/api/10x/admin/attention/review": {post:{ ...post("Append an optimistic-concurrency moderation decision and audit hash atomically; visibility is not authorship/reward verification").post, ...responseSchema("ContentChangeResponse"), requestBody:{required:true,content:{"application/json":{schema:{$ref:"#/components/schemas/ContentReviewRequest"}}}} }},
     "/api/10x/admin/attention/submissions/{id}": read("Operator-only full review history and deterministic hash verification", { ...responseSchema("ContentRecord"), security:[{localOperator:[]}],parameters:[parameter("id","path",{type:"string",format:"uuid"},true)] }),
     "/api/10x/rewards/lab": read("Latest five hypothetical attention scenarios; hash-checked aggregates, no participant inputs or provider requests", responseSchema("RewardList")),
-    "/api/10x/launches/lab": read("Latest five hypothetical three-pool rehearsals: v1 net curve, v2 static quote-only fees or v3 hypothetical funded routes; no execution, signing or provider requests",responseSchema("LaunchList")),
-    "/api/10x/admin/launches/lab": {post:{...post("Freeze and replay pinned Meteora v1 net curve, v2 static OnlyB fees or v3 bounded trader/atomic-route math; fixed 50/20/20/10, shared twenty scenarios per UTC day, no launch authority").post,...responseSchema("LaunchResponse"),requestBody:{required:true,content:{"application/json":{schema:{$ref:"#/components/schemas/LaunchRequest"}}}}}},
+    "/api/10x/launches/recovery-lab": read("Latest five immutable hypothetical recovery exercises; no real transaction or publication",responseSchema("RecoveryList")),
+    "/api/10x/admin/launches/recovery-lab": {post:{...post("Save/replay a bounded offline recovery exercise; ten new exercises per UTC day; no execution journal or signer").post,...responseSchema("RecoveryResponse"),requestBody:{required:true,content:{"application/json":{schema:{$ref:"#/components/schemas/RecoveryRequest"}}}}}},
+    "/api/10x/admin/launches/recovery-lab/{id}": read("Private full recovery scenario and deterministic replay",{...responseSchema("RecoveryResponse"),security:[{localOperator:[]}],parameters:[parameter("id","path",{type:"string",format:"uuid"},true)]}),
+    "/api/10x/launches/lab": read("Latest five versioned hypothetical three-pool curve, fee, funded-route, cycle or timed-fee rehearsals; no execution, signing or provider requests",responseSchema("LaunchList")),
+    "/api/10x/admin/launches/lab": {post:{...post("Freeze and replay versioned curve, static fee, funded route, independent cycle or linear opening-fee math; fixed 50/20/20/10, shared twenty scenarios per UTC day, no launch authority").post,...responseSchema("LaunchResponse"),requestBody:{required:true,content:{"application/json":{schema:{$ref:"#/components/schemas/LaunchRequest"}}}}}},
     "/api/10x/admin/launches/lab/{id}": read("Operator-only frozen assumptions and deterministic curve replay",{...responseSchema("LaunchResponse"),security:[{localOperator:[]}],parameters:[parameter("id","path",{type:"string",format:"uuid"},true)]}),
     "/api/10x/admin/rewards/lab": {post:{...post("Freeze and replay offline ten-day/ten-percent attention accounting; both unapproved boost options, 20 scenarios per UTC day, no claims").post,...responseSchema("RewardResponse"),requestBody:{required:true,content:{"application/json":{schema:{$ref:"#/components/schemas/RewardRequest"}}}}}},
     "/api/10x/admin/rewards/lab/{id}": read("Operator-only frozen inputs, raw ranks and deterministic accounting replay; no provider requests", {...responseSchema("RewardResponse"),security:[{localOperator:[]}],parameters:[parameter("id","path",{type:"string",format:"uuid"},true)]}),
@@ -120,6 +124,8 @@ const spec = {
     HoldReviewPage:z.toJSONSchema(HoldReviewPage),HoldReviewRecord:z.toJSONSchema(HoldReviewRecord),HoldReviewRequest:z.toJSONSchema(HoldReviewRequest),HoldReviewReply:z.toJSONSchema(HoldReviewReply),
     ContentOperations:z.toJSONSchema(ContentOperations),
     RewardList: z.toJSONSchema(RewardList,{unrepresentable:"any"}),
+    RecoveryList:z.toJSONSchema(RecoveryList),RecoveryRequest:z.toJSONSchema(RecoveryRequest),
+    RecoveryResponse:{type:"object",additionalProperties:false,required:["record","replay"],properties:{record:z.toJSONSchema(RecoveryRecord),replay:{const:"verified"}}},
     LaunchList: z.toJSONSchema(LaunchList,{unrepresentable:"any"}),
     LaunchRequest: z.toJSONSchema(LaunchRequest,{unrepresentable:"any"}),
     LaunchResponse: {type:"object",additionalProperties:false,required:["record","replay"],properties:{record:z.toJSONSchema(LaunchRecord,{unrepresentable:"any"}),replay:{const:"verified"}}},
