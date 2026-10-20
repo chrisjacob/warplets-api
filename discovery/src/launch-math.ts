@@ -1,6 +1,7 @@
 import { AnyLaunchScenario, LaunchResult, LaunchScenario, LAUNCH_MATH_REVISION, METEORA_REVISION, type LaunchInput } from "./launch-model";
 import {evaluateFeeLaunch,feeSeedScenario} from "./launch-fees";
 import {evaluateRouteLaunch,routeFeeScenario} from "./launch-routes";
+import {evaluateCycleLaunch,cycleRouteScenario} from "./launch-cycles";
 import { amountA, amountB, curveSwap, liquidityFromA, LaunchError, MAX_SQRT, MIN_SQRT, Q128, Q64, U128_MAX, U64_MAX } from "./launch-curve";
 export { LaunchError } from "./launch-curve";
 type Pool = "native" | "og" | "tenx";
@@ -58,6 +59,7 @@ export function exampleLaunch():LaunchInput{
 export function evaluateLaunch(rawInput:unknown){
   const input=AnyLaunchScenario.parse(rawInput);
   if(input.version==="launch-curve-lab-v1")return evaluateNetLaunch(input);
+  if(input.version==="launch-cycle-lab-v4")return evaluateCycleLaunch(input,evaluateNetLaunch(feeSeedScenario(routeFeeScenario(cycleRouteScenario(input)))));
   if(input.version==="launch-route-lab-v3")return evaluateRouteLaunch(input,evaluateNetLaunch(feeSeedScenario(routeFeeScenario(input))));
   return evaluateFeeLaunch(input,evaluateNetLaunch(feeSeedScenario(input)));
 }

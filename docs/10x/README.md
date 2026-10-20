@@ -6,7 +6,9 @@ Latest engineering review: [security fixes and credential follow-up](29-security
 
 Previous engineering review: [measured performance improvements](28-performance-review.md), including compact Discover cards, deferred wallet code, retained-shell navigation and an aggregate startup budget.
 
-Current checkpoint: [wider wallet funding collection](41-wallet-funding-capacity.md). V5 collects up to twenty direct wallet windows with all gates and free quotas unchanged; legacy hashes remain replayable. A six-call local exercise completed one more window before reaching the unchanged twelve-body bound. **0/10 eligible** remains; no deploy.
+Current checkpoint: [independent closed-cycle probes](42-closed-cycle-probes.md). Finite hypothetical external depth, fees and funded network costs now test quote → ATTN → quote → starting-asset alternatives, with exact profit guards and unchanged v1–v3 replay. Sequential execution, dynamic fees and lock/devnet proofs remain open. Local only; no deployment or financial action.
+
+Previous coverage checkpoint: [wider wallet funding collection](41-wallet-funding-capacity.md). V5 collects up to twenty direct wallet windows with all gates and free quotas unchanged; legacy hashes remain replayable. A six-call local exercise completed one more window before reaching the unchanged twelve-body bound. **0/10 eligible** remains; no deploy.
 
 Previous checkpoint: [hypothetical funded routes and ordered competition](40-funded-routes-and-ordering.md). Trader balance bounds, two-leg receipt propagation and whole-action rollback now extend the static fee lab. Race/no-race presets expose the effect of an intervening buy on an unchanged minimum receipt. Closed-cycle arbitrage, dynamic fees and actual route/lock/devnet proofs remain open. Local only; no deploy or execution.
 
