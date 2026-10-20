@@ -5,6 +5,9 @@ it("keeps navigation inside the local discovery router with exact queries", () =
   expect(discoveryDestination("/backing", current, normal)?.pathname).toBe("/backing");
   expect(discoveryDestination("/token/solana/mint?mode=fixture", current, normal)?.search).toBe("?mode=fixture");
   expect(isDiscoveryPath("/rewards/")).toBe(true);
+  expect(discoveryDestination("/submit?campaign=00000000-0000-4000-8000-000000000001", current, normal)?.search).toContain("campaign=");
+  expect(isDiscoveryPath("/attention")).toBe(true);
+  expect(isDiscoveryPath("/campaign/00000000-0000-4000-8000-000000000001")).toBe(true);
   expect(isDiscoveryPath("/elections/retained-id")).toBe(true);
 });
 it("leaves modified clicks, new tabs, downloads and prevented clicks to the browser", () => {

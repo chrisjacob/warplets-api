@@ -1,0 +1,40 @@
+import { contentCampaign, contentCampaigns, contentPage, contentRecord, createContentCampaign, submitContent, changeContent } from "./content";
+import { ContentError } from "./content-url";
+import { requireContentIdentity, contentIdentityBody } from "./identity";
+import { API_HEADERS, adminJson } from "./request-security";
+export async function contentRoute(request: Request, db: D1Database, admin: boolean, at = new Date()): Promise<Response> {
+  const url = new URL(request.url), path = url.pathname.replace(/\/+$/, ""), cursor = url.searchParams.get("cursor");
+  const json = (data: unknown, status = 200) => Response.json(data, { status, headers: { ...API_HEADERS, vary: "Cookie" } });
+  if (admin) {
+    // The Worker performs Bearer + browser admission before entering this branch.
+    if (request.method === "POST" && path === "/api/10x/admin/attention/campaigns") return json(await createContentCampaign(db, await adminJson(request), new Date()));
+    if (request.method === "POST" && path === "/api/10x/admin/attention/review") return json(await changeContent(db, await adminJson(request), null, new Date()));
+    if (request.method === "GET" && path === "/api/10x/admin/attention/queue") return json(await contentPage(db, { status: url.searchParams.get("status") ?? undefined, cursor }, at));
+    const match = path.match(/^\/api\/10x\/admin\/attention\/submissions\/([^/]+)$/);
+    if (request.method === "GET" && match) {
+      const record = await contentRecord(db, match[1]!); if (!record) throw new ContentError("content_not_found", 404); return json(record);
+    }
+  } else {
+    if (request.method === "GET" && path === "/api/10x/attention/campaigns") return json(await contentCampaigns(db, cursor, at));
+    const campaign = path.match(/^\/api\/10x\/attention\/campaigns\/([^/]+)$/);
+    if (request.method === "GET" && campaign) {
+      const record = await contentCampaign(db, campaign[1]!); if (!record) throw new ContentError("content_campaign_not_found", 404);
+      const { reason: _r, request_hash: _q, record_hash: _h, ...publicRecord } = record;
+      return json({ campaign: publicRecord, feed: await contentPage(db, { campaign: record.id, public: true, cursor }, at) });
+    }
+    const p = await requireContentIdentity(request, db, at, request.method === "POST");
+    if (request.method === "GET" && path === "/api/10x/attention/mine") return json(await contentPage(db, { owner: p.identity_id, cursor }, at));
+    const mine = path.match(/^\/api\/10x\/attention\/mine\/([^/]+)$/);
+    if (request.method === "GET" && mine) {
+      const record = await contentRecord(db, mine[1]!, p.identity_id); if (!record) throw new ContentError("content_not_found", 404); return json(record);
+    }
+    if (request.method === "POST" && ["/api/10x/attention/submissions", "/api/10x/attention/appeals"].includes(path)) {
+      const input = await contentIdentityBody(request), admittedAt = new Date();
+      // A slowly streamed body cannot retain an expired session or backdate a
+      // submission across the campaign's cutoff using request-start time.
+      const principal = await requireContentIdentity(request, db, admittedAt, true);
+      return json(path.endsWith("/submissions") ? await submitContent(db, input, principal, admittedAt) : await changeContent(db, input, principal, admittedAt));
+    }
+  }
+  throw new ContentError("content_not_found", 404);
+}

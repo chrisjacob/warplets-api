@@ -55,6 +55,17 @@ async function current(db: D1Database, request: Request, origin: string, now: st
   return db.prepare("SELECT token_hash,identity_id,origin,expires_at FROM tenx_identity_sessions WHERE token_hash=? AND origin=? AND revoked_at IS NULL AND expires_at>?")
     .bind(await sessionHash(token), origin, now).first<Session>();
 }
+export async function requireContentIdentity(request: Request, db: D1Database, at: Date, write: boolean) {
+  const origin = browserOrigin(request);
+  if (request.headers.has("origin") && request.headers.get("origin") !== origin) fail("identity_origin_required", 403);
+  const site = request.headers.get("sec-fetch-site");
+  if (site && site !== "same-origin" && site !== "none") fail("identity_cross_site_request", 403);
+  if (write) requireWriteOrigin(request, origin);
+  const session = await current(db, request, origin, at.toISOString());
+  if (!session?.identity_id) fail("identity_session_required", 401);
+  return { ...session, identity_id: session.identity_id };
+}
+export const contentIdentityBody = body;
 async function view(db: D1Database, session: Session | null) {
   const identity = session?.identity_id ?? null;
   const wallets = identity ? (await db.prepare("SELECT address,linked_at FROM tenx_identity_wallets WHERE identity_id=? ORDER BY linked_at,address LIMIT 10").bind(identity).all()).results : [];

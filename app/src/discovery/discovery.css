@@ -29,3 +29,12 @@
 .tenx-backing-fields { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; }
 .tenx-backing-lab label { display: grid; gap: 8px; margin-block: 12px; }
 .tenx-backing-window td small,.tenx-backing-lab td small { display: block; margin-top: 6px; }
+.tenx-content-form form { margin-block: 16px; }
+.tenx-content-form label { display: grid; gap: 8px; margin-block: 14px; }
+.tenx-content-form fieldset { border: 1px solid #30453a; border-radius: 10px; padding: 16px; }
+.tenx-content-form input:not([type=checkbox]),.tenx-content-form select,.tenx-content-form textarea { width: 100%; min-width: 0; padding: 10px; border: 1px solid #435d49; border-radius: 6px; background: #101811; color: #e2ede6; font: inherit; }
+.tenx-content-form .tenx-content-check { display: flex; align-items: flex-start; gap: 10px; line-height: 1.6; }
+.tenx-content-check input { margin-top: 4px; accent-color: #6be78d; }
+.tenx-content-item { border-top: 1px solid #30453a; padding-block: 20px; margin-top: 16px; overflow-wrap: anywhere; }
+.tenx-content-url { display: block; margin-block: 12px; overflow-wrap: anywhere; }
+.tenx-content-form :disabled { opacity: .65; }

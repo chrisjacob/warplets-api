@@ -1,10 +1,12 @@
 import { API_HEADERS, LOCAL_ORIGINS, authorized, requireAdminBrowser, adminJson, RequestSecurityError } from "./request-security";
+import { contentRoute } from "./content-route";
+import { ContentError } from "./content-url";
 export { authorized } from "./request-security";
 import { createRewards, rewardList, rewardRecord } from "./rewards";
 import { RewardError } from "./reward-math";
 import { z } from "zod";
 import { candidateCard } from "./candidate-card";
-import { identityRoute } from "./identity";
+import { identityRoute, IdentityError } from "./identity";
 import { backingList, backingRecord, BackingError, freezeBacking, openBacking, settleBacking } from "./backing";
 import { runBackingIndex, backingIndexLimit } from "./backing-index";
 import { Address, assess, CandidateSchema, DEFAULT_POLICY, MarketSchema, Signature, shortlist } from "./model";
@@ -110,6 +112,7 @@ export async function handle(request: Request, env: Env): Promise<Response> {
     catch (error) { if (error instanceof RequestSecurityError) return json({ error: error.message }, error.status); throw error; }
   }
   if (method !== "GET" && method !== "POST") return json({ error: "method_not_allowed" }, 405);
+  if (path.startsWith("/api/10x/attention/") || path.startsWith("/api/10x/admin/attention/")) return contentRoute(request, env.TENX_DB, admin);
   if (method === "GET" && path === "/api/10x/rewards/lab") return json(await rewardList(env.TENX_DB));
   const rewardMatch = path.match(/^\/api\/10x\/admin\/rewards\/lab\/([^/]+)$/);
   if (method === "GET" && rewardMatch) {
@@ -323,6 +326,9 @@ export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     try { return await handle(request, env); }
     catch (error) {
+      if (error instanceof ContentError || error instanceof IdentityError) {
+        const response = json({ error: error.message }, error.status); response.headers.set("vary", "Cookie"); return response;
+      }
       if (error instanceof RequestSecurityError) return json({ error: error.message }, error.status);
       if (error instanceof RewardError) return json({ error: error.message }, error.message === "reward_daily_limit" ? 429 : error.message === "reward_request_conflict" ? 409 : error.message.includes("mismatch") ? 503 : 400);
       if(error instanceof BackingError)return json({error:error.message},error.status);
