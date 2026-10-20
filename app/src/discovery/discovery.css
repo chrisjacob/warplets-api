@@ -38,3 +38,6 @@
 .tenx-content-item { border-top: 1px solid #30453a; padding-block: 20px; margin-top: 16px; overflow-wrap: anywhere; }
 .tenx-content-url { display: block; margin-block: 12px; overflow-wrap: anywhere; }
 .tenx-content-form :disabled { opacity: .65; }
+.tenx-allocation-bar{display:flex;gap:2px;margin:18px 0;min-height:44px;font-size:11px;text-align:center;align-items:stretch}
+.tenx-allocation-bar span{display:flex;align-items:center;justify-content:center;padding:6px 2px;background:#214b31;color:#e0f9e8;border:1px solid #4b8960;min-width:0;overflow-wrap:anywhere}
+.tenx-allocation-bar span:nth-child(2){background:#244647}.tenx-allocation-bar span:nth-child(3){background:#3a3e27}.tenx-allocation-bar span:nth-child(4){background:#403249}

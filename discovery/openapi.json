@@ -1653,6 +1653,169 @@
         }
       }
     },
+    "/api/10x/launches/lab": {
+      "get": {
+        "summary": "Latest five local hypothetical three-pool curve rehearsals; no execution, fees, signing or provider requests",
+        "responses": {
+          "200": {
+            "description": "Success; cached public data includes timestamps, source freshness and coverage",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LaunchList"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "401": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "403": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "404": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "409": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "413": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "415": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "429": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "503": {
+            "description": "Structured JSON error; no provider secrets"
+          }
+        }
+      }
+    },
+    "/api/10x/admin/launches/lab": {
+      "post": {
+        "summary": "Freeze and replay pinned Meteora net curve math; fixed 50/20/20/10, twenty scenarios per UTC day, no launch authority",
+        "security": [
+          {
+            "localOperator": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LaunchRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success; cached public data includes timestamps, source freshness and coverage",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LaunchResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "401": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "403": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "404": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "409": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "413": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "415": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "429": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "503": {
+            "description": "Structured JSON error; no provider secrets"
+          }
+        }
+      }
+    },
+    "/api/10x/admin/launches/lab/{id}": {
+      "get": {
+        "summary": "Operator-only frozen assumptions and deterministic curve replay",
+        "responses": {
+          "200": {
+            "description": "Success; cached public data includes timestamps, source freshness and coverage",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LaunchResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "401": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "403": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "404": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "409": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "413": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "415": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "429": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "503": {
+            "description": "Structured JSON error; no provider secrets"
+          }
+        },
+        "security": [
+          {
+            "localOperator": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ]
+      }
+    },
     "/api/10x/admin/rewards/lab": {
       "post": {
         "summary": "Freeze and replay offline ten-day/ten-percent attention accounting; both unapproved boost options, 20 scenarios per UTC day, no claims",
@@ -7492,6 +7655,1626 @@
           "runs"
         ],
         "additionalProperties": false
+      },
+      "LaunchList": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "scope": {
+            "type": "string",
+            "const": "local_hypothetical_launch_curve_lab"
+          },
+          "runs": {
+            "maxItems": 5,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                },
+                "created_at": {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                },
+                "result_hash": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                },
+                "record_hash": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                },
+                "result": {
+                  "type": "object",
+                  "properties": {
+                    "version": {
+                      "type": "string",
+                      "const": "launch-curve-lab-v1"
+                    },
+                    "math_revision": {
+                      "type": "string",
+                      "const": "meteora-cl-79ebbfe-v1"
+                    },
+                    "sdk_version": {
+                      "type": "string",
+                      "const": "1.5.1"
+                    },
+                    "source_commit": {
+                      "type": "string",
+                      "const": "79ebbfe59a225e641a2f37cd03404f26de1b0c8e"
+                    },
+                    "as_of": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                    },
+                    "source": {
+                      "type": "string",
+                      "const": "hypothetical_operator_inputs"
+                    },
+                    "scope": {
+                      "type": "string",
+                      "const": "concentrated_liquidity_net_curve_only"
+                    },
+                    "supply_raw": {
+                      "type": "string",
+                      "maxLength": 20,
+                      "pattern": "^(0|[1-9]\\d*)$"
+                    },
+                    "attn_decimals": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "campaign_reserve_raw": {
+                      "type": "string",
+                      "maxLength": 20,
+                      "pattern": "^(0|[1-9]\\d*)$"
+                    },
+                    "native_quote_required_raw": {
+                      "type": "string",
+                      "maxLength": 20,
+                      "pattern": "^(0|[1-9]\\d*)$"
+                    },
+                    "native_quote_budget_raw": {
+                      "type": "string",
+                      "maxLength": 20,
+                      "pattern": "^(0|[1-9]\\d*)$"
+                    },
+                    "pools": {
+                      "minItems": 3,
+                      "maxItems": 3,
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "pool": {
+                            "type": "string",
+                            "enum": [
+                              "native",
+                              "og",
+                              "tenx"
+                            ]
+                          },
+                          "quote_asset": {
+                            "type": "string",
+                            "enum": [
+                              "SIM-SOL",
+                              "SIM-OG",
+                              "SIM-10X"
+                            ]
+                          },
+                          "quote_decimals": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          "allocation_bps": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          "allocated_attn_raw": {
+                            "type": "string",
+                            "maxLength": 20,
+                            "pattern": "^(0|[1-9]\\d*)$"
+                          },
+                          "unseeded_attn_raw": {
+                            "type": "string",
+                            "maxLength": 20,
+                            "pattern": "^(0|[1-9]\\d*)$"
+                          },
+                          "liquidity_q64": {
+                            "type": "string",
+                            "maxLength": 130,
+                            "pattern": "^(0|[1-9]\\d*)$"
+                          },
+                          "sqrt_min": {
+                            "type": "string",
+                            "maxLength": 130,
+                            "pattern": "^(0|[1-9]\\d*)$"
+                          },
+                          "sqrt_max": {
+                            "type": "string",
+                            "maxLength": 130,
+                            "pattern": "^(0|[1-9]\\d*)$"
+                          },
+                          "initial": {
+                            "type": "object",
+                            "properties": {
+                              "sqrt_price": {
+                                "type": "string",
+                                "maxLength": 130,
+                                "pattern": "^(0|[1-9]\\d*)$"
+                              },
+                              "attn_raw": {
+                                "type": "string",
+                                "maxLength": 20,
+                                "pattern": "^(0|[1-9]\\d*)$"
+                              },
+                              "quote_raw": {
+                                "type": "string",
+                                "maxLength": 20,
+                                "pattern": "^(0|[1-9]\\d*)$"
+                              },
+                              "marginal_native_per_attn": {
+                                "type": "object",
+                                "properties": {
+                                  "numerator": {
+                                    "type": "string",
+                                    "maxLength": 130,
+                                    "pattern": "^(0|[1-9]\\d*)$"
+                                  },
+                                  "denominator": {
+                                    "type": "string",
+                                    "maxLength": 130,
+                                    "pattern": "^(0|[1-9]\\d*)$"
+                                  }
+                                },
+                                "required": [
+                                  "numerator",
+                                  "denominator"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "required": [
+                              "sqrt_price",
+                              "attn_raw",
+                              "quote_raw",
+                              "marginal_native_per_attn"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "final": {
+                            "type": "object",
+                            "properties": {
+                              "sqrt_price": {
+                                "type": "string",
+                                "maxLength": 130,
+                                "pattern": "^(0|[1-9]\\d*)$"
+                              },
+                              "attn_raw": {
+                                "type": "string",
+                                "maxLength": 20,
+                                "pattern": "^(0|[1-9]\\d*)$"
+                              },
+                              "quote_raw": {
+                                "type": "string",
+                                "maxLength": 20,
+                                "pattern": "^(0|[1-9]\\d*)$"
+                              },
+                              "marginal_native_per_attn": {
+                                "type": "object",
+                                "properties": {
+                                  "numerator": {
+                                    "type": "string",
+                                    "maxLength": 130,
+                                    "pattern": "^(0|[1-9]\\d*)$"
+                                  },
+                                  "denominator": {
+                                    "type": "string",
+                                    "maxLength": 130,
+                                    "pattern": "^(0|[1-9]\\d*)$"
+                                  }
+                                },
+                                "required": [
+                                  "numerator",
+                                  "denominator"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "required": [
+                              "sqrt_price",
+                              "attn_raw",
+                              "quote_raw",
+                              "marginal_native_per_attn"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "opening_deviation_bps": {
+                            "type": "string",
+                            "maxLength": 150,
+                            "pattern": "^-?\\d+\\.\\d{8}$"
+                          },
+                          "opening_divergence_exceeded": {
+                            "type": "boolean"
+                          },
+                          "remaining_net_quote_to_upper_raw": {
+                            "type": "string",
+                            "maxLength": 20,
+                            "pattern": "^(0|[1-9]\\d*)$"
+                          },
+                          "remaining_net_attn_to_lower_raw": {
+                            "type": "string",
+                            "maxLength": 20,
+                            "pattern": "^(0|[1-9]\\d*)$"
+                          }
+                        },
+                        "required": [
+                          "pool",
+                          "quote_asset",
+                          "quote_decimals",
+                          "allocation_bps",
+                          "allocated_attn_raw",
+                          "unseeded_attn_raw",
+                          "liquidity_q64",
+                          "sqrt_min",
+                          "sqrt_max",
+                          "initial",
+                          "final",
+                          "opening_deviation_bps",
+                          "opening_divergence_exceeded",
+                          "remaining_net_quote_to_upper_raw",
+                          "remaining_net_attn_to_lower_raw"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "steps": {
+                      "maxItems": 24,
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "index": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          "pool": {
+                            "type": "string",
+                            "enum": [
+                              "native",
+                              "og",
+                              "tenx"
+                            ]
+                          },
+                          "direction": {
+                            "type": "string",
+                            "enum": [
+                              "quote_to_attn",
+                              "attn_to_quote"
+                            ]
+                          },
+                          "net_input_raw": {
+                            "type": "string",
+                            "maxLength": 20,
+                            "pattern": "^(0|[1-9]\\d*)$"
+                          },
+                          "curve_output_raw": {
+                            "type": "string",
+                            "maxLength": 20,
+                            "pattern": "^(0|[1-9]\\d*)$"
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "simulated",
+                              "range_exhausted",
+                              "zero_output",
+                              "inventory_or_u64_bound"
+                            ]
+                          },
+                          "before": {
+                            "type": "object",
+                            "properties": {
+                              "sqrt_price": {
+                                "type": "string",
+                                "maxLength": 130,
+                                "pattern": "^(0|[1-9]\\d*)$"
+                              },
+                              "attn_raw": {
+                                "type": "string",
+                                "maxLength": 20,
+                                "pattern": "^(0|[1-9]\\d*)$"
+                              },
+                              "quote_raw": {
+                                "type": "string",
+                                "maxLength": 20,
+                                "pattern": "^(0|[1-9]\\d*)$"
+                              },
+                              "marginal_native_per_attn": {
+                                "type": "object",
+                                "properties": {
+                                  "numerator": {
+                                    "type": "string",
+                                    "maxLength": 130,
+                                    "pattern": "^(0|[1-9]\\d*)$"
+                                  },
+                                  "denominator": {
+                                    "type": "string",
+                                    "maxLength": 130,
+                                    "pattern": "^(0|[1-9]\\d*)$"
+                                  }
+                                },
+                                "required": [
+                                  "numerator",
+                                  "denominator"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "required": [
+                              "sqrt_price",
+                              "attn_raw",
+                              "quote_raw",
+                              "marginal_native_per_attn"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "after": {
+                            "type": "object",
+                            "properties": {
+                              "sqrt_price": {
+                                "type": "string",
+                                "maxLength": 130,
+                                "pattern": "^(0|[1-9]\\d*)$"
+                              },
+                              "attn_raw": {
+                                "type": "string",
+                                "maxLength": 20,
+                                "pattern": "^(0|[1-9]\\d*)$"
+                              },
+                              "quote_raw": {
+                                "type": "string",
+                                "maxLength": 20,
+                                "pattern": "^(0|[1-9]\\d*)$"
+                              },
+                              "marginal_native_per_attn": {
+                                "type": "object",
+                                "properties": {
+                                  "numerator": {
+                                    "type": "string",
+                                    "maxLength": 130,
+                                    "pattern": "^(0|[1-9]\\d*)$"
+                                  },
+                                  "denominator": {
+                                    "type": "string",
+                                    "maxLength": 130,
+                                    "pattern": "^(0|[1-9]\\d*)$"
+                                  }
+                                },
+                                "required": [
+                                  "numerator",
+                                  "denominator"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "required": [
+                              "sqrt_price",
+                              "attn_raw",
+                              "quote_raw",
+                              "marginal_native_per_attn"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "required": [
+                          "index",
+                          "pool",
+                          "direction",
+                          "net_input_raw",
+                          "curve_output_raw",
+                          "status",
+                          "before",
+                          "after"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "launch_enabled": {
+                      "type": "boolean",
+                      "const": false
+                    },
+                    "transfers_enabled": {
+                      "type": "boolean",
+                      "const": false
+                    },
+                    "policy_approved": {
+                      "type": "boolean",
+                      "const": false
+                    },
+                    "fees_modeled": {
+                      "type": "boolean",
+                      "const": false
+                    },
+                    "locks_verified": {
+                      "type": "boolean",
+                      "const": false
+                    },
+                    "external_prices_verified": {
+                      "type": "boolean",
+                      "const": false
+                    },
+                    "provider_requests": {
+                      "type": "number",
+                      "const": 0
+                    },
+                    "gaps": {
+                      "maxItems": 16,
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "required": [
+                    "version",
+                    "math_revision",
+                    "sdk_version",
+                    "source_commit",
+                    "as_of",
+                    "source",
+                    "scope",
+                    "supply_raw",
+                    "attn_decimals",
+                    "campaign_reserve_raw",
+                    "native_quote_required_raw",
+                    "native_quote_budget_raw",
+                    "pools",
+                    "steps",
+                    "launch_enabled",
+                    "transfers_enabled",
+                    "policy_approved",
+                    "fees_modeled",
+                    "locks_verified",
+                    "external_prices_verified",
+                    "provider_requests",
+                    "gaps"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "id",
+                "created_at",
+                "result_hash",
+                "record_hash",
+                "result"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "scope",
+          "runs"
+        ],
+        "additionalProperties": false
+      },
+      "LaunchRequest": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "request_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 300
+          },
+          "scenario": {
+            "type": "object",
+            "properties": {
+              "version": {
+                "type": "string",
+                "const": "launch-curve-lab-v1"
+              },
+              "as_of": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+              },
+              "chain": {
+                "type": "string",
+                "const": "solana"
+              },
+              "attn_asset": {
+                "type": "string",
+                "const": "SIM-ATTN"
+              },
+              "attn_decimals": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9
+              },
+              "supply_raw": {
+                "type": "string",
+                "maxLength": 20,
+                "pattern": "^(0|[1-9]\\d*)$"
+              },
+              "native_quote_budget_raw": {
+                "type": "string",
+                "maxLength": 20,
+                "pattern": "^(0|[1-9]\\d*)$"
+              },
+              "reference_attn_native": {
+                "type": "object",
+                "properties": {
+                  "numerator": {
+                    "type": "string",
+                    "maxLength": 20,
+                    "pattern": "^(0|[1-9]\\d*)$"
+                  },
+                  "denominator": {
+                    "type": "string",
+                    "maxLength": 20,
+                    "pattern": "^(0|[1-9]\\d*)$"
+                  }
+                },
+                "required": [
+                  "numerator",
+                  "denominator"
+                ],
+                "additionalProperties": false
+              },
+              "max_opening_divergence_bps": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 10000
+              },
+              "pools": {
+                "type": "object",
+                "properties": {
+                  "native": {
+                    "type": "object",
+                    "properties": {
+                      "quote_decimals": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9
+                      },
+                      "quote_native": {
+                        "type": "object",
+                        "properties": {
+                          "numerator": {
+                            "type": "string",
+                            "maxLength": 20,
+                            "pattern": "^(0|[1-9]\\d*)$"
+                          },
+                          "denominator": {
+                            "type": "string",
+                            "maxLength": 20,
+                            "pattern": "^(0|[1-9]\\d*)$"
+                          }
+                        },
+                        "required": [
+                          "numerator",
+                          "denominator"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "sqrt_min": {
+                        "type": "string",
+                        "maxLength": 29,
+                        "pattern": "^(0|[1-9]\\d*)$"
+                      },
+                      "sqrt_initial": {
+                        "type": "string",
+                        "maxLength": 29,
+                        "pattern": "^(0|[1-9]\\d*)$"
+                      },
+                      "sqrt_max": {
+                        "type": "string",
+                        "maxLength": 29,
+                        "pattern": "^(0|[1-9]\\d*)$"
+                      }
+                    },
+                    "required": [
+                      "quote_decimals",
+                      "quote_native",
+                      "sqrt_min",
+                      "sqrt_initial",
+                      "sqrt_max"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "og": {
+                    "type": "object",
+                    "properties": {
+                      "quote_decimals": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9
+                      },
+                      "quote_native": {
+                        "type": "object",
+                        "properties": {
+                          "numerator": {
+                            "type": "string",
+                            "maxLength": 20,
+                            "pattern": "^(0|[1-9]\\d*)$"
+                          },
+                          "denominator": {
+                            "type": "string",
+                            "maxLength": 20,
+                            "pattern": "^(0|[1-9]\\d*)$"
+                          }
+                        },
+                        "required": [
+                          "numerator",
+                          "denominator"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "sqrt_min": {
+                        "type": "string",
+                        "maxLength": 29,
+                        "pattern": "^(0|[1-9]\\d*)$"
+                      },
+                      "sqrt_initial": {
+                        "type": "string",
+                        "maxLength": 29,
+                        "pattern": "^(0|[1-9]\\d*)$"
+                      },
+                      "sqrt_max": {
+                        "type": "string",
+                        "maxLength": 29,
+                        "pattern": "^(0|[1-9]\\d*)$"
+                      }
+                    },
+                    "required": [
+                      "quote_decimals",
+                      "quote_native",
+                      "sqrt_min",
+                      "sqrt_initial",
+                      "sqrt_max"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "tenx": {
+                    "type": "object",
+                    "properties": {
+                      "quote_decimals": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9
+                      },
+                      "quote_native": {
+                        "type": "object",
+                        "properties": {
+                          "numerator": {
+                            "type": "string",
+                            "maxLength": 20,
+                            "pattern": "^(0|[1-9]\\d*)$"
+                          },
+                          "denominator": {
+                            "type": "string",
+                            "maxLength": 20,
+                            "pattern": "^(0|[1-9]\\d*)$"
+                          }
+                        },
+                        "required": [
+                          "numerator",
+                          "denominator"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "sqrt_min": {
+                        "type": "string",
+                        "maxLength": 29,
+                        "pattern": "^(0|[1-9]\\d*)$"
+                      },
+                      "sqrt_initial": {
+                        "type": "string",
+                        "maxLength": 29,
+                        "pattern": "^(0|[1-9]\\d*)$"
+                      },
+                      "sqrt_max": {
+                        "type": "string",
+                        "maxLength": 29,
+                        "pattern": "^(0|[1-9]\\d*)$"
+                      }
+                    },
+                    "required": [
+                      "quote_decimals",
+                      "quote_native",
+                      "sqrt_min",
+                      "sqrt_initial",
+                      "sqrt_max"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "required": [
+                  "native",
+                  "og",
+                  "tenx"
+                ],
+                "additionalProperties": false
+              },
+              "trades": {
+                "maxItems": 24,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "pool": {
+                      "type": "string",
+                      "enum": [
+                        "native",
+                        "og",
+                        "tenx"
+                      ]
+                    },
+                    "direction": {
+                      "type": "string",
+                      "enum": [
+                        "quote_to_attn",
+                        "attn_to_quote"
+                      ]
+                    },
+                    "net_input_raw": {
+                      "type": "string",
+                      "maxLength": 20,
+                      "pattern": "^(0|[1-9]\\d*)$"
+                    }
+                  },
+                  "required": [
+                    "pool",
+                    "direction",
+                    "net_input_raw"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "version",
+              "as_of",
+              "chain",
+              "attn_asset",
+              "attn_decimals",
+              "supply_raw",
+              "native_quote_budget_raw",
+              "reference_attn_native",
+              "max_opening_divergence_bps",
+              "pools",
+              "trades"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "request_id",
+          "reason",
+          "scenario"
+        ],
+        "additionalProperties": false
+      },
+      "LaunchResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "record",
+          "replay"
+        ],
+        "properties": {
+          "record": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "created_at": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+              },
+              "reason": {
+                "type": "string"
+              },
+              "request_hash": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              "input_hash": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              "result_hash": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              "record_hash": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              "inputs": {
+                "type": "object",
+                "properties": {
+                  "version": {
+                    "type": "string",
+                    "const": "launch-curve-lab-v1"
+                  },
+                  "as_of": {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                  },
+                  "chain": {
+                    "type": "string",
+                    "const": "solana"
+                  },
+                  "attn_asset": {
+                    "type": "string",
+                    "const": "SIM-ATTN"
+                  },
+                  "attn_decimals": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9
+                  },
+                  "supply_raw": {
+                    "type": "string",
+                    "maxLength": 20,
+                    "pattern": "^(0|[1-9]\\d*)$"
+                  },
+                  "native_quote_budget_raw": {
+                    "type": "string",
+                    "maxLength": 20,
+                    "pattern": "^(0|[1-9]\\d*)$"
+                  },
+                  "reference_attn_native": {
+                    "type": "object",
+                    "properties": {
+                      "numerator": {
+                        "type": "string",
+                        "maxLength": 20,
+                        "pattern": "^(0|[1-9]\\d*)$"
+                      },
+                      "denominator": {
+                        "type": "string",
+                        "maxLength": 20,
+                        "pattern": "^(0|[1-9]\\d*)$"
+                      }
+                    },
+                    "required": [
+                      "numerator",
+                      "denominator"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "max_opening_divergence_bps": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 10000
+                  },
+                  "pools": {
+                    "type": "object",
+                    "properties": {
+                      "native": {
+                        "type": "object",
+                        "properties": {
+                          "quote_decimals": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9
+                          },
+                          "quote_native": {
+                            "type": "object",
+                            "properties": {
+                              "numerator": {
+                                "type": "string",
+                                "maxLength": 20,
+                                "pattern": "^(0|[1-9]\\d*)$"
+                              },
+                              "denominator": {
+                                "type": "string",
+                                "maxLength": 20,
+                                "pattern": "^(0|[1-9]\\d*)$"
+                              }
+                            },
+                            "required": [
+                              "numerator",
+                              "denominator"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "sqrt_min": {
+                            "type": "string",
+                            "maxLength": 29,
+                            "pattern": "^(0|[1-9]\\d*)$"
+                          },
+                          "sqrt_initial": {
+                            "type": "string",
+                            "maxLength": 29,
+                            "pattern": "^(0|[1-9]\\d*)$"
+                          },
+                          "sqrt_max": {
+                            "type": "string",
+                            "maxLength": 29,
+                            "pattern": "^(0|[1-9]\\d*)$"
+                          }
+                        },
+                        "required": [
+                          "quote_decimals",
+                          "quote_native",
+                          "sqrt_min",
+                          "sqrt_initial",
+                          "sqrt_max"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "og": {
+                        "type": "object",
+                        "properties": {
+                          "quote_decimals": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9
+                          },
+                          "quote_native": {
+                            "type": "object",
+                            "properties": {
+                              "numerator": {
+                                "type": "string",
+                                "maxLength": 20,
+                                "pattern": "^(0|[1-9]\\d*)$"
+                              },
+                              "denominator": {
+                                "type": "string",
+                                "maxLength": 20,
+                                "pattern": "^(0|[1-9]\\d*)$"
+                              }
+                            },
+                            "required": [
+                              "numerator",
+                              "denominator"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "sqrt_min": {
+                            "type": "string",
+                            "maxLength": 29,
+                            "pattern": "^(0|[1-9]\\d*)$"
+                          },
+                          "sqrt_initial": {
+                            "type": "string",
+                            "maxLength": 29,
+                            "pattern": "^(0|[1-9]\\d*)$"
+                          },
+                          "sqrt_max": {
+                            "type": "string",
+                            "maxLength": 29,
+                            "pattern": "^(0|[1-9]\\d*)$"
+                          }
+                        },
+                        "required": [
+                          "quote_decimals",
+                          "quote_native",
+                          "sqrt_min",
+                          "sqrt_initial",
+                          "sqrt_max"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "tenx": {
+                        "type": "object",
+                        "properties": {
+                          "quote_decimals": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9
+                          },
+                          "quote_native": {
+                            "type": "object",
+                            "properties": {
+                              "numerator": {
+                                "type": "string",
+                                "maxLength": 20,
+                                "pattern": "^(0|[1-9]\\d*)$"
+                              },
+                              "denominator": {
+                                "type": "string",
+                                "maxLength": 20,
+                                "pattern": "^(0|[1-9]\\d*)$"
+                              }
+                            },
+                            "required": [
+                              "numerator",
+                              "denominator"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "sqrt_min": {
+                            "type": "string",
+                            "maxLength": 29,
+                            "pattern": "^(0|[1-9]\\d*)$"
+                          },
+                          "sqrt_initial": {
+                            "type": "string",
+                            "maxLength": 29,
+                            "pattern": "^(0|[1-9]\\d*)$"
+                          },
+                          "sqrt_max": {
+                            "type": "string",
+                            "maxLength": 29,
+                            "pattern": "^(0|[1-9]\\d*)$"
+                          }
+                        },
+                        "required": [
+                          "quote_decimals",
+                          "quote_native",
+                          "sqrt_min",
+                          "sqrt_initial",
+                          "sqrt_max"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "native",
+                      "og",
+                      "tenx"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "trades": {
+                    "maxItems": 24,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "pool": {
+                          "type": "string",
+                          "enum": [
+                            "native",
+                            "og",
+                            "tenx"
+                          ]
+                        },
+                        "direction": {
+                          "type": "string",
+                          "enum": [
+                            "quote_to_attn",
+                            "attn_to_quote"
+                          ]
+                        },
+                        "net_input_raw": {
+                          "type": "string",
+                          "maxLength": 20,
+                          "pattern": "^(0|[1-9]\\d*)$"
+                        }
+                      },
+                      "required": [
+                        "pool",
+                        "direction",
+                        "net_input_raw"
+                      ],
+                      "additionalProperties": false
+                    }
+                  }
+                },
+                "required": [
+                  "version",
+                  "as_of",
+                  "chain",
+                  "attn_asset",
+                  "attn_decimals",
+                  "supply_raw",
+                  "native_quote_budget_raw",
+                  "reference_attn_native",
+                  "max_opening_divergence_bps",
+                  "pools",
+                  "trades"
+                ],
+                "additionalProperties": false
+              },
+              "result": {
+                "type": "object",
+                "properties": {
+                  "version": {
+                    "type": "string",
+                    "const": "launch-curve-lab-v1"
+                  },
+                  "math_revision": {
+                    "type": "string",
+                    "const": "meteora-cl-79ebbfe-v1"
+                  },
+                  "sdk_version": {
+                    "type": "string",
+                    "const": "1.5.1"
+                  },
+                  "source_commit": {
+                    "type": "string",
+                    "const": "79ebbfe59a225e641a2f37cd03404f26de1b0c8e"
+                  },
+                  "as_of": {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                  },
+                  "source": {
+                    "type": "string",
+                    "const": "hypothetical_operator_inputs"
+                  },
+                  "scope": {
+                    "type": "string",
+                    "const": "concentrated_liquidity_net_curve_only"
+                  },
+                  "supply_raw": {
+                    "type": "string",
+                    "maxLength": 20,
+                    "pattern": "^(0|[1-9]\\d*)$"
+                  },
+                  "attn_decimals": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  "campaign_reserve_raw": {
+                    "type": "string",
+                    "maxLength": 20,
+                    "pattern": "^(0|[1-9]\\d*)$"
+                  },
+                  "native_quote_required_raw": {
+                    "type": "string",
+                    "maxLength": 20,
+                    "pattern": "^(0|[1-9]\\d*)$"
+                  },
+                  "native_quote_budget_raw": {
+                    "type": "string",
+                    "maxLength": 20,
+                    "pattern": "^(0|[1-9]\\d*)$"
+                  },
+                  "pools": {
+                    "minItems": 3,
+                    "maxItems": 3,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "pool": {
+                          "type": "string",
+                          "enum": [
+                            "native",
+                            "og",
+                            "tenx"
+                          ]
+                        },
+                        "quote_asset": {
+                          "type": "string",
+                          "enum": [
+                            "SIM-SOL",
+                            "SIM-OG",
+                            "SIM-10X"
+                          ]
+                        },
+                        "quote_decimals": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "allocation_bps": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "allocated_attn_raw": {
+                          "type": "string",
+                          "maxLength": 20,
+                          "pattern": "^(0|[1-9]\\d*)$"
+                        },
+                        "unseeded_attn_raw": {
+                          "type": "string",
+                          "maxLength": 20,
+                          "pattern": "^(0|[1-9]\\d*)$"
+                        },
+                        "liquidity_q64": {
+                          "type": "string",
+                          "maxLength": 130,
+                          "pattern": "^(0|[1-9]\\d*)$"
+                        },
+                        "sqrt_min": {
+                          "type": "string",
+                          "maxLength": 130,
+                          "pattern": "^(0|[1-9]\\d*)$"
+                        },
+                        "sqrt_max": {
+                          "type": "string",
+                          "maxLength": 130,
+                          "pattern": "^(0|[1-9]\\d*)$"
+                        },
+                        "initial": {
+                          "type": "object",
+                          "properties": {
+                            "sqrt_price": {
+                              "type": "string",
+                              "maxLength": 130,
+                              "pattern": "^(0|[1-9]\\d*)$"
+                            },
+                            "attn_raw": {
+                              "type": "string",
+                              "maxLength": 20,
+                              "pattern": "^(0|[1-9]\\d*)$"
+                            },
+                            "quote_raw": {
+                              "type": "string",
+                              "maxLength": 20,
+                              "pattern": "^(0|[1-9]\\d*)$"
+                            },
+                            "marginal_native_per_attn": {
+                              "type": "object",
+                              "properties": {
+                                "numerator": {
+                                  "type": "string",
+                                  "maxLength": 130,
+                                  "pattern": "^(0|[1-9]\\d*)$"
+                                },
+                                "denominator": {
+                                  "type": "string",
+                                  "maxLength": 130,
+                                  "pattern": "^(0|[1-9]\\d*)$"
+                                }
+                              },
+                              "required": [
+                                "numerator",
+                                "denominator"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "required": [
+                            "sqrt_price",
+                            "attn_raw",
+                            "quote_raw",
+                            "marginal_native_per_attn"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "final": {
+                          "type": "object",
+                          "properties": {
+                            "sqrt_price": {
+                              "type": "string",
+                              "maxLength": 130,
+                              "pattern": "^(0|[1-9]\\d*)$"
+                            },
+                            "attn_raw": {
+                              "type": "string",
+                              "maxLength": 20,
+                              "pattern": "^(0|[1-9]\\d*)$"
+                            },
+                            "quote_raw": {
+                              "type": "string",
+                              "maxLength": 20,
+                              "pattern": "^(0|[1-9]\\d*)$"
+                            },
+                            "marginal_native_per_attn": {
+                              "type": "object",
+                              "properties": {
+                                "numerator": {
+                                  "type": "string",
+                                  "maxLength": 130,
+                                  "pattern": "^(0|[1-9]\\d*)$"
+                                },
+                                "denominator": {
+                                  "type": "string",
+                                  "maxLength": 130,
+                                  "pattern": "^(0|[1-9]\\d*)$"
+                                }
+                              },
+                              "required": [
+                                "numerator",
+                                "denominator"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "required": [
+                            "sqrt_price",
+                            "attn_raw",
+                            "quote_raw",
+                            "marginal_native_per_attn"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "opening_deviation_bps": {
+                          "type": "string",
+                          "maxLength": 150,
+                          "pattern": "^-?\\d+\\.\\d{8}$"
+                        },
+                        "opening_divergence_exceeded": {
+                          "type": "boolean"
+                        },
+                        "remaining_net_quote_to_upper_raw": {
+                          "type": "string",
+                          "maxLength": 20,
+                          "pattern": "^(0|[1-9]\\d*)$"
+                        },
+                        "remaining_net_attn_to_lower_raw": {
+                          "type": "string",
+                          "maxLength": 20,
+                          "pattern": "^(0|[1-9]\\d*)$"
+                        }
+                      },
+                      "required": [
+                        "pool",
+                        "quote_asset",
+                        "quote_decimals",
+                        "allocation_bps",
+                        "allocated_attn_raw",
+                        "unseeded_attn_raw",
+                        "liquidity_q64",
+                        "sqrt_min",
+                        "sqrt_max",
+                        "initial",
+                        "final",
+                        "opening_deviation_bps",
+                        "opening_divergence_exceeded",
+                        "remaining_net_quote_to_upper_raw",
+                        "remaining_net_attn_to_lower_raw"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "steps": {
+                    "maxItems": 24,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "index": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "pool": {
+                          "type": "string",
+                          "enum": [
+                            "native",
+                            "og",
+                            "tenx"
+                          ]
+                        },
+                        "direction": {
+                          "type": "string",
+                          "enum": [
+                            "quote_to_attn",
+                            "attn_to_quote"
+                          ]
+                        },
+                        "net_input_raw": {
+                          "type": "string",
+                          "maxLength": 20,
+                          "pattern": "^(0|[1-9]\\d*)$"
+                        },
+                        "curve_output_raw": {
+                          "type": "string",
+                          "maxLength": 20,
+                          "pattern": "^(0|[1-9]\\d*)$"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "simulated",
+                            "range_exhausted",
+                            "zero_output",
+                            "inventory_or_u64_bound"
+                          ]
+                        },
+                        "before": {
+                          "type": "object",
+                          "properties": {
+                            "sqrt_price": {
+                              "type": "string",
+                              "maxLength": 130,
+                              "pattern": "^(0|[1-9]\\d*)$"
+                            },
+                            "attn_raw": {
+                              "type": "string",
+                              "maxLength": 20,
+                              "pattern": "^(0|[1-9]\\d*)$"
+                            },
+                            "quote_raw": {
+                              "type": "string",
+                              "maxLength": 20,
+                              "pattern": "^(0|[1-9]\\d*)$"
+                            },
+                            "marginal_native_per_attn": {
+                              "type": "object",
+                              "properties": {
+                                "numerator": {
+                                  "type": "string",
+                                  "maxLength": 130,
+                                  "pattern": "^(0|[1-9]\\d*)$"
+                                },
+                                "denominator": {
+                                  "type": "string",
+                                  "maxLength": 130,
+                                  "pattern": "^(0|[1-9]\\d*)$"
+                                }
+                              },
+                              "required": [
+                                "numerator",
+                                "denominator"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "required": [
+                            "sqrt_price",
+                            "attn_raw",
+                            "quote_raw",
+                            "marginal_native_per_attn"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "after": {
+                          "type": "object",
+                          "properties": {
+                            "sqrt_price": {
+                              "type": "string",
+                              "maxLength": 130,
+                              "pattern": "^(0|[1-9]\\d*)$"
+                            },
+                            "attn_raw": {
+                              "type": "string",
+                              "maxLength": 20,
+                              "pattern": "^(0|[1-9]\\d*)$"
+                            },
+                            "quote_raw": {
+                              "type": "string",
+                              "maxLength": 20,
+                              "pattern": "^(0|[1-9]\\d*)$"
+                            },
+                            "marginal_native_per_attn": {
+                              "type": "object",
+                              "properties": {
+                                "numerator": {
+                                  "type": "string",
+                                  "maxLength": 130,
+                                  "pattern": "^(0|[1-9]\\d*)$"
+                                },
+                                "denominator": {
+                                  "type": "string",
+                                  "maxLength": 130,
+                                  "pattern": "^(0|[1-9]\\d*)$"
+                                }
+                              },
+                              "required": [
+                                "numerator",
+                                "denominator"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "required": [
+                            "sqrt_price",
+                            "attn_raw",
+                            "quote_raw",
+                            "marginal_native_per_attn"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "index",
+                        "pool",
+                        "direction",
+                        "net_input_raw",
+                        "curve_output_raw",
+                        "status",
+                        "before",
+                        "after"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "launch_enabled": {
+                    "type": "boolean",
+                    "const": false
+                  },
+                  "transfers_enabled": {
+                    "type": "boolean",
+                    "const": false
+                  },
+                  "policy_approved": {
+                    "type": "boolean",
+                    "const": false
+                  },
+                  "fees_modeled": {
+                    "type": "boolean",
+                    "const": false
+                  },
+                  "locks_verified": {
+                    "type": "boolean",
+                    "const": false
+                  },
+                  "external_prices_verified": {
+                    "type": "boolean",
+                    "const": false
+                  },
+                  "provider_requests": {
+                    "type": "number",
+                    "const": 0
+                  },
+                  "gaps": {
+                    "maxItems": 16,
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "version",
+                  "math_revision",
+                  "sdk_version",
+                  "source_commit",
+                  "as_of",
+                  "source",
+                  "scope",
+                  "supply_raw",
+                  "attn_decimals",
+                  "campaign_reserve_raw",
+                  "native_quote_required_raw",
+                  "native_quote_budget_raw",
+                  "pools",
+                  "steps",
+                  "launch_enabled",
+                  "transfers_enabled",
+                  "policy_approved",
+                  "fees_modeled",
+                  "locks_verified",
+                  "external_prices_verified",
+                  "provider_requests",
+                  "gaps"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "id",
+              "created_at",
+              "reason",
+              "request_hash",
+              "input_hash",
+              "result_hash",
+              "record_hash",
+              "inputs",
+              "result"
+            ],
+            "additionalProperties": false
+          },
+          "replay": {
+            "const": "verified"
+          }
+        }
       },
       "RewardRequest": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",

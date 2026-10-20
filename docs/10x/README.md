@@ -6,7 +6,9 @@ Latest engineering review: [security fixes and credential follow-up](29-security
 
 Previous engineering review: [measured performance improvements](28-performance-review.md), including compact Discover cards, deferred wallet code, retained-shell navigation and an aggregate startup budget.
 
-Current checkpoint: [cached funding recovery and real v1 wallet fixtures](36-cached-funding-recovery.md). Missing/unsupported references can reuse exact hash-checked cached bodies without replacement source requests. Candidate freshness and historical snapshots remain unchanged; the ten-eligible-token target remains open.
+Current checkpoint: [pinned three-pool net curve lab](38-launch-curve-lab.md). Exact 50/20/20/10 allocation, ATTN-only OG/$10X inception, SDK-checked integer deposits/probes, opening divergence and immutable replay are available locally. This is a mathematical subset; complete fees/routes/locks/devnet simulation and production financial decisions remain open. No deploy or execution.
+
+Previous checkpoint: [bounded funding reader recovery](37-funding-reader-recovery.md), once per signature/reader within unchanged wallet/global quotas. [Cached funding recovery and real v1 wallet fixtures](36-cached-funding-recovery.md) reuse exact saved bodies without replacement source requests. Candidate freshness, historical snapshots and all evidence gates remain unchanged; the ten-eligible-token target remains open.
 
 Previous checkpoint: [private content operations](35-content-operations.md). Moderators can inspect queue age, UTC quota headroom, independent hold counts and bounded payload-size samples without exposing messages or identities. Admission limits are shared with write guards; no deletion, reward or evidence decisions are introduced.
 

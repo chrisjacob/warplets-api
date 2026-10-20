@@ -4,7 +4,7 @@ import { isEmbeddedWebView, isLikelyBaseAppBrowser } from "../pwa";
 
 export function isDiscoveryPath(path: string) {
   const clean = path.replace(/\/+$/, "");
-  return ["/discover", "/attention", "/submit", "/backing", "/rewards", "/wallets", "/research", "/transparency", "/status", "/admin/10x"].includes(clean) || /^\/campaign\/[0-9a-f-]{36}$/i.test(clean) || /^\/elections(?:\/[^/]+)?$/.test(clean) || /^\/token\/solana\/[^/]+$/.test(clean);
+  return ["/discover", "/attention", "/submit", "/backing", "/rewards", "/launch-lab", "/wallets", "/research", "/transparency", "/status", "/admin/10x"].includes(clean) || /^\/campaign\/[0-9a-f-]{36}$/i.test(clean) || /^\/elections(?:\/[^/]+)?$/.test(clean) || /^\/token\/solana\/[^/]+$/.test(clean);
 }
 type Click = { button: number; ctrlKey?: boolean; metaKey?: boolean; shiftKey?: boolean; altKey?: boolean; defaultPrevented?: boolean; target?: string; download?: boolean };
 export function discoveryDestination(href: string, current: string, click: Click): URL | null {

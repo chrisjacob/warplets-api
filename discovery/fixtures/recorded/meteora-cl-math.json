@@ -1,0 +1,1994 @@
+{
+  "scope": "offline_sdk_math_vectors_not_chain_receipts",
+  "sdk_version": "1.5.1",
+  "source_commit": "79ebbfe59a225e641a2f37cd03404f26de1b0c8e",
+  "math_source_sha256": "238f3b84fcc02d34b057d54fadade17a610d9e4c213840cb3dd26e8b763a3941",
+  "npm_integrity": "sha512-f5jB4cMZ9iA8V+Dtah5I3LvRACyX0TlQkrvD/lxy2SyPf9M8rMK2ViodgCEwTVqyRvyv4JMeK2fGOpDaYwVAug==",
+  "bundle_sha256": "2849b3517e0c0418e8cce2f0cb265e5d5f740bf72672eb66096488188940391b",
+  "cases": [
+    {
+      "lower": "18446744073709551616",
+      "current": "21081993227096630418",
+      "upper": "39528737300806182034",
+      "amount_a_raw": "1000000000",
+      "liquidity": "45175699772349922323959183673",
+      "seed_a": "1000000000",
+      "seed_b": "349854228",
+      "amount_a_down": "999999999",
+      "amount_b_down": "349854227",
+      "directions": [
+        {
+          "a_for_b": true,
+          "net_input_raw": "1",
+          "output_raw": "1",
+          "next_sqrt_price": "21081993217258366917",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": true,
+          "net_input_raw": "1000",
+          "output_raw": "1306",
+          "next_sqrt_price": "21081983388837715628",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": true,
+          "net_input_raw": "1000000",
+          "output_raw": "1305513",
+          "next_sqrt_price": "21072159552638732343",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": true,
+          "net_input_raw": "1000000000000",
+          "status": "range_exhausted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "1",
+          "output_raw": "0",
+          "next_sqrt_price": "21081993234629050914",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "1000",
+          "output_raw": "765",
+          "next_sqrt_price": "21082000759517127182",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "1000000",
+          "output_raw": "765351",
+          "next_sqrt_price": "21089525647593395151",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "1000000000000",
+          "status": "range_exhausted"
+        }
+      ]
+    },
+    {
+      "lower": "9223372036854775808",
+      "current": "9223372036854775808",
+      "upper": "46116860184273879040",
+      "amount_a_raw": "2000000001",
+      "liquidity": "23058430103666154566068469760",
+      "seed_a": "2000000001",
+      "seed_b": "0",
+      "amount_a_down": "2000000001",
+      "amount_b_down": "0",
+      "directions": [
+        {
+          "a_for_b": true,
+          "net_input_raw": "1",
+          "status": "range_exhausted"
+        },
+        {
+          "a_for_b": true,
+          "net_input_raw": "1000",
+          "status": "range_exhausted"
+        },
+        {
+          "a_for_b": true,
+          "net_input_raw": "1000000",
+          "status": "range_exhausted"
+        },
+        {
+          "a_for_b": true,
+          "net_input_raw": "2000000001000",
+          "status": "range_exhausted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "1",
+          "output_raw": "3",
+          "next_sqrt_price": "9223372051612171059",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "1000",
+          "output_raw": "3999",
+          "next_sqrt_price": "9223386794250027396",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "1000000",
+          "output_raw": "3993610",
+          "next_sqrt_price": "9238129432106364751",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "2000000001000",
+          "status": "range_exhausted"
+        }
+      ]
+    },
+    {
+      "lower": "6148914691236517205",
+      "current": "8784163844623596007",
+      "upper": "64124396065752250855",
+      "amount_a_raw": "3000000002",
+      "liquidity": "30535426718334213441737676006",
+      "seed_a": "3000000002",
+      "seed_b": "236475543",
+      "amount_a_down": "3000000001",
+      "amount_b_down": "236475542",
+      "directions": [
+        {
+          "a_for_b": true,
+          "net_input_raw": "1",
+          "output_raw": "0",
+          "next_sqrt_price": "8784163842096644767",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": true,
+          "net_input_raw": "1000",
+          "output_raw": "226",
+          "next_sqrt_price": "8784161317673081649",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": true,
+          "net_input_raw": "1000000",
+          "output_raw": "226692",
+          "next_sqrt_price": "8781637620104428198",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": true,
+          "net_input_raw": "3000000002000",
+          "status": "range_exhausted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "1",
+          "output_raw": "4",
+          "next_sqrt_price": "8784163855767450981",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "1000",
+          "output_raw": "4409",
+          "next_sqrt_price": "8784174988478570092",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "1000000",
+          "output_raw": "4404412",
+          "next_sqrt_price": "8795307699597681718",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "3000000002000",
+          "status": "range_exhausted"
+        }
+      ]
+    },
+    {
+      "lower": "4611686018427387904",
+      "current": "4611686018427387904",
+      "upper": "78398662313265594368",
+      "amount_a_raw": "4000000003",
+      "liquidity": "19599665593016147775737298944",
+      "seed_a": "4000000003",
+      "seed_b": "0",
+      "amount_a_down": "4000000003",
+      "amount_b_down": "0",
+      "directions": [
+        {
+          "a_for_b": true,
+          "net_input_raw": "1",
+          "status": "range_exhausted"
+        },
+        {
+          "a_for_b": true,
+          "net_input_raw": "1000",
+          "status": "range_exhausted"
+        },
+        {
+          "a_for_b": true,
+          "net_input_raw": "1000000",
+          "status": "range_exhausted"
+        },
+        {
+          "a_for_b": true,
+          "net_input_raw": "4000000003000",
+          "status": "range_exhausted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "1",
+          "output_raw": "15",
+          "next_sqrt_price": "4611686035789029372",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "1000",
+          "output_raw": "15999",
+          "next_sqrt_price": "4611703380068856021",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "1000000",
+          "output_raw": "15939990",
+          "next_sqrt_price": "4629047659895505074",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "4000000003000",
+          "status": "range_exhausted"
+        }
+      ]
+    },
+    {
+      "lower": "3689348814741910323",
+      "current": "6324597968128989125",
+      "upper": "98558318336676747205",
+      "amount_a_raw": "5000000004",
+      "liquidity": "33791423456750880640036234333",
+      "seed_a": "5000000004",
+      "seed_b": "261690963",
+      "amount_a_down": "5000000003",
+      "amount_b_down": "261690962",
+      "directions": [
+        {
+          "a_for_b": true,
+          "net_input_raw": "1",
+          "output_raw": "0",
+          "next_sqrt_price": "6324597966945240844",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": true,
+          "net_input_raw": "1000",
+          "output_raw": "117",
+          "next_sqrt_price": "6324596784380928825",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": true,
+          "net_input_raw": "1000000",
+          "output_raw": "117529",
+          "next_sqrt_price": "6323414441362835951",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": true,
+          "net_input_raw": "5000000004000",
+          "status": "range_exhausted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "1",
+          "output_raw": "8",
+          "next_sqrt_price": "6324597978199069994",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "1000",
+          "output_raw": "8506",
+          "next_sqrt_price": "6324608038209859096",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "1000000",
+          "output_raw": "8493421",
+          "next_sqrt_price": "6334668048998960778",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "5000000004000",
+          "status": "range_exhausted"
+        }
+      ]
+    },
+    {
+      "lower": "3074457345618258602",
+      "current": "3074457345618258602",
+      "upper": "113754921787875568298",
+      "amount_a_raw": "6000000005",
+      "liquidity": "18959153647111889404982717815",
+      "seed_a": "6000000005",
+      "seed_b": "0",
+      "amount_a_down": "6000000004",
+      "amount_b_down": "0",
+      "directions": [
+        {
+          "a_for_b": true,
+          "net_input_raw": "1",
+          "status": "range_exhausted"
+        },
+        {
+          "a_for_b": true,
+          "net_input_raw": "1000",
+          "status": "range_exhausted"
+        },
+        {
+          "a_for_b": true,
+          "net_input_raw": "1000000",
+          "status": "range_exhausted"
+        },
+        {
+          "a_for_b": true,
+          "net_input_raw": "6000000005000",
+          "status": "range_exhausted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "1",
+          "output_raw": "35",
+          "next_sqrt_price": "3074457363566442010",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "1000",
+          "output_raw": "35999",
+          "next_sqrt_price": "3074475293801666713",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "1000000",
+          "output_raw": "35791057",
+          "next_sqrt_price": "3092405529026370535",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "6000000005000",
+          "status": "range_exhausted"
+        }
+      ]
+    },
+    {
+      "lower": "2635249153387078802",
+      "current": "5270498306774157604",
+      "upper": "134397706822741018916",
+      "amount_a_raw": "7000000006",
+      "liquidity": "38399344839411158091691678098",
+      "seed_a": "7000000006",
+      "seed_b": "297376094",
+      "amount_a_down": "7000000005",
+      "amount_b_down": "297376093",
+      "directions": [
+        {
+          "a_for_b": true,
+          "net_input_raw": "1",
+          "output_raw": "0",
+          "next_sqrt_price": "5270498306050755877",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": true,
+          "net_input_raw": "1000",
+          "output_raw": "81",
+          "next_sqrt_price": "5270497583372529134",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": true,
+          "net_input_raw": "1000000",
+          "output_raw": "81621",
+          "next_sqrt_price": "5269775004323203805",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": true,
+          "net_input_raw": "7000000006000",
+          "status": "range_exhausted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "1",
+          "output_raw": "12",
+          "next_sqrt_price": "5270498315635828769",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "1000",
+          "output_raw": "12249",
+          "next_sqrt_price": "5270507168445322672",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "1000000",
+          "output_raw": "12229437",
+          "next_sqrt_price": "5279359977939226278",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "7000000006000",
+          "status": "range_exhausted"
+        }
+      ]
+    },
+    {
+      "lower": "2305843009213693952",
+      "current": "2305843009213693952",
+      "upper": "149879795598890106880",
+      "amount_a_raw": "8000000007",
+      "liquidity": "18734974466254366003628605440",
+      "seed_a": "8000000007",
+      "seed_b": "0",
+      "amount_a_down": "8000000007",
+      "amount_b_down": "0",
+      "directions": [
+        {
+          "a_for_b": true,
+          "net_input_raw": "1",
+          "status": "range_exhausted"
+        },
+        {
+          "a_for_b": true,
+          "net_input_raw": "1000",
+          "status": "range_exhausted"
+        },
+        {
+          "a_for_b": true,
+          "net_input_raw": "1000000",
+          "status": "range_exhausted"
+        },
+        {
+          "a_for_b": true,
+          "net_input_raw": "8000000007000",
+          "status": "range_exhausted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "1",
+          "output_raw": "63",
+          "next_sqrt_price": "2305843027376641947",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "1000",
+          "output_raw": "63999",
+          "next_sqrt_price": "2305861172161689096",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "1000000",
+          "output_raw": "63499816",
+          "next_sqrt_price": "2324005957208838469",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "8000000007000",
+          "status": "range_exhausted"
+        }
+      ]
+    },
+    {
+      "lower": "2049638230412172401",
+      "current": "4684887383799251203",
+      "upper": "170705584047185215747",
+      "amount_a_raw": "9000000008",
+      "liquidity": "43353799161631368289290237660",
+      "seed_a": "9000000008",
+      "seed_b": "335744881",
+      "amount_a_down": "9000000007",
+      "amount_b_down": "335744880",
+      "directions": [
+        {
+          "a_for_b": true,
+          "net_input_raw": "1",
+          "output_raw": "0",
+          "next_sqrt_price": "4684887383292994077",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": true,
+          "net_input_raw": "1000",
+          "output_raw": "64",
+          "next_sqrt_price": "4684886877542179123",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": true,
+          "net_input_raw": "1000000",
+          "output_raw": "64492",
+          "next_sqrt_price": "4684381181373583604",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": true,
+          "net_input_raw": "9000000008000",
+          "status": "range_exhausted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "1",
+          "output_raw": "15",
+          "next_sqrt_price": "4684887391648214235",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "1000",
+          "output_raw": "15503",
+          "next_sqrt_price": "4684895232762283307",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "1000000",
+          "output_raw": "15477974",
+          "next_sqrt_price": "4692736346831355951",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "9000000008000",
+          "status": "range_exhausted"
+        }
+      ]
+    },
+    {
+      "lower": "1844674407370955161",
+      "current": "1844674407370955161",
+      "upper": "186312115144466471321",
+      "amount_a_raw": "10000000009",
+      "liquidity": "18631211531214737489041982413",
+      "seed_a": "10000000009",
+      "seed_b": "0",
+      "amount_a_down": "10000000008",
+      "amount_b_down": "0",
+      "directions": [
+        {
+          "a_for_b": true,
+          "net_input_raw": "1",
+          "status": "range_exhausted"
+        },
+        {
+          "a_for_b": true,
+          "net_input_raw": "1000",
+          "status": "range_exhausted"
+        },
+        {
+          "a_for_b": true,
+          "net_input_raw": "1000000",
+          "status": "range_exhausted"
+        },
+        {
+          "a_for_b": true,
+          "net_input_raw": "10000000009000",
+          "status": "range_exhausted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "1",
+          "output_raw": "99",
+          "next_sqrt_price": "1844674425635058187",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "1000",
+          "output_raw": "99999",
+          "next_sqrt_price": "1844692671473982000",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "1000000",
+          "output_raw": "99019607",
+          "next_sqrt_price": "1862938510397794252",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "10000000009000",
+          "status": "range_exhausted"
+        }
+      ]
+    },
+    {
+      "lower": "1676976733973595601",
+      "current": "4312225887360674403",
+      "upper": "207226410698165742179",
+      "amount_a_raw": "11000000010",
+      "liquidity": "48442537609843649197247062759",
+      "seed_a": "11000000010",
+      "seed_b": "375153604",
+      "amount_a_down": "11000000009",
+      "amount_b_down": "375153603",
+      "directions": [
+        {
+          "a_for_b": true,
+          "net_input_raw": "1",
+          "output_raw": "0",
+          "next_sqrt_price": "4312225886976811521",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": true,
+          "net_input_raw": "1000",
+          "output_raw": "54",
+          "next_sqrt_price": "4312225503497826464",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": true,
+          "net_input_raw": "1000000",
+          "output_raw": "54641",
+          "next_sqrt_price": "4311842058645976240",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": true,
+          "net_input_raw": "11000000010000",
+          "status": "range_exhausted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "1",
+          "output_raw": "18",
+          "next_sqrt_price": "4312225894385128193",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "1000",
+          "output_raw": "18299",
+          "next_sqrt_price": "4312232911814464614",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "1000000",
+          "output_raw": "18269622",
+          "next_sqrt_price": "4319250341150886090",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "11000000010000",
+          "status": "range_exhausted"
+        }
+      ]
+    },
+    {
+      "lower": "1537228672809129301",
+      "current": "1537228672809129301",
+      "upper": "222898157557323748693",
+      "amount_a_raw": "12000000011",
+      "liquidity": "18574846480137254978240008577",
+      "seed_a": "12000000011",
+      "seed_b": "0",
+      "amount_a_down": "12000000010",
+      "amount_b_down": "0",
+      "directions": [
+        {
+          "a_for_b": true,
+          "net_input_raw": "1",
+          "status": "range_exhausted"
+        },
+        {
+          "a_for_b": true,
+          "net_input_raw": "1000",
+          "status": "range_exhausted"
+        },
+        {
+          "a_for_b": true,
+          "net_input_raw": "1000000",
+          "status": "range_exhausted"
+        },
+        {
+          "a_for_b": true,
+          "net_input_raw": "12000000011000",
+          "status": "range_exhausted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "1",
+          "output_raw": "143",
+          "next_sqrt_price": "1537228691128654433",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "1000",
+          "output_raw": "143998",
+          "next_sqrt_price": "1537246992334261571",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "1000000",
+          "output_raw": "142304127",
+          "next_sqrt_price": "1555548197941399681",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "12000000011000",
+          "status": "range_exhausted"
+        }
+      ]
+    },
+    {
+      "lower": "1418980313362273201",
+      "current": "4054229466749352003",
+      "upper": "243861902424973523011",
+      "amount_a_raw": "13000000012",
+      "liquidity": "53596022560456443412321521387",
+      "seed_a": "13000000012",
+      "seed_b": "415063744",
+      "amount_a_down": "13000000011",
+      "amount_b_down": "415063743",
+      "directions": [
+        {
+          "a_for_b": true,
+          "net_input_raw": "1",
+          "output_raw": "0",
+          "next_sqrt_price": "4054229466442672967",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": true,
+          "net_input_raw": "1000",
+          "output_raw": "48",
+          "next_sqrt_price": "4054229160070338516",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": true,
+          "net_input_raw": "1000000",
+          "output_raw": "48299",
+          "next_sqrt_price": "4053922810909408340",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": true,
+          "net_input_raw": "13000000012000",
+          "status": "range_exhausted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "1",
+          "output_raw": "20",
+          "next_sqrt_price": "4054229473098374759",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "1000",
+          "output_raw": "20702",
+          "next_sqrt_price": "4054235815772109001",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "1000000",
+          "output_raw": "20670130",
+          "next_sqrt_price": "4060578489506350418",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "13000000012000",
+          "status": "range_exhausted"
+        }
+      ]
+    },
+    {
+      "lower": "1317624576693539401",
+      "current": "1317624576693539401",
+      "upper": "259572041608627262025",
+      "amount_a_raw": "14000000013",
+      "liquidity": "18540860132118460249327318397",
+      "seed_a": "14000000013",
+      "seed_b": "0",
+      "amount_a_down": "14000000012",
+      "amount_b_down": "0",
+      "directions": [
+        {
+          "a_for_b": true,
+          "net_input_raw": "1",
+          "status": "range_exhausted"
+        },
+        {
+          "a_for_b": true,
+          "net_input_raw": "1000",
+          "status": "range_exhausted"
+        },
+        {
+          "a_for_b": true,
+          "net_input_raw": "1000000",
+          "status": "range_exhausted"
+        },
+        {
+          "a_for_b": true,
+          "net_input_raw": "14000000013000",
+          "status": "range_exhausted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "1",
+          "output_raw": "195",
+          "next_sqrt_price": "1317624595046645162",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "1000",
+          "output_raw": "195997",
+          "next_sqrt_price": "1317642929799301277",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "1000000",
+          "output_raw": "193307433",
+          "next_sqrt_price": "1335977682455416379",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "14000000013000",
+          "status": "range_exhausted"
+        }
+      ]
+    },
+    {
+      "lower": "1229782938247303441",
+      "current": "3865032091634382243",
+      "upper": "280566193197277656483",
+      "amount_a_raw": "15000000014",
+      "liquidity": "58785297677153024848069988872",
+      "seed_a": "15000000014",
+      "seed_b": "455251054",
+      "amount_a_down": "15000000013",
+      "amount_b_down": "455251053",
+      "directions": [
+        {
+          "a_for_b": true,
+          "net_input_raw": "1",
+          "output_raw": "0",
+          "next_sqrt_price": "3865032091380263039",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": true,
+          "net_input_raw": "1000",
+          "output_raw": "43",
+          "next_sqrt_price": "3865031837515194667",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": true,
+          "net_input_raw": "1000000",
+          "output_raw": "43897",
+          "next_sqrt_price": "3864777989136899071",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": true,
+          "net_input_raw": "15000000014000",
+          "status": "range_exhausted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "1",
+          "output_raw": "22",
+          "next_sqrt_price": "3865032097422944695",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "1000",
+          "output_raw": "22778",
+          "next_sqrt_price": "3865037880196835218",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "1000000",
+          "output_raw": "22744861",
+          "next_sqrt_price": "3870820654087357446",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "15000000014000",
+          "status": "range_exhausted"
+        }
+      ]
+    },
+    {
+      "lower": "1152921504606846976",
+      "current": "1152921504606846976",
+      "upper": "296300826683959672832",
+      "amount_a_raw": "16000000015",
+      "liquidity": "18518801685108856115513262080",
+      "seed_a": "16000000015",
+      "seed_b": "0",
+      "amount_a_down": "16000000015",
+      "amount_b_down": "0",
+      "directions": [
+        {
+          "a_for_b": true,
+          "net_input_raw": "1",
+          "status": "range_exhausted"
+        },
+        {
+          "a_for_b": true,
+          "net_input_raw": "1000",
+          "status": "range_exhausted"
+        },
+        {
+          "a_for_b": true,
+          "net_input_raw": "1000000",
+          "status": "range_exhausted"
+        },
+        {
+          "a_for_b": true,
+          "net_input_raw": "16000000015000",
+          "status": "range_exhausted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "1",
+          "output_raw": "255",
+          "next_sqrt_price": "1152921522981813818",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "1000",
+          "output_raw": "255995",
+          "next_sqrt_price": "1152939879573689164",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "1000000",
+          "output_raw": "251983944",
+          "next_sqrt_price": "1171296471449035406",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "16000000015000",
+          "status": "range_exhausted"
+        }
+      ]
+    },
+    {
+      "lower": "1085102592571150095",
+      "current": "3720351745958228897",
+      "upper": "317315000999020606369",
+      "amount_a_raw": "17000000016",
+      "liquidity": "63996302782723365185460376374",
+      "seed_a": "17000000016",
+      "seed_b": "495606647",
+      "amount_a_down": "17000000015",
+      "amount_b_down": "495606646",
+      "directions": [
+        {
+          "a_for_b": true,
+          "net_input_raw": "1",
+          "output_raw": "0",
+          "next_sqrt_price": "3720351745741950511",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": true,
+          "net_input_raw": "1000",
+          "output_raw": "40",
+          "next_sqrt_price": "3720351529679854879",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": true,
+          "net_input_raw": "1000000",
+          "output_raw": "40672",
+          "next_sqrt_price": "3720135480144002966",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": true,
+          "net_input_raw": "17000000016000",
+          "status": "range_exhausted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "1",
+          "output_raw": "24",
+          "next_sqrt_price": "3720351751275448050",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "1000",
+          "output_raw": "24585",
+          "next_sqrt_price": "3720357063177382576",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "1000000",
+          "output_raw": "24549982",
+          "next_sqrt_price": "3725668965111907914",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "17000000016000",
+          "status": "range_exhausted"
+        }
+      ]
+    },
+    {
+      "lower": "1024819115206086200",
+      "current": "1024819115206086200",
+      "upper": "333066212441978015288",
+      "amount_a_raw": "18000000017",
+      "liquidity": "18503678486474474942893908194",
+      "seed_a": "18000000017",
+      "seed_b": "0",
+      "amount_a_down": "18000000016",
+      "amount_b_down": "0",
+      "directions": [
+        {
+          "a_for_b": true,
+          "net_input_raw": "1",
+          "status": "range_exhausted"
+        },
+        {
+          "a_for_b": true,
+          "net_input_raw": "1000",
+          "status": "range_exhausted"
+        },
+        {
+          "a_for_b": true,
+          "net_input_raw": "1000000",
+          "status": "range_exhausted"
+        },
+        {
+          "a_for_b": true,
+          "net_input_raw": "18000000017000",
+          "status": "range_exhausted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "1",
+          "output_raw": "323",
+          "next_sqrt_price": "1024819133596071043",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "1000",
+          "output_raw": "323994",
+          "next_sqrt_price": "1024837505190930006",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "1000000",
+          "output_raw": "318288436",
+          "next_sqrt_price": "1043209100049892941",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "18000000017000",
+          "status": "range_exhausted"
+        }
+      ]
+    },
+    {
+      "lower": "970881267037344821",
+      "current": "3606130420424423623",
+      "upper": "354094267820905904327",
+      "amount_a_raw": "19000000018",
+      "liquidity": "69221435880191386632553154061",
+      "seed_a": "19000000018",
+      "seed_b": "536071652",
+      "amount_a_down": "19000000017",
+      "amount_b_down": "536071651",
+      "directions": [
+        {
+          "a_for_b": true,
+          "net_input_raw": "1",
+          "output_raw": "0",
+          "next_sqrt_price": "3606130420236560190",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": true,
+          "net_input_raw": "1000",
+          "output_raw": "38",
+          "next_sqrt_price": "3606130232561000014",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": true,
+          "net_input_raw": "1000000",
+          "output_raw": "38213",
+          "next_sqrt_price": "3605942566777370337",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": true,
+          "net_input_raw": "19000000018000",
+          "status": "range_exhausted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "1",
+          "output_raw": "26",
+          "next_sqrt_price": "3606130425340276098",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "1000",
+          "output_raw": "26167",
+          "next_sqrt_price": "3606135336276899002",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "1000000",
+          "output_raw": "26131537",
+          "next_sqrt_price": "3611046272899802780",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "19000000018000",
+          "status": "range_exhausted"
+        }
+      ]
+    },
+    {
+      "lower": "922337203685477580",
+      "current": "922337203685477580",
+      "upper": "369857218677876509900",
+      "amount_a_raw": "20000000019",
+      "liquidity": "18492860951462043366159134205",
+      "seed_a": "20000000019",
+      "seed_b": "0",
+      "amount_a_down": "20000000018",
+      "amount_b_down": "0",
+      "directions": [
+        {
+          "a_for_b": true,
+          "net_input_raw": "1",
+          "status": "range_exhausted"
+        },
+        {
+          "a_for_b": true,
+          "net_input_raw": "1000",
+          "status": "range_exhausted"
+        },
+        {
+          "a_for_b": true,
+          "net_input_raw": "1000000",
+          "status": "range_exhausted"
+        },
+        {
+          "a_for_b": true,
+          "net_input_raw": "20000000019000",
+          "status": "range_exhausted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "1",
+          "output_raw": "399",
+          "next_sqrt_price": "922337222086219780",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "1000",
+          "output_raw": "399992",
+          "next_sqrt_price": "922355604427678263",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "1000000",
+          "output_raw": "392176039",
+          "next_sqrt_price": "940737945886161016",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "20000000019000",
+          "status": "range_exhausted"
+        }
+      ]
+    },
+    {
+      "lower": "878416384462359600",
+      "current": "3513665537849438402",
+      "upper": "390895291085750022338",
+      "amount_a_raw": "21000000020",
+      "liquidity": "74456245992005952728938779541",
+      "seed_a": "21000000020",
+      "seed_b": "576611598",
+      "amount_a_down": "21000000019",
+      "amount_b_down": "576611597",
+      "directions": [
+        {
+          "a_for_b": true,
+          "net_input_raw": "1",
+          "output_raw": "0",
+          "next_sqrt_price": "3513665537683624973",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": true,
+          "net_input_raw": "1000",
+          "output_raw": "36",
+          "next_sqrt_price": "3513665372036016509",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": true,
+          "net_input_raw": "1000000",
+          "output_raw": "36279",
+          "next_sqrt_price": "3513499732244254449",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": true,
+          "net_input_raw": "21000000020000",
+          "status": "range_exhausted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "1",
+          "output_raw": "27",
+          "next_sqrt_price": "3513665542419671058",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "1000",
+          "output_raw": "27562",
+          "next_sqrt_price": "3513670108082095007",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "1000000",
+          "output_raw": "27526695",
+          "next_sqrt_price": "3518235770506044177",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "21000000020000",
+          "status": "range_exhausted"
+        }
+      ]
+    },
+    {
+      "lower": "838488366986797800",
+      "current": "838488366986797800",
+      "upper": "406666857988596933352",
+      "amount_a_raw": "22000000021",
+      "liquidity": "18484857198944496991207718167",
+      "seed_a": "22000000021",
+      "seed_b": "0",
+      "amount_a_down": "22000000020",
+      "amount_b_down": "0",
+      "directions": [
+        {
+          "a_for_b": true,
+          "net_input_raw": "1",
+          "status": "range_exhausted"
+        },
+        {
+          "a_for_b": true,
+          "net_input_raw": "1000",
+          "status": "range_exhausted"
+        },
+        {
+          "a_for_b": true,
+          "net_input_raw": "1000000",
+          "status": "range_exhausted"
+        },
+        {
+          "a_for_b": true,
+          "net_input_raw": "22000000021000",
+          "status": "range_exhausted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "1",
+          "output_raw": "483",
+          "next_sqrt_price": "838488385395507332",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "1000",
+          "output_raw": "483989",
+          "next_sqrt_price": "838506775696330074",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "1000000",
+          "output_raw": "473602233",
+          "next_sqrt_price": "856897076519072082",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "22000000021000",
+          "status": "range_exhausted"
+        }
+      ]
+    },
+    {
+      "lower": "802032351030850070",
+      "current": "3437281504417928872",
+      "upper": "427712395199737616040",
+      "amount_a_raw": "23000000022",
+      "liquidity": "79697961914693258399270235939",
+      "seed_a": "23000000022",
+      "seed_b": "617205025",
+      "amount_a_down": "23000000021",
+      "amount_b_down": "617205024",
+      "directions": [
+        {
+          "a_for_b": true,
+          "net_input_raw": "1",
+          "output_raw": "0",
+          "next_sqrt_price": "3437281504269682872",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": true,
+          "net_input_raw": "1000",
+          "output_raw": "34",
+          "next_sqrt_price": "3437281356171934280",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": true,
+          "net_input_raw": "1000000",
+          "output_raw": "34719",
+          "next_sqrt_price": "3437133264810346460",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": true,
+          "net_input_raw": "23000000022000",
+          "status": "range_exhausted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "1",
+          "output_raw": "28",
+          "next_sqrt_price": "3437281508687578418",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "1000",
+          "output_raw": "28801",
+          "next_sqrt_price": "3437285774067475056",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "1000000",
+          "output_raw": "28765379",
+          "next_sqrt_price": "3441551153964113859",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "23000000022000",
+          "status": "range_exhausted"
+        }
+      ]
+    },
+    {
+      "lower": "768614336404564650",
+      "current": "768614336404564650",
+      "upper": "443490472105433803434",
+      "amount_a_raw": "24000000023",
+      "liquidity": "18478769688768562728487808107",
+      "seed_a": "24000000023",
+      "seed_b": "0",
+      "amount_a_down": "24000000022",
+      "amount_b_down": "0",
+      "directions": [
+        {
+          "a_for_b": true,
+          "net_input_raw": "1",
+          "status": "range_exhausted"
+        },
+        {
+          "a_for_b": true,
+          "net_input_raw": "1000",
+          "status": "range_exhausted"
+        },
+        {
+          "a_for_b": true,
+          "net_input_raw": "1000000",
+          "status": "range_exhausted"
+        },
+        {
+          "a_for_b": true,
+          "net_input_raw": "24000000023000",
+          "status": "range_exhausted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "1",
+          "output_raw": "575",
+          "next_sqrt_price": "768614354819338612",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "1000",
+          "output_raw": "575986",
+          "next_sqrt_price": "768632751178526996",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "1000000",
+          "output_raw": "562522849",
+          "next_sqrt_price": "787029110366911442",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "24000000023000",
+          "status": "range_exhausted"
+        }
+      ]
+    },
+    {
+      "lower": "737869762948382064",
+      "current": "3373118916335460866",
+      "upper": "464541720759074251266",
+      "amount_a_raw": "25000000024",
+      "liquidity": "84944771877491986846577932216",
+      "seed_a": "25000000024",
+      "seed_b": "657837902",
+      "amount_a_down": "25000000023",
+      "amount_b_down": "657837901",
+      "directions": [
+        {
+          "a_for_b": true,
+          "net_input_raw": "1",
+          "output_raw": "0",
+          "next_sqrt_price": "3373118916201515822",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": true,
+          "net_input_raw": "1000",
+          "output_raw": "33",
+          "next_sqrt_price": "3373118782390421985",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": true,
+          "net_input_raw": "1000000",
+          "output_raw": "33435",
+          "next_sqrt_price": "3372984976609946893",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": true,
+          "net_input_raw": "25000000024000",
+          "status": "range_exhausted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "1",
+          "output_raw": "29",
+          "next_sqrt_price": "3373118920341385649",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "1000",
+          "output_raw": "29907",
+          "next_sqrt_price": "3373122922260244697",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "1000000",
+          "output_raw": "29871750",
+          "next_sqrt_price": "3377124841119292134",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "25000000024000",
+          "status": "range_exhausted"
+        }
+      ]
+    },
+    {
+      "lower": "709490156681136600",
+      "current": "709490156681136600",
+      "upper": "480324836073129478616",
+      "amount_a_raw": "26000000025",
+      "liquidity": "18474032174422318542917510288",
+      "seed_a": "26000000025",
+      "seed_b": "0",
+      "amount_a_down": "26000000024",
+      "amount_b_down": "0",
+      "directions": [
+        {
+          "a_for_b": true,
+          "net_input_raw": "1",
+          "status": "range_exhausted"
+        },
+        {
+          "a_for_b": true,
+          "net_input_raw": "1000",
+          "status": "range_exhausted"
+        },
+        {
+          "a_for_b": true,
+          "net_input_raw": "1000000",
+          "status": "range_exhausted"
+        },
+        {
+          "a_for_b": true,
+          "net_input_raw": "26000000025000",
+          "status": "range_exhausted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "1",
+          "output_raw": "675",
+          "next_sqrt_price": "709490175100632880",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "1000",
+          "output_raw": "675982",
+          "next_sqrt_price": "709508576177417009",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "1000000",
+          "output_raw": "658894059",
+          "next_sqrt_price": "727909652961546161",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "26000000025000",
+          "status": "range_exhausted"
+        }
+      ]
+    },
+    {
+      "lower": "683212743470724133",
+      "current": "3318461896857802935",
+      "upper": "501380551887015696567",
+      "amount_a_raw": "27000000026",
+      "liquidity": "90195443283460869517651301173",
+      "seed_a": "27000000026",
+      "seed_b": "698500683",
+      "amount_a_down": "27000000025",
+      "amount_b_down": "698500682",
+      "directions": [
+        {
+          "a_for_b": true,
+          "net_input_raw": "1",
+          "output_raw": "0",
+          "next_sqrt_price": "3318461896735710411",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": true,
+          "net_input_raw": "1000",
+          "output_raw": "32",
+          "next_sqrt_price": "3318461774765283016",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": true,
+          "net_input_raw": "1000000",
+          "output_raw": "32360",
+          "next_sqrt_price": "3318339808825242291",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": true,
+          "net_input_raw": "27000000026000",
+          "status": "range_exhausted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "1",
+          "output_raw": "30",
+          "next_sqrt_price": "3318461900630525309",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "1000",
+          "output_raw": "30900",
+          "next_sqrt_price": "3318465669580177074",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "1000000",
+          "output_raw": "30865428",
+          "next_sqrt_price": "3322234619231942383",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "27000000026000",
+          "status": "range_exhausted"
+        }
+      ]
+    },
+    {
+      "lower": "658812288346769700",
+      "current": "658812288346769700",
+      "upper": "517167646352214214948",
+      "amount_a_raw": "28000000027",
+      "liquidity": "18470273101818270991701254836",
+      "seed_a": "28000000027",
+      "seed_b": "0",
+      "amount_a_down": "28000000026",
+      "amount_b_down": "0",
+      "directions": [
+        {
+          "a_for_b": true,
+          "net_input_raw": "1",
+          "status": "range_exhausted"
+        },
+        {
+          "a_for_b": true,
+          "net_input_raw": "1000",
+          "status": "range_exhausted"
+        },
+        {
+          "a_for_b": true,
+          "net_input_raw": "1000000",
+          "status": "range_exhausted"
+        },
+        {
+          "a_for_b": true,
+          "net_input_raw": "28000000027000",
+          "status": "range_exhausted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "1",
+          "output_raw": "783",
+          "next_sqrt_price": "658812306770014718",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "1000",
+          "output_raw": "783978",
+          "next_sqrt_price": "658830711591788607",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "1000000",
+          "output_raw": "762672377",
+          "next_sqrt_price": "677235533365677406",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "28000000027000",
+          "status": "range_exhausted"
+        }
+      ]
+    },
+    {
+      "lower": "636094623231363848",
+      "current": "3271343776618442650",
+      "upper": "538226921914195439514",
+      "amount_a_raw": "29000000028",
+      "liquidity": "95449109397138232707813269429",
+      "seed_a": "29000000028",
+      "seed_b": "739186656",
+      "amount_a_down": "29000000027",
+      "amount_b_down": "739186655",
+      "directions": [
+        {
+          "a_for_b": true,
+          "net_input_raw": "1",
+          "output_raw": "0",
+          "next_sqrt_price": "3271343776506323321",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": true,
+          "net_input_raw": "1000",
+          "output_raw": "31",
+          "next_sqrt_price": "3271343664499117435",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": true,
+          "net_input_raw": "1000000",
+          "output_raw": "31448",
+          "next_sqrt_price": "3271231661131937734",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": true,
+          "net_input_raw": "29000000028000",
+          "status": "range_exhausted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "1",
+          "output_raw": "31",
+          "next_sqrt_price": "3271343780183508569",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "1000",
+          "output_raw": "31797",
+          "next_sqrt_price": "3271347341684361757",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "1000000",
+          "output_raw": "31762453",
+          "next_sqrt_price": "3274908842537550543",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "29000000028000",
+          "status": "range_exhausted"
+        }
+      ]
+    },
+    {
+      "lower": "614891469123651720",
+      "current": "614891469123651720",
+      "upper": "554017213680410200200",
+      "amount_a_raw": "30000000029",
+      "liquidity": "18467240473865339098128773102",
+      "seed_a": "30000000029",
+      "seed_b": "0",
+      "amount_a_down": "30000000028",
+      "amount_b_down": "0",
+      "directions": [
+        {
+          "a_for_b": true,
+          "net_input_raw": "1",
+          "status": "range_exhausted"
+        },
+        {
+          "a_for_b": true,
+          "net_input_raw": "1000",
+          "status": "range_exhausted"
+        },
+        {
+          "a_for_b": true,
+          "net_input_raw": "1000000",
+          "status": "range_exhausted"
+        },
+        {
+          "a_for_b": true,
+          "net_input_raw": "30000000029000",
+          "status": "range_exhausted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "1",
+          "output_raw": "899",
+          "next_sqrt_price": "614891487549922142",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "1000",
+          "output_raw": "899973",
+          "next_sqrt_price": "614909895394073795",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "1000000",
+          "output_raw": "873814655",
+          "next_sqrt_price": "633317739545727113",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "30000000029000",
+          "status": "range_exhausted"
+        }
+      ]
+    },
+    {
+      "lower": "595056260442243600",
+      "current": "3230305413829322402",
+      "upper": "575079371698825422498",
+      "amount_a_raw": "31000000030",
+      "liquidity": "100705143528587309539340926127",
+      "seed_a": "31000000030",
+      "seed_b": "779890968",
+      "amount_a_down": "31000000029",
+      "amount_b_down": "779890967",
+      "directions": [
+        {
+          "a_for_b": true,
+          "net_input_raw": "1",
+          "output_raw": "0",
+          "next_sqrt_price": "3230305413725704328",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": true,
+          "net_input_raw": "1000",
+          "output_raw": "30",
+          "next_sqrt_price": "3230305310211251207",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": true,
+          "net_input_raw": "1000000",
+          "output_raw": "30664",
+          "next_sqrt_price": "3230201799078439671",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": true,
+          "net_input_raw": "31000000030000",
+          "status": "range_exhausted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "1",
+          "output_raw": "32",
+          "next_sqrt_price": "3230305417208319293",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "1000",
+          "output_raw": "32610",
+          "next_sqrt_price": "3230308792826213701",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "1000000",
+          "output_raw": "32576035",
+          "next_sqrt_price": "3233684410720621623",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "31000000030000",
+          "status": "range_exhausted"
+        }
+      ]
+    },
+    {
+      "lower": "576460752303423488",
+      "current": "576460752303423488",
+      "upper": "590872271111009075200",
+      "amount_a_raw": "32000000031",
+      "liquidity": "18464758490106768369962188800",
+      "seed_a": "32000000031",
+      "seed_b": "0",
+      "amount_a_down": "32000000031",
+      "amount_b_down": "0",
+      "directions": [
+        {
+          "a_for_b": true,
+          "net_input_raw": "1",
+          "status": "range_exhausted"
+        },
+        {
+          "a_for_b": true,
+          "net_input_raw": "1000",
+          "status": "range_exhausted"
+        },
+        {
+          "a_for_b": true,
+          "net_input_raw": "1000000",
+          "status": "range_exhausted"
+        },
+        {
+          "a_for_b": true,
+          "net_input_raw": "32000000031000",
+          "status": "range_exhausted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "1",
+          "output_raw": "1023",
+          "next_sqrt_price": "576460770732170720",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "1000",
+          "output_raw": "1023967",
+          "next_sqrt_price": "576479181050655858",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "1000000",
+          "output_raw": "992278079",
+          "next_sqrt_price": "594889499535793644",
+          "status": "quoted"
+        },
+        {
+          "a_for_b": false,
+          "net_input_raw": "32000000031000",
+          "status": "range_exhausted"
+        }
+      ]
+    }
+  ]
+}

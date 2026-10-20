@@ -4,6 +4,8 @@ import { ContentError } from "./content-url";
 export { authorized } from "./request-security";
 import { createRewards, rewardList, rewardRecord } from "./rewards";
 import { RewardError } from "./reward-math";
+import { createLaunch, launchList, launchRecord } from "./launch-lab";
+import { LaunchError } from "./launch-math";
 import { z } from "zod";
 import { candidateCard } from "./candidate-card";
 import { identityRoute, IdentityError } from "./identity";
@@ -115,6 +117,9 @@ export async function handle(request: Request, env: Env): Promise<Response> {
   if (method !== "GET" && method !== "POST") return json({ error: "method_not_allowed" }, 405);
   if (path.startsWith("/api/10x/attention/") || path.startsWith("/api/10x/admin/attention/")) return contentRoute(request, env.TENX_DB, admin);
   if (method === "GET" && path === "/api/10x/rewards/lab") return json(await rewardList(env.TENX_DB));
+  if(method==="GET"&&path==="/api/10x/launches/lab")return json(await launchList(env.TENX_DB));
+  const launchMatch=path.match(/^\/api\/10x\/admin\/launches\/lab\/([^/]+)$/);
+  if(method==="GET"&&launchMatch){const record=await launchRecord(env.TENX_DB,launchMatch[1]);return record?json({record,replay:"verified"}):json({error:"launch_record_not_found"},404);}
   const rewardMatch = path.match(/^\/api\/10x\/admin\/rewards\/lab\/([^/]+)$/);
   if (method === "GET" && rewardMatch) {
     const record = await rewardRecord(env.TENX_DB, rewardMatch[1]);
@@ -258,6 +263,7 @@ export async function handle(request: Request, env: Env): Promise<Response> {
   }
   if (method === "POST" && admin) {
     const body = await adminJson(request);
+    if(path==="/api/10x/admin/launches/lab")return json({record:await createLaunch(env.TENX_DB,body),replay:"verified"});
     const reason = z.object({ reason: z.string().min(3).max(300) }).passthrough().parse(body).reason;
     if (path === "/api/10x/admin/rewards/lab") return json({ record: await createRewards(env.TENX_DB, body), replay: "verified" });
     if (path === "/api/10x/admin/backing/open") return json(await openBacking(env.TENX_DB,body));
@@ -332,6 +338,7 @@ export default {
         const response = json({ error: error.message }, error.status); response.headers.set("vary", "Cookie"); return response;
       }
       if (error instanceof RequestSecurityError) return json({ error: error.message }, error.status);
+      if(error instanceof LaunchError)return json({error:error.message},error.status);
       if (error instanceof RewardError) return json({ error: error.message }, error.message === "reward_daily_limit" ? 429 : error.message === "reward_request_conflict" ? 409 : error.message.includes("mismatch") ? 503 : 400);
       if(error instanceof BackingError)return json({error:error.message},error.status);
       if(error instanceof OperationsError)return json({error:error.message},503);
