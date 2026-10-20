@@ -7,6 +7,8 @@ import {HoldReviewsPanel,HoldReviewMessage} from "./ContentHoldReviews";
 import {HoldReviewEvent} from "../../../discovery/src/content-hold-model";
 import {ContentOperationsPanel} from "./ContentOperations";
 import {ContentCaseExportPanel} from "./ContentCaseExport";
+import {ContentAuthorshipPanel,ContentAuthorshipCheck,AuthorshipLabel,AuthorshipReviewEvent} from "./ContentAuthorship";
+import {AuthorshipSummary,AuthorshipEvent} from "../../../discovery/src/content-authorship-model";
 it("renders untrusted author/comment as text and external links without embedding or referrer access", () => {
   const html = renderToStaticMarkup(<ContentLink item={{ content: { canonical_url: "https://example.com/post", platform: "web", category: "meme", author_claim: '<img src=x onerror="alert(1)">', comment: "<script>steal()</script>", permission_to_feature: true, rights_confirmed: true }, status: "VISIBLE", updated_at: "2026-10-21T00:00:00.000Z", revision: 1 }} />);
   expect(html).toContain("&lt;img"); expect(html).toContain("&lt;script&gt;");
@@ -34,4 +36,16 @@ it("requires operator access and an explicit case request before any confidentia
   expect(html).toContain("Private moderation case export");expect(html).toContain('input disabled');expect(html).toContain('button class="tenx-button" disabled');
   expect(html).toContain("confidential reporter identities");expect(html).toContain("Nothing is uploaded or downloaded automatically");
   expect(html).not.toContain("Download confidential JSON");expect(html).not.toContain("<iframe");expect(html).not.toContain("<img");
+});
+it("requires an operator before private authorship review and performs no automatic public check",()=>{
+  const html=renderToStaticMarkup(<ContentAuthorshipPanel token=""/>);expect(html).toContain("Manual authorship review · private");expect(html).toContain('input disabled');expect(html).toContain('button class="tenx-button" disabled');expect(html).toContain("Enter the operator token");expect(html).not.toContain("Private review explanation");expect(html).toContain("Withdrawal remains available");
+  const publicCheck=renderToStaticMarkup(<ContentAuthorshipCheck submissionId="00000000-0000-4000-8000-000000000001"/>);expect(publicCheck).toContain("Check recorded author review");expect(publicCheck).not.toContain("reviewed manually");
+});
+it.each(["UNVERIFIED","MANUAL_REVIEWED","WITHDRAWN"] as const)("labels %s authorship without implying cryptographic verification or rewards",status=>{
+  const value=AuthorshipSummary.parse({submission_id:"00000000-0000-4000-8000-000000000001",status,reviewed_at:status==="UNVERIFIED"?null:"2026-10-21T00:00:00.000Z",method:status==="UNVERIFIED"?"none":"manual_source_review",external_account_control:"unverified",rights:"not_certified",rewards_enabled:false,source_requests:0});
+  const html=renderToStaticMarkup(<AuthorshipLabel data={value}/>);expect(html).toContain("External account control remains unverified");expect(html).toContain("rights are not certified");expect(html).toContain("No reward credit");if(status==="MANUAL_REVIEWED")expect(html).toContain("reviewed manually");if(status==="WITHDRAWN")expect(html).toContain("withdrawn");
+});
+it("escapes private author claims and review explanations without embedding source references",()=>{
+  const id="00000000-0000-4000-8000-000000000001",event=AuthorshipEvent.parse({id,submission_id:id,revision:0,created_at:"2026-10-21T00:00:00.000Z",actor:"local_operator",decision:"MANUAL_REVIEWED",method:"manual_source_review",target_content_hash:"a".repeat(64),author_claim:"<img src=x onerror=steal()>",evidence_url:"https://example.com/author-proof",reason:"<script>copy private operator notes()</script>",source_and_author_checked:true,request_hash:"b".repeat(64),previous_hash:null,hash:"c".repeat(64)});
+  const html=renderToStaticMarkup(<AuthorshipReviewEvent event={event}/>);expect(html).toContain("&lt;script&gt;");expect(html).toContain("&lt;img");expect(html).not.toContain("<script");expect(html).not.toContain("<img");expect(html).not.toContain("<iframe");expect(html).toContain('rel="noopener noreferrer"');expect(html).toContain('referrerPolicy="no-referrer"');
 });

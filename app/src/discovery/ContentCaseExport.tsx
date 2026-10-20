@@ -7,6 +7,7 @@ type CaseExport=z.infer<typeof ContentCaseExport>;
 export function ContentCaseExportSummary({data}:{data:CaseExport}){
   return <div><p>Submission <code>{data.content.snapshot.id}</code> · captured {new Date(data.captured_at).toLocaleString()}.</p>
     <p>{data.manifest.events} verified history events · {data.manifest.reports} private reports · {data.manifest.hold_reviews} contributor follow-ups.</p>
+    {data.version==="content-case-export-v2"&&<p>{data.manifest.authorship_events} manual authorship history events. Authorship and reward qualification remain separate from visibility.</p>}
     <p>Featuring hold: {data.visibility_held?"active":"none at capture"}. Closing a follow-up does not release an upheld report.</p>
     <p className="tenx-muted">Checksum <code className="tenx-content-url">{data.export_hash}</code>. Keep a separate copy to check the original artifact later. Checksums verify retained history consistency; they are not signatures, proof of authorship or proof an allegation is true.</p></div>;
 }

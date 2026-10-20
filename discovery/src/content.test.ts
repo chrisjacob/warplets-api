@@ -15,11 +15,12 @@ import {CONTENT_LIMITS} from "./content-limits";
 import {contentCaseExport,verifyContentCaseExport,checkContentExportSize} from "./content-export";
 import {ContentCasePayload,CONTENT_EXPORT_MAX_BYTES} from "./content-export-model";
 import {hashJson} from "./solana";
+import {contentAuthorship,publicAuthorship,reviewAuthorship,verifyAuthorshipHistory} from "./content-authorship";
 const instances: DatabaseSync[] = [], origin = "https://app-local.10x.meme", token = "a".repeat(64);
 afterEach(() => { instances.splice(0).forEach(db => db.close()); vi.restoreAllMocks(); vi.useRealTimers(); });
 async function fixture() {
   const sqlite = new DatabaseSync(":memory:"); instances.push(sqlite); sqlite.exec("PRAGMA foreign_keys=ON");
-  for (const name of ["0018_solana_identity.sql", "0024_content_review.sql", "0026_content_reports.sql", "0027_content_hold_reviews.sql"]) sqlite.exec(readFileSync(new URL(`../migrations/${name}`, import.meta.url), "utf8"));
+  for (const name of ["0018_solana_identity.sql", "0024_content_review.sql", "0026_content_reports.sql", "0027_content_hold_reviews.sql", "0031_content_authorship.sql"]) sqlite.exec(readFileSync(new URL(`../migrations/${name}`, import.meta.url), "utf8"));
   const base = sqliteD1(sqlite); let tail: Promise<unknown> = Promise.resolve();
   const db = { ...base, batch(statements: D1PreparedStatement[]) { const result = tail.then(() => base.batch(statements)); tail = result.catch(() => {}); return result; } } as D1Database;
   const at = new Date();
@@ -42,6 +43,111 @@ async function fixture() {
   const review = (id: string, revision = 0, decision = "VISIBLE") => ({ request_id: crypto.randomUUID(), submission_id: id, expected_revision: revision, decision, reason: "Manual local review; authorship and metrics remain unverified" });
   return { sqlite, db, at, env, call, request, owner, other, login, campaign, campaignInput, input, review };
 }
+describe("manual authorship review",()=>{
+  async function authorshipCase(){
+    const f=await fixture(),input=f.input();await submitContent(f.db,input,f.owner.principal,f.at);
+    const request=(expected_revision=-1,decision="MANUAL_REVIEWED")=>({request_id:crypto.randomUUID(),submission_id:input.request_id,expected_revision,decision,evidence_url:decision==="MANUAL_REVIEWED"?"https://example.com/author-reference?utm_source=manual":null,reason:"Confidential operator inspection of claimed source authorship",source_and_author_checked:decision==="MANUAL_REVIEWED"});
+    return {...f,input,request,inputFactory:f.input,routeRequest:f.request};
+  }
+  it("records explicit manual checks, canonical references and withdrawals without changing content or reward gates",async()=>{
+    const f=await authorshipCase(),original=await contentRecord(f.db,f.input.request_id),outside=vi.spyOn(globalThis,"fetch").mockRejectedValue(Error("No external requests"));
+    expect((await contentAuthorship(f.db,f.input.request_id)).events).toEqual([]);
+    const input=f.request(),saved=await reviewAuthorship(f.db,input,f.at);
+    expect(saved.event).toMatchObject({actor:"local_operator",decision:"MANUAL_REVIEWED",method:"manual_source_review",evidence_url:"https://example.com/author-reference",author_claim:f.input.author_claim,revision:0});
+    expect(await reviewAuthorship(f.db,input,f.at)).toEqual(saved);
+    await expect(reviewAuthorship(f.db,{...input,reason:"Different explanation for the same request identity"},f.at)).rejects.toMatchObject({status:409});
+    const withdrawn=await reviewAuthorship(f.db,f.request(0,"WITHDRAWN"),f.at);expect(withdrawn.event.previous_hash).toBe(saved.event.hash);
+    const history=await contentAuthorship(f.db,f.input.request_id);expect(history.events.map(e=>e.decision)).toEqual(["MANUAL_REVIEWED","WITHDRAWN"]);expect(history.reward_eligible).toBe(false);
+    const operations=await contentOperations(f.db,f.at);expect(operations.authorship).toEqual({manual_reviews_today:1,manual_review_limit:20,remaining:19,withdrawals_today:1,withdrawal_daily_limit:null});expect(operations.storage.tables.find(t=>t.id==="authorship_events")).toMatchObject({total_rows:2,sampled_rows:2,complete:true});
+    expect(await reviewAuthorship(f.db,input,f.at)).toEqual(saved);expect(await contentRecord(f.db,f.input.request_id)).toEqual(original);expect(outside).not.toHaveBeenCalled();
+  });
+  it("publishes only explicit manual-review labels for visible unheld links and never leaks private evidence",async()=>{
+    const f=await authorshipCase();await expect(publicAuthorship(f.db,f.input.request_id)).rejects.toMatchObject({status:404});
+    await changeContent(f.db,f.review(f.input.request_id),null,f.at);
+    expect(await publicAuthorship(f.db,f.input.request_id)).toMatchObject({status:"UNVERIFIED",reviewed_at:null,method:"none",external_account_control:"unverified",rights:"not_certified",rewards_enabled:false});
+    const request=f.request();await reviewAuthorship(f.db,request,f.at);
+    const response=await f.call(`attention/authorship/${f.input.request_id}`);expect(response.status).toBe(200);expect(response.headers.get("cache-control")).toBe("no-store");
+    const summary=await response.json();expect(summary).toMatchObject({status:"MANUAL_REVIEWED",method:"manual_source_review",external_account_control:"unverified",rights:"not_certified",rewards_enabled:false});
+    for(const secret of [request.reason,"author-reference",f.owner.principal.identity_id,request.request_id])expect(JSON.stringify(summary)).not.toContain(secret);
+    const report={request_id:crypto.randomUUID(),submission_id:f.input.request_id,category:"impersonation",reason:"Independent report about the source or identity",evidence_url:null,good_faith:true};
+    await submitContentReport(f.db,report,f.other.principal,f.at);
+    await reviewContentReport(f.db,{request_id:crypto.randomUUID(),report_id:report.request_id,expected_revision:0,decision:"UPHELD",reason:"Operator independently upholds the separate content report"},f.at);
+    expect((await f.call(`attention/authorship/${f.input.request_id}`)).status).toBe(404);
+    await reviewAuthorship(f.db,f.request(0,"WITHDRAWN"),f.at);expect((await contentRecord(f.db,f.input.request_id))!.visibility_held).toBe(true);
+    await reviewContentReport(f.db,{request_id:crypto.randomUUID(),report_id:report.request_id,expected_revision:1,decision:"RELEASED",reason:"Operator separately releases the original featuring hold"},f.at);
+    expect((await publicAuthorship(f.db,f.input.request_id)).status).toBe("WITHDRAWN");
+    await changeContent(f.db,f.review(f.input.request_id,1,"FLAGGED"),null,f.at);expect((await f.call(`attention/authorship/${f.input.request_id}`)).status).toBe(404);
+  });
+  it("restricts private history and writes to the local operator",async()=>{
+    const f=await authorshipCase(),path=`admin/attention/submissions/${f.input.request_id}/authorship`,auth={authorization:`Bearer ${token}`};
+    expect((await f.call(path,undefined,f.owner.cookie)).status).toBe(401);expect((await f.call("admin/attention/authorship/review",f.request(),f.owner.cookie)).status).toBe(401);
+    expect((await f.call(path,undefined,undefined,{...auth,origin:"https://evil.example"})).status).toBe(403);
+    expect((await f.call("admin/attention/authorship/review",f.request(),undefined,{...auth,origin:"https://evil.example"})).status).toBe(403);
+    const response=await f.call(path,undefined,undefined,auth);expect(response.status).toBe(200);expect(response.headers.get("vary")).toBe("Cookie");expect(response.headers.get("cache-control")).toBe("no-store");
+    expect((await f.call("admin/attention/authorship/review",f.request(),undefined,auth)).status).toBe(200);
+    expect((await f.call("admin/attention/submissions/invalid/authorship",undefined,undefined,auth)).status).toBe(400);
+    expect((await f.call(`attention/authorship/${crypto.randomUUID()}`)).status).toBe(404);
+    expect((await worker.fetch(f.routeRequest(path,undefined,undefined,auth),{...f.env,TENX_LOCAL_ONLY:"false"})).status).toBe(503);
+  });
+  it.each(["unchecked","missing_reference","private_reference","wrong_revision","withdraw_first","backdated"])("rejects %s review admission",async(kind)=>{
+    const f=await authorshipCase(),request=f.request();
+    if(kind==="unchecked")request.source_and_author_checked=false;
+    if(kind==="missing_reference")request.evidence_url=null;
+    if(kind==="private_reference")request.evidence_url="https://127.0.0.1/proof";
+    if(kind==="wrong_revision")request.expected_revision=0;
+    if(kind==="withdraw_first"){request.decision="WITHDRAWN";request.source_and_author_checked=false;request.evidence_url=null;}
+    await expect(reviewAuthorship(f.db,request,kind==="backdated"?new Date(f.at.getTime()-1):f.at)).rejects.toThrow();expect((await contentAuthorship(f.db,f.input.request_id)).events).toEqual([]);
+  });
+  it("admits only one concurrent head extension and rejects duplicate active reviews",async()=>{
+    const f=await authorshipCase();const results=await Promise.allSettled([reviewAuthorship(f.db,f.request(),f.at),reviewAuthorship(f.db,f.request(),f.at)]);
+    expect(results.filter(r=>r.status==="fulfilled")).toHaveLength(1);expect((await contentAuthorship(f.db,f.input.request_id)).events).toHaveLength(1);
+    await expect(reviewAuthorship(f.db,f.request(0),f.at)).rejects.toMatchObject({status:409});
+  });
+  it("enforces the daily review quota atomically while allowing withdrawal and exact retry at capacity",async()=>{
+    const f=await authorshipCase(),ids=[f.input.request_id];
+    for(let i=1;i<21;i++){const input=f.inputFactory(`https://example.com/quota/${i}`);const user=i<10?f.owner:i<20?f.other:await f.login();await submitContent(f.db,input,user.principal,f.at);ids.push(input.request_id);}
+    const first=f.request();await reviewAuthorship(f.db,first,f.at);
+    for(const id of ids.slice(1,19))await reviewAuthorship(f.db,{...f.request(),submission_id:id},f.at);
+    const result=await Promise.allSettled(ids.slice(19).map(id=>reviewAuthorship(f.db,{...f.request(),submission_id:id},f.at)));expect(result.filter(r=>r.status==="fulfilled")).toHaveLength(1);
+    expect(f.sqlite.prepare("SELECT count(*) AS n FROM tenx_content_authorship_events WHERE decision='MANUAL_REVIEWED'").get()!.n).toBe(20);
+    await reviewAuthorship(f.db,f.request(0,"WITHDRAWN"),f.at);expect((await contentAuthorship(f.db,f.input.request_id)).events.at(-1)!.decision).toBe("WITHDRAWN");
+    expect((await reviewAuthorship(f.db,first,f.at)).event.id).toBe(first.request_id);
+    await expect(reviewAuthorship(f.db,f.request(1),f.at)).rejects.toMatchObject({status:409});
+    const tomorrow=new Date(f.at.toISOString().slice(0,10)+"T00:00:00.000Z");tomorrow.setUTCDate(tomorrow.getUTCDate()+1);
+    await reviewAuthorship(f.db,f.request(1),tomorrow);expect((await contentAuthorship(f.db,f.input.request_id)).events).toHaveLength(3);
+  });
+  it("retains a bounded chain with a final withdrawal and immutable database events",async()=>{
+    const f=await authorshipCase();const first=f.request();await reviewAuthorship(f.db,first,f.at);
+    for(let revision=1;revision<10;revision++)await reviewAuthorship(f.db,f.request(revision-1,revision%2?"WITHDRAWN":"MANUAL_REVIEWED"),f.at);
+    const record=await contentAuthorship(f.db,f.input.request_id);expect(record.events).toHaveLength(10);expect(record.events.at(-1)!.decision).toBe("WITHDRAWN");
+    expect(()=>f.sqlite.prepare("DELETE FROM tenx_content_authorship_events WHERE id=?").run(first.request_id)).toThrow("immutable_authorship_review");
+    expect(()=>f.sqlite.prepare("UPDATE tenx_content_authorship_events SET decision='WITHDRAWN' WHERE id=?").run(first.request_id)).toThrow("immutable_authorship_review");
+    await expect(reviewAuthorship(f.db,f.request(9),f.at)).rejects.toThrow();expect((await reviewAuthorship(f.db,first,f.at)).event).toEqual(record.events[0]);
+  });
+  it.each(["hash","target","actor","transition","predecessor","metadata","missing"])("fails closed on %s history corruption",async(kind)=>{
+    const f=await authorshipCase();await reviewAuthorship(f.db,f.request(),f.at);await reviewAuthorship(f.db,f.request(0,"WITHDRAWN"),f.at);
+    const record=await contentAuthorship(f.db,f.input.request_id),target=(await contentRecord(f.db,f.input.request_id))!.snapshot;
+    if(kind==="metadata"){
+      f.sqlite.exec("DROP TRIGGER tenx_authorship_no_update");f.sqlite.prepare("UPDATE tenx_content_authorship_events SET event_hash=? WHERE submission_id=? AND revision=1").run("a".repeat(64),f.input.request_id);await expect(contentAuthorship(f.db,f.input.request_id)).rejects.toThrow();return;
+    }
+    if(kind==="hash")record.events[0]!.reason="Changed private operator review explanation";
+    if(kind==="target")record.target_content_hash="a".repeat(64);
+    if(kind==="actor")Object.assign(record.events[0]!,{actor:f.owner.principal.identity_id});
+    if(kind==="transition"){record.events[1]!.decision="MANUAL_REVIEWED";record.events[1]!.source_and_author_checked=true;record.events[1]!.evidence_url="https://example.com/author-reference";const {hash:_h,...unsigned}=record.events[1]!;record.events[1]!.hash=await hashJson(unsigned);}
+    if(kind==="predecessor")record.events[1]!.previous_hash="a".repeat(64);
+    if(kind==="missing")record.events.shift();
+    await expect(verifyAuthorshipHistory(record,target)).rejects.toThrow();
+  });
+  it("exports authored cases as v2, replays offline, preserves v1 and detects tampered author histories",async()=>{
+    const f=await authorshipCase(),legacy=await contentCaseExport(f.db,f.input.request_id);expect(legacy.version).toBe("content-case-export-v1");
+    await reviewAuthorship(f.db,f.request(),f.at);const value=await contentCaseExport(f.db,f.input.request_id);
+    expect(value.version).toBe("content-case-export-v2");if(value.version!=="content-case-export-v2")throw Error("expected v2");
+    expect(value.manifest.authorship_events).toBe(1);expect(value.manifest.events).toBe(2);expect(value.content).toEqual(legacy.content);
+    expect(await verifyContentCaseExport(legacy,legacy.export_hash)).toEqual(legacy);expect(await verifyContentCaseExport(value,value.export_hash)).toEqual(value);
+    value.authorship.events[0]!.reason="Tampered author review explanation";value.manifest.authorship_hash=await hashJson(value.authorship);const {export_hash:_hash,...payload}=value;value.export_hash=await hashJson(payload);
+    await expect(verifyContentCaseExport(value)).rejects.toThrow();
+  });
+});
 describe("private content case exports",()=>{
   async function heldCase(){
     const f=await fixture(),input=f.input();await submitContent(f.db,input,f.owner.principal,f.at);await changeContent(f.db,f.review(input.request_id),null,f.at);
@@ -70,7 +176,7 @@ describe("private content case exports",()=>{
   it("exports one consistent, read-only case and verifies offline without disclosing reporters to contributors",async()=>{
     const f=await heldCase(),before=f.sqlite.prepare("SELECT total_changes() AS n").get(),outside=vi.spyOn(globalThis,"fetch").mockRejectedValue(Error("No providers")),batch=vi.spyOn(f.db,"batch");
     const record=await contentCaseExport(f.db,f.input.request_id);
-    expect(batch).toHaveBeenCalledTimes(1);expect(batch.mock.calls[0]![0]).toHaveLength(4);
+    expect(batch).toHaveBeenCalledTimes(1);expect(batch.mock.calls[0]![0]).toHaveLength(5);
     expect(record.manifest).toMatchObject({reports:2,hold_reviews:1,events:10});expect(record.visibility_held).toBe(true);
     expect(record.hold_reviews[0]!.snapshot.status).toBe("CLOSED");expect(record.source_requests).toBe(0);expect(record.rewards_enabled).toBe(false);
     expect(record.reports.map(r=>r.snapshot.id)).toEqual(record.reports.map(r=>r.snapshot.id).sort());

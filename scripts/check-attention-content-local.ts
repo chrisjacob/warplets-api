@@ -12,6 +12,7 @@ import {ContentOperations} from "../discovery/src/content-operations-model";
 import { IdentityChallengeResponse, IdentitySessionResponse } from "../discovery/src/identity-model";
 import {ContentReportPage,ContentReportRecord} from "../discovery/src/content-report-model";
 import {verifyContentCaseExport} from "../discovery/src/content-export";
+import {AuthorshipHistory,AuthorshipSummary} from "../discovery/src/content-authorship-model";
 
 // Disposable keys and a separate database: never signs with user wallets or
 // writes synthetic submissions into the live local application database.
@@ -80,6 +81,18 @@ try {
   assert.equal(new Set([...first.feed.submissions, ...second.feed.submissions].map(s => s.id)).size, first.feed.submissions.length + second.feed.submissions.length);
   const queue = ContentPage.parse(await (await call("admin/attention/queue", undefined, undefined, true)).json()); assert.equal(queue.submissions.length, 20);
   const target=first.feed.submissions[0]!,claim={request_id:crypto.randomUUID(),submission_id:target.id,category:"impersonation",reason:"Synthetic private report for isolated runtime review",evidence_url:"https://example.com/evidence",good_faith:true};
+  const authorPath=`admin/attention/submissions/${target.id}/authorship`,publicAuthorPath=`attention/authorship/${target.id}`;
+  const legacyExport=await verifyContentCaseExport(await (await call(`admin/attention/submissions/${target.id}/export`,undefined,undefined,true)).json());assert.equal(legacyExport.version,"content-case-export-v1");
+  assert.equal(AuthorshipSummary.parse(await (await call(publicAuthorPath)).json()).status,"UNVERIFIED");
+  assert.equal((await call(authorPath,undefined,users[0]!.cookie)).status,401);
+  const authorReview={request_id:crypto.randomUUID(),submission_id:target.id,expected_revision:-1,decision:"MANUAL_REVIEWED",evidence_url:"https://example.com/manual-author-proof",reason:"Synthetic source and claimed author manually inspected; no real authorship assertion",source_and_author_checked:true};
+  assert.equal((await call("admin/attention/authorship/review",authorReview,users[0]!.cookie)).status,401);
+  assert.equal((await call("admin/attention/authorship/review",authorReview,undefined,true,{origin:"https://evil.example"})).status,403);
+  assert.equal((await call("admin/attention/authorship/review",authorReview,undefined,true)).status,200);
+  assert.equal((await call("admin/attention/authorship/review",authorReview,undefined,true)).status,200);
+  const authorHistory=AuthorshipHistory.parse(await (await call(authorPath,undefined,undefined,true)).json());assert.equal(authorHistory.events.length,1);assert.equal(authorHistory.reward_eligible,false);
+  const authorSummary=AuthorshipSummary.parse(await (await call(publicAuthorPath)).json());assert.equal(authorSummary.status,"MANUAL_REVIEWED");assert.equal(authorSummary.external_account_control,"unverified");assert.equal(authorSummary.rewards_enabled,false);
+  for(const privateValue of [authorReview.reason,authorReview.evidence_url,authorReview.request_id])assert(!JSON.stringify(authorSummary).includes(privateValue));
   assert.equal((await call("attention/reports",claim)).status,401);
   const reportResponse=await call("attention/reports",claim,users[1]!.cookie);assert.equal(reportResponse.status,200);
   const report=ContentReportRecord.parse(await reportResponse.json());assert.equal(report.snapshot.status,"OPEN");
@@ -87,6 +100,7 @@ try {
   const textWithReport=await (await publicDetail()).text();assert(!textWithReport.includes(claim.reason));assert(!textWithReport.includes(claim.request_id));
   const reportDecision={request_id:crypto.randomUUID(),report_id:claim.request_id,expected_revision:0,decision:"UPHELD",reason:"Synthetic operator reviewed the private concern"};
   assert.equal((await call("admin/attention/reports/review",reportDecision,undefined,true)).status,200);
+  assert.equal((await call(publicAuthorPath)).status,404);
   const held=ContentRecord.parse(await (await call(`admin/attention/submissions/${target.id}`,undefined,undefined,true)).json());assert.equal(held.visibility_held,true);assert.equal(held.snapshot.status,"VISIBLE");assert.equal(held.snapshot.reward_eligible,false);
   assert(!ContentCampaignDetail.parse(await (await publicDetail()).json()).feed.submissions.some(s=>s.id===target.id));
   const contributor=users.find(u=>u.identity===held.snapshot.identity_id)!;
@@ -109,9 +123,11 @@ try {
   assert.equal((await call(exportPath,undefined,undefined,true,{origin:"https://evil.example"})).status,403);
   const exportedResponse=await call(exportPath,undefined,undefined,true);assert.equal(exportedResponse.status,200);assert.equal(exportedResponse.headers.get("cache-control"),"no-store");
   const exported=await verifyContentCaseExport(await exportedResponse.json());assert.equal(exported.visibility_held,true);assert.equal(exported.manifest.reports,1);assert.equal(exported.manifest.hold_reviews,1);assert.equal(exported.hold_reviews[0]!.events.length,4);
+  assert(exported.version==="content-case-export-v2");assert.deepEqual(exported.authorship,authorHistory);assert.equal(exported.manifest.authorship_events,1);
   const artifactFile=`${folder}/private-case.json`;writeFileSync(artifactFile,JSON.stringify(exported));
   const verifier=fileURLToPath(new URL("../scripts/verify-content-case-export.ts",import.meta.url)),tsx=fileURLToPath(new URL("../node_modules/tsx/dist/cli.mjs",import.meta.url));
   const offline=await execute(process.execPath,[tsx,verifier,artifactFile,exported.export_hash],options);assert.equal(JSON.parse(offline.stdout).verified,true);
+  const legacyFile=`${folder}/legacy-case-v1.json`;writeFileSync(legacyFile,JSON.stringify(legacyExport));const oldOffline=await execute(process.execPath,[tsx,verifier,legacyFile,legacyExport.export_hash],options);assert.equal(JSON.parse(oldOffline.stdout).verified,true);
   const wrongHash=exported.export_hash==="0".repeat(64)?"1".repeat(64):"0".repeat(64);
   await assert.rejects(execute(process.execPath,[tsx,verifier,artifactFile,wrongHash],options));
   assert.deepEqual(ContentRecord.parse(await (await call(`admin/attention/submissions/${target.id}`,undefined,undefined,true)).json()),held);
@@ -127,6 +143,15 @@ try {
   assert(ContentCampaignDetail.parse(await (await publicDetail()).json()).feed.submissions.some(s=>s.id===target.id));
   const releasedOperations=ContentOperations.parse(await (await call("admin/attention/operations",undefined,undefined,true)).json());assert.equal(releasedOperations.holds.held_submissions,0);
   const releasedExport=await verifyContentCaseExport(await (await call(exportPath,undefined,undefined,true)).json());assert.equal(releasedExport.visibility_held,false);assert.deepEqual(releasedExport.hold_reviews,exported.hold_reviews);assert.deepEqual(releasedExport.content,exported.content);
+  assert.equal(AuthorshipSummary.parse(await (await call(publicAuthorPath)).json()).status,"MANUAL_REVIEWED");
+  const withdrawal={...authorReview,request_id:crypto.randomUUID(),expected_revision:0,decision:"WITHDRAWN",evidence_url:null,source_and_author_checked:false,reason:"Synthetic manual review withdrawn independently of visibility"};
+  assert.equal((await call("admin/attention/authorship/review",withdrawal,undefined,true)).status,200);
+  assert.equal(AuthorshipSummary.parse(await (await call(publicAuthorPath)).json()).status,"WITHDRAWN");
+  const finalExport=await verifyContentCaseExport(await (await call(exportPath,undefined,undefined,true)).json());assert(finalExport.version==="content-case-export-v2");assert.equal(finalExport.manifest.authorship_events,2);assert.equal(finalExport.content.snapshot.reward_eligible,false);
+  assert.deepEqual(finalExport.content,exported.content);assert.deepEqual(finalExport.hold_reviews,exported.hold_reviews);
+  const finalFile=`${folder}/withdrawn-author-case-v2.json`;writeFileSync(finalFile,JSON.stringify(finalExport));const withdrawnOffline=await execute(process.execPath,[tsx,verifier,finalFile,finalExport.export_hash],options);assert.equal(JSON.parse(withdrawnOffline.stdout).verified,true);
+  const authorOps=ContentOperations.parse(await (await call("admin/attention/operations",undefined,undefined,true)).json());assert.equal(authorOps.authorship.manual_reviews_today,1);assert.equal(authorOps.authorship.withdrawals_today,1);assert.equal(authorOps.storage.tables.find(t=>t.id==="authorship_events")!.total_rows,2);
+  console.log(JSON.stringify({manual_authorship:"explicit review, idempotent retry and withdrawal verified",public_summary:"no private references or notes",held_summary:"404",cryptographic_account_control:"unverified",v1_and_v2_offline_replay:"passed",authorship_events:2,provider_requests:0}));
   console.log(JSON.stringify({content_case_export:"private transactional snapshot and offline CLI verified",held_at_capture:exported.visibility_held,held_after_separate_release:releasedExport.visibility_held,history_events:exported.manifest.events,independent_checksum_mismatch:"rejected",artifact:artifactFile,provider_requests:0}));
   const reportHistory=ContentReportRecord.parse(await (await call(`attention/reports/${claim.request_id}`,undefined,users[1]!.cookie)).json());assert.deepEqual(reportHistory.events.map(e=>e.snapshot.status),["OPEN","UPHELD","RELEASED"]);
   assert.equal(ContentReportPage.parse(await (await call("attention/reports/mine",undefined,users[1]!.cookie)).json()).reports.length,1);

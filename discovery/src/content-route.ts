@@ -6,10 +6,14 @@ import {contentReportRecord,contentReports,reviewContentReport,submitContentRepo
 import {holdReviewRecord,holdReviews,replyHoldReview,requestHoldReview} from "./content-holds";
 import {contentOperations} from "./content-operations";
 import {contentCaseExport} from "./content-export";
+import {contentAuthorship,publicAuthorship,reviewAuthorship} from "./content-authorship";
 export async function contentRoute(request: Request, db: D1Database, admin: boolean, at = new Date()): Promise<Response> {
   const url = new URL(request.url), path = url.pathname.replace(/\/+$/, ""), cursor = url.searchParams.get("cursor");
   const json = (data: unknown, status = 200) => Response.json(data, { status, headers: { ...API_HEADERS, vary: "Cookie" } });
   if (admin) {
+    if(request.method==="POST"&&path==="/api/10x/admin/attention/authorship/review")return json(await reviewAuthorship(db,await adminJson(request),new Date()));
+    const authorship=path.match(/^\/api\/10x\/admin\/attention\/submissions\/([^/]+)\/authorship$/);
+    if(request.method==="GET"&&authorship)return json(await contentAuthorship(db,authorship[1]!));
     const exported=path.match(/^\/api\/10x\/admin\/attention\/submissions\/([^/]+)\/export$/);
     if(request.method==="GET"&&exported)return json(await contentCaseExport(db,exported[1]!));
     if(request.method==="GET"&&path==="/api/10x/admin/attention/operations")return json(await contentOperations(db,at));
@@ -30,6 +34,8 @@ export async function contentRoute(request: Request, db: D1Database, admin: bool
       const record = await contentRecord(db, match[1]!); if (!record) throw new ContentError("content_not_found", 404); return json(record);
     }
   } else {
+    const authorship=path.match(/^\/api\/10x\/attention\/authorship\/([^/]+)$/);
+    if(request.method==="GET"&&authorship)return json(await publicAuthorship(db,authorship[1]!));
     if (request.method === "GET" && path === "/api/10x/attention/campaigns") return json(await contentCampaigns(db, cursor, at));
     const campaign = path.match(/^\/api\/10x\/attention\/campaigns\/([^/]+)$/);
     if (request.method === "GET" && campaign) {

@@ -7,6 +7,7 @@ import {ContentReportForm,ContentReportsPanel} from "./ContentReports";
 import {HoldReviewForm,HoldReviewsPanel} from "./ContentHoldReviews";
 import {ContentOperationsPanel} from "./ContentOperations";
 import {ContentCaseExportPanel} from "./ContentCaseExport";
+import {ContentAuthorshipPanel,ContentAuthorshipCheck} from "./ContentAuthorship";
 
 type Submission = z.infer<typeof ContentSnapshot>;
 type Campaign = z.infer<typeof PublicContentCampaign>;
@@ -101,7 +102,7 @@ export function AttentionContentPage({ campaignId, submitOnly = false }: { campa
         <label className="tenx-content-check"><input type="checkbox" required checked={permission} onChange={e => setPermission(e.target.checked)} /> I allow this URL, author claim and commentary to be featured after review.</label>
         <p>No social post is published by this action. Do not submit private links, credentials, personal information or copied media.</p><button className="tenx-button" type="submit" disabled={!selected || !permission || !rights}>Submit for review</button>
       </fieldset></form></section>
-    {selected && !submitOnly && <section className="tenx-panel"><h2>Reviewed links</h2><p>Visible after manual review. Visibility verifies neither authorship nor engagement.</p>{feed?.submissions.length === 0 && <p>No visible links yet.</p>}{feed?.submissions.map(s => <article className="tenx-content-item" key={s.id}><ContentLink item={s} /><ContentReportForm submissionId={s.id} signedIn={session}/></article>)}{feed?.next_cursor && <button className="tenx-button" disabled={busy} onClick={() => void more("feed")}>More reviewed links</button>}</section>}
+    {selected && !submitOnly && <section className="tenx-panel"><h2>Reviewed links</h2><p>Visible after manual review. Visibility verifies neither authorship nor engagement.</p>{feed?.submissions.length === 0 && <p>No visible links yet.</p>}{feed?.submissions.map(s => <article className="tenx-content-item" key={s.id}><ContentLink item={s} /><ContentAuthorshipCheck submissionId={s.id}/><ContentReportForm submissionId={s.id} signedIn={session}/></article>)}{feed?.next_cursor && <button className="tenx-button" disabled={busy} onClick={() => void more("feed")}>More reviewed links</button>}</section>}
     {session && <section className="tenx-panel"><h2>My submissions · private</h2><p>Pending, flagged and rejected submissions are visible only to you and the local operator. Appeals do not restore public visibility automatically.</p>{mine?.submissions.length === 0 && <p>No submissions from this identity yet.</p>}{mine?.submissions.map(s => <OwnSubmission key={`${s.id}:${s.revision}`} item={s} held={mine.held_submission_ids.includes(s.id)} changed={() => setVersion(v => v + 1)} />)}{mine?.next_cursor && <button className="tenx-button" disabled={busy} onClick={() => void more("mine")}>More of my submissions</button>}</section>}
     {session&&<ContentReportsPanel/>}
     {session&&<HoldReviewsPanel refreshKey={version}/>}
@@ -129,8 +130,9 @@ export function ContentModerationLab({ token }: { token: string }) {
     {token && queue?.submissions.length === 0 && <p>No submissions in this queue.</p>}{token && queue?.submissions.map(s => <div key={`${s.id}:${s.revision}`}>{queue.held_submission_ids.includes(s.id)&&<p className="tenx-notice">An upheld report holds this link out of the public feed. Ordinary moderation does not release report holds.</p>}<ReviewSubmission item={s} token={token} changed={() => void load()} /></div>)}{token && queue?.next_cursor && <button className="tenx-button" disabled={busy} onClick={() => void load(queue.next_cursor!)}>More queue items</button>}
     <ContentOperationsPanel token={token}/>
     <ContentReportsPanel token={token}/>
-    <HoldReviewsPanel key={token} token={token}/>
-    <ContentCaseExportPanel key={token} token={token}/>
+    <HoldReviewsPanel key={`hold:${token}`} token={token}/>
+    <ContentCaseExportPanel key={`export:${token}`} token={token}/>
+    <ContentAuthorshipPanel key={`authorship:${token}`} token={token}/>
   </section>;
 }
 function ReviewSubmission({ item, token, changed }: { item: Submission; token: string; changed: () => void }) {

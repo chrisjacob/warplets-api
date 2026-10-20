@@ -1,10 +1,12 @@
 import {z} from "zod";
-import {ContentCaseExport,ContentCasePayload,CONTENT_EXPORT_MAX_BYTES,CONTENT_EXPORT_REPORT_LIMIT,CONTENT_EXPORT_HOLD_LIMIT} from "./content-export-model";
+import {ContentCaseExport,ContentCasePayload,ContentCasePayloadV2,CONTENT_EXPORT_MAX_BYTES,CONTENT_EXPORT_REPORT_LIMIT,CONTENT_EXPORT_HOLD_LIMIT} from "./content-export-model";
 import {CONTENT_RECORD_SELECT,decodeContentHistoryRow,decodeContentCampaignRow,type ContentRow} from "./content";
 import {CONTENT_REPORT_SELECT,decodeContentReportRow,type ContentReportRow} from "./content-reports";
 import {CONTENT_HOLD_SELECT,decodeContentHoldRow,type ContentHoldRow} from "./content-holds";
 import {ContentError} from "./content-url";
 import {hashJson} from "./solana";
+import {AUTHORSHIP_SELECT,decodeAuthorshipRows,verifyAuthorshipHistory,type AuthorshipRow} from "./content-authorship";
+import type {AuthorshipHistory} from "./content-authorship-model";
 
 type Payload=z.infer<typeof ContentCasePayload>;
 type CampaignRow=Parameters<typeof decodeContentCampaignRow>[0];
@@ -12,10 +14,11 @@ function fail():never{throw new ContentError("content_case_export_integrity_fail
 export function checkContentExportSize(text:string){
   if(new TextEncoder().encode(text).byteLength>CONTENT_EXPORT_MAX_BYTES)throw new ContentError("content_case_export_size_exceeded",413);
 }
-async function manifest(value:Pick<Payload,"campaign"|"content"|"reports"|"hold_reviews">){
-  return {reports:value.reports.length,hold_reviews:value.hold_reviews.length,
+async function manifest(value:Pick<Payload,"campaign"|"content"|"reports"|"hold_reviews">&{authorship?:z.infer<typeof AuthorshipHistory>}){
+  const base={reports:value.reports.length,hold_reviews:value.hold_reviews.length,
     events:value.content.events.length+value.reports.reduce((n,r)=>n+r.events.length,0)+value.hold_reviews.reduce((n,r)=>n+r.events.length,0),
     campaign_hash:await hashJson(value.campaign),content_hash:await hashJson(value.content),reports_hash:await hashJson(value.reports),hold_reviews_hash:await hashJson(value.hold_reviews)};
+  return value.authorship?{...base,events:base.events+value.authorship.events.length,authorship_hash:await hashJson(value.authorship),authorship_events:value.authorship.events.length}:base;
 }
 // Recreate only SQL metadata required by the existing pure history decoders.
 // No live database or network access is used by offline verification.
@@ -45,18 +48,23 @@ export async function verifyContentCaseExport(raw:unknown,expectedHash?:string){
     await decodeContentHoldRow({...historyRow(review),content_snapshot:target} as ContentHoldRow);
   }
   if(payload.visibility_held!==reports.some(r=>r.snapshot.status==="UPHELD"))fail();
+  if(payload.version==="content-case-export-v2"){
+    await verifyAuthorshipHistory(payload.authorship,s);
+    if(!payload.authorship.events.length||payload.authorship.events.some(e=>e.created_at>payload.captured_at))fail();
+  }
   return value;
 }
 
 export async function contentCaseExport(db:D1Database,id:string){
   const submissionId=z.uuid().parse(id);
   // D1 batch reads execute transactionally. No related history can advance
-  // between these four reads. Each SQL history has its own revision bound.
+  // between these five reads. Each SQL history has its own revision bound.
   const result=await db.batch([
     db.prepare(CONTENT_RECORD_SELECT).bind(submissionId),
     db.prepare("SELECT c.* FROM tenx_content_campaigns c JOIN tenx_content_submissions s ON s.campaign_id=c.id WHERE s.id=?").bind(submissionId),
     db.prepare(`${CONTENT_REPORT_SELECT} WHERE r.submission_id=? ORDER BY r.id LIMIT ${CONTENT_EXPORT_REPORT_LIMIT+1}`).bind(submissionId),
     db.prepare(`${CONTENT_HOLD_SELECT} WHERE r.submission_id=? ORDER BY r.id LIMIT ${CONTENT_EXPORT_HOLD_LIMIT+1}`).bind(submissionId),
+    db.prepare(AUTHORSHIP_SELECT).bind(submissionId),
   ]);
   if(result.some(r=>!r.success))throw new ContentError("content_case_export_unavailable",503);
   const contentRows=result[0]!.results as (ContentRow&{history:string})[],campaignRows=result[1]!.results as CampaignRow[];
@@ -69,9 +77,11 @@ export async function contentCaseExport(db:D1Database,id:string){
   const campaign=await decodeContentCampaignRow(campaignRows[0]!),content=await decodeContentHistoryRow(contentRows[0]!);
   const reports=await Promise.all(reportRows.map(decodeContentReportRow));
   const hold_reviews=(await Promise.all(holdRows.map(decodeContentHoldRow))).map(r=>({...r,replay:"verified" as const,source_requests:0 as const}));
+  const authorship=await decodeAuthorshipRows(result[4]!.results as AuthorshipRow[],content.snapshot);
   const records={campaign,content,reports,hold_reviews};
-  const payload=ContentCasePayload.parse({version:"content-case-export-v1",scope:"private_local_moderation_case",captured_at,authority:"local_database_history_only",...records,
-    visibility_held:reports.some(r=>r.snapshot.status==="UPHELD"),manifest:await manifest(records),source_requests:0,rewards_enabled:false});
+  const hasAuthorship=authorship.events.length>0,allRecords=hasAuthorship?{...records,authorship}:records;
+  const payload=(hasAuthorship?ContentCasePayloadV2:ContentCasePayload).parse({version:hasAuthorship?"content-case-export-v2":"content-case-export-v1",scope:"private_local_moderation_case",captured_at,authority:"local_database_history_only",...allRecords,
+    visibility_held:reports.some(r=>r.snapshot.status==="UPHELD"),manifest:await manifest(allRecords),source_requests:0,rewards_enabled:false});
   // Replay again through the portable artifact format before releasing it.
   return verifyContentCaseExport({...payload,export_hash:await hashJson(payload)});
 }
