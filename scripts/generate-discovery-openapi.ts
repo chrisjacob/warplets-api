@@ -1,6 +1,7 @@
 import { writeFileSync } from "node:fs";
 import { z } from "zod";
 import { AssessedCandidateSchema, PolicySchema, ProofSchema } from "../discovery/src/model";
+import { ArtworkResponseSchema } from "../discovery/src/artwork-model";
 import { ActivityResponse, CoverageResponse, DetailResponse, ElectionDetailResponse, ElectionsResponse, HistoryResponse, ListResponse, ReviewsResponse, StatusResponse } from "../app/src/discovery/client";
 
 const ok = { description: "Success; cached public data includes timestamps, source freshness and coverage", content: { "application/json": { schema: { type: "object" } } } };
@@ -15,6 +16,7 @@ const spec = {
   servers: [{ url: "http://127.0.0.1:8794" }],
   paths: {
     "/api/10x/health": read("Local service readiness"),
+    "/api/10x/artwork": read("Cached presentation artwork linked by saved verified Pump creation metadata; never changes eligibility or triggers provider calls", { ...responseSchema("ArtworkResponse"), parameters: [parameter("addresses", "query", { type: "string", description: "One to 100 comma-separated Solana mints" }, true)] }),
     "/api/10x/chains": read("Discovery capabilities, separate from launch support"),
     "/api/10x/candidates": read("At most 100 eligible/provisional/excluded candidates", { ...responseSchema("CandidateListResponse"), parameters: [parameter("limit", "query", { type: "integer", minimum: 1, maximum: 100, default: 25 }), parameter("mode", "query", { enum: ["live", "fixture"], default: "live" }), parameter("status", "query", { enum: ["all", "eligible", "provisional", "excluded"] }), parameter("age", "query", { enum: ["all", "24h"], default: "all", description: "24h requires independently verified token creation time; the Discover view uses 24h" }), parameter("cursor", "query", { type: "string", maxLength: 300, description: "Opaque snapshot-bound cursor; 409 requires refresh" })] }),
     "/api/10x/discovery/coverage": read("Cached progress toward ten eligible tokens, actual 24h coverage and blocking evidence gaps; target never waives a gate", responseSchema("CoverageResponse")),
@@ -34,6 +36,7 @@ const spec = {
     "/api/10x/admin/jobs": read("Restricted recent jobs and dry-run hashes", { security: [{ localOperator: [] }] }),
     "/api/10x/admin/refresh": post("Run one bounded idempotent refresh; force skips pacing only, never pause, lease, quota or provider backoff", { force: { type: "boolean", default: false } }),
     "/api/10x/admin/market-refresh": post("Refresh up to 30 cached pool markets using one free source request"),
+    "/api/10x/admin/artwork-refresh": post("Cache up to three creation-linked metadata images per paced tick; 120 metadata requests/day inside the existing market cap, zero RPC calls"),
     "/api/10x/admin/quality-refresh": post("Refresh risk for up to ten current contenders and rotate holder inventories inside quality/global RPC caps; respects pacing and backoff"),
     "/api/10x/admin/wallet-refresh": post("Analyze one stored live token within the wallet and global free RPC budgets; respects pause, lease and provider backoff", { address: { type: "string", minLength: 32, maxLength: 44 } }),
     "/api/10x/admin/maintenance": post("Record local heartbeat, daily actual-time election rehearsal and review catch-up without provider calls"),
@@ -45,6 +48,7 @@ const spec = {
   },
   components: { securitySchemes: { localOperator: { type: "http", scheme: "bearer", description: "Random local operator token; not stored in browser storage or source control" } }, schemas: {
     Candidate: z.toJSONSchema(AssessedCandidateSchema, { unrepresentable: "any" }),
+    ArtworkResponse: z.toJSONSchema(ArtworkResponseSchema),
     Proof: z.toJSONSchema(ProofSchema, { unrepresentable: "any" }),
     DiscoveryPolicy: z.toJSONSchema(PolicySchema),
     CandidateListResponse: z.toJSONSchema(ListResponse, { unrepresentable: "any" }),

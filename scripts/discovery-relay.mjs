@@ -33,6 +33,9 @@ export async function startRelay({ token, rpcUrl, port = 8795, transport = fetch
         if (addresses.length > 30 || addresses.some(a => !/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(a))) { response.writeHead(400); response.end(); return; }
         target = `https://api.dexscreener.com/tokens/v1/solana/${addresses.join(",")}`;
         init = { headers: { accept: "application/json" } }; limit = 1_000_000;
+      } else if (request.method === "GET" && /^\/metadata\/ipfs\/[a-zA-Z0-9]{32,128}(?:\/[a-zA-Z0-9._~/-]*)?$/.test(request.url ?? "") && !request.url.includes("..")) {
+        target = `https://gateway.pinata.cloud${request.url.slice("/metadata".length)}`;
+        init = { headers: { accept: "application/json" } }; limit = 64_000;
       } else { response.writeHead(404); response.end(); return; }
       if (target === rpc.href) {
         if (rpcCooldownUntil > Date.now()) { response.writeHead(429, { "retry-after": String(Math.ceil((rpcCooldownUntil - Date.now()) / 1000)) }); response.end(); return; }

@@ -88,7 +88,7 @@ async function proof(tx: Transaction, ix: ResolvedInstruction, kind: Proof["kind
     payload_hash: await hashJson(tx), fetched_at: fetchedAt, source: "solana-finalized-rpc", adapter_version: ADAPTER_VERSION,
   };
 }
-export async function creationProof(tx: Transaction, mint: string, fetchedAt: string): Promise<{ proof: Proof; name: string; symbol: string } | null> {
+export async function creationProof(tx: Transaction, mint: string, fetchedAt: string): Promise<{ proof: Proof; name: string; symbol: string; uri: string } | null> {
   successful(tx);
   for (const ix of instructions(tx)) {
     const d = descriptor(ix, ["create", "create_v2"]); if (!d) continue;
@@ -98,8 +98,8 @@ export async function creationProof(tx: Transaction, mint: string, fetchedAt: st
     // Successful canonical Pump create has onchain program-enforced mint init;
     // arbitrary log payloads and metadata timestamps are never used as proof.
     const reader = new Reader(ix.data, 8);
-    const name = reader.string(100), symbol = reader.string(32); reader.string(1024);
-    return { proof: await proof(tx, ix, "creation", d.name, fetchedAt), name, symbol };
+    const name = reader.string(100), symbol = reader.string(32), uri = reader.string(1024);
+    return { proof: await proof(tx, ix, "creation", d.name, fetchedAt), name, symbol, uri };
   }
   return null;
 }

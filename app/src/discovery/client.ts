@@ -29,6 +29,7 @@ export const StatusResponse = Common.extend({ data: z.object({
   wallet_automation: z.object({ enabled: z.boolean(), daily_limit: z.number(), daily_used: z.number(), last_success: z.string().nullable(), next_refresh_at: z.string().nullable(), last_error: z.string().nullable() }).optional(),
   election_automation: ElectionAutomationSchema.optional(),
   market_provider: z.enum(["geckoterminal", "dexscreener"]).optional(),
+  artwork_automation: z.object({ next_refresh_at: z.string().nullable(), last_error: z.string().nullable() }).optional(),
   quality_automation: z.object({ enabled: z.boolean(), daily_limit: z.number(), daily_used: z.number(), last_success: z.string().nullable(), next_refresh_at: z.string().nullable(), last_error: z.string().nullable(), targets: z.number() }).optional(),
 }) });
 export type ListData = z.infer<typeof ListResponse>;

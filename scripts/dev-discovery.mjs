@@ -60,6 +60,12 @@ async function tick() {
     });
     if (market.ok) console.log("Market cycle:", JSON.stringify(await market.json()));
     else console.warn("Market cycle HTTP", market.status);
+    const artwork = await fetch(`${base}/api/10x/admin/artwork-refresh`, {
+      method: "POST", headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+      body: JSON.stringify({ reason: "Local cached token artwork refresh" }), signal: AbortSignal.timeout(60000),
+    });
+    if (artwork.ok) console.log("Artwork cycle:", JSON.stringify(await artwork.json()));
+    else console.warn("Artwork cycle HTTP", artwork.status);
     const quality = await fetch(`${base}/api/10x/admin/quality-refresh`, {
       method: "POST", headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
       body: JSON.stringify({ reason: "Local focused contender risk and holder refresh" }), signal: AbortSignal.timeout(180000),

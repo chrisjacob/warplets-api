@@ -17,6 +17,8 @@ import { discoveryCoverage } from "./coverage";
 import { createdWithinWindow } from "./priority";
 import { activitySummary } from "./activity";
 import { WalletEvidenceSchema } from "./wallet-analysis";
+import { artworkFor, runArtworkCycle } from "./artwork";
+import { safeMetadataUrl } from "./images";
 
 // Widen generated literal vars so ignored .dev.vars overrides stay type-safe.
 export type LocalEnv = { [K in keyof Cloudflare.Env]: Cloudflare.Env[K] extends string ? string : Cloudflare.Env[K] };
@@ -30,7 +32,8 @@ function settings(env: Env) {
     const target = new URL(String(input));
     const market = target.hostname === "api.geckoterminal.com" && /^\/api\/v2\/networks\/solana\/pools\/(?:multi\/)?[1-9A-HJ-NP-Za-km-z,]{32,1350}$/.test(target.pathname);
     const dex = target.hostname === "api.dexscreener.com" && /^\/tokens\/v1\/solana\/[1-9A-HJ-NP-Za-km-z,]{32,1350}$/.test(target.pathname);
-    const path = target.href === new URL(env.TENX_RPC_URL).href ? "/rpc" : market ? target.pathname.replace("/api/v2/networks/solana", "/market") : dex ? target.pathname.replace("/tokens/v1/solana/", "/dex/tokens/") : null;
+    const metadata = safeMetadataUrl(target.href) === target.href;
+    const path = target.href === new URL(env.TENX_RPC_URL).href ? "/rpc" : market ? target.pathname.replace("/api/v2/networks/solana", "/market") : dex ? target.pathname.replace("/tokens/v1/solana/", "/dex/tokens/") : metadata ? `/metadata${target.pathname}` : null;
     if (!path) throw new Error("relay_target_not_allowed");
     return fetch(`http://127.0.0.1:8795${path}`, { method: path === "/rpc" ? "POST" : "GET", headers: { "x-tenx-local-relay": env.TENX_ADMIN_TOKEN, "content-type": "application/json" }, ...(path === "/rpc" ? { body: init?.body } : {}), signal: init?.signal, redirect: "manual" });
   } : undefined;
@@ -77,6 +80,7 @@ async function status(env: Env) {
     market_provider: env.TENX_MARKET_PROVIDER,
     automation: { heartbeat_at: state.heartbeat_at, next_refresh_at: state.next_refresh_at, reviewed_at: state.reviewed_at, review_timezone: "Australia/Sydney", review_cadence: "hourly catch-up of prior three days", refresh_cadence: "paced across the remaining free daily budget" },
     market_automation: marketState,
+    artwork_automation: await env.TENX_DB.prepare("SELECT next_refresh_at,last_error FROM tenx_artwork_control WHERE id=1").first(),
     wallet_automation: await walletStatus(env.TENX_DB, Number(env.TENX_WALLET_RPC_DAILY_LIMIT), env.TENX_WALLET_ANALYSIS_ENABLED === "true"),
     election_automation: await electionAutomation(env.TENX_DB),
     quality_automation: await qualityStatus(env.TENX_DB, Number(env.TENX_QUALITY_RPC_DAILY_LIMIT), env.TENX_QUALITY_ENABLED === "true"),
@@ -97,6 +101,10 @@ export async function handle(request: Request, env: Env): Promise<Response> {
   if (method === "GET" && path === "/api/10x/chains") return json(await envelope(env, [{ id: "solana", discover_enabled: true, vote_enabled: false, launch_enabled: false }]));
   if (method === "GET" && path === "/api/10x/system/status") return json(await envelope(env, await status(env)));
   if (method === "GET" && path === "/api/10x/discovery/coverage") return json(await envelope(env, discoveryCoverage(await candidates(env.TENX_DB), DEFAULT_POLICY, new Date())));
+  if (method === "GET" && path === "/api/10x/artwork") {
+    const addresses = z.array(Address).min(1).max(100).parse((url.searchParams.get("addresses") ?? "").split(","));
+    return json(await envelope(env, await artworkFor(env.TENX_DB, addresses)));
+  }
   if (method === "GET" && path === "/api/10x/elections") return json(await envelope(env, { runs: await electionSummaries(env.TENX_DB), automation: await electionAutomation(env.TENX_DB), schedule: "First local maintenance tick each UTC day; actual observation time, no missed-day backfill", voting_enabled: false, launch_enabled: false }));
   const electionMatch = path.match(/^\/api\/10x\/elections\/([^/]+)$/);
   if (method === "GET" && electionMatch) {
@@ -222,6 +230,7 @@ export async function handle(request: Request, env: Env): Promise<Response> {
       return json(await runCycle({ ...settings(env), paced: !force }));
     }
     if (path === "/api/10x/admin/market-refresh") return json(await runMarketCycle(settings(env)));
+    if (path === "/api/10x/admin/artwork-refresh") return json(await runArtworkCycle(settings(env)));
     if (path === "/api/10x/admin/quality-refresh") return json(await runQualityCycle(settings(env)));
     if (path === "/api/10x/admin/wallet-refresh") {
       const query = z.object({ address: Address.optional() }).passthrough().parse(body);

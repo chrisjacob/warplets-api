@@ -52,6 +52,58 @@
         }
       }
     },
+    "/api/10x/artwork": {
+      "get": {
+        "summary": "Cached presentation artwork linked by saved verified Pump creation metadata; never changes eligibility or triggers provider calls",
+        "responses": {
+          "200": {
+            "description": "Success; cached public data includes timestamps, source freshness and coverage",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArtworkResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "401": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "403": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "404": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "409": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "413": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "415": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "503": {
+            "description": "Structured JSON error; no provider secrets"
+          }
+        },
+        "parameters": [
+          {
+            "name": "addresses",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "One to 100 comma-separated Solana mints"
+            }
+          }
+        ]
+      }
+    },
     "/api/10x/chains": {
       "get": {
         "summary": "Discovery capabilities, separate from launch support",
@@ -1012,6 +1064,72 @@
     "/api/10x/admin/market-refresh": {
       "post": {
         "summary": "Refresh up to 30 cached pool markets using one free source request",
+        "security": [
+          {
+            "localOperator": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 300
+                  }
+                },
+                "required": [
+                  "reason"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success; cached public data includes timestamps, source freshness and coverage",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "401": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "403": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "404": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "409": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "413": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "415": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "503": {
+            "description": "Structured JSON error; no provider secrets"
+          }
+        }
+      }
+    },
+    "/api/10x/admin/artwork-refresh": {
+      "post": {
+        "summary": "Cache up to three creation-linked metadata images per paced tick; 120 metadata requests/day inside the existing market cap, zero RPC calls",
         "security": [
           {
             "localOperator": []
@@ -3175,6 +3293,96 @@
           "reasons",
           "rank",
           "launch_eligible"
+        ],
+        "additionalProperties": false
+      },
+      "ArtworkResponse": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "type": "object",
+              "properties": {
+                "image_url": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 2048
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "metadata_uri": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 2048
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "creation_hash": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                },
+                "metadata_hash": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^[a-f0-9]{64}$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "fetched_at": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "error": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 100
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "image_url",
+                "metadata_uri",
+                "creation_hash",
+                "metadata_hash",
+                "fetched_at",
+                "error"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "data"
         ],
         "additionalProperties": false
       },
@@ -7209,6 +7417,36 @@
                   "geckoterminal",
                   "dexscreener"
                 ]
+              },
+              "artwork_automation": {
+                "type": "object",
+                "properties": {
+                  "next_refresh_at": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "last_error": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "next_refresh_at",
+                  "last_error"
+                ],
+                "additionalProperties": false
               },
               "quality_automation": {
                 "type": "object",

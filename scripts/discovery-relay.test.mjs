@@ -22,6 +22,12 @@ test("loopback relay authenticates and forwards only whitelisted read methods", 
     assert.equal(calls[2].url, "https://api.dexscreener.com/tokens/v1/solana/So11111111111111111111111111111111111111112");
     assert.equal((await fetch(`${url}/rpc`, { ...options, body: JSON.stringify({ jsonrpc: "2.0", id: 3, method: "getProgramAccounts", params: ["arbitrary", {}] }) })).status, 400);
     assert.equal((await fetch(`${url}/rpc`, { ...options, body: "x".repeat(33_000) })).status, 413);
+    const cid = "QmVqaEuPxZ6wNcuCHyg7RA824LrWvhrbEQGn6Vb5yATJx2";
+    assert.equal((await fetch(`${url}/metadata/ipfs/${cid}`, { headers: { "x-tenx-local-relay": token } })).status, 200);
+    assert.equal(calls[3].url, `https://gateway.pinata.cloud/ipfs/${cid}`);
+    assert.equal(calls[3].init.redirect, "manual");
+    for (const path of ["/metadata/https://localhost/secret", `/metadata/ipfs/${cid}?url=https://evil.example`, `/metadata/ipfs/${cid}/%2e%2e/private`]) assert.equal((await fetch(`${url}${path}`, { headers: { "x-tenx-local-relay": token } })).status, 404);
+    assert.equal(calls.length, 4);
   } finally { await new Promise(resolve => server.close(resolve)); }
 });
 test("RPC starts are spaced across concurrent requests and a provider 429 is shared",async()=>{

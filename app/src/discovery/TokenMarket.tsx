@@ -1,13 +1,31 @@
 import { useEffect, useId, useState } from "react";
 import type { Market } from "../../../discovery/src/model";
-import { safeTokenImage } from "../../../discovery/src/images";
+import { tokenImageSources } from "../../../discovery/src/images";
+import { ArtworkResponseSchema, type Artwork } from "../../../discovery/src/artwork-model";
 import { getJson, HistoryResponse, marketSource } from "./client";
 
 const valueLabel = (v: number | null) => v === null ? "Unavailable" : v === 0 ? "$0" : v < .0001 ? `$${v.toExponential(3)}` : new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: v < 1 ? 6 : 2 }).format(v);
-export function TokenImage({ url, name, symbol }: { url?: string | null; name: string; symbol: string }) {
-  const [failed, setFailed] = useState(false), safe = safeTokenImage(url);
-  useEffect(() => setFailed(false), [safe]);
-  return safe && !failed ? <img className="tenx-token-image" src={safe} alt={`${name} token`} width={40} height={40} loading="lazy" decoding="async" referrerPolicy="no-referrer" onError={() => setFailed(true)} /> : <span className="tenx-token-icon" role="img" aria-label={`${name}: image unavailable`}>{symbol.slice(0, 2)}</span>;
+export function useTokenArtwork(addresses: string[]) {
+  const key = [...new Set(addresses)].sort().join(","), [artwork, setArtwork] = useState<Record<string, Artwork>>({});
+  useEffect(() => {
+    setArtwork({}); if (!key) return;
+    const controller = new AbortController();
+    const load = async () => {
+      try { const response = await getJson(`/api/10x/artwork?addresses=${key}`, ArtworkResponseSchema, controller.signal); if (!controller.signal.aborted) setArtwork(response.data); }
+      catch { /* Artwork is optional; identity and evidence stay readable. */ }
+    };
+    void load(); const timer = window.setInterval(() => { if (document.visibilityState === "visible") void load(); }, 60000);
+    return () => { controller.abort(); window.clearInterval(timer); };
+  }, [key]);
+  return artwork;
+}
+export function TokenImage({ url, metadataUrl, name, symbol, large = false }: { url?: string | null; metadataUrl?: string | null; name: string; symbol: string; large?: boolean }) {
+  const sources = tokenImageSources(url, metadataUrl);
+  return <TokenArtworkImage key={sources.join("|")} sources={sources} name={name} symbol={symbol} large={large} />;
+}
+function TokenArtworkImage({ sources, name, symbol, large }: { sources: string[]; name: string; symbol: string; large: boolean }) {
+  const [index, setIndex] = useState(0), src = sources[index], size = large ? 144 : 88;
+  return src ? <img className={`tenx-token-image${large ? " tenx-token-image--large" : ""}`} src={src} alt={`${name} token artwork`} width={size} height={size} loading={large ? "eager" : "lazy"} decoding="async" referrerPolicy="no-referrer" onError={() => setIndex(i => i + 1)} /> : <span className={`tenx-token-icon${large ? " tenx-token-image--large" : ""}`} role="img" aria-label={`${name}: image unavailable`}><span>{symbol.slice(0, 2)}</span><small>Image unavailable</small></span>;
 }
 function LineChart({ points, field, title }: { points: Market[]; field: "price_usd" | "market_cap_usd"; title: string }) {
   const id = useId(), [hover, setHover] = useState<number | null>(null);
