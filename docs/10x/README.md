@@ -6,7 +6,9 @@ Latest engineering review: [security fixes and credential follow-up](29-security
 
 Previous engineering review: [measured performance improvements](28-performance-review.md), including compact Discover cards, deferred wallet code, retained-shell navigation and an aggregate startup budget.
 
-Current checkpoint: [near-duplicate source-excerpt evidence](47-near-duplicate-excerpt-evidence.md). Operators can explicitly record/withdraw short inspected excerpts, compare a bounded private corpus with clear sampling/media gaps, and download a replayable confidential report. V3 cases include excerpt histories; v1/v2 still replay. Source text is not inferred from commentary or scraped. No automatic moderation, wallet allegation, ranking or reward action; local only, zero provider calls and no deployment.
+Current checkpoint: [streamlined discovery experience](48-discovery-experience.md). Three primary destinations, grouped secondary tools, token cards before on-demand collection diagnostics, readable text and eligibility/charts before detailed activity analysis. Warnings and evidence gates remain intact; the ten-eligible-token target is still unmet. Local only; no deployment or backend changes.
+
+Previous checkpoint: [near-duplicate source-excerpt evidence](47-near-duplicate-excerpt-evidence.md). Operators can explicitly record/withdraw short inspected excerpts, compare a bounded private corpus with clear sampling/media gaps, and download a replayable confidential report. V3 cases include excerpt histories; v1/v2 still replay. Source text is not inferred from commentary or scraped. No automatic moderation, wallet allegation, ranking or reward action; local only, zero provider calls and no deployment.
 
 Previous checkpoint: [recorded manual authorship reviews](46-manual-authorship-review.md). Operators can record and withdraw explicit source checks with immutable replay, private evidence and redacted public labels. Withdrawal remains available at the new-review quota; original visibility, holds and reward gates are unchanged. V2 case exports include the new history while v1 artifacts still verify offline. Local only; no provider calls or deployment.
 

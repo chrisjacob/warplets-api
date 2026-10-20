@@ -43,3 +43,31 @@
 .tenx-allocation-bar span:nth-child(2){background:#244647}.tenx-allocation-bar span:nth-child(3){background:#3a3e27}.tenx-allocation-bar span:nth-child(4){background:#403249}
 
 .tenx-cycle-table{table-layout:fixed}.tenx-table-scroll .tenx-cycle-table th{white-space:normal}.tenx-cycle-table td,.tenx-cycle-table td p{overflow-wrap:anywhere;font-size:9px}.tenx-cycle-table strong{color:#cce4d3}
+
+/* Customer journeys: readable summaries first, technical detail on demand. */
+.tenx-discovery{font-family:system-ui,sans-serif;font-size:14px}
+.tenx-heading>p:last-child,.tenx-panel p,.tenx-evidence p,.tenx-panel ul{font-size:13px}
+.tenx-heading--discover{margin-bottom:18px}.tenx-heading--discover h1{font-size:30px}
+.tenx-nav--compact{position:relative;grid-template-columns:repeat(4,minmax(0,1fr));align-items:start;gap:4px;padding-bottom:12px;margin-bottom:24px;font-size:13px;line-height:1.4}
+.tenx-nav--compact>a,.tenx-more>summary{display:flex;align-items:center;justify-content:center;min-height:44px;padding:8px 4px;border-radius:6px;cursor:pointer}
+.tenx-more>summary{color:#a4f89f;list-style:none}.tenx-more>summary::-webkit-details-marker{display:none}.tenx-more>summary::after{content:"⌄";margin-left:6px}
+.tenx-more[open]>summary,.tenx-more[data-active]>summary{background:#203322;color:#00ff00}
+.tenx-more-links{position:absolute;z-index:30;left:0;right:0;top:calc(100% - 6px);display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;background:#141a16;border:1px solid #49674f;border-radius:10px;padding:16px;box-shadow:0 14px 35px #0009;text-align:left;max-height:65vh;overflow:auto}
+.tenx-more-links h2{font-size:12px;line-height:1.5;color:#9bb0a2;margin:0 0 8px;font-weight:600}
+.tenx-more-links a{display:flex;align-items:center;min-height:44px;padding:8px 10px;font-size:13px}
+.tenx-toolbar{margin:16px 0;gap:12px}.tenx-toolbar label,.tenx-list-options label{font-size:12px;color:#adbdaf}
+.tenx-toolbar select,.tenx-list-options select{font:inherit;font-size:13px;min-height:44px}
+.tenx-freshness{padding:10px 12px;font-size:12px}.tenx-freshness strong{font-size:13px}.tenx-freshness p{font-size:12px}
+.tenx-stats{margin:16px 0 20px}.tenx-stats>div{padding:10px}.tenx-stats strong{font-size:22px}.tenx-stats span{font-size:12px}
+.tenx-stats--compact>div{display:flex;align-items:baseline;gap:8px;padding:8px}.tenx-stats--compact strong{font-size:18px}
+.tenx-section-title h2{font-size:16px}.tenx-section-title>span{font-size:12px}
+.tenx-token-name h2{font-size:18px}.tenx-token-name p,.tenx-metrics span,.tenx-card-bottom,.tenx-holder-summary{font-size:12px}
+.tenx-badge{font-size:10px}.tenx-metrics strong{font-size:14px}.tenx-reason,.tenx-notice,.tenx-footnote{font-size:12px}
+.tenx-address{font-family:"Roboto Mono",monospace;font-size:11px}
+.tenx-panel h2,.tenx-evidence h3{font-size:16px}.tenx-panel dl,.tenx-evidence dl{font-size:12px}
+.tenx-panel summary,.tenx-evidence summary,.tenx-back{font-size:13px}.tenx-button{min-height:44px;font-size:12px}
+.tenx-collection-details,.tenx-list-options{border-top:1px solid #30453a;margin-top:20px;padding-top:8px;font-size:13px}
+.tenx-collection-details>summary,.tenx-list-options>summary{padding:10px 0;min-height:44px;cursor:pointer;color:#a4f89f;font-weight:650}
+.tenx-collection-details[open]>summary{margin-bottom:12px}.tenx-list-options p{color:#9bb0a2;margin:12px 0}
+.tenx-list-options select{display:block;max-width:100%;padding:10px;margin-top:6px;background:#191d1a;border:1px solid #3c4e41;border-radius:6px;color:#e2ede6}
+@media(max-width:480px){.tenx-nav--compact{font-size:12px}.tenx-more-links{grid-template-columns:1fr;gap:12px}.tenx-heading--discover h1{font-size:28px}.tenx-toolbar{gap:8px}.tenx-toolbar select{font-size:12px}}
