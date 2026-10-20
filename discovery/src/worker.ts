@@ -25,6 +25,8 @@ import { runSignalCycle, signalDetail, signalResearch } from "./signal-research"
 import { SignalKind } from "./signal-model";
 import { SignalResearchError } from "./signal-analysis";
 import { walletPlans } from "./wallet-plan";
+import { operations, OperationsError, recordWatchdog } from "./operations";
+import { WatchdogReportSchema } from "./operations-model";
 
 // Widen generated literal vars so ignored .dev.vars overrides stay type-safe.
 export type LocalEnv = { [K in keyof Cloudflare.Env]: Cloudflare.Env[K] extends string ? string : Cloudflare.Env[K] };
@@ -106,6 +108,7 @@ export async function handle(request: Request, env: Env): Promise<Response> {
   if (method === "GET" && path === "/api/10x/health") return json({ local: true, ready: true });
   if (method === "GET" && path === "/api/10x/chains") return json(await envelope(env, [{ id: "solana", discover_enabled: true, vote_enabled: false, launch_enabled: false }]));
   if (method === "GET" && path === "/api/10x/system/status") return json(await envelope(env, await status(env)));
+  if (method === "GET" && path === "/api/10x/system/operations") return json(await envelope(env,await operations(settings(env))));
   if (method === "GET" && path === "/api/10x/discovery/coverage") return json(await envelope(env, discoveryCoverage(await candidates(env.TENX_DB), DEFAULT_POLICY, new Date())));
   if (method === "GET" && path === "/api/10x/discovery/wallet-plan") return json(await envelope(env,await walletPlans(env.TENX_DB)));
   if (method === "GET" && path === "/api/10x/discovery/wallet-work") {
@@ -232,6 +235,10 @@ export async function handle(request: Request, env: Env): Promise<Response> {
     if (!(request.headers.get("content-type") ?? "").startsWith("application/json")) return json({ error: "json_required" }, 415);
     const body = await boundedJson(new Response(request.body), 32_000);
     const reason = z.object({ reason: z.string().min(3).max(300) }).passthrough().parse(body).reason;
+    if(path==="/api/10x/admin/watchdog"){
+      const input=z.object({reason:z.string().min(3).max(300),report:WatchdogReportSchema}).strict().parse(body);
+      return json(await recordWatchdog(env.TENX_DB,input.report));
+    }
     if (path === "/api/10x/admin/maintenance" || path === "/api/10x/admin/review") {
       const now = new Date(), state = await control(env.TENX_DB);
       await env.TENX_DB.prepare("UPDATE tenx_control SET heartbeat_at=?1 WHERE id=1").bind(now.toISOString()).run();
@@ -289,6 +296,7 @@ export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     try { return await handle(request, env); }
     catch (error) {
+      if(error instanceof OperationsError)return json({error:error.message},503);
       if (error instanceof SignalResearchError) return json({ error: error.message },503);
       if (error instanceof PolicyPreviewError) return json({ error: error.message }, error.message === "policy_preview_daily_limit" ? 429 : error.message === "policy_preview_request_conflict" ? 409 : error.message.startsWith("policy_preview_cannot") || error.message === "policy_evidence_gates_locked" ? 400 : 503);
       if (error instanceof ElectionError) return json({ error: error.message }, 503);

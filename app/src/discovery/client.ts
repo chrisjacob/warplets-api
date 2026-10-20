@@ -6,6 +6,7 @@ import { CoverageSchema } from "../../../discovery/src/coverage-model";
 import { ActivitySchema } from "../../../discovery/src/activity-model";
 import { PublicPolicySchema } from "../../../discovery/src/policy-model";
 import { SignalResearchSchema } from "../../../discovery/src/signal-model";
+import { OperationsSchema } from "../../../discovery/src/operations-model";
 
 const Common = z.object({
   api_version: z.literal("10x-discovery-v1"), trace_id: z.string(), as_of: z.string().nullable(), served_at: z.string(),
@@ -19,6 +20,7 @@ export const CoverageResponse = Common.extend({ data: CoverageSchema });
 export const ActivityResponse = Common.extend({ data: ActivitySchema });
 export const PoliciesResponse = Common.extend({ data: PublicPolicySchema });
 export const SignalsResponse = Common.extend({ data: SignalResearchSchema });
+export const OperationsResponse = Common.extend({ data: OperationsSchema });
 const ElectionAutomationSchema = z.object({ last_error: z.string().nullable(), latest_id: z.string().nullable(), last_snapshot_at: z.string().nullable() });
 export const ElectionsResponse = Common.extend({ data: z.object({ runs: z.array(ElectionSummarySchema).max(10), automation: ElectionAutomationSchema, schedule: z.string(), voting_enabled: z.literal(false), launch_enabled: z.literal(false) }) });
 export const ElectionDetailResponse = Common.extend({ data: z.object({ record: ElectionRecordSchema, replay: ElectionReplaySchema }) });

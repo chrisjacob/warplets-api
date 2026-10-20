@@ -31,6 +31,12 @@ describe("eligibility and capped deterministic shortlist", () => {
     expect(row.reasons).toContain("market_data_stale"); expect(row.reasons).toContain("risk_evidence_stale");
     expect(row.market?.fetched_at).toBe(c.market?.fetched_at);
   });
+  it("rejects future risk and market observations through the existing freshness gates",async()=>{
+    const c=(await fixtureCandidates(now))[0]!,future=new Date(now.getTime()+1000).toISOString();
+    expect(assess({...c,risk:{...c.risk,observed_at:future}},sandbox,now)).toMatchObject({eligibility:"provisional",reasons:["risk_evidence_stale"]});
+    expect(assess({...c,market:{...c.market!,fetched_at:future}},sandbox,now)).toMatchObject({eligibility:"provisional",reasons:["market_data_stale"]});
+    expect(assess({...c,market:{...c.market!,observed_at:future}},sandbox,now)).toMatchObject({eligibility:"provisional",reasons:["market_data_stale"]});
+  });
   it("never publishes more than 100 assets or duplicate mints; ranks are stable", async () => {
     const c = (await fixtureCandidates(now))[0]!;
     const rows: Candidate[] = Array.from({ length: 130 }, (_, i) => ({ ...c, address: toBase58(Uint8Array.from({ length: 32 }, (_, n) => n === 0 ? i + 1 : 1)) }));

@@ -134,6 +134,12 @@ The policy lab in `/admin/10x` compares stricter numeric thresholds only. It loc
 
 Migration `0014_policy_previews.sql` retains frozen candidate inputs, baseline/proposed results, hashes and reason in the local database, with an atomic audit entry. Authenticated `GET /api/10x/admin/policies/previews/:id` verifies and replays a record. Inputs and results are downloadable from Admin; bearer tokens are never included. Admission is capped at 20 new previews per UTC day, 500 candidates and bounded bytes. Oversized input fails rather than dropping candidates. Retries do not consume a second slot. Public reads and previews make zero provider requests and never alter evidence, elections, research cohorts or the active policy. Comparisons are snapshots, not performance backtests.
 
+## Independent local operations check
+
+The existing supervisor now checks timer progress independently of the launcher, using cached `GET /api/10x/system/operations` every 30 seconds. Three consecutive API/timer failures can restart only its owned launcher; source backoff, pause and quota exhaustion do not request a restart. Starts are capped at three per fifteen minutes. Latest observations and transitions appear on Data status, in ignored `.tmp/discovery-watchdog.json` and in the supervisor log. The workstation must stay awake; external alert channels remain unconfigured.
+
+Local migration `0017_operations.sql` retains recent authenticated observations and transitions without provider calls. Run `node --test scripts/discovery-watchdog.test.mjs` and `pnpm --dir discovery test -- src/reliability-14d.test.ts` for offline fault checks; `pnpm exec tsx scripts/check-discovery-operations.ts` checks the running local installation. See [scope, results and remaining PRD acceptance work](../docs/10x/22-local-reliability-review.md). Future risk/market timestamps now fail the existing freshness checks; no thresholds or evidence gates were relaxed.
+
 ## Funding completion planning
 
 The collector detects saved windows that exceed the unchanged twelve-body bound before spending further transaction requests. The automatic wallet loop replays exact checkpoint inputs and retained bodies, skips known source/sample limits, prioritizes finishable work and paces successful turns by actual cost. All quotas, evidence gates, pause/backoff, leases and freshness limits remain unchanged. A continuation never refreshes candidate eligibility.

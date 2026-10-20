@@ -26,8 +26,12 @@ export async function runCycle(settings: Settings, now = new Date()): Promise<Re
   const reserve = reserveQuota(db, { rpc: settings.rpcDailyLimit, market: settings.marketDailyLimit }, now);
   const rpc = new RpcClient(settings.rpcUrl, reserve, settings.transport);
   if (!await acquire(db, id, at)) return { state: "skipped", reason: "paused_backoff_or_running" };
+  const assertOwner=async()=>{if(!await db.prepare("SELECT id FROM tenx_control WHERE id=1 AND lease_owner=?1").bind(id).first())throw new SourceError("discovery_lease_lost");};
   let processed = 0;
   try {
+    // A new lease owner can close abandoned refresh attempts after restart.
+    // Their evidence remains retained; expiry is not a successful completion.
+    await db.prepare("UPDATE tenx_jobs SET state='failed',finished_at=?1,error_code='lease_expired_without_completion' WHERE state='running' AND id<>?2 AND started_at<?3 AND EXISTS(SELECT 1 FROM tenx_control WHERE id=1 AND lease_owner=?2)").bind(at,id,new Date(now.getTime()-600000).toISOString()).run();
     await db.prepare("INSERT INTO tenx_jobs(id,kind,state,started_at) VALUES(?1,'refresh','running',?2)").bind(id, at).run();
     if (settings.paced) {
     const usage = await db.prepare("SELECT used FROM tenx_usage WHERE provider='rpc' AND day=?1").bind(at.slice(0, 10)).first<{ used: number }>();
@@ -49,6 +53,7 @@ export async function runCycle(settings: Settings, now = new Date()): Promise<Re
     await db.prepare("UPDATE tenx_control SET next_refresh_at=?1 WHERE id=1").bind(new Date(now.getTime() + spacing * 1000).toISOString()).run();
     }
     await rpc.checkCluster();
+    await assertOwner();
     const state = await control(db);
     if (!state.last_harvest || now.getTime() - Date.parse(state.last_harvest) >= 300_000) {
       const global = await findPda(PUMP, [seed("global")]);
@@ -56,6 +61,7 @@ export async function runCycle(settings: Settings, now = new Date()): Promise<Re
       if (!globalAccount) throw new SourceError("pump_global_unavailable");
       const authority = await migrationAuthority(globalAccount);
       const rows = await rpc.signatures(authority, 30, undefined, state.migration_cursor ?? undefined);
+      await assertOwner();
       // Durable inbox: persist all observed signatures before moving the cursor.
       // A full page is still a declared upstream coverage gap (no exhaustive claim).
       await db.batch([
@@ -71,9 +77,11 @@ export async function runCycle(settings: Settings, now = new Date()): Promise<Re
       try { tx = await rpc.transaction(row.signature); }
       catch (error) {
         if (!(error instanceof SourceError) || error.code !== "unsupported_transaction_version") throw error;
+        await assertOwner();
         await db.prepare("UPDATE tenx_pending_signatures SET processed_at=?1,result='unsupported_transaction_version' WHERE signature=?2").bind(at, row.signature).run();
         continue;
       }
+      await assertOwner();
       if (!tx) continue; // archival miss stays retryable
       let outcome = "not_a_migration";
       try {
@@ -109,13 +117,15 @@ export async function runCycle(settings: Settings, now = new Date()): Promise<Re
         catch (error) { marketError = error instanceof SourceError ? error.code : "market_schema_invalid"; }
       }
       if (marketError) result.candidate.verification_reasons.push(marketError);
+      await assertOwner();
       await saveCandidate(db, result.candidate, result.transactions, result.state, result.holderEvidence);
       await db.prepare("UPDATE tenx_leads SET checked_at=?1,attempts=attempts+1,next_attempt_at=?2 WHERE address=?3")
         .bind(at, new Date(now.getTime() + (result.candidate.creation ? 300_000 : 900_000)).toISOString(), lead.address).run();
       processed++;
     }
+    await assertOwner();
     await db.batch([
-      db.prepare("UPDATE tenx_jobs SET state='succeeded',finished_at=?1,rpc_calls=?2,processed=?3 WHERE id=?4").bind(new Date().toISOString(), rpc.calls, processed, id),
+      db.prepare("UPDATE tenx_jobs SET state='succeeded',finished_at=?1,rpc_calls=?2,processed=?3 WHERE id=?4 AND state='running' AND EXISTS(SELECT 1 FROM tenx_control WHERE id=1 AND lease_owner=?4)").bind(new Date().toISOString(), rpc.calls, processed, id),
       db.prepare("UPDATE tenx_control SET last_success=?1,last_error=NULL,retry_after=NULL,lease_owner=NULL,lease_until=NULL WHERE id=1 AND lease_owner=?2").bind(at, id),
     ]);
     return { state: "succeeded", id, rpc_calls: rpc.calls, processed, adapter_version: ADAPTER_VERSION };
@@ -123,7 +133,7 @@ export async function runCycle(settings: Settings, now = new Date()): Promise<Re
     const code = error instanceof SourceError ? error.code : error instanceof Error && /^[a-z0-9_]{1,80}$/.test(error.message) ? error.message : "verification_or_schema_error";
     const retry = error instanceof SourceError ? error.retryAfterSeconds : 120;
     await db.batch([
-      db.prepare("UPDATE tenx_jobs SET state='failed',finished_at=?1,rpc_calls=?2,processed=?3,error_code=?4 WHERE id=?5").bind(new Date().toISOString(), rpc.calls, processed, code, id),
+      db.prepare("UPDATE tenx_jobs SET state='failed',finished_at=?1,rpc_calls=?2,processed=?3,error_code=?4 WHERE id=?5 AND state='running' AND EXISTS(SELECT 1 FROM tenx_control WHERE id=1 AND lease_owner=?5)").bind(new Date().toISOString(), rpc.calls, processed, code, id),
       db.prepare("UPDATE tenx_control SET last_error=?1,retry_after=?2,lease_owner=NULL,lease_until=NULL WHERE id=1 AND lease_owner=?3")
         .bind(code, new Date(now.getTime() + retry * 1000).toISOString(), id),
     ]);

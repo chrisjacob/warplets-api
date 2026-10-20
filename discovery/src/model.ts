@@ -91,7 +91,7 @@ export function assess(candidate: Candidate, policy: Policy, now: Date): Assesse
     if (candidate.risk[kind] === "unknown") unknown.push(`${kind}_unknown`);
   }
   if (!candidate.risk.pool_reserves_verified) unknown.push("pool_reserves_unverified");
-  if (!candidate.risk.observed_at || now.getTime() - Date.parse(candidate.risk.observed_at) > policy.max_risk_age_seconds * 1000) unknown.push("risk_evidence_stale");
+  if (!candidate.risk.observed_at || Date.parse(candidate.risk.observed_at)>now.getTime() || now.getTime() - Date.parse(candidate.risk.observed_at) > policy.max_risk_age_seconds * 1000) unknown.push("risk_evidence_stale");
   if (policy.require_holder_evidence) {
     const h = candidate.holders;
     if (!h || h.status !== "verified" || h.version !== "owners-v2" || !h.layout_certified) unknown.push("holder_concentration_unknown");
@@ -122,7 +122,7 @@ export function assess(candidate: Candidate, policy: Policy, now: Date): Assesse
   const market = candidate.market;
   if (!market) unknown.push("market_data_unavailable");
   else {
-    if (now.getTime() - Date.parse(market.fetched_at) > policy.max_market_age_seconds * 1000) unknown.push("market_data_stale");
+    if (Date.parse(market.fetched_at)>now.getTime() || market.observed_at && Date.parse(market.observed_at)>now.getTime() || now.getTime() - Date.parse(market.fetched_at) > policy.max_market_age_seconds * 1000) unknown.push("market_data_stale");
     if (market.market_cap_usd === null) unknown.push("market_cap_unknown_not_fdv");
     else if (market.market_cap_usd < policy.min_market_cap_usd) exclude.push("market_cap_below_threshold");
     if (market.liquidity_usd === null) unknown.push("liquidity_unknown");

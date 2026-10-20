@@ -6,6 +6,7 @@ import { WalletWorkResponseSchema } from "../discovery/src/wallet-work-model";
 import { WalletPlansResponseSchema } from "../discovery/src/wallet-plan-model";
 import { PolicyEditsSchema, PolicyPreviewResponseSchema, PreviewRequestSchema } from "../discovery/src/policy-model";
 import { SignalDetailSchema } from "../discovery/src/signal-model";
+import { OperationsSchema, WatchdogReportSchema } from "../discovery/src/operations-model";
 import { ActivityResponse, CoverageResponse, DetailResponse, ElectionDetailResponse, ElectionsResponse, HistoryResponse, ListResponse, PoliciesResponse, ReviewsResponse, SignalsResponse, StatusResponse } from "../app/src/discovery/client";
 
 const ok = { description: "Success; cached public data includes timestamps, source freshness and coverage", content: { "application/json": { schema: { type: "object" } } } };
@@ -40,6 +41,8 @@ const spec = {
     "/api/10x/elections": read("Latest ten immutable local discovery rehearsals; no community voting or launch authority", responseSchema("ElectionsResponse")),
     "/api/10x/elections/{id}": read("Frozen candidate inventory/policy and verified deterministic replay; zero provider requests", { ...responseSchema("ElectionDetailResponse"), parameters: [parameter("id", "path", { type: "string", pattern: "^(daily-[0-9]{4}-[0-9]{2}-[0-9]{2}|manual-[0-9a-f-]{36})$" }, true)] }),
     "/api/10x/system/status": read("Freshness, declared coverage gaps, UTC provider budgets and pauses", responseSchema("SystemStatusResponse")),
+    "/api/10x/system/operations": read("Read-only local heartbeat, due collectors, source/budget states and independently retained watchdog transitions; zero provider calls",responseSchema("OperationsResponse")),
+    "/api/10x/admin/watchdog": {post:{...post("Retain a recent local supervisor observation; monotonic latest report and transition-only history, no provider calls").post,requestBody:{required:true,content:{"application/json":{schema:{type:"object",additionalProperties:false,required:["reason","report"],properties:{reason:{type:"string",minLength:3,maxLength:300},report:{$ref:"#/components/schemas/WatchdogReport"}}}}}}}},
     "/api/10x/transparency/policies": read("Actual local policy/hash, approval status, locked gates and separate review-only diagnostics", responseSchema("PoliciesResponse")),
     "/api/10x/admin/jobs": read("Restricted recent jobs and dry-run hashes", { security: [{ localOperator: [] }] }),
     "/api/10x/admin/refresh": post("Run one bounded idempotent refresh; force skips pacing only, never pause, lease, quota or provider backoff", { force: { type: "boolean", default: false } }),
@@ -61,6 +64,8 @@ const spec = {
     ArtworkResponse: z.toJSONSchema(ArtworkResponseSchema),
     WalletWorkResponse: z.toJSONSchema(WalletWorkResponseSchema),
     WalletPlansResponse: z.toJSONSchema(WalletPlansResponseSchema),
+    OperationsResponse: {type:"object",required:["data"],properties:{data:z.toJSONSchema(OperationsSchema)}},
+    WatchdogReport: z.toJSONSchema(WatchdogReportSchema),
     Proof: z.toJSONSchema(ProofSchema, { unrepresentable: "any" }),
     DiscoveryPolicy: z.toJSONSchema(PolicySchema),
     PolicyEdits: z.toJSONSchema(PolicyEditsSchema),

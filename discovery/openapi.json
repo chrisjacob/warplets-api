@@ -1154,6 +1154,124 @@
         }
       }
     },
+    "/api/10x/system/operations": {
+      "get": {
+        "summary": "Read-only local heartbeat, due collectors, source/budget states and independently retained watchdog transitions; zero provider calls",
+        "responses": {
+          "200": {
+            "description": "Success; cached public data includes timestamps, source freshness and coverage",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OperationsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "401": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "403": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "404": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "409": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "413": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "415": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "429": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "503": {
+            "description": "Structured JSON error; no provider secrets"
+          }
+        }
+      }
+    },
+    "/api/10x/admin/watchdog": {
+      "post": {
+        "summary": "Retain a recent local supervisor observation; monotonic latest report and transition-only history, no provider calls",
+        "security": [
+          {
+            "localOperator": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "reason",
+                  "report"
+                ],
+                "properties": {
+                  "reason": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 300
+                  },
+                  "report": {
+                    "$ref": "#/components/schemas/WatchdogReport"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success; cached public data includes timestamps, source freshness and coverage",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "401": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "403": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "404": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "409": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "413": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "415": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "429": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "503": {
+            "description": "Structured JSON error; no provider secrets"
+          }
+        }
+      }
+    },
     "/api/10x/transparency/policies": {
       "get": {
         "summary": "Actual local policy/hash, approval status, locked gates and separate review-only diagnostics",
@@ -4108,6 +4226,299 @@
         },
         "required": [
           "data"
+        ],
+        "additionalProperties": false
+      },
+      "OperationsResponse": {
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "type": "object",
+            "properties": {
+              "at": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+              },
+              "scope": {
+                "type": "string",
+                "const": "local_discovery_operations"
+              },
+              "provider_requests": {
+                "type": "number",
+                "const": 0
+              },
+              "state": {
+                "type": "string",
+                "enum": [
+                  "healthy",
+                  "degraded",
+                  "paused"
+                ]
+              },
+              "heartbeat_at": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "timer": {
+                "type": "string",
+                "enum": [
+                  "recent",
+                  "missing",
+                  "stale",
+                  "future"
+                ]
+              },
+              "heartbeat_limit_seconds": {
+                "type": "number",
+                "const": 1200
+              },
+              "issues": {
+                "maxItems": 30,
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "loops": {
+                "maxItems": 5,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "state": {
+                      "type": "string",
+                      "enum": [
+                        "scheduled",
+                        "running",
+                        "overdue",
+                        "backoff",
+                        "budget_limited",
+                        "paused",
+                        "disabled",
+                        "not_started",
+                        "clock_invalid"
+                      ]
+                    },
+                    "next_at": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "last_success": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "last_error": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "name",
+                    "state",
+                    "next_at",
+                    "last_success",
+                    "last_error"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "abandoned_jobs": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "watchdog": {
+                "type": "object",
+                "properties": {
+                  "last": {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "version": {
+                            "type": "string",
+                            "const": "local-watchdog-v1"
+                          },
+                          "checked_at": {
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                          },
+                          "code": {
+                            "type": "string",
+                            "enum": [
+                              "healthy",
+                              "degraded",
+                              "timer_missing",
+                              "timer_stale",
+                              "timer_future",
+                              "api_unreachable",
+                              "invalid_status"
+                            ]
+                          },
+                          "restart_recommended": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "version",
+                          "checked_at",
+                          "code",
+                          "restart_recommended"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "fresh": {
+                    "type": "boolean"
+                  },
+                  "events": {
+                    "maxItems": 10,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "version": {
+                          "type": "string",
+                          "const": "local-watchdog-v1"
+                        },
+                        "checked_at": {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                        },
+                        "code": {
+                          "type": "string",
+                          "enum": [
+                            "healthy",
+                            "degraded",
+                            "timer_missing",
+                            "timer_stale",
+                            "timer_future",
+                            "api_unreachable",
+                            "invalid_status"
+                          ]
+                        },
+                        "restart_recommended": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "version",
+                        "checked_at",
+                        "code",
+                        "restart_recommended"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "external_channels_configured": {
+                    "type": "boolean",
+                    "const": false
+                  }
+                },
+                "required": [
+                  "last",
+                  "fresh",
+                  "events",
+                  "external_channels_configured"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "at",
+              "scope",
+              "provider_requests",
+              "state",
+              "heartbeat_at",
+              "timer",
+              "heartbeat_limit_seconds",
+              "issues",
+              "loops",
+              "abandoned_jobs",
+              "watchdog"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "WatchdogReport": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "string",
+            "const": "local-watchdog-v1"
+          },
+          "checked_at": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+          },
+          "code": {
+            "type": "string",
+            "enum": [
+              "healthy",
+              "degraded",
+              "timer_missing",
+              "timer_stale",
+              "timer_future",
+              "api_unreachable",
+              "invalid_status"
+            ]
+          },
+          "restart_recommended": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "version",
+          "checked_at",
+          "code",
+          "restart_recommended"
         ],
         "additionalProperties": false
       },
