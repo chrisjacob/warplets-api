@@ -134,8 +134,42 @@ export const CycleLaunchResult=RouteLaunchResult.omit({version:true,math_revisio
   version:z.literal("launch-cycle-lab-v4"),math_revision:z.literal(CYCLE_MATH_REVISION),scope:z.literal("independent_hypothetical_closed_cycle_quotes"),
   probes_apply:z.literal(false),external_execution_verified:z.literal(false),probes:z.array(CycleProbeResult).min(1).max(8),
 }).strict();
-export const AnyLaunchScenario=z.discriminatedUnion("version",[LaunchScenario,FeeLaunchScenario,RouteLaunchScenario,CycleLaunchScenario]);
-export const AnyLaunchResult=z.discriminatedUnion("version",[LaunchResult,FeeLaunchResult,RouteLaunchResult,CycleLaunchResult]);
+export const TIMED_MATH_REVISION="meteora-linear-time-onlyb-79ebbfe-v5";
+export const OpeningFeeConfig=LaunchFeeConfig.omit({base_fee_schedule:true,fee_numerator:true}).extend({
+  base_fee_schedule:z.literal("linear_time"),cliff_fee_numerator:LaunchFeeConfig.shape.fee_numerator,
+  number_of_periods:z.number().int().min(1).max(65535),period_frequency:PositiveRaw,reduction_factor:PositiveRaw,
+}).strict().superRefine((f,ctx)=>{
+  if(LaunchRaw.safeParse(f.cliff_fee_numerator).success&&LaunchRaw.safeParse(f.reduction_factor).success&&Number.isInteger(f.number_of_periods)&&BigInt(f.cliff_fee_numerator)-BigInt(f.number_of_periods)*BigInt(f.reduction_factor)<100000n)
+    ctx.addIssue({code:"custom",path:["reduction_factor"],message:"Final fee must remain at least one basis point"});
+});
+export const TimedLaunchScenario=z.object(RouteLaunchScenario.shape).omit({version:true,pools:true,actions:true}).extend({
+  version:z.literal("launch-timed-lab-v5"),activation_type:z.literal("timestamp"),activation_point:LaunchRaw,
+  pools:z.object({native:LaunchPoolInput.extend({fees:OpeningFeeConfig}),og:LaunchPoolInput.extend({fees:OpeningFeeConfig}),tenx:LaunchPoolInput.extend({fees:OpeningFeeConfig})}).strict(),
+  actions:z.array(z.object({point:LaunchRaw,action:LaunchAction}).strict()).max(12),
+}).strict().superRefine((s,ctx)=>{
+  const ids=new Set(s.traders.map(t=>t.id));if(ids.size!==s.traders.length)ctx.addIssue({code:"custom",path:["traders"],message:"Trader aliases must be unique"});
+  s.actions.forEach(({point,action:a},i)=>{
+    if(!ids.has(a.trader))ctx.addIssue({code:"custom",path:["actions",i,"action","trader"],message:"Unknown trader alias"});
+    if(a.kind==="route"&&a.from_pool===a.to_pool)ctx.addIssue({code:"custom",path:["actions",i,"action","to_pool"],message:"Route requires distinct quote pools"});
+    const prior=s.actions[i-1]?.point;if(prior!==undefined&&LaunchRaw.safeParse(point).success&&LaunchRaw.safeParse(prior).success&&BigInt(point)<BigInt(prior))ctx.addIssue({code:"custom",path:["actions",i,"point"],message:"Action timestamps must be nondecreasing"});
+  });
+  for(const [pool,p] of Object.entries(s.pools))if(LaunchRaw.safeParse(s.activation_point).success&&OpeningFeeConfig.safeParse(p.fees).success&&BigInt(s.activation_point)+BigInt(p.fees.number_of_periods)*BigInt(p.fees.period_frequency)>18446744073709551615n)
+    ctx.addIssue({code:"custom",path:["pools",pool,"fees"],message:"Schedule end must fit u64"});
+});
+export type TimedLaunchInput=z.infer<typeof TimedLaunchScenario>;
+export const TimedLaunchStep=FeeLaunchStep.extend({point:LaunchRaw,effective_fee_numerator:LaunchRaw}).strict();
+export const TimedLaunchActionResult=LaunchActionResult.omit({status:true}).extend({
+  point:LaunchRaw,status:z.enum([...LaunchActionResult.shape.status.options,"not_active"]),
+  attempted_fees:z.array(z.object({pool:PoolId,fee_numerator:LaunchRaw}).strict()).max(2),
+}).strict();
+export const TimedLaunchResult=RouteLaunchResult.omit({version:true,math_revision:true,scope:true,pools:true,steps:true,actions:true}).extend({
+  version:z.literal("launch-timed-lab-v5"),math_revision:z.literal(TIMED_MATH_REVISION),scope:z.literal("hypothetical_funded_linear_opening_fees"),
+  activation_type:z.literal("timestamp"),activation_point:LaunchRaw,activation_verified:z.literal(false),
+  pools:z.array(LaunchPoolResult.extend({fees:OpeningFeeConfig,fee_totals:LaunchFeeTotals})).length(3),
+  steps:z.array(TimedLaunchStep).max(24),actions:z.array(TimedLaunchActionResult).max(12),
+}).strict();
+export const AnyLaunchScenario=z.discriminatedUnion("version",[LaunchScenario,FeeLaunchScenario,RouteLaunchScenario,CycleLaunchScenario,TimedLaunchScenario]);
+export const AnyLaunchResult=z.discriminatedUnion("version",[LaunchResult,FeeLaunchResult,RouteLaunchResult,CycleLaunchResult,TimedLaunchResult]);
 export const LaunchRequest = z.object({ request_id: z.uuid(), reason: z.string().trim().min(3).max(300), scenario: AnyLaunchScenario }).strict();
 export const LaunchRecord = z.object({ id: z.uuid(), created_at: z.iso.datetime(), reason: z.string(), request_hash: Hash, input_hash: Hash, result_hash: Hash, record_hash: Hash, inputs: AnyLaunchScenario, result: AnyLaunchResult }).strict();
 export const LaunchSummary = LaunchRecord.omit({ reason: true, request_hash: true, input_hash: true, inputs: true });

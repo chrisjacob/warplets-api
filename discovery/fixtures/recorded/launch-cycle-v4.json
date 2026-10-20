@@ -1,0 +1,753 @@
+{
+  "id": "ab3792c4-cdce-45bb-a77b-5a2101b255c4",
+  "created_at": "2026-10-20T20:24:32.544Z",
+  "reason": "Review independent closed-cycle quotes under assumed external prices, finite depth and network costs",
+  "request_hash": "1e027e189975e6620af7fd96454a1ecd23a90786da5c1a542d620213130512d8",
+  "input_hash": "f6529bd539e0bad8d248c9b88128b81e16acc48225053f351b7846fe2e081780",
+  "result_hash": "2286928a1769bb8cc90934d93584962959d0137eacfdfd6323c6209856a1a640",
+  "record_hash": "393a3acfa24881f8508e84a891ac6aea37cf88cd8a3dbdccb24dbd6547a5cc5b",
+  "inputs": {
+    "as_of": "2026-10-20T20:24:32.253Z",
+    "chain": "solana",
+    "attn_asset": "SIM-ATTN",
+    "attn_decimals": 9,
+    "supply_raw": "1000000000000000",
+    "native_quote_budget_raw": "1000000000000000",
+    "reference_attn_native": {
+      "numerator": "1",
+      "denominator": "1"
+    },
+    "max_opening_divergence_bps": 100,
+    "pools": {
+      "native": {
+        "quote_decimals": 9,
+        "quote_native": {
+          "numerator": "1",
+          "denominator": "1"
+        },
+        "sqrt_min": "9223372036854775808",
+        "sqrt_initial": "18446744073709551616",
+        "sqrt_max": "36893488147419103232",
+        "fees": {
+          "collect_fee_mode": "only_quote",
+          "fee_version": 1,
+          "base_fee_schedule": "static",
+          "dynamic_fee_enabled": false,
+          "fee_numerator": "10000000",
+          "protocol_fee_percent": 20,
+          "referral_fee_percent": 20,
+          "compounding_fee_bps": 0
+        }
+      },
+      "og": {
+        "quote_decimals": 9,
+        "quote_native": {
+          "numerator": "1",
+          "denominator": "1"
+        },
+        "sqrt_min": "18446744073709551616",
+        "sqrt_initial": "18446744073709551616",
+        "sqrt_max": "36893488147419103232",
+        "fees": {
+          "collect_fee_mode": "only_quote",
+          "fee_version": 1,
+          "base_fee_schedule": "static",
+          "dynamic_fee_enabled": false,
+          "fee_numerator": "10000000",
+          "protocol_fee_percent": 20,
+          "referral_fee_percent": 20,
+          "compounding_fee_bps": 0
+        }
+      },
+      "tenx": {
+        "quote_decimals": 9,
+        "quote_native": {
+          "numerator": "1",
+          "denominator": "1"
+        },
+        "sqrt_min": "18446744073709551616",
+        "sqrt_initial": "18446744073709551616",
+        "sqrt_max": "36893488147419103232",
+        "fees": {
+          "collect_fee_mode": "only_quote",
+          "fee_version": 1,
+          "base_fee_schedule": "static",
+          "dynamic_fee_enabled": false,
+          "fee_numerator": "10000000",
+          "protocol_fee_percent": 20,
+          "referral_fee_percent": 20,
+          "compounding_fee_bps": 0
+        }
+      }
+    },
+    "traders": [
+      {
+        "id": "early_holder",
+        "balances": {
+          "attn": "0",
+          "native": "1000000000000",
+          "og": "1000000000000",
+          "tenx": "0"
+        }
+      },
+      {
+        "id": "competitor",
+        "balances": {
+          "attn": "0",
+          "native": "100000000000000",
+          "og": "0",
+          "tenx": "1000000000000"
+        }
+      }
+    ],
+    "version": "launch-cycle-lab-v4",
+    "actions": [
+      {
+        "trader": "early_holder",
+        "gross_input_raw": "1000000000000",
+        "minimum_output_raw": "0",
+        "has_referral": false,
+        "kind": "swap",
+        "pool": "og",
+        "direction": "quote_to_attn"
+      }
+    ],
+    "probes": [
+      {
+        "id": "unit_rate",
+        "route": {
+          "trader": "competitor",
+          "gross_input_raw": "100000000000",
+          "minimum_output_raw": "0",
+          "has_referral": false,
+          "kind": "route",
+          "from_pool": "native",
+          "to_pool": "og",
+          "minimum_attn_raw": "0"
+        },
+        "external": {
+          "model": "hypothetical_constant_product",
+          "reserve_input_raw": "1000000000000000",
+          "reserve_output_raw": "1000000000000000",
+          "fee_bps": 30
+        },
+        "network_cost_native_raw": "5000000",
+        "minimum_cycle_output_raw": "0",
+        "minimum_profit_native_raw": "0"
+      },
+      {
+        "id": "og_rate_rises",
+        "route": {
+          "trader": "competitor",
+          "gross_input_raw": "100000000000",
+          "minimum_output_raw": "0",
+          "has_referral": false,
+          "kind": "route",
+          "from_pool": "native",
+          "to_pool": "og",
+          "minimum_attn_raw": "0"
+        },
+        "external": {
+          "model": "hypothetical_constant_product",
+          "reserve_input_raw": "1000000000000000",
+          "reserve_output_raw": "1500000000000000",
+          "fee_bps": 30
+        },
+        "network_cost_native_raw": "5000000",
+        "minimum_cycle_output_raw": "0",
+        "minimum_profit_native_raw": "0"
+      },
+      {
+        "id": "og_rate_falls",
+        "route": {
+          "trader": "competitor",
+          "gross_input_raw": "100000000000",
+          "minimum_output_raw": "0",
+          "has_referral": false,
+          "kind": "route",
+          "from_pool": "native",
+          "to_pool": "og",
+          "minimum_attn_raw": "0"
+        },
+        "external": {
+          "model": "hypothetical_constant_product",
+          "reserve_input_raw": "1000000000000000",
+          "reserve_output_raw": "500000000000000",
+          "fee_bps": 30
+        },
+        "network_cost_native_raw": "5000000",
+        "minimum_cycle_output_raw": "0",
+        "minimum_profit_native_raw": "0"
+      },
+      {
+        "id": "thin_external_depth",
+        "route": {
+          "trader": "competitor",
+          "gross_input_raw": "100000000000",
+          "minimum_output_raw": "0",
+          "has_referral": false,
+          "kind": "route",
+          "from_pool": "native",
+          "to_pool": "og",
+          "minimum_attn_raw": "0"
+        },
+        "external": {
+          "model": "hypothetical_constant_product",
+          "reserve_input_raw": "100000000000",
+          "reserve_output_raw": "150000000000",
+          "fee_bps": 30
+        },
+        "network_cost_native_raw": "5000000",
+        "minimum_cycle_output_raw": "0",
+        "minimum_profit_native_raw": "0"
+      },
+      {
+        "id": "high_network_cost",
+        "route": {
+          "trader": "competitor",
+          "gross_input_raw": "100000000000",
+          "minimum_output_raw": "0",
+          "has_referral": false,
+          "kind": "route",
+          "from_pool": "native",
+          "to_pool": "og",
+          "minimum_attn_raw": "0"
+        },
+        "external": {
+          "model": "hypothetical_constant_product",
+          "reserve_input_raw": "1000000000000000",
+          "reserve_output_raw": "1500000000000000",
+          "fee_bps": 30
+        },
+        "network_cost_native_raw": "100000000000",
+        "minimum_cycle_output_raw": "0",
+        "minimum_profit_native_raw": "0"
+      }
+    ]
+  },
+  "result": {
+    "sdk_version": "1.5.1",
+    "source_commit": "79ebbfe59a225e641a2f37cd03404f26de1b0c8e",
+    "as_of": "2026-10-20T20:24:32.253Z",
+    "source": "hypothetical_operator_inputs",
+    "supply_raw": "1000000000000000",
+    "attn_decimals": 9,
+    "campaign_reserve_raw": "100000000000000",
+    "native_quote_required_raw": "500000000000000",
+    "native_quote_budget_raw": "1000000000000000",
+    "launch_enabled": false,
+    "transfers_enabled": false,
+    "policy_approved": false,
+    "locks_verified": false,
+    "external_prices_verified": false,
+    "provider_requests": 0,
+    "gaps": [
+      "independent_probes_do_not_advance_inventory_or_charge_costs",
+      "external_constant_product_reserves_and_fees_are_hypothetical",
+      "network_cost_and_quote_native_profit_conversion_are_assumed",
+      "hypothetical_opening_prices_and_trader_quote_balances",
+      "atomic_route_rollback_is_a_model_not_verified_program_execution",
+      "ordered_actions_not_a_mempool_or_priority_fee_model",
+      "static_only_quote_fee_math_not_deployable_configuration",
+      "dynamic_opening_fees_rate_limiters_and_compounding_not_modeled",
+      "transfer_extensions_gas_activation_and_funded_routes_not_certified",
+      "fee_beneficiaries_and_claim_rights_unverified",
+      "fee_totals_are_modeled_accruals_not_vault_balances_or_founder_income",
+      "pool_creation_and_locks_not_verified",
+      "same_chain_10x_issuance_and_viability_unverified",
+      "no_transaction_simulation_or_signer",
+      "D08_D09_D10_D14_D15_D16_open"
+    ],
+    "fees_modeled": true,
+    "program_execution_verified": false,
+    "pools": [
+      {
+        "pool": "native",
+        "quote_asset": "SIM-SOL",
+        "quote_decimals": 9,
+        "allocation_bps": 5000,
+        "allocated_attn_raw": "500000000000000",
+        "unseeded_attn_raw": "0",
+        "liquidity_q64": "18446744073709551616000000000000000",
+        "sqrt_min": "9223372036854775808",
+        "sqrt_max": "36893488147419103232",
+        "initial": {
+          "sqrt_price": "18446744073709551616",
+          "attn_raw": "500000000000000",
+          "quote_raw": "500000000000000",
+          "marginal_native_per_attn": {
+            "numerator": "1",
+            "denominator": "1"
+          }
+        },
+        "final": {
+          "sqrt_price": "18446744073709551616",
+          "attn_raw": "500000000000000",
+          "quote_raw": "500000000000000",
+          "marginal_native_per_attn": {
+            "numerator": "1",
+            "denominator": "1"
+          }
+        },
+        "opening_deviation_bps": "0.00000000",
+        "opening_divergence_exceeded": false,
+        "remaining_net_quote_to_upper_raw": "1000000000000000",
+        "remaining_net_attn_to_lower_raw": "1000000000000000",
+        "fees": {
+          "collect_fee_mode": "only_quote",
+          "fee_version": 1,
+          "base_fee_schedule": "static",
+          "dynamic_fee_enabled": false,
+          "fee_numerator": "10000000",
+          "protocol_fee_percent": 20,
+          "referral_fee_percent": 20,
+          "compounding_fee_bps": 0
+        },
+        "fee_totals": {
+          "total_fee_raw": "0",
+          "lp_claiming_fee_raw": "0",
+          "protocol_fee_raw": "0",
+          "referral_fee_raw": "0"
+        }
+      },
+      {
+        "pool": "og",
+        "quote_asset": "SIM-OG",
+        "quote_decimals": 9,
+        "allocation_bps": 2000,
+        "allocated_attn_raw": "200000000000000",
+        "unseeded_attn_raw": "0",
+        "liquidity_q64": "7378697629483820646400000000000000",
+        "sqrt_min": "18446744073709551616",
+        "sqrt_max": "36893488147419103232",
+        "initial": {
+          "sqrt_price": "18446744073709551616",
+          "attn_raw": "200000000000000",
+          "quote_raw": "0",
+          "marginal_native_per_attn": {
+            "numerator": "1",
+            "denominator": "1"
+          }
+        },
+        "final": {
+          "sqrt_price": "18492399765291982756",
+          "attn_raw": "199012444200604",
+          "quote_raw": "990000000000",
+          "marginal_native_per_attn": {
+            "numerator": "21373053067460686182622634913112584721",
+            "denominator": "21267647932558653966460912964485513216"
+          }
+        },
+        "opening_deviation_bps": "0.00000000",
+        "opening_divergence_exceeded": false,
+        "remaining_net_quote_to_upper_raw": "399010000000001",
+        "remaining_net_attn_to_lower_raw": "987555799397",
+        "fees": {
+          "collect_fee_mode": "only_quote",
+          "fee_version": 1,
+          "base_fee_schedule": "static",
+          "dynamic_fee_enabled": false,
+          "fee_numerator": "10000000",
+          "protocol_fee_percent": 20,
+          "referral_fee_percent": 20,
+          "compounding_fee_bps": 0
+        },
+        "fee_totals": {
+          "total_fee_raw": "10000000000",
+          "lp_claiming_fee_raw": "8000000000",
+          "protocol_fee_raw": "2000000000",
+          "referral_fee_raw": "0"
+        }
+      },
+      {
+        "pool": "tenx",
+        "quote_asset": "SIM-10X",
+        "quote_decimals": 9,
+        "allocation_bps": 2000,
+        "allocated_attn_raw": "200000000000000",
+        "unseeded_attn_raw": "0",
+        "liquidity_q64": "7378697629483820646400000000000000",
+        "sqrt_min": "18446744073709551616",
+        "sqrt_max": "36893488147419103232",
+        "initial": {
+          "sqrt_price": "18446744073709551616",
+          "attn_raw": "200000000000000",
+          "quote_raw": "0",
+          "marginal_native_per_attn": {
+            "numerator": "1",
+            "denominator": "1"
+          }
+        },
+        "final": {
+          "sqrt_price": "18446744073709551616",
+          "attn_raw": "200000000000000",
+          "quote_raw": "0",
+          "marginal_native_per_attn": {
+            "numerator": "1",
+            "denominator": "1"
+          }
+        },
+        "opening_deviation_bps": "0.00000000",
+        "opening_divergence_exceeded": false,
+        "remaining_net_quote_to_upper_raw": "400000000000000",
+        "remaining_net_attn_to_lower_raw": "0",
+        "fees": {
+          "collect_fee_mode": "only_quote",
+          "fee_version": 1,
+          "base_fee_schedule": "static",
+          "dynamic_fee_enabled": false,
+          "fee_numerator": "10000000",
+          "protocol_fee_percent": 20,
+          "referral_fee_percent": 20,
+          "compounding_fee_bps": 0
+        },
+        "fee_totals": {
+          "total_fee_raw": "0",
+          "lp_claiming_fee_raw": "0",
+          "protocol_fee_raw": "0",
+          "referral_fee_raw": "0"
+        }
+      }
+    ],
+    "steps": [
+      {
+        "index": 0,
+        "pool": "og",
+        "direction": "quote_to_attn",
+        "net_input_raw": "990000000000",
+        "curve_output_raw": "987555799396",
+        "before": {
+          "sqrt_price": "18446744073709551616",
+          "attn_raw": "200000000000000",
+          "quote_raw": "0",
+          "marginal_native_per_attn": {
+            "numerator": "1",
+            "denominator": "1"
+          }
+        },
+        "after": {
+          "sqrt_price": "18492399765291982756",
+          "attn_raw": "199012444200604",
+          "quote_raw": "990000000000",
+          "marginal_native_per_attn": {
+            "numerator": "21373053067460686182622634913112584721",
+            "denominator": "21267647932558653966460912964485513216"
+          }
+        },
+        "status": "simulated",
+        "gross_input_raw": "1000000000000",
+        "trader_debit_raw": "1000000000000",
+        "trader_output_raw": "987555799396",
+        "minimum_output_raw": "0",
+        "fees_on_input": true,
+        "total_fee_raw": "10000000000",
+        "lp_claiming_fee_raw": "8000000000",
+        "protocol_fee_raw": "2000000000",
+        "referral_fee_raw": "0"
+      }
+    ],
+    "route_execution_verified": false,
+    "traders": [
+      {
+        "id": "early_holder",
+        "initial": {
+          "attn": "0",
+          "native": "1000000000000",
+          "og": "1000000000000",
+          "tenx": "0"
+        },
+        "final": {
+          "attn": "987555799396",
+          "native": "1000000000000",
+          "og": "0",
+          "tenx": "0"
+        }
+      },
+      {
+        "id": "competitor",
+        "initial": {
+          "attn": "0",
+          "native": "100000000000000",
+          "og": "0",
+          "tenx": "1000000000000"
+        },
+        "final": {
+          "attn": "0",
+          "native": "100000000000000",
+          "og": "0",
+          "tenx": "1000000000000"
+        }
+      }
+    ],
+    "actions": [
+      {
+        "index": 0,
+        "kind": "swap",
+        "trader": "early_holder",
+        "status": "simulated",
+        "input_asset": "og",
+        "output_asset": "attn",
+        "requested_input_raw": "1000000000000",
+        "trader_debit_raw": "1000000000000",
+        "trader_output_raw": "987555799396",
+        "minimum_output_raw": "0",
+        "before_balances": {
+          "attn": "0",
+          "native": "1000000000000",
+          "og": "1000000000000",
+          "tenx": "0"
+        },
+        "after_balances": {
+          "attn": "987555799396",
+          "native": "1000000000000",
+          "og": "0",
+          "tenx": "0"
+        },
+        "attempted_leg_statuses": [
+          "simulated"
+        ],
+        "rejected_leg_index": null,
+        "committed_step_indexes": [
+          0
+        ]
+      }
+    ],
+    "version": "launch-cycle-lab-v4",
+    "math_revision": "meteora-independent-cycles-79ebbfe-v4",
+    "scope": "independent_hypothetical_closed_cycle_quotes",
+    "probes_apply": false,
+    "external_execution_verified": false,
+    "probes": [
+      {
+        "id": "unit_rate",
+        "trader": "competitor",
+        "from_pool": "native",
+        "to_pool": "og",
+        "status": "profit_minimum_not_met",
+        "route_status": "simulated",
+        "requested_input_raw": "100000000000",
+        "intermediate_attn_raw": "98990199970",
+        "route_output_raw": "98461572623",
+        "projected_route_fees": [
+          {
+            "pool": "native",
+            "total_fee_raw": "1000000000"
+          },
+          {
+            "pool": "og",
+            "total_fee_raw": "994561340"
+          }
+        ],
+        "external": {
+          "model": "hypothetical_constant_product",
+          "reserve_input_raw": "1000000000000000",
+          "reserve_output_raw": "1000000000000000",
+          "fee_bps": 30
+        },
+        "external_fee_raw": "295384718",
+        "external_net_input_raw": "98166187905",
+        "cycle_output_raw": "98156552250",
+        "minimum_cycle_output_raw": "0",
+        "network_cost_native_raw": "5000000",
+        "minimum_profit_native_raw": "0",
+        "profit_native": {
+          "numerator": "-1848447750",
+          "denominator": "1"
+        },
+        "profit_native_floor_raw": "-1848447750",
+        "before_balances": {
+          "attn": "0",
+          "native": "100000000000000",
+          "og": "0",
+          "tenx": "1000000000000"
+        },
+        "projected_balances": null
+      },
+      {
+        "id": "og_rate_rises",
+        "trader": "competitor",
+        "from_pool": "native",
+        "to_pool": "og",
+        "status": "quote_passed",
+        "route_status": "simulated",
+        "requested_input_raw": "100000000000",
+        "intermediate_attn_raw": "98990199970",
+        "route_output_raw": "98461572623",
+        "projected_route_fees": [
+          {
+            "pool": "native",
+            "total_fee_raw": "1000000000"
+          },
+          {
+            "pool": "og",
+            "total_fee_raw": "994561340"
+          }
+        ],
+        "external": {
+          "model": "hypothetical_constant_product",
+          "reserve_input_raw": "1000000000000000",
+          "reserve_output_raw": "1500000000000000",
+          "fee_bps": 30
+        },
+        "external_fee_raw": "295384718",
+        "external_net_input_raw": "98166187905",
+        "cycle_output_raw": "147234828375",
+        "minimum_cycle_output_raw": "0",
+        "network_cost_native_raw": "5000000",
+        "minimum_profit_native_raw": "0",
+        "profit_native": {
+          "numerator": "47229828375",
+          "denominator": "1"
+        },
+        "profit_native_floor_raw": "47229828375",
+        "before_balances": {
+          "attn": "0",
+          "native": "100000000000000",
+          "og": "0",
+          "tenx": "1000000000000"
+        },
+        "projected_balances": {
+          "attn": "0",
+          "native": "100047229828375",
+          "og": "0",
+          "tenx": "1000000000000"
+        }
+      },
+      {
+        "id": "og_rate_falls",
+        "trader": "competitor",
+        "from_pool": "native",
+        "to_pool": "og",
+        "status": "profit_minimum_not_met",
+        "route_status": "simulated",
+        "requested_input_raw": "100000000000",
+        "intermediate_attn_raw": "98990199970",
+        "route_output_raw": "98461572623",
+        "projected_route_fees": [
+          {
+            "pool": "native",
+            "total_fee_raw": "1000000000"
+          },
+          {
+            "pool": "og",
+            "total_fee_raw": "994561340"
+          }
+        ],
+        "external": {
+          "model": "hypothetical_constant_product",
+          "reserve_input_raw": "1000000000000000",
+          "reserve_output_raw": "500000000000000",
+          "fee_bps": 30
+        },
+        "external_fee_raw": "295384718",
+        "external_net_input_raw": "98166187905",
+        "cycle_output_raw": "49078276125",
+        "minimum_cycle_output_raw": "0",
+        "network_cost_native_raw": "5000000",
+        "minimum_profit_native_raw": "0",
+        "profit_native": {
+          "numerator": "-50926723875",
+          "denominator": "1"
+        },
+        "profit_native_floor_raw": "-50926723875",
+        "before_balances": {
+          "attn": "0",
+          "native": "100000000000000",
+          "og": "0",
+          "tenx": "1000000000000"
+        },
+        "projected_balances": null
+      },
+      {
+        "id": "thin_external_depth",
+        "trader": "competitor",
+        "from_pool": "native",
+        "to_pool": "og",
+        "status": "profit_minimum_not_met",
+        "route_status": "simulated",
+        "requested_input_raw": "100000000000",
+        "intermediate_attn_raw": "98990199970",
+        "route_output_raw": "98461572623",
+        "projected_route_fees": [
+          {
+            "pool": "native",
+            "total_fee_raw": "1000000000"
+          },
+          {
+            "pool": "og",
+            "total_fee_raw": "994561340"
+          }
+        ],
+        "external": {
+          "model": "hypothetical_constant_product",
+          "reserve_input_raw": "100000000000",
+          "reserve_output_raw": "150000000000",
+          "fee_bps": 30
+        },
+        "external_fee_raw": "295384718",
+        "external_net_input_raw": "98166187905",
+        "cycle_output_raw": "74305956739",
+        "minimum_cycle_output_raw": "0",
+        "network_cost_native_raw": "5000000",
+        "minimum_profit_native_raw": "0",
+        "profit_native": {
+          "numerator": "-25699043261",
+          "denominator": "1"
+        },
+        "profit_native_floor_raw": "-25699043261",
+        "before_balances": {
+          "attn": "0",
+          "native": "100000000000000",
+          "og": "0",
+          "tenx": "1000000000000"
+        },
+        "projected_balances": null
+      },
+      {
+        "id": "high_network_cost",
+        "trader": "competitor",
+        "from_pool": "native",
+        "to_pool": "og",
+        "status": "profit_minimum_not_met",
+        "route_status": "simulated",
+        "requested_input_raw": "100000000000",
+        "intermediate_attn_raw": "98990199970",
+        "route_output_raw": "98461572623",
+        "projected_route_fees": [
+          {
+            "pool": "native",
+            "total_fee_raw": "1000000000"
+          },
+          {
+            "pool": "og",
+            "total_fee_raw": "994561340"
+          }
+        ],
+        "external": {
+          "model": "hypothetical_constant_product",
+          "reserve_input_raw": "1000000000000000",
+          "reserve_output_raw": "1500000000000000",
+          "fee_bps": 30
+        },
+        "external_fee_raw": "295384718",
+        "external_net_input_raw": "98166187905",
+        "cycle_output_raw": "147234828375",
+        "minimum_cycle_output_raw": "0",
+        "network_cost_native_raw": "100000000000",
+        "minimum_profit_native_raw": "0",
+        "profit_native": {
+          "numerator": "-52765171625",
+          "denominator": "1"
+        },
+        "profit_native_floor_raw": "-52765171625",
+        "before_balances": {
+          "attn": "0",
+          "native": "100000000000000",
+          "og": "0",
+          "tenx": "1000000000000"
+        },
+        "projected_balances": null
+      }
+    ]
+  }
+}

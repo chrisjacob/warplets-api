@@ -10859,6 +10859,979 @@
                         "probes"
                       ],
                       "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "sdk_version": {
+                          "type": "string",
+                          "const": "1.5.1"
+                        },
+                        "source_commit": {
+                          "type": "string",
+                          "const": "79ebbfe59a225e641a2f37cd03404f26de1b0c8e"
+                        },
+                        "as_of": {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                        },
+                        "source": {
+                          "type": "string",
+                          "const": "hypothetical_operator_inputs"
+                        },
+                        "supply_raw": {
+                          "type": "string",
+                          "maxLength": 20,
+                          "pattern": "^(0|[1-9]\\d*)$"
+                        },
+                        "attn_decimals": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "campaign_reserve_raw": {
+                          "type": "string",
+                          "maxLength": 20,
+                          "pattern": "^(0|[1-9]\\d*)$"
+                        },
+                        "native_quote_required_raw": {
+                          "type": "string",
+                          "maxLength": 20,
+                          "pattern": "^(0|[1-9]\\d*)$"
+                        },
+                        "native_quote_budget_raw": {
+                          "type": "string",
+                          "maxLength": 20,
+                          "pattern": "^(0|[1-9]\\d*)$"
+                        },
+                        "launch_enabled": {
+                          "type": "boolean",
+                          "const": false
+                        },
+                        "transfers_enabled": {
+                          "type": "boolean",
+                          "const": false
+                        },
+                        "policy_approved": {
+                          "type": "boolean",
+                          "const": false
+                        },
+                        "locks_verified": {
+                          "type": "boolean",
+                          "const": false
+                        },
+                        "external_prices_verified": {
+                          "type": "boolean",
+                          "const": false
+                        },
+                        "provider_requests": {
+                          "type": "number",
+                          "const": 0
+                        },
+                        "gaps": {
+                          "maxItems": 16,
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "fees_modeled": {
+                          "type": "boolean",
+                          "const": true
+                        },
+                        "program_execution_verified": {
+                          "type": "boolean",
+                          "const": false
+                        },
+                        "route_execution_verified": {
+                          "type": "boolean",
+                          "const": false
+                        },
+                        "traders": {
+                          "minItems": 1,
+                          "maxItems": 8,
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "pattern": "^[a-z][a-z0-9_-]{0,23}$"
+                              },
+                              "initial": {
+                                "type": "object",
+                                "properties": {
+                                  "attn": {
+                                    "type": "string",
+                                    "maxLength": 20,
+                                    "pattern": "^(0|[1-9]\\d*)$"
+                                  },
+                                  "native": {
+                                    "type": "string",
+                                    "maxLength": 20,
+                                    "pattern": "^(0|[1-9]\\d*)$"
+                                  },
+                                  "og": {
+                                    "type": "string",
+                                    "maxLength": 20,
+                                    "pattern": "^(0|[1-9]\\d*)$"
+                                  },
+                                  "tenx": {
+                                    "type": "string",
+                                    "maxLength": 20,
+                                    "pattern": "^(0|[1-9]\\d*)$"
+                                  }
+                                },
+                                "required": [
+                                  "attn",
+                                  "native",
+                                  "og",
+                                  "tenx"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "final": {
+                                "type": "object",
+                                "properties": {
+                                  "attn": {
+                                    "type": "string",
+                                    "maxLength": 20,
+                                    "pattern": "^(0|[1-9]\\d*)$"
+                                  },
+                                  "native": {
+                                    "type": "string",
+                                    "maxLength": 20,
+                                    "pattern": "^(0|[1-9]\\d*)$"
+                                  },
+                                  "og": {
+                                    "type": "string",
+                                    "maxLength": 20,
+                                    "pattern": "^(0|[1-9]\\d*)$"
+                                  },
+                                  "tenx": {
+                                    "type": "string",
+                                    "maxLength": 20,
+                                    "pattern": "^(0|[1-9]\\d*)$"
+                                  }
+                                },
+                                "required": [
+                                  "attn",
+                                  "native",
+                                  "og",
+                                  "tenx"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "initial",
+                              "final"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "version": {
+                          "type": "string",
+                          "const": "launch-timed-lab-v5"
+                        },
+                        "math_revision": {
+                          "type": "string",
+                          "const": "meteora-linear-time-onlyb-79ebbfe-v5"
+                        },
+                        "scope": {
+                          "type": "string",
+                          "const": "hypothetical_funded_linear_opening_fees"
+                        },
+                        "activation_type": {
+                          "type": "string",
+                          "const": "timestamp"
+                        },
+                        "activation_point": {
+                          "type": "string",
+                          "maxLength": 20,
+                          "pattern": "^(0|[1-9]\\d*)$"
+                        },
+                        "activation_verified": {
+                          "type": "boolean",
+                          "const": false
+                        },
+                        "pools": {
+                          "minItems": 3,
+                          "maxItems": 3,
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "pool": {
+                                "type": "string",
+                                "enum": [
+                                  "native",
+                                  "og",
+                                  "tenx"
+                                ]
+                              },
+                              "quote_asset": {
+                                "type": "string",
+                                "enum": [
+                                  "SIM-SOL",
+                                  "SIM-OG",
+                                  "SIM-10X"
+                                ]
+                              },
+                              "quote_decimals": {
+                                "type": "integer",
+                                "minimum": -9007199254740991,
+                                "maximum": 9007199254740991
+                              },
+                              "allocation_bps": {
+                                "type": "integer",
+                                "minimum": -9007199254740991,
+                                "maximum": 9007199254740991
+                              },
+                              "allocated_attn_raw": {
+                                "type": "string",
+                                "maxLength": 20,
+                                "pattern": "^(0|[1-9]\\d*)$"
+                              },
+                              "unseeded_attn_raw": {
+                                "type": "string",
+                                "maxLength": 20,
+                                "pattern": "^(0|[1-9]\\d*)$"
+                              },
+                              "liquidity_q64": {
+                                "type": "string",
+                                "maxLength": 130,
+                                "pattern": "^(0|[1-9]\\d*)$"
+                              },
+                              "sqrt_min": {
+                                "type": "string",
+                                "maxLength": 130,
+                                "pattern": "^(0|[1-9]\\d*)$"
+                              },
+                              "sqrt_max": {
+                                "type": "string",
+                                "maxLength": 130,
+                                "pattern": "^(0|[1-9]\\d*)$"
+                              },
+                              "initial": {
+                                "type": "object",
+                                "properties": {
+                                  "sqrt_price": {
+                                    "type": "string",
+                                    "maxLength": 130,
+                                    "pattern": "^(0|[1-9]\\d*)$"
+                                  },
+                                  "attn_raw": {
+                                    "type": "string",
+                                    "maxLength": 20,
+                                    "pattern": "^(0|[1-9]\\d*)$"
+                                  },
+                                  "quote_raw": {
+                                    "type": "string",
+                                    "maxLength": 20,
+                                    "pattern": "^(0|[1-9]\\d*)$"
+                                  },
+                                  "marginal_native_per_attn": {
+                                    "type": "object",
+                                    "properties": {
+                                      "numerator": {
+                                        "type": "string",
+                                        "maxLength": 130,
+                                        "pattern": "^(0|[1-9]\\d*)$"
+                                      },
+                                      "denominator": {
+                                        "type": "string",
+                                        "maxLength": 130,
+                                        "pattern": "^(0|[1-9]\\d*)$"
+                                      }
+                                    },
+                                    "required": [
+                                      "numerator",
+                                      "denominator"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                },
+                                "required": [
+                                  "sqrt_price",
+                                  "attn_raw",
+                                  "quote_raw",
+                                  "marginal_native_per_attn"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "final": {
+                                "type": "object",
+                                "properties": {
+                                  "sqrt_price": {
+                                    "type": "string",
+                                    "maxLength": 130,
+                                    "pattern": "^(0|[1-9]\\d*)$"
+                                  },
+                                  "attn_raw": {
+                                    "type": "string",
+                                    "maxLength": 20,
+                                    "pattern": "^(0|[1-9]\\d*)$"
+                                  },
+                                  "quote_raw": {
+                                    "type": "string",
+                                    "maxLength": 20,
+                                    "pattern": "^(0|[1-9]\\d*)$"
+                                  },
+                                  "marginal_native_per_attn": {
+                                    "type": "object",
+                                    "properties": {
+                                      "numerator": {
+                                        "type": "string",
+                                        "maxLength": 130,
+                                        "pattern": "^(0|[1-9]\\d*)$"
+                                      },
+                                      "denominator": {
+                                        "type": "string",
+                                        "maxLength": 130,
+                                        "pattern": "^(0|[1-9]\\d*)$"
+                                      }
+                                    },
+                                    "required": [
+                                      "numerator",
+                                      "denominator"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                },
+                                "required": [
+                                  "sqrt_price",
+                                  "attn_raw",
+                                  "quote_raw",
+                                  "marginal_native_per_attn"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "opening_deviation_bps": {
+                                "type": "string",
+                                "maxLength": 150,
+                                "pattern": "^-?\\d+\\.\\d{8}$"
+                              },
+                              "opening_divergence_exceeded": {
+                                "type": "boolean"
+                              },
+                              "remaining_net_quote_to_upper_raw": {
+                                "type": "string",
+                                "maxLength": 20,
+                                "pattern": "^(0|[1-9]\\d*)$"
+                              },
+                              "remaining_net_attn_to_lower_raw": {
+                                "type": "string",
+                                "maxLength": 20,
+                                "pattern": "^(0|[1-9]\\d*)$"
+                              },
+                              "fees": {
+                                "type": "object",
+                                "properties": {
+                                  "collect_fee_mode": {
+                                    "type": "string",
+                                    "const": "only_quote"
+                                  },
+                                  "fee_version": {
+                                    "type": "number",
+                                    "const": 1
+                                  },
+                                  "dynamic_fee_enabled": {
+                                    "type": "boolean",
+                                    "const": false
+                                  },
+                                  "protocol_fee_percent": {
+                                    "type": "integer",
+                                    "minimum": 0,
+                                    "maximum": 100
+                                  },
+                                  "referral_fee_percent": {
+                                    "type": "integer",
+                                    "minimum": 0,
+                                    "maximum": 100
+                                  },
+                                  "compounding_fee_bps": {
+                                    "type": "number",
+                                    "const": 0
+                                  },
+                                  "base_fee_schedule": {
+                                    "type": "string",
+                                    "const": "linear_time"
+                                  },
+                                  "cliff_fee_numerator": {
+                                    "type": "string",
+                                    "maxLength": 20,
+                                    "pattern": "^(0|[1-9]\\d*)$"
+                                  },
+                                  "number_of_periods": {
+                                    "type": "integer",
+                                    "minimum": 1,
+                                    "maximum": 65535
+                                  },
+                                  "period_frequency": {
+                                    "type": "string",
+                                    "maxLength": 20,
+                                    "pattern": "^(0|[1-9]\\d*)$"
+                                  },
+                                  "reduction_factor": {
+                                    "type": "string",
+                                    "maxLength": 20,
+                                    "pattern": "^(0|[1-9]\\d*)$"
+                                  }
+                                },
+                                "required": [
+                                  "collect_fee_mode",
+                                  "fee_version",
+                                  "dynamic_fee_enabled",
+                                  "protocol_fee_percent",
+                                  "referral_fee_percent",
+                                  "compounding_fee_bps",
+                                  "base_fee_schedule",
+                                  "cliff_fee_numerator",
+                                  "number_of_periods",
+                                  "period_frequency",
+                                  "reduction_factor"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "fee_totals": {
+                                "type": "object",
+                                "properties": {
+                                  "total_fee_raw": {
+                                    "type": "string",
+                                    "maxLength": 130,
+                                    "pattern": "^(0|[1-9]\\d*)$"
+                                  },
+                                  "lp_claiming_fee_raw": {
+                                    "type": "string",
+                                    "maxLength": 130,
+                                    "pattern": "^(0|[1-9]\\d*)$"
+                                  },
+                                  "protocol_fee_raw": {
+                                    "type": "string",
+                                    "maxLength": 130,
+                                    "pattern": "^(0|[1-9]\\d*)$"
+                                  },
+                                  "referral_fee_raw": {
+                                    "type": "string",
+                                    "maxLength": 130,
+                                    "pattern": "^(0|[1-9]\\d*)$"
+                                  }
+                                },
+                                "required": [
+                                  "total_fee_raw",
+                                  "lp_claiming_fee_raw",
+                                  "protocol_fee_raw",
+                                  "referral_fee_raw"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "required": [
+                              "pool",
+                              "quote_asset",
+                              "quote_decimals",
+                              "allocation_bps",
+                              "allocated_attn_raw",
+                              "unseeded_attn_raw",
+                              "liquidity_q64",
+                              "sqrt_min",
+                              "sqrt_max",
+                              "initial",
+                              "final",
+                              "opening_deviation_bps",
+                              "opening_divergence_exceeded",
+                              "remaining_net_quote_to_upper_raw",
+                              "remaining_net_attn_to_lower_raw",
+                              "fees",
+                              "fee_totals"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "steps": {
+                          "maxItems": 24,
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "index": {
+                                "type": "integer",
+                                "minimum": -9007199254740991,
+                                "maximum": 9007199254740991
+                              },
+                              "pool": {
+                                "type": "string",
+                                "enum": [
+                                  "native",
+                                  "og",
+                                  "tenx"
+                                ]
+                              },
+                              "direction": {
+                                "type": "string",
+                                "enum": [
+                                  "quote_to_attn",
+                                  "attn_to_quote"
+                                ]
+                              },
+                              "net_input_raw": {
+                                "type": "string",
+                                "maxLength": 20,
+                                "pattern": "^(0|[1-9]\\d*)$"
+                              },
+                              "curve_output_raw": {
+                                "type": "string",
+                                "maxLength": 20,
+                                "pattern": "^(0|[1-9]\\d*)$"
+                              },
+                              "before": {
+                                "type": "object",
+                                "properties": {
+                                  "sqrt_price": {
+                                    "type": "string",
+                                    "maxLength": 130,
+                                    "pattern": "^(0|[1-9]\\d*)$"
+                                  },
+                                  "attn_raw": {
+                                    "type": "string",
+                                    "maxLength": 20,
+                                    "pattern": "^(0|[1-9]\\d*)$"
+                                  },
+                                  "quote_raw": {
+                                    "type": "string",
+                                    "maxLength": 20,
+                                    "pattern": "^(0|[1-9]\\d*)$"
+                                  },
+                                  "marginal_native_per_attn": {
+                                    "type": "object",
+                                    "properties": {
+                                      "numerator": {
+                                        "type": "string",
+                                        "maxLength": 130,
+                                        "pattern": "^(0|[1-9]\\d*)$"
+                                      },
+                                      "denominator": {
+                                        "type": "string",
+                                        "maxLength": 130,
+                                        "pattern": "^(0|[1-9]\\d*)$"
+                                      }
+                                    },
+                                    "required": [
+                                      "numerator",
+                                      "denominator"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                },
+                                "required": [
+                                  "sqrt_price",
+                                  "attn_raw",
+                                  "quote_raw",
+                                  "marginal_native_per_attn"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "after": {
+                                "type": "object",
+                                "properties": {
+                                  "sqrt_price": {
+                                    "type": "string",
+                                    "maxLength": 130,
+                                    "pattern": "^(0|[1-9]\\d*)$"
+                                  },
+                                  "attn_raw": {
+                                    "type": "string",
+                                    "maxLength": 20,
+                                    "pattern": "^(0|[1-9]\\d*)$"
+                                  },
+                                  "quote_raw": {
+                                    "type": "string",
+                                    "maxLength": 20,
+                                    "pattern": "^(0|[1-9]\\d*)$"
+                                  },
+                                  "marginal_native_per_attn": {
+                                    "type": "object",
+                                    "properties": {
+                                      "numerator": {
+                                        "type": "string",
+                                        "maxLength": 130,
+                                        "pattern": "^(0|[1-9]\\d*)$"
+                                      },
+                                      "denominator": {
+                                        "type": "string",
+                                        "maxLength": 130,
+                                        "pattern": "^(0|[1-9]\\d*)$"
+                                      }
+                                    },
+                                    "required": [
+                                      "numerator",
+                                      "denominator"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                },
+                                "required": [
+                                  "sqrt_price",
+                                  "attn_raw",
+                                  "quote_raw",
+                                  "marginal_native_per_attn"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "status": {
+                                "type": "string",
+                                "enum": [
+                                  "simulated",
+                                  "range_exhausted",
+                                  "zero_output",
+                                  "inventory_or_u64_bound",
+                                  "fee_consumes_input",
+                                  "minimum_output_not_met"
+                                ]
+                              },
+                              "gross_input_raw": {
+                                "type": "string",
+                                "maxLength": 20,
+                                "pattern": "^(0|[1-9]\\d*)$"
+                              },
+                              "trader_debit_raw": {
+                                "type": "string",
+                                "maxLength": 20,
+                                "pattern": "^(0|[1-9]\\d*)$"
+                              },
+                              "trader_output_raw": {
+                                "type": "string",
+                                "maxLength": 20,
+                                "pattern": "^(0|[1-9]\\d*)$"
+                              },
+                              "minimum_output_raw": {
+                                "type": "string",
+                                "maxLength": 20,
+                                "pattern": "^(0|[1-9]\\d*)$"
+                              },
+                              "fees_on_input": {
+                                "type": "boolean"
+                              },
+                              "total_fee_raw": {
+                                "type": "string",
+                                "maxLength": 20,
+                                "pattern": "^(0|[1-9]\\d*)$"
+                              },
+                              "lp_claiming_fee_raw": {
+                                "type": "string",
+                                "maxLength": 20,
+                                "pattern": "^(0|[1-9]\\d*)$"
+                              },
+                              "protocol_fee_raw": {
+                                "type": "string",
+                                "maxLength": 20,
+                                "pattern": "^(0|[1-9]\\d*)$"
+                              },
+                              "referral_fee_raw": {
+                                "type": "string",
+                                "maxLength": 20,
+                                "pattern": "^(0|[1-9]\\d*)$"
+                              },
+                              "point": {
+                                "type": "string",
+                                "maxLength": 20,
+                                "pattern": "^(0|[1-9]\\d*)$"
+                              },
+                              "effective_fee_numerator": {
+                                "type": "string",
+                                "maxLength": 20,
+                                "pattern": "^(0|[1-9]\\d*)$"
+                              }
+                            },
+                            "required": [
+                              "index",
+                              "pool",
+                              "direction",
+                              "net_input_raw",
+                              "curve_output_raw",
+                              "before",
+                              "after",
+                              "status",
+                              "gross_input_raw",
+                              "trader_debit_raw",
+                              "trader_output_raw",
+                              "minimum_output_raw",
+                              "fees_on_input",
+                              "total_fee_raw",
+                              "lp_claiming_fee_raw",
+                              "protocol_fee_raw",
+                              "referral_fee_raw",
+                              "point",
+                              "effective_fee_numerator"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "actions": {
+                          "maxItems": 12,
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "index": {
+                                "type": "integer",
+                                "minimum": -9007199254740991,
+                                "maximum": 9007199254740991
+                              },
+                              "kind": {
+                                "type": "string",
+                                "enum": [
+                                  "swap",
+                                  "route"
+                                ]
+                              },
+                              "trader": {
+                                "type": "string",
+                                "pattern": "^[a-z][a-z0-9_-]{0,23}$"
+                              },
+                              "input_asset": {
+                                "type": "string",
+                                "enum": [
+                                  "attn",
+                                  "native",
+                                  "og",
+                                  "tenx"
+                                ]
+                              },
+                              "output_asset": {
+                                "type": "string",
+                                "enum": [
+                                  "attn",
+                                  "native",
+                                  "og",
+                                  "tenx"
+                                ]
+                              },
+                              "requested_input_raw": {
+                                "type": "string",
+                                "maxLength": 20,
+                                "pattern": "^(0|[1-9]\\d*)$"
+                              },
+                              "trader_debit_raw": {
+                                "type": "string",
+                                "maxLength": 20,
+                                "pattern": "^(0|[1-9]\\d*)$"
+                              },
+                              "trader_output_raw": {
+                                "type": "string",
+                                "maxLength": 20,
+                                "pattern": "^(0|[1-9]\\d*)$"
+                              },
+                              "minimum_output_raw": {
+                                "type": "string",
+                                "maxLength": 20,
+                                "pattern": "^(0|[1-9]\\d*)$"
+                              },
+                              "before_balances": {
+                                "type": "object",
+                                "properties": {
+                                  "attn": {
+                                    "type": "string",
+                                    "maxLength": 20,
+                                    "pattern": "^(0|[1-9]\\d*)$"
+                                  },
+                                  "native": {
+                                    "type": "string",
+                                    "maxLength": 20,
+                                    "pattern": "^(0|[1-9]\\d*)$"
+                                  },
+                                  "og": {
+                                    "type": "string",
+                                    "maxLength": 20,
+                                    "pattern": "^(0|[1-9]\\d*)$"
+                                  },
+                                  "tenx": {
+                                    "type": "string",
+                                    "maxLength": 20,
+                                    "pattern": "^(0|[1-9]\\d*)$"
+                                  }
+                                },
+                                "required": [
+                                  "attn",
+                                  "native",
+                                  "og",
+                                  "tenx"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "after_balances": {
+                                "type": "object",
+                                "properties": {
+                                  "attn": {
+                                    "type": "string",
+                                    "maxLength": 20,
+                                    "pattern": "^(0|[1-9]\\d*)$"
+                                  },
+                                  "native": {
+                                    "type": "string",
+                                    "maxLength": 20,
+                                    "pattern": "^(0|[1-9]\\d*)$"
+                                  },
+                                  "og": {
+                                    "type": "string",
+                                    "maxLength": 20,
+                                    "pattern": "^(0|[1-9]\\d*)$"
+                                  },
+                                  "tenx": {
+                                    "type": "string",
+                                    "maxLength": 20,
+                                    "pattern": "^(0|[1-9]\\d*)$"
+                                  }
+                                },
+                                "required": [
+                                  "attn",
+                                  "native",
+                                  "og",
+                                  "tenx"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "attempted_leg_statuses": {
+                                "maxItems": 2,
+                                "type": "array",
+                                "items": {
+                                  "type": "string",
+                                  "enum": [
+                                    "simulated",
+                                    "range_exhausted",
+                                    "zero_output",
+                                    "inventory_or_u64_bound",
+                                    "fee_consumes_input",
+                                    "minimum_output_not_met"
+                                  ]
+                                }
+                              },
+                              "rejected_leg_index": {
+                                "anyOf": [
+                                  {
+                                    "type": "integer",
+                                    "minimum": 0,
+                                    "maximum": 1
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "committed_step_indexes": {
+                                "maxItems": 2,
+                                "type": "array",
+                                "items": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 23
+                                }
+                              },
+                              "point": {
+                                "type": "string",
+                                "maxLength": 20,
+                                "pattern": "^(0|[1-9]\\d*)$"
+                              },
+                              "status": {
+                                "type": "string",
+                                "enum": [
+                                  "simulated",
+                                  "range_exhausted",
+                                  "zero_output",
+                                  "inventory_or_u64_bound",
+                                  "fee_consumes_input",
+                                  "minimum_output_not_met",
+                                  "insufficient_balance",
+                                  "trader_u64_bound",
+                                  "not_active"
+                                ]
+                              },
+                              "attempted_fees": {
+                                "maxItems": 2,
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "pool": {
+                                      "type": "string",
+                                      "enum": [
+                                        "native",
+                                        "og",
+                                        "tenx"
+                                      ]
+                                    },
+                                    "fee_numerator": {
+                                      "type": "string",
+                                      "maxLength": 20,
+                                      "pattern": "^(0|[1-9]\\d*)$"
+                                    }
+                                  },
+                                  "required": [
+                                    "pool",
+                                    "fee_numerator"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              }
+                            },
+                            "required": [
+                              "index",
+                              "kind",
+                              "trader",
+                              "input_asset",
+                              "output_asset",
+                              "requested_input_raw",
+                              "trader_debit_raw",
+                              "trader_output_raw",
+                              "minimum_output_raw",
+                              "before_balances",
+                              "after_balances",
+                              "attempted_leg_statuses",
+                              "rejected_leg_index",
+                              "committed_step_indexes",
+                              "point",
+                              "status",
+                              "attempted_fees"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "sdk_version",
+                        "source_commit",
+                        "as_of",
+                        "source",
+                        "supply_raw",
+                        "attn_decimals",
+                        "campaign_reserve_raw",
+                        "native_quote_required_raw",
+                        "native_quote_budget_raw",
+                        "launch_enabled",
+                        "transfers_enabled",
+                        "policy_approved",
+                        "locks_verified",
+                        "external_prices_verified",
+                        "provider_requests",
+                        "gaps",
+                        "fees_modeled",
+                        "program_execution_verified",
+                        "route_execution_verified",
+                        "traders",
+                        "version",
+                        "math_revision",
+                        "scope",
+                        "activation_type",
+                        "activation_point",
+                        "activation_verified",
+                        "pools",
+                        "steps",
+                        "actions"
+                      ],
+                      "additionalProperties": false
                     }
                   ]
                 }
@@ -12889,6 +13862,656 @@
                   "version",
                   "actions",
                   "probes"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "as_of": {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                  },
+                  "chain": {
+                    "type": "string",
+                    "const": "solana"
+                  },
+                  "attn_asset": {
+                    "type": "string",
+                    "const": "SIM-ATTN"
+                  },
+                  "attn_decimals": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9
+                  },
+                  "supply_raw": {
+                    "type": "string",
+                    "maxLength": 20,
+                    "pattern": "^(0|[1-9]\\d*)$"
+                  },
+                  "native_quote_budget_raw": {
+                    "type": "string",
+                    "maxLength": 20,
+                    "pattern": "^(0|[1-9]\\d*)$"
+                  },
+                  "reference_attn_native": {
+                    "type": "object",
+                    "properties": {
+                      "numerator": {
+                        "type": "string",
+                        "maxLength": 20,
+                        "pattern": "^(0|[1-9]\\d*)$"
+                      },
+                      "denominator": {
+                        "type": "string",
+                        "maxLength": 20,
+                        "pattern": "^(0|[1-9]\\d*)$"
+                      }
+                    },
+                    "required": [
+                      "numerator",
+                      "denominator"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "max_opening_divergence_bps": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 10000
+                  },
+                  "traders": {
+                    "minItems": 1,
+                    "maxItems": 8,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "pattern": "^[a-z][a-z0-9_-]{0,23}$"
+                        },
+                        "balances": {
+                          "type": "object",
+                          "properties": {
+                            "attn": {
+                              "type": "string",
+                              "const": "0"
+                            },
+                            "native": {
+                              "type": "string",
+                              "maxLength": 20,
+                              "pattern": "^(0|[1-9]\\d*)$"
+                            },
+                            "og": {
+                              "type": "string",
+                              "maxLength": 20,
+                              "pattern": "^(0|[1-9]\\d*)$"
+                            },
+                            "tenx": {
+                              "type": "string",
+                              "maxLength": 20,
+                              "pattern": "^(0|[1-9]\\d*)$"
+                            }
+                          },
+                          "required": [
+                            "attn",
+                            "native",
+                            "og",
+                            "tenx"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "balances"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "version": {
+                    "type": "string",
+                    "const": "launch-timed-lab-v5"
+                  },
+                  "activation_type": {
+                    "type": "string",
+                    "const": "timestamp"
+                  },
+                  "activation_point": {
+                    "type": "string",
+                    "maxLength": 20,
+                    "pattern": "^(0|[1-9]\\d*)$"
+                  },
+                  "pools": {
+                    "type": "object",
+                    "properties": {
+                      "native": {
+                        "type": "object",
+                        "properties": {
+                          "quote_decimals": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9
+                          },
+                          "quote_native": {
+                            "type": "object",
+                            "properties": {
+                              "numerator": {
+                                "type": "string",
+                                "maxLength": 20,
+                                "pattern": "^(0|[1-9]\\d*)$"
+                              },
+                              "denominator": {
+                                "type": "string",
+                                "maxLength": 20,
+                                "pattern": "^(0|[1-9]\\d*)$"
+                              }
+                            },
+                            "required": [
+                              "numerator",
+                              "denominator"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "sqrt_min": {
+                            "type": "string",
+                            "maxLength": 29,
+                            "pattern": "^(0|[1-9]\\d*)$"
+                          },
+                          "sqrt_initial": {
+                            "type": "string",
+                            "maxLength": 29,
+                            "pattern": "^(0|[1-9]\\d*)$"
+                          },
+                          "sqrt_max": {
+                            "type": "string",
+                            "maxLength": 29,
+                            "pattern": "^(0|[1-9]\\d*)$"
+                          },
+                          "fees": {
+                            "type": "object",
+                            "properties": {
+                              "collect_fee_mode": {
+                                "type": "string",
+                                "const": "only_quote"
+                              },
+                              "fee_version": {
+                                "type": "number",
+                                "const": 1
+                              },
+                              "dynamic_fee_enabled": {
+                                "type": "boolean",
+                                "const": false
+                              },
+                              "protocol_fee_percent": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 100
+                              },
+                              "referral_fee_percent": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 100
+                              },
+                              "compounding_fee_bps": {
+                                "type": "number",
+                                "const": 0
+                              },
+                              "base_fee_schedule": {
+                                "type": "string",
+                                "const": "linear_time"
+                              },
+                              "cliff_fee_numerator": {
+                                "type": "string",
+                                "maxLength": 20,
+                                "pattern": "^(0|[1-9]\\d*)$"
+                              },
+                              "number_of_periods": {
+                                "type": "integer",
+                                "minimum": 1,
+                                "maximum": 65535
+                              },
+                              "period_frequency": {
+                                "type": "string",
+                                "maxLength": 20,
+                                "pattern": "^(0|[1-9]\\d*)$"
+                              },
+                              "reduction_factor": {
+                                "type": "string",
+                                "maxLength": 20,
+                                "pattern": "^(0|[1-9]\\d*)$"
+                              }
+                            },
+                            "required": [
+                              "collect_fee_mode",
+                              "fee_version",
+                              "dynamic_fee_enabled",
+                              "protocol_fee_percent",
+                              "referral_fee_percent",
+                              "compounding_fee_bps",
+                              "base_fee_schedule",
+                              "cliff_fee_numerator",
+                              "number_of_periods",
+                              "period_frequency",
+                              "reduction_factor"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "required": [
+                          "quote_decimals",
+                          "quote_native",
+                          "sqrt_min",
+                          "sqrt_initial",
+                          "sqrt_max",
+                          "fees"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "og": {
+                        "type": "object",
+                        "properties": {
+                          "quote_decimals": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9
+                          },
+                          "quote_native": {
+                            "type": "object",
+                            "properties": {
+                              "numerator": {
+                                "type": "string",
+                                "maxLength": 20,
+                                "pattern": "^(0|[1-9]\\d*)$"
+                              },
+                              "denominator": {
+                                "type": "string",
+                                "maxLength": 20,
+                                "pattern": "^(0|[1-9]\\d*)$"
+                              }
+                            },
+                            "required": [
+                              "numerator",
+                              "denominator"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "sqrt_min": {
+                            "type": "string",
+                            "maxLength": 29,
+                            "pattern": "^(0|[1-9]\\d*)$"
+                          },
+                          "sqrt_initial": {
+                            "type": "string",
+                            "maxLength": 29,
+                            "pattern": "^(0|[1-9]\\d*)$"
+                          },
+                          "sqrt_max": {
+                            "type": "string",
+                            "maxLength": 29,
+                            "pattern": "^(0|[1-9]\\d*)$"
+                          },
+                          "fees": {
+                            "type": "object",
+                            "properties": {
+                              "collect_fee_mode": {
+                                "type": "string",
+                                "const": "only_quote"
+                              },
+                              "fee_version": {
+                                "type": "number",
+                                "const": 1
+                              },
+                              "dynamic_fee_enabled": {
+                                "type": "boolean",
+                                "const": false
+                              },
+                              "protocol_fee_percent": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 100
+                              },
+                              "referral_fee_percent": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 100
+                              },
+                              "compounding_fee_bps": {
+                                "type": "number",
+                                "const": 0
+                              },
+                              "base_fee_schedule": {
+                                "type": "string",
+                                "const": "linear_time"
+                              },
+                              "cliff_fee_numerator": {
+                                "type": "string",
+                                "maxLength": 20,
+                                "pattern": "^(0|[1-9]\\d*)$"
+                              },
+                              "number_of_periods": {
+                                "type": "integer",
+                                "minimum": 1,
+                                "maximum": 65535
+                              },
+                              "period_frequency": {
+                                "type": "string",
+                                "maxLength": 20,
+                                "pattern": "^(0|[1-9]\\d*)$"
+                              },
+                              "reduction_factor": {
+                                "type": "string",
+                                "maxLength": 20,
+                                "pattern": "^(0|[1-9]\\d*)$"
+                              }
+                            },
+                            "required": [
+                              "collect_fee_mode",
+                              "fee_version",
+                              "dynamic_fee_enabled",
+                              "protocol_fee_percent",
+                              "referral_fee_percent",
+                              "compounding_fee_bps",
+                              "base_fee_schedule",
+                              "cliff_fee_numerator",
+                              "number_of_periods",
+                              "period_frequency",
+                              "reduction_factor"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "required": [
+                          "quote_decimals",
+                          "quote_native",
+                          "sqrt_min",
+                          "sqrt_initial",
+                          "sqrt_max",
+                          "fees"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "tenx": {
+                        "type": "object",
+                        "properties": {
+                          "quote_decimals": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9
+                          },
+                          "quote_native": {
+                            "type": "object",
+                            "properties": {
+                              "numerator": {
+                                "type": "string",
+                                "maxLength": 20,
+                                "pattern": "^(0|[1-9]\\d*)$"
+                              },
+                              "denominator": {
+                                "type": "string",
+                                "maxLength": 20,
+                                "pattern": "^(0|[1-9]\\d*)$"
+                              }
+                            },
+                            "required": [
+                              "numerator",
+                              "denominator"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "sqrt_min": {
+                            "type": "string",
+                            "maxLength": 29,
+                            "pattern": "^(0|[1-9]\\d*)$"
+                          },
+                          "sqrt_initial": {
+                            "type": "string",
+                            "maxLength": 29,
+                            "pattern": "^(0|[1-9]\\d*)$"
+                          },
+                          "sqrt_max": {
+                            "type": "string",
+                            "maxLength": 29,
+                            "pattern": "^(0|[1-9]\\d*)$"
+                          },
+                          "fees": {
+                            "type": "object",
+                            "properties": {
+                              "collect_fee_mode": {
+                                "type": "string",
+                                "const": "only_quote"
+                              },
+                              "fee_version": {
+                                "type": "number",
+                                "const": 1
+                              },
+                              "dynamic_fee_enabled": {
+                                "type": "boolean",
+                                "const": false
+                              },
+                              "protocol_fee_percent": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 100
+                              },
+                              "referral_fee_percent": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 100
+                              },
+                              "compounding_fee_bps": {
+                                "type": "number",
+                                "const": 0
+                              },
+                              "base_fee_schedule": {
+                                "type": "string",
+                                "const": "linear_time"
+                              },
+                              "cliff_fee_numerator": {
+                                "type": "string",
+                                "maxLength": 20,
+                                "pattern": "^(0|[1-9]\\d*)$"
+                              },
+                              "number_of_periods": {
+                                "type": "integer",
+                                "minimum": 1,
+                                "maximum": 65535
+                              },
+                              "period_frequency": {
+                                "type": "string",
+                                "maxLength": 20,
+                                "pattern": "^(0|[1-9]\\d*)$"
+                              },
+                              "reduction_factor": {
+                                "type": "string",
+                                "maxLength": 20,
+                                "pattern": "^(0|[1-9]\\d*)$"
+                              }
+                            },
+                            "required": [
+                              "collect_fee_mode",
+                              "fee_version",
+                              "dynamic_fee_enabled",
+                              "protocol_fee_percent",
+                              "referral_fee_percent",
+                              "compounding_fee_bps",
+                              "base_fee_schedule",
+                              "cliff_fee_numerator",
+                              "number_of_periods",
+                              "period_frequency",
+                              "reduction_factor"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "required": [
+                          "quote_decimals",
+                          "quote_native",
+                          "sqrt_min",
+                          "sqrt_initial",
+                          "sqrt_max",
+                          "fees"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "native",
+                      "og",
+                      "tenx"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "actions": {
+                    "maxItems": 12,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "point": {
+                          "type": "string",
+                          "maxLength": 20,
+                          "pattern": "^(0|[1-9]\\d*)$"
+                        },
+                        "action": {
+                          "oneOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "trader": {
+                                  "type": "string",
+                                  "pattern": "^[a-z][a-z0-9_-]{0,23}$"
+                                },
+                                "gross_input_raw": {
+                                  "type": "string",
+                                  "maxLength": 20,
+                                  "pattern": "^(0|[1-9]\\d*)$"
+                                },
+                                "minimum_output_raw": {
+                                  "type": "string",
+                                  "maxLength": 20,
+                                  "pattern": "^(0|[1-9]\\d*)$"
+                                },
+                                "has_referral": {
+                                  "type": "boolean"
+                                },
+                                "kind": {
+                                  "type": "string",
+                                  "const": "swap"
+                                },
+                                "pool": {
+                                  "type": "string",
+                                  "enum": [
+                                    "native",
+                                    "og",
+                                    "tenx"
+                                  ]
+                                },
+                                "direction": {
+                                  "type": "string",
+                                  "enum": [
+                                    "quote_to_attn",
+                                    "attn_to_quote"
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "trader",
+                                "gross_input_raw",
+                                "minimum_output_raw",
+                                "has_referral",
+                                "kind",
+                                "pool",
+                                "direction"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "trader": {
+                                  "type": "string",
+                                  "pattern": "^[a-z][a-z0-9_-]{0,23}$"
+                                },
+                                "gross_input_raw": {
+                                  "type": "string",
+                                  "maxLength": 20,
+                                  "pattern": "^(0|[1-9]\\d*)$"
+                                },
+                                "minimum_output_raw": {
+                                  "type": "string",
+                                  "maxLength": 20,
+                                  "pattern": "^(0|[1-9]\\d*)$"
+                                },
+                                "has_referral": {
+                                  "type": "boolean"
+                                },
+                                "kind": {
+                                  "type": "string",
+                                  "const": "route"
+                                },
+                                "from_pool": {
+                                  "type": "string",
+                                  "enum": [
+                                    "native",
+                                    "og",
+                                    "tenx"
+                                  ]
+                                },
+                                "to_pool": {
+                                  "type": "string",
+                                  "enum": [
+                                    "native",
+                                    "og",
+                                    "tenx"
+                                  ]
+                                },
+                                "minimum_attn_raw": {
+                                  "type": "string",
+                                  "maxLength": 20,
+                                  "pattern": "^(0|[1-9]\\d*)$"
+                                }
+                              },
+                              "required": [
+                                "trader",
+                                "gross_input_raw",
+                                "minimum_output_raw",
+                                "has_referral",
+                                "kind",
+                                "from_pool",
+                                "to_pool",
+                                "minimum_attn_raw"
+                              ],
+                              "additionalProperties": false
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "point",
+                        "action"
+                      ],
+                      "additionalProperties": false
+                    }
+                  }
+                },
+                "required": [
+                  "as_of",
+                  "chain",
+                  "attn_asset",
+                  "attn_decimals",
+                  "supply_raw",
+                  "native_quote_budget_raw",
+                  "reference_attn_native",
+                  "max_opening_divergence_bps",
+                  "traders",
+                  "version",
+                  "activation_type",
+                  "activation_point",
+                  "pools",
+                  "actions"
                 ],
                 "additionalProperties": false
               }
@@ -14938,6 +16561,656 @@
                       "version",
                       "actions",
                       "probes"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "as_of": {
+                        "type": "string",
+                        "format": "date-time",
+                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                      },
+                      "chain": {
+                        "type": "string",
+                        "const": "solana"
+                      },
+                      "attn_asset": {
+                        "type": "string",
+                        "const": "SIM-ATTN"
+                      },
+                      "attn_decimals": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9
+                      },
+                      "supply_raw": {
+                        "type": "string",
+                        "maxLength": 20,
+                        "pattern": "^(0|[1-9]\\d*)$"
+                      },
+                      "native_quote_budget_raw": {
+                        "type": "string",
+                        "maxLength": 20,
+                        "pattern": "^(0|[1-9]\\d*)$"
+                      },
+                      "reference_attn_native": {
+                        "type": "object",
+                        "properties": {
+                          "numerator": {
+                            "type": "string",
+                            "maxLength": 20,
+                            "pattern": "^(0|[1-9]\\d*)$"
+                          },
+                          "denominator": {
+                            "type": "string",
+                            "maxLength": 20,
+                            "pattern": "^(0|[1-9]\\d*)$"
+                          }
+                        },
+                        "required": [
+                          "numerator",
+                          "denominator"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "max_opening_divergence_bps": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 10000
+                      },
+                      "traders": {
+                        "minItems": 1,
+                        "maxItems": 8,
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string",
+                              "pattern": "^[a-z][a-z0-9_-]{0,23}$"
+                            },
+                            "balances": {
+                              "type": "object",
+                              "properties": {
+                                "attn": {
+                                  "type": "string",
+                                  "const": "0"
+                                },
+                                "native": {
+                                  "type": "string",
+                                  "maxLength": 20,
+                                  "pattern": "^(0|[1-9]\\d*)$"
+                                },
+                                "og": {
+                                  "type": "string",
+                                  "maxLength": 20,
+                                  "pattern": "^(0|[1-9]\\d*)$"
+                                },
+                                "tenx": {
+                                  "type": "string",
+                                  "maxLength": 20,
+                                  "pattern": "^(0|[1-9]\\d*)$"
+                                }
+                              },
+                              "required": [
+                                "attn",
+                                "native",
+                                "og",
+                                "tenx"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "balances"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "version": {
+                        "type": "string",
+                        "const": "launch-timed-lab-v5"
+                      },
+                      "activation_type": {
+                        "type": "string",
+                        "const": "timestamp"
+                      },
+                      "activation_point": {
+                        "type": "string",
+                        "maxLength": 20,
+                        "pattern": "^(0|[1-9]\\d*)$"
+                      },
+                      "pools": {
+                        "type": "object",
+                        "properties": {
+                          "native": {
+                            "type": "object",
+                            "properties": {
+                              "quote_decimals": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 9
+                              },
+                              "quote_native": {
+                                "type": "object",
+                                "properties": {
+                                  "numerator": {
+                                    "type": "string",
+                                    "maxLength": 20,
+                                    "pattern": "^(0|[1-9]\\d*)$"
+                                  },
+                                  "denominator": {
+                                    "type": "string",
+                                    "maxLength": 20,
+                                    "pattern": "^(0|[1-9]\\d*)$"
+                                  }
+                                },
+                                "required": [
+                                  "numerator",
+                                  "denominator"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "sqrt_min": {
+                                "type": "string",
+                                "maxLength": 29,
+                                "pattern": "^(0|[1-9]\\d*)$"
+                              },
+                              "sqrt_initial": {
+                                "type": "string",
+                                "maxLength": 29,
+                                "pattern": "^(0|[1-9]\\d*)$"
+                              },
+                              "sqrt_max": {
+                                "type": "string",
+                                "maxLength": 29,
+                                "pattern": "^(0|[1-9]\\d*)$"
+                              },
+                              "fees": {
+                                "type": "object",
+                                "properties": {
+                                  "collect_fee_mode": {
+                                    "type": "string",
+                                    "const": "only_quote"
+                                  },
+                                  "fee_version": {
+                                    "type": "number",
+                                    "const": 1
+                                  },
+                                  "dynamic_fee_enabled": {
+                                    "type": "boolean",
+                                    "const": false
+                                  },
+                                  "protocol_fee_percent": {
+                                    "type": "integer",
+                                    "minimum": 0,
+                                    "maximum": 100
+                                  },
+                                  "referral_fee_percent": {
+                                    "type": "integer",
+                                    "minimum": 0,
+                                    "maximum": 100
+                                  },
+                                  "compounding_fee_bps": {
+                                    "type": "number",
+                                    "const": 0
+                                  },
+                                  "base_fee_schedule": {
+                                    "type": "string",
+                                    "const": "linear_time"
+                                  },
+                                  "cliff_fee_numerator": {
+                                    "type": "string",
+                                    "maxLength": 20,
+                                    "pattern": "^(0|[1-9]\\d*)$"
+                                  },
+                                  "number_of_periods": {
+                                    "type": "integer",
+                                    "minimum": 1,
+                                    "maximum": 65535
+                                  },
+                                  "period_frequency": {
+                                    "type": "string",
+                                    "maxLength": 20,
+                                    "pattern": "^(0|[1-9]\\d*)$"
+                                  },
+                                  "reduction_factor": {
+                                    "type": "string",
+                                    "maxLength": 20,
+                                    "pattern": "^(0|[1-9]\\d*)$"
+                                  }
+                                },
+                                "required": [
+                                  "collect_fee_mode",
+                                  "fee_version",
+                                  "dynamic_fee_enabled",
+                                  "protocol_fee_percent",
+                                  "referral_fee_percent",
+                                  "compounding_fee_bps",
+                                  "base_fee_schedule",
+                                  "cliff_fee_numerator",
+                                  "number_of_periods",
+                                  "period_frequency",
+                                  "reduction_factor"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "required": [
+                              "quote_decimals",
+                              "quote_native",
+                              "sqrt_min",
+                              "sqrt_initial",
+                              "sqrt_max",
+                              "fees"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "og": {
+                            "type": "object",
+                            "properties": {
+                              "quote_decimals": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 9
+                              },
+                              "quote_native": {
+                                "type": "object",
+                                "properties": {
+                                  "numerator": {
+                                    "type": "string",
+                                    "maxLength": 20,
+                                    "pattern": "^(0|[1-9]\\d*)$"
+                                  },
+                                  "denominator": {
+                                    "type": "string",
+                                    "maxLength": 20,
+                                    "pattern": "^(0|[1-9]\\d*)$"
+                                  }
+                                },
+                                "required": [
+                                  "numerator",
+                                  "denominator"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "sqrt_min": {
+                                "type": "string",
+                                "maxLength": 29,
+                                "pattern": "^(0|[1-9]\\d*)$"
+                              },
+                              "sqrt_initial": {
+                                "type": "string",
+                                "maxLength": 29,
+                                "pattern": "^(0|[1-9]\\d*)$"
+                              },
+                              "sqrt_max": {
+                                "type": "string",
+                                "maxLength": 29,
+                                "pattern": "^(0|[1-9]\\d*)$"
+                              },
+                              "fees": {
+                                "type": "object",
+                                "properties": {
+                                  "collect_fee_mode": {
+                                    "type": "string",
+                                    "const": "only_quote"
+                                  },
+                                  "fee_version": {
+                                    "type": "number",
+                                    "const": 1
+                                  },
+                                  "dynamic_fee_enabled": {
+                                    "type": "boolean",
+                                    "const": false
+                                  },
+                                  "protocol_fee_percent": {
+                                    "type": "integer",
+                                    "minimum": 0,
+                                    "maximum": 100
+                                  },
+                                  "referral_fee_percent": {
+                                    "type": "integer",
+                                    "minimum": 0,
+                                    "maximum": 100
+                                  },
+                                  "compounding_fee_bps": {
+                                    "type": "number",
+                                    "const": 0
+                                  },
+                                  "base_fee_schedule": {
+                                    "type": "string",
+                                    "const": "linear_time"
+                                  },
+                                  "cliff_fee_numerator": {
+                                    "type": "string",
+                                    "maxLength": 20,
+                                    "pattern": "^(0|[1-9]\\d*)$"
+                                  },
+                                  "number_of_periods": {
+                                    "type": "integer",
+                                    "minimum": 1,
+                                    "maximum": 65535
+                                  },
+                                  "period_frequency": {
+                                    "type": "string",
+                                    "maxLength": 20,
+                                    "pattern": "^(0|[1-9]\\d*)$"
+                                  },
+                                  "reduction_factor": {
+                                    "type": "string",
+                                    "maxLength": 20,
+                                    "pattern": "^(0|[1-9]\\d*)$"
+                                  }
+                                },
+                                "required": [
+                                  "collect_fee_mode",
+                                  "fee_version",
+                                  "dynamic_fee_enabled",
+                                  "protocol_fee_percent",
+                                  "referral_fee_percent",
+                                  "compounding_fee_bps",
+                                  "base_fee_schedule",
+                                  "cliff_fee_numerator",
+                                  "number_of_periods",
+                                  "period_frequency",
+                                  "reduction_factor"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "required": [
+                              "quote_decimals",
+                              "quote_native",
+                              "sqrt_min",
+                              "sqrt_initial",
+                              "sqrt_max",
+                              "fees"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "tenx": {
+                            "type": "object",
+                            "properties": {
+                              "quote_decimals": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 9
+                              },
+                              "quote_native": {
+                                "type": "object",
+                                "properties": {
+                                  "numerator": {
+                                    "type": "string",
+                                    "maxLength": 20,
+                                    "pattern": "^(0|[1-9]\\d*)$"
+                                  },
+                                  "denominator": {
+                                    "type": "string",
+                                    "maxLength": 20,
+                                    "pattern": "^(0|[1-9]\\d*)$"
+                                  }
+                                },
+                                "required": [
+                                  "numerator",
+                                  "denominator"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "sqrt_min": {
+                                "type": "string",
+                                "maxLength": 29,
+                                "pattern": "^(0|[1-9]\\d*)$"
+                              },
+                              "sqrt_initial": {
+                                "type": "string",
+                                "maxLength": 29,
+                                "pattern": "^(0|[1-9]\\d*)$"
+                              },
+                              "sqrt_max": {
+                                "type": "string",
+                                "maxLength": 29,
+                                "pattern": "^(0|[1-9]\\d*)$"
+                              },
+                              "fees": {
+                                "type": "object",
+                                "properties": {
+                                  "collect_fee_mode": {
+                                    "type": "string",
+                                    "const": "only_quote"
+                                  },
+                                  "fee_version": {
+                                    "type": "number",
+                                    "const": 1
+                                  },
+                                  "dynamic_fee_enabled": {
+                                    "type": "boolean",
+                                    "const": false
+                                  },
+                                  "protocol_fee_percent": {
+                                    "type": "integer",
+                                    "minimum": 0,
+                                    "maximum": 100
+                                  },
+                                  "referral_fee_percent": {
+                                    "type": "integer",
+                                    "minimum": 0,
+                                    "maximum": 100
+                                  },
+                                  "compounding_fee_bps": {
+                                    "type": "number",
+                                    "const": 0
+                                  },
+                                  "base_fee_schedule": {
+                                    "type": "string",
+                                    "const": "linear_time"
+                                  },
+                                  "cliff_fee_numerator": {
+                                    "type": "string",
+                                    "maxLength": 20,
+                                    "pattern": "^(0|[1-9]\\d*)$"
+                                  },
+                                  "number_of_periods": {
+                                    "type": "integer",
+                                    "minimum": 1,
+                                    "maximum": 65535
+                                  },
+                                  "period_frequency": {
+                                    "type": "string",
+                                    "maxLength": 20,
+                                    "pattern": "^(0|[1-9]\\d*)$"
+                                  },
+                                  "reduction_factor": {
+                                    "type": "string",
+                                    "maxLength": 20,
+                                    "pattern": "^(0|[1-9]\\d*)$"
+                                  }
+                                },
+                                "required": [
+                                  "collect_fee_mode",
+                                  "fee_version",
+                                  "dynamic_fee_enabled",
+                                  "protocol_fee_percent",
+                                  "referral_fee_percent",
+                                  "compounding_fee_bps",
+                                  "base_fee_schedule",
+                                  "cliff_fee_numerator",
+                                  "number_of_periods",
+                                  "period_frequency",
+                                  "reduction_factor"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "required": [
+                              "quote_decimals",
+                              "quote_native",
+                              "sqrt_min",
+                              "sqrt_initial",
+                              "sqrt_max",
+                              "fees"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "required": [
+                          "native",
+                          "og",
+                          "tenx"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "actions": {
+                        "maxItems": 12,
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "point": {
+                              "type": "string",
+                              "maxLength": 20,
+                              "pattern": "^(0|[1-9]\\d*)$"
+                            },
+                            "action": {
+                              "oneOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "trader": {
+                                      "type": "string",
+                                      "pattern": "^[a-z][a-z0-9_-]{0,23}$"
+                                    },
+                                    "gross_input_raw": {
+                                      "type": "string",
+                                      "maxLength": 20,
+                                      "pattern": "^(0|[1-9]\\d*)$"
+                                    },
+                                    "minimum_output_raw": {
+                                      "type": "string",
+                                      "maxLength": 20,
+                                      "pattern": "^(0|[1-9]\\d*)$"
+                                    },
+                                    "has_referral": {
+                                      "type": "boolean"
+                                    },
+                                    "kind": {
+                                      "type": "string",
+                                      "const": "swap"
+                                    },
+                                    "pool": {
+                                      "type": "string",
+                                      "enum": [
+                                        "native",
+                                        "og",
+                                        "tenx"
+                                      ]
+                                    },
+                                    "direction": {
+                                      "type": "string",
+                                      "enum": [
+                                        "quote_to_attn",
+                                        "attn_to_quote"
+                                      ]
+                                    }
+                                  },
+                                  "required": [
+                                    "trader",
+                                    "gross_input_raw",
+                                    "minimum_output_raw",
+                                    "has_referral",
+                                    "kind",
+                                    "pool",
+                                    "direction"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "trader": {
+                                      "type": "string",
+                                      "pattern": "^[a-z][a-z0-9_-]{0,23}$"
+                                    },
+                                    "gross_input_raw": {
+                                      "type": "string",
+                                      "maxLength": 20,
+                                      "pattern": "^(0|[1-9]\\d*)$"
+                                    },
+                                    "minimum_output_raw": {
+                                      "type": "string",
+                                      "maxLength": 20,
+                                      "pattern": "^(0|[1-9]\\d*)$"
+                                    },
+                                    "has_referral": {
+                                      "type": "boolean"
+                                    },
+                                    "kind": {
+                                      "type": "string",
+                                      "const": "route"
+                                    },
+                                    "from_pool": {
+                                      "type": "string",
+                                      "enum": [
+                                        "native",
+                                        "og",
+                                        "tenx"
+                                      ]
+                                    },
+                                    "to_pool": {
+                                      "type": "string",
+                                      "enum": [
+                                        "native",
+                                        "og",
+                                        "tenx"
+                                      ]
+                                    },
+                                    "minimum_attn_raw": {
+                                      "type": "string",
+                                      "maxLength": 20,
+                                      "pattern": "^(0|[1-9]\\d*)$"
+                                    }
+                                  },
+                                  "required": [
+                                    "trader",
+                                    "gross_input_raw",
+                                    "minimum_output_raw",
+                                    "has_referral",
+                                    "kind",
+                                    "from_pool",
+                                    "to_pool",
+                                    "minimum_attn_raw"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              ]
+                            }
+                          },
+                          "required": [
+                            "point",
+                            "action"
+                          ],
+                          "additionalProperties": false
+                        }
+                      }
+                    },
+                    "required": [
+                      "as_of",
+                      "chain",
+                      "attn_asset",
+                      "attn_decimals",
+                      "supply_raw",
+                      "native_quote_budget_raw",
+                      "reference_attn_native",
+                      "max_opening_divergence_bps",
+                      "traders",
+                      "version",
+                      "activation_type",
+                      "activation_point",
+                      "pools",
+                      "actions"
                     ],
                     "additionalProperties": false
                   }
@@ -18112,6 +20385,979 @@
                       "probes_apply",
                       "external_execution_verified",
                       "probes"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "sdk_version": {
+                        "type": "string",
+                        "const": "1.5.1"
+                      },
+                      "source_commit": {
+                        "type": "string",
+                        "const": "79ebbfe59a225e641a2f37cd03404f26de1b0c8e"
+                      },
+                      "as_of": {
+                        "type": "string",
+                        "format": "date-time",
+                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                      },
+                      "source": {
+                        "type": "string",
+                        "const": "hypothetical_operator_inputs"
+                      },
+                      "supply_raw": {
+                        "type": "string",
+                        "maxLength": 20,
+                        "pattern": "^(0|[1-9]\\d*)$"
+                      },
+                      "attn_decimals": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      },
+                      "campaign_reserve_raw": {
+                        "type": "string",
+                        "maxLength": 20,
+                        "pattern": "^(0|[1-9]\\d*)$"
+                      },
+                      "native_quote_required_raw": {
+                        "type": "string",
+                        "maxLength": 20,
+                        "pattern": "^(0|[1-9]\\d*)$"
+                      },
+                      "native_quote_budget_raw": {
+                        "type": "string",
+                        "maxLength": 20,
+                        "pattern": "^(0|[1-9]\\d*)$"
+                      },
+                      "launch_enabled": {
+                        "type": "boolean",
+                        "const": false
+                      },
+                      "transfers_enabled": {
+                        "type": "boolean",
+                        "const": false
+                      },
+                      "policy_approved": {
+                        "type": "boolean",
+                        "const": false
+                      },
+                      "locks_verified": {
+                        "type": "boolean",
+                        "const": false
+                      },
+                      "external_prices_verified": {
+                        "type": "boolean",
+                        "const": false
+                      },
+                      "provider_requests": {
+                        "type": "number",
+                        "const": 0
+                      },
+                      "gaps": {
+                        "maxItems": 16,
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "fees_modeled": {
+                        "type": "boolean",
+                        "const": true
+                      },
+                      "program_execution_verified": {
+                        "type": "boolean",
+                        "const": false
+                      },
+                      "route_execution_verified": {
+                        "type": "boolean",
+                        "const": false
+                      },
+                      "traders": {
+                        "minItems": 1,
+                        "maxItems": 8,
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string",
+                              "pattern": "^[a-z][a-z0-9_-]{0,23}$"
+                            },
+                            "initial": {
+                              "type": "object",
+                              "properties": {
+                                "attn": {
+                                  "type": "string",
+                                  "maxLength": 20,
+                                  "pattern": "^(0|[1-9]\\d*)$"
+                                },
+                                "native": {
+                                  "type": "string",
+                                  "maxLength": 20,
+                                  "pattern": "^(0|[1-9]\\d*)$"
+                                },
+                                "og": {
+                                  "type": "string",
+                                  "maxLength": 20,
+                                  "pattern": "^(0|[1-9]\\d*)$"
+                                },
+                                "tenx": {
+                                  "type": "string",
+                                  "maxLength": 20,
+                                  "pattern": "^(0|[1-9]\\d*)$"
+                                }
+                              },
+                              "required": [
+                                "attn",
+                                "native",
+                                "og",
+                                "tenx"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "final": {
+                              "type": "object",
+                              "properties": {
+                                "attn": {
+                                  "type": "string",
+                                  "maxLength": 20,
+                                  "pattern": "^(0|[1-9]\\d*)$"
+                                },
+                                "native": {
+                                  "type": "string",
+                                  "maxLength": 20,
+                                  "pattern": "^(0|[1-9]\\d*)$"
+                                },
+                                "og": {
+                                  "type": "string",
+                                  "maxLength": 20,
+                                  "pattern": "^(0|[1-9]\\d*)$"
+                                },
+                                "tenx": {
+                                  "type": "string",
+                                  "maxLength": 20,
+                                  "pattern": "^(0|[1-9]\\d*)$"
+                                }
+                              },
+                              "required": [
+                                "attn",
+                                "native",
+                                "og",
+                                "tenx"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "initial",
+                            "final"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "version": {
+                        "type": "string",
+                        "const": "launch-timed-lab-v5"
+                      },
+                      "math_revision": {
+                        "type": "string",
+                        "const": "meteora-linear-time-onlyb-79ebbfe-v5"
+                      },
+                      "scope": {
+                        "type": "string",
+                        "const": "hypothetical_funded_linear_opening_fees"
+                      },
+                      "activation_type": {
+                        "type": "string",
+                        "const": "timestamp"
+                      },
+                      "activation_point": {
+                        "type": "string",
+                        "maxLength": 20,
+                        "pattern": "^(0|[1-9]\\d*)$"
+                      },
+                      "activation_verified": {
+                        "type": "boolean",
+                        "const": false
+                      },
+                      "pools": {
+                        "minItems": 3,
+                        "maxItems": 3,
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "pool": {
+                              "type": "string",
+                              "enum": [
+                                "native",
+                                "og",
+                                "tenx"
+                              ]
+                            },
+                            "quote_asset": {
+                              "type": "string",
+                              "enum": [
+                                "SIM-SOL",
+                                "SIM-OG",
+                                "SIM-10X"
+                              ]
+                            },
+                            "quote_decimals": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "allocation_bps": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "allocated_attn_raw": {
+                              "type": "string",
+                              "maxLength": 20,
+                              "pattern": "^(0|[1-9]\\d*)$"
+                            },
+                            "unseeded_attn_raw": {
+                              "type": "string",
+                              "maxLength": 20,
+                              "pattern": "^(0|[1-9]\\d*)$"
+                            },
+                            "liquidity_q64": {
+                              "type": "string",
+                              "maxLength": 130,
+                              "pattern": "^(0|[1-9]\\d*)$"
+                            },
+                            "sqrt_min": {
+                              "type": "string",
+                              "maxLength": 130,
+                              "pattern": "^(0|[1-9]\\d*)$"
+                            },
+                            "sqrt_max": {
+                              "type": "string",
+                              "maxLength": 130,
+                              "pattern": "^(0|[1-9]\\d*)$"
+                            },
+                            "initial": {
+                              "type": "object",
+                              "properties": {
+                                "sqrt_price": {
+                                  "type": "string",
+                                  "maxLength": 130,
+                                  "pattern": "^(0|[1-9]\\d*)$"
+                                },
+                                "attn_raw": {
+                                  "type": "string",
+                                  "maxLength": 20,
+                                  "pattern": "^(0|[1-9]\\d*)$"
+                                },
+                                "quote_raw": {
+                                  "type": "string",
+                                  "maxLength": 20,
+                                  "pattern": "^(0|[1-9]\\d*)$"
+                                },
+                                "marginal_native_per_attn": {
+                                  "type": "object",
+                                  "properties": {
+                                    "numerator": {
+                                      "type": "string",
+                                      "maxLength": 130,
+                                      "pattern": "^(0|[1-9]\\d*)$"
+                                    },
+                                    "denominator": {
+                                      "type": "string",
+                                      "maxLength": 130,
+                                      "pattern": "^(0|[1-9]\\d*)$"
+                                    }
+                                  },
+                                  "required": [
+                                    "numerator",
+                                    "denominator"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              },
+                              "required": [
+                                "sqrt_price",
+                                "attn_raw",
+                                "quote_raw",
+                                "marginal_native_per_attn"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "final": {
+                              "type": "object",
+                              "properties": {
+                                "sqrt_price": {
+                                  "type": "string",
+                                  "maxLength": 130,
+                                  "pattern": "^(0|[1-9]\\d*)$"
+                                },
+                                "attn_raw": {
+                                  "type": "string",
+                                  "maxLength": 20,
+                                  "pattern": "^(0|[1-9]\\d*)$"
+                                },
+                                "quote_raw": {
+                                  "type": "string",
+                                  "maxLength": 20,
+                                  "pattern": "^(0|[1-9]\\d*)$"
+                                },
+                                "marginal_native_per_attn": {
+                                  "type": "object",
+                                  "properties": {
+                                    "numerator": {
+                                      "type": "string",
+                                      "maxLength": 130,
+                                      "pattern": "^(0|[1-9]\\d*)$"
+                                    },
+                                    "denominator": {
+                                      "type": "string",
+                                      "maxLength": 130,
+                                      "pattern": "^(0|[1-9]\\d*)$"
+                                    }
+                                  },
+                                  "required": [
+                                    "numerator",
+                                    "denominator"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              },
+                              "required": [
+                                "sqrt_price",
+                                "attn_raw",
+                                "quote_raw",
+                                "marginal_native_per_attn"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "opening_deviation_bps": {
+                              "type": "string",
+                              "maxLength": 150,
+                              "pattern": "^-?\\d+\\.\\d{8}$"
+                            },
+                            "opening_divergence_exceeded": {
+                              "type": "boolean"
+                            },
+                            "remaining_net_quote_to_upper_raw": {
+                              "type": "string",
+                              "maxLength": 20,
+                              "pattern": "^(0|[1-9]\\d*)$"
+                            },
+                            "remaining_net_attn_to_lower_raw": {
+                              "type": "string",
+                              "maxLength": 20,
+                              "pattern": "^(0|[1-9]\\d*)$"
+                            },
+                            "fees": {
+                              "type": "object",
+                              "properties": {
+                                "collect_fee_mode": {
+                                  "type": "string",
+                                  "const": "only_quote"
+                                },
+                                "fee_version": {
+                                  "type": "number",
+                                  "const": 1
+                                },
+                                "dynamic_fee_enabled": {
+                                  "type": "boolean",
+                                  "const": false
+                                },
+                                "protocol_fee_percent": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 100
+                                },
+                                "referral_fee_percent": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 100
+                                },
+                                "compounding_fee_bps": {
+                                  "type": "number",
+                                  "const": 0
+                                },
+                                "base_fee_schedule": {
+                                  "type": "string",
+                                  "const": "linear_time"
+                                },
+                                "cliff_fee_numerator": {
+                                  "type": "string",
+                                  "maxLength": 20,
+                                  "pattern": "^(0|[1-9]\\d*)$"
+                                },
+                                "number_of_periods": {
+                                  "type": "integer",
+                                  "minimum": 1,
+                                  "maximum": 65535
+                                },
+                                "period_frequency": {
+                                  "type": "string",
+                                  "maxLength": 20,
+                                  "pattern": "^(0|[1-9]\\d*)$"
+                                },
+                                "reduction_factor": {
+                                  "type": "string",
+                                  "maxLength": 20,
+                                  "pattern": "^(0|[1-9]\\d*)$"
+                                }
+                              },
+                              "required": [
+                                "collect_fee_mode",
+                                "fee_version",
+                                "dynamic_fee_enabled",
+                                "protocol_fee_percent",
+                                "referral_fee_percent",
+                                "compounding_fee_bps",
+                                "base_fee_schedule",
+                                "cliff_fee_numerator",
+                                "number_of_periods",
+                                "period_frequency",
+                                "reduction_factor"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "fee_totals": {
+                              "type": "object",
+                              "properties": {
+                                "total_fee_raw": {
+                                  "type": "string",
+                                  "maxLength": 130,
+                                  "pattern": "^(0|[1-9]\\d*)$"
+                                },
+                                "lp_claiming_fee_raw": {
+                                  "type": "string",
+                                  "maxLength": 130,
+                                  "pattern": "^(0|[1-9]\\d*)$"
+                                },
+                                "protocol_fee_raw": {
+                                  "type": "string",
+                                  "maxLength": 130,
+                                  "pattern": "^(0|[1-9]\\d*)$"
+                                },
+                                "referral_fee_raw": {
+                                  "type": "string",
+                                  "maxLength": 130,
+                                  "pattern": "^(0|[1-9]\\d*)$"
+                                }
+                              },
+                              "required": [
+                                "total_fee_raw",
+                                "lp_claiming_fee_raw",
+                                "protocol_fee_raw",
+                                "referral_fee_raw"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "required": [
+                            "pool",
+                            "quote_asset",
+                            "quote_decimals",
+                            "allocation_bps",
+                            "allocated_attn_raw",
+                            "unseeded_attn_raw",
+                            "liquidity_q64",
+                            "sqrt_min",
+                            "sqrt_max",
+                            "initial",
+                            "final",
+                            "opening_deviation_bps",
+                            "opening_divergence_exceeded",
+                            "remaining_net_quote_to_upper_raw",
+                            "remaining_net_attn_to_lower_raw",
+                            "fees",
+                            "fee_totals"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "steps": {
+                        "maxItems": 24,
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "index": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "pool": {
+                              "type": "string",
+                              "enum": [
+                                "native",
+                                "og",
+                                "tenx"
+                              ]
+                            },
+                            "direction": {
+                              "type": "string",
+                              "enum": [
+                                "quote_to_attn",
+                                "attn_to_quote"
+                              ]
+                            },
+                            "net_input_raw": {
+                              "type": "string",
+                              "maxLength": 20,
+                              "pattern": "^(0|[1-9]\\d*)$"
+                            },
+                            "curve_output_raw": {
+                              "type": "string",
+                              "maxLength": 20,
+                              "pattern": "^(0|[1-9]\\d*)$"
+                            },
+                            "before": {
+                              "type": "object",
+                              "properties": {
+                                "sqrt_price": {
+                                  "type": "string",
+                                  "maxLength": 130,
+                                  "pattern": "^(0|[1-9]\\d*)$"
+                                },
+                                "attn_raw": {
+                                  "type": "string",
+                                  "maxLength": 20,
+                                  "pattern": "^(0|[1-9]\\d*)$"
+                                },
+                                "quote_raw": {
+                                  "type": "string",
+                                  "maxLength": 20,
+                                  "pattern": "^(0|[1-9]\\d*)$"
+                                },
+                                "marginal_native_per_attn": {
+                                  "type": "object",
+                                  "properties": {
+                                    "numerator": {
+                                      "type": "string",
+                                      "maxLength": 130,
+                                      "pattern": "^(0|[1-9]\\d*)$"
+                                    },
+                                    "denominator": {
+                                      "type": "string",
+                                      "maxLength": 130,
+                                      "pattern": "^(0|[1-9]\\d*)$"
+                                    }
+                                  },
+                                  "required": [
+                                    "numerator",
+                                    "denominator"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              },
+                              "required": [
+                                "sqrt_price",
+                                "attn_raw",
+                                "quote_raw",
+                                "marginal_native_per_attn"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "after": {
+                              "type": "object",
+                              "properties": {
+                                "sqrt_price": {
+                                  "type": "string",
+                                  "maxLength": 130,
+                                  "pattern": "^(0|[1-9]\\d*)$"
+                                },
+                                "attn_raw": {
+                                  "type": "string",
+                                  "maxLength": 20,
+                                  "pattern": "^(0|[1-9]\\d*)$"
+                                },
+                                "quote_raw": {
+                                  "type": "string",
+                                  "maxLength": 20,
+                                  "pattern": "^(0|[1-9]\\d*)$"
+                                },
+                                "marginal_native_per_attn": {
+                                  "type": "object",
+                                  "properties": {
+                                    "numerator": {
+                                      "type": "string",
+                                      "maxLength": 130,
+                                      "pattern": "^(0|[1-9]\\d*)$"
+                                    },
+                                    "denominator": {
+                                      "type": "string",
+                                      "maxLength": 130,
+                                      "pattern": "^(0|[1-9]\\d*)$"
+                                    }
+                                  },
+                                  "required": [
+                                    "numerator",
+                                    "denominator"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              },
+                              "required": [
+                                "sqrt_price",
+                                "attn_raw",
+                                "quote_raw",
+                                "marginal_native_per_attn"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "status": {
+                              "type": "string",
+                              "enum": [
+                                "simulated",
+                                "range_exhausted",
+                                "zero_output",
+                                "inventory_or_u64_bound",
+                                "fee_consumes_input",
+                                "minimum_output_not_met"
+                              ]
+                            },
+                            "gross_input_raw": {
+                              "type": "string",
+                              "maxLength": 20,
+                              "pattern": "^(0|[1-9]\\d*)$"
+                            },
+                            "trader_debit_raw": {
+                              "type": "string",
+                              "maxLength": 20,
+                              "pattern": "^(0|[1-9]\\d*)$"
+                            },
+                            "trader_output_raw": {
+                              "type": "string",
+                              "maxLength": 20,
+                              "pattern": "^(0|[1-9]\\d*)$"
+                            },
+                            "minimum_output_raw": {
+                              "type": "string",
+                              "maxLength": 20,
+                              "pattern": "^(0|[1-9]\\d*)$"
+                            },
+                            "fees_on_input": {
+                              "type": "boolean"
+                            },
+                            "total_fee_raw": {
+                              "type": "string",
+                              "maxLength": 20,
+                              "pattern": "^(0|[1-9]\\d*)$"
+                            },
+                            "lp_claiming_fee_raw": {
+                              "type": "string",
+                              "maxLength": 20,
+                              "pattern": "^(0|[1-9]\\d*)$"
+                            },
+                            "protocol_fee_raw": {
+                              "type": "string",
+                              "maxLength": 20,
+                              "pattern": "^(0|[1-9]\\d*)$"
+                            },
+                            "referral_fee_raw": {
+                              "type": "string",
+                              "maxLength": 20,
+                              "pattern": "^(0|[1-9]\\d*)$"
+                            },
+                            "point": {
+                              "type": "string",
+                              "maxLength": 20,
+                              "pattern": "^(0|[1-9]\\d*)$"
+                            },
+                            "effective_fee_numerator": {
+                              "type": "string",
+                              "maxLength": 20,
+                              "pattern": "^(0|[1-9]\\d*)$"
+                            }
+                          },
+                          "required": [
+                            "index",
+                            "pool",
+                            "direction",
+                            "net_input_raw",
+                            "curve_output_raw",
+                            "before",
+                            "after",
+                            "status",
+                            "gross_input_raw",
+                            "trader_debit_raw",
+                            "trader_output_raw",
+                            "minimum_output_raw",
+                            "fees_on_input",
+                            "total_fee_raw",
+                            "lp_claiming_fee_raw",
+                            "protocol_fee_raw",
+                            "referral_fee_raw",
+                            "point",
+                            "effective_fee_numerator"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "actions": {
+                        "maxItems": 12,
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "index": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "kind": {
+                              "type": "string",
+                              "enum": [
+                                "swap",
+                                "route"
+                              ]
+                            },
+                            "trader": {
+                              "type": "string",
+                              "pattern": "^[a-z][a-z0-9_-]{0,23}$"
+                            },
+                            "input_asset": {
+                              "type": "string",
+                              "enum": [
+                                "attn",
+                                "native",
+                                "og",
+                                "tenx"
+                              ]
+                            },
+                            "output_asset": {
+                              "type": "string",
+                              "enum": [
+                                "attn",
+                                "native",
+                                "og",
+                                "tenx"
+                              ]
+                            },
+                            "requested_input_raw": {
+                              "type": "string",
+                              "maxLength": 20,
+                              "pattern": "^(0|[1-9]\\d*)$"
+                            },
+                            "trader_debit_raw": {
+                              "type": "string",
+                              "maxLength": 20,
+                              "pattern": "^(0|[1-9]\\d*)$"
+                            },
+                            "trader_output_raw": {
+                              "type": "string",
+                              "maxLength": 20,
+                              "pattern": "^(0|[1-9]\\d*)$"
+                            },
+                            "minimum_output_raw": {
+                              "type": "string",
+                              "maxLength": 20,
+                              "pattern": "^(0|[1-9]\\d*)$"
+                            },
+                            "before_balances": {
+                              "type": "object",
+                              "properties": {
+                                "attn": {
+                                  "type": "string",
+                                  "maxLength": 20,
+                                  "pattern": "^(0|[1-9]\\d*)$"
+                                },
+                                "native": {
+                                  "type": "string",
+                                  "maxLength": 20,
+                                  "pattern": "^(0|[1-9]\\d*)$"
+                                },
+                                "og": {
+                                  "type": "string",
+                                  "maxLength": 20,
+                                  "pattern": "^(0|[1-9]\\d*)$"
+                                },
+                                "tenx": {
+                                  "type": "string",
+                                  "maxLength": 20,
+                                  "pattern": "^(0|[1-9]\\d*)$"
+                                }
+                              },
+                              "required": [
+                                "attn",
+                                "native",
+                                "og",
+                                "tenx"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "after_balances": {
+                              "type": "object",
+                              "properties": {
+                                "attn": {
+                                  "type": "string",
+                                  "maxLength": 20,
+                                  "pattern": "^(0|[1-9]\\d*)$"
+                                },
+                                "native": {
+                                  "type": "string",
+                                  "maxLength": 20,
+                                  "pattern": "^(0|[1-9]\\d*)$"
+                                },
+                                "og": {
+                                  "type": "string",
+                                  "maxLength": 20,
+                                  "pattern": "^(0|[1-9]\\d*)$"
+                                },
+                                "tenx": {
+                                  "type": "string",
+                                  "maxLength": 20,
+                                  "pattern": "^(0|[1-9]\\d*)$"
+                                }
+                              },
+                              "required": [
+                                "attn",
+                                "native",
+                                "og",
+                                "tenx"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "attempted_leg_statuses": {
+                              "maxItems": 2,
+                              "type": "array",
+                              "items": {
+                                "type": "string",
+                                "enum": [
+                                  "simulated",
+                                  "range_exhausted",
+                                  "zero_output",
+                                  "inventory_or_u64_bound",
+                                  "fee_consumes_input",
+                                  "minimum_output_not_met"
+                                ]
+                              }
+                            },
+                            "rejected_leg_index": {
+                              "anyOf": [
+                                {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 1
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "committed_step_indexes": {
+                              "maxItems": 2,
+                              "type": "array",
+                              "items": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 23
+                              }
+                            },
+                            "point": {
+                              "type": "string",
+                              "maxLength": 20,
+                              "pattern": "^(0|[1-9]\\d*)$"
+                            },
+                            "status": {
+                              "type": "string",
+                              "enum": [
+                                "simulated",
+                                "range_exhausted",
+                                "zero_output",
+                                "inventory_or_u64_bound",
+                                "fee_consumes_input",
+                                "minimum_output_not_met",
+                                "insufficient_balance",
+                                "trader_u64_bound",
+                                "not_active"
+                              ]
+                            },
+                            "attempted_fees": {
+                              "maxItems": 2,
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "pool": {
+                                    "type": "string",
+                                    "enum": [
+                                      "native",
+                                      "og",
+                                      "tenx"
+                                    ]
+                                  },
+                                  "fee_numerator": {
+                                    "type": "string",
+                                    "maxLength": 20,
+                                    "pattern": "^(0|[1-9]\\d*)$"
+                                  }
+                                },
+                                "required": [
+                                  "pool",
+                                  "fee_numerator"
+                                ],
+                                "additionalProperties": false
+                              }
+                            }
+                          },
+                          "required": [
+                            "index",
+                            "kind",
+                            "trader",
+                            "input_asset",
+                            "output_asset",
+                            "requested_input_raw",
+                            "trader_debit_raw",
+                            "trader_output_raw",
+                            "minimum_output_raw",
+                            "before_balances",
+                            "after_balances",
+                            "attempted_leg_statuses",
+                            "rejected_leg_index",
+                            "committed_step_indexes",
+                            "point",
+                            "status",
+                            "attempted_fees"
+                          ],
+                          "additionalProperties": false
+                        }
+                      }
+                    },
+                    "required": [
+                      "sdk_version",
+                      "source_commit",
+                      "as_of",
+                      "source",
+                      "supply_raw",
+                      "attn_decimals",
+                      "campaign_reserve_raw",
+                      "native_quote_required_raw",
+                      "native_quote_budget_raw",
+                      "launch_enabled",
+                      "transfers_enabled",
+                      "policy_approved",
+                      "locks_verified",
+                      "external_prices_verified",
+                      "provider_requests",
+                      "gaps",
+                      "fees_modeled",
+                      "program_execution_verified",
+                      "route_execution_verified",
+                      "traders",
+                      "version",
+                      "math_revision",
+                      "scope",
+                      "activation_type",
+                      "activation_point",
+                      "activation_verified",
+                      "pools",
+                      "steps",
+                      "actions"
                     ],
                     "additionalProperties": false
                   }
