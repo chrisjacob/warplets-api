@@ -3030,6 +3030,49 @@
             "items": {
               "type": "string"
             }
+          },
+          "coverage_detail": {
+            "type": "object",
+            "properties": {
+              "cutoff": {
+                "type": "string",
+                "enum": [
+                  "retained",
+                  "history_limited"
+                ]
+              },
+              "snapshots_retained": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "references_available": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "references_missing": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "verified_usd_trades": {
+                "type": "number",
+                "const": 0
+              }
+            },
+            "required": [
+              "cutoff",
+              "snapshots_retained",
+              "references_available",
+              "references_missing",
+              "verified_usd_trades"
+            ],
+            "additionalProperties": false
+          },
+          "cutoff_evidence_version": {
+            "type": "string",
+            "const": "candidate-journal-v1"
           }
         },
         "required": [
@@ -3257,6 +3300,49 @@
                   "items": {
                     "type": "string"
                   }
+                },
+                "coverage_detail": {
+                  "type": "object",
+                  "properties": {
+                    "cutoff": {
+                      "type": "string",
+                      "enum": [
+                        "retained",
+                        "history_limited"
+                      ]
+                    },
+                    "snapshots_retained": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "references_available": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "references_missing": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "verified_usd_trades": {
+                      "type": "number",
+                      "const": 0
+                    }
+                  },
+                  "required": [
+                    "cutoff",
+                    "snapshots_retained",
+                    "references_available",
+                    "references_missing",
+                    "verified_usd_trades"
+                  ],
+                  "additionalProperties": false
+                },
+                "cutoff_evidence_version": {
+                  "type": "string",
+                  "const": "candidate-journal-v1"
                 }
               },
               "required": [
@@ -5029,6 +5115,10 @@
               "candidate_scope": {
                 "type": "string",
                 "const": "up_to_20_observed_contenders"
+              },
+              "cutoff_evidence_version": {
+                "type": "string",
+                "const": "candidate-journal-v1"
               }
             },
             "required": [
@@ -7002,6 +7092,147 @@
               "source": {
                 "type": "string",
                 "const": "cached_finalized_mainnet_rpc"
+              },
+              "cutoff": {
+                "type": "object",
+                "properties": {
+                  "version": {
+                    "type": "string",
+                    "const": "candidate-journal-v1"
+                  },
+                  "baseline_recorded_at": {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                  },
+                  "history_limited": {
+                    "type": "boolean"
+                  },
+                  "selected": {
+                    "maxItems": 20,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "address": {
+                          "type": "string",
+                          "maxLength": 44
+                        },
+                        "sequence": {
+                          "anyOf": [
+                            {
+                              "type": "integer",
+                              "exclusiveMinimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "recorded_at": {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                        },
+                        "payload_hash": {
+                          "type": "string",
+                          "pattern": "^[a-f0-9]{64}$"
+                        }
+                      },
+                      "required": [
+                        "address",
+                        "sequence",
+                        "recorded_at",
+                        "payload_hash"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "prices": {
+                    "maxItems": 220,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "address": {
+                          "type": "string",
+                          "maxLength": 44
+                        },
+                        "sequence": {
+                          "anyOf": [
+                            {
+                              "type": "integer",
+                              "exclusiveMinimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "recorded_at": {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                        },
+                        "source": {
+                          "type": "string",
+                          "enum": [
+                            "geckoterminal",
+                            "dexscreener"
+                          ]
+                        },
+                        "fetched_at": {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                        },
+                        "observed_at": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "price_usd": {
+                          "anyOf": [
+                            {
+                              "type": "number",
+                              "minimum": 0
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "address",
+                        "sequence",
+                        "recorded_at",
+                        "source",
+                        "fetched_at",
+                        "observed_at",
+                        "price_usd"
+                      ],
+                      "additionalProperties": false
+                    }
+                  }
+                },
+                "required": [
+                  "version",
+                  "baseline_recorded_at",
+                  "history_limited",
+                  "selected",
+                  "prices"
+                ],
+                "additionalProperties": false
               }
             },
             "required": [
@@ -7028,7 +7259,10 @@
               },
               "algorithm": {
                 "type": "string",
-                "const": "backing-experiment-v1"
+                "enum": [
+                  "backing-experiment-v1",
+                  "backing-experiment-v2"
+                ]
               },
               "outcome": {
                 "type": "string",
@@ -7329,6 +7563,170 @@
                 "type": "array",
                 "items": {
                   "type": "string"
+                }
+              },
+              "coverage_detail": {
+                "type": "object",
+                "properties": {
+                  "cutoff": {
+                    "type": "string",
+                    "enum": [
+                      "retained",
+                      "history_limited"
+                    ]
+                  },
+                  "snapshots_retained": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "references_available": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "references_missing": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "verified_usd_trades": {
+                    "type": "number",
+                    "const": 0
+                  }
+                },
+                "required": [
+                  "cutoff",
+                  "snapshots_retained",
+                  "references_available",
+                  "references_missing",
+                  "verified_usd_trades"
+                ],
+                "additionalProperties": false
+              },
+              "price_references": {
+                "maxItems": 1000,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "mint": {
+                      "type": "string",
+                      "maxLength": 44
+                    },
+                    "signature": {
+                      "type": "string"
+                    },
+                    "instruction_index": {
+                      "type": "string"
+                    },
+                    "reference_usd_micros": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "maxLength": 80,
+                          "pattern": "^-?\\d+$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "verified_usd_micros": {
+                      "type": "null"
+                    },
+                    "decimals": {
+                      "anyOf": [
+                        {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 255
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "snapshot_sequence": {
+                      "anyOf": [
+                        {
+                          "type": "integer",
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "snapshot_recorded_at": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "source": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "geckoterminal",
+                            "dexscreener"
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "fetched_at": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "provider_reference_only",
+                        "unavailable"
+                      ]
+                    },
+                    "gaps": {
+                      "maxItems": 10,
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "required": [
+                    "mint",
+                    "signature",
+                    "instruction_index",
+                    "reference_usd_micros",
+                    "verified_usd_micros",
+                    "decimals",
+                    "snapshot_sequence",
+                    "snapshot_recorded_at",
+                    "source",
+                    "fetched_at",
+                    "status",
+                    "gaps"
+                  ],
+                  "additionalProperties": false
                 }
               }
             },

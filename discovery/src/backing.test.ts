@@ -11,6 +11,8 @@ import { curveAddress } from "./pump";
 import { hashJson, toBase58 } from "./solana";
 import worker, { type LocalEnv } from "./worker";
 import { WalletTransactionSchema } from "./wallet-rpc";
+import { saveCandidate } from "./store";
+import { referenceMicros } from "./backing-history";
 
 const databases: DatabaseSync[]=[];
 afterEach(()=>{databases.splice(0).forEach(db=>db.close());vi.restoreAllMocks();});
@@ -39,10 +41,12 @@ async function transaction(wallet=key(8),sig=31,side="buy",quote=1000000000n,bas
 }
 function database(){
   const sqlite=new DatabaseSync(":memory:");databases.push(sqlite);
+  // Database write time is independent of JS request time in production.
+  let clock=now.toISOString();sqlite.function("strftime",{varargs:true},()=>clock);
   for(const file of readdirSync(new URL("../migrations",import.meta.url)).filter(f=>f.endsWith(".sql")).sort())sqlite.exec(readFileSync(new URL(`../migrations/${file}`,import.meta.url),"utf8"));
   const base=sqliteD1(sqlite);let tail:Promise<unknown>=Promise.resolve();
   const db={...base,batch(statements:D1PreparedStatement[]){const result=tail.then(()=>base.batch(statements));tail=result.catch(()=>{});return result;}} as D1Database;
-  return {sqlite,db};
+  return {sqlite,db,setClock:(value:Date)=>{clock=value.toISOString();}};
 }
 async function putCandidate(db:D1Database,c:Candidate){await db.prepare("INSERT OR REPLACE INTO tenx_candidates(address,pool,mode,payload,checked_at) VALUES(?,?,'live',?,?)").bind(c.address,c.pool,JSON.stringify(c),c.checked_at).run();}
 const request=(id=crypto.randomUUID())=>({request_id:id,reason:"Offline prospective backing experiment",duration_minutes:1,assumptions});
@@ -141,7 +145,7 @@ describe("finalized-cache backing ledger and frozen experiments",()=>{
     expect(await settleBacking(db,new Date(now.getTime()+360000))).toMatchObject({state:"frozen"});
   });
   it("guards protected writes and evidence reads and forbids a caller-supplied policy",async()=>{
-    const {db}=database(),env={TENX_DB:db,TENX_LOCAL_ONLY:"true",TENX_ADMIN_TOKEN:"a".repeat(64)} as LocalEnv,r=request();
+    const {db,setClock}=database(),env={TENX_DB:db,TENX_LOCAL_ONLY:"true",TENX_ADMIN_TOKEN:"a".repeat(64)} as LocalEnv,r=request();setClock(new Date(Date.now()+1000));
     const req=(path:string,body?:unknown,authorized=false)=>new Request(`http://127.0.0.1:8794/api/10x/${path}`,{...(body?{method:"POST",body:JSON.stringify(body)}:{}),headers:{"content-type":"application/json",...(authorized?{authorization:`Bearer ${"a".repeat(64)}`}:{})}});
     expect((await worker.fetch(req("admin/backing/open",r),env)).status).toBe(401);
     expect((await worker.fetch(req(`admin/backing/${r.request_id}`),env)).status).toBe(401);
@@ -179,5 +183,105 @@ describe("finalized-cache backing ledger and frozen experiments",()=>{
   it("refuses a future opening snapshot without leaving an unfreezable active run",async()=>{
     const {db,sqlite}=database(),c=await candidate();c.market!.fetched_at=new Date(now.getTime()+1).toISOString();await putCandidate(db,c);
     await expect(openBacking(db,request(),now)).rejects.toThrow("backing_opening_evidence_from_future");expect(sqlite.prepare("SELECT count(*) n FROM tenx_backing_runs").get()?.n).toBe(0);
+  });
+  it("retains a failing pre-cutoff snapshot after late cleanup, and seals the journal",async()=>{
+    const {db,sqlite,setClock}=database(),c=await candidate(),r=request();await putCandidate(db,c);await openBacking(db,r,now);
+    setClock(new Date(now.getTime()+59000));
+    await db.prepare("UPDATE tenx_candidates SET payload=json_set(payload,'$.holders',NULL) WHERE address=?").bind(c.address).run();
+    const captured=sqlite.prepare("SELECT * FROM tenx_backing_candidate_history").get();expect(captured?.recorded_at).toBe(new Date(now.getTime()+59000).toISOString());
+    setClock(new Date(now.getTime()+61000));await putCandidate(db,c);
+    await freezeBacking(db,r.request_id,new Date(now.getTime()+360000));
+    const record=(await backingRecord(db,r.request_id))!;expect(record.result.algorithm).toBe("backing-experiment-v2");expect(record.evidence.closing_candidates[0]!.holders).toBeNull();expect(record.result.projections[0]!.eligible_at_close).toBe(false);
+    expect(()=>sqlite.exec("UPDATE tenx_backing_candidate_history SET recorded_at='2026-10-20T00:00:00.000Z'")).toThrow("backing_history_immutable");
+    expect(()=>sqlite.exec("DELETE FROM tenx_backing_candidate_history")).toThrow("backing_history_immutable");
+    expect(record.evidence.cutoff!.selected[0]!.sequence).not.toBeNull();
+  });
+  it("captures effective merged evidence in the source-write transaction and rolls it back on error",async()=>{
+    const {db,sqlite,setClock}=database(),c=await candidate(),r=request();await putCandidate(db,c);await openBacking(db,r,now);
+    setClock(new Date(now.getTime()+10000));
+    const newer={...c,risk:{...c.risk,observed_at:new Date(now.getTime()+10000).toISOString()}};
+    await saveCandidate(db,newer);setClock(new Date(now.getTime()+20000));
+    await saveCandidate(db,{...c,checked_at:new Date(now.getTime()+20000).toISOString()});
+    const last=sqlite.prepare("SELECT payload FROM tenx_backing_candidate_history ORDER BY sequence DESC LIMIT 1").get();expect(JSON.parse(String(last!.payload)).risk.observed_at).toBe(newer.risk.observed_at);
+    const before=sqlite.prepare("SELECT count(*) n FROM tenx_backing_candidate_history").get()!.n;
+    await expect(db.batch([db.prepare("UPDATE tenx_candidates SET payload=json_set(payload,'$.holders',NULL) WHERE address=?").bind(c.address),db.prepare("INSERT INTO table_that_does_not_exist VALUES(1)")])).rejects.toThrow();
+    expect(sqlite.prepare("SELECT count(*) n FROM tenx_backing_candidate_history").get()!.n).toBe(before);
+    expect(JSON.parse(String(sqlite.prepare("SELECT payload FROM tenx_candidates").get()!.payload)).holders).not.toBeNull();
+  });
+  it("captures cutoff equality and ignores unchanged rows and post-cutoff writes",async()=>{
+    const {db,sqlite,setClock}=database(),c=await candidate(),r=request();await putCandidate(db,c);await openBacking(db,r,now);
+    await db.prepare("UPDATE tenx_candidates SET payload=payload").run();expect(sqlite.prepare("SELECT count(*) n FROM tenx_backing_candidate_history").get()!.n).toBe(0);
+    setClock(new Date(now.getTime()+60000));await db.prepare("UPDATE tenx_candidates SET payload=json_set(payload,'$.market.price_usd',0.1)").run();
+    setClock(new Date(now.getTime()+60001));await db.prepare("UPDATE tenx_candidates SET payload=json_set(payload,'$.market.price_usd',999)").run();
+    expect(sqlite.prepare("SELECT count(*) n FROM tenx_backing_candidate_history").get()!.n).toBe(1);
+    await freezeBacking(db,r.request_id,new Date(now.getTime()+360000));expect((await backingRecord(db,r.request_id))!.evidence.closing_candidates[0]!.market!.price_usd).toBe(0.1);
+  });
+  it("holds all closing gates on byte-cap exhaustion or candidate deletion while allowing collectors to continue",async()=>{
+    const {db,sqlite,setClock}=database(),c=await candidate(),r=request();await putCandidate(db,c);await openBacking(db,r,now);setClock(new Date(now.getTime()+10000));
+    // Oversized raw row is allowed by SQLite but not retained; the collector is not blocked by the journal cap.
+    await db.prepare("UPDATE tenx_candidates SET payload=json_set(payload,'$.name',?)").bind("x".repeat(600001)).run();
+    expect(sqlite.prepare("SELECT history_limited FROM tenx_backing_runs").get()!.history_limited).toBe(1);expect(sqlite.prepare("SELECT count(*) n FROM tenx_backing_candidate_history").get()!.n).toBe(0);
+    await putCandidate(db,c);await freezeBacking(db,r.request_id,new Date(now.getTime()+360000));const record=(await backingRecord(db,r.request_id))!;
+    expect(record.result.coverage_detail!.cutoff).toBe("history_limited");expect(record.result.projections[0]!.eligible_at_close).toBe(false);expect(record.result.gaps).toContain("cutoff_history_capacity_or_candidate_loss");
+    // A new window tests the independent deletion guard.
+    const second=request(),later=new Date(now.getTime()+400000);setClock(later);await openBacking(db,second,later);await db.prepare("DELETE FROM tenx_candidates").run();
+    expect(sqlite.prepare("SELECT history_limited FROM tenx_backing_runs WHERE id=?").get(second.request_id)!.history_limited).toBe(1);
+  });
+  it("bounds snapshot count atomically and deduplicates consecutive payloads",async()=>{
+    const {db,sqlite,setClock}=database(),c=await candidate(),r=request();await putCandidate(db,c);await openBacking(db,r,now);setClock(new Date(now.getTime()+10000));
+    // Small raw payloads isolate the row-count bound from the byte bound; they are never used for settlement.
+    for(let i=0;i<201;i++)await db.prepare("UPDATE tenx_candidates SET payload=?").bind(JSON.stringify({address:c.address,n:i})).run();
+    expect(sqlite.prepare("SELECT count(*) n FROM tenx_backing_candidate_history").get()!.n).toBe(200);expect(sqlite.prepare("SELECT history_limited FROM tenx_backing_runs").get()!.history_limited).toBe(1);
+  });
+  it("retains provider price references without lookahead or live USD credit",async()=>{
+    const {db,sqlite,setClock}=database(),c=await candidate(),r=request();c.market!.price_usd=2;await putCandidate(db,c);await openBacking(db,r,now);
+    const t=await transaction();sqlite.prepare("INSERT INTO tenx_wallet_transactions VALUES(?,?,?,?)").run(t.signature,t.payload_hash,JSON.stringify(t.transaction),t.fetched_at);
+    setClock(new Date(now.getTime()+20000));await db.prepare("UPDATE tenx_candidates SET payload=json_set(payload,'$.market.price_usd',999,'$.market.fetched_at',?)").bind(new Date(now.getTime()+20000).toISOString()).run();
+    await freezeBacking(db,r.request_id,new Date(now.getTime()+360000));const record=(await backingRecord(db,r.request_id))!,ref=record.result.price_references![0]!;
+    const decimals=t.transaction.meta!.postTokenBalances[0]!.uiTokenAmount.decimals;
+    expect(ref).toMatchObject({status:"provider_reference_only",reference_usd_micros:referenceMicros("100",decimals,2),verified_usd_micros:null,snapshot_sequence:null});
+    expect(ref.gaps).toContain("provider_publication_time_unknown");expect(record.result.coverage_detail).toMatchObject({references_available:1,verified_usd_trades:0});
+    await db.prepare("UPDATE tenx_candidates SET payload=json_set(payload,'$.market.price_usd',1000)").run();expect((await backingRecord(db,r.request_id))!.record_hash).toBe(record.record_hash);
+  });
+  it("withholds stale, ambiguous-decimal, missing and future price references and bounds extreme prices",async()=>{
+    const {opening,evidence}=await sample();opening.cutoff_evidence_version="candidate-journal-v1";
+    evidence.cutoff={version:"candidate-journal-v1",baseline_recorded_at:opening.starts_at,history_limited:false,selected:[{address:opening.candidates[0]!.address,sequence:null,recorded_at:opening.starts_at,payload_hash:await hashJson(opening.candidates[0]!)}],prices:[]};evidence.transactions=[await transaction()];
+    const missing=await evaluateBacking(opening,evidence);expect(missing.price_references![0]!.gaps).toContain("no_pre_trade_price_available");
+    const p={address:opening.candidates[0]!.address,sequence:null,recorded_at:opening.starts_at,source:"dexscreener" as const,fetched_at:new Date(now.getTime()-180001).toISOString(),observed_at:null,price_usd:2};evidence.cutoff.prices=[p];
+    expect((await evaluateBacking(opening,evidence)).price_references![0]!.gaps).toContain("pre_trade_price_stale");
+    p.fetched_at=new Date(now.getTime()+1000).toISOString();expect((await evaluateBacking(opening,evidence)).price_references![0]!.reference_usd_micros).toBeNull();
+    p.fetched_at=opening.starts_at;p.price_usd=1e308;expect((await evaluateBacking(opening,evidence)).price_references![0]!.gaps).toContain("price_reference_out_of_bounds");
+    p.price_usd=2;evidence.transactions[0]!.transaction.meta!.preTokenBalances[0]!.uiTokenAmount.decimals=8;evidence.transactions[0]!.transaction.meta!.postTokenBalances[0]!.uiTokenAmount.decimals=9;evidence.transactions[0]!.payload_hash=await hashJson(evidence.transactions[0]!.transaction);
+    expect((await evaluateBacking(opening,evidence)).price_references![0]!.gaps).toContain("mint_decimals_missing_or_ambiguous");
+    expect(referenceMicros("123456789",9,1.23456789)).toBe("152415");expect(referenceMicros("1000000000",9,1.2e-7)).toBe("0");expect(referenceMicros("1",0,1.2e7)).toBe("12000000000000");
+  });
+  it("keeps legacy inputs byte compatible and refuses missing or changed new cutoff provenance",async()=>{
+    const {opening,evidence}=await sample(),old=await evaluateBacking(opening,evidence);
+    expect(old.algorithm).toBe("backing-experiment-v1");expect(old).not.toHaveProperty("price_references");expect(old).not.toHaveProperty("coverage_detail");
+    opening.cutoff_evidence_version="candidate-journal-v1";await expect(evaluateBacking(opening,evidence)).rejects.toThrow("backing_cutoff_history_missing");
+    evidence.cutoff={version:"candidate-journal-v1",baseline_recorded_at:opening.starts_at,history_limited:false,selected:[{address:opening.candidates[0]!.address,sequence:null,recorded_at:opening.starts_at,payload_hash:"f".repeat(64)}],prices:[]};
+    await expect(evaluateBacking(opening,evidence)).rejects.toThrow("backing_cutoff_snapshot_mismatch");
+  });
+  it("rejects candidate changes between snapshot read and atomic admission",async()=>{
+    const {db,sqlite}=database(),c=await candidate();await putCandidate(db,c);
+    const racing={...db,batch:async(statements:D1PreparedStatement[])=>{
+      await db.prepare("UPDATE tenx_candidates SET payload=json_set(payload,'$.holders',NULL)").run();return db.batch(statements);
+    }} as D1Database;
+    await expect(openBacking(racing,request(),now)).rejects.toThrow("backing_active_daily_limit_or_membership_changed");
+    expect(sqlite.prepare("SELECT count(*) n FROM tenx_backing_runs").get()!.n).toBe(0);expect(sqlite.prepare("SELECT count(*) n FROM tenx_audit WHERE action='backing_open'").get()!.n).toBe(0);
+  });
+  it("does not capture fixture or out-of-scope candidates, and does not trust future-dated retained sources",async()=>{
+    const {db,sqlite,setClock}=database(),c=await candidate();await putCandidate(db,c);const r=request();await openBacking(db,r,now);setClock(new Date(now.getTime()+10000));
+    const outsider={...c,address:key(99)};await putCandidate(db,outsider);
+    await db.prepare("INSERT INTO tenx_candidates(address,pool,mode,payload,checked_at) VALUES(?,?,'fixture',?,?)").bind(key(98),c.pool,JSON.stringify({...c,address:key(98),mode:"fixture"}),c.checked_at).run();
+    expect(sqlite.prepare("SELECT count(*) n FROM tenx_backing_candidate_history").get()!.n).toBe(0);
+    await db.prepare("UPDATE tenx_candidates SET payload=json_set(payload,'$.risk.observed_at',?) WHERE address=? AND mode='live'").bind(new Date(now.getTime()+20000).toISOString(),c.address).run();
+    await freezeBacking(db,r.request_id,new Date(now.getTime()+360000));expect((await backingRecord(db,r.request_id))!.result.projections[0]!.eligible_at_close).toBe(false);
+  });
+  it("holds history coverage when a contender leaves the live scope without deletion",async()=>{
+    const {db,sqlite,setClock}=database(),c=await candidate(),r=request();await putCandidate(db,c);await openBacking(db,r,now);setClock(new Date(now.getTime()+10000));
+    await db.prepare("UPDATE tenx_candidates SET mode='fixture' WHERE address=?").bind(c.address).run();
+    expect(sqlite.prepare("SELECT history_limited FROM tenx_backing_runs").get()!.history_limited).toBe(1);
+    await freezeBacking(db,r.request_id,new Date(now.getTime()+360000));expect((await backingRecord(db,r.request_id))!.result.coverage_detail!.cutoff).toBe("history_limited");
   });
 });

@@ -1,5 +1,7 @@
 # Prospective backing ledger and scoring experiments
 
+Follow-on milestone: [retained cutoff evidence and pre-trade provider references](25-cutoff-history-and-price-references.md). The description below records the original v1 foundation; new journal-enabled rehearsals use v2 and no longer reconstruct cutoff risk from the mutable candidate table. Historical USD remains unverified and all outcomes stay withheld.
+
 Implemented locally on 20 October 2026 for PRD §§5.1–5.3 and 17.2. This is the P6 foundation after [signed Solana ownership](23-solana-identity.md). It is a diagnostic rehearsal, not an eligible-vote ledger or approved election. All outcomes are withheld, every winner is null, and votes/rewards/transactions remain disabled. The founder's free-first, local-only, unchanged-gates and no-deploy instructions control this work.
 
 ## What the local operator can review
