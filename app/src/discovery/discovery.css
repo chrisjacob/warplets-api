@@ -26,3 +26,6 @@
 .tenx-linked-wallets { list-style: none; padding: 0; display: grid; gap: 12px; }
 .tenx-linked-wallets li { display: grid; gap: 4px; padding: 12px; border: 1px solid #30453a; border-radius: 10px; }
 .tenx-linked-wallets small { color: #9bb6a5; }
+.tenx-backing-fields { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; }
+.tenx-backing-lab label { display: grid; gap: 8px; margin-block: 12px; }
+.tenx-backing-window td small,.tenx-backing-lab td small { display: block; margin-top: 6px; }

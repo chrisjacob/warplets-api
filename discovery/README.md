@@ -140,6 +140,12 @@ The existing supervisor now checks timer progress independently of the launcher,
 
 Local migration `0017_operations.sql` retains recent authenticated observations and transitions without provider calls. Run `node --test scripts/discovery-watchdog.test.mjs` and `pnpm --dir discovery test -- src/reliability-14d.test.ts` for offline fault checks; `pnpm exec tsx scripts/check-discovery-operations.ts` checks the running local installation. See [scope, results and remaining PRD acceptance work](../docs/10x/22-local-reliability-review.md). Future risk/market timestamps now fail the existing freshness checks; no thresholds or evidence gates were relaxed.
 
+## Prospective backing experiments
+
+`/backing` shows public aggregate summaries; `/admin/10x` opens a prospective window with explicit hypothetical USD assumptions. Candidate policy and signed wallet membership freeze before trading. Existing maintenance automatically captures bounded cached finalized-response transactions after the fixed end + five-minute source deadline, without provider calls. Supported instruction-level buys/sells, netting, hold reasons and experimental linear/square-root projections are replayable by the operator. All outcomes are withheld; no live votes/rewards or onchain activity.
+
+Local migration `0019_backing_rehearsal.sql` adds retained openings/evidence/results. Public summaries omit wallet identities; `/api/10x/admin/backing/:id` protects full retained inputs and replay. See [rules, bounds, checks and remaining P6 gaps](../docs/10x/24-backing-ledger.md). `pnpm exec tsx scripts/check-backing-local.ts --open` explicitly opens one one-minute local review with hypothetical $100/SOL, $1 minimum and $100 cap if none is open. Run without `--open` for read-only verification of its eventual settlement. Quotas, evidence gates and policy approval remain unchanged.
+
 ## Signed Solana ownership
 
 Development route `/wallets` links Solana wallets to a separate local 10X identity using expiring, single-use signed messages. It does not merge EVM/Farcaster accounts or grant votes, transactions or rewards. Local migration `0018_solana_identity.sql` adds ownership, hashed sessions/challenges and audit tables. `/api/10x/identity/session`, `/challenge`, `/verify` and `/logout` use browser-bound public auth, separate from the operator token. The existing local-runtime guard still applies.

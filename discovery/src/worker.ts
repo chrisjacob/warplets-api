@@ -1,6 +1,7 @@
 import { timingSafeEqual } from "node:crypto";
 import { z } from "zod";
 import { identityRoute } from "./identity";
+import { backingList, backingRecord, BackingError, freezeBacking, openBacking, settleBacking } from "./backing";
 import { Address, assess, CandidateSchema, DEFAULT_POLICY, MarketSchema, Signature, shortlist } from "./model";
 import { runReviews } from "./research";
 import { runMarketCycle } from "./market-cycle";
@@ -108,6 +109,12 @@ export async function handle(request: Request, env: Env): Promise<Response> {
   if (method === "POST" && request.headers.has("origin") && !origins.has(request.headers.get("origin")!)) return json({ error: "origin_not_allowed" }, 403);
   if (method === "POST" && !admin) return json({ error: "not_found" }, 404);
   if (method === "GET" && path === "/api/10x/health") return json({ local: true, ready: true });
+  if (method === "GET" && path === "/api/10x/backing") return json(await backingList(env.TENX_DB));
+  const backingMatch = path.match(/^\/api\/10x\/admin\/backing\/([^/]+)$/);
+  if (method === "GET" && backingMatch) {
+    const record = await backingRecord(env.TENX_DB,z.uuid().parse(backingMatch[1]));
+    return record ? json({record,replay:"verified"}) : json({error:"backing_not_frozen_or_not_found"},404);
+  }
   if (method === "GET" && path === "/api/10x/chains") return json(await envelope(env, [{ id: "solana", discover_enabled: true, vote_enabled: false, launch_enabled: false }]));
   if (method === "GET" && path === "/api/10x/system/status") return json(await envelope(env, await status(env)));
   if (method === "GET" && path === "/api/10x/system/operations") return json(await envelope(env,await operations(settings(env))));
@@ -237,6 +244,11 @@ export async function handle(request: Request, env: Env): Promise<Response> {
     if (!(request.headers.get("content-type") ?? "").startsWith("application/json")) return json({ error: "json_required" }, 415);
     const body = await boundedJson(new Response(request.body), 32_000);
     const reason = z.object({ reason: z.string().min(3).max(300) }).passthrough().parse(body).reason;
+    if (path === "/api/10x/admin/backing/open") return json(await openBacking(env.TENX_DB,body));
+    if (path === "/api/10x/admin/backing/freeze") {
+      const input=z.object({reason:z.string().min(3).max(300),request_id:z.uuid()}).strict().parse(body);
+      return json(await freezeBacking(env.TENX_DB,input.request_id));
+    }
     if(path==="/api/10x/admin/watchdog"){
       const input=z.object({reason:z.string().min(3).max(300),report:WatchdogReportSchema}).strict().parse(body);
       return json(await recordWatchdog(env.TENX_DB,input.report));
@@ -245,6 +257,7 @@ export async function handle(request: Request, env: Env): Promise<Response> {
       const now = new Date(), state = await control(env.TENX_DB);
       await env.TENX_DB.prepare("UPDATE tenx_control SET heartbeat_at=?1 WHERE id=1").bind(now.toISOString()).run();
       const diagnostics = await runSignalCycle(env.TENX_DB);
+      const backing = await settleBacking(env.TENX_DB,now);
       let election: { id?: string; state: string; error?: string };
       try { election = await dailyElection(env.TENX_DB); }
       catch (error) { election = { state: "failed", error: error instanceof ElectionError ? error.message : "election_unavailable" }; }
@@ -252,9 +265,9 @@ export async function handle(request: Request, env: Env): Promise<Response> {
       if (path.endsWith("/review") || !state.reviewed_at || now.getTime() - Date.parse(state.reviewed_at) >= 3600000) {
         const review = await runReviews(env.TENX_DB, now);
         await env.TENX_DB.prepare("UPDATE tenx_control SET reviewed_at=?1 WHERE id=1").bind(now.toISOString()).run();
-        return json({ local: true, review, election, diagnostics });
+        return json({ local: true, review, election, diagnostics, backing });
       }
-      return json({ local: true, review: "waiting_for_hourly_tick", election, diagnostics });
+      return json({ local: true, review: "waiting_for_hourly_tick", election, diagnostics, backing });
     }
     if (path === "/api/10x/admin/refresh") {
       await audit(env.TENX_DB, "refresh_requested", reason, {});
@@ -298,6 +311,7 @@ export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     try { return await handle(request, env); }
     catch (error) {
+      if(error instanceof BackingError)return json({error:error.message},error.status);
       if(error instanceof OperationsError)return json({error:error.message},503);
       if (error instanceof SignalResearchError) return json({ error: error.message },503);
       if (error instanceof PolicyPreviewError) return json({ error: error.message }, error.message === "policy_preview_daily_limit" ? 429 : error.message === "policy_preview_request_conflict" ? 409 : error.message.startsWith("policy_preview_cannot") || error.message === "policy_evidence_gates_locked" ? 400 : 503);

@@ -8,6 +8,7 @@ import { PolicyEditsSchema, PolicyPreviewResponseSchema, PreviewRequestSchema } 
 import { SignalDetailSchema } from "../discovery/src/signal-model";
 import { OperationsSchema, WatchdogReportSchema } from "../discovery/src/operations-model";
 import { IdentityChallengeRequest, IdentityChallengeResponse, IdentitySessionResponse, IdentityVerifyRequest } from "../discovery/src/identity-model";
+import { OpenBackingRequest, BackingListResponse, BackingSummary, BackingRecord } from "../discovery/src/backing-model";
 import { ActivityResponse, CoverageResponse, DetailResponse, ElectionDetailResponse, ElectionsResponse, HistoryResponse, ListResponse, PoliciesResponse, ReviewsResponse, SignalsResponse, StatusResponse } from "../app/src/discovery/client";
 
 const ok = { description: "Success; cached public data includes timestamps, source freshness and coverage", content: { "application/json": { schema: { type: "object" } } } };
@@ -26,6 +27,10 @@ const spec = {
   openapi: "3.1.0", info: { title: "10X local Solana discovery", version: "0.1.0", description: "Local-only chain discovery and signed-message wallet ownership. No server-held signers, transactions, votes, launches or financial flows. Public reads use stored data; only authenticated refresh makes provider requests." },
   servers: [{ url: "http://127.0.0.1:8794" }],
   paths: {
+    "/api/10x/backing": read("Latest ten local prospective backing experiments; hash-checked aggregates only, no wallet membership or RPC calls; all outcomes withheld",responseSchema("BackingListResponse")),
+    "/api/10x/admin/backing/open": {post:{...post("Freeze up to 20 contenders under all current gates and signed wallet membership before a prospective window; one open, 20/day, explicit hypothetical USD assumptions").post,...responseSchema("BackingSummary"),requestBody:{required:true,content:{"application/json":{schema:{$ref:"#/components/schemas/OpenBackingRequest"}}}}}},
+    "/api/10x/admin/backing/freeze": {post:{...post("After fixed end + five minute source deadline, freeze up to 100 cached finalized transaction bodies; no new provider requests or live votes").post,...responseSchema("BackingSummary"),requestBody:{required:true,content:{"application/json":{schema:{type:"object",additionalProperties:false,required:["reason","request_id"],properties:{reason,request_id:{type:"string",format:"uuid"}}}}}}}},
+    "/api/10x/admin/backing/{id}": read("Private immutable membership/transactions/ledger and deterministic decoder replay; operator only",{security:[{localOperator:[]}],parameters:[parameter("id","path",{type:"string",format:"uuid"},true)],responses:{200:{...ok,content:{"application/json":{schema:{type:"object",required:["record","replay"],properties:{record:{$ref:"#/components/schemas/BackingRecord"},replay:{const:"verified"}}}}}},...errors}}),
     "/api/10x/identity/session": read("Current local Solana identity and linked wallets; HttpOnly cookie, no provider calls; separate from Warplets/Farcaster", responseSchema("IdentitySessionResponse")),
     "/api/10x/identity/challenge": identityPost("Issue exact domain/address/chain/intent/browser-bound 5-minute challenge; 10 per browser/minute, 500 globally per UTC day", { $ref: "#/components/schemas/IdentityChallengeRequest" }, "IdentityChallengeResponse"),
     "/api/10x/identity/verify": identityPost("Verify exact stored message with strict Ed25519; atomic consumption, ownership, rotation and audit. Signed unlink revokes every identity session; last wallet is retained", { $ref: "#/components/schemas/IdentityVerifyRequest" }, "IdentitySessionResponse"),
@@ -70,6 +75,10 @@ const spec = {
     "/api/10x/admin/policies/previews/{id}": read("Load retained policy comparison and verify hashes/replay; authenticated, no-store", { ...responseSchema("PolicyPreviewResponse"), security: [{ localOperator: [] }], parameters: [parameter("id", "path", { type: "string", format: "uuid" }, true)] }),
   },
   components: { securitySchemes: { localOperator: { type: "http", scheme: "bearer", description: "Random local operator token; not stored in browser storage or source control" } }, schemas: {
+    OpenBackingRequest:z.toJSONSchema(OpenBackingRequest),
+    BackingSummary:z.toJSONSchema(BackingSummary),
+    BackingListResponse:z.toJSONSchema(BackingListResponse),
+    BackingRecord:z.toJSONSchema(BackingRecord,{unrepresentable:"any"}),
     IdentityChallengeRequest: z.toJSONSchema(IdentityChallengeRequest),
     IdentityChallengeResponse: z.toJSONSchema(IdentityChallengeResponse),
     IdentityVerifyRequest: z.toJSONSchema(IdentityVerifyRequest),
