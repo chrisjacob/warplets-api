@@ -3,6 +3,7 @@ import type { Market } from "../../../discovery/src/model";
 import { tokenImageSources } from "../../../discovery/src/images";
 import { ArtworkResponseSchema, type Artwork } from "../../../discovery/src/artwork-model";
 import { getJson, HistoryResponse, marketSource } from "./client";
+import { pricePatternReview, PRICE_PATTERN_RULE } from "../../../discovery/src/price-pattern";
 
 const valueLabel = (v: number | null) => v === null ? "Unavailable" : v === 0 ? "$0" : v < .0001 ? `$${v.toExponential(3)}` : new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: v < 1 ? 6 : 2 }).format(v);
 export function useTokenArtwork(addresses: string[]) {
@@ -60,8 +61,17 @@ export function TokenHistory({ address }: { address: string }) {
     void load(); const timer = window.setInterval(() => { if (document.visibilityState === "visible") void load(); }, 60000);
     return () => { controller.abort(); window.clearInterval(timer); };
   }, [address, hours]);
+  const pattern = pricePatternReview(points, new Date()), metrics = pattern.metrics, rule = PRICE_PATTERN_RULE;
   return <section className="tenx-panel"><div className="tenx-row"><h2>Price & market cap</h2><div className="tenx-chart-ranges" aria-label="History period">{[1, 24, 168].map(h => <button key={h} aria-pressed={hours === h} onClick={() => setHours(h)}>{h === 168 ? "7D" : `${h}H`}</button>)}</div></div>
-    {error && <p role="alert">{error}</p>}<LineChart points={points} field="price_usd" title="Token price · USD" /><LineChart points={points} field="market_cap_usd" title="Market cap · USD" />
+    {error && <p role="alert">{error}</p>}
+    <aside className={pattern.status === "review" ? "tenx-notice" : "tenx-price-review"} aria-label="Sampled price movement review">
+      <h3>{pattern.status === "review" ? "Unusually smooth price rise · review" : pattern.status === "insufficient" ? "Price pattern: insufficient comparable history" : "Smooth-rise rule not triggered"}</h3>
+      <p>{pattern.samples} observations in the latest continuous run · {pattern.span_minutes.toFixed(0)} minutes{pattern.source ? ` · ${marketSource(pattern.source)}` : ""}. {pattern.last_at ? `Last saved observation: ${new Date(pattern.last_at).toLocaleString()}.` : "No comparable observations yet."} {pattern.stale && pattern.last_at ? "Saved observations are stale; this is not a current-market assessment." : ""}</p>
+      {metrics && <dl><dt>Sampled return</dt><dd>{metrics.return_pct.toFixed(2)}%</dd><dt>Up / down / unchanged steps</dt><dd>{metrics.upward_steps} / {metrics.downward_steps} / {metrics.unchanged_steps}</dd><dt>Largest sampled drawdown</dt><dd>{metrics.max_drawdown_pct.toFixed(2)}%</dd><dt>Linear fit R²</dt><dd>{metrics.linear_r_squared === null ? "Unavailable (flat prices)" : metrics.linear_r_squared.toFixed(4)}</dd></dl>}
+      <p>Periodic snapshots can miss sharp moves between reads. This is a review heuristic, not proof of bots, fraud or organic trading. Volatility does not establish safety. Eligibility and ranking are unchanged.</p>
+      <details><summary>Rule & sampling limits</summary><p>Within the selected chart range and the past 24 hours, require at least {rule.min_samples} prices across {rule.min_span_ms / 60_000} minutes; {rule.min_return_pct}% return; at least {rule.min_upward_step_pct}% upward steps; at most {rule.max_drawdown_pct}% sampled drawdown; and price-versus-time R² ≥ {rule.min_linear_r_squared}. R² measures fit, not fraud probability. Price alone is assessed; the market-cap chart is not counted as a second confirmation.</p><p>Missing prices, duplicate times, source changes and gaps over {rule.max_gap_ms / 60_000} minutes reset the run. Ignored future data and breaks: {pattern.gaps.length ? pattern.gaps.map(g => g.replaceAll("_", " ")).join("; ") : "none in the supplied history"}. Maximum 1,000 cached observations; no extra provider requests. Rule {pattern.version} is unvalidated against token outcomes.</p></details>
+    </aside>
+    <LineChart points={points} field="price_usd" title="Token price · USD" /><LineChart points={points} field="market_cap_usd" title="Market cap · USD" />
     <p>Source per observation: GeckoTerminal or DEX Screener · local observations only, up to 1,000 samples. Lines break across source changes, missing values and gaps over 30 minutes. Observation time at the provider is unavailable; fetch times are shown. No history is invented.</p>
     {!!points.length && <details><summary>Accessible data table ({points.length} samples)</summary><div className="tenx-table-scroll"><table><caption>Saved price and market cap observations</caption><thead><tr><th>Fetched</th><th>Price</th><th>Market cap</th></tr></thead><tbody>{points.map(p => <tr key={p.fetched_at}><td>{new Date(p.fetched_at).toLocaleString()}</td><td>{valueLabel(p.price_usd)}</td><td>{valueLabel(p.market_cap_usd)}</td></tr>)}</tbody></table></div></details>}
   </section>;
