@@ -12,6 +12,7 @@ import { hashJson } from "./solana";
 import { GmgnTraderSampleSchema } from "./gmgn-traders";
 import {GmgnWalletActivitySchema} from "./gmgn-wallet-activity";
 import {gmgnActivitySelection} from "./gmgn-activity-selection";
+import {freezeGmgnDailyCohort,readGmgnDailyCohort} from "./gmgn-rotation";
 
 export const GmgnReviewRequestSchema = z.object({ reason: z.string().min(3).max(300), request_id: z.uuid(),
   mode: z.enum(["access_probe", "retained_research"]), request: GmgnRequestSchema }).strict();
@@ -24,6 +25,7 @@ export async function gmgnStatus(settings: GmgnSettings, now = new Date()) {
     WHERE day>=?1 AND json_extract(request,'$.kind') LIKE 'gmgn_%' ORDER BY reserved_at DESC,id DESC LIMIT 1`)
     .bind(new Date(now.getTime() - 6 * 86_400_000).toISOString().slice(0, 10)).first();
   const transport = await settings.db.prepare("SELECT next_at,backoff_until FROM tenx_source_transport_control WHERE id=1").first();
+  const rotation=await readGmgnDailyCohort(settings.db,now.toISOString().slice(0,10));
   return { version: "gmgn-readiness-v1", key_configured: configured(settings.apiKey),
     retained_research_permitted: permitted(settings.permissionReference), public_display_authority: permitted(settings.permissionReference) ? GMGN_USE_AUTHORITY : null,
     provider_rights_independently_confirmed: false,
@@ -32,17 +34,11 @@ export async function gmgnStatus(settings: GmgnSettings, now = new Date()) {
     research_limits: researchLimits(settings.researchMode),
     limits: { daily_http_subset: researchLimits(settings.researchMode).source_daily_requests, shared_market_maximum: L.market_daily_maximum, maximum_weight_per_request: 5,
       maximum_daily_weight: Math.min(researchLimits(settings.researchMode).source_daily_requests ?? L.market_daily_maximum, L.market_daily_maximum, settings.marketDailyLimit) * 5, minimum_spacing_seconds: L.spacing_ms / 1000, subset_is_additional: false },
-    scheduled_collection: "existing_maintenance_spare_capture", scoring_effect: "none", evidence_gates_changed: false, provider_requests: 0, database_writes: 0 };
+    daily_rotation:rotation,scheduled_collection: "existing_maintenance_spare_capture", scoring_effect: "none", evidence_gates_changed: false, provider_requests: 0, database_writes: 0 };
 }
 
-// Preregistered founder regression investigations; neither independent labels nor
-// a representative validation set. Twenty-one planned endpoint attempts/day at most, shared
-// with every other source request, and only in spare existing capture capacity.
-export const GMGN_PILOT_MINTS = [
-  "ZyGXWijSJEgcCDb8CeSJ4Vj33iceATGoeKGidnfpump",
-  "AMK8R8NqJ18VQnxsoGgv75pZVLyAG24BafFfp3Zpump",
-  "CSocnzcRpgSCr1naKcNTieWZUxb6rABe45j844m7pump",
-] as const;
+// Redistribute the existing 21 endpoint attempts/day; no additional allowance.
+// The frozen daily manifest is separate from immutable first-grade score cohorts.
 export async function gmgnPilotHasCapacity(settings: GmgnSettings, now = new Date()) {
   if (!configured(settings.apiKey) || !permitted(settings.permissionReference)) return false;
   const at = now.toISOString(), day = at.slice(0, 10), usage = await sharedResearchUsage(settings.db, day);
@@ -51,16 +47,26 @@ export async function gmgnPilotHasCapacity(settings: GmgnSettings, now = new Dat
   const row = await settings.db.prepare(`SELECT
     (SELECT count(*) FROM tenx_source_reservations WHERE day=?1) AS used,
     (SELECT used FROM tenx_usage WHERE provider='market' AND day=?1) AS market_used,
-    (SELECT count(DISTINCT json_extract(request,'$.address')||':'||json_extract(request,'$.kind')||':'||COALESCE(json_extract(request,'$.series.part'),-1)) FROM tenx_source_reservations
-      WHERE day=?1 AND json_extract(request,'$.address') IN (?3,?4,?5) AND json_extract(request,'$.kind') IN
-      ('gmgn_token_info','gmgn_token_security','gmgn_token_pool','gmgn_token_candles') AND (json_extract(request,'$.kind')!='gmgn_token_candles' OR json_extract(request,'$.series.id') IS NOT NULL)) AS attempted,
+    (SELECT count(*) FROM tenx_source_reservations
+      WHERE day=?1 AND json_extract(request,'$.kind') IN
+      ('gmgn_token_info','gmgn_token_security','gmgn_token_pool','gmgn_token_candles')) AS attempted,
     EXISTS(SELECT 1 FROM tenx_control WHERE id=1 AND paused=0 AND (retry_after IS NULL OR retry_after<=?2)) AS active,
     EXISTS(SELECT 1 FROM tenx_source_transport_control WHERE id=1 AND (next_at IS NULL OR next_at<=?2) AND (backoff_until IS NULL OR backoff_until<=?2)) AS paced,
     EXISTS(SELECT 1 FROM tenx_market_control WHERE id=1 AND last_error IS NOT NULL AND next_refresh_at>?2) AS market_backoff,
     EXISTS(SELECT 1 FROM tenx_source_reservations WHERE state IN ('reserved','fetching') AND lease_until>?2) AS in_flight`)
-    .bind(day, at, ...GMGN_PILOT_MINTS).first<{used:number;market_used:number|null;attempted:number;active:number;paced:number;market_backoff:number;in_flight:number}>();
+    .bind(day, at).first<{used:number;market_used:number|null;attempted:number;active:number;paced:number;market_backoff:number;in_flight:number}>();
+  const cohort=await readGmgnDailyCohort(settings.db,day);
+  if(cohort&&!cohort.manifest.selected.length)return false;
+  if(cohort){
+    const seriesIds=await Promise.all(cohort.manifest.selected.map(address=>gmgnStableId(day+":"+address+":rotation-window-v1")));
+    const done=await settings.db.prepare(`SELECT count(DISTINCT json_extract(request,'$.address')||':'||json_extract(request,'$.kind')||':'||COALESCE(json_extract(request,'$.series.part'),-1)) AS n
+      FROM tenx_source_reservations WHERE day=?1 AND json_extract(request,'$.address') IN (SELECT value FROM json_each(?2))
+      AND (json_extract(request,'$.kind') IN ('gmgn_token_info','gmgn_token_security','gmgn_token_pool') OR (json_extract(request,'$.kind')='gmgn_token_candles' AND json_extract(request,'$.series.id') IN (SELECT value FROM json_each(?3))))`)
+      .bind(day,JSON.stringify(cohort.manifest.selected),JSON.stringify(seriesIds)).first<{n:number}>();
+    if((done?.n??0)>=cohort.manifest.selected.length*7)return false;
+  }
   return Boolean(row && (limits.source_daily_requests === null || row.used < limits.source_daily_requests) && (row.market_used ?? 0) < Math.min(L.market_daily_maximum, settings.marketDailyLimit)
-    && row.attempted < GMGN_PILOT_MINTS.length * 7 && row.active && row.paced && !row.market_backoff && !row.in_flight);
+    && row.attempted < 21 && row.active && row.paced && !row.market_backoff && !row.in_flight);
 }
 async function gmgnStableId(value: string) {
   const bytes=new Uint8Array(await crypto.subtle.digest("SHA-256",new TextEncoder().encode(value)));bytes[6]=(bytes[6]!&15)|64;bytes[8]=(bytes[8]!&63)|128;
@@ -69,15 +75,14 @@ async function gmgnStableId(value: string) {
 export async function runGmgnPilot(settings: GmgnSettings, scoreAttempts: number, fetcher: SourceFetcher, clock = () => new Date()) {
   if (!configured(settings.apiKey) || !permitted(settings.permissionReference) || !Number.isInteger(scoreAttempts) || scoreAttempts < 0 || scoreAttempts >= 3)
     return { state: "held", reason: "no_configured_spare_capture", provider_requests: 0 };
-  const at = clock(), day = at.toISOString().slice(0, 10), end = Math.floor(at.getTime() / 60_000) * 60_000;
-  for (const address of GMGN_PILOT_MINTS) for (const kind of ["gmgn_token_info", "gmgn_token_security", "gmgn_token_pool", "gmgn_token_candles"] as const) {
+  const at = clock(), day = at.toISOString().slice(0, 10);
+  if(!await gmgnPilotHasCapacity(settings,at))return {state:"held",reason:"shared_capacity_or_daily_rotation_exhausted",provider_requests:0};
+  const {manifest}=await freezeGmgnDailyCohort(settings.db,at);
+  for (const kind of ["gmgn_token_info", "gmgn_token_security", "gmgn_token_pool", "gmgn_token_candles"] as const) for (const address of manifest.selected) {
     let request: GmgnRequest;
     if (kind === "gmgn_token_candles") {
-      const prior = await settings.db.prepare(`SELECT request FROM tenx_source_reservations WHERE day=?1 AND json_extract(request,'$.address')=?2
-        AND json_extract(request,'$.series.id') IS NOT NULL ORDER BY reserved_at,id LIMIT 1`).bind(day,address).first<{request:string}>();
-      const old = prior ? GmgnRequestSchema.parse(JSON.parse(prior.request)) : null;
-      const root = old?.kind === kind && old.series ? old.series : { id: await gmgnStableId(day+":"+address+":candle-window-v1"),
-        start_at: new Date(end-21_600_000).toISOString(), end_at: new Date(end).toISOString(), part: 0 };
+      const root = { id: await gmgnStableId(day+":"+address+":rotation-window-v1"),
+        start_at: new Date(Math.floor(Date.parse(manifest.cutoff)/60000)*60000-21_600_000).toISOString(), end_at: new Date(Math.floor(Date.parse(manifest.cutoff)/60000)*60000).toISOString(), part: 0 };
       let next: GmgnRequest | null = null;
       for (let part=0;part<4;part++) {
         const exists=await settings.db.prepare(`SELECT id FROM tenx_source_reservations WHERE json_extract(request,'$.series.id')=?1
@@ -94,11 +99,11 @@ export async function runGmgnPilot(settings: GmgnSettings, scoreAttempts: number
     // Stable per-day target ID prevents competing maintenance runs reserving a
     // second copy even after the first transport finishes.
     const request_id = await gmgnStableId(request.kind === "gmgn_token_candles" && request.series ? request.series.id+":"+request.series.part : day+":"+address+":"+kind);
-    return runGmgnReview(settings, { reason: "Preregistered founder regression pilot in spare maintenance capture", request_id, mode: "retained_research", request }, fetcher, clock);
+    return runGmgnReview(settings, { reason: "Frozen daily inventory rotation in spare maintenance capture", request_id, mode: "retained_research", request }, fetcher, clock,day);
   }
   return { state: "waiting", reason: "declared_daily_cohort_attempted", provider_requests: 0 };
 }
-export async function runGmgnReview(settings: GmgnSettings, raw: unknown, fetcher: SourceFetcher, clock = () => new Date()) {
+export async function runGmgnReview(settings: GmgnSettings, raw: unknown, fetcher: SourceFetcher, clock = () => new Date(), scheduledDay?:string) {
   const input = GmgnReviewRequestSchema.parse(raw);
   const held = (reason: string) => ({ state: "held" as const, reason, provider_requests: 0, scoring_effect: "none" });
   if (!configured(settings.apiKey)) return held("gmgn_key_missing_or_invalid");
@@ -108,7 +113,7 @@ export async function runGmgnReview(settings: GmgnSettings, raw: unknown, fetche
     const target=await gmgnActivityTarget(settings.db,input.request.selection_id,clock());
     if(target.state!=="ready"||target.request.address!==input.request.address||target.request.wallet!==input.request.wallet||target.request.selection_hash!==input.request.selection_hash)return held("gmgn_activity_selection_mismatch_or_unavailable");
   }
-  const reservation = await reserveSourceFetch(settings.db, input.request_id, input.request, Math.min(L.market_daily_maximum, settings.marketDailyLimit), clock(), settings.researchMode);
+  const reservation = await reserveSourceFetch(settings.db, input.request_id, input.request, Math.min(L.market_daily_maximum, settings.marketDailyLimit), clock(), settings.researchMode,scheduledDay);
   if (!reservation) return held("shared_budget_pause_pacing_or_existing_request");
   return { ...await executeReservedSource(settings.db, reservation, fetcher, clock, { apiKey: settings.apiKey!, mode: input.mode, permissionReference: settings.permissionReference }),
     request_id: input.request_id, scoring_effect: "none" };

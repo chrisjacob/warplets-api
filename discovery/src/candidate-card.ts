@@ -8,7 +8,7 @@ import {AnyScoreSummarySchema,type AnyScoreSummary} from "./discovery-score-mode
 export const CandidateCardSchema = AssessedCandidateSchema.pick({ chain: true, address: true, name: true, symbol: true, mode: true, verification: true, market: true, eligibility: true, reasons: true }).extend({
   creation: ProofSchema.pick({ block_time: true }).nullable(),
   holders: HolderSchema.pick({ status: true, holder_count: true, top1_pct: true }).nullable(),
-  discovery_score:AnyScoreSummarySchema.optional(),discovery_rank:z.number().int().min(1).max(100).optional(),
+  discovery_score:AnyScoreSummarySchema.optional(),discovery_rank:z.number().int().min(1).max(500).optional(),
 }).strict();
 export type CandidateCard = z.infer<typeof CandidateCardSchema>;
 export function candidateCard(c: AssessedCandidate&{discovery_score?:AnyScoreSummary;discovery_rank?:number}): CandidateCard {

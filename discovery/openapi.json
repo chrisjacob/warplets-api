@@ -3534,7 +3534,7 @@
     },
     "/api/10x/candidates": {
       "get": {
-        "summary": "At most 100 observed tokens, score-ranked before limiting; action eligibility remains separate",
+        "summary": "Search/filter the full bounded inventory before the 100-result view; current v4 and action eligibility remain separate",
         "responses": {
           "200": {
             "description": "Success; cached public data includes timestamps, source freshness and coverage",
@@ -3657,13 +3657,60 @@
             }
           },
           {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 100,
+              "description": "Case-insensitive name/symbol or case-sensitive exact mint, before display limiting"
+            }
+          },
+          {
+            "name": "freshness",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "all",
+                "fresh",
+                "stale",
+                "missing"
+              ],
+              "default": "all"
+            }
+          },
+          {
+            "name": "min_liquidity",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1000000000000,
+              "default": 0,
+              "description": "Saved reported USD liquidity; use freshness separately"
+            }
+          },
+          {
+            "name": "min_coverage",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 100,
+              "default": 0
+            }
+          },
+          {
             "name": "cursor",
             "in": "query",
             "required": false,
             "schema": {
               "type": "string",
-              "maxLength": 300,
-              "description": "Opaque cursor binds source/order, score observation time, sort and view for up to five minutes; 409 requires refresh"
+              "maxLength": 512,
+              "description": "Opaque cursor binds every filter, source/order, observation cutoff and view for five minutes; 409 requires refresh"
             }
           }
         ]
@@ -65429,7 +65476,7 @@
                     "discovery_rank": {
                       "type": "integer",
                       "minimum": 1,
-                      "maximum": 100
+                      "maximum": 500
                     }
                   },
                   "required": [
@@ -65498,6 +65545,60 @@
                   "eligible",
                   "provisional",
                   "excluded"
+                ],
+                "additionalProperties": false
+              },
+              "scope": {
+                "type": "object",
+                "properties": {
+                  "inventory": {
+                    "type": "string",
+                    "enum": [
+                      "retained",
+                      "active_verified_first_day"
+                    ]
+                  },
+                  "stored": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "ranked": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "matched": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "available": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 100
+                  },
+                  "truncated": {
+                    "type": "boolean"
+                  },
+                  "maximum": {
+                    "type": "number",
+                    "const": 100
+                  },
+                  "search_before_limit": {
+                    "type": "boolean",
+                    "const": true
+                  }
+                },
+                "required": [
+                  "inventory",
+                  "stored",
+                  "ranked",
+                  "matched",
+                  "available",
+                  "truncated",
+                  "maximum",
+                  "search_before_limit"
                 ],
                 "additionalProperties": false
               }
@@ -66206,7 +66307,7 @@
                     "discovery_rank": {
                       "type": "integer",
                       "minimum": 1,
-                      "maximum": 100
+                      "maximum": 500
                     }
                   },
                   "required": [
@@ -66266,6 +66367,60 @@
                   "eligible",
                   "provisional",
                   "excluded"
+                ],
+                "additionalProperties": false
+              },
+              "scope": {
+                "type": "object",
+                "properties": {
+                  "inventory": {
+                    "type": "string",
+                    "enum": [
+                      "retained",
+                      "active_verified_first_day"
+                    ]
+                  },
+                  "stored": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "ranked": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "matched": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "available": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 100
+                  },
+                  "truncated": {
+                    "type": "boolean"
+                  },
+                  "maximum": {
+                    "type": "number",
+                    "const": 100
+                  },
+                  "search_before_limit": {
+                    "type": "boolean",
+                    "const": true
+                  }
+                },
+                "required": [
+                  "inventory",
+                  "stored",
+                  "ranked",
+                  "matched",
+                  "available",
+                  "truncated",
+                  "maximum",
+                  "search_before_limit"
                 ],
                 "additionalProperties": false
               }

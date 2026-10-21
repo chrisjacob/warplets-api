@@ -122,7 +122,7 @@ describe("cached graded browsing and unchanged action snapshots",()=>{
   it("pins pagination to its observation clock and rejects sort, source and stale-cursor changes",async()=>{
     const {db}=dbFixture(),input=await ideal();for(let i=1;i<=3;i++)await put(db,{...input.candidate,address:key(i)});
     vi.useFakeTimers();vi.setSystemTime(at);const env={TENX_DB:db,TENX_LOCAL_ONLY:"true"} as LocalEnv,base="http://127.0.0.1:8794/api/10x/candidates?limit=1&view=cards";
-    const first=await (await handle(new Request(base),env)).json() as {next_cursor:string;data:{candidates:{address:string}[]}};expect(first.next_cursor.length).toBeLessThanOrEqual(300);
+    const first=await (await handle(new Request(base),env)).json() as {next_cursor:string;data:{candidates:{address:string}[]}};expect(first.next_cursor.length).toBeLessThanOrEqual(512);
     vi.setSystemTime(new Date(at.getTime()+30000));const url=base+`&cursor=${encodeURIComponent(first.next_cursor)}`;
     const next=await handle(new Request(url),env);expect(next.status).toBe(200);expect((await next.json() as typeof first).data.candidates[0]!.address).not.toBe(first.data.candidates[0]!.address);
     expect((await handle(new Request(url+"&sort=liquidity"),env)).status).toBe(409);

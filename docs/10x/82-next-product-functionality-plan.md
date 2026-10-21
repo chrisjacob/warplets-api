@@ -4,6 +4,8 @@
 
 **Recommendation:** finish an effective Solana discovery MVP before expanding launch/reward functionality. Build broad token coverage, a comparable daily workspace, meaningful activity measurements and a prospectively evaluated scoring revision. Existing one-token investigations become regression fixtures. This plan changes no runtime, source allocation, model, gate or deployment.
 
+**First implementation delivered:** [83 — rotating coverage and discovery workspace](83-rotating-coverage-and-discovery-workspace.md) records the shipped F1/F2 slice and remaining work. The review table below describes the planning baseline. Common activity normalization, live rotation smoke within available capacity and three-token comparison remain next.
+
 ## What the review found
 
 | Area | Actually available | Product gap |

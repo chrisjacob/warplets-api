@@ -6,7 +6,8 @@ import { sqliteD1 } from "../../app/functions/_lib/sqliteTestDb";
 import { key } from "./wallet-fixtures.test-helper";
 import { gmgnDescriptor } from "./gmgn-request";
 import { normalizeGmgn } from "./gmgn-normalize";
-import { gmgnStatus, runGmgnReview, gmgnSavedReview, gmgnPublicSummary, gmgnCandleWindow, runGmgnPilot, gmgnPilotHasCapacity, GMGN_PILOT_MINTS } from "./gmgn";
+import { gmgnStatus, runGmgnReview, gmgnSavedReview, gmgnPublicSummary, gmgnCandleWindow, runGmgnPilot, gmgnPilotHasCapacity } from "./gmgn";
+import {fixtureCandidates} from "./fixtures";
 import { windowEntries, windowId, windowAddress, windowEnd } from "./gmgn-window-fixtures.test-helper";
 import { GMGN_USE_AUTHORITY } from "./gmgn-model";
 import { hashJson } from "./solana";
@@ -203,7 +204,9 @@ describe("GMGN owned integration and evidence boundaries", () => {
     expect(response.status).toBe(200); expect(await response.json()).toMatchObject({ observations: 0, scoring_effect: "none" }); expect(network).not.toHaveBeenCalled();
   });
   it("uses only one spare existing capture, counts failures and advances its declared cohort without retries", async () => {
-    const { db, sqlite, settings } = setup(), fetcher = vi.fn(async () => Response.json({ code: 0, data: { address: GMGN_PILOT_MINTS[0] } }));
+    const { db, sqlite, settings } = setup(), fetcher = vi.fn(async () => Response.json({ code: 0, data: { address } }));
+    const candidate={...(await fixtureCandidates(at))[0]!,mode:"live",address};
+    await db.prepare("INSERT INTO tenx_candidates(mode,address,pool,payload,checked_at) VALUES('live',?1,?2,?3,?4)").bind(address,candidate.pool,JSON.stringify(candidate),candidate.checked_at).run();
     expect(await gmgnPilotHasCapacity(settings, at)).toBe(true);
     expect(await runGmgnPilot(settings, 3, fetcher, () => at)).toMatchObject({ state: "held", provider_requests: 0 }); expect(fetcher).not.toHaveBeenCalled();
     expect(await runGmgnPilot(settings, 2, fetcher, () => at)).toMatchObject({ state: "retained", provider_requests: 1 });

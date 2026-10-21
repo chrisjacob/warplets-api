@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useState } from "react";
 import type { AssessedCandidate, Proof } from "../../../discovery/src/model";
 import type { CandidateCard as Card } from "../../../discovery/src/candidate-card";
 import { CardListResponse } from "./client";
+import {DiscoveryWorkspaceControls,DiscoveryTable,discoveryView,discoveryViewParams,discoveryCandidatesUrl} from "./DiscoveryWorkspace";
 import { navigateDiscovery } from "./navigation";
 import { DiscoveryNav } from "./DiscoveryNav";
 import { CollectionDetails, isCollectionAnchor } from "./CollectionDetails";
@@ -126,25 +127,29 @@ function Discover() {
     moveLegacyAnchor(); window.addEventListener('hashchange', moveLegacyAnchor);
     return () => window.removeEventListener('hashchange', moveLegacyAnchor);
   }, []);
-  const [mode, setMode] = useState<"live" | "fixture">("live"), [filter, setFilter] = useState("all");
-  const [age, setAge] = useState("24h"),[sort,setSort]=useState("score");
-  const url = `/api/10x/candidates?mode=${mode}&limit=100&view=cards&status=${filter}&age=${mode === "fixture" ? "all" : age}&sort=${sort}`;
+  const [view,setView]=useState(()=>discoveryView(window.location.search));
+  const {mode,status:filter,sort}=view;
+  const setMode=(mode:"live"|"fixture")=>setView(v=>({...v,mode})),setFilter=(status:typeof view.status)=>setView(v=>({...v,status}));
+  useEffect(()=>{const pop=()=>setView(discoveryView(window.location.search));window.addEventListener("popstate",pop);return()=>window.removeEventListener("popstate",pop);},[]);
+  useEffect(()=>{window.history.replaceState(window.history.state,"",`${window.location.pathname}?${discoveryViewParams(view)}${window.location.hash}`);},[view]);
+  const url = discoveryCandidatesUrl(view);
   const { data, error } = useRemote(signal => getJson(url, CardListResponse, signal), url);
   const artwork = useTokenArtwork(mode === "live" ? data?.data.candidates.map(c => c.address) ?? [] : []);
   const reviewAt = new Date(), capReviews = data?.data.candidates.filter(c => reportedCapReview(c, reviewAt, DEFAULT_POLICY.max_market_age_seconds)).length ?? 0;
   return <>
     <header className="tenx-heading tenx-heading--discover"><p className="tenx-eyebrow">SOLANA / ORIGINAL TOKENS</p><h1>Discover memecoins.</h1><p>Compare scores, explore the charts and check the evidence.</p></header>
-    <div className="tenx-toolbar"><label>Sort by<select value={sort} onChange={e=>setSort(e.target.value)}><option value="score">Discovery score · highest first</option><option value="liquidity">Fresh reported liquidity</option></select></label>{mode === "live" && <label>Created<select value={age} onChange={e => setAge(e.target.value)}><option value="24h">Past 24 hours · verified</option><option value="all">All stored observations</option></select></label>}</div>
+    <DiscoveryWorkspaceControls key={[view.q,view.min_liquidity,view.min_coverage].join(":")} view={view} onChange={setView}/>
     <p className="tenx-footnote">Scores grade measured support, not the chance of safety. Missing evidence and observed risks remain visible. <a href="/transparency">How scoring works →</a></p>
     {mode === "fixture" && <aside className="tenx-notice">SIMULATION — synthetic examples, not live tokens or verified market data. <button className="tenx-button tenx-button--quiet" onClick={() => setMode("live")}>Return to live observations</button></aside>}
     {error && <p className="tenx-notice" role="alert">{error} {data ? "The last response remains visible." : "Start the local discovery service to load data."}</p>}
-    {data ? <><Freshness data={data} /><p>{data.data.candidates.length} tokens in this view · {sort==="score"?"Ranked by Discovery score":"Ordered by fresh reported liquidity"} · 100 maximum</p>
+    {data ? <><Freshness data={data} /><p>{data.data.candidates.length} shown{data.data.scope?` of ${data.data.scope.matched} matching tokens · ${data.data.scope.stored} stored in this inventory`:""} · {sort==="score"?"Ranked by Discovery score":"Ordered by fresh reported liquidity"} · 100 maximum</p>
+      {data.data.scope&&<p className="tenx-footnote">Search and filters run before the 100-result display limit. Ranks refer to the full date and action-check view. {data.data.scope.truncated?"More matches exist; narrow your search to find them. ":""}This inventory is our saved chain-observed coverage, not every Solana token. {view.age==="24h"&&mode==="live"?"Tokens without a verified first-day creation time are outside this view.":"Expired observations can appear and remain subject to all freshness checks."}</p>}
       <div className="tenx-section-title"><h2>{filter === "all" ? "Ranked observations" : `${filter[0]!.toUpperCase()} action checks`}</h2><span>Score / 100</span></div>
-      {data.data.candidates.length ? data.data.candidates.map(c => <CandidateCard key={c.address} candidate={c} metadataUrl={artwork[c.address]?.image_url} metadataLoading={mode === "live" && artwork[c.address] === undefined} />) : <section className="tenx-empty"><h2>No tokens match this view</h2><p>Change the date or action-check filter to inspect other observations. Missing data remains unknown in every score.</p><a href="/status">Inspect data status →</a></section>}
+      {data.data.candidates.length ? view.layout==="table"?<DiscoveryTable candidates={data.data.candidates} artwork={artwork} scoredAt={data.data.scored_at??data.as_of}/>:data.data.candidates.map(c => <CandidateCard key={c.address} candidate={c} metadataUrl={artwork[c.address]?.image_url} metadataLoading={mode === "live" && artwork[c.address] === undefined} />) : <section className="tenx-empty"><h2>No tokens match this view</h2><p>Change the search, date or filters to inspect other observations. Missing data remains unknown in every score.</p><a href="/status">Inspect data status →</a></section>}
       {!!capReviews && <p className="tenx-footnote">{capReviews} tokens have reported caps above $10M within 24 hours of verified creation. Each is flagged for review; this does not change eligibility or ranking.</p>}
       <p className="tenx-footnote">Checks do not guarantee safety. Images and names can be copied; confirm the mint address.</p>
     </> : !error && <p role="status" className="tenx-empty">Loading discovery…</p>}
-    <details className="tenx-list-options"><summary>Action-check filters & example data</summary><p>All observed tokens can be scored. Separate eligibility gates still govern future voting and launch decisions; buying links do not count as votes. Names and artwork can be copied.</p><label>Action checks<select value={filter} onChange={e => setFilter(e.target.value)}><option value="all">All ranked observations</option><option value="eligible">Eligible</option><option value="provisional">Provisional</option><option value="excluded">Excluded</option></select></label><label>Data source<select value={mode} onChange={e => setMode(e.target.value as "live" | "fixture")}><option value="live">Saved live observations</option><option value="fixture">Simulation examples</option></select></label>{data&&<p>Action readiness across observed inputs: {data.data.counts.eligible} eligible · {data.data.counts.provisional} provisional · {data.data.counts.excluded} excluded. This is separate from score ranking.</p>}</details>
+    <details className="tenx-list-options"><summary>Action-check filters & example data</summary><p>All observed tokens can be scored. Separate eligibility gates still govern future voting and launch decisions; buying links do not count as votes. Names and artwork can be copied.</p><label>Action checks<select value={filter} onChange={e => setFilter(e.target.value as typeof view.status)}><option value="all">All ranked observations</option><option value="eligible">Eligible</option><option value="provisional">Provisional</option><option value="excluded">Excluded</option></select></label><label>Data source<select value={mode} onChange={e => setMode(e.target.value as "live" | "fixture")}><option value="live">Saved live observations</option><option value="fixture">Simulation examples</option></select></label>{data&&<p>Action readiness across observed inputs: {data.data.counts.eligible} eligible · {data.data.counts.provisional} provisional · {data.data.counts.excluded} excluded. This is separate from score ranking.</p>}</details>
   </>;
 }
 function CandidateDetail({ address }: { address: string }) {

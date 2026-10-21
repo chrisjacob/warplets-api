@@ -11,7 +11,7 @@ export const SOURCE_COLLECTION_LIMITS = { daily_requests: 20, market_daily_maxim
 const Id = z.string().regex(/^[a-zA-Z0-9_-]{1,80}$/);
 export interface SourceReservation { id: string; owner: string; request_hash: string }
 
-export async function reserveSourceFetch(db: D1Database, id: string, raw: unknown, marketDailyLimit: number, now = new Date(), mode: ResearchMode = "bounded"): Promise<SourceReservation | null> {
+export async function reserveSourceFetch(db: D1Database, id: string, raw: unknown, marketDailyLimit: number, now = new Date(), mode: ResearchMode = "bounded", scheduledDay?:string): Promise<SourceReservation | null> {
   Id.parse(id);
   const limits = researchLimits(mode);
   z.number().int().min(0).max(SOURCE_COLLECTION_LIMITS.market_daily_maximum).parse(marketDailyLimit);
@@ -36,8 +36,10 @@ export async function reserveSourceFetch(db: D1Database, id: string, raw: unknow
           json_extract(request,'$.series.end_at')!=json_extract(?4,'$.series.end_at'))))
       AND (?9 IS NULL OR (SELECT count(*) FROM tenx_source_reservations WHERE day=?6)<?9)
       AND (?10 IS NULL OR ${sharedResearchRecords}<?10) AND (?11 IS NULL OR ${sharedResearchBytes}+?8<=?11)
-      AND COALESCE((SELECT used FROM tenx_usage WHERE provider='market' AND day=?6),0)<?12`)
-      .bind(id, owner, request_hash, JSON.stringify(request), at, day, until, SOURCE_COLLECTION_LIMITS.reserved_bytes, limits.source_daily_requests, limits.daily_records, limits.daily_bytes, marketDailyLimit),
+      AND COALESCE((SELECT used FROM tenx_usage WHERE provider='market' AND day=?6),0)<?12
+      AND (?13 IS NULL OR (?6=?13 AND (SELECT count(*) FROM tenx_source_reservations WHERE day=?6 AND
+        json_extract(request,'$.kind') IN ('gmgn_token_info','gmgn_token_security','gmgn_token_pool','gmgn_token_candles'))<21))`)
+      .bind(id, owner, request_hash, JSON.stringify(request), at, day, until, SOURCE_COLLECTION_LIMITS.reserved_bytes, limits.source_daily_requests, limits.daily_records, limits.daily_bytes, marketDailyLimit,scheduledDay??null),
     db.prepare(`INSERT INTO tenx_usage(provider,day,used) SELECT 'market',?1,1 WHERE EXISTS(SELECT 1 FROM tenx_source_reservations WHERE id=?2 AND owner=?3)
       ON CONFLICT(provider,day) DO UPDATE SET used=used+1`).bind(day, id, owner),
     db.prepare("UPDATE tenx_source_transport_control SET next_at=?1 WHERE id=1 AND EXISTS(SELECT 1 FROM tenx_source_reservations WHERE id=?2 AND owner=?3)")
