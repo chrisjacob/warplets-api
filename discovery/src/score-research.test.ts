@@ -74,7 +74,7 @@ describe("bounded score retention on existing local maintenance",()=>{
   it("publishes once with a single atomic audit and never substitutes a later grade",async()=>{
     const {db,sqlite}=setup(),c=await cohort();await lease(db);expect(await publishScoreCohort(db,c,"owner",at)).toBe(true);
     const updated=await candidate();updated.market!.liquidity_usd=0;expect(await publishScoreCohort(db,await cohort(updated),"owner",at)).toBe(false);
-    expect((await scoreResearchDetail(db,c.summary.address))!.cohort).toEqual(c);expect(sqlite.prepare("SELECT count(*) n FROM tenx_audit WHERE action='score_cohort'").get()).toEqual({n:1});
+    expect((await scoreResearchDetail(db,c.summary.address,"discovery-score-v1"))!.cohort).toEqual(c);expect(sqlite.prepare("SELECT count(*) n FROM tenx_audit WHERE action='score_cohort'").get()).toEqual({n:1});
   });
   it.each(["paused","expired","replaced"])("prevents publication after %s",async state=>{
     const {db,sqlite}=setup(),c=await cohort();await lease(db);
@@ -114,7 +114,7 @@ describe("bounded score retention on existing local maintenance",()=>{
     const {db}=setup(),base=await candidate();await lease(db);
     for(let i=0;i<6;i++)expect(await publishScoreCohort(db,await cohort({...base,address:key(120+i)}),"owner",at)).toBe(true);
     await db.prepare("UPDATE tenx_score_control SET lease_owner=NULL,lease_until=NULL").run();
-    expect(await runScoreResearch(db,mature)).toMatchObject({finalized:5});expect((await scoreResearch(db,mature)).counts).toEqual({captured:6,pending:1,measured:0,insufficient:5});
+    expect(await runScoreResearch(db,mature)).toMatchObject({finalized:5});expect((await scoreResearch(db,mature,"discovery-score-v1")).counts).toEqual({captured:6,pending:1,measured:0,insufficient:5});
     expect(await runScoreResearch(db,new Date(mature.getTime()+60000))).toMatchObject({finalized:1});
   });
   it("holds an oversized cached endpoint series instead of measuring its truncated prefix",async()=>{
@@ -131,6 +131,6 @@ describe("bounded score retention on existing local maintenance",()=>{
   it("serves cached strict research and replay endpoints without enabling capabilities",async()=>{
     const {db}=setup(),c=await candidate();await put(db,c);await runScoreResearch(db,at);const env={TENX_DB:db,TENX_ADMIN_TOKEN:"a".repeat(64),TENX_LOCAL_ONLY:"true"} as LocalEnv;
     const response=await handle(new Request("http://127.0.0.1:8794/api/10x/research/scores"),env);expect(response.status).toBe(200);expect(response.headers.get("cache-control")).toBe("no-store");
-    const detail=await handle(new Request(`http://127.0.0.1:8794/api/10x/research/scores/solana/${c.address}`),env);expect(detail.status).toBe(200);expect((await detail.json() as {replay:string}).replay).toBe("verified");
+    const detail=await handle(new Request(`http://127.0.0.1:8794/api/10x/research/scores/solana/${c.address}?model=discovery-score-v2`),env);expect(detail.status).toBe(200);expect((await detail.json() as {replay:string}).replay).toBe("verified");
   });
 });

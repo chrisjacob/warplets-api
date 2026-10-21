@@ -214,11 +214,12 @@ function TradingActivity({address}:{address:string}) {
 function ResearchView() {
   const { data, error } = useRemote(signal => getJson("/api/10x/research/reviews", ReviewsResponse, signal), "reviews");
   const signals = useRemote(signal => getJson("/api/10x/research/signals",SignalsResponse,signal),"signals");
-  const scores=useRemote(signal=>getJson("/api/10x/research/scores",ScoreResearchResponse,signal),"score-research");
+  const [scoreModel,setScoreModel]=useState<"discovery-score-v1"|"discovery-score-v2">("discovery-score-v2");
+  const scores=useRemote(signal=>getJson(`/api/10x/research/scores?model=${scoreModel}`,ScoreResearchResponse,signal),`score-research:${scoreModel}`);
   const followup=useRemote(signal=>getJson("/api/10x/research/scores/followup",ScoreFollowupResponse,signal),"score-followup");
   return <><header className="tenx-heading"><p className="tenx-eyebrow">RESEARCH / DAILY REVIEW</p><h1>Learn from yesterday.</h1><p>Frozen selection-time metrics, later outcomes, and testable filter proposals. Missing evidence remains visible.</p></header>
     <aside className="tenx-notice">Reviews run automatically on the local timer, using Australia/Sydney calendar days. Recommendations are tracked separately from observed tokens. Proposed rules do not change the active policy.</aside>
-    <ScoreResearch data={scores.data?.data??null} error={scores.error} collection={<ScoreFollowup data={followup.data?.data??null} error={followup.error}/>} />
+    <ScoreResearch data={scores.data?.data?.model===scoreModel?scores.data.data:null} error={scores.error} model={scoreModel} onModelChange={setScoreModel} collection={<ScoreFollowup data={followup.data?.data??null} error={followup.error}/>} />
     <SignalResearch data={signals.data?.data ?? null} error={signals.error} />
     {data && <section className="tenx-panel"><h2>Collecting today · {data.data.collection.day}</h2><p>{data.data.collection.tokens} observed tokens · {data.data.collection.recommended} recommended selections. First observations and first eligible recommendations are retained separately. {data.data.collection.wallet_samples} usable wallet-sample baselines are frozen for later outcome review.</p><p>Last snapshot: {time(data.data.collection.last_snapshot_at)}. Each 24-hour outcome remains pending until its observation window matures and an acceptable endpoint is available.</p></section>}
     {error && <p role="alert">{error}</p>}{data?.data.reports.map(report => <section className="tenx-panel" key={report.input_hash}><div className="tenx-row"><h2>{report.day}</h2><span>{report.counts.measured} measured / {report.counts.observed} tracked</span></div>

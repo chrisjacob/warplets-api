@@ -4,12 +4,15 @@ Reviewed 20 October 2026 against the entire [PRD v1.1](spec/10X_MEME_FULL_PRD_v1
 
 ## What exists and what is incomplete
 
+Current research update, 21 October: [prospective v2 capture and model-separated outcomes](61-versioned-score-research.md), local migration 0038, now records current v2 grades and retains the archived v1 study unchanged. Research defaults to v2 and provides a separate v1 view with pinned replay links. Pending outcomes share five total finalizations and five distinct-token spare collection slots; daily 100-record / 10 MB admission and all provider/evidence gates remain. Mature outcomes and independent calibration remain open. No deploy.
+
 Market-integrity update, 21 October: [XTO review and versioned score-v2 checks](60-market-integrity-score.md) adds dated ceilings for abrupt sampled price moves, thin reported depth relative to cap and dust-dominated post-creation trade samples. Material later buys replace raw buyer counts for participation credit; flagged momentum earns no points. Cards and details explain the evidence. V1 replay, its labelled prospective comparator, all action gates and free collection limits remain. Independent calibration and prospective v2 cohorts remain open. No deploy.
 
 - [x] Resolve the reported pool to the exact XTO mint; retain the original scorecard and bounded price/trade regression evidence.
 - [x] Add explainable generic jump, relative-depth and dust-trading checks in discovery-score-v2; preserve v1 replay and action/election gates.
 - [x] Show score ceilings and price/trading sample metrics; export and replay either model version.
-- [ ] Retain prospective v2 outcome cohorts separately from the ongoing frozen v1 comparator.
+- [x] Retain prospective v2 outcome cohorts separately from the archived v1 study; preserve old payloads, hashes, endpoints and replay.
+- [ ] Collect mature v1/v2 outcomes and review missingness and time-separated validation.
 - [ ] Independently evaluate labelled adversarial/benign samples and false positives before calibrating thresholds.
 
 Score endpoint update, 21 October: [bounded follow-up after candidate expiry](59-score-endpoint-followup.md) now places pending score-cohort endpoints into at most five spare targets in the existing market batch. History-only publication preserves expired candidate payloads, frozen cohorts and action gates; original-source/baseline/identity holds, HTTP-failure cooldown, source backoff and owned publication remain. Research shows next windows and collection gaps. This fixes a collection-scope omission in the retention milestone; real next-day outcomes, usable baseline coverage and calibrated chronological validation remain outstanding.

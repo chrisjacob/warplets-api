@@ -47,6 +47,7 @@ import { marketBatches,marketBatchRecord } from "./market-batch-store";
 import {candidateScorecard,rankedDiscovery,scoreInventoryCandidates} from "./discovery-score-store";
 import {DiscoveryScoreError} from "./discovery-score";
 import {replayAnyDiscoveryScore} from "./discovery-score-v2";
+import {ScoreModelSchema} from "./score-research-model";
 import {runScoreResearch,scoreResearch,scoreResearchDetail} from "./score-research";
 import {ScoreResearchError} from "./score-research-analysis";
 import {scoreFollowupPlan} from "./score-followup";
@@ -175,11 +176,11 @@ export async function handle(request: Request, env: Env): Promise<Response> {
   }
   if (method === "GET" && path === "/api/10x/transparency/policies") return json(await envelope(env, await publicPolicy()));
   if (method === "GET" && path === "/api/10x/research/signals") return json(await envelope(env, await signalResearch(env.TENX_DB)));
-  if(method==="GET"&&path==="/api/10x/research/scores")return json(await envelope(env,await scoreResearch(env.TENX_DB)));
+  if(method==="GET"&&path==="/api/10x/research/scores")return json(await envelope(env,await scoreResearch(env.TENX_DB,new Date(),ScoreModelSchema.parse(url.searchParams.get("model")??"discovery-score-v1"))));
   if(method==="GET"&&path==="/api/10x/research/scores/followup")return json(await envelope(env,await scoreFollowupPlan(env.TENX_DB,z.enum(["dexscreener","geckoterminal"]).parse(env.TENX_MARKET_PROVIDER),env.TENX_MARKET_ENABLED==="true")));
   const scoreResearchEvidence=path.match(/^\/api\/10x\/research\/scores\/solana\/([^/]+)$/);
   if(method==="GET"&&scoreResearchEvidence){
-    const detail=await scoreResearchDetail(env.TENX_DB,Address.parse(scoreResearchEvidence[1]));
+    const detail=await scoreResearchDetail(env.TENX_DB,Address.parse(scoreResearchEvidence[1]),ScoreModelSchema.parse(url.searchParams.get("model")??"discovery-score-v1"));
     return detail?json(detail):json({error:"score_cohort_not_found"},404);
   }
   const signalEvidence = path.match(/^\/api\/10x\/research\/signals\/solana\/([^/]+)\/([^/]+)$/);

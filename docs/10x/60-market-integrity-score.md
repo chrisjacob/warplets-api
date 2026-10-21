@@ -32,4 +32,6 @@ Validation completed: 871 backend tests across 53 files; 75 discovery UI tests a
 
 ## Remaining validation
 
+[Prospective v2 retention is now implemented](61-versioned-score-research.md); new captures use v2 while archived v1 outcomes finish without rewriting records. The remaining validation points below describe the original review checkpoint.
+
 V2 is a transparent conservative review model, not a calibrated scam probability. Independent labelled evaluation, v2 prospective outcome cohorts, richer post-migration trades, true beneficial ownership, source quote cross-checking and actual executable depth remain open. Do not tune the frozen v1 cohort retrospectively or claim this single example validates thresholds.

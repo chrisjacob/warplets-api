@@ -4,10 +4,11 @@ import {ScoreResearch} from "./ScoreResearch";
 import {ScoreResearchSchema} from "../../../discovery/src/score-research-model";
 import {fixtureCandidates} from "../../../discovery/src/fixtures";
 import {defaultScoreInput,freezeDiscoveryScore} from "../../../discovery/src/discovery-score";
+import {defaultScoreInputV2,freezeDiscoveryScoreV2} from "../../../discovery/src/discovery-score-v2";
 import {freezeScoreCohort,freezeScoreOutcome,SCORE_OUTCOME_DELAY} from "../../../discovery/src/score-research-analysis";
 
 const at=new Date("2026-10-21T01:00:00.000Z");
-const empty=()=>ScoreResearchSchema.parse({at:at.toISOString(),scope:"latest_500_score_cohorts",capped:false,automatic_policy_changes:false,provider_requests:0,limits:{daily_records:100,daily_bytes:10000000},today:{day:"2026-10-21",records:0,bytes:0},automation:{next_at:null,last_success:null,last_error:null},counts:{captured:0,pending:0,measured:0,insufficient:0},bands:[0,20,40,60,80].map(minimum=>({minimum,maximum:minimum===80?100:minimum+19,captured:0,pending:0,measured:0,insufficient:0,severe_declines:0})),recent:[],attempts:[]});
+const empty=()=>ScoreResearchSchema.parse({at:at.toISOString(),model:"discovery-score-v1",scope:"latest_500_score_cohorts",capped:false,automatic_policy_changes:false,provider_requests:0,limits:{daily_records:100,daily_bytes:10000000},today:{day:"2026-10-21",records:0,bytes:0},automation:{next_at:null,last_success:null,last_error:null},counts:{captured:0,pending:0,measured:0,insufficient:0},bands:[0,20,40,60,80].map(minimum=>({minimum,maximum:minimum===80?100:minimum+19,captured:0,pending:0,measured:0,insufficient:0,severe_declines:0})),recent:[],attempts:[]});
 async function original(){const c={...(await fixtureCandidates(at))[0]!,mode:"live" as const};return freezeScoreCohort(await freezeDiscoveryScore(defaultScoreInput(c,at)));}
 it("explains prospective empty research without inventing historic scores or validated weights",()=>{
   const html=renderToStaticMarkup(<ScoreResearch data={empty()} error=""/>);
@@ -25,4 +26,9 @@ it("keeps missing outcomes insufficient and explains a reported total decline wi
 it("reports stale refreshes, UTC storage bounds and capture gaps without losing saved observations",()=>{
   const data=empty();data.automation.last_error="score_research_unavailable";data.capped=true;const html=renderToStaticMarkup(<ScoreResearch data={data} error="unavailable"/>);
   for(const text of ["last response remains visible","capped view","Today’s UTC storage","0 / 100 records","0.00 / 10 MB","Research needs attention"])expect(html).toContain(text);
+});
+it("separates the current v2 study and pins its exported links to the model",async()=>{
+  const candidate={...(await fixtureCandidates(at))[0]!,mode:"live" as const},c=await freezeScoreCohort(await freezeDiscoveryScoreV2(defaultScoreInputV2(candidate,at))),data=empty();data.model="discovery-score-v2";data.recent=[{cohort:c.summary,outcome:null}];
+  const html=renderToStaticMarkup(<ScoreResearch data={data} error="" onModelChange={()=>{}}/>);
+  for(const text of ["Current discovery-score-v2 study","Archived v1","Research score model","?model=discovery-score-v2","Results stay separate by model","not matched comparisons","across both models"])expect(html).toContain(text);
 });

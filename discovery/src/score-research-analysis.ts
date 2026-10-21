@@ -1,6 +1,7 @@
 import {assess,PolicySchema} from "./model";
-import {replayDiscoveryScore,scoreSummary} from "./discovery-score";
-import type {ScoreRecord} from "./discovery-score-model";
+import {scoreSummary} from "./discovery-score";
+import {replayAnyDiscoveryScore,scoreSummaryV2} from "./discovery-score-v2";
+import type {AnyScoreRecord} from "./discovery-score-v2-model";
 import {ScoreCohortHeaderSchema,ScoreCohortSchema,ScoreCohortSummarySchema,ScoreEndpointSchema,ScoreOutcomeInputSchema,ScoreOutcomeResultSchema,ScoreOutcomeSchema,ScoreOutcomeSummarySchema,type ScoreCohort,type ScoreCohortSummary,type ScoreOutcome} from "./score-research-model";
 import type {z} from "zod";
 import {hashJson} from "./solana";
@@ -14,14 +15,14 @@ export async function verifyScoreCohortSummary(raw:ScoreCohortSummary){
   if(r.captured_at!==r.score.as_of||await hashJson(header)!==cohort_hash)throw new ScoreResearchError("score_cohort_summary_mismatch");
   return r;
 }
-export async function freezeScoreCohort(scorecard:ScoreRecord,includeActionPolicy=true):Promise<ScoreCohort>{
-  await replayDiscoveryScore(scorecard);
+export async function freezeScoreCohort(scorecard:AnyScoreRecord,includeActionPolicy=true):Promise<ScoreCohort>{
+  await replayAnyDiscoveryScore(scorecard);
   const c=scorecard.inputs.candidate,at=new Date(scorecard.result.as_of),now=at.getTime();
   if(c.mode!=="live"||!c.creation||Date.parse(c.creation.block_time)>now||now-Date.parse(c.creation.block_time)>86_400_000)throw new ScoreResearchError("recent_live_creation_required");
   const times=[c.checked_at,c.first_seen_at,c.creation.fetched_at,c.graduation?.fetched_at,c.graduation?.block_time,c.risk.observed_at,c.holders?.observed_at,c.wallet_analysis?.observed_at,c.market?.fetched_at,c.market?.observed_at];
   if(times.some(t=>t&&Date.parse(t)>now)||scorecard.inputs.prices.some(p=>Date.parse(p.fetched_at)>now||p.observed_at&&Date.parse(p.observed_at)>now))throw new ScoreResearchError("future_score_evidence_not_captured");
   const m=c.market,baseline=m&&now-Date.parse(m.fetched_at)<=180000&&(!m.observed_at||Date.parse(m.observed_at)<=Date.parse(m.fetched_at))?ScoreEndpointSchema.parse({source:m.source,fetched_at:m.fetched_at,observed_at:m.observed_at,price_usd:m.price_usd,liquidity_usd:m.liquidity_usd}):null;
-  const header=ScoreCohortHeaderSchema.parse({version:"score-cohort-v1",address:c.address,symbol:c.symbol,captured_at:at.toISOString(),score:scoreSummary(scorecard),action_status:assess(c,ACTION_POLICY_V1,at).eligibility,baseline});
+  const header=ScoreCohortHeaderSchema.parse({version:"score-cohort-v1",address:c.address,symbol:c.symbol,captured_at:at.toISOString(),score:scorecard.version==="discovery-scorecard-v2"?scoreSummaryV2(scorecard):scoreSummary(scorecard),action_status:assess(c,ACTION_POLICY_V1,at).eligibility,baseline});
   return ScoreCohortSchema.parse({summary:{...header,cohort_hash:await hashJson(header)},scorecard,...(includeActionPolicy?{action_policy:ACTION_POLICY_V1}:{})});
 }
 export async function replayScoreCohort(raw:ScoreCohort){
