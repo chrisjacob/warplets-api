@@ -22,6 +22,7 @@ const Entry=z.discriminatedUnion("table",[
   z.object({table:z.literal("tenx_holder_evidence"),metadata:z.tuple([Identity,Text,z.number().int().safe(),Text]),object_sha256:Hash,row_sha256:Hash}).strict(),
   z.object({table:z.literal("tenx_wallet_evidence"),metadata:z.tuple([Identity,Text,Text]),object_sha256:Hash,row_sha256:Hash}).strict(),
 ]);
+export {Entry as EvidenceEntry,Original as EvidenceObject,Descriptor as EvidenceCipherDescriptor};
 const SCHEMA=[
   ["table","evidence_meta",`CREATE TABLE evidence_meta(id INTEGER PRIMARY KEY CHECK(id=1),header_json TEXT NOT NULL) STRICT`],
   ["table","evidence_objects",`CREATE TABLE evidence_objects(raw_sha256 TEXT PRIMARY KEY,ordinal INTEGER NOT NULL UNIQUE,original_json TEXT NOT NULL,sealed_json TEXT NOT NULL) WITHOUT ROWID, STRICT`],
@@ -109,6 +110,42 @@ export async function verifyEvidenceIndex(directory,pin){
   }finally{index.db.close();}
 }
 
+// Fully pinned private source material for a new immutable reference format.
+export async function readEvidenceIndexMaterial(directory,pin){
+  const index=await opened(directory,pin);
+  try{
+    if(index.db.prepare("PRAGMA integrity_check").get().integrity_check!=="ok"||index.db.prepare("PRAGMA foreign_key_check").all().length)throw Error("Evidence index SQLite integrity failure");
+    reconstructed(index.db,index.manifest,index.header);
+    const references=index.db.prepare(EVIDENCE_INDEX_LOOKUP_SQL.replace("WHERE r.table_name=? AND r.identity=?","ORDER BY r.ordinal")).all()
+      .map((saved,ordinal)=>({ordinal,...canonicalEvidenceReference({entry:JSON.parse(saved.entry_json),object:JSON.parse(saved.original_json),sealed:JSON.parse(saved.sealed_json)})}));
+    await unchanged(index);return {manifest:index.manifest,references};
+  }finally{index.db.close();}
+}
+
+export function canonicalEvidenceReference(reference){
+  z.object({entry:Entry,object:Original,sealed:Descriptor}).strict().parse(reference);
+  const {entry,object,sealed}=reference;descriptorPair(object,sealed);
+  if(entry.object_sha256!==object.sha256)throw Error("Evidence reference object mismatch");
+  return {entry:{table:entry.table,metadata:entry.metadata,object_sha256:entry.object_sha256,row_sha256:entry.row_sha256},
+    object:{sha256:object.sha256,bytes:object.bytes,gzip_bytes:object.gzip_bytes,gzip_sha256:object.gzip_sha256},
+    sealed:{sha256:sealed.sha256,bytes:sealed.bytes,iv:sealed.iv,tag:sealed.tag}};
+}
+
+// Caller must authenticate the reference against its retained index/root pin.
+export async function recoverEvidenceReference(sealedDirectory,sealedPin,keyFile,reference,privateFolder){
+  const {entry,object,sealed}=canonicalEvidenceReference(reference),envelope=await readSealedEnvelope(sealedDirectory,sealedPin);
+  const keyInfo=await evidenceRegularFile(keyFile,32);
+  if(keyInfo.bytes!==32||inside(envelope.folder,keyInfo.file)||inside(privateFolder,keyInfo.file))throw Error("A separate evidence key is required");
+  const key=await readFile(keyInfo.file);
+  try{
+    if(key.length!==32)throw Error("Evidence key length changed");
+    const file=await evidenceRegularFile(path.join(envelope.folder,"objects",sealed.sha256+".bin"),2100000);
+    if(file.bytes!==sealed.bytes)throw Error("Encrypted indexed object size mismatch");
+    const compressed=decryptEvidenceCiphertext(await readFile(file.file),sealed,key,"object|"+object.sha256),payload=decodeEvidenceBytes(compressed,object);
+    return {row:restoreEvidenceRow(entry,payload),row_sha256:entry.row_sha256,encrypted_object_bytes_read:file.bytes};
+  }finally{key.fill(0);}
+}
+
 export async function buildEvidenceIndex(directory,sealedPin,keyFile,target){
   const source=await evidencePrivatePath(directory),output=await evidencePrivatePath(target,true);
   if(inside(source,output)||inside(output,source))throw Error("Index destination must be separate from the sealed pack");
@@ -143,25 +180,19 @@ export async function buildEvidenceIndex(directory,sealedPin,keyFile,target){
 }
 
 export async function readIndexedEvidenceRow(indexDirectory,indexPin,sealedDirectory,keyFile,table,identity){
-  const index=await opened(indexDirectory,indexPin);let key;
+  const index=await opened(indexDirectory,indexPin);
   try{
     if(!["tenx_holder_evidence","tenx_wallet_evidence"].includes(table)||typeof identity!=="string"||identity.length>4096)throw Error("Unsupported indexed evidence identity");
     const saved=index.db.prepare(EVIDENCE_INDEX_LOOKUP_SQL).get(table,identity);
     if(!saved)throw Error("Evidence row not in pinned index");
     const entry=JSON.parse(saved.entry_json),object=JSON.parse(saved.original_json),sealed=JSON.parse(saved.sealed_json);Entry.parse(entry);descriptorPair(object,sealed);
     if(entry.table!==table||entry.metadata[0]!==identity||entry.object_sha256!==object.sha256)throw Error("Selected evidence identity mismatch");
-    const envelope=await readSealedEnvelope(sealedDirectory,index.manifest.source_sealed_manifest_sha256);
-    const keyInfo=await evidenceRegularFile(keyFile,32);
-    if(keyInfo.bytes!==32||inside(envelope.folder,keyInfo.file)||inside(index.folder,keyInfo.file))throw Error("A separate evidence key is required");
-    key=await readFile(keyInfo.file);if(key.length!==32)throw Error("Evidence key length changed");
-    const file=await evidenceRegularFile(path.join(envelope.folder,"objects",sealed.sha256+".bin"),2100000);
-    if(file.bytes!==sealed.bytes)throw Error("Encrypted indexed object size mismatch");
-    const compressed=decryptEvidenceCiphertext(await readFile(file.file),sealed,key,"object|"+object.sha256),payload=decodeEvidenceBytes(compressed,object),row=restoreEvidenceRow(entry,payload);
+    const recovered=await recoverEvidenceReference(sealedDirectory,index.manifest.source_sealed_manifest_sha256,keyFile,{entry,object,sealed},index.folder);
     await unchanged(index);
     return {index_manifest_sha256:indexPin,catalog_manifest_sha256:index.manifest.source_catalog_manifest_sha256,source_manifest_sha256:index.manifest.source_archive_manifest_sha256,
-      row,row_sha256:entry.row_sha256,table,objects_read:1,encrypted_catalog_bytes_read:0,encrypted_object_bytes_read:file.bytes,index_bytes_hashed:2*index.manifest.database.bytes,
+      ...recovered,table,objects_read:1,encrypted_catalog_bytes_read:0,index_bytes_hashed:2*index.manifest.database.bytes,
       other_objects_verified:false,action_authority:false,runtime_activated:false};
-  }finally{key?.fill(0);index.db.close();}
+  }finally{index.db.close();}
 }
 
 async function main([action,...args]){
