@@ -4,6 +4,15 @@ Reviewed 20 October 2026 against the entire [PRD v1.1](spec/10X_MEME_FULL_PRD_v1
 
 ## What exists and what is incomplete
 
+PONYX review, 21 October: [same-slot launch timing and score-v4](67-ponyx-launch-timing-review.md) corrects the overly generous 60-point early-cap ceiling for an immediately graduated launch. Exact finalized creation/graduation in one slot caps at 50; combined with the existing $5M-within-ten-minutes report, it caps at 25. Identical PONYX inputs change from archived v3 60 to current v4 25. No wash verdict, inferred purchase, mint blacklist or added source call. Local migration 0040 preserves all old research rows; the original shared limits and all action/election/evidence gates remain. UI/policy/export explain the dated concern; provider pilots and independent calibration remain open. No deploy.
+
+- [x] Retain PONYX’s exact v3 scorecard and diagnose the high early cap, same-slot launch and missing trade evidence.
+- [x] Add v4 same-slot/combined-cap ceilings, dated public explainers, strict export/replay and unchanged prior evaluators.
+- [x] Admit v4 research with local migration 0040 while preserving old rows, archived views and shared daily/maintenance/follow-up limits.
+- [x] Verify real regression, boundaries, proof contradictions, migration rollback, UI, typechecks/build and the existing preview.
+- [ ] Obtain representative permitted candle/trade/creator evidence; do not label chart appearance as proven wash trading.
+- [ ] Capture prospective v4 observations when capacity permits and independently measure false positives/outcomes before calibration.
+
 Source-activity continuation, 21 October: [combined Jupiter/GeckoTerminal file review](66-source-activity-review.md) retains the full selected mint inventory, validates supplied pool metadata and measures organic-volume shares, adjacent price runs/jumps and moving zero-volume bars. Coverage, source disagreement and missingness remain explicit; metadata consistency is not canonical chain proof, and GT score time remains unknown. Frozen offline CLI comparison/replay adds no live collection, score change, migration, credential or deployment. Rights/access, authenticated fixtures, atomic shared admission and prospective custom-v3 validation remain open. GMGN qualification is pending after the founder reports an independent $105 transfer; no further funding or API activation is performed.
 
 - [x] Combine selected Jupiter/GT files with an explicit full-inventory denominator and retained absent/rejected controls.

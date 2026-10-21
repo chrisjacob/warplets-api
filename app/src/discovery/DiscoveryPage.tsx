@@ -215,7 +215,7 @@ function TradingActivity({address}:{address:string}) {
 function ResearchView() {
   const { data, error } = useRemote(signal => getJson("/api/10x/research/reviews", ReviewsResponse, signal), "reviews");
   const signals = useRemote(signal => getJson("/api/10x/research/signals",SignalsResponse,signal),"signals");
-  const [scoreModel,setScoreModel]=useState<"discovery-score-v1"|"discovery-score-v2"|"discovery-score-v3">("discovery-score-v3");
+  const [scoreModel,setScoreModel]=useState<"discovery-score-v1"|"discovery-score-v2"|"discovery-score-v3"|"discovery-score-v4">("discovery-score-v4");
   const scores=useRemote(signal=>getJson(`/api/10x/research/scores?model=${scoreModel}`,ScoreResearchResponse,signal),`score-research:${scoreModel}`);
   const followup=useRemote(signal=>getJson("/api/10x/research/scores/followup",ScoreFollowupResponse,signal),"score-followup");
   return <><header className="tenx-heading"><p className="tenx-eyebrow">RESEARCH / DAILY REVIEW</p><h1>Learn from yesterday.</h1><p>Frozen selection-time metrics, later outcomes, and testable filter proposals. Missing evidence remains visible.</p></header>

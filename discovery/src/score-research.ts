@@ -1,12 +1,12 @@
 import {CandidateSchema} from "./model";
-import {DISCOVERY_SCORE_POLICY_V3} from "./discovery-score-v3-model";
-import {defaultScoreInputV3,freezeDiscoveryScoreV3} from "./discovery-score-v3";
+import {DISCOVERY_SCORE_POLICY_V4} from "./discovery-score-v4-model";
+import {defaultScoreInputV4,freezeDiscoveryScoreV4} from "./discovery-score-v4";
 import {DiscoveryScoreError} from "./discovery-score";
 import {scoreFirstMarkets,scoreIntegrityPriceInputs} from "./discovery-score-store";
 import {freezeScoreCohort,freezeScoreOutcome,replayScoreCohort,replayScoreOutcome,SCORE_OUTCOME_DELAY,ScoreResearchError,verifyScoreCohortSummary,verifyScoreOutcomeSummary} from "./score-research-analysis";
 import {SCORE_RESEARCH_LIMITS as L,ScoreCohortSchema,ScoreCohortSummarySchema,ScoreEndpointSchema,ScoreOutcomeSchema,ScoreOutcomeSummarySchema,ScoreResearchDetailSchema,ScoreResearchSchema,type ScoreCohort,type ScoreCohortSummary,type ScoreOutcome,type ScoreModel} from "./score-research-model";
 
-const currentModel=DISCOVERY_SCORE_POLICY_V3.version;
+const currentModel=DISCOVERY_SCORE_POLICY_V4.version;
 const guard="EXISTS(SELECT 1 FROM tenx_score_control WHERE id=1 AND lease_owner=?1 AND lease_until>?2) AND EXISTS(SELECT 1 FROM tenx_control WHERE id=1 AND paused=0)";
 export async function scoreResearchDetail(db:D1Database,address:string,model:ScoreModel=currentModel){
   const row=await db.prepare("SELECT payload,cohort_hash FROM tenx_score_cohorts WHERE address=?1 AND model=?2").bind(address,model).first<{payload:string;cohort_hash:string}>();
@@ -62,7 +62,7 @@ export async function runScoreResearch(db:D1Database,observedAt?:Date){
         if(candidate.address!==row.address)throw new ScoreResearchError("score_capture_identity_mismatch");
         const captureAt=now(),history=(await scoreIntegrityPriceInputs(db,[row.address],captureAt)).get(row.address);
         const firstMarket=(await scoreFirstMarkets(db,[row.address],captureAt)).get(row.address)??null;
-        const cohort=await freezeScoreCohort(await freezeDiscoveryScoreV3(defaultScoreInputV3(candidate,captureAt,history?.prices??[],history?.history_limited??false,firstMarket)));
+        const cohort=await freezeScoreCohort(await freezeDiscoveryScoreV4(defaultScoreInputV4(candidate,captureAt,history?.prices??[],history?.history_limited??false,firstMarket)));
         if(await publishScoreCohort(db,cohort,owner,now()))captured++;else gap="score_capture_paused_lease_lost_duplicate_or_daily_bound";
       }catch(error){if(error instanceof ScoreResearchError||error instanceof DiscoveryScoreError)gap=error.message;else throw error;}
       await db.prepare(`INSERT INTO tenx_score_attempts(address,model,attempted_at,gap) SELECT ?3,?5,?2,?4 WHERE ${guard} ON CONFLICT(address,model) DO UPDATE SET attempted_at=excluded.attempted_at,gap=excluded.gap`).bind(owner,now().toISOString(),row.address,gap,currentModel).run();

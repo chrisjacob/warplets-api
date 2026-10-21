@@ -1,7 +1,7 @@
 import {assess,shortlist,CandidateSchema,DEFAULT_POLICY,type Candidate,type AssessedCandidate} from "./model";
 import {DISCOVERY_SCORE_POLICY,ScorePriceSchema,type ScoreInput} from "./discovery-score-model";
 import {DiscoveryScoreError} from "./discovery-score";
-import {defaultScoreInputV3,freezeDiscoveryScoreV3,scoreSummaryV3} from "./discovery-score-v3";
+import {defaultScoreInputV4,freezeDiscoveryScoreV4,scoreSummaryV4} from "./discovery-score-v4";
 import {DISCOVERY_SCORE_POLICY_V2} from "./discovery-score-v2-model";
 import type {AnyScoreSummary} from "./discovery-score-models";
 import {FirstMarketSchema,type ScoreInputV3} from "./discovery-score-v3-model";
@@ -44,8 +44,8 @@ export async function rankedDiscovery(db:D1Database,candidates:Candidate[],at:Da
   const firstMarkets=await scoreFirstMarkets(db,source.filter(c=>c.mode==="live").map(c=>c.address),at);
   const actionRanks=new Map(shortlist(source,DEFAULT_POLICY,at).filter(c=>c.rank!==null).map(c=>[c.address,c.rank]));
   const rows=await Promise.all(source.map(async candidate=>{
-    const history=prices.get(candidate.address),record=await freezeDiscoveryScoreV3(defaultScoreInputV3(candidate,at,history?.prices??[],history?.history_limited??false,firstMarkets.get(candidate.address)??null));
-    return {...assess(candidate,DEFAULT_POLICY,at),rank:actionRanks.get(candidate.address)??null,discovery_score:scoreSummaryV3(record),discovery_rank:0};
+    const history=prices.get(candidate.address),record=await freezeDiscoveryScoreV4(defaultScoreInputV4(candidate,at,history?.prices??[],history?.history_limited??false,firstMarkets.get(candidate.address)??null));
+    return {...assess(candidate,DEFAULT_POLICY,at),rank:actionRanks.get(candidate.address)??null,discovery_score:scoreSummaryV4(record),discovery_rank:0};
   }));
   const counts={eligible:rows.filter(c=>c.eligibility==="eligible").length,provisional:rows.filter(c=>c.eligibility==="provisional").length,excluded:rows.filter(c=>c.eligibility==="excluded").length};
   const freshLiquidity=(c:ScoredCandidate)=>c.market&&Date.parse(c.market.fetched_at)<=at.getTime()&&(!c.market.observed_at||Date.parse(c.market.observed_at)<=at.getTime())&&at.getTime()-Date.parse(c.market.fetched_at)<=180000?c.market.liquidity_usd??0:0;
@@ -58,7 +58,7 @@ export async function candidateScorecard(db:D1Database,address:string,mode:"live
   if(!row)return null;if(!row.payload)throw new DiscoveryScoreError("discovery_score_input_size_limit");
   const candidate=CandidateSchema.parse(JSON.parse(row.payload)),history=mode==="live"?(await scoreIntegrityPriceInputs(db,[address],at)).get(address):undefined;
   const firstMarkets=mode==="live"?await scoreFirstMarkets(db,[address],at):new Map();
-  return freezeDiscoveryScoreV3(defaultScoreInputV3(candidate,at,history?.prices??[],history?.history_limited??false,firstMarkets.get(candidate.address)??null));
+  return freezeDiscoveryScoreV4(defaultScoreInputV4(candidate,at,history?.prices??[],history?.history_limited??false,firstMarkets.get(candidate.address)??null));
 }
 
 // Earliest retained quote, not a reconstructed first trade. Project bounded fields

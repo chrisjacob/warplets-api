@@ -131,6 +131,6 @@ describe("bounded score retention on existing local maintenance",()=>{
   it("serves cached strict research and replay endpoints without enabling capabilities",async()=>{
     const {db}=setup(),c=await candidate();await put(db,c);await runScoreResearch(db,at);const env={TENX_DB:db,TENX_ADMIN_TOKEN:"a".repeat(64),TENX_LOCAL_ONLY:"true"} as LocalEnv;
     const response=await handle(new Request("http://127.0.0.1:8794/api/10x/research/scores"),env);expect(response.status).toBe(200);expect(response.headers.get("cache-control")).toBe("no-store");
-    const detail=await handle(new Request(`http://127.0.0.1:8794/api/10x/research/scores/solana/${c.address}?model=discovery-score-v3`),env);expect(detail.status).toBe(200);expect((await detail.json() as {replay:string}).replay).toBe("verified");
+    const detail=await handle(new Request(`http://127.0.0.1:8794/api/10x/research/scores/solana/${c.address}?model=discovery-score-v4`),env);expect(detail.status).toBe(200);expect((await detail.json() as {replay:string}).replay).toBe("verified");
   });
 });

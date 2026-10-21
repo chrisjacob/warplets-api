@@ -12,7 +12,19 @@ import usdf from "../../../discovery/fixtures/score-usdf-review.json";
 import {ScoreRecordV2Schema} from "../../../discovery/src/discovery-score-v2-model";
 import {FirstMarketSchema,DISCOVERY_SCORE_POLICY_V3} from "../../../discovery/src/discovery-score-v3-model";
 import {defaultScoreInputV3,freezeDiscoveryScoreV3,scoreSummaryV3} from "../../../discovery/src/discovery-score-v3";
+import ponyx from "../../../discovery/fixtures/score-ponyx-review.json";
+import {ScoreRecordV3Schema} from "../../../discovery/src/discovery-score-v3-model";
+import {DISCOVERY_SCORE_POLICY_V4} from "../../../discovery/src/discovery-score-v4-model";
+import {defaultScoreInputV4,freezeDiscoveryScoreV4,scoreSummaryV4} from "../../../discovery/src/discovery-score-v4";
 const at=new Date("2026-10-21T01:00:00.000Z");
+it("explains PONYX's same-slot high-valuation ceiling without inventing a creation buy or a wash verdict",async()=>{
+  const old=ScoreRecordV3Schema.parse(ponyx.original),record=await freezeDiscoveryScoreV4(defaultScoreInputV4(old.inputs.candidate,new Date(old.inputs.as_of),old.inputs.prices,old.inputs.history_limited,old.inputs.first_market));
+  const html=renderToStaticMarkup(<DiscoveryScorePanel record={record}/>),badge=renderToStaticMarkup(<DiscoveryScoreBadge score={scoreSummaryV4(record)}/>);
+  for(const text of ["limit this score to 25","Launch timing review","same finalized slot (459466560)","7,195,545","limits it to 25 / 100","does not establish a shared bundle","discovery-score-v4","historical acquisition"])expect(html).toContain(text);
+  expect(badge).toContain("same slot high early reported valuation");expect(badge).toContain("same slot creation and graduation");
+  const method=renderToStaticMarkup(<DiscoveryScoreMethod policy={DISCOVERY_SCORE_POLICY_V4} policyHash={record.policy_hash}/>);
+  for(const text of ["same finalized slot at 50","combined ceiling is 25","provisional launch-integrity","lower of every applicable ceiling","Above 10%"])expect(method).toContain(text);
+});
 it("puts the graded score and evidence coverage before binary action status",async()=>{
   const c=(await fixtureCandidates(at))[0]!,record=await freezeDiscoveryScore(defaultScoreInput(c,at)),html=renderToStaticMarkup(<DiscoveryScoreBadge score={scoreSummary(record)} rank={1} />);
   expect(html).toContain("#1 · Discovery score");expect(html).toContain(" / 100");expect(html).toContain("Evidence coverage");expect(html).not.toContain("eligible");

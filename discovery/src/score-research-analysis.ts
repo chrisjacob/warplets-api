@@ -2,6 +2,7 @@ import {assess,PolicySchema} from "./model";
 import {scoreSummary} from "./discovery-score";
 import {scoreSummaryV2} from "./discovery-score-v2";
 import {scoreSummaryV3} from "./discovery-score-v3";
+import {scoreSummaryV4} from "./discovery-score-v4";
 import {replayAnyDiscoveryScore} from "./discovery-score-replay";
 import type {AnyScoreRecord} from "./discovery-score-models";
 import {ScoreCohortHeaderSchema,ScoreCohortSchema,ScoreCohortSummarySchema,ScoreEndpointSchema,ScoreOutcomeInputSchema,ScoreOutcomeResultSchema,ScoreOutcomeSchema,ScoreOutcomeSummarySchema,type ScoreCohort,type ScoreCohortSummary,type ScoreOutcome} from "./score-research-model";
@@ -22,10 +23,10 @@ export async function freezeScoreCohort(scorecard:AnyScoreRecord,includeActionPo
   const c=scorecard.inputs.candidate,at=new Date(scorecard.result.as_of),now=at.getTime();
   if(c.mode!=="live"||!c.creation||Date.parse(c.creation.block_time)>now||now-Date.parse(c.creation.block_time)>86_400_000)throw new ScoreResearchError("recent_live_creation_required");
   const times=[c.checked_at,c.first_seen_at,c.creation.fetched_at,c.graduation?.fetched_at,c.graduation?.block_time,c.risk.observed_at,c.holders?.observed_at,c.wallet_analysis?.observed_at,c.market?.fetched_at,c.market?.observed_at];
-  if(scorecard.version==="discovery-scorecard-v3")times.push(scorecard.inputs.first_market?.fetched_at,scorecard.inputs.first_market?.observed_at);
+  if(scorecard.version==="discovery-scorecard-v3"||scorecard.version==="discovery-scorecard-v4")times.push(scorecard.inputs.first_market?.fetched_at,scorecard.inputs.first_market?.observed_at);
   if(times.some(t=>t&&Date.parse(t)>now)||scorecard.inputs.prices.some(p=>Date.parse(p.fetched_at)>now||p.observed_at&&Date.parse(p.observed_at)>now))throw new ScoreResearchError("future_score_evidence_not_captured");
   const m=c.market,baseline=m&&now-Date.parse(m.fetched_at)<=180000&&(!m.observed_at||Date.parse(m.observed_at)<=Date.parse(m.fetched_at))?ScoreEndpointSchema.parse({source:m.source,fetched_at:m.fetched_at,observed_at:m.observed_at,price_usd:m.price_usd,liquidity_usd:m.liquidity_usd}):null;
-  const header=ScoreCohortHeaderSchema.parse({version:"score-cohort-v1",address:c.address,symbol:c.symbol,captured_at:at.toISOString(),score:scorecard.version==="discovery-scorecard-v3"?scoreSummaryV3(scorecard):scorecard.version==="discovery-scorecard-v2"?scoreSummaryV2(scorecard):scoreSummary(scorecard),action_status:assess(c,ACTION_POLICY_V1,at).eligibility,baseline});
+  const header=ScoreCohortHeaderSchema.parse({version:"score-cohort-v1",address:c.address,symbol:c.symbol,captured_at:at.toISOString(),score:scorecard.version==="discovery-scorecard-v4"?scoreSummaryV4(scorecard):scorecard.version==="discovery-scorecard-v3"?scoreSummaryV3(scorecard):scorecard.version==="discovery-scorecard-v2"?scoreSummaryV2(scorecard):scoreSummary(scorecard),action_status:assess(c,ACTION_POLICY_V1,at).eligibility,baseline});
   return ScoreCohortSchema.parse({summary:{...header,cohort_hash:await hashJson(header)},scorecard,...(includeActionPolicy?{action_policy:ACTION_POLICY_V1}:{})});
 }
 export async function replayScoreCohort(raw:ScoreCohort){

@@ -1,5 +1,7 @@
 # Free data sources for 10X: research and comparison
 
+Later local correction: [PONYX score-v4](67-ponyx-launch-timing-review.md) adds same-slot launch concerns from existing cached proofs/reports. It does not activate these proposed sources or validate provider scores. Preregister the chosen custom model version before prospective comparisons; retain all earlier artifacts and original aggregate budgets.
+
 Reviewed 21 October 2026, Australia/Sydney. Scope: Solana tokens in their first 24 hours, particularly Pump/PumpSwap; grading, manipulation review, launch valuation, holders, creator history and replayable evidence. This is public-documentation research, including Birdeye's rendered Free-plan controls and feature matrix. No authenticated API benchmark, account creation, subscription, funding, signing, integration or deployment occurred. Limits below are published offers, not measured coverage or granted product rights.
 
 GMGN follow-up, 21 October: the founder supplied API Management wording confirming a $100 minimum balance for Free, with assets refreshed hourly. This is a user-supplied account-page receipt, not an authenticated account check. It changes GMGN's access classification to balance-gated; actual qualification, endpoint permissions and data rights remain open. No funding is authorized. See the [recorded receipt and remaining G0 checks](63-gmgn-api-evaluation-and-plan.md#access-cost-and-permission-findings).

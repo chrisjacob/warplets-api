@@ -1,0 +1,832 @@
+{
+  "original": {
+    "version": "discovery-scorecard-v3",
+    "inputs": {
+      "version": "discovery-score-input-v3",
+      "as_of": "2026-10-21T04:35:23.903Z",
+      "policy": {
+        "version": "discovery-score-v3",
+        "weights": {
+          "origin": 10,
+          "controls": 15,
+          "market": 20,
+          "holders": 25,
+          "wallets": 25,
+          "performance": 5
+        },
+        "targets": {
+          "market_cap_usd": 100000,
+          "liquidity_usd": 25000,
+          "liquidity_cap_ratio": 0.05,
+          "holders": 100,
+          "buyers": 3,
+          "top1_pct": 10,
+          "top10_pct": 35,
+          "creator_pct": 5,
+          "dev_funded_pct": 20,
+          "dev_sold_pct": 5
+        },
+        "freshness_seconds": {
+          "controls": 600,
+          "market": 180,
+          "holders": 1800,
+          "wallets": 3600
+        },
+        "decay_end_multiple": 4,
+        "performance": {
+          "window_seconds": 7200,
+          "min_span_seconds": 1800,
+          "max_gap_seconds": 1800,
+          "min_samples": 6,
+          "max_samples": 64,
+          "return_band": 0.25
+        },
+        "risk_ceiling": {
+          "rejected_origin": 0,
+          "active_authority": 40,
+          "single_owner_end": 10,
+          "top10_end": 30,
+          "wallet_exposure_end": 20
+        },
+        "integrity": {
+          "history_seconds": 86400,
+          "max_samples": 256,
+          "jump_gap_seconds": 600,
+          "jump_up_ratio": 2,
+          "jump_down_ratio": 0.5,
+          "jump_ceiling": 40,
+          "depth_reference_ratio": 0.05,
+          "depth_curve": "square_root",
+          "dust_quote_lamports": "1000000",
+          "participation_quote_lamports": "10000000",
+          "dust_min_trades": 5,
+          "dust_min_wallets": 3,
+          "dust_fraction": 0.8,
+          "dust_ceiling": 40
+        },
+        "launch_review": {
+          "creation_reference_pct": 10,
+          "creation_end_pct": 80,
+          "creation_end_ceiling": 20,
+          "early_window_seconds": 600,
+          "early_cap_usd": 5000000,
+          "early_cap_ceiling": 60
+        },
+        "staircase": {
+          "min_samples": 60,
+          "min_span_seconds": 21600,
+          "max_gap_seconds": 600,
+          "min_return_pct": 10,
+          "max_drawdown_pct": 2,
+          "min_jump_pct": 3,
+          "min_jumps": 2,
+          "rate_multiple": 10,
+          "min_log_return_share": 0.5,
+          "ceiling": 50
+        }
+      },
+      "candidate": {
+        "chain": "solana",
+        "address": "ZyGXWijSJEgcCDb8CeSJ4Vj33iceATGoeKGidnfpump",
+        "pool": "GMaTXZjzeUpR1dzH3qi7QDfaYobo2VD9c1gj2xSzY2A6",
+        "name": "PROJECT ONYX",
+        "symbol": "PONYX",
+        "creation": {
+          "kind": "creation",
+          "signature": "2ndgJekqvVJFgduJ8U9MiKt9Lg1PgRTJ3FKoGdK3WRPX9JQmoDkwo5h9BXaPuv5YBufLDhYYiU7diQd8zosTNxva",
+          "slot": 459466560,
+          "block_time": "2026-10-21T02:43:21.000Z",
+          "instruction": "create_v2",
+          "instruction_index": "2",
+          "program": "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P",
+          "payload_hash": "a5c5adcbc9fe32a00bc8661018558863430e1f0aecba9093c8cb922f08db3618",
+          "fetched_at": "2026-10-21T02:58:51.912Z",
+          "source": "solana-finalized-rpc",
+          "adapter_version": "pump-639b87fb45c3-v1"
+        },
+        "graduation": {
+          "kind": "graduation",
+          "signature": "4RxWofiUYN1N9NzMbC5hQWjPMnMEWQydyRTKiDU5ezrebgmPTES8jy8N9VAXPZzpz8du2Z5emnWQP5JX5brytm2C",
+          "slot": 459466560,
+          "block_time": "2026-10-21T02:43:21.000Z",
+          "instruction": "migrate_v2",
+          "instruction_index": "2",
+          "program": "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P",
+          "payload_hash": "180efad0fd2214285c32cdee76961edfc26075f31c602b60f80cccbc1c651fa5",
+          "fetched_at": "2026-10-21T02:58:51.912Z",
+          "source": "solana-finalized-rpc",
+          "adapter_version": "pump-639b87fb45c3-v1"
+        },
+        "verification": "verified",
+        "verification_reasons": [],
+        "risk": {
+          "mint_authority": "revoked",
+          "freeze_authority": "revoked",
+          "token_program": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+          "mint_extensions": [
+            18,
+            19
+          ],
+          "holder_concentration": "unknown",
+          "pool_reserves_verified": true,
+          "observed_at": "2026-10-21T04:33:52.740Z",
+          "context_slot": 459497239,
+          "payload_hash": "ec2fafa2da0a1df46655f4208983ef70dcbbe1fd2984ee6a3fe14104d45c8e13"
+        },
+        "market": {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T04:34:52.257Z",
+          "observed_at": null,
+          "price_usd": 0.007511,
+          "market_cap_usd": 7509511,
+          "fdv_usd": 7509511,
+          "liquidity_usd": 234701.72,
+          "volume_24h_usd": 117411.04,
+          "image_url": null
+        },
+        "first_seen_at": "2026-10-21T02:43:59.834Z",
+        "checked_at": "2026-10-21T04:33:52.740Z",
+        "holders": {
+          "version": "owners-v2",
+          "status": "verified",
+          "layout_certified": true,
+          "observed_at": "2026-10-21T04:12:55.992Z",
+          "context_slot": 459491467,
+          "payload_hash": "c8216aa5362afd38921fbf4804d1462f0429304d291b88ee0fa247362c5cbb53",
+          "supply_raw": "999737848931580",
+          "inventoried_raw": "999737848931580",
+          "account_count": 2036,
+          "holder_count": 2008,
+          "top1_pct": 2.192874,
+          "top10_pct": 3.988651,
+          "pool_pct": 1.57599,
+          "creator_pct": 0,
+          "creator": "59gCUVNynqqbExEEiKRqdvxYtbtR82kfKmbbdmePfQiN",
+          "owners": [
+            {
+              "owner": "FmzQK1h1VnXeic5aBsQgd7cmh3Zz6ZeGj3bXVyEv4yNF",
+              "amount_raw": "21922985134840",
+              "supply_pct": 2.192874,
+              "role": "holder"
+            },
+            {
+              "owner": "6GRcez6TvH227wDEDg9YvexpYRJ7kREh6U4feSfGcBF8",
+              "amount_raw": "1995113707308",
+              "supply_pct": 0.199564,
+              "role": "holder"
+            },
+            {
+              "owner": "GKkrwsQtTqZvkWFSEhnwn1isDkmNHYVVofRmeGeeVGvN",
+              "amount_raw": "1995045764265",
+              "supply_pct": 0.199557,
+              "role": "holder"
+            },
+            {
+              "owner": "7Lxr88snqLTA8hMt3eJzNqVTp1b6rzSGMvoemjfWRRXs",
+              "amount_raw": "1994854225407",
+              "supply_pct": 0.199538,
+              "role": "holder"
+            },
+            {
+              "owner": "fLjZfJwWdnddBRoZcqC42uUj23e9pjjoVLzsCpkG8Yz",
+              "amount_raw": "1994843420605",
+              "supply_pct": 0.199537,
+              "role": "holder"
+            },
+            {
+              "owner": "Cu2tFhWxka5U1VquwF8Fs8fNEp6fkcCubXEHKy34g5j8",
+              "amount_raw": "1994711882791",
+              "supply_pct": 0.199524,
+              "role": "holder"
+            },
+            {
+              "owner": "AfP7vmdn8DBWZFPqMAY4M7fJ6N2CY1YLtg1qFWAc2gU1",
+              "amount_raw": "1994659689675",
+              "supply_pct": 0.199519,
+              "role": "holder"
+            },
+            {
+              "owner": "5uj14NvRemxY4zc7iE6ewsgB7jN3QzE5askqBageLtk1",
+              "amount_raw": "1994632413820",
+              "supply_pct": 0.199516,
+              "role": "holder"
+            },
+            {
+              "owner": "FAXjve7iEQgTkbpPfg5fgpjCnm4PxQVjSySh3CAbMuT7",
+              "amount_raw": "1994627568885",
+              "supply_pct": 0.199516,
+              "role": "holder"
+            },
+            {
+              "owner": "2p5YtL3bHUvFF4CWLWb8vVH9EqYcTsd4oqaN94BjUJZE",
+              "amount_raw": "1994570803628",
+              "supply_pct": 0.19951,
+              "role": "holder"
+            },
+            {
+              "owner": "9tGJD57DVE8EDw4VK6w3gzqCR8HqchoFCmw9pep2DPY5",
+              "amount_raw": "1994482270150",
+              "supply_pct": 0.199501,
+              "role": "holder"
+            },
+            {
+              "owner": "CKTUC6KdfQzvzwdnK5Qo33whgpFdaivJwciKXkmJQ8EZ",
+              "amount_raw": "1994467983996",
+              "supply_pct": 0.1995,
+              "role": "holder"
+            },
+            {
+              "owner": "Ckq9PnksjQofdNANEtPYf3qFoCmz2NVR8xMyMi62vcqM",
+              "amount_raw": "1994149825149",
+              "supply_pct": 0.199468,
+              "role": "holder"
+            },
+            {
+              "owner": "FUEEZrFfG2JgWKTDw6512K7kwSJ5hcNUG1v3waKBpG2g",
+              "amount_raw": "1994131930489",
+              "supply_pct": 0.199466,
+              "role": "holder"
+            },
+            {
+              "owner": "9adqa2Wfc5eQJoAavb6YeWV18w3cBSGepggauuEnbK1d",
+              "amount_raw": "1994112195798",
+              "supply_pct": 0.199464,
+              "role": "holder"
+            },
+            {
+              "owner": "9JFnveLX7z2qdYSANfjHdFrynpVazK4GtSBnh97wiWPz",
+              "amount_raw": "1994093315425",
+              "supply_pct": 0.199462,
+              "role": "holder"
+            },
+            {
+              "owner": "DQdXAmtSxLYGJucZLuytnoEsxw9j6hx5yeDgL4VJDUYi",
+              "amount_raw": "1993991272349",
+              "supply_pct": 0.199452,
+              "role": "holder"
+            },
+            {
+              "owner": "8ALRqcv2yUNa4j6EbhK5HBhzZcaUY9sytmUVWxUx9c3H",
+              "amount_raw": "1993915046050",
+              "supply_pct": 0.199444,
+              "role": "holder"
+            },
+            {
+              "owner": "8arY6EL3KHHnFKudAgZoKLVkhF6FUpoUdHNVYRbTnpr3",
+              "amount_raw": "1993781422869",
+              "supply_pct": 0.199431,
+              "role": "holder"
+            },
+            {
+              "owner": "GMaTXZjzeUpR1dzH3qi7QDfaYobo2VD9c1gj2xSzY2A6",
+              "amount_raw": "15755759400311",
+              "supply_pct": 1.57599,
+              "role": "canonical_pool_vault"
+            }
+          ],
+          "gaps": [
+            "beneficial_owner_links_unknown",
+            "bundle_risk_unknown",
+            "lp_lock_status_unknown"
+          ]
+        },
+        "wallet_analysis": null,
+        "mode": "live"
+      },
+      "prices": [
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T02:47:51.413Z",
+          "observed_at": null,
+          "price_usd": 0.007195
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T03:02:51.145Z",
+          "observed_at": null,
+          "price_usd": 0.007269
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T03:06:51.176Z",
+          "observed_at": null,
+          "price_usd": 0.007225
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T03:09:51.200Z",
+          "observed_at": null,
+          "price_usd": 0.007289
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T03:12:51.857Z",
+          "observed_at": null,
+          "price_usd": 0.00729
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T03:16:51.231Z",
+          "observed_at": null,
+          "price_usd": 0.007303
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T03:20:51.274Z",
+          "observed_at": null,
+          "price_usd": 0.00731
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T03:23:51.328Z",
+          "observed_at": null,
+          "price_usd": 0.007327
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T03:26:51.331Z",
+          "observed_at": null,
+          "price_usd": 0.007334
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T03:29:51.362Z",
+          "observed_at": null,
+          "price_usd": 0.007353
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T03:32:52.306Z",
+          "observed_at": null,
+          "price_usd": 0.00737
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T03:36:51.247Z",
+          "observed_at": null,
+          "price_usd": 0.007391
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T03:39:51.466Z",
+          "observed_at": null,
+          "price_usd": 0.007404
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T03:43:51.435Z",
+          "observed_at": null,
+          "price_usd": 0.007411
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T03:47:51.530Z",
+          "observed_at": null,
+          "price_usd": 0.007426
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T03:50:51.590Z",
+          "observed_at": null,
+          "price_usd": 0.00745
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T03:54:51.382Z",
+          "observed_at": null,
+          "price_usd": 0.007468
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T03:58:51.671Z",
+          "observed_at": null,
+          "price_usd": 0.007478
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T04:02:08.029Z",
+          "observed_at": null,
+          "price_usd": 0.007436
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T04:05:52.567Z",
+          "observed_at": null,
+          "price_usd": 0.00745
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T04:09:52.111Z",
+          "observed_at": null,
+          "price_usd": 0.007465
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T04:12:52.855Z",
+          "observed_at": null,
+          "price_usd": 0.007474
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T04:16:52.355Z",
+          "observed_at": null,
+          "price_usd": 0.007481
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T04:20:52.408Z",
+          "observed_at": null,
+          "price_usd": 0.007484
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T04:23:52.449Z",
+          "observed_at": null,
+          "price_usd": 0.007493
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T04:27:52.599Z",
+          "observed_at": null,
+          "price_usd": 0.007498
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T04:30:55.906Z",
+          "observed_at": null,
+          "price_usd": 0.007506
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T04:34:52.257Z",
+          "observed_at": null,
+          "price_usd": 0.007511
+        }
+      ],
+      "history_limited": false,
+      "first_market": {
+        "source": "dexscreener",
+        "fetched_at": "2026-10-21T02:47:51.413Z",
+        "observed_at": null,
+        "market_cap_usd": 7195545
+      }
+    },
+    "result": {
+      "version": "discovery-score-result-v3",
+      "as_of": "2026-10-21T04:35:23.903Z",
+      "value": 60,
+      "evidence_coverage": 75,
+      "base_points": 68.13,
+      "ceiling": 60,
+      "criteria": [
+        {
+          "id": "creation",
+          "label": "Finalized creation",
+          "category": "origin",
+          "maximum": 6,
+          "points": 6,
+          "evidence_points": 6,
+          "status": "observed",
+          "value": true,
+          "observed_at": "2026-10-21T02:43:21.000Z",
+          "notes": []
+        },
+        {
+          "id": "graduation",
+          "label": "Finalized graduation",
+          "category": "origin",
+          "maximum": 4,
+          "points": 4,
+          "evidence_points": 4,
+          "status": "observed",
+          "value": true,
+          "observed_at": "2026-10-21T02:43:21.000Z",
+          "notes": []
+        },
+        {
+          "id": "mint_authority",
+          "label": "Mint authority revoked",
+          "category": "controls",
+          "maximum": 6,
+          "points": 6,
+          "evidence_points": 6,
+          "status": "observed",
+          "value": true,
+          "observed_at": "2026-10-21T04:33:52.740Z",
+          "notes": []
+        },
+        {
+          "id": "freeze_authority",
+          "label": "Freeze authority revoked",
+          "category": "controls",
+          "maximum": 4,
+          "points": 4,
+          "evidence_points": 4,
+          "status": "observed",
+          "value": true,
+          "observed_at": "2026-10-21T04:33:52.740Z",
+          "notes": []
+        },
+        {
+          "id": "pool_reserves",
+          "label": "Pool reserves verified",
+          "category": "controls",
+          "maximum": 5,
+          "points": 5,
+          "evidence_points": 5,
+          "status": "observed",
+          "value": true,
+          "observed_at": "2026-10-21T04:33:52.740Z",
+          "notes": []
+        },
+        {
+          "id": "reported_cap",
+          "label": "Reported market cap",
+          "category": "market",
+          "maximum": 5,
+          "points": 5,
+          "evidence_points": 5,
+          "status": "observed",
+          "value": 7509511,
+          "observed_at": "2026-10-21T04:34:52.257Z",
+          "notes": [
+            "provider_report_not_independent_supply",
+            "fdv_not_substituted"
+          ]
+        },
+        {
+          "id": "liquidity",
+          "label": "Reported liquidity",
+          "category": "market",
+          "maximum": 10,
+          "points": 10,
+          "evidence_points": 10,
+          "status": "observed",
+          "value": 234701.72,
+          "observed_at": "2026-10-21T04:34:52.257Z",
+          "notes": []
+        },
+        {
+          "id": "liquidity_ratio",
+          "label": "Liquidity / reported cap",
+          "category": "market",
+          "maximum": 5,
+          "points": 3.13,
+          "evidence_points": 5,
+          "status": "observed",
+          "value": 0.031253928518115225,
+          "observed_at": "2026-10-21T04:34:52.257Z",
+          "notes": [
+            "not_executable_exit_liquidity"
+          ]
+        },
+        {
+          "id": "holders",
+          "label": "Non-vault owner count",
+          "category": "holders",
+          "maximum": 5,
+          "points": 5,
+          "evidence_points": 5,
+          "status": "observed",
+          "value": 2008,
+          "observed_at": "2026-10-21T04:12:55.992Z",
+          "notes": []
+        },
+        {
+          "id": "top1_pct",
+          "label": "Largest owner concentration",
+          "category": "holders",
+          "maximum": 8,
+          "points": 8,
+          "evidence_points": 8,
+          "status": "observed",
+          "value": 2.192874,
+          "observed_at": "2026-10-21T04:12:55.992Z",
+          "notes": []
+        },
+        {
+          "id": "top10_pct",
+          "label": "Top ten concentration",
+          "category": "holders",
+          "maximum": 8,
+          "points": 8,
+          "evidence_points": 8,
+          "status": "observed",
+          "value": 3.988651,
+          "observed_at": "2026-10-21T04:12:55.992Z",
+          "notes": []
+        },
+        {
+          "id": "creator_pct",
+          "label": "Creation-user concentration",
+          "category": "holders",
+          "maximum": 4,
+          "points": 4,
+          "evidence_points": 4,
+          "status": "observed",
+          "value": 0,
+          "observed_at": "2026-10-21T04:12:55.992Z",
+          "notes": []
+        },
+        {
+          "id": "signed_creation_wallet",
+          "label": "Signed creation wallet",
+          "category": "wallets",
+          "maximum": 5,
+          "points": 0,
+          "evidence_points": 0,
+          "status": "unknown",
+          "value": false,
+          "observed_at": null,
+          "notes": [
+            "bounded_wallet_sample",
+            "evidence_unavailable"
+          ]
+        },
+        {
+          "id": "sampled_buyers",
+          "label": "Verified buyer sample",
+          "category": "wallets",
+          "maximum": 5,
+          "points": 0,
+          "evidence_points": 0,
+          "status": "unknown",
+          "value": 0,
+          "observed_at": null,
+          "notes": [
+            "evidence_unavailable",
+            "post_creation_buy_volume_at_least_0_01_sol"
+          ]
+        },
+        {
+          "id": "funding_windows",
+          "label": "Examined pre-buy funding windows",
+          "category": "wallets",
+          "maximum": 10,
+          "points": 0,
+          "evidence_points": 0,
+          "status": "unknown",
+          "value": null,
+          "observed_at": null,
+          "notes": [
+            "examined_windows_not_complete_lifetime_funding",
+            "evidence_unavailable"
+          ]
+        },
+        {
+          "id": "dev_funded_supply_pct",
+          "label": "Sampled dev-funded exposure",
+          "category": "wallets",
+          "maximum": 2.5,
+          "points": 0,
+          "evidence_points": 0,
+          "status": "unknown",
+          "value": null,
+          "observed_at": null,
+          "notes": [
+            "sample_only_not_lifetime_exposure",
+            "evidence_unavailable"
+          ]
+        },
+        {
+          "id": "dev_sold_supply_pct",
+          "label": "Sampled creation-wallet sales",
+          "category": "wallets",
+          "maximum": 2.5,
+          "points": 0,
+          "evidence_points": 0,
+          "status": "unknown",
+          "value": null,
+          "observed_at": null,
+          "notes": [
+            "sample_only_not_lifetime_exposure",
+            "evidence_unavailable"
+          ]
+        },
+        {
+          "id": "sampled_performance",
+          "label": "Sampled price performance",
+          "category": "performance",
+          "maximum": 5,
+          "points": 0,
+          "evidence_points": 5,
+          "status": "observed",
+          "value": 0.043919388464211284,
+          "observed_at": "2026-10-21T04:34:52.257Z",
+          "notes": [
+            "sampled_return_not_organic_demand",
+            "market_integrity_concern_withholds_momentum",
+            "launch_or_staircase_review_withholds_momentum"
+          ]
+        }
+      ],
+      "components": [
+        {
+          "category": "origin",
+          "maximum": 10,
+          "points": 10,
+          "evidence_points": 10
+        },
+        {
+          "category": "controls",
+          "maximum": 15,
+          "points": 15,
+          "evidence_points": 15
+        },
+        {
+          "category": "market",
+          "maximum": 20,
+          "points": 18.13,
+          "evidence_points": 20
+        },
+        {
+          "category": "holders",
+          "maximum": 25,
+          "points": 25,
+          "evidence_points": 25
+        },
+        {
+          "category": "wallets",
+          "maximum": 25,
+          "points": 0,
+          "evidence_points": 0
+        },
+        {
+          "category": "performance",
+          "maximum": 5,
+          "points": 0,
+          "evidence_points": 5
+        }
+      ],
+      "concerns": [
+        {
+          "code": "thin_reported_depth_relative_to_cap",
+          "ceiling": 79.06,
+          "observed_at": "2026-10-21T04:34:52.257Z"
+        },
+        {
+          "code": "high_early_reported_valuation",
+          "ceiling": 60,
+          "observed_at": "2026-10-21T02:47:51.413Z"
+        }
+      ],
+      "integrity": {
+        "scope": "cached_observations_not_fraud_verdict",
+        "history_limited": false,
+        "price_pairs": 26,
+        "largest_jump_pct": 0.89,
+        "jump_at": null,
+        "liquidity_cap_ratio": 0.031253928518115225,
+        "sampled_trades": 0,
+        "dust_trades": 0,
+        "sampled_wallets": 0,
+        "qualifying_buyers": 0,
+        "wallet_observed_at": null,
+        "gaps": [
+          "price_source_or_time_gap",
+          "trade_sample_unavailable",
+          "non_exhaustive_trade_sample",
+          "organic_trading_unverified"
+        ]
+      },
+      "launch_review": {
+        "creation_purchase_raw": null,
+        "observed_supply_raw": null,
+        "creation_purchase_observed_supply_pct": null,
+        "creation_at": "2026-10-21T02:43:21.000Z",
+        "supply_at": "2026-10-21T04:12:55.992Z",
+        "first_quote_at": "2026-10-21T02:47:51.413Z",
+        "first_quote_delay_seconds": 270.413,
+        "early_reported_cap_usd": 7195545,
+        "gaps": [
+          "purchase_ratio_uses_later_observed_supply",
+          "current_common_control_unknown",
+          "creation_purchase_or_supply_uncertified"
+        ]
+      },
+      "staircase": {
+        "status": "insufficient",
+        "samples": 27,
+        "span_seconds": 5521.112,
+        "source": "dexscreener",
+        "first_at": "2026-10-21T03:02:51.145Z",
+        "last_at": "2026-10-21T04:34:52.257Z",
+        "return_pct": null,
+        "max_drawdown_pct": null,
+        "median_absolute_rate_pct_per_minute": null,
+        "qualifying_jumps": 0,
+        "jump_log_return_share": null,
+        "gaps": [
+          "sampled_prices_not_candles",
+          "pattern_not_wash_trading_proof",
+          "source_or_sampling_boundary",
+          "staircase_history_insufficient"
+        ]
+      }
+    },
+    "input_hash": "4c1099473ad7730126d96bc6eac09ce8aa813fab69978388015b3522a59be8d1",
+    "policy_hash": "f811920178d941db701d570c30a4d567a3c3c03b4663d55c108474ddc4d11c57",
+    "result_hash": "fdcab354762a02fbab9be0c07f7263a5af73434055f1ca227779ae320bdbaaf1",
+    "record_hash": "4f7e0fdd62c8f712fbead2ca6006b26527d60b3ceb72cc0966e004e4a8bcccb9"
+  }
+}

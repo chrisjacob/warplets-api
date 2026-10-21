@@ -14,6 +14,12 @@ it("explains prospective empty research without inventing historic scores or val
   const html=renderToStaticMarkup(<ScoreResearch data={empty()} error=""/>);
   for(const text of ["No prospective grades retained yet","past scores are not invented","existing market allowance","automatic weight changes","Initial score weights remain uncalibrated","not trust categories"])expect(html).toContain(text);
 });
+it("labels current v4 and archived v3 without mixing their study or enabling policy changes",()=>{
+  const current=renderToStaticMarkup(<ScoreResearch data={null} error="" onModelChange={()=>{}}/>);
+  for(const text of ["Current discovery-score-v4 study","New captures use v4","Archived v3","existing v1, v2 and v3"])expect(current).toContain(text);
+  const data=empty();data.model="discovery-score-v3";
+  expect(renderToStaticMarkup(<ScoreResearch data={data} error=""/>)).toContain("Archived discovery-score-v3 study");
+});
 it("shows the original grade and coverage with a pending window and exact replay link",async()=>{
   const c=await original(),data=empty();data.recent=[{cohort:c.summary,outcome:null}];const html=renderToStaticMarkup(<ScoreResearch data={data} error=""/>);
   expect(html).toContain(`${c.summary.score.value} / 100`);expect(html).toContain(`${c.summary.score.evidence_coverage}% effective evidence coverage`);expect(html).toContain("Awaiting 24h outcome + collection grace");expect(html).toContain(`/api/10x/research/scores/solana/${c.summary.address}`);expect(html).not.toContain("Price 0.00%");
