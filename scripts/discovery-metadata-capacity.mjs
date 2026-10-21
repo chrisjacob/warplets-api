@@ -56,6 +56,8 @@ function inventory(db,deadline,omitPayload=false){
   });
 }
 function preservation(rows){return rows.map(({table,columns,rows,values_sha256})=>({table,columns,rows,values_sha256}));}
+// Read-only typed-value fingerprints for isolated mutable-target comparisons.
+export function metadataValueInventory(db){return preservation(inventory(db,performance.now()+300000));}
 function evidenceMatches(source,refs){
   let count=0,rawBytes=0;const objects=new Map();
   for(const [table,names] of Object.entries(COLUMNS)){

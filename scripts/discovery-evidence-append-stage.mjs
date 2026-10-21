@@ -104,6 +104,9 @@ async function ticketAt(open,id){
 export async function readStagedEvidenceAppend(options,ticket){
   const open=await contextAt(options);try{return {...await verified(open,ticket),...held()};}finally{open.key.fill(0);}
 }
+export async function inspectEvidenceAppendStage(options){
+  const open=await contextAt(options);try{return {context_pin:open.pin,...open.body,...held()};}finally{open.key.fill(0);}
+}
 export async function stageEvidenceAppend(options,{stageId,table,row:input}){
   Id.parse(stageId);const {row,raw}=rowInput(table,input);let open,payloadKey,descriptorKey,compressed,descriptorPlain;
   try{

@@ -89,6 +89,9 @@ jobs:
       - name: Private encrypted append staging and fault recovery
         run: pnpm test:discovery-append-stage
 
+      - name: Isolated fenced metadata publication and acknowledgement recovery
+        run: pnpm test:discovery-publication
+
       - name: Install dependencies (app)
         working-directory: app
         run: pnpm install --frozen-lockfile
