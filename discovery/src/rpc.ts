@@ -9,22 +9,35 @@ export async function persistRpcBackoff(db: D1Database, error: unknown, now: Dat
   const until = new Date(now.getTime() + error.retryAfterSeconds * 1000).toISOString();
   await db.prepare("UPDATE tenx_control SET last_error='rpc_rate_limited',retry_after=?1 WHERE id=1 AND (retry_after IS NULL OR retry_after<?1)").bind(until).run();
 }
+export const JSON_STREAM_LIMITS = { chunks: 4096, timeout_ms: 12_000, initial_buffer_bytes: 8192 } as const;
 export async function boundedJson(response: Response, limit = 3_000_000): Promise<unknown> {
   if (!response.body) throw new SourceError("empty_response");
   const reader = response.body.getReader();
-  const chunks: Uint8Array[] = []; let length = 0;
+  // Count empty fragments too: a byte ceiling alone does not bound stream work.
+  // Grow one bounded buffer instead of retaining an object for every fragment.
+  let bytes = new Uint8Array(Math.min(limit, JSON_STREAM_LIMITS.initial_buffer_bytes));
+  let length = 0, chunks = 0, expired = false;
+  const deadline = performance.now() + JSON_STREAM_LIMITS.timeout_ms;
+  const cancel = () => { void reader.cancel().catch(() => undefined); };
+  const timer = setTimeout(() => { expired = true; cancel(); }, JSON_STREAM_LIMITS.timeout_ms);
   try {
     while (true) {
-      const chunk = await reader.read(); if (chunk.done) break;
-      length += chunk.value.byteLength;
-      if (length > limit) throw new SourceError("response_too_large");
-      chunks.push(chunk.value);
+      const chunk = await reader.read();
+      // Check monotonic time as well: immediate microtasks can delay timers.
+      if (expired || performance.now() >= deadline) throw new SourceError("response_timeout");
+      if (chunk.done) break;
+      if (++chunks > JSON_STREAM_LIMITS.chunks) throw new SourceError("response_fragment_limit");
+      const next = length + chunk.value.byteLength;
+      if (next > limit) throw new SourceError("response_too_large");
+      if (next > bytes.length) {
+        const grown = new Uint8Array(Math.min(limit, Math.max(next, bytes.length * 2)));
+        grown.set(bytes.subarray(0, length)); bytes = grown;
+      }
+      bytes.set(chunk.value, length); length = next;
     }
-  } catch (error) { await reader.cancel().catch(() => undefined); throw error; }
-  finally { reader.releaseLock(); }
-  const bytes = new Uint8Array(length); let offset = 0;
-  for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.length; }
-  try { return JSON.parse(new TextDecoder().decode(bytes)); } catch { throw new SourceError("invalid_json"); }
+  } catch (error) { if (!expired) cancel(); throw error; }
+  finally { clearTimeout(timer); reader.releaseLock(); }
+  try { return JSON.parse(new TextDecoder().decode(bytes.subarray(0, length))); } catch { throw new SourceError("invalid_json"); }
 }
 const InstructionSchema = z.object({
   programIdIndex: z.number().int().min(0).max(255),

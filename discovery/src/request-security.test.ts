@@ -42,5 +42,9 @@ it("returns protected errors before touching the database and sets security head
     [req({ authorization: `Bearer ${token}`, "content-type": "application/json" }, "x".repeat(32001)), 413],
   ];
   for (const [request, status] of cases) { const r = await worker.fetch(request, env); expect(r.status).toBe(status); for (const [key, value] of Object.entries(API_HEADERS)) expect(r.headers.get(key)).toBe(value); }
+  const fragmented=new Request("http://localhost:8794/api/10x/admin/rewards/lab",{method:"POST",headers:{authorization:`Bearer ${token}`,"content-type":"application/json"},body:new ReadableStream({pull(c){c.enqueue(new Uint8Array());}},{highWaterMark:0}),duplex:"half"} as RequestInit);
+  const held=await worker.fetch(fragmented,env);expect(held.status).toBe(413);expect(await held.json()).toEqual({error:"request_body_too_fragmented"});
+  vi.useFakeTimers();const stalled=new Request("http://localhost:8794/api/10x/admin/rewards/lab",{method:"POST",headers:{authorization:`Bearer ${token}`,"content-type":"application/json"},body:new ReadableStream({pull(){return new Promise<void>(()=>{});}}),duplex:"half"} as RequestInit),pending=worker.fetch(stalled,env);
+  await vi.advanceTimersByTimeAsync(12000);const expired=await pending;expect(expired.status).toBe(408);expect(await expired.json()).toEqual({error:"request_body_timeout"});for(const [key,value]of Object.entries(API_HEADERS))expect(expired.headers.get(key)).toBe(value);vi.useRealTimers();
   expect(prepare).not.toHaveBeenCalled();
 });

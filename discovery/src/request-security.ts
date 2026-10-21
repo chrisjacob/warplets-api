@@ -25,6 +25,8 @@ export async function adminJson(request: Request): Promise<unknown> {
   try { return await boundedJson(new Response(request.body), 32000); }
   catch (error) {
     if (error instanceof SourceError && error.code === "response_too_large") throw new RequestSecurityError("request_body_too_large", 413);
+    if (error instanceof SourceError && error.code === "response_fragment_limit") throw new RequestSecurityError("request_body_too_fragmented", 413);
+    if (error instanceof SourceError && error.code === "response_timeout") throw new RequestSecurityError("request_body_timeout", 408);
     if (error instanceof SourceError && ["empty_response", "invalid_json"].includes(error.code)) throw new RequestSecurityError("invalid_request_json", 400);
     throw error;
   }

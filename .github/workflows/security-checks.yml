@@ -41,6 +41,15 @@ jobs:
       - name: Root security preflight
         run: pnpm security:preflight
 
+      - name: Untrusted JSON stream resource and admin guards
+        run: pnpm --dir discovery test -- src/bounded-json.test.ts src/request-security.test.ts
+
+      - name: Native isolated JSON stream deadline and cancellation
+        run: node scripts/check-bounded-json-runtime.mjs .tmp/ci-bounded-json-runtime
+
+      - name: JSON stream validation tooling types
+        run: pnpm exec tsc --noEmit -p tsconfig.stream-guards.json
+
       - name: Private Discovery archive integrity and path guards
         run: pnpm test:discovery-archives
 
