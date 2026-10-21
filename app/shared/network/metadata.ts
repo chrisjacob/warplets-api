@@ -6,7 +6,7 @@ export const NETWORK_CSP = [
 ].join('; ');
 export function networkHtml(html: string, origin: string, path = '/') {
   const title = 'Network State Protocol Map · 10X';
-  const description = 'Explore the geography and affiliations of Farcaster accounts with original Network School acceptance signatures on Base.';
+  const description = 'People, places, and progress on Farcaster. Explore currently opted-in Network State Protocol members.';
   return html.replace(/<title>[\s\S]*?<\/title>/i, `<title>${title}</title>`)
     .replace(/<meta[^>]+(?:name|property)=["'](?:fc:miniapp|fc:frame|base:app_id|og:[^"']+|twitter:[^"']+|description|application-name|apple-mobile-web-app-title)["'][^>]*>/gi, '')
     .replace(/<link[^>]+rel=["'](?:canonical|manifest|icon|shortcut icon|apple-touch-icon)["'][^>]*>/gi, '')

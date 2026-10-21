@@ -30,6 +30,15 @@ describe('public signer directory', () => {
     expect(first.members[0].wallet).toMatchObject({status:'pending',usd:null});
     expect(first.members[0].location).toBe('Australia');
   });
+  it('excludes former and unobserved members across counts, snapshots and wallet coverage',async()=>{
+    const {db,d1}=fixture();
+    db.exec("UPDATE network_profiles SET opt_in_status='opted_out' WHERE fid=1; UPDATE network_profiles SET opt_in_status='moderated_out' WHERE fid=2; UPDATE network_profiles SET opt_in_status='unavailable' WHERE fid=3");
+    const {publishSnapshot}=await import('./store');const snapshot=await publishSnapshot(d1,true);
+    expect(snapshot?.population).toBe(26);expect(snapshot?.cells.every(c=>c.vote==='opted_in')).toBe(true);
+    expect((await readNetworkMembers(d1,new URLSearchParams())).total).toBe(26);
+    expect((await readNetworkMembers(d1,new URLSearchParams('q=1'))).members).toEqual([]);
+    expect(snapshot?.wallet?.associationsObserved).toBe(0);
+  });
   it('filters small public groups without hiding profiles and searches usernames, display names and FIDs', async () => {
     const { d1 } = fixture();
     for (const params of ['country=AU', 'q=%40user1&country=AU', 'q=Member+1&country=AU', 'q=1&country=AU', 'token=none&country=AU']) expect((await readNetworkMembers(d1, new URLSearchParams(params))).members.map(m => m.fid)).toEqual([1]);

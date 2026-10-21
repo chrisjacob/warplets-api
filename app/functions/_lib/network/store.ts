@@ -1,6 +1,8 @@
+import { NETWORK_CURRENT_COHORT } from './cohort';
+import { encodeNetworkSnapshot } from './snapshot';
 import { refreshNetworkWarplets } from './warplets';
 import { NETWORK_GEOGRAPHY_VERSION, resolveNetworkLocation } from './geography';
-import { NETWORK_DEPLOY_BLOCK, type NetworkCell, type NetworkSnapshot, type NetworkToken } from '../../../shared/network/model';
+import { NETWORK_OG_LAST_FID, NETWORK_DEPLOY_BLOCK, type NetworkCell, type NetworkSnapshot, type NetworkToken } from '../../../shared/network/model';
 import type { NetworkProfile } from '../../../shared/network/normalize';
 import type { AcceptanceEvent } from './source';
 import { mergeWalletCells, walletSnapshot } from './walletSnapshot';
@@ -47,7 +49,7 @@ export async function publishSnapshot(db: D1Database, force = false): Promise<Ne
   const wallet = await walletSnapshot(db);
   const warplets = await refreshNetworkWarplets(db);
   // The FID rows are folded into a private aggregate cube before publication.
-  const data = await db.prepare(`WITH cohort AS (SELECT fid FROM network_events UNION SELECT fid FROM network_confirmed), signers AS (SELECT c.fid,MIN(e.event_at) AS first_at FROM cohort c LEFT JOIN network_events e ON e.fid=c.fid GROUP BY c.fid)
+  const data = await db.prepare(`WITH cohort AS (${NETWORK_CURRENT_COHORT}), signers AS (SELECT c.fid,MIN(e.event_at) AS first_at FROM cohort c LEFT JOIN network_events e ON e.fid=c.fid GROUP BY c.fid)
     SELECT s.fid,p.country,g.state,g.city,COALESCE(p.location_status,'unavailable') AS location,p.token_id AS token,
     COALESCE(p.token_status,'unavailable') AS tokenStatus,COALESCE(p.opt_in_status,'unavailable') AS vote,date(s.first_at/1000,'unixepoch') AS acceptedDay,1 AS count
     FROM signers s LEFT JOIN network_profiles p ON p.fid=s.fid LEFT JOIN network_profile_locations g ON g.fid=s.fid AND g.country=p.country`).all<NetworkCell & {fid:number}>();
@@ -56,16 +58,16 @@ export async function publishSnapshot(db: D1Database, force = false): Promise<Ne
     WHERE a.action_at>=s.first_at AND a.action_at<=? ORDER BY a.fid,a.month`).bind(Date.now()).all<{fid:number;month:string}>();
   const months = new Map<number,string[]>();
   for (const row of activity.results) { const list=months.get(row.fid)??[]; list.push(row.month); months.set(row.fid,list); }
-  for (const row of data.results) { row.activityMonths=months.get(row.fid)??[]; row.warpletHolder=warplets.holders.has(row.fid); }
-  const coverage = await db.prepare(`SELECT COUNT(*) AS population,COUNT(p.fid) AS observed,MIN(p.observed_at) AS oldest FROM (SELECT fid FROM network_events UNION SELECT fid FROM network_confirmed) s LEFT JOIN network_profiles p ON p.fid=s.fid`).first<{ population: number; observed: number; oldest: number | null }>();
-  const tokens = await db.prepare(`SELECT token_id AS id,MAX(COALESCE(token_name,token_id)) AS name,MAX(COALESCE(token_symbol,'')) AS symbol FROM network_profiles p WHERE token_id IS NOT NULL AND (EXISTS(SELECT 1 FROM network_events e WHERE e.fid=p.fid) OR EXISTS(SELECT 1 FROM network_confirmed c WHERE c.fid=p.fid)) GROUP BY token_id`).all<NetworkToken>();
-  const adoption = await db.prepare(`SELECT date(first_at/1000,'unixepoch') AS day,COUNT(*) AS count FROM (SELECT MIN(event_at) AS first_at FROM network_events GROUP BY fid) GROUP BY day ORDER BY day`).all<{ day: string; count: number }>();
+  for (const row of data.results) { row.ogMember=row.fid<=NETWORK_OG_LAST_FID; row.activityMonths=months.get(row.fid)??[]; row.warpletHolder=warplets.holders.has(row.fid); }
+  const coverage = await db.prepare(`SELECT COUNT(*) AS population,COUNT(p.fid) AS observed,MIN(p.observed_at) AS oldest FROM (${NETWORK_CURRENT_COHORT}) s LEFT JOIN network_profiles p ON p.fid=s.fid`).first<{ population: number; observed: number; oldest: number | null }>();
+  const tokens = await db.prepare(`SELECT token_id AS id,MAX(COALESCE(token_name,token_id)) AS name,MAX(COALESCE(token_symbol,'')) AS symbol FROM network_profiles p WHERE p.opt_in_status='opted_in' AND token_id IS NOT NULL AND (EXISTS(SELECT 1 FROM network_events e WHERE e.fid=p.fid) OR EXISTS(SELECT 1 FROM network_confirmed c WHERE c.fid=p.fid)) GROUP BY token_id`).all<NetworkToken>();
+  const adoption = await db.prepare(`SELECT date(first_at/1000,'unixepoch') AS day,COUNT(*) AS count FROM (SELECT MIN(event_at) AS first_at FROM network_events WHERE fid IN (${NETWORK_CURRENT_COHORT}) GROUP BY fid) GROUP BY day ORDER BY day`).all<{ day: string; count: number }>();
   const cursor = await syncGet(db, 'scan', { block: NETWORK_DEPLOY_BLOCK - 1, hash: '', target: NETWORK_DEPLOY_BLOCK - 1 });
-  const sources = await db.prepare(`SELECT (SELECT COUNT(DISTINCT fid) FROM network_events) AS chainVerified,(SELECT COUNT(*) FROM network_confirmed) AS officialConfirmed,(SELECT COUNT(*) FROM network_candidates) AS candidates,(SELECT COUNT(*) FROM network_candidates c JOIN network_profiles p ON p.fid=c.fid) AS candidatesObserved`).first<NonNullable<NetworkSnapshot['sources']>>();
+  const sources = await db.prepare(`SELECT (SELECT COUNT(DISTINCT fid) FROM network_events WHERE fid IN (${NETWORK_CURRENT_COHORT})) AS chainVerified,(SELECT COUNT(*) FROM network_confirmed WHERE fid IN (${NETWORK_CURRENT_COHORT})) AS officialConfirmed,(SELECT COUNT(*) FROM network_candidates) AS candidates,(SELECT COUNT(*) FROM network_candidates c JOIN network_profiles p ON p.fid=c.fid) AS candidatesObserved`).first<NonNullable<NetworkSnapshot['sources']>>();
   const states = await db.prepare(`SELECT id,country,name FROM network_geo_states WHERE id IN (SELECT DISTINCT state FROM network_profile_locations WHERE state IS NOT NULL)`).all<import('../../../shared/network/model').NetworkPlace>();
   const cities = await db.prepare(`SELECT id,country,state,name,lat,lon FROM network_geo_cities WHERE id IN (SELECT DISTINCT city FROM network_profile_locations WHERE city IS NOT NULL)`).all<import('../../../shared/network/model').NetworkPlace>();
   const at = Date.now();
-  const snapshot: NetworkSnapshot = { id: `${at}-${crypto.randomUUID()}`, createdAt: at, cohort: 'acceptance-signers', chain: 'Base',
+  const snapshot: NetworkSnapshot = { id: `${at}-${crypto.randomUUID()}`, createdAt: at, cohort: 'currently-opted-in', chain: 'Base',
     scan: { fromBlock: NETWORK_DEPLOY_BLOCK, throughBlock: cursor.block, targetBlock: cursor.target, complete: cursor.block >= cursor.target },
     population: Number(coverage?.population ?? 0), profilesObserved: Number(coverage?.observed ?? 0), profileOldestAt: coverage?.oldest ?? null,
     geography: {resolverVersion:NETWORK_GEOGRAPHY_VERSION,states:states.results,cities:cities.results},
@@ -81,8 +83,7 @@ export async function publishSnapshot(db: D1Database, force = false): Promise<Ne
     if(!cell.activityMonths?.length)delete cell.activityMonths;
     if(cell.held==='unavailable')delete cell.held;
   }
-  const payload = JSON.stringify(snapshot);
-  if (new TextEncoder().encode(payload).byteLength > 1_800_000) throw new Error('Snapshot exceeds storage budget');
+  const payload = await encodeNetworkSnapshot(snapshot);
   await db.prepare('INSERT INTO network_snapshots(id,created_at,day,complete,payload) VALUES(?,?,?,?,?)').bind(snapshot.id, at, new Date(at).toISOString().slice(0, 10), snapshot.scan.complete ? 1 : 0, payload).run();
   // Keep recent detail plus the latest available snapshot per older UTC day.
   await db.prepare(`DELETE FROM network_snapshots WHERE created_at<? AND id NOT IN (SELECT id FROM network_snapshots n WHERE created_at=(SELECT MAX(created_at) FROM network_snapshots x WHERE x.day=n.day))`).bind(at - 7 * 86_400_000).run();

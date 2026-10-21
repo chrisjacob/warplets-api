@@ -1,3 +1,4 @@
+import { NETWORK_CURRENT_COHORT } from './cohort';
 import {alchemyWalletBalances,alchemyTokenMetadata} from './alchemy';
 import { networkFetchJson } from './source';
 import { bounded, reserveRequest, syncGet, syncSet, type NetworkEnv } from './store';
@@ -85,10 +86,10 @@ export function priceBalances(rows: Balance[], quotes: Map<string,unknown>, now 
 async function valueNextWallet(env: WalletEnv) {
   if (await syncGet(env.WARPLETS,'wallet_cooldown',0)>Date.now()) return {status:'cooldown'};
   const legacy=env.ALCHEMY_API_KEY?"v.address IS NOT NULL AND v.source<>'alchemy-base+defillama'":'0';
-  const row=await env.WARPLETS.prepare(`SELECT l.address FROM network_wallet_links l JOIN (SELECT fid FROM network_events UNION SELECT fid FROM network_confirmed) c ON c.fid=l.fid LEFT JOIN network_wallet_values v ON v.address=l.address LEFT JOIN network_wallet_retries r ON r.address=l.address
+  const row=await env.WARPLETS.prepare(`SELECT l.address FROM network_wallet_links l JOIN (${NETWORK_CURRENT_COHORT}) c ON c.fid=l.fid LEFT JOIN network_wallet_values v ON v.address=l.address LEFT JOIN network_wallet_retries r ON r.address=l.address
     WHERE (v.address IS NULL OR v.observed_at<? OR (${legacy})) AND (r.address IS NULL OR r.retry_after<?) GROUP BY l.address ORDER BY CASE WHEN (${legacy}) THEN 0 ELSE 1 END,(v.address IS NULL) DESC,COALESCE(v.observed_at,0),MIN(l.fid),l.address LIMIT 1`).bind(Date.now()-(env.ALCHEMY_API_KEY?7:1)*86_400_000,Date.now()).first<{address:string}>();
   if (!row) {
-    const remaining=await env.WARPLETS.prepare(`SELECT COUNT(DISTINCT l.address) n FROM network_wallet_links l JOIN (SELECT fid FROM network_events UNION SELECT fid FROM network_confirmed) c ON c.fid=l.fid LEFT JOIN network_wallet_values v ON v.address=l.address WHERE v.address IS NULL OR v.observed_at<? OR (${legacy})`).bind(Date.now()-(env.ALCHEMY_API_KEY?7:1)*86_400_000).first<{n:number}>();
+    const remaining=await env.WARPLETS.prepare(`SELECT COUNT(DISTINCT l.address) n FROM network_wallet_links l JOIN (${NETWORK_CURRENT_COHORT}) c ON c.fid=l.fid LEFT JOIN network_wallet_values v ON v.address=l.address WHERE v.address IS NULL OR v.observed_at<? OR (${legacy})`).bind(Date.now()-(env.ALCHEMY_API_KEY?7:1)*86_400_000).first<{n:number}>();
     return {status:remaining?.n?'waiting':'complete'};
   }
   try {
@@ -142,7 +143,7 @@ export async function importWalletValue(env: WalletEnv) {
 }
 export async function importWalletAssociations(env: WalletEnv, batch = 100) {
   if(await syncGet(env.WARPLETS,'wallet_cooldown',0)>Date.now())return 0;
-  const rows = await env.WARPLETS.prepare(`SELECT c.fid FROM (SELECT fid FROM network_events UNION SELECT fid FROM network_confirmed) c
+  const rows = await env.WARPLETS.prepare(`SELECT c.fid FROM (${NETWORK_CURRENT_COHORT}) c
     LEFT JOIN network_wallet_associations a ON a.fid=c.fid WHERE a.fid IS NULL OR a.observed_at<? ORDER BY COALESCE(a.observed_at,0),c.fid LIMIT ?`)
     .bind(Date.now() - 86_400_000, Math.min(100, batch)).all<{ fid: number }>();
   if (!rows.results.length) return 0;

@@ -17,6 +17,7 @@ function fixture(){
  CREATE TABLE warplet_market_state(token_id INTEGER PRIMARY KEY,owner_wallet TEXT,owner_fid INTEGER,owner_checked_at TEXT,owner_event_at TEXT);
  CREATE TABLE wallet_farcaster_links(wallet TEXT,fid INTEGER);`);
  for(let n=1;n<=8;n++)db.prepare('INSERT INTO warplets_metadata VALUES(?,?,?)').run(n,wallet(n),n);
+ for(let n=1;n<=9;n++)db.prepare("INSERT INTO network_profiles(fid,location_status,token_status,opt_in_status,observed_at) VALUES(?,'unknown','none','opted_in',1)").run(n);
  for(let n=1;n<=9;n++)db.prepare('INSERT INTO network_confirmed(fid,observed_at) VALUES(?,1)').run(n);
  return{db,d1:sqliteD1(db)};
 }
@@ -44,7 +45,7 @@ describe('saved 10X Warplet ownership',()=>{
   const filters=parseNetworkFilters(new URLSearchParams('warplet=holders'));
   const selected=buildNetworkDashboard(snapshot,filters),members=await readNetworkMembers(d1,new URLSearchParams('warplet=holders'));
   expect(selected.population).toBe(4);expect(members.total).toBe(4);expect(members.members.map(m=>m.fid)).toEqual([6,7,8,9]);
-  expect(selected.coverage.unavailable).toBe(4);expect(selected.countries[0].population).toBe(4);
+  expect(selected.coverage.unknown).toBe(4);expect(selected.countries[0].population).toBe(4);
   // A later transfer removes FID 8 and adds a token to an existing holder once.
   db.prepare('INSERT INTO warplet_market_state VALUES(?,?,?,?,?)').run(8,wallet(9),9,null,'2026-10-03T00:00:00Z');
   const newer=await publishSnapshot(d1,true);
