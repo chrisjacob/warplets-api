@@ -15,6 +15,7 @@ import { CandidateExpiryNotice, CandidateInventory } from "./CandidateRetention"
 import {MarketBatchCoverage} from "./MarketBatchCoverage";
 import { SourcePilotPanel } from "./SourcePilotPanel";
 import { GmgnEvidence } from "./GmgnEvidence";
+import { HolderHistory } from "./HolderHistory";
 import {DiscoveryScoreBadge,DiscoveryScorePanel} from "./DiscoveryScore";
 import {DiscoveryScoreResponse} from "./client";
 import {ScoreResearchResponse} from "./client";
@@ -183,6 +184,7 @@ function CandidateDetail({ address }: { address: string }) {
     </EvidenceDisclosure>
     {!fixture && <EvidenceDisclosure id="activity-evidence" title="Trading fees & activity" summary="Sampled transactions; organic activity unverified"><TradingActivity address={c.address} /></EvidenceDisclosure>}
     <EvidenceDisclosure id="holder-evidence" title="Holder concentration evidence" summary={c.holders ? `${c.holders.holder_count} saved owners · ${c.holders.status} inventory` : "Inventory pending"}><HolderPanel candidate={c} /></EvidenceDisclosure>
+    {!fixture && <HolderHistory key={`holder-history-${c.address}`} address={c.address} />}
     <EvidenceDisclosure id="wallet-evidence" title="Wallet & funding evidence" summary={c.wallet_analysis?.status === "signals_detected" ? "Connections to review" : c.wallet_analysis?.status === "no_signal_in_sample" ? "No supported signal in sample · coverage limits apply" : "Wallet checks unavailable"}><WalletAnalysisPanel analysis={c.wallet_analysis} /></EvidenceDisclosure>
     <EvidenceDisclosure id="account-evidence" title="Onchain permissions & reserves">
     <section className="tenx-panel"><h2>Onchain risk checks</h2><dl><dt>Mint authority</dt><dd>{c.risk.mint_authority}</dd><dt>Freeze authority</dt><dd>{c.risk.freeze_authority}</dd><dt>Pool reserves</dt><dd>{c.risk.pool_reserves_verified ? "Verified initialized + nonzero" : "Unverified"}</dd><dt>Finalized account slot</dt><dd>{c.risk.context_slot?.toLocaleString() ?? "Unavailable"}</dd></dl><p>Observed {time(c.risk.observed_at)}</p>{!fixture && c.risk.payload_hash && <a href={`/api/10x/account-evidence/${c.risk.payload_hash}`} target="_blank" rel="noopener noreferrer">Inspect saved account evidence ↗</a>}</section>

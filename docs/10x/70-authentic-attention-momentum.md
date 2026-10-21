@@ -1,5 +1,7 @@
 # Authentic daily attention and momentum
 
+Holder history, 21 October: [cached owner changes and endpoint retention](76-cached-holder-growth.md) replay full saved inventories with original hashes, canonical vault exclusion and bounded first/latest comparisons. PONYX shows three entrants, one exit and net +2 raw owners over 5.21 hours; its latest interval is flat. Meaningful/daily growth and acquisition provenance remain unknown. No new RPC, database writes, scoring change, quota or evidence-gate waiver. No deploy.
+
 Founder direction recorded **21 October 2026 (Australia/Sydney)**. This updates the [PRD §4.7](spec/10X_MEME_FULL_PRD_v1_2.md#47-graded-discovery--v12-founder-direction-and-implementation-plan) and [ordered task map](19-prd-task-map.md). Requirements and implementation planning only: no runtime scoring, collection, migration or deployment change in this milestone.
 
 ## Product objective

@@ -1,5 +1,7 @@
 # PRD implementation checkpoint and next tasks
 
+Holder history, 21 October: [cached owner changes and endpoint retention](76-cached-holder-growth.md) replay full saved inventories with original hashes, canonical vault exclusion and bounded first/latest comparisons. PONYX shows three entrants, one exit and net +2 raw owners over 5.21 hours; its latest interval is flat. Meaningful/daily growth and acquisition provenance remain unknown. No new RPC, database writes, scoring change, quota or evidence-gate waiver. No deploy.
+
 GMGN coverage, 21 October: [four-part candle windows and price-dimensional unit checks](75-gmgn-candle-coverage-and-units.md) use four paced Free queries with a forty-minute consistency overlap. Hash-verified cached assembly preserves gaps/conflicts and archived replay. Live USDF returned 360/360 minutes and triggered a fourteen-rise review; PONYX returned 328/360 and stays incomplete. Both support volume = USD and amount = token units by price consistency; independent trade/organic verification remains held. Current score-v4, all provider/evidence/action gates and production restoration remain unchanged. No deploy.
 
 Local calibration, 21 October: [founder-authorized uncapped internal research admission](74-local-calibration-admission.md) disables daily record/byte caps and the twenty-request research subset only when both local-only and explicit calibration mode are set. Provider budgets, spacing/backoff, per-record bounds, evidence, current scores and action/election gates remain. Counters and archived rows are preserved. Bounded mode remains the default elsewhere and restoration is a tracked production prerequisite. No deploy.
@@ -38,7 +40,8 @@ Reviewed 20 October 2026 against the entire [PRD v1.1](spec/10X_MEME_FULL_PRD_v1
 - [x] Audit current v4: no volume/growth criterion; owner count includes positive dust balances, and sampled returns do not establish organic demand.
 - [x] Define launch-aware windows, source/coverage labels, dust exclusions, risk dominance and adversarial acceptance cases in the [implementation plan](70-authentic-attention-momentum.md).
 - [ ] Finish held Jupiter/GeckoTerminal rights, Free access, canonical binding and bounded receipt collection; retain current shared allowances.
-- [ ] Add versioned, bounded owner-snapshot history and acquisition provenance; agree meaningful-balance/retention rules through calibration before growth receives points.
+- [x] Add versioned, bounded replay of full cached owner inventories, raw entrants/exits/net change, endpoint retention and private frozen comparison artifacts, with no source IO or database writes.
+- [ ] Add prospective acquisition provenance and an explicit archive storage/retention policy; calibrate meaningful-balance and retention rules before growth receives points.
 - [ ] Publish comparable 24h/since-creation volume and holder deltas, short-window acceleration and explicit missingness as descriptive evidence.
 - [ ] Preregister and evaluate a separate attention component and proposed composite against frozen v4, with all risk ceilings dominant; activate only through an explicit versioned scoring change.
 

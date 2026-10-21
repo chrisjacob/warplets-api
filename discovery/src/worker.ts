@@ -56,6 +56,8 @@ import { gmgnPublicSummary, gmgnCandleWindow, gmgnSavedReview, gmgnStatus, runGm
 import { GMGN_USE_AUTHORITY } from "./gmgn-model";
 
 import { researchMode } from "./research-limits";
+import { holderHistory } from "./holder-history-store";
+import { HolderHistoryError } from "./holder-history";
 
 // Widen generated literal vars so ignored .dev.vars overrides stay type-safe.
 type OptionalGmgnSecret = "GMGN_API_KEY" | "TENX_RESEARCH_MODE";
@@ -168,6 +170,11 @@ export async function handle(request: Request, env: Env): Promise<Response> {
   if (method === "POST" && request.headers.has("origin") && !origins.has(request.headers.get("origin")!)) return json({ error: "origin_not_allowed" }, 403);
   if (method === "POST" && !admin) return json({ error: "not_found" }, 404);
   if (method === "GET" && path === "/api/10x/health") return json({ local: true, ready: true });
+  const holderChanges = path.match(/^\/api\/10x\/(admin\/)?holders\/history\/solana\/([^/]+)$/);
+  if (method === "GET" && holderChanges) {
+    const result = await holderHistory(env.TENX_DB,holderChanges[2]!);
+    return json(holderChanges[1] ? result : result.report);
+  }
   if (method === "GET" && path === "/api/10x/admin/gmgn/status") return json(await gmgnStatus(gmgnSettings(env)));
   const gmgnWindow=path.match(/^\/api\/10x\/admin\/gmgn\/windows\/([a-f0-9-]{36})$/i);
   if(method==="GET"&&gmgnWindow){const report=await gmgnCandleWindow(env.TENX_DB,gmgnWindow[1]!);return report?json(report):json({error:"gmgn_window_not_found"},404);}
@@ -417,6 +424,7 @@ export default {
       if(error instanceof MintReviewError)return json({error:error.message},error.status);
       if(error instanceof DiscoveryScoreError)return json({error:error.message},503);
       if(error instanceof ScoreResearchError)return json({error:error.message},503);
+      if(error instanceof HolderHistoryError)return json({error:error.message},503);
       if(error instanceof LaunchError)return json({error:error.message},error.status);
       if(error instanceof RecoveryError)return json({error:error.message},error.status);
       if (error instanceof RewardError) return json({ error: error.message }, error.message === "reward_daily_limit" ? 429 : error.message === "reward_request_conflict" ? 409 : error.message.includes("mismatch") ? 503 : 400);

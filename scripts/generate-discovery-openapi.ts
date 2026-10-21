@@ -2,6 +2,7 @@ import { writeFileSync } from "node:fs";
 import attentionPaths from "../discovery/openapi-attention-paths.json";
 import { z } from "zod";
 import { GmgnPublicSummarySchema } from "../discovery/src/gmgn-model";
+import { HolderHistoryReportSchema } from "../discovery/src/holder-history-model";
 import { GmgnReviewRequestSchema } from "../discovery/src/gmgn";
 import { InboxRecoveryResponse } from "../discovery/src/inbox-recovery-model";
 import { MintReviewsResponse, MintReviewRequest } from "../discovery/src/mint-review-model";
@@ -46,6 +47,8 @@ const spec = {
   openapi: "3.1.0", info: { title: "10X local Solana discovery", version: "0.1.0", description: "Local-only chain discovery and signed-message wallet ownership. No server-held signers, transactions, votes, launches or financial flows. Public reads use stored data; only authenticated refresh makes provider requests." },
   servers: [{ url: "http://127.0.0.1:8794" }],
   paths: {
+    "/api/10x/holders/history/solana/{address}":read("Hash-verified raw owner changes from cached full inventories; no qualified growth or provider IO",{...responseSchema("HolderHistoryReport"),parameters:[parameter("address","path",{type:"string"},true)]}),
+    "/api/10x/admin/holders/history/solana/{address}":read("Private frozen inputs and raw owner history report for offline replay; no IO/writes",{security:[{localOperator:[]}],parameters:[parameter("address","path",{type:"string"},true)]}),
     "/api/10x/attention/reports":{post:{...identityPost("Private good-faith concern about a visible link; does not hide it or establish the claim",{$ref:"#/components/schemas/ContentReportRequest"},"ContentReportRecord").post,security:[{localIdentity:[]}] }},
     "/api/10x/attention/reports/mine":read("Signed reporter-only claims; private explanations and cursor pagination",{...responseSchema("ContentReportPage"),security:[{localIdentity:[]}],parameters:[parameter("cursor","query",{type:"string",maxLength:100})]}),
     "/api/10x/attention/reports/{id}":read("Reporter-only retained report history and hash verification",{...responseSchema("ContentReportRecord"),security:[{localIdentity:[]}],parameters:[parameter("id","path",{type:"string",format:"uuid"},true)]}),
@@ -166,6 +169,7 @@ const spec = {
     Candidate: z.toJSONSchema(AssessedCandidateSchema, { unrepresentable: "any" }),
     ArtworkResponse: z.toJSONSchema(ArtworkResponseSchema),
     GmgnSummary: z.toJSONSchema(GmgnPublicSummarySchema),
+    HolderHistoryReport: z.toJSONSchema(HolderHistoryReportSchema),
     WalletWorkResponse: z.toJSONSchema(WalletWorkResponseSchema),
     WalletPlansResponse: z.toJSONSchema(WalletPlansResponseSchema),
     OperationsResponse: {type:"object",required:["data"],properties:{data:z.toJSONSchema(OperationsSchema)}},
