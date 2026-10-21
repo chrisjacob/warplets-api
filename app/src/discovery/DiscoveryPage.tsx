@@ -10,8 +10,6 @@ import { CollectionDetails, isCollectionAnchor } from "./CollectionDetails";
 import { EvidenceDisclosure } from "./EvidenceDisclosure";
 import { EligibilityOverview, TokenMarketOverview, WalletRiskSummary, creationAge, eligibilityMeaning, shortBlocker, marketSnapshotStale } from "./TokenOverview";
 import { SimulationNotice } from "./SimulationNotice";
-import { DEFAULT_POLICY } from "../../../discovery/src/model";
-import { reportedCapReview } from "../../../discovery/src/market-review";
 import { ActivityResponse, CoverageResponse, DetailResponse, ElectionDetailResponse, ElectionsResponse, getJson, marketSource, readableReason, ReviewsResponse, StatusResponse, type ListData } from "./client";
 import { CandidateExpiryNotice, CandidateInventory } from "./CandidateRetention";
 import {MarketBatchCoverage} from "./MarketBatchCoverage";
@@ -75,14 +73,6 @@ function useRemote<T>(load: (signal: AbortSignal) => Promise<T>, key: string) {
   return { data, error };
 }
 function Badge({ status }: { status: string }) { return <span className={`tenx-badge tenx-badge--${status}`}>{status}</span>; }
-function MarketCapReview({ candidate, detailed = false }: { candidate: Pick<Card, "market" | "creation">; detailed?: boolean }) {
-  const review = reportedCapReview(candidate, new Date(), DEFAULT_POLICY.max_market_age_seconds);
-  if (!review) return null;
-  return <aside className="tenx-notice"><strong>High reported cap for a new token · review</strong><p>{detailed ? `${money(review.market_cap_usd)} reported cap · created ${review.age_hours.toFixed(1)} hours ago. Review supply, pool depth and connected wallets.` : "Reported cap above $10M within 24 hours of creation."}</p>
-    {detailed && <><p>Reported snapshot fetched {time(review.fetched_at)}. {review.market_stale ? "Snapshot is stale or has an invalid timestamp." : "Within the current freshness window."}</p><details><summary>Why this is flagged</summary><p>Above $10M within 24 hours is a review heuristic, not a fraud finding or an eligibility rule. Inspect holder concentration alongside wallet evidence. Reported liquidity / market cap: {review.liquidity_to_cap_pct === null ? "Unavailable" : `${review.liquidity_to_cap_pct.toFixed(2)}%`}. This ratio does not measure cash backing or executable exit liquidity. Market cap remains provider reported; FDV is not substituted.</p></details></>}
-    {!detailed && review.market_stale && <p>Saved market snapshot is stale or has an invalid timestamp.</p>}
-  </aside>;
-}
 function Evidence({ proof, label, fixture }: { proof: Proof | null; label: string; fixture: boolean }) {
   return <section className="tenx-evidence"><div className="tenx-row"><h3>{label}</h3><Badge status={proof ? fixture ? "simulated" : "verified" : "unverified"} /></div>
     {proof ? <><p>{time(proof.block_time)}</p><dl><dt>Instruction</dt><dd>{proof.instruction}</dd><dt>Finalized slot</dt><dd>{proof.slot.toLocaleString()}</dd></dl>
@@ -104,7 +94,6 @@ function CandidateCard({ candidate: c, metadataUrl, metadataLoading,selected,onT
     <DiscoveryScoreBadge score={c.discovery_score} rank={c.discovery_rank} />
     <div className="tenx-metrics"><div><span>Market cap</span><strong>{money(c.market?.market_cap_usd)}</strong></div><div><span>Liquidity</span><strong>{money(c.market?.liquidity_usd)}</strong></div><div><span>Created</span><strong>{creationAge(c.creation?.block_time)}</strong></div></div>
     {c.market && marketSnapshotStale(c.market) && <p className="tenx-market-warning">Market data needs refreshing.</p>}
-    <MarketCapReview candidate={c} />
     <p className="tenx-reason">{c.reasons.length?`Checks to review: ${c.reasons.slice(0,2).map(shortBlocker).join(" · ")}`:"Required action checks passed at this observation. This does not guarantee safety."}</p>
     <details className="tenx-card-evidence"><summary>Token identity & action checks</summary><p className="tenx-address">{c.address}</p><p>{eligibilityMeaning(c.eligibility)} · <Badge status={c.eligibility} /></p><p>{fixture ? "Simulated origin evidence" : c.verification === "verified" ? "Original creation and graduation verified" : "Origin checks incomplete"}</p><p>{c.holders ? `${c.holders.holder_count} owners · largest ${c.holders.top1_pct?.toFixed(2) ?? "?"}% · ${c.holders.status} saved inventory` : "Holder inventory pending"}</p>{!fixture && <a href={`https://solscan.io/token/${c.address}`} target="_blank" rel="noopener noreferrer">View mint on Solscan ↗</a>}</details>
     <ComparisonToggle address={c.address} selected={selected} onToggle={onToggle}/><div className="tenx-card-bottom"><span>Solana · original token</span><a href={`/token/solana/${c.address}${fixture ? "?mode=fixture" : ""}`}>Charts & evidence →</a></div>
@@ -137,7 +126,6 @@ function Discover() {
   const url = discoveryCandidatesUrl(view);
   const { data, error } = useRemote(signal => getJson(url, CardListResponse, signal), url);
   const artwork = useTokenArtwork(mode === "live" ? data?.data.candidates.map(c => c.address) ?? [] : []);
-  const reviewAt = new Date(), capReviews = data?.data.candidates.filter(c => reportedCapReview(c, reviewAt, DEFAULT_POLICY.max_market_age_seconds)).length ?? 0;
   return <>
     <header className="tenx-heading tenx-heading--discover"><p className="tenx-eyebrow">SOLANA / ORIGINAL TOKENS</p><h1>Discover memecoins.</h1><p>Compare scores, explore the charts and check the evidence.</p></header>
     <DiscoveryWorkspaceControls key={[view.q,view.min_liquidity,view.min_coverage].join(":")} view={view} onChange={setView}/>
@@ -149,7 +137,6 @@ function Discover() {
       {data.data.scope&&<p className="tenx-footnote">Search and filters run before the 100-result display limit. Ranks refer to the full date and action-check view. {data.data.scope.truncated?"More matches exist; narrow your search to find them. ":""}This inventory is our saved chain-observed coverage, not every Solana token. {view.age==="24h"&&mode==="live"?"Tokens without a verified first-day creation time are outside this view.":"Expired observations can appear and remain subject to all freshness checks."}</p>}
       <div className="tenx-section-title"><h2>{filter === "all" ? "Ranked observations" : `${filter[0]!.toUpperCase()} action checks`}</h2><span>Score / 100</span></div>
       {data.data.candidates.length ? view.layout==="table"?<DiscoveryTable candidates={data.data.candidates} artwork={artwork} scoredAt={data.data.scored_at??data.as_of} selected={view.compare} onToggle={toggle}/>:data.data.candidates.map(c => <CandidateCard key={c.address} candidate={c} selected={view.compare} onToggle={toggle} metadataUrl={artwork[c.address]?.image_url} metadataLoading={mode === "live" && artwork[c.address] === undefined} />) : <section className="tenx-empty"><h2>No tokens match this view</h2><p>Change the search, date or filters to inspect other observations. Missing data remains unknown in every score.</p><a href="/status">Inspect data status →</a></section>}
-      {!!capReviews && <p className="tenx-footnote">{capReviews} tokens have reported caps above $10M within 24 hours of verified creation. Each is flagged for review; this does not change eligibility or ranking.</p>}
       <p className="tenx-footnote">Checks do not guarantee safety. Images and names can be copied; confirm the mint address.</p>
     </> : !error && <p role="status" className="tenx-empty">Loading discovery…</p>}
     <details className="tenx-list-options"><summary>Action-check filters & example data</summary><p>All observed tokens can be scored. Separate eligibility gates still govern future voting and launch decisions; buying links do not count as votes. Names and artwork can be copied.</p><label>Action checks<select value={filter} onChange={e => setFilter(e.target.value as typeof view.status)}><option value="all">All ranked observations</option><option value="eligible">Eligible</option><option value="provisional">Provisional</option><option value="excluded">Excluded</option></select></label><label>Data source<select value={mode} onChange={e => setMode(e.target.value as "live" | "fixture")}><option value="live">Saved live observations</option><option value="fixture">Simulation examples</option></select></label>{data&&<p>Action readiness across observed inputs: {data.data.counts.eligible} eligible · {data.data.counts.provisional} provisional · {data.data.counts.excluded} excluded. This is separate from score ranking.</p>}</details>
@@ -173,7 +160,6 @@ function CandidateDetail({ address }: { address: string }) {
     <div className="tenx-token-identity"><span className="tenx-address">{c.address}</span><button className="tenx-button tenx-button--quiet" onClick={() => void navigator.clipboard.writeText(c.address).then(() => setCopied(true)).catch(() => setCopied(false))}>{copied ? "Copied" : "Copy mint"}</button>{!fixture && <a href={`https://solscan.io/token/${c.address}`} target="_blank" rel="noopener noreferrer">Explorer ↗</a>}</div>
     <TokenMarketOverview candidate={c} />
     <DiscoveryScorePanel record={scoring.data?.record??null} error={scoring.error} />
-    <MarketCapReview candidate={c} detailed />
     {(c.wallet_analysis?.signals.length || c.wallet_analysis?.status === "signals_detected") ? <WalletRiskSummary candidate={c} /> : null}
     {!fixture && <TokenHistory address={c.address} />}
     <h2 className="tenx-evidence-title" id="evidence">Supporting evidence</h2>

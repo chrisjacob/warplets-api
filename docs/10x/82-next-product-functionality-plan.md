@@ -103,6 +103,8 @@ Acceptance: dust airdrops, duplicate token accounts, linked-wallet churn, missin
 - Hold out later UTC days and newly enrolled mints. Founder concern cases are regression checks only. Measure independently reviewed concern detection/false positives, top-ranked adverse cases, breadth/retention, rank stability, missingness and provider cost. Price return or agreement with GMGN alone does not validate authenticity or trust.
 - Preserve all v1–v4 evaluators, scorecards, cohorts and election inputs. Add v5 export/replay and a reversible local selection only after the comparison supports it and the formula/evidence requirements are published. No automatic self-training or policy promotion.
 
+**Positive counterexample requirement:** [Kimchi](87-kimchi-positive-counterexample.md) is founder-selected retrospective runner evidence, including reported strategic concentration. The standalone $10M/24h warning is retired. Evaluate fast successful runners and concentrated successful/failing launches as distinct controls; measure missed attention opportunities and control/integrity concerns separately. Allocation intent or a later gain cannot waive independent evidence or turn a known development case into a held-out success.
+
 Promotion review requires a preregistered definition of material improvement and acceptable false-positive/missingness regressions, evidence from the held-out sample, known limitations and affordable sustained coverage. There is no automatic pass after a token count or calendar deadline. If the candidate fails, retain v4 and publish the result; do not spend another sequence of milestones tailoring it to one token.
 
 ## F5 — Reliability and Free-service readiness

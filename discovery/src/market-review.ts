@@ -3,7 +3,9 @@ import type { Candidate } from "./model";
 export const NEW_TOKEN_CAP_REVIEW_USD = 10_000_000;
 const DAY_MS = 86_400_000;
 
-// A review heuristic using retained observations, never an eligibility or ranking rule.
+// Legacy diagnostic retained for historical research. Retired as a standalone
+// product warning after the founder's Kimchi counterexample (21 October 2026).
+// Never an eligibility/ranking rule or a current fraud/safety classification.
 // A reported cap is not independently verified circulating supply or capital invested.
 export function reportedCapReview(c: { market: Candidate["market"]; creation: Pick<NonNullable<Candidate["creation"]>, "block_time"> | null }, now: Date, maxMarketAgeSeconds: number) {
   if (!c.creation || !c.market) return null;

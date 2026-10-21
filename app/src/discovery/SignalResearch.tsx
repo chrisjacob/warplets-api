@@ -2,12 +2,12 @@ import type { z } from "zod";
 import type { SignalResearchSchema, Signal } from "../../../discovery/src/signal-model";
 import { readableReason } from "./client";
 
-const label = (s: Signal) => s === "new_token_high_cap" ? "Cap above $10M within 24h" : "Unusually smooth price rise";
+const label = (s: Signal) => s === "new_token_high_cap" ? "Legacy cap diagnostic · above $10M within 24h" : "Unusually smooth price rise";
 const time = (s: string | null) => s ? new Date(s).toLocaleString("en-AU", { timeZone: "Australia/Sydney" }) : "Not collected yet";
 const pct = (n: number | null | undefined) => n == null ? "Unavailable" : `${n.toFixed(2)}%`;
 const rate = (n: number | null) => n === null ? "Unmeasured" : `${(n*100).toFixed(1)}%`;
 export function SignalResearch({ data, error }: { data: z.infer<typeof SignalResearchSchema> | null; error: string }) {
-  return <section className="tenx-panel" id="signal-research"><h2>Testing the warning signals</h2><p>Cap and smooth-rise observations get separate frozen research baselines at their first usable observation. Both flagged and unflagged tokens are retained. These are observational samples, not recommendations; older selection inputs remain unchanged.</p>
+  return <section className="tenx-panel" id="signal-research"><h2>Testing the diagnostic signals</h2><p>The standalone $10M-within-24h warning is retired. Fast growth can occur in successful runners; this threshold alone cannot distinguish fraud. Historical cap cohorts remain for false-positive analysis and replay. Price success does not establish safety or independent demand.</p><p>Cap and smooth-rise observations get separate frozen research baselines at their first usable observation. Both flagged and unflagged tokens are retained. These are observational samples, not recommendations; older selection inputs remain unchanged.</p>
     {error && <p role="alert">Signal research could not refresh. {data ? "The last response remains visible." : "Check Data status."}</p>}
     {data ? <><p>Last local research tick: {time(data.automation.last_success)}. At most three tokens are examined and five matured outcomes finalized per minute, using saved data only. No extra provider calls or policy changes.</p>
       {data.automation.last_error && <p className="tenx-notice" role="status">Research needs attention: {readableReason(data.automation.last_error)}.</p>}

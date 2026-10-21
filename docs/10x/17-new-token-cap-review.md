@@ -1,5 +1,7 @@
 # New-token reported-cap review
 
+**Superseded 21 October 2026:** [Kimchi positive counterexample](87-kimchi-positive-counterexample.md) retires this standalone warning in the current product. The following remains a historical implementation record. Its reader and archived diagnostic cohorts remain available for replay and false-positive analysis; no scoring/action policy is changed.
+
 Implemented locally on 20 October 2026 following the founder's observation that tokens created within 24 hours with a reported market cap above $10M warrant suspicion.
 
 Discovery cards and token details now show a review warning when a retained creation proof places the token within the last 24 hours and the saved provider market cap is strictly above $10M. The discovery summary counts warnings in the current filtered view, not across all Solana launches. At the initial cached review, seven tokens in the current 100-token view met this threshold, with reported caps up to approximately $246M.

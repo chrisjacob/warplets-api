@@ -1,5 +1,7 @@
 # Kimchi review: confirmed target, concentration and paired-token gaps
 
+**21 October founder correction:** [positive-runner reference](87-kimchi-positive-counterexample.md) records that the exact requested mint was a successful runner and its roughly 75% allocation was strategic according to the founder. Preserve the dated observations below; concentration is not fraud ground truth, and performance/intent does not independently certify safety or organic demand. This reference supersedes any interpretation of the original cap warning as a standalone adverse classification.
+
 Requested 21 October 2026 (Australia/Sydney). Preliminary cached review completed at **2026-10-20T23:51:06.165Z / 21 October 10:51 AEDT**.
 
 ## Priority and identity boundary
