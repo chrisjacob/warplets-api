@@ -8,7 +8,10 @@ overrides:
   '@babel/core@<=7.29.0': 7.29.7
   axios: 1.20.0
   basic-ftp@<6.2.1: 6.2.1
-  brace-expansion@>=2.0.0 <2.1.6: 2.1.6
+  brace-expansion@>=2.0.0 <2.1.7: 2.1.7
+  fflate@>=0.7.0 <0.7.5: 0.7.5
+  follow-redirects@>=1.16.0 <1.16.1: 1.16.1
+  ip-address@>=10.1.1 <10.7.4: 10.7.4
   js-yaml@>=4.0.0 <4.3.2: 4.3.2
   react: 19.2.5
   react-dom: 19.2.5
@@ -35,13 +38,13 @@ importers:
         version: 1.22.1(@neynar/ui@1.2.2(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(recharts@2.15.4(react-dom@19.2.5(react@19.2.5))(react@19.2.5))(tailwindcss@4.3.0))(bufferutil@4.1.0)(lucide-react@0.562.0(react@19.2.5))(react@19.2.5)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@4.3.6)
       '@farcaster/snap-hono':
         specifier: ~1.5.12
-        version: 1.5.12(@neynar/ui@1.2.2(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(recharts@2.15.4(react-dom@19.2.5(react@19.2.5))(react@19.2.5))(tailwindcss@4.3.0))(bufferutil@4.1.0)(hono@4.13.3)(lucide-react@0.562.0(react@19.2.5))(react@19.2.5)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@4.3.6)
+        version: 1.5.12(@neynar/ui@1.2.2(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(recharts@2.15.4(react-dom@19.2.5(react@19.2.5))(react@19.2.5))(tailwindcss@4.3.0))(bufferutil@4.1.0)(hono@4.13.13)(lucide-react@0.562.0(react@19.2.5))(react@19.2.5)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@4.3.6)
       '@noble/curves':
         specifier: ^2.0.0
         version: 2.0.1
       hono:
-        specifier: ^4.13.3
-        version: 4.13.3
+        specifier: ^4.13.13
+        version: 4.13.13
       zod:
         specifier: ^4.0.0
         version: 4.3.6
@@ -51,7 +54,7 @@ importers:
         version: 4.20260411.1
       '@hono/node-server':
         specifier: ^1.19.15
-        version: 1.19.17(hono@4.13.3)
+        version: 1.19.17(hono@4.13.13)
       '@types/node':
         specifier: ^24.0.0
         version: 24.12.2
@@ -211,7 +214,7 @@ importers:
         version: 1.25.0
       hono:
         specifier: ^4.13.3
-        version: 4.13.3
+        version: 4.13.13
     devDependencies:
       '@cloudflare/workers-types':
         specifier: ^4.0.0
@@ -264,13 +267,13 @@ importers:
         version: 2.11.0(@neynar/ui@1.2.2(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(recharts@2.15.4(react-dom@19.2.5(react@19.2.5))(react@19.2.5))(tailwindcss@4.3.0))(bufferutil@4.1.0)(lucide-react@0.562.0(react@19.2.5))(react@19.2.5)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@4.3.6)
       '@farcaster/snap-hono':
         specifier: ^2.0.1
-        version: 2.1.17(@neynar/ui@1.2.2(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(recharts@2.15.4(react-dom@19.2.5(react@19.2.5))(react@19.2.5))(tailwindcss@4.3.0))(bufferutil@4.1.0)(hono@4.13.3)(lucide-react@0.562.0(react@19.2.5))(react@19.2.5)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@4.3.6)
+        version: 2.1.17(@neynar/ui@1.2.2(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(recharts@2.15.4(react-dom@19.2.5(react@19.2.5))(react@19.2.5))(tailwindcss@4.3.0))(bufferutil@4.1.0)(hono@4.13.13)(lucide-react@0.562.0(react@19.2.5))(react@19.2.5)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@4.3.6)
       '@hono/node-server':
         specifier: ^1.19.15
-        version: 1.19.17(hono@4.13.3)
+        version: 1.19.17(hono@4.13.13)
       hono:
         specifier: ^4.13.3
-        version: 4.13.3
+        version: 4.13.13
     devDependencies:
       '@cloudflare/workers-types':
         specifier: ^4.0.0
@@ -3861,8 +3864,8 @@ packages:
   borsh@0.7.0:
     resolution: {integrity: sha512-CLCsZGIBCFnPtkNnieW/a8wmreDmfUtjU2m9yHrzPXIlNbqVs0AQrSatSG6vdNYUqdc83tkQi2eHfF98ubzQLA==}
 
-  brace-expansion@2.1.6:
-    resolution: {integrity: sha512-pi/WFpBvCBmB/NsURt7hW5sDvuOqvJaDMDai7CrlT9xoehzWRzo/dhQRKqOhpPvlnicVaTzHCbzGnnTgpvMTFw==}
+  brace-expansion@2.1.7:
+    resolution: {integrity: sha512-uZbew1NqdmPDTMJ8ah1y+b+9QEJrfkXFk3RcTQw3X0jW/xRUvFKsg1CfQdSYGdTbXZWExtU3J3ccxtnfw1Fi0g==}
 
   brave-location@3.1.1:
     resolution: {integrity: sha512-HEmKZ7N2jbZVYqetfcWmSoZYNgo+6i0NsCX0MG+s7tl80yaJPKtpXHzFWsmsyRHq4gGErFysOCcvobNeE4zs/w==}
@@ -4580,8 +4583,8 @@ packages:
       picomatch:
         optional: true
 
-  fflate@0.7.4:
-    resolution: {integrity: sha512-5u2V/CDW15QM1XbbgS+0DfPxVB+jUKhWEKuuFuHncbk3tEEqzmoXL+2KyOFuKGqOnmdIy0/davWF1CkuwtibCw==}
+  fflate@0.7.5:
+    resolution: {integrity: sha512-QieYf//cis6ywHNi5qW1+PXPQ4bC+XVJAtS4AXIML8P76GroEiOxm/oQtn1f02UkJY1+KsXMJcC+R2v/Eg4G3g==}
 
   find-root@1.1.0:
     resolution: {integrity: sha512-NKfW6bec6GfKc0SGx1e07QZY9PE99u0Bft/0rzSD5k3sO/vwkVUpDUKVm5Gpp5Ue3YfShPFTX2070tDs5kB9Ng==}
@@ -4603,8 +4606,8 @@ packages:
     resolution: {integrity: sha512-b6suED+5/3rTpUBdG1gupIl8MPFCAMA0QXwmljLhvCUKcUvdE4gWky9zpuGCcXHOsz4J9wPGNWq6OKpmIzz3hQ==}
     hasBin: true
 
-  follow-redirects@1.16.0:
-    resolution: {integrity: sha512-y5rN/uOsadFT/JfYwhxRS5R7Qce+g3zG97+JrtFZlC9klX/W5hD7iiLzScI4nZqUS7DNUdhPgw4xI8W2LuXlUw==}
+  follow-redirects@1.16.1:
+    resolution: {integrity: sha512-FNvFGzoMLWmE6Yj9spb/zjd7yiNCHiAW9/Tg9CXrQ8wuu32HtlJOwWO11OJafl5FfY3DxTdQ0vj42zU1kvv5jg==}
     engines: {node: '>=4.0'}
     peerDependencies:
       debug: '*'
@@ -4713,8 +4716,8 @@ packages:
   hoist-non-react-statics@3.3.2:
     resolution: {integrity: sha512-/gGivxi8JPKWNm/W0jSmzcMPpfpPLc3dY/6GxhX2hQ9iGj3aDfklV4ET7NjKpSinLpJ5vafa9iiGIEZg10SfBw==}
 
-  hono@4.13.3:
-    resolution: {integrity: sha512-r8AO2mYHoLxSHkgafNeC/BXyb2vWRxD3jem4Ts+ptav8oTG5FIRifAjuJEmZI4bSvvc2ns0GxmIYiZnHqN3mMw==}
+  hono@4.13.13:
+    resolution: {integrity: sha512-CQ46U0ZkAGmbT/4UxdzzGJpacP2IeKgY4a5/tOI9AABbpOMfK739wfDXmv1usCk+3RkKj1hQy4/fjhiwa2xlrA==}
     engines: {node: '>=16.9.0'}
 
   http-proxy-agent@7.0.2:
@@ -4789,8 +4792,8 @@ packages:
     resolution: {integrity: sha512-5Hh7Y1wQbvY5ooGgPbDaL5iYLAPzMTUrjMulskHLH6wnv/A+1q5rgEaiuqEjB+oxGXIVZs1FF+R/KPN3ZSQYYg==}
     engines: {node: '>=12'}
 
-  ip-address@10.4.0:
-    resolution: {integrity: sha512-oSK96Grm3aP6OrS263xVxbNDGVL7rzBtYdpGqlDG8iQdoenDoTs/nkki+DflYbAEE8Xl6o5YxhxlrKvI3nqKXQ==}
+  ip-address@10.7.4:
+    resolution: {integrity: sha512-DWBMKyeM25D70nrIiTkgQth59/G+naKOTep6huF9j+GmeK3DMD60Zvxg5d5qQnz+38AHgou6ean2LECX+lrKDg==}
     engines: {node: '>= 12'}
 
   iron-webcrypto@1.2.1:
@@ -7910,11 +7913,11 @@ snapshots:
       typescript: 5.9.3
       zod: 3.25.76
 
-  '@farcaster/snap-hono@1.5.12(@neynar/ui@1.2.2(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(recharts@2.15.4(react-dom@19.2.5(react@19.2.5))(react@19.2.5))(tailwindcss@4.3.0))(bufferutil@4.1.0)(hono@4.13.3)(lucide-react@0.562.0(react@19.2.5))(react@19.2.5)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@4.3.6)':
+  '@farcaster/snap-hono@1.5.12(@neynar/ui@1.2.2(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(recharts@2.15.4(react-dom@19.2.5(react@19.2.5))(react@19.2.5))(tailwindcss@4.3.0))(bufferutil@4.1.0)(hono@4.13.13)(lucide-react@0.562.0(react@19.2.5))(react@19.2.5)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@4.3.6)':
     dependencies:
       '@farcaster/snap': 1.22.1(@neynar/ui@1.2.2(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(recharts@2.15.4(react-dom@19.2.5(react@19.2.5))(react@19.2.5))(tailwindcss@4.3.0))(bufferutil@4.1.0)(lucide-react@0.562.0(react@19.2.5))(react@19.2.5)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@4.3.6)
       '@resvg/resvg-wasm': 2.6.2
-      hono: 4.13.3
+      hono: 4.13.13
       satori: 0.10.14
     transitivePeerDependencies:
       - '@json-render/react'
@@ -7926,11 +7929,11 @@ snapshots:
       - utf-8-validate
       - zod
 
-  '@farcaster/snap-hono@2.1.17(@neynar/ui@1.2.2(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(recharts@2.15.4(react-dom@19.2.5(react@19.2.5))(react@19.2.5))(tailwindcss@4.3.0))(bufferutil@4.1.0)(hono@4.13.3)(lucide-react@0.562.0(react@19.2.5))(react@19.2.5)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@4.3.6)':
+  '@farcaster/snap-hono@2.1.17(@neynar/ui@1.2.2(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(recharts@2.15.4(react-dom@19.2.5(react@19.2.5))(react@19.2.5))(tailwindcss@4.3.0))(bufferutil@4.1.0)(hono@4.13.13)(lucide-react@0.562.0(react@19.2.5))(react@19.2.5)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@4.3.6)':
     dependencies:
       '@farcaster/snap': 2.11.0(@neynar/ui@1.2.2(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(recharts@2.15.4(react-dom@19.2.5(react@19.2.5))(react@19.2.5))(tailwindcss@4.3.0))(bufferutil@4.1.0)(lucide-react@0.562.0(react@19.2.5))(react@19.2.5)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@4.3.6)
       '@resvg/resvg-wasm': 2.6.2
-      hono: 4.13.3
+      hono: 4.13.13
       satori: 0.10.14
     transitivePeerDependencies:
       - '@json-render/react'
@@ -8001,9 +8004,9 @@ snapshots:
 
   '@fontsource/architects-daughter@5.2.7': {}
 
-  '@hono/node-server@1.19.17(hono@4.13.3)':
+  '@hono/node-server@1.19.17(hono@4.13.13)':
     dependencies:
-      hono: 4.13.3
+      hono: 4.13.13
 
   '@img/colour@1.1.0': {}
 
@@ -8787,7 +8790,7 @@ snapshots:
 
   '@shuding/opentype.js@1.4.0-beta.0':
     dependencies:
-      fflate: 0.7.4
+      fflate: 0.7.5
       string.prototype.codepointat: 0.2.1
 
   '@sindresorhus/is@7.2.0': {}
@@ -10195,7 +10198,7 @@ snapshots:
 
   axios@1.20.0:
     dependencies:
-      follow-redirects: 1.16.0
+      follow-redirects: 1.16.1
       form-data: 4.0.6
       https-proxy-agent: 5.0.1
       proxy-from-env: 2.1.0
@@ -10274,7 +10277,7 @@ snapshots:
       bs58: 4.0.1
       text-encoding-utf-8: 1.0.2
 
-  brace-expansion@2.1.6:
+  brace-expansion@2.1.7:
     dependencies:
       balanced-match: 1.0.2
 
@@ -11078,7 +11081,7 @@ snapshots:
     optionalDependencies:
       picomatch: 4.0.4
 
-  fflate@0.7.4: {}
+  fflate@0.7.5: {}
 
   find-root@1.1.0: {}
 
@@ -11099,7 +11102,7 @@ snapshots:
 
   flat@5.0.2: {}
 
-  follow-redirects@1.16.0: {}
+  follow-redirects@1.16.1: {}
 
   form-data@4.0.6:
     dependencies:
@@ -11215,7 +11218,7 @@ snapshots:
     dependencies:
       react-is: 16.13.1
 
-  hono@4.13.3: {}
+  hono@4.13.13: {}
 
   http-proxy-agent@7.0.2:
     dependencies:
@@ -11309,7 +11312,7 @@ snapshots:
 
   internmap@2.0.3: {}
 
-  ip-address@10.4.0: {}
+  ip-address@10.7.4: {}
 
   iron-webcrypto@1.2.1: {}
 
@@ -11514,7 +11517,7 @@ snapshots:
 
   localflare-api@0.5.0:
     dependencies:
-      hono: 4.13.3
+      hono: 4.13.13
 
   localflare-core@0.5.0:
     dependencies:
@@ -11651,7 +11654,7 @@ snapshots:
 
   minimatch@9.0.9:
     dependencies:
-      brace-expansion: 2.1.6
+      brace-expansion: 2.1.7
 
   minimist@1.2.8: {}
 
@@ -12593,7 +12596,7 @@ snapshots:
 
   socks@2.8.9:
     dependencies:
-      ip-address: 10.4.0
+      ip-address: 10.7.4
       smart-buffer: 4.2.0
 
   sonic-boom@4.2.1:

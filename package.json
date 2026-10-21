@@ -22,6 +22,7 @@
     "test": "tsx --test src/**/*.test.ts",
     "security:preflight": "node scripts/security-preflight.mjs",
     "security:test": "node scripts/test-security-blocklist.mjs",
+    "security:test:redirects": "node --test scripts/test-http-redirect-security.mjs",
     "security:smoke": "node scripts/security-smoke.mjs",
     "warpmoji:generate": "node scripts/generate-warpmoji-data.mjs && node scripts/generate-warpmoji-popularity.mjs",
     "warpmoji:popularity": "node scripts/generate-warpmoji-popularity.mjs",
@@ -36,7 +37,10 @@
       "@babel/core@<=7.29.0": "7.29.7",
       "axios": "1.20.0",
       "basic-ftp@<6.2.1": "6.2.1",
-      "brace-expansion@>=2.0.0 <2.1.6": "2.1.6",
+      "brace-expansion@>=2.0.0 <2.1.7": "2.1.7",
+      "fflate@>=0.7.0 <0.7.5": "0.7.5",
+      "follow-redirects@>=1.16.0 <1.16.1": "1.16.1",
+      "ip-address@>=10.1.1 <10.7.4": "10.7.4",
       "js-yaml@>=4.0.0 <4.3.2": "4.3.2",
       "react": "19.2.5",
       "react-dom": "19.2.5",
@@ -53,7 +57,7 @@
     "@farcaster/snap": "^1.22.1",
     "@farcaster/snap-hono": "~1.5.12",
     "@noble/curves": "^2.0.0",
-    "hono": "^4.13.3",
+    "hono": "^4.13.13",
     "zod": "^4.0.0"
   },
   "devDependencies": {
