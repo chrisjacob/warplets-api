@@ -4,6 +4,7 @@ import sdk from "@farcaster/miniapp-sdk";
 import confetti from "canvas-confetti";
 import { Text } from "@neynar/ui/typography";
 import { encodeFunctionData, erc20Abi, getAddress, type Address } from "viem";
+import { normalizeTransactionChainId, sendEthereumTransaction } from "./ethereumTransaction";
 import MiniAppShell from "./MiniAppShell";
 import {
   MiniAppHeader,
@@ -1030,7 +1031,8 @@ async function waitForTokenAllowance(
 async function ensureTokenApproval(
   provider: EthereumProvider,
   owner: string,
-  approval: TokenApprovalRequirement
+  approval: TokenApprovalRequirement,
+  chainIdHex: string,
 ): Promise<void> {
   const requiredAllowance = BigInt(approval.amount);
   const currentAllowance = await readTokenAllowance(
@@ -1050,16 +1052,12 @@ async function ensureTokenApproval(
     args: [getAddress(approval.spender), requiredAllowance],
   });
 
-  const approvalHash = (await provider.request({
-    method: "eth_sendTransaction",
-    params: [
-      {
-        from: getAddress(owner),
-        to: getAddress(approval.tokenAddress),
-        data: approvalData,
-        value: "0x0",
-      },
-    ],
+  const approvalHash = (await sendEthereumTransaction(provider, {
+    chainId: chainIdHex,
+    from: getAddress(owner),
+    to: getAddress(approval.tokenAddress),
+    data: approvalData,
+    value: "0x0",
   })) as string;
 
   await waitForTransactionReceipt(provider, approvalHash);
@@ -2258,7 +2256,8 @@ export default function App() {
           throw new Error("Switch Farcaster Wallet to your primary Farcaster address before buying this Warplet.");
         }
 
-        await ensureChain(provider, quote.transaction.chainIdHex || BASE_CHAIN_CONFIG.chainId);
+        const chainId = normalizeTransactionChainId(quote.transaction.chainIdHex || BASE_CHAIN_CONFIG.chainId);
+        await ensureChain(provider, chainId);
 
         const fulfillmentData =
           quote.transaction.data && quote.transaction.data.startsWith("0x")
@@ -2270,19 +2269,15 @@ export default function App() {
             ? quote.approvals
             : [quote.approval];
         for (const approval of approvals) {
-          await ensureTokenApproval(provider, activeAccount, approval);
+          await ensureTokenApproval(provider, activeAccount, approval, chainId);
         }
 
-        purchaseHash = (await provider.request({
-          method: "eth_sendTransaction",
-          params: [
-            {
-              from: activeAccount,
-              to: quote.transaction.to,
-              data: fulfillmentData,
-              value: quote.transaction.value,
-            },
-          ],
+        purchaseHash = (await sendEthereumTransaction(provider, {
+          chainId,
+          from: activeAccount,
+          to: quote.transaction.to,
+          data: fulfillmentData,
+          value: quote.transaction.value,
         })) as string;
 
         await waitForTransactionReceipt(provider, purchaseHash);

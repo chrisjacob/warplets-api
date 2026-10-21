@@ -2,6 +2,7 @@ import { encodeFunctionData, erc20Abi, erc721Abi, getAddress, recoverTypedDataAd
 import { appendBuilderCode, builderCodeSuffix } from "./builderCode";
 import { trackAppEvent } from "./analytics";
 import { recordLocalOfferDiagnostic } from "./localOfferDiagnostics";
+import { BASE_CHAIN_ID_HEX, normalizeTransactionChainId, sendEthereumTransaction } from "./ethereumTransaction";
 
 export type EthereumProvider = {
   request(args: { method: string; params?: readonly unknown[] | object }): Promise<unknown>;
@@ -90,7 +91,7 @@ type SeaportOrderParameters = {
 };
 
 const BASE_CHAIN_CONFIG = {
-  chainId: "0x2105",
+  chainId: BASE_CHAIN_ID_HEX,
   chainName: "Base",
   nativeCurrency: {
     name: "Ether",
@@ -822,7 +823,7 @@ export async function sendAttributedTransaction(
     const hash = await requestWithWalletReview(
       provider,
       "transaction",
-      () => provider.request({ method: "eth_sendTransaction", params: [attributed] }),
+      () => sendEthereumTransaction(provider, attributed),
     );
     if (typeof hash !== "string") throw new Error("Wallet did not return a transaction hash");
     trackAppEvent("transaction_submitted", { transactionType });
@@ -1090,6 +1091,9 @@ function normalizePreparedTransaction(value: unknown): PreparedTransaction | nul
   if (!to || (!data && !rawInputData)) return null;
   return {
     to,
+    ...(tx.chainIdHex != null || tx.chainId != null
+      ? { chainIdHex: normalizeTransactionChainId(tx.chainIdHex ?? tx.chainId) }
+      : {}),
     value:
       asString(tx.value) ??
       asString(tx.nativeValue) ??
@@ -1127,7 +1131,12 @@ function findPreparedTransaction(value: unknown, depth = 0): PreparedTransaction
     ];
     for (const candidate of candidates) {
       const found = findPreparedTransaction(candidate, depth + 1);
-      if (found) return found;
+      if (found) return {
+        ...found,
+        ...(found.chainIdHex == null && (obj.chainIdHex != null || obj.chainId != null)
+          ? { chainIdHex: normalizeTransactionChainId(obj.chainIdHex ?? obj.chainId) }
+          : {}),
+      };
     }
   }
 
@@ -1142,8 +1151,17 @@ export function extractFulfillmentTransaction(payload: unknown): PreparedTransac
   return findPreparedTransaction(payload);
 }
 
+function preparedTransactionChainId(transactions: PreparedTransaction[], chainIdHex?: string): string {
+  const chainId = normalizeTransactionChainId(chainIdHex ?? transactions.find((tx) => tx.chainIdHex != null)?.chainIdHex);
+  if (transactions.some((tx) => tx.chainIdHex != null && normalizeTransactionChainId(tx.chainIdHex) !== chainId)) {
+    throw new Error("Transactions must use the same chain ID");
+  }
+  return chainId;
+}
+
 export function combinePreparedOpenSeaTransactions(transactions: PreparedTransaction[]): PreparedTransaction {
   if (transactions.length === 0) throw new Error("No OpenSea transactions to combine");
+  const chainIdHex = preparedTransactionChainId(transactions);
   const target = asString(transactions[0]?.to);
   if (!target) throw new Error("OpenSea transaction is missing a target");
   const combinedOrders: unknown[] = [];
@@ -1183,6 +1201,7 @@ export function combinePreparedOpenSeaTransactions(transactions: PreparedTransac
       totalValue += BigInt(toHexQuantity(transaction.value));
     }
     return {
+      chainIdHex,
       to: target,
       value: `0x${totalValue.toString(16)}`,
       inputData: {
@@ -1230,6 +1249,7 @@ export function combinePreparedOpenSeaTransactions(transactions: PreparedTransac
   }
 
   return {
+    chainIdHex,
     to: target,
     value: `0x${totalValue.toString(16)}`,
     inputData: {
@@ -1258,7 +1278,7 @@ export async function supportsAtomicBatchTransactions(
   chainIdHex = BASE_CHAIN_CONFIG.chainId,
 ): Promise<boolean> {
   const normalizedAccount = getAddress(account);
-  const normalizedChainId = `0x${BigInt(chainIdHex).toString(16)}`;
+  const normalizedChainId = normalizeTransactionChainId(chainIdHex);
   try {
     const capabilities = await provider.request({
       method: "wallet_getCapabilities",
@@ -1277,12 +1297,12 @@ export async function sendPreparedTransactionsAtomic(
   provider: EthereumProvider,
   account: string,
   transactions: PreparedTransaction[],
-  chainIdHex = BASE_CHAIN_CONFIG.chainId,
+  chainIdHex?: string,
   timeoutMs = 120000,
 ): Promise<AtomicBatchReceipt> {
   if (transactions.length < 2) throw new Error("Atomic bulk buy requires at least two transactions");
   const normalizedAccount = getAddress(account);
-  const normalizedChainId = `0x${BigInt(chainIdHex).toString(16)}`;
+  const normalizedChainId = preparedTransactionChainId(transactions, chainIdHex);
 
   const calls = transactions.map((transaction) => getPreparedTransactionCall(transaction, normalizedAccount, false));
   const dataSuffix = builderCodeSuffix();
@@ -1337,7 +1357,7 @@ export async function sendPreparedTransaction(
   tx: PreparedTransaction,
 ): Promise<string> {
   const call = getPreparedTransactionCall(tx, account);
-  const hash = await sendAttributedTransaction(provider, { from: account, ...call }, "prepared_marketplace");
+  const hash = await sendAttributedTransaction(provider, { from: account, ...call, chainId: tx.chainIdHex }, "prepared_marketplace");
   await waitForTransactionReceipt(hash);
   trackAppEvent("transaction_confirmed", { transactionType: "prepared_marketplace" });
   return hash;
@@ -1490,6 +1510,7 @@ export async function executeOpenSeaActions(
         asObject(item.payload) ??
         item;
       await sendPreparedTransaction(provider, account, {
+        chainIdHex: normalizeTransactionChainId(transaction.chainIdHex ?? transaction.chainId ?? root?.chainIdHex ?? root?.chainId),
         to: asString(transaction.to),
         value: asString(transaction.value) ?? 0,
         data: asString(transaction.data) ?? asString(transaction.input),
