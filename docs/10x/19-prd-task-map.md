@@ -18,6 +18,18 @@ Discovery workspace, 21 October: [rotating coverage and searchable table](83-rot
 
 Next functionality, 21 October: [daily discovery product plan](82-next-product-functionality-plan.md) prioritizes broad rotating token coverage, a common activity model, table/search/comparison, meaningful participation metrics and a prospectively evaluated scoring revision. PONYX and other founder concern cases remain regression fixtures. Build F1 and the first F2 slice next; keep v4 live, Free limits and every evidence/action gate. This is a planning checkpoint, not runtime implementation or deployment.
 
+## F5 storage recovery — 22 October
+
+[91 — local evidence archive and restore](91-local-evidence-archive-and-restore.md) implements a private operator recovery slice; F5 remains partial.
+
+- [x] Export the complete SQLite snapshot, including WAL-committed data, old evidence, failures, quotas and identities, without writing the live store.
+- [x] Record file/schema checksums, migration ledger, all table row counts and table/index page allocations; require an independently retained manifest checksum.
+- [x] Verify restoration into a new scratch file, with no runtime activation or existing-store overwrite; test WAL concurrency, tampering and Wrangler/junction protection.
+- [x] Provide verified chronological snapshot differences without claiming a sustained growth forecast or independently proven lineage.
+- [ ] Measure multiple admitted observation days and choose an approved storage/retention policy before any eviction.
+- [ ] Establish private off-device recovery and a stopped-owner operational adoption procedure, including stale leases/jobs/sessions.
+- [ ] Complete remaining runtime/outage/rollover reliability rehearsals and F1/F3/F4 population/qualification work.
+
 ## Current build order — 21 October product review
 
 The [new functionality plan](82-next-product-functionality-plan.md) supersedes the immediate ordering of the earlier work packages below. It preserves all existing PRD requirements and release/evidence gates.

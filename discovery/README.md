@@ -1,5 +1,7 @@
 # Local Solana discovery
 
+Storage recovery, 22 October: [private full-store archive and verified restore](../docs/10x/91-local-evidence-archive-and-restore.md) adds `node scripts/discovery-archive.mjs` (from repository root): `export`, checksum-pinned `verify`, exclusive scratch `restore` and descriptive `growth`. A real 83-table store restored with identical bytes. Archives include confidential identity sessions/research and stay private/ignored; no live adoption, eviction, provider IO, quota/model/gate change or deploy. Multi-day growth and operational recovery remain open.
+
 Trading breadth, 22 October: [signed trading samples](../docs/10x/90-signed-trading-sample.md) adds optional `trade_sample` comparison records and private reconstruction/replay from existing acquisition inputs. Native sums/display remain exact, uncertain totals remain unknown, and finalized-history mismatch holds measurements. No provider IO, new collection, migration, score promotion or deploy; all gates and the thesis-only release remain.
 
 Broad coverage, 22 October: [fourteen-day rotation accounting](../docs/10x/89-broad-rotation-coverage.md) adds a cache-only local read at `/api/10x/discovery/rotation-coverage` and a Research panel. Frozen manifests, selected/new investigations, endpoint gaps and recorded states remain separate from payload validity or quality certification. No new collection, quota reset, migration, score adoption or deployment; production stays behind the thesis-only feature flag.
