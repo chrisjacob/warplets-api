@@ -6,6 +6,8 @@ const Cost=z.unknown().transform(value=>{
   const parsed=SignedValue.safeParse(value);
   return{value:parsed.success?parsed.data:null,missing:value===null||value===undefined,unusable:value!==null&&value!==undefined&&!parsed.success};
 });
+// Reuse precisely the archived optional-USD semantics in later comparisons.
+export function gmgnActivityUsd(value:unknown){return Cost.parse(value);}
 const optional=<T extends z.ZodType>(schema:T)=>schema.nullish().transform(v=>v??null);
 const EventType=z.enum(["buy","sell","transferIn","transferOut","add","remove"]);
 const Event=z.object({tx_hash:Signature,token:z.object({address:Address}),event_type:EventType.optional(),type:EventType.optional(),

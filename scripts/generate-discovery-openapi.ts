@@ -5,6 +5,7 @@ import { GmgnPublicSummarySchema } from "../discovery/src/gmgn-model";
 import { HolderHistoryReportSchema } from "../discovery/src/holder-history-model";
 import { HolderAcquisitionReportSchema } from "../discovery/src/holder-acquisition-model";
 import{GmgnCorroborationReportSchema}from"../discovery/src/gmgn-corroboration-model";
+import{GmgnQuoteReportSchema}from"../discovery/src/gmgn-quote-model";
 import { GmgnReviewRequestSchema } from "../discovery/src/gmgn";
 import { InboxRecoveryResponse } from "../discovery/src/inbox-recovery-model";
 import { MintReviewsResponse, MintReviewRequest } from "../discovery/src/mint-review-model";
@@ -49,6 +50,8 @@ const spec = {
   openapi: "3.1.0", info: { title: "10X local Solana discovery", version: "0.1.0", description: "Local-only chain discovery and signed-message wallet ownership. No server-held signers, transactions, votes, launches or financial flows. Public reads use stored data; only authenticated refresh makes provider requests." },
   servers: [{ url: "http://127.0.0.1:8794" }],
   paths: {
+    "/api/10x/gmgn/quote/{id}":read("Cache-only saved quote transfers and fee-basis review; no historical USD or organic credit",{...responseSchema("GmgnQuoteReview"),parameters:[parameter("id","path",{type:"string",format:"uuid"},true)]}),
+    "/api/10x/admin/gmgn/quote/{id}":read("Private source-plus-RPC quote review replay; no provider calls or database writes",{security:[{localOperator:[]}],parameters:[parameter("id","path",{type:"string",format:"uuid"},true)]}),
     "/api/10x/gmgn/corroboration/{id}":read("Cache-only RPC comparison of saved GMGN events; no volume or action certification",{...responseSchema("GmgnRpcComparison"),parameters:[parameter("id","path",{type:"string",format:"uuid"},true)]}),
     "/api/10x/admin/gmgn/corroboration/{id}":read("Private frozen source and transaction comparison inputs",{security:[{localOperator:[]}],parameters:[parameter("id","path",{type:"string",format:"uuid"},true)]}),
     "/api/10x/admin/gmgn/corroboration/collect":post("Explicit at-most-two transaction collection through existing wallet RPC quotas and lease; no action credit"),
@@ -178,6 +181,7 @@ const spec = {
     ArtworkResponse: z.toJSONSchema(ArtworkResponseSchema),
     GmgnSummary: z.toJSONSchema(GmgnPublicSummarySchema),
     GmgnRpcComparison:z.toJSONSchema(GmgnCorroborationReportSchema),
+    GmgnQuoteReview:z.toJSONSchema(GmgnQuoteReportSchema),
     HolderHistoryReport: z.toJSONSchema(HolderHistoryReportSchema),
     HolderAcquisitionReport: z.toJSONSchema(HolderAcquisitionReportSchema),
     WalletWorkResponse: z.toJSONSchema(WalletWorkResponseSchema),

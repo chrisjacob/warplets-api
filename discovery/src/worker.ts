@@ -61,6 +61,7 @@ import { HolderHistoryError } from "./holder-history";
 import { holderAcquisition } from "./holder-acquisition-store";
 import { HolderAcquisitionError } from "./holder-acquisition";
 import{gmgnCorroboration,collectGmgnCorroboration}from"./gmgn-corroboration-store";
+import{gmgnQuote}from"./gmgn-quote-store";
 
 // Widen generated literal vars so ignored .dev.vars overrides stay type-safe.
 type OptionalGmgnSecret = "GMGN_API_KEY" | "TENX_RESEARCH_MODE";
@@ -174,6 +175,8 @@ export async function handle(request: Request, env: Env): Promise<Response> {
   if (method === "POST" && !admin) return json({ error: "not_found" }, 404);
   if (method === "GET" && path === "/api/10x/health") return json({ local: true, ready: true });
   const rpcComparison=path.match(/^\/api\/10x\/(admin\/)?gmgn\/corroboration\/([a-f0-9-]{36})$/i);
+  const quoteReview=path.match(/^\/api\/10x\/(admin\/)?gmgn\/quote\/([a-f0-9-]{36})$/i);
+  if(method==="GET"&&quoteReview){const result=await gmgnQuote(env.TENX_DB,quoteReview[2]!);return result?json(quoteReview[1]?result:result.report):json({error:"accepted_activity_not_found"},404);}
   if(method==="GET"&&rpcComparison){const result=await gmgnCorroboration(env.TENX_DB,rpcComparison[2]!);return result?json(rpcComparison[1]?result:result.report):json({error:"accepted_activity_not_found"},404);}
   const holderBuys = path.match(/^\/api\/10x\/(admin\/)?holders\/acquisition\/solana\/([^/]+)$/);
   if(method==="GET"&&holderBuys){const result=await holderAcquisition(env.TENX_DB,holderBuys[2]!);return json(holderBuys[1]?result:result.report);}

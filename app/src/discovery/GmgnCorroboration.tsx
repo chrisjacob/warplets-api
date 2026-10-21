@@ -1,12 +1,14 @@
 import{useEffect,useState}from"react";
 import{GmgnCorroborationReportSchema,type GmgnCorroborationReport}from"../../../discovery/src/gmgn-corroboration-model";
 import{getJson}from"./client";
+import{GmgnQuote}from"./GmgnQuote";
 export function GmgnCorroborationValues({data}:{data:GmgnCorroborationReport}){return<>
   <p>Compared at {new Date(data.cutoff_at).toLocaleString()} against activity received {new Date(data.activity_received_at).toLocaleString()}. {data.cached_transactions} / {data.required_transactions} required transaction bodies are saved. {data.status==="held"&&"Comparison held by its bounds."}</p>
   <p>{data.exact_quantity_events} / {data.reported_trade_events} reported trade events match signed-wallet, side, time and exact instruction token quantities in the saved RPC sample. {data.aggregate_only_events} events match only aggregate token quantities. {data.non_trade_events} non-trade events are excluded.</p>
   <ul>{data.groups.map((group,i)=><li key={i}>{group.events} reported events · {group.parsed_instructions} parsed instructions · {group.status.replaceAll("_"," ")}</li>)}</ul>
   <p>Missing bodies are unknown. Quantity conflicts can reflect provider aggregation or parsing gaps; they are not a fraud verdict. RPC body consistency is not independent finality attestation or verified USD valuation. No organic-volume, scoring or action credit. Later evidence never changes an archived score.</p>
   <details><summary>Comparison gaps and replay</summary><ul>{data.gaps.map(gap=><li key={gap}>{gap.replaceAll("_"," ")}</li>)}</ul><p className="tenx-address">Report hash: {data.report_hash}</p></details>
+  <GmgnQuote key={data.activity_id} activityId={data.activity_id} address={data.address}/>
 </>;}
 export function GmgnCorroboration({activityId,address}:{activityId:string;address:string}){
   const[open,setOpen]=useState(false),[loaded,setLoaded]=useState<GmgnCorroborationReport|null>(null),[error,setError]=useState("");

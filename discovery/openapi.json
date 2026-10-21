@@ -11,6 +11,121 @@
     }
   ],
   "paths": {
+    "/api/10x/gmgn/quote/{id}": {
+      "get": {
+        "summary": "Cache-only saved quote transfers and fee-basis review; no historical USD or organic credit",
+        "responses": {
+          "200": {
+            "description": "Success; cached public data includes timestamps, source freshness and coverage",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GmgnQuoteReview"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "401": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "403": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "404": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "409": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "413": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "415": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "429": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "503": {
+            "description": "Structured JSON error; no provider secrets"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ]
+      }
+    },
+    "/api/10x/admin/gmgn/quote/{id}": {
+      "get": {
+        "summary": "Private source-plus-RPC quote review replay; no provider calls or database writes",
+        "responses": {
+          "200": {
+            "description": "Success; cached public data includes timestamps, source freshness and coverage",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "401": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "403": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "404": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "409": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "413": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "415": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "429": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "503": {
+            "description": "Structured JSON error; no provider secrets"
+          }
+        },
+        "security": [
+          {
+            "localOperator": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ]
+      }
+    },
     "/api/10x/gmgn/corroboration/{id}": {
       "get": {
         "summary": "Cache-only RPC comparison of saved GMGN events; no volume or action certification",
@@ -36550,6 +36665,287 @@
           "provider_requests",
           "database_writes",
           "input_hash",
+          "report_hash"
+        ],
+        "additionalProperties": false
+      },
+      "GmgnQuoteReview": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "string",
+            "const": "gmgn-quote-review-v1"
+          },
+          "activity_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "address": {
+            "type": "string"
+          },
+          "cutoff_at": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+          },
+          "comparison_hash": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "reviewed_sample",
+              "held"
+            ]
+          },
+          "reported_trade_events": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "supported_events": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "quote_decimals": {
+            "type": "number",
+            "const": 9
+          },
+          "buy_pool_quote_transfer_raw": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40,
+                "pattern": "^\\d+$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sell_pool_quote_transfer_raw": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40,
+                "pattern": "^\\d+$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "groups": {
+            "maxItems": 20,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "side": {
+                  "type": "string",
+                  "enum": [
+                    "buy",
+                    "sell"
+                  ]
+                },
+                "events": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 100
+                },
+                "token_match": {
+                  "type": "string",
+                  "enum": [
+                    "exact_instruction_quantities",
+                    "aggregate_quantity_only",
+                    "quantity_conflict",
+                    "time_conflict",
+                    "wallet_or_side_not_supported",
+                    "cache_missing",
+                    "quantity_unknown",
+                    "parser_held",
+                    "transaction_failed"
+                  ]
+                },
+                "quote_kinds": {
+                  "maxItems": 2,
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "native_lamports",
+                      "wsol_raw"
+                    ]
+                  }
+                },
+                "pool_quote_transfer_raw": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 40,
+                      "pattern": "^\\d+$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "reported_usd": {
+                  "anyOf": [
+                    {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "implied_usd_per_sol": {
+                  "anyOf": [
+                    {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "fee_rows": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 100
+                },
+                "fee_status": {
+                  "type": "string",
+                  "enum": [
+                    "known_layout_complete",
+                    "partial",
+                    "unavailable"
+                  ]
+                },
+                "event_quote_raw": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 40,
+                      "pattern": "^\\d+$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "known_fee_raw": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 40,
+                      "pattern": "^\\d+$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "wallet_swap_cashflow_raw": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 40,
+                      "pattern": "^\\d+$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "gaps": {
+                  "maxItems": 20,
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "required": [
+                "side",
+                "events",
+                "token_match",
+                "quote_kinds",
+                "pool_quote_transfer_raw",
+                "reported_usd",
+                "implied_usd_per_sol",
+                "fee_rows",
+                "fee_status",
+                "event_quote_raw",
+                "known_fee_raw",
+                "wallet_swap_cashflow_raw",
+                "gaps"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "gaps": {
+            "maxItems": 20,
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "historical_usd_verified": {
+            "type": "boolean",
+            "const": false
+          },
+          "organic_volume_usd": {
+            "type": "null"
+          },
+          "scoring_effect": {
+            "type": "string",
+            "const": "none"
+          },
+          "evidence_gates_changed": {
+            "type": "boolean",
+            "const": false
+          },
+          "provider_requests": {
+            "type": "number",
+            "const": 0
+          },
+          "database_writes": {
+            "type": "number",
+            "const": 0
+          },
+          "report_hash": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          }
+        },
+        "required": [
+          "version",
+          "activity_id",
+          "address",
+          "cutoff_at",
+          "comparison_hash",
+          "status",
+          "reported_trade_events",
+          "supported_events",
+          "quote_decimals",
+          "buy_pool_quote_transfer_raw",
+          "sell_pool_quote_transfer_raw",
+          "groups",
+          "gaps",
+          "historical_usd_verified",
+          "organic_volume_usd",
+          "scoring_effect",
+          "evidence_gates_changed",
+          "provider_requests",
+          "database_writes",
           "report_hash"
         ],
         "additionalProperties": false
