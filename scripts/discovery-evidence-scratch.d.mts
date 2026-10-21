@@ -4,7 +4,8 @@ export type ScratchStatistics={resolved_rows:number;resolution_attempts:number;r
 export type ScratchSession={
   sqlite:DatabaseSync;
   resolve(table:string,key:string):Promise<{payload_hash:string;address:string;observed_at:string;slot?:number;payload:string}>;
-  capacity:{source_archive_manifest_sha256:string};
+  describe(table:string,key:string):Readonly<{payload_hash:string;address:string;slot:number;observed_at:string;bytes:number}|{evidence_hash:string;address:string;observed_at:string;bytes:number}>;
+  capacity:{source_archive_manifest_sha256:string;source_database_sha256:string};
   statistics():ScratchStatistics;
 };
 export function withScratchEvidenceResolver<T>(options:ScratchOptions,work:(reader:ScratchSession)=>Promise<T>):Promise<{

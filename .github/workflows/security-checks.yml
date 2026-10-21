@@ -62,6 +62,9 @@ jobs:
       - name: Scratch replay tooling types
         run: pnpm exec tsc --noEmit -p tsconfig.evidence-scratch.json
 
+      - name: Evidence read contract and encrypted-store parity
+        run: pnpm test:discovery-read-store
+
       - name: Install dependencies (app)
         working-directory: app
         run: pnpm install --frozen-lockfile
