@@ -74,6 +74,9 @@ jobs:
       - name: Evidence read contract and encrypted-store parity
         run: pnpm test:discovery-read-store
 
+      - name: Immutable evidence response and activity compatibility
+        run: pnpm --dir discovery test -- src/evidence-read-store.test.ts
+
       - name: Install dependencies (app)
         working-directory: app
         run: pnpm install --frozen-lockfile

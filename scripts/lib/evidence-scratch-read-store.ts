@@ -13,6 +13,20 @@ export function scratchEvidenceReadStore(reader:Reader):EvidenceReadStore{
     return isDeepStrictEqual(found,meta)&&found.bytes<=maximumBytes;
   }
   return {
+    async holderReceipt(hash,address){
+      // Null means absent only from this fully admitted frozen metadata population.
+      // Existing metadata must still resolve/authenticate; never catch corrupt objects.
+      const row=address===undefined?reader.sqlite.prepare("SELECT payload_hash FROM tenx_holder_evidence WHERE payload_hash=?").get(hash)
+        :reader.sqlite.prepare("SELECT payload_hash FROM tenx_holder_evidence WHERE payload_hash=? AND address=?").get(hash,address);
+      if(!row)return null;const meta=HolderArchiveMetaSchema.parse(reader.describe("tenx_holder_evidence",hash)),saved=await reader.resolve("tenx_holder_evidence",hash);
+      return {payload_hash:meta.payload_hash,address:meta.address,slot:meta.slot,payload:saved.payload,observed_at:meta.observed_at};
+    },
+    async walletReceipt(hash,address){
+      const row=address===undefined?reader.sqlite.prepare("SELECT payload_hash FROM tenx_wallet_evidence WHERE payload_hash=?").get(hash)
+        :reader.sqlite.prepare("SELECT payload_hash FROM tenx_wallet_evidence WHERE payload_hash=? AND address=?").get(hash,address);
+      if(!row)return null;const meta=AcquisitionWalletMetaSchema.parse(reader.describe("tenx_wallet_evidence",hash)),saved=await reader.resolve("tenx_wallet_evidence",hash);
+      return {payload_hash:meta.evidence_hash,address:meta.address,payload:saved.payload,observed_at:meta.observed_at};
+    },
     async holderIndex(address,start,cutoff){
       const selected=reader.sqlite.prepare(`SELECT payload_hash FROM tenx_holder_evidence WHERE address=? AND observed_at>=? AND observed_at<=?
         ORDER BY observed_at,slot,payload_hash LIMIT 97`).all(address,start,cutoff);

@@ -10,11 +10,15 @@ import { creationRoles, verifiedTrades } from "./wallet-trades";
 import { fundingSourceLimited } from "./priority";
 import { recordUnsupportedFundingRead } from "./funding-recovery";
 import {currentWalletReader,directFundingLimit,expandedFundingScope,fundingSecondHopScope} from "./wallet-funding-scope";
+import {d1EvidenceReadStore,type EvidenceReadStore} from "./evidence-read-store";
 
 export const catchupLimit = (dailyLimit: number) => Math.min(180, Math.floor(dailyLimit / 4 / 18) * 18);
 export async function priorWalletEvidence(db: D1Database, candidate: Candidate): Promise<WalletEvidence | null> {
+  return priorWalletEvidenceFromStore(d1EvidenceReadStore(db),candidate);
+}
+export async function priorWalletEvidenceFromStore(store:EvidenceReadStore,candidate:Candidate):Promise<WalletEvidence|null>{
   const w = candidate.wallet_analysis; if (!w) return null;
-  const row = await db.prepare("SELECT payload FROM tenx_wallet_evidence WHERE payload_hash=?1 AND address=?2").bind(w.evidence_hash, candidate.address).first<{ payload: string }>();
+  const row = await store.walletReceipt(w.evidence_hash,candidate.address);
   if (!row) throw new Error("wallet_evidence_cache_missing");
   const prior = WalletEvidenceSchema.parse(JSON.parse(row.payload));
   if (await hashJson(prior) !== w.evidence_hash) throw new Error("wallet_evidence_cache_hash_mismatch");

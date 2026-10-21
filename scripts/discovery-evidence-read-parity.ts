@@ -15,6 +15,9 @@ import {reviewHolderParticipationContext} from "../discovery/src/holder-particip
 import {reviewTradeSampleContext} from "../discovery/src/trade-sample";
 import {hashJson} from "../discovery/src/solana";
 import {sqliteD1} from "../app/functions/_lib/sqliteTestDb";
+import {priorWalletEvidenceFromStore} from "../discovery/src/wallet-work";
+import {walletHolderInputFromStore} from "../discovery/src/wallet-cycle";
+import {CandidateSchema} from "../discovery/src/model";
 
 const sha=(v:string)=>createHash("sha256").update(v).digest("hex");
 async function outcome(store:EvidenceReadStore,address:string,at:Date){
@@ -55,16 +58,45 @@ export async function runEvidenceReadParity(args:string[]){
         if(await hashJson(before)!==await hashJson(after))throw Error("read_parity_semantics_mismatch");
         comparisons.push({address,cutoff_at:cutoff.toISOString(),...after,identical:true});
       }
-      return {cases:comparisons};
+      const receipts=[];
+      for(const table of ["tenx_holder_evidence","tenx_wallet_evidence"] as const){
+        const entries=sqlite.prepare(`SELECT payload_hash FROM ${table} ORDER BY payload_hash LIMIT 10001`).all();
+        if(entries.length>10000)throw Error("read_parity_receipt_bound");
+        for(const entry of entries){
+          const hash=String(entry.payload_hash),read=table==="tenx_holder_evidence"?"holderReceipt":"walletReceipt",before=await ordinary[read](hash),after=await compact[read](hash);
+          if(!before||!after||await hashJson(before)!==await hashJson(after))throw Error("read_parity_raw_receipt_mismatch");
+          receipts.push({table,payload_hash:hash,row_sha256:await hashJson(after),identical:true});
+        }
+      }
+      const continuations=[],columns=sqlite.prepare("PRAGMA table_info(tenx_candidates)").all();
+      // Minimal synthetic legacy fixtures may lack payload; real candidate stores must compare every retained row.
+      if(columns.some(c=>c.name==="payload")){
+        const inventory=sqlite.prepare("SELECT count(*) AS n,max(length(CAST(payload AS BLOB))) AS maximum FROM tenx_candidates").get()!,count=Number(inventory.n);if(count>1000)throw Error("read_parity_candidate_bound");
+        if(Number(inventory.maximum)>1900000)throw Error("read_parity_candidate_byte_bound");
+        // Keep only one bounded candidate body while replaying; do not materialize the full table.
+        for(const saved of sqlite.prepare("SELECT payload,length(CAST(payload AS BLOB)) AS bytes FROM tenx_candidates ORDER BY address").iterate()){
+          if(Number(saved.bytes)>1900000)throw Error("read_parity_candidate_byte_bound");
+          const candidate=CandidateSchema.parse(JSON.parse(String(saved.payload)));
+          const evaluate=async(store:EvidenceReadStore)=>{
+            try{return{state:"reviewed",wallet_hash:await hashJson(await priorWalletEvidenceFromStore(store,candidate)),holder_hash:await hashJson(await walletHolderInputFromStore(store,candidate))};}
+            catch(e){return{state:"held",error_name:e instanceof Error?e.name:"unknown",error_sha256:sha(e instanceof Error?e.message:String(e))};}
+          };
+          const before=await evaluate(ordinary),after=await evaluate(compact);if(await hashJson(before)!==await hashJson(after))throw Error("read_parity_continuation_mismatch");
+          continuations.push({address:candidate.address,...after,identical:true});
+        }
+        if(continuations.length!==count)throw Error("read_parity_candidate_population_changed");
+      }
+      return {cases:comparisons,receipts,continuations,candidate_payload_column_present:columns.some(c=>c.name==="payload")};
     });
     if(network||sqlite.prepare("SELECT total_changes() AS n").get()!.n!==0||await hashFile(saved.file)!==archive.database.sha256)throw Error("read_parity_source_changed");
     await verifyArchive(source,archivePin);
-    const rows=result.value.cases,report={version:"discovery-evidence-read-parity-v1",source_archive_manifest_sha256:archivePin,capacity_manifest_sha256:capacityPin,reference_manifest_sha256:referencePin,
+    const rows=result.value.cases,report={version:"discovery-evidence-read-parity-v2",source_archive_manifest_sha256:archivePin,capacity_manifest_sha256:capacityPin,reference_manifest_sha256:referencePin,
       selection:"all_retained_evidence_addresses_latest_receipt_plus_5m",cases:rows,reviewed:rows.filter(r=>r.state==="reviewed").length,held:rows.filter(r=>r.state==="held").length,
+      receipt_comparisons:result.value.receipts,continuations:result.value.continuations,candidate_payload_column_present:result.value.candidate_payload_column_present,
       statistics:result.statistics,all_cases_identical:true,original_file_unchanged:true,provider_requests:0,database_writes:0,runtime_activated:false,operational_adoption_accepted:false,free_acceptance:false};
     const bytes=JSON.stringify(report,null,2)+"\n";if(Buffer.byteLength(bytes)>2*1024**2)throw Error("read_parity_report_bound");
     await writeFile(path.join(output,"read-parity.json"),bytes,{flag:"wx",mode:0o600});
-    return {report_file_sha256:sha(bytes),cases:rows.length,reviewed:report.reviewed,held:report.held,all_cases_identical:true,...result.statistics,provider_requests:0,database_writes:0,runtime_activated:false};
+    return {report_file_sha256:sha(bytes),cases:rows.length,reviewed:report.reviewed,held:report.held,receipts:report.receipt_comparisons.length,continuations:report.continuations.length,continuations_held:report.continuations.filter(c=>c.state==="held").length,all_cases_identical:true,...result.statistics,provider_requests:0,database_writes:0,runtime_activated:false};
   }finally{globalThis.fetch=previousFetch;sqlite.close();}
 }
 if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url))runEvidenceReadParity(process.argv.slice(2)).then(r=>console.log(JSON.stringify(r,null,2))).catch(()=>{console.error("Private evidence read comparison held; check independent source pins, exact read contracts and separate private output. No backend activated.");process.exitCode=1;});

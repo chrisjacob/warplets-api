@@ -18,8 +18,14 @@ import type { WalletPlan } from "./wallet-plan-model";
 import { recordUnsupportedFundingRead, recoverFundingBodies } from "./funding-recovery";
 import {currentWalletReader,DIRECT_FUNDING_WALLETS} from "./wallet-funding-scope";
 import { continueCachedFunding, recordCachedFundingWork } from "./funding-cache-work";
+import {d1EvidenceReadStore,type EvidenceReadStore} from "./evidence-read-store";
 
 export type WalletSettings = Settings & { walletEnabled: boolean; walletDailyLimit: number };
+export async function walletHolderInputFromStore(store:EvidenceReadStore,candidate:Candidate):Promise<WalletEvidence["holders"]>{
+  if(!candidate.holders?.payload_hash)return null;
+  const saved=await store.holderReceipt(candidate.holders.payload_hash);
+  return saved?{analysis:candidate.holders,evidence:HolderEvidenceSchema.parse(JSON.parse(saved.payload))}:null;
+}
 export async function walletStatus(db: D1Database, limit: number, enabled: boolean) {
   const state = await db.prepare("SELECT * FROM tenx_wallet_control WHERE id=1").first();
   const usage = await db.prepare("SELECT used FROM tenx_wallet_usage WHERE day=?1").bind(new Date().toISOString().slice(0, 10)).first<{ used: number }>();
@@ -130,11 +136,7 @@ async function collect(settings: WalletSettings, candidate: Candidate, rpc: RpcC
   const baseTransactions = records.flatMap(r => r.transaction ? [r.transaction] : []);
   const outflows = await buildSecondHopOutflows(baseTransactions, candidate.address, candidate.pool, candidate.creation?.slot ?? null, devs, scans.map(s => s.anchor), true);
   const secondScans = await collectFundingHistories(db, rpc, candidate.address, secondHopAnchors(outflows, devs), readFunding, { secondHop: true,cacheRecovery:true });
-  let holders: WalletEvidence["holders"] = null;
-  if (candidate.holders?.payload_hash) {
-    const saved = await db.prepare("SELECT payload FROM tenx_holder_evidence WHERE payload_hash=?1").bind(candidate.holders.payload_hash).first<{ payload: string }>();
-    if (saved) holders = { analysis: candidate.holders, evidence: HolderEvidenceSchema.parse(JSON.parse(saved.payload)) };
-  }
+  const holders=await walletHolderInputFromStore(d1EvidenceReadStore(db),candidate);
   const priorLosses = new Map<string, { tokens: Set<string>; hashes: Set<string> }>();
   const reports = await db.prepare(`SELECT payload FROM (SELECT day,payload,ROW_NUMBER() OVER(PARTITION BY day ORDER BY created_at DESC,input_hash) AS position FROM tenx_reviews WHERE created_at>=?1) WHERE position=1 ORDER BY day DESC LIMIT 30`).bind(new Date(Date.now() - 30 * 86400000).toISOString()).all<{ payload: string }>();
   for (const report of reports.results.map(r => ReviewSchema.parse(JSON.parse(r.payload)))) for (const outcome of report.outcomes.filter(o => o.status === "measured" && o.outcome === "severe_loss_signal" && Date.parse(o.endpoint_at ?? "") <= Date.now())) for (const w of outcome.wallets) {

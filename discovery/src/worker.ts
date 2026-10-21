@@ -67,6 +67,7 @@ import{gmgnCorroboration,collectGmgnCorroboration}from"./gmgn-corroboration-stor
 import{gmgnQuote}from"./gmgn-quote-store";
 import{ComparisonAddresses,discoveryComparison}from"./discovery-comparison";
 import { rotationCoverage } from "./rotation-coverage";
+import {d1EvidenceReadStore} from "./evidence-read-store";
 
 // Widen generated literal vars so ignored .dev.vars overrides stay type-safe.
 type OptionalGmgnSecret = "GMGN_API_KEY" | "TENX_RESEARCH_MODE";
@@ -305,7 +306,7 @@ export async function handle(request: Request, env: Env): Promise<Response> {
     const saved = await env.TENX_DB.prepare("SELECT payload FROM tenx_candidates WHERE address=?1 AND mode='live'").bind(address).first<{payload:string}>();
     if (!saved) return json({error:"candidate_not_found"},404);
     const candidate=CandidateSchema.parse(JSON.parse(saved.payload));
-    const evidence=candidate.wallet_analysis ? await env.TENX_DB.prepare("SELECT payload FROM tenx_wallet_evidence WHERE address=?1 AND payload_hash=?2").bind(address,candidate.wallet_analysis.evidence_hash).first<{payload:string}>() : null;
+    const evidence=candidate.wallet_analysis ? await d1EvidenceReadStore(env.TENX_DB).walletReceipt(candidate.wallet_analysis.evidence_hash,address) : null;
     const history=await env.TENX_DB.prepare("SELECT payload FROM tenx_market_history WHERE address=?1 AND fetched_at>=?2 ORDER BY fetched_at DESC LIMIT 1000").bind(address,new Date(now.getTime()-86400000).toISOString()).all<{payload:string}>();
     return json(await envelope(env,await activitySummary(candidate,evidence?WalletEvidenceSchema.parse(JSON.parse(evidence.payload)):null,history.results.map(r=>MarketSchema.parse(JSON.parse(r.payload))),now)));
   }
@@ -331,7 +332,7 @@ export async function handle(request: Request, env: Env): Promise<Response> {
   }
   const walletEvidence = path.match(/^\/api\/10x\/wallet-evidence\/([a-f0-9]{64})$/);
   if (method === "GET" && walletEvidence) {
-    const row = await env.TENX_DB.prepare("SELECT address,payload,observed_at FROM tenx_wallet_evidence WHERE payload_hash=?1").bind(walletEvidence[1]!).first<{ address: string; payload: string; observed_at: string }>();
+    const row = await d1EvidenceReadStore(env.TENX_DB).walletReceipt(walletEvidence[1]!);
     return row ? json(await envelope(env, { address: row.address, payload_hash: walletEvidence[1], observed_at: row.observed_at, payload: JSON.parse(row.payload) })) : json({ error: "evidence_not_found" }, 404);
   }
   const walletProfiles = path.match(/^\/api\/10x\/wallets\/solana\/([^/]+)$/);
@@ -342,8 +343,8 @@ export async function handle(request: Request, env: Env): Promise<Response> {
   }
   const holderEvidence = path.match(/^\/api\/10x\/holder-evidence\/([a-f0-9]{64})$/);
   if (method === "GET" && holderEvidence) {
-    const row = await env.TENX_DB.prepare("SELECT address,slot,payload,observed_at FROM tenx_holder_evidence WHERE payload_hash=?1").bind(holderEvidence[1]!).first<{ address: string; slot: number; payload: string; observed_at: string }>();
-    return row ? json(await envelope(env, { ...row, payload_hash: holderEvidence[1], payload: JSON.parse(row.payload) })) : json({ error: "evidence_not_found" }, 404);
+    const row = await d1EvidenceReadStore(env.TENX_DB).holderReceipt(holderEvidence[1]!);
+    return row ? json(await envelope(env, { address:row.address,slot:row.slot,payload:JSON.parse(row.payload),observed_at:row.observed_at,payload_hash:holderEvidence[1] })) : json({ error: "evidence_not_found" }, 404);
   }
   const history = path.match(/^\/api\/10x\/history\/solana\/([^/]+)$/);
   if (method === "GET" && history) {
