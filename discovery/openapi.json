@@ -67510,9 +67510,39 @@
                         "free_endpoint_access_unverified",
                         "authenticated_fixtures_not_collected",
                         "atomic_shared_budget_admission_not_connected",
-                        "transport_not_connected"
+                        "transport_not_connected",
+                        "canonical_pool_binding_not_connected",
+                        "collector_not_connected"
                       ]
                     }
+                  },
+                  "prepared_collection": {
+                    "type": "object",
+                    "properties": {
+                      "atomic_shared_reservations": {
+                        "type": "boolean",
+                        "const": true
+                      },
+                      "bounded_transport": {
+                        "type": "boolean",
+                        "const": true
+                      },
+                      "pool_trade_review": {
+                        "type": "boolean",
+                        "const": true
+                      },
+                      "runtime_connected": {
+                        "type": "boolean",
+                        "const": false
+                      }
+                    },
+                    "required": [
+                      "atomic_shared_reservations",
+                      "bounded_transport",
+                      "pool_trade_review",
+                      "runtime_connected"
+                    ],
+                    "additionalProperties": false
                   },
                   "providers": {
                     "minItems": 2,

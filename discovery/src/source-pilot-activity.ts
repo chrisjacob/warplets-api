@@ -51,7 +51,7 @@ const PoolMetadata = z.object({ data: z.object({
   relationships: z.object({ base_token: Relation, quote_token: Relation }),
 }) });
 type CohortRow = SourceActivityInput["cohort"][number];
-function poolBinding(row: CohortRow) {
+export function poolBinding(row: CohortRow) {
   const common = { received_at: row.pool_metadata?.received_at ?? null,
     canonical_chain_proof: "not_checked" as const, source_authenticity: "unverified" as const };
   if (!row.pool_metadata) return { ...common, state: "not_supplied" as const, issue: "pool_metadata_missing" };

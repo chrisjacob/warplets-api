@@ -5,8 +5,8 @@ import { SourceError } from "./rpc";
 import { normalizeSourcePilot } from "./source-pilot-normalize";
 import { SOURCE_PILOT_LIMITS, SourcePilotInputSchema, SourcePilotRecordSchema, SourcePilotRequestSchema, type SourcePilotRequest } from "./source-pilot-model";
 
-// No transport, D1 binding, scheduler or activation argument exists in this
-// milestone. These are proposed GET descriptors, never executable requests.
+// Offline workbench descriptors remain non-executing. The separate prepared
+// collection adapter has no runtime, CLI or schedule wiring.
 export function sourcePilotPlan(raw?: SourcePilotRequest) {
   const request = raw === undefined ? null : SourcePilotRequestSchema.parse(raw);
   const descriptors: { provider: "jupiter" | "geckoterminal_public"; method: "GET"; url: string }[] = [];

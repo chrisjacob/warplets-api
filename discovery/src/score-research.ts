@@ -6,6 +6,8 @@ import {scoreFirstMarkets,scoreIntegrityPriceInputs} from "./discovery-score-sto
 import {freezeScoreCohort,freezeScoreOutcome,replayScoreCohort,replayScoreOutcome,SCORE_OUTCOME_DELAY,ScoreResearchError,verifyScoreCohortSummary,verifyScoreOutcomeSummary} from "./score-research-analysis";
 import {SCORE_RESEARCH_LIMITS as L,ScoreCohortSchema,ScoreCohortSummarySchema,ScoreEndpointSchema,ScoreOutcomeSchema,ScoreOutcomeSummarySchema,ScoreResearchDetailSchema,ScoreResearchSchema,type ScoreCohort,type ScoreCohortSummary,type ScoreOutcome,type ScoreModel} from "./score-research-model";
 
+import {sharedResearchRecords,sharedResearchBytes,sharedResearchUsage} from "./research-budget";
+
 const currentModel=DISCOVERY_SCORE_POLICY_V4.version;
 const guard="EXISTS(SELECT 1 FROM tenx_score_control WHERE id=1 AND lease_owner=?1 AND lease_until>?2) AND EXISTS(SELECT 1 FROM tenx_control WHERE id=1 AND paused=0)";
 export async function scoreResearchDetail(db:D1Database,address:string,model:ScoreModel=currentModel){
@@ -24,8 +26,8 @@ export async function publishScoreCohort(db:D1Database,record:ScoreCohort,owner:
   const results=await db.batch([
     db.prepare(`INSERT OR IGNORE INTO tenx_score_cohorts(address,model,captured_at,day,cohort_hash,bytes,payload)
       SELECT ?3,?4,?5,?6,?7,?8,?9 WHERE ${guard}
-      AND (SELECT count(*) FROM tenx_score_cohorts WHERE day=?6)<?10
-      AND COALESCE((SELECT sum(bytes) FROM tenx_score_cohorts WHERE day=?6),0)+?8<=?11`).bind(owner,at,r.summary.address,r.summary.score.version,r.summary.captured_at,day,r.summary.cohort_hash,bytes,payload,L.daily_records,L.daily_bytes),
+      AND ${sharedResearchRecords}<?10
+      AND ${sharedResearchBytes}+?8<=?11`).bind(owner,at,r.summary.address,r.summary.score.version,r.summary.captured_at,day,r.summary.cohort_hash,bytes,payload,L.daily_records,L.daily_bytes),
     db.prepare("INSERT INTO tenx_audit(id,action,actor,reason,data_hash,created_at) SELECT ?1,'score_cohort','local-score-research','Prospective first score; observational, no policy activation',?2,?3 WHERE changes()=1").bind(`score-cohort:${r.summary.score.version}:${r.summary.address}`,r.summary.cohort_hash,at),
   ]);
   return results[0]!.meta.changes===1;
@@ -86,7 +88,7 @@ export async function scoreResearch(db:D1Database,now=new Date(),model:ScoreMode
     records.push({cohort:c,outcome:outcome?.result??null});
   }
   const counts=(xs:typeof records)=>({captured:xs.length,pending:xs.filter(r=>!r.outcome).length,measured:xs.filter(r=>r.outcome?.status==="measured").length,insufficient:xs.filter(r=>r.outcome?.status==="insufficient_data").length});
-  const day=now.toISOString().slice(0,10),today=await db.prepare("SELECT count(*) AS records,COALESCE(sum(bytes),0) AS bytes FROM tenx_score_cohorts WHERE day=?1").bind(day).first<{records:number;bytes:number}>();
+  const day=now.toISOString().slice(0,10),today=await sharedResearchUsage(db,day);
   const automation=await db.prepare("SELECT next_at,last_success,last_error FROM tenx_score_control WHERE id=1").first();
   const attempts=await db.prepare("SELECT address,attempted_at,gap FROM tenx_score_attempts WHERE model=?1 AND gap<>'' ORDER BY attempted_at DESC,address LIMIT 10").bind(model).all();
   return ScoreResearchSchema.parse({at:now.toISOString(),model,scope:"latest_500_score_cohorts",capped:rows.results.length>L.summary_records,automatic_policy_changes:false,provider_requests:0,limits:{daily_records:L.daily_records,daily_bytes:L.daily_bytes},today:{day,...today},automation,counts:counts(records),bands:[0,20,40,60,80].map(minimum=>{const maximum=minimum===80?100:minimum+19,items=records.filter(r=>r.cohort.score.value>=minimum&&r.cohort.score.value<=maximum);return {minimum,maximum,...counts(items),severe_declines:items.filter(r=>r.outcome?.severe_decline===true).length};}),recent:records.slice(0,20),attempts:attempts.results});

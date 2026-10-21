@@ -25,9 +25,15 @@ async function lease(db:D1Database,time=at){await db.prepare("UPDATE tenx_score_
 async function put(db:D1Database,c:Candidate){await db.prepare("INSERT INTO tenx_candidates(mode,address,pool,payload,checked_at) VALUES(?1,?2,?3,?4,?5)").bind(c.mode,c.address,c.pool,JSON.stringify(c),c.checked_at).run();}
 async function endpoint(db:D1Database,c:Candidate){await db.prepare("INSERT INTO tenx_market_history VALUES(?1,?2,?3)").bind(c.address,new Date(at.getTime()+86400000).toISOString(),JSON.stringify({...c.market!,fetched_at:new Date(at.getTime()+86400000).toISOString()})).run();}
 
+// Seed the historical schema directly: current publication requires migration 0041.
+function seedHistoricalCohort(sqlite:DatabaseSync,c:ScoreCohort){
+  const payload=JSON.stringify(c);
+  sqlite.prepare("INSERT INTO tenx_score_cohorts VALUES(?,?,?,?,?,?,?)").run(c.summary.address,c.summary.score.version,c.summary.captured_at,c.summary.captured_at.slice(0,10),c.summary.cohort_hash,new TextEncoder().encode(payload).length,payload);
+}
+
 describe("model-separated score research",()=>{
   it("migrates existing cohort/outcome bytes and attempt times with foreign keys enforced",async()=>{
-    const {db,sqlite}=setup(true),c=await cohort(await candidate(),"discovery-score-v1");await lease(db);await publishScoreCohort(db,c,"owner",at);
+    const {db,sqlite}=setup(true),c=await cohort(await candidate(),"discovery-score-v1");await lease(db);seedHistoricalCohort(sqlite,c);
     const o=await freezeScoreOutcome({version:"score-outcome-input-v1",cohort:c.summary,finalized_at:mature.toISOString(),points:[],history_limited:false});
     sqlite.prepare("INSERT INTO tenx_score_outcomes VALUES(?,'discovery-score-v1',?,?,?)").run(c.summary.address,c.summary.cohort_hash,mature.toISOString(),JSON.stringify(o));
     sqlite.prepare("INSERT INTO tenx_score_attempts VALUES(?,?,?)").run(c.summary.address,at.toISOString(),"original_gap");
@@ -36,10 +42,11 @@ describe("model-separated score research",()=>{
     expect(sqlite.prepare("SELECT * FROM tenx_score_cohorts").all()).toEqual(cohorts);expect(sqlite.prepare("SELECT * FROM tenx_score_outcomes").all()).toEqual(outcomes);expect(sqlite.prepare("PRAGMA foreign_key_check").all()).toEqual([]);
     expect(sqlite.prepare("SELECT * FROM tenx_score_attempts").get()).toEqual({address:c.summary.address,model:"discovery-score-v1",attempted_at:at.toISOString(),gap:"original_gap"});
     expect((await scoreResearchDetail(db,c.summary.address,"discovery-score-v1"))!.cohort).toEqual(c);expect(await replayScoreOutcome(o,c.summary)).toEqual(o);
+    sqlite.exec(readFileSync(new URL("../migrations/0041_source_reservations.sql",import.meta.url),"utf8"));
     expect(await publishScoreCohort(db,await cohort(await candidate()),"owner",at)).toBe(true);
   });
   it("rolls back a failed migration without losing retained evidence",async()=>{
-    const {db,sqlite}=setup(true),c=await cohort(await candidate(),"discovery-score-v1");await lease(db);await publishScoreCohort(db,c,"owner",at);
+    const {db,sqlite}=setup(true),c=await cohort(await candidate(),"discovery-score-v1");await lease(db);seedHistoricalCohort(sqlite,c);
     const before=sqlite.prepare("SELECT * FROM tenx_score_cohorts").all();sqlite.exec("BEGIN");expect(()=>sqlite.exec(migration+"\nSELECT * FROM deliberately_missing_migration_table;")).toThrow();sqlite.exec("ROLLBACK");
     expect(sqlite.prepare("SELECT * FROM tenx_score_cohorts").all()).toEqual(before);expect(sqlite.prepare("PRAGMA table_info(tenx_score_attempts)").all()).toHaveLength(3);
   });
