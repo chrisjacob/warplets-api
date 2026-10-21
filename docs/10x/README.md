@@ -1,5 +1,7 @@
 # 10X.MEME engineering kickoff
 
+Latest research milestone: [prospective score observations and outcomes](58-score-outcome-research.md). Existing local maintenance retains each mint/model's first grade, coverage and replayable inputs before later 24h measurements. The Research page shows pending/insufficient data and descriptive score bands; no predictive calibration or weight activation is claimed. Local migration 0037, bounded cached work and daily storage caps; zero extra provider calls, unchanged evidence gates, no deploy.
+
 Current product specification: [PRD v1.2](spec/10X_MEME_FULL_PRD_v1_2.md), with the founder's 21 October graded-discovery decision and implementation plan in §4.7. [Score-first discovery](57-graded-discovery.md) now ranks observed tokens by a 0–100 score with separate evidence coverage, risk ceilings, component breakdowns and exact offline-replayable scorecards. Binary gates remain for action readiness and historical election engines; zero fully eligible tokens no longer prevents a useful ranked browsing experience. No deploy.
 
 Latest market reliability milestone: [per-pool validation and bounded replay diagnostics](56-market-batch-validation.md). Valid canonical quotes can refresh alongside explicitly rejected/missing targets; unassignable identities hold the full batch. Owned lease/pause guards and atomic publication preserve evidence timing. Data status shows cached coverage; private replay retains only the latest response and latest issue. All quotas and eligibility gates remain; no deploy.

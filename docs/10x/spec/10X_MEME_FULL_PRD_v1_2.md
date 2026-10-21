@@ -255,6 +255,8 @@ Publish all observed-risk ceilings: rejected/contradictory origin caps at 0; act
 
 Weights are transparent initial heuristics, not backtested fraud/return probabilities. Preserve score versions and assess later outcome cohorts before changing/calibrating weights. Production market-data permissions and financial policy approval remain open. No online self-training or automatic scoring-policy activation.
 
+Prospective evaluation retains each mint/model's first captured score, effective coverage, independent action status and exact replayable inputs, without reconstructing past grades. Compare a fresh baseline with a same-source 24h price/liquidity endpoint after the full two-hour collection grace; preserve missing outcomes and selection bias. Descriptive score-band counts alone do not validate calibration. The bounded cached implementation and remaining validation work are recorded in [prospective score research](../58-score-outcome-research.md).
+
 Longer-term research inputs include sustained net unique demand, volume relative to chain baseline, independently verified organic holders and bounded price volatility. These are not certified or scored by the initial model above; add them only through an explicit evidence-backed model revision. Display scores **must not secretly override the documented voting outcome**, other than stated minimum action eligibility. Save score inputs and model/rules version for later audit.
 
 ---
@@ -869,4 +871,4 @@ The below are starting references, not guarantees that functionality, pricing an
 - Neynar Farcaster casting: https://neynar.readme.io/reference/publish-cast
 - Neynar approved signer: https://neynar.readme.io/reference/create-signer
 
-**End of PRD v1.1.**
+**End of PRD v1.2.**

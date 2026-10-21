@@ -11,6 +11,7 @@ After rebooting, reopen the repository in Codex and send:
 - Repository: `C:\Users\cjacob\Documents\GitHub\WarpletsAPI`
 - Branch: `codex/10x-thesis-foundation`
 - Remote: `https://github.com/chrisjacob/warplets-api.git`
+- Latest score research: [prospective grade retention and 24h outcomes](58-score-outcome-research.md), local migration 0037. Existing maintenance captures bounded first mint/model scorecards with zero provider calls and finalizes comparable outcomes after 26h. Research shows descriptive counts, not predictive validation. Inspect current captures/automation before quoting counts; do not backfill old cohorts or alter score-v1 to fit later outcomes.
 - Last application checkpoint: `fb9f207` — `feat(10x): simplify token evidence and contribution journeys`, committed and pushed.
 - Previous checkpoint: `d71fefc` — streamlined discovery navigation and evidence flow.
 - Latest local engineering milestone: [preview recovery and launcher shutdown](50-preview-recovery.md). Consult recent Git history for its commit. The isolated App preview uses Vite 5183 / Pages 8788; Discovery retains its existing supervisor and store on 8794.
@@ -68,7 +69,7 @@ The latest UI/UX milestone is complete:
 
 The homepage is intentionally empty. The original landing experience remains at `/thesis`, accessible as **The 10X Thesis**.
 
-**Ten eligible tokens created within the past 24 hours remains an unmet goal.** The last recorded coverage checkpoint was **0/10**; read fresh local state before quoting a current count. Wallet/funding completeness, source coverage and freshness remain important constraints. Improve coverage without relaxing gates or exhausting free allowances.
+**Ten eligible tokens created within the past 24 hours remains an unmet action-readiness diagnostic.** Graded browsing is the current primary product target. The last recorded coverage checkpoint was **0/10**; read fresh local state before quoting a current count. Wallet/funding completeness, source coverage and freshness remain important constraints. Improve coverage without relaxing gates or exhausting free allowances.
 
 Dedicated small-screen-device, assistive-technology and real-wallet signing QA remain open. Mocked signing tests are not a live-wallet exercise. Provider credential rotation remains an outstanding security follow-up; do not expose credentials while investigating it.
 

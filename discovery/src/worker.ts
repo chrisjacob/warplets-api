@@ -46,6 +46,8 @@ import { candidateExpiry, expireCandidates, inventoryStatus } from "./candidate-
 import { marketBatches,marketBatchRecord } from "./market-batch-store";
 import {candidateScorecard,rankedDiscovery,scoreInventoryCandidates} from "./discovery-score-store";
 import {DiscoveryScoreError,replayDiscoveryScore} from "./discovery-score";
+import {runScoreResearch,scoreResearch,scoreResearchDetail} from "./score-research";
+import {ScoreResearchError} from "./score-research-analysis";
 
 // Widen generated literal vars so ignored .dev.vars overrides stay type-safe.
 export type LocalEnv = { [K in keyof Cloudflare.Env]: Cloudflare.Env[K] extends string ? string : Cloudflare.Env[K] };
@@ -171,6 +173,12 @@ export async function handle(request: Request, env: Env): Promise<Response> {
   }
   if (method === "GET" && path === "/api/10x/transparency/policies") return json(await envelope(env, await publicPolicy()));
   if (method === "GET" && path === "/api/10x/research/signals") return json(await envelope(env, await signalResearch(env.TENX_DB)));
+  if(method==="GET"&&path==="/api/10x/research/scores")return json(await envelope(env,await scoreResearch(env.TENX_DB)));
+  const scoreResearchEvidence=path.match(/^\/api\/10x\/research\/scores\/solana\/([^/]+)$/);
+  if(method==="GET"&&scoreResearchEvidence){
+    const detail=await scoreResearchDetail(env.TENX_DB,Address.parse(scoreResearchEvidence[1]));
+    return detail?json(detail):json({error:"score_cohort_not_found"},404);
+  }
   const signalEvidence = path.match(/^\/api\/10x\/research\/signals\/solana\/([^/]+)\/([^/]+)$/);
   if (method === "GET" && signalEvidence) {
     const detail = await signalDetail(env.TENX_DB,Address.parse(signalEvidence[1]),SignalKind.parse(signalEvidence[2]));
@@ -305,6 +313,7 @@ export async function handle(request: Request, env: Env): Promise<Response> {
       await env.TENX_DB.prepare("UPDATE tenx_control SET heartbeat_at=?1 WHERE id=1").bind(now.toISOString()).run();
       const inventory = await expireCandidates(env.TENX_DB,now);
       const diagnostics = await runSignalCycle(env.TENX_DB);
+      const score_research=await runScoreResearch(env.TENX_DB);
       const backing_index=await runBackingIndex(settings(env));
       const backing = await settleBacking(env.TENX_DB,new Date());
       let election: { id?: string; state: string; error?: string };
@@ -314,9 +323,9 @@ export async function handle(request: Request, env: Env): Promise<Response> {
       if (path.endsWith("/review") || !state.reviewed_at || now.getTime() - Date.parse(state.reviewed_at) >= 3600000) {
         const review = await runReviews(env.TENX_DB, now);
         await env.TENX_DB.prepare("UPDATE tenx_control SET reviewed_at=?1 WHERE id=1").bind(now.toISOString()).run();
-        return json({ local: true, review, election, diagnostics, backing, backing_index, inventory });
+        return json({ local: true, review, election, diagnostics, score_research, backing, backing_index, inventory });
       }
-      return json({ local: true, review: "waiting_for_hourly_tick", election, diagnostics, backing, backing_index, inventory });
+      return json({ local: true, review: "waiting_for_hourly_tick", election, diagnostics, score_research, backing, backing_index, inventory });
     }
     if (path === "/api/10x/admin/refresh") {
       await audit(env.TENX_DB, "refresh_requested", reason, {});
@@ -366,6 +375,7 @@ export default {
       if (error instanceof RequestSecurityError) return json({ error: error.message }, error.status);
       if(error instanceof MintReviewError)return json({error:error.message},error.status);
       if(error instanceof DiscoveryScoreError)return json({error:error.message},503);
+      if(error instanceof ScoreResearchError)return json({error:error.message},503);
       if(error instanceof LaunchError)return json({error:error.message},error.status);
       if(error instanceof RecoveryError)return json({error:error.message},error.status);
       if (error instanceof RewardError) return json({ error: error.message }, error.message === "reward_daily_limit" ? 429 : error.message === "reward_request_conflict" ? 409 : error.message.includes("mismatch") ? 503 : 400);
