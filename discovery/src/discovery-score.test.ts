@@ -6,7 +6,8 @@ import {fixtureCandidates} from "./fixtures";
 import {gateSample,key,signature} from "./wallet-fixtures.test-helper";
 import {assess,DEFAULT_POLICY,type Candidate} from "./model";
 import {defaultScoreInput,evaluateDiscoveryScore,freezeDiscoveryScore,replayDiscoveryScore,scoreFreshness} from "./discovery-score";
-import {rankedDiscovery,candidateScorecard,scoreInventoryCandidates} from "./discovery-score-store";
+import {rankedDiscovery,candidateScorecard,scoreInventoryCandidates,scoreIntegrityPriceInputs,scorePriceInputs} from "./discovery-score-store";
+import {replayAnyDiscoveryScore} from "./discovery-score-v2";
 import type {ScoreInput} from "./discovery-score-model";
 import {createElection,electionRecord} from "./elections";
 import {handle,type LocalEnv} from "./worker";
@@ -18,12 +19,22 @@ async function ideal():Promise<ScoreInput>{
   // Synthetic policy fixture only; never inserted in the live local store.
   const c={...(await fixtureCandidates(at))[0]!,mode:"live" as const};
   c.holders={version:"owners-v2",status:"verified",layout_certified:true,observed_at:at.toISOString(),context_slot:20000,payload_hash:"a".repeat(64),supply_raw:"1000000",inventoried_raw:"1000000",account_count:200,holder_count:200,top1_pct:5,top10_pct:20,pool_pct:20,creator_pct:1,creator:key(7),owners:[],gaps:[]};
-  const w=await gateSample();c.wallet_analysis={...w,version:"wallet-signals-v5",observed_at:at.toISOString(),funding_coverage:w.wallets.map((wallet,i)=>({wallet:wallet.wallet,anchor_signature:signature(i+80),anchor_kind:wallet.signed_creation?"signed_creation" as const:"sampled_buy" as const,anchor_at:c.creation!.block_time,window_start:new Date(Date.parse(c.creation!.block_time)-3600000).toISOString(),pages:1,signatures:0,transactions_in_window:0,transactions_examined:0,status:"window_examined" as const,boundary_reached:true,gaps:[]}))};
+  const w=await gateSample();c.wallet_analysis={...w,version:"wallet-signals-v5",observed_at:at.toISOString(),trades:w.trades.map(t=>({...t,block_time:new Date(Date.parse(c.creation!.block_time)+60000).toISOString(),quote_amount_raw:"10000000"})),funding_coverage:w.wallets.map((wallet,i)=>({wallet:wallet.wallet,anchor_signature:signature(i+80),anchor_kind:wallet.signed_creation?"signed_creation" as const:"sampled_buy" as const,anchor_at:c.creation!.block_time,window_start:new Date(Date.parse(c.creation!.block_time)-3600000).toISOString(),pages:1,signatures:0,transactions_in_window:0,transactions_examined:0,status:"window_examined" as const,boundary_reached:true,gaps:[]}))};
   const prices=Array.from({length:7},(_,i)=>({source:"geckoterminal" as const,fetched_at:new Date(at.getTime()-(6-i)*300000).toISOString(),observed_at:null,price_usd:1+i/24}));
   return defaultScoreInput(c,at,prices);
 }
 async function put(db:D1Database,c:Candidate){await db.prepare("INSERT INTO tenx_candidates(mode,address,pool,payload,checked_at) VALUES(?1,?2,?3,?4,?5)").bind(c.mode,c.address,c.pool,JSON.stringify(c),c.checked_at).run();}
 describe("versioned continuous discovery grading",()=>{
+  it("bounds aggregate integrity history visibly while preserving the original research projection",async()=>{
+    const {db,sqlite}=dbFixture(),addresses=Array.from({length:64},(_,i)=>key(i+1));
+    sqlite.prepare(`WITH RECURSIVE points(i) AS (SELECT 0 UNION ALL SELECT i+1 FROM points WHERE i<255)
+      INSERT INTO tenx_market_history(address,fetched_at,payload)
+      SELECT value,strftime('%Y-%m-%dT%H:%M:%fZ',?2,'-'||i||' minutes'),json_object('source','dexscreener','fetched_at',strftime('%Y-%m-%dT%H:%M:%fZ',?2,'-'||i||' minutes'),'observed_at',NULL,'price_usd',1)
+      FROM json_each(?1),points`).run(JSON.stringify(addresses),at.toISOString());
+    await expect(scoreIntegrityPriceInputs(db,addresses,at)).rejects.toThrow("discovery_score_history_inventory_limit");
+    const original=await scorePriceInputs(db,addresses,at);expect(original.get(addresses[0]!)!.prices).toHaveLength(64);expect(original.get(addresses[0]!)!.history_limited).toBe(true);
+    expect((await scoreIntegrityPriceInputs(db,[addresses[0]!],at)).get(addresses[0]!)!.prices).toHaveLength(256);
+  });
   it("reaches exactly 100 only with complete fresh support and preserves independent action checks",async()=>{
     const input=await ideal(),result=evaluateDiscoveryScore(input);expect(result.value).toBe(100);expect(result.evidence_coverage).toBe(100);expect(result.components.reduce((n,c)=>n+c.maximum,0)).toBe(100);expect(result.criteria).toHaveLength(18);
     const record=await freezeDiscoveryScore(input);expect((await replayDiscoveryScore(record)).status).toBe("verified");expect(assess(input.candidate,DEFAULT_POLICY,at).eligibility).toBe("eligible");
@@ -102,7 +113,7 @@ describe("cached graded browsing and unchanged action snapshots",()=>{
     for(const price of input.prices)await db.prepare("INSERT INTO tenx_market_history(address,fetched_at,payload) VALUES(?1,?2,?3)").bind(exceptional.address,price.fetched_at,JSON.stringify({...input.candidate.market!,...price})).run();
     const provider=vi.spyOn(globalThis,"fetch").mockRejectedValue(new Error("provider forbidden"));const ranked=await rankedDiscovery(db,await scoreInventoryCandidates(db,"live",false),at,"score","all");
     expect(ranked.rows).toHaveLength(100);expect(ranked.rows[0]!.address).toBe(exceptional.address);expect(ranked.rows[0]!.discovery_score.value).toBe(99);expect(ranked.rows[0]!.eligibility).toBe("excluded");expect(ranked.rows[0]!.rank).toBeNull();expect(ranked.rows[0]!.discovery_rank).toBe(1);expect(provider).not.toHaveBeenCalled();expect(await db.prepare("SELECT count(*) n FROM tenx_usage").first()).toEqual({n:0});
-    const record=await candidateScorecard(db,exceptional.address,"live",at);expect(record?.result.value).toBe(99);expect((await replayDiscoveryScore(record!)).status).toBe("verified");
+    const record=await candidateScorecard(db,exceptional.address,"live",at);expect(record?.result.value).toBe(99);expect((await replayAnyDiscoveryScore(record!)).status).toBe("verified");
   });
   it("keeps deterministic ASCII ties independent of input order",async()=>{
     const {db}=dbFixture(),base=(await ideal()).candidate,items=[3,2,1].map(n=>({...base,mode:"fixture" as const,address:key(n)}));
@@ -126,8 +137,8 @@ describe("cached graded browsing and unchanged action snapshots",()=>{
   });
   it("reports bounded history explicitly and refuses an oversized inventory rather than silently ranking its first 500",async()=>{
     const {db}=dbFixture(),input=await ideal();await put(db,input.candidate);
-    for(let i=0;i<65;i++){const fetched_at=new Date(at.getTime()-i*60000).toISOString();await db.prepare("INSERT INTO tenx_market_history(address,fetched_at,payload) VALUES(?1,?2,?3)").bind(input.candidate.address,fetched_at,JSON.stringify({...input.candidate.market!,fetched_at})).run();}
-    const record=(await candidateScorecard(db,input.candidate.address,"live",at))!;expect(record.inputs.prices).toHaveLength(64);expect(record.inputs.history_limited).toBe(true);expect(record.result.criteria.find(c=>c.id==="sampled_performance")!.points).toBe(0);
+    for(let i=0;i<257;i++){const fetched_at=new Date(at.getTime()-i*60000).toISOString();await db.prepare("INSERT INTO tenx_market_history(address,fetched_at,payload) VALUES(?1,?2,?3)").bind(input.candidate.address,fetched_at,JSON.stringify({...input.candidate.market!,fetched_at})).run();}
+    const record=(await candidateScorecard(db,input.candidate.address,"live",at))!;expect(record.inputs.prices).toHaveLength(256);expect(record.inputs.history_limited).toBe(true);expect(record.result.criteria.find(c=>c.id==="sampled_performance")!.points).toBe(0);
     await db.prepare("DELETE FROM tenx_candidates").run();for(let i=1;i<=501;i++){const bytes=new Uint8Array(32);new DataView(bytes.buffer).setUint32(0,i);const {toBase58}=await import("./solana");await put(db,{...input.candidate,address:toBase58(bytes)});}
     await expect(scoreInventoryCandidates(db,"live",false)).rejects.toThrow("discovery_score_inventory_limit");
   });

@@ -45,7 +45,8 @@ import { MINT_REVIEW_LIMITS } from "./mint-review-model";
 import { candidateExpiry, expireCandidates, inventoryStatus } from "./candidate-expiry";
 import { marketBatches,marketBatchRecord } from "./market-batch-store";
 import {candidateScorecard,rankedDiscovery,scoreInventoryCandidates} from "./discovery-score-store";
-import {DiscoveryScoreError,replayDiscoveryScore} from "./discovery-score";
+import {DiscoveryScoreError} from "./discovery-score";
+import {replayAnyDiscoveryScore} from "./discovery-score-v2";
 import {runScoreResearch,scoreResearch,scoreResearchDetail} from "./score-research";
 import {ScoreResearchError} from "./score-research-analysis";
 import {scoreFollowupPlan} from "./score-followup";
@@ -223,7 +224,7 @@ export async function handle(request: Request, env: Env): Promise<Response> {
   if(method==="GET"&&scorecard){
     const address=Address.parse(scorecard[1]),mode=z.enum(["live","fixture"]).parse(url.searchParams.get("mode")??"live");
     const record=await candidateScorecard(env.TENX_DB,address,mode);if(!record)return json({error:"candidate_not_found"},404);
-    await replayDiscoveryScore(record);return json({record,replay:"verified",provider_requests:0});
+    await replayAnyDiscoveryScore(record);return json({record,replay:"verified",provider_requests:0});
   }
   const activity = path.match(/^\/api\/10x\/activity\/solana\/([^/]+)$/);
   if (method === "GET" && activity) {

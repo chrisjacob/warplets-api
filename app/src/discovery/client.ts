@@ -10,7 +10,7 @@ import { SignalResearchSchema } from "../../../discovery/src/signal-model";
 import { OperationsSchema } from "../../../discovery/src/operations-model";
 import { CandidateExpiryReceiptSchema, InventoryStatusSchema } from "../../../discovery/src/candidate-expiry-model";
 import {MarketBatchesSchema} from "../../../discovery/src/market-batch-model";
-import {ScoreSummarySchema,ScoreResponseSchema} from "../../../discovery/src/discovery-score-model";
+import {AnyScoreSummarySchema,AnyScoreResponseSchema} from "../../../discovery/src/discovery-score-v2-model";
 import {ScoreResearchSchema} from "../../../discovery/src/score-research-model";
 import {ScoreFollowupSchema} from "../../../discovery/src/score-followup-model";
 
@@ -20,8 +20,8 @@ const Common = z.object({
   source_freshness: z.object({ last_harvest: z.string().nullable(), last_success: z.string().nullable(), stale: z.boolean() }),
   coverage: z.object({ exhaustive: z.literal(false), scope: z.string(), history_limit: z.number(), quote_support: z.string(), holder_classification: z.string(), market_enabled: z.boolean() }),
 });
-export const ListResponse = Common.extend({ data: z.object({ candidates: z.array(AssessedCandidateSchema.extend({discovery_score:ScoreSummarySchema.optional(),discovery_rank:z.number().int().min(1).max(100).optional()})).max(100), mode: z.enum(["live", "fixture"]),sort:z.enum(["score","liquidity"]).optional(),scored_at:z.string().datetime().optional(),observed:z.number().int().optional(), counts: z.object({ eligible: z.number(), provisional: z.number(), excluded: z.number() }) }), next_cursor: z.string().nullable() });
-export const DiscoveryScoreResponse=ScoreResponseSchema;
+export const ListResponse = Common.extend({ data: z.object({ candidates: z.array(AssessedCandidateSchema.extend({discovery_score:AnyScoreSummarySchema.optional(),discovery_rank:z.number().int().min(1).max(100).optional()})).max(100), mode: z.enum(["live", "fixture"]),sort:z.enum(["score","liquidity"]).optional(),scored_at:z.string().datetime().optional(),observed:z.number().int().optional(), counts: z.object({ eligible: z.number(), provisional: z.number(), excluded: z.number() }) }), next_cursor: z.string().nullable() });
+export const DiscoveryScoreResponse=AnyScoreResponseSchema;
 export const CardListResponse = ListResponse.extend({ data: ListResponse.shape.data.extend({ candidates: z.array(CandidateCardSchema).max(100) }) });
 export const DetailResponse = Common.extend({ data: AssessedCandidateSchema, retention:CandidateExpiryReceiptSchema.nullable().optional() });
 export const CoverageResponse = Common.extend({ data: CoverageSchema });

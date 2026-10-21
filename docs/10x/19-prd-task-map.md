@@ -4,6 +4,14 @@ Reviewed 20 October 2026 against the entire [PRD v1.1](spec/10X_MEME_FULL_PRD_v1
 
 ## What exists and what is incomplete
 
+Market-integrity update, 21 October: [XTO review and versioned score-v2 checks](60-market-integrity-score.md) adds dated ceilings for abrupt sampled price moves, thin reported depth relative to cap and dust-dominated post-creation trade samples. Material later buys replace raw buyer counts for participation credit; flagged momentum earns no points. Cards and details explain the evidence. V1 replay, its labelled prospective comparator, all action gates and free collection limits remain. Independent calibration and prospective v2 cohorts remain open. No deploy.
+
+- [x] Resolve the reported pool to the exact XTO mint; retain the original scorecard and bounded price/trade regression evidence.
+- [x] Add explainable generic jump, relative-depth and dust-trading checks in discovery-score-v2; preserve v1 replay and action/election gates.
+- [x] Show score ceilings and price/trading sample metrics; export and replay either model version.
+- [ ] Retain prospective v2 outcome cohorts separately from the ongoing frozen v1 comparator.
+- [ ] Independently evaluate labelled adversarial/benign samples and false positives before calibrating thresholds.
+
 Score endpoint update, 21 October: [bounded follow-up after candidate expiry](59-score-endpoint-followup.md) now places pending score-cohort endpoints into at most five spare targets in the existing market batch. History-only publication preserves expired candidate payloads, frozen cohorts and action gates; original-source/baseline/identity holds, HTTP-failure cooldown, source backoff and owned publication remain. Research shows next windows and collection gaps. This fixes a collection-scope omission in the retention milestone; real next-day outcomes, usable baseline coverage and calibrated chronological validation remain outstanding.
 
 Score-research update, 21 October: [prospective grade retention and 24h outcomes](58-score-outcome-research.md) adds first mint/model scorecards, separate original coverage/action status, insert-once comparable outcomes, bounded cached maintenance, daily storage admission and full offline replay. `/research` shows pending/insufficient data and descriptive score bands. This completes prospective retention for §4.7/§15.1; mature samples, chronological validation, missingness analysis and actual score calibration remain open. No historical backfill, provider quota change, model activation or deployment.

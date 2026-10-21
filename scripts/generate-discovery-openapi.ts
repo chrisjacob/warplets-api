@@ -4,7 +4,7 @@ import { z } from "zod";
 import { InboxRecoveryResponse } from "../discovery/src/inbox-recovery-model";
 import { MintReviewsResponse, MintReviewRequest } from "../discovery/src/mint-review-model";
 import {MarketBatchDetailSchema} from "../discovery/src/market-batch-model";
-import {ScoreResponseSchema} from "../discovery/src/discovery-score-model";
+import {AnyScoreResponseSchema as ScoreResponseSchema} from "../discovery/src/discovery-score-v2-model";
 import {ContentReportPage,ContentReportRecord,ContentReportRequest,ContentReportReviewRequest} from "../discovery/src/content-report-model";
 import {HoldReviewPage,HoldReviewRecord,HoldReviewRequest,HoldReviewReply} from "../discovery/src/content-hold-model";
 import {ContentOperations} from "../discovery/src/content-operations-model";

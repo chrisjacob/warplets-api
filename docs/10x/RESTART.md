@@ -1,5 +1,7 @@
 # Restart and resume 10X.MEME development
 
+Market-integrity update, 21 October: [XTO review and versioned score-v2 checks](60-market-integrity-score.md) adds dated ceilings for abrupt sampled price moves, thin reported depth relative to cap and dust-dominated post-creation trade samples. Material later buys replace raw buyer counts for participation credit; flagged momentum earns no points. Cards and details explain the evidence. V1 replay, its labelled prospective comparator, all action gates and free collection limits remain. Independent calibration and prospective v2 cohorts remain open. No deploy.
+
 Handoff recorded 21 October 2026 (Australia/Sydney). This is a recovery snapshot; inspect current Git history, code, documentation and local data before acting on it.
 
 After rebooting, reopen the repository in Codex and send:

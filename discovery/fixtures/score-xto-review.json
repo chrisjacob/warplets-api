@@ -1,0 +1,1544 @@
+{
+  "original": {
+    "version": "discovery-scorecard-v1",
+    "inputs": {
+      "version": "discovery-score-input-v1",
+      "as_of": "2026-10-21T02:03:37.945Z",
+      "policy": {
+        "version": "discovery-score-v1",
+        "weights": {
+          "origin": 10,
+          "controls": 15,
+          "market": 20,
+          "holders": 25,
+          "wallets": 25,
+          "performance": 5
+        },
+        "targets": {
+          "market_cap_usd": 100000,
+          "liquidity_usd": 25000,
+          "liquidity_cap_ratio": 0.05,
+          "holders": 100,
+          "buyers": 3,
+          "top1_pct": 10,
+          "top10_pct": 35,
+          "creator_pct": 5,
+          "dev_funded_pct": 20,
+          "dev_sold_pct": 5
+        },
+        "freshness_seconds": {
+          "controls": 600,
+          "market": 180,
+          "holders": 1800,
+          "wallets": 3600
+        },
+        "decay_end_multiple": 4,
+        "performance": {
+          "window_seconds": 7200,
+          "min_span_seconds": 1800,
+          "max_gap_seconds": 1800,
+          "min_samples": 6,
+          "max_samples": 64,
+          "return_band": 0.25
+        },
+        "risk_ceiling": {
+          "rejected_origin": 0,
+          "active_authority": 40,
+          "single_owner_end": 10,
+          "top10_end": 30,
+          "wallet_exposure_end": 20
+        }
+      },
+      "candidate": {
+        "chain": "solana",
+        "address": "TbX69Z9YEbBF647xRQSEKkdM5z99aAM8zyfXuUapump",
+        "pool": "AW9UyqdrLpqnt3gp8sTpECMTMECpfyC59iLa2bwKmLjg",
+        "name": "XTO",
+        "symbol": "XTO",
+        "creation": {
+          "kind": "creation",
+          "signature": "4dMF2MDD3T5R34NWfC13CK8SUrt7PSbvdRWnFXgQSep6gRZLd3feAQrmPgbKq1VZMCupQTNai3n8X62MEKgCPQ2D",
+          "slot": 459391254,
+          "block_time": "2026-10-20T22:11:30.000Z",
+          "instruction": "create_v2",
+          "instruction_index": "0",
+          "program": "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P",
+          "payload_hash": "f790d69bbf4f3e09e7a7409a99ae77ed1bb83f2efa8855278e80b468c343f07d",
+          "fetched_at": "2026-10-20T22:22:04.812Z",
+          "source": "solana-finalized-rpc",
+          "adapter_version": "pump-639b87fb45c3-v1"
+        },
+        "graduation": {
+          "kind": "graduation",
+          "signature": "3g4GegYqUCSXjYi5NBuMwVvL2t7soZ1we9H9cmms3pEy6zEvRAhznNGFnb2tWNAutm82oSpdtJLrh1ykEa3xdDZF",
+          "slot": 459391254,
+          "block_time": "2026-10-20T22:11:30.000Z",
+          "instruction": "migrate_v2",
+          "instruction_index": "1",
+          "program": "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P",
+          "payload_hash": "56698b51aaa26f4029338b73a13b42624445c874e4eb0e15d328c062e98ffbb4",
+          "fetched_at": "2026-10-20T22:22:04.812Z",
+          "source": "solana-finalized-rpc",
+          "adapter_version": "pump-639b87fb45c3-v1"
+        },
+        "verification": "verified",
+        "verification_reasons": [],
+        "risk": {
+          "mint_authority": "revoked",
+          "freeze_authority": "revoked",
+          "token_program": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+          "mint_extensions": [
+            18,
+            19
+          ],
+          "holder_concentration": "unknown",
+          "pool_reserves_verified": true,
+          "observed_at": "2026-10-21T01:59:17.445Z",
+          "context_slot": 459454299,
+          "payload_hash": "b9ac6e5847aa87315f5d7dcbc4231641fa47f901053e8b0066d5d30b8761f312"
+        },
+        "market": {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T02:03:18.342Z",
+          "observed_at": null,
+          "price_usd": 0.1978,
+          "market_cap_usd": 197874700,
+          "fdv_usd": 197874700,
+          "liquidity_usd": 1218636.61,
+          "volume_24h_usd": 642513.94,
+          "image_url": null
+        },
+        "first_seen_at": "2026-10-20T22:13:09.692Z",
+        "checked_at": "2026-10-21T01:59:17.445Z",
+        "holders": {
+          "version": "owners-v2",
+          "status": "verified",
+          "layout_certified": true,
+          "observed_at": "2026-10-21T01:40:42.027Z",
+          "context_slot": 459449156,
+          "payload_hash": "998fd1c806e9852604598a1c3cd6724f6fe60937f94bcddc7cb969fe3439f9e8",
+          "supply_raw": "999975319013392",
+          "inventoried_raw": "999975319013392",
+          "account_count": 4064,
+          "holder_count": 4030,
+          "top1_pct": 0.356904,
+          "top10_pct": 0.910284,
+          "pool_pct": 0.310154,
+          "creator_pct": 0.356904,
+          "creator": "FrbppJ8HM5SGRVPHw24kZRfcXjSxyUWc3Vj2WFnLok87",
+          "owners": [
+            {
+              "owner": "FrbppJ8HM5SGRVPHw24kZRfcXjSxyUWc3Vj2WFnLok87",
+              "amount_raw": "3568950000000",
+              "supply_pct": 0.356904,
+              "role": "holder"
+            },
+            {
+              "owner": "GLE48XtNASKW9W7wG2DwFuZSrsfJ6ro9D6nJDjQfxjA8",
+              "amount_raw": "1553616271804",
+              "supply_pct": 0.155366,
+              "role": "holder"
+            },
+            {
+              "owner": "12UJW6NVck4NdYya3VRRkKXM2m7YvTW3sDushUGCNMfv",
+              "amount_raw": "497505535380",
+              "supply_pct": 0.049752,
+              "role": "holder"
+            },
+            {
+              "owner": "13G1NGvche1MwP1e7xKBFgjugAca5xCLZJ6R5i9MPuB",
+              "amount_raw": "497505535380",
+              "supply_pct": 0.049752,
+              "role": "holder"
+            },
+            {
+              "owner": "13RhXZUoFybqvUZFZG4C7W596fbCcMsTHb76bksNhEht",
+              "amount_raw": "497505535380",
+              "supply_pct": 0.049752,
+              "role": "holder"
+            },
+            {
+              "owner": "14GvnYb6vuJukAYu2SMpRMTEKUz3kcKNrfMcouV93L8Q",
+              "amount_raw": "497505535380",
+              "supply_pct": 0.049752,
+              "role": "holder"
+            },
+            {
+              "owner": "1FDdU7tophHgPmq5dj8pKmfFVnweVnspEyGDpMrvbJk",
+              "amount_raw": "497505535380",
+              "supply_pct": 0.049752,
+              "role": "holder"
+            },
+            {
+              "owner": "1TEsnQm5BQ7YfvmR5sDc6tYs1C8nqoiXx6X2qQJGZrW",
+              "amount_raw": "497505535380",
+              "supply_pct": 0.049752,
+              "role": "holder"
+            },
+            {
+              "owner": "21mXz1LSByNco2ZPoghLhv7DfUpcoHcc6gCkr6Mg1cHk",
+              "amount_raw": "497505535380",
+              "supply_pct": 0.049752,
+              "role": "holder"
+            },
+            {
+              "owner": "21WViWdy2X3zwUABZj3atUzme27xeTbw7dETXrBsS85p",
+              "amount_raw": "497505535380",
+              "supply_pct": 0.049752,
+              "role": "holder"
+            },
+            {
+              "owner": "21X39J7p2WYNrv7phYm9Z4eiJXwEJV2MeddLRVra713u",
+              "amount_raw": "497505535380",
+              "supply_pct": 0.049752,
+              "role": "holder"
+            },
+            {
+              "owner": "22ZxbTrNgwrPjMTx1rpxUYQjhBpaXtsYuuba8R9wPhYu",
+              "amount_raw": "497505535380",
+              "supply_pct": 0.049752,
+              "role": "holder"
+            },
+            {
+              "owner": "23F6yUwkNkqxK31CMG55s3K48cis5PDLZQQyzb6gvjZZ",
+              "amount_raw": "497505535380",
+              "supply_pct": 0.049752,
+              "role": "holder"
+            },
+            {
+              "owner": "23X9Nh3qoi9jVV2pa5mTvMYvuZHTBVUiLD5ao9pvDJAi",
+              "amount_raw": "497505535380",
+              "supply_pct": 0.049752,
+              "role": "holder"
+            },
+            {
+              "owner": "24jFUps3caUeTLZB3DrCbpkvz69txw9kcQSZcgBw1vA5",
+              "amount_raw": "497505535380",
+              "supply_pct": 0.049752,
+              "role": "holder"
+            },
+            {
+              "owner": "24onN2Q4YQQsyCLCzJeoUAanSF4mVRNTDd3Za2Skvp3H",
+              "amount_raw": "497505535380",
+              "supply_pct": 0.049752,
+              "role": "holder"
+            },
+            {
+              "owner": "24pZqL1zxqUKPqCoUzF1T1Sb3k7b5KAvjVdG3fTo5YdP",
+              "amount_raw": "497505535380",
+              "supply_pct": 0.049752,
+              "role": "holder"
+            },
+            {
+              "owner": "24YLNq2jjLHhwYdmGUWsr3uRCgiK8gXAvT45gPbj4fgc",
+              "amount_raw": "497505535380",
+              "supply_pct": 0.049752,
+              "role": "holder"
+            },
+            {
+              "owner": "257mZTKUkyi4527XozJoBS7XguFrgUg3gYdSni2R1seU",
+              "amount_raw": "497505535380",
+              "supply_pct": 0.049752,
+              "role": "holder"
+            },
+            {
+              "owner": "AW9UyqdrLpqnt3gp8sTpECMTMECpfyC59iLa2bwKmLjg",
+              "amount_raw": "3101458126277",
+              "supply_pct": 0.310154,
+              "role": "canonical_pool_vault"
+            }
+          ],
+          "gaps": [
+            "beneficial_owner_links_unknown",
+            "bundle_risk_unknown",
+            "lp_lock_status_unknown"
+          ]
+        },
+        "wallet_analysis": {
+          "version": "wallet-signals-v5",
+          "observed_at": "2026-10-21T00:56:27.641Z",
+          "evidence_hash": "0485946251c8ec82666a341452ed996fb6f410cf190d550700c74893c318b80b",
+          "funding_coverage": [
+            {
+              "wallet": "FrbppJ8HM5SGRVPHw24kZRfcXjSxyUWc3Vj2WFnLok87",
+              "anchor_signature": "4dMF2MDD3T5R34NWfC13CK8SUrt7PSbvdRWnFXgQSep6gRZLd3feAQrmPgbKq1VZMCupQTNai3n8X62MEKgCPQ2D",
+              "anchor_kind": "signed_creation",
+              "anchor_at": "2026-10-20T22:11:30.000Z",
+              "window_start": "2026-10-20T21:11:30.000Z",
+              "pages": 0,
+              "signatures": 0,
+              "transactions_in_window": 0,
+              "transactions_examined": 0,
+              "status": "partial",
+              "boundary_reached": false,
+              "gaps": [
+                "funding_paging_pending"
+              ]
+            },
+            {
+              "wallet": "DRbL5caNzMvui94YyUzCx7L6ZQY2H3V98kE8E3Ekm5uR",
+              "anchor_signature": "66GHXo2avpMWYTiJwW8ozFtUvEitrmTnXTqB1hGSpmBvTAo9tV8XMkYzi1iRwWgSSGhXDd9PqFABC2UWgLBv8y21",
+              "anchor_kind": "sampled_buy",
+              "anchor_at": "2026-10-21T00:55:45.000Z",
+              "window_start": "2026-10-20T23:55:45.000Z",
+              "pages": 0,
+              "signatures": 0,
+              "transactions_in_window": 0,
+              "transactions_examined": 0,
+              "status": "partial",
+              "boundary_reached": false,
+              "gaps": [
+                "funding_paging_pending"
+              ]
+            },
+            {
+              "wallet": "8nbcUGCRnk7gY7XTsJBtcJ93pKE2wdJVR4kyMUAGT1oA",
+              "anchor_signature": "FUh2SP51q1j5mqMhmetR6LYuaKVw4cFnUXi6C4eeefVwxM7vmLHGx1CUPuSagSehCT2WiX4fHcG2oA9uxSUJxtA",
+              "anchor_kind": "sampled_buy",
+              "anchor_at": "2026-10-21T00:55:49.000Z",
+              "window_start": "2026-10-20T23:55:49.000Z",
+              "pages": 1,
+              "signatures": 50,
+              "transactions_in_window": 3,
+              "transactions_examined": 1,
+              "status": "partial",
+              "boundary_reached": true,
+              "gaps": [
+                "funding_transactions_pending"
+              ]
+            },
+            {
+              "wallet": "HyPTke1dmfA9GbpNKAoHo7Q1kgpmzExo6MqFrqBUbBin",
+              "anchor_signature": "3DQs1zPHEvfzB2C9AB9bkzAUocvPTP4PZScSyLvtMZ6BTXS5X2pVfDuaCSRDC8NknJ91iT2ZNgAqgMPNzxwN5wVo",
+              "anchor_kind": "sampled_buy",
+              "anchor_at": "2026-10-21T00:55:56.000Z",
+              "window_start": "2026-10-20T23:55:56.000Z",
+              "pages": 0,
+              "signatures": 0,
+              "transactions_in_window": 0,
+              "transactions_examined": 0,
+              "status": "partial",
+              "boundary_reached": false,
+              "gaps": [
+                "funding_paging_pending"
+              ]
+            },
+            {
+              "wallet": "43WwjpD4XcrUGfU9aC18wHhCGgNCX6UATRBubYD4Uast",
+              "anchor_signature": "4G5mhYBLxu9vxnE5eGBpcgZupzqLHXhksm29JpPANiXagN2HPT7gjLtfuv9uwAeG4AggSFLTjfvHjuJ1eY1xYPsN",
+              "anchor_kind": "sampled_buy",
+              "anchor_at": "2026-10-21T00:56:01.000Z",
+              "window_start": "2026-10-20T23:56:01.000Z",
+              "pages": 1,
+              "signatures": 50,
+              "transactions_in_window": 3,
+              "transactions_examined": 3,
+              "status": "window_examined",
+              "boundary_reached": true,
+              "gaps": []
+            },
+            {
+              "wallet": "2sfrJN8fpLbQVV1eosKDCBeFaQXepJvtSDTkpH1XXMHS",
+              "anchor_signature": "5ArBDPK1oPZ4K2pUpSPJLcMxfTZjjeXfAFDd95Ki4b9XwD6aabgoxGBR7GjNAXM9f1tcwQ6GXFTgNuHpb7bJjSrC",
+              "anchor_kind": "sampled_buy",
+              "anchor_at": "2026-10-21T00:56:03.000Z",
+              "window_start": "2026-10-20T23:56:03.000Z",
+              "pages": 1,
+              "signatures": 50,
+              "transactions_in_window": 2,
+              "transactions_examined": 2,
+              "status": "window_examined",
+              "boundary_reached": true,
+              "gaps": []
+            }
+          ],
+          "second_hop": {
+            "depth": 2,
+            "eligible_funders": 0,
+            "coverage": [],
+            "paths": [],
+            "gaps": [
+              "common_control_unknown",
+              "funding_sequence_not_coin_provenance",
+              "single_outflow_anchor_per_funder",
+              "third_hop_not_scanned",
+              "verified_direct_funders_unavailable"
+            ]
+          },
+          "status": "no_signal_in_sample",
+          "source": "solana-finalized-rpc",
+          "coverage": "bounded_sample",
+          "actual_bundle_membership": "unknown",
+          "exhaustive": false,
+          "creation_slot": 459391254,
+          "holder_snapshot_at": "2026-10-21T00:43:52.295Z",
+          "scope": {
+            "curve_pages": 1,
+            "early_window_reached": true,
+            "signatures_considered": 175,
+            "transactions_examined": 12,
+            "unsupported_or_missing_transactions": 0,
+            "wallet_histories_examined": 3
+          },
+          "metrics": {
+            "verified_buys": 7,
+            "verified_sells": 1,
+            "distinct_buyers": 6,
+            "max_same_slot_buyers": 1,
+            "max_same_transaction_buyers": 1,
+            "shared_funder_buyers": 0,
+            "dev_funded_buyers": 0,
+            "dev_funded_supply_pct": 0,
+            "dev_sold_supply_pct": 0,
+            "round_trip_wallets": 0
+          },
+          "signals": [],
+          "trades": [
+            {
+              "signature": "4dMF2MDD3T5R34NWfC13CK8SUrt7PSbvdRWnFXgQSep6gRZLd3feAQrmPgbKq1VZMCupQTNai3n8X62MEKgCPQ2D",
+              "slot": 459391254,
+              "block_time": "2026-10-20T22:11:30.000Z",
+              "instruction_index": "2",
+              "program": "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P",
+              "instruction": "buy",
+              "side": "buy",
+              "wallet": "FrbppJ8HM5SGRVPHw24kZRfcXjSxyUWc3Vj2WFnLok87",
+              "fee_payer": "FrbppJ8HM5SGRVPHw24kZRfcXjSxyUWc3Vj2WFnLok87",
+              "base_amount_raw": "793100000000000",
+              "quote_amount_raw": "85005359057",
+              "quote_kind": "native_lamports",
+              "net_wallet_base_raw": "793100000000000",
+              "transaction_hash": "93b40549b51ef65e66902169d5173dc265fdda9182c4157fc958e4e2500761a4"
+            },
+            {
+              "signature": "5UTnf8qWBPABxrtBHNRnJtm9UM7tHnhq9AxrDnu2ysM2WLGn6TJEgmT6BjifiGzJo4Dfa7s8jqcsJr2MdKKetr5r",
+              "slot": 459426098,
+              "block_time": "2026-10-21T00:17:30.000Z",
+              "instruction_index": "5",
+              "program": "pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA",
+              "instruction": "buy_exact_quote_in",
+              "side": "buy",
+              "wallet": "43WwjpD4XcrUGfU9aC18wHhCGgNCX6UATRBubYD4Uast",
+              "fee_payer": "43WwjpD4XcrUGfU9aC18wHhCGgNCX6UATRBubYD4Uast",
+              "base_amount_raw": "451429",
+              "quote_amount_raw": "352744",
+              "quote_kind": "wsol_raw",
+              "net_wallet_base_raw": "451429",
+              "transaction_hash": "2f991e4b69a31237514c430818c56a0d37092278f6e94c089c393ccc2710c3c8",
+              "quote_account_proof": "temporary_wsol_lifecycle"
+            },
+            {
+              "signature": "3mrEJdAGD2He52RGedNQV5MmyA5ys6z5pUYcddqrrfbMUAS2uTPc5AeK8DYMkd8e7rSz6Fg7KscFeTrynSZxeQyc",
+              "slot": 459426110,
+              "block_time": "2026-10-21T00:17:33.000Z",
+              "instruction_index": "3",
+              "program": "pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA",
+              "instruction": "sell",
+              "side": "sell",
+              "wallet": "2sfrJN8fpLbQVV1eosKDCBeFaQXepJvtSDTkpH1XXMHS",
+              "fee_payer": "2sfrJN8fpLbQVV1eosKDCBeFaQXepJvtSDTkpH1XXMHS",
+              "base_amount_raw": "617527",
+              "quote_amount_raw": "480065",
+              "quote_kind": "wsol_raw",
+              "net_wallet_base_raw": "-617527",
+              "transaction_hash": "28c375504be8051dc050d60d1527389208166b1c3cc92877a7b00b0e77ede175",
+              "quote_account_proof": "temporary_wsol_lifecycle"
+            },
+            {
+              "signature": "66GHXo2avpMWYTiJwW8ozFtUvEitrmTnXTqB1hGSpmBvTAo9tV8XMkYzi1iRwWgSSGhXDd9PqFABC2UWgLBv8y21",
+              "slot": 459436680,
+              "block_time": "2026-10-21T00:55:45.000Z",
+              "instruction_index": "5",
+              "program": "pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA",
+              "instruction": "buy_exact_quote_in",
+              "side": "buy",
+              "wallet": "DRbL5caNzMvui94YyUzCx7L6ZQY2H3V98kE8E3Ekm5uR",
+              "fee_payer": "DRbL5caNzMvui94YyUzCx7L6ZQY2H3V98kE8E3Ekm5uR",
+              "base_amount_raw": "444906",
+              "quote_amount_raw": "356062",
+              "quote_kind": "wsol_raw",
+              "net_wallet_base_raw": "444906",
+              "transaction_hash": "a64c6f1427ea641f9ebbc3eff4c77af89e51252cf3b047cf3b0ba2569f2b3d2e",
+              "quote_account_proof": "temporary_wsol_lifecycle"
+            },
+            {
+              "signature": "FUh2SP51q1j5mqMhmetR6LYuaKVw4cFnUXi6C4eeefVwxM7vmLHGx1CUPuSagSehCT2WiX4fHcG2oA9uxSUJxtA",
+              "slot": 459436698,
+              "block_time": "2026-10-21T00:55:49.000Z",
+              "instruction_index": "5",
+              "program": "pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA",
+              "instruction": "buy_exact_quote_in",
+              "side": "buy",
+              "wallet": "8nbcUGCRnk7gY7XTsJBtcJ93pKE2wdJVR4kyMUAGT1oA",
+              "fee_payer": "8nbcUGCRnk7gY7XTsJBtcJ93pKE2wdJVR4kyMUAGT1oA",
+              "base_amount_raw": "409783",
+              "quote_amount_raw": "327938",
+              "quote_kind": "wsol_raw",
+              "net_wallet_base_raw": "409783",
+              "transaction_hash": "54e4eeafd8ded5c6ea474791f37426a74c3ae67b8b0b486df0f53841aaf9ea88",
+              "quote_account_proof": "temporary_wsol_lifecycle"
+            },
+            {
+              "signature": "3DQs1zPHEvfzB2C9AB9bkzAUocvPTP4PZScSyLvtMZ6BTXS5X2pVfDuaCSRDC8NknJ91iT2ZNgAqgMPNzxwN5wVo",
+              "slot": 459436729,
+              "block_time": "2026-10-21T00:55:56.000Z",
+              "instruction_index": "5",
+              "program": "pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA",
+              "instruction": "buy_exact_quote_in",
+              "side": "buy",
+              "wallet": "HyPTke1dmfA9GbpNKAoHo7Q1kgpmzExo6MqFrqBUbBin",
+              "fee_payer": "HyPTke1dmfA9GbpNKAoHo7Q1kgpmzExo6MqFrqBUbBin",
+              "base_amount_raw": "172552",
+              "quote_amount_raw": "138103",
+              "quote_kind": "wsol_raw",
+              "net_wallet_base_raw": "172552",
+              "transaction_hash": "364232fb99cb03105cb65030fda1ef9d8246f43775d0f081c7938102cafcf0bd",
+              "quote_account_proof": "temporary_wsol_lifecycle"
+            },
+            {
+              "signature": "4G5mhYBLxu9vxnE5eGBpcgZupzqLHXhksm29JpPANiXagN2HPT7gjLtfuv9uwAeG4AggSFLTjfvHjuJ1eY1xYPsN",
+              "slot": 459436752,
+              "block_time": "2026-10-21T00:56:01.000Z",
+              "instruction_index": "5",
+              "program": "pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA",
+              "instruction": "buy_exact_quote_in",
+              "side": "buy",
+              "wallet": "43WwjpD4XcrUGfU9aC18wHhCGgNCX6UATRBubYD4Uast",
+              "fee_payer": "43WwjpD4XcrUGfU9aC18wHhCGgNCX6UATRBubYD4Uast",
+              "base_amount_raw": "250591",
+              "quote_amount_raw": "200585",
+              "quote_kind": "wsol_raw",
+              "net_wallet_base_raw": "250591",
+              "transaction_hash": "7aa8219964a7737731eb5327001e77c452e6969a928dd93460c53d72616dc932",
+              "quote_account_proof": "temporary_wsol_lifecycle"
+            },
+            {
+              "signature": "5ArBDPK1oPZ4K2pUpSPJLcMxfTZjjeXfAFDd95Ki4b9XwD6aabgoxGBR7GjNAXM9f1tcwQ6GXFTgNuHpb7bJjSrC",
+              "slot": 459436764,
+              "block_time": "2026-10-21T00:56:03.000Z",
+              "instruction_index": "5",
+              "program": "pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA",
+              "instruction": "buy_exact_quote_in",
+              "side": "buy",
+              "wallet": "2sfrJN8fpLbQVV1eosKDCBeFaQXepJvtSDTkpH1XXMHS",
+              "fee_payer": "2sfrJN8fpLbQVV1eosKDCBeFaQXepJvtSDTkpH1XXMHS",
+              "base_amount_raw": "145108",
+              "quote_amount_raw": "116149",
+              "quote_kind": "wsol_raw",
+              "net_wallet_base_raw": "145108",
+              "transaction_hash": "b36a7f9f36b3fff11afa6bedea4ead0a2b49b6244f0d5898580a06e9635d828b",
+              "quote_account_proof": "temporary_wsol_lifecycle"
+            }
+          ],
+          "funding": [],
+          "wallets": [
+            {
+              "wallet": "FrbppJ8HM5SGRVPHw24kZRfcXjSxyUWc3Vj2WFnLok87",
+              "roles": [
+                "creation_user",
+                "declared_creator",
+                "buyer"
+              ],
+              "signed_creation": true,
+              "buys": 1,
+              "sells": 0,
+              "bought_raw": "793100000000000",
+              "sold_raw": "0",
+              "net_bought_raw": "793100000000000",
+              "current_supply_pct": 0.356904,
+              "oldest_observed_reference_at": null,
+              "history_signatures": 0,
+              "history_complete": false,
+              "prior_loss_associations": 0,
+              "gaps": [
+                "lifetime_wallet_history_unknown"
+              ]
+            },
+            {
+              "wallet": "43WwjpD4XcrUGfU9aC18wHhCGgNCX6UATRBubYD4Uast",
+              "roles": [
+                "buyer"
+              ],
+              "signed_creation": false,
+              "buys": 2,
+              "sells": 0,
+              "bought_raw": "702020",
+              "sold_raw": "0",
+              "net_bought_raw": "702020",
+              "current_supply_pct": 0.000001,
+              "oldest_observed_reference_at": "2026-10-03T21:58:00.000Z",
+              "history_signatures": 50,
+              "history_complete": false,
+              "prior_loss_associations": 0,
+              "gaps": [
+                "lifetime_wallet_history_unknown"
+              ]
+            },
+            {
+              "wallet": "DRbL5caNzMvui94YyUzCx7L6ZQY2H3V98kE8E3Ekm5uR",
+              "roles": [
+                "buyer"
+              ],
+              "signed_creation": false,
+              "buys": 1,
+              "sells": 0,
+              "bought_raw": "444906",
+              "sold_raw": "0",
+              "net_bought_raw": "444906",
+              "current_supply_pct": 0.000001,
+              "oldest_observed_reference_at": null,
+              "history_signatures": 0,
+              "history_complete": false,
+              "prior_loss_associations": 0,
+              "gaps": [
+                "lifetime_wallet_history_unknown"
+              ]
+            },
+            {
+              "wallet": "8nbcUGCRnk7gY7XTsJBtcJ93pKE2wdJVR4kyMUAGT1oA",
+              "roles": [
+                "buyer"
+              ],
+              "signed_creation": false,
+              "buys": 1,
+              "sells": 0,
+              "bought_raw": "409783",
+              "sold_raw": "0",
+              "net_bought_raw": "409783",
+              "current_supply_pct": 0.000001,
+              "oldest_observed_reference_at": "2026-10-04T11:27:45.000Z",
+              "history_signatures": 50,
+              "history_complete": false,
+              "prior_loss_associations": 0,
+              "gaps": [
+                "lifetime_wallet_history_unknown"
+              ]
+            },
+            {
+              "wallet": "HyPTke1dmfA9GbpNKAoHo7Q1kgpmzExo6MqFrqBUbBin",
+              "roles": [
+                "buyer"
+              ],
+              "signed_creation": false,
+              "buys": 1,
+              "sells": 0,
+              "bought_raw": "172552",
+              "sold_raw": "0",
+              "net_bought_raw": "172552",
+              "current_supply_pct": 0.000001,
+              "oldest_observed_reference_at": null,
+              "history_signatures": 0,
+              "history_complete": false,
+              "prior_loss_associations": 0,
+              "gaps": [
+                "lifetime_wallet_history_unknown"
+              ]
+            },
+            {
+              "wallet": "2sfrJN8fpLbQVV1eosKDCBeFaQXepJvtSDTkpH1XXMHS",
+              "roles": [
+                "buyer",
+                "seller"
+              ],
+              "signed_creation": false,
+              "buys": 1,
+              "sells": 1,
+              "bought_raw": "145108",
+              "sold_raw": "617527",
+              "net_bought_raw": "-472419",
+              "current_supply_pct": 0.000001,
+              "oldest_observed_reference_at": "2026-10-03T22:27:17.000Z",
+              "history_signatures": 50,
+              "history_complete": false,
+              "prior_loss_associations": 0,
+              "gaps": [
+                "lifetime_wallet_history_unknown"
+              ]
+            }
+          ],
+          "gaps": [
+            "actual_bundle_membership_unknown",
+            "beneficial_owner_links_unknown",
+            "historical_wallet_coverage_incomplete",
+            "exchange_or_sponsor_funding_possible",
+            "cross_token_pnl_and_fees_unknown",
+            "buyer_funding_histories_not_all_sampled",
+            "pre_buy_funding_coverage_partial"
+          ]
+        },
+        "mode": "live"
+      },
+      "prices": [
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T00:06:10.949Z",
+          "observed_at": null,
+          "price_usd": 0.08243
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T00:09:50.566Z",
+          "observed_at": null,
+          "price_usd": 0.08221
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T00:12:52.999Z",
+          "observed_at": null,
+          "price_usd": 0.08288
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T00:16:51.611Z",
+          "observed_at": null,
+          "price_usd": 0.08312
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T00:20:51.173Z",
+          "observed_at": null,
+          "price_usd": 0.08348
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T00:23:51.295Z",
+          "observed_at": null,
+          "price_usd": 0.08365
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T00:27:51.352Z",
+          "observed_at": null,
+          "price_usd": 0.08391
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T00:31:52.627Z",
+          "observed_at": null,
+          "price_usd": 0.08415
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T00:40:51.427Z",
+          "observed_at": null,
+          "price_usd": 0.08459
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T00:43:51.433Z",
+          "observed_at": null,
+          "price_usd": 0.08473
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T00:47:51.409Z",
+          "observed_at": null,
+          "price_usd": 0.08454
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T00:51:51.396Z",
+          "observed_at": null,
+          "price_usd": 0.08516
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T00:55:51.511Z",
+          "observed_at": null,
+          "price_usd": 0.08544
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T00:59:51.447Z",
+          "observed_at": null,
+          "price_usd": 0.08567
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T01:02:51.676Z",
+          "observed_at": null,
+          "price_usd": 0.08567
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T01:06:51.487Z",
+          "observed_at": null,
+          "price_usd": 0.08558
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T01:09:51.589Z",
+          "observed_at": null,
+          "price_usd": 0.08572
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T01:12:52.193Z",
+          "observed_at": null,
+          "price_usd": 0.08575
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T01:16:34.724Z",
+          "observed_at": null,
+          "price_usd": 0.08604
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T01:20:34.505Z",
+          "observed_at": null,
+          "price_usd": 0.1935
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T01:23:34.511Z",
+          "observed_at": null,
+          "price_usd": 0.1928
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T01:27:34.508Z",
+          "observed_at": null,
+          "price_usd": 0.1936
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T01:31:34.546Z",
+          "observed_at": null,
+          "price_usd": 0.1951
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T01:34:34.647Z",
+          "observed_at": null,
+          "price_usd": 0.1953
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T01:37:34.991Z",
+          "observed_at": null,
+          "price_usd": 0.1944
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T01:40:36.018Z",
+          "observed_at": null,
+          "price_usd": 0.1954
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T01:44:12.134Z",
+          "observed_at": null,
+          "price_usd": 0.1947
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T01:47:17.112Z",
+          "observed_at": null,
+          "price_usd": 0.1961
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T01:50:17.340Z",
+          "observed_at": null,
+          "price_usd": 0.1964
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T01:53:17.558Z",
+          "observed_at": null,
+          "price_usd": 0.1971
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T01:56:18.734Z",
+          "observed_at": null,
+          "price_usd": 0.1974
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T02:00:17.679Z",
+          "observed_at": null,
+          "price_usd": 0.1977
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T02:03:18.342Z",
+          "observed_at": null,
+          "price_usd": 0.1978
+        }
+      ],
+      "history_limited": false
+    },
+    "result": {
+      "version": "discovery-score-result-v1",
+      "as_of": "2026-10-21T02:03:37.945Z",
+      "value": 86,
+      "evidence_coverage": 91,
+      "base_points": 86.62,
+      "ceiling": 100,
+      "criteria": [
+        {
+          "id": "creation",
+          "label": "Finalized creation",
+          "category": "origin",
+          "maximum": 6,
+          "points": 6,
+          "evidence_points": 6,
+          "status": "observed",
+          "value": true,
+          "observed_at": "2026-10-20T22:11:30.000Z",
+          "notes": []
+        },
+        {
+          "id": "graduation",
+          "label": "Finalized graduation",
+          "category": "origin",
+          "maximum": 4,
+          "points": 4,
+          "evidence_points": 4,
+          "status": "observed",
+          "value": true,
+          "observed_at": "2026-10-20T22:11:30.000Z",
+          "notes": []
+        },
+        {
+          "id": "mint_authority",
+          "label": "Mint authority revoked",
+          "category": "controls",
+          "maximum": 6,
+          "points": 6,
+          "evidence_points": 6,
+          "status": "observed",
+          "value": true,
+          "observed_at": "2026-10-21T01:59:17.445Z",
+          "notes": []
+        },
+        {
+          "id": "freeze_authority",
+          "label": "Freeze authority revoked",
+          "category": "controls",
+          "maximum": 4,
+          "points": 4,
+          "evidence_points": 4,
+          "status": "observed",
+          "value": true,
+          "observed_at": "2026-10-21T01:59:17.445Z",
+          "notes": []
+        },
+        {
+          "id": "pool_reserves",
+          "label": "Pool reserves verified",
+          "category": "controls",
+          "maximum": 5,
+          "points": 5,
+          "evidence_points": 5,
+          "status": "observed",
+          "value": true,
+          "observed_at": "2026-10-21T01:59:17.445Z",
+          "notes": []
+        },
+        {
+          "id": "reported_cap",
+          "label": "Reported market cap",
+          "category": "market",
+          "maximum": 5,
+          "points": 5,
+          "evidence_points": 5,
+          "status": "observed",
+          "value": 197874700,
+          "observed_at": "2026-10-21T02:03:18.342Z",
+          "notes": [
+            "provider_report_not_independent_supply",
+            "fdv_not_substituted"
+          ]
+        },
+        {
+          "id": "liquidity",
+          "label": "Reported liquidity",
+          "category": "market",
+          "maximum": 10,
+          "points": 10,
+          "evidence_points": 10,
+          "status": "observed",
+          "value": 1218636.61,
+          "observed_at": "2026-10-21T02:03:18.342Z",
+          "notes": []
+        },
+        {
+          "id": "liquidity_ratio",
+          "label": "Liquidity / reported cap",
+          "category": "market",
+          "maximum": 5,
+          "points": 0.62,
+          "evidence_points": 5,
+          "status": "observed",
+          "value": 0.006158627707331964,
+          "observed_at": "2026-10-21T02:03:18.342Z",
+          "notes": [
+            "not_executable_exit_liquidity"
+          ]
+        },
+        {
+          "id": "holders",
+          "label": "Non-vault owner count",
+          "category": "holders",
+          "maximum": 5,
+          "points": 5,
+          "evidence_points": 5,
+          "status": "observed",
+          "value": 4030,
+          "observed_at": "2026-10-21T01:40:42.027Z",
+          "notes": []
+        },
+        {
+          "id": "top1_pct",
+          "label": "Largest owner concentration",
+          "category": "holders",
+          "maximum": 8,
+          "points": 8,
+          "evidence_points": 8,
+          "status": "observed",
+          "value": 0.356904,
+          "observed_at": "2026-10-21T01:40:42.027Z",
+          "notes": []
+        },
+        {
+          "id": "top10_pct",
+          "label": "Top ten concentration",
+          "category": "holders",
+          "maximum": 8,
+          "points": 8,
+          "evidence_points": 8,
+          "status": "observed",
+          "value": 0.910284,
+          "observed_at": "2026-10-21T01:40:42.027Z",
+          "notes": []
+        },
+        {
+          "id": "creator_pct",
+          "label": "Creation-user concentration",
+          "category": "holders",
+          "maximum": 4,
+          "points": 4,
+          "evidence_points": 4,
+          "status": "observed",
+          "value": 0.356904,
+          "observed_at": "2026-10-21T01:40:42.027Z",
+          "notes": []
+        },
+        {
+          "id": "signed_creation_wallet",
+          "label": "Signed creation wallet",
+          "category": "wallets",
+          "maximum": 5,
+          "points": 4.8,
+          "evidence_points": 4.8,
+          "status": "stale",
+          "value": true,
+          "observed_at": "2026-10-21T00:56:27.641Z",
+          "notes": [
+            "bounded_wallet_sample",
+            "positive_credit_decayed"
+          ]
+        },
+        {
+          "id": "sampled_buyers",
+          "label": "Verified buyer sample",
+          "category": "wallets",
+          "maximum": 5,
+          "points": 4.8,
+          "evidence_points": 4.8,
+          "status": "stale",
+          "value": 6,
+          "observed_at": "2026-10-21T00:56:27.641Z",
+          "notes": [
+            "positive_credit_decayed"
+          ]
+        },
+        {
+          "id": "funding_windows",
+          "label": "Examined pre-buy funding windows",
+          "category": "wallets",
+          "maximum": 10,
+          "points": 3.2,
+          "evidence_points": 3.2,
+          "status": "stale",
+          "value": 0.3333333333333333,
+          "observed_at": "2026-10-21T00:56:27.641Z",
+          "notes": [
+            "examined_windows_not_complete_lifetime_funding",
+            "positive_credit_decayed"
+          ]
+        },
+        {
+          "id": "dev_funded_supply_pct",
+          "label": "Sampled dev-funded exposure",
+          "category": "wallets",
+          "maximum": 2.5,
+          "points": 0.8,
+          "evidence_points": 0.8,
+          "status": "stale",
+          "value": 0,
+          "observed_at": "2026-10-21T00:56:27.641Z",
+          "notes": [
+            "sample_only_not_lifetime_exposure",
+            "positive_credit_decayed"
+          ]
+        },
+        {
+          "id": "dev_sold_supply_pct",
+          "label": "Sampled creation-wallet sales",
+          "category": "wallets",
+          "maximum": 2.5,
+          "points": 2.4,
+          "evidence_points": 2.4,
+          "status": "stale",
+          "value": 0,
+          "observed_at": "2026-10-21T00:56:27.641Z",
+          "notes": [
+            "sample_only_not_lifetime_exposure",
+            "positive_credit_decayed"
+          ]
+        },
+        {
+          "id": "sampled_performance",
+          "label": "Sampled price performance",
+          "category": "performance",
+          "maximum": 5,
+          "points": 5,
+          "evidence_points": 5,
+          "status": "observed",
+          "value": 1.3996117918233653,
+          "observed_at": "2026-10-21T02:03:18.342Z",
+          "notes": [
+            "sampled_return_not_organic_demand"
+          ]
+        }
+      ],
+      "components": [
+        {
+          "category": "origin",
+          "maximum": 10,
+          "points": 10,
+          "evidence_points": 10
+        },
+        {
+          "category": "controls",
+          "maximum": 15,
+          "points": 15,
+          "evidence_points": 15
+        },
+        {
+          "category": "market",
+          "maximum": 20,
+          "points": 15.62,
+          "evidence_points": 20
+        },
+        {
+          "category": "holders",
+          "maximum": 25,
+          "points": 25,
+          "evidence_points": 25
+        },
+        {
+          "category": "wallets",
+          "maximum": 25,
+          "points": 16,
+          "evidence_points": 16
+        },
+        {
+          "category": "performance",
+          "maximum": 5,
+          "points": 5,
+          "evidence_points": 5
+        }
+      ],
+      "concerns": []
+    },
+    "input_hash": "9b4fa341fb42a5339256b60a4698a92006992274e3336c2359a1c34b0085a6d6",
+    "policy_hash": "6441f88010252c7492a30f461288935b2bf681c00d4ae1245122de83e75beaf1",
+    "result_hash": "53b71cd516134a516b57fc5bfb7f540bb5b43433be84ecf895c37319970e0f8c",
+    "record_hash": "aba4a51817ad096c97139971179d22e0a7067d31d90f3cd9097d61571619def1"
+  },
+  "prices": [
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T22:14:04.475Z",
+      "observed_at": null,
+      "price_usd": 0.07611
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T22:24:04.452Z",
+      "observed_at": null,
+      "price_usd": 0.07731
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T22:27:04.482Z",
+      "observed_at": null,
+      "price_usd": 0.07707
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T22:30:26.231Z",
+      "observed_at": null,
+      "price_usd": 0.07763
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T22:34:04.578Z",
+      "observed_at": null,
+      "price_usd": 0.07747
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T22:37:04.595Z",
+      "observed_at": null,
+      "price_usd": 0.07807
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T22:40:04.617Z",
+      "observed_at": null,
+      "price_usd": 0.07828
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T22:43:04.656Z",
+      "observed_at": null,
+      "price_usd": 0.07853
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T22:47:04.622Z",
+      "observed_at": null,
+      "price_usd": 0.07833
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T22:50:04.735Z",
+      "observed_at": null,
+      "price_usd": 0.07894
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T22:54:04.750Z",
+      "observed_at": null,
+      "price_usd": 0.07912
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T23:01:29.012Z",
+      "observed_at": null,
+      "price_usd": 0.07944
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T23:04:56.611Z",
+      "observed_at": null,
+      "price_usd": 0.07961
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T23:08:53.362Z",
+      "observed_at": null,
+      "price_usd": 0.07966
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T23:11:53.591Z",
+      "observed_at": null,
+      "price_usd": 0.07968
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T23:15:55.233Z",
+      "observed_at": null,
+      "price_usd": 0.08
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T23:19:00.309Z",
+      "observed_at": null,
+      "price_usd": 0.08007
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T23:22:44.071Z",
+      "observed_at": null,
+      "price_usd": 0.08027
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T23:25:48.850Z",
+      "observed_at": null,
+      "price_usd": 0.08034
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T23:29:48.769Z",
+      "observed_at": null,
+      "price_usd": 0.08053
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T23:32:48.864Z",
+      "observed_at": null,
+      "price_usd": 0.08066
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T23:35:49.392Z",
+      "observed_at": null,
+      "price_usd": 0.08079
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T23:39:48.812Z",
+      "observed_at": null,
+      "price_usd": 0.08104
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T23:42:48.858Z",
+      "observed_at": null,
+      "price_usd": 0.08115
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T23:45:49.193Z",
+      "observed_at": null,
+      "price_usd": 0.0814
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T23:49:48.914Z",
+      "observed_at": null,
+      "price_usd": 0.08161
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T23:52:50.603Z",
+      "observed_at": null,
+      "price_usd": 0.08184
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T23:56:03.950Z",
+      "observed_at": null,
+      "price_usd": 0.08201
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T23:59:49.936Z",
+      "observed_at": null,
+      "price_usd": 0.0822
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-21T00:02:50.177Z",
+      "observed_at": null,
+      "price_usd": 0.08192
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-21T00:06:10.949Z",
+      "observed_at": null,
+      "price_usd": 0.08243
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-21T00:09:50.566Z",
+      "observed_at": null,
+      "price_usd": 0.08221
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-21T00:12:52.999Z",
+      "observed_at": null,
+      "price_usd": 0.08288
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-21T00:16:51.611Z",
+      "observed_at": null,
+      "price_usd": 0.08312
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-21T00:20:51.173Z",
+      "observed_at": null,
+      "price_usd": 0.08348
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-21T00:23:51.295Z",
+      "observed_at": null,
+      "price_usd": 0.08365
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-21T00:27:51.352Z",
+      "observed_at": null,
+      "price_usd": 0.08391
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-21T00:31:52.627Z",
+      "observed_at": null,
+      "price_usd": 0.08415
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-21T00:40:51.427Z",
+      "observed_at": null,
+      "price_usd": 0.08459
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-21T00:43:51.433Z",
+      "observed_at": null,
+      "price_usd": 0.08473
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-21T00:47:51.409Z",
+      "observed_at": null,
+      "price_usd": 0.08454
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-21T00:51:51.396Z",
+      "observed_at": null,
+      "price_usd": 0.08516
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-21T00:55:51.511Z",
+      "observed_at": null,
+      "price_usd": 0.08544
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-21T00:59:51.447Z",
+      "observed_at": null,
+      "price_usd": 0.08567
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-21T01:02:51.676Z",
+      "observed_at": null,
+      "price_usd": 0.08567
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-21T01:06:51.487Z",
+      "observed_at": null,
+      "price_usd": 0.08558
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-21T01:09:51.589Z",
+      "observed_at": null,
+      "price_usd": 0.08572
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-21T01:12:52.193Z",
+      "observed_at": null,
+      "price_usd": 0.08575
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-21T01:16:34.724Z",
+      "observed_at": null,
+      "price_usd": 0.08604
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-21T01:20:34.505Z",
+      "observed_at": null,
+      "price_usd": 0.1935
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-21T01:23:34.511Z",
+      "observed_at": null,
+      "price_usd": 0.1928
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-21T01:27:34.508Z",
+      "observed_at": null,
+      "price_usd": 0.1936
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-21T01:31:34.546Z",
+      "observed_at": null,
+      "price_usd": 0.1951
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-21T01:34:34.647Z",
+      "observed_at": null,
+      "price_usd": 0.1953
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-21T01:37:34.991Z",
+      "observed_at": null,
+      "price_usd": 0.1944
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-21T01:40:36.018Z",
+      "observed_at": null,
+      "price_usd": 0.1954
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-21T01:44:12.134Z",
+      "observed_at": null,
+      "price_usd": 0.1947
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-21T01:47:17.112Z",
+      "observed_at": null,
+      "price_usd": 0.1961
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-21T01:50:17.340Z",
+      "observed_at": null,
+      "price_usd": 0.1964
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-21T01:53:17.558Z",
+      "observed_at": null,
+      "price_usd": 0.1971
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-21T01:56:18.734Z",
+      "observed_at": null,
+      "price_usd": 0.1974
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-21T02:00:17.679Z",
+      "observed_at": null,
+      "price_usd": 0.1977
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-21T02:03:18.342Z",
+      "observed_at": null,
+      "price_usd": 0.1978
+    }
+  ]
+}
