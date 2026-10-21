@@ -9,6 +9,8 @@ assert.deepEqual(status.data.policy,DEFAULT_POLICY);assert.equal(health.data.pro
 assert.equal(health.data.watchdog.fresh,true);assert.ok(health.data.watchdog.last);assert.equal(health.data.watchdog.last.restart_recommended,false);assert.equal(health.data.watchdog.external_channels_configured,false);
 for(const row of status.data.usage){const limit=status.data.daily_limits[row.provider as keyof typeof status.data.daily_limits];assert.ok(limit!==undefined && row.used<=limit);}
 const elections=ElectionsResponse.parse(await get("elections"));let replayed=0;
-for(const row of elections.data.runs.slice(0,3)){const saved=ElectionDetailResponse.parse(await get(`elections/${row.id}`));assert.equal((await replayElection(saved.data.record)).status,"verified");replayed++;}
+const ids=new Set([...(elections.data.automation.latest_id?[elections.data.automation.latest_id]:[]),...elections.data.runs.slice(0,3).map(r=>r.id)]);
+const rehearsals:{id:string;candidates:number;input_bytes:number}[]=[];
+for(const id of ids){const saved=ElectionDetailResponse.parse(await get(`elections/${id}`));assert.equal((await replayElection(saved.data.record)).status,"verified");replayed++;rehearsals.push({id,candidates:saved.data.record.inputs.candidates.length,input_bytes:new TextEncoder().encode(JSON.stringify(saved.data.record.inputs)).length});}
 assert.equal(status.data.capabilities.signing,false);assert.equal(status.data.capabilities.launches,false);
-console.log(JSON.stringify({state:health.data.state,timer:health.data.timer,heartbeat_at:health.data.heartbeat_at,independent_watchdog:health.data.watchdog.last,watchdog_fresh:health.data.watchdog.fresh,issues:health.data.issues,retained_rehearsals_replayed:replayed,source_requests_made_by_this_check:0},null,2));
+console.log(JSON.stringify({state:health.data.state,timer:health.data.timer,heartbeat_at:health.data.heartbeat_at,independent_watchdog:health.data.watchdog.last,watchdog_fresh:health.data.watchdog.fresh,issues:health.data.issues,election_error:elections.data.automation.last_error,rehearsals,retained_rehearsals_replayed:replayed,source_requests_made_by_this_check:0},null,2));

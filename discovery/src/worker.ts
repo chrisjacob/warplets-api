@@ -41,6 +41,7 @@ import { operations, OperationsError, recordWatchdog } from "./operations";
 import { WatchdogReportSchema } from "./operations-model";
 import { inboxRecoveryStatus } from "./inbox-recovery";
 import { enqueueMintReview, mintReviews, MintReviewError } from "./mint-review";
+import { MINT_REVIEW_LIMITS } from "./mint-review-model";
 
 // Widen generated literal vars so ignored .dev.vars overrides stay type-safe.
 export type LocalEnv = { [K in keyof Cloudflare.Env]: Cloudflare.Env[K] extends string ? string : Cloudflare.Env[K] };
@@ -92,7 +93,7 @@ async function status(env: Env) {
   return {
     local_only: true, paused: Boolean(state.paused), running: Boolean(state.lease_until && state.lease_until > new Date().toISOString()),
     last_error: state.last_error, retry_after: state.retry_after, pending_signatures: count?.count ?? 0,
-    usage: usage.results, daily_limits: { rpc: Number(env.TENX_RPC_DAILY_LIMIT), market: Number(env.TENX_MARKET_DAILY_LIMIT), artwork: 120, wallet_catchup: catchupLimit(Number(env.TENX_WALLET_RPC_DAILY_LIMIT)) },
+    usage: usage.results, daily_limits: { rpc: Number(env.TENX_RPC_DAILY_LIMIT), market: Number(env.TENX_MARKET_DAILY_LIMIT), artwork: 120, wallet_catchup: catchupLimit(Number(env.TENX_WALLET_RPC_DAILY_LIMIT)), mint_intake:MINT_REVIEW_LIMITS.rpc_daily_subset },
     backing_index_automation:{enabled:env.TENX_WALLET_ANALYSIS_ENABLED==="true",daily_limit:backingIndexLimit(Number(env.TENX_WALLET_RPC_DAILY_LIMIT)),daily_used:(await env.TENX_DB.prepare("SELECT used FROM tenx_backing_index_usage WHERE day=?").bind(new Date().toISOString().slice(0,10)).first<{used:number}>())?.used??0,scope:"subset_of_wallet_and_global_RPC_limits"},
     adapter_version: ADAPTER_VERSION, policy: DEFAULT_POLICY,
     market_provider: env.TENX_MARKET_PROVIDER,

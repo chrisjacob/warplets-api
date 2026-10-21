@@ -1,8 +1,10 @@
 import { assess, CandidateSchema, DEFAULT_POLICY, type Candidate } from "./model";
 import { ElectionInputSchema, ElectionRecordSchema, ElectionReplaySchema, ElectionResultSchema, ElectionSummarySchema, type ElectionInput, type ElectionRecord, type ElectionResult, type ElectionSummary } from "./election-model";
 import { hashJson } from "./solana";
+import { ElectionError } from "./election-error";
+import { encodeElectionStorage, readElectionStorage, ELECTION_INLINE_BYTES, ELECTION_INPUT_BYTES } from "./election-storage";
 
-export class ElectionError extends Error {}
+export { ElectionError } from "./election-error";
 const ascii = (a: string, b: string) => a < b ? -1 : a > b ? 1 : 0;
 
 // Versioned discovery rehearsal. Community backing and launch certification are
@@ -44,7 +46,8 @@ type Row = { summary: string; inputs: string };
 export async function electionRecord(db: D1Database, id: string): Promise<ElectionRecord | null> {
   const row = await db.prepare("SELECT summary,inputs FROM tenx_election_runs WHERE id=?1").bind(id).first<Row>();
   if (!row) return null;
-  const record = ElectionRecordSchema.parse({ ...JSON.parse(row.summary), inputs: JSON.parse(row.inputs) });
+  const summary=ElectionSummarySchema.parse(JSON.parse(row.summary));
+  const record = ElectionRecordSchema.parse({ ...summary, inputs: await readElectionStorage(db,id,row.inputs,summary.input_hash) });
   if (record.id !== id) throw new ElectionError("election_metadata_mismatch");
   await replayElection(record);
   return record;
@@ -61,22 +64,28 @@ export async function createElection(db: D1Database, options: { id: string; kind
   const existing = await electionRecord(db, options.id);
   if (existing) return existing;
   // One SELECT observes a consistent candidate inventory. Never silently drop
-  // the 501st row, or cut off a large snapshot to fit a D1 row.
-  const rows = await db.prepare(`SELECT CASE WHEN COUNT(*) OVER()>500 OR SUM(length(CAST(payload AS BLOB))) OVER()>1600000 THEN NULL ELSE payload END AS payload,
+  // the 501st row, oversized individual rows or the bounded total inventory.
+  const rows = await db.prepare(`SELECT CASE WHEN COUNT(*) OVER()>500 OR SUM(length(CAST(payload AS BLOB))) OVER()>?1 OR MAX(length(CAST(payload AS BLOB))) OVER()>?2 THEN NULL ELSE payload END AS payload,
     COUNT(*) OVER() AS total_count,SUM(length(CAST(payload AS BLOB))) OVER() AS total_bytes
-    FROM tenx_candidates WHERE mode='live' ORDER BY address LIMIT 501`).all<{ payload: string | null; total_count: number; total_bytes: number }>();
+    FROM tenx_candidates WHERE mode='live' ORDER BY address LIMIT 501`).bind(ELECTION_INPUT_BYTES,ELECTION_INLINE_BYTES).all<{ payload: string | null; total_count: number; total_bytes: number }>();
   if (rows.results.length > 500) throw new ElectionError("election_candidate_limit");
-  if (rows.results.some(r => r.total_bytes > 1_600_000 || r.payload === null)) throw new ElectionError("election_snapshot_size_limit");
+  if (rows.results.some(r => r.payload === null)) throw new ElectionError("election_snapshot_size_limit");
   const at = options.now ?? new Date(), inputs = freezeElection(rows.results.map(r => CandidateSchema.parse(JSON.parse(r.payload!))), at), result = evaluateElection(inputs);
   const inputText = JSON.stringify(inputs), inputHash = await hashJson(inputs), resultHash = await hashJson(result);
   const meta = { id: options.id, kind: options.kind, day: at.toISOString().slice(0, 10), created_at: at.toISOString(), input_hash: inputHash, result_hash: resultHash };
   const summary = ElectionSummarySchema.parse({ ...meta, record_hash: await hashJson(meta), result });
   const record = ElectionRecordSchema.parse({ ...summary, inputs }); await replayElection(record);
-  if (new TextEncoder().encode(inputText).length > 1_600_000 || new TextEncoder().encode(JSON.stringify(summary)).length > 200_000) throw new ElectionError("election_snapshot_size_limit");
+  const summaryBytes=new TextEncoder().encode(JSON.stringify(summary)).length;
+  if (summaryBytes > ELECTION_INLINE_BYTES) throw new ElectionError("election_snapshot_size_limit");
+  // Keep the combined run row below 1.8 MB, including large decision lists.
+  const storage=await encodeElectionStorage(inputText,inputHash,new TextEncoder().encode(inputText).length+summaryBytes>1_800_000);
   // Stable ID wins races. Audit and snapshot commit together; retry reads the
   // original record even after prices, policy, or source availability change.
   await db.batch([
-    db.prepare("INSERT OR IGNORE INTO tenx_election_runs(id,kind,created_at,summary,inputs) VALUES(?1,?2,?3,?4,?5)").bind(record.id, record.kind, record.created_at, JSON.stringify(summary), inputText),
+    db.prepare("INSERT OR IGNORE INTO tenx_election_runs(id,kind,created_at,summary,inputs) VALUES(?1,?2,?3,?4,?5)").bind(record.id, record.kind, record.created_at, JSON.stringify(summary), storage.stored),
+    ...storage.chunks.map(chunk=>db.prepare(`INSERT OR IGNORE INTO tenx_election_chunks(run_id,ordinal,payload,payload_bytes,payload_hash)
+      SELECT ?1,?2,?3,?4,?5 WHERE EXISTS(SELECT 1 FROM tenx_election_runs WHERE id=?1 AND json_extract(summary,'$.record_hash')=?6)`)
+      .bind(record.id,chunk.ordinal,chunk.payload,chunk.bytes,chunk.payload_hash,record.record_hash)),
     db.prepare("INSERT OR IGNORE INTO tenx_audit(id,action,actor,reason,data_hash,created_at) SELECT ?1,'election_snapshot','local-operator',?2,?3,?4 WHERE EXISTS(SELECT 1 FROM tenx_election_runs WHERE id=?5 AND json_extract(summary,'$.record_hash')=?3)").bind(`election:${record.id}`, options.reason, record.record_hash, record.created_at, record.id),
   ]);
   return (await electionRecord(db, record.id))!;

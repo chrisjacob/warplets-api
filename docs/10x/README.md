@@ -1,5 +1,7 @@
 # 10X.MEME engineering kickoff
 
+Latest reliability milestone: [complete election snapshot chunk storage](54-election-snapshot-storage.md). The normal daily tick recovered all 442 candidates across four hashed input chunks and replayed **no eligible winner**. Legacy records and the v1 engine remain unchanged; count/byte bounds and atomic immutable writes stay explicit. Cached status also reports intake's existing quota subset. No deploy.
+
 Latest discovery milestone: [bounded exact-mint intake](53-exact-mint-intake.md). Operators can queue a full mint for the existing paced collector; Data status exposes saved progress. Finalized exact-mint WSOL migrations enter ordinary inspection; unsupported quotes remain gaps. Kimchi is queued, without a new eligibility claim. Existing source caps and evidence gates remain; no deploy.
 
 Latest token review: [confirmed Kimchi and paired/lookalike tokens](52-kimchi-review.md). Pump reports substantial target concentration; the exact target is absent from the local collector and remains uncertified. A different cached Kimchi mint fails replayed concentration gates. Exact-mint intake and non-WSOL quote coverage are the next identified engineering gaps; all gates remain unchanged.

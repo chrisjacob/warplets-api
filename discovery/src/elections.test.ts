@@ -137,6 +137,7 @@ describe("immutable discovery election rehearsal", () => {
     expect(await (await handle(req("admin/maintenance", admin({ reason: "bounded failure check" })), env)).json()).toMatchObject({ election: { state: "failed", error: "election_snapshot_size_limit" } });
     const status = await (await handle(req("system/status"), env)).json() as { data: { election_automation: { last_error: string }; automation: { heartbeat_at: string } } };
     expect(status.data.election_automation.last_error).toBe("election_snapshot_size_limit"); expect(status.data.automation.heartbeat_at).toBeTruthy();
+    expect((status.data as {daily_limits?:{mint_intake?:number}}).daily_limits?.mint_intake).toBe(20);
     expect(await electionSummaries(db)).toEqual([]);
   });
 });

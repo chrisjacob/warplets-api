@@ -48301,6 +48301,9 @@
                   },
                   "wallet_catchup": {
                     "type": "number"
+                  },
+                  "mint_intake": {
+                    "type": "number"
                   }
                 },
                 "required": [
