@@ -8,6 +8,7 @@ GMGN evaluation, 21 October: [API comparison and phased plan](63-gmgn-api-evalua
 
 - [x] Evaluate official GMGN API/skills, compare data and scoring semantics, and install seven research skills at a pinned source revision.
 - [x] Plan read-only collection, normalized evidence, paired scoring research and versioned adoption; preserve all current source/evidence limits.
+- [x] Review all 66 live Skills Market listings, inspect relevant preset workflows and add full vendor screening/ranking to the comparison plan.
 - [ ] G0: confirm actual Free eligibility (including the reported $100 condition), endpoint entitlements and data-use/retention/export rights.
 - [ ] G1: collect real authenticated fixtures and implement a disabled-by-default bounded adapter with zero signing/trading routes.
 - [ ] G2/G3: evaluate custom v3, the vendor heuristic and a preregistered hybrid on matched-time prospective inputs and held-out outcomes.
