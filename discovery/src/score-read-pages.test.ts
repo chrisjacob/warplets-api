@@ -64,10 +64,12 @@ describe("independently verified scoring card pages",()=>{
   it("reads selected bodies and bounded score pages with three queries, no full evidence, writes, or providers",async()=>{
     const {sqlite,db}=await setup(105);await buildScoreReadPages(db,at);
     const network=vi.spyOn(globalThis,"fetch").mockRejectedValue(Error("forbidden")),prepare=vi.spyOn(db,"prepare"),before=sqlite.prepare("SELECT total_changes() n").get();
+    const webCrypto=vi.spyOn(crypto.subtle,"digest").mockRejectedValue(Error("read must verify without async hashing"));
     const result=await readScoreReadPages(db,{limit:3},at);expect(result).toMatchObject({state:"available",action_authority:false,semantics:"frozen_at_cutoff"});
     expect(prepare).toHaveBeenCalledTimes(3);for(const [sql]of prepare.mock.calls)expect(sql).not.toMatch(/tenx_(?:candidates|market_history|proofs|wallet|holder)/);
     expect(prepare.mock.calls[1]![0]).toContain("json_each(?1)");if(result.state==="available")expect(result.data.candidates).toHaveLength(3);
     expect(network).not.toHaveBeenCalled();expect(sqlite.prepare("SELECT total_changes() n").get()).toEqual(before);
+    expect(webCrypto).not.toHaveBeenCalled();
   });
   it("holds off-page changes and source/generation races between the index and card lookups, even for empty matches",async()=>{
     const {sqlite,db}=await setup(105);await buildScoreReadPages(db,at);

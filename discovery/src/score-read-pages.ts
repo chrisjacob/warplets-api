@@ -6,6 +6,7 @@ import {rankedDiscovery,scoreInventoryCandidates} from "./discovery-score-store"
 import {browseEntries,browseEntry} from "./discovery-browse-order";
 import {hashJson} from "./solana";
 import {control} from "./store";
+import {storedJsonHash} from "./stored-json-hash";
 
 // Bump on evaluator/browse semantics changes, even if numeric policies do not change.
 const VERSION="discovery-score-read-pages-v2" as const,WINDOW_MS=60000,PAGE_SIZE=25;
@@ -21,7 +22,8 @@ const Query=z.object({limit:z.coerce.number().int().min(1).max(100).default(25),
   sort:z.enum(["score","liquidity"]).default("score"),browse:z.enum(["top100","inventory"]).default("top100"),q:z.string().trim().max(100).default(""),
   freshness:z.enum(["all","fresh","stale","missing"]).default("all"),min_liquidity:z.coerce.number().finite().min(0).max(1e12).default(0),min_coverage:z.coerce.number().finite().min(0).max(100).default(0),cursor:z.string().max(512).optional()}).strict();
 const Cursor=z.object({manifest_hash:Hash,offset:z.number().int().min(0).max(500),identity:Hash}).strict();
-const policyHash=()=>hashJson({contract:VERSION,score:DISCOVERY_SCORE_POLICY_V4,actions:DEFAULT_POLICY});
+const policyIdentity=()=>({contract:VERSION,score:DISCOVERY_SCORE_POLICY_V4,actions:DEFAULT_POLICY});
+const policyHash=()=>hashJson(policyIdentity());
 const held=(reason:string)=>({state:"held" as const,reason,action_authority:false as const});
 const bytes=(s:string)=>new TextEncoder().encode(s).byteLength;
 
@@ -81,7 +83,7 @@ export async function buildScoreReadPages(db:D1Database,at=new Date()) {
 }
 
 export async function readScoreReadPages(db:D1Database,raw:unknown={},now=new Date()) {
-  const query=Query.parse(raw),{cursor:ignored,limit:ignoredLimit,...filters}=query,identity=await hashJson(filters);
+  const query=Query.parse(raw),{cursor:ignored,limit:ignoredLimit,...filters}=query,identity=storedJsonHash(filters);
   let cursor:z.infer<typeof Cursor>|null=null;
   if(query.cursor){try {cursor=Cursor.parse(JSON.parse(atob(query.cursor)));}catch{return held("invalid_cursor");}if(cursor.identity!==identity)return held("cursor_refresh_required");}
   let row:{revision:number;source_revision:number|null;cutoff:string|null;manifest_hash:string|null;payload:string|null}|null;
@@ -93,8 +95,8 @@ export async function readScoreReadPages(db:D1Database,raw:unknown={},now=new Da
   if(row.revision!==row.source_revision)return held("source_changed");
   let manifest:z.infer<typeof Manifest>;
   try {manifest=Manifest.parse(JSON.parse(row.payload??"null"));}catch{return held("invalid_manifest");}
-  if(manifest.source_revision!==row.source_revision||manifest.cutoff!==row.cutoff||await hashJson(manifest)!==row.manifest_hash)return held("manifest_integrity_mismatch");
-  if(manifest.policy_hash!==await policyHash())return held("policy_changed");
+  if(manifest.source_revision!==row.source_revision||manifest.cutoff!==row.cutoff||storedJsonHash(manifest)!==row.manifest_hash)return held("manifest_integrity_mismatch");
+  if(manifest.policy_hash!==storedJsonHash(policyIdentity()))return held("policy_changed");
   const cutoff=Date.parse(manifest.cutoff),time=now.getTime();
   if(!Number.isFinite(time)||Date.parse(manifest.expires_at)!==cutoff+WINDOW_MS||time<cutoff||time>=cutoff+WINDOW_MS)return held("cutoff_expired_or_future");
   if(cursor&&cursor.manifest_hash!==row.manifest_hash)return held("cursor_refresh_required");
@@ -129,7 +131,7 @@ export async function readScoreReadPages(db:D1Database,raw:unknown={},now=new Da
   for(const row of scoreRows){if(row.page===null)continue;
     let page:z.infer<typeof SummaryPage>;try {page=SummaryPage.parse(JSON.parse(row.payload??"null"));}catch{return held("invalid_summary_page");}
     const expected=pageOrder.filter(e=>e.score_page===row.page);
-    if(!wantedPages.has(row.page)||await hashJson(page)!==manifest.summary_pages[row.page]?.hash||JSON.stringify(page.map(s=>s.address))!==JSON.stringify(expected.map(e=>e.address))||page.some(s=>s.discovery_score.as_of!==manifest.cutoff))return held("summary_page_integrity_mismatch");
+    if(!wantedPages.has(row.page)||storedJsonHash(page)!==manifest.summary_pages[row.page]?.hash||JSON.stringify(page.map(s=>s.address))!==JSON.stringify(expected.map(e=>e.address))||page.some(s=>s.discovery_score.as_of!==manifest.cutoff))return held("summary_page_integrity_mismatch");
     for(const summary of page)summaries.set(summary.address,summary.discovery_score);
   }
   const cards:((z.infer<typeof Card>)&{discovery_rank:number})[]=[];
@@ -140,7 +142,7 @@ export async function readScoreReadPages(db:D1Database,raw:unknown={},now=new Da
     // already been fully parsed; do not revalidate every field a second time.
     // Restore whole-object parsing if Card gains cross-field refinements.
     parsed=bodies.map(body=>{const discovery_score=summaries.get(body.address);if(!discovery_score)throw Error("missing_summary");return {...body,discovery_score};});}catch{return held("invalid_card");}
-  const hashes=await Promise.all(parsed.map(card=>hashJson(card))),bodyHashes=await Promise.all(bodies.map(body=>hashJson(body)));
+  const hashes=parsed.map(storedJsonHash),bodyHashes=bodies.map(storedJsonHash);
   for(const [i,entry] of selected.entries()){
     const card=parsed[i]!;
     const {card_hash,body_hash,score_page:ignoredPage,discovery_rank,...index}=entry;
