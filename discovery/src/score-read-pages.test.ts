@@ -10,6 +10,7 @@ import {createdWithinWindow} from "./priority";
 import {hashJson,toBase58} from "./solana";
 import {handle,type LocalEnv} from "./worker";
 import type {Candidate} from "./model";
+import {PackedScoreInventorySchema,packScoreInventory,unpackScoreInventory} from "./score-read-index";
 import {expireCandidates} from "./candidate-expiry";
 
 const at=new Date("2026-10-22T01:00:00.000Z"),opened:DatabaseSync[]=[];
@@ -29,12 +30,50 @@ async function setup(n=5,incremental=true){
   return{sqlite,db,items,put};
 }
 async function editManifest(sqlite:DatabaseSync,patch:(v:any)=>void,rehash=true){
-  const old=sqlite.prepare("SELECT manifest_hash,payload FROM tenx_score_page_manifest").get() as {manifest_hash:string;payload:string},value=JSON.parse(old.payload);patch(value);
+  const old=sqlite.prepare("SELECT manifest_hash,payload FROM tenx_score_page_manifest").get() as {manifest_hash:string;payload:string},value=JSON.parse(old.payload);
+  value.entries=unpackScoreInventory(value.inventory);patch(value);value.inventory=packScoreInventory(value.entries);delete value.entries;
   const hash=rehash?await hashJson(value):old.manifest_hash;
   sqlite.prepare("UPDATE tenx_score_page_manifest SET payload=?,manifest_hash=?").run(JSON.stringify(value),hash);
   if(rehash)sqlite.prepare("UPDATE tenx_score_page_cards SET manifest_hash=?").run(hash);
 }
 describe("independently verified scoring card pages",()=>{
+  it("holds old v2 generations/cursors until explicit rebuild, preserving original bodies and summaries",async()=>{
+    const {sqlite,db}=await setup(30);await buildScoreReadPages(db,at);
+    const previous=await readScoreReadPages(db,{limit:1},at);if(previous.state!=="available")throw Error("held");
+    const saved=sqlite.prepare("SELECT address,payload,body_hash FROM tenx_score_page_cards ORDER BY address").all(),scores=sqlite.prepare("SELECT * FROM tenx_score_page_summaries ORDER BY page").all();
+    const row=sqlite.prepare("SELECT payload FROM tenx_score_page_manifest").get() as {payload:string},old=JSON.parse(row.payload);
+    old.version="discovery-score-read-pages-v2";old.entries=unpackScoreInventory(old.inventory);delete old.inventory;
+    const hash=await hashJson(old);sqlite.prepare("UPDATE tenx_score_page_manifest SET payload=?,manifest_hash=?").run(JSON.stringify(old),hash);
+    expect(await readScoreReadPages(db,{},at)).toMatchObject({reason:"invalid_manifest"});
+    expect(sqlite.prepare("SELECT payload FROM tenx_score_page_manifest").get()).toEqual({payload:JSON.stringify(old)});
+    expect(await buildScoreReadPages(db,at)).toMatchObject({state:"built",writes:{changed_bodies:0,changed_summary_pages:0,manifest:1}});
+    expect(sqlite.prepare("SELECT address,payload,body_hash FROM tenx_score_page_cards ORDER BY address").all()).toEqual(saved);
+    expect(sqlite.prepare("SELECT * FROM tenx_score_page_summaries ORDER BY page").all()).toEqual(scores);
+    expect(await readScoreReadPages(db,{limit:1,cursor:btoa(JSON.stringify({manifest_hash:hash,offset:1,identity:JSON.parse(atob(previous.next_cursor!)).identity}))},at)).toMatchObject({reason:"cursor_refresh_required"});
+  });
+  it("rejects malformed packed fields even when the manifest is repinned",async()=>{
+    const {sqlite,db}=await setup();
+    for(const patch of [(v:any)=>v.inventory.rows[0].push("extra"),(v:any)=>v.inventory.rows[0][1]=999,(v:any)=>v.inventory.text.push("unused"),(v:any)=>v.inventory.rows[0][6]=101]){
+      await buildScoreReadPages(db,at);const row=sqlite.prepare("SELECT payload FROM tenx_score_page_manifest").get() as {payload:string},value=JSON.parse(row.payload);patch(value);
+      sqlite.prepare("UPDATE tenx_score_page_manifest SET payload=?,manifest_hash=?").run(JSON.stringify(value),await hashJson(value));
+      expect(await readScoreReadPages(db,{},at)).toMatchObject({reason:"invalid_manifest"});
+    }
+  });
+  it("verifies all twenty summary pages for a scattered 100-card query with full-evaluator parity",async()=>{
+    const {sqlite,db,items}=await setup(500);await buildScoreReadPages(db,at);
+    const row=sqlite.prepare("SELECT payload FROM tenx_score_page_manifest").get() as {payload:string};
+    const inventory=PackedScoreInventorySchema.parse(JSON.parse(row.payload).inventory),chosen=new Set(unpackScoreInventory(inventory).filter((_,i)=>i%25<5).map(e=>e.address));
+    const put=sqlite.prepare("UPDATE tenx_candidates SET payload=? WHERE address=?");
+    for(const c of items){c.name=chosen.has(c.address)?"Scatter sample":"Other";put.run(JSON.stringify(c),c.address);}
+    await buildScoreReadPages(db,at);
+    const before=sqlite.prepare("SELECT total_changes() n").get(),prepare=db.prepare.bind(db);let pages:number[]=[];
+    vi.spyOn(db,"prepare").mockImplementation(sql=>{const statement=prepare(sql),bind=statement.bind.bind(statement);
+      if(sql.startsWith("SELECT s.page,"))vi.spyOn(statement,"bind").mockImplementation((...args)=>{pages=JSON.parse(args[0] as string);return bind(...args);});return statement;});
+    const actual=await readScoreReadPages(db,{q:"Scatter sample",browse:"inventory",limit:100},at);expect(pages).toHaveLength(20);
+    const expected=await rankedDiscovery(db,items,at,"score","all",{search:"Scatter sample",maximum:500});
+    expect(actual).toMatchObject({state:"available",action_authority:false});if(actual.state==="available")expect(actual.data.candidates).toEqual(expected.rows.map(candidateCard));
+    expect(sqlite.prepare("SELECT total_changes() n").get()).toEqual(before);
+  },30000);
   it("matches full evaluation across sort, action status, first-day window and browse filters",async()=>{
     const {db,items}=await setup(30);expect(await buildScoreReadPages(db,at)).toMatchObject({state:"built",candidates:30});
     for(const age of ["all","24h"] as const)for(const sort of ["score","liquidity"] as const)for(const status of ["all","eligible","provisional","excluded"] as const){

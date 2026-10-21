@@ -7,17 +7,16 @@ import {browseEntries,browseEntry} from "./discovery-browse-order";
 import {hashJson} from "./solana";
 import {control} from "./store";
 import {storedJsonHash} from "./stored-json-hash";
+import {PackedScoreInventorySchema,packScoreInventory,unpackScoreInventory} from "./score-read-index";
 
 // Bump on evaluator/browse semantics changes, even if numeric policies do not change.
-const VERSION="discovery-score-read-pages-v2" as const,WINDOW_MS=60000,PAGE_SIZE=25;
-const Hash=z.string().regex(/^[a-f0-9]{64}$/),Eligibility=z.enum(["eligible","provisional","excluded"]);
+const VERSION="discovery-score-read-pages-v3" as const,WINDOW_MS=60000,PAGE_SIZE=25;
+const Hash=z.string().regex(/^[a-f0-9]{64}$/);
 const Card=CandidateCardSchema.omit({discovery_rank:true}).extend({discovery_score:ScoreSummaryV4Schema});
 const Body=Card.omit({discovery_score:true});
 const SummaryPage=z.object({address:Address,discovery_score:ScoreSummaryV4Schema}).strict().array().min(1).max(PAGE_SIZE);
-const Entry=z.object({address:Address,name:z.string().max(100),symbol:z.string().max(32),eligibility:Eligibility,creation_at:z.iso.datetime().nullable(),
-  score:z.number().finite().min(0).max(100),coverage:z.number().finite().min(0).max(100),liquidity:z.number().finite().nonnegative().nullable(),freshness:z.enum(["fresh","stale","missing"]),card_hash:Hash,body_hash:Hash,score_page:z.number().int().min(0).max(19)}).strict();
 const Manifest=z.object({version:z.literal(VERSION),policy_hash:Hash,source_revision:z.number().int().safe().nonnegative(),cutoff:z.iso.datetime(),expires_at:z.iso.datetime(),
-  scope:z.literal("current_evaluation"),semantics:z.literal("frozen_at_cutoff"),action_authority:z.literal(false),entries:Entry.array().max(500),summary_pages:z.object({page:z.number().int().min(0).max(19),hash:Hash}).strict().array().max(20)}).strict();
+  scope:z.literal("current_evaluation"),semantics:z.literal("frozen_at_cutoff"),action_authority:z.literal(false),inventory:PackedScoreInventorySchema,summary_pages:z.object({page:z.number().int().min(0).max(19),hash:Hash}).strict().array().max(20)}).strict();
 const Query=z.object({limit:z.coerce.number().int().min(1).max(100).default(25),status:z.enum(["all","eligible","provisional","excluded"]).default("all"),age:z.enum(["all","24h"]).default("all"),
   sort:z.enum(["score","liquidity"]).default("score"),browse:z.enum(["top100","inventory"]).default("top100"),q:z.string().trim().max(100).default(""),
   freshness:z.enum(["all","fresh","stale","missing"]).default("all"),min_liquidity:z.coerce.number().finite().min(0).max(1e12).default(0),min_coverage:z.coerce.number().finite().min(0).max(100).default(0),cursor:z.string().max(512).optional()}).strict();
@@ -52,7 +51,7 @@ export async function buildScoreReadPages(db:D1Database,at=new Date()) {
     pages.push({page:Math.floor(offset/PAGE_SIZE),hash:await hashJson(summaries),payload});
   }
   const manifest=Manifest.parse({version:VERSION,policy_hash:await policyHash(),source_revision:revision,cutoff:at.toISOString(),expires_at:new Date(at.getTime()+WINDOW_MS).toISOString(),
-    scope:"current_evaluation",semantics:"frozen_at_cutoff",action_authority:false,entries,summary_pages:pages.map(({page,hash})=>({page,hash}))});
+    scope:"current_evaluation",semantics:"frozen_at_cutoff",action_authority:false,inventory:packScoreInventory(entries),summary_pages:pages.map(({page,hash})=>({page,hash}))});
   const payload=JSON.stringify(manifest);if(bytes(payload)>600000)return held("manifest_size_limit");
   const hash=await hashJson(manifest),input=JSON.stringify(bodies.map((c,i)=>({address:c.address,payload:JSON.stringify(c),body_hash:entries[i]!.body_hash}))),pageInput=JSON.stringify(pages);
   if(bytes(input)>1800000||bytes(pageInput)>1800000)return held("card_batch_size_limit");
@@ -100,10 +99,11 @@ export async function readScoreReadPages(db:D1Database,raw:unknown={},now=new Da
   const cutoff=Date.parse(manifest.cutoff),time=now.getTime();
   if(!Number.isFinite(time)||Date.parse(manifest.expires_at)!==cutoff+WINDOW_MS||time<cutoff||time>=cutoff+WINDOW_MS)return held("cutoff_expired_or_future");
   if(cursor&&cursor.manifest_hash!==row.manifest_hash)return held("cursor_refresh_required");
-  if(new Set(manifest.entries.map(e=>e.address)).size!==manifest.entries.length)return held("inventory_mismatch");
-  const pageOrder=browseEntries(manifest.entries,"score","all",{maximum:500}).rows;
-  if(manifest.summary_pages.length!==Math.ceil(pageOrder.length/PAGE_SIZE)||manifest.summary_pages.some((p,i)=>p.page!==i)||pageOrder.some((e,i)=>e.score_page!==Math.floor(i/PAGE_SIZE)||e.address!==manifest.entries[i]?.address))return held("summary_inventory_mismatch");
-  const population=query.age==="all"?manifest.entries:manifest.entries.filter(e=>e.creation_at!==null&&cutoff-Date.parse(e.creation_at)>=0&&cutoff-Date.parse(e.creation_at)<=86400000);
+  const entries=unpackScoreInventory(manifest.inventory);
+  if(new Set(entries.map(e=>e.address)).size!==entries.length)return held("inventory_mismatch");
+  const pageOrder=browseEntries(entries,"score","all",{maximum:500}).rows;
+  if(manifest.summary_pages.length!==Math.ceil(pageOrder.length/PAGE_SIZE)||manifest.summary_pages.some((p,i)=>p.page!==i)||pageOrder.some((e,i)=>e.score_page!==Math.floor(i/PAGE_SIZE)||e.address!==entries[i]?.address))return held("summary_inventory_mismatch");
+  const population=query.age==="all"?entries:entries.filter(e=>e.creation_at!==null&&cutoff-Date.parse(e.creation_at)>=0&&cutoff-Date.parse(e.creation_at)<=86400000);
   const ranked=browseEntries(population,query.sort,query.status,{search:query.q,freshness:query.freshness,min_liquidity:query.min_liquidity,min_coverage:query.min_coverage,maximum:query.browse==="inventory"?500:100});
   const offset=cursor?.offset??0;if(offset>ranked.rows.length)return held("cursor_refresh_required");
   const selected=ranked.rows.slice(offset,offset+query.limit);
@@ -152,6 +152,6 @@ export async function readScoreReadPages(db:D1Database,raw:unknown={},now=new Da
   const next=offset+query.limit;
   return {state:"available" as const,semantics:manifest.semantics,action_authority:false as const,manifest_hash:row.manifest_hash,
     data:{candidates:cards,scored_at:manifest.cutoff,mode:"live" as const,sort:query.sort,observed:ranked.observed,counts:ranked.counts,
-      scope:{inventory:query.age==="24h"?"active_verified_first_day":"current_evaluation",stored:manifest.entries.length,ranked:ranked.ranked,matched:ranked.matched,available:ranked.rows.length,truncated:ranked.matched>ranked.rows.length,maximum:query.browse==="inventory"?500:100,search_before_limit:true}},
+      scope:{inventory:query.age==="24h"?"active_verified_first_day":"current_evaluation",stored:entries.length,ranked:ranked.ranked,matched:ranked.matched,available:ranked.rows.length,truncated:ranked.matched>ranked.rows.length,maximum:query.browse==="inventory"?500:100,search_before_limit:true}},
     next_cursor:next<ranked.rows.length?btoa(JSON.stringify({manifest_hash:row.manifest_hash,offset:next,identity})):null};
 }
