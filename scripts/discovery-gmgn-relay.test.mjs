@@ -28,6 +28,12 @@ test("HTTPS adapter pins IPv4, forwards cancellation and never disables TLS vali
   assert.throws(() => gmgnIpv4Fetch("https://evil.test/v1/token/info", {}));
   assert.throws(() => gmgnIpv4Fetch("https://openapi.gmgn.ai/v1/trade/swap", {}));
 });
+
+test("trader bridge pins one unfiltered top-100 buy-ranked query and rejects broader parameters",()=>{
+  const now=Date.parse("2026-10-21T01:00:22.000Z"),target=`/gmgn/v1/market/token_top_traders?${query(now)}&limit=100&order_by=buy_volume_cur&direction=desc`;
+  assert.ok(gmgnRelayTarget(target,now));
+  for(const bad of [target.replace("limit=100","limit=101"),target.replace("direction=desc","direction=asc"),target.replace("order_by=buy_volume_cur","order_by=profit"),target+"&tag=smart_degen",target+"&limit=100",target+"&cursor=next"])assert.equal(gmgnRelayTarget(bad,now),null);
+});
 test("authenticated loopback bridge preserves rate-limit status/reset without forwarding local credentials", async () => {
   const token = "local-test-operator-".repeat(4), calls = [];
   const server = await startRelay({ token, rpcUrl: "https://api.mainnet-beta.solana.com", port: 0,

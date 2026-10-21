@@ -30,13 +30,13 @@ export function gmgnOperatorRequest(args, now = new Date()) {
   if (!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address ?? "")) throw new Error("Provide an exact Solana mint");
   let request;
   if (command === "probe" && args.length === 2) request = { kind: "gmgn_token_info", address };
-  else if (command === "review" && args.length === 3 && ["info", "security", "pool", "candles"].includes(kind)) {
+  else if (command === "review" && args.length === 3 && ["info", "security", "pool", "candles", "traders"].includes(kind)) {
     request = { kind: `gmgn_token_${kind}`, address };
     if (kind === "candles") {
       const end = Math.floor(now.getTime() / 60_000) * 60_000;
       request.start_at = new Date(end - 6 * 3600_000).toISOString(); request.end_at = new Date(end).toISOString();
     }
-  } else throw new Error("Use status | probe MINT | review MINT info|security|pool|candles | saved UUID | window MINT | window-saved UUID | resume-window UUID | sync-key");
+  } else throw new Error("Use status | probe MINT | review MINT info|security|pool|candles|traders | saved UUID | window MINT | window-saved UUID | resume-window UUID | sync-key");
   return { path: "admin/gmgn/review", method: "POST", body: { reason: "Founder authorized bounded GMGN data investigation", request_id: randomUUID(), mode: command === "probe" ? "access_probe" : "retained_research", request } };
 }
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

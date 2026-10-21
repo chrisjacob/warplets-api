@@ -1,18 +1,20 @@
 import { request as httpsRequest } from "node:https";
 import { Readable } from "node:stream";
 
-const paths = new Set(["/v1/token/info", "/v1/token/security", "/v1/token/pool_info", "/v1/market/token_kline"]);
+const paths = new Set(["/v1/token/info", "/v1/token/security", "/v1/token/pool_info", "/v1/market/token_kline", "/v1/market/token_top_traders"]);
 export function gmgnRelayTarget(input, now = Date.now()) {
   if (!input.startsWith("/gmgn/v1/")) return null;
   const url = new URL(input.slice("/gmgn".length), "https://openapi.gmgn.ai");
   if (!paths.has(url.pathname) || url.origin !== "https://openapi.gmgn.ai") return null;
   const candles = url.pathname === "/v1/market/token_kline";
-  const allowed = new Set(["chain", "address", "timestamp", "client_id", ...(candles ? ["resolution", "from", "to"] : [])]);
+  const traders = url.pathname === "/v1/market/token_top_traders";
+  const allowed = new Set(["chain", "address", "timestamp", "client_id", ...(candles ? ["resolution", "from", "to"] : []),...(traders?["limit","order_by","direction"]:[])]);
   if ([...url.searchParams.keys()].length !== allowed.size || [...allowed].some(key => url.searchParams.getAll(key).length !== 1)) return null;
   if (url.searchParams.get("chain") !== "sol" || !/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(url.searchParams.get("address") ?? "") ||
       !/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(url.searchParams.get("client_id") ?? "")) return null;
   const stamp = url.searchParams.get("timestamp");
   if (!/^\d{10}$/.test(stamp ?? "") || Math.abs(Number(stamp) * 1000 - now) > 10_000) return null;
+  if(traders&&(url.searchParams.get("limit")!=="100"||url.searchParams.get("order_by")!=="buy_volume_cur"||url.searchParams.get("direction")!=="desc"))return null;
   if (candles) {
     const from = url.searchParams.get("from"), to = url.searchParams.get("to");
     if (!/^\d{13}$/.test(from ?? "") || !/^\d{13}$/.test(to ?? "")) return null;

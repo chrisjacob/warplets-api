@@ -1,5 +1,7 @@
 # Restart and resume 10X.MEME development
 
+Trader participation, 21 October: [bounded GMGN top-trader evidence](78-gmgn-trader-participation.md) adds a fixed Free-compatible weight-five query through existing shared admission. PONYX returned 100 rows: the largest/top-five wallets account for 69.7%/89.5% of sample combined flow. Aggregate period and population coverage are unknown; no organic volume, wash verdict, meaningful growth or score credit. Cache-only UI, private freeze/replay, unchanged scheduled pilot/provider/evidence/action gates. No deploy.
+
 Acquisition evidence, 21 October: [cached signed-buy checks](77-holder-acquisition-evidence.md) match raw owner entrants to verified swaps in the latest saved wallet sample. PONYX has zero supported entrant buys and three acquisition-unknown entrants; five finalized interval trades belong to other owners. Missing, stale, truncated and conflicting evidence remain explicit. Meaningful growth, organic demand and score adoption stay held. No new provider/RPC call, database write, quota change or deploy.
 
 Holder history, 21 October: [cached owner changes and endpoint retention](76-cached-holder-growth.md) replay full saved inventories with original hashes, canonical vault exclusion and bounded first/latest comparisons. PONYX shows three entrants, one exit and net +2 raw owners over 5.21 hours; its latest interval is flat. Meaningful/daily growth and acquisition provenance remain unknown. No new RPC, database writes, scoring change, quota or evidence-gate waiver. No deploy.

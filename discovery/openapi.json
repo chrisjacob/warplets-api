@@ -4971,7 +4971,8 @@
                             "enum": [
                               "gmgn_token_info",
                               "gmgn_token_security",
-                              "gmgn_token_pool"
+                              "gmgn_token_pool",
+                              "gmgn_token_traders"
                             ]
                           },
                           "address": {
@@ -35090,7 +35091,7 @@
           "observations": {
             "type": "integer",
             "minimum": 0,
-            "maximum": 4
+            "maximum": 5
           },
           "received_at": {
             "anyOf": [
@@ -35493,6 +35494,227 @@
               }
             ]
           },
+          "trader_sample": {
+            "default": null,
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "version": {
+                    "type": "string",
+                    "const": "gmgn-trader-sample-v1"
+                  },
+                  "selection": {
+                    "type": "string",
+                    "const": "top_100_by_reported_buy_volume_desc_no_tag_filter"
+                  },
+                  "requested_limit": {
+                    "type": "number",
+                    "const": 100
+                  },
+                  "received_at": {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                  },
+                  "window_start": {
+                    "type": "null"
+                  },
+                  "window_end": {
+                    "type": "null"
+                  },
+                  "time_scope": {
+                    "type": "string",
+                    "const": "provider_aggregate_period_unknown"
+                  },
+                  "returned_rows": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 100
+                  },
+                  "limit_reached": {
+                    "type": "boolean"
+                  },
+                  "regular_wallet_rows": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 100
+                  },
+                  "excluded_non_wallet_rows": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 100
+                  },
+                  "unknown_address_type_rows": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 100
+                  },
+                  "complete_volume_rows": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 100
+                  },
+                  "missing_volume_rows": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 100
+                  },
+                  "complete_count_rows": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 100
+                  },
+                  "reported_buy_volume_usd": {
+                    "anyOf": [
+                      {
+                        "type": "number",
+                        "minimum": 0
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "reported_sell_volume_usd": {
+                    "anyOf": [
+                      {
+                        "type": "number",
+                        "minimum": 0
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "reported_combined_flow_usd": {
+                    "anyOf": [
+                      {
+                        "type": "number",
+                        "minimum": 0
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "largest_wallet_flow_share_pct": {
+                    "anyOf": [
+                      {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 100
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "top_five_wallet_flow_share_pct": {
+                    "anyOf": [
+                      {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 100
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "two_sided_wallet_rows": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 100
+                  },
+                  "two_sided_smaller_leg_usd": {
+                    "anyOf": [
+                      {
+                        "type": "number",
+                        "minimum": 0
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "reported_buy_transactions": {
+                    "anyOf": [
+                      {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "reported_sell_transactions": {
+                    "anyOf": [
+                      {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "population_coverage": {
+                    "type": "string",
+                    "const": "unknown"
+                  },
+                  "organic_volume_usd": {
+                    "type": "null"
+                  },
+                  "wash_trading_verdict": {
+                    "type": "string",
+                    "const": "not_established"
+                  },
+                  "scoring_effect": {
+                    "type": "string",
+                    "const": "none"
+                  }
+                },
+                "required": [
+                  "version",
+                  "selection",
+                  "requested_limit",
+                  "received_at",
+                  "window_start",
+                  "window_end",
+                  "time_scope",
+                  "returned_rows",
+                  "limit_reached",
+                  "regular_wallet_rows",
+                  "excluded_non_wallet_rows",
+                  "unknown_address_type_rows",
+                  "complete_volume_rows",
+                  "missing_volume_rows",
+                  "complete_count_rows",
+                  "reported_buy_volume_usd",
+                  "reported_sell_volume_usd",
+                  "reported_combined_flow_usd",
+                  "largest_wallet_flow_share_pct",
+                  "top_five_wallet_flow_share_pct",
+                  "two_sided_wallet_rows",
+                  "two_sided_smaller_leg_usd",
+                  "reported_buy_transactions",
+                  "reported_sell_transactions",
+                  "population_coverage",
+                  "organic_volume_usd",
+                  "wash_trading_verdict",
+                  "scoring_effect"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "gaps": {
             "maxItems": 30,
             "type": "array",
@@ -35533,6 +35755,7 @@
           "candle_window_volume_usd",
           "candle_review",
           "candle_coverage",
+          "trader_sample",
           "gaps",
           "organic_volume_usd",
           "meaningful_holder_growth",

@@ -9,6 +9,7 @@ import { GmgnRequest, gmgnDescriptor } from "./gmgn-request";
 import { researchLimits, type ResearchMode } from "./research-limits";
 import { assembleGmgnWindow } from "./gmgn-window";
 import { hashJson } from "./solana";
+import { GmgnTraderSampleSchema } from "./gmgn-traders";
 
 export const GmgnReviewRequestSchema = z.object({ reason: z.string().min(3).max(300), request_id: z.uuid(),
   mode: z.enum(["access_probe", "retained_research"]), request: GmgnRequestSchema }).strict();
@@ -27,8 +28,8 @@ export async function gmgnStatus(settings: GmgnSettings, now = new Date()) {
     access_verified: "inspect_latest_probe_receipt", latest, transport, cache_lookback_days: 7,
     shared_research: await sharedResearchUsage(settings.db, now.toISOString().slice(0, 10)),
     research_limits: researchLimits(settings.researchMode),
-    limits: { daily_http_subset: researchLimits(settings.researchMode).source_daily_requests, shared_market_maximum: L.market_daily_maximum, maximum_weight_per_request: 2,
-      maximum_daily_weight: Math.min(researchLimits(settings.researchMode).source_daily_requests ?? L.market_daily_maximum, L.market_daily_maximum, settings.marketDailyLimit) * 2, minimum_spacing_seconds: L.spacing_ms / 1000, subset_is_additional: false },
+    limits: { daily_http_subset: researchLimits(settings.researchMode).source_daily_requests, shared_market_maximum: L.market_daily_maximum, maximum_weight_per_request: 5,
+      maximum_daily_weight: Math.min(researchLimits(settings.researchMode).source_daily_requests ?? L.market_daily_maximum, L.market_daily_maximum, settings.marketDailyLimit) * 5, minimum_spacing_seconds: L.spacing_ms / 1000, subset_is_additional: false },
     scheduled_collection: "existing_maintenance_spare_capture", scoring_effect: "none", evidence_gates_changed: false, provider_requests: 0, database_writes: 0 };
 }
 
@@ -115,12 +116,15 @@ export async function gmgnSavedReview(db: D1Database, id: string, cutoff?: strin
   const saved = await readSourceReceipt(db, id);
   if (!saved) return { state: "pending", provider_requests: 0 };
   const receipt = saved.receipt;
+  const traderReplay=parsed.data.kind==="gmgn_token_traders"&&receipt.error===null&&receipt.response!==null?{
+    version:"gmgn-trader-replay-v1",request:parsed.data,receipt,receipt_hash:await hashJson(receipt),
+    report_hash:await hashJson(normalizeGmgn(parsed.data,receipt.response,receipt.received_at))}:null;
   return { replay: saved.replay, request_id: id, request: parsed.data, source_authenticity: saved.source_authenticity,
     received_at: receipt.received_at, http_status: receipt.status, error: receipt.error, validation_failure: receipt.validation_failure ?? null,
     access_probe: receipt.access_probe, access_accepted: receipt.access_accepted,
     observation: receipt.error === null && receipt.response !== null ? normalizeGmgn(parsed.data, receipt.response, receipt.received_at, cutoff ?? receipt.received_at, undefined,
       receipt.semantic_validation === "gmgn_selected_fields_v1" ? "v1" : "v2") : null,
-    provider_requests: 0, scoring_effect: "none" };
+    ...(traderReplay?{trader_replay:traderReplay}:{}),provider_requests: 0, scoring_effect: "none" };
 }
 
 export async function gmgnCandleWindow(db: D1Database, id: string) {
@@ -142,7 +146,7 @@ export async function gmgnCandleWindow(db: D1Database, id: string) {
 }
 
 export async function gmgnPublicSummary(db: D1Database, rawAddress: string, now = new Date()) {
-  const address = Address.parse(rawAddress), kinds = ["gmgn_token_info", "gmgn_token_security", "gmgn_token_pool", "gmgn_token_candles"];
+  const address = Address.parse(rawAddress), kinds = ["gmgn_token_info", "gmgn_token_security", "gmgn_token_pool", "gmgn_token_candles", "gmgn_token_traders"];
   const observations = [];
   for (const kind of kinds) {
     const row = await db.prepare(`SELECT id FROM tenx_source_reservations WHERE state='succeeded' AND day>=?4
@@ -163,6 +167,8 @@ export async function gmgnPublicSummary(db: D1Database, rawAddress: string, now 
   const flags = z.object({ provider_flags: z.object({ is_wash_trading: z.boolean().nullable(), rug_ratio: z.number().nullable(), suspected_insider_hold_rate: z.number().nullable(), bundler_trader_amount_rate: z.number().nullable() }) }).nullable().parse(security?.metrics ?? null)?.provider_flags;
   const window = z.object({ candle_count: z.number(), complete_window: z.boolean(), reported_volume_usd: z.number().nullable() }).nullable().parse(candles?.metrics ?? null);
   const review = candles?.version === "gmgn-observation-v2" ? z.object({ window_start: z.string(), window_end: z.string(), activity: z.record(z.string(), z.unknown()) }).parse(candles.metrics) : null;
+  const trader=observations.find(v=>v.kind==="gmgn_token_traders");
+  const traderSample=trader?GmgnTraderSampleSchema.parse(trader.metrics):null;
   const dates = observations.map(v => v.received_at).sort();
   const gaps = [...new Set(observations.flatMap(v => v.gaps))];
   if (candles && !gaps.includes("candle_volume_units_unverified")) gaps.push("candle_volume_units_unverified");
@@ -182,5 +188,5 @@ export async function gmgnPublicSummary(db: D1Database, rawAddress: string, now 
     candle_count: coverage?.candle_count ?? window?.candle_count ?? null, candle_window_complete: coverage?.complete_window ?? window?.complete_window ?? null, candle_window_volume_usd: coverage?.reported_window_volume_usd ?? null,
     candle_coverage:coverage?{window_id:coverage.window_id,expected_parts:4,attempted_parts:coverage.attempted_parts,succeeded_parts:coverage.succeeded_parts,failed_parts:coverage.failed_parts,missing_minutes:coverage.missing_minutes,overlap_conflicts:coverage.overlap_conflicts,receipt_span_ms:coverage.receipt_span_ms,units:coverage.units,report_hash:coverage.report_hash}:null,
     candle_review:coverage?(coverage.activity&&coverage.received_at?{received_at:coverage.received_at,window_start:coverage.window_start,window_end:coverage.window_end,...coverage.activity}:null):review ? { received_at: candles!.received_at, window_start: review.window_start, window_end: review.window_end, ...review.activity } : null,
-    gaps: [...new Set(gaps)], organic_volume_usd: null, meaningful_holder_growth: null, scoring_effect: "none" });
+    trader_sample:traderSample,gaps: [...new Set(gaps)], organic_volume_usd: null, meaningful_holder_growth: null, scoring_effect: "none" });
 }

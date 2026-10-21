@@ -23,6 +23,7 @@ test("operator offers bounded read commands without key arguments or arbitrary U
   const address = "So11111111111111111111111111111111111111112";
   assert.equal(gmgnOperatorRequest(["status"]).method, "GET");
   assert.equal(gmgnOperatorRequest(["probe", address]).body.mode, "access_probe");
+  assert.equal(gmgnOperatorRequest(["review",address,"traders"]).body.request.kind,"gmgn_token_traders");
   const request = gmgnOperatorRequest(["review", address, "candles"], new Date("2026-10-21T01:00:22.000Z")).body.request;
   assert.equal(request.end_at, "2026-10-21T01:00:00.000Z");
   assert.equal(Date.parse(request.end_at) - Date.parse(request.start_at), 21_600_000);

@@ -2,12 +2,21 @@ import { describe, expect, it } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import { GmgnEvidence, GmgnEvidenceValues } from "./GmgnEvidence";
 import { type GmgnPublicSummary, GMGN_USE_AUTHORITY, GmgnPublicSummarySchema } from "../../../discovery/src/gmgn-model";
+import {normalizeGmgnTraders} from "../../../discovery/src/gmgn-traders";
 const data: GmgnPublicSummary = { version: "gmgn-summary-v1", address: "So11111111111111111111111111111111111111112", use_authority: GMGN_USE_AUTHORITY,
   provider_rights_independently_confirmed: false, observations: 2, received_at: "2026-10-21T01:00:00.000Z", provider_observed_at: null, stale: true,
   reported_volume_24h_usd: 12345, reported_volume_1h_usd: null, reported_holder_count: 123, provider_wash_flag: false, provider_rug_ratio: 0,
   provider_insider_hold_ratio: .25, provider_bundler_volume_ratio: null, candle_count: null, candle_window_complete: null, candle_window_volume_usd: null,
-  candle_review: null, candle_coverage: null, gaps: ["organic_volume_unknown"], organic_volume_usd: null, meaningful_holder_growth: null, scoring_effect: "none" };
+  candle_review: null, candle_coverage: null, trader_sample:null, gaps: ["organic_volume_unknown"], organic_volume_usd: null, meaningful_holder_growth: null, scoring_effect: "none" };
 describe("GMGN evidence presentation", () => {
+  it("shows ranked flow denominators and period uncertainty without organic or wash certification",()=>{
+    const trader_sample=normalizeGmgnTraders({list:[{address:data.address,addr_type:0,buy_volume_cur:100,sell_volume_cur:90}]},data.received_at!);
+    const html=renderToStaticMarkup(<GmgnEvidenceValues data={{...data,trader_sample}}/>);
+    for(const text of ["Ranked trader participation","not 24h totals","unknown population coverage","1 / 1","100.0%","$90","does not match actual counterparties","No organic-volume or scoring credit"])expect(html).toContain(text);
+    const missing=renderToStaticMarkup(<GmgnEvidenceValues data={{...data,trader_sample:normalizeGmgnTraders({list:[{address:data.address,addr_type:0}]},data.received_at!)}}/>);
+    expect(missing).toContain("Unknown / Unknown");expect(missing).not.toContain("$0");
+    const{trader_sample:_,...legacy}=data;expect(GmgnPublicSummarySchema.parse(legacy).trader_sample).toBeNull();
+  });
   it("separates complete coverage and price-correlated units from independent trade or organic-volume proof",()=>{
     const complete:GmgnPublicSummary={...data,candle_count:360,candle_window_complete:true,candle_window_volume_usd:4320,candle_coverage:{
       window_id:"10000000-0000-4000-8000-000000000001",expected_parts:4,attempted_parts:4,succeeded_parts:4,failed_parts:0,missing_minutes:0,overlap_conflicts:0,receipt_span_ms:33000,report_hash:"a".repeat(64),
