@@ -63,6 +63,7 @@ import { HolderAcquisitionError } from "./holder-acquisition";
 import{gmgnCorroboration,collectGmgnCorroboration}from"./gmgn-corroboration-store";
 import{gmgnQuote}from"./gmgn-quote-store";
 import{ComparisonAddresses,discoveryComparison}from"./discovery-comparison";
+import { rotationCoverage } from "./rotation-coverage";
 
 // Widen generated literal vars so ignored .dev.vars overrides stay type-safe.
 type OptionalGmgnSecret = "GMGN_API_KEY" | "TENX_RESEARCH_MODE";
@@ -205,6 +206,7 @@ export async function handle(request: Request, env: Env): Promise<Response> {
   if (method === "GET" && path === "/api/10x/system/status") return json(await envelope(env, await status(env)));
   if (method === "GET" && path === "/api/10x/system/operations") return json(await envelope(env,await operations(settings(env))));
   if (method === "GET" && path === "/api/10x/discovery/coverage") return json(await envelope(env, discoveryCoverage(await candidates(env.TENX_DB), DEFAULT_POLICY, new Date())));
+  if (method === "GET" && path === "/api/10x/discovery/rotation-coverage") return json(await envelope(env, await rotationCoverage(env.TENX_DB)));
   if (method === "GET" && path === "/api/10x/discovery/wallet-plan") return json(await envelope(env,await walletPlans(env.TENX_DB)));
   if (method === "GET" && path === "/api/10x/discovery/inbox-recovery") return json(await envelope(env,await inboxRecoveryStatus(env.TENX_DB)));
   if (method === "GET" && path === "/api/10x/discovery/mint-reviews") return json(await envelope(env,await mintReviews(env.TENX_DB)));

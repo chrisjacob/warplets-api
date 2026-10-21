@@ -14,6 +14,7 @@ import {AnyScoreSummarySchema,AnyScoreResponseSchema} from "../../../discovery/s
 import {ScoreResearchSchema} from "../../../discovery/src/score-research-model";
 import {ScoreFollowupSchema} from "../../../discovery/src/score-followup-model";
 import { SourcePilotReadinessSchema } from "../../../discovery/src/source-pilot-readiness";
+import { RotationCoverage } from "../../../discovery/src/rotation-coverage-model";
 
 const Common = z.object({
   api_version: z.literal("10x-discovery-v1"), trace_id: z.string(), as_of: z.string().nullable(), served_at: z.string(),
@@ -26,6 +27,7 @@ export const DiscoveryScoreResponse=AnyScoreResponseSchema;
 export const CardListResponse = ListResponse.extend({ data: ListResponse.shape.data.extend({ candidates: z.array(CandidateCardSchema).max(100) }) });
 export const DetailResponse = Common.extend({ data: AssessedCandidateSchema, retention:CandidateExpiryReceiptSchema.nullable().optional() });
 export const CoverageResponse = Common.extend({ data: CoverageSchema });
+export const RotationCoverageResponse = Common.extend({ data: RotationCoverage });
 export const ActivityResponse = Common.extend({ data: ActivitySchema });
 export const PoliciesResponse = Common.extend({ data: PublicPolicySchema });
 export const SignalsResponse = Common.extend({ data: SignalResearchSchema });

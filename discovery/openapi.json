@@ -3896,6 +3896,50 @@
         }
       }
     },
+    "/api/10x/discovery/rotation-coverage": {
+      "get": {
+        "summary": "Cache-only fourteen-UTC-day frozen selection and recorded GMGN attempt coverage; metadata only, no receipt replay or scoring adoption",
+        "responses": {
+          "200": {
+            "description": "Success; cached public data includes timestamps, source freshness and coverage",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RotationCoverageResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "401": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "403": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "404": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "409": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "413": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "415": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "429": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "503": {
+            "description": "Structured JSON error; no provider secrets"
+          }
+        }
+      }
+    },
     "/api/10x/activity/solana/{address}": {
       "get": {
         "summary": "Cached network fees, event/execution-reconciled Pump/PumpSwap trading fee components and price steps; organic activity remains unverified and fee coverage gaps stay explicit",
@@ -51322,6 +51366,455 @@
               "counts",
               "ready",
               "provider_requests"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "api_version",
+          "trace_id",
+          "as_of",
+          "served_at",
+          "policy_version",
+          "source_freshness",
+          "coverage",
+          "data"
+        ],
+        "additionalProperties": false
+      },
+      "RotationCoverageResponse": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "api_version": {
+            "type": "string",
+            "const": "10x-discovery-v1"
+          },
+          "trace_id": {
+            "type": "string"
+          },
+          "as_of": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "served_at": {
+            "type": "string"
+          },
+          "policy_version": {
+            "type": "string"
+          },
+          "source_freshness": {
+            "type": "object",
+            "properties": {
+              "last_harvest": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "last_success": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "stale": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "last_harvest",
+              "last_success",
+              "stale"
+            ],
+            "additionalProperties": false
+          },
+          "coverage": {
+            "type": "object",
+            "properties": {
+              "exhaustive": {
+                "type": "boolean",
+                "const": false
+              },
+              "scope": {
+                "type": "string"
+              },
+              "history_limit": {
+                "type": "number"
+              },
+              "quote_support": {
+                "type": "string"
+              },
+              "holder_classification": {
+                "type": "string"
+              },
+              "market_enabled": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "exhaustive",
+              "scope",
+              "history_limit",
+              "quote_support",
+              "holder_classification",
+              "market_enabled"
+            ],
+            "additionalProperties": false
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "version": {
+                "type": "string",
+                "const": "gmgn-rotation-coverage-v1"
+              },
+              "cutoff": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+              },
+              "window_days": {
+                "type": "number",
+                "const": 14
+              },
+              "scope": {
+                "type": "string",
+                "const": "retained_selection_and_attempt_metadata"
+              },
+              "days": {
+                "minItems": 14,
+                "maxItems": 14,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "day": {
+                      "type": "string",
+                      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                    },
+                    "manifest_cutoff": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "manifest_hash": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "pattern": "^[a-f0-9]{64}$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "all_core_attempts": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 16800
+                    },
+                    "scheduled_baseline_remaining": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 21
+                    },
+                    "inventory": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 500
+                    },
+                    "regression_fixtures": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 500
+                    },
+                    "targets": {
+                      "maxItems": 3,
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "address": {
+                            "type": "string",
+                            "maxLength": 44
+                          },
+                          "first_selection": {
+                            "type": "boolean"
+                          },
+                          "prior_gmgn_attempts": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "newly_investigated": {
+                            "type": "boolean"
+                          },
+                          "kinds": {
+                            "minItems": 4,
+                            "maxItems": 4,
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "kind": {
+                                  "type": "string",
+                                  "enum": [
+                                    "gmgn_token_info",
+                                    "gmgn_token_security",
+                                    "gmgn_token_pool",
+                                    "gmgn_token_candles"
+                                  ]
+                                },
+                                "counts": {
+                                  "type": "object",
+                                  "properties": {
+                                    "attempted": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 16800
+                                    },
+                                    "recorded_succeeded": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 16800
+                                    },
+                                    "failed": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 16800
+                                    },
+                                    "pending": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 16800
+                                    },
+                                    "configured_weight": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 16800
+                                    }
+                                  },
+                                  "required": [
+                                    "attempted",
+                                    "recorded_succeeded",
+                                    "failed",
+                                    "pending",
+                                    "configured_weight"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              },
+                              "required": [
+                                "kind",
+                                "counts"
+                              ],
+                              "additionalProperties": false
+                            }
+                          }
+                        },
+                        "required": [
+                          "address",
+                          "first_selection",
+                          "prior_gmgn_attempts",
+                          "newly_investigated",
+                          "kinds"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "counts": {
+                      "type": "object",
+                      "properties": {
+                        "attempted": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 16800
+                        },
+                        "recorded_succeeded": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 16800
+                        },
+                        "failed": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 16800
+                        },
+                        "pending": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 16800
+                        },
+                        "configured_weight": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 16800
+                        }
+                      },
+                      "required": [
+                        "attempted",
+                        "recorded_succeeded",
+                        "failed",
+                        "pending",
+                        "configured_weight"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "day",
+                    "manifest_cutoff",
+                    "manifest_hash",
+                    "all_core_attempts",
+                    "scheduled_baseline_remaining",
+                    "inventory",
+                    "regression_fixtures",
+                    "targets",
+                    "counts"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "counts": {
+                "type": "object",
+                "properties": {
+                  "attempted": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 16800
+                  },
+                  "recorded_succeeded": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 16800
+                  },
+                  "failed": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 16800
+                  },
+                  "pending": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 16800
+                  },
+                  "configured_weight": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 16800
+                  }
+                },
+                "required": [
+                  "attempted",
+                  "recorded_succeeded",
+                  "failed",
+                  "pending",
+                  "configured_weight"
+                ],
+                "additionalProperties": false
+              },
+              "distinct_selected": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 42
+              },
+              "distinct_attempted": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 42
+              },
+              "newly_investigated": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 42
+              },
+              "new_investigation_days": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 14
+              },
+              "target": {
+                "type": "object",
+                "properties": {
+                  "mints": {
+                    "type": "number",
+                    "const": 30
+                  },
+                  "utc_days": {
+                    "type": "number",
+                    "const": 3
+                  },
+                  "data_quality_pass": {
+                    "type": "null"
+                  }
+                },
+                "required": [
+                  "mints",
+                  "utc_days",
+                  "data_quality_pass"
+                ],
+                "additionalProperties": false
+              },
+              "receipt_payloads_replayed": {
+                "type": "boolean",
+                "const": false
+              },
+              "provider_requests": {
+                "type": "number",
+                "const": 0
+              },
+              "database_writes": {
+                "type": "number",
+                "const": 0
+              },
+              "scoring_effect": {
+                "type": "string",
+                "const": "none"
+              },
+              "evidence_gates_changed": {
+                "type": "boolean",
+                "const": false
+              }
+            },
+            "required": [
+              "version",
+              "cutoff",
+              "window_days",
+              "scope",
+              "days",
+              "counts",
+              "distinct_selected",
+              "distinct_attempted",
+              "newly_investigated",
+              "new_investigation_days",
+              "target",
+              "receipt_payloads_replayed",
+              "provider_requests",
+              "database_writes",
+              "scoring_effect",
+              "evidence_gates_changed"
             ],
             "additionalProperties": false
           }

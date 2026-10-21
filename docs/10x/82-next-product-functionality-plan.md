@@ -14,6 +14,8 @@
 
 ## What the review found
 
+**F1 accounting delivered, 22 October:** [89 — broad rotation coverage](89-broad-rotation-coverage.md) exposes fourteen UTC days of verified selection manifests and operational attempt metadata on Research. Selected, attempted and new-to-GMGN mints remain separate from validated observations. Prior work against the original scheduled baseline stays visible even without a manifest. Broad admitted observation and F3/F4 qualification remain open; current v4 and the thesis-only production gate are unchanged.
+
 | Area | Actually available | Product gap |
 |---|---|---|
 | Discovery | Verified Pump creation/migration, canonical pool checks, cached cards/details, artwork recovery, age/action filters, score/liquidity sorting and versioned 0–100 v4 | The main list lacks search, a compact comparison table and a consistent cross-token attention view |

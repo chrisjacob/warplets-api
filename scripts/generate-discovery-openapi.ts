@@ -32,6 +32,7 @@ import { SignalDetailSchema } from "../discovery/src/signal-model";
 import {ScoreResearchDetailSchema} from "../discovery/src/score-research-model";
 import {ScoreResearchResponse} from "../app/src/discovery/client";
 import {ScoreFollowupResponse} from "../app/src/discovery/client";
+import { RotationCoverageResponse } from "../app/src/discovery/client";
 import { OperationsSchema, WatchdogReportSchema } from "../discovery/src/operations-model";
 import { IdentityChallengeRequest, IdentityChallengeResponse, IdentitySessionResponse, IdentityVerifyRequest } from "../discovery/src/identity-model";
 import { OpenBackingRequest, BackingListResponse, BackingSummary, BackingRecord } from "../discovery/src/backing-model";
@@ -117,6 +118,7 @@ const spec = {
     "/api/10x/candidates": read("Search/filter the full bounded inventory before the 100-result view; current v4 and action eligibility remain separate", { ...candidateResponses, parameters: [parameter("limit", "query", { type: "integer", minimum: 1, maximum: 100, default: 25 }), parameter("mode", "query", { enum: ["live", "fixture"], default: "live" }), parameter("status", "query", { enum: ["all", "eligible", "provisional", "excluded"] }), parameter("age", "query", { enum: ["all", "24h"], default: "all", description: "24h requires independently verified token creation time; the Discover view uses 24h" }), parameter("view", "query", { enum: ["full", "cards"], default: "full", description: "Compact cards project after complete scoring and action assessment" }),parameter("sort","query",{enum:["score","liquidity"],default:"score"}), parameter("q","query",{type:"string",maxLength:100,description:"Case-insensitive name/symbol or case-sensitive exact mint, before display limiting"}),parameter("freshness","query",{enum:["all","fresh","stale","missing"],default:"all"}),parameter("min_liquidity","query",{type:"number",minimum:0,maximum:1e12,default:0,description:"Saved reported USD liquidity; use freshness separately"}),parameter("min_coverage","query",{type:"number",minimum:0,maximum:100,default:0}),parameter("cursor", "query", { type: "string", maxLength: 512, description: "Opaque cursor binds every filter, source/order, observation cutoff and view for five minutes; 409 requires refresh" })] }),
     "/api/10x/discovery/scores/solana/{address}":read("Versioned replayable 0–100 discovery scorecard with full cached inputs, evidence coverage, risk ceilings and unknown/stale criteria; no provider requests or gate changes",{...responseSchema("DiscoveryScoreResponse"),parameters:[parameter("address","path",{type:"string",minLength:32,maxLength:44},true),parameter("mode","query",{enum:["live","fixture"],default:"live"})]}),
     "/api/10x/discovery/coverage": read("Cached progress toward ten eligible tokens, actual 24h coverage and blocking evidence gaps; target never waives a gate", responseSchema("CoverageResponse")),
+    "/api/10x/discovery/rotation-coverage": read("Cache-only fourteen-UTC-day frozen selection and recorded GMGN attempt coverage; metadata only, no receipt replay or scoring adoption", responseSchema("RotationCoverageResponse")),
     "/api/10x/activity/solana/{address}": read("Cached network fees, event/execution-reconciled Pump/PumpSwap trading fee components and price steps; organic activity remains unverified and fee coverage gaps stay explicit", {...responseSchema("ActivityResponse"),parameters:[parameter("address","path",{type:"string",minLength:32,maxLength:44},true)]}),
     "/api/10x/candidates/solana/{address}": read("Candidate identity, separate origin/migration proofs and risk", { ...responseSchema("CandidateDetailResponse"), parameters: [parameter("address", "path", { type: "string", minLength: 32, maxLength: 44 }, true), parameter("mode", "query", { enum: ["live", "fixture"] })] }),
     "/api/10x/evidence/{signature}": read("Saved normalized RPC transaction and SHA-256 evidence hash", { parameters: [parameter("signature", "path", { type: "string", minLength: 64, maxLength: 88 }, true)] }),
@@ -206,6 +208,7 @@ const spec = {
     SignalsResponse: z.toJSONSchema(SignalsResponse, { unrepresentable: "any" }),
     ScoreResearchResponse:z.toJSONSchema(ScoreResearchResponse,{unrepresentable:"any"}),
     ScoreFollowupResponse:z.toJSONSchema(ScoreFollowupResponse,{unrepresentable:"any"}),
+    RotationCoverageResponse:z.toJSONSchema(RotationCoverageResponse,{unrepresentable:"any"}),
     ScoreResearchDetailResponse:z.toJSONSchema(ScoreResearchDetailSchema,{unrepresentable:"any"}),
     CandidateListResponse: z.toJSONSchema(ListResponse, { unrepresentable: "any" }),
     CandidateCardsResponse: z.toJSONSchema(CardListResponse, { unrepresentable: "any" }),
