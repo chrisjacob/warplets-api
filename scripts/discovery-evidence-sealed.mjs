@@ -77,7 +77,7 @@ function validateInner(value){
   return {source,byRaw,nonces};
 }
 
-async function openCatalog(directory,pin,keyFile){
+export async function readSealedEnvelope(directory,pin){
   const folder=await evidencePrivatePath(directory);
   if(!(await lstat(folder)).isDirectory())throw Error("Encrypted evidence directory required");
   const file=await evidenceRegularFile(path.join(folder,"sealed.json"),4096);
@@ -85,6 +85,11 @@ async function openCatalog(directory,pin,keyFile){
   if(!/^[a-f0-9]{64}$/.test(pin??"")||sealed_manifest_sha256!==pin||digest(body)!==pin)throw Error("Encrypted evidence manifest checksum mismatch");
   Outer.parse(body);
   if(!(await lstat(await evidencePrivatePath(path.join(folder,"objects")))).isDirectory())throw Error("Encrypted object directory required");
+  return {folder,value};
+}
+
+async function openCatalog(directory,pin,keyFile){
+  const {folder,value}=await readSealedEnvelope(directory,pin),body=value;
   const key=await keyAt(keyFile,folder);
   try{
     const bytes=decrypt(await ciphertextAt(path.join(folder,"catalog.bin"),body.catalog,MAX_CATALOG),body.catalog,key,"catalog");
@@ -93,6 +98,14 @@ async function openCatalog(directory,pin,keyFile){
     return {folder,key,value,inner,...verified};
   }catch(error){key.fill(0);throw error;}
 }
+
+// Private offline index construction only; never exports the encryption key.
+export async function readSealedIndexMaterial(directory,pin,keyFile){
+  const open=await openCatalog(directory,pin,keyFile);
+  try{return {source_catalog:open.source,objects:open.inner.objects};}
+  finally{open.key.fill(0);}
+}
+export {decrypt as decryptEvidenceCiphertext};
 
 async function payloadAt(open,object){
   const descriptor=open.byRaw.get(object.sha256);

@@ -20,7 +20,7 @@
     "build": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
     "test": "tsx --test src/**/*.test.ts",
-    "test:discovery-archives": "node --test scripts/discovery-archive.test.mjs scripts/discovery-archive-pack.test.mjs scripts/discovery-evidence-objects.test.mjs scripts/discovery-evidence-sealed.test.mjs",
+    "test:discovery-archives": "node --test scripts/discovery-archive.test.mjs scripts/discovery-archive-pack.test.mjs scripts/discovery-evidence-objects.test.mjs scripts/discovery-evidence-sealed.test.mjs scripts/discovery-evidence-index.test.mjs",
     "security:preflight": "node scripts/security-preflight.mjs",
     "security:test": "node scripts/test-security-blocklist.mjs",
     "security:test:redirects": "node --test scripts/test-http-redirect-security.mjs",
