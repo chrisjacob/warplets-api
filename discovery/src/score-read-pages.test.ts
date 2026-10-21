@@ -80,7 +80,11 @@ describe("independently verified scoring card pages",()=>{
   });
   it("rejects corrupt, missing, substituted and repinned inconsistent cards/manifests",async()=>{
     const {sqlite,db}=await setup();
-    for(const sql of ["UPDATE tenx_score_page_cards SET payload=json_set(payload,'$.name','tampered')","DELETE FROM tenx_score_page_cards","UPDATE tenx_score_page_cards SET body_hash='"+"0".repeat(64)+"'"]){
+    for(const sql of ["UPDATE tenx_score_page_cards SET payload=json_set(payload,'$.name','tampered')",
+      "UPDATE tenx_score_page_cards SET payload=json_set(payload,'$.discovery_score',json('{}'))",
+      "UPDATE tenx_score_page_cards SET payload=json_remove(payload,'$.reasons')",
+      "UPDATE tenx_score_page_summaries SET payload=json_remove(payload,'$[0].discovery_score.record_hash')",
+      "DELETE FROM tenx_score_page_cards","UPDATE tenx_score_page_cards SET body_hash='"+"0".repeat(64)+"'"]){
       await buildScoreReadPages(db,at);sqlite.exec(sql);expect(await readScoreReadPages(db,{},at)).toMatchObject({state:"held"});
     }
     await buildScoreReadPages(db,at);await editManifest(sqlite,v=>v.entries[0].name="bad",false);expect(await readScoreReadPages(db,{},at)).toMatchObject({reason:"manifest_integrity_mismatch"});

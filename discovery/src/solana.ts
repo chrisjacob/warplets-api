@@ -28,8 +28,25 @@ export function publicKey(value: string): Uint8Array {
   if (bytes.length !== 32) throw new Error("invalid_public_key");
   return bytes;
 }
+// For z leading zero bytes, the nonzero base58 tail must encode exactly 32-z
+// bytes. Base58's alphabet is ASCII-sorted, so equal-length tails can be compared
+// lexically against these exact inclusive bounds. No on-curve claim is added.
+const PUBLIC_KEY_RANGES=Object.freeze(Array.from({length:32},(_,zeros)=>{
+  const minimum=new Uint8Array(32-zeros);minimum[0]=1;
+  return Object.freeze({min:toBase58(minimum),max:toBase58(new Uint8Array(32-zeros).fill(255))});
+}));
 export function validAddress(value: string): boolean {
-  try { publicKey(value); return true; } catch { return false; }
+  // Preserve the previous decoder behavior for callers outside the typed string
+  // contract. All Zod address fields still require an actual string first.
+  if(typeof value!=="string"){try {publicKey(value);return true;}catch{return false;}}
+  if(value.length<32||value.length>44||/[^1-9A-HJ-NP-Za-km-z]/.test(value))return false;
+  let zeros=0;while(value[zeros]==="1")zeros++;
+  if(zeros===32)return value.length===32;
+  if(zeros>32)return false;
+  const tail=value.slice(zeros),range=PUBLIC_KEY_RANGES[zeros]!;
+  return tail.length>=range.min.length&&tail.length<=range.max.length
+    &&(tail.length!==range.min.length||tail>=range.min)
+    &&(tail.length!==range.max.length||tail<=range.max);
 }
 export function bytesEqual(a: Uint8Array, b: readonly number[]): boolean {
   return a.length >= b.length && b.every((v, i) => a[i] === v);

@@ -136,7 +136,10 @@ export async function readScoreReadPages(db:D1Database,raw:unknown={},now=new Da
   let parsed:z.infer<typeof Card>[];
   let bodies:z.infer<typeof Body>[];
   try {bodies=selected.map(entry=>Body.parse(JSON.parse(byAddress.get(entry.address)??"null")));
-    parsed=bodies.map(body=>Card.parse({...body,discovery_score:summaries.get(body.address)}));}catch{return held("invalid_card");}
+    // Card is the strict Body shape plus the strict score shape. Both have
+    // already been fully parsed; do not revalidate every field a second time.
+    // Restore whole-object parsing if Card gains cross-field refinements.
+    parsed=bodies.map(body=>{const discovery_score=summaries.get(body.address);if(!discovery_score)throw Error("missing_summary");return {...body,discovery_score};});}catch{return held("invalid_card");}
   const hashes=await Promise.all(parsed.map(card=>hashJson(card))),bodyHashes=await Promise.all(bodies.map(body=>hashJson(body)));
   for(const [i,entry] of selected.entries()){
     const card=parsed[i]!;
