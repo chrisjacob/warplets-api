@@ -1,4 +1,5 @@
 import { writeFileSync } from "node:fs";
+import {HistoryDirectory} from "../discovery/src/history-directory-model";
 import {DiscoveryComparison} from "../discovery/src/discovery-comparison-model";
 import {ActivityObservation} from "../discovery/src/activity-observation";
 import {RecentActivity} from "../discovery/src/recent-activity-model";
@@ -116,6 +117,7 @@ const spec = {
     "/api/10x/discovery/wallet-plan": read("Read-only funding plans for up to 20 current contenders and measured local collection yield; request estimates are lower bounds, zero provider calls and unchanged gates",responseSchema("WalletPlansResponse")),
     "/api/10x/artwork": read("Cached presentation artwork linked by saved verified Pump creation metadata; never changes eligibility or triggers provider calls", { ...responseSchema("ArtworkResponse"), parameters: [parameter("addresses", "query", { type: "string", description: "One to 100 comma-separated Solana mints" }, true)] }),
     "/api/10x/chains": read("Discovery capabilities, separate from launch support"),
+    "/api/10x/history": read("Unranked retained identity metadata in live address-keyset pages; no score/source work or frozen snapshot",{...responseSchema("HistoryDirectory"),parameters:[parameter("mode","query",{enum:["live","fixture"],default:"live"}),parameter("limit","query",{type:"integer",minimum:1,maximum:100,default:100}),parameter("mint","query",{type:"string",maxLength:44,description:"Exact canonical Solana mint; no provider lookup"}),parameter("cursor","query",{type:"string",maxLength:512,description:"Address keyset bound to mode/mint; additions before it appear after refresh"})]}),
     "/api/10x/candidates": read("Search/filter the full bounded inventory before the 100-result view; current v4 and action eligibility remain separate", { ...candidateResponses, parameters: [parameter("limit", "query", { type: "integer", minimum: 1, maximum: 100, default: 25 }), parameter("mode", "query", { enum: ["live", "fixture"], default: "live" }), parameter("status", "query", { enum: ["all", "eligible", "provisional", "excluded"] }), parameter("age", "query", { enum: ["all", "24h"], default: "all", description: "24h requires independently verified token creation time; the Discover view uses 24h" }), parameter("view", "query", { enum: ["full", "cards"], default: "full", description: "Compact cards project after complete scoring and action assessment" }),parameter("sort","query",{enum:["score","liquidity"],default:"score"}), parameter("q","query",{type:"string",maxLength:100,description:"Case-insensitive name/symbol or case-sensitive exact mint, before display limiting"}),parameter("freshness","query",{enum:["all","fresh","stale","missing"],default:"all"}),parameter("min_liquidity","query",{type:"number",minimum:0,maximum:1e12,default:0,description:"Saved reported USD liquidity; use freshness separately"}),parameter("min_coverage","query",{type:"number",minimum:0,maximum:100,default:0}),parameter("cursor", "query", { type: "string", maxLength: 512, description: "Opaque cursor binds every filter, source/order, observation cutoff and view for five minutes; 409 requires refresh" })] }),
     "/api/10x/discovery/scores/solana/{address}":read("Versioned replayable 0–100 discovery scorecard with full cached inputs, evidence coverage, risk ceilings and unknown/stale criteria; no provider requests or gate changes",{...responseSchema("DiscoveryScoreResponse"),parameters:[parameter("address","path",{type:"string",minLength:32,maxLength:44},true),parameter("mode","query",{enum:["live","fixture"],default:"live"})]}),
     "/api/10x/discovery/coverage": read("Cached progress toward ten eligible tokens, actual 24h coverage and blocking evidence gaps; target never waives a gate", responseSchema("CoverageResponse")),
@@ -214,6 +216,7 @@ const spec = {
     ScoreResearchDetailResponse:z.toJSONSchema(ScoreResearchDetailSchema,{unrepresentable:"any"}),
     CandidateListResponse: z.toJSONSchema(ListResponse, { unrepresentable: "any" }),
     CandidateCardsResponse: z.toJSONSchema(CardListResponse, { unrepresentable: "any" }),
+    HistoryDirectory: z.toJSONSchema(HistoryDirectory,{unrepresentable:"any"}),
     CandidateDetailResponse: z.toJSONSchema(DetailResponse, { unrepresentable: "any" }),
     PoliciesResponse: z.toJSONSchema(PoliciesResponse, { unrepresentable: "any" }),
     SystemStatusResponse: z.toJSONSchema(StatusResponse, { unrepresentable: "any" }),
@@ -232,5 +235,6 @@ const spec = {
 };
 spec.paths["/api/10x/candidates"].get.summary = "Search/filter before bounded snapshot pagination; at most 100 candidates per page, current v4 and action gates unchanged";
 spec.paths["/api/10x/candidates"].get.parameters.push(parameter("browse", "query", { enum: ["top100", "inventory"], default: "top100", description: "Legacy top100 window or the existing at-most-500 retained inventory. Cursors pin query, cutoff and snapshot for five minutes; changes require refresh." }));
+spec.paths["/api/10x/candidates"].get.parameters.push(parameter("inventory","query",{enum:["retained","current"],default:"retained",description:"Legacy bounded retained evaluation, or explicitly use the existing active view; full identities remain in /history"}));
 writeFileSync(new URL("../discovery/openapi.json", import.meta.url), `${JSON.stringify(spec, null, 2)}\n`);
 console.log("Generated discovery/openapi.json from runtime domain schemas.");

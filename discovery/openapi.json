@@ -3600,6 +3600,95 @@
         }
       }
     },
+    "/api/10x/history": {
+      "get": {
+        "summary": "Unranked retained identity metadata in live address-keyset pages; no score/source work or frozen snapshot",
+        "responses": {
+          "200": {
+            "description": "Success; cached public data includes timestamps, source freshness and coverage",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HistoryDirectory"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "401": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "403": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "404": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "409": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "413": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "415": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "429": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "503": {
+            "description": "Structured JSON error; no provider secrets"
+          }
+        },
+        "parameters": [
+          {
+            "name": "mode",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "live",
+                "fixture"
+              ],
+              "default": "live"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 100
+            }
+          },
+          {
+            "name": "mint",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 44,
+              "description": "Exact canonical Solana mint; no provider lookup"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 512,
+              "description": "Address keyset bound to mode/mint; additions before it appear after refresh"
+            }
+          }
+        ]
+      }
+    },
     "/api/10x/candidates": {
       "get": {
         "summary": "Search/filter before bounded snapshot pagination; at most 100 candidates per page, current v4 and action gates unchanged",
@@ -3792,6 +3881,19 @@
               ],
               "default": "top100",
               "description": "Legacy top100 window or the existing at-most-500 retained inventory. Cursors pin query, cutoff and snapshot for five minutes; changes require refresh."
+            }
+          },
+          {
+            "name": "inventory",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "retained",
+                "current"
+              ],
+              "default": "retained",
+              "description": "Legacy bounded retained evaluation, or explicitly use the existing active view; full identities remain in /history"
             }
           }
         ]
@@ -70074,10 +70176,16 @@
                     "type": "string",
                     "enum": [
                       "retained",
-                      "active_verified_first_day"
+                      "active_verified_first_day",
+                      "current_evaluation"
                     ]
                   },
                   "stored": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "retained_total": {
                     "type": "integer",
                     "minimum": 0,
                     "maximum": 9007199254740991
@@ -70904,10 +71012,16 @@
                     "type": "string",
                     "enum": [
                       "retained",
-                      "active_verified_first_day"
+                      "active_verified_first_day",
+                      "current_evaluation"
                     ]
                   },
                   "stored": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "retained_total": {
                     "type": "integer",
                     "minimum": 0,
                     "maximum": 9007199254740991
@@ -70988,6 +71102,158 @@
           "coverage",
           "data",
           "next_cursor"
+        ],
+        "additionalProperties": false
+      },
+      "HistoryDirectory": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "string",
+            "const": "history-directory-v1"
+          },
+          "read_at": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "live",
+              "fixture"
+            ]
+          },
+          "mint": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 44
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "rows": {
+            "maxItems": 100,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "address": {
+                  "type": "string",
+                  "maxLength": 44
+                },
+                "name": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 100
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "symbol": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 32
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "checked_at": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "metadata_status": {
+                  "type": "string",
+                  "enum": [
+                    "available",
+                    "held"
+                  ]
+                }
+              },
+              "required": [
+                "address",
+                "name",
+                "symbol",
+                "checked_at",
+                "metadata_status"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "total_retained": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 512
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "scope": {
+            "type": "string",
+            "const": "retained_identity_directory"
+          },
+          "pagination": {
+            "type": "string",
+            "const": "live_keyset_not_snapshot"
+          },
+          "ordering": {
+            "type": "string",
+            "const": "address_ascii_ascending"
+          },
+          "ranked": {
+            "type": "boolean",
+            "const": false
+          },
+          "provider_requests": {
+            "type": "number",
+            "const": 0
+          },
+          "database_writes": {
+            "type": "number",
+            "const": 0
+          }
+        },
+        "required": [
+          "version",
+          "read_at",
+          "mode",
+          "mint",
+          "rows",
+          "total_retained",
+          "next_cursor",
+          "scope",
+          "pagination",
+          "ordering",
+          "ranked",
+          "provider_requests",
+          "database_writes"
         ],
         "additionalProperties": false
       },

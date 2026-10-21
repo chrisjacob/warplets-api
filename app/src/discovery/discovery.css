@@ -128,3 +128,4 @@
 .tenx-comparison-table summary{min-height:36px;cursor:pointer}
 .tenx-comparison-table li{margin-bottom:8px}
 @media(max-width:600px){.tenx-compare-selection li{width:100%;justify-content:space-between}.tenx-comparison{padding:12px}}
+.tenx-history-items{list-style:none;padding:0}.tenx-history-items>li{padding:16px 0;border-top:1px solid #34443b}.tenx-history-items .tenx-address{overflow-wrap:anywhere}.tenx-history-items small{color:#a9bcb0}

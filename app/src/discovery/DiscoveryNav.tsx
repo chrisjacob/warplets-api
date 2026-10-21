@@ -10,6 +10,7 @@ const groups = [
     { href: "/research", label: "Daily review" },
     { href: "/transparency", label: "Rules & methodology" },
     { href: "/status", label: "Data status" },
+    { href: "/history", label: "Retained token directory" },
     { href: "/thesis", label: "The 10X Thesis" },
   ] },
   { label: "Tools · local simulations", links: [

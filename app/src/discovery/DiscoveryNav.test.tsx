@@ -11,7 +11,7 @@ it("keeps three primary destinations and retains all research and local tools in
   expect(primary).not.toContain("Admin");
   expect(html).toContain('<details class="tenx-more"');
   expect(html).not.toMatch(/<details[^>]*\bopen[= >]/);
-  for (const route of ["/research", "/elections", "/status", "/transparency", "/backing", "/launch-lab", "/launch-recovery", "/rewards", "/admin/10x", "/thesis"]) expect(html).toContain(`href="${route}"`);
+  for (const route of ["/history", "/research", "/elections", "/status", "/transparency", "/backing", "/launch-lab", "/launch-recovery", "/rewards", "/admin/10x", "/thesis"]) expect(html).toContain(`href="${route}"`);
   expect(html).toContain("The 10X Thesis");
   expect(html).toContain("Tools · local simulations");
 });

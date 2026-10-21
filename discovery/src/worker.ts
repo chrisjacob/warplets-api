@@ -1,4 +1,5 @@
 import { API_HEADERS, LOCAL_ORIGINS, authorized, requireAdminBrowser, adminJson, RequestSecurityError } from "./request-security";
+import {historyDirectory} from "./history-directory";
 import { contentRoute } from "./content-route";
 import { ContentError } from "./content-url";
 export { authorized } from "./request-security";
@@ -248,12 +249,14 @@ export async function handle(request: Request, env: Env): Promise<Response> {
     const query=z.object({addresses:z.string().max(134),mode:z.enum(["live","fixture"]).default("live")}).strict().parse(Object.fromEntries(url.searchParams));
     return json(await discoveryComparison(env.TENX_DB,ComparisonAddresses.parse(query.addresses.split(",")),query.mode));
   }
+  if(method==="GET"&&path==="/api/10x/history")return json(await historyDirectory(env.TENX_DB,Object.fromEntries(url.searchParams)));
   if (method === "GET" && path === "/api/10x/candidates") {
     const query = z.object({
       limit: z.coerce.number().int().min(1).max(100).default(25),
       mode: z.enum(["live", "fixture"]).default("live"),
       status: z.enum(["all", "eligible", "provisional", "excluded"]).default("all"),
       age: z.enum(["all", "24h"]).default("all"),
+      inventory:z.enum(["retained","current"]).default("retained"),
       view: z.enum(["full", "cards"]).default("full"),
       sort:z.enum(["score","liquidity"]).default("score"),
       browse:z.enum(["top100","inventory"]).default("top100"),
@@ -273,16 +276,17 @@ export async function handle(request: Request, env: Env): Promise<Response> {
       if (cursor.identity!==identity||Date.parse(cursor.as_of)>realNow.getTime()||realNow.getTime()-Date.parse(cursor.as_of)>300000) return json({ error: "cursor_expired_refresh_required" }, 409);
       offset = cursor.offset;at=new Date(cursor.as_of);priorSnapshot=cursor.snapshot;
     }
-    const stored=await scoreInventoryCandidates(env.TENX_DB,query.mode,query.age==="all");
+    const stored=await scoreInventoryCandidates(env.TENX_DB,query.mode,query.age==="all"&&query.inventory==="retained");
+    const retainedTotal=query.inventory==="current"?(await env.TENX_DB.prepare("SELECT count(*) AS n FROM tenx_candidates WHERE mode=?1").bind(query.mode).first<{n:number}>())!.n:undefined;
     const ranked=await rankedDiscovery(env.TENX_DB,query.age==="24h"?stored.filter(c=>createdWithinWindow(c,at)):stored,at,query.sort,query.status,
       {search:query.q,freshness:query.freshness,min_liquidity:query.min_liquidity,min_coverage:query.min_coverage,maximum:query.browse==="inventory"?500:100}),rows=ranked.rows;
-    const snapshot=await hashJson({rows,stored:stored.length,matched:ranked.matched,observed:ranked.observed,counts:ranked.counts});
+    const snapshot=await hashJson({rows,stored:stored.length,matched:ranked.matched,observed:ranked.observed,counts:ranked.counts,...retainedTotal!==undefined?{retained_total:retainedTotal}:{}});
     if(priorSnapshot!==null&&priorSnapshot!==snapshot)return json({error:"cursor_expired_refresh_required"},409);
     const next = offset + query.limit;
     return json(await envelope(env, {
       candidates: query.view === "cards" ? rows.slice(offset, next).map(candidateCard) : rows.slice(offset, next), mode: query.mode,sort:query.sort,scored_at:at.toISOString(),observed:ranked.observed,
       counts:ranked.counts,
-      scope:{inventory:query.age==="all"?"retained":"active_verified_first_day",stored:stored.length,ranked:ranked.ranked,matched:ranked.matched,available:rows.length,truncated:ranked.matched>rows.length,maximum:query.browse==="inventory"?500:100,search_before_limit:true},
+      scope:{inventory:query.age==="24h"?"active_verified_first_day":query.inventory==="current"?"current_evaluation":"retained",stored:stored.length,...retainedTotal!==undefined?{retained_total:retainedTotal}:{},ranked:ranked.ranked,matched:ranked.matched,available:rows.length,truncated:ranked.matched>rows.length,maximum:query.browse==="inventory"?500:100,search_before_limit:true},
     }, { next_cursor: next < rows.length ? btoa(JSON.stringify({ snapshot,as_of:at.toISOString(),offset: next,identity })) : null }));
   }
   const scorecard=path.match(/^\/api\/10x\/discovery\/scores\/solana\/([^/]+)$/);

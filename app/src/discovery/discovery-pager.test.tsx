@@ -18,7 +18,7 @@ function page(index = 0, total = 205, cutoff = at): DiscoveryPageData {
     coverage: { exhaustive: false, scope: "synthetic", history_limit: 3000, quote_support: "WSOL", holder_classification: "synthetic", market_enabled: false },
     data: { mode: "fixture", sort: "score", scored_at: cutoff, observed: total,
       counts: { eligible: base.eligibility === "eligible" ? total : 0, provisional: base.eligibility === "provisional" ? total : 0, excluded: base.eligibility === "excluded" ? total : 0 },
-      scope: { inventory: "retained", stored: total, ranked: total, matched: total, available: total, maximum: 500, truncated: false, search_before_limit: true },
+      scope: { inventory: "current_evaluation", stored: total, retained_total: total, ranked: total, matched: total, available: total, maximum: 500, truncated: false, search_before_limit: true },
       candidates: Array.from({ length: Math.max(0, Math.min(100, total - index * 100)) }, (_, i) => ({ ...base, address: toBase58(new Uint8Array(32).fill(index * 100 + i + 1)), discovery_rank: index * 100 + i + 1 })),
     }, next_cursor: (index + 1) * 100 < total ? `synthetic-cursor-${index + 1}` : null,
   };

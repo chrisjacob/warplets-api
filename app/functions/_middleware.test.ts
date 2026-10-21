@@ -9,7 +9,7 @@ async function request(path: string, flag?: string, method = "GET", host = "app.
 }
 
 it("redirects hidden page navigation home without forwarding or retaining query overrides", async () => {
-  for (const path of ["/discover?enabled=true", "/wallets?returnTo=https://example.com", "/token/solana/mint", "/research/future", "/admin/10x", "/elections/saved", "/%64iscover"]) {
+  for (const path of ["/history?enabled=true", "/history/deeper", "/discover?enabled=true", "/wallets?returnTo=https://example.com", "/token/solana/mint", "/research/future", "/admin/10x", "/elections/saved", "/%64iscover"]) {
     for (const method of ["GET", "HEAD"]) {
       const { response, next } = await request(path, undefined, method);
       expect(response.status).toBe(302);

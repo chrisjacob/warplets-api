@@ -31,9 +31,10 @@ export function createDiscoveryPager(url: string, load = fetchDiscoveryPage) {
     const earlier = first ? [] : state.pages;
     const loaded = earlier.reduce((n, saved) => n + saved.data.candidates.length, 0);
     if (!scope || scope.maximum !== 500 || !data.scored_at || data.mode !== expectedMode || data.sort !== expectedSort ||
-        scope.inventory !== (query.get("age") === "24h" ? "active_verified_first_day" : "retained") ||
+        scope.inventory !== (query.get("age") === "24h" ? "active_verified_first_day" : query.get("inventory") === "current" ? "current_evaluation" : "retained") ||
         scope.available !== Math.min(scope.matched, 500) || scope.matched > scope.ranked || scope.ranked > scope.stored ||
         scope.truncated !== (scope.matched > scope.available) || earlier.length >= 5 ||
+        (query.get("inventory") === "current" && (scope.retained_total === undefined || scope.retained_total < scope.stored)) ||
         data.candidates.length !== Math.min(100, Math.max(0, scope.available - loaded)) ||
         (page.next_cursor !== null) !== (loaded + data.candidates.length < scope.available) ||
         (page.next_cursor !== null && (!page.next_cursor.length || page.next_cursor.length > 512))) throw new DiscoveryPageError("invalid");
