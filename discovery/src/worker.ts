@@ -58,6 +58,8 @@ import { GMGN_USE_AUTHORITY } from "./gmgn-model";
 import { researchMode } from "./research-limits";
 import { holderHistory } from "./holder-history-store";
 import { HolderHistoryError } from "./holder-history";
+import { holderAcquisition } from "./holder-acquisition-store";
+import { HolderAcquisitionError } from "./holder-acquisition";
 
 // Widen generated literal vars so ignored .dev.vars overrides stay type-safe.
 type OptionalGmgnSecret = "GMGN_API_KEY" | "TENX_RESEARCH_MODE";
@@ -170,6 +172,8 @@ export async function handle(request: Request, env: Env): Promise<Response> {
   if (method === "POST" && request.headers.has("origin") && !origins.has(request.headers.get("origin")!)) return json({ error: "origin_not_allowed" }, 403);
   if (method === "POST" && !admin) return json({ error: "not_found" }, 404);
   if (method === "GET" && path === "/api/10x/health") return json({ local: true, ready: true });
+  const holderBuys = path.match(/^\/api\/10x\/(admin\/)?holders\/acquisition\/solana\/([^/]+)$/);
+  if(method==="GET"&&holderBuys){const result=await holderAcquisition(env.TENX_DB,holderBuys[2]!);return json(holderBuys[1]?result:result.report);}
   const holderChanges = path.match(/^\/api\/10x\/(admin\/)?holders\/history\/solana\/([^/]+)$/);
   if (method === "GET" && holderChanges) {
     const result = await holderHistory(env.TENX_DB,holderChanges[2]!);
@@ -425,6 +429,7 @@ export default {
       if(error instanceof DiscoveryScoreError)return json({error:error.message},503);
       if(error instanceof ScoreResearchError)return json({error:error.message},503);
       if(error instanceof HolderHistoryError)return json({error:error.message},503);
+      if(error instanceof HolderAcquisitionError)return json({error:error.message},503);
       if(error instanceof LaunchError)return json({error:error.message},error.status);
       if(error instanceof RecoveryError)return json({error:error.message},error.status);
       if (error instanceof RewardError) return json({ error: error.message }, error.message === "reward_daily_limit" ? 429 : error.message === "reward_request_conflict" ? 409 : error.message.includes("mismatch") ? 503 : 400);

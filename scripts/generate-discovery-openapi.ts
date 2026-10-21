@@ -3,6 +3,7 @@ import attentionPaths from "../discovery/openapi-attention-paths.json";
 import { z } from "zod";
 import { GmgnPublicSummarySchema } from "../discovery/src/gmgn-model";
 import { HolderHistoryReportSchema } from "../discovery/src/holder-history-model";
+import { HolderAcquisitionReportSchema } from "../discovery/src/holder-acquisition-model";
 import { GmgnReviewRequestSchema } from "../discovery/src/gmgn";
 import { InboxRecoveryResponse } from "../discovery/src/inbox-recovery-model";
 import { MintReviewsResponse, MintReviewRequest } from "../discovery/src/mint-review-model";
@@ -47,6 +48,8 @@ const spec = {
   openapi: "3.1.0", info: { title: "10X local Solana discovery", version: "0.1.0", description: "Local-only chain discovery and signed-message wallet ownership. No server-held signers, transactions, votes, launches or financial flows. Public reads use stored data; only authenticated refresh makes provider requests." },
   servers: [{ url: "http://127.0.0.1:8794" }],
   paths: {
+    "/api/10x/holders/acquisition/solana/{address}":read("Cached signed-buy matching for raw entrants; sample evidence with qualified growth held",{...responseSchema("HolderAcquisitionReport"),parameters:[parameter("address","path",{type:"string"},true)]}),
+    "/api/10x/admin/holders/acquisition/solana/{address}":read("Private acquisition inputs and replayable report; no source IO or database writes",{security:[{localOperator:[]}],parameters:[parameter("address","path",{type:"string"},true)]}),
     "/api/10x/holders/history/solana/{address}":read("Hash-verified raw owner changes from cached full inventories; no qualified growth or provider IO",{...responseSchema("HolderHistoryReport"),parameters:[parameter("address","path",{type:"string"},true)]}),
     "/api/10x/admin/holders/history/solana/{address}":read("Private frozen inputs and raw owner history report for offline replay; no IO/writes",{security:[{localOperator:[]}],parameters:[parameter("address","path",{type:"string"},true)]}),
     "/api/10x/attention/reports":{post:{...identityPost("Private good-faith concern about a visible link; does not hide it or establish the claim",{$ref:"#/components/schemas/ContentReportRequest"},"ContentReportRecord").post,security:[{localIdentity:[]}] }},
@@ -170,6 +173,7 @@ const spec = {
     ArtworkResponse: z.toJSONSchema(ArtworkResponseSchema),
     GmgnSummary: z.toJSONSchema(GmgnPublicSummarySchema),
     HolderHistoryReport: z.toJSONSchema(HolderHistoryReportSchema),
+    HolderAcquisitionReport: z.toJSONSchema(HolderAcquisitionReportSchema),
     WalletWorkResponse: z.toJSONSchema(WalletWorkResponseSchema),
     WalletPlansResponse: z.toJSONSchema(WalletPlansResponseSchema),
     OperationsResponse: {type:"object",required:["data"],properties:{data:z.toJSONSchema(OperationsSchema)}},

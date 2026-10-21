@@ -21,7 +21,7 @@ function assertEvidence(raw: unknown): asserts raw is HolderEvidence {
   // include its JSON property order and any preserved RPC extension fields.
   HolderEvidenceSchema.parse(raw);
 }
-async function snapshot(meta: Meta, raw: unknown) {
+export async function replayHolderHistorySnapshot(meta: Meta, raw: unknown) {
   bounded(raw, L.snapshot_bytes);
   if (await hashJson(raw) !== meta.payload_hash) throw new HolderHistoryError("holder_history_payload_hash_mismatch");
   assertEvidence(raw);
@@ -45,7 +45,7 @@ async function snapshot(meta: Meta, raw: unknown) {
     account_count: analysis.account_count, raw_owner_count: analysis.holder_count, complete: analysis.status === "verified",
     layout_certified: analysis.layout_certified, acquisition_provenance: "unknown" as const, gaps: analysis.gaps } };
 }
-type Snapshot = Awaited<ReturnType<typeof snapshot>>;
+type Snapshot = Awaited<ReturnType<typeof replayHolderHistorySnapshot>>;
 function delta(a: Snapshot, b: Snapshot, conflict: boolean): z.infer<typeof HolderHistoryDeltaSchema> {
   const first = a.public, last = b.public, gaps: string[] = [];
   if (!first.complete || !last.complete) gaps.push("inventory_incomplete");
@@ -64,7 +64,7 @@ function delta(a: Snapshot, b: Snapshot, conflict: boolean): z.infer<typeof Hold
     raw_growth_pct: held || !start ? null : (end-start)/start*100,
     positive_balance_retention_pct: held || !start ? null : retained/start*100, gaps });
 }
-export async function reviewHolderHistory(raw: unknown) {
+export async function reviewHolderHistoryData(raw: unknown) {
   bounded(raw, L.input_bytes);
   const input = HolderHistoryInputSchema.parse(raw), cutoff = Date.parse(input.cutoff_at), start = cutoff-86_400_000;
   const index = [...input.index].sort(order), hashes = new Set<string>(), dates = new Set<number>();
@@ -79,7 +79,7 @@ export async function reviewHolderHistory(raw: unknown) {
   if (input.samples.length !== selected.length || new Set(input.samples.map(row => row.payload_hash)).size !== input.samples.length ||
     input.samples.some(row => !selected.some(meta => meta.payload_hash === row.payload_hash))) throw new HolderHistoryError("holder_history_selection_mismatch");
   const snapshots: Snapshot[] = [];
-  for (const meta of selected) snapshots.push(await snapshot(meta, input.samples.find(row => row.payload_hash === meta.payload_hash)!.evidence));
+  for (const meta of selected) snapshots.push(await replayHolderHistorySnapshot(meta, input.samples.find(row => row.payload_hash === meta.payload_hash)!.evidence));
   const gaps = ["positive_balances_include_unsolicited_dust", "voluntary_acquisition_unknown", "beneficial_owner_links_unknown",
     "exact_24h_boundary_not_established", "since_creation_baseline_not_established", "snapshots_do_not_prove_continuous_retention",
     "archive_times_are_collector_times_not_block_times", "archived_request_finality_not_independently_attested"];
@@ -97,8 +97,9 @@ export async function reviewHolderHistory(raw: unknown) {
     meaningful_holder_growth: null, trailing_24h_holder_growth: null, since_creation_holder_growth: null,
     organic_demand_certified: false, acquisition_provenance: "unknown", continuous_coverage: false,
     scoring_effect: "none", evidence_gates_changed: false, provider_requests: 0, database_writes: 0 };
-  return HolderHistoryReportSchema.parse({ ...report, report_hash: await hashJson(report) });
+  return { report: HolderHistoryReportSchema.parse({ ...report, report_hash: await hashJson(report) }), snapshots };
 }
+export async function reviewHolderHistory(raw: unknown) { return (await reviewHolderHistoryData(raw)).report; }
 export async function replayHolderHistoryRecord(raw: unknown) {
   bounded(raw,L.input_bytes+100_000);
   const record=z.object({inputs:HolderHistoryInputSchema,report:HolderHistoryReportSchema}).strict().parse(raw);

@@ -4,7 +4,7 @@ import { HolderHistoryError, reviewHolderHistory, selectedHolderSnapshots } from
 
 // Read-only work over existing immutable inventory receipts. No new scan,
 // journal, score capture, retention policy or provider-budget allocation.
-export async function holderHistory(db: D1Database, rawAddress: string, now = new Date()) {
+export async function holderHistoryInputs(db: D1Database, rawAddress: string, now = new Date()) {
   const address = Address.parse(rawAddress), cutoff_at = now.toISOString(), start = new Date(now.getTime()-86_400_000).toISOString();
   const rows = await db.prepare(`SELECT payload_hash,address,slot,observed_at,length(CAST(payload AS BLOB)) AS bytes
     FROM tenx_holder_evidence WHERE address=?1 AND observed_at>=?2 AND observed_at<=?3
@@ -18,5 +18,8 @@ export async function holderHistory(db: D1Database, rawAddress: string, now = ne
     if (!row) throw new HolderHistoryError("holder_history_evidence_missing");
     inputs.samples.push({payload_hash:meta.payload_hash,evidence:JSON.parse(row.payload)});
   }
-  return { inputs, report: await reviewHolderHistory(inputs) };
+  return inputs;
+}
+export async function holderHistory(db:D1Database,address:string,now=new Date()){
+  const inputs=await holderHistoryInputs(db,address,now);return{inputs,report:await reviewHolderHistory(inputs)};
 }
