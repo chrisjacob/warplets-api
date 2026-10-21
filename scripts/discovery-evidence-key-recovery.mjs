@@ -13,7 +13,7 @@ const Hash=z.string().regex(/^[a-f0-9]{64}$/),Body=z.object({version:z.literal(V
   iv:z.string().regex(/^[a-f0-9]{24}$/),tag:z.string().regex(/^[a-f0-9]{32}$/),ciphertext:z.string().regex(/^[a-f0-9]{64}$/)}).strict();
 const Wrap=z.object({version:z.literal(WRAP_VERSION),key_file:z.literal("key.bin"),key_bytes:z.literal(32),purpose:z.literal("evidence_key_backup_only")}).strict();
 const inside=(a,b)=>a===b||b.startsWith(a+path.sep);
-const markers=["manifest.json","pack.json","objects.json","sealed.json","index.json","references.json","capacity.json","replay.json",FILE,"wrapping.json","restore.json"];
+const markers=["manifest.json","pack.json","objects.json","sealed.json","index.json","references.json","capacity.json","replay.json",FILE,"wrapping.json","restore.json","metadata-sealed.json","metadata-restored.json"];
 async function outsideArtifacts(file,forKey=false){
   const root=await realpath(".tmp");
   for(let parent=path.dirname(file);inside(root,parent);parent=path.dirname(parent)){

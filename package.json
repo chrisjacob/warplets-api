@@ -25,6 +25,7 @@
     "test:discovery-capacity": "node --test scripts/discovery-metadata-capacity.test.mjs",
     "test:discovery-scratch": "tsx --test scripts/discovery-evidence-scratch-replay.test.ts",
     "test:discovery-recovery": "node --test scripts/discovery-evidence-key-recovery.test.mjs",
+    "test:discovery-metadata-sealed": "node --test scripts/discovery-metadata-sealed.test.mjs",
     "security:preflight": "node scripts/security-preflight.mjs",
     "security:test": "node scripts/test-security-blocklist.mjs",
     "security:test:redirects": "node --test scripts/test-http-redirect-security.mjs",

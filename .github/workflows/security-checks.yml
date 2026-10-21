@@ -56,6 +56,9 @@ jobs:
       - name: Protected evidence key recovery and private path guards
         run: pnpm test:discovery-recovery
 
+      - name: Encrypted private metadata and exact scratch restore
+        run: pnpm test:discovery-metadata-sealed
+
       - name: Scratch replay tooling types
         run: pnpm exec tsc --noEmit -p tsconfig.evidence-scratch.json
 
