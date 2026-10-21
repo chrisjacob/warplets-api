@@ -1,5 +1,7 @@
 # Local Solana discovery
 
+Daily workspace, 22 October: [browser-local saved shortlist](../docs/10x/92-browser-local-discovery-shortlist.md) adds identity-only saves on cards/table/details, preserved off-list evidence links and existing comparison. Live/fixture lists stay separate; storage failures/corrupt formats stay explicit. No server or source change, score/gate adoption, migration or deploy; production remains thesis-only.
+
 Storage recovery, 22 October: [private full-store archive and verified restore](../docs/10x/91-local-evidence-archive-and-restore.md) adds `node scripts/discovery-archive.mjs` (from repository root): `export`, checksum-pinned `verify`, exclusive scratch `restore` and descriptive `growth`. A real 83-table store restored with identical bytes. Archives include confidential identity sessions/research and stay private/ignored; no live adoption, eviction, provider IO, quota/model/gate change or deploy. Multi-day growth and operational recovery remain open.
 
 Trading breadth, 22 October: [signed trading samples](../docs/10x/90-signed-trading-sample.md) adds optional `trade_sample` comparison records and private reconstruction/replay from existing acquisition inputs. Native sums/display remain exact, uncertain totals remain unknown, and finalized-history mismatch holds measurements. No provider IO, new collection, migration, score promotion or deploy; all gates and the thesis-only release remain.

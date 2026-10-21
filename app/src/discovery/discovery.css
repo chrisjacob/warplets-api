@@ -109,6 +109,10 @@
 .tenx-table-token .tenx-token-icon{width:64px;height:64px;font-size:18px;flex-shrink:0}.tenx-table-token .tenx-token-icon small{font-size:8px;max-width:60px;text-align:center}
 .tenx-compare-toggle{margin-top:12px;font-size:12px}
 .tenx-compare-toggle[aria-pressed=true]{border-color:#5bac71;background:#193b24}
+.tenx-save-toggle[aria-pressed=true]{border-color:#5bac71;background:#193b24}
+.tenx-shortlist>details>summary{min-height:44px;padding:10px 0;box-sizing:border-box;cursor:pointer;font-weight:650}.tenx-shortlist-identity a{overflow-wrap:anywhere}
+.tenx-shortlist-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:10px 0}.tenx-shortlist-actions .tenx-compare-toggle{margin:0}
+.tenx-shortlist-items{list-style:none;padding:0;max-height:520px;overflow:auto}.tenx-shortlist-items>li{padding:16px 0;border-top:1px solid #34443b}.tenx-shortlist-identity{display:flex;align-items:center;gap:12px;min-width:0}.tenx-shortlist-identity>div{min-width:0}.tenx-shortlist-identity .tenx-token-image,.tenx-shortlist-identity .tenx-token-icon{width:48px;height:48px;flex-shrink:0;font-size:16px}.tenx-shortlist-identity small{font-size:12px;color:#a9bcb0;line-height:1.6}.tenx-shortlist-identity .tenx-address{margin:6px 0;overflow-wrap:anywhere}.tenx-shortlist-actions>button{min-height:44px}
 .tenx-compare-selection{display:flex;gap:12px;flex-wrap:wrap;list-style:none;padding:0}
 .tenx-compare-selection li{display:flex;gap:12px;align-items:center;padding:8px;border:1px solid #34443b;border-radius:8px}
 .tenx-comparison>button{margin:8px 12px 14px 0}

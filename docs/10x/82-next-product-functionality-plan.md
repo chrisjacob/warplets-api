@@ -6,7 +6,7 @@
 
 **First implementation delivered:** [83 — rotating coverage and discovery workspace](83-rotating-coverage-and-discovery-workspace.md) records the shipped F1/F2 slice and remaining work. The review table below describes the planning baseline. Common activity normalization, live rotation smoke within available capacity and three-token comparison remain next.
 
-**Second implementation delivered:** [84 — common activity and three-token comparison](84-common-activity-and-token-comparison.md) implements source-scoped dated records and explicit-refresh comparison while keeping unsupported qualified metrics held. The next data work is admitted broad-rotation observation and preregistered F3 qualification; optional local shortlists remain deferred.
+**Second implementation delivered:** [84 — common activity and three-token comparison](84-common-activity-and-token-comparison.md) implements source-scoped dated records and explicit-refresh comparison while keeping unsupported qualified metrics held. The next data work is admitted broad-rotation observation and preregistered F3 qualification. Optional local shortlists were deferred at that checkpoint and are now delivered in [92](92-browser-local-discovery-shortlist.md).
 
 **Third implementation delivered:** [85 — recent candle activity](85-recent-candle-activity.md) adds fixed-policy 5m/1h/6h measurements and equal-period reported-volume comparisons from existing saved candles. This is the recent-candle slice of F3; meaningful holder/organic-volume qualification, broader admitted observation and the prospective scoring study remain open.
 
@@ -68,6 +68,8 @@ Acceptance:
 
 ## F2 — Daily discovery workspace
 
+**Saved-list extension delivered, 22 October:** [92 — browser-local shortlist](92-browser-local-discovery-shortlist.md) adds exact-mint save/remove controls across cards/table/details, a persistent local list outside current results and existing comparison selection. Live/fixture scopes, temporary-storage warnings and corrupt-data preservation are explicit. No new provider/server work or score/gate change; this small UI extension does not alter admitted F1 or prospective F3/F4 dependencies.
+
 **User story:** I can quickly find and compare candidates without opening several long evidence pages.
 
 - Keep the existing cards and add a compact table with artwork, mint identity, verified age, current model/score, evidence coverage, reported liquidity/cap, volume/growth window status, recent momentum and the main concern.
@@ -76,7 +78,7 @@ Acceptance:
 - Preserve v4 as the default ranking while new metrics are descriptive. Do not offer an “organic leaders” sort backed by raw or unknown organic values. A provider-ranked view, if exposed, must identify its source and separate purpose.
 - Keep copyable mint addresses, explorers, image fallbacks, mobile layouts, last-successful data and freshness labels. Unknown is distinct from zero; staleness can change score/rank only through the published evaluator.
 
-Acceptance: duplicate symbols are unambiguous; filters/search/compare preserve chain+mint identity and frozen request identity; unavailable images and providers do not blank the list; opening a comparison makes zero provider requests. The existing action-check filters stay secondary to graded browsing. A browser-local saved shortlist is a small recommended UX extension, not a previously approved financial or identity feature; defer it if it delays F1–F3.
+Acceptance: duplicate symbols are unambiguous; filters/search/compare preserve chain+mint identity and frozen request identity; unavailable images and providers do not blank the list; opening a comparison makes zero provider requests. The existing action-check filters stay secondary to graded browsing. The browser-local saved shortlist is now delivered as a small UX extension, with no financial, identity, collection or study-enrollment effect.
 
 ## F3 — Genuine participation metrics
 

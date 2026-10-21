@@ -235,6 +235,8 @@ Create interface `GraduationVerifier`: `{ chain, launchpadId, mintedAt, graduate
 
 ### 4.7 Graded discovery — v1.2 founder direction and implementation plan
 
+**22 October saved-workspace checkpoint:** [Browser-local shortlist](../92-browser-local-discovery-shortlist.md) adds exact-mint Save for later on cards/table/details and a persistent local list with evidence links/comparison outside current results. Live/examples are isolated, storage failures are explicit and no scores or observations are persisted. Saving has no source-collection, study, voting, eligibility or reward effect; frozen v4, all evidence gates, Free limits and thesis-only production closure remain unchanged.
+
 **22 October storage-recovery checkpoint:** [Local evidence archive and verified restore](../91-local-evidence-archive-and-restore.md) adds private complete-store SQLite snapshots, pinned checksums, measured row/page inventories and restoration into a separate verified scratch file. Historical evidence, quotas and identities are preserved; there is no deletion, counter reset or runtime activation. Multi-day growth, approved retention and operational adoption remain open. Frozen v4, every evidence/action gate, provider Free limits and thesis-only production closure remain unchanged.
 
 **22 October trading-sample checkpoint:** [Recent signed trade samples](../90-signed-trading-sample.md) add dated sampled buyers/sellers, exact SOL/WSOL protocol quote totals and equal-known-size/buy-sell overlap measurements to comparison. Unknown quotes/finality, stale sources and short young-token windows remain explicit. No population, organic-demand, wash verdict or scoring credit is inferred; frozen v4, all evidence/action gates and thesis-only production closure remain.

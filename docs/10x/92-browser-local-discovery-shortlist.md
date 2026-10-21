@@ -1,0 +1,32 @@
+# Browser-local Discovery shortlist
+
+22 October 2026 (Australia/Sydney). Delivers the optional saved-list extension in F2 of the [daily discovery product plan](82-next-product-functionality-plan.md), alongside ordinary admitted F1 collection and the still-held F3/F4 qualification work.
+
+Cards, compact-table rows and token detail pages now have **Save for later** / **Saved · remove** controls. Discover has a collapsible **Saved tokens** list, with exact mints, saved dates, token-detail links, remove/clear actions and the existing three-token comparison controls. A saved token remains accessible when it ages out, misses the displayed top 100, fails a filter or the current list cannot load. Absence from current results is labelled explicitly; the list does not certify that the token still exists in the retained inventory. Its detail/comparison read can still report missing evidence.
+
+The list does not retain scores, ranks, prices, images or source observations. It uses a matching current result's name/symbol/artwork when available; otherwise it shows the saved text labels and the normal image-unavailable fallback. Names are presentation hints and render as escaped text. The mint remains the identity. No saved metric is presented as current data, and saving grants no score, eligibility, vote or reward.
+
+## Local persistence and failure behavior
+
+`app/src/discovery/shortlist-store.ts` stores a versioned identity-only record under `tenx:discovery-shortlist:v1:solana:live` or `tenx:discovery-shortlist:v1:solana:fixture`. Each entry contains exactly chain, mode, case-sensitive mint, bounded name/symbol and local `saved_at`. Records are limited to 100 entries per mode and 100,000 characters, with real 32-byte address validation, duplicate rejection and strict fields/version/scope/date checks. The UI bound prevents an unbounded browser list; it is unrelated to provider quotas or the founder-authorized local research exemption. A full list refuses additional saves rather than evicting old entries.
+
+- Live and simulation lists are independent, with simulation labelled throughout. Selecting a different source does not expose the previous mode's entries during the transition.
+- Reopening the same browser/origin restores the persisted list. Ordinary cross-tab `storage` events for this key or a local-storage clear update the open list; unrelated keys and session storage are ignored.
+- Before a save/remove, the repository reads the latest persisted list and applies an explicit idempotent operation. This protects against ordinary stale-tab replacement; simultaneous local-storage writers are still last-write-wins, not a transactional multi-user service.
+- If access or writes fail, the repository preserves its last loaded entries and subsequent changes in memory for this page session, with a visible warning. It stays in memory mode until reload or an explicit successful clear, rather than silently replacing unsaved changes with an older stored record. Reload/closing loses those memory-only changes; storage clearing or `?clearcache=1` also removes persisted lists. An explicit clear retries removal of the persisted key even after a failed write. If that removal also fails, the UI says the temporary list was cleared but browser storage could not be cleared; previously stored entries can return on reload.
+- Malformed or unsupported records remain untouched and additions/removals are held. **Clear saved list** explicitly removes only the current list key, allowing a fresh start. It does not clear other application storage, identities or the other mode's list.
+- No operator token, API key, wallet signature or session is read or saved by this feature. Persistence is local to the origin/browser profile, without account sync or server backup. The full list does not enter the page URL; the existing explicitly selected comparison mints still use its shareable URL.
+
+## Source and release boundaries
+
+Saving/removing/clearing is browser-only: no server mutation, new API/route/schema, database write, source call, artwork investigation or quota reservation. Existing list/artwork reads continue on their original cached paths. Opening a token or explicitly comparing selections uses existing cache-only read contracts; there is no new collection timer or provider request per saved item. Saved dates are local interaction times, never observation or acquisition evidence.
+
+The shortlist lives inside the existing lazy Discovery bundle. Production remains thesis-only under the unchanged client/server flags; no new root page, menu or public entry point is introduced. Original v1–v4 records/evaluators, all evidence/action/election gates, provider Free limits and local research mode remain unchanged. No migration or deploy.
+
+## Verification
+
+Twelve new persistence/rendering tests cover reopening, same-symbol/different-mint identity, strict scope/format, corrupt data preservation, storage access/write failure, maximum-capacity/encoded-size refusal without losing old entries, stale-tab read-before-update, mode/transition isolation, clearing only our key, escaped labels and off-list evidence/comparison links. The complete Discovery UI suite passes **136 tests across 28 files**. The App build includes its typecheck and performance budget (232.5 KiB gzip across eleven startup chunks); the thesis-only artifact assertion also passes. Original historical source/cohort/holder/wallet row hashes remain identical to the retained development baseline, with foreign keys intact. No Worker/backend change requires a new backend suite.
+
+Local browser validation passed using three disposable simulation mints: card save, reload persistence, filtering out every result while retaining saved links, explicit cached two-token comparison, table save, detail-page saved state/removal, cross-tab updates and live/simulation separation. The live list stayed empty while two simulation entries remained saved. Those disposable entries were cleared and the second tab showed the empty simulation list afterward; agent-created tabs were closed and the user's existing Discover tab was preserved. This is not scoring calibration or evidence of broad population coverage.
+
+F1's prospective multi-day coverage, F3 independence/valuation/meaningful daily growth, F4 preregistered held-out model comparison and F5 runtime/storage follow-ups remain open. Saving a token neither enrolls it in a study nor prioritizes it for source collection.

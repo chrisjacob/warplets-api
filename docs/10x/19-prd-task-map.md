@@ -18,6 +18,15 @@ Discovery workspace, 21 October: [rotating coverage and searchable table](83-rot
 
 Next functionality, 21 October: [daily discovery product plan](82-next-product-functionality-plan.md) prioritizes broad rotating token coverage, a common activity model, table/search/comparison, meaningful participation metrics and a prospectively evaluated scoring revision. PONYX and other founder concern cases remain regression fixtures. Build F1 and the first F2 slice next; keep v4 live, Free limits and every evidence/action gate. This is a planning checkpoint, not runtime implementation or deployment.
 
+## F2 saved-list extension — 22 October
+
+[92 — browser-local shortlist](92-browser-local-discovery-shortlist.md) completes the optional local workspace extension without new provider/server work.
+
+- [x] Save/remove exact Solana mints on cards, table rows and token details, with separate live and simulation lists.
+- [x] Keep off-list identity/evidence links and comparison controls accessible across visits, filters and cached-list failure.
+- [x] Handle storage failure, unsupported/corrupt records and cross-tab updates explicitly; retain no scores, credentials or source evidence in the list.
+- [ ] Continue broad admitted observation, meaningful activity qualification and prospective held-out scoring work; local saving grants no collection or study priority.
+
 ## F5 storage recovery — 22 October
 
 [91 — local evidence archive and restore](91-local-evidence-archive-and-restore.md) implements a private operator recovery slice; F5 remains partial.
@@ -42,7 +51,7 @@ The [new functionality plan](82-next-product-functionality-plan.md) supersedes t
 | F4 | Frozen v4/provider-derived/hybrid comparison and proposed v5 | Unseen mints and later-day holdout; no automatic promotion or action/election changes |
 | F5 / alongside product work | Reliability, cached degradation and archive/restore readiness | Owned recovery, unchanged budgets/stores, no historical deletion; no deploy |
 
-**Current delivery:** [83](83-rotating-coverage-and-discovery-workspace.md) completes rotating selection plus the F2 search/filter/table slice. [84](84-common-activity-and-token-comparison.md) now delivers common activity normalization and three-token comparison. [85](85-recent-candle-activity.md) implements the fixed-policy recent-candle slice of F3. Core F2 browsing/comparison is implemented, with optional local shortlists deferred. [86](86-acquired-retained-holder-sample.md) adds preregistered acquired/endpoint-retained holder samples. Admitted broad rotation, prospective population/independence qualification, organic-volume evidence and held-out scoring validation remain next. Remaining backing, campaign, launch, Warplet and multichain phases follow the dependencies in the new plan. Do not default to another single-token forensic milestone.
+**Current delivery:** [83](83-rotating-coverage-and-discovery-workspace.md) completes rotating selection plus the F2 search/filter/table slice. [84](84-common-activity-and-token-comparison.md) delivers common activity normalization and three-token comparison. [85](85-recent-candle-activity.md) implements the fixed-policy recent-candle slice of F3. Core F2 browsing/comparison and [92's local shortlist](92-browser-local-discovery-shortlist.md) are implemented. [86](86-acquired-retained-holder-sample.md) adds preregistered acquired/endpoint-retained holder samples. Admitted broad rotation, prospective population/independence qualification, organic-volume evidence and held-out scoring validation remain next. Remaining backing, campaign, launch, Warplet and multichain phases follow the dependencies in the new plan. Do not default to another single-token forensic milestone.
 
 ## Earlier engineering checkpoints
 
