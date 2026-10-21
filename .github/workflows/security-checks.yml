@@ -52,3 +52,10 @@ jobs:
       - name: App security preflight
         working-directory: app
         run: pnpm security:preflight
+
+      - name: Solana RPC dependency contracts
+        run: pnpm security:test:solana-rpc
+
+      - name: Signed webhook dependency contracts
+        working-directory: app
+        run: pnpm test -- functions/webhook.test.ts
