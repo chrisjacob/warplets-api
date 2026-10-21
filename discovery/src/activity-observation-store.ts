@@ -5,7 +5,8 @@ import {readSourceReceipt} from "./source-collection-transport";
 import {GmgnRequestSchema} from "./gmgn-request";
 import {normalizeGmgn} from "./gmgn-normalize";
 import {GMGN_USE_AUTHORITY} from "./gmgn-model";
-import {assembleGmgnWindow} from "./gmgn-window";
+import {assembleGmgnWindowData} from "./gmgn-window";
+import {reviewRecentActivity,unavailableRecentActivity} from "./recent-activity";
 import {holderHistory} from "./holder-history-store";
 import {GmgnWalletActivitySchema} from "./gmgn-wallet-activity";
 import {gmgnSavedReview} from "./gmgn";
@@ -17,8 +18,9 @@ const Receipt=z.object({received_at:z.string().datetime(),error:z.string().nulla
 const rolling=(seconds:number):ActivityObservation["window"]=>({kind:"reported_rolling",start_at:null,end_at:null,duration_seconds:seconds});
 const coverage=(denominator:string,observed:number|null=null,expected:number|null=null,status:ActivityObservation["coverage"]["status"]="unknown",denominatorValue:number|null=null):ActivityObservation["coverage"]=>({status,observed,expected,denominator,denominator_value:denominatorValue});
 const scope=(kind:ActivityObservation["scope"]["kind"],address:string|null):ActivityObservation["scope"]=>({kind,address,canonical_pool_verified:false});
-export async function commonActivity(db:D1Database,candidate:Candidate,at:Date){
+export async function commonActivityBundle(db:D1Database,candidate:Candidate,at:Date){
   const address=candidate.address,cutoff_at=at.toISOString(),records:ActivityObservation[]=[];
+  let recent=await unavailableRecentActivity(address,at,candidate.mode==="fixture"?"simulation":"missing",candidate.mode==="fixture"?"synthetic_source_not_collected":"no_retained_candle_window");
   const make=(metric:Metric,source:ActivityObservation["source"],unit:ActivityObservation["unit"],patch:Partial<ActivityObservation>={})=>activityObservation({address,cutoff_at,metric,source,unit},patch);
   const issue=(metrics:[Metric,ActivityObservation["unit"]][],source:ActivityObservation["source"],gap:string,qualification:ActivityObservation["qualification"]="rejected",references:ActivityRef[]=[],patch:Partial<ActivityObservation>={})=>metrics.map(([metric,unit])=>make(metric,source,unit,{qualification,references,gaps:[gap],...patch}));
   const infoMetrics:[Metric,ActivityObservation["unit"]][]=[["token_reported_volume_24h","USD"],["token_reported_volume_1h","USD"],["token_reported_holders","owners"]];
@@ -53,15 +55,17 @@ export async function commonActivity(db:D1Database,candidate:Candidate,at:Date){
       }
     }catch{records.push(...issue(infoMetrics,"gmgn","gmgn_info_integrity_or_schema_failed"));}
     try{
-      const report=await candleWindowAt(db,address,at);
-      if(!report)records.push(...issue(candleMetrics,"gmgn","no_retained_candle_window","missing"));
+      const data=await candleWindowAt(db,address,at),report=data?.report;
+      if(!report||!data)records.push(...issue(candleMetrics,"gmgn","no_retained_candle_window","missing"));
       else{
+        try{recent=await reviewRecentActivity(data,at,candidate.creation?.block_time??null);}
+        catch{recent=await unavailableRecentActivity(address,at,"rejected","recent_activity_measurement_failed");}
         const references:ActivityRef[]=report.receipt_refs.filter(r=>r.receipt_hash!==null).map(r=>({kind:"gmgn_receipt",id:r.request_id,hash:r.receipt_hash!,integrity:"archived_hash_verified"}));
         const shared={scope:scope("token",address),window:{kind:"requested_candles" as const,start_at:report.window_start,end_at:report.window_end,duration_seconds:21600},fetched_at:report.received_at,freshness:activityFreshness(cutoff_at,report.received_at,report.window_end),references,gaps:[...report.gaps,"candle_patterns_do_not_establish_wash_trading"]};
         records.push(make("candle_window_volume","gmgn","USD",{...shared,value:report.reported_window_volume_usd,qualification:report.reported_window_volume_usd===null?"held":"reported_only",coverage:coverage("closed_one_minute_bars",report.candle_count,360,report.complete_window?"complete_requested_window":"partial")}));
         for(const[metric,value]of [["candle_max_adjacent_move",report.activity?.max_adjacent_close_move_pct??null],["candle_longest_rising_run",report.activity?.longest_rising_run_pairs??null]] as const)records.push(make(metric,"gmgn",metric==="candle_max_adjacent_move"?"percent":"count",{...shared,value,qualification:value===null?"held":"supported_sample",coverage:coverage("observed_adjacent_closed_minutes",report.activity?.adjacent_pairs??0,359,report.complete_window?"complete_requested_window":"partial",report.activity?.adjacent_pairs??null)}));
       }
-    }catch{records.push(...issue(candleMetrics,"gmgn","candle_window_integrity_or_schema_failed"));}
+    }catch{records.push(...issue(candleMetrics,"gmgn","candle_window_integrity_or_schema_failed"));recent=await unavailableRecentActivity(address,at,"rejected","candle_window_integrity_or_schema_failed");}
     try{
       const {report}=await holderHistory(db,address,at),delta=report.since_first,poolMismatch=report.snapshots.some(s=>s.pool!==candidate.pool);
       const refs:ActivityRef[]=report.snapshots.map(s=>({kind:"holder_inventory",id:s.payload_hash,hash:s.payload_hash,integrity:"archived_hash_verified"}));
@@ -82,8 +86,9 @@ export async function commonActivity(db:D1Database,candidate:Candidate,at:Date){
     }catch{records.push(...issue(walletMetrics,"gmgn","wallet_activity_integrity_or_selection_failed"));}
   }
   for(const[metric,unit,gap]of [["organic_volume_24h","USD","organic_volume_qualification_not_established"],["meaningful_holder_growth_24h","owners","acquisition_and_retention_qualification_not_established"],["attention_momentum","index","cross_token_attention_qualification_not_established"]] as const)records.push(make(metric,"unavailable",unit,{qualification:"held",gaps:[gap,"no_score_adoption"]}));
-  return records;
+  return {records,recent};
 }
+export async function commonActivity(db:D1Database,candidate:Candidate,at:Date){return (await commonActivityBundle(db,candidate,at)).records;}
 
 async function latestGmgn(db:D1Database,address:string,kind:"gmgn_token_info"|"gmgn_wallet_activity",at:Date){
   const row=await db.prepare(`SELECT id,request FROM tenx_source_reservations WHERE day>=?1 AND reserved_at<=?2 AND json_extract(request,'$.address')=?3 AND json_extract(request,'$.kind')=?4 ORDER BY reserved_at DESC,id DESC LIMIT 1`)
@@ -113,5 +118,5 @@ async function candleWindowAt(db:D1Database,address:string,at:Date){
     const usable=known&&receipt.error===null&&!receipt.access_probe&&receipt.access_accepted&&receipt.semantic_validation==="gmgn_selected_fields_v2";
     entries.push({id:row.id,request,state:!known?"reserved" as const:usable?"succeeded" as const:"failed" as const,received_at:known?receipt.received_at:null,receipt_hash:known?await hashJson(saved!.receipt):null,response:usable?receipt.response:null});
   }
-  return assembleGmgnWindow(entries);
+  return assembleGmgnWindowData(entries);
 }

@@ -8,6 +8,8 @@
 
 **Second implementation delivered:** [84 — common activity and three-token comparison](84-common-activity-and-token-comparison.md) implements source-scoped dated records and explicit-refresh comparison while keeping unsupported qualified metrics held. The next data work is admitted broad-rotation observation and preregistered F3 qualification; optional local shortlists remain deferred.
 
+**Third implementation delivered:** [85 — recent candle activity](85-recent-candle-activity.md) adds fixed-policy 5m/1h/6h measurements and equal-period reported-volume comparisons from existing saved candles. This is the recent-candle slice of F3; meaningful holder/organic-volume qualification, broader admitted observation and the prospective scoring study remain open.
+
 ## What the review found
 
 | Area | Actually available | Product gap |

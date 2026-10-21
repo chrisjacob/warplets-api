@@ -2,7 +2,7 @@ import {z} from "zod";
 import {CandidateSchema,type Candidate} from "./model";
 import {candidateCard} from "./candidate-card";
 import {rankedDiscovery} from "./discovery-score-store";
-import {commonActivity} from "./activity-observation-store";
+import {commonActivityBundle} from "./activity-observation-store";
 import {hashJson} from "./solana";
 import {ComparisonAddresses,ComparisonRow,DiscoveryComparison} from "./discovery-comparison-model";
 export {ComparisonAddresses} from "./discovery-comparison-model";
@@ -31,7 +31,7 @@ export async function discoveryComparison(db:D1Database,rawAddresses:string[],mo
       row.candidate=candidateCard({...scored,market:marketFuture?null:scored.market});
       if(marketFuture)row.gaps.push("market_snapshot_after_cutoff_withheld");
     }catch{row.gaps.push("score_inputs_unusable_grade_withheld");}
-    row.observations=await commonActivity(db,c,at);
+    const activity=await commonActivityBundle(db,c,at);row.observations=activity.records;row.recent_activity=activity.recent;
   }
   const payload={version:"discovery-comparison-v1" as const,cutoff_at,mode,addresses,rows,alignment:"shared_read_cutoff_source_windows_differ" as const,source_authenticity:"not_independently_verified" as const,
     scoring_model:"discovery-score-v4" as const,activity_scoring_effect:"none" as const,evidence_gates_changed:false as const,provider_requests:0 as const,database_writes:0 as const};

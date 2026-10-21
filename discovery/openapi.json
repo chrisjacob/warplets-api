@@ -35923,6 +35923,450 @@
         ],
         "additionalProperties": false
       },
+      "RecentActivity": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "string",
+            "const": "recent-candle-activity-v1"
+          },
+          "address": {
+            "type": "string",
+            "maxLength": 44
+          },
+          "cutoff_at": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "available",
+              "missing",
+              "rejected",
+              "simulation"
+            ]
+          },
+          "anchor_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "fetched_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "freshness": {
+            "type": "string",
+            "enum": [
+              "fresh",
+              "stale",
+              "unknown"
+            ]
+          },
+          "receipt_span_ms": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "policy": {
+            "type": "string",
+            "const": "recent-candle-policy-v1"
+          },
+          "policy_hash": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "parent_window_hash": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "usd_field": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "volume",
+                  "amount"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "periods": {
+            "maxItems": 3,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "minutes": {
+                  "anyOf": [
+                    {
+                      "type": "number",
+                      "const": 5
+                    },
+                    {
+                      "type": "number",
+                      "const": 60
+                    },
+                    {
+                      "type": "number",
+                      "const": 360
+                    }
+                  ]
+                },
+                "recent": {
+                  "type": "object",
+                  "properties": {
+                    "start_at": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                    },
+                    "end_at": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                    },
+                    "minutes": {
+                      "anyOf": [
+                        {
+                          "type": "number",
+                          "const": 5
+                        },
+                        {
+                          "type": "number",
+                          "const": 60
+                        },
+                        {
+                          "type": "number",
+                          "const": 360
+                        }
+                      ]
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "complete",
+                        "partial",
+                        "held"
+                      ]
+                    },
+                    "observed_minutes": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 360
+                    },
+                    "price_change_pct": {
+                      "anyOf": [
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "reported_volume_usd": {
+                      "anyOf": [
+                        {
+                          "type": "number",
+                          "minimum": 0
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "positive_volume_minutes": {
+                      "anyOf": [
+                        {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 360
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "gaps": {
+                      "maxItems": 16,
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "maxLength": 100
+                      }
+                    }
+                  },
+                  "required": [
+                    "start_at",
+                    "end_at",
+                    "minutes",
+                    "status",
+                    "observed_minutes",
+                    "price_change_pct",
+                    "reported_volume_usd",
+                    "positive_volume_minutes",
+                    "gaps"
+                  ],
+                  "additionalProperties": false
+                },
+                "previous": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "start_at": {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                        },
+                        "end_at": {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                        },
+                        "minutes": {
+                          "anyOf": [
+                            {
+                              "type": "number",
+                              "const": 5
+                            },
+                            {
+                              "type": "number",
+                              "const": 60
+                            },
+                            {
+                              "type": "number",
+                              "const": 360
+                            }
+                          ]
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "complete",
+                            "partial",
+                            "held"
+                          ]
+                        },
+                        "observed_minutes": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 360
+                        },
+                        "price_change_pct": {
+                          "anyOf": [
+                            {
+                              "type": "number"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "reported_volume_usd": {
+                          "anyOf": [
+                            {
+                              "type": "number",
+                              "minimum": 0
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "positive_volume_minutes": {
+                          "anyOf": [
+                            {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 360
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "gaps": {
+                          "maxItems": 16,
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "maxLength": 100
+                          }
+                        }
+                      },
+                      "required": [
+                        "start_at",
+                        "end_at",
+                        "minutes",
+                        "status",
+                        "observed_minutes",
+                        "price_change_pct",
+                        "reported_volume_usd",
+                        "positive_volume_minutes",
+                        "gaps"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "reported_volume_ratio": {
+                  "anyOf": [
+                    {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "gaps": {
+                  "maxItems": 12,
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "maxLength": 100
+                  }
+                }
+              },
+              "required": [
+                "minutes",
+                "recent",
+                "previous",
+                "reported_volume_ratio",
+                "gaps"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "references": {
+            "maxItems": 4,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "request_id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                },
+                "receipt_hash": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                }
+              },
+              "required": [
+                "request_id",
+                "receipt_hash"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "gaps": {
+            "maxItems": 20,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 100
+            }
+          },
+          "participant_breadth": {
+            "type": "null"
+          },
+          "qualified_attention_momentum": {
+            "type": "null"
+          },
+          "organic_demand_certified": {
+            "type": "boolean",
+            "const": false
+          },
+          "canonical_pool_verified": {
+            "type": "boolean",
+            "const": false
+          },
+          "scoring_effect": {
+            "type": "string",
+            "const": "none"
+          },
+          "provider_requests": {
+            "type": "number",
+            "const": 0
+          },
+          "database_writes": {
+            "type": "number",
+            "const": 0
+          },
+          "report_hash": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          }
+        },
+        "required": [
+          "version",
+          "address",
+          "cutoff_at",
+          "state",
+          "anchor_at",
+          "fetched_at",
+          "freshness",
+          "receipt_span_ms",
+          "policy",
+          "policy_hash",
+          "parent_window_hash",
+          "usd_field",
+          "periods",
+          "references",
+          "gaps",
+          "participant_breadth",
+          "qualified_attention_momentum",
+          "organic_demand_certified",
+          "canonical_pool_verified",
+          "scoring_effect",
+          "provider_requests",
+          "database_writes",
+          "report_hash"
+        ],
+        "additionalProperties": false
+      },
       "DiscoveryComparison": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
@@ -36937,6 +37381,449 @@
                     "type": "string",
                     "maxLength": 100
                   }
+                },
+                "recent_activity": {
+                  "type": "object",
+                  "properties": {
+                    "version": {
+                      "type": "string",
+                      "const": "recent-candle-activity-v1"
+                    },
+                    "address": {
+                      "type": "string",
+                      "maxLength": 44
+                    },
+                    "cutoff_at": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                    },
+                    "state": {
+                      "type": "string",
+                      "enum": [
+                        "available",
+                        "missing",
+                        "rejected",
+                        "simulation"
+                      ]
+                    },
+                    "anchor_at": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "fetched_at": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "freshness": {
+                      "type": "string",
+                      "enum": [
+                        "fresh",
+                        "stale",
+                        "unknown"
+                      ]
+                    },
+                    "receipt_span_ms": {
+                      "anyOf": [
+                        {
+                          "type": "number",
+                          "minimum": 0
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "policy": {
+                      "type": "string",
+                      "const": "recent-candle-policy-v1"
+                    },
+                    "policy_hash": {
+                      "type": "string",
+                      "pattern": "^[a-f0-9]{64}$"
+                    },
+                    "parent_window_hash": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "pattern": "^[a-f0-9]{64}$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "usd_field": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "volume",
+                            "amount"
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "periods": {
+                      "maxItems": 3,
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "minutes": {
+                            "anyOf": [
+                              {
+                                "type": "number",
+                                "const": 5
+                              },
+                              {
+                                "type": "number",
+                                "const": 60
+                              },
+                              {
+                                "type": "number",
+                                "const": 360
+                              }
+                            ]
+                          },
+                          "recent": {
+                            "type": "object",
+                            "properties": {
+                              "start_at": {
+                                "type": "string",
+                                "format": "date-time",
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                              },
+                              "end_at": {
+                                "type": "string",
+                                "format": "date-time",
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                              },
+                              "minutes": {
+                                "anyOf": [
+                                  {
+                                    "type": "number",
+                                    "const": 5
+                                  },
+                                  {
+                                    "type": "number",
+                                    "const": 60
+                                  },
+                                  {
+                                    "type": "number",
+                                    "const": 360
+                                  }
+                                ]
+                              },
+                              "status": {
+                                "type": "string",
+                                "enum": [
+                                  "complete",
+                                  "partial",
+                                  "held"
+                                ]
+                              },
+                              "observed_minutes": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 360
+                              },
+                              "price_change_pct": {
+                                "anyOf": [
+                                  {
+                                    "type": "number"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "reported_volume_usd": {
+                                "anyOf": [
+                                  {
+                                    "type": "number",
+                                    "minimum": 0
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "positive_volume_minutes": {
+                                "anyOf": [
+                                  {
+                                    "type": "integer",
+                                    "minimum": 0,
+                                    "maximum": 360
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "gaps": {
+                                "maxItems": 16,
+                                "type": "array",
+                                "items": {
+                                  "type": "string",
+                                  "maxLength": 100
+                                }
+                              }
+                            },
+                            "required": [
+                              "start_at",
+                              "end_at",
+                              "minutes",
+                              "status",
+                              "observed_minutes",
+                              "price_change_pct",
+                              "reported_volume_usd",
+                              "positive_volume_minutes",
+                              "gaps"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "previous": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "start_at": {
+                                    "type": "string",
+                                    "format": "date-time",
+                                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                                  },
+                                  "end_at": {
+                                    "type": "string",
+                                    "format": "date-time",
+                                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                                  },
+                                  "minutes": {
+                                    "anyOf": [
+                                      {
+                                        "type": "number",
+                                        "const": 5
+                                      },
+                                      {
+                                        "type": "number",
+                                        "const": 60
+                                      },
+                                      {
+                                        "type": "number",
+                                        "const": 360
+                                      }
+                                    ]
+                                  },
+                                  "status": {
+                                    "type": "string",
+                                    "enum": [
+                                      "complete",
+                                      "partial",
+                                      "held"
+                                    ]
+                                  },
+                                  "observed_minutes": {
+                                    "type": "integer",
+                                    "minimum": 0,
+                                    "maximum": 360
+                                  },
+                                  "price_change_pct": {
+                                    "anyOf": [
+                                      {
+                                        "type": "number"
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
+                                  "reported_volume_usd": {
+                                    "anyOf": [
+                                      {
+                                        "type": "number",
+                                        "minimum": 0
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
+                                  "positive_volume_minutes": {
+                                    "anyOf": [
+                                      {
+                                        "type": "integer",
+                                        "minimum": 0,
+                                        "maximum": 360
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
+                                  "gaps": {
+                                    "maxItems": 16,
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string",
+                                      "maxLength": 100
+                                    }
+                                  }
+                                },
+                                "required": [
+                                  "start_at",
+                                  "end_at",
+                                  "minutes",
+                                  "status",
+                                  "observed_minutes",
+                                  "price_change_pct",
+                                  "reported_volume_usd",
+                                  "positive_volume_minutes",
+                                  "gaps"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "reported_volume_ratio": {
+                            "anyOf": [
+                              {
+                                "type": "number",
+                                "minimum": 0
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "gaps": {
+                            "maxItems": 12,
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "maxLength": 100
+                            }
+                          }
+                        },
+                        "required": [
+                          "minutes",
+                          "recent",
+                          "previous",
+                          "reported_volume_ratio",
+                          "gaps"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "references": {
+                      "maxItems": 4,
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "request_id": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
+                          "receipt_hash": {
+                            "type": "string",
+                            "pattern": "^[a-f0-9]{64}$"
+                          }
+                        },
+                        "required": [
+                          "request_id",
+                          "receipt_hash"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "gaps": {
+                      "maxItems": 20,
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "maxLength": 100
+                      }
+                    },
+                    "participant_breadth": {
+                      "type": "null"
+                    },
+                    "qualified_attention_momentum": {
+                      "type": "null"
+                    },
+                    "organic_demand_certified": {
+                      "type": "boolean",
+                      "const": false
+                    },
+                    "canonical_pool_verified": {
+                      "type": "boolean",
+                      "const": false
+                    },
+                    "scoring_effect": {
+                      "type": "string",
+                      "const": "none"
+                    },
+                    "provider_requests": {
+                      "type": "number",
+                      "const": 0
+                    },
+                    "database_writes": {
+                      "type": "number",
+                      "const": 0
+                    },
+                    "report_hash": {
+                      "type": "string",
+                      "pattern": "^[a-f0-9]{64}$"
+                    }
+                  },
+                  "required": [
+                    "version",
+                    "address",
+                    "cutoff_at",
+                    "state",
+                    "anchor_at",
+                    "fetched_at",
+                    "freshness",
+                    "receipt_span_ms",
+                    "policy",
+                    "policy_hash",
+                    "parent_window_hash",
+                    "usd_field",
+                    "periods",
+                    "references",
+                    "gaps",
+                    "participant_breadth",
+                    "qualified_attention_momentum",
+                    "organic_demand_certified",
+                    "canonical_pool_verified",
+                    "scoring_effect",
+                    "provider_requests",
+                    "database_writes",
+                    "report_hash"
+                  ],
+                  "additionalProperties": false
                 }
               },
               "required": [

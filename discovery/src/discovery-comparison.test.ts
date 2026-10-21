@@ -6,7 +6,7 @@ import {fixtureCandidates} from "./fixtures";
 import {key,signature} from "./wallet-fixtures.test-helper";
 import type {Candidate} from "./model";
 import {ActivityObservation,activityObservation,activityRecordKey} from "./activity-observation";
-import {commonActivity} from "./activity-observation-store";
+import {commonActivity,commonActivityBundle} from "./activity-observation-store";
 import {discoveryComparison} from "./discovery-comparison";
 import {ComparisonAddresses,verifyDiscoveryComparison} from "./discovery-comparison-model";
 import {gmgnActivityTarget,runGmgnReview} from "./gmgn";
@@ -47,10 +47,11 @@ describe("common activity observation boundaries",()=>{
     expect(metric(await commonActivity(db,candidate,at),"token_reported_volume_24h")).toMatchObject({value:null,qualification:"rejected",references:[],gaps:["gmgn_info_integrity_or_schema_failed"]});
   });
   it("never uses receipts or completed window parts which became available after the common cutoff",async()=>{
-    const end=new Date(Date.parse(windowEnd)+60000),{db,candidate,settings}=await setup(end);candidate.address=windowAddress;await put(db,candidate);
+    const end=new Date(Date.parse(windowEnd)+60000),{db,candidate,settings}=await setup(end);candidate.address=windowAddress;candidate.creation={...candidate.creation!,block_time:new Date(Date.parse(windowEnd)-8*3600000).toISOString()};await put(db,candidate);
     for(const e of windowEntries())expect(await source(settings,e.request,e.response.data,new Date(e.received_at),e.id)).toMatchObject({state:"retained"});
     const complete=await commonActivity(db,candidate,end);expect(metric(complete,"candle_window_volume")).toMatchObject({value:4320,qualification:"reported_only",coverage:{observed:360,expected:360,status:"complete_requested_window"},references:expect.any(Array)});
     expect(metric(complete,"candle_longest_rising_run")).toMatchObject({value:359,qualification:"supported_sample"});
+    const bundle=await commonActivityBundle(db,candidate,end);expect(bundle.records).toEqual(complete);expect(bundle.recent).toMatchObject({state:"available",address:windowAddress,cutoff_at:end.toISOString(),periods:[{recent:{reported_volume_usd:60}},{recent:{reported_volume_usd:720}},{recent:{reported_volume_usd:4320}}]});
     const earlier=await commonActivity(db,candidate,new Date(Date.parse(windowEnd)+40000));expect(metric(earlier,"candle_window_volume")).toMatchObject({value:null,qualification:"held",coverage:{observed:200,expected:360,status:"partial"}});expect(metric(earlier,"candle_window_volume").references).toHaveLength(2);
     const infoTime=new Date(end.getTime()+20000);await source(settings,{kind:"gmgn_token_info",address:windowAddress},{address:windowAddress,price:{volume_24h:999}},infoTime);
     expect(metric(await commonActivity(db,candidate,end),"token_reported_volume_24h").value).toBeNull();
@@ -78,8 +79,13 @@ describe("three-token cached comparison",()=>{
     const {db,candidate,sqlite}=await setup();await put(db,candidate);const other={...candidate,address:key(90),market:null};await put(db,other);
     const changes=sqlite.prepare("SELECT total_changes() n").get(),network=vi.spyOn(globalThis,"fetch").mockRejectedValue(Error("forbidden")),addresses=[other.address,key(92),candidate.address];
     const report=await discoveryComparison(db,addresses,"live",at);expect(await verifyDiscoveryComparison(report)).toEqual(report);expect(report.rows.map(r=>r.address)).toEqual(addresses);expect(report.rows[1]).toMatchObject({state:"not_found",candidate:null,observations:[]});
+    expect(report.rows[0]!.recent_activity).toMatchObject({state:"missing",address:other.address,cutoff_at:at.toISOString(),periods:[]});
     for(const row of [report.rows[0]!,report.rows[2]!]){expect(row.candidate?.discovery_score?.as_of).toBe(at.toISOString());expect(row.candidate?.discovery_score?.version).toBe("discovery-score-v4");expect(row.candidate?.discovery_rank).toBeUndefined();expect(row.observations.every(o=>o.cutoff_at===at.toISOString())).toBe(true);}
     expect(sqlite.prepare("SELECT total_changes() n").get()).toEqual(changes);expect(network).not.toHaveBeenCalled();await expect(verifyDiscoveryComparison({...report,report_hash:"a".repeat(64)})).rejects.toThrow();
+    const legacyPayload={...report,rows:report.rows.map(({recent_activity:_,...row})=>row)}, {report_hash:_,...legacyBody}=legacyPayload;
+    expect(await verifyDiscoveryComparison({...legacyBody,report_hash:await hashJson(legacyBody)})).toMatchObject({rows:expect.any(Array)});
+    const mismatched={...report,rows:report.rows.map((row,i)=>i?row:{...row,recent_activity:{...row.recent_activity!,address:candidate.address}})}, {report_hash:omitted,...badBody}=mismatched;
+    await expect(verifyDiscoveryComparison({...badBody,report_hash:await hashJson(badBody)})).rejects.toThrow();
   });
   it("withholds future/malformed candidates and isolates scoring failures",async()=>{
     const {db,candidate,sqlite}=await setup();await put(db,{...candidate,checked_at:new Date(at.getTime()+1).toISOString()});
@@ -90,6 +96,8 @@ describe("three-token cached comparison",()=>{
   it("isolates fixture mode and rejects excessive/duplicate/arbitrary API scope before provider IO",async()=>{
     const {db,candidate}=await setup();await put(db,candidate);await put(db,{...candidate,mode:"fixture"});
     const report=await discoveryComparison(db,[candidate.address],"fixture",at);expect(await verifyDiscoveryComparison(report)).toEqual(report);expect(report.rows[0]!.observations.every(o=>o.source==="simulation"||o.source==="unavailable")).toBe(true);
+    expect(report.rows[0]!.recent_activity?.state).toBe("simulation");
+    const{report_hash:_,...crossMode}={...report,mode:"live"};await expect(verifyDiscoveryComparison({...crossMode,report_hash:await hashJson(crossMode)})).rejects.toThrow("recent_activity_mismatch");
     const env={TENX_DB:db,TENX_LOCAL_ONLY:"true"} as LocalEnv,base="http://localhost/api/10x/discovery/compare?addresses=";
     for(const query of ["",candidate.address+","+candidate.address,[1,2,3,4].map(key).join(","),candidate.address+"&url=https://evil.test",candidate.address+"&cutoff=2000-01-01T00:00:00Z"]){const response=await worker.fetch(new Request(base+query),env);expect(response.status).toBe(400);}
     expect(ComparisonAddresses.safeParse([key(1),key(2),key(3)]).success).toBe(true);
