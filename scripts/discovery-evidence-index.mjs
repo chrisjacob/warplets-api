@@ -15,14 +15,8 @@ const Hash=z.string().length(64).regex(/^[a-f0-9]{64}$/),Count=z.number().int().
 const Body=z.object({version:z.literal(VERSION),confidentiality:z.literal("private_plaintext_metadata"),
   source_sealed_manifest_sha256:Hash,source_catalog_manifest_sha256:Hash,source_archive_manifest_sha256:Hash,
   database:z.object({file:z.literal(DB),bytes:z.number().int().positive().max(MAX_DB),sha256:Hash}).strict(),rows:Count,objects:Count}).strict();
-const Descriptor=z.object({sha256:Hash,bytes:z.number().int().positive().max(2100000),iv:z.string().length(24).regex(/^[a-f0-9]{24}$/),tag:z.string().length(32).regex(/^[a-f0-9]{32}$/)}).strict();
-const Original=z.object({sha256:Hash,bytes:z.number().int().nonnegative().max(2000000),gzip_bytes:z.number().int().positive().max(2100000),gzip_sha256:Hash}).strict();
-const Text=z.string().max(4096),Identity=Text.min(1);
-const Entry=z.discriminatedUnion("table",[
-  z.object({table:z.literal("tenx_holder_evidence"),metadata:z.tuple([Identity,Text,z.number().int().safe(),Text]),object_sha256:Hash,row_sha256:Hash}).strict(),
-  z.object({table:z.literal("tenx_wallet_evidence"),metadata:z.tuple([Identity,Text,Text]),object_sha256:Hash,row_sha256:Hash}).strict(),
-]);
-export {Entry as EvidenceEntry,Original as EvidenceObject,Descriptor as EvidenceCipherDescriptor};
+import {EvidenceEntry as Entry,EvidenceObject as Original,EvidenceCipherDescriptor as Descriptor,canonicalEvidenceReference} from "./lib/evidence-reference-contract.mjs";
+export {EvidenceEntry,EvidenceObject,EvidenceCipherDescriptor,canonicalEvidenceReference} from "./lib/evidence-reference-contract.mjs";
 const SCHEMA=[
   ["table","evidence_meta",`CREATE TABLE evidence_meta(id INTEGER PRIMARY KEY CHECK(id=1),header_json TEXT NOT NULL) STRICT`],
   ["table","evidence_objects",`CREATE TABLE evidence_objects(raw_sha256 TEXT PRIMARY KEY,ordinal INTEGER NOT NULL UNIQUE,original_json TEXT NOT NULL,sealed_json TEXT NOT NULL) WITHOUT ROWID, STRICT`],
@@ -120,15 +114,6 @@ export async function readEvidenceIndexMaterial(directory,pin){
       .map((saved,ordinal)=>({ordinal,...canonicalEvidenceReference({entry:JSON.parse(saved.entry_json),object:JSON.parse(saved.original_json),sealed:JSON.parse(saved.sealed_json)})}));
     await unchanged(index);return {manifest:index.manifest,references};
   }finally{index.db.close();}
-}
-
-export function canonicalEvidenceReference(reference){
-  z.object({entry:Entry,object:Original,sealed:Descriptor}).strict().parse(reference);
-  const {entry,object,sealed}=reference;descriptorPair(object,sealed);
-  if(entry.object_sha256!==object.sha256)throw Error("Evidence reference object mismatch");
-  return {entry:{table:entry.table,metadata:entry.metadata,object_sha256:entry.object_sha256,row_sha256:entry.row_sha256},
-    object:{sha256:object.sha256,bytes:object.bytes,gzip_bytes:object.gzip_bytes,gzip_sha256:object.gzip_sha256},
-    sealed:{sha256:sealed.sha256,bytes:sealed.bytes,iv:sealed.iv,tag:sealed.tag}};
 }
 
 // Caller must authenticate the reference against its retained index/root pin.

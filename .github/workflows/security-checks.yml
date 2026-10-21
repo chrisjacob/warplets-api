@@ -44,6 +44,9 @@ jobs:
       - name: Private Discovery archive integrity and path guards
         run: pnpm test:discovery-archives
 
+      - name: Isolated evidence proof runtime and native storage guards
+        run: pnpm test:discovery-reference-runtime .tmp/ci-evidence-reference-runtime
+
       - name: Install dependencies (app)
         working-directory: app
         run: pnpm install --frozen-lockfile
