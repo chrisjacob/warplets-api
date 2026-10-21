@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { GmgnRequestSchema } from "./gmgn-request";
+import { GmgnRequestSchema, gmgnCandlePart } from "./gmgn-request";
 import { normalizeGmgn } from "./gmgn-normalize";
 import { reserveSourceFetch, sharedResearchUsage, SOURCE_COLLECTION_LIMITS as L } from "./source-collection-store";
 import { executeReservedSource, readSourceReceipt, type SourceFetcher } from "./source-collection-transport";
@@ -7,6 +7,8 @@ import { GMGN_USE_AUTHORITY, GmgnPublicSummarySchema } from "./gmgn-model";
 import { Address } from "./model";
 import { GmgnRequest, gmgnDescriptor } from "./gmgn-request";
 import { researchLimits, type ResearchMode } from "./research-limits";
+import { assembleGmgnWindow } from "./gmgn-window";
+import { hashJson } from "./solana";
 
 export const GmgnReviewRequestSchema = z.object({ reason: z.string().min(3).max(300), request_id: z.uuid(),
   mode: z.enum(["access_probe", "retained_research"]), request: GmgnRequestSchema }).strict();
@@ -31,7 +33,7 @@ export async function gmgnStatus(settings: GmgnSettings, now = new Date()) {
 }
 
 // Preregistered founder regression investigations; neither independent labels nor
-// a representative validation set. Twelve endpoint attempts/day at most, shared
+// a representative validation set. Twenty-one planned endpoint attempts/day at most, shared
 // with every other source request, and only in spare existing capture capacity.
 export const GMGN_PILOT_MINTS = [
   "ZyGXWijSJEgcCDb8CeSJ4Vj33iceATGoeKGidnfpump",
@@ -46,33 +48,49 @@ export async function gmgnPilotHasCapacity(settings: GmgnSettings, now = new Dat
   const row = await settings.db.prepare(`SELECT
     (SELECT count(*) FROM tenx_source_reservations WHERE day=?1) AS used,
     (SELECT used FROM tenx_usage WHERE provider='market' AND day=?1) AS market_used,
-    (SELECT count(DISTINCT json_extract(request,'$.address')||':'||json_extract(request,'$.kind')) FROM tenx_source_reservations
+    (SELECT count(DISTINCT json_extract(request,'$.address')||':'||json_extract(request,'$.kind')||':'||COALESCE(json_extract(request,'$.series.part'),-1)) FROM tenx_source_reservations
       WHERE day=?1 AND json_extract(request,'$.address') IN (?3,?4,?5) AND json_extract(request,'$.kind') IN
-      ('gmgn_token_info','gmgn_token_security','gmgn_token_pool','gmgn_token_candles')) AS attempted,
+      ('gmgn_token_info','gmgn_token_security','gmgn_token_pool','gmgn_token_candles') AND (json_extract(request,'$.kind')!='gmgn_token_candles' OR json_extract(request,'$.series.id') IS NOT NULL)) AS attempted,
     EXISTS(SELECT 1 FROM tenx_control WHERE id=1 AND paused=0 AND (retry_after IS NULL OR retry_after<=?2)) AS active,
     EXISTS(SELECT 1 FROM tenx_source_transport_control WHERE id=1 AND (next_at IS NULL OR next_at<=?2) AND (backoff_until IS NULL OR backoff_until<=?2)) AS paced,
     EXISTS(SELECT 1 FROM tenx_market_control WHERE id=1 AND last_error IS NOT NULL AND next_refresh_at>?2) AS market_backoff,
     EXISTS(SELECT 1 FROM tenx_source_reservations WHERE state IN ('reserved','fetching') AND lease_until>?2) AS in_flight`)
     .bind(day, at, ...GMGN_PILOT_MINTS).first<{used:number;market_used:number|null;attempted:number;active:number;paced:number;market_backoff:number;in_flight:number}>();
   return Boolean(row && (limits.source_daily_requests === null || row.used < limits.source_daily_requests) && (row.market_used ?? 0) < Math.min(L.market_daily_maximum, settings.marketDailyLimit)
-    && row.attempted < GMGN_PILOT_MINTS.length * 4 && row.active && row.paced && !row.market_backoff && !row.in_flight);
+    && row.attempted < GMGN_PILOT_MINTS.length * 7 && row.active && row.paced && !row.market_backoff && !row.in_flight);
+}
+async function gmgnStableId(value: string) {
+  const bytes=new Uint8Array(await crypto.subtle.digest("SHA-256",new TextEncoder().encode(value)));bytes[6]=(bytes[6]!&15)|64;bytes[8]=(bytes[8]!&63)|128;
+  const h=[...bytes.slice(0,16)].map(v=>v.toString(16).padStart(2,"0")).join("");return h.slice(0,8)+"-"+h.slice(8,12)+"-"+h.slice(12,16)+"-"+h.slice(16,20)+"-"+h.slice(20);
 }
 export async function runGmgnPilot(settings: GmgnSettings, scoreAttempts: number, fetcher: SourceFetcher, clock = () => new Date()) {
   if (!configured(settings.apiKey) || !permitted(settings.permissionReference) || !Number.isInteger(scoreAttempts) || scoreAttempts < 0 || scoreAttempts >= 3)
     return { state: "held", reason: "no_configured_spare_capture", provider_requests: 0 };
   const at = clock(), day = at.toISOString().slice(0, 10), end = Math.floor(at.getTime() / 60_000) * 60_000;
   for (const address of GMGN_PILOT_MINTS) for (const kind of ["gmgn_token_info", "gmgn_token_security", "gmgn_token_pool", "gmgn_token_candles"] as const) {
-    const old = await settings.db.prepare(`SELECT id FROM tenx_source_reservations WHERE day=?1
-      AND json_extract(request,'$.address')=?2 AND json_extract(request,'$.kind')=?3 LIMIT 1`).bind(day, address, kind).first();
-    if (old) continue; // Failed/abandoned attempts also count: no daily retry loop.
-    const request: GmgnRequest = kind === "gmgn_token_candles" ? { kind, address, start_at: new Date(end - 21_600_000).toISOString(), end_at: new Date(end).toISOString() } : { kind, address };
+    let request: GmgnRequest;
+    if (kind === "gmgn_token_candles") {
+      const prior = await settings.db.prepare(`SELECT request FROM tenx_source_reservations WHERE day=?1 AND json_extract(request,'$.address')=?2
+        AND json_extract(request,'$.series.id') IS NOT NULL ORDER BY reserved_at,id LIMIT 1`).bind(day,address).first<{request:string}>();
+      const old = prior ? GmgnRequestSchema.parse(JSON.parse(prior.request)) : null;
+      const root = old?.kind === kind && old.series ? old.series : { id: await gmgnStableId(day+":"+address+":candle-window-v1"),
+        start_at: new Date(end-21_600_000).toISOString(), end_at: new Date(end).toISOString(), part: 0 };
+      let next: GmgnRequest | null = null;
+      for (let part=0;part<4;part++) {
+        const exists=await settings.db.prepare(`SELECT id FROM tenx_source_reservations WHERE json_extract(request,'$.series.id')=?1
+          AND json_extract(request,'$.series.part')=?2 LIMIT 1`).bind(root.id,part).first();
+        if (!exists) { const series={...root,part};next={kind,address,...gmgnCandlePart(series),series};break; }
+      }
+      if (!next) continue;request=next;
+    } else {
+      const old=await settings.db.prepare(`SELECT id FROM tenx_source_reservations WHERE day=?1 AND json_extract(request,'$.address')=?2
+        AND json_extract(request,'$.kind')=?3 LIMIT 1`).bind(day,address,kind).first();
+      if(old)continue;request={kind,address};
+    }
     gmgnDescriptor(request, at);
     // Stable per-day target ID prevents competing maintenance runs reserving a
     // second copy even after the first transport finishes.
-    const bytes = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`${day}:${address}:${kind}`)));
-    bytes[6] = (bytes[6]! & 15) | 0x40; bytes[8] = (bytes[8]! & 63) | 0x80;
-    const hex = [...bytes.slice(0, 16)].map(v => v.toString(16).padStart(2, "0")).join("");
-    const request_id = `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+    const request_id = await gmgnStableId(request.kind === "gmgn_token_candles" && request.series ? request.series.id+":"+request.series.part : day+":"+address+":"+kind);
     return runGmgnReview(settings, { reason: "Preregistered founder regression pilot in spare maintenance capture", request_id, mode: "retained_research", request }, fetcher, clock);
   }
   return { state: "waiting", reason: "declared_daily_cohort_attempted", provider_requests: 0 };
@@ -105,6 +123,24 @@ export async function gmgnSavedReview(db: D1Database, id: string, cutoff?: strin
     provider_requests: 0, scoring_effect: "none" };
 }
 
+export async function gmgnCandleWindow(db: D1Database, id: string) {
+  z.uuid().parse(id);
+  const rows = await db.prepare(`SELECT id,request,request_hash,state FROM tenx_source_reservations
+    WHERE json_extract(request,'$.series.id')=?1 ORDER BY reserved_at,id LIMIT 5`).bind(id).all<{id:string;request:string;request_hash:string;state:string}>();
+  if (!rows.results.length) return null;
+  if (rows.results.length > 4) throw new Error("gmgn_window_duplicate_parts");
+  const entries = [];
+  for (const row of rows.results) {
+    const request = GmgnRequestSchema.parse(JSON.parse(row.request));
+    if (await hashJson(request) !== row.request_hash) throw new Error("gmgn_window_request_hash_mismatch");
+    const saved = await readSourceReceipt(db, row.id), receipt = saved?.receipt;
+    if (receipt && receipt.research_permission_reference !== GMGN_USE_AUTHORITY) throw new Error("gmgn_window_permission_mismatch");
+    entries.push({ id: row.id, request, state: row.state, received_at: receipt?.received_at ?? null,
+      receipt_hash: receipt ? await hashJson(receipt) : null, response: receipt?.error === null ? receipt.response : null });
+  }
+  return assembleGmgnWindow(entries);
+}
+
 export async function gmgnPublicSummary(db: D1Database, rawAddress: string, now = new Date()) {
   const address = Address.parse(rawAddress), kinds = ["gmgn_token_info", "gmgn_token_security", "gmgn_token_pool", "gmgn_token_candles"];
   const observations = [];
@@ -118,6 +154,10 @@ export async function gmgnPublicSummary(db: D1Database, rawAddress: string, now 
       if (saved && "observation" in saved && saved.observation) observations.push(saved.observation);
     }
   }
+  const latestWindow = await db.prepare(`SELECT json_extract(request,'$.series.id') AS id FROM tenx_source_reservations
+    WHERE day>=?2 AND json_extract(request,'$.address')=?1 AND json_extract(request,'$.series.id') IS NOT NULL
+    ORDER BY json_extract(request,'$.series.end_at') DESC,reserved_at DESC,id DESC LIMIT 1`).bind(address,new Date(now.getTime()-6*86_400_000).toISOString().slice(0,10)).first<{id:string}>();
+  const coverage=latestWindow?await gmgnCandleWindow(db,latestWindow.id):null;
   const info = observations.find(v => v.kind === "gmgn_token_info"), security = observations.find(v => v.kind === "gmgn_token_security"), candles = observations.find(v => v.kind === "gmgn_token_candles");
   const infoMetrics = z.object({ reported_holder_count: z.number().nullable(), reported_volume_usd: z.object({ volume_24h: z.number().nullable(), volume_1h: z.number().nullable() }).nullable() }).nullable().parse(info?.metrics ?? null);
   const flags = z.object({ provider_flags: z.object({ is_wash_trading: z.boolean().nullable(), rug_ratio: z.number().nullable(), suspected_insider_hold_rate: z.number().nullable(), bundler_trader_amount_rate: z.number().nullable() }) }).nullable().parse(security?.metrics ?? null)?.provider_flags;
@@ -126,6 +166,7 @@ export async function gmgnPublicSummary(db: D1Database, rawAddress: string, now 
   const dates = observations.map(v => v.received_at).sort();
   const gaps = [...new Set(observations.flatMap(v => v.gaps))];
   if (candles && !gaps.includes("candle_volume_units_unverified")) gaps.push("candle_volume_units_unverified");
+  if(coverage)gaps.push(...coverage.gaps);
   gaps.push("summary_limited_to_recent_seven_utc_days");
   if (!observations.length) gaps.push("no_retained_gmgn_observations");
   if (observations.some(v => now.getTime() - Date.parse(v.received_at) > 300_000 || Date.parse(v.received_at) > now.getTime())) gaps.push("receipt_stale_or_future");
@@ -138,7 +179,8 @@ export async function gmgnPublicSummary(db: D1Database, rawAddress: string, now 
     provider_insider_hold_ratio: flags?.suspected_insider_hold_rate ?? null, provider_bundler_volume_ratio: flags?.bundler_trader_amount_rate ?? null,
     // Archived v1 operator replay stays unchanged, but ambiguous candle units
     // cannot be presented as corroborated USD in a current public projection.
-    candle_count: window?.candle_count ?? null, candle_window_complete: window?.complete_window ?? null, candle_window_volume_usd: null,
-    candle_review: review ? { received_at: candles!.received_at, window_start: review.window_start, window_end: review.window_end, ...review.activity } : null,
-    gaps, organic_volume_usd: null, meaningful_holder_growth: null, scoring_effect: "none" });
+    candle_count: coverage?.candle_count ?? window?.candle_count ?? null, candle_window_complete: coverage?.complete_window ?? window?.complete_window ?? null, candle_window_volume_usd: coverage?.reported_window_volume_usd ?? null,
+    candle_coverage:coverage?{window_id:coverage.window_id,expected_parts:4,attempted_parts:coverage.attempted_parts,succeeded_parts:coverage.succeeded_parts,failed_parts:coverage.failed_parts,missing_minutes:coverage.missing_minutes,overlap_conflicts:coverage.overlap_conflicts,receipt_span_ms:coverage.receipt_span_ms,units:coverage.units,report_hash:coverage.report_hash}:null,
+    candle_review:coverage?(coverage.activity&&coverage.received_at?{received_at:coverage.received_at,window_start:coverage.window_start,window_end:coverage.window_end,...coverage.activity}:null):review ? { received_at: candles!.received_at, window_start: review.window_start, window_end: review.window_end, ...review.activity } : null,
+    gaps: [...new Set(gaps)], organic_volume_usd: null, meaningful_holder_growth: null, scoring_effect: "none" });
 }

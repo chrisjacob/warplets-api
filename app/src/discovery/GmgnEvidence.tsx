@@ -5,7 +5,7 @@ import { getJson } from "./client";
 const usd = (value: number | null) => value === null ? "Unknown" : new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(value);
 const percent = (value: number | null) => value === null ? "Unknown" : `${(value * 100).toFixed(1)}%`;
 export function GmgnEvidenceValues({ data }: { data: GmgnPublicSummary }) {
-  if (!data.observations) return <p>No saved GMGN observations for this token in the recent cache. Missing data adds no score credit.</p>;
+  if (!data.observations && !data.candle_coverage) return <p>No saved GMGN observations for this token in the recent cache. Missing data adds no score credit.</p>;
   return <>
     <p>GMGN reports · received {data.received_at ? new Date(data.received_at).toLocaleString() : "at an unknown time"}{data.stale && <strong> · Stale receipt</strong>}. Provider measurement time is unknown.</p>
     <div className="tenx-market-overview"><dl>
@@ -16,7 +16,12 @@ export function GmgnEvidenceValues({ data }: { data: GmgnPublicSummary }) {
       <div><dt>Reported suspected-insider holdings</dt><dd>{percent(data.provider_insider_hold_ratio)}</dd></div>
       <div><dt>Reported bundler volume share</dt><dd>{percent(data.provider_bundler_volume_ratio)}</dd></div>
     </dl></div>
-    {data.candle_count !== null && <p>{data.candle_count} saved one-minute candles · {data.candle_window_complete ? "requested window complete" : "requested window incomplete"} · {data.candle_window_volume_usd === null ? "USD turnover unknown; candle volume units are unverified." : `${usd(data.candle_window_volume_usd)} reported USD volume in that window.`}</p>}
+    {data.candle_count !== null && <p>{data.candle_count} saved one-minute candles · {data.candle_window_complete ? "requested window complete" : "requested window incomplete"} · {data.candle_window_volume_usd === null ? data.candle_coverage?.units.state === "price_consistent" ? "Full-window USD turnover withheld while coverage or flow totals are incomplete." : "USD turnover unknown; candle volume units are unverified." : `${usd(data.candle_window_volume_usd)} reported window turnover using price-consistent USD units.`}</p>}
+    {data.candle_coverage && <section aria-label="Candle coverage and units">
+      <p>{data.candle_coverage.succeeded_parts} / 4 window parts received · {data.candle_coverage.missing_minutes} missing minutes · {data.candle_coverage.overlap_conflicts} conflicting overlap minutes. The last part overlaps forty minutes; matching candles count once.</p>
+      <p>{data.candle_coverage.units.state === "price_consistent" ? `Price-consistent units: ${data.candle_coverage.units.usd_field} = USD; ${data.candle_coverage.units.token_field} = token units. Supported by ${data.candle_coverage.units.informative_candles} positive-flow candles.` : "Candle volume units remain unknown: insufficient, ambiguous or inconsistent price evidence."} Both interpretations are tested against USD high/low prices with 1% tolerance; at least twelve informative candles must agree. This is arithmetic corroboration, not independent trade verification or organic-volume proof.</p>
+      {data.candle_coverage.receipt_span_ms!==null && data.candle_coverage.receipt_span_ms>300000 && <p>Collection spanned more than five minutes; matched-capture freshness is not established.</p>}
+    </section>}
     {data.candle_review && <section aria-label="Candle pattern review">
       <p><strong>{data.candle_review.review_reasons.length ? "Trading pattern needs review" : "Candle pattern measurements"}</strong> · {data.candle_review.window_start} to {data.candle_review.window_end} · received {new Date(data.candle_review.received_at).toLocaleString()}.</p>
       <ul>

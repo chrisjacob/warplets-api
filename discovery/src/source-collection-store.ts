@@ -28,6 +28,12 @@ export async function reserveSourceFetch(db: D1Database, id: string, raw: unknow
       AND NOT EXISTS(SELECT 1 FROM tenx_market_control WHERE id=1 AND last_error IS NOT NULL AND next_refresh_at>?5)
       AND EXISTS(SELECT 1 FROM tenx_source_transport_control WHERE id=1 AND (next_at IS NULL OR next_at<=?5) AND (backoff_until IS NULL OR backoff_until<=?5))
       AND NOT EXISTS(SELECT 1 FROM tenx_source_reservations WHERE state IN ('reserved','fetching') AND lease_until>?5)
+      AND (json_extract(?4,'$.series.id') IS NULL OR NOT EXISTS(SELECT 1 FROM tenx_source_reservations
+        WHERE json_extract(request,'$.series.id')=json_extract(?4,'$.series.id') AND (
+          json_extract(request,'$.series.part')=json_extract(?4,'$.series.part') OR
+          json_extract(request,'$.address')!=json_extract(?4,'$.address') OR
+          json_extract(request,'$.series.start_at')!=json_extract(?4,'$.series.start_at') OR
+          json_extract(request,'$.series.end_at')!=json_extract(?4,'$.series.end_at'))))
       AND (?9 IS NULL OR (SELECT count(*) FROM tenx_source_reservations WHERE day=?6)<?9)
       AND (?10 IS NULL OR ${sharedResearchRecords}<?10) AND (?11 IS NULL OR ${sharedResearchBytes}+?8<=?11)
       AND COALESCE((SELECT used FROM tenx_usage WHERE provider='market' AND day=?6),0)<?12`)

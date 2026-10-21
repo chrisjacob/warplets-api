@@ -1,5 +1,7 @@
 # PRD implementation checkpoint and next tasks
 
+GMGN coverage, 21 October: [four-part candle windows and price-dimensional unit checks](75-gmgn-candle-coverage-and-units.md) use four paced Free queries with a forty-minute consistency overlap. Hash-verified cached assembly preserves gaps/conflicts and archived replay. Live USDF returned 360/360 minutes and triggered a fourteen-rise review; PONYX returned 328/360 and stays incomplete. Both support volume = USD and amount = token units by price consistency; independent trade/organic verification remains held. Current score-v4, all provider/evidence/action gates and production restoration remain unchanged. No deploy.
+
 Local calibration, 21 October: [founder-authorized uncapped internal research admission](74-local-calibration-admission.md) disables daily record/byte caps and the twenty-request research subset only when both local-only and explicit calibration mode are set. Provider budgets, spacing/backoff, per-record bounds, evidence, current scores and action/election gates remain. Counters and archived rows are preserved. Bounded mode remains the default elsewhere and restoration is a tracked production prerequisite. No deploy.
 
 GMGN candle correction, 21 October: [v2 contract and descriptive pattern review](73-gmgn-candle-contract-and-review.md) accepts consistently second/millisecond timestamps and missing turnover while rejecting malformed/open/mixed/duplicate bars. Unit-conflicting candle totals remain unknown; cache-only pattern measurements add no fraud, organic-demand or score certification. Archived v1 receipt replay and every gate/allowance remain. Today's 120/120 admission holds new live IO until the next UTC day; public vendor-example regression passes without bypassing it. No deploy.
@@ -25,7 +27,8 @@ Reviewed 20 October 2026 against the entire [PRD v1.1](spec/10X_MEME_FULL_PRD_v1
 - [x] Verify the first admitted exact-mint GMGN info/security responses and replay through the real IPv4 path after the founder-authorized internal increase to 120; retain missing risk labels as unknown and preserve old rows.
 - [x] Correct documented GMGN millisecond/missing-turnover incompatibilities, preserve archived v1 replay and expose descriptive candle pattern review with uncertain units held unknown.
 - [x] Admit and replay a real PONYX Free minute-candle response in explicit local calibration: HTTP 200, millisecond timestamps, 100 of 360 expected candles; partial coverage and unit uncertainty remain visible.
-- [ ] Corroborate GMGN candle units, canonical pool scope and complete windows before scoring adoption. Founder-authorized local calibration removes only the internal daily admission caps.
+- [x] Implement four-part six-hour candle collection with overlap conflict checks, hashed cached replay and reproducible price-dimensional unit corroboration; live PONYX yields 328/360, with missing minutes held.
+- [ ] Independently verify GMGN trade units and canonical pool scope; obtain continuous coverage where available and prospectively calibrate wash-pattern features before score adoption. Same-provider price consistency does not complete these gates.
 - [ ] Before production, restore bounded research mode and verify 120-record / 10 MB / twenty-source-request limits against retained counters; preserve all provider and evidence gates.
 - [ ] Run preregistered v4/provider comparisons with independent controls; assess holder/trader/creator/screener coverage before expanding the bounded pilot or proposing a new score version.
 

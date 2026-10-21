@@ -52,7 +52,7 @@ import {runScoreResearch,scoreResearch,scoreResearchDetail} from "./score-resear
 import {ScoreResearchError} from "./score-research-analysis";
 import {scoreFollowupPlan} from "./score-followup";
 import { sourcePilotReadiness } from "./source-pilot-readiness";
-import { gmgnPublicSummary, gmgnSavedReview, gmgnStatus, runGmgnReview, runGmgnPilot, gmgnPilotHasCapacity } from "./gmgn";
+import { gmgnPublicSummary, gmgnCandleWindow, gmgnSavedReview, gmgnStatus, runGmgnReview, runGmgnPilot, gmgnPilotHasCapacity } from "./gmgn";
 import { GMGN_USE_AUTHORITY } from "./gmgn-model";
 
 import { researchMode } from "./research-limits";
@@ -169,6 +169,8 @@ export async function handle(request: Request, env: Env): Promise<Response> {
   if (method === "POST" && !admin) return json({ error: "not_found" }, 404);
   if (method === "GET" && path === "/api/10x/health") return json({ local: true, ready: true });
   if (method === "GET" && path === "/api/10x/admin/gmgn/status") return json(await gmgnStatus(gmgnSettings(env)));
+  const gmgnWindow=path.match(/^\/api\/10x\/admin\/gmgn\/windows\/([a-f0-9-]{36})$/i);
+  if(method==="GET"&&gmgnWindow){const report=await gmgnCandleWindow(env.TENX_DB,gmgnWindow[1]!);return report?json(report):json({error:"gmgn_window_not_found"},404);}
   const gmgnReview = path.match(/^\/api\/10x\/admin\/gmgn\/reviews\/([a-f0-9-]{36})$/i);
   if (method === "GET" && gmgnReview) { const saved = await gmgnSavedReview(env.TENX_DB, gmgnReview[1]!); return saved ? json(saved) : json({ error: "gmgn_review_not_found" }, 404); }
   const gmgnToken = path.match(/^\/api\/10x\/gmgn\/solana\/([^/]+)$/);

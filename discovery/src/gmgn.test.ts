@@ -6,7 +6,8 @@ import { sqliteD1 } from "../../app/functions/_lib/sqliteTestDb";
 import { key } from "./wallet-fixtures.test-helper";
 import { gmgnDescriptor } from "./gmgn-request";
 import { normalizeGmgn } from "./gmgn-normalize";
-import { gmgnStatus, runGmgnReview, gmgnSavedReview, gmgnPublicSummary, runGmgnPilot, gmgnPilotHasCapacity, GMGN_PILOT_MINTS } from "./gmgn";
+import { gmgnStatus, runGmgnReview, gmgnSavedReview, gmgnPublicSummary, gmgnCandleWindow, runGmgnPilot, gmgnPilotHasCapacity, GMGN_PILOT_MINTS } from "./gmgn";
+import { windowEntries, windowId, windowAddress, windowEnd } from "./gmgn-window-fixtures.test-helper";
 import { GMGN_USE_AUTHORITY } from "./gmgn-model";
 import { hashJson } from "./solana";
 import worker, { type LocalEnv } from "./worker";
@@ -59,6 +60,48 @@ describe("GMGN contracts and field semantics", () => {
   });
 });
 describe("GMGN owned integration and evidence boundaries", () => {
+  it("holds a reused window identity with a different mint before accounting or provider IO", async () => {
+    const {db,sqlite,settings}=setup(),entries=windowEntries(),first=entries[0]!,next=entries[1]!;
+    expect(await runGmgnReview(settings,input("retained_research",first.request),async()=>Response.json(first.response),()=>new Date(first.received_at))).toMatchObject({state:"retained"});
+    const fetcher=vi.fn();
+    expect(await runGmgnReview(settings,input("retained_research",{...next.request,address}),fetcher,()=>new Date(next.received_at))).toMatchObject({state:"held",provider_requests:0});
+    expect(fetcher).not.toHaveBeenCalled();
+    expect(sqlite.prepare("SELECT used FROM tenx_usage WHERE provider='market'").get()).toEqual({used:1});
+    expect((await gmgnCandleWindow(db,windowId))!.attempted_parts).toBe(1);
+  });
+  it("retains four paced parts, verifies replay, publishes complete coverage and rejects duplicate slots before IO", async () => {
+    const { db, sqlite, settings } = setup(), entries = windowEntries();
+    const fetcher = vi.fn();
+    for (const entry of entries) {
+      fetcher.mockResolvedValueOnce(Response.json(entry.response));
+      expect(await runGmgnReview(settings, { ...input(), request_id: entry.id, request: entry.request }, fetcher, () => new Date(entry.received_at)))
+        .toMatchObject({ state: "retained", provider_requests: 1 });
+    }
+    const report = await gmgnCandleWindow(db, windowId);
+    expect(report).toMatchObject({ complete_window: true, candle_count: 360, missing_minutes: 0, overlap_conflicts: 0,
+      units: { state: "price_consistent", usd_field: "volume", token_field: "amount" }, reported_window_volume_usd: 4320,
+      activity: { adjacent_pairs: 359 }, provider_requests: 0, scoring_effect: "none" });
+    expect(await gmgnPublicSummary(db, windowAddress, new Date(Date.parse(windowEnd)+60_000))).toMatchObject({
+      candle_count: 360, candle_window_complete: true, candle_window_volume_usd: 4320, organic_volume_usd: null,
+      candle_coverage: { succeeded_parts: 4, report_hash: report!.report_hash }, candle_review: { adjacent_pairs: 359 } });
+    expect(await runGmgnReview(settings, input("retained_research", entries[0]!.request), fetcher, () => new Date(Date.parse(windowEnd)+70_000)))
+      .toMatchObject({ state: "held", provider_requests: 0 });
+    expect(fetcher).toHaveBeenCalledTimes(4);
+    expect(sqlite.prepare("SELECT used FROM tenx_usage WHERE provider='market'").get()).toEqual({ used: 4 });
+    // A delayed maintenance part from an older window must not replace a newer
+    // window merely because that old part was received more recently.
+    const oldRequest=structuredClone(entries[0]!.request);
+    oldRequest.series={...oldRequest.series,id:crypto.randomUUID(),start_at:"2026-10-21T00:59:00.000Z",end_at:"2026-10-21T06:59:00.000Z"};
+    oldRequest.start_at="2026-10-21T00:59:00.000Z";oldRequest.end_at="2026-10-21T02:39:00.000Z";
+    const oldResponse=structuredClone(entries[0]!.response);oldResponse.data.list.forEach(row=>row.time-=60_000);
+    expect(await runGmgnReview(settings,input("retained_research",oldRequest),async()=>Response.json(oldResponse),()=>new Date(Date.parse(windowEnd)+81_000))).toMatchObject({state:"retained"});
+    expect(await gmgnPublicSummary(db,windowAddress,new Date(Date.parse(windowEnd)+90_000))).toMatchObject({candle_count:360,candle_window_complete:true,candle_coverage:{window_id:windowId}});
+    const original = sqlite.prepare("SELECT request FROM tenx_source_reservations WHERE id=?").get(entries[0]!.id)!;
+    sqlite.prepare("UPDATE tenx_source_reservations SET request=? WHERE id=?").run(String(original.request).replace(windowAddress,address),entries[0]!.id);
+    await expect(gmgnCandleWindow(db, windowId)).rejects.toThrow("request");
+    sqlite.prepare("UPDATE tenx_source_reservations SET request=?,receipt_hash='tampered' WHERE id=?").run(original.request as string,entries[0]!.id);
+    await expect(gmgnCandleWindow(db, windowId)).rejects.toThrow("receipt_mismatch");
+  });
   it("admits a live-shaped local calibration request after the internal cap while keeping shared provider accounting", async () => {
     const { db, sqlite, settings } = setup();
     for (let i = 0; i < SCORE_RESEARCH_LIMITS.daily_records; i++) sqlite.prepare("INSERT INTO tenx_score_cohorts VALUES(?,'discovery-score-v1',?,'2026-10-21','hash',100000,'{}')").run(`cap-${i}`, at.toISOString());
@@ -153,6 +196,7 @@ describe("GMGN owned integration and evidence boundaries", () => {
     const { db } = setup(), network = vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("must not fetch"));
     const env = { TENX_DB: db, TENX_LOCAL_ONLY: "true", TENX_ADMIN_TOKEN: "a".repeat(64), TENX_MARKET_DAILY_LIMIT: "600", GMGN_API_KEY: secret } as LocalEnv;
     expect((await worker.fetch(new Request("http://localhost/api/10x/admin/gmgn/status"), env)).status).toBe(401);
+    expect((await worker.fetch(new Request(`http://localhost/api/10x/admin/gmgn/windows/${windowId}`), env)).status).toBe(401);
     const status = await worker.fetch(new Request("http://localhost/api/10x/admin/gmgn/status", { headers: { authorization: `Bearer ${env.TENX_ADMIN_TOKEN}` } }), env);
     expect(await status.json()).toMatchObject({ key_configured: true, scoring_effect: "none" });
     const response = await worker.fetch(new Request(`http://localhost/api/10x/gmgn/solana/${address}`), env);
@@ -173,6 +217,15 @@ describe("GMGN owned integration and evidence boundaries", () => {
     expect(await runGmgnPilot(settings, 0, async () => Response.json({ code: 0, data: { list: [] } }), () => after)).toMatchObject({ state: "retained", provider_requests: 1 });
     const kinds = sqlite.prepare("SELECT json_extract(request,'$.kind') kind FROM tenx_source_reservations ORDER BY reserved_at").all();
     expect(kinds).toHaveLength(4); expect(kinds.at(-1)).toEqual({ kind: "gmgn_token_candles" });
+    for (let part=1;part<4;part++) {
+      const tick=new Date(after.getTime()+part*120_000);
+      expect(await runGmgnPilot(settings,0,async()=>Response.json({code:0,data:{list:[]}}),()=>tick)).toMatchObject({state:"retained",provider_requests:1});
+    }
+    const requests=sqlite.prepare("SELECT request FROM tenx_source_reservations WHERE json_extract(request,'$.kind')='gmgn_token_candles' ORDER BY reserved_at").all().map(row=>JSON.parse(row.request as string));
+    expect(requests.map(q=>q.series.part)).toEqual([0,1,2,3]);
+    expect(new Set(requests.map(q=>q.series.id)).size).toBe(1);
+    expect(new Set(requests.map(q=>q.series.end_at)).size).toBe(1);
+    expect((await gmgnCandleWindow(db,requests[0].series.id))!.complete_window).toBe(false);
   });
   it("allocates a shared slot only for admitted pending work, not when quota/pause/backoff prevents it", async () => {
     const { sqlite, settings } = setup();

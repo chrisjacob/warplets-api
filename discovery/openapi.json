@@ -4642,6 +4642,66 @@
         ]
       }
     },
+    "/api/10x/admin/gmgn/windows/{window_id}": {
+      "get": {
+        "summary": "Authenticated cached four-part candle coverage and price-unit corroboration; no provider requests",
+        "responses": {
+          "200": {
+            "description": "Success; cached public data includes timestamps, source freshness and coverage",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "401": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "403": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "404": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "409": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "413": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "415": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "429": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "503": {
+            "description": "Structured JSON error; no provider secrets"
+          }
+        },
+        "security": [
+          {
+            "localOperator": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "window_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ]
+      }
+    },
     "/api/10x/admin/gmgn/review": {
       "post": {
         "summary": "One bounded read-only GMGN attempt within existing shared admission; may hold without IO",
@@ -4719,6 +4779,38 @@
                             "type": "string",
                             "format": "date-time",
                             "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                          },
+                          "series": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "format": "uuid",
+                                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                              },
+                              "start_at": {
+                                "type": "string",
+                                "format": "date-time",
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                              },
+                              "end_at": {
+                                "type": "string",
+                                "format": "date-time",
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                              },
+                              "part": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 3
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "start_at",
+                              "end_at",
+                              "part"
+                            ],
+                            "additionalProperties": false
                           }
                         },
                         "required": [
@@ -35010,6 +35102,171 @@
               }
             ]
           },
+          "candle_coverage": {
+            "default": null,
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "window_id": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "expected_parts": {
+                    "type": "number",
+                    "const": 4
+                  },
+                  "attempted_parts": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 4
+                  },
+                  "succeeded_parts": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 4
+                  },
+                  "failed_parts": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 4
+                  },
+                  "missing_minutes": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 360
+                  },
+                  "overlap_conflicts": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 40
+                  },
+                  "receipt_span_ms": {
+                    "anyOf": [
+                      {
+                        "type": "number",
+                        "minimum": 0
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "units": {
+                    "type": "object",
+                    "properties": {
+                      "version": {
+                        "type": "string",
+                        "const": "gmgn-unit-corroboration-v1"
+                      },
+                      "state": {
+                        "type": "string",
+                        "enum": [
+                          "price_consistent",
+                          "unknown"
+                        ]
+                      },
+                      "usd_field": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "enum": [
+                              "volume",
+                              "amount"
+                            ]
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "token_field": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "enum": [
+                              "volume",
+                              "amount"
+                            ]
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "informative_candles": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 360
+                      },
+                      "volume_usd_consistent": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 360
+                      },
+                      "amount_usd_consistent": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 360
+                      },
+                      "contradictory_flow_pairs": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 360
+                      },
+                      "price_tolerance_pct": {
+                        "type": "number",
+                        "const": 1
+                      },
+                      "minimum_informative_candles": {
+                        "type": "number",
+                        "const": 12
+                      },
+                      "independent_trade_verification": {
+                        "type": "boolean",
+                        "const": false
+                      }
+                    },
+                    "required": [
+                      "version",
+                      "state",
+                      "usd_field",
+                      "token_field",
+                      "informative_candles",
+                      "volume_usd_consistent",
+                      "amount_usd_consistent",
+                      "contradictory_flow_pairs",
+                      "price_tolerance_pct",
+                      "minimum_informative_candles",
+                      "independent_trade_verification"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "report_hash": {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{64}$"
+                  }
+                },
+                "required": [
+                  "window_id",
+                  "expected_parts",
+                  "attempted_parts",
+                  "succeeded_parts",
+                  "failed_parts",
+                  "missing_minutes",
+                  "overlap_conflicts",
+                  "receipt_span_ms",
+                  "units",
+                  "report_hash"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "gaps": {
             "maxItems": 30,
             "type": "array",
@@ -35049,6 +35306,7 @@
           "candle_window_complete",
           "candle_window_volume_usd",
           "candle_review",
+          "candle_coverage",
           "gaps",
           "organic_volume_usd",
           "meaningful_holder_growth",
