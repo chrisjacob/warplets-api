@@ -16,6 +16,7 @@ import { WSOL } from "./pump";
 import { CandidateCardSchema, candidateCard } from "./candidate-card";
 import { assess } from "./model";
 import { InboxRecoveryResponse } from "./inbox-recovery-model";
+import { SourcePilotReadinessSchema } from "./source-pilot-readiness";
 
 const instances: DatabaseSync[] = [];
 afterEach(() => { instances.splice(0).forEach(db => db.close()); vi.restoreAllMocks(); });
@@ -59,6 +60,21 @@ function fixture() {
 const req = (path: string, init?: RequestInit) => new Request(`http://127.0.0.1:8794/api/10x/${path}`, init);
 function admin(body: unknown, token = "a".repeat(64)): RequestInit { return { method: "POST", headers: { authorization: `Bearer ${token}`, "content-type": "application/json" }, body: JSON.stringify(body) }; }
 describe("durable discovery state and public/admin API", () => {
+  it("reports the offline source pilot without provider calls, quota writes or candidate changes", async () => {
+    const { d1, env } = fixture(), provider = vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("provider_forbidden"));
+    const candidate = (await fixtureCandidates())[0]!;
+    await saveCandidate(d1, candidate);
+    const beforeUsage = await d1.prepare("SELECT * FROM tenx_usage").all();
+    const beforeCandidates = await d1.prepare("SELECT payload FROM tenx_candidates").all();
+    const response = await handle(req("system/status"), env);
+    expect(response.status).toBe(200);
+    const body = await response.json() as { data: { source_pilot: unknown } };
+    expect(SourcePilotReadinessSchema.parse(body.data.source_pilot)).toMatchObject({ live_collection_enabled: false, provider_requests: 0, database_writes: 0, scoring_effect: "none", evidence_gates_changed: false });
+    expect((await handle(req("admin/source-pilot/activate", admin({ reason: "test activation", enabled: true })), env)).status).toBe(404);
+    expect(await d1.prepare("SELECT * FROM tenx_usage").all()).toEqual(beforeUsage);
+    expect(await d1.prepare("SELECT payload FROM tenx_candidates").all()).toEqual(beforeCandidates);
+    expect(provider).not.toHaveBeenCalled();
+  });
   it("serves recovery receipts from saved state without reserving source calls or accepting public writes",async()=>{
     const {d1,env}=fixture(),outside=vi.spyOn(globalThis,"fetch").mockRejectedValue(new Error("provider forbidden"));
     const before=await d1.prepare("SELECT * FROM tenx_usage").all();

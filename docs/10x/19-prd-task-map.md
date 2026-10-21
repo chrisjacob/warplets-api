@@ -4,6 +4,16 @@ Reviewed 20 October 2026 against the entire [PRD v1.1](spec/10X_MEME_FULL_PRD_v1
 
 ## What exists and what is incomplete
 
+Source-pilot implementation, 21 October: [Jupiter/GeckoTerminal offline review](65-source-pilot-workbench.md) adds bounded request plans, strict normalizers, hashed freeze/replay, a file-only CLI and read-only Data status readiness. Synthetic examples are explicit; no provider calls, candidate/cohort intake, migration, credential or new collection schedule. API-specific rights and real Free endpoint fixtures remain unresolved, so collection has no activation path. Current v3, all evidence/action/election gates and original aggregate budgets remain. Validation: 959 discovery tests, 79 UI tests, both typechecks and build; startup 234.1 KiB gzip. No deploy.
+
+- [x] Implement bounded Jupiter/GeckoTerminal request descriptors and exact-identity, unit, missing-data and closed-candle validation.
+- [x] Add explicitly unverified/synthetic offline freeze/replay and bounded file review/export commands; no network or database intake.
+- [x] Show held pilot readiness and future shared-budget requirements on Data status, without activation controls.
+- [x] Verify adversarial parser/replay/file checks, no-call/no-quota-write status reads, UI states, existing replay suites and build budget.
+- [ ] Resolve API-specific use rights and actual Free access; collect permitted authenticated fixtures and certify public/Demo field coverage.
+- [ ] Bind candle observations to exact pool metadata/proofs and connect read-only transport plus atomic shared source/storage admission before collection.
+- [ ] Run prospective matched comparisons and independent calibration before any versioned scoring adoption.
+
 Free-source comparison, 21 October: [provider research and ordered pilot](64-free-data-source-comparison.md) finds the existing batch-price foundation reasonable but missing richer organic/wallet/candle intelligence. Prioritize Jupiter organic metrics and GeckoTerminal/GT Score for conditional investigation; retain GMGN and focused Birdeye/Helius options. Public licensing restrictions and uncertain endpoint entitlements must be resolved before paired API work. No new adapter, account, credential, quota or score is activated; all evidence/action gates remain. No deploy.
 
 - [x] Compare terminal/market, security and RPC data providers using current official Free-plan documentation.

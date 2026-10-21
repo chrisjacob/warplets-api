@@ -13,6 +13,7 @@ import {MarketBatchesSchema} from "../../../discovery/src/market-batch-model";
 import {AnyScoreSummarySchema,AnyScoreResponseSchema} from "../../../discovery/src/discovery-score-models";
 import {ScoreResearchSchema} from "../../../discovery/src/score-research-model";
 import {ScoreFollowupSchema} from "../../../discovery/src/score-followup-model";
+import { SourcePilotReadinessSchema } from "../../../discovery/src/source-pilot-readiness";
 
 const Common = z.object({
   api_version: z.literal("10x-discovery-v1"), trace_id: z.string(), as_of: z.string().nullable(), served_at: z.string(),
@@ -47,6 +48,7 @@ export const StatusResponse = Common.extend({ data: z.object({
   election_automation: ElectionAutomationSchema.optional(),
   inventory: InventoryStatusSchema.optional(),
   market_batches: MarketBatchesSchema.optional(),
+  source_pilot: SourcePilotReadinessSchema.optional(),
   market_provider: z.enum(["geckoterminal", "dexscreener"]).optional(),
   artwork_automation: z.object({ next_refresh_at: z.string().nullable(), last_error: z.string().nullable() }).optional(),
   quality_automation: z.object({ enabled: z.boolean(), daily_limit: z.number(), daily_used: z.number(), last_success: z.string().nullable(), next_refresh_at: z.string().nullable(), last_error: z.string().nullable(), targets: z.number() }).optional(),

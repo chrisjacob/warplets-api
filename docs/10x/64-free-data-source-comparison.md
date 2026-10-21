@@ -4,6 +4,8 @@ Reviewed 21 October 2026, Australia/Sydney. Scope: Solana tokens in their first 
 
 GMGN follow-up, 21 October: the founder supplied API Management wording confirming a $100 minimum balance for Free, with assets refreshed hourly. This is a user-supplied account-page receipt, not an authenticated account check. It changes GMGN's access classification to balance-gated; actual qualification, endpoint permissions and data rights remain open. No funding is authorized. See the [recorded receipt and remaining G0 checks](63-gmgn-api-evaluation-and-plan.md#access-cost-and-permission-findings).
 
+Implemented continuation: [Offline Jupiter/GeckoTerminal review](65-source-pilot-workbench.md) now provides typed request plans, bounded normalizers and hashed file replay plus held readiness on Data status. This is preparation before real provider collection; access/rights, authenticated fixtures, pool binding and shared-budget admission remain open. It makes no new provider calls and does not change scoring.
+
 ## Recommendation
 
 Our batch-price foundation is a reasonable free choice. Our intelligence layer is incomplete. The next investigation should compare **Jupiter Tokens V2 organic metrics**, **GeckoTerminal/CoinGecko candles and GT Score**, and **GMGN's wallet/manipulation labels**, rather than making GMGN the assumed winner. **Birdeye Standard** is a useful small-cohort candle/holder alternative. **Helius Free** deserves a separate RPC/history assessment. Keep independent finalized transaction, mint and inventory validation.
@@ -109,6 +111,7 @@ Research remains at the shared 100 records / 10 MB per day, three captures and f
 - [x] Resolve Birdeye's current Free endpoint matrix and compute realistic CU examples.
 - [x] Record licensing conflicts, uncertain production entitlements, source correlation and launch-history limits.
 - [x] Update the PRD, existing GMGN plan, task map and restart handoff with the conditional shortlist.
+- [x] Implement and validate the initial offline Jupiter/GeckoTerminal normalizers, request plans, file replay and held-state diagnostics in milestone 65.
 - [ ] Establish applicable rights and actual no-cost endpoint access for each selected experiment.
 - [ ] Capture real fixtures, validate schemas/units/coverage and implement only selected bounded adapters.
 - [ ] Complete prospective comparisons and independent calibration before proposing score-v4.

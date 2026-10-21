@@ -51,6 +51,7 @@ import {ScoreModelSchema} from "./score-research-model";
 import {runScoreResearch,scoreResearch,scoreResearchDetail} from "./score-research";
 import {ScoreResearchError} from "./score-research-analysis";
 import {scoreFollowupPlan} from "./score-followup";
+import { sourcePilotReadiness } from "./source-pilot-readiness";
 
 // Widen generated literal vars so ignored .dev.vars overrides stay type-safe.
 export type LocalEnv = { [K in keyof Cloudflare.Env]: Cloudflare.Env[K] extends string ? string : Cloudflare.Env[K] };
@@ -113,6 +114,7 @@ async function status(env: Env) {
     election_automation: await electionAutomation(env.TENX_DB),
     inventory: await inventoryStatus(env.TENX_DB),
     market_batches: await marketBatches(env.TENX_DB),
+    source_pilot: sourcePilotReadiness(),
     quality_automation: await qualityStatus(env.TENX_DB, Number(env.TENX_QUALITY_RPC_DAILY_LIMIT), env.TENX_QUALITY_ENABLED === "true"),
     capabilities: { discovery: true, voting: false, launches: false, signing: false, rewards: false, social_publishing: false },
   };
