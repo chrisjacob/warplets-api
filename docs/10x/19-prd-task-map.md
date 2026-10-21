@@ -4,6 +4,8 @@ Reviewed 20 October 2026 against the entire [PRD v1.1](spec/10X_MEME_FULL_PRD_v1
 
 ## What exists and what is incomplete
 
+P2/P3 lifecycle update, 21 October: [verified creation expiry with retained history](55-candidate-expiry.md) now removes proven old tokens from active collection/rehearsal inputs through bounded cached maintenance with immutable proof receipts and atomic audits. Every candidate/evidence row, historical token link and frozen v1 record remains. Unknown dates, oversized/unmatched proofs and active inventories above 500 remain explicit constraints; long-term compaction/restore and the ten-eligible-token goal are still open. The full itemized PRD checklist below remains the scope map.
+
 | PRD area | Implemented evidence | Remaining gap |
 |---|---|---|
 | §§4,17.1 Solana discovery | Separate finalized Pump creation and PumpSwap migration proofs; canonical identity/pool; strict age/permission/reserve gates; capped shortlist and cached APIs | Bounded WSOL/Pump-only coverage, provider gaps and stale snapshots; ten eligible recent tokens have not been achieved |

@@ -98,8 +98,10 @@ export async function captureCohort(db: D1Database, candidate: Candidate, at: st
   if (selected.eligibility === "eligible") statements.push(db.prepare("INSERT OR IGNORE INTO tenx_selections(day,address,selected_at,input_hash,payload) VALUES(?1,?2,?3,?4,?5)").bind(day, candidate.address, at, inputHash, JSON.stringify(payload)));
   await db.batch(statements);
 }
-export async function candidates(db: D1Database, mode: "live" | "fixture" = "live"): Promise<Candidate[]> {
-  const rows = await db.prepare("SELECT payload FROM tenx_candidates WHERE mode=?1 ORDER BY checked_at DESC LIMIT 500").bind(mode).all<{ payload: string }>();
+// Internal planning uses active inventory. The bounded history browser opts in
+// to retained rows; individual historical detail reads remain addressable.
+export async function candidates(db: D1Database, mode: "live" | "fixture" = "live", retained = false): Promise<Candidate[]> {
+  const rows = await db.prepare(`SELECT payload FROM ${retained ? "tenx_candidates" : "tenx_active_candidates"} WHERE mode=?1 ORDER BY checked_at DESC,address LIMIT 500`).bind(mode).all<{ payload: string }>();
   return rows.results.map(row => CandidateSchema.parse(JSON.parse(row.payload)));
 }
 export async function dryRun(db: D1Database, now?: Date, requestId: string = crypto.randomUUID(), reason = "Operator requested local election rehearsal") {

@@ -8,6 +8,7 @@ import { ActivitySchema } from "../../../discovery/src/activity-model";
 import { PublicPolicySchema } from "../../../discovery/src/policy-model";
 import { SignalResearchSchema } from "../../../discovery/src/signal-model";
 import { OperationsSchema } from "../../../discovery/src/operations-model";
+import { CandidateExpiryReceiptSchema, InventoryStatusSchema } from "../../../discovery/src/candidate-expiry-model";
 
 const Common = z.object({
   api_version: z.literal("10x-discovery-v1"), trace_id: z.string(), as_of: z.string().nullable(), served_at: z.string(),
@@ -17,7 +18,7 @@ const Common = z.object({
 });
 export const ListResponse = Common.extend({ data: z.object({ candidates: z.array(AssessedCandidateSchema).max(100), mode: z.enum(["live", "fixture"]), counts: z.object({ eligible: z.number(), provisional: z.number(), excluded: z.number() }) }), next_cursor: z.string().nullable() });
 export const CardListResponse = ListResponse.extend({ data: ListResponse.shape.data.extend({ candidates: z.array(CandidateCardSchema).max(100) }) });
-export const DetailResponse = Common.extend({ data: AssessedCandidateSchema });
+export const DetailResponse = Common.extend({ data: AssessedCandidateSchema, retention:CandidateExpiryReceiptSchema.nullable().optional() });
 export const CoverageResponse = Common.extend({ data: CoverageSchema });
 export const ActivityResponse = Common.extend({ data: ActivitySchema });
 export const PoliciesResponse = Common.extend({ data: PublicPolicySchema });
@@ -37,6 +38,7 @@ export const StatusResponse = Common.extend({ data: z.object({
   wallet_automation: z.object({ enabled: z.boolean(), daily_limit: z.number(), daily_used: z.number(), last_success: z.string().nullable(), next_refresh_at: z.string().nullable(), last_error: z.string().nullable() }).optional(),
   backing_index_automation:z.object({enabled:z.boolean(),daily_limit:z.number(),daily_used:z.number(),scope:z.literal("subset_of_wallet_and_global_RPC_limits")}).optional(),
   election_automation: ElectionAutomationSchema.optional(),
+  inventory: InventoryStatusSchema.optional(),
   market_provider: z.enum(["geckoterminal", "dexscreener"]).optional(),
   artwork_automation: z.object({ next_refresh_at: z.string().nullable(), last_error: z.string().nullable() }).optional(),
   quality_automation: z.object({ enabled: z.boolean(), daily_limit: z.number(), daily_used: z.number(), last_success: z.string().nullable(), next_refresh_at: z.string().nullable(), last_error: z.string().nullable(), targets: z.number() }).optional(),

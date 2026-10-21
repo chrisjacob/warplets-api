@@ -58,7 +58,7 @@ export async function createPolicyPreview(db: D1Database, body: unknown, observe
   const requestHash = await hashJson({ reason: request.reason, policy: proposed });
   const prior = await policyPreviewRecord(db, request.request_id);
   if (prior) { if (prior.request_hash !== requestHash) throw new PolicyPreviewError("policy_preview_request_conflict"); return prior; }
-  const rows = await db.prepare(`SELECT CASE WHEN COUNT(*) OVER()>500 OR SUM(length(CAST(payload AS BLOB))) OVER()>1600000 THEN NULL ELSE payload END AS payload FROM tenx_candidates WHERE mode='live' ORDER BY address LIMIT 501`).all<{ payload: string | null }>();
+  const rows = await db.prepare(`SELECT CASE WHEN COUNT(*) OVER()>500 OR SUM(length(CAST(payload AS BLOB))) OVER()>1600000 THEN NULL ELSE payload END AS payload FROM tenx_active_candidates WHERE mode='live' ORDER BY address LIMIT 501`).all<{ payload: string | null }>();
   if (rows.results.length > 500 || rows.results.some(r => r.payload === null)) throw new PolicyPreviewError("policy_preview_inventory_limit");
   // Timestamp after the single inventory read, so concurrent refreshes already
   // present in that read cannot accidentally be labelled future evidence.

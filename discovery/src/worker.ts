@@ -42,6 +42,7 @@ import { WatchdogReportSchema } from "./operations-model";
 import { inboxRecoveryStatus } from "./inbox-recovery";
 import { enqueueMintReview, mintReviews, MintReviewError } from "./mint-review";
 import { MINT_REVIEW_LIMITS } from "./mint-review-model";
+import { candidateExpiry, expireCandidates, inventoryStatus } from "./candidate-expiry";
 
 // Widen generated literal vars so ignored .dev.vars overrides stay type-safe.
 export type LocalEnv = { [K in keyof Cloudflare.Env]: Cloudflare.Env[K] extends string ? string : Cloudflare.Env[K] };
@@ -102,6 +103,7 @@ async function status(env: Env) {
     artwork_automation: await env.TENX_DB.prepare("SELECT next_refresh_at,last_error FROM tenx_artwork_control WHERE id=1").first(),
     wallet_automation: await walletStatus(env.TENX_DB, Number(env.TENX_WALLET_RPC_DAILY_LIMIT), env.TENX_WALLET_ANALYSIS_ENABLED === "true"),
     election_automation: await electionAutomation(env.TENX_DB),
+    inventory: await inventoryStatus(env.TENX_DB),
     quality_automation: await qualityStatus(env.TENX_DB, Number(env.TENX_QUALITY_RPC_DAILY_LIMIT), env.TENX_QUALITY_ENABLED === "true"),
     capabilities: { discovery: true, voting: false, launches: false, signing: false, rewards: false, social_publishing: false },
   };
@@ -184,7 +186,7 @@ export async function handle(request: Request, env: Env): Promise<Response> {
       view: z.enum(["full", "cards"]).default("full"),
       cursor: z.string().max(300).optional(),
     }).strict().parse(Object.fromEntries(url.searchParams));
-    const now = new Date(), stored = await candidates(env.TENX_DB, query.mode);
+    const now = new Date(), stored = await candidates(env.TENX_DB, query.mode, query.age === "all");
     const rows = shortlist(query.age === "24h" ? stored.filter(c => createdWithinWindow(c, now)) : stored, DEFAULT_POLICY, now);
     const snapshot = await hashJson(rows);
     const filtered = query.status === "all" ? rows : rows.filter(c => c.eligibility === query.status);
@@ -219,7 +221,7 @@ export async function handle(request: Request, env: Env): Promise<Response> {
     const stored = await env.TENX_DB.prepare("SELECT payload FROM tenx_candidates WHERE address=?1 AND mode=?2").bind(address, mode).first<{ payload: string }>();
     if (!stored) return json({ error: "candidate_not_found" }, 404);
     const candidate = assess(CandidateSchema.parse(JSON.parse(stored.payload)), DEFAULT_POLICY, new Date());
-    return json(await envelope(env, candidate));
+    return json(await envelope(env, candidate, { retention:mode === "live" ? await candidateExpiry(env.TENX_DB,address) : null }));
   }
   const evidence = path.match(/^\/api\/10x\/evidence\/([^/]+)$/);
   if (method === "GET" && evidence) {
@@ -288,6 +290,7 @@ export async function handle(request: Request, env: Env): Promise<Response> {
     if (path === "/api/10x/admin/maintenance" || path === "/api/10x/admin/review") {
       const now = new Date(), state = await control(env.TENX_DB);
       await env.TENX_DB.prepare("UPDATE tenx_control SET heartbeat_at=?1 WHERE id=1").bind(now.toISOString()).run();
+      const inventory = await expireCandidates(env.TENX_DB,now);
       const diagnostics = await runSignalCycle(env.TENX_DB);
       const backing_index=await runBackingIndex(settings(env));
       const backing = await settleBacking(env.TENX_DB,new Date());
@@ -298,9 +301,9 @@ export async function handle(request: Request, env: Env): Promise<Response> {
       if (path.endsWith("/review") || !state.reviewed_at || now.getTime() - Date.parse(state.reviewed_at) >= 3600000) {
         const review = await runReviews(env.TENX_DB, now);
         await env.TENX_DB.prepare("UPDATE tenx_control SET reviewed_at=?1 WHERE id=1").bind(now.toISOString()).run();
-        return json({ local: true, review, election, diagnostics, backing, backing_index });
+        return json({ local: true, review, election, diagnostics, backing, backing_index, inventory });
       }
-      return json({ local: true, review: "waiting_for_hourly_tick", election, diagnostics, backing, backing_index });
+      return json({ local: true, review: "waiting_for_hourly_tick", election, diagnostics, backing, backing_index, inventory });
     }
     if (path === "/api/10x/admin/refresh") {
       await audit(env.TENX_DB, "refresh_requested", reason, {});

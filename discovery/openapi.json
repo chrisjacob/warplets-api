@@ -47830,6 +47830,106 @@
               "launch_eligible"
             ],
             "additionalProperties": false
+          },
+          "retention": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "version": {
+                    "type": "string",
+                    "const": "verified-creation-expiry-v1"
+                  },
+                  "address": {
+                    "type": "string",
+                    "maxLength": 44
+                  },
+                  "creation": {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "const": "creation"
+                      },
+                      "signature": {
+                        "type": "string",
+                        "pattern": "^[1-9A-HJ-NP-Za-km-z]{64,88}$"
+                      },
+                      "slot": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      },
+                      "block_time": {
+                        "type": "string",
+                        "format": "date-time",
+                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                      },
+                      "instruction": {
+                        "type": "string"
+                      },
+                      "instruction_index": {
+                        "type": "string"
+                      },
+                      "program": {
+                        "type": "string",
+                        "maxLength": 44
+                      },
+                      "payload_hash": {
+                        "type": "string",
+                        "pattern": "^[a-f0-9]{64}$"
+                      },
+                      "fetched_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                      },
+                      "source": {
+                        "type": "string",
+                        "const": "solana-finalized-rpc"
+                      },
+                      "adapter_version": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "signature",
+                      "slot",
+                      "block_time",
+                      "instruction",
+                      "instruction_index",
+                      "program",
+                      "payload_hash",
+                      "fetched_at",
+                      "source",
+                      "adapter_version"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "expired_at": {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                  },
+                  "receipt_hash": {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{64}$"
+                  }
+                },
+                "required": [
+                  "version",
+                  "address",
+                  "creation",
+                  "expired_at",
+                  "receipt_hash"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -48643,6 +48743,59 @@
                   "last_error",
                   "latest_id",
                   "last_snapshot_at"
+                ],
+                "additionalProperties": false
+              },
+              "inventory": {
+                "type": "object",
+                "properties": {
+                  "policy": {
+                    "type": "string",
+                    "const": "verified-creation-expiry-v1"
+                  },
+                  "retained": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "active": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "expired": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "active_limit": {
+                    "type": "number",
+                    "const": 500
+                  },
+                  "active_over_limit": {
+                    "type": "boolean"
+                  },
+                  "last_expired_at": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "date-time",
+                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "policy",
+                  "retained",
+                  "active",
+                  "expired",
+                  "active_limit",
+                  "active_over_limit",
+                  "last_expired_at"
                 ],
                 "additionalProperties": false
               },

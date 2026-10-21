@@ -150,7 +150,7 @@ export async function openBacking(db: D1Database, raw: unknown, now = new Date()
   const request = OpenBackingRequest.parse(raw), requestHash = await hashJson(request), existing = await row(db,request.request_id);
   if (existing) { if (existing.request_hash !== requestHash) throw new BackingError("backing_request_conflict",409); return summary(existing); }
   const start = now.toISOString(), end = new Date(now.getTime() + request.duration_minutes * 60000).toISOString();
-  const all = await db.prepare("SELECT payload FROM tenx_candidates WHERE mode='live' ORDER BY address LIMIT 501").all<{payload:string}>();
+  const all = await db.prepare("SELECT payload FROM tenx_active_candidates WHERE mode='live' ORDER BY address LIMIT 501").all<{payload:string}>();
   if (all.results.length > 500) throw new BackingError("backing_candidate_inventory_limit");
   const membership = await db.prepare("SELECT (SELECT COALESCE(MAX(rowid),0) FROM tenx_identity_audit) AS watermark, (SELECT json_group_array(json_object('address',address,'identity_id',identity_id,'linked_at',linked_at)) FROM (SELECT * FROM tenx_identity_wallets WHERE linked_at<=? ORDER BY address LIMIT 1001)) AS members").bind(start).first<{watermark:number;members:string}>();
   const inventory = all.results.map(r => CandidateSchema.parse(JSON.parse(r.payload)));

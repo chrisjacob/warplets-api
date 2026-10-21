@@ -63,11 +63,11 @@ export async function electionSummaries(db: D1Database): Promise<ElectionSummary
 export async function createElection(db: D1Database, options: { id: string; kind: "manual" | "daily"; reason: string; now?: Date }): Promise<ElectionRecord> {
   const existing = await electionRecord(db, options.id);
   if (existing) return existing;
-  // One SELECT observes a consistent candidate inventory. Never silently drop
+  // One SELECT observes a consistent active inventory. Never silently drop
   // the 501st row, oversized individual rows or the bounded total inventory.
   const rows = await db.prepare(`SELECT CASE WHEN COUNT(*) OVER()>500 OR SUM(length(CAST(payload AS BLOB))) OVER()>?1 OR MAX(length(CAST(payload AS BLOB))) OVER()>?2 THEN NULL ELSE payload END AS payload,
     COUNT(*) OVER() AS total_count,SUM(length(CAST(payload AS BLOB))) OVER() AS total_bytes
-    FROM tenx_candidates WHERE mode='live' ORDER BY address LIMIT 501`).bind(ELECTION_INPUT_BYTES,ELECTION_INLINE_BYTES).all<{ payload: string | null; total_count: number; total_bytes: number }>();
+    FROM tenx_active_candidates WHERE mode='live' ORDER BY address LIMIT 501`).bind(ELECTION_INPUT_BYTES,ELECTION_INLINE_BYTES).all<{ payload: string | null; total_count: number; total_bytes: number }>();
   if (rows.results.length > 500) throw new ElectionError("election_candidate_limit");
   if (rows.results.some(r => r.payload === null)) throw new ElectionError("election_snapshot_size_limit");
   const at = options.now ?? new Date(), inputs = freezeElection(rows.results.map(r => CandidateSchema.parse(JSON.parse(r.payload!))), at), result = evaluateElection(inputs);
