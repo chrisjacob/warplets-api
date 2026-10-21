@@ -34,6 +34,11 @@ test("trader bridge pins one unfiltered top-100 buy-ranked query and rejects bro
   assert.ok(gmgnRelayTarget(target,now));
   for(const bad of [target.replace("limit=100","limit=101"),target.replace("direction=desc","direction=asc"),target.replace("order_by=buy_volume_cur","order_by=profit"),target+"&tag=smart_degen",target+"&limit=100",target+"&cursor=next"])assert.equal(gmgnRelayTarget(bad,now),null);
 });
+test("activity bridge requires both a wallet and exact token with one 20-row page",()=>{
+  const now=Date.parse("2026-10-21T01:00:22.000Z"),target=`/gmgn/v1/user/wallet_activity?${query(now).replace(`address=${address}`,`wallet_address=${address}&token_address=${address}`)}&limit=20`;
+  assert.ok(gmgnRelayTarget(target,now));
+  for(const bad of [target.replace("limit=20","limit=21"),target.replace(`&token_address=${address}`,""),target+"&cursor=next",target+"&type=buy",target+"&limit=20"])assert.equal(gmgnRelayTarget(bad,now),null);
+});
 test("authenticated loopback bridge preserves rate-limit status/reset without forwarding local credentials", async () => {
   const token = "local-test-operator-".repeat(4), calls = [];
   const server = await startRelay({ token, rpcUrl: "https://api.mainnet-beta.solana.com", port: 0,

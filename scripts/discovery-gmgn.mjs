@@ -27,6 +27,7 @@ export function gmgnOperatorRequest(args, now = new Date()) {
   if (command === "status" && args.length === 1) return { path: "admin/gmgn/status", method: "GET" };
   if (command === "saved" && args.length === 2 && /^[a-f0-9-]{36}$/i.test(address)) return { path: `admin/gmgn/reviews/${address}`, method: "GET" };
   if (command === "window-saved" && args.length === 2 && /^[a-f0-9-]{36}$/i.test(address)) return { path: `admin/gmgn/windows/${address}`, method: "GET" };
+  if(command==="activity"&&args.length===2&&/^[a-f0-9-]{36}$/i.test(address))return{path:`admin/gmgn/activity-target/${address}`,method:"GET"};
   if (!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address ?? "")) throw new Error("Provide an exact Solana mint");
   let request;
   if (command === "probe" && args.length === 2) request = { kind: "gmgn_token_info", address };
@@ -55,7 +56,10 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       };
       const args=process.argv.slice(2);
       let data;
-      if(args[0]==="window"&&args.length===2)data=await collectGmgnWindow(gmgnWindowPlan(args[1]),call);
+      if(args[0]==="activity"&&args.length===2){
+        const target=await call(gmgnOperatorRequest(args));
+        data=target.state==="ready"?await call({path:"admin/gmgn/review",method:"POST",body:{reason:"Largest-flow wallet in retained trader sample; one token-filtered page",request_id:randomUUID(),mode:"retained_research",request:target.request}}):target;
+      }else if(args[0]==="window"&&args.length===2)data=await collectGmgnWindow(gmgnWindowPlan(args[1]),call);
       else if(args[0]==="resume-window"&&args.length===2){
         const old=await call(gmgnOperatorRequest(["window-saved",args[1]]));
         data=await collectGmgnWindow(gmgnWindowPlan(old.address,new Date(),old.window_id,{start_at:old.window_start,end_at:old.window_end}),call,{existing:old.receipt_refs});

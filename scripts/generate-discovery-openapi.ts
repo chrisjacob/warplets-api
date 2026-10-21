@@ -48,6 +48,7 @@ const spec = {
   openapi: "3.1.0", info: { title: "10X local Solana discovery", version: "0.1.0", description: "Local-only chain discovery and signed-message wallet ownership. No server-held signers, transactions, votes, launches or financial flows. Public reads use stored data; only authenticated refresh makes provider requests." },
   servers: [{ url: "http://127.0.0.1:8794" }],
   paths: {
+    "/api/10x/admin/gmgn/activity-target/{id}":read("Private cache-only deterministic largest-flow wallet plan; no provider IO",{security:[{localOperator:[]}],parameters:[parameter("id","path",{type:"string",format:"uuid"},true)]}),
     "/api/10x/holders/acquisition/solana/{address}":read("Cached signed-buy matching for raw entrants; sample evidence with qualified growth held",{...responseSchema("HolderAcquisitionReport"),parameters:[parameter("address","path",{type:"string"},true)]}),
     "/api/10x/admin/holders/acquisition/solana/{address}":read("Private acquisition inputs and replayable report; no source IO or database writes",{security:[{localOperator:[]}],parameters:[parameter("address","path",{type:"string"},true)]}),
     "/api/10x/holders/history/solana/{address}":read("Hash-verified raw owner changes from cached full inventories; no qualified growth or provider IO",{...responseSchema("HolderHistoryReport"),parameters:[parameter("address","path",{type:"string"},true)]}),

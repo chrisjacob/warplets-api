@@ -3,12 +3,21 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { GmgnEvidence, GmgnEvidenceValues } from "./GmgnEvidence";
 import { type GmgnPublicSummary, GMGN_USE_AUTHORITY, GmgnPublicSummarySchema } from "../../../discovery/src/gmgn-model";
 import {normalizeGmgnTraders} from "../../../discovery/src/gmgn-traders";
+import {normalizeGmgnWalletActivity} from "../../../discovery/src/gmgn-wallet-activity";
 const data: GmgnPublicSummary = { version: "gmgn-summary-v1", address: "So11111111111111111111111111111111111111112", use_authority: GMGN_USE_AUTHORITY,
   provider_rights_independently_confirmed: false, observations: 2, received_at: "2026-10-21T01:00:00.000Z", provider_observed_at: null, stale: true,
   reported_volume_24h_usd: 12345, reported_volume_1h_usd: null, reported_holder_count: 123, provider_wash_flag: false, provider_rug_ratio: 0,
   provider_insider_hold_ratio: .25, provider_bundler_volume_ratio: null, candle_count: null, candle_window_complete: null, candle_window_volume_usd: null,
-  candle_review: null, candle_coverage: null, trader_sample:null, gaps: ["organic_volume_unknown"], organic_volume_usd: null, meaningful_holder_growth: null, scoring_effect: "none" };
+  candle_review: null, candle_coverage: null, trader_sample:null,wallet_activity:null,wallet_activity_issue:null, gaps: ["organic_volume_unknown"], organic_volume_usd: null, meaningful_holder_growth: null, scoring_effect: "none" };
 describe("GMGN evidence presentation", () => {
+  it("labels targeted activity, missing fields, pagination and reported patterns without wash or daily certification",()=>{
+    const wallet_activity=normalizeGmgnWalletActivity({activities:[{tx_hash:"1".repeat(64),token:{address:data.address},event_type:"buy",timestamp:1,token_amount:10}],next:"opaque"},{address:data.address,selection_id:"10000000-0000-4000-8000-000000000001",selection_hash:"a".repeat(64)},data.received_at!);
+    const html=renderToStaticMarkup(<GmgnEvidenceValues data={{...data,wallet_activity}}/>);
+    for(const text of ["Selected wallet trading activity","targeted investigation","pagination held","not 24h totals","Unknown / Unknown","No wash-trading verdict","No listed pattern trigger"])expect(html).toContain(text);
+    const{wallet_activity:_,...legacy}=data;expect(GmgnPublicSummarySchema.parse(legacy).wallet_activity).toBeNull();
+    const failed=renderToStaticMarkup(<GmgnEvidenceValues data={{...data,observations:0,wallet_activity_issue:{received_at:data.received_at!,http_status:200,error:"source_collection_response_unusable",fields:["activities.cost_usd"]}}}/>);
+    expect(failed).toContain("attempt held");expect(failed).toContain("No accepted activity sample");expect(failed).not.toContain("$0");
+  });
   it("shows ranked flow denominators and period uncertainty without organic or wash certification",()=>{
     const trader_sample=normalizeGmgnTraders({list:[{address:data.address,addr_type:0,buy_volume_cur:100,sell_volume_cur:90}]},data.received_at!);
     const html=renderToStaticMarkup(<GmgnEvidenceValues data={{...data,trader_sample}}/>);

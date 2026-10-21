@@ -4,6 +4,7 @@ import { gmgnEnvelope, GmgnRequestSchema } from "./gmgn-request";
 import { boundedJsonValue } from "./source-pilot";
 import { normalizeGmgnCandles } from "./gmgn-candles";
 import { normalizeGmgnTraders } from "./gmgn-traders";
+import { normalizeGmgnWalletActivity } from "./gmgn-wallet-activity";
 
 const Decimal = z.union([z.number().finite(), z.string().regex(/^\d+(?:\.\d+)?$/).max(100).transform(Number)]).pipe(z.number().finite().nonnegative());
 const Ratio = Decimal.pipe(z.number().max(1));
@@ -54,6 +55,9 @@ export function normalizeGmgn(rawRequest: unknown, raw: unknown, receivedAt: str
     if (expectedPool && row.address !== expectedPool) gaps.push("provider_main_pool_differs_from_canonical");
     metrics = { reported_pool: row.address, reported_base: row.base_address, reported_quote: row.quote_address, reported_liquidity_usd: row.liquidity,
       independently_expected_pool: expectedPool ?? null, pool_address_matches: expectedPool ? row.address === expectedPool : null };
+  } else if(request.kind==="gmgn_wallet_activity"){
+    identity="response_event_mints_match_request_wallet_context_only";metrics=normalizeGmgnWalletActivity(data,request,receivedAt);
+    gaps.push("single_rank_selected_wallet_only","activity_pagination_not_followed","transaction_signatures_not_independently_verified","same_transaction_or_repeated_sizes_not_wash_proof");
   } else if(request.kind==="gmgn_token_traders"){
     identity="request_context_only";metrics=normalizeGmgnTraders(data,receivedAt);
     gaps.push("trader_aggregate_period_unknown","ranked_trader_sample_not_population","response_mint_and_pool_not_echoed","two_sided_activity_not_wash_proof");

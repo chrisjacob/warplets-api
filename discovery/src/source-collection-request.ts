@@ -14,7 +14,7 @@ export const SourceFetchRequestSchema = z.union([
 export type SourceFetchRequest = z.infer<typeof SourceFetchRequestSchema>;
 export function sourceFetchDescriptor(raw: unknown, now: Date) {
   const request = SourceFetchRequestSchema.parse(raw);
-  if (request.kind === "gmgn_token_info" || request.kind === "gmgn_token_security" || request.kind === "gmgn_token_pool" || request.kind === "gmgn_token_candles" || request.kind === "gmgn_token_traders") return gmgnDescriptor(request, now);
+  if (request.kind === "gmgn_token_info" || request.kind === "gmgn_token_security" || request.kind === "gmgn_token_pool" || request.kind === "gmgn_token_candles" || request.kind === "gmgn_token_traders" || request.kind === "gmgn_wallet_activity") return gmgnDescriptor(request, now);
   if (request.kind === "geckoterminal_pool_candles" && Date.parse(request.end_at) > Math.floor(now.getTime() / 60_000) * 60_000)
     throw new Error("source_collection_open_candle_window");
   let url: string;

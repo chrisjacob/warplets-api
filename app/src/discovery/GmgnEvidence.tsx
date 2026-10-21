@@ -5,7 +5,7 @@ import { getJson } from "./client";
 const usd = (value: number | null) => value === null ? "Unknown" : new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(value);
 const percent = (value: number | null) => value === null ? "Unknown" : `${(value * 100).toFixed(1)}%`;
 export function GmgnEvidenceValues({ data }: { data: GmgnPublicSummary }) {
-  if (!data.observations && !data.candle_coverage) return <p>No saved GMGN observations for this token in the recent cache. Missing data adds no score credit.</p>;
+  if (!data.observations && !data.candle_coverage&&!data.wallet_activity_issue) return <p>No saved GMGN observations for this token in the recent cache. Missing data adds no score credit.</p>;
   return <>
     <p>GMGN reports · received {data.received_at ? new Date(data.received_at).toLocaleString() : "at an unknown time"}{data.stale && <strong> · Stale receipt</strong>}. Provider measurement time is unknown.</p>
     <div className="tenx-market-overview"><dl>
@@ -44,6 +44,21 @@ export function GmgnEvidenceValues({ data }: { data: GmgnPublicSummary }) {
         <dt>Reported buy / sell transactions</dt><dd>{data.trader_sample.reported_buy_transactions??"Unknown"} / {data.trader_sample.reported_sell_transactions??"Unknown"} across {data.trader_sample.complete_count_rows} rows with both counts</dd>
       </dl>
       <p>Shares use only the returned regular-wallet rows with both volume fields. Missing fields stay unknown; pool and unclassified rows earn no participation support. Buy-ranked selection misses other activity. Two-sided trading is ordinary behavior too: the smaller-leg sum does not match actual counterparties, prove round trips or establish wash trading. Wallet labels do not prove independent owners. No organic-volume or scoring credit.</p>
+    </section>}
+    {data.wallet_activity_issue&&<p role="status">Latest selected-wallet activity attempt held · {new Date(data.wallet_activity_issue.received_at).toLocaleString()} · {data.wallet_activity_issue.error.replaceAll("_"," ")}{data.wallet_activity_issue.fields.length?` · fields: ${data.wallet_activity_issue.fields.join(", ")}`:""}. Rejected data earns no credit.{data.wallet_activity?" The earlier saved sample remains visible with its own dates.":" No accepted activity sample is available."}</p>}
+    {data.wallet_activity && <section aria-label="Selected wallet activity">
+      <h3>Selected wallet trading activity</h3>
+      <p>One wallet selected for the largest complete reported flow in a saved trader sample. This is a targeted investigation, not representative market coverage. Received {new Date(data.wallet_activity.received_at).toLocaleString()}.</p>
+      <p>{data.wallet_activity.returned_events} / 20 events returned · {data.wallet_activity.unique_transactions} reported transaction signatures · {data.wallet_activity.pagination==="more_reported"?"more history reported; pagination held":data.wallet_activity.pagination==="end_reported"?"provider reports page end; completeness unverified":"pagination status unknown"}.</p>
+      <p>{data.wallet_activity.buy_events} buys · {data.wallet_activity.sell_events} sells · {data.wallet_activity.non_trade_events} transfers or liquidity events excluded from trade measurements.</p>
+      <p>Known trade times: {data.wallet_activity.first_trade_at?new Date(data.wallet_activity.first_trade_at).toLocaleString():"Unknown"} → {data.wallet_activity.last_trade_at?new Date(data.wallet_activity.last_trade_at).toLocaleString():"Unknown"}. {data.wallet_activity.unknown_time_events} trade events have unknown times. These are sampled events, not 24h totals.</p>
+      <dl>
+        <dt>Reported buy / sell USD</dt><dd>{usd(data.wallet_activity.reported_buy_usd)} / {usd(data.wallet_activity.reported_sell_usd)}; {data.wallet_activity.measured_usd_trade_events} nonnegative USD fields, {data.wallet_activity.missing_usd_trade_events} missing, {data.wallet_activity.unusable_usd_trade_events} unusable, {data.wallet_activity.unresolved_signed_usd_trade_events} signed USD fields unresolved. Affected totals stay unknown; signed values are never converted to absolute volume.</dd>
+        <dt>Signatures reporting both a buy and sell</dt><dd>{data.wallet_activity.two_sided_transactions}</dd>
+        <dt>Trade events sharing an exact same-side token size</dt><dd>{data.wallet_activity.repeated_same_side_token_size_events} / {data.wallet_activity.measured_token_trade_events} with known token quantities</dd>
+        <dt>Smallest / largest gap between distinct reported trade seconds</dt><dd>{data.wallet_activity.minimum_positive_trade_gap_seconds??"Unknown"} / {data.wallet_activity.maximum_trade_gap_seconds??"Unknown"} seconds</dd>
+      </dl>
+      <p><strong>{data.wallet_activity.review_reasons.length?"Activity patterns to review":"No listed pattern trigger in this sample"}.</strong> Repeated sizes can come from ordinary orders; a signature with both sides can be routing or arbitrage. Same-second events have no inferred order. Signatures, wallet scope and pool identity are not independently verified. No wash-trading verdict, organic-volume or scoring credit.</p>
     </section>}
     <p>Volume is a reported total, not verified organic demand. Holder count includes unclassified balances; meaningful holder growth remains unknown. A missing or unflagged provider label does not establish clean trading. These observations do not change the Discovery score or action checks.</p>
     <details><summary>Coverage and source limits</summary><ul>{data.gaps.map(gap => <li key={gap}>{gap.replaceAll("_", " ")}</li>)}</ul></details>

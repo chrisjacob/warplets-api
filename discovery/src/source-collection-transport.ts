@@ -7,6 +7,7 @@ import { gmgnEnvelope } from "./gmgn-request";
 import { normalizeGmgn } from "./gmgn-normalize";
 import { GMGN_USE_AUTHORITY } from "./gmgn-model";
 import { GmgnCandleError } from "./gmgn-candles";
+import {GmgnActivityError} from "./gmgn-wallet-activity";
 
 const owned = `id=?1 AND owner=?2 AND request_hash=?3 AND reserved_at<=?4 AND lease_until>?4 AND day=substr(?4,1,10)
   AND EXISTS(SELECT 1 FROM tenx_control WHERE id=1 AND paused=0)`;
@@ -50,7 +51,8 @@ export async function executeReservedSource(db: D1Database, reservation: SourceR
   const row = await db.prepare("SELECT request,reserved_at FROM tenx_source_reservations WHERE id=?1 AND owner=?2").bind(reservation.id, reservation.owner).first<{request:string;reserved_at:string}>();
   let response: Response | undefined, responseBody: unknown = null, error: string | null = null, requests = 0;
   let accessProbe = false, accessAccepted = false, permissionReference: string | null = null;
-  let validationFailure: GmgnCandleError["reason"] | null = null;
+  let validationFailure: GmgnCandleError["reason"] | GmgnActivityError["reason"] | null = null;
+  let activityValidationFields:string[]=[];
   const gmgnBackoff: { until: string | null } = { until: null };
   const controller = new AbortController();
   let timeout: ReturnType<typeof setTimeout> | undefined;
@@ -107,6 +109,7 @@ export async function executeReservedSource(db: D1Database, reservation: SourceR
     })]);
   } catch (cause) {
     if (cause instanceof GmgnCandleError) validationFailure = cause.reason;
+    if(cause instanceof GmgnActivityError){validationFailure=cause.reason;activityValidationFields=cause.fields;}
     // Do not persist upstream bodies/headers/errors/locations from failures.
     error = controller.signal.aborted ? "source_collection_timeout" : response && !response.ok ? "source_collection_http_error" : "source_collection_response_unusable";
     controller.abort();
@@ -119,6 +122,7 @@ export async function executeReservedSource(db: D1Database, reservation: SourceR
   const receipt = { version: "source-fetch-receipt-v1", request_hash: reservation.request_hash, response_hash: await hashJson(responseBody), reserved_at: row?.reserved_at ?? null,
     received_at: finished.toISOString(), status: response?.status ?? null, error, response: responseBody,
     ...(gmgn ? { access_probe: accessProbe, access_accepted: accessAccepted, research_permission_reference: permissionReference, validation_failure: validationFailure } : {}),
+    ...(activityValidationFields.length?{activity_validation_fields:activityValidationFields}:{}),
     // HTTP receipt is not chain identity, provider signature or semantic validation.
     semantic_validation: accessAccepted ? "gmgn_selected_fields_v2" : "not_checked", canonical_pool_proof: "not_checked", scoring_effect: "none" };
   const payload = JSON.stringify(receipt), bytes = new TextEncoder().encode(payload).length, receipt_hash = await hashJson(receipt);

@@ -20,9 +20,13 @@ export type GmgnTraderSample=z.infer<typeof GmgnTraderSampleSchema>;
 
 // These aggregates have no documented exact time boundary. Never compare them
 // with candle totals or call them 24h/organic volume. Ranking is sample-biased.
-export function normalizeGmgnTraders(raw:unknown,receivedAt:string){
+export function gmgnTraderRows(raw:unknown){
   const {list}=z.object({list:z.array(Trader).max(100)}).parse(raw);
   if(new Set(list.map(row=>row.address)).size!==list.length)throw Error("gmgn_duplicate_trader");
+  return list;
+}
+export function normalizeGmgnTraders(raw:unknown,receivedAt:string){
+  const list=gmgnTraderRows(raw);
   const wallets=list.filter(row=>row.addr_type===0),volume=wallets.filter(row=>row.buy_volume_cur!==null&&row.sell_volume_cur!==null),counts=wallets.filter(row=>row.buy_tx_count_cur!==null&&row.sell_tx_count_cur!==null);
   const sum=(values:number[])=>{const n=values.reduce((a,b)=>a+b,0);if(!Number.isFinite(n))throw Error("gmgn_trader_overflow");return n;};
   const buys=volume.length?sum(volume.map(row=>row.buy_volume_cur!)):null,sells=volume.length?sum(volume.map(row=>row.sell_volume_cur!)):null;

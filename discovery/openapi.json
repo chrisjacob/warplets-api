@@ -11,6 +11,66 @@
     }
   ],
   "paths": {
+    "/api/10x/admin/gmgn/activity-target/{id}": {
+      "get": {
+        "summary": "Private cache-only deterministic largest-flow wallet plan; no provider IO",
+        "responses": {
+          "200": {
+            "description": "Success; cached public data includes timestamps, source freshness and coverage",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "401": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "403": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "404": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "409": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "413": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "415": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "429": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "503": {
+            "description": "Structured JSON error; no provider secrets"
+          }
+        },
+        "security": [
+          {
+            "localOperator": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ]
+      }
+    },
     "/api/10x/holders/acquisition/solana/{address}": {
       "get": {
         "summary": "Cached signed-buy matching for raw entrants; sample evidence with qualified growth held",
@@ -4963,6 +5023,40 @@
                   },
                   "request": {
                     "anyOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "const": "gmgn_wallet_activity"
+                          },
+                          "address": {
+                            "type": "string",
+                            "maxLength": 44
+                          },
+                          "wallet": {
+                            "type": "string",
+                            "maxLength": 44
+                          },
+                          "selection_id": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
+                          "selection_hash": {
+                            "type": "string",
+                            "pattern": "^[a-f0-9]{64}$"
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "address",
+                          "wallet",
+                          "selection_id",
+                          "selection_hash"
+                        ],
+                        "additionalProperties": false
+                      },
                       {
                         "type": "object",
                         "properties": {
@@ -35091,7 +35185,7 @@
           "observations": {
             "type": "integer",
             "minimum": 0,
-            "maximum": 5
+            "maximum": 6
           },
           "received_at": {
             "anyOf": [
@@ -35715,6 +35809,326 @@
               }
             ]
           },
+          "wallet_activity": {
+            "default": null,
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "version": {
+                    "type": "string",
+                    "const": "gmgn-wallet-activity-v1"
+                  },
+                  "selection": {
+                    "type": "string",
+                    "const": "largest_complete_regular_wallet_flow_in_saved_trader_sample"
+                  },
+                  "source_request_id": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "source_receipt_hash": {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{64}$"
+                  },
+                  "received_at": {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                  },
+                  "requested_limit": {
+                    "type": "number",
+                    "const": 20
+                  },
+                  "returned_events": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 20
+                  },
+                  "limit_reached": {
+                    "type": "boolean"
+                  },
+                  "pagination": {
+                    "type": "string",
+                    "enum": [
+                      "more_reported",
+                      "end_reported",
+                      "unknown"
+                    ]
+                  },
+                  "population_coverage": {
+                    "type": "string",
+                    "const": "unknown"
+                  },
+                  "buy_events": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 20
+                  },
+                  "sell_events": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 20
+                  },
+                  "non_trade_events": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 20
+                  },
+                  "unique_transactions": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 20
+                  },
+                  "unknown_time_events": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 20
+                  },
+                  "first_trade_at": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "date-time",
+                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "last_trade_at": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "date-time",
+                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "trade_span_seconds": {
+                    "anyOf": [
+                      {
+                        "type": "number",
+                        "minimum": 0
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "measured_usd_trade_events": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 20
+                  },
+                  "missing_usd_trade_events": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 20
+                  },
+                  "unusable_usd_trade_events": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 20
+                  },
+                  "unresolved_signed_usd_trade_events": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 20
+                  },
+                  "reported_buy_usd": {
+                    "anyOf": [
+                      {
+                        "type": "number",
+                        "minimum": 0
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "reported_sell_usd": {
+                    "anyOf": [
+                      {
+                        "type": "number",
+                        "minimum": 0
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "measured_token_trade_events": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 20
+                  },
+                  "repeated_same_side_token_size_events": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 20
+                  },
+                  "two_sided_transactions": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 20
+                  },
+                  "distinct_trade_seconds": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 20
+                  },
+                  "minimum_positive_trade_gap_seconds": {
+                    "anyOf": [
+                      {
+                        "type": "number",
+                        "minimum": 0
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "maximum_trade_gap_seconds": {
+                    "anyOf": [
+                      {
+                        "type": "number",
+                        "minimum": 0
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "review_reasons": {
+                    "maxItems": 2,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": [
+                        "reported_buy_and_sell_in_same_transaction",
+                        "repeated_same_side_token_sizes"
+                      ]
+                    }
+                  },
+                  "independent_transaction_verification": {
+                    "type": "boolean",
+                    "const": false
+                  },
+                  "organic_volume_usd": {
+                    "type": "null"
+                  },
+                  "wash_trading_verdict": {
+                    "type": "string",
+                    "const": "not_established"
+                  },
+                  "scoring_effect": {
+                    "type": "string",
+                    "const": "none"
+                  }
+                },
+                "required": [
+                  "version",
+                  "selection",
+                  "source_request_id",
+                  "source_receipt_hash",
+                  "received_at",
+                  "requested_limit",
+                  "returned_events",
+                  "limit_reached",
+                  "pagination",
+                  "population_coverage",
+                  "buy_events",
+                  "sell_events",
+                  "non_trade_events",
+                  "unique_transactions",
+                  "unknown_time_events",
+                  "first_trade_at",
+                  "last_trade_at",
+                  "trade_span_seconds",
+                  "measured_usd_trade_events",
+                  "missing_usd_trade_events",
+                  "unusable_usd_trade_events",
+                  "unresolved_signed_usd_trade_events",
+                  "reported_buy_usd",
+                  "reported_sell_usd",
+                  "measured_token_trade_events",
+                  "repeated_same_side_token_size_events",
+                  "two_sided_transactions",
+                  "distinct_trade_seconds",
+                  "minimum_positive_trade_gap_seconds",
+                  "maximum_trade_gap_seconds",
+                  "review_reasons",
+                  "independent_transaction_verification",
+                  "organic_volume_usd",
+                  "wash_trading_verdict",
+                  "scoring_effect"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "wallet_activity_issue": {
+            "default": null,
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "received_at": {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                  },
+                  "http_status": {
+                    "anyOf": [
+                      {
+                        "type": "integer",
+                        "minimum": 100,
+                        "maximum": 599
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "error": {
+                    "type": "string",
+                    "enum": [
+                      "source_collection_timeout",
+                      "source_collection_http_error",
+                      "source_collection_response_unusable"
+                    ]
+                  },
+                  "fields": {
+                    "maxItems": 12,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "pattern": "^(?:root|(?:activities|next|tx_hash|token|address|event_type|type|timestamp|token_amount|cost_usd)(?:\\.(?:activities|next|tx_hash|token|address|event_type|type|timestamp|token_amount|cost_usd))*)$"
+                    }
+                  }
+                },
+                "required": [
+                  "received_at",
+                  "http_status",
+                  "error",
+                  "fields"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "gaps": {
             "maxItems": 30,
             "type": "array",
@@ -35756,6 +36170,8 @@
           "candle_review",
           "candle_coverage",
           "trader_sample",
+          "wallet_activity",
+          "wallet_activity_issue",
           "gaps",
           "organic_volume_usd",
           "meaningful_holder_growth",
