@@ -7,26 +7,28 @@ import { pricePatternReview, PRICE_PATTERN_RULE } from "../../../discovery/src/p
 
 const valueLabel = (v: number | null) => v === null ? "Unavailable" : v === 0 ? "$0" : v < .0001 ? `$${v.toExponential(3)}` : new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: v < 1 ? 6 : 2 }).format(v);
 export function useTokenArtwork(addresses: string[]) {
-  const key = [...new Set(addresses)].sort().join(","), [artwork, setArtwork] = useState<Record<string, Artwork>>({});
+  const key = [...new Set(addresses)].sort().join(","), [artwork, setArtwork] = useState<Record<string, Artwork | null>>({});
   useEffect(() => {
-    setArtwork({}); if (!key) return;
+    const wanted = new Set(key ? key.split(",") : []);
+    setArtwork(current => Object.fromEntries(Object.entries(current).filter(([address]) => wanted.has(address))));
+    if (!key) return;
     const controller = new AbortController();
     const load = async () => {
-      try { const response = await getJson(`/api/10x/artwork?addresses=${key}`, ArtworkResponseSchema, controller.signal); if (!controller.signal.aborted) setArtwork(response.data); }
-      catch { /* Artwork is optional; identity and evidence stay readable. */ }
+      try { const response = await getJson(`/api/10x/artwork?addresses=${key}`, ArtworkResponseSchema, controller.signal); if (!controller.signal.aborted) setArtwork(Object.fromEntries(key.split(",").map(address => [address, response.data[address] ?? null]))); }
+      catch { if (!controller.signal.aborted) setArtwork(current => Object.fromEntries(key.split(",").map(address => [address, current[address] ?? null]))); }
     };
     void load(); const timer = window.setInterval(() => { if (document.visibilityState === "visible") void load(); }, 60000);
     return () => { controller.abort(); window.clearInterval(timer); };
   }, [key]);
   return artwork;
 }
-export function TokenImage({ url, metadataUrl, name, symbol, large = false }: { url?: string | null; metadataUrl?: string | null; name: string; symbol: string; large?: boolean }) {
+export function TokenImage({ url, metadataUrl, name, symbol, large = false, metadataLoading = false }: { url?: string | null; metadataUrl?: string | null; name: string; symbol: string; large?: boolean; metadataLoading?: boolean }) {
   const sources = tokenImageSources(url, metadataUrl);
-  return <TokenArtworkImage key={sources.join("|")} sources={sources} name={name} symbol={symbol} large={large} />;
+  return <TokenArtworkImage key={sources.join("|")} sources={sources} name={name} symbol={symbol} large={large} metadataLoading={metadataLoading} />;
 }
-function TokenArtworkImage({ sources, name, symbol, large }: { sources: string[]; name: string; symbol: string; large: boolean }) {
+function TokenArtworkImage({ sources, name, symbol, large, metadataLoading }: { sources: string[]; name: string; symbol: string; large: boolean; metadataLoading: boolean }) {
   const [index, setIndex] = useState(0), src = sources[index], size = large ? 144 : 88;
-  return src ? <img className={`tenx-token-image${large ? " tenx-token-image--large" : ""}`} src={src} alt={`${name} token artwork`} width={size} height={size} loading={large ? "eager" : "lazy"} decoding="async" referrerPolicy="no-referrer" onError={() => setIndex(i => i + 1)} /> : <span className={`tenx-token-icon${large ? " tenx-token-image--large" : ""}`} role="img" aria-label={`${name}: image unavailable`}><span>{symbol.slice(0, 2)}</span><small>Image unavailable</small></span>;
+  return src ? <img className={`tenx-token-image${large ? " tenx-token-image--large" : ""}`} src={src} alt={`${name} token artwork`} width={size} height={size} loading={large ? "eager" : "lazy"} decoding="async" referrerPolicy="no-referrer" onError={() => setIndex(i => i + 1)} /> : <span className={`tenx-token-icon${large ? " tenx-token-image--large" : ""}`} role="img" aria-label={`${name}: ${metadataLoading ? "artwork loading" : "image unavailable"}`}><span>{symbol.slice(0, 2)}</span><small>{metadataLoading ? "Loading artwork…" : "Image unavailable"}</small></span>;
 }
 function LineChart({ points, field, title }: { points: Market[]; field: "price_usd" | "market_cap_usd"; title: string }) {
   const id = useId(), [hover, setHover] = useState<number | null>(null);

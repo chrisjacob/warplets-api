@@ -30,7 +30,7 @@ describe("creation-linked token artwork", () => {
   it("normalizes IPFS and permits only explicit image hosts and media paths", () => {
     expect(safeMetadataUrl(`ipfs://${cid}`)).toBe(`https://gateway.pinata.cloud/ipfs/${cid}`);
     expect(safeTokenImage("https://pbs.twimg.com/media/HVAL_kebgAAP6r9?format=png")).toBeTruthy();
-    expect(tokenImageSources(uri, `ipfs://${cid}`)).toEqual([`https://gateway.pinata.cloud/ipfs/${cid}`]);
+    expect(tokenImageSources(uri, `ipfs://${cid}`)).toEqual([`https://gateway.pinata.cloud/ipfs/${cid}`, `https://ipfs.io/ipfs/${cid}`]);
     for (const u of ["http://127.0.0.1/secret", "https://gateway.pinata.cloud:8794/ipfs/" + cid, "https://pbs.twimg.com/redirect", "https://pbs.twimg.com.evil.example/media/a", "data:image/png,x"]) expect(safeTokenImage(u)).toBeNull();
     expect(safeMetadataUrl("https://pbs.twimg.com/media/abc")).toBeNull();
   });
@@ -83,6 +83,66 @@ describe("creation-linked token artwork", () => {
     transport.mockImplementationOnce(async () => new Response(null, { status: 302, headers: { location: "http://localhost/private" } }));
     await runArtworkCycle(settings, at); expect((await artworkFor(db, [c.address]))[c.address]!.image_url).toBeNull();
     expect(transport).toHaveBeenCalledTimes(1);
+  });
+  it("rewrites custom Pinata content pointers to the fixed host and accepts profile artwork safely", () => {
+    expect(safeMetadataUrl(`https://coffee-tragic-silverfish-214.mypinata.cloud/ipfs/${cid}/metadata.json`)).toBe(`https://gateway.pinata.cloud/ipfs/${cid}/metadata.json`);
+    expect(safeTokenImage("https://pbs.twimg.com/profile_images/12345/avatar_normal.jpg")).toBeTruthy();
+    for(const url of [`https://custom.mypinata.cloud.evil.invalid/ipfs/${cid}`, `https://custom.mypinata.cloud/private/${cid}`, `https://user:pass@custom.mypinata.cloud/ipfs/${cid}`, `https://custom.mypinata.cloud:8794/ipfs/${cid}`, "https://pbs.twimg.com/profile_images/private/avatar.png"])
+      expect(safeTokenImage(url)).toBeNull();
+  });
+  it("uses real Pump proxy references, with bounded safe nested fallbacks", () => {
+    const imageMint="ZyGXWijSJEgcCDb8CeSJ4Vj33iceATGoeKGidnfpump", irys="https://gateway.irys.xyz/2YdIXtUELBBXuzzCcB3sDyqJBuQfiCbKWB_ZAC21tkI";
+    const proxy=`https://images.pump.fun/coin-image/${imageMint}?variant=64x64&src=${encodeURIComponent(irys)}`;
+    expect(tokenImageSources(proxy)).toEqual([proxy,irys]);
+    for(const source of ["http://127.0.0.1/private","https://evil.invalid/track","https://gateway.irys.xyz/not-a-transaction-id"]){
+      const guarded=`https://images.pump.fun/coin-image/${imageMint}?src=${encodeURIComponent(source)}&ipfs=${cid}`;
+      const urls=tokenImageSources(guarded);expect(urls).toEqual([guarded,`https://gateway.pinata.cloud/ipfs/${cid}`,`https://ipfs.io/ipfs/${cid}`]);
+    }
+    expect(safeTokenImage("https://images.pump.fun/redirect")).toBeNull();expect(safeTokenImage("https://gateway.irys.xyz/../../secret")).toBeNull();
+    expect(tokenImageSources(`ipfs://${cid}`,"https://cdn.pump.fun/alternative.png")).toEqual([`https://gateway.pinata.cloud/ipfs/${cid}`,"https://cdn.pump.fun/alternative.png",`https://ipfs.io/ipfs/${cid}`]);
+  });
+  it("accepts only the observed public Supabase token-asset shape", () => {
+    const base="https://augjemrljnikajbzebpw.supabase.co", path=`/storage/v1/object/public/token-assets/${"a".repeat(64)}.png`;
+    expect(safeTokenImage(base+path)).toBe(base+path);
+    for(const url of [base+"/storage/v1/object/authenticated/token-assets/a.png",base+"/storage/v1/object/public/private/a.png",base.replace(".co",".co.evil.invalid")+path,base+"/rest/v1/secrets",base+path.replace(".png",".html")])expect(safeTokenImage(url)).toBeNull();
+  });
+  it("adopts safe hints immediately without refetching under the same reader version",async()=>{
+    const {db,c,transport,settings}=await setup(),image="https://pbs.twimg.com/profile_images/12345/a.jpg",fetched="2026-10-19T22:00:00.000Z";
+    await db.prepare("INSERT INTO tenx_artwork(address,creation_hash,metadata_hash,fetched_at,attempted_at,image_candidate,reader_version) VALUES(?1,?2,?3,?4,?4,?5,2)").bind(c.address,c.creation!.payload_hash,"a".repeat(64),fetched,image).run();
+    expect(await runArtworkCycle(settings,at)).toMatchObject({requested:0,updated:1});expect(transport).not.toHaveBeenCalled();
+    expect((await artworkFor(db,[c.address]))[c.address]!.fetched_at).toBe(fetched);
+  });
+  it("retries old failed readers once, then retains normal six-hour retry pacing", async () => {
+    const {db,c,transport,settings}=await setup();
+    await db.prepare("INSERT INTO tenx_artwork(address,creation_hash,attempted_at,error) VALUES(?1,?2,?3,'metadata_image_unavailable')").bind(c.address,c.creation!.payload_hash,at.toISOString()).run();
+    transport.mockImplementationOnce(async()=>Response.json({image:"https://untrusted.invalid/private"}));
+    expect(await runArtworkCycle(settings,at)).toMatchObject({requested:1,updated:0});
+    expect(await db.prepare("SELECT reader_version,image_candidate FROM tenx_artwork WHERE address=?1").bind(c.address).first()).toEqual({reader_version:2,image_candidate:"https://untrusted.invalid/private"});
+    await runArtworkCycle(settings,new Date(at.getTime()+120000));expect(transport).toHaveBeenCalledTimes(1);
+    expect((await artworkFor(db,[c.address]))[c.address]!.image_url).toBeNull();
+    expect(JSON.stringify(await artworkFor(db,[c.address]))).not.toContain("untrusted.invalid");
+  });
+  it("adopts a newly supported stored image reference with no metadata or RPC request", async () => {
+    const {db,c,transport,settings}=await setup(),image="https://pbs.twimg.com/profile_images/12345/avatar.jpg",fetched="2026-10-19T22:00:00.000Z";
+    await db.prepare("INSERT INTO tenx_artwork(address,creation_hash,metadata_hash,fetched_at,attempted_at,image_candidate) VALUES(?1,?2,?3,?4,?4,?5)").bind(c.address,c.creation!.payload_hash,"a".repeat(64),fetched,image).run();
+    expect(await runArtworkCycle(settings,at)).toMatchObject({requested:0,updated:1});expect(transport).not.toHaveBeenCalled();
+    expect((await artworkFor(db,[c.address]))[c.address]).toMatchObject({image_url:image,fetched_at:fetched,metadata_hash:"a".repeat(64)});
+  });
+  it.each(["paused","replaced","expired"])("withholds artwork after %s during a metadata request",async state=>{
+    const {db,c,sqlite,transport,settings}=await setup();
+    transport.mockImplementationOnce(async()=>{if(state==="paused")sqlite.exec("UPDATE tenx_control SET paused=1");if(state==="replaced")sqlite.exec("UPDATE tenx_artwork_control SET lease_owner='other'");if(state==="expired")sqlite.prepare("UPDATE tenx_artwork_control SET lease_until=?").run(at.toISOString());return Response.json({image:"https://cdn.pump.fun/token.png"});});
+    expect(await runArtworkCycle(settings,at)).toMatchObject({state:"held",requested:1,updated:0});expect(await artworkFor(db,[c.address])).toEqual({});
+    if(state==="replaced")expect(await db.prepare("SELECT lease_owner FROM tenx_artwork_control").first()).toEqual({lease_owner:"other"});
+  });
+  it("charges neither allowance when the shared quota is already full",async()=>{
+    const {db,settings,transport}=await setup();await db.prepare("INSERT INTO tenx_usage VALUES('market','2026-10-20',600)").run();
+    expect(await runArtworkCycle(settings,at)).toMatchObject({error_code:"market_daily_budget_exhausted",requested:0});
+    expect(await db.prepare("SELECT used FROM tenx_usage WHERE provider='artwork'").first()).toBeNull();expect(transport).not.toHaveBeenCalled();
+  });
+  it("rolls back artwork admission if the market reservation cannot commit",async()=>{
+    const {db,sqlite,settings,transport}=await setup();sqlite.exec("CREATE TRIGGER fail_market BEFORE INSERT ON tenx_usage WHEN NEW.provider='market' BEGIN SELECT RAISE(ABORT,'test_failure'); END");
+    expect(await runArtworkCycle(settings,at)).toMatchObject({state:"failed",requested:0});
+    expect(await db.prepare("SELECT count(*) n FROM tenx_usage").first()).toEqual({n:0});expect(transport).not.toHaveBeenCalled();
   });
   it("public artwork reads use cache only and admin refresh requires authentication", async () => {
     const { db, c } = await setup(), env: LocalEnv = { TENX_DB: db, TENX_LOCAL_ONLY: "true", TENX_NODE_RELAY: "false", TENX_ADMIN_TOKEN: "a".repeat(64), TENX_RPC_URL: "https://api.mainnet-beta.solana.com", TENX_RPC_DAILY_LIMIT: "5000", TENX_MARKET_DAILY_LIMIT: "600", TENX_MARKET_PROVIDER: "dexscreener", TENX_QUALITY_ENABLED: "true", TENX_QUALITY_RPC_DAILY_LIMIT: "1800", TENX_MARKET_ENABLED: "true", TENX_WALLET_ANALYSIS_ENABLED: "true", TENX_WALLET_RPC_DAILY_LIMIT: "800" };

@@ -92,10 +92,10 @@ function Freshness({ data }: { data: Pick<ListData, "as_of" | "coverage" | "sour
     <div><strong>{data.source_freshness.stale ? "Data needs refreshing" : "Saved observations"}</strong><span> · Updated {time(data.as_of)} · Coverage incomplete. </span><a href="/status#coverage">Data status →</a></div>
   </aside>;
 }
-function CandidateCard({ candidate: c, metadataUrl }: { candidate: Card; metadataUrl?: string | null }) {
+function CandidateCard({ candidate: c, metadataUrl, metadataLoading }: { candidate: Card; metadataUrl?: string | null; metadataLoading?: boolean }) {
   const fixture = c.mode === "fixture";
   return <article className="tenx-candidate">
-    <div className="tenx-candidate-heading"><a className="tenx-artwork-link" href={`/token/solana/${c.address}${fixture ? "?mode=fixture" : ""}`} aria-label={`Inspect ${c.name} (${c.address})`}><TokenImage url={c.market?.image_url} metadataUrl={metadataUrl} name={c.name} symbol={c.symbol} /></a><div className="tenx-token-name"><h2><a href={`/token/solana/${c.address}${fixture ? "?mode=fixture" : ""}`}>{c.name}</a></h2><p>{c.symbol} <span>· Solana · OG token</span></p></div></div>
+    <div className="tenx-candidate-heading"><a className="tenx-artwork-link" href={`/token/solana/${c.address}${fixture ? "?mode=fixture" : ""}`} aria-label={`Inspect ${c.name} (${c.address})`}><TokenImage url={c.market?.image_url} metadataUrl={metadataUrl} metadataLoading={metadataLoading} name={c.name} symbol={c.symbol} /></a><div className="tenx-token-name"><h2><a href={`/token/solana/${c.address}${fixture ? "?mode=fixture" : ""}`}>{c.name}</a></h2><p>{c.symbol} <span>· Solana · OG token</span></p></div></div>
     <DiscoveryScoreBadge score={c.discovery_score} rank={c.discovery_rank} />
     <div className="tenx-metrics"><div><span>Market cap</span><strong>{money(c.market?.market_cap_usd)}</strong></div><div><span>Liquidity</span><strong>{money(c.market?.liquidity_usd)}</strong></div><div><span>Created</span><strong>{creationAge(c.creation?.block_time)}</strong></div></div>
     {c.market && marketSnapshotStale(c.market) && <p className="tenx-market-warning">Market data needs refreshing.</p>}
@@ -137,7 +137,7 @@ function Discover() {
     {error && <p className="tenx-notice" role="alert">{error} {data ? "The last response remains visible." : "Start the local discovery service to load data."}</p>}
     {data ? <><Freshness data={data} /><p>{data.data.candidates.length} tokens in this view · {sort==="score"?"Ranked by Discovery score":"Ordered by fresh reported liquidity"} · 100 maximum</p>
       <div className="tenx-section-title"><h2>{filter === "all" ? "Ranked observations" : `${filter[0]!.toUpperCase()} action checks`}</h2><span>Score / 100</span></div>
-      {data.data.candidates.length ? data.data.candidates.map(c => <CandidateCard key={c.address} candidate={c} metadataUrl={artwork[c.address]?.image_url} />) : <section className="tenx-empty"><h2>No tokens match this view</h2><p>Change the date or action-check filter to inspect other observations. Missing data remains unknown in every score.</p><a href="/status">Inspect data status →</a></section>}
+      {data.data.candidates.length ? data.data.candidates.map(c => <CandidateCard key={c.address} candidate={c} metadataUrl={artwork[c.address]?.image_url} metadataLoading={mode === "live" && artwork[c.address] === undefined} />) : <section className="tenx-empty"><h2>No tokens match this view</h2><p>Change the date or action-check filter to inspect other observations. Missing data remains unknown in every score.</p><a href="/status">Inspect data status →</a></section>}
       {!!capReviews && <p className="tenx-footnote">{capReviews} tokens have reported caps above $10M within 24 hours of verified creation. Each is flagged for review; this does not change eligibility or ranking.</p>}
       <p className="tenx-footnote">Checks do not guarantee safety. Images and names can be copied; confirm the mint address.</p>
     </> : !error && <p role="status" className="tenx-empty">Loading discovery…</p>}
@@ -156,7 +156,7 @@ function CandidateDetail({ address }: { address: string }) {
   return <>
     <a href="/discover" className="tenx-back">← All contenders</a>
     {error && <p role="alert" className="tenx-notice">{error} The last verified response remains visible.</p>}
-    <header className="tenx-heading"><p className="tenx-eyebrow">SOLANA / OG TOKEN</p><div className="tenx-token-heading"><TokenImage url={c.market?.image_url} metadataUrl={artwork[address]?.image_url} name={c.name} symbol={c.symbol} large /><div className="tenx-token-name"><h1>{c.name}</h1><div className="tenx-row"><span>{c.symbol}</span></div></div></div></header>
+    <header className="tenx-heading"><p className="tenx-eyebrow">SOLANA / OG TOKEN</p><div className="tenx-token-heading"><TokenImage url={c.market?.image_url} metadataUrl={artwork[address]?.image_url} metadataLoading={!fixture && artwork[address] === undefined} name={c.name} symbol={c.symbol} large /><div className="tenx-token-name"><h1>{c.name}</h1><div className="tenx-row"><span>{c.symbol}</span></div></div></div></header>
     {fixture && <aside className="tenx-notice">SIMULATION — token identities, proofs and market values are synthetic examples.</aside>}
     {data.retention && <CandidateExpiryNotice receipt={data.retention} />}
     <div className="tenx-token-identity"><span className="tenx-address">{c.address}</span><button className="tenx-button tenx-button--quiet" onClick={() => void navigator.clipboard.writeText(c.address).then(() => setCopied(true)).catch(() => setCopied(false))}>{copied ? "Copied" : "Copy mint"}</button>{!fixture && <a href={`https://solscan.io/token/${c.address}`} target="_blank" rel="noopener noreferrer">Explorer ↗</a>}</div>
