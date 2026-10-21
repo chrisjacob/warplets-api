@@ -41,6 +41,9 @@ jobs:
       - name: Root security preflight
         run: pnpm security:preflight
 
+      - name: Private Discovery archive integrity and path guards
+        run: pnpm test:discovery-archives
+
       - name: Install dependencies (app)
         working-directory: app
         run: pnpm install --frozen-lockfile
