@@ -1,10 +1,22 @@
 # PRD implementation checkpoint and next tasks
 
+Founder priority, 21 October: [authentic daily attention and momentum](70-authentic-attention-momentum.md) makes qualified trailing-24h volume and meaningful holder growth core requirements for discovering the first-day attention wave. Recent acceleration, participation breadth and retention must support cumulative totals. Raw wash volume, unsolicited dust recipients and unknown evidence cannot earn organic-demand credit. Current v4 has neither growth component nor a dust-filtered owner count; its weights and historical artifacts remain unchanged. The ordered plan requires permitted Free source receipts, comparable owner snapshots and prospective validation before a new scoring version. Documentation only; no provider calls, collection changes, launches or deploy.
+
 Artwork recovery, 21 October: [critical image coverage and source-format fixes](69-artwork-recovery.md) supports actual Pump image-proxy references, bounded original-source/gateway fallbacks, profile images and public token assets. Local migration 0042 adds private failed-reference recovery and owned artwork leases. Existing 120-inside-600 free allowances now reserve atomically; no RPC, score, research or action-gate change. PONYX and ADTF recovered from saved references without additional metadata requests; remaining dead/unsupported links stay explicit. No deploy.
 
 Source collection foundation, 21 October: [prepared Jupiter/GeckoTerminal transport and trade review](68-source-collection-foundation.md) implements atomic per-HTTP reservations shared with score research, bounded owned fetches, persistent backoff and hashed receipts, plus a strict 300-event public-trade file review. Local migration 0041 preserves all 100 old cohorts; no new source reservation or token-data request was made. The adapter is not wired to a route, CLI or scheduler: rights/retention, Free fixtures, canonical binding and prospective v4 comparison remain open. Existing source settings, budgets, current score-v4 and every action/election/evidence gate remain. No deploy.
 
 Reviewed 20 October 2026 against the entire [PRD v1.1](spec/10X_MEME_FULL_PRD_v1_1.md), the [agent brief](spec/AI_AGENT_BRIEF.md), source code, migrations, tests and local operations. This supersedes the kickoff backlog's status, not the PRD or historical review records. Document instructions inform the plan; the founder's explicit local-only, free-first, no-deploy and unchanged-evidence-gates instructions control execution. The homepage remains empty and `/thesis` retains the original homepage.
+
+## Next scoring priority: authentic daily attention
+
+- [x] Record the founder's objective: find the strongest supported first-day market-attention wave for the prospective OG spotlight, using genuine 24h volume and holder growth.
+- [x] Audit current v4: no volume/growth criterion; owner count includes positive dust balances, and sampled returns do not establish organic demand.
+- [x] Define launch-aware windows, source/coverage labels, dust exclusions, risk dominance and adversarial acceptance cases in the [implementation plan](70-authentic-attention-momentum.md).
+- [ ] Finish held Jupiter/GeckoTerminal rights, Free access, canonical binding and bounded receipt collection; retain current shared allowances.
+- [ ] Add versioned, bounded owner-snapshot history and acquisition provenance; agree meaningful-balance/retention rules through calibration before growth receives points.
+- [ ] Publish comparable 24h/since-creation volume and holder deltas, short-window acceleration and explicit missingness as descriptive evidence.
+- [ ] Preregister and evaluate a separate attention component and proposed composite against frozen v4, with all risk ceilings dominant; activate only through an explicit versioned scoring change.
 
 ## What exists and what is incomplete
 
