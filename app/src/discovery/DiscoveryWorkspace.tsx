@@ -15,7 +15,7 @@ export function discoveryView(search:string):DiscoveryView{
   return {mode:choice("mode",["live","fixture"]),status:choice("status",["all","eligible","provisional","excluded"]),age:choice("age",["24h","all"]),sort:choice("sort",["score","liquidity"]),layout:choice("layout",["cards","table"]),q:(p.get("q")??"").trim().slice(0,100),freshness:choice("freshness",["all","fresh","stale","missing"]),min_liquidity:number("min_liquidity",1e12),min_coverage:number("min_coverage",100),compare:comparisonSelection(p.get("compare"))};
 }
 export function discoveryViewParams(view:DiscoveryView){return new URLSearchParams(Object.entries(view).map(([k,v])=>[k,String(v)]));}
-export function discoveryCandidatesUrl(view:DiscoveryView){const p=discoveryViewParams(view);p.delete("layout");p.delete("compare");p.set("age",view.mode==="fixture"?"all":view.age);p.set("limit","100");p.set("view","cards");return `/api/10x/candidates?${p}`;}
+export function discoveryCandidatesUrl(view:DiscoveryView){const p=discoveryViewParams(view);p.delete("layout");p.delete("compare");p.set("age",view.mode==="fixture"?"all":view.age);p.set("limit","100");p.set("view","cards");p.set("browse","inventory");return `/api/10x/candidates?${p}`;}
 export function DiscoveryWorkspaceControls({view,onChange}:{view:DiscoveryView;onChange:(view:DiscoveryView)=>void}){
   const [search,setSearch]=useState(view.q),[liquidity,setLiquidity]=useState(String(view.min_liquidity)),[coverage,setCoverage]=useState(String(view.min_coverage));
   const change=(patch:Partial<DiscoveryView>)=>onChange({...view,...patch});

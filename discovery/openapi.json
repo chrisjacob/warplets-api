@@ -3602,7 +3602,7 @@
     },
     "/api/10x/candidates": {
       "get": {
-        "summary": "Search/filter the full bounded inventory before the 100-result view; current v4 and action eligibility remain separate",
+        "summary": "Search/filter before bounded snapshot pagination; at most 100 candidates per page, current v4 and action gates unchanged",
         "responses": {
           "200": {
             "description": "Success; cached public data includes timestamps, source freshness and coverage",
@@ -3779,6 +3779,19 @@
               "type": "string",
               "maxLength": 512,
               "description": "Opaque cursor binds every filter, source/order, observation cutoff and view for five minutes; 409 requires refresh"
+            }
+          },
+          {
+            "name": "browse",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "top100",
+                "inventory"
+              ],
+              "default": "top100",
+              "description": "Legacy top100 window or the existing at-most-500 retained inventory. Cursors pin query, cutoff and snapshot for five minutes; changes require refresh."
             }
           }
         ]
@@ -70082,14 +70095,22 @@
                   "available": {
                     "type": "integer",
                     "minimum": 0,
-                    "maximum": 100
+                    "maximum": 500
                   },
                   "truncated": {
                     "type": "boolean"
                   },
                   "maximum": {
-                    "type": "number",
-                    "const": 100
+                    "anyOf": [
+                      {
+                        "type": "number",
+                        "const": 100
+                      },
+                      {
+                        "type": "number",
+                        "const": 500
+                      }
+                    ]
                   },
                   "search_before_limit": {
                     "type": "boolean",
@@ -70904,14 +70925,22 @@
                   "available": {
                     "type": "integer",
                     "minimum": 0,
-                    "maximum": 100
+                    "maximum": 500
                   },
                   "truncated": {
                     "type": "boolean"
                   },
                   "maximum": {
-                    "type": "number",
-                    "const": 100
+                    "anyOf": [
+                      {
+                        "type": "number",
+                        "const": 100
+                      },
+                      {
+                        "type": "number",
+                        "const": 500
+                      }
+                    ]
                   },
                   "search_before_limit": {
                     "type": "boolean",

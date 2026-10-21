@@ -68,6 +68,8 @@ Acceptance:
 
 ## F2 — Daily discovery workspace
 
+**Stable pagination delivered, 22 October:** [94 — snapshot pagination](94-discovery-snapshot-pagination.md) exposes the existing at-most-500 retained inventory in 100-token pages, with cutoff/query/snapshot-bound cursors, cached navigation and explicit refresh on invalidation. The real check covered 483 distinct retained mints. Legacy top-100 API defaults, v4 and every Free/evidence/action gate remain; this is access to existing observations, not new source coverage or scoring qualification.
+
 **Saved-list extension delivered, 22 October:** [92 — browser-local shortlist](92-browser-local-discovery-shortlist.md) adds exact-mint save/remove controls across cards/table/details, a persistent local list outside current results and existing comparison selection. Live/fixture scopes, temporary-storage warnings and corrupt-data preservation are explicit. No new provider/server work or score/gate change; this small UI extension does not alter admitted F1 or prospective F3/F4 dependencies.
 
 **User story:** I can quickly find and compare candidates without opening several long evidence pages.

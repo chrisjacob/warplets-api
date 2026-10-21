@@ -41,4 +41,34 @@ describe("searchable cached discovery inventory",()=>{
     for(const patch of ["&q=other","&freshness=fresh","&min_liquidity=1","&min_coverage=1"]){const change=new URL(next);for(const[k,v]of new URLSearchParams(patch.slice(1)))change.searchParams.set(k,v);expect((await handle(new Request(change),env)).status).toBe(409);}
     for(const patch of ["&min_coverage=101","&min_liquidity=-1","&freshness=organic","&q="+"a".repeat(101)])await expect(handle(new Request(url+patch),env)).rejects.toThrow();
   });
+  it("pages beyond the legacy top 100 with one cutoff, global ranks, no duplicate mints and no provider requests or writes",async()=>{
+    const {db,base,env,sqlite}=await setup();
+    for(let i=0;i<205;i++){const c={...base,address:key(i+1),name:`Paged ${i}`};await db.prepare("INSERT INTO tenx_candidates(mode,address,pool,payload,checked_at) VALUES('live',?1,?2,?3,?4)").bind(c.address,c.pool,JSON.stringify(c),c.checked_at).run();}
+    const before=sqlite.prepare("SELECT total_changes() n").get();
+    vi.useFakeTimers();vi.setSystemTime(at);const network=vi.spyOn(globalThis,"fetch").mockRejectedValue(Error("forbidden"));
+    const url="http://localhost/api/10x/candidates?view=cards&limit=100&browse=inventory";
+    const first=CardListResponse.parse(await(await handle(new Request(url),env)).json());
+    expect(first.data.scope).toMatchObject({maximum:500,available:205,matched:205,truncated:false});
+    vi.setSystemTime(new Date(at.getTime()+30000));
+    const second=CardListResponse.parse(await(await handle(new Request(url+`&cursor=${encodeURIComponent(first.next_cursor!)}`),env)).json());
+    const third=CardListResponse.parse(await(await handle(new Request(url+`&cursor=${encodeURIComponent(second.next_cursor!)}`),env)).json());
+    expect([first,second,third].map(p=>p.data.candidates.length)).toEqual([100,100,5]);
+    expect(second.data.scored_at).toBe(first.data.scored_at);expect(third.data.scored_at).toBe(first.data.scored_at);expect(third.next_cursor).toBeNull();
+    const rows=[...first.data.candidates,...second.data.candidates,...third.data.candidates];
+    expect(new Set(rows.map(c=>c.address)).size).toBe(205);expect(rows.map(c=>c.discovery_rank)).toEqual(Array.from({length:205},(_,i)=>i+1));
+    const legacy=CardListResponse.parse(await(await handle(new Request(url.replace("&browse=inventory","")),env)).json());
+    expect(legacy.data.scope).toMatchObject({maximum:100,available:100,truncated:true});expect(legacy.next_cursor).toBeNull();
+    expect(network).not.toHaveBeenCalled();expect(sqlite.prepare("SELECT total_changes() n").get()).toEqual(before);
+  });
+  it("rejects a changed off-page candidate, expired cutoff or a different inventory window instead of merging snapshots",async()=>{
+    const {db,base,env}=await setup();
+    for(let i=0;i<105;i++){const c={...base,address:key(i+1),name:`Snapshot ${i}`};await db.prepare("INSERT INTO tenx_candidates(mode,address,pool,payload,checked_at) VALUES('live',?1,?2,?3,?4)").bind(c.address,c.pool,JSON.stringify(c),c.checked_at).run();}
+    vi.useFakeTimers();vi.setSystemTime(at);const url="http://localhost/api/10x/candidates?view=cards&limit=100&browse=inventory";
+    const first=CardListResponse.parse(await(await handle(new Request(url),env)).json()),next=url+`&cursor=${encodeURIComponent(first.next_cursor!)}`;
+    expect((await handle(new Request(next.replace("browse=inventory","browse=top100")),env)).status).toBe(409);
+    vi.setSystemTime(new Date(at.getTime()+300001));expect((await handle(new Request(next),env)).status).toBe(409);vi.setSystemTime(at);
+    const hidden=Array.from({length:105},(_,i)=>key(i+1)).find(address=>!first.data.candidates.some(c=>c.address===address))!;
+    await db.prepare("UPDATE tenx_candidates SET payload=json_set(payload,'$.name','Changed outside page one') WHERE address=?1").bind(hidden).run();
+    expect((await handle(new Request(next),env)).status).toBe(409);
+  });
 });

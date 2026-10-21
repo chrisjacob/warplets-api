@@ -230,5 +230,7 @@ const spec = {
     ActivityResponse: z.toJSONSchema(ActivityResponse, { unrepresentable: "any" }),
   } },
 };
+spec.paths["/api/10x/candidates"].get.summary = "Search/filter before bounded snapshot pagination; at most 100 candidates per page, current v4 and action gates unchanged";
+spec.paths["/api/10x/candidates"].get.parameters.push(parameter("browse", "query", { enum: ["top100", "inventory"], default: "top100", description: "Legacy top100 window or the existing at-most-500 retained inventory. Cursors pin query, cutoff and snapshot for five minutes; changes require refresh." }));
 writeFileSync(new URL("../discovery/openapi.json", import.meta.url), `${JSON.stringify(spec, null, 2)}\n`);
 console.log("Generated discovery/openapi.json from runtime domain schemas.");

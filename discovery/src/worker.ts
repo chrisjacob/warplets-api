@@ -256,6 +256,7 @@ export async function handle(request: Request, env: Env): Promise<Response> {
       age: z.enum(["all", "24h"]).default("all"),
       view: z.enum(["full", "cards"]).default("full"),
       sort:z.enum(["score","liquidity"]).default("score"),
+      browse:z.enum(["top100","inventory"]).default("top100"),
       q:z.string().trim().max(100).default(""),
       freshness:z.enum(["all","fresh","stale","missing"]).default("all"),
       min_liquidity:z.coerce.number().finite().min(0).max(1e12).default(0),
@@ -268,20 +269,20 @@ export async function handle(request: Request, env: Env): Promise<Response> {
     if (query.cursor) {
       let decoded: unknown;
       try { decoded = JSON.parse(atob(query.cursor)); } catch { return json({ error: "invalid_cursor" }, 400); }
-      const cursor = z.object({ snapshot: z.string().regex(/^[a-f0-9]{64}$/), as_of:z.string().datetime(),offset: z.number().int().min(0).max(100),identity:z.string().regex(/^[a-f0-9]{64}$/) }).strict().parse(decoded);
+      const cursor = z.object({ snapshot: z.string().regex(/^[a-f0-9]{64}$/), as_of:z.string().datetime(),offset: z.number().int().min(0).max(query.browse==="inventory"?500:100),identity:z.string().regex(/^[a-f0-9]{64}$/) }).strict().parse(decoded);
       if (cursor.identity!==identity||Date.parse(cursor.as_of)>realNow.getTime()||realNow.getTime()-Date.parse(cursor.as_of)>300000) return json({ error: "cursor_expired_refresh_required" }, 409);
       offset = cursor.offset;at=new Date(cursor.as_of);priorSnapshot=cursor.snapshot;
     }
     const stored=await scoreInventoryCandidates(env.TENX_DB,query.mode,query.age==="all");
     const ranked=await rankedDiscovery(env.TENX_DB,query.age==="24h"?stored.filter(c=>createdWithinWindow(c,at)):stored,at,query.sort,query.status,
-      {search:query.q,freshness:query.freshness,min_liquidity:query.min_liquidity,min_coverage:query.min_coverage}),rows=ranked.rows;
-    const snapshot=await hashJson({rows,matched:ranked.matched,observed:ranked.observed,counts:ranked.counts});
+      {search:query.q,freshness:query.freshness,min_liquidity:query.min_liquidity,min_coverage:query.min_coverage,maximum:query.browse==="inventory"?500:100}),rows=ranked.rows;
+    const snapshot=await hashJson({rows,stored:stored.length,matched:ranked.matched,observed:ranked.observed,counts:ranked.counts});
     if(priorSnapshot!==null&&priorSnapshot!==snapshot)return json({error:"cursor_expired_refresh_required"},409);
     const next = offset + query.limit;
     return json(await envelope(env, {
       candidates: query.view === "cards" ? rows.slice(offset, next).map(candidateCard) : rows.slice(offset, next), mode: query.mode,sort:query.sort,scored_at:at.toISOString(),observed:ranked.observed,
       counts:ranked.counts,
-      scope:{inventory:query.age==="all"?"retained":"active_verified_first_day",stored:stored.length,ranked:ranked.ranked,matched:ranked.matched,available:rows.length,truncated:ranked.matched>rows.length,maximum:100,search_before_limit:true},
+      scope:{inventory:query.age==="all"?"retained":"active_verified_first_day",stored:stored.length,ranked:ranked.ranked,matched:ranked.matched,available:rows.length,truncated:ranked.matched>rows.length,maximum:query.browse==="inventory"?500:100,search_before_limit:true},
     }, { next_cursor: next < rows.length ? btoa(JSON.stringify({ snapshot,as_of:at.toISOString(),offset: next,identity })) : null }));
   }
   const scorecard=path.match(/^\/api\/10x\/discovery\/scores\/solana\/([^/]+)$/);

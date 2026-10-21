@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useState } from "react";
 import type { AssessedCandidate, Proof } from "../../../discovery/src/model";
 import type { CandidateCard as Card } from "../../../discovery/src/candidate-card";
-import { CardListResponse } from "./client";
+import {DiscoveryPagination,useDiscoveryPages} from "./DiscoveryPagination";
 import {DiscoveryWorkspaceControls,DiscoveryTable,discoveryView,discoveryViewParams,discoveryCandidatesUrl} from "./DiscoveryWorkspace";
 import {ComparisonToggle,TokenComparison,toggleComparison} from "./TokenComparison";
 import {ShortlistNotice,ShortlistPanel,ShortlistToggle,useShortlist} from "./Shortlist";
@@ -128,7 +128,7 @@ function Discover() {
   useEffect(()=>{const pop=()=>setView(discoveryView(window.location.search));window.addEventListener("popstate",pop);return()=>window.removeEventListener("popstate",pop);},[]);
   useEffect(()=>{window.history.replaceState(window.history.state,"",`${window.location.pathname}?${discoveryViewParams(view)}${window.location.hash}`);},[view]);
   const url = discoveryCandidatesUrl(view);
-  const { data, error } = useRemote(signal => getJson(url, CardListResponse, signal), url);
+  const paging=useDiscoveryPages(url),{data}=paging,error=paging.state.error;
   const artwork = useTokenArtwork(mode === "live" ? data?.data.candidates.map(c => c.address) ?? [] : []);
   return <>
     <header className="tenx-heading tenx-heading--discover"><p className="tenx-eyebrow">SOLANA / ORIGINAL TOKENS</p><h1>Discover memecoins.</h1><p>Compare scores, explore the charts and check the evidence.</p></header>
@@ -138,10 +138,12 @@ function Discover() {
     <p className="tenx-footnote">Scores grade measured support, not the chance of safety. Missing evidence and observed risks remain visible. <a href="/transparency">How scoring works →</a></p>
     {mode === "fixture" && <aside className="tenx-notice">SIMULATION — synthetic examples, not live tokens or verified market data. <button className="tenx-button tenx-button--quiet" onClick={() => setMode("live")}>Return to live observations</button></aside>}
     {error && <p className="tenx-notice" role="alert">{error} {data ? "The last response remains visible." : "Start the local discovery service to load data."}</p>}
-    {data ? <><Freshness data={data} /><p>{data.data.candidates.length} shown{data.data.scope?` of ${data.data.scope.matched} matching tokens · ${data.data.scope.stored} stored in this inventory`:""} · {sort==="score"?"Ranked by Discovery score":"Ordered by fresh reported liquidity"} · 100 maximum</p>
-      {data.data.scope&&<p className="tenx-footnote">Search and filters run before the 100-result display limit. Ranks refer to the full date and action-check view. {data.data.scope.truncated?"More matches exist; narrow your search to find them. ":""}This inventory is our saved chain-observed coverage, not every Solana token. {view.age==="24h"&&mode==="live"?"Tokens without a verified first-day creation time are outside this view.":"Expired observations can appear and remain subject to all freshness checks."}</p>}
+    <DiscoveryPagination state={paging.state} onNext={()=>void paging.next()} onPrevious={paging.previous} onRefresh={()=>void paging.refresh()}/>
+    {data ? <><Freshness data={data} /><p>{data.data.candidates.length} shown on this page{data.data.scope?` of ${data.data.scope.matched} matching tokens · ${data.data.scope.stored} stored in this inventory`:""} · {sort==="score"?"Ranked by Discovery score":"Ordered by reported liquidity at the browse cutoff"} · 100 per page</p>
+      {data.data.scope&&<p className="tenx-footnote">Search and filters run before pagination. Ranks refer to the full date and action-check view. {data.data.scope.truncated?"The retained-inventory bound is reached; narrow the search. ":""}This inventory is our saved chain-observed coverage, not every Solana token. {view.age==="24h"&&mode==="live"?"Tokens without a verified first-day creation time are outside this view.":"Expired observations can appear and remain subject to all freshness checks."}</p>}
       <div className="tenx-section-title"><h2>{filter === "all" ? "Ranked observations" : `${filter[0]!.toUpperCase()} action checks`}</h2><span>Score / 100</span></div>
       {data.data.candidates.length ? view.layout==="table"?<DiscoveryTable candidates={data.data.candidates} artwork={artwork} scoredAt={data.data.scored_at??data.as_of} selected={view.compare} onToggle={toggle} shortlist={shortlist}/>:data.data.candidates.map(c => <CandidateCard key={c.address} candidate={c} selected={view.compare} onToggle={toggle} shortlist={shortlist} metadataUrl={artwork[c.address]?.image_url} metadataLoading={mode === "live" && artwork[c.address] === undefined} />) : <section className="tenx-empty"><h2>No tokens match this view</h2><p>Change the search, date or filters to inspect other observations. Missing data remains unknown in every score.</p><a href="/status">Inspect data status →</a></section>}
+      <DiscoveryPagination footer state={paging.state} onNext={()=>void paging.next()} onPrevious={paging.previous} onRefresh={()=>void paging.refresh()}/>
       <p className="tenx-footnote">Checks do not guarantee safety. Images and names can be copied; confirm the mint address.</p>
     </> : !error && <p role="status" className="tenx-empty">Loading discovery…</p>}
     <details className="tenx-list-options"><summary>Action-check filters & example data</summary><p>All observed tokens can be scored. Separate eligibility gates still govern future voting and launch decisions; buying links do not count as votes. Names and artwork can be copied.</p><label>Action checks<select value={filter} onChange={e => setFilter(e.target.value as typeof view.status)}><option value="all">All ranked observations</option><option value="eligible">Eligible</option><option value="provisional">Provisional</option><option value="excluded">Excluded</option></select></label><label>Data source<select value={mode} onChange={e => setMode(e.target.value as "live" | "fixture")}><option value="live">Saved live observations</option><option value="fixture">Simulation examples</option></select></label>{data&&<p>Action readiness across observed inputs: {data.data.counts.eligible} eligible · {data.data.counts.provisional} provisional · {data.data.counts.excluded} excluded. This is separate from score ranking.</p>}</details>

@@ -20,8 +20,11 @@ Next functionality, 21 October: [daily discovery product plan](82-next-product-f
 
 ## F2 saved-list extension — 22 October
 
+**Stable pagination:** [94 — snapshot pagination](94-discovery-snapshot-pagination.md) now completes cached browsing past the first 100 matches, with up to five 100-token pages, stable cutoff/ranks, query-bound cursors, cached back navigation and explicit changed/expired-snapshot recovery. The existing retained-input bound, default legacy top-100 API, source quotas and every evidence/action gate remain. A real cache check covered all 483 retained mints; this is not F1 population/quality validation.
+
 [92 — browser-local shortlist](92-browser-local-discovery-shortlist.md) completes the optional local workspace extension without new provider/server work.
 
+- [x] Browse retained matches beyond the first 100 with snapshot-bound pages, cached back navigation and explicit refresh recovery; preserve original ranks and legacy API defaults.
 - [x] Save/remove exact Solana mints on cards, table rows and token details, with separate live and simulation lists.
 - [x] Keep off-list identity/evidence links and comparison controls accessible across visits, filters and cached-list failure.
 - [x] Handle storage failure, unsupported/corrupt records and cross-tab updates explicitly; retain no scores, credentials or source evidence in the list.

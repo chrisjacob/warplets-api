@@ -8,7 +8,7 @@ import {candidateCard} from "../../../discovery/src/candidate-card";
 it("round-trips shared view parameters and separates presentation layout from the cache-only query",()=>{
   const view=discoveryView("?q=Kimchi&layout=table&age=all&sort=liquidity&min_liquidity=25000&min_coverage=30&freshness=stale&status=excluded");
   expect(discoveryView("?"+discoveryViewParams(view))).toEqual(view);
-  const url=new URL(discoveryCandidatesUrl(view),"https://app-local.10x.meme");expect(url.searchParams.get("q")).toBe("Kimchi");expect(url.searchParams.has("layout")).toBe(false);expect(url.searchParams.get("limit")).toBe("100");expect(url.pathname).toBe("/api/10x/candidates");
+  const url=new URL(discoveryCandidatesUrl(view),"https://app-local.10x.meme");expect(url.searchParams.get("q")).toBe("Kimchi");expect(url.searchParams.has("layout")).toBe(false);expect(url.searchParams.get("limit")).toBe("100");expect(url.searchParams.get("browse")).toBe("inventory");expect(url.pathname).toBe("/api/10x/candidates");
   expect(discoveryView("?min_liquidity=-1&min_coverage=101&layout=evil&freshness=organic&mode=bad")).toMatchObject({min_liquidity:0,min_coverage:0,layout:"cards",freshness:"all",mode:"live"});
   expect(new URL(discoveryCandidatesUrl({...view,mode:"fixture",age:"24h"}),url).searchParams.get("age")).toBe("all");
 });

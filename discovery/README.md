@@ -1,5 +1,7 @@
 # Local Solana discovery
 
+Discovery browsing, 22 October: [snapshot pagination](../docs/10x/94-discovery-snapshot-pagination.md) adds `browse=inventory` to the cached candidate GET, retaining 100 rows per response and the existing 500-candidate input bound. Discover uses shared-cutoff cursor pages with cached back navigation and explicit invalidation recovery. The real check covered 483 distinct mints; default legacy top-100 behavior, frozen v4, Free/evidence/action gates and thesis-only production remain. No collection, migration or deploy.
+
 Local recovery, 22 October: [supervisor vacancy recovery](../docs/10x/93-supervisor-vacancy-recovery.md) fixes a stuck unowned-service exit path, preserves occupied-port protection and retains owned handles through termination. Failed spawns count, signal exits are tracked and shutdown cancels waits. Thirty-two local recovery tests and cached operations/election/hash checks pass; no running supervisor was restarted. The engine loads on the next ordinary supervisor start. Existing store, Free limits, evidence/action gates and thesis-only production remain; no deploy.
 
 Daily workspace, 22 October: [browser-local saved shortlist](../docs/10x/92-browser-local-discovery-shortlist.md) adds identity-only saves on cards/table/details, preserved off-list evidence links and existing comparison. Live/fixture lists stay separate; storage failures/corrupt formats stay explicit. No server or source change, score/gate adoption, migration or deploy; production remains thesis-only.
