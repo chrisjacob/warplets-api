@@ -1,0 +1,126 @@
+# GMGN API evaluation and comparison plan
+
+Reviewed 21 October 2026 for the founder's request. Recommendation: **conditional go for a read-only data pilot; retain Discovery score-v3 until a paired evaluation supports a versioned change.** GMGN could supply valuable indexed data we currently lack. Its published scores remain heuristics, and access, semantics and product-use rights need verification.
+
+This is an evaluation and implementation plan, not an enabled integration. No GMGN account, key, subscription, asset transfer, trade, launch or deployment was created. No authenticated token response has been collected; live accuracy, latency, historical depth and account entitlements remain untested. The existing local preview, sources, scoring and evidence gates are unchanged.
+
+## Sources and reproducibility
+
+The official [Agent API documentation](https://docs.gmgn.ai/index/gmgn-agent-api) links to [GMGNAI/gmgn-skills](https://github.com/GMGNAI/gmgn-skills). Repository review is pinned to **`402671e2ab8d1336df9e20f4fc7da123dc719e59`**, package version **1.6.7**. Public documentation and the repository do not always describe the same surface. Treat repo descriptions as testable claims, not measured performance in our application.
+
+Primary references at that revision:
+
+- [Token fields, tags and request weights](https://github.com/GMGNAI/gmgn-skills/blob/402671e2ab8d1336df9e20f4fc7da123dc719e59/skills/gmgn-token/SKILL.md).
+- [Market candles, listings, filters and weights](https://github.com/GMGNAI/gmgn-skills/blob/402671e2ab8d1336df9e20f4fc7da123dc719e59/skills/gmgn-market/SKILL.md).
+- [Contract due-diligence scoring](https://github.com/GMGNAI/gmgn-skills/blob/402671e2ab8d1336df9e20f4fc7da123dc719e59/skills/gmgn-contract-dd/SKILL.md) and [chart-pattern scoring](https://github.com/GMGNAI/gmgn-skills/blob/402671e2ab8d1336df9e20f4fc7da123dc719e59/skills/gmgn-kline-pattern/SKILL.md).
+- [Holder analysis and denominator limitations](https://github.com/GMGNAI/gmgn-skills/blob/402671e2ab8d1336df9e20f4fc7da123dc719e59/skills/gmgn-holder-analysis/SKILL.md), [developer analysis](https://github.com/GMGNAI/gmgn-skills/blob/402671e2ab8d1336df9e20f4fc7da123dc719e59/skills/gmgn-dev-score/SKILL.md), [portfolio queries](https://github.com/GMGNAI/gmgn-skills/blob/402671e2ab8d1336df9e20f4fc7da123dc719e59/skills/gmgn-portfolio/SKILL.md).
+- [Actual endpoint/auth implementation](https://github.com/GMGNAI/gmgn-skills/blob/402671e2ab8d1336df9e20f4fc7da123dc719e59/src/client/OpenApiClient.ts), [configuration](https://github.com/GMGNAI/gmgn-skills/blob/402671e2ab8d1336df9e20f4fc7da123dc719e59/src/config.ts), [CLI rate-limit reference](https://github.com/GMGNAI/gmgn-skills/blob/402671e2ab8d1336df9e20f4fc7da123dc719e59/docs/cli-usage.md).
+- [Software MIT license](https://github.com/GMGNAI/gmgn-skills/blob/402671e2ab8d1336df9e20f4fc7da123dc719e59/LICENSE), [GMGN service terms](https://gmgn.ai/static/tos.html), [API dashboard](https://gmgn.ai/ai?chain=bsc&tab=paid_plans).
+
+The seven research skills were installed globally for Codex with the user-requested `skills add` mechanism, pinning both installer and source:
+
+```powershell
+npx --yes skills@1.7.4 add https://github.com/GMGNAI/gmgn-skills/tree/402671e2ab8d1336df9e20f4fc7da123dc719e59 --global --agent codex --skill gmgn-token gmgn-market gmgn-contract-dd gmgn-kline-pattern gmgn-holder-analysis gmgn-dev-score gmgn-portfolio --copy --yes
+```
+
+Installed under `C:\Users\cjacob\.agents\skills\gmgn-*`; available for the next turn. No swap, cooking, order-preparation or publication skill was selected. Installation does not configure or activate the API/CLI. Upstream instructions cannot override our project constraints: never solicit credentials in chat, disable network protections, execute financial commands, hide missingness or auto-upgrade a plan. Some examples assume Python and `~/.claude/skills`; installation alone does not validate those scripts on Windows. Installer scanners reported mixed risk ratings, including high ratings for the token/market/portfolio instructions; these are scanner outputs, not a completed security certification.
+
+## Access, cost and permission findings
+
+**Confirmed in the published repo:** Free, Plus and Pro use weighted rate/capacity buckets of **5/5, 20/20 and 50/50**. Free is not five requests per second for every endpoint. Standard candles cost two units, top-holder/trader lists five. A route whose weight exceeds plan capacity can return `403 PLAN_UPGRADE_REQUIRED`; one-second candles explicitly require Pro. There is enough documented Free capacity for a modest cached pilot, assuming the account is eligible. Daily allowance, historical retention and service availability must still be checked; bucket capacity is not a daily entitlement or SLA.
+
+**Not verified:** the founder's reported **$100 asset eligibility condition**, eligible asset types, hosted versus linked-wallet balances, continuous balance requirements, any trading-volume condition and supplementary API/data rights. The public Agent API page and reviewed repo do not establish those details. Opening the official API dashboard reached a login form; no account was accessed or created. If the balance condition applies, distinguish tied-up capital from an API subscription fee. This plan does not authorize funding an account to qualify.
+
+The documented API host is `https://openapi.gmgn.ai`. The selected token/market queries use an API key with timestamp/client ID; the docs say requests currently require IPv4. Do not disable IPv6 globally: test the actual authorized egress route. Trading uses a separate signing key, which this project does not need. Importantly, **not every read operation is API-key-only**: the reviewed client signs `wallet_holdings` and followed-wallet reads, despite broader query-only wording in the introductory docs. Exclude signed routes entirely from the pilot. Key registration may require uploading an application public key; any associated private key stays outside this runtime and is never a wallet seed.
+
+MIT licenses the published code, not unrestricted reuse of all returned data. The service terms reserve service rights and restrict unauthorized automated access. We did not find a clear grant covering a public competing token-ranking product, indefinite raw archival, redistributable scorecard exports or model training. Confirm those specific uses and attribution/retention requirements before enabling public GMGN-derived evidence. This is an unresolved product-use question, not a claim that GMGN prohibits our application. Private evaluation must also stay within applicable access terms. No support message was sent.
+
+Older GMGN crawling-whitelist/trading-API documentation describes different products; do not apply its old rates or authentication to the Agent API.
+
+## What is actually scored
+
+There are three different things:
+
+1. **Backend fields and labels:** reported holder/trader aggregates, developer history, suspected insiders/bundlers/snipers, `is_wash_trading` and `rug_ratio` where supplied. These could be useful new observations. Algorithms, error rates and version history for those labels are not independently certified here. A zero/default/absent flag is not verified organic activity; `rug_ratio` is not established as a calibrated probability.
+2. **Published skill scores:** `gmgn-contract-dd` computes a composite from multiple responses, using contract/holder/price weights 45/35/20 and risk ceilings. It renormalizes when an entire section is unavailable, unlike our fixed-denominator support model. `gmgn-kline-pattern` measures technical chart shape; developer and wallet skills answer other questions. These scores are not interchangeable, nor are they a single documented per-mint backend scoring endpoint.
+3. **Our product policy:** deterministic grades, fixed coverage, dated evidence/ceilings, exact replay and separate action gates. We retain responsibility for these semantics even if GMGN becomes the main enrichment source.
+
+Do not invert `rug_ratio` into `100 × (1 − risk)`, average unlike scores, or describe a skill's “buyable” band as 10X eligibility. The contract skill itself reports earlier high scores on tokens carrying a high provider rug label and adds caps to address that failure. Its evaluations against GMGN's own labels are useful regression work, not independent proof of fraud prediction.
+
+## Existing validations versus GMGN
+
+| Area | Current custom implementation | GMGN opportunity | Proposed treatment |
+|---|---|---|---|
+| Discovery and exact mint | Free pool/event intake; finalized creation and migration checked separately | Trenches lifecycle, launchpad and liquidity filters, indexed creation/open/migration fields | Trial as another candidate source; preserve case-sensitive mint identity and independent creation/graduation proof. A completed listing does not certify age or migration. |
+| Price/volume anomalies | Sparse retained quotes; v2 large-step and v3 quiet-staircase heuristics; no OHLC wash-trading proof | Candles and richer activity/volume fields | High-priority pilot. Replace sparse-sampling approximations where measured candles are better, through a new model version. Retain old versions and all unknowns. |
+| Manipulated participation | Material later-buy threshold and bounded dust sample | Wash flag, bot/bundler/insider/sniper and fresh-wallet indicators | Report provider-labelled concerns and compare with independently sampled transactions; do not certify common control or organic volume from tags. |
+| Holder concentration | Certified owner/supply inventory; non-vault concentration and supply reconciliation | Fast top-holder/trader lists, tagged cohorts, costs/funding | Use for triage and cross-checks. Top 100 is not a complete inventory; reconcile LP/burn exclusions and total-supply versus float percentages before comparison. |
+| Historical creator exposure | Exact signed creation purchase relative to dated supply; bounded later sales/funding | Indexed creator launches, holdings and activity | Investigate dispersion and serial-launch context. Keep historical acquisition checks: small current creator holdings do not erase a large initial purchase. |
+| Authorities and pool | On-chain authority/reserve/layout checks | Security and pool summaries | Compare to receipts; provider summaries do not satisfy finality, layout or LP-lock certification automatically. |
+| Overall score and research | Frozen v1/v2/v3 inputs/policies/hashes; positive support decays; missing earns no points; prospective outcomes | Published due-diligence/chart heuristics and broader features | Compare scores as separate models. Port a useful rule deterministically only after testing; preserve fixed-denominator coverage and unchanged election/action engines. |
+
+**Expected value is better indexed evidence and less bespoke data plumbing.** We should avoid building our own comprehensive wallet-label index if a permitted, affordable provider works. We should retain lightweight independent verification, deterministic policy and research machinery. API feature breadth alone does not establish better ranking accuracy.
+
+## Integration traps to test first
+
+- **Contradictory field descriptions:** the contract skill says `rug_ratio` is absent from exact-address info/security/pool queries and obtains it from listings; the token reference lists it under security. The chart-pattern skill describes seconds and token-count `volume`/USD `amount`, while the contract skill describes millisecond candle times and uses `volume`. Capture actual responses before choosing timestamp/turnover units; do not infer USD volume from a field name. The chart skill also has inconsistent prose about which volume series to use.
+- **Lifecycle and selection:** default listing filters can exclude failed-authority or other risky tokens; some unknown filter names are silent no-ops. A filtered result is not all candidates, and absence is not a clean result. Prove each filter's effect locally against saved unfiltered/default-matched controls and record effective defaults, pagination and truncation. Do not hide the adversarial control population behind `safe` filters.
+- **Missing labels:** `rug_ratio` may be available only for listed tokens, absent entirely or default zero on poorly covered chains. No per-mint label coverage guarantee is demonstrated. Verify availability by endpoint/chain/token; do not substitute listing absence or all-zero blocks for measured safety.
+- **Identity and units:** Solana base58 is case-sensitive; some sample pipelines lowercase addresses. Preserve exact addresses. Parse explicit boolean/string/numeric variants; percentage-like names may still contain fractions. Reject invalid ranges, stale/future records, duplicate candles and unknown denominator semantics.
+- **Scope:** holder lists are bounded; larger lists and longer indexed histories still need pagination/coverage proofs. Token creation, pool opening and migration times are separate. GMGN migration cap or a first available candle is not automatically initial token valuation. Smart-money/KOL tags and trending ranks are not independent safety evidence.
+- **Platform drift:** introductory docs list fewer chains than the CLI; the repo also contains outdated statements about whether search exists. Start with Solana and pin client/normalizer versions. HTTP 200 is not enough: validate envelope, identity and usable data; reject plausible populated defaults for unknown addresses.
+
+## Proposed implementation sequence and acceptance checks
+
+### G0 — Verify access and intended use
+
+Confirm the account's actual Free requirements and endpoint permissions without a purchase or asset transfer. Establish a securely configured query key outside Git/chat/logs and confirm data retention, derivative ranking, display and export rights. Register no signing credential in the collector. If access requires spending or rights are unsuitable, keep the adapter disabled and retain the existing sources. Deliver a dated entitlement/permission record with public facts separated from account assertions.
+
+### G1 — Collect bounded fixtures and define a read-only adapter
+
+Create a disabled-by-default source adapter with an exact method/path allowlist for token info, security, pool, standard candles, listings and approved creator-history reads. A POST listing query can be read-only; exclude trade, order, cooking, publication and signed portfolio endpoints regardless of HTTP method. Production collection should call a pinned, tested HTTP adapter, not spawn an LLM skill or install a new CLI on every timer tick. Retain any copied MIT notices.
+
+Reuse owned leases, shared pause, durable source reservations and cooldowns. Proposed pilot maximums: **one in-flight request, at least three seconds between calls, 20 weighted units/minute, 100 HTTP attempts and 200 weighted units/UTC day**, no automatic paid fallback. These are proposed local ceilings, not GMGN promises. Count retries and failed attempts; reserve weight before requests and honor stricter account limits, `X-RateLimit-Reset` and `reset_at`. Authentication/entitlement failures hold the source; rate-limit bans stop all work for that key until reset. Disable implicit CLI retries so they cannot escape accounting. Existing providers' allowances and evidence budgets do not increase.
+
+An illustrative day: 20 tokens × info/security/pool/15m candles = 80 requests/100 units; five focused tokens × holders/traders = 10 requests/50 units; one shared trenches and trending fetch = two requests/five units; five launch-window candle requests = five requests/ten units. Total **97 requests/165 units**, leaving little HTTP headroom. Creator history or retries replace other work; they are not extra allowance. Listing caches are reused across tokens. API historical windows/pagination must be verified: a default 100 one-minute candles does not cover a whole day or prove launch coverage.
+
+Store bounded raw responses privately, normalized observations, canonical mint/pool, endpoint/query/schema version, fetch time, provider observation time or unknown, effective filters/window, response hash, completeness and request weight. Keep credentials out of artifacts. Proposed raw-body ceiling 1 MB, bounded candle/list counts and finite lookback; overflow remains a gap rather than an apparently complete sample. Retained GMGN research bodies and comparison payloads count against the same daily research byte budget; separately stored research records count toward record admission too. No unbounded parallel raw archive is introduced. Request capacity does not guarantee storage capacity. Retention must follow confirmed rights and the existing storage controls. Keep the pilot operator-only until public data rights are established. Public exports need an explicitly permitted evidence projection, not automatic raw redistribution.
+
+Acceptance: real response fixtures confirm schemas, units, auth, supported filters and error behavior; offline tests cover null versus false/default zero, unknown mints, wrong identities, malformed/oversized bodies, stale/future/duplicate candles, pauses, concurrent leases, cooldowns and storage admission. Key absence makes zero requests. No provider request originates from a page/card render.
+
+### G2 — Compare three models on the same frozen observations
+
+Use (A) frozen custom v3, (B) a deterministic reproduction of the pinned GMGN contract heuristic, and (C) a preregistered hybrid using selected GMGN fields. Preserve B's own missingness semantics and label it separately; do not silently rewrite it to look like A. If exact deterministic reproduction cannot match reviewed golden examples, treat skill reports as qualitative references and do not call them a reproducible benchmark. Log a policy hash and all caps for each arm. Proposed hybrid parameters are fixed before the evaluation set is read; they are not a production activation.
+
+Start with exact USDF, XTO and the founder's Kimchi mint, followed by a stratified sample across creation ages, liquidity, local score bands and provider-label availability. These known cases are regression investigations, not the test set or independent scam labels. Fetching today's GMGN data cannot reconstruct a GMGN score at yesterday's frozen observation. Current comparisons must carry their own dates.
+
+For prospective comparisons, freeze all three arms at one common cutoff after the bounded collection window, with each source's actual fetch/observation time and freshness. Require a declared maximum collection skew (initial proposal 60 seconds); otherwise mark the pair incomparable. Cache/listing delays stay visible. Avoid selecting only tokens that GMGN's safety filters already retain. Use independently reviewed adverse cases and benign controls; provider wash/rug tags cannot be their own ground truth.
+
+Paired artifacts must share the **existing aggregate 100 research records / 10 MB daily admission**, owned control lease and three capture attempts/five finalizations per maintenance turn. Normal cohorts and any additional comparison rows all count; do not grant each arm a new quota. Preserve original v1/v2/v3 cohorts and outcomes, count both an existing baseline record and a new comparison artifact if both are stored, and wait when the shared budget is full. Any migration must retain old bytes/hashes and pass rollback/foreign-key tests.
+
+Target at least seven days and 100 comparable mature pairs before a preliminary comparison; completion depends on the unchanged budgets and coverage. A target is not a guarantee of statistical calibration. Keep a chronological held-out portion; record exclusions and missingness by age/chain/score band. Original sampled 24h price/liquidity outcomes still wait 26h and remain observational. Later GMGN queries cannot leak into a selection-time feature. Labels of wash trading need separate transaction-level adjudication.
+
+### G3 — Measure usefulness, failure modes and maintenance cost
+
+Report risky-case detection and independent false-positive counts; top-ranked adverse outcomes; coverage of every new field; disagreement reasons; rank stability; quote/pool differences; request/storage use; latency and downtime. Publish denominators and intervals where meaningful. Compare A/B/C on identical pairs and separately on the full inventory to expose coverage-selection bias. Large returns, popularity and low observed loss rates alone do not validate organic trading or trust. Evaluate whether better OHLCV/labels actually outperform v3's approximations and whether creator-history queries save RPC work without overstating completeness.
+
+If the pilot cannot resolve candle units, material identity/field contradictions, label coverage or Free-plan access, keep it informational. If no model reliably improves the measured target, retain v3 and use GMGN only for investigation.
+
+### G4 — Integrate useful features through a versioned policy
+
+After evidence supports the choice, add a proposed score-v4 with pinned fields, freshness, coverage and explanatory concerns. Preserve v1–v3 replay. Favour GMGN candles and indexed wallet signals where validated; retire duplicated live plumbing only after checking proof obligations. Do not discard historical creation acquisition, independent origin/authority/inventory checks or research controls. Avoid double-counting related wash/bundler/insider signals or treating different providers as independent when they share underlying data.
+
+Keep existing adverse ceilings unless a separately justified policy revision changes them; a favourable vendor label never cancels on-chain adverse evidence. Display provider attribution and uncertainty; an outage removes positive freshness credit and reports unavailable evidence, not a clean bill. Support local rollback to v3. Contract tests, recorded replay, ordinary/adversarial controls, action/election invariance, UI checks and existing performance/budget checks are release requirements. No deployment or financial execution is authorized by this plan.
+
+## Current checklist
+
+- [x] Review official API docs, pinned source, endpoint auth/weights and relevant scoring skills.
+- [x] Install seven research skills at a known revision, without credentials or execution features.
+- [x] Compare our validations with GMGN data/heuristics and document semantic risks.
+- [x] Record this staged plan and link it from the PRD, task map and restart handoff.
+- [ ] Verify the $100 condition, actual Free entitlements and intended-use/data rights (G0).
+- [ ] Collect authenticated query fixtures and implement a disabled, bounded read-only adapter (G1).
+- [ ] Run prospective paired comparisons without increasing shared quotas (G2/G3).
+- [ ] Adopt only validated improvements through score-v4; preserve all independent gates and replay (G4).
+
+Planning changes are documentation-only. No current score, source schedule, database schema, quota, action gate or runtime dependency changed. Markdown links, the installed skill files/source hashes and Git whitespace checks are the appropriate validation for this milestone; application tests are not rerun for prose alone.

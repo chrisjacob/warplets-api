@@ -4,6 +4,15 @@ Reviewed 20 October 2026 against the entire [PRD v1.1](spec/10X_MEME_FULL_PRD_v1
 
 ## What exists and what is incomplete
 
+GMGN evaluation, 21 October: [API comparison and phased plan](63-gmgn-api-evaluation-and-plan.md) recommends a read-only data pilot, especially candles and indexed manipulation/creator signals. Seven pinned research skills are installed globally; no API credentials or source are activated. The repo documents Free weighted limits, but the reported $100 balance condition and product data rights remain unverified behind account access. Compare custom v3, the pinned vendor heuristic and a hybrid on prospective paired observations within existing budgets before proposing v4. Current v3, old replay and every evidence/action gate remain unchanged. No deploy.
+
+- [x] Evaluate official GMGN API/skills, compare data and scoring semantics, and install seven research skills at a pinned source revision.
+- [x] Plan read-only collection, normalized evidence, paired scoring research and versioned adoption; preserve all current source/evidence limits.
+- [ ] G0: confirm actual Free eligibility (including the reported $100 condition), endpoint entitlements and data-use/retention/export rights.
+- [ ] G1: collect real authenticated fixtures and implement a disabled-by-default bounded adapter with zero signing/trading routes.
+- [ ] G2/G3: evaluate custom v3, the vendor heuristic and a preregistered hybrid on matched-time prospective inputs and held-out outcomes.
+- [ ] G4: adopt justified GMGN features in a new scoring version; retain independent origin/authority/holder proofs and historical replay.
+
 USDF review, 21 October: [historical creation purchase and staircase scoring](62-usdf-launch-and-staircase-review.md) introduces score-v3. On the same frozen inputs USDF falls from v2 54 to v3 20, with a dated 79.336% creation purchase relative to later verified supply and a two-step sampled-price concern. Its actual opening valuation stays unknown; the first retained quote is 14h late. Cards/details publish limits and provisional rules. V1/v2 artifacts replay unchanged; new research uses v3 with archived model views and the original shared quotas. Local migration 0039 preserves retained rows. Today’s 100-record bound holds new v3 captures until capacity is available. No deploy.
 
 - [x] Retain USDF’s original v2 scorecard and price history; review the exact signed creation purchase separately from current holdings.
