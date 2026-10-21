@@ -1,5 +1,7 @@
 # 10X.MEME engineering kickoff
 
+Current product specification: [PRD v1.2](spec/10X_MEME_FULL_PRD_v1_2.md), with the founder's 21 October graded-discovery decision and implementation plan in §4.7. [Score-first discovery](57-graded-discovery.md) now ranks observed tokens by a 0–100 score with separate evidence coverage, risk ceilings, component breakdowns and exact offline-replayable scorecards. Binary gates remain for action readiness and historical election engines; zero fully eligible tokens no longer prevents a useful ranked browsing experience. No deploy.
+
 Latest market reliability milestone: [per-pool validation and bounded replay diagnostics](56-market-batch-validation.md). Valid canonical quotes can refresh alongside explicitly rejected/missing targets; unassignable identities hold the full batch. Owned lease/pause guards and atomic publication preserve evidence timing. Data status shows cached coverage; private replay retains only the latest response and latest issue. All quotas and eligibility gates remain; no deploy.
 
 Latest discovery lifecycle milestone: [verified creation expiry with retained history](55-candidate-expiry.md). Normal cached maintenance removes proven old tokens from active inputs in bounded audited batches while preserving every token/evidence row and frozen rehearsal. Unknown dates remain unresolved; the 500-input guard and all eligibility gates remain. No deploy.

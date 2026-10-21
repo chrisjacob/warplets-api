@@ -44,6 +44,8 @@ import { enqueueMintReview, mintReviews, MintReviewError } from "./mint-review";
 import { MINT_REVIEW_LIMITS } from "./mint-review-model";
 import { candidateExpiry, expireCandidates, inventoryStatus } from "./candidate-expiry";
 import { marketBatches,marketBatchRecord } from "./market-batch-store";
+import {candidateScorecard,rankedDiscovery,scoreInventoryCandidates} from "./discovery-score-store";
+import {DiscoveryScoreError,replayDiscoveryScore} from "./discovery-score";
 
 // Widen generated literal vars so ignored .dev.vars overrides stay type-safe.
 export type LocalEnv = { [K in keyof Cloudflare.Env]: Cloudflare.Env[K] extends string ? string : Cloudflare.Env[K] };
@@ -186,25 +188,32 @@ export async function handle(request: Request, env: Env): Promise<Response> {
       status: z.enum(["all", "eligible", "provisional", "excluded"]).default("all"),
       age: z.enum(["all", "24h"]).default("all"),
       view: z.enum(["full", "cards"]).default("full"),
+      sort:z.enum(["score","liquidity"]).default("score"),
       cursor: z.string().max(300).optional(),
     }).strict().parse(Object.fromEntries(url.searchParams));
-    const now = new Date(), stored = await candidates(env.TENX_DB, query.mode, query.age === "all");
-    const rows = shortlist(query.age === "24h" ? stored.filter(c => createdWithinWindow(c, now)) : stored, DEFAULT_POLICY, now);
-    const snapshot = await hashJson(rows);
-    const filtered = query.status === "all" ? rows : rows.filter(c => c.eligibility === query.status);
-    let offset = 0;
+    const realNow=new Date();let at=realNow,offset=0,priorSnapshot:string|null=null;
     if (query.cursor) {
       let decoded: unknown;
       try { decoded = JSON.parse(atob(query.cursor)); } catch { return json({ error: "invalid_cursor" }, 400); }
-      const cursor = z.object({ snapshot: z.string(), offset: z.number().int().min(0).max(100), status: z.string(), mode: z.string(), age: z.enum(["all", "24h"]).default("all"), view: z.enum(["full", "cards"]).default("full") }).strict().parse(decoded);
-      if (cursor.snapshot !== snapshot || cursor.status !== query.status || cursor.mode !== query.mode || cursor.age !== query.age || cursor.view !== query.view) return json({ error: "cursor_expired_refresh_required" }, 409);
-      offset = cursor.offset;
+      const cursor = z.object({ snapshot: z.string(), as_of:z.string().datetime(),offset: z.number().int().min(0).max(100), status: z.string(), mode: z.string(), age: z.enum(["all", "24h"]), view: z.enum(["full", "cards"]),sort:z.enum(["score","liquidity"]) }).strict().parse(decoded);
+      if (cursor.status !== query.status || cursor.mode !== query.mode || cursor.age !== query.age || cursor.view !== query.view||cursor.sort!==query.sort||Date.parse(cursor.as_of)>realNow.getTime()||realNow.getTime()-Date.parse(cursor.as_of)>300000) return json({ error: "cursor_expired_refresh_required" }, 409);
+      offset = cursor.offset;at=new Date(cursor.as_of);priorSnapshot=cursor.snapshot;
     }
+    const stored=await scoreInventoryCandidates(env.TENX_DB,query.mode,query.age==="all");
+    const ranked=await rankedDiscovery(env.TENX_DB,query.age==="24h"?stored.filter(c=>createdWithinWindow(c,at)):stored,at,query.sort,query.status),rows=ranked.rows;
+    const snapshot=await hashJson(rows);
+    if(priorSnapshot!==null&&priorSnapshot!==snapshot)return json({error:"cursor_expired_refresh_required"},409);
     const next = offset + query.limit;
     return json(await envelope(env, {
-      candidates: query.view === "cards" ? filtered.slice(offset, next).map(candidateCard) : filtered.slice(offset, next), mode: query.mode,
-      counts: { eligible: rows.filter(c => c.eligibility === "eligible").length, provisional: rows.filter(c => c.eligibility === "provisional").length, excluded: rows.filter(c => c.eligibility === "excluded").length },
-    }, { next_cursor: next < filtered.length ? btoa(JSON.stringify({ snapshot, offset: next, status: query.status, mode: query.mode, age: query.age, view: query.view })) : null }));
+      candidates: query.view === "cards" ? rows.slice(offset, next).map(candidateCard) : rows.slice(offset, next), mode: query.mode,sort:query.sort,scored_at:at.toISOString(),observed:ranked.observed,
+      counts:ranked.counts,
+    }, { next_cursor: next < rows.length ? btoa(JSON.stringify({ snapshot,as_of:at.toISOString(),offset: next, status: query.status, mode: query.mode, age: query.age, view: query.view,sort:query.sort })) : null }));
+  }
+  const scorecard=path.match(/^\/api\/10x\/discovery\/scores\/solana\/([^/]+)$/);
+  if(method==="GET"&&scorecard){
+    const address=Address.parse(scorecard[1]),mode=z.enum(["live","fixture"]).parse(url.searchParams.get("mode")??"live");
+    const record=await candidateScorecard(env.TENX_DB,address,mode);if(!record)return json({error:"candidate_not_found"},404);
+    await replayDiscoveryScore(record);return json({record,replay:"verified",provider_requests:0});
   }
   const activity = path.match(/^\/api\/10x\/activity\/solana\/([^/]+)$/);
   if (method === "GET" && activity) {
@@ -356,6 +365,7 @@ export default {
       }
       if (error instanceof RequestSecurityError) return json({ error: error.message }, error.status);
       if(error instanceof MintReviewError)return json({error:error.message},error.status);
+      if(error instanceof DiscoveryScoreError)return json({error:error.message},503);
       if(error instanceof LaunchError)return json({error:error.message},error.status);
       if(error instanceof RecoveryError)return json({error:error.message},error.status);
       if (error instanceof RewardError) return json({ error: error.message }, error.message === "reward_daily_limit" ? 429 : error.message === "reward_request_conflict" ? 409 : error.message.includes("mismatch") ? 503 : 400);

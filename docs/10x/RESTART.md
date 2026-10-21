@@ -27,7 +27,7 @@ Unrelated network work was dirty at handoff: files under `app/functions/_lib/net
 Read applicable `AGENTS.md` instructions, then:
 
 1. [Milestone index and implementation history](README.md).
-2. [Full original PRD v1.1](spec/10X_MEME_FULL_PRD_v1_1.md).
+2. [Current PRD v1.2](spec/10X_MEME_FULL_PRD_v1_2.md), including founder-authorized graded discovery in §4.7. V1.1 remains retained as history.
 3. [Original AI agent engineering brief](spec/AI_AGENT_BRIEF.md).
 4. [PRD task map, progress and remaining work](19-prd-task-map.md).
 5. [Unresolved decisions and authority boundaries](04-decisions.md).
@@ -123,7 +123,9 @@ Preview: **https://app-local.10x.meme**. Reuse this tunnel; do not create or dep
 
 ## Continue implementation
 
-Latest user priority: review Pump.fun **Kimchi** `CSocnzcRpgSCr1naKcNTieWZUxb6rABe45j844m7pump` and its “vamps”, then continue the PRD. [Initial review](52-kimchi-review.md), [bounded exact-mint intake](53-exact-mint-intake.md), [daily rehearsal storage recovery](54-election-snapshot-storage.md), [verified creation expiry](55-candidate-expiry.md) and [per-pool market validation/replay](56-market-batch-validation.md) are recorded. The target remains scanning with one saved signature page, seven intake reservations and no certified migration/candidate at the last check; inspect fresh progress before claiming admission or eligibility.
+Latest founder instruction: [PRD v1.2 §4.7](spec/10X_MEME_FULL_PRD_v1_2.md) replaces binary eligibility as the primary discovery order with a 0–100 grade. [Graded discovery](57-graded-discovery.md) implements score-first cards, separate effective evidence coverage, dated risk ceilings, component details and exact JSON export/offline replay. Scores use cached data only and a fixed denominator; unknown fields are never assumed safe. Preserve discovery-score-v1 replay when introducing later versions. Do not restore eligibility-first display or call zero proof of a scam/100 guaranteed trust. Existing action gates, action ranks and frozen election engines remain independent. Ten fully eligible tokens is now a readiness diagnostic; useful graded browsing is the primary product target.
+
+Earlier token-review request: review Pump.fun **Kimchi** `CSocnzcRpgSCr1naKcNTieWZUxb6rABe45j844m7pump` and its “vamps”, then continue the PRD. [Initial review](52-kimchi-review.md), [bounded exact-mint intake](53-exact-mint-intake.md), [daily rehearsal storage recovery](54-election-snapshot-storage.md), [verified creation expiry](55-candidate-expiry.md) and [per-pool market validation/replay](56-market-batch-validation.md) are recorded. The target remains scanning with one saved signature page, seven intake reservations and no certified migration/candidate at the last check; inspect fresh progress before claiming admission or eligibility.
 
 Local migration 0036 adds owned market publication and two bounded replayable diagnostic cache slots. Normal responses replayed 30/30 validated quotes, then 29/30 with one missing canonical pool held unchanged. Data status explains partial coverage; raw replay is operator-only. Pause, lease expiry/replacement, quotas, exact identity and freshness gates remain. Never force a refresh merely to fill the diagnostic slots. The old `market_schema_invalid` payload was not retained, so do not claim its exact root cause was identified.
 
@@ -131,4 +133,4 @@ Local migration 0035 and ordinary maintenance completed 194 initial expiry recei
 
 Briefly report the recovered checkpoint, preview/collector health, current coverage gaps and the highest-priority remaining task. Then continue the next justified PRD milestone within these constraints, incorporating any newer user instruction. Do not redo completed milestones or assume that every PRD feature is implemented.
 
-Keep the ten-recent-eligible-token coverage goal visible while improving the product. Validate meaningful changes with appropriate tests, typechecks/build checks and browser QA; use isolated fixtures rather than fake production-looking records in the main local store. Update progress documents with completed work, evidence, unresolved assumptions and next tasks. Commit and push the relevant changes. **No deploy.**
+Keep graded discovery and evidence coverage visible while improving source completeness; the ten-recent-eligible count remains an action-readiness diagnostic. Validate meaningful changes with appropriate tests, typechecks/build checks and browser QA; use isolated fixtures rather than fake production-looking records in the main local store. Update progress documents with completed work, evidence, unresolved assumptions and next tasks. Commit and push the relevant changes. **No deploy.**

@@ -22,6 +22,7 @@ Status as of 20 October 2026. An engineering recommendation is not an approved f
 | D16 | Open / founder + qualified advisers | Upgradeability, enforceability/lock disclosures, Australia/destination legal, privacy, promotion and tax review | Public money flows |
 | D17 | Proposed / founder | Discovery-only chains remain visible with launchEligible=false until exact three-pool certification. Skip instead of silently omitting $10X pool | Additional-chain winning/launching |
 | D18 | Open / founder + operations | Named admin identities, independent watchdog, two alert destinations and escalation | Restricted live operations/unattended release |
+| D19 | Confirmed direction / founder, 21 October 2026 | Grade discovery 0–100 and sort observed tokens by score; show evidence coverage and explain missing data/risks. [PRD v1.2 §4.7](spec/10X_MEME_FULL_PRD_v1_2.md) records initial local weights and implementation plan. Score endpoints do not establish scam/safety probabilities or activate action eligibility | Initial weights need outcome calibration; production economics, D06 action thresholds and release authority remain separate |
 
 Next discussion should resolve D04–D06 sufficiently for a read-only discovery milestone. D08–D16 need not delay local discovery domain/fixture work, but must remain gates on launch/reward/treasury behavior. No supply, beneficiary, fee rate, budget cap or authority is approved merely by committing this register.
 

@@ -77,7 +77,8 @@ describe("durable discovery state and public/admin API", () => {
       const assessed = assess(original, DEFAULT_POLICY, at);
       expect(card.eligibility).toBe(assessed.eligibility); expect(card.reasons).toEqual(assessed.reasons);
       expect(raw).not.toHaveProperty("wallet_analysis"); expect(raw).not.toHaveProperty("risk"); expect(raw).not.toHaveProperty("holders.owners"); expect(raw).not.toHaveProperty("creation.signature");
-      expect(candidateCard(assessed)).toEqual(card);
+      expect(card.discovery_score?.version).toBe("discovery-score-v1");
+      expect(candidateCard({...assessed,discovery_score:card.discovery_score,discovery_rank:card.discovery_rank})).toEqual(card);
     }
     expect(JSON.stringify(compact.data).length).toBeLessThan(JSON.stringify(full.data).length * 0.65);
     const first = await (await handle(req("candidates?mode=fixture&limit=1&view=cards"), env)).json() as { next_cursor: string };

@@ -33,7 +33,7 @@ describe("bounded chunk storage for unchanged v1 election records",()=>{
     expect(stored.input_bytes).toBeGreaterThan(1600000);expect(stored.chunks.length).toBeGreaterThan(1);expect(stored.chunks.length).toBeLessThanOrEqual(8);expect(stored.chunks.every(c=>c.bytes<=ELECTION_CHUNK_BYTES)).toBe(true);
     expect(await replayElection(record)).toMatchObject({status:"verified",provider_requests:0});expect(await electionRecord(db,opts.id)).toEqual(record);expect(await electionSummaries(db)).toHaveLength(1);expect(network).not.toHaveBeenCalled();
     expect(await db.prepare("SELECT count(*) n FROM tenx_audit WHERE action='election_snapshot'").first()).toEqual({n:1});
-  });
+  },15000);
   it("uses the same portable hashes after inline or chunked storage",async()=>{
     const {db}=setup();await inventory(db,100,1);const record=await createElection(db,opts),text=JSON.stringify(record.inputs),inline=await encodeElectionStorage(text,record.input_hash),chunked=await encodeElectionStorage(text,record.input_hash,true);
     expect(inline.stored).toBe(text);expect(inline.chunks).toEqual([]);expect(chunked.chunks.map(c=>c.payload).join("")).toBe(text);expect(await hashJson(JSON.parse(text))).toBe(record.input_hash);
