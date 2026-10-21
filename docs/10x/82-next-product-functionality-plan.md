@@ -10,6 +10,8 @@
 
 **Third implementation delivered:** [85 — recent candle activity](85-recent-candle-activity.md) adds fixed-policy 5m/1h/6h measurements and equal-period reported-volume comparisons from existing saved candles. This is the recent-candle slice of F3; meaningful holder/organic-volume qualification, broader admitted observation and the prospective scoring study remain open.
 
+**Fourth implementation delivered:** [86 — acquired and retained holder samples](86-acquired-retained-holder-sample.md) adds a fixed experimental native-size and endpoint-retention policy to comparison. It classifies raw entrants once, keeps missing/conflicting/truncated data held, excludes observed connections conservatively and preserves v4/legacy replay. This is sampled evidence; qualified daily growth, independence, organic volume and prospective scoring remain open.
+
 ## What the review found
 
 | Area | Actually available | Product gap |

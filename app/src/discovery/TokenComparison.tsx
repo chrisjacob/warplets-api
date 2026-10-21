@@ -6,6 +6,7 @@ import {getJson,readableReason,marketSource} from "./client";
 import {TokenImage,useTokenArtwork} from "./TokenMarket";
 import {tokenMoney,creationAge} from "./TokenOverview";
 import {RecentActivityCell} from "./RecentActivity";
+import {HolderParticipationCell} from "./HolderParticipation";
 
 export function comparisonSelection(raw:string|null){if(!raw)return[];const parsed=ComparisonAddresses.safeParse(raw.split(","));return parsed.success?parsed.data:[];}
 export function toggleComparison(selected:string[],address:string){if(selected.includes(address))return selected.filter(a=>a!==address);const next=ComparisonAddresses.safeParse([...selected,address]);return next.success?next.data:selected;}
@@ -35,6 +36,7 @@ export function ComparisonValues({report,artwork={}}:{report:DiscoveryComparison
       <tr><th scope="row">Verified creation age</th>{report.rows.map(row=><td key={row.address}>{creationAge(row.candidate?.creation?.block_time,Date.parse(report.cutoff_at))}</td>)}</tr>
       <tr><th scope="row">Reported cap / liquidity</th>{report.rows.map(row=><td key={row.address}>{tokenMoney(row.candidate?.market?.market_cap_usd)}<small>{tokenMoney(row.candidate?.market?.liquidity_usd)} liquidity</small><small>Fetched {date(row.candidate?.market?.fetched_at??null)}</small></td>)}</tr>
       {([5,60,360] as const).map(minutes=><tr key={"recent"+minutes}><th scope="row">Recent activity · {minutes===5?"5m":minutes===60?"1h":"6h"}<small>Relative to saved candle endpoint</small></th>{report.rows.map(row=><td key={row.address}><RecentActivityCell report={row.recent_activity} minutes={minutes}/></td>)}</tr>)}
+      {(["since_first","recent"] as const).map(window=><tr key={"holders"+window}><th scope="row">Acquired & retained holders<small>{window==="since_first"?"First / latest saved interval":"Most recent saved interval"}</small></th>{report.rows.map(row=><td key={row.address}><HolderParticipationCell report={row.holder_participation} window={window}/></td>)}</tr>)}
       {metrics.map(metric=><tr key={metric}><th scope="row">{labels[metric]}</th>{report.rows.map(row=><td key={row.address}><ComparisonActivityCell record={row.observations.find(o=>o.metric===metric)}/></td>)}</tr>)}
     </tbody></table></div><details><summary>Comparison identity</summary><p>Saved display checksum, not provider authenticity or a paired-model validation study. Every grade uses the displayed cutoff; source dates remain separate. Refresh explicitly to inspect newer observations.</p><p className="tenx-address">{report.report_hash}</p></details></>;
 }

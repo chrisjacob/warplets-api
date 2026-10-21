@@ -2,6 +2,7 @@ import { writeFileSync } from "node:fs";
 import {DiscoveryComparison} from "../discovery/src/discovery-comparison-model";
 import {ActivityObservation} from "../discovery/src/activity-observation";
 import {RecentActivity} from "../discovery/src/recent-activity-model";
+import {HolderParticipation} from "../discovery/src/holder-participation-model";
 import attentionPaths from "../discovery/openapi-attention-paths.json";
 import { z } from "zod";
 import { GmgnPublicSummarySchema } from "../discovery/src/gmgn-model";
@@ -185,6 +186,7 @@ const spec = {
     ArtworkResponse: z.toJSONSchema(ArtworkResponseSchema),
     ActivityObservation:z.toJSONSchema(ActivityObservation,{unrepresentable:"any"}),
     RecentActivity:z.toJSONSchema(RecentActivity,{unrepresentable:"any"}),
+    HolderParticipation:z.toJSONSchema(HolderParticipation,{unrepresentable:"any"}),
     DiscoveryComparison:z.toJSONSchema(DiscoveryComparison,{unrepresentable:"any"}),
     GmgnSummary: z.toJSONSchema(GmgnPublicSummarySchema),
     GmgnRpcComparison:z.toJSONSchema(GmgnCorroborationReportSchema),

@@ -31,7 +31,7 @@ export async function discoveryComparison(db:D1Database,rawAddresses:string[],mo
       row.candidate=candidateCard({...scored,market:marketFuture?null:scored.market});
       if(marketFuture)row.gaps.push("market_snapshot_after_cutoff_withheld");
     }catch{row.gaps.push("score_inputs_unusable_grade_withheld");}
-    const activity=await commonActivityBundle(db,c,at);row.observations=activity.records;row.recent_activity=activity.recent;
+    const activity=await commonActivityBundle(db,c,at);row.observations=activity.records;row.recent_activity=activity.recent;row.holder_participation=activity.participation;
   }
   const payload={version:"discovery-comparison-v1" as const,cutoff_at,mode,addresses,rows,alignment:"shared_read_cutoff_source_windows_differ" as const,source_authenticity:"not_independently_verified" as const,
     scoring_model:"discovery-score-v4" as const,activity_scoring_effect:"none" as const,evidence_gates_changed:false as const,provider_requests:0 as const,database_writes:0 as const};

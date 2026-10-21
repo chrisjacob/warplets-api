@@ -12,7 +12,7 @@ function bound(raw: unknown, bytes: number) {
   if(new TextEncoder().encode(JSON.stringify(raw)).length>bytes)throw new HolderAcquisitionError("holder_acquisition_byte_limit");
 }
 type Snapshot = Awaited<ReturnType<typeof replayHolderHistorySnapshot>>;
-function finalized(trade: VerifiedTrade, wallet: WalletEvidence, cutoff: number) {
+export function finalizedAcquisitionTrade(trade: Pick<VerifiedTrade,"signature"|"slot"|"block_time">, wallet: WalletEvidence, cutoff: number) {
   const record=wallet.records.find(row=>row.signature===trade.signature);
   if(!record || !record.transaction || record.status!=="available" || Date.parse(record.fetched_at)>cutoff)return false;
   const histories=[...wallet.histories,...(wallet.funding_scans??[]).flatMap(scan=>scan.pages),...(wallet.second_hop_scans??[]).flatMap(scan=>scan.pages)];
@@ -29,13 +29,13 @@ function interval(delta: NonNullable<HolderHistoryReport["since_first"]>, start:
   if(analysis?.gaps.includes("trade_output_limit"))gaps.push("wallet_trade_output_limit");
   const trades=(analysis?.trades??[]).filter(t=>t.slot>start.public.context_slot && t.slot<=end.public.context_slot &&
     Date.parse(t.block_time)>=Date.parse(delta.start_at) && Date.parse(t.block_time)<=Date.parse(delta.end_at));
-  const witnessed=wallet?trades.filter(t=>finalized(t,wallet,cutoff)):[];
+  const witnessed=wallet?trades.filter(t=>finalizedAcquisitionTrade(t,wallet,cutoff)):[];
   let supported=0;
   const entrants=[...end.balances.keys()].filter(owner=>!start.balances.has(owner));
   if(!gaps.length && wallet){
     for(const owner of entrants){
       const own=trades.filter(t=>t.wallet===owner);if(!own.some(t=>t.side==="buy"))continue;
-      if(own.some(t=>!finalized(t,wallet,cutoff))){exclusions.missing_finalized_history++;continue;}
+      if(own.some(t=>!finalizedAcquisitionTrade(t,wallet,cutoff))){exclusions.missing_finalized_history++;continue;}
       if(own.some(t=>t.side==="sell")){exclusions.two_sided_or_round_trip++;continue;}
       if(own.some(t=>t.quote_amount_raw===null || BigInt(t.quote_amount_raw)<=0n)){exclusions.quote_flow_unknown++;continue;}
       const groups=new Map<string,VerifiedTrade[]>();
@@ -59,7 +59,7 @@ function interval(delta: NonNullable<HolderHistoryReport["since_first"]>, start:
     raw_entrants:delta.entrants,supported_net_buy_entrants:held?null:supported,acquisition_unknown_entrants:delta.entrants===null?null:held?delta.entrants:delta.entrants-supported,
     interval_sampled_trades:trades.length,finalized_matched_transactions:new Set(witnessed.map(t=>t.signature)).size,exclusions,gaps:[...new Set(gaps)]});
 }
-export async function reviewHolderAcquisition(raw: unknown) {
+export async function reviewHolderAcquisitionData(raw: unknown) {
   bound(raw,L.input_bytes);const input=HolderAcquisitionInputSchema.parse(raw),{report:history,snapshots}=await reviewHolderHistoryData(input.history),cutoff=Date.parse(history.cutoff_at);
   const index=input.wallet_index, gaps:string[]=[];
   for(let i=0;i<index.length;i++){
@@ -92,8 +92,10 @@ export async function reviewHolderAcquisition(raw: unknown) {
     wallet_observed_at:wallet?.observed_at??null,wallet_stale:walletStale,wallet_records:wallet?.records.length??0,since_first:compare(history.since_first),recent:compare(history.recent),gaps,
     meaningful_holder_growth:null,organic_demand_certified:false,beneficial_independence_verified:false,population_trade_coverage:"unknown",scoring_effect:"none",evidence_gates_changed:false,
     provider_requests:0,database_writes:0,input_hash:await hashJson(input)};
-  return HolderAcquisitionReportSchema.parse({...report,report_hash:await hashJson(report)});
+  return {report:HolderAcquisitionReportSchema.parse({...report,report_hash:await hashJson(report)}),input,history,snapshots,wallet,analysis,unavailable};
 }
+// Preserve the original public/exported report, including its exact v1 hash.
+export async function reviewHolderAcquisition(raw:unknown){return (await reviewHolderAcquisitionData(raw)).report;}
 export async function replayHolderAcquisitionRecord(raw: unknown){
   bound(raw,L.input_bytes+100_000);const record=z.object({inputs:HolderAcquisitionInputSchema,report:HolderAcquisitionReportSchema}).strict().parse(raw);
   const actual=await reviewHolderAcquisition(record.inputs);

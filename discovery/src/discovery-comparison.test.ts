@@ -61,6 +61,7 @@ describe("common activity observation boundaries",()=>{
     for(let i=0;i<history.samples.length;i++){const s=history.samples[i]!,meta=history.index[i]!;await db.prepare("INSERT INTO tenx_holder_evidence VALUES(?1,?2,?3,?4,?5)").bind(s.payload_hash,history.address,meta.slot,JSON.stringify(s.evidence),meta.observed_at).run();}
     const observations=await commonActivity(db,candidate,at),raw=metric(observations,"raw_owner_net_change");expect(raw).toMatchObject({value:0,qualification:"supported_sample",unit:"owners",window:{start_at:"2026-10-21T08:00:00.000Z",end_at:"2026-10-21T09:00:00.000Z",duration_seconds:3600},coverage:{denominator_value:2},references:expect.any(Array)});
     expect(raw.references).toHaveLength(3);expect(metric(observations,"meaningful_holder_growth_24h").value).toBeNull();
+    const bundle=await commonActivityBundle(db,candidate,at);expect(bundle.participation).toMatchObject({address:candidate.address,cutoff_at:at.toISOString(),state:"available",since_first:{status:"held",screened_retained_entrants:null},meaningful_holder_growth_24h:null});expect(bundle.records).toEqual(observations);
     expect(metric(await commonActivity(db,{...candidate,pool:key(99)},at),"raw_owner_net_change")).toMatchObject({value:null,qualification:"held"});
   });
   it("keeps a selected-wallet page separate from token volume and rechecks its frozen selection",async()=>{
@@ -97,6 +98,7 @@ describe("three-token cached comparison",()=>{
     const {db,candidate}=await setup();await put(db,candidate);await put(db,{...candidate,mode:"fixture"});
     const report=await discoveryComparison(db,[candidate.address],"fixture",at);expect(await verifyDiscoveryComparison(report)).toEqual(report);expect(report.rows[0]!.observations.every(o=>o.source==="simulation"||o.source==="unavailable")).toBe(true);
     expect(report.rows[0]!.recent_activity?.state).toBe("simulation");
+    expect(report.rows[0]!.holder_participation?.state).toBe("simulation");
     const{report_hash:_,...crossMode}={...report,mode:"live"};await expect(verifyDiscoveryComparison({...crossMode,report_hash:await hashJson(crossMode)})).rejects.toThrow("recent_activity_mismatch");
     const env={TENX_DB:db,TENX_LOCAL_ONLY:"true"} as LocalEnv,base="http://localhost/api/10x/discovery/compare?addresses=";
     for(const query of ["",candidate.address+","+candidate.address,[1,2,3,4].map(key).join(","),candidate.address+"&url=https://evil.test",candidate.address+"&cutoff=2000-01-01T00:00:00Z"]){const response=await worker.fetch(new Request(base+query),env);expect(response.status).toBe(400);}

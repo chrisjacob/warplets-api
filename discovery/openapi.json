@@ -36367,6 +36367,475 @@
         ],
         "additionalProperties": false
       },
+      "HolderParticipation": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "string",
+            "const": "holder-participation-v1"
+          },
+          "address": {
+            "type": "string",
+            "maxLength": 44
+          },
+          "cutoff_at": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "available",
+              "missing",
+              "rejected",
+              "simulation"
+            ]
+          },
+          "policy": {
+            "type": "string",
+            "const": "holder-participation-policy-v1"
+          },
+          "policy_hash": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "history_hash": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "acquisition_hash": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "input_hash": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "wallet_hash": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "wallet_observed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "latest_inventory_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "freshness": {
+            "type": "string",
+            "enum": [
+              "fresh",
+              "stale",
+              "unknown"
+            ]
+          },
+          "since_first": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "measured_sample",
+                      "held"
+                    ]
+                  },
+                  "start_at": {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                  },
+                  "end_at": {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                  },
+                  "start_hash": {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{64}$"
+                  },
+                  "end_hash": {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{64}$"
+                  },
+                  "raw_entrants": {
+                    "anyOf": [
+                      {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 5000
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "signed_net_buy_entrants": {
+                    "anyOf": [
+                      {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 5000
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "screened_retained_entrants": {
+                    "anyOf": [
+                      {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 5000
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "partitions": {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "propertyNames": {
+                          "type": "string",
+                          "enum": [
+                            "no_sampled_buy",
+                            "missing_finalized_history",
+                            "sampled_sell",
+                            "unknown_quote",
+                            "mixed_net_flow",
+                            "insufficient_endpoint_balance",
+                            "observed_creator_or_link",
+                            "below_native_size",
+                            "retention_not_mature",
+                            "supported"
+                          ]
+                        },
+                        "additionalProperties": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 5000
+                        },
+                        "required": [
+                          "no_sampled_buy",
+                          "missing_finalized_history",
+                          "sampled_sell",
+                          "unknown_quote",
+                          "mixed_net_flow",
+                          "insufficient_endpoint_balance",
+                          "observed_creator_or_link",
+                          "below_native_size",
+                          "retention_not_mature",
+                          "supported"
+                        ]
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "gaps": {
+                    "maxItems": 20,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "maxLength": 100
+                    }
+                  }
+                },
+                "required": [
+                  "status",
+                  "start_at",
+                  "end_at",
+                  "start_hash",
+                  "end_hash",
+                  "raw_entrants",
+                  "signed_net_buy_entrants",
+                  "screened_retained_entrants",
+                  "partitions",
+                  "gaps"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "recent": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "measured_sample",
+                      "held"
+                    ]
+                  },
+                  "start_at": {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                  },
+                  "end_at": {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                  },
+                  "start_hash": {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{64}$"
+                  },
+                  "end_hash": {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{64}$"
+                  },
+                  "raw_entrants": {
+                    "anyOf": [
+                      {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 5000
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "signed_net_buy_entrants": {
+                    "anyOf": [
+                      {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 5000
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "screened_retained_entrants": {
+                    "anyOf": [
+                      {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 5000
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "partitions": {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "propertyNames": {
+                          "type": "string",
+                          "enum": [
+                            "no_sampled_buy",
+                            "missing_finalized_history",
+                            "sampled_sell",
+                            "unknown_quote",
+                            "mixed_net_flow",
+                            "insufficient_endpoint_balance",
+                            "observed_creator_or_link",
+                            "below_native_size",
+                            "retention_not_mature",
+                            "supported"
+                          ]
+                        },
+                        "additionalProperties": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 5000
+                        },
+                        "required": [
+                          "no_sampled_buy",
+                          "missing_finalized_history",
+                          "sampled_sell",
+                          "unknown_quote",
+                          "mixed_net_flow",
+                          "insufficient_endpoint_balance",
+                          "observed_creator_or_link",
+                          "below_native_size",
+                          "retention_not_mature",
+                          "supported"
+                        ]
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "gaps": {
+                    "maxItems": 20,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "maxLength": 100
+                    }
+                  }
+                },
+                "required": [
+                  "status",
+                  "start_at",
+                  "end_at",
+                  "start_hash",
+                  "end_hash",
+                  "raw_entrants",
+                  "signed_net_buy_entrants",
+                  "screened_retained_entrants",
+                  "partitions",
+                  "gaps"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "inventory_hashes": {
+            "maxItems": 3,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            }
+          },
+          "gaps": {
+            "maxItems": 24,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 100
+            }
+          },
+          "meaningful_holder_growth_24h": {
+            "type": "null"
+          },
+          "beneficial_independence_verified": {
+            "type": "boolean",
+            "const": false
+          },
+          "continuous_retention_verified": {
+            "type": "boolean",
+            "const": false
+          },
+          "organic_demand_certified": {
+            "type": "boolean",
+            "const": false
+          },
+          "population_trade_coverage": {
+            "type": "string",
+            "const": "unknown"
+          },
+          "scoring_effect": {
+            "type": "string",
+            "const": "none"
+          },
+          "evidence_gates_changed": {
+            "type": "boolean",
+            "const": false
+          },
+          "provider_requests": {
+            "type": "number",
+            "const": 0
+          },
+          "database_writes": {
+            "type": "number",
+            "const": 0
+          },
+          "report_hash": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          }
+        },
+        "required": [
+          "version",
+          "address",
+          "cutoff_at",
+          "state",
+          "policy",
+          "policy_hash",
+          "history_hash",
+          "acquisition_hash",
+          "input_hash",
+          "wallet_hash",
+          "wallet_observed_at",
+          "latest_inventory_at",
+          "freshness",
+          "since_first",
+          "recent",
+          "inventory_hashes",
+          "gaps",
+          "meaningful_holder_growth_24h",
+          "beneficial_independence_verified",
+          "continuous_retention_verified",
+          "organic_demand_certified",
+          "population_trade_coverage",
+          "scoring_effect",
+          "evidence_gates_changed",
+          "provider_requests",
+          "database_writes",
+          "report_hash"
+        ],
+        "additionalProperties": false
+      },
       "DiscoveryComparison": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
@@ -37819,6 +38288,474 @@
                     "organic_demand_certified",
                     "canonical_pool_verified",
                     "scoring_effect",
+                    "provider_requests",
+                    "database_writes",
+                    "report_hash"
+                  ],
+                  "additionalProperties": false
+                },
+                "holder_participation": {
+                  "type": "object",
+                  "properties": {
+                    "version": {
+                      "type": "string",
+                      "const": "holder-participation-v1"
+                    },
+                    "address": {
+                      "type": "string",
+                      "maxLength": 44
+                    },
+                    "cutoff_at": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                    },
+                    "state": {
+                      "type": "string",
+                      "enum": [
+                        "available",
+                        "missing",
+                        "rejected",
+                        "simulation"
+                      ]
+                    },
+                    "policy": {
+                      "type": "string",
+                      "const": "holder-participation-policy-v1"
+                    },
+                    "policy_hash": {
+                      "type": "string",
+                      "pattern": "^[a-f0-9]{64}$"
+                    },
+                    "history_hash": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "pattern": "^[a-f0-9]{64}$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "acquisition_hash": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "pattern": "^[a-f0-9]{64}$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "input_hash": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "pattern": "^[a-f0-9]{64}$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "wallet_hash": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "pattern": "^[a-f0-9]{64}$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "wallet_observed_at": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "latest_inventory_at": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "freshness": {
+                      "type": "string",
+                      "enum": [
+                        "fresh",
+                        "stale",
+                        "unknown"
+                      ]
+                    },
+                    "since_first": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "status": {
+                              "type": "string",
+                              "enum": [
+                                "measured_sample",
+                                "held"
+                              ]
+                            },
+                            "start_at": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                            },
+                            "end_at": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                            },
+                            "start_hash": {
+                              "type": "string",
+                              "pattern": "^[a-f0-9]{64}$"
+                            },
+                            "end_hash": {
+                              "type": "string",
+                              "pattern": "^[a-f0-9]{64}$"
+                            },
+                            "raw_entrants": {
+                              "anyOf": [
+                                {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 5000
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "signed_net_buy_entrants": {
+                              "anyOf": [
+                                {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 5000
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "screened_retained_entrants": {
+                              "anyOf": [
+                                {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 5000
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "partitions": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "propertyNames": {
+                                    "type": "string",
+                                    "enum": [
+                                      "no_sampled_buy",
+                                      "missing_finalized_history",
+                                      "sampled_sell",
+                                      "unknown_quote",
+                                      "mixed_net_flow",
+                                      "insufficient_endpoint_balance",
+                                      "observed_creator_or_link",
+                                      "below_native_size",
+                                      "retention_not_mature",
+                                      "supported"
+                                    ]
+                                  },
+                                  "additionalProperties": {
+                                    "type": "integer",
+                                    "minimum": 0,
+                                    "maximum": 5000
+                                  },
+                                  "required": [
+                                    "no_sampled_buy",
+                                    "missing_finalized_history",
+                                    "sampled_sell",
+                                    "unknown_quote",
+                                    "mixed_net_flow",
+                                    "insufficient_endpoint_balance",
+                                    "observed_creator_or_link",
+                                    "below_native_size",
+                                    "retention_not_mature",
+                                    "supported"
+                                  ]
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "gaps": {
+                              "maxItems": 20,
+                              "type": "array",
+                              "items": {
+                                "type": "string",
+                                "maxLength": 100
+                              }
+                            }
+                          },
+                          "required": [
+                            "status",
+                            "start_at",
+                            "end_at",
+                            "start_hash",
+                            "end_hash",
+                            "raw_entrants",
+                            "signed_net_buy_entrants",
+                            "screened_retained_entrants",
+                            "partitions",
+                            "gaps"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "recent": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "status": {
+                              "type": "string",
+                              "enum": [
+                                "measured_sample",
+                                "held"
+                              ]
+                            },
+                            "start_at": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                            },
+                            "end_at": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                            },
+                            "start_hash": {
+                              "type": "string",
+                              "pattern": "^[a-f0-9]{64}$"
+                            },
+                            "end_hash": {
+                              "type": "string",
+                              "pattern": "^[a-f0-9]{64}$"
+                            },
+                            "raw_entrants": {
+                              "anyOf": [
+                                {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 5000
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "signed_net_buy_entrants": {
+                              "anyOf": [
+                                {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 5000
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "screened_retained_entrants": {
+                              "anyOf": [
+                                {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 5000
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "partitions": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "propertyNames": {
+                                    "type": "string",
+                                    "enum": [
+                                      "no_sampled_buy",
+                                      "missing_finalized_history",
+                                      "sampled_sell",
+                                      "unknown_quote",
+                                      "mixed_net_flow",
+                                      "insufficient_endpoint_balance",
+                                      "observed_creator_or_link",
+                                      "below_native_size",
+                                      "retention_not_mature",
+                                      "supported"
+                                    ]
+                                  },
+                                  "additionalProperties": {
+                                    "type": "integer",
+                                    "minimum": 0,
+                                    "maximum": 5000
+                                  },
+                                  "required": [
+                                    "no_sampled_buy",
+                                    "missing_finalized_history",
+                                    "sampled_sell",
+                                    "unknown_quote",
+                                    "mixed_net_flow",
+                                    "insufficient_endpoint_balance",
+                                    "observed_creator_or_link",
+                                    "below_native_size",
+                                    "retention_not_mature",
+                                    "supported"
+                                  ]
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "gaps": {
+                              "maxItems": 20,
+                              "type": "array",
+                              "items": {
+                                "type": "string",
+                                "maxLength": 100
+                              }
+                            }
+                          },
+                          "required": [
+                            "status",
+                            "start_at",
+                            "end_at",
+                            "start_hash",
+                            "end_hash",
+                            "raw_entrants",
+                            "signed_net_buy_entrants",
+                            "screened_retained_entrants",
+                            "partitions",
+                            "gaps"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "inventory_hashes": {
+                      "maxItems": 3,
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "pattern": "^[a-f0-9]{64}$"
+                      }
+                    },
+                    "gaps": {
+                      "maxItems": 24,
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "maxLength": 100
+                      }
+                    },
+                    "meaningful_holder_growth_24h": {
+                      "type": "null"
+                    },
+                    "beneficial_independence_verified": {
+                      "type": "boolean",
+                      "const": false
+                    },
+                    "continuous_retention_verified": {
+                      "type": "boolean",
+                      "const": false
+                    },
+                    "organic_demand_certified": {
+                      "type": "boolean",
+                      "const": false
+                    },
+                    "population_trade_coverage": {
+                      "type": "string",
+                      "const": "unknown"
+                    },
+                    "scoring_effect": {
+                      "type": "string",
+                      "const": "none"
+                    },
+                    "evidence_gates_changed": {
+                      "type": "boolean",
+                      "const": false
+                    },
+                    "provider_requests": {
+                      "type": "number",
+                      "const": 0
+                    },
+                    "database_writes": {
+                      "type": "number",
+                      "const": 0
+                    },
+                    "report_hash": {
+                      "type": "string",
+                      "pattern": "^[a-f0-9]{64}$"
+                    }
+                  },
+                  "required": [
+                    "version",
+                    "address",
+                    "cutoff_at",
+                    "state",
+                    "policy",
+                    "policy_hash",
+                    "history_hash",
+                    "acquisition_hash",
+                    "input_hash",
+                    "wallet_hash",
+                    "wallet_observed_at",
+                    "latest_inventory_at",
+                    "freshness",
+                    "since_first",
+                    "recent",
+                    "inventory_hashes",
+                    "gaps",
+                    "meaningful_holder_growth_24h",
+                    "beneficial_independence_verified",
+                    "continuous_retention_verified",
+                    "organic_demand_certified",
+                    "population_trade_coverage",
+                    "scoring_effect",
+                    "evidence_gates_changed",
                     "provider_requests",
                     "database_writes",
                     "report_hash"
