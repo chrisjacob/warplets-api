@@ -63,10 +63,15 @@ async function catalog(directory,pin){
 }
 async function decode(folder,object){
   const file=await regular(path.join(folder,"objects",object.sha256+".gz"),object.gzip_bytes);if(file.bytes!==object.gzip_bytes)throw Error("Evidence compressed size mismatch");
-  const compressed=await readFile(file.file);if(sha(compressed)!==object.gzip_sha256)throw Error("Evidence compressed checksum mismatch");
+  return decodeEvidenceBytes(await readFile(file.file),object);
+}
+export function decodeEvidenceBytes(compressed,object){
+  if(compressed.length!==object.gzip_bytes||sha(compressed)!==object.gzip_sha256)throw Error("Evidence compressed checksum/size mismatch");
   const raw=gunzipSync(compressed,{maxOutputLength:Math.max(1,object.bytes)});if(raw.length!==object.bytes||sha(raw)!==object.sha256)throw Error("Evidence raw checksum/size mismatch");
   return exactText(raw);
 }
+// Shared private offline contracts; no runtime adoption or format change.
+export {privatePath as evidencePrivatePath,regular as evidenceRegularFile,catalog as readEvidenceCatalog,validateManifest as validateEvidenceCatalog,rowFor as restoreEvidenceRow};
 export function objectSummary(m){const byHash=new Map(m.objects.map(o=>[o.sha256,o]));return {catalog_manifest_sha256:m.catalog_manifest_sha256,source_manifest_sha256:m.source_manifest_sha256,
   rows:m.entries.length,objects:m.objects.length,duplicate_payload_references:m.entries.length-m.objects.length,raw_payload_bytes:m.entries.reduce((n,e)=>n+byHash.get(e.object_sha256).bytes,0),
   unique_payload_bytes:m.objects.reduce((n,o)=>n+o.bytes,0),compressed_object_bytes:m.objects.reduce((n,o)=>n+o.gzip_bytes,0),encrypted:false,full_database_archive:false,runtime_activated:false,network_requests:0,action_authority:false};}
