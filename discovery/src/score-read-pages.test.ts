@@ -10,13 +10,14 @@ import {createdWithinWindow} from "./priority";
 import {hashJson,toBase58} from "./solana";
 import {handle,type LocalEnv} from "./worker";
 import type {Candidate} from "./model";
+import {expireCandidates} from "./candidate-expiry";
 
 const at=new Date("2026-10-22T01:00:00.000Z"),opened:DatabaseSync[]=[];
 afterEach(()=>{opened.splice(0).forEach(db=>db.close());vi.restoreAllMocks();vi.useRealTimers();});
 const key=(i:number)=>{const b=new Uint8Array(32).fill(7);new DataView(b.buffer).setUint32(0,i);return toBase58(b);};
-async function setup(n=5){
+async function setup(n=5,incremental=true){
   const sqlite=new DatabaseSync(":memory:");opened.push(sqlite);
-  for(const f of readdirSync(new URL("../migrations/",import.meta.url)).filter(f=>f.endsWith(".sql")).sort())sqlite.exec(readFileSync(new URL(`../migrations/${f}`,import.meta.url),"utf8"));
+  for(const f of readdirSync(new URL("../migrations/",import.meta.url)).filter(f=>f.endsWith(".sql")&&(incremental||f<"0046")).sort())sqlite.exec(readFileSync(new URL(`../migrations/${f}`,import.meta.url),"utf8"));
   const db=sqliteD1(sqlite),fixtures=await fixtureCandidates(at),items:Candidate[]=[];
   const put=(c:Candidate)=>sqlite.prepare("INSERT INTO tenx_candidates(mode,address,pool,payload,checked_at) VALUES('live',?,?,?,?)").run(c.address,c.pool,JSON.stringify(c),c.checked_at);
   for(let i=0;i<n;i++){
@@ -60,11 +61,11 @@ describe("independently verified scoring card pages",()=>{
     await buildScoreReadPages(db,new Date(at.getTime()+1000));expect(await readScoreReadPages(db,{limit:1,browse:"inventory",cursor:first.next_cursor},new Date(at.getTime()+1000))).toMatchObject({reason:"cursor_refresh_required"});
     expect(items).toHaveLength(205);
   },20000);
-  it("reads only the requested cards with two queries, no full evidence, writes, or providers",async()=>{
+  it("reads selected bodies and bounded score pages with three queries, no full evidence, writes, or providers",async()=>{
     const {sqlite,db}=await setup(105);await buildScoreReadPages(db,at);
     const network=vi.spyOn(globalThis,"fetch").mockRejectedValue(Error("forbidden")),prepare=vi.spyOn(db,"prepare"),before=sqlite.prepare("SELECT total_changes() n").get();
     const result=await readScoreReadPages(db,{limit:3},at);expect(result).toMatchObject({state:"available",action_authority:false,semantics:"frozen_at_cutoff"});
-    expect(prepare).toHaveBeenCalledTimes(2);for(const [sql]of prepare.mock.calls)expect(sql).not.toMatch(/tenx_(?:candidates|market_history|proofs|wallet|holder)/);
+    expect(prepare).toHaveBeenCalledTimes(3);for(const [sql]of prepare.mock.calls)expect(sql).not.toMatch(/tenx_(?:candidates|market_history|proofs|wallet|holder)/);
     expect(prepare.mock.calls[1]![0]).toContain("json_each(?1)");if(result.state==="available")expect(result.data.candidates).toHaveLength(3);
     expect(network).not.toHaveBeenCalled();expect(sqlite.prepare("SELECT total_changes() n").get()).toEqual(before);
   });
@@ -79,7 +80,7 @@ describe("independently verified scoring card pages",()=>{
   });
   it("rejects corrupt, missing, substituted and repinned inconsistent cards/manifests",async()=>{
     const {sqlite,db}=await setup();
-    for(const sql of ["UPDATE tenx_score_page_cards SET payload=json_set(payload,'$.name','tampered')","DELETE FROM tenx_score_page_cards","UPDATE tenx_score_page_cards SET manifest_hash='"+"0".repeat(64)+"'"]){
+    for(const sql of ["UPDATE tenx_score_page_cards SET payload=json_set(payload,'$.name','tampered')","DELETE FROM tenx_score_page_cards","UPDATE tenx_score_page_cards SET body_hash='"+"0".repeat(64)+"'"]){
       await buildScoreReadPages(db,at);sqlite.exec(sql);expect(await readScoreReadPages(db,{},at)).toMatchObject({state:"held"});
     }
     await buildScoreReadPages(db,at);await editManifest(sqlite,v=>v.entries[0].name="bad",false);expect(await readScoreReadPages(db,{},at)).toMatchObject({reason:"manifest_integrity_mismatch"});
@@ -125,4 +126,76 @@ describe("independently verified scoring card pages",()=>{
     const result=await buildScoreReadPages(large.db,at);expect(result.state).toBe("held");if(result.state==="held")expect(["card_size_limit","card_batch_size_limit"]).toContain(result.reason);
     expect(large.sqlite.prepare("SELECT count(*) n FROM tenx_score_page_manifest").get()).toEqual({n:0});
   },20000);
+  it("writes nothing on identical replay and only the changed body/page on a same-cutoff source edit",async()=>{
+    const {sqlite,db}=await setup(60);await buildScoreReadPages(db,at);
+    const before=sqlite.prepare("SELECT total_changes() n").get();
+    expect(await buildScoreReadPages(db,at)).toMatchObject({state:"built",writes:{removed_bodies:0,changed_bodies:0,removed_summary_pages:0,changed_summary_pages:0,manifest:0}});
+    expect(sqlite.prepare("SELECT total_changes() n").get()).toEqual(before);
+    sqlite.prepare("UPDATE tenx_candidates SET payload=json_set(payload,'$.name','Changed identity') WHERE address=?").run(key(30));
+    expect(await readScoreReadPages(db,{},at)).toMatchObject({reason:"source_changed"});
+    expect(await buildScoreReadPages(db,at)).toMatchObject({state:"built",writes:{removed_bodies:0,changed_bodies:1,removed_summary_pages:0,changed_summary_pages:1,manifest:1}});
+    expect(await readScoreReadPages(db,{q:key(30)},at)).toMatchObject({state:"available",data:{candidates:[{name:"Changed identity"}]}});
+  });
+  it("refreshes every dated score at a new cutoff while reusing stable body bytes",async()=>{
+    const {sqlite,db,items}=await setup(60);
+    const stable=items.map(c=>({...c,market:null,creation:null,graduation:null,holders:null,wallet_analysis:null,risk:{...c.risk,observed_at:null}}));
+    for(const c of stable)sqlite.prepare("UPDATE tenx_candidates SET payload=? WHERE address=?").run(JSON.stringify(c),c.address);
+    await buildScoreReadPages(db,at);const bodies=sqlite.prepare("SELECT address,payload,body_hash FROM tenx_score_page_cards ORDER BY address").all();
+    const later=new Date(at.getTime()+1000);
+    expect(await buildScoreReadPages(db,later)).toMatchObject({writes:{changed_bodies:0,changed_summary_pages:3,manifest:1}});
+    expect(sqlite.prepare("SELECT address,payload,body_hash FROM tenx_score_page_cards ORDER BY address").all()).toEqual(bodies);
+    const result=await readScoreReadPages(db,{limit:100},later);expect(result.state).toBe("available");if(result.state!=="available")throw Error("held");
+    expect(result.data.candidates).toEqual((await rankedDiscovery(db,stable,later,"score","all")).rows.map(candidateCard));
+    expect(result.data.candidates.every(c=>c.discovery_score.as_of===later.toISOString())).toBe(true);
+  });
+  it("recomputes time-sensitive evidence at its boundary instead of reusing an old grade",async()=>{
+    const {sqlite,db,items}=await setup(1),base=(await fixtureCandidates(at))[0]!;
+    const c={...items[0]!,market:{...base.market!,fetched_at:new Date(at.getTime()-179999).toISOString(),observed_at:null}};
+    sqlite.prepare("UPDATE tenx_candidates SET payload=?").run(JSON.stringify(c));await buildScoreReadPages(db,at);
+    const later=new Date(at.getTime()+2),built=await buildScoreReadPages(db,later);expect(built).toMatchObject({state:"built",writes:{changed_bodies:1,changed_summary_pages:1}});
+    const result=await readScoreReadPages(db,{},later);if(result.state!=="available")throw Error("held");
+    expect(result.data.candidates).toEqual((await rankedDiscovery(db,[c],later,"score","all")).rows.map(candidateCard));
+    expect(await readScoreReadPages(db,{freshness:"fresh"},later)).toMatchObject({state:"available",data:{candidates:[]}});
+  });
+  it("repairs altered bodies/pages despite unchanged pins and rolls back late failures",async()=>{
+    const {sqlite,db}=await setup(30);await buildScoreReadPages(db,at);
+    sqlite.prepare("UPDATE tenx_score_page_cards SET payload=json_set(payload,'$.name','corrupt') WHERE address=?").run(key(1));
+    sqlite.exec("UPDATE tenx_score_page_summaries SET payload=json_set(payload,'$[0].discovery_score.value',99) WHERE page=0");
+    expect(await readScoreReadPages(db,{limit:100},at)).toMatchObject({state:"held"});
+    expect(await buildScoreReadPages(db,at)).toMatchObject({writes:{changed_bodies:1,changed_summary_pages:1,manifest:0}});
+    expect(await readScoreReadPages(db,{limit:100},at)).toMatchObject({state:"available"});
+    const page=JSON.parse((sqlite.prepare("SELECT payload FROM tenx_score_page_summaries WHERE page=0").get() as {payload:string}).payload);
+    page[24].discovery_score.as_of=new Date(at.getTime()-1).toISOString();
+    sqlite.prepare("UPDATE tenx_score_page_summaries SET payload=? WHERE page=0").run(JSON.stringify(page));
+    const pageHash=await hashJson(page);await editManifest(sqlite,v=>v.summary_pages[0].hash=pageHash);
+    expect(await readScoreReadPages(db,{q:page[0].address},at)).toMatchObject({reason:"summary_page_integrity_mismatch"});
+    await buildScoreReadPages(db,at);
+    const saved=sqlite.prepare("SELECT payload FROM tenx_score_page_summaries ORDER BY page").all();
+    sqlite.exec("CREATE TRIGGER fail_manifest BEFORE UPDATE ON tenx_score_page_manifest BEGIN SELECT RAISE(ABORT,'late_failure'); END");
+    await expect(buildScoreReadPages(db,new Date(at.getTime()+10))).rejects.toThrow("late_failure");
+    expect(sqlite.prepare("SELECT payload FROM tenx_score_page_summaries ORDER BY page").all()).toEqual(saved);
+    expect(await readScoreReadPages(db,{},at)).toMatchObject({state:"available"});
+  });
+  it("removes obsolete derived bodies after verified expiry while retaining every source candidate",async()=>{
+    const {sqlite,db,items}=await setup(26),c=items.find(c=>c.creation)!;const p=c.creation!;
+    sqlite.prepare("INSERT INTO tenx_proofs(address,kind,signature,instruction_index,slot,payload_hash,payload) VALUES(?,'creation',?,?,?,?,?)").run(c.address,p.signature,p.instruction_index,p.slot,p.payload_hash,JSON.stringify(p));
+    await buildScoreReadPages(db,at);const later=new Date(at.getTime()+86400001);
+    expect(await expireCandidates(db,later)).toMatchObject({expired:1});
+    expect(await buildScoreReadPages(db,later)).toMatchObject({writes:{removed_bodies:1,removed_summary_pages:1}});
+    expect(sqlite.prepare("SELECT count(*) n FROM tenx_candidates").get()).toEqual({n:26});
+    expect(sqlite.prepare("SELECT count(*) n FROM tenx_score_page_cards").get()).toEqual({n:25});
+    expect(await readScoreReadPages(db,{q:c.address},later)).toMatchObject({state:"available",data:{candidates:[]}});
+  });
+  it("preserves old projection bytes on migration and holds them until an explicit rebuild",async()=>{
+    const {sqlite,db,items}=await setup(1,false),card=candidateCard((await rankedDiscovery(db,items,at,"score","all")).rows[0]!);
+    const payload=JSON.stringify(card),legacy=JSON.stringify({version:"discovery-score-read-pages-v1",cutoff:at.toISOString()});
+    sqlite.prepare("INSERT INTO tenx_score_page_cards(address,manifest_hash,payload) VALUES(?,?,?)").run(card.address,"0".repeat(64),payload);
+    sqlite.prepare("INSERT INTO tenx_score_page_manifest VALUES(1,1,?,?,?)").run(at.toISOString(),"0".repeat(64),legacy);
+    expect(await buildScoreReadPages(db,at)).toMatchObject({reason:"read_pages_unavailable"});
+    sqlite.exec(readFileSync(new URL("../migrations/0046_incremental_score_pages.sql",import.meta.url),"utf8"));
+    expect(sqlite.prepare("SELECT payload FROM tenx_score_page_cards").get()).toEqual({payload});expect(sqlite.prepare("SELECT payload FROM tenx_score_page_manifest").get()).toEqual({payload:legacy});
+    expect(await readScoreReadPages(db,{},at)).toMatchObject({state:"held"});
+    expect(await buildScoreReadPages(db,at)).toMatchObject({state:"built",writes:{changed_bodies:1,changed_summary_pages:1}});
+    expect(await readScoreReadPages(db,{},at)).toMatchObject({state:"available",data:{candidates:[card]}});
+  });
 });
