@@ -4,6 +4,15 @@ Reviewed 20 October 2026 against the entire [PRD v1.1](spec/10X_MEME_FULL_PRD_v1
 
 ## What exists and what is incomplete
 
+Source-activity continuation, 21 October: [combined Jupiter/GeckoTerminal file review](66-source-activity-review.md) retains the full selected mint inventory, validates supplied pool metadata and measures organic-volume shares, adjacent price runs/jumps and moving zero-volume bars. Coverage, source disagreement and missingness remain explicit; metadata consistency is not canonical chain proof, and GT score time remains unknown. Frozen offline CLI comparison/replay adds no live collection, score change, migration, credential or deployment. Rights/access, authenticated fixtures, atomic shared admission and prospective custom-v3 validation remain open. GMGN qualification is pending after the founder reports an independent $105 transfer; no further funding or API activation is performed.
+
+- [x] Combine selected Jupiter/GT files with an explicit full-inventory denominator and retained absent/rejected controls.
+- [x] Check supplied exact pool metadata and derive bounded activity measurements without score blending, wash verdicts or chain-proof claims.
+- [x] Freeze/replay comparison manifests and extend the no-network, safe-file CLI and adversarial tests.
+- [ ] Establish applicable rights/Free access, collect authenticated fixtures and bind the existing canonical pool proof.
+- [ ] Connect atomic shared source/storage admission and read-only transport before any new collection.
+- [ ] Complete prospective custom-v3/provider comparisons and independent calibration before scoring adoption.
+
 Source-pilot implementation, 21 October: [Jupiter/GeckoTerminal offline review](65-source-pilot-workbench.md) adds bounded request plans, strict normalizers, hashed freeze/replay, a file-only CLI and read-only Data status readiness. Synthetic examples are explicit; no provider calls, candidate/cohort intake, migration, credential or new collection schedule. API-specific rights and real Free endpoint fixtures remain unresolved, so collection has no activation path. Current v3, all evidence/action/election gates and original aggregate budgets remain. Validation: 959 discovery tests, 79 UI tests, both typechecks and build; startup 234.1 KiB gzip. No deploy.
 
 - [x] Implement bounded Jupiter/GeckoTerminal request descriptors and exact-identity, unit, missing-data and closed-candle validation.

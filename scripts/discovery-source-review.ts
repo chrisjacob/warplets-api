@@ -5,6 +5,8 @@ import { SourceError } from "../discovery/src/rpc";
 import { SOURCE_PILOT_LIMITS } from "../discovery/src/source-pilot-model";
 import { freezeSourcePilot, replaySourcePilot, sourcePilotError, sourcePilotPlan } from "../discovery/src/source-pilot";
 import { syntheticSourcePilotInputs } from "../discovery/src/source-pilot-fixtures";
+import { reviewSourceActivity, replaySourceActivity } from "../discovery/src/source-pilot-activity";
+import { syntheticSourceActivityInput } from "../discovery/src/source-pilot-activity-fixtures";
 
 export async function readSourceReviewFile(file: string, byteLimit: number): Promise<unknown> {
   const handle = await open(file, "r");
@@ -27,6 +29,20 @@ export async function readSourceReviewFile(file: string, byteLimit: number): Pro
 export async function sourceReviewCommand(args: string[]) {
   const [action = "plan", file, output, ...rest] = args;
   if (rest.length) throw new SourceError("source_pilot_usage");
+  if (action === "compare-demo" && !file && !output) {
+    const record = await reviewSourceActivity(syntheticSourceActivityInput());
+    return { synthetic: true, live_collection_enabled: false, ...await replaySourceActivity(record) };
+  }
+  if ((action === "compare" && !output || action === "compare-freeze" && output) && file) {
+    const record = await reviewSourceActivity(await readSourceReviewFile(file, SOURCE_PILOT_LIMITS.input_bytes));
+    if (output) {
+      if (resolve(file) === resolve(output)) throw new SourceError("source_pilot_output_conflict");
+      await writeFile(output, JSON.stringify(record), { encoding: "utf8", flag: "wx" });
+    }
+    return { record_hash: record.record_hash, report: record.report };
+  }
+  if (action === "compare-replay" && file && !output)
+    return replaySourceActivity(await readSourceReviewFile(file, SOURCE_PILOT_LIMITS.record_bytes));
   if (action === "plan" && !output) {
     if (!file) return sourcePilotPlan();
     const input = await freezeSourcePilot(await readSourceReviewFile(file, SOURCE_PILOT_LIMITS.input_bytes));

@@ -33,7 +33,7 @@ export function sourcePilotPlan(raw?: SourcePilotRequest) {
 
 // JSON files are untrusted. Bound nesting/work as well as bytes, and reject JS
 // values JSON.stringify would silently launder (NaN -> null, undefined -> absent).
-function boundedJsonValue(raw: unknown, byteLimit: number) {
+export function boundedJsonValue(raw: unknown, byteLimit: number) {
   let nodes = 0;
   const ancestors = new Set<object>();
   function check(value: unknown, depth: number) {

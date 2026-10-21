@@ -1,5 +1,7 @@
 # GMGN API evaluation and comparison plan
 
+Setup follow-up, 21 October: at the founder’s explicit request, the reviewed official CLI v1.6.7 generated a local application key pair outside this repository. No API credential was applied or activated. The founder later reported independently transferring $105 and waiting for the hourly asset refresh; qualification remains unverified. No agent-initiated funding/top-up is authorized. Continue [Jupiter/GeckoTerminal activity preparation](66-source-activity-review.md) while GMGN access is pending. The original evaluation statements below describe their checkpoint.
+
 Broader review, 21 October: [Free-source comparison](64-free-data-source-comparison.md) adds Jupiter organic metrics, GeckoTerminal/GT Score and focused Birdeye/Helius alternatives to the investigation order. GMGN remains a conditional candidate, not an assumed winner. Check applicable comparison/storage/display rights before paired API work; the new review records specific licensing conflicts and retains the same G0–G4 and shared-budget boundaries.
 
 Reviewed 21 October 2026 for the founder's request. Recommendation: **conditional go for a read-only data pilot; retain Discovery score-v3 until a paired evaluation supports a versioned change.** GMGN could supply valuable indexed data we currently lack. Its published scores remain heuristics, and access, semantics and product-use rights need verification.

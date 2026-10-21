@@ -112,6 +112,7 @@ Research remains at the shared 100 records / 10 MB per day, three captures and f
 - [x] Record licensing conflicts, uncertain production entitlements, source correlation and launch-history limits.
 - [x] Update the PRD, existing GMGN plan, task map and restart handoff with the conditional shortlist.
 - [x] Implement and validate the initial offline Jupiter/GeckoTerminal normalizers, request plans, file replay and held-state diagnostics in milestone 65.
+- [x] Add [combined offline activity review](66-source-activity-review.md), retaining missing controls, checking supplied pool metadata and measuring organic/candle activity without changing scores.
 - [ ] Establish applicable rights and actual no-cost endpoint access for each selected experiment.
 - [ ] Capture real fixtures, validate schemas/units/coverage and implement only selected bounded adapters.
 - [ ] Complete prospective comparisons and independent calibration before proposing score-v4.

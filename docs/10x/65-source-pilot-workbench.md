@@ -1,5 +1,7 @@
 # Jupiter and GeckoTerminal: offline source review
 
+Follow-up: [combined activity review](66-source-activity-review.md) adds full-inventory file comparison, supplied pool-metadata consistency checks and descriptive organic/candle measurements. Its metadata check does not establish independent canonical proof or change these original v1 reports/hashes. Live transport and access/rights remain unresolved.
+
 Implemented 21 October 2026 from [the Free-source plan](64-free-data-source-comparison.md) and PRD §§4.2/4.7. This milestone prepares the first two sources for validation: typed request plans, bounded response normalization, frozen offline reports and visible readiness. **It does not enable new provider collection, change scores or complete the plan's access/rights preflight.** No deploy.
 
 ## Delivered
