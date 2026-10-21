@@ -1,4 +1,4 @@
-import {useState} from "react";
+import {useState,type ReactNode} from "react";
 import type {CandidateCard} from "../../../discovery/src/candidate-card";
 import {DEFAULT_POLICY} from "../../../discovery/src/model";
 import {TokenImage} from "./TokenMarket";
@@ -16,19 +16,23 @@ export function discoveryView(search:string):DiscoveryView{
 }
 export function discoveryViewParams(view:DiscoveryView){return new URLSearchParams(Object.entries(view).map(([k,v])=>[k,String(v)]));}
 export function discoveryCandidatesUrl(view:DiscoveryView){const p=discoveryViewParams(view);p.delete("layout");p.delete("compare");p.set("age",view.mode==="fixture"?"all":view.age);p.set("limit","100");p.set("view","cards");p.set("browse","inventory");p.set("inventory","current");return `/api/10x/candidates?${p}`;}
-export function DiscoveryWorkspaceControls({view,onChange}:{view:DiscoveryView;onChange:(view:DiscoveryView)=>void}){
+export function advancedFilterCount(view:DiscoveryView){return Number(view.freshness!=="all")+Number(view.min_liquidity>0)+Number(view.min_coverage>0);}
+export function DiscoveryWorkspaceControls({view,onChange,children}:{view:DiscoveryView;onChange:(view:DiscoveryView)=>void;children?:ReactNode}){
   const [search,setSearch]=useState(view.q),[liquidity,setLiquidity]=useState(String(view.min_liquidity)),[coverage,setCoverage]=useState(String(view.min_coverage));
   const change=(patch:Partial<DiscoveryView>)=>onChange({...view,...patch});
-  return <form className="tenx-workspace-controls" onSubmit={e=>{e.preventDefault();const min_liquidity=Number(liquidity),min_coverage=Number(coverage);if(!Number.isFinite(min_liquidity)||min_liquidity<0||min_liquidity>1e12||!Number.isFinite(min_coverage)||min_coverage<0||min_coverage>100)return;change({q:search.trim(),min_liquidity,min_coverage});}}>
-    <div className="tenx-workspace-search"><label>Find a token<input type="search" maxLength={100} value={search} onChange={e=>setSearch(e.target.value)} placeholder="Name, symbol or exact mint" /></label><button className="tenx-button" type="submit">Apply search & filters</button><button className="tenx-button tenx-button--quiet" type="button" onClick={()=>onChange({...defaults,mode:view.mode,layout:view.layout,age:view.age,compare:view.compare})}>Clear filters</button></div>
-    <div className="tenx-toolbar">
+  return <form className="tenx-workspace-controls" onInvalidCapture={e=>{const details=(e.target as HTMLElement).closest("details");if(details)details.open=true;}} onSubmit={e=>{e.preventDefault();const min_liquidity=Number(liquidity),min_coverage=Number(coverage);if(!Number.isFinite(min_liquidity)||min_liquidity<0||min_liquidity>1e12||!Number.isFinite(min_coverage)||min_coverage<0||min_coverage>100)return;change({q:search.trim(),min_liquidity,min_coverage});}}>
+    <div className="tenx-workspace-search"><label>Find a token<input type="search" maxLength={100} value={search} onChange={e=>setSearch(e.target.value)} placeholder="Name, symbol or exact mint" /></label><button className="tenx-button" type="submit">Search</button><button className="tenx-button tenx-button--quiet" type="button" onClick={()=>{setSearch("");setLiquidity("0");setCoverage("0");onChange({...defaults,mode:view.mode,layout:view.layout,age:view.age,compare:view.compare});}}>Reset filters</button></div>
+    <div className="tenx-toolbar tenx-workspace-primary">
       <label>Sort by<select value={view.sort} onChange={e=>change({sort:e.target.value as DiscoveryView["sort"]})}><option value="score">Discovery score · highest first</option><option value="liquidity">Fresh reported liquidity</option></select></label>
       {view.mode==="live"&&<label>Inventory window<select value={view.age} onChange={e=>change({age:e.target.value as DiscoveryView["age"]})}><option value="24h">Past 24 hours · verified</option><option value="all">Current evaluation inventory</option></select></label>}
+      <label>View<select value={view.layout} onChange={e=>change({layout:e.target.value as DiscoveryView["layout"]})}><option value="cards">Cards</option><option value="table">Compact table</option></select></label>
+    </div>
+    <details className="tenx-advanced-filters"><summary>Advanced filters · {advancedFilterCount(view)} active</summary><div className="tenx-toolbar">
       <label>Market snapshot<select value={view.freshness} onChange={e=>change({freshness:e.target.value as DiscoveryView["freshness"]})}><option value="all">Any freshness</option><option value="fresh">Fresh · within 3 minutes</option><option value="stale">Stale or future dated</option><option value="missing">Missing snapshot</option></select></label>
       <label>Min. reported liquidity ($)<input type="number" min={0} max={1e12} value={liquidity} onChange={e=>setLiquidity(e.target.value)} /></label>
       <label>Min. evidence coverage (%)<input type="number" min={0} max={100} value={coverage} onChange={e=>setCoverage(e.target.value)} /></label>
-      <label>View<select value={view.layout} onChange={e=>change({layout:e.target.value as DiscoveryView["layout"]})}><option value="cards">Cards</option><option value="table">Compact table</option></select></label>
-    </div>
+    </div><button className="tenx-button" type="submit">Apply advanced filters</button><p>Reported liquidity and evidence coverage do not establish organic demand or safety.</p></details>
+    {children&&<div className="tenx-workspace-tools">{children}</div>}
   </form>;
 }
 const money=(n:number|null|undefined)=>n==null?"Unknown":tokenMoney(n);

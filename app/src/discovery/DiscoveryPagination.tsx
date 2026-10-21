@@ -23,6 +23,6 @@ export function DiscoveryPagination({ state, onNext, onPrevious, onRefresh, foot
     <div className="tenx-shortlist-actions"><button type="button" className="tenx-button tenx-button--quiet" disabled={state.busy || state.index === 0} onClick={onPrevious}>Previous page</button>
       <button type="button" className="tenx-button tenx-button--quiet" disabled={state.busy || !hasNext || state.refresh_required} onClick={onNext}>Next page</button>
       <button type="button" className="tenx-button" disabled={state.busy} onClick={onRefresh}>{state.busy ? "Reading saved observations…" : "Refresh list · return to page 1"}</button></div>
-    {page && !footer && <p className="tenx-footnote">Browse cutoff {new Date(page.data.scored_at!).toLocaleString()}. Scores and table freshness refer to this cutoff. Later pages stay frozen until you refresh; page 1 refreshes automatically every minute while visible. Page links expire after five minutes or a saved-inventory change.</p>}
+    {page && !footer && <details className="tenx-page-help"><summary>How paging & refresh work</summary><p className="tenx-footnote">Browse cutoff {new Date(page.data.scored_at!).toLocaleString()}. Scores and table freshness refer to this cutoff. Later pages stay frozen until you refresh; page 1 refreshes automatically every minute while visible. Page links expire after five minutes or a saved-inventory change.</p></details>}
   </nav>;
 }

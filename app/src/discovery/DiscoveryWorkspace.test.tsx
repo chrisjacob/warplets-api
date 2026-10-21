@@ -1,6 +1,6 @@
 import {expect,it} from "vitest";
 import {renderToStaticMarkup} from "react-dom/server";
-import {discoveryView,discoveryViewParams,discoveryCandidatesUrl,DiscoveryTable,DiscoveryWorkspaceControls} from "./DiscoveryWorkspace";
+import {discoveryView,discoveryViewParams,discoveryCandidatesUrl,DiscoveryTable,DiscoveryWorkspaceControls,advancedFilterCount} from "./DiscoveryWorkspace";
 import {fixtureCandidates} from "../../../discovery/src/fixtures";
 import {assess,DEFAULT_POLICY} from "../../../discovery/src/model";
 import {candidateCard} from "../../../discovery/src/candidate-card";
@@ -16,6 +16,17 @@ it("provides accessible search/filter controls and preserves the v4 default with
   const html=renderToStaticMarkup(<DiscoveryWorkspaceControls view={discoveryView("")} onChange={()=>{}}/>);
   for(const text of ["Find a token","Name, symbol or exact mint","Compact table","Min. evidence coverage","Fresh · within 3 minutes","Discovery score · highest first"])expect(html).toContain(text);
   expect(html).not.toContain("Organic leaders");expect(html).toContain('type="search"');expect(html).toContain('maxLength="100"');
+});
+it("keeps applied advanced filters discoverable when collapsed without changing URL/query semantics",()=>{
+  const view=discoveryView("?freshness=stale&min_liquidity=25000&min_coverage=30&layout=table&age=all");
+  expect(advancedFilterCount(view)).toBe(3);expect(advancedFilterCount(discoveryView("?q=test&sort=liquidity&age=all"))).toBe(0);
+  const html=renderToStaticMarkup(<DiscoveryWorkspaceControls view={view} onChange={()=>{}}/>);
+  expect(html).toContain("Advanced filters · 3 active");expect(html).toContain("Reset filters");
+  expect(html).not.toMatch(/<details[^>]* open/);
+  expect(html.indexOf("Inventory window")).toBeLessThan(html.indexOf("Advanced filters"));
+  expect(html.indexOf("Compact table")).toBeLessThan(html.indexOf("Advanced filters"));
+  const p=new URL(discoveryCandidatesUrl(view),"https://app-local.10x.meme").searchParams;
+  expect(p.get("freshness")).toBe("stale");expect(p.get("min_liquidity")).toBe("25000");expect(p.get("min_coverage")).toBe("30");
 });
 it("keeps token images, mint copying, provenance and unknown metrics visible in a table; null volume is not zero",async()=>{
   const at=new Date("2026-10-21T01:00:00.000Z"),base=(await fixtureCandidates(at))[0]!,card=candidateCard(assess({...base,market:{...base.market!,volume_24h_usd:null,image_url:"https://cdn.dexscreener.com/image.png"}},DEFAULT_POLICY,at));
