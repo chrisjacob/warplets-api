@@ -19,6 +19,7 @@ import { recordUnsupportedFundingRead, recoverFundingBodies } from "./funding-re
 import {currentWalletReader,DIRECT_FUNDING_WALLETS} from "./wallet-funding-scope";
 import { continueCachedFunding, recordCachedFundingWork } from "./funding-cache-work";
 import {d1EvidenceReadStore,type EvidenceReadStore} from "./evidence-read-store";
+import {d1EvidenceWriteStore} from "./evidence-write-store";
 
 export type WalletSettings = Settings & { walletEnabled: boolean; walletDailyLimit: number };
 export async function walletHolderInputFromStore(store:EvidenceReadStore,candidate:Candidate):Promise<WalletEvidence["holders"]>{
@@ -237,7 +238,7 @@ export async function runWalletCycle(settings: WalletSettings, address?: string,
     const analysis = await analyzeWalletEvidence(evidence);
     const statements = [
       runRow("succeeded",Math.max(0,(analysis.funding_coverage?.filter(f=>f.status==="window_examined").length ?? 0)-selectedPlan.examined_windows),Math.max(0,analysis.metrics.distinct_buyers-(candidate.wallet_analysis?.metrics.distinct_buyers ?? 0))),
-      db.prepare("INSERT OR IGNORE INTO tenx_wallet_evidence(payload_hash,address,payload,observed_at) VALUES(?1,?2,?3,?4)").bind(analysis.evidence_hash, candidate.address, payload, analysis.observed_at),
+      d1EvidenceWriteStore(db).wallet({payload_hash:analysis.evidence_hash,address:candidate.address,payload,observed_at:analysis.observed_at}),
       db.prepare("UPDATE tenx_candidates SET payload=json_set(payload,'$.wallet_analysis',json(?1)) WHERE address=?2 AND mode='live'").bind(JSON.stringify(analysis), candidate.address),
       db.prepare("INSERT INTO tenx_wallet_attempts(address,attempted_at,next_attempt_at) VALUES(?1,?2,?3) ON CONFLICT(address) DO UPDATE SET attempted_at=excluded.attempted_at,next_attempt_at=excluded.next_attempt_at").bind(candidate.address, at, new Date(now.getTime() + 3600000).toISOString()),
       db.prepare("UPDATE tenx_wallet_control SET lease_owner=NULL,lease_until=NULL,last_success=?1,last_address=?2,last_error=NULL,next_refresh_at=?4 WHERE id=1 AND lease_owner=?3").bind(analysis.observed_at, candidate.address, owner,new Date(now.getTime()+spacingFor(rpc.calls)*1000).toISOString()),

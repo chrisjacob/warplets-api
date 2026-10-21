@@ -77,6 +77,15 @@ jobs:
       - name: Immutable evidence response and activity compatibility
         run: pnpm --dir discovery test -- src/evidence-read-store.test.ts
 
+      - name: Evidence append atomicity, immutable collisions and spent allowances
+        run: pnpm --dir discovery test -- src/evidence-write-store.test.ts src/wallet-work.test.ts
+
+      - name: Native isolated D1 evidence append rollback
+        run: node scripts/check-evidence-write-runtime.mjs .tmp/ci-evidence-write-runtime
+
+      - name: Evidence append runtime fixture types
+        run: pnpm exec tsc --noEmit -p tsconfig.evidence-write.json
+
       - name: Install dependencies (app)
         working-directory: app
         run: pnpm install --frozen-lockfile

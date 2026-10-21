@@ -39,7 +39,7 @@ async function setup() {
   });
   const rpc = () => new RpcClient("https://rpc.example", async () => {}, transport, 18);
   const settings = { db, rpcUrl: "https://rpc.example", rpcDailyLimit: 5000, walletDailyLimit: 800, marketDailyLimit: 600, walletEnabled: true, marketEnabled: false, transport };
-  return { db, input, candidate, transport, rpc, settings };
+  return { sqlite, db, input, candidate, transport, rpc, settings };
 }
 describe("funding continuations keep eligibility snapshots honest", () => {
   it.each(["version", "layout"])("retains an unsupported %s body once while other funding windows advance", async (failure) => {
@@ -147,6 +147,28 @@ describe("funding continuations keep eligibility snapshots honest", () => {
     expect(await db.prepare("SELECT used FROM tenx_wallet_usage").first()).toEqual({used:4});
     expect(await db.prepare("SELECT used FROM tenx_usage WHERE provider='rpc'").first()).toEqual({used:4});
     await db.prepare("UPDATE tenx_control SET paused=1").run(); expect(await runWalletCycle(settings,candidate.address)).toEqual({state:"paused"});
+  });
+  it.each(["append","profile"])("a %s publication failure keeps spent RPC allowances and rolls back snapshot/job success",async failure=>{
+    const {sqlite,db,candidate,rpc,settings,transport}=await setup();
+    await continueFunding(db,candidate,rpc());await continueFunding(db,candidate,rpc());
+    const newBuy=await trade(key(11),10002,"buy",70);
+    transport.mockImplementation(async(_url,init)=>{
+      const b=JSON.parse(String(init?.body));let result:unknown;
+      if(b.method==="getGenesisHash")result=MAINNET_GENESIS;
+      else if(b.method==="getTransaction")result=newBuy;
+      else if(b.method==="getSignaturesForAddress")result=b.params[0]===candidate.pool?[{signature:signature(70),slot:newBuy.slot,blockTime:newBuy.blockTime,err:null,confirmationStatus:"finalized"}]:[];
+      else throw Error("unexpected method");
+      return Response.json({jsonrpc:"2.0",id:b.id,result});
+    });transport.mockClear();
+    const tables=["tenx_candidates","tenx_wallet_evidence","tenx_wallet_profiles","tenx_wallet_work","tenx_cohorts","tenx_wallet_cohorts","tenx_selections"],before=tables.map(t=>sqlite.prepare(`SELECT * FROM ${t}`).all());
+    sqlite.exec(`CREATE TRIGGER fail_publication BEFORE INSERT ON ${failure==="append"?"tenx_wallet_evidence":"tenx_wallet_profiles"} BEGIN SELECT RAISE(ABORT,'synthetic_publication_failure'); END`);
+    const result=await runWalletCycle(settings,candidate.address);
+    expect(result).toMatchObject({state:"failed",error_code:"synthetic_publication_failure"});expect(result.rpc_calls).toBeGreaterThan(0);expect(result.rpc_calls).toBe(transport.mock.calls.length);
+    expect(tables.map(t=>sqlite.prepare(`SELECT * FROM ${t}`).all())).toEqual(before);
+    expect(sqlite.prepare("SELECT used FROM tenx_usage WHERE provider='rpc'").get()!.used).toBe(result.rpc_calls);expect(sqlite.prepare("SELECT used FROM tenx_wallet_usage").get()!.used).toBe(result.rpc_calls);expect(sqlite.prepare("SELECT used FROM tenx_usage WHERE provider='wallet_catchup'").get()!.used).toBe(18);
+    expect(sqlite.prepare("SELECT state,rpc_calls,error_code FROM tenx_wallet_runs").all()).toEqual([{state:"failed",rpc_calls:result.rpc_calls,error_code:"synthetic_publication_failure"}]);
+    expect(sqlite.prepare("SELECT lease_owner,last_success,last_error FROM tenx_wallet_control").get()).toEqual({lease_owner:null,last_success:null,last_error:"synthetic_publication_failure"});
+    expect(sqlite.prepare("SELECT next_attempt_at>attempted_at AS delayed FROM tenx_wallet_attempts").get()!.delayed).toBe(1);
   });
   it("does not bypass provider backoff, leases or exhausted wallet quotas", async () => {
     const { db,candidate,settings,transport } = await setup(); const later=new Date(Date.now()+600000).toISOString();

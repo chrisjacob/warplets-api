@@ -3,6 +3,7 @@ import type { HolderEvidence } from "./holders";
 import { SourceError, type Reserve, type Transaction, type Accounts } from "./rpc";
 import { hashJson } from "./solana";
 import { createElection } from "./elections";
+import {d1EvidenceWriteStore} from "./evidence-write-store";
 
 export type Control = {
   paused: number; lease_owner: string | null; lease_until: string | null;
@@ -49,8 +50,7 @@ export async function saveCandidate(db: D1Database, candidate: Candidate, transa
     if (candidate.market) statements.push(db.prepare("INSERT OR IGNORE INTO tenx_market_history(address,fetched_at,payload) VALUES(?1,?2,?3)")
       .bind(candidate.address, candidate.market.fetched_at, JSON.stringify(candidate.market)));
     if (holderEvidence && candidate.holders?.payload_hash) {
-      statements.push(db.prepare("INSERT OR IGNORE INTO tenx_holder_evidence(payload_hash,address,slot,payload,observed_at) VALUES(?1,?2,?3,?4,?5)")
-        .bind(candidate.holders.payload_hash, candidate.address, holderEvidence.inventory.context.slot, JSON.stringify(holderEvidence), candidate.holders.observed_at));
+      statements.push(d1EvidenceWriteStore(db).holder({payload_hash:candidate.holders.payload_hash,address:candidate.address,slot:holderEvidence.inventory.context.slot,payload:JSON.stringify(holderEvidence),observed_at:candidate.holders.observed_at}));
       for (const owner of candidate.holders.owners.filter(o => o.role === "holder" && o.supply_pct >= 5)) statements.push(db.prepare("INSERT OR IGNORE INTO tenx_wallet_signals(wallet,address,role,evidence_hash,observed_at) VALUES(?1,?2,'large_owner',?3,?4)").bind(owner.owner, candidate.address, candidate.holders.payload_hash, candidate.checked_at));
       if (candidate.holders.creator) statements.push(db.prepare("INSERT OR IGNORE INTO tenx_wallet_signals(wallet,address,role,evidence_hash,observed_at) VALUES(?1,?2,'creation_user',?3,?4)").bind(candidate.holders.creator, candidate.address, candidate.holders.payload_hash, candidate.checked_at));
     }

@@ -11,6 +11,7 @@ import { fundingSourceLimited } from "./priority";
 import { recordUnsupportedFundingRead } from "./funding-recovery";
 import {currentWalletReader,directFundingLimit,expandedFundingScope,fundingSecondHopScope} from "./wallet-funding-scope";
 import {d1EvidenceReadStore,type EvidenceReadStore} from "./evidence-read-store";
+import {d1EvidenceWriteStore} from "./evidence-write-store";
 
 export const catchupLimit = (dailyLimit: number) => Math.min(180, Math.floor(dailyLimit / 4 / 18) * 18);
 export async function priorWalletEvidence(db: D1Database, candidate: Candidate): Promise<WalletEvidence | null> {
@@ -64,7 +65,7 @@ export async function replayLegacyWallets(db: D1Database): Promise<Record<string
       const analysis=await analyzeWalletEvidence(input), payload=JSON.stringify(input);
       if(new TextEncoder().encode(payload).length>1800000)throw new Error("wallet_evidence_size_limit");
       const statements=[
-        db.prepare("INSERT OR IGNORE INTO tenx_wallet_evidence(payload_hash,address,payload,observed_at) VALUES(?1,?2,?3,?4)").bind(analysis.evidence_hash,c.address,payload,analysis.observed_at),
+        d1EvidenceWriteStore(db).wallet({payload_hash:analysis.evidence_hash,address:c.address,payload,observed_at:analysis.observed_at}),
         db.prepare("UPDATE tenx_candidates SET payload=json_set(payload,'$.wallet_analysis',json(?1)) WHERE address=?2 AND mode='live' AND json_extract(payload,'$.wallet_analysis.evidence_hash')=?3").bind(JSON.stringify(analysis),c.address,c.wallet_analysis!.evidence_hash),
         db.prepare("DELETE FROM tenx_wallet_work WHERE address=?1 AND source_evidence_hash=?2").bind(c.address,c.wallet_analysis!.evidence_hash),
       ];

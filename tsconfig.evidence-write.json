@@ -1,0 +1,4 @@
+{
+  "extends": "./tsconfig.json",
+  "include": ["scripts/evidence-write-runtime.ts", "discovery/worker-configuration.d.ts"]
+}
