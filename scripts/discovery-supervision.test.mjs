@@ -3,6 +3,10 @@ import assert from "node:assert/strict";
 import { EventEmitter, once } from "node:events";
 import { createServer } from "node:net";
 import { spawn } from "node:child_process";
+import { durableRestartBudget } from "./discovery-restart-budget.mjs";
+import { mkdtempSync, mkdirSync, rmSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { discoveryPortAvailable, discoverySupervisor } from "./discovery-supervision.mjs";
 
 const report = (code = "api_unreachable") => ({ code, restart_recommended: !["healthy", "degraded"].includes(code) });
@@ -48,7 +52,7 @@ test("a previously healthy unowned server can disappear and return to bounded st
 });
 
 test("an unhealthy occupied unowned port never consumes a launch attempt or receives termination", async () => {
-  const r = rig({ dependencies: { portAvailable: async () => false }, step: (_ms, state) => {
+  const r = rig({ dependencies: { portAvailable: async () => false, admitStart() { assert.fail("occupied port cannot reserve a start"); } }, step: (_ms, state) => {
     if (state.time >= 180000) state.supervisor.stop();
   } });
   await r.supervisor.run(); assert.equal(r.starts.length, 0); assert.equal(r.kills.length, 0);
@@ -100,7 +104,7 @@ test("signal exits, asynchronous spawn errors and synchronous spawn failures all
 
 test("48 simulated hours of source degradation, pause and quota holds do not restart a recent timer", async () => {
   let checks = 0;
-  const r = rig({ dependencies: { healthy: async () => true, observe: async () => { checks++; return report(checks % 2 ? "degraded" : "healthy"); } },
+  const r = rig({ dependencies: { healthy: async () => true, admitStart() { assert.fail("recent healthy/degraded timers cannot reserve a start"); }, observe: async () => { checks++; return report(checks % 2 ? "degraded" : "healthy"); } },
     step: (_ms, state) => { if (state.time >= 48 * 3600000) state.supervisor.stop(); },
   });
   await r.supervisor.run(); assert.ok(checks > 5000); assert.equal(r.starts.length, 0); assert.equal(r.kills.length, 0);
@@ -140,4 +144,32 @@ test("shutdown cancels a real startup wait and the owned subprocess exits natura
   assert.deepEqual(await once(child, "message"), ["owned_started", undefined]);
   child.send("stop");
   assert.deepEqual(await closed, [0, null], stderr);
+});
+
+test("a failed persistent admission holds startup, keeps observing and logs no filesystem details", async () => {
+  let admissions = 0, observations = 0;
+  const r = rig({ dependencies: {
+    admitStart() { admissions++; throw Error("private filesystem detail"); },
+    observe: async () => { observations++; return report(); },
+  }, step: (_ms, state) => { if (state.time >= 120000) state.supervisor.stop(); } });
+  await r.supervisor.run();
+  assert.equal(r.starts.length, 0); assert.equal(r.kills.length, 0);
+  assert.equal(admissions, 4); assert.equal(observations, 4);
+  assert.equal(r.logs.filter(line => line.includes("ledger unavailable")).length, 1);
+  assert.ok(r.logs.every(line => !line.includes("private filesystem detail")));
+});
+
+test("the supervisor commits persistent admission before failed spawns and a new owner cannot refund them", async t => {
+  const temp = fileURLToPath(new URL("../.tmp/", import.meta.url)); mkdirSync(temp, { recursive: true });
+  const directory = mkdtempSync(path.join(temp, "supervision-budget-test-"));
+  t.after(() => { assert.equal(path.dirname(path.resolve(directory)), path.resolve(temp)); rmSync(directory, { recursive: true, force: true }); });
+  const file = path.join(directory, "budget.json"); let time = 0, attempts = 0;
+  const budget = durableRestartBudget(file, { now: () => time });
+  const supervisor = discoverySupervisor({ healthy: async () => false, portAvailable: async () => true, observe: async () => report(),
+    admitStart: budget.admit, start() { attempts++; if (attempts === 3) supervisor.stop(); throw Error("spawn failed"); },
+    terminate() { assert.fail("no child exists"); }, wait: async ms => { time += ms; assert.ok(time < 1000000); },
+  });
+  await supervisor.run(); assert.equal(attempts, 3); assert.equal(time, 930000);
+  const successor = durableRestartBudget(file, { now: () => 0 });
+  assert.equal(successor.admit(), false);
 });

@@ -32,6 +32,10 @@ Next functionality, 21 October: [daily discovery product plan](82-next-product-f
 
 ## F5 storage recovery — 22 October
 
+**Durable start allowance:** [95 — restart accounting](95-durable-supervisor-restart-budget.md) closes the cross-process budget-reset gap with pre-spawn atomic reservations, conservative monotonic carryover and explicit corrupt/orphan-state holds. Forty-five recovery tests pass; no live restart was forced. Activation is at the next ordinary supervisor start, including a fifteen-minute first-adoption cooldown.
+
+- [x] Preserve the existing three-starts/fifteen-minute allowance across supervisor replacement, including failed spawns and interrupted writes; never reset provider/research counters.
+
 **Supervisor correction:** [93 — vacancy recovery](93-supervisor-vacancy-recovery.md) now covers the unowned-service exit dead end, occupied-port startup refusal, owned-handle retention, signal/spawn failures and abortable shutdown, with unchanged rolling start admission. Offline fault fixtures pass; current cached operations/election replay remains valid. No running supervisor restart or root-cause Wrangler fix is claimed; activation is at the next ordinary supervisor start.
 
 [91 — local evidence archive and restore](91-local-evidence-archive-and-restore.md) implements a private operator recovery slice; F5 remains partial.

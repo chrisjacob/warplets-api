@@ -13,10 +13,15 @@ export function discoveryPortAvailable(port = 8794) {
 }
 
 export function discoverySupervisor({ healthy, portAvailable = discoveryPortAvailable, observe, start, terminate, log = () => {},
-  now = () => performance.now(), wait = (ms, signal) => delay(ms, undefined, { signal }).catch(error => { if (!signal.aborted) throw error; }),
+  now = () => performance.now(), admitStart, wait = (ms, signal) => delay(ms, undefined, { signal }).catch(error => { if (!signal.aborted) throw error; }),
 }) {
   const shutdown = new AbortController();
   let owned, running = false, restartTimes = [], cooling = false;
+  const reserveStart = admitStart ?? (() => {
+    const at = now(), budget = restartAllowance(restartTimes, at); restartTimes = budget.recent;
+    if (!budget.allowed) return false;
+    restartTimes.push(at); return true;
+  });
   const stopped = () => shutdown.signal.aborted;
   function ended() {
     return owned && (owned.ended || owned.child.exitCode != null || owned.child.signalCode != null);
@@ -48,15 +53,18 @@ export function discoverySupervisor({ healthy, portAvailable = discoveryPortAvai
             continue;
           }
           if (stopped()) break;
-          const budget = restartAllowance(restartTimes, now()); restartTimes = budget.recent;
-          if (!budget.allowed) {
-            if (!cooling) log("Owned launcher restart budget exhausted; cooling down before another attempt.");
-            cooling = true;
+          let admitted = false, budgetState = "cooldown";
+          try { admitted = reserveStart() === true; } catch { budgetState = "unavailable"; }
+          if (!admitted) {
+            if (cooling !== budgetState) log(budgetState === "unavailable"
+              ? "Owned launcher restart ledger unavailable or changed; holding startup without resetting it."
+              : "Owned launcher restart budget exhausted; cooling down before another attempt.");
+            cooling = budgetState;
             await observe(shutdown.signal);
             if (!stopped()) await wait(30000, shutdown.signal);
             continue;
           }
-          cooling = false; restartTimes.push(now());
+          cooling = false;
           try {
             const child = start();
             const handle = { child, ended: false, terminating: false }; owned = handle;

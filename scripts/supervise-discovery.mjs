@@ -3,6 +3,7 @@ import { closeSync, existsSync, mkdirSync, openSync, readFileSync, renameSync, u
 import { fileURLToPath } from "node:url";
 import { boundedWatchdogJson, checkDiscovery, publishWatchdog } from "./discovery-watchdog.mjs";
 import { discoverySupervisor } from "./discovery-supervision.mjs";
+import { durableRestartBudget } from "./discovery-restart-budget.mjs";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const temp = fileURLToPath(new URL("../.tmp/", import.meta.url)); mkdirSync(temp, { recursive: true });
@@ -28,7 +29,8 @@ async function observe(signal){
   const token=existsSync(tokenFile)?readFileSync(tokenFile,"utf8").match(/^TENX_ADMIN_TOKEN=([a-f0-9]{64})\s*$/m)?.[1]:null;
   await publishWatchdog(report,token,transport);return report;
 }
-const supervisor = discoverySupervisor({ healthy, observe, log,
+const restartBudget = durableRestartBudget(`${temp}discovery-restart-budget.json`);
+const supervisor = discoverySupervisor({ healthy, observe, log, admitStart: restartBudget.admit,
   start: () => spawn(process.execPath, [fileURLToPath(new URL("./dev-discovery.mjs", import.meta.url))], { cwd: root, stdio: ["ignore", output, output], windowsHide: true }),
   terminate(child) {
     if (process.platform === "win32") return spawnSync("taskkill.exe", ["/PID", String(child.pid), "/T", "/F"], { stdio: "ignore", windowsHide: true }).status === 0;
