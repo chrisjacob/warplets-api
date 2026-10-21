@@ -6,6 +6,8 @@
 
 **First implementation delivered:** [83 — rotating coverage and discovery workspace](83-rotating-coverage-and-discovery-workspace.md) records the shipped F1/F2 slice and remaining work. The review table below describes the planning baseline. Common activity normalization, live rotation smoke within available capacity and three-token comparison remain next.
 
+**Second implementation delivered:** [84 — common activity and three-token comparison](84-common-activity-and-token-comparison.md) implements source-scoped dated records and explicit-refresh comparison while keeping unsupported qualified metrics held. The next data work is admitted broad-rotation observation and preregistered F3 qualification; optional local shortlists remain deferred.
+
 ## What the review found
 
 | Area | Actually available | Product gap |

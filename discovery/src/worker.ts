@@ -62,6 +62,7 @@ import { holderAcquisition } from "./holder-acquisition-store";
 import { HolderAcquisitionError } from "./holder-acquisition";
 import{gmgnCorroboration,collectGmgnCorroboration}from"./gmgn-corroboration-store";
 import{gmgnQuote}from"./gmgn-quote-store";
+import{ComparisonAddresses,discoveryComparison}from"./discovery-comparison";
 
 // Widen generated literal vars so ignored .dev.vars overrides stay type-safe.
 type OptionalGmgnSecret = "GMGN_API_KEY" | "TENX_RESEARCH_MODE";
@@ -240,6 +241,10 @@ export async function handle(request: Request, env: Env): Promise<Response> {
   if (method === "GET" && policyRecord) {
     const record = await policyPreviewRecord(env.TENX_DB, policyRecord[1]!);
     return record ? json({ record, replay: "verified" }) : json({ error: "policy_preview_not_found" }, 404);
+  }
+  if(method==="GET"&&path==="/api/10x/discovery/compare"){
+    const query=z.object({addresses:z.string().max(134),mode:z.enum(["live","fixture"]).default("live")}).strict().parse(Object.fromEntries(url.searchParams));
+    return json(await discoveryComparison(env.TENX_DB,ComparisonAddresses.parse(query.addresses.split(",")),query.mode));
   }
   if (method === "GET" && path === "/api/10x/candidates") {
     const query = z.object({

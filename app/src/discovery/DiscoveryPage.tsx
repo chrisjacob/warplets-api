@@ -3,6 +3,7 @@ import type { AssessedCandidate, Proof } from "../../../discovery/src/model";
 import type { CandidateCard as Card } from "../../../discovery/src/candidate-card";
 import { CardListResponse } from "./client";
 import {DiscoveryWorkspaceControls,DiscoveryTable,discoveryView,discoveryViewParams,discoveryCandidatesUrl} from "./DiscoveryWorkspace";
+import {ComparisonToggle,TokenComparison,toggleComparison} from "./TokenComparison";
 import { navigateDiscovery } from "./navigation";
 import { DiscoveryNav } from "./DiscoveryNav";
 import { CollectionDetails, isCollectionAnchor } from "./CollectionDetails";
@@ -96,7 +97,7 @@ function Freshness({ data }: { data: Pick<ListData, "as_of" | "coverage" | "sour
     <div><strong>{data.source_freshness.stale ? "Data needs refreshing" : "Saved observations"}</strong><span> · Updated {time(data.as_of)} · Coverage incomplete. </span><a href="/status#coverage">Data status →</a></div>
   </aside>;
 }
-function CandidateCard({ candidate: c, metadataUrl, metadataLoading }: { candidate: Card; metadataUrl?: string | null; metadataLoading?: boolean }) {
+function CandidateCard({ candidate: c, metadataUrl, metadataLoading,selected,onToggle }: { candidate: Card; metadataUrl?: string | null; metadataLoading?: boolean;selected:string[];onToggle:(address:string)=>void }) {
   const fixture = c.mode === "fixture";
   return <article className="tenx-candidate">
     <div className="tenx-candidate-heading"><a className="tenx-artwork-link" href={`/token/solana/${c.address}${fixture ? "?mode=fixture" : ""}`} aria-label={`Inspect ${c.name} (${c.address})`}><TokenImage url={c.market?.image_url} metadataUrl={metadataUrl} metadataLoading={metadataLoading} name={c.name} symbol={c.symbol} /></a><div className="tenx-token-name"><h2><a href={`/token/solana/${c.address}${fixture ? "?mode=fixture" : ""}`}>{c.name}</a></h2><p>{c.symbol} <span>· Solana · OG token</span></p></div></div>
@@ -106,7 +107,7 @@ function CandidateCard({ candidate: c, metadataUrl, metadataLoading }: { candida
     <MarketCapReview candidate={c} />
     <p className="tenx-reason">{c.reasons.length?`Checks to review: ${c.reasons.slice(0,2).map(shortBlocker).join(" · ")}`:"Required action checks passed at this observation. This does not guarantee safety."}</p>
     <details className="tenx-card-evidence"><summary>Token identity & action checks</summary><p className="tenx-address">{c.address}</p><p>{eligibilityMeaning(c.eligibility)} · <Badge status={c.eligibility} /></p><p>{fixture ? "Simulated origin evidence" : c.verification === "verified" ? "Original creation and graduation verified" : "Origin checks incomplete"}</p><p>{c.holders ? `${c.holders.holder_count} owners · largest ${c.holders.top1_pct?.toFixed(2) ?? "?"}% · ${c.holders.status} saved inventory` : "Holder inventory pending"}</p>{!fixture && <a href={`https://solscan.io/token/${c.address}`} target="_blank" rel="noopener noreferrer">View mint on Solscan ↗</a>}</details>
-    <div className="tenx-card-bottom"><span>Solana · original token</span><a href={`/token/solana/${c.address}${fixture ? "?mode=fixture" : ""}`}>Charts & evidence →</a></div>
+    <ComparisonToggle address={c.address} selected={selected} onToggle={onToggle}/><div className="tenx-card-bottom"><span>Solana · original token</span><a href={`/token/solana/${c.address}${fixture ? "?mode=fixture" : ""}`}>Charts & evidence →</a></div>
   </article>;
 }
 function DiscoveryDiagnostics() {
@@ -129,7 +130,8 @@ function Discover() {
   }, []);
   const [view,setView]=useState(()=>discoveryView(window.location.search));
   const {mode,status:filter,sort}=view;
-  const setMode=(mode:"live"|"fixture")=>setView(v=>({...v,mode})),setFilter=(status:typeof view.status)=>setView(v=>({...v,status}));
+  const setMode=(mode:"live"|"fixture")=>setView(v=>({...v,mode,compare:[]})),setFilter=(status:typeof view.status)=>setView(v=>({...v,status}));
+  const toggle=(address:string)=>setView(v=>({...v,compare:toggleComparison(v.compare,address)}));
   useEffect(()=>{const pop=()=>setView(discoveryView(window.location.search));window.addEventListener("popstate",pop);return()=>window.removeEventListener("popstate",pop);},[]);
   useEffect(()=>{window.history.replaceState(window.history.state,"",`${window.location.pathname}?${discoveryViewParams(view)}${window.location.hash}`);},[view]);
   const url = discoveryCandidatesUrl(view);
@@ -139,13 +141,14 @@ function Discover() {
   return <>
     <header className="tenx-heading tenx-heading--discover"><p className="tenx-eyebrow">SOLANA / ORIGINAL TOKENS</p><h1>Discover memecoins.</h1><p>Compare scores, explore the charts and check the evidence.</p></header>
     <DiscoveryWorkspaceControls key={[view.q,view.min_liquidity,view.min_coverage].join(":")} view={view} onChange={setView}/>
+    <TokenComparison selected={view.compare} candidates={data?.data.candidates??[]} mode={mode} onRemove={toggle}/>
     <p className="tenx-footnote">Scores grade measured support, not the chance of safety. Missing evidence and observed risks remain visible. <a href="/transparency">How scoring works →</a></p>
     {mode === "fixture" && <aside className="tenx-notice">SIMULATION — synthetic examples, not live tokens or verified market data. <button className="tenx-button tenx-button--quiet" onClick={() => setMode("live")}>Return to live observations</button></aside>}
     {error && <p className="tenx-notice" role="alert">{error} {data ? "The last response remains visible." : "Start the local discovery service to load data."}</p>}
     {data ? <><Freshness data={data} /><p>{data.data.candidates.length} shown{data.data.scope?` of ${data.data.scope.matched} matching tokens · ${data.data.scope.stored} stored in this inventory`:""} · {sort==="score"?"Ranked by Discovery score":"Ordered by fresh reported liquidity"} · 100 maximum</p>
       {data.data.scope&&<p className="tenx-footnote">Search and filters run before the 100-result display limit. Ranks refer to the full date and action-check view. {data.data.scope.truncated?"More matches exist; narrow your search to find them. ":""}This inventory is our saved chain-observed coverage, not every Solana token. {view.age==="24h"&&mode==="live"?"Tokens without a verified first-day creation time are outside this view.":"Expired observations can appear and remain subject to all freshness checks."}</p>}
       <div className="tenx-section-title"><h2>{filter === "all" ? "Ranked observations" : `${filter[0]!.toUpperCase()} action checks`}</h2><span>Score / 100</span></div>
-      {data.data.candidates.length ? view.layout==="table"?<DiscoveryTable candidates={data.data.candidates} artwork={artwork} scoredAt={data.data.scored_at??data.as_of}/>:data.data.candidates.map(c => <CandidateCard key={c.address} candidate={c} metadataUrl={artwork[c.address]?.image_url} metadataLoading={mode === "live" && artwork[c.address] === undefined} />) : <section className="tenx-empty"><h2>No tokens match this view</h2><p>Change the search, date or filters to inspect other observations. Missing data remains unknown in every score.</p><a href="/status">Inspect data status →</a></section>}
+      {data.data.candidates.length ? view.layout==="table"?<DiscoveryTable candidates={data.data.candidates} artwork={artwork} scoredAt={data.data.scored_at??data.as_of} selected={view.compare} onToggle={toggle}/>:data.data.candidates.map(c => <CandidateCard key={c.address} candidate={c} selected={view.compare} onToggle={toggle} metadataUrl={artwork[c.address]?.image_url} metadataLoading={mode === "live" && artwork[c.address] === undefined} />) : <section className="tenx-empty"><h2>No tokens match this view</h2><p>Change the search, date or filters to inspect other observations. Missing data remains unknown in every score.</p><a href="/status">Inspect data status →</a></section>}
       {!!capReviews && <p className="tenx-footnote">{capReviews} tokens have reported caps above $10M within 24 hours of verified creation. Each is flagged for review; this does not change eligibility or ranking.</p>}
       <p className="tenx-footnote">Checks do not guarantee safety. Images and names can be copied; confirm the mint address.</p>
     </> : !error && <p role="status" className="tenx-empty">Loading discovery…</p>}

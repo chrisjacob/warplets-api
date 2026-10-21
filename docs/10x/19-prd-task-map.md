@@ -1,5 +1,7 @@
 # PRD implementation checkpoint and next tasks
 
+Activity comparison, 21 October: [common activity records and three-token comparison](84-common-activity-and-token-comparison.md) adds thirteen explicit dated/scoped measurement slots and cache-only comparison at a shared v4 cutoff. Pool/token/wallet reports, real candle/owner intervals, source hashes, rejection and unknown qualification remain separate. Cards/table selections share by URL; comparison refresh is explicit. No provider IO, database migration, score adoption or deployment; all Free/evidence/action gates remain. Next: admitted broad-rotation observation and preregistered meaningful activity qualification.
+
 Discovery workspace, 21 October: [rotating coverage and searchable table](83-rotating-coverage-and-discovery-workspace.md) delivers the first F1/F2 slice: immutable daily active-inventory selection, three rotating GMGN targets, cheap-first reads within the existing scheduled baseline, and cache-only search/filter/table browsing before the top-100 limit. Current v4, Free limits and every gate remain. Common activity normalization, three-token comparison and prospective qualification remain next; today's prior attempts hold new automatic IO. Local migration 0043 only; no deploy.
 
 Next functionality, 21 October: [daily discovery product plan](82-next-product-functionality-plan.md) prioritizes broad rotating token coverage, a common activity model, table/search/comparison, meaningful participation metrics and a prospectively evaluated scoring revision. PONYX and other founder concern cases remain regression fixtures. Build F1 and the first F2 slice next; keep v4 live, Free limits and every evidence/action gate. This is a planning checkpoint, not runtime implementation or deployment.
@@ -16,7 +18,7 @@ The [new functionality plan](82-next-product-functionality-plan.md) supersedes t
 | F4 | Frozen v4/provider-derived/hybrid comparison and proposed v5 | Unseen mints and later-day holdout; no automatic promotion or action/election changes |
 | F5 / alongside product work | Reliability, cached degradation and archive/restore readiness | Owned recovery, unchanged budgets/stores, no historical deletion; no deploy |
 
-**Current delivery:** [83](83-rotating-coverage-and-discovery-workspace.md) completes rotating selection plus the F2 search/filter/table slice. F1/F2 remain partial: common activity normalization, admitted live rotation smoke and three-token comparison are next. Remaining backing, campaign, launch, Warplet and multichain phases follow the dependencies in the new plan. Do not default to another single-token forensic milestone.
+**Current delivery:** [83](83-rotating-coverage-and-discovery-workspace.md) completes rotating selection plus the F2 search/filter/table slice. [84](84-common-activity-and-token-comparison.md) now delivers common activity normalization and three-token comparison. Admitted broad-rotation smoke remains next; core F2 browsing/comparison is implemented, with optional local shortlists deferred. Remaining backing, campaign, launch, Warplet and multichain phases follow the dependencies in the new plan. Do not default to another single-token forensic milestone.
 
 ## Earlier engineering checkpoints
 

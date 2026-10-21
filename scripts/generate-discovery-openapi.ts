@@ -1,4 +1,6 @@
 import { writeFileSync } from "node:fs";
+import {DiscoveryComparison} from "../discovery/src/discovery-comparison-model";
+import {ActivityObservation} from "../discovery/src/activity-observation";
 import attentionPaths from "../discovery/openapi-attention-paths.json";
 import { z } from "zod";
 import { GmgnPublicSummarySchema } from "../discovery/src/gmgn-model";
@@ -50,6 +52,7 @@ const spec = {
   openapi: "3.1.0", info: { title: "10X local Solana discovery", version: "0.1.0", description: "Local-only chain discovery and signed-message wallet ownership. No server-held signers, transactions, votes, launches or financial flows. Public reads use stored data; only authenticated refresh makes provider requests." },
   servers: [{ url: "http://127.0.0.1:8794" }],
   paths: {
+    "/api/10x/discovery/compare":read("Cache-only comparison of up to three unique saved mints at one review cutoff; actual source windows differ, current v4 unchanged",{...responseSchema("DiscoveryComparison"),parameters:[parameter("addresses","query",{type:"string",maxLength:134,description:"One to three unique comma-separated exact Solana mints; no provider lookup"},true),parameter("mode","query",{enum:["live","fixture"],default:"live"})]}),
     "/api/10x/gmgn/quote/{id}":read("Cache-only saved quote transfers and fee-basis review; no historical USD or organic credit",{...responseSchema("GmgnQuoteReview"),parameters:[parameter("id","path",{type:"string",format:"uuid"},true)]}),
     "/api/10x/admin/gmgn/quote/{id}":read("Private source-plus-RPC quote review replay; no provider calls or database writes",{security:[{localOperator:[]}],parameters:[parameter("id","path",{type:"string",format:"uuid"},true)]}),
     "/api/10x/gmgn/corroboration/{id}":read("Cache-only RPC comparison of saved GMGN events; no volume or action certification",{...responseSchema("GmgnRpcComparison"),parameters:[parameter("id","path",{type:"string",format:"uuid"},true)]}),
@@ -179,6 +182,8 @@ const spec = {
     IdentitySessionResponse: z.toJSONSchema(IdentitySessionResponse),
     Candidate: z.toJSONSchema(AssessedCandidateSchema, { unrepresentable: "any" }),
     ArtworkResponse: z.toJSONSchema(ArtworkResponseSchema),
+    ActivityObservation:z.toJSONSchema(ActivityObservation,{unrepresentable:"any"}),
+    DiscoveryComparison:z.toJSONSchema(DiscoveryComparison,{unrepresentable:"any"}),
     GmgnSummary: z.toJSONSchema(GmgnPublicSummarySchema),
     GmgnRpcComparison:z.toJSONSchema(GmgnCorroborationReportSchema),
     GmgnQuoteReview:z.toJSONSchema(GmgnQuoteReportSchema),

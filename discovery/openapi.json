@@ -11,6 +11,74 @@
     }
   ],
   "paths": {
+    "/api/10x/discovery/compare": {
+      "get": {
+        "summary": "Cache-only comparison of up to three unique saved mints at one review cutoff; actual source windows differ, current v4 unchanged",
+        "responses": {
+          "200": {
+            "description": "Success; cached public data includes timestamps, source freshness and coverage",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DiscoveryComparison"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "401": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "403": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "404": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "409": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "413": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "415": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "429": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "503": {
+            "description": "Structured JSON error; no provider secrets"
+          }
+        },
+        "parameters": [
+          {
+            "name": "addresses",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 134,
+              "description": "One to three unique comma-separated exact Solana mints; no provider lookup"
+            }
+          },
+          {
+            "name": "mode",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "live",
+                "fixture"
+              ],
+              "default": "live"
+            }
+          }
+        ]
+      }
+    },
     "/api/10x/gmgn/quote/{id}": {
       "get": {
         "summary": "Cache-only saved quote transfers and fee-basis review; no historical USD or organic credit",
@@ -35505,6 +35573,1430 @@
         },
         "required": [
           "data"
+        ],
+        "additionalProperties": false
+      },
+      "ActivityObservation": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "string",
+            "const": "activity-observation-v1"
+          },
+          "chain": {
+            "type": "string",
+            "const": "solana"
+          },
+          "address": {
+            "type": "string",
+            "maxLength": 44
+          },
+          "cutoff_at": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+          },
+          "metric": {
+            "type": "string",
+            "enum": [
+              "pool_reported_volume_24h",
+              "token_reported_volume_24h",
+              "token_reported_volume_1h",
+              "token_reported_holders",
+              "candle_window_volume",
+              "candle_max_adjacent_move",
+              "candle_longest_rising_run",
+              "raw_owner_net_change",
+              "wallet_reported_buy_usd",
+              "wallet_reported_sell_usd",
+              "organic_volume_24h",
+              "meaningful_holder_growth_24h",
+              "attention_momentum"
+            ]
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "dexscreener",
+              "geckoterminal",
+              "gmgn",
+              "solana-finalized-rpc",
+              "unavailable",
+              "simulation"
+            ]
+          },
+          "scope": {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "token",
+                  "pool",
+                  "wallet",
+                  "unknown"
+                ]
+              },
+              "address": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 44
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "canonical_pool_verified": {
+                "type": "boolean",
+                "const": false
+              }
+            },
+            "required": [
+              "kind",
+              "address",
+              "canonical_pool_verified"
+            ],
+            "additionalProperties": false
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "unit": {
+            "type": "string",
+            "enum": [
+              "USD",
+              "owners",
+              "percent",
+              "count",
+              "index"
+            ]
+          },
+          "window": {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "reported_rolling",
+                  "requested_candles",
+                  "observed_interval",
+                  "point",
+                  "unavailable"
+                ]
+              },
+              "start_at": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "end_at": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "duration_seconds": {
+                "anyOf": [
+                  {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "kind",
+              "start_at",
+              "end_at",
+              "duration_seconds"
+            ],
+            "additionalProperties": false
+          },
+          "fetched_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "provider_observed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "freshness": {
+            "type": "string",
+            "enum": [
+              "fresh",
+              "stale",
+              "unknown"
+            ]
+          },
+          "coverage": {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "reported",
+                  "complete_requested_window",
+                  "partial",
+                  "unknown",
+                  "unavailable"
+                ]
+              },
+              "observed": {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "expected": {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "denominator": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 100
+              },
+              "denominator_value": {
+                "anyOf": [
+                  {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "status",
+              "observed",
+              "expected",
+              "denominator",
+              "denominator_value"
+            ],
+            "additionalProperties": false
+          },
+          "qualification": {
+            "type": "string",
+            "enum": [
+              "reported_only",
+              "supported_sample",
+              "held",
+              "missing",
+              "rejected"
+            ]
+          },
+          "references": {
+            "maxItems": 8,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "market_history_snapshot",
+                    "gmgn_receipt",
+                    "holder_inventory"
+                  ]
+                },
+                "id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200
+                },
+                "hash": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                },
+                "integrity": {
+                  "type": "string",
+                  "enum": [
+                    "archived_hash_verified",
+                    "content_hash_only"
+                  ]
+                }
+              },
+              "required": [
+                "kind",
+                "id",
+                "hash",
+                "integrity"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "gaps": {
+            "maxItems": 48,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 100
+            }
+          },
+          "organic_demand_certified": {
+            "type": "boolean",
+            "const": false
+          },
+          "scoring_effect": {
+            "type": "string",
+            "const": "none"
+          }
+        },
+        "required": [
+          "version",
+          "chain",
+          "address",
+          "cutoff_at",
+          "metric",
+          "source",
+          "scope",
+          "value",
+          "unit",
+          "window",
+          "fetched_at",
+          "provider_observed_at",
+          "freshness",
+          "coverage",
+          "qualification",
+          "references",
+          "gaps",
+          "organic_demand_certified",
+          "scoring_effect"
+        ],
+        "additionalProperties": false
+      },
+      "DiscoveryComparison": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "string",
+            "const": "discovery-comparison-v1"
+          },
+          "cutoff_at": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "live",
+              "fixture"
+            ]
+          },
+          "addresses": {
+            "minItems": 1,
+            "maxItems": 3,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 44
+            }
+          },
+          "rows": {
+            "minItems": 1,
+            "maxItems": 3,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "address": {
+                  "type": "string",
+                  "maxLength": 44
+                },
+                "state": {
+                  "type": "string",
+                  "enum": [
+                    "available",
+                    "not_found",
+                    "held"
+                  ]
+                },
+                "candidate": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "chain": {
+                          "type": "string",
+                          "const": "solana"
+                        },
+                        "address": {
+                          "type": "string",
+                          "maxLength": 44
+                        },
+                        "name": {
+                          "type": "string",
+                          "maxLength": 100
+                        },
+                        "symbol": {
+                          "type": "string",
+                          "maxLength": 32
+                        },
+                        "mode": {
+                          "type": "string",
+                          "enum": [
+                            "live",
+                            "fixture"
+                          ]
+                        },
+                        "verification": {
+                          "type": "string",
+                          "enum": [
+                            "verified",
+                            "provisional",
+                            "rejected"
+                          ]
+                        },
+                        "market": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "source": {
+                                  "type": "string",
+                                  "enum": [
+                                    "geckoterminal",
+                                    "dexscreener"
+                                  ]
+                                },
+                                "fetched_at": {
+                                  "type": "string",
+                                  "format": "date-time",
+                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                                },
+                                "observed_at": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                      "format": "date-time",
+                                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "price_usd": {
+                                  "anyOf": [
+                                    {
+                                      "type": "number",
+                                      "minimum": 0
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "market_cap_usd": {
+                                  "anyOf": [
+                                    {
+                                      "type": "number",
+                                      "minimum": 0
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "fdv_usd": {
+                                  "anyOf": [
+                                    {
+                                      "type": "number",
+                                      "minimum": 0
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "liquidity_usd": {
+                                  "anyOf": [
+                                    {
+                                      "type": "number",
+                                      "minimum": 0
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "volume_24h_usd": {
+                                  "anyOf": [
+                                    {
+                                      "type": "number",
+                                      "minimum": 0
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "image_url": {
+                                  "default": null,
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                      "maxLength": 2048
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "source",
+                                "fetched_at",
+                                "observed_at",
+                                "price_usd",
+                                "market_cap_usd",
+                                "fdv_usd",
+                                "liquidity_usd",
+                                "volume_24h_usd",
+                                "image_url"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "eligibility": {
+                          "type": "string",
+                          "enum": [
+                            "eligible",
+                            "provisional",
+                            "excluded"
+                          ]
+                        },
+                        "reasons": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "creation": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "block_time": {
+                                  "type": "string",
+                                  "format": "date-time",
+                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                                }
+                              },
+                              "required": [
+                                "block_time"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "holders": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "status": {
+                                  "type": "string",
+                                  "enum": [
+                                    "verified",
+                                    "partial",
+                                    "unavailable"
+                                  ]
+                                },
+                                "holder_count": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 9007199254740991
+                                },
+                                "top1_pct": {
+                                  "anyOf": [
+                                    {
+                                      "type": "number",
+                                      "minimum": 0,
+                                      "maximum": 100
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "status",
+                                "holder_count",
+                                "top1_pct"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "discovery_score": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "version": {
+                                  "type": "string",
+                                  "const": "discovery-score-v1"
+                                },
+                                "as_of": {
+                                  "type": "string",
+                                  "format": "date-time",
+                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                                },
+                                "value": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "evidence_coverage": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "ceiling": {
+                                  "type": "number",
+                                  "minimum": 0,
+                                  "maximum": 100
+                                },
+                                "input_hash": {
+                                  "type": "string",
+                                  "pattern": "^[a-f0-9]{64}$"
+                                },
+                                "policy_hash": {
+                                  "type": "string",
+                                  "pattern": "^[a-f0-9]{64}$"
+                                },
+                                "result_hash": {
+                                  "type": "string",
+                                  "pattern": "^[a-f0-9]{64}$"
+                                },
+                                "record_hash": {
+                                  "type": "string",
+                                  "pattern": "^[a-f0-9]{64}$"
+                                }
+                              },
+                              "required": [
+                                "version",
+                                "as_of",
+                                "value",
+                                "evidence_coverage",
+                                "ceiling",
+                                "input_hash",
+                                "policy_hash",
+                                "result_hash",
+                                "record_hash"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "version": {
+                                  "type": "string",
+                                  "const": "discovery-score-v2"
+                                },
+                                "as_of": {
+                                  "type": "string",
+                                  "format": "date-time",
+                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                                },
+                                "value": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "evidence_coverage": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "ceiling": {
+                                  "type": "number",
+                                  "minimum": 0,
+                                  "maximum": 100
+                                },
+                                "input_hash": {
+                                  "type": "string",
+                                  "pattern": "^[a-f0-9]{64}$"
+                                },
+                                "policy_hash": {
+                                  "type": "string",
+                                  "pattern": "^[a-f0-9]{64}$"
+                                },
+                                "result_hash": {
+                                  "type": "string",
+                                  "pattern": "^[a-f0-9]{64}$"
+                                },
+                                "record_hash": {
+                                  "type": "string",
+                                  "pattern": "^[a-f0-9]{64}$"
+                                },
+                                "risk_flags": {
+                                  "maxItems": 16,
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "code": {
+                                        "type": "string",
+                                        "maxLength": 100
+                                      },
+                                      "ceiling": {
+                                        "type": "number",
+                                        "minimum": 0,
+                                        "maximum": 100
+                                      },
+                                      "observed_at": {
+                                        "anyOf": [
+                                          {
+                                            "type": "string",
+                                            "format": "date-time",
+                                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                                          },
+                                          {
+                                            "type": "null"
+                                          }
+                                        ]
+                                      }
+                                    },
+                                    "required": [
+                                      "code",
+                                      "ceiling",
+                                      "observed_at"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                }
+                              },
+                              "required": [
+                                "version",
+                                "as_of",
+                                "value",
+                                "evidence_coverage",
+                                "ceiling",
+                                "input_hash",
+                                "policy_hash",
+                                "result_hash",
+                                "record_hash",
+                                "risk_flags"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "version": {
+                                  "type": "string",
+                                  "const": "discovery-score-v3"
+                                },
+                                "as_of": {
+                                  "type": "string",
+                                  "format": "date-time",
+                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                                },
+                                "value": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "evidence_coverage": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "ceiling": {
+                                  "type": "number",
+                                  "minimum": 0,
+                                  "maximum": 100
+                                },
+                                "input_hash": {
+                                  "type": "string",
+                                  "pattern": "^[a-f0-9]{64}$"
+                                },
+                                "policy_hash": {
+                                  "type": "string",
+                                  "pattern": "^[a-f0-9]{64}$"
+                                },
+                                "result_hash": {
+                                  "type": "string",
+                                  "pattern": "^[a-f0-9]{64}$"
+                                },
+                                "record_hash": {
+                                  "type": "string",
+                                  "pattern": "^[a-f0-9]{64}$"
+                                },
+                                "risk_flags": {
+                                  "maxItems": 20,
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "code": {
+                                        "type": "string",
+                                        "maxLength": 100
+                                      },
+                                      "ceiling": {
+                                        "type": "number",
+                                        "minimum": 0,
+                                        "maximum": 100
+                                      },
+                                      "observed_at": {
+                                        "anyOf": [
+                                          {
+                                            "type": "string",
+                                            "format": "date-time",
+                                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                                          },
+                                          {
+                                            "type": "null"
+                                          }
+                                        ]
+                                      }
+                                    },
+                                    "required": [
+                                      "code",
+                                      "ceiling",
+                                      "observed_at"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                }
+                              },
+                              "required": [
+                                "version",
+                                "as_of",
+                                "value",
+                                "evidence_coverage",
+                                "ceiling",
+                                "input_hash",
+                                "policy_hash",
+                                "result_hash",
+                                "record_hash",
+                                "risk_flags"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "version": {
+                                  "type": "string",
+                                  "const": "discovery-score-v4"
+                                },
+                                "as_of": {
+                                  "type": "string",
+                                  "format": "date-time",
+                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                                },
+                                "value": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "evidence_coverage": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "ceiling": {
+                                  "type": "number",
+                                  "minimum": 0,
+                                  "maximum": 100
+                                },
+                                "input_hash": {
+                                  "type": "string",
+                                  "pattern": "^[a-f0-9]{64}$"
+                                },
+                                "policy_hash": {
+                                  "type": "string",
+                                  "pattern": "^[a-f0-9]{64}$"
+                                },
+                                "result_hash": {
+                                  "type": "string",
+                                  "pattern": "^[a-f0-9]{64}$"
+                                },
+                                "record_hash": {
+                                  "type": "string",
+                                  "pattern": "^[a-f0-9]{64}$"
+                                },
+                                "risk_flags": {
+                                  "maxItems": 24,
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "code": {
+                                        "type": "string",
+                                        "maxLength": 100
+                                      },
+                                      "ceiling": {
+                                        "type": "number",
+                                        "minimum": 0,
+                                        "maximum": 100
+                                      },
+                                      "observed_at": {
+                                        "anyOf": [
+                                          {
+                                            "type": "string",
+                                            "format": "date-time",
+                                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                                          },
+                                          {
+                                            "type": "null"
+                                          }
+                                        ]
+                                      }
+                                    },
+                                    "required": [
+                                      "code",
+                                      "ceiling",
+                                      "observed_at"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                }
+                              },
+                              "required": [
+                                "version",
+                                "as_of",
+                                "value",
+                                "evidence_coverage",
+                                "ceiling",
+                                "input_hash",
+                                "policy_hash",
+                                "result_hash",
+                                "record_hash",
+                                "risk_flags"
+                              ],
+                              "additionalProperties": false
+                            }
+                          ]
+                        },
+                        "discovery_rank": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 500
+                        }
+                      },
+                      "required": [
+                        "chain",
+                        "address",
+                        "name",
+                        "symbol",
+                        "mode",
+                        "verification",
+                        "market",
+                        "eligibility",
+                        "reasons",
+                        "creation",
+                        "holders"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "candidate_hash": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^[a-f0-9]{64}$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "observations": {
+                  "maxItems": 20,
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "version": {
+                        "type": "string",
+                        "const": "activity-observation-v1"
+                      },
+                      "chain": {
+                        "type": "string",
+                        "const": "solana"
+                      },
+                      "address": {
+                        "type": "string",
+                        "maxLength": 44
+                      },
+                      "cutoff_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                      },
+                      "metric": {
+                        "type": "string",
+                        "enum": [
+                          "pool_reported_volume_24h",
+                          "token_reported_volume_24h",
+                          "token_reported_volume_1h",
+                          "token_reported_holders",
+                          "candle_window_volume",
+                          "candle_max_adjacent_move",
+                          "candle_longest_rising_run",
+                          "raw_owner_net_change",
+                          "wallet_reported_buy_usd",
+                          "wallet_reported_sell_usd",
+                          "organic_volume_24h",
+                          "meaningful_holder_growth_24h",
+                          "attention_momentum"
+                        ]
+                      },
+                      "source": {
+                        "type": "string",
+                        "enum": [
+                          "dexscreener",
+                          "geckoterminal",
+                          "gmgn",
+                          "solana-finalized-rpc",
+                          "unavailable",
+                          "simulation"
+                        ]
+                      },
+                      "scope": {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "token",
+                              "pool",
+                              "wallet",
+                              "unknown"
+                            ]
+                          },
+                          "address": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "maxLength": 44
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "canonical_pool_verified": {
+                            "type": "boolean",
+                            "const": false
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "address",
+                          "canonical_pool_verified"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "value": {
+                        "anyOf": [
+                          {
+                            "type": "number"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "unit": {
+                        "type": "string",
+                        "enum": [
+                          "USD",
+                          "owners",
+                          "percent",
+                          "count",
+                          "index"
+                        ]
+                      },
+                      "window": {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "reported_rolling",
+                              "requested_candles",
+                              "observed_interval",
+                              "point",
+                              "unavailable"
+                            ]
+                          },
+                          "start_at": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "format": "date-time",
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "end_at": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "format": "date-time",
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "duration_seconds": {
+                            "anyOf": [
+                              {
+                                "type": "number",
+                                "minimum": 0
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "start_at",
+                          "end_at",
+                          "duration_seconds"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "fetched_at": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "provider_observed_at": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "freshness": {
+                        "type": "string",
+                        "enum": [
+                          "fresh",
+                          "stale",
+                          "unknown"
+                        ]
+                      },
+                      "coverage": {
+                        "type": "object",
+                        "properties": {
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "reported",
+                              "complete_requested_window",
+                              "partial",
+                              "unknown",
+                              "unavailable"
+                            ]
+                          },
+                          "observed": {
+                            "anyOf": [
+                              {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 9007199254740991
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "expected": {
+                            "anyOf": [
+                              {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 9007199254740991
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "denominator": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 100
+                          },
+                          "denominator_value": {
+                            "anyOf": [
+                              {
+                                "type": "number",
+                                "minimum": 0
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "status",
+                          "observed",
+                          "expected",
+                          "denominator",
+                          "denominator_value"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "qualification": {
+                        "type": "string",
+                        "enum": [
+                          "reported_only",
+                          "supported_sample",
+                          "held",
+                          "missing",
+                          "rejected"
+                        ]
+                      },
+                      "references": {
+                        "maxItems": 8,
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "kind": {
+                              "type": "string",
+                              "enum": [
+                                "market_history_snapshot",
+                                "gmgn_receipt",
+                                "holder_inventory"
+                              ]
+                            },
+                            "id": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 200
+                            },
+                            "hash": {
+                              "type": "string",
+                              "pattern": "^[a-f0-9]{64}$"
+                            },
+                            "integrity": {
+                              "type": "string",
+                              "enum": [
+                                "archived_hash_verified",
+                                "content_hash_only"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "kind",
+                            "id",
+                            "hash",
+                            "integrity"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "gaps": {
+                        "maxItems": 48,
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "maxLength": 100
+                        }
+                      },
+                      "organic_demand_certified": {
+                        "type": "boolean",
+                        "const": false
+                      },
+                      "scoring_effect": {
+                        "type": "string",
+                        "const": "none"
+                      }
+                    },
+                    "required": [
+                      "version",
+                      "chain",
+                      "address",
+                      "cutoff_at",
+                      "metric",
+                      "source",
+                      "scope",
+                      "value",
+                      "unit",
+                      "window",
+                      "fetched_at",
+                      "provider_observed_at",
+                      "freshness",
+                      "coverage",
+                      "qualification",
+                      "references",
+                      "gaps",
+                      "organic_demand_certified",
+                      "scoring_effect"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "gaps": {
+                  "maxItems": 12,
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "maxLength": 100
+                  }
+                }
+              },
+              "required": [
+                "address",
+                "state",
+                "candidate",
+                "candidate_hash",
+                "observations",
+                "gaps"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "report_hash": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "alignment": {
+            "type": "string",
+            "const": "shared_read_cutoff_source_windows_differ"
+          },
+          "source_authenticity": {
+            "type": "string",
+            "const": "not_independently_verified"
+          },
+          "scoring_model": {
+            "type": "string",
+            "const": "discovery-score-v4"
+          },
+          "activity_scoring_effect": {
+            "type": "string",
+            "const": "none"
+          },
+          "evidence_gates_changed": {
+            "type": "boolean",
+            "const": false
+          },
+          "provider_requests": {
+            "type": "number",
+            "const": 0
+          },
+          "database_writes": {
+            "type": "number",
+            "const": 0
+          }
+        },
+        "required": [
+          "version",
+          "cutoff_at",
+          "mode",
+          "addresses",
+          "rows",
+          "report_hash",
+          "alignment",
+          "source_authenticity",
+          "scoring_model",
+          "activity_scoring_effect",
+          "evidence_gates_changed",
+          "provider_requests",
+          "database_writes"
         ],
         "additionalProperties": false
       },
