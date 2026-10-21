@@ -10,7 +10,7 @@ import { SignalResearchSchema } from "../../../discovery/src/signal-model";
 import { OperationsSchema } from "../../../discovery/src/operations-model";
 import { CandidateExpiryReceiptSchema, InventoryStatusSchema } from "../../../discovery/src/candidate-expiry-model";
 import {MarketBatchesSchema} from "../../../discovery/src/market-batch-model";
-import {AnyScoreSummarySchema,AnyScoreResponseSchema} from "../../../discovery/src/discovery-score-v2-model";
+import {AnyScoreSummarySchema,AnyScoreResponseSchema} from "../../../discovery/src/discovery-score-models";
 import {ScoreResearchSchema} from "../../../discovery/src/score-research-model";
 import {ScoreFollowupSchema} from "../../../discovery/src/score-followup-model";
 

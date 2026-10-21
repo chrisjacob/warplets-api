@@ -5,13 +5,13 @@ import { POLICY_FIELDS, PolicyPreviewInputSchema, PolicyPreviewRecordSchema, Pol
 import { hashJson } from "./solana";
 import { NEW_TOKEN_CAP_REVIEW_USD } from "./market-review";
 import { PRICE_PATTERN_RULE } from "./price-pattern";
-import {DISCOVERY_SCORE_POLICY_V2} from "./discovery-score-v2-model";
+import {DISCOVERY_SCORE_POLICY_V3} from "./discovery-score-v3-model";
 
 export class PolicyPreviewError extends Error {}
 export async function publicPolicy() {
   return PublicPolicySchema.parse({ policy: DEFAULT_POLICY, policy_hash: await hashJson(DEFAULT_POLICY), status: "proposed_local_policy", approved_by: null, activation_enabled: false,
     display_score: "Discovery score descending, effective evidence coverage descending, fresh liquidity descending, creation time ascending, then address ASCII. Observed tokens can rank before passing every action check. The unchanged election rehearsal engine still uses eligible liquidity ordering; this display score never overrides voting or launch gates.",
-    discovery_scoring:{policy:DISCOVERY_SCORE_POLICY_V2,policy_hash:await hashJson(DISCOVERY_SCORE_POLICY_V2)},
+    discovery_scoring:{policy:DISCOVERY_SCORE_POLICY_V3,policy_hash:await hashJson(DISCOVERY_SCORE_POLICY_V3)},
     diagnostics: [
       { name: "High reported cap for a new token", rule: `Reported cap above $${NEW_TOKEN_CAP_REVIEW_USD.toLocaleString("en-US")} within 24 hours of verified creation.`, classification: "review_only" },
       { name: "Unusually smooth price rise", rule: `${PRICE_PATTERN_RULE.version}: ≥${PRICE_PATTERN_RULE.min_samples} prices over ≥60 minutes; return ≥5%; upward steps ≥90%; sampled drawdown ≤1%; linear R² ≥0.98.`, classification: "review_only" },

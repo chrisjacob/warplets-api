@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import {mkdirSync,writeFileSync} from "node:fs";
 import {CardListResponse,DiscoveryScoreResponse,PoliciesResponse,StatusResponse} from "../app/src/discovery/client";
-import {replayAnyDiscoveryScore} from "../discovery/src/discovery-score-v2";
+import {replayAnyDiscoveryScore} from "../discovery/src/discovery-score-replay";
 import {DEFAULT_POLICY} from "../discovery/src/model";
 const base="http://127.0.0.1:8794/api/10x";
 async function get(path:string){const r=await fetch(`${base}/${path}`,{signal:AbortSignal.timeout(30000)});assert.equal(r.status,200,path);assert.equal(r.headers.get("cache-control"),"no-store");return r.json();}

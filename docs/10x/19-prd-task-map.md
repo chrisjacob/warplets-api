@@ -4,7 +4,16 @@ Reviewed 20 October 2026 against the entire [PRD v1.1](spec/10X_MEME_FULL_PRD_v1
 
 ## What exists and what is incomplete
 
-Current research update, 21 October: [prospective v2 capture and model-separated outcomes](61-versioned-score-research.md), local migration 0038, now records current v2 grades and retains the archived v1 study unchanged. Research defaults to v2 and provides a separate v1 view with pinned replay links. Pending outcomes share five total finalizations and five distinct-token spare collection slots; daily 100-record / 10 MB admission and all provider/evidence gates remain. Mature outcomes and independent calibration remain open. No deploy.
+USDF review, 21 October: [historical creation purchase and staircase scoring](62-usdf-launch-and-staircase-review.md) introduces score-v3. On the same frozen inputs USDF falls from v2 54 to v3 20, with a dated 79.336% creation purchase relative to later verified supply and a two-step sampled-price concern. Its actual opening valuation stays unknown; the first retained quote is 14h late. Cards/details publish limits and provisional rules. V1/v2 artifacts replay unchanged; new research uses v3 with archived model views and the original shared quotas. Local migration 0039 preserves retained rows. Today’s 100-record bound holds new v3 captures until capacity is available. No deploy.
+
+- [x] Retain USDF’s original v2 scorecard and price history; review the exact signed creation purchase separately from current holdings.
+- [x] Implement generic v3 historical concentration, quiet staircase and evidenced early reported-cap ceilings; preserve old evaluators, replay and all action gates.
+- [x] Show dated launch/pattern metrics and unknown opening valuation; publish rules and exact exported inputs.
+- [x] Admit v3 research through local migration 0039, preserving old model rows/hashes and shared capture/outcome/source limits.
+- [ ] Collect mature v3 outcomes when the existing admission budget permits; independently assess false positives and missingness.
+- [ ] Obtain actual early valuation/supply and representative trade/OHLC/beneficial-owner evidence before claiming opening cap or wash trading.
+
+Previous research update, 21 October: [prospective v2 capture and model-separated outcomes](61-versioned-score-research.md), local migration 0038, now records current v2 grades and retains the archived v1 study unchanged. Research defaults to v2 and provides a separate v1 view with pinned replay links. Pending outcomes share five total finalizations and five distinct-token spare collection slots; daily 100-record / 10 MB admission and all provider/evidence gates remain. Mature outcomes and independent calibration remain open. No deploy.
 
 Market-integrity update, 21 October: [XTO review and versioned score-v2 checks](60-market-integrity-score.md) adds dated ceilings for abrupt sampled price moves, thin reported depth relative to cap and dust-dominated post-creation trade samples. Material later buys replace raw buyer counts for participation credit; flagged momentum earns no points. Cards and details explain the evidence. V1 replay, its labelled prospective comparator, all action gates and free collection limits remain. Independent calibration and prospective v2 cohorts remain open. No deploy.
 
@@ -12,7 +21,7 @@ Market-integrity update, 21 October: [XTO review and versioned score-v2 checks](
 - [x] Add explainable generic jump, relative-depth and dust-trading checks in discovery-score-v2; preserve v1 replay and action/election gates.
 - [x] Show score ceilings and price/trading sample metrics; export and replay either model version.
 - [x] Retain prospective v2 outcome cohorts separately from the archived v1 study; preserve old payloads, hashes, endpoints and replay.
-- [ ] Collect mature v1/v2 outcomes and review missingness and time-separated validation.
+- [ ] Collect mature v1/v2/v3 outcomes and review missingness and time-separated validation.
 - [ ] Independently evaluate labelled adversarial/benign samples and false positives before calibrating thresholds.
 
 Score endpoint update, 21 October: [bounded follow-up after candidate expiry](59-score-endpoint-followup.md) now places pending score-cohort endpoints into at most five spare targets in the existing market batch. History-only publication preserves expired candidate payloads, frozen cohorts and action gates; original-source/baseline/identity holds, HTTP-failure cooldown, source backoff and owned publication remain. Research shows next windows and collection gaps. This fixes a collection-scope omission in the retention milestone; real next-day outcomes, usable baseline coverage and calibrated chronological validation remain outstanding.

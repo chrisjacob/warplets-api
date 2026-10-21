@@ -51,6 +51,7 @@ function fixture() {
   db.exec(readFileSync(new URL("../migrations/0036_market_batch_diagnostics.sql", import.meta.url), "utf8"));
   db.exec(readFileSync(new URL("../migrations/0037_score_research.sql", import.meta.url), "utf8"));
   db.exec(readFileSync(new URL("../migrations/0038_score_model_versions.sql", import.meta.url), "utf8"));
+  db.exec(readFileSync(new URL("../migrations/0039_score_launch_review.sql", import.meta.url), "utf8"));
   const d1 = sqliteD1(db);
   const env: LocalEnv = { TENX_DB: d1, TENX_LOCAL_ONLY: "true", TENX_NODE_RELAY: "false", TENX_ADMIN_TOKEN: "a".repeat(64), TENX_RPC_URL: "https://api.mainnet-beta.solana.com", TENX_RPC_DAILY_LIMIT: "3000", TENX_MARKET_DAILY_LIMIT: "600", TENX_MARKET_PROVIDER: "geckoterminal", TENX_QUALITY_ENABLED: "true", TENX_QUALITY_RPC_DAILY_LIMIT: "1800", TENX_MARKET_ENABLED: "false", TENX_WALLET_ANALYSIS_ENABLED: "true", TENX_WALLET_RPC_DAILY_LIMIT: "800" };
   return { db, d1, env };
@@ -79,7 +80,7 @@ describe("durable discovery state and public/admin API", () => {
       const assessed = assess(original, DEFAULT_POLICY, at);
       expect(card.eligibility).toBe(assessed.eligibility); expect(card.reasons).toEqual(assessed.reasons);
       expect(raw).not.toHaveProperty("wallet_analysis"); expect(raw).not.toHaveProperty("risk"); expect(raw).not.toHaveProperty("holders.owners"); expect(raw).not.toHaveProperty("creation.signature");
-      expect(card.discovery_score?.version).toBe("discovery-score-v2");
+      expect(card.discovery_score?.version).toBe("discovery-score-v3");
       expect(candidateCard({...assessed,discovery_score:card.discovery_score,discovery_rank:card.discovery_rank})).toEqual(card);
     }
     expect(JSON.stringify(compact.data).length).toBeLessThan(JSON.stringify(full.data).length * 0.65);

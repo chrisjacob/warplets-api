@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { PolicySchema } from "./model";
 import { ElectionInputSchema, ElectionResultSchema } from "./election-model";
-import {AnyScorePolicySchema} from "./discovery-score-v2-model";
+import {AnyScorePolicySchema} from "./discovery-score-models";
 
 export const POLICY_FIELDS = [
   { key: "min_market_cap_usd", label: "Minimum reported market cap", unit: "USD", direction: "minimum" },

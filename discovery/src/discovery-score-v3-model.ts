@@ -1,0 +1,16 @@
+import {z} from "zod";
+import {MarketSchema} from "./model";
+import {DISCOVERY_SCORE_POLICY_V2,ScorePolicyV2Schema,ScoreInputV2Schema,ScoreResultV2Schema,ScoreRecordV2Schema,ScoreSummaryV2Schema} from "./discovery-score-v2-model";
+
+export const ScorePolicyV3Schema=ScorePolicyV2Schema.extend({version:z.literal("discovery-score-v3"),launch_review:z.object({creation_reference_pct:z.literal(10),creation_end_pct:z.literal(80),creation_end_ceiling:z.literal(20),early_window_seconds:z.literal(600),early_cap_usd:z.literal(5000000),early_cap_ceiling:z.literal(60)}).strict(),staircase:z.object({min_samples:z.literal(60),min_span_seconds:z.literal(21600),max_gap_seconds:z.literal(600),min_return_pct:z.literal(10),max_drawdown_pct:z.literal(2),min_jump_pct:z.literal(3),min_jumps:z.literal(2),rate_multiple:z.literal(10),min_log_return_share:z.literal(.5),ceiling:z.literal(50)}).strict()}).strict();
+export const DISCOVERY_SCORE_POLICY_V3=ScorePolicyV3Schema.parse({...DISCOVERY_SCORE_POLICY_V2,version:"discovery-score-v3",launch_review:{creation_reference_pct:10,creation_end_pct:80,creation_end_ceiling:20,early_window_seconds:600,early_cap_usd:5000000,early_cap_ceiling:60},staircase:{min_samples:60,min_span_seconds:21600,max_gap_seconds:600,min_return_pct:10,max_drawdown_pct:2,min_jump_pct:3,min_jumps:2,rate_multiple:10,min_log_return_share:.5,ceiling:50}});
+export const FirstMarketSchema=MarketSchema.pick({source:true,fetched_at:true,observed_at:true,market_cap_usd:true}).strict();
+export const ScoreInputV3Schema=ScoreInputV2Schema.extend({version:z.literal("discovery-score-input-v3"),policy:ScorePolicyV3Schema,first_market:FirstMarketSchema.nullable()}).strict();
+const NumberOrNull=z.number().finite().nullable(),Time=z.string().datetime().nullable();
+export const LaunchReviewSchema=z.object({creation_purchase_raw:z.string().nullable(),observed_supply_raw:z.string().nullable(),creation_purchase_observed_supply_pct:NumberOrNull,creation_at:Time,supply_at:Time,first_quote_at:Time,first_quote_delay_seconds:NumberOrNull,early_reported_cap_usd:NumberOrNull,gaps:z.array(z.string()).max(12)}).strict();
+export const StaircaseReviewSchema=z.object({status:z.enum(["insufficient","not_flagged","review"]),samples:z.number().int().nonnegative(),span_seconds:z.number().nonnegative(),source:z.enum(["dexscreener","geckoterminal"]).nullable(),first_at:Time,last_at:Time,return_pct:NumberOrNull,max_drawdown_pct:NumberOrNull,median_absolute_rate_pct_per_minute:NumberOrNull,qualifying_jumps:z.number().int().nonnegative(),jump_log_return_share:NumberOrNull,gaps:z.array(z.string()).max(12)}).strict();
+export const ScoreResultV3Schema=ScoreResultV2Schema.extend({version:z.literal("discovery-score-result-v3"),concerns:ScoreResultV2Schema.shape.concerns.element.array().max(20),launch_review:LaunchReviewSchema,staircase:StaircaseReviewSchema}).strict();
+export const ScoreRecordV3Schema=ScoreRecordV2Schema.extend({version:z.literal("discovery-scorecard-v3"),inputs:ScoreInputV3Schema,result:ScoreResultV3Schema}).strict();
+export const ScoreSummaryV3Schema=ScoreSummaryV2Schema.extend({version:z.literal("discovery-score-v3"),risk_flags:ScoreResultV3Schema.shape.concerns}).strict();
+export type ScoreInputV3=z.infer<typeof ScoreInputV3Schema>;
+export type ScoreRecordV3=z.infer<typeof ScoreRecordV3Schema>;

@@ -46,7 +46,7 @@ import { candidateExpiry, expireCandidates, inventoryStatus } from "./candidate-
 import { marketBatches,marketBatchRecord } from "./market-batch-store";
 import {candidateScorecard,rankedDiscovery,scoreInventoryCandidates} from "./discovery-score-store";
 import {DiscoveryScoreError} from "./discovery-score";
-import {replayAnyDiscoveryScore} from "./discovery-score-v2";
+import {replayAnyDiscoveryScore} from "./discovery-score-replay";
 import {ScoreModelSchema} from "./score-research-model";
 import {runScoreResearch,scoreResearch,scoreResearchDetail} from "./score-research";
 import {ScoreResearchError} from "./score-research-analysis";

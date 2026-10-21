@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { AssessedCandidateSchema, ProofSchema, type AssessedCandidate } from "./model";
 import { HolderSchema } from "./holder-model";
-import {AnyScoreSummarySchema,type AnyScoreSummary} from "./discovery-score-v2-model";
+import {AnyScoreSummarySchema,type AnyScoreSummary} from "./discovery-score-models";
 
 // Presentation only. Assess the complete candidate first, then project its card.
 // Missing evidence is never replaced with empty arrays or used to reassess a pass.

@@ -2,8 +2,9 @@ import {z} from "zod";
 import {Address,PolicySchema} from "./model";
 import {ScorePriceSchema} from "./discovery-score-model";
 
-import {AnyScoreRecordSchema,AnyScoreSummarySchema} from "./discovery-score-v2-model";
-export const ScoreModelSchema=z.enum(["discovery-score-v1","discovery-score-v2"]);
+import {AnyScoreRecordSchema,AnyScoreSummarySchema} from "./discovery-score-models";
+import {ScoreModelSchema} from "./discovery-score-models";
+export {ScoreModelSchema};
 export type ScoreModel=z.infer<typeof ScoreModelSchema>;
 
 export const SCORE_RESEARCH_LIMITS={captures:3,finalizations:5,daily_records:100,daily_bytes:10_000_000,record_bytes:1_900_000,endpoint_samples:256,summary_records:500,lease_ms:120_000,interval_ms:60_000} as const;

@@ -7,7 +7,7 @@ import {gateSample,key,signature} from "./wallet-fixtures.test-helper";
 import {assess,DEFAULT_POLICY,type Candidate} from "./model";
 import {defaultScoreInput,evaluateDiscoveryScore,freezeDiscoveryScore,replayDiscoveryScore,scoreFreshness} from "./discovery-score";
 import {rankedDiscovery,candidateScorecard,scoreInventoryCandidates,scoreIntegrityPriceInputs,scorePriceInputs} from "./discovery-score-store";
-import {replayAnyDiscoveryScore} from "./discovery-score-v2";
+import {replayAnyDiscoveryScore} from "./discovery-score-replay";
 import type {ScoreInput} from "./discovery-score-model";
 import {createElection,electionRecord} from "./elections";
 import {handle,type LocalEnv} from "./worker";

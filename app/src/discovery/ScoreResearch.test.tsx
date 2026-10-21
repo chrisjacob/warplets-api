@@ -27,8 +27,8 @@ it("reports stale refreshes, UTC storage bounds and capture gaps without losing 
   const data=empty();data.automation.last_error="score_research_unavailable";data.capped=true;const html=renderToStaticMarkup(<ScoreResearch data={data} error="unavailable"/>);
   for(const text of ["last response remains visible","capped view","Today’s UTC storage","0 / 100 records","0.00 / 10 MB","Research needs attention"])expect(html).toContain(text);
 });
-it("separates the current v2 study and pins its exported links to the model",async()=>{
+it("separates the archived v2 study and pins its exported links to the model",async()=>{
   const candidate={...(await fixtureCandidates(at))[0]!,mode:"live" as const},c=await freezeScoreCohort(await freezeDiscoveryScoreV2(defaultScoreInputV2(candidate,at))),data=empty();data.model="discovery-score-v2";data.recent=[{cohort:c.summary,outcome:null}];
   const html=renderToStaticMarkup(<ScoreResearch data={data} error="" onModelChange={()=>{}}/>);
-  for(const text of ["Current discovery-score-v2 study","Archived v1","Research score model","?model=discovery-score-v2","Results stay separate by model","not matched comparisons","across both models"])expect(html).toContain(text);
+  for(const text of ["Archived discovery-score-v2 study","Archived v1","Research score model","?model=discovery-score-v2","Results stay separate by model","not matched comparisons","across all models"])expect(html).toContain(text);
 });

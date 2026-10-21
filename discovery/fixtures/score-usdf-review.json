@@ -1,0 +1,2929 @@
+{
+  "original": {
+    "version": "discovery-scorecard-v2",
+    "inputs": {
+      "version": "discovery-score-input-v2",
+      "as_of": "2026-10-21T02:34:59.059Z",
+      "policy": {
+        "version": "discovery-score-v2",
+        "weights": {
+          "origin": 10,
+          "controls": 15,
+          "market": 20,
+          "holders": 25,
+          "wallets": 25,
+          "performance": 5
+        },
+        "targets": {
+          "market_cap_usd": 100000,
+          "liquidity_usd": 25000,
+          "liquidity_cap_ratio": 0.05,
+          "holders": 100,
+          "buyers": 3,
+          "top1_pct": 10,
+          "top10_pct": 35,
+          "creator_pct": 5,
+          "dev_funded_pct": 20,
+          "dev_sold_pct": 5
+        },
+        "freshness_seconds": {
+          "controls": 600,
+          "market": 180,
+          "holders": 1800,
+          "wallets": 3600
+        },
+        "decay_end_multiple": 4,
+        "performance": {
+          "window_seconds": 7200,
+          "min_span_seconds": 1800,
+          "max_gap_seconds": 1800,
+          "min_samples": 6,
+          "max_samples": 64,
+          "return_band": 0.25
+        },
+        "risk_ceiling": {
+          "rejected_origin": 0,
+          "active_authority": 40,
+          "single_owner_end": 10,
+          "top10_end": 30,
+          "wallet_exposure_end": 20
+        },
+        "integrity": {
+          "history_seconds": 86400,
+          "max_samples": 256,
+          "jump_gap_seconds": 600,
+          "jump_up_ratio": 2,
+          "jump_down_ratio": 0.5,
+          "jump_ceiling": 40,
+          "depth_reference_ratio": 0.05,
+          "depth_curve": "square_root",
+          "dust_quote_lamports": "1000000",
+          "participation_quote_lamports": "10000000",
+          "dust_min_trades": 5,
+          "dust_min_wallets": 3,
+          "dust_fraction": 0.8,
+          "dust_ceiling": 40
+        }
+      },
+      "candidate": {
+        "chain": "solana",
+        "address": "AMK8R8NqJ18VQnxsoGgv75pZVLyAG24BafFfp3Zpump",
+        "pool": "2YH7UbytEQFya6nHNDpcwemRRi4yz8gixrfv197pFa55",
+        "name": "United States Dividend Fund",
+        "symbol": "USDF",
+        "creation": {
+          "kind": "creation",
+          "signature": "4ny8J2skzanyjFB5JaYXy4U2idzY5BqQzND3kQRSmAEWQkFbvf72kTsmXhkECQvTNvDE5zFJvrb7taKzivU3DFQw",
+          "slot": 459064334,
+          "block_time": "2026-10-20T02:26:52.000Z",
+          "instruction": "create_v2",
+          "instruction_index": "0",
+          "program": "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P",
+          "payload_hash": "cb1fa8c5a5b6f01bda0adf6ef24151ea9175897b622dcfcf4dbe337f1de90f1a",
+          "fetched_at": "2026-10-20T16:46:35.367Z",
+          "source": "solana-finalized-rpc",
+          "adapter_version": "pump-639b87fb45c3-v1"
+        },
+        "graduation": {
+          "kind": "graduation",
+          "signature": "B7UbYcWQQ9MSsPuorgHFjZzBGF7Y8yin6rjP2UX3BeF1jRVxwG1fxb5UXDafE5BHLGYKwe57hnwg2jCrgKXwTW3",
+          "slot": 459064334,
+          "block_time": "2026-10-20T02:26:52.000Z",
+          "instruction": "migrate_v2",
+          "instruction_index": "0",
+          "program": "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P",
+          "payload_hash": "cf818518102512e4711fb8d70802f0e646723dc7e2aad8dc93b56ef4a34c1f21",
+          "fetched_at": "2026-10-20T16:46:35.367Z",
+          "source": "solana-finalized-rpc",
+          "adapter_version": "pump-639b87fb45c3-v1"
+        },
+        "verification": "verified",
+        "verification_reasons": [],
+        "risk": {
+          "mint_authority": "revoked",
+          "freeze_authority": "revoked",
+          "token_program": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+          "mint_extensions": [
+            18,
+            19
+          ],
+          "holder_concentration": "unknown",
+          "pool_reserves_verified": true,
+          "observed_at": "2026-10-21T02:24:52.672Z",
+          "context_slot": 459461403,
+          "payload_hash": "a22c0112d424bb75740c94a0d1eaebe8e1c2e1a3c40281e77e7a79269abf9b65"
+        },
+        "market": {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T02:25:52.640Z",
+          "observed_at": null,
+          "price_usd": 0.007476,
+          "market_cap_usd": 7474181,
+          "fdv_usd": 7474181,
+          "liquidity_usd": 234938.73,
+          "volume_24h_usd": 274337.26,
+          "image_url": null
+        },
+        "first_seen_at": "2026-10-20T16:34:35.160Z",
+        "checked_at": "2026-10-21T02:24:52.672Z",
+        "holders": {
+          "version": "owners-v2",
+          "status": "verified",
+          "layout_certified": true,
+          "observed_at": "2026-10-21T01:59:17.445Z",
+          "context_slot": 459454307,
+          "payload_hash": "eb5b8665a6cd6f8a687f13345ed7722fae951d85415dd4566a37e7293b769645",
+          "supply_raw": "999670870293877",
+          "inventoried_raw": "999670870293877",
+          "account_count": 2938,
+          "holder_count": 2908,
+          "top1_pct": 0.111182,
+          "top10_pct": 0.542035,
+          "pool_pct": 1.583916,
+          "creator_pct": 0.00001,
+          "creator": "A2yzrkXghJAaqVtxxbaSeMUKeh69xTcUJ7h9HWGAuPCd",
+          "owners": [
+            {
+              "owner": "41cEVgA8CTk7Z9M6QmZtUokgLQpcmyP9FiEMbt4Rds5T",
+              "amount_raw": "1111452199366",
+              "supply_pct": 0.111182,
+              "role": "holder"
+            },
+            {
+              "owner": "CPBHFczwJBGk2CrnWNJ3PKDEiJ3hLZqRCx9ygXRzBPHb",
+              "amount_raw": "593087519171",
+              "supply_pct": 0.059329,
+              "role": "holder"
+            },
+            {
+              "owner": "AtT5p9ShK5Kp2CfzxmKpxgPkAQrB4oZcvxhnWqfWxSvA",
+              "amount_raw": "464906947921",
+              "supply_pct": 0.046507,
+              "role": "holder"
+            },
+            {
+              "owner": "BJxMqJ4NCHNWttcjKaQMTz2zYWcY7AtNwQwtktvnnwav",
+              "amount_raw": "464902332311",
+              "supply_pct": 0.046506,
+              "role": "holder"
+            },
+            {
+              "owner": "AhX12UNpVwzWqAtbTXaHYgwGMwBLVtvnwj17JuP8XcdL",
+              "amount_raw": "464899000000",
+              "supply_pct": 0.046506,
+              "role": "holder"
+            },
+            {
+              "owner": "ASXVjWJCZJwm6YMKmBP6sgigci3csxp3wxXNa9sHGGyM",
+              "amount_raw": "464899000000",
+              "supply_pct": 0.046506,
+              "role": "holder"
+            },
+            {
+              "owner": "DfH7KQUzLRt4aHXXVAoSb6R5cX4F7T923gH3s5wpfjhB",
+              "amount_raw": "464899000000",
+              "supply_pct": 0.046506,
+              "role": "holder"
+            },
+            {
+              "owner": "EW9WRza44xaWXwrgfbUi3xcgxGvHcdwfBygDKV9AoPvi",
+              "amount_raw": "464899000000",
+              "supply_pct": 0.046506,
+              "role": "holder"
+            },
+            {
+              "owner": "WnPNNvS4SsnW9CKT3CWFrkcHejdQr9ca6xEw8oWT8n4",
+              "amount_raw": "464899000000",
+              "supply_pct": 0.046506,
+              "role": "holder"
+            },
+            {
+              "owner": "8RbZFnpDiVAiFcEKUHCkikj162U8wXPnEvppsxFJUfZF",
+              "amount_raw": "459715026963",
+              "supply_pct": 0.045987,
+              "role": "holder"
+            },
+            {
+              "owner": "FgtyFfKBfC83VFVs1xmtftmLYyYokFqPsNvSnHbBNTmB",
+              "amount_raw": "459714997975",
+              "supply_pct": 0.045987,
+              "role": "holder"
+            },
+            {
+              "owner": "CexAKnpvbgri9kJ3w1yKN4kPD3K37Kt7KBShian54eEN",
+              "amount_raw": "459714882463",
+              "supply_pct": 0.045987,
+              "role": "holder"
+            },
+            {
+              "owner": "R3vg6jeELFcxgv919Tt8mc7uRfDjaBCpCRafdDwnntV",
+              "amount_raw": "459714796479",
+              "supply_pct": 0.045987,
+              "role": "holder"
+            },
+            {
+              "owner": "7bscUirZBYN135X1aEeNuRccnfHcty6WRFSJGDedRXnK",
+              "amount_raw": "459714732512",
+              "supply_pct": 0.045987,
+              "role": "holder"
+            },
+            {
+              "owner": "2iWNKS7MMvPAqyuBSwe2kxfsjiRPHMnMMwLAPW41kRXD",
+              "amount_raw": "459714707234",
+              "supply_pct": 0.045987,
+              "role": "holder"
+            },
+            {
+              "owner": "6NU3qwCD5LfAHpkLpDpJvmb2Jdhhjtk5DMu8wyJMWd8p",
+              "amount_raw": "459714624061",
+              "supply_pct": 0.045987,
+              "role": "holder"
+            },
+            {
+              "owner": "G6ntyNM3ZXYCfJvaMao7QLCSgfbFAQVDnj4pBS8MtJdL",
+              "amount_raw": "459714611857",
+              "supply_pct": 0.045987,
+              "role": "holder"
+            },
+            {
+              "owner": "B437Kcdce4atPTZAGJjbSDChmFShqzpZpPD7q1JoGtmK",
+              "amount_raw": "459714492686",
+              "supply_pct": 0.045987,
+              "role": "holder"
+            },
+            {
+              "owner": "9zsfBwe9fcwmHcvTHA8qBfvvt2NhP2DtY2RV6wSiW6zp",
+              "amount_raw": "459714199115",
+              "supply_pct": 0.045987,
+              "role": "holder"
+            },
+            {
+              "owner": "2YH7UbytEQFya6nHNDpcwemRRi4yz8gixrfv197pFa55",
+              "amount_raw": "15833940304816",
+              "supply_pct": 1.583916,
+              "role": "canonical_pool_vault"
+            }
+          ],
+          "gaps": [
+            "beneficial_owner_links_unknown",
+            "bundle_risk_unknown",
+            "lp_lock_status_unknown"
+          ]
+        },
+        "wallet_analysis": {
+          "version": "wallet-signals-v4",
+          "observed_at": "2026-10-20T17:08:55.243Z",
+          "evidence_hash": "9eeee9e7b9ee8b4611c4bc3d9b683dd4fdd3f58b8c3b430d74d8a906ad2da3e1",
+          "funding_coverage": [
+            {
+              "wallet": "A2yzrkXghJAaqVtxxbaSeMUKeh69xTcUJ7h9HWGAuPCd",
+              "anchor_signature": "4ny8J2skzanyjFB5JaYXy4U2idzY5BqQzND3kQRSmAEWQkFbvf72kTsmXhkECQvTNvDE5zFJvrb7taKzivU3DFQw",
+              "anchor_kind": "signed_creation",
+              "anchor_at": "2026-10-20T02:26:52.000Z",
+              "window_start": "2026-10-20T01:26:52.000Z",
+              "pages": 1,
+              "signatures": 4,
+              "transactions_in_window": 4,
+              "transactions_examined": 3,
+              "status": "partial",
+              "boundary_reached": false,
+              "gaps": [
+                "funding_paging_pending",
+                "funding_transactions_pending"
+              ]
+            },
+            {
+              "wallet": "CPBHFczwJBGk2CrnWNJ3PKDEiJ3hLZqRCx9ygXRzBPHb",
+              "anchor_signature": "61J4QgwNv3J7TYN1Jsp1iDZUeikbNe3oNDwtPaJKgofkBtyNGx12PxEcVgkVpXuCVVxVoqhdmRa4dMEW5xkCxQuV",
+              "anchor_kind": "sampled_buy",
+              "anchor_at": "2026-10-20T17:06:11.000Z",
+              "window_start": "2026-10-20T16:06:11.000Z",
+              "pages": 1,
+              "signatures": 50,
+              "transactions_in_window": 50,
+              "transactions_examined": 0,
+              "status": "partial",
+              "boundary_reached": false,
+              "gaps": [
+                "funding_paging_pending",
+                "funding_transactions_pending"
+              ]
+            },
+            {
+              "wallet": "41cEVgA8CTk7Z9M6QmZtUokgLQpcmyP9FiEMbt4Rds5T",
+              "anchor_signature": "4kp8aAW8tMpTD2ejfFjAh3FRebdT6fZDRg8DsnP8KfSCz5mP1tKPcXdRmn6SLqaVqAq9U25S2pJGhuyRyrZ8WCnP",
+              "anchor_kind": "sampled_buy",
+              "anchor_at": "2026-10-20T17:08:24.000Z",
+              "window_start": "2026-10-20T16:08:24.000Z",
+              "pages": 1,
+              "signatures": 50,
+              "transactions_in_window": 50,
+              "transactions_examined": 0,
+              "status": "partial",
+              "boundary_reached": false,
+              "gaps": [
+                "funding_paging_pending",
+                "funding_transactions_pending"
+              ]
+            }
+          ],
+          "second_hop": {
+            "depth": 2,
+            "eligible_funders": 0,
+            "coverage": [],
+            "paths": [],
+            "gaps": [
+              "common_control_unknown",
+              "funding_sequence_not_coin_provenance",
+              "single_outflow_anchor_per_funder",
+              "third_hop_not_scanned",
+              "verified_direct_funders_unavailable"
+            ]
+          },
+          "status": "no_signal_in_sample",
+          "source": "solana-finalized-rpc",
+          "coverage": "bounded_sample",
+          "actual_bundle_membership": "unknown",
+          "exhaustive": false,
+          "creation_slot": 459064334,
+          "holder_snapshot_at": "2026-10-20T17:08:29.447Z",
+          "scope": {
+            "curve_pages": 1,
+            "early_window_reached": true,
+            "signatures_considered": 129,
+            "transactions_examined": 9,
+            "unsupported_or_missing_transactions": 0,
+            "wallet_histories_examined": 3
+          },
+          "metrics": {
+            "verified_buys": 4,
+            "verified_sells": 2,
+            "distinct_buyers": 3,
+            "max_same_slot_buyers": 1,
+            "max_same_transaction_buyers": 1,
+            "shared_funder_buyers": 0,
+            "dev_funded_buyers": 0,
+            "dev_funded_supply_pct": 0,
+            "dev_sold_supply_pct": 0,
+            "round_trip_wallets": 0
+          },
+          "signals": [],
+          "trades": [
+            {
+              "signature": "4ny8J2skzanyjFB5JaYXy4U2idzY5BqQzND3kQRSmAEWQkFbvf72kTsmXhkECQvTNvDE5zFJvrb7taKzivU3DFQw",
+              "slot": 459064334,
+              "block_time": "2026-10-20T02:26:52.000Z",
+              "instruction_index": "2",
+              "program": "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P",
+              "instruction": "buy",
+              "side": "buy",
+              "wallet": "A2yzrkXghJAaqVtxxbaSeMUKeh69xTcUJ7h9HWGAuPCd",
+              "fee_payer": "A2yzrkXghJAaqVtxxbaSeMUKeh69xTcUJ7h9HWGAuPCd",
+              "base_amount_raw": "793100000000000",
+              "quote_amount_raw": "85005359057",
+              "quote_kind": "native_lamports",
+              "net_wallet_base_raw": "793100000000000",
+              "transaction_hash": "3fbf2423f48b13f8a27375260d48baacfcfa16f2f9e68a6608ceb01c8630e660"
+            },
+            {
+              "signature": "52254SccaudCr1A7ikL6gVUbtxVwT6MYW3YzLfnfvosT9KysDD6o4NXL5Vc66G2xNk16esFYFP43TbmRA4n1sfiq",
+              "slot": 459305707,
+              "block_time": "2026-10-20T17:02:58.000Z",
+              "instruction_index": "4",
+              "program": "pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA",
+              "instruction": "sell",
+              "side": "sell",
+              "wallet": "CPBHFczwJBGk2CrnWNJ3PKDEiJ3hLZqRCx9ygXRzBPHb",
+              "fee_payer": "CPBHFczwJBGk2CrnWNJ3PKDEiJ3hLZqRCx9ygXRzBPHb",
+              "base_amount_raw": "5065934243",
+              "quote_amount_raw": "305439262",
+              "quote_kind": "wsol_raw",
+              "net_wallet_base_raw": "-5065934243",
+              "transaction_hash": "9578804256945e6bd5fd057afc83c0a3dcc6095dbd458b109de5da6f06ed57ff",
+              "quote_account_proof": "temporary_wsol_lifecycle"
+            },
+            {
+              "signature": "4RHjjBs8YezuBZ5aXTGV9oRSYoSrALFi7jEgnnHv8tLRexRiCdK4fu5G3w4aUwpB2GHTk84p3Sb8jVPnWeuyan8v",
+              "slot": 459306143,
+              "block_time": "2026-10-20T17:04:36.000Z",
+              "instruction_index": "4",
+              "program": "pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA",
+              "instruction": "sell",
+              "side": "sell",
+              "wallet": "CPBHFczwJBGk2CrnWNJ3PKDEiJ3hLZqRCx9ygXRzBPHb",
+              "fee_payer": "CPBHFczwJBGk2CrnWNJ3PKDEiJ3hLZqRCx9ygXRzBPHb",
+              "base_amount_raw": "6584108359",
+              "quote_amount_raw": "396840635",
+              "quote_kind": "wsol_raw",
+              "net_wallet_base_raw": "-6584108359",
+              "transaction_hash": "dc1e503c723a08edfdabee16cb8d1756372718b3097d413ace9af77bf0b59be4",
+              "quote_account_proof": "temporary_wsol_lifecycle"
+            },
+            {
+              "signature": "61J4QgwNv3J7TYN1Jsp1iDZUeikbNe3oNDwtPaJKgofkBtyNGx12PxEcVgkVpXuCVVxVoqhdmRa4dMEW5xkCxQuV",
+              "slot": 459306591,
+              "block_time": "2026-10-20T17:06:11.000Z",
+              "instruction_index": "6",
+              "program": "pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA",
+              "instruction": "buy",
+              "side": "buy",
+              "wallet": "CPBHFczwJBGk2CrnWNJ3PKDEiJ3hLZqRCx9ygXRzBPHb",
+              "fee_payer": "CPBHFczwJBGk2CrnWNJ3PKDEiJ3hLZqRCx9ygXRzBPHb",
+              "base_amount_raw": "5160451751",
+              "quote_amount_raw": "313000313",
+              "quote_kind": "wsol_raw",
+              "net_wallet_base_raw": "5160451751",
+              "transaction_hash": "bd607785c84eac2801030ea333943464c68c92bb000dfaf33774b9cff2c112b2",
+              "quote_account_proof": "temporary_wsol_lifecycle"
+            },
+            {
+              "signature": "3vpnQRib3GJ2KwZzVBgZ36rbfGQbHRN1iJCTvtCBW3gXtrPzG5SDmD9tWnJKajTMQ7JnHNB6pYspMPtUkjKSwtGo",
+              "slot": 459306948,
+              "block_time": "2026-10-20T17:07:27.000Z",
+              "instruction_index": "6",
+              "program": "pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA",
+              "instruction": "buy",
+              "side": "buy",
+              "wallet": "CPBHFczwJBGk2CrnWNJ3PKDEiJ3hLZqRCx9ygXRzBPHb",
+              "fee_payer": "CPBHFczwJBGk2CrnWNJ3PKDEiJ3hLZqRCx9ygXRzBPHb",
+              "base_amount_raw": "3684556121",
+              "quote_amount_raw": "223587309",
+              "quote_kind": "wsol_raw",
+              "net_wallet_base_raw": "3684556121",
+              "transaction_hash": "7b70e0ee91942e69f6a1d1285a272733b91fcd3139289b63cd3a5de4e251713b",
+              "quote_account_proof": "temporary_wsol_lifecycle"
+            },
+            {
+              "signature": "4kp8aAW8tMpTD2ejfFjAh3FRebdT6fZDRg8DsnP8KfSCz5mP1tKPcXdRmn6SLqaVqAq9U25S2pJGhuyRyrZ8WCnP",
+              "slot": 459307215,
+              "block_time": "2026-10-20T17:08:24.000Z",
+              "instruction_index": "6",
+              "program": "pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA",
+              "instruction": "buy",
+              "side": "buy",
+              "wallet": "41cEVgA8CTk7Z9M6QmZtUokgLQpcmyP9FiEMbt4Rds5T",
+              "fee_payer": "41cEVgA8CTk7Z9M6QmZtUokgLQpcmyP9FiEMbt4Rds5T",
+              "base_amount_raw": "4496048057",
+              "quote_amount_raw": "272906958",
+              "quote_kind": "wsol_raw",
+              "net_wallet_base_raw": "4496048057",
+              "transaction_hash": "896f619b7aaea9007c3e06efe9805fc578702585f4a3760d02d32e4bd325431e",
+              "quote_account_proof": "temporary_wsol_lifecycle"
+            }
+          ],
+          "funding": [],
+          "wallets": [
+            {
+              "wallet": "A2yzrkXghJAaqVtxxbaSeMUKeh69xTcUJ7h9HWGAuPCd",
+              "roles": [
+                "creation_user",
+                "declared_creator",
+                "buyer"
+              ],
+              "signed_creation": true,
+              "buys": 1,
+              "sells": 0,
+              "bought_raw": "793100000000000",
+              "sold_raw": "0",
+              "net_bought_raw": "793100000000000",
+              "current_supply_pct": 0.00001,
+              "oldest_observed_reference_at": "2026-10-20T02:13:04.000Z",
+              "history_signatures": 4,
+              "history_complete": false,
+              "prior_loss_associations": 0,
+              "gaps": [
+                "lifetime_wallet_history_unknown"
+              ]
+            },
+            {
+              "wallet": "CPBHFczwJBGk2CrnWNJ3PKDEiJ3hLZqRCx9ygXRzBPHb",
+              "roles": [
+                "buyer",
+                "seller"
+              ],
+              "signed_creation": false,
+              "buys": 2,
+              "sells": 2,
+              "bought_raw": "8845007872",
+              "sold_raw": "11650042602",
+              "net_bought_raw": "-2805034730",
+              "current_supply_pct": 0.045929,
+              "oldest_observed_reference_at": "2026-10-20T17:02:31.000Z",
+              "history_signatures": 50,
+              "history_complete": false,
+              "prior_loss_associations": 0,
+              "gaps": [
+                "lifetime_wallet_history_unknown"
+              ]
+            },
+            {
+              "wallet": "41cEVgA8CTk7Z9M6QmZtUokgLQpcmyP9FiEMbt4Rds5T",
+              "roles": [
+                "buyer"
+              ],
+              "signed_creation": false,
+              "buys": 1,
+              "sells": 0,
+              "bought_raw": "4496048057",
+              "sold_raw": "0",
+              "net_bought_raw": "4496048057",
+              "current_supply_pct": 0.043564,
+              "oldest_observed_reference_at": "2026-10-20T17:04:31.000Z",
+              "history_signatures": 50,
+              "history_complete": false,
+              "prior_loss_associations": 0,
+              "gaps": [
+                "lifetime_wallet_history_unknown"
+              ]
+            }
+          ],
+          "gaps": [
+            "actual_bundle_membership_unknown",
+            "beneficial_owner_links_unknown",
+            "historical_wallet_coverage_incomplete",
+            "exchange_or_sponsor_funding_possible",
+            "cross_token_pnl_and_fees_unknown",
+            "buyer_funding_histories_not_all_sampled",
+            "pre_buy_funding_coverage_partial"
+          ]
+        },
+        "mode": "live"
+      },
+      "prices": [
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T16:37:29.221Z",
+          "observed_at": null,
+          "price_usd": 0.006433
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T16:48:29.258Z",
+          "observed_at": null,
+          "price_usd": 0.006444
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T16:51:29.322Z",
+          "observed_at": null,
+          "price_usd": 0.006462
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T16:55:29.307Z",
+          "observed_at": null,
+          "price_usd": 0.006458
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T16:58:29.421Z",
+          "observed_at": null,
+          "price_usd": 0.006453
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T17:02:29.362Z",
+          "observed_at": null,
+          "price_usd": 0.006426
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T17:05:29.412Z",
+          "observed_at": null,
+          "price_usd": 0.006398
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T17:09:29.417Z",
+          "observed_at": null,
+          "price_usd": 0.006445
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T17:12:29.538Z",
+          "observed_at": null,
+          "price_usd": 0.006474
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T17:16:29.426Z",
+          "observed_at": null,
+          "price_usd": 0.006431
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T17:19:29.436Z",
+          "observed_at": null,
+          "price_usd": 0.006481
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T17:22:29.515Z",
+          "observed_at": null,
+          "price_usd": 0.006483
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T17:25:29.557Z",
+          "observed_at": null,
+          "price_usd": 0.006443
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T17:29:29.532Z",
+          "observed_at": null,
+          "price_usd": 0.006769
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T17:33:29.555Z",
+          "observed_at": null,
+          "price_usd": 0.006758
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T17:36:29.606Z",
+          "observed_at": null,
+          "price_usd": 0.006804
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T17:39:29.646Z",
+          "observed_at": null,
+          "price_usd": 0.006806
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T17:42:29.648Z",
+          "observed_at": null,
+          "price_usd": 0.006828
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T17:45:29.683Z",
+          "observed_at": null,
+          "price_usd": 0.00678
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T17:48:29.719Z",
+          "observed_at": null,
+          "price_usd": 0.006826
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T17:51:29.733Z",
+          "observed_at": null,
+          "price_usd": 0.006789
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T17:54:29.757Z",
+          "observed_at": null,
+          "price_usd": 0.006792
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T17:57:29.820Z",
+          "observed_at": null,
+          "price_usd": 0.006788
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T18:01:29.729Z",
+          "observed_at": null,
+          "price_usd": 0.006786
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T18:04:29.802Z",
+          "observed_at": null,
+          "price_usd": 0.006792
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T18:07:29.824Z",
+          "observed_at": null,
+          "price_usd": 0.006779
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T18:10:29.833Z",
+          "observed_at": null,
+          "price_usd": 0.00683
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T18:13:29.860Z",
+          "observed_at": null,
+          "price_usd": 0.006782
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T18:17:29.865Z",
+          "observed_at": null,
+          "price_usd": 0.006832
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T18:20:29.886Z",
+          "observed_at": null,
+          "price_usd": 0.006833
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T18:24:29.863Z",
+          "observed_at": null,
+          "price_usd": 0.006775
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T18:28:29.865Z",
+          "observed_at": null,
+          "price_usd": 0.006811
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T18:31:29.884Z",
+          "observed_at": null,
+          "price_usd": 0.006807
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T18:34:29.904Z",
+          "observed_at": null,
+          "price_usd": 0.006812
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T18:37:29.961Z",
+          "observed_at": null,
+          "price_usd": 0.006801
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T18:41:29.936Z",
+          "observed_at": null,
+          "price_usd": 0.006804
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T18:44:29.977Z",
+          "observed_at": null,
+          "price_usd": 0.006812
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T18:47:29.995Z",
+          "observed_at": null,
+          "price_usd": 0.006821
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T18:50:30.014Z",
+          "observed_at": null,
+          "price_usd": 0.00683
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T18:54:29.998Z",
+          "observed_at": null,
+          "price_usd": 0.006793
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T18:57:30.050Z",
+          "observed_at": null,
+          "price_usd": 0.006833
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T19:00:30.062Z",
+          "observed_at": null,
+          "price_usd": 0.006845
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T19:03:30.081Z",
+          "observed_at": null,
+          "price_usd": 0.006848
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T19:06:30.118Z",
+          "observed_at": null,
+          "price_usd": 0.006824
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T19:10:30.084Z",
+          "observed_at": null,
+          "price_usd": 0.006825
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T19:13:30.120Z",
+          "observed_at": null,
+          "price_usd": 0.006792
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T19:17:30.086Z",
+          "observed_at": null,
+          "price_usd": 0.006836
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T19:20:30.139Z",
+          "observed_at": null,
+          "price_usd": 0.006839
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T19:23:30.139Z",
+          "observed_at": null,
+          "price_usd": 0.006792
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T19:26:30.151Z",
+          "observed_at": null,
+          "price_usd": 0.006766
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T19:29:30.167Z",
+          "observed_at": null,
+          "price_usd": 0.006764
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T19:32:30.179Z",
+          "observed_at": null,
+          "price_usd": 0.006812
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T19:36:30.157Z",
+          "observed_at": null,
+          "price_usd": 0.006788
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T19:39:30.215Z",
+          "observed_at": null,
+          "price_usd": 0.006783
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T19:43:30.191Z",
+          "observed_at": null,
+          "price_usd": 0.006825
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T19:46:30.257Z",
+          "observed_at": null,
+          "price_usd": 0.006852
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T19:50:30.228Z",
+          "observed_at": null,
+          "price_usd": 0.006853
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T19:53:30.295Z",
+          "observed_at": null,
+          "price_usd": 0.006873
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T19:56:30.616Z",
+          "observed_at": null,
+          "price_usd": 0.006856
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T20:00:30.320Z",
+          "observed_at": null,
+          "price_usd": 0.006855
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T20:04:30.335Z",
+          "observed_at": null,
+          "price_usd": 0.006819
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T20:07:30.403Z",
+          "observed_at": null,
+          "price_usd": 0.006858
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T20:10:30.530Z",
+          "observed_at": null,
+          "price_usd": 0.006813
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T20:14:30.415Z",
+          "observed_at": null,
+          "price_usd": 0.006864
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T20:17:30.461Z",
+          "observed_at": null,
+          "price_usd": 0.006814
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T20:22:47.472Z",
+          "observed_at": null,
+          "price_usd": 0.006801
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T20:25:54.805Z",
+          "observed_at": null,
+          "price_usd": 0.006812
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T20:28:54.913Z",
+          "observed_at": null,
+          "price_usd": 0.006813
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T20:32:54.858Z",
+          "observed_at": null,
+          "price_usd": 0.006822
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T20:35:54.908Z",
+          "observed_at": null,
+          "price_usd": 0.006892
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T20:39:54.997Z",
+          "observed_at": null,
+          "price_usd": 0.006845
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T20:43:54.914Z",
+          "observed_at": null,
+          "price_usd": 0.00685
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T20:47:54.943Z",
+          "observed_at": null,
+          "price_usd": 0.006904
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T20:50:55.172Z",
+          "observed_at": null,
+          "price_usd": 0.006908
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T20:54:55.052Z",
+          "observed_at": null,
+          "price_usd": 0.00691
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T20:58:54.984Z",
+          "observed_at": null,
+          "price_usd": 0.00691
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T21:01:54.998Z",
+          "observed_at": null,
+          "price_usd": 0.006918
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T21:05:55.010Z",
+          "observed_at": null,
+          "price_usd": 0.006927
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T21:08:55.038Z",
+          "observed_at": null,
+          "price_usd": 0.006884
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T21:11:55.109Z",
+          "observed_at": null,
+          "price_usd": 0.00693
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T21:15:55.039Z",
+          "observed_at": null,
+          "price_usd": 0.006896
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T21:18:55.131Z",
+          "observed_at": null,
+          "price_usd": 0.00695
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T21:21:55.297Z",
+          "observed_at": null,
+          "price_usd": 0.006958
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T21:25:55.124Z",
+          "observed_at": null,
+          "price_usd": 0.006958
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T21:28:55.178Z",
+          "observed_at": null,
+          "price_usd": 0.006921
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T21:32:55.167Z",
+          "observed_at": null,
+          "price_usd": 0.006917
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T21:35:55.208Z",
+          "observed_at": null,
+          "price_usd": 0.006958
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T21:39:55.214Z",
+          "observed_at": null,
+          "price_usd": 0.006911
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T21:42:55.785Z",
+          "observed_at": null,
+          "price_usd": 0.006916
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T21:46:55.211Z",
+          "observed_at": null,
+          "price_usd": 0.006962
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T21:49:55.292Z",
+          "observed_at": null,
+          "price_usd": 0.006964
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T21:53:02.536Z",
+          "observed_at": null,
+          "price_usd": 0.006918
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T21:56:04.314Z",
+          "observed_at": null,
+          "price_usd": 0.006922
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T21:59:04.487Z",
+          "observed_at": null,
+          "price_usd": 0.006924
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T22:03:04.338Z",
+          "observed_at": null,
+          "price_usd": 0.00694
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T22:06:04.640Z",
+          "observed_at": null,
+          "price_usd": 0.006945
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T22:10:04.427Z",
+          "observed_at": null,
+          "price_usd": 0.006935
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T22:14:04.475Z",
+          "observed_at": null,
+          "price_usd": 0.006941
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T22:17:04.527Z",
+          "observed_at": null,
+          "price_usd": 0.00694
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T22:21:04.444Z",
+          "observed_at": null,
+          "price_usd": 0.007002
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T22:24:04.452Z",
+          "observed_at": null,
+          "price_usd": 0.007
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T22:27:04.482Z",
+          "observed_at": null,
+          "price_usd": 0.006998
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T22:30:26.231Z",
+          "observed_at": null,
+          "price_usd": 0.006999
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T22:34:04.578Z",
+          "observed_at": null,
+          "price_usd": 0.007368
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T22:37:04.595Z",
+          "observed_at": null,
+          "price_usd": 0.007373
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T22:40:04.617Z",
+          "observed_at": null,
+          "price_usd": 0.007405
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T22:43:04.656Z",
+          "observed_at": null,
+          "price_usd": 0.007417
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T22:47:04.622Z",
+          "observed_at": null,
+          "price_usd": 0.007415
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T22:50:04.735Z",
+          "observed_at": null,
+          "price_usd": 0.007414
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T22:54:04.750Z",
+          "observed_at": null,
+          "price_usd": 0.007408
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T23:01:29.012Z",
+          "observed_at": null,
+          "price_usd": 0.007405
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T23:04:56.611Z",
+          "observed_at": null,
+          "price_usd": 0.007403
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T23:08:53.362Z",
+          "observed_at": null,
+          "price_usd": 0.007337
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T23:11:53.591Z",
+          "observed_at": null,
+          "price_usd": 0.007372
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T23:15:55.233Z",
+          "observed_at": null,
+          "price_usd": 0.007318
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T23:19:00.309Z",
+          "observed_at": null,
+          "price_usd": 0.007313
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T23:22:44.071Z",
+          "observed_at": null,
+          "price_usd": 0.00738
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T23:25:48.850Z",
+          "observed_at": null,
+          "price_usd": 0.00737
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T23:29:48.769Z",
+          "observed_at": null,
+          "price_usd": 0.007372
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T23:32:48.864Z",
+          "observed_at": null,
+          "price_usd": 0.007368
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T23:35:49.392Z",
+          "observed_at": null,
+          "price_usd": 0.007367
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T23:39:48.812Z",
+          "observed_at": null,
+          "price_usd": 0.007373
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T23:42:48.858Z",
+          "observed_at": null,
+          "price_usd": 0.007314
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T23:45:49.193Z",
+          "observed_at": null,
+          "price_usd": 0.007321
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T23:49:48.914Z",
+          "observed_at": null,
+          "price_usd": 0.007377
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T23:52:50.603Z",
+          "observed_at": null,
+          "price_usd": 0.007386
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T23:56:03.950Z",
+          "observed_at": null,
+          "price_usd": 0.00734
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-20T23:59:49.936Z",
+          "observed_at": null,
+          "price_usd": 0.007339
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T00:02:50.177Z",
+          "observed_at": null,
+          "price_usd": 0.007328
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T00:06:10.949Z",
+          "observed_at": null,
+          "price_usd": 0.00733
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T00:09:50.566Z",
+          "observed_at": null,
+          "price_usd": 0.007381
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T00:12:52.999Z",
+          "observed_at": null,
+          "price_usd": 0.007347
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T00:16:51.611Z",
+          "observed_at": null,
+          "price_usd": 0.007413
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T00:20:51.173Z",
+          "observed_at": null,
+          "price_usd": 0.007412
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T00:23:51.295Z",
+          "observed_at": null,
+          "price_usd": 0.007418
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T00:27:51.352Z",
+          "observed_at": null,
+          "price_usd": 0.007429
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T00:31:52.627Z",
+          "observed_at": null,
+          "price_usd": 0.007435
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T00:40:51.427Z",
+          "observed_at": null,
+          "price_usd": 0.007439
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T00:43:51.433Z",
+          "observed_at": null,
+          "price_usd": 0.007446
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T00:47:51.409Z",
+          "observed_at": null,
+          "price_usd": 0.007455
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T00:51:51.396Z",
+          "observed_at": null,
+          "price_usd": 0.00745
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T00:55:51.511Z",
+          "observed_at": null,
+          "price_usd": 0.007451
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T00:59:51.447Z",
+          "observed_at": null,
+          "price_usd": 0.007397
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T01:02:51.676Z",
+          "observed_at": null,
+          "price_usd": 0.007391
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T01:06:51.487Z",
+          "observed_at": null,
+          "price_usd": 0.007379
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T01:09:51.589Z",
+          "observed_at": null,
+          "price_usd": 0.007387
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T01:12:52.193Z",
+          "observed_at": null,
+          "price_usd": 0.007436
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T01:16:34.724Z",
+          "observed_at": null,
+          "price_usd": 0.007448
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T01:20:34.505Z",
+          "observed_at": null,
+          "price_usd": 0.007398
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T01:23:34.511Z",
+          "observed_at": null,
+          "price_usd": 0.007452
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T01:27:34.508Z",
+          "observed_at": null,
+          "price_usd": 0.007433
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T01:31:34.546Z",
+          "observed_at": null,
+          "price_usd": 0.007447
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T01:34:34.647Z",
+          "observed_at": null,
+          "price_usd": 0.007443
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T01:37:34.991Z",
+          "observed_at": null,
+          "price_usd": 0.00744
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T01:40:36.018Z",
+          "observed_at": null,
+          "price_usd": 0.007434
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T01:44:12.134Z",
+          "observed_at": null,
+          "price_usd": 0.00749
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T01:47:17.112Z",
+          "observed_at": null,
+          "price_usd": 0.007501
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T01:50:17.340Z",
+          "observed_at": null,
+          "price_usd": 0.007505
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T01:53:17.558Z",
+          "observed_at": null,
+          "price_usd": 0.007529
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T01:56:18.734Z",
+          "observed_at": null,
+          "price_usd": 0.007529
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T02:00:17.679Z",
+          "observed_at": null,
+          "price_usd": 0.007537
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T02:03:18.342Z",
+          "observed_at": null,
+          "price_usd": 0.007531
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T02:06:58.303Z",
+          "observed_at": null,
+          "price_usd": 0.007474
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T02:10:18.674Z",
+          "observed_at": null,
+          "price_usd": 0.007527
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T02:13:46.369Z",
+          "observed_at": null,
+          "price_usd": 0.007525
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T02:16:50.683Z",
+          "observed_at": null,
+          "price_usd": 0.00746
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T02:19:50.763Z",
+          "observed_at": null,
+          "price_usd": 0.007457
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T02:22:50.920Z",
+          "observed_at": null,
+          "price_usd": 0.007525
+        },
+        {
+          "source": "dexscreener",
+          "fetched_at": "2026-10-21T02:25:52.640Z",
+          "observed_at": null,
+          "price_usd": 0.007476
+        }
+      ],
+      "history_limited": false
+    },
+    "result": {
+      "version": "discovery-score-result-v2",
+      "as_of": "2026-10-21T02:34:59.059Z",
+      "value": 54,
+      "evidence_coverage": 56,
+      "base_points": 54.19,
+      "ceiling": 79.29,
+      "criteria": [
+        {
+          "id": "creation",
+          "label": "Finalized creation",
+          "category": "origin",
+          "maximum": 6,
+          "points": 6,
+          "evidence_points": 6,
+          "status": "observed",
+          "value": true,
+          "observed_at": "2026-10-20T02:26:52.000Z",
+          "notes": []
+        },
+        {
+          "id": "graduation",
+          "label": "Finalized graduation",
+          "category": "origin",
+          "maximum": 4,
+          "points": 4,
+          "evidence_points": 4,
+          "status": "observed",
+          "value": true,
+          "observed_at": "2026-10-20T02:26:52.000Z",
+          "notes": []
+        },
+        {
+          "id": "mint_authority",
+          "label": "Mint authority revoked",
+          "category": "controls",
+          "maximum": 6,
+          "points": 5.98,
+          "evidence_points": 5.98,
+          "status": "stale",
+          "value": true,
+          "observed_at": "2026-10-21T02:24:52.672Z",
+          "notes": [
+            "positive_credit_decayed"
+          ]
+        },
+        {
+          "id": "freeze_authority",
+          "label": "Freeze authority revoked",
+          "category": "controls",
+          "maximum": 4,
+          "points": 3.99,
+          "evidence_points": 3.99,
+          "status": "stale",
+          "value": true,
+          "observed_at": "2026-10-21T02:24:52.672Z",
+          "notes": [
+            "positive_credit_decayed"
+          ]
+        },
+        {
+          "id": "pool_reserves",
+          "label": "Pool reserves verified",
+          "category": "controls",
+          "maximum": 5,
+          "points": 4.98,
+          "evidence_points": 4.98,
+          "status": "stale",
+          "value": true,
+          "observed_at": "2026-10-21T02:24:52.672Z",
+          "notes": [
+            "positive_credit_decayed"
+          ]
+        },
+        {
+          "id": "reported_cap",
+          "label": "Reported market cap",
+          "category": "market",
+          "maximum": 5,
+          "points": 1.61,
+          "evidence_points": 1.61,
+          "status": "stale",
+          "value": 7474181,
+          "observed_at": "2026-10-21T02:25:52.640Z",
+          "notes": [
+            "provider_report_not_independent_supply",
+            "fdv_not_substituted",
+            "positive_credit_decayed"
+          ]
+        },
+        {
+          "id": "liquidity",
+          "label": "Reported liquidity",
+          "category": "market",
+          "maximum": 10,
+          "points": 3.21,
+          "evidence_points": 3.21,
+          "status": "stale",
+          "value": 234938.73,
+          "observed_at": "2026-10-21T02:25:52.640Z",
+          "notes": [
+            "positive_credit_decayed"
+          ]
+        },
+        {
+          "id": "liquidity_ratio",
+          "label": "Liquidity / reported cap",
+          "category": "market",
+          "maximum": 5,
+          "points": 1.01,
+          "evidence_points": 1.61,
+          "status": "stale",
+          "value": 0.03143337443928639,
+          "observed_at": "2026-10-21T02:25:52.640Z",
+          "notes": [
+            "not_executable_exit_liquidity",
+            "positive_credit_decayed"
+          ]
+        },
+        {
+          "id": "holders",
+          "label": "Non-vault owner count",
+          "category": "holders",
+          "maximum": 5,
+          "points": 4.68,
+          "evidence_points": 4.68,
+          "status": "stale",
+          "value": 2908,
+          "observed_at": "2026-10-21T01:59:17.445Z",
+          "notes": [
+            "positive_credit_decayed"
+          ]
+        },
+        {
+          "id": "top1_pct",
+          "label": "Largest owner concentration",
+          "category": "holders",
+          "maximum": 8,
+          "points": 7.49,
+          "evidence_points": 7.49,
+          "status": "stale",
+          "value": 0.111182,
+          "observed_at": "2026-10-21T01:59:17.445Z",
+          "notes": [
+            "positive_credit_decayed"
+          ]
+        },
+        {
+          "id": "top10_pct",
+          "label": "Top ten concentration",
+          "category": "holders",
+          "maximum": 8,
+          "points": 7.49,
+          "evidence_points": 7.49,
+          "status": "stale",
+          "value": 0.542035,
+          "observed_at": "2026-10-21T01:59:17.445Z",
+          "notes": [
+            "positive_credit_decayed"
+          ]
+        },
+        {
+          "id": "creator_pct",
+          "label": "Creation-user concentration",
+          "category": "holders",
+          "maximum": 4,
+          "points": 3.75,
+          "evidence_points": 3.75,
+          "status": "stale",
+          "value": 0.00001,
+          "observed_at": "2026-10-21T01:59:17.445Z",
+          "notes": [
+            "positive_credit_decayed"
+          ]
+        },
+        {
+          "id": "signed_creation_wallet",
+          "label": "Signed creation wallet",
+          "category": "wallets",
+          "maximum": 5,
+          "points": 0,
+          "evidence_points": 0,
+          "status": "stale",
+          "value": true,
+          "observed_at": "2026-10-20T17:08:55.243Z",
+          "notes": [
+            "bounded_wallet_sample",
+            "positive_credit_decayed"
+          ]
+        },
+        {
+          "id": "sampled_buyers",
+          "label": "Verified buyer sample",
+          "category": "wallets",
+          "maximum": 5,
+          "points": 0,
+          "evidence_points": 0,
+          "status": "stale",
+          "value": 2,
+          "observed_at": "2026-10-20T17:08:55.243Z",
+          "notes": [
+            "positive_credit_decayed",
+            "post_creation_buy_volume_at_least_0_01_sol"
+          ]
+        },
+        {
+          "id": "funding_windows",
+          "label": "Examined pre-buy funding windows",
+          "category": "wallets",
+          "maximum": 10,
+          "points": 0,
+          "evidence_points": 0,
+          "status": "unknown",
+          "value": 0,
+          "observed_at": "2026-10-20T17:08:55.243Z",
+          "notes": [
+            "examined_windows_not_complete_lifetime_funding",
+            "evidence_unavailable"
+          ]
+        },
+        {
+          "id": "dev_funded_supply_pct",
+          "label": "Sampled dev-funded exposure",
+          "category": "wallets",
+          "maximum": 2.5,
+          "points": 0,
+          "evidence_points": 0,
+          "status": "unknown",
+          "value": 0,
+          "observed_at": "2026-10-20T17:08:55.243Z",
+          "notes": [
+            "sample_only_not_lifetime_exposure",
+            "evidence_unavailable"
+          ]
+        },
+        {
+          "id": "dev_sold_supply_pct",
+          "label": "Sampled creation-wallet sales",
+          "category": "wallets",
+          "maximum": 2.5,
+          "points": 0,
+          "evidence_points": 0,
+          "status": "stale",
+          "value": 0,
+          "observed_at": "2026-10-20T17:08:55.243Z",
+          "notes": [
+            "sample_only_not_lifetime_exposure",
+            "positive_credit_decayed"
+          ]
+        },
+        {
+          "id": "sampled_performance",
+          "label": "Sampled price performance",
+          "category": "performance",
+          "maximum": 5,
+          "points": 0,
+          "evidence_points": 1.61,
+          "status": "stale",
+          "value": 0.004973786799300939,
+          "observed_at": "2026-10-21T02:25:52.640Z",
+          "notes": [
+            "sampled_return_not_organic_demand",
+            "positive_credit_decayed",
+            "market_integrity_concern_withholds_momentum"
+          ]
+        }
+      ],
+      "components": [
+        {
+          "category": "origin",
+          "maximum": 10,
+          "points": 10,
+          "evidence_points": 10
+        },
+        {
+          "category": "controls",
+          "maximum": 15,
+          "points": 14.95,
+          "evidence_points": 14.95
+        },
+        {
+          "category": "market",
+          "maximum": 20,
+          "points": 5.83,
+          "evidence_points": 6.43
+        },
+        {
+          "category": "holders",
+          "maximum": 25,
+          "points": 23.41,
+          "evidence_points": 23.41
+        },
+        {
+          "category": "wallets",
+          "maximum": 25,
+          "points": 0,
+          "evidence_points": 0
+        },
+        {
+          "category": "performance",
+          "maximum": 5,
+          "points": 0,
+          "evidence_points": 1.61
+        }
+      ],
+      "concerns": [
+        {
+          "code": "thin_reported_depth_relative_to_cap",
+          "ceiling": 79.29,
+          "observed_at": "2026-10-21T02:25:52.640Z"
+        }
+      ],
+      "integrity": {
+        "scope": "cached_observations_not_fraud_verdict",
+        "history_limited": false,
+        "price_pairs": 167,
+        "largest_jump_pct": 5.27,
+        "jump_at": null,
+        "liquidity_cap_ratio": 0.03143337443928639,
+        "sampled_trades": 5,
+        "dust_trades": 0,
+        "sampled_wallets": 2,
+        "qualifying_buyers": 2,
+        "wallet_observed_at": "2026-10-20T17:08:55.243Z",
+        "gaps": [
+          "price_source_or_time_gap",
+          "wallet_sample_stale",
+          "non_exhaustive_trade_sample",
+          "organic_trading_unverified"
+        ]
+      }
+    },
+    "input_hash": "b4e92fc0e336b5e89601dcffc626094953c364f5454ef5f1aeb834e0bbde7b10",
+    "policy_hash": "ea886a25b6fe2f02843921a89f564c7fb2d210e21a33b87e2d91f8e568b9dd3a",
+    "result_hash": "7d938465d7ed0c5286009007babd36ab87011017fb2a5e9fb8ad50f4a240e677",
+    "record_hash": "b2a390f5cd44c0ef412ba2539e649b38ddc8bf8688e44e7d7d0366279f0737f6"
+  },
+  "prices": [
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T16:37:29.221Z",
+      "observed_at": null,
+      "price_usd": 0.006433
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T16:48:29.258Z",
+      "observed_at": null,
+      "price_usd": 0.006444
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T16:51:29.322Z",
+      "observed_at": null,
+      "price_usd": 0.006462
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T16:55:29.307Z",
+      "observed_at": null,
+      "price_usd": 0.006458
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T16:58:29.421Z",
+      "observed_at": null,
+      "price_usd": 0.006453
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T17:02:29.362Z",
+      "observed_at": null,
+      "price_usd": 0.006426
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T17:05:29.412Z",
+      "observed_at": null,
+      "price_usd": 0.006398
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T17:09:29.417Z",
+      "observed_at": null,
+      "price_usd": 0.006445
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T17:12:29.538Z",
+      "observed_at": null,
+      "price_usd": 0.006474
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T17:16:29.426Z",
+      "observed_at": null,
+      "price_usd": 0.006431
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T17:19:29.436Z",
+      "observed_at": null,
+      "price_usd": 0.006481
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T17:22:29.515Z",
+      "observed_at": null,
+      "price_usd": 0.006483
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T17:25:29.557Z",
+      "observed_at": null,
+      "price_usd": 0.006443
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T17:29:29.532Z",
+      "observed_at": null,
+      "price_usd": 0.006769
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T17:33:29.555Z",
+      "observed_at": null,
+      "price_usd": 0.006758
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T17:36:29.606Z",
+      "observed_at": null,
+      "price_usd": 0.006804
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T17:39:29.646Z",
+      "observed_at": null,
+      "price_usd": 0.006806
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T17:42:29.648Z",
+      "observed_at": null,
+      "price_usd": 0.006828
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T17:45:29.683Z",
+      "observed_at": null,
+      "price_usd": 0.00678
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T17:48:29.719Z",
+      "observed_at": null,
+      "price_usd": 0.006826
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T17:51:29.733Z",
+      "observed_at": null,
+      "price_usd": 0.006789
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T17:54:29.757Z",
+      "observed_at": null,
+      "price_usd": 0.006792
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T17:57:29.820Z",
+      "observed_at": null,
+      "price_usd": 0.006788
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T18:01:29.729Z",
+      "observed_at": null,
+      "price_usd": 0.006786
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T18:04:29.802Z",
+      "observed_at": null,
+      "price_usd": 0.006792
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T18:07:29.824Z",
+      "observed_at": null,
+      "price_usd": 0.006779
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T18:10:29.833Z",
+      "observed_at": null,
+      "price_usd": 0.00683
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T18:13:29.860Z",
+      "observed_at": null,
+      "price_usd": 0.006782
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T18:17:29.865Z",
+      "observed_at": null,
+      "price_usd": 0.006832
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T18:20:29.886Z",
+      "observed_at": null,
+      "price_usd": 0.006833
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T18:24:29.863Z",
+      "observed_at": null,
+      "price_usd": 0.006775
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T18:28:29.865Z",
+      "observed_at": null,
+      "price_usd": 0.006811
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T18:31:29.884Z",
+      "observed_at": null,
+      "price_usd": 0.006807
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T18:34:29.904Z",
+      "observed_at": null,
+      "price_usd": 0.006812
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T18:37:29.961Z",
+      "observed_at": null,
+      "price_usd": 0.006801
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T18:41:29.936Z",
+      "observed_at": null,
+      "price_usd": 0.006804
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T18:44:29.977Z",
+      "observed_at": null,
+      "price_usd": 0.006812
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T18:47:29.995Z",
+      "observed_at": null,
+      "price_usd": 0.006821
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T18:50:30.014Z",
+      "observed_at": null,
+      "price_usd": 0.00683
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T18:54:29.998Z",
+      "observed_at": null,
+      "price_usd": 0.006793
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T18:57:30.050Z",
+      "observed_at": null,
+      "price_usd": 0.006833
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T19:00:30.062Z",
+      "observed_at": null,
+      "price_usd": 0.006845
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T19:03:30.081Z",
+      "observed_at": null,
+      "price_usd": 0.006848
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T19:06:30.118Z",
+      "observed_at": null,
+      "price_usd": 0.006824
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T19:10:30.084Z",
+      "observed_at": null,
+      "price_usd": 0.006825
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T19:13:30.120Z",
+      "observed_at": null,
+      "price_usd": 0.006792
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T19:17:30.086Z",
+      "observed_at": null,
+      "price_usd": 0.006836
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T19:20:30.139Z",
+      "observed_at": null,
+      "price_usd": 0.006839
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T19:23:30.139Z",
+      "observed_at": null,
+      "price_usd": 0.006792
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T19:26:30.151Z",
+      "observed_at": null,
+      "price_usd": 0.006766
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T19:29:30.167Z",
+      "observed_at": null,
+      "price_usd": 0.006764
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T19:32:30.179Z",
+      "observed_at": null,
+      "price_usd": 0.006812
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T19:36:30.157Z",
+      "observed_at": null,
+      "price_usd": 0.006788
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T19:39:30.215Z",
+      "observed_at": null,
+      "price_usd": 0.006783
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T19:43:30.191Z",
+      "observed_at": null,
+      "price_usd": 0.006825
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T19:46:30.257Z",
+      "observed_at": null,
+      "price_usd": 0.006852
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T19:50:30.228Z",
+      "observed_at": null,
+      "price_usd": 0.006853
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T19:53:30.295Z",
+      "observed_at": null,
+      "price_usd": 0.006873
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T19:56:30.616Z",
+      "observed_at": null,
+      "price_usd": 0.006856
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T20:00:30.320Z",
+      "observed_at": null,
+      "price_usd": 0.006855
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T20:04:30.335Z",
+      "observed_at": null,
+      "price_usd": 0.006819
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T20:07:30.403Z",
+      "observed_at": null,
+      "price_usd": 0.006858
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T20:10:30.530Z",
+      "observed_at": null,
+      "price_usd": 0.006813
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T20:14:30.415Z",
+      "observed_at": null,
+      "price_usd": 0.006864
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T20:17:30.461Z",
+      "observed_at": null,
+      "price_usd": 0.006814
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T20:22:47.472Z",
+      "observed_at": null,
+      "price_usd": 0.006801
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T20:25:54.805Z",
+      "observed_at": null,
+      "price_usd": 0.006812
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T20:28:54.913Z",
+      "observed_at": null,
+      "price_usd": 0.006813
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T20:32:54.858Z",
+      "observed_at": null,
+      "price_usd": 0.006822
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T20:35:54.908Z",
+      "observed_at": null,
+      "price_usd": 0.006892
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T20:39:54.997Z",
+      "observed_at": null,
+      "price_usd": 0.006845
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T20:43:54.914Z",
+      "observed_at": null,
+      "price_usd": 0.00685
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T20:47:54.943Z",
+      "observed_at": null,
+      "price_usd": 0.006904
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T20:50:55.172Z",
+      "observed_at": null,
+      "price_usd": 0.006908
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T20:54:55.052Z",
+      "observed_at": null,
+      "price_usd": 0.00691
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T20:58:54.984Z",
+      "observed_at": null,
+      "price_usd": 0.00691
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T21:01:54.998Z",
+      "observed_at": null,
+      "price_usd": 0.006918
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T21:05:55.010Z",
+      "observed_at": null,
+      "price_usd": 0.006927
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T21:08:55.038Z",
+      "observed_at": null,
+      "price_usd": 0.006884
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T21:11:55.109Z",
+      "observed_at": null,
+      "price_usd": 0.00693
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T21:15:55.039Z",
+      "observed_at": null,
+      "price_usd": 0.006896
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T21:18:55.131Z",
+      "observed_at": null,
+      "price_usd": 0.00695
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T21:21:55.297Z",
+      "observed_at": null,
+      "price_usd": 0.006958
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T21:25:55.124Z",
+      "observed_at": null,
+      "price_usd": 0.006958
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T21:28:55.178Z",
+      "observed_at": null,
+      "price_usd": 0.006921
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T21:32:55.167Z",
+      "observed_at": null,
+      "price_usd": 0.006917
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T21:35:55.208Z",
+      "observed_at": null,
+      "price_usd": 0.006958
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T21:39:55.214Z",
+      "observed_at": null,
+      "price_usd": 0.006911
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T21:42:55.785Z",
+      "observed_at": null,
+      "price_usd": 0.006916
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T21:46:55.211Z",
+      "observed_at": null,
+      "price_usd": 0.006962
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T21:49:55.292Z",
+      "observed_at": null,
+      "price_usd": 0.006964
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T21:53:02.536Z",
+      "observed_at": null,
+      "price_usd": 0.006918
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T21:56:04.314Z",
+      "observed_at": null,
+      "price_usd": 0.006922
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T21:59:04.487Z",
+      "observed_at": null,
+      "price_usd": 0.006924
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T22:03:04.338Z",
+      "observed_at": null,
+      "price_usd": 0.00694
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T22:06:04.640Z",
+      "observed_at": null,
+      "price_usd": 0.006945
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T22:10:04.427Z",
+      "observed_at": null,
+      "price_usd": 0.006935
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T22:14:04.475Z",
+      "observed_at": null,
+      "price_usd": 0.006941
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T22:17:04.527Z",
+      "observed_at": null,
+      "price_usd": 0.00694
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T22:21:04.444Z",
+      "observed_at": null,
+      "price_usd": 0.007002
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T22:24:04.452Z",
+      "observed_at": null,
+      "price_usd": 0.007
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T22:27:04.482Z",
+      "observed_at": null,
+      "price_usd": 0.006998
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T22:30:26.231Z",
+      "observed_at": null,
+      "price_usd": 0.006999
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T22:34:04.578Z",
+      "observed_at": null,
+      "price_usd": 0.007368
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T22:37:04.595Z",
+      "observed_at": null,
+      "price_usd": 0.007373
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T22:40:04.617Z",
+      "observed_at": null,
+      "price_usd": 0.007405
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T22:43:04.656Z",
+      "observed_at": null,
+      "price_usd": 0.007417
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T22:47:04.622Z",
+      "observed_at": null,
+      "price_usd": 0.007415
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T22:50:04.735Z",
+      "observed_at": null,
+      "price_usd": 0.007414
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T22:54:04.750Z",
+      "observed_at": null,
+      "price_usd": 0.007408
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T23:01:29.012Z",
+      "observed_at": null,
+      "price_usd": 0.007405
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T23:04:56.611Z",
+      "observed_at": null,
+      "price_usd": 0.007403
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T23:08:53.362Z",
+      "observed_at": null,
+      "price_usd": 0.007337
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T23:11:53.591Z",
+      "observed_at": null,
+      "price_usd": 0.007372
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T23:15:55.233Z",
+      "observed_at": null,
+      "price_usd": 0.007318
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T23:19:00.309Z",
+      "observed_at": null,
+      "price_usd": 0.007313
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T23:22:44.071Z",
+      "observed_at": null,
+      "price_usd": 0.00738
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T23:25:48.850Z",
+      "observed_at": null,
+      "price_usd": 0.00737
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T23:29:48.769Z",
+      "observed_at": null,
+      "price_usd": 0.007372
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T23:32:48.864Z",
+      "observed_at": null,
+      "price_usd": 0.007368
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T23:35:49.392Z",
+      "observed_at": null,
+      "price_usd": 0.007367
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T23:39:48.812Z",
+      "observed_at": null,
+      "price_usd": 0.007373
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T23:42:48.858Z",
+      "observed_at": null,
+      "price_usd": 0.007314
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T23:45:49.193Z",
+      "observed_at": null,
+      "price_usd": 0.007321
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T23:49:48.914Z",
+      "observed_at": null,
+      "price_usd": 0.007377
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T23:52:50.603Z",
+      "observed_at": null,
+      "price_usd": 0.007386
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T23:56:03.950Z",
+      "observed_at": null,
+      "price_usd": 0.00734
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-20T23:59:49.936Z",
+      "observed_at": null,
+      "price_usd": 0.007339
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-21T00:02:50.177Z",
+      "observed_at": null,
+      "price_usd": 0.007328
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-21T00:06:10.949Z",
+      "observed_at": null,
+      "price_usd": 0.00733
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-21T00:09:50.566Z",
+      "observed_at": null,
+      "price_usd": 0.007381
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-21T00:12:52.999Z",
+      "observed_at": null,
+      "price_usd": 0.007347
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-21T00:16:51.611Z",
+      "observed_at": null,
+      "price_usd": 0.007413
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-21T00:20:51.173Z",
+      "observed_at": null,
+      "price_usd": 0.007412
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-21T00:23:51.295Z",
+      "observed_at": null,
+      "price_usd": 0.007418
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-21T00:27:51.352Z",
+      "observed_at": null,
+      "price_usd": 0.007429
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-21T00:31:52.627Z",
+      "observed_at": null,
+      "price_usd": 0.007435
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-21T00:40:51.427Z",
+      "observed_at": null,
+      "price_usd": 0.007439
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-21T00:43:51.433Z",
+      "observed_at": null,
+      "price_usd": 0.007446
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-21T00:47:51.409Z",
+      "observed_at": null,
+      "price_usd": 0.007455
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-21T00:51:51.396Z",
+      "observed_at": null,
+      "price_usd": 0.00745
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-21T00:55:51.511Z",
+      "observed_at": null,
+      "price_usd": 0.007451
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-21T00:59:51.447Z",
+      "observed_at": null,
+      "price_usd": 0.007397
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-21T01:02:51.676Z",
+      "observed_at": null,
+      "price_usd": 0.007391
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-21T01:06:51.487Z",
+      "observed_at": null,
+      "price_usd": 0.007379
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-21T01:09:51.589Z",
+      "observed_at": null,
+      "price_usd": 0.007387
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-21T01:12:52.193Z",
+      "observed_at": null,
+      "price_usd": 0.007436
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-21T01:16:34.724Z",
+      "observed_at": null,
+      "price_usd": 0.007448
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-21T01:20:34.505Z",
+      "observed_at": null,
+      "price_usd": 0.007398
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-21T01:23:34.511Z",
+      "observed_at": null,
+      "price_usd": 0.007452
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-21T01:27:34.508Z",
+      "observed_at": null,
+      "price_usd": 0.007433
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-21T01:31:34.546Z",
+      "observed_at": null,
+      "price_usd": 0.007447
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-21T01:34:34.647Z",
+      "observed_at": null,
+      "price_usd": 0.007443
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-21T01:37:34.991Z",
+      "observed_at": null,
+      "price_usd": 0.00744
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-21T01:40:36.018Z",
+      "observed_at": null,
+      "price_usd": 0.007434
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-21T01:44:12.134Z",
+      "observed_at": null,
+      "price_usd": 0.00749
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-21T01:47:17.112Z",
+      "observed_at": null,
+      "price_usd": 0.007501
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-21T01:50:17.340Z",
+      "observed_at": null,
+      "price_usd": 0.007505
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-21T01:53:17.558Z",
+      "observed_at": null,
+      "price_usd": 0.007529
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-21T01:56:18.734Z",
+      "observed_at": null,
+      "price_usd": 0.007529
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-21T02:00:17.679Z",
+      "observed_at": null,
+      "price_usd": 0.007537
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-21T02:03:18.342Z",
+      "observed_at": null,
+      "price_usd": 0.007531
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-21T02:06:58.303Z",
+      "observed_at": null,
+      "price_usd": 0.007474
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-21T02:10:18.674Z",
+      "observed_at": null,
+      "price_usd": 0.007527
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-21T02:13:46.369Z",
+      "observed_at": null,
+      "price_usd": 0.007525
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-21T02:16:50.683Z",
+      "observed_at": null,
+      "price_usd": 0.00746
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-21T02:19:50.763Z",
+      "observed_at": null,
+      "price_usd": 0.007457
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-21T02:22:50.920Z",
+      "observed_at": null,
+      "price_usd": 0.007525
+    },
+    {
+      "source": "dexscreener",
+      "fetched_at": "2026-10-21T02:25:52.640Z",
+      "observed_at": null,
+      "price_usd": 0.007476
+    }
+  ],
+  "first_market": {
+    "source": "dexscreener",
+    "fetched_at": "2026-10-20T16:37:29.221Z",
+    "observed_at": null,
+    "market_cap_usd": 6431795
+  }
+}
