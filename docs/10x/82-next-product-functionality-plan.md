@@ -45,6 +45,8 @@ Total implementation range: **14–23 engineering days**, with overlap where dep
 
 ## F1 — Broad candidate coverage and a common activity record
 
+**Measured coverage audit delivered, 22 October:** [96 — retained activity census](96-retained-activity-coverage-audit.md) provides a private read-only export and checksum-bound summary replay across every retained live candidate and all thirteen common activity slots. At the fixed cutoff, 484 tokens were retained; all 482 non-reference tokens lacked saved GMGN info/candle fields. Only 20/484 had fresh reported pool volume; qualified daily metrics remained held. This establishes the current coverage gap, not prospective enrollment or statistical validation. Prioritise ordinary admitted rotating collection and F3 qualification before freezing a candidate formula; do not reset admission or derive v5 weights from the two regression references.
+
 **User story:** I can inspect multiple newly discovered tokens using the same metrics, rather than finding rich evidence only for previously investigated mints.
 
 1. Add a versioned activity read model keyed by chain, mint, observation cutoff and source. Fields carry units, actual window, fetch/provider times, scope (token/pool/wallet), sample denominator, coverage, qualification state and immutable receipt references.

@@ -21,7 +21,7 @@ const Receipt=z.object({received_at:z.string().datetime(),error:z.string().nulla
 const rolling=(seconds:number):ActivityObservation["window"]=>({kind:"reported_rolling",start_at:null,end_at:null,duration_seconds:seconds});
 const coverage=(denominator:string,observed:number|null=null,expected:number|null=null,status:ActivityObservation["coverage"]["status"]="unknown",denominatorValue:number|null=null):ActivityObservation["coverage"]=>({status,observed,expected,denominator,denominator_value:denominatorValue});
 const scope=(kind:ActivityObservation["scope"]["kind"],address:string|null):ActivityObservation["scope"]=>({kind,address,canonical_pool_verified:false});
-export async function commonActivityBundle(db:D1Database,candidate:Candidate,at:Date){
+async function activityBundle(db:D1Database,candidate:Candidate,at:Date,samples:boolean){
   const address=candidate.address,cutoff_at=at.toISOString(),records:ActivityObservation[]=[];
   let recent=await unavailableRecentActivity(address,at,candidate.mode==="fixture"?"simulation":"missing",candidate.mode==="fixture"?"synthetic_source_not_collected":"no_retained_candle_window");
   let participation=await unavailableHolderParticipation(address,at,candidate.mode==="fixture"?"simulation":"missing",candidate.mode==="fixture"?"synthetic_source_not_collected":"holder_history_unavailable");
@@ -63,7 +63,7 @@ export async function commonActivityBundle(db:D1Database,candidate:Candidate,at:
       const data=await candleWindowAt(db,address,at),report=data?.report;
       if(!report||!data)records.push(...issue(candleMetrics,"gmgn","no_retained_candle_window","missing"));
       else{
-        try{recent=await reviewRecentActivity(data,at,candidate.creation?.block_time??null);}
+        try{if(samples)recent=await reviewRecentActivity(data,at,candidate.creation?.block_time??null);}
         catch{recent=await unavailableRecentActivity(address,at,"rejected","recent_activity_measurement_failed");}
         const references:ActivityRef[]=report.receipt_refs.filter(r=>r.receipt_hash!==null).map(r=>({kind:"gmgn_receipt",id:r.request_id,hash:r.receipt_hash!,integrity:"archived_hash_verified"}));
         const shared={scope:scope("token",address),window:{kind:"requested_candles" as const,start_at:report.window_start,end_at:report.window_end,duration_seconds:21600},fetched_at:report.received_at,freshness:activityFreshness(cutoff_at,report.received_at,report.window_end),references,gaps:[...report.gaps,"candle_patterns_do_not_establish_wash_trading"]};
@@ -73,7 +73,7 @@ export async function commonActivityBundle(db:D1Database,candidate:Candidate,at:
     }catch{records.push(...issue(candleMetrics,"gmgn","candle_window_integrity_or_schema_failed"));recent=await unavailableRecentActivity(address,at,"rejected","candle_window_integrity_or_schema_failed");}
     try{
       const {report,inputs}=await holderHistory(db,address,at),delta=report.since_first,poolMismatch=report.snapshots.some(s=>s.pool!==candidate.pool);
-      try{
+      if(samples)try{
         if(poolMismatch){participation=await unavailableHolderParticipation(address,at,"rejected","holder_pool_differs_from_candidate");trades=await unavailableTradeSample(address,at,"rejected","holder_pool_differs_from_candidate");}
         else{const bundle=await holderParticipation(db,address,at,inputs);participation=bundle.report;trades=bundle.trades;}
       }
@@ -98,7 +98,8 @@ export async function commonActivityBundle(db:D1Database,candidate:Candidate,at:
   for(const[metric,unit,gap]of [["organic_volume_24h","USD","organic_volume_qualification_not_established"],["meaningful_holder_growth_24h","owners","acquisition_and_retention_qualification_not_established"],["attention_momentum","index","cross_token_attention_qualification_not_established"]] as const)records.push(make(metric,"unavailable",unit,{qualification:"held",gaps:[gap,"no_score_adoption"]}));
   return {records,recent,participation,trades};
 }
-export async function commonActivity(db:D1Database,candidate:Candidate,at:Date){return (await commonActivityBundle(db,candidate,at)).records;}
+export async function commonActivityBundle(db:D1Database,candidate:Candidate,at:Date){return activityBundle(db,candidate,at,true);}
+export async function commonActivity(db:D1Database,candidate:Candidate,at:Date){return (await activityBundle(db,candidate,at,false)).records;}
 
 async function latestGmgn(db:D1Database,address:string,kind:"gmgn_token_info"|"gmgn_wallet_activity",at:Date){
   const row=await db.prepare(`SELECT id,request FROM tenx_source_reservations WHERE day>=?1 AND reserved_at<=?2 AND json_extract(request,'$.address')=?3 AND json_extract(request,'$.kind')=?4 ORDER BY reserved_at DESC,id DESC LIMIT 1`)
