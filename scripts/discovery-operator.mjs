@@ -1,8 +1,9 @@
 import { readFileSync } from "node:fs";
 const action = process.argv[2] ?? "status";
 const routes = { status: "system/status", jobs: "admin/jobs", "mint-reviews":"discovery/mint-reviews", "review-mint":"admin/mint-reviews", refresh: "admin/refresh", pause: "admin/pause", resume: "admin/pause", fixtures: "admin/seed-fixtures", "dry-run": "admin/dry-run", review: "admin/review", maintenance: "admin/maintenance", "market-refresh": "admin/market-refresh", "artwork-refresh": "admin/artwork-refresh", "wallet-refresh": "admin/wallet-refresh", "wallet-replay": "admin/wallet-replay", "quality-refresh": "admin/quality-refresh" };
+Object.assign(routes,{"score-read-model":"admin/score-read-model","build-score-read-model":"admin/score-read-model"});
 if (!(action in routes)) throw new Error(`Use one of: ${Object.keys(routes).join(", ")}`);
-const readOnly = ["status","jobs","mint-reviews"].includes(action);
+const readOnly = ["status","jobs","mint-reviews","score-read-model"].includes(action);
 if(action==="review-mint"&&!process.argv[3])throw new Error("Provide the exact Solana mint: review-mint ADDRESS");
 const token = readFileSync(new URL("../discovery/.dev.vars", import.meta.url), "utf8").match(/^TENX_ADMIN_TOKEN=([a-f0-9]{64})\s*$/m)?.[1];
 if (!token) throw new Error("Start the local discovery service first");

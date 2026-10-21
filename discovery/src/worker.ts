@@ -1,5 +1,6 @@
 import { API_HEADERS, LOCAL_ORIGINS, authorized, requireAdminBrowser, adminJson, RequestSecurityError } from "./request-security";
 import {historyDirectory} from "./history-directory";
+import {buildScoreReadModel,readScoreReadModel} from "./score-read-model";
 import { contentRoute } from "./content-route";
 import { ContentError } from "./content-url";
 export { authorized } from "./request-security";
@@ -189,6 +190,7 @@ export async function handle(request: Request, env: Env): Promise<Response> {
     return json(holderChanges[1] ? result : result.report);
   }
   if (method === "GET" && path === "/api/10x/admin/gmgn/status") return json(await gmgnStatus(gmgnSettings(env)));
+  if (method === "GET" && path === "/api/10x/admin/score-read-model") return json(await readScoreReadModel(env.TENX_DB));
   const activityTarget=path.match(/^\/api\/10x\/admin\/gmgn\/activity-target\/([a-f0-9-]{36})$/i);
   if(method==="GET"&&activityTarget)return json(await gmgnActivityTarget(env.TENX_DB,activityTarget[1]!));
   const gmgnWindow=path.match(/^\/api\/10x\/admin\/gmgn\/windows\/([a-f0-9-]{36})$/i);
@@ -369,6 +371,10 @@ export async function handle(request: Request, env: Env): Promise<Response> {
     if(path==="/api/10x/admin/launches/lab")return json({record:await createLaunch(env.TENX_DB,body),replay:"verified"});
     if(path==="/api/10x/admin/launches/recovery-lab")return json({record:await createRecovery(env.TENX_DB,body),replay:"verified"});
     const reason = z.object({ reason: z.string().min(3).max(300) }).passthrough().parse(body).reason;
+    if(path==="/api/10x/admin/score-read-model"){
+      z.object({reason:z.string().min(3).max(300)}).strict().parse(body);
+      return json(await buildScoreReadModel(env.TENX_DB));
+    }
     if (path === "/api/10x/admin/gmgn/review") return json(await runGmgnReview(gmgnSettings(env), body, gmgnFetcher(env)));
     if(path==="/api/10x/admin/gmgn/corroboration/collect"){const input=z.object({activity_id:z.uuid(),reason:z.string().min(3).max(300)}).strict().parse(body);return json(await collectGmgnCorroboration(settings(env),input.activity_id));}
     if(path==="/api/10x/admin/mint-reviews")return json(await enqueueMintReview(env.TENX_DB,body));
