@@ -53,6 +53,9 @@ jobs:
       - name: Private scratch resolver and immutable historical replay
         run: pnpm test:discovery-scratch
 
+      - name: Protected evidence key recovery and private path guards
+        run: pnpm test:discovery-recovery
+
       - name: Scratch replay tooling types
         run: pnpm exec tsc --noEmit -p tsconfig.evidence-scratch.json
 

@@ -88,15 +88,26 @@ export async function readSealedEnvelope(directory,pin){
   return {folder,value};
 }
 
-async function openCatalog(directory,pin,keyFile){
-  const {folder,value}=await readSealedEnvelope(directory,pin),body=value;
-  const key=await keyAt(keyFile,folder);
+function decodeCatalog(ciphertext,value,key){
+  const bytes=decrypt(ciphertext,value.catalog,key,"catalog");
   try{
-    const bytes=decrypt(await ciphertextAt(path.join(folder,"catalog.bin"),body.catalog,MAX_CATALOG),body.catalog,key,"catalog");
     const inner=JSON.parse(new TextDecoder("utf-8",{fatal:true}).decode(bytes)),verified=validateInner(inner);
-    if(verified.nonces.has(body.catalog.iv))throw Error("Catalog/object nonce reuse");
-    return {folder,key,value,inner,...verified};
-  }catch(error){key.fill(0);throw error;}
+    if(verified.nonces.has(value.catalog.iv))throw Error("Catalog/object nonce reuse");
+    return {inner,...verified};
+  }finally{bytes.fill(0);}
+}
+// Offline recovery can authenticate a candidate key before writing a plaintext key file.
+// The caller owns and clears keyBytes; this returns no key or decrypted catalog.
+export async function verifySealedKeyBytes(directory,pin,keyBytes){
+  if(!Buffer.isBuffer(keyBytes)||keyBytes.length!==32)throw Error("Exact evidence key bytes required");
+  const {folder,value}=await readSealedEnvelope(directory,pin),verified=decodeCatalog(await ciphertextAt(path.join(folder,"catalog.bin"),value.catalog,MAX_CATALOG),value,keyBytes);
+  return {sealed_manifest_sha256:pin,source_catalog_manifest_sha256:verified.source.catalog_manifest_sha256,source_archive_manifest_sha256:verified.source.source_manifest_sha256,
+    rows:verified.source.entries.length,objects:verified.source.objects.length,catalog_authenticated:true,payload_objects_verified:false};
+}
+async function openCatalog(directory,pin,keyFile){
+  const {folder,value}=await readSealedEnvelope(directory,pin),key=await keyAt(keyFile,folder);
+  try{return {folder,key,value,...decodeCatalog(await ciphertextAt(path.join(folder,"catalog.bin"),value.catalog,MAX_CATALOG),value,key)};}
+  catch(error){key.fill(0);throw error;}
 }
 
 // Private offline index construction only; never exports the encryption key.
