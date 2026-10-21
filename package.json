@@ -27,6 +27,7 @@
     "test:discovery-recovery": "node --test scripts/discovery-evidence-key-recovery.test.mjs",
     "test:discovery-metadata-sealed": "node --test scripts/discovery-metadata-sealed.test.mjs",
     "test:discovery-read-store": "tsx --test scripts/discovery-evidence-read-parity.test.ts",
+    "test:discovery-append-stage": "node --test scripts/discovery-evidence-append-stage.test.mjs",
     "security:preflight": "node scripts/security-preflight.mjs",
     "security:test": "node scripts/test-security-blocklist.mjs",
     "security:test:redirects": "node --test scripts/test-http-redirect-security.mjs",
