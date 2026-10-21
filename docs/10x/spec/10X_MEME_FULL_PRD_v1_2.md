@@ -1,5 +1,7 @@
 # 10X.MEME — Full Product Requirements Document
 
+**22 October release constraint — decided:** The next production release must keep the old thesis at the App root and hide all unfinished 10X product pages, menu links and APIs behind the closed [exposure feature flag](../88-thesis-only-production-release.md). Migrations may ship without opening the product. Local development continues; evidence, action and provider gates remain unchanged. Production upload checks must verify the actual closed build and server setting. This prepares a future release and does not authorize deployment now.
+
 **Version:** 1.2\
 **Date:** 21 October 2026\
 **Status:** Product specification for engineering planning; some contract/economic parameters require prototyping and explicit validation\

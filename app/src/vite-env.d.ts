@@ -1,4 +1,5 @@
 interface ImportMetaEnv {
+  readonly VITE_TENX_APP_ENABLED?: string;
   readonly VITE_X_AUTH_ENABLED?: string;
   readonly DEV: boolean;
   readonly VITE_WEB_WALLET_ENABLED?: string;

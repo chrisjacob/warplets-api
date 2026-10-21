@@ -23,9 +23,11 @@ import {
   useWalletController,
 } from "./walletController";
 import { WARPLETS_APP_ORIGINS } from "../shared/warpletsApp";
+import { TENX_APP_ENABLED } from "./tenxRelease";
+import { TenxAppMenuLinks } from "./TenxAppMenuLinks";
 
 const FarcasterSignInControl = lazy(() => import("./FarcasterSignInControl"));
-const DiscoveryPage = lazy(() => import("./discovery/DiscoveryPage"));
+const DiscoveryPage = TENX_APP_ENABLED ? lazy(() => import("./discovery/DiscoveryPage")) : null;
 const WebConnectModal = lazy(() => import("./WebConnectModal").then(module => ({ default: module.WebConnectModal })));
 
 type ViewerProfile = {
@@ -146,9 +148,7 @@ function HomeAccountControl({
         )}
         {open && (
           <AppViewport portalled={centered} onMouseDown={(event) => event.stopPropagation()} className={`search-header-account-menu${centered ? " search-header-account-menu--centered" : ""}`} role="menu">
-            {import.meta.env.DEV && <a href="/discover" role="menuitem" onClick={() => onOpenChange(false)}>Discover Solana</a>}
-            <a href="/thesis" role="menuitem" onClick={() => onOpenChange(false)}>The 10X Thesis</a>
-            <a href={solanaAccountHref()} role="menuitem" onClick={() => onOpenChange(false)}>Solana sign-in & wallets</a>
+            <TenxAppMenuLinks onNavigate={() => onOpenChange(false)} walletHref={solanaAccountHref()} />
             {!isInMiniAppContext && (
               <button type="button" role="menuitem" className="search-header-account-menu__connection" onClick={() => runMenuAction(onOpen)}>
                 <span className="search-header-account-menu__avatar-frame"><img src="/base.webp" alt="" /></span>
@@ -196,9 +196,7 @@ function HomeAccountControl({
       </button>}
       {open && (
         <AppViewport portalled={centered} onMouseDown={(event) => event.stopPropagation()} className={`search-header-account-menu${centered ? " search-header-account-menu--centered" : ""}`} role="menu">
-          {import.meta.env.DEV && <a href="/discover" role="menuitem" onClick={() => onOpenChange(false)}>Discover Solana</a>}
-          <a href="/thesis" role="menuitem" onClick={() => onOpenChange(false)}>The 10X Thesis</a>
-            <a href={solanaAccountHref()} role="menuitem" onClick={() => onOpenChange(false)}>Solana sign-in & wallets</a>
+          <TenxAppMenuLinks onNavigate={() => onOpenChange(false)} walletHref={solanaAccountHref()} />
           {!isInMiniAppContext && (
             <button type="button" role="menuitem" className="search-header-account-menu__connection" onClick={() => runMenuAction(onOpen)}>
               <span className="search-header-account-menu__avatar-frame"><img src="/base.webp" alt="" /></span>
@@ -237,7 +235,8 @@ function HomeAccountControl({
   );
 }
 
-export default function App({ page = "home" }: { page?: "home" | "thesis" | "discovery" }) {
+export default function App({ page: requestedPage = "home" }: { page?: "home" | "thesis" | "discovery" }) {
+  const page = TENX_APP_ENABLED ? requestedPage : "thesis";
   const isThesisRoute = page === "thesis";
   const walletController = useWalletController();
   const [showAddAppPrompt, setShowAddAppPrompt] = useState(false);
@@ -607,7 +606,7 @@ export default function App({ page = "home" }: { page?: "home" | "thesis" | "dis
 
         {isMenuRoute ? (
           <MiniAppMenuPage appSlug="app" />
-        ) : page === "discovery" ? (
+        ) : page === "discovery" && DiscoveryPage ? (
           <Suspense fallback={<p role="status" className="p-6 text-center text-[#b8d7b8]">Loading discovery…</p>}><DiscoveryPage path={window.location.pathname} /></Suspense>
         ) : isThesisRoute ? (
           <main className="mx-auto w-full max-w-md px-4 pb-12 pt-6">

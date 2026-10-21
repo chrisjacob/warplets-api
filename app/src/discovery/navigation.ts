@@ -1,11 +1,9 @@
 import type { MouseEvent } from "react";
 import { writeSpaHistory } from "../spaHistory";
 import { isEmbeddedWebView, isLikelyBaseAppBrowser } from "../pwa";
+import { isTenxAppPath } from "../../shared/tenxRelease";
 
-export function isDiscoveryPath(path: string) {
-  const clean = path.replace(/\/+$/, "");
-  return ["/discover", "/attention", "/submit", "/backing", "/rewards", "/launch-lab", "/launch-recovery", "/wallets", "/research", "/transparency", "/status", "/admin/10x"].includes(clean) || /^\/campaign\/[0-9a-f-]{36}$/i.test(clean) || /^\/elections(?:\/[^/]+)?$/.test(clean) || /^\/token\/solana\/[^/]+$/.test(clean);
-}
+export const isDiscoveryPath = isTenxAppPath;
 type Click = { button: number; ctrlKey?: boolean; metaKey?: boolean; shiftKey?: boolean; altKey?: boolean; defaultPrevented?: boolean; target?: string; download?: boolean };
 export function discoveryDestination(href: string, current: string, click: Click): URL | null {
   if (click.defaultPrevented || click.button !== 0 || click.ctrlKey || click.metaKey || click.shiftKey || click.altKey || click.download || (click.target && click.target !== "_self")) return null;

@@ -1,5 +1,6 @@
 import { isRetiredAppRoute } from "../shared/retiredApps";
-import { isDiscoveryPath } from "./discovery/navigation";
+import { tenxPage } from "../shared/tenxRelease";
+import { TENX_APP_ENABLED } from "./tenxRelease";
 import { Component, StrictMode, Suspense, lazy, useEffect, useState, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import "./index.css";
@@ -132,8 +133,7 @@ function resolveActiveApp() {
   if (cleanPath === "/stop" || cleanPath.startsWith("/stop/")) return <StopApp />;
   if (cleanPath === "/unsubscribe" || cleanPath.startsWith("/unsubscribe/")) return <UnsubscribeApp />;
 
-  const discoveryRoute = import.meta.env.DEV && isDiscoveryPath(cleanPath);
-  return <App page={discoveryRoute ? "discovery" : cleanPath === "/thesis" ? "thesis" : "home"} />;
+  return <App page={tenxPage(cleanPath, TENX_APP_ENABLED)} />;
 }
 
 function RootRouter() {

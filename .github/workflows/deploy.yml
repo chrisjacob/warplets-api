@@ -107,6 +107,10 @@ jobs:
           VITE_BASE_BUILDER_CODE: ${{ vars.VITE_BASE_BUILDER_CODE }}
         run: pnpm build
 
+      - name: Verify thesis-only 10X release
+        working-directory: app
+        run: pnpm release:check
+
       - name: Deploy to Cloudflare Pages
         working-directory: app
         env:

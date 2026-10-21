@@ -11,7 +11,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "performance:budget": "node ../scripts/check-performance-budget.mjs",
-    "deploy": "pnpm build && wrangler pages deploy dist",
+    "deploy": "pnpm build && pnpm release:check && wrangler pages deploy dist",
+    "release:check": "node ../scripts/check-tenx-release.mjs",
     "local:tunnel": "node ../scripts/dev-tunnel-app.mjs",
     "local:tunnel:app": "node ../scripts/dev-tunnel-app.mjs",
     "local:tunnel:drop": "node ../scripts/dev-tunnel-drop.mjs",
@@ -20,8 +21,8 @@
     "web-push:generate-keys": "node ../scripts/generate-vapid-keys.mjs",
     "security:preflight": "node ../scripts/security-preflight.mjs",
     "deploy:dev": "pnpm security:preflight && vite build --mode development && pnpm performance:budget && wrangler pages deploy dist --project-name 10x-app-dev --branch dev",
-    "deploy:prod:fast": "pnpm security:preflight && vite build && wrangler pages deploy dist --project-name 10x-app --branch main",
-    "deploy:prod": "pnpm security:preflight && pnpm build && wrangler pages deploy dist --project-name 10x-app --branch main"
+    "deploy:prod:fast": "pnpm security:preflight && vite build && pnpm release:check && wrangler pages deploy dist --project-name 10x-app --branch main",
+    "deploy:prod": "pnpm security:preflight && pnpm build && pnpm release:check && wrangler pages deploy dist --project-name 10x-app --branch main"
   },
   "dependencies": {
     "@base-org/account": "^2.5.8",
