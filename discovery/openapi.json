@@ -34905,6 +34905,111 @@
               }
             ]
           },
+          "candle_review": {
+            "default": null,
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "received_at": {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                  },
+                  "window_start": {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                  },
+                  "window_end": {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                  },
+                  "adjacent_pairs": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 359
+                  },
+                  "rising_adjacent_pairs": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 359
+                  },
+                  "longest_rising_run_pairs": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 359
+                  },
+                  "alternating_body_pairs": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 359
+                  },
+                  "adjacent_doubling_or_halving": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 359
+                  },
+                  "zero_reported_flow_moving_candles": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 360
+                  },
+                  "max_adjacent_close_move_pct": {
+                    "anyOf": [
+                      {
+                        "type": "number",
+                        "minimum": 0
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "review_reasons": {
+                    "maxItems": 3,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": [
+                        "price_moves_with_both_flow_fields_zero",
+                        "adjacent_close_doubles_or_halves",
+                        "twelve_or_more_consecutive_rising_closes"
+                      ]
+                    }
+                  },
+                  "wash_trading_verdict": {
+                    "type": "string",
+                    "const": "not_established"
+                  },
+                  "thresholds": {
+                    "type": "string",
+                    "const": "descriptive_review_v1_uncalibrated"
+                  }
+                },
+                "required": [
+                  "received_at",
+                  "window_start",
+                  "window_end",
+                  "adjacent_pairs",
+                  "rising_adjacent_pairs",
+                  "longest_rising_run_pairs",
+                  "alternating_body_pairs",
+                  "adjacent_doubling_or_halving",
+                  "zero_reported_flow_moving_candles",
+                  "max_adjacent_close_move_pct",
+                  "review_reasons",
+                  "wash_trading_verdict",
+                  "thresholds"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "gaps": {
             "maxItems": 30,
             "type": "array",
@@ -34943,6 +35048,7 @@
           "candle_count",
           "candle_window_complete",
           "candle_window_volume_usd",
+          "candle_review",
           "gaps",
           "organic_volume_usd",
           "meaningful_holder_growth",

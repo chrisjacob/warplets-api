@@ -1,5 +1,7 @@
 # PRD implementation checkpoint and next tasks
 
+GMGN candle correction, 21 October: [v2 contract and descriptive pattern review](73-gmgn-candle-contract-and-review.md) accepts consistently second/millisecond timestamps and missing turnover while rejecting malformed/open/mixed/duplicate bars. Unit-conflicting candle totals remain unknown; cache-only pattern measurements add no fraud, organic-demand or score certification. Archived v1 receipt replay and every gate/allowance remain. Today's 120/120 admission holds new live IO until the next UTC day; public vendor-example regression passes without bypassing it. No deploy.
+
 GMGN live test, 21 October: [internal research allowance raised to 120](72-gmgn-live-test-capacity.md) follows the founder's explicit request. The former 100-record restriction was internal; the 10 MB byte cap, twenty source attempts inside market allowance, pacing, ownership and every evidence/action/election gate remain. Live PONYX info/security returned HTTP 200 and replayed; absent risk labels stayed unknown. A candle payload was rejected by existing validation and remains a recorded gap. No paid fallback, quota reset, score change or deploy.
 
 GMGN integration, 21 October: [bounded read-only queries and cached token evidence](71-gmgn-read-only-integration.md) configures only the query key, adds exact Solana info/security/pool/minute-candle reads, validates USD versus token volume, and exposes attributed cache-only activity/risk evidence. The founder explicitly authorized needed storage/display; provider rights are not independently confirmed. A fixed three-mint investigation can use one allocated slot inside the existing three-capture maintenance pass and all original shared quotas. Today's 100/100 research bound holds IO, so real endpoint access/fixtures remain unverified. Current v4 and all action/election/evidence gates remain. No signing, funding or deploy.
@@ -19,7 +21,8 @@ Reviewed 20 October 2026 against the entire [PRD v1.1](spec/10X_MEME_FULL_PRD_v1
 - [x] Add authenticated operator commands, a fixed three-mint pilot using one of the existing capture slots, and cache-only token-page evidence.
 - [x] Preserve v4, independent origin/authority/holder/wallet checks, historical artifacts, original quotas and every action/election gate.
 - [x] Verify the first admitted exact-mint GMGN info/security responses and replay through the real IPv4 path after the founder-authorized internal increase to 120; retain missing risk labels as unknown and preserve old rows.
-- [ ] Resolve the rejected real minute-candle response, finish pool/coverage/window verification and bind canonical evidence before scoring adoption; no evidence gate is relaxed to accept a response.
+- [x] Correct documented GMGN millisecond/missing-turnover incompatibilities, preserve archived v1 replay and expose descriptive candle pattern review with uncertain units held unknown.
+- [ ] Verify a newly admitted real Free candle receipt after the UTC reset; corroborate units, pool scope and complete windows before scoring adoption. Today’s 120/120 gate remains enforced.
 - [ ] Run preregistered v4/provider comparisons with independent controls; assess holder/trader/creator/screener coverage before expanding the bounded pilot or proposing a new score version.
 
 ## Next scoring priority: authentic daily attention

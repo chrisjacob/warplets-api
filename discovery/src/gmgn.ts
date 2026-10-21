@@ -96,9 +96,10 @@ export async function gmgnSavedReview(db: D1Database, id: string, cutoff?: strin
   if (!saved) return { state: "pending", provider_requests: 0 };
   const receipt = saved.receipt;
   return { replay: saved.replay, request_id: id, request: parsed.data, source_authenticity: saved.source_authenticity,
-    received_at: receipt.received_at, http_status: receipt.status, error: receipt.error,
+    received_at: receipt.received_at, http_status: receipt.status, error: receipt.error, validation_failure: receipt.validation_failure ?? null,
     access_probe: receipt.access_probe, access_accepted: receipt.access_accepted,
-    observation: receipt.error === null && receipt.response !== null ? normalizeGmgn(parsed.data, receipt.response, receipt.received_at, cutoff ?? receipt.received_at) : null,
+    observation: receipt.error === null && receipt.response !== null ? normalizeGmgn(parsed.data, receipt.response, receipt.received_at, cutoff ?? receipt.received_at, undefined,
+      receipt.semantic_validation === "gmgn_selected_fields_v1" ? "v1" : "v2") : null,
     provider_requests: 0, scoring_effect: "none" };
 }
 
@@ -118,9 +119,11 @@ export async function gmgnPublicSummary(db: D1Database, rawAddress: string, now 
   const info = observations.find(v => v.kind === "gmgn_token_info"), security = observations.find(v => v.kind === "gmgn_token_security"), candles = observations.find(v => v.kind === "gmgn_token_candles");
   const infoMetrics = z.object({ reported_holder_count: z.number().nullable(), reported_volume_usd: z.object({ volume_24h: z.number().nullable(), volume_1h: z.number().nullable() }).nullable() }).nullable().parse(info?.metrics ?? null);
   const flags = z.object({ provider_flags: z.object({ is_wash_trading: z.boolean().nullable(), rug_ratio: z.number().nullable(), suspected_insider_hold_rate: z.number().nullable(), bundler_trader_amount_rate: z.number().nullable() }) }).nullable().parse(security?.metrics ?? null)?.provider_flags;
-  const window = z.object({ candle_count: z.number(), complete_window: z.boolean(), reported_volume_usd: z.number() }).nullable().parse(candles?.metrics ?? null);
+  const window = z.object({ candle_count: z.number(), complete_window: z.boolean(), reported_volume_usd: z.number().nullable() }).nullable().parse(candles?.metrics ?? null);
+  const review = candles?.version === "gmgn-observation-v2" ? z.object({ window_start: z.string(), window_end: z.string(), activity: z.record(z.string(), z.unknown()) }).parse(candles.metrics) : null;
   const dates = observations.map(v => v.received_at).sort();
   const gaps = [...new Set(observations.flatMap(v => v.gaps))];
+  if (candles && !gaps.includes("candle_volume_units_unverified")) gaps.push("candle_volume_units_unverified");
   gaps.push("summary_limited_to_recent_seven_utc_days");
   if (!observations.length) gaps.push("no_retained_gmgn_observations");
   if (observations.some(v => now.getTime() - Date.parse(v.received_at) > 300_000 || Date.parse(v.received_at) > now.getTime())) gaps.push("receipt_stale_or_future");
@@ -131,6 +134,9 @@ export async function gmgnPublicSummary(db: D1Database, rawAddress: string, now 
     reported_holder_count: infoMetrics?.reported_holder_count ?? null,
     provider_wash_flag: flags?.is_wash_trading ?? null, provider_rug_ratio: flags?.rug_ratio ?? null,
     provider_insider_hold_ratio: flags?.suspected_insider_hold_rate ?? null, provider_bundler_volume_ratio: flags?.bundler_trader_amount_rate ?? null,
-    candle_count: window?.candle_count ?? null, candle_window_complete: window?.complete_window ?? null, candle_window_volume_usd: window?.reported_volume_usd ?? null,
+    // Archived v1 operator replay stays unchanged, but ambiguous candle units
+    // cannot be presented as corroborated USD in a current public projection.
+    candle_count: window?.candle_count ?? null, candle_window_complete: window?.complete_window ?? null, candle_window_volume_usd: null,
+    candle_review: review ? { received_at: candles!.received_at, window_start: review.window_start, window_end: review.window_end, ...review.activity } : null,
     gaps, organic_volume_usd: null, meaningful_holder_growth: null, scoring_effect: "none" });
 }

@@ -10,7 +10,7 @@ import {defaultScoreInputV4,freezeDiscoveryScoreV4} from "./discovery-score-v4";
 import {freezeScoreCohort,freezeScoreOutcome,replayScoreCohort,replayScoreOutcome,SCORE_OUTCOME_DELAY} from "./score-research-analysis";
 import {publishScoreCohort,runScoreResearch,scoreResearch,scoreResearchDetail} from "./score-research";
 import {scoreFollowupPlan,verifyScoreFollowup} from "./score-followup";
-import {ScoreResearchSchema,type ScoreCohort,type ScoreModel} from "./score-research-model";
+import {ScoreResearchSchema,SCORE_RESEARCH_LIMITS,type ScoreCohort,type ScoreModel} from "./score-research-model";
 import {CandidateSchema,type Candidate} from "./model";
 import {key} from "./wallet-fixtures.test-helper";
 import worker,{type LocalEnv} from "./worker";
@@ -65,8 +65,8 @@ describe("model-separated score research",()=>{
     expect(sqlite.prepare("SELECT model FROM tenx_score_attempts").all()).toEqual([{model:"discovery-score-v4"}]);expect(sqlite.prepare("SELECT count(*) n FROM tenx_usage").get()).toEqual({n:0});expect(network).not.toHaveBeenCalled();
   });
   it("shares the daily record bound across models rather than doubling admission",async()=>{
-    const {db,sqlite}=setup(),c=await candidate();await lease(db);for(let i=0;i<99;i++)sqlite.prepare("INSERT INTO tenx_score_cohorts VALUES(?,'discovery-score-v1',?,'2026-10-21','hash',1,'{}')").run(`filler-${i}`,at.toISOString());
-    expect(await publishScoreCohort(db,await cohort(c,"discovery-score-v4"),"owner",at)).toBe(true);expect(await publishScoreCohort(db,await cohort({...c,address:key(211)},"discovery-score-v4"),"owner",at)).toBe(false);expect(sqlite.prepare("SELECT count(*) n FROM tenx_score_cohorts").get()).toEqual({n:100});
+    const {db,sqlite}=setup(),c=await candidate();await lease(db);for(let i=0;i<SCORE_RESEARCH_LIMITS.daily_records-1;i++)sqlite.prepare("INSERT INTO tenx_score_cohorts VALUES(?,'discovery-score-v1',?,'2026-10-21','hash',1,'{}')").run(`filler-${i}`,at.toISOString());
+    expect(await publishScoreCohort(db,await cohort(c,"discovery-score-v4"),"owner",at)).toBe(true);expect(await publishScoreCohort(db,await cohort({...c,address:key(211)},"discovery-score-v4"),"owner",at)).toBe(false);expect(sqlite.prepare("SELECT count(*) n FROM tenx_score_cohorts").get()).toEqual({n:SCORE_RESEARCH_LIMITS.daily_records});
   });
   it("finalizes at most five across all models using independently frozen inputs",async()=>{
     const {db,sqlite}=setup(),base=await candidate();await lease(db);

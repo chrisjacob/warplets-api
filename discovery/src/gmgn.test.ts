@@ -8,6 +8,7 @@ import { gmgnDescriptor } from "./gmgn-request";
 import { normalizeGmgn } from "./gmgn-normalize";
 import { gmgnStatus, runGmgnReview, gmgnSavedReview, gmgnPublicSummary, runGmgnPilot, gmgnPilotHasCapacity, GMGN_PILOT_MINTS } from "./gmgn";
 import { GMGN_USE_AUTHORITY } from "./gmgn-model";
+import { hashJson } from "./solana";
 import worker, { type LocalEnv } from "./worker";
 
 const at = new Date("2026-10-21T01:00:00.000Z"), address = key(91), other = key(92), secret = "test-only-gmgn-credential-never-persist";
@@ -41,13 +42,14 @@ describe("GMGN contracts and field semantics", () => {
     for (const value of ["yes", 2, -1]) expect(() => normalizeGmgn(request, { code: 0, data: { is_wash_trading: value } }, at.toISOString())).toThrow();
     expect(() => normalizeGmgn(request, { code: 0, data: { rug_ratio: 35 } }, at.toISOString())).toThrow();
   });
-  it("uses amount as USD, volume as token units and marks sparse windows incomplete", () => {
+  it("preserves the archived v1 units and timestamp contract for old receipt replay only", () => {
     const request = { kind: "gmgn_token_candles", address, start_at: "2026-10-21T00:58:00.000Z", end_at: at.toISOString() };
     const candle = { time: Date.parse(request.start_at) / 1000, open: "1", high: "2", low: "1", close: "2", volume: "5000000", amount: "12" };
-    expect(normalizeGmgn(request, { code: 0, data: [candle] }, at.toISOString()).metrics).toMatchObject({ reported_volume_usd: 12, reported_volume_tokens: 5000000, complete_window: false });
-    expect(normalizeGmgn(request, { code: 0, data: { list: [candle] } }, at.toISOString()).metrics).toMatchObject({ reported_volume_usd: 12 });
+    const legacy = (rows: unknown) => normalizeGmgn(request, { code: 0, data: rows }, at.toISOString(), at.toISOString(), undefined, "v1");
+    expect(legacy([candle]).metrics).toMatchObject({ reported_volume_usd: 12, reported_volume_tokens: 5000000, complete_window: false });
+    expect(legacy({ list: [candle] }).metrics).toMatchObject({ reported_volume_usd: 12 });
     for (const rows of [[candle, candle], [{ ...candle, time: Date.parse(request.end_at) / 1000 }], [{ ...candle, low: "3" }], [{ ...candle, time: candle.time * 1000 }]])
-      expect(() => normalizeGmgn(request, { code: 0, data: rows }, at.toISOString())).toThrow();
+      expect(() => legacy(rows)).toThrow();
   });
   it("rejects foreign identities, stale receipts, application errors, future origins and malformed numbers", () => {
     expect(() => normalizeGmgn(infoRequest, { code: 0, data: { address: other } }, at.toISOString())).toThrow("mint_mismatch");
@@ -57,6 +59,40 @@ describe("GMGN contracts and field semantics", () => {
   });
 });
 describe("GMGN owned integration and evidence boundaries", () => {
+  it("replays an archived v1 candle receipt under its original interpretation without rewriting the receipt", async () => {
+    const { db, sqlite, settings } = setup(), start = "2026-10-21T00:59:00.000Z";
+    const payload = input("retained_research", { kind: "gmgn_token_candles", address, start_at: start, end_at: at.toISOString() });
+    const response = { code: 0, data: { list: [{ time: Date.parse(start) / 1000, open: "1", high: "2", low: "1", close: "2", volume: "1000", amount: "12" }] } };
+    await runGmgnReview(settings, payload, async () => Response.json(response), () => at);
+    const receipt = JSON.parse(String(sqlite.prepare("SELECT receipt FROM tenx_source_reservations").get()!.receipt));
+    receipt.semantic_validation = "gmgn_selected_fields_v1"; delete receipt.validation_failure;
+    const stored = JSON.stringify(receipt);
+    sqlite.prepare("UPDATE tenx_source_reservations SET receipt=?,receipt_hash=?,bytes=?").run(stored, await hashJson(receipt), new TextEncoder().encode(stored).length);
+    expect(await gmgnSavedReview(db, payload.request_id)).toMatchObject({ replay: "verified", observation: { version: "gmgn-observation-v1", metrics: { reported_volume_usd: 12 } } });
+    expect((await gmgnPublicSummary(db, address, at)).candle_review).toBeNull();
+    expect(sqlite.prepare("SELECT receipt FROM tenx_source_reservations").get()!.receipt).toBe(stored);
+  });
+  it("retains millisecond candles, replays v2 and publishes pattern review without USD, fraud or score credit", async () => {
+    const { db, sqlite, settings } = setup();
+    const end = at.toISOString(), start = new Date(at.getTime() - 120_000).toISOString();
+    const request = { kind: "gmgn_token_candles", address, start_at: start, end_at: end };
+    const row = { time: Date.parse(start), open: "1", high: "2", low: "1", close: "2", volume: "1000" };
+    const payload = input("retained_research", request), fetcher = vi.fn(async () => Response.json({ code: 0, data: { list: [row] } }));
+    expect(await runGmgnReview(settings, payload, fetcher, () => at)).toMatchObject({ state: "retained", provider_requests: 1 });
+    expect(await gmgnSavedReview(db, payload.request_id)).toMatchObject({ replay: "verified", observation: { version: "gmgn-observation-v2", metrics: { candle_count: 1 } }, provider_requests: 0 });
+    expect(await gmgnPublicSummary(db, address, at)).toMatchObject({ candle_count: 1, candle_window_complete: false, candle_window_volume_usd: null,
+      candle_review: { window_start: start, window_end: end, adjacent_pairs: 0, wash_trading_verdict: "not_established" }, scoring_effect: "none", organic_volume_usd: null });
+    expect(sqlite.prepare("SELECT used FROM tenx_usage WHERE provider='market'").get()).toEqual({ used: 1 });
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+  it("keeps a sanitized candle failure reason while discarding the invalid body and counting the attempt", async () => {
+    const { db, sqlite, settings } = setup();
+    const payload = input("retained_research", { kind: "gmgn_token_candles", address, start_at: "2026-10-21T00:00:00.000Z", end_at: at.toISOString() });
+    expect(await runGmgnReview(settings, payload, async () => Response.json({ code: 0, data: { list: [{ time: 1, injected: "send funds" }] } }), () => at)).toMatchObject({ state: "failed", provider_requests: 1 });
+    expect(await gmgnSavedReview(db, payload.request_id)).toMatchObject({ validation_failure: "shape_or_ohlc", observation: null, access_accepted: false });
+    expect(String(sqlite.prepare("SELECT receipt FROM tenx_source_reservations").get()!.receipt)).not.toContain("send funds");
+    expect(sqlite.prepare("SELECT used FROM tenx_usage WHERE provider='market'").get()).toEqual({ used: 1 });
+  });
   it("retains allowed receipts once and exposes only normalized cache projections", async () => {
     const { db, sqlite, settings } = setup(), payload = input();
     const calls: { url: string; init: RequestInit }[] = [];
