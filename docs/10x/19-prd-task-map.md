@@ -29,6 +29,8 @@ Next functionality, 21 October: [daily discovery product plan](82-next-product-f
 
 ## F5 storage recovery — 22 October
 
+**Supervisor correction:** [93 — vacancy recovery](93-supervisor-vacancy-recovery.md) now covers the unowned-service exit dead end, occupied-port startup refusal, owned-handle retention, signal/spawn failures and abortable shutdown, with unchanged rolling start admission. Offline fault fixtures pass; current cached operations/election replay remains valid. No running supervisor restart or root-cause Wrangler fix is claimed; activation is at the next ordinary supervisor start.
+
 [91 — local evidence archive and restore](91-local-evidence-archive-and-restore.md) implements a private operator recovery slice; F5 remains partial.
 
 - [x] Export the complete SQLite snapshot, including WAL-committed data, old evidence, failures, quotas and identities, without writing the live store.

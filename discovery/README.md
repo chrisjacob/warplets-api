@@ -1,5 +1,7 @@
 # Local Solana discovery
 
+Local recovery, 22 October: [supervisor vacancy recovery](../docs/10x/93-supervisor-vacancy-recovery.md) fixes a stuck unowned-service exit path, preserves occupied-port protection and retains owned handles through termination. Failed spawns count, signal exits are tracked and shutdown cancels waits. Thirty-two local recovery tests and cached operations/election/hash checks pass; no running supervisor was restarted. The engine loads on the next ordinary supervisor start. Existing store, Free limits, evidence/action gates and thesis-only production remain; no deploy.
+
 Daily workspace, 22 October: [browser-local saved shortlist](../docs/10x/92-browser-local-discovery-shortlist.md) adds identity-only saves on cards/table/details, preserved off-list evidence links and existing comparison. Live/fixture lists stay separate; storage failures/corrupt formats stay explicit. No server or source change, score/gate adoption, migration or deploy; production remains thesis-only.
 
 Storage recovery, 22 October: [private full-store archive and verified restore](../docs/10x/91-local-evidence-archive-and-restore.md) adds `node scripts/discovery-archive.mjs` (from repository root): `export`, checksum-pinned `verify`, exclusive scratch `restore` and descriptive `growth`. A real 83-table store restored with identical bytes. Archives include confidential identity sessions/research and stay private/ignored; no live adoption, eviction, provider IO, quota/model/gate change or deploy. Multi-day growth and operational recovery remain open.

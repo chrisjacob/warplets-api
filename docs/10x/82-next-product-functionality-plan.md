@@ -115,6 +115,8 @@ Promotion review requires a preregistered definition of material improvement and
 
 ## F5 — Reliability and Free-service readiness
 
+**Recovery correction delivered, 22 October:** [93 — supervisor vacancy recovery](93-supervisor-vacancy-recovery.md) reproduces/fixes the unowned-service exit dead end, holds occupied ports without spawning, tracks owned exit/error/signal state and aborts shutdown waits. Nine new fault tests plus twenty-three adjacent recovery tests pass, including real ephemeral ports/subprocesses and simulated long source degradation. Existing three-start admission, stores and Free/evidence/action gates remain. No live restart was forced; the engine loads on the next ordinary supervisor start. Root-cause Wrangler transport investigation and wider reliability certification remain open.
+
 **Storage recovery delivered, 22 October:** [91 — full local archive and verified restore](91-local-evidence-archive-and-restore.md) implements private whole-store snapshots, checksummed schema/row/page inventories, pinned offline verification, safe scratch restoration and chronological growth differences. A real 1.01 GB / 83-table store restored with identical bytes; no historical eviction or runtime adoption occurred. Multi-day growth, approved retention, off-device recovery, stopped-owner adoption and the reliability rehearsals below remain open. This is a parallel F5 slice; admitted broad observation and F3/F4 qualification remain product dependencies.
 
 **User story:** I can return tomorrow and see a useful list or an honest last-known view, without needing repeated manual restarts.
