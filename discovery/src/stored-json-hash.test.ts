@@ -1,6 +1,7 @@
 import {describe,expect,it} from "vitest";
 import {storedJsonHash,storedJsonTextHash} from "./stored-json-hash";
 import {hashJson} from "./solana";
+import {createHash} from "node:crypto";
 
 describe("bounded stored JSON SHA-256 verification",()=>{
   it("matches Web Crypto on primitive roots, JSON omissions, Unicode, escapes and canonical property order",async()=>{
@@ -28,6 +29,14 @@ describe("bounded stored JSON SHA-256 verification",()=>{
   it("hashes already serialized bounded JSON as original UTF-8 bytes without wrapping or re-encoding values",async()=>{
     for(const value of [{z:1,a:"\u0000漢🙂\ud800"},[true,null,-0],{payload:"x".repeat(100000)}]){
       const text=JSON.stringify(value);expect(storedJsonTextHash(text)).toBe(await hashJson(value));expect(storedJsonTextHash(text)).not.toBe(storedJsonHash(text));
+    }
+  });
+  it("preserves original digests for small/large text and every tested UTF-8 boundary",async()=>{
+    for(const length of [0,1,2047,2048,2049,4096,100000,600000])for(const unit of ["x","漢","\ud800"]){
+      const text=unit.repeat(length),expected=createHash("sha256").update(text,"utf8").digest("hex");
+      expect(storedJsonTextHash(text)).toBe(expected);
+      const original=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(text));
+      expect(storedJsonTextHash(text)).toBe(Buffer.from(original).toString("hex"));
     }
   });
 });

@@ -32,6 +32,9 @@ const summary_rejections=bad.filter(v=>!PackedScoreSummariesSchema.safeParse(v).
 return Response.json({all_equal:results.every(Boolean),vectors:results.length,inventory_equal,inventory_rows:entries.length,inventory_rejections,summary_equal,summary_hash_equal,summary_rows:originals.length,summary_rejections});}};`;
 const bundled=await build({stdin:{contents:code,resolveDir:fileURLToPath(new URL(".",import.meta.url)),sourcefile:"stored-hash-check.ts",loader:"ts"},bundle:true,write:false,format:"esm",platform:"neutral",external:["node:crypto"]});
 const values=[{undefined:true},...[null,"",true,1.25,{z:1,a:2},"\u0000\n\"\\","🙂漢字","\ud800",{payload:"x".repeat(16000)},{payload:"x".repeat(100000)},{payload:"x".repeat(600000)},{payload:"x".repeat(1800000)}].map(value=>({value}))];
+// Keep the rejected one-shot experiment's boundary vectors: JSON quotes add
+// two UTF-16 units. Check ASCII and three-byte UTF-8 code points in workerd.
+for(const size of [2047,2048,2049])for(const unit of ["x","漢"])values.push({value:unit.repeat(size-2)});
 const mf=new Miniflare({workers:[{config:{name:"hash-check",type:"worker",compatibilityDate,compatibilityFlags,manifest:{mainModule:"hash-check.mjs",modules:{"hash-check.mjs":{type:"esm",contents:bundled.outputFiles[0].text}}}}}],host:"127.0.0.1",port:0,cf:false,telemetry:{enabled:false}});
 try {
   const worker=await mf.getWorker("hash-check"),response=await worker.fetch("http://localhost/hash-check",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(values)});
