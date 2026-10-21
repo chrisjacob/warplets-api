@@ -1,5 +1,23 @@
 # PRD implementation checkpoint and next tasks
 
+Next functionality, 21 October: [daily discovery product plan](82-next-product-functionality-plan.md) prioritizes broad rotating token coverage, a common activity model, table/search/comparison, meaningful participation metrics and a prospectively evaluated scoring revision. PONYX and other founder concern cases remain regression fixtures. Build F1 and the first F2 slice next; keep v4 live, Free limits and every evidence/action gate. This is a planning checkpoint, not runtime implementation or deployment.
+
+## Current build order — 21 October product review
+
+The [new functionality plan](82-next-product-functionality-plan.md) supersedes the immediate ordering of the earlier work packages below. It preserves all existing PRD requirements and release/evidence gates.
+
+| Priority | Next functionality | Delivery boundary |
+|---|---|---|
+| F1 / first | Broad candidate coverage, common dated activity records and rotating enrichment | Existing shared Free admission; provider lists do not replace chain proof; retain all cohort missingness |
+| F2 / next | Daily discovery table, search, useful filters and up-to-three-token comparison | Cache-only UI; current v4 stays default while new metrics are descriptive |
+| F3 | Meaningful volume, acquired/retained holder growth and recent momentum | Define qualification before outcomes; no raw wash/dust credit or invented 24h history |
+| F4 | Frozen v4/provider-derived/hybrid comparison and proposed v5 | Unseen mints and later-day holdout; no automatic promotion or action/election changes |
+| F5 / alongside product work | Reliability, cached degradation and archive/restore readiness | Owned recovery, unchanged budgets/stores, no historical deletion; no deploy |
+
+**First implementation:** F1 plus the first F2 table/search slice. Remaining backing, campaign, launch, Warplet and multichain phases follow the dependencies in the new plan. Do not default to another single-token forensic milestone.
+
+## Earlier engineering checkpoints
+
 Quote basis, 21 October: [saved GMGN SOL transfers and fee review](81-gmgn-quote-and-fee-basis.md) separates exact pool transfers, event quote, known fees and held wallet cash flow without new collection. PONYX shows 989.454343577 SOL of pool buys and provider-implied 106.24 USD/SOL; unknown fee extensions keep wallet totals held. The ratio is not independent historical USD or organic demand. Cache-only UI/private replay preserve old hashes, current v4, Free limits and all evidence/action/election gates. No deploy.
 
 RPC corroboration, 21 October: [source-bound GMGN / RPC comparison](80-gmgn-rpc-corroboration.md) adds an explicit one-attempt investigation of at most two saved event signatures through the existing wallet lease, pacing and RPC quotas. Cache-only UI and complete private replay separate exact instruction quantities from aggregate-only matches and unknown/conflicting evidence. No new GMGN call, schedule, allowance, migration or score adoption. Independent finality, USD/organic volume and daily qualification remain held; current v4 and all evidence/action/election gates remain. No deploy.
@@ -49,7 +67,7 @@ Reviewed 20 October 2026 against the entire [PRD v1.1](spec/10X_MEME_FULL_PRD_v1
 - [x] Record the founder's objective: find the strongest supported first-day market-attention wave for the prospective OG spotlight, using genuine 24h volume and holder growth.
 - [x] Audit current v4: no volume/growth criterion; owner count includes positive dust balances, and sampled returns do not establish organic demand.
 - [x] Define launch-aware windows, source/coverage labels, dust exclusions, risk dominance and adversarial acceptance cases in the [implementation plan](70-authentic-attention-momentum.md).
-- [ ] Finish held Jupiter/GeckoTerminal rights, Free access, canonical binding and bounded receipt collection; retain current shared allowances.
+- [ ] Build broad comparable activity coverage using the authorized GMGN/current-source paths in [F1–F3](82-next-product-functionality-plan.md). Complete held Jupiter/GeckoTerminal access/usage/canonical-binding work where it adds needed coverage; do not bypass those holds or block all product progress on another provider.
 - [x] Add versioned, bounded replay of full cached owner inventories, raw entrants/exits/net change, endpoint retention and private frozen comparison artifacts, with no source IO or database writes.
 - [ ] Add prospective acquisition provenance and an explicit archive storage/retention policy; calibrate meaningful-balance and retention rules before growth receives points.
 - [ ] Publish comparable 24h/since-creation volume and holder deltas, short-window acceleration and explicit missingness as descriptive evidence.
@@ -147,7 +165,7 @@ P2/P3 lifecycle update, 21 October: [verified creation expiry with retained hist
 | §§7,9,17.4 attention/rewards | [Ten-day offline reward accounting](27-attention-reward-lab.md), [signed local URL submission/moderation](30-content-review.md) and [private reports/reversible holds](33-content-reports-and-holds.md), with canonical deduplication and replay | Real authorship/engagement, qualified votes/referrals, cutoff scoring, verified boost snapshots, real entitlements and claims remain incomplete; local reviews confer no reward credit |
 | §§4.1,6.5 other chains | Chain-aware architecture; Solana capability flags | Base, BNB and Robinhood adapters remain uncertified; no implied chain or launch support |
 
-## Ordered work packages
+## Earlier work packages — current priorities are F1–F5 above
 
 P4 election recovery, 21 October: [bounded snapshot chunks](54-election-snapshot-storage.md) fix the daily rehearsal's input and decision-size failures without trimming the inventory. All 442 frozen candidates replayed across four chunks; old inline/v1 records remain valid and the original rule engine is unchanged. The normal maintenance tick cleared the error with no forced source work. Explicit 500-candidate / 4 MB input bounds remain; inventory retention/scope, ten eligible recent tokens and complete Kimchi evidence are still open.
 
