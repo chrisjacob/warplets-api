@@ -1,5 +1,7 @@
 # PRD implementation checkpoint and next tasks
 
+GMGN integration, 21 October: [bounded read-only queries and cached token evidence](71-gmgn-read-only-integration.md) configures only the query key, adds exact Solana info/security/pool/minute-candle reads, validates USD versus token volume, and exposes attributed cache-only activity/risk evidence. The founder explicitly authorized needed storage/display; provider rights are not independently confirmed. A fixed three-mint investigation can use one allocated slot inside the existing three-capture maintenance pass and all original shared quotas. Today's 100/100 research bound holds IO, so real endpoint access/fixtures remain unverified. Current v4 and all action/election/evidence gates remain. No signing, funding or deploy.
+
 Founder priority, 21 October: [authentic daily attention and momentum](70-authentic-attention-momentum.md) makes qualified trailing-24h volume and meaningful holder growth core requirements for discovering the first-day attention wave. Recent acceleration, participation breadth and retention must support cumulative totals. Raw wash volume, unsolicited dust recipients and unknown evidence cannot earn organic-demand credit. Current v4 has neither growth component nor a dust-filtered owner count; its weights and historical artifacts remain unchanged. The ordered plan requires permitted Free source receipts, comparable owner snapshots and prospective validation before a new scoring version. Documentation only; no provider calls, collection changes, launches or deploy.
 
 Artwork recovery, 21 October: [critical image coverage and source-format fixes](69-artwork-recovery.md) supports actual Pump image-proxy references, bounded original-source/gateway fallbacks, profile images and public token assets. Local migration 0042 adds private failed-reference recovery and owned artwork leases. Existing 120-inside-600 free allowances now reserve atomically; no RPC, score, research or action-gate change. PONYX and ADTF recovered from saved references without additional metadata requests; remaining dead/unsupported links stay explicit. No deploy.
@@ -7,6 +9,15 @@ Artwork recovery, 21 October: [critical image coverage and source-format fixes](
 Source collection foundation, 21 October: [prepared Jupiter/GeckoTerminal transport and trade review](68-source-collection-foundation.md) implements atomic per-HTTP reservations shared with score research, bounded owned fetches, persistent backoff and hashed receipts, plus a strict 300-event public-trade file review. Local migration 0041 preserves all 100 old cohorts; no new source reservation or token-data request was made. The adapter is not wired to a route, CLI or scheduler: rights/retention, Free fixtures, canonical binding and prospective v4 comparison remain open. Existing source settings, budgets, current score-v4 and every action/election/evidence gate remain. No deploy.
 
 Reviewed 20 October 2026 against the entire [PRD v1.1](spec/10X_MEME_FULL_PRD_v1_1.md), the [agent brief](spec/AI_AGENT_BRIEF.md), source code, migrations, tests and local operations. This supersedes the kickoff backlog's status, not the PRD or historical review records. Document instructions inform the plan; the founder's explicit local-only, free-first, no-deploy and unchanged-evidence-gates instructions control execution. The homepage remains empty and `/thesis` retains the original homepage.
+
+## GMGN integration checkpoint
+
+- [x] Review the prior API/66-card marketplace plan and record the founder's new query-key and storage/display authorization.
+- [x] Safely configure only the query key; implement fixed read contracts, strict normalization, atomic shared admission and sanitized replay.
+- [x] Add authenticated operator commands, a fixed three-mint pilot using one of the existing capture slots, and cache-only token-page evidence.
+- [x] Preserve v4, independent origin/authority/holder/wallet checks, historical artifacts, original quotas and every action/election gate.
+- [ ] Obtain the first admitted authenticated Free fixtures when the shared 100-record allowance has capacity; verify actual units, envelopes, timestamps, identities and egress. The current-day full store remains untouched.
+- [ ] Run preregistered v4/provider comparisons with independent controls; assess holder/trader/creator/screener coverage before expanding the bounded pilot or proposing a new score version.
 
 ## Next scoring priority: authentic daily attention
 

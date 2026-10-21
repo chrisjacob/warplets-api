@@ -3,14 +3,17 @@ import { boundedJsonValue } from "./source-pilot";
 import { hashJson } from "./solana";
 import { sourceFetchDescriptor } from "./source-collection-request";
 import { SOURCE_COLLECTION_LIMITS as L, type SourceReservation } from "./source-collection-store";
+import { gmgnEnvelope } from "./gmgn-request";
+import { normalizeGmgn } from "./gmgn-normalize";
+import { GMGN_USE_AUTHORITY } from "./gmgn-model";
 
 const owned = `id=?1 AND owner=?2 AND request_hash=?3 AND reserved_at<=?4 AND lease_until>?4 AND day=substr(?4,1,10)
   AND EXISTS(SELECT 1 FROM tenx_control WHERE id=1 AND paused=0)`;
 const sourceAvailable = `EXISTS(SELECT 1 FROM tenx_source_transport_control WHERE id=1 AND (backoff_until IS NULL OR backoff_until<=?4))
   AND NOT EXISTS(SELECT 1 FROM tenx_market_control WHERE id=1 AND last_error IS NOT NULL AND next_refresh_at>?4)
   AND EXISTS(SELECT 1 FROM tenx_control WHERE id=1 AND (retry_after IS NULL OR retry_after<=?4))`;
-// No default fetch, route, CLI or scheduler calls this adapter. Wiring it requires
-// the documented rights/access/retention preflight; fake transport is used in tests.
+// No default fetch: callers must supply transport. GMGN is connected through its
+// authenticated controller; Jupiter/GeckoTerminal collection remains held.
 export type SourceFetcher = (url: string, init: RequestInit) => Promise<Response>;
 function backoff(response: Response, now: Date): string | null {
   let seconds = response.status === 429 ? 60 : response.status >= 500 ? 60 : 0;
@@ -28,7 +31,8 @@ function backoff(response: Response, now: Date): string | null {
   if (seconds > 86_400) return "9999-12-31T23:59:59.999Z";
   return seconds > 0 ? new Date(now.getTime() + Math.ceil(seconds) * 1000).toISOString() : null;
 }
-export async function executeReservedSource(db: D1Database, reservation: SourceReservation, fetcher: SourceFetcher, clock = () => new Date()) {
+export interface GmgnTransportOptions { apiKey: string; mode: "access_probe" | "retained_research"; permissionReference?: string }
+export async function executeReservedSource(db: D1Database, reservation: SourceReservation, fetcher: SourceFetcher, clock = () => new Date(), gmgn?: GmgnTransportOptions) {
   const args = (at: Date) => [reservation.id, reservation.owner, reservation.request_hash, at.toISOString()];
   // Claim once before IO. A repeated invocation can never send a second request.
   const started = clock();
@@ -44,22 +48,56 @@ export async function executeReservedSource(db: D1Database, reservation: SourceR
   if (claimed[0]!.meta.changes !== 1) return { state: "held" as const, provider_requests: 0 as const };
   const row = await db.prepare("SELECT request,reserved_at FROM tenx_source_reservations WHERE id=?1 AND owner=?2").bind(reservation.id, reservation.owner).first<{request:string;reserved_at:string}>();
   let response: Response | undefined, responseBody: unknown = null, error: string | null = null, requests = 0;
+  let accessProbe = false, accessAccepted = false, permissionReference: string | null = null;
+  const gmgnBackoff: { until: string | null } = { until: null };
   const controller = new AbortController();
   let timeout: ReturnType<typeof setTimeout> | undefined;
   try {
     if (!row || await hashJson(JSON.parse(row.request)) !== reservation.request_hash) throw new Error("invalid_stored_request");
     const descriptor = sourceFetchDescriptor(JSON.parse(row.request), clock());
+    const url = new URL(descriptor.url), requestHeaders: Record<string, string> = { ...descriptor.headers };
+    if (descriptor.provider === "gmgn") {
+      if (!gmgn || !/^[\x21-\x7e]{8,512}$/.test(gmgn.apiKey)) throw new Error("gmgn_key_required");
+      accessProbe = gmgn.mode === "access_probe";
+      if (accessProbe && descriptor.request.kind !== "gmgn_token_info") throw new Error("gmgn_probe_info_only");
+      if (!accessProbe && gmgn.permissionReference !== GMGN_USE_AUTHORITY) throw new Error("gmgn_research_permission_required");
+      permissionReference = accessProbe ? null : gmgn.permissionReference!;
+      requestHeaders["X-APIKEY"] = gmgn.apiKey;
+    }
     const stillOwned = await db.prepare(`SELECT id FROM tenx_source_reservations WHERE ${owned} AND state='fetching' AND ${sourceAvailable}`).bind(...args(clock())).first();
     if (!stillOwned) return { state: "held" as const, provider_requests: 0 as const };
     const operation = async () => {
+      if (descriptor.provider === "gmgn") {
+        url.searchParams.set("timestamp", String(Math.floor(clock().getTime() / 1000)));
+        url.searchParams.set("client_id", crypto.randomUUID());
+      }
       requests = 1;
-      response = await fetcher(descriptor.url, { method: "GET", headers: descriptor.headers, redirect: "manual", credentials: "omit", signal: controller.signal });
+      response = await fetcher(url.href, { method: "GET", headers: requestHeaders, redirect: "manual", credentials: "omit", signal: controller.signal });
+      if (descriptor.provider === "gmgn" && [401, 403].includes(response.status)) gmgnBackoff.until = new Date(clock().getTime() + 86_400_000).toISOString();
+      if (descriptor.provider === "gmgn" && !response.ok && /^application\/json(?:\s*;|$)/i.test(response.headers.get("content-type") ?? "")) {
+        const failure = await boundedJson(response, L.response_bytes);
+        // Read only reset_at; never retain provider failure text or bodies.
+        const reset = failure && typeof failure === "object" && "reset_at" in failure ? failure.reset_at : null;
+        if (typeof reset === "number" && Number.isFinite(reset) && reset > clock().getTime() / 1000) {
+          const resetAt = reset - clock().getTime() / 1000 > 86_400 ? "9999-12-31T23:59:59.999Z" : new Date(Math.ceil(reset) * 1000).toISOString();
+          if (!gmgnBackoff.until || resetAt > gmgnBackoff.until) gmgnBackoff.until = resetAt;
+        }
+      }
       if (!response.ok) throw new Error("http_status");
       if (!/^application\/json(?:\s*;|$)/i.test(response.headers.get("content-type") ?? "")) throw new Error("content_type");
       const length = response.headers.get("content-length");
       if (length && /^\d+$/.test(length) && Number(length) > L.response_bytes) throw new Error("body_limit");
       const body = await boundedJson(response, L.response_bytes);
       boundedJsonValue(body, L.response_bytes);
+      if (descriptor.provider === "gmgn") {
+        if (gmgn && JSON.stringify(body).includes(gmgn.apiKey)) throw new Error("gmgn_credential_echo");
+        gmgnEnvelope(body);
+        // Validate semantic/identity shape before accepting HTTP 200. Do not
+        // persist a body which could not be normalized or an unknown-mint default.
+        normalizeGmgn(descriptor.request, body, clock().toISOString());
+        accessAccepted = true;
+        if (accessProbe) return null; // No token data or token-data hash retained.
+      }
       return body;
     };
     responseBody = await Promise.race([operation(), new Promise<never>((_, reject) => {
@@ -71,11 +109,15 @@ export async function executeReservedSource(db: D1Database, reservation: SourceR
     controller.abort();
     try { await response?.body?.cancel(); } catch { /* Already consumed/cancelled. */ }
   } finally { if (timeout !== undefined) clearTimeout(timeout); }
-  const finished = clock(), until = response ? backoff(response, finished) : new Date(finished.getTime() + 60_000).toISOString();
+  const finished = clock();
+  let until = response ? backoff(response, finished) : new Date(finished.getTime() + 60_000).toISOString();
+  if (gmgnBackoff.until && (!until || gmgnBackoff.until > until)) until = gmgnBackoff.until;
+  if (error && gmgn && (!until || until < new Date(finished.getTime() + 60_000).toISOString())) until = new Date(finished.getTime() + 60_000).toISOString();
   const receipt = { version: "source-fetch-receipt-v1", request_hash: reservation.request_hash, response_hash: await hashJson(responseBody), reserved_at: row?.reserved_at ?? null,
     received_at: finished.toISOString(), status: response?.status ?? null, error, response: responseBody,
+    ...(gmgn ? { access_probe: accessProbe, access_accepted: accessAccepted, research_permission_reference: permissionReference } : {}),
     // HTTP receipt is not chain identity, provider signature or semantic validation.
-    semantic_validation: "not_checked", canonical_pool_proof: "not_checked", scoring_effect: "none" };
+    semantic_validation: accessAccepted ? "gmgn_selected_fields_v1" : "not_checked", canonical_pool_proof: "not_checked", scoring_effect: "none" };
   const payload = JSON.stringify(receipt), bytes = new TextEncoder().encode(payload).length, receipt_hash = await hashJson(receipt);
   const results = await db.batch([
     // Backoff survives pause/lease loss, and a late success cannot clear newer backoff.

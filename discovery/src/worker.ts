@@ -52,14 +52,32 @@ import {runScoreResearch,scoreResearch,scoreResearchDetail} from "./score-resear
 import {ScoreResearchError} from "./score-research-analysis";
 import {scoreFollowupPlan} from "./score-followup";
 import { sourcePilotReadiness } from "./source-pilot-readiness";
+import { gmgnPublicSummary, gmgnSavedReview, gmgnStatus, runGmgnReview, runGmgnPilot, gmgnPilotHasCapacity } from "./gmgn";
+import { GMGN_USE_AUTHORITY } from "./gmgn-model";
 
 // Widen generated literal vars so ignored .dev.vars overrides stay type-safe.
-export type LocalEnv = { [K in keyof Cloudflare.Env]: Cloudflare.Env[K] extends string ? string : Cloudflare.Env[K] };
+type OptionalGmgnSecret = "GMGN_API_KEY";
+export type LocalEnv = { [K in Exclude<keyof Cloudflare.Env, OptionalGmgnSecret>]: Cloudflare.Env[K] extends string ? string : Cloudflare.Env[K] }
+  & { [K in Extract<keyof Cloudflare.Env, OptionalGmgnSecret>]?: string };
 type Env = LocalEnv;
 const loopback = new Set(["localhost", "127.0.0.1", "[::1]"]);
 const origins = LOCAL_ORIGINS;
 const headers = API_HEADERS;
 function json(data: unknown, status = 200): Response { return Response.json(data, { status, headers }); }
+function gmgnSettings(env: Env) {
+  return { db: env.TENX_DB, apiKey: "GMGN_API_KEY" in env && typeof env.GMGN_API_KEY === "string" ? env.GMGN_API_KEY : undefined,
+    permissionReference: GMGN_USE_AUTHORITY, marketDailyLimit: Math.min(600, z.coerce.number().int().min(0).max(1000).parse(env.TENX_MARKET_DAILY_LIMIT)) };
+}
+function gmgnFetcher(env: Env) {
+  return async (url: string, init: RequestInit) => {
+    if (env.TENX_NODE_RELAY !== "true") return fetch(url, init);
+    const target = new URL(url);
+    if (target.origin !== "https://openapi.gmgn.ai") throw new Error("gmgn_relay_target_not_allowed");
+    return fetch(`http://127.0.0.1:8795/gmgn${target.pathname}${target.search}`, { method: "GET",
+      headers: { "x-tenx-local-relay": env.TENX_ADMIN_TOKEN, "x-tenx-gmgn-key": new Headers(init.headers).get("X-APIKEY") ?? "" },
+      signal: init.signal, redirect: "manual", credentials: "omit" });
+  };
+}
 function settings(env: Env) {
   const transport: typeof fetch | undefined = env.TENX_NODE_RELAY === "true" ? async (input, init) => {
     const target = new URL(String(input));
@@ -148,6 +166,11 @@ export async function handle(request: Request, env: Env): Promise<Response> {
   if (method === "POST" && request.headers.has("origin") && !origins.has(request.headers.get("origin")!)) return json({ error: "origin_not_allowed" }, 403);
   if (method === "POST" && !admin) return json({ error: "not_found" }, 404);
   if (method === "GET" && path === "/api/10x/health") return json({ local: true, ready: true });
+  if (method === "GET" && path === "/api/10x/admin/gmgn/status") return json(await gmgnStatus(gmgnSettings(env)));
+  const gmgnReview = path.match(/^\/api\/10x\/admin\/gmgn\/reviews\/([a-f0-9-]{36})$/i);
+  if (method === "GET" && gmgnReview) { const saved = await gmgnSavedReview(env.TENX_DB, gmgnReview[1]!); return saved ? json(saved) : json({ error: "gmgn_review_not_found" }, 404); }
+  const gmgnToken = path.match(/^\/api\/10x\/gmgn\/solana\/([^/]+)$/);
+  if (method === "GET" && gmgnToken) return json(await gmgnPublicSummary(env.TENX_DB, gmgnToken[1]!));
   if (method === "GET" && path === "/api/10x/backing") return json(await backingList(env.TENX_DB));
   const backingMatch = path.match(/^\/api\/10x\/admin\/backing\/([^/]+)$/);
   if (method === "GET" && backingMatch) {
@@ -303,6 +326,7 @@ export async function handle(request: Request, env: Env): Promise<Response> {
     if(path==="/api/10x/admin/launches/lab")return json({record:await createLaunch(env.TENX_DB,body),replay:"verified"});
     if(path==="/api/10x/admin/launches/recovery-lab")return json({record:await createRecovery(env.TENX_DB,body),replay:"verified"});
     const reason = z.object({ reason: z.string().min(3).max(300) }).passthrough().parse(body).reason;
+    if (path === "/api/10x/admin/gmgn/review") return json(await runGmgnReview(gmgnSettings(env), body, gmgnFetcher(env)));
     if(path==="/api/10x/admin/mint-reviews")return json(await enqueueMintReview(env.TENX_DB,body));
     if (path === "/api/10x/admin/rewards/lab") return json({ record: await createRewards(env.TENX_DB, body), replay: "verified" });
     if (path === "/api/10x/admin/backing/open") return json(await openBacking(env.TENX_DB,body));
@@ -319,19 +343,26 @@ export async function handle(request: Request, env: Env): Promise<Response> {
       await env.TENX_DB.prepare("UPDATE tenx_control SET heartbeat_at=?1 WHERE id=1").bind(now.toISOString()).run();
       const inventory = await expireCandidates(env.TENX_DB,now);
       const diagnostics = await runSignalCycle(env.TENX_DB);
-      const score_research=await runScoreResearch(env.TENX_DB);
+      const gmgn_planned = await gmgnPilotHasCapacity(gmgnSettings(env));
+      const score_research=await runScoreResearch(env.TENX_DB,undefined,gmgn_planned?2:3);
       const backing_index=await runBackingIndex(settings(env));
       const backing = await settleBacking(env.TENX_DB,new Date());
       let election: { id?: string; state: string; error?: string };
       try { election = await dailyElection(env.TENX_DB); }
       catch (error) { election = { state: "failed", error: error instanceof ElectionError ? error.message : "election_unavailable" }; }
       await env.TENX_DB.prepare("UPDATE tenx_control SET election_error=?1 WHERE id=1").bind(election.error ?? null).run();
+      // Allocate at most one of the existing three capture slots to this small
+      // pilot, so a busy score queue cannot permanently starve source research.
+      // A failed/waiting score pass cannot spend a further capture slot.
+      let gmgn;
+      try { gmgn = await runGmgnPilot(gmgnSettings(env), score_research.state === "succeeded" && "attempted" in score_research ? score_research.attempted ?? 3 : 3, gmgnFetcher(env)); }
+      catch { gmgn = { state: "failed", reason: "gmgn_pilot_unavailable", provider_requests: 0 }; }
       if (path.endsWith("/review") || !state.reviewed_at || now.getTime() - Date.parse(state.reviewed_at) >= 3600000) {
         const review = await runReviews(env.TENX_DB, now);
         await env.TENX_DB.prepare("UPDATE tenx_control SET reviewed_at=?1 WHERE id=1").bind(now.toISOString()).run();
-        return json({ local: true, review, election, diagnostics, score_research, backing, backing_index, inventory });
+        return json({ local: true, review, election, diagnostics, score_research, gmgn, backing, backing_index, inventory });
       }
-      return json({ local: true, review: "waiting_for_hourly_tick", election, diagnostics, score_research, backing, backing_index, inventory });
+      return json({ local: true, review: "waiting_for_hourly_tick", election, diagnostics, score_research, gmgn, backing, backing_index, inventory });
     }
     if (path === "/api/10x/admin/refresh") {
       await audit(env.TENX_DB, "refresh_requested", reason, {});

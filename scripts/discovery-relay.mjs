@@ -1,8 +1,9 @@
 import { createServer } from "node:http";
 import { timingSafeEqual } from "node:crypto";
+import { gmgnIpv4Fetch, gmgnRelayTarget } from "./discovery-gmgn-relay.mjs";
 
 const methods = new Set(["getGenesisHash", "getSlot", "getBlockTime", "getSignaturesForAddress", "getTransaction", "getMultipleAccounts", "getProgramAccounts"]);
-export async function startRelay({ token, rpcUrl, port = 8795, transport = fetch }) {
+export async function startRelay({ token, rpcUrl, port = 8795, transport = fetch, gmgnTransport = gmgnIpv4Fetch }) {
   const rpc = new URL(rpcUrl);
   if (rpc.protocol !== "https:" || rpc.username || rpc.password || token.length < 32) throw new Error("Invalid local relay configuration");
   let nextRpcAt = 0, rpcCooldownUntil = 0;
@@ -12,7 +13,7 @@ export async function startRelay({ token, rpcUrl, port = 8795, transport = fetch
     response.setHeader("cache-control", "no-store");
     if (supplied.length !== expected.length || !timingSafeEqual(supplied, expected)) { response.writeHead(401); response.end(); return; }
     try {
-      let target, init, limit = 3_000_000;
+      let target, init, limit = 3_000_000, gmgn = false;
       if (request.method === "POST" && request.url === "/rpc") {
         const chunks = []; let size = 0;
         for await (const chunk of request) { size += chunk.length; if (size > 32_000) { response.writeHead(413); response.end(); return; } chunks.push(chunk); }
@@ -24,6 +25,12 @@ export async function startRelay({ token, rpcUrl, port = 8795, transport = fetch
           if (!["TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA", "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"].includes(program) || config?.commitment !== "finalized" || config?.withContext !== true || config?.encoding !== "base64" || config?.dataSlice?.offset !== 0 || config?.dataSlice?.length !== 166 || config?.filters?.length !== 1 || config?.filters[0]?.memcmp?.offset !== 0 || !/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(config?.filters[0]?.memcmp?.bytes ?? "")) { response.writeHead(400); response.end(); return; }
         }
         target = rpc.href; init = { method: "POST", headers: { "content-type": "application/json" }, body };
+      } else if (request.method === "GET" && request.url?.startsWith("/gmgn/")) {
+        const key = request.headers["x-tenx-gmgn-key"];
+        target = gmgnRelayTarget(request.url);
+        if (!target || typeof key !== "string" || !/^[\x21-\x7e]{8,512}$/.test(key)) { response.writeHead(400); response.end(); return; }
+        gmgn = true; limit = 1_000_000;
+        init = { method: "GET", headers: { accept: "application/json", "X-APIKEY": key } };
       } else if (request.method === "GET" && /^\/market\/pools\/(?:multi\/)?[1-9A-HJ-NP-Za-km-z,]{32,1350}$/.test(request.url ?? "")) {
         const addresses = request.url.split("/").at(-1).split(",");
         if (addresses.length > 30 || addresses.some(a => !/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(a)) || (!request.url.includes("/multi/") && addresses.length > 1)) { response.writeHead(400); response.end(); return; }
@@ -46,14 +53,15 @@ export async function startRelay({ token, rpcUrl, port = 8795, transport = fetch
         if (delay > 0) await new Promise(resolve => setTimeout(resolve, delay));
         if (rpcCooldownUntil > Date.now()) { response.writeHead(429, { "retry-after": String(Math.ceil((rpcCooldownUntil - Date.now()) / 1000)) }); response.end(); return; }
       }
-      const upstream = await transport(target, { ...init, redirect: "manual", signal: AbortSignal.timeout(10_000) });
+      const upstream = await (gmgn ? gmgnTransport : transport)(target, { ...init, redirect: "manual", signal: AbortSignal.timeout(10_000) });
       if (upstream.status === 429 && target === rpc.href) { const raw = upstream.headers.get("retry-after"), seconds = raw && /^\d+$/.test(raw) ? Number(raw) : raw ? Math.ceil((Date.parse(raw) - Date.now()) / 1000) : 300; rpcCooldownUntil = Date.now() + Math.max(300, Number.isFinite(seconds) ? Math.min(31536000, seconds) : 300) * 1000; }
-      if (!upstream.ok || !upstream.body) { await upstream.body?.cancel(); response.writeHead(upstream.status >= 300 ? upstream.status : 502, upstream.headers.has("retry-after") ? { "retry-after": upstream.headers.get("retry-after") } : {}); response.end(); return; }
+      const gmgnHeaders = gmgn ? Object.fromEntries(["content-type", "retry-after", "x-ratelimit-reset", "x-ratelimit-remaining", "x-ratelimit-limit"].flatMap(name => upstream.headers.has(name) ? [[name, upstream.headers.get(name)]] : [])) : null;
+      if ((!upstream.ok && !gmgn) || !upstream.body) { await upstream.body?.cancel(); response.writeHead(upstream.status >= 300 ? upstream.status : 502, gmgnHeaders ?? (upstream.headers.has("retry-after") ? { "retry-after": upstream.headers.get("retry-after") } : {})); response.end(); return; }
       const reader = upstream.body.getReader(); const chunks = []; let size = 0;
       try {
         while (true) { const chunk = await reader.read(); if (chunk.done) break; size += chunk.value.length; if (size > limit) { await reader.cancel(); throw new Error("Response limit"); } chunks.push(chunk.value); }
       } finally { reader.releaseLock(); }
-      response.writeHead(200, { "content-type": "application/json" }); response.end(Buffer.concat(chunks));
+      response.writeHead(gmgn ? upstream.status : 200, gmgnHeaders ?? { "content-type": "application/json" }); response.end(Buffer.concat(chunks));
     } catch { if (!response.headersSent) response.writeHead(502); response.end(); }
   });
   server.requestTimeout = 15_000; server.headersTimeout = 10_000;

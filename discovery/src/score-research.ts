@@ -37,7 +37,8 @@ async function publishOutcome(db:D1Database,r:ScoreOutcome,owner:string,at:strin
   const result=await db.prepare(`INSERT OR IGNORE INTO tenx_score_outcomes(address,model,cohort_hash,finalized_at,payload) SELECT ?3,?4,?5,?6,?7 WHERE ${guard} AND EXISTS(SELECT 1 FROM tenx_score_cohorts WHERE address=?3 AND model=?4 AND cohort_hash=?5)`).bind(owner,at,c.address,c.score.version,c.cohort_hash,r.result.finalized_at,JSON.stringify(r)).run();
   return result.meta.changes===1;
 }
-export async function runScoreResearch(db:D1Database,observedAt?:Date){
+export async function runScoreResearch(db:D1Database,observedAt?:Date,captureAllowance:number=L.captures){
+  if(!Number.isInteger(captureAllowance)||captureAllowance<0||captureAllowance>L.captures)throw new ScoreResearchError("score_capture_allowance_invalid");
   const now=()=>observedAt??new Date(),started=now(),at=started.toISOString(),owner=crypto.randomUUID();
   if((await db.prepare("SELECT paused FROM tenx_control WHERE id=1").first<{paused:number}>())?.paused)return {state:"paused",provider_requests:0};
   const lease=await db.prepare(`UPDATE tenx_score_control SET lease_owner=?1,lease_until=?2,next_at=?3 WHERE id=1 AND (lease_until IS NULL OR lease_until<=?4) AND (next_at IS NULL OR next_at<=?4) AND EXISTS(SELECT 1 FROM tenx_control WHERE id=1 AND paused=0) RETURNING id`).bind(owner,new Date(started.getTime()+L.lease_ms).toISOString(),new Date(started.getTime()+L.interval_ms).toISOString(),at).first();
@@ -55,7 +56,7 @@ export async function runScoreResearch(db:D1Database,observedAt?:Date){
     const rows=await db.prepare(`SELECT c.address,CASE WHEN length(CAST(c.payload AS BLOB))<=1600000 THEN c.payload ELSE NULL END AS payload
       FROM tenx_active_candidates c LEFT JOIN tenx_score_cohorts s ON s.address=c.address AND s.model=?1 LEFT JOIN tenx_score_attempts a ON a.address=c.address AND a.model=?1
       WHERE c.mode='live' AND s.address IS NULL AND julianday(json_extract(c.payload,'$.creation.block_time')) BETWEEN julianday(?2)-1 AND julianday(?2)
-      ORDER BY COALESCE(a.attempted_at,''),json_extract(c.payload,'$.first_seen_at'),c.address LIMIT 3`).bind(currentModel,at).all<{address:string;payload:string|null}>();
+      ORDER BY COALESCE(a.attempted_at,''),json_extract(c.payload,'$.first_seen_at'),c.address LIMIT ?3`).bind(currentModel,at,captureAllowance).all<{address:string;payload:string|null}>();
     for(const row of rows.results){
       attempted++;let gap="";
       try{

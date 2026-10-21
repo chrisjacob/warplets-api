@@ -14,6 +14,7 @@ import { ActivityResponse, CoverageResponse, DetailResponse, ElectionDetailRespo
 import { CandidateExpiryNotice, CandidateInventory } from "./CandidateRetention";
 import {MarketBatchCoverage} from "./MarketBatchCoverage";
 import { SourcePilotPanel } from "./SourcePilotPanel";
+import { GmgnEvidence } from "./GmgnEvidence";
 import {DiscoveryScoreBadge,DiscoveryScorePanel} from "./DiscoveryScore";
 import {DiscoveryScoreResponse} from "./client";
 import {ScoreResearchResponse} from "./client";
@@ -167,6 +168,7 @@ function CandidateDetail({ address }: { address: string }) {
     {!fixture && <TokenHistory address={c.address} />}
     <h2 className="tenx-evidence-title" id="evidence">Supporting evidence</h2>
     <p className="tenx-footnote">Launches and voting are disabled. Verified checks do not guarantee safety.</p>
+    {!fixture && <GmgnEvidence key={c.address} address={c.address} />}
     <EvidenceDisclosure id="action-checks" title="Voting & launch readiness"><EligibilityOverview status={c.eligibility} reasons={c.reasons} /></EvidenceDisclosure>
     <EvidenceDisclosure id="identity-evidence" title="Token identity & artwork sources">
     <section className="tenx-panel"><h2>Token identity</h2><p className="tenx-address">{c.address}</p><button className="tenx-button tenx-button--quiet" onClick={() => void navigator.clipboard.writeText(c.address).then(() => setCopied(true)).catch(() => setCopied(false))}>{copied ? "Copied" : "Copy full address"}</button>

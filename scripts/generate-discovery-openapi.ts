@@ -1,6 +1,8 @@
 import { writeFileSync } from "node:fs";
 import attentionPaths from "../discovery/openapi-attention-paths.json";
 import { z } from "zod";
+import { GmgnPublicSummarySchema } from "../discovery/src/gmgn-model";
+import { GmgnReviewRequestSchema } from "../discovery/src/gmgn";
 import { InboxRecoveryResponse } from "../discovery/src/inbox-recovery-model";
 import { MintReviewsResponse, MintReviewRequest } from "../discovery/src/mint-review-model";
 import {MarketBatchDetailSchema} from "../discovery/src/market-batch-model";
@@ -119,6 +121,10 @@ const spec = {
     "/api/10x/admin/jobs": read("Restricted recent jobs and dry-run hashes", { security: [{ localOperator: [] }] }),
     "/api/10x/admin/market/batches/{slot}":read("Replay the latest bounded market response or latest incomplete response from cached inputs; operator only, no provider calls",{...responseSchema("MarketBatchDetail"),security:[{localOperator:[]}],parameters:[parameter("slot","path",{enum:["latest","latest_issue"]},true)]}),
     "/api/10x/admin/refresh": post("Run one bounded idempotent refresh; force skips pacing only, never pause, lease, quota or provider backoff", { force: { type: "boolean", default: false } }),
+    "/api/10x/gmgn/solana/{address}": read("Cached normalized GMGN reports; no provider requests or organic-demand certification", { ...responseSchema("GmgnSummary"), parameters: [parameter("address", "path", { type: "string" }, true)] }),
+    "/api/10x/admin/gmgn/status": read("Authenticated cached GMGN configuration, shared capacity and pilot status", { security: [{ localOperator: [] }] }),
+    "/api/10x/admin/gmgn/reviews/{request_id}": read("Authenticated normalized saved GMGN review; no raw upstream redistribution", { security: [{ localOperator: [] }], parameters: [parameter("request_id", "path", { type: "string", format: "uuid" }, true)] }),
+    "/api/10x/admin/gmgn/review": { post: { summary: "One bounded read-only GMGN attempt within existing shared admission; may hold without IO", security: [{ localOperator: [] }], requestBody: { required: true, content: { "application/json": { schema: z.toJSONSchema(GmgnReviewRequestSchema) } } }, responses: { 200: ok, ...errors } } },
     "/api/10x/admin/market-refresh": post("Refresh up to 30 cached pool markets using one free source request"),
     "/api/10x/admin/wallet-replay": post("Reinterpret up to ten cached legacy wallet inputs with the certified v4 decoder; preserve observation timestamps and all gates, zero provider calls"),
     "/api/10x/admin/artwork-refresh": post("Cache up to three creation-linked metadata images per paced tick; 120 metadata requests/day inside the existing market cap, zero RPC calls"),
@@ -158,6 +164,7 @@ const spec = {
     IdentitySessionResponse: z.toJSONSchema(IdentitySessionResponse),
     Candidate: z.toJSONSchema(AssessedCandidateSchema, { unrepresentable: "any" }),
     ArtworkResponse: z.toJSONSchema(ArtworkResponseSchema),
+    GmgnSummary: z.toJSONSchema(GmgnPublicSummarySchema),
     WalletWorkResponse: z.toJSONSchema(WalletWorkResponseSchema),
     WalletPlansResponse: z.toJSONSchema(WalletPlansResponseSchema),
     OperationsResponse: {type:"object",required:["data"],properties:{data:z.toJSONSchema(OperationsSchema)}},

@@ -107,6 +107,13 @@ describe("bounded score retention on existing local maintenance",()=>{
     await runScoreResearch(db,new Date(mature.getTime()+60000));expect((await scoreResearchDetail(db,c.address))!.outcome).toEqual(detail.outcome);
     sqlite.exec("UPDATE tenx_score_outcomes SET payload=json_set(payload,'$.result.price_return_pct',500)");await expect(scoreResearch(db,mature)).rejects.toThrow();
   });
+  it("allows reserving one existing capture slot for source research without raising the three-capture bound",async()=>{
+    const {db}=setup(),c=await candidate();for(let i=0;i<5;i++)await put(db,{...c,address:key(i+90)});
+    for(const allowance of [-1,4,1.5,NaN])await expect(runScoreResearch(db,at,allowance)).rejects.toThrow("capture_allowance_invalid");
+    expect(await runScoreResearch(db,at,2)).toMatchObject({state:"succeeded",captured:2,attempted:2,provider_requests:0});
+    expect((await scoreResearch(db,at)).counts.captured).toBe(2);
+    expect(await runScoreResearch(db,new Date(at.getTime()+60000))).toMatchObject({state:"succeeded",captured:3,attempted:3});
+  });
   it("does no work while paused or when a different lease is held",async()=>{
     const {db,sqlite}=setup();await put(db,await candidate());sqlite.exec("UPDATE tenx_control SET paused=1");expect(await runScoreResearch(db,at)).toMatchObject({state:"paused"});sqlite.exec("UPDATE tenx_control SET paused=0");await lease(db);expect(await runScoreResearch(db,at)).toMatchObject({state:"waiting"});expect(sqlite.prepare("SELECT count(*) n FROM tenx_score_cohorts").get()).toEqual({n:0});
   });
