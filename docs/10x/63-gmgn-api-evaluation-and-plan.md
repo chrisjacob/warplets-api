@@ -1,5 +1,7 @@
 # GMGN API evaluation and comparison plan
 
+Broader review, 21 October: [Free-source comparison](64-free-data-source-comparison.md) adds Jupiter organic metrics, GeckoTerminal/GT Score and focused Birdeye/Helius alternatives to the investigation order. GMGN remains a conditional candidate, not an assumed winner. Check applicable comparison/storage/display rights before paired API work; the new review records specific licensing conflicts and retains the same G0–G4 and shared-budget boundaries.
+
 Reviewed 21 October 2026 for the founder's request. Recommendation: **conditional go for a read-only data pilot; retain Discovery score-v3 until a paired evaluation supports a versioned change.** GMGN could supply valuable indexed data we currently lack. Its published scores remain heuristics, and access, semantics and product-use rights need verification.
 
 This is an evaluation and implementation plan, not an enabled integration. No GMGN account, key, subscription, asset transfer, trade, launch or deployment was created. No authenticated token response has been collected; live accuracy, latency, historical depth and account entitlements remain untested. The existing local preview, sources, scoring and evidence gates are unchanged.

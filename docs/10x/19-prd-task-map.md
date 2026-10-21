@@ -4,6 +4,15 @@ Reviewed 20 October 2026 against the entire [PRD v1.1](spec/10X_MEME_FULL_PRD_v1
 
 ## What exists and what is incomplete
 
+Free-source comparison, 21 October: [provider research and ordered pilot](64-free-data-source-comparison.md) finds the existing batch-price foundation reasonable but missing richer organic/wallet/candle intelligence. Prioritize Jupiter organic metrics and GeckoTerminal/GT Score for conditional investigation; retain GMGN and focused Birdeye/Helius options. Public licensing restrictions and uncertain endpoint entitlements must be resolved before paired API work. No new adapter, account, credential, quota or score is activated; all evidence/action gates remain. No deploy.
+
+- [x] Compare terminal/market, security and RPC data providers using current official Free-plan documentation.
+- [x] Verify Birdeye endpoint restrictions/CU examples and identify Jupiter organic metrics, GT Score/candles and Helius as investigation candidates.
+- [x] Record API licence conflicts, finite trials, activation fees, unverified entitlements and shared pilot limits.
+- [ ] Resolve selected API-specific comparison, storage, mixed-source scoring, public-display and export permissions plus actual Free access.
+- [ ] Collect selected exact-mint/pool fixtures and build disabled, budgeted adapters only after the access/rights preflight.
+- [ ] Complete staged prospective vendor/custom comparisons and independent validation before proposing v4.
+
 GMGN evaluation, 21 October: [API comparison and phased plan](63-gmgn-api-evaluation-and-plan.md) recommends a read-only data pilot, especially candles and indexed manipulation/creator signals. Seven pinned research skills are installed globally; no API credentials or source are activated. The repo documents Free weighted limits, but the reported $100 balance condition and product data rights remain unverified behind account access. Compare custom v3, the pinned vendor heuristic and a hybrid on prospective paired observations within existing budgets before proposing v4. Current v3, old replay and every evidence/action gate remain unchanged. No deploy.
 
 - [x] Evaluate official GMGN API/skills, compare data and scoring semantics, and install seven research skills at a pinned source revision.
