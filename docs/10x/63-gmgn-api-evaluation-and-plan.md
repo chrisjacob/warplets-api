@@ -52,7 +52,13 @@ The pinned [heat-rank source](https://github.com/GMGNAI/gmgn-skills/blob/402671e
 
 **Confirmed in the published repo:** Free, Plus and Pro use weighted rate/capacity buckets of **5/5, 20/20 and 50/50**. Free is not five requests per second for every endpoint. Standard candles cost two units, top-holder/trader lists five. A route whose weight exceeds plan capacity can return `403 PLAN_UPGRADE_REQUIRED`; one-second candles explicitly require Pro. There is enough documented Free capacity for a modest cached pilot, assuming the account is eligible. Daily allowance, historical retention and service availability must still be checked; bucket capacity is not a daily entitlement or SLA.
 
-**Not verified:** the founder's reported **$100 asset eligibility condition**, eligible asset types, hosted versus linked-wallet balances, continuous balance requirements, any trading-volume condition and supplementary API/data rights. The public Agent API page and reviewed repo do not establish those details. Opening the official API dashboard reached a login form; no account was accessed or created. If the balance condition applies, distinguish tied-up capital from an API subscription fee. This plan does not authorize funding an account to qualify.
+**Founder-supplied account-page receipt, 21 October:** the founder pasted the following GMGN API Management wording in response to our access question:
+
+> Free tier requires a minimum balance of $100. Assets refresh hourly.
+
+This confirms the displayed minimum-balance requirement and hourly asset-refresh statement from the supplied account-page text; it is not an independently authenticated account inspection or proof that this account currently qualifies. Classify GMGN as **balance-gated Free access**, separate from an unconditional $0 data plan. The $100 is a qualifying balance, not a stated $100 API subscription charge. No asset transfer or purchase to meet or maintain the threshold is authorized by this plan. The excerpt does not define eligible assets/chains, balance location, valuation rules, grace periods, exact access-loss timing, trading-volume conditions, endpoint entitlements or data-use rights; these remain unresolved.
+
+The same receipt says up to three API keys per account, recommends trusted-IP access, and warns against disclosing API or Ed25519/RSA private keys. Multiple keys do not establish multiple independent plan allowances. These are quoted service conditions/security guidance, not instructions to reinstall skills, configure signing or create keys. No credentials were supplied, and no GMGN account was accessed or created here.
 
 The documented API host is `https://openapi.gmgn.ai`. The selected token/market queries use an API key with timestamp/client ID; the docs say requests currently require IPv4. Do not disable IPv6 globally: test the actual authorized egress route. Trading uses a separate signing key, which this project does not need. Importantly, **not every read operation is API-key-only**: the reviewed client signs `wallet_holdings` and followed-wallet reads, despite broader query-only wording in the introductory docs. Exclude signed routes entirely from the pilot. Key registration may require uploading an application public key; any associated private key stays outside this runtime and is never a wallet seed.
 
@@ -97,7 +103,7 @@ Do not invert `rug_ratio` into `100 × (1 − risk)`, average unlike scores, or 
 
 ### G0 — Verify access and intended use
 
-Confirm the account's actual Free requirements and endpoint permissions without a purchase or asset transfer. Establish a securely configured query key outside Git/chat/logs and confirm data retention, derivative ranking, display and export rights. Register no signing credential in the collector. If access requires spending or rights are unsuitable, keep the adapter disabled and retain the existing sources. Deliver a dated entitlement/permission record with public facts separated from account assertions.
+The displayed $100 minimum balance and hourly asset refresh are recorded above. Confirm actual account qualification, eligible balance rules and endpoint permissions without a purchase or asset transfer. If an already-qualifying account is later available, verify read-only access and handle eligibility rejection as unavailable evidence with bounded backoff, never paid fallback or automatic funding. Establish a securely configured query key outside Git/chat/logs and confirm data retention, derivative ranking, display and export rights. Register no signing credential in the collector. If access requires spending or rights are unsuitable, keep the adapter disabled and retain the existing sources. Deliver a dated entitlement/permission record with public facts separated from account assertions.
 
 ### G1 — Collect bounded fixtures and define a read-only adapter
 
@@ -141,7 +147,8 @@ Keep existing adverse ceilings unless a separately justified policy revision cha
 - [x] Install seven research skills at a known revision, without credentials or execution features.
 - [x] Compare our validations with GMGN data/heuristics and document semantic risks.
 - [x] Record this staged plan and link it from the PRD, task map and restart handoff.
-- [ ] Verify the $100 condition, actual Free entitlements and intended-use/data rights (G0).
+- [x] Record the founder-supplied API Management requirement: $100 minimum balance, assets refreshed hourly, up to three keys per account.
+- [ ] Verify actual account qualification, eligible balance rules, Free endpoint entitlements and intended-use/data rights (G0).
 - [ ] Collect authenticated query fixtures and implement a disabled, bounded read-only adapter (G1).
 - [ ] Run prospective paired comparisons without increasing shared quotas (G2/G3).
 - [ ] Adopt only validated improvements through score-v4; preserve all independent gates and replay (G4).

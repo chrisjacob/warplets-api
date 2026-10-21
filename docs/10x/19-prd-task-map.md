@@ -13,12 +13,13 @@ Free-source comparison, 21 October: [provider research and ordered pilot](64-fre
 - [ ] Collect selected exact-mint/pool fixtures and build disabled, budgeted adapters only after the access/rights preflight.
 - [ ] Complete staged prospective vendor/custom comparisons and independent validation before proposing v4.
 
-GMGN evaluation, 21 October: [API comparison and phased plan](63-gmgn-api-evaluation-and-plan.md) recommends a read-only data pilot, especially candles and indexed manipulation/creator signals. Seven pinned research skills are installed globally; no API credentials or source are activated. The repo documents Free weighted limits, but the reported $100 balance condition and product data rights remain unverified behind account access. Compare custom v3, the pinned vendor heuristic and a hybrid on prospective paired observations within existing budgets before proposing v4. Current v3, old replay and every evidence/action gate remain unchanged. No deploy.
+GMGN evaluation, 21 October: [API comparison and phased plan](63-gmgn-api-evaluation-and-plan.md) recommends a read-only data pilot, especially candles and indexed manipulation/creator signals. Seven pinned research skills are installed globally; no API credentials or source are activated. The repo documents Free weighted limits. Founder-supplied API Management wording now confirms a $100 minimum balance and hourly asset refresh; actual account qualification, endpoint entitlements and product data rights remain unverified. This is balance-gated Free access; no funding is authorized. Compare custom v3, the pinned vendor heuristic and a hybrid on prospective paired observations within existing budgets before proposing v4. Current v3, old replay and every evidence/action gate remain unchanged. No deploy.
 
 - [x] Evaluate official GMGN API/skills, compare data and scoring semantics, and install seven research skills at a pinned source revision.
 - [x] Plan read-only collection, normalized evidence, paired scoring research and versioned adoption; preserve all current source/evidence limits.
 - [x] Review all 66 live Skills Market listings, inspect relevant preset workflows and add full vendor screening/ranking to the comparison plan.
-- [ ] G0: confirm actual Free eligibility (including the reported $100 condition), endpoint entitlements and data-use/retention/export rights.
+- [x] Record the supplied GMGN account-page requirement: $100 minimum balance, hourly asset refresh and up to three API keys per account.
+- [ ] G0: confirm actual account qualification/eligible balance rules, endpoint entitlements and data-use/retention/export rights without funding the account.
 - [ ] G1: collect real authenticated fixtures and implement a disabled-by-default bounded adapter with zero signing/trading routes.
 - [ ] G2/G3: evaluate custom v3, the vendor heuristic and a preregistered hybrid on matched-time prospective inputs and held-out outcomes.
 - [ ] G4: adopt justified GMGN features in a new scoring version; retain independent origin/authority/holder proofs and historical replay.
