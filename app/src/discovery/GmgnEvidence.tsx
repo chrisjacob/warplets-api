@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { GmgnPublicSummarySchema, type GmgnPublicSummary } from "../../../discovery/src/gmgn-model";
 import { getJson } from "./client";
+import{GmgnCorroboration}from"./GmgnCorroboration";
 
 const usd = (value: number | null) => value === null ? "Unknown" : new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(value);
 const percent = (value: number | null) => value === null ? "Unknown" : `${(value * 100).toFixed(1)}%`;
@@ -60,6 +61,7 @@ export function GmgnEvidenceValues({ data }: { data: GmgnPublicSummary }) {
       </dl>
       <p><strong>{data.wallet_activity.review_reasons.length?"Activity patterns to review":"No listed pattern trigger in this sample"}.</strong> Repeated sizes can come from ordinary orders; a signature with both sides can be routing or arbitrage. Same-second events have no inferred order. Signatures, wallet scope and pool identity are not independently verified. No wash-trading verdict, organic-volume or scoring credit.</p>
     </section>}
+    {data.wallet_activity_request_id&&<GmgnCorroboration key={data.wallet_activity_request_id} activityId={data.wallet_activity_request_id} address={data.address}/>}
     <p>Volume is a reported total, not verified organic demand. Holder count includes unclassified balances; meaningful holder growth remains unknown. A missing or unflagged provider label does not establish clean trading. These observations do not change the Discovery score or action checks.</p>
     <details><summary>Coverage and source limits</summary><ul>{data.gaps.map(gap => <li key={gap}>{gap.replaceAll("_", " ")}</li>)}</ul></details>
     <a href={`https://gmgn.ai/sol/token/${data.address}`} target="_blank" rel="noopener noreferrer">View source on GMGN ↗</a>

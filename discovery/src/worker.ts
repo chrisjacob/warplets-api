@@ -60,6 +60,7 @@ import { holderHistory } from "./holder-history-store";
 import { HolderHistoryError } from "./holder-history";
 import { holderAcquisition } from "./holder-acquisition-store";
 import { HolderAcquisitionError } from "./holder-acquisition";
+import{gmgnCorroboration,collectGmgnCorroboration}from"./gmgn-corroboration-store";
 
 // Widen generated literal vars so ignored .dev.vars overrides stay type-safe.
 type OptionalGmgnSecret = "GMGN_API_KEY" | "TENX_RESEARCH_MODE";
@@ -172,6 +173,8 @@ export async function handle(request: Request, env: Env): Promise<Response> {
   if (method === "POST" && request.headers.has("origin") && !origins.has(request.headers.get("origin")!)) return json({ error: "origin_not_allowed" }, 403);
   if (method === "POST" && !admin) return json({ error: "not_found" }, 404);
   if (method === "GET" && path === "/api/10x/health") return json({ local: true, ready: true });
+  const rpcComparison=path.match(/^\/api\/10x\/(admin\/)?gmgn\/corroboration\/([a-f0-9-]{36})$/i);
+  if(method==="GET"&&rpcComparison){const result=await gmgnCorroboration(env.TENX_DB,rpcComparison[2]!);return result?json(rpcComparison[1]?result:result.report):json({error:"accepted_activity_not_found"},404);}
   const holderBuys = path.match(/^\/api\/10x\/(admin\/)?holders\/acquisition\/solana\/([^/]+)$/);
   if(method==="GET"&&holderBuys){const result=await holderAcquisition(env.TENX_DB,holderBuys[2]!);return json(holderBuys[1]?result:result.report);}
   const holderChanges = path.match(/^\/api\/10x\/(admin\/)?holders\/history\/solana\/([^/]+)$/);
@@ -344,6 +347,7 @@ export async function handle(request: Request, env: Env): Promise<Response> {
     if(path==="/api/10x/admin/launches/recovery-lab")return json({record:await createRecovery(env.TENX_DB,body),replay:"verified"});
     const reason = z.object({ reason: z.string().min(3).max(300) }).passthrough().parse(body).reason;
     if (path === "/api/10x/admin/gmgn/review") return json(await runGmgnReview(gmgnSettings(env), body, gmgnFetcher(env)));
+    if(path==="/api/10x/admin/gmgn/corroboration/collect"){const input=z.object({activity_id:z.uuid(),reason:z.string().min(3).max(300)}).strict().parse(body);return json(await collectGmgnCorroboration(settings(env),input.activity_id));}
     if(path==="/api/10x/admin/mint-reviews")return json(await enqueueMintReview(env.TENX_DB,body));
     if (path === "/api/10x/admin/rewards/lab") return json({ record: await createRewards(env.TENX_DB, body), replay: "verified" });
     if (path === "/api/10x/admin/backing/open") return json(await openBacking(env.TENX_DB,body));

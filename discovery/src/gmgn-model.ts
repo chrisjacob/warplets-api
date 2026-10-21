@@ -38,6 +38,7 @@ export const GmgnPublicSummarySchema = z.object({
   candle_coverage: GmgnCoverageSchema.nullable().default(null),
   trader_sample: GmgnTraderSampleSchema.nullable().default(null),
   wallet_activity: GmgnWalletActivitySchema.nullable().default(null),
+  wallet_activity_request_id:z.uuid().nullable().default(null),
   wallet_activity_issue:GmgnActivityIssueSchema.nullable().default(null),
   gaps: z.array(z.string().max(100)).max(30),
   organic_volume_usd: z.null(), meaningful_holder_growth: z.null(), scoring_effect: z.literal("none"),

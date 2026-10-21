@@ -174,6 +174,7 @@ export async function gmgnCandleWindow(db: D1Database, id: string) {
 export async function gmgnPublicSummary(db: D1Database, rawAddress: string, now = new Date()) {
   const address = Address.parse(rawAddress), kinds = ["gmgn_token_info", "gmgn_token_security", "gmgn_token_pool", "gmgn_token_candles", "gmgn_token_traders", "gmgn_wallet_activity"];
   const observations = [];
+  let activityRequestId:string|null=null;
   for (const kind of kinds) {
     const row = await db.prepare(`SELECT id FROM tenx_source_reservations WHERE state='succeeded' AND day>=?4
       AND json_extract(request,'$.address')=?1 AND json_extract(request,'$.kind')=?2
@@ -181,7 +182,7 @@ export async function gmgnPublicSummary(db: D1Database, rawAddress: string, now 
       .bind(address, kind, GMGN_USE_AUTHORITY, new Date(now.getTime() - 6 * 86_400_000).toISOString().slice(0, 10)).first<{id:string}>();
     if (row) {
       const saved = await gmgnSavedReview(db, row.id);
-      if (saved && "observation" in saved && saved.observation) observations.push(saved.observation);
+      if (saved && "observation" in saved && saved.observation){observations.push(saved.observation);if(kind==="gmgn_wallet_activity")activityRequestId=row.id;}
     }
   }
   const latestWindow = await db.prepare(`SELECT json_extract(request,'$.series.id') AS id FROM tenx_source_reservations
@@ -220,5 +221,5 @@ export async function gmgnPublicSummary(db: D1Database, rawAddress: string, now 
     candle_count: coverage?.candle_count ?? window?.candle_count ?? null, candle_window_complete: coverage?.complete_window ?? window?.complete_window ?? null, candle_window_volume_usd: coverage?.reported_window_volume_usd ?? null,
     candle_coverage:coverage?{window_id:coverage.window_id,expected_parts:4,attempted_parts:coverage.attempted_parts,succeeded_parts:coverage.succeeded_parts,failed_parts:coverage.failed_parts,missing_minutes:coverage.missing_minutes,overlap_conflicts:coverage.overlap_conflicts,receipt_span_ms:coverage.receipt_span_ms,units:coverage.units,report_hash:coverage.report_hash}:null,
     candle_review:coverage?(coverage.activity&&coverage.received_at?{received_at:coverage.received_at,window_start:coverage.window_start,window_end:coverage.window_end,...coverage.activity}:null):review ? { received_at: candles!.received_at, window_start: review.window_start, window_end: review.window_end, ...review.activity } : null,
-    trader_sample:traderSample,wallet_activity:walletActivity,wallet_activity_issue:activityIssue,gaps: [...new Set(gaps)], organic_volume_usd: null, meaningful_holder_growth: null, scoring_effect: "none" });
+    trader_sample:traderSample,wallet_activity:walletActivity,wallet_activity_request_id:activityRequestId,wallet_activity_issue:activityIssue,gaps: [...new Set(gaps)], organic_volume_usd: null, meaningful_holder_growth: null, scoring_effect: "none" });
 }

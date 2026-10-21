@@ -4,6 +4,7 @@ import { z } from "zod";
 import { GmgnPublicSummarySchema } from "../discovery/src/gmgn-model";
 import { HolderHistoryReportSchema } from "../discovery/src/holder-history-model";
 import { HolderAcquisitionReportSchema } from "../discovery/src/holder-acquisition-model";
+import{GmgnCorroborationReportSchema}from"../discovery/src/gmgn-corroboration-model";
 import { GmgnReviewRequestSchema } from "../discovery/src/gmgn";
 import { InboxRecoveryResponse } from "../discovery/src/inbox-recovery-model";
 import { MintReviewsResponse, MintReviewRequest } from "../discovery/src/mint-review-model";
@@ -48,6 +49,9 @@ const spec = {
   openapi: "3.1.0", info: { title: "10X local Solana discovery", version: "0.1.0", description: "Local-only chain discovery and signed-message wallet ownership. No server-held signers, transactions, votes, launches or financial flows. Public reads use stored data; only authenticated refresh makes provider requests." },
   servers: [{ url: "http://127.0.0.1:8794" }],
   paths: {
+    "/api/10x/gmgn/corroboration/{id}":read("Cache-only RPC comparison of saved GMGN events; no volume or action certification",{...responseSchema("GmgnRpcComparison"),parameters:[parameter("id","path",{type:"string",format:"uuid"},true)]}),
+    "/api/10x/admin/gmgn/corroboration/{id}":read("Private frozen source and transaction comparison inputs",{security:[{localOperator:[]}],parameters:[parameter("id","path",{type:"string",format:"uuid"},true)]}),
+    "/api/10x/admin/gmgn/corroboration/collect":post("Explicit at-most-two transaction collection through existing wallet RPC quotas and lease; no action credit"),
     "/api/10x/admin/gmgn/activity-target/{id}":read("Private cache-only deterministic largest-flow wallet plan; no provider IO",{security:[{localOperator:[]}],parameters:[parameter("id","path",{type:"string",format:"uuid"},true)]}),
     "/api/10x/holders/acquisition/solana/{address}":read("Cached signed-buy matching for raw entrants; sample evidence with qualified growth held",{...responseSchema("HolderAcquisitionReport"),parameters:[parameter("address","path",{type:"string"},true)]}),
     "/api/10x/admin/holders/acquisition/solana/{address}":read("Private acquisition inputs and replayable report; no source IO or database writes",{security:[{localOperator:[]}],parameters:[parameter("address","path",{type:"string"},true)]}),
@@ -173,6 +177,7 @@ const spec = {
     Candidate: z.toJSONSchema(AssessedCandidateSchema, { unrepresentable: "any" }),
     ArtworkResponse: z.toJSONSchema(ArtworkResponseSchema),
     GmgnSummary: z.toJSONSchema(GmgnPublicSummarySchema),
+    GmgnRpcComparison:z.toJSONSchema(GmgnCorroborationReportSchema),
     HolderHistoryReport: z.toJSONSchema(HolderHistoryReportSchema),
     HolderAcquisitionReport: z.toJSONSchema(HolderAcquisitionReportSchema),
     WalletWorkResponse: z.toJSONSchema(WalletWorkResponseSchema),
