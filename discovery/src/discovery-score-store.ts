@@ -5,6 +5,8 @@ import {defaultScoreInputV4,freezeDiscoveryScoreV4,scoreSummaryV4} from "./disco
 import {DISCOVERY_SCORE_POLICY_V2} from "./discovery-score-v2-model";
 import type {AnyScoreSummary} from "./discovery-score-models";
 import {FirstMarketSchema,type ScoreInputV3} from "./discovery-score-v3-model";
+import {browseEntries,browseEntry,type DiscoveryBrowse} from "./discovery-browse-order";
+export type {DiscoveryBrowse} from "./discovery-browse-order";
 
 export async function scoreInventoryCandidates(db:D1Database,mode:"live"|"fixture",retained:boolean) {
   const rows=await db.prepare(`SELECT CASE WHEN count(*) OVER()>500 OR sum(length(CAST(payload AS BLOB))) OVER()>4000000 OR max(length(CAST(payload AS BLOB))) OVER()>1600000 THEN NULL ELSE payload END AS payload
@@ -37,8 +39,6 @@ async function boundedScorePrices(db:D1Database,addresses:string[],at:Date,windo
   return result;
 }
 export type ScoredCandidate=AssessedCandidate&{discovery_score:AnyScoreSummary;discovery_rank:number};
-const ascii=(a:string,b:string)=>a<b?-1:a>b?1:0;
-export type DiscoveryBrowse = { search?:string; freshness?:"all"|"fresh"|"stale"|"missing"; min_liquidity?:number; min_coverage?:number; maximum?:100|500 };
 export async function rankedDiscovery(db:D1Database,candidates:Candidate[],at:Date,sort:"score"|"liquidity",status:"all"|"eligible"|"provisional"|"excluded",browse:DiscoveryBrowse={}) {
   const unique=new Map<string,Candidate>();for(const c of candidates){const prior=unique.get(c.address);if(!prior||prior.checked_at<c.checked_at)unique.set(c.address,c);}
   const source=[...unique.values()],prices=await scoreIntegrityPriceInputs(db,source.filter(c=>c.mode==="live").map(c=>c.address),at);
@@ -48,22 +48,8 @@ export async function rankedDiscovery(db:D1Database,candidates:Candidate[],at:Da
     const history=prices.get(candidate.address),record=await freezeDiscoveryScoreV4(defaultScoreInputV4(candidate,at,history?.prices??[],history?.history_limited??false,firstMarkets.get(candidate.address)??null));
     return {...assess(candidate,DEFAULT_POLICY,at),rank:actionRanks.get(candidate.address)??null,discovery_score:scoreSummaryV4(record),discovery_rank:0};
   }));
-  const counts={eligible:rows.filter(c=>c.eligibility==="eligible").length,provisional:rows.filter(c=>c.eligibility==="provisional").length,excluded:rows.filter(c=>c.eligibility==="excluded").length};
-  const freshLiquidity=(c:ScoredCandidate)=>c.market&&Date.parse(c.market.fetched_at)<=at.getTime()&&(!c.market.observed_at||Date.parse(c.market.observed_at)<=at.getTime())&&at.getTime()-Date.parse(c.market.fetched_at)<=180000?c.market.liquidity_usd??0:0;
-  const ordered=rows.filter(c=>status==="all"||c.eligibility===status).sort((a,b)=>
-    (sort==="score"?b.discovery_score.value-a.discovery_score.value||b.discovery_score.evidence_coverage-a.discovery_score.evidence_coverage:0)||freshLiquidity(b)-freshLiquidity(a)||ascii(a.creation?.block_time??"~",b.creation?.block_time??"~")||ascii(a.address,b.address));
-  // Rank the complete bounded inventory, then search/filter, then apply the
-  // presentation bound. A low-ranked exact mint remains discoverable.
-  const search=(browse.search??"").trim(), text=search.toLowerCase();
-  const matching=ordered.map((c,i)=>({...c,discovery_rank:i+1})).filter(c=>{
-    if(search&&c.address!==search&&!c.name.toLowerCase().includes(text)&&!c.symbol.toLowerCase().includes(text))return false;
-    const market=c.market, elapsed=market?at.getTime()-Date.parse(market.fetched_at):null;
-    const freshness=!market?"missing":elapsed!==null&&elapsed>=0&&elapsed<=DEFAULT_POLICY.max_market_age_seconds*1000&&(!market.observed_at||Date.parse(market.observed_at)<=at.getTime())?"fresh":"stale";
-    if(browse.freshness&&browse.freshness!=="all"&&browse.freshness!==freshness)return false;
-    if((browse.min_liquidity??0)>0&&(!market||market.liquidity_usd===null||market.liquidity_usd<browse.min_liquidity!))return false;
-    return c.discovery_score.evidence_coverage>=(browse.min_coverage??0);
-  });
-  return {rows:matching.slice(0,browse.maximum??100),counts,observed:rows.length,matched:matching.length,ranked:ordered.length};
+  const result=browseEntries(rows.map(c=>browseEntry(c,at)),sort,status,browse),byAddress=new Map(rows.map(c=>[c.address,c]));
+  return {...result,rows:result.rows.map(c=>({...byAddress.get(c.address)!,discovery_rank:c.discovery_rank}))};
 }
 export async function candidateScorecard(db:D1Database,address:string,mode:"live"|"fixture",at=new Date()) {
   const row=await db.prepare("SELECT CASE WHEN length(CAST(payload AS BLOB))<=1600000 THEN payload ELSE NULL END AS payload FROM tenx_candidates WHERE mode=?1 AND address=?2").bind(mode,address).first<{payload:string|null}>();

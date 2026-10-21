@@ -1,6 +1,7 @@
 import { API_HEADERS, LOCAL_ORIGINS, authorized, requireAdminBrowser, adminJson, RequestSecurityError } from "./request-security";
 import {historyDirectory} from "./history-directory";
 import {buildScoreReadModel,readScoreReadModel} from "./score-read-model";
+import {buildScoreReadPages,readScoreReadPages} from "./score-read-pages";
 import { contentRoute } from "./content-route";
 import { ContentError } from "./content-url";
 export { authorized } from "./request-security";
@@ -191,6 +192,7 @@ export async function handle(request: Request, env: Env): Promise<Response> {
   }
   if (method === "GET" && path === "/api/10x/admin/gmgn/status") return json(await gmgnStatus(gmgnSettings(env)));
   if (method === "GET" && path === "/api/10x/admin/score-read-model") return json(await readScoreReadModel(env.TENX_DB));
+  if (method === "GET" && path === "/api/10x/admin/score-read-pages") return json(await readScoreReadPages(env.TENX_DB,Object.fromEntries(url.searchParams)));
   const activityTarget=path.match(/^\/api\/10x\/admin\/gmgn\/activity-target\/([a-f0-9-]{36})$/i);
   if(method==="GET"&&activityTarget)return json(await gmgnActivityTarget(env.TENX_DB,activityTarget[1]!));
   const gmgnWindow=path.match(/^\/api\/10x\/admin\/gmgn\/windows\/([a-f0-9-]{36})$/i);
@@ -374,6 +376,10 @@ export async function handle(request: Request, env: Env): Promise<Response> {
     if(path==="/api/10x/admin/score-read-model"){
       z.object({reason:z.string().min(3).max(300)}).strict().parse(body);
       return json(await buildScoreReadModel(env.TENX_DB));
+    }
+    if(path==="/api/10x/admin/score-read-pages"){
+      z.object({reason:z.string().min(3).max(300)}).strict().parse(body);
+      return json(await buildScoreReadPages(env.TENX_DB));
     }
     if (path === "/api/10x/admin/gmgn/review") return json(await runGmgnReview(gmgnSettings(env), body, gmgnFetcher(env)));
     if(path==="/api/10x/admin/gmgn/corroboration/collect"){const input=z.object({activity_id:z.uuid(),reason:z.string().min(3).max(300)}).strict().parse(body);return json(await collectGmgnCorroboration(settings(env),input.activity_id));}
