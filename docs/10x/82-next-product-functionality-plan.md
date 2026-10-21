@@ -14,6 +14,8 @@
 
 ## What the review found
 
+**F3 trading sample delivered, 22 October:** [90 — signed trading samples](90-signed-trading-sample.md) adds dated 5m/1h/6h sampled breadth and exact native quote measurements to comparison, sharing the existing holder source replay. Equal-size/overlap measurements are descriptive, not manipulation labels or organic volume. Broad admitted observation, independence/valuation qualification and F4 evaluation remain open; v4 and production closure are unchanged.
+
 **F1 accounting delivered, 22 October:** [89 — broad rotation coverage](89-broad-rotation-coverage.md) exposes fourteen UTC days of verified selection manifests and operational attempt metadata on Research. Selected, attempted and new-to-GMGN mints remain separate from validated observations. Prior work against the original scheduled baseline stays visible even without a manifest. Broad admitted observation and F3/F4 qualification remain open; current v4 and the thesis-only production gate are unchanged.
 
 | Area | Actually available | Product gap |

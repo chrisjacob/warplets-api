@@ -3,6 +3,7 @@ import {DiscoveryComparison} from "../discovery/src/discovery-comparison-model";
 import {ActivityObservation} from "../discovery/src/activity-observation";
 import {RecentActivity} from "../discovery/src/recent-activity-model";
 import {HolderParticipation} from "../discovery/src/holder-participation-model";
+import {TradeSample} from "../discovery/src/trade-sample-model";
 import attentionPaths from "../discovery/openapi-attention-paths.json";
 import { z } from "zod";
 import { GmgnPublicSummarySchema } from "../discovery/src/gmgn-model";
@@ -189,6 +190,7 @@ const spec = {
     ActivityObservation:z.toJSONSchema(ActivityObservation,{unrepresentable:"any"}),
     RecentActivity:z.toJSONSchema(RecentActivity,{unrepresentable:"any"}),
     HolderParticipation:z.toJSONSchema(HolderParticipation,{unrepresentable:"any"}),
+    TradeSample:z.toJSONSchema(TradeSample,{unrepresentable:"any"}),
     DiscoveryComparison:z.toJSONSchema(DiscoveryComparison,{unrepresentable:"any"}),
     GmgnSummary: z.toJSONSchema(GmgnPublicSummarySchema),
     GmgnRpcComparison:z.toJSONSchema(GmgnCorroborationReportSchema),

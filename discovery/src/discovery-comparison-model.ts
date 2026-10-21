@@ -6,10 +6,11 @@ import {hashJson} from "./solana";
 import {RecentActivity} from "./recent-activity-model";
 import {verifyRecentActivity} from "./recent-activity";
 import {HolderParticipation,verifyHolderParticipation} from "./holder-participation-model";
+import {TradeSample,verifyTradeSample} from "./trade-sample-model";
 
 export const ComparisonAddresses=z.array(Address).min(1).max(3).refine(a=>new Set(a).size===a.length,"comparison_duplicate_mints");
 const Hash=z.string().regex(/^[a-f0-9]{64}$/);
-export const ComparisonRow=z.object({address:Address,state:z.enum(["available","not_found","held"]),candidate:CandidateCardSchema.nullable(),candidate_hash:Hash.nullable(),observations:z.array(ActivityObservation).max(20),gaps:z.array(z.string().max(100)).max(12),recent_activity:RecentActivity.optional(),holder_participation:HolderParticipation.optional()}).strict();
+export const ComparisonRow=z.object({address:Address,state:z.enum(["available","not_found","held"]),candidate:CandidateCardSchema.nullable(),candidate_hash:Hash.nullable(),observations:z.array(ActivityObservation).max(20),gaps:z.array(z.string().max(100)).max(12),recent_activity:RecentActivity.optional(),holder_participation:HolderParticipation.optional(),trade_sample:TradeSample.optional()}).strict();
 export const DiscoveryComparison=z.object({version:z.literal("discovery-comparison-v1"),cutoff_at:z.string().datetime(),mode:z.enum(["live","fixture"]),addresses:ComparisonAddresses,
   rows:z.array(ComparisonRow).min(1).max(3),report_hash:Hash,alignment:z.literal("shared_read_cutoff_source_windows_differ"),source_authenticity:z.literal("not_independently_verified"),
   scoring_model:z.literal("discovery-score-v4"),activity_scoring_effect:z.literal("none"),evidence_gates_changed:z.literal(false),provider_requests:z.literal(0),database_writes:z.literal(0)}).strict();
@@ -21,6 +22,7 @@ export async function verifyDiscoveryComparison(raw:unknown){
   for(const row of report.rows){
     if(row.recent_activity){const recent=await verifyRecentActivity(row.recent_activity);if(recent.address!==row.address||recent.cutoff_at!==report.cutoff_at||(report.mode==="fixture"?recent.state!=="simulation":recent.state==="simulation"))throw Error("comparison_recent_activity_mismatch");}
     if(row.holder_participation){const p=await verifyHolderParticipation(row.holder_participation);if(p.address!==row.address||p.cutoff_at!==report.cutoff_at||(report.mode==="fixture"?p.state!=="simulation":p.state==="simulation"))throw Error("comparison_holder_participation_mismatch");}
+    if(row.trade_sample){const sample=await verifyTradeSample(row.trade_sample);if(sample.address!==row.address||sample.cutoff_at!==report.cutoff_at||(report.mode==="fixture"?sample.state!=="simulation":sample.state==="simulation"))throw Error("comparison_trade_sample_mismatch");}
     if(row.candidate&&(row.candidate.address!==row.address||row.candidate.mode!==report.mode||row.candidate.discovery_rank!==undefined||row.candidate.discovery_score?.version!=="discovery-score-v4"||row.candidate.discovery_score.as_of!==report.cutoff_at))throw Error("comparison_candidate_mismatch");
     const keys=new Set<string>();
     for(const observation of row.observations){

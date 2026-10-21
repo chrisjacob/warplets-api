@@ -1,5 +1,7 @@
 # PRD implementation checkpoint and next tasks
 
+Trading breadth, 22 October: [signed trade sample comparison](90-signed-trading-sample.md) implements F3's recent native-flow/breadth slice using existing saved transaction evidence. It distinguishes buyers/sellers, missing quote totals, repeated known sizes and overlap while retaining actual source windows, stale status and all gates. Population independence, qualified 24h volume/growth and scoring promotion remain open. No collection, migration or deploy; production stays thesis-only.
+
 Broad coverage, 22 October: [rotation coverage and recorded request accounting](89-broad-rotation-coverage.md) implements F1's cross-day coverage visibility: fourteen UTC days, full frozen inventory counts, selected/new investigation denominators, endpoint gaps and prior shared-baseline usage. Quality certification and the thirty-mint/three-day observation goal remain open. No provider request, new collection, migration, scoring change or deploy; production remains closed under milestone 88.
 
 Release preparation, 22 October: [thesis-only production gate](88-thesis-only-production-release.md) is implemented at browser routing/menu, build import and Pages middleware boundaries. Production defaults closed, root/thesis remains useful, hidden links recover home and `/api/10x` rejects before IO. Checked upload scripts/CI reject unfinished assets. Local PRD development and all evidence/action gates remain; no migration or deployment performed. Public 10X product opening is a later explicit release decision.

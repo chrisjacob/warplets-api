@@ -74,7 +74,10 @@ function interval(context:Context,delta:NonNullable<HolderHistoryReport["since_f
   return HolderParticipationInterval.parse({...base,status:"measured_sample",signed_net_buy_entrants:signed,screened_retained_entrants:partitions.supported,partitions,gaps:["unmatched_entrants_are_unknown_not_dust_proven","absence_of_observed_links_not_independence",...boundaryGaps]});
 }
 export async function reviewHolderParticipation(raw:unknown){
-  const context=await reviewHolderAcquisitionData(raw),{report,history}=context,cutoff=Date.parse(history.cutoff_at),latest=history.snapshots.at(-1)?.observed_at??null;
+  return reviewHolderParticipationContext(await reviewHolderAcquisitionData(raw));
+}
+export async function reviewHolderParticipationContext(context:Context){
+  const {report,history}=context,cutoff=Date.parse(history.cutoff_at),latest=history.snapshots.at(-1)?.observed_at??null;
   const fresh=latest&&report.wallet_observed_at&&cutoff-Date.parse(latest)<=P.inventory_fresh_seconds*1000&&cutoff-Date.parse(report.wallet_observed_at)<=P.wallet_fresh_seconds*1000;
   const sourceGaps=context.analysis?.gaps.filter(g=>["transactions_missing_or_unsupported","transaction_not_certified_for_trade_analysis","trade_user_not_transaction_signer","native_quote_amount_unmeasured","amm_quote_transfer_unverified","noncanonical_trade_accounts","trade_token_owner_unverified","buyer_funding_histories_not_all_sampled","pre_buy_funding_coverage_partial","second_hop_coverage_partial","creation_wallets_unverified"].includes(g))??[];
   return freezeHolderParticipation({version:"holder-participation-v1",address:history.address,cutoff_at:history.cutoff_at,state:"available",policy:P.version,policy_hash:await hashJson(P),history_hash:history.report_hash,acquisition_hash:report.report_hash,input_hash:report.input_hash,

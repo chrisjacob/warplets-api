@@ -10,6 +10,7 @@ import {reviewRecentActivity,unavailableRecentActivity} from "./recent-activity"
 import {holderHistory} from "./holder-history-store";
 import {holderParticipation} from "./holder-participation-store";
 import {unavailableHolderParticipation} from "./holder-participation";
+import {unavailableTradeSample} from "./trade-sample";
 import {GmgnWalletActivitySchema} from "./gmgn-wallet-activity";
 import {gmgnSavedReview} from "./gmgn";
 import {gmgnActivitySelection} from "./gmgn-activity-selection";
@@ -24,6 +25,7 @@ export async function commonActivityBundle(db:D1Database,candidate:Candidate,at:
   const address=candidate.address,cutoff_at=at.toISOString(),records:ActivityObservation[]=[];
   let recent=await unavailableRecentActivity(address,at,candidate.mode==="fixture"?"simulation":"missing",candidate.mode==="fixture"?"synthetic_source_not_collected":"no_retained_candle_window");
   let participation=await unavailableHolderParticipation(address,at,candidate.mode==="fixture"?"simulation":"missing",candidate.mode==="fixture"?"synthetic_source_not_collected":"holder_history_unavailable");
+  let trades=await unavailableTradeSample(address,at,candidate.mode==="fixture"?"simulation":"missing",candidate.mode==="fixture"?"synthetic_source_not_collected":"wallet_source_unavailable");
   const make=(metric:Metric,source:ActivityObservation["source"],unit:ActivityObservation["unit"],patch:Partial<ActivityObservation>={})=>activityObservation({address,cutoff_at,metric,source,unit},patch);
   const issue=(metrics:[Metric,ActivityObservation["unit"]][],source:ActivityObservation["source"],gap:string,qualification:ActivityObservation["qualification"]="rejected",references:ActivityRef[]=[],patch:Partial<ActivityObservation>={})=>metrics.map(([metric,unit])=>make(metric,source,unit,{qualification,references,gaps:[gap],...patch}));
   const infoMetrics:[Metric,ActivityObservation["unit"]][]=[["token_reported_volume_24h","USD"],["token_reported_volume_1h","USD"],["token_reported_holders","owners"]];
@@ -71,11 +73,14 @@ export async function commonActivityBundle(db:D1Database,candidate:Candidate,at:
     }catch{records.push(...issue(candleMetrics,"gmgn","candle_window_integrity_or_schema_failed"));recent=await unavailableRecentActivity(address,at,"rejected","candle_window_integrity_or_schema_failed");}
     try{
       const {report,inputs}=await holderHistory(db,address,at),delta=report.since_first,poolMismatch=report.snapshots.some(s=>s.pool!==candidate.pool);
-      try{participation=poolMismatch?await unavailableHolderParticipation(address,at,"rejected","holder_pool_differs_from_candidate"):(await holderParticipation(db,address,at,inputs)).report;}
-      catch{participation=await unavailableHolderParticipation(address,at,"rejected","holder_acquisition_integrity_or_schema_failed");}
+      try{
+        if(poolMismatch){participation=await unavailableHolderParticipation(address,at,"rejected","holder_pool_differs_from_candidate");trades=await unavailableTradeSample(address,at,"rejected","holder_pool_differs_from_candidate");}
+        else{const bundle=await holderParticipation(db,address,at,inputs);participation=bundle.report;trades=bundle.trades;}
+      }
+      catch{participation=await unavailableHolderParticipation(address,at,"rejected","holder_acquisition_integrity_or_schema_failed");trades=await unavailableTradeSample(address,at,"rejected","wallet_acquisition_integrity_or_schema_failed");}
       const refs:ActivityRef[]=report.snapshots.map(s=>({kind:"holder_inventory",id:s.payload_hash,hash:s.payload_hash,integrity:"archived_hash_verified"}));
       records.push(make("raw_owner_net_change","solana-finalized-rpc","owners",{value:delta?.status==="measured"&&!poolMismatch?delta.net_change:null,qualification:delta?.status==="measured"&&!poolMismatch?"supported_sample":report.snapshots.length?"held":"missing",window:delta?{kind:"observed_interval",start_at:delta.start_at,end_at:delta.end_at,duration_seconds:delta.duration_seconds}:{kind:"unavailable",start_at:null,end_at:null,duration_seconds:null},fetched_at:delta?.end_at??report.snapshots.at(-1)?.observed_at??null,freshness:activityFreshness(cutoff_at,delta?.end_at??null,null,1800),coverage:coverage("raw_positive_balance_starting_owners",report.snapshots.length,null,report.status==="available"?"partial":"unknown",delta?.starting_owners??null),references:refs,gaps:[...report.gaps,...delta?.gaps??[],"raw_owner_changes_not_qualified_holder_growth","observed_interval_not_trailing_24h",...poolMismatch?["holder_pool_differs_from_candidate"]:[]]}));
-    }catch{records.push(...issue([["raw_owner_net_change","owners"]],"solana-finalized-rpc","holder_history_integrity_or_schema_failed"));participation=await unavailableHolderParticipation(address,at,"rejected","holder_history_integrity_or_schema_failed");}
+    }catch{records.push(...issue([["raw_owner_net_change","owners"]],"solana-finalized-rpc","holder_history_integrity_or_schema_failed"));participation=await unavailableHolderParticipation(address,at,"rejected","holder_history_integrity_or_schema_failed");trades=await unavailableTradeSample(address,at,"rejected","holder_history_integrity_or_schema_failed");}
     try{
       const latest=await latestGmgn(db,address,"gmgn_wallet_activity",at);
       if(latest.state!=="available")records.push(...issue(walletMetrics,"gmgn",latest.gap,latest.state,latest.reference?[latest.reference]:[],{fetched_at:latest.fetched_at??null,freshness:activityFreshness(cutoff_at,latest.fetched_at??null)}));
@@ -91,7 +96,7 @@ export async function commonActivityBundle(db:D1Database,candidate:Candidate,at:
     }catch{records.push(...issue(walletMetrics,"gmgn","wallet_activity_integrity_or_selection_failed"));}
   }
   for(const[metric,unit,gap]of [["organic_volume_24h","USD","organic_volume_qualification_not_established"],["meaningful_holder_growth_24h","owners","acquisition_and_retention_qualification_not_established"],["attention_momentum","index","cross_token_attention_qualification_not_established"]] as const)records.push(make(metric,"unavailable",unit,{qualification:"held",gaps:[gap,"no_score_adoption"]}));
-  return {records,recent,participation};
+  return {records,recent,participation,trades};
 }
 export async function commonActivity(db:D1Database,candidate:Candidate,at:Date){return (await commonActivityBundle(db,candidate,at)).records;}
 

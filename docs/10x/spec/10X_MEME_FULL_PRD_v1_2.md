@@ -235,6 +235,8 @@ Create interface `GraduationVerifier`: `{ chain, launchpadId, mintedAt, graduate
 
 ### 4.7 Graded discovery — v1.2 founder direction and implementation plan
 
+**22 October trading-sample checkpoint:** [Recent signed trade samples](../90-signed-trading-sample.md) add dated sampled buyers/sellers, exact SOL/WSOL protocol quote totals and equal-known-size/buy-sell overlap measurements to comparison. Unknown quotes/finality, stale sources and short young-token windows remain explicit. No population, organic-demand, wash verdict or scoring credit is inferred; frozen v4, all evidence/action gates and thesis-only production closure remain.
+
 **22 October coverage checkpoint:** [Broad rotation coverage](../89-broad-rotation-coverage.md) tracks selected/new mints, endpoint gaps and operational collection states over fourteen UTC days using cached manifests/metadata only. Counts do not establish receipt validity, organic activity, the broad-cohort quality target or scoring promotion. V4, all evidence/action gates and the thesis-only production release flag remain unchanged.
 
 **21 October founder counterexample correction:** [Kimchi positive-runner reference](../87-kimchi-positive-counterexample.md) retires the standalone $10M-within-24h warning. Rapid valuation growth alone does not distinguish manipulation; concentrated strategic/KOL allocations may coexist with successful attention. Keep performance, ownership/control, acquisition/retention and integrity labels separate. Require comparable successful/failing controls and false-positive review in F4; founder-selected historical examples never become unseen holdout or safe/organic ground truth. Frozen v4 and all action/evidence gates remain; no token-specific exemption or deploy.

@@ -3,6 +3,7 @@ import {DatabaseSync} from "node:sqlite";
 import {readFileSync,readdirSync} from "node:fs";
 import {sqliteD1} from "../../app/functions/_lib/sqliteTestDb";
 import {fixtureCandidates} from "./fixtures";
+import {unavailableTradeSample} from "./trade-sample";
 import {key,signature} from "./wallet-fixtures.test-helper";
 import type {Candidate} from "./model";
 import {ActivityObservation,activityObservation,activityRecordKey} from "./activity-observation";
@@ -93,6 +94,16 @@ describe("three-token cached comparison",()=>{
     expect((await discoveryComparison(db,[candidate.address],"live",at)).rows[0]).toMatchObject({state:"held",candidate:null,observations:[]});
     sqlite.prepare("UPDATE tenx_candidates SET payload=json_set(payload,'$.checked_at',?)").run(at.toISOString());sqlite.prepare("UPDATE tenx_market_history SET payload=json_set(payload,'$.fetched_at','2000-01-01T00:00:00.000Z')").run();
     const report=await discoveryComparison(db,[candidate.address],"live",at);expect(report.rows[0]).toMatchObject({state:"available",candidate:null,gaps:["score_inputs_unusable_grade_withheld"]});expect(report.rows[0]!.observations).toHaveLength(13);
+  });
+  it("preserves comparisons without the additive trade sample and binds new samples to the shared mint/cutoff",async()=>{
+    const {db,candidate}=await setup();await put(db,candidate);
+    const report=await discoveryComparison(db,[candidate.address],"live",at);
+    expect(report.rows[0]!.trade_sample).toMatchObject({address:candidate.address,cutoff_at:at.toISOString(),state:"missing"});
+    const {report_hash:_,...legacy}={...report,rows:report.rows.map(({trade_sample:omitted,...row})=>row)};
+    expect(await verifyDiscoveryComparison({...legacy,report_hash:await hashJson(legacy)})).toMatchObject({rows:expect.any(Array)});
+    const wrong=await unavailableTradeSample(key(99),at,"missing","test_missing");
+    const {report_hash:old,...bad}={...report,rows:report.rows.map(row=>({...row,trade_sample:wrong}))};
+    await expect(verifyDiscoveryComparison({...bad,report_hash:await hashJson(bad)})).rejects.toThrow("comparison_trade_sample_mismatch");
   });
   it("isolates fixture mode and rejects excessive/duplicate/arbitrary API scope before provider IO",async()=>{
     const {db,candidate}=await setup();await put(db,candidate);await put(db,{...candidate,mode:"fixture"});
