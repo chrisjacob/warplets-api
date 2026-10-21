@@ -1,3 +1,4 @@
+import { NETWORK_CURRENT_COHORT } from './cohort';
 import { importNetworkActivity } from './activity';
 import { NETWORK_CONTRACT, NETWORK_DEPLOY_BLOCK } from '../../../shared/network/model';
 import { networkIdentity, normalizeNetworkProfile } from '../../../shared/network/normalize';
@@ -114,7 +115,7 @@ export async function advanceNetwork(env: NetworkEnv, options: { publish?: boole
       // Backfill missing/current observations before routine age-based refreshes;
       // an observed empty description is complete, not a reason to refetch.
       const missingLocation = '(g.fid IS NULL OR g.observed_at<>p.observed_at)';
-      const cohort=options.locationBackfillOnly?'SELECT fid FROM network_events UNION SELECT fid FROM network_confirmed':'SELECT fid FROM network_events UNION SELECT fid FROM network_candidates UNION SELECT fid FROM network_confirmed';
+      const cohort=options.locationBackfillOnly?NETWORK_CURRENT_COHORT:'SELECT fid FROM network_events UNION SELECT fid FROM network_candidates UNION SELECT fid FROM network_confirmed';
       const needsRefresh=options.locationBackfillOnly?`${missingLocation} AND p.observed_at>=?`:`p.fid IS NULL OR p.observed_at<? OR ${missingLocation}`;
       const rows = await db.prepare(`SELECT s.fid FROM (${cohort}) s LEFT JOIN network_profiles p ON p.fid=s.fid LEFT JOIN network_profile_failures f ON f.fid=s.fid LEFT JOIN network_profile_locations g ON g.fid=s.fid WHERE (${needsRefresh}) AND (f.fid IS NULL OR f.retry_after<?) ORDER BY CASE WHEN p.fid IS NOT NULL AND p.country IS NULL AND ${missingLocation} THEN 0 WHEN p.fid IS NULL THEN 1 WHEN ${missingLocation} THEN 2 ELSE 3 END,COALESCE(p.observed_at,0),s.fid LIMIT ?`)
         .bind(options.locationBackfillOnly?0:Date.now() - refresh, Date.now(), bounded(env.NETWORK_PROFILE_BATCH, 20, 100)).all<{ fid: number }>();
@@ -155,7 +156,7 @@ export async function advanceNetwork(env: NetworkEnv, options: { publish?: boole
       try { await importNetworkActivity(env); }
       catch { await syncSet(db,'activity_failure',{at:Date.now(),message:'Activity source unavailable or budget reached; positive observations retained'}); }
     }
-    const snapshot = await publishSnapshot(db, options.publish);
+    const snapshot = options.locationBackfillOnly && profilesSaved===0 ? null : await publishSnapshot(db, options.publish);
     await syncSet(db, 'last_success', { at: Date.now(), eventsSaved, profilesSaved });
     return { status: 'advanced', eventsSaved, profilesSaved, snapshot: snapshot?.id ?? null };
   } catch (error) {

@@ -6,7 +6,7 @@ import{alchemyRead,alchemyWalletBalances,alchemyTokenMetadata}from'./alchemy';
 import{importWalletValue,NATIVE_ASSET,type WalletEnv}from'./wallets';
 const instances:DatabaseSync[]=[];
 const wallet='0x'+'1'.repeat(40),token='0x'+'2'.repeat(40),spam='0x'+'3'.repeat(40);
-function fixture(){const db=new DatabaseSync(':memory:');instances.push(db);for(const file of ['0095_network.sql','0096_network_members.sql','0097_network_wallets.sql','0098_network_activity.sql','0099_network_alchemy.sql','0100_network_geography.sql','0101_network_geography_matching.sql','0102_network_warplet_holders.sql'])db.exec(readFileSync(new URL(`../../../../migrations/${file}`,import.meta.url),'utf8'));return{db,env:{WARPLETS:sqliteD1(db),ALCHEMY_API_KEY:'test-key-secret-12345',NETWORK_ALCHEMY_CU:'10000'}as WalletEnv};}
+function fixture(){const db=new DatabaseSync(':memory:');instances.push(db);for(const file of ['0095_network.sql','0096_network_members.sql','0097_network_wallets.sql','0098_network_activity.sql','0099_network_alchemy.sql','0100_network_geography.sql','0101_network_geography_matching.sql','0102_network_warplet_holders.sql'])db.exec(readFileSync(new URL(`../../../../migrations/${file}`,import.meta.url),'utf8'));db.exec("INSERT INTO network_profiles(fid,location_status,token_status,opt_in_status,observed_at) VALUES(1,'unknown','none','opted_in',1),(2,'unknown','none','opted_in',1)");return{db,env:{WARPLETS:sqliteD1(db),ALCHEMY_API_KEY:'test-key-secret-12345',NETWORK_ALCHEMY_CU:'10000'}as WalletEnv};}
 const rpc=(result:unknown)=>Response.json({jsonrpc:'2.0',id:1,result});
 afterEach(()=>{vi.unstubAllGlobals();for(const db of instances.splice(0))db.close();});
 describe('Alchemy free-tier guardrails',()=>{

@@ -27,8 +27,8 @@ while(!stopping){
   log({event:'daily_budget_pause',resumeAt:new Date(Date.now()+delay).toISOString()});
  }else if(/Alchemy HTTP (429|402|403)|Alchemy RPC request rejected/.test(failure)||['cooldown','waiting'].includes(lastStatus)){
   delay=3_600_000;log({event:'source_pause',minutes:60});
- }else if(code!==0){log({event:'stopped',reason:'Importer failed; inspect the local error log'});process.exitCode=1;break;}
+ }else if(code!==0){delay=900_000;log({event:'import_retry_pause',minutes:15,reason:'Importer failed; previous values retained; inspect the local error log'});}
  else if(lastStatus==='complete'){delay=86_400_000;log({event:'caught_up',nextCheckHours:24});}
- else if(lastStatus==='busy'){log({event:'stopped',reason:'Another wallet importer is running'});break;}
+ else if(lastStatus==='busy'){delay=60_000;log({event:'lease_pause',minutes:1});}
  await sleep(delay);
 }

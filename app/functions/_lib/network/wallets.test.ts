@@ -1,3 +1,4 @@
+import { decodeNetworkSnapshot } from './snapshot';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DatabaseSync } from 'node:sqlite';
 import { readFileSync } from 'node:fs';
@@ -51,6 +52,18 @@ describe('wallet valuation and top holdings',()=>{
     expect(au.economics.totalUsd).toBe('130.00000000');expect(au.economics.unallocatedUsd).toBe('0.00000000');
     expect((await readNetworkMembers(env.WARPLETS,new URLSearchParams({held:NATIVE_ASSET}))).members.map(m=>m.fid)).toEqual([1]);
   });
+  it('never spends on excluded members and keeps the last OG FID distinct from the first new FID',async()=>{
+    const {db,env}=fixture();const {NETWORK_OG_LAST_FID}=await import('../../../shared/network/model');
+    db.exec("UPDATE network_profiles SET opt_in_status='opted_out'");
+    const fetcher=vi.fn();vi.stubGlobal('fetch',fetcher);
+    expect((await importWalletValue(env)).status).toBe('complete');expect(fetcher).not.toHaveBeenCalled();
+    for(const fid of [NETWORK_OG_LAST_FID,NETWORK_OG_LAST_FID+1]){
+      db.prepare('INSERT INTO network_confirmed(fid,observed_at) VALUES(?,1)').run(fid);
+      db.prepare("INSERT INTO network_profiles(fid,location_status,token_status,opt_in_status,observed_at) VALUES(?,'unknown','none','opted_in',1)").run(fid);
+    }
+    const snapshot=await publishSnapshot(env.WARPLETS,true);
+    expect(snapshot?.population).toBe(2);expect(snapshot?.cells.map(c=>c.ogMember).sort()).toEqual([false,true]);
+  });
   it('keeps pending wallets, ambiguous wallets and accounts without wallets distinct',async()=>{
     const {env}=fixture();const snapshot=await publishSnapshot(env.WARPLETS,true);
     for(const [held,fids] of [['unavailable',[4]],['ambiguous',[2,3]],['none',[5]]] as const){
@@ -86,7 +99,7 @@ describe('wallet valuation and top holdings',()=>{
     db.prepare('INSERT INTO network_asset_prices VALUES(?,?,?)').run(NATIVE_ASSET,JSON.stringify({price:50,confidence:.99,timestamp:Math.floor(Date.now()/1000)}),Date.now());
     const newer=await publishSnapshot(env.WARPLETS,true);
     expect(buildNetworkDashboard(newer,parseNetworkFilters(new URLSearchParams())).economics.totalUsd).toBe('170.00000000');
-    expect(buildNetworkDashboard(JSON.parse(String(db.prepare('SELECT payload FROM network_snapshots WHERE id=?').get(initial!.id)?.payload)),parseNetworkFilters(new URLSearchParams())).economics.totalUsd).toBe('220.00000000');
+    expect(buildNetworkDashboard(await decodeNetworkSnapshot(String(db.prepare('SELECT payload FROM network_snapshots WHERE id=?').get(initial!.id)?.payload)),parseNetworkFilters(new URLSearchParams())).economics.totalUsd).toBe('220.00000000');
     expect(db.prepare('SELECT observed_at FROM network_wallet_values WHERE address=?').get(address(1))?.observed_at).toBe(before?.observed_at);
     expect(db.prepare('SELECT usd_units FROM network_wallet_values WHERE address=?').get(address(1))?.usd_units).toBe(units(40));
   });

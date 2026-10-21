@@ -24,16 +24,26 @@ db.exec(readFileSync(resolve(root, 'migrations/0101_network_geography_matching.s
 db.exec(readFileSync(resolve(root, 'migrations/0102_network_warplet_holders.sql'), 'utf8'));
 // Local counterpart of D1's prepared statements and atomic batch. All changes
 // are restricted to network_* tables; unrelated migration state is untouched.
+let inBatch=false;
+async function waitForPublicRead(){
+  // Workerd's emulator and Node SQLite share this file locally. Give a public
+  // read a bounded window before the next write; no provider or production change.
+  for(let i=0;i<1500;i++){
+    let until=0;try{until=Number(readFileSync(resolve(root,'.tmp/network-public-read-lease'),'utf8'));}catch{}
+    if(!Number.isFinite(until)||until<=Date.now())return;
+    await new Promise(resolve=>setTimeout(resolve,20));
+  }
+}
 function prepare(sql: string) {
   let values: (string | number | null)[] = [];
   return {
     bind(...args: (string | number | null)[]) { values = args; return this; },
-    async first(column?: string) { const row = db.prepare(sql).get(...values); return row ? column ? row[column] : row : null; },
-    async all() { return { success: true, results: db.prepare(sql).all(...values), meta: {} }; },
-    async run() { const r = db.prepare(sql).run(...values); return { success: true, results: [], meta: { changes: Number(r.changes) } }; },
+    async first(column?: string) { if(!inBatch&&/^\s*(INSERT|UPDATE|DELETE|REPLACE)\b/i.test(sql))await waitForPublicRead(); const row = db.prepare(sql).get(...values); return row ? column ? row[column] : row : null; },
+    async all() { if(!inBatch&&/^\s*(INSERT|UPDATE|DELETE|REPLACE)\b/i.test(sql))await waitForPublicRead(); return { success: true, results: db.prepare(sql).all(...values), meta: {} }; },
+    async run() { if(!inBatch)await waitForPublicRead(); const r = db.prepare(sql).run(...values); return { success: true, results: [], meta: { changes: Number(r.changes) } }; },
   };
 }
-const d1 = { prepare, async batch(statements: ReturnType<typeof prepare>[]) { db.exec('BEGIN IMMEDIATE'); try { const results = []; for (const s of statements) results.push(await s.run()); db.exec('COMMIT'); return results; } catch (e) { db.exec('ROLLBACK'); throw e; } } } as unknown as D1Database;
+const d1 = { prepare, async batch(statements: ReturnType<typeof prepare>[]) { await waitForPublicRead(); db.exec('BEGIN IMMEDIATE'); inBatch=true; try { const results = []; for (const s of statements) results.push(await s.run()); db.exec('COMMIT'); return results; } catch (e) { db.exec('ROLLBACK'); throw e; } finally {inBatch=false;} } } as unknown as D1Database;
 const secrets = { ...process.env };
 for (const file of ['.dev.vars','app/.dev.vars']) { try { for (const line of readFileSync(resolve(root,file),'utf8').split(/\r?\n/)) { const match=line.match(/^([A-Z][A-Z0-9_]*)\s*=\s*(.*)$/); if(match&&!secrets[match[1]]) secrets[match[1]]=match[2].trim().replace(/^(["'])(.*)\1$/,'$2'); } } catch {} }
 const env: WalletEnv = { WARPLETS: d1, NETWORK_INGEST_ENABLED: 'true', NETWORK_RPC_URL: process.env.NETWORK_RPC_URL ?? 'https://1rpc.io/base', ALCHEMY_API_KEY: secrets.ALCHEMY_API_KEY, NETWORK_ALCHEMY_CU: secrets.NETWORK_ALCHEMY_CU, NEYNAR_API_KEY: secrets.NEYNAR_API_KEY, NETWORK_WALLET_CREDITS: secrets.NETWORK_WALLET_CREDITS, NETWORK_WALLETS_ENABLED: secrets.NETWORK_WALLETS_ENABLED,
@@ -91,7 +101,7 @@ try {
       const scan = cursor ? JSON.parse(String(cursor)) : null;
       if (flag('--scan') && scan && scan.block >= scan.target) break;
       if(flag('--location-backfill') && result.status==='busy') break;
-      if ((flag('--profiles') || flag('--location-backfill')) && result.status === 'advanced' && result.profilesSaved === 0) { await publishSnapshot(d1, true); break; }
+      if ((flag('--profiles') || flag('--location-backfill')) && result.status === 'advanced' && result.profilesSaved === 0) { if(!flag('--location-backfill'))await publishSnapshot(d1, true); break; }
     }
   }
   console.log(JSON.stringify({ signers: db.prepare('SELECT COUNT(*) AS n FROM (SELECT fid FROM network_events UNION SELECT fid FROM network_confirmed)').get()?.n,

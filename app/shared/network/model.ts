@@ -1,5 +1,9 @@
 import type { NetworkManMonths } from './activity';
 export const NETWORK_CONTRACT = '0x4ecfed276c566aeb49da1f3a888e8dbb7263028d';
+// Registry state immediately before the first verified OptInMinted event.
+// Full block, timestamp and source provenance: docs/network/MEMBERSHIP.md.
+export const NETWORK_OG_LAST_FID = 3354552;
+export const NETWORK_PLEDGE_LAUNCH_AT = 1792001447000;
 export const NETWORK_DEPLOY_BLOCK = 52601136;
 export const NETWORK_ACCEPTANCE_TOPIC = '0xb51e0080591358c6acd543e4989b2cc178707c6d20c9218e83f2af19a8a1e315';
 // keccak256('OptInMinted(uint256,address)'), both arguments indexed.
@@ -9,12 +13,12 @@ export function isNetworkRoute(host: string, path: string) { return NETWORK_HOST
 export type NetworkVote = 'opted_in' | 'opted_out' | 'pending' | 'moderated_out' | 'unavailable';
 export interface NetworkPlace { id: string; name: string; country: string; state?: string; lat?: number; lon?: number }
 export interface NetworkWarplets { status: 'ready' | 'unavailable'; calculatedAt: number; sourceUpdatedAt: number | null; tokens: number; resolvedTokens: number; unresolvedTokens: number; holderFids: number }
-export interface NetworkCell { warpletHolder?: boolean; state?: string | null; city?: string | null; country: string | null; location: 'known' | 'unknown' | 'unavailable'; token: string | null; tokenStatus: 'assigned' | 'none' | 'unavailable'; vote: NetworkVote; acceptedDay: string | null; count: number; held?: string; walletUsdUnits?: string; portfolioValues?: string[]; activityMonths?: string[] }
+export interface NetworkCell { ogMember?: boolean; warpletHolder?: boolean; state?: string | null; city?: string | null; country: string | null; location: 'known' | 'unknown' | 'unavailable'; token: string | null; tokenStatus: 'assigned' | 'none' | 'unavailable'; vote: NetworkVote; acceptedDay: string | null; count: number; held?: string; walletUsdUnits?: string; portfolioValues?: string[]; activityMonths?: string[] }
 export interface WalletSnapshot { balanceRefreshHours?: number; associationsObserved: number; expectedWallets: number; measuredWallets: number; unallocatedUsdUnits: string; oldestBalanceAt: number | null; latestBalanceAt: number | null; oldestPriceAt: number | null; excludedBalances: number; tokens: NetworkToken[] }
 export interface NetworkEconomics { status: 'unavailable' | 'partial' | 'ready'; chain: 'Base'; reason: string; totalUsd?: string; attributedUsd?: string; unallocatedUsd?: string; averageUsd?: string | null; medianUsd?: string | null; measuredAccounts?: number; coverage?: WalletSnapshot; stale?: boolean }
 export interface NetworkToken { id: string; name: string; symbol: string }
 export interface NetworkSnapshot {
-  id: string; createdAt: number; cohort: 'acceptance-signers'; chain: 'Base';
+  id: string; createdAt: number; cohort: 'acceptance-signers' | 'currently-opted-in'; chain: 'Base';
   scan: { fromBlock: number; throughBlock: number; targetBlock: number; complete: boolean };
   population: number; profilesObserved: number; profileOldestAt: number | null;
   sources?: { chainVerified: number; officialConfirmed: number; candidates: number; candidatesObserved: number };
@@ -44,7 +48,7 @@ export interface NetworkDashboard {
 }
 export const NETWORK_METHODOLOGY = [
   'Man-Months sum distinct FID / UTC calendar-month pairs. The original pledge-signing month counts once. Later months require a timestamped Farcaster protocol action after signing, including posts, replies, reactions, follows, profile updates and verifications. Ordinary wallet transfers are excluded. Missing activity is unresolved, not churn; incomplete totals are lower bounds. Historical selections stop at their snapshot timestamp. Current profile filters describe the selected members, not their past profile attributes.',
-  'Population is distinct FIDs accepted through either original onchain mint evidence or official client opt-in confirmation of a FID from the contract tracker signer list. Tracker candidates alone are never counted. Independent chain reconciliation coverage is shown separately. This is not all Farcaster accounts, current NFT holders, or unique humans.',
+  'Population includes only currently opted-in FIDs with either original onchain mint evidence or official client opt-in confirmation of a FID from the contract tracker signer list. Opt-outs, moderation restrictions and unobserved current statuses are excluded from this dataset. Tracker candidates alone are never counted. Independent chain reconciliation coverage is shown separately. This is not all Farcaster accounts, current NFT holders, or unique humans.',
   'Signing history establishes acceptance at that time. Current client status is observed separately; rejection, moderation and missing status are never inferred from NFT ownership.',
   'Public location descriptions are matched to country, state and city only when unambiguous. GeoNames (CC BY 4.0) supplies canonical names and city centers; Natural Earth supplies public-domain map boundaries. Country-only and unresolved finer locations remain separate. Profiles not yet retrieved are unavailable, separate from retrieved profiles with unknown or unresolvable locations.',
   '10X Warplet holder filtering uses the Warplets app’s saved ownership records and cached wallet/FID associations. Recorded transfers override original airdrop allocations; ambiguous wallet identities are excluded. No new onchain lookups are made. Ownership is last recorded, not a live chain guarantee. This filter applies only to Latest.',

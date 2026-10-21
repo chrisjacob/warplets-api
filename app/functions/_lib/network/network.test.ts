@@ -78,6 +78,11 @@ describe('durable storage and bounded ingestion', () => {
     await expect(reserveRequest(env,'official-client')).rejects.toThrow('budget');
     expect(db.prepare('SELECT SUM(attempts) n FROM network_budgets').get()?.n).toBe(100000);
   });
+  it('does not publish duplicate snapshots while location backfill has no work',async()=>{
+    const {env,db}=database();
+    for(let i=0;i<2;i++)expect(await advanceNetwork(env,{locationBackfillOnly:true,publish:true})).toMatchObject({status:'advanced',profilesSaved:0,snapshot:null});
+    expect(db.prepare('SELECT COUNT(*) n FROM network_snapshots').get()?.n).toBe(0);
+  });
   it('has no side effects while disabled', async () => { const { env, db } = database(); env.NETWORK_INGEST_ENABLED = 'false'; expect(await advanceNetwork(env)).toEqual({ status: 'disabled' }); expect(db.prepare('SELECT COUNT(*) AS n FROM network_budgets').get()?.n).toBe(0); });
   it('replays orphaned events and invalidates affected historical snapshots on a reorg', async () => {
     const { env, db } = database(), block = NETWORK_DEPLOY_BLOCK + 49;
