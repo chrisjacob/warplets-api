@@ -1,5 +1,7 @@
 # Local evidence archive and verified restore
 
+22 October extension: [101 — compressed archive and Free-capacity checkpoint](101-compressed-archive-and-free-capacity.md) adds the separate `scripts/discovery-archive-pack.mjs pack/verify/unpack` workflow for an additional smaller private representation of a fully verified archive. The original archive/restore commands and pins below remain valid and unchanged. No old copy is replaced or evicted; gzip is not encryption or live-store adoption.
+
 22 October 2026 (Australia/Sydney). Implements the storage-recovery slice of F5 in the [daily product plan](82-next-product-functionality-plan.md). This is an operator tool, with no new public route, provider request, collection schedule, migration or deployment.
 
 `scripts/discovery-archive.mjs` exports the **complete local Discovery SQLite database**, including all retained evidence, old scoring versions, outcomes, rotation manifests, failed attempts, quotas, leases, identity and content records. There is no allowlist that silently discards unfamiliar tables. SQLite's online backup API reads a fixed transaction snapshot, including committed WAL data. Only the copied database is normalized to a standalone rollback-journal file; the source is opened read-only and is not checkpointed, vacuumed, paused or replaced. Backup progress has a two-minute deadline; a failed/partial archive remains unusable without its completed manifest.
