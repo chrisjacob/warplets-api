@@ -7,6 +7,7 @@ import { RpcClient, SourceError, TransactionSchema, type Transaction, type Accou
 import { acquire, candidates, control, reserveQuota, saveCandidate, type Lead } from "./store";
 import { findPda, seed } from "./solana";
 import { claimRecovery, finishRecovery, recordUnsupportedRead, recoveryCandidates, type InboxEntry } from "./inbox-recovery";
+import { advanceMintReview } from "./mint-review";
 
 export type Settings = {
   db: D1Database; rpcUrl: string; rpcDailyLimit: number; marketDailyLimit: number; marketEnabled: boolean;
@@ -18,6 +19,7 @@ export type Settings = {
   walletEnabled?: boolean; walletDailyLimit?: number;
 };
 export async function runCycle(settings: Settings, now = new Date()): Promise<Record<string, unknown>> {
+  const started=Date.now(),clock=()=>new Date(now.getTime()+Date.now()-started);
   const db = settings.db, at = now.toISOString();
   const id = `refresh:${Math.floor(now.getTime() / 60_000)}`;
   const initial = await control(db);
@@ -72,8 +74,10 @@ export async function runCycle(settings: Settings, now = new Date()): Promise<Re
           .bind(at, rows[0]?.signature ?? state.migration_cursor, id),
       ]);
     }
+    // Explicit refreshes must not turn an intake request into unpaced work.
+    const mintReviewBodies=settings.paced?await advanceMintReview(db,rpc,id,clock):0;
     const recovery = await recoveryCandidates(db,now);
-    const pending = await db.prepare("SELECT signature,slot,processed_at,result FROM tenx_pending_signatures WHERE processed_at IS NULL ORDER BY slot DESC LIMIT ?1").bind(6-recovery.length).all<InboxEntry>();
+    const pending = await db.prepare("SELECT signature,slot,processed_at,result FROM tenx_pending_signatures WHERE processed_at IS NULL ORDER BY slot DESC LIMIT ?1").bind(6-recovery.length-mintReviewBodies).all<InboxEntry>();
     for (const row of [...pending.results,...recovery]) {
       const recovering=row.processed_at!==null;
       if(recovering&&!await claimRecovery(db,row,id,now))continue;

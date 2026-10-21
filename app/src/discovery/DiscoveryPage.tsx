@@ -27,6 +27,8 @@ import { SolanaIdentity } from "./WalletIdentityPage";
 import { BackingLab, BackingPage } from "./BackingRehearsal";
 import { AttentionRewardLab, AttentionRewardsPage } from "./AttentionRewards";
 import { InboxRecoveryPanel } from "./InboxRecoveryPanel";
+import { MintReviewsPanel } from "./MintReviewsPanel";
+import { MintReviewsResponse } from "../../../discovery/src/mint-review-model";
 import { InboxRecoveryResponse } from "../../../discovery/src/inbox-recovery-model";
 import "./discovery.css";
 
@@ -243,10 +245,12 @@ function StatusView() {
   const { data, error } = useRemote(signal => getJson("/api/10x/system/status", StatusResponse, signal), "status");
   const health=useRemote(signal=>getJson("/api/10x/system/operations",OperationsResponse,signal),"operations");
   const recovery=useRemote(signal=>getJson("/api/10x/discovery/inbox-recovery",InboxRecoveryResponse,signal),"inbox-recovery");
+  const mintReviews=useRemote(signal=>getJson("/api/10x/discovery/mint-reviews",MintReviewsResponse,signal),"mint-reviews");
   return <><header className="tenx-heading"><p className="tenx-eyebrow">DATA / OPERATIONS</p><h1>Know what’s fresh.</h1><p>Source coverage, proof gaps and free-service budgets, in plain sight.</p></header>
     <CollectionDetails><DiscoveryDiagnostics /></CollectionDetails>
     <OperationsPanel data={health.data?.data??null} error={health.error} />
     <InboxRecoveryPanel data={recovery.data?.data??null} error={recovery.error} />
+    <MintReviewsPanel data={mintReviews.data?.data??null} error={mintReviews.error} />
     {error && <p role="alert" className="tenx-notice">{error}</p>}{data ? <><Freshness data={data} /><section className="tenx-panel"><h2>Local ingestion</h2><dl><dt>State</dt><dd>{data.data.paused ? "Paused" : data.data.running ? "Refreshing" : "Waiting for next tick"}</dd><dt>Last source issue</dt><dd>{data.data.last_error ? readableReason(data.data.last_error) : "None recorded"}</dd><dt>Queued signatures</dt><dd>{data.data.pending_signatures}</dd><dt>Market provider</dt><dd>{data.coverage.market_enabled ? `${marketSource(data.data.market_provider ?? "geckoterminal")} enabled locally` : "Off pending usage review"}</dd><dt>Proof adapter</dt><dd className="tenx-address">{data.data.adapter_version}</dd></dl></section>
       <section className="tenx-panel"><h2>Daily source budgets · UTC</h2>{(["rpc", "market"] as const).map(provider => { const used = data.data.usage.find(u => u.provider === provider)?.used ?? 0, limit = data.data.daily_limits[provider]; return <div className="tenx-budget" key={provider}><div className="tenx-row"><strong>{provider === "rpc" ? "Solana public RPC" : "Market enrichment"}</strong><span>{used} / {limit}</span></div><meter min={0} max={limit} value={used} aria-label={`${provider} daily requests`} /></div>; })}<p>Budgets pause work when exhausted. No paid upgrade or onchain transaction is enabled.</p></section>
     <section className="tenx-panel"><h2>Local automation</h2><dl><dt>Timer heartbeat</dt><dd>{time(data.data.automation?.heartbeat_at ?? null)}</dd><dt>Next paced source refresh</dt><dd>{time(data.data.automation?.next_refresh_at ?? null)}</dd><dt>Last daily review check</dt><dd>{time(data.data.automation?.reviewed_at ?? null)}</dd></dl><p>Source requests are paced across the remaining free daily budget. Daily reports catch up hourly, even when source work is paused or exhausted. The workstation must be awake.</p><a href="/research">Review outcomes & proposals →</a></section>
@@ -261,6 +265,7 @@ function StatusView() {
 function AdminView() {
   const [token, setToken] = useState(""), [data, setData] = useState<Record<string, unknown> | null>(null), [message, setMessage] = useState(""), [busy, setBusy] = useState(false);
   const [electionRequestId, setElectionRequestId] = useState(() => crypto.randomUUID());
+  const [reviewMint,setReviewMint]=useState("");
   async function action(path: string, body?: unknown) {
     setBusy(true); setMessage("");
     try {
@@ -269,7 +274,7 @@ function AdminView() {
       if (!response.ok) throw new Error(response.status === 401 ? "Enter the local operator token to continue." : `Request failed (${response.status}).`);
       if (value && typeof value === "object") setData(value as Record<string, unknown>);
       if (path === "dry-run") setElectionRequestId(crypto.randomUUID());
-      setMessage("Local operation completed.");
+      setMessage(path==="mint-reviews"?value&&typeof value==="object"&&"duplicate" in value&&value.duplicate===true?"This mint already has a review. Inspect its saved progress in Data status; resubmitting does not restart the scan.":"Mint review saved. The paced collector will check it within existing source limits; no eligibility is granted.":"Local operation completed.");
     } catch (error) { setMessage(error instanceof Error ? error.message : "Operation failed."); }
     finally { setBusy(false); }
   }
@@ -277,6 +282,7 @@ function AdminView() {
     <section className="tenx-panel"><label className="tenx-admin-token">Local operator token<input type="password" autoComplete="off" value={token} onChange={e => setToken(e.target.value)} placeholder="Required for admin requests" /></label><p>The token stays in this page’s memory. It is not saved in browser storage.</p>
       <div className="tenx-admin-actions"><button disabled={busy || !token} className="tenx-button" onClick={() => void action("jobs")}>Inspect jobs</button><button disabled={busy || !token} className="tenx-button tenx-button--quiet" onClick={() => void action("refresh", { reason: "Operator requested local refresh" })}>Refresh now</button><button disabled={busy || !token} className="tenx-button tenx-button--quiet" onClick={() => void action("pause", { paused: true, reason: "Operator paused local discovery" })}>Pause</button><button disabled={busy || !token} className="tenx-button tenx-button--quiet" onClick={() => void action("pause", { paused: false, reason: "Operator resumed local discovery" })}>Resume</button><button disabled={busy || !token} className="tenx-button tenx-button--quiet" onClick={() => void action("dry-run", { reason: "Operator requested election dry run", request_id: electionRequestId })}>Election dry run</button></div>
       <button disabled={busy || !token} className="tenx-button tenx-button--quiet" onClick={() => void action("wallet-refresh", { reason: "Operator requested local wallet sample" })}>Refresh wallet analysis</button>
+      <form className="tenx-content-form" onSubmit={e=>{e.preventDefault();if(!busy&&token)void action("mint-reviews",{address:reviewMint.trim(),reason:"Operator requested exact-mint discovery review"});}}><label>Solana mint to review<input value={reviewMint} onChange={e=>setReviewMint(e.target.value)} required maxLength={44} pattern="[1-9A-HJ-NP-Za-km-z]{32,44}" autoComplete="off" spellCheck={false}/></label><button className="tenx-button tenx-button--quiet" disabled={busy||!token||!reviewMint.trim()}>Queue token review</button><p>This saves a request for the paced collector. It does not refresh immediately or bypass evidence gates. <a href="/status#mint-reviews">Inspect requested reviews →</a></p></form>
       <p role="status" aria-live="polite">{busy ? "Working locally…" : message}</p></section>{data && <section className="tenx-panel"><h2>Operation result</h2>{typeof data.id === "string" && data.mode === "dry_run" && <p><a href={`/elections/${data.id}`}>Inspect this rehearsal & verified replay →</a></p>}<pre className="tenx-result">{JSON.stringify(data, null, 2)}</pre></section>}<PolicyLab token={token} /><BackingLab token={token} /><AttentionRewardLab token={token} /><Suspense fallback={<p role="status">Loading curve lab…</p>}><LazyLaunchCurveAdmin token={token}/></Suspense><Suspense fallback={<p role="status">Loading recovery lab…</p>}><LazyLaunchRecoveryAdmin token={token}/></Suspense><ContentModerationLab token={token} /></>;
 }
 export default function DiscoveryPage({ path }: { path: string }) {

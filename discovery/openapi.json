@@ -962,6 +962,109 @@
         }
       }
     },
+    "/api/10x/discovery/mint-reviews": {
+      "get": {
+        "summary": "Cached exact-mint review progress; zero source calls; migration admission is not eligibility",
+        "responses": {
+          "200": {
+            "description": "Success; cached public data includes timestamps, source freshness and coverage",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MintReviewsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "401": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "403": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "404": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "409": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "413": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "415": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "429": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "503": {
+            "description": "Structured JSON error; no provider secrets"
+          }
+        }
+      }
+    },
+    "/api/10x/admin/mint-reviews": {
+      "post": {
+        "summary": "Queue one exact Solana mint for the existing paced collector; idempotent, bounded, no immediate provider requests",
+        "security": [
+          {
+            "localOperator": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MintReviewRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success; cached public data includes timestamps, source freshness and coverage",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "401": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "403": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "404": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "409": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "413": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "415": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "429": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "503": {
+            "description": "Structured JSON error; no provider secrets"
+          }
+        }
+      }
+    },
     "/api/10x/attention/campaigns": {
       "get": {
         "summary": "Local ten-day content review campaigns; no real launch or reward budget",
@@ -53317,6 +53420,204 @@
         },
         "required": [
           "data"
+        ],
+        "additionalProperties": false
+      },
+      "MintReviewsResponse": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "at": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+              },
+              "reviews": {
+                "maxItems": 100,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "address": {
+                      "type": "string",
+                      "maxLength": 44
+                    },
+                    "curve": {
+                      "type": "string",
+                      "maxLength": 44
+                    },
+                    "state": {
+                      "type": "string",
+                      "enum": [
+                        "queued",
+                        "scanning",
+                        "admitted",
+                        "unsupported_quote",
+                        "not_found",
+                        "expired"
+                      ]
+                    },
+                    "queued_at": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                    },
+                    "updated_at": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                    },
+                    "pages": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 3
+                    },
+                    "bodies_checked": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 90
+                    },
+                    "migration_signature": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "pattern": "^[1-9A-HJ-NP-Za-km-z]{64,88}$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "quote": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "maxLength": 44
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "last_error": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "maxLength": 100
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "candidate_present": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "address",
+                    "curve",
+                    "state",
+                    "queued_at",
+                    "updated_at",
+                    "pages",
+                    "bodies_checked",
+                    "migration_signature",
+                    "quote",
+                    "last_error",
+                    "candidate_present"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "limits": {
+                "type": "object",
+                "properties": {
+                  "active": {
+                    "type": "number",
+                    "const": 8
+                  },
+                  "retained": {
+                    "type": "number",
+                    "const": 100
+                  },
+                  "pages": {
+                    "type": "number",
+                    "const": 3
+                  },
+                  "page_size": {
+                    "type": "number",
+                    "const": 30
+                  },
+                  "bodies_per_turn": {
+                    "type": "number",
+                    "const": 2
+                  },
+                  "rpc_daily_subset": {
+                    "type": "number",
+                    "const": 20
+                  }
+                },
+                "required": [
+                  "active",
+                  "retained",
+                  "pages",
+                  "page_size",
+                  "bodies_per_turn",
+                  "rpc_daily_subset"
+                ],
+                "additionalProperties": false
+              },
+              "reserved_today": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 20
+              },
+              "provider_requests": {
+                "type": "number",
+                "const": 0
+              },
+              "evidence_gates_changed": {
+                "type": "boolean",
+                "const": false
+              }
+            },
+            "required": [
+              "at",
+              "reviews",
+              "limits",
+              "reserved_today",
+              "provider_requests",
+              "evidence_gates_changed"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "additionalProperties": false
+      },
+      "MintReviewRequest": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "address": {
+            "type": "string",
+            "maxLength": 44
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 300
+          }
+        },
+        "required": [
+          "address",
+          "reason"
         ],
         "additionalProperties": false
       },

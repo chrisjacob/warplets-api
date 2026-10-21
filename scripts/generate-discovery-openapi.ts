@@ -2,6 +2,7 @@ import { writeFileSync } from "node:fs";
 import attentionPaths from "../discovery/openapi-attention-paths.json";
 import { z } from "zod";
 import { InboxRecoveryResponse } from "../discovery/src/inbox-recovery-model";
+import { MintReviewsResponse, MintReviewRequest } from "../discovery/src/mint-review-model";
 import {ContentReportPage,ContentReportRecord,ContentReportRequest,ContentReportReviewRequest} from "../discovery/src/content-report-model";
 import {HoldReviewPage,HoldReviewRecord,HoldReviewRequest,HoldReviewReply} from "../discovery/src/content-hold-model";
 import {ContentOperations} from "../discovery/src/content-operations-model";
@@ -53,6 +54,8 @@ const spec = {
     "/api/10x/admin/attention/hold-reviews/{id}": read("Operator-only verified contributor conversation; replies visible to contributor",{...responseSchema("HoldReviewRecord"),security:[{localOperator:[]}],parameters:[parameter("id","path",{type:"string",format:"uuid"},true)]}),
     "/api/10x/admin/attention/hold-reviews/review": {post:{...post("Request one additional response or close conversation; no original report/visibility writes").post,...responseSchema("HoldReviewRecord"),requestBody:{required:true,content:{"application/json":{schema:{$ref:"#/components/schemas/HoldReviewReply"}}}}}},
     "/api/10x/discovery/inbox-recovery": read("Cached version-upgrade migration recheck receipts and daily subset; zero source calls, no eligibility changes",responseSchema("InboxRecoveryResponse")),
+    "/api/10x/discovery/mint-reviews": read("Cached exact-mint review progress; zero source calls; migration admission is not eligibility",responseSchema("MintReviewsResponse")),
+    "/api/10x/admin/mint-reviews": {post:{...post("Queue one exact Solana mint for the existing paced collector; idempotent, bounded, no immediate provider requests").post,requestBody:{required:true,content:{"application/json":{schema:{$ref:"#/components/schemas/MintReviewRequest"}}}}}},
     "/api/10x/attention/campaigns": read("Local ten-day content review campaigns; no real launch or reward budget", { ...responseSchema("ContentCampaignList"), parameters: [parameter("cursor", "query", { type: "string", maxLength: 100 })] }),
     "/api/10x/attention/campaigns/{id}": read("Public reviewed links only; no contributor identity, private moderation reason or pending content", { ...responseSchema("ContentCampaignDetail"), parameters: [parameter("id", "path", { type: "string", format: "uuid" }, true), parameter("cursor", "query", { type: "string", maxLength: 100 })] }),
     "/api/10x/attention/mine": read("Private submissions for the signed Solana browser session; cursor pagination, 20 per page", { ...responseSchema("ContentPage"), security: [{ localIdentity: [] }], parameters: [parameter("cursor", "query", { type: "string", maxLength: 100 })] }),
@@ -167,6 +170,8 @@ const spec = {
     ElectionDetailResponse: z.toJSONSchema(ElectionDetailResponse, { unrepresentable: "any" }),
     CoverageResponse: z.toJSONSchema(CoverageResponse, { unrepresentable: "any" }),
     InboxRecoveryResponse: z.toJSONSchema(InboxRecoveryResponse, { unrepresentable: "any" }),
+    MintReviewsResponse: z.toJSONSchema(MintReviewsResponse, { unrepresentable: "any" }),
+    MintReviewRequest: z.toJSONSchema(MintReviewRequest, { unrepresentable: "any" }),
     ActivityResponse: z.toJSONSchema(ActivityResponse, { unrepresentable: "any" }),
   } },
 };

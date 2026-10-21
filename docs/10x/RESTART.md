@@ -15,6 +15,7 @@ After rebooting, reopen the repository in Codex and send:
 - Previous checkpoint: `d71fefc` — streamlined discovery navigation and evidence flow.
 - Latest local engineering milestone: [preview recovery and launcher shutdown](50-preview-recovery.md). Consult recent Git history for its commit. The isolated App preview uses Vite 5183 / Pages 8788; Discovery retains its existing supervisor and store on 8794.
 - Latest coverage milestone: [cache-only funding continuation](51-cache-only-funding.md), with zero-RPC guarded checkpoint adoption and unchanged eligibility/source limits. Consult current Git history and cached status; the last recorded eligibility remains 0/10.
+- Latest discovery intake: [bounded exact-mint requests](53-exact-mint-intake.md), including local migration 0033, Admin/CLI enqueue and cached progress on Data status. Kimchi was queued without forcing source work; inspect current progress before claiming admission or eligibility.
 
 This handoff will have a later documentation commit. Start with `git status --short --branch` and recent history; do not reset, force-checkout or overwrite work to match this snapshot.
 
@@ -121,7 +122,7 @@ Preview: **https://app-local.10x.meme**. Reuse this tunnel; do not create or dep
 
 ## Continue implementation
 
-Latest user priority: review Pump.fun **Kimchi** `CSocnzcRpgSCr1naKcNTieWZUxb6rABe45j844m7pump` and its “vamps” before further general PRD work. See [Kimchi review and source gaps](52-kimchi-review.md). Initial page-based review and a different cached mint's chain/account/holder replay are recorded. The target remains uncertified and absent from local collection at lookup; next work is bounded exact-mint intake and properly verified non-WSOL quote coverage. Original/copycat attribution and deeper target funding analysis remain open. Preserve existing source limits and gates.
+Latest user priority: review Pump.fun **Kimchi** `CSocnzcRpgSCr1naKcNTieWZUxb6rABe45j844m7pump` and its “vamps”, then continue the PRD. [Initial review](52-kimchi-review.md) and [bounded exact-mint intake](53-exact-mint-intake.md) are recorded. The target is queued for the normal paced collector; inspect current status and retained receipts before claiming migration admission or eligibility. Non-WSOL quote certification, original/copycat attribution and deeper target funding analysis remain open. Data status also reported `election_snapshot_size_limit` for the new daily rehearsal; investigate without clearing evidence or weakening gates. Preserve existing source limits and schedules.
 
 Briefly report the recovered checkpoint, preview/collector health, current coverage gaps and the highest-priority remaining task. Then continue the next justified PRD milestone within these constraints, incorporating any newer user instruction. Do not redo completed milestones or assume that every PRD feature is implemented.
 

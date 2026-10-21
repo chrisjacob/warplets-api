@@ -40,6 +40,7 @@ import { walletPlans } from "./wallet-plan";
 import { operations, OperationsError, recordWatchdog } from "./operations";
 import { WatchdogReportSchema } from "./operations-model";
 import { inboxRecoveryStatus } from "./inbox-recovery";
+import { enqueueMintReview, mintReviews, MintReviewError } from "./mint-review";
 
 // Widen generated literal vars so ignored .dev.vars overrides stay type-safe.
 export type LocalEnv = { [K in keyof Cloudflare.Env]: Cloudflare.Env[K] extends string ? string : Cloudflare.Env[K] };
@@ -145,6 +146,7 @@ export async function handle(request: Request, env: Env): Promise<Response> {
   if (method === "GET" && path === "/api/10x/discovery/coverage") return json(await envelope(env, discoveryCoverage(await candidates(env.TENX_DB), DEFAULT_POLICY, new Date())));
   if (method === "GET" && path === "/api/10x/discovery/wallet-plan") return json(await envelope(env,await walletPlans(env.TENX_DB)));
   if (method === "GET" && path === "/api/10x/discovery/inbox-recovery") return json(await envelope(env,await inboxRecoveryStatus(env.TENX_DB)));
+  if (method === "GET" && path === "/api/10x/discovery/mint-reviews") return json(await envelope(env,await mintReviews(env.TENX_DB)));
   if (method === "GET" && path === "/api/10x/discovery/wallet-work") {
     const usage = await env.TENX_DB.prepare("SELECT used FROM tenx_usage WHERE provider='wallet_catchup' AND day=?1").bind(new Date().toISOString().slice(0,10)).first<{used:number}>();
     return json(await envelope(env, { work: await walletWork(env.TENX_DB), catchup_reserved: usage?.used ?? 0, catchup_limit: catchupLimit(Number(env.TENX_WALLET_RPC_DAILY_LIMIT)), snapshot_refresh_required: true }));
@@ -271,6 +273,7 @@ export async function handle(request: Request, env: Env): Promise<Response> {
     if(path==="/api/10x/admin/launches/lab")return json({record:await createLaunch(env.TENX_DB,body),replay:"verified"});
     if(path==="/api/10x/admin/launches/recovery-lab")return json({record:await createRecovery(env.TENX_DB,body),replay:"verified"});
     const reason = z.object({ reason: z.string().min(3).max(300) }).passthrough().parse(body).reason;
+    if(path==="/api/10x/admin/mint-reviews")return json(await enqueueMintReview(env.TENX_DB,body));
     if (path === "/api/10x/admin/rewards/lab") return json({ record: await createRewards(env.TENX_DB, body), replay: "verified" });
     if (path === "/api/10x/admin/backing/open") return json(await openBacking(env.TENX_DB,body));
     if (path === "/api/10x/admin/backing/freeze") {
@@ -344,6 +347,7 @@ export default {
         const response = json({ error: error.message }, error.status); response.headers.set("vary", "Cookie"); return response;
       }
       if (error instanceof RequestSecurityError) return json({ error: error.message }, error.status);
+      if(error instanceof MintReviewError)return json({error:error.message},error.status);
       if(error instanceof LaunchError)return json({error:error.message},error.status);
       if(error instanceof RecoveryError)return json({error:error.message},error.status);
       if (error instanceof RewardError) return json({ error: error.message }, error.message === "reward_daily_limit" ? 429 : error.message === "reward_request_conflict" ? 409 : error.message.includes("mismatch") ? 503 : 400);
