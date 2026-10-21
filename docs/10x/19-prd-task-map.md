@@ -1,5 +1,7 @@
 # PRD implementation checkpoint and next tasks
 
+**22 October review — current execution order:** [97 — progress, design, performance and security](97-prd-design-performance-security-review.md) supersedes the initial F1–F5 ordering where capacity/release dependencies intervene. Core F2 functionality is delivered; broad usable F1 coverage, F3 qualification, validated F4 ranking and F5 readiness remain incomplete. At the measured snapshot, 486 retained mints approach the 500-input guard and the 1.07 GB local store exceeds a single D1 Free database's capacity. Next: bounded active/history indexing with preserved replay, Free storage/read design and dependency remediation; then faster, clearer browsing alongside ordinary admitted collection. Do not keep rebuilding shipped F2 features or tuning known tokens. No runtime limits, policies, sources or flags change in this review.
+
 Coverage audit, 22 October: [96 — retained activity census](96-retained-activity-coverage-audit.md) delivers F1's measurable existing-field coverage review across all 484 retained tokens, with private export/checksum replay and full missingness/freshness denominators. All 482 non-reference tokens lacked saved GMGN info/candle fields at the cutoff. This is a retrospective cache audit, not prospective enrollment, quality certification or sufficient evidence to freeze v5 weights. Next: ordinary admitted broad collection and F3 qualification. No source request, model/gate/Free-limit change, migration, restart or deploy.
 
 Trading breadth, 22 October: [signed trade sample comparison](90-signed-trading-sample.md) implements F3's recent native-flow/breadth slice using existing saved transaction evidence. It distinguishes buyers/sellers, missing quote totals, repeated known sizes and overlap while retaining actual source windows, stale status and all gates. Population independence, qualified 24h volume/growth and scoring promotion remain open. No collection, migration or deploy; production stays thesis-only.
@@ -50,14 +52,15 @@ Next functionality, 21 October: [daily discovery product plan](82-next-product-f
 - [ ] Establish private off-device recovery and a stopped-owner operational adoption procedure, including stale leases/jobs/sessions.
 - [ ] Complete remaining runtime/outage/rollover reliability rehearsals and F1/F3/F4 population/qualification work.
 
-## Current build order — 21 October product review
+## Current build order — revised 22 October
 
 The [new functionality plan](82-next-product-functionality-plan.md) supersedes the immediate ordering of the earlier work packages below. It preserves all existing PRD requirements and release/evidence gates.
 
 | Priority | Next functionality | Delivery boundary |
 |---|---|---|
-| F1 / first | Broad candidate coverage, common dated activity records and rotating enrichment | Existing shared Free admission; provider lists do not replace chain proof; retain all cohort missingness |
-| F2 / next | Daily discovery table, search, useful filters and up-to-three-token comparison | Cache-only UI; current v4 stays default while new metrics are descriptive |
+| Capacity / immediate | Bounded active/history index, immutable evidence storage/read worksheet and dependency remediation | Preserve old data, exact lookup and frozen replay; no cap-only increase, deletion, paid fallback or deployment |
+| F1 / ongoing | Broad admitted candidate observations and usable dated fields; selection/record plumbing is delivered | Existing shared Free admission; provider lists do not replace chain proof; retain all cohort missingness |
+| F2 / core delivered, improve next | Faster first result, progressive filters, wide table and measured daily journey | Existing search/compare/shortlist/pagination stay; no new competing grades or unsupported daily-attention claims |
 | F3 | Meaningful volume, acquired/retained holder growth and recent momentum | Define qualification before outcomes; no raw wash/dust credit or invented 24h history |
 | F4 | Frozen v4/provider-derived/hybrid comparison and proposed v5 | Unseen mints and later-day holdout; no automatic promotion or action/election changes |
 | F5 / alongside product work | Reliability, cached degradation and archive/restore readiness | Owned recovery, unchanged budgets/stores, no historical deletion; no deploy |

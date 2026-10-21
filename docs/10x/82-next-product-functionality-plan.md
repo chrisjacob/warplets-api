@@ -2,6 +2,8 @@
 
 21 October 2026. Engineering plan requested by the founder after reviewing the disproportionate focus on PONYX. Reviewed against [PRD v1.2](spec/10X_MEME_FULL_PRD_v1_2.md), the [task map](19-prd-task-map.md), [decision register](04-decisions.md), [daily-attention requirements](70-authentic-attention-momentum.md), milestones 71–81 and current source code.
 
+**22 October review supersedes the initial ordering/estimates:** [97 — progress, design, performance and security](97-prd-design-performance-security-review.md) records core F2 delivery, partial F1/F3/F5 and unvalidated F4. Immediate work is bounded active/history indexing and Free storage/read feasibility, plus dependency remediation; improve first-result visibility and precomputed browsing alongside ordinary admitted coverage. The 486-token/1.07 GB measured store makes capacity a present constraint. Thirty new scheduled targets need at least ten admitted days at three per day; the old engineering ranges exclude these elapsed/data and newly measured capacity dependencies. No current limit, evidence gate, model or release flag is changed by this plan.
+
 **Recommendation:** finish an effective Solana discovery MVP before expanding launch/reward functionality. Build broad token coverage, a comparable daily workspace, meaningful activity measurements and a prospectively evaluated scoring revision. Existing one-token investigations become regression fixtures. This plan changes no runtime, source allocation, model, gate or deployment.
 
 **First implementation delivered:** [83 — rotating coverage and discovery workspace](83-rotating-coverage-and-discovery-workspace.md) records the shipped F1/F2 slice and remaining work. The review table below describes the planning baseline. Common activity normalization, live rotation smoke within available capacity and three-token comparison remain next.
@@ -20,16 +22,16 @@
 
 | Area | Actually available | Product gap |
 |---|---|---|
-| Discovery | Verified Pump creation/migration, canonical pool checks, cached cards/details, artwork recovery, age/action filters, score/liquidity sorting and versioned 0–100 v4 | The main list lacks search, a compact comparison table and a consistent cross-token attention view |
-| Activity data | GMGN info/security/pool/candles, trader/activity investigations, bounded RPC comparison and quote/fee review | Scheduled GMGN work is still a fixed three-mint investigation. Rich evidence is not systematically available across today's candidates |
+| Discovery | Verified Pump creation/migration, canonical pool checks, cards/table, exact-mint search, filters, comparison, local shortlist, stable pagination and frozen v4 | First-result visibility, table width, full accessibility review and sustainable bounded reads still need work |
+| Activity data | GMGN info/security/pool/candles, rotating selection/accounting, dated activity records and private coverage audit | Admitted unfamiliar-token observations and usable freshness/windows remain sparse; rotating code is not demonstrated broad coverage |
 | Ranking | Frozen v1–v4 replay, risk ceilings, score explanations and prospective price/liquidity outcomes | V4 does not score qualified volume or meaningful holder growth. Detailed investigations have not by themselves improved the daily ranking |
 | Holders | Full cached inventories, raw changes, endpoint retention and sampled acquisition checks | Dust-resistant, economically meaningful acquired/retained growth is not established; raw owners cannot substitute for it |
-| Operations | Shared budgets/leases/backoff, local task/supervisor, watchdog, cache-only reads and immutable evidence | Workstation runtime exits, incomplete source coverage and archive/release readiness still affect the usable experience |
+| Operations | Shared budgets/leases/backoff, watchdog, ownership/persistent-budget recovery, private full-store archive/scratch restore and immutable evidence | 500-input saturation, >Free-D1 local size, per-visitor computation, transport failures and off-device/operational recovery remain unresolved |
 | Backing, launch and rewards | Signed Solana linking, backing/election rehearsals, three-pool economic/recovery labs, content moderation and reward-accounting prototypes | These are foundations and rehearsals, not live vote credit, a deployed launch adapter or claimable rewards |
 
 The immediate deliverable is a better answer to **“Which observed new tokens have the strongest supported attention and momentum today, and what evidence or concerns explain their position?”** It is not a claim to identify the entire market's best token or certify safety.
 
-## Build order and delivery estimates
+## Original build order and delivery estimates — 21 October
 
 Estimates are focused engineering days, excluding provider access delays and elapsed observation time. They are planning ranges, not delivery promises. The observation run can continue while later UI/operations work is built.
 
@@ -153,10 +155,10 @@ Preserve the existing shared market/RPC budgets, wallet/quality/artwork subsets,
 
 These later areas remain part of the PRD. Rebuilding their existing labs, adding another bespoke evidence panel, launching tokens, treasury work or expanding chains is not the next default work item.
 
-## Recommended first implementation request
+## Next implementation request — revised 22 October
 
-**Build F1 and the first F2 table/search slice:** introduce common dated activity records, deterministic rotating cohort selection, a Free-access-verified GMGN list adapter and a cached cross-token discovery table. Keep v4 live, new qualification fields honest and all existing evidence/action gates unchanged. Demonstrate the result across previously unreviewed tokens, then commit/push without deploying.
+**Start with the measured capacity boundary:** design and test a compact bounded active index with preserved historical exact-mint lookup/replay beyond 500 retained identities, without simply raising evaluator bounds or deleting evidence. Pair that work with dependency-advisory triage and a Free storage/query/CPU worksheet. Then deliver precomputed versioned browsing and progressive filters/wider table, while ordinary admitted rotating coverage proceeds. F3 qualification and F4 paired holdout follow usable unfamiliar-token data. Keep v4, all Free/evidence/action gates and production closure. Existing labs and one-token investigations are not the default next feature. No deploy.
 
-## Planning checkpoint
+## Original planning checkpoint — 21 October
 
 This milestone reviews and updates documentation only. No token/market-data API request, credential read/change, collection activation, database write, ranking change, runtime restart, financial action or deploy. Documentation targets and whitespace are checked; application tests/build are not rerun for prose-only changes. Existing unrelated Network/legal work remains excluded from the planning commit.

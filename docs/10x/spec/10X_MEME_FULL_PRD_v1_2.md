@@ -76,6 +76,8 @@ This PRD deliberately differentiates **confirmed product decisions**, **proposed
 
 ### 1.4 North-star / health metrics
 
+**22 October delivery correction:** the current phase is an evidence-qualified Discovery MVP, not live launch/reward operations. Track a useful daily shortlist journey, unfamiliar-token source yield/freshness, explicit unknowns, missed successful-runner opportunities, independently reviewed adverse cases/false positives, and affordable storage/read cost. Report functionality delivered, evidence qualified and release ready separately; none implies the others. The commercial/campaign metrics below remain later-phase goals. [Measured progress and revised priorities](../97-prd-design-performance-security-review.md).
+
 - Weekly **retained verified traders** visiting and participating in ≥2 separate campaign cycles.
 - **Qualified OG purchases** and distinct attributable market participants, versus comparable unfeatured tokens.
 - **Incremental legitimate attention** delivered to OG projects: verified qualified clicks, new unique visitors, social interactions and measured retention.
@@ -89,6 +91,8 @@ This PRD deliberately differentiates **confirmed product decisions**, **proposed
 ## 2. User journeys and UX
 
 ### 2.1 Anonymous visitor
+
+**Current-phase journey:** production remains the thesis-only root with unfinished routes/menu/assets closed. In the authorized local Discovery workspace, browse observed first-day Solana tokens, search an exact mint, inspect grade/coverage/concern and missing daily metrics, compare up to three, and save/reopen a browser-local shortlist. Discovering or saving a token grants no votes, rewards, qualification or study enrollment. Keep search/age/sort/view concise and advanced filters progressive; show the first candidate in the initial viewport after successful loading at 1280×720 and 390×844. Support an appropriately wide desktop table, mobile cards and keyboard/zoom/reflow review against WCAG 2.2 AA. Avoid two-axis nested scrolling where ordinary page layout works. Artwork fallback and exact identity remain mandatory, with no image-based trust credit. The broader journey below remains the intended later product, not a claim of current support.
 
 1. Open 10X → see **Today's Spotlight** and **Tomorrow's Contenders**.
 2. Select chain (All / Solana / Base / BNB / Robinhood), age, market cap, volume, liquidity, risk filters.
@@ -234,6 +238,8 @@ Use one central scheduler and shared cached data across all visitors. Daily sour
 Create interface `GraduationVerifier`: `{ chain, launchpadId, mintedAt, graduateAt, graduateTx, marketAddress, status, proof, confidence }`. Implement known Solana launchpad adapters first (Pump→PumpSwap where verifiable); then add supported Base/BNB/Robinhood launchpads. For unknown launches, label **unverified**, do not silently treat every new market as a migration. Indexer can reconcile late events/chain reorganisations; recompute if rollback occurs.
 
 ### 4.7 Graded discovery — v1.2 founder direction and implementation plan
+
+**22 October cross-cutting review — current priority:** [97 — progress/design/performance/security](../97-prd-design-performance-security-review.md) records core F2 delivery, partial F1/F3/F5 and unvalidated F4. The measured 486-token retained inventory approaches the existing 500-input guard, while the 1.07 GB local store cannot fit one D1 Free database. Prioritize a versioned bounded current index plus preserved historical lookup, affordable precomputed read models and dependency remediation alongside ordinary admitted collection. Keep current 500-candidate/4 MB evaluation bounds until a tested design replaces whole-history coupling; no silent trimming, evidence eviction, quota reset or paid fallback. Improve first-result visibility and table layout. Current v4 stays live until a separately preregistered paired holdout supports a change; unknown weights are never renormalized and reported volume/raw owners never become qualified daily attention.
 
 **22 October measured-coverage checkpoint:** [Retained activity census](../96-retained-activity-coverage-audit.md) adds private read-only export and checksum replay over every retained token and all thirteen activity metrics. The 484-token snapshot separates 482 coverage-population tokens from two regression references; the former had no saved GMGN info/candle fields. Missingness, staleness and unqualified daily metrics remain explicit. This is a retrospective coverage audit, not prospective study enrollment or approval of new scoring weights. Continue admitted broad collection and F3 qualification; v4, all Free/evidence/action gates and thesis-only production remain. No source request, database mutation, migration, restart or deploy.
 
@@ -666,7 +672,7 @@ flowchart TD
 
 ### 12.3 Cloudflare constraints
 
-Cloudflare Workers Free documents approximately **100,000 Worker requests/day**, **10 ms CPU/invocation**, and **5 cron triggers/account**; Queues Free launched with a **10,000 operations/day allowance** and 24h message retention; GeckoTerminal Public API documents ~10 requests/min. Free-first is viable for an MVP with careful batching/caching, but live launch signing, high-volume event indexing, complex fraud scoring and video-like data scraping may justify a modest paid tier. D1 enforces daily free query limits (since Sept 2026); handle quota exhaustion rather than corrupting launch cycles.
+**22 October verified capacity revision:** [Workers limits](https://developers.cloudflare.com/workers/platform/limits/) currently specify 100,000 requests/day, 10 ms CPU/invocation, 128 MB memory and five cron triggers on Free. [D1 limits](https://developers.cloudflare.com/d1/platform/limits/) specify **500 MB per Free database**, 5 GB account storage, 50 queries per invocation and 2 MB per row; [D1 pricing](https://developers.cloudflare.com/d1/platform/pricing/) governs daily read/write allowances. Recheck actual plan entitlements before an authorized release. The local store measured 1,070,039,040 bytes; local SQLite success is not Free production feasibility. Public reads must use compact versioned projections rather than replaying bulky source evidence per visitor; design private immutable archive separation with measured storage/growth, indexed query cost and verified restore before moving or evicting anything. The current 500-candidate whole-inventory coupling also needs a bounded active/history index design; historical identities and frozen replay must remain reachable. This review provisions no service and authorizes no paid tier, retention deletion or remote migration. New provider endpoints still require endpoint-specific Free/access/weight/scope checks; old advertised theoretical limits are not a capacity worksheet.
 
 **Cost requirement:** all scheduled jobs report requests, storage/query usage and estimated cost; have daily budgets and circuit-breakers. Cheapest safe and reliable approach > artificial $0 promise. Chain gas/account rent, RPC indexing, security audits and token/pool creation cost money even if hosting is free.
 
@@ -807,7 +813,7 @@ Show live program state, historical winner data, amount of ATTN minted/locked/ai
 
 The [next functionality plan](../82-next-product-functionality-plan.md) now gives the local implementation order within this phase. Deliver cross-token usefulness while prospective observations mature; existing launch/content/reward labs do not imply those later phases are live. The user's current instruction remains no deploy.
 
-- Cloudflare app, API, D1, cron/caching, candidate discovery on Solana, 24h creation and graduation verification, configurable filters, risk explainers, top ≤100 candidate list.
+- Cloudflare app/API architecture, local candidate discovery on Solana, 24h creation and graduation verification, filters, risk explainers and ≤100 candidates per page. Core local search/table/compare/shortlist/pagination is delivered; broad usable source coverage, sustainable Free storage/read capacity and private/public release readiness remain incomplete. Local timers do not establish deployed cron or unattended remote operation.
 - Public UI, wallets, OG trade-click links, source timestamps and Admin policies/monitoring; no token deployment.
 - Track evaluation data and compare opportunity-list engagement over ≥2–4 weeks.
 
@@ -846,7 +852,7 @@ The [next functionality plan](../82-next-product-functionality-plan.md) now give
 
 - For token created >24h ago, a recently created pool alone must **not** cause qualification.
 - Tokens missing required migration verification cannot win a live election.
-- No more than max 100 displayed candidates; no duplicate chain+address entries. Default discovery order uses §4.7 graded scoring, includes provisional/excluded observations and shows evidence coverage; gated actions still use their separate eligibility rules.
+- At most 100 displayed candidates **per page**, with snapshot-bound pagination and no duplicate chain+address entries. Existing per-evaluation 500-candidate/4 MB guards remain until a versioned active/history index design is validated; total preserved history must not be silently trimmed to fit browsing. Default discovery order uses §4.7 graded scoring, includes provisional/excluded observations and shows evidence coverage; gated actions retain their independent eligibility rules.
 - Cached API data shows timestamps and degrades visibly upon provider outage.
 - Batch refreshed candidate price statistics within 60s target when provider and budget permit; qualify sources accurately.
 
@@ -887,6 +893,16 @@ The [next functionality plan](../82-next-product-functionality-plan.md) now give
 - Operator can be absent during a provider outage or no-eligible-winner day; product continues serving correct cached/historical data without unsafe launching.
 - Independent synthetic checker detects failed schedule/recovery and alerts as configured.
 - AI unavailability never blocks core deterministic automation.
+
+### 17.7 Discovery product quality, capacity and release readiness — 22 October revision
+
+- **Coverage:** publish daily selected/attempted/new/accepted/fresh/complete/rejected/missing denominators and source cost for the full cohort and daily top twenty. Keep the thirty-unfamiliar-mint/three-UTC-day plumbing target; the current scheduled three-target/day ceiling implies at least ten admitted days for thirty distinct targets. This is not a sample-size justification or model pass. Current local calibration authorization and provider/evidence gates stay unchanged.
+- **Scoring:** define economic participation, independence, valuation, retention, finality, scope and freshness rules before outcomes; unsupported organic volume/meaningful 24h growth remain null with zero credit. Preregister paired A=v4/B=pinned provider heuristic if available/C=hybrid, a separate study namespace, one cutoff per mint, later-day/unseen holdouts, uncertain labels and acceptable false-positive/missingness regressions. Known concern/runner references remain regression controls, not held-out successes. No automatic score promotion.
+- **Usability:** verify search → inspect support/concern/unknowns → compare three → save/reopen within two minutes after loading in five declared-viewport scripted trials; then evaluate independent users. Keep main risks visible and repeated provenance detail progressive. Measure rendered-image success, including failures. Keyboard, focus, accessible labels, contrast, zoom and 320 CSS px reflow require explicit review; a passing component suite is not WCAG certification.
+- **Performance:** retain 250 KiB gzip static shell and 350 KiB per-JS budgets; measure enabled Discovery entry graphs separately from the thesis-only build. Provisional targets: ≤250 KiB decoded per 100-card response; warm list p95 ≤1s and three-token comparison p95 ≤3s on a declared controlled fixture, with ≥30 samples and a bounded three-client exercise. Independently measure Worker CPU/memory and D1 queries/rows against actual Free limits. Target p75 LCP ≤2.5s, INP ≤200ms, CLS ≤0.1 on declared mobile/desktop contexts ([Web Vitals](https://web.dev/articles/vitals)); unmeasured metrics stay unverified. Never reduce correctness or spend automatically to hit a target.
+- **Security:** current package advisories supplement the static compromised-package blocklist. Resolve applicable high/critical findings or document reviewed artifact-specific non-reachability before the affected release. Route-specific HTML CSP, expensive-read abuse controls, signed-session/admin isolation, secret scanning and private archive access need explicit tests. A product feature flag, CORS or a public tunnel URL is not authentication. Public summaries and private evidence/session/admin data must never share an unsafe response cache.
+- **Capacity/recovery:** demonstrate history beyond 500 retained identities without loosening evaluator bounds, losing exact-mint lookup or altering old cohort/election hashes. Review immutable evidence storage, measured growth, Free query/byte headroom, encrypted off-device recovery and stopped-owner restore adoption before retention changes or Discovery exposure. Continue ordinary admitted collection; no counter reset, forced rollover, source-evidence deletion or unrestricted rich scan.
+- **Release modes:** distinguish thesis-only public release, separately authorized private Discovery preview, public Discovery and financial capabilities. Require the evidence appropriate to each actual shipped surface. The thesis-only release still requires closed client/server routes/assets and shared dependency review; it does not require enabling Discovery. Production research admission must be restored to bounded mode before any Discovery production opening. All voting/launch/custody/economics gates, including same-chain $10X and 50/20/20/10, remain independent. No deploy is authorized by this revision.
 
 ---
 
