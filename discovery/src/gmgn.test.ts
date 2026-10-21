@@ -59,6 +59,17 @@ describe("GMGN contracts and field semantics", () => {
   });
 });
 describe("GMGN owned integration and evidence boundaries", () => {
+  it("admits a live-shaped local calibration request after the internal cap while keeping shared provider accounting", async () => {
+    const { db, sqlite, settings } = setup();
+    for (let i = 0; i < SCORE_RESEARCH_LIMITS.daily_records; i++) sqlite.prepare("INSERT INTO tenx_score_cohorts VALUES(?,'discovery-score-v1',?,'2026-10-21','hash',100000,'{}')").run(`cap-${i}`, at.toISOString());
+    const local = { ...settings, researchMode: "local_calibration" as const }, fetcher = vi.fn(async () => Response.json(info()));
+    expect(await gmgnPilotHasCapacity(settings, at)).toBe(false);expect(await gmgnPilotHasCapacity(local, at)).toBe(true);
+    expect(await runGmgnReview(local, input(), fetcher, () => at)).toMatchObject({ state: "retained", provider_requests: 1 });
+    expect(await gmgnStatus(local, at)).toMatchObject({ research_limits: { mode: "local_calibration", daily_records: null, daily_bytes: null, source_daily_requests: null },
+      limits: { daily_http_subset: null, shared_market_maximum: 600, minimum_spacing_seconds: 10 }, evidence_gates_changed: false });
+    expect(sqlite.prepare("SELECT used FROM tenx_usage WHERE provider='market'").get()).toEqual({ used: 1 });
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  });
   it("replays an archived v1 candle receipt under its original interpretation without rewriting the receipt", async () => {
     const { db, sqlite, settings } = setup(), start = "2026-10-21T00:59:00.000Z";
     const payload = input("retained_research", { kind: "gmgn_token_candles", address, start_at: start, end_at: at.toISOString() });

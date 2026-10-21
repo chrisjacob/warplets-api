@@ -1,5 +1,7 @@
 # GMGN candle contract correction and descriptive trading review
 
+Local calibration, 21 October: [founder-authorized uncapped internal research admission](74-local-calibration-admission.md) disables daily record/byte caps and the twenty-request research subset only when both local-only and explicit calibration mode are set. Provider budgets, spacing/backoff, per-record bounds, evidence, current scores and action/election gates remain. Counters and archived rows are preserved. Bounded mode remains the default elsewhere and restoration is a tracked production prerequisite. No deploy.
+
 21 October 2026 (Australia/Sydney). Continuation of the [first live GMGN checks](72-gmgn-live-test-capacity.md), requested by the founder. Local changes only; no deployment.
 
 ## Evidence and diagnosis

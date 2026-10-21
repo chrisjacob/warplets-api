@@ -10,6 +10,8 @@
   "observability": { "enabled": true },
   "vars": {
     "TENX_LOCAL_ONLY": "true",
+    // Founder-authorized local calibration only. Remove/set bounded before release.
+    "TENX_RESEARCH_MODE": "local_calibration",
     "TENX_NODE_RELAY": "false",
     "TENX_ADMIN_TOKEN": "",
     "TENX_RPC_URL": "https://api.mainnet-beta.solana.com",

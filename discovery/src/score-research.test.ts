@@ -71,6 +71,17 @@ describe("prospective score evidence and comparable outcomes",()=>{
   });
 });
 describe("bounded score retention on existing local maintenance",()=>{
+  it("allows local calibration beyond both daily caps while preserving existing rows and reporting explicit uncapped admission",async()=>{
+    const {db,sqlite}=setup(),c=await cohort();await lease(db);
+    for(let i=0;i<L.daily_records;i++)sqlite.prepare("INSERT INTO tenx_score_cohorts VALUES(?,'discovery-score-v1',?,'2026-10-21','hash',100000,'{}')").run(`old-${i}`,at.toISOString());
+    const before=sqlite.prepare("SELECT * FROM tenx_score_cohorts ORDER BY address").all();
+    expect(await publishScoreCohort(db,c,"owner",at)).toBe(false);
+    expect(await publishScoreCohort(db,c,"owner",at,"local_calibration")).toBe(true);
+    expect(sqlite.prepare("SELECT * FROM tenx_score_cohorts WHERE address LIKE 'old-%' ORDER BY address").all()).toEqual(before);
+    const summary=await scoreResearch(db,at,"discovery-score-v4","local_calibration");
+    expect(summary.limits).toEqual({daily_records:null,daily_bytes:null});expect(summary.today.records).toBe(121);
+    expect(await publishScoreCohort(db,c,"owner",at,"local_calibration")).toBe(false);
+  });
   it("publishes once with a single atomic audit and never substitutes a later grade",async()=>{
     const {db,sqlite}=setup(),c=await cohort();await lease(db);expect(await publishScoreCohort(db,c,"owner",at)).toBe(true);
     const updated=await candidate();updated.market!.liquidity_usd=0;expect(await publishScoreCohort(db,await cohort(updated),"owner",at)).toBe(false);

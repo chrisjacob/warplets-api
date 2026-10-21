@@ -20,6 +20,13 @@ it("accepts the previous 100-record response during rolling local reloads while 
   expect(renderToStaticMarkup(<ScoreResearch data={legacy} error=""/>)).toContain("0 / 100 records");
   expect(()=>ScoreResearchSchema.parse({...data,limits:{...data.limits,daily_records:121}})).toThrow();
 });
+it("labels local calibration without fake zero/Infinity limits or changed policy authority",()=>{
+  const data=empty();data.limits={daily_records:null,daily_bytes:null};
+  const html=renderToStaticMarkup(<ScoreResearch data={data} error=""/>);
+  for(const text of ["uncapped locally","internal daily record, byte and research-request caps are disabled","Restore bounded mode before production","no automatic weight changes"])expect(html).toContain(text);
+  expect(html).not.toContain("Infinity");expect(html).not.toContain("/ 0 MB");
+  expect(()=>ScoreResearchSchema.parse({...data,limits:{daily_records:null,daily_bytes:10000000}})).toThrow("mixed_mode");
+});
 it("labels current v4 and archived v3 without mixing their study or enabling policy changes",()=>{
   const current=renderToStaticMarkup(<ScoreResearch data={null} error="" onModelChange={()=>{}}/>);
   for(const text of ["Current discovery-score-v4 study","New captures use v4","Archived v3","existing v1, v2 and v3"])expect(current).toContain(text);

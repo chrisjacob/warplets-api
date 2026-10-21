@@ -1,5 +1,7 @@
 # PRD implementation checkpoint and next tasks
 
+Local calibration, 21 October: [founder-authorized uncapped internal research admission](74-local-calibration-admission.md) disables daily record/byte caps and the twenty-request research subset only when both local-only and explicit calibration mode are set. Provider budgets, spacing/backoff, per-record bounds, evidence, current scores and action/election gates remain. Counters and archived rows are preserved. Bounded mode remains the default elsewhere and restoration is a tracked production prerequisite. No deploy.
+
 GMGN candle correction, 21 October: [v2 contract and descriptive pattern review](73-gmgn-candle-contract-and-review.md) accepts consistently second/millisecond timestamps and missing turnover while rejecting malformed/open/mixed/duplicate bars. Unit-conflicting candle totals remain unknown; cache-only pattern measurements add no fraud, organic-demand or score certification. Archived v1 receipt replay and every gate/allowance remain. Today's 120/120 admission holds new live IO until the next UTC day; public vendor-example regression passes without bypassing it. No deploy.
 
 GMGN live test, 21 October: [internal research allowance raised to 120](72-gmgn-live-test-capacity.md) follows the founder's explicit request. The former 100-record restriction was internal; the 10 MB byte cap, twenty source attempts inside market allowance, pacing, ownership and every evidence/action/election gate remain. Live PONYX info/security returned HTTP 200 and replayed; absent risk labels stayed unknown. A candle payload was rejected by existing validation and remains a recorded gap. No paid fallback, quota reset, score change or deploy.
@@ -22,7 +24,9 @@ Reviewed 20 October 2026 against the entire [PRD v1.1](spec/10X_MEME_FULL_PRD_v1
 - [x] Preserve v4, independent origin/authority/holder/wallet checks, historical artifacts, original quotas and every action/election gate.
 - [x] Verify the first admitted exact-mint GMGN info/security responses and replay through the real IPv4 path after the founder-authorized internal increase to 120; retain missing risk labels as unknown and preserve old rows.
 - [x] Correct documented GMGN millisecond/missing-turnover incompatibilities, preserve archived v1 replay and expose descriptive candle pattern review with uncertain units held unknown.
-- [ ] Verify a newly admitted real Free candle receipt after the UTC reset; corroborate units, pool scope and complete windows before scoring adoption. Today’s 120/120 gate remains enforced.
+- [x] Admit and replay a real PONYX Free minute-candle response in explicit local calibration: HTTP 200, millisecond timestamps, 100 of 360 expected candles; partial coverage and unit uncertainty remain visible.
+- [ ] Corroborate GMGN candle units, canonical pool scope and complete windows before scoring adoption. Founder-authorized local calibration removes only the internal daily admission caps.
+- [ ] Before production, restore bounded research mode and verify 120-record / 10 MB / twenty-source-request limits against retained counters; preserve all provider and evidence gates.
 - [ ] Run preregistered v4/provider comparisons with independent controls; assess holder/trader/creator/screener coverage before expanding the bounded pilot or proposing a new score version.
 
 ## Next scoring priority: authentic daily attention

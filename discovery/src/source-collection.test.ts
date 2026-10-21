@@ -51,6 +51,30 @@ describe("one-call Free source contracts", () => {
   });
 });
 describe("atomic shared research and market admission", () => {
+  it("admits local calibration past both aggregate caps without changing old rows or the market budget", async () => {
+    const { db, sqlite } = setup(); filler(sqlite, R.daily_records, 100_000);
+    const before = sqlite.prepare("SELECT * FROM tenx_score_cohorts ORDER BY address").all();
+    expect(await reserveSourceFetch(db, "bounded", request, 600, at)).toBeNull();
+    expect(await reserveSourceFetch(db, "local", request, 600, at, "local_calibration")).not.toBeNull();
+    expect(sqlite.prepare("SELECT * FROM tenx_score_cohorts ORDER BY address").all()).toEqual(before);
+    expect(sqlite.prepare("SELECT used FROM tenx_usage WHERE provider='market'").get()).toEqual({ used: 1 });
+  });
+  it("removes only the internal 20-request subset locally while retaining provider budget, pause and backoff", async () => {
+    const { db, sqlite } = setup();
+    for (let i = 0; i < L.daily_requests; i++) {
+      expect(await reserveSourceFetch(db, `old-${i}`, request, 600, later(i * 11))).not.toBeNull();
+      sqlite.prepare("UPDATE tenx_source_reservations SET state='succeeded',bytes=1 WHERE id=?").run(`old-${i}`);
+    }
+    const next = later(300);
+    expect(await reserveSourceFetch(db, "subset-held", request, 600, next)).toBeNull();
+    expect(await reserveSourceFetch(db, "local-21", request, 600, next, "local_calibration")).not.toBeNull();
+    sqlite.exec("UPDATE tenx_source_reservations SET state='succeeded'; UPDATE tenx_usage SET used=600");
+    expect(await reserveSourceFetch(db, "market-held", request, 600, later(320), "local_calibration")).toBeNull();
+    sqlite.exec("UPDATE tenx_usage SET used=21; UPDATE tenx_control SET paused=1");
+    expect(await reserveSourceFetch(db, "paused-held", request, 600, later(340), "local_calibration")).toBeNull();
+    sqlite.exec("UPDATE tenx_control SET paused=0; UPDATE tenx_source_transport_control SET backoff_until='2026-10-21T02:00:00.000Z'");
+    expect(await reserveSourceFetch(db, "backoff-held", request, 600, later(360), "local_calibration")).toBeNull();
+  });
   it("admits a source request beyond the former internal 100-record cap while preserving original rows and byte/request limits", async () => {
     const { db, sqlite } = setup(); filler(sqlite, 100);
     const before = sqlite.prepare("SELECT * FROM tenx_score_cohorts ORDER BY address").all();

@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import net from "node:net";
 import { startRelay } from "./discovery-relay.mjs";
 import { discoveryLifecycle } from "./discovery-lifecycle.mjs";
+import { localMigrationsCurrent } from "./discovery-migration-state.mjs";
 
 const dir = fileURLToPath(new URL("../discovery/", import.meta.url));
 const base = "http://127.0.0.1:8794";
@@ -27,7 +28,8 @@ if (!existsSync(varsFile)) {
 }
 const token = readFileSync(varsFile, "utf8").match(/^TENX_ADMIN_TOKEN=([a-f0-9]{64})\s*$/m)?.[1];
 if (!token) throw new Error("Set a 64-character random hexadecimal TENX_ADMIN_TOKEN in discovery/.dev.vars");
-run(["d1", "migrations", "apply", "TENX_DB", "--local", "--config", "wrangler.local.jsonc", "--persist-to", persist]);
+if (localMigrationsCurrent(dir, persist)) console.log("Local migration ledger is current; read-only preflight passed.");
+else run(["d1", "migrations", "apply", "TENX_DB", "--local", "--config", "wrangler.local.jsonc", "--persist-to", persist]);
 const vars = readFileSync(varsFile, "utf8");
 const relay = /\bTENX_NODE_RELAY=true\b/.test(vars) ? await startRelay({ token, rpcUrl: "https://api.mainnet-beta.solana.com" }) : null;
 const child = spawn("pnpm", ["exec", "wrangler", "dev", "--local", "--config", "wrangler.local.jsonc", "--port", "8794", "--ip", "127.0.0.1", "--inspector-port", "9237", "--persist-to", persist], { cwd: dir, stdio: "inherit", shell: process.platform === "win32" });

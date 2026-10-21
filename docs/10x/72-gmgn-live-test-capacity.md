@@ -1,5 +1,7 @@
 # Internal research capacity and first live GMGN checks
 
+Local calibration, 21 October: [founder-authorized uncapped internal research admission](74-local-calibration-admission.md) disables daily record/byte caps and the twenty-request research subset only when both local-only and explicit calibration mode are set. Provider budgets, spacing/backoff, per-record bounds, evidence, current scores and action/election gates remain. Counters and archived rows are preserved. Bounded mode remains the default elsewhere and restoration is a tracked production prerequisite. No deploy.
+
 GMGN candle correction, 21 October: [v2 contract and descriptive pattern review](73-gmgn-candle-contract-and-review.md) accepts consistently second/millisecond timestamps and missing turnover while rejecting malformed/open/mixed/duplicate bars. Unit-conflicting candle totals remain unknown; cache-only pattern measurements add no fraud, organic-demand or score certification. Archived v1 receipt replay and every gate/allowance remain. Today's 120/120 admission holds new live IO until the next UTC day; public vendor-example regression passes without bypassing it. No deploy.
 
 21 October 2026 (Australia/Sydney). Founder-authorized continuation of the [read-only GMGN integration](71-gmgn-read-only-integration.md).

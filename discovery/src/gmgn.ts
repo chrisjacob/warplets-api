@@ -6,11 +6,11 @@ import { executeReservedSource, readSourceReceipt, type SourceFetcher } from "./
 import { GMGN_USE_AUTHORITY, GmgnPublicSummarySchema } from "./gmgn-model";
 import { Address } from "./model";
 import { GmgnRequest, gmgnDescriptor } from "./gmgn-request";
-import { SCORE_RESEARCH_LIMITS } from "./score-research-model";
+import { researchLimits, type ResearchMode } from "./research-limits";
 
 export const GmgnReviewRequestSchema = z.object({ reason: z.string().min(3).max(300), request_id: z.uuid(),
   mode: z.enum(["access_probe", "retained_research"]), request: GmgnRequestSchema }).strict();
-export interface GmgnSettings { db: D1Database; apiKey?: string; permissionReference?: string; marketDailyLimit: number }
+export interface GmgnSettings { db: D1Database; apiKey?: string; permissionReference?: string; marketDailyLimit: number; researchMode?: ResearchMode }
 const configured = (key?: string) => /^[\x21-\x7e]{8,512}$/.test(key ?? "");
 const permitted = (reference?: string) => reference === GMGN_USE_AUTHORITY;
 
@@ -24,8 +24,9 @@ export async function gmgnStatus(settings: GmgnSettings, now = new Date()) {
     provider_rights_independently_confirmed: false,
     access_verified: "inspect_latest_probe_receipt", latest, transport, cache_lookback_days: 7,
     shared_research: await sharedResearchUsage(settings.db, now.toISOString().slice(0, 10)),
-    limits: { daily_http_subset: L.daily_requests, shared_market_maximum: L.market_daily_maximum, maximum_weight_per_request: 2,
-      maximum_daily_weight: L.daily_requests * 2, minimum_spacing_seconds: L.spacing_ms / 1000, subset_is_additional: false },
+    research_limits: researchLimits(settings.researchMode),
+    limits: { daily_http_subset: researchLimits(settings.researchMode).source_daily_requests, shared_market_maximum: L.market_daily_maximum, maximum_weight_per_request: 2,
+      maximum_daily_weight: Math.min(researchLimits(settings.researchMode).source_daily_requests ?? L.market_daily_maximum, L.market_daily_maximum, settings.marketDailyLimit) * 2, minimum_spacing_seconds: L.spacing_ms / 1000, subset_is_additional: false },
     scheduled_collection: "existing_maintenance_spare_capture", scoring_effect: "none", evidence_gates_changed: false, provider_requests: 0, database_writes: 0 };
 }
 
@@ -40,7 +41,8 @@ export const GMGN_PILOT_MINTS = [
 export async function gmgnPilotHasCapacity(settings: GmgnSettings, now = new Date()) {
   if (!configured(settings.apiKey) || !permitted(settings.permissionReference)) return false;
   const at = now.toISOString(), day = at.slice(0, 10), usage = await sharedResearchUsage(settings.db, day);
-  if (!usage || usage.records >= SCORE_RESEARCH_LIMITS.daily_records || usage.bytes + L.reserved_bytes > SCORE_RESEARCH_LIMITS.daily_bytes) return false;
+  const limits = researchLimits(settings.researchMode);
+  if (!usage || limits.daily_records !== null && usage.records >= limits.daily_records || limits.daily_bytes !== null && usage.bytes + L.reserved_bytes > limits.daily_bytes) return false;
   const row = await settings.db.prepare(`SELECT
     (SELECT count(*) FROM tenx_source_reservations WHERE day=?1) AS used,
     (SELECT used FROM tenx_usage WHERE provider='market' AND day=?1) AS market_used,
@@ -52,7 +54,7 @@ export async function gmgnPilotHasCapacity(settings: GmgnSettings, now = new Dat
     EXISTS(SELECT 1 FROM tenx_market_control WHERE id=1 AND last_error IS NOT NULL AND next_refresh_at>?2) AS market_backoff,
     EXISTS(SELECT 1 FROM tenx_source_reservations WHERE state IN ('reserved','fetching') AND lease_until>?2) AS in_flight`)
     .bind(day, at, ...GMGN_PILOT_MINTS).first<{used:number;market_used:number|null;attempted:number;active:number;paced:number;market_backoff:number;in_flight:number}>();
-  return Boolean(row && row.used < L.daily_requests && (row.market_used ?? 0) < Math.min(L.market_daily_maximum, settings.marketDailyLimit)
+  return Boolean(row && (limits.source_daily_requests === null || row.used < limits.source_daily_requests) && (row.market_used ?? 0) < Math.min(L.market_daily_maximum, settings.marketDailyLimit)
     && row.attempted < GMGN_PILOT_MINTS.length * 4 && row.active && row.paced && !row.market_backoff && !row.in_flight);
 }
 export async function runGmgnPilot(settings: GmgnSettings, scoreAttempts: number, fetcher: SourceFetcher, clock = () => new Date()) {
@@ -81,7 +83,7 @@ export async function runGmgnReview(settings: GmgnSettings, raw: unknown, fetche
   if (!configured(settings.apiKey)) return held("gmgn_key_missing_or_invalid");
   if (input.mode === "access_probe" && input.request.kind !== "gmgn_token_info") return held("gmgn_probe_info_only");
   if (input.mode === "retained_research" && !permitted(settings.permissionReference)) return held("gmgn_research_rights_unresolved");
-  const reservation = await reserveSourceFetch(settings.db, input.request_id, input.request, Math.min(L.market_daily_maximum, settings.marketDailyLimit), clock());
+  const reservation = await reserveSourceFetch(settings.db, input.request_id, input.request, Math.min(L.market_daily_maximum, settings.marketDailyLimit), clock(), settings.researchMode);
   if (!reservation) return held("shared_budget_pause_pacing_or_existing_request");
   return { ...await executeReservedSource(settings.db, reservation, fetcher, clock, { apiKey: settings.apiKey!, mode: input.mode, permissionReference: settings.permissionReference }),
     request_id: input.request_id, scoring_effect: "none" };

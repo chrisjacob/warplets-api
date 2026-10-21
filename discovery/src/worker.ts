@@ -55,8 +55,10 @@ import { sourcePilotReadiness } from "./source-pilot-readiness";
 import { gmgnPublicSummary, gmgnSavedReview, gmgnStatus, runGmgnReview, runGmgnPilot, gmgnPilotHasCapacity } from "./gmgn";
 import { GMGN_USE_AUTHORITY } from "./gmgn-model";
 
+import { researchMode } from "./research-limits";
+
 // Widen generated literal vars so ignored .dev.vars overrides stay type-safe.
-type OptionalGmgnSecret = "GMGN_API_KEY";
+type OptionalGmgnSecret = "GMGN_API_KEY" | "TENX_RESEARCH_MODE";
 export type LocalEnv = { [K in Exclude<keyof Cloudflare.Env, OptionalGmgnSecret>]: Cloudflare.Env[K] extends string ? string : Cloudflare.Env[K] }
   & { [K in Extract<keyof Cloudflare.Env, OptionalGmgnSecret>]?: string };
 type Env = LocalEnv;
@@ -66,7 +68,7 @@ const headers = API_HEADERS;
 function json(data: unknown, status = 200): Response { return Response.json(data, { status, headers }); }
 function gmgnSettings(env: Env) {
   return { db: env.TENX_DB, apiKey: "GMGN_API_KEY" in env && typeof env.GMGN_API_KEY === "string" ? env.GMGN_API_KEY : undefined,
-    permissionReference: GMGN_USE_AUTHORITY, marketDailyLimit: Math.min(600, z.coerce.number().int().min(0).max(1000).parse(env.TENX_MARKET_DAILY_LIMIT)) };
+    permissionReference: GMGN_USE_AUTHORITY, researchMode: researchMode(env), marketDailyLimit: Math.min(600, z.coerce.number().int().min(0).max(1000).parse(env.TENX_MARKET_DAILY_LIMIT)) };
 }
 function gmgnFetcher(env: Env) {
   return async (url: string, init: RequestInit) => {
@@ -201,7 +203,7 @@ export async function handle(request: Request, env: Env): Promise<Response> {
   }
   if (method === "GET" && path === "/api/10x/transparency/policies") return json(await envelope(env, await publicPolicy()));
   if (method === "GET" && path === "/api/10x/research/signals") return json(await envelope(env, await signalResearch(env.TENX_DB)));
-  if(method==="GET"&&path==="/api/10x/research/scores")return json(await envelope(env,await scoreResearch(env.TENX_DB,new Date(),ScoreModelSchema.parse(url.searchParams.get("model")??"discovery-score-v1"))));
+  if(method==="GET"&&path==="/api/10x/research/scores")return json(await envelope(env,await scoreResearch(env.TENX_DB,new Date(),ScoreModelSchema.parse(url.searchParams.get("model")??"discovery-score-v1"),researchMode(env))));
   if(method==="GET"&&path==="/api/10x/research/scores/followup")return json(await envelope(env,await scoreFollowupPlan(env.TENX_DB,z.enum(["dexscreener","geckoterminal"]).parse(env.TENX_MARKET_PROVIDER),env.TENX_MARKET_ENABLED==="true")));
   const scoreResearchEvidence=path.match(/^\/api\/10x\/research\/scores\/solana\/([^/]+)$/);
   if(method==="GET"&&scoreResearchEvidence){
@@ -344,7 +346,7 @@ export async function handle(request: Request, env: Env): Promise<Response> {
       const inventory = await expireCandidates(env.TENX_DB,now);
       const diagnostics = await runSignalCycle(env.TENX_DB);
       const gmgn_planned = await gmgnPilotHasCapacity(gmgnSettings(env));
-      const score_research=await runScoreResearch(env.TENX_DB,undefined,gmgn_planned?2:3);
+      const score_research=await runScoreResearch(env.TENX_DB,undefined,gmgn_planned?2:3,researchMode(env));
       const backing_index=await runBackingIndex(settings(env));
       const backing = await settleBacking(env.TENX_DB,new Date());
       let election: { id?: string; state: string; error?: string };
