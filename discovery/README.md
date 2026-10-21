@@ -1,5 +1,7 @@
 # Local Solana discovery
 
+GMGN live test, 21 October: [internal research allowance raised to 120](../docs/10x/72-gmgn-live-test-capacity.md). The former 100-record restriction was internal. The 10 MB cap, twenty source HTTP attempts inside market allowance, pacing and every evidence/action/election gate remain. Live info/security passed and replayed; absent risk labels remain unknown, and the candle payload was withheld by validation. Current score-v4 is unchanged. Earlier 100-record statements below are historical checkpoints. No paid fallback, counter reset or deploy.
+
 GMGN: [read-only integration and operator commands](../docs/10x/71-gmgn-read-only-integration.md). Only the ignored query key is configured. Token pages read normalized saved evidence; the fixed pilot uses one of the existing maintenance capture slots and original shared quotas. A full daily research store holds requests before IO. No signing or score-policy change.
 
 Artwork recovery, 21 October: [critical image coverage and source-format fixes](../docs/10x/69-artwork-recovery.md) supports actual Pump image-proxy references, bounded original-source/gateway fallbacks, profile images and public token assets. Local migration 0042 adds private failed-reference recovery and owned artwork leases. Existing 120-inside-600 free allowances now reserve atomically; no RPC, score, research or action-gate change. PONYX and ADTF recovered from saved references without additional metadata requests; remaining dead/unsupported links stay explicit. No deploy.

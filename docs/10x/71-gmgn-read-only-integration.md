@@ -1,5 +1,7 @@
 # GMGN read-only integration and next comparison plan
 
+GMGN live test, 21 October: [internal research allowance raised to 120](72-gmgn-live-test-capacity.md) follows the founder's explicit request. The former 100-record restriction was internal; the 10 MB byte cap, twenty source attempts inside market allowance, pacing, ownership and every evidence/action/election gate remain. Live PONYX info/security returned HTTP 200 and replayed; absent risk labels stayed unknown. A candle payload was rejected by existing validation and remains a recorded gap. No paid fallback, quota reset, score change or deploy.
+
 21 October 2026 (Australia/Sydney). Continues the [GMGN API and 66-card marketplace review](63-gmgn-api-evaluation-and-plan.md), [source foundation](68-source-collection-foundation.md) and [authentic daily attention requirement](70-authentic-attention-momentum.md).
 
 ## Updated authority and plan

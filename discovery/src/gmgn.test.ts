@@ -1,3 +1,4 @@
+import { SCORE_RESEARCH_LIMITS } from "./score-research-model";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { DatabaseSync } from "node:sqlite";
 import { readFileSync, readdirSync } from "node:fs";
@@ -84,7 +85,7 @@ describe("GMGN owned integration and evidence boundaries", () => {
     if (condition === "key") settings.apiKey = "";
     if (condition === "permission") settings.permissionReference = "";
     if (condition === "paused") sqlite.exec("UPDATE tenx_control SET paused=1");
-    if (condition === "budget") for (let i = 0; i < 100; i++) sqlite.prepare("INSERT INTO tenx_score_cohorts VALUES(?,'discovery-score-v1',?,'2026-10-21','hash',1,'{}')").run(`f${i}`, at.toISOString());
+    if (condition === "budget") for (let i = 0; i < SCORE_RESEARCH_LIMITS.daily_records; i++) sqlite.prepare("INSERT INTO tenx_score_cohorts VALUES(?,'discovery-score-v1',?,'2026-10-21','hash',1,'{}')").run(`f${i}`, at.toISOString());
     if (condition === "market") sqlite.exec("INSERT INTO tenx_usage VALUES('market','2026-10-21',600)");
     if (condition === "pacing") sqlite.exec("UPDATE tenx_source_transport_control SET next_at='2026-10-21T02:00:00.000Z'");
     expect(await runGmgnReview(settings, input(), fetcher, () => at)).toMatchObject({ state: "held", provider_requests: 0 }); expect(fetcher).not.toHaveBeenCalled();
@@ -135,7 +136,7 @@ describe("GMGN owned integration and evidence boundaries", () => {
     sqlite.exec("UPDATE tenx_source_transport_control SET backoff_until=NULL; INSERT INTO tenx_usage VALUES('market','2026-10-21',600)");
     expect(await gmgnPilotHasCapacity(settings, at)).toBe(false);
     sqlite.exec("DELETE FROM tenx_usage");
-    for (let i = 0; i < 100; i++) sqlite.prepare("INSERT INTO tenx_score_cohorts VALUES(?,'discovery-score-v1',?,'2026-10-21','hash',1,'{}')").run(`limit${i}`, at.toISOString());
+    for (let i = 0; i < SCORE_RESEARCH_LIMITS.daily_records; i++) sqlite.prepare("INSERT INTO tenx_score_cohorts VALUES(?,'discovery-score-v1',?,'2026-10-21','hash',1,'{}')").run(`limit${i}`, at.toISOString());
     expect(await gmgnPilotHasCapacity(settings, at)).toBe(false);
   });
   it("routes an admitted authenticated Worker read only through the configured loopback IPv4 bridge", async () => {

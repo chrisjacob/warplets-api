@@ -30,7 +30,7 @@ describe("offline source pilot boundaries and request plans", () => {
     const network = vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("outside_call_forbidden"));
     const plan = sourcePilotPlan();
     expect(plan).toMatchObject({ mode: "offline_only", live_collection_enabled: false, provider_requests: 0, database_writes: 0, proposed_http_requests: 0, scoring_effect: "none", evidence_gates_changed: false });
-    expect(plan.future_admission).toMatchObject({ market_daily_subset: 20, shared_market_daily_default: 600, subset_is_additional: false, shared_research_records: 100, shared_research_bytes: 10000000, reservations_made: false, remaining_capacity: null });
+    expect(plan.future_admission).toMatchObject({ market_daily_subset: 20, shared_market_daily_default: 600, subset_is_additional: false, shared_research_records: 120, shared_research_bytes: 10000000, reservations_made: false, remaining_capacity: null });
     for (const input of syntheticSourcePilotInputs()) {
       const before = JSON.stringify(input), record = await freezeSourcePilot(input), replay = await replaySourcePilot(record);
       expect(JSON.stringify(input)).toBe(before);

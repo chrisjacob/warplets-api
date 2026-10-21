@@ -10,6 +10,7 @@ import { publishScoreCohort, scoreResearch } from "./score-research";
 import { freezeScoreCohort } from "./score-research-analysis";
 import { defaultScoreInput, freezeDiscoveryScore } from "./discovery-score";
 import { fixtureCandidates } from "./fixtures";
+import { SCORE_RESEARCH_LIMITS as R } from "./score-research-model";
 import { reserveQuota } from "./store";
 
 const at = new Date("2026-10-21T01:00:00.000Z"), opened: DatabaseSync[] = [];
@@ -50,6 +51,14 @@ describe("one-call Free source contracts", () => {
   });
 });
 describe("atomic shared research and market admission", () => {
+  it("admits a source request beyond the former internal 100-record cap while preserving original rows and byte/request limits", async () => {
+    const { db, sqlite } = setup(); filler(sqlite, 100);
+    const before = sqlite.prepare("SELECT * FROM tenx_score_cohorts ORDER BY address").all();
+    expect(R.daily_records).toBe(120); expect(R.daily_bytes).toBe(10_000_000); expect(L.daily_requests).toBe(20);
+    expect(await reserveSourceFetch(db, "after-old-cap", request, 600, at)).not.toBeNull();
+    expect(await sharedResearchUsage(db, "2026-10-21")).toEqual({ records: 101, bytes: 100 + L.reserved_bytes });
+    expect(sqlite.prepare("SELECT * FROM tenx_score_cohorts ORDER BY address").all()).toEqual(before);
+  });
   it("reserves once under competing calls and charges the same market allowance", async () => {
     const { db, sqlite } = setup();
     const results = await Promise.all([reserveSourceFetch(db, "same", request, 600, at), reserveSourceFetch(db, "same", request, 600, at)]);
@@ -66,7 +75,7 @@ describe("atomic shared research and market admission", () => {
     if (kind === "market_backoff") sqlite.prepare("UPDATE tenx_market_control SET last_error='limited',next_refresh_at=?").run(later(60).toISOString());
     if (kind === "rpc_backoff") sqlite.prepare("UPDATE tenx_control SET retry_after=?").run(later(60).toISOString());
     if (kind === "market_budget") sqlite.exec("INSERT INTO tenx_usage VALUES('market','2026-10-21',600)");
-    if (kind === "records") filler(sqlite, 100);
+    if (kind === "records") filler(sqlite, R.daily_records);
     if (kind === "bytes") filler(sqlite, 5, 1_700_000);
     expect(await reserveSourceFetch(db, "held", request, 600, at)).toBeNull();
     expect(sqlite.prepare("SELECT count(*) n FROM tenx_source_reservations").get()).toEqual({ n: 0 });
@@ -78,11 +87,11 @@ describe("atomic shared research and market admission", () => {
     expect(await sharedResearchUsage(db, "2026-10-21")).toEqual({ records: 0, bytes: 0 }); expect(sqlite.prepare("SELECT next_at FROM tenx_source_transport_control").get()).toEqual({ next_at: null });
   });
   it("accounts both score and source paths against the same final record", async () => {
-    const { db, sqlite } = setup(), record = await score(db); filler(sqlite, 99);
+    const { db, sqlite } = setup(), record = await score(db); filler(sqlite, R.daily_records - 1);
     expect(await reserveSourceFetch(db, "last", request, 600, at)).not.toBeNull();
     expect(await publishScoreCohort(db, record, "score", at)).toBe(false);
-    expect((await scoreResearch(db, at)).today.records).toBe(100);
-    const other = setup(), otherRecord = await score(other.db); filler(other.sqlite, 99);
+    expect((await scoreResearch(db, at)).today.records).toBe(R.daily_records);
+    const other = setup(), otherRecord = await score(other.db); filler(other.sqlite, R.daily_records - 1);
     expect(await publishScoreCohort(other.db, otherRecord, "score", at)).toBe(true);
     expect(await reserveSourceFetch(other.db, "too-late", request, 600, at)).toBeNull();
   });

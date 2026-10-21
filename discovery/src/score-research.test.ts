@@ -86,7 +86,7 @@ describe("bounded score retention on existing local maintenance",()=>{
   });
   it.each(["records","bytes"])("enforces the atomic daily %s bound",async bound=>{
     const {db,sqlite}=setup(),c=await cohort();await lease(db);
-    const n=bound==="records"?100:6,b=bound==="records"?1:1_666_650;for(let i=0;i<n;i++)sqlite.prepare("INSERT INTO tenx_score_cohorts VALUES(?,'discovery-score-v1',?,'2026-10-21','hash',?,'{}')").run(`filler-${i}`,at.toISOString(),b);
+    const n=bound==="records"?L.daily_records:6,b=bound==="records"?1:1_666_650;for(let i=0;i<n;i++)sqlite.prepare("INSERT INTO tenx_score_cohorts VALUES(?,'discovery-score-v1',?,'2026-10-21','hash',?,'{}')").run(`filler-${i}`,at.toISOString(),b);
     expect(await publishScoreCohort(db,c,"owner",at)).toBe(false);expect(sqlite.prepare("SELECT count(*) n FROM tenx_score_cohorts").get()).toEqual({n});
   });
   it("rejects backdated publication and inherits the existing score-input size bound",async()=>{
