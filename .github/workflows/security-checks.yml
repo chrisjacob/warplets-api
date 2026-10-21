@@ -50,6 +50,12 @@ jobs:
       - name: Private full metadata capacity and chronological growth guards
         run: pnpm test:discovery-capacity
 
+      - name: Private scratch resolver and immutable historical replay
+        run: pnpm test:discovery-scratch
+
+      - name: Scratch replay tooling types
+        run: pnpm exec tsc --noEmit -p tsconfig.evidence-scratch.json
+
       - name: Install dependencies (app)
         working-directory: app
         run: pnpm install --frozen-lockfile

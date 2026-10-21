@@ -1,0 +1,5 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {"allowJs": true, "checkJs": false},
+  "include": ["scripts/discovery-evidence-scratch-replay.ts", "scripts/lib/evidence-scratch-replay.ts", "scripts/discovery-evidence-scratch-replay.test.ts"]
+}
