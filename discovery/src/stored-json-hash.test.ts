@@ -1,5 +1,5 @@
 import {describe,expect,it} from "vitest";
-import {storedJsonHash} from "./stored-json-hash";
+import {storedJsonHash,storedJsonTextHash} from "./stored-json-hash";
 import {hashJson} from "./solana";
 
 describe("bounded stored JSON SHA-256 verification",()=>{
@@ -23,6 +23,11 @@ describe("bounded stored JSON SHA-256 verification",()=>{
     const circular:any={};circular.self=circular;
     for(const value of [1n,circular,{toJSON(){throw Error("serialization_failure");}}]){
       expect(()=>storedJsonHash(value)).toThrow();await expect(hashJson(value)).rejects.toThrow();
+    }
+  });
+  it("hashes already serialized bounded JSON as original UTF-8 bytes without wrapping or re-encoding values",async()=>{
+    for(const value of [{z:1,a:"\u0000漢🙂\ud800"},[true,null,-0],{payload:"x".repeat(100000)}]){
+      const text=JSON.stringify(value);expect(storedJsonTextHash(text)).toBe(await hashJson(value));expect(storedJsonTextHash(text)).not.toBe(storedJsonHash(text));
     }
   });
 });

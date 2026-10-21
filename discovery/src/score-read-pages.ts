@@ -1,20 +1,20 @@
 import {z} from "zod";
-import {Address,DEFAULT_POLICY} from "./model";
+import {DEFAULT_POLICY} from "./model";
 import {CandidateCardSchema,candidateCard} from "./candidate-card";
 import {ScoreSummaryV4Schema,DISCOVERY_SCORE_POLICY_V4} from "./discovery-score-v4-model";
 import {rankedDiscovery,scoreInventoryCandidates} from "./discovery-score-store";
 import {browseEntries,browseEntry} from "./discovery-browse-order";
 import {hashJson} from "./solana";
 import {control} from "./store";
-import {storedJsonHash} from "./stored-json-hash";
+import {storedJsonHash,storedJsonTextHash} from "./stored-json-hash";
 import {PackedScoreInventorySchema,packScoreInventory,unpackScoreInventory} from "./score-read-index";
+import {ScoreSummaryRowsSchema as SummaryPage,PackedScoreSummariesSchema,packScoreSummaries,unpackScoreSummaries} from "./score-read-summaries";
 
 // Bump on evaluator/browse semantics changes, even if numeric policies do not change.
-const VERSION="discovery-score-read-pages-v3" as const,WINDOW_MS=60000,PAGE_SIZE=25;
+const VERSION="discovery-score-read-pages-v4" as const,WINDOW_MS=60000,PAGE_SIZE=25;
 const Hash=z.string().regex(/^[a-f0-9]{64}$/);
 const Card=CandidateCardSchema.omit({discovery_rank:true}).extend({discovery_score:ScoreSummaryV4Schema});
 const Body=Card.omit({discovery_score:true});
-const SummaryPage=z.object({address:Address,discovery_score:ScoreSummaryV4Schema}).strict().array().min(1).max(PAGE_SIZE);
 const Manifest=z.object({version:z.literal(VERSION),policy_hash:Hash,source_revision:z.number().int().safe().nonnegative(),cutoff:z.iso.datetime(),expires_at:z.iso.datetime(),
   scope:z.literal("current_evaluation"),semantics:z.literal("frozen_at_cutoff"),action_authority:z.literal(false),inventory:PackedScoreInventorySchema,summary_pages:z.object({page:z.number().int().min(0).max(19),hash:Hash}).strict().array().max(20)}).strict();
 const Query=z.object({limit:z.coerce.number().int().min(1).max(100).default(25),status:z.enum(["all","eligible","provisional","excluded"]).default("all"),age:z.enum(["all","24h"]).default("all"),
@@ -47,7 +47,8 @@ export async function buildScoreReadPages(db:D1Database,at=new Date()) {
   const pages=[];
   for(let offset=0;offset<cards.length;offset+=PAGE_SIZE){
     const summaries=SummaryPage.parse(cards.slice(offset,offset+PAGE_SIZE).map(c=>({address:c.address,discovery_score:c.discovery_score})));
-    const payload=JSON.stringify(summaries);if(bytes(payload)>100000)return held("summary_page_size_limit");
+    if(bytes(JSON.stringify(summaries))>100000)return held("summary_page_size_limit");
+    const payload=JSON.stringify(PackedScoreSummariesSchema.parse(packScoreSummaries(summaries)));if(bytes(payload)>100000)return held("summary_page_size_limit");
     pages.push({page:Math.floor(offset/PAGE_SIZE),hash:await hashJson(summaries),payload});
   }
   const manifest=Manifest.parse({version:VERSION,policy_hash:await policyHash(),source_revision:revision,cutoff:at.toISOString(),expires_at:new Date(at.getTime()+WINDOW_MS).toISOString(),
@@ -129,9 +130,12 @@ export async function readScoreReadPages(db:D1Database,raw:unknown={},now=new Da
   const wantedPages=new Set(selected.map(e=>e.score_page)),summaries=new Map<string,z.infer<typeof ScoreSummaryV4Schema>>();
   if(scoreRows.filter(s=>s.page!==null).length!==wantedPages.size)return held("summary_page_missing");
   for(const row of scoreRows){if(row.page===null)continue;
-    let page:z.infer<typeof SummaryPage>;try {page=SummaryPage.parse(JSON.parse(row.payload??"null"));}catch{return held("invalid_summary_page");}
-    const expected=pageOrder.filter(e=>e.score_page===row.page);
-    if(!wantedPages.has(row.page)||storedJsonHash(page)!==manifest.summary_pages[row.page]?.hash||JSON.stringify(page.map(s=>s.address))!==JSON.stringify(expected.map(e=>e.address))||page.some(s=>s.discovery_score.as_of!==manifest.cutoff))return held("summary_page_integrity_mismatch");
+    let page:z.infer<typeof SummaryPage>;try {page=unpackScoreSummaries(PackedScoreSummariesSchema.parse(JSON.parse(row.payload??"null")));}catch{return held("invalid_summary_page");}
+    const originalPayload=JSON.stringify(page);
+    if(bytes(originalPayload)>100000)return held("summary_page_size_limit");
+    // The complete inventory check above proved contiguous default-rank pages.
+    const expected=pageOrder.slice(row.page*PAGE_SIZE,(row.page+1)*PAGE_SIZE);
+    if(!wantedPages.has(row.page)||storedJsonTextHash(originalPayload)!==manifest.summary_pages[row.page]?.hash||JSON.stringify(page.map(s=>s.address))!==JSON.stringify(expected.map(e=>e.address))||page.some(s=>s.discovery_score.as_of!==manifest.cutoff))return held("summary_page_integrity_mismatch");
     for(const summary of page)summaries.set(summary.address,summary.discovery_score);
   }
   const cards:((z.infer<typeof Card>)&{discovery_rank:number})[]=[];

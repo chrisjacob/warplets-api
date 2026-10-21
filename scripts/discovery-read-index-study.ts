@@ -8,6 +8,7 @@ import {sqliteD1} from "../app/functions/_lib/sqliteTestDb";
 import {fixtureCandidates} from "../discovery/src/fixtures";
 import {buildScoreReadPages,readScoreReadPages} from "../discovery/src/score-read-pages";
 import {PackedScoreInventorySchema,unpackScoreInventory} from "../discovery/src/score-read-index";
+import {PackedScoreSummariesSchema,unpackScoreSummaries} from "../discovery/src/score-read-summaries";
 import {rankedDiscovery} from "../discovery/src/discovery-score-store";
 import {candidateCard} from "../discovery/src/candidate-card";
 import {hashJson,toBase58} from "../discovery/src/solana";
@@ -34,6 +35,9 @@ for(const shape of ["shared_wide","distinct_wide","maximum_scatter"] as const){
       built=await buildScoreReadPages(db,at);if(built.state!=="built")throw Error(built.reason);
     }
     const queries=shape==="maximum_scatter"?[{limit:100,q:"\u0002",browse:"inventory"}]:[{limit:25,sort:"score"},{limit:25,sort:"liquidity"},{limit:100,sort:"liquidity"},{limit:1,q:items[450]!.address}];
+    const stored=sqlite.prepare("SELECT page,payload FROM tenx_score_page_summaries ORDER BY page").all() as {page:number;payload:string}[];
+    const sizes=new Map(stored.map(row=>{const original=unpackScoreSummaries(PackedScoreSummariesSchema.parse(JSON.parse(row.payload)));
+      return [row.page,{stored:Buffer.byteLength(row.payload),original:Buffer.byteLength(JSON.stringify(original)),members:original.length}] as const;}));
     const before=sqlite.prepare("SELECT total_changes() n").get(),cases=[];
     for(const query of queries){
       const prepare=db.prepare.bind(db);let pages:number[]=[];
@@ -46,11 +50,11 @@ for(const shape of ["shared_wide","distinct_wide","maximum_scatter"] as const){
       const cpu=process.cpuUsage(),samples=[];let responseBytes=0;
       for(let i=0;i<40;i++){const start=performance.now(),result=await readScoreReadPages(db,query,at);if(result.state!=="available")throw Error(result.reason);responseBytes=Buffer.byteLength(JSON.stringify(result));samples.push(performance.now()-start);}
       const used=process.cpuUsage(cpu);samples.sort((a,b)=>a-b);
-      cases.push({query,requests:40,summary_pages:pages.length,full_evaluator_parity:true,response_bytes:responseBytes,wall_p50_ms:samples[19],wall_p95_ms:samples[37],mean_process_cpu_ms:(used.user+used.system)/40000});
+      cases.push({query,requests:40,summary_pages:pages.length,summary_members:pages.reduce((n,p)=>n+sizes.get(p)!.members,0),stored_summary_bytes:pages.reduce((n,p)=>n+sizes.get(p)!.stored,0),original_summary_bytes:pages.reduce((n,p)=>n+sizes.get(p)!.original,0),full_evaluator_parity:true,response_bytes:responseBytes,wall_p50_ms:samples[19],wall_p95_ms:samples[37],mean_process_cpu_ms:(used.user+used.system)/40000});
     }
-    studies.push({shape,built,cases,no_read_writes:JSON.stringify(before)===JSON.stringify(sqlite.prepare("SELECT total_changes() n").get())});
+    studies.push({shape,built,stored_summary_bytes:[...sizes.values()].reduce((n,s)=>n+s.stored,0),original_summary_bytes:[...sizes.values()].reduce((n,s)=>n+s.original,0),cases,no_read_writes:JSON.stringify(before)===JSON.stringify(sqlite.prepare("SELECT total_changes() n").get())});
   } finally {sqlite.close();}
 }
-const result={version:"compact-score-inventory-study-v1",cutoff:at.toISOString(),studies,
+const result={version:"compact-score-inventory-study-v2",cutoff:at.toISOString(),studies,
   limits:"Synthetic 500-mint fixtures, maximum-length identity text; not all-schema worst case. Local Node/SQLite warm reads plus serialization, not Workers CPU, cold isolates, deployed D1 metering, concurrency or Free acceptance. No provider/live database IO."};
 writeFileSync(output,JSON.stringify(result,null,2)+"\n",{flag:"wx"});console.log(JSON.stringify(result));
