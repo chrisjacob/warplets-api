@@ -9,6 +9,7 @@ import { PublicPolicySchema } from "../../../discovery/src/policy-model";
 import { SignalResearchSchema } from "../../../discovery/src/signal-model";
 import { OperationsSchema } from "../../../discovery/src/operations-model";
 import { CandidateExpiryReceiptSchema, InventoryStatusSchema } from "../../../discovery/src/candidate-expiry-model";
+import {MarketBatchesSchema} from "../../../discovery/src/market-batch-model";
 
 const Common = z.object({
   api_version: z.literal("10x-discovery-v1"), trace_id: z.string(), as_of: z.string().nullable(), served_at: z.string(),
@@ -39,6 +40,7 @@ export const StatusResponse = Common.extend({ data: z.object({
   backing_index_automation:z.object({enabled:z.boolean(),daily_limit:z.number(),daily_used:z.number(),scope:z.literal("subset_of_wallet_and_global_RPC_limits")}).optional(),
   election_automation: ElectionAutomationSchema.optional(),
   inventory: InventoryStatusSchema.optional(),
+  market_batches: MarketBatchesSchema.optional(),
   market_provider: z.enum(["geckoterminal", "dexscreener"]).optional(),
   artwork_automation: z.object({ next_refresh_at: z.string().nullable(), last_error: z.string().nullable() }).optional(),
   quality_automation: z.object({ enabled: z.boolean(), daily_limit: z.number(), daily_used: z.number(), last_success: z.string().nullable(), next_refresh_at: z.string().nullable(), last_error: z.string().nullable(), targets: z.number() }).optional(),

@@ -43,6 +43,7 @@ import { inboxRecoveryStatus } from "./inbox-recovery";
 import { enqueueMintReview, mintReviews, MintReviewError } from "./mint-review";
 import { MINT_REVIEW_LIMITS } from "./mint-review-model";
 import { candidateExpiry, expireCandidates, inventoryStatus } from "./candidate-expiry";
+import { marketBatches,marketBatchRecord } from "./market-batch-store";
 
 // Widen generated literal vars so ignored .dev.vars overrides stay type-safe.
 export type LocalEnv = { [K in keyof Cloudflare.Env]: Cloudflare.Env[K] extends string ? string : Cloudflare.Env[K] };
@@ -104,6 +105,7 @@ async function status(env: Env) {
     wallet_automation: await walletStatus(env.TENX_DB, Number(env.TENX_WALLET_RPC_DAILY_LIMIT), env.TENX_WALLET_ANALYSIS_ENABLED === "true"),
     election_automation: await electionAutomation(env.TENX_DB),
     inventory: await inventoryStatus(env.TENX_DB),
+    market_batches: await marketBatches(env.TENX_DB),
     quality_automation: await qualityStatus(env.TENX_DB, Number(env.TENX_QUALITY_RPC_DAILY_LIMIT), env.TENX_QUALITY_ENABLED === "true"),
     capabilities: { discovery: true, voting: false, launches: false, signing: false, rewards: false, social_publishing: false },
   };
@@ -266,6 +268,8 @@ export async function handle(request: Request, env: Env): Promise<Response> {
     const wallets = await env.TENX_DB.prepare("SELECT COUNT(*) AS count FROM tenx_wallet_cohorts WHERE day=?1").bind(day).first<{ count: number }>();
     return json(await envelope(env, { reports: rows.results.map(row => JSON.parse(row.payload)), automatic_policy_changes: false, collection: { day, tokens: collected?.tokens ?? 0, recommended: recommendations?.count ?? 0, wallet_samples: wallets?.count ?? 0, last_snapshot_at: collected?.last_snapshot_at ?? null } }));
   }
+  const marketBatch=path.match(/^\/api\/10x\/admin\/market\/batches\/(latest|latest_issue)$/);
+  if(method==="GET"&&marketBatch){const saved=await marketBatchRecord(env.TENX_DB,marketBatch[1] as "latest"|"latest_issue");return saved?json(saved):json({error:"market_batch_not_found"},404);}
   if (method === "GET" && path === "/api/10x/admin/jobs") {
     const jobs = await env.TENX_DB.prepare("SELECT * FROM tenx_jobs ORDER BY started_at DESC LIMIT 30").all();
     const runs = await env.TENX_DB.prepare("SELECT id,json_extract(summary,'$.input_hash') AS input_hash,created_at FROM tenx_election_runs ORDER BY created_at DESC LIMIT 10").all();

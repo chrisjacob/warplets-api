@@ -1,5 +1,7 @@
 # 10X.MEME engineering kickoff
 
+Latest market reliability milestone: [per-pool validation and bounded replay diagnostics](56-market-batch-validation.md). Valid canonical quotes can refresh alongside explicitly rejected/missing targets; unassignable identities hold the full batch. Owned lease/pause guards and atomic publication preserve evidence timing. Data status shows cached coverage; private replay retains only the latest response and latest issue. All quotas and eligibility gates remain; no deploy.
+
 Latest discovery lifecycle milestone: [verified creation expiry with retained history](55-candidate-expiry.md). Normal cached maintenance removes proven old tokens from active inputs in bounded audited batches while preserving every token/evidence row and frozen rehearsal. Unknown dates remain unresolved; the 500-input guard and all eligibility gates remain. No deploy.
 
 Latest reliability milestone: [complete election snapshot chunk storage](54-election-snapshot-storage.md). The normal daily tick recovered all 442 candidates across four hashed input chunks and replayed **no eligible winner**. Legacy records and the v1 engine remain unchanged; count/byte bounds and atomic immutable writes stay explicit. Cached status also reports intake's existing quota subset. No deploy.

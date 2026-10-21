@@ -3,6 +3,7 @@ import attentionPaths from "../discovery/openapi-attention-paths.json";
 import { z } from "zod";
 import { InboxRecoveryResponse } from "../discovery/src/inbox-recovery-model";
 import { MintReviewsResponse, MintReviewRequest } from "../discovery/src/mint-review-model";
+import {MarketBatchDetailSchema} from "../discovery/src/market-batch-model";
 import {ContentReportPage,ContentReportRecord,ContentReportRequest,ContentReportReviewRequest} from "../discovery/src/content-report-model";
 import {HoldReviewPage,HoldReviewRecord,HoldReviewRequest,HoldReviewReply} from "../discovery/src/content-hold-model";
 import {ContentOperations} from "../discovery/src/content-operations-model";
@@ -108,6 +109,7 @@ const spec = {
     "/api/10x/admin/watchdog": {post:{...post("Retain a recent local supervisor observation; monotonic latest report and transition-only history, no provider calls").post,requestBody:{required:true,content:{"application/json":{schema:{type:"object",additionalProperties:false,required:["reason","report"],properties:{reason:{type:"string",minLength:3,maxLength:300},report:{$ref:"#/components/schemas/WatchdogReport"}}}}}}}},
     "/api/10x/transparency/policies": read("Actual local policy/hash, approval status, locked gates and separate review-only diagnostics", responseSchema("PoliciesResponse")),
     "/api/10x/admin/jobs": read("Restricted recent jobs and dry-run hashes", { security: [{ localOperator: [] }] }),
+    "/api/10x/admin/market/batches/{slot}":read("Replay the latest bounded market response or latest incomplete response from cached inputs; operator only, no provider calls",{...responseSchema("MarketBatchDetail"),security:[{localOperator:[]}],parameters:[parameter("slot","path",{enum:["latest","latest_issue"]},true)]}),
     "/api/10x/admin/refresh": post("Run one bounded idempotent refresh; force skips pacing only, never pause, lease, quota or provider backoff", { force: { type: "boolean", default: false } }),
     "/api/10x/admin/market-refresh": post("Refresh up to 30 cached pool markets using one free source request"),
     "/api/10x/admin/wallet-replay": post("Reinterpret up to ten cached legacy wallet inputs with the certified v4 decoder; preserve observation timestamps and all gates, zero provider calls"),
@@ -164,6 +166,7 @@ const spec = {
     CandidateDetailResponse: z.toJSONSchema(DetailResponse, { unrepresentable: "any" }),
     PoliciesResponse: z.toJSONSchema(PoliciesResponse, { unrepresentable: "any" }),
     SystemStatusResponse: z.toJSONSchema(StatusResponse, { unrepresentable: "any" }),
+    MarketBatchDetail:z.toJSONSchema(MarketBatchDetailSchema,{unrepresentable:"any"}),
     HistoryResponse: z.toJSONSchema(HistoryResponse, { unrepresentable: "any" }),
     ReviewsResponse: z.toJSONSchema(ReviewsResponse, { unrepresentable: "any" }),
     ElectionsResponse: z.toJSONSchema(ElectionsResponse, { unrepresentable: "any" }),

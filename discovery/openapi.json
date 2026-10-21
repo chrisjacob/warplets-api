@@ -4090,6 +4090,68 @@
         ]
       }
     },
+    "/api/10x/admin/market/batches/{slot}": {
+      "get": {
+        "summary": "Replay the latest bounded market response or latest incomplete response from cached inputs; operator only, no provider calls",
+        "responses": {
+          "200": {
+            "description": "Success; cached public data includes timestamps, source freshness and coverage",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MarketBatchDetail"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "401": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "403": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "404": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "409": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "413": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "415": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "429": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "503": {
+            "description": "Structured JSON error; no provider secrets"
+          }
+        },
+        "security": [
+          {
+            "localOperator": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "slot",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "enum": [
+                "latest",
+                "latest_issue"
+              ]
+            }
+          }
+        ]
+      }
+    },
     "/api/10x/admin/refresh": {
       "post": {
         "summary": "Run one bounded idempotent refresh; force skips pacing only, never pause, lease, quota or provider backoff",
@@ -48799,6 +48861,340 @@
                 ],
                 "additionalProperties": false
               },
+              "market_batches": {
+                "type": "object",
+                "properties": {
+                  "retention": {
+                    "type": "string",
+                    "const": "latest_response_and_latest_issue"
+                  },
+                  "latest": {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "report": {
+                            "type": "object",
+                            "properties": {
+                              "version": {
+                                "type": "string",
+                                "const": "dex-market-report-v1"
+                              },
+                              "at": {
+                                "type": "string",
+                                "format": "date-time",
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                              },
+                              "provider": {
+                                "type": "string",
+                                "const": "dexscreener"
+                              },
+                              "requested": {
+                                "type": "integer",
+                                "minimum": 1,
+                                "maximum": 30
+                              },
+                              "accepted": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 30
+                              },
+                              "not_reported": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 30
+                              },
+                              "rejected": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 30
+                              },
+                              "response_pairs": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 900
+                              },
+                              "ignored_pairs": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 900
+                              },
+                              "unscoped_pairs": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 900
+                              },
+                              "rows": {
+                                "minItems": 1,
+                                "maxItems": 30,
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "address": {
+                                      "type": "string",
+                                      "maxLength": 44
+                                    },
+                                    "pool": {
+                                      "type": "string",
+                                      "maxLength": 44
+                                    },
+                                    "state": {
+                                      "type": "string",
+                                      "enum": [
+                                        "accepted",
+                                        "not_reported",
+                                        "rejected"
+                                      ]
+                                    },
+                                    "code": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "enum": [
+                                            "market_pool_not_reported",
+                                            "market_duplicate_pool",
+                                            "market_identity_mismatch",
+                                            "market_pair_schema_invalid",
+                                            "market_unscoped_pair_identity"
+                                          ]
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "fields": {
+                                      "maxItems": 6,
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string",
+                                        "maxLength": 80
+                                      }
+                                    }
+                                  },
+                                  "required": [
+                                    "address",
+                                    "pool",
+                                    "state",
+                                    "code",
+                                    "fields"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              }
+                            },
+                            "required": [
+                              "version",
+                              "at",
+                              "provider",
+                              "requested",
+                              "accepted",
+                              "not_reported",
+                              "rejected",
+                              "response_pairs",
+                              "ignored_pairs",
+                              "unscoped_pairs",
+                              "rows"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "input_hash": {
+                            "type": "string",
+                            "pattern": "^[a-f0-9]{64}$"
+                          },
+                          "report_hash": {
+                            "type": "string",
+                            "pattern": "^[a-f0-9]{64}$"
+                          },
+                          "record_hash": {
+                            "type": "string",
+                            "pattern": "^[a-f0-9]{64}$"
+                          }
+                        },
+                        "required": [
+                          "report",
+                          "input_hash",
+                          "report_hash",
+                          "record_hash"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "latest_issue": {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "report": {
+                            "type": "object",
+                            "properties": {
+                              "version": {
+                                "type": "string",
+                                "const": "dex-market-report-v1"
+                              },
+                              "at": {
+                                "type": "string",
+                                "format": "date-time",
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                              },
+                              "provider": {
+                                "type": "string",
+                                "const": "dexscreener"
+                              },
+                              "requested": {
+                                "type": "integer",
+                                "minimum": 1,
+                                "maximum": 30
+                              },
+                              "accepted": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 30
+                              },
+                              "not_reported": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 30
+                              },
+                              "rejected": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 30
+                              },
+                              "response_pairs": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 900
+                              },
+                              "ignored_pairs": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 900
+                              },
+                              "unscoped_pairs": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 900
+                              },
+                              "rows": {
+                                "minItems": 1,
+                                "maxItems": 30,
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "address": {
+                                      "type": "string",
+                                      "maxLength": 44
+                                    },
+                                    "pool": {
+                                      "type": "string",
+                                      "maxLength": 44
+                                    },
+                                    "state": {
+                                      "type": "string",
+                                      "enum": [
+                                        "accepted",
+                                        "not_reported",
+                                        "rejected"
+                                      ]
+                                    },
+                                    "code": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "enum": [
+                                            "market_pool_not_reported",
+                                            "market_duplicate_pool",
+                                            "market_identity_mismatch",
+                                            "market_pair_schema_invalid",
+                                            "market_unscoped_pair_identity"
+                                          ]
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "fields": {
+                                      "maxItems": 6,
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string",
+                                        "maxLength": 80
+                                      }
+                                    }
+                                  },
+                                  "required": [
+                                    "address",
+                                    "pool",
+                                    "state",
+                                    "code",
+                                    "fields"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              }
+                            },
+                            "required": [
+                              "version",
+                              "at",
+                              "provider",
+                              "requested",
+                              "accepted",
+                              "not_reported",
+                              "rejected",
+                              "response_pairs",
+                              "ignored_pairs",
+                              "unscoped_pairs",
+                              "rows"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "input_hash": {
+                            "type": "string",
+                            "pattern": "^[a-f0-9]{64}$"
+                          },
+                          "report_hash": {
+                            "type": "string",
+                            "pattern": "^[a-f0-9]{64}$"
+                          },
+                          "record_hash": {
+                            "type": "string",
+                            "pattern": "^[a-f0-9]{64}$"
+                          }
+                        },
+                        "required": [
+                          "report",
+                          "input_hash",
+                          "report_hash",
+                          "record_hash"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "provider_requests": {
+                    "type": "number",
+                    "const": 0
+                  }
+                },
+                "required": [
+                  "retention",
+                  "latest",
+                  "latest_issue",
+                  "provider_requests"
+                ],
+                "additionalProperties": false
+              },
               "market_provider": {
                 "type": "string",
                 "enum": [
@@ -48919,6 +49315,362 @@
           "source_freshness",
           "coverage",
           "data"
+        ],
+        "additionalProperties": false
+      },
+      "MarketBatchDetail": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "record": {
+            "type": "object",
+            "properties": {
+              "report": {
+                "type": "object",
+                "properties": {
+                  "version": {
+                    "type": "string",
+                    "const": "dex-market-report-v1"
+                  },
+                  "at": {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                  },
+                  "provider": {
+                    "type": "string",
+                    "const": "dexscreener"
+                  },
+                  "requested": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 30
+                  },
+                  "accepted": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 30
+                  },
+                  "not_reported": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 30
+                  },
+                  "rejected": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 30
+                  },
+                  "response_pairs": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 900
+                  },
+                  "ignored_pairs": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 900
+                  },
+                  "unscoped_pairs": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 900
+                  },
+                  "rows": {
+                    "minItems": 1,
+                    "maxItems": 30,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "address": {
+                          "type": "string",
+                          "maxLength": 44
+                        },
+                        "pool": {
+                          "type": "string",
+                          "maxLength": 44
+                        },
+                        "state": {
+                          "type": "string",
+                          "enum": [
+                            "accepted",
+                            "not_reported",
+                            "rejected"
+                          ]
+                        },
+                        "code": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "enum": [
+                                "market_pool_not_reported",
+                                "market_duplicate_pool",
+                                "market_identity_mismatch",
+                                "market_pair_schema_invalid",
+                                "market_unscoped_pair_identity"
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "fields": {
+                          "maxItems": 6,
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "maxLength": 80
+                          }
+                        }
+                      },
+                      "required": [
+                        "address",
+                        "pool",
+                        "state",
+                        "code",
+                        "fields"
+                      ],
+                      "additionalProperties": false
+                    }
+                  }
+                },
+                "required": [
+                  "version",
+                  "at",
+                  "provider",
+                  "requested",
+                  "accepted",
+                  "not_reported",
+                  "rejected",
+                  "response_pairs",
+                  "ignored_pairs",
+                  "unscoped_pairs",
+                  "rows"
+                ],
+                "additionalProperties": false
+              },
+              "input_hash": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              "report_hash": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              "record_hash": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              "inputs": {
+                "type": "object",
+                "properties": {
+                  "version": {
+                    "type": "string",
+                    "const": "dex-market-input-v1"
+                  },
+                  "at": {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                  },
+                  "rows": {
+                    "minItems": 1,
+                    "maxItems": 30,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "address": {
+                          "type": "string",
+                          "maxLength": 44
+                        },
+                        "pool": {
+                          "type": "string",
+                          "maxLength": 44
+                        }
+                      },
+                      "required": [
+                        "address",
+                        "pool"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "pairs": {
+                    "maxItems": 900,
+                    "type": "array",
+                    "items": {}
+                  }
+                },
+                "required": [
+                  "version",
+                  "at",
+                  "rows",
+                  "pairs"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "report",
+              "input_hash",
+              "report_hash",
+              "record_hash",
+              "inputs"
+            ],
+            "additionalProperties": false
+          },
+          "replay": {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string",
+                "const": "verified"
+              },
+              "provider_requests": {
+                "type": "number",
+                "const": 0
+              },
+              "report": {
+                "type": "object",
+                "properties": {
+                  "version": {
+                    "type": "string",
+                    "const": "dex-market-report-v1"
+                  },
+                  "at": {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                  },
+                  "provider": {
+                    "type": "string",
+                    "const": "dexscreener"
+                  },
+                  "requested": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 30
+                  },
+                  "accepted": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 30
+                  },
+                  "not_reported": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 30
+                  },
+                  "rejected": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 30
+                  },
+                  "response_pairs": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 900
+                  },
+                  "ignored_pairs": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 900
+                  },
+                  "unscoped_pairs": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 900
+                  },
+                  "rows": {
+                    "minItems": 1,
+                    "maxItems": 30,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "address": {
+                          "type": "string",
+                          "maxLength": 44
+                        },
+                        "pool": {
+                          "type": "string",
+                          "maxLength": 44
+                        },
+                        "state": {
+                          "type": "string",
+                          "enum": [
+                            "accepted",
+                            "not_reported",
+                            "rejected"
+                          ]
+                        },
+                        "code": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "enum": [
+                                "market_pool_not_reported",
+                                "market_duplicate_pool",
+                                "market_identity_mismatch",
+                                "market_pair_schema_invalid",
+                                "market_unscoped_pair_identity"
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "fields": {
+                          "maxItems": 6,
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "maxLength": 80
+                          }
+                        }
+                      },
+                      "required": [
+                        "address",
+                        "pool",
+                        "state",
+                        "code",
+                        "fields"
+                      ],
+                      "additionalProperties": false
+                    }
+                  }
+                },
+                "required": [
+                  "version",
+                  "at",
+                  "provider",
+                  "requested",
+                  "accepted",
+                  "not_reported",
+                  "rejected",
+                  "response_pairs",
+                  "ignored_pairs",
+                  "unscoped_pairs",
+                  "rows"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "status",
+              "provider_requests",
+              "report"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "record",
+          "replay"
         ],
         "additionalProperties": false
       },
