@@ -12,6 +12,7 @@ import { CandidateExpiryReceiptSchema, InventoryStatusSchema } from "../../../di
 import {MarketBatchesSchema} from "../../../discovery/src/market-batch-model";
 import {ScoreSummarySchema,ScoreResponseSchema} from "../../../discovery/src/discovery-score-model";
 import {ScoreResearchSchema} from "../../../discovery/src/score-research-model";
+import {ScoreFollowupSchema} from "../../../discovery/src/score-followup-model";
 
 const Common = z.object({
   api_version: z.literal("10x-discovery-v1"), trace_id: z.string(), as_of: z.string().nullable(), served_at: z.string(),
@@ -28,6 +29,7 @@ export const ActivityResponse = Common.extend({ data: ActivitySchema });
 export const PoliciesResponse = Common.extend({ data: PublicPolicySchema });
 export const SignalsResponse = Common.extend({ data: SignalResearchSchema });
 export const ScoreResearchResponse=Common.extend({data:ScoreResearchSchema});
+export const ScoreFollowupResponse=Common.extend({data:ScoreFollowupSchema});
 export const OperationsResponse = Common.extend({ data: OperationsSchema });
 const ElectionAutomationSchema = z.object({ last_error: z.string().nullable(), latest_id: z.string().nullable(), last_snapshot_at: z.string().nullable() });
 export const ElectionsResponse = Common.extend({ data: z.object({ runs: z.array(ElectionSummarySchema).max(10), automation: ElectionAutomationSchema, schedule: z.string(), voting_enabled: z.literal(false), launch_enabled: z.literal(false) }) });

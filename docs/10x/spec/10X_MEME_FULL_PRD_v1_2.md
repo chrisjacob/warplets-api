@@ -257,6 +257,8 @@ Weights are transparent initial heuristics, not backtested fraud/return probabil
 
 Prospective evaluation retains each mint/model's first captured score, effective coverage, independent action status and exact replayable inputs, without reconstructing past grades. Compare a fresh baseline with a same-source 24h price/liquidity endpoint after the full two-hour collection grace; preserve missing outcomes and selection bias. Descriptive score-band counts alone do not validate calibration. The bounded cached implementation and remaining validation work are recorded in [prospective score research](../58-score-outcome-research.md).
 
+Creation-age expiry must not itself prevent pending score endpoint observation. [Bounded follow-up](../59-score-endpoint-followup.md) may use spare targets in existing market batches during the endpoint window, under unchanged source allowances and pacing. Such observations append research history only; they never refresh an expired candidate, restore eligibility or replace frozen inputs/outcomes. Unknown baselines, incompatible sources and unavailable endpoints remain explicit holds.
+
 Longer-term research inputs include sustained net unique demand, volume relative to chain baseline, independently verified organic holders and bounded price volatility. These are not certified or scored by the initial model above; add them only through an explicit evidence-backed model revision. Display scores **must not secretly override the documented voting outcome**, other than stated minimum action eligibility. Save score inputs and model/rules version for later audit.
 
 ---

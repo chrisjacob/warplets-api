@@ -11,6 +11,7 @@ After rebooting, reopen the repository in Codex and send:
 - Repository: `C:\Users\cjacob\Documents\GitHub\WarpletsAPI`
 - Branch: `codex/10x-thesis-foundation`
 - Remote: `https://github.com/chrisjacob/warplets-api.git`
+- Latest endpoint collection: [bounded score follow-up after expiry](59-score-endpoint-followup.md). Ordinary market batches reserve at most five spare targets for pending score endpoints, matched to the frozen provider/baseline and exact retained pool. History-only writes never reactivate or refresh expired candidates. Cached coverage is on Research; preserve 15-minute attempt reservations, source backoff/quotas, owned leases and immutable score/election replay. No new migration beyond existing 0037 is required, and no real next-day score outcome was due at validation.
 - Latest score research: [prospective grade retention and 24h outcomes](58-score-outcome-research.md), local migration 0037. Existing maintenance captures bounded first mint/model scorecards with zero provider calls and finalizes comparable outcomes after 26h. Research shows descriptive counts, not predictive validation. Inspect current captures/automation before quoting counts; do not backfill old cohorts or alter score-v1 to fit later outcomes.
 - Last application checkpoint: `fb9f207` — `feat(10x): simplify token evidence and contribution journeys`, committed and pushed.
 - Previous checkpoint: `d71fefc` — streamlined discovery navigation and evidence flow.

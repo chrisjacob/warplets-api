@@ -48,6 +48,7 @@ import {candidateScorecard,rankedDiscovery,scoreInventoryCandidates} from "./dis
 import {DiscoveryScoreError,replayDiscoveryScore} from "./discovery-score";
 import {runScoreResearch,scoreResearch,scoreResearchDetail} from "./score-research";
 import {ScoreResearchError} from "./score-research-analysis";
+import {scoreFollowupPlan} from "./score-followup";
 
 // Widen generated literal vars so ignored .dev.vars overrides stay type-safe.
 export type LocalEnv = { [K in keyof Cloudflare.Env]: Cloudflare.Env[K] extends string ? string : Cloudflare.Env[K] };
@@ -174,6 +175,7 @@ export async function handle(request: Request, env: Env): Promise<Response> {
   if (method === "GET" && path === "/api/10x/transparency/policies") return json(await envelope(env, await publicPolicy()));
   if (method === "GET" && path === "/api/10x/research/signals") return json(await envelope(env, await signalResearch(env.TENX_DB)));
   if(method==="GET"&&path==="/api/10x/research/scores")return json(await envelope(env,await scoreResearch(env.TENX_DB)));
+  if(method==="GET"&&path==="/api/10x/research/scores/followup")return json(await envelope(env,await scoreFollowupPlan(env.TENX_DB,z.enum(["dexscreener","geckoterminal"]).parse(env.TENX_MARKET_PROVIDER),env.TENX_MARKET_ENABLED==="true")));
   const scoreResearchEvidence=path.match(/^\/api\/10x\/research\/scores\/solana\/([^/]+)$/);
   if(method==="GET"&&scoreResearchEvidence){
     const detail=await scoreResearchDetail(env.TENX_DB,Address.parse(scoreResearchEvidence[1]));

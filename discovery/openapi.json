@@ -3793,6 +3793,50 @@
         }
       }
     },
+    "/api/10x/research/scores/followup": {
+      "get": {
+        "summary": "Cached endpoint follow-up readiness, next windows and holds; bounded allocation inside existing market batches, no requests triggered by this read",
+        "responses": {
+          "200": {
+            "description": "Success; cached public data includes timestamps, source freshness and coverage",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScoreFollowupResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "401": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "403": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "404": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "409": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "413": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "415": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "429": {
+            "description": "Structured JSON error; no provider secrets"
+          },
+          "503": {
+            "description": "Structured JSON error; no provider secrets"
+          }
+        }
+      }
+    },
     "/api/10x/research/scores/solana/{address}": {
       "get": {
         "summary": "First retained scorecard for discovery-score-v1 and immutable replayable 24h outcome; no historical backfill",
@@ -43240,6 +43284,348 @@
               "bands",
               "recent",
               "attempts"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "api_version",
+          "trace_id",
+          "as_of",
+          "served_at",
+          "policy_version",
+          "source_freshness",
+          "coverage",
+          "data"
+        ],
+        "additionalProperties": false
+      },
+      "ScoreFollowupResponse": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "api_version": {
+            "type": "string",
+            "const": "10x-discovery-v1"
+          },
+          "trace_id": {
+            "type": "string"
+          },
+          "as_of": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "served_at": {
+            "type": "string"
+          },
+          "policy_version": {
+            "type": "string"
+          },
+          "source_freshness": {
+            "type": "object",
+            "properties": {
+              "last_harvest": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "last_success": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "stale": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "last_harvest",
+              "last_success",
+              "stale"
+            ],
+            "additionalProperties": false
+          },
+          "coverage": {
+            "type": "object",
+            "properties": {
+              "exhaustive": {
+                "type": "boolean",
+                "const": false
+              },
+              "scope": {
+                "type": "string"
+              },
+              "history_limit": {
+                "type": "number"
+              },
+              "quote_support": {
+                "type": "string"
+              },
+              "holder_classification": {
+                "type": "string"
+              },
+              "market_enabled": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "exhaustive",
+              "scope",
+              "history_limit",
+              "quote_support",
+              "holder_classification",
+              "market_enabled"
+            ],
+            "additionalProperties": false
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "policy": {
+                "type": "string",
+                "const": "score-endpoint-followup-v1"
+              },
+              "at": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+              },
+              "provider": {
+                "type": "string",
+                "enum": [
+                  "geckoterminal",
+                  "dexscreener"
+                ]
+              },
+              "state": {
+                "type": "string",
+                "enum": [
+                  "disabled",
+                  "paused",
+                  "waiting",
+                  "ready",
+                  "no_work"
+                ]
+              },
+              "scope": {
+                "type": "string",
+                "const": "latest_500_pending_score_cohorts"
+              },
+              "capped": {
+                "type": "boolean"
+              },
+              "max_batch_slots": {
+                "type": "number",
+                "const": 5
+              },
+              "cooldown_seconds": {
+                "type": "number",
+                "const": 900
+              },
+              "next_window_at": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "market_next_at": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "market_error": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "counts": {
+                "type": "object",
+                "properties": {
+                  "pending": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "baseline_unavailable": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "provider_mismatch": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "identity_unavailable": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "awaiting_window": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "awaiting_target": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "window_closed": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "endpoint_saved": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "cooling_down": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "ready": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": [
+                  "pending",
+                  "baseline_unavailable",
+                  "provider_mismatch",
+                  "identity_unavailable",
+                  "awaiting_window",
+                  "awaiting_target",
+                  "window_closed",
+                  "endpoint_saved",
+                  "cooling_down",
+                  "ready"
+                ],
+                "additionalProperties": false
+              },
+              "ready": {
+                "maxItems": 5,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "address": {
+                      "type": "string",
+                      "maxLength": 44
+                    },
+                    "pool": {
+                      "type": "string",
+                      "maxLength": 44
+                    },
+                    "cohort_hash": {
+                      "type": "string",
+                      "pattern": "^[a-f0-9]{64}$"
+                    },
+                    "captured_at": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                    },
+                    "target_at": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                    },
+                    "window_end": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                    },
+                    "phase": {
+                      "type": "string",
+                      "enum": [
+                        "pre_target",
+                        "post_target"
+                      ]
+                    },
+                    "last_attempt": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "address",
+                    "pool",
+                    "cohort_hash",
+                    "captured_at",
+                    "target_at",
+                    "window_end",
+                    "phase",
+                    "last_attempt"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "provider_requests": {
+                "type": "number",
+                "const": 0
+              }
+            },
+            "required": [
+              "policy",
+              "at",
+              "provider",
+              "state",
+              "scope",
+              "capped",
+              "max_batch_slots",
+              "cooldown_seconds",
+              "next_window_at",
+              "market_next_at",
+              "market_error",
+              "counts",
+              "ready",
+              "provider_requests"
             ],
             "additionalProperties": false
           }

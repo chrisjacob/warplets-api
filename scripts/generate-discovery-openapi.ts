@@ -21,6 +21,7 @@ import { PolicyEditsSchema, PolicyPreviewResponseSchema, PreviewRequestSchema } 
 import { SignalDetailSchema } from "../discovery/src/signal-model";
 import {ScoreResearchDetailSchema} from "../discovery/src/score-research-model";
 import {ScoreResearchResponse} from "../app/src/discovery/client";
+import {ScoreFollowupResponse} from "../app/src/discovery/client";
 import { OperationsSchema, WatchdogReportSchema } from "../discovery/src/operations-model";
 import { IdentityChallengeRequest, IdentityChallengeResponse, IdentitySessionResponse, IdentityVerifyRequest } from "../discovery/src/identity-model";
 import { OpenBackingRequest, BackingListResponse, BackingSummary, BackingRecord } from "../discovery/src/backing-model";
@@ -106,6 +107,7 @@ const spec = {
     "/api/10x/research/reviews": read("Daily outcome reports, chronological holdout proposals and evidence-based wallet associations", responseSchema("ReviewsResponse")),
     "/api/10x/research/signals": read("Separate first-usable diagnostic cohorts, delayed 24h outcomes and time-purged holdout checks; latest 1000, no policy activation or provider calls",responseSchema("SignalsResponse")),
     "/api/10x/research/scores":read("Latest 500 prospective score observations and descriptive 24h outcome counts, including missingness; no automatic weight changes or provider calls",responseSchema("ScoreResearchResponse")),
+    "/api/10x/research/scores/followup":read("Cached endpoint follow-up readiness, next windows and holds; bounded allocation inside existing market batches, no requests triggered by this read",responseSchema("ScoreFollowupResponse")),
     "/api/10x/research/scores/solana/{address}":read("First retained scorecard for discovery-score-v1 and immutable replayable 24h outcome; no historical backfill",{...responseSchema("ScoreResearchDetailResponse"),parameters:[parameter("address","path",{type:"string",minLength:32,maxLength:44},true)]}),
     "/api/10x/research/signals/solana/{address}/{signal}": read("Frozen diagnostic input, verified feature replay and hash-checked outcome; no provider calls",{...responseSchema("SignalDetailResponse"),parameters:[parameter("address","path",{type:"string",minLength:32,maxLength:44},true),parameter("signal","path",{enum:["new_token_high_cap","smooth_price_rise"]},true)]}),
     "/api/10x/elections": read("Latest ten immutable local discovery rehearsals; no community voting or launch authority", responseSchema("ElectionsResponse")),
@@ -168,6 +170,7 @@ const spec = {
     SignalDetailResponse: z.toJSONSchema(SignalDetailSchema, { unrepresentable: "any" }),
     SignalsResponse: z.toJSONSchema(SignalsResponse, { unrepresentable: "any" }),
     ScoreResearchResponse:z.toJSONSchema(ScoreResearchResponse,{unrepresentable:"any"}),
+    ScoreFollowupResponse:z.toJSONSchema(ScoreFollowupResponse,{unrepresentable:"any"}),
     ScoreResearchDetailResponse:z.toJSONSchema(ScoreResearchDetailSchema,{unrepresentable:"any"}),
     CandidateListResponse: z.toJSONSchema(ListResponse, { unrepresentable: "any" }),
     CandidateCardsResponse: z.toJSONSchema(CardListResponse, { unrepresentable: "any" }),

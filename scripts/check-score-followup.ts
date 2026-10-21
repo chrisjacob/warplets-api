@@ -1,0 +1,5 @@
+import assert from "node:assert/strict";
+import {ScoreFollowupResponse} from "../app/src/discovery/client";
+const response=await fetch("http://127.0.0.1:8794/api/10x/research/scores/followup",{signal:AbortSignal.timeout(30000)});assert.equal(response.status,200);assert.equal(response.headers.get("cache-control"),"no-store");
+const data=ScoreFollowupResponse.parse(await response.json()).data;const {pending,...counts}=data.counts;assert.equal(Object.values(counts).reduce((sum,count)=>sum+count,0),pending);assert.ok(data.ready.length<=5);assert.equal(new Set(data.ready.map(r=>r.address)).size,data.ready.length);assert.equal(data.provider_requests,0);
+console.log(JSON.stringify({at:data.at,state:data.state,counts:data.counts,next_window_at:data.next_window_at,market_next_at:data.market_next_at,market_error:data.market_error,provider:data.provider,max_batch_slots:data.max_batch_slots,cooldown_seconds:data.cooldown_seconds,provider_requests:0,eligibility_gates_changed:false,deploy:false},null,2));

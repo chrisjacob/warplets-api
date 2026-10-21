@@ -11,7 +11,7 @@ const empty=()=>ScoreResearchSchema.parse({at:at.toISOString(),scope:"latest_500
 async function original(){const c={...(await fixtureCandidates(at))[0]!,mode:"live" as const};return freezeScoreCohort(await freezeDiscoveryScore(defaultScoreInput(c,at)));}
 it("explains prospective empty research without inventing historic scores or validated weights",()=>{
   const html=renderToStaticMarkup(<ScoreResearch data={empty()} error=""/>);
-  for(const text of ["No prospective grades retained yet","past scores are not invented","No extra provider requests","automatic weight changes","Initial score weights remain uncalibrated","not trust categories"])expect(html).toContain(text);
+  for(const text of ["No prospective grades retained yet","past scores are not invented","existing market allowance","automatic weight changes","Initial score weights remain uncalibrated","not trust categories"])expect(html).toContain(text);
 });
 it("shows the original grade and coverage with a pending window and exact replay link",async()=>{
   const c=await original(),data=empty();data.recent=[{cohort:c.summary,outcome:null}];const html=renderToStaticMarkup(<ScoreResearch data={data} error=""/>);
