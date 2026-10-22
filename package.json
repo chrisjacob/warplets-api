@@ -38,6 +38,7 @@
     "test:discovery-wallet-replay-target": "tsx --test scripts/discovery-wallet-replay-target.test.ts",
     "test:discovery-wallet-cached-target": "tsx --test scripts/discovery-wallet-cached-target.test.ts",
     "test:discovery-wallet-quota-target": "tsx --test scripts/discovery-wallet-quota-target.test.ts",
+    "test:discovery-wallet-cycle-target": "tsx --test scripts/discovery-wallet-cycle-target.test.ts",
     "security:preflight": "node scripts/security-preflight.mjs",
     "security:test": "node scripts/test-security-blocklist.mjs",
     "security:test:redirects": "node --test scripts/test-http-redirect-security.mjs",

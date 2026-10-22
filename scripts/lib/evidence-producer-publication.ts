@@ -2,7 +2,7 @@
 import {z} from "zod";
 import {prepareEvidenceProducerBatch,type ProducerBatchInput} from "./evidence-producer-plan";
 import {persistEvidencePublicationIntent,publishStoredEvidenceIntent,reconcileStoredEvidenceIntent} from "../discovery-evidence-intents.mjs";
-import {validateEvidenceCandidateMetadataPlan,validateEvidenceWalletCachedPlan,validateEvidenceWalletQuotaPlan} from "../discovery-evidence-publication.mjs";
+import {validateEvidenceCandidateMetadataPlan,validateEvidenceWalletCachedPlan,validateEvidenceWalletQuotaPlan,validateEvidenceWalletCyclePlan} from "../discovery-evidence-publication.mjs";
 import {ProducerStatements} from "./evidence-producer-plan";
 
 const Hash=z.string().regex(/^[a-f0-9]{64}$/),Id=z.string().uuid(),Path=z.string().min(1).max(4096);
@@ -13,9 +13,9 @@ export type ProducerPublication=z.infer<typeof Publication>;
 export type ProducerJournal=z.infer<typeof Journal>;
 export type ProducerGrant=z.infer<typeof Grant>;
 type Inactive={runtime_activated:false;action_authority:false;evidence_qualified:false;provider_requests:0;free_acceptance:false};
-// Native validation allows one {used} row only for the exact wallet_quota
-// domain. Receipt/candidate/cached-progress results remain strictly empty.
-type PositionResult={success:true;results:{used:number}[];meta:{changes:number}};
+// Native validation scopes {used} to quota and {id:1} to cycle acquisition.
+// Receipt/candidate/cached-progress and other control results stay empty.
+type PositionResult={success:true;results:({used:number}|{id:1})[];meta:{changes:number}};
 export type ProducerCommitted=Inactive&{state:"committed";publication_id:string;results:PositionResult[];reconciled:boolean;post_commit:"not_requested"|"completed"|"failed";post_commit_error?:string};
 type Phase="preflight"|"stage"|"persist"|"publish"|"reconcile";
 export type ProducerHeld=Inactive&{state:"held";publication_id:string|null;stage_id:string|null;phase:Phase;sql_attempt:"not_started"|"unconfirmed"|"read_only";code:"producer_preflight_held"|"producer_stage_held"|"producer_intent_held"|"producer_publication_unconfirmed"|"producer_reconciliation_held"};
@@ -88,6 +88,16 @@ export async function publishEvidenceWalletQuotaBatch(publication:ProducerPublic
   let phase:Phase="preflight",id:unknown;
   try{
     id=input?.publicationId;const saved=context(publication,journal,grant,afterCommit),plan=validateEvidenceWalletQuotaPlan({publication_id:Id.parse(id),kind:"wallet_quota",reservation:input.reservation,operations:ProducerStatements.parse(input.statements).map(row=>({kind:"sql",...row}))});
+    phase="persist";await persistEvidencePublicationIntent(saved.publication,saved.journal,saved.grant,plan);
+    phase="publish";return await publishStoredEvidenceIntent(saved.publication,saved.journal,saved.grant,plan.publication_id,afterCommit) as ProducerCommitted;
+  }catch{return held(phase,id,null);}
+}
+
+export type WalletCycleContext={lease_id:string;job:string;address:string;at:string;until:string;rapid:0|1};
+export async function publishEvidenceWalletCycleBatch(publication:ProducerPublication,journal:ProducerJournal,grant:ProducerGrant,input:{publicationId:string;cycle:WalletCycleContext;statements:unknown},afterCommit?:AfterCommit):Promise<ProducerPublicationOutcome>{
+  let phase:Phase="preflight",id:unknown;
+  try{
+    id=input?.publicationId;const saved=context(publication,journal,grant,afterCommit),plan=validateEvidenceWalletCyclePlan({publication_id:Id.parse(id),kind:"wallet_cycle_control",cycle:input.cycle,operations:ProducerStatements.parse(input.statements).map(row=>({kind:"sql",...row}))});
     phase="persist";await persistEvidencePublicationIntent(saved.publication,saved.journal,saved.grant,plan);
     phase="publish";return await publishStoredEvidenceIntent(saved.publication,saved.journal,saved.grant,plan.publication_id,afterCommit) as ProducerCommitted;
   }catch{return held(phase,id,null);}

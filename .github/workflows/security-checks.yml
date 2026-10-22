@@ -119,6 +119,9 @@ jobs:
       - name: Isolated spend-before-call wallet and shared RPC quota reservations
         run: pnpm test:discovery-wallet-quota-target
 
+      - name: Integrated original cache-only wallet cycle with lease and recovery
+        run: pnpm test:discovery-wallet-cycle-target
+
       - name: Install dependencies (app)
         working-directory: app
         run: pnpm install --frozen-lockfile
