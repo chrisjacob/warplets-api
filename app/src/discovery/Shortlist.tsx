@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import type { CandidateCard } from "../../../discovery/src/candidate-card";
 import { ComparisonToggle } from "./TokenComparison";
 import { TokenImage } from "./TokenMarket";
+import {tokenInspectHref} from "./discovery-return";
 import { createShortlistRepository, shortlistKey, SHORTLIST_LIMIT, type ShortlistAction, type ShortlistIdentity, type ShortlistMode, type ShortlistState } from "./shortlist-store";
 
 const repository = createShortlistRepository(() => window.localStorage);
@@ -35,19 +36,21 @@ export function ShortlistNotice({ state }: { state: ShortlistState }) {
     {state.message && <p className="tenx-footnote" role="status">{state.message}</p>}</>;
 }
 
-export function ShortlistPanel({ state, candidates, artwork={}, selected, onRemove, onClear, onCompare, onOpenChange }: {
-  state: ShortlistState; candidates: CandidateCard[]; artwork?:Record<string,{image_url?:string|null}|null|undefined>; selected: string[]; onOpenChange?:(open:boolean)=>void;
+export function ShortlistPanel({ state, candidates, artwork={}, selected, onRemove, onClear, onCompare, onOpenChange,returnTo }: {
+  state: ShortlistState; candidates: CandidateCard[];returnTo?:string; artwork?:Record<string,{image_url?:string|null}|null|undefined>; selected: string[]; onOpenChange?:(open:boolean)=>void;
   onRemove: (address: string) => void; onClear: () => void; onCompare: (address: string) => void;
 }) {
+  const [open,setOpen]=useState(()=>typeof window!=="undefined"&&window.location.hash==="#saved-tokens");
+  useEffect(()=>{const reveal=()=>{if(window.location.hash==="#saved-tokens")setOpen(true);};reveal();window.addEventListener("hashchange",reveal);return()=>window.removeEventListener("hashchange",reveal);},[]);
   return <section id="saved-tokens" className="tenx-shortlist"><ShortlistNotice state={state} />
-    <details className="tenx-panel" onToggle={event=>onOpenChange?.(event.currentTarget.open)}><summary>{state.mode === "fixture" ? "Saved simulation examples" : "Saved tokens"} · {state.entries.length} / {SHORTLIST_LIMIT}</summary>
+    <details className="tenx-panel" open={open} onToggle={event=>{setOpen(event.currentTarget.open);onOpenChange?.(event.currentTarget.open);}}><summary>{state.mode === "fixture" ? "Saved simulation examples" : "Saved tokens"} · {state.entries.length} / {SHORTLIST_LIMIT}</summary>
       <p>Saved only in this browser. Open a token for its saved evidence or select up to three to compare. Names are labels; confirm the mint.</p>
       {state.mode === "fixture" && <p className="tenx-notice">Simulation list · separate from your saved live tokens.</p>}
       {state.entries.length ? <ul className="tenx-shortlist-items">{state.entries.map(entry => {
         const candidate = candidates.find(c => c.address === entry.address && c.mode === state.mode);
         const name = candidate?.name ?? entry.name, symbol = candidate?.symbol ?? entry.symbol;
         return <li key={entry.address}><div className="tenx-shortlist-identity"><TokenImage url={candidate?.market?.image_url} metadataUrl={artwork[entry.address]?.image_url} metadataLoading={state.mode==="live"&&artwork[entry.address]===undefined} name={name} symbol={symbol} />
-          <div><a href={`/token/solana/${entry.address}${state.mode === "fixture" ? "?mode=fixture" : ""}`}>{name || "Saved token"} · {symbol}</a><p className="tenx-address">{entry.address}</p>
+          <div><a href={tokenInspectHref(entry.address,state.mode,returnTo)}>{name || "Saved token"} · {symbol}</a><p className="tenx-address">{entry.address}</p>
             <small>Saved {new Date(entry.saved_at).toLocaleString()}. {candidate ? "Shown in current results." : "Outside current results · open token for saved evidence."}</small></div></div>
           <div className="tenx-shortlist-actions"><ComparisonToggle address={entry.address} selected={selected} onToggle={onCompare} />
             <button type="button" className="tenx-button tenx-button--quiet" aria-label={`Remove saved mint ${entry.address}`} onClick={() => onRemove(entry.address)}>Remove saved token</button></div></li>;

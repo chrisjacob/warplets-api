@@ -8,8 +8,9 @@ import {tokenMoney,creationAge} from "./TokenOverview";
 import {RecentActivityCell} from "./RecentActivity";
 import {HolderParticipationCell} from "./HolderParticipation";
 import {TradeSampleCell} from "./TradeSample";
+import {tokenInspectHref} from "./discovery-return";
+export {comparisonSelection} from "./discovery-view";
 
-export function comparisonSelection(raw:string|null){if(!raw)return[];const parsed=ComparisonAddresses.safeParse(raw.split(","));return parsed.success?parsed.data:[];}
 export function toggleComparison(selected:string[],address:string){if(selected.includes(address))return selected.filter(a=>a!==address);const next=ComparisonAddresses.safeParse([...selected,address]);return next.success?next.data:selected;}
 export function ComparisonToggle({address,selected,onToggle}:{address:string;selected:string[];onToggle:(address:string)=>void}){
   const included=selected.includes(address);
@@ -28,10 +29,10 @@ export function ComparisonActivityCell({record}:{record:ActivityObservation|unde
     <details><summary>Window & evidence</summary><p>Fetched {date(record.fetched_at)}. Provider measurement time: {date(record.provider_observed_at)}.</p><p>Observed / expected: {record.coverage.observed??"unknown"} / {record.coverage.expected??"unknown"}. Denominator: {record.coverage.denominator.replaceAll("_"," ")} ({record.coverage.denominator_value??"unknown"}).</p>{record.scope.kind==="wallet"&&<p className="tenx-address">Selected wallet: {record.scope.address}</p>}
       <ul>{record.gaps.map(g=><li key={g}>{readableReason(g)}</li>)}</ul>{record.references.length?<ul>{record.references.map(r=><li key={r.kind+":"+r.id}>{r.kind.replaceAll("_"," ")} · {r.integrity.replaceAll("_"," ")}<p className="tenx-address">{r.id}<br/>{r.hash}</p></li>)}</ul>:<p>No usable source reference.</p>}<p>Organic demand is unverified. This observation adds no score credit.</p></details></>;
 }
-export function ComparisonValues({report,artwork={}}:{report:DiscoveryComparison;artwork?:Record<string,{image_url?:string|null}|null|undefined>}){
+export function ComparisonValues({report,artwork={},returnTo}:{report:DiscoveryComparison;artwork?:Record<string,{image_url?:string|null}|null|undefined>;returnTo?:string}){
   const metrics=Object.keys(labels) as ActivityObservation["metric"][];
   return <><p className="tenx-notice">Common review cutoff: <strong>{date(report.cutoff_at)}</strong>. Source windows and population coverage differ. Reported volume, raw owners and candle patterns do not establish organic demand or safety.</p>{report.mode==="fixture"&&<p className="tenx-notice">SIMULATION — synthetic examples; no live source evidence.</p>}
-    <div className="tenx-table-scroll tenx-comparison-table" tabIndex={0} role="region" aria-label="Selected token comparison"><table><caption>Current v4 grades; activity measurements remain descriptive. Scroll horizontally to compare tokens.</caption><thead><tr><th scope="col">Measurement</th>{report.rows.map(row=><th key={row.address} scope="col"><TokenImage url={row.candidate?.market?.image_url} metadataUrl={artwork[row.address]?.image_url} metadataLoading={report.mode==="live"&&artwork[row.address]===undefined} name={row.candidate?.name??"Unresolved token"} symbol={row.candidate?.symbol??"?"}/><a href={`/token/solana/${row.address}${report.mode==="fixture"?"?mode=fixture":""}`}>{row.candidate?.name??row.address}</a><small>{row.candidate?.symbol??row.state}</small><details><summary>Full mint</summary><p className="tenx-address">{row.address}</p></details></th>)}</tr></thead><tbody>
+    <div className="tenx-table-scroll tenx-comparison-table" tabIndex={0} role="region" aria-label="Selected token comparison"><table><caption>Current v4 grades; activity measurements remain descriptive. Scroll horizontally to compare tokens.</caption><thead><tr><th scope="col">Measurement</th>{report.rows.map(row=><th key={row.address} scope="col"><TokenImage url={row.candidate?.market?.image_url} metadataUrl={artwork[row.address]?.image_url} metadataLoading={report.mode==="live"&&artwork[row.address]===undefined} name={row.candidate?.name??"Unresolved token"} symbol={row.candidate?.symbol??"?"}/><a href={tokenInspectHref(row.address,report.mode,returnTo)}>{row.candidate?.name??row.address}</a><small>{row.candidate?.symbol??row.state}</small><details><summary>Full mint</summary><p className="tenx-address">{row.address}</p></details></th>)}</tr></thead><tbody>
       <tr><th scope="row">Discovery score / coverage</th>{report.rows.map(row=><td key={row.address}>{row.candidate?.discovery_score?<><strong>{row.candidate.discovery_score.value} / 100</strong><small>{row.candidate.discovery_score.evidence_coverage}% evidence coverage · v4</small></>:"Unknown"}{row.gaps.map(g=><small key={g}>{readableReason(g)}</small>)}</td>)}</tr>
       <tr><th scope="row">Action checks / concerns</th>{report.rows.map(row=><td key={row.address}>{row.candidate?.eligibility??row.state}<small>{row.candidate?.discovery_score&&row.candidate.discovery_score.version!=="discovery-score-v1"?row.candidate.discovery_score.risk_flags.map(r=>readableReason(r.code)).join(" · "):""}</small>{row.candidate&&<small>{row.candidate.reasons.slice(0,2).map(readableReason).join(" · ")||"No supported failure in these checks; safety not assured"}</small>}</td>)}</tr>
       <tr><th scope="row">Verified creation age</th>{report.rows.map(row=><td key={row.address}>{creationAge(row.candidate?.creation?.block_time,Date.parse(report.cutoff_at))}</td>)}</tr>
@@ -42,7 +43,7 @@ export function ComparisonValues({report,artwork={}}:{report:DiscoveryComparison
       {metrics.map(metric=><tr key={metric}><th scope="row">{labels[metric]}</th>{report.rows.map(row=><td key={row.address}><ComparisonActivityCell record={row.observations.find(o=>o.metric===metric)}/></td>)}</tr>)}
     </tbody></table></div><details><summary>Comparison identity</summary><p>Saved display checksum, not provider authenticity or a paired-model validation study. Every grade uses the displayed cutoff; source dates remain separate. Refresh explicitly to inspect newer observations.</p><p className="tenx-address">{report.report_hash}</p></details></>;
 }
-function ComparisonResults({addresses,mode}:{addresses:string[];mode:"live"|"fixture"}){
+function ComparisonResults({addresses,mode,returnTo}:{addresses:string[];mode:"live"|"fixture";returnTo?:string}){
   const [report,setReport]=useState<DiscoveryComparison|null>(null),[error,setError]=useState(""),[loading,setLoading]=useState(true),[refresh,setRefresh]=useState(0);
   const key=addresses.join(","),artwork=useTokenArtwork(mode==="live"?addresses:[]);
   useEffect(()=>{const controller=new AbortController();setLoading(true);setError("");
@@ -51,11 +52,11 @@ function ComparisonResults({addresses,mode}:{addresses:string[];mode:"live"|"fix
     // One saved comparison per explicit request; never poll or collect providers.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   },[key,mode,refresh]);
-  return <><button type="button" className="tenx-button tenx-button--quiet" disabled={loading} onClick={()=>setRefresh(n=>n+1)}>{loading?"Reading saved observations…":"Refresh comparison cutoff"}</button>{error&&<p className="tenx-notice" role="alert">{error}</p>}{report&&<ComparisonValues report={report} artwork={artwork}/>}</>;
+  return <><button type="button" className="tenx-button tenx-button--quiet" disabled={loading} onClick={()=>setRefresh(n=>n+1)}>{loading?"Reading saved observations…":"Refresh comparison cutoff"}</button>{error&&<p className="tenx-notice" role="alert">{error}</p>}{report&&<ComparisonValues returnTo={returnTo} report={report} artwork={artwork}/>}</>;
 }
-export function TokenComparison({selected,candidates,mode,onRemove}:{selected:string[];candidates:CandidateCard[];mode:"live"|"fixture";onRemove:(address:string)=>void}){
+export function TokenComparison({selected,candidates,mode,onRemove,returnTo}:{selected:string[];candidates:CandidateCard[];mode:"live"|"fixture";onRemove:(address:string)=>void;returnTo?:string}){
   const identity=mode+":"+selected.join(","),[opened,setOpened]=useState("");
   if(!selected.length)return <p className="tenx-footnote">Choose Compare on a card or table row to compare up to three tokens.</p>;
   return <section className="tenx-panel tenx-comparison" aria-label="Compare selected tokens"><h2>Compare tokens · {selected.length} / 3</h2><p>Select up to three tokens from cards or the table. Selections stay in this page's shareable URL.</p>{selected.length?<ul className="tenx-compare-selection">{selected.map(address=><li key={address}><span>{candidates.find(c=>c.address===address)?.symbol??address.slice(0,6)+"…"+address.slice(-4)}</span><button type="button" className="tenx-button tenx-button--quiet" aria-label={`Remove ${address} from comparison`} onClick={()=>onRemove(address)}>Remove</button></li>)}</ul>:<p>No tokens selected.</p>}
-    <button type="button" className="tenx-button" disabled={selected.length<2} onClick={()=>setOpened(identity)}>Compare saved observations</button>{opened===identity&&selected.length>=2&&<ComparisonResults key={identity} addresses={selected} mode={mode}/>}</section>;
+    <button type="button" className="tenx-button" disabled={selected.length<2} onClick={()=>setOpened(identity)}>Compare saved observations</button>{opened===identity&&selected.length>=2&&<ComparisonResults returnTo={returnTo} key={identity} addresses={selected} mode={mode}/>}</section>;
 }

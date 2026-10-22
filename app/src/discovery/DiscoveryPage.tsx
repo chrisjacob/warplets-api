@@ -7,6 +7,8 @@ import {DiscoveryWorkspaceControls,DiscoveryTable,discoveryView,discoveryViewPar
 import {ComparisonToggle,TokenComparison,toggleComparison} from "./TokenComparison";
 import {ShortlistNotice,ShortlistPanel,ShortlistToggle,useShortlist} from "./Shortlist";
 import { navigateDiscovery } from "./navigation";
+import {discoveryReturnTo,tokenInspectHref,tokenDiscoveryReturn} from "./discovery-return";
+import {DiscoveryReturnLink} from "./DiscoveryReturnLink";
 import { DiscoveryNav } from "./DiscoveryNav";
 import { CollectionDetails, isCollectionAnchor } from "./CollectionDetails";
 import { EvidenceDisclosure } from "./EvidenceDisclosure";
@@ -91,16 +93,16 @@ function Freshness({ data }: { data: Pick<ListData, "as_of" | "coverage" | "sour
     <div><strong>{data.source_freshness.stale ? "Data needs refreshing" : "Saved observations"}</strong><span> · Updated {time(data.as_of)} · Coverage incomplete. </span><a href="/status#coverage">Data status →</a></div>
   </aside>;
 }
-function CandidateCard({ candidate: c, metadataUrl, metadataLoading,selected,onToggle,shortlist }: { candidate: Card; metadataUrl?: string | null; metadataLoading?: boolean;selected:string[];onToggle:(address:string)=>void;shortlist:ReturnType<typeof useShortlist> }) {
-  const fixture = c.mode === "fixture";
+function CandidateCard({ candidate: c, metadataUrl, metadataLoading,selected,onToggle,shortlist,returnTo }: { candidate: Card;returnTo:string; metadataUrl?: string | null; metadataLoading?: boolean;selected:string[];onToggle:(address:string)=>void;shortlist:ReturnType<typeof useShortlist> }) {
+  const fixture = c.mode === "fixture",link=tokenInspectHref(c.address,c.mode,returnTo);
   return <article className="tenx-candidate">
-    <div className="tenx-candidate-heading"><a className="tenx-artwork-link" href={`/token/solana/${c.address}${fixture ? "?mode=fixture" : ""}`} aria-label={`Inspect ${c.name} (${c.address})`}><TokenImage url={c.market?.image_url} metadataUrl={metadataUrl} metadataLoading={metadataLoading} name={c.name} symbol={c.symbol} /></a><div className="tenx-token-name"><h2><a href={`/token/solana/${c.address}${fixture ? "?mode=fixture" : ""}`}>{c.name}</a></h2><p>{c.symbol} <span>· Solana · OG token</span></p></div></div>
+    <div className="tenx-candidate-heading"><a className="tenx-artwork-link" href={link} aria-label={`Inspect ${c.name} (${c.address})`}><TokenImage url={c.market?.image_url} metadataUrl={metadataUrl} metadataLoading={metadataLoading} name={c.name} symbol={c.symbol} /></a><div className="tenx-token-name"><h2><a href={link}>{c.name}</a></h2><p>{c.symbol} <span>· Solana · OG token</span></p></div></div>
     <DiscoveryScoreBadge score={c.discovery_score} rank={c.discovery_rank} />
     <div className="tenx-metrics"><div><span>Market cap</span><strong>{money(c.market?.market_cap_usd)}</strong></div><div><span>Liquidity</span><strong>{money(c.market?.liquidity_usd)}</strong></div><div><span>Created</span><strong>{creationAge(c.creation?.block_time)}</strong></div></div>
     {c.market && marketSnapshotStale(c.market) && <p className="tenx-market-warning">Market data needs refreshing.</p>}
     <p className="tenx-reason">{c.reasons.length?`Checks to review: ${c.reasons.slice(0,2).map(shortBlocker).join(" · ")}`:"Required action checks passed at this observation. This does not guarantee safety."}</p>
     <details className="tenx-card-evidence"><summary>Token identity & action checks</summary><p className="tenx-address">{c.address}</p><p>{eligibilityMeaning(c.eligibility)} · <Badge status={c.eligibility} /></p><p>{fixture ? "Simulated origin evidence" : c.verification === "verified" ? "Original creation and graduation verified" : "Origin checks incomplete"}</p><p>{c.holders ? `${c.holders.holder_count} owners · largest ${c.holders.top1_pct?.toFixed(2) ?? "?"}% · ${c.holders.status} saved inventory` : "Holder inventory pending"}</p>{!fixture && <a href={`https://solscan.io/token/${c.address}`} target="_blank" rel="noopener noreferrer">View mint on Solscan ↗</a>}</details>
-    <div className="tenx-shortlist-actions"><ComparisonToggle address={c.address} selected={selected} onToggle={onToggle}/><ShortlistToggle token={c} state={shortlist.state} onToggle={shortlist.save}/></div><div className="tenx-card-bottom"><span>Solana · original token</span><a href={`/token/solana/${c.address}${fixture ? "?mode=fixture" : ""}`}>Charts & evidence →</a></div>
+    <div className="tenx-shortlist-actions"><ComparisonToggle address={c.address} selected={selected} onToggle={onToggle}/><ShortlistToggle token={c} state={shortlist.state} onToggle={shortlist.save}/></div><div className="tenx-card-bottom"><span>Solana · original token</span><a href={link}>Charts & evidence →</a></div>
   </article>;
 }
 function DiscoveryDiagnostics() {
@@ -128,6 +130,7 @@ function Discover() {
   const toggle=(address:string)=>setView(v=>({...v,compare:toggleComparison(v.compare,address)}));
   useEffect(()=>{const pop=()=>setView(discoveryView(window.location.search));window.addEventListener("popstate",pop);return()=>window.removeEventListener("popstate",pop);},[]);
   useEffect(()=>{window.history.replaceState(window.history.state,"",`${window.location.pathname}?${discoveryViewParams(view)}${window.location.hash}`);},[view]);
+  const returnTo=`/discover?${discoveryViewParams(view)}`;
   const url = discoveryCandidatesUrl(view);
   const paging=useDiscoveryPages(url),{data}=paging,error=paging.state.error;
   const artwork = useTokenArtwork(mode === "live" ? [...(data?.data.candidates.map(c => c.address)??[]),...(savedOpen?shortlist.state.entries.map(entry=>entry.address):[])] : []);
@@ -138,12 +141,12 @@ function Discover() {
     {error && <p className="tenx-notice" role="alert">{error} {data ? "The last response remains visible." : "Start the local discovery service to load data."}</p>}
     {data ? <><p className="tenx-browse-status" role="status">{data.data.scope?.matched??data.data.candidates.length} matching · {sort==="score"?"Discovery score order":"Reported liquidity order"} · Scored {time(data.data.scored_at??data.as_of)} · {data.source_freshness.stale?"Source freshness needs review":"Saved observations"}. Coverage incomplete.</p>
       <div className="tenx-section-title"><h2>{filter === "all" ? "Ranked observations" : `${filter[0]!.toUpperCase()} action checks`}</h2><span>Score / 100</span></div>
-      {data.data.candidates.length ? view.layout==="table"?<DiscoveryTable candidates={data.data.candidates} artwork={artwork} scoredAt={data.data.scored_at??data.as_of} selected={view.compare} onToggle={toggle} shortlist={shortlist}/>:<div className="tenx-ranked-cards">{data.data.candidates.map(c => <CandidateCard key={c.address} candidate={c} selected={view.compare} onToggle={toggle} shortlist={shortlist} metadataUrl={artwork[c.address]?.image_url} metadataLoading={mode === "live" && artwork[c.address] === undefined} />)}</div> : <section className="tenx-empty"><h2>No tokens match this view</h2><p>Change the search, date or filters to inspect other observations. Missing data remains unknown in every score.</p><a href="/status">Inspect data status →</a></section>}
+      {data.data.candidates.length ? view.layout==="table"?<DiscoveryTable returnTo={returnTo} candidates={data.data.candidates} artwork={artwork} scoredAt={data.data.scored_at??data.as_of} selected={view.compare} onToggle={toggle} shortlist={shortlist}/>:<div className="tenx-ranked-cards">{data.data.candidates.map(c => <CandidateCard returnTo={returnTo} key={c.address} candidate={c} selected={view.compare} onToggle={toggle} shortlist={shortlist} metadataUrl={artwork[c.address]?.image_url} metadataLoading={mode === "live" && artwork[c.address] === undefined} />)}</div> : <section className="tenx-empty"><h2>No tokens match this view</h2><p>Change the search, date or filters to inspect other observations. Missing data remains unknown in every score.</p><a href="/status">Inspect data status →</a></section>}
       <section id="discovery-pages" aria-label="More ranked observations"><DiscoveryPagination footer state={paging.state} onNext={()=>void paging.next()} onPrevious={paging.previous} onRefresh={()=>void paging.refresh()}/></section>
       <details className="tenx-browse-explainer"><summary>Inventory scope & scoring limits</summary><p>{data.data.candidates.length} shown on this page · {data.data.scope?.stored??"Unknown"} current evaluation inputs · {data.data.scope?.retained_total??"Unknown"} retained identities. Search and filters run before pagination; this is saved chain-observed coverage, not every Solana token. {view.age==="24h"&&mode==="live"?"Tokens without a verified first-day creation time are outside this view.":"Older or unknown-date current observations can appear; all evidence and freshness gates still apply."}</p><p>Verified-expired identities and their original evidence remain in the <a href={`/history?mode=${mode}`}>retained directory</a>. Scores grade measured support; missing evidence and observed risks remain visible. <a href="/transparency">How scoring works →</a></p></details>
       <p className="tenx-footnote">Checks do not guarantee safety. Images and names can be copied; confirm the mint address.</p>
     </> : !error && <p role="status" className="tenx-empty">Loading discovery…</p>}
-    <ShortlistPanel state={shortlist.state} candidates={data?.data.candidates??[]} artwork={artwork} selected={view.compare} onRemove={shortlist.remove} onClear={shortlist.clear} onCompare={toggle} onOpenChange={setSavedOpen}/><section id="compare-tokens" aria-label="Comparison workspace"><TokenComparison selected={view.compare} candidates={data?.data.candidates??[]} mode={mode} onRemove={toggle}/></section>
+    <ShortlistPanel returnTo={discoveryReturnTo(returnTo,mode,"saved-tokens")} state={shortlist.state} candidates={data?.data.candidates??[]} artwork={artwork} selected={view.compare} onRemove={shortlist.remove} onClear={shortlist.clear} onCompare={toggle} onOpenChange={setSavedOpen}/><section id="compare-tokens" aria-label="Comparison workspace"><TokenComparison returnTo={discoveryReturnTo(returnTo,mode,"compare-tokens")} selected={view.compare} candidates={data?.data.candidates??[]} mode={mode} onRemove={toggle}/></section>
     <details className="tenx-list-options"><summary>Action-check filters & example data</summary><p>All observed tokens can be scored. Separate eligibility gates still govern future voting and launch decisions; buying links do not count as votes. Names and artwork can be copied.</p><label>Action checks<select value={filter} onChange={e => setFilter(e.target.value as typeof view.status)}><option value="all">All ranked observations</option><option value="eligible">Eligible</option><option value="provisional">Provisional</option><option value="excluded">Excluded</option></select></label><label>Data source<select value={mode} onChange={e => setMode(e.target.value as "live" | "fixture")}><option value="live">Saved live observations</option><option value="fixture">Simulation examples</option></select></label>{data&&<p>Action readiness across observed inputs: {data.data.counts.eligible} eligible · {data.data.counts.provisional} provisional · {data.data.counts.excluded} excluded. This is separate from score ranking.</p>}</details>
   </>;
 }
@@ -155,16 +158,17 @@ function CandidateDetail({ address }: { address: string }) {
   const scoring=useRemote(signal=>getJson(`/api/10x/discovery/scores/solana/${encodeURIComponent(address)}?mode=${mode}`,DiscoveryScoreResponse,signal),`score:${mode}:${address}`);
   const [copied, setCopied] = useState(false);
   const artwork = useTokenArtwork(mode === "live" ? [address] : []);
-  if (!data) return error ? <p role="alert" className="tenx-notice">{error}</p> : <p role="status" className="tenx-empty">Loading candidate evidence…</p>;
+  const back=<DiscoveryReturnLink search={window.location.search} mode={mode}/>;
+  if (!data) return <>{back}{error ? <p role="alert" className="tenx-notice">{error}</p> : <p role="status" className="tenx-empty">Loading candidate evidence…</p>}</>;
   const c = data.data, fixture = c.mode === "fixture";
   return <>
-    <a href="/discover" className="tenx-back">← All contenders</a>
+    {back}
     {error && <p role="alert" className="tenx-notice">{error} The last verified response remains visible.</p>}
     <header className="tenx-heading"><p className="tenx-eyebrow">SOLANA / OG TOKEN</p><div className="tenx-token-heading"><TokenImage url={c.market?.image_url} metadataUrl={artwork[address]?.image_url} metadataLoading={!fixture && artwork[address] === undefined} name={c.name} symbol={c.symbol} large /><div className="tenx-token-name"><h1>{c.name}</h1><div className="tenx-row"><span>{c.symbol}</span></div></div></div></header>
     {fixture && <aside className="tenx-notice">SIMULATION — token identities, proofs and market values are synthetic examples.</aside>}
     {data.retention && <CandidateExpiryNotice receipt={data.retention} />}
     <div className="tenx-token-identity"><span className="tenx-address">{c.address}</span><button className="tenx-button tenx-button--quiet" onClick={() => void navigator.clipboard.writeText(c.address).then(() => setCopied(true)).catch(() => setCopied(false))}>{copied ? "Copied" : "Copy mint"}</button>{!fixture && <a href={`https://solscan.io/token/${c.address}`} target="_blank" rel="noopener noreferrer">Explorer ↗</a>}</div>
-    <div className="tenx-shortlist-actions"><ShortlistToggle token={c} state={shortlist.state} onToggle={shortlist.save}/><a href={`/discover${fixture?"?mode=fixture":""}#saved-tokens`}>View saved tokens →</a></div><ShortlistNotice state={shortlist.state}/>
+    <div className="tenx-shortlist-actions"><ShortlistToggle token={c} state={shortlist.state} onToggle={shortlist.save}/><a href={tokenDiscoveryReturn(window.location.search,mode,"saved-tokens")}>View saved tokens →</a></div><ShortlistNotice state={shortlist.state}/>
     <TokenMarketOverview candidate={c} />
     <DiscoveryScorePanel record={scoring.data?.record??null} error={scoring.error} />
     {(c.wallet_analysis?.signals.length || c.wallet_analysis?.status === "signals_detected") ? <WalletRiskSummary candidate={c} /> : null}

@@ -4,17 +4,12 @@ import {DEFAULT_POLICY} from "../../../discovery/src/model";
 import {TokenImage} from "./TokenMarket";
 import {creationAge,shortBlocker,tokenMoney} from "./TokenOverview";
 import {marketSource,readableReason} from "./client";
-import {ComparisonToggle,comparisonSelection} from "./TokenComparison";
+import {ComparisonToggle} from "./TokenComparison";
 import {ShortlistToggle,type useShortlist} from "./Shortlist";
+import {defaults,discoveryViewParams,type DiscoveryView} from "./discovery-view";
+import {tokenInspectHref} from "./discovery-return";
+export {discoveryView,discoveryViewParams,type DiscoveryView} from "./discovery-view";
 
-export type DiscoveryView={mode:"live"|"fixture";status:"all"|"eligible"|"provisional"|"excluded";age:"24h"|"all";sort:"score"|"liquidity";layout:"cards"|"table";q:string;freshness:"all"|"fresh"|"stale"|"missing";min_liquidity:number;min_coverage:number;compare:string[]};
-const defaults:DiscoveryView={mode:"live",status:"all",age:"24h",sort:"score",layout:"cards",q:"",freshness:"all",min_liquidity:0,min_coverage:0,compare:[]};
-export function discoveryView(search:string):DiscoveryView{
-  const p=new URLSearchParams(search), choice=<K extends keyof DiscoveryView>(key:K,values:readonly DiscoveryView[K][])=>values.includes(p.get(key) as DiscoveryView[K])?p.get(key) as DiscoveryView[K]:defaults[key];
-  const number=(key:"min_liquidity"|"min_coverage",max:number)=>{const n=Number(p.get(key));return Number.isFinite(n)&&n>=0&&n<=max?n:0;};
-  return {mode:choice("mode",["live","fixture"]),status:choice("status",["all","eligible","provisional","excluded"]),age:choice("age",["24h","all"]),sort:choice("sort",["score","liquidity"]),layout:choice("layout",["cards","table"]),q:(p.get("q")??"").trim().slice(0,100),freshness:choice("freshness",["all","fresh","stale","missing"]),min_liquidity:number("min_liquidity",1e12),min_coverage:number("min_coverage",100),compare:comparisonSelection(p.get("compare"))};
-}
-export function discoveryViewParams(view:DiscoveryView){return new URLSearchParams(Object.entries(view).map(([k,v])=>[k,String(v)]));}
 export function discoveryCandidatesUrl(view:DiscoveryView){const p=discoveryViewParams(view);p.delete("layout");p.delete("compare");p.set("age",view.mode==="fixture"?"all":view.age);p.set("limit","100");p.set("view","cards");p.set("browse","inventory");p.set("inventory","current");return `/api/10x/candidates?${p}`;}
 export function advancedFilterCount(view:DiscoveryView){return Number(view.freshness!=="all")+Number(view.min_liquidity>0)+Number(view.min_coverage>0);}
 export function DiscoveryWorkspaceControls({view,onChange,children}:{view:DiscoveryView;onChange:(view:DiscoveryView)=>void;children?:ReactNode}){
@@ -36,11 +31,11 @@ export function DiscoveryWorkspaceControls({view,onChange,children}:{view:Discov
   </form>;
 }
 const money=(n:number|null|undefined)=>n==null?"Unknown":tokenMoney(n);
-export function DiscoveryTable({candidates,artwork,scoredAt,selected=[],onToggle=()=>{},shortlist}:{candidates:CandidateCard[];artwork:Record<string,{image_url?:string|null}|null|undefined>;scoredAt:string|null;selected?:string[];onToggle?:(address:string)=>void;shortlist?:Pick<ReturnType<typeof useShortlist>,"state"|"save">}){
+export function DiscoveryTable({candidates,artwork,scoredAt,selected=[],onToggle=()=>{},shortlist,returnTo}:{candidates:CandidateCard[];artwork:Record<string,{image_url?:string|null}|null|undefined>;scoredAt:string|null;selected?:string[];onToggle?:(address:string)=>void;shortlist?:Pick<ReturnType<typeof useShortlist>,"state"|"save">;returnTo?:string}){
   const [copied,setCopied]=useState("");
   const cutoff=scoredAt?Date.parse(scoredAt):NaN;
   return <div className="tenx-table-scroll tenx-discovery-table" tabIndex={0} role="region" aria-label="Token comparison table"><table><caption>Saved observations at {scoredAt?new Date(scoredAt).toLocaleString():"an unknown cutoff"}. Reported volume is not verified organic demand. Qualified holder growth and recent momentum are not yet available in this table.</caption><thead><tr><th scope="col">Rank / token</th><th scope="col">Created</th><th scope="col">v4 score / coverage</th><th scope="col">Reported cap / liquidity</th><th scope="col">Reported 24h volume</th><th scope="col">Source / freshness</th><th scope="col">Main concern</th></tr></thead><tbody>{candidates.map(c=>{
-    const fixture=c.mode==="fixture",link=`/token/solana/${c.address}${fixture?"?mode=fixture":""}`,m=c.market,elapsed=m?cutoff-Date.parse(m.fetched_at):null;
+    const fixture=c.mode==="fixture",link=tokenInspectHref(c.address,c.mode,returnTo),m=c.market,elapsed=m?cutoff-Date.parse(m.fetched_at):null;
     const fresh=elapsed!==null&&elapsed>=0&&elapsed<=DEFAULT_POLICY.max_market_age_seconds*1000&&(!m?.observed_at||Date.parse(m.observed_at)<=cutoff);
     const score=c.discovery_score,flag=score&&score.version!=="discovery-score-v1"?score.risk_flags[0]:null;
     return <tr key={c.address}><td><div className="tenx-table-token"><TokenImage url={m?.image_url} metadataUrl={artwork[c.address]?.image_url} metadataLoading={!fixture&&artwork[c.address]===undefined} name={c.name} symbol={c.symbol}/><div><a href={link}>{c.discovery_rank?`#${c.discovery_rank}`:"Rank unknown"} · {c.name}</a><small>{c.symbol}</small></div></div><details><summary>Mint & copy</summary><p className="tenx-address">{c.address}</p><button type="button" className="tenx-button tenx-button--quiet" onClick={()=>void navigator.clipboard.writeText(c.address).then(()=>setCopied(c.address)).catch(()=>setCopied(""))}>{copied===c.address?"Copied":"Copy mint"}</button></details><ComparisonToggle address={c.address} selected={selected} onToggle={onToggle}/>{shortlist&&<ShortlistToggle token={c} state={shortlist.state} onToggle={shortlist.save}/>}</td>
