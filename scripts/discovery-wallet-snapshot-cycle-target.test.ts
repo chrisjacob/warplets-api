@@ -7,10 +7,12 @@ import {randomUUID,createHash} from "node:crypto";
 import {execFile} from "node:child_process";
 import {promisify} from "node:util";
 import {fixture,type PublicationFixture} from "./discovery-evidence-publication-test-helper.mjs";
-import {createEvidenceIntentJournal,readEvidencePublicationIntent} from "./discovery-evidence-intents.mjs";
+import {createEvidenceIntentJournal,readEvidencePublicationIntent,readEvidencePublicationIntentIfPresent} from "./discovery-evidence-intents.mjs";
 import {readEvidenceWalletSnapshotReviews,checkEvidenceWalletSnapshotDispatch,validateEvidenceWalletSnapshotPlan,validateEvidenceWalletDirectPlan,transferEvidencePublicationOwner} from "./discovery-evidence-publication.mjs";
 import {runRecordedSnapshotWalletCycleOnEvidenceTarget,type WalletSnapshotCycleTargetInput} from "./lib/evidence-wallet-direct-cycle-target";
-import {publishEvidenceWalletSnapshotBatch,publishEvidenceWalletCycleBatch,recoverEvidenceProducerBatch,type WalletSnapshotBatchInput,type WalletCycleContext} from "./lib/evidence-producer-publication";
+import {publishEvidenceWalletSnapshotBatch,publishEvidenceWalletCycleBatch,recoverEvidenceProducerBatch,recoverLinkedWalletSnapshotBatch,type WalletSnapshotBatchInput,type WalletCycleContext} from "./lib/evidence-producer-publication";
+import {recoverLinkedCandidateBatch} from "./lib/evidence-candidate-workflow";
+import {validateEvidenceCohortPlan,publishEvidenceWalletSnapshot} from "./discovery-evidence-publication.mjs";
 import {walletLeaseSql} from "./evidence-wallet-cycle-sql.mjs";
 import {snapshotFinishSql} from "./evidence-wallet-snapshot-sql.mjs";
 import {directCatchupSql} from "./evidence-wallet-direct-sql.mjs";
@@ -34,13 +36,13 @@ const exec=promisify(execFile),at="2026-10-21T09:05:00.000Z",sha=(s:string)=>cre
 type Setup=PublicationFixture&{journal:{directory:string;contextPin:string};input:WalletSnapshotCycleTargetInput;candidate:Candidate;job:ReturnType<typeof randomUUID>;original:Record<string,unknown>;snapshotBatch:ProducerStatement[]};
 async function setup(work:(f:Setup)=>Promise<void>,mode="full",seed?:(db:DatabaseSync)=>void){
   mock.timers.enable({apis:["Date"],now:new Date(at)});const job=randomUUID();mock.method(globalThis.crypto,"randomUUID",()=>job);
-  const sample=await walletInput(),base=(await fixtureCandidates(new Date(at)))[0]!,refresh=mode==="refresh",origin=mode!=="empty"&&!refresh;
+  const sample=await walletInput(),base=(await fixtureCandidates(new Date(at)))[0]!,refresh=["refresh","durable_refresh"].includes(mode),origin=mode!=="empty"&&!refresh;
   const candidate:Candidate={...base,mode:"live",creation:origin?sample.asset.creation:null,graduation:null,holders:null,wallet_analysis:null};
-  const holder=mode==="holder"?HolderEvidenceSchema.parse((await holderHistoryFixture()).samples[0]!.evidence):null;if(holder)candidate.holders=await analyzeHolders(holder,at);
+  const holder=["holder","durable_holder"].includes(mode)?HolderEvidenceSchema.parse((await holderHistoryFixture()).samples[0]!.evidence):null;if(holder)candidate.holders=await analyzeHolders(holder,at);
   const buyer=sample.records[1]!.transaction!,anchor={wallet:buyer.transaction.message.accountKeys[0]!,signature:buyer.transaction.signatures[0]!,slot:buyer.slot,block_time:new Date(buyer.blockTime!*1000).toISOString(),kind:"sampled_buy" as const};
   const scan=FundingScanSchema.parse({wallet:anchor.wallet,anchor,lookback_seconds:3600,attempted_at:at,pages:[{before:anchor.signature,fetched_at:at,rows:[{signature:signature(211),slot:buyer.slot-100,blockTime:buyer.blockTime!-3601,err:null,confirmationStatus:"finalized"}]}],examined:[]});
   const prior=refresh?WalletEvidenceSchema.parse({...sample,version:"wallet-input-v5",observed_at:at,asset:{...sample.asset,creation:null},records:[sample.records[1]],histories:[],funding_scans:[scan],second_hop_scans:[]}):null;if(prior)candidate.wallet_analysis=await analyzeWalletEvidence(prior);
-  const input:WalletSnapshotCycleTargetInput={address:candidate.address,now:at,walletEnabled:mode!=="disabled",walletDailyLimit:800,rpcDailyLimit:5000,marketDailyLimit:600,stageId:randomUUID(),...(mode==="durable"?{cohortPublicationId:randomUUID()}:{}),ids:{lease:randomUUID(),spacing:randomUUID(),release:randomUUID(),catchup:randomUUID(),backoff:randomUUID(),work:randomUUID(),finish:randomUUID(),failure_run:randomUUID(),failure_release:randomUUID(),failure_attempt:randomUUID()},writeIds:Array.from({length:30},()=>randomUUID()),replies:[]},directory=path.resolve(".tmp","wallet-snapshot-test-"+randomUUID());
+  const input:WalletSnapshotCycleTargetInput={address:candidate.address,now:at,walletEnabled:mode!=="disabled",walletDailyLimit:800,rpcDailyLimit:5000,marketDailyLimit:600,stageId:randomUUID(),...(mode.startsWith("durable")?{cohortPublicationId:randomUUID()}:{}),ids:{lease:randomUUID(),spacing:randomUUID(),release:randomUUID(),catchup:randomUUID(),backoff:randomUUID(),work:randomUUID(),finish:randomUUID(),failure_run:randomUUID(),failure_release:randomUUID(),failure_attempt:randomUUID()},writeIds:Array.from({length:30},()=>randomUUID()),replies:[]},directory=path.resolve(".tmp","wallet-snapshot-test-"+randomUUID());
   try{await fixture(async f=>{
     const made=await createEvidenceIntentJournal({target:directory,publication:f.options,grant:f.grant});let call=0;
     // Fixed synthetic response data is generated before entering the target.
@@ -85,12 +87,12 @@ async function acquire(f:Setup){const c=context(f);assert.equal((await publishEv
 function catchup(f:Setup):WalletSnapshotBatchInput{return {publicationId:f.input.ids.catchup,cycle:context(f),sourceHash:f.candidate.wallet_analysis?.evidence_hash??null,candidateHash:sha(String(f.copy.prepare("SELECT payload FROM tenx_candidates WHERE address=?").get(f.candidate.address)!.payload)),limits:{wallet:800,rpc:5000},statements:[{sql:directCatchupSql,bindings:[at.slice(0,10),180]}]};}
 function snapshot(f:Setup):WalletSnapshotBatchInput{return {...catchup(f),publicationId:f.input.ids.finish,stageId:f.input.stageId,statements:f.snapshotBatch};}
 
-for(const mode of ["full","durable","refresh","holder","empty","missing","unsupported","rate_limited","late_rate_limited","rpc_exhausted","wallet_exhausted","no_catchup","disabled","paused","backoff","busy"])test(`original snapshot cycle matches all retained metadata: ${mode}`,t=>setup(async f=>{
+for(const mode of ["full","durable","durable_refresh","durable_holder","refresh","holder","empty","missing","unsupported","rate_limited","late_rate_limited","rpc_exhausted","wallet_exhausted","no_catchup","disabled","paused","backoff","busy"])test(`original snapshot cycle matches all retained metadata: ${mode}`,t=>setup(async f=>{
   const tables=f.db.prepare("SELECT name FROM sqlite_schema WHERE type='table' ORDER BY name").all().map(({name})=>{const columns=f.copy.prepare(`PRAGMA table_info(${name})`).all().map(c=>String(c.name));return {name,columns,rows:f.db.prepare(`SELECT ${columns.join(",")} FROM ${name} ORDER BY rowid`).all()};});
   mock.method(f.db,"prepare",()=>{throw Error("oracle_forbidden");});mock.method(f.db,"exec",()=>{throw Error("oracle_forbidden");});
   const actual=completed(await run(f));assert.deepEqual(actual.result,f.original);for(const value of tables)assert.deepEqual(f.copy.prepare(`SELECT ${value.columns.join(",")} FROM ${value.name} ORDER BY rowid`).all(),value.rows,String(value.name));
   if(f.original.state==="succeeded"){assert.equal(actual.producer?.state,"committed");assert.equal(actual.cohort,"completed");assert.equal(actual.post_commit,"completed");if(mode==="full")assert.ok(Number(actual.result.verified_buys)>=3);}
-  if(mode==="durable"){assert.equal(actual.cohort_publication?.state,"committed");assert.equal((await recoverEvidenceProducerBatch(f.options,f.journal,f.grant,{publicationId:f.input.cohortPublicationId!,mode:"reconcile"})).state,"committed");}
+  if(mode.startsWith("durable")){assert.equal(actual.cohort_publication?.state,"committed");assert.equal((await recoverEvidenceProducerBatch(f.options,f.journal,f.grant,{publicationId:f.input.cohortPublicationId!,mode:"reconcile"})).state,"committed");}
   const before=await fs.readFile(path.join(f.target,"metadata.sqlite"));for(const p of actual.publications)if(p.publication_id)assert.equal((await recoverEvidenceProducerBatch(f.options,f.journal,f.grant,{publicationId:p.publication_id,mode:"reconcile"})).state,"committed");assert.deepEqual(await fs.readFile(path.join(f.target,"metadata.sqlite")),before);assert.equal(actual.provider_requests,0);assert.equal(actual.source_authorized,false);t.diagnostic(JSON.stringify({original_tables:tables.length,mode,recorded_responses:actual.recorded_responses,original_cycle:true,oracle_forwarding:false,prerequisite_copy:false}));
 },mode));
 
@@ -142,3 +144,75 @@ test("durable wallet cohorts recover after original post-commit failure without 
   const original=DatabaseSync.prototype.prepare,hook=mock.method(DatabaseSync.prototype,"prepare",function(this:DatabaseSync,sql:string){if(sql===walletCohortSql)throw Error("cohort_fault");return original.call(this,sql);});const actual=completed(await run(f));hook.mock.restore();assert.equal(actual.result.state,"failed");assert.equal(actual.producer?.state,"committed");assert.equal(actual.cohort_publication?.state,"held");assert.equal(actual.post_commit,"failed");
   const before=[rows(f.copy,"tenx_candidates"),rows(f.copy,"tenx_wallet_runs"),rows(f.copy,"tenx_wallet_transactions"),rows(f.copy,"tenx_usage"),rows(f.copy,"tenx_wallet_usage")];assert.equal((await recoverEvidenceProducerBatch(f.options,f.journal,f.grant,{publicationId:f.input.cohortPublicationId!,mode:"publish"})).state,"committed");assert.deepEqual([rows(f.copy,"tenx_candidates"),rows(f.copy,"tenx_wallet_runs"),rows(f.copy,"tenx_wallet_transactions"),rows(f.copy,"tenx_usage"),rows(f.copy,"tenx_wallet_usage")],before);assert.equal(rows(f.copy,"tenx_wallet_runs")[0]!.state,"succeeded");
 },"durable"));
+
+function linkedSnapshot(f:Setup){return {...snapshot(f),cohortId:randomUUID()};}
+const linkedRecover=(f:Setup,cohortId:string,mode:"publish"|"reconcile"="publish",grant=f.grant)=>recoverLinkedWalletSnapshotBatch(f.options,f.journal,grant,{cohortId,mode});
+async function linkedStop(f:Setup,mode:"cohort_ready_stop"|"ready_stop"|"commit_stop"){
+  await acquire(f);const batch=linkedSnapshot(f),file=path.join(f.root,"linked-snapshot.json");await fs.writeFile(file,JSON.stringify({publication:f.options,journal:f.journal,grant:f.grant,batch,id:batch.cohortId,plan_kind:"wallet_snapshot_cycle"}),{flag:"wx",mode:0o600});
+  const before=state(f);await assert.rejects(exec(process.execPath,["--import","tsx","scripts/evidence-producer-restart-fixture.ts",file,mode],{maxBuffer:100000,timeout:30000}),e=>(e as {code:number}).code===(mode==="cohort_ready_stop"?77:mode==="ready_stop"?75:76));return {batch,file,before};
+}
+function linkedReady(f:Setup,id:string,work:()=>void){const open=fs.open;return mock.method(fs,"open",async function(...[name,flags,...args]:Parameters<typeof fs.open>){const handle=await open(name,flags,...args);if(flags==="wx"&&String(name)===path.join(f.journal.directory,"pending",id,"ready.json")){const sync=handle.sync.bind(handle);handle.sync=async()=>{await sync();work();};}return handle;});}
+
+for(const mode of ["cohort_ready_stop","ready_stop","commit_stop"] as const)test(`linked snapshot ${mode} recovers its original pair in a fresh process without source arguments`,()=>setup(async f=>{
+  const {batch,file,before}=await linkedStop(f,mode),child=validateEvidenceCohortPlan((await readEvidencePublicationIntent(f.options,f.journal,f.grant,batch.cohortId)).plan);assert.equal(child.parent.cohort_id,batch.cohortId);assert.ok(child.candidate_hash);if(mode!=="commit_stop")assert.deepEqual(state(f),before);else assert.equal(rows(f.copy,"tenx_wallet_cohorts").length,0);
+  if(mode==="cohort_ready_stop")assert.equal(await readEvidencePublicationIntentIfPresent(f.options,f.journal,f.grant,batch.publicationId),null);
+  const result=JSON.parse((await exec(process.execPath,["--import","tsx","scripts/evidence-producer-restart-fixture.ts",file,"linked_snapshot_publish"],{maxBuffer:100000,timeout:30000})).stdout);assert.equal(result.state,"completed");assert.equal(result.producer.state,"committed");assert.equal(result.cohort.state,"committed");assert.equal(result.provider_requests,0);assert.equal(result.source_authorized,false);assert.equal(rows(f.copy,"tenx_append_references").length,1);assert.equal(rows(f.copy,"tenx_wallet_cohorts").length,1);assert.equal(rows(f.copy,"tenx_wallet_profiles").length,JSON.parse(String(f.snapshotBatch[2]!.bindings[0])).wallets.length);
+  const bytes=await fs.readFile(path.join(f.target,"metadata.sqlite"));assert.equal((await linkedRecover(f,batch.cohortId,"reconcile")).state,"completed");assert.deepEqual(await fs.readFile(path.join(f.target,"metadata.sqlite")),bytes);
+}));
+
+for(const change of ["expiry","candidate","lease","pause","backoff"] as const)test(`linked snapshot pending ${change} change holds without reviving the original job or refunding spend`,()=>setup(async f=>{
+  const {batch}=await linkedStop(f,"ready_stop");if(change==="expiry")mock.timers.tick(360000);else f.copy.exec(change==="candidate"?"UPDATE tenx_candidates SET payload=json_set(payload,'$.symbol','changed')":change==="lease"?"UPDATE tenx_wallet_control SET lease_owner='replacement'":change==="pause"?"UPDATE tenx_control SET paused=1":"UPDATE tenx_control SET last_error='rpc_rate_limited',retry_after='2026-10-22T00:00:00.000Z'");
+  const before=state(f);assert.equal((await linkedRecover(f,batch.cohortId)).state,"held");assert.deepEqual(state(f),before);assert.equal(rows(f.copy,"tenx_append_references").length,0);assert.equal(rows(f.copy,"tenx_wallet_profiles").length,0);
+}));
+
+test("linked snapshot committed parent finishes its original cohorts after lease expiry and a later candidate update",()=>setup(async f=>{
+  const {batch}=await linkedStop(f,"commit_stop"),candidate=rows(f.copy,"tenx_candidates");mock.timers.tick(360000);f.copy.exec("UPDATE tenx_candidates SET payload=json_set(payload,'$.symbol','later')");const before=[rows(f.copy,"tenx_wallet_runs"),rows(f.copy,"tenx_wallet_transactions"),rows(f.copy,"tenx_usage"),rows(f.copy,"tenx_wallet_usage"),rows(f.copy,"tenx_wallet_control")],result=await linkedRecover(f,batch.cohortId);assert.equal(result.state,"completed");if(result.producer?.state==="committed")assert.equal(result.producer.reconciled,true);else assert.fail("parent not confirmed");assert.deepEqual([rows(f.copy,"tenx_wallet_runs"),rows(f.copy,"tenx_wallet_transactions"),rows(f.copy,"tenx_usage"),rows(f.copy,"tenx_wallet_usage"),rows(f.copy,"tenx_wallet_control")],before);assert.notDeepEqual(rows(f.copy,"tenx_candidates"),candidate);assert.equal(rows(f.copy,"tenx_wallet_cohorts")[0]!.selected_at,at);
+}));
+
+test("linked snapshot committed history reconciles under a replacement owner with no writes",()=>setup(async f=>{
+  await acquire(f);const batch=linkedSnapshot(f);assert.equal((await publishEvidenceWalletSnapshotBatch(f.options,f.journal,f.grant,batch)).state,"committed");assert.equal((await linkedRecover(f,batch.cohortId)).state,"completed");const next=(await transferEvidencePublicationOwner(f.options,f.grant,randomUUID())).grant,before=await fs.readFile(path.join(f.target,"metadata.sqlite"));assert.equal((await linkedRecover(f,batch.cohortId,"reconcile",next)).state,"completed");assert.deepEqual(await fs.readFile(path.join(f.target,"metadata.sqlite")),before);
+}));
+
+test("linked snapshot pending former-owner work cannot materialize a missing parent",()=>setup(async f=>{
+  const {batch}=await linkedStop(f,"cohort_ready_stop"),next=(await transferEvidencePublicationOwner(f.options,f.grant,randomUUID())).grant,before=state(f);assert.equal((await linkedRecover(f,batch.cohortId,"publish",next)).state,"held");assert.equal(await readEvidencePublicationIntentIfPresent(f.options,f.journal,next,batch.publicationId),null);assert.deepEqual(state(f),before);
+}));
+
+test("linked snapshot lost producer acknowledgement keeps parent history and can finish cohorts separately",()=>setup(async f=>{
+  await acquire(f);const batch=linkedSnapshot(f),original=DatabaseSync.prototype.exec;let lost=false;const hook=mock.method(DatabaseSync.prototype,"exec",function(this:DatabaseSync,sql:string){const stop=sql==="COMMIT"&&!lost&&!!this.prepare("SELECT 1 FROM tenx_append_publications WHERE publication_id=?").get(batch.publicationId),result=original.call(this,sql);if(stop){lost=true;throw Error("ack_lost");}return result;});assert.equal((await publishEvidenceWalletSnapshotBatch(f.options,f.journal,f.grant,batch)).state,"held");hook.mock.restore();assert.equal(lost,true);const first=await linkedRecover(f,batch.cohortId,"reconcile");assert.equal(first.state,"held");assert.equal(first.producer?.state,"committed");assert.equal(first.failure?.phase,"reconcile");assert.equal(first.failure?.sql_attempt,"read_only");assert.equal((await linkedRecover(f,batch.cohortId)).state,"completed");assert.equal(rows(f.copy,"tenx_wallet_runs").length,1);
+}));
+
+test("linked snapshot missing companion blocks native and journal producer execution",()=>setup(async f=>{
+  const {batch}=await linkedStop(f,"ready_stop"),parent=await readEvidencePublicationIntent(f.options,f.journal,f.grant,batch.publicationId);await fs.rename(path.join(f.journal.directory,"pending",batch.cohortId,"ready.json"),path.join(f.journal.directory,"pending",batch.cohortId,"ready.retained"));const before=state(f);assert.equal((await recoverEvidenceProducerBatch(f.options,f.journal,f.grant,{publicationId:batch.publicationId,mode:"publish"})).state,"held");await assert.rejects(publishEvidenceWalletSnapshot(f.options,f.grant,parent.plan));assert.deepEqual(state(f),before);
+}));
+
+test("linked snapshot partial parent readiness is never reconstructed from its valid child",()=>setup(async f=>{
+  const {batch}=await linkedStop(f,"cohort_ready_stop"),folder=path.join(f.journal.directory,"pending",batch.publicationId);await fs.mkdir(folder);await fs.writeFile(path.join(folder,"intent.bin"),"retained-partial");const before=state(f);assert.equal((await linkedRecover(f,batch.cohortId)).state,"held");assert.equal(await fs.readFile(path.join(folder,"intent.bin"),"utf8"),"retained-partial");assert.deepEqual(state(f),before);
+}));
+
+test("linked snapshot partial child readiness holds before producer publication and cannot be resealed",()=>setup(async f=>{
+  await acquire(f);const batch=linkedSnapshot(f),folder=path.join(f.journal.directory,"pending",batch.cohortId);await fs.mkdir(folder);await fs.writeFile(path.join(folder,"intent.bin"),"retained-partial");const before=state(f);assert.equal((await publishEvidenceWalletSnapshotBatch(f.options,f.journal,f.grant,batch)).state,"held");assert.equal(await readEvidencePublicationIntentIfPresent(f.options,f.journal,f.grant,batch.publicationId),null);assert.equal(await fs.readFile(path.join(folder,"intent.bin"),"utf8"),"retained-partial");assert.deepEqual(state(f),before);
+}));
+
+test("linked snapshot first-row replacement after readiness holds before producer SQL",()=>setup(async f=>{
+  await acquire(f);const batch=linkedSnapshot(f),hook=linkedReady(f,batch.publicationId,()=>f.copy.exec("UPDATE tenx_cohorts SET input_hash='changed'"));assert.equal((await publishEvidenceWalletSnapshotBatch(f.options,f.journal,f.grant,batch)).state,"held");hook.mock.restore();assert.equal(rows(f.copy,"tenx_append_references").length,0);assert.equal(rows(f.copy,"tenx_wallet_runs").length,0);assert.equal(rows(f.copy,"tenx_cohorts")[0]!.input_hash,"changed");
+}));
+
+test("linked snapshot late SQL failure rolls back receipt, candidate, profiles and completion while preserving readiness",()=>setup(async f=>{
+  await acquire(f);const batch=linkedSnapshot(f),before=state(f),original=DatabaseSync.prototype.prepare,hook=mock.method(DatabaseSync.prototype,"prepare",function(this:DatabaseSync,sql:string){if(sql.startsWith("INSERT INTO tenx_wallet_profiles("))throw Error("profile_fault");return original.call(this,sql);});assert.equal((await publishEvidenceWalletSnapshotBatch(f.options,f.journal,f.grant,batch)).state,"held");hook.mock.restore();assert.deepEqual(state(f),before);assert.ok(await readEvidencePublicationIntent(f.options,f.journal,f.grant,batch.cohortId));assert.equal((await linkedRecover(f,batch.cohortId)).state,"completed");
+}));
+
+test("linked snapshot strict identity and receipt requirements reject links on control or failed batches",()=>setup(async f=>{
+  await acquire(f);const b=linkedSnapshot(f),before=state(f);for(const id of [b.publicationId,b.stageId!,b.cycle.lease_id,b.cycle.job])assert.equal((await publishEvidenceWalletSnapshotBatch(f.options,f.journal,f.grant,{...b,cohortId:id})).state,"held");assert.equal((await publishEvidenceWalletSnapshotBatch(f.options,f.journal,f.grant,{...catchup(f),cohortId:randomUUID()})).state,"held");const failed=structuredClone(f.snapshotBatch[0]!);failed.bindings[4]="failed";failed.bindings[8]=0;failed.bindings[9]=0;failed.bindings[10]="fixture_failed";assert.equal((await publishEvidenceWalletSnapshotBatch(f.options,f.journal,f.grant,{...catchup(f),cohortId:randomUUID(),statements:[failed]})).state,"held");assert.deepEqual(state(f),before);
+}));
+
+test("linked snapshot recovery rejects the candidate-only entry point without writing or materializing a parent",()=>setup(async f=>{
+  const {batch}=await linkedStop(f,"cohort_ready_stop"),before=state(f);assert.equal((await recoverLinkedCandidateBatch(f.options,f.journal,f.grant,{cohortId:batch.cohortId,mode:"publish"})).state,"held");assert.equal(await readEvidencePublicationIntentIfPresent(f.options,f.journal,f.grant,batch.publicationId),null);assert.deepEqual(state(f),before);
+}));
+
+test("linked snapshot read-only recovery never executes a pending original parent",()=>setup(async f=>{
+  const {batch}=await linkedStop(f,"ready_stop"),before=await fs.readFile(path.join(f.target,"metadata.sqlite")),result=await linkedRecover(f,batch.cohortId,"reconcile");assert.equal(result.state,"held");assert.equal(result.producer,undefined);assert.equal(result.failure?.phase,"reconcile");assert.equal(result.failure?.sql_attempt,"read_only");assert.deepEqual(await fs.readFile(path.join(f.target,"metadata.sqlite")),before);
+}));
+
+test("linked snapshot same-identity retry returns original results without repeating producer or cohort writes",()=>setup(async f=>{
+  await acquire(f);const batch=linkedSnapshot(f);assert.equal((await publishEvidenceWalletSnapshotBatch(f.options,f.journal,f.grant,batch)).state,"committed");assert.equal((await linkedRecover(f,batch.cohortId)).state,"completed");const before=await fs.readFile(path.join(f.target,"metadata.sqlite")),again=await publishEvidenceWalletSnapshotBatch(f.options,f.journal,f.grant,batch);assert.equal(again.state,"committed");if(again.state==="committed")assert.equal(again.reconciled,true);assert.equal((await linkedRecover(f,batch.cohortId)).state,"completed");assert.deepEqual(await fs.readFile(path.join(f.target,"metadata.sqlite")),before);
+}));

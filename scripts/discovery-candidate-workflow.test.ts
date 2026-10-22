@@ -11,7 +11,7 @@ import {createEvidenceIntentJournal,readEvidencePublicationIntent,readEvidencePu
 import {previewEvidenceCandidateForCohort,validateEvidenceTargetPlan,validateEvidenceCohortPlan,transferEvidencePublicationOwner,publishEvidenceCandidateMetadata} from "./discovery-evidence-publication.mjs";
 import {publishLinkedCandidateBatch,recoverLinkedCandidateBatch} from "./lib/evidence-candidate-workflow";
 import {saveCandidateOnEvidenceTarget,type CandidateTargetInput} from "./lib/evidence-candidate-target";
-import {recoverEvidenceProducerBatch} from "./lib/evidence-producer-publication";
+import {recoverEvidenceProducerBatch,recoverLinkedWalletSnapshotBatch} from "./lib/evidence-producer-publication";
 import type {ProducerStatement} from "./lib/evidence-producer-plan";
 import {saveCandidate} from "../discovery/src/store";
 import {sqliteD1} from "../app/functions/_lib/sqliteTestDb";
@@ -114,4 +114,8 @@ test("native publication cannot bypass the linked cohort requirement",()=>setup(
 
 test("pending identity conflict cannot replace saved assessment or parent bytes",()=>setup(async f=>{
   await stop(f,"ready_stop");const before=await fs.readFile(path.join(f.journal.directory,"pending",f.batch.cohortId,"intent.bin")),statements=structuredClone(f.batch.statements);statements[0]!.bindings[1]="changed-pool";assert.equal((await publishLinkedCandidateBatch(f.options,f.journal,f.grant,{...f.batch,statements})).state,"held");assert.deepEqual(await fs.readFile(path.join(f.journal.directory,"pending",f.batch.cohortId,"intent.bin")),before);assert.equal(rows(f.copy,"tenx_append_publications").length,0);
+}));
+
+test("snapshot-only recovery rejects a candidate cohort without publishing it",()=>setup(async f=>{
+  assert.equal((await submit(f)).state,"committed");const before=await fs.readFile(path.join(f.target,"metadata.sqlite"));assert.equal((await recoverLinkedWalletSnapshotBatch(f.options,f.journal,f.grant,{cohortId:f.batch.cohortId,mode:"publish"})).state,"held");assert.deepEqual(await fs.readFile(path.join(f.target,"metadata.sqlite")),before);
 }));

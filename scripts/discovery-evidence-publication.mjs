@@ -325,8 +325,8 @@ export async function publishEvidenceWalletDirect(options,grant,input,afterCommi
 export async function reconcileEvidenceWalletDirect(options,grant,input,afterCommit){return executePublication(options,grant,input,afterCommit,false,"wallet_direct_cycle");}
 export async function publishEvidenceWalletRecovery(options,grant,input,afterCommit){return executePublication(options,grant,input,afterCommit,true,"wallet_reader_recovery");}
 export async function reconcileEvidenceWalletRecovery(options,grant,input,afterCommit){return executePublication(options,grant,input,afterCommit,false,"wallet_reader_recovery");}
-export async function publishEvidenceWalletSnapshot(options,grant,input,afterCommit){return executePublication(options,grant,input,afterCommit,true,"wallet_snapshot_cycle");}
-export async function reconcileEvidenceWalletSnapshot(options,grant,input,afterCommit){return executePublication(options,grant,input,afterCommit,false,"wallet_snapshot_cycle");}
+export async function publishEvidenceWalletSnapshot(options,grant,input,afterCommit,companion){return executePublication(options,grant,input,afterCommit,true,"wallet_snapshot_cycle",companion);}
+export async function reconcileEvidenceWalletSnapshot(options,grant,input,afterCommit,companion){return executePublication(options,grant,input,afterCommit,false,"wallet_snapshot_cycle",companion);}
 export async function publishEvidenceCohorts(options,grant,input,afterCommit){return executePublication(options,grant,input,afterCommit,true,"candidate_cohorts");}
 export async function reconcileEvidenceCohorts(options,grant,input,afterCommit){return executePublication(options,grant,input,afterCommit,false,"candidate_cohorts");}
 function cohortParent(db,body,plan,expectedGrant,verified){
@@ -343,14 +343,16 @@ function candidateBody(db,address){
   const bytes=db.prepare("SELECT CAST(payload AS BLOB) AS payload FROM tenx_candidates WHERE mode='live' AND address=?").get(address).payload;
   return {payload:new TextDecoder("utf-8",{fatal:true,ignoreBOM:true}).decode(bytes),hash:createHash("sha256").update(bytes).digest("hex")};
 }
-// Execute only the original candidate upsert in a rolled-back transaction. This
+// Preview only the original candidate upsert/update in a rolled-back transaction.
 // preserves SQLite's exact json_set merge and triggers without publishing rows.
 export async function previewEvidenceCandidateForCohort(options,grant,input){
   options=structuredClone(options);grant=Grant.parse(grant);const plan=validateEvidenceTargetPlan(input);
-  if(![undefined,"candidate_metadata"].includes(plan.kind)||!plan.cohort_id||plan.cohort_id===plan.publication_id)throw Error("publication_cohort_candidate_parent");
-  const op=plan.operations[0];if(op.kind!=="sql"||!op.sql.startsWith("INSERT INTO tenx_candidates(address,pool,payload,checked_at,mode) VALUES(?1,?2,?3,?4,?5)")||op.bindings.length!==5||op.bindings[4]!=="live")throw Error("publication_cohort_candidate_parent");
+  const snapshot=plan.kind==="wallet_snapshot_cycle";
+  if(![undefined,"candidate_metadata","wallet_snapshot_cycle"].includes(plan.kind)||!plan.cohort_id||plan.cohort_id===plan.publication_id||snapshot&&!plan.ticket)throw Error("publication_cohort_candidate_parent");
+  const op=plan.operations[snapshot?2:0];if(op.kind!=="sql"||!snapshot&&(!op.sql.startsWith("INSERT INTO tenx_candidates(address,pool,payload,checked_at,mode) VALUES(?1,?2,?3,?4,?5)")||op.bindings.length!==5||op.bindings[4]!=="live"))throw Error("publication_cohort_candidate_parent");
+  if(snapshot)validateSnapshotReceipt(plan,await readStagedEvidenceAppend(options.stage,plan.ticket));
   const {db,body}=await opened(options);
-  try{db.exec("BEGIN IMMEDIATE");fenced(db,body,grant);db.prepare(op.sql).run(...op.bindings);const candidate=candidateBody(db,op.bindings[0]);fenced(db,body,grant);db.exec("ROLLBACK");fenced(db,body,grant);return {...candidate,...inactive()};}finally{if(db.isTransaction)db.exec("ROLLBACK");db.close();}
+  try{db.exec("BEGIN IMMEDIATE");fenced(db,body,grant);if(snapshot){walletCycleParent(db,plan,grant);snapshotDispatch(db,plan,new Date().toISOString());}db.prepare(op.sql).run(...op.bindings);const candidate=candidateBody(db,snapshot?plan.cycle.address:op.bindings[0]);fenced(db,body,grant);db.exec("ROLLBACK");fenced(db,body,grant);return {...candidate,...inactive()};}finally{if(db.isTransaction)db.exec("ROLLBACK");db.close();}
 }
 function cohortHead(db,key){
   const table=key.kind==="cohort"?"tenx_cohorts":key.kind==="wallet"?"tenx_wallet_cohorts":"tenx_selections",fields=["day","address","selected_at",...(key.kind==="cohort"?["recommended"]:[]),"input_hash","payload"],text=fields.filter(f=>f!=="recommended");

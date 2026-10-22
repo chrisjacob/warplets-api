@@ -5,7 +5,7 @@ import {mock} from "node:test";
 import {publishEvidenceCohortBatch} from "./lib/evidence-cohort-publication";
 import {publishLinkedCandidateBatch,recoverLinkedCandidateBatch} from "./lib/evidence-candidate-workflow";
 import {evidenceRegularFile} from "./discovery-evidence-objects.mjs";
-import {publishEvidenceProducerBatch,publishEvidenceCandidateMetadataBatch,publishEvidenceWalletCachedBatch,publishEvidenceWalletQuotaBatch,publishEvidenceWalletCycleBatch,publishEvidenceWalletCollectionBatch,publishEvidenceWalletDirectBatch,publishEvidenceWalletRecoveryBatch,publishEvidenceWalletSnapshotBatch,recoverEvidenceProducerBatch} from "./lib/evidence-producer-publication";
+import {publishEvidenceProducerBatch,publishEvidenceCandidateMetadataBatch,publishEvidenceWalletCachedBatch,publishEvidenceWalletQuotaBatch,publishEvidenceWalletCycleBatch,publishEvidenceWalletCollectionBatch,publishEvidenceWalletDirectBatch,publishEvidenceWalletRecoveryBatch,publishEvidenceWalletSnapshotBatch,recoverLinkedWalletSnapshotBatch,recoverEvidenceProducerBatch} from "./lib/evidence-producer-publication";
 
 const [file,mode]=process.argv.slice(2),info=await evidenceRegularFile(file!,65536),handle=await fs.open(info.file,"r");
 let input;
@@ -28,6 +28,7 @@ if(mode==="ready_stop"||mode==="cohort_ready_stop"){
 let outcome;
 if(mode==="submit"||mode==="ready_stop"||mode==="cohort_ready_stop"||mode==="commit_stop")outcome=await (input.plan_kind==="linked_candidate"?publishLinkedCandidateBatch:input.plan_kind==="candidate_cohorts"?publishEvidenceCohortBatch:input.plan_kind==="wallet_snapshot_cycle"?publishEvidenceWalletSnapshotBatch:input.plan_kind==="candidate_metadata"?publishEvidenceCandidateMetadataBatch:input.plan_kind==="wallet_cached_progress"?publishEvidenceWalletCachedBatch:input.plan_kind==="wallet_quota"?publishEvidenceWalletQuotaBatch:input.plan_kind==="wallet_cycle_control"?publishEvidenceWalletCycleBatch:input.plan_kind==="wallet_collection"?publishEvidenceWalletCollectionBatch:input.plan_kind==="wallet_direct_cycle"?publishEvidenceWalletDirectBatch:input.plan_kind==="wallet_reader_recovery"?publishEvidenceWalletRecoveryBatch:publishEvidenceProducerBatch)(input.publication,input.journal,input.grant,input.batch,mode==="commit_stop"?()=>{process.exit(76);}:undefined);
 else if(mode==="linked_publish"||mode==="linked_reconcile")outcome=await recoverLinkedCandidateBatch(input.publication,input.journal,input.grant,{cohortId:input.id,mode:mode==="linked_publish"?"publish":"reconcile"});
+else if(mode==="linked_snapshot_publish"||mode==="linked_snapshot_reconcile")outcome=await recoverLinkedWalletSnapshotBatch(input.publication,input.journal,input.grant,{cohortId:input.id,mode:mode==="linked_snapshot_publish"?"publish":"reconcile"});
 else if(mode==="publish"||mode==="reconcile")outcome=await recoverEvidenceProducerBatch(input.publication,input.journal,input.grant,{publicationId:input.id,mode});
 else throw Error("fixture_mode_invalid");
 console.log(JSON.stringify(outcome));

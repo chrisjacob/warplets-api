@@ -181,7 +181,7 @@ async function runRecordedWalletCycleOnEvidenceTarget(source:ScratchOptions,publ
       if(stage==="snapshot"){
         if(!producer){
           if(!cycle||!candidateHash||!("stageId" in request))throw Error("wallet_snapshot_context_required");
-          producer=await publishEvidenceWalletSnapshotBatch(saved.publication,saved.journal,saved.grant,{publicationId:request.ids.finish,stageId:Id.parse(request.stageId),cycle,sourceHash,candidateHash,limits,statements:rows});publications.push(producer);
+          producer=await publishEvidenceWalletSnapshotBatch(saved.publication,saved.journal,saved.grant,{publicationId:request.ids.finish,stageId:Id.parse(request.stageId),cohortId:"cohortPublicationId" in request?request.cohortPublicationId:undefined,cycle,sourceHash,candidateHash,limits,statements:rows});publications.push(producer);
           if(producer.state!=="committed")throw Error("wallet_snapshot_publication_unconfirmed");return producer.results;
         }
         if(producer.state!=="committed"||cohort!=="not_started")return fail("wallet_snapshot_cohort_order");cohort="unconfirmed";
