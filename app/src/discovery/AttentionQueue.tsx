@@ -2,10 +2,22 @@ import { useEffect, useRef, useState } from "react";
 import { AttentionQueue, type AttentionQueueResult } from "../../../discovery/src/attention-queue-model";
 import { getJson } from "./client";
 import { TokenImage } from "./TokenArtwork";
+import { attentionCandlesFresh, type AttentionCandleResult } from "../../../discovery/src/attention-candle-model";
 import "./attention-queue.css";
 
 const money = (v: number | null) => v === null ? "Unknown" : new Intl.NumberFormat("en-US", {style:"currency",currency:"USD",notation:"compact",maximumFractionDigits:2}).format(v);
 const sourceName = {gmgn:"GMGN",geckoterminal:"GeckoTerminal",dexscreener:"DEX Screener"};
+export function AttentionCandleDetails({chain,review,asOf}:{chain:string;review:AttentionCandleResult|undefined;asOf:string}) {
+  if(chain!=="solana")return <p>Candle review is not connected for this chain.</p>;
+  if(!review)return <p>Candle review pending · one-token hourly pilot.</p>;
+  const fresh=attentionCandlesFresh(review,new Date(asOf)),activity=review.activity;
+  return <details><summary>GMGN candles · {review.candle_count}/60 minutes · {!fresh?"stale":!review.complete_window?"incomplete":activity.review_reasons.length?"pattern warnings":"sample reviewed"}</summary>
+    <p>{new Date(review.window_start).toLocaleString()} – {new Date(review.window_end).toLocaleString()}. Saved {new Date(review.received_at).toLocaleString()}.</p>
+    <p>{review.complete_window?"Complete requested hour":"Missing minutes; no gaps filled"}. {activity.adjacent_pairs} adjacent pairs; longest rising run {activity.longest_rising_run_pairs} pairs; {activity.adjacent_doubling_or_halving} close doublings/halvings; {activity.zero_reported_flow_moving_candles} moving candles with both reported flow fields zero.</p>
+    {activity.review_reasons.length?<ul>{activity.review_reasons.map(r=><li key={r}>{r.replaceAll("_"," ")}</li>)}</ul>:<p>No configured pattern warnings in this sample.</p>}
+    <p>Volume units: {review.units.state==="price_consistent"?`price-consistent with ${review.units.usd_field} as USD; not independently verified`:"unverified"}. Request context only; response does not establish mint or pool identity. These uncalibrated patterns do not establish wash trading, organic volume or safety.</p>
+  </details>;
+}
 export function AttentionQueueValues({report}:{report:AttentionQueueResult}) {
   const [chain,setChain]=useState("all"),[showAdverse,setShowAdverse]=useState(false),[matchesOnly,setMatchesOnly]=useState(false);
   const rows=report.rows.filter(r=>(chain==="all"||r.chain===chain)&&(showAdverse||r.checks!=="adverse")&&(!matchesOnly||r.attention_families>=2)).slice(0,10);
@@ -17,7 +29,7 @@ export function AttentionQueueValues({report}:{report:AttentionQueueResult}) {
       <td><div className="tenx-attention-token"><TokenImage url={r.image_url} name={r.name??r.symbol??"Unknown token"} symbol={r.symbol??"?"}/><div><strong>{r.symbol??"Unknown symbol"}</strong><p>{r.name} · {r.chain}</p></div></div><details><summary>{r.address.slice(0,6)}…{r.address.slice(-4)} · contract</summary><p className="tenx-address">{r.address}</p></details>{r.chain==="solana"?<a href={`/token/solana/${r.address}`}>Inspect saved token checks →</a>:<a href={`https://gmgn.ai/${r.chain}/token/${r.address}`} target="_blank" rel="noopener noreferrer">Open terminal ↗</a>}</td>
       <td>{r.attention_families} fresh attention provider{r.attention_families===1?"":"s"}<p>Observed in {r.observed_hours} sampled hour{r.observed_hours===1?"":"s"}</p><details><summary>Source ranks & timing</summary><ul>{r.sources.map(s=><li key={`${s.provider}:${s.window}`}>{sourceName[s.provider]} · {s.window}{s.rank!==null?` · #${s.rank}`:""}{s.previous_rank!==null?` · previous observed rank #${s.previous_rank}`:""}{s.search_interest!==null?` · ${s.search_interest.toLocaleString()} reported search/visit heat`:""} · {new Date(s.received_at).toLocaleString()}{!s.fresh?" · stale":""}</li>)}</ul></details></td>
       <td><p>24h volume {money(r.volume_24h_usd)}</p><p>1h volume {money(r.volume_1h_usd)}</p><p>Liquidity {money(r.liquidity_usd)}</p><p>Market cap {money(r.market_cap_usd)}</p><small>{r.market_source?sourceName[r.market_source]:"Market source unknown"}{r.recent_volume_source&&r.recent_volume_source!==r.market_source?` · 1h: ${sourceName[r.recent_volume_source]}`:""}</small></td>
-      <td><strong>{r.checks==="adverse"?"Adverse flags":"Quality review needed"}</strong><p>{r.market_crosschecked?"Recent DEX market observation saved":"Market cross-check needed"}</p><details><summary>Checks to resolve</summary><ul>{r.reasons.map(reason=><li key={reason}>{reason.replaceAll("_"," ")}</li>)}</ul></details></td>
+      <td><strong>{r.checks==="adverse"?"Adverse flags":"Quality review needed"}</strong><p>{r.market_crosschecked?"Recent DEX market observation saved":"Market cross-check needed"}</p><AttentionCandleDetails chain={r.chain} review={report.candle_reviews.find(c=>c.chain===r.chain&&c.address===r.address)} asOf={report.as_of}/><details><summary>Checks to resolve</summary><ul>{r.reasons.map(reason=><li key={reason}>{reason.replaceAll("_"," ")}</li>)}</ul></details></td>
     </tr>)}</tbody></table></div>}
     <p>Order prioritizes matches across fresh attention providers, then GMGN 24h search heat and source position. Multiple windows or pools from one provider count once. Search interest and reported volume do not establish organic participation or safety. Launch selection remains unavailable.</p>
     {(report.history_truncated||report.gaps.length>0)&&<details><summary>Coverage gaps</summary>{report.history_truncated&&<p>Saved history or displayed inventory reached its read bound. Persistence is based on the observed sample.</p>}<ul>{report.gaps.map(g=><li key={g}>{g.replaceAll("_"," ")}</li>)}</ul></details>}</>;

@@ -4,6 +4,11 @@ import { executeShortlistQuery } from "./shortlist-query";
 import { readSourceReceiptWithRequest, type SourceFetcher } from "./source-collection-transport";
 import type { GmgnSettings } from "./gmgn";
 import { AttentionSource, AttentionQueue, type AttentionQueueResult } from "./attention-queue-model";
+import { normalizeAttentionCandles } from "./attention-candles";
+import { attentionCandlesFresh, type AttentionCandleResult } from "./attention-candle-model";
+import { reserveSourceFetch } from "./source-collection-store";
+import { executeReservedSource } from "./source-collection-transport";
+import { GMGN_USE_AUTHORITY } from "./gmgn-model";
 type SourceRow = z.infer<typeof AttentionSource> & { token: z.infer<typeof AttentionToken> };
 // Chain + contract is identity. A symbol is never a join key; pools are not votes.
 export function buildAttentionQueue(rawSnapshots: AttentionSnapshot[], now = new Date(), completedLaunches: {chain: z.infer<typeof AttentionChain>;address:string}[] = []): AttentionQueueResult {
@@ -87,28 +92,30 @@ export async function readAttentionQueue(db: D1Database, now = new Date(), scope
   const since = new Date(now.getTime()-86400000).toISOString();
   // A collecting turn also needs the original reservation/lease/receipt SQL.
   // Leave room for that work instead of spending the display's full read budget.
-  const attentionLimit=scope==="review"?16:40, marketLimit=scope==="review"?4:8;
+  const attentionLimit=scope==="review"?12:32, marketLimit=scope==="review"?4:8, candleLimit=scope==="review"?4:8;
   // Keep both attention history and market corroboration within the original
   // 48-receipt/8MB bound. Market receipts must not evict every discovery list.
   const selected = await db.prepare(`WITH ranked AS (SELECT id,bytes,state,
-    json_extract(request,'$.kind')='attention_dex_crosscheck' AS market,
-    ROW_NUMBER() OVER (PARTITION BY json_extract(request,'$.kind')='attention_dex_crosscheck' ORDER BY reserved_at DESC,id DESC) AS position,
-    COUNT(*) OVER (PARTITION BY json_extract(request,'$.kind')='attention_dex_crosscheck') AS total, reserved_at
+    CASE json_extract(request,'$.kind') WHEN 'attention_dex_crosscheck' THEN 1 WHEN 'gmgn_token_candles' THEN 2 ELSE 0 END AS bucket,
+    ROW_NUMBER() OVER (PARTITION BY CASE json_extract(request,'$.kind') WHEN 'attention_dex_crosscheck' THEN 1 WHEN 'gmgn_token_candles' THEN 2 ELSE 0 END ORDER BY reserved_at DESC,id DESC) AS position,
+    COUNT(*) OVER (PARTITION BY CASE json_extract(request,'$.kind') WHEN 'attention_dex_crosscheck' THEN 1 WHEN 'gmgn_token_candles' THEN 2 ELSE 0 END) AS total, reserved_at
     FROM tenx_source_reservations WHERE day>=?1 AND reserved_at>=?2 AND reserved_at<=?3
-    AND json_extract(request,'$.kind') IN ('gmgn_hot_searches','geckoterminal_global_trending','attention_dex_crosscheck')
-    ) SELECT id,bytes,state,market,total FROM ranked WHERE position<=CASE WHEN market THEN ?5 ELSE ?4 END
-    ORDER BY reserved_at DESC,id DESC`).bind(since.slice(0,10),since,now.toISOString(),attentionLimit,marketLimit).all<{id:string;bytes:number;state:string;market:number;total:number}>();
-  const snapshots: AttentionSnapshot[] = [], gaps: string[] = []; let bytes=0;
+    AND (json_extract(request,'$.kind') IN ('gmgn_hot_searches','geckoterminal_global_trending','attention_dex_crosscheck')
+      OR (json_extract(request,'$.kind')='gmgn_token_candles' AND id GLOB 'attention-candles-*'))
+    ) SELECT id,bytes,state,bucket,total FROM ranked WHERE position<=CASE bucket WHEN 1 THEN ?5 WHEN 2 THEN ?6 ELSE ?4 END
+    ORDER BY reserved_at DESC,id DESC`).bind(since.slice(0,10),since,now.toISOString(),attentionLimit,marketLimit,candleLimit).all<{id:string;bytes:number;state:string;bucket:number;total:number}>();
+  const snapshots: AttentionSnapshot[] = [], candles:AttentionCandleResult[]=[], gaps: string[] = []; let bytes=0;
   for (const row of selected.results.slice(0,48)) {
     if(row.state!=="succeeded"){gaps.push("collection_attempt_not_successful");continue;}
     if(bytes+row.bytes>8000000){gaps.push("receipt_read_byte_bound");break;}
     bytes+=row.bytes;
     try { const saved=await readSourceReceiptWithRequest(db,row.id); if(!saved||saved.receipt.error!==null)throw Error("receipt_unusable");
-      snapshots.push(normalizeAttention(saved.request,saved.receipt.response,saved.receipt.received_at));
+      if(row.bucket===2) candles.push(normalizeAttentionCandles(row.id,saved.request,saved.receipt.response,saved.receipt.received_at));
+      else snapshots.push(normalizeAttention(saved.request,saved.receipt.response,saved.receipt.received_at));
     }catch{gaps.push("receipt_replay_or_schema_failed");}
   }
   const result=buildAttentionQueue(snapshots,now);
-  return AttentionQueue.parse({...result,history_truncated:result.history_truncated||selected.results.some(r=>r.total>(r.market?marketLimit:attentionLimit))||gaps.includes("receipt_read_byte_bound"),gaps:[...new Set([...gaps,"completed_launch_registry_not_connected"])]});
+  return AttentionQueue.parse({...result,candle_reviews:candles,history_truncated:result.history_truncated||selected.results.some(r=>r.total>(r.bucket===2?candleLimit:r.bucket===1?marketLimit:attentionLimit))||gaps.includes("receipt_read_byte_bound"),gaps:[...new Set([...gaps,"completed_launch_registry_not_connected"])]});
 }
 
 export function attentionReviewRequest(queue: AttentionQueueResult) {
@@ -126,4 +133,38 @@ export async function reviewAttention(settings:GmgnSettings, raw:unknown, fetche
   const queue=await readAttentionQueue(settings.db,at,"review"),request=attentionReviewRequest(queue);
   if(!request)return{state:"held",reason:"no_fresh_shortlist_needing_crosscheck",provider_requests:0};
   return {...await executeShortlistQuery(settings,id,request,fetcher,clock),selection_history_truncated:queue.history_truncated};
+}
+
+export function attentionCandleRequest(queue:AttentionQueueResult, now:Date, attempts:{address:string;last_attempt:string}[]=[] ) {
+  // Attempt metadata schedules work only; it never supplies quality evidence.
+  // Prefer unseen leads, then the oldest attempt, with queue rank as tie-break.
+  const lastAttempt=(address:string)=>attempts.find(a=>a.address===address)?.last_attempt??"";
+  const selected=queue.rows.filter(r=>r.checks!=="adverse"&&r.attention_families>0).slice(0,20).filter(r=>r.chain==="solana"&&r.market_crosschecked&&
+    !queue.candle_reviews.some(c=>c.address===r.address&&attentionCandlesFresh(c,now))).sort((a,b)=>lastAttempt(a.address).localeCompare(lastAttempt(b.address)))[0];
+  if(!selected)return null;
+  const end=Math.floor(now.getTime()/60000)*60000;
+  return {kind:"gmgn_token_candles" as const,address:selected.address,start_at:new Date(end-3600000).toISOString(),end_at:new Date(end).toISOString()};
+}
+export async function collectAttentionCandles(settings:GmgnSettings,raw:unknown,fetcher:SourceFetcher,clock=()=>new Date()) {
+  z.object({reason:z.string().min(3).max(300)}).strict().parse(raw);
+  if(!settings.apiKey||settings.permissionReference!==GMGN_USE_AUTHORITY)return{state:"held",reason:"gmgn_configuration_required",provider_requests:0};
+  const at=clock(),id=`attention-candles-${at.toISOString().slice(0,13).replace(/[^0-9]/g,"")}`;
+  if(await settings.db.prepare("SELECT id FROM tenx_source_reservations WHERE id=?1").bind(id).first())return{state:"held",reason:"candles_hour_already_reserved",provider_requests:0};
+  const queue=await readAttentionQueue(settings.db,at,"review");
+  // Read spent attempts independently of the four replayed candle summaries so
+  // receipt truncation cannot turn an already-reviewed lead into "unseen".
+  const attempts=await settings.db.prepare(`SELECT json_extract(request,'$.address') AS address,MAX(reserved_at) AS last_attempt
+    FROM tenx_source_reservations WHERE day>=?1 AND reserved_at>=?2 AND reserved_at<=?3
+    AND id GLOB 'attention-candles-*' AND json_extract(request,'$.kind')='gmgn_token_candles'
+    GROUP BY json_extract(request,'$.address') ORDER BY last_attempt DESC LIMIT 25`)
+    .bind(new Date(at.getTime()-86400000).toISOString().slice(0,10),new Date(at.getTime()-86400000).toISOString(),at.toISOString()).all<{address:string;last_attempt:string}>();
+  const request=attentionCandleRequest(queue,at,attempts.results);
+  if(!request)return{state:"held",reason:"no_fresh_solana_shortlist_needing_candles",provider_requests:0};
+  const reservation=await reserveSourceFetch(settings.db,id,request,settings.marketDailyLimit,clock(),settings.researchMode);
+  if(!reservation)return{state:"held",reason:"shared_admission_or_duplicate",provider_requests:0};
+  const result=await executeReservedSource(settings.db,reservation,fetcher,clock,{apiKey:settings.apiKey,mode:"retained_research",permissionReference:settings.permissionReference});
+  const saved=await readSourceReceiptWithRequest(settings.db,id);
+  return {...result,request_id:id,selection_history_truncated:queue.history_truncated,
+    review:saved&&saved.receipt.error===null?normalizeAttentionCandles(id,saved.request,saved.receipt.response,saved.receipt.received_at):null,
+    scoring_effect:"none",evidence_gates_changed:false};
 }

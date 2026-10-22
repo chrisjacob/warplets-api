@@ -1,6 +1,7 @@
 import {expect,it,vi} from "vitest";
 import {renderToStaticMarkup} from "react-dom/server";
-import {AttentionQueuePanel,AttentionQueueValues} from "./AttentionQueue";
+import {AttentionCandleDetails,AttentionQueuePanel,AttentionQueueValues} from "./AttentionQueue";
+import {normalizeAttentionCandles} from "../../../discovery/src/attention-candles";
 import {buildAttentionQueue} from "../../../discovery/src/attention-queue";
 import {normalizeAttention} from "../../../discovery/src/attention-feed-contract";
 
@@ -17,4 +18,11 @@ it("hides explicit adverse flags by default while preserving the review control"
 });
 it("renders cache-only refresh and an honest initial state without provider IO",()=>{
  const fetcher=vi.spyOn(globalThis,"fetch");const html=renderToStaticMarkup(<AttentionQueuePanel/>);expect(html).toContain("Refresh saved lists");expect(html).toContain("No attention observations loaded yet");expect(fetcher).not.toHaveBeenCalled();fetcher.mockRestore();
+});
+it("distinguishes absent, unsupported, incomplete, stale and warning-bearing candle samples",()=>{
+ expect(renderToStaticMarkup(<AttentionCandleDetails chain="base" review={undefined} asOf={at.toISOString()}/>)).toContain("not connected for this chain");
+ expect(renderToStaticMarkup(<AttentionCandleDetails chain="solana" review={undefined} asOf={at.toISOString()}/>)).toContain("review pending");
+ const request={kind:"gmgn_token_candles",address:"So11111111111111111111111111111111111111112",start_at:new Date(at.getTime()-3600000).toISOString(),end_at:at.toISOString()},review=normalizeAttentionCandles("attention-candles-2026102214",request,{code:0,data:[{time:at.getTime()-60000,open:1,high:2,low:1,close:2,volume:0,amount:0}]},at.toISOString());
+ const html=renderToStaticMarkup(<AttentionCandleDetails chain="solana" review={review} asOf={at.toISOString()}/>);for(const text of["1/60 minutes","incomplete","price moves with both flow fields zero","Volume units: unverified","do not establish wash trading"])expect(html).toContain(text);
+ expect(renderToStaticMarkup(<AttentionCandleDetails chain="solana" review={review} asOf={new Date(at.getTime()+7200001).toISOString()}/>)).toContain("stale");
 });
