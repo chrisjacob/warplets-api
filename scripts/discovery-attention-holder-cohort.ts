@@ -8,8 +8,9 @@ import { readAttentionQueue } from "../discovery/src/attention-queue";
 import { ATTENTION_HOLDER_COHORT_POLICY, planAttentionHolderCohort, readAttentionHolderReadiness, assessAttentionHolderCohort } from "../discovery/src/attention-holder-cohort";
 const sha = (value: Uint8Array) => createHash("sha256").update(value).digest("hex");
 function privateDirectory(value: string, create: boolean) {
-  const target = path.resolve(value), root = realpathSync(".tmp"), parent = realpathSync(path.dirname(target)), relative = path.relative(root, parent);
-  if (lstatSync(".tmp").isSymbolicLink() || relative === ".." || relative.startsWith(".." + path.sep) || path.isAbsolute(relative) || create && existsSync(target)) throw Error("cohort_private_directory_required");
+  const privateRoot = new URL("../.tmp", import.meta.url);
+  const target = path.resolve(value), root = realpathSync(privateRoot), parent = realpathSync(path.dirname(target)), relative = path.relative(root, parent);
+  if (lstatSync(privateRoot).isSymbolicLink() || relative === ".." || relative.startsWith(".." + path.sep) || path.isAbsolute(relative) || create && existsSync(target)) throw Error("cohort_private_directory_required");
   if (create) mkdirSync(target, { mode: 0o700 });
   if (lstatSync(target).isSymbolicLink() || !lstatSync(target).isDirectory() || realpathSync(target) !== path.join(parent, path.basename(target))) throw Error("cohort_private_directory_required");
   return target;
@@ -37,7 +38,7 @@ export async function exportAttentionHolderCohort(database: string, cutoff: stri
       rpc_dispatch_allowed: false, provider_requests: 0, database_writes: 0, scoring_effect: "none" };
   } finally { if (sqlite.isTransaction) sqlite.exec("ROLLBACK"); sqlite.close(); }
 }
-export async function verifyAttentionHolderCohort(output: string, planPin: string, assessmentPin: string) {
+export async function readVerifiedAttentionHolderCohort(output: string, planPin: string, assessmentPin: string) {
   const directory = privateDirectory(output, false);
   const read = (name: string, pin: string, limit: number) => {
     const file = path.join(directory, name), stat = lstatSync(file);
@@ -51,7 +52,10 @@ export async function verifyAttentionHolderCohort(output: string, planPin: strin
   if (JSON.stringify(saved.queue) !== JSON.stringify(cohort.queue) || JSON.stringify(saved.plan) !== JSON.stringify(cohort.plan) || assessment.plan_hash !== cohort.plan.plan_hash) throw Error("cohort_plan_mismatch");
   const report = await assessAttentionHolderCohort(cohort, assessment.rows);
   if (JSON.stringify(report) !== JSON.stringify(assessment.report)) throw Error("cohort_assessment_replay_mismatch");
-  return report;
+  return { directory, cohort, report };
+}
+export async function verifyAttentionHolderCohort(output: string, planPin: string, assessmentPin: string) {
+  return (await readVerifiedAttentionHolderCohort(output, planPin, assessmentPin)).report;
 }
 async function main(args: string[]) {
   if (args.length === 4 && args[0] === "export") console.log(JSON.stringify(await exportAttentionHolderCohort(args[1]!, args[2]!, args[3]!)));
