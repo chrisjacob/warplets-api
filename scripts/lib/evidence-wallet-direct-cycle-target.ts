@@ -21,6 +21,10 @@ import {readEvidenceWalletSnapshotReviews,checkEvidenceWalletSnapshotDispatch,wr
 import {publishEvidenceWalletSnapshotBatch} from "./evidence-producer-publication";
 import {readHolderSnapshotReceipt} from "./evidence-wallet-snapshot-input";
 import {snapshotReviewsSql} from "../evidence-wallet-snapshot-sql.mjs";
+import {expandedFundingScope} from "../../discovery/src/wallet-funding-scope";
+import {cachedCheckpointSql,cachedFinishSql} from "../evidence-wallet-cached-sql.mjs";
+import {publishEvidenceWalletCachedBatch} from "./evidence-producer-publication";
+import {previewAutomaticWalletSelection} from "./evidence-wallet-auto-selection";
 
 const Id=z.string().uuid(),Limit=z.number().int().safe().positive();
 const Reply=z.object({method:z.enum(["getGenesisHash","getSignaturesForAddress","getTransaction"]),params:z.unknown().array().max(4),body:z.string().max(3000000),status:z.number().int().min(200).max(599),retryAfter:z.string().max(100).optional(),walletPublicationId:Id,rpcPublicationId:Id}).strict();
@@ -31,52 +35,98 @@ const RecoveryIdentity=z.object({signature:Signature,claimId:Id,finishId:Id,erro
 export type WalletRecoveryCycleTargetInput=z.infer<typeof RecoveryRequest>;
 const SnapshotRequest=Request.extend({stageId:Id});
 export type WalletSnapshotCycleTargetInput=z.infer<typeof SnapshotRequest>;
+const CheckpointIdentity=z.object({wallet:Address,anchorSignature:z.string().min(1).max(4096),publicationId:Id}).strict();
+const AutomaticRequest=Request.omit({address:true}).extend({stageId:Id.optional(),recoveries:RecoveryIdentity.array().max(2),checkpoints:CheckpointIdentity.array().max(20)});
+export type WalletAutomaticCycleTargetInput=z.infer<typeof AutomaticRequest>;
 const inactive=()=>({provider_requests:0,source_authorized:false,runtime_activated:false,action_authority:false,evidence_qualified:false,free_acceptance:false} as const);
 
 export function runRecordedDirectWalletCycleOnEvidenceTarget(source:ScratchOptions,publication:ProducerPublication,journal:ProducerJournal,grant:ProducerGrant,input:WalletDirectCycleTargetInput){return runRecordedWalletCycleOnEvidenceTarget(source,publication,journal,grant,input,"direct_funding");}
 export function runRecordedRecoveryWalletCycleOnEvidenceTarget(source:ScratchOptions,publication:ProducerPublication,journal:ProducerJournal,grant:ProducerGrant,input:WalletRecoveryCycleTargetInput){return runRecordedWalletCycleOnEvidenceTarget(source,publication,journal,grant,input,"reader_recovery");}
 export function runRecordedSnapshotWalletCycleOnEvidenceTarget(source:ScratchOptions,publication:ProducerPublication,journal:ProducerJournal,grant:ProducerGrant,input:WalletSnapshotCycleTargetInput){return runRecordedWalletCycleOnEvidenceTarget(source,publication,journal,grant,input,"snapshot");}
-async function runRecordedWalletCycleOnEvidenceTarget(source:ScratchOptions,publication:ProducerPublication,journal:ProducerJournal,grant:ProducerGrant,input:WalletDirectCycleTargetInput|WalletRecoveryCycleTargetInput|WalletSnapshotCycleTargetInput,expectedStage:"direct_funding"|"reader_recovery"|"snapshot"){
-  const publications:ProducerPublicationOutcome[]=[];let cycle:WalletCycleContext|null=null,phase="preflight",recordedResponses=0,writeIndex=0,producer:ProducerPublicationOutcome|undefined,cohort:"not_started"|"unconfirmed"|"completed"="not_started";
+export function runRecordedAutomaticWalletCycleOnEvidenceTarget(source:ScratchOptions,publication:ProducerPublication,journal:ProducerJournal,grant:ProducerGrant,input:WalletAutomaticCycleTargetInput){return runRecordedWalletCycleOnEvidenceTarget(source,publication,journal,grant,input,"automatic");}
+async function runRecordedWalletCycleOnEvidenceTarget(source:ScratchOptions,publication:ProducerPublication,journal:ProducerJournal,grant:ProducerGrant,input:WalletDirectCycleTargetInput|WalletRecoveryCycleTargetInput|WalletSnapshotCycleTargetInput|WalletAutomaticCycleTargetInput,expectedStage:"direct_funding"|"reader_recovery"|"snapshot"|"automatic"){
+  const publications:ProducerPublicationOutcome[]=[];let cycle:WalletCycleContext|null=null,phase="preflight",recordedResponses=0,writeIndex=0,producer:ProducerPublicationOutcome|undefined,cohort:"not_started"|"unconfirmed"|"completed"="not_started",selection:Awaited<ReturnType<typeof previewAutomaticWalletSelection>>|undefined,selectionVerified=false;
   try{
-    const saved=structuredClone({source,publication,journal,grant,input}),request=expectedStage==="snapshot"?SnapshotRequest.parse(saved.input):expectedStage==="reader_recovery"?RecoveryRequest.parse(saved.input):Request.parse(saved.input),recoveries=RecoveryIdentity.array().max(2).parse("recoveries" in request?request.recoveries:[]),ids=[...Object.values(request.ids),...request.writeIds,...request.replies.flatMap(r=>[r.walletPublicationId,r.rpcPublicationId]),...recoveries.flatMap(r=>[r.claimId,r.finishId,r.errorFinishId]),...("stageId" in request?[request.stageId]:[])];
+    const automatic=expectedStage==="automatic";let stage:"direct_funding"|"reader_recovery"|"snapshot"|"cached_funding"|"empty"|"automatic"=expectedStage;
+    const saved=structuredClone({source,publication,journal,grant,input}),request=automatic?AutomaticRequest.parse(saved.input):stage==="snapshot"?SnapshotRequest.parse(saved.input):stage==="reader_recovery"?RecoveryRequest.parse(saved.input):Request.parse(saved.input),recoveries=RecoveryIdentity.array().max(2).parse("recoveries" in request?request.recoveries:[]),checkpoints=CheckpointIdentity.array().max(20).parse("checkpoints" in request?request.checkpoints:[]),ids=[...Object.values(request.ids),...request.writeIds,...request.replies.flatMap(r=>[r.walletPublicationId,r.rpcPublicationId]),...recoveries.flatMap(r=>[r.claimId,r.finishId,r.errorFinishId]),...checkpoints.map(r=>r.publicationId),...("stageId" in request&&request.stageId!==undefined?[request.stageId]:[])];
+    let address="address" in request?Address.parse(request.address):"automatic-empty",indexCandidates:Candidate[]=[],indexPin:string|undefined,readMode:"off"|"capture"|"verify"="off";
+    const readPins=new Map<string,string>(),seen=new Set<string>();
     if(new Set(ids).size!==ids.length)throw Error("wallet_direct_identity_duplicate");
     if(new Set(recoveries.map(r=>r.signature)).size!==recoveries.length)throw Error("wallet_recovery_signature_duplicate");
+    if(new Set(checkpoints.map(r=>JSON.stringify([r.wallet,r.anchorSignature]))).size!==checkpoints.length)throw Error("wallet_cycle_identity_duplicate");
     if(request.replies.some(r=>Buffer.byteLength(r.body)>3000000)||request.replies.reduce((n,r)=>n+Buffer.byteLength(r.body)+Buffer.byteLength(JSON.stringify(r.params)),0)>16*1024**2)throw Error("wallet_direct_response_bound");
     const owned=new WeakMap<object,ProducerStatement>(),used=new Set<string>(),limits={wallet:request.walletDailyLimit,rpc:request.rpcDailyLimit};let selectedIndex:Candidate|null=null,sourceHash:string|null=null,candidateHash:string|null=null,unsupported=false,quotaIndex=0,quotaStep:"wallet"|"rpc"="wallet";
     const claims=new Map<string,{row:FundingRecovery;identity:z.infer<typeof RecoveryIdentity>;finishes:number}>();
     const fail=(code:string):never=>{unsupported=true;throw Error(code);};
-    async function dispatchCheck(){if(!cycle)throw Error("wallet_direct_context_required");if(expectedStage==="snapshot"&&candidateHash)return checkEvidenceWalletSnapshotDispatch(saved.publication,saved.grant,{cycle,source_hash:sourceHash,candidate_hash:candidateHash,at:new Date().toISOString()});if(!sourceHash)throw Error("wallet_direct_context_required");return checkEvidenceWalletDirectDispatch(saved.publication,saved.grant,{cycle,source_hash:sourceHash,at:new Date().toISOString()});}
+    async function finishSelection(){
+      if(readMode!=="verify")return;
+      if(unsupported||seen.size!==readPins.size)return fail("wallet_auto_selection_unconfirmed");
+      const current=(await readEvidenceWalletMetadata(saved.publication,saved.grant,{kind:"candidates"})).rows;
+      if(createHash("sha256").update(JSON.stringify(current)).digest("hex")!==indexPin)return fail("wallet_auto_selection_changed");
+      readMode="off";selectionVerified=true;
+    }
+    async function observe<T>(sql:string,bindings:unknown[],read:()=>Promise<T>):Promise<T>{
+      const mode=readMode,key=JSON.stringify([sql,bindings]);let result:T;
+      try{result=await read();}catch(error){if(mode!=="off")unsupported=true;throw error;}
+      if(mode!=="off"){
+        const pin=createHash("sha256").update(JSON.stringify(result)).digest("hex"),prior=readPins.get(key);
+        if(mode==="capture"){if(prior===undefined&&readPins.size>=16384||prior!==undefined&&prior!==pin)return fail("wallet_auto_selection_changed");readPins.set(key,pin);}
+        else{if(prior!==pin)return fail("wallet_auto_selection_changed");seen.add(key);}
+      }
+      return result;
+    }
+    async function dispatchCheck(){if(!cycle)throw Error("wallet_direct_context_required");if(stage==="snapshot"&&candidateHash)return checkEvidenceWalletSnapshotDispatch(saved.publication,saved.grant,{cycle,source_hash:sourceHash,candidate_hash:candidateHash,at:new Date().toISOString()});if(!sourceHash)throw Error("wallet_direct_context_required");return checkEvidenceWalletDirectDispatch(saved.publication,saved.grant,{cycle,source_hash:sourceHash,at:new Date().toISOString()});}
     async function publish(id:string|undefined,rows:ProducerStatement[],kind:"control"|"direct"|"collection"){
-      if(!id||!cycle||expectedStage!=="snapshot"&&!sourceHash||used.has(id))throw Error("wallet_direct_publication_identity");used.add(id);
-      const outcome=await(kind==="control"?publishEvidenceWalletCycleBatch(saved.publication,saved.journal,saved.grant,{publicationId:id,cycle,statements:rows}):kind==="collection"?publishEvidenceWalletCollectionBatch(saved.publication,saved.journal,saved.grant,{publicationId:id,statements:rows}):expectedStage==="snapshot"?publishEvidenceWalletSnapshotBatch(saved.publication,saved.journal,saved.grant,{publicationId:id,cycle,sourceHash,candidateHash:candidateHash!,limits,statements:rows}):publishEvidenceWalletDirectBatch(saved.publication,saved.journal,saved.grant,{publicationId:id,cycle,sourceHash:sourceHash!,limits,statements:rows}));publications.push(outcome);if(outcome.state!=="committed")throw Error("wallet_direct_publication_unconfirmed");return outcome.results;
+      if(automatic&&(unsupported||readMode!=="off"))throw Error("wallet_auto_selection_unconfirmed");
+      if(!id||!cycle||kind!=="control"&&stage!=="snapshot"&&!sourceHash||used.has(id))throw Error("wallet_direct_publication_identity");used.add(id);
+      const outcome=await(kind==="control"?publishEvidenceWalletCycleBatch(saved.publication,saved.journal,saved.grant,{publicationId:id,cycle,statements:rows}):kind==="collection"?publishEvidenceWalletCollectionBatch(saved.publication,saved.journal,saved.grant,{publicationId:id,statements:rows}):stage==="snapshot"?publishEvidenceWalletSnapshotBatch(saved.publication,saved.journal,saved.grant,{publicationId:id,cycle,sourceHash,candidateHash:candidateHash!,limits,statements:rows}):publishEvidenceWalletDirectBatch(saved.publication,saved.journal,saved.grant,{publicationId:id,cycle,sourceHash:sourceHash!,limits,statements:rows}));publications.push(outcome);if(outcome.state!=="committed")throw Error("wallet_direct_publication_unconfirmed");return outcome.results;
     }
     async function publishRecovery(id:string,row:FundingRecovery,claimId:string,statements:ProducerStatement[]){
       if(!cycle||!sourceHash||used.has(id))throw Error("wallet_recovery_publication_identity");used.add(id);
       const outcome=await publishEvidenceWalletRecoveryBatch(saved.publication,saved.journal,saved.grant,{publicationId:id,claimId,cycle,sourceHash,row,statements});publications.push(outcome);if(outcome.state!=="committed")throw Error("wallet_recovery_publication_unconfirmed");return outcome.results;
     }
+    async function publishCached(id:string,statements:ProducerStatement[]){
+      if(!cycle||unsupported||readMode!=="off"||used.has(id))throw Error("wallet_cycle_publication_identity");used.add(id);
+      const outcome=await publishEvidenceWalletCachedBatch(saved.publication,saved.journal,saved.grant,{publicationId:id,statements});publications.push(outcome);if(outcome.state!=="committed")throw Error("wallet_direct_publication_unconfirmed");return outcome.results;
+    }
     function prepare(sql:string,bindings:unknown[]=[]):D1PreparedStatement{
       const statement={bind:(...values:unknown[])=>prepare(sql,[...values]),async first(column?:string):Promise<unknown>{
         if(column!==undefined)return fail("wallet_direct_column_unsupported");
         if(sql===walletLeaseSql&&bindings.length===4){
-          phase="admission";const retained=selectedIndex?null:(await readEvidenceCandidateMetadata(saved.publication,saved.grant,{kind:"candidate",address:request.address})).row;
+          if(automatic){
+            phase="selection";readMode="capture";selection=await previewAutomaticWalletSelection(db,indexCandidates,new Date(request.now));readMode="off";
+            if(unsupported)throw Error("wallet_auto_selection_unconfirmed");
+            selectedIndex=selection.selected?indexCandidates.find(c=>c.address===selection!.selected!.candidate.address)??null:null;
+            const selectedStage=selection.selected?.plan.stage;
+            stage=selectedStage==="new_snapshot"||selectedStage==="refresh_required"?"snapshot":selectedStage==="cached_funding"||selectedStage==="direct_funding"||selectedStage==="reader_recovery"?selectedStage:"empty";
+            address=selectedIndex?.address??"automatic-empty";
+            if(stage==="snapshot"&&!("stageId" in request&&request.stageId))throw Error("wallet_snapshot_identity_required");
+          }
+          if(stage!=="empty"){
+          phase="admission";const retained=selectedIndex?null:(await readEvidenceCandidateMetadata(saved.publication,saved.grant,{kind:"candidate",address:address})).row;
           const candidate=selectedIndex??(retained?.payload?CandidateSchema.parse(JSON.parse(retained.payload)):null);
-          if(!candidate||expectedStage!=="snapshot"&&!candidate.wallet_analysis)throw Error("wallet_direct_candidate_required");
-          const plan=await walletPlan(db,candidate,new Date(request.now));if(unsupported||!(expectedStage==="snapshot"?["new_snapshot","refresh_required"].includes(plan.stage):plan.stage===expectedStage))throw Error("wallet_direct_path_required");sourceHash=candidate.wallet_analysis?.evidence_hash??null;
-          if(expectedStage==="snapshot"){
-            const current=(await readEvidenceCandidateMetadata(saved.publication,saved.grant,{kind:"candidate",address:request.address})).row;
+          if(!candidate||stage!=="snapshot"&&!candidate.wallet_analysis)throw Error("wallet_direct_candidate_required");
+          const plan=await walletPlan(db,candidate,new Date(request.now));if(unsupported||!(stage==="snapshot"?["new_snapshot","refresh_required"].includes(plan.stage):plan.stage===stage))throw Error("wallet_direct_path_required");sourceHash=candidate.wallet_analysis?.evidence_hash??null;
+          if(stage==="snapshot"){
+            const current=(await readEvidenceCandidateMetadata(saved.publication,saved.grant,{kind:"candidate",address:address})).row;
             if(!current||typeof current.payload!=="string"||!isDeepStrictEqual(CandidateSchema.parse(JSON.parse(current.payload)),candidate))throw Error("wallet_snapshot_candidate_changed");candidateHash=createHash("sha256").update(current.payload).digest("hex");
             if(candidate.holders?.payload_hash)await readHolderSnapshotReceipt(saved.source,saved.publication,saved.grant,candidate.holders.payload_hash);
           }
-          if(expectedStage==="reader_recovery"){
+          if(stage==="reader_recovery"){
             const prior=await priorWalletEvidence(db,candidate);if(!prior)throw Error("wallet_recovery_receipt_required");const rows=await fundingRecoveryCandidates(db,candidate,prior,new Date(request.now));if(!rows.length||rows.some(row=>!recoveries.some(identity=>identity.signature===row.signature)))throw Error("wallet_recovery_identity_required");
           }
-          cycle={lease_id:request.ids.lease,job:String(bindings[0]),until:String(bindings[1]),at:new Date(request.now).toISOString(),rapid:bindings[3] as 0|1,address:request.address};phase="lease";
-          return (await publish(request.ids.lease,ProducerStatements.parse([{sql,bindings}]),"control"))[0]!.results[0]??null;
+          if(stage==="cached_funding"){
+            const prior=await priorWalletEvidence(db,candidate);if(!prior)throw Error("wallet_cycle_receipt_required");const expanded=await expandedFundingScope(db,prior);
+            if(!expanded.funding_scans?.length||expanded.funding_scans.some(scan=>!checkpoints.some(c=>c.wallet===scan.wallet&&c.anchorSignature===scan.anchor.signature)))throw Error("wallet_cycle_checkpoint_identity_required");
+          }
+          }
+          cycle={lease_id:request.ids.lease,job:String(bindings[0]),until:String(bindings[1]),at:new Date(request.now).toISOString(),rapid:bindings[3] as 0|1,address:address};phase="lease";
+          const result=(await publish(request.ids.lease,ProducerStatements.parse([{sql,bindings}]),"control"))[0]!.results[0]??null;
+          if(automatic&&result)readMode="verify";return result;
         }
         const recoveryHop=Object.keys(recoveryClaimSql).find(hop=>sql===recoveryClaimSql[hop]);
         if(recoveryHop){
-          phase="claim";if(expectedStage!=="reader_recovery"||bindings.length!==15)throw Error("wallet_recovery_claim_unsupported");const signature=String(bindings[0]),identity=recoveries.find(r=>r.signature===signature);if(!identity||claims.has(signature))throw Error("wallet_recovery_identity_required");
+          phase="claim";if(stage!=="reader_recovery"||bindings.length!==15)throw Error("wallet_recovery_claim_unsupported");const signature=String(bindings[0]),identity=recoveries.find(r=>r.signature===signature);if(!identity||claims.has(signature))throw Error("wallet_recovery_identity_required");
           const row:FundingRecovery={signature,slot:bindings[2] as number,blockTime:bindings[14] as number,hop:recoveryHop as "direct"|"second",wallet:String(bindings[7]),anchor_key:String(bindings[8]),checkpoint_hash:String(bindings[9])};claims.set(signature,{row,identity,finishes:0});return (await publishRecovery(identity.claimId,row,identity.claimId,ProducerStatements.parse([{sql,bindings}])))[0]!.results[0]??null;
         }
         if(sql===directCatchupSql){phase="catchup";return (await publish(request.ids.catchup,ProducerStatements.parse([{sql,bindings}]),"direct"))[0]!.results[0]??null;}
@@ -91,7 +141,7 @@ async function runRecordedWalletCycleOnEvidenceTarget(source:ScratchOptions,publ
         if(sql==="SELECT used FROM tenx_wallet_usage WHERE day=?1"&&bindings.length===1)return (await readEvidenceWalletCycleMetadata(saved.publication,saved.grant,{kind:"wallet_usage",day:bindings[0]})).row;
         if(sql==="SELECT payload FROM tenx_candidates WHERE mode='live' AND address=?1"&&bindings.length===1)return (await readEvidenceCandidateMetadata(saved.publication,saved.grant,{kind:"candidate",address:bindings[0]})).row;
         if(sql==="SELECT payload_hash,address,payload,observed_at FROM tenx_wallet_evidence WHERE payload_hash=?1 AND address=?2"&&bindings.length===2)return readWalletReplayReceipt(saved.source,saved.publication,saved.grant,String(bindings[0]),String(bindings[1]));
-        if(expectedStage==="snapshot"&&sql==="SELECT payload_hash,address,slot,payload,observed_at FROM tenx_holder_evidence WHERE payload_hash=?1"&&bindings.length===1)return readHolderSnapshotReceipt(saved.source,saved.publication,saved.grant,String(bindings[0]));
+        if(stage==="snapshot"&&sql==="SELECT payload_hash,address,slot,payload,observed_at FROM tenx_holder_evidence WHERE payload_hash=?1"&&bindings.length===1)return readHolderSnapshotReceipt(saved.source,saved.publication,saved.grant,String(bindings[0]));
         if(["SELECT payload,payload_hash,fetched_at FROM tenx_wallet_transactions WHERE signature=?1","SELECT payload,payload_hash,fetched_at FROM tenx_wallet_transactions WHERE signature=?"].includes(sql)&&bindings.length===1)return (await readEvidenceWalletMetadata(saved.publication,saved.grant,{kind:"transaction",signature:bindings[0]})).row;
         if(sql==="SELECT COUNT(*) AS n FROM tenx_funding_reads WHERE is_recovery=1 AND started_at>=?"&&bindings.length===1)return (await readEvidenceWalletRecoveryMetadata(saved.publication,saved.grant,{kind:"count",since:bindings[0]})).row;
         if(sql==="SELECT 1 FROM tenx_funding_reads WHERE signature=? AND reader_version=?"&&bindings.length===2)return (await readEvidenceWalletRecoveryMetadata(saved.publication,saved.grant,{kind:"seen",signature:bindings[0],reader:bindings[1]})).row;
@@ -102,24 +152,32 @@ async function runRecordedWalletCycleOnEvidenceTarget(source:ScratchOptions,publ
         }
         return fail("wallet_direct_read_unsupported");
       },async all(){
-        if(expectedStage==="snapshot"&&sql===snapshotReviewsSql&&bindings.length===1)return {success:true,results:(await readEvidenceWalletSnapshotReviews(saved.publication,saved.grant,{since:bindings[0]})).rows};
-        if(sql==="SELECT payload FROM tenx_active_candidates WHERE mode=?1 ORDER BY checked_at DESC,address LIMIT 500"&&bindings.length===1&&bindings[0]==="live"){const rows=(await readEvidenceWalletMetadata(saved.publication,saved.grant,{kind:"candidates"})).rows;selectedIndex=rows.map(r=>CandidateSchema.parse(JSON.parse(r.payload))).find(c=>c.address===request.address)??null;return {success:true,results:rows};}
+        if(stage==="snapshot"&&sql===snapshotReviewsSql&&bindings.length===1)return {success:true,results:(await readEvidenceWalletSnapshotReviews(saved.publication,saved.grant,{since:bindings[0]})).rows};
+        if(sql==="SELECT payload FROM tenx_active_candidates WHERE mode=?1 ORDER BY checked_at DESC,address LIMIT 500"&&bindings.length===1&&bindings[0]==="live"){const rows=(await readEvidenceWalletMetadata(saved.publication,saved.grant,{kind:"candidates"})).rows;indexCandidates=rows.map(r=>CandidateSchema.parse(JSON.parse(r.payload)));if(automatic)indexPin=createHash("sha256").update(JSON.stringify(rows)).digest("hex");selectedIndex=indexCandidates.find(c=>c.address===address)??null;return {success:true,results:rows};}
         if(sql==="SELECT address,attempted_at,next_attempt_at FROM tenx_wallet_attempts"&&bindings.length===0)return {success:true,results:(await readEvidenceWalletCycleMetadata(saved.publication,saved.grant,{kind:"attempts"})).rows};
         if(sql==="SELECT w.payload FROM tenx_wallet_work w JOIN tenx_candidates c ON c.address=w.address AND c.mode='live' WHERE w.source_evidence_hash=json_extract(c.payload,'$.wallet_analysis.evidence_hash') ORDER BY w.attempted_at DESC LIMIT 20"&&bindings.length===0)return {success:true,results:(await readEvidenceWalletCycleMetadata(saved.publication,saved.grant,{kind:"work"})).rows};
         return fail("wallet_direct_index_unsupported");
       },async run(){
         phase="write";const rows=ProducerStatements.parse([{sql,bindings}]);
+        if(automatic&&(unsupported||readMode!=="off"))throw Error("wallet_auto_selection_unconfirmed");
+        if(automatic&&stage==="cached_funding"&&sql===cachedCheckpointSql){const id=checkpoints.find(c=>c.wallet===bindings[4]&&c.anchorSignature===bindings[5])?.publicationId;if(!id||bindings[3]!==address)throw Error("wallet_cycle_checkpoint_identity_required");return (await publishCached(id,rows))[0];}
         if(sql===collectionTransactionSql||[...Object.values(collectionCheckpointSql),...Object.values(collectionRepairSql)].includes(sql))return (await publish(request.writeIds[writeIndex++],rows,"collection"))[0];
         if(sql===directUnsupportedSql)return (await publish(request.writeIds[writeIndex++],rows,"direct"))[0];
         const control=sql===walletSpacingSql?request.ids.spacing:sql===walletReleaseSql?request.ids.release:sql===walletFailureSql?request.ids.failure_release:sql===walletAttemptSql?request.ids.failure_attempt:null;
         if(control)return (await publish(control,rows,"control"))[0];
         const direct=sql===directWorkSql?request.ids.work:sql===directBackoffSql?request.ids.backoff:sql===walletFailureRunSql?request.ids.failure_run:null;
         if(direct)return (await publish(direct,rows,"direct"))[0];return fail("wallet_direct_write_unsupported");
-      }};owned.set(statement,{sql,bindings:bindings as ProducerStatement["bindings"]});return statement as unknown as D1PreparedStatement;
+      }};
+      const wrapped={...statement,first:async(column?:string)=>{if(automatic&&sql==="SELECT used FROM tenx_wallet_usage WHERE day=?1")await finishSelection();return observe(sql,bindings,()=>statement.first(column));},all:()=>observe(sql,bindings,()=>statement.all()),run:async()=>{if(automatic&&sql===walletReleaseSql)await finishSelection();return statement.run();}};
+      owned.set(wrapped,{sql,bindings:bindings as ProducerStatement["bindings"]});return wrapped as unknown as D1PreparedStatement;
     }
     const db={prepare,async batch(statements:D1PreparedStatement[]){
       phase="completion";const rows=ProducerStatements.parse(statements.map(s=>{const row=owned.get(s);if(!row)throw Error("wallet_direct_foreign_statement");return row;})),last=rows.at(-1)!;
-      if(expectedStage==="snapshot"){
+      if(automatic&&(unsupported||readMode!=="off"))throw Error("wallet_auto_selection_unconfirmed");
+      if(automatic&&stage==="cached_funding"){
+        if(rows.length!==4||rows.some((r,i)=>r.sql!==cachedFinishSql[i])||rows[0]!.bindings[2]!==address||rows[0]!.bindings[0]!==cycle?.job||rows[0]!.bindings[3]!==sourceHash)throw Error("wallet_cycle_batch_unsupported");return publishCached(request.ids.finish,rows);
+      }
+      if(stage==="snapshot"){
         if(!producer){
           if(!cycle||!candidateHash||!("stageId" in request))throw Error("wallet_snapshot_context_required");
           producer=await publishEvidenceWalletSnapshotBatch(saved.publication,saved.journal,saved.grant,{publicationId:request.ids.finish,stageId:Id.parse(request.stageId),cycle,sourceHash,candidateHash,limits,statements:rows});publications.push(producer);
@@ -134,7 +192,7 @@ async function runRecordedWalletCycleOnEvidenceTarget(source:ScratchOptions,publ
         const result=await writeEvidenceCandidateCohorts(saved.publication,saved.grant,{publication_id:request.ids.finish,rows:records});cohort="completed";return result.results;
       }
       if(Object.values(recoveryFinishSql).includes(last.sql)){
-        phase="recovery_finish";const claim=claims.get(String(last.bindings[0]));if(expectedStage!=="reader_recovery"||!claim||claim.finishes>=2)throw Error("wallet_recovery_finish_identity_required");const id=claim.finishes++===0?claim.identity.finishId:claim.identity.errorFinishId;return publishRecovery(id,claim.row,claim.identity.claimId,rows);
+        phase="recovery_finish";const claim=claims.get(String(last.bindings[0]));if(stage!=="reader_recovery"||!claim||claim.finishes>=2)throw Error("wallet_recovery_finish_identity_required");const id=claim.finishes++===0?claim.identity.finishId:claim.identity.errorFinishId;return publishRecovery(id,claim.row,claim.identity.claimId,rows);
       }
       if(rows.length!==3||rows[0]!.sql!==walletFailureRunSql||rows[1]!.sql!==walletAttemptSql||rows[2]!.sql!==directFinishSql)return fail("wallet_direct_batch_unsupported");return publish(request.ids.finish,rows,"direct");
     }} as unknown as D1Database;
@@ -144,6 +202,6 @@ async function runRecordedWalletCycleOnEvidenceTarget(source:ScratchOptions,publ
       recordedResponses++;return new Response(reply.body,{status:reply.status,headers:reply.retryAfter?{"retry-after":reply.retryAfter}:{}});
     };
     const settings={db,walletEnabled:request.walletEnabled,walletDailyLimit:limits.wallet,rpcDailyLimit:limits.rpc,marketDailyLimit:request.marketDailyLimit,rpcUrl:"https://offline.invalid",marketEnabled:false,transport} as WalletSettings;
-    phase="cycle";const result=await runWalletCycle(settings,request.address,new Date(request.now));if(unsupported)throw Error("wallet_direct_unsupported_path");return {state:"completed" as const,result,cycle:cycle as WalletCycleContext|null,recorded_responses:recordedResponses,write_positions:writeIndex,publications,producer,cohort,post_commit:producer?.state==="committed"?String(cohort)==="completed"?"completed":"failed":"not_started",...inactive()};
-  }catch(error){return {state:"held" as const,phase,reason:error instanceof Error&&/^[a-z0-9_]{1,80}$/.test(error.message)?error.message:"wallet_direct_not_certified",cycle,recorded_responses:recordedResponses,write_positions:writeIndex,publications,producer,cohort,post_commit:producer?.state==="committed"?"failed":"not_started",...inactive()};}
+    phase="cycle";const result=await runWalletCycle(settings,automatic?undefined:address,new Date(request.now));if(unsupported||automatic&&readMode!=="off"&&result.state!=="waiting")throw Error("wallet_direct_unsupported_path");return {state:"completed" as const,result,cycle:cycle as WalletCycleContext|null,selection:selection?{selected:selection.selected?{address:selection.selected.candidate.address,stage:selection.selected.plan.stage}:null,considered:selection.considered,verified:selectionVerified}:undefined,recorded_responses:recordedResponses,write_positions:writeIndex,publications,producer,cohort,post_commit:producer?.state==="committed"?String(cohort)==="completed"?"completed":"failed":"not_started",...inactive()};
+  }catch(error){return {state:"held" as const,phase,reason:error instanceof Error&&/^[a-z0-9_]{1,80}$/.test(error.message)?error.message:"wallet_direct_not_certified",cycle,selection:selection?{selected:selection.selected?{address:selection.selected.candidate.address,stage:selection.selected.plan.stage}:null,considered:selection.considered,verified:selectionVerified}:undefined,recorded_responses:recordedResponses,write_positions:writeIndex,publications,producer,cohort,post_commit:producer?.state==="committed"?"failed":"not_started",...inactive()};}
 }
