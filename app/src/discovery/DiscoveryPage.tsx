@@ -121,7 +121,7 @@ function Discover() {
     moveLegacyAnchor(); window.addEventListener('hashchange', moveLegacyAnchor);
     return () => window.removeEventListener('hashchange', moveLegacyAnchor);
   }, []);
-  const [view,setView]=useState(()=>discoveryView(window.location.search));
+  const [view,setView]=useState(()=>discoveryView(window.location.search)),[savedOpen,setSavedOpen]=useState(false);
   const {mode,status:filter,sort}=view;
   const shortlist=useShortlist(mode);
   const setMode=(mode:"live"|"fixture")=>setView(v=>({...v,mode,compare:[]})),setFilter=(status:typeof view.status)=>setView(v=>({...v,status}));
@@ -130,7 +130,7 @@ function Discover() {
   useEffect(()=>{window.history.replaceState(window.history.state,"",`${window.location.pathname}?${discoveryViewParams(view)}${window.location.hash}`);},[view]);
   const url = discoveryCandidatesUrl(view);
   const paging=useDiscoveryPages(url),{data}=paging,error=paging.state.error;
-  const artwork = useTokenArtwork(mode === "live" ? data?.data.candidates.map(c => c.address) ?? [] : []);
+  const artwork = useTokenArtwork(mode === "live" ? [...(data?.data.candidates.map(c => c.address)??[]),...(savedOpen?shortlist.state.entries.map(entry=>entry.address):[])] : []);
   return <>
     <header className="tenx-heading tenx-heading--discover"><h1>Discover memecoins.</h1><p>Experimental grades · evidence coverage is not safety.</p></header>
     <DiscoveryWorkspaceControls key={[view.q,view.min_liquidity,view.min_coverage].join(":")} view={view} onChange={setView}><div className="tenx-browse-tools"><details className="tenx-paging-disclosure"><summary>Page {paging.state.index+1} · paging & refresh</summary><DiscoveryPagination state={paging.state} onNext={()=>void paging.next()} onPrevious={paging.previous} onRefresh={()=>void paging.refresh()}/></details><nav aria-label="Discovery workspace links"><a href="#saved-tokens">Saved ({shortlist.state.entries.length})</a><a href="#compare-tokens">Compare ({view.compare.length}/3)</a></nav></div></DiscoveryWorkspaceControls>
@@ -143,7 +143,7 @@ function Discover() {
       <details className="tenx-browse-explainer"><summary>Inventory scope & scoring limits</summary><p>{data.data.candidates.length} shown on this page · {data.data.scope?.stored??"Unknown"} current evaluation inputs · {data.data.scope?.retained_total??"Unknown"} retained identities. Search and filters run before pagination; this is saved chain-observed coverage, not every Solana token. {view.age==="24h"&&mode==="live"?"Tokens without a verified first-day creation time are outside this view.":"Older or unknown-date current observations can appear; all evidence and freshness gates still apply."}</p><p>Verified-expired identities and their original evidence remain in the <a href={`/history?mode=${mode}`}>retained directory</a>. Scores grade measured support; missing evidence and observed risks remain visible. <a href="/transparency">How scoring works →</a></p></details>
       <p className="tenx-footnote">Checks do not guarantee safety. Images and names can be copied; confirm the mint address.</p>
     </> : !error && <p role="status" className="tenx-empty">Loading discovery…</p>}
-    <ShortlistPanel state={shortlist.state} candidates={data?.data.candidates??[]} selected={view.compare} onRemove={shortlist.remove} onClear={shortlist.clear} onCompare={toggle}/><section id="compare-tokens" aria-label="Comparison workspace"><TokenComparison selected={view.compare} candidates={data?.data.candidates??[]} mode={mode} onRemove={toggle}/></section>
+    <ShortlistPanel state={shortlist.state} candidates={data?.data.candidates??[]} artwork={artwork} selected={view.compare} onRemove={shortlist.remove} onClear={shortlist.clear} onCompare={toggle} onOpenChange={setSavedOpen}/><section id="compare-tokens" aria-label="Comparison workspace"><TokenComparison selected={view.compare} candidates={data?.data.candidates??[]} mode={mode} onRemove={toggle}/></section>
     <details className="tenx-list-options"><summary>Action-check filters & example data</summary><p>All observed tokens can be scored. Separate eligibility gates still govern future voting and launch decisions; buying links do not count as votes. Names and artwork can be copied.</p><label>Action checks<select value={filter} onChange={e => setFilter(e.target.value as typeof view.status)}><option value="all">All ranked observations</option><option value="eligible">Eligible</option><option value="provisional">Provisional</option><option value="excluded">Excluded</option></select></label><label>Data source<select value={mode} onChange={e => setMode(e.target.value as "live" | "fixture")}><option value="live">Saved live observations</option><option value="fixture">Simulation examples</option></select></label>{data&&<p>Action readiness across observed inputs: {data.data.counts.eligible} eligible · {data.data.counts.provisional} provisional · {data.data.counts.excluded} excluded. This is separate from score ranking.</p>}</details>
   </>;
 }

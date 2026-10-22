@@ -35,18 +35,18 @@ export function ShortlistNotice({ state }: { state: ShortlistState }) {
     {state.message && <p className="tenx-footnote" role="status">{state.message}</p>}</>;
 }
 
-export function ShortlistPanel({ state, candidates, selected, onRemove, onClear, onCompare }: {
-  state: ShortlistState; candidates: CandidateCard[]; selected: string[];
+export function ShortlistPanel({ state, candidates, artwork={}, selected, onRemove, onClear, onCompare, onOpenChange }: {
+  state: ShortlistState; candidates: CandidateCard[]; artwork?:Record<string,{image_url?:string|null}|null|undefined>; selected: string[]; onOpenChange?:(open:boolean)=>void;
   onRemove: (address: string) => void; onClear: () => void; onCompare: (address: string) => void;
 }) {
   return <section id="saved-tokens" className="tenx-shortlist"><ShortlistNotice state={state} />
-    <details className="tenx-panel"><summary>{state.mode === "fixture" ? "Saved simulation examples" : "Saved tokens"} · {state.entries.length} / {SHORTLIST_LIMIT}</summary>
+    <details className="tenx-panel" onToggle={event=>onOpenChange?.(event.currentTarget.open)}><summary>{state.mode === "fixture" ? "Saved simulation examples" : "Saved tokens"} · {state.entries.length} / {SHORTLIST_LIMIT}</summary>
       <p>Saved only in this browser. Open a token for its saved evidence or select up to three to compare. Names are labels; confirm the mint.</p>
       {state.mode === "fixture" && <p className="tenx-notice">Simulation list · separate from your saved live tokens.</p>}
       {state.entries.length ? <ul className="tenx-shortlist-items">{state.entries.map(entry => {
         const candidate = candidates.find(c => c.address === entry.address && c.mode === state.mode);
         const name = candidate?.name ?? entry.name, symbol = candidate?.symbol ?? entry.symbol;
-        return <li key={entry.address}><div className="tenx-shortlist-identity"><TokenImage url={candidate?.market?.image_url} name={name} symbol={symbol} />
+        return <li key={entry.address}><div className="tenx-shortlist-identity"><TokenImage url={candidate?.market?.image_url} metadataUrl={artwork[entry.address]?.image_url} metadataLoading={state.mode==="live"&&artwork[entry.address]===undefined} name={name} symbol={symbol} />
           <div><a href={`/token/solana/${entry.address}${state.mode === "fixture" ? "?mode=fixture" : ""}`}>{name || "Saved token"} · {symbol}</a><p className="tenx-address">{entry.address}</p>
             <small>Saved {new Date(entry.saved_at).toLocaleString()}. {candidate ? "Shown in current results." : "Outside current results · open token for saved evidence."}</small></div></div>
           <div className="tenx-shortlist-actions"><ComparisonToggle address={entry.address} selected={selected} onToggle={onCompare} />

@@ -24,6 +24,7 @@
     "test:discovery-reference-runtime": "node scripts/discovery-reference-runtime-study.mjs",
     "test:discovery-capacity": "node --test scripts/discovery-metadata-capacity.test.mjs",
     "test:discovery-serving-capacity": "tsx --test scripts/discovery-serving-capacity.test.ts scripts/discovery-serving-workload.test.ts",
+    "test:discovery-artwork-browser": "node scripts/discovery-artwork-browser-study.mjs",
     "test:discovery-scratch": "tsx --test scripts/discovery-evidence-scratch-replay.test.ts",
     "test:discovery-recovery": "node --test scripts/discovery-evidence-key-recovery.test.mjs",
     "test:discovery-metadata-sealed": "node --test scripts/discovery-metadata-sealed.test.mjs",
