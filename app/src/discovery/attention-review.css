@@ -13,3 +13,17 @@
 .tenx-review-confirm input{flex:0 0 auto;margin-top:.3rem}
 .tenx-review-import button{margin:.35rem .35rem 0 0}
 .tenx-review-import button:disabled{opacity:.5;cursor:not-allowed}
+.tenx-review-comparison{margin:1rem 0;padding:.75rem;border:1px solid #526b58;border-radius:6px;min-width:0}
+.tenx-review-comparison button{margin:.35rem 0;max-width:100%;white-space:normal}
+.tenx-review-comparison-table{max-width:100%;overflow-x:auto;margin:.75rem 0}
+.tenx-review-comparison table{width:100%;min-width:30rem;border-collapse:collapse;text-align:left}
+.tenx-review-comparison th,.tenx-review-comparison td{padding:.5rem;border-bottom:1px solid #3c4e41;vertical-align:top}
+.tenx-review-comparison-sources{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem}
+.tenx-review-comparison-sources>div{min-width:0}
+.tenx-review-comparison-cards{display:none}
+.tenx-review-comparison-cards section{border-bottom:1px solid #3c4e41;padding:.5rem 0}
+.tenx-review-comparison-cards h5{font-size:inherit;margin:.4rem 0}
+.tenx-review-comparison-cards dl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.75rem;margin:.4rem 0}
+.tenx-review-comparison-cards dt{font-size:.8rem;color:#a6b8aa}
+.tenx-review-comparison-cards dd{margin:.3rem 0}
+@media(max-width:600px){.tenx-review-comparison-sources{grid-template-columns:1fr}.tenx-review-comparison-table{display:none}.tenx-review-comparison-cards{display:block}}

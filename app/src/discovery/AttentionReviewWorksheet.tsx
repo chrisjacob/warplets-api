@@ -4,6 +4,8 @@ import { ATTENTION_REVIEW_KEY, AttentionReviewLabels, exportAttentionReviews, pa
 import "./attention-review.css";
 import { previewAttentionReviewImport, readAttentionReviewFile, restoreAttentionReviews, type AttentionReviewImportPreview } from "./attention-review-import";
 import { AttentionReviewProgress } from "./AttentionReviewProgress";
+import { AttentionReviewComparison } from "./AttentionReviewComparison";
+import type { AttentionQueueResult } from "../../../discovery/src/attention-queue-model";
 
 const blank:ReviewLabels={decision:"needs_evidence",relevance:"uncertain",catalyst:"",concerns:"",rationale:"",outcome:"not_followed_up",outcome_note:""};
 const readable=(value:string)=>value.replaceAll("_"," ");
@@ -18,7 +20,7 @@ function errorText(cause:unknown) {
   if(code==="review_import_time")return"The export timestamps could not be admitted against this device’s clock. Local history is unchanged.";
   return"Local review history could not be verified or saved. Your draft is retained; existing history was not replaced.";
 }
-export function AttentionReviewWorksheet({context,onClose,onBusyChange}:{context:ReviewContext|null;onClose:()=>void;onBusyChange?:(busy:boolean)=>void}) {
+export function AttentionReviewWorksheet({context,onClose,onBusyChange,loadedReport}:{context:ReviewContext|null;onClose:()=>void;onBusyChange?:(busy:boolean)=>void;loadedReport?:AttentionQueueResult|null}) {
   const [ledger,setLedger]=useState<ReviewLedger|null>(null),[draft,setDraft]=useState<ReviewLabels>(blank),[selected,setSelected]=useState<ReviewContext|null>(context),[busy,changeBusy]=useState(false),[message,setMessage]=useState("");
   const setBusy=(value:boolean)=>{changeBusy(value);onBusyChange?.(value);};
   const [ready,setReady]=useState(false),heading=useRef<HTMLHeadingElement>(null),active=useRef(false),alive=useRef(true);
@@ -73,6 +75,7 @@ export function AttentionReviewWorksheet({context,onClose,onBusyChange}:{context
     </details>
     {selected&&<form aria-label="Personal attention review" onSubmit={event=>{event.preventDefault();void save();}}><fieldset disabled={busy}><legend>{selected.token.symbol??"Unknown token"} · {selected.token.chain}</legend>
       <p className="tenx-address">{selected.token.address}</p><p>Observations saved at {new Date(selected.as_of).toLocaleString()}. This snapshot stays fixed while you write.</p>
+      <AttentionReviewComparison context={selected} loadedReport={loadedReport} disabled={busy||!ready} onAdopt={value=>{setSelected(value);setMessage("Compared observations adopted in this draft. Review your retained labels and save a revision separately.");heading.current?.focus();}}/>
       {selected.trader_review&&<p>Retains GMGN ranked trader sample: {selected.trader_review.sample.returned_rows}/100 returned, saved {new Date(selected.trader_review.received_at).toLocaleString()}. Reporting period and population coverage unknown; this does not verify organic volume or holder growth.</p>}
       {selected.activity_review&&<p>Retains GMGN wallet-event sample: requested {selected.activity_review.activity.requested_limit} events; received {selected.activity_review.activity.returned_events}, saved {new Date(selected.activity_review.received_at).toLocaleString()}. Targeted wallet selection; signatures and population coverage remain unverified.</p>}
       <label>My assessment<select value={draft.decision} onChange={e=>set("decision",e.target.value as ReviewLabels["decision"])}><option value="needs_evidence">Needs more evidence</option><option value="follow">Worth following</option><option value="set_aside">Set aside</option></select></label>
