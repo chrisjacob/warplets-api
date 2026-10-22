@@ -2,7 +2,7 @@
 import {z} from "zod";
 import {prepareEvidenceProducerBatch,type ProducerBatchInput} from "./evidence-producer-plan";
 import {persistEvidencePublicationIntent,publishStoredEvidenceIntent,reconcileStoredEvidenceIntent} from "../discovery-evidence-intents.mjs";
-import {validateEvidenceCandidateMetadataPlan} from "../discovery-evidence-publication.mjs";
+import {validateEvidenceCandidateMetadataPlan,validateEvidenceWalletCachedPlan} from "../discovery-evidence-publication.mjs";
 import {ProducerStatements} from "./evidence-producer-plan";
 
 const Hash=z.string().regex(/^[a-f0-9]{64}$/),Id=z.string().uuid(),Path=z.string().min(1).max(4096);
@@ -65,6 +65,17 @@ export async function publishEvidenceCandidateMetadataBatch(publication:Producer
   let phase:Phase="preflight",id:unknown;
   try{
     id=input?.publicationId;const saved=context(publication,journal,grant,afterCommit),plan=validateEvidenceCandidateMetadataPlan({publication_id:Id.parse(id),kind:"candidate_metadata",operations:ProducerStatements.parse(input.statements).map(row=>({kind:"sql",...row}))});
+    phase="persist";await persistEvidencePublicationIntent(saved.publication,saved.journal,saved.grant,plan);
+    phase="publish";return await publishStoredEvidenceIntent(saved.publication,saved.journal,saved.grant,plan.publication_id,afterCommit) as ProducerCommitted;
+  }catch{return held(phase,id,null);}
+}
+
+// One original checkpoint CAS or its original four-statement completion batch.
+// No receipt/stage ID, lease acquisition, quota write or generic SQL admission.
+export async function publishEvidenceWalletCachedBatch(publication:ProducerPublication,journal:ProducerJournal,grant:ProducerGrant,input:{publicationId:string;statements:unknown},afterCommit?:AfterCommit):Promise<ProducerPublicationOutcome>{
+  let phase:Phase="preflight",id:unknown;
+  try{
+    id=input?.publicationId;const saved=context(publication,journal,grant,afterCommit),plan=validateEvidenceWalletCachedPlan({publication_id:Id.parse(id),kind:"wallet_cached_progress",operations:ProducerStatements.parse(input.statements).map(row=>({kind:"sql",...row}))});
     phase="persist";await persistEvidencePublicationIntent(saved.publication,saved.journal,saved.grant,plan);
     phase="publish";return await publishStoredEvidenceIntent(saved.publication,saved.journal,saved.grant,plan.publication_id,afterCommit) as ProducerCommitted;
   }catch{return held(phase,id,null);}

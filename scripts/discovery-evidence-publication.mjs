@@ -8,6 +8,7 @@ import {z} from "zod";
 import {withScratchEvidenceResolver} from "./discovery-evidence-scratch.mjs";
 import {evidencePrivatePath,evidenceRegularFile} from "./discovery-evidence-objects.mjs";
 import {inspectEvidenceAppendStage,readStagedEvidenceAppend} from "./discovery-evidence-append-stage.mjs";
+import {cachedCheckpointSql,cachedFinishSql} from "./evidence-wallet-cached-sql.mjs";
 
 const VERSION="discovery-evidence-publication-v1",FILE="metadata.sqlite",MAX_DB=2*1024**3;
 const Hash=z.string().regex(/^[a-f0-9]{64}$/),Id=z.string().uuid();
@@ -19,6 +20,7 @@ const Operation=z.discriminatedUnion("kind",[
 ]);
 const Plan=z.object({publication_id:Id,ticket:Ticket,operations:Operation.array().min(1).max(128)}).strict();
 const MetadataPlan=z.object({publication_id:Id,kind:z.literal("candidate_metadata"),operations:Operation.array().min(1).max(128)}).strict();
+const WalletCachedPlan=z.object({publication_id:Id,kind:z.literal("wallet_cached_progress"),operations:Operation.array().min(1).max(4)}).strict();
 const Header=z.object({version:z.literal(VERSION),file:z.literal(FILE),capacity_pin:Hash,source_archive_pin:Hash,base_reference_pin:Hash,context_pin:Hash,generation:Id,schema_sha256:Hash}).strict();
 const writable=new Set(["tenx_candidates","tenx_market_history","tenx_wallet_signals","tenx_proofs","tenx_evidence","tenx_account_evidence","tenx_wallet_runs","tenx_wallet_attempts","tenx_wallet_control","tenx_wallet_work","tenx_wallet_profiles"]);
 const SCHEMA=[
@@ -100,7 +102,26 @@ export function validateEvidenceCandidateMetadataPlan(input){
   if(candidate.address!==first.bindings[0]||candidate.pool!==first.bindings[1]||candidate.checked_at!==first.bindings[3]||candidate.mode!=="live")throw Error("publication_metadata_candidate_mismatch");
   return plan;
 }
-export function validateEvidenceTargetPlan(input){return input?.kind==="candidate_metadata"?validateEvidenceCandidateMetadataPlan(input):normalizedPlan(input);}
+export function validateEvidenceWalletCachedPlan(input){
+  const plan=WalletCachedPlan.parse(input),ops=plan.operations,Text=z.string().min(1).max(4096),Time=z.string().datetime();
+  for(const op of ops)if(op.kind!=="sql"||op.expect_changes!==undefined||op.bindings.some(b=>typeof b!=="string"&&typeof b!=="number"))throw Error("publication_wallet_cached_shape");
+  if(ops.length===1){
+    const {sql,bindings:b}=ops[0];if(sql!==cachedCheckpointSql||b.length!==9)throw Error("publication_wallet_cached_sql");
+    for(const i of [3,4,5,8])Text.parse(b[i]);for(const i of [1,6,7])Hash.parse(b[i]);Time.parse(b[2]);
+    if(typeof b[0]!=="string"||Buffer.byteLength(b[0])>250000)throw Error("publication_wallet_cached_bytes");
+    const scan=JSON.parse(b[0]);
+    if(digest(scan)!==b[1]||scan.wallet!==b[4]||scan.anchor?.wallet!==b[4]||scan.anchor?.signature!==b[5]||scan.attempted_at!==b[2])throw Error("publication_wallet_cached_identity");
+  }else{
+    if(ops.length!==4||ops.some((op,i)=>op.sql!==cachedFinishSql[i]))throw Error("publication_wallet_cached_sql");
+    const [work,run,attempt,control]=ops.map(op=>op.bindings),base=work.slice(0,4);
+    if(work.length!==5||run.length!==6||attempt.length!==6||control.length!==5||[run,attempt,control].some(b=>!isDeepStrictEqual(b.slice(0,4),base)))throw Error("publication_wallet_cached_scope");
+    Text.parse(base[0]);Time.parse(base[1]);Text.parse(base[2]);Hash.parse(base[3]);Time.parse(run[4]);Time.parse(attempt[4]);Time.parse(attempt[5]);Time.parse(control[4]);z.number().int().nonnegative().max(20).parse(run[5]);
+    if(run[4]!==attempt[4]||attempt[5]!==control[4]||Date.parse(control[4])!==Date.parse(base[1])+60000||typeof work[4]!=="string"||Buffer.byteLength(work[4])>250000)throw Error("publication_wallet_cached_finish");
+    const payload=JSON.parse(work[4]);if(payload.address!==base[2]||payload.source_evidence_hash!==base[3]||payload.rpc_calls!==0)throw Error("publication_wallet_cached_work");
+  }
+  return plan;
+}
+export function validateEvidenceTargetPlan(input){return input?.kind==="candidate_metadata"?validateEvidenceCandidateMetadataPlan(input):input?.kind==="wallet_cached_progress"?validateEvidenceWalletCachedPlan(input):normalizedPlan(input);}
 function metadata(db,table,hash){
   const fields=table==="tenx_holder_evidence"?["payload_hash","address","slot","observed_at"]:["payload_hash","address","observed_at"],row=db.prepare(`SELECT ${fields.map(c=>c==="slot"?c:`CAST(${c} AS BLOB) AS ${c}`).join(",")} FROM ${table} WHERE payload_hash=?`).get(hash);
   return row?Object.fromEntries(fields.map(c=>[c,c==="slot"?row[c]:new TextDecoder("utf-8",{fatal:true,ignoreBOM:true}).decode(row[c])])):null;
@@ -125,7 +146,7 @@ export async function transferEvidencePublicationOwner(options,grant,nextOwner){
 }
 async function executePublication(options,grant,input,afterCommit,allowNew,metadataOnly=false){
   if(metadataOnly){grant=Grant.parse(grant);options=structuredClone(options);}
-  const plan=metadataOnly?validateEvidenceCandidateMetadataPlan(input):normalizedPlan(input),planHash=digest(plan),verified=metadataOnly?null:await readStagedEvidenceAppend(options.stage,plan.ticket),{db,body}=await opened(options,!allowNew);let publication,commitAttempted=false;
+  const plan=metadataOnly==="wallet_cached_progress"?validateEvidenceWalletCachedPlan(input):metadataOnly?validateEvidenceCandidateMetadataPlan(input):normalizedPlan(input),planHash=digest(plan),verified=metadataOnly?null:await readStagedEvidenceAppend(options.stage,plan.ticket),{db,body}=await opened(options,!allowNew);let publication,commitAttempted=false;
   try{
     db.exec(allowNew?"BEGIN IMMEDIATE":"BEGIN");fenced(db,body,grant);
     const prior=db.prepare("SELECT plan_sha256,results_json FROM tenx_append_publications WHERE publication_id=?").get(plan.publication_id);
@@ -155,6 +176,8 @@ export async function publishEvidenceAppend(options,grant,input,afterCommit){ret
 export async function reconcileEvidenceAppend(options,grant,input,afterCommit){return executePublication(options,grant,input,afterCommit,false);}
 export async function publishEvidenceCandidateMetadata(options,grant,input,afterCommit){return executePublication(options,grant,input,afterCommit,true,true);}
 export async function reconcileEvidenceCandidateMetadata(options,grant,input,afterCommit){return executePublication(options,grant,input,afterCommit,false,true);}
+export async function publishEvidenceWalletCached(options,grant,input,afterCommit){return executePublication(options,grant,input,afterCommit,true,"wallet_cached_progress");}
+export async function reconcileEvidenceWalletCached(options,grant,input,afterCommit){return executePublication(options,grant,input,afterCommit,false,"wallet_cached_progress");}
 export async function readPublishedEvidenceAppend(options,grant,table,hash){
   if(!["tenx_holder_evidence","tenx_wallet_evidence"].includes(table))throw Error("publication_table_unsupported");Hash.parse(hash);
   let ref;const first=await opened(options);

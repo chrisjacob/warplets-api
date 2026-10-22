@@ -113,6 +113,9 @@ jobs:
       - name: Isolated original cached-wallet replay and bounded cache/checkpoint reads
         run: pnpm test:discovery-wallet-replay-target
 
+      - name: Isolated cached funding checkpoint and completion publications
+        run: pnpm test:discovery-wallet-cached-target
+
       - name: Install dependencies (app)
         working-directory: app
         run: pnpm install --frozen-lockfile
