@@ -10,10 +10,10 @@ const data: GmgnPublicSummary = { version: "gmgn-summary-v1", address: "So111111
   provider_insider_hold_ratio: .25, provider_bundler_volume_ratio: null, candle_count: null, candle_window_complete: null, candle_window_volume_usd: null,
   candle_review: null, candle_coverage: null, trader_sample:null,wallet_activity:null,wallet_activity_request_id:null,wallet_activity_issue:null, gaps: ["organic_volume_unknown"], organic_volume_usd: null, meaningful_holder_growth: null, scoring_effect: "none" };
 describe("GMGN evidence presentation", () => {
-  it("shows complete fifty-event research coverage with comparison held",()=>{
+  it("shows complete fifty-event research coverage with live collection held",()=>{
     const wallet_activity=normalizeGmgnWalletActivityResearch({activities:Array.from({length:50},(_,i)=>({tx_hash:"1".repeat(64),token:{address:data.address},event_type:"buy",timestamp:i+1,token_amount:10,cost_usd:2}))},{address:data.address,selection_id:"10000000-0000-4000-8000-000000000001",selection_hash:"a".repeat(64)},data.received_at!);
     const html=renderToStaticMarkup(<GmgnEvidenceValues data={{...data,wallet_activity,wallet_activity_request_id:"10000000-0000-4000-8000-000000000002"}}/>);
-    expect(html).toContain("Requested 20 events; received 50");expect(html).toContain("50-event research cap; no rows discarded");expect(html).toContain("Independent transaction comparison remains held");
+    expect(html).toContain("Requested 20 events; received 50");expect(html).toContain("50-event research cap; no rows discarded");expect(html).toContain("Live RPC collection remains held");
   });
   it("labels targeted activity, missing fields, pagination and reported patterns without wash or daily certification",()=>{
     const wallet_activity=normalizeGmgnWalletActivity({activities:[{tx_hash:"1".repeat(64),token:{address:data.address},event_type:"buy",timestamp:1,token_amount:10}],next:"opaque"},{address:data.address,selection_id:"10000000-0000-4000-8000-000000000001",selection_hash:"a".repeat(64)},data.received_at!);

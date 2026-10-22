@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { GmgnPublicSummarySchema, type GmgnPublicSummary } from "../../../discovery/src/gmgn-model";
 import { getJson } from "./client";
+import{GmgnEventSample}from"./GmgnEventSample";
 import{GmgnCorroboration}from"./GmgnCorroboration";
 import {GmgnActivityShapeDetails} from "./GmgnActivityShape";
 
@@ -53,7 +54,7 @@ export function GmgnEvidenceValues({ data }: { data: GmgnPublicSummary }) {
       <h3>Selected wallet trading activity</h3>
       <p>One wallet selected for the largest complete reported flow in a saved trader sample. This is a targeted investigation, not representative market coverage. Received {new Date(data.wallet_activity.received_at).toLocaleString()}.</p>
       <p>Requested {data.wallet_activity.requested_limit} events; received {data.wallet_activity.returned_events} · {data.wallet_activity.unique_transactions} reported transaction signatures · {data.wallet_activity.pagination==="more_reported"?"more history reported; pagination held":data.wallet_activity.pagination==="end_reported"?"provider reports page end; completeness unverified":"pagination status unknown"}.</p>
-      {data.wallet_activity.version==="gmgn-wallet-activity-v2"&&<p>Complete response validated against the {data.wallet_activity.response_event_limit}-event research cap; no rows discarded. Independent transaction comparison remains held for this contract.</p>}
+      {data.wallet_activity.version==="gmgn-wallet-activity-v2"&&<p>Complete response validated against the {data.wallet_activity.response_event_limit}-event research cap; no rows discarded. Live RPC collection remains held. Compare the bounded sample with any saved transaction bodies below.</p>}
       <p>{data.wallet_activity.buy_events} buys · {data.wallet_activity.sell_events} sells · {data.wallet_activity.non_trade_events} transfers or liquidity events excluded from trade measurements.</p>
       <p>Known trade times: {data.wallet_activity.first_trade_at?new Date(data.wallet_activity.first_trade_at).toLocaleString():"Unknown"} → {data.wallet_activity.last_trade_at?new Date(data.wallet_activity.last_trade_at).toLocaleString():"Unknown"}. {data.wallet_activity.unknown_time_events} trade events have unknown times. These are sampled events, not 24h totals.</p>
       <dl>
@@ -65,6 +66,7 @@ export function GmgnEvidenceValues({ data }: { data: GmgnPublicSummary }) {
       <p><strong>{data.wallet_activity.review_reasons.length?"Activity patterns to review":"No listed pattern trigger in this sample"}.</strong> Repeated sizes can come from ordinary orders; a signature with both sides can be routing or arbitrage. Same-second events have no inferred order. Signatures, wallet scope and pool identity are not independently verified. No wash-trading verdict, organic-volume or scoring credit.</p>
     </section>}
     {data.wallet_activity_request_id&&data.wallet_activity?.version==="gmgn-wallet-activity-v1"&&<GmgnCorroboration key={data.wallet_activity_request_id} activityId={data.wallet_activity_request_id} address={data.address}/>}
+    {data.wallet_activity_request_id&&data.wallet_activity?.version==="gmgn-wallet-activity-v2"&&<GmgnEventSample key={data.wallet_activity_request_id} activityId={data.wallet_activity_request_id} address={data.address}/>}
     <p>Volume is a reported total, not verified organic demand. Holder count includes unclassified balances; meaningful holder growth remains unknown. A missing or unflagged provider label does not establish clean trading. These observations do not change the Discovery score or action checks.</p>
     <details><summary>Coverage and source limits</summary><ul>{data.gaps.map(gap => <li key={gap}>{gap.replaceAll("_", " ")}</li>)}</ul></details>
     <a href={`https://gmgn.ai/sol/token/${data.address}`} target="_blank" rel="noopener noreferrer">View source on GMGN ↗</a>
