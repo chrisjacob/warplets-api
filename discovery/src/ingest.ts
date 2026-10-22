@@ -32,6 +32,7 @@ export async function runCycle(settings: Settings, now = new Date()): Promise<Re
   if (!await acquire(db, id, at)) return { state: "skipped", reason: "paused_backoff_or_running" };
   const assertOwner=async()=>{if(!await db.prepare("SELECT id FROM tenx_control WHERE id=1 AND lease_owner=?1").bind(id).first())throw new SourceError("discovery_lease_lost");};
   let processed = 0, harvest: MigrationHarvestResult = { state: "not_due", exhaustive: false };
+  const inspections = { selected_first: 0, selected_retry: 0, completed_first: 0, completed_retry: 0, deferred_by_cycle_budget: 0 };
   try {
     // A new lease owner can close abandoned refresh attempts after restart.
     // Their evidence remains retained; expiry is not a successful completion.
@@ -117,8 +118,12 @@ export async function runCycle(settings: Settings, now = new Date()): Promise<Re
       if(recovering)await finishRecovery(db,row,id,outcome,tx,new Date());
       else await db.prepare("UPDATE tenx_pending_signatures SET processed_at=?1,result=?2 WHERE signature=?3").bind(at, outcome, row.signature).run();
     }
-    for (const lead of await dueLeads(db, at)) {
-      if (rpc.calls > 14) break; // Leave the bounded worst-case nine calls for inspection.
+    const due = await dueLeads(db, at);
+    inspections.selected_first = due.filter(lead => lead.checked_at === null).length;
+    inspections.selected_retry = due.length - inspections.selected_first;
+    for (let index = 0; index < due.length; index++) {
+      const lead = due[index]!;
+      if (rpc.calls > 14) { inspections.deferred_by_cycle_budget = due.length - index; break; } // Reserve the same worst-case nine calls.
       const tx = TransactionSchema.parse(JSON.parse(lead.migration_tx));
       const migration = (await migrations(tx)).find(m => m.address === lead.address && m.pool === lead.pool);
       if (!migration) throw new SourceError("stored_migration_invalid");
@@ -144,13 +149,14 @@ export async function runCycle(settings: Settings, now = new Date()): Promise<Re
       await db.prepare("UPDATE tenx_leads SET checked_at=?1,attempts=attempts+1,next_attempt_at=?2 WHERE address=?3")
         .bind(at, new Date(now.getTime() + (result.candidate.creation ? 300_000 : 900_000)).toISOString(), lead.address).run();
       processed++;
+      if (lead.checked_at === null) inspections.completed_first++; else inspections.completed_retry++;
     }
     await assertOwner();
     await db.batch([
       db.prepare("UPDATE tenx_jobs SET state='succeeded',finished_at=?1,rpc_calls=?2,processed=?3 WHERE id=?4 AND state='running' AND EXISTS(SELECT 1 FROM tenx_control WHERE id=1 AND lease_owner=?4)").bind(new Date().toISOString(), rpc.calls, processed, id),
       db.prepare("UPDATE tenx_control SET last_success=?1,last_error=NULL,retry_after=NULL,lease_owner=NULL,lease_until=NULL WHERE id=1 AND lease_owner=?2").bind(at, id),
     ]);
-    return { state: "succeeded", id, rpc_calls: rpc.calls, processed, harvest, adapter_version: ADAPTER_VERSION };
+    return { state: "succeeded", id, rpc_calls: rpc.calls, processed, harvest, inspections, adapter_version: ADAPTER_VERSION };
   } catch (error) {
     const code = error instanceof SourceError ? error.code : error instanceof Error && /^[a-z0-9_]{1,80}$/.test(error.message) ? error.message : "verification_or_schema_error";
     const retry = error instanceof SourceError ? error.retryAfterSeconds : 120;
@@ -162,7 +168,7 @@ export async function runCycle(settings: Settings, now = new Date()): Promise<Re
     console.warn(JSON.stringify({ event: "tenx_cycle_failed", job: id, code, rpc_calls: rpc.calls,
       ...(error && typeof error === "object" && "issues" in error && Array.isArray(error.issues) ? { schema_paths: error.issues.slice(0, 5).map(issue => ({ path: issue.path, code: issue.code })) } : {}),
     }));
-    return { state: "failed", id, error_code: code, rpc_calls: rpc.calls };
+    return { state: "failed", id, error_code: code, rpc_calls: rpc.calls, inspections };
   }
 }
 async function inspectLead(rpc: RpcClient, migration: Migration, tx: Transaction, lead: Lead, existing: Candidate | undefined, at: string, knownCreator: string | null): Promise<{ candidate: Candidate; transactions: Transaction[]; state?: Accounts; holderEvidence?: HolderEvidence }> {

@@ -17,6 +17,7 @@ import { CandidateCardSchema, candidateCard } from "./candidate-card";
 import { assess } from "./model";
 import { InboxRecoveryResponse } from "./inbox-recovery-model";
 import { SourcePilotReadinessSchema } from "./source-pilot-readiness";
+import { toBase58 } from "./solana";
 
 const instances: DatabaseSync[] = [];
 afterEach(() => { instances.splice(0).forEach(db => db.close()); vi.restoreAllMocks(); });
@@ -343,6 +344,62 @@ describe("durable discovery state and public/admin API", () => {
     expect((await d1.prepare("SELECT count(*) AS n FROM tenx_evidence").first<{ n: number }>())?.n).toBe(2);
     const calls = transport.mock.calls.length;
     expect(await runCycle(settings, now)).toMatchObject({ state: "duplicate" }); expect(transport).toHaveBeenCalledTimes(calls);
+  });
+  it("executes an unchecked nine-call inspection before a hot retry when only one inspection fits the cycle", async () => {
+    const { d1 } = fixture(), now = new Date("2026-10-22T10:00:00.000Z"), at = now.toISOString();
+    const first = await syntheticBundle(now, 42), hot = (await fixtureCandidates(now))[0]!;
+    first.graduation.transaction.signatures[0] = signature(21);
+    await d1.prepare("UPDATE tenx_control SET last_harvest=?1 WHERE id=1").bind(at).run();
+    await saveCandidate(d1, { ...hot, mode: "live", creation: null });
+    for (const item of [first, { mint: hot.address, pool: hot.pool, graduation: (await syntheticBundle(now)).graduation }]) {
+      await d1.prepare("INSERT INTO tenx_leads(address,pool,migration_tx,migration_signature,first_seen_at,checked_at,attempts) VALUES(?1,?2,?3,?4,?5,?6,?7)")
+        .bind(item.mint, item.pool, JSON.stringify(item.graduation), item.graduation.transaction.signatures[0]!,
+          new Date(now.getTime() - 7200000).toISOString(), item.mint === hot.address ? new Date(now.getTime() - 1800000).toISOString() : null, item.mint === hot.address ? 1 : 0).run();
+    }
+    await d1.prepare("INSERT INTO tenx_lead_markets(address,pool,payload,attempted_at) VALUES(?1,?2,?3,?4)").bind(hot.address, hot.pool, JSON.stringify(hot.market), at).run();
+    for (let n = 91; n <= 96; n++) await d1.prepare("INSERT INTO tenx_pending_signatures(signature,slot,queued_at) VALUES(?1,?2,?3)").bind(signature(n), 50000 - n, at).run();
+    let originPages = 0;
+    const originRows = [23, 24, 25].map((n, i) => ({ signature: signature(n), slot: first.creation.slot - i, blockTime: first.creation.blockTime, err: null, confirmationStatus: "finalized" }));
+    const transport = vi.fn(async (_url: unknown, init?: RequestInit) => {
+      const request = JSON.parse(String(init?.body)); let result: unknown;
+      if (request.method === "getGenesisHash") result = MAINNET_GENESIS;
+      else if (request.method === "getSignaturesForAddress") {
+        originPages++;
+        result = originPages === 3 ? originRows : Array.from({ length: 1000 }, (_, n) => {
+          const bytes = new Uint8Array(64); new DataView(bytes.buffer).setUint32(0, originPages * 1000 + n);
+          return { signature: toBase58(bytes), slot: 200000 - originPages * 1000 - n, blockTime: first.creation.blockTime, err: null, confirmationStatus: "finalized" };
+        });
+      } else if (request.method === "getTransaction") {
+        const row = originRows.find(row => row.signature === request.params[0]);
+        if (!row) result = null;
+        else { const tx = structuredClone(first.graduation); tx.transaction.signatures[0] = row.signature; tx.slot = row.slot; tx.blockTime = row.blockTime; result = tx; }
+      } else if (request.method === "getProgramAccounts") result = { context: { slot: 30000 }, value: [] };
+      else { expect(request.method).toBe("getMultipleAccounts"); expect(request.params[0][0]).toBe(first.mint); result = request.params[0].length === 1 ? { context: { slot: 30000 }, value: [first.accounts.value[0]] } : first.accounts; }
+      return Response.json({ jsonrpc: "2.0", id: request.id, result });
+    });
+    const result = await runCycle({ db: d1, rpcUrl: "https://rpc.example", rpcDailyLimit: 100, marketDailyLimit: 100, marketEnabled: false, transport }, now);
+    expect(result).toMatchObject({ state: "succeeded", rpc_calls: 16, processed: 1, inspections: { selected_first: 1, selected_retry: 1, completed_first: 1, completed_retry: 0, deferred_by_cycle_budget: 1 } });
+    expect(transport).toHaveBeenCalledTimes(16); expect(originPages).toBe(3);
+    expect(await d1.prepare("SELECT used FROM tenx_usage WHERE provider='rpc'").first()).toEqual({ used: 16 });
+    expect(await d1.prepare("SELECT checked_at,attempts FROM tenx_leads WHERE address=?1").bind(first.mint).first()).toEqual({ checked_at: at, attempts: 1 });
+    expect((await d1.prepare("SELECT attempts FROM tenx_leads WHERE address=?1").bind(hot.address).first<{ attempts: number }>())!.attempts).toBe(1);
+    const saved = JSON.parse((await d1.prepare("SELECT payload FROM tenx_candidates WHERE address=?1 AND mode='live'").bind(first.mint).first<{ payload: string }>())!.payload);
+    expect(saved.creation).toBeNull(); expect(saved.verification).toBe("provisional");
+    expect(assess(saved, DEFAULT_POLICY, now).reasons).toContain("creation_unverified");
+    expect(assess(saved, DEFAULT_POLICY, now).eligibility).not.toBe("eligible");
+  });
+  it("does not count a provider-aborted first inspection as completed or budget-deferred", async () => {
+    const { d1 } = fixture(), now = new Date("2026-10-22T10:00:00.000Z"), bundle = await syntheticBundle(now);
+    await d1.prepare("UPDATE tenx_control SET last_harvest=?1 WHERE id=1").bind(now.toISOString()).run();
+    await d1.prepare("INSERT INTO tenx_leads(address,pool,migration_tx,migration_signature,first_seen_at) VALUES(?1,?2,?3,?4,?5)")
+      .bind(bundle.mint, bundle.pool, JSON.stringify(bundle.graduation), bundle.graduation.transaction.signatures[0]!, now.toISOString()).run();
+    const transport = vi.fn(async (_url: unknown, init?: RequestInit) => {
+      const request = JSON.parse(String(init?.body)); if (request.method !== "getGenesisHash") throw Error("offline");
+      return Response.json({ jsonrpc: "2.0", id: request.id, result: MAINNET_GENESIS });
+    });
+    expect(await runCycle({ db: d1, rpcUrl: "https://rpc.example", rpcDailyLimit: 100, marketDailyLimit: 100, marketEnabled: false, transport }, now))
+      .toMatchObject({ state: "failed", error_code: "rpc_unavailable", inspections: { selected_first: 1, selected_retry: 0, completed_first: 0, completed_retry: 0, deferred_by_cycle_budget: 0 } });
+    expect(await d1.prepare("SELECT checked_at,attempts FROM tenx_leads").first()).toEqual({ checked_at: null, attempts: 0 });
   });
   it("records an unsupported inbox layout and advances other signatures without retrying that body", async () => {
     const {d1}=fixture(),now=new Date("2026-10-20T00:00:00Z");
