@@ -27,7 +27,7 @@ it("explains PONYX's same-slot high-valuation ceiling without inventing a creati
 });
 it("puts the graded score and evidence coverage before binary action status",async()=>{
   const c=(await fixtureCandidates(at))[0]!,record=await freezeDiscoveryScore(defaultScoreInput(c,at)),html=renderToStaticMarkup(<DiscoveryScoreBadge score={scoreSummary(record)} rank={1} />);
-  expect(html).toContain("#1 · Discovery score");expect(html).toContain(" / 100");expect(html).toContain("Evidence coverage");expect(html).not.toContain("eligible");
+  expect(html).toContain("#1 · Structural support");expect(html).toContain(" / 100");expect(html).toContain("Evidence coverage");expect(html).not.toContain("eligible");
 });
 it("does not turn unavailable evidence into a scam verdict or an invented zero",()=>{
   const html=renderToStaticMarkup(<DiscoveryScoreBadge score={undefined} />);expect(html).toContain("Score unavailable");expect(html).not.toContain("0 / 100");expect(renderToStaticMarkup(<DiscoveryScorePanel record={null} error="invalid" />)).toContain("could not be verified");
@@ -53,4 +53,13 @@ it("explains the USDF historical purchase and staircase review without inventing
   for(const text of ["79.336% relative to later observed supply","Opening valuation unknown","2 qualifying upward steps","review","not current holdings","does not establish wash trading","discovery-score-v3","limit this score to 20.76"])expect(html).toContain(text);
   expect(badge).toContain("quiet staircase price rise review");expect(badge).toContain("large creation purchase relative to observed supply");
   const method=renderToStaticMarkup(<DiscoveryScoreMethod policy={DISCOVERY_SCORE_POLICY_V3} policyHash={record.policy_hash}/>);expect(method).toContain("Above 10%");expect(method).toContain("ten times");expect(method).toContain("cannot verify wash trading");
+});
+
+it("names v4 structural support and keeps attention qualification and action gates visible before disclosure",async()=>{
+  const c=(await fixtureCandidates(at))[0]!,record=await freezeDiscoveryScoreV4(defaultScoreInputV4(c,at)),summary=scoreSummaryV4(record);
+  const badge=renderToStaticMarkup(<DiscoveryScoreBadge score={summary} rank={7}/>),html=renderToStaticMarkup(<DiscoveryScorePanel record={record}/>);
+  expect(badge).toContain("#7 · v4 structural support");expect(badge).toContain(`>${summary.value}<`);expect(badge).toContain("Evidence coverage");
+  const beforeDisclosure=html.slice(0,html.indexOf("<details"));
+  for(const text of ["Qualified organic 24h volume and holder growth do not affect ranking","Missing evidence is not a pass; action gates stay separate","not a safety probability"])expect(beforeDisclosure).toContain(text);
+  expect(html).toContain(record.record_hash);
 });

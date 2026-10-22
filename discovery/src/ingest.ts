@@ -8,6 +8,7 @@ import { acquire, candidates, control, reserveQuota, saveCandidate, type Lead } 
 import { findPda, seed } from "./solana";
 import { claimRecovery, finishRecovery, recordUnsupportedRead, recoveryCandidates, type InboxEntry } from "./inbox-recovery";
 import { advanceMintReview } from "./mint-review";
+import { assertHarvestAuthority, commitMigrationHarvest, migrationHarvestRequest, readHarvestCheckpoint, type MigrationHarvestResult } from "./migration-harvest";
 
 export type Settings = {
   db: D1Database; rpcUrl: string; rpcDailyLimit: number; marketDailyLimit: number; marketEnabled: boolean;
@@ -30,7 +31,7 @@ export async function runCycle(settings: Settings, now = new Date()): Promise<Re
   const rpc = new RpcClient(settings.rpcUrl, reserve, settings.transport);
   if (!await acquire(db, id, at)) return { state: "skipped", reason: "paused_backoff_or_running" };
   const assertOwner=async()=>{if(!await db.prepare("SELECT id FROM tenx_control WHERE id=1 AND lease_owner=?1").bind(id).first())throw new SourceError("discovery_lease_lost");};
-  let processed = 0;
+  let processed = 0, harvest: MigrationHarvestResult = { state: "not_due", exhaustive: false };
   try {
     // A new lease owner can close abandoned refresh attempts after restart.
     // Their evidence remains retained; expiry is not a successful completion.
@@ -59,20 +60,19 @@ export async function runCycle(settings: Settings, now = new Date()): Promise<Re
     await assertOwner();
     const state = await control(db);
     if (!state.last_harvest || now.getTime() - Date.parse(state.last_harvest) >= 300_000) {
-      const global = await findPda(PUMP, [seed("global")]);
-      const globalAccount = (await rpc.accounts([global])).value[0];
-      if (!globalAccount) throw new SourceError("pump_global_unavailable");
-      const authority = await migrationAuthority(globalAccount);
-      const rows = await rpc.signatures(authority, 30, undefined, state.migration_cursor ?? undefined);
-      await assertOwner();
-      // Durable inbox: persist all observed signatures before moving the cursor.
-      // A full page is still a declared upstream coverage gap (no exhaustive claim).
-      await db.batch([
-        ...rows.filter(row => row.err === null && row.confirmationStatus === "finalized").map(row =>
-          db.prepare("INSERT OR IGNORE INTO tenx_pending_signatures(signature,slot,queued_at) VALUES(?1,?2,?3)").bind(row.signature, row.slot, at)),
-        db.prepare("UPDATE tenx_control SET last_harvest=?1,migration_cursor=?2 WHERE id=1 AND lease_owner=?3")
-          .bind(at, rows[0]?.signature ?? state.migration_cursor, id),
-      ]);
+      const checkpoint = readHarvestCheckpoint(state);
+      if (!checkpoint) harvest = { state: "migration_required", exhaustive: false };
+      else {
+        const global = await findPda(PUMP, [seed("global")]);
+        const globalAccount = (await rpc.accounts([global])).value[0];
+        if (!globalAccount) throw new SourceError("pump_global_unavailable");
+        const authority = await migrationAuthority(globalAccount);
+        assertHarvestAuthority(checkpoint, authority);
+        const request = migrationHarvestRequest(checkpoint);
+        const rows = await rpc.signatures(authority, request.limit, request.before, request.until);
+        await assertOwner();
+        harvest = await commitMigrationHarvest(db, id, checkpoint, rows, clock(), authority);
+      }
     }
     // Explicit refreshes must not turn an intake request into unpaced work.
     const mintReviewBodies=settings.paced?await advanceMintReview(db,rpc,id,clock):0;
@@ -150,7 +150,7 @@ export async function runCycle(settings: Settings, now = new Date()): Promise<Re
       db.prepare("UPDATE tenx_jobs SET state='succeeded',finished_at=?1,rpc_calls=?2,processed=?3 WHERE id=?4 AND state='running' AND EXISTS(SELECT 1 FROM tenx_control WHERE id=1 AND lease_owner=?4)").bind(new Date().toISOString(), rpc.calls, processed, id),
       db.prepare("UPDATE tenx_control SET last_success=?1,last_error=NULL,retry_after=NULL,lease_owner=NULL,lease_until=NULL WHERE id=1 AND lease_owner=?2").bind(at, id),
     ]);
-    return { state: "succeeded", id, rpc_calls: rpc.calls, processed, adapter_version: ADAPTER_VERSION };
+    return { state: "succeeded", id, rpc_calls: rpc.calls, processed, harvest, adapter_version: ADAPTER_VERSION };
   } catch (error) {
     const code = error instanceof SourceError ? error.code : error instanceof Error && /^[a-z0-9_]{1,80}$/.test(error.message) ? error.message : "verification_or_schema_error";
     const retry = error instanceof SourceError ? error.retryAfterSeconds : 120;

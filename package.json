@@ -27,6 +27,7 @@
     "test:discovery-artwork-browser": "node scripts/discovery-artwork-browser-study.mjs",
     "test:discovery-journey-browser": "node scripts/discovery-journey-browser-study.mjs",
     "test:discovery-artwork-coverage": "tsx --test scripts/discovery-artwork-coverage.test.ts",
+    "study:discovery-yield": "tsx scripts/discovery-yield-audit.ts",
     "typecheck:discovery-artwork-coverage": "tsc --project tsconfig.artwork-coverage.json",
     "study:discovery-artwork-coverage": "node scripts/discovery-artwork-coverage-study.mjs",
     "test:discovery-scratch": "tsx --test scripts/discovery-evidence-scratch-replay.test.ts",

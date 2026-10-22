@@ -14,7 +14,7 @@ it("round-trips shared view parameters and separates presentation layout from th
 });
 it("provides accessible search/filter controls and preserves the v4 default with no organic sort",()=>{
   const html=renderToStaticMarkup(<DiscoveryWorkspaceControls view={discoveryView("")} onChange={()=>{}}/>);
-  for(const text of ["Find a token","Name, symbol or exact mint","Compact table","Min. evidence coverage","Fresh · within 3 minutes","Discovery score · highest first"])expect(html).toContain(text);
+  for(const text of ["Find a token","Name, symbol or exact mint","Compact table","Min. evidence coverage","Fresh · within 3 minutes","v4 structural support · highest first"])expect(html).toContain(text);
   expect(html).not.toContain("Organic leaders");expect(html).toContain('type="search"');expect(html).toContain('maxLength="100"');
 });
 it("keeps applied advanced filters discoverable when collapsed without changing URL/query semantics",()=>{
@@ -31,6 +31,6 @@ it("keeps applied advanced filters discoverable when collapsed without changing 
 it("keeps token images, mint copying, provenance and unknown metrics visible in a table; null volume is not zero",async()=>{
   const at=new Date("2026-10-21T01:00:00.000Z"),base=(await fixtureCandidates(at))[0]!,card=candidateCard(assess({...base,market:{...base.market!,volume_24h_usd:null,image_url:"https://cdn.dexscreener.com/image.png"}},DEFAULT_POLICY,at));
   const html=renderToStaticMarkup(<DiscoveryTable candidates={[card]} artwork={{}} scoredAt={at.toISOString()}/>);
-  for(const text of ["Reported 24h volume","Organic share unknown","Qualified holder growth and recent momentum are not yet available","Mint &amp; copy","Copy mint",card.address,"https://cdn.dexscreener.com/image.png","Unknown","Source / freshness"])expect(html).toContain(text);
+  for(const text of ["Reported 24h volume","Organic share unknown","Qualified organic 24h volume and holder growth do not affect ranking","Mint &amp; copy","Copy mint",card.address,"https://cdn.dexscreener.com/image.png","Unknown","Source / freshness","v4 structural support / coverage","Missing evidence is not a pass; action gates stay separate"])expect(html).toContain(text);
   expect(html).not.toContain("$0");expect(html).toContain('tabindex="0"');expect(html).toContain('scope="col"');expect(html).toContain("mode=fixture");
 });

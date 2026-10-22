@@ -11,6 +11,9 @@ export type Control = {
   last_success: string | null; last_error: string | null; retry_after: string | null;
   heartbeat_at: string | null; next_refresh_at: string | null;
   reviewed_at: string | null;
+  // Optional until the ordinary local launcher applies migration 0047.
+  harvest_head?: string | null; harvest_before?: string | null; harvest_before_slot?: number | null;
+  harvest_revision?: number; harvest_commit?: string | null; harvest_authority?: string | null;
 };
 export type Lead = { address: string; pool: string; migration_tx: string; migration_signature: string; first_seen_at: string; attempts: number };
 export async function control(db: D1Database): Promise<Control> {

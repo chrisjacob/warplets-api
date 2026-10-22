@@ -29,6 +29,7 @@ import { ElectionId } from "./election-model";
 import { dailyElection, ElectionError, electionAutomation, electionRecord, electionSummaries, replayElection } from "./elections";
 import { qualityStatus, runQualityCycle } from "./quality-cycle";
 import { discoveryCoverage } from "./coverage";
+import {discoveryYield} from "./discovery-yield";
 import { createdWithinWindow } from "./priority";
 import { activitySummary } from "./activity";
 import { WalletEvidenceSchema } from "./wallet-analysis";
@@ -212,6 +213,7 @@ export async function handle(request: Request, env: Env): Promise<Response> {
   if (method === "GET" && path === "/api/10x/system/status") return json(await envelope(env, await status(env)));
   if (method === "GET" && path === "/api/10x/system/operations") return json(await envelope(env,await operations(settings(env))));
   if (method === "GET" && path === "/api/10x/discovery/coverage") return json(await envelope(env, discoveryCoverage(await candidates(env.TENX_DB), DEFAULT_POLICY, new Date())));
+  if (method === "GET" && path === "/api/10x/discovery/yield") return json(await discoveryYield(env.TENX_DB));
   if (method === "GET" && path === "/api/10x/discovery/rotation-coverage") return json(await envelope(env, await rotationCoverage(env.TENX_DB)));
   if (method === "GET" && path === "/api/10x/discovery/wallet-plan") return json(await envelope(env,await walletPlans(env.TENX_DB)));
   if (method === "GET" && path === "/api/10x/discovery/inbox-recovery") return json(await envelope(env,await inboxRecoveryStatus(env.TENX_DB)));
