@@ -4,7 +4,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import { sqliteD1 } from "../../app/functions/_lib/sqliteTestDb";
 import { key } from "./wallet-fixtures.test-helper";
 import { attentionDescriptor, AttentionRequest, normalizeAttention } from "./attention-feed-contract";
-import { buildAttentionQueue, collectAttention, readAttentionQueue } from "./attention-queue";
+import { attentionReviewRequest, buildAttentionQueue, collectAttention, readAttentionQueue, reviewAttention } from "./attention-queue";
 import { GMGN_USE_AUTHORITY } from "./gmgn-model";
 import { runShortlistQuery } from "./shortlist-query";
 import worker from "./worker";
@@ -71,4 +71,59 @@ it("cross-checks only requested chain/contract and preserves the most liquid ret
  const result=await runShortlistQuery({db,marketDailyLimit:600},input,async()=>Response.json(response),()=>at);expect(result).toMatchObject({state:"retained"});
  const queue=await readAttentionQueue(db,at);expect(queue.rows).toHaveLength(0);
  const market=normalizeAttention(input.request,response,at.toISOString()),report=buildAttentionQueue([snapshot(),market],at);expect(report.rows.find(r=>r.chain==="base")).toMatchObject({market_crosschecked:true,liquidity_usd:50000});expect(market.rejected).toHaveLength(1);
+});
+it("focuses on at most twenty fresh non-adverse leaders and batches one exact chain",()=>{
+ const first=snapshot();first.rows=Array.from({length:30},(_,n)=>({...first.rows[0]!,address:key(30+n),provider_rank:n+1,search_interest:100-n}));
+ const queue=buildAttentionQueue([first],at),plan=attentionReviewRequest(queue);
+ expect(plan).toMatchObject({kind:"attention_dex_crosscheck",chain:"solana"});expect(plan?.kind==="attention_dex_crosscheck"&&plan.addresses).toHaveLength(20);
+ queue.rows.slice(0,20).forEach(r=>r.market_crosschecked=true);expect(attentionReviewRequest(queue)).toBeNull();
+ expect(attentionReviewRequest(buildAttentionQueue([{...first,received_at:new Date(at.getTime()-7200001).toISOString()}],at))).toBeNull();
+ first.rows.forEach(r=>r.wash_flag=true);expect(attentionReviewRequest(buildAttentionQueue([first],at))).toBeNull();
+});
+it("runs one charged focused batch per hour, including empty results, without granting evidence or launch readiness",async()=>{
+ const{db,sqlite}=setup(),settings={db,apiKey:"synthetic-key",permissionReference:GMGN_USE_AUTHORITY,marketDailyLimit:600};
+ await collectAttention(settings,{source:"gmgn",reason:"Synthetic source sample"},async()=>Response.json(body),()=>new Date(at.getTime()-60000));
+ const fetcher=vi.fn(async(url:string)=>{expect(url).toContain("https://api.dexscreener.com/tokens/v1/base/");return Response.json([]);});
+ expect(await reviewAttention(settings,{reason:"Focused market follow-up"},fetcher,()=>at)).toMatchObject({state:"retained",provider_requests:1});
+ expect(await reviewAttention(settings,{reason:"Duplicate timer"},fetcher,()=>at)).toMatchObject({state:"held",reason:"review_hour_already_reserved",provider_requests:0});
+ expect(fetcher).toHaveBeenCalledTimes(1);expect(sqlite.prepare("SELECT used FROM tenx_usage WHERE provider='market'").get()).toEqual({used:2});
+ const queue=await readAttentionQueue(db,at);expect(queue.launch_enabled).toBe(false);expect(queue.rows.every(r=>!r.market_crosschecked)).toBe(true);
+ for(const table of["tenx_candidates","tenx_proofs","tenx_score_cohorts"])expect(sqlite.prepare(`SELECT count(*) n FROM ${table}`).get()).toEqual({n:0});
+});
+it("holds focused follow-up under shared pause/backoff and tampered source history",async()=>{
+ const{db,sqlite}=setup(),settings={db,apiKey:"synthetic-key",permissionReference:GMGN_USE_AUTHORITY,marketDailyLimit:600},fetcher=vi.fn(async()=>Response.json([]));
+ await collectAttention(settings,{source:"gmgn",reason:"Synthetic source sample"},async()=>Response.json(body),()=>new Date(at.getTime()-60000));
+ sqlite.exec("UPDATE tenx_control SET paused=1");expect(await reviewAttention(settings,{reason:"Paused follow-up"},fetcher,()=>at)).toMatchObject({provider_requests:0});
+ sqlite.exec("UPDATE tenx_control SET paused=0; UPDATE tenx_source_transport_control SET backoff_until='2026-10-22T15:00:00.000Z'");expect(await reviewAttention(settings,{reason:"Backoff follow-up"},fetcher,()=>at)).toMatchObject({provider_requests:0});
+ sqlite.exec("UPDATE tenx_source_reservations SET receipt_hash='tampered'");expect(await reviewAttention(settings,{reason:"Invalid history follow-up"},fetcher,()=>at)).toMatchObject({reason:"no_fresh_shortlist_needing_crosscheck",provider_requests:0});expect(fetcher).not.toHaveBeenCalled();
+ const response=await worker.fetch(new Request("http://localhost/api/10x/admin/discovery/attention/review",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({reason:"Unauthorized"})}),{TENX_LOCAL_ONLY:"true",TENX_DB:db,TENX_ADMIN_TOKEN:"a".repeat(64)} as Parameters<typeof worker.fetch>[1]);expect(response.status).toBe(401);
+});
+it("retains attention history under a flood of market receipts, and discloses the unchanged replay bound",async()=>{
+ const{db,sqlite}=setup(),settings={db,apiKey:"synthetic-key",permissionReference:GMGN_USE_AUTHORITY,marketDailyLimit:600};
+ await collectAttention(settings,{source:"gmgn",reason:"Synthetic source sample"},async()=>Response.json(body),()=>new Date(at.getTime()-60000));
+ await runShortlistQuery(settings,{request_id:crypto.randomUUID(),reason:"Synthetic market sample",request:{kind:"attention_dex_crosscheck",chain:"base",addresses:[evm]}},async()=>Response.json([]),()=>new Date(at.getTime()-30000));
+ const seed=sqlite.prepare("SELECT * FROM tenx_source_reservations WHERE json_extract(request,'$.kind')='attention_dex_crosscheck'").get()!;
+ for(let n=0;n<50;n++)sqlite.prepare(`INSERT INTO tenx_source_reservations (${Object.keys(seed).join(",")}) VALUES (${Object.keys(seed).map(()=>"?").join(",")})`).run(...Object.values({...seed,id:`duplicate-market-${n}`,owner:`duplicate-owner-${n}`,reserved_at:new Date(at.getTime()-n).toISOString()}) as (string|number|null)[]);
+ const read=vi.spyOn(db,"prepare"),queue=await readAttentionQueue(db,at);expect(queue.rows).toHaveLength(4);expect(queue.history_truncated).toBe(true);expect(queue.snapshot_count).toBe(9);expect(read).toHaveBeenCalledTimes(10);
+ read.mockClear();const focused=await readAttentionQueue(db,at,"review");expect(focused.history_truncated).toBe(true);expect(focused.snapshot_count).toBe(5);expect(read).toHaveBeenCalledTimes(6);
+});
+it("flags fresh two-fold source differences, keeps trading provenance consistent, and leaves stale differences unasserted",()=>{
+ const first=snapshot(),market=normalizeAttention({kind:"attention_dex_crosscheck",chain:"solana",addresses:[mint]},[{chainId:"solana",baseToken:{address:mint},marketCap:800000,liquidity:{usd:10000},txns:{h24:{buys:50,sells:40}}}],at.toISOString());
+ const row=buildAttentionQueue([first,market],at).rows.find(r=>r.chain==="solana")!;
+ expect(row).toMatchObject({market_source:"dexscreener",buys:50,sells:40,checks:"review"});expect(row.reasons).toContain("market_cap_usd_source_disagreement");expect(row.reasons).toContain("liquidity_usd_source_disagreement");expect(row.reasons).not.toContain("two_sided_trading_unresolved");
+ market.received_at=new Date(at.getTime()-7200001).toISOString();expect(buildAttentionQueue([first,market],at).rows.find(r=>r.chain==="solana")!.reasons).not.toContain("market_cap_usd_source_disagreement");
+});
+it("does not let a different GMGN window conceal explicit adverse flags or fresh security coverage",()=>{
+ const old=snapshot(),fresh=normalizeAttention(request,{code:0,data:[data(mint,"sol","1h")]},at.toISOString());old.received_at=new Date(at.getTime()-7200001).toISOString();
+ const row=buildAttentionQueue([old,fresh],at).rows.find(r=>r.chain==="solana")!;expect(row.reasons).not.toContain("security_observation_missing_or_stale");
+ old.rows[0]!.wash_flag=true;expect(buildAttentionQueue([old,fresh],at).rows.find(r=>r.chain==="solana")?.checks).toBe("adverse");
+});
+it("keeps a failed review spent for its hour and honors the existing shared market ceiling",async()=>{
+ const{db,sqlite}=setup(),settings={db,apiKey:"synthetic-key",permissionReference:GMGN_USE_AUTHORITY,marketDailyLimit:600};
+ await collectAttention(settings,{source:"gmgn",reason:"Synthetic source sample"},async()=>Response.json(body),()=>new Date(at.getTime()-60000));
+ const fetcher=vi.fn(async()=>Response.json({error:"limited"},{status:429}));
+ expect(await reviewAttention({...settings,marketDailyLimit:1},{reason:"Exhausted market budget"},fetcher,()=>at)).toMatchObject({provider_requests:0});expect(fetcher).not.toHaveBeenCalled();
+ expect(await reviewAttention(settings,{reason:"Rate-limited market review"},fetcher,()=>at)).toMatchObject({state:"failed",provider_requests:1});
+ expect(await reviewAttention(settings,{reason:"Repeated failed hourly review"},fetcher,()=>at)).toMatchObject({reason:"review_hour_already_reserved",provider_requests:0});expect(fetcher).toHaveBeenCalledTimes(1);
+ expect(sqlite.prepare("SELECT used FROM tenx_usage WHERE provider='market'").get()).toEqual({used:2});
 });

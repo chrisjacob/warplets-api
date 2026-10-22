@@ -31,12 +31,12 @@ export function buildAttentionQueue(rawSnapshots: AttentionSnapshot[], now = new
   for (const [identity, sources] of groups) {
     if (!sources.some(s => s.provider !== "dexscreener")) continue;
     if (excluded.has(identity)) { excludedLaunched++; continue; }
-    const gmgn = sources.find(s => s.provider === "gmgn" && s.window === "24h") ?? sources.find(s => s.provider === "gmgn"),
+    const gmgn = sources.find(s => s.provider === "gmgn" && s.window === "24h" && s.fresh) ?? sources.find(s => s.provider === "gmgn" && s.fresh) ?? sources.find(s => s.provider === "gmgn"),
       dex = sources.filter(s => s.provider === "dexscreener").sort((a,b)=>(b.token.liquidity_usd??0)-(a.token.liquidity_usd??0))[0],
       base = gmgn?.fresh ? gmgn : sources.find(s=>s.provider==="geckoterminal"&&s.fresh) ?? gmgn ?? sources.find(s => s.provider === "geckoterminal")!;
     const token = base.token, risk = gmgn?.token, marketSource = dex?.fresh ? dex : base, market=marketSource.token;
     const recentSource=marketSource.fresh&&market.volume_1h_usd!==null?marketSource:sources.find(s=>s.fresh&&s.provider==="gmgn"&&s.window==="1h"&&s.token.volume_1h_usd!==null);
-    const reasons = [], adverse = risk?.wash_flag === true || risk?.honeypot === true || token.chain === "solana" && (risk?.mint_disabled === false || risk?.freeze_disabled === false);
+    const reasons = [], adverse = sources.some(s=>s.provider==="gmgn"&&(s.token.wash_flag===true||s.token.honeypot===true||token.chain==="solana"&&(s.token.mint_disabled===false||s.token.freeze_disabled===false)));
     const families = new Set(sources.filter(s => s.provider !== "dexscreener" && s.fresh).map(s => s.provider));
     if (!families.size) reasons.push("attention_observations_stale");
     if (adverse) reasons.push("provider_adverse_security_flag");
@@ -47,13 +47,20 @@ export function buildAttentionQueue(rawSnapshots: AttentionSnapshot[], now = new
     if ([risk?.top10_ratio, risk?.insider_ratio, risk?.bundler_ratio].some(r => r === null || r === undefined)) reasons.push("concentration_fields_incomplete");
     if ((risk?.top10_ratio ?? 0) >= .5 || (risk?.insider_ratio ?? 0) >= .3 || (risk?.bundler_ratio ?? 0) >= .5) reasons.push("concentration_requires_review");
     if (!dex?.fresh) reasons.push("fresh_market_crosscheck_needed");
+    // These are differences between attributed snapshots, not scam verdicts.
+    // Pool coverage, supply estimates and ordinary price movement can differ.
+    if (dex?.fresh) for (const field of ["market_cap_usd", "liquidity_usd"] as const) {
+      const value = dex.token[field];
+      if (value !== null && sources.some(s => s.fresh && s.provider !== "dexscreener" && s.token[field] !== null &&
+        Math.max(value, s.token[field]!) > 0 && Math.min(value, s.token[field]!) * 2 <= Math.max(value, s.token[field]!))) reasons.push(`${field}_source_disagreement`);
+    }
     if (market.liquidity_usd === null || market.liquidity_usd < 10000) reasons.push("liquidity_low_or_unknown");
     if (!recentSource) reasons.push("recent_trading_unknown");
     if (market.buys === null || market.sells === null || market.buys === 0 || market.sells === 0) reasons.push("two_sided_trading_unresolved");
     if (dex?.token.boost_count && dex.token.boost_count > 0) reasons.push("paid_dex_boost_present");
     reasons.push("meme_relevance_unreviewed", "organic_participation_unverified", "launch_checks_separate");
     rows.push({ ...token, image_url: token.image_url ?? dex?.token.image_url ?? sources.find(s=>s.token.image_url)?.token.image_url ?? null,
-      market_cap_usd: market.market_cap_usd, fdv_usd: market.fdv_usd, liquidity_usd: market.liquidity_usd,
+      market_cap_usd: market.market_cap_usd, fdv_usd: market.fdv_usd, liquidity_usd: market.liquidity_usd, buys:market.buys, sells:market.sells,
       volume_24h_usd: market.volume_24h_usd, volume_1h_usd: recentSource?.token.volume_1h_usd??null, boost_count: dex?.token.boost_count ?? null,
       market_source:marketSource.provider,recent_volume_source:recentSource?.provider??null,
       sources: sources.map(({token: _token,...source}) => source), attention_families: families.size, observed_hours: hours.get(identity)?.size ?? 0,
@@ -76,11 +83,21 @@ export async function collectAttention(settings: GmgnSettings, raw: unknown, fet
   if(await settings.db.prepare("SELECT id FROM tenx_source_reservations WHERE id=?1").bind(id).first())return{state:"held",reason:"source_hour_already_reserved",provider_requests:0};
   return executeShortlistQuery(settings,id,request,fetcher,clock);
 }
-export async function readAttentionQueue(db: D1Database, now = new Date()) {
+export async function readAttentionQueue(db: D1Database, now = new Date(), scope:"display"|"review"="display") {
   const since = new Date(now.getTime()-86400000).toISOString();
-  const selected = await db.prepare(`SELECT id,bytes,state FROM tenx_source_reservations WHERE day>=?1 AND reserved_at>=?2 AND reserved_at<=?3
+  // A collecting turn also needs the original reservation/lease/receipt SQL.
+  // Leave room for that work instead of spending the display's full read budget.
+  const attentionLimit=scope==="review"?16:40, marketLimit=scope==="review"?4:8;
+  // Keep both attention history and market corroboration within the original
+  // 48-receipt/8MB bound. Market receipts must not evict every discovery list.
+  const selected = await db.prepare(`WITH ranked AS (SELECT id,bytes,state,
+    json_extract(request,'$.kind')='attention_dex_crosscheck' AS market,
+    ROW_NUMBER() OVER (PARTITION BY json_extract(request,'$.kind')='attention_dex_crosscheck' ORDER BY reserved_at DESC,id DESC) AS position,
+    COUNT(*) OVER (PARTITION BY json_extract(request,'$.kind')='attention_dex_crosscheck') AS total, reserved_at
+    FROM tenx_source_reservations WHERE day>=?1 AND reserved_at>=?2 AND reserved_at<=?3
     AND json_extract(request,'$.kind') IN ('gmgn_hot_searches','geckoterminal_global_trending','attention_dex_crosscheck')
-    ORDER BY reserved_at DESC,id DESC LIMIT 49`).bind(since.slice(0,10),since,now.toISOString()).all<{id:string;bytes:number;state:string}>();
+    ) SELECT id,bytes,state,market,total FROM ranked WHERE position<=CASE WHEN market THEN ?5 ELSE ?4 END
+    ORDER BY reserved_at DESC,id DESC`).bind(since.slice(0,10),since,now.toISOString(),attentionLimit,marketLimit).all<{id:string;bytes:number;state:string;market:number;total:number}>();
   const snapshots: AttentionSnapshot[] = [], gaps: string[] = []; let bytes=0;
   for (const row of selected.results.slice(0,48)) {
     if(row.state!=="succeeded"){gaps.push("collection_attempt_not_successful");continue;}
@@ -91,5 +108,22 @@ export async function readAttentionQueue(db: D1Database, now = new Date()) {
     }catch{gaps.push("receipt_replay_or_schema_failed");}
   }
   const result=buildAttentionQueue(snapshots,now);
-  return AttentionQueue.parse({...result,history_truncated:result.history_truncated||selected.results.length>48||gaps.includes("receipt_read_byte_bound"),gaps:[...new Set([...gaps,"completed_launch_registry_not_connected"])]});
+  return AttentionQueue.parse({...result,history_truncated:result.history_truncated||selected.results.some(r=>r.total>(r.market?marketLimit:attentionLimit))||gaps.includes("receipt_read_byte_bound"),gaps:[...new Set([...gaps,"completed_launch_registry_not_connected"])]});
+}
+
+export function attentionReviewRequest(queue: AttentionQueueResult) {
+  const pending=queue.rows.filter(r=>r.checks!=="adverse"&&r.attention_families>0).slice(0,20).filter(r=>!r.market_crosschecked);
+  const chain=pending[0]?.chain;
+  return chain ? AttentionRequest.parse({kind:"attention_dex_crosscheck",chain,addresses:pending.filter(r=>r.chain===chain).map(r=>r.address)}) : null;
+}
+
+// One bounded batch total per UTC hour, not one per token or one per browser.
+// IDs remain spent after an empty/failed result. Admission holds are unspent.
+export async function reviewAttention(settings:GmgnSettings, raw:unknown, fetcher:SourceFetcher, clock=()=>new Date()) {
+  z.object({reason:z.string().min(3).max(300)}).strict().parse(raw);
+  const at=clock(),id=`attention-review-${at.toISOString().slice(0,13).replace(/[^0-9]/g,"")}`;
+  if(await settings.db.prepare("SELECT id FROM tenx_source_reservations WHERE id=?1").bind(id).first())return{state:"held",reason:"review_hour_already_reserved",provider_requests:0};
+  const queue=await readAttentionQueue(settings.db,at,"review"),request=attentionReviewRequest(queue);
+  if(!request)return{state:"held",reason:"no_fresh_shortlist_needing_crosscheck",provider_requests:0};
+  return {...await executeShortlistQuery(settings,id,request,fetcher,clock),selection_history_truncated:queue.history_truncated};
 }
