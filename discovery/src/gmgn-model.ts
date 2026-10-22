@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { Address } from "./model";
 import { GmgnTraderSampleSchema } from "./gmgn-traders";
-import { GmgnWalletActivitySchema,GmgnActivityIssueSchema } from "./gmgn-wallet-activity";
+import { GmgnWalletActivityAnySchema,GmgnActivityIssueSchema } from "./gmgn-wallet-activity";
 // Founder explicitly authorized storage/display on 21 October after the earlier
 // rights question. This records that authority, not a provider licence grant.
 export const GMGN_USE_AUTHORITY = "founder-direction-2026-10-21";
@@ -37,7 +37,7 @@ export const GmgnPublicSummarySchema = z.object({
   candle_review: GmgnCandleReviewSchema.nullable().default(null),
   candle_coverage: GmgnCoverageSchema.nullable().default(null),
   trader_sample: GmgnTraderSampleSchema.nullable().default(null),
-  wallet_activity: GmgnWalletActivitySchema.nullable().default(null),
+  wallet_activity: GmgnWalletActivityAnySchema.nullable().default(null),
   wallet_activity_request_id:z.uuid().nullable().default(null),
   wallet_activity_issue:GmgnActivityIssueSchema.nullable().default(null),
   gaps: z.array(z.string().max(100)).max(30),

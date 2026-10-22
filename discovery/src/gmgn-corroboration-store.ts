@@ -9,6 +9,7 @@ import{hashJson}from"./solana";
 export async function gmgnCorroboration(db:D1Database,id:string,now=new Date()){
   z.uuid().parse(id);const saved=await gmgnSavedReview(db,id);
   if(!saved||!("activity_replay"in saved)||!saved.activity_replay)return null;
+  if(saved.observation&&z.object({version:z.string()}).parse(saved.observation.metrics).version!=="gmgn-wallet-activity-v1")return null;
   const source=await activityForCorroboration(saved.activity_replay),transactions=[];let bytes=0;
   if(source.signatures.length<=2)for(const signature of source.signatures){
     const row=await db.prepare(`SELECT payload,payload_hash,fetched_at,length(CAST(payload AS BLOB)) AS bytes FROM tenx_wallet_transactions

@@ -11,6 +11,9 @@ export * from "./gmgn-corroboration-model";
 const Time=z.string().datetime();
 export async function activityForCorroboration(raw:unknown){
   const verified=await replayGmgnActivityRecord(raw);
+  // The complete research page has its own contract. Do not expand the
+  // original 20-event/two-signature RPC comparison or silently slice its input.
+  if(z.object({version:z.string()}).parse(verified.observation.metrics).version!=="gmgn-wallet-activity-v1")throw Error("gmgn_rpc_research_page_comparison_held");
   const record=z.object({request:z.object({address:z.string(),wallet:z.string()}),receipt:z.object({received_at:Time,response:z.object({data:z.object({activities:z.array(z.object({tx_hash:Signature,event_type:z.string().optional(),type:z.string().optional(),timestamp:z.union([z.number(),z.string().transform(Number)]).nullable().optional(),token_amount:z.unknown()}).passthrough()).max(20)})})})}).parse(raw);
   return{...record,report_hash:verified.report_hash,signatures:[...new Set(record.receipt.response.data.activities.map(row=>row.tx_hash))].sort()};
 }

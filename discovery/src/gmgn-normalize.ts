@@ -4,7 +4,7 @@ import { gmgnEnvelope, GmgnRequestSchema } from "./gmgn-request";
 import { boundedJsonValue } from "./source-pilot";
 import { normalizeGmgnCandles } from "./gmgn-candles";
 import { normalizeGmgnTraders } from "./gmgn-traders";
-import { normalizeGmgnWalletActivity } from "./gmgn-wallet-activity";
+import { normalizeGmgnWalletActivity,normalizeGmgnWalletActivityResearch } from "./gmgn-wallet-activity";
 
 const Decimal = z.union([z.number().finite(), z.string().regex(/^\d+(?:\.\d+)?$/).max(100).transform(Number)]).pipe(z.number().finite().nonnegative());
 const Ratio = Decimal.pipe(z.number().max(1));
@@ -25,7 +25,7 @@ const Candle = z.object({ time: Count, open: Decimal, high: Decimal, low: Decima
 
 // Only selected scalar measurements leave this normalizer. Names, social links,
 // metadata instructions and provider error messages are never returned.
-export function normalizeGmgn(rawRequest: unknown, raw: unknown, receivedAt: string, cutoffAt = receivedAt, expectedPool?: string, candleContract: "v1" | "v2" = "v2") {
+export function normalizeGmgn(rawRequest: unknown, raw: unknown, receivedAt: string, cutoffAt = receivedAt, expectedPool?: string, candleContract: "v1" | "v2" = "v2",activityContract:"v1"|"v2"="v1") {
   const request = GmgnRequestSchema.parse(rawRequest), cutoff = Date.parse(z.string().datetime().parse(cutoffAt));
   const received = Date.parse(z.string().datetime().parse(receivedAt));
   if (received > cutoff || cutoff - received > 300_000) throw new Error("gmgn_receipt_stale_or_future");
@@ -56,7 +56,7 @@ export function normalizeGmgn(rawRequest: unknown, raw: unknown, receivedAt: str
     metrics = { reported_pool: row.address, reported_base: row.base_address, reported_quote: row.quote_address, reported_liquidity_usd: row.liquidity,
       independently_expected_pool: expectedPool ?? null, pool_address_matches: expectedPool ? row.address === expectedPool : null };
   } else if(request.kind==="gmgn_wallet_activity"){
-    identity="response_event_mints_match_request_wallet_context_only";metrics=normalizeGmgnWalletActivity(data,request,receivedAt);
+    identity="response_event_mints_match_request_wallet_context_only";metrics=(activityContract==="v2"?normalizeGmgnWalletActivityResearch:normalizeGmgnWalletActivity)(data,request,receivedAt);
     gaps.push("single_rank_selected_wallet_only","activity_pagination_not_followed","transaction_signatures_not_independently_verified","same_transaction_or_repeated_sizes_not_wash_proof");
   } else if(request.kind==="gmgn_token_traders"){
     identity="request_context_only";metrics=normalizeGmgnTraders(data,receivedAt);
@@ -84,7 +84,7 @@ export function normalizeGmgn(rawRequest: unknown, raw: unknown, receivedAt: str
       adjacent_doubling_or_halving: rows.slice(1).filter((v, i) => v.time === rows[i]!.time + 60 && (v.close / rows[i]!.close >= 2 || v.close / rows[i]!.close <= .5)).length,
       candles: rows };
   }
-  return { version: request.kind === "gmgn_token_candles" && candleContract === "v2" ? "gmgn-observation-v2" as const : "gmgn-observation-v1" as const, provider: "gmgn" as const, address: request.address, kind: request.kind,
+  return { version: request.kind === "gmgn_wallet_activity" && activityContract === "v2" ? "gmgn-observation-v3" as const : request.kind === "gmgn_token_candles" && candleContract === "v2" ? "gmgn-observation-v2" as const : "gmgn-observation-v1" as const, provider: "gmgn" as const, address: request.address, kind: request.kind,
     received_at: receivedAt, cutoff_at: cutoffAt, provider_observed_at: null, identity, metrics, gaps,
     organic_demand_certified: false, holder_growth_certified: false, scoring_effect: "none", evidence_gates_changed: false };
 }

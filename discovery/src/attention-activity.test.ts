@@ -30,6 +30,14 @@ it("reuses deterministic source selection and keeps hourly IDs stable across con
  queue.rows[0]!.checks="adverse";expect(attentionActivitySource(queue,later)).toBeNull();queue.rows[0]!.checks="review";queue.rows[0]!.market_crosschecked=false;expect(attentionActivitySource(queue,later)).toBeNull();
  queue.rows[0]!.market_crosschecked=true;expect(attentionActivitySource(queue,new Date(at.getTime()+7200001))).toBeNull();
 });
+it("publishes the entire fifty-event research sample through the bounded queue and keeps its hour spent",async()=>{
+ const{db,sqlite,settings}=await setup(),before=await readAttentionQueue(db,later),activities=Array.from({length:50},(_,i)=>event(i+1)),fetcher=vi.fn(async()=>Response.json({code:0,data:{activities,next:"opaque"}}));
+ expect(await collectAttentionActivity(settings,{reason:"Complete research page"},fetcher,()=>later)).toMatchObject({state:"retained",provider_requests:1,review:{activity:{version:"gmgn-wallet-activity-v2",requested_limit:20,returned_events:50,response_event_limit:50,requested_limit_exceeded:true}}});
+ const queue=await readAttentionQueue(db,later);expect(queue.activity_reviews[0]?.activity.returned_events).toBe(50);expect(queue.rows).toEqual(before.rows);expect(queue.snapshot_count).toBe(before.snapshot_count);
+ expect(await collectAttentionActivity(settings,{reason:"Spent hour unchanged"},fetcher,()=>later)).toMatchObject({reason:"activity_hour_already_reserved",provider_requests:0});expect(fetcher).toHaveBeenCalledTimes(1);
+ expect(sqlite.prepare("SELECT used FROM tenx_usage WHERE provider='market'").get()).toEqual({used:4});
+ for(const table of["tenx_candidates","tenx_proofs","tenx_score_cohorts"])expect(sqlite.prepare(`SELECT count(*) n FROM ${table}`).get()).toEqual({n:0});
+});
 it("meters one token-filtered twenty-event page per hour and replays source plus events without votes or proof writes",async()=>{
  const{db,sqlite,settings}=await setup(),before=await readAttentionQueue(db,later),fetcher=vi.fn(async(url:string)=>{expect(Object.fromEntries(new URL(url).searchParams)).toMatchObject({chain:"sol",wallet_address:wallet,token_address:address,limit:"20"});return Response.json(events);});
  const result=await collectAttentionActivity(settings,{reason:"Focused event review"},fetcher,()=>later);expect(result).toMatchObject({state:"retained",provider_requests:1,review:{response_identity:"token_echo_wallet_request_context",activity:{returned_events:3,buy_events:2,sell_events:1,two_sided_transactions:1,repeated_same_side_token_size_events:2,independent_transaction_verification:false,organic_volume_usd:null,wash_trading_verdict:"not_established"}}});

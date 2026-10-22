@@ -11,7 +11,7 @@ import {holderHistory} from "./holder-history-store";
 import {holderParticipation} from "./holder-participation-store";
 import {unavailableHolderParticipation} from "./holder-participation";
 import {unavailableTradeSample} from "./trade-sample";
-import {GmgnWalletActivitySchema} from "./gmgn-wallet-activity";
+import {GmgnWalletActivitySchema,GMGN_ACTIVITY_RESEARCH_VALIDATION} from "./gmgn-wallet-activity";
 import {gmgnSavedReview} from "./gmgn";
 import {gmgnActivitySelection} from "./gmgn-activity-selection";
 import {activityObservation,activityFreshness,type ActivityObservation,type ActivityRef} from "./activity-observation";
@@ -86,6 +86,7 @@ async function activityBundle(db:D1Database,candidate:Candidate,at:Date,samples:
       if(latest.state!=="available")records.push(...issue(walletMetrics,"gmgn",latest.gap,latest.state,latest.reference?[latest.reference]:[],{fetched_at:latest.fetched_at??null,freshness:activityFreshness(cutoff_at,latest.fetched_at??null)}));
       else{
         if(latest.request.kind!=="gmgn_wallet_activity")throw Error("activity_kind");
+        if(latest.receipt.semantic_validation===GMGN_ACTIVITY_RESEARCH_VALIDATION)throw Error("wallet_research_page_common_activity_adoption_held");
         const saved=await gmgnSavedReview(db,latest.id);if(!saved||!("activity_replay"in saved)||!saved.activity_replay)throw Error("activity_replay_missing");
         const selected=await gmgnActivitySelection(saved.activity_replay.selection_record,new Date(latest.receipt.received_at));
         if(selected.wallet!==latest.request.wallet||selected.address!==address||selected.selection_hash!==latest.request.selection_hash)throw Error("wallet_selection_mismatch");
@@ -93,7 +94,7 @@ async function activityBundle(db:D1Database,candidate:Candidate,at:Date,samples:
         const refs:ActivityRef[]=[latest.reference,{kind:"gmgn_receipt",id:activity.source_request_id,hash:activity.source_receipt_hash,integrity:"archived_hash_verified"}];
         for(const[metric,value]of [["wallet_reported_buy_usd",activity.reported_buy_usd],["wallet_reported_sell_usd",activity.reported_sell_usd]] as const)records.push(make(metric,"gmgn","USD",{scope:scope("wallet",latest.request.wallet),value,qualification:value===null?"held":"reported_only",window:{kind:"observed_interval",start_at:activity.first_trade_at,end_at:activity.last_trade_at,duration_seconds:activity.trade_span_seconds},fetched_at:latest.receipt.received_at,freshness:activityFreshness(cutoff_at,latest.receipt.received_at,activity.last_trade_at),coverage:coverage("selected_wallet_max_20_events",activity.returned_events,20,"partial",activity.buy_events+activity.sell_events),references:refs,gaps:["selected_wallet_not_token_volume","event_timestamps_not_full_query_window","pagination_and_population_incomplete","historical_usd_not_independently_verified","organic_share_unknown",...activity.unknown_time_events?["event_times_incomplete"]:[]]}));
       }
-    }catch{records.push(...issue(walletMetrics,"gmgn","wallet_activity_integrity_or_selection_failed"));}
+    }catch(cause){const researchHeld=cause instanceof Error&&cause.message==="wallet_research_page_common_activity_adoption_held";records.push(...issue(walletMetrics,"gmgn",researchHeld?cause.message:"wallet_activity_integrity_or_selection_failed",researchHeld?"held":"rejected"));}
   }
   for(const[metric,unit,gap]of [["organic_volume_24h","USD","organic_volume_qualification_not_established"],["meaningful_holder_growth_24h","owners","acquisition_and_retention_qualification_not_established"],["attention_momentum","index","cross_token_attention_qualification_not_established"]] as const)records.push(make(metric,"unavailable",unit,{qualification:"held",gaps:[gap,"no_score_adoption"]}));
   return {records,recent,participation,trades};

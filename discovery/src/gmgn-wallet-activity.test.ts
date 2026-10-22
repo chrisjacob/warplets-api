@@ -5,7 +5,11 @@ import{key,signature}from"./wallet-fixtures.test-helper";
 import{gmgnActivityTarget,gmgnPublicSummary,gmgnSavedReview,runGmgnReview}from"./gmgn";
 import{GMGN_USE_AUTHORITY}from"./gmgn-model";
 import{gmgnDescriptor}from"./gmgn-request";
-import{normalizeGmgnWalletActivity}from"./gmgn-wallet-activity";
+import{normalizeGmgnWalletActivity,normalizeGmgnWalletActivityResearch,GMGN_ACTIVITY_RESEARCH_VALIDATION}from"./gmgn-wallet-activity";
+import{activityForCorroboration}from"./gmgn-corroboration";
+import{gmgnCorroboration,collectGmgnCorroboration}from"./gmgn-corroboration-store";
+import{commonActivity}from"./activity-observation-store";
+import{fixtureCandidates}from"./fixtures";
 import{replayGmgnActivityRecord}from"./gmgn-activity-replay";
 import{hashJson}from"./solana";
 import worker,{type LocalEnv}from"./worker";
@@ -22,6 +26,48 @@ async function setup(list=rows()){
  return{sqlite,settings};
 }
 describe("GMGN single-wallet activity",()=>{
+ it("preserves the original twenty-event report hash pinned from committed source",async()=>{
+  const address="So11111111111111111111111111111111111111112",report=normalizeGmgnWalletActivity({activities:[{tx_hash:"1".repeat(64),token:{address},event_type:"buy",timestamp:1,token_amount:10,cost_usd:2}],next:null},{address,selection_id:"attention-traders-2026102214",selection_hash:"a".repeat(64)},"2026-10-22T14:00:00.000Z");
+  expect(await hashJson(report)).toBe("29c1d586795d8cbbb6b217dc08ba4d446a279e0ae2575572ed254dbc4c398f30");
+ });
+ it("validates every event in a separately versioned complete fifty-event research page",()=>{
+  const activities=Array.from({length:50},(_,i)=>event(i+1,i===49?"sell":"buy",i+1));
+  expect(normalizeGmgnWalletActivityResearch({activities,next:"opaque"},request,at.toISOString())).toMatchObject({version:"gmgn-wallet-activity-v2",requested_limit:20,response_event_limit:50,requested_limit_exceeded:true,returned_events:50,buy_events:49,sell_events:1,reported_buy_usd:98,reported_sell_usd:2,limit_reached:true,organic_volume_usd:null,scoring_effect:"none"});
+  expect(()=>normalizeGmgnWalletActivity({activities},request,at.toISOString())).toThrow();
+  for(const count of[0,20,21,49])expect(normalizeGmgnWalletActivityResearch({activities:activities.slice(0,count)},request,at.toISOString())).toMatchObject({returned_events:count,requested_limit_exceeded:count>20,limit_reached:false});
+  expect(()=>normalizeGmgnWalletActivityResearch({activities:[...activities,event(51)]},request,at.toISOString())).toThrow();
+ });
+ it.each(["mint","future","duplicate","type","quantity"])("rejects a complete page with invalid %s in its final row",kind=>{
+  const activities=Array.from({length:50},(_,i)=>event(i+1));
+  if(kind==="mint")activities[49]!.token.address=key(90);
+  if(kind==="future")activities[49]!.timestamp=at.getTime()/1000+1;
+  if(kind==="duplicate")activities[49]=activities[0]!;
+  if(kind==="type")activities[49]!.event_type="unknown";
+  if(kind==="quantity")activities[49]!.token_amount=-1;
+  expect(()=>normalizeGmgnWalletActivityResearch({activities},request,at.toISOString())).toThrow();
+ });
+ it("keeps missing and signed USD unresolved even when they occur after row twenty",()=>{
+  const activities=Array.from({length:50},(_,i)=>({...event(i+1),cost_usd:i===48?null:i===49?-2:2}));
+  expect(normalizeGmgnWalletActivityResearch({activities},request,at.toISOString())).toMatchObject({returned_events:50,missing_usd_trade_events:1,unresolved_signed_usd_trade_events:1,reported_buy_usd:null,reported_sell_usd:null});
+ });
+ it("retains and replays all fifty rows without widening the independent RPC comparison",async()=>{
+  const{settings,sqlite}=await setup(),target=await gmgnActivityTarget(settings.db,id,later);if(target.state!=="ready")throw Error("target");
+  const operation=input(target.request),activities=Array.from({length:50},(_,i)=>event(i+1)),fetcher=vi.fn(async(url:string)=>{expect(new URL(url).searchParams.get("limit")).toBe("20");return Response.json({code:0,data:{activities,next:"opaque"}});});
+  expect(await runGmgnReview(settings,operation,fetcher,()=>later)).toMatchObject({state:"retained",provider_requests:1});
+  const saved=await gmgnSavedReview(settings.db,operation.request_id);if(!saved||!("activity_replay"in saved)||!saved.activity_replay)throw Error("replay");
+  expect(saved.activity_replay.receipt).toMatchObject({semantic_validation:GMGN_ACTIVITY_RESEARCH_VALIDATION,response:{data:{activities}}});
+  expect(await replayGmgnActivityRecord(saved.activity_replay)).toMatchObject({provider_requests:0,database_writes:0,observation:{version:"gmgn-observation-v3",metrics:{returned_events:50}}});
+  const downgraded=structuredClone(saved.activity_replay);downgraded.receipt.semantic_validation="gmgn_selected_fields_v2";downgraded.receipt_hash=await hashJson(downgraded.receipt);await expect(replayGmgnActivityRecord(downgraded)).rejects.toThrow();
+  const before=sqlite.prepare("SELECT total_changes() n").get();
+  await expect(activityForCorroboration(saved.activity_replay)).rejects.toThrow("research_page_comparison_held");
+  expect(await gmgnCorroboration(settings.db,operation.request_id,later)).toBeNull();
+  expect(await collectGmgnCorroboration({...settings,rpcUrl:"https://rpc.example",rpcDailyLimit:100,walletDailyLimit:100,walletEnabled:true,marketEnabled:false},operation.request_id,()=>later)).toMatchObject({state:"held",rpc_calls:0});
+  expect(sqlite.prepare("SELECT total_changes() n").get()).toEqual(before);
+  expect((await gmgnPublicSummary(settings.db,address,later)).wallet_activity).toMatchObject({version:"gmgn-wallet-activity-v2",returned_events:50});
+  const candidate={...(await fixtureCandidates(later))[0]!,address,mode:"live" as const},records=await commonActivity(settings.db,candidate,later);
+  expect(records.filter(row=>row.metric==="wallet_reported_buy_usd"||row.metric==="wallet_reported_sell_usd")).toMatchObject([{value:null,qualification:"held",gaps:["wallet_research_page_common_activity_adoption_held"]},{value:null,qualification:"held",gaps:["wallet_research_page_common_activity_adoption_held"]}]);
+  expect(await runGmgnReview(settings,operation,fetcher,()=>later)).toMatchObject({provider_requests:0});expect(fetcher).toHaveBeenCalledTimes(1);
+ });
  it("pins a weight-three token-filtered page and rejects arbitrary scope parameters",()=>{
   const descriptor=gmgnDescriptor(request,at),url=new URL(descriptor.url);expect(descriptor.weight).toBe(3);expect(url.pathname).toBe("/v1/user/wallet_activity");
   expect(Object.fromEntries(url.searchParams)).toEqual({chain:"sol",wallet_address:key(1),token_address:address,limit:"20"});

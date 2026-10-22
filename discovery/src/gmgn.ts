@@ -10,7 +10,7 @@ import { researchLimits, type ResearchMode } from "./research-limits";
 import { assembleGmgnWindow } from "./gmgn-window";
 import { hashJson } from "./solana";
 import { GmgnTraderSampleSchema } from "./gmgn-traders";
-import {GmgnWalletActivitySchema} from "./gmgn-wallet-activity";
+import {GmgnWalletActivityAnySchema,gmgnActivityContract} from "./gmgn-wallet-activity";
 import {gmgnActivitySelection} from "./gmgn-activity-selection";
 import {freezeGmgnDailyCohort,readGmgnDailyCohort} from "./gmgn-rotation";
 import {GmgnTraderSourceId,GmgnSavedReceiptId} from "./gmgn-receipt-id";
@@ -135,7 +135,7 @@ export async function gmgnSavedReview(db: D1Database, id: string, cutoff?: strin
   if(parsed.data.kind==="gmgn_wallet_activity"&&receipt.error===null&&receipt.response!==null){
     const selection=await gmgnTraderSourceRecord(db,parsed.data.selection_id);
     if(!selection||selection.receipt_hash!==parsed.data.selection_hash)throw Error("gmgn_activity_selection_receipt_missing");
-    activityReplay={version:"gmgn-wallet-activity-replay-v1",request:parsed.data,receipt,receipt_hash:await hashJson(receipt),report_hash:await hashJson(normalizeGmgn(parsed.data,receipt.response,receipt.received_at)),selection_record:selection};
+    activityReplay={version:"gmgn-wallet-activity-replay-v1",request:parsed.data,receipt,receipt_hash:await hashJson(receipt),report_hash:await hashJson(normalizeGmgn(parsed.data,receipt.response,receipt.received_at,undefined,undefined,"v2",gmgnActivityContract(receipt.semantic_validation))),selection_record:selection};
   }
   return { replay: saved.replay, request_id: id, request: parsed.data, source_authenticity: saved.source_authenticity,
     received_at: receipt.received_at, http_status: receipt.status, error: receipt.error, validation_failure: receipt.validation_failure ?? null,
@@ -143,7 +143,7 @@ export async function gmgnSavedReview(db: D1Database, id: string, cutoff?: strin
     ...(receipt.activity_validation_shape?{activity_validation_shape:receipt.activity_validation_shape}:{}),
     access_probe: receipt.access_probe, access_accepted: receipt.access_accepted,
     observation: receipt.error === null && receipt.response !== null ? normalizeGmgn(parsed.data, receipt.response, receipt.received_at, cutoff ?? receipt.received_at, undefined,
-      receipt.semantic_validation === "gmgn_selected_fields_v1" ? "v1" : "v2") : null,
+      receipt.semantic_validation === "gmgn_selected_fields_v1" ? "v1" : "v2",gmgnActivityContract(receipt.semantic_validation)) : null,
     ...(traderReplay?{trader_replay:traderReplay}:{}),...(activityReplay?{activity_replay:activityReplay}:{}),provider_requests: 0, scoring_effect: "none" };
 }
 async function gmgnTraderSourceRecord(db:D1Database,id:string){
@@ -203,7 +203,7 @@ export async function gmgnPublicSummary(db: D1Database, rawAddress: string, now 
   const review = candles?.version === "gmgn-observation-v2" ? z.object({ window_start: z.string(), window_end: z.string(), activity: z.record(z.string(), z.unknown()) }).parse(candles.metrics) : null;
   const trader=observations.find(v=>v.kind==="gmgn_token_traders");
   const traderSample=trader?GmgnTraderSampleSchema.parse(trader.metrics):null;
-  const activity=observations.find(v=>v.kind==="gmgn_wallet_activity"),walletActivity=activity?GmgnWalletActivitySchema.parse(activity.metrics):null;
+  const activity=observations.find(v=>v.kind==="gmgn_wallet_activity"),walletActivity=activity?GmgnWalletActivityAnySchema.parse(activity.metrics):null;
   const lastActivity=await db.prepare(`SELECT id FROM tenx_source_reservations WHERE day>=?2 AND json_extract(request,'$.address')=?1
     AND json_extract(request,'$.kind')='gmgn_wallet_activity' AND state IN ('succeeded','failed')
     ORDER BY reserved_at DESC,id DESC LIMIT 1`).bind(address,new Date(now.getTime()-6*86_400_000).toISOString().slice(0,10)).first<{id:string}>();

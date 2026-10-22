@@ -3,6 +3,9 @@ import {Address,Signature} from "./model";
 import {GmgnTraderSourceId} from "./gmgn-receipt-id";
 import {GmgnActivityShape,GmgnActivityCheck,type GmgnActivityCheckResult} from "./gmgn-activity-shape";
 export const GMGN_ACTIVITY_EVENT_LIMIT=20;
+export const GMGN_ACTIVITY_RESEARCH_EVENT_LIMIT=50;
+export const GMGN_ACTIVITY_RESEARCH_VALIDATION="gmgn_wallet_activity_50_v1";
+export const gmgnActivityContract=(validation:unknown)=>validation===GMGN_ACTIVITY_RESEARCH_VALIDATION?"v2" as const:"v1" as const;
 const NumberValue=z.union([z.number().finite(),z.string().max(100).regex(/^\d+(?:\.\d+)?$/).transform(Number)]).pipe(z.number().finite().nonnegative());
 const SignedValue=z.union([z.number().finite(),z.string().max(100).regex(/^-?\d+(?:\.\d+)?(?:[eE][+-]?\d{1,3})?$/).transform(Number)]).pipe(z.number().finite());
 const Cost=z.unknown().transform(value=>{
@@ -33,12 +36,27 @@ export const GmgnWalletActivitySchema=z.object({version:z.literal("gmgn-wallet-a
   review_reasons:z.array(z.enum(["reported_buy_and_sell_in_same_transaction","repeated_same_side_token_sizes"])).max(2),
   independent_transaction_verification:z.literal(false),organic_volume_usd:z.null(),wash_trading_verdict:z.literal("not_established"),scoring_effect:z.literal("none")}).strict();
 export type GmgnWalletActivity=z.infer<typeof GmgnWalletActivitySchema>;
+const ResearchCount=z.number().int().min(0).max(GMGN_ACTIVITY_RESEARCH_EVENT_LIMIT);
+export const GmgnWalletActivityResearchSchema=GmgnWalletActivitySchema.extend({
+  version:z.literal("gmgn-wallet-activity-v2"),response_event_limit:z.literal(50),requested_limit_exceeded:z.boolean(),
+  returned_events:ResearchCount,buy_events:ResearchCount,sell_events:ResearchCount,non_trade_events:ResearchCount,unique_transactions:ResearchCount,unknown_time_events:ResearchCount,
+  measured_usd_trade_events:ResearchCount,missing_usd_trade_events:ResearchCount,unusable_usd_trade_events:ResearchCount,unresolved_signed_usd_trade_events:ResearchCount,
+  measured_token_trade_events:ResearchCount,repeated_same_side_token_size_events:ResearchCount,two_sided_transactions:ResearchCount,distinct_trade_seconds:ResearchCount
+}).refine(v=>v.requested_limit_exceeded===(v.returned_events>v.requested_limit)&&v.limit_reached===(v.returned_events===v.response_event_limit),"gmgn_activity_page_counts");
+export const GmgnWalletActivityAnySchema=z.union([GmgnWalletActivitySchema,GmgnWalletActivityResearchSchema]);
 export const GmgnActivityIssueSchema=z.object({received_at:z.string().datetime(),http_status:z.number().int().min(100).max(599).nullable(),
   error:z.enum(["source_collection_timeout","source_collection_http_error","source_collection_response_unusable"]),
   shape:GmgnActivityShape.optional(),
   fields:z.array(z.string().regex(/^(?:root|(?:activities|next|tx_hash|token|address|event_type|type|timestamp|token_amount|cost_usd)(?:\.(?:activities|next|tx_hash|token|address|event_type|type|timestamp|token_amount|cost_usd))*)$/)).max(12)}).strict();
 export function normalizeGmgnWalletActivity(raw:unknown,request:{address:string;selection_id:string;selection_hash:string},receivedAt:string){
-  const result=z.object({activities:z.array(Event).max(GMGN_ACTIVITY_EVENT_LIMIT),next:z.string().max(2000).nullable().optional()}).safeParse(raw);
+  return GmgnWalletActivitySchema.parse(normalizePage(raw,request,receivedAt,GMGN_ACTIVITY_EVENT_LIMIT));
+}
+export function normalizeGmgnWalletActivityResearch(raw:unknown,request:{address:string;selection_id:string;selection_hash:string},receivedAt:string){
+  const page=normalizePage(raw,request,receivedAt,GMGN_ACTIVITY_RESEARCH_EVENT_LIMIT);
+  return GmgnWalletActivityResearchSchema.parse({...page,version:"gmgn-wallet-activity-v2",response_event_limit:50,requested_limit_exceeded:page.returned_events>page.requested_limit});
+}
+function normalizePage(raw:unknown,request:{address:string;selection_id:string;selection_hash:string},receivedAt:string,eventLimit:number){
+  const result=z.object({activities:z.array(Event).max(eventLimit),next:z.string().max(2000).nullable().optional()}).safeParse(raw);
   if(!result.success){
     const allowed=new Set(["activities","next","tx_hash","token","address","event_type","type","timestamp","token_amount","cost_usd"]);
     const fields=[...new Set(result.error.issues.map(issue=>issue.path.filter(part=>typeof part==="string"&&allowed.has(part)).join(".")||"root"))].slice(0,12);
@@ -64,12 +82,12 @@ export function normalizeGmgnWalletActivity(raw:unknown,request:{address:string;
   const twoSided=[...new Set(trades.map(row=>row.tx_hash))].filter(signature=>trades.some(row=>row.tx_hash===signature&&row.kind==="buy")&&trades.some(row=>row.tx_hash===signature&&row.kind==="sell")).length;
   const repeated=[...sizes.values()].filter(n=>n>1).reduce((sum,n)=>sum+n,0),reasons=[];
   if(twoSided)reasons.push("reported_buy_and_sell_in_same_transaction");if(repeated)reasons.push("repeated_same_side_token_sizes");
-  return GmgnWalletActivitySchema.parse({version:"gmgn-wallet-activity-v1",selection:"largest_complete_regular_wallet_flow_in_saved_trader_sample",source_request_id:request.selection_id,source_receipt_hash:request.selection_hash,
-    received_at:receivedAt,requested_limit:20,returned_events:events.length,limit_reached:events.length===20,pagination:data.next===undefined?"unknown":data.next?"more_reported":"end_reported",population_coverage:"unknown",
+  return {version:"gmgn-wallet-activity-v1",selection:"largest_complete_regular_wallet_flow_in_saved_trader_sample",source_request_id:request.selection_id,source_receipt_hash:request.selection_hash,
+    received_at:receivedAt,requested_limit:20,returned_events:events.length,limit_reached:events.length===eventLimit,pagination:data.next===undefined?"unknown":data.next?"more_reported":"end_reported",population_coverage:"unknown",
     buy_events:trades.filter(row=>row.kind==="buy").length,sell_events:trades.filter(row=>row.kind==="sell").length,non_trade_events:events.length-trades.length,unique_transactions:new Set(events.map(row=>row.tx_hash)).size,unknown_time_events:unknown,
     first_trade_at:seconds.length?new Date(seconds[0]!*1000).toISOString():null,last_trade_at:seconds.length?new Date(seconds.at(-1)!*1000).toISOString():null,trade_span_seconds:unknown||seconds.length<2?null:seconds.at(-1)!-seconds[0]!,
     measured_usd_trade_events:trades.filter(row=>row.cost_usd.value!==null&&row.cost_usd.value>=0).length,missing_usd_trade_events:trades.filter(row=>row.cost_usd.missing).length,unusable_usd_trade_events:trades.filter(row=>row.cost_usd.unusable).length,unresolved_signed_usd_trade_events:trades.filter(row=>row.cost_usd.value!==null&&row.cost_usd.value<0).length,reported_buy_usd:total("buy"),reported_sell_usd:total("sell"),
     measured_token_trade_events:trades.filter(row=>row.token_amount!==null).length,repeated_same_side_token_size_events:repeated,two_sided_transactions:twoSided,distinct_trade_seconds:seconds.length,
     minimum_positive_trade_gap_seconds:unknown||!gaps.length?null:Math.min(...gaps),maximum_trade_gap_seconds:unknown||!gaps.length?null:Math.max(...gaps),review_reasons:reasons,
-    independent_transaction_verification:false,organic_volume_usd:null,wash_trading_verdict:"not_established",scoring_effect:"none"});
+    independent_transaction_verification:false,organic_volume_usd:null,wash_trading_verdict:"not_established",scoring_effect:"none"};
 }

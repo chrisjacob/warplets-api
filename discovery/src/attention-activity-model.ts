@@ -1,9 +1,9 @@
 import { z } from "zod";
 import { Address } from "./model";
-import { GmgnWalletActivitySchema,GmgnActivityIssueSchema } from "./gmgn-wallet-activity";
+import { GmgnWalletActivityAnySchema,GmgnActivityIssueSchema } from "./gmgn-wallet-activity";
 
 export const AttentionActivityReview=z.object({chain:z.literal("solana"),address:Address,request_id:z.uuid(),
-  received_at:z.iso.datetime(),selection_received_at:z.iso.datetime(),activity:GmgnWalletActivitySchema,
+  received_at:z.iso.datetime(),selection_received_at:z.iso.datetime(),activity:GmgnWalletActivityAnySchema,
   response_identity:z.literal("token_echo_wallet_request_context")}).strict().refine(v=>
     v.received_at===v.activity.received_at&&Date.parse(v.selection_received_at)<=Date.parse(v.received_at)&&
     /^attention-traders-\d{10}$/.test(v.activity.source_request_id),"Activity source/time mismatch.");

@@ -5,6 +5,7 @@ import { replayGmgnActivityRecord } from "./gmgn-activity-replay";
 import { hashJson } from "./solana";
 import { AttentionActivityReview,AttentionActivityIssue } from "./attention-activity-model";
 import { GmgnActivityShape } from "./gmgn-activity-shape";
+import {gmgnActivityContract} from "./gmgn-wallet-activity";
 
 type Saved={request:unknown;receipt:unknown};
 export function attentionActivityIssue(id:string,saved:Saved) {
@@ -22,7 +23,7 @@ export async function normalizeAttentionActivity(id:string,saved:Saved,source:Sa
   const time=z.object({received_at:z.iso.datetime()}),receipt=time.parse(saved.receipt),selection=time.parse(source.receipt);
   const sourceRecord={version:"gmgn-trader-replay-v1",request:sourceRequest,receipt:source.receipt,receipt_hash:await hashJson(source.receipt),
     report_hash:await hashJson(normalizeGmgn(sourceRequest,z.object({response:z.unknown()}).parse(source.receipt).response,selection.received_at))};
-  const response=z.object({response:z.unknown()}).parse(saved.receipt).response,observation=normalizeGmgn(request,response,receipt.received_at);
+  const body=z.object({response:z.unknown(),semantic_validation:z.string()}).parse(saved.receipt),observation=normalizeGmgn(request,body.response,receipt.received_at,undefined,undefined,"v2",gmgnActivityContract(body.semantic_validation));
   await replayGmgnActivityRecord({version:"gmgn-wallet-activity-replay-v1",request,receipt:saved.receipt,receipt_hash:await hashJson(saved.receipt),
     report_hash:await hashJson(observation),selection_record:sourceRecord});
   return AttentionActivityReview.parse({chain:"solana",address:request.address,request_id:id,received_at:receipt.received_at,

@@ -4,7 +4,7 @@ import { buildAttentionQueue } from "../../../discovery/src/attention-queue";
 import { normalizeAttention } from "../../../discovery/src/attention-feed-contract";
 import { normalizeAttentionTraders } from "../../../discovery/src/attention-traders";
 import { AttentionActivityReview } from "../../../discovery/src/attention-activity-model";
-import { normalizeGmgnWalletActivity } from "../../../discovery/src/gmgn-wallet-activity";
+import { normalizeGmgnWalletActivity,normalizeGmgnWalletActivityResearch } from "../../../discovery/src/gmgn-wallet-activity";
 import { describeGmgnActivity } from "../../../discovery/src/gmgn-activity-shape";
 import { previewAttentionReviewImport,restoreAttentionReviews } from "./attention-review-import";
 import { ATTENTION_REVIEW_KEY, AttentionReviewLabels, REVIEW_BYTE_LIMIT, appendAttentionReview, captureAttentionReview, exportAttentionReviews,
@@ -14,6 +14,16 @@ const at=new Date("2026-10-22T14:00:00.000Z"),address="0x00000000000000000000000
 const snapshot=normalizeAttention({kind:"gmgn_hot_searches",chains:["base","bsc"],intervals:["24h"]},{code:0,data:["base","bsc"].map(chain=>({chain,interval:"24h",tokens:[{address,symbol:"MEME",visiting_count:10}]}))},at.toISOString());
 const report=()=>buildAttentionQueue([snapshot],at),context=()=>captureAttentionReview(report(),address,"base");
 const labels:ReviewLabels={decision:"follow",relevance:"memecoin",catalyst:"A clearly explained current catalyst",concerns:"Organic participation is still unknown",rationale:"Explain why this meme deserves another review",outcome:"not_followed_up",outcome_note:""};
+it("freezes and restores a complete fifty-event research context without adopting scores",async()=>{
+ const mint="So11111111111111111111111111111111111111112",queue=buildAttentionQueue([normalizeAttention({kind:"gmgn_hot_searches"},{code:0,data:[{chain:"sol",interval:"24h",tokens:[{address:mint}]}]},at.toISOString())],at);
+ queue.activity_reviews=[AttentionActivityReview.parse({chain:"solana",address:mint,request_id:"10000000-0000-4000-8000-000000000001",received_at:at.toISOString(),selection_received_at:at.toISOString(),response_identity:"token_echo_wallet_request_context",activity:normalizeGmgnWalletActivityResearch({activities:Array.from({length:50},(_,i)=>({tx_hash:"1".repeat(64),token:{address:mint},event_type:"buy",timestamp:i+1,token_amount:10,cost_usd:2}))},{address:mint,selection_id:"attention-traders-2026102214",selection_hash:"a".repeat(64)},at.toISOString())})];
+ const captured=captureAttentionReview(queue,mint,"solana"),ledger=await appendAttentionReview(await parseAttentionReviews(null),captured,labels,at),raw=JSON.stringify(ledger);
+ queue.activity_reviews[0]!.activity.returned_events=49;expect(captured.activity_review?.activity.returned_events).toBe(50);
+ const exported=JSON.stringify(await exportAttentionReviews({getItem:()=>raw,setItem:vi.fn()},at)),destination=storage(),preview=await previewAttentionReviewImport(destination,exported,at);
+ expect((await restoreAttentionReviews(destination,exported,preview,at)).ledger).toEqual(ledger);
+ expect(ledger.records[0]!.context.activity_review?.activity).toMatchObject({version:"gmgn-wallet-activity-v2",requested_limit:20,response_event_limit:50,returned_events:50,scoring_effect:"none"});
+ const changed=JSON.parse(raw);changed.records[0].context.activity_review.activity.reported_buy_usd=1;await expect(parseAttentionReviews(JSON.stringify(changed))).rejects.toThrow();
+});
 function storage(){let raw:string|null=null;return{getItem:vi.fn((_key:string)=>raw),setItem:vi.fn((_key:string,value:string)=>{raw=value;}),raw:()=>raw};}
 
 it("uses deterministic SHA-256 serialization and the Sydney review date",async()=>{

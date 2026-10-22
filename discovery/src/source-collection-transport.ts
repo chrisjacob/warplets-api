@@ -7,7 +7,7 @@ import { gmgnEnvelope } from "./gmgn-request";
 import { normalizeGmgn } from "./gmgn-normalize";
 import { GMGN_USE_AUTHORITY } from "./gmgn-model";
 import { GmgnCandleError } from "./gmgn-candles";
-import {GmgnActivityError} from "./gmgn-wallet-activity";
+import {GmgnActivityError,GMGN_ACTIVITY_EVENT_LIMIT,GMGN_ACTIVITY_RESEARCH_VALIDATION,GMGN_ACTIVITY_RESEARCH_EVENT_LIMIT} from "./gmgn-wallet-activity";
 import {describeGmgnActivity,type GmgnActivityShapeResult} from "./gmgn-activity-shape";
 import { normalizeShortlist } from "./shortlist-query-contract";
 import { isAttentionRequest, normalizeAttention } from "./attention-feed-contract";
@@ -57,6 +57,7 @@ export async function executeReservedSource(db: D1Database, reservation: SourceR
   let validationFailure: GmgnCandleError["reason"] | GmgnActivityError["reason"] | null = null;
   let activityValidationFields:string[]=[];
   let activityShape:GmgnActivityShapeResult|undefined;
+  let activityResearchPage=false;
   const shortlistDiagnostics: { value: { stage: string; data_array?: boolean; rank_array?: boolean; list_array?: boolean; application_success?: boolean; rank_rows?: number; failure_kind?: string; data_fields?: string[]; root_fields?: string[] } | null } = { value: null };
   const shortlist = row ? ["gmgn_market_rank", "geckoterminal_trending_list", "dexscreener_token_crosscheck"].includes(JSON.parse(row.request).kind) || isAttentionRequest(JSON.parse(row.request)) : false;
   const gmgnBackoff: { until: string | null } = { until: null };
@@ -114,8 +115,12 @@ export async function executeReservedSource(db: D1Database, reservation: SourceR
         if (isAttentionRequest(descriptor.request)) normalizeAttention(descriptor.request, body, clock().toISOString());
         else if (descriptor.request.kind === "gmgn_market_rank") normalizeShortlist(descriptor.request, body, clock().toISOString());
         else if(descriptor.request.kind==="gmgn_wallet_activity"){
-          try{normalizeGmgn(descriptor.request,body,clock().toISOString());}
-          catch(cause){if(cause instanceof GmgnActivityError)activityShape=describeGmgnActivity(gmgnEnvelope(body),cause.checks);throw cause;}
+          const data=gmgnEnvelope(body);
+          // Retain the original contract for pages within the requested bound.
+          // Larger pages use a separate, complete-response research contract.
+          activityResearchPage=!!data&&typeof data==="object"&&"activities"in data&&Array.isArray(data.activities)&&data.activities.length>GMGN_ACTIVITY_EVENT_LIMIT;
+          try{normalizeGmgn(descriptor.request,body,clock().toISOString(),undefined,undefined,"v2",activityResearchPage?"v2":"v1");}
+          catch(cause){if(cause instanceof GmgnActivityError)activityShape=describeGmgnActivity(data,cause.checks,activityResearchPage?GMGN_ACTIVITY_RESEARCH_EVENT_LIMIT:GMGN_ACTIVITY_EVENT_LIMIT);throw cause;}
         }else normalizeGmgn(descriptor.request, body, clock().toISOString());
         accessAccepted = true;
         if (accessProbe) return null; // No token data or token-data hash retained.
@@ -147,7 +152,7 @@ export async function executeReservedSource(db: D1Database, reservation: SourceR
     ...(activityShape?{activity_validation_shape:activityShape}:{}),
     ...(shortlistDiagnostics.value ? { shortlist_diagnostic: shortlistDiagnostics.value } : {}),
     // HTTP receipt is not chain identity, provider signature or semantic validation.
-    semantic_validation: accessAccepted ? "gmgn_selected_fields_v2" : "not_checked", canonical_pool_proof: "not_checked", scoring_effect: "none" };
+    semantic_validation: accessAccepted ? (activityResearchPage?GMGN_ACTIVITY_RESEARCH_VALIDATION:"gmgn_selected_fields_v2") : "not_checked", canonical_pool_proof: "not_checked", scoring_effect: "none" };
   const payload = JSON.stringify(receipt), bytes = new TextEncoder().encode(payload).length, receipt_hash = await hashJson(receipt);
   const results = await db.batch([
     // Backoff survives pause/lease loss, and a late success cannot clear newer backoff.
