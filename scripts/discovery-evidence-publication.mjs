@@ -18,6 +18,7 @@ import {validateEvidenceWalletSnapshotPlan,validateSnapshotReceipt} from "./evid
 import {snapshotReviewsSql} from "./evidence-wallet-snapshot-sql.mjs";
 import {normalizeCohortPublicationPlan,cohortKeys} from "./evidence-cohort-plan.mjs";
 import {validateEvidenceWalletJobPlan} from "./evidence-wallet-job-plan.mjs";
+import {validateEvidenceWalletRecordedJobPlan,validateEvidenceWalletRecordedWrite,validateEvidenceWalletRecordedHandoff} from "./evidence-wallet-recorded-job-plan.mjs";
 export {validateEvidenceWalletSnapshotPlan} from "./evidence-wallet-snapshot-plan.mjs";
 
 const VERSION="discovery-evidence-publication-v1",FILE="metadata.sqlite",MAX_DB=2*1024**3;
@@ -225,7 +226,7 @@ export function validateEvidenceWalletRecoveryPlan(input){
 }
 function recoveryClaimBindings(p){const c=p.cycle,r=p.row;return [r.signature,"solana-json-legacy-v0-v1-r1",r.slot,c.job,c.address,p.source_hash,r.hop,r.wallet,r.anchor_key,r.checkpoint_hash,c.at,c.at.slice(0,10)+"T00:00:00.000Z",20,2,r.blockTime];}
 export function validateEvidenceCohortPlan(input){return normalizeCohortPublicationPlan(input,validateEvidenceTargetPlan);}
-export function validateEvidenceTargetPlan(input){return input?.kind==="wallet_cached_job"?validateEvidenceWalletJobPlan(input):input?.kind==="candidate_cohorts"?validateEvidenceCohortPlan(input):input?.kind==="wallet_snapshot_cycle"?validateEvidenceWalletSnapshotPlan(input):input?.kind==="wallet_reader_recovery"?validateEvidenceWalletRecoveryPlan(input):input?.kind==="wallet_direct_cycle"?validateEvidenceWalletDirectPlan(input):input?.kind==="candidate_metadata"?validateEvidenceCandidateMetadataPlan(input):input?.kind==="wallet_cached_progress"?validateEvidenceWalletCachedPlan(input):input?.kind==="wallet_quota"?validateEvidenceWalletQuotaPlan(input):input?.kind==="wallet_cycle_control"?validateEvidenceWalletCyclePlan(input):input?.kind==="wallet_collection"?validateEvidenceWalletCollectionPlan(input):normalizedPlan(input);}
+export function validateEvidenceTargetPlan(input){return input?.kind==="wallet_recorded_job"?validateEvidenceWalletRecordedJobPlan(input):input?.kind==="wallet_recorded_write"?validateEvidenceWalletRecordedWrite(input,validateEvidenceTargetPlan):input?.kind==="wallet_recorded_handoff"?validateEvidenceWalletRecordedHandoff(input):input?.kind==="wallet_cached_job"?validateEvidenceWalletJobPlan(input):input?.kind==="candidate_cohorts"?validateEvidenceCohortPlan(input):input?.kind==="wallet_snapshot_cycle"?validateEvidenceWalletSnapshotPlan(input):input?.kind==="wallet_reader_recovery"?validateEvidenceWalletRecoveryPlan(input):input?.kind==="wallet_direct_cycle"?validateEvidenceWalletDirectPlan(input):input?.kind==="candidate_metadata"?validateEvidenceCandidateMetadataPlan(input):input?.kind==="wallet_cached_progress"?validateEvidenceWalletCachedPlan(input):input?.kind==="wallet_quota"?validateEvidenceWalletQuotaPlan(input):input?.kind==="wallet_cycle_control"?validateEvidenceWalletCyclePlan(input):input?.kind==="wallet_collection"?validateEvidenceWalletCollectionPlan(input):normalizedPlan(input);}
 // Fixed, bounded ledger headers for known job IDs; never executes a plan.
 export async function readEvidenceJobPublicationRecords(options,grant,input){
   options=structuredClone(options);grant=Grant.parse(grant);const ids=Id.array().min(1).max(28).parse(input);

@@ -1,0 +1,50 @@
+# 147 — Recorded direct-job progress and response custody
+
+22 October 2026. Extends [146's cached-job scope](146-durable-cached-wallet-job-progress.md) to the private explicit-mint recorded `direct_funding` turn. An optional retained `progressId` now captures the original job before its lease attempt, associates ordinary writes with that job, and preserves recorded response bodies before handoff. Known-ID inspection is read-only. Automatic, snapshot and reader-recovery manifests and whole-turn resumption remain outstanding; D1 remains the application backend.
+
+## Original job scope
+
+Retain `progressId` before invoking `runRecordedDirectWalletCycleOnEvidenceTarget`. Its encrypted non-executable `wallet_recorded_job` manifest precedes the original lease intent and SQL. It captures the generated job/lease, explicit mint, direct stage, complete candidate byte hash, original source hash, original wallet/RPC/market limits, ten control/work/completion IDs, up to 128 ordered ordinary-write IDs and up to eighteen original paired response quota IDs and reply hashes. Additional write-association and handoff UUIDs are derived with a separate versioned domain from the retained progress ID and position, then captured in the manifest. They do not replace any original publication or source identities.
+
+The complete declared identity set is unique, bounded to 321 IDs and checked for existing ledger records and ready/partial intents before manifest retention. Reuse or conflict holds rather than adopting an earlier attempt. Original disabled/paused/backoff returns before a lease request create no manifest. A missing manifest means unknown progress. A lost acknowledgement may leave a ready manifest without a returned `job_progress`; inspect the previously retained ID. This is not a distributed reservation or retry permit.
+
+The selected candidate is rechecked against the current native row before its hash is captured. Original stage admission, prior authenticated receipt, lease, quotas, catch-up, decoder, checkpoint/work, completion/failure and dispatch predicates remain. Calls without the opt-in retain their behavior. The opt-in is rejected on automatic, snapshot and reader-recovery entry points before scheduling; those require their own remaining durable selection/stage/recovery scope.
+
+## Ordinary writes and response custody
+
+Global transaction-cache SQL does not itself carry a job ID. Before an original ordinary write is published, a non-executable `wallet_recorded_write` association captures the exact native-validated plan, manifest hash, original job identity and ordered write position. Inspection requires the matching original owner and association plus the original publication hash and native result reconciliation. Checkpoint writes also bind their mint; unsupported-reader writes retain the original direct-cycle/source/limits context. Merely naming a committed publication in another descriptor does not confirm a write. Associations describe the original controller's work; they do not add chain provenance or qualify token evidence.
+
+After both original quota reservations succeed, the adapter rechecks its current dispatch context and retains an encrypted `wallet_recorded_handoff` containing the original method, parameters, body, status and retry header. The manifest's reply hash binds the entire response description. Both original quota plans must reconcile under the original grant with accepted one-row results. Dispatch context is checked again after retention and before returning the in-memory response to the unchanged collector. Recovered reservations still cannot dispatch, and an already retained handoff is never served again by this helper. Interrupted handoffs preserve spent allowances.
+
+`handoff_prepared` means the body was durably retained before a possible handoff. A crash may occur immediately afterward, so **response consumption remains unknown**. It is not a completed parse, cache write, source observation, transport receipt or permission to deliver the response again. The inspection API never returns response bodies or original request parameters. Explicit processing/consumption acknowledgement and safe whole-workflow continuation remain open.
+
+All three new descriptor kinds have empty operation tuples. Publication and publication reconciliation reject them explicitly; no descriptor can enter a SQL executor. The existing authenticated encrypted intent format, separate protected key, readiness protocol and SQLite schema remain. Manifest JSON is bounded to 256,000 bytes; write/handoff descriptors to 15 MiB, below the existing 16 MiB journal envelope. Original reply/body/aggregate bounds remain. These are resource bounds, not provider or research quotas. Additional copies and repeated reads have not been admitted for production Free/storage/CPU budgets.
+
+## Read-only progress
+
+`inspectRecordedWalletJob` needs only `progressId` and the private publication/journal context with its current grant. It reads fixed ledger headers in batches of at most 28 declared IDs, retaining the existing 128 KiB per-result bound. It authenticates original grants, manifest/plan hashes, exact role/cycle/source/limits, quota pairs, response identity and write associations. It never discovers unknown jobs, reconstructs partial files or publishes pending steps.
+
+Original `not_retained`, `pending`, `committed`, `orphan_commit` and `held` meanings remain. `write_prepared` denotes an authentic original association without a write intent or commit. `handoff_prepared` denotes encrypted response readiness with both original accepted quota records. Neither state grants execution or consumption. Finish/failure/declined-lease summaries describe publication history, including original zero-change results, rather than successful SQL predicates or current authority. Inspect each result separately.
+
+The reader rechecks readable readiness files, the manifest and the complete declared ledger snapshot before returning. Owner loss or changed ledger/readiness withholds successful mixed-snapshot diagnostics. Individually damaged or orphaned steps hold the job while independently verified history may remain visible under a stable final fence. A replacement current owner can inspect former-owner history after expiry; it cannot execute its pending work or prepare another handoff. Every outcome has zero provider requests, `source_authorized=false`, `current_authority=false` and false runtime/action/evidence/Free acceptance flags.
+
+## Validation
+
+```text
+pnpm test:discovery-wallet-direct-cycle-target
+pnpm exec tsc --noEmit -p tsconfig.evidence-scratch.json
+```
+
+The affected matrix covers **437 distinct cases across sixteen suites**: **28 new recorded-job cases** plus all **409 existing cases**. The direct-cycle suite now has 52 cases. Six original-turn cases, including paging/unsupported/rate-limited/exhausted/busy paths, match all retained columns across all 87 metadata tables with oracle access disabled. Fresh subprocesses stop after job readiness, paired quota commit, response readiness, write-association readiness and finish commit. A new process inspects using only the retained ID/context and leaves database bytes unchanged.
+
+The focused run passes all 28 new cases. The full matrix also executes those cases and passes all 437 with zero failures. Its private reporting wrapper initially expected 409 cases, so it returned a count-mismatch status despite the complete successful native transcript; that expectation is corrected in the final audit. No implementation or assertion was changed after either run.
+
+Other cases cover duplicate/reused IDs, partial readiness before lease/handoff/write SQL, unchanged spend, non-executable/strict descriptors, orphan writes and missing associations, authenticated wrong-scope records, replacement-owner expired history and owner/ledger/readiness races. Private focused transcript `.tmp/recorded-job-focused-20261022-147-001.tap`, SHA-256 **`b339cfbce567814ed27134ee796418dd520c750fac708370c4442fd4d8c65157`**; related transcript `.tmp/recorded-job-related-20261022-147-001.tap`, SHA-256 **`8093c3c273168665a029cfdb8ae9f3a9b0afc1bd037ba88e55d5f4fa4579b7d3`**. Private compatibility report `.tmp/recorded-job-compat-20261022-147.json`, SHA-256 **`94a3b392b5ea71c202e3314ade13fe8cbc8450d8146b6b8af18a96cae340796d`**, pins all seven changed code files and fourteen original journal files. Four old receipt plans reconcile read-only in fresh processes, preserving original frozen target/journal bytes; no new job is added to that frozen target.
+
+Scoped types, security preflight/blocklist, original row-hash/foreign-key checks, existing built thesis-only release checks and final actual credential/key-byte exclusion preserve the prior gates. Private proofs/keys/env remain ignored and untracked. No full frontend/Discovery rebuild or hosted CI was run. Synthetic migrated metadata and old recorded responses add no real source breadth, organic-volume/holder-growth qualification or scoring calibration. F5/private/root/key/off-device/growth/shared Free/CPU acceptance remains partial.
+
+## Next boundary
+
+Extend original-job scope to recorded reader recovery, snapshots and automatic selection, including original planning/index pins, stage/cohort/recovery identities and every response position. Add explicit durable processing/consumption acknowledgement without deriving a new source permit from recovered spend. Complete orphan discovery, explicit supersession and expired-job handling before any automatic resumption, then prove fenced new-generation handoff and stopped-owner adoption/rollback. Continue admitted F1 breadth, F3 organic volume/meaningful holder growth and prospective F4 holdouts alongside storage work.
+
+D1/model-v4, original hashes/receipts/cohorts/elections and spent allowances, all provider Free limits and source/evidence/time/action/financial/release gates, and thesis-only production exposure remain. No live collection, spending, quota reset, evidence deletion, runtime adoption, restart, migration or deploy.

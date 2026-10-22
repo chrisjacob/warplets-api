@@ -1,3 +1,4 @@
+import {isNonExecutableWalletPlan} from "./evidence-wallet-recorded-job-plan.mjs";
 // Private offline publication intents. No runtime bindings or new source IO.
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -108,13 +109,13 @@ async function linkedCohort(publication,journal,grant,saved){
 export async function publishStoredEvidenceIntent(publication,journal,grant,id,afterCommit){
   grant=Grant.parse(grant);
   const saved=await readEvidencePublicationIntent(publication,journal,grant,id);
-  if(saved.plan.kind==="wallet_cached_job")throw Error("intent_job_not_executable");
+  if(isNonExecutableWalletPlan(saved.plan))throw Error("intent_job_not_executable");
   if(!isDeepStrictEqual(saved.original_grant,Grant.parse(grant)))throw Error("intent_original_owner_required");
   const companion=await linkedCohort(publication,journal,grant,saved);
   return (saved.plan.kind==="candidate_cohorts"?publishEvidenceCohorts:saved.plan.kind==="wallet_snapshot_cycle"?publishEvidenceWalletSnapshot:saved.plan.kind==="candidate_metadata"?publishEvidenceCandidateMetadata:saved.plan.kind==="wallet_cached_progress"?publishEvidenceWalletCached:saved.plan.kind==="wallet_quota"?publishEvidenceWalletQuota:saved.plan.kind==="wallet_cycle_control"?publishEvidenceWalletCycle:saved.plan.kind==="wallet_collection"?publishEvidenceWalletCollection:saved.plan.kind==="wallet_direct_cycle"?publishEvidenceWalletDirect:saved.plan.kind==="wallet_reader_recovery"?publishEvidenceWalletRecovery:publishEvidenceAppend)(publication,grant,saved.plan,afterCommit,companion);
 }
 export async function reconcileStoredEvidenceIntent(publication,journal,grant,id,afterCommit){
   grant=Grant.parse(grant);
-  const saved=await readEvidencePublicationIntent(publication,journal,grant,id);if(saved.plan.kind==="wallet_cached_job")throw Error("intent_job_not_executable");
+  const saved=await readEvidencePublicationIntent(publication,journal,grant,id);if(isNonExecutableWalletPlan(saved.plan))throw Error("intent_job_not_executable");
   const companion=await linkedCohort(publication,journal,grant,saved);return (saved.plan.kind==="candidate_cohorts"?reconcileEvidenceCohorts:saved.plan.kind==="wallet_snapshot_cycle"?reconcileEvidenceWalletSnapshot:saved.plan.kind==="candidate_metadata"?reconcileEvidenceCandidateMetadata:saved.plan.kind==="wallet_cached_progress"?reconcileEvidenceWalletCached:saved.plan.kind==="wallet_quota"?reconcileEvidenceWalletQuota:saved.plan.kind==="wallet_cycle_control"?reconcileEvidenceWalletCycle:saved.plan.kind==="wallet_collection"?reconcileEvidenceWalletCollection:saved.plan.kind==="wallet_direct_cycle"?reconcileEvidenceWalletDirect:saved.plan.kind==="wallet_reader_recovery"?reconcileEvidenceWalletRecovery:reconcileEvidenceAppend)(publication,grant,saved.plan,afterCommit,companion);
 }

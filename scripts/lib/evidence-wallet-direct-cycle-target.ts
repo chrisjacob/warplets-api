@@ -7,7 +7,10 @@ import {fundingRecoveryCandidates,type FundingRecovery} from "../../discovery/sr
 import {priorWalletEvidence} from "../../discovery/src/wallet-work";
 import {runWalletCycle,type WalletSettings} from "../../discovery/src/wallet-cycle";
 import {walletPlan} from "../../discovery/src/wallet-plan";
-import {readEvidenceWalletMetadata,readEvidenceWalletRecoveryMetadata,readEvidenceWalletCycleMetadata,readEvidenceCandidateMetadata,checkEvidenceWalletDirectDispatch} from "../discovery-evidence-publication.mjs";
+import {readEvidenceWalletMetadata,readEvidenceWalletRecoveryMetadata,readEvidenceWalletCycleMetadata,readEvidenceCandidateMetadata,checkEvidenceWalletDirectDispatch,validateEvidenceTargetPlan} from "../discovery-evidence-publication.mjs";
+import {readEvidencePublicationIntentIfPresent} from "../discovery-evidence-intents.mjs";
+import {recordedJobLinks} from "../evidence-wallet-recorded-job-plan.mjs";
+import {retainRecordedWalletJob,retainRecordedWalletWrite,retainRecordedWalletHandoff} from "./evidence-wallet-recorded-job";
 import {readWalletReplayReceipt} from "./evidence-wallet-replay-target";
 import type {ScratchOptions} from "../discovery-evidence-scratch.mjs";
 import {ProducerStatements,type ProducerStatement} from "./evidence-producer-plan";
@@ -30,7 +33,7 @@ import {publishEvidenceCohortBatch} from "./evidence-cohort-publication";
 const Id=z.string().uuid(),Limit=z.number().int().safe().positive();
 const Reply=z.object({method:z.enum(["getGenesisHash","getSignaturesForAddress","getTransaction"]),params:z.unknown().array().max(4),body:z.string().max(3000000),status:z.number().int().min(200).max(599),retryAfter:z.string().max(100).optional(),walletPublicationId:Id,rpcPublicationId:Id}).strict();
 const Ids=z.object({lease:Id,spacing:Id,release:Id,catchup:Id,backoff:Id,work:Id,finish:Id,failure_run:Id,failure_release:Id,failure_attempt:Id}).strict();
-const Request=z.object({address:Address,now:z.string().datetime(),walletEnabled:z.boolean(),walletDailyLimit:Limit,rpcDailyLimit:Limit,marketDailyLimit:Limit,ids:Ids,writeIds:Id.array().max(128),replies:Reply.array().max(18)}).strict();
+const Request=z.object({address:Address,now:z.string().datetime(),walletEnabled:z.boolean(),walletDailyLimit:Limit,rpcDailyLimit:Limit,marketDailyLimit:Limit,progressId:Id.optional(),ids:Ids,writeIds:Id.array().max(128),replies:Reply.array().max(18)}).strict();
 export type WalletDirectCycleTargetInput=z.infer<typeof Request>;
 const RecoveryIdentity=z.object({signature:Signature,claimId:Id,finishId:Id,errorFinishId:Id}).strict(),RecoveryRequest=Request.extend({recoveries:RecoveryIdentity.array().max(2)});
 export type WalletRecoveryCycleTargetInput=z.infer<typeof RecoveryRequest>;
@@ -46,12 +49,17 @@ export function runRecordedRecoveryWalletCycleOnEvidenceTarget(source:ScratchOpt
 export function runRecordedSnapshotWalletCycleOnEvidenceTarget(source:ScratchOptions,publication:ProducerPublication,journal:ProducerJournal,grant:ProducerGrant,input:WalletSnapshotCycleTargetInput){return runRecordedWalletCycleOnEvidenceTarget(source,publication,journal,grant,input,"snapshot");}
 export function runRecordedAutomaticWalletCycleOnEvidenceTarget(source:ScratchOptions,publication:ProducerPublication,journal:ProducerJournal,grant:ProducerGrant,input:WalletAutomaticCycleTargetInput){return runRecordedWalletCycleOnEvidenceTarget(source,publication,journal,grant,input,"automatic");}
 async function runRecordedWalletCycleOnEvidenceTarget(source:ScratchOptions,publication:ProducerPublication,journal:ProducerJournal,grant:ProducerGrant,input:WalletDirectCycleTargetInput|WalletRecoveryCycleTargetInput|WalletSnapshotCycleTargetInput|WalletAutomaticCycleTargetInput,expectedStage:"direct_funding"|"reader_recovery"|"snapshot"|"automatic"){
-  const publications:ProducerPublicationOutcome[]=[];let cycle:WalletCycleContext|null=null,phase="preflight",recordedResponses=0,writeIndex=0,producer:ProducerPublicationOutcome|undefined,cohortPublication:ProducerPublicationOutcome|undefined,cohort:"not_started"|"unconfirmed"|"completed"="not_started",selection:Awaited<ReturnType<typeof previewAutomaticWalletSelection>>|undefined,selectionVerified=false;
+  const publications:ProducerPublicationOutcome[]=[];let cycle:WalletCycleContext|null=null,phase="preflight",recordedResponses=0,writeIndex=0,producer:ProducerPublicationOutcome|undefined,cohortPublication:ProducerPublicationOutcome|undefined,cohort:"not_started"|"unconfirmed"|"completed"="not_started",selection:Awaited<ReturnType<typeof previewAutomaticWalletSelection>>|undefined,selectionVerified=false,jobProgress:Awaited<ReturnType<typeof retainRecordedWalletJob>>|undefined;
   try{
     const automatic=expectedStage==="automatic";let stage:"direct_funding"|"reader_recovery"|"snapshot"|"cached_funding"|"empty"|"automatic"=expectedStage;
     const saved=structuredClone({source,publication,journal,grant,input}),request=automatic?AutomaticRequest.parse(saved.input):stage==="snapshot"?SnapshotRequest.parse(saved.input):stage==="reader_recovery"?RecoveryRequest.parse(saved.input):Request.parse(saved.input),recoveries=RecoveryIdentity.array().max(2).parse("recoveries" in request?request.recoveries:[]),checkpoints=CheckpointIdentity.array().max(20).parse("checkpoints" in request?request.checkpoints:[]),ids=[...Object.values(request.ids),...request.writeIds,...request.replies.flatMap(r=>[r.walletPublicationId,r.rpcPublicationId]),...recoveries.flatMap(r=>[r.claimId,r.finishId,r.errorFinishId]),...checkpoints.map(r=>r.publicationId),...("stageId" in request&&request.stageId!==undefined?[request.stageId]:[]),...("cohortPublicationId" in request&&request.cohortPublicationId!==undefined?[request.cohortPublicationId]:[])];
     let address="address" in request?Address.parse(request.address):"automatic-empty",indexCandidates:Candidate[]=[],indexPin:string|undefined,readMode:"off"|"capture"|"verify"="off";
     const readPins=new Map<string,string>(),seen=new Set<string>();
+    if(request.progressId){
+      if(expectedStage!=="direct_funding")throw Error("wallet_recorded_job_direct_only");
+      const links=recordedJobLinks(request.progressId,request.writeIds,request.replies);ids.push(request.progressId,...links.writes.map((r:{binding_id:string})=>r.binding_id),...links.responses.map((r:{handoff:string})=>r.handoff));
+      if(await readEvidencePublicationIntentIfPresent(saved.publication,saved.journal,saved.grant,request.progressId))throw Error("wallet_recorded_job_already_retained");
+    }
     if(new Set(ids).size!==ids.length)throw Error("wallet_direct_identity_duplicate");
     if(new Set(recoveries.map(r=>r.signature)).size!==recoveries.length)throw Error("wallet_recovery_signature_duplicate");
     if(new Set(checkpoints.map(r=>JSON.stringify([r.wallet,r.anchorSignature]))).size!==checkpoints.length)throw Error("wallet_cycle_identity_duplicate");
@@ -80,6 +88,7 @@ async function runRecordedWalletCycleOnEvidenceTarget(source:ScratchOptions,publ
     async function publish(id:string|undefined,rows:ProducerStatement[],kind:"control"|"direct"|"collection"){
       if(automatic&&(unsupported||readMode!=="off"))throw Error("wallet_auto_selection_unconfirmed");
       if(!id||!cycle||kind!=="control"&&stage!=="snapshot"&&!sourceHash||used.has(id))throw Error("wallet_direct_publication_identity");used.add(id);
+      if(request.progressId&&request.writeIds.includes(id))await retainRecordedWalletWrite(saved.publication,saved.journal,saved.grant,request.progressId,request.writeIds.indexOf(id),validateEvidenceTargetPlan({publication_id:id,kind:kind==="collection"?"wallet_collection":"wallet_direct_cycle",...(kind==="collection"?{}:{cycle,source_hash:sourceHash,limits}),operations:rows.map(r=>({kind:"sql",...r}))}));
       const outcome=await(kind==="control"?publishEvidenceWalletCycleBatch(saved.publication,saved.journal,saved.grant,{publicationId:id,cycle,statements:rows}):kind==="collection"?publishEvidenceWalletCollectionBatch(saved.publication,saved.journal,saved.grant,{publicationId:id,statements:rows}):stage==="snapshot"?publishEvidenceWalletSnapshotBatch(saved.publication,saved.journal,saved.grant,{publicationId:id,cycle,sourceHash,candidateHash:candidateHash!,limits,statements:rows}):publishEvidenceWalletDirectBatch(saved.publication,saved.journal,saved.grant,{publicationId:id,cycle,sourceHash:sourceHash!,limits,statements:rows}));publications.push(outcome);if(outcome.state!=="committed")throw Error("wallet_direct_publication_unconfirmed");return outcome.results;
     }
     async function publishRecovery(id:string,row:FundingRecovery,claimId:string,statements:ProducerStatement[]){
@@ -108,6 +117,7 @@ async function runRecordedWalletCycleOnEvidenceTarget(source:ScratchOptions,publ
           const candidate=selectedIndex??(retained?.payload?CandidateSchema.parse(JSON.parse(retained.payload)):null);
           if(!candidate||stage!=="snapshot"&&!candidate.wallet_analysis)throw Error("wallet_direct_candidate_required");
           const plan=await walletPlan(db,candidate,new Date(request.now));if(unsupported||!(stage==="snapshot"?["new_snapshot","refresh_required"].includes(plan.stage):plan.stage===stage))throw Error("wallet_direct_path_required");sourceHash=candidate.wallet_analysis?.evidence_hash??null;
+          if(request.progressId){const current=(await readEvidenceCandidateMetadata(saved.publication,saved.grant,{kind:"candidate",address:address})).row;if(!current?.payload||!isDeepStrictEqual(CandidateSchema.parse(JSON.parse(current.payload)),candidate))throw Error("wallet_recorded_job_candidate_changed");candidateHash=createHash("sha256").update(current.payload).digest("hex");}
           if(stage==="snapshot"){
             const current=(await readEvidenceCandidateMetadata(saved.publication,saved.grant,{kind:"candidate",address:address})).row;
             if(!current||typeof current.payload!=="string"||!isDeepStrictEqual(CandidateSchema.parse(JSON.parse(current.payload)),candidate))throw Error("wallet_snapshot_candidate_changed");candidateHash=createHash("sha256").update(current.payload).digest("hex");
@@ -122,6 +132,7 @@ async function runRecordedWalletCycleOnEvidenceTarget(source:ScratchOptions,publ
           }
           }
           cycle={lease_id:request.ids.lease,job:String(bindings[0]),until:String(bindings[1]),at:new Date(request.now).toISOString(),rapid:bindings[3] as 0|1,address:address};phase="lease";
+          if(request.progressId)jobProgress=await retainRecordedWalletJob(saved.publication,saved.journal,saved.grant,{kind:"wallet_recorded_job",publication_id:request.progressId,cycle,stage:"direct_funding",candidate_hash:candidateHash,source_hash:sourceHash,limits:{...limits,market:request.marketDailyLimit},ids:request.ids,...recordedJobLinks(request.progressId,request.writeIds,request.replies)});
           const result=(await publish(request.ids.lease,ProducerStatements.parse([{sql,bindings}]),"control"))[0]!.results[0]??null;
           if(automatic&&result)readMode="verify";return result;
         }
@@ -204,9 +215,10 @@ async function runRecordedWalletCycleOnEvidenceTarget(source:ScratchOptions,publ
     const transport:typeof fetch=async(url,init)=>{
       phase="recorded_response";await dispatchCheck();const envelope=JSON.parse(String(init?.body)),reply=request.replies[recordedResponses];
       if(String(url)!=="https://offline.invalid"||init?.method!=="POST"||quotaStep!=="wallet"||quotaIndex!==recordedResponses+1||!reply||envelope.id!==recordedResponses+1||envelope.method!==reply.method||!isDeepStrictEqual(envelope.params,reply.params))throw Error("wallet_direct_recording_mismatch");
+      if(request.progressId){await retainRecordedWalletHandoff(saved.publication,saved.journal,saved.grant,request.progressId,recordedResponses,reply);await dispatchCheck();}
       recordedResponses++;return new Response(reply.body,{status:reply.status,headers:reply.retryAfter?{"retry-after":reply.retryAfter}:{}});
     };
     const settings={db,walletEnabled:request.walletEnabled,walletDailyLimit:limits.wallet,rpcDailyLimit:limits.rpc,marketDailyLimit:request.marketDailyLimit,rpcUrl:"https://offline.invalid",marketEnabled:false,transport} as WalletSettings;
-    phase="cycle";const result=await runWalletCycle(settings,automatic?undefined:address,new Date(request.now));if(unsupported||automatic&&readMode!=="off"&&result.state!=="waiting")throw Error("wallet_direct_unsupported_path");return {state:"completed" as const,result,cycle:cycle as WalletCycleContext|null,selection:selection?{selected:selection.selected?{address:selection.selected.candidate.address,stage:selection.selected.plan.stage}:null,considered:selection.considered,verified:selectionVerified}:undefined,recorded_responses:recordedResponses,write_positions:writeIndex,publications,producer,cohort_publication:cohortPublication,cohort,post_commit:producer?.state==="committed"?String(cohort)==="completed"?"completed":"failed":"not_started",...inactive()};
-  }catch(error){return {state:"held" as const,phase,reason:error instanceof Error&&/^[a-z0-9_]{1,80}$/.test(error.message)?error.message:"wallet_direct_not_certified",cycle,selection:selection?{selected:selection.selected?{address:selection.selected.candidate.address,stage:selection.selected.plan.stage}:null,considered:selection.considered,verified:selectionVerified}:undefined,recorded_responses:recordedResponses,write_positions:writeIndex,publications,producer,cohort_publication:cohortPublication,cohort,post_commit:producer?.state==="committed"?"failed":"not_started",...inactive()};}
+    phase="cycle";const result=await runWalletCycle(settings,automatic?undefined:address,new Date(request.now));if(unsupported||automatic&&readMode!=="off"&&result.state!=="waiting")throw Error("wallet_direct_unsupported_path");return {state:"completed" as const,result,cycle:cycle as WalletCycleContext|null,selection:selection?{selected:selection.selected?{address:selection.selected.candidate.address,stage:selection.selected.plan.stage}:null,considered:selection.considered,verified:selectionVerified}:undefined,recorded_responses:recordedResponses,write_positions:writeIndex,publications,job_progress:jobProgress,producer,cohort_publication:cohortPublication,cohort,post_commit:producer?.state==="committed"?String(cohort)==="completed"?"completed":"failed":"not_started",...inactive()};
+  }catch(error){return {state:"held" as const,phase,reason:error instanceof Error&&/^[a-z0-9_]{1,80}$/.test(error.message)?error.message:"wallet_direct_not_certified",cycle,selection:selection?{selected:selection.selected?{address:selection.selected.candidate.address,stage:selection.selected.plan.stage}:null,considered:selection.considered,verified:selectionVerified}:undefined,recorded_responses:recordedResponses,write_positions:writeIndex,publications,job_progress:jobProgress,producer,cohort_publication:cohortPublication,cohort,post_commit:producer?.state==="committed"?"failed":"not_started",...inactive()};}
 }
