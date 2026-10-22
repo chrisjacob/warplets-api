@@ -1,5 +1,7 @@
 # Outcome-led build order and Free serving assessment
 
+Follow-up: [149 — native builder and combined Free budget](149-native-builder-and-combined-free-budget.md) now measures the unchanged rebuild path. A minute rebuild schedule models 78.0 million archive reads/day before readers, so adoption remains held with a named input-preparation cost blocker. The initial assessment has a concrete decision; daily-decision UX/artwork acceptance is the next product slice. Original 148 measurements/pins below remain unchanged. No model, gate, schedule or runtime adoption follows.
+
 22 October 2026. Implements the founder-approved revised order. This is an offline assessment and planning update; no runtime route, score, source allocation, provider entitlement, retention policy, production exposure or evidence gate changes.
 
 ## Approved next tranche

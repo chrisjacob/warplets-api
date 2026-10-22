@@ -171,8 +171,8 @@ The approved [outcome-led build order and Free serving assessment](148-free-serv
 
 | Priority | Next functionality | Delivery boundary |
 |---|---|---|
-| 1 / Free serving / 2–3 days | Measure actual route and representative retained data with intact checks; record explicit supported/held serving decision | Include CPU, query/read/write/storage, builder, polling and shared usage; local latency is not Free approval. Initial offline assessment delivered in 148; deployment/shared usage remain held. |
-| 2 / F2 / 4–6 days | Daily-decision UX and rendered artwork reliability: find, inspect, compare, save, reopen | Timed journeys, image success/failure coverage, keyboard, mobile and zoom acceptance; preserve honest unknowns and existing score meanings |
+| 1 / assessment delivered / acceptance held | Actual-route study in 148 plus native builder and combined worksheet in [149](149-native-builder-and-combined-free-budget.md) produce the explicit held decision | Minute rebuilding models 78.0 million archive reads/day before visitors; do not adopt it. Source-bound input-preparation cost is a named release blocker; deployed CPU/memory/shared usage/full storage/growth remain unknown. |
+| 2 / NEXT / F2 / 4–6 days | Daily-decision UX and rendered artwork reliability: find, inspect, compare, save, reopen | Use saved observations/current local preview. Timed journeys, image success/failure coverage, keyboard, mobile and zoom acceptance; preserve honest unknowns and existing score meanings. Serving adoption stays held. |
 | 3 / F1 / 2–4 days | Broad unfamiliar-token yield through admitted GMGN/existing sources | Report denominators, freshness, missingness and Free cost; provider lists never replace independent chain proof |
 | 4 / F3 / 5–8 days | First qualified participation slice | Preregister acquisition/retention and organic-volume rules; affordable supported subset, explicit unknowns, no wash/dust credit or invented daily history |
 | 5 / F5 / 4–6 days | Read-only release/security acceptance | Isolation, abuse/defaults, cached degradation, closed artifacts and required recovery blockers; unchanged budgets/stores and thesis-only exposure; no deploy |
