@@ -136,6 +136,9 @@ jobs:
       - name: Automatic recorded wallet selection across original stages
         run: pnpm test:discovery-wallet-automatic-cycle-target
 
+      - name: Durable post-commit cohort publication and recovery
+        run: pnpm test:discovery-cohort-publication
+
       - name: Install dependencies (app)
         working-directory: app
         run: pnpm install --frozen-lockfile

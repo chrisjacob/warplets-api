@@ -16,6 +16,7 @@ import {directCatchupSql,directBackoffSql,directWorkSql,directFinishSql,directUn
 import {recoveryClaimSql,recoveryCacheSql,recoveryFinishSql} from "./evidence-wallet-recovery-sql.mjs";
 import {validateEvidenceWalletSnapshotPlan,validateSnapshotReceipt} from "./evidence-wallet-snapshot-plan.mjs";
 import {snapshotReviewsSql} from "./evidence-wallet-snapshot-sql.mjs";
+import {normalizeCohortPublicationPlan,cohortKeys} from "./evidence-cohort-plan.mjs";
 export {validateEvidenceWalletSnapshotPlan} from "./evidence-wallet-snapshot-plan.mjs";
 
 const VERSION="discovery-evidence-publication-v1",FILE="metadata.sqlite",MAX_DB=2*1024**3;
@@ -222,7 +223,8 @@ export function validateEvidenceWalletRecoveryPlan(input){
   return p;
 }
 function recoveryClaimBindings(p){const c=p.cycle,r=p.row;return [r.signature,"solana-json-legacy-v0-v1-r1",r.slot,c.job,c.address,p.source_hash,r.hop,r.wallet,r.anchor_key,r.checkpoint_hash,c.at,c.at.slice(0,10)+"T00:00:00.000Z",20,2,r.blockTime];}
-export function validateEvidenceTargetPlan(input){return input?.kind==="wallet_snapshot_cycle"?validateEvidenceWalletSnapshotPlan(input):input?.kind==="wallet_reader_recovery"?validateEvidenceWalletRecoveryPlan(input):input?.kind==="wallet_direct_cycle"?validateEvidenceWalletDirectPlan(input):input?.kind==="candidate_metadata"?validateEvidenceCandidateMetadataPlan(input):input?.kind==="wallet_cached_progress"?validateEvidenceWalletCachedPlan(input):input?.kind==="wallet_quota"?validateEvidenceWalletQuotaPlan(input):input?.kind==="wallet_cycle_control"?validateEvidenceWalletCyclePlan(input):input?.kind==="wallet_collection"?validateEvidenceWalletCollectionPlan(input):normalizedPlan(input);}
+export function validateEvidenceCohortPlan(input){return normalizeCohortPublicationPlan(input,validateEvidenceTargetPlan);}
+export function validateEvidenceTargetPlan(input){return input?.kind==="candidate_cohorts"?validateEvidenceCohortPlan(input):input?.kind==="wallet_snapshot_cycle"?validateEvidenceWalletSnapshotPlan(input):input?.kind==="wallet_reader_recovery"?validateEvidenceWalletRecoveryPlan(input):input?.kind==="wallet_direct_cycle"?validateEvidenceWalletDirectPlan(input):input?.kind==="candidate_metadata"?validateEvidenceCandidateMetadataPlan(input):input?.kind==="wallet_cached_progress"?validateEvidenceWalletCachedPlan(input):input?.kind==="wallet_quota"?validateEvidenceWalletQuotaPlan(input):input?.kind==="wallet_cycle_control"?validateEvidenceWalletCyclePlan(input):input?.kind==="wallet_collection"?validateEvidenceWalletCollectionPlan(input):normalizedPlan(input);}
 function metadata(db,table,hash){
   const fields=table==="tenx_holder_evidence"?["payload_hash","address","slot","observed_at"]:["payload_hash","address","observed_at"],row=db.prepare(`SELECT ${fields.map(c=>c==="slot"?c:`CAST(${c} AS BLOB) AS ${c}`).join(",")} FROM ${table} WHERE payload_hash=?`).get(hash);
   return row?Object.fromEntries(fields.map(c=>[c,c==="slot"?row[c]:new TextDecoder("utf-8",{fatal:true,ignoreBOM:true}).decode(row[c])])):null;
@@ -247,25 +249,30 @@ export async function transferEvidencePublicationOwner(options,grant,nextOwner){
 }
 async function executePublication(options,grant,input,afterCommit,allowNew,metadataOnly=false){
   if(metadataOnly){grant=Grant.parse(grant);options=structuredClone(options);}
-  const plan=metadataOnly==="wallet_snapshot_cycle"?validateEvidenceWalletSnapshotPlan(input):metadataOnly==="wallet_reader_recovery"?validateEvidenceWalletRecoveryPlan(input):metadataOnly==="wallet_direct_cycle"?validateEvidenceWalletDirectPlan(input):metadataOnly==="wallet_collection"?validateEvidenceWalletCollectionPlan(input):metadataOnly==="wallet_cycle_control"?validateEvidenceWalletCyclePlan(input):metadataOnly==="wallet_quota"?validateEvidenceWalletQuotaPlan(input):metadataOnly==="wallet_cached_progress"?validateEvidenceWalletCachedPlan(input):metadataOnly?validateEvidenceCandidateMetadataPlan(input):normalizedPlan(input),planHash=digest(plan),verified=plan.ticket?await readStagedEvidenceAppend(options.stage,plan.ticket):null;
+  const plan=metadataOnly==="candidate_cohorts"?validateEvidenceCohortPlan(input):metadataOnly==="wallet_snapshot_cycle"?validateEvidenceWalletSnapshotPlan(input):metadataOnly==="wallet_reader_recovery"?validateEvidenceWalletRecoveryPlan(input):metadataOnly==="wallet_direct_cycle"?validateEvidenceWalletDirectPlan(input):metadataOnly==="wallet_collection"?validateEvidenceWalletCollectionPlan(input):metadataOnly==="wallet_cycle_control"?validateEvidenceWalletCyclePlan(input):metadataOnly==="wallet_quota"?validateEvidenceWalletQuotaPlan(input):metadataOnly==="wallet_cached_progress"?validateEvidenceWalletCachedPlan(input):metadataOnly?validateEvidenceCandidateMetadataPlan(input):normalizedPlan(input),planHash=digest(plan),verified=plan.ticket?await readStagedEvidenceAppend(options.stage,plan.ticket):null;
   if(metadataOnly==="wallet_snapshot_cycle")validateSnapshotReceipt(plan,verified);
+  const parentVerified=metadataOnly==="candidate_cohorts"&&plan.parent.ticket?await readStagedEvidenceAppend(options.stage,plan.parent.ticket):null;
+  if(parentVerified){if(parentVerified.row.address!==plan.operations[0].bindings[1])throw Error("publication_cohort_parent_address");if(plan.parent.kind==="wallet_snapshot_cycle")validateSnapshotReceipt(plan.parent,parentVerified);else if(parentVerified.table!=="tenx_holder_evidence")throw Error("publication_cohort_holder_parent_required");}
   const {db,body}=await opened(options,!allowNew);let publication,commitAttempted=false;
   try{
     db.exec(allowNew?"BEGIN IMMEDIATE":"BEGIN");fenced(db,body,grant);
     const prior=db.prepare("SELECT plan_sha256,results_json,generation,owner,epoch FROM tenx_append_publications WHERE publication_id=?").get(plan.publication_id);
     if(prior){
       if(prior.plan_sha256!==planHash)throw Error("publication_identity_conflict");
+      if(metadataOnly==="candidate_cohorts")cohortParent(db,body,plan,{generation:prior.generation,owner:prior.owner,epoch:prior.epoch},parentVerified);
       if(metadataOnly==="wallet_snapshot_cycle"){if(prior.generation!==body.generation)throw Error("publication_wallet_snapshot_generation");walletCycleParent(db,plan,{generation:prior.generation,owner:prior.owner,epoch:prior.epoch});}
       if(metadataOnly==="wallet_reader_recovery"){if(prior.generation!==body.generation)throw Error("publication_wallet_recovery_generation");walletRecoveryParent(db,plan,{generation:prior.generation,owner:prior.owner,epoch:prior.epoch});}
       if(metadataOnly==="wallet_direct_cycle"){if(prior.generation!==body.generation)throw Error("publication_wallet_direct_generation");walletCycleParent(db,plan,{generation:prior.generation,owner:prior.owner,epoch:prior.epoch});}
       if(metadataOnly==="wallet_quota"&&plan.operations[0].sql===rpcQuotaSql){if(prior.generation!==body.generation)throw Error("publication_wallet_quota_generation");walletQuotaParent(db,plan,{generation:prior.generation,owner:prior.owner,epoch:prior.epoch});}
       if(metadataOnly==="wallet_cycle_control"){if(prior.generation!==body.generation)throw Error("publication_wallet_cycle_generation");if(plan.operations[0].sql!==walletLeaseSql)walletCycleParent(db,plan,{generation:prior.generation,owner:prior.owner,epoch:prior.epoch});}
       if(verified)append(db,verified,plan.ticket,plan.publication_id,false);
-      const results=publicationResults(plan,JSON.parse(prior.results_json));
+      const results=publicationResults(plan,JSON.parse(prior.results_json));if(metadataOnly==="candidate_cohorts")cohortState(db,plan,results);
       publication={results,reconciled:true};
     }
     else{
       if(!allowNew)throw Error("publication_reconciliation_requires_commit");
+      if(metadataOnly==="candidate_cohorts")cohortParent(db,body,plan,grant,parentVerified);
+      if(metadataOnly==="candidate_cohorts")cohortState(db,plan);
       if(metadataOnly==="wallet_snapshot_cycle"){walletCycleParent(db,plan,grant);if(plan.ticket)snapshotDispatch(db,plan,new Date().toISOString());}
       if(metadataOnly==="wallet_reader_recovery")walletRecoveryParent(db,plan,grant);
       if(metadataOnly==="wallet_direct_cycle")walletCycleParent(db,plan,grant);
@@ -287,7 +294,7 @@ async function executePublication(options,grant,input,afterCommit,allowNew,metad
         else{changes=Number(db.prepare(op.sql).run(...op.bindings).changes);if(op.expect_changes!==undefined&&changes!==op.expect_changes)throw Error("publication_expected_changes_mismatch");}
         return {success:true,results:[],meta:{changes}};
       });
-      publicationResults(plan,results);db.prepare("INSERT INTO tenx_append_publications VALUES(?,?,?,?,?,?)").run(plan.publication_id,planHash,grant.generation,grant.owner,grant.epoch,JSON.stringify(results));publication={results,reconciled:false};
+      publicationResults(plan,results);if(metadataOnly==="candidate_cohorts")cohortState(db,plan,results);db.prepare("INSERT INTO tenx_append_publications VALUES(?,?,?,?,?,?)").run(plan.publication_id,planHash,grant.generation,grant.owner,grant.epoch,JSON.stringify(results));publication={results,reconciled:false};
     }
     commitAttempted=true;db.exec("COMMIT");
   }catch(error){const uncertain=commitAttempted&&!db.isTransaction;if(db.isTransaction)db.exec("ROLLBACK");if(uncertain)throw Error("publication_commit_acknowledgement_unknown");throw error;}finally{db.close();}
@@ -314,11 +321,39 @@ export async function publishEvidenceWalletRecovery(options,grant,input,afterCom
 export async function reconcileEvidenceWalletRecovery(options,grant,input,afterCommit){return executePublication(options,grant,input,afterCommit,false,"wallet_reader_recovery");}
 export async function publishEvidenceWalletSnapshot(options,grant,input,afterCommit){return executePublication(options,grant,input,afterCommit,true,"wallet_snapshot_cycle");}
 export async function reconcileEvidenceWalletSnapshot(options,grant,input,afterCommit){return executePublication(options,grant,input,afterCommit,false,"wallet_snapshot_cycle");}
+export async function publishEvidenceCohorts(options,grant,input,afterCommit){return executePublication(options,grant,input,afterCommit,true,"candidate_cohorts");}
+export async function reconcileEvidenceCohorts(options,grant,input,afterCommit){return executePublication(options,grant,input,afterCommit,false,"candidate_cohorts");}
+function cohortParent(db,body,plan,expectedGrant,verified){
+  if(expectedGrant.generation!==body.generation)throw Error("publication_cohort_generation");
+  const parent=db.prepare("SELECT plan_sha256,results_json,generation,owner,epoch FROM tenx_append_publications WHERE publication_id=?").get(plan.parent.publication_id);
+  if(!parent||parent.plan_sha256!==digest(plan.parent)||!isDeepStrictEqual({generation:parent.generation,owner:parent.owner,epoch:parent.epoch},expectedGrant))throw Error("publication_cohort_parent_uncommitted");
+  publicationResults(plan.parent,JSON.parse(parent.results_json));
+  if(verified)append(db,verified,plan.parent.ticket,plan.parent.publication_id,false);
+}
+const CohortKey=z.object({kind:z.enum(["cohort","wallet","selection"]),day:z.string().regex(/^\d{4}-\d{2}-\d{2}$/),address:z.string().min(1).max(4096)}).strict();
+function cohortHead(db,key){
+  const table=key.kind==="cohort"?"tenx_cohorts":key.kind==="wallet"?"tenx_wallet_cohorts":"tenx_selections",fields=["day","address","selected_at",...(key.kind==="cohort"?["recommended"]:[]),"input_hash","payload"],text=fields.filter(f=>f!=="recommended");
+  const sizes=db.prepare(`SELECT ${text.map(f=>`length(CAST(${f} AS BLOB)) AS ${f}`).join(",")} FROM ${table} WHERE day=? AND address=?`).get(key.day,key.address);if(!sizes)return null;
+  if(text.some(f=>!Number.isSafeInteger(sizes[f])||sizes[f]<0||sizes[f]>(f==="payload"?2000000:4096)))throw Error("publication_cohort_head_bound");
+  const row=db.prepare(`SELECT ${fields.map(f=>f==="recommended"?f:`CAST(${f} AS BLOB) AS ${f}`).join(",")} FROM ${table} WHERE day=? AND address=?`).get(key.day,key.address),values=fields.map(f=>f==="recommended"?row[f]:new TextDecoder("utf-8",{fatal:true,ignoreBOM:true}).decode(row[f]));
+  return digest(values);
+}
+function cohortState(db,plan,results){
+  for(const [i,key] of cohortKeys(plan).entries()){
+    const wanted=results?results[i].meta.changes===1?digest(plan.operations[i].bindings):plan.heads[i]:plan.heads[i];
+    if(results&&wanted===null||cohortHead(db,key)!==wanted)throw Error("publication_cohort_head_changed");
+  }
+}
+export async function readEvidenceCohortHeads(options,grant,input){
+  options=structuredClone(options);grant=Grant.parse(grant);const request=z.object({keys:CohortKey.array().min(1).max(3)}).strict().parse(input),{db,body}=await opened(options,true);
+  try{db.exec("BEGIN");fenced(db,body,grant);const heads=request.keys.map(key=>cohortHead(db,key));fenced(db,body,grant);db.exec("COMMIT");return {heads,...inactive()};}finally{if(db.isTransaction)db.exec("ROLLBACK");db.close();}
+}
 function publicationResults(plan,input){
   // Only exact quota, catch-up, lease and reader-claim plans retain rows.
   // All older domains still require empty arrays and preserve their bytes.
   const claim=plan.kind==="wallet_reader_recovery"&&plan.operations[0].sql===recoveryClaimSql[plan.row.hop],catchup=["wallet_direct_cycle","wallet_snapshot_cycle"].includes(plan.kind)&&plan.operations[0].sql===directCatchupSql,quota=plan.kind==="wallet_quota",lease=plan.kind==="wallet_cycle_control"&&plan.operations[0].sql===walletLeaseSql,rows=claim?z.object({signature:z.literal(plan.row.signature)}).strict().array().max(1):quota||catchup?z.object({used:z.number().int().safe().positive()}).strict().array().max(1):lease?z.object({id:z.literal(1)}).strict().array().max(1):z.tuple([]);
   const result=z.object({success:z.literal(true),results:rows,meta:z.object({changes:z.number().int().nonnegative()}).strict()}).strict().array().length(plan.operations.length).parse(input);
+  if(plan.kind==="candidate_cohorts"&&result.some((r,i)=>r.meta.changes!==Number(plan.heads[i]===null)))throw Error("publication_cohort_result");
   if(lease&&result.some(r=>r.meta.changes!==r.results.length))throw Error("publication_wallet_cycle_result");
   if(claim&&result.some(r=>r.meta.changes!==r.results.length))throw Error("publication_wallet_recovery_result");
   if(catchup&&result.some(r=>r.meta.changes!==r.results.length||r.results.some(row=>row.used%18!==0||row.used>Math.min(180,Math.floor(plan.limits.wallet/4/18)*18))))throw Error("publication_wallet_direct_result");
