@@ -92,6 +92,9 @@ try{
     assert(metrics.scroll<=width+1);const shot=await send('Page.captureScreenshot',{format:'png'});await writeFile(join(output,label+'.png'),Buffer.from(shot.data,'base64'),{flag:'wx'});layouts.push({label,...metrics});
   }
   await evaluate(`document.getElementById('image-reset').focus()`);await send('Input.dispatchKeyEvent',{type:'keyDown',key:'Tab',code:'Tab',windowsVirtualKeyCode:9});await send('Input.dispatchKeyEvent',{type:'keyUp',key:'Tab',code:'Tab',windowsVirtualKeyCode:9});assert(await evaluate(`document.activeElement?.tagName==='BUTTON'`));cases.push({case:'keyboard_focus_and_320px_reflow',passed:true});
+  await scroll('compact-missing');
+  assert(await evaluate(`Array.from(document.querySelectorAll('#compact-missing .tenx-artwork-frame')).every(frame=>{const outer=frame.getBoundingClientRect();return outer.width===48&&Array.from(frame.querySelectorAll('.tenx-artwork-placeholder>span,.tenx-artwork-placeholder>small')).every(child=>{const r=child.getBoundingClientRect();return r.top>=outer.top&&r.bottom<=outer.bottom&&r.left>=outer.left&&r.right<=outer.right;});})`));
+  cases.push({case:'compact_card_and_saved_unavailable_labels_fit_48px_frames',passed:true});
   assert.deepEqual(unexpected,[]);assert.deepEqual(errors,[]);
   const report={version:1,scope:'Synthetic rendered-component lab; not live artwork coverage, full journey acceptance or independent usability testing.',cases,layouts,metadata_requests:requests.map(({addresses,...r})=>r),image_requests:imageRequests,unexpected_outbound:unexpected,browser_errors:errors,bundle_sha256:createHash('sha256').update(js).digest('hex'),provider_calls:0,score_changes:false,release_acceptance:false,free_acceptance:false};
   const text=JSON.stringify(report,null,2)+'\n';await writeFile(join(output,'report.json'),text,{flag:'wx'});console.log(JSON.stringify({report:join(output,'report.json'),sha256:createHash('sha256').update(text).digest('hex'),cases:cases.length,passed:true}));

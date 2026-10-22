@@ -1,0 +1,18 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "baseUrl": ".",
+    "paths": {
+      "react": ["app/node_modules/@types/react/index.d.ts"],
+      "react/jsx-runtime": ["app/node_modules/@types/react/jsx-runtime.d.ts"],
+      "react-dom/client": ["app/node_modules/@types/react-dom/client.d.ts"]
+    }
+  },
+  "include": [
+    "scripts/discovery-artwork-coverage.ts",
+    "scripts/discovery-artwork-coverage.test.ts",
+    "scripts/fixtures/discovery-artwork-coverage-browser.tsx"
+  ]
+}

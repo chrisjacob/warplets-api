@@ -35,6 +35,7 @@ function Lab(){
     <section id="reset"><h2>Updated source reference</h2><button id="image-reset" onClick={()=>setReset(v=>!v)}>Use new saved image</button><TokenImage name="reset" symbol="RS" url={origin+(reset?"good.svg":"broken-reset.png")}/></section></div>
     <button id="metadata-reload" onClick={()=>setMetadataVersion(n=>n+1)}>Remount cache fixture</button><MetadataLab key={metadataVersion}/>
     <DiscoveryTable candidates={[c]} artwork={{}} scoredAt={at.toISOString()}/>
+    <section id="compact-missing"><h2>Compact unavailable labels</h2><div className="tenx-ranked-cards"><div className="tenx-candidate-heading"><TokenImage name="Missing card artwork" symbol="QA"/></div></div><div className="tenx-shortlist-identity"><TokenImage name="Missing saved artwork" symbol="QA"/></div></section>
     <section id="offscreen" style={{marginTop:2400}}><h2>Initially off screen</h2><TokenImage name="offscreen" symbol="OF" url={origin+"offscreen-stall.png"} metadataUrl={origin+"fallback.svg"}/></section>
   </main>;
 }
