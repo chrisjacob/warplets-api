@@ -17,6 +17,7 @@ import {recoveryClaimSql,recoveryCacheSql,recoveryFinishSql} from "./evidence-wa
 import {validateEvidenceWalletSnapshotPlan,validateSnapshotReceipt} from "./evidence-wallet-snapshot-plan.mjs";
 import {snapshotReviewsSql} from "./evidence-wallet-snapshot-sql.mjs";
 import {normalizeCohortPublicationPlan,cohortKeys} from "./evidence-cohort-plan.mjs";
+import {validateEvidenceWalletJobPlan} from "./evidence-wallet-job-plan.mjs";
 export {validateEvidenceWalletSnapshotPlan} from "./evidence-wallet-snapshot-plan.mjs";
 
 const VERSION="discovery-evidence-publication-v1",FILE="metadata.sqlite",MAX_DB=2*1024**3;
@@ -224,7 +225,18 @@ export function validateEvidenceWalletRecoveryPlan(input){
 }
 function recoveryClaimBindings(p){const c=p.cycle,r=p.row;return [r.signature,"solana-json-legacy-v0-v1-r1",r.slot,c.job,c.address,p.source_hash,r.hop,r.wallet,r.anchor_key,r.checkpoint_hash,c.at,c.at.slice(0,10)+"T00:00:00.000Z",20,2,r.blockTime];}
 export function validateEvidenceCohortPlan(input){return normalizeCohortPublicationPlan(input,validateEvidenceTargetPlan);}
-export function validateEvidenceTargetPlan(input){return input?.kind==="candidate_cohorts"?validateEvidenceCohortPlan(input):input?.kind==="wallet_snapshot_cycle"?validateEvidenceWalletSnapshotPlan(input):input?.kind==="wallet_reader_recovery"?validateEvidenceWalletRecoveryPlan(input):input?.kind==="wallet_direct_cycle"?validateEvidenceWalletDirectPlan(input):input?.kind==="candidate_metadata"?validateEvidenceCandidateMetadataPlan(input):input?.kind==="wallet_cached_progress"?validateEvidenceWalletCachedPlan(input):input?.kind==="wallet_quota"?validateEvidenceWalletQuotaPlan(input):input?.kind==="wallet_cycle_control"?validateEvidenceWalletCyclePlan(input):input?.kind==="wallet_collection"?validateEvidenceWalletCollectionPlan(input):normalizedPlan(input);}
+export function validateEvidenceTargetPlan(input){return input?.kind==="wallet_cached_job"?validateEvidenceWalletJobPlan(input):input?.kind==="candidate_cohorts"?validateEvidenceCohortPlan(input):input?.kind==="wallet_snapshot_cycle"?validateEvidenceWalletSnapshotPlan(input):input?.kind==="wallet_reader_recovery"?validateEvidenceWalletRecoveryPlan(input):input?.kind==="wallet_direct_cycle"?validateEvidenceWalletDirectPlan(input):input?.kind==="candidate_metadata"?validateEvidenceCandidateMetadataPlan(input):input?.kind==="wallet_cached_progress"?validateEvidenceWalletCachedPlan(input):input?.kind==="wallet_quota"?validateEvidenceWalletQuotaPlan(input):input?.kind==="wallet_cycle_control"?validateEvidenceWalletCyclePlan(input):input?.kind==="wallet_collection"?validateEvidenceWalletCollectionPlan(input):normalizedPlan(input);}
+// Fixed, bounded ledger headers for known job IDs; never executes a plan.
+export async function readEvidenceJobPublicationRecords(options,grant,input){
+  options=structuredClone(options);grant=Grant.parse(grant);const ids=Id.array().min(1).max(28).parse(input);
+  if(new Set(ids).size!==ids.length)throw Error("wallet_job_record_identity");const {db,body}=await opened(options,true);
+  try{
+    db.exec("BEGIN");fenced(db,body,grant);const where=ids.map(()=>"?").join(","),sizes=db.prepare(`SELECT length(CAST(results_json AS BLOB)) AS bytes FROM tenx_append_publications WHERE publication_id IN (${where})`).all(...ids);
+    if(sizes.some(r=>!Number.isSafeInteger(r.bytes)||r.bytes<1||r.bytes>131072))throw Error("wallet_job_result_bound");
+    const records=db.prepare(`SELECT publication_id,plan_sha256,generation,owner,epoch,CAST(results_json AS BLOB) AS results FROM tenx_append_publications WHERE publication_id IN (${where}) ORDER BY publication_id`).all(...ids).map(row=>({publication_id:Id.parse(row.publication_id),plan_sha256:Hash.parse(row.plan_sha256),grant:Grant.parse({generation:row.generation,owner:row.owner,epoch:row.epoch}),results_sha256:createHash("sha256").update(row.results).digest("hex")}));
+    fenced(db,body,grant);db.exec("COMMIT");return {records,...inactive()};
+  }finally{if(db.isTransaction)db.exec("ROLLBACK");db.close();}
+}
 function metadata(db,table,hash){
   const fields=table==="tenx_holder_evidence"?["payload_hash","address","slot","observed_at"]:["payload_hash","address","observed_at"],row=db.prepare(`SELECT ${fields.map(c=>c==="slot"?c:`CAST(${c} AS BLOB) AS ${c}`).join(",")} FROM ${table} WHERE payload_hash=?`).get(hash);
   return row?Object.fromEntries(fields.map(c=>[c,c==="slot"?row[c]:new TextDecoder("utf-8",{fatal:true,ignoreBOM:true}).decode(row[c])])):null;
