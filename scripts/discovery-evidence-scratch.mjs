@@ -58,7 +58,12 @@ export async function withScratchEvidenceResolver(options,work){
       return recovered.row;
     };
     // Values returned by work are released only after the end-of-session pin checks.
-    const value=await work({sqlite:db,resolve,describe,capacity,statistics:()=>({...stats})});
+    const receiptIdentity=(table,key)=>{
+      if(!Object.hasOwn(names,table)||typeof key!=="string")throw Error("scratch_identity_unsupported");
+      const ref=expected.get(identity(table,key));if(!ref)return null;
+      describe(table,key);return Object.freeze({metadata:Object.freeze([...ref.entry.metadata]),bytes:ref.object.bytes,row_sha256:ref.entry.row_sha256});
+    };
+    const value=await work({sqlite:db,resolve,describe,receiptIdentity,capacity,statistics:()=>({...stats})});
     for(const [f,pin,max] of [[file,capacity.database.sha256,2*1024**3],[refFile,manifest.database.sha256,64*1024**2],[path.join(sealedFolder,"catalog.bin"),(await readSealedEnvelope(sealedFolder,sealedPin)).value.catalog.sha256,20*1024**2]]){
       const saved=await evidenceRegularFile(f,max);if(await hashFile(saved.file)!==pin)throw Error("scratch_frozen_input_changed");
       for(const suffix of ["-wal","-shm","-journal"]){try{await lstat(f+suffix);}catch(e){if(e.code==="ENOENT")continue;throw e;}throw Error("scratch_sidecar_changed");}

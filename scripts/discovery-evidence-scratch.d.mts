@@ -5,7 +5,8 @@ export type ScratchSession={
   sqlite:DatabaseSync;
   resolve(table:string,key:string):Promise<{payload_hash:string;address:string;observed_at:string;slot?:number;payload:string}>;
   describe(table:string,key:string):Readonly<{payload_hash:string;address:string;slot:number;observed_at:string;bytes:number}|{evidence_hash:string;address:string;observed_at:string;bytes:number}>;
-  capacity:{source_archive_manifest_sha256:string;source_database_sha256:string};
+  receiptIdentity(table:string,key:string):Readonly<{metadata:readonly (string|number)[];bytes:number;row_sha256:string}>|null;
+  capacity:{source_archive_manifest_sha256:string;source_database_sha256:string;capacity_manifest_sha256:string;reference_manifest_sha256:string};
   statistics():ScratchStatistics;
 };
 export function withScratchEvidenceResolver<T>(options:ScratchOptions,work:(reader:ScratchSession)=>Promise<T>):Promise<{

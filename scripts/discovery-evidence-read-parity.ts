@@ -6,7 +6,7 @@ import {fileURLToPath} from "node:url";
 import {createHash} from "node:crypto";
 import {verifyArchive,hashFile} from "./discovery-archive.mjs";
 import {evidencePrivatePath,evidenceRegularFile} from "./discovery-evidence-objects.mjs";
-import {withScratchEvidenceResolver} from "./discovery-evidence-scratch.mjs";
+import {withScratchEvidenceResolver,type ScratchSession} from "./discovery-evidence-scratch.mjs";
 import {scratchEvidenceReadStore} from "./lib/evidence-scratch-read-store";
 import {d1EvidenceReadStore,type EvidenceReadStore} from "../discovery/src/evidence-read-store";
 import {holderAcquisitionInputsFromStore} from "../discovery/src/holder-acquisition-store";
@@ -27,7 +27,7 @@ async function outcome(store:EvidenceReadStore,address:string,at:Date){
     return {state:"reviewed" as const,input_hash:await hashJson(inputs),history_hash:context.history.report_hash,acquisition_hash:context.report.report_hash,participation_hash:await hashJson(participation),trade_hash:await hashJson(trades),meaningful_growth_held:participation.meaningful_holder_growth_24h===null,organic_demand_held:!participation.organic_demand_certified};
   }catch(e){return{state:"held" as const,error_name:e instanceof Error?e.name:"unknown",error_sha256:sha(e instanceof Error?e.message:String(e))};}
 }
-export async function runEvidenceReadParity(args:string[]){
+export async function runEvidenceReadParity(args:string[],storeFactory:(reader:ScratchSession)=>EvidenceReadStore=scratchEvidenceReadStore){
   if(args.length!==9)throw Error("Usage: ARCHIVE ARCHIVE_PIN CAPACITY CAPACITY_PIN REFERENCES REFERENCE_PIN SEALED KEY NEW_PRIVATE_OUTPUT");
   const [archiveDirectory,archivePin,capacityDirectory,capacityPin,referenceDirectory,referencePin,sealedDirectory,keyFile,target]=args as [string,string,string,string,string,string,string,string,string];
   const source=await evidencePrivatePath(archiveDirectory),output=await evidencePrivatePath(target,true),root=await realpath(".tmp");
@@ -49,7 +49,7 @@ export async function runEvidenceReadParity(args:string[]){
         SELECT address,observed_at FROM tenx_holder_evidence UNION ALL SELECT address,observed_at FROM tenx_wallet_evidence)
         GROUP BY address ORDER BY address LIMIT 1001`).all();
       if(!cases.length||cases.length>1000)throw Error("read_parity_population_bound");
-      const ordinary=d1EvidenceReadStore(sqliteD1(sqlite)),compact=scratchEvidenceReadStore(reader),comparisons=[];
+      const ordinary=d1EvidenceReadStore(sqliteD1(sqlite)),compact=storeFactory(reader),comparisons=[];
       for(const item of cases){
         const address=String(item.address),cutoff=new Date(Date.parse(String(item.latest))+300000);
         if(!Number.isFinite(cutoff.getTime()))throw Error("read_parity_cutoff_invalid");
@@ -90,7 +90,7 @@ export async function runEvidenceReadParity(args:string[]){
     });
     if(network||sqlite.prepare("SELECT total_changes() AS n").get()!.n!==0||await hashFile(saved.file)!==archive.database.sha256)throw Error("read_parity_source_changed");
     await verifyArchive(source,archivePin);
-    const rows=result.value.cases,report={version:"discovery-evidence-read-parity-v2",source_archive_manifest_sha256:archivePin,capacity_manifest_sha256:capacityPin,reference_manifest_sha256:referencePin,
+    const rows=result.value.cases,report={version:"discovery-evidence-read-parity-v2",comparison_adapter:storeFactory===scratchEvidenceReadStore?"frozen":"injected_offline",source_archive_manifest_sha256:archivePin,capacity_manifest_sha256:capacityPin,reference_manifest_sha256:referencePin,
       selection:"all_retained_evidence_addresses_latest_receipt_plus_5m",cases:rows,reviewed:rows.filter(r=>r.state==="reviewed").length,held:rows.filter(r=>r.state==="held").length,
       receipt_comparisons:result.value.receipts,continuations:result.value.continuations,candidate_payload_column_present:result.value.candidate_payload_column_present,
       statistics:result.statistics,all_cases_identical:true,original_file_unchanged:true,provider_requests:0,database_writes:0,runtime_activated:false,operational_adoption_accepted:false,free_acceptance:false};

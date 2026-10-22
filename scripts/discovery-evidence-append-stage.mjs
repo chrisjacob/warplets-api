@@ -84,18 +84,23 @@ export async function createEvidenceAppendStage({target,keyFile,generation,sourc
     return {context_pin:pin,generation,...held()};
   }finally{key.fill(0);role.fill(0);}
 }
-async function verified(open,ticket){
+async function referenceAt(open,ticket){
   Ticket.parse(ticket);if(ticket.context_pin!==open.pin)throw Error("append_ticket_context_mismatch");
   const folder=await evidencePrivatePath(path.join(open.folder,"pending",ticket.stage_id)),bytes=await bounded(path.join(folder,"ready.json"),4096),ready=Ready.parse(JSON.parse(bytes.toString("utf8")));
   if(sha(bytes)!==ticket.ticket_sha256||ready.context_pin!==open.pin||ready.stage_id!==ticket.stage_id||ready.descriptor.bytes>MAX_DESCRIPTOR)throw Error("append_ready_mismatch");
-  const descriptorKey=derive(open.key,open.pin,ticket.stage_id,"descriptor"),payloadKey=derive(open.key,open.pin,ticket.stage_id,"payload");let plain,compressed;
+  const descriptorKey=derive(open.key,open.pin,ticket.stage_id,"descriptor");let plain;
   try{
     plain=unseal(await bounded(path.join(folder,"descriptor.bin"),MAX_DESCRIPTOR),descriptorKey,open.pin,ticket.stage_id,"descriptor",ready.descriptor);
-    const ref=canonicalEvidenceReference(JSON.parse(new TextDecoder("utf-8",{fatal:true}).decode(plain)));
+    return {folder,ref:canonicalEvidenceReference(JSON.parse(new TextDecoder("utf-8",{fatal:true}).decode(plain))),descriptor_bytes:ready.descriptor.bytes};
+  }finally{plain?.fill(0);descriptorKey.fill(0);}
+}
+async function verified(open,ticket){
+  const {folder,ref,descriptor_bytes}=await referenceAt(open,ticket),payloadKey=derive(open.key,open.pin,ticket.stage_id,"payload");let compressed;
+  try{
     compressed=unseal(await bounded(path.join(folder,"object.bin"),MAX_CIPHER),payloadKey,open.pin,ticket.stage_id,"payload",ref.sealed);
     const payload=decodeEvidenceBytes(compressed,ref.object),row=restoreEvidenceRow(ref.entry,payload);rowInput(ref.entry.table,row);
-    return {table:ref.entry.table,row,ciphertext_bytes:ref.sealed.bytes+ready.descriptor.bytes};
-  }finally{plain?.fill(0);compressed?.fill(0);descriptorKey.fill(0);payloadKey.fill(0);}
+    return {table:ref.entry.table,row,ciphertext_bytes:ref.sealed.bytes+descriptor_bytes};
+  }finally{compressed?.fill(0);payloadKey.fill(0);}
 }
 async function ticketAt(open,id){
   Id.parse(id);const folder=await evidencePrivatePath(path.join(open.folder,"pending",id)),bytes=await bounded(path.join(folder,"ready.json"),4096);
@@ -106,6 +111,9 @@ export async function readStagedEvidenceAppend(options,ticket){
 }
 export async function inspectEvidenceAppendStage(options){
   const open=await contextAt(options);try{return {context_pin:open.pin,...open.body,...held()};}finally{open.key.fill(0);}
+}
+export async function describeStagedEvidenceAppend(options,ticket){
+  const open=await contextAt(options);try{const {ref}=await referenceAt(open,ticket);return {table:ref.entry.table,metadata:ref.entry.metadata,bytes:ref.object.bytes,row_sha256:ref.entry.row_sha256,...held()};}finally{open.key.fill(0);}
 }
 export async function stageEvidenceAppend(options,{stageId,table,row:input}){
   Id.parse(stageId);const {row,raw}=rowInput(table,input);let open,payloadKey,descriptorKey,compressed,descriptorPlain;

@@ -92,6 +92,9 @@ jobs:
       - name: Isolated fenced metadata publication and acknowledgement recovery
         run: pnpm test:discovery-publication
 
+      - name: Unified private frozen and published evidence reads
+        run: pnpm test:discovery-publication-read
+
       - name: Install dependencies (app)
         working-directory: app
         run: pnpm install --frozen-lockfile

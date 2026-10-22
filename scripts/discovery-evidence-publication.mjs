@@ -58,12 +58,12 @@ export async function createEvidencePublicationTarget({target,source,stage,owner
   const body=admitted.value,pin=digest(body);await fs.writeFile(path.join(folder,"publication.json"),JSON.stringify({...body,target_pin:pin})+"\n",{flag:"wx",mode:0o600});
   return {target_pin:pin,grant:{generation:body.generation,owner,epoch:1},...inactive()};
 }
-async function opened(options){
+async function opened(options,readOnly=false){
   Hash.parse(options.targetPin);const folder=await evidencePrivatePath(options.directory),saved=await smallJson(path.join(folder,"publication.json")),{target_pin,...body}=saved;Header.parse(body);
   if(target_pin!==options.targetPin||digest(body)!==target_pin||body.context_pin!==options.stage.contextPin)throw Error("publication_target_pin_mismatch");
   const context=await inspectEvidenceAppendStage(options.stage);
   if(context.generation!==body.generation||context.source_archive_pin!==body.source_archive_pin||context.base_reference_pin!==body.base_reference_pin)throw Error("publication_stage_context_mismatch");
-  const file=await evidenceRegularFile(path.join(folder,FILE),MAX_DB),db=new DatabaseSync(file.file);
+  const file=await evidenceRegularFile(path.join(folder,FILE),MAX_DB),db=new DatabaseSync(file.file,{readOnly});
   try{db.exec("PRAGMA foreign_keys=ON; PRAGMA trusted_schema=OFF; PRAGMA busy_timeout=5000");if(db.prepare("PRAGMA journal_mode").get().journal_mode!=="delete"||digest(schema(db))!==body.schema_sha256)throw Error("publication_schema_changed");return {db,body};}catch(error){db.close();throw error;}
 }
 function fenced(db,body,grant){
@@ -133,4 +133,25 @@ export async function readPublishedEvidenceAppend(options,grant,table,hash){
   try{first.db.exec("BEGIN");fenced(first.db,first.body,grant);ref=first.db.prepare("SELECT row_sha256,ticket_json FROM tenx_append_references WHERE table_name=? AND payload_hash=?").get(table,hash);if(!ref)throw Error("publication_dynamic_reference_unavailable");first.db.exec("COMMIT");}finally{if(first.db.isTransaction)first.db.exec("ROLLBACK");first.db.close();}
   const verified=await readStagedEvidenceAppend(options.stage,JSON.parse(ref.ticket_json));if(verified.table!==table||verified.row.payload_hash!==hash||digest(verified.row)!==ref.row_sha256)throw Error("publication_read_reference_mismatch");
   const last=await opened(options);try{last.db.exec("BEGIN");fenced(last.db,last.body,grant);const current=last.db.prepare("SELECT row_sha256,ticket_json FROM tenx_append_references WHERE table_name=? AND payload_hash=?").get(table,hash),meta=metadata(last.db,table,hash),{payload:ignored,...expected}=verified.row;if(!isDeepStrictEqual({...current},{...ref})||!isDeepStrictEqual(meta,expected))throw Error("publication_read_changed");last.db.exec("COMMIT");return {table,row:verified.row,scratch_published:true,...inactive()};}finally{if(last.db.isTransaction)last.db.exec("ROLLBACK");last.db.close();}
+}
+// Bounded explicit selections for the offline shared-read adapter. No SQL proxy.
+export async function selectEvidencePublication(options,grant,input){
+  const Text=z.string().max(4096),Table=z.enum(["tenx_holder_evidence","tenx_wallet_evidence"]),request=z.discriminatedUnion("kind",[
+    z.object({kind:z.literal("index"),table:Table,address:Text,start:Text,cutoff:Text,baseline:Hash.array().max(97)}).strict(),
+    z.object({kind:z.literal("receipt"),table:Table,hash:Text,baseline:Hash.array().max(1)}).strict(),
+  ]).parse(input),{db,body}=await opened(options,true);
+  const selected=hash=>{
+    const meta=metadata(db,request.table,hash),base=db.prepare("SELECT row_sha256,bytes FROM tenx_append_base WHERE table_name=? AND payload_hash=?").get(request.table,hash),dynamic=db.prepare("SELECT row_sha256,bytes,ticket_json FROM tenx_append_references WHERE table_name=? AND payload_hash=?").get(request.table,hash),bound=dynamic??base;
+    if(!meta&&!bound)return null;
+    if(!meta||!bound||base&&dynamic)throw Error("publication_selected_reference_missing_or_overlapping");
+    const row_sha256=Hash.parse(bound.row_sha256),bytes=z.number().int().nonnegative().max(2000000).parse(bound.bytes);
+    return {meta,source:dynamic?"published":"base",bytes,row_sha256,ticket:dynamic?Ticket.parse(JSON.parse(dynamic.ticket_json)):null};
+  };
+  try{
+    db.exec("BEGIN");fenced(db,body,grant);
+    const baseline=request.baseline.map(hash=>{const row=selected(hash);if(!row||row.source!=="base")throw Error("publication_frozen_baseline_missing");return row;});
+    const hashes=request.kind==="receipt"?[request.hash]:db.prepare(`SELECT payload_hash FROM ${request.table} WHERE address=? AND observed_at>=? AND observed_at<=? ORDER BY ${request.table==="tenx_holder_evidence"?"observed_at,slot,payload_hash LIMIT 97":"observed_at DESC,payload_hash DESC LIMIT 2"}`).all(request.address,request.start,request.cutoff).map(r=>r.payload_hash);
+    const rows=hashes.map(selected).filter(row=>row!==null);db.exec("COMMIT");
+    return {context:{capacity_pin:body.capacity_pin,source_archive_pin:body.source_archive_pin,base_reference_pin:body.base_reference_pin},baseline,rows};
+  }finally{if(db.isTransaction)db.exec("ROLLBACK");db.close();}
 }
