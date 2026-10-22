@@ -5,6 +5,7 @@ import { normalizeAttention } from "../../../discovery/src/attention-feed-contra
 import { normalizeAttentionTraders } from "../../../discovery/src/attention-traders";
 import { AttentionActivityReview } from "../../../discovery/src/attention-activity-model";
 import { normalizeGmgnWalletActivity } from "../../../discovery/src/gmgn-wallet-activity";
+import { describeGmgnActivity } from "../../../discovery/src/gmgn-activity-shape";
 import { previewAttentionReviewImport,restoreAttentionReviews } from "./attention-review-import";
 import { ATTENTION_REVIEW_KEY, AttentionReviewLabels, REVIEW_BYTE_LIMIT, appendAttentionReview, captureAttentionReview, exportAttentionReviews,
   parseAttentionReviews, reviewDay, reviewHash, reviewHead, saveAttentionReview, AttentionReviewContext, type ReviewLabels } from "./attention-review-store";
@@ -65,10 +66,12 @@ it("preserves old v1 hashes without a trader field and freezes new samples throu
  queue.trader_reviews=[normalizeAttentionTraders("attention-traders-2026102214",{kind:"gmgn_token_traders",address:mint},{code:0,data:{list:[]}},at.toISOString())];
  queue.activity_reviews=[AttentionActivityReview.parse({chain:"solana",address:mint,request_id:"10000000-0000-4000-8000-000000000001",received_at:at.toISOString(),selection_received_at:at.toISOString(),response_identity:"token_echo_wallet_request_context",
   activity:normalizeGmgnWalletActivity({activities:[]},{address:mint,selection_id:"attention-traders-2026102214",selection_hash:"a".repeat(64)},at.toISOString())})];
- queue.activity_issues=[{chain:"solana",address:mint,request_id:"10000000-0000-4000-8000-000000000002",received_at:at.toISOString(),http_status:200,error:"source_collection_response_unusable",fields:["activities"]}];
+ queue.activity_issues=[{chain:"solana",address:mint,request_id:"10000000-0000-4000-8000-000000000002",received_at:at.toISOString(),http_status:200,error:"source_collection_response_unusable",fields:["activities"],shape:describeGmgnActivity({data:{activities:[{}]}})}];
  const captured=captureAttentionReview(queue,mint,"solana");queue.trader_reviews[0]!.sample.returned_rows=100;expect(captured.trader_review?.sample.returned_rows).toBe(0);
  queue.activity_reviews[0]!.activity.returned_events=20;expect(captured.activity_review?.activity.returned_events).toBe(0);
  queue.activity_issues[0]!.fields=[];expect(captured.activity_issue?.fields).toEqual(["activities"]);
+ queue.activity_issues[0]!.shape!.data_activities_count=10;expect(captured.activity_issue?.shape?.data_activities_count).toBe(1);
+ const legacy=structuredClone(captured);delete legacy.activity_issue!.shape;expect(await reviewHash(AttentionReviewContext.parse(legacy))).toBe(await reviewHash(legacy));expect(Object.hasOwn(AttentionReviewContext.parse(legacy).activity_issue!,"shape")).toBe(false);
  const next=await appendAttentionReview(old,captured,labels,at),raw=JSON.stringify(next);expect(await parseAttentionReviews(raw)).toEqual(next);expect(next.records[0]).toEqual(old.records[0]);
  const exported=JSON.stringify(await exportAttentionReviews({getItem:()=>raw,setItem:vi.fn()},at)),destination=storage(),preview=await previewAttentionReviewImport(destination,exported,at);
  expect((await restoreAttentionReviews(destination,exported,preview,at)).ledger).toEqual(next);expect(await parseAttentionReviews(destination.raw())).toEqual(next);

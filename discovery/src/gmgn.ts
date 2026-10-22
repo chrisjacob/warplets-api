@@ -140,6 +140,7 @@ export async function gmgnSavedReview(db: D1Database, id: string, cutoff?: strin
   return { replay: saved.replay, request_id: id, request: parsed.data, source_authenticity: saved.source_authenticity,
     received_at: receipt.received_at, http_status: receipt.status, error: receipt.error, validation_failure: receipt.validation_failure ?? null,
     ...(receipt.activity_validation_fields?{activity_validation_fields:receipt.activity_validation_fields}:{}),
+    ...(receipt.activity_validation_shape?{activity_validation_shape:receipt.activity_validation_shape}:{}),
     access_probe: receipt.access_probe, access_accepted: receipt.access_accepted,
     observation: receipt.error === null && receipt.response !== null ? normalizeGmgn(parsed.data, receipt.response, receipt.received_at, cutoff ?? receipt.received_at, undefined,
       receipt.semantic_validation === "gmgn_selected_fields_v1" ? "v1" : "v2") : null,
@@ -207,7 +208,7 @@ export async function gmgnPublicSummary(db: D1Database, rawAddress: string, now 
     AND json_extract(request,'$.kind')='gmgn_wallet_activity' AND state IN ('succeeded','failed')
     ORDER BY reserved_at DESC,id DESC LIMIT 1`).bind(address,new Date(now.getTime()-6*86_400_000).toISOString().slice(0,10)).first<{id:string}>();
   const lastActivitySaved=lastActivity?await gmgnSavedReview(db,lastActivity.id):null;
-  const activityIssue=lastActivitySaved&&"error"in lastActivitySaved&&lastActivitySaved.error?{received_at:lastActivitySaved.received_at,http_status:lastActivitySaved.http_status,error:lastActivitySaved.error,fields:lastActivitySaved.activity_validation_fields??[]}:null;
+  const activityIssue=lastActivitySaved&&"error"in lastActivitySaved&&lastActivitySaved.error?{received_at:lastActivitySaved.received_at,http_status:lastActivitySaved.http_status,error:lastActivitySaved.error,fields:lastActivitySaved.activity_validation_fields??[],...(lastActivitySaved.activity_validation_shape?{shape:lastActivitySaved.activity_validation_shape}:{})}:null;
   const dates = observations.map(v => v.received_at).sort();
   const gaps = [...new Set(observations.flatMap(v => v.gaps))];
   if (candles && !gaps.includes("candle_volume_units_unverified")) gaps.push("candle_volume_units_unverified");

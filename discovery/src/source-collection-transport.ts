@@ -8,6 +8,7 @@ import { normalizeGmgn } from "./gmgn-normalize";
 import { GMGN_USE_AUTHORITY } from "./gmgn-model";
 import { GmgnCandleError } from "./gmgn-candles";
 import {GmgnActivityError} from "./gmgn-wallet-activity";
+import {describeGmgnActivity,type GmgnActivityShapeResult} from "./gmgn-activity-shape";
 import { normalizeShortlist } from "./shortlist-query-contract";
 import { isAttentionRequest, normalizeAttention } from "./attention-feed-contract";
 
@@ -55,6 +56,7 @@ export async function executeReservedSource(db: D1Database, reservation: SourceR
   let accessProbe = false, accessAccepted = false, permissionReference: string | null = null;
   let validationFailure: GmgnCandleError["reason"] | GmgnActivityError["reason"] | null = null;
   let activityValidationFields:string[]=[];
+  let activityShape:GmgnActivityShapeResult|undefined;
   const shortlistDiagnostics: { value: { stage: string; data_array?: boolean; rank_array?: boolean; list_array?: boolean; application_success?: boolean; rank_rows?: number; failure_kind?: string; data_fields?: string[]; root_fields?: string[] } | null } = { value: null };
   const shortlist = row ? ["gmgn_market_rank", "geckoterminal_trending_list", "dexscreener_token_crosscheck"].includes(JSON.parse(row.request).kind) || isAttentionRequest(JSON.parse(row.request)) : false;
   const gmgnBackoff: { until: string | null } = { until: null };
@@ -111,7 +113,10 @@ export async function executeReservedSource(db: D1Database, reservation: SourceR
         // persist a body which could not be normalized or an unknown-mint default.
         if (isAttentionRequest(descriptor.request)) normalizeAttention(descriptor.request, body, clock().toISOString());
         else if (descriptor.request.kind === "gmgn_market_rank") normalizeShortlist(descriptor.request, body, clock().toISOString());
-        else normalizeGmgn(descriptor.request, body, clock().toISOString());
+        else if(descriptor.request.kind==="gmgn_wallet_activity"){
+          try{normalizeGmgn(descriptor.request,body,clock().toISOString());}
+          catch(cause){if(cause instanceof GmgnActivityError)activityShape=describeGmgnActivity(gmgnEnvelope(body),cause.checks);throw cause;}
+        }else normalizeGmgn(descriptor.request, body, clock().toISOString());
         accessAccepted = true;
         if (accessProbe) return null; // No token data or token-data hash retained.
       }
@@ -139,6 +144,7 @@ export async function executeReservedSource(db: D1Database, reservation: SourceR
     received_at: finished.toISOString(), status: response?.status ?? null, error, response: responseBody,
     ...(gmgn ? { access_probe: accessProbe, access_accepted: accessAccepted, research_permission_reference: permissionReference, validation_failure: validationFailure } : {}),
     ...(activityValidationFields.length?{activity_validation_fields:activityValidationFields}:{}),
+    ...(activityShape?{activity_validation_shape:activityShape}:{}),
     ...(shortlistDiagnostics.value ? { shortlist_diagnostic: shortlistDiagnostics.value } : {}),
     // HTTP receipt is not chain identity, provider signature or semantic validation.
     semantic_validation: accessAccepted ? "gmgn_selected_fields_v2" : "not_checked", canonical_pool_proof: "not_checked", scoring_effect: "none" };

@@ -65,6 +65,11 @@ it("does not turn an empty or rejected page into a passing sample or a retry all
   expect(await collectAttentionActivity(settings,{reason:"Repeated empty or invalid page"},fetcher,()=>later)).toMatchObject({reason:"activity_hour_already_reserved",provider_requests:0});expect(fetcher).toHaveBeenCalledTimes(1);
  }
 });
+it("replays bounded structural failure details without turning a misplaced page into event evidence",async()=>{
+ const{db,settings}=await setup(),marker="provider-private-cursor-not-exported";
+ expect(await collectAttentionActivity(settings,{reason:"Structural failure diagnostics"},async()=>Response.json({code:0,data:{data:{activities:[event()],next:marker}}}),()=>later)).toMatchObject({state:"failed",provider_requests:1,review:null,issue:{shape:{activities:"missing",data_activities:"array",data_activities_count:1}}});
+ const queue=await readAttentionQueue(db,later);expect(queue.activity_reviews).toEqual([]);expect(queue.activity_issues[0]?.shape).toMatchObject({activities_count:null,data_activities_count:1});expect(JSON.stringify(queue)).not.toContain(marker);
+});
 it("continues to a different fresh trader source after a failed leading-wallet review",async()=>{
  const second=key(32),{settings}=await setup([second]);await collectAttentionActivity(settings,{reason:"Failed first wallet"},async()=>Response.json({reset_at:later.getTime()/1000+300},{status:429}),()=>later);
  const hour=new Date(at.getTime()+3600000);await collectAttentionTraders(settings,{reason:"Next leading trader sample"},async()=>Response.json({code:0,data:{list:rows}}),()=>hour);

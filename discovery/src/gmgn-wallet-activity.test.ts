@@ -77,4 +77,27 @@ describe("GMGN single-wallet activity",()=>{
   const path=`http://localhost/api/10x/admin/gmgn/activity-target/${id}`;expect((await worker.fetch(new Request(path),env)).status).toBe(401);
   expect((await worker.fetch(new Request(path,{headers:{authorization:`Bearer ${env.TENX_ADMIN_TOKEN}`}}),env)).status).toBe(200);expect(calls).not.toHaveBeenCalled();
  });
+ it("retains only structural diagnostics for an unusable page and keeps the original validator closed",async()=>{
+  const{settings,sqlite}=await setup(),target=await gmgnActivityTarget(settings.db,id,later);if(target.state!=="ready")throw Error("target");
+  const marker="upstream-message-cursor-address-do-not-retain",operation=input(target.request),response={code:0,data:{data:{activities:[{...event(),symbol:marker}],next:marker},message:marker,[marker]:marker}};
+  expect(await runGmgnReview(settings,operation,async()=>Response.json(response),()=>later)).toMatchObject({state:"failed",provider_requests:1});
+  const row=sqlite.prepare("SELECT receipt FROM tenx_source_reservations WHERE id=?").get(operation.request_id)!;const receipt=JSON.parse(String(row.receipt));
+  expect(receipt).toMatchObject({error:"source_collection_response_unusable",response:null,access_accepted:false,semantic_validation:"not_checked",activity_validation_fields:["activities"],activity_validation_shape:{activities:"missing",activities_count:null,data:"object",data_activities:"array",data_activities_count:1,data_next:"string"}});
+  expect(String(row.receipt)).not.toContain(marker);expect((await gmgnPublicSummary(settings.db,address,later)).wallet_activity_issue?.shape).toEqual(receipt.activity_validation_shape);
+  expect((await gmgnSavedReview(settings.db,operation.request_id))).toMatchObject({activity_validation_shape:receipt.activity_validation_shape});
+  expect(await runGmgnReview(settings,operation,async()=>{throw Error("Must not retry");},()=>later)).toMatchObject({provider_requests:0});
+ });
+ it("does not retain structural diagnostics on credential echoes or provider HTTP errors",async()=>{
+  for(const kind of["echo","http"]){const{settings,sqlite}=await setup(),target=await gmgnActivityTarget(settings.db,id,later);if(target.state!=="ready")throw Error("target");
+   const operation=input(target.request);await runGmgnReview(settings,operation,async()=>Response.json({code:0,data:{activities:null},message:kind==="echo"?settings.apiKey:"untrusted"},{status:kind==="http"?429:200}),()=>later);
+   const row=sqlite.prepare("SELECT receipt FROM tenx_source_reservations WHERE id=?").get(operation.request_id)!;expect(JSON.parse(String(row.receipt)).activity_validation_shape).toBeUndefined();expect(String(row.receipt)).not.toContain(settings.apiKey);
+  }
+ });
+ it("classifies a row-level type refinement separately from a missing array without echoing values",async()=>{
+  const{settings,sqlite}=await setup(),target=await gmgnActivityTarget(settings.db,id,later);if(target.state!=="ready")throw Error("target");
+  const operation=input(target.request),row={...event(),event_type:undefined,type:undefined};
+  await runGmgnReview(settings,operation,async()=>Response.json({code:0,data:{activities:[row]}}),()=>later);
+  const receipt=JSON.parse(String(sqlite.prepare("SELECT receipt FROM tenx_source_reservations WHERE id=?").get(operation.request_id)!.receipt));
+  expect(receipt.activity_validation_shape).toMatchObject({activities:"array",activities_count:1,validation_checks:[{field:"activities",code:"custom",check:"event_type_missing_or_conflicting"}]});expect(receipt.response).toBeNull();
+ });
 });

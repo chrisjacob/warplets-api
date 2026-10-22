@@ -1,9 +1,10 @@
 import { attentionActivityFresh,type AttentionActivityResult,type AttentionActivityIssueResult } from "../../../discovery/src/attention-activity-model";
+import { GmgnActivityShapeDetails } from "./GmgnActivityShape";
 
 const money=(v:number|null)=>v===null?"Unknown":new Intl.NumberFormat("en-US",{style:"currency",currency:"USD",notation:"compact",maximumFractionDigits:2}).format(v);
 export function AttentionActivityDetails({chain,review,issue,asOf}:{chain:string;review:AttentionActivityResult|undefined;issue?:AttentionActivityIssueResult;asOf:string}) {
   if(chain!=="solana")return <p>Wallet-event review is not connected for this chain.</p>;
-  const held=issue&&<p>Wallet-event attempt held at {new Date(issue.received_at).toLocaleString()}: {issue.error.replaceAll("_"," ")}{issue.fields.length?` (${issue.fields.join(", ")})`:""}. No passing evidence; the hourly attempt remains spent.</p>;
+  const held=issue&&<><p>Wallet-event attempt held at {new Date(issue.received_at).toLocaleString()}: {issue.error.replaceAll("_"," ")}{issue.fields.length?` (${issue.fields.join(", ")})`:""}. No passing evidence; the hourly attempt remains spent.</p><GmgnActivityShapeDetails shape={issue.shape}/></>;
   if(!review)return <>{held}<p>{issue?"No accepted wallet-event sample.":"Wallet-event review pending · one-wallet hourly pilot."}</p></>;
   const a=review.activity,fresh=attentionActivityFresh(review,new Date(asOf));
   return <>{held}<details><summary>GMGN wallet events · {a.returned_events}/20 returned · {!fresh?"stale":a.review_reasons.length?"review cues":"sample saved"}</summary>

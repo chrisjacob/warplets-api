@@ -4,14 +4,15 @@ import { normalizeGmgn } from "./gmgn-normalize";
 import { replayGmgnActivityRecord } from "./gmgn-activity-replay";
 import { hashJson } from "./solana";
 import { AttentionActivityReview,AttentionActivityIssue } from "./attention-activity-model";
+import { GmgnActivityShape } from "./gmgn-activity-shape";
 
 type Saved={request:unknown;receipt:unknown};
 export function attentionActivityIssue(id:string,saved:Saved) {
   const request=GmgnRequestSchema.parse(saved.request);
   if(request.kind!=="gmgn_wallet_activity"||!/^attention-traders-\d{10}$/.test(request.selection_id))throw Error("attention_activity_scope_mismatch");
-  const receipt=z.object({received_at:z.iso.datetime(),status:z.number().nullable(),error:z.string(),activity_validation_fields:z.array(z.string()).optional()}).parse(saved.receipt);
+  const receipt=z.object({received_at:z.iso.datetime(),status:z.number().nullable(),error:z.string(),activity_validation_fields:z.array(z.string()).optional(),activity_validation_shape:GmgnActivityShape.optional()}).parse(saved.receipt);
   return AttentionActivityIssue.parse({chain:"solana",address:request.address,request_id:id,received_at:receipt.received_at,
-    http_status:receipt.status,error:receipt.error,fields:receipt.activity_validation_fields??[]});
+    http_status:receipt.status,error:receipt.error,fields:receipt.activity_validation_fields??[],...(receipt.activity_validation_shape?{shape:receipt.activity_validation_shape}:{})});
 }
 // Both receipts are hash-checked by the store before entry. Replay the complete
 // original selection too: wallet/mint/source tampering must never become data.

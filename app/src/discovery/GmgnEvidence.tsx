@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { GmgnPublicSummarySchema, type GmgnPublicSummary } from "../../../discovery/src/gmgn-model";
 import { getJson } from "./client";
 import{GmgnCorroboration}from"./GmgnCorroboration";
+import {GmgnActivityShapeDetails} from "./GmgnActivityShape";
 
 const usd = (value: number | null) => value === null ? "Unknown" : new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(value);
 const percent = (value: number | null) => value === null ? "Unknown" : `${(value * 100).toFixed(1)}%`;
@@ -47,6 +48,7 @@ export function GmgnEvidenceValues({ data }: { data: GmgnPublicSummary }) {
       <p>Shares use only the returned regular-wallet rows with both volume fields. Missing fields stay unknown; pool and unclassified rows earn no participation support. Buy-ranked selection misses other activity. Two-sided trading is ordinary behavior too: the smaller-leg sum does not match actual counterparties, prove round trips or establish wash trading. Wallet labels do not prove independent owners. No organic-volume or scoring credit.</p>
     </section>}
     {data.wallet_activity_issue&&<p role="status">Latest selected-wallet activity attempt held · {new Date(data.wallet_activity_issue.received_at).toLocaleString()} · {data.wallet_activity_issue.error.replaceAll("_"," ")}{data.wallet_activity_issue.fields.length?` · fields: ${data.wallet_activity_issue.fields.join(", ")}`:""}. Rejected data earns no credit.{data.wallet_activity?" The earlier saved sample remains visible with its own dates.":" No accepted activity sample is available."}</p>}
+    <GmgnActivityShapeDetails shape={data.wallet_activity_issue?.shape}/>
     {data.wallet_activity && <section aria-label="Selected wallet activity">
       <h3>Selected wallet trading activity</h3>
       <p>One wallet selected for the largest complete reported flow in a saved trader sample. This is a targeted investigation, not representative market coverage. Received {new Date(data.wallet_activity.received_at).toLocaleString()}.</p>

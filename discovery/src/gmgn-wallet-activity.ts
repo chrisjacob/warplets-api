@@ -1,6 +1,8 @@
 import {z} from "zod";
 import {Address,Signature} from "./model";
 import {GmgnTraderSourceId} from "./gmgn-receipt-id";
+import {GmgnActivityShape,GmgnActivityCheck,type GmgnActivityCheckResult} from "./gmgn-activity-shape";
+export const GMGN_ACTIVITY_EVENT_LIMIT=20;
 const NumberValue=z.union([z.number().finite(),z.string().max(100).regex(/^\d+(?:\.\d+)?$/).transform(Number)]).pipe(z.number().finite().nonnegative());
 const SignedValue=z.union([z.number().finite(),z.string().max(100).regex(/^-?\d+(?:\.\d+)?(?:[eE][+-]?\d{1,3})?$/).transform(Number)]).pipe(z.number().finite());
 const Cost=z.unknown().transform(value=>{
@@ -14,10 +16,10 @@ const EventType=z.enum(["buy","sell","transferIn","transferOut","add","remove"])
 const Event=z.object({tx_hash:Signature,token:z.object({address:Address}),event_type:EventType.optional(),type:EventType.optional(),
   timestamp:optional(NumberValue.pipe(z.number().int().safe())),token_amount:optional(NumberValue),cost_usd:Cost})
   .refine(v=>(v.event_type??v.type)!==undefined&&(!v.event_type||!v.type||v.event_type===v.type),"gmgn_activity_type_missing_or_conflicting");
-const Count=z.number().int().min(0).max(20),Amount=z.number().finite().nonnegative().nullable();
+const Count=z.number().int().min(0).max(GMGN_ACTIVITY_EVENT_LIMIT),Amount=z.number().finite().nonnegative().nullable();
 export class GmgnActivityError extends Error{
   readonly reason="activity_schema_invalid";
-  constructor(readonly fields:string[]){super("gmgn_activity_schema_invalid");}
+  constructor(readonly fields:string[],readonly checks:GmgnActivityCheckResult[]=[]){super("gmgn_activity_schema_invalid");}
 }
 export const GmgnWalletActivitySchema=z.object({version:z.literal("gmgn-wallet-activity-v1"),
   selection:z.literal("largest_complete_regular_wallet_flow_in_saved_trader_sample"),source_request_id:GmgnTraderSourceId,source_receipt_hash:z.string().regex(/^[a-f0-9]{64}$/),
@@ -33,13 +35,16 @@ export const GmgnWalletActivitySchema=z.object({version:z.literal("gmgn-wallet-a
 export type GmgnWalletActivity=z.infer<typeof GmgnWalletActivitySchema>;
 export const GmgnActivityIssueSchema=z.object({received_at:z.string().datetime(),http_status:z.number().int().min(100).max(599).nullable(),
   error:z.enum(["source_collection_timeout","source_collection_http_error","source_collection_response_unusable"]),
+  shape:GmgnActivityShape.optional(),
   fields:z.array(z.string().regex(/^(?:root|(?:activities|next|tx_hash|token|address|event_type|type|timestamp|token_amount|cost_usd)(?:\.(?:activities|next|tx_hash|token|address|event_type|type|timestamp|token_amount|cost_usd))*)$/)).max(12)}).strict();
 export function normalizeGmgnWalletActivity(raw:unknown,request:{address:string;selection_id:string;selection_hash:string},receivedAt:string){
-  const result=z.object({activities:z.array(Event).max(20),next:z.string().max(2000).nullable().optional()}).safeParse(raw);
+  const result=z.object({activities:z.array(Event).max(GMGN_ACTIVITY_EVENT_LIMIT),next:z.string().max(2000).nullable().optional()}).safeParse(raw);
   if(!result.success){
     const allowed=new Set(["activities","next","tx_hash","token","address","event_type","type","timestamp","token_amount","cost_usd"]);
     const fields=[...new Set(result.error.issues.map(issue=>issue.path.filter(part=>typeof part==="string"&&allowed.has(part)).join(".")||"root"))].slice(0,12);
-    throw new GmgnActivityError(fields);
+    const checks=result.error.issues.slice(0,12).map(issue=>GmgnActivityCheck.parse({field:issue.path.filter(part=>typeof part==="string"&&allowed.has(part)).join(".")||"root",
+      code:GmgnActivityCheck.shape.code.safeParse(issue.code).success?issue.code:"other",check:issue.code==="custom"&&issue.message==="gmgn_activity_type_missing_or_conflicting"?"event_type_missing_or_conflicting":"unspecified"}));
+    throw new GmgnActivityError(fields,checks);
   }
   const data=result.data;
   const events=data.activities.map(row=>({...row,kind:row.event_type??row.type!}));
