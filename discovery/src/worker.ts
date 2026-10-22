@@ -66,6 +66,7 @@ import { researchMode } from "./research-limits";
 import { holderHistory } from "./holder-history-store";
 import { HolderHistoryError } from "./holder-history";
 import { holderAcquisition } from "./holder-acquisition-store";
+import { attentionHolderRequest, attentionHolderParticipation } from "./attention-holder-participation";
 import { HolderAcquisitionError } from "./holder-acquisition";
 import{gmgnCorroboration,collectGmgnCorroboration}from"./gmgn-corroboration-store";
 import{gmgnEventSample}from"./gmgn-event-sample-store";
@@ -217,6 +218,12 @@ export async function handle(request: Request, env: Env): Promise<Response> {
   const quoteReview=path.match(/^\/api\/10x\/(admin\/)?gmgn\/quote\/([a-f0-9-]{36})$/i);
   if(method==="GET"&&quoteReview){const result=await gmgnQuote(env.TENX_DB,quoteReview[2]!);return result?json(quoteReview[1]?result:result.report):json({error:"accepted_activity_not_found"},404);}
   if(method==="GET"&&rpcComparison){const result=await gmgnCorroboration(env.TENX_DB,rpcComparison[2]!);return result?json(rpcComparison[1]?result:result.report):json({error:"accepted_activity_not_found"},404);}
+  const attentionHolders = path.match(/^\/api\/10x\/discovery\/attention\/holders\/solana\/([^/]+)$/);
+  if(method==="GET"&&attentionHolders){
+    const subject=attentionHolderRequest(attentionHolders[1]!,url.searchParams);
+    try{return json(await attentionHolderParticipation(env.TENX_DB,subject.address,subject.at));}
+    catch{return json({error:"saved_holder_participation_unavailable"},503);}
+  }
   const holderBuys = path.match(/^\/api\/10x\/(admin\/)?holders\/acquisition\/solana\/([^/]+)$/);
   if(method==="GET"&&holderBuys){const result=await holderAcquisition(env.TENX_DB,holderBuys[2]!);return json(holderBuys[1]?result:result.report);}
   const holderChanges = path.match(/^\/api\/10x\/(admin\/)?holders\/history\/solana\/([^/]+)$/);

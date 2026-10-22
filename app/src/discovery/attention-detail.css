@@ -12,3 +12,5 @@
 .tenx-attention-detail-metrics>div{border:1px solid #344c3c;border-radius:6px;padding:.6rem;min-width:0}
 .tenx-attention-detail-metrics dt{color:#adc6b5}.tenx-attention-detail-metrics dd{margin:.25rem 0 0;color:#e2ede6;font-weight:600}
 @media(max-width:480px){.tenx-attention-detail{padding:.75rem}.tenx-attention-detail-header{flex-direction:column}.tenx-attention-detail-header h3{font-size:1rem}}
+.tenx-attention-holders small{display:block;margin:.35rem 0}
+.tenx-attention-holders h5{font-size:inherit;margin:1rem 0 .4rem}
